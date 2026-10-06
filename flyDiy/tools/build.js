@@ -102,6 +102,9 @@ const MANIFEST = {
     // direct-to, DTK/XTK/DIS/ETE/CDI and VNAV; pure, read by the pilot's AP
     // box and by the panel to come.
     '38_nav.js',
+    // THE FLIGHT'S TO (G1945 DEST-TO): the bases, where the aeroplane is (the
+    // derived From), the To a picker offers and the pref's migration; pure.
+    '38b_dest.js',
     '39_ground_path.js',
     // THE SERVOS (G1570, review E4): the inner loops of all three pilots, one
     // module and one gain table (SERVO_GAINS); pure, read by 40_, 41_ and 43_.

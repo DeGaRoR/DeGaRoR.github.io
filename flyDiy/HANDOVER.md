@@ -77819,3 +77819,568 @@ the nose-overs, the nose-ins, the trunks, the mount; dmg_gates.log (DMGDRIVE and
    cheap if wanted (the obstacles' column grid, once a frame).
 6. **D4b**: the strike's look reads `strike` / `strikeAt.biteR` / `bladeLost`; the engine leaving is D1a's mount group. **D5**: the bill
    reads `teardown`, `internal`, `os`, `gearbox`, `strike`. **Sound**: `vib`, `tipMach`, `osPeak`, `failed` / `why`, `strikeAt.t`.
+
+## G1715-G1717 - SND-ROLLOUT: THE ROLL-OUT SHOT STARTS ITS ENGINES THE WAY THE AEROPLANE DOES - THE KEY, THE STARTER, THE CATCH, IDLE THROUGH THE CHECK, A LITTLE THROTTLE TO BREAK AWAY; THE SHED HEARS IT WHERE IT ROLLS; THE SHOT LENGTHENED BY ITS START; GATED (2026-10-05, SND-ROLLOUT for the Sound Coordinator, cloud, node only; branch claude/snd-rollout off origin/master 55dd98b7 = train 34; G1718-G1719 unused)
+
+The user, 2026-10-05: "There's an animation of the plane starting and rolling out of the hangar. This one needs sound too, using
+the same methods as the real aircraft would", and "I suspect the rollout animation does not leave enough time for a proper starting
+sound. If that's the case, you have the authority to adjust it to fit." It did not: the shot only wrote sim.out.rpm (the prop's
+spin), so the engine voice (audio_params: rpmEng, eng[i].running / crank / key) heard nothing. There was no start, and the
+spool was a 0.6 s curve.
+
+**G1715 THE START (rollanim.js).** A phase before the check (h.phase 'start' > 'check' > 'roll'; plan.start, plan.Ttotal = start
++ check + roll). Every engine is stopped at the first frame (the solver's own writer, setEngine key 'off'). The master and the key
+go on at 0.2 s (setEngine key 'both'), then silence until 0.6 s. Then each engine in turn:
+- **'starter'**: setEngine start with sim.starterOk lent as "the build has a starter". The crank is the solver's own 1.5 s,
+  counted down by burn()'s two lines (crank -= dt; at 0 it runs).
+- **'swing'**: genSystemsResolve(spec).starter false, a minimal-systems build; setEngine swing, the cockpit's hand on the prop. It
+  catches at once.
+- **'power'**: an electric motor; the cockpit's pack key, swing.
+- **A turboprop** cranks; its voice spools on its own.
+- **No engine**: no start (plan.start.n 0, nothing written; the shot as before).
+
+The next engine cranks 1.0 s after a catch; the check starts 0.8 s after the last one (an electric: 0.6 s after each power-on).
+sim.out.rpm / rpmEng / thrustPer come from the solver's laws at rest (genShaftRpm at V 0, sea level, as n^2 = nIdle^2 +
+(nFull^2 - nIdle^2) thr: exact, two calls at play, none a frame; Ti = thr x lever x Tstatic). They are 0 while it cranks, as
+the solver writes them. sim.ctl.thr is 0 through the start and the check. On the roll it rises to 0.14 over 0.3 s from the
+roll's start, before the aeroplane moves (hold0 0.35 s): +350 rpm on the A-65, 644 -> 992. It holds to 35 % of the roll and
+is back to 0 by 85 %. It moves in 0.02 steps with the linkage snapped on each, because a moving control re-poses and re-uploads
+the aeroplane every frame (poseModel: any link key > 1e-4; thr rides the linkage). That is ~14 re-poses in the roll, not ~170.
+THE DRAWN PROP turns at the rpm the engine's VOICE makes, not the solver's 0 while it cranks:
+- props' spinRate is written each frame (what poseModel spins them by; its 1.5 s ease toward out.rpm moves it ~1 % a frame);
+- for a piston, engine_worklet.js's own law, mirrored: the starter's envelope, the crank at cfg.crankRpm through each compression
+  (+-32 %: the stutter), the catch's surge 0.45 idle over 0.25-1.25 s, its taus, the run-down's friction;
+- for a turboprop or a motor, prop_worklet.js's Np / motor laws;
+- the numbers come from engine_config.js (ENGINE_SOUND: in the bundle with or without ?audio=0, so ?audio=0 changes nothing
+  visual).
+
+GATE ROLLSND holds the mirror against the worklet run offline on the shot's own timeline: within 6 % of idle (worst: Cub 31 rpm,
+Cessna 38, Rotax 126 of 1820). Allocation (GATE ROLLANIM, B a frame; base = train 34 measured the same way): the start 1.5, the
+roll 17.8 (base 17.5), the fixed roll 33.5 (base 33.5; a call into the pose write had cost +32 B, so the pose is written out
+in the roll tick, and written once at play for the start and the check), the check 81.5 (base 65.5: one more boxed double, inside
+its bound 64 + the linkage's snap 81). The frame writes a field only when it moved: ctl.thr on a step, the props' spinRate past
+1e-6 rad/s, and sim.out on a change. Writing every frame made the fixed roll box two more doubles now and then (65.5 B in 3 of 16
+runs of the gate, 8 at a time on 4 cores); with the guards it was 16 of 16 at 33.5, the same as the base.
+
+**WHAT THE WORLD EXPECTS AT THE CUT: THE STAND STARTS WITH THE ENGINE RUNNING.** fullReset -> sim.reset -> resetPanel puts every
+engine running / key both / crank 0; the first step writes the idle. So the shot hands over: `o.handover` (app.js's roll-out
+only). At the end or a skip, the engine fields are put back (equal to the stand's) and sim.out is left at the stand's idle
+(rpm / rpmEng at the law's idle, thrust 0). The voice idles across the cut: no gap, no second catch. A skip mid-crank lands on the
+stand with the engine running, so the voice hears one catch, at the cut. Without the handover (the solo shot `?rollanim=solo`
+and `FLYDIY_ROLLANIM`, which go back to the shed), and on EVERY cancel, every field the shot wrote is put back exactly as found:
+sim.eng key / crank / running, sim.out.rpm / rpmEng / thrustPer (a stale flight's included), sim.ctl.thr. There is no stuck
+starter, and the engine winds down to the shed's own state.
+
+**G1716 THE SPACE (space.js shotPose, app.js).** `AUDIO.space.shotPose` (Float64Array(5): on, the offset dx / dy / dz, the
+engines' share inside the shed) is handed to the shot by app.js (rollAnimPlay: `audioPose`, null with ?audio=0). The shot writes
+it at play (at rest) and every roll frame (the roll's own s and heave); it goes off at the end. While it is on, the shed is heard
+AS THE WORLD IS, not in the room mode (the group 8 m ahead): each engine group where it stands + the offset, through the same
+retarded solve, directivity, absorption, panner and lag as in flight, from the shot's camera (the listener; exterior). The
+aircraft's wet send into the shed's IR follows the share: 0.25 x (0.3 + 0.7 inside), in 2 % steps. The share falls from 1 to 0
+over 4 m across the door plane, at the engines' nodes, so the room thins as the engines leave by the opening. Ambience and
+music sends are unchanged.
+
+**G1717 GATES AND EVIDENCE.**
+- **GATE ROLLSND** (tools/_rollsnd_check.js, registered core, ~100 s):
+  - ORDER, on the Cub, the Jodel, the Cessna, the twin-582 and a PT6: stopped at the first frame; the key before the crank and
+    >= 0.4 s of silence; the crank for the solver's own time (setEngine measured on makeSim) ending in its catch; one catch per
+    engine; sim.out on the solver's laws every frame; the check at idle; the throttle 0.10-0.20 leading the roll and back to 0.
+  - TURN: a twin's engine 1 cranks after engine 0 caught, never two at once.
+  - KINDS: the electric never cranks, the swing never cranks, no engine writes nothing.
+  - VISUAL: the drawn crank within 25 % of the voice's, a flare >= 1.2 idle, idle by the check's end, and the worklet comparison.
+  - RESTORE: 7 endings x handover x a stale flight rpm.
+  - SPACE: space.js on a stub graph, the distance exact at three poses, the wet send, the room mode back.
+  - WIRING. 20 mutations, all red.
+- **GATE ROLLANIM** updated: the start rows, the props at idle once started, and a START allocation row (1.5 B / frame); its
+  allocation runs pass an audioPose as the page does.
+- **GATE AUDIO SP_BUDGET** gains the shot's sample (a fresh process, the shed, the pose rolling the aeroplane by the door): 17.6 B
+  a frame against the shed's own room mode in the same process (7.3 B, before this work: the shed's 1 Hz IR poll and the
+  airframe's shed path), 0 GC, 31 us. It is held to the shed's + 16 B a frame. The SP_IR mutation's anchor follows wet().
+- **Evidence**: reports/evidence/SND-ROLLOUT/: four renders (.ogg + spectrogram) by tools/audio/rollout_render.js (the shot
+  played in node, its fields per frame into the real engine + prop worklets, the space from the shot's camera, the club shed's
+  IR), summary.json (the marks), and the README (what to listen for, second by second; the red flags).
+- **Box script**: tools/perf/rollout_sound_evidence.js records THE REAL PAGE. Real clicks; AUDIO.bus('master') tapped into a
+  MediaRecorder; Roll out pressed; the shot, the cut and 4 s of the stand recorded; the shot's fields logged every frame.
+  --solo plays the shot alone.
+
+**THE SHOT'S NEW LENGTH (A0's strict gate: its roll-out rows time the shot; this is length, not load).** The start and the check
+are fixed. The roll is G1115's front shot, unchanged (it depends on the room and the framing; below: the club shed, the garage's
+own framing, GATE ROLLSND's rig):
+
+| build | start | check | roll | total (was) |
+|---|---|---|---|---|
+| the user's Cub (A-65) | 2.90 s | 3.30 s | 5.59 s | **11.79 s** (8.89) |
+| the Jodel D112 (A-65) | 2.90 s | 3.30 s | 5.43 s | **11.63 s** (8.73) |
+| the Cessna 172 (flat four 5.9 L) | 2.90 s | 3.30 s | 5.71 s | **11.91 s** (9.01) |
+| the twin-582 (two Rotax 582) | 5.40 s | 3.30 s | 5.59 s | **14.29 s** (8.89) |
+
+The other kinds: an electric 1.2 s of start (0.6 lead + 0.6 per motor), a turboprop 2.9 s, no engine 0 s.
+FRAMECOST's `boot/rollout:click/` row spans the shot (a waiver row): ~175 more shed frames on a single, ~325 on a twin. They are
+the start's frames: the aeroplane at rest, no surface moving, no re-pose. The app's 30 s timeout still covers a twin with the
+longest roll (5.4 + 3.3 + 5.85 = 14.6 s).
+
+**GATES** (this branch's head): run_gates ROLLANIM, ROLLSND (20/20), UISMOKE, BUILD - BATTERY PASS; AUDIO PASS and AUDIOENG
+PASS on the same audio sources (AUDIO alone, 6 min: in a 4-job battery EMITALLOC went red once on a starved sample - emitters.js,
+untouched here, green alone; the last commits touch rollanim.js only, which neither reads). The
+runner's rebuilt built files are restored: none is in this branch. Physics untouched (no src/core file).
+
+**HOT FILES for A0's trains:** src/viewer/rollanim.js (the start, the engines, the restore, the pose), src/viewer/app.js
+(rollAnimPlay: `handover`, `audioPose`; rollAnim's call: `, true`: 4 lines), src/viewer/audio/space.js (shotPose: 9 lines),
+tools/_rollanim_check.js, tools/audio/_audio_check.js (SP_BUDGET's shot sample, one anchor), tools/run_gates.js (ROLLSND).
+New: tools/_rollsnd_check.js, tools/audio/rollout_render.js, tools/perf/rollout_sound_evidence.js, reports/evidence/SND-ROLLOUT/.
+
+**FOR THE COORDINATOR:**
+1. NOT YET HEARD ON THE REAL PAGE: run the box script, listen with headphones, and read the README's list.
+2. A pre-existing issue, found on the way (not fixed: not this brief): sim.reset() does not clear sim.out.rpm / rpmEng. After a
+   flight the shed keeps the flight's last rpm with every engine "running" (resetPanel), so in the shed the engine voice would go
+   on at that rpm, and poseModel spins the prop at it (both `running` in the garage). Shown in node: Cub 644 rpm left after
+   reset. The shot handles it (the start stops everything first; a cancel puts it back as found). The shed's own state wants a
+   ruling: clear sim.out's rpm on enterGarage, or have audio_params read the shed's engines as stopped.
+3. SND-TUNE knobs: S.startLead / crankS (the solver's, 1.5 s) / catchNext / catchCheck / rollThr (0.14) / thrHold / thrDown, and
+   space.js WET_OUT (0.3).
+4. No tyre or floor sound on the roll: the airframe voice reads the solver's V (0 in a kinematic shot). A ground-roll layer for
+   the shot would be SND-AIRFRAME's.
+
+
+## G1527 POTATO-DEEP: THE USER'S GTX 660 LOG ON TRAIN 34 - THE PAGING IS GONE, THE TAXI IS TRIANGLES; THE PREMISES PATCH AT 3 px ON POTATO / LAPTOP (2026-10-05, POTATO-DEEP for A0, node only - the box's GPU busy)
+
+The user's run ("very successful"): C:/Users/denis/Downloads/flydiy-flightlog-20261005T190342-616j.json - build c8f3b024
+(train 34), GTX 660, potato (plain ground, terrain 6, pv 8), 1920 x 911 at 0.67. Cruise 795 s at an even 30 (92 % of frames
+20-40 ms, GPU 29.4 ms, 2.28 M tris); shed 30 (GPU 26.9, 1 967 draws); stand 30 (GPU 32.0, 2.45 M); TAXI the weak phase: 180 s,
+p50 33.6 but 43 % of frames 40-60 ms, GPU 40.8 ms a frame at 4.18 M tris / 733 draws (6.1 M / 930 in its first seconds);
+take-off 38.5 / 3.28 M, approach 39.7 / 3.72 M. Cold garage load 69.7 s (was 141 s on train 27; world 11.6, settle 10.6,
+worldCompile 11.0, upload 9.3, bake 1 ms). One uncaught error (convSeed null.base, 09_climate.js:482) - A0 fixed it on train 36.
+THE CARD'S COST MODEL, off the phases (GPU ms vs triangles: cruise 29.4 @ 2.28 M, stand 32.0 @ 2.45, landing 35.0 @ 3.26,
+take-off 38.5 @ 3.28, taxi 40.8 @ 4.18): **~16 ms fixed + ~6 ms per million triangles**. The world's GPU time FOLLOWS the
+triangles now - the paging signature (flat 440-580 ms at any count) is gone. An even 30 at the taxi wants ~2.8 M (-1.4 M).
+WHAT THE POTATO TAXI DRAWS (FRAMECOST's census, the Cub, potato, the taxi pin; new: FRAMECOST_WHAT tallies the main pass's
+triangles by the drawn object's named path - tools/_framecost_check.js drawnDetail `tris`, stderr / JSON detail only, never
+in the verdict): the PREMISES GROUND PATCH 780 k (it was cut at gamer's 1 px error), the far terrain 768 k (already 6 px), the
+Standard meshes 535 k (the fine disc's tiles, the sheds, the props), the impostor cards 381 k, the roads 210 k, the tram 143 k,
+the pavement 88 k, the ring 64 k, the crew 55 k.
+**SHIPPED: GFX.BUDGETS potato / laptop `patchTolPx: 3`** (render_premises PL.tolPx, read at the build; desktop rows untouched -
+GATE GFX §10): the patch 780 k -> 431 k at the taxi, 827 k -> 424 k at the stand; the frame 4.13 -> 3.78 M (-8.4 %), ~-2 ms on
+the 660 by the model. Measured 2 px (-141 k) and 6 px (-555 k) too. NOT 6: the ground under a pavement is sunk 0.8 m (G660,
+"twice the worst LOD error" at 1 px); at 6 px a level's error can reach 0.8 m from ~155 m out (3 px: ~310 m, and the graded
+strips are flat) - the coarse patch could show through a far runway. GATE PREMISES PASS.
+THE NEXT POTATO LEVERS FOR THE TAXI, ranked by triangles (each wants a GPU still before it ships):
+1. the patch at 6 px WITH the sink scaled to it (PAVEMENT.SINK x tolPx under the opaque interior only - the wheels read
+   terrainH, not the mesh): -207 k more; look at the runways from 300 m-2 km before landing it.
+2. the far terrain (768 k at 6 px): a potato draw-distance cap (WORLD.vis's far plane at ~12-15 km on potato) - the ridges
+   past it are a few pixels at 1286 x 610; estimate -300..-500 k.
+3. the impostor cards (381 k): forestK 0.65 -> 0.5 (the laptop's) - the cards go as the reach's square: ~-150 k.
+4. the tram (143 k) and the roads' merged mesh (210 k): the tram hidden on potato, the roads' far batches decimated.
+Together ~-0.8..-1.0 M: the taxi near 33 ms on the 660 by the model. The animals switch (53 MB) and the town's house
+textures stay owed (memory, not the taxi's GPU).
+**G1527 READY - THE DISTANT-RUNWAY STILL (A0's untimed window, 22:13-22:17, the box's GPU, potato, the default Cub at HOME's
+stand, paused; `?patchtol=1` vs `?patchtol=3` in one build, tools/perf/potato_census.js --orbits, 4 headings x 400 m and
+1 200 m at 5 deg):** `reports/evidence/POTATO-DEEP/g1527_runways_400m_patch1px_vs_3px.jpg`,
+`g1527_runways_1200m_patch1px_vs_3px.jpg` (left 1 px, right 3 px) and `g1527_runways_diff_x4.jpg` (the difference x4). No
+ground shows through any runway, taxiway or far strip at either range; 0.14-0.94 % of the pixels differ by more than 40/255,
+all of them trees (the impostors' dither and sway, different run to run) and the pavement's joint lines at a sub-pixel
+camera offset - none in the shape of the ground. The stand's frame 4.23 -> 3.84 M triangles in the same runs.
+
+## G1930-G1934 FLOAT-SHAPE - THE WIPLINE AFTERBODY: A STRAIGHT KEEL ON AN 8 DEG STERNPOST, THE DECK HELD TO THE AFT SPREADER BAR, A STERN HALF THE BEAM; THE FIT TAKES ITS VOLUME FROM THE FOREBODY; GATE WIPLINE MEASURES THE REFERENCE (2026-10-05, cloud - node + SwiftShader, no GPU; branch claude/float-shape-g1930 off origin/master 55dd98b7 = train 34)
+
+The user (5 Oct): "the shape of the Cessna floats seems a little off. The back part is really thin. Can you check
+that? It had the objective to model the range of Wipaire, but the current one seems slightly off."
+
+**G1930 THE CHECK (tools/_float_gen.js REF / measure / check).** No Wipaire lines drawing was reachable (wipaire.com,
+manualslib, manualzz, ntrs.nasa.gov, dtic.mil, the Elsevier book site: all denied by the cloud environment's network
+policy; search snippets only). The reference is tagged by kind: CAT (the catalogue rows, measured - L / hull width /
+hull height / maximum flotation; the 2350 2,570 lb displacement, 2,855 lb max flotation, the 3450's page the same
+way, so `flot` stays the fit target), RULE (the sternpost angle 7-9 deg on a straight afterbody keel - NACA tank
+practice via Gudmundsson App. C3 / USNA EN486; the step at 0.55 L - G451's p. 97 reading) and INF (inferred from
+photographs and the parts manual's rigging: the deck held to the aft spreader bar, a stern 0.45-0.65 of the beam and
+>= 0.25 of the step's depth, the mid-afterbody section >= 0.45 of the step's, the afterbody 30-45 % of the volume).
+The 2350 before: mid-afterbody section 0.39 of the step's, the stern 0.22 deep and 0.56 wide, an 8.7 deg sternpost
+on a curved keel (dev 0.05 H), the afterbody 28 % of the volume; 14 of the 15 rows broke the sternpost rule (9.5-10.3
+deg on the big rows), every row broke the inferred fullness. Three causes: the plan tapered from the step itself
+(u^1.15), the keel's up-curve (aftCurve), and the fineness fit taking the catalogue's excess volume OFF THE STERN
+(it raised / curved the keel and narrowed the transom with f: the 8750's stern was 0.34 of the beam, 0.19 deep).
+
+**G1931 THE FIX (src/core/32_hydro.js - sectionOf's afterbody, DEF, WIPLINE_AFT, fineParams, presetParams).**
+- sectionOf: the afterbody plan holds the step's beam over `aftHold` of its length, then closes to bStern as
+  ((u - aftHold) / (1 - aftHold))^`aftPow`. DEF keeps aftHold 0 / aftPow 1.15 = the old law, BIT FOR BIT (DEF's
+  volume, floatParamsFor's twin, every section identical to master): the H0 float and every aeroplane sized by its
+  gross keep what they were calibrated on. A record without the keys (saved before G1930) takes DEF's: unchanged.
+- `WIPLINE_AFT` = { aftAngle 5.9, aftCurve 0, aftHold 0.20, aftPow 2, bStern 0.50 } on every catalogue row
+  (presetParams): a straight keel on an 8.0 deg sternpost (tan 8 = tan 5.9 + hs / LA), the deck parallel to the aft
+  spreader bar, a stern half the beam.
+- fineParams: the afterbody is OUT of the fit (no aftAngle / aftCurve / bStern terms); the finer branch is the bow
+  plan (planK - 2.6 f, floor 1.2), the rocker (flatK - 0.3 f, floor 0.2) and the V at 12 deg per unit (was 20). Every
+  row on its flotation (0.0 %), f -0.7..1 not hit: 1450 0.40, 2100 0.22, 2350 0.09, 3000 0.99, 8750 0.98.
+  The 2350: deadrise 23.1 / 18.6 (was 20.6 / 17.1 at f -0.23), planK 3.76 (4.93), flatK 0.47 (0.57). The 8750:
+  33.7 / 23.9 (34.8 / 24.4).
+- FLOAT_SPEC_KEYS + aftHold, aftPow (the join carries them; 60_gen_spec clamps aftHold 0-0.6, aftPow 1-3, and fineK
+  now -0.7..1 - it clamped a fuller row's negative fineness to 0; fineK is a label, nothing reads it).
+- tools/_cage_float.js hullParams: the garage's float wears WIPLINE_AFT's plan law (the keel and bStern are rows).
+- 32_hydro TOUCHED FOR A0 (DMG-HULL / DMG-PLOUGH also edit it): DEF gains two keys (aftHold, aftPow) after aftCurve;
+  sectionOf's afterbody plan line (one line -> four); WIPLINE_AFT + its comment before fineParams; fineParams' body;
+  presetParams' P0 line (Object.assign WIPLINE_AFT); FLOAT_SPEC_KEYS (+2); the API (+WIPLINE_AFT). Nothing in the
+  force law, the panels, the clipper or the sub-rate.
+- After: the 2350's mid-afterbody 0.49 of the step section, the stern 0.29 deep (0.155 m, was 0.118) and 0.54 wide,
+  the deck 0.740 m wide to u 0.2 (was 0.689), the afterbody 32 % of the volume; every row inside the reference.
+
+**G1932 GATE WIPLINE REFERENCE.** A new section: every row against FLOAT_GEN.REF (step 0.52-0.58 L, sternpost 7-9 deg,
+keel off its chord <= 0.01 H, stern >= 0.25 deep and 0.45-0.65 wide, the deck >= 0.97 at the aft bar, mid-afterbody
+>= 0.45, afterbody 30-45 %), and the 2350's station table printed. The FIXTURE (the 172 on 2350s) re-picked to the
+G1930 preset (its cage rows and joined record: the rows the starter writes). Its trim floor -1 deg, from 0.5: the
+fuller afterbody puts the centre of buoyancy 0.13 m further aft (1.08 -> 0.95 m ahead of the step at the rest draft)
+and the 172 floats decks-level (-0.12 deg; +0.79 on master).
+
+**G1933 THE EVIDENCE (reports/evidence/FLOAT-SHAPE/, README there).** `Wipline{2350,8750,2100}_lines.{svg,png}` -
+tools/float_shape_drawing.js, the orthographic drawing (profile, plan, afterbody sections, area per station; before
+dashed, after solid, the reference magenta); before/ after/ - tools/float_shape_shots.js on the bench
+(tools/_float.html gained `?ref=1` / a "reference" checkbox drawing FLOAT_GEN.outline + the verdicts, and three
+cameras: profile, top, aft - "#view" is both a select and a div on that page: screenshot `div#view`); game/ -
+tools/soft_still.js, the 172 fixture on the stand before / after; numbers_{before,after}.json -
+tools/float_shape_numbers.js (displacement, settle, hump, step, lift-off; `--core <tree>/flyDiy/tools/flight_core.js`
+reads THAT tree's fixtures).
+
+**G1934 THE HYDRO NUMBERS.** Only the 172 on 2350s moves; the twin (GATE FLOATS / SEAPLANE) and the user's custom
+Cessna (bugReports/cessnaFloatsWOrks.json - pre-G451 rows, no preset) are identical to master in every number.
+The 172 on 2350s, before -> after: pair displacement 2590 -> 2590 kg; draft at the step 0.320 -> 0.318 m; trim at rest
++0.79 -> -0.12 deg; hump R/W 0.243 at 7.9 m/s -> 0.250 at 8.9 m/s; on the step 13.3 s / 111 m -> 13.1 s / 111 m;
+lift-off 35.8 s / 714 m / 38.1 m/s -> 33.8 s / 654 m / 37.7 m/s. SEAPLANE's crosswind take-off flown on the 172 (not a
+gate): 21.1 s, swing 12.5 deg, 4 skips -> 21.3 s, 11.0 deg, 3 skips (the skip bound of 2 is the twin's; master fails
+it too); taxi 10.2 -> 10.3 deg. HYDRODYN's cost row 8.15 -> 8.47 ms a water step (1.22 -> 1.25 x dry: noise - the hull
+has the same panels; drawn 5910 tris against 5914). No frame cost.
+
+TRIED AND DROPPED: the Wipline afterbody on DEF too - the twin's floats got a deeper, fuller stern (more lateral area
+aft) and SEAPLANE's crosswind take-off weathercocked 180 deg and never left the water (master swings 28 deg against
+a bound of 30: no margin). A level deck at the catalogue's 0.58 m (no sheer): the fit then puts the 2350 on a 30.8
+deg V and the 8750 cannot reach its flotation (4978 kg against 4405) - under this family the catalogue argues for
+G451's overall-height reading.
+
+GATES: WIPLINE (+ REFERENCE), FLOATS, HYDRODYN, WATER, SEAPLANE PASS. THE CORE BATTERY (node tools/run_gates.js,
+jobs 4, 155 jobs / 148 gates, wall 4291 s): 143 PASS, 5 red, each re-run alone against master's worktree on
+the idle box: BIOME (surface perf < 5 us) and SETTLE (bake budget) are timing budgets missed under the battery's
+load and an in-game still beside it - both PASS alone on this branch; ROUNDTRIP (the cessna's boot, exit null under
+load) PASS alone (878 s; master 757 s); INSTANT times out at 1800 s on master too (this 4-core box); FRAMECOST (24:
+cub / cessna stand + taxi draws.main 914 -> 1046, shadow 169.5 -> 259.5, uniforms x2, boot bufferData 0 -> 768) is THE
+STALE PARKED COOK - parked_cook.js --check: manifest c8f3b024a774, this tree 56071d1d5779, STALE (every key
+captured live), the same 24 rises other sessions measured on a one-comment control; master PASSES (45 admitted). A0's
+re-cook on the train's build clears it; the float hulls cost nothing a frame (same panels, same tris).
+
+FOR A0: (1) generated outputs NOT committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json). (2) A
+build saved on a preset before G1930 keeps its rows (the starter applies once); re-picking the 2350 in the float page
+gives it the new lines. Any saved Wipline float opened in the garage takes the held plan on its next join (its own
+keel / stern rows kept). (3) OPEN for the user: the deck height (the catalogue's 0.58 m read as the bow's overall
+height, the deck aft at 0.527 m) and a Wipaire lines drawing against the INF rules - a session that can reach
+wipaire.com (the service manual P/N 1002549, the parts manual's p. 97 profile).
+
+
+## G1945-G1954 - DEST-TO: ONE "TO" - THE FROM IS WHERE THE AEROPLANE IS, A NEW DESTINATION IS THE AUTOPILOT'S, NEVER A RESET; A BASE TO START FROM (2026-10-05, DEST-TO for A0, cloud - node + SwiftShader, no GPU; branch claude/dest-to-g1945 off origin/master 55dd98b7 = train 34; G1950-G1954 unused)
+
+The user (5 Oct): "I'm landing at an airport. I'd want the plane to take off from that very airport, to a new
+destination. I can't do that now, it will always reset the plane to the default starting location. It needs to start
+from where it is. Actually we could gradually drop the FROM-TO in favour of a simple 'To', which can be updated in flight
+or on the ground. The plane reacts like its autopilot's destination has been updated. Right now our original location is
+always the WWII hangar, so easy, but in the future we'll have a few bases out of which we will be able to spawn airplanes."
+
+**WHAT WAS THERE.** W14's chain (a destination picked while STOPPED made a fresh pilot `departFrom(ap.route.to, dest)`)
+and G700's `Fly on` (the same chain) already flew on in place - but only STOPPED, and with the From taken as the last
+leg's TO (a landing the pilot diverted - a forced landing, the wrong-surface fallback - or a stop by hand somewhere else
+departed from a field it was not on). Every other change reset: the From select (`fullReset`), a destination changed in flight or on the stand (`fullReset`, back to the hangar).
+
+**G1945 THE MODEL** (`src/core/38b_dest.js`, new, pure, in MANIFEST.core after 38_nav and in 90_node_exports):
+- `FLIGHT_BASES` / `FLIGHT_BASE_DEFAULT` / `flightBases(world)` / `flightBase(world, id)` - a base = an aerodrome id +
+  the words a picker shows (its site, 25_airfield.js, is the hangar / stand set). One today: HOME, "Home base · the WWII
+  hangar". A second base is a row here (+ its site's stand); the pickers grow a base select at two.
+- `flightWhere(world, x, z, {air})` - THE DERIVED FROM: `airborne` | `runway` | `water` (a lane) | `stand` (25 m of a
+  site's stand) | `apron` (450 m of the strip: apron, taxiways, the grass beside) | `out`; with the aerodrome it is about.
+  `flightCanDepart(where)`: on an aerodrome, not in the air, not `out`.
+- `flightToChoices(world, gear)` - the To picker's rows: '⟳ Circuit' (the field the aeroplane is at), then every
+  non-meadow aerodrome with its surface word, disabled with its reason where STRIP-SURFACE's `stripAllows` says no.
+- `flightToRecord(world, gear, toId, here)` / `flightLeg(world, gear, x, z, toId, {air, legFrom})` - the leg a To asks for
+  from here: From = the aerodrome under the aeroplane (in the air: the leg's From, so a Circuit picked in flight goes
+  back), To = the record (a lane asked of wheels, or an id the world lacks, falls back to the circuit here, `why` says).
+- `flightRouteMigrate(saved)` - the pref `flydiy.route` v1 `{ from, dest }` -> v2 `{ v: 2, base, to, spawn? }`.
+
+**G1946 THE PILOT'S DESTINATION** (`43_pilot.js`, for PILOT-ONE's merge - the plan / destination interface only, no
+control law, no take-off):
+- NEW `ap.setDest(to)` (after `ap.departFrom`), with `ap.nextTo`, the closure flags `replanReq` / `replanning` and the
+  lists `DEST_KEPT` / `DEST_REPLAN`. Returns `kept` (DEPART..CLIMB, GOAROUND, BOX: `ap.route.to` / `ap.xc` / the budget
+  moved, the arrival planned from it when the climb hands over; after a go-around its first leg is re-planned),
+  `replan` (CROSSWIND, DOWNWIND, BASE, ENROUTE, INBOUND, FINAL), `queued` (FLARE, ROLLOUT, GLIDE, STOPPED: NOTHING moves -
+  FLARE / ROLLOUT read `ap.route.to` for the runway they land on - the To kept in `ap.nextTo` for the page to chain),
+  `same`, `none`. It says `new-destination` in the verdicts.
+- NEW hook in `ap.update`, just before `const phRun = ap.phase` (ahead of the phase switch): `replanReq` on a leg phase,
+  airborne, box off -> `go(planFromHere())` with `replanning` set, `ap.holdDir` = the track flown, `committed` /
+  `slopeCaptured` / `finalLevel` / `heldOut` / `escapeHdg` cleared.
+- `planFromHere` (two conditions): `if (ap.xc || replanning) u = dirAt(to, to - cg)` and the crosswind form only
+  `if (!ap.xc && !replanning && ...)` - a re-plan always joins the cross-country way. The first leg begins two turn radii
+  ahead on the track and the path is filleted from the aeroplane (`pathFrom`) - the turn onto it is the path's own.
+- 38_nav.js: untouched (the AP box's navigator is not the route). 39_ground_path.js: untouched - the departure planner
+  (`planDeparture`: the U-turn, the site's `routes.out` / `routes.back`) already plans from any pose; the chain just
+  hands it the right From.
+
+**G1947 THE PAGE** (`app.js`, `sim_link.js`, `sim_host.js`, `body.html`, the CSS):
+- `destId` is the To; `baseId` the base; `spawnId` the perf rigs' override (pref v2 `spawn`, `FLYDIY_ROUTE.spawn(id)`,
+  on no picker); `fromId` is no longer a choice - the From of the leg flying (the base's aerodrome at every roll-out,
+  `applyRoute`; where the aeroplane stood at a chained leg, `nextLeg`), so every old reader (the logbook, the map's line,
+  the cockpit's field, the tower camera, the worker's init) reads what it read.
+- `setTo(id)` (every To picker: `#selDest` borrowed by the plate's `route` flyout, `#edRoute` in the shed, `#bootRoute`
+  under the roll-out screen, `FLYDIY_ROUTE.to`) -> `destApply()`: the shed - remembered for the roll-out; STOPPED on an
+  aerodrome - `nextLeg()` (`held` out in a field: Restart); else `ap.setDest(record)` and `SIMW.dest(id)`; `queued` sets a
+  pending leg chained by the HUD's STOPPED branch (after the logbook row). The classic and test pilots (no setDest) reset
+  before the start and keep their route in flight. No To change resets any more.
+- `nextLeg()` takes `flightLeg` - the From under the aeroplane, not the last leg's To.
+- THE WORKER: `sim_link.dest(to)` -> a stamped `{ cmd: 'dest', to }` (a flight not live yet sends it at k 0 in
+  `attach`); `sim_host` `case 'dest'`: `ap.setDest(aeroById(to))` (+ `init.place.to`).
+- THE UI: `#selFrom` retired (body.html, the plate's flyout, flTrip). The plate's `route` flyout: a `from` LINE (where
+  the aeroplane is: the field, `airborne`, `off-field`; the base's field before the roll-out) and the `to` picker, with a
+  note per state ("A new destination re-plans the flight from here, like an autopilot's" / "...taxis out from here and
+  flies there - same flight, no reset" / landing: "flown from where the aeroplane stops"). The trip line reads
+  "<where> -> <To>". The shed and the roll-out screen: a `base` line ("Home base · the WWII hangar", a select once there
+  are two bases) and the `to` picker. The rail's route sub: "the destination, or the circuit - on the ground or in the air".
+- THE PREF: read through `flightRouteMigrate`, written back as v2 once. Tools: `rollout_perf.js` writes v2 (a `--from`
+  other than HOME rides as `spawn`); `master_bench.js setFrom` calls `FLYDIY_ROUTE.spawn` (the shed's Departure select is
+  gone); the rigs writing v1 `{ from: 'HOME', dest: 'CIRCUIT' }` (master_bench, rollout_shots, woodland_shots,
+  master_bench_smoke) migrate to exactly that.
+
+**WHAT IS LEFT OF THE OLD FROM-TO** (retire when no saved profile can hold it): the v1 branch of `flightRouteMigrate`
+(and its one-time write-back); `FLYDIY_ROUTE.get()` still returns `from` / `dest` beside `to` / `base` / `spawn` (the
+rigs' readers); `fromId` / `destId` as the variable names; the logbook rows' `{ from, to }` (true: the leg's From and
+To); the rigs' `spawn` (a developer's spawn-anywhere, deliberately on no picker); the worker's `place.from` (the base or
+the spawn).
+
+**G1948 GATE DESTTO** (`tools/_destto_check.js`, core, 3 shards; `--show`, `--only`, `--evidence`, `--selftest`).
+Jolene, the real sim and pilot, the damage model ON, the validated builds only (`_treecrash_lib` BUILDS):
+A. no flight - the base (HOME, its stand reads `stand / HOME`), flightWhere's kinds, the picker's surface rule (wheels:
+   no lane; floats: the lanes only; every refusal says why), the migration (v1 HOME/w3, v1 from w3 -> the base, v2 passes),
+   and THE DEFAULT START UNCHANGED: a Cub on HOME's stand departs by the same taxi route ids and take-off direction from
+   the derived From as from master's `departFrom(HOME, to, site)`.
+B. LAND, THEN DEPART (`ltd:<build>`): a To picked IN THE ROLL-OUT is `queued` (the runway it lands on untouched); at
+   STOPPED the page's chain (`flightLeg`, a fresh pilot on the same sim): the From derived, no reset (the leg's first step
+   where the stop was, `sim.t` and the fuel and the damage state carried), DEPART -> TAXI|STOP -> HOLD -> ROLL, take-off,
+   the To landed on. Measured (`reports/evidence/DEST-TO/destto_cases.txt`, the three shards, `--show --evidence`):
+     metal Cessna   HOME -> landed on w3 (274 s); To w2: 522 m of backtrack taxi, take-off, landed on 02/20 (402 s);
+                    fuel 18.47 -> 16.06 kg; the From w3 (not the leg's HOME)
+     Cub            a circuit at HOME (336 s), stopped on 13/31; To w3: rolled from the stop (lined up, the run ahead
+                    enough: STOP > HOLD > ROLL), landed on w3 (378 s); fuel 31.67 -> 30.83 kg
+     Jodel          a circuit at HOME (362 s), then To w3: the same, landed on w3 (331 s)
+     Cessna floats  a circuit on Annette Dock (373 s), stopped on the lane; To Metlakatla: 1132 m of water taxi,
+                    take-off, 10 km, landed on mk_sea (661 s); fuel 17.41 -> 11.97 kg
+     twin on floats the same (290 s, then 453 s); fuel 12.17 -> 9.49 kg
+   no member broken in any; no rejected take-off, no wrong surface, no lost taxi; no step moves the aeroplane further
+   than it flies (< 0.5 m).
+C. A NEW TO IN THE AIR (`air:<build>`): lined up at HOME bound for w3; 40 % down the enroute leg the To becomes 02/20
+   (w2), behind the aeroplane - `replan`; the new path's first point ON the aeroplane (0.0 m); the bank inside the
+   pilot's limit + 4 deg (Cub 23.4 deg, Cessna 23.6); the track's rate against g tan(limit)/V at most 0.93 (Cub) and 1.10
+   (Cessna) - the bound is 1.3, a heading step would read tens; both landed on 02/20, completed (389 s, 326 s).
+NEGATIVE-VERIFIED (`--selftest`, the metal case's chain and the Cub's air case, each doctored): the OLD chain (the From =
+the leg's own From) - caught ('the From is DERIVED'); a re-plan that is a jump (the legs swapped for a straight line to
+the field, no path re-planned) - caught twice ('re-plans from here', 'the new path starts at the aeroplane': 846 m).
+
+**MEASURED ON MASTER, NOT THIS BRANCH'S** (the old chain, from the field's own stand; `reports/evidence/DEST-TO/
+master_w3.txt`): the user's Cub cannot line up at Tamgas Hill (`could not line up in 60 s` x 3, `taxi-lost`); the Jodel
+rejects its take-off there (`will not reach Vr: 1.45 m/s^2 ... 327 m left`); and in this branch's first cut the Cub's
+arrival from w3 into 13/31 flew a 392 s DOWNWIND (leg-timeout), went around 283 m off the centreline and ran out of the
+watchdog's budget (`gave-up` at 736 s - the budget is set at departFrom and never grows for a go-around); the metal
+Cessna, landed on w3 and sent to HOME, backtracked 522 m and took off fine, then flew a 280 s DOWNWIND at 13/31, went
+around "past the aim at 148 m" and gave up the same way - a fresh pilot's own `departFrom(w3, HOME)`, nothing of the
+chain. The gate's cases avoid them (the pilot's and the strip's: PILOT-ONE's take-off / circuit work, and worth a look -
+an arrival at 13/31 from the south-west is the case a player flying home from Tamgas Hill will meet).
+
+**G1949 THE EVIDENCE** (`reports/evidence/DEST-TO/`): the traces, 1 Hz (leg, t, phase, x, z, y, heading, bank, ground
+speed, fuel, the route's To) - `ltd_*.csv`, `air_*.csv`; the UI before / after (`tools/destto_shot.js`, SwiftShader,
+the same saved v1 route `{ from: HOME, dest: w3 }`): `before_garage.jpg` / `after_garage.jpg` (the shed's from + to
+selects -> the base line + the To), `before_flight_route.jpg` / `after_flight_route.jpg` (the plate's flyout: two
+selects and "Changing the origin restarts the flight" -> the from line and the To, "A new destination re-plans the flight
+from here, like an autopilot's"), `ui_before_after.txt` (every picker's rows, the trip line, FLYDIY_ROUTE). The
+roll-out screen's picker was not shot (the screen lifted before the rig saw #bootRoute; it is the same `routeBuild` as
+the shed's). `destto_cases.txt` (the gate's own lines, the selftest), `master_w3.txt` (the w3 departures on master, and
+the 13/31 arrivals that went around), `framecost_control.txt` (FRAMECOST, the branch against master + one comment).
+
+**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 104 min wall on the 4-core cloud box): 158 jobs, every row
+PASS but four, none this branch's - DESTTO (3 shards, new), ROUNDTRIP, UISMOKE (with its new DEST-TO block), PILOT (3
+shards), NAV, PLAN, LINEUP, TAKEOFF, STRIPSURF, HONESTY, GEN, FLEX, LOAD among the passes.
+- FRAMECOST FAIL (24): THE STALE PARKED COOK (`parked_cook.js --check`: STALE, keys arch:c172 / cub / jodel - any viewer
+  edit moves the build id). Proven by a control: master 55dd98b with ONE COMMENT appended to app.js gives the same 24
+  rises to the unit (cub stand draws.main 914 -> 1046, draws.shadow 169.5 -> 259.5, uniform4f 6 -> 222; the Cessna's the
+  same) - `reports/evidence/DEST-TO/framecost_control.txt`. So DEST-TO costs nothing a frame; A0's re-cook clears it.
+- HITBOX FAIL (1 of 84): its captures say "not cooked in this page (a stale or missing parked cook)" and its one red row
+  is a wall-clock one (the spec shape 380 ms against the raster's 186, under the 4 jobs); alone (`--only=HITBOX
+  --jobs=1`): PASS.
+- SETTLE FAIL (bake budget, wall-clock under the 4 jobs): alone PASS.
+- BIOME FAIL (surface perf < 5 us/call): box-bound - interleaved runs read master 4.9 / 5.1 / 4.8 / 4.7 / 5.0 / 5.3 and
+  this branch 5.1 / 5.3 / 5.0 / 4.9 / 4.6 / 5.2: master itself fails half the time here; nothing of this branch is on
+  `world.surface`'s path.
+THE FULL TIER: SEAPLANE and HOTHIGH (the full rows that fly the pilot over water and a hot strip) run on the branch:
+PASS. ARCHETYPES and PILOTMATRIX were NOT run (hours each on this box; `ap.setDest` is inert until called - no flag, no
+branch of the phase machine moves without it - and the core pilot gates PASS); A0's `--all` at the train is the verdict.
+
+**A0 AT LANDING.** Re-cook the parked aeroplanes on the train's final build (any viewer edit stales the cook -
+FRAMECOST / HITBOX above); no spec, no asset moved. Frame cost: none (the To work runs on a pick; the pilot's
+hook is one boolean a step). PILOT-ONE: the merge surface in 43 is `ap.setDest` (+ `ap.nextTo`, `DEST_KEPT` /
+`DEST_REPLAN`, `replanReq` / `replanning`), the hook before `phRun`, and the two `replanning` conditions in
+`planFromHere`; a unified pilot needs the same entry (the classic and test pilots have none - the page keeps their route).
+
+## G1890-G1892 DMG-CERTCOST - THE CERTIFICATE'S COST: MEASURED (NODE, CHROMIUM, ONE CORE AND A BUSY PAGE), CUT 35-46 % WITH THE SAME ENVELOPE TO THE BIT (THE SETTLE SHARED, A WHEEL LANDING'S WINDOW 1.2 S), KEPT ACROSS PAGE LOADS (INDEXEDDB), GATE DMGCERTCOST (2026-10-05, DMG-CERTCOST for the DEFORM COORDINATOR, cloud, node + headless Chromium; branch claude/dmg-certcost off claude/dmg-integration da35ed12 - it carries train 34, origin/master 55dd98b7, so nothing to merge; damage stays OFF by default)
+
+DEFORM-AND-BREAK §12 ("the switch ON waits for"). **What it stamps did not move: on all five validated builds the certificate is
+DMG-D2b's to the bit** (Ft and Fc, every member, both ways - so every stamped FY, FC, Fu and the gear bracket are D2b's exactly: the
+worst deviation is 0, not "under 1 %"). The certificate costs 35-46 % less in node and in the bench worker; a build is now certified
+**once, ever** (the page keeps it in IndexedDB; a second page load stamps from it in 2-3 ms). **The ~5 s target is NOT reached**:
+8.1 / 16.1 / 14.3 / 21.1 / 24.1 s in node (the Cub / the Jodel / the metal Cessna / the Cessna on floats / the twin on floats) -
+what is left, and why the remaining cuts would change the stamp, below. (Note: DEFORM-AND-BREAK's plan gave G1890-G1897 to DMG-TUNE;
+the coordinator assigned G1890-G1892 here - DMG-TUNE wants another range.)
+
+### G1890 - MEASURED FIRST (reports/evidence/DMG-CERTCOST/node_times.txt, chromium_*.txt / .json)
+**Node** (each build alone in a fresh process - the shape of the game's worker: one certificate a fresh isolate), D2b's code:
+13.5 / 25.1 / 22.0 / 38.8 / 43.5 s. Per case (the first measurement): the static flight cases and the bench 0.6-1.6 s, **everything
+else the dynamic cases** - the four (wheels) or six (floats) landings 1.3-6.0 s EACH, of which 240 of their 360 frames are the same
+4 s settle; the rough taxi 4.9 / 8.3 / 6.7 s (the land builds); the floats' water weave 4.3-4.7 s; the flown pull and the three
+flown controls 0.5-2.0 s each. A frame costs 4.5 ms on the Cub and 13-17 ms on the floatplanes on the water (75-120 substeps a frame,
+every one armed by the probe: 1.3-2 x a plain step). Where a frame goes (cpu-prof): substep 39-45 % self, aeroPass 18-27 %, the
+probe's own branch 4-6 %, the floats' hydro 12 %.
+
+**The bench worker in headless Chromium** (tools/dmg_certcost_shot.js: the worker as the page starts it, beside a page whose frame
+loop steps the stock Cub - sim.step(1/60), damage off - every requestAnimationFrame; frame intervals, the step's cost and long tasks,
+with the worker idle and while it computes):
+
+| | the Cub | the Jodel | metal Cessna | Cessna floats | twin floats |
+|---|---|---|---|---|---|
+| 4 cores, before / after | 12.5 / **9.6 s** | 23.1 / **17.8** | 20.5 / **15.6** | 36.1 / **22.5** | 39.1 / **25.0** |
+| 2 cores (taskset), before / after | 13.1 / **9.7** | | | | 40.2 / **26.2** |
+| 2 cores, CDP throttle x4 / x6, after | 11.7 / 11.6 | | | | 29.3 / 29.0 |
+| 1 core, before / after | 15.0 / **12.9** | | | | 47.4 / **32.2** |
+| 1 core, a BUSY page (5 Cub steps a frame, ~10 ms of 16.7), before / after | 35.6 / **27.9** | | | | |
+| 1 core, a SATURATED page (7 steps, ~14.5 ms), before / after | 73.6 / **56.2** | | | | |
+
+**The page's main thread while the worker computes:**
+- With a core to spare (4 or 2 cores, any build): **nothing measurable** - the frame interval's median and p95 16.7 / 16.7-16.8 ms
+  idle and busy, the step's p95 3.4-4.1 ms, no long task but one 55 ms (floats, 4 cores) and one 56 ms (twin, 2 cores, x4).
+- **CDP's CPU throttle does not reach the worker** (the Cub's certificate 13.1 s at x1, 14.0 at x4 and x6, before): it stretches the
+  page's own thread only, so it stands for a slow PAGE, not a slow machine; the page at x6 runs at 33 ms p95 idle and busy alike.
+- **One core and a page that spends real CPU** (the potato's case - its page is the busy one): at 10 ms of work a frame the page holds
+  60 fps through the certificate (p95 16.7 ms idle and busy); at 14.5 ms it drops to 30 fps at the p95 (16.8 -> 33.3 ms, max 50-67)
+  **for as long as the certificate runs** - 56 s now, 74 s before - and the scheduler gives the worker what the page leaves. That is the
+  cost the user feels: the cut shortens it 24-46 %, the store makes it once per build, ever.
+
+### G1891 - THE CUTS (each proven on each build; GATE DMGCERTCOST rechecks the result against the uncut certificate)
+1. **THE SETTLE, ONCE A BUILD (exact).** Every landing settled a fresh sim 4 s from the same reset - 4 x 240 frames (wheels), 6 x 240
+   (floats). Now `genCertSettled` flies it once and each landing's fresh sim takes its state: **30_solver.js `sim.snap()` /
+   `sim.unsnap(S)`** - everything a step reads and writes (the nodes; the members' mechanical state - rest length, stiffness, never
+   their limits; the clusters; the air's lag and the kernel's cache; the ground's and the water's held state; the engines, the tanks,
+   the panel's filters, the clock), only for a WHOLE aeroplane (nothing bent, broken, parted, no wet body: null otherwise). Proven:
+   a sim settled, snapped, and a fresh one unsnapped run the same 120 frames **to the bit** (every node, both ways) on all five
+   builds, on the ground and in the air. The elevator's and the rudder's flown cases share their second of level flight the same way.
+   Not in the step: the stock sim.step's code is untouched.
+   - **A JIT trap found on the way** (node_times.txt): writing a member's numbers back out of a double array put heap numbers into
+     small-integer fields (a wire's c 0, sK 1) and every LATER sim in the isolate ran 40 % slower (the Jodel's taxi 7 -> 11 s); and
+     restoring the floats' water state object by object (new objects of another shape in the hydro's scratch) cost their later
+     water cases 20 %. Now a field is written only where it differs and the water's state is its counter, its held forces and three
+     numbers a float (the rest is rebuilt from the nodes at every compute). After: within noise of no unsnap at all.
+2. **A WHEEL LANDING'S WINDOW 1.2 s (72 frames) instead of 2 s (exact on the validated builds).** tools/dmg_certcost_evidence.js
+   traces every member's peak after every frame of every dynamic case (66_gen_cert GEN_CERT_HOOK) and re-reads the envelope with one
+   case cut at every frame: **the last frame that moves any member's envelope** on the wheel builds' landings is 14 / 3 / 8 / - (the
+   Cub's drop / level / one-wheel / 23.473), 12 / 10 / 13 / - (the Jodel), 37 / 8 / 42 / - (the metal Cessna) of 120; 72 keeps 30
+   frames over the worst. **The floats keep 2 s**: their struts' peaks still move at frame 61-119 (the water bounce), the bow at 71
+   of 72, the weave at 71 / 178 of 180. GEN_CERT.win { wheels: 72, water: 120 }; GEN_CERT_V 3.
+3. **Measured and NOT cut** (each would change the stamp):
+   - **the rough taxi 8 s instead of 12**: the Jodel's taxi governs 28 / 16 members and moves the envelope at its LAST frame (719 of
+     720); cut at 8 s the envelope moves 34.5 %, at 4 s 66 %. Its peak is the roughest bump the run happens to meet - longer is
+     harsher. On the Cub it governs nothing; on the metal Cessna 1 / 1 (last move at 320).
+   - **an adaptive window** (stop once no member's peak has risen for Q frames, after M): no saving worth its risk - some member's peak
+     creeps up to frame 50-111 in every wheel landing, and the Jodel's taxi stops at 387 frames with the envelope 34.5 % off.
+   - **fewer substeps**: not tried on the peaks - the substeps are the lattice's stability; the probe reads every one.
+   - **the probe sims' shape** (D2a's note): within one certificate in a fresh process, the static probe and bench-pose sims made with
+     the dynamic cases' beam shape changed nothing (9.2-9.8 s against 8.8-10.1, three alternating pairs, the envelope equal). Left.
+4. **THE STORE (G1891; bench_worker.js certStoreGet / certStorePut, app.js certKick).** IndexedDB 'flydiy.cert', keyed by genCertKey
+   (the spec, GEN_CERT with its version, PHYSICS_V hashed), the record carrying GEN_CERT_V, PHYSICS_V, the member count and an FNV
+   checksum of the envelope's bytes. certKick: the page's memory cache, then **the store** (how: 'store'), then the worker; whatever
+   the worker (or, on file://, the page) computes is kept. A record whose key, version, physics or member count is not the build's,
+   whose arrays are not two Float64Arrays of the member count, whose values are not finite and >= 0, or whose checksum fails is
+   **deleted and computed again**; the last 64 builds kept (~8 KB each); no IndexedDB or an open slower than 500 ms is a miss. The
+   memory cache, the bench's destroy job and CERT_STATE() read it as before (CERT_STATE().last.how 'store', its ms the lookup's).
+5. **The worker yields between cases** (genCertifySteps, a generator; the worker's loop takes the next case on setTimeout(0)): cheap
+   and safe, the same certificate. It does not lend the page a core (the worker is its own thread; the measurement above is with it) -
+   a duty cycle that would is in the open questions.
+
+**Node after** (alone, fresh process; D2b's in brackets): **8.1 (13.5) / 16.1 (25.1) / 14.3 (22.0) / 21.1 (38.8) / 24.1 (43.5) s**,
+-35 to -46 %; frames 1809 / 1792 / 1797 / 1763 / 1791 (2781 / 2764 / 2769 / 3023 / 3051). **What is left**: the rough taxi (3.5 /
+7.0 / 6.2 s, 40-45 % of a land build's), the one settle (1.0-3.8 s), the water weave (3.5-4.5 s), the floats' six landings (1.2-1.8 s
+each), the flown cases (2-4 s), the static cases (0.5-1.5 s) - all at the cost of the step itself (substep and aeroPass). Under 5 s
+needs a cheaper probed step (the solver's hot path) or fewer / shorter cases (the stamp moves). Not done.
+
+### G1892 - GATE DMGCERTCOST (tools/_dmg_certcost_check.js; run_gates core, weight 2, wall 300) - **PASS** (alone 2 min 49 s with `--write-ref`; in the run below beside the others)
+Per build (two children at once): 1. **the cost** - the frames stepped (an exact budget: 1809 / 1792 / 1797 / 1763 / 1791) and the
+node time under a ceiling about twice the measured (18 / 32 / 30 / 42 / 48 s; it prints the ~5 s target and the gap); 2. **the
+envelope against the UNCUT certificate** (opt.share false, opt.full: D2b's procedure) - the stored reference
+(tools/fixtures/dmg_certcost_ref.json, 52 KB) while it is still the physics' answer (the rules without the window, PHYSICS_V, the
+spec and a fingerprint - the drop sim's first second, hashed - all equal), **else computed again** (`--full` forces it; `--write-ref`
+refreshes it): **equal to the bit on all five**; 3. **the store** - in node on an in-memory IndexedDB (a miss, kept, a second "page
+load" stamps from it in 2.3 ms, a flipped value / another version / another physics / another member count / a NaN / another key all
+refused, a corrupt record read as a miss and deleted), and **in headless Chromium when Playwright is here** (page 1: a miss, the bench
+worker computes the Cub's certificate in 9.3 s and the page keeps it; page 2 - a reload - reads it and stamps a sim in **2.8 ms**; a
+corrupted record and a stale one are refused and deleted). Without Playwright (the box) the browser half prints a REPORT line and
+the node half still gates. **The worker's certificate is node's within 2.1e-8** (relative, a few members' last bits: the browser's V8
+is not node's - the same on D2b's code; D2a's "bit-equal" compared sums at 1e-6): the gate holds it under 1e-6.
+
+### THE ACCEPTANCE
+- **Every member's stamped limits within tolerance of the uncut certificate: the worst deviation is 0** - the envelope is D2b's to the
+  bit on all five builds (window_scan_and_cut.txt: the envelope and the STAMPED fy0 / fu / fc0 of a sim made with each certificate,
+  0.000 %), checked three ways: against D2b's own built core (da35ed12's tools/flight_core.js, a fresh process a build), against this
+  branch's uncut path, and by GATE DMGCERTCOST.
+- **The gates** (`run_gates --only=DMGCERTCOST,DMGCERT,DMGGEAR,TREECRASH,UISMOKE,BUILD,JOIN,BENCH --verbose`): **BATTERY PASS, all eight**; the same seven
+  on claude/dmg-integration da35ed12 built in a worktree, **BATTERY PASS**, and per gate the SAME LINES with the clocks masked
+  (gates_diff.txt): UISMOKE, TREECRASH, DMGGEAR, BUILD, JOIN, BENCH line for line; DMGCERT line for line but its certificate-cost line
+  (the dynamic cases 13.3 -> 10.9, 24.3 -> 17.5, 22.0 -> 16.8, 35.3 -> 24.0, 41.6 -> 24.2 s in that gate's parallel children). DMGGEAR's
+  bracket, headroom table and §7.4 rows and TREECRASH's margins are D2b's numbers to the printed digit - as they must be on the same
+  certificate.
+- **The bench's BROKE AT unchanged**: **6.01 / 6.02 / 6.06 / 6.08 / 6.01 g**, a fitting first on all five, the page's bench thread
+  the same and the card's line the same (DMGCERT section 3: D2b's numbers).
+- **PERF**: the stock sim.step(1/60), damage off, alternating processes pinned to one CPU against da35ed12
+  built (perf_pairs.txt): the Cub on the ground +2.2 % in 8 pairs then **-1.5 % in 16** (pooled within noise), the Cub in the air
+  +0.5 % (8), the metal Cessna in the air -1.1 % (8). The step's code is untouched (snap / unsnap are two closures beside it, called
+  only by the certificate); no regression the noise can resolve.
+- **The garage's parameter-change response**: nothing in the edit loop changed - no generator, garage or viewer edit-path file; the
+  page's only new work is certKick's IndexedDB lookup at ROLL-OUT, with the layer on.
+- Damage stays OFF by default; validated builds only; no archetype tuned; no Rigs of Rods / BeamNG code.
+
+### Evidence (flyDiy/reports/evidence/DMG-CERTCOST/)
+- `node_times.txt` - the profile before, per case; D2b against now, alone in a process; the frames; the two JIT findings.
+- `chromium_before_*.txt / .json`, `chromium_after_*.txt / .json` - the worker and the page (4 / 2 / 1 cores; x1 / x4 / x6; the busy
+  page `_1core_load5`, `_1core_load7`).
+- `window_scan_and_cut.txt`, `scan_<build>.json` - per case the last frame that moves the envelope, the 0.1 % / 1 % points, the adaptive
+  window's stops, and the cut against the uncut (envelope and stamp). (The times inside are the second and third certificates of one
+  process - polluted, see node_times.txt; the clean ones are node_times.txt's.)
+- `gate_dmgcertcost.txt`, `gates_mine.txt`, `gates_base.txt`, `gates_diff.txt`, `perf_pairs.txt`.
+- Tools: `tools/dmg_certcost_shot.js` (the browser measurement; `--load=k` a busy page, run under `taskset` for the cores),
+  `tools/dmg_certcost_evidence.js` (the window scan, `--cut` the cut against the uncut), `tools/_dmg_certcost_check.js` (the gate).
+
+### THE COORDINATOR MUST EYEBALL ON THE BOX
+1. `dev.html?damage=1`, a validated build, roll out: `CERT_STATE().last.how === 'worker'` a few seconds later, then **reload the page**
+   and roll out again: `how: 'store'`, `ms` a few ms, `stamped: true`. DevTools > Application > IndexedDB > flydiy.cert holds one
+   record a build.
+2. Change a row in the garage and roll out: a new key, the worker again (the store never answers for another spec).
+
+### Open questions
+- **The ~5 s target**: what is left is the probed step itself. Two levers, neither mine to pull: (a) a cheaper probed step (the
+  probe arms every substep - the clusters' cut measurement, the support limiters, the per-member call; a members-only probe that
+  skips what the certificate does not read would save a few %, more only inside the beam loop - the solver's hot path, alternating
+  pairs owed); (b) the cases (the rough taxi at 8 s moves the Jodel's envelope 34.5 %; drop473 governs no member on four of the five
+  builds and one on the Cessna on floats - D2b's case, kept as a rule).
+- **A duty cycle for the potato**: on one saturated core the certificate halves the page's frame rate at the p95 for its 30-60 s. The
+  worker could sleep between cases (or every N frames - the cases would become generators) when the page reports a frame time over
+  budget; it lands later (the flight runs on D1a's limits meanwhile, never weaker). The persistent store already makes it once per
+  build; ask the user whether the first flight of a new build should pay it in fps or in time.
+- **Two workers on a machine with cores to spare** (navigator.hardwareConcurrency >= 4): the landings in one, the taxi and the flown
+  cases in the other, the envelope combined on the page in the cases' order (genCertCombine) - ~35-40 % off the wall time there, nothing
+  on the potato. Not done.
+- **The worker's certificate is node's within 2.1e-8, not to the bit** (the browser's V8, not mine: the same on D2b's code). The page
+  stamps the worker's; the gates read node's.
+- **DMG-DAMP**: when it lands every dynamic case moves - GATE DMGCERTCOST's stored reference goes stale on its fingerprint and the
+  gate computes the uncut certificate again (the slow path, ~3 min); `--write-ref` refreshes it. Re-run the window scan then: the
+  wheel window's margin (30 frames over the worst) is the validated builds' - a damped bounce peaks no later, an undamped one could.
+
+
+## TRAIN 37 LANDED (2026-10-06, A0 the coordinator; landed by A0 after AUDIO's re-run alone)
+Cargo: SND-ROLLOUT G1715-G1717 (the roll-out shot starts its engines the way the aeroplane does: +2.9 s single, +5.4 s twin -
+LENGTH, not load: the strict gate's garage->world rows +2.9-3.0 s, first flight +4.0 s, named); POTATO-DEEP G1527 (the premises
+patch at 3 px on potato / laptop: taxi 4.13 -> 3.71 M tris); FLOAT-SHAPE G1930-G1934 (the Wipline afterbody); DEST-TO
+G1945-G1954 (one To); DMG-CERTCOST G1890-G1892 (the certificate 35-46 % cheaper, damage ON only); boxlock.sh CPU locks
+exclusive. Strict gate: the known 30-fps-cap rows + the shot length above. Battery: all PASS but AUDIO (its ANIALLOC allocation self-tests red under the 6-job load + a peer's node work 02:08-02:43), AUDIO PASS alone (03:39).

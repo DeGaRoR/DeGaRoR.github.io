@@ -564,6 +564,13 @@ function makeSimHost(CORE, init, keptWorld) {
         H.end = { air: false, wasAir: false, still: 0, over: H.end.over };
         break;
       }
+      // G1945 DEST-TO: a new To (app.js setTo): the pilot's destination moves - 43_pilot.js ap.setDest, as the page's
+      case 'dest': {
+        const to = c.to == null ? null : aeroById(c.to);
+        if (to && ap.setDest) ap.setDest(to);
+        if (to && init.place) init.place = Object.assign({}, init.place, { to: c.to });
+        break;
+      }
       case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
         H.end.over = !!c.on;
         if (c.on && c.outcome) { if (!ap.report) ap.report = { verdicts: [], outcome: c.outcome, landing: null }; else if (!ap.report.outcome) ap.report.outcome = c.outcome; }
