@@ -1943,7 +1943,13 @@ function makePilot(sim, def, world, opts) {
               // A HAIRPIN IS A U-TURN (150 deg and more): a 90 deg taxi corner tighter than the wheels steer is steered
               // round as it always was - pivoting there beat the stock's taxi rudder to 62 reversals a minute (GATE
               // PILOTACT) and swung the Cub's wing within 5 m of Jolene's apron fence (GATE LINEUP)
-              if (Math.abs(turn) > 2.6) {   // (Rpiv: 13 m at least - the site's lane U-turn is a 12 m arc)
+              // G1949 (PILOT-ONE-2): ...AND ONLY ONE ENTERED ON THE STRIP'S CENTRELINE (within 2 m), as at East Point's lane
+              // U-turn after a landing. An AUTHORED TEARDROP (MILL-TAXI's at Jumbo Mine, rMin 8 m) swings its lobe off the
+              // centreline first: pivoting where its tight part began (4.4 m off, the CG 3 m from the clinic) put the Cub's
+              // wing into the clinic and left it stuck 6 m off the centreline - the follower flies the teardrop clean, as before
+              const fr = ap.route.from, fh = fr.hdg || 0;
+              const crB0 = -(P[b0].x - fr.x) * Math.sin(fh) + (P[b0].z - fr.z) * Math.cos(fh);
+              if (Math.abs(turn) > 2.6 && Math.abs(crB0) <= 2) {   // (Rpiv: 13 m at least - the site's lane U-turn is a 12 m arc)
                 piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
                 if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg turn tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) — turning on the spot'); }
                 pivotFly(piv.hdg);
