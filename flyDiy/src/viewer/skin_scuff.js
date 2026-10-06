@@ -43,8 +43,9 @@
   'use strict';
   // ---- THE TABLE (every number the drawing reads off the physics) ----
   const SC = {
-    eps0: 0.002,      // crush: a member's equivalent plastic strain where the paint starts to craze (0.2 %: past the yield)
-    eps1: 0.03,       // ...and where the crush is full (3 %: a buckled tube - TREE-CRASH's kinks run 3-10 %)
+    eps0: 0.008,      // crush: a member's equivalent plastic strain where the paint starts to craze (0.8 %: a SET member,
+                      //   not one just past its yield - at 0.2 % a 3 m/s taxi crazed the whole cowl on the real page)
+    eps1: 0.06,       // ...and where the crush is full (6 %: a buckled tube - TREE-CRASH's kinks run 3-10 %)
     scrapeW: 60,      // J: a node's slide work at 1 - 1/e of the full scrape (a node of ~300 N on the ground slid ~25 cm)
     face0: 0.05,      // the facing (rest normal . the side the node was pushed from) where a node's scrape starts...
     face1: 0.55,      // ...and is whole
@@ -456,18 +457,19 @@ vec3 dmgCell(vec3 x) {
         col = mix(col, col * mix(vec3(1.0), uDmgCol[3].rgb * 3.0, 0.55), dFab * crease);
         rgh = mix(rgh, max(rgh, 0.92), dFab * cr);
         dGrad += dFab * cr * (nB.yzw * 7.0 * 0.006 + nF.yzw * 31.0 * 0.0015);
-        // metal: the paint CRAZES - a crack network on cells of ~1.8 cm, broken by a noise so it is a network in places,
+        // metal: the paint CRAZES - a crack network on cells of ~2.6 cm, broken by a noise so it is a network in places,
         // not a tiling - and where the crush is worst whole cells FLAKE off (polygons along the network, not discs),
         // clustered by the buckle field: zinc-chromate primer at a flake's edge, bare alloy in it; the sheet dents
         // (the cells read through a warp - the buckle and crease fields bend them - so the network is a craquelure, not
         // a honeycomb)
-        vec3 cc = dmgCell(dP * 55.0 + 1.6 * vec3(nF.x - 0.5, nB.x - 0.5, nF.y * 0.02));
+        // (the network fades where a cell would cover fewer than ~4 pixels: far off it is a moire, not a craquelure)
+        vec3 cc = dmgCell(dP * 38.0 + 1.6 * vec3(nF.x - 0.5, nB.x - 0.5, nF.y * 0.02));
         float edgeD = cc.y - cc.x;
-        float crack = 1.0 - smoothstep(0.0, 0.035 + 55.0 * dFw, edgeD);
-        float crz = crack * smoothstep(0.30, 0.75, cr) * smoothstep(0.35, 0.65, nF.x + 0.25 * cr);
-        float flake = step(cc.z, 0.24 * smoothstep(0.55, 1.0, cr)) * step(0.42 - 0.2 * cr, nB.x);
+        float crack = (1.0 - smoothstep(0.0, 0.03 + 38.0 * dFw, edgeD)) * (1.0 - smoothstep(0.003, 0.008, dFw));
+        float crz = crack * smoothstep(0.40, 0.85, cr) * smoothstep(0.45, 0.70, nF.x + 0.2 * cr);
+        float flake = step(cc.z, 0.12 * smoothstep(0.70, 1.0, cr)) * step(0.55 - 0.15 * cr, nB.x);
         float rim = flake * (1.0 - smoothstep(0.03, 0.10, edgeD));
-        col = mix(col, col * 0.5, dMet * crz * (1.0 - flake));
+        col = mix(col, col * 0.72, dMet * crz * (1.0 - flake));
         col = mix(col, dSub, dMet * flake);
         col = mix(col, uDmgCol[0].rgb, dMet * rim);
         met = mix(met, dSubM, dMet * flake * (1.0 - rim));
