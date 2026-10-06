@@ -7,6 +7,8 @@
 //             aeroplane on its gear
 //   HANDS-OFF the brakes off at full throttle, every control at zero, 6 s: the swing (heading change, + = LEFT) and
 //             how far off the line it ran
+//   EACH      the Cub with one effect at a time (cub:torque, cub:gyro, cub:pfactor, cub:swirl)
+//   CUT       the twin's port or starboard engine cut 4 s into the climb, effects on and off: the critical engine
 //   PILOT     THE PILOT (43) from HOME (the floatplanes from SEA) round a circuit to a stop: per phase the rudder and
 //             aileron it holds (mean, extremes; dr < 0 = RIGHT rudder, da > 0 = roll right), the sideslip and the
 //             bank, the moments' own means (torque roll, P-factor yaw, gyroscopic yaw; + = nose LEFT / left wing
@@ -26,6 +28,10 @@ const KEYS = ['cub', 'jodel', 'metal', 'floats', 'twinFloats'];
 // the variants: on / off for every build; the twin also counter-rotating (tops inward: port +1, starboard -1)
 const CASES = [];
 for (const k of KEYS) { CASES.push(k + ':on', k + ':off'); if (k === 'twinFloats') CASES.push(k + ':counter'); }
+// each effect ALONE on the Cub (what each one asks of the rudder); the twin's engine cut in the climb, port (0) or
+// starboard (1), effects on and off - the critical engine
+for (const e of ['torque', 'gyro', 'pfactor', 'swirl']) CASES.push('cub:' + e);
+for (const v of ['cut0', 'cut1', 'cut0off', 'cut1off']) CASES.push('twinFloats:' + v);
 
 const r2 = (x, n = 2) => (typeof x === 'number' && Number.isFinite(x)) ? +x.toFixed(n) : x;
 
@@ -33,7 +39,10 @@ function runCase(id) {
   const [key, variant] = id.split(':');
   const L = require(path.join(T, '_treecrash_lib.js'));
   const C = L.core();
-  if (variant === 'off') C.PAR.propFx = { torque: 0, gyro: 0, pfactor: 0, swirl: 0 };
+  const NONE = { torque: 0, gyro: 0, pfactor: 0, swirl: 0 };
+  if (variant === 'off' || /off$/.test(variant)) C.PAR.propFx = NONE;
+  if (NONE[variant] === 0) C.PAR.propFx = Object.assign({}, NONE, { [variant]: 1 });
+  const CUT = /^cut(\d)/.test(variant) ? +variant[3] : null;
   const B = L.BUILDS[key];
   if (variant === 'counter') {
     const p0 = B.patch;
@@ -90,7 +99,9 @@ function runCase(id) {
     for (let i = 0; i < 600; i++) sim.step(1 / 60);
     const ap = C.makePilot(sim, def, world); if (sim.hydro) ap.setRoute(a, a);
     const ph = {}, P = sim.out.propFx;
-    let rollF0 = null, rollC0 = null, maxOff = 0, lift = null, gyroPk = 0, gyroPkQ = 0;
+    let rollF0 = null, rollC0 = null, maxOff = 0, lift = null, gyroPk = 0, gyroPkQ = 0, cutT = null;
+    const tailUp = { yaw: 0, q: 0, V: 0 };
+    const cut = { n: 0, dr: 0, da: 0, beta: 0, bank: 0, drMin: 0, V: 0 };
     for (let s = 0; s < 420 * 60; s++) {
       ap.update(1 / 60); sim.step(1 / 60);
       const k = ap.phase;
@@ -98,8 +109,15 @@ function runCase(id) {
       if (rollF0 && !lift && (k === 'ROLL' || k === 'LIFTOFF')) {
         const c = sim.cgPos(); maxOff = Math.max(maxOff, Math.abs(-(c[0] - rollC0[0]) * rollF0[1] + (c[2] - rollC0[2]) * rollF0[0]));
         let g = 0; for (let e = 0; e < P.Q.length; e++) g += P.gyro[e*3+1];
-        if (Math.abs(g) > Math.abs(gyroPk)) { gyroPk = g; gyroPkQ = (P.rate[0] * sim.axes()[2][0] + P.rate[1] * sim.axes()[2][1] + P.rate[2] * sim.axes()[2][2]); }
+        const q = P.rate[0] * sim.axes()[2][0] + P.rate[1] * sim.axes()[2][1] + P.rate[2] * sim.axes()[2][2];   // + = nose up
+        if (Math.abs(g) > Math.abs(gyroPk)) { gyroPk = g; gyroPkQ = q; }
+        // THE TAIL-UP: the largest left yaw while the nose comes DOWN on the roll (a taildragger's tail rising)
+        if (k === 'ROLL' && q < 0 && g > tailUp.yaw) { tailUp.yaw = g; tailUp.q = q; tailUp.V = sim.out.V; }
       }
+      // THE ENGINE CUT: 4 s into the climb one engine stops (its lever off); 3 s for the pilot to catch it, then 10 s read
+      if (CUT != null && k === 'CLIMB' && cutT == null && ph.CLIMB && ph.CLIMB.n >= 240) { cutT = ap.t; sim.ctl.eng = [0, 1].map(i => ({ on: i !== CUT, thr: 1 })); }
+      if (cutT != null && ap.t > cutT + 3 && ap.t <= cutT + 13) { cut.n++; cut.dr += sim.ctl.dr; cut.da += sim.ctl.da; cut.beta += sim.out.beta; cut.bank += sim.out.roll; cut.V += sim.out.V; cut.drMin = Math.min(cut.drMin, sim.ctl.dr); }
+      if (cutT != null && ap.t > cutT + 13) break;
       const r = ph[k] = ph[k] || { n: 0, dr: 0, da: 0, drMin: 0, drMax: 0, daMin: 0, daMax: 0, V: 0, beta: 0, bank: 0, tq: 0, pf: 0, gy: 0, t0: r2(ap.t, 1) };
       r.n++; r.dr += sim.ctl.dr; r.da += sim.ctl.da; r.V += sim.out.V; r.beta += sim.out.beta; r.bank += sim.out.roll;
       r.drMin = Math.min(r.drMin, sim.ctl.dr); r.drMax = Math.max(r.drMax, sim.ctl.dr); r.daMin = Math.min(r.daMin, sim.ctl.da); r.daMax = Math.max(r.daMax, sim.ctl.da);
@@ -113,7 +131,10 @@ function runCase(id) {
     for (const [k, r] of Object.entries(ph)) phases[k] = { s: r2(r.n / 60, 1), V: r2(r.V / r.n, 1), dr: r2(r.dr / r.n, 3), drMin: r2(r.drMin, 3), drMax: r2(r.drMax, 3),
       da: r2(r.da / r.n, 3), daMin: r2(r.daMin, 3), daMax: r2(r.daMax, 3), betaDeg: r2(r.beta / r.n * 57.2958, 2), bankDeg: r2(r.bank / r.n * 57.2958, 2),
       tqRoll: r2(r.tq / r.n, 1), pfYaw: r2(r.pf / r.n, 1), gyroYaw: r2(r.gy / r.n, 1) };
-    out.pilot = { outcome: ap.report && ap.report.outcome, t: r2(ap.t, 1), rollMaxOffM: r2(maxOff, 2), liftoff: lift, gyroPeakYaw: r2(gyroPk, 1), gyroPeakPitchRate: r2(gyroPkQ, 3), phases };
+    if (CUT != null) out.cut = { engine: CUT ? 'starboard' : 'port', at: r2(cutT, 1), n: cut.n, V: r2(cut.V / cut.n, 1), dr: r2(cut.dr / cut.n, 3), drMin: r2(cut.drMin, 3), da: r2(cut.da / cut.n, 3),
+      betaDeg: r2(cut.beta / cut.n * 57.2958, 2), bankDeg: r2(cut.bank / cut.n * 57.2958, 2) };
+    out.pilot = { outcome: ap.report && ap.report.outcome, t: r2(ap.t, 1), rollMaxOffM: r2(maxOff, 2), liftoff: lift, gyroPeakYaw: r2(gyroPk, 1), gyroPeakPitchRate: r2(gyroPkQ, 3),
+      tailUp: { yaw: r2(tailUp.yaw, 1), q: r2(tailUp.q, 3), V: r2(tailUp.V, 1) }, phases };
   }
   return out;
 }
@@ -142,9 +163,14 @@ launch(() => {
     console.log(`${r.id.padEnd(18)} | ${f(r.I, 3)} | ${s.rpm.join('/')} | ${s.Q.join('/')} | ${s.H.join('/')} | ${s.swirl.join('/')} | ${s.wakeR.join('/')} | ${f(s.finSwirlDeg, 1)} | ${f(s.bankDeg)} | ${f(h.swingDeg)} | ${f(h.offM)}`); }
   if (!NOPILOT) {
     console.log('\nTHE PILOT (dr < 0 = right rudder; da > 0 = roll right; moments + = nose left / left wing down, N.m)');
-    console.log('case               | outcome   | roll off m | lift-off off m / hdg deg | ROLL dr mean [min] | gyro pk yaw (q) | CLIMB dr | da | beta deg | bank | tq roll | pf yaw | gyro yaw');
+    console.log('case               | outcome   | roll off m | lift-off off m / hdg deg | ROLL dr mean [min] | gyro pk yaw (q) | tail-up gyro yaw (q, V) | CLIMB dr | da | beta deg | bank | tq roll | pf yaw | gyro yaw');
     for (const r of rows) { if (r.error || !r.pilot) continue; const p = r.pilot, R = p.phases.ROLL || {}, Cl = p.phases.CLIMB || {};
-      console.log(`${r.id.padEnd(18)} | ${String(p.outcome).padEnd(9)} | ${f(p.rollMaxOffM)} | ${p.liftoff ? f(p.liftoff.offM) + ' / ' + f(p.liftoff.hdgDeg) : '-'} | ${f(R.dr, 3)} [${f(R.drMin)}] | ${f(p.gyroPeakYaw, 1)} (${f(p.gyroPeakPitchRate, 2)}) | ${f(Cl.dr, 3)} | ${f(Cl.da, 3)} | ${f(Cl.betaDeg)} | ${f(Cl.bankDeg)} | ${f(Cl.tqRoll, 0)} | ${f(Cl.pfYaw, 1)} | ${f(Cl.gyroYaw, 1)}`); }
+      console.log(`${r.id.padEnd(18)} | ${String(p.outcome).padEnd(9)} | ${f(p.rollMaxOffM)} | ${p.liftoff ? f(p.liftoff.offM) + ' / ' + f(p.liftoff.hdgDeg) : '-'} | ${f(R.dr, 3)} [${f(R.drMin)}] | ${f(p.gyroPeakYaw, 1)} (${f(p.gyroPeakPitchRate, 2)}) | ${f(p.tailUp.yaw, 1)} (${f(p.tailUp.q, 2)}, ${f(p.tailUp.V, 1)}) | ${f(Cl.dr, 3)} | ${f(Cl.da, 3)} | ${f(Cl.betaDeg)} | ${f(Cl.bankDeg)} | ${f(Cl.tqRoll, 0)} | ${f(Cl.pfYaw, 1)} | ${f(Cl.gyroYaw, 1)}`); }
+  }
+  const cuts = rows.filter(r => r && r.cut);
+  if (cuts.length) {
+    console.log('\nTHE ENGINE CUT, the twin in the climb (10 s from 3 s after the cut): the rudder, aileron, slip and bank the pilot holds');
+    for (const r of cuts) console.log(`${r.id.padEnd(22)} | ${r.cut.engine.padEnd(9)} out | V ${f(r.cut.V, 1)} | dr ${f(r.cut.dr, 3)} [${f(r.cut.drMin)}] | da ${f(r.cut.da, 3)} | beta ${f(r.cut.betaDeg)} | bank ${f(r.cut.bankDeg)}`);
   }
   const dst = path.join(T, '..', 'reports', 'evidence', 'engine_torque_g2080.json');
   if (!only) { fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.writeFileSync(dst, JSON.stringify({ when: new Date().toISOString().slice(0, 10), cases: res }, null, 1)); console.log('\nwrote ' + path.relative(path.join(T, '..'), dst)); }

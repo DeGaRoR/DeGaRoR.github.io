@@ -2790,7 +2790,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      fuselage.material (mass, stiffness, price, the surfaces' default)
 //      and the fairing / airfoil / incidence rows ride the birth spec; a
 //      plaque whose tile and material disagreed reads a different aeroplane
-const PHYSICS_V = 4;
+//   5  2026-10-06, G2080 ENGINE-TORQUE: the propeller's reaction torque, gyroscopic couple, P-factor and swirl
+//      (30_solver propMoments) - the certificate's flown cases run at full power and their engine mount and tail now
+//      carry them, so an unchanged spec's certificate moves; the plaque's own numbers (probes, the analytic roll, the
+//      stance with the engine stopped) do not
+const PHYSICS_V = 5;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
