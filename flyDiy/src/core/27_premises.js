@@ -708,7 +708,16 @@ function sowPlots(zone, roads, ctx) {
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0, 1);
   const gapOdds = clamp(V.gapOdds + 0.6 * (1 - density), 0, 0.95);
   const plots = [];
-  const all = () => ctx.plots.concat(plots);
+  // G2063 (TOWN-GEO): A PLOT WHOSE BOX IS CLEAR OF THE CANDIDATE'S CANNOT OVERLAP IT - polysOverlap asks only whether a corner
+  // of one is inside the other, and a point outside a polygon's box is outside the polygon - so the test walks the plots
+  // whose boxes meet (the record's 500 at Metlakatla, every candidate and every pull of its back: 0.6 s of a composition).
+  // The same answer; no concatenation per candidate either
+  const pbox = new Map(), boxOf = poly => { let b = pbox.get(poly); if (b) return b; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const c of poly) { if (c[0] < x0) x0 = c[0]; if (c[0] > x1) x1 = c[0]; if (c[1] < z0) z0 = c[1]; if (c[1] > z1) z1 = c[1]; } pbox.set(poly, b = [x0, z0, x1, z1]); return b; };
+  const apart = (a, b) => a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1];   // (a NaN box is never apart)
+  const overlapsAny = q => { const qb = boxOf(q);
+    for (const L of [ctx.plots, plots]) for (const p of L) if (!apart(boxOf(p.poly), qb) && polysOverlap(p.poly, q)) return true;
+    return false; };
   const rejectAt = (x, z) => !inPoly(zone.poly, x, z) || ctx.excludes.some(p => inPoly(p, x, z)) || (ctx.keepOut || []).some(p => inPoly(p, x, z));
   // A PLOT MAY NOT LIE ON A ROAD THAT IS NOT ITS OWN (2026-09-23, the user, of three
   // houses in the carriageway: "Some houses are drawn over the roads. Not what we
@@ -791,7 +800,7 @@ function sowPlots(zone, roads, ctx) {
           for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
             back(cut);
             const q = [f0, f1, b1, b0];
-            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
+            ok = !overlapsAny(q) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
           }
           if (!ok) continue;
           be = [b1[0] - b0[0], b1[1] - b0[1]];
@@ -850,9 +859,27 @@ function planForest(zone, ctx) {
   const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
   const rnd = mulberry32(zoneSeed);
   const draw = () => { const tot = list.reduce((s, p) => s + (p.proportion || 1), 0); let r = rnd() * tot; for (const p of list) { r -= (p.proportion || 1); if (r <= 0) return p; } return list[list.length - 1]; };
-  const roadNear = (x, z) => { let d = 1e9; for (const r of ctx.roads) d = Math.min(d, roadDist(r, x, z) - (r.w || 3.6) / 2); return d; };
+  // G2063 (TOWN-GEO): THE THREE TESTS, CULLED, THE SAME ANSWERS. A road whose box (its points') lies farther than its half
+  // width + `r` cannot come within `r` of its edge; a plot whose box lies 1.5 m clear cannot have the point within 1.5 m;
+  // a tree farther than two grid cells (a cell is the spacing m) is farther than m. Each walked every road, plot and tree
+  // of the record for every candidate (Metlakatla: 0.45 s of a composition). A NaN keeps the old answers: a road's NaN
+  // distance made the min NaN (no road near), a tree at NaN is never clear of
+  const RB = ctx.roads.map(r => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of r.pts || []) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { r, hw: (r.w || 3.6) / 2, b: [x0, z0, x1, z1] }; });
+  const farBox = (b, x, z, r) => Math.max(b[0] - x, x - b[2], b[1] - z, z - b[3]) > r + 1e-3;   // (NaN: never far)
+  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDist(R.r, x, z) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
+  const PB = ctx.plots.map(p => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of p.poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { p, b: [x0, z0, x1, z1] }; });
+  const plotWithin = (x, z, r) => PB.some(P => !farBox(P.b, x, z, r) && sdPoly(P.p.poly, x, z) < r);
   const trees = [];
-  const clearOf = (x, z, m) => trees.every(t => Math.hypot(t.x - x, t.z - z) >= m) && ctx.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+  const GRID = new Map(), gridM = Math.min(3.2, step * 0.55), gk = (i, j) => i * 1048576 + j, odd = [];   // (the one m clearOf is asked with)
+  const gridAdd = t => { if (!(isFinite(t.x) && isFinite(t.z))) { odd.push(t); return; } const k = gk(Math.floor(t.x / gridM), Math.floor(t.z / gridM)); let c = GRID.get(k); if (!c) GRID.set(k, c = []); c.push(t); };
+  for (const t of ctx.trees) gridAdd(t);
+  const clearOf = (x, z, m) => {
+    if (m !== gridM || !(isFinite(x) && isFinite(z))) return trees.every(t => Math.hypot(t.x - x, t.z - z) >= m) && ctx.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+    for (const t of odd) if (!(Math.hypot(t.x - x, t.z - z) >= m)) return false;
+    const i0 = Math.floor(x / gridM), j0 = Math.floor(z / gridM);
+    for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) { const c = GRID.get(gk(i, j)); if (c) for (const t of c) if (!(Math.hypot(t.x - x, t.z - z) >= m)) return false; }
+    return true;
+  };
   const bb = polyBBox(zone.poly), s = zoneSeed % 1000 * 0.618 + 9;
   const clearing = zone.rules && zone.rules.clearings === false ? -1 : 0.38;
   for (let z = bb.z0 + 1; z < bb.z1; z += step) for (let x = bb.x0 + 1; x < bb.x1; x += step) {
@@ -860,8 +887,8 @@ function planForest(zone, ctx) {
     if (!inPoly(zone.poly, px, pz)) continue;
     if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < clearing) continue;
     if (ctx.T(px, pz) < ctx.waterY + 0.6) continue;
-    if (roadNear(px, pz) < 3) continue;
-    if (ctx.plots.some(p => sdPoly(p.poly, px, pz) < 1.5)) continue;
+    if (roadWithin(px, pz, 3)) continue;
+    if (plotWithin(px, pz, 1.5)) continue;
     if (ctx.excludes.some(p => inPoly(p, px, pz))) continue;
     if (!clearOf(px, pz, Math.min(3.2, step * 0.55))) continue;
     const p = draw();
@@ -869,7 +896,8 @@ function planForest(zone, ctx) {
     // forest, just not too tall"): a MEDIUM canopy is the same species grown less.
     const sizeK = zone.rules && zone.rules.size !== undefined ? +zone.rules.size : 1;
     const size = (p.size || 1) * (0.82 + rnd() * 0.4) * sizeK;
-    trees.push({ x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id });
+    const tr = { x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id };
+    trees.push(tr); gridAdd(tr);
   }
   return trees;
 }
