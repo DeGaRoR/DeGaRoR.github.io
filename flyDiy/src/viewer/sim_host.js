@@ -218,6 +218,79 @@ function simHostPlain(o, depth, skip) {
   return r;
 }
 
+// ---- G1850 (DMG-D4a): THE BROKEN LIST, TO THE PAGE, ON CHANGE (DEFORM-AND-BREAK §2.5 / §5.1, TREE-CRASH's G1474) ----
+// Under the worker the page's beams are the def's (sim_view.js `beams: def.beams`): no broken flag, no set. The damage
+// view (dmg_overlay.js) and the skin (skin_break.js) read ONE state instead, the same inline and under the worker:
+//   br   the broken members, in the order they broke
+//   pc   each node's PIECE (DMG-D1b's union-find: the live members, the shape-matched clusters still on), 0 = the core
+//        (the piece holding the body's refs) - null while the airframe is one piece
+//   st   the members with a permanent set: [beam, (L0 - ks - Lr) / Lr, ...] (dmg_overlay.js setOf; |set| >= 1e-4)
+// A PAYLOAD crosses only when that changed: a break (a new broken member, a cluster cut: `sB`) sends the whole state at
+// once; a set alone (`sS`, every substep while a member yields) at most every SIM_DMG_SET_S of sim time, the last one
+// always (it goes as soon as the window has passed, changing or not). Nothing broken, nothing set: nothing at all - no
+// key in the snapshot's meta (the damage layer off, or an intact flight, costs one call and two string compares a snapshot).
+// The page applies it with sim_view.js simViewDmgApply; app.js's inline sim runs the same hop with no window.
+const SIM_DMG_SET_S = 0.1;
+const SIM_DMG_SET_MIN = 1e-4;
+function simDmgSigs(sim) {
+  const D = sim.damage && sim.damage();
+  if (!D) return null;
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents];
+}
+// the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
+function simDmgPieces(sim, coreNode) {
+  const n = sim.n, P = new Int32Array(n);
+  for (let i = 0; i < n; i++) P[i] = i;
+  const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
+  for (const b of sim.beams) { if (b.broken) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  const CL = sim.clusterCuts ? sim.clusterCuts().clusters : [];
+  for (const C of CL) if (!C.off && C.nodes.length) { const r0 = f(C.nodes[0]); for (const i of C.nodes) { const x = f(i); if (x !== r0) P[x] = r0; } }
+  const core = f(coreNode >= 0 && coreNode < n ? coreNode : 0), lab = new Int32Array(n), id = new Map([[core, 0]]);
+  for (let i = 0; i < n; i++) { const r = f(i); let k = id.get(r); if (k === undefined) { k = id.size; id.set(r, k); } lab[i] = k; }
+  return id.size > 1 ? lab : null;
+}
+function simDmgSets(sim) {
+  const st = [];
+  sim.beams.forEach((b, bi) => {
+    if (!(b.Lr > 0)) return;
+    const s = (b.L0 - (b.ks || 0) - b.Lr) / b.Lr;
+    if (Math.abs(s) >= SIM_DMG_SET_MIN) st.push(bi, Math.round(s * 1e6) / 1e6);
+  });
+  return st;
+}
+// hop: { sB, sS, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
+function simDmgHop(sim, hop, coreNode, win) {
+  const sg = simDmgSigs(sim);
+  if (!sg) return null;
+  const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
+  let out = null;
+  if (sg[0] !== hop.sB) {
+    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
+    const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
+    out = { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) };
+  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
+    hop.sS = sg[1]; hop.t = sim.t;
+    out = { sS: sg[1], st: simDmgSets(sim) };
+  } else return null;
+  hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
+  return out;
+}
+// the pristine hop (an intact airframe, as a new view holds it)
+const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', t: -Infinity });
+// G1826 (DMG-DRIVE): THE DRIVETRAIN'S STATE, TO THE PAGE, while any engine has one (an overspeed band, a strike, the gearbox,
+// a failure: sim.damage().drive, 33_drive.js genDriveState) - every snapshot then (the vibration and the tip's Mach move;
+// one or two small objects), nothing at all before it (the layer off: no drive array; an untouched drivetrain: one loop
+// over the engines). D4b's look, D5's bill and the sound read `meta.drv` (HANDOVER G1826 names the fields)
+function simDrvOf(sim) {
+  const D = sim.damage && sim.damage(), R = D && D.drive;
+  if (!R) return null;
+  let any = false;
+  for (const x of R) if (x.os || x.strike || x.gearbox || x.failed) { any = true; break; }
+  if (!any) return null;
+  return R.map(x => ({ os: x.os, osPeak: x.osPeak, osSec: x.osSec, osExc: x.osExc, strike: x.strike, strikeAt: x.strikeAt, bladeLost: x.bladeLost, gearbox: x.gearbox,
+    failed: x.failed, why: x.why, teardown: x.teardown, internal: x.internal, thrustK: x.thrustK, vib: x.vib, tipMach: x.tipMach, imbN: x.imbN }));
+}
+
 // the pilot's fields that are big and change rarely: sent when the object
 // changes (by reference), the rest of the pilot every snapshot
 const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site'];
@@ -469,6 +542,7 @@ function makeSimHost(CORE, init, keptWorld) {
         break;
       }
       case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
+      case 'cert': if (typeof sim.certStamp === 'function') sim.certStamp({ Ft: c.Ft, Fc: c.Fc }); break;   // G1831 (DMG-D2a)
       case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
       case 'setDay': world.setDay(c.day || {}); world.__simV = (world.__simV || 0) + 1; break;
       case 'obst': case 'world': case 'premises': simHostWorldOp(world, c); break;
@@ -488,6 +562,13 @@ function makeSimHost(CORE, init, keptWorld) {
         H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to });
         H.apGen++;
         H.end = { air: false, wasAir: false, still: 0, over: H.end.over };
+        break;
+      }
+      // G1945 DEST-TO: a new To (app.js setTo): the pilot's destination moves - 43_pilot.js ap.setDest, as the page's
+      case 'dest': {
+        const to = c.to == null ? null : aeroById(c.to);
+        if (to && ap.setDest) ap.setDest(to);
+        if (to && init.place) init.place = Object.assign({}, init.place, { to: c.to });
         break;
       }
       case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
@@ -529,7 +610,7 @@ function makeSimHost(CORE, init, keptWorld) {
     if (!noDay) H.dayTick(dt);
     H.steps++;
   };
-  H.diverged = () => !Number.isFinite(sim.p[1]);
+  H.diverged = () => !Number.isFinite(sim.p[1]) || !!(sim.fault && sim.fault());   // G1801: or a node past the velocity guard
   H.crashed = () => !!(sim.damage && sim.damage().over);   // G1470 (TREE-CRASH)
 
   // THE SNAPSHOT: the head, p, v, the fuel masses into `f` (a Float64Array of H.len)
@@ -553,6 +634,10 @@ function makeSimHost(CORE, init, keptWorld) {
   };
   const rare = {};
   let genSent = 0;
+  // G1850: the broken list's hop (what the page holds), the core's node (the body's refs)
+  let dmgHop = simDmgHop0();
+  const dmgCore = (def.refs && def.refs.noseFrame && def.refs.noseFrame.length) ? def.refs.noseFrame[0] : 0;
+  H.dmgBytes = 0; H.dmgSends = 0; H.dmgMs = 0;   // the hop's cost, read by GATE DMGSKIN
   H.meta = () => {
     const ap = H.ap, A = {};
     // G820 (C1c): a NEW PILOT (Fly on's leg, the skip's) - every field again, and the view starts its copy afresh
@@ -575,11 +660,14 @@ function makeSimHost(CORE, init, keptWorld) {
     }
     for (const k of SIM_HOST_AP_RARE) if (!(k in ap) && rare[k] !== undefined) { rare[k] = undefined; A[k] = null; }
     const HY = sim.hydro;
+    const dmgB = simDmgHop(sim, dmgHop, dmgCore);
+    if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
+    const drv = simDrvOf(sim);                      // G1826
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
       // G1470: the crash's verdict for the page's card (why), once it is one
-      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
+      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, brokeUp: d.brokeUp || null, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
       fuel: simHostPlain(sim.fuel, 3),
       // G1180 (LOC-SWITCH): a float's tables of vectors (W, dq, per) do not survive the plain copy at depth 2 - they
       // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
@@ -589,10 +677,12 @@ function makeSimHost(CORE, init, keptWorld) {
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,
+      ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
+      ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)
-  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; };
+  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); };   // (G1850: a new view holds nothing)
   H.ready = () => ({ kind: 'ready', n, substeps: def.params.substeps, withV, len: LEN, fuelIdx: fuelIdx.slice(),
                      slots: SIM_SNAP, dt: SIM_HOST_DT, defSig: simHostDefSig(def), epoch: H.epoch });
   return H;
@@ -857,8 +947,10 @@ function simHostStart(onMessage, onError, opts) {
 
 if (typeof window !== 'undefined') {
   window.SIM_HOST = { start: simHostStart, source: simHostSource, trimBoot: simHostTrimBoot, fetchBoot: simHostFetchBoot, probe: simHostProbe,
-                      place: simHostPlace, KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
+                      place: simHostPlace, KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP,
+                      dmgHop: simDmgHop, dmgHop0: simDmgHop0 };   // G1850: app.js's inline sim runs the same hop
 }
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
-                     simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };
+                     simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart,
+                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S };

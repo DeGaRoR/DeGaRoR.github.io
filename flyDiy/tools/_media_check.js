@@ -182,7 +182,8 @@ function manifestFiles() {
              'house_tex.js', 'panel_tex.js', 'sign_tex.js',
              'ground_tex.js',   // THE GROUND LIBRARY (G910): the site's, the splat's, the pavement's and the lot's sets, once, + the cooked layers (+ AS3's KTX2 planes)
              'ktx2_twins.js',   // AS3 (G916): the KTX2 twins of the plain maps (tools/ktx2_twins.js, media/tex/ktx2/<family>/)
-             'cabin_livery.js']   // the tram cabin's liveries (G343)
+             'cabin_livery.js',   // the tram cabin's liveries (G343)
+             'blueprint_library.js']   // the blueprint library's sheets (G573.2, media/blueprints/)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))

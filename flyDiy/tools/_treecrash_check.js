@@ -14,6 +14,9 @@
 //      substep - a peak under 1 is a run in which nothing would have yielded):
 //        the load test to its ultimate 5.7 g (the garage's own rig), a flown 3.8 g pull, a drop onto the wheels (the
 //        floats onto the water) at FAR 23.473's limit sink and at its 10 ft/s cap, a whole circuit with the pilot
+//      G1833 (DMG-D2a): on THE CERTIFICATE's limits (66_gen_cert.js; `--physics` for D1a's): the load test clean to its
+//      3.8 g limit and HELD at 5.7 g with nothing broken (its first set is just past the limit, by design); the pull read
+//      up to the step its applied load factor (the aero force over the weight) first reaches the limit
 //   3. A TAXI INTO A TRUNK (3 m/s, the throttle shut, on the centreline): the nose dents round it, the prop strikes and
 //      the engine stops - NOT a crash; the aeroplane stays within 2 m of where it stopped (it sprang back 5-10 m)
 //      A WINGTIP BRUSH at walking pace: no crash
@@ -30,6 +33,10 @@
 'use strict';
 const path = require('path');
 const argv = process.argv.slice(2);
+// G1833 (DMG-D2a): the damage layer is flown with THE CERTIFICATE (66_gen_cert.js: what the game stamps when the layer
+// is on); `--physics` flies D1a's physics limits as before (the base's gate)
+const PHYS = argv.includes('--physics');
+if (!PHYS) process.env.FLYDIY_CERT = '1';
 const L = require('./_treecrash_lib.js');
 
 // ---- a child: one build's numbers, JSON on its last line ----
@@ -43,9 +50,14 @@ if (argv[0] === '--build') {
   const yld = p => (p && p.max >= 1 ? 1 : 0);
   const ltP = L.loadTest(k, { probe: true });
   out.load = { yields: yld(ltP.ult.peak), verdict: ltP.ult.verdict, limit: ltP.limit && ltP.limit.peak, ult: ltP.ult.peak, finite: ltP.finite };
+  // under the certificate the airframe takes its first set just past its limit (by design): the load test's limit is
+  // where nothing may yield, and at its ultimate (the bench, damage on, no probe) it holds - set, nothing broken
+  if (!PHYS) { const lt = L.loadTest(k, {}); out.load.cert = true; out.load.yieldsLim = yld(ltP.limit && ltP.limit.peak); out.load.ultBreaks = lt.ult.dmg.breaks; out.load.ultSet = lt.ult.dmg.members; out.load.verdict = lt.ult.verdict; }
   const V0 = 2.6 * Vs;   // 1.33 x the speed 3.8 g stalls at (Vs root 3.8)
-  const pu = L.pull(k, { V: V0, sgn: 1, probe: true });
-  out.pull = { V0, nzMax: pu.nzMax, held: pu.held, yields: yld(pu.peak), peak: pu.peak, finite: pu.finite };
+  // (under the certificate the pull is read up to the step it first reaches the limit: its PI overshoots to 4-5.3 g,
+  // an over-g, where the certificate's set is the point)
+  const pu = L.pull(k, PHYS ? { V: V0, sgn: 1, probe: true } : { V: V0, sgn: 1, probe: true, toLimit: 3.8 });
+  out.pull = { V0, nzMax: pu.nzMax, naMax: PHYS ? null : pu.naMax, held: pu.held, yields: yld(pu.peak), peak: pu.peak, finite: pu.finite };
   const s473 = L.far473(k);
   out.drop = [s473, 0.3048 * 10].map(sink => { const rp = L.hardLanding(k, { sink, probe: true });
     return { sink, yields: yld(rp.peak), crashed: rp.dmg.crashed, nz: rp.gMax, peak: rp.peak, finite: rp.finite }; });
@@ -86,14 +98,14 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
   const { spawn } = require('child_process');
   const keys = Object.keys(L.BUILDS), t0 = Date.now();
   const run = k => new Promise(res => {
-    const c = spawn(process.execPath, [__filename, '--build', k], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const c = spawn(process.execPath, [__filename, '--build', k].concat(PHYS ? ['--physics'] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
     let so = '', se = ''; c.stdout.on('data', d => { so += d; }); c.stderr.on('data', d => { se += d; });
     c.on('close', () => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { key: k, err: se.slice(-800) }); });
   });
   // at most 3 at once (each is one core)
   const R = {}; const q = keys.slice();
   await Promise.all([0, 1, 2].map(async () => { while (q.length) { const k = q.shift(); R[k] = await run(k); } }));
-  console.log('(' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + keys.length + ' builds)');
+  console.log('(' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + keys.length + ' builds; ' + (PHYS ? 'the members\' physics limits (--physics)' : 'the certificate\'s limits (DMG-D2a, 66_gen_cert.js)') + ')');
   for (const k of keys) {
     const r = R[k], lab = L.BUILDS[k].label;
     console.log(lab + ':');
@@ -101,8 +113,10 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     console.log('1. the table');
     yes(r.table.noA === 0 && r.table.noMat === 0, r.table.n + ' members, every one with a section and a GEN_CRASH material (' + r.table.mats.join(', ') + ')');
     console.log('2. nothing yields in what it was built for (the margin: the worst member\'s peak force over its yield)');
-    yes(r.load.yields === 0 && r.load.finite && /HELD/.test(r.load.verdict), 'the load test to 5.7 g: ' + r.load.verdict + ', nothing yields; the worst member at 3.8 g ' + pk(r.load.limit) + ', at 5.7 g ' + pk(r.load.ult));
-    yes(r.pull.nzMax >= 3.8 && r.pull.yields === 0 && r.pull.finite, 'a flown pull from ' + r.pull.V0.toFixed(0) + ' m/s to ' + f2(r.pull.nzMax) + ' g (held ' + f2(r.pull.held) + ' s over 3.7): nothing yields; the worst member ' + pk(r.pull.peak));
+    if (r.load.cert) yes(r.load.yieldsLim === 0 && r.load.ultBreaks === 0 && r.load.finite && /HELD/.test(r.load.verdict), 'the load test (the certificate): nothing yields to its 3.8 g limit (the worst member ' + pk(r.load.limit) + '); at 5.7 g ' + r.load.verdict + ', ' + r.load.ultSet + ' members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g ' + pk(r.load.ult));
+    else yes(r.load.yields === 0 && r.load.finite && /HELD/.test(r.load.verdict), 'the load test to 5.7 g: ' + r.load.verdict + ', nothing yields; the worst member at 3.8 g ' + pk(r.load.limit) + ', at 5.7 g ' + pk(r.load.ult));
+    if (r.pull.naMax != null) yes(r.pull.naMax >= 3.8 && r.pull.yields === 0 && r.pull.finite, 'a flown pull from ' + r.pull.V0.toFixed(0) + ' m/s to the limit (the wing\'s load ' + f2(r.pull.naMax) + ' W; the CG then reading ' + f2(r.pull.nzMax) + ' g): nothing yields; the worst member ' + pk(r.pull.peak));
+    else yes(r.pull.nzMax >= 3.8 && r.pull.yields === 0 && r.pull.finite, 'a flown pull from ' + r.pull.V0.toFixed(0) + ' m/s to ' + f2(r.pull.nzMax) + ' g (held ' + f2(r.pull.held) + ' s over 3.7): nothing yields; the worst member ' + pk(r.pull.peak));
     for (const d of r.drop) yes(d.yields === 0 && !d.crashed && d.finite, 'a drop at ' + f2(d.sink) + ' m/s (' + f2(d.sink / 0.3048) + ' ft/s' + (d === r.drop[0] ? ', FAR 23.473' : ', its cap') + '): ' + f2(d.nz) + ' g, nothing yields; the worst member ' + pk(d.peak));
     yes(r.circuit.yields === 0 && !r.circuit.crashed && r.circuit.finite, 'a circuit with the pilot (' + r.circuit.outcome + ', ' + r.circuit.t.toFixed(0) + ' s, ' + f2(r.circuit.nzMax) + ' g at the most): nothing yields; the worst member ' + pk(r.circuit.peak));
     if (!r.taxi) { console.log('   (a floatplane: the trunk runs are the land builds\')'); continue; }

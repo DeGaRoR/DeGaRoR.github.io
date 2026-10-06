@@ -19,6 +19,11 @@ const VIEW_DIR = path.join(ROOT, 'src', 'viewer');
 const MODELS_DIR = path.join(ROOT, 'src', 'models');
 const PROPS_DIR = path.join(ROOT, 'src', 'props');
 const VENDOR_DIR = path.join(ROOT, 'vendor');
+// WHERE THE OUTPUTS GO (RELEASE-CHECKS G1591, review B27): ROOT, unless build({ out }) names another folder - GATE BUILT
+// rebuilds into a temp dir and compares with the committed files. The INPUTS are always ROOT's (and version.json's
+// kept date is read from ROOT's: an unchanged build id keeps the committed date wherever the build is written).
+let OUT = ROOT;
+const outPath = rel => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); return p; };
 
 const MANIFEST = {
   core: [
@@ -86,6 +91,10 @@ const MANIFEST = {
     // THE FLOAT IN WATER (H1, G382): the hull, its panels and their force
     // law; the frame builds a float from it and the solver runs it
     '32_hydro.js',
+    // THE DRIVETRAIN'S LIMITS AND HOW IT FAILS (G1826, DMG-DRIVE): the overspeed bands, the graded prop strike, the
+    // gearbox, the mount's torque and gyroscopic loads - pure; read by the solver (behind the damage layer) and the
+    // certificate (66_), at call time
+    '33_drive.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -93,6 +102,9 @@ const MANIFEST = {
     // direct-to, DTK/XTK/DIS/ETE/CDI and VNAV; pure, read by the pilot's AP
     // box and by the panel to come.
     '38_nav.js',
+    // THE FLIGHT'S TO (G1945 DEST-TO): the bases, where the aeroplane is (the
+    // derived From), the To a picker offers and the pref's migration; pure.
+    '38b_dest.js',
     '39_ground_path.js',
     // THE SERVOS (G1570, review E4): the inner loops of all three pilots, one
     // module and one gain table (SERVO_GAINS); pure, read by 40_, 41_ and 43_.
@@ -139,6 +151,9 @@ const MANIFEST = {
     '63_gen_wing.js',
     '64_gen_build.js',
     '65_gen_loadtest.js',
+    // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
+    // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
+    '66_gen_cert.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
@@ -265,7 +280,8 @@ const MANIFEST = {
   // itself, by its URL)
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
-         ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
+         ['src/viewer', 'diag.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
@@ -434,7 +450,9 @@ const MANIFEST = {
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
+    // blueprint_library.js before it (G573.2): the prepared sheets, a plain
+    // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
@@ -484,6 +502,10 @@ const MANIFEST = {
               'audio/emitters_model.js', 'audio/emitters.js',
               'audio/voice_model.js', 'audio/voice.js',   // G1627 (SND-VOICE): Radio Jolene's words and their player
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
+              // G1804 (DMG-D0): the damage view's colours (window.DMG_TINT, pure; app.js sync() reads it)
+              'dmg_overlay.js',
+              // G1851 (DMG-D4a): the skin over a break (window.SKIN_BREAK, pure; app.js poseModel reads it)
+              'skin_break.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
@@ -582,6 +604,49 @@ const MANIFEST = {
 const read = f => fs.readFileSync(f, 'utf8');
 const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
 
+// THE BUILD ID'S INPUTS (RELEASE-CHECKS G1590, review B28). The pages and sw.js carry everything inlined and a content
+// hash (?v=) of every file they reference; what they do NOT carry is a file the shipped code fetches or imports by a
+// path of its own: the house worker's and the sim host's importScripts (keyed on ?v=FLYDIY_BUILD - the id itself),
+// the world / premises / parked / town-kit manifests, the fixtures, a lazy file's own references. So the id also
+// hashes the CLOSURE of repo paths named in string literals - 'src/...', 'tools/...', 'vendor/...', 'media/...' - from
+// the pages outward through every named script, stylesheet and manifest, plus the paths the code builds at run time
+// (DYNAMIC_INPUTS). Media is named by content hash already (sw.js's cache-first rule rests on it), and the manifests
+// that name it are in the closure, so a re-bake moves the id through them.
+const BUILD_SLOT = '@@FLYDIY_BUILD_ID@@', DATE_SLOT = '@@FLYDIY_BUILD_DATE@@';
+const PATH_LIT = /['"`]((?:src|tools|vendor|media)\/[\w.\/-]+\.(?:js|mjs|json|wasm|css|html))(?:\?[^'"`\s]*)?['"`]/g;
+const SCAN_EXT = /\.(?:js|mjs|json|css|html)$/;
+// generated files are hashed through the pages (flight_core.js is the inlined core, byte for byte, behind its header);
+// and what is made FROM a build is never an input to its id: src/core/parked_packs.json is the parked cook's manifest,
+// written by tools/parked_cook.js AFTER the build and keyed on its id - hashed, every re-cook would move the id and
+// stale its own cook (the cooked bodies are media/parked/<content hash>, named by that manifest)
+const GENERATED = new Set(['tools/flight_core.js', 'index.html', 'dev.html', 'sw.js', 'version.json', 'src/core/parked_packs.json']);
+// paths built at run time ('tools/fixtures/island_' + id + '.json', the KTX2 transcoder's folder), and the manifests the
+// BUILD reads and inlines (the music / sfx / voice catalogues - FLYDIY_MUSIC, FLYDIY_AUDIO_MEDIA, FLYDIY_VOICE - and the
+// boot shots): the page already carries their content, they are named here so the closure lists them and a manifest
+// that stops being inlined stays an input: [dir, file pattern]
+const DYNAMIC_INPUTS = [['tools/fixtures', /^(?:island_.+|premises_v1_.+)\.json$/], ['vendor/ktx2', /^basis_transcoder\./],
+  ['src/viewer/audio', /_catalogue\.json$/], ['src/viewer', /^shots_pack\.json$/]];
+const LAST = { build: null, inputs: null };
+function shippedInputs(texts) {
+  const seen = new Map(), queue = [];
+  const add = rel => {
+    if (seen.has(rel) || GENERATED.has(rel)) return;
+    const p = path.join(ROOT, rel);
+    let buf; try { buf = fs.statSync(p).isFile() ? fs.readFileSync(p) : null; } catch (e) { buf = null; }
+    if (!buf) return;   // a path in a comment or a template that names no file: nothing shipped
+    seen.set(rel, crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16));
+    if (SCAN_EXT.test(rel)) queue.push(buf.toString('utf8'));
+  };
+  const scan = t => { PATH_LIT.lastIndex = 0; let m; while ((m = PATH_LIT.exec(t))) add(m[1]); };
+  texts.forEach(scan);
+  for (const [d, re] of DYNAMIC_INPUTS) {
+    const dir = path.join(ROOT, d);
+    if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir).sort()) if (re.test(f)) add(d + '/' + f);
+  }
+  while (queue.length) scan(queue.shift());
+  return [...seen].map(([rel, h]) => ({ rel, sha: h })).sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+}
+
 // THE SHIPPED WORLDS (2026-09-23): src/core/world_packs.json, baked by
 // tools/world_prep.js, names every gzipped payload under media/world/<id>.
 // It is INLINED into the island loader rather than fetched: the loader runs
@@ -606,11 +671,15 @@ const WORLD_PACK = (() => {
 // same V8 parse without executing anything; it is stricter in exactly the way
 // a <script> body needs (a top-level `import`/`export`/`await`/`return` is a
 // syntax error here where --check may re-read the file as CommonJS or ESM).
-function syntaxCheck(label, code) {
-  // REVIEW 2026-10-04: a `</script` inside an INLINED blob ends the page's script block at that byte (the inert-typing
-  // regex below rewrites `<script>` literals too); nothing carries one today, and now nothing can silently
-  if (/<\/script/i.test(code)) { console.error(`BUILD FAIL: ${label} contains '</script' - an inlined blob may not`); process.exit(1); }
-  try { new vm.Script(code, { filename: label }); }
+// opts.served: a file served as its own URL (a <script src>, a worker's or a worklet's module, sw.js) - never inside a
+// page's <script> block, so a `</script` in it is harmless; opts.strict parses it as strict code (an AudioWorklet
+// module is a module: strict, whatever its first line says)
+function syntaxCheck(label, code, opts) {
+  // REVIEW 2026-10-04: a `</script` inside an INLINED blob ends the page's script block at that byte; nothing carries
+  // one today, and now nothing can silently. (The inert typing of index.html's tail no longer rewrites anything inside
+  // a blob - G1594 - so a `<script>` literal is safe; the closing one never is.)
+  if (!(opts && opts.served) && /<\/script/i.test(code)) { console.error(`BUILD FAIL: ${label} contains '</script' - an inlined blob may not`); process.exit(1); }
+  try { new vm.Script((opts && opts.strict ? '"use strict";' : '') + code, { filename: label }); }
   catch (e) {
     console.error(`SYNTAX FAIL in ${label}:\n${(e.stack || String(e)).split('\n').slice(0, 5).join('\n')}`);
     process.exit(1);
@@ -641,7 +710,7 @@ function buildCore() {
   const body = parts.join('');
   syntaxCheck('core-concat', body);
 
-  const outFile = path.join(__dirname, 'flight_core.js');
+  const outFile = outPath('tools/flight_core.js');
   const hash = sha(body);
   if (fs.existsSync(outFile)) {
     const old = read(outFile);
@@ -727,7 +796,10 @@ function buildViewer(coreBody) {
   // REVIEW 2026-10-04: the world externals and the on-demand files are <script src> refs, not inlined, and were never
   // syntax-checked - a broken render_premises.js built "syntax OK" and failed on the page
   for (const [d, f] of [...MANIFEST.world, ...MANIFEST.lazy])
-    syntaxCheck(d + '/' + f, fs.readFileSync(path.join(ROOT, d, f), 'utf8'));
+    syntaxCheck(d + '/' + f, fs.readFileSync(path.join(ROOT, d, f), 'utf8'), { served: true });
+  // RELEASE-CHECKS (G1595, review C-release): the AudioWorklet modules were never parsed either - a module is strict
+  for (const f of MANIFEST.audio.modules)
+    syntaxCheck('src/viewer/audio/' + f, fs.readFileSync(path.join(VIEW_DIR, 'audio', f), 'utf8'), { served: true, strict: true });
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
   // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
   // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting.
@@ -959,6 +1031,8 @@ window.FLYDIY_BOOT.then(function () {
   // the WORLD rail applies this browser's saved look at boot: loaded now when there is one (or a shown rail, or
   // ?scenery=1); otherwise F9 fetches it (its own F9 handler takes over once it is in)
   try { if (localStorage.getItem('flydiy.worldlook.v1') || /"shown":true/.test(localStorage.getItem('flydiy.worldrail.ui') || '') || /[?&]scenery=1/.test(location.search)) lazy('world_rail'); } catch (e) {}
+  // G1995 (HW-COVERAGE): THE SELF-TEST, ?diag - its module loads only when the URL asks (zero cost otherwise)
+  try { if (/[?&]diag(=[^&]*)?(&|$)/.test(location.search)) lazy('diag'); } catch (e) {}
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'F9' || window.WORLD_RAIL) return;
     e.preventDefault(); lazy('world_rail').then(function () { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); });
@@ -985,22 +1059,19 @@ window.FLYDIY_BOOT.then(function () {
   const MARK = id => `<script>window.BOOT&&BOOT.phase('${id}','${id === 'vendor' ? 'reading the renderer' : 'reading the model'}')</script>`;
   // the core's sha (LOADING S2): a cache of something the physics computed
   // (the shakedown) is only valid for the core that computed it
-  // ...and THE BUILD (LOADING S4): one id for the whole page's code (core + every
-  // viewer and editor script), written into both pages, into version.json beside
-  // them (the server's copy, fetched with no-store) and into sw.js - the version
-  // line in the GRAPHICS menu compares the first two
-  // G1535 (UPDATE-NOW): ...and the page's own shell - the boot slot's scripts (the loading screen, the welcome, the
-  // update pill), the styles, the body and the shell. Before it, a change to any of them shipped a new page under the
-  // SAME build id, so nothing could tell the player a newer page was on the server.
-  const BUILD_ID = sha(coreBody + scripts.join('\n') + editor.join('\n')
-    + [shell, css, bodyHtml, cardsJs, bootJs, welcomeJs, updateJs].join('\n')).slice(0, 12);
-  // the build's DATE: when version.json first carried this id (a rebuild of the same sources keeps it, so the stamp
-  // says when the build was made, not when somebody last ran the battery - and version.json stops churning)
-  const BUILD_DATE = (() => {
-    try { const v = JSON.parse(read(path.join(ROOT, 'version.json'))); if (v && v.build === BUILD_ID && v.date) return v.date; } catch (e) {}
-    return new Date().toISOString();
-  })();
-  const BUILD_TAG = `<script>window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_BUILD_DATE='${BUILD_DATE}';</script>`;
+  // ...and THE BUILD (LOADING S4): one id for the whole page, written into both pages, into version.json beside
+  // them (the server's copy, fetched with no-store) and into sw.js - the version line in the GRAPHICS menu and the
+  // update pill (G1535, UPDATE-NOW) compare it with the server's, and the workers' importScripts and caches key on it
+  // (sim_host, house_worker: ?v=FLYDIY_BUILD).
+  // RELEASE-CHECKS (G1590, review B28): it hashed the core + viewer + editor scripts (UPDATE-NOW G1535 added the shell,
+  // the styles, the body and the boot slot's scripts), so a train that changed the vendor, a world / lazy pack, a
+  // worklet, a payload or a fetched manifest still shipped under the OLD id - the pill stayed quiet and a worker imported
+  // its stale copy under the old ?v=. It is now computed LAST, over the finished pages and sw.js (everything inlined, and
+  // every ?v= content hash they carry) and every file the shipped code names by path (shippedInputs); until then the
+  // pages carry BUILD_SLOT for the id and DATE_SLOT for the date (the date is not hashed: it is the id's).
+  const BUILD_ID = BUILD_SLOT;
+  // G1535: the boot slot's line - the id and the date, known on the welcome and loading screens (swapBuild, below)
+  const BUILD_TAG = `<script>window.FLYDIY_BUILD='${BUILD_SLOT}';window.FLYDIY_BUILD_DATE='${DATE_SLOT}';</script>`;
   const AUDIO_SRC = {};   // G1600: the served audio modules, stem -> content-versioned url (MANIFEST.audio)
   for (const f of MANIFEST.audio.modules) AUDIO_SRC[f.replace(/\.js$/, '')] = 'src/viewer/audio/' + f + ver(path.join(VIEW_DIR, 'audio', f));
   // G1673: the music catalogue (a manifest, inlined - never fetched, so never stale under sw.js's cache-first media rule)
@@ -1012,7 +1083,6 @@ window.FLYDIY_BOOT.then(function () {
   const SFX = {};
   if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
   const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')};window.FLYDIY_VOICE=${fs.existsSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json')) ? JSON.stringify(JSON.parse(fs.readFileSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json'), 'utf8'))).replace(/</g, '\\u003c') : '{"clips":{}}'}</script>`;   // G1627: Radio Jolene's voice catalogue, inlined like the music's
-  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: BUILD_DATE }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
   // pages and everything else are never touched. One cache for every
@@ -1043,7 +1113,7 @@ window.FLYDIY_BOOT.then(function () {
     }
     return out;
   })(path.join(ROOT, 'media', 'geo'), []));
-  fs.writeFileSync(path.join(ROOT, 'sw.js'), `// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build ${BUILD_ID}.
+  const swText = `// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build ${BUILD_ID}.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
 // The world payloads and mesh bins this build asks for; anything else under
 // media/world/ or media/geo/ is swept on activate (a superseded world is ~35 MB,
@@ -1096,21 +1166,28 @@ async function ranged(req, range) {
       'Content-Length': String(b - a + 1), 'Content-Type': res.headers.get('Content-Type') || 'audio/mpeg', 'Accept-Ranges': 'bytes' } });
   } catch (err) { return fetch(req); }
 }
-`);
+`;
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}\n<!--ISLAND-LOADER-->`);
-  art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}\n${CORE_SHA}`);
-  art = fill(art, 'MODELS', payloadRefs);
+  // THE INERT TAIL (G434.3, below) BY CONSTRUCTION (RELEASE-CHECKS G1594, review C-release): every tag after the
+  // island loader is written inert here. It was a regex over the assembled tail, which also rewrote any `<script>` or
+  // `<script src=` INSIDE an inlined blob (one comment in _bay_site.js today). inert() is applied to the builder's own
+  // snippets only (refs, flags, the loader, the sha line: no source text, and their JSON escapes '<'); a blob is
+  // wrapped by INERT directly and never passes through a regex.
+  const INERT = '<script type="text/x-flydiy">';
+  const inert = h => h.replace(/<script>/g, INERT).replace(/<script src=/g, '<script type="text/x-flydiy" src=');
+  art = fill(art, 'CORE', `${INERT}\n${coreBody}</script>\n${inert(MARK('core'))}\n${inert(CORE_SHA)}`);
+  art = fill(art, 'MODELS', inert(payloadRefs));
   // THE WORLD PACK'S PLACE (G386): after every viewer script the generators read and BEFORE app.js,
   // which makes the world - app.js is not the last viewer script (dev_panel.js is), so the refs go
   // into the RENDER slot right ahead of it, in both pages
   const APP_AT = V.scripts.indexOf('app.js');
   const worldRefs = MANIFEST.world.map(([d, f]) => ref(path.join(ROOT, d), d, f)).join('\n');
-  const renderTags = scripts.slice(0, -1).map(s => `<script>\n${s}</script>`);
-  renderTags.splice(APP_AT, 0, worldRefs);
-  art = fill(art, 'RENDER', [LAZY, LAZY_LOADER]
-    .concat(editor.map(s => `<script>\n${s}</script>`))
+  const renderTags = scripts.slice(0, -1).map(s => `${INERT}\n${s}</script>`);
+  renderTags.splice(APP_AT, 0, inert(worldRefs));
+  art = fill(art, 'RENDER', [inert(LAZY), inert(LAZY_LOADER)]
+    .concat(editor.map(s => `${INERT}\n${s}</script>`))
     .concat(renderTags).join('\n'));
-  art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
+  art = fill(art, 'APP', `${INERT}\n${scripts[scripts.length - 1]}</script>`);
   // THE ISLAND ON THE SHIPPED PAGE (G434.3): index.html's scripts are inlined and run as they parse,
   // and makeWorld runs during app.js's evaluation - so every script after the vendor is made INERT
   // (type text/x-flydiy) and promoted, in order, once the island's files are fetched (or refused,
@@ -1118,9 +1195,10 @@ async function ranged(req, range) {
   {
     const cut = art.indexOf('<!--ISLAND-LOADER-->');
     if (cut < 0) throw new Error('build: the ISLAND-LOADER marker is missing from the shell');
-    const head = art.slice(0, cut), tail = art.slice(cut)
-      .replace(/<script>/g, '<script type="text/x-flydiy">')
-      .replace(/<script src=/g, '<script type="text/x-flydiy" src=');
+    // the shell's own markup after the vendor slot is the CORE / MODELS / RENDER / APP slots: a tag of its own there
+    // would run before the island (it is not inert); none may stand there
+    if (/<script/i.test(shell.slice(shell.indexOf('<!--__VENDOR_SLOT__-->')))) { console.error('BUILD FAIL: shell.html carries a <script> after the vendor slot (it would not be inert)'); process.exit(1); }
+    const head = art.slice(0, cut), tail = art.slice(cut);
     // G999 (A5-LOAD): THE PROMOTE IN TASKS. It was one: every inline script (the core, the editor, the viewer,
     // app.js - whose evaluation made the world) inside one appendChild loop, the garage boot's longest task (1.8-2.2 s).
     // (1) the inline scripts ahead of the first external one (the core, its phase line, its sha); (2) the island's
@@ -1206,8 +1284,6 @@ window.FLYDIY_BOOT.then(function () {
       process.exit(1);
     }
   art = swapBuild(art, BUILD_TAG, 'index.html');
-  const artFile = path.join(ROOT, 'index.html');
-  fs.writeFileSync(artFile, art);
 
   // --- dev page: refs only; JS/CSS edits need just a browser refresh ---
   let dev = shell;
@@ -1227,8 +1303,36 @@ window.FLYDIY_BOOT.then(function () {
   dev = fill(dev, 'APP', dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
   dev = swapBuild(dev, BUILD_TAG, 'dev.html');
-  const devFile = path.join(ROOT, 'dev.html');
-  fs.writeFileSync(devFile, dev);
+
+  // THE BUILD ID (G1590, review B28): the finished pages and sw.js (with BUILD_SLOT where the id goes, DATE_SLOT where
+  // the date goes), then every file the shipped code names by path, by content. One id for everything a player's
+  // browser can fetch from this build.
+  const inputs = shippedInputs([art, dev, swText]);
+  const ID = sha([art, dev, swText].join('\0') + '\0' + inputs.map(r => r.rel + ' ' + r.sha).join('\n')).slice(0, 12);
+  // each page carries the id twice (the boot slot's BUILD_TAG, the core's sha line) and the date once; sw.js the id once
+  const slotN = (t, k) => t.split(k).length - 1;
+  const want = [[art, 'index.html', 2, 1], [dev, 'dev.html', 2, 1], [swText, 'sw.js', 1, 0]];
+  for (const [t, name, nId, nDate] of want) if (slotN(t, BUILD_SLOT) !== nId || slotN(t, DATE_SLOT) !== nDate) {
+    console.error(`POST-BUILD ASSERTION FAILED: ${name} carries the id's slot ${slotN(t, BUILD_SLOT)} times and the date's ${slotN(t, DATE_SLOT)} (${nId} and ${nDate}; a source may not carry ${BUILD_SLOT} or ${DATE_SLOT})`);
+    process.exit(1);
+  }
+  // the build's DATE (G1535, UPDATE-NOW): when version.json first carried this id (a rebuild of the same sources keeps
+  // it, so the stamp says when the build was made, not when somebody last ran the battery - and version.json stops
+  // churning). Read from the tree's own version.json wherever the outputs go (GATE BUILT's temp build keeps it too).
+  const BUILD_DATE = (() => {
+    try { const v = JSON.parse(read(path.join(ROOT, 'version.json'))); if (v && v.build === ID && v.date) return v.date; } catch (e) {}
+    return new Date().toISOString();
+  })();
+  const put = t => t.split(BUILD_SLOT).join(ID).split(DATE_SLOT).join(BUILD_DATE);
+  art = put(art); dev = put(dev);
+  const sw = put(swText);
+  // RELEASE-CHECKS (G1595, review C-release): the emitted worker is parsed like every other script
+  syntaxCheck('sw.js', sw, { served: true });
+  fs.writeFileSync(outPath('version.json'), JSON.stringify({ build: ID, date: BUILD_DATE }) + '\n');
+  fs.writeFileSync(outPath('sw.js'), sw);
+  fs.writeFileSync(outPath('index.html'), art);
+  fs.writeFileSync(outPath('dev.html'), dev);
+  LAST.build = ID; LAST.inputs = inputs;
 
   return [
     { file: 'index.html', bytes: art.length },
@@ -1236,16 +1340,28 @@ window.FLYDIY_BOOT.then(function () {
   ];
 }
 
-function build() {
+function build(opts) {
+  OUT = opts && opts.out ? path.resolve(opts.out) : ROOT;
   const t0 = Date.now();
   const core = buildCore();
   const viewer = buildViewer(core.body);
   const outs = [{ file: 'tools/flight_core.js', bytes: core.bytes }, ...viewer];
-  console.log(
+  if (!(opts && opts.quiet)) console.log(
     outs.map(o => `${o.file} (${(o.bytes / 1024).toFixed(1)} KB)`).join(', ') +
-    ` — syntax OK, ${Date.now() - t0} ms`
+    ` — syntax OK, build ${LAST.build} (${LAST.inputs ? LAST.inputs.length : 0} named inputs), ${Date.now() - t0} ms` +
+    (OUT !== ROOT ? ` -> ${OUT}` : '')
   );
+  return { build: LAST.build, inputs: LAST.inputs, out: OUT };
 }
 
-module.exports = { build, MANIFEST };
-if (require.main === module) build();
+// the files every build writes, relative to flyDiy/ (GATE BUILT compares them; tools/pages_check.js reads version.json)
+const OUTPUTS = ['index.html', 'dev.html', 'sw.js', 'tools/flight_core.js', 'version.json'];
+
+module.exports = { build, MANIFEST, OUTPUTS, GENERATED };
+// node tools/build.js [--out=DIR] [--inputs]   --out writes the five outputs under DIR (the inputs are this tree's);
+// --inputs lists the files the build id hashes beyond the pages (path and content sha)
+if (require.main === module) {
+  const a = process.argv.slice(2), o = a.find(x => x.startsWith('--out='));
+  const r = build({ out: o ? o.slice(6) : null });
+  if (a.includes('--inputs')) for (const i of r.inputs || []) console.log(`  ${i.sha}  ${i.rel}`);
+}

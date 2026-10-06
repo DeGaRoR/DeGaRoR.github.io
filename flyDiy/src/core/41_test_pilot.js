@@ -27,8 +27,8 @@
 //
 // THE REPORT is the contract: ap.report = { verdicts: [{t, code, note}],
 // outcome, landing }. outcome is null in flight, then exactly one of
-// 'completed' | 'rejected-takeoff' | 'gave-up' (a runner may add 'broke-up'
-// when the sim itself diverges). 'completed' with verdicts in
+// 'completed' | 'rejected-takeoff' | 'gave-up' (a runner may add 'sim-diverged'
+// when the sim itself diverges - G1800; 'broke-up' is the structure's, 'crashed' TREE-CRASH's). 'completed' with verdicts in
 // the list is an EVENTFUL flight (go-arounds, an accepted ceiling) — the
 // distinction between clean and eventful is the report's whole point.
 // landing = { run, sink, V, offCentre, pastAim } once stopped off a real

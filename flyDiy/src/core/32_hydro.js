@@ -154,7 +154,13 @@ const DEF = {
   betaA: 18,       // afterbody deadrise, deg
   hs: 0.075,       // step depth, m (a 2350's is ~4 in; the step must VENTILATE with a 172's chine 12 cm deep at the hump)
   aftAngle: 6.5,   // the afterbody keel's rise aft, deg (the NACA float families: 5.5-8.5)
-  aftCurve: 0.02,  // the afterbody keel's added rise at the stern, as a fraction of its length (a 2350's transom keel sits ~0.45 m over the step keel)
+  aftCurve: 0.02,  // the afterbody keel's added rise at the stern, as a fraction of its length
+  // the afterbody's PLAN (G1930): it holds the step's beam over aftHold of its length, then closes to bStern as
+  // ((u - aftHold) / (1 - aftHold))^aftPow. THIS family (the H0 float, every aeroplane the frame sizes by its gross -
+  // the twin of GATE FLOATS / SEAPLANE) keeps the taper it was calibrated on, from the step itself (hold 0, power 1.15);
+  // the Wipline rows wear WIPLINE_AFT below
+  aftHold: 0,
+  aftPow: 1.15,
   flatK: 0.50,     // the keel flat ahead of the step, as a fraction of xs (the rocker lives in the forward half: with 0.32 the bow rode high and buried under a crosswind roll — the ultralight pitch-poled at 2.5 s)
   stemK: 0.16,     // the straight stem's height, as a fraction of H (a SHORT stem: the keel foot at 0.74 H — with 0.30 the bow went under at 0.4 m of draft and 6 deg nose-down and the ultralight pitch-poled in a crosswind; the old H0 bow's keel reached the deck)
   rake: 12,        // the stem's rake, deg from the vertical (top forward)
@@ -312,7 +318,15 @@ function sectionOf(P, x) {
   } else {
     body = 'A';
     const u = Math.min(1, x / LA);
-    b = bS * (1 - (1 - P.bStern) * Math.pow(u, 1.15));
+    // the plan holds the step's beam over aftHold of the afterbody, then
+    // closes to the stern as a power of the rest (G1930, FLOAT-SHAPE: the
+    // user, "the back part is really thin" - the Wipline rows hold 0.2 and
+    // close as the square, WIPLINE_AFT; the family's own is the old u^1.15
+    // from the step, and a record saved before G1930 has neither key and
+    // takes the family's: it is drawn and flown as it was)
+    const hA = P.aftHold != null ? P.aftHold : DEF.aftHold, pw = P.aftPow != null ? P.aftPow : DEF.aftPow;
+    const w = u <= hA ? 0 : (u - hA) / (1 - hA);
+    b = bS * (1 - (1 - P.bStern) * Math.pow(w, pw));
     beta = P.betaA;
     // the transom keeps a height: the afterbody's chine never climbs past
     // 0.88 H (a keel rising through the deck line leaked the physics loft:
@@ -1661,7 +1675,7 @@ const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
 const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 'aftAngle', 'aftCurve', 'flatK', 'stemK',
                          'rake', 'noseR', 'planK', 'bStern', 'flare', 'bevel', 'rChine', 'rGun', 'rLip', 'rTransom',
                          'railW', 'railT', 'keelW', 'keelH', 'skZ', 'skW', 'skH', 'wrArea', 'wrDepth', 'mFloat',
-                         'fineK', 'scale', 'xAft', 'sheerK'];
+                         'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow'];
 // THE FINENESS. The catalogue's three dimensions and its flotation are
 // four facts; the family at the 2350's proportions fills its box to 49 %
 // and the 2350 needs 49 % — but the taller hulls (H/B 0.9 against the
@@ -1673,18 +1687,32 @@ const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 
 // forward, more afterbody rise, a narrower transom, a longer rocker.
 // presetParams solves f so the hull's volume to the deck is the row's
 // `flot`; a hull the range cannot reach keeps f at its end and says so.
-// Two branches: FINER (f > 0) is mostly a deeper V; FULLER (f < 0) is
-// mostly a fuller plan, a wider transom and a longer keel flat, the V
-// shallowing only a little (6 deg per unit) — a shallow V at the step is a
-// chine that sits low, and a low chine is a step that cannot ventilate: at
-// 17 deg the 172 on 2350s sat at the hump (chine 14 cm under, hs 10 cm)
-// where at 21 deg it planes.
+// Two branches: FINER (f > 0) is a finer BOW PLAN, a longer rocker and a
+// deeper V (12 deg per unit); FULLER (f < 0) is mostly a fuller plan and a
+// longer keel flat, the V shallowing only a little (6 deg per unit) — a
+// shallow V at the step is a chine that sits low, and a low chine is a step
+// that cannot ventilate: at 17 deg the 172 on 2350s sat at the hump (chine
+// 14 cm under, hs 10 cm) where at 21 deg it planes.
+// G1930 (FLOAT-SHAPE): THE WIPLINE AFTERBODY. The user (2026-10-05): "the shape of the Cessna floats seems a little
+// off. The back part is really thin." Measured on the 2350 (tools/_float_gen.js REF, GATE WIPLINE REFERENCE): the
+// section half-way down the afterbody was 0.39 of the step's, the stern 0.22 of its depth, the afterbody 28 % of the
+// volume, the keel curving up to an 8.7 deg sternpost (9.5-10.3 on the big rows: the seaplane rule is 7-9). Every row
+// now wears: a STRAIGHT afterbody keel (aftCurve 0) on an 8.0 deg sternpost from the step's keel point (aftAngle 5.9
+// off the heel: tan 8 = tan 5.9 + hs / LA at the family's proportions), the plan HELD at the step's beam over the
+// first fifth (the aft spreader bar's station: a Wipline's deck is parallel there) and closing as the square to a
+// stern half the beam (bStern 0.5; the transom carries the water rudder's brackets). The 2350's afterbody: 0.49 of
+// the step section half-way, the stern 0.29 deep, a third of the volume.
+const WIPLINE_AFT = { aftAngle: 5.9, aftCurve: 0, aftHold: 0.20, aftPow: 2, bStern: 0.50 };
+// THE AFTERBODY IS OUT OF THE FIT (G1930): the fineness used to raise the afterbody keel, curve it and narrow the
+// transom (bStern - 0.2 f) - the volume the catalogue does not allow came off the stern. It now comes off the
+// FOREBODY, where the big Wiplines are finer: the bow's plan (planK 2.6 per unit), the rocker (flatK 0.3), less of the
+// V (12 deg per unit, was 20: the 8750 fits at 34 deg where it was 35, the 2350 at 23 where it was 21).
 function fineParams(P, f) {
   const n = f < 0;
   return Object.assign({}, P, {
-    beta: Math.max(8, P.beta + (n ? 6 : 20) * f), betaA: Math.max(8, P.betaA + (n ? 4 : 10) * f), betaBow: P.betaBow + 8 * f,
-    planK: P.planK - (n ? 4 : 1.5) * f, aftAngle: P.aftAngle + 0.5 * f, aftCurve: P.aftCurve + 0.01 * f,
-    bStern: Math.min(0.9, P.bStern - (n ? 0.45 : 0.20) * f), flatK: Math.min(0.85, P.flatK - (n ? 0.30 : 0.16) * f), stemK: Math.max(0.06, P.stemK - 0.08 * f), fineK: f });
+    beta: Math.max(8, P.beta + (n ? 6 : 12) * f), betaA: Math.max(8, P.betaA + (n ? 4 : 6) * f), betaBow: P.betaBow + 8 * f,
+    planK: Math.max(1.2, P.planK - (n ? 4 : 2.6) * f),
+    flatK: Math.max(0.2, Math.min(0.85, P.flatK - 0.30 * f)), stemK: Math.max(0.06, P.stemK - 0.08 * f), fineK: f });
 }
 // a preset's hull: the family scaled to the row's LENGTH (the details, the
 // step, the radii follow), the width and height set to the row's own, the
@@ -1699,7 +1727,7 @@ function presetParams(name, over) {
   // the catalogue's "height - hull" is the hull's OVERALL height — the bow,
   // where the sheer tops out — so the family's H (at the step) is that over
   // (1 + sheerK)
-  const P0 = scaleParams(DEF, k, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp });
+  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp }));
   const volOf = f => { const Q = fineParams(P0, f); delete Q._keel; return makeFloat(Q).volDeck * P0.rho; };
   // f runs from -0.7 (a FULLER hull than the family: a shallower V, a
   // wider transom — the small Wiplines, whose overall height leaves little
@@ -1945,7 +1973,8 @@ function wetBuild(def, p, v, m, fuel) {
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
   return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
-           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0 };
+           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0,
+           def, torn: false, every0: every };   // G1898.9: the rest the tear reads; the hold restored at reset
 }
 // the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
 function flood(f, wetS, tau, dt) {
@@ -1953,11 +1982,49 @@ function flood(f, wetS, tau, dt) {
   return Math.min(1, Math.max(0, wetS + (f - wetS) * Math.exp(-dt / T)));
 }
 // a fresh aeroplane (the solver's reset): nothing flooded, nothing holed
+// G1898.5 (DEFORM coordinator, D1b x GEAR-WATER 2): THE WET BODY OVER A BREAK. A slice, slab or face whose nodes a break
+// has parted (two pieces, or a node left with no member: debris) is no longer a hull - its 'volume' would be read across
+// the gap and its buoyancy / slam flung onto a few kilos of debris (the Cub's severe nose-in went NaN the substep its
+// last members broke). Called by the solver's component test on a break event (fd: the pieces' find), and when a wet
+// body is first built on an airframe already broken. With nothing broken it is never called: the base's bits.
+function wetCut(WB, fd, orphan) {
+  if (!WB) return;
+  // G1898.9 (coordinator): ONCE BROKEN, THE WET BODY TEARS AS THE SKIN DOES AND IS NEVER HELD. Its faces and slabs past
+  // DMG-D4a's tear (an edge over 1.15 x its rest + 1 cm), its slices past 2 x their rest volume, drop: a face whose nodes
+  // fly apart is no longer a face (the Cub's severe nose-in put a 135 kN 'slam' on a 0.3 kg stab node, along its own
+  // motion, then held it 13 substeps: 10 km/s). And the force is recomputed every substep (`every` 1) while broken.
+  if (!WB.torn) {
+    WB.torn = true; WB.every = 1;
+    const R = WB.def.nodes, len = (a, b) => Math.hypot(R[a].p[0] - R[b].p[0], R[a].p[1] - R[b].p[1], R[a].p[2] - R[b].p[2]);
+    for (const t of WB.tris) t.L0 = [len(t.n[0], t.n[1]), len(t.n[1], t.n[2]), len(t.n[2], t.n[0])];
+    for (const q of WB.slabs) q.L0 = [0, 1, 2, 3].map(k => len(q.n[k], q.n[(k + 1) % 4]));
+    for (const S8 of WB.slices) S8.V0 = sliceVol0(WB.def, S8.n);
+  }
+  const cut = n => { const r = fd(n[0]); for (let k = 0; k < n.length; k++) if (orphan[n[k]] || fd(n[k]) !== r) return true; return false; };
+  for (const s of WB.slices) if (!s.dead && cut(s.n)) s.dead = true;
+  for (const s of WB.slabs) if (!s.dead && cut(s.n)) s.dead = true;
+  for (const t of WB.tris) if (!t.dead && cut(t.n)) t.dead = true;
+  for (const T of WB.tanks || []) if (!T.dead && cut(T.n)) T.dead = true;   // G1898.8: TANKS-FLOAT's tanks over a break too
+}
+const wetStretched = (p, n, L0) => { for (let k = 0; k < L0.length; k++) { const a = n[k] * 3, b = n[(k + 1) % L0.length] * 3;
+  if (Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]) > 1.15 * L0[k] + 0.01) return true; } return false; };
+function wetSliceVol(p, n8) {
+  let vol = 0;
+  for (const Q of WB_Q) {
+    let ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0;
+    for (let c = 0; c < 8; c++) { const i3 = n8[c] * 3, X = p[i3], Y = p[i3 + 1], Z = p[i3 + 2];
+      ux += Q.dU[c] * X; uy += Q.dU[c] * Y; uz += Q.dU[c] * Z; vx += Q.dV[c] * X; vy += Q.dV[c] * Y; vz += Q.dV[c] * Z; wx += Q.dW[c] * X; wy += Q.dW[c] * Y; wz += Q.dW[c] * Z; }
+    vol += Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
+  }
+  return vol;
+}
 function wetReset(WB) {
   if (!WB) return;
-  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.pk = 0; }
-  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; }
-  for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; }
+  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.pk = 0; s.dead = false; }
+  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; s.dead = false; }
+  for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; s.dead = false; }
+  for (const t of WB.tris) t.dead = false;   // G1898.5
+  WB.torn = false; WB.every = WB.every0;     // G1898.9
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
@@ -1998,6 +2065,8 @@ function wetCompute(WB, fh, dtH) {
   // mass; a hull that floods to its waterline sinks lower, floods further, and goes down unless the wings hold it.
   let fl = 0, flN = 0;
   for (const S8 of WB.slices) {
+    if (S8.dead) continue;                                  // G1898.5: parted by a break
+    if (WB.torn && S8.V0 > 0 && wetSliceVol(p, S8.n) > 2 * S8.V0) { S8.dead = true; continue; }   // G1898.9
     const sl = S8.n;
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
@@ -2028,6 +2097,8 @@ function wetCompute(WB, fh, dtH) {
   // G1384.4 THE WINGS: four samples a slab (the quad's bilinear quarter points), each a quarter of the volume, wet by a
   // ramp over the slab's thickness, its lift onto the four spar nodes by the same bilinear weights; flooding as above
   for (const SB of WB.slabs) {
+    if (SB.dead) continue;                                  // G1898.5
+    if (WB.torn && SB.L0 && wetStretched(p, SB.n, SB.L0)) { SB.dead = true; continue; }   // G1898.9
     const q = SB.n;
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
@@ -2057,6 +2128,7 @@ function wetCompute(WB, fh, dtH) {
   // (capacity - fuel now: the solver's fuel.vessels, drained by the burn) floods only once the tank is holed
   const FV = WB.fuel && WB.fuel.vessels;
   for (const T of WB.tanks) {
+    if (T.dead) continue;                                   // G1898.8: parted by a break
     const n = T.n, w = T.w;
     let y = 0, hS = 0;
     for (let c = 0; c < n.length; c++) { y += w[c] * p[n[c] * 3 + 1]; hS += w[c] * H[n[c]]; }
@@ -2073,6 +2145,8 @@ function wetCompute(WB, fh, dtH) {
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
+    if (t.dead) continue;                                   // G1898.5
+    if (WB.torn && t.L0 && wetStretched(p, t.n, t.L0)) { t.dead = true; continue; }   // G1898.9
     const tn = t.n;
     let any = false;
     for (let k = 0; k < 3; k++) { const i3 = tn[k] * 3, P = S.P[k]; P[0] = p[i3]; P[1] = p[i3 + 1]; P[2] = p[i3 + 2];
@@ -2166,8 +2240,8 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
-              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;

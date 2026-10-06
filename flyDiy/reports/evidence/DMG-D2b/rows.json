@@ -1,0 +1,219 @@
+{
+ "cub": {
+  "key": "cub",
+  "part": "rows",
+  "loop": {
+   "V": 15,
+   "yaw": 20,
+   "rate": 120,
+   "groups": [
+    "stab:attach",
+    "gearL:gear",
+    "gearR:gear",
+    "eng:mount"
+   ],
+   "firstGroup": "stab:attach",
+   "firstBreak": {
+    "cls": "tail",
+    "seam": "fitting",
+    "how": "tension",
+    "t": 5.775555555553711,
+    "tags": "HR-TPB"
+   },
+   "gearBroken": 9,
+   "wingBroken": 0,
+   "set": 46,
+   "tipMin": -0.028581288733954182,
+   "tipStrike": 4.666666666666422,
+   "crashed": true,
+   "reason": "a tail member broke",
+   "finite": true
+  }
+ },
+ "jodel": {
+  "key": "jodel",
+  "part": "rows",
+  "loop": {
+   "V": 15,
+   "yaw": 20,
+   "rate": 120,
+   "groups": [],
+   "firstGroup": null,
+   "firstBreak": null,
+   "gearBroken": 0,
+   "wingBroken": 0,
+   "set": 0,
+   "tipMin": 0.9962717551580429,
+   "tipStrike": null,
+   "crashed": false,
+   "reason": null,
+   "finite": true
+  }
+ },
+ "metal": {
+  "key": "metal",
+  "part": "rows",
+  "porp": {
+   "V": 25,
+   "sinks": [
+    3,
+    4,
+    5
+   ],
+   "pitch": 5,
+   "bounces": [
+    {
+     "bounce": 1,
+     "sink": 3,
+     "legSet": 0,
+     "legBroken": false,
+     "groups": [],
+     "set": 0,
+     "breaks": 0
+    },
+    {
+     "bounce": 2,
+     "sink": 4,
+     "legSet": 0.012565940965866577,
+     "legBroken": false,
+     "groups": [],
+     "set": 9,
+     "breaks": 0
+    },
+    {
+     "bounce": 3,
+     "sink": 5,
+     "legSet": 0.029140983528863434,
+     "legBroken": true,
+     "groups": [
+      "tw:gear",
+      "eng:mount",
+      "gearL:gear",
+      "wing0R:root",
+      "wing0L:root",
+      "wing0L:strut",
+      "wing0R:strut"
+     ],
+     "set": 95,
+     "breaks": 65
+    }
+   ],
+   "collapsed": 3,
+   "propStrike": true,
+   "crashed": true,
+   "reason": "a gear member broke",
+   "finite": true
+  }
+ },
+ "floats": {
+  "key": "floats",
+  "part": "rows",
+  "dig": [
+   {
+    "V": 90,
+    "sink": 5,
+    "pitch": 20,
+    "groups": [],
+    "floatStruts": [],
+    "firstGroup": null,
+    "firstBreak": null,
+    "set": 0,
+    "breaks": 0,
+    "crashed": false,
+    "reason": null,
+    "gPeak": 3.6133966422280768,
+    "finite": true
+   },
+   {
+    "V": 150,
+    "sink": 10,
+    "pitch": 60,
+    "groups": [
+     "floatR:strut",
+     "floatL:strut",
+     "eng:mount",
+     "wing0R:strut",
+     "wing0R:root",
+     "wing0L:root",
+     "fin:attach",
+     "stab:attach",
+     "wing0L:strut"
+    ],
+    "floatStruts": [
+     "floatR:strut",
+     "floatL:strut"
+    ],
+    "firstGroup": "floatR:strut",
+    "firstBreak": {
+     "cls": "gear",
+     "seam": "fitting",
+     "how": "tension",
+     "t": 0.13638888888888592,
+     "tags": "FLD-S2TR"
+    },
+    "set": 243,
+    "breaks": 181,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "gPeak": 31.970755334094928,
+    "finite": true
+   }
+  ]
+ },
+ "twinFloats": {
+  "key": "twinFloats",
+  "part": "rows",
+  "dig": [
+   {
+    "V": 90,
+    "sink": 5,
+    "pitch": 20,
+    "groups": [],
+    "floatStruts": [],
+    "firstGroup": null,
+    "firstBreak": null,
+    "set": 0,
+    "breaks": 0,
+    "crashed": false,
+    "reason": null,
+    "gPeak": 5.617749425446131,
+    "finite": true
+   },
+   {
+    "V": 150,
+    "sink": 10,
+    "pitch": 60,
+    "groups": [
+     "engL:mount",
+     "engR:mount",
+     "floatR:strut",
+     "floatL:strut",
+     "wing0L:root",
+     "wing0R:root",
+     "wing0L:strut",
+     "wing0R:strut",
+     "stab:attach",
+     "fin:attach"
+    ],
+    "floatStruts": [
+     "floatR:strut",
+     "floatL:strut"
+    ],
+    "firstGroup": "engL:mount",
+    "firstBreak": {
+     "cls": "fus",
+     "seam": "fitting",
+     "how": "tension",
+     "t": 0.03263888888888895,
+     "tags": "MNTL-WF"
+    },
+    "set": 205,
+    "breaks": 220,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "gPeak": 20.602416013597168,
+    "finite": true
+   }
+  ]
+ }
+}

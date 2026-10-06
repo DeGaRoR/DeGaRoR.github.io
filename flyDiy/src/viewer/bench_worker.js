@@ -59,11 +59,20 @@ function benchLoadCfg(CORE, spec, cfg) {
 // hold 0.9-1 — the phases the rig itself walks, in its own cfg's seconds.
 function benchLoadRun(CORE, job) {
   const spec = job.spec;
-  const def = CORE.buildGen(spec);
+  let def = CORE.buildGen(spec);
+  // G1832 (DMG-D2a): THE TEST TO DESTRUCTION is the rig on the CERTIFIED airframe with the damage layer on, whatever
+  // the page's switch (ruling dm6: free - its own sim, nothing carried); the certificate computed here (or handed in)
+  if (job.cfg && job.cfg.destroy && typeof CORE.genCertAttach === 'function') {
+    def = Object.assign({}, def, { params: Object.assign({}, def.params, { damage: true }) });
+    if (job.cert && job.cert.Ft && job.cert.nb === def.beams.length) def.cert = job.cert;
+    else CORE.genCertAttach(def, { world: def.parts && def.parts.floats && typeof CORE.makeWorld === 'function' ? CORE.makeWorld() : null });
+  }
   const sim = CORE.makeSim(def, null);
   sim.reset(0);
   if (job.p0 && job.p0.length === sim.p.length) sim.p.set(job.p0);
   const cfg = benchLoadCfg(CORE, spec, job.cfg);
+  // (G1832: to destruction the bags go on at the load test's own rate - its 5.7 g in 4 s - to three times the ultimate)
+  if (cfg.destroy) { const U = GEN_LOAD_ULT_OF(CORE); if (cfg.ult == null) cfg.ult = 3 * U; if (cfg.rampS == null) cfg.rampS = 4 * cfg.ult / U; }
   const rig = CORE.makeLoadTest(sim, def, cfg);
   const settleS = cfg.settleS != null ? cfg.settleS : 2.0;
   const rampS = cfg.rampS != null ? cfg.rampS : 4.0;
@@ -172,6 +181,101 @@ function benchXwindRun(CORE, job) {
   };
 }
 
+// the card's ultimate (the rig's own constant when the core has it)
+function GEN_LOAD_ULT_OF(CORE) { return (CORE && CORE.GEN_LOAD_ULT) || (typeof GEN_LOAD_ULT !== 'undefined' ? GEN_LOAD_ULT : 5.7); }
+// THE CERTIFICATE (G1831, DMG-D2a; 66_gen_cert.js): the load cases and the per-member envelope of a spec's build,
+// off the page. A floatplane's drop lands on the analytic world's sea lane (a world of its own, made here). What
+// crosses back is the envelope (two Float64Arrays, transferred) and the card's numbers, not the cases.
+// G1891 (DMG-CERTCOST): a generator - it yields after each case (66_gen_cert genCertifySteps), so the worker's event
+// loop gets a turn between them; benchCertRun runs it to the end
+function* benchCertSteps(CORE, job) {
+  const def = CORE.buildGen(job.spec);
+  const floats = !!(def.parts && def.parts.floats);
+  const world = floats && typeof CORE.makeWorld === 'function' ? CORE.makeWorld() : null;
+  const C = typeof CORE.genCertifySteps === 'function' ? yield* CORE.genCertifySteps(def, { world }) : CORE.genCertify(def, { world });
+  return { kind: 'cert', seq: job.seq, key: C.key, nb: C.nb, Ft: C.Ft, Fc: C.Fc, limit: C.limit, ult: C.ult, neg: C.neg,
+           m: C.m, sink: C.sink, ms: C.ms };
+}
+function benchCertRun(CORE, job) {
+  const g = benchCertSteps(CORE, job);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+
+// G1891 (DMG-CERTCOST): THE CERTIFICATE KEPT, ACROSS PAGE LOADS. A build's certificate takes its worker 8-30 s (node:
+// HANDOVER G1890); kept by the page's memory cache it was computed again at every page load. It is kept here in
+// IndexedDB, keyed by genCertKey (the spec, the rules - GEN_CERT and its version - and PHYSICS_V hashed), the record
+// carrying GEN_CERT_V and PHYSICS_V and a checksum of the envelope: a build is certified once, ever. A record that is
+// not the build's (another key, another version, another member count), whose arrays are not two Float64Arrays of the
+// member count, whose values are not finite and >= 0, or whose checksum does not match, is DELETED and read as a miss
+// (the caller computes it again). The last CERT_DB.keep builds are kept (~8 KB each). No IndexedDB (file://, a private
+// window, a blocked open) or an open slower than CERT_DB.waitMs: a miss, never an error. Usable from the page and the worker.
+const CERT_DB = { name: 'flydiy.cert', store: 'cert', keep: 64, waitMs: 500, p: null };
+function certDb() {
+  const G = typeof self !== 'undefined' ? self : typeof window !== 'undefined' ? window : null;
+  if (!G || !G.indexedDB) return Promise.resolve(null);
+  if (!CERT_DB.p) CERT_DB.p = new Promise(res => {   // the open, once a page (a slow one still lands for the next call)
+    try {
+      const rq = G.indexedDB.open(CERT_DB.name, 1);
+      rq.onupgradeneeded = () => { const d = rq.result; if (!d.objectStoreNames.contains(CERT_DB.store)) d.createObjectStore(CERT_DB.store); };
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); rq.onblocked = () => res(null);
+    } catch (e) { res(null); }
+  });
+  let t = null;
+  return Promise.race([CERT_DB.p, new Promise(r => { t = setTimeout(() => r(null), CERT_DB.waitMs); })]).then(d => { clearTimeout(t); return d; });
+}
+function certIdb(mode, fn) {
+  return certDb().then(d => d ? new Promise(res => {
+    try {
+      const tx = d.transaction(CERT_DB.store, mode), r = fn(tx.objectStore(CERT_DB.store));
+      tx.oncomplete = () => res(r && 'result' in r ? r.result : true); tx.onerror = tx.onabort = () => res(null);
+    } catch (e) { res(null); }
+  }) : null);
+}
+// FNV-1a over the two arrays' bytes
+function certSum(Ft, Fc) {
+  let h = 0x811c9dc5;
+  for (const a of [Ft, Fc]) { const u = new Uint8Array(a.buffer, a.byteOffset, a.byteLength); for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619) >>> 0; }
+  return h;
+}
+// the record's verdict: null (good) or why it is not
+function certStoreBad(rec, key, nb, ver) {
+  if (!rec || typeof rec !== 'object') return 'none';
+  if (rec.key !== key) return 'key';
+  if (!ver || rec.v !== ver.cert || rec.phys !== ver.phys) return 'version';
+  if (rec.nb !== nb || !(rec.Ft instanceof Float64Array) || !(rec.Fc instanceof Float64Array) || rec.Ft.length !== nb || rec.Fc.length !== nb) return 'shape';
+  for (const a of [rec.Ft, rec.Fc]) for (let i = 0; i < nb; i++) if (!(a[i] >= 0) || !Number.isFinite(a[i])) return 'values';
+  if (rec.sum !== certSum(rec.Ft, rec.Fc)) return 'checksum';
+  return null;
+}
+// the certificate for `key` (a build of `nb` members, `ver` = { cert: GEN_CERT_V, phys: PHYSICS_V }), or null; a bad
+// record is deleted. Resolves, never rejects
+function certStoreGet(key, nb, ver) {
+  return certIdb('readonly', st => st.get(key)).then(rec => {
+    if (rec == null) return null;
+    const why = certStoreBad(rec, key, nb, ver);
+    if (!why) return rec;
+    return certIdb('readwrite', st => st.delete(key)).then(() => null);
+  }).catch(() => null);
+}
+// keep a certificate (C: { nb, Ft, Fc, limit, ult, neg, m, sink, ms }); the oldest past CERT_DB.keep go. Resolves true
+// when written
+function certStorePut(key, C, ver) {
+  if (!C || !(C.Ft instanceof Float64Array) || !(C.Fc instanceof Float64Array) || !ver) return Promise.resolve(false);
+  const rec = { key, v: ver.cert, phys: ver.phys, nb: C.nb, Ft: C.Ft.slice(), Fc: C.Fc.slice(), limit: C.limit, ult: C.ult, neg: C.neg,
+                m: C.m, sink: C.sink, ms: C.ms && C.ms.total != null ? { total: C.ms.total } : null, sum: 0, when: Date.now() };
+  rec.sum = certSum(rec.Ft, rec.Fc);
+  return certIdb('readwrite', st => st.put(rec, key)).then(ok => {
+    if (!ok) return false;
+    return certIdb('readonly', st => st.getAll()).then(all => {
+      if (!all || all.length <= CERT_DB.keep) return true;
+      const old = all.filter(r => r && r.key).sort((a, b) => (a.when || 0) - (b.when || 0)).slice(0, all.length - CERT_DB.keep);
+      return certIdb('readwrite', st => { for (const r of old) st.delete(r.key); return null; }).then(() => true);
+    });
+  }).catch(() => false);
+}
+
 // ---- the worker's side -----------------------------------------------------
 // Stringified into the Blob (so it may close over nothing but its two
 // arguments): `CORE` the imported bundle, `BW` this module's exports.
@@ -211,6 +315,14 @@ function benchWorkerBody(CORE, BW) {
         setTimeout(loop, 0);
         return;
       }
+      if (J.kind === 'cert') {
+        // G1891: one case a turn (benchCertSteps), the event loop between them; the answer and done
+        const r = J.it.next();
+        if (!r.done) { setTimeout(loop, 0); return; }
+        cur = null;
+        post(r.value, [r.value.Ft.buffer, r.value.Fc.buffer]);
+        return;
+      }
       if (J.kind === 'xwind') {
         const fresh = J.run.pump(60);
         const s = J.run.snapshot(); s.seq = J.seq; s.fresh = fresh;
@@ -238,6 +350,18 @@ function benchWorkerBody(CORE, BW) {
         post({ kind: 'loadfix', seq: job.seq, variants, start: true });
         cur = { kind: 'loadfix', seq: job.seq, spec: job.spec, cfg: job.cfg, variants, i: 0 };
         loop();
+      } else if (job.kind === 'destroy') {
+        // G1832: the bench to destruction, unpaced (nobody watches it: the card waits for the one number)
+        const run = BW.benchLoadRun(CORE, Object.assign({}, job, { cfg: Object.assign({}, job.cfg, { destroy: true }) }));
+        let k = 0;
+        while (run.ok && !run.done && k < 60 * 120) { run.pump(60); k += 60; }
+        const st = run.rig.state;
+        post({ kind: 'destroy', seq: job.seq, ok: run.ok, verdict: st.verdict, brokeAt: st.brokeAt, brokeKey: st.brokeKey, brokeSeam: st.brokeSeam,
+               yieldAt: st.yieldAt, breakAt: st.breakAt, breakFirst: st.breakFirst, limit: run.rig.limit, ult: BW.GEN_LOAD_ULT_OF(CORE) });
+      } else if (job.kind === 'cert') {
+        // G1831: one computation, no pacing - the answer and done (G1891: a case a turn)
+        cur = { kind: 'cert', seq: job.seq, it: BW.benchCertSteps(CORE, job) };
+        loop();
       } else if (job.kind === 'xwind') {
         cur = { kind: 'xwind', run: BW.benchXwindRun(CORE, job), seq: job.seq };
         loop();
@@ -256,7 +380,8 @@ function benchWorkerSource(base) {
     'importScripts(' + JSON.stringify(base + 'src/viewer/bench_worker.js') + ');\n' +
     'const BW = self.module.exports; self.module = { exports: {} };\n' +
     'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
-    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey };\n' +
+    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey, genCertify, genCertAttach, GEN_LOAD_ULT,\n' +
+    '  genCertifySteps: typeof genCertifySteps === "function" ? genCertifySteps : null };\n' +
     '(' + benchWorkerBody.toString() + ')(CORE, BW);\n';
 }
 
@@ -281,10 +406,12 @@ function benchWorkerStart(onMessage, onError) {
 }
 
 if (typeof window !== 'undefined') {
-  window.BENCH_WORKER = { start: benchWorkerStart, loadRun: benchLoadRun, loadVariants: benchLoadVariants,
+  window.BENCH_WORKER = { start: benchWorkerStart, loadRun: benchLoadRun, loadVariants: benchLoadVariants, certRun: benchCertRun,
+                          certGet: certStoreGet, certPut: certStorePut, certSum, CERT_DB,
                           loadVariant: benchLoadVariant, xwindRun: benchXwindRun, loadCfg: benchLoadCfg,
                           LEVERS: BENCH_LOAD_LEVERS };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { benchLoadCfg, benchLoadRun, benchLoadVariants, benchLoadVariant, benchXwindRun,
+  module.exports = { benchLoadCfg, benchLoadRun, benchLoadVariants, benchLoadVariant, benchXwindRun, benchCertRun, benchCertSteps, GEN_LOAD_ULT_OF,
+                     certStoreGet, certStorePut, certStoreBad, certSum, CERT_DB,
                      benchWorkerBody, benchWorkerSource, benchWorkerStart, BENCH_LOAD_LEVERS };

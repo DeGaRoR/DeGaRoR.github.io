@@ -1,0 +1,4 @@
+cub:ground    base 3.493 ms  now 3.671 ms  pooled 5.1 %  pairs: median 4.8 %, mean 5.5 %, negative 0/12
+cub:air       base 3.305 ms  now 3.533 ms  pooled 6.9 %  pairs: median 7.4 %, mean 6.7 %, negative 0/12
+metal:ground  base 6.004 ms  now 6.400 ms  pooled 6.6 %  pairs: median 6.6 %, mean 6.3 %, negative 1/12
+metal:air     base 5.825 ms  now 6.219 ms  pooled 6.8 %  pairs: median 7.0 %, mean 6.8 %, negative 0/12

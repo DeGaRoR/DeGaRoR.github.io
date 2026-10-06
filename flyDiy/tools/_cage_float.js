@@ -162,6 +162,9 @@ function hullParams(P) {
     hs: +P.fltHs, aftAngle: +P.fltAft, aftCurve: +P.fltAftCurve, flatK: +P.fltFlat, stemK: +P.fltStem,
     rake: +P.fltRake, noseR: +P.fltNoseR, planK: +P.fltPlan, bStern: +P.fltStern, flare: +P.fltFlare,
     mFloat: +P.fltMass, inc: +P.fltInc, xAft: +P.fltSpreadAft,
+    // G1930 (FLOAT-SHAPE): the Wipline afterbody's plan - held to the aft spreader bar, closing as the square (not a
+    // row: the family's; the keel and the stern's beam are the rows above)
+    aftHold: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftHold : HY.DEF.aftHold, aftPow: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftPow : HY.DEF.aftPow,
   });
   Q.scale = k;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];

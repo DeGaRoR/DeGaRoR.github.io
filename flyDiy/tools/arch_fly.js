@@ -95,7 +95,7 @@ function circuit(opts) {
   const rep = ap.report;
   const L = rep.landing;
   return { ok: !nan && rep.outcome === 'completed' && ap.phase === 'STOPPED' && tEnd < maxS,
-           outcome: nan ? 'broke-up' : (rep.outcome || 'gave-up'), phase: ap.phase, t: +tEnd.toFixed(0), aglMax: +aglMax.toFixed(0),
+           outcome: nan ? 'sim-diverged' : (rep.outcome || 'gave-up'), phase: ap.phase, t: +tEnd.toFixed(0), aglMax: +aglMax.toFixed(0),
            verdicts: rep.verdicts.map(v => v.t + 's ' + v.code + ': ' + v.note),
            landing: L ? { run: +L.run.toFixed(0), sink: +L.sink.toFixed(2), V: +L.V.toFixed(1), pastAim: +L.pastAim.toFixed(0), off: +L.offCentre.toFixed(1) } : null,
            card: rep.card ? { alt: rep.card.alt, V: rep.card.V, altCmd: rep.card.altCmd, VCmd: rep.card.VCmd, altFlown: rep.card.altFlown && +rep.card.altFlown.toFixed(0), VFlown: rep.card.VFlown && +rep.card.VFlown.toFixed(1) } : null,

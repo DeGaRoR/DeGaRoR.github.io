@@ -1,0 +1,4 @@
+perf cub ground master 2.707 ms, now 2.684 ms (the median of 5 processes' medians, 600 steps each)
+perf cub air master 2.645 ms, now 2.643 ms (the median of 5 processes' medians, 600 steps each)
+perf metal ground master 4.599 ms, now 4.745 ms (the median of 5 processes' medians, 600 steps each)
+perf metal air master 4.570 ms, now 4.485 ms (the median of 5 processes' medians, 600 steps each)

@@ -1,0 +1,3 @@
+cub 4244 vertices: the base loop 0.1337 ms, this branch (idle record) 0.1261 ms (-5.7 %), (no record) 0.1191 ms (-10.9 %); the hop a frame 0.300 us
+metal 3488 vertices: the base loop 0.1263 ms, this branch (idle record) 0.1125 ms (-10.9 %), (no record) 0.1080 ms (-14.5 %); the hop a frame 0.328 us
+POSEJSON {"cub":{"verts":4244,"baseMs":0.133709555,"idleMs":0.12607528,"nullMs":0.11914058000000001,"dIdle":-0.05709595697928993,"dNull":-0.10895986453623296,"hopUs":0.29985490000000004},"metal":{"verts":3488,"baseMs":0.126282565,"idleMs":0.11253614,"nullMs":0.10799685,"dIdle":-0.10885449626399346,"dNull":-0.14479999673747523,"hopUs":0.32781122}}

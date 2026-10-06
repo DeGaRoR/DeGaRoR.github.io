@@ -1,0 +1,6764 @@
+{
+ "cases": {
+  "hard-cub": {
+   "id": "hard-cub",
+   "label": "the Cub dropped at FAR 23.473's limit sink",
+   "calm": true,
+   "N": 120,
+   "refEnd": 120,
+   "ref": {
+    "steps": 120,
+    "h": "e3f630ffccb1e0f4",
+    "work": 0,
+    "wB": "ad67940f3581c3d2",
+    "broken": [],
+    "yields": 0,
+    "members": 0,
+    "crashed": false,
+    "reason": null,
+    "at": null,
+    "over": false,
+    "fault": null,
+    "vPeak": 2.9277008422237487
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     0,
+     0
+    ],
+    [
+     84,
+     0,
+     0
+    ],
+    [
+     87,
+     0,
+     0
+    ],
+    [
+     90,
+     0,
+     0
+    ],
+    [
+     93,
+     0,
+     0
+    ],
+    [
+     96,
+     0,
+     0
+    ],
+    [
+     99,
+     0,
+     0
+    ],
+    [
+     102,
+     0,
+     0
+    ],
+    [
+     105,
+     0,
+     0
+    ],
+    [
+     108,
+     0,
+     0
+    ],
+    [
+     111,
+     0,
+     0
+    ],
+    [
+     114,
+     0,
+     0
+    ],
+    [
+     117,
+     0,
+     0
+    ],
+    [
+     120,
+     0,
+     0
+    ]
+   ],
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.9277008422237487
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 53.369
+  },
+  "crash-cub": {
+   "id": "crash-cub",
+   "label": "the Cub into a trunk at 30 m/s, the centreline",
+   "calm": false,
+   "N": 300,
+   "refEnd": 163,
+   "ref": {
+    "steps": 163,
+    "h": "2d7ba499add48279",
+    "work": 105043.77330003478,
+    "wB": "eb3e28035a136372",
+    "broken": [
+     109,
+     116,
+     117,
+     118,
+     119,
+     120,
+     121,
+     112,
+     115,
+     393,
+     386,
+     389,
+     388,
+     391,
+     0,
+     1,
+     4,
+     5,
+     373,
+     376,
+     50,
+     51,
+     48,
+     49,
+     182,
+     126,
+     156,
+     370,
+     184,
+     185,
+     6,
+     7,
+     130,
+     160,
+     10,
+     11,
+     183,
+     60,
+     61,
+     58,
+     59,
+     12,
+     13,
+     16,
+     17,
+     70,
+     71,
+     68,
+     69,
+     18,
+     19,
+     22,
+     23,
+     80,
+     81,
+     78,
+     79,
+     24,
+     25,
+     28,
+     29,
+     90,
+     91,
+     88,
+     89,
+     30,
+     84,
+     85,
+     26,
+     27,
+     34,
+     35,
+     32,
+     33,
+     100,
+     101,
+     304,
+     302,
+     92,
+     93,
+     96,
+     97,
+     111,
+     114
+    ],
+    "yields": 18912,
+    "members": 120,
+    "crashed": true,
+    "reason": "the airframe crushed (6.7 kJ of plastic work)",
+    "at": 1.316666666666575,
+    "over": true,
+    "fault": null,
+    "vPeak": 41.0596608419776
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     15929.368351343559,
+     16
+    ],
+    [
+     84,
+     44343.661412637506,
+     36
+    ],
+    [
+     87,
+     52257.10822661047,
+     42
+    ],
+    [
+     90,
+     60114.17371998748,
+     57
+    ],
+    [
+     93,
+     73253.58227113035,
+     65
+    ],
+    [
+     96,
+     94835.9750723883,
+     70
+    ],
+    [
+     99,
+     102950.75824768814,
+     80
+    ],
+    [
+     102,
+     104598.5223711691,
+     82
+    ],
+    [
+     105,
+     104633.00495254021,
+     82
+    ],
+    [
+     108,
+     104651.6063498618,
+     82
+    ],
+    [
+     111,
+     104651.6063498618,
+     82
+    ],
+    [
+     114,
+     104668.65744714049,
+     82
+    ],
+    [
+     117,
+     104669.40386589711,
+     82
+    ],
+    [
+     120,
+     104669.40386589711,
+     82
+    ],
+    [
+     123,
+     104669.40386589711,
+     82
+    ],
+    [
+     126,
+     104669.40386589711,
+     82
+    ],
+    [
+     129,
+     104669.40386589711,
+     82
+    ],
+    [
+     132,
+     104669.40386589711,
+     82
+    ],
+    [
+     135,
+     104669.40386589711,
+     82
+    ],
+    [
+     138,
+     104669.40386589711,
+     82
+    ],
+    [
+     141,
+     104669.40386589711,
+     82
+    ],
+    [
+     144,
+     104669.40386589711,
+     82
+    ],
+    [
+     147,
+     104669.40386589711,
+     82
+    ],
+    [
+     150,
+     104669.40386589711,
+     82
+    ],
+    [
+     153,
+     104669.40386589711,
+     82
+    ],
+    [
+     156,
+     104913.30317826726,
+     84
+    ],
+    [
+     159,
+     105021.47218946394,
+     84
+    ],
+    [
+     162,
+     105021.47218946394,
+     84
+    ],
+    [
+     165,
+     105093.03761509052,
+     84
+    ],
+    [
+     168,
+     105093.03761509052,
+     84
+    ],
+    [
+     171,
+     105093.03761509052,
+     84
+    ],
+    [
+     174,
+     105093.03761509052,
+     84
+    ],
+    [
+     177,
+     105115.02912163152,
+     84
+    ],
+    [
+     180,
+     105138.4935421112,
+     84
+    ],
+    [
+     183,
+     105163.0486761491,
+     84
+    ],
+    [
+     186,
+     105171.09111075343,
+     84
+    ],
+    [
+     189,
+     105171.17895999817,
+     84
+    ],
+    [
+     192,
+     105171.17895999817,
+     84
+    ],
+    [
+     195,
+     105171.17895999817,
+     84
+    ],
+    [
+     198,
+     105171.17895999817,
+     84
+    ],
+    [
+     201,
+     105171.17895999817,
+     84
+    ],
+    [
+     204,
+     105171.17895999817,
+     84
+    ],
+    [
+     207,
+     105171.17895999817,
+     84
+    ],
+    [
+     210,
+     105174.85790720629,
+     84
+    ],
+    [
+     213,
+     105175.87236397073,
+     84
+    ],
+    [
+     216,
+     105175.87236397073,
+     84
+    ],
+    [
+     219,
+     105175.87236397073,
+     84
+    ],
+    [
+     222,
+     105175.87236397073,
+     84
+    ],
+    [
+     225,
+     105175.87236397073,
+     84
+    ],
+    [
+     228,
+     105175.87236397073,
+     84
+    ],
+    [
+     231,
+     105175.87236397073,
+     84
+    ],
+    [
+     234,
+     105175.87236397073,
+     84
+    ],
+    [
+     237,
+     105175.87236397073,
+     84
+    ],
+    [
+     240,
+     105175.87236397073,
+     84
+    ],
+    [
+     243,
+     105175.87236397073,
+     84
+    ],
+    [
+     246,
+     105175.87236397073,
+     84
+    ],
+    [
+     249,
+     105175.87236397073,
+     84
+    ],
+    [
+     252,
+     105175.87236397073,
+     84
+    ],
+    [
+     255,
+     105175.87236397073,
+     84
+    ],
+    [
+     258,
+     105175.87236397073,
+     84
+    ],
+    [
+     261,
+     105175.87236397073,
+     84
+    ],
+    [
+     264,
+     105175.87236397073,
+     84
+    ],
+    [
+     267,
+     105175.87236397073,
+     84
+    ],
+    [
+     270,
+     105175.87236397073,
+     84
+    ],
+    [
+     273,
+     105175.87236397073,
+     84
+    ],
+    [
+     276,
+     105175.87236397073,
+     84
+    ],
+    [
+     279,
+     105175.87236397073,
+     84
+    ],
+    [
+     282,
+     105175.87236397073,
+     84
+    ],
+    [
+     285,
+     105175.87236397073,
+     84
+    ],
+    [
+     288,
+     105175.87236397073,
+     84
+    ],
+    [
+     291,
+     105175.87236397073,
+     84
+    ],
+    [
+     294,
+     105175.87236397073,
+     84
+    ],
+    [
+     297,
+     105175.87236397073,
+     84
+    ],
+    [
+     300,
+     105175.87236397073,
+     84
+    ]
+   ],
+   "anchor": {
+    "lib": "6d590362d690",
+    "here": "6d590362d690"
+   },
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 180,
+     "want": 180,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 105138.4935421112,
+      "broken": 84,
+      "yields": 19148,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 94.72024207642244,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 168,
+     "want": 168,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 168,
+     "want": 168,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 164,
+     "want": 164,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 164,
+     "want": 164,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 168,
+     "want": 168,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 180,
+     "want": 180,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 163,
+     "st": {
+      "work": 105138.4935421112,
+      "broken": 84,
+      "yields": 19148,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 94.72024207642244,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 168,
+     "want": 168,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 163,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 168,
+     "want": 168,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 163,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 164,
+     "want": 164,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 163,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 180,
+     "want": 180,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 164,
+     "st": {
+      "work": 105138.4935421112,
+      "broken": 84,
+      "yields": 19148,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 94.72024207642244,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 168,
+     "want": 168,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 164,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 164,
+     "want": 164,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 164,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 164,
+     "want": 164,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 164,
+     "st": {
+      "work": 105093.03761509052,
+      "broken": 84,
+      "yields": 19002,
+      "members": 120,
+      "crashed": true,
+      "reason": "the airframe crushed (6.7 kJ of plastic work)",
+      "at": 1.316666666666575,
+      "fault": null,
+      "vPeak": 41.0596608419776
+     },
+     "dWork": 49.26431505574146,
+     "dBroken": 0
+    }
+   ],
+   "secs": 55.354
+  },
+  "crash-metal": {
+   "id": "crash-metal",
+   "label": "the metal Cessna into a trunk at 30 m/s, the centreline",
+   "calm": false,
+   "N": 300,
+   "refEnd": 108,
+   "ref": {
+    "steps": 108,
+    "h": "a90974307a08fb2e",
+    "work": 108522.75405856075,
+    "wB": "003c3815263acfd6",
+    "broken": [
+     109,
+     116,
+     117,
+     120,
+     121,
+     118,
+     119,
+     112,
+     115,
+     441,
+     1,
+     434,
+     437,
+     431,
+     432,
+     4,
+     5,
+     0,
+     436,
+     439,
+     48,
+     49,
+     254,
+     126,
+     192,
+     7,
+     50,
+     51,
+     256,
+     257,
+     10,
+     11,
+     58,
+     59,
+     6,
+     255,
+     130,
+     196,
+     13,
+     421,
+     424,
+     60,
+     61,
+     16,
+     17,
+     68,
+     69,
+     12,
+     427,
+     428,
+     19,
+     379,
+     382,
+     383,
+     412,
+     398,
+     405,
+     409,
+     403,
+     78,
+     79,
+     414,
+     415,
+     380,
+     381,
+     406,
+     410,
+     400,
+     401,
+     399,
+     407,
+     411,
+     417,
+     22,
+     23,
+     25,
+     374,
+     377,
+     378,
+     404,
+     408,
+     384,
+     391,
+     395,
+     389,
+     375,
+     376,
+     386,
+     387,
+     392,
+     396,
+     390,
+     394,
+     385,
+     393,
+     397,
+     388,
+     418,
+     88,
+     89,
+     28,
+     29,
+     70,
+     71,
+     351,
+     111,
+     114,
+     429,
+     430
+    ],
+    "yields": 22509,
+    "members": 143,
+    "crashed": true,
+    "reason": "the airframe crushed (4.8 kJ of plastic work)",
+    "at": 1.3000000000001561,
+    "over": true,
+    "fault": null,
+    "vPeak": 51.79480024636241
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     4797.452500067731,
+     1
+    ],
+    [
+     81,
+     46429.31809385439,
+     30
+    ],
+    [
+     84,
+     64296.959546273065,
+     41
+    ],
+    [
+     87,
+     89345.33357084249,
+     51
+    ],
+    [
+     90,
+     99726.8932861247,
+     93
+    ],
+    [
+     93,
+     103820.48400137105,
+     104
+    ],
+    [
+     96,
+     104691.30964481883,
+     105
+    ],
+    [
+     99,
+     105859.9000871313,
+     107
+    ],
+    [
+     102,
+     105970.71109985314,
+     107
+    ],
+    [
+     105,
+     108522.75405856075,
+     109
+    ],
+    [
+     108,
+     108522.75405856075,
+     109
+    ],
+    [
+     111,
+     108522.75405856075,
+     109
+    ],
+    [
+     114,
+     108522.75405856075,
+     109
+    ],
+    [
+     117,
+     108522.75405856075,
+     109
+    ],
+    [
+     120,
+     108522.75405856075,
+     109
+    ],
+    [
+     123,
+     108522.75405856075,
+     109
+    ],
+    [
+     126,
+     108522.75405856075,
+     109
+    ],
+    [
+     129,
+     108655.87033105164,
+     110
+    ],
+    [
+     132,
+     108672.30066193837,
+     110
+    ],
+    [
+     135,
+     108682.02525705604,
+     110
+    ],
+    [
+     138,
+     108682.02525705604,
+     110
+    ],
+    [
+     141,
+     108682.02525705604,
+     110
+    ],
+    [
+     144,
+     108682.02525705604,
+     110
+    ],
+    [
+     147,
+     108682.02525705604,
+     110
+    ],
+    [
+     150,
+     108682.02525705604,
+     110
+    ],
+    [
+     153,
+     108682.02525705604,
+     110
+    ],
+    [
+     156,
+     108682.02525705604,
+     110
+    ],
+    [
+     159,
+     108682.02525705604,
+     110
+    ],
+    [
+     162,
+     108682.02525705604,
+     110
+    ],
+    [
+     165,
+     108682.02525705604,
+     110
+    ],
+    [
+     168,
+     108682.02525705604,
+     110
+    ],
+    [
+     171,
+     108682.02525705604,
+     110
+    ],
+    [
+     174,
+     108682.02525705604,
+     110
+    ],
+    [
+     177,
+     108682.02525705604,
+     110
+    ],
+    [
+     180,
+     108682.02525705604,
+     110
+    ],
+    [
+     183,
+     108682.02525705604,
+     110
+    ],
+    [
+     186,
+     108682.02525705604,
+     110
+    ],
+    [
+     189,
+     108682.02525705604,
+     110
+    ],
+    [
+     192,
+     108682.02525705604,
+     110
+    ],
+    [
+     195,
+     108682.02525705604,
+     110
+    ],
+    [
+     198,
+     108684.51624534868,
+     112
+    ],
+    [
+     201,
+     108684.51624534868,
+     112
+    ],
+    [
+     204,
+     108684.51624534868,
+     112
+    ],
+    [
+     207,
+     108684.51624534868,
+     112
+    ],
+    [
+     210,
+     108684.51624534868,
+     112
+    ],
+    [
+     213,
+     108684.51624534868,
+     112
+    ],
+    [
+     216,
+     108684.51624534868,
+     112
+    ],
+    [
+     219,
+     108684.51624534868,
+     112
+    ],
+    [
+     222,
+     108684.51624534868,
+     112
+    ],
+    [
+     225,
+     108684.51624534868,
+     112
+    ],
+    [
+     228,
+     108684.51624534868,
+     112
+    ],
+    [
+     231,
+     108684.51624534868,
+     112
+    ],
+    [
+     234,
+     108684.51624534868,
+     112
+    ],
+    [
+     237,
+     108684.51624534868,
+     112
+    ],
+    [
+     240,
+     108684.51624534868,
+     112
+    ],
+    [
+     243,
+     108684.51624534868,
+     112
+    ],
+    [
+     246,
+     108684.51624534868,
+     112
+    ],
+    [
+     249,
+     108684.51624534868,
+     112
+    ],
+    [
+     252,
+     108684.51624534868,
+     112
+    ],
+    [
+     255,
+     108684.51624534868,
+     112
+    ],
+    [
+     258,
+     108684.51624534868,
+     112
+    ],
+    [
+     261,
+     108684.51624534868,
+     112
+    ],
+    [
+     264,
+     108684.51624534868,
+     112
+    ],
+    [
+     267,
+     108684.51624534868,
+     112
+    ],
+    [
+     270,
+     108684.51624534868,
+     112
+    ],
+    [
+     273,
+     108684.51624534868,
+     112
+    ],
+    [
+     276,
+     108684.51624534868,
+     112
+    ],
+    [
+     279,
+     108684.51624534868,
+     112
+    ],
+    [
+     282,
+     108684.51624534868,
+     112
+    ],
+    [
+     285,
+     108684.51624534868,
+     112
+    ],
+    [
+     288,
+     108684.51624534868,
+     112
+    ],
+    [
+     291,
+     108684.51624534868,
+     112
+    ],
+    [
+     294,
+     108684.51624534868,
+     112
+    ],
+    [
+     297,
+     108684.51624534868,
+     112
+    ],
+    [
+     300,
+     108684.51624534868,
+     112
+    ]
+   ],
+   "anchor": {
+    "lib": "d10368bdf096",
+    "here": "d10368bdf096"
+   },
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 112,
+     "want": 112,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 108,
+     "want": 108,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 108,
+     "st": {
+      "work": 108522.75405856075,
+      "broken": 109,
+      "yields": 22509,
+      "members": 143,
+      "crashed": true,
+      "reason": "the airframe crushed (4.8 kJ of plastic work)",
+      "at": 1.3000000000001561,
+      "fault": null,
+      "vPeak": 51.79480024636241
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 62.718
+  },
+  "pancake-cub": {
+   "id": "pancake-cub",
+   "label": "the Cub's 5 m/s level pancake on the water",
+   "calm": false,
+   "skip": "needs GEAR-WATER 2's wet body"
+  },
+  "wing-cub": {
+   "id": "wing-cub",
+   "label": "the Cub into a trunk at 30 m/s, the wing 2.5 m out",
+   "calm": false,
+   "N": 360,
+   "refEnd": 323,
+   "ref": {
+    "steps": 323,
+    "h": "d982b01b7e728e66",
+    "work": 10637.676942966105,
+    "wB": "85c740202110f7d0",
+    "broken": [
+     166,
+     169,
+     170,
+     167,
+     176,
+     177,
+     180,
+     181
+    ],
+    "yields": 2207,
+    "members": 11,
+    "crashed": true,
+    "reason": "a wing member broke",
+    "at": 1.3666666666665528,
+    "over": true,
+    "fault": null,
+    "vPeak": 39.67544288979046
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     0,
+     0
+    ],
+    [
+     84,
+     9357.367234784217,
+     4
+    ],
+    [
+     87,
+     10364.699420599338,
+     8
+    ],
+    [
+     90,
+     10364.699420599338,
+     8
+    ],
+    [
+     93,
+     10364.699420599338,
+     8
+    ],
+    [
+     96,
+     10364.699420599338,
+     8
+    ],
+    [
+     99,
+     10364.699420599338,
+     8
+    ],
+    [
+     102,
+     10364.699420599338,
+     8
+    ],
+    [
+     105,
+     10364.699420599338,
+     8
+    ],
+    [
+     108,
+     10364.699420599338,
+     8
+    ],
+    [
+     111,
+     10364.699420599338,
+     8
+    ],
+    [
+     114,
+     10364.699420599338,
+     8
+    ],
+    [
+     117,
+     10364.699420599338,
+     8
+    ],
+    [
+     120,
+     10364.699420599338,
+     8
+    ],
+    [
+     123,
+     10364.699420599338,
+     8
+    ],
+    [
+     126,
+     10364.699420599338,
+     8
+    ],
+    [
+     129,
+     10364.699420599338,
+     8
+    ],
+    [
+     132,
+     10364.699420599338,
+     8
+    ],
+    [
+     135,
+     10364.699420599338,
+     8
+    ],
+    [
+     138,
+     10364.699420599338,
+     8
+    ],
+    [
+     141,
+     10364.699420599338,
+     8
+    ],
+    [
+     144,
+     10364.699420599338,
+     8
+    ],
+    [
+     147,
+     10364.699420599338,
+     8
+    ],
+    [
+     150,
+     10364.699420599338,
+     8
+    ],
+    [
+     153,
+     10364.699420599338,
+     8
+    ],
+    [
+     156,
+     10364.699420599338,
+     8
+    ],
+    [
+     159,
+     10364.699420599338,
+     8
+    ],
+    [
+     162,
+     10364.699420599338,
+     8
+    ],
+    [
+     165,
+     10364.699420599338,
+     8
+    ],
+    [
+     168,
+     10364.699420599338,
+     8
+    ],
+    [
+     171,
+     10413.098819756433,
+     8
+    ],
+    [
+     174,
+     10413.098819756433,
+     8
+    ],
+    [
+     177,
+     10604.68671632063,
+     8
+    ],
+    [
+     180,
+     10637.676942966105,
+     8
+    ],
+    [
+     183,
+     10637.676942966105,
+     8
+    ],
+    [
+     186,
+     10637.676942966105,
+     8
+    ],
+    [
+     189,
+     10637.676942966105,
+     8
+    ],
+    [
+     192,
+     10637.676942966105,
+     8
+    ],
+    [
+     195,
+     10637.676942966105,
+     8
+    ],
+    [
+     198,
+     10637.676942966105,
+     8
+    ],
+    [
+     201,
+     10637.676942966105,
+     8
+    ],
+    [
+     204,
+     10637.676942966105,
+     8
+    ],
+    [
+     207,
+     10637.676942966105,
+     8
+    ],
+    [
+     210,
+     10637.676942966105,
+     8
+    ],
+    [
+     213,
+     10637.676942966105,
+     8
+    ],
+    [
+     216,
+     10637.676942966105,
+     8
+    ],
+    [
+     219,
+     10637.676942966105,
+     8
+    ],
+    [
+     222,
+     10637.676942966105,
+     8
+    ],
+    [
+     225,
+     10637.676942966105,
+     8
+    ],
+    [
+     228,
+     10637.676942966105,
+     8
+    ],
+    [
+     231,
+     10637.676942966105,
+     8
+    ],
+    [
+     234,
+     10637.676942966105,
+     8
+    ],
+    [
+     237,
+     10637.676942966105,
+     8
+    ],
+    [
+     240,
+     10637.676942966105,
+     8
+    ],
+    [
+     243,
+     10637.676942966105,
+     8
+    ],
+    [
+     246,
+     10637.676942966105,
+     8
+    ],
+    [
+     249,
+     10637.676942966105,
+     8
+    ],
+    [
+     252,
+     10637.676942966105,
+     8
+    ],
+    [
+     255,
+     10637.676942966105,
+     8
+    ],
+    [
+     258,
+     10637.676942966105,
+     8
+    ],
+    [
+     261,
+     10637.676942966105,
+     8
+    ],
+    [
+     264,
+     10637.676942966105,
+     8
+    ],
+    [
+     267,
+     10637.676942966105,
+     8
+    ],
+    [
+     270,
+     10637.676942966105,
+     8
+    ],
+    [
+     273,
+     10637.676942966105,
+     8
+    ],
+    [
+     276,
+     10637.676942966105,
+     8
+    ],
+    [
+     279,
+     10637.676942966105,
+     8
+    ],
+    [
+     282,
+     10637.676942966105,
+     8
+    ],
+    [
+     285,
+     10637.676942966105,
+     8
+    ],
+    [
+     288,
+     10637.676942966105,
+     8
+    ],
+    [
+     291,
+     10637.676942966105,
+     8
+    ],
+    [
+     294,
+     10637.676942966105,
+     8
+    ],
+    [
+     297,
+     10637.676942966105,
+     8
+    ],
+    [
+     300,
+     10637.676942966105,
+     8
+    ],
+    [
+     303,
+     10637.676942966105,
+     8
+    ],
+    [
+     306,
+     10637.676942966105,
+     8
+    ],
+    [
+     309,
+     10637.676942966105,
+     8
+    ],
+    [
+     312,
+     10637.676942966105,
+     8
+    ],
+    [
+     315,
+     10637.676942966105,
+     8
+    ],
+    [
+     318,
+     10637.676942966105,
+     8
+    ],
+    [
+     321,
+     10637.676942966105,
+     8
+    ],
+    [
+     324,
+     10637.676942966105,
+     8
+    ],
+    [
+     327,
+     10637.676942966105,
+     8
+    ],
+    [
+     330,
+     10637.676942966105,
+     8
+    ],
+    [
+     333,
+     10637.676942966105,
+     8
+    ],
+    [
+     336,
+     10637.676942966105,
+     8
+    ],
+    [
+     339,
+     10637.676942966105,
+     8
+    ],
+    [
+     342,
+     10637.676942966105,
+     8
+    ],
+    [
+     345,
+     10637.676942966105,
+     8
+    ],
+    [
+     348,
+     10637.676942966105,
+     8
+    ],
+    [
+     351,
+     10637.676942966105,
+     8
+    ],
+    [
+     354,
+     10637.676942966105,
+     8
+    ],
+    [
+     357,
+     10637.676942966105,
+     8
+    ],
+    [
+     360,
+     10637.676942966105,
+     8
+    ]
+   ],
+   "anchor": {
+    "lib": "f50665feea32",
+    "here": "f50665feea32"
+   },
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 330,
+     "want": 330,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 328,
+     "want": 328,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 330,
+     "want": 330,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 323,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 323,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 323,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 323,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 332,
+     "want": 332,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 324,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 324,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 324,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 324,
+     "want": 324,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": 324,
+     "st": {
+      "work": 10637.676942966105,
+      "broken": 8,
+      "yields": 2207,
+      "members": 11,
+      "crashed": true,
+      "reason": "a wing member broke",
+      "at": 1.3666666666665528,
+      "fault": null,
+      "vPeak": 39.67544288979046
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 75.65
+  },
+  "hard-metal": {
+   "id": "hard-metal",
+   "label": "the metal Cessna dropped at FAR 23.473's limit sink",
+   "calm": true,
+   "N": 120,
+   "refEnd": 120,
+   "ref": {
+    "steps": 120,
+    "h": "5b397fc9e600b93a",
+    "work": 0,
+    "wB": "2a2485f04507288d",
+    "broken": [],
+    "yields": 0,
+    "members": 0,
+    "crashed": false,
+    "reason": null,
+    "at": null,
+    "over": false,
+    "fault": null,
+    "vPeak": 0.7765360889692967
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     0,
+     0
+    ],
+    [
+     84,
+     0,
+     0
+    ],
+    [
+     87,
+     0,
+     0
+    ],
+    [
+     90,
+     0,
+     0
+    ],
+    [
+     93,
+     0,
+     0
+    ],
+    [
+     96,
+     0,
+     0
+    ],
+    [
+     99,
+     0,
+     0
+    ],
+    [
+     102,
+     0,
+     0
+    ],
+    [
+     105,
+     0,
+     0
+    ],
+    [
+     108,
+     0,
+     0
+    ],
+    [
+     111,
+     0,
+     0
+    ],
+    [
+     114,
+     0,
+     0
+    ],
+    [
+     117,
+     0,
+     0
+    ],
+    [
+     120,
+     0,
+     0
+    ]
+   ],
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 0.7765360889692967
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 67.359
+  },
+  "pancake-floats": {
+   "id": "pancake-floats",
+   "label": "the Cessna on floats' 5 m/s level pancake on the water",
+   "calm": false,
+   "N": 240,
+   "refEnd": 240,
+   "ref": {
+    "steps": 240,
+    "h": "a6549df7ae35f32f",
+    "work": 0,
+    "wB": "90d19bb4d7b1bd1f",
+    "broken": [],
+    "yields": 0,
+    "members": 0,
+    "crashed": false,
+    "reason": null,
+    "at": null,
+    "over": false,
+    "fault": null,
+    "vPeak": 3.9815704354494086
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     0,
+     0
+    ],
+    [
+     84,
+     0,
+     0
+    ],
+    [
+     87,
+     0,
+     0
+    ],
+    [
+     90,
+     0,
+     0
+    ],
+    [
+     93,
+     0,
+     0
+    ],
+    [
+     96,
+     0,
+     0
+    ],
+    [
+     99,
+     0,
+     0
+    ],
+    [
+     102,
+     0,
+     0
+    ],
+    [
+     105,
+     0,
+     0
+    ],
+    [
+     108,
+     0,
+     0
+    ],
+    [
+     111,
+     0,
+     0
+    ],
+    [
+     114,
+     0,
+     0
+    ],
+    [
+     117,
+     0,
+     0
+    ],
+    [
+     120,
+     0,
+     0
+    ],
+    [
+     123,
+     0,
+     0
+    ],
+    [
+     126,
+     0,
+     0
+    ],
+    [
+     129,
+     0,
+     0
+    ],
+    [
+     132,
+     0,
+     0
+    ],
+    [
+     135,
+     0,
+     0
+    ],
+    [
+     138,
+     0,
+     0
+    ],
+    [
+     141,
+     0,
+     0
+    ],
+    [
+     144,
+     0,
+     0
+    ],
+    [
+     147,
+     0,
+     0
+    ],
+    [
+     150,
+     0,
+     0
+    ],
+    [
+     153,
+     0,
+     0
+    ],
+    [
+     156,
+     0,
+     0
+    ],
+    [
+     159,
+     0,
+     0
+    ],
+    [
+     162,
+     0,
+     0
+    ],
+    [
+     165,
+     0,
+     0
+    ],
+    [
+     168,
+     0,
+     0
+    ],
+    [
+     171,
+     0,
+     0
+    ],
+    [
+     174,
+     0,
+     0
+    ],
+    [
+     177,
+     0,
+     0
+    ],
+    [
+     180,
+     0,
+     0
+    ],
+    [
+     183,
+     0,
+     0
+    ],
+    [
+     186,
+     0,
+     0
+    ],
+    [
+     189,
+     0,
+     0
+    ],
+    [
+     192,
+     0,
+     0
+    ],
+    [
+     195,
+     0,
+     0
+    ],
+    [
+     198,
+     0,
+     0
+    ],
+    [
+     201,
+     0,
+     0
+    ],
+    [
+     204,
+     0,
+     0
+    ],
+    [
+     207,
+     0,
+     0
+    ],
+    [
+     210,
+     0,
+     0
+    ],
+    [
+     213,
+     0,
+     0
+    ],
+    [
+     216,
+     0,
+     0
+    ],
+    [
+     219,
+     0,
+     0
+    ],
+    [
+     222,
+     0,
+     0
+    ],
+    [
+     225,
+     0,
+     0
+    ],
+    [
+     228,
+     0,
+     0
+    ],
+    [
+     231,
+     0,
+     0
+    ],
+    [
+     234,
+     0,
+     0
+    ],
+    [
+     237,
+     0,
+     0
+    ],
+    [
+     240,
+     0,
+     0
+    ]
+   ],
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 3.9815704354494086
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 79.728
+  },
+  "hard-floats": {
+   "id": "hard-floats",
+   "label": "the Cessna on floats dropped onto the water at FAR 23.473's limit sink",
+   "calm": true,
+   "N": 120,
+   "refEnd": 120,
+   "ref": {
+    "steps": 120,
+    "h": "5ad0264ce9da1014",
+    "work": 0,
+    "wB": "90d19bb4d7b1bd1f",
+    "broken": [],
+    "yields": 0,
+    "members": 0,
+    "crashed": false,
+    "reason": null,
+    "at": null,
+    "over": false,
+    "fault": null,
+    "vPeak": 2.8588748211617157
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     0,
+     0
+    ],
+    [
+     84,
+     0,
+     0
+    ],
+    [
+     87,
+     0,
+     0
+    ],
+    [
+     90,
+     0,
+     0
+    ],
+    [
+     93,
+     0,
+     0
+    ],
+    [
+     96,
+     0,
+     0
+    ],
+    [
+     99,
+     0,
+     0
+    ],
+    [
+     102,
+     0,
+     0
+    ],
+    [
+     105,
+     0,
+     0
+    ],
+    [
+     108,
+     0,
+     0
+    ],
+    [
+     111,
+     0,
+     0
+    ],
+    [
+     114,
+     0,
+     0
+    ],
+    [
+     117,
+     0,
+     0
+    ],
+    [
+     120,
+     0,
+     0
+    ]
+   ],
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 120,
+     "want": 120,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 2.8588748211617157
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 101.308
+  },
+  "nosein-twin": {
+   "id": "nosein-twin",
+   "label": "the twin's float nose-in (90 km/h, 5 m/s, 20 deg)",
+   "calm": false,
+   "N": 240,
+   "refEnd": 240,
+   "ref": {
+    "steps": 240,
+    "h": "5b31754cce480e38",
+    "work": 0,
+    "wB": "0ae13c9bb7c45d74",
+    "broken": [],
+    "yields": 0,
+    "members": 0,
+    "crashed": false,
+    "reason": null,
+    "at": null,
+    "over": false,
+    "fault": null,
+    "vPeak": 15.785144023245339
+   },
+   "workTrace": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0
+    ],
+    [
+     9,
+     0,
+     0
+    ],
+    [
+     12,
+     0,
+     0
+    ],
+    [
+     15,
+     0,
+     0
+    ],
+    [
+     18,
+     0,
+     0
+    ],
+    [
+     21,
+     0,
+     0
+    ],
+    [
+     24,
+     0,
+     0
+    ],
+    [
+     27,
+     0,
+     0
+    ],
+    [
+     30,
+     0,
+     0
+    ],
+    [
+     33,
+     0,
+     0
+    ],
+    [
+     36,
+     0,
+     0
+    ],
+    [
+     39,
+     0,
+     0
+    ],
+    [
+     42,
+     0,
+     0
+    ],
+    [
+     45,
+     0,
+     0
+    ],
+    [
+     48,
+     0,
+     0
+    ],
+    [
+     51,
+     0,
+     0
+    ],
+    [
+     54,
+     0,
+     0
+    ],
+    [
+     57,
+     0,
+     0
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     66,
+     0,
+     0
+    ],
+    [
+     69,
+     0,
+     0
+    ],
+    [
+     72,
+     0,
+     0
+    ],
+    [
+     75,
+     0,
+     0
+    ],
+    [
+     78,
+     0,
+     0
+    ],
+    [
+     81,
+     0,
+     0
+    ],
+    [
+     84,
+     0,
+     0
+    ],
+    [
+     87,
+     0,
+     0
+    ],
+    [
+     90,
+     0,
+     0
+    ],
+    [
+     93,
+     0,
+     0
+    ],
+    [
+     96,
+     0,
+     0
+    ],
+    [
+     99,
+     0,
+     0
+    ],
+    [
+     102,
+     0,
+     0
+    ],
+    [
+     105,
+     0,
+     0
+    ],
+    [
+     108,
+     0,
+     0
+    ],
+    [
+     111,
+     0,
+     0
+    ],
+    [
+     114,
+     0,
+     0
+    ],
+    [
+     117,
+     0,
+     0
+    ],
+    [
+     120,
+     0,
+     0
+    ],
+    [
+     123,
+     0,
+     0
+    ],
+    [
+     126,
+     0,
+     0
+    ],
+    [
+     129,
+     0,
+     0
+    ],
+    [
+     132,
+     0,
+     0
+    ],
+    [
+     135,
+     0,
+     0
+    ],
+    [
+     138,
+     0,
+     0
+    ],
+    [
+     141,
+     0,
+     0
+    ],
+    [
+     144,
+     0,
+     0
+    ],
+    [
+     147,
+     0,
+     0
+    ],
+    [
+     150,
+     0,
+     0
+    ],
+    [
+     153,
+     0,
+     0
+    ],
+    [
+     156,
+     0,
+     0
+    ],
+    [
+     159,
+     0,
+     0
+    ],
+    [
+     162,
+     0,
+     0
+    ],
+    [
+     165,
+     0,
+     0
+    ],
+    [
+     168,
+     0,
+     0
+    ],
+    [
+     171,
+     0,
+     0
+    ],
+    [
+     174,
+     0,
+     0
+    ],
+    [
+     177,
+     0,
+     0
+    ],
+    [
+     180,
+     0,
+     0
+    ],
+    [
+     183,
+     0,
+     0
+    ],
+    [
+     186,
+     0,
+     0
+    ],
+    [
+     189,
+     0,
+     0
+    ],
+    [
+     192,
+     0,
+     0
+    ],
+    [
+     195,
+     0,
+     0
+    ],
+    [
+     198,
+     0,
+     0
+    ],
+    [
+     201,
+     0,
+     0
+    ],
+    [
+     204,
+     0,
+     0
+    ],
+    [
+     207,
+     0,
+     0
+    ],
+    [
+     210,
+     0,
+     0
+    ],
+    [
+     213,
+     0,
+     0
+    ],
+    [
+     216,
+     0,
+     0
+    ],
+    [
+     219,
+     0,
+     0
+    ],
+    [
+     222,
+     0,
+     0
+    ],
+    [
+     225,
+     0,
+     0
+    ],
+    [
+     228,
+     0,
+     0
+    ],
+    [
+     231,
+     0,
+     0
+    ],
+    [
+     234,
+     0,
+     0
+    ],
+    [
+     237,
+     0,
+     0
+    ],
+    [
+     240,
+     0,
+     0
+    ]
+   ],
+   "runs": [
+    {
+     "name": "nominal 2 fps (30 steps a read) [30 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 5 fps (12 steps a read) [12 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 10 fps (6 steps a read) [6 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]",
+     "kind": "inline",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 30",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 12",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 6",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 1, the page reading every 2",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 30",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 12",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 6",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    },
+    {
+     "name": "worker host, turns of 4, the page reading every 2",
+     "kind": "host",
+     "end": 240,
+     "want": 240,
+     "endOk": true,
+     "same": true,
+     "verdict": true,
+     "flagAt": null,
+     "st": {
+      "work": 0,
+      "broken": 0,
+      "yields": 0,
+      "members": 0,
+      "crashed": false,
+      "reason": null,
+      "at": null,
+      "fault": null,
+      "vPeak": 15.785144023245339
+     },
+     "dWork": 0,
+     "dBroken": 0
+    }
+   ],
+   "secs": 97.759
+  }
+ },
+ "pace": [
+  {
+   "name": "page 30 fps, cap 30",
+   "fps": 30,
+   "cap": 30,
+   "rate": 1,
+   "seq": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ]
+  },
+  {
+   "name": "page 30 fps, cap 30, 2x",
+   "fps": 30,
+   "cap": 30,
+   "rate": 2,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 10 fps, cap 30",
+   "fps": 10,
+   "cap": 30,
+   "rate": 1,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 10 fps, cap 30, 2x",
+   "fps": 10,
+   "cap": 30,
+   "rate": 2,
+   "seq": [
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8
+   ]
+  },
+  {
+   "name": "page 5 fps, cap 30",
+   "fps": 5,
+   "cap": 30,
+   "rate": 1,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 5 fps, cap 30, 2x",
+   "fps": 5,
+   "cap": 30,
+   "rate": 2,
+   "seq": [
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8
+   ]
+  },
+  {
+   "name": "page 2 fps, cap 30",
+   "fps": 2,
+   "cap": 30,
+   "rate": 1,
+   "seq": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ]
+  },
+  {
+   "name": "page 2 fps, cap 30, 2x",
+   "fps": 2,
+   "cap": 30,
+   "rate": 2,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 30 fps, cap 60",
+   "fps": 30,
+   "cap": 60,
+   "rate": 1,
+   "seq": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ]
+  },
+  {
+   "name": "page 30 fps, cap 60, 2x",
+   "fps": 30,
+   "cap": 60,
+   "rate": 2,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 10 fps, cap 60",
+   "fps": 10,
+   "cap": 60,
+   "rate": 1,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 10 fps, cap 60, 2x",
+   "fps": 10,
+   "cap": 60,
+   "rate": 2,
+   "seq": [
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8
+   ]
+  },
+  {
+   "name": "page 5 fps, cap 60",
+   "fps": 5,
+   "cap": 60,
+   "rate": 1,
+   "seq": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ]
+  },
+  {
+   "name": "page 5 fps, cap 60, 2x",
+   "fps": 5,
+   "cap": 60,
+   "rate": 2,
+   "seq": [
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8,
+    8
+   ]
+  },
+  {
+   "name": "page 2 fps, cap 60",
+   "fps": 2,
+   "cap": 60,
+   "rate": 1,
+   "seq": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "name": "page 2 fps, cap 60, 2x",
+   "fps": 2,
+   "cap": 60,
+   "rate": 2,
+   "seq": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ]
+  }
+ ]
+}

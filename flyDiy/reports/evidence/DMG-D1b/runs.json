@@ -1,0 +1,174 @@
+{
+ "component_jodel_wing.svg": {
+  "label": "the Jodel, a trunk at 30 m/s 2.5 m out (the left wing)",
+  "before": {
+   "breaks": 7,
+   "dropped": 2,
+   "reason": "a wing member broke"
+  },
+  "after": {
+   "breaks": 7,
+   "dropped": 0,
+   "oldRuleOnSameBreaks": 2,
+   "reason": "a wing member broke"
+  }
+ },
+ "component_cub_diagonal.svg": {
+  "label": "the Cub, ONE diagonal in a wing's second bay broken (parked; nothing else)",
+  "before": {
+   "breaks": 1,
+   "dropped": 2,
+   "reason": null
+  },
+  "after": {
+   "breaks": 1,
+   "dropped": 0,
+   "oldRuleOnSameBreaks": 2,
+   "reason": null
+  }
+ },
+ "passthru_metal_ground.svg": {
+  "label": "the metal Cessna, a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+  "without": [
+   {
+    "tag": "ENGL",
+    "bay": 0,
+    "d": 0.44,
+    "t": 1.17,
+    "att": true
+   },
+   {
+    "tag": "CGE",
+    "bay": 2,
+    "d": 0.419,
+    "t": 1.38,
+    "att": false
+   },
+   {
+    "tag": "ENGR",
+    "bay": 0,
+    "d": 0.306,
+    "t": 1,
+    "att": true
+   }
+  ],
+  "with": [],
+  "otherWith": [
+   {
+    "part": "fin",
+    "tag": "VF",
+    "bay": 5,
+    "d": 0.064,
+    "t": 0.95,
+    "att": false
+   }
+  ]
+ },
+ "passthru_cub_trunk.svg": {
+  "label": "the Cub, a trunk at 30 m/s on the centreline",
+  "without": [
+   {
+    "tag": "CGE",
+    "bay": 0,
+    "d": 0.356,
+    "t": 1.35,
+    "att": false
+   },
+   {
+    "tag": "CGE",
+    "bay": 1,
+    "d": 0.35,
+    "t": 1.38,
+    "att": false
+   },
+   {
+    "tag": "CGE",
+    "bay": 2,
+    "d": 0.197,
+    "t": 1.42,
+    "att": false
+   },
+   {
+    "tag": "CGE",
+    "bay": 3,
+    "d": 0.136,
+    "t": 1.43,
+    "att": false
+   },
+   {
+    "tag": "CGE",
+    "bay": 4,
+    "d": 0.089,
+    "t": 1.45,
+    "att": false
+   }
+  ],
+  "with": [],
+  "otherWith": [
+   {
+    "part": "wing0R",
+    "tag": "WF",
+    "bay": 0,
+    "d": 0.191,
+    "t": 1.52,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HF",
+    "bay": 4,
+    "d": 0.159,
+    "t": 1.73,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HB",
+    "bay": 4,
+    "d": 0.14,
+    "t": 1.73,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HTL",
+    "bay": 4,
+    "d": 0.118,
+    "t": 1.75,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HF",
+    "bay": 4,
+    "d": 0.103,
+    "t": 1.63,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HR",
+    "bay": 4,
+    "d": 0.084,
+    "t": 1.75,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HB",
+    "bay": 5,
+    "d": 0.082,
+    "t": 1.47,
+    "att": true
+   },
+   {
+    "part": "stab",
+    "tag": "HB",
+    "bay": 5,
+    "d": 0.064,
+    "t": 1.38,
+    "att": true
+   }
+  ]
+ }
+}

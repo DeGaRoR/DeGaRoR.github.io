@@ -1,0 +1,2 @@
+metal air pairs 12 base mean 4.465 now 4.556 2.0% | medians 4.446 4.524 1.8% | pairs now>base 9
+metal air pairs 20 base mean 4.423 now 4.459 0.8% | medians 4.417 4.444 0.6% | pairs now>base 11

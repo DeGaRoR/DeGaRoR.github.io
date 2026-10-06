@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -413,6 +413,8 @@ const SIM_LINK = (() => {
         stamp(c); V.send(c);
       } });
       def('impulse', { writable: true, value: (i, ix, iy, iz) => { const c = { cmd: 'impulse', i, ix, iy, iz }; stamp(c); V.send(c); } });
+      // G1831 (DMG-D2a): the certificate that lands mid-flight is the worker's sim's to stamp (the page's mirror bends nothing)
+      def('certStamp', { writable: true, value: Cc => { if (!Cc || !Cc.Ft) return false; const c = { cmd: 'cert', Ft: Cc.Ft, Fc: Cc.Fc }; stamp(c); V.send(c); return true; } });
       // every re-placement starts with a reset: the mirror comes down first, the flight is the page's again
       def('reset', { writable: true, value: function () { dropFlight(null); flight = null; st.phase = 'idle'; return orig.reset.apply(sim, arguments); } });
       def('ctl', { writable: true, value: ctlP });
@@ -424,6 +426,10 @@ const SIM_LINK = (() => {
       for (const k of Object.keys(realCtl)) set[k] = k === 'eng' ? copyEng(realCtl.eng) : realCtl[k];
       V.send({ cmd: 'ctl', set, k: 0 });
       if (windFirst) V.send({ cmd: 'windq', q: [windFirst], k: 0 });   // the reference the inline solver's step 1 would find
+      // G1831: a certificate the page's sim already carries (it landed before the flight attached) goes with step 0
+      { const C0 = typeof sim.cert === 'function' ? sim.cert() : null; if (C0 && C0.Ft) V.send({ cmd: 'cert', Ft: C0.Ft, Fc: C0.Fc, k: 0 }); }
+      if (destNext && destNext.ap === F.ap) V.send({ cmd: 'dest', to: destNext.to, k: 0 });   // G1945: a To picked before the worker took the flight
+      destNext = null;
       // the convection the page's climate holds (its cache's exact inputs: the page's day met that key before the worker lived)
       if (world.climate && world.climate.convState) V.send({ cmd: 'conv', s: world.climate.convState(), k: 0 });
       windFrame = [];
@@ -574,6 +580,16 @@ const SIM_LINK = (() => {
       const c = { cmd: 'leg', from, to }; stamp(c); F.view.send(c);
       st.legs++;
     }
+    // G1945 DEST-TO: A NEW TO (app.js setTo -> the page pilot's ap.setDest): the worker's pilot is handed the same
+    // destination at the same step boundary - no new pilot, no reset (43_pilot.js setDest decides: kept, re-planned
+    // from here, or queued for the next leg). A flight not live yet takes it as its first command (k 0, attach)
+    let destNext = null;
+    function dest(to) {
+      const F = flight; if (!F || F.inline) return;
+      if (!F.live) { destNext = { ap: F.ap, to }; return; }
+      const c = { cmd: 'dest', to }; stamp(c); F.view.send(c);
+      st.dests = (st.dests || 0) + 1;
+    }
     // G820 (C1c): THE BENCH'S TEST CARD (app.js startTestFlight: ap.setCard in the roll-out's callback, before this
     // flight is asked of the worker) - kept for the next init of that pilot, or sent at the step when the flight is live
     let cardNext = null;
@@ -602,7 +618,7 @@ const SIM_LINK = (() => {
       return P;
     }
     const api = {
-      frame, idle, warm, shed, prewarm, leg, perf, card, place,
+      frame, idle, warm, shed, prewarm, leg, dest, perf, card, place,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
                                            view: flight && flight.view ? flight.view.state() : null,
                                            ring: flight && flight.view && flight.view.delay ? flight.view.delay() : null }),   // G1100: the view's ring and delay

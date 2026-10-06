@@ -1008,10 +1008,16 @@ The coordinator (local, `claude/dmg-integration`) integrates every `claude/dmg-*
 | **DMG-D2b GEAR** | G1835-G1839 | cloud | D2a | the gear bracket (§7.3); the landing gates; **the default flip** (§11.4) as its last commit, A0's to take | 35 |
 | **DMG-D3 CLUSTERS** | G1840-G1849 | cloud | D1b (parallel to D2) | §4.7 (i) root moment / torque limits on TREE-CRASH's release; the mid-span boom station (§7.1 #8); float struts against the water case | 35 |
 | **DMG-D4a SKIN** | G1850-G1859 | cloud (+ `tools/soft_still.js` once train 31 lands) | D1b | the broken list over the worker on change (G1474's owed hop); **mesh breaking** in `poseSkinGen`; fabric drape; the geometry checked in node (no stretched triangle over a broken member) | 36 |
+| **DMG-D4c THE WALL** (the user, 2026-10-05) | G1855-G1857 (D4a's unused) | cloud | D4a | the outer covering and the inner shell (aeroskin's inside roles) are ONE wall: each inside-wall vertex bound to its point on the outer skin at a fixed depth, torn together - the outside never gets inside the inside. **The user's test: the Cub stays yellow crashed; grey/black on it = the inside leaking out** (a colour census of the wreck's pixels) | 36 |
 | **DMG-D4b WRECK DRAWN** `[LOCAL-GPU]` | G1860-G1869 | local, GPU lock | D4a | debris for the non-member parts (cowl, spinner, blades, fairings, glazing, wheels, §8.3); the prop strike drawn; fleet-model part detach; **GATE CLIP on the wreck** (§8.5); the cockpit camera rule; FRAMECOST on a wreck | 36 |
+| **DMG-SKINGPU** `[LOCAL-GPU]` (the crash FPS, the user) | G1818-G1819 (D1a's unused) | local, GPU lock | D4b's quick cuts | the wreck's skin riding in a vertex shader (node frames uploaded per frame, weights once): a crash on the gamer box ran ~20 fps (D4a's CPU riding, 25-29 ms a frame) | 36 |
+| **G1868 THE CRASH SHOWN** (the user) | G1868 (from D4b) | the coordinator, local | D4b's cockpit rule | the camera stays on the wreck, the end card waits and comes in small and collapsible | 36 |
 | **DMG-D5 ENDINGS, BILL, FIRE** | G1870-G1884 | cloud | D0 (per-beam work), D2 | reason-specific endings; **the bill** (§10) per section + event lines; the garage's DAMAGED state, Repair / Scrap / Sell, edits billed at build price, the pristine model + tag + bill + logbook still (dm9-dm12); write-off; fire (§9); SND hooks (crash sounds agreed with the Sound Coordinator) | 37 |
 | **DMG-DAMP** (the user's ruling, 2026-10-04: the independent review's §D1) | G1885-G1889 | cloud | master after train 32 | the deformation damper (`30_solver.js`, `DEFDAMP` on `v - v_mean`) also damps RIGID ROTATION: a hidden 2 s angular damper (vacuum: L/L0 = exp(-0.5 t)). Damp only `v - (v_cm + ω × r)`, ω = I⁻¹L about the CG; no replacement fudge. GATE DMGDAMP (angular momentum kept in vacuum); the census of moved flown numbers; re-anchor the gates whose anchor was the damper; pilot gains coordinated with PILOT-FORKS (G1570-G1579, the review's E4) | 34 (A0's call) |
-| **DMG-TUNE** | G1890-G1897 | cloud (A0 opens the NASA / CFR sources on the box first) | all | §7.4's scenarios on the validated builds (§11.2 #6) | 37 |
+| **DMG-TYRE** (DMG-DAMP's open question 1) | G1844-G1846 (D3's unused) | cloud | claude/dmg-damp | a tyre cornering stiffness (slip-angle side force, saturating into Coulomb): without the hidden damper the user's Cub ground-loops on a crosswind roll-out (PILOTMATRIX cub:x4, 106-140 deg) - the missing physics, not a gain | with DAMP |
+| **DMG-HULL** (DMG-DAMP's open question 2; A0 to say whose) | G1847-G1849 (D3's unused) | cloud | claude/dmg-damp | the hull's lift-type side force at the hump (slender body, linear in U v): the twin on floats water-loops at 2 m/s and from 4 m/s of crosswind | with DAMP |
+| **DMG-DRIVE** (the user, 2026-10-05: "tests on the drivetrains to see when they break / fail, compared to real numbers") | G1824-G1829 (D1b's unused) | cloud | train 35 | measure today's drivetrain (only a binary prop-strike seize); add overspeed tiers, graded prop strikes, the mount under FAR 23.361 torque / 23.371 gyro (certificate cases), gearbox damage; GATE DMGDRIVE row by row against the real references (SBs, operator manuals, FAR - as recalled until A0 opens them); the state shared with D4b (the look), D5 (the bill) and SND | 36-37 |
+| **DMG-TUNE** | G1893-G1897 (G1890-G1892: CERTCOST) | cloud (A0 opens the NASA / CFR sources on the box first) | all | §7.4's scenarios on the validated builds (§11.2 #6) | 37 |
 | coordinator | G1898-G1899 | local | — | integration fixes, the switch (§11.4) | each |
 
 **Parallelism:** D0 ∥ D1a now (both off TREE-CRASH; the coordinator merges `30_solver.js`). D2a ∥ D3 once D1b is in.
@@ -1057,6 +1063,12 @@ D4a can start on D1b. A0 may move the train slots; the table moves with them.
   entry** (what changed, the gates with their numbers, perf, the open questions); evidence (plots, top-downs,
   stills) under `flyDiy/reports/evidence/DMG-<NAME>/`.
 - Cloud sessions cannot message the coordinator: the coordinator reads their HANDOVER diffs on their branches.
+- **The gates a worker runs (the user, 2026-10-05: no full battery per session - it took hours a step).** A worker
+  runs ONLY: its own new gate; the DMG set (`DMGINST, DMGFPS, DMGMEMBERS, DMGINTEGRITY, DMGCLUSTERS, DMGCERT` - those
+  on its base) and `TREECRASH`; and, for §11.2 #1 (off = the base's bytes), the gates its files can reach - a solver
+  change: `LOAD, BENCH, FLEX, SIMWORKER, SOAR`; water code: `+ FLOATS, SEAPLANE, HYDRODYN`; viewer code: `+ UISMOKE,
+  BUILD, JOIN`; generator code: `+ GEN, MASS`. Its perf A/B as §11.2 #2. **The full 41-gate battery is the
+  coordinator's**, once per merge on `claude/dmg-integration`, and A0's per train.
 
 ### 11.4 The switch's default — one constant
 
@@ -1121,6 +1133,27 @@ clearing it (Repair) is the only thing Repair does besides charging.
   sections on the box when a number becomes a gate.
 - **(dm8) Fire** (§9): conditions plus a seeded roll, base-rate checked, always a write-off. Crash-resistant tanks
   are garage options. Visuals owed to POST-FX.
+
+**Taken by the coordinator** (2026-10-05; A0 may overturn):
+- **(dm13) The fitting factor's reading (DMG-D2a G1831).** FAR 23.625's 15 % is kept BETWEEN joints and members, joints
+  the weaker: a joint breaks at 1.5 F_l m, every member between joints holds 1.15 x past it. Read literally ("fittings
+  1.15 x stronger") the members broke first, mid-span, at ~6.9-7.2 g, against §7.2's break order and §7.4's over-g row.
+  This way a part comes off as a part, at a joint, at the card's broke-at (6.01-6.10 g on the five builds).
+- **(dm14) Normal operations need real headroom before damage turns ON (train 35).** On D2a's certificate the worst
+  member reaches 0.98 of its certified yield in an ordinary circuit on the Cessna floats (0.74 on the metal Cessna);
+  the certificate's own cases sit at ~0.99 by construction. Under dm10 a slightly harder landing would ground the
+  aeroplane. DMG-D2b owns the fix: ordinary operations (the circuit, taxi on grass and water, touchdowns at the
+  normal sink, chop, a crosswind within the demonstrated component) at most 2/3 of the certified yield on every
+  validated build; only the certificate's limit cases, deliberately flown, may approach 1.
+- **(dm15) The gear is the fuse (DMG-D2b's landK = 1.5).** The landing, ground and water cases certify the AIRFRAME at the
+  gear's ultimate, so a landing that bends the gear does not bend the fuselage (§7.3, NASA 172 Test 1). A per-case-class
+  reading, not a global knock-up; the bench's first joint is unchanged (5.98-5.99 g static).
+- **(dm16) The build's own FAR 23.473 sink is the gear's limit case**: there the airframe is at most 2/3 of its certified
+  yield and the gear under 1 (no set); past it the gear yields, past 1.2 V it breaks (§7.3).
+- **The switch ON (D2b's c0d8b7b0) waits for**: the certificate's cost measured in the bench worker in Chromium on the box
+  (14-47 s in node, 4-5 x D2a's - at roll-out of every new build once damage is on by default; on a 2-core machine it
+  competes with the page for about a minute), cut if it shows (D2b's cheap cuts, a cache kept per build); the coordinator's
+  full battery with damage ON; the box eyeball. dm14's headroom is met (every ordinary operation 0.10-0.66).
 
 ---
 
