@@ -1,0 +1,340 @@
+{
+ "url": "http://localhost:8581/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "build": "builds/jodel_2026-09-20_corrected.json",
+ "throttle": 4,
+ "gpux": 8,
+ "secs": 10,
+ "orbit": true,
+ "errs": [],
+ "load": 41.436,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "town": "nearby"
+ },
+ "rung": {
+  "N": 4,
+  "K": 8
+ },
+ "ab": [
+  {
+   "frames": 75,
+   "fps": 7.4,
+   "dt50": 133.4,
+   "dt90": 150.1,
+   "dt99": 200.1,
+   "slow": 75,
+   "work50": 129.4,
+   "render50": 62.5,
+   "shadow50": 51.5,
+   "gpu50": 108.9,
+   "gpu90": 135.91,
+   "calls": 6493,
+   "mtris": 5.82,
+   "cache": {
+    "frames": 349,
+    "bakes": 2,
+    "lightBakes": 1,
+    "why": "light",
+    "whys": {
+     "joined": 2,
+     "light": 1
+    },
+    "baked": 1232,
+    "live": 3,
+    "lights": 0,
+    "off": "off",
+    "ms": 3.895972735930127,
+    "msMax": 9.600000023841858,
+    "records": 0
+   },
+   "glass": {
+    "frames": 446,
+    "ok": 349,
+    "why": "off",
+    "skipped": 440,
+    "drawn": 328
+   },
+   "mode": "off"
+  },
+  {
+   "frames": 124,
+   "fps": 12.3,
+   "dt50": 66.8,
+   "dt90": 116.7,
+   "dt99": 133.4,
+   "slow": 117,
+   "work50": 69.2,
+   "render50": 47.8,
+   "shadow50": 4.7,
+   "gpu50": 63.17,
+   "gpu90": 106.21,
+   "calls": 1181,
+   "mtris": 1.28,
+   "cache": {
+    "frames": 506,
+    "bakes": 45,
+    "lightBakes": 1,
+    "why": "gone",
+    "whys": {
+     "joined": 5,
+     "light": 1,
+     "gone": 40
+    },
+    "baked": 1223,
+    "live": 12,
+    "lights": 0,
+    "off": "",
+    "ms": 6.632569926792887,
+    "msMax": 11.300000071525574,
+    "records": 1235
+   },
+   "glass": {
+    "frames": 604,
+    "ok": 506,
+    "why": "",
+    "skipped": 442,
+    "drawn": 268
+   },
+   "mode": "both"
+  },
+  {
+   "frames": 114,
+   "fps": 11.2,
+   "dt50": 83.4,
+   "dt90": 116.7,
+   "dt99": 133.4,
+   "slow": 114,
+   "work50": 80.9,
+   "render50": 61.2,
+   "shadow50": 4.1,
+   "gpu50": 63.31,
+   "gpu90": 98.4,
+   "calls": 1724,
+   "mtris": 1.49,
+   "cache": {
+    "frames": 655,
+    "bakes": 69,
+    "lightBakes": 2,
+    "why": "joined",
+    "whys": {
+     "joined": 10,
+     "light": 2,
+     "gone": 59
+    },
+    "baked": 1232,
+    "live": 3,
+    "lights": 0,
+    "off": "",
+    "ms": 6.591877379063869,
+    "msMax": 11.300000071525574,
+    "records": 1235
+   },
+   "glass": {
+    "frames": 753,
+    "ok": 507,
+    "why": "off",
+    "skipped": 442,
+    "drawn": 268
+   },
+   "mode": "shadow"
+  },
+  {
+   "frames": 108,
+   "fps": 10.6,
+   "dt50": 83.4,
+   "dt90": 133.4,
+   "dt99": 133.5,
+   "slow": 108,
+   "work50": 81.7,
+   "render50": 61.5,
+   "shadow50": 4.4,
+   "gpu50": 75.21,
+   "gpu90": 118.12,
+   "calls": 1763,
+   "mtris": 1.64,
+   "cache": {
+    "frames": 799,
+    "bakes": 96,
+    "lightBakes": 3,
+    "why": "gone",
+    "whys": {
+     "joined": 12,
+     "light": 3,
+     "gone": 84
+    },
+    "baked": 1219,
+    "live": 16,
+    "lights": 0,
+    "off": "",
+    "ms": 6.676700573528476,
+    "msMax": 11.300000071525574,
+    "records": 1235
+   },
+   "glass": {
+    "frames": 897,
+    "ok": 507,
+    "why": "off",
+    "skipped": 442,
+    "drawn": 268
+   },
+   "mode": "shadow"
+  },
+  {
+   "frames": 123,
+   "fps": 12.2,
+   "dt50": 83.3,
+   "dt90": 116.7,
+   "dt99": 133.5,
+   "slow": 122,
+   "work50": 71.2,
+   "render50": 50.3,
+   "shadow50": 4.3,
+   "gpu50": 66.59,
+   "gpu90": 107.11,
+   "calls": 1231,
+   "mtris": 1.4,
+   "cache": {
+    "frames": 961,
+    "bakes": 129,
+    "lightBakes": 4,
+    "why": "joined",
+    "whys": {
+     "joined": 18,
+     "light": 4,
+     "gone": 111
+    },
+    "baked": 1232,
+    "live": 3,
+    "lights": 0,
+    "off": "",
+    "ms": 6.849396228112508,
+    "msMax": 11.300000071525574,
+    "records": 1235
+   },
+   "glass": {
+    "frames": 1059,
+    "ok": 668,
+    "why": "",
+    "skipped": 449,
+    "drawn": 340
+   },
+   "mode": "both"
+  },
+  {
+   "frames": 80,
+   "fps": 7.9,
+   "dt50": 133.3,
+   "dt90": 149.9,
+   "dt99": 166.7,
+   "slow": 80,
+   "work50": 120.6,
+   "render50": 59.2,
+   "shadow50": 46.9,
+   "gpu50": 114.4,
+   "gpu90": 125.17,
+   "calls": 6499,
+   "mtris": 5.81,
+   "cache": {
+    "frames": 962,
+    "bakes": 129,
+    "lightBakes": 4,
+    "why": "joined",
+    "whys": {
+     "joined": 18,
+     "light": 4,
+     "gone": 111
+    },
+    "baked": 1232,
+    "live": 3,
+    "lights": 0,
+    "off": "off",
+    "ms": 3.8970337106574235,
+    "msMax": 11.300000071525574,
+    "records": 0
+   },
+   "glass": {
+    "frames": 1163,
+    "ok": 669,
+    "why": "off",
+    "skipped": 449,
+    "drawn": 340
+   },
+   "mode": "off"
+  }
+ ],
+ "summary": {
+  "off": {
+   "fps": 7.65,
+   "dt50": 133.35,
+   "dt90": 150,
+   "work50": 125,
+   "render50": 60.85,
+   "gpu50": 111.65,
+   "calls": 6496,
+   "mtris": 5.81,
+   "slow": 77.5
+  },
+  "both": {
+   "fps": 12.25,
+   "dt50": 75.05,
+   "dt90": 116.7,
+   "work50": 70.2,
+   "render50": 49.05,
+   "gpu50": 64.88,
+   "calls": 1206,
+   "mtris": 1.34,
+   "slow": 119.5
+  },
+  "shadow": {
+   "fps": 10.9,
+   "dt50": 83.4,
+   "dt90": 125.05,
+   "work50": 81.3,
+   "render50": 61.35,
+   "gpu50": 69.26,
+   "calls": 1743.5,
+   "mtris": 1.56,
+   "slow": 111
+  }
+ },
+ "wall": 132.271
+}

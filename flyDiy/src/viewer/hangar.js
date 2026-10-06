@@ -3255,6 +3255,7 @@ function setLights(pick) {
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
 let skyPhys = false, skyBakedSun = null, cloudMesh = null;
+let keyHeld = null; const KEY_STEP_COS = Math.cos(0.05 * Math.PI / 180);   // G2070: the key's held pose (applyDay)
 const dayDirShed = [0, 1, 0];                       // the key's direction in the shed's frame (the flare reads it)
 function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
 function applyDay(day, renderer) {
@@ -3277,9 +3278,13 @@ function applyDay(day, renderer) {
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
   dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
-  const R = 2 * HD + 22;
+  // G2070 (GARAGE-LAPTOP): the key's POSE steps when the sun has moved 0.05 deg (~12 s of a 1x day; under a third of a
+  // 2048 texel at the shed's far wall) - its shadow map is cached (shed_shadow.js) and re-bakes when the light moves, so a
+  // key that crept every frame re-drew its 1 300 casters every frame; the flare (dayDirShed) keeps the live sun
+  if (!keyHeld || s[0] * keyHeld[0] + s[1] * keyHeld[1] + s[2] * keyHeld[2] < KEY_STEP_COS) keyHeld = s.slice();
+  const R = 2 * HD + 22, k = keyHeld;
   key.target.position.set(0, 0.6, 0);
-  key.position.set(s[0] * R, Math.max(EAVE * 0.8, s[1] * R), s[2] * R);
+  key.position.set(k[0] * R, Math.max(EAVE * 0.8, k[1] * R), k[2] * R);
   key.target.updateMatrixWorld();
   // has the sun moved enough since the room's probe was shot?
   let rebake = false;

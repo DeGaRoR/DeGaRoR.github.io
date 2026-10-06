@@ -337,6 +337,10 @@ const GATES = [
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 480 },
+  // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
+  // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
+  // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
+  { id: 'SHEDSHADOW', file: '_shedshadow_check.js', tier: 'core', wall: 150 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a

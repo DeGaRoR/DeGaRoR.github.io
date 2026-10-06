@@ -78932,3 +78932,122 @@ EVIDENCE (reports/evidence/JODEL-TAIL/, each a strip of 4 views 0.17 deg apart, 
 TRAIN NOTE (A0: train 38): _hinge_gen.js changes every aeroplane's hinge hardware and _fin_gen.js the Jodel's and the
 Cub's stab - re-cook the parked aeroplanes on the train.
 READY for A0.
+
+
+## G2070 - GARAGE-LAPTOP: THE SHED DREW ITS SIX SHADOW MAPS AND ITS WHOLE ROOM FOR THE GLASS AGAIN EVERY FRAME - A STATIC DEPTH PER LIGHT WITH THE MOVERS ON TOP (PIXEL-IDENTICAL), THE GLASS PASS WITHOUT WHAT NO PANE SHOWS; RETRO'S SHED 6 809 -> 1 229 DRAWS (2026-10-06, GARAGE-LAPTOP for A0, local GPU; branch claude/garage-laptop-g2070, rebased onto train 37b = 068584d6; block G2070-G2074)
+
+THE USER (6 Oct): "we have to get the game to perform correctly on the gaming laptop. Even the garage is not satisfying ...
+stable 30 on retro settings, or even current." The laptop (i5-9300H, GTX 1660 Ti, 1920 x 1080, Chrome 154) on retro, the
+Jodel: shed p50 97-104 ms, 4 341-5 874 draws, 5.7-6.0 M tris, CPU 85-103 ms (render 59.5, shadow 17.6), GPU 100-122 ms;
+potato on it: 2 139 draws, 1.95 M tris, GPU 33 ms, p50 34.7 ms.
+
+**G2070 - THE CENSUS** (`tools/perf/garage_draws.js`, node: the page on the recording GL, ?gfx=<preset>, a build in the
+WIP slot; every renderBufferDirect of a frame by pass - main / each light's shadow map / other targets -, by owner path,
+by program; the shadow casters that change between frames; the cache's own state). The Jodel on retro: **6 809 draws a
+frame = 4 798 SHADOW-MAP draws** (the key's 2048 map 1 277, the five lamps' 1024 maps 534-796 each) + 949 the window
+glass's TRANSMISSION pass (three draws the whole opaque room again into a 4x MSAA mipmapped target for the panes) +
+1 059 the picture itself. The aeroplane owns more than the shed: its cockpit interior (edPanel 142, edCtl 71, two seats
+at 59 each) casts ~1 600 of the shadow draws. AT REST ONLY THREE CASTERS CHANGE between frames (the beacon's rotor - two
+meshes - and the pilot dummy's bones): the other ~1 700 cast the same depth frame after frame.
+
+**G2071 - THE SHED'S SHADOW CACHE** (`src/viewer/shed_shadow.js`; app.js calls SHED_SHADOW.pre / post round the garage's
+render only, and lets it go out of the shed). Per shadow-casting light a STATIC DEPTH: the casters still for K = 8
+frames drawn by three's own shadow pass (the same selection, frustum, depth materials, sides, alpha) and copied out
+(blitFramebuffer, depth, into an R8 + depth target of the map's size). Each frame the baked casters leave the pass
+(castShadow off for the render, restored after) and ONE full-screen triangle per light writes the static depth into the
+cleared map (gl_FragDepth = texelFetch; it intersects only its own light's shadow frustum; it is in the scene only
+during the render), then the movers draw depth-tested: the map is min(static, movers) = the full pass's. The bake runs
+INSIDE the frame's render (a one-shot wrapper on renderer.shadowMap.render - outside renderer.render three has no
+render state: renderBufferDirect throws on currentRenderState). REBAKE, checked every frame after the scene's matrices
+are updated (the render then skips its own update): a baked caster moved, deformed (position / index version), changed
+geometry, material (id, visible, side, shadowSide, alphaTest, alphaToCoverage, map, alphaMap, displacement, clipping,
+wireframe - NOT its version: three's two-pass transparent DoubleSide draws bump a material's version twice a frame),
+instances, skeleton pose (the bones' world matrices + the bind matrix) or morph influences, or left the pass (hidden,
+removed, castShadow off) -> the static set is re-made at once ('moved' / 'gone'); a light whose pose, camera, map size
+or map changed -> that light alone re-baked ('light'); casters still for K frames join at the next bake, no more often
+than every K frames; a caster that moved after joining waits twice as long the next time (up to 32 K). Batched meshes,
+a custom depth material or an onBeforeShadow: always live. Nothing is baked until something is still (the boot's first
+frames are as before). Any light it cannot cache (a cube, a multi-viewport atlas, VSM) or ?shedshadow=0
+(SHED_SHADOW.S.on = false, live): the full pass. Its targets (retro: ~45 MB) are released out of the shed.
+THE KEY HELD (hangar.js applyDay): the shed's key followed the sun every frame, so its map would re-bake every frame;
+its POSE now steps when the sun has moved 0.05 deg (~12 s of a 1x day: ~9 mm on the floor, ~1 px at the garage's
+camera - the stills show the sun patches' edges move by one step); the flare keeps the live sun. KEY_STEP_COS is the
+knob. A key step re-bakes the key's map alone (~1 280 draws in that frame).
+
+**G2072 - THE GLASS PASS** (shed_shadow.js G; ?shedglass=0 / SHED_SHADOW.G.on = false). A pane samples the transmission
+target at its own pixel (no thickness: no refraction offset), blurred by its roughness (0.06: ~0.7 of a mip): what the
+target holds where a pane shows is what lies BEHIND that pane. A PANE IS A SLAB: in the room's frame (hangar.js's group,
+the walls on its axes) each pane - a connected piece of a transmissive mesh, its corners welded at 0.1 mm - lies within
+its box; on an axis where the eye is outside that box (the pane's thin one first) every point behind the pane is past
+the box's near face, so an object wholly on the eye's side of every pane's face (its geometry's box, 1 cm clear) is
+never behind any pane and is left out of the target. The outdoors, the sky and the door's view stay in it. Exact where a
+pane shows; at a pane's pixel next to an object standing in front of it, the 0.7-mip blur no longer mixes that object's
+colour in (a sub-pixel fringe). Checked every frame, else the full pass: every visible transmissive mesh's panes
+(cached per pose and geometry); the eye in a pane's box -> the full pass; instanced, batched and skinned meshes and
+anything outside the scene (three's background box rides the eye) always drawn. (The first cut - one shrunken room box -
+left 462 of 949; by pane 145.)
+
+**G2071 - GATE SHEDSHADOW** (`tools/_shedshadow_check.js`, core, ~2.5 min, re-runs itself with a 6 GB heap): the page in
+node, the Jodel on retro. Per light, the casters drawn into its map over the bake + the live pass == the full pass's,
+each once: at rest (30 frames, no bake, a map takes the movers and its copy), on the frame a prop moved 0.3 m ('moved':
+it draws live; still again it joins; moved twice it waits 2K), a prop hidden ('gone': drawn nowhere; shown: live at
+once, then joined), a lamp moved 5 cm ('light': that map bound twice, the others once), the key held through a 2 s day
+step and re-baked by 30 min; off -> the full pass every frame, targets released; retro's shed frame < 40 % of the full
+pass's draws (20 %); THE GLASS: the transmission draws 949 -> 145, and INDEPENDENTLY rays from the eye through ten
+points of every pane triangle (corners, edge middles and thirds, centre) cross no object left out past the pane (0); the
+outdoors still drawn; a transmissive card stood in the room: what lies behind it drawn again (929 draws), the same ray
+check 0; the eye on a pane: the full pass. PASS (11:00 window).
+
+**THE NUMBERS.** Node census (the Jodel unless said, frames 4, the caches on vs `?shedshadow=0&shedglass=0`):
+
+    preset        | draws before -> after      | M tris before -> after
+    retro         | 6 809 -> 1 229 (18 %)      | 6.04 -> 1.19
+    current/gamer | 6 820 -> 1 557*            | 6.04 -> 1.57*
+    potato        | 2 339 -> 1 066*            | 1.93 -> 0.83*
+    Cub retro     |   ... -> 1 291             |  ... -> 1.26
+    (* measured with the first glass cut, 462 transmission draws; by pane ~310 fewer)
+
+THE GPU SLOT (10:35-10:51, `tools/perf/garage_fps.js`: one headed Chrome at 1920 x 1080, ?gfx=retro, the Jodel; the rung
+applied after the load; live A/B ABCCBA of 'off' (both caches off = train 36), 'shadow', 'both'; the flight recorder's
+own columns - the laptop log's). Measured with the FIRST glass cut (the room box); the per-pane cut only leaves more out.
+- IDENTITY (the shed rendered into a target three ways in ONE task - the cache, the cache + the glass skip, the full
+  pass): the shadow cache **0 of 518 400 pixels differ** at rest, on the frame a prop moved (its rebake inside that
+  render), on the frame a lamp moved; two full passes back to back 0 (no clock noise); the glass skip 183 px (0.035 %,
+  max 184: the fringe). The 12:15 stills run re-proves the per-pane cut the same way (garage_lampstill.txt).
+- THE LAPTOP RUNG, fitted live on the before (HW-COVERAGE's advice): CPU throttle 3x, HW-COVERAGE's G1998 GPU proxy 6x ->
+  work 76 ms, GPU 74 ms, dt 83 ms (the laptop: 85-103 / 100-122 / 97-104 - the rung is ~1.2-1.3x lighter):
+      off    12.7 fps  dt50 83.3  work50 76.3  render50 36.8  GPU50 73.9  calls 6 424  5.69 M tris
+      shadow 19.0 fps  dt50 50.0  work50 50.4  render50 37.5  GPU50 48.7  calls 1 645  1.50 M
+      both   21.8 fps  dt50 50.0  work50 44.0  render50 31.4  GPU50 42.1  calls 1 205  1.32 M
+  current on a heavier, unfitted rung (4x / 8x): 8.1 -> 13.8 fps; retro on 4x / 8x with the camera turning 6 deg/s:
+  7.7 -> 12.3 fps (the glass and the shadows hold while the eye moves).
+- THE BOX (no rung; the strict gate's garage fps): 30 fps steady both ways; work 19.5 -> 11.8 ms, GPU 16.1 -> 7.6 ms.
+- GPU A/B on the box (potato_census --ab, the garage, the cache on): the caches off +9.0 ms; the lamps' own shadows
+  (sampling five maps a pixel) 2.1 ms; the key's 0.4 ms; the glass pass ~0 GPU now (its draws are CPU).
+Evidence: `reports/evidence/GARAGE-LAPTOP/` (garage_fps_*.json/txt, census_ab_retro, shots/retro/garage_both.png and
+diff_off_vs_both.png - the two canvas stills are 2.5 s apart in the live loop: what differs is the sun patches' edges,
+one key step, not the cache; the identity above is the proof).
+
+THE LAPTOP, ESTIMATED from the rung (~1.25x lighter): the shed from ~10 fps to ~17-19 - **NOT YET THE EVEN 30**. What is
+left, counted (retro, the Jodel, after): the main pass's 1 059 draws - the garage ROOM's own structure is 473 separate
+static meshes (188 boxes and 103 cylinders on 5 + 3 materials, 48 + 42 + 32 more) that render_world's mergeShell
+(A1-STAND G600) already merges for the world's exterior shed but the garage never does: merged by material (the room's
+parts ARE its materials - setPart dresses a material - so the part system holds) they are ~16 draws, ~-390 a frame and
+the same out of the static bake; the cockpit interior 331 (panel 142, controls 71, seats 2 x 59); the glass pass's ~145;
+the lamps' shadow sampling (2.1 of 7.6 ms GPU on the box) - a retro `shedLamps: false` is a BUDGETS change, the user's
+call (A0 puts it with the 12:15 stills: shots/retro/lamps_shadow_on / _off).
+
+GATES RUN: SHEDSHADOW PASS (node, the 11:00 window) and again on the rebased tree with BUILD and GFX (run_gates
+--only=BUILD,GFX,SHEDSHADOW --no-build, 11:01: BATTERY PASS, SHEDSHADOW 103 s). The targeted set the files reach (HANGAR, STAND, LIGHT, UISMOKE, GFX,
+BUILD, BUILT, INSTANT, FRAMECOST: app.js's render path, hangar.js's key step, build.js's script list) - A0's call
+(train 38's battery or a window). FRAMECOST: the garage boot's rows can only fall (nothing bakes before K still frames;
+the glass skip draws less).
+RIGS: `tools/perf/garage_draws.js` (node census: --build --preset --query --depth --frames --eval), `tools/perf/
+garage_fps.js` (GPU: --identity --calibrate [--cpu-target 90 --gpu-target 105] --cpu-throttle N --gpux K --orbit --shots
+--lampstill --warm --no-ab; take the GPU lock).
+NEXT (G2074, its own train): the room's structure merged in the garage (mergeShell's rules, the room's parts kept), the
+cockpit interior's draws (the seats' 59), then the rung again - the even 30 needs the main pass near 600 draws and the
+box's GPU near 4.5 ms in the shed.
+
+READY for A0 (train 38): claude/garage-laptop-g2070 on 068584d6 (sources, tools, evidence; generated files untouched).
+Train 38's battery runs the targeted set (A0's call); the room merge (G2074) is the next train's, with its own GPU proof.

@@ -400,6 +400,7 @@ const MANIFEST = {
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
+              'shed_shadow.js',   // G2070: the shed's shadow cache (app.js: SHED_SHADOW.pre / post round the garage's render)
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)

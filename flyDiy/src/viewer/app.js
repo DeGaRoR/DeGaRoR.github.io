@@ -12334,8 +12334,13 @@
     }
     if (FR) FR.lap(FR.S.mirror);
     let framePresented = true;
+    // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
+    // out of the shed its static depths are let go
+    const shedSh = inGarage && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
+    if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
     if (aa) framePresented = aa.render(inGarage ? garageScene() : scene, camera) !== 'held';
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
     if (drawGuard && !inGarage) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
     // F1: the contract comes OFF here, after the main render and the mirror capture it covers
