@@ -341,6 +341,10 @@ const GATES = [
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
   { id: 'SHEDSHADOW', file: '_shedshadow_check.js', tier: 'core', wall: 150 },
+  // G2074 (GARAGE-LAPTOP): the garage room's shell merged by material (hangar.js mergeRoom, render_world mergeShell's rules)
+  // is the same room - the same oriented world-space triangles per material, casts and order as its sources swapped back
+  // live; >= 300 fewer draws; every dressable part still worn; the exterior and opts.merge false untouched
+  { id: 'ROOMMERGE', file: '_roommerge_check.js', tier: 'core', wall: 150 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a

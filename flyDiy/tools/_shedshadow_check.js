@@ -85,7 +85,7 @@ const ok = (c, msg, detail) => { if (!c) fails++; console.log((c ? '  PASS ' : '
       for (const [, b] of r) { const last = b[b.length - 1] || []; maxLive = Math.max(maxLive, last.filter(o => !isCopy(o)).length); copies += last.filter(isCopy).length; } }
     const s1 = st();
     ok(s1.bakes === s0.bakes && s1.lightBakes === s0.lightBakes, '1 at rest: 30 frames, no bake', 'bakes ' + s0.bakes + ' -> ' + s1.bakes + ', light bakes ' + s0.lightBakes + ' -> ' + s1.lightBakes + ', why ' + s1.why);
-    ok(s1.baked > 1000 && s1.live <= 6, '1 at rest: the shed\'s casters baked, the movers live', 'baked ' + s1.baked + ', live ' + s1.live + ' (' + SS.liveList().map(x => x.name).join(', ') + ')');
+    ok(s1.baked >= 300 && s1.live <= 6, '1 at rest: the shed\'s casters baked, the movers live', 'baked ' + s1.baked + ', live ' + s1.live + ' (' + SS.liveList().map(x => x.name).join(', ') + ')');
     ok(maxLive <= 2 * Math.max(1, s1.live) + 4, '1 at rest: a map takes the movers only', 'most live draws into one map ' + maxLive);
     ok(copies === frames * s1.lights || copies > 0, '1 at rest: each map takes its static depth\'s copy', copies + ' copies over ' + frames + ' frames, ' + s1.lights + ' lights'); }
   // 2 EXACT (the next bake after a release: the cache off then on)

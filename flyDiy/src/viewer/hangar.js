@@ -2236,6 +2236,105 @@ if (EXT) {
   };
 }
 
+// G2074 (GARAGE-LAPTOP): THE ROOM'S SHELL IS A HANDFUL OF DRAWS. Everything above this line is the shell, and the
+// world's copy of it (the exterior) has been merged since A1-STAND G600 (render_world.js mergeShell) - but the garage's
+// own room never was: 470-odd static boxes, cylinders and quads, each a draw in the main pass and each a caster in the
+// shed's six shadow maps (tools/perf/garage_draws.js: the room was 285 + 85 + 32 of retro's 1 059 main draws after
+// G2071). Merged here by (material, attribute layout, casts, receives, renderOrder) into one mesh each, in G's frame,
+// by mergeShell's rules: positions and normals posed, a mirrored piece re-wound, every other attribute copied as is.
+// The room's PARTS are its materials (setPart dresses a material; the moods and the day write materials), so they hold.
+// Left as they are: the sky sphere and the day card (the moods move and hide them), anything transparent (three sorts
+// it), hidden, named, instanced, skinned, morphed, multi-material, drawn in part, interleaved or with tangents, a mesh
+// with its own onBeforeRender, anything under an LOD - and the whole room when THREE has no Matrix4 / Box3 (GATE HANGAR's
+// stub). Off: ?roommerge=0 or opts.merge === false. hangar.merged says what it did ({ sources, meshes, kept }); the
+// sources are kept aside (never uploaded: a few MB of CPU arrays) so hangar.roomMerge(false / true) swaps them back in and
+// out live - the GPU's same-task identity proof (tools/perf/garage_fps.js --roomidentity).
+let roomMerged = null;
+const roomMergeOff = () => { if (opts && opts.merge === false) return true; try { return typeof location !== 'undefined' && /[?&]roommerge=0\b/.test(location.search || ''); } catch (e) { return false; } };
+if (!EXT && !roomMergeOff() && THREE.Matrix4 && THREE.Matrix3 && THREE.Box3 && THREE.BufferAttribute && THREE.BufferGeometry) {
+  try { roomMerged = mergeRoom(G, [skyMesh, M.dayCardMesh]); } catch (e) { roomMerged = { error: String(e && e.message || e) }; }
+}
+function mergeRoom(group, leave) {
+  group.updateMatrixWorld(true);
+  const skip = new Set(leave.filter(Boolean));
+  const inv = new THREE.Matrix4().copy(group.matrixWorld).invert(), rel = new THREE.Matrix4(), nm = new THREE.Matrix3();
+  const bins = new Map(), take = [];
+  let kept = 0;
+  const plainRBR = THREE.Object3D && THREE.Object3D.prototype ? THREE.Object3D.prototype.onBeforeRender : null;
+  const walk = (o, ok) => {
+    if (skip.has(o)) { kept++; return; }
+    if (o.isLOD) ok = false;
+    if (o !== group && !o.visible) ok = false;
+    if (o.isMesh) {
+      const g = o.geometry, m = o.material, a = g && g.attributes;
+      let fits = ok && !o.name && !o.isInstancedMesh && !o.isSkinnedMesh && !o.isBatchedMesh && a && a.position && a.position.array &&
+        m && !Array.isArray(m) && !m.transparent && !a.tangent && (!plainRBR || o.onBeforeRender === plainRBR) &&
+        !(g.morphAttributes && Object.keys(g.morphAttributes).length) &&
+        !(g.drawRange && (g.drawRange.start > 0 || g.drawRange.count < (g.index ? g.index.count : a.position.count)));
+      const names = fits ? Object.keys(a).sort() : [];
+      if (fits) for (const k of names) if (a[k].isInterleavedBufferAttribute || !a[k].array) fits = false;
+      if (!fits) kept++;
+      else {
+        rel.multiplyMatrices(inv, o.matrixWorld);
+        const key = m.uuid + '|' + names.map(k => k + a[k].itemSize).join(',') + '|' + (o.castShadow ? 1 : 0) + (o.receiveShadow ? 1 : 0) + '|' + o.renderOrder;
+        let b = bins.get(key); if (!b) bins.set(key, b = { m, names, cast: o.castShadow, recv: o.receiveShadow, order: o.renderOrder, list: [] });
+        b.list.push({ g, M: rel.clone(), o }); take.push(o);
+      }
+    }
+    for (const c of o.children.slice()) walk(c, ok);
+  };
+  walk(group, true);
+  let meshes = 0;
+  const out = [], swapped = [];
+  for (const b of bins.values()) {
+    if (b.list.length < 2) continue;                      // a lone piece stays itself
+    let nV = 0, nI = 0;
+    for (const s of b.list) { const c = s.g.attributes.position.count; nV += c; nI += s.g.index ? s.g.index.count : c; }
+    const arrays = {};
+    for (const k of b.names) arrays[k] = new Float32Array(nV * b.list[0].g.attributes[k].itemSize);
+    const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+    let vo = 0, io = 0;
+    for (const s of b.list) {
+      const g = s.g, c = g.attributes.position.count, e = s.M.elements;
+      nm.getNormalMatrix(s.M); const q = nm.elements;
+      for (const k of b.names) {
+        const a = g.attributes[k], is = a.itemSize, dst = arrays[k], o0 = vo * is;
+        if (k === 'position') for (let i = 0; i < c; i++) {
+          const x = a.getX(i), y = a.getY(i), z = a.getZ(i), o = o0 + i * 3;
+          dst[o] = e[0] * x + e[4] * y + e[8] * z + e[12]; dst[o + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; dst[o + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+        } else if (k === 'normal') for (let i = 0; i < c; i++) {
+          const x = a.getX(i), y = a.getY(i), z = a.getZ(i), o = o0 + i * 3;
+          const X = q[0] * x + q[3] * y + q[6] * z, Y = q[1] * x + q[4] * y + q[7] * z, Z = q[2] * x + q[5] * y + q[8] * z, l = Math.hypot(X, Y, Z) || 1;
+          dst[o] = X / l; dst[o + 1] = Y / l; dst[o + 2] = Z / l;
+        } else for (let i = 0; i < c; i++) for (let j = 0; j < is; j++) dst[o0 + i * is + j] = a.getComponent(i, j);
+      }
+      const flip = s.M.determinant() < 0;   // a mirrored piece keeps its faces outward: its triangles re-wound
+      if (g.index) { const ix = g.index; for (let i = 0; i < ix.count; i += 3) { const a0 = ix.getX(i), a1 = ix.getX(i + 1), a2 = ix.getX(i + 2);
+        idx[io + i] = a0 + vo; idx[io + i + 1] = (flip ? a2 : a1) + vo; idx[io + i + 2] = (flip ? a1 : a2) + vo; } io += ix.count; }
+      else { for (let i = 0; i < c; i += 3) { idx[io + i] = vo + i; idx[io + i + 1] = vo + (flip ? i + 2 : i + 1); idx[io + i + 2] = vo + (flip ? i + 1 : i + 2); } io += c; }
+      vo += c;
+    }
+    const geo = new THREE.BufferGeometry();
+    for (const k of b.names) geo.setAttribute(k, new THREE.BufferAttribute(arrays[k], b.list[0].g.attributes[k].itemSize));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.computeBoundingSphere(); geo.computeBoundingBox();
+    const mesh = new THREE.Mesh(geo, b.m);
+    mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; mesh.renderOrder = b.order;
+    mesh.userData.roomMerged = b.list.length;
+    for (const s of b.list) { swapped.push([s.o, s.o.parent]); if (s.o.parent) s.o.parent.remove(s.o); }   // (kept aside, never uploaded)
+    out.push(mesh); meshes++;
+  }
+  for (const m of out) group.add(m);
+  const sources = out.reduce((n, m) => n + m.userData.roomMerged, 0);
+  let on = true;
+  // the live switch: false puts every source back under its own parent and takes the merged meshes out; true the reverse
+  const set = v => { v = v !== false; if (v === on) return on; on = v;
+    for (const m of out) { if (v) group.add(m); else group.remove(m); }
+    for (const [o, par] of swapped) { if (v) { if (o.parent) o.parent.remove(o); } else if (par) par.add(o); }
+    return on; };
+  return { sources, meshes, kept: kept + (take.length - sources), set, on: () => on };
+}
+
 // ===========================================================================
 // FITTINGS — the things that make it a place where aeroplanes get built
 // ===========================================================================
@@ -3727,6 +3826,8 @@ texBudget();          // print the fragment-sampler count, once, per G66
 
 return {
   group: ROOT, background: BG, fog: FOG, roomAir: ROOM_AIR,
+  merged: roomMerged ? { sources: roomMerged.sources, meshes: roomMerged.meshes, kept: roomMerged.kept, error: roomMerged.error } : null,   // G2074: the shell's merge, null when it stood down
+  roomMerge: v => roomMerged && roomMerged.set ? roomMerged.set(v) : null,   // G2074: live, the merged meshes or their sources
   library: [{ key: 'baked', name: '(part’s own)' }].concat(
     Object.keys(LIB).map(k => ({ key: k, name: LIB[k].name || k }))),
   parts: Object.keys(PARTS).map(k => ({ key: k, name: PARTS[k].name })),

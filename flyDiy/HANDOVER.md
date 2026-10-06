@@ -79437,3 +79437,55 @@ lean (the same picture; 2.66 % of the pixels differ by more than 40/255 - the ae
 UNFIXED build after the same cycle: the grass beyond the apron gone to the haze's pale beige, the far mountains washed out where
 their ground is not drawn (the pavement, its own material, still drawn) - GROUND-COST's picture. (The low pass at 80 m did not
 finish inside the slot's shares; the stand shows the whole ground family failing, near and far.)
+
+
+## G2074 - GARAGE-LAPTOP 2: THE GARAGE ROOM'S SHELL IS 16 DRAWS, NOT 523 - MERGED BY MATERIAL AS THE WORLD'S EXTERIOR SHED HAS BEEN SINCE G600; RETRO'S SHED 1 229 -> 860 DRAWS; THE LAPTOP RUNG 23 -> 25-27 FPS (2026-10-06, GARAGE-LAPTOP for A0, local GPU; branch claude/garage-room-merge-g2074 on claude/garage-laptop-g2070 6a19a50d)
+
+WHY: after G2071-G2072 (train 38) the shed's main pass was 1 059 of retro's 1 229 draws, and the ROOM's own shell was
+470-odd of them: static boxes, cylinders and quads built one mesh each (hangar.js: "nothing in this room was ever
+merged or instanced, so meshes ARE draw calls"). The world's exterior copy of the same shell has been merged by
+render_world's mergeShell since A1-STAND G600; the garage's room never was.
+
+**THE MERGE** (hangar.js mergeRoom, at the line where the exterior build stops - everything above it is the shell):
+the interior shell's meshes merged by (material, attribute layout, casts, receives, renderOrder) into one mesh each in
+G's frame, mergeShell's rules - positions and normals posed, a mirrored piece re-wound, every other attribute copied.
+The room's PARTS are its materials (setPart dresses a material; the moods and the day write materials), so they hold.
+Left as they are: the sky sphere and the day card (the moods move and hide them), anything transparent (three sorts
+it), hidden, named, instanced, skinned, morphed, multi-material, drawn in part, interleaved or with tangents, a mesh
+with its own onBeforeRender, anything under an LOD, a lone piece; the whole room when THREE has no Matrix4 / Matrix3 /
+Box3 / BufferAttribute (GATE HANGAR's stub). The SOURCES are kept aside (never uploaded: CPU arrays only) behind a live
+switch, hangar.roomMerge(false / true), for the proofs. Off: ?roommerge=0 or opts.merge === false. hangar.merged =
+{ sources, meshes, kept }: the Jodel's shed 523 sources -> 16 meshes, 58 kept.
+
+**GATE ROOMMERGE** (`tools/_roommerge_check.js`, core, ~2 min; the page in node, the Jodel on retro): the merge ran
+(523 -> 16); THE SAME TRIANGLES - every visible mesh of the room, every triangle in world space, oriented (its corners in
+winding order from the smallest), with its material, casts / receives and renderOrder: merged == the sources swapped
+back, 836 407 triangles, 0 unmatched (positions to 0.1 mm, normals to 1e-3, uvs to 1e-5); the garage frame's draws
+outside the shadow maps 1 207 -> 838; the shadow cache's static set 1 232 -> 725 casters, live 3 -> 3; every dressable
+part's material still worn (14 parts); off and on again the same soup; the exterior build carries no room merge;
+opts.merge false builds the room unmerged. PASS. HANGAR PASS (the stub: the merge stands down). SHEDSHADOW PASS (its
+at-rest check now reads 300+ baked casters: the merged room bakes 725).
+
+THE NUMBERS (node census, the Jodel, retro): **860 draws a frame** (G2071-G2072: 1 229; train 37b: 6 809), 1.20 M tris;
+the glass pass 32 draws (the merged shell is wholly inside the panes' faces).
+
+THE GPU SLOT (20:10-20:17, `tools/perf/garage_fps.js --roomidentity --room --calibrate`, 1920 x 1080, the Jodel):
+- IDENTITY (the merged shell and its sources swapped live, each rendered into the same target in one task after its own
+  warm renders): **282 px differ, max 8 of 255** (0.05 % of the frame; two renders of one state: 0 px) - the posed
+  vertices are rounded to float32 once instead of in the GPU's matrix product: NOT BIT-IDENTICAL, invisible.
+- THE RUNG fitted live on the before (train 37b's state: the caches off, the room unmerged): CPU 2.9x, GPU proxy 5x ->
+  work 76 ms, GPU 74 ms (the laptop's 85-103 / 100-122: the rung is ~1.25x lighter). ABCCBA, 10 s windows:
+      retro    off (37b)  12.2 fps  dt50 83.4  work50 78.6  render50 37.4  GPU50 77.0  calls 6 421  5.69 M tris
+               t38        23.0 fps  dt50 50.0  work50 41.4  render50 28.9  GPU50 39.3  calls   984  1.01 M
+               merge      25.2 fps  dt50 33.4  work50 37.8  render50 25.7  GPU50 35.9  calls   724  1.02 M
+      current  off 12.0 -> t38 23.3 -> merge 27.0 fps (calls 6 432 -> 995 -> 735)
+  Evidence: `reports/evidence/GARAGE-LAPTOP/merge/` (retro_merge, current_merge json/txt, shots).
+
+THE LAPTOP, ESTIMATED (the rung x ~1.25): ~20 fps on retro, ~21-22 on current - from ~10. NOT YET THE EVEN 30: on the rung
+the loop's JS is 37.8 ms (render submit 25.7 for 724 calls) and the GPU 35.9 ms; the laptop needs both under ~26 on this
+rung. What is left, measured: the cockpit interior (331 main draws: panel 142, controls 71, seats 2 x 59), the props'
+~200 draws (crates, racks, LOD levels), the rest of the loop's JS (~12 ms on the rung: scene, hud, editor ticks), and on
+the GPU the shading itself (the lamps' shadow sampling 2.1 of the box's 7.6 ms - not taken: the user's look).
+
+READY for A0 (the next train): claude/garage-room-merge-g2074 (on train 38's GARAGE-LAPTOP head 6a19a50d; sources, tools,
+evidence; generated files untouched). Gates run: ROOMMERGE, SHEDSHADOW, HANGAR PASS (node, 19:41-20:17).

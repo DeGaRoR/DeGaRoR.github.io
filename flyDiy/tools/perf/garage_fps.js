@@ -17,7 +17,7 @@
 //     turning 6 deg a second.
 // Usage: node tools/perf/garage_fps.js --out <json> [--q 'gfx=retro'] [--build builds/jodel_2026-09-20_corrected.json]
 //          [--size 1920x1080] [--cpu-throttle N] [--gpux K] [--secs 12] [--orbit] [--identity] [--shots <dir>] [--no-ab]
-//          [--sport 8581] [--dport 9481] [--udd C:/gfps]
+//          [--room] [--roomidentity] [--lampstill] [--calibrate] [--warm] [--sport 8581] [--dport 9481] [--udd C:/gfps]
 // A GPU MEASUREMENT: take tools/perf/boxlock.sh take gpu <WHO> first, drop it after. Rigs have no --help.
 'use strict';
 const { spawn, execSync } = require('child_process');
@@ -114,7 +114,13 @@ const IDENTITY = `
     save();
     for (const [k, js] of [['off', 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false;'], ['both', 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;']]) { await run(js + ' return 1;'); await sleep(2500); await shot('garage_' + k); }
   }
-  const MODES0 = { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false;', shadow: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = false;', both: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;' };
+  // --room (G2074): 'off' (train 37b: the caches off, the room unmerged), 't38' (the caches, the room unmerged), 'merge' (the
+  // caches and the merged room) - the room swapped live through hangar.roomMerge
+  const RM = v => 'if (window.__GF_ROOM && __GF_ROOM.roomMerge) __GF_ROOM.roomMerge(' + v + ');';
+  const MODES0 = flag('room')
+    ? { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false; ' + RM(false), t38: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + RM(false), merge: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + RM(true) }
+    : { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false;', shadow: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = false;', both: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;' };
+  const ORDER = flag('room') ? ['off', 't38', 'merge', 'merge', 't38', 'off'] : ['off', 'both', 'shadow', 'shadow', 'both', 'off'];
   const WIN0 = secs => `const R = FLIGHT_REC.rec; const f0 = R.frame; await new Promise(r => setTimeout(r, ${secs * 1000})); const f1 = R.frame;
     const rows = []; for (let f = f0; f < f1; f++) { const o = R.row(f); if (o && o.dt === o.dt) rows.push(o); }
     const q = (k, p) => { const a = rows.map(o => o[k]).filter(x => x === x).sort((x, y) => x - y); return a.length ? +a[Math.min(a.length - 1, Math.floor(p * a.length))].toFixed(2) : null; };
@@ -125,6 +131,22 @@ const IDENTITY = `
   const MODES = MODES0, WIN = WIN0;
   // --lampstill: the shed with and without the lamps' own shadows (retro's question for the user: BUDGETS shedLamps false),
   // the camera still, 4 s for the programs to re-link and the light to settle, a still each way
+  // --roomidentity (G2074): the room's merged shell against its sources, swapped live (hangar.roomMerge), each rendered into
+  // the same target in ONE task after its own warm renders (the shadow cache re-bakes on the swap): pixels compared
+  if (flag('roomidentity')) {
+    res.roomIdentity = await run(`const FP = FLIGHT_PROBE, R = FP.renderer(), SC = FP.hangarScene(), cam = FP.camera(), SS = SHED_SHADOW, TH = THREE, H = window.__GF_ROOM;
+      if (!H || !H.roomMerge) return 'no room merge';
+      const w = 960, h = 540, rt = new TH.WebGLRenderTarget(w, h, { samples: 0 });
+      const px = () => { const b = new Uint8Array(w * h * 4); R.readRenderTargetPixels(rt, 0, 0, w, h, b); return b; };
+      const draw = () => { const prevT = R.getRenderTarget(); R.setRenderTarget(rt); R.clear(); const on = SS.pre(R, SC, cam, H);
+        try { R.render(SC, cam); } finally { if (on) SS.post(); R.setRenderTarget(prevT); } return px(); };
+      const cmp = (a, b) => { let n = 0, mx = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i] - b[i]); if (d) { n++; if (d > mx) mx = d; } } return { px: Math.round(n / 4 * 10) / 10, max: mx }; };
+      H.roomMerge(true); for (let i = 0; i < 12; i++) draw(); const A = draw(), A2 = draw();
+      H.roomMerge(false); for (let i = 0; i < 12; i++) draw(); const B = draw();
+      H.roomMerge(true); for (let i = 0; i < 12; i++) draw();
+      rt.dispose(); return { merged_vs_sources: cmp(A, B), noise: cmp(A, A2), merged: H.merged, pixels: w * h };`);
+    console.log('ROOM IDENTITY ' + JSON.stringify(res.roomIdentity)); save();
+  }
   if (flag('lampstill')) {
     // (the glass skip by pane re-proved first, at rest: the same-task identity)
     res.identityPane = await run(IDENTITY); console.log('IDENTITY (by pane) at rest ' + JSON.stringify(res.identityPane)); save();
@@ -154,7 +176,7 @@ const IDENTITY = `
   if (flag('orbit')) await run(`if (!window.__GF_ORB) { let last = performance.now(); window.__GF_ORB = setInterval(() => { const n = performance.now(), c = FLIGHT_PROBE.cam(); FLIGHT_PROBE.camSet(c.az + 0.1047 * (n - last) / 1000, c.el, c.dist); last = n; }, 30); } return 1;`);
   if (!flag('no-ab')) {
     res.ab = [];
-    for (const m of ['off', 'both', 'shadow', 'shadow', 'both', 'off']) {
+    for (const m of ORDER) {
       await run(MODES[m] + ' return 1;'); await sleep(3000);
       const r = await run(WIN(SECS)); r.mode = m; res.ab.push(r); save();
       console.log('  ' + m.padEnd(6) + ' ' + JSON.stringify(Object.assign({}, r, { cache: { bakes: r.cache && r.cache.bakes, lightBakes: r.cache && r.cache.lightBakes, baked: r.cache && r.cache.baked, live: r.cache && r.cache.live }, glass: r.glass && { why: r.glass.why, skipped: r.glass.skipped, drawn: r.glass.drawn } })));
