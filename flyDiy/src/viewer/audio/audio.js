@@ -22,8 +22,9 @@
 //             call in app.js's loop, after the render. It fills ONE Float32
 //             block (audio_params.js) and hands it to each source's update;
 //             it allocates nothing and costs well under 0.3 ms (GATE AUDIO).
-//   SETTINGS  five volumes (master, aircraft, environment, music, interface),
-//             mute when unfocused (on), headset (off), music in flight (off);
+//   SETTINGS  six volumes (master, engine, airframe - its stored key 'aircraft' -, environment, music,
+//             interface; G1722), mute when unfocused (on), headset (off), music in flight (off);
+//   THE MIX   G1720-G1721: the measured trims out of the shed (MIX below; tools/audio/mix_render.js)
 //             localStorage flydiy.audio.<key>, every access in try/catch.
 //             AUDIO.mount(body, kit) draws them in either rail's own rows.
 //
@@ -60,7 +61,11 @@ var AUDIO = (function () {
   // THE SETTINGS: [key, default, kind, label, line]
   const SETTINGS = [
     ['master', 0.8, 'vol', 'master', 'everything'],
-    ['aircraft', 1.0, 'vol', 'aircraft', 'the engine, the propeller, the airframe'],
+    // G1722 (SND-MIX, the user 2026-10-06: "a slider for the engine noise separately from the rest of the airplane"): the
+    // engine and the propeller (every engine group's sources in space.js, outside and through the cabin and the headset; the
+    // other aircraft's baked loops too); 'aircraft' (its stored key kept) is now the REST of the aeroplane - the airframe
+    ['engine', 1.0, 'vol', 'engine', 'the engine and the propeller'],
+    ['aircraft', 1.0, 'vol', 'airframe', 'the wind, the gear, the touchdown, the stall warning'],
     ['environment', 0.8, 'vol', 'environment', 'the wind, the birds, the sea, the shed'],
     ['music', 0.6, 'vol', 'music', ''],
     ['interface', 0.7, 'vol', 'interface', 'the clicks'],
@@ -74,6 +79,13 @@ var AUDIO = (function () {
     ['hrtf', 0, 'bool', '3D on headphones', 'the outside sounds placed for headphones (HRTF): heavier on the processor'],
   ];
   const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
+  // G1722 A STORED 'aircraft' MUST NOT CHANGE WHAT A PLAYER HEARS: before the split it scaled the engine and the airframe
+  // together. A player who set it and has no 'engine' yet gets the same value on BOTH (stored at once, so a later move of the
+  // airframe row never drags the engine with it): the engine and the airframe stay exactly where they were.
+  try {
+    const ls = W.localStorage;
+    if (ls && ls.getItem(PREF + '.engine') == null) { const a = ls.getItem(PREF + '.aircraft'); if (a != null && +a === +a) ls.setItem(PREF + '.engine', String(a)); }
+  } catch (e) {}
   const readSetting = k => {
     const v = +pref(PREF + '.' + k, DEF[k]);
     return v === v ? (SETTINGS.find(r => r[0] === k)[2] === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, v))) : DEF[k];
@@ -115,6 +127,34 @@ var AUDIO = (function () {
   }
 
   const AP = W.AUDIO_PARAMS || (typeof AUDIO_PARAMS !== 'undefined' ? AUDIO_PARAMS : null);
+  // THE MIX (G1720-G1721, SND-MIX; the user's laptop test on train 36: "the engine sound is much too faint compared to all
+  // other noises"). MEASURED, not guessed: tools/audio/mix_render.js renders the page's whole mix offline (the worklets, the
+  // space, the beds and the emitters on Jolene, the radio) and reads every bus's LUFS - before these trims the airfield bed
+  // was 15 dB OVER the idling engine outside, the radio 4-11 dB over the cruising engine. A real light aeroplane is 85-95
+  // dBA in the cabin at cruise: the power plant leads at every setting, the wind a clear second, the world's ambience and
+  // the animals under it (flavour from the ground). The trims, dB, OUT OF THE SHED only (the garage is unchanged: the user
+  // ruled the shed faint; the roll-out shot keeps its own measured levels):
+  //   engine     the engine sub-bus (the engine and the propeller, both perspectives) on top of the player's 'engine'
+  //   interior   the aeroplane heard from the cockpit (the viewpoint fader's interior side): the cabin's insulation stays
+  //              the build's (ruling s5) - this is the game's listening level for the cockpit, so the cabin is not 9-12 dB
+  //              under the chase view at the same throttle
+  //   airframe   the airframe group (the wind, the ground, the events): the wind a clear second, 10-12 dB under the engine
+  //              in the cockpit at cruise (the engine's own trim would otherwise leave it 16 dB under)
+  //   ambience   the beds and the emitters in the world (a loading screen in the world included), and ambienceRun MORE
+  //              while an engine of the flown aeroplane runs (a duck, ramped over ~3 s: an aeroplane parked with its engine
+  //              off hears its world at the plain trim; one idling on the stand leads its airfield by ~9 dB)
+  //   music      the music bus in flight (music in flight on): under the engine, not over it; the welcome and the shed keep
+  //              their level. Radio Jolene's voice rides the same bus (it stays ~3 dB over its bed, as before)
+  const MIX = { engine: 8, interior: 6, airframe: 4, ambience: -6, ambienceRun: -10, music: -6 };
+  const dBk = d => Math.pow(10, d / 20);
+  const MIXK = { engine: dBk(MIX.engine), interior: dBk(MIX.interior), airframe: dBk(MIX.airframe), ambience: dBk(MIX.ambience),
+                 ambienceRun: dBk(MIX.ambienceRun), music: dBk(MIX.music) };
+  const RUN_TAU = 1;
+  const MIX_TAU = 0.4;   // a trim that follows the shed's door ramps over ~1 s (the cut into the world is never a step)
+  // G1724 THE FRAME'S TIME CONSTANT (the laptop: 3-4 fps, dt up to ~0.33 s): the sources' setTargetAtTime tau follows the
+  // frame - 0.6 x the smoothed dt, 30 ms .. 250 ms - so a parameter that arrives every 0.3 s glides across the gap instead
+  // of a 30 ms step every 0.3 s (the zipper a throttle move would otherwise make); at 60 fps it is the 30 ms it always was
+  const TAU_S = new Float64Array(2); TAU_S[0] = 0.03; TAU_S[1] = 1 / 60;
   const now = () => (W.performance && W.performance.now ? W.performance.now() : Date.now());
   const HEADSET_K = Math.pow(10, -15 / 20);   // §4: a passive headset, ~15 dB
   const FADE_S = 0.2, GAIN_TAU = 0.03;
@@ -130,7 +170,7 @@ var AUDIO = (function () {
   const N = {};   // the nodes, by bus name (+ fade, limiter)
   let ctx = null, P = null;
   let suspendTimer = 0, silent = false, hidden = false, focused = true, held = false;
-  let interior = 0, flying = 0;
+  let interior = 0, flying = 0, running = 0;   // (G1720: an engine of the flown aeroplane runs - the ambience's duck)
   // G1672 THE WELCOME: a LOADING SCREEN (BOOT, boot.js) is not the air - nothing flies under it, and the loading music
   // plays there. Every loading screen, not only the first boot's (the user, 2026-10-05: "random songs for the
   // loadings"): the first boot, the roll-out, a change of place - whenever BOOT's overlay is up (loading / landing /
@@ -145,7 +185,7 @@ var AUDIO = (function () {
   // heap box on every write - the frame must not allocate)
   const CAM = { mode: null, inGarage: false, held: false, p: new Float64Array(3) };
   // the bus targets last scheduled (a frame schedules nothing unless one moved)
-  const tgt = new Float64Array(BUSES.length).fill(-1);
+  const tgt = new Float64Array(BUSES.length).fill(-1), tgtFly = new Float64Array(2);
   // the cost: calls, the smoothed ms a frame, the worst (typed slots, for the same reason)
   const ST = new Float64Array(3);
   const stats = { get calls() { return ST[0]; }, get ms() { return ST[1]; }, get maxMs() { return ST[2]; }, get sources() { return srcs.length; } };
@@ -156,10 +196,15 @@ var AUDIO = (function () {
     // module (space.js sets it: the cabin, the headset, the ambience's duck), and the frame's camera and sim (space.js
     // reads the listener's orientation and the aeroplane's nodes off them - references, nothing allocated)
     lagS: new Float64Array(1), space: null, camera: null, sim: null,
+    // G1720-G1724 (SND-MIX): the mix trims (dB, read-only: the offline render and GATE AUDIO read them), the frame's tau
+    // (tauS[0], s: the sources' setTargetAtTime constant) and the levels the space applies (engine, airframe: their volume
+    // x the trim; [2] the trims' own tau)
+    MIX, tauS: TAU_S, levels: new Float64Array([1, 1, GAIN_TAU]),
     refreshGains() { applyGains(); },
     world: null,   // G1651: the world update() was last handed (the ambience reads the cover, the coast, the zones off it)
     rowHooks: [], addRows(fn) { api.rowHooks.push(fn); },   // G1672: fn(body, kit, toggle) adds rows under the settings
     get inGarage() { return garage === 1; }, get welcome() { return welcome === 1; },   // G1672: what update() last saw
+    get pumped() { return LAST[1]; }, pump: () => pump(),   // G1723: the stalled-loop pump (the count; one tick, for the gate)
     bus: name => N[name] || null,
     get: k => set[k],
     set(k, v) {
@@ -250,7 +295,28 @@ var AUDIO = (function () {
     W.addEventListener('blur', onBlur); W.addEventListener('focus', onFocus);
     for (const rec of srcs) connectSrc(rec);
     applyGains(); silence();
+    startPump();
     emit('ready', ctx);
+  }
+  // G1723 THE PUMP: the sources run off app.js's loop - and the loop does not run before the first light, nor draw (nor
+  // call update) while a place change holds the render (holdRender), so a loading screen's music could not start or move
+  // on. Once the context exists, a 4 Hz timer looks: no update() for PUMP_STALL_S -> it runs update() itself, with the
+  // last frame's sim, camera and aeroplane (the sources keep their last numbers; the music's clocks and the loading
+  // screen's context move). A frame from the loop makes it idle again. Never before the gesture; gone with the context.
+  const PUMP_MS = 250, PUMP_STALL_S = 0.4, LAST = new Float64Array(2);   // [0] the last update's clock (ms), [1] pumped
+  let pumpId = 0, lastDef = null, lastCam = null;
+  function startPump() {
+    if (pumpId || typeof setInterval !== 'function') return;
+    LAST[0] = now();
+    pumpId = setInterval(pump, PUMP_MS);
+  }
+  function stopPump() { if (pumpId && typeof clearInterval === 'function') clearInterval(pumpId); pumpId = 0; }
+  function pump() {
+    if (!ctx) { stopPump(); return; }
+    const el = (now() - LAST[0]) / 1000;
+    if (el < PUMP_STALL_S || hidden) return;   // (a hidden tab: the sound is silent and suspended anyway)
+    LAST[1]++;
+    update(api.sim, api.camera, Math.min(0.5, el), lastDef, lastCam, garage === 1, api.world);
   }
   function build() {
     const g = () => ctx.createGain();
@@ -265,7 +331,7 @@ var AUDIO = (function () {
     tgt.fill(-1); XF[0] = -1;
   }
   function close() {
-    clearSuspend();
+    clearSuspend(); stopPump();
     for (const rec of srcs) disconnectSrc(rec);
     const D = W.document;
     if (D && D.removeEventListener) D.removeEventListener('visibilitychange', onVis);
@@ -286,6 +352,8 @@ var AUDIO = (function () {
     if (p.setTargetAtTime) p.setTargetAtTime(v, ctx.currentTime, tau); else p.value = v;
   }
   // the viewpoint's equal-power cross-fade (above): toward `to` (1 interior) from the share the last fade has reached
+  // (the interior side carries MIX.interior: the cockpit is only ever heard out of the shed - interior needs !inGarage)
+  const kInt = MIXK.interior;
   function xfade(to) {
     if (XF[0] === to) return;
     const pe = N['aircraft.ext'].gain, pi = N['aircraft.int'].gain, t = ctx.currentTime;
@@ -294,12 +362,12 @@ var AUDIO = (function () {
     XF[0] = to; XF[1] = t; XF[2] = x; XF[3] = XFADE_S * Math.abs(to - x);
     if (pe.cancelScheduledValues) { pe.cancelScheduledValues(t); pi.cancelScheduledValues(t); }
     if (XF[3] < 1e-3 || !pe.setValueCurveAtTime) {   // the first frame (nothing to fade from), or no curves: set
-      if (pe.setValueAtTime) { pe.setValueAtTime(to ? 0 : 1, t); pi.setValueAtTime(to ? 1 : 0, t); } else { pe.value = to ? 0 : 1; pi.value = to ? 1 : 0; }
+      if (pe.setValueAtTime) { pe.setValueAtTime(to ? 0 : 1, t); pi.setValueAtTime(to ? kInt : 0, t); } else { pe.value = to ? 0 : 1; pi.value = to ? kInt : 0; }
       return;
     }
     const n = XC_E.length;
-    for (let i = 0; i < n; i++) { const a = Math.PI / 2 * (x + (to - x) * i / (n - 1)); XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a); }
-    XC_E[n - 1] = to ? 0 : 1; XC_I[n - 1] = to ? 1 : 0;   // the endpoints exact (cos pi/2 is 6e-17, not 0)
+    for (let i = 0; i < n; i++) { const a = Math.PI / 2 * (x + (to - x) * i / (n - 1)); XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a) * kInt; }
+    XC_E[n - 1] = to ? 0 : 1; XC_I[n - 1] = to ? kInt : 0;   // the endpoints exact (cos pi/2 is 6e-17, not 0)
     pe.setValueCurveAtTime(XC_E, t, XF[3]); pi.setValueCurveAtTime(XC_I, t, XF[3]);
   }
   function applyGains() {
@@ -308,12 +376,22 @@ var AUDIO = (function () {
     // headset's filters), else the flat -15 dB on the aircraft in the cockpit (the fallback)
     const sp = api.space;
     const hs = interior && set.headset && !sp ? HEADSET_K : 1;
+    // G1722: with the space the volumes are its groups' (engine: every engine group, airframe: the airframe group and its
+    // interior-only layers) and the aircraft bus is unity; without it (no space.js) 'aircraft' stays the group's master
+    const world = garage ? 0 : 1, lv = api.levels;
+    lv[0] = set.engine * (world ? MIXK.engine : 1); lv[1] = set.aircraft * (world ? MIXK.airframe : 1); lv[2] = MIX_TAU;
     ramp(0, N.master, set.master, GAIN_TAU);
-    ramp(1, N.aircraft, set.aircraft * hs, GAIN_TAU);
+    ramp(1, N.aircraft, (sp ? 1 : set.aircraft) * hs, GAIN_TAU);
     xfade(interior);
-    // the ambience inside the cabin: ducked by the build's insulation and the headset (space.js), else the flat headset
-    ramp(4, N.ambience, set.environment * (sp && sp.ambienceK ? sp.ambienceK(interior) : hs), GAIN_TAU);
-    ramp(5, N.music, set.music * (flying && !set.musicFlight ? 0 : 1), GAIN_TAU);
+    if (sp && sp.applyLevels) sp.applyLevels(lv);
+    // the ambience inside the cabin: ducked by the build's insulation and the headset (space.js), else the flat headset;
+    // out of the shed MIX.ambience under it (a loading screen in the world included: the world's beds, the same level)
+    const kRun = world && running ? MIXK.ambienceRun : 1;
+    ramp(4, N.ambience, set.environment * (sp && sp.ambienceK ? sp.ambienceK(interior) : hs) * (world ? MIXK.ambience : 1) * kRun,
+         running !== tgtFly[1] ? RUN_TAU : world !== tgtFly[0] ? MIX_TAU : GAIN_TAU);
+    tgtFly[1] = running;
+    ramp(5, N.music, set.music * (flying ? (set.musicFlight ? MIXK.music : 0) : 1), GAIN_TAU);
+    tgtFly[0] = world;
     ramp(6, N.ui, set.interface, GAIN_TAU);
   }
 
@@ -353,17 +431,23 @@ var AUDIO = (function () {
   function update(sim, camera, dt, def, cam, inGarage, world) {
     if (!ctx) return;
     const t0 = now();
+    LAST[0] = t0; lastDef = def || null; lastCam = cam || null;
     CAM.mode = cam ? cam.mode : null;
     CAM.inGarage = !!inGarage;
     CAM.held = !!W.FLYDIY_HELD;
     const cp = camera && camera.position;
     if (cp) { CAM.p[0] = cp.x; CAM.p[1] = cp.y; CAM.p[2] = cp.z; }
     if (P && sim && def) AP.audioParams(sim, CAM, def, P, world, dt);
-    garage = inGarage ? 1 : 0;
+    const gw = garage; garage = inGarage ? 1 : 0;
     api.world = world || null;
+    // G1724: the frame's tau (0.6 x the smoothed dt, 30..250 ms; a hitch longer than 1 s is not a frame rate)
+    const d = dt > 0 && dt < 1 ? dt : TAU_S[1];
+    TAU_S[1] += (d - TAU_S[1]) * 0.25; TAU_S[0] = Math.min(0.25, Math.max(GAIN_TAU, 0.6 * TAU_S[1]));
     const wl = welcomeNow(), inn = !inGarage && CAM.mode === 'cockpit' ? 1 : 0, fl = inGarage || wl ? 0 : 1;
-    if (inn !== interior || fl !== flying) {
-      const was = interior; interior = inn; flying = fl; applyGains();
+    let run = 0;
+    if (P && sim && def) for (let i = 0, ne = P.s[P.I.nEng] | 0; i < ne && i < 4; i++) if (P.running[i] > 0) run = 1;
+    if (inn !== interior || fl !== flying || garage !== gw || run !== running) {
+      const was = interior; interior = inn; flying = fl; running = run; applyGains();
       if (was !== inn) emit('perspective', inn);
     }
     if (CAM.held !== held) { held = CAM.held; silence(); }
