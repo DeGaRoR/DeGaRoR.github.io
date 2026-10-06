@@ -77530,8 +77530,11 @@ Cessna floats and twin have every face the same way round; red on master (Jodel 
 GATE HINGE 4g ONE FITTING - no tail hardware (edHinge_*, edSaddle_*) shares a face (same plane within 0.05 mm, same
 facing) with any other drawn tail part, on the four validated builds; red on master on all four; --selftest probe (f)
 draws the old two-hinge station and must be caught.
-GATES: HINGE PASS (+ --selftest), FIN PASS - 6 Oct ~04:10. The targeted set (CLIP, JOIN, FIT, PARTS, STAND, FRAMECOST,
-FLOWNBAKE, ROUNDTRIP, ARCHETYPES, DESIGN, FRAMES, ROLLANIM, SAVE) runs in A0's CPU slot 08:05-08:20: PENDING.
+GATES (6 Oct, 08:05-08:18 under boxlock cpu JTAIL, built tree 7928b2ba): CLIP JOIN FIT PARTS STAND FLOWNBAKE SAVE DESIGN
+FRAMES ROLLANIM HINGE (+ --selftest) FIN ARCHETYPES PASS. FRAMECOST FAIL (24) = THE STALE PARKED COOK, nothing else: the
+cub/cessna stand +132 draws, shadow +90, uniforms x2, taxi +120 - its own hint's signature - and `parked_cook.js --check`
+on this build says STALE (manifest b425dc42df1a vs tree 6a649d47735f; arch:c172, arch:cub, arch:jodel captured live). The
+train re-cooks on its final build; re-run FRAMECOST after. ROUNDTRIP not run (the slot's end) - the train's battery has it.
 
 FOUND, NOT FIXED: (a) the Cub's right elevator's inboard end reaches 5 mm into the rudder's thickness (x 0.0176 vs
 the rudder face 0.0224) and their cut faces share the hinge plane z -2.8405 - a 0.5 x 3 cm same-facing sliver inside the
