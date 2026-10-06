@@ -390,16 +390,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // same stand drawn as geometry and as impostors from 40 m under the alps
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
-  // G1975 (DEADWOOD-BRIGHT): 0.9 again - the MATCH, never the level. The level reaches the impostor through the
-  // tint (trees.js MASTER.light, carried per layer in IMPA.tbl row 1), exactly as it reaches the geometry; scaling
-  // this as well gave the impostors the environment albedo TWICE (k^2 against the geometry's k: since G483, through
-  // envAlbedo() and the world rail's lightness; db226efa then baked the user's k = 1.38 into both) - every impostor
-  // drew ~1.38x its own geometry at the hand-over, the pale snags the most visibly (HANDOVER G1975)
-  const uILit = { value: 0.9 };
+  // G1975 (DEADWOOD-BRIGHT): THE MATCH, NEVER THE LEVEL. The level reaches the impostor through the tint
+  // (trees.js MASTER.light, carried per layer in IMPA.tbl row 1) exactly as it reaches the geometry, so no dial
+  // writes this any more: envAlbedo() and the world rail's lightness scaled it too (since G483), and every move of
+  // either reached the impostors twice (k^2 against the geometry's k). The value stays db226efa's 0.9 x 1.38 (the
+  // user's F8 look as baked): measured at the hand-over (HANDOVER G1975), it IS the match on the presets whose
+  // trees cast no shadow (potato: impostor / geometry 1.05 front-lit) and 1.38x too bright where they do (gamer:
+  // the geometry darkens under its own crown, the impostor does not) - 0.9 is gamer's match. Which one is the
+  // user's call (the far forest moves ~22 % with it).
+  const uILit = { value: 0.9 * 1.38 };
   // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
   const uIFlat = { value: 1.30 }, uIFlatMean = { value: 0.05 };
-  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 0, barkSSS: 0, barkFlat: 1 };
-  // G1975: a BARK-ONLY sheet's own terms (impostorMat): the leaf wrap and translucency as a share of the leaves', its contrast
+  // G1975: a BARK-ONLY sheet's own terms (impostorMat): the leaf wrap and translucency as a share of the leaves', its
+  // contrast. Measured at the hand-over (HANDOVER G1975): the translucency is the snag's pale glow into the sun (off);
+  // the wrap stands in for the rim light a round trunk catches and the baked normal loses - without it the backlit
+  // sheet goes navy-black where the geometry is brown (kept); contrast 1 = the texel as baked, as the bark geometry
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1 };
   const uBarkW = { value: IMPK.barkWrap }, uBarkS = { value: IMPK.barkSSS }, uBarkF = { value: IMPK.barkFlat };
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
