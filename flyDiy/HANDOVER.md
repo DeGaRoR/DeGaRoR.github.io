@@ -78844,3 +78844,168 @@ tools/dmg_nose_evidence.js (the pictures).
    case (the trunk sideways at the hub) would certify them; not in this brief.
 5. The stack is crushed in its order whichever way it is met (a corner meets the bowl's side first in life; the energies are of a size).
 6. GATE DMGWIND's offset part flies the Cub whatever key it is given (harmless: it is only called with 'cub').
+
+## G2035-G2039 DMG-DRIVE2 - THE TRUNK STRIKE GRADED WHERE THE BLADES ARE (NOT 0.9 M AHEAD OF THEM), ITS BITE THE BLADE'S SPAN (AT MOST R), A WOOD BLADE BROKEN ON ENERGY (NOT A TIP SPEED); THE RIG'S "SHUT" THROTTLE WAS 0.62 (2026-10-06, DMG-DRIVE2 for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-drive2 off claude/dmg-integration 9500f197; JOIN-PARITY's _load_build.js is NOT on the integration branch: every number here is on TREECRASH's fixtures (tools/_treecrash_lib.js BUILDS); G2037 and G2039 unused)
+
+READY for the coordinator. Damage OFF is untouched: every change sits in DMG-DRIVE's strike path (30_solver propTrunk / driveStrike,
+33_drive genDriveSpec / genDriveStrikeTier), which runs only with `params.damage` (DRV null off). **Measured: damage OFF, the
+solver's state hashes after the 3 m/s taxi shut, at 0.62 and the 30 m/s trunk flight, on the Cub, the Jodel and the metal Cessna -
+all nine identical to the base's** (reports/evidence/DMG-DRIVE2/damage_off_hashes.txt). Nothing on an intact aircraft's step:
+propTrunk runs only in a frame whose trunk set is in reach (as before); it costs 2-4 ns per trunk in reach per engine per frame (the
+old band and the new alike, a microbenchmark of the loop body: old 2.7-4.1, new 1.8-2.6 ns), driveStrike only on a strike.
+
+### THE ANSWERS (DMG-D4b's inline taxi: the user's Cub, 3 m/s into a 0.6 m trunk, "the throttle shut": DRIVE 'separation' at t 2.933 s, biteR 1.197-1.224, ~1710 rpm, tip ~171 m/s; the first mount member 0.33 s later, 12 in all)
+1. **biteR > 1 - the wrong reference, measured once a frame (not accumulated).** propTrunk (G1470, graded by G1826) took a trunk as
+   "in the disc" anywhere from 0.2 m behind the thrust nodes to **1 m ahead of them**, and the bite as the trunk circle's lateral
+   overlap **R + r - lat** - which passes R as soon as the trunk's centre is within its own radius of the hub's line (a 0.3 m trunk
+   dead ahead of the Cub's 0.955 m disc: 1.314 R; D4b's 1.197 / 1.224 are the same at lat 0.11 / 0.08 m). The disc's height (the
+   hub's, after the gear and the nose dip) was right - the thrust nodes' mean, as the ground strike uses. Reproduced in node on the
+   rig's staging: **the strike was graded with the trunk's face 0.84-0.98 m ahead of the flange in all 42 graded runs** (sweep below),
+   0.2-0.3 s before the spinner touched - in D4b's run 0.33 s before the mount let go is exactly that gap: the "strike" was the
+   trunk still a metre out, the mount loss was the nose arriving.
+2. **The rig's throttle was not shut: 1710 rpm is 0.62 throttle.** The one law (00_registry genShaftRpm, no lag) gives the Cub
+   **650 rpm** with the throttle shut at 3 m/s (0.28 x 2300 idle with the 88 rpm windmill term in quadrature; the A-65 / C-90 /
+   O-200's 600-800 idle) - correct, nothing to fix. 1710 rpm needs thrEff 0.651 = throttle **0.62**: in node, 0.62 gives **1713 rpm and
+   a 171 m/s tip** at the strike (D4b: 1710, 171.0). The aeroplane also ACCELERATED from the staged 3 m/s to 4.27 m/s at the strike
+   (D4b's own `V`), impossible with the throttle shut (TREECRASH's taxi gate checks exactly that energy). Cause, by reading (not
+   run): dmg_wreck_stills.js's inline pageStage sets `sim.ctl.thr = 0` once and steps with `await raf()` between pairs of steps, while
+   the page's own loop writes ctl every frame (src/viewer/input.js write(): `ctl.thr = S.throttle.out`); its worker path calls
+   `P.setManual(true)` and zeroes the throttle, the inline path does not. **For D4b: zero the controls before every step (or set the
+   input's throttle), then re-shoot `inline_taxi`.** The worker's 'stoppage' (idle tip, nothing broken) was the shut throttle.
+3. **'separation' in DMG-DRIVE is a blade (or its outer part) broken off - SB 533's "loss of a blade or tip" - never the hub torn
+   off its flange** (no grade models a flange failure). In the taxi the shaft was stopped (bite > 4 % on a rigid surface): debris,
+   no imbalance (imbN 0); the one coupling to the mount is DMG-NOSE's prop layer (x (2 - 0.35) / 2 = 0.825 of its 17.3 kN). The
+   ENERGY, the Cub at 3 m/s (prop I = 0.25 m R^2 = 1.14 kg m^2 from the spec's 5.0 kg, 74.4 in; the crankshaft's own I not counted -
+   no source, it only adds):
+
+   | | shut (650 rpm) | taxi 0.3 (1281) | the rig's 0.62 (1715) | full (2118) |
+   |---|---|---|---|---|
+   | the prop's 0.5 I w^2 | 2.6 kJ | 10.2 kJ | 18.4 kJ | 28.0 kJ |
+   | the aeroplane's 0.5 m V^2 (476 kg) | 0.24 / 0.95 / 2.1 / 3.8 / 6.0 kJ at 1-5 m/s | | | |
+   | a wood blade's root to rupture (U, below) | 0.107 kJ (the Jodel's 0.094) | | | |
+
+   A wood blade a trunk meets over its span is loaded far past its root's strength (the trunk's wood across the grain, 3-7 MPa
+   green, over the blade's thickness x span, is 10^5 N; the root ruptures at 4.7 kN at 0.75 R, 8.1 kN at mid-span), so it breaks whenever the
+   turning prop holds more than the root's rupture work: **at idle 25 x over it.** So 'separation' (the blades broken, the engine
+   stopped) is what the energy says at 1710 rpm AND at idle - and it is the coordinator's own field picture ("a wood prop at idle
+   striking a trunk usually splinters / breaks blades"); what the base graded at idle, 'stoppage' (D4b draws the wood prop WHOLE), was
+   the tip-speed rule's (120 m/s, GAME) artefact. The sources (opened only as search summaries: every egress to the bulletins' hosts
+   is blocked from the cloud box - A0 to open): Lycoming SB 533 (C): a strike is any incident needing the prop repaired, or any
+   contact with an object while running - ground included - and a stationary blade struck (a hangar door) is handled as a sudden
+   stoppage for the crankshaft flange's side load; Continental SB96-11: any prop repair beyond minor dressing, or any contact that
+   loses rpm, and a complete teardown before further flight, wood props included; FAA AC 20-37E §206.b.1: no operation after an
+   impact without a rated inspection; CASA AWB 61-011 (2014, prop-strike guidelines) and 61-007 (wood props: the torque carried by
+   the hub's FRICTION on the flange; after a strike, the hub inspected for crushing by its plates). None grades blade-off against
+   bent; none says a hub leaves its flange at idle - that would be the flange's bolts in shear, a load nothing here makes.
+4. **Reproduced in node** (tools/dmg_drive2_probe.js on TREECRASH's atTrunk: the flat world, the certificate stamped, damage on, a 0.3
+   m trunk 6 m ahead of the CG - D4b's staging less its runway and settle - the throttle held from the push): **the separation, 1713
+   rpm, 171 m/s, biteR 1.314, the trunk 0.90 m out - all of D4b's grade** - but **no mount member breaks** on the Cub at 1-5 m/s at
+   any throttle, before or after (D4b's 12 at 4.27 m/s are its page def's - the join JOIN-PARITY is fixing - or its staging; node's
+   Cub at 5.5 m/s and 0.62 throttle crushes 43.7 cm to the core and keeps its mount). Shut (0) and taxi (0.3) below; 0.62 is the rig's.
+
+### G2035 - THE DISC IS WHERE THE BLADES ARE (src/core/30_solver.js propTrunk; 33_drive.js genDriveSpec `hub`)
+The disc stands at the engine's thrust nodes (the flange) across the HUB's depth (GEN_NOSE.hub by the spec's material: wood 0.12,
+alloy 0.07, carbon 0.10 m - DMG-NOSE's own; a tractor's hub ahead of the flange, an engine without a nose spec either side of it).
+A trunk strikes once its circle reaches that band (or passed it within the frame's travel, the fastest node's speed x dt), and the
+BITE is the blade's span it meets: R less the distance from the hub's axis to the trunk's nearest point in the band (its chord
+there across, its foot or top up or down - a stump under the disc reaches only as high as it stands). **At most R.** Centred, the
+trunk meets the spinner first: DMG-NOSE's crush reaches the prop at the same station (its 'prop' layer), where nosePass already
+graded the strike (bite R) - so a centred trunk is now graded by whichever of the two the frame meets first, at the same place.
+What it changes: a centred trunk at a walking pace no longer strikes the blades at all when the spinner (Alexander's crush, 0.24 m
+on the Cub) takes the taxi first - the Cub up to 3 m/s shut and 3 m/s at 0.3; the base graded a sudden stoppage (a teardown) for a
+1.6 cm dent in the spinner at 0.93 m/s. And the engine is no longer seized 0.9 m before contact, so **a throttle held open keeps
+pulling until the prop meets the trunk** (the base cut the thrust early).
+
+### G2036 - A BRITTLE BLADE INTO A RIGID OBSTACLE BREAKS ON ENERGY (33_drive.js GEN_DRIVE.strike.E / genDriveBladeU / genDriveStrikeTier's `eR`; 30_solver driveStrike)
+Past the brush (4 % of R, unchanged) on a rigid obstacle, a wood / carbon blade is graded on eR = 0.5 I w^2 / U, U the elastic
+work its root takes to rupture loaded at 0.75 R: U = sigma^2 c t Lr / (18 E) (a cantilever: Mr = sigma c t^2 / 6 over Lr = (0.75 -
+root) R, EI = E c t^3 / 12; DMG-NOSE's blade - its chord 0.1 R, thickness 0.40 c, root 0.16 R, sigma the modulus of rupture
+114 MPa birch / 101 walnut). eR >= 1: the blade breaks ('separation'; the shaft stopped past the brush, as before); < 1: the prop
+stops whole ('stoppage': a stopped, or hand-turned, prop pushed into a trunk). The moduli: yellow birch 13.9 GPa, sugar maple 12.6,
+black walnut 11.6 (USDA Wood Handbook FPL-GTR-190 Table 5-3a, as recalled - A0 to open); carbon 70 GPa GAME. U: the Cub 107 J
+(breaks above 131 rpm), the Jodel 94 J (135 rpm), the twin's carbon 440 J (325 rpm). **Alloy (the Cessnas) is unchanged** (it bends:
+the tip speed, 200 m/s GAME - no fracture-energy source for a forged 2025 blade at hand); the ground and the water are unchanged.
+In the taxi sweep this moves the Cub's 4-5 m/s and the Jodel's 5 m/s shut-throttle strikes from 'stoppage' to 'separation' (the
+blades broken, the engine stopped: debris, no imbalance) - nothing else (the taxi's 0.3 / 0.62 were already past 120 m/s).
+
+### G2038 - EVIDENCE (flyDiy/reports/evidence/DMG-DRIVE2/; tools/dmg_drive2_probe.js, tools/dmg_drive2_evidence.js)
+- `gap.svg` - for every run of the sweep, where the trunk's face stood (m ahead of the flange) when DMG-DRIVE graded the strike,
+  before (orange) and after (blue), the hub's band shaded: before 0.84-0.98 m (42 grades), after -0.01 to 0.12 m (23 grades, inside the band within a frame).
+- `timeline.svg` - the Cub, 3 m/s at the rig's 0.62: the trunk's distance against time, the grade marked (before at 0.90 m and
+  t 2.95 s; after at 0.08 m and t 3.18 s, the spinner crushed past its 0.24 m).
+- `sweep.md` - every run, both sides (grade, biteR, rpm, gap, members broken, the mount's, the crush and its layer); `gates/` the
+  ten gates' whole outputs, base and branch; `perf.log`; `damage_off_hashes.txt`; the sweep's JSON (base_* / after_* / trace_*).
+- Re-run: `node tools/dmg_drive2_probe.js --builds cub,jodel,metal --V 1,2,3,4,5 --thr 0,0.3,0.62 --json <f>` on each core, then
+  `node tools/dmg_drive2_evidence.js <dir> reports/evidence/DMG-DRIVE2`.
+
+### THE TAXI, 1-5 M/S, BEFORE (9500f19) AND AFTER (TREECRASH's flat world, the certificate stamped, a 0.3 m trunk on the centreline 6 m ahead of the CG, the throttle held; "none" = the blades never met the trunk)
+**Cub** (grade, the trunk face ahead of the flange when graded / members broken)
+
+| V m/s | shut: before | shut: after | 0.3: before | 0.3: after | 0.62: before | 0.62: after |
+|---|---|---|---|---|---|---|
+| 1 | none / 0 | none / 0 | separation 0.97 m / 0 | none / 0 | separation 0.94 m / 0 | none / 0 |
+| 2 | stoppage 0.98 m / 0 | none / 0 | separation 0.94 m / 0 | none / 0 | separation 0.94 m / 0 | none / 0 |
+| 3 | stoppage 0.95 m / 0 | none / 0 | separation 0.91 m / 0 | none / 0 | separation 0.90 m / 0 | separation 0.11 m / 0 |
+| 4 | stoppage 0.94 m / 0 | separation 0.12 m / 0 | separation 0.90 m / 0 | separation 0.09 m / 0 | separation 0.90 m / 0 | separation 0.09 m / 0 |
+| 5 | stoppage 0.86 m / 0 | separation 0.08 m / 0 | separation 0.87 m / 0 | separation 0.07 m / 0 | separation 0.91 m / 0 | separation 0.10 m / 0 |
+
+**Jodel** (grade, the trunk face ahead of the flange when graded / members broken)
+
+| V m/s | shut: before | shut: after | 0.3: before | 0.3: after | 0.62: before | 0.62: after |
+|---|---|---|---|---|---|---|
+| 1 | none / 0 | none / 0 | separation 0.96 m / 0 | none / 0 | separation 0.94 m / 0 | none / 0 |
+| 2 | stoppage 0.98 m / 0 | none / 0 | separation 0.95 m / 0 | none / 0 | separation 0.93 m / 0 | none / 0 |
+| 3 | stoppage 0.94 m / 0 | none / 0 | separation 0.92 m / 0 | none / 0 | separation 0.89 m / 0 | separation 0.10 m / 0 |
+| 4 | stoppage 0.88 m / 0 | none / 0 | separation 0.90 m / 0 | separation 0.10 m / 0 | separation 0.90 m / 0 | separation 0.10 m / 0 |
+| 5 | stoppage 0.89 m / 0 | separation 0.10 m / 0 | separation 0.90 m / 0 | separation 0.10 m / 0 | separation 0.84 m / 0 | separation 0.06 m / 0 |
+
+**metal Cessna** (grade, the trunk face ahead of the flange when graded / members broken)
+
+| V m/s | shut: before | shut: after | 0.3: before | 0.3: after | 0.62: before | 0.62: after |
+|---|---|---|---|---|---|---|
+| 1 | none / 0 | none / 0 | stoppage 0.93 m / 0 | none / 0 | separation 0.90 m / 0 | separation 0.03 m / 0 |
+| 2 | stoppage 0.97 m / 0 | none / 0 | stoppage 0.95 m / 0 | none / 0 | separation 0.92 m / 0 | separation 0.05 m / 0 |
+| 3 | stoppage 0.93 m / 0 | none / 0 | stoppage 0.89 m / 0 | stoppage 0.04 m / 0 | separation 0.90 m / 0 | separation 0.03 m / 10 broken (10 mount) |
+| 4 | stoppage 0.91 m / 0 | stoppage 0.05 m / 0 | stoppage 0.87 m / 0 | stoppage 0.03 m / 16 broken (12 mount) | separation 0.85 m / 16 broken (12 mount) | separation 0.01 m / 52 broken (12 mount) |
+| 5 | stoppage 0.92 m / 10 broken (10 mount) | stoppage 0.05 m / 10 broken (10 mount) | stoppage 0.84 m / 36 broken (12 mount) | stoppage -0.00 m / 52 broken (12 mount) | separation 0.90 m / 54 broken (12 mount) | separation 0.01 m / 56 broken (12 mount) |
+
+### PERF (tools/dmg_drive_perf.js: TREE-CRASH's perf child - the flat world, a far 4000-trunk set, 600 steps - the base's core against this one in alternating processes, 6 pairs a row; cloud box; reports/evidence/DMG-DRIVE2/perf.log)
+| damage | build | mode | base ms | now ms | paired |
+|---|---|---|---|---|---|
+| OFF | Cub | ground | 3.614 | 3.638 | +0.25 % |
+| OFF | Cub | air | 3.347 | 3.304 | -0.45 % |
+| OFF | metal | ground | 6.045 | 5.981 | -0.48 % |
+| OFF | metal | air | 5.833 | 5.793 | -0.51 % |
+| ON | Cub | ground | 3.542 | 3.570 | +0.87 % |
+| ON | Cub | air | 3.410 | 3.347 | -2.23 % |
+| ON | metal | ground | 6.083 | 6.120 | +0.30 % |
+| ON | metal | air | 5.918 | 6.027 | +0.33 % |
+Pooled **OFF -0.47 %, ON +0.32 %** - noise (OFF never reaches the changed code). On the step with damage ON: nothing new on an intact
+aircraft out of a trunk's reach; propTrunk 2-4 ns per trunk in reach per engine per FRAME (the old loop the same); genDriveBladeU once
+per sim at makeSim; the energy ratio one multiply-divide per strike.
+
+### THE GATES (targeted, §11.3: never the full battery; both sides on this box, base = a `git archive` of 9500f19 built by its own build.js, GATES_CORE=1)
+| gate | base 9500f19 | this branch | what moved (every number; timings and hashes aside) |
+|---|---|---|---|
+| DMGDRIVE | 131/131 PASS | 134/134 PASS | three new law rows (G2036: a wood prop at idle into a trunk, eR 24.7 -> separation; eR 0.5 -> stoppage; a 3 % graze at idle -> brush still); the 3 m/s trunk row now 0.75 m across the nose (the Cub / Jodel 'separation' at 128 / 122 m/s, the Cessna 'stoppage' at 154 - the same grades as the base's); the twin's full-power graze imbalance 23.85 -> 23.86 kN; the twin's gearbox row at idle (0.1 throttle) 'stoppage' -> 'separation' (its carbon prop holds 4.6 x its blade's 440 J: broken, the engine stopped, the gearbox marked - the row's own check unchanged). Restaged rigs (tools/_dmg_drive_lib.js): the tied-down trunk just past the hub's band (it stood 0.3 m ahead, which only the old band reached), the off-centre engine's trunk OUTBOARD as its comment always said (the sign put it against the twin's cabin pod - the trunk pushed the aeroplane 8 mm into its own disc within five frames) |
+| DMGNOSE | 41/41 PASS | 41/41 PASS | the strike census over its sweep: base stoppage 68 / 62 / 68 (Cub / Jodel / Cessna), Jodel brush 4, none 2 -> Cub none 32, separation 34, brush 2; Jodel none 34, separation 30, brush 4; Cessna none 56, stoppage 12 (the spinner taking the taxi before the blades: 'none'; a wood blade at idle: 'separation'). Its 30 m/s centreline crash: the Cub 171 -> 168 broken (18.7 -> 19.1 kJ, the nose's 6.35 -> 6.00 kJ), the Jodel 124 -> 176 (21.1 -> 21.4 kJ, 6.30 -> 5.96), the Cessna 215 = 215 (36.8 -> 36.9). Every mount-off count (its 49 winds, 19 offsets) unchanged |
+| TREECRASH | 50/50 PASS | 50/50 PASS (after its taxi row's G2035 update; 47/50 before it) | the 3 m/s shut-throttle taxi: the same dents (17 / 15 / 25 cm), no strike now - "the spinner took it, the engine idling" (base: "the prop struck, the engine stopped", graded 0.9 m out); the 30 m/s centreline: the Cub 171 -> 168 broken (18.7 -> 19.1 kJ, 18.93 -> 18.96 g), the Jodel 124 -> 176 (30 -> 31 of the wing; 21.1 -> 21.4 kJ), the Cessna 215 = 215 (36.8 -> 36.9 kJ); the reset rows' hashes (bit-identical pairs on both sides) |
+| TREEHIT | 19/19 PASS | 19/19 PASS | nothing (whole output identical, timings masked) |
+| DMGWIND | 12/12 PASS | 12/12 PASS | the substep reader's hash pair (b66fde23 -> 1a912956, equal within each side); every wind's mount count unchanged |
+| DMGCERT | 70/70 PASS | 70/70 PASS | nothing but the certificate's wall-clock ms |
+| DMGCERTCOST | PASS | PASS | nothing but per-case ms |
+| DMGINTEGRITY | 54/54 PASS | 54/54 PASS | the 30 m/s centreline trunk: the Cub's 10 -> 9 frames with a new break (31 broken both), the Jodel's 7 -> 6 frames, 68 -> 67 broken; a break event 25.3 -> 16.8 us (timing) |
+| DMGSKIN | 116/116 PASS | 116/116 PASS | the same crash: 10 -> 9 break frames; 38 -> 39 payloads (32015 -> 32322 bytes); the worst stretch 1.6052 -> 1.6016 |
+| DMGWALL | 96/98 FAIL | 96/98 FAIL - the SAME two (pre-existing on the base: the metal Cessna's nose-in, the wall out past 1 mm 2.746 % against 2 %, 6012 past 1 cm) | trunk-0 on the Cub: 171 -> 168 broken, the wall out 1.013 -> 0.834 %, past 1 cm 604 -> 12; the Jodel: 124 -> 176 broken, 16 -> 19 pieces, 0.001 -> 0.002 %, past 1 cm 0 -> 2; the metal Cessna's trunk-0, the noseover, the nose-ins: the rigid counts by under 0.6 % only |
+
+### OPEN (the coordinator / A0 / D4b)
+1. **D4b**: the inline taxi's throttle (2. above) - zero `ctl` before every step, then re-shoot; and the drawing of 'separation' for
+   a WOOD prop is now also the shut-throttle 4-5 m/s trunk taxi's (the blades broken off, the engine stopped).
+2. **The metal Cessna's mount at a powered taxi into a centred trunk**: with the thrust no longer cut a metre early, 0.3 throttle
+   at 4 m/s and 0.62 at 3 m/s now crush its nose through the bowl to the core and take 10-12 mount members (the base: at 5 m/s /
+   4 m/s). It is DMG-NOSE's stack (46.5 cm, ~6.7 kJ) against 883 kg plus the O-540's thrust, honestly reached now; whether a 172's
+   nose stops a 4 m/s powered taxi short of its engine is DMG-NOSE's question (GATE DMGNOSE's own counts are unchanged here), not tuned
+   here.
+3. **The crankshaft's own inertia** is not in eR (no source at hand: it only raises the energy - the grade cannot change for a wood
+   prop already 25 x over at idle). An alloy blade's fracture energy (to retire its 200 m/s GAME tip speed) wants a source.
+4. **JOIN-PARITY**: rerun the sweep on _load_build.js once it lands; node's Cub keeps its mount where D4b's page Cub lost it.
