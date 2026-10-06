@@ -20,10 +20,10 @@
    nodes                            111 -> 111        (+0)
    members                          492 -> 492        (+0)
    mass                          462.96 -> 463.89     (+0.93) kg
-   CG x (model frame)             0.432 -> 0.423      (-0.009) m
+   CG x (model frame)             0.432 -> 0.424      (-0.009) m
    CG y (model frame)             0.300 -> 0.301      (+0.001) m
    engine node x                 -0.986 -> -0.986     (+0.000) m
-   shakedown cgX                  0.432 -> 0.423      (-0.009) m
+   shakedown cgX                  0.432 -> 0.424      (-0.009) m
    neutral point npX              0.503 -> 0.502      (-0.001) m
    static margin                  0.042 -> 0.047      (+0.005)
    Vs                             18.81 -> 18.83      (+0.02) m/s
@@ -42,8 +42,8 @@
    CG y (model frame)             0.593 -> 0.593      (+0.000) m
    engine node x                 -0.510 -> -1.162     (-0.652) m
    shakedown cgX                  0.818 -> 0.640      (-0.178) m
-   neutral point npX              1.059 -> 1.052      (-0.007) m
-   static margin                  0.144 -> 0.245      (+0.102)
+   neutral point npX              1.059 -> 1.052      (-0.008) m
+   static margin                  0.144 -> 0.245      (+0.101)
    Vs                             22.11 -> 22.16      (+0.05) m/s
    take-off run (shakedown)         147 -> 147        (+0) m
    climb rate                      6.97 -> 6.94       (-0.03) m/s

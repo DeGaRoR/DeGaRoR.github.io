@@ -1,0 +1,11 @@
+-- REGISTRY: GEN_FIELDS against GEN_DEFAULT and clampSpec --
+-- the five validated builds --
+-- the corpus (offsets, the envelope, the nulls) --
+-- every offset lands exactly once --
+-- B8 / B9 / B13 --
+-- JOIN: the page's join, headless; on -> off -> commit through the garage's merge --
+  (joins: 79.2 s)
+
+GATE SPECFIX: PASS
+
+[exit 0 90 s]
