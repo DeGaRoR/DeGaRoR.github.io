@@ -504,14 +504,16 @@ vec3 dmgCell(vec3 x) {
       if (sc > 0.0 && dDl > 0.05) {
         dD /= dDl;
         vec3 dAc = normalize(cross(dN, dD) + vec3(1e-5));
-        // the scratch read of the weathering, stretched ALONG the slide: across at 6 mm, along at 0.9 m
-        vec2 sUV = vec2(dot(dP, dAc) / 0.006, dot(dP, dD) / 0.9);
-        vec2 sGx = vec2(dot(dPx, dAc) / 0.006, dot(dPx, dD) / 0.9), sGy = vec2(dot(dPy, dAc) / 0.006, dot(dPy, dD) / 0.9);
+        // the scratch read of the weathering, stretched ALONG the slide: across at 1 cm, along at 0.9 m
+        vec2 sUV = vec2(dot(dP, dAc) / 0.010, dot(dP, dD) / 0.9);
+        vec2 sGx = vec2(dot(dPx, dAc) / 0.010, dot(dPx, dD) / 0.9), sGy = vec2(dot(dPy, dAc) / 0.010, dot(dPy, dD) / 0.9);
         float g1 = textureGrad(tDmgG, sUV * 0.05 + vec2(0.13, 0.57), sGx * 0.05, sGy * 0.05).b;
         float g2 = textureGrad(tDmgG, sUV * vec2(0.013, 0.02) + vec2(0.71, 0.29), sGx * vec2(0.013, 0.02), sGy * vec2(0.013, 0.02)).r;
-        // (at full scrape about a third of the surface is streaked through - the rest abraded, dull)
-        float sth = 0.72 - 0.16 * sc;
-        float st = smoothstep(sth, sth + 0.05, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2);
+        // (at full scrape about a sixth of the surface is streaked through - the rest abraded, dull. A streak under a
+        // few pixels across fades to the abrasion's tone: thin bright lines whose direction follows a curved skin read
+        // as contour stripes on the real page's cowl - a trunk's rub over the whole nose)
+        float sth = 0.78 - 0.12 * sc, sNear = 1.0 - smoothstep(0.004, 0.009, dFw);
+        float st = smoothstep(sth, sth + 0.05, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2) * sNear;
         float stDeep = smoothstep(sth + 0.10, sth + 0.14, g1) * st;
         float soil = dR.w;
         // the broad abrasion first: dull, paler, the varnish gone
@@ -522,7 +524,7 @@ vec3 dmgCell(vec3 x) {
         // edge); on doped fabric the SILVER coat first (the aluminium-pigmented dope under every colour coat), the raw
         // weave only in a streak's core; on wood the raw grain
         vec3 bare = mix(dSub, vec3(0.42, 0.43, 0.44), dFab);
-        col = mix(col, bare, st);
+        col = mix(col, bare, st + (1.0 - sNear) * 0.15 * ab);
         col = mix(col, vec3(0.50, 0.45, 0.34), dFab * stDeep);
         met = mix(met, mix(dSubM, 0.35, dFab) * (1.0 - soil), st);
         rgh = mix(rgh, mix(dSubR * 0.8, 0.5, dFab), st);
