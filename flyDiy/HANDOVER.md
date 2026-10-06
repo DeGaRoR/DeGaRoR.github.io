@@ -78194,7 +78194,11 @@ meta board, log, calls; owner writes) - EVIDENCE https://claude.ai/artifact/J8ZJ
 tree + mode + renderer per sheet; refresh at every commit that adds images).
 INTEGRATION (7 Oct ~00:40): claude/game-integration 40b07967 = train 38 (751e1122) + GAME-PREMISES S1 d45a41f2 + WELCOME-MODES
 0d3bfb43 + FLEET-PROPS A 90d5869d + PREM-S2 cbc6153e (welcome.js over MOBILE-GARAGE 1 by hand: the phone profile boots garage-only,
-no menu). GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
+no menu). **BEHAVIOUR CHANGE ON MOBILE-GARAGE 1's PATH (landed in train 38):** with WELCOME-MODES merged, a device on the
+phone profile (W.PROFILE.name === 'phone': the device gate's "Build on this phone", or a remembered phone profile) gets NO mode
+menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOBILE-GARAGE 1's phone path did. A phone that
+chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
+GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
 
 STATUS (kept current, 6 Oct ~21:00): **THE USER HAS RULED** (the review page, relayed by A0). Study §R records the
 calls and their consequences:
