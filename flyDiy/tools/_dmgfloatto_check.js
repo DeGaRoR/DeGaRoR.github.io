@@ -18,6 +18,7 @@
 //        [--core=<flight_core.js>] [--procs=4] [--evidence=<dir> --name=<file>] [--json]
 //        EXPERIMENTS (never the gate's default): --ap=k:v,.. (the pilot's per-aeroplane keys, dotted for a sub-object)
 //        --thrCap=c --capUntil=V (PLOUGH's instrument: the throttle held at c until the speed passes V)
+//        --flatSea (the wind without the chop it raises on the lane: the crosswind failures' cause)
 'use strict';
 const path = require('path'), fs = require('fs'), cp = require('child_process'), os = require('os');
 const ARGS = process.argv.slice(2);
@@ -51,6 +52,7 @@ function takeoff(key, wind, trace) {
   const def = defOf(key);
   const world = C.makeWorld();
   if (wind) world.setWind({ base: [wind, 0, 0], gust: 0 });
+  if (ARGS.includes('--flatSea')) world.setSea(null);   // INSTRUMENT: the wind without the chop it raises (the cause, HANDOVER G1880)
   const sea = world.aerodromes.find(a => a.id === 'SEA');
   const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
   const ap = C.makePilot(sim, def, world); ap.setRoute(sea, sea);
@@ -134,7 +136,7 @@ function pool(jobs, n) {
     const run = () => {
       if (next >= jobs.length) return;
       const i = next++;
-      const extra = (jobs[i].trace ? ['--trace'] : []).concat(CORE ? ['--core=' + path.resolve(CORE)] : []).concat(ARGS.filter(a => /^--(ap|thrCap|capUntil)=/.test(a)));
+      const extra = (jobs[i].trace ? ['--trace'] : []).concat(CORE ? ['--core=' + path.resolve(CORE)] : []).concat(ARGS.filter(a => /^--(ap|thrCap|capUntil)=/.test(a) || a === '--flatSea'));
       cp.execFile(process.execPath, [__filename, '--child=' + jobs[i].id].concat(extra), { maxBuffer: 64 << 20 }, (err, so, se) => {
         const line = (so || '').split('\n').find(l => l.startsWith('RESULT '));
         out[i] = line ? JSON.parse(line.slice(7)) : { error: (se || String(err)).slice(-400), job: jobs[i].id };

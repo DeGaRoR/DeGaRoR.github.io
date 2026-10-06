@@ -223,13 +223,16 @@ function makeServos(sim, def, opts) {
   // take-off (ROLL / LIFTOFF on floats); `lever`: the aeroplane's THRUST_ARM x T_static / W (m), against porpLever - an
   // aeroplane whose thrust line runs through its CG (the Cessna on floats: 0.003 m) never arms. Moves c.thr and c.de
   // (after the laws that set them); returns the throttle's ceiling (1 when not armed: the base's controls to the bit)
+  // (its gains read once: the per-aeroplane keys and the pilot's row do not change in flight)
+  const PP = FT.porpoise ? { lever: g('porpLever'), kq: g('porpKq'), kth: g('porpKth'), th0: g('porpTh0'), min: g('porpMin'),
+                             s: g('porpS'), deq: g('porpDeQ'), dev: g('porpDeV') } : null;
   S.porpoise = (armed, lever) => {
-    if (!FT.porpoise || !armed || !(lever > g('porpLever'))) { S.thrCap = 1; return 1; }
-    const R2D = 180 / Math.PI, thD = S.th * R2D, qD = S.q * R2D;
-    const want = Math.max(g('porpMin'), 1 - g('porpKq') * Math.max(0, -qD) - g('porpKth') * Math.max(0, g('porpTh0') - thD));
-    S.thrCap += Math.min(1, S.dt / g('porpS')) * (want - S.thrCap);
+    if (PP === null || !armed || !(lever > PP.lever)) { S.thrCap = 1; return 1; }
+    const thD = S.th * 57.29577951308232, qD = S.q * 57.29577951308232;
+    const want = Math.max(PP.min, 1 - PP.kq * Math.max(0, -qD) - PP.kth * Math.max(0, PP.th0 - thD));
+    S.thrCap += Math.min(1, S.dt / PP.s) * (want - S.thrCap);
     if (S.thrCap < 1) c.thr = Math.min(c.thr, S.thrCap);
-    if (S.onG > 0 && S.V > g('porpDeV')) c.de = Math.max(G.deMin, c.de - g('porpDeQ') * Math.max(0, qD));
+    if (S.onG > 0 && S.V > PP.dev) c.de = Math.max(G.deMin, c.de - PP.deq * Math.max(0, qD));
     return S.thrCap;
   };
   S.holdPitch = (thC) => {

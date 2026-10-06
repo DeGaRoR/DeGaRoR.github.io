@@ -356,6 +356,9 @@ function makePilot(sim, def, world, opts) {
     intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
               vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null },
   };
+  // G1882: the water take-off law's throttle ceiling, readable (GATE DMGFLOATTO): a getter, never a store per frame -
+  // measured, writing a double onto `ap` every update cost the pilot's update 4-8 % on the water
+  Object.defineProperty(ap, 'thrCap', { get: () => SV.thrCap });   // (not enumerable: nothing that copies `ap` sees it)
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
@@ -3049,7 +3052,7 @@ function makePilot(sim, def, world, opts) {
     // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS on a high thrust line's water take-off (39b S.porpoise):
     // the run and the lift-off on floats, until CLIMB; the power's ceiling and the stick's damping over what the laws
     // above set (nothing anywhere else: the base's controls to the bit)
-    ap.thrCap = SV.porpoise(!BX.on && !!sim.hydro && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF'), THRUST_LEVER);
+    SV.porpoise(!BX.on && !!sim.hydro && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF'), THRUST_LEVER);
     // the servo slew on the axes the pilot owns; a hand-flown axis (the box
     // with that mode released) passes through and the servo tracks it, so
     // nothing jumps when the box takes the axis
