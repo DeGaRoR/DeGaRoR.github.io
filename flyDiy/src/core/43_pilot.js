@@ -1033,7 +1033,11 @@ function makePilot(sim, def, world, opts) {
     // ran a lane U-turn 9 m from the end and back to the hold a quarter in (G527) - 113 m of the 150 ahead, and
     // the roll was rightly rejected. Under 300 m, on the centreline with at least the hold's run ahead (3/4 of
     // the strip), a taildragger turns on the spot (LINEUP's pivot) and rolls from there
-    if (onStrip && !trike && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && runAhead >= 0.75 * (from.len || 1100)) {
+    // G1949 (PILOT-ONE-2): ...AND SO DOES A TRICYCLE (owed by G1938). Its turn on the spot (LINEUP's pivot, below) is
+    // the nosewheel at full lock and the inside toe brake: the C172 turns 180 deg in ~15 s with the CG moving 4.3 m at
+    // most (scratch trk: 0.6 throttle, the stick at its taxi elevator) - on the strip, where the lane U-turn beside
+    // East Point took it 9.1 m off the centreline
+    if (onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && runAhead >= 0.75 * (from.len || 1100)) {
       ap.path = null; ap.stopAfterLineup = true;
       return 'LINEUP';
     }
@@ -1195,6 +1199,7 @@ function makePilot(sim, def, world, opts) {
     if (ap.trackHold) {
       const L = ap.phase === 'ROLL' || ap.phase === 'ROLLOUT' || ap.phase === 'ABORT' ? (A.lookRoll ?? 25)
               : ap.phase === 'FINAL' || ap.phase === 'FLARE' ? lookA
+              : (ap.phase === 'LINEUP' && trike && ap.route && ap.route.from && (ap.route.from.len || 1100) < 300) ? 20   // G1949: a tricycle's line-up after its turn on a short strip merges in metres (150 m of look: 2 deg toward a centreline 6 m away)
               : lookC;
       const fx = ap.dirX * L, fz = -sCr;
       tx = fx * F.ux - fz * F.uz; tz = fx * F.uz + fz * F.ux;
@@ -1840,13 +1845,16 @@ function makePilot(sim, def, world, opts) {
       if (!piv.thr) piv.thr = A.pivotThr0 ?? 0.35;
       ap.targetDir = [Math.cos(hdgT), 0, Math.sin(hdgT)];
       // on the heading within ~9 deg and not swinging fast: the taxi's own steering takes the rest rolling
-      if (Math.abs(err) < 0.15 && r < 0.20 && Vg < 1.0) { c.brakeD = 0; return true; }
+      // (a TRICYCLE walks round its turn at ~1-1.5 m/s on the nosewheel - G1949: holding it to 1.0 m/s here kept the
+      // C172's pivot 'not done' while its own power rolled it 20 m along East Point, 8 m off the centreline, for 40 s)
+      if (Math.abs(err) < 0.15 && r < 0.20 && Vg < (trike ? 1.8 : 1.0)) { c.brakeD = 0; return true; }
       const slow = Vg < (A.pivotVg ?? 1.2);
       const near = Math.abs(err) < 0.45;                           // ~25 deg: the power off, the turn coasts in
       // the throttle walks up until the nose turns at ~20 deg/s, back down if the aeroplane starts to roll away
       // (the last 25 deg at ~7 deg/s: a fixed 60 % there crawled the Cub's last 20 deg for 27 s)
       const rT = near ? 0.12 : 0.35;
-      if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? 0.75);
+      // (a tricycle's at 0.6 at most: at 0.75 the C172 swung 5.4 m, at 0.6 4.3 m - scratch trk)
+      if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? (trike ? 0.60 : 0.75));
       const noseDown = thRest != null && th < thRest - 0.10;      // the tail coming up: no power
       // near the heading the power comes off while the nose still swings, and back on (60 %) if it has stopped short
       const thr = (!slow || noseDown || (near && r > rT)) ? 0 : piv.thr;
@@ -2013,19 +2021,57 @@ function makePilot(sim, def, world, opts) {
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
         // G1938: facing more than ~100 deg away from the take-off direction (a one-way strip's far end), the line-up
         // is a turn on the spot, not a circle round the strip's edge
-        if (!trike && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr)))) {
-          if (!piv) { piv = { hdg: Math.atan2(-F.uz, -F.ux), j: 0, t0: ap.t, thr: 0 }; if (!pivSaid) { pivSaid = true; say('pivot', 'lined up the wrong way on a strip narrower than the turn — turning on the spot'); } }
+        // G1949: a TRICYCLE on a strip under 300 m pivots whenever it faces away - its nosewheel's own circle (R 4.4 m,
+        // 8.8 m of CG excursion) does not fit a narrow strip's half-width, its pivot (4.3 m) does
+        const trikePiv = trike && (ap.route.from.len || 1100) < 300;
+        if ((!trike || trikePiv) && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && (trikePiv || RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr))))) {
+          // G1949: A TRICYCLE SETS ITS TURN UP FIRST. Its turn swings the CG ~6.5 m to the inside (above), so turned on the
+          // centreline it ends at the strip's edge and walks 30 m of the strip back to the middle (East Point: then 98 m
+          // ahead, too few for the hold). A pilot uses the width: eases over to the far side near the closed end (4 m
+          // off at most, 2 m inside the edge, 8 m short of it, walking pace) and turns back across the centreline
+          if (!piv && trikePiv && !ap.trkSet) {
+            const fr = ap.route.from, ux = F.ux, uz = F.uz, ln = fr.len || 1100;
+            const sg0 = Math.abs(sCr) > 0.5 ? (-Math.sign(sCr * (nose[0] * ux + nose[1] * uz)) || 1) : 1;
+            // the end the nose faces (+u: alig < 0), 8 m short of it, 3.2 m off on the side away from the swing
+            const sE = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
+            const off = Math.max(0, Math.min(4.0, 0.5 * (fr.wid || 30) - 2));   // (the C172's swing measured 8 m: +4 -> -4)
+            const px = fr.x + sE * ux * (ln / 2 - 8) - sg0 * off * sE * (-uz), pz = fr.z + sE * uz * (ln / 2 - 8) - sg0 * off * sE * ux;
+            const dx = px - cg[0], dz = pz - cg[2], dAl = sE * (dx * ux + dz * uz);
+            if (ap.trkSetT == null) ap.trkSetT = ap.t;
+            if (dAl > 1.5 && Math.hypot(dx, dz) > 1.5 && ap.t - ap.trkSetT < 30) {
+              const dl = Math.hypot(dx, dz);
+              ap.targetDir = [dx / dl, 0, dz / dl]; ap.trackHold = false;
+              engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30, gsp: 1.5 });
+              setStatus('easing over to the strip\'s edge for the turn', [cond('to go', Math.round(dl), 1.5, false, 'm')]);
+              break;
+            }
+            ap.trkSet = { sg: sg0 };
+          }
+          if (!piv) {
+            piv = { hdg: Math.atan2(-F.uz, -F.ux), j: 0, t0: ap.t, thr: 0 };
+            if (ap.trkSet) piv.sg = ap.trkSet.sg;
+            // G1949: a TRICYCLE's turn swings its CG ~6-7 m toward the inside of the turn (East Point's gravel: the
+            // locked main slides - scratch trk2, the C172 at any throttle); stopped off the centreline it turns the way
+            // that swings it back across (sg > 0 turns the nose toward (-nz, nx); the centreline lies at -sCr (-uz, ux))
+            else if (trike && Math.abs(sCr) > 0.5) piv.sg = -Math.sign(sCr * (nose[0] * F.ux + nose[1] * F.uz)) || 1;
+            if (!pivSaid) { pivSaid = true; say('pivot', 'lined up the wrong way on a strip narrower than the turn — turning on the spot'); }
+          }
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('aligned', Math.round(Math.acos(clamp(alig, -1, 1)) * 57.3), 9, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { piv = null; SV.relatch(); }
           break;
         }
+        const trikeMerge = trikePiv && ap.stopAfterLineup;   // G1949: (below)
         engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30,
-                                        gsp: alig > 0.5 ? 4.5 : 2.4 });
+                                        gsp: alig > 0.5 && !trikeMerge ? 4.5 : 2.4 });
         ap.trackHold = true;
         setStatus('lining up on the centreline', [
           cond('off centre', Math.abs(sCr), 8, Math.abs(sCr) < 8, 'm'),
           cond('aligned', Math.round(Math.acos(clamp(alig, -1, 1)) * 57.3), 9, alig > 0.988, 'deg')]);
-        if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
+        // G1949: A TRICYCLE THAT TURNED ON A SHORT STRIP walks on along it back to the centreline (2.4 m/s, a 20 m look)
+        // and stops lined up as HOLD wants it (within 2 m and 6 deg): stopped where LINEUP was content (6.8 m off, then
+        // 2 m off at 6 deg) the C172's replanning at East Point taxied a full circle round the strip's end, twice
+        if (trikeMerge ? (alig > 0.9945 && Math.abs(sCr) < 2.0 && Math.abs(eR) < 0.10)
+                       : (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15)) {
           if (ap.stopAfterLineup) { go('STOP'); break; }
           go('ROLL'); ap.t = Math.max(ap.t, 1); rollS0 = null;
         } else if (phaseT > 60) { say('lineup-timeout', 'could not line up in 60 s — stopping to replan'); go('STOP'); }
