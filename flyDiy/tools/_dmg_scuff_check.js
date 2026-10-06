@@ -37,7 +37,7 @@ if (argv[0] === '--build') {
     const t0 = Date.now(), r = G.run(k, c, { skin: SK }), D = r.damage, C = { id: c, label: G.CASES[c].label };
     C.phys = { breaks: D.breaks, yields: D.yields, work: Math.round(D.work), scW: Math.round(D.scW || 0), crashed: D.crashed };
     C.payloads = r.payloads; C.passes = r.passes; C.recs = !!r.recs; C.hash = G.hashOf(r.recs); C.tickMax = +r.frameMax.toFixed(2); C.bound = r.bound;
-    const n = { crush: 0, scrape: 0, torn: 0, soil: 0, verts: 0, scrapeR: 0, scrapeUp: 0, crushOrphan: 0, torn255Off: 0, tornNoDead: 0 };
+    const n = { coh: 0, crush: 0, scrape: 0, torn: 0, soil: 0, verts: 0, scrapeR: 0, scrapeUp: 0, crushOrphan: 0, torn255Off: 0, tornNoDead: 0 };
     const panes = {};
     if (r.recs) {
       // the members by strain, the nodes of the members that took work
@@ -82,6 +82,7 @@ if (argv[0] === '--build') {
           }
           if (s8) {
             n.scrape++;
+            n.coh += Math.hypot(S.dir[v * 4], S.dir[v * 4 + 1], S.dir[v * 4 + 2]) / 127;   // the slide's coherence along the skin
             if (S.rec[v * 4 + 3]) n.soil++;
             if (dotL(R.mesh.g.pos, v * 3) < -0.05) n.scrapeR++;                 // on the right (the high side)
             const nr = S.nrm; if (nr[v * 3] * Y0[0] + nr[v * 3 + 1] * Y0[1] + nr[v * 3 + 2] * Y0[2] > 0.5) n.scrapeUp++;   // facing up
@@ -170,6 +171,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     const sl = C['slide-L'].n;
     yes(sl.scrape > 0 && sl.scrapeR === 0, 'the wing-low slide scrapes the low (left) side only: ' + sl.scrape + ' vertices scraped, ' + sl.scrapeR + ' on the right');
     yes(sl.scrapeUp === 0, 'the wing-low slide: no scraped vertex faces up (' + sl.scrapeUp + ')');
+    yes(sl.coh / sl.scrape > 0.5, 'the wing-low slide went one way: its scraped vertices\' slide coherence along the skin averages ' + (sl.coh / sl.scrape).toFixed(2) + ' (streaked; the taxi\'s rub into a trunk ' + (C['taxi-3'].n.scrape ? (C['taxi-3'].n.coh / C['taxi-3'].n.scrape).toFixed(2) : '-') + ')');
     yes(sl.soil === sl.scrape, 'the slide on grass stains what it scraped (' + sl.soil + ' of ' + sl.scrape + ')');
     yes(C['slide-L'].phys.yields === 0 ? C['slide-L'].n.crush === 0 : true, 'the slide without a yield crushes nothing');
     const tp = C['trunk-0'].panes;

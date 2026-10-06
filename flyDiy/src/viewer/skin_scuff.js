@@ -103,6 +103,8 @@
     if (D.sW) for (let i = 0; i < n; i++) {
       const w = D.sW[i]; if (!(w > 0)) continue;
       sI[i] = 1 - Math.exp(-w / SC.scrapeW);
+      // (the hop's sD is the MEAN slide direction - the work-weighted sum over the work: its length is the slide's
+      // COHERENCE, 1 one way, ~0 a rub that went every way - a nose pressed into a trunk)
       toD(D.sD[i * 3], D.sD[i * 3 + 1], D.sD[i * 3 + 2], sDir, i * 3);
       toD(D.sN[i * 3], D.sN[i * 3 + 1], D.sN[i * 3 + 2], sInto, i * 3);
       soil[i] = D.sG ? clamp01(D.sG[i]) : 0;
@@ -174,8 +176,10 @@
     let dx = _d[0], dy = _d[1], dz = _d[2];
     if (S.Mi) { const M = S.Mi; const a = M[0] * dx + M[1] * dy + M[2] * dz, b = M[3] * dx + M[4] * dy + M[5] * dz, cc = M[6] * dx + M[7] * dy + M[8] * dz; dx = a; dy = b; dz = cc; }
     if (S.nA) { const ax = S.nA[u * 3], ay = S.nA[u * 3 + 1], az = S.nA[u * 3 + 2], al = Math.hypot(ax, ay, az) || 1, dn = (dx * ax + dy * ay + dz * az) / (al * al); dx -= dn * ax; dy -= dn * ay; dz -= dn * az; }
-    const L = Math.hypot(dx, dy, dz);
-    if (L > 1e-9 && s > 0) { dir[o4] = Math.round(127 * dx / L); dir[o4 + 1] = Math.round(127 * dy / L); dir[o4 + 2] = Math.round(127 * dz / L); }
+    // (kept at its length over the scrape's weight - the coherence, less what points into the skin: the shader streaks
+    // only a slide that went one way ALONG the skin, and only abrades the rest)
+    const L = Math.hypot(dx, dy, dz), k = s > 0 ? Math.min(1, L / s) / (L || 1) : 0;
+    if (L > 1e-9 && s > 0) { dir[o4] = Math.round(127 * dx * k); dir[o4 + 1] = Math.round(127 * dy * k); dir[o4 + 2] = Math.round(127 * dz * k); }
     else dir[o4] = dir[o4 + 1] = dir[o4 + 2] = 0;
     dir[o4 + 3] = S.cls;
     if (c > 0 || s > 0) S.any = true;
@@ -501,8 +505,9 @@ vec3 dmgCell(vec3 x) {
       float sc = clamp(dR.y * uDmgK.y, 0.0, 1.0);
       vec3 dD = vDmgD.xyz;
       float dDl = length(dD);
-      if (sc > 0.0 && dDl > 0.05) {
-        dD /= dDl;
+      if (sc > 0.0) {
+        dD = dDl > 0.004 ? dD / dDl : normalize(cross(dN, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));   // (no way: abrasion only)
+        float sCoh = smoothstep(0.5, 0.85, dDl);          // the coherence along the skin (GATE: a slide 0.8-0.9, a trunk rub 0.4-0.7): streaks only one way
         vec3 dAc = normalize(cross(dN, dD) + vec3(1e-5));
         // the scratch read of the weathering, stretched ALONG the slide: across at 1 cm, along at 0.9 m
         vec2 sUV = vec2(dot(dP, dAc) / 0.010, dot(dP, dD) / 0.9);
@@ -513,7 +518,7 @@ vec3 dmgCell(vec3 x) {
         // few pixels across fades to the abrasion's tone: thin bright lines whose direction follows a curved skin read
         // as contour stripes on the real page's cowl - a trunk's rub over the whole nose)
         float sth = 0.78 - 0.12 * sc, sNear = 1.0 - smoothstep(0.004, 0.009, dFw);
-        float st = smoothstep(sth, sth + 0.05, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2) * sNear;
+        float st = smoothstep(sth, sth + 0.05, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2) * sNear * sCoh;
         float stDeep = smoothstep(sth + 0.10, sth + 0.14, g1) * st;
         float soil = dR.w;
         // the broad abrasion first: dull, paler, the varnish gone
