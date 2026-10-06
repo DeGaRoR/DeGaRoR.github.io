@@ -112,12 +112,14 @@ async function connect() {
 async function touchChecks(C) {
   const T = {}; const say = (k, v) => { T[k] = v; log('touch ' + k.padEnd(8) + ' ' + (v.ok ? 'ok  ' : 'FAIL') + ' ' + JSON.stringify(v)); };
   const tp = pts => pts.map((p, i) => ({ x: p[0], y: p[1], id: i, radiusX: 8, radiusY: 8, force: 1 }));
-  const touch = (type, pts) => C.cmd('Input.dispatchTouchEvent', { type, touchPoints: tp(pts) });
-  const swipe = async (a, b, n = 10, hold = 0) => { await touch('touchStart', [a]); if (hold) await sleep(hold);
-    for (let i = 1; i <= n; i++) { await touch('touchMove', [[a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]]); await sleep(30); }
-    await touch('touchEnd', []); await sleep(400); };
+  // each event stamped with the time a finger would make it (a slow page acks a dispatch late; the knob's fine mode reads the
+  // events' own timestamps)
+  const touch = (type, pts, ts) => C.cmd('Input.dispatchTouchEvent', Object.assign({ type, touchPoints: tp(pts) }, ts ? { timestamp: ts } : {}));
+  const swipe = async (a, b, n = 10, hold = 0) => { const t0 = Date.now() / 1000; await touch('touchStart', [a], t0); if (hold) await sleep(hold);
+    for (let i = 1; i <= n; i++) { await touch('touchMove', [[a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]], t0 + (hold + 30 * i) / 1000); await sleep(30); }
+    await touch('touchEnd', [], t0 + (hold + 30 * n + 20) / 1000); await sleep(400); };
   const tap = async p => { await touch('touchStart', [p]); await sleep(50); await touch('touchEnd', []); await sleep(400); };
-  const J = async (e, ms) => JSON.parse(await C.ev('JSON.stringify(' + e + ')', ms || 15000));
+  const J = async (e, ms) => JSON.parse(await C.ev('JSON.stringify(' + e + ')', ms || 60000));   // (60 s: a software GPU's frames are seconds)
   const centre = sel => J('(() => { const e = document.querySelector(' + JSON.stringify(sel) + '); if (!e) return null; e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()');
   try {
     await C.ev('(() => { for (const x of document.querySelectorAll(".dfClose")) try { x.click(); } catch (e) {} return 1; })()');
@@ -230,7 +232,7 @@ async function touchChecks(C) {
       json: can(f('My Cub.flydiy.json', 'application/json')), txt: can(f('My Cub.flydiy.txt', 'text/plain')), flydiy: can(f('My Cub.flydiy', 'application/octet-stream')),
       persisted: st.persisted ? await st.persisted() : null, estimate: st.estimate ? await st.estimate().then(e => ({ quotaMB: Math.round(e.quota / 1048576), usageMB: +(e.usage / 1048576).toFixed(1) })) : null,
       standalone: matchMedia('(display-mode: standalone)').matches, coarse: matchMedia('(pointer: coarse)').matches, dpr: devicePixelRatio, w: innerWidth, h: innerHeight });
-  })()`, 15000)); log('share/storage probe: ' + JSON.stringify(R.share)); save(); } catch (e) { R.share = { error: String(e) }; }
+  })()`, 60000)); log('share/storage probe: ' + JSON.stringify(R.share)); save(); } catch (e) { R.share = { error: String(e) }; }
   // the page-side helpers: a drag the player's way, timed to the handler and to the second frame after it
   await C.ev(`window.__MP = {
     frame2: () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
@@ -260,7 +262,7 @@ async function touchChecks(C) {
           el.value = String(x); el.dispatchEvent(new Event('input')); this.n++; await new Promise(z => setTimeout(z, 100)); }
         el.dispatchEvent(new Event('change')); window.dispatchEvent(new PE('pointerup')); this.rel++; } } } }; 'ok'`);
   // ---- TOUCH (G2103): the phone garage under a real finger ----
-  let phone = false; try { phone = await C.ev('!!(window.PROFILE && PROFILE.name === "phone")', 5000); } catch (e) {}
+  let phone = false; try { phone = await C.ev('!!(window.PROFILE && PROFILE.name === "phone")', 60000); } catch (e) {}
   if (phone && !SKIP.has('touch')) { R.touch = await touchChecks(C); save(); }
   // ---- DRAG ----
   if (!SKIP.has('drag')) {

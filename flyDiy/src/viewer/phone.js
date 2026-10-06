@@ -125,8 +125,10 @@
   };
   function place(row) {
     const ph = row.__ph; if (!ph) return;
+    // (a row parked in the editor's nursery or in a folded section has no box: skipped before anything is measured)
+    if (!row.isConnected || row.offsetParent === null || ph.rng.disabled) { if (!ph.knob.hidden) ph.knob.hidden = true; return; }
     const rng = ph.rng, w = rng.offsetWidth;
-    if (!row.isConnected || !w || rng.disabled || row.offsetParent === null) { ph.knob.hidden = true; return; }
+    if (!w) { ph.knob.hidden = true; return; }
     ph.knob.hidden = false;
     const { lo, hi } = rangeOf(rng);
     const f = hi > lo ? Math.max(0, Math.min(1, (num(rng.value, lo) - lo) / (hi - lo))) : 0;
@@ -162,7 +164,8 @@
     try { ph.knob.setPointerCapture(e.pointerId); } catch (x) {}
     const { lo, hi } = rangeOf(rng);
     drag = { row, rng, id: e.pointerId, x0: e.clientX, v0: num(rng.value, lo), span: hi - lo, w: Math.max(40, rng.offsetWidth - KNOB),
-             fine: false, moved: false, x: e.clientX, y: e.clientY, pending: null, raf: 0, hold: 0, t0: e.timeStamp };
+             fine: false, moved: false, x: e.clientX, y: e.clientY, pending: null, raf: 0, hold: 0, t0: e.timeStamp, judged: false,
+             xd: e.clientX, vd: num(rng.value, lo) };
     // R9: held still FINE_MS, the knob goes fine. Judged on the events' own clock (a move whose timestamp is FINE_MS past
     // the press with nothing moved before it), so a busy main thread - a phone mid-build - cannot turn a held press
     // coarse by running the timer late; the timer only shows it (the amber knob, the bubble) while the finger rests
@@ -179,7 +182,17 @@
   function knobMove(e) {
     if (!drag || e.pointerId !== drag.id) return;
     e.preventDefault();
-    if (!drag.moved && !drag.fine && e.timeStamp - drag.t0 >= FINE_MS) drag.goFine();   // (x0 is still the press's: nothing moved)
+    // THE FIRST REAL MOVE JUDGES (R9): a finger's jitter inside STILL_PX moves nothing and decides nothing; the first move
+    // past it is fine when it came FINE_MS or more after the press, coarse otherwise - whatever the timer showed meanwhile
+    // (a timer can fire late, or early between two moves a slow page has not dispatched yet)
+    if (!drag.judged) {
+      if (Math.abs(e.clientX - drag.xd) <= STILL_PX) { drag.y = e.clientY; return; }
+      drag.judged = true;
+      const held = e.timeStamp - drag.t0 >= FINE_MS;
+      if (held && !drag.fine) drag.goFine();   // (x0 is still the press's: nothing moved)
+      else if (!held && drag.fine) { drag.fine = false; drag.x0 = drag.xd; drag.v0 = drag.vd;
+        drag.row.__ph.knob.classList.remove('fine'); drag.row.classList.remove('phFine'); }
+    }
     drag.x = e.clientX; drag.y = e.clientY;
     if (!drag.moved && Math.abs(e.clientX - drag.x0) > STILL_PX) drag.moved = true;
     const gain = drag.fine ? FINE_GAIN : 1;

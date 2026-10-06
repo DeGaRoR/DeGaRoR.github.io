@@ -12,6 +12,8 @@
 //   node tools/phone_still.js --out reports/evidence/MOBILE-GARAGE-1/phone            (-> phone_portrait.jpg, phone_landscape.jpg, phone.json)
 //        [--size 390x844] [--dpr 3] [--page index.html|dev.html] [--q 'k=v'] [--checks] [--secs 1800]
 //        [--build default|<file.json>] [--desktop --size 1600x900]
+//        [--trunk]   the same mobile emulation WITHOUT the phone profile: today's whole game at a phone's size (the
+//                    baseline the phone's heap and bytes are read against; one still, no checks)
 //   -> one line `PHONE_STILL {json}`: the boot (the steps that ran, the seconds), the world's bytes on the wire (0 on
 //      the phone), the JS heap (at the garage, and the peak sampled every 2 s), the preset, the checks, every page error.
 //
@@ -57,7 +59,7 @@ function preScript(o) {
 async function run(o) {
   const t0 = Date.now(), T = () => +((Date.now() - t0) / 1000).toFixed(1);
   const log = (...a) => console.log('[' + T() + 's]', ...a);
-  const R = { mode: o.desktop ? 'desktop' : 'phone', size: o.size, dpr: o.desktop ? 1 : o.dpr, errors: [], t: {}, wire: { world: 0, all: 0, n: 0 }, heap: {}, checks: {} };
+  const R = { mode: o.desktop ? 'desktop' : o.trunk ? 'trunk under mobile emulation' : 'phone', size: o.size, dpr: o.desktop ? 1 : o.dpr, errors: [], t: {}, wire: { world: 0, all: 0, n: 0 }, heap: {}, checks: {} };
   const port = await freePort();
   const server = spawn(process.execPath, [path.join(__dirname, '_serve.js'), String(port), REPO], { stdio: 'ignore' });
   let browser = null;
@@ -87,7 +89,7 @@ async function run(o) {
     const heapNow = async () => { const m = await cdp.send('Performance.getMetrics'); const g = k => (m.metrics.find(x => x.name === k) || {}).value || 0;
       return +(g('JSHeapUsedSize') / 1048576).toFixed(1); };
     let peak = 0; const sampler = setInterval(() => { heapNow().then(h => { if (h > peak) peak = h; }, () => {}); }, 2000);
-    const q = ['day=afternoon'].concat(o.desktop ? [] : ['profile=phone']).concat(o.q ? [o.q] : []).join('&');
+    const q = ['day=afternoon'].concat(o.desktop || o.trunk ? [] : ['profile=phone']).concat(o.q ? [o.q] : []).join('&');
     const url = 'http://127.0.0.1:' + port + '/flyDiy/' + o.page + '?' + q;
     log('nav', url, o.desktop ? 'desktop' : 'mobile emulation ' + Wd + 'x' + Ht + ' @' + o.dpr);
     await page.goto(url, { waitUntil: 'load', timeout: o.secs * 1000 });
@@ -99,6 +101,9 @@ async function run(o) {
         await sleep(every);
       }
     };
+    // the loading screen as the phone shows it (taken once the boot is running)
+    if (!o.desktop) { await until('the loading screen', () => window.BOOT && BOOT.state !== 'gone' && BOOT.stepI >= 2, 500).catch(() => null);
+      try { const f = o.out + '_loading.jpg'; fs.mkdirSync(path.dirname(path.resolve(f)), { recursive: true }); await page.screenshot({ path: f, type: 'jpeg', quality: 80, timeout: 120000 }); log('still', f); } catch (e) { log('no loading still: ' + e.message); } }
     await until('the garage', () => window.BOOT && BOOT.state === 'gone' && BOOT.set === 'garage' && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current);
     R.t.garage = T();
     Object.assign(R, await page.evaluate(() => ({
@@ -114,6 +119,7 @@ async function run(o) {
     const shot = async name => { const f = o.out + '_' + name + '.jpg'; fs.mkdirSync(path.dirname(path.resolve(f)), { recursive: true });
       await page.screenshot({ path: f, type: 'jpeg', quality: 82, timeout: o.secs * 1000 }); log('still', f); return f; };
     if (o.desktop) { R.stills = [await shot('desktop')]; }
+    else if (o.trunk) { R.stills = [await shot('trunk')]; }
     else {
       // both stills on the page as it booted (the checks move the camera and the values), then the checks
       R.stills = [await shot('portrait')];
@@ -145,16 +151,20 @@ async function run(o) {
 }
 
 // ---- THE TOUCH CHECKS: real touch events through CDP (the pointer events a finger makes) --------------------------
-const touch = (cdp, type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i, radiusX: 6, radiusY: 6, force: 1 })) });
+// THE GESTURE'S OWN CLOCK: each event carries the time a finger would have made it (`timestamp`, seconds) - on SwiftShader a
+// dispatch waits seconds for the renderer, and a drag whose moves were stamped on arrival would read as a press HELD still
+// (the knob's fine mode, R9, is judged on the events' own timestamps)
+const touch = (cdp, type, pts, ts) => cdp.send('Input.dispatchTouchEvent', Object.assign({ type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i, radiusX: 6, radiusY: 6, force: 1 })) }, ts ? { timestamp: ts } : {}));
 async function swipe(cdp, from, to, steps = 8, holdMs = 0) {
-  await touch(cdp, 'touchStart', [from]);
+  const t0 = Date.now() / 1000;
+  await touch(cdp, 'touchStart', [from], t0);
   if (holdMs) await sleep(holdMs);
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
-    await touch(cdp, 'touchMove', [[from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]]);
+    await touch(cdp, 'touchMove', [[from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]], t0 + (holdMs + 40 * i) / 1000);
     await sleep(40);
   }
-  await touch(cdp, 'touchEnd', []);
+  await touch(cdp, 'touchEnd', [], t0 + (holdMs + 40 * steps + 20) / 1000);
   await sleep(150);
 }
 // the first slider row on screen in the sheet with room to move: its knob's centre, its scale, its value
@@ -291,7 +301,7 @@ let OUT = null; const argvOut = () => OUT;
 
 function parse() {
   return { size: opt('size', '390x844').split('x').map(Number), dpr: +opt('dpr', 3), page: opt('page', 'index.html'), q: opt('q', ''),
-    checks: flag('checks'), secs: +opt('secs', 1800), build: opt('build', 'default'), desktop: flag('desktop'),
+    checks: flag('checks'), trunk: flag('trunk'), secs: +opt('secs', 1800), build: opt('build', 'default'), desktop: flag('desktop'),
     out: opt('out', path.join(REPO, 'flyDiy', 'reports', 'evidence', 'MOBILE-GARAGE-1', 'phone')), json: opt('json', null) };
 }
 if (require.main === module) {
