@@ -72,24 +72,24 @@ function svgOf(k, before, after) {
         lines: [{ cls: 'p b', pts: B.phys, tip: 'before: lowest node' }, { cls: 'd b', pts: B.draw, tip: 'before: drawn' }, { cls: 'p', pts: A.phys, tip: 'after: lowest node' }, { cls: 'd', pts: A.draw, tip: 'after: drawn' }], yr: [lo, hi] });
     }
   }
-  const W = 980, PW = 480, PH = 190, cols = 2, rows = Math.ceil(panels.length / cols), H = 92 + rows * (PH + 14);
+  const W = 980, PW = 480, PH = 190, cols = 2, rows = Math.ceil(panels.length / cols), H = 100 + rows * (PH + 14);
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="DMG-SETTLE ${k}: each detached piece's gap over the ground, before and after">${CSS}`;
   s += `<text class="t" x="12" y="22" style="font-size:16px">DMG-SETTLE - ${esc(before.label || k)}: each detached piece's height over the ground (cm), 30 m/s trunk break-up</text>`;
-  s += `<text class="s" x="12" y="40">blue: its lowest node's contact bottom (the physics) - orange: its lowest drawn point (the covering; a loose node's island / scrap body) - dashed: before (the bug as found), solid: after; shaded: +-2 cm</text>`;
-  s += `<line class="p" x1="12" x2="36" y1="60" y2="60"/><text class="s" x="40" y="64">physics after</text><line class="p b" x1="130" x2="154" y1="60" y2="60"/><text class="s" x="158" y="64">physics before</text>`;
-  s += `<line class="d" x1="270" x2="294" y1="60" y2="60"/><text class="s" x="298" y="64">drawn after</text><line class="d b" x1="390" x2="414" y1="60" y2="60"/><text class="s" x="418" y="64">drawn before</text>`;
-  panels.forEach((P, i) => { s += panel(8 + (i % cols) * (PW + 8), 80 + Math.floor(i / cols) * (PH + 14), PW, PH, P.title, P.sub, P.lines, P.yr); });
+  s += `<text class="s" x="12" y="38">blue: its lowest node's contact bottom (the physics) - orange: its lowest drawn point (the covering; a loose node's island / scrap body)</text><text class="s" x="12" y="52">dashed: before (the bug as found), solid: after; shaded: +-2 cm (the gate's bound over the ground)</text>`;
+  s += `<line class="p" x1="12" x2="36" y1="68" y2="68"/><text class="s" x="40" y="72">physics after</text><line class="p b" x1="130" x2="154" y1="68" y2="68"/><text class="s" x="158" y="72">physics before</text>`;
+  s += `<line class="d" x1="270" x2="294" y1="68" y2="68"/><text class="s" x="298" y="72">drawn after</text><line class="d b" x1="390" x2="414" y1="68" y2="68"/><text class="s" x="418" y="72">drawn before</text>`;
+  panels.forEach((P, i) => { s += panel(8 + (i % cols) * (PW + 8), 88 + Math.floor(i / cols) * (PH + 14), PW, PH, P.title, P.sub, P.lines, P.yr); });
   return s + '</svg>';
 }
 function debrisSvg(R) {
   const rows = []; for (const k of BUILDS) { const b = R[k].before, a = R[k].after; if (!b || !a || b.err || a.err) continue;
     for (const s of a.standins) { const s0 = b.standins.find(x => x.kind === s.kind); rows.push({ k: b.label || k, kind: s.kind, held0: s0 ? s0.held : 0, held1: s.held, n: s.drops, lo0: s0 ? s0.loMin : null }); } }
-  const W = 760, H = 70 + rows.length * 22 + 20, X0 = 260, BW = 420, X = v => X0 + BW * v / 20;
+  const W = 760, H = 84 + rows.length * 22 + 20, X0 = 260, BW = 420, X = v => X0 + BW * v / 20;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="DMG-SETTLE debris: drops held before and after">${CSS}`;
   s += `<text class="t" x="12" y="22" style="font-size:16px">DMG-SETTLE - debris bodies resting HELD by their drawing (of 20 seeded drops)</text>`;
-  s += `<text class="s" x="12" y="40">dot hollow: before (contact on the box's 8 corners) - dot solid: after (the drawn part's support points); held = its centre over its drawn points on the ground</text>`;
-  for (let v = 0; v <= 20; v += 5) s += `<line class="g" x1="${X(v)}" x2="${X(v)}" y1="54" y2="${H - 20}"/><text class="a" x="${X(v)}" y="${H - 6}" text-anchor="middle">${v}</text>`;
-  rows.forEach((r, i) => { const y = 66 + i * 22;
+  s += `<text class="s" x="12" y="38">hollow: before (contact on the box's 8 corners) - solid: after (the drawn part's support points)</text><text class="s" x="12" y="52">held = its centre over its drawn points on the ground (the stand-ins: each build's own sizes)</text>`;
+  for (let v = 0; v <= 20; v += 5) s += `<line class="g" x1="${X(v)}" x2="${X(v)}" y1="66" y2="${H - 20}"/><text class="a" x="${X(v)}" y="${H - 6}" text-anchor="middle">${v}</text>`;
+  rows.forEach((r, i) => { const y = 80 + i * 22;
     s += `<text class="s" x="12" y="${y + 4}">${esc(r.k + ' - ' + r.kind)}</text><line class="g" x1="${X(r.held0)}" x2="${X(r.held1)}" y1="${y}" y2="${y}" style="stroke-width:2"/>`;
     s += `<circle cx="${X(r.held0)}" cy="${y}" r="5" style="fill:var(--bg);stroke:var(--draw);stroke-width:2"><title>before: ${r.held0}/${r.n} held</title></circle><circle class="pm" cx="${X(r.held1)}" cy="${y}" r="5"><title>after: ${r.held1}/${r.n} held</title></circle>`;
     s += `<text class="a" x="${X(20) + 10}" y="${y + 4}">${r.held0} -> ${r.held1}</text>`; });
