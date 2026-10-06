@@ -55,6 +55,12 @@
   const WRINKLE_L = 0.12;     // the wrinkles' pitch along the broken member (m)
   const WRINKLE_A = 0.35;     // ...their depth, over the sag
   const NEAR_K = 4;           // the cage snapshot's binding: the 4 nearest nodes, inverse-square weighted
+  // G2040 (DMG-FABRIC): a HELD covering triangle (the physics' cover ties hold the parting under it) is drawn stretched as
+  // far as the tie lets its panel stretch - its strain at break over its slack length (GEN_COVER.fabric: 15 % over the
+  // drape's 0.96 %) - compounded with the drawing's own TEAR; past that the drawing is no longer the panel the tie holds
+  // (a panel swung or sheared round its tie line) and it tears there
+  const HELD = (() => { const F = typeof GEN_COVER !== 'undefined' && GEN_COVER.fabric ? GEN_COVER.fabric : { eu: 0.15, slack: (8 / 3) * 0.06 * 0.06 };
+    return (1 + F.eu) * (1 + F.slack) * (1 + 0.15); })();
 
   // ---- the topology: the member pairs and each node's members, built once a def ----
   function topo(beams, n) {
@@ -67,17 +73,31 @@
     return { n, nb: beams.length, pairs, adj, beams };
   }
   // the pairs whose every member is broken, and the nodes at a broken member's ends, for a damage state
-  function brokenPairs(T, D) {
-    const P = new Set(), ends = new Uint8Array(T.n);
+  // (G2040, DMG-FABRIC - `cover`: a COVERING's view of it: a broken pair the physics still ties (a live cover tie, the
+  // state's `tied`) is no break for the covering over it - it holds, stretched; a torn tie's pair (`torn`) is one, member
+  // or not: the covering tore there)
+  function brokenPairs(T, D, cover) {
+    const P = new Set(), ends = new Uint8Array(T.n), tied = cover && D.tied;
     for (const bi of D.br) {
       const b = T.beams[bi]; if (!b) continue;
       ends[b.a] = 1; ends[b.b] = 1;
       const a = Math.min(b.a, b.b), c = Math.max(b.a, b.b), k = a * T.n + c;
+      if (tied && tied.has(k)) continue;
       if (T.pairs.get(k).every(j => D.broken[j])) P.add(k);
     }
+    if (cover && D.torn) for (const k of D.torn) P.add(k);
     return { P, ends, n: T.n, has: (x, y) => x !== y && P.has(Math.min(x, y) * T.n + Math.max(x, y)) };
   }
 
+  // G2040 (DMG-FABRIC): each node's pieces it is TIED to by a live cover tie (the state's `tied`: a * n + b, a < b): a
+  // Map node -> [piece, ...]; and whether node i is tied to piece P
+  function tiedPieces(D) {
+    const M = new Map(), n = D.n, pc = D.pc;
+    const add = (i, q) => { let L = M.get(i); if (!L) M.set(i, L = []); if (L.indexOf(q) < 0) L.push(q); };
+    for (const k of D.tied) { const a = Math.floor(k / n), b = k - a * n; if (pc[a] !== pc[b]) { add(a, pc[b]); add(b, pc[a]); } }
+    return M;
+  }
+  const tiedTo = (M, i, P) => { const L = M.get(i); return !!L && L.indexOf(P) >= 0; };
   // ---- G1864 (DMG-D4b): THE SNAPSHOT'S OWN VERTICES. The cage snapshot is unwelded - three vertices a triangle, each
   // place repeated by every triangle meeting there (about six on a smooth skin) - so the wreck's work a vertex (the
   // binding, the event, the riding) is done once a PLACE and copied: rep[v] the first vertex at v's place (v itself if
@@ -223,7 +243,7 @@
     let s = 0, drop = false;
     for (let k = 0; k < K; k++) {
       const w = ww[o + k], i = wi[o + k];
-      const keep = w !== 0 && (!pc || pc[i] === P) && !BP.has(d, i);
+      const keep = w !== 0 && (!pc || pc[i] === P || (R.tp && tiedTo(R.tp, i, P))) && !BP.has(d, i);   // (G2040: or tied to P)
       if (w !== 0 && !keep) drop = true;
       w2[o + k] = keep ? w : 0; s += keep ? w : 0;
     }
@@ -264,11 +284,21 @@
     const { nv, K, wi, ww } = R, idx = R.idx;
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
       if (R.idx0) idx.set(R.idx0);
-      R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = R.cut = 0;
+      R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = R.cut = 0; R.held = R.xv = R.tp = null; R.cov = false; R.heldTorn = 0;   // (G2040)
       return !!R.idx0;
     }
     if (!R.idx0) R.idx0 = idx.slice();
-    const BP = brokenPairs(T, D), pc = D.pc;
+    // G2040 (DMG-FABRIC): a COVERING (fabric, or sheet metal) is held where the physics' cover ties still hold - LOCALLY,
+    // tie by tie: a vertex keeps its weight on a node of another piece when that node is TIED to its own piece (a live
+    // cover tie between them), a tied broken pair is no break for it, and a triangle across two pieces stays when its
+    // vertices reach across through those weights (it is BRIDGED by the covering the tie stands for). So the covering is
+    // drawn stretched across the parting, whole, as far as the physics stretches the tie - and torn where the physics
+    // tore it (a torn tie's pair is a break for it again; its vertices let go of the other side). Everything else (the
+    // frame's tubes, a rigid part, the lining's own wall) is as before
+    const cov = !!(D.tied && D.pc && (R.fabric || R.sheetTear || R.cover));
+    const BP = brokenPairs(T, D, cov), pc = D.pc;
+    R.cov = cov;
+    R.tp = cov ? tiedPieces(D) : null;
     // a cage record: the full binding for the vertices at the break (their nearest node an end of a broken member, or one
     // live member from one) or off the core, the ones not bound before
     if (R.g.near) {
@@ -296,13 +326,25 @@
     const i0 = R.idx0, nt = R.nt, dead = R.dead || (R.dead = new Uint8Array(nt));
     const watch = [];
     let removed = 0;
+    // G2040: a covering's triangle that the ties hold ACROSS a parting is HELD - stretched as the physics' tie stretches,
+    // never torn by the drawing's own stretch (tear() skips it): the physics tears it, by its tie
+    const held = cov ? (R.held && R.held.length === nt ? R.held.fill(0) : (R.held = new Uint8Array(nt))) : (R.held = null);
+    const reach = (x, q) => { const o = x * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] === q) return true; return false; };
+    const bridged = (x, y) => vp[x] === vp[y] || reach(x, vp[y]) || reach(y, vp[x]);
+    const vx = x => { const o = x * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
+    // (a vertex reaching across turns with its OWN piece's nodes only - onNodes: two pieces' turns blended swung its lever)
+    R.xv = null;
+    if (cov) { const X = new Uint8Array(nv); let any = false; for (let v = 0; v < nv; v++) if (vx(v)) { X[v] = 1; any = true; } if (any) R.xv = X; }
+    if (!R.heldTorn) R.heldTorn = 0;
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
       let gone = dead[t] >= 2;                   // torn by stretch earlier (or cut off the wall, G1858; gone with its covering, G1856): stays gone
       if (!gone) {
-        gone = vp[a] !== vp[b] || vp[b] !== vp[c] ||
+        const span = vp[a] !== vp[b] || vp[b] !== vp[c];
+        gone = (span && !(cov && bridged(a, b) && bridged(b, c) && bridged(a, c))) ||
                BP.has(dom[a], dom[b]) || BP.has(dom[b], dom[c]) || BP.has(dom[a], dom[c]);
         dead[t] = gone ? 1 : 0;
+        if (cov && !gone && (span || vx(a) || vx(b) || vx(c))) held[t] = 1;
       }
       if (gone) { idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = a; removed++; continue; }
       idx[t * 3] = a; idx[t * 3 + 1] = b; idx[t * 3 + 2] = c;
@@ -329,6 +371,7 @@
           for (const bi of at.get(A)) {
             const b = T.beams[bi], B = b.a === A ? b.b : b.a;
             if (B < A) continue;                         // each member once, from its lower end
+            if (cov && D.tied.has(A * T.n + B)) continue;  // (G2040: a member the covering is tied across holds it taut - no drape)
             let wb = 0; for (let q = 0; q < K; q++) if (wi[o + q] === B) wb += ww[o + q];
             if (!(wb > 0)) continue;
             const ax = rest[A * 3], ay = rest[A * 3 + 1], az = rest[A * 3 + 2];
@@ -472,8 +515,10 @@
     let lx = 0, ly = 0, lz = 0, rx = 0, ry = 0, rz = 0, qx = 0, qy = 0, qz = 0, qw = 0, d = -1, dw = -Infinity;
     for (let k = 0; k < K; k++) { const w = w2[o + k]; if (w !== 0 && w > dw) { dw = w; d = wi[o + k]; } }
     const dx0 = Q[d * 4], dy0 = Q[d * 4 + 1], dz0 = Q[d * 4 + 2], dw0 = Q[d * 4 + 3];
+    const own = R.xv && R.xv[v] ? R.vp[v] : -1, PC = R.pc;           // (G2040: a vertex the covering holds across turns with its own piece)
     for (let k = 0; k < K; k++) { const w = w2[o + k]; if (w === 0) continue; const i = wi[o + k], i3 = i * 3, i4 = i * 4;
       lx += w * live[i3]; ly += w * live[i3 + 1]; lz += w * live[i3 + 2]; rx += w * rest[i3]; ry += w * rest[i3 + 1]; rz += w * rest[i3 + 2];
+      if (own >= 0 && PC[i] !== own) continue;
       const sg = (Q[i4] * dx0 + Q[i4 + 1] * dy0 + Q[i4 + 2] * dz0 + Q[i4 + 3] * dw0) < 0 ? -w : w;
       qx += sg * Q[i4]; qy += sg * Q[i4 + 1]; qz += sg * Q[i4 + 2]; qw += sg * Q[i4 + 3]; }
     const L = Math.hypot(qx, qy, qz, qw) || 1; qx /= L; qy /= L; qz /= L; qw /= L;
@@ -573,15 +618,22 @@
     if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear)) return 0;                  // (G1859: a tube, a rigid part, sheet metal - never cut to confetti)
     const i0 = R.idx0, idx = R.idx, dead = R.dead, W = R.watch;
     let n = 0;
+    const H = R.held;                                   // (G2040: a held triangle stretches as the tie lets its panel - HELD)
     for (let j = 0; j < W.length; j++) {
       const t = W[j]; if (dead[t]) continue;
       const a = i0[t * 3] * 3, b = i0[t * 3 + 1] * 3, c = i0[t * 3 + 2] * 3;
-      if (over(pos, base, a, b, R) || over(pos, base, b, c, R) || over(pos, base, a, c, R)) {
+      if (H && H[t] ? (overH(pos, base, a, b) || overH(pos, base, b, c) || overH(pos, base, a, c)) && ++R.heldTorn
+                    : (over(pos, base, a, b, R) || over(pos, base, b, c, R) || over(pos, base, a, c, R))) {
         dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++;
       }
     }
     R.torn += n; R.removed += n;
     return n;
+  }
+  function overH(pos, base, a, b) {
+    const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
+    const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
+    return !(l <= HELD * r + TEAR_ABS);
   }
   function over(pos, base, a, b, R) {
     const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
@@ -596,10 +648,15 @@
   }
   // the gate's measure over every live triangle of a group: the worst edge past its bound (m: l - (1 + TEAR) r - TEAR_ABS,
   // <= 0 everywhere when the skin holds), and the worst stretch l / r among edges of 2 cm or more
+  // (G2040: a HELD covering triangle - the physics' cover tie decides its tear - is measured apart: hm its worst stretch)
   function worstStretch(R, base, pos) {
-    const i0 = R.idx0 || R.idx, dead = R.dead; let ex = -Infinity, m = 0, at = -1;
+    const i0 = R.idx0 || R.idx, dead = R.dead, H = R.held; let ex = -Infinity, m = 0, at = -1, hm = 0;
     for (let t = 0; t < R.nt; t++) {
       if (dead && dead[t]) continue;
+      if (H && H[t]) { for (let e = 0; e < 3; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
+        const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
+        const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
+        if (l !== l) return { ex: Infinity, m: Infinity, t, hm: Infinity }; if (r >= 0.02 && l / r > hm) hm = l / r; } continue; }
       for (let e = 0; e < 3; e++) {
         const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
         const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
@@ -610,7 +667,7 @@
         if (r >= 0.02 && l / r > m) m = l / r;
       }
     }
-    return { ex, m, t: at };
+    return { ex, m, t: at, hm };
   }
   // ---- G1858 (DMG-WALL, the user's fallback: "if we struggle too much with the interior, we could simply get rid of it
   // for the crash"): THE INSIDE WALL CUT AT THE DAMAGE. The lining (aeroskin's liner / fire / sill / doorPad roles - not

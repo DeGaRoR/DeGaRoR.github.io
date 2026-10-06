@@ -250,6 +250,11 @@ const GATES = [
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
   { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G2040-G2043 (DMG-FABRIC): the covering holds the wreck until it tears - the covered panels per build, no cover tie on an
+  // intact aeroplane (parked, the drop, a pull), in the crashes (the certificate stamped) every tie tension only, never past
+  // its strain at break, torn by strain; the Cub's struck wing held; the page's batching changes no bit; damage off and the
+  // ties off = the base's bytes; the hop carries the ties. --selftest: red with the ties disabled. Three children at once
+  { id: 'DMGFABRIC', file: '_dmg_fabric_check.js', tier: 'core', weight: 3, wall: 600 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

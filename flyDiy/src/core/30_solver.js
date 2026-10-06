@@ -521,7 +521,136 @@ function makeSim(def, world) {
       DMG.stripsSplit++;
     }
     aicHash = NaN;                                   // the induction's control points move with the weights
+    if (COV) tieEvent(fd);                           // G2040 (DMG-FABRIC): the covering across a parting
     if (typeof WB !== 'undefined' && WB && HYDRO.wetCut) HYDRO.wetCut(WB, fd, orphan);   // G1898.5: the wet body over the break
+  }
+  // ---- G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK ----
+  // The covering (61_gen_frame parts.dmg.cover: every covered panel as built - its area, its corners, its covering) is
+  // no member: it weighed and dragged, and once the frame under it parted the pieces flew apart with nothing joining
+  // them, where a fabric aeroplane's wreck stays inside its cloth for a while before the cloth tears (the user's
+  // reference pictures). So at the moment two PIECES separate across a covered panel (a break event: compEvent, and a
+  // cluster's part re-formed: clApply) each of the panel's corners on one piece gets a COVER TIE to its nearest corner
+  // on another (a pair made once, ever: a torn tie is never re-made). A tie is a MEMBRANE - tension only, no
+  // compression, no bending: slack below the covering's own length between its two nodes (their rest distance + the
+  // drape's slack), then the covering's law (60_gen_spec GEN_COVER): fabric linear to its strength at its strain at
+  // break, unloading ru x stiffer (the doped cloth keeps the energy); sheet elastic to its tear-out force, flat (the
+  // sheet tearing) to its elongation. Its width is its share of the panel's area over its length (a fuselage bay's
+  // longeron pair half the side's height, the top's half width the other side - two panels add); fabric's strength is
+  // tuN x that width, sheet's one tear-out ligament per panel. IT TEARS BY STRAIN: the peak stretch over the slack
+  // length past eu - a geometric test on the substep's own positions, so no frame rate (the batching of fixed 1/60 s
+  // steps, GATE DMGFPS) and no damper can fake one; the next tie of the seam takes the load and goes next, bay by
+  // bay. The ties do not join pieces (pieces(): the strips, the refs-core) - a wing held by its cloth does not fly.
+  // THE COST: nothing at all until a covered panel parts (the ties are made at an event; the per-substep pass runs
+  // inside the postLive branch, only while a tie is live; postLive's own test reads one counter, nPost, the floors' and
+  // the live ties' - one compare a frame as before)
+  const COV = DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.cover && typeof GEN_COVER !== 'undefined' && GEN_COVER.on !== false ? def.parts.dmg.cover : null;
+  let nTie = 0, nTieL = 0, nPost = 0;
+  const TIE_MAX = COV ? 4 * COV.reduce((a, P) => a + P.ids.length, 0) : 0;
+  const TA = COV ? new Int32Array(TIE_MAX) : null, TB = COV ? new Int32Array(TIE_MAX) : null;
+  const TLs = COV ? new Float64Array(TIE_MAX) : null, TK = COV ? new Float64Array(TIE_MAX) : null, TFy = COV ? new Float64Array(TIE_MAX) : null;
+  const TKu = COV ? new Float64Array(TIE_MAX) : null, TC = COV ? new Float64Array(TIE_MAX) : null, TEu = COV ? new Float64Array(TIE_MAX) : null;
+  const TLp = COV ? new Float64Array(TIE_MAX) : null, TW = COV ? new Float64Array(TIE_MAX) : null, TFp = COV ? new Float64Array(TIE_MAX) : null;
+  const TT = COV ? new Float64Array(TIE_MAX) : null, TT0 = COV ? new Float64Array(TIE_MAX) : null, TSh = COV ? new Uint8Array(TIE_MAX) : null, TG = COV ? new Float64Array(TIE_MAX) : null;
+  const TF = COV ? new Float64Array(TIE_MAX) : null;                    // each tie's force on the last substep (N; 0 slack or torn)
+  const TLIVE = COV ? new Int32Array(TIE_MAX) : null;                  // the live ties' indices (the pass walks only these)
+  const tieOf = new Map(), covDone = COV ? COV.map(() => new Set()) : null;
+  // the covering of a panel: fabric (cloth rows; a wood aeroplane's ply under its doped fabric), sheet (alloy), none (carbon)
+  const covKind = P => P.mat === 'carbon' ? null : P.mat === 'alloy' && !P.cloth ? 'sheet' : 'fabric';
+  // a tie's stiffness is held to its ends' stiffest member as built (the explicit step's own bound: SUPPORT's rule)
+  const kNode = COV ? new Float64Array(n) : null;
+  if (COV) for (const b of beams) for (const i of [b.a, b.b]) if (b.k > kNode[i]) kNode[i] = b.k;
+  if (COV) { DMG.tieN = 0; DMG.tieT = 0; DMG.tieBorn = 0; DMG.tieFirstT = null; }
+  const restD = (i, j) => { const A = def.nodes[i].p, B = def.nodes[j].p; return Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]); };
+  // a tie's law from what it carries: fabric's width w, or sheet's ligaments (TW counts them); its stiffness capped
+  function tieLaw(q) {
+    const a = TA[q], b = TB[q], Ls = TLs[q], kc = Math.min(kNode[a], kNode[b]) || Infinity, mu = m[a] * m[b] / (m[a] + m[b]);
+    if (TSh[q]) {
+      const S = GEN_COVER.sheet, E = GEN_MATERIALS.alloy.phys.E, t = TG[q];        // (TG: the sheet's gauge, by the panel's section)
+      TFy[q] = S.ftu * t * S.wTear * TW[q]; TK[q] = Math.min(E * t * S.wTear * TW[q] / Ls, kc); TEu[q] = S.eu; TKu[q] = TK[q];
+      TC[q] = 2 * S.zeta * Math.sqrt(TK[q] * mu);
+    } else {
+      const F = GEN_COVER.fabric, Fu = F.tuN * TW[q];
+      TFy[q] = Fu; TK[q] = Math.min(Fu / (F.eu * Ls), kc); TEu[q] = F.eu; TKu[q] = F.ru * TK[q];
+      TC[q] = 2 * F.zeta * Math.sqrt(TK[q] * mu);
+    }
+  }
+  // THE EVENT: the panels whose corners now sit on two pieces; fd the pieces' find (compEvent's) or none (clApply)
+  function tieEvent(fd) {
+    if (!fd) fd = pieces();
+    let made = 0;
+    for (let pi = 0; pi < COV.length; pi++) {
+      const P = COV[pi], ids = P.ids, kind = covKind(P);
+      if (!kind) continue;
+      const r0 = fd(ids[0]); let split = false;
+      for (let q = 1; q < ids.length; q++) if (fd(ids[q]) !== r0) { split = true; break; }
+      if (!split) continue;
+      // each corner to its nearest corner on another piece (at rest): the pairs the covering spans across the parting
+      const Q = [];
+      for (const i of ids) {
+        let jb = -1, db = Infinity; const ri = fd(i);
+        for (const j of ids) if (j !== i && fd(j) !== ri) { const d = restD(i, j); if (d < db) { db = d; jb = j; } }
+        if (jb < 0) continue;
+        const key = Math.min(i, jb) * n + Math.max(i, jb);
+        if (Q.indexOf(key) < 0) Q.push(key);
+      }
+      const D = covDone[pi], fresh = Q.filter(k => !D.has(k));
+      if (!fresh.length) continue;
+      for (const key of fresh) {
+        D.add(key);
+        const a = Math.floor(key / n), b = key - a * n, L0 = restD(a, b);
+        if (!(L0 > 1e-6)) continue;
+        let q = tieOf.get(key);
+        if (q === undefined) {
+          if (nTie >= TIE_MAX) continue;
+          q = nTie++; tieOf.set(key, q);
+          TA[q] = a; TB[q] = b; TSh[q] = kind === 'sheet' ? 1 : 0;
+          const sl = kind === 'sheet' ? GEN_COVER.sheet.slack : GEN_COVER.fabric.slack;
+          TLs[q] = L0 * (1 + sl); TW[q] = 0; TT[q] = -1; TT0[q] = simT; TFp[q] = 0;
+          const a3 = a * 3, b3 = b * 3;
+          TLp[q] = Math.hypot(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]);
+          DMG.tieN++; made++;
+          if (DMG.tieFirstT === null) DMG.tieFirstT = simT;
+          TG[q] = kind === 'sheet' ? (GEN_COVER.sheet.t[P.sec] || GEN_COVER.sheet.t.fuselage) : 0;
+          // born torn: the pieces already further apart than the covering stretches (it tore as they parted)
+          TW[q] += kind === 'sheet' ? 1 : P.A / Q.length / L0;
+          tieLaw(q);
+          if (TLp[q] > TLs[q] * (1 + TEu[q])) { TT[q] = simT; DMG.tieT++; DMG.tieBorn++; continue; }
+          TLIVE[nTieL++] = q;
+        } else if (TT[q] < 0) {                     // a pair two panels span: the second panel's share adds
+          TW[q] += TSh[q] ? 1 : P.A / Q.length / L0;
+          tieLaw(q);
+        }
+      }
+    }
+    nPost = nFlr + nTieL; if (nTieL) postLive = 1;
+    return made;
+  }
+  // THE PASS (per substep, inside postLive, only while a tie is live): tension only, the envelope by the peak stretch,
+  // unloading along TKu, the damper only while it pulls; past eu over the slack length it TEARS (by strain)
+  function tiePass() {
+    let w = 0;
+    for (let s = 0; s < nTieL; s++) {
+      const q = TLIVE[s], a3 = TA[q] * 3, b3 = TB[q] * 3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9, Ls = TLs[q];
+      let Lp = TLp[q];
+      if (L > Lp) { Lp = L; TLp[q] = L; }
+      if (Lp > Ls * (1 + TEu[q])) { TT[q] = simT; TF[q] = 0; DMG.tieT++; continue; }   // torn: dropped from the live list
+      TLIVE[w++] = q; TF[q] = 0;
+      if (L <= Ls) continue;                                                 // slack: the covering bulges
+      const ep = Lp - Ls, ey = TFy[q] / TK[q];
+      const Fe = ep <= ey ? TK[q] * ep : TFy[q];                             // the envelope at the peak stretch
+      let Fb = Fe - TKu[q] * (Lp - L);
+      if (Fb <= 0) continue;
+      dx /= L; dy /= L; dz /= L;
+      Fb += TC[q] * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb <= 0) continue;
+      if (Fb > TFp[q]) TFp[q] = Fb;
+      TF[q] = Fb;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+    if (w !== nTieL) { nTieL = w; nPost = nFlr + nTieL; }
   }
   const noseB = new Uint8Array(nb);
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
@@ -1030,6 +1159,7 @@ function makeSim(def, world) {
     clusters.forEach((C, ci) => { for (const i of C.idx) nodeCl[i] = ci; });
     for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; beamCl[bi] = nodeCl[b.a] >= 0 && nodeCl[b.a] === nodeCl[b.b] ? nodeCl[b.a] : -1; }
     for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+    if (COV) tieEvent(null);                         // G2040 (DMG-FABRIC): a part re-formed may have parted a covered panel
   }
   // reset(): every cluster as built, every cut whole
   function clReset() {
@@ -1048,7 +1178,8 @@ function makeSim(def, world) {
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
       b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
     }
-    nFlr = 0; postLive = 0; grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
+    nFlr = 0; postLive = 0; nPost = 0; nTie = 0; nTieL = 0; tieOf.clear(); if (COV) { for (const D of covDone) D.clear(); DMG.tieN = 0; DMG.tieT = 0; DMG.tieBorn = 0; DMG.tieFirstT = null; }
+    grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -1069,7 +1200,7 @@ function makeSim(def, world) {
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
-    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
+    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost)
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
     // G1840 (DMG-D3): a member of a cluster's root or station cut parts that cut (the part comes off, the tube splits);
@@ -2700,6 +2831,7 @@ function makeSim(def, world) {
     }
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
+      if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
       if (nSup && (armed || DMG.breaks)) suppPass(); // G1822: the SUPPORT limiters
     }
     // ground: wheels roll, everything else scrapes. Terrain-aware.
@@ -2914,7 +3046,7 @@ function makeSim(def, world) {
     trunkFrame(dtFrame);
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     armFrame();
-    postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
+    postLive = (nPost > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4 (G2040: nPost - the floors and the live cover ties)
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
@@ -3143,6 +3275,10 @@ function makeSim(def, world) {
            damageStrips: () => ({ dead: stripDead, w: SW }),
            // G1822: the SUPPORT limiters ({ a, b, k, c, L0, path }; closed while their nodes are nearer than L0)
            damageSupp: () => SUP,
+           // G2040 (DMG-FABRIC): the cover ties - a, b (the nodes), Ls (the slack length), k, Fy (strength / tear-out), eu (the
+           // strain at break), Lp (the peak length), Fp (the peak force), w (fabric's width, m; sheet: its ligaments), sheet,
+           // t0 (made), torn (when; -1 live); n of them, nLive. Views on the solver's own arrays (read-only by contract)
+           coverTies: () => COV ? { n: nTie, nLive: nTieL, a: TA, b: TB, Ls: TLs, k: TK, ku: TKu, Fy: TFy, eu: TEu, c: TC, Lp: TLp, Fp: TFp, F: TF, w: TW, sheet: TSh, t0: TT0, torn: TT, live: TLIVE } : null,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
