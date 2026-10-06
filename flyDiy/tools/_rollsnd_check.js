@@ -7,7 +7,7 @@
 // render_prop.js's archetype), a starter-less Cub (the minimal systems: swung by hand) and a build with no engine.
 //
 //   ORDER     per build, frame by frame as the host drives it: every engine stopped at the shot's first frame (key off,
-//             not running, no crank, rpm 0); the key BOTH before any crank and a silence of >= 0.4 s; each engine: the
+//             not running, no crank, rpm 0); the key BOTH before any crank and a silence of >= 0.2 s (0.4 until the 2026-10-07 tightening); each engine: the
 //             crank (crank > 0) before it runs, for the solver's own time (setEngine's, measured on makeSim: +-1 frame),
 //             ONE catch (one false -> true of running), sim.out.rpm 0 while it cranks and the solver's shaft law
 //             (genShaftRpm / genEngineRpm at the throttle, V 0) to 1e-9 once it runs; the check at idle (throttle 0, every
@@ -153,7 +153,7 @@ function checkOrder(M, F, info) {
     const r0 = rows[0];
     if (!r0.eng.every(e => e.key === 'off' && !e.run && !(e.crank > 0)) || r0.rpm.slice(0, n).some(v => v !== 0)) F.push('ORDER ' + tag + 'the first frame is not every engine stopped (' + JSON.stringify(r0.eng) + ' rpm ' + r0.rpm + ')');
     const iKey = rows.findIndex(r => r.eng.every(e => e.key === 'both')), iCrank0 = rows.findIndex(r => r.eng.some(e => e.crank > 0 || e.run));
-    if (!(iKey > 0 && iCrank0 > iKey && (iCrank0 - 1) / 60 >= 0.4)) F.push('ORDER ' + tag + 'the key before the crank and a silence >= 0.4 s (key at frame ' + iKey + ', the first crank / run at ' + iCrank0 + ')');
+    if (!(iKey > 0 && iCrank0 > iKey && (iCrank0 - 1) / 60 >= 0.2)) F.push('ORDER ' + tag + 'the key before the crank and a silence >= 0.2 s (key at frame ' + iKey + ', the first crank / run at ' + iCrank0 + ')');
     let catches = 0;
     for (let k = 0; k < n; k++) {
       const cr = rows.map(r => r.eng[k].crank > 0), rn = rows.map(r => r.eng[k].run);
