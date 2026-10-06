@@ -342,6 +342,24 @@ async function pageFlyW(o) {
   return Object.assign({ worker: !!sim.dmgState, flightOver: P.over(), trunkKeys: [...world.treeHits.keys()].filter(k => /wall/.test(k)), trace },
            verdict(), { skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null });
 }
+// THE AEROPLANE IN EVERY SCENE (GATE DMGWALLPATH's check, on the box): the stand's editor mount in the shed, the flown
+// model, any older flown model still in a scene; per mesh (scene : name < parent >) its triangles with an edge past 2 m
+// and its material colour
+function pageScenes() {
+  const FP = FLIGHT_PROBE, out = {}, seen = window.__wpGrps || (window.__wpGrps = new Set());
+  try { const m = FP.model(); if (m && m.grp) seen.add(m.grp); } catch (e) {}
+  const roots = [];
+  try { const mt = window.CAGE_JOIN && CAGE_JOIN.mount && CAGE_JOIN.mount(); if (mt) roots.push(['stand', mt]); } catch (e) {}
+  let cur = null; try { cur = FP.model() && FP.model().grp; } catch (e) {}
+  for (const g of seen) if (g.parent) roots.push([g === cur ? 'flown' : 'OLD-MODEL-IN-A-SCENE', g]);
+  for (const [tag, root] of roots) root.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
+    const g = o.geometry, A = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : A.length / 9; let n = 0;
+    for (let t = 0; t < nt; t++) { const a = ix ? ix[t*3] : t*3, b = ix ? ix[t*3+1] : t*3+1, c = ix ? ix[t*3+2] : t*3+2; if (a === b && b === c) continue;
+      const e = (i, j) => Math.hypot(A[i*3] - A[j*3], A[i*3+1] - A[j*3+1], A[i*3+2] - A[j*3+2]); if (Math.max(e(a, b), e(b, c), e(a, c)) > 2) n++; }
+    if (n) { const col = o.material && o.material.color ? '#' + o.material.color.getHexString() : ''; const k = tag + ':' + (o.name || 'mesh') + '<' + ((o.parent && o.parent.name) || '') + '>' + col; out[k] = (out[k] || 0) + n; } });
+  return out;
+}
 // THE BOOT: the page up, the build kept, rolled out, the roll-out screen gone
 async function pageBootStep(k) {
   if (k === 'ready') return await Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('boot timeout'), 240000))]);
@@ -394,10 +412,15 @@ if (require.main === module) (async () => {
       // (the next case from a fresh aeroplane: back to the hangar and out again - the heal checked on the way)
       await post('/eval', "(() => { const b = document.getElementById('bHangar2'); if (!b) return 'no button'; b.click(); return 'ok'; })()");
       await sleep(6000);
+      out.shedScenes = await run(pageScenes);
+      console.log(k + ' in the shed after the crash: aeroplane meshes past 2 m ' + JSON.stringify(out.shedScenes));
+      { const tmp = path.join(OUT, k + '_shed_stand_flown_default_mode.png'); await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
+        fs.writeFileSync(tmp.replace(/\.png$/, '.jpg'), Buffer.from(await run(pageJpeg, png), 'base64')); }
       for (let a = 0; a < 6; a++) { await run(pageBootStep, 'go'); await sleep(5000); if (await run(pageBootStep, 'flying')) break; }
       for (let i = 0; i < 60; i++) { const bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
       await sleep(2000);
       out.healNext = await run(pageHeal, 'check'); console.log(k + ' after the shed + roll-out: heal ' + JSON.stringify(out.healNext));
+      out.rollScenes = await run(pageScenes); console.log(k + ' after the roll-out: aeroplane meshes past 2 m ' + JSON.stringify(out.rollScenes));
       const ok = out.healNext && out.healNext.snapSame && out.healNext.healed && out.healNext.nGiant === 0;
       console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + k + ': crash -> the shed -> roll-out: the snapshot unwritten ' + (out.healNext && out.healNext.snapSame) + ', healed ' + (out.healNext && out.healNext.healed) + ', triangles past 2 m ' + (out.healNext && out.healNext.nGiant));
       RW.fails = (RW.fails || 0) + (ok ? 0 : 1);
