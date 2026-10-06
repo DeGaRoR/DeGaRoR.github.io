@@ -27,36 +27,41 @@ const arg = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); 
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
 
 // ---- the GL shadow: the bytes of every buffer as three uploaded them ----
-function shadowGL(gl) {
-  const S = { cur: new Map(), bytes: new Map(), ofArray: new Map(), uploads: 0, subs: 0 };
-  const bind = gl.bindBuffer.bind(gl), data = gl.bufferData.bind(gl), sub = gl.bufferSubData.bind(gl);
-  gl.bindBuffer = (t, b) => { S.cur.set(t, b); return bind(t, b); };
-  gl.bufferData = (t, src, usage, srcOff, len) => {
-    const b = S.cur.get(t);
-    if (b && src && typeof src === 'object' && src.buffer) {
-      const es = src.BYTES_PER_ELEMENT || 1, o = (srcOff || 0) * es, n = len ? len * es : src.byteLength - o;
-      S.bytes.set(b, new Uint8Array(src.buffer, src.byteOffset + o, n).slice()); S.ofArray.set(src, b); S.uploads++;
-    } else if (b && typeof src === 'number') S.bytes.set(b, new Uint8Array(src));
-    return data(t, src, usage, srcOff, len);
+// (a Proxy over the recording GL - its own Proxy has no set trap, a method cannot be replaced on it - handed to the page by
+// _page_node's opts.glWrap; every context the page makes shares one shadow)
+function shadowGL() {
+  const S = { cur: new Map(), bytes: new Map(), ofArray: new Map(), uploads: 0, subs: 0, contexts: 0 };
+  const wrapGL = gl => { S.contexts++;
+    const bind = (t, b) => { S.cur.set(t, b); return gl.bindBuffer(t, b); };
+    const data = (t, src, usage, srcOff, len) => {
+      const b = S.cur.get(t);
+      if (b && src && typeof src === 'object' && src.buffer) {
+        const es = src.BYTES_PER_ELEMENT || 1, o = (srcOff || 0) * es, n = len ? len * es : src.byteLength - o;
+        S.bytes.set(b, new Uint8Array(src.buffer, src.byteOffset + o, n).slice()); S.ofArray.set(src, b); S.uploads++;
+      } else if (b && typeof src === 'number') S.bytes.set(b, new Uint8Array(src));
+      return gl.bufferData(t, src, usage, srcOff, len);
+    };
+    const sub = (t, dstOff, src, srcOff, len) => {
+      const b = S.cur.get(t), sh = b && S.bytes.get(b);
+      if (sh && src && src.buffer) {
+        const es = src.BYTES_PER_ELEMENT || 1, so = (srcOff || 0) * es, n = len ? len * es : src.byteLength - so;
+        sh.set(new Uint8Array(src.buffer, src.byteOffset + so, n), dstOff); S.subs++;
+      }
+      return gl.bufferSubData(t, dstOff, src, srcOff, len);
+    };
+    return new Proxy(gl, { get(t, p) { if (p === 'bindBuffer') return bind; if (p === 'bufferData') return data; if (p === 'bufferSubData') return sub; return t[p]; } });
   };
-  gl.bufferSubData = (t, dstOff, src, srcOff, len) => {
-    const b = S.cur.get(t), sh = b && S.bytes.get(b);
-    if (sh && src && src.buffer) {
-      const es = src.BYTES_PER_ELEMENT || 1, so = (srcOff || 0) * es, n = len ? len * es : src.byteLength - so;
-      sh.set(new Uint8Array(src.buffer, src.byteOffset + so, n), dstOff); S.subs++;
-    }
-    return sub(t, dstOff, src, srcOff, len);
-  };
-  return S;
+  return { S, wrapGL };
 }
 // every drawn attribute / index of the flown model against its GPU copy -> the stale ones
 function staleOf(W, S) {
-  const m = W.FLIGHT_PROBE.model(), out = [], seen = new Set(); let checked = 0, never = 0;
+  const m = W.FLIGHT_PROBE.model(), out = [], seen = new Set(), CL = {}; let checked = 0, never = 0;
   if (!m || !m.grp) return { none: true };
   m.grp.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
     let vis = o.visible; for (let q = o.parent; q && vis; q = q.parent) vis = q.visible; if (!vis) return;
     const g = o.geometry, cls = o.userData && o.userData.flownMerge ? 'fold' : (o.userData && o.userData.still ? 'still' : 'mesh');
+    CL[cls] = (CL[cls] || 0) + 1;
     const list = Object.entries(g.attributes).map(([k, a]) => [k, a]); if (g.index) list.push(['index', g.index]);
     for (const [k, a] of list) {
       if (!a || !a.array || a.isInterleavedBufferAttribute || seen.has(a.array)) continue; seen.add(a.array);
@@ -68,7 +73,7 @@ function staleOf(W, S) {
       if (bad) out.push({ mesh: o.name || o.type, cls, attr: k, elements: bad, of: cpu.length / es, first, version: a.version });
     }
   });
-  return { checked, never, stale: out };
+  return { checked, never, stale: out, classes: CL };
 }
 
 // ============================================================ THE CHILD: one build, one page
@@ -77,11 +82,11 @@ async function child() {
   const { openPage } = require('./_page_node.js');
   const R = { key, fault, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
-  const P = await openPage({ quiet: true, storage, query: 'simw=1&damage=1', workers: /sim_host\.js/ });
+  const SG = shadowGL(), S = SG.S;
+  const P = await openPage({ quiet: true, storage, query: 'simw=1&damage=1', workers: /sim_host\.js/, glWrap: SG.wrapGL });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark') W.FLYDIY_HEAL_NOMARK = true;   // (the selftest: the heal's upload marking off - the bug as it was)
-  const S = shadowGL(W.FLIGHT_PROBE.renderer().getContext());
   const tripN = () => (W.FLYDIY_TRIPS || []).length;
   const tripDone = (kind, n0) => { const T = W.FLYDIY_TRIPS || []; const t = T[T.length - 1]; return T.length > n0 && !!(t && t.kind === kind && t.done && W.BOOT.state === 'gone'); };
   const SW = () => W.FLYDIY_SIMW || null;
@@ -111,7 +116,8 @@ async function child() {
   R.live1 = await rollOut();
   for (let i = 0; i < 20; i++) await P.frames(1);
   R.after = staleOf(W, S);
-  R.gl = { uploads: S.uploads, subs: S.subs };
+  try { const FB = W.FLOWN_BAKE; R.bake = { module: !!FB, forPayload: !!(FB && FB.forPayload && W.CAGE_VISUAL && FB.forPayload(W.CAGE_VISUAL)), hybrid: !!(FB && FB.opts && FB.opts.hybrid) }; } catch (e) { R.bake = { err: String(e && e.message) }; }
+  R.gl = { uploads: S.uploads, subs: S.subs, contexts: S.contexts };
   const s1 = SW() ? SW().state() : null;
   R.workerErrors = s1 && s1.errors ? s1.errors.slice(0, 10) : [];
   R.errors = P.errors.filter(e => !/impostor bake/.test(e)).slice(0, 20);
@@ -133,7 +139,7 @@ function judge(R, say) {
   if (!R.live0) { bad('the first roll-out never went live under the worker'); return f; }
   const st = X => X && X.stale ? X.stale : [];
   say('  ' + R.key + ': fresh - ' + (R.fresh.checked || 0) + ' drawn buffers checked, ' + st(R.fresh).length + ' stale; the crash ' + JSON.stringify(R.crash)
-      + '; after the shed and the roll-out (live ' + R.live1 + ') - ' + (R.after.checked || 0) + ' checked, ' + st(R.after).length + ' STALE; uploads ' + JSON.stringify(R.gl));
+      + '; after the shed and the roll-out (live ' + R.live1 + ') - ' + (R.after.checked || 0) + ' checked, ' + st(R.after).length + ' STALE; uploads ' + JSON.stringify(R.gl) + '; drawn meshes by class ' + JSON.stringify(R.after.classes || {}) + '; the flown bake ' + JSON.stringify(R.bake || null));
   for (const s of st(R.after).slice(0, 12)) say('      stale: ' + JSON.stringify(s));
   if (st(R.fresh).length) bad('a fresh roll-out already holds stale buffers: ' + JSON.stringify(st(R.fresh).slice(0, 4)));
   if (!(R.crash && R.crash.br > 0)) bad('the crash broke nothing on the page - the path tests nothing');

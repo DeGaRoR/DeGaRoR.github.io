@@ -1136,6 +1136,9 @@
       };
       mesh.raycast = castOver(members);
       mesh.userData.flownMerge.parts = bones;
+      // (DMG-D4b, the stand's ghost: a HEAL writes a wreck's CPU arrays back - the fold owes them; marked stale it uploads
+      // whole on its next drawn frame, once - an event, never a frame's cost)
+      mesh.userData.flownMerge.dirty = () => { stale = true; };
       // EVERY FRAME, before three reads the buffers (the scene's matrix pass precedes each render's projection)
       const upd = mesh.updateMatrixWorld;
       const ranges = [];
@@ -1422,7 +1425,10 @@
     return done(statsOf(per));
   }
 
-  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, rest, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
+  // (DMG-D4b: every fold under a model group, or every fold made, marked stale - the heal's upload; see mergeModel's dirty)
+  function dirtyAll(grp) { let n = 0; const mark = o => { const F = o && o.userData && o.userData.flownMerge; if (F && F.dirty) { F.dirty(); n++; } };
+    if (grp && grp.traverse) grp.traverse(mark); for (const F of FOLDS) for (const m of (F && F.meshes) || []) mark(m); return n; }
+  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, rest, nearT, liveTwin, bandOf, FB_FADE, dirtyAll, folds: () => FOLDS.slice(),
                    warmPairs: () => FB.noWarm ? [] : FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS, graze: FB_U.uFbGraze, sunRough: FB_U.uFbSun,   // G1350: graze.value 1 = the old relief at a low sun; G1358: sunRough.value 0 = the old glint

@@ -3965,6 +3965,7 @@
     tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0) });
   function brkRestore() {
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
+    brkHealUpload(BRK.model);
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     BRK.recs.length = 0; BRK.model = null;
@@ -3972,6 +3973,11 @@
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
   // same payload group - their index attributes wrap the same array)
   // (G1864: the normals a riding vertex turned, back as built)
+  // DMG-D4b (the stand's ghost after crash -> the shed -> roll-out: every CPU array healed, the drawing stale until a forced
+  // re-upload): A HEAL OWES THE HYBRID BAKE'S FOLDS THEIR UPLOAD - a fold uploads its members' views by range on a version
+  // it sees change, and the heal's writes did not all reach it; marked stale, each uploads whole on its next drawn frame,
+  // once (flown_bake.js dirtyAll). An event's cost. window.FLYDIY_HEAL_NOMARK = true: off (the A/B, the gate's selftest)
+  function brkHealUpload(mdl) { if (window.FLYDIY_HEAL_NOMARK || !window.FLOWN_BAKE || !FLOWN_BAKE.dirtyAll) return; FLOWN_BAKE.dirtyAll((mdl || model) && (mdl || model).grp); }
   function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
     if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
   // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
@@ -3999,7 +4005,7 @@
     const D = dmgNow();
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
-      if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+      if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); } brkHealUpload(model);
         model._pose = null; model._poseNG = null; }   // (G1858.1: a real heal only - re-posed from the rest, the rigs a pose writes)
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
@@ -4676,6 +4682,7 @@
     for (let j = WK.pos.length - 1; j >= 0; j--) { const q = WK.pos[j]; q.pa.array.set(q.base); q.pa.needsUpdate = true; }
     if (mdl) for (const p of mdl.props || []) if (p.userData) p.userData.seizeRate = null;
     if (WK.autoOf) { for (const o of WK.autoOf) { o.matrixAutoUpdate = true; o.updateMatrix(); } WK.autoOf = null; }
+    brkHealUpload(mdl);   // (the debris' triangles, the props' curl and the spinner's dent written back: the folds owe them)
     WK.g0 = null; WK.ride = null;
     WK.posOf = null; WK.bladeGone = null; WK.bays = null;
     WK.hid = []; WK.idx = []; WK.pos = []; WK.model = null; WK.P = null; WK.W = null; WK.t = null; WK.rigs = null; WK.cab = null;

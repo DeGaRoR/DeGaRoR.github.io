@@ -369,7 +369,9 @@ async function openPage(opts) {
     if (kind === 'webgl2' || kind === 'webgl' || kind === 'experimental-webgl') {
       if (kind !== 'webgl2') return null;
       const G = makeGL({ rec, links: glLinks, canvas: cv, WebGL2RenderingContext: GLClass, extraExts: opts.gpuFormats === 'none' ? [] : DESKTOP_TC });
-      return G.gl;
+      // (opts.glWrap: a gate's own view of the context - GATE DMGUPLOAD's shadow of every buffer upload; the recording GL is
+      // a Proxy without a set trap, so a method cannot be replaced on it from the page)
+      return opts.glWrap ? opts.glWrap(G.gl) : G.gl;
     }
     if (kind === 'bitmaprenderer') return { transferFromImageBitmap() {} };
     return null;
