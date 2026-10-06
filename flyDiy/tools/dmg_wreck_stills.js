@@ -290,6 +290,7 @@ if (require.main === module) (async () => {
     // (the user's review: does the cowl come off - each cowl panel and the spinner, its reason and its distortion)
     if (out.stage && out.stage.wreck) console.log('  ' + k + ' cowl: ' + out.stage.wreck.parts.filter(p => p.kind === 'cowl' || p.kind === 'spinner' || p.kind === 'eng')
       .map(p => p.kind + ' ' + (p.gone ? 'OFF (' + p.why + (p.crush != null ? ', ' + Math.round(p.crush * 100) + ' cm' : '') + ')' : 'on' + (p.crush != null ? ' (' + Math.round(p.crush * 100) + ' cm)' : ''))).join(', '));
+    if (out.stage && out.stage.wreck) console.log('  ' + k + ' strikes: ' + (out.stage.wreck.strikes || []).map(x => 'engine ' + x.eng + ' ' + (x.drive ? 'DRIVE ' + x.drive + (x.biteR != null ? ' biteR ' + (+x.biteR).toFixed(3) : '') + (x.surf ? ' ' + x.surf : '') : 'own strike') + ' ' + x.material + ' curl ' + x.curl.join('/') + ' cut ' + x.cut.join('/')).join('; '));
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
     // would re-release them from the wreck at rest)
