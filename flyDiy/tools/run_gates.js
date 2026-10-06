@@ -162,6 +162,17 @@ const GATES = [
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
+  // G1995-G1997 (HW-COVERAGE, the user's GTX 1660 Ti laptop: a 128 s garage load, 3-4 fps for 15 min, NO REVEAL): on a virtual
+  // clock - the boot watchdog never lifts a chain that still lands steps (keys alone are not progress; 5x hard the last
+  // resort); the runtime step-down (gfx_settings.js GFX.hw: one rung under 15 fps in the shed / on the ground, once a state,
+  // never an explicit pick, never a rig / localhost / ?gfx=); the recorder's reveal with no roll-out screen. ~2 s
+  { id: 'HWCOV', file: '_hwcov_check.js', tier: 'core', wall: 5 },
+  // G1996 (HW-COVERAGE): A LOADING SCREEN LIFTED BEFORE ITS CHAIN ENDED, on the page in node (_page_node.js, ROUNDTRIP's harness):
+  // fly (lifted at 'compile', Fly at once: the roll-out lands, the world drawn, a reveal - RED on train 35: 0 frames), stay (the
+  // shed drawn while the lifted chain ends, then Fly: lands with no screen, a reveal - RED on train 36: no reveal), hard (hard
+  // = 1 ms: never lifted while steps land), diag (?diag=quick to its report, the graphics restored). Four page runs ONE AT A
+  // TIME (~4 GB each), ~2 min each and the diag ~6 min
+  { id: 'BOOTLIFT', file: '_bootlift_check.js', tier: 'full', timeout: 3600_000, weight: 2, wall: 720 },
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },

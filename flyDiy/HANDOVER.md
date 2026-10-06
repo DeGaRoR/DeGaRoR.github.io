@@ -78087,3 +78087,106 @@ recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log
 Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
 BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
 For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
+
+## G1995 - HW-COVERAGE: THE GTX 1660 Ti LAPTOP AT 3-4 FPS - THE WATCHDOG THAT WAITS FOR A MOVING CHAIN, THE REVEAL WITH NO SCREEN, A RUNTIME STEP-DOWN, THE ?diag SELF-TEST AND ITS GPU CALIBRATION, GATE HWCOV + GATE BOOTLIFT, THE WEAK RUNG (2026-10-06, HW-COVERAGE for A0, local GPU; branch claude/hw-coverage-g1995 off train 36 = 1ae2eebb; G1995-G1999)
+STATUS: READY for A0, train 38 (2026-10-06 ~05:00) - the step-down, the watchdog, GATE HWCOV + GATE BOOTLIFT, the weak rung. The
+?diag cut went READY separately for train 37b (claude/hw-diag-g1997, its own entry G1996-G1997). PENDING: the throttled retro load
+re-taken on a fresh parked cook (A0's slot 12:35-12:50, armed).
+
+THE CASE (the user's gaming laptop: i5-9300H 4c/8t, 16 GB, GTX 1660 Ti mobile (0x2191), 1920x1080 / 144 Hz, 'retro' picked
+by the card's NAME): log 1 (train 35) a 120.5 s garage load, the watchdog lifted the screen mid-chain, Fly, 0 frames (fixed on
+train 36: startLoop from the boot's done()); log 2 (train 36) a 128.7 s load, 3-4 fps everywhere, the GPU timer ~250 ms a
+frame, 'NO REVEAL', the frame clock's auto never acted. Later the same day (A0): plugged in, performance mode, the WebGL
+Aquarium at 144 fps - "not throttled"; a DevTools trace, chrome://gpu, a potato log and a retro log.
+
+WHAT THE LOGS AND THE TRACE SAY (G1995)
+- THE GPU IS THE WALL. The laptop's DevTools trace (10 s of taxi): the GPU process's CrGpuMain GPUTask 8 138 ms WALL for 471 ms
+  of THREAD CPU - one ~140 ms task a frame with ~1 ms of CPU in it: Chrome's GPU thread sleeps in the driver (a present or a
+  sync waiting for GPU work). The renderer's main thread was busy 2.9 s of 10 (rAF ~8 ms), the physics worker 7.7 s of 10 (its
+  own core). chrome://gpu: nothing unusual (dGPU direct, Optimus false, ANGLE D3D11, driver 32.0.15.9282, the usual workarounds).
+  The trace's categories carry no gpu.service events: it cannot name a pass.
+- PER TRIANGLE (the recorder's GPU timer fitted as a + b x M triangles over every frame): laptop retro flight 100.7 + 20.1 ms/M,
+  its shed 6.6 + 16.1; laptop potato flight 37.7 + 9.7; the user's GTX 660 on potato (after POTATO-DEEP) flight 20.2 + 4.4, its
+  shed ~18.6/M. A 1660 Ti mobile (~4.6 TFLOPS) should be ~2.4x a GTX 660 (1.9): in the SHED the laptop draws a triangle no faster
+  than the 660 (~2.8x under its class), in the world ~2x worse again. Two factors: the card under its rating everywhere (clocks /
+  power state / driver, whatever the Windows mode reads), and a world-only one. ?diag (below) measures both on the machine.
+- WHY NOTHING STEPPED DOWN: the frame clock's auto (app.js PACE) moves only between 60 and 30 and only on fps 'auto' (G1295
+  made every preset but ultra a hard 30: mode 30 never reads); the render scale's auto (aa_resolve.js AUTO) runs only when the
+  player picks scale 'auto'. There was NO rung below a preset anywhere. The missing reveal gated nothing in the game.
+- WHY 'NO REVEAL': the recorder marked a reveal only when a ROLL-OUT SCREEN went; since B9 a roll-out whose plan is empty (the
+  world built in the one loading - every first roll-out of a boot that finished) has no screen. The GTX 660 log of 4 Oct reads
+  revealAt -1 too. The analyzer then scored nothing ("no frames to score").
+- 1710 'freeze' events in log 2 = every frame: at 4 fps every interval is >= 250 ms, PACE's stall (G1365).
+
+THE CHANGES
+- G1995 boot.js THE WATCHDOG WAITS FOR A MOVING CHAIN: a step started or finished, or a step's own count rising (phase / sub),
+  is PROGRESS (B._progT); the hard timeout lifts only a chain that has not moved for the idle window; keys landing alone are not
+  progress; 'nothing landed for 30 s' unchanged; 5x the hard timeout is the last resort whatever moves.
+- G1996 flight_recorder.js FLIGHT_REC.reveal(how): app.js flRevealStart marks the reveal (screen or none; one per hand-over,
+  2 s); FLIGHT_REC.gpuTimer(on) switches the GPU timer live (the self-test's variant). tools/analyze_log.js: a log with no reveal
+  gets one INFERRED (the first running flight frame, and says so); the step-downs printed.
+- G1995 gfx_settings.js GFX.hw THE RUNTIME STEP-DOWN: in the SHED (no editor input in the window) or ON THE GROUND (the stand,
+  the taxi), the delivered fps over 8 s (after 5 s in the state) under 15 -> the preset one rung down (ultra > gamer > current >
+  retro > potato > laptop) through set('preset') + FLYDIY_SETTLE (the settings screen), once per state a page; an on-screen note
+  ('Your machine measured slower than its class ... Change it in GRAPHICS', with 'reload to build lighter' when the new row's
+  BUILD-time budget levers differ - POTATO-DEEP's list: mipSkip townBoot parked forestK impTile aeroAtlas flownBake islandHalf
+  islandColour patchTolPx cabinFar shedLamps), a 'measured' row under the preset in GRAPHICS with 'back to X'; saved (S.hw,
+  localStorage flydiy.hwclass, and the preset itself: the NEXT load builds to the lower budget); a 'hwstep' event in the flight
+  log. NEVER: a pick in the menu (new saved S.own, set by the menu's pickFor), a welcome pick other than its suggestion, a custom
+  mix, ?gfx= in the URL, a rig, localhost (?hwstep=1 forces it, ?hwstep=0 stops it). Off: no timer at all. Nothing is saved at
+  boot (GATE GFX §9's software-rung rule). No PRESETS / BUDGETS row touched (POTATO-DEEP's), no pv bump.
+- G1997 src/viewer/diag.js THE SELF-TEST, index.html?diag (lazy: build.js MANIFEST.lazy + the loader's own URL test - zero
+  bytes otherwise): the load, the roll-out, the flight paused on its stand, the camera fixed, then 5 s per variant from the
+  flight recorder (fps, frame, GPU timer, loop JS, draws, triangles): as it is; each heavy row off (shadows, glare, cover, mist,
+  plain ground, rough terrain, low town, rails, poles, clouds, water, mirror, AA, bloom, eye, scale 0.5); the frame catcher off;
+  the biggest owners of the frame's triangles hidden (a one-frame census by owner); the aeroplane hidden; the GPU timer off; the
+  two presets below; as it is again (drift); the graphics put back exactly. THE CALIBRATION: four micro-tests on a WebGL2
+  context of its own (ALU, 32 texture taps, 2 M half-pixel triangles, half-float blend fill) under the GPU timer, the game's own
+  renders muted, against the card's rating (a small TFLOPS table; the mobile 1660 Ti by device id) and the reference 3080 (REF,
+  measured here). The report: on screen, JSON / text downloads, localStorage flydiy.diag.last; 'again without KTX2' reloads with
+  ?ktx2=0 and merges. ?diag=quick: the rows only; ?diag=bench: the calibration alone. tools/perf/diag_run.js runs it on the box.
+- G1998 tools/rollout_perf.js THE WEAK RUNG: --cpu-throttle N (CDP Emulation.setCPUThrottlingRate: the page's thread), --gpux K
+  (every opaque draw issued as ONE instanced call of K instances - K x the vertex and fragment work at the same depth, the same
+  picture, no extra CPU call; an instanced draw K times; blended draws once: a GPU K x slower IN PROPORTION TO WHAT IS DRAWN, so
+  a lower preset pays), --gpux-at S (from S s after the reveal); the JSON's `hwstep` and `gpuWin` (fps, GPU ms, triangles per
+  5 s). The step-down is off on localhost: pass --q hwstep=1.
+- GATES: GATE HWCOV (tools/_hwcov_check.js, core, ~2 s, a virtual clock): the watchdog (a 180 s chain landing steps never
+  lifted; a stopped chain with keys landing lifted at 120 s; nothing for 30 s; the 600 s ceiling), the step-down's table, gating,
+  explicit choices and its whole loop on a fake recorder (retro 4 fps on the ground -> potato, saved, logged, the settings screen;
+  once per state; never at 30 fps / an explicit pick / in the air / held / on localhost; the shed steps when idle, never while
+  the player edits), the reveal; --selftest catches five broken twins. GATE BOOTLIFT (tools/_bootlift_check.js, the page in
+  node, four children ~4 GB each, one at a time): fly (the screen lifted at 'compile', Fly at once: the roll-out lands, the world
+  drawn, a reveal), stay (the shed drawn while the lifted chain ends, then Fly: lands, drawn, a reveal with no screen), hard
+  (hard = 1 ms from 'world' on: never lifted while steps land), diag (?diag=quick to its report, the graphics restored).
+
+GATE BOOTLIFT, the page in node (03:41-03:56, CPU slot; ~2 min a child, diag 6 min):
+- THIS BRANCH (on train 37): fly PASS (lifted at 'compile', Fly at once: the trip ran craft + frames, 60 world renders in 60
+  frames, the reveal marked), stay PASS (the shed drawn 60/60 while the chain ran firstFrame..recheck; then Fly ran NO step and
+  showed NO screen - the screen last up was the garage's - and the reveal was marked), hard PASS, diag PASS (?diag=quick: 14
+  variants x 300 frames, the report, the graphics restored).
+- TRAIN 35 (e9e14880) fly FAIL: 0 world renders in 60 frames, 0 reveals, the roll-out screens gave up twice ('nothing landed for
+  20 s') - the user's log 1 exactly. TRAIN 36 (1ae2eebb) stay FAIL on one line: the reveal (0) - log 2's blind spot.
+- CAVEAT: the harness ran the boot in ~2 virtual s, so 'hard' barely meets the 2 s watchdog tick: it does not discriminate
+  (train 36's run was skipped for time); GATE HWCOV 1A-1D is the watchdog's real test (a virtual clock where steps take time).
+
+THE LOAD ON A SLOW CPU (box, timed 04:30-05:00, rollout_perf --cpu-throttle 4, 1920x1080, warm C:/hwr; JSONs tools/perf/hwcov/):
+retro 169.4 s to the shed, potato 100.1 s. Steps retro / potato: world 28.1 / 26.7, town 30.4 / 2.4 (retro 103 long tasks,
+24.7 s of the thread), settle 30.0 / 22.4, bake 9.9 / 0, upload 7.1 / 8.1, parked 13.3 / 0 - BUT the parked 13.3 s is THIS
+BRANCH'S STALE COOK (FLYDIY_BUILD differs from media/parked's manifest: captured + baked live; 0 ms on a deployed build -
+POTATO-DEEP's catch, A0: the capture AND ~46 s of live bakes spread over the later steps): THE RETRO LOAD FIGURE IS VOID until
+re-taken on a fresh cook (`node tools/parked_cook.js --port <free>`, then `--check` says same); potato's (parked off) stands.
+4x on the box's i7 ~ the laptop's i5-9300H for the town step (laptop 28.5 s). The step-down persisting the lower preset is what
+makes the NEXT load potato's on a machine measured slow.
+
+?diag ON THE BOX (timed, retro 1920x1080, the stand paused, the same view every row): GPU 12.8 ms; THE LEAN GROUND is 8 of it
+(ground 'plain' 4.9 ms); terrain 6 -2.6, town low -2.7, scale 0.5 -3.5; shadows / glare / mist ~0 (drift 2.8 ms between the two
+base rows: only big deltas count); potato 8.9, laptop 7.3. By rated FP32 (29.8 vs ~4.6) even a 1660 Ti mobile AT its class would
+draw retro's world at ~80 ms: an even 30 on retro needs the lean ground made several times cheaper -> GROUND-COST (G2075, its own
+session). Calibration REF (3080, warmed): ALU 48 581 (an index), texture 134 Gtexel/s, tiny triangles 10 232 Mtri/s, fill 87.6.
+
+THE WEAK RUNG (G1998, the step-down proved): B = retro, --cpu-throttle 4, --gpux 8 from the reveal, --q hwstep=1: the stand at
+13 fps; ~25 s after the reveal the settings screen, then shadow 23 -> 0 ms and render JS 62 -> 40 ms - the step to potato, as
+designed. The frame stayed at 15 fps: at 4x the box's own loop is CPU-bound (58-67 ms of JS, more than the laptop's 31-51), the
+step-down did its part. B2 = 3x: 18 fps throughout, above the 15 floor, no step (correct); the box stays CPU-bound there, so the
+8x GPU proxy never binds on it. The laptop itself is GPU-bound at 3-4 fps: in the shed (8-10 fps) it would step retro -> potato,
+and potato's own taxi (the user's potato log: 14.5 fps) would step on to laptop at the next state.

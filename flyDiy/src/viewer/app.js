@@ -11106,6 +11106,7 @@
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
+    if (window.GFX && window.GFX.hw) window.GFX.hw.reveal();   // G1995: the step-down's measuring starts from the hand-over
     flShedBox = worldShedBox();
     flReveal = 0;
     // the panel arc (session 4b): rolling out INTO the cockpit seats the

@@ -1,0 +1,66 @@
+[
+ {
+  "which": "stay",
+  "errors": [],
+  "lift": {
+   "lifted": true,
+   "at": "compile",
+   "busy": true,
+   "frameNo": 6
+  },
+  "shedDrawn": 60,
+  "chain": {
+   "busy": false,
+   "landingLifted": true,
+   "steps": [
+    "treeBins",
+    "aircraft",
+    "garage",
+    "editor",
+    "seed",
+    "world",
+    "town",
+    "parking",
+    "trees",
+    "ring",
+    "settle",
+    "parked",
+    "snapshot",
+    "bake",
+    "spec",
+    "restore",
+    "images",
+    "upload",
+    "worldCompile",
+    "compile",
+    "firstFrame",
+    "frames",
+    "craft",
+    "recheck"
+   ]
+  },
+  "shedAfter": 30,
+  "fly": {
+   "landed": true,
+   "inShed": false,
+   "trip": {
+    "kind": "rollout",
+    "done": true,
+    "ran": []
+   },
+   "screen": "garage",
+   "worldDrawn": 60,
+   "reveals": 1,
+   "fails": [
+    "hard timeout (GATE BOOTLIFT)"
+   ]
+  },
+  "renders": {
+   "world": 66,
+   "shed": 808,
+   "other": 14877
+  },
+  "wallS": 117,
+  "bad": []
+ }
+]
