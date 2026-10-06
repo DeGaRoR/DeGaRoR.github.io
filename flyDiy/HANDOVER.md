@@ -78894,3 +78894,87 @@ a looser bound from this session.
   jodel 440.9 -> 441.8. Routing them through `LB.gameSpec(designBake(...))` is one line in pilot_trace and in
   _bake_joined, and moves PILOTMATRIX's ratchet and ARCHETYPES wholesale - A0's call (G1989 is free for it).
 - master_bench and the other page-run rigs boot through the AUTOSAVE (the boot door), see G1986's last item.
+
+## G2065 - TOUR-REAL: THE ISLAND TOUR FLOWN BY THE GAME ON THE GPU, AGAINST THE NODE TOUR; EAST POINT LANDS, THEN CANNOT TAKE OFF (2026-10-06, TOUR-REAL for A0, LOCAL GPU; branch claude/tour-real-g2065 off master 1ae2eebb; G2066-G2069 unused)
+
+The user: "the ultimate test of pilot one should be to do a full tour of the island's location in one go ... Success when
+it gets undamaged back to the mother airport"; "check the path of island-tour with a real GPU run, because that sounds
+fishy"; "ISLAND-TOUR ignored East Point, which was the one I was interested in". A0's scope: ONE Cub tour, damage OFF,
+East Point early, the page on master + ISLAND-TOUR 761ce1ef + PILOT-ONE 5d294064 + PILOT-ONE-2 (its newest tip, READY
+or not - a verification run, not a landing).
+
+**THE RIG (tools/, this branch; no src/ change):**
+- `tour_real.js`: a headed Chrome on the GPU (raw CDP), a fresh profile, `index.html?damage=0`, the gamer preset checked,
+  the build in the WIP slot, the route pref v2 `{ base: HOME, to }`. Each next leg at STOPPED goes through `#selDest` +
+  change (app.js setTo -> destApply -> nextLeg; no teleport, no reset). The game's own 2x (`TEST_FLIGHT.rate`: 60*rate
+  steps of 1/60 s per wall second; the rate measured per leg as sim/wall).
+  - Records: a 4 Hz track sampled in the page (FLYDIY_PACE.end), chase + top-down stills at the fixed moments, a
+    continuous screencast, the game's flight log (FLIGHT_REC.save), the obstacles at each stop.
+  - Flies on after a diversion. Retries a rejected take-off once, the player's way. Ends on a crash, a card or a second
+    rejection. Finds a free port at the socket: a peer's cel_driver.js held 127.0.0.1:8771, and on Windows a wildcard
+    bind succeeds beside it.
+- `tour_real_node.js`: ISLAND-TOUR's `_tour_lib.flyLeg`, sampled the same way. `--day @legs.json` (the page's day),
+  `--fuel` (did not take - open), one retry after a rejection, flies on after a diversion, writes after every leg.
+- `tour_real_report.js`: one measuring function for both tracks (`legMetrics`), the deviation both ways with every
+  stretch > 20 m named, the terrain check, the obstacle check, the maps (node blue, page orange), the still strips, the
+  casts.
+- `tour_real_mock.js` / `.html`: the rig's own check, a mock page replaying a node tour (headless, --disable-gpu).
+
+**THE RESULT** (evidence and the full write-up: `reports/evidence/TOUR-REAL/README.md`):
+- **RUN 1** (09:00, HOME > nv_strip > mn_strip > tw_ski > w3 > HOME):
+  - EAST POINT LANDS in the game. One go-around ('high on the slope 537 m out'), then a low, tight circuit; touchdown
+    29 m in at 0.81 m/s, stopped with 19 m left.
+  - THE TAKE-OFF FAILS TWICE: both rolls from 37.7 m inside the 150 m strip, downwind (4.4 m/s tailwind), on gravel.
+    'rejected-takeoff: will not reach Vr: 1.48 m/s^2 needs 59 m more, 65 m left'. Both stop 6.8 m PAST the far end
+    (the abort record: onStrip false).
+  - The tour ends at East Point.
+- **RUN 2** (09:12, a fresh roll-out, HOME > mn_strip > tw_ski > w3 > HOME): DONE, every leg landed at its To, back at
+  HOME, no fault.
+- **NODE**, the same source: never lands at East Point (two go-arounds, diverts to Tamgas Hill), calm or with the page's
+  day. With the page's day its altiport landing roll leaves the box (a 30 deg ground loop); the page's does not.
+- 2x held 1.98-2.0 sim/wall in every leg, worker dilation 1.00, no drop.
+
+**VERDICT: the node tour is not what the game flies.**
+- On the ground they agree to about a metre: the U-turns, the roll starts, the lateral excursions.
+- In the air they diverge from the climb-out on: 65-135 m en route, 300-460 m at every base / final turn, legs up to
+  65 s shorter, roll-outs about half of node's.
+- Measured causes:
+  - THE WIND: ISLAND-TOUR's node tour is calm; the game's default day is an 8 kt breeze. With the page's day, node's first
+    East Point go-around moves to within 2 s of the page's.
+  - THE LOAD: the game flies 29 L, node the build file's 45 L (462 vs 476 kg).
+  - The page's faster, lower INBOUND (36-38 vs 30 m/s ground speed in the same wind). Not explained. Candidates: the
+    worker pilot's shakedown at its own load, the obstacle registry (page 249 streamed / node 324), the trees (the page:
+    woodland cylinders OFF + 59 559 drawn trunks; node: woodland solid).
+- Ruled out: the terrain (0 m over 16 115 samples), East Point's runway model (reqGs 0.1701 / 0.17), the wind field
+  (0.07 m/s), the step.
+- The legs_cub.md oddities:
+  - '274.9 m off the centreline' is HOME's stand, inside 13/31's length band.
+  - '576.2 m roll from the end' is DEST-TO taking off ahead on the 1835 m 02/20.
+  - East Point: see above.
+
+**ROUTED (not fixed here; the pilot's): to PILOT-ONE-2 / A0:**
+1. East Point departure: roll from the strip's END, weigh the wind (or hold), decide the abort so it stops ON the strip.
+2. The cross-country arrival carries INBOUND's height into a short strip's FINAL (568 m agl 1.9 km out): the first
+   approach always goes around.
+3. ISLAND-TOUR (GATE TOUR) flies a calm day and the build file's fuel - not the game's tour. `_tour_lib.flyLeg` judges a
+   diverted landing on the planned strip's box: phantom ground loops and off-strip.
+
+**OPEN QUESTIONS for the next tour session (the unexplained part of the gap):** in the same wind the page flies INBOUND
+36-38 m/s ground speed against node's 30, 50-70 m lower, turns base / final 300-400 m earlier, and rolls out about half
+as far. Each candidate below is testable in node with one change, then a re-fly beside the page's samples
+(tools/tour_real_report.js):
+1. THE WORKER PILOT'S SHAKEDOWN AT ITS OWN LOAD - sim_host makes the pilot with `shakedown: () => sd`, the page's trim
+   solve for the 29 L / 462 kg Cub (Vref 16.2 at East Point); node's comes from the 45 L / 476 kg build. Compare
+   ap.appr / cruise targets leg by leg; find where the page's 29 L comes from (`--fuel` on spec.fuel did not take).
+2. THE OBSTACLE REGISTRY - the page's worker world holds what the premises stream registered near the aeroplane (249 at
+   the stops), node registers every cooked thing within 700 m of a strip (324). Dump both near each approach.
+3. THE TREES - the page's solver: woodland cylinders OFF (`woodSolid` false) and 59 559 drawn trunks (treeHits); node:
+   woodland solid, 0 trunks. East Point's runway model is the same either way (reqGs 0.1701); the pilot's other tree
+   reads (canopyH) and the solver's contacts may not be.
+4. (also open) the page's day TICKS with sim time (DAY_CLOCK -> the climate's diurnal / sea breeze); node's is frozen.
+   The wind fields agreed to 0.07 m/s at East Point at 860-910 s; not checked elsewhere along the tour.
+
+**ISLAND-TOUR's landing**: its node tours are internally consistent, but they are not evidence of what the game flies.
+GATE TOUR should take the page's day and load before it is read as "the game's tour". Not landed by this session.
+Box: GPU 08:45-08:48 (shake-down), 09:00-09:37 (two runs; dropped 23 min early); CPU: node re-flies 04:00-04:16 (lock),
+08:50-08:59 and 09:00-09:47 (lockless, beside my own GPU slot; reported to A0).
