@@ -1075,13 +1075,6 @@ function genCertDrive(def, item) {
   });
   return out;
 }
-// G1890 (DMG-CERTCOST): THE EVIDENCE'S TAP - `frame(name, f, sim)` after every measured frame of a dynamic case (the
-// case's name, the frame since its window opened, the sim under the probe); null in the game (one compare a frame)
-// `steps`: every frame the certificate's sims have stepped (the certificate's own count: C.ms.frames, GATE DMGCERTCOST's
-// budget - the time a machine takes, the frames do not move)
-const GEN_CERT_HOOK = { frame: null, name: '', steps: 0 };
-function genCertTap(sim, f) { if (GEN_CERT_HOOK.frame) GEN_CERT_HOOK.frame(GEN_CERT_HOOK.name, f, sim); }
-function genCertStep(sim) { GEN_CERT_HOOK.steps++; sim.step(1 / 60); }
 // THE CACHE: one certificate per build (its spec hash), a few builds deep
 const GEN_CERT_CACHE = new Map();
 function genCertAttach(def, opt) {
