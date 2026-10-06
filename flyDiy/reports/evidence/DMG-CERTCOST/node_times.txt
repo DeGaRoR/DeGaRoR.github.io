@@ -1,0 +1,39 @@
+DMG-CERTCOST (G1890-G1892) - THE CERTIFICATE'S NODE TIME, BEFORE AND AFTER (node 22, the cloud box, 4 cores, each build ALONE in a fresh
+process - genCertify as the game's bench worker runs it: one certificate in a fresh isolate). Before = DMG-D2b's code (claude/dmg-integration
+da35ed12, its built core, tools/flight_core.js); after = this branch.
+
+BEFORE, PER CASE (ms; the first G1890 measurement, D2b's code plus the per-case timer only - the envelope unchanged):
+cub        14.9 s | static 614 | drop 1880, dropLevel 1534, dropOne 1346, drop473 1830, taxiRough 4898, ground 333, flown 671, flownElev 548, flownRud 608, flownElevF 657
+jodel      26.5 s | static 1587 | drop 2968, dropLevel 3043, dropOne 2638, drop473 3042, taxiRough 8293, ground 368, flown 893, flownElev 1217, flownRud 1260, flownElevF 1187
+metal      22.6 s | static 791 | drop 2863, dropNoseUp 2674, dropOne 2543, drop473 2669, taxiRough 6735, ground 237, flown 854, flownElev 1076, flownRud 1069, flownElevF 1054
+floats     39.8 s | static 1289 | drop 4816, bow 975, dropStep 4241, dropOne 4586, dropDriftR 4386, dropDriftL 4326, drop473 4457, wWeave 4317, ground 230, flown 998, flownElev 1316, flownRud 1209, flownElevF 1188
+twinFloats 47.8 s | static 1618 | drop 6045, bow 1441, dropStep 4892, dropOne 5205, dropDriftR 5173, dropDriftL 4660, drop473 5102, wWeave 4736, ground 538, flown 1273, flownElev 1506, flownRud 2012, flownElevF 1977
+(the static flight cases and the bench 0.6-1.6 s; everything else is the dynamic cases: the sim under the probe at the build's own 75-120
+substeps a frame - 4.5 ms a frame on the Cub, 13-17 on the floatplanes on the water. Of each landing's 360 frames, 240 are the settle.)
+
+WHERE A FRAME GOES (node --cpu-prof, the Cub's drop): substep 39-45 % self (the beam loop, the integration), aeroPass 18-27 %, the step 4 %,
+the probe's own branch (beamYield 3-4 %, the clusters' cuts cutX/clCuts 1-2 %); the floats add hydroPanels / clipPoly / hydroSolverCompute
+(12 %). The probe (every substep armed) costs the Cub 1.3-2x a plain step (2.3 ms -> 4.5 ms), the floats 1.5x (9 -> 14 ms).
+
+D2b's ALONE-IN-ITS-PROCESS TIME (tools/flight_core.js of da35ed12) AGAINST NOW:
+cub         D2b  13.5 s | now   8.1 s (-40 %) | frames 1809 | envelope == D2b to the bit: true | now per case (ms): static 528 settle 1049, drop 363, dropLevel 238, dropOne 229, drop473 226, taxiRough 3503, ground 190, flown 489, flownElev 477, flownRud 276, flownElevF 504
+jodel       D2b  25.1 s | now  16.1 s (-36 %) | frames 1792 | envelope == D2b to the bit: true | now per case (ms): static 1387 settle 1891, drop 627, dropLevel 494, dropOne 474, drop473 578, taxiRough 6984, ground 203, flown 780, flownElev 1086, flownRud 522, flownElevF 1051
+metal       D2b  22.0 s | now  14.3 s (-35 %) | frames 1797 | envelope == D2b to the bit: true | now per case (ms): static 608 settle 1742, drop 575, dropNoseUp 475, dropOne 467, drop473 467, taxiRough 6203, ground 283, flown 751, flownElev 1083, flownRud 632, flownElevF 988
+floats      D2b  38.8 s | now  21.1 s (-46 %) | frames 1763 | envelope == D2b to the bit: true | now per case (ms): static 1261 settle 3249, drop 1499, bow 896, dropStep 1325, dropOne 1358, dropDriftR 1258, dropDriftL 1359, drop473 1174, wWeave 3538, ground 198, flown 974, flownElev 1215, flownRud 606, flownElevF 1109
+twinFloats  D2b  43.5 s | now  24.1 s (-45 %) | frames 1791 | envelope == D2b to the bit: true | now per case (ms): static 1478 settle 3819, drop 1833, bow 1054, dropStep 1298, dropOne 1235, dropDriftR 1349, dropDriftL 1262, drop473 1361, wWeave 4540, ground 425, flown 1320, flownElev 1299, flownRud 683, flownElevF 1142
+
+FRAMES (every sim.step the certificate takes; GATE DMGCERTCOST's budget): D2b 2781 / 2764 / 2769 / 3023 / 3051, now 1809 / 1792 / 1797 /
+1763 / 1791 (cub / jodel / metal / floats / twinFloats).
+
+TWO JIT FINDINGS (node, fresh processes):
+- THE SNAPSHOT'S WRITE-BACK SLOWED EVERY LATER SIM 40 % until fixed: unsnap wrote each member's six numbers back from a double array -
+  a heap number into a small-integer field (a wire's c 0, sK 1) generalises the field, and the beam loop of every later sim in the isolate
+  ran 40 % slower (the Jodel's in-air step 6.8 -> 11.5 ms a frame after four unsnaps; the bisect: skipping the members' write-back alone
+  gave it back). And restoring the floats' water state object by object (new objects with another shape in the hydro's scratch) cost
+  the floats' later water cases 20 %. Now: a member's field is written only where it differs, the water's state is its four numbers and
+  one array. After: 6.9-7.1 ms (no unsnap) against 6.9-7.1 (four unsnaps), the floats 10.6 / 11.2 ms (noise).
+- D2a's NOTE (the probe sims' own beam shape making later sims slower): within ONE certificate in a fresh process it does not show -
+  the Cub's certificate with the probe and bench-pose sims made damage-on (the same beam shape as the dynamic cases) 9.2-9.8 s against
+  8.8-10.1 s as built (three alternating pairs), the envelope equal. Not changed. (It does show ACROSS certificates in one process: the
+  second and third certificates computed in a gate's process are 10-40 % slower, the scan_*.json times - why the gate times its
+  certificate first in a fresh child, and why the game's worker, one certificate a fresh isolate, is the right shape.)

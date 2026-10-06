@@ -440,7 +440,7 @@ body.rollShot #flActs { display:none !important; }
 #ui .frng::-moz-range-thumb { width:11px; height:11px; border:none;
   border-radius:50%; background:var(--ed-acc); }
 
-/* the borrowed selects — #selFrom, #selDest — and the flyouts' own (the day panel's
+/* the borrowed selects — #selDest (G1945: #selFrom retired) — and the flyouts' own (the day panel's
    conditions select, its date field) wear the editor's row select, because in the
    flyout that is what they are */
 #ui .fsel { flex:1; min-width:0; padding:5px 8px;

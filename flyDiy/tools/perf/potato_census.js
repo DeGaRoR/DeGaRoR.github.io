@@ -31,6 +31,10 @@ const VIEWS = opt('views', 'garage,stand,taxi,low').split(','), SPLIT = flag('sp
 const SHOTS = opt('shots', null), BUILD = opt('build', 'default'), TAXI = +opt('taxi', 25), LOWAGL = +opt('lowagl', 60);
 const SPORT = +opt('sport', 8571), DPORT = +opt('dport', 9471), UDD = opt('udd', 'C:/pdc');
 const EVAL = opt('eval', null);
+// --orbits 'name:az,el,dist;...' (G1527): at the stand (paused) the chase orbit set to each, the streams given ORBIT_WAIT s, a still
+// each (<shots>/orbit_<name>.jpg) - the distant runway from 300 m to 2 km; az/el in degrees, dist in m
+const ORBITS = (opt('orbits', '') || '').split(';').filter(Boolean).map(s => { const [n, v] = s.split(':'); const [a, e, d] = v.split(',').map(Number); return { n, a, e, d }; });
+const ORBIT_WAIT = +opt('orbit-wait', 6);
 // --ab <file.json>: { "<name>": { "on": "<js>", "off": "<js>", "views": "stand,taxi" }, ... } - at each listed view (default every
 // world view) each toggle is switched on, the frame re-counted (draws, triangles) and re-timed, then switched off again
 const AB = opt('ab', null) ? JSON.parse(fs.readFileSync(path.resolve(opt('ab', null)), 'utf8')) : null;   // an extra page expression run after the boot, before the garage census (an A/B toggle)
@@ -220,6 +224,9 @@ const CENSUS = (frames, split) => `
     if (VIEWS.includes('stand')) {
       if (!(await run('return !!window.FLYDIY_HELD;'))) await run(`document.getElementById('bPause').click(); return 1;`);
       await sleep(4000); await census('stand', SPLIT); await shot('stand');
+      for (const O of ORBITS) {
+        await run(`FLIGHT_PROBE.camSet(${O.a * Math.PI / 180}, ${O.e * Math.PI / 180}, ${O.d}); return 1;`);
+        await sleep(ORBIT_WAIT * 1000); await shot('orbit_' + O.n); console.log('orbit ' + O.n); }
       await run(`if (window.FLYDIY_HELD) document.getElementById('bPause').click(); return 1;`);
     }
     if (VIEWS.includes('taxi') || VIEWS.includes('low')) {

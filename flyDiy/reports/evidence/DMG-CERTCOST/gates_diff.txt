@@ -1,0 +1,20 @@
+# GATES vs the base: run_gates --only=DMGCERTCOST,DMGCERT,DMGGEAR,TREECRASH,UISMOKE,BUILD,JOIN,BENCH --verbose on this branch (gates_mine.txt) and the same without DMGCERTCOST on claude/dmg-integration da35ed12 built in a worktree (gates_base.txt); per gate, the lines that differ once the clocks and the runner's progress lines are masked (DMGCERT's certificate-cost line prints its ms without a unit - those are the times)
+UISMOKE: mine "GATE UISMOKE: PASS" / base "GATE UISMOKE: PASS" - the same lines (clocks masked)
+TREECRASH: mine "GATE TREECRASH: PASS" / base "GATE TREECRASH: PASS" - the same lines (clocks masked)
+DMGCERT: mine "GATE DMGCERT: PASS" / base "GATE DMGCERT: PASS" - 5 lines differ
+   base:   ok    computed once per build (#T in node: flight cases 829.53, bench 5.63, the dynamic ones 13267.02); a second build of the same spec takes it from the cache in #T
+   mine:   ok    computed once per build (#T in node: flight cases 969.78, bench 8.24, the dynamic ones 10936.18); a second build of the same spec takes it from the cache in #T
+   base:   ok    computed once per build (#T in node: flight cases 1822.41, bench 15.33, the dynamic ones 24313.69); a second build of the same spec takes it from the cache in #T
+   mine:   ok    computed once per build (#T in node: flight cases 1897.24, bench 22.43, the dynamic ones 17548.03); a second build of the same spec takes it from the cache in #T
+   base:   ok    computed once per build (#T in node: flight cases 937.34, bench 10.57, the dynamic ones 21968.29); a second build of the same spec takes it from the cache in #T
+   mine:   ok    computed once per build (#T in node: flight cases 884.48, bench 19.67, the dynamic ones 16751.75); a second build of the same spec takes it from the cache in #T
+   base:   ok    computed once per build (#T in node: flight cases 1425.77, bench 27.80, the dynamic ones 35329.93); a second build of the same spec takes it from the cache in #T
+   mine:   ok    computed once per build (#T in node: flight cases 1385.29, bench 19.82, the dynamic ones 24000.59); a second build of the same spec takes it from the cache in #T
+   base:   ok    computed once per build (#T in node: flight cases 1446.60, bench 28.81, the dynamic ones 41608.57); a second build of the same spec takes it from the cache in #T
+   mine:   ok    computed once per build (#T in node: flight cases 1467.99, bench 14.66, the dynamic ones 24214.53); a second build of the same spec takes it from the cache in #T
+DMGGEAR: mine "GATE DMGGEAR: PASS" / base "GATE DMGGEAR: PASS" - the same lines (clocks masked)
+DMGCERTCOST: (not in the base)
+BUILD: mine "GATE BUILD: PASS" / base "GATE BUILD: PASS" - the same lines (clocks masked)
+JOIN: mine "GATE JOIN: PASS" / base "GATE JOIN: PASS" - the same lines (clocks masked)
+BENCH: mine "GATE BENCH: PASS" / base "GATE BENCH: PASS" - 1 lines differ
+   mine: DMGCERTCOST PASS    #T

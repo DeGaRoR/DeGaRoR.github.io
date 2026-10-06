@@ -114,7 +114,7 @@ const GATES = [
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
-  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 60 },
+  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },
@@ -122,6 +122,12 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // G1945 DEST-TO: ONE "TO" - the From derived (the field under the aeroplane), never a reset. On Jolene, the validated
+  // builds, the damage ON: land at HOME, pick another field, the next leg taxis from the landing stop, takes off and
+  // lands there (Cub, Jodel, metal Cessna; the floats and the twin on floats lane to lane); a To changed mid-way down
+  // the enroute leg re-plans from here inside the turn law and arrives (Cub, metal Cessna); the base, the picker's
+  // surface rule and the pref's migration (no flight). Seven real flights, dealt over three shards
+  { id: 'DESTTO', file: '_destto_check.js', tier: 'core', shards: 3, wall: 1500 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
@@ -200,6 +206,16 @@ const GATES = [
   // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
+  // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
+  // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
+  // trip (in headless Chromium when Playwright is here: a second page load stamps from it in under 50 ms). Two at once
+  { id: 'DMGCERTCOST', file: '_dmg_certcost_check.js', tier: 'core', weight: 2, wall: 300 },
+  // G1883-G1884 (DMG-WINDBREAK): the 3 m/s taxi into a trunk IN A WIND breaks no engine mount - the page's staging (settled in
+  // the wind, 3 m/s, the throttle shut, a trunk 6 m ahead) in steady winds 0-10 m/s from 12 directions on the Cub, the Jodel
+  // and the metal Cessna, the page's own wind (steady and the climate's gust field), the floatplanes on the water; the
+  // per-substep reader changes nothing; REPORTs the page's impact speed and the trunk's offset. Three at once
+  { id: 'DMGWIND', file: '_dmg_wind_check.js', tier: 'core', weight: 3, wall: 1500 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
@@ -228,6 +244,16 @@ const GATES = [
   // and why, every body at rest on the ground or the water, the prop strike's bend or break, the clip against the live
   // cabin, the cockpit rule; damage off (and nothing broken) = no release, the crash's bits unread. Three at once
   { id: 'DMGWRECK', file: '_dmg_wreck_check.js', tier: 'core', weight: 3, wall: 150 },
+  // G1824-G1827 (DMG-DRIVE): the drivetrain against the real numbers (reports/evidence/DMG-DRIVE/real_numbers.json, every
+  // row's source printed with its 'as recalled - A0 to open' flag): Lycoming SB 369's overspeed bands in the dives (V_NE and
+  // 1.1 V_D at full throttle), the graded prop strike (SB 533: nose-overs, a brush, a trunk, the bow in the water, a tip lost
+  // at power and its imbalance tearing the mount), the 582's gearbox, FAR 23.361 / .363 / .371 on the mount's certificate,
+  // and the negatives (the circuit, a 3.8 g pull, the brakes: nothing). Three children at once
+  { id: 'DMGDRIVE', file: '_dmg_drive_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // G1855-G1859 (DMG-WALL): one wall, no stretch - the flown snapshot's lining / beads / glazing stay on their covering
+  // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
+  // with the binding inherited (the old binding beside it for the report). Three builds at once
+  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
@@ -246,6 +272,11 @@ const GATES = [
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
   { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },
+  // SND-ROLLOUT G1715-G1717: the roll-out shot's sound - the start as the aeroplane starts (setEngine, the solver's crank, the
+  // shaft law; a twin in turn, an electric powered, no engine silent), the drawn prop at the voice's rpm (against the worklet
+  // offline), every field put back (the handover to the stand's idle), the shed heard where the aeroplane rolls (space.js
+  // shotPose); 19 mutations
+  { id: 'ROLLSND', file: '_rollsnd_check.js', tier: 'core', wall: 180 },
   { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
@@ -650,6 +681,10 @@ const GATES = [
   // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
   // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
   { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
+  // RELEASE-CHECKS G1591 (review B27): the committed index.html / dev.html / sw.js / flight_core.js / version.json are
+  // a build of the sources - rebuilt into a temp dir and compared; a stale "(built)" commit is red, a source commit's
+  // lag is named (BUILT_STRICT=1: red too - A0's landing runs it so on the (built) commit). ~2 s.
+  { id: 'BUILT', file: '_built_check.js', tier: 'core', wall: 5 },
 ];
 
 const args = process.argv.slice(2);

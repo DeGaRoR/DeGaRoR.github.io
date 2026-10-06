@@ -396,6 +396,7 @@ console.log('GATE GFX');
     if (pref && pref.town) w.GFX.set('town', pref.town);
     return w.GFX.townAll(); };
   ok(G.BUDGETS.potato.town === 'nearby' && G.BUDGETS.laptop.town === 'nearby', "potato's and laptop's budgets cap the town at 'nearby'");
+  ok(G.BUDGETS.potato.patchTolPx === 3 && G.BUDGETS.laptop.patchTolPx === 3, "G1527: potato's and laptop's premises patch at 3 px (the taxi's largest owner: 780 k -> 431 k triangles)");
   ok(town(Object.assign({}, G.PRESETS.potato, { preset: 'potato', pv: 8, town: 'all' })) === false && town(Object.assign({}, G.PRESETS.laptop, { preset: 'laptop', pv: 8, town: 'all' })) === false
      && town({ town: 'all', pv: 8 }, '?gfx=potato') === false && town({ town: 'all', pv: 8 }, '?gfx=laptop') === false,
      "...the row at 'all' builds no Metlakatla on potato or laptop (saved or ?gfx=)");

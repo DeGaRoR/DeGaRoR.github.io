@@ -280,12 +280,19 @@
     void main() {
       vec2 p = vUv / uTexel - 0.5, i = floor(p), f = p - i;
       vec4 acc = vec4(0.0); float wsum = 0.0;
+      vec3 mn = vec3(1e30), mx = vec3(-1e30);
       for (int y = -1; y <= 2; y++) for (int x = -1; x <= 2; x++) {
         float w = crw(float(x) - f.x) * crw(float(y) - f.y);
-        acc += texture2D(tSrc, (i + vec2(float(x), float(y)) + 0.5) * uTexel) * w; wsum += w;
+        vec4 s = texture2D(tSrc, (i + vec2(float(x), float(y)) + 0.5) * uTexel);
+        acc += s * w; wsum += w;
+        if (x >= 0 && x <= 1 && y >= 0 && y <= 1) { mn = min(mn, s.rgb); mx = max(mx, s.rgb); }
       }
       vec3 col = max(acc.rgb / wsum, 0.0);
-      #ifndef AA_LINEAR
+      #ifdef AA_LINEAR
+        // ANTI-RINGING (the potato sun, 5 Oct): on untonemapped radiance the filter's negative lobes next to the sun
+        // disc (1e4 x the sky) pulled the first pixels outside it below zero - a black ring. Held to the 2x2 round it.
+        col = clamp(acc.rgb / wsum, mn, mx);
+      #else
         col = min(col, 1.0);
       #endif
       gl_FragColor = vec4(col, 1.0);` + AA_OUT + `
