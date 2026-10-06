@@ -1,0 +1,155 @@
+/* ======================================================================
+   phone.css - THE WORKSHOP ON A PHONE (MOBILE-GARAGE 1, G2102)
+   EVERY RULE IS UNDER html.phone, which profile.js sets ONLY on the phone
+   profile (?profile=phone, or the welcome's "Build on this phone"). On the
+   desktop not one selector here matches: its pixels are the ones they were.
+   Not a second editor: the same columns, the same rows (_cage_ui.js's own
+   elements), RE-LAID as one sheet under the view (portrait) or beside it
+   (landscape), with a tab bar in the thumb zone (phone.js builds it). The
+   sizes follow futureDesigns/MOBILE-GARAGE-2026-10-04.md §2: 48 px targets
+   (R1), a slider row on two lines (R2), only the knob moves a value and the
+   scale scrolls the sheet (R4-R5).
+   ====================================================================== */
+html.phone {
+  /* THE ESTATE: the view (--ph-vw x --ph-vh at the top left), the sheet
+     (--ph-sl, --ph-st, --ph-sw) and the tab bar under it (--ph-tab) */
+  --ph-tab:54px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
+  --ph-vh:40vh; --ph-vh:40dvh; --ph-st:var(--ph-vh);
+  --ph-tap:48px;
+}
+@media (orientation:landscape) {
+  html.phone { --ph-sw:min(400px, 50vw); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
+    --ph-vh:100vh; --ph-vh:100dvh; --ph-st:0px; }
+}
+html.phone, html.phone body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  -webkit-tap-highlight-color:transparent; }
+
+/* ---- THE VIEW: the canvas and its floating chrome share one box ---------- */
+html.phone body.mode-ws #c { position:fixed; left:0; top:0; margin:0 !important;
+  width:var(--ph-vw) !important; height:var(--ph-vh) !important; transition:none; }
+html.phone #edView { left:0 !important; top:0; right:auto !important; bottom:auto;
+  width:var(--ph-vw); height:var(--ph-vh); }
+/* the flight's verbs and the route have no world to go to (profile fly 'none') */
+html.phone #edActs, html.phone #edRoute, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
+html.phone #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
+html.phone #edFleet #fbName { max-width:calc(var(--ph-vw) - 150px); min-height:40px; font-size:14px; padding:10px 12px; }
+html.phone #edShelf { min-width:180px; }
+html.phone #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
+html.phone .edQuickBtn { min-width:40px; min-height:40px; }
+/* the rail: the profile's four entries (phone.js), each a 48 px target, up the view's left edge */
+html.phone #edBotBar { left:8px; top:calc(50% + 22px); max-height:calc(100% - 70px); }
+html.phone #edRail { gap:2px; padding:4px; }
+html.phone .edRailBtn { width:var(--ph-tap); min-height:var(--ph-tap); padding:6px 0; }
+html.phone .edRailBtn[hidden] { display:none; }
+/* a flyout opens OVER THE SHEET, as a sheet of its own (tap its rail button again to close it) */
+html.phone #edFly { position:fixed !important; left:var(--ph-sl) !important; top:var(--ph-st) !important;
+  width:var(--ph-sw) !important; bottom:var(--ph-tab) !important; max-height:none !important; height:auto !important;
+  border-radius:0; border-width:1px 0 0; z-index:46; padding:14px 16px 18px; touch-action:pan-y; overscroll-behavior:contain;
+  background:#201d1a; }
+html.phone #edFlyBody select { font-size:12px !important; max-width:58%; }
+
+/* ---- THE SHEET: the properties column, the parts column, the information panel - one at a time ---- */
+html.phone #edWrap, html.phone #edInfo { position:fixed; top:var(--ph-st) !important; left:var(--ph-sl) !important;
+  right:auto !important; bottom:var(--ph-tab) !important; width:var(--ph-sw) !important; height:auto;
+  box-shadow:0 -1px 0 rgba(255,248,236,.10); transition:none; z-index:40; }
+html.phone #edWrap { flex-direction:column; }
+html.phone #edPropsTab, html.phone #edPartsTab, html.phone #edPropFold, html.phone #edCollapse,
+html.phone #edInfoFold, html.phone #edInfoTab { display:none !important; }
+html.phone #edWrap > #edProps, html.phone #edWrap > #edParts { display:none; width:100% !important; flex:1; min-height:0; border:0; }
+html.phone body.ph-props #edWrap > #edProps { display:flex !important; }
+html.phone body.ph-parts #edWrap > #edParts { display:flex !important; }
+html.phone body.ph-info #edWrap { display:none !important; }
+html.phone body.mode-ws #edInfo, html.phone body.mode-ws.info-off #edInfo { display:none !important; }
+html.phone body.mode-ws.ph-info #edInfo { display:flex !important; }
+html.phone #edParts { flex-direction:column; }
+/* THE EDIT TAB SCROLLS WHOLE: its heads (the structure / finish switch, the part's name and pills) scroll away with
+   the rows - on a phone's height a fixed head left the rows ~190 px */
+html.phone body.ph-props #edWrap > #edProps { overflow-y:auto; overflow-x:hidden; }
+html.phone #edProps > #edRows { flex:none; overflow:visible; min-height:auto; }
+/* every scroller of the sheet scrolls by a finger and keeps its scroll to itself */
+html.phone :is(#edProps, #edRows, #edTree, #edInfoBody, #edFly, #edOpts) { touch-action:pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+html.phone :is(#wsUI, #edView) ::-webkit-scrollbar { width:3px; }
+
+/* THE TAB BAR, in the thumb zone */
+#phTabs { display:none; }
+html.phone body.mode-ws #phTabs { display:flex; position:fixed; left:var(--ph-sl); bottom:0; width:var(--ph-sw);
+  height:var(--ph-tab); z-index:47; background:#1a1815; border-top:1px solid rgba(255,248,236,.12);
+  padding-bottom:env(safe-area-inset-bottom, 0px); }
+html.phone #phTabs button { flex:1; min-height:var(--ph-tap); border:0; background:transparent; color:#97907f;
+  font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.14em; text-transform:uppercase; }
+html.phone #phTabs button { border-radius:0; }
+html.phone #phTabs button.on { color:#f4efe6; background:rgba(230,219,201,.07); box-shadow:inset 0 2px 0 #e6dbc9; }
+
+/* ---- THE HEADS: bigger targets, wrapping instead of ellipsising (R17) ---- */
+html.phone #edViewTabs .edTab { min-height:40px; font-size:12px; }
+html.phone #edPropHead { flex-wrap:wrap; row-gap:6px; }
+html.phone #edPropHead .pill, html.phone #edPartsHead .pill { min-height:36px; padding:0 10px; font-size:11px; }
+html.phone #edPartName { font-size:15px; }
+
+/* ---- THE TREE: a 44 px row a node ---- */
+html.phone #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
+html.phone #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+
+/* ---- THE ROWS (R2): a slider row is two lines - the label (wrapping) and its value chip over the scale ---- */
+html.phone #edRows { padding:4px 14px 24px 12px; }
+html.phone #edRows .r { height:auto; min-height:var(--ph-tap); flex-wrap:wrap; row-gap:0; column-gap:8px; padding:4px 0; }
+html.phone #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
+  font-size:13.5px; line-height:1.3; color:var(--ed-dim); }
+html.phone #edRows .r.tog > span.k { width:auto; }
+html.phone #edWrap .r input.v, html.phone #edWrap .r input[type=text] { font-size:15px !important; }
+html.phone #edRows .r > input.v { width:76px; min-height:34px; flex:none; order:1; text-align:right;
+  border-bottom:1px solid rgba(255,248,236,.18) !important; }
+html.phone #edRows .r > span:not(.k):not(.v):not(.lt):not(.rn) { order:2; flex:none; width:auto !important; font-size:11px !important; }
+/* line 1: the label, the value chip, the metres; a break; line 2: - scale + (a flex line break is the row's ::after) */
+html.phone #edRows .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
+html.phone #edRows .r.phSlider > .phMinus { order:4; }
+html.phone #edRows .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
+html.phone #edRows .r.phSlider > .phPlus { order:6; }
+html.phone #edRows .r > .rn { order:7; }
+html.phone #edRows .r > button:not(.phStep) { min-height:36px; min-width:36px; }
+/* the scale: drawn larger, and it takes NO touch - a finger on it scrolls the sheet (R4) */
+html.phone :is(#wsUI, #edView) .r input[type=range] { height:var(--ph-tap); pointer-events:none; touch-action:pan-y; }
+html.phone :is(#wsUI, #edView) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
+html.phone :is(#wsUI, #edView) .r input[type=range]::-webkit-slider-thumb { width:26px; height:26px; margin-top:-11px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+html.phone :is(#wsUI, #edView) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
+html.phone :is(#wsUI, #edView) .r input[type=range]::-moz-range-thumb { width:26px; height:26px; }
+/* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) */
+.phKnob { display:none; }
+html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
+  border-radius:50%; touch-action:none; cursor:grab; }
+html.phone .r .phKnob[hidden] { display:none; }
+html.phone .r.phDrag .phKnob { box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
+html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
+/* the steppers (R6) */
+.phStep { display:none; }
+html.phone :is(#wsUI, #edView) .r > .phStep { display:block; flex:none; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+  font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12); touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+html.phone :is(#wsUI, #edView) .r > .phStep:active { background:rgba(230,219,201,.18); }
+/* toggles, selects and the stepper widgets at a finger's size */
+html.phone :is(#wsUI, #edView) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
+html.phone :is(#wsUI, #edView) .r select { min-height:40px; font-size:13px; }
+html.phone #edRows .r > button { min-height:40px; }
+/* the flyout's rows (the display switches, the alphas) take the same knob */
+html.phone #edFlyBody .r { min-height:var(--ph-tap); flex-wrap:wrap; position:relative; }
+html.phone #edFlyBody .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
+html.phone #edFlyBody .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
+html.phone #edFlyBody .r.phSlider > .phMinus { order:4; }
+html.phone #edFlyBody .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
+html.phone #edFlyBody .r.phSlider > .phPlus { order:6; }
+html.phone #edFlyBody .r > .v { order:1; }
+
+/* THE BUBBLE (R11): the value over the finger */
+#phBubble { position:fixed; z-index:95; pointer-events:none; padding:7px 12px; border-radius:10px;
+  background:rgba(26,24,21,.94); border:1px solid rgba(255,248,236,.22); color:#f4efe6;
+  font:600 16px/1 'IBM Plex Sans', sans-serif; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#phBubble.fine { border-color:#e6a15a; color:#f2c48f; }
+#phBubble[hidden] { display:none; }
+
+/* ---- THE INFORMATION PANEL AS A TAB: the plaque and the bench, full width ---- */
+html.phone #edInfoBody { padding:0 16px 24px; }
+html.phone #edInfo button { min-height:40px; }
+
+/* ---- THE DIALOGS the garage opens (the chooser, the fleet, the welcome) fit the width ---- */
+html.phone :is(#dfBirth, #gFleet) { max-width:100vw; }

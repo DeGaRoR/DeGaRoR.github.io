@@ -42,6 +42,11 @@ const worldBootBlock = pick('FLYDIY_WORLD_COMPOSE = function', 'world boot');   
 // once, so BOOT.run unrolls synchronously inside app.js's eval - and so
 // the teardown is asserted on the real object, not a shim.
 const bootBlock = pick('window.BOOT = B', 'boot');
+// G2104 (MOBILE-GARAGE 1): `--phone` - the same smoke on the phone profile (UISMOKE-PHONE in run_gates). profile.js runs
+// first, on ?profile=phone, ahead of the graphics menu and app.js, exactly as the page orders them; the boot must then
+// be the garage's alone, and the gate ends after the phone's own checks (the flight half has no world to fly in)
+const PHONE = process.argv.includes('--phone');
+const profileBlock = pick('W.PROFILE = {', 'profile');
 if (html.indexOf('window.BOOT = B') > html.indexOf('function makeAutopilot'))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
 if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<canvas id="c">'))
@@ -322,6 +327,54 @@ sandbox.window.ASSET_FETCH = url => {
 vm.createContext(sandbox);
 
 const frames = n => { for (let i = 0; i < n && rafCb; i++) { const cb = rafCb; rafCb = null; cb(); } };
+// ---- G2104: THE PHONE PROFILE'S OWN CHECKS (UISMOKE-PHONE) -------------------------------------------------------------
+// The boot above ran the garage alone; here: nothing of the world or the flight was made, the roll-out is refused, the
+// picture is the lightest preset, and phone.css is the phone's alone, selector by selector (the desktop's pixels cannot
+// move through it). phone.js needs a laid-out document (the knob reads the scale's box) - tools/phone_still.js --checks
+// drives it with real touch events in a real browser.
+function phoneChecks() {
+  const W = sandbox.window, G = sandbox.garageApi;
+  if (W.FLYDIY_SIMW) throw new Error('the phone garage made the sim worker');
+  const gp = W.GFX && W.GFX.get && W.GFX.get().preset;
+  if (gp !== 'laptop') throw new Error('the phone garage draws on ' + gp + ', expected laptop (profile.js preset)');
+  if (!G || !G.inGarage()) throw new Error('the phone garage is not in the garage after its boot');
+  // the shed's Roll out is the game's own #bGo (editor.js's #edRoll presses it), and the garage bridge's rollOut
+  if (typeof handlers['bGo'] !== 'function' || typeof G.rollOut !== 'function') throw new Error('#bGo / garageApi.rollOut are not wired');
+  handlers['bGo'](); frames(5); G.rollOut();
+  frames(10);
+  if (!G.inGarage()) throw new Error('Roll out left the phone garage (profile.js fly none: there is no world)');
+  if (W.FLYDIY_TRIPS && W.FLYDIY_TRIPS.some(t => t && t.kind === 'rollout')) throw new Error('a roll-out trip ran on the phone');
+  console.log('the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after ' + 10 + ' frames)');
+  // phone.css: every rule under html.phone, or a default that HIDES one of the phone's own elements
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'phone.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  if (!html.includes('html.phone #phTabs button.on')) throw new Error('index.html does not carry phone.css');
+  const OWN = /^(#phTabs|#phBubble(\.fine|\[hidden\])?|\.phKnob|\.phStep)$/;
+  const bad = [], seen = [];
+  // a selector list split at its top-level commas (the ones inside :is( ) belong to their selector)
+  const topCommas = t => { const out = []; let d = 0, b0 = 0;
+    for (let k = 0; k < t.length; k++) { const c = t[k]; if (c === '(') d++; else if (c === ')') d--; else if (c === ',' && !d) { out.push(t.slice(b0, k)); b0 = k + 1; } }
+    out.push(t.slice(b0)); return out.map(x => x.trim()).filter(Boolean); };
+  const walk = (src, inMedia) => {
+    let i = 0;
+    while (i < src.length) {
+      const o = src.indexOf('{', i); if (o < 0) break;
+      const sel = src.slice(i, o).trim();
+      let d = 1, j = o + 1; while (j < src.length && d) { if (src[j] === '{') d++; else if (src[j] === '}') d--; j++; }
+      const body = src.slice(o + 1, j - 1);
+      if (/^@media/.test(sel)) walk(body, true);
+      else for (const one of topCommas(sel)) {
+        seen.push(one);
+        const okHide = OWN.test(one) && /display\s*:\s*none/.test(body);
+        const okBubble = /^#phBubble/.test(one);   // the bubble exists only on the phone (phone.js makes it)
+        if (!(/^html\.phone(\b|[ .:#\[])/.test(one) || okHide || okBubble)) bad.push(one);
+      }
+      i = j;
+    }
+  };
+  walk(css, false);
+  if (bad.length) throw new Error('phone.css: rules that are not the phone\'s alone (they would reach the desktop): ' + bad.join(' | '));
+  console.log('phone.css: ' + seen.length + ' selectors, every one under html.phone (or hiding a phone-only element)');
+}
 (async () => {
 try {
   vm.runInContext(coreBlock, sandbox, { filename: 'core.js' });      // physics + codec
@@ -355,6 +408,12 @@ try {
     mount(b, H) { this.mountMeter(b, H); this.mountLog(b, H); },
     mountMeter(b, H) { H.row(b, 'fps meter'); H.pills(b, [{ label: 'off' }, { label: 'on' }], () => false, () => {}); },
     mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
+  // G2104: the profile, before the graphics menu (its preset) and app.js (its boot) - the desktop's on the plain run
+  sandbox.window.location = { search: PHONE ? '?profile=phone' : '' };
+  vm.runInContext(profileBlock, sandbox, { filename: 'profile.js' });
+  delete sandbox.window.location;
+  if ((sandbox.window.PROFILE && sandbox.window.PROFILE.name) !== (PHONE ? 'phone' : 'desktop'))
+    throw new Error('profile.js: the page is on ' + (sandbox.window.PROFILE && sandbox.window.PROFILE.name) + ', expected ' + (PHONE ? 'phone' : 'desktop'));
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'),
                   sandbox, { filename: 'gfx_settings.js' });
   // THE SOUND (G1600): audio_params.js and audio.js ride the RENDER block too - run from their own source, so the rail's
@@ -375,7 +434,9 @@ try {
     const steps = B.log.filter(e => e.k === 'step').map(e => e.id);
     // B9 (G1020): the sync in its three (snapshot, C4a's bake - a no-op without the module -, spec) and THE WORLD in the
     // one loading (the roll-out screen's steps, then the aeroplane's programs in its light, the world drawn once)
-    const want = ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'world', 'town', 'parking', 'trees', 'ring', 'settle', 'parked',
+    const want = PHONE   // G2100: the phone garage boots the garage alone (profile.js boot 'garage': the study's §1.2 table)
+      ? ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'snapshot', 'spec', 'restore', 'compile', 'firstFrame', 'recheck']
+      : ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'world', 'town', 'parking', 'trees', 'ring', 'settle', 'parked',
       'snapshot', 'bake', 'spec', 'restore', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft', 'recheck'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
     if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
     if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
@@ -383,6 +444,7 @@ try {
     if (!els['boot'].classList.contains('gone')) throw new Error('#boot did not get .gone');
     console.log('the loading screen: ' + steps.length + ' steps in order, lifted on frame ' + B.log.find(e => e.k === 'ready').t);
   }
+  if (PHONE) { phoneChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
   // attention - a gentle pulsing animation (prefers-reduced-motion: a static highlight instead). No pulse while
@@ -1142,7 +1204,7 @@ try {
   console.log('GATE UISMOKE: PASS');
 } catch (e) {
   console.log(e.stack ? e.stack.split('\n').slice(0, 4).join('\n') : String(e));
-  console.log('GATE UISMOKE: FAIL');
+  console.log('GATE ' + (PHONE ? 'UISMOKE-PHONE' : 'UISMOKE') + ': FAIL');
   process.exit(1);
 }
 })();

@@ -159,6 +159,9 @@ const GATES = [
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'SKIN', file: 'test_skin.js', tier: 'core' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js', tier: 'core', wall: 220 },
+  // G2104 (MOBILE-GARAGE 1): THE SAME SMOKE ON THE PHONE PROFILE (?profile=phone): the garage-only boot's steps in order,
+  // no world, no sim worker, no roll-out, the lightest preset; phone.css scoped to html.phone selector by selector
+  { id: 'UISMOKE-PHONE', file: 'test_ui_smoke.js', argv: ['--phone'], tier: 'core', wall: 60 },
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
@@ -708,7 +711,7 @@ for (const g of selected) {
     const key = n > 1 ? `${g.id}/${i}` : g.id;
     const rec = wallTab[key] && wallTab[key][mode];
     jobList.push({ gate: g, key, shard: n > 1 ? { i, n } : null,
-                   argv: n > 1 ? [`--shard=${i}/${n}`] : [],
+                   argv: (n > 1 ? [`--shard=${i}/${n}`] : []).concat(g.argv || []),   // G2104: a row's own arguments (UISMOKE-PHONE)
                    weight: Math.min(jobs, g.weight || 1),
                    expect: rec != null ? rec : (g.wall || 5) / n });
   }

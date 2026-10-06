@@ -4886,6 +4886,12 @@
   // Flight and the plain stand view keep left-drag orbit only.
   const edPan = new THREE.Vector3();
   let panD = null;
+  // G2101 (MOBILE-GARAGE 1): THE PHONE'S VIEW GESTURES (profile.js ui 'touch'; on the desktop profile false and nothing
+  // below changes). One finger orbits and two pinch, as ever; on the phone the two fingers also PAN the orbit centre in
+  // the screen plane (the mouse's middle / right drag - R20), a pinch's end never jumps the orbit (the finger left
+  // standing takes over from where it is), and a double tap re-centres (the mouse's dblclick)
+  const TOUCH_UI = !!(typeof window !== 'undefined' && window.PROFILE && window.PROFILE.is && window.PROFILE.is('ui', 'touch'));
+  let pinchMid = null, tapT = 0;
   canvas.addEventListener('pointerdown', e => {
     flReveal = 0;                      // a hand on it ends the roll-out shot
     if (!inGarage && director.on) director.stop();   // A9: ...and the director's cuts
@@ -4909,6 +4915,7 @@
     if (touches.size === 2) {
       const [a, b] = [...touches.values()];
       pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = dist;
+      if (TOUCH_UI) { pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, base: edPan.clone() }; downAt = null; }   // G2101: two fingers are never a tap
     }
   });
   canvas.addEventListener('contextmenu', e => {
@@ -5012,7 +5019,9 @@
   let downAt = null;
   const HOVER_MS = 110;
   let hoverT = 0;
-  const endTouch = e => { panD = null; touches.delete(e.pointerId); };
+  const endTouch = e => { panD = null; touches.delete(e.pointerId);
+    // G2101: the finger left standing after a pinch orbits from where it IS (it was a jump to its old place)
+    if (TOUCH_UI) { pinchMid = null; if (touches.size === 1) { const [r] = [...touches.values()]; px = r.x; py = r.y; } } };
   // THE SWITCHES WORK IN THE SHED'S INTERIOR (G305, the user: "the controls
   // should be triggerable like in flight in interior view, so I could also
   // test the buttons, their effect, the lighting"). From the pilot's eye a
@@ -5044,6 +5053,9 @@
   // (a declaration, hoisted: loop() asks it too)
   function bbProp() { return (inGarage && hangar && hangar.mobileProp) ? hangar.mobileProp('boombox') : null; }
   canvas.addEventListener('pointerup', e => {
+    // G2101: a double tap on the phone re-centres the orbit, as the mouse's dblclick does (a tap is still a pick)
+    if (TOUCH_UI && e.pointerType === 'touch' && downAt && edSit.visible && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 10) {
+      const now = Date.now(); if (now - tapT < 320) { edPan.set(0, 0, 0); tapT = 0; } else tapT = now; }
     if (downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500) {
@@ -5096,6 +5108,13 @@
       if (pinch0 > 0) distT = Math.max(edEyeOn() ? 0.12 : ORBIT_MIN,
         Math.min(edEyeOn() ? 3 : 200, dist0 * pinch0 / Math.max(20, d)));
       if (!edEyeOn()) setNear(distT < 3 ? Math.max(0.06, distT * 0.2) : CAM_NEAR);
+      // G2101: ...and the pair's midpoint pans the orbit centre (in the shed, outside the cabin), as the mouse's pan does
+      if (TOUCH_UI && pinchMid && edSit.visible && !edEye) {
+        const wpp = 2 * dist * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, canvas.clientHeight || canvas.height);
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+        edPan.copy(pinchMid.base).addScaledVector(right, -((a.x + b.x) / 2 - pinchMid.x) * wpp).addScaledVector(up, ((a.y + b.y) / 2 - pinchMid.y) * wpp);
+      }
     }
   });
   // leaving the render clears the hover: a tint that outlives the pointer
@@ -7317,6 +7336,7 @@
   if (typeof window !== 'undefined') window.CERT_STATE = () => ({ last: certLast, pending: !!certJob, cached: certCache.size,
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
@@ -11969,12 +11989,18 @@
   // SIMW-BENCH (G1095-G1099, the box 2026-09-30): KEPT - as even as inline at the 30 the cap settles on, the same frames,
   // the page's loop 19.5 -> 13.8 ms (Cub) / 22.7 -> 13.6 ms (metal Cessna); 60 holds on neither path (HANDOVER G1095-G1099)
   const SIMW_DEFAULT = true;
+  // G2100 (MOBILE-GARAGE 1): THE PHONE PROFILE BOOTS THE GARAGE ALONE (profile.js 'phone': boot 'garage', fly 'none').
+  // Every use below is a SUBTRACTION from the desktop's boot, and on the desktop profile this is false and the page
+  // runs exactly as it did: the world's boot rows, the parked cook, the flown bake, the world's compile / frames, the
+  // craft's programs, the recheck's re-plan (with bake and craft out it would run the flown bake - the study's §1.3),
+  // the sim worker, the setup screen (the flight's options and its Fly) and the roll-out itself
+  const GARAGE_ONLY = !!(typeof window !== 'undefined' && window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage'));
   // G1898: ?damage=1|0 - the damage layer for this page's flights (and the worker's, through its init), ahead of
   // GEN_DAMAGE_DEFAULT; a build's own params.damage still wins
   try { const m = /[?&]damage=([01])(&|$)/.exec(location.search || ''); if (m) window.FLYDIY_DAMAGE = m[1] === '1'; } catch (e) {}
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
-  const SIMW = (SIMW_ON && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
+  const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
     get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
@@ -12323,7 +12349,7 @@
   // first time you roll out (rollOutScreen below), with the tree ring, the
   // atlases and the world's shaders. Only the tree bins are asked for now,
   // so they are in by the time the ring is grown.
-  bootStep('treeBins', 'the tree models', 1, () => { if (typeof treeWarm === 'function') treeWarm().catch(() => {}); });
+  bootStep('treeBins', 'the tree models', 1, () => { if (!GARAGE_ONLY && typeof treeWarm === 'function') treeWarm().catch(() => {}); });   // G2100: no trees in the phone garage
   bootStep('aircraft', 'building your aeroplane', 6, () => {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
@@ -12366,7 +12392,7 @@
     }
     setAircraft('gen');
   });
-  bootStep('garage', 'raising the shed', 15, () => { enterGarage(); setupOpen(); });   // B8: the setup screen from here (the shed and the aeroplane stand)
+  bootStep('garage', 'raising the shed', 15, () => { enterGarage(); if (!GARAGE_ONLY) setupOpen(); });   // (G2100: the phone garage has no flight to set up)   // B8: the setup screen from here (the shed and the aeroplane stand)
   // THE EDITOR IS HELD FROM ITS BOOT TO THE END OF THE SEED (G995; parked.js holdEditor's lesson, A4-FREEZE). The
   // page's own first build (CAGE_UI_BOOT) arms the editor's timers - the autosave's touch, BENCH_DIRTY's fingerprint,
   // the energy layer's 120 ms commitLater -> GARAGE_SPEC.update - and those used to fire after the seed, in the same
@@ -12425,13 +12451,13 @@
   // B9 (G1020): THE WORLD, IN THE ONE LOADING - its build, the town and its parked aeroplanes, the forest ring, the world
   // at rest round the stand - BEFORE the build is committed: the parked aeroplanes' captures put the player's build back
   // through the editor, and the build's export moves after them; committed first, the first roll-out found it changed
-  for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);
+  if (!GARAGE_ONLY) for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);   // G2100
   // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
   // empty holders at the world step (the editor did not exist yet); each is
   // captured now through the editor - a round trip, the user's build put back
   // - under the loading screen, where the seconds belong. PARKED.ready after
   // this: a build the world editor parks later captures on the spot.
-  bootStep('parked', 'parking the other aeroplanes', 8, () => {
+  if (!GARAGE_ONLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
@@ -12442,9 +12468,9 @@
   bootStep('snapshot', 'committing the build', 10, () => { tripSync = null;
     // (each kick in a task of its own: the gathers walk whole scenes, and the shed's key environment is a PMREM render -
     // one task with the commit's first slice was 1.0-1.3 s on the GPU box)
-    setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);
+    if (!GARAGE_ONLY) setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);   // (G2100: no world to prelink)
     return tripRun(TRIP_BY.snapshot, bootTrip); });
-  bootTripStep('bake');
+  if (!GARAGE_ONLY) bootTripStep('bake');   // G2100: the flown bake is a roll-out's
   // G1085 (LOAD-COMPILE): the flown model is built here - its programs (in the world's lights, and in the shed as the
   // roll-out shot dresses it) start linking now, under the world's compile, the shed's and first light; 'craft' waits
   const specStep = TRIP_BY.spec;
@@ -12465,7 +12491,7 @@
   // boot's screen round the stand the route names (standAnchor: the aeroplane is still in the shed), then the
   // aeroplane's programs in the world's lights; the shed compiles and lights up after them, and the world is drawn
   // once from the stand at the end. The first roll-out finds every key unchanged.
-  for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (B9: the rest of the world's steps: see 'settle' above the commit)
+  if (!GARAGE_ONLY) for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (G2100: none in the phone garage)   // (B9: the rest of the world's steps: see 'settle' above the commit)
   // THE SHADERS COMPILE IN PARALLEL (LOADING S2, G407). Every program used
   // to be compiled synchronously on its first draw: measured 25 s of a cold
   // boot inside three's link-status query. renderer.compileAsync issues every
@@ -12939,18 +12965,19 @@
     if (typeof renderer.compileAsync !== 'function' || !hangar) return;   // (the harness: nothing to warm, the boot stays synchronous)
     return new Promise(res => setTimeout(res, 0)).then(() => compileXrayVariants());
   });
-  bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
+  if (!GARAGE_ONLY) bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
   // ...and the aeroplane's programs in the world's light LAST: the parked batch's restore is followed by the editor's
   // autosave commit and the energy layer's re-placed tanks (_cage_energy commit -> GARAGE_SPEC.update: the flying model
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
-  bootTripStep('craft');
+  if (!GARAGE_ONLY) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
   // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
   // sizing, the energy layer re-places the tanks - and the export moves a hair after it (the metal Cessna's tail stabH
   // 0.04729 -> 0.04720, converged after one more sync). The loading re-plans the aircraft's keyed steps once at its end
   // and runs what moved, under the same screen: the first roll-out then finds nothing to do.
   bootStep('recheck', 'your aeroplane, as it settled', 2, () => {
     tripSync = null;
+    if (GARAGE_ONLY) return;   // G2100: re-planning with bake and craft out would run the flown bake here (the study, §1.3)
     const plan = tripPlan('craft'); if (!plan.length) return;
     const t = tripOpen('recheck');
     let p = null;
