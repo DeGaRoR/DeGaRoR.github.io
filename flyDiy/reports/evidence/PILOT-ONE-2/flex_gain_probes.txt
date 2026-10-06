@@ -1,0 +1,8 @@
+{"attFilt":0.4} aluTube phase DOWNWIND V 36.2 de p2p 0.627 pitch p2p 7.49 deg  de reversals/s 4.1
+{"rateFilt":0.08} aluTube phase DOWNWIND V 36.1 de p2p 0.608 pitch p2p 7.16 deg  de reversals/s 4.4
+{"pitchP":1.5} aluTube phase DOWNWIND V 36.2 de p2p 0.584 pitch p2p 6.65 deg  de reversals/s 4.6
+{} aluTube phase DOWNWIND V 36.2 de p2p 0.585 pitch p2p 6.53 deg  de reversals/s 4.6
+{"slew":1.5} aluTube phase DOWNWIND V 36.3 de p2p 0.317 pitch p2p 4.37 deg  de reversals/s 4.8
+{"pitchD":0.5,"pitchP":1.5} aluTube phase DOWNWIND V 36.4 de p2p 0.001 pitch p2p 0.04 deg  de reversals/s 0.0
+{"pitchD":0.5} aluTube phase DOWNWIND V 36.3 de p2p 0.300 pitch p2p 2.81 deg  de reversals/s 6.9
+after (G1949 detector): aluTube phase DOWNWIND V 36.4 de p2p 0.004 pitch p2p 0.09 deg  de reversals/s 7.3

@@ -450,6 +450,8 @@ const BENCH_FLIGHT_STEPS = {
   TAXI: 0, LINEUP: 1, ROLL: 1, LIFTOFF: 1, ABORT: 1, CLIMB: 2, DEPART: 3,
   ENROUTE: 3, CRUISE: 3, HOLD: 3, TURNBACK: 3, INBOUND: 4, APPROACH: 4,
   GOAROUND: 4, FLARE: 5, PUTDOWN: 5, ROLLOUT: 5, STOP: 5, STOPPED: 5,
+  // G1940 (PILOT-ONE): THE PILOT's own legs - the bench flies 43 only now
+  DOWNWIND: 3, BOX: 3, BASE: 4, FINAL: 4, GLIDE: 4,
 };
 function benchFlightStep(phase) {
   if (!phase) return 0;

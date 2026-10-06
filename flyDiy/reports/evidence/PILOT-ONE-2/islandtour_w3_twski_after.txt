@@ -1,0 +1,8 @@
+island_tour: the user's Cub (span 10.70 m), damage ON, 324 obstacles + 0 trunks in the world; w3 > w3 > tw_ski
+  ok   w3 > w3                401 s | dep: turned 138 deg, roll 31.5 m in, lift-off 95.1 m | final 2613.4 m / 208.4 m, clear 15.6 m (ground) | td sink 0.39 m/s, 19.4 m/s, run 160 m, off 0 m | fuel 43.9 L
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts 
+  ok   w3 > tw_ski            484 s | dep: turned 210.6 deg (U-turn), roll 31.4 m in, lift-off 95 m | final 2875.7 m / 447.9 m, clear 12.5 m (ground) | td sink -0.34 m/s, 17.1 m/s, run 75 m, off 0 m | fuel 42.1 L
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts slope: stopped on a 10.1 % grade — rolling 220 m on to the level part
+TOUR DONE - 2 legs, fuel left 42.1 L, 500 s wall
