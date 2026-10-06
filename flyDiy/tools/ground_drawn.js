@@ -52,6 +52,7 @@ const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fix
 const O = W.premises.overlay;
 const hAt = W.terrainH, hB = W.terrainHBuild || W.terrainH;   // the wheels' ground; the meshes' build read (G1406)
 const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+const lift0 = (src, a, b) => { const i = src.indexOf(a), j = i < 0 ? -1 : src.indexOf(b, i); if (i < 0 || j < 0) return 'const nearRunway = () => false;\n'; return src.slice(i, j); };
 
 // ---- the patch, its chunks and its law lifted from render_premises.js (tools/_patch_law.js) --------------------------
 const PATCH = require(path.join(T, '_patch_law.js'))(O, PG, hB);
@@ -71,6 +72,8 @@ const fineOn = (x, z) => Math.max(Math.abs(x), Math.abs(z)) <= INNER - FR - FBAN
 
 // ---- the pavement, built as the game builds it (tools/ground_surface.js's meshes, the kind argument as the page) ------
 const MESHES = [];
+// (G2115: render_premises' nearRunway, lifted - which roads and polygons refine their rows)
+const nearRunway = new Function('O', 'PG', lift0(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), '  const REFINE_NEAR = ', '  const pavSeed = ') + 'return nearRunway;')(O, PG);
 function indexMesh(name, kind, order, g) {
   const pos = g.attributes.position.array, idx = g.index.array, pav = g.attributes.aPav ? g.attributes.aPav.array : null;
   const CELL = 4, cells = new Map(); let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -104,13 +107,14 @@ function meshAt(M, x, z) {
     const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
     const RS = PAV.resolve(rd, rec, L), pr = PG.polyRoad(rd.pts, rd.w);
     indexMesh('road:' + rd.id, 'road', 3, PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: 1,
-      toWorld: (x, z) => O.frame.toWorld(x, z), heightAt: hB, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), sinkD0: PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') }));
+      toWorld: (x, z) => O.frame.toWorld(x, z), heightAt: hB, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), sinkD0: PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road'),
+      liftAt: PAV.liftOver ? PAV.liftOver(O.pavedAt, rd.id) : null, refine: nearRunway(rd.pts) }));
   }
   for (const pp of O.pavePolys || []) {
     const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
     const RS = PAV.resolve(pp, rec, L), poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
     indexMesh('pave:' + pp.id, 'apron:' + RS.cls, 2 + (pp.z || 0) * 0.01, PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: 1, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt: hB, lift: 0.08, res: 2,
-      yaw: (pp.yaw || 0) + O.frame.yaw, sinkD0: PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') }));
+      yaw: (pp.yaw || 0) + O.frame.yaw, sinkD0: PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly'), liftAt: PAV.liftOver ? PAV.liftOver(O.pavedAt, pp.id) : null, refine: RS.cls !== 'grass' && nearRunway(pp.poly) }));
   }
   for (const a of W.aerodromes) {
     if (!a.len || !a.wid || a.kind === 'water') continue;
@@ -118,7 +122,8 @@ function meshAt(M, x, z) {
     if (!LKp || !LKp.cls) continue;
     const RS = PAV.resolve(a.premises ? a : null, a.premises ? rec : null, LKp);
     indexMesh('strip:' + a.id, 'strip:' + RS.cls, 1.99, PAV.stripGeometry(THREE, { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: 1,
-      heightAt: W.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: a.premises && O.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null }));
+      heightAt: W.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: a.premises && O.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
+      liftAt: a.premises && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, a.id) : null }));
   }
 }
 // THE DRAWN GROUND at (x, z): { y, kind, fu, fv (the position in the cell of the lattice on top) }

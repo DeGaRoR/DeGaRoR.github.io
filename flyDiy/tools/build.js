@@ -410,6 +410,7 @@ const MANIFEST = {
               'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears
               'pavement.js',
+              'ground_tier.js',   // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane - render_world.js drives it
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it

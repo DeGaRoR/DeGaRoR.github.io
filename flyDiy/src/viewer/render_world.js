@@ -48,6 +48,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
+  let groundTier = null;              // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane (ground_tier.js; its update, its state)
+  // G2115: THE LAYER UNDER THE CONTACT TIER sinks its vertices inside it by one of these (the ground hook's uTier: x, z,
+  // half - cell, drop; z 0 = off) - the premises patch's materials take .patch (render_premises opts.tierU), the fine tiles
+  // .fine; every other ground program keeps the hook's own (off): the ring discards inside the fine disc, and the far
+  // terrain's leaves (5-80 m) must never be dragged
+  const TIER_U = { patch: { value: new THREE.Vector4(0, 0, 0, 0) }, fine: { value: new THREE.Vector4(0, 0, 0, 0) } };
   let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
   let farSinkOn = false;              // G527: the far terrain sinks under a premises' patch once the patch stands (farLod.resink; premisesR is not declared yet when the first cut is built)
@@ -1790,6 +1796,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
         uLStart: { value: stackStart() },
         uFine: { value: new THREE.Vector4(0, 0, 0, 120) },   // the fine disc (TERRAIN FOLLOW-UP 2): centre, radius (0 = off), the geomorph band
+        uTier: { value: new THREE.Vector4(0, 0, 0, 0) },     // G2115: the contact tier's sink - off here (TIER_U: the patch's and the fine tiles' own)
         // THE ROCK MAP (rock_map.js): the rocks' top view over 2 km round the eye, read where the cover ring's meshes have faded
         uRockMap: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; })() },
         uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
@@ -1838,10 +1845,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SP ? SP.uniforms : {});
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nuniform vec4 uTier;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz;\n' +
+            // G2115 (TERRAIN-MATCH): UNDER THE CONTACT TIER (ground_tier.js) a vertex more than a cell inside its square goes uTier.w
+            // under - every triangle it is in lies inside the square, under the tier (translation-only model matrices: the patch's
+            // blocks, the tiles). Off (uTier.z 0) for every material but the patch's and the fine tiles' (TIER_U)
+            '{ vec2 tD = abs(vWPi.xz - uTier.xy); if (max(tD.x, tD.y) < uTier.z) { transformed.y -= uTier.w; vWPi.y -= uTier.w; } }');
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
@@ -2029,6 +2040,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
+      tier: () => groundTier,   // G2115: the contact tier (its dials S, mode, centre, stats) for the rigs and F8
       ringLod: () => ringLod,   // the inner ring's chunks: tolPx / minQuads / rimE dials, stats (PERF 2026-09-23)
       farLod: () => farLod,   // the far terrain's cut: tolPx / budget dials, stats (nodes, tris, rebuilds)
       rockMap: () => (rockMap ? rockMap.api : null),
@@ -2397,7 +2409,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const FINE = { on: !!islandGroundHook, R: 700, band: 120, T: 160, step: 5, tiles: new Map(), mat: null, budget: 6, off: (typeof location !== 'undefined' && /[?&]fine=0/.test(location.search)) };   // ?fine=0: the ring alone (the A/B)
     if (FINE.on) {
       FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
-      FINE.mat.onBeforeCompile = islandGroundHookFine; islandKeyed(FINE.mat, 'island-fine');
+      FINE.mat.onBeforeCompile = sh => { islandGroundHookFine(sh); sh.uniforms.uTier = TIER_U.fine; }; islandKeyed(FINE.mat, 'island-fine');   // (G2115: the tier's sink, its own)
       const SEG = 2 * INNER / 512, RP = geo.attributes.position, RN = geo.attributes.normal, RW = 513;
       // the ring's surface at (x, z): its own triangles (PlaneGeometry's a-b-d / b-c-d split, the
       // diagonal from (ix, iy+1) to (ix+1, iy)) and its own vertex normals, so the tile's rim is the ring
@@ -2468,6 +2480,76 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
     }
     fineRing = FINE;
+
+    // G2115 (TERRAIN-MATCH): THE CONTACT TIER - the 1 m ground under the aeroplane, from terrainH itself (ground_tier.js says
+    // how it sits in the layer it replaces). Two layers can be under it: the premises' patch at its 2 m level ('patch0' /
+    // 'patch1', the chunk's material kind) where the whole square is ring1 + its half-diagonal deep in the patch (the patch
+    // untucked, the fine tiles 4 m under it), or the fine tiles where no chunk of the patch is near (a meadow, a wreck by the
+    // trees). Elsewhere (the far terrain off the premises, a patch's border) there is none: the ground is what it was
+    if (FINE.on && typeof GROUND_TIER !== 'undefined') {
+      const GT = GROUND_TIER, TS = GT.S;
+      const TIER = { S: TS, mesh: null, mode: null, key: '', job: null, cgPrev: null, stats: { builds: 0, ms: 0, slices: 0 }, centre: null, uArgs: null };
+      let fineTierMat = null;
+      const fineMatTier = () => { if (fineTierMat) return fineTierMat;
+        const m = FINE.mat.clone(); m.onBeforeCompile = islandGroundHookFine; islandKeyed(m, 'island-fine');   // the fine program, the hook's own uTier (off)
+        m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; return (fineTierMat = m); };
+      const Hf = (x, z) => world.terrainH(x, z) - groundSink(x, z);   // FINE.build's H
+      const fineUV = (x, z) => (islandUV ? islandUV(x, z) : [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]);
+      const modeAt = (cx, cz) => {
+        const P = premisesR;
+        if (P && P.patchCovers && P.tier && P.patchCovers(cx, cz)) {
+          const h = TS.patch.half;
+          if (P.patchDepth(cx, cz) < (P.tuck ? P.tuck.ring1 : 28) + h * Math.SQRT2) return null;
+          const k = P.tier.kindAt(cx, cz);
+          for (const [x, z] of [[cx - h, cz - h], [cx + h, cz - h], [cx - h, cz + h], [cx + h, cz + h]]) if (P.tier.kindAt(x, z) !== k || !P.tier.mat(k)) return null;
+          return 'patch' + k;
+        }
+        const h = TS.fine.half;
+        if (P && P.patchCovers) for (let x = cx - h - 64; x <= cx + h + 64; x += 32) for (let z = cz - h - 64; z <= cz + h + 64; z += 32) if (P.patchCovers(x, z)) return null;
+        if (Math.max(Math.abs(cx), Math.abs(cz)) > INNER - FINE.R - FINE.band - 50 - 2 * h) return null;   // (the disc is off there)
+        return 'fine';
+      };
+      const specFor = (mode, cx, cz) => {
+        if (mode === 'fine') return { cx, cz, half: TS.fine.half, step: TS.fine.step, cell: FINE.step, layer: GT.lattice(FINE.step, Hf), base: Hf, sink: () => 0, nR: 2.5, uv: fineUV, coarse: true, mat: fineMatTier() };
+        const P = premisesR.tier, k = +mode.slice(5), uvOf = P.uv(k) || (() => [0, 0]);
+        return { cx, cz, half: TS.patch.half, step: TS.patch.step, cell: P.cell, layer: GT.lattice(P.cell, P.layerY), base: P.base, sink: P.sink, nR: P.nR, uv: uvOf, coarse: false, mat: P.mat(k) };
+      };
+      const setU = (mode, cx, cz, half, cell) => {
+        const u = mode ? GT.sinkU(cx, cz, half, cell) : null;
+        TIER_U.patch.value.set(...(mode && mode !== 'fine' ? u : [0, 0, 0, 0]));
+        TIER_U.fine.value.set(...(mode === 'fine' ? u : [0, 0, 0, 0]));
+      };
+      const hide = () => { if (TIER.mesh && TIER.mesh.visible) TIER.mesh.visible = false; setU(null); };
+      TIER.invalidate = () => { TIER.key = ''; TIER.job = null; hide(); };   // (a live edit moved the ground)
+      TIER.update = (cg, fdt) => {
+        if (!TS.on || !cg) { hide(); return; }
+        const prev = TIER.cgPrev, v = prev && fdt > 0 ? Math.hypot(cg[0] - prev[0], cg[2] - prev[2]) / fdt : 0;
+        TIER.cgPrev = [cg[0], cg[1], cg[2]];
+        const cam = camera.position;
+        if (cg[1] - world.terrainH(cg[0], cg[2]) > TS.agl || v > TS.vmax || Math.hypot(cam.x - cg[0], cam.z - cg[2]) > TS.eye) { hide(); return; }
+        const [cx, cz] = GT.centreOf(cg[0], cg[2]), key = cx + ',' + cz;
+        if (key !== TIER.key && (!TIER.job || TIER.job.key !== key)) {
+          const mode = modeAt(cx, cz);
+          TIER.job = mode ? { key, cx, cz, mode, spec: null, gen: null } : null;
+          if (!mode) { TIER.key = key; TIER.mode = null; hide(); return; }
+          TIER.job.spec = specFor(mode, cx, cz); TIER.job.gen = GT.build(THREE, TIER.job.spec);
+        }
+        if (TIER.job) {
+          const t0 = performance.now(); let r;
+          do { r = TIER.job.gen.next(); } while (!r.done && performance.now() - t0 < TS.budgetMs);
+          TIER.stats.ms += performance.now() - t0; TIER.stats.slices++;
+          if (r.done) {
+            const J = TIER.job, out = r.value;
+            if (!TIER.mesh) { TIER.mesh = new THREE.Mesh(out.geometry, J.spec.mat); TIER.mesh.name = 'ground:tier'; TIER.mesh.receiveShadow = true; TIER.mesh.renderOrder = -0.45; TIER.mesh.matrixAutoUpdate = false; scene.add(TIER.mesh); }
+            else { const old = TIER.mesh.geometry; TIER.mesh.geometry = out.geometry; TIER.mesh.material = J.spec.mat; if (old) old.dispose(); }
+            TIER.mesh.position.set(J.cx, out.y0, J.cz); TIER.mesh.updateMatrix(); TIER.mesh.visible = true;
+            setU(J.mode, J.cx, J.cz, J.spec.half, J.spec.cell);
+            TIER.key = J.key; TIER.mode = J.mode; TIER.centre = [J.cx, J.cz]; TIER.uArgs = [J.mode, J.cx, J.cz, J.spec.half, J.spec.cell]; TIER.job = null; TIER.stats.builds++;
+          }
+        } else if (TIER.mode && TIER.mesh && !TIER.mesh.visible) { TIER.mesh.visible = true; setU(...TIER.uArgs); }
+      };
+      groundTier = TIER;
+    }
 
     yield 'far terrain';
     if (world.island && world.island.farRoot) {
@@ -6217,6 +6299,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         eye: () => camera.position,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
         renderer: premRenderer, camera: premCamera,
+        tierU: TIER_U.patch,   // G2115: the patch under the contact tier sinks by it
       });
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
@@ -6386,7 +6469,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
         const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
-          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null };
+          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
+          liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null };   // G2115: no lift over another pavement
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
@@ -6577,6 +6661,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
     if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
+    if (groundTier) groundTier.invalidate();   // G2115: the contact tier stood on the ground as it was
     if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
     if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
   }
@@ -6606,6 +6691,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
+    if (groundTier && cg) groundTier.update(cg, fdt);   // G2115: the 1 m ground follows the aeroplane (TERRAIN-MATCH)
     if (ringLod) ringLod.update();
     if (typeof propInstUpdate === 'function') propInstUpdate(camera);   // the instanced props: their levels from the eye (props.js G515)   // the ring's chunks, their level from the eye (PERF 2026-09-23)
     if (farLod) farLod.update();     // the far terrain's cut follows the eye (a quadrant or two a frame when it changes)
@@ -7054,7 +7140,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
         ...patchGrounds(),
-        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position, renderer: premRenderer, camera: premCamera,
+        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position, renderer: premRenderer, camera: premCamera, tierU: TIER_U.patch,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },
            setShedDims: d => setShedDims(d),

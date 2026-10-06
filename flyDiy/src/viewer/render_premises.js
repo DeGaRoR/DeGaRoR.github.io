@@ -500,7 +500,19 @@ function make(THREE, scene, world, rec0, opts) {
   // distance to the nearest UNBUILT neighbour chunk (the 40 m fade fits inside one chunk).
   let patch = null, patchKey = '', patchAct = null;
   const patchMatOwn = [null, null];   // G527: [the patchMat's clone, the patchMat2's] - see patchKind
+  const patchMatTier = [null, null];  // G2115: the contact tier's copies of the two (ground_tier.js)
+  let patchMatOf = null;              // (buildPatchSteps' matOwn: the tier asks it for its copy)
   const PCH = 64;
+  // G2115 (TERRAIN-MATCH): A STRIP'S OVER-RUN, where an aeroplane that does not stop rolls and its wreck lies - the strip's
+  // width carried `len` m past each end. The patch's border stood 70-100 m past nv_strip's, tw_ski's and mn_strip's ends,
+  // and there the drawn ground was the border's tuck (0.8 m under) or the far terrain (the raw DEM, up to 1 m off the graded
+  // ground): tools/dmg_settle_terrain.js's 0.4-0.7 m over-runs, tools/terrain_match.js's -214 / +1005 mm. Marked with a
+  // margin `m`, every point of the over-run lies m deep in the patch (a chunk is marked when its centre is within m + HALFD
+  // of the box): past the border's two laws (PATCH_TUCK.ring1, 28 m: the tuck and the ring's sink both done) by the contact
+  // tier's half-diagonal (ground_tier.js S.half 20: 28.3 m) - the tier stands wherever an aeroplane stops in it
+  const PATCH_OVERRUN = { len: 100, m: 64 };
+  const overrunBox = r => { const E = PG.runwayEnds(r), L = PATCH_OVERRUN.len, hw = r.wid / 2, a = [E.end0[0] - E.d[0] * L, E.end0[1] - E.d[1] * L], b = [E.end1[0] + E.d[0] * L, E.end1[1] + E.d[1] * L];
+    return [[a[0] + E.n[0] * hw, a[1] + E.n[1] * hw], [b[0] + E.n[0] * hw, b[1] + E.n[1] * hw], [b[0] - E.n[0] * hw, b[1] - E.n[1] * hw], [a[0] - E.n[0] * hw, a[1] - E.n[1] * hw]]; };
   function activeChunks(b) {
     const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j;
     const i0 = Math.floor(b.x0 / PCH), i1 = Math.floor(b.x1 / PCH), j0 = Math.floor(b.z0 / PCH), j1 = Math.floor(b.z1 / PCH);
@@ -524,7 +536,10 @@ function make(THREE, scene, world, rec0, opts) {
     for (const s of L.surface) markPoly(s.poly, 4);
     for (const m of L.material) markPoly(m.poly, (+m.fade || 0) + 4);
     for (const r of L.roads) if (r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
-    for (const r of O.runways || []) { if (PG.runwayIsWater && PG.runwayIsWater(r)) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4); }
+    for (const r of O.runways || []) { if (PG.runwayIsWater && PG.runwayIsWater(r)) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4);
+      // G2115 (TERRAIN-MATCH): THE OVER-RUNS ARE THE PATCH'S - its border (the tuck, the ring's crossing dip under it) never
+      // within PATCH_OVERRUN.m of a strip's width carried PATCH_OVERRUN.len past either end
+      markPoly(overrunBox(r), PATCH_OVERRUN.m); }
     for (const z of L.zones) markPoly(z.poly, 40);
     for (const st of L.sites) { const a = st.at || { x: 0, z: 0 }; let r = 80; for (const it of st.items || []) r = Math.max(r, Math.hypot(it.x || 0, it.z || 0) + 40); if (st.yard) r = Math.max(r, Math.hypot(st.yard.x1 || 0, st.yard.z1 || 0) + 40, Math.hypot(st.yard.x0 || 0, st.yard.z0 || 0) + 40); markBox({ x0: a.x - r, z0: a.z - r, x1: a.x + r, z1: a.z + r }, 0); }
     for (const ob of L.objects) markBox({ x0: ob.x, z0: ob.z, x1: ob.x, z1: ob.z }, 30);
@@ -580,7 +595,8 @@ function make(THREE, scene, world, rec0, opts) {
     const P = PATCH_TUCK;
     let k = 0;
     const q = O.pavedAt ? O.pavedAt(x, z, P.sideR1) : null;
-    if (q) { const d = q.dPre !== undefined ? q.dPre : q.d; if (d >= -P.sideR0) return P.drop; const t = (d + P.sideR1) / (P.sideR1 - P.sideR0); k = t * t * (3 - 2 * t); }
+    // (G2115: not under a grass road - PAVEMENT.translucent: its own tl margin, sinkAt's, is the gap; the 2 cm on top made it 9)
+    if (q && !(typeof PAVEMENT !== 'undefined' && PAVEMENT.translucent && PAVEMENT.translucent(q.cls, q.kind))) { const d = q.dPre !== undefined ? q.dPre : q.d; if (d >= -P.sideR0) return P.drop; const t = (d + P.sideR1) / (P.sideR1 - P.sideR0); k = t * t * (3 - 2 * t); }
     if (!lotZones) {
       lotZones = [];
       for (const zn of (O.rec && O.rec.layers && O.rec.layers.zones) || []) if (zn.poly && zn.poly.length >= 3 && PATCH_LOT_KINDS.indexOf(zn.kind) >= 0) lotZones.push(zn.poly);
@@ -602,6 +618,26 @@ function make(THREE, scene, world, rec0, opts) {
     return P.drop * k;
   }
   const ringSink = (x, z) => { const d = patchDepth(x, z), P = PATCH_TUCK; if (d <= P.ring0) return 0; const t = Math.min(1, (d - P.ring0) / (P.ring1 - P.ring0)); return P.sink * t * t * (3 - 2 * t); };
+  // G2115 (TERRAIN-MATCH): THE NEAR LEVEL'S SINK STAYS WHERE THE PAVEMENT HIDES IT. The deep sink rose from the opaque line
+  // (d0) in, so a vertex 1-2 m inside it was already 0.2-0.6 m down, and the 2 m triangles from it to its neighbours OUTSIDE
+  // the line - the ground seen through the pavement's torn edge and past it - sloped down to it: a pocket 5-13 cm deep along
+  // every pavement's edge, 0.4 m at mn_strip's stand and its over-run (tools/terrain_match.js: 'patch: a sunk vertex'),
+  // deeper still on a coarse budget (G1528's sink x the block's error). The NEAR level (2 m: under the aeroplane, the only
+  // level a wheel is seen on) sinks a vertex only where its whole 1-ring of triangles is under the opaque interior: the
+  // deep sink starts SINK0_IN (the cell's diagonal - pavedAt's depth is a distance, 1 m a metre) further in; the 7 cm
+  // pre-sink is the edge's law (G1001) and stays. The coarse levels keep the sink from the line (buildPatchSteps' Y: no
+  // level's error can pierce the pavement from afar, G660); the near level's error is nil by construction and its 7 + 2 cm
+  // stand it under the pavement's interior. The 1 m contact tier (ground_tier.js) takes the same law (nearY below)
+  let tierPavRK = null, tierPavRC = null;   // (the pavement recipe as buildPatchSteps reads it, kept while the record is)
+  const tierPavR = () => { if (tierPavRK !== O.rec) { tierPavRK = O.rec; tierPavRC = (typeof PAVEMENT !== 'undefined' && O.pavedAt) ? PAVEMENT.resolve(null, O.rec, null).recipe : null; } return tierPavRC; };
+  const sink0In = () => PL.res[0] * Math.SQRT2;   // SINK0_IN (read when the patch builds: this block is lifted alone by the rigs)
+  // Only under a pavement whose rows earn their spacing (refinedPave: every strip, an aerodrome's roads and opaque aprons -
+  // pavement.js REFINE: within 5 mm of terrainH, so 7 + 2 cm stand the patch clear of it). Under the town's roads (their 3 m
+  // rows unrefined on rough ground, a road too narrow to reach the deep sink with the margin) the near level keeps G660's
+  // sink from the opaque line: 227 points of Metlakatla's roads came within 5 mm of the patch without it (GATE CONTACT)
+  const sinkNear = (q, pavR) => q && pavR ? PAVEMENT.sinkAt(q.d - (refinedPave(q.id) ? sink0In() : 0), PAVEMENT.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre, PAVEMENT.translucent && PAVEMENT.translucent(q.cls, q.kind) ? PAVEMENT.SINK.tl : 0) : 0;
+  // the near level's vertex at (x, z) over the ground h there: buildPatchSteps' Y0 less sinkNear (the tier's law with terrainH)
+  const nearY = (h, x, z, pavR) => { const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW); return h - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r) - (pavR && O.pavedAt ? sinkNear(O.pavedAt(x, z), pavR) : 0); };
   let patchB = null;
   function patchDepth(x, z) {
     const A = patchAct, b = patchB; if (!A || !b) return 0;
@@ -634,15 +670,16 @@ function make(THREE, scene, world, rec0, opts) {
     lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
-    const matOwn = k => {
-      if (patchMatOwn[k]) return patchMatOwn[k];
+    const matOwn = (k, tier) => {
+      if (!tier && patchMatOwn[k]) return patchMatOwn[k];
+      if (tier && patchMatTier[k]) return patchMatTier[k];
       const base = (k ? o.patchMat2 : o.patchMat) || o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
       const M = base.clone(), inner = base.onBeforeCompile;
       // the material polygons ride in on top - unless the host says this ground has no units left for them
       // (patchInject2 false: the far terrain's material is 12 samplers and the polygons' map + four sets are
       // five more - 17 > MAX_TEXTURE_IMAGE_UNITS 16 fails the link and the chunks draw BLACK; G424's census)
       const inj = !(k && o.patchInject2 === false);
-      M.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); if (inj) injectMaterials(sh); };   // S4
+      M.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); if (inj) injectMaterials(sh); if (o.tierU && !tier) sh.uniforms.uTier = o.tierU; };   // S4; G2115: the patch under the contact tier sinks by the host's uniform (the tier's own copy does not)
       // ONE PROGRAM FOR ONE SOURCE (COLD-LINKS G1310): with no set injected (the far terrain's clone: patchInject2 false; or
       // no set painted) the clone's text IS its base's - ATMO.inject is idempotent, injectMaterials adds nothing - and its
       // own key made three link that ~100 KB ground program a second time, at the same instant (G1221: 48 + 49 s, cold).
@@ -651,8 +688,12 @@ function make(THREE, scene, world, rec0, opts) {
       const bk = base.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? () => base.customProgramCacheKey() : null;
       if (base.groundFamily) { M.groundFamily = base.groundFamily; base.groundFamily.add(M); }
       M.customProgramCacheKey = () => (bk && !(inj && NSLOT)) ? bk() : 'premises-patch-materials' + (k ? '-2' : '') + (inj ? '-s' + NSLOT : '') + (bk ? '|' + bk() : '');
+      // G2115: the contact tier's copy - the same program (the same text, the same key), its own uniforms (no sink), drawn
+      // over the patch it refines (coplanar at its edge) by a polygon offset
+      if (tier) { M.polygonOffset = true; M.polygonOffsetFactor = -1; M.polygonOffsetUnits = -1; return (patchMatTier[k] = M); }
       return (patchMatOwn[k] = M);
     };
+    patchMatOf = matOwn;
     // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says
     // which (the game: the inner ring's material and uv law inside the ring, the far terrain's past it). It
     // was ONE material for the whole record, chosen by its extent: the day a place was put 4.5 km out,
@@ -667,9 +708,11 @@ function make(THREE, scene, world, rec0, opts) {
     // ground as it was: the LOD errors and the normals are measured on it (the sink is never seen)
     const PAVs = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
     const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
-    const sinkOf = pavR ? (x, z) => { const q = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre) : 0; } : null;
+    let sinkQ = null;   // (G2115: the pavement sinkOf read last - the near level's sink reads it again)
+    const sinkOf = pavR ? (x, z) => { const q = sinkQ = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre, PAVs.translucent && PAVs.translucent(q.cls, q.kind) ? PAVs.SINK.tl : 0) : 0; } : null;   // (G2115: a grass road's margin)
+    const sink0Of = q => sinkNear(q, pavR);   // G2115: the near level's (sinkNear, above)
     let sunk = 0;
-    let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, Y1 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
@@ -682,6 +725,7 @@ function make(THREE, scene, world, rec0, opts) {
         // fight there (G434: the border tucks under the ring - G752's PATCH_TUCK)
         Y0[v] = groundB(x, z) - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
+        if (Y1 !== Y) Y1[v] = Y0[v] - sink0Of(sinkQ);   // G2115: the near level's
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
       if ((c & 7) === 7) yield 'patch ground';
@@ -697,8 +741,10 @@ function make(THREE, scene, world, rec0, opts) {
     }
     // ---- the blocks
     const blocks = new Map();
+    const chunkIdx = new Map(list.map((k, c) => [k, c]));   // (G2115: a chunk's neighbour, for the skirts between them)
+    const blockOf = c => { const [ci, cj] = list[c].split(',').map(Number); return KIND[c] + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block); };
     for (let c = 0; c < list.length; c++) {
-      const [ci, cj] = list[c].split(',').map(Number), bk = KIND[c] + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block);   // a block is one material (G527)
+      const [ci, cj] = list[c].split(',').map(Number), bk = blockOf(c);   // a block is one material (G527)
       let B = blocks.get(bk); if (!B) blocks.set(bk, B = { cs: [], k: KIND[c], x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity });
       B.cs.push(c); B.x0 = Math.min(B.x0, ci * PCH); B.z0 = Math.min(B.z0, cj * PCH); B.x1 = Math.max(B.x1, (ci + 1) * PCH); B.z1 = Math.max(B.z1, (cj + 1) * PCH);
     }
@@ -728,9 +774,10 @@ function make(THREE, scene, world, rec0, opts) {
         const drop = PL.skirt[L], vPer = (m + 1) * (m + 1) + 4 * (m + 1);
         const nV = B.cs.length * vPer, pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), idx = [];
         let v = 0;
+        const YL = L === 0 ? Y1 : Y;   // G2115: the near level's sink stays under the pavement
         const put = (c, i, j, dy) => {   // a fine-grid vertex (i, j in fine units) of chunk c, dy down
           const [ci, cj] = list[c].split(',').map(Number), f = c * per + j * (n + 1) + i;
-          pos[v * 3] = ci * PCH + i * RES - cx; pos[v * 3 + 1] = Y[f] - dy - lod.position.y; pos[v * 3 + 2] = cj * PCH + j * RES - cz;
+          pos[v * 3] = ci * PCH + i * RES - cx; pos[v * 3 + 1] = YL[f] - dy - lod.position.y; pos[v * 3 + 2] = cj * PCH + j * RES - cz;
           nrm[v * 3] = NRM[f * 3]; nrm[v * 3 + 1] = NRM[f * 3 + 1]; nrm[v * 3 + 2] = NRM[f * 3 + 2];
           uv[v * 2] = UV[f * 2]; uv[v * 2 + 1] = UV[f * 2 + 1];
           return v++;
@@ -742,7 +789,17 @@ function make(THREE, scene, world, rec0, opts) {
           if (drop > 0) {
             // the four edges, each walked so its skirt faces outward (the material is front-sided)
             const E = [[k => [k, 0], false], [k => [m, k], false], [k => [m - k, m], false], [k => [0, m - k], false]];
-            for (const [at] of E) {
+            const [ci, cj] = list[c].split(',').map(Number);
+            for (let e = 0; e < 4; e++) {
+              // G2115 (TERRAIN-MATCH): NO SKIRT BETWEEN TWO CHUNKS OF ONE BLOCK. A block is one THREE.LOD: its chunks are always
+              // drawn at the same level, from the same samples, so the edge they share is the same row of vertices on both sides
+              // and opens no crack - the skirt there hung under the neighbour's ground (facing it, the back seen from its own side)
+              // and was never seen: 13 % of a chunk's triangles at 2 m, 27 % at 4 m, 56 % at 8 m, 125 % at 16 m. A skirt stays
+              // where a crack can open - the block's own edges (a neighbour block at another level) and the patch's border.
+              // The 1 m contact tier's triangles (render_world.js) are paid out of these on every budget
+              const nk = e === 0 ? ck(ci, cj - 1) : e === 1 ? ck(ci + 1, cj) : e === 2 ? ck(ci, cj + 1) : ck(ci - 1, cj), nc = chunkIdx.get(nk);
+              if (nc !== undefined && KIND[nc] === KIND[c] && blockOf(nc) === blockOf(c)) continue;
+              const at = E[e][0];
               const top = [], bot = [];
               for (let k = 0; k <= m; k++) { const [i, j] = at(k); top.push(base + j * (m + 1) + i); bot.push(put(c, i * s, j * s, drop)); }
               for (let k = 0; k < m; k++) idx.push(top[k], top[k + 1], bot[k], top[k + 1], bot[k + 1], bot[k]);
@@ -771,7 +828,7 @@ function make(THREE, scene, world, rec0, opts) {
     // G1200 (MEM-DIET): the sampling's grids go with the build. The patch materials' hooks (matOwn, cached across
     // rebuilds) are closures of this generator: its context - these four grids with it - lived as long as they did
     // (~32 MB over Jolene, the first build's, kept for the session)
-    Y = Y0 = UV = NRM = null;
+    Y = Y0 = Y1 = UV = NRM = null;
   }
   // THE ROADS (game): a draped ribbon per road in its class's tone (the bench wears them into its own
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
@@ -784,6 +841,20 @@ function make(THREE, scene, world, rec0, opts) {
   const PAV = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
   const pavKeys = () => { const cls = new Set(); for (const rd of O.roads) { const L = PG.RUNWAY_LOOKS[rd.look]; if (L && L.cls) cls.add(L.cls); } for (const p of O.pavePolys || []) cls.add(PG.RUNWAY_LOOKS[p.look].cls); for (const r of O.runways) { const L = PG.RUNWAY_LOOKS[r.look]; if (L && L.cls) cls.add(L.cls); } return PAV.keysFor(Array.from(cls)); };
   const pavLib = () => PAV.sharedLib(THREE, pavKeys(), () => { if (o.onBuilt) o.onBuilt(0, 0); });
+  // G2115 (TERRAIN-MATCH): an aerodrome's own pavement - a point of it (premises frame) within REFINE_NEAR of a runway's
+  // box: its rows earn their spacing where the ground curves (pavement.js REFINE); the town's and the harbour's do not
+  const REFINE_NEAR = 150;
+  const nearRunway = pts => !!(pts && pts.length && (O.runways || []).some(r => !(PG.runwayIsWater && PG.runwayIsWater(r)) && pts.some(q => PG.sdPoly(PG.runwayBox(r, 0), q[0], q[1]) < REFINE_NEAR)));
+  // ...the ids of those that refine (the builders' `refine` below, by the same rules): every strip, an aerodrome's roads, its
+  // opaque aprons - sinkNear reads it (cached by the record: an edit's roads re-read)
+  let refinedK = null, refinedS = null;
+  const refinedPave = id => {
+    if (refinedK !== O.rec) { refinedK = O.rec; refinedS = new Set();
+      for (const r of O.runways || []) refinedS.add(r.id);
+      for (const rd of O.roads || []) if (nearRunway(rd.pts)) refinedS.add(rd.id);
+      for (const pp of O.pavePolys || []) { const L = PG.RUNWAY_LOOKS[pp.look]; if (L && L.cls !== 'grass' && nearRunway(pp.poly)) refinedS.add(pp.id); } }
+    return refinedS.has(id);
+  };
   const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
   // a road crossing a strip's box draws no band over the concrete (the bench's rule)
   // A STRIP'S BAND DOES NOT LIE OVER ANOTHER PAVEMENT (2026-09-23, the user: "where the 2 runways
@@ -905,7 +976,9 @@ function make(THREE, scene, world, rec0, opts) {
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
         const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep,
-          sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null });   // the patch is sunk under it (G660)
+          sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null,   // the patch is sunk under it (G660)
+          liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, rd.id) : null,   // G2115: no lift over another pavement
+          refine: nearRunway(rd.pts) });   // G2115: an aerodrome's taxiway or lane: its stations where the ground curves (pavement.js REFINE)
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const rb = geo.boundingSphere, rKeep = rb ? stripBoxesNear(rb.center.x - rb.radius, rb.center.z - rb.radius, rb.center.x + rb.radius, rb.center.z + rb.radius, null) : [];
@@ -977,7 +1050,9 @@ function make(THREE, scene, world, rec0, opts) {
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
       const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
-        sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null });
+        sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null,
+        liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, pp.id) : null,   // G2115: no lift over another pavement
+        refine: RS.cls !== 'grass' && nearRunway(pp.poly) });   // G2115: an aerodrome's apron or stand: its rows where the ground curves (pavement.js REFINE); not a grass one (translucent: the patch is seen through it - 41 k for nv_meadow)
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
       const bs = geo.boundingSphere, keep = bs ? stripBoxesNear(bs.center.x - bs.radius, bs.center.z - bs.radius, bs.center.x + bs.radius, bs.center.z + bs.radius, null) : [];
@@ -3571,7 +3646,19 @@ function make(THREE, scene, world, rec0, opts) {
     // chords sat above the true ground wherever it is concave and cut through every road, lot and pad
     // laid on the composed height (the user: "roads clip through terrain, the terrain shows through the
     // house patches"); `world` here so the rings can ask
-    pavedAt: (x, z) => (O.pavedAt ? O.pavedAt(x, z) : null),       // G660: the patch is sunk under a pavement's opaque interior by it
+    // G2115 (TERRAIN-MATCH): THE CONTACT TIER's handles (render_world.js drives it, ground_tier.js builds it): the near level's
+    // law over terrainH (the solver's ground: its unsunk base and the pavement's sink apart) and over the build read (the
+    // patch's own vertices), a chunk's material kind and uv law, the tier's material copy
+    tier: {
+      cell: PL.res[0], nR: PL.res[0],   // the near level's grid; its normals' half-span (buildPatchSteps' NRM: the 2 m differences)
+      base: (x, z) => nearY(world.terrainH(x, z), x, z, null),        // the near level's unsunk ground over terrainH (its normals' law)
+      sink: (x, z) => { const pr = tierPavR(); return pr && O.pavedAt ? sinkNear(O.pavedAt(x, z), pr) : 0; },   // ...and its sink under a pavement
+      layerY: (x, z) => nearY(groundB(x, z), x, z, tierPavR()),        // the near level's own vertex (the build read)
+      kindAt: (x, z) => { const x0 = Math.floor(x / PCH) * PCH, z0 = Math.floor(z / PCH) * PCH; return (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0; },
+      uv: k => (k && o.patchUV2) || o.patchUV,
+      mat: k => (patchMatOf ? patchMatOf(k, true) : null),
+    },
+    pavedAt: (x, z, reach, skip) => (O.pavedAt ? O.pavedAt(x, z, reach, skip) : null),       // G660: the patch is sunk under a pavement's opaque interior by it (G2115: reach, skip passed on)
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),

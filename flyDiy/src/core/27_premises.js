@@ -2117,10 +2117,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
-    // pavedAt(x, z, reach) -> null | { d, cls, halfW, kind, dPre }: the pavement whose surface the point lies deepest
+    // pavedAt(x, z, reach, skip) -> null | { d, cls, halfW, kind, id, dPre }: the pavement whose surface the point lies deepest
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
-    pavedAt: (x, z, reach) => pavedAt(x, z, reach),
+    pavedAt: (x, z, reach, skip) => pavedAt(x, z, reach, skip),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -2318,11 +2318,13 @@ function compose(rec0, world, opts) {
   }
   // `reach` (G1541, m, default 0): also a pavement whose edge lies within `reach` OUTSIDE the point (d > -reach) - the
   // patch keeps its 2 cm under a pavement's side, the translucent fade drawn over the ground past the edge
-  function pavedAt(x, z, reach) {
+  // `skip` (G2115, an id): every pavement but that one - a pavement's builder asks whether its edge lies on ANOTHER's interior
+  function pavedAt(x, z, reach, skip) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1], r0 = reach > 0 ? -reach : 0;
     const cell = CIDX.query(lx, lz);
     let best = null;
     if (cell) for (const it of cell) {
+      if (skip !== undefined && skip !== null && it.id === skip) continue;
       let d = dEdgeOf(it, lx, lz), dPre = d;
       if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
         const e = roadEndIn(it, lx, lz);
@@ -2330,7 +2332,7 @@ function compose(rec0, world, opts) {
         dPre = Math.min(d, e); d = Math.min(d, e - PAVE_END_IN);
       }
       if (dPre <= r0) continue;
-      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };
+      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, id: it.id, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };   // (G2115: its id)
       else if (dPre > best.dPre) best.dPre = dPre;   // (the deepest pavement for the deep sink; the deepest paved extent for the rest)
     }
     return best;

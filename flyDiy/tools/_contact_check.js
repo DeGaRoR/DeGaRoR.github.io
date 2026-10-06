@@ -188,12 +188,13 @@ if (process.argv.includes('--drawn')) {
       const x = a.x + c * u * a.len + sn * v, z = a.z + sn * u * a.len - c * v;
       if (!GD.covers(x, z) || PL.patchDepth(x, z) < PL.PATCH_TUCK.tuckW) continue;
       const q = O.pavedAt(x, z, PL.PATCH_TUCK.sideR1 + 0.01), dr = PL.dropAt(x, z);
-      if (q && q.d > 0) { under++; if (Math.abs(dr - PL.PATCH_TUCK.drop) > 1e-12) underBad++; }
+      // (G2115: under a grass road - PAVEMENT.translucent - no 2 cm: its own 1 cm margin, sinkAt's tl, is the gap)
+      if (q && q.d > 0) { under++; if (Math.abs(dr - (PAV.translucent && PAV.translucent(q.cls, q.kind) ? 0 : PL.PATCH_TUCK.drop)) > 1e-12) underBad++; }
       else if (!q) { open++; if (dr !== 0) openBad++; }
     }
   }
   ok(open > 100 && openBad === 0, 'the patch at terrainH on the open grass round Jolene\'s aerodromes (no drop 3 m and more off a pavement)', open + ' points, ' + openBad + ' dropped');
-  ok(under > 100 && underBad === 0, '...and 2 cm under a pavement, where its interior and side are drawn over it', under + ' points, ' + underBad + ' not');
+  ok(under > 100 && underBad === 0, '...and 2 cm under a pavement, where its interior and side are drawn over it (none under a grass road: its own 1 cm, G2115)', under + ' points, ' + underBad + ' not');
   const vz = O.rec.layers.zones.find(z => z.kind === 'residential' && z.poly && z.poly.length >= 3);
   if (vz) { let cx = 0, cz = 0; for (const q of vz.poly) { cx += q[0]; cz += q[1]; } const w = O.frame.toWorld(cx / vz.poly.length, cz / vz.poly.length);
     ok(Math.abs(PL.dropAt(w[0], w[1]) - PL.PATCH_TUCK.drop) < 1e-12, 'inside a residential zone (' + vz.id + ') the lots keep the patch 2 cm under them (G434.2)', (PL.dropAt(w[0], w[1]) * 1000).toFixed(1) + ' mm'); }
