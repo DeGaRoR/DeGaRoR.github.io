@@ -501,8 +501,22 @@ function make(THREE, scene, world, rec0, opts) {
   let patch = null, patchKey = '', patchAct = null;
   const patchMatOwn = [null, null];   // G527: [the patchMat's clone, the patchMat2's] - see patchKind
   const PCH = 64;
-  function activeChunks(b) {
-    const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j;
+  // G2063 (TOWN-GEO): THE TOWN'S GEOMETRY LATER. With the town on (o.defer: the town's entries, by id), the boot's rebuild
+  // builds the patch, the roads and the aprons as the town-off page does (GEO.split: the town's entries left out of
+  // activeChunks, buildRoadsSteps and buildPolysSteps) - Metlakatla is 9 km from HOME and its patch and roads were 3.5 s
+  // of the garage load. geoLaterSteps adds them when the host asks (render_world: the eye within reach of the town): the
+  // patch's blocks that the town's chunks join, or border (patchDepth reads the 8 chunks round each), made again on the
+  // whole record's active set - each block then IS the block a whole build makes - and the town's roads and aprons built
+  // and merged beside the rest. The host then sinks its ground under the new chunks (refreshGroundSteps).
+  const GEO = { defer: (o.game && typeof o.defer === 'function') ? o.defer : null, split: false, pending: false, epoch: 0 };
+  GEO.split = GEO.pending = !!GEO.defer;
+  const isTown = e => !!(GEO.defer && e && typeof e.id === 'string' && GEO.defer(e.id));
+  const geoLater = e => GEO.split && isTown(e);
+  const patchKindAt = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;   // a chunk's ground: 1 the far terrain's (G527)
+  const patchBlockOf = k => { const [ci, cj] = k.split(',').map(Number); return patchKindAt(ci * PCH, cj * PCH) + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block); };
+  // skip (G2063): an entry it names is left out - the town's, while its geometry waits (GEO below)
+  function activeChunks(b, skip) {
+    const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j, sk = e => !!(skip && e && skip(e));
     const i0 = Math.floor(b.x0 / PCH), i1 = Math.floor(b.x1 / PCH), j0 = Math.floor(b.z0 / PCH), j1 = Math.floor(b.z1 / PCH);
     // a chunk is marked when its CENTRE lies within `m` + half the chunk's diagonal of the feature
     // (a polygon's edge, a road's segment) - never by a bounding box: a diagonal 2 km road or strip
@@ -520,15 +534,15 @@ function make(THREE, scene, world, rec0, opts) {
     const markBox = (bb, m) => eachChunk(bb, m, (lx, lz) => lx >= bb.x0 - m - HALFD && lx <= bb.x1 + m + HALFD && lz >= bb.z0 - m - HALFD && lz <= bb.z1 + m + HALFD);
     const markPoly = (poly, m) => { if (poly && poly.length >= 3) eachChunk(PG.polyBBox(poly), m, (lx, lz) => PG.sdPoly(poly, lx, lz) <= m + HALFD); };
     const markLine = (pts, m) => { for (let s = 1; s < pts.length; s++) { const a = pts[s - 1], b = pts[s]; eachChunk({ x0: Math.min(a[0], b[0]), z0: Math.min(a[1], b[1]), x1: Math.max(a[0], b[0]), z1: Math.max(a[1], b[1]) }, m, (lx, lz) => PG.distPtSeg(lx, lz, a, b) <= m + HALFD); } };
-    for (const t of L.terrain) { if (t.poly) markPoly(t.poly, (+t.falloff || 6) + 4); else if (t.pts) markLine(t.pts, (+t.width || 4) / 2 + (+t.falloff || 6) + 4); }
-    for (const s of L.surface) markPoly(s.poly, 4);
-    for (const m of L.material) markPoly(m.poly, (+m.fade || 0) + 4);
-    for (const r of L.roads) if (r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
-    for (const r of O.runways || []) { if (PG.runwayIsWater && PG.runwayIsWater(r)) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4); }
-    for (const z of L.zones) markPoly(z.poly, 40);
-    for (const st of L.sites) { const a = st.at || { x: 0, z: 0 }; let r = 80; for (const it of st.items || []) r = Math.max(r, Math.hypot(it.x || 0, it.z || 0) + 40); if (st.yard) r = Math.max(r, Math.hypot(st.yard.x1 || 0, st.yard.z1 || 0) + 40, Math.hypot(st.yard.x0 || 0, st.yard.z0 || 0) + 40); markBox({ x0: a.x - r, z0: a.z - r, x1: a.x + r, z1: a.z + r }, 0); }
-    for (const ob of L.objects) markBox({ x0: ob.x, z0: ob.z, x1: ob.x, z1: ob.z }, 30);
-    for (const sh of O.shelves || []) if (sh.poly) markPoly(sh.poly, (+sh.falloff || 6) + 4); else if (sh.rect && sh.c) markBox({ x0: sh.c[0] - 60, z0: sh.c[1] - 60, x1: sh.c[0] + 60, z1: sh.c[1] + 60 }, 0);
+    for (const t of L.terrain) { if (sk(t)) continue; if (t.poly) markPoly(t.poly, (+t.falloff || 6) + 4); else if (t.pts) markLine(t.pts, (+t.width || 4) / 2 + (+t.falloff || 6) + 4); }
+    for (const s of L.surface) if (!sk(s)) markPoly(s.poly, 4);
+    for (const m of L.material) if (!sk(m)) markPoly(m.poly, (+m.fade || 0) + 4);
+    for (const r of L.roads) if (!sk(r) && r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
+    for (const r of O.runways || []) { if (sk(r) || (PG.runwayIsWater && PG.runwayIsWater(r))) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4); }
+    for (const z of L.zones) if (!sk(z)) markPoly(z.poly, 40);
+    for (const st of L.sites) { if (sk(st)) continue; const a = st.at || { x: 0, z: 0 }; let r = 80; for (const it of st.items || []) r = Math.max(r, Math.hypot(it.x || 0, it.z || 0) + 40); if (st.yard) r = Math.max(r, Math.hypot(st.yard.x1 || 0, st.yard.z1 || 0) + 40, Math.hypot(st.yard.x0 || 0, st.yard.z0 || 0) + 40); markBox({ x0: a.x - r, z0: a.z - r, x1: a.x + r, z1: a.z + r }, 0); }
+    for (const ob of L.objects) if (!sk(ob)) markBox({ x0: ob.x, z0: ob.z, x1: ob.x, z1: ob.z }, 30);
+    for (const sh of O.shelves || []) if (sk(sh)) continue; else if (sh.poly) markPoly(sh.poly, (+sh.falloff || 6) + 4); else if (sh.rect && sh.c) markBox({ x0: sh.c[0] - 60, z0: sh.c[1] - 60, x1: sh.c[0] + 60, z1: sh.c[1] + 60 }, 0);
     return { act, i0, i1, j0, j1, key };
   }
   // THE PATCH IN BLOCKS, BY DISTANCE (PERF 2026-09-23). One mesh over every active chunk was 1.5 M triangles on
@@ -624,12 +638,15 @@ function make(THREE, scene, world, rec0, opts) {
   // G680: the patch in slices (a chunk batch of the ground sampling, a block of the LODs, a yield each) - the
   // roll-out's world step drives it through rebuildSteps; an edit's rebuild runs it to the end at once
   function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
-  function* buildPatchSteps() {
+  // part (G2063, TOWN-GEO): { A, blocks } - the blocks named made again on the active set A (the town's chunks joining the
+  // patch, geoLaterSteps), each in place of the one standing; without, the whole patch (the town's left out while GEO.split)
+  function* buildPatchSteps(part) {
     const b = extentWorld();
-    const A = activeChunks(b), list = [...A.act].sort();
+    const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
+    let list = [...A.act].sort();
     const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
     const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
-    if (patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
+    if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
     patchAct = A; patchB = b;   // the world's rings read it (patchCovers, patchDepth): the ring sinks under the patch (G434.1)
     lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
@@ -658,7 +675,8 @@ function make(THREE, scene, world, rec0, opts) {
     // was ONE material for the whole record, chosen by its extent: the day a place was put 4.5 km out,
     // the airfield's patch changed material with it, and the far chunks sampled the island's maps through
     // the analytic world's uv law - the deep sea bed, unpainted: black
-    const kindOf = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;
+    const kindOf = patchKindAt;
+    if (part) list = list.filter(k => part.blocks.has(patchBlockOf(k)));   // G2063: the named blocks' chunks, all of them
     // ---- the ONE sampling: every active chunk a (n + 1)^2 grid at 2 m, its own vertices (the seams sample the same ground)
     const act = A.act, ck = A.key;
     // THE GROUND UNDER THE PAVEMENT IS SUNK (G660): under a pavement's opaque interior the patch drops
@@ -686,7 +704,7 @@ function make(THREE, scene, world, rec0, opts) {
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; if (SK) SK[v] = sk; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
-      if ((c & 7) === 7) yield 'patch ground';
+      if (part || (c & 7) === 7) yield 'patch ground';   // (G2063: a chunk a slice in flight)
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
     let NRM = new Float32Array(list.length * per * 3);
@@ -728,7 +746,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     const group = new THREE.Group(); group.name = 'premises:patch';
     let tris0 = 0, trisAll = 0;
-    for (const B of blocks.values()) {
+    for (const [bk, B] of blocks) {
       yield 'patch block';
       const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, half = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2;
       const lod = new THREE.LOD(); lod.position.set(cx, 0, cz); lod.name = 'premises:patch';
@@ -737,6 +755,7 @@ function make(THREE, scene, world, rec0, opts) {
       lod.position.y = (yLo + yHi) / 2;
       let dPrev = 0;
       for (let L = 0; L < PL.res.length; L++) {
+        if (part && L) yield 'patch level';   // (G2063: a level a slice in flight)
         const s = PL.res[L] / RES, m = n / s;   // index stride into the fine grid, quads a side
         // the level's worst error over the block: every fine vertex against the coarse grid's bilinear surface
         let err = 0;
@@ -797,12 +816,27 @@ function make(THREE, scene, world, rec0, opts) {
         if (L === 0) tris0 += idx.length / 3;
         trisAll += idx.length / 3;
       }
-      lod.updateMatrix(); lod.matrixAutoUpdate = false;
+      lod.updateMatrix(); lod.matrixAutoUpdate = false; lod.userData.bk = bk;   // (G2063: the block it is, to stand in for it)
       group.add(lod);
     }
+    if (part && patch) {
+      // G2063: each block made again stands in for the one it replaces; the counts over the whole patch again
+      for (const lod of group.children.slice()) {
+        const old = patch.children.find(c => c.userData.bk === lod.userData.bk);
+        if (old) { patch.remove(old); old.traverse(m => { if (m.geometry) m.geometry.dispose(); }); }
+        patch.add(lod);
+        // the patch is FROZEN (freezeStatic: no matrix walk under it) - a block added into it takes its world matrices here
+        THREE.Object3D.prototype.updateMatrixWorld.call(lod, true);
+        lod.traverse(m => { m.matrixAutoUpdate = false; m.matrixWorldAutoUpdate = false; });
+      }
+      let t0 = 0, ta = 0; for (const lod of patch.children) (lod.levels || []).forEach((lv, i) => { const g = lv.object.geometry, t = g && g.index ? g.index.count / 3 : 0; if (!i) t0 += t; ta += t; });
+      Object.assign(patch.userData, { chunks: [...A.act].sort(), neighbours: A, tris: t0, trisAll: ta, blocks: patch.children.length, sunk: (patch.userData.sunk || 0) + sunk, sinkDeep: Math.max(patch.userData.sinkDeep || 0, sinkDeep) });
+      patchKey = key;
+    } else {
     group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size; group.userData.sunk = sunk; group.userData.sinkDeep = sinkDeep;
     patch = group; patchKey = key;
     G.ground.add(patch);
+    }
     // G1200 (MEM-DIET): the sampling's grids go with the build. The patch materials' hooks (matOwn, cached across
     // rebuilds) are closures of this generator: its context - these four grids with it - lived as long as they did
     // (~32 MB over Jolene, the first build's, kept for the session)
@@ -826,24 +860,41 @@ function make(THREE, scene, world, rec0, opts) {
   // make sense to have dirt or sand over a runway, even if they cross"). The band and the pavement
   // are ONE mesh, so no draw order can separate them - the band is faded out where it crosses another
   // strip's pavement or an apron, which is the rule a road's band already keeps (stripKeep below).
+  // G2063 (TOWN-GEO): THE KEEPS' EARLY OUT, EXACT. A strip's box, an apron, a plot or a road whose bounding box lies
+  // farther than a test's reach (r) can neither hold the point nor come within r of it - the distance to a shape is at
+  // least the distance to its box - so it is skipped: the same answer without its sdPoly / roadDist. These keeps run per
+  // vertex of every road (and per rail and pole sample) over EVERY strip, apron, plot and road of the record: with the
+  // town on (400 plots, 60 aprons, 70 roads) they were the garage load's largest road cost. A NaN box never skips.
+  // (the boxes are kept per composition - an edit recomposes, and a shape's arrays are its composition's)
+  const KB = { O: null, bbO: null, rw: null, pp: null, bb: new WeakMap() };
+  const bbOf = pts => { if (KB.bbO !== O) { KB.bbO = O; KB.bb = new WeakMap(); } let b = KB.bb.get(pts); if (b) return b; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of pts) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; }
+    b = [x0, z0, x1, z1]; KB.bb.set(pts, b); return b; };
+  const bbFar = (b, x, z, r) => Math.max(b[0] - x, x - b[2], b[1] - z, z - b[3]) > r + 1e-3;
+  const keepBoxes = () => {   // the composition's strip boxes (runwayBox(r, 0), the land ones) and aprons, once per composition
+    if (KB.O !== O) { KB.O = O; KB.rw = O.runways.filter(r => !PG.runwayIsWater(r)).map(r => { const box = PG.runwayBox(r, 0); return { r, box, bb: bbOf(box) }; });
+      KB.pp = (O.pavePolys || []).map(pp => ({ poly: pp.poly, bb: bbOf(pp.poly) })); }
+    return KB;
+  };
   const pavedKeep = self => (x, z) => {
-    const L = O.frame.toLocal(x, z); let k = 1;
-    for (const r of O.runways) {
-      if (r === self || PG.runwayIsWater(r)) continue;
-      const box = PG.runwayBox(r, 0), d = PG.sdPoly(box, L[0], L[1]);      // + outside the pavement
+    const L = O.frame.toLocal(x, z), K = keepBoxes(); let k = 1;
+    for (const R of K.rw) {
+      if (R.r === self || bbFar(R.bb, L[0], L[1], 5)) continue;
+      const d = PG.sdPoly(R.box, L[0], L[1]);      // + outside the pavement
       if (d <= 0) return 0;
       k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4)));              // and a 4 m fade off its edge
     }
-    for (const pp of O.pavePolys || []) {
+    for (const pp of K.pp) {
+      if (bbFar(pp.bb, L[0], L[1], 5)) continue;
       const d = PG.sdPoly(pp.poly, L[0], L[1]);
       if (d <= 0) return 0;
       k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4)));
     }
     return k;
   };
-  const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z); let k = 1; for (const r of O.runways) { if (PG.runwayIsWater(r)) continue; const box = PG.runwayBox(r, 0); if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); }
+  const stripKeep = (x, z) => { const L = O.frame.toLocal(x, z), K = keepBoxes(); let k = 1; for (const R of K.rw) { if (bbFar(R.bb, L[0], L[1], 5)) continue; const box = R.box; if (PG.inPoly(box, L[0], L[1])) return 0; const d = -PG.sdPoly(box, L[0], L[1]); k = Math.min(k, Math.max(0, Math.min(1, (-d - 1) / 4))); }
     // G981: nor over an apron - the taxiways' bands crossed the pad
-    for (const pp of O.pavePolys || []) { const d = PG.sdPoly(pp.poly, L[0], L[1]); if (d <= 0) return 0; k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4))); }
+    for (const pp of K.pp) { if (bbFar(pp.bb, L[0], L[1], 5)) continue; const d = PG.sdPoly(pp.poly, L[0], L[1]); if (d <= 0) return 0; k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4))); }
     return k; };
   const disposePav = m => { if (m.material && m.material.userData && (m.material.userData.pav || m.material.userData.pavTable) && PAV) PAV.dispose(m.material, m.geometry); };   // G925: the table's row(s) given back
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
@@ -856,9 +907,10 @@ function make(THREE, scene, world, rec0, opts) {
       // INSIDE a plot only (2026-09-22): "8 m clear of one" read well in the abstract and left the
       // island with thirty metres of rail - the banks that warrant one on Jolene are the shore road's,
       // which has frontages along it. A rail on the verge in front of a house is what the coast looks like.
-      for (const p of O.records.plots) if (p.poly && PG.sdPoly(p.poly, lx, lz) < 1.5) return false;
-      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 6) return false;   // a junction
-      for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 8) return false;                   // a strip
+      // (G2063: each test skips a shape whose box lies beyond its reach - bbFar, exact)
+      for (const p of O.records.plots) if (p.poly && !bbFar(bbOf(p.poly), lx, lz, 1.5) && PG.sdPoly(p.poly, lx, lz) < 1.5) return false;
+      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && !bbFar(bbOf(o2.pts), lx, lz, o2.w / 2 + 6) && PG.roadDist(o2, lx, lz) < o2.w / 2 + 6) return false;   // a junction
+      for (const R of keepBoxes().rw) if (!bbFar(R.bb, lx, lz, 8) && PG.sdPoly(R.box, lx, lz) < 8) return false;                   // a strip
       return true;
     };
   }
@@ -880,10 +932,12 @@ function make(THREE, scene, world, rec0, opts) {
   const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : null;
   function poleKeep(rd) {
     return (lx, lz) => {
-      for (const p of O.records.plots) if (p.poly && PG.inPoly(p.poly, lx, lz)) return false;                                    // a garden
-      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 4) return false;   // a junction
-      for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 4) return false;            // a strip
-      for (const pp2 of O.pavePolys || []) if (PG.sdPoly(pp2.poly, lx, lz) < 3) return false;                                    // an apron, a pad, a turnaround
+      // (G2063: each test skips a shape whose box lies beyond its reach - bbFar, exact; a point outside a plot's box is outside the plot)
+      for (const p of O.records.plots) if (p.poly && !bbFar(bbOf(p.poly), lx, lz, 0) && PG.inPoly(p.poly, lx, lz)) return false;                                    // a garden
+      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && !bbFar(bbOf(o2.pts), lx, lz, o2.w / 2 + 4) && PG.roadDist(o2, lx, lz) < o2.w / 2 + 4) return false;   // a junction
+      const K = keepBoxes();
+      for (const R of K.rw) if (!bbFar(R.bb, lx, lz, 4) && PG.sdPoly(R.box, lx, lz) < 4) return false;            // a strip
+      for (const pp2 of K.pp) if (!bbFar(pp2.bb, lx, lz, 3) && PG.sdPoly(pp2.poly, lx, lz) < 3) return false;                                    // an apron, a pad, a turnaround
       return true;
     };
   }
@@ -926,8 +980,11 @@ function make(THREE, scene, world, rec0, opts) {
   // G995 (A5-LOAD): the roads a yield each (their ribbons sample the ground's raster: 1.3 s in one task of the
   // roll-out's world step on Jolene); buildRoads runs it to the end
   function buildRoads() { const g = buildRoadsSteps(); while (!g.next().done); }
-  function* buildRoadsSteps() {
-    for (const c of G.roads.children.slice()) {
+  // part (G2063): the town's roads and aprons alone, beside what stands (geoLaterSteps); without, every one but the town's
+  // while GEO.split
+  function* buildRoadsSteps(part) {
+    const want = e => (part ? isTown(e) : !geoLater(e));
+    if (!part) for (const c of G.roads.children.slice()) {
       if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
       if (PWR && c.userData.powerline) { PWR.dispose(c); continue; }      // the cable's own geometry; the poles are shared prop meshes
       G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c);
@@ -935,7 +992,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (PAV) {
       const lib = pavLib();
       for (const rd of O.roads) {
-        if (rd.ribbon === false) continue;   // a taxiway under its own material polygon (G434) - or a paved polygon now
+        if (rd.ribbon === false || !want(rd)) continue;   // a taxiway under its own material polygon (G434) - or a paved polygon now
         const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
@@ -950,13 +1007,13 @@ function make(THREE, scene, world, rec0, opts) {
         buildLine(rd, pr, buildRail(rd, pr));
         yield 'roads';
       }
-      yield* buildPolysSteps();
-      yield* mergePavSteps();
+      yield* buildPolysSteps(part);
+      yield* mergePavSteps(part);
       return;
     }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     for (const rd of O.roads) {
-      if (rd.ribbon === false) continue;   // a taxiway under its own material polygon (G434)
+      if (rd.ribbon === false || !want(rd)) continue;   // a taxiway under its own material polygon (G434)
       const pr = PG.polyRoad(rd.pts, rd.w), n = Math.max(2, Math.ceil(pr.length / 3));
       const pos = [], col = [], idx = [], hw = rd.w / 2 + 0.6;
       const tone = new THREE.Color(ROAD_TONE[rd.surface] || 0x8f8574);
@@ -986,10 +1043,10 @@ function make(THREE, scene, world, rec0, opts) {
   // 1.99x too) never share a mesh - merged by PAVEMENT.merge (the overlapping ones always together, the rest grouped
   // within 1.5 km), the triangles in draw order (an apron's z, then the build order). The sources leave G.roads (the merged geometries
   // own their rows); the next buildRoads takes the merged meshes away with every other child.
-  function* mergePavSteps() {
+  function* mergePavSteps(part) {
     if (!PAV || !PAV.mergeSteps) return;
     const buckets = new Map();
-    for (const c of G.roads.children) if (c.isMesh && c.geometry && PAV.isTable(c.material) && c.geometry.userData.pavRow) {
+    for (const c of G.roads.children) if (!c.userData.pavMerged && c.isMesh && c.geometry && PAV.isTable(c.material) && c.geometry.userData.pavRow) {
       const k = /^pave:/.test(c.name) ? 'pave' : 'road'; let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(c); }
     for (const [k, list] of buckets) {
       const out = [];
@@ -1000,14 +1057,15 @@ function make(THREE, scene, world, rec0, opts) {
         G.roads.add(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
-      stats[k + 'Merged'] = out.length; stats[k + 'Parts'] = list.length;
+      stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
   if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way
-  function* buildPolysSteps() {
+  function* buildPolysSteps(part) {
     if (!PAV) return;
     const lib = pavLib();
     for (const pp of O.pavePolys || []) {
+      if (part ? !isTown(pp) : geoLater(pp)) continue;   // (G2063: the town's later)
       const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
@@ -3474,12 +3532,51 @@ function make(THREE, scene, world, rec0, opts) {
     stats.trees = O.records.trees.length; stats.treeTris = tris;
   }
 
+  // ---- G2063 (TOWN-GEO): the town's geometry, later ------------------------------------------------------------------
+  // the town's own box (world), from its entries' shapes: where the host measures the eye's reach from
+  function geoBox() {
+    if (GEO.box !== undefined) return GEO.box;
+    const F = O.frame, L = O.rec.layers; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    const at = (lx, lz) => { const w = F.toWorld(lx, lz); if (w[0] < x0) x0 = w[0]; if (w[0] > x1) x1 = w[0]; if (w[1] < z0) z0 = w[1]; if (w[1] > z1) z1 = w[1]; };
+    for (const k of Object.keys(L)) for (const e of (Array.isArray(L[k]) ? L[k] : [])) {
+      if (!isTown(e)) continue;
+      for (const q of e.poly || e.pts || []) at(q[0], q[1]);
+      if (e.at && isFinite(e.at.x)) at(e.at.x, e.at.z); else if (isFinite(e.x) && isFinite(e.z)) at(e.x, e.z);
+    }
+    return (GEO.box = isFinite(x0) ? { x0, z0, x1, z1 } : null);
+  }
+  // metres from (x, z) to the town's box (0 inside; Infinity: nothing waits)
+  function geoDist(x, z) { if (!GEO.pending) return Infinity; const b = geoBox(); if (!b) return Infinity; return Math.hypot(Math.max(b.x0 - x, x - b.x1, 0), Math.max(b.z0 - z, z - b.z1, 0)); }
+  // the town's patch blocks and roads, in slices (a chunk, a level, a road a yield); returns the world box the host sinks its
+  // ground under (null: nothing built, or a rebuild came between - the next rebuild decides again)
+  function* geoLaterSteps() {
+    if (!GEO.pending || !patch || !patchAct) return null;
+    const ep = GEO.epoch, b = extentWorld(), A = activeChunks(b, null), old = patchAct;
+    yield 'town chunks';
+    if (ep !== GEO.epoch) return null;
+    const blocks = new Set(); let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const k of A.act) {
+      if (old.act.has(k)) continue;
+      const [ci, cj] = k.split(',').map(Number);
+      x0 = Math.min(x0, ci * PCH); z0 = Math.min(z0, cj * PCH); x1 = Math.max(x1, (ci + 1) * PCH); z1 = Math.max(z1, (cj + 1) * PCH);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const kk = A.key(ci + di, cj + dj); if (A.act.has(kk)) blocks.add(patchBlockOf(kk)); }
+    }
+    GEO.split = false;   // from here every build is the whole record's
+    if (blocks.size) { const g = buildPatchSteps({ A, blocks }); for (;;) { const r = g.next(); if (r.done) break; yield r.value; if (ep !== GEO.epoch) return null; } }
+    const g2 = buildRoadsSteps(true); for (;;) { const r = g2.next(); if (r.done) break; yield r.value; if (ep !== GEO.epoch) return null; }
+    freezeStatic(false);   // (the new ones alone: the rest stays as frozen as it was)
+    GEO.pending = false; stats.townGeo = { blocks: blocks.size, at: Math.round(performance.now()) };
+    return isFinite(x0) ? { x0: x0 - PCH, z0: z0 - PCH, x1: x1 + PCH, z1: z1 + PCH } : null;
+  }
+
   // ---- rebuild ---------------------------------------------------------------------------------
   // G680: rebuildSteps is the rebuild as a generator - the game's first rebuild runs under the roll-out screen a
   // slice per task (render_world's buildWorldSceneSteps: yield*); rebuild() runs it to the end (an edit, the bench)
   function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
+    GEO.epoch++;   // G2063: a town build under way is stale now (geoLaterSteps checks)
+    if (GEO.split && o.editing && o.editing()) GEO.split = GEO.pending = false;   // (the editor's rebuild is the whole record's, the town at once)
     previewEnd();   // G1400: a drag's carried groups back where they were built, before anything compares seeds
     if (!(composedFresh && dirty === undefined)) { O = composeNow(); hwCompose(); }
     composedFresh = false;
@@ -3619,6 +3716,7 @@ function make(THREE, scene, world, rec0, opts) {
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
+    geoPending: () => GEO.pending, geoDist, geoLaterSteps,   // G2063 (TOWN-GEO): the town's patch and roads, later (render_world drives them)
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
     drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)

@@ -6269,6 +6269,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         eye: () => camera.position,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
         renderer: premRenderer, camera: premCamera,
+        // G2063 (TOWN-GEO): with the town on, its patch and roads wait (render_premises GEO) until the eye nears it - geoTick
+        defer: townGeoDefer(),
       });
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
@@ -6620,17 +6622,56 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
   function* refreshGroundSteps(bb) {
+    let moved = 0;   // G2063: no ring vertex under the box (the town 9 km out) - no ring to rebuild, the far tier alone
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
       for (let i = 0; i < pa.count; i++) {
         if (i && !(i & 8191)) yield 'ground under the premises';
         const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++;
       }
-      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
+      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); moved += n; }
     }
-    if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
-    if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
+    if (moved || !groundGeos.length) {
+      if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
+      if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
+    }
     if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
+  }
+  // G2063 (TOWN-GEO): THE TOWN'S PATCH AND ROADS, AS THE EYE NEARS IT. With the town on, the boot builds the premises' ground
+  // and roads as the town-off page does (Metlakatla is 9 km from HOME: its patch and roads were ~3.5 s of the garage
+  // load); once the eye comes within GEO_REACH of the town's box, render_premises' geoLaterSteps adds them a few ms a
+  // frame (a chunk, a level, a road a slice) and the ground is sunk under the new chunks (refreshGroundSteps). ?towngeo=0:
+  // the town built at boot, as before (the A/B's base). WORLD.townGeoFinish(): the rest at once (rigs, gates).
+  // (read when asked: the world's build calls townGeoDefer before this part of the file has run - a const here would be in its dead zone)
+  function geoQ(k) { const q = (typeof location !== 'undefined' && location.search) || ''; if (k === 'on') return !/[?&]towngeo=0/.test(q); return +((/[?&]towngeoreach=([0-9.]+)/.exec(q) || [])[1]) || 7000; }
+  function townGeoDefer() {
+    const T = typeof window !== 'undefined' ? window.FLYDIY_TOWN : null;
+    if (!geoQ('on') || !T || !T.all || !(T.off && T.off.length)) return null;
+    const pre = T.off.slice();
+    return id => pre.some(p => id.startsWith(p));
+  }
+  var geoGen = null, geoRefresh = null, GEO_REACH = 0;
+  const GEO_MS = 3;
+  // one slice's worth (or everything, `all`): the town's build, then the ground under it; true when nothing is left
+  function geoStep(ms, all) {
+    if (!premisesR) return true;
+    const t0 = performance.now();
+    while (all || performance.now() - t0 < ms) {
+      if (geoRefresh) { if (geoRefresh.next().done) { geoRefresh = null; if (premisesR.geoPending && premisesR.geoPending()) continue; return true; } continue; }
+      if (!geoGen) { if (!(premisesR.geoPending && premisesR.geoPending())) return true; geoGen = premisesR.geoLaterSteps(); }
+      const r = geoGen.next();
+      if (r.done) { geoGen = null; if (r.value) geoRefresh = refreshGroundSteps(r.value); else if (!(premisesR.geoPending && premisesR.geoPending())) return true; }
+    }
+    return false;
+  }
+  function geoTick(cg) {
+    if (!premisesR || !(geoGen || geoRefresh || (premisesR.geoPending && premisesR.geoPending()))) return;
+    if (!GEO_REACH) GEO_REACH = geoQ('reach');
+    if (!geoGen && !geoRefresh && !(premisesR.geoDist(camera.position.x, camera.position.z) < GEO_REACH)) return;
+    const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+    if (FRw) FRw.push(FRw.S.prem);
+    try { geoStep(GEO_MS, false); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
+    finally { if (FRw) FRw.pop(); }
   }
   let premTramLast = 0, premStreamTick = 0;
   function worldUpdate(cg) {
@@ -6645,6 +6686,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (typeof window !== 'undefined' && window.PREMISES_HOST_OPEN) premisesR.step(1); else if (premisesR.stream) { if (cg) premisesR.stream(cg[0], cg[2]); } else if (++premStreamTick % 3 === 0) premisesR.step(1);
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
+    if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
@@ -7085,7 +7127,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(), townGeoFinish: () => geoStep(0, true),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
