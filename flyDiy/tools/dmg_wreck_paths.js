@@ -166,6 +166,27 @@ function pageSkinned() {
     }); }
   return out;
 }
+// THE MODEL'S FRAME (the census reads the geometry in its own frame - a sheared GROUP matrix stretches every triangle while
+// every array stays clean): poseModel draws the aeroplane under the body's OBLIQUE basis (xA, yU, xA x yU), and a broken-up
+// wreck turns it to anything (165 degrees between xA and yU, measured) - kept after a reset, the whole aeroplane is drawn
+// sheared. The model group and its parents: each column's length and the angles between them; then the model's triangles
+// past 2 m IN THE WORLD (its meshes' matrixWorld applied)
+function pageFrame() {
+  const P = FLIGHT_PROBE, m = P.model(); if (!m || !m.grp) return { none: true };
+  m.grp.updateMatrixWorld(true);
+  const cols = M => { const e = M.elements, c = [[e[0], e[1], e[2]], [e[4], e[5], e[6]], [e[8], e[9], e[10]]], L = c.map(v => Math.hypot(v[0], v[1], v[2]));
+    const ang = (i, j) => +(Math.acos(Math.max(-1, Math.min(1, (c[i][0] * c[j][0] + c[i][1] * c[j][1] + c[i][2] * c[j][2]) / (L[i] * L[j] || 1)))) * 180 / Math.PI).toFixed(1);
+    return { len: L.map(x => +x.toFixed(3)), ang01: ang(0, 1), ang02: ang(0, 2), ang12: ang(1, 2) }; };
+  const chain = []; for (let q = m.grp; q && chain.length < 5; q = q.parent) chain.push(Object.assign({ name: q.name || q.type, auto: q.matrixAutoUpdate }, cols(q.matrix)));
+  let big = 0, tris = 0; const v = new THREE.Vector3(), w = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], worstOf = [];
+  m.grp.traverse(o => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
+    const g = o.geometry, pa = g.attributes.position, ix = g.index ? g.index.array : null, nt = ix ? ix.length / 3 : pa.count / 3, MW = o.matrixWorld; let b = 0;
+    for (let t = 0; t < nt; t++) { const id = [ix ? ix[t * 3] : t * 3, ix ? ix[t * 3 + 1] : t * 3 + 1, ix ? ix[t * 3 + 2] : t * 3 + 2]; if (id[0] === id[1] && id[1] === id[2]) continue;
+      for (let k = 0; k < 3; k++) w[k].fromBufferAttribute(pa, id[k]).applyMatrix4(MW);
+      if (Math.max(w[0].distanceTo(w[1]), w[1].distanceTo(w[2]), w[2].distanceTo(w[0])) > 2) b++; }
+    tris += nt; big += b; if (b) worstOf.push({ name: o.name || o.type, big: b, skinned: !!o.isSkinnedMesh }); });
+  return { frames: chain, worldTris: tris | 0, worldBig: big, meshesBig: worstOf.sort((a, b) => b.big - a.big).slice(0, 8) };
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -212,6 +233,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.old = await S.run(pageOld);
     r.snap = await S.run(pageSnap);
     r.bones = await S.run(pageBones);
+    r.frame = await S.run(pageFrame);
+    console.log('  ' + k + ' the model frame and its triangles in the world: ' + JSON.stringify(r.frame));
     r.skinned = await S.run(pageSkinned);
     console.log('  ' + k + ' skinned meshes as drawn (positions through their bones): ' + JSON.stringify(r.skinned.filter(x => x.big).slice(0, 8)) + ' (' + r.skinned.length + ' skinned, ' + r.skinned.filter(x => x.big).length + ' with triangles past 2 m)');
     console.log('  ' + k + ' skinned meshes and their bones: ' + JSON.stringify(r.bones.slice(0, 12)));
