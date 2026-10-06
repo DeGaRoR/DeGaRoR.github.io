@@ -302,7 +302,6 @@
     for (let k = 0; k <= TXK.length; k++) { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, null); }
     gl.activeTexture(gl.TEXTURE0);
     gl.useProgram(null);
-    if (F.renderer && F.renderer.resetState) F.renderer.resetState();   // three's state cache: told the GL moved under it
     const ms = performance.now() - t0, S = G.stats;
     S.frames++; S.draws += draws; S.ms += ms; S.msMax = Math.max(S.msMax, ms); S.drawers = F.drawers.length; S.ranges = F.drawers.reduce((a, D) => a + D.recs.length, 0);
     return ms;
@@ -319,6 +318,35 @@
     D.wSeq++; G.stats.wReads = (G.stats.wReads || 0) + 1; G.stats.wLagMs = Math.max(G.stats.wLagMs || 0, performance.now() - P.t);
     return true;
   }
+  // THREE'S GL STATE KEPT: every binding this module touches is read before and put back after (the program, the vertex
+  // array, the active unit and the six units' 2D textures, the array / unpack buffers, the unpack settings, the feedback,
+  // the rasterizer discard) - three's own caches then stay true. Not renderer.resetState(): r186's resets the depth
+  // state's `reversed` to false without undoing the clip control, and the page draws reversed-Z - the box lost the runway
+  // and the aeroplane from every frame after the first riding one (re-asserting it re-cleared the depth wrong: a grey
+  // frame). getParameter on these is served from the client's cache (no GPU round trip)
+  const UNITS = 6;
+  function saveGL() {
+    const gl = G.gl, st = { prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING), unit: gl.getParameter(gl.ACTIVE_TEXTURE),
+      ab: gl.getParameter(gl.ARRAY_BUFFER_BINDING), pub: gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING), tfb: gl.getParameter(gl.TRANSFORM_FEEDBACK_BINDING),
+      disc: gl.isEnabled(gl.RASTERIZER_DISCARD), tex: [],
+      px: [gl.UNPACK_ALIGNMENT, gl.UNPACK_FLIP_Y_WEBGL, gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, gl.UNPACK_ROW_LENGTH, gl.UNPACK_SKIP_ROWS, gl.UNPACK_SKIP_PIXELS, gl.UNPACK_IMAGE_HEIGHT].map(k => [k, gl.getParameter(k)]) };
+    for (let k = 0; k < UNITS; k++) { gl.activeTexture(gl.TEXTURE0 + k); st.tex.push(gl.getParameter(gl.TEXTURE_BINDING_2D)); }
+    gl.activeTexture(st.unit);
+    return st;
+  }
+  function restoreGL(st) {
+    const gl = G.gl;
+    if (st.disc) gl.enable(gl.RASTERIZER_DISCARD); else gl.disable(gl.RASTERIZER_DISCARD);
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, st.tfb);
+    for (let k = 0; k < UNITS; k++) { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, st.tex[k]); }
+    gl.activeTexture(st.unit);
+    gl.bindVertexArray(st.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, st.ab);
+    gl.bindBuffer(gl.PIXEL_UNPACK_BUFFER, st.pub);
+    for (const [k, v] of st.px) gl.pixelStorei(k, v);
+    gl.useProgram(st.prog);
+  }
+  const kept = fn => function () { if (!G.gl) return fn.apply(this, arguments); const st = saveGL(); try { return fn.apply(this, arguments); } finally { restoreGL(st); } };
   // the drawn buffers read back (a debug check: a synchronous stall - the box's tolerance rig only)
   // (copied first into a buffer never bound for the feedback: WebGL will not map one that is)
   function readBack(D, vo, n) {
@@ -347,10 +375,10 @@
     for (const [g, a, n] of D.saved) { if (g.attributes.position === D.glA) g.attributes.position = a; if (D.glN && g.attributes.normal === D.glN) g.attributes.normal = n; }
     for (const a of [D.A, D.AN]) if (a) { if (a.clearUpdateRanges) a.clearUpdateRanges(); a.needsUpdate = true; }
     free(D);
-    if (renderer && renderer.resetState) renderer.resetState();
   }
 
-  const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare, ready, drawer, layout, frame, poll, readBack, release };
+  const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare: kept(prepare), ready: kept(ready), drawer: kept(drawer), layout: kept(layout),
+                frame: kept(frame), poll: kept(poll), readBack: kept(readBack), release: kept(release) };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (W) W.SKIN_GPU = API;
 })();
