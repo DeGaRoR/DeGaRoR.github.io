@@ -228,6 +228,11 @@ const GATES = [
   // CPU's riding (0.1 mm in the world, 1 deg) on the crash cases, the tear on read-back places against the full tear, and
   // the page's code: the GPU path only past the damage guard, no material or program touched. Three at once
   { id: 'DMGSKINGPU', file: '_dmg_skingpu_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1819 (DMG-SKINGPU, the coordinator's page-level row; A0: DMG rigs run the default mode): THE PAGE in node under the
+  // physics worker (dev.html?simw=1&damage=1, sim_host in a real thread, the user's Cub) - a trunk crash's breaks reach the
+  // page (its dmgState), the skin break and the debris run there; --selftest: the mirror's dmgState taken away goes red.
+  // One page process (~3.8 GB)
+  { id: 'DMGPAGEW', file: '_dmg_page_worker_check.js', tier: 'core', weight: 4, wall: 150 },
   // G1865 (DMG-D4b WRECK DRAWN): the wreck's non-member parts (src/viewer/wreck_debris.js) on the crash cases - which leave
   // and why, every body at rest on the ground or the water, the prop strike's bend or break, the clip against the live
   // cabin, the cockpit rule; damage off (and nothing broken) = no release, the crash's bits unread. Three at once

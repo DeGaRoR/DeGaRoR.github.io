@@ -7,16 +7,20 @@
 // member's tube - UNWELDED as the cage snapshot is, three vertices a triangle with their flat normals; app.js brkCage's
 // records: welded, riding whole in the world frame, the binding made BRK budget places a frame, the nodes' frames held to
 // their pieces' turns), two records a group - the CPU's riding (poseCage, the full tear: the page before G1818) and the
-// GPU's (G1818: its data packed as skin_gpu.js packs and sends it, tearHot):
+// GPU's (G1818: its data packed as skin_gpu.js packs and sends it, the tear on its read-back places):
 //   1. THE SHADER'S MIRROR = THE CPU'S RIDING: rideMirror (skin_break.js: RIDE_VS line for line, rounded as float32) on the
 //      textures skin_gpu.js packStale leaves - whole after an event, by place after a binding step - against poseCage on
 //      the same record and frame: every vertex's drawn position within 0.1 mm, its normal within 1 degree (the
 //      coordinator's bound), every 6th frame from the first break and every frame with a new break;
-//   2. THE TEAR WITHOUT THE CPU RIDING (tearHot: a hot member's ends, and a sweep) against the full tear: what it tears
-//      and when, and how far past the bound (1.15 x rest + 1 cm) a live edge stands at a check (the full tear: never);
+//   2. THE TEAR WITHOUT THE CPU RIDING (skin_break.js tearPlaces on the places' world positions read back a frame old)
+//      against the CPU's full tear: what it tears and when, how far past the bound a live edge stands; THE INCREMENTAL
+//      EVENT (a record far from the break skipped, a near one re-made where touched) = the full event, byte for byte;
+//      every record on the GPU (no CPU fallback), the bindings pruned past 8 slots counted;
 //   3. NOTHING CHANGES WITH NOTHING BROKEN, OR DAMAGE OFF (static, the page's code): app.js reaches the GPU path only
 //      inside brkCage past the damage state's guard, links its program only there; no material, program key or
 //      onBeforeCompile is touched by it (the drawn buffers change, never a program); skin_gpu.js makes nothing at load;
+//      poseModel's rig rows skip a group only while the page holds a break and its record rides it whole; under the
+//      physics worker the page's sim mirrors the view's damage state (GATE DMGPAGEW flies the page itself);
 //   4. the shader's text carries the mirror's steps (the slots, the hemisphere, the turn, the frame, the normal).
 // Reported: the records the GPU rides and any that would fall back to the CPU, the bindings pruned past 8 slots, the costs.
 // Run: node tools/_dmg_skingpu_check.js [--out <file.json>] [--builds cub,jodel]   (one final `GATE DMGSKINGPU: PASS|FAIL`)
@@ -315,6 +319,19 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     yes(SG.G.prog === null && SG.G.ok === null && !/^\s*(gl|THREE)\./m.test(gpu.slice(gpu.indexOf('(function () {'), gpu.indexOf('const G = {'))),
       'skin_gpu.js makes nothing at load (no program, no GL object; node loads it bare)');
     SG.prepare(fake); yes(SG.G.ok === false && !SG.G.prog, 'without WebGL2 the program is never made and the CPU rides (' + SG.G.err + ')'); void before;
+    // G1818: the rows a wreck rides whole are not posed by the rig loops - only while breaks are on the page, only a
+    // record that overwrites every position and normal (active, rideAll, its rest normals); nothing broken: the base's loops
+    const pm = code(app.slice(app.indexOf('const brkW = '), app.indexOf('// G239: ...AND THE RODS AND CABLES') + 400));
+    const wOk = /const brkW = !still && !model\.gen && window\.FLYDIY_SKINBREAK !== false && BRK\.recs\.length > 0 && \(\(\) => \{ const D = dmgNow\(\); return !!\(D && D\.br\.length\); \}\)\(\);/.test(pm)
+      && /const brkWhole = brkW \? \(r => \{ const R = r\.brkR; return !!\(R && R\.active && R\.rideAll && R\.nB\); \}\) : \(\) => false;/.test(pm);
+    const skips = (pm.match(/if \(brkWhole\((r|s)\)\) continue;/g) || []).length;
+    yes(wOk && skips === 6, 'app.js poseModel: a group the wreck rides whole skips its rig row (' + skips + ' rows: rigs, struts, legs, surfaces, anchored, links) only while the page holds a break, only for an active whole-riding record with its rest normals; nothing broken: every row as the base');
+    // G1818 (the box, 12:50): under the physics worker the page's sim is the view's mirror - its damage state too
+    const link = code(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_link.js'), 'utf8'));
+    const att = link.slice(link.indexOf('function attach()'), link.indexOf('function detach()'));
+    yes(/'certStamp', 'dmgState'\]\) saved\[k\] = own\(k\);/.test(att) && /def\('dmgState', \{ writable: true, value: \(\) => V\.dmgState\(\) \}\);/.test(att)
+      && /function dmgNow\(\) \{\s*if \(!sim\) return null;\s*if \(sim\.dmgState\) return sim\.dmgState\(\);/.test(app),
+      'sim_link.js attach mirrors the view\'s damage state on the page\'s sim (saved and given back at detach) and app.js dmgNow reads it first: under the worker the breaks reach the page (GATE DMGPAGEW flies it)');
   }
   // 4. the shader's text carries the mirror's steps
   {

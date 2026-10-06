@@ -3592,6 +3592,13 @@
       if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > tolS) { still = false; break; }
       if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
       if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
+    // G1818 (DMG-SKINGPU): A GROUP THE WRECK RIDES WHOLE is not posed here - its record (rideAll: every vertex on its
+    // nodes' frames, from the record's own rest; its normals turned from R.nB) overwrites every position and normal the
+    // rows below would write, on the GPU and on the CPU alike (brkCage, after them). They were ~165 ms of applySkinDeform
+    // and ~55 ms of turnNormals over a crash on the box, all of it thrown away. Asked only while breaks are on the page
+    // (dmgNow): the heal's frame poses the rows again before brkCage lets the records go
+    const brkW = !still && !model.gen && window.FLYDIY_SKINBREAK !== false && BRK.recs.length > 0 && (() => { const D = dmgNow(); return !!(D && D.br.length); })();
+    const brkWhole = brkW ? (r => { const R = r.brkR; return !!(R && R.active && R.rideAll && R.nB); }) : () => false;
     if (!still) {
     if (model.deltaSets) for (const D of model.deltaSets) sparDeltas(D.bind, sim, D);   // B20: per station table
     else sparDeltas(model.rigs[0].bind, sim, model.deltas);
@@ -3599,6 +3606,7 @@
       // a rig with no bound vertices and no hinges (the lift strut) rides the
       // group matrix — or its OWN two-end binding, applied just below
       if (!r.hb && !r.bind.bound.length) continue;
+      if (brkWhole(r)) continue;
       if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
       const dl = r.dl || model.deltas;
       applySkinDeform(r.bind, r.base, r.posAttr.array,
@@ -3686,6 +3694,7 @@
     };
     if (model.strutRigs && !still) for (const s of model.strutRigs) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
+      if (brkWhole(s)) continue;                                  // G1818
       const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       // a boom's tip end rides the tail's anchor set (its mean), not one node
       const DA = s.tipSet ? anchorDelta({ idxs: s.tipSet, rest0: s.restSet }).map(v => v / g) : null;
@@ -3714,6 +3723,7 @@
     }
     if (model.stretchRigs && !still) for (const s of model.stretchRigs) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
+      if (brkWhole(s)) continue;                                  // G1818
       const L = nodeLocal(s.idx);
       if (!s.rest0) s.rest0 = L;            // fallback only — see nodeRest
       const ddx = L[0] - s.rest0[0], ddy = L[1] - s.rest0[1],
@@ -3731,6 +3741,7 @@
     // `link` carries da/de/dr/flap as sim.ctl units; `k` scales a 0..1 flap to its travel (0.70 rad, the generated table's own) of surface deflection.
     if (model.surfParts && !still) for (const s of model.surfParts) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
+      if (brkWhole(s)) continue;                                  // G1818
       const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0)
         + (s.drive2 ? (s.sgn2 || 1) * (s.k2 || 1) * (link[s.drive2] || 0) : 0);   // G209, B22: k2
       const b = s.base, out = s.posAttr.array;
@@ -3816,6 +3827,7 @@
     }
     if (model.anchorRigs && !still) for (const r of model.anchorRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
+      if (brkWhole(r)) continue;                                  // G1818
       const d = anchorDelta(r), p2 = r.posAttr.array, b = r.base;
       for (let i = 0; i < b.length; i += 3) { p2[i] = b[i] + d[0]; p2[i + 1] = b[i + 1] + d[1]; p2[i + 2] = b[i + 2] + d[2]; }
       r.posAttr.needsUpdate = true;
@@ -3825,6 +3837,7 @@
     // and every vertex moves by its own share of that travel.
     if (model.linkRigs && !still) for (const r of model.linkRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
+      if (brkWhole(r)) continue;                                  // G1818
       const h = r.hinge;
       const ang = h.sgn * (h.k || 1) * (link[h.drive] || 0)
         + (h.drive2 ? (h.sgn2 || 1) * (h.k2 > 0 ? h.k2 : (h.drive2 === 'dr' && typeof genTravel === 'function' ? genTravel('rudder') : 1)) * (link[h.drive2] || 0) : 0);   // B22
