@@ -209,6 +209,20 @@ function pageNewMeshes() {
   out.sort((a, b) => b.big - a.big);
   return { newMeshes: out.length, withBig: out.filter(e => e.big).length, top: out.slice(0, 15) };
 }
+// THE BISECT OF THE STALE BUFFER (21:44: the ghost cleared by re-uploading everything): one class of drawn mesh at a time -
+// 'fold' (flown_bake's merged folds: userData.flownMerge), 'still' (app.js mergeStill: userData.still), 'model' (the rest
+// of the flight's model), 'other' (anything else in either scene). Returns how many attributes it flagged
+function pageReuploadKind(kind) {
+  const P = FLIGHT_PROBE, m = P.model(); let n = 0;
+  const inModel = o => { for (let q = o; q; q = q.parent) if (m && q === m.grp) return true; return false; };
+  const cls = o => o.userData && o.userData.flownMerge ? 'fold' : (o.userData && o.userData.still ? 'still' : (inModel(o) ? 'model' : 'other'));
+  const seen = new Set();
+  for (const sc of [P.craft() && P.craft().parent, P.hangarScene ? P.hangarScene() : null]) { if (!sc) continue;
+    sc.traverse(o => { if (!o.isMesh || !o.geometry || seen.has(o) || cls(o) !== kind) return; seen.add(o); const g = o.geometry;
+      for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute) { a.needsUpdate = true; n++; } }
+      if (g.index) g.index.needsUpdate = true; }); }
+  return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(n))));
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -280,6 +294,14 @@ const inShed = "document.body.classList.contains('mode-ws')";
     for (const [i, cam] of [[150, 14, 14], [235, 30, 18]].entries()) {
       await S.run(S.pageView, cam); await sleep(800);
       const f = path.join(OUT, 'path_' + k + '_after_' + (i + 1) + '.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shots.push(f);
+    }
+    // (the bisect: one class at a time, a still after each - the first to clear the ghost names the stale buffer)
+    r.bisect = [];
+    for (const kind of ['fold', 'still', 'model', 'other']) {
+      const nk = await S.run(pageReuploadKind, kind);
+      await S.run(S.pageView, [235, 30, 18]); await sleep(800);
+      const f = path.join(OUT, 'path_' + k + '_reupload_' + kind + '.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shots.push(f);
+      r.bisect.push({ kind, attrs: nk, shot: f }); console.log('  ' + k + ' BISECT re-uploaded ' + kind + ': ' + nk + ' attributes -> ' + path.basename(f));
     }
     r.reuploaded = await S.run(pageReupload);
     await S.run(S.pageView, [235, 30, 18]); await sleep(800);
