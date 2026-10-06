@@ -78403,4 +78403,4 @@ document beyond what DESTTO flies).
 - A0 at the train: rebuild; FRAMECOST / HITBOX may read the parked cook stale (any viewer edit moves the build id -
   DEST-TO's note); nothing new per frame (the ledger runs at a roll-out, a stop, a save; the wear macro at setAircraft).
 
-READY for the GAME COORDINATOR: claude/prem-s2-g2230 __SHA__
+READY for the GAME COORDINATOR: claude/prem-s2-g2230 d9465f6 (the code and the evidence; this line rides one docs-only commit on top)
