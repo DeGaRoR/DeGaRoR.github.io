@@ -25,12 +25,13 @@ What is here, and how to read it. Four sources, in the order of how much they pr
 | Damage OFF = not one bit, shaders included | bench `sameAsNoscuff` (every shader source hashed with skin_scuff.js present / removed); GATE 9 (static) | same hash, both builds; no wrapper, attribute or solver array with damage off |
 | No program link at the crash | `soft/final/run.log` `links` / `programsAdded` in each crash window; bench `crashLinks` | **0 / 0** in the taxi, the nose-over and the 30 m/s trunk (81 wrapped materials, both programs prelinked at the roll-out, 0 failed); bench 0 |
 | Intact, damage ON: one uniform branch at most | bench v4 `armedAsleep` vs `plain` | the block SLEEPS until the first damage (the plain programs): Cub +0.2 %, metal Cessna +1.4 % (SwiftShader noise). Awake and intact it would cost +8 % / +11 % - why it sleeps |
-| Event cost budgeted, no frame over budget | GATE cost line; `soft/final/run.log` scuff `phases` | node: ~0.2 us a place, a 2000-place tick <= 1.9 ms, the torn band <= 1.1 ms. The SwiftShader page ran ~1.4 us a place (an 8000-place tick 10.9 ms in run 3), so the pass also stops at 4 ms a frame (SC.frameMs) and a torn band waits for its own frame: tick 3.5-5 ms after. **Not met on the SwiftShader page: the first event makes the records, and one (skin_break's biggest group) took 16-31 ms in one frame, once** - see the HANDOVER (the box measures it; the lever is making them at idle) |
+| Event cost budgeted, no frame over budget | GATE cost line; `soft/final/run.log` scuff `phases` | node: ~0.2 us a place, a 2000-place tick <= 1.9 ms, the torn band <= 1.1 ms. The SwiftShader page ran ~1.4 us a place (an 8000-place tick 10.9 ms in run 3), so the pass also stops at 4 ms a frame (SC.frameMs) and a torn band waits for its own frame: tick 3.5-5 ms after. The first event made the records (skin_break's biggest group alone 16-31 ms in one frame): they are now made at the roll-out under its screen (`soft/final_taxi2/`: 46 in 105 ms there; the crash's worst scuff frame 12.5 ms on SwiftShader, ~2-3 ms by node's ratio - the box's `phases` say) |
 | Records zero intact / after a reset; scrape on the sliding side; crush on the yielded members; panes only when hit; deterministic | GATE DMGSCUFF | PASS on the Cub, the Jodel, the metal Cessna |
 
 ## `soft/` - the real page (the user's Cub)
 
-**`soft/final/` is the current one** (every fix below in); `soft/` itself is run 3 (the sleeping block's first real
+**`soft/final/` is the current one** (every fix below in; `soft/final_taxi2/` the taxi again with the records made at
+the roll-out); `soft/` itself is run 3 (the sleeping block's first real
 crash), `soft/taxi_v2/` a taxi between them. Per case: `<case>_<cam>_intact.jpg` (staged, before the crash),
 `_after.jpg` (the wreck, the damage drawn), `_noscuff.jpg` (the same frame with the branch closed -
 FLYDIY_SCUFF_SHOW(false), no program change: the A/B); `<case>_close_<layer>.jpg` the camera 1.3 m off the most damaged
