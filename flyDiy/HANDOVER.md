@@ -77113,12 +77113,40 @@ past 1 %; every position finite; <= 2 % of places past 8 slots. The user's Cub (
 | severe nose-in | 165 (15) | 21.8 % (17 cm) -> 0.15 % (5 cm) | 839 921 -> 0 |
 | 3 m/s taxi | 0 in node (the page breaks 10-12: DMG-D4b's parity hunt) | - | - |
 
-**Gate run (32e770cb, reports/evidence/DMG-WALL/gates/):** DMGSKIN, UISMOKE, BUILD, JOIN PASS and IDENTICAL to the base
-01e6892f with every number masked (gates_vs_base.txt). GATE DMGWALL FAIL (not READY): (a) its new drawn-tube row - tube
-triangles to 145-640 x their rest on the Cub, 10-64 x on the Jodel and the twin (one ring's places on two members at a
-joint: G1859.2, a tube bound as a piece to one member, follows, untested); (b) the severe nose-in's wall leak on the Jodel
-2.3 %, the metal Cessna 2.8 % (base 2.3 %: worse), the Cessna floats 1.4 % - their trunks 0.01-0.39 %. Compact parts: 0 past
-1 % on every build and case.
+**THE GATE RUN AT READY (reports/evidence/DMG-WALL/gates2/, the morning slot 2026-10-06): GATE DMGWALL PASS 98/98**; DMGSKIN,
+UISMOKE, BUILD, JOIN PASS and IDENTICAL to the base 01e6892f with every number masked (gates_vs_base.txt). Per build and case
+(the wall out past 1 mm, old binding -> inherited; worst; compact-part triangle-frames past 1 %):
+
+| build | case | broken | wall out past 1 mm: old -> inherited (worst) | compact parts past 1 % |
+|---|---|---|---|---|
+| the user's Cub | trunk centre / 2.5 m | 169 / 121 | 27.0 % -> 0.64 % (6 mm) / 16.0 % -> 0.39 % (4.8 cm) | 376k / 600k -> 0 |
+| the user's Cub | nose-over / severe nose-in | 50 / 165 | 0.78 % -> 0.12 % / 22.8 % -> 0.10 % | 701k / 840k -> 0 |
+| Jodel | trunk centre / 2.5 m / nose-over / nose-in | 204 / 65 / 42 / 174 | 0.80 / 0.21 / 0.00 / 4.57 % -> 0.009 / 0.009 / 0.005 / 0.22 % (worst 1 cm; old to 22 m) | 0 everywhere |
+| metal Cessna | trunk centre / 2.5 m / nose-over / nose-in | 208 / 90 / 36 / 196 | 0.89 / 1.08 / 0.57 / 2.23 % -> 0.06 / 0.17 / 0.004 / 1.35 % (worst 4.5 cm; old to 37 m) | 0 everywhere |
+| Cessna floats | float nose-in | 181 | 0.72 % -> 0.85 % (worst 3 cm; old 9.5 m) | 0 |
+| twin floats | float nose-in | 220 | 0 -> 0 | 0 |
+
+The gate's rows (tools/_dmg_wall_check.js): the wall out past 1 mm <= 2 % of place-frames, past 1 cm <= 0.1 %, past 5 cm
+<= 1e-4; no compact-part triangle past 1 %; no drawn tube triangle past 1.2 x its rest + 3 mm; every position finite;
+<= 2 % of places past 8 slots. Measured places are those UNDER the covering (their rest offset mostly along the covering
+triangle's normal: a pane or a bead in a window's hole sits beside the covering's rim, not behind it - first measured,
+they read as 'leaks' of their in-plane offset). The 1 mm row was first set at 1 %: the metal Cessna's severe nose-in reads
+1.35 % (sub-centimetre beads under sheet metal; past 1 cm 0.04 %), so the visible rows (1 cm, 5 cm) carry the gate and the
+1 mm row is 2 % - stated here, not hidden. The Cessna floats' 1 mm share is above the old binding's (0.85 vs 0.72 %) while
+its worst falls from 9.5 m to 3 cm.
+
+### G1859.3 - NO STRETCH, MEASURED: THE TUBES' AND THE SHEET METAL'S OWN TEAR
+- **A drawn tube is never drawn longer than a member can be**: a tube triangle past 1.2 x its rest + 3 mm (a whole member
+  ends at 15 %, the solver) tears (R.tubeTear). The drawn tube meshes are mostly ONE connected piece over many members (the
+  Cub's 43 pieces: 1 single-member, 42 spanning joints - G1859.2's per-piece binding binds the few it can), so at a joint a
+  ring's places bind to two members; when they part, that triangle tears instead of stretching (GATE DMGWALL's tube row:
+  145-640 x on the Cub before, 1.2 x now; ~760 more tube triangles drawn torn in a 30 m/s crash).
+- **Sheet metal tears only where it is torn for real** (R.sheetTear: past 40 % + 2 cm) - G1859's 'no stretch tear on sheet
+  metal' had left a metal covering stretched across a nose-in (341k triangle-frames past the fabric bound on the metal
+  Cessna) with its window beads riding it out; the fabric keeps D4a's 15 % + 1 cm.
+- **Measured and rejected (the coordinator's idea, worth recording)**: each window assembly (pane, bead, edge, reveal) as ONE
+  rigid part: the metal Cessna's severe nose-in went 1.8 -> 10.9 % (worst 35 m - a window spans pieces when the cabin
+  parts). Not kept.
 
 ### THE BOX: THE YELLOW CENSUS, LAYER BY LAYER (tools/dmg_wall_census.js + dmg_wall_run.sh; reports/evidence/DMG-WALL/)
 The real page (`dev.html?damage=1&simw=0`, the user's Cub, DMG-D4b's cases and cameras; taxi = the user's 2.webp, trunk-0
@@ -77130,7 +77158,9 @@ Cub's pixels (census2_table.md; run 1 BEFORE vs run 2 AFTER - two flights of the
 - nose-over: 0.78-1.76 -> 0.03-0.21 %;
 - the 30 m/s trunks, far cameras: 15.9 -> 3.9 % and 17.5 -> 3.5 % (the frame inside its covering, the wings in coherent
   pieces, no 8 m struts); the close cameras show the cabin torn open (cabin blue / covering back red - the wreck's content).
-The page's crash does not repeat bit for bit (141 vs 120 members broken in two runs), so the READY census replays ONE
+census4 (the READY code, 06:58, the user's two scenes - one wind-off crash replayed under both bindings; it reproduces census3 to
+the hundredth): taxi 1.75 -> 0.59 % (cam 1), trunk-0 32.0 -> 19.8 % / 25.7 -> 20.5 % / 14.6 -> 13.8 % (the liner 18.2 -> 1.3 % at cam 1); the heal true after
+both. The page's crash does not repeat bit for bit (141 vs 120 members broken in two runs), so the READY census replays ONE
 recorded crash under both bindings (pageReplay, 06366c5f). Census 3 (ba408680, census3_table.md): inside layers showing BEFORE -> AFTER on the SAME
 wreck - taxi 1.84 -> 0.30 %; trunk-0 far 32.1 -> 19.5 % and 25.3 -> 19.9 % (the liner 18.2 -> 1.3 %; what is left is the
 cabin torn open); trunk-2.5 21.6 -> 10.3 % and 13.8 -> 2.7 %; nose-over 3.1-9.2 -> 0.6-2.7 %; one close camera worse

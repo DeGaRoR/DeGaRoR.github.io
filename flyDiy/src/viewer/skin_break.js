@@ -570,22 +570,28 @@
   }
   // ---- THE TEAR: a watched triangle past TEAR over its rest edge is torn for good. Returns the triangles torn now ----
   function tear(R, base, pos) {
-    if (!R.watch || R.noTear) return 0;                  // (G1859: a tube, a rigid part, sheet metal - never cut to confetti)
+    if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear)) return 0;                  // (G1859: a tube, a rigid part, sheet metal - never cut to confetti)
     const i0 = R.idx0, idx = R.idx, dead = R.dead, W = R.watch;
     let n = 0;
     for (let j = 0; j < W.length; j++) {
       const t = W[j]; if (dead[t]) continue;
       const a = i0[t * 3] * 3, b = i0[t * 3 + 1] * 3, c = i0[t * 3 + 2] * 3;
-      if (over(pos, base, a, b) || over(pos, base, b, c) || over(pos, base, a, c)) {
+      if (over(pos, base, a, b, R) || over(pos, base, b, c, R) || over(pos, base, a, c, R)) {
         dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++;
       }
     }
     R.torn += n; R.removed += n;
     return n;
   }
-  function over(pos, base, a, b) {
+  function over(pos, base, a, b, R) {
     const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
     const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
+    // (G1859.3: a drawn TUBE's own bound - a whole member ends at 15 % (the solver), so a tube triangle past 20 % + 3 mm
+    // spans two bindings that parted at a joint: drawn torn, never stretched)
+    if (R && R.tubeTear) return !(l <= 1.2 * r + 0.003);
+    // (G1859.3: SHEET METAL tears only where it is torn for real - past 40 % + 2 cm: no confetti from a few frames of
+    // elastic bay shear, but no sheet drawn stretched across a wreck either)
+    if (R && R.sheetTear) return !(l <= 1.4 * r + 0.02);
     return !(l <= (1 + TEAR) * r + TEAR_ABS);          // (a NaN edge is torn too)
   }
   // the gate's measure over every live triangle of a group: the worst edge past its bound (m: l - (1 + TEAR) r - TEAR_ABS,
@@ -808,8 +814,9 @@
     }
     // 2. the compact parts: one binding an object (its centroid's covering binding)
     for (const E of L) {
-      const R = E.R, K = R.K, P = R.g.pos, obj = E.obj, box = new Map(), list = placesOf(E, INH.rigid);
+      const R = E.R, K = R.K, P = R.g.pos, box = new Map(), list = placesOf(E, INH.rigid);
       if (!list.length) continue;
+      const obj = E.obj;
       if (E.fixed) {                                     // (the page's own: a gear leg, half its root node, half its axle's)
         _acc.clear(); for (const [i, w] of E.fixed) _acc.add(i, w);
         const wi = new Int32Array(K), ww = new Float32Array(K); _acc.put(wi, ww, 0, K); st.parts++;
@@ -886,7 +893,7 @@
         const Lc = G.cells.get(G.key(i, j, k)); if (!Lc) continue;
         for (let q = 0; q < Lc.length; q += 2) { const R = cov[Lc[q]].R, t = Lc[q + 1], P = R.g.pos, ix = R.idx0 || R.idx;
           const res = triClosest(P, ix[t * 3] * 3, ix[t * 3 + 1] * 3, ix[t * 3 + 2] * 3, x, y, z);
-          if (res.d < bd) { bd = res.d; best = { r: Lc[q], t, b: [res.u, res.v, res.w] }; } }
+          if (res.d < bd) { bd = res.d; best = { r: Lc[q], t, b: [res.u, res.v, res.w], d0: res.d }; } }
       }
     }
     return best;

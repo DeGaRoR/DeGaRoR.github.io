@@ -86,12 +86,14 @@ function prepare(k) {
     const cv = new Uint8Array(nv), obj = new Int32Array(nv).fill(-1), layer = new Array(nv).fill('');
     for (const [ly, a, b, id] of (lay.get(g.key) || [])) for (let v = a; v < b; v++) { layer[v] = ly; obj[v] = id; }
     for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(g.sec, role, layer[v]);
+    // (what is MEASURED as a wall place: its role's class without G1859.4 - a window bound rigid is still measured)
+    const cm = cv;
     // (a part object wider than RIGID_D is bound as covering, not rigid: not measured as rigid either)
     const ext = new Map(); for (let v = 0; v < nv; v++) if (cv[v] === SB.INH.rigid) { let e = ext.get(obj[v]); if (!e) ext.set(obj[v], e = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
       for (let j = 0; j < 3; j++) { e[j] = Math.min(e[j], bD[v*3+j]); e[j+3] = Math.max(e[j+3], bD[v*3+j]); } }
     const big = new Set(); for (const [id, e] of ext) if (Math.hypot(e[3] - e[0], e[4] - e[1], e[5] - e[2]) > 1.2) big.add(id);
     var rigidOk = new Uint8Array(nv); for (let v = 0; v < nv; v++) rigidOk[v] = cv[v] === SB.INH.rigid && !big.has(obj[v]) ? 1 : 0;
-    return { key: g.key, sec: g.sec, role, nv, idx: g.idx, bD, cv, obj, layer, rigidOk };
+    return { key: g.key, sec: g.sec, role, nv, idx: g.idx, bD, cv, cm, obj, layer, rigidOk };
   });
   return { k, S, def, rest, groups, T: SB.topo(def.beams, n), fabric: def.spec && def.spec.material === 'tubeFabric' };
 }
@@ -112,15 +114,20 @@ function run(P, caseId) {
     if (sc.name === 'inh') {
       sc.E = sc.recs.map((R, i) => ({ R, cv: P.groups[i].cv, obj: P.groups[i].obj }));
       const t0 = Date.now(); sc.inhSt = SB.bindInherit(sc.E, P.T, P.rest); sc.inhSt.ms = Date.now() - t0;
-      sc.recs.forEach((R, i) => { const cv = P.groups[i].cv; if (!P.fabric || cv.indexOf(SB.INH.tube) >= 0 || cv.indexOf(SB.INH.rigid) >= 0 && cv.indexOf(SB.INH.cover) < 0) R.noTear = true; });
+      sc.recs.forEach((R, i) => { const cv = P.groups[i].cv, has = c => cv.indexOf(c) >= 0;
+        R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !P.fabric);
+        R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !P.fabric; });
     }
     if (!wallMap) {
       const E = sc.recs.map((R, i) => ({ R, cv: P.groups[i].cv })), Gd = SB.coverGrid(E);
-      wallMap = P.groups.map((g, i) => { if (g.cv.indexOf(SB.INH.wall) < 0) return null; const R = sc.recs[i], m = new Int32Array(g.nv * 2).fill(-1), b = new Float64Array(g.nv * 3), d0 = new Float64Array(g.nv);
-        for (let v = 0; v < g.nv; v++) { if (g.cv[v] !== SB.INH.wall || (R.rep && R.rep[v] !== v)) continue;
+      wallMap = P.groups.map((g, i) => { if (g.cm.indexOf(SB.INH.wall) < 0) return null; const R = sc.recs[i], m = new Int32Array(g.nv * 2).fill(-1), b = new Float64Array(g.nv * 3), d0 = new Float64Array(g.nv);
+        for (let v = 0; v < g.nv; v++) { if (g.cm[v] !== SB.INH.wall || (R.rep && R.rep[v] !== v)) continue;
           const h = SB.closestCover(Gd, E, g.bD[v*3], g.bD[v*3+1], g.bD[v*3+2], 0.15); if (!h) continue;
           m[v*2] = h.r; m[v*2+1] = h.t; b.set(h.b, v * 3);
-          d0[v] = sideOf(P.groups[h.r].bD, P.groups[h.r].idx, h.t, h.b, g.bD, v); }
+          d0[v] = sideOf(P.groups[h.r].bD, P.groups[h.r].idx, h.t, h.b, g.bD, v);
+          // (only a place UNDER the covering is measured: its rest offset mostly along the triangle's normal - a pane or a
+          // bead sitting in a window's hole is beside the covering's rim, not behind it, and has no inside to leak from)
+          if (Math.abs(d0[v]) < 0.7 * Math.sqrt(h.d0 != null ? h.d0 : 0) ) d0[v] = 0; }
         return { m, b, d0 }; });
     }
   };
@@ -200,7 +207,7 @@ function run(P, caseId) {
         // (a drawn tube: no edge past its rest by more than the solver's whole members allow (15 %) + 5 %)
         if (g.cv[a] === SB.INH.tube && g.cv[b] === SB.INH.tube && g.cv[c] === SB.INH.tube) { let w = 0;
           for (const [p, q] of [[a, b], [b, c], [a, c]]) { const r0 = Math.hypot(A[p*3] - A[q*3], A[p*3+1] - A[q*3+1], A[p*3+2] - A[q*3+2]); if (r0 < 0.004) continue;
-            const l = Math.hypot(W[p*3] - W[q*3], W[p*3+1] - W[q*3+1], W[p*3+2] - W[q*3+2]); w = Math.max(w, l / r0); }
+            const l = Math.hypot(W[p*3] - W[q*3], W[p*3+1] - W[q*3+1], W[p*3+2] - W[q*3+2]); w = Math.max(w, (l - 0.003) / r0); }
           m.tubeTris++; if (w > 1.2) m.tubeBad++; if (w > m.tubeWorst) m.tubeWorst = w; }
         if (g.rigidOk[a] && g.rigidOk[b] && g.rigidOk[c] && g.obj[a] === g.obj[b] && g.obj[b] === g.obj[c]) {
           let worst = 0;

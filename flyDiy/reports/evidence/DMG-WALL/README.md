@@ -20,3 +20,6 @@ The user's Cub (`builds/cub_2026-09-20_corrected.json`), `dev.html?damage=1&simw
   the garage -> roll-out path) gives every craft geometry's index + static positions bit-identical to the fresh load.
 - `gates/` - the worker gate set on 32e770cb: DMGSKIN, UISMOKE, BUILD, JOIN identical to the base 01e6892f (numbers
   masked, `gates_vs_base.txt`); GATE DMGWALL FAIL on the drawn-tube row and on three builds' severe nose-in (not READY).
+- `gates2/` - the worker gate set at READY: GATE DMGWALL PASS 98/98; DMGSKIN, UISMOKE, BUILD, JOIN identical to the base.
+- `census4/` - the READY code, the user's two scenes (taxi, trunk-0), one wind-off crash replayed under both bindings; the
+  heal true after both.

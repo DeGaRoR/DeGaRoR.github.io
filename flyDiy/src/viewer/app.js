@@ -4190,6 +4190,7 @@
         // no stretch tear on a tube, a rigid part or sheet metal (G1859: not cut to confetti) - the fabric's tear stays
         const has = c => cv.indexOf(c) >= 0, fabric = R.fabric;
         R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
+        R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
         R.inhRec = true; L.push(E);
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;
