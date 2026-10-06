@@ -4242,25 +4242,34 @@
     return { on: brkWallWant(), inh: brkInhWant(), recs: L.length, tris: L.reduce((a, R) => a + R.nt, 0), cut: L.reduce((a, R) => a + (R.cut || 0), 0),
              followed: BRK.recs.reduce((a, R) => a + (R.followed || 0), 0), bind: K && K.inhSt ? Object.assign({}, K.inhSt) : null }; };
   const brkWallWant = () => window.FLYDIY_SKINWALL !== false && typeof AEROSKIN !== 'undefined' && !brkInhWant();
+  // the cut's key: its mode (G1858 on the old binding; G1858.3 the crushed bays on the inherited one, once its binding is
+  // done), the break events and the sets
+  const brkWallKey = D => { const K = model && model.brk;
+    if (brkInhWant()) return window.FLYDIY_SKINWALL !== false && K && K.inhSt && K.inhSt.done ? 'inh|' + D.vB + '|' + D.sS : 'off';
+    return brkWallWant() ? 'old|' + D.vB + '|' + D.sS : 'off'; };
   // (the wreck at rest is not re-posed: a new set or the switch flipped must still reach it)
-  const brkWallStale = D => !!(model && model.brk && (model.brk.wallKey !== (brkWallWant() ? D.vB + '|' + D.sS : 'off') ||
+  const brkWallStale = D => !!(model && model.brk && (model.brk.wallKey !== brkWallKey(D) ||
     (model.brk.inhOn != null && model.brk.inhOn !== brkInhWant()) || (model.brk.inhSt && !model.brk.inhSt.done)));
   function brkWallCut(groups, D) {
-    const K = model.brk, on = brkWallWant(), key = on ? D.vB + '|' + D.sS : 'off';
+    const K = model.brk, key = brkWallKey(D);
     if (K.wallKey === key) return;
-    const was = K.wallKey; K.wallKey = key;
+    const was = K.wallKey || 'off'; K.wallKey = key;
+    const mode = key.split('|')[0], wasMode = was.split('|')[0];
+    // the old binding's records: the lining's sections (G1858)
     const recs = [];
     for (const [own] of groups) { const R = own.brkR; if (!R) continue;
       if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])); }
       if (R.wallIn) recs.push(R); }
-    if (!on) {                                            // switched off: the cut triangles back as they were
-      if (was && was !== 'off') for (const R of recs) { if (!R.dead || !R.idx0) continue; let n = 0;
+    // the inherited binding's: every record with wall places (the lining, the beads, the glazing - G1858.3)
+    const inh = mode === 'inh' || wasMode === 'inh' ? (K.inhL || []).filter(E => E.cv.indexOf(SKIN_BREAK.INH.wall) >= 0) : [];
+    if (mode !== wasMode && wasMode !== 'off') {         // the mode changed (or switched off): the cut triangles back as they were
+      const back = (wasMode === 'inh' ? inh.map(E => E.R) : recs);
+      for (const R of back) { if (!R.dead || !R.idx0) continue; let n = 0;
         for (let t = 0; t < R.nt; t++) if (R.dead[t] === 3) { R.dead[t] = 0; for (let k = 0; k < 3; k++) R.idx[t * 3 + k] = R.idx0[t * 3 + k]; n++; }
         R.removed -= n; R.cut = 0; if (n) brkIdx(R); }
-      return;
     }
-    const hot = SKIN_BREAK.hotNodes(K.T, D);
-    for (const R of recs) if (SKIN_BREAK.cutWall(R, hot)) brkIdx(R);
+    if (mode === 'old') { const hot = SKIN_BREAK.hotNodes(K.T, D); for (const R of recs) if (SKIN_BREAK.cutWall(R, hot)) brkIdx(R); }
+    else if (mode === 'inh') { const hot = SKIN_BREAK.hotNodes(K.T, D, SKIN_BREAK.SET_CRUSH); for (const E of inh) if (SKIN_BREAK.cutWall(E.R, hot, E.cv)) brkIdx(E.R); }
   }
 
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on

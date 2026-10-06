@@ -620,15 +620,23 @@
   // ends of a broken member, the nodes off the core (a piece that came off), the ends of a member set past SET_HOT.
   // Away from the damage the cabin keeps its lining. Made at the events (a break, a new set), never per frame
   const SET_HOT = 0.01;       // a member's permanent set past 1 % puts its two ends at the damage
-  function hotNodes(T, D) {
-    const hot = new Uint8Array(T.n);
-    for (const bi of D.br) { const b = T.beams[bi]; if (b) hot[b.a] = hot[b.b] = 1; }
-    if (D.pc) for (let i = 0; i < T.n; i++) if (D.pc[i] !== 0) hot[i] = 1;
-    if (D.set) for (let bi = 0; bi < T.nb; bi++) { const s = D.set[bi]; if (s > SET_HOT || s < -SET_HOT) { const b = T.beams[bi]; hot[b.a] = hot[b.b] = 1; } }
+  // (crush: G1858.3 - only the ends of the members set past `crush`: the bays that crushed; the breaks and the pieces are
+  // the inherited binding's own business there)
+  function hotNodes(T, D, crush) {
+    const hot = new Uint8Array(T.n), lim = crush || SET_HOT;
+    if (!crush) { for (const bi of D.br) { const b = T.beams[bi]; if (b) hot[b.a] = hot[b.b] = 1; }
+      if (D.pc) for (let i = 0; i < T.n; i++) if (D.pc[i] !== 0) hot[i] = 1; }
+    if (D.set) for (let bi = 0; bi < T.nb; bi++) { const s = D.set[bi]; if (s > lim || s < -lim) { const b = T.beams[bi]; hot[b.a] = hot[b.b] = 1; } }
     return hot;
   }
+  // G1858.3 (DMG-WALL; DMG-TUNE's wreck): THE LINING CUT WHERE A BAY CRUSHED, on the inherited binding. The inherited wall
+  // rides its covering point at its depth - it cannot come out unless the covering folds tighter than that depth, which
+  // a bay that crushes and holds together does (TUNE's Jodel at 30 m/s: the cabin folds instead of breaking up - 2.2 % of
+  // the plywood, beads and sills out past 1 mm, 7.6 cm the worst). There the wall places bound to a node of a member set
+  // past SET_CRUSH are cut as G1858 cuts (dead 3; at the events, never per frame); the rest of the lining stays
+  const SET_CRUSH = 0.02;
   // returns the triangles cut now (R: an inside-wall record after its event; hot: hotNodes)
-  function cutWall(R, hot) {
+  function cutWall(R, hot, cv) {
     if (!R.active || !R.dead) return 0;
     const K = R.K, wi = R.wi, w2 = R.w2, i0 = R.idx0, idx = R.idx, dead = R.dead, near = R.g.near;
     const nv = R.nv, vh = R._vh && R._vh.length === nv ? R._vh : (R._vh = new Uint8Array(nv));
@@ -639,6 +647,7 @@
     for (let t = 0; t < R.nt; t++) {
       if (dead[t]) continue;
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
+      if (cv && (cv[a] !== INH.wall || cv[b] !== INH.wall || cv[c] !== INH.wall)) continue;   // (G1858.3: the wall's own triangles only)
       if (vh[a] || vh[b] || vh[c]) { dead[t] = 3; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = a; n++; }
     }
     R.cut = (R.cut || 0) + n; R.removed += n;
@@ -967,7 +976,7 @@
     R.removed += n; R.followed = (R.followed || 0) + n;
     return n;
   }
-  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch, hotNodes, cutWall };
+  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch, hotNodes, cutWall };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();

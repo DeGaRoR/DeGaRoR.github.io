@@ -150,6 +150,9 @@ function run(P, caseId) {
       if (!sc.recs) mkRecs(sc);
       let evd = false; for (const R of sc.recs) evd = SB.event(R, P.T, D, P.rest, R.g.pos) || evd;
       if (evd && sc.E) for (const E of sc.E) if (E.on) SB.wallSync(E, sc.E);
+      // (G1858.3: the inherited wall cut where a bay crushed - as app.js brkWallCut, at the events and the new sets)
+      if (sc.E && process.env.NOCRUSH !== '1') { const key = D.vB + '|' + D.sS; if (sc.crushKey !== key) { sc.crushKey = key; const hot = SB.hotNodes(P.T, D, SB.SET_CRUSH);
+        for (const E of sc.E) if (E.cv.indexOf(SB.INH.wall) >= 0) SB.cutWall(E.R, hot, E.cv); } }
       if (sc.name === 'g1858') { const key = D.vB + '|' + D.sS; if (sc.wallKey !== key) { sc.wallKey = key; const hot = SB.hotNodes(P.T, D);
         sc.recs.forEach((R, i) => { const g = P.groups[i]; if (g.sec && ['liner', 'fire', 'sill', 'doorPad'].includes(g.role)) SB.cutWall(R, hot); }); } }
       SB.nodeFrames(sc.NF, P.T, D, P.rest, sim.p, true);
