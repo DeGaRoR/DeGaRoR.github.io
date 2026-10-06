@@ -78087,3 +78087,54 @@ recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log
 Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
 BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
 For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
+
+## G2200 - GAME COORDINATOR (2026-10-06, a LOCAL sub-coordinator under A0, like Deform / Sound; integration branch claude/game-integration off origin/master 068584d6; G-block G2200-G2399)
+
+STATUS (kept current): **STUDY DONE, waiting for the user's redesign.**
+- Deliverables 1-3 are on claude/game-integration. Deliverable 4 (slicing, chips, integration) starts after the user's
+  calls. Rows 1-3 of the phasing need no redesign decision and were offered to A0 to start now.
+
+DELIVERABLES
+1. `futureDesigns/GAME-2026-10-06.md`: the final study. It covers:
+   - the loop and the three concepts (main hangar, at most 2 side hangars, stations on any runway, "bring it home");
+   - the fleet as props at their last base (parked.js `mine:` keys, bake on save, the G809 #2 capture-leak fix first,
+     ≤ 6 drawn, L3-only on the light presets, the LOCAL-GPU proof);
+   - procurement (makers over validated builds only, scratch, used aeroplanes standing where they are for sale);
+   - build contracts as performance user stories, verified by the certificate where it can tell and by a flown
+     ACCEPTANCE leg where it cannot (VCruise is clamped to 1.55-2.2 Vs);
+   - six providers as tabs; the SnowRunner-style MAP (researched and cited, §8.4);
+   - pilots (a person wrapped around a PILOT-PERSONA profile, a Mixamo body, a portrait);
+   - the narrative, with GQ20 (the real Metlakatla community: fictional people and organisations only);
+   - construction stages in the premises record, the economy, the save (PLAYER_V 3, `flydiy.career.<id>`, designs vs
+     airframes);
+   - the welcome menu with `?mode=`, the phasing (14 rows), GQ1-GQ28 with defaults, and rulings g1-g11.
+2. `futureDesigns/game/GAME-REVIEW-2026-10-06.html`: the review page for the user's session. It has 31 decision cards
+   with the default preselected, notes, and "Copy my calls" (localStorage only, no capability). **A0 publishes it**
+   as an artifact and relays the user's pasted calls.
+3. `futureDesigns/game/NARRATIVE-PROMPT-PACK-2026-10-06.md`: the external-AI pack. **PREPARED, NOT RUN.** It contains:
+   - the bible + hard constraints, the 6 providers' voices, the arcs / jobs / build briefs / challenges;
+   - 16 recruitable pilots with their fixed profile knobs and traits, a portrait style line + one prompt each, and the
+     Mixamo body map (6 existing, 10 `NEW:` needing the user's OK for downloads);
+   - the import JSON shapes.
+
+  The user chooses the AI and runs it (GQ21).
+
+ABSORBED
+- GAME-PREMISES (claude/game-premises-g2095 3d201d62): its model is kept and capped to the user's 3 concepts. Q5, Q8
+  and Q14 are superseded (GQ4, §3.4, GQ22). **Not READY**: there is no HANDOVER section, and its core battery shows
+  BIPLANE, DMGCERTCOST, FRAMECOST, INSTANT, BIOME, SETTLE and BUILT red without a write-up. Its S2-S4 numbers
+  G2096-G2099 are retired in favour of G2230-G2239 / G2310-G2339.
+- PILOT-PERSONA (claude/pilot-persona-g2085 73655e24): **not READY**. There is no G2085 section, `pilot_baseline.json`
+  is not updated, and it carries PILOT-ONE-2. It conflicts with GAME-PREMISES on `70_player.js` and
+  `90_node_exports.js`; the resolution is in study §13.3.
+- DEST-TO: landed (train 37). `flightWhere` / `flightLeg` / `setDest` are the hooks for `playerArrive`, the map's
+  route and "Fly it".
+
+SUB-BLOCKS
+- G2200-G2209 coordinator (G2200 study, G2201 pack, G2202 review page).
+- WELCOME-MODES G2210-19; FLEET-PROPS A G2220-24 / B G2225-29; PREM-S2 G2230-39; CONTRACT-MODEL G2240-49; MAP-MENU
+  G2250-59; ECONOMY G2260-69; ACCEPT G2270-79; PROCURE G2280-89; PILOTS G2290-99; STAGES G2300-09; PREM-S3 G2310-19;
+  PREM-S4 + CAREER-START G2320-39; OBSERVATORY G2340-49; reserve G2350-99.
+
+FOR THE NEXT GAME COORDINATOR: read study §15-§17 and the user's pasted calls (via A0); slice into chips (cloud
+first, titles [CLOUD]/[LOCAL]/[LOCAL-GPU]); integrate on claude/game-integration; hand A0 frozen SHAs per train.

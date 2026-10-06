@@ -1,0 +1,220 @@
+<title>flyDiy Game Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: a single reading column of decision cards grouped by theme, a sticky tally bar at the foot. Project system: IBM Plex, three greys, one accent. */
+:root {
+  --bg: #f3f4f2;
+  --panel: #ffffff;
+  --ink: #1d2124;
+  --muted: #5d666c;
+  --line: #d8dcda;
+  --accent: #2f6f8f;          /* the sea off Annette Dock */
+  --accent-soft: #e3eef3;
+  --ok: #3b7a4a;
+  --warn: #9a6a12;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-head: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191b; --panel: #1d2326; --ink: #e6e9ea; --muted: #9aa5ab; --line: #2f383c;
+  --accent: #7fb6d1; --accent-soft: #223640; --ok: #7cc28d; --warn: #e0b45a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15191b; --panel: #1d2326; --ink: #e6e9ea; --muted: #9aa5ab; --line: #2f383c;
+  --accent: #7fb6d1; --accent-soft: #223640; --ok: #7cc28d; --warn: #e0b45a; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 120px; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font: 600 12px/1 var(--f-head); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 600 34px/1.1 var(--f-head); margin: 0; text-wrap: balance; }
+h2 { font: 600 20px/1.2 var(--f-head); margin: 0; text-wrap: balance; }
+h3 { font: 600 16px/1.3 var(--f-body); margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lede { color: var(--muted); }
+.vision { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; color: var(--muted); font-style: italic; }
+.how { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+section { display: grid; gap: 14px; }
+.sechead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.sechead .ref { font-size: 13px; color: var(--muted); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.card.decided { border-color: var(--accent); }
+.top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.id { font: 600 12px/1 var(--f-head); letter-spacing: .06em; color: var(--accent); background: var(--accent-soft); padding: 4px 6px; border-radius: 3px; }
+.why { font-size: 14px; color: var(--muted); }
+.opts { display: grid; gap: 6px; }
+.opt { display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.opt:hover { border-color: var(--accent); }
+.opt input { margin: 3px 0 0; accent-color: var(--accent); }
+.opt .lab { min-width: 0; }
+.tag { font: 600 11px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: var(--ok); margin-left: 6px; }
+.opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+textarea { width: 100%; box-sizing: border-box; min-height: 52px; resize: vertical; font: 14px/1.4 var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+textarea:focus, .opt:focus-within, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.bar .in { max-width: 860px; margin: 0 auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; flex: 1 1 200px; }
+.count b { color: var(--ink); }
+button { font: 600 14px/1 var(--f-body); border-radius: 4px; padding: 10px 14px; cursor: pointer; border: 1px solid var(--accent); }
+.primary { background: var(--accent); color: var(--panel); }
+.ghost { background: transparent; color: var(--accent); }
+#out { width: 100%; min-height: 160px; font-size: 13px; }
+#outWrap[hidden] { display: none !important; }
+.status { font-size: 13px; color: var(--ok); }
+@media (max-width: 520px) { h1 { font-size: 27px; } }
+@media (prefers-reduced-motion: no-preference) { .opt, .card { transition: border-color .15s, background-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">flyDiy · the game layer · for the redesign session</div>
+    <h1>Thirty-one calls before the game is sliced</h1>
+    <p class="lede">The Game Coordinator's study (<code>futureDesigns/GAME-2026-10-06.md</code>) as decisions. Each card has the default the design takes until you rule. Change any choice and write notes. Then press <b>Copy my calls</b> and paste the text back to A0 or the Game Coordinator.</p>
+    <p class="vision">"Let's keep things open when we can. The player should be able to choose its routes, planes, pilots as freely as possible."</p>
+    <div class="how">
+      <span>The defaults are already selected. If you leave a card alone, its default is your call.</span>
+      <span>Your choices stay in this browser only. Nothing is sent anywhere until you paste it.</span>
+    </div>
+  </header>
+  <div id="cards"></div>
+  <section id="outWrap" hidden>
+    <div class="sechead"><h2>Your calls, as text</h2><span class="status" id="copied"></span></div>
+    <textarea id="out" readonly aria-label="Your calls as text"></textarea>
+  </section>
+</div>
+
+<div class="bar"><div class="in">
+  <div class="count" id="count"></div>
+  <button class="ghost" id="reset" type="button">Back to defaults</button>
+  <button class="primary" id="copy" type="button">Copy my calls</button>
+</div></div>
+
+<script>
+const SECTIONS = [
+ { t: 'The loop and the shape of the game', ref: 'study §0, §2, §14', cards: [
+  { id: 'GQ1', q: 'Is the game a career mode beside the sandbox, forever?', why: 'The sandbox stays today\'s game byte for byte. The career is opt-in from the welcome screen.',
+    o: ['Career beside the sandbox, forever', 'The sandbox goes away once the career is good', 'The career only; the sandbox is a dev tool'] },
+  { id: 'G-LOOP', q: 'Who flies a contract in v1?', why: 'v1 resolves one flight at a time, the one you are in. Your other aeroplanes stand still. Background flights in a worker (the observatory) come later.',
+    o: ['One flight at a time (yours); background flights later', 'Background flights in v1 (a large chantier first)'] },
+  { id: 'GQ24', q: 'Can you hand-fly a contract, and does it pay the same?', why: 'The logbook records who flew.', o: ['Yes, same pay', 'Yes, but a hired pilot\'s bonus is lost', 'No, pilots only'] },
+  { id: 'GQ25', q: 'Is the autopilot\'s competence part of the challenge? (a pilot can fail where you would not)', why: 'This is the spine: a mismatched aeroplane fails for physical reasons. dm14 keeps normal landings safe.',
+    o: ['Yes, it is the spine', 'No, pilots always cope; only the aeroplane can fail'] },
+  { id: 'GQ17', q: 'Contracts with deadlines?', why: 'Time only runs in flight (ruling ax).', o: ['No deadlines; conditions only ("before dusk")', 'Deadlines in flown hours'] },
+ ]},
+ { t: 'The three concepts: main hangar, two side hangars, materialised planes', ref: 'study §3-§4', cards: [
+  { id: 'GQ3', q: 'What can a side hangar do?', why: 'The main hangar at HOME is the workshop. Side hangars sit on plots you choose (Tamgas Hill, the dock, the altiport...).',
+    o: ['Park, repair, paint, refuel; build only in the main hangar', 'Everything the main hangar does, if its kits allow', 'Park only'] },
+  { id: 'GQ4', q: 'Two side hangars: a hard cap?', why: 'Your number. It makes "where" a decision and caps the world cost at three player sheds.',
+    o: ['A hard cap of 2 in v1', '2 at the start, more unlocked by reputation', 'Unlimited (GAME-PREMISES\' plots)'] },
+  { id: 'GQ5', q: '"Bring it home" (reset to hangar) in a career costs...', why: 'Free and instant in the sandbox.', o: ['A fee only (200 + 25 per km)', 'A fee and the aeroplane is away for a flown hour', 'Free in the career too'] },
+  { id: 'GQ7', q: 'Aeroplanes stationed outside, on a runway without a hangar:', why: 'They can be flown and refuelled there, and repaired only at ×1.25 labour.', o: ['Free in v1; weather wear comes with the reliability layer', 'A parking fee away from your bases', 'Weather wear from day one'] },
+  { id: 'GQ9', q: 'The fleet as props on weak machines (potato, laptop, phone):', why: 'The budget: at most 6 props drawn, no bake in flight. On the light presets: low-detail props only.',
+    o: ['Low-detail props, at most 4: the fleet is visible everywhere', 'No fleet props on the light presets'] },
+  { id: 'GQ8', q: 'Plots you don\'t hold, in the world:', why: 'Perf first.', o: ['Show nothing new', 'A closed "to let" shed on each plot'] },
+ ]},
+ { t: 'Getting an aeroplane, and build contracts', ref: 'study §5-§6', cards: [
+  { id: 'GQ2', q: 'Customising a manufacturer\'s model means...', why: 'Makers sell only validated builds (Cub, Jodel, C172, C172 floats, the twin on floats).',
+    o: ['Its options sheet; the full editor allowed but it becomes "modified" (certificate withdrawn, changes billed)', 'Its options sheet only', 'The full editor, no penalty'] },
+  { id: 'G-DESIGN', q: 'Designs vs airframes: designs free and shared, airframes owned and paid?', why: 'Today\'s forty builds become your drawing board. A career pays to materialise one.',
+    o: ['Yes: a free drawing board, paid airframes', 'No: every saved build is an owned airframe'] },
+  { id: 'G-ACCEPT', q: 'Build contracts are verified by the certificate where it can tell, and by a flown acceptance leg where it cannot (speed, endurance, short strips).', why: 'Today\'s cruise is a solved number, clamped to 1.55-2.2 Vs, so a fast design would read as capped.',
+    o: ['Yes, certificate + a flown acceptance leg', 'Certificate only (fix the cruise solver instead)'] },
+  { id: 'GQ26', q: 'Can a client re-order a build contract (repeat income from a good design)?', why: 'This is the manufacturer\'s half of the game.', o: ['Yes, up to 3 times', 'No, one delivery', 'Yes, unlimited'] },
+  { id: 'GQ12', q: 'Derelict aeroplanes found by survey?', why: 'The used market comes first: aeroplanes standing for sale at an aerodrome, flown home.', o: ['Later, after the market', 'In the first market slice'] },
+ ]},
+ { t: 'Contracts, providers and the map', ref: 'study §7-§8', cards: [
+  { id: 'G-PROV', q: 'Six providers as tabs (Field Trust, Jumbo Mine, Dock & Cannery, Skyline Resort, Survey Office, Private clients & Club) + All?', why: 'Every tab is open from day one; reputation scales only the size of the work.',
+    o: ['Yes, these six', 'Fewer (merge the dock and the mine)', 'More (add the post, the school, medevac)'] },
+  { id: 'GQ28', q: 'Rank:', why: 'No gate hides a field, a maker or a part.', o: ['Per-provider reputation only', 'A global pilot/company level too'] },
+  { id: 'G-MAP', q: 'The MAP screen: a 2-D island map (baked, phone-safe) with the contract list on the left, provider tabs, a detail card, track one?', why: 'SnowRunner\'s shape, plus its missing pieces: inspect a job remotely, and see your fleet checked against the job.',
+    o: ['Yes, a 2-D map', 'The 3-D world as the map (heavier, no phone)'] },
+  { id: 'GQ19', q: 'The phone in the game:', why: 'The phone does not fly (MOBILE-GARAGE).', o: ['Plan only: accept, track, design, send to the computer', 'Garage only, no map'] },
+ ]},
+ { t: 'Pilots and the narrative', ref: 'study §9-§10 and the prompt pack', cards: [
+  { id: 'GQ13', q: 'Pilots\' bodies:', why: '16 recruitable pilots and 6 Mixamo bodies today. Each body is ~170 MB of GPU, but only the flying pilot is loaded.',
+    o: ['Reuse the 6 + up to 6 more downloads (with your OK)', 'Download ~10 more Mixamo characters', 'Reuse the 6 with retextured clothes only'] },
+  { id: 'GQ14', q: 'Are pilots physical (where their last aeroplane is)?', why: 'They can take the boat home free between flights.', o: ['Yes', 'No, every pilot is always available at any base'] },
+  { id: 'GQ21', q: 'Which external AI writes the narrative and draws the portraits, and who runs it?', why: 'The prompt pack is ready and has not been run. Nothing is sent without your OK.',
+    o: ['I choose the AI and run it myself', 'A session runs it with an AI I name (I OK it first)'] },
+  { id: 'GQ20', q: 'The real island is the Metlakatla Indian Community\'s reserve. Fictional people and organisations only, and no depiction of real Tsimshian culture without consultation?', why: 'A hard constraint in the pack.',
+    o: ['Yes, a hard constraint', 'Rename the island\'s places as well'] },
+  { id: 'GQ22', q: 'The career opens at the derelict WWII field?', why: 'The sandbox keeps today\'s restored field. The buildings come back with the Field Trust\'s arc.', o: ['Yes', 'No, the career starts at today\'s field'] },
+ ]},
+ { t: 'Money, building and saving', ref: 'study §11-§13', cards: [
+  { id: 'G-COST', q: 'Running costs: the fuel the sim really burned, a maintenance reserve per flown hour, wages, rent?', why: 'Ruling az as a formula: no aeroplane flies every route profitably.',
+    o: ['Yes, all four', 'Fuel only', 'None; contracts pay net'] },
+  { id: 'GQ11', q: 'Insurance?', why: 'A write-off (75 % of the hull) is a lost value.', o: ['None in v1', 'Optional premium per flown hour'] },
+  { id: 'GQ6', q: 'Can a career go bankrupt?', why: '', o: ['No: below -20 000 the Trust offers a loan job', 'Yes, game over'] },
+  { id: 'GQ23', q: 'The first aeroplane in a career:', why: '', o: ['A 60 000 grant + a free maker\'s Cub voucher', 'A Cub given, no grant', 'The grant only'] },
+  { id: 'GQ18', q: 'Buildings under construction look like...', why: 'Stages change at load or roll-out only, never in flight.', o: ['Existing props + up to 2 new CC0 props (scaffold, crane)', 'Existing props only'] },
+  { id: 'GQ15', q: 'Career slots:', why: '', o: ['One career + the sandbox', 'Three careers'] },
+ ]},
+];
+
+const KEY = 'flydiy-game-review-v1';
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+const root = document.getElementById('cards');
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let total = 0;
+SECTIONS.forEach((s, si) => {
+  const sec = document.createElement('section');
+  sec.innerHTML = `<div class="sechead"><h2>${esc(s.t)}</h2><span class="ref">${esc(s.ref)}</span></div>`;
+  s.cards.forEach(c => {
+    total++;
+    const st = state[c.id] || {};
+    const pick = Number.isInteger(st.pick) ? st.pick : 0;
+    const card = document.createElement('div');
+    card.className = 'card' + (st.touched ? ' decided' : '');
+    card.innerHTML = `<div class="top"><span class="id">${c.id}</span><h3>${esc(c.q)}</h3></div>` +
+      (c.why ? `<p class="why">${esc(c.why)}</p>` : '') +
+      `<div class="opts" role="radiogroup" aria-label="${esc(c.id)}">` +
+      c.o.map((o, i) => `<label class="opt"><input type="radio" name="r_${c.id}" id="r_${c.id}_${i}" value="${i}" ${i === pick ? 'checked' : ''}><span class="lab">${esc(o)}${i === 0 ? '<span class="tag">default</span>' : ''}</span></label>`).join('') +
+      `</div><textarea id="n_${c.id}" placeholder="Notes, or your own answer">${esc(st.note || '')}</textarea>`;
+    card.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+      state[c.id] = Object.assign({}, state[c.id], { pick: +inp.value, touched: true });
+      card.classList.add('decided'); save(); tally();
+    }));
+    card.querySelector('textarea').addEventListener('input', e => {
+      state[c.id] = Object.assign({}, state[c.id], { note: e.target.value, touched: true });
+      card.classList.add('decided'); save(); tally();
+    });
+    sec.appendChild(card);
+  });
+  root.appendChild(sec);
+});
+
+function tally() {
+  const touched = Object.values(state).filter(v => v && v.touched).length;
+  const changed = SECTIONS.flatMap(s => s.cards).filter(c => state[c.id] && state[c.id].pick > 0).length;
+  document.getElementById('count').innerHTML = `<b>${touched}</b> of ${total} looked at · <b>${changed}</b> away from the default`;
+}
+tally();
+
+function text() {
+  const lines = ['GAME REDESIGN - my calls (flyDiy, study futureDesigns/GAME-2026-10-06.md)', ''];
+  SECTIONS.forEach(s => s.cards.forEach(c => {
+    const st = state[c.id] || {};
+    const pick = Number.isInteger(st.pick) ? st.pick : 0;
+    lines.push(`${c.id}: ${c.o[pick]}${pick === 0 ? ' (default)' : ''}${st.note ? ' | note: ' + st.note.trim() : ''}`);
+  }));
+  return lines.join('\n');
+}
+document.getElementById('copy').addEventListener('click', () => {
+  const t = text(), out = document.getElementById('out'), msg = document.getElementById('copied');
+  document.getElementById('outWrap').hidden = false; out.value = t;
+  const fallback = () => { out.focus(); out.select(); msg.textContent = 'Selected: press Ctrl+C (or Cmd+C) to copy.'; };
+  try {
+    navigator.clipboard.writeText(t).then(() => { msg.textContent = 'Copied. Paste it to A0 or the Game Coordinator.'; }, fallback);
+  } catch (e) { fallback(); }
+  out.scrollIntoView({ block: 'nearest' });
+});
+let armed = false;
+document.getElementById('reset').addEventListener('click', e => {
+  if (!armed) { armed = true; e.target.textContent = 'Press again to reset'; setTimeout(() => { armed = false; e.target.textContent = 'Back to defaults'; }, 3000); return; }
+  state = {}; save(); location.reload();
+});
+</script>
