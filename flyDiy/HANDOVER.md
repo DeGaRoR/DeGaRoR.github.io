@@ -79585,3 +79585,32 @@ field, sink_cub/index.json - but the re-shoot's riding eye sat inside the wing; 
 up: `node tools/water_look_shots.js --port 8655 --scenario sink --secs 60 --out reports/evidence/WATER-LOOK/sink_cub`, 3 min
 untimed); wing tips of a FLOATPLANE (no wet
 body on a float build: no physics there, so no spray - stated); the bubbles are surface boils (no underwater bubble drawn).
+
+
+## G1997b - ?diag v2 AFTER THE LAPTOP'S FIRST REPORT; THE GAME ASKS FOR THE HIGH-PERFORMANCE GPU (2026-10-06, HW-COVERAGE for A0, local GPU; branch claude/hw-diag2-g1997b off master 068584d6 = train 37b)
+READY for A0 (2026-10-06 ~20:45) - train 39.
+
+THE LAPTOP'S REPORTS (build 99b31ec38a57, retro): ?diag=bench twice: the card at 9 % of its class (ALU 1.4 % / texture 2.2 % /
+tiny triangles 2.8 % / fill 3.9 % of the 3080, a 1660 Ti mobile should read ~15 %) - a context of its own, so the global factor is
+real (A0 asked the user: NVIDIA 'prefer maximum performance' for Chrome, the HP performance mode). The full ?diag: 228 ms GPU at
+retro, then a stretch of rows at ~68 ms and two slow again - confounded by GROUND-COST's find (switched back to lean LIVE the ground
+draws flat and nearly free; POTATO-DEEP owns that fix) and maybe a card changing state. The owners' rows never appeared: the big
+owners (the shed's props, the parked aeroplanes) are drawn from scenes other than WORLD.scene. The context said powerPreference
+'default'.
+
+- src/viewer/diag.js: A WARM-UP TO A PLATEAU (3 s base windows until two agree within 10 %, 6 at most); A BASE WINDOW AFTER EVERY
+  ROW (each row's delta against the mean of the bases either side; DRIFT when they differ > 15 %; such a row is not the worst
+  offender); the rows that switch the GROUND LIVE (ground plain, the presets) LAST, after base2, VOID (and every row after) when the
+  base after one falls > 40 %; the owners hidden in EVERY scene the census drew; the card calibrated at the START and the END
+  (benchDrift; 'THE CARD CHANGED STATE' past 25 %), the ALU test repeated to a plateau (aluSeries); the text report's columns
+  'as-is after / saves / flag'.
+- src/viewer/app.js: the WebGLRenderer with powerPreference 'high-performance' (and the depth probe); src/viewer/welcome.js: its
+  card probe too (the welcome names the card the game will use). No other context in the game (the bakes use the main renderer).
+  On a one-GPU desktop nothing moves (the box's ?diag v2 below: the same 13 ms).
+
+PROOF: gates 17:30-17:39 (CPU lock): build, BOOT, GFX, FLIGHTREC, BUILT, MEDIA, BOOTLIFT's diag child (the page in node:
+?diag=quick to its report, 15 rows x 300 frames, the census 51 owners - it was 2 -, ground plain last, the graphics restored),
+UISMOKE PASS. Chrome on the box 20:30 (?diag=quick, retro 1920x1080): the plateau 13.1, 13.1; start to end +2 %; the card 101 % /
+100 % of its rating at the two ends (ALU x 0.994); every row within 0.3 ms of its bracket but scale 0.5 (-2.4); ground plain
+flagged DRIFT (the base after it 10.1 against 13.2 before - the live switch-back, caught).
+FOR THE USER once live: index.html?diag=bench, then index.html?diag - each a .json for HW-COVERAGE.

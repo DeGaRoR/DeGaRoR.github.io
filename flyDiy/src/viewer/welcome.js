@@ -131,7 +131,7 @@
     // the throwaway context: a detached canvas (no listener of the page sees its loss), let go at once
     try {
       const c = W.document.createElement('canvas');
-      const gl = c.getContext('webgl2', { failIfMajorPerformanceCaveat: false });
+      const gl = c.getContext('webgl2', { failIfMajorPerformanceCaveat: false, powerPreference: 'high-performance' });   // (G1997b: the card the game will use)
       if (gl) {
         env.webgl2 = true;
         const ext = gl.getExtension('WEBGL_debug_renderer_info');
