@@ -68,17 +68,17 @@ if (argv[0] === '--build') {
   const K = C.genCertify(def, { world });
   const ms = Date.now() - t0;
   const out = { key, ms, frames: K.ms.frames, cases: K.ms.cases, static: K.ms.flight, nb: K.nb };
-  const tag = { rules: rulesKey(C), phys: C.PHYSICS_V, spec: fnv(0x811c9dc5, JSON.stringify(def.spec || null)).toString(16), fp: fingerprint(C, def, world) };
+  const tag = { rules: rulesKey(C), cv: C.GEN_CERT_V, phys: C.PHYSICS_V, spec: fnv(0x811c9dc5, JSON.stringify(def.spec || null)).toString(16), fp: fingerprint(C, def, world) };
   let ref = null, how;
   const R = fs.existsSync(REF) ? JSON.parse(fs.readFileSync(REF, 'utf8')) : {};
   const r = R[key];
-  if (!argv.includes('--full') && !argv.includes('--write-ref') && r && r.rules === tag.rules && r.phys === tag.phys && r.spec === tag.spec && r.fp === tag.fp) {
+  if (!argv.includes('--full') && !argv.includes('--write-ref') && r && r.rules === tag.rules && r.cv === tag.cv && r.phys === tag.phys && r.spec === tag.spec && r.fp === tag.fp) {
     ref = { Ft: unf64(r.Ft), Fc: unf64(r.Fc), frames: r.frames, ms: r.ms }; how = 'stored';
   } else {
     const t1 = Date.now();
     const U = C.genCertify(def, { world, share: false, full: true });
     ref = { Ft: U.Ft, Fc: U.Fc, frames: U.ms.frames, ms: Date.now() - t1 };
-    how = r ? 'computed (the stored reference is not this physics: ' + ['rules', 'phys', 'spec', 'fp'].filter(k => r[k] !== tag[k]).join(', ') + ')' : 'computed';
+    how = r ? 'computed (the stored reference is not this physics: ' + ['rules', 'cv', 'phys', 'spec', 'fp'].filter(k => r[k] !== tag[k]).join(', ') + ')' : 'computed';
     if (argv.includes('--write-ref')) out.write = Object.assign({}, tag, { Ft: f64(U.Ft), Fc: f64(U.Fc), frames: U.ms.frames, ms: ref.ms, when: new Date().toISOString() });
   }
   const dT = worstDev(K.Ft, ref.Ft), dC = worstDev(K.Fc, ref.Fc);
