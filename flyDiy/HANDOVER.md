@@ -75649,7 +75649,7 @@ ARCHETYPES  PASS on the branch (1166 s, 4 shards); base TIMED OUT at the runner'
 THE BATTERY (`node tools/run_gates.js --verbose`, the CORE battery on the final core, 4 jobs): 146 of 148 jobs PASS;
 red: FRAMECOST (24 - THE PARKED COOK IS STALE: `parked_cook --check`: manifest c8f3b024 vs this tree 2691d7e8, every
 key captured live - the gate's own HINT; A0 re-cooks on the train's final build, as PILOT-FORKS had it) and INSTANT
-(INSTANT_NOTE). The 21 pilot gates with `--only` (the full tier for ARCHETYPES / PILOTMATRIX / SEAPLANE / HOTHIGH /
+(the runner's 1800 s cap - and the SAME on untouched base, re-run alone on both sides: 1800.4 s each; GATE INSTANT is the garage's drag-preview fingerprint and flies no pilot). The 21 pilot gates with `--only` (the full tier for ARCHETYPES / PILOTMATRIX / SEAPLANE / HOTHIGH /
 SOAR included): 21 of 21 PASS. AUDIO went red once in the first pass (one self-test mutation) and green in the
 clean pass; it is red on untouched base on this box too (4 failures, RADIO_BUDGET: a timing budget).
 
