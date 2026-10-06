@@ -49,7 +49,9 @@ const check = (ok, label, extra) => {
 };
 
 function fixture() {
-  const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+  // G1985 (JOIN-PARITY): the fixture AS THE GAME FLIES IT - the page's load chain (tools/_load_build.js); the
+  // migration below is the chain's first step (genNormaliseSpec migrates), so this gate still proves it
+  const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(FIX, 'utf8')).spec : require('./_load_build.js').loadBuild(FIX).spec;
   // G199.5 set `spec.fuselage.boom = 'rod'` here by hand: the file predates
   // the field and the game flies it with the row set. TAIL CHANTIER 2 P6
   // put that where it belongs — GEN_MIGRATORS[7] reads the cage's own
