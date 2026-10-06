@@ -392,18 +392,9 @@ function placeAll(ctx, inv) {
   const sliceOf = k => { if (!(k in sliceCache)) sliceCache[k] = W ? wingSlicer(ctx, inv, k) : null; return sliceCache[k]; };
   // the datum the ledger bills against, read off this cage's own rings
   const zFw = G.firewallZ ? G.firewallZ(ctx.spec, CG2()) : null;
-  // G1985 (JOIN-PARITY): A SHAPE IS NOT WRITTEN AGAINST A CREW STILL ON THE WIRE. A body tank without its own
-  // box (or station, or level) is shaped and settled against the crew's points below and the answer is written into
-  // the vessel - for good, the spec carries it from then on. While a crew character is still loading the crew layer
-  // stands a stand-in, so the shape is computed and DRAWN but not kept; the character's rebuild shapes it for real.
-  // (The user's Cub booted to a 29 L tank shaped against the waiting crew and loaded from the shelf to 27 L.)
-  const crewPending = !FIT_ASKING && typeof window.CAGE_CREW_PENDING === 'function' && window.CAGE_CREW_PENDING();
   for (const v of EN.vessels) {
     const bay = BAYS.find(b => b.key === v.bay) || BAYS.find(b => b.on === 'body');
     if (!bay) continue;
-    const prov = crewPending && bay.on === 'body' && (!v.dims || v.along == null || v.lv == null)
-      ? { keep: { dims: v.dims, capacity: v.capacity, lv: v.lv, along: v.along, rot: v.rot }, had: 'shaped' in v, shaped: v.shaped, wb: wroteBack }
-      : null;
     // THE PLAYER'S BOX SETS THE CAPACITY. A vessel with its own dims has its
     // litres derived from them (installed volume, less the shell's rounding,
     // back through the same ullage factor genVesselResolve applies), so the
@@ -559,11 +550,6 @@ function placeAll(ctx, inv) {
         wroteBack = true;
       }
       pl = G.bodyPlace(ctx.mesh, FS, bay, v, dims, 0.035, zFw, cache);
-    }
-    if (prov) {
-      Object.assign(v, prov.keep);
-      if (prov.had) v.shaped = prov.shaped; else delete v.shaped;
-      wroteBack = prov.wb;
     }
     pl.v = v; pl.bay = bay; pl.res = res; pl.dims = dims;
     pl.needL = res.installedL;

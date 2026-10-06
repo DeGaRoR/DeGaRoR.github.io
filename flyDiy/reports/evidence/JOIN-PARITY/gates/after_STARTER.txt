@@ -1,4 +1,0 @@
-  3 starters, 4 architectures, 3 doors
-GATE STARTER: PASS
-
-[exit 0 0 s]

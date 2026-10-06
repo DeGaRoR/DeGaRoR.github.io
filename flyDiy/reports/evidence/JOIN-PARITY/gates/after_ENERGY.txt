@@ -1,4 +1,0 @@
-  4 bodies swept, 88 sections measured, 87777 litres of interior
-GATE ENERGY: PASS
-
-[exit 0 56 s]

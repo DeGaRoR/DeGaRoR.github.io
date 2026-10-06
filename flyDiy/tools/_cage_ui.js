@@ -291,8 +291,8 @@ const XRAY_A = 0.12;
 // their own: a cowl at 0.15 over a fuselage at 0.12 is two x-rays, and the
 // eye reads the difference as the cowl still being there.
 VIEW.xrayA = XRAY_A;
-// (G1985: the one list, _cage_gen.js's - cageGlazedM2 measures the same set)
-const GLASSM = G.CAGE_GLASS_MATS;
+const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
+                        'skyWindows']);
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
@@ -1968,8 +1968,20 @@ function* buildSteps() {
   // every glass section (windscreen, side bands, skylight, drawn panes) by
   // triangle area, as built (a cut part's offset moves it, not its area),
   // in metres after the scale; the join carries it to spec.cabin.glazedM2
-  // (G1985: CAGE2.cageGlazedM2, the pure function the headless page chain calls too)
-  if (window.CAGE_UI) window.CAGE_UI.glazedM2 = G.cageGlazedM2(s, FS);
+  if (window.CAGE_UI) {
+    let a = 0;
+    for (const f of s.F) {
+      if (!GLASSM.has(f.m) || f.v.length < 3) continue;
+      const p0 = s.V[f.v[0]];
+      for (let i = 1; i + 1 < f.v.length; i++) {
+        const p1 = s.V[f.v[i]], p2 = s.V[f.v[i + 1]];
+        const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+        const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+        a += 0.5 * Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
+      }
+    }
+    window.CAGE_UI.glazedM2 = a * FS * FS;
+  }
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
@@ -2566,14 +2578,7 @@ const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
 // G680: `steps` - the load is done now and the build comes back as a generator (buildSteps: the sheet | the layers),
 // for parked.js's capture a step a task (applySpecSteps); without it, as always, the build runs here
 function applySpec(spec, what, steps) {
-  // A LOAD REPLACES P (G1985, JOIN-PARITY). cageFromSpec answers every key the template and the page's defaults
-  // declare; a row no table declares (a layer's own, read with its fallback when absent: the floats' bow and side,
-  // the cowl's stub deck) was KEPT from the aeroplane open before - measured in the game, the twin floatplane opened
-  // after the boot's stock design flew that design's float bows (fltBow 0.36, fltBowB 0.15, fltSide 0.22) and its
-  // cowl stub. A build fully determines the aeroplane (G63): those rows go back to absent; the view keys stay.
-  const F = G.cageFromSpec(spec), VK = G.CAGE_VIEW_KEYS || {};
-  for (const k of Object.keys(P)) if (!(k in F) && !(k in VK)) delete P[k];
-  Object.assign(P, F);
+  Object.assign(P, G.cageFromSpec(spec));
   loaded();
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
   // the file has no `finish` at all: that is a build with no overrides, and

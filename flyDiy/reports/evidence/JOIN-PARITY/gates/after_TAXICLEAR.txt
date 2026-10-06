@@ -1,5 +1,0 @@
-  stock build     span 10.0 m: flown, nearest wing to a parked footprint 2.14 m (o1 at (-137.5, 670.7) in TAXI)
-  aluminium C172  span 11.0 m: flown, nearest wing to a parked footprint 1.73 m (o1 at (-137.4, 671.1) in TAXI)
-GATE TAXICLEAR: PASS
-
-[exit 0 53 s]

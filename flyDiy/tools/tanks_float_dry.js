@@ -22,8 +22,8 @@ const world = C.makeWorld();
 const hashP = p => crypto.createHash('sha1').update(Buffer.from(new Float64Array(p).buffer)).digest('hex').slice(0, 16);
 const out = {};
 for (const b of WANT) {
-  // G1985 (JOIN-PARITY): as the game flies it (tools/_load_build.js)
-  const def = C.buildGen(require('./_load_build.js').loadBuild(path.join(ROOT, BUILDS[b] || b)).spec);
+  const j = JSON.parse(fs.readFileSync(path.join(ROOT, BUILDS[b] || b), 'utf8'));
+  const def = C.buildGen(j.spec || j);
   const res = {};
   const fly = (apId, lift, secs, timed, thr) => {
     const sim = C.makeSim(def, world); sim.reset(0);

@@ -34,11 +34,8 @@ const BUILDS = {
   metal: { file: 'bugReports/cessnaMetal (1).json' },
   jodel: { file: 'builds/jodel_2026-09-20_corrected.json' },
 };
-// G1985 (JOIN-PARITY): each flown AS THE GAME FLIES IT - the file (and cubWing's edit) through the page's load chain
-const LB = require(path.join(__dirname, '_load_build.js'));
 const specOf = b => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, BUILDS[b].file), 'utf8'));
-  const s = JSON.parse(JSON.stringify(j.spec || j)); if (BUILDS[b].patch) BUILDS[b].patch(s);
-  return process.env.FLYDIY_RAW_BUILDS === '1' ? s : LB.gameSpec(s); };
+  const s = JSON.parse(JSON.stringify(j.spec || j)); if (BUILDS[b].patch) BUILDS[b].patch(s); return s; };
 const world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
 const D = 180 / Math.PI;
 

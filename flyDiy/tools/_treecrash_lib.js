@@ -24,24 +24,24 @@ function core() {
 }
 
 // the validated aeroplanes (tools/master_bench.js BUILDS): the user's Cub, the Jodel, the metal Cessna, the Cessna on
-// floats and the twin on floats - G1985 (JOIN-PARITY): ONE TABLE, tools/_load_build.js's, and each flown AS THE GAME
-// FLIES IT (the page's load chain: the join, the energy layer's tanks), not the file as written
-const LB = require(path.join(T, '_load_build.js'));
-const BUILDS = LB.VALIDATED;
+// floats and the twin on floats
+const BUILDS = {
+  cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' },
+  jodel: { label: 'Jodel', build: 'builds/jodel_2026-09-20_corrected.json' },
+  metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
+  floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
+  twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
+};
 const _defs = {};
 // G1816 (DMG-D1a): the last sim each scenario flew (its rigs read the members after the run)
 const lastRun = { sim: null };
 function defOf(key, opts) {
   const C = core(), B = BUILDS[key];
   if (!_defs[key]) {
-    // (process.env.FLYDIY_RAW_BUILDS=1: the file as written - the pre-G1985 aeroplane, for a before/after only)
-    let spec;
-    if (process.env.FLYDIY_RAW_BUILDS === '1') {
-      let j = JSON.parse(fs.readFileSync(path.join(T, '..', B.build), 'utf8'));
-      if (B.patch) j = B.patch(j);
-      spec = C.genMigrateSpec ? C.genMigrateSpec(j.spec || j) : (j.spec || j);
-    } else spec = LB.loadValidated(key).spec;
-    _defs[key] = C.buildGen(spec);
+    let j = JSON.parse(fs.readFileSync(path.join(T, '..', B.build), 'utf8'));
+    if (B.patch) j = B.patch(j);
+    const spec = j.spec || j;
+    _defs[key] = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
   }
   const d = _defs[key];
   // a shallow copy with its own params (the probe flag) - the beams are copied by makeSim

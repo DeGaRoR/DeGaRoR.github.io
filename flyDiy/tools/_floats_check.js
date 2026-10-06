@@ -35,11 +35,8 @@ let fails = 0;
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
 const f = (v, n = 3) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : String(v);
 
-// G1985 (JOIN-PARITY): the twin on floats AS THE GAME FLIES IT - tools/_load_build.js's validated `twinFloats` (the
-// file with gear.type 'floats' AND the cage's float row on: `gear.type` alone is a row the join rewrites from the
-// drawing, so the game could never fly what this gate used to - the page's load chain put it back on wheels)
-const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? Object.assign(JSON.parse(fs.readFileSync(FIX, 'utf8')).spec, {}) : require('./_load_build.js').loadValidated('twinFloats').spec;
-if (process.env.FLYDIY_RAW_BUILDS === '1') spec.gear.type = 'floats';
+const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+spec.gear.type = 'floats';
 const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 const world = C.makeWorld();
 let M = 0; for (const n of def.nodes) M += n.m;

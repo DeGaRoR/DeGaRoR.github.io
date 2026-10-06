@@ -65,9 +65,6 @@ function makeContext(opts) {
   g.Image = function () { return el(); };
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
-  // opts.before(ctx): what the page has in scope before the editor's files (G1985: the characters' registry, which
-  // _cage_page5.js reads for the default pilot when it loads)
-  if (opts && typeof opts.before === 'function') opts.before(ctx);
   const { MANIFEST } = require(path.join(T, 'build.js'));
   const skip = new Set([...EXCLUDE, ...((opts && opts.exclude) || [])]);
   const loaded = [], errors = [];
@@ -96,11 +93,8 @@ function sceneBuild(spec, opts) {
   W.GARAGE_SPEC = opts.garage ? Object.assign({ get: () => opts.garage }, opts.resolved ? { resolved: opts.resolved, update() {} } : {}) : undefined;
   W.CAGE_IN_GAME = !!opts.inGame;
   const t0 = Date.now();
-  // opts.base: the P the build lands ON (G1985: the editor's own DEFAULTS, CAGE_PARAMS + the page's defaults - the
-  // page's applySpec assigns cageFromSpec over the P it holds, so a row cageFromSpec does not return keeps that value)
-  const P = opts.base ? Object.assign(JSON.parse(JSON.stringify(opts.base)), CG2.cageFromSpec(spec || null)) : CG2.cageFromSpec(spec || null);
+  const P = CG2.cageFromSpec(spec || null);
   if (opts.over) Object.assign(P, opts.over);
-  if (typeof opts.prebuild === 'function') opts.prebuild(P);
   const built = CG2.cageSheet(P, { step: opts.step || PAGE.defaultStep || 'crease',
                                    level: opts.level == null ? 2 : opts.level });
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);

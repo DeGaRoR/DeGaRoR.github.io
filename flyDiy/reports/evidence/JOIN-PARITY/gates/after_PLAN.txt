@@ -1,5 +1,0 @@
-  stock, HOME (analytic)       legs CROSSWIND 125 m / DOWNWIND 125 m / BASE 125 m / FINAL 0 m · downwind 0.3 m off the plan · terrain lift 0 m
-  aluminium C172, Jolene HOME  legs CROSSWIND 187 m / DOWNWIND 187 m / BASE 187 m / FINAL 29 m · downwind 0.8 m off the plan · terrain lift 0 m
-GATE PLAN: PASS
-
-[exit 0 547 s]

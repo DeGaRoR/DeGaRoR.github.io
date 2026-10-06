@@ -421,13 +421,10 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   const C = require('./flight_core.js');
   const fs = require('fs'), path = require('path');
   const world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
-  // G1985 (JOIN-PARITY): the Cub and its wing-tank edit, each AS THE GAME FLIES IT (tools/_load_build.js)
-  const LB = require('./_load_build.js'), raw = process.env.FLYDIY_RAW_BUILDS === '1';
-  const cub0 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
-  const wingCub0 = JSON.parse(JSON.stringify(cub0));
-  wingCub0.fuel = Object.assign({}, wingCub0.fuel, { tank: 'wing' });
-  wingCub0.energy.vessels = wingCub0.energy.vessels.map(v => Object.assign({}, v, { bay: 'wingRoot', along: 0.28, lv: null }));
-  const cub = raw ? cub0 : LB.gameSpec(cub0), wingCub = raw ? wingCub0 : LB.gameSpec(wingCub0);
+  const cub = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
+  const wingCub = JSON.parse(JSON.stringify(cub));
+  wingCub.fuel = Object.assign({}, wingCub.fuel, { tank: 'wing' });
+  wingCub.energy.vessels = wingCub.energy.vessels.map(v => Object.assign({}, v, { bay: 'wingRoot', along: 0.28, lv: null }));
   // ARCHIMEDES, independently of the ramps: the whole aeroplane under a water 100 m up (wetSolverPass on a world of
   // that water), the tanks' share of the lift against rho g V; and the carve: with the wing tanks the build's whole lift
   // is the lift it had without them (the tank's volume moved out of the slabs' flooding air into the sealed tank)
@@ -446,15 +443,12 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   };
   const dN = C.buildGen(cub), dW = C.buildGen(wingCub);
   const nA = liftOf(dN, false), nB = liftOf(dN, true), wA = liftOf(dW, false), wB = liftOf(dW, true);
-  // G1985 (JOIN-PARITY): the tank's capacity is the SPEC's - the game shapes the file's 45 L nose tank to its bay and
-  // the pilot's feet (27 L); the rule (the tanks are the vessel, rho g V fully under) is unchanged
-  const capL = cub.energy.vessels.reduce((a, v) => a + (+v.capacity || 0), 0), cap = capL / 1000;
-  const rgV = 1000 * G * cap;
+  const rgV = 1000 * G * 0.045;
   const tN = nA.WB.tanks, tW = wA.WB.tanks;
-  verdict(tN.length === 2 && tN.every(T => T.host < 0 && !T.slab) && Math.abs(tN.reduce((a, T) => a + T.vol, 0) - cap) < 1e-9,
-    `the user's Cub: its ${capL} L nose tank is two tanks (${tN.map(T => (1000 * T.vol).toFixed(1) + ' L').join(' + ')}), each at its own kilos, ahead of the firewall (no hull slice holds it)`);
+  verdict(tN.length === 2 && tN.every(T => T.host < 0 && !T.slab) && Math.abs(tN.reduce((a, T) => a + T.vol, 0) - 0.045) < 1e-9,
+    `the user's Cub: its 45 L nose tank is two tanks (${tN.map(T => (1000 * T.vol).toFixed(1) + ' L').join(' + ')}), each at its own kilos, ahead of the firewall (no hull slice holds it)`);
   verdict(Math.abs((nA.buoy - nB.buoy) - rgV) < 1e-6 * rgV,
-    `ARCHIMEDES, fully under: the nose tank adds ${f(nA.buoy - nB.buoy, 2)} N = rho g ${capL} L ${f(rgV, 2)} N (its fuel displaces as its air does)`);
+    `ARCHIMEDES, fully under: the nose tank adds ${f(nA.buoy - nB.buoy, 2)} N = rho g 45 L ${f(rgV, 2)} N (its fuel displaces as its air does)`);
   verdict(tW.length === 2 && tW.every(T => T.slab) && Math.abs(wA.buoy - wB.buoy) < 1e-6 * wA.buoy,
     `the wing-tank Cub: both tanks in their wing slabs, carved from the slabs' air - fully under, the build lifts ${f(wA.buoy, 1)} N with them against ${f(wB.buoy, 1)} N without (the same air, now sealed)`);
   // ON THE WATER: set down on the SEA lane (the lowest node 5 cm over, still), magnetos off, the tanks full or empty by

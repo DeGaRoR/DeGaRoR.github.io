@@ -861,21 +861,7 @@ function garageInit(api) {
     rebuild();
     const E = ed();
     if (E) {
-      // G1985 (JOIN-PARITY): THE PREVIOUS AEROPLANE'S DATUM IS NOT THIS ONE'S. The join publishes its firewall /
-      // deck datum (CAGE_DATUM) and the float layer stands the step on it - so the first build of a loaded floatplane
-      // placed its floats off whatever aeroplane was open before (the user's Cessna on floats: the step 1.20 m from
-      // the firewall after the boot, 1.44 m after a shelf load in the same page). Without one the layer takes the
-      // build's own row, as on a first build ever; the second round below measures it.
-      try { window.CAGE_DATUM = null; } catch (e) {}
       E.applySpec(spec);
-      // G1985: THE SECOND ROUND. The editor's layers run in one order (crew, cowl, engine, wing, ...), and a layer
-      // reads what a LATER one drew on the build before: the engine layer hangs a wing mount's nacelles off the wing
-      // layer's LAST wing, the float layer its step off the last join's datum and the flown CG. One build of a loaded
-      // file reads them off the PREVIOUS aeroplane (the twin's nacelle stations, its floats). So: the join once, the
-      // aeroplane rebuilt from it (app.js publishes its CG), the editor built again on its own wing and datum - then the
-      // sync below, as before. node's load path (tools/_load_build.js) runs the same two rounds; GATE JOINPARITY.
-      { const J = join();
-        if (J && E.build) { try { spec = merge(spec, JSON.parse(JSON.stringify(J.export()))); rebuild(); E.build(); } catch (e) {} } }
       // ...and then straight back out through the join (G65), which also
       // FREEZES THE VISUAL. That is the declared G46 gap closed — "the visual
       // is not in the save, a reload flies the generated skin until the next

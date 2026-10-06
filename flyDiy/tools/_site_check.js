@@ -362,8 +362,7 @@ function run(mut) {
     let Rmin = 0;
     try {
       const fx = path.join(ROOT, 'tools', 'fixtures', 'build_v7_ultralight_2026-09-05.json');
-      // G1985 (JOIN-PARITY): as the game flies it (tools/_load_build.js)
-      const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(fx, 'utf8')).spec : require('./_load_build.js').loadBuild(fx).spec;
+      const spec = JSON.parse(fs.readFileSync(fx, 'utf8')).spec;
       Rmin = CORE.groundRmin(CORE.buildGen(CORE.genMigrateSpec(spec)), 0.85);
     } catch (e) { Rmin = 10.5; }
     ok(Rmin > 5 && Rmin < 30, 'the reference taxi radius is sensible (' + Rmin.toFixed(1) + ' m)');

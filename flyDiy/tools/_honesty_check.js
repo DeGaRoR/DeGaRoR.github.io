@@ -57,8 +57,7 @@ const ok = (cond, msg) => { checks++; if (!cond) fails.push(msg); return !!cond;
   let nStands = 0, worstC = 0, worstDrop = 0, caught = 0, oldCases = 0;
   for (const [bn, bf] of builds) {
     const j = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', bf), 'utf8'));
-    // G1985 (JOIN-PARITY): the metal Cessna (a validated build) as the game flies it (tools/_load_build.js)
-    const def = C.buildGen(C.genMigrateSpec(bn === 'cessnaMetal' && !(process.env.FLYDIY_RAW_BUILDS === '1') ? require('./_load_build.js').gameSpec(j) : (j.spec || j)));
+    const def = C.buildGen(C.genMigrateSpec(j.spec || j));
     for (const a of world.aerodromes) {
       const site = C.siteOf(a.id);
       if (!site || !site.stand) continue;

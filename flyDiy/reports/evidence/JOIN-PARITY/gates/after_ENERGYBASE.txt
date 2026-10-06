@@ -1,4 +1,0 @@
-  14 aeroplanes held against the baseline, 1278 nodes, 206 fittings
-GATE ENERGYBASE: PASS
-
-[exit 0 0 s]

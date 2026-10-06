@@ -79352,3 +79352,7 @@ BEFORE = train 34's index.html, AFTER = this branch's build. Sheets: tools/perf/
   the parked aeroplanes need the train's cook (this branch was measured with FLYDIY_BUILD pinned to the landed cook,
   tools/perf/lc_build.sh). TRAP met: tools/shadowsky_shots.js --port 8563 was a peer's _serve.js over another worktree - the
   rail still showed THEIR world_rail.js; check the port is free (Get-NetTCPConnection) before any rig run.
+
+## TRAIN 38 - G1985 JOIN-PARITY HELD OUT (A0, 6 Oct ~20:00)
+
+JOIN-PARITY (aba8187f) is reverted out of train 38 at the user's call: on the game's aeroplanes it turns FLOATS, TREECRASH, DMGGEAR and DMGCLUSTERS red and PILOTACT (metal Cessna landing sink 1.11 -> 1.89 m/s) to WARN - real findings, not rebaselined. It lands in train 39 (the damage train) with DMG-RECAL (G2030-G2034) and a FLOATS answer, via DMG-FLOATTO's bundle. Its HANDOVER section above stays as the record of the work.

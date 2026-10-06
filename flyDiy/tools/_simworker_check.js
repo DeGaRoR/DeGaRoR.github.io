@@ -260,8 +260,7 @@ const tick = () => new Promise(r => setImmediate(r));
   const PLACE = { from: 'HOME', to: 'CIRCUIT', stand: true }, PILOT = { kind: 'auto' };
   const specOf = f => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); return genMigrateSpec(j.spec || j); };
   const BUILDS = [['stock', specOf(path.join(__dirname, 'fixtures', 'build_v9_stock_2026-09-15.json'))],
-                  // G1985 (JOIN-PARITY): the metal Cessna as the game flies it (tools/_load_build.js)
-                  ['cessnaMetal', process.env.FLYDIY_RAW_BUILDS === '1' ? specOf(path.join(ROOT, 'bugReports', 'cessnaMetal (1).json')) : genMigrateSpec(require('./_load_build.js').loadValidated('metal').spec)]];
+                  ['cessnaMetal', specOf(path.join(ROOT, 'bugReports', 'cessnaMetal (1).json'))]];
   const premises = fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8');
   const fullBoot = IN.islandBoot('jolene');
   const trimmed = SH.simHostTrimBoot(fullBoot);

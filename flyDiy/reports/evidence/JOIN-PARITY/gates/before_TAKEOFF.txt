@@ -1,2 +1,0 @@
-crosswind limit 4.5 m/s (band 12.5 m, roll 12.4 m at the limit; first failure 5 m/s, 12.84 m) in 32.3 s CPU, 39.5 s wall
-GATE TAKEOFF: PASS

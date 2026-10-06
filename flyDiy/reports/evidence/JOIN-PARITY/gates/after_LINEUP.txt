@@ -1,3 +1,0 @@
-GATE LINEUP: PASS
-
-[exit 0 227 s]

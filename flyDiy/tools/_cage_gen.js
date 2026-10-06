@@ -8795,33 +8795,6 @@ function cageSheet(P, opts) {
   return { spec, cage: m, mesh: s, sheet };
 }
 
-// THE GLAZED AREA (G1985, JOIN-PARITY): every glass section of the displayed
-// mesh (windscreen, side bands, skylight, drawn panes) by triangle area, as
-// built, in m2 after the scale - the number the join carries to
-// spec.cabin.glazedM2 and the frame bills the glass by (61_gen_frame). It
-// lived inside _cage_ui.js's build, so only a page with the editor's UI
-// measured it: every headless join (node's loaders, the gates) billed the
-// glass by the rule instead - +1.2 kg on the user's Cub and metal Cessna in
-// the game against node. One pure function now, called by the UI's build and
-// by the headless page chain (tools/_load_build.js) alike.
-const CAGE_GLASS_MATS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
-                                 'skyWindows']);
-function cageGlazedM2(s, FS) {
-  let a = 0;
-  if (!s || !s.F || !s.V) return 0;
-  for (const f of s.F) {
-    if (!CAGE_GLASS_MATS.has(f.m) || f.v.length < 3) continue;
-    const p0 = s.V[f.v[0]];
-    for (let i = 1; i + 1 < f.v.length; i++) {
-      const p1 = s.V[f.v[i]], p2 = s.V[f.v[i + 1]];
-      const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
-      const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
-      a += 0.5 * Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
-    }
-  }
-  return a * FS * FS;
-}
-
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
@@ -8831,7 +8804,6 @@ if (typeof module !== 'undefined')
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
-                     CAGE_GLASS_MATS, cageGlazedM2,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -8842,5 +8814,4 @@ if (typeof window !== 'undefined')
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
-                   CAGE_GLASS_MATS, cageGlazedM2,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

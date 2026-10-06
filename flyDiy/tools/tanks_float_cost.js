@@ -5,8 +5,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const C = require(path.resolve(process.argv[2] || path.join(__dirname, 'flight_core.js')));
-// G1985 (JOIN-PARITY): the Cub as the game flies it (tools/_load_build.js)
-const spec = require('./_load_build.js').loadValidated('cub').spec;
+const spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
 const world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
 const def = C.buildGen(spec), sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
 const n = def.nodes.length, p = sim.p, c0 = sim.cgPos(), wh = world.waterH(c0[0], c0[2]);

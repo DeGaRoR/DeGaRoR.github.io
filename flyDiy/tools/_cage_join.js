@@ -1006,11 +1006,6 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // ...nor is HARDWARE a surface (G307): a saddle under a fin's root is
       // in the fin's group and would widen its measured bounds
       if (o.userData && o.userData.edHw) return;
-      // ...and the HINGES are hardware too (G1985, JOIN-PARITY): the elevator's and rudder's brackets and horns
-      // (_cage_hinge.js `edHinge_<surface>_metal`) hang below the surfaces they are bolted to, and their shape follows
-      // the hinge layer's ray probes of the drawn skin - +144 vertices a surface on the page against node's harness,
-      // the tailplane's measured height (tail.stabH) 3-4e-5 apart on the Jodel and both Cessnas
-      if (/^edHinge_/.test(o.name || '')) return;
       const p = o.geometry.attributes.position;
       if (!p) return;
       tmp.multiplyMatrices(inv, o.matrixWorld);
