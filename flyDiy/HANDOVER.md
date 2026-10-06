@@ -77477,3 +77477,54 @@ chase flight, garage->world worst task) were a peer's node work (DMG-WALL 21:41-
 Battery: PASS but for PILOT-ONE's reds; targeted re-run on the landed tree: INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES
 AA UISMOKE DMGINST GFX ROLLANIM MEDIA BUILT PASS. Metlakatla-on measured (train 35, A,B,B,A): warm +7 s load, first visit
 +26 s and a 47 % uneven taxi -> stays OFF. boxlock.sh: CPU locks now exclusive (in the main checkout; committed next train).
+
+## G1545 - GROUND-LATTICE-2: NOTHING TO REBASE - GROUND-LATTICE G1540-G1544 LANDED IN TRAIN 34 (29fa1de + 14d94cd); RE-MEASURED AND RE-GATED ON TRAIN 36 (2026-10-06, cloud for A0, node only; branch claude/ground-lattice-2-g1545 = origin/master 1ae2eeb + this entry)
+
+READY for A0. No source change: this branch carries this HANDOVER entry only.
+
+THE BRIEF'S PREMISE DOES NOT HOLD. Train 37 has not landed (origin/master = train 36 1ae2eeb), and GROUND-LATTICE is already
+on master: TRAIN 34 LANDED lists "GROUND-LATTICE G1540-G1544 (the tailwheel on the drawn ground; TW_DRAW_DROP 0)", as
+master's 29fa1de (WIP) + 14d94cd (READY - `git cherry` reads 1b11ecf as patch-identical to it). Every file GROUND-LATTICE
+wrote is byte-identical on master to 1b11ecf (27_premises.js, pavement.js, _contact_check.js, _patch_law.js,
+ground_drawn.js, ground_gap.js, ground_surface.js, ground_lattice.js, test_soar.js, perf/ground_lattice_views.json); app.js
+and render_premises.js differ from 1b11ecf only by later trains' hunks (SND-AMB-2's soundObjects, the animals' sound,
+DMG-D4a...), GROUND-LATTICE's own hunks (TW_DRAW_DROP = 0 and its comments, patchDrop and the patch's vertex law) intact.
+WHY THE NET DIFF CONFLICTED: claude/ground-lattice-g1540 was cut off claude/gear-water-buoy 5ecabad, so the diff from
+master to 1b11ecf also carries GEAR-WATER G1380-G1384 (196ab00..5ecabad) - landed in train 32 under other hashes and changed
+since by the damage train (D0-D4a: 30_solver.js; G1898.5/.8: 32_hydro.js's wet body over a break) and TANKS-FLOAT
+(_hydro_check.js). Those three files are GEAR-WATER's, not GROUND-LATTICE's: GROUND-LATTICE's own commits (5ecabad..1b11ecf)
+touch neither 30_solver.js, 32_hydro.js nor _hydro_check.js. A cherry-pick of its three commits onto train 36 stops at
+once on tools/ground_drawn.js add/add - the file is already there, identical.
+
+THE CHECKS THE BRIEF NAMES, on train 36 (FLYDIY_GROUND_RASTER=1):
+- DAMAGE-OFF BYTES: GROUND-LATTICE has no solver change (its own HANDOVER: final positions SHA-identical, Cub and metal
+  Cessna, taxi and 400 m up); nothing to hold against D0-D4a. DMGINST (its damage-off guard row) and DMGGEAR PASS.
+- FLOAT-SHAPE (G1930, claude/float-shape-g1930, not on master): it changes 32_hydro.js's afterbody; GROUND-LATTICE does not
+  touch 32_hydro.js - no interaction when FLOAT-SHAPE rebases. HYDRO, HYDRODYN (TANKS-FLOAT's rows live there: there is
+  no GATE TANKSFLOAT in run_gates.js) and FLOATS PASS on train 36.
+- WHEEL-AO (G2055): not landed (no trace on master or any remote branch). For it: master's contact shadows
+  (contact_shadow.js blobsFor) fade by h = node y - r - terrainH - the physics contact's own height, and since G1541 the
+  drawn ground IS terrainH where the wheels roll (the patch's 2 cm only under a pavement and its 3 m side, and in the lots'
+  zones). WHEEL-AO's fade should read the same h (terrainH), not a drawn-mesh height: the two agree to the mm on the open
+  grass and on pavement interiors (table below).
+- THE NUMBERS RE-MEASURED (tools/ground_drawn.js --stands: the drawn tyre's least height over the drawn ground, mm; this
+  run on train 36 vs GROUND-LATTICE's "after" on 5ecabad):
+  | stand | Cub mains / tail | Jodel mains / tail | Cessna mains / nose |
+  |---|---|---|---|
+  | HOME (apron) | +0.1 +0.1 / -0.3 (same) | +0.2 +0.2 / +7.3 (same) | -0.0 -0.0 / +1.3 (same) |
+  | w3 (patch) | -1.3 -0.7 / -0.4 (same) | -1.0 -0.7 / +7.5 (same) | +0.0 +0.7 / -0.5 (same) |
+  | mn_strip (past a dead end) | +10.4 +14.1 / -0.3 (was +13.6 +9.6) | +17.1 +19.5 / +7.3 (was +16.7 +10.4) | -0.0 +1.6 / +1.3 (was -0.0 -0.0) |
+  | nv_strip (grass apron) | +2.6 -1.4 / +2.7 (same) | +4.8 -0.2 / +12.3 (same) | +5.8 -0.1 / +11.1 (same) |
+  | tw_ski (apron) | +0.0 +0.2 / -0.4 (same) | +0.1 +0.1 / +7.0 (same) | +0.0 +0.3 / +0.9 (same) |
+  THE NUMBERS THAT MOVE: only mn_strip's mains, by up to +9 mm (the Jodel's left main 10.4 -> 19.5): the stand sits at
+  mn_stand_lane's start, inside the dead end's last 2 m where G1542 keeps the edge's 7 cm + the side's 2 cm, and the 2 m
+  patch cell carries that a little way out - so a mm of the stand or the raster moves the tyres' reading there (train 34's
+  WORLD-STRIPS and SPEC-FIXPOINT landed beside it). The pit stays gone (it was 230-590 mm). GATE CONTACT section 5: the
+  dead end 1.5 m out -0.5 mm (was 0.0), mn_strip's stock tyres 13.7/-13.1 (was 13.1/-12.5; limit 15), the rest as
+  GROUND-LATTICE's HANDOVER. THE TAIL GEAR: TW_DRAW_DROP 0 (CONTACT --drawn: the stock tail -5.1 mm, mains +0.4 at rest,
+  limit 8); the Jodel's own +7.3 tail-axle residual still owed (the gear's construction, as GROUND-LATTICE said).
+GATES (cloud, 4 cores, node; generated files rebuilt by the runner, not committed): `--only=CONTACT,GEN,TAKEOFF,HYDRO,
+FLOATS,PAVEMENT,PREMISES,STAND,LINEUP,TAXICLEAR,DMGINST,DMGGEAR --jobs=4` BATTERY: PASS (12/12); HYDRODYN PASS;
+`_contact_check.js --drawn` PASS. Validated aircraft only (the user's Cub builds/cub_2026-09-20_corrected.json, the Jodel,
+the metal Cessna; floats through FLOATS / HYDRODYN). No stills: nothing drawn changed since train 34.
+A0: nothing to land but this note; GROUND-LATTICE's OWED list (its HANDOVER) stands as written.
