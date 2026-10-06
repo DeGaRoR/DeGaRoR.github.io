@@ -79781,8 +79781,8 @@ Build 53f482316b37 (assembly c22f17e2). Sessions: JOIN-PARITY OUT (reverted, -> 
 Smokes after assembly: SIMWORKER, INPUT, UISMOKE, UISMOKE-PHONE, SPLAT PASS. Battery (--all, 6 jobs): every gate PASS, SOFTGPU SKIP (no basisu here). Strict gate (full, vs baseline 5a2c2e7e of 3 Oct): 95 within slack, 47 better, 15 RED - exactly train 37's standing set minus two (fuseLen busy, metal frame busy now within slack): the 30 fps cap rows (the user's stable-30 target: chase/cockpit/garage/taxi/water fps -> 30, loop/render +2 ms under the cap's pacing), the first garage -> world 12.0 s / warm first flight 58.7 s / round trip 11.8 s (37: 12.06 / 59.1 / 11.76). No row worse than live train 37. FRAMECOST named allowances: WHEEL-AO's bufferSubData, WATER-LOOK's garage:town +1 link / +11 calls and garage:snapshot +2 links.
 Next: re-baseline the accepted strict rows by name (the user: no standing reds).
 
-## G2075 - GROUND-COST: THE LEAN GROUND A QUARTER TO A THIRD CHEAPER WITH THE SAME PICTURE, ITS COLD LINK HALVED - THE SPLAT'S VOTE IN REGISTERS (D3D SPILLED ITS ARRAYS TO MEMORY), THE ONE-CODE CELLS VOTING WITH ONE TAP, THE LEAN ROW'S OWN PROGRAM; THE PART-BY-PART COST OF THE GROUND (2026-10-06, GROUND-COST for A0, local GPU; branch claude/ground-cost-g2075 off train 37b = 068584d6 - SHORES-2 (train 38) ported on a scratch merge, the rebase tonight; G2076-G2079 unused)
-READY for A0 - train 40 (2026-10-06 18:40; the night confirmation on the rebased tip below, by 08:00).
+## G2075 - GROUND-COST: THE LEAN GROUND A QUARTER TO A THIRD CHEAPER WITH THE SAME PICTURE, ITS COLD LINK HALVED - THE SPLAT'S VOTE IN REGISTERS (D3D SPILLED ITS ARRAYS TO MEMORY), THE ONE-CODE CELLS VOTING WITH ONE TAP, THE LEAN ROW'S OWN PROGRAM; THE PART-BY-PART COST OF THE GROUND (2026-10-06, GROUND-COST for A0, local GPU; branch claude/ground-cost-g2075 = ONE commit on train 38 (751e1122; SHORES-2's bank and triplanar ported into the lean program's slots); G2076-G2079 unused)
+READY for A0 - train 40 (2026-10-07 02:00; confirmed on train 38 - NIGHT CONFIRMATION below).
 
 WHY: the user's target - an even 30 on their GTX 1660 Ti laptop at retro. HW-COVERAGE's ?diag on the box: retro's GPU 12.8 ms at
 the stand, the LEAN GROUND 8 of it. The ground had to get several times cheaper per pixel.
@@ -79847,3 +79847,13 @@ full - the pavement is a transparent decal drawn after it; a one-fetch skip wher
 take most of the stand's ground; the normal array's cost (1.3-1.85 ms) is the biggest part left.
 FOUND: ground row plain -> lean LIVE left the ground drawing nothing in my rig (flat beige, its draws ~0 ms) - matching the laptop
 ?diag's 228 -> 68 ms drift after its plain row (POTATO-DEEP G1521 took it; HW-COVERAGE the ?diag row order).
+NIGHT CONFIRMATION (2026-10-07 01:45-01:55, the box quiet, boxlock gpu GROUND-COST; before = live master 751e1122 = train 38 in a worktree,
+after = this branch; a fresh Chrome profile per load; ground ms, base / base2 within 0.1):
+  retro      before   after               current    before   after
+  air ~290 m  6.84    5.37  -21 %         air          7.47    7.42
+  40 m        6.18    4.43  -28 %         40 m         7.22    7.21
+  taxi        3.61    2.80  -22 %         taxi         4.07    4.08
+  stand       5.79    4.33  -25 %         stand        6.27    6.27
+  cold links (the four ground programs in parallel): retro 11.1 -> 5.1 s; current 11.9 -> 11.5 s (= train 38).
+Gates on the tip: SPLAT (+ selftest), GROUNDLIB, LIGHT, LOOKS, PAVEMENT, LAKEBED, GFX, PROGRAMS, PREMISES, STRIPGROUND PASS. The strict
+gate (train_gate.js, the default preset = the full programs, unchanged) runs at train 40's pass. Runs: reports/evidence/GROUND-COST/runs/n_*.json.
