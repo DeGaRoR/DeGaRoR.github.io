@@ -3935,7 +3935,9 @@
         poseRigid(c.obj);                             // G357: in the true frame
       }
     }
-    brkCage(xA, yU, cg, [O[0] + oR[0], O[1] + oR[1], oR[2]], skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
+    { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
+      scuffFrame(oB);                              // G2004 (DMG-SCUFF): its own event test (two compares; null with the layer off)
+      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still); }   // G1851
   }
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
   // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
@@ -4092,7 +4094,6 @@
     return R;
   }
   function brkCage(xA, yU, cg, o, gain, still) {
-    scuffFrame(o);                                 // G2004 (DMG-SCUFF): its own event test first (null with the layer off)
     const D = brkState();
     if (!D || model.gen) return;
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
@@ -4192,7 +4193,7 @@
       at.bytes += n4 * 2; at.uploads++;
     }
   }
-  // EVERY FRAME (from brkCage, before the break's own path): two compares while nothing happens. On an EVENT (the damage
+  // EVERY FRAME (from poseModel, just before brkCage): two compares while nothing happens. On an EVENT (the damage
   // state's vB or vS moved: a break, a set, a slide) the fields are read and a pass is asked for; the records are made
   // (budgeted), the no-break binding requested where the damage is, the pass ticked (skin_scuff.js SC.budget places a
   // frame), and each record finished is uploaded - its own range of its pair and of every merged copy's
