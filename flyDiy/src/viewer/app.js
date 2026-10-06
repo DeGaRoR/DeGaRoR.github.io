@@ -4825,9 +4825,9 @@
         // PREM-S2 (G2230, GQ7): ...WITH THE OUTSIDE WEAR laid on (an airframe stationed outside chalks and streaks with
         // the flown hours: playerWearMacro over the spec's own macros - visual only, the spec untouched)
         if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetMacro) {
+          AEROWX.aeroWxSetMacro(THREE, AEROWX.aeroWxMacroFromSpec(genSpec));
           const wo = wearOnStand();
-          AEROWX.aeroWxSetMacro(THREE, wo > 0 && typeof playerWearMacro === 'function'
-            ? playerWearMacro(AEROWX.aeroWxMacroFromSpec(genSpec), wo) : AEROWX.aeroWxMacroFromSpec(genSpec));
+          if (wo > 0 && typeof playerWearMacro === 'function') AEROWX.aeroWxSetMacro(THREE, playerWearMacro(AEROWX.aeroWxMacroFromSpec(genSpec), wo));
         }
         // ...and the spinner's spiral, off the same merged decal block
         if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetSpiral && window.AEROSKIN.aeroDecalMerge)

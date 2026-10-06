@@ -3,16 +3,16 @@
 //
 // GATE GAMEPREM proves the rules and scans the page's doors; GATE DESTTO flies the w3 case on the core; GATE UISMOKE
 // drives the base select and the fleet popup on DOM shims. This rig boots the PAGE in node (tools/_page_node.js,
-// FRAMECOST's harness - dev.html's own scripts on the recording GL, the analytic world) with a saved profile and reads
+// FRAMECOST's harness - dev.html's own scripts on the recording GL, the game's world: Jolene) with a saved profile and reads
 // back what the player meets:
 //   lift   the v1 player save of G2095 + three saved builds (the user's Cub, Jodel and Cessna): after the boot the
 //          stored document is the same sandbox (the shed, the wallet, the room unchanged) with THREE AIRFRAMES in its
 //          fleet at HOME (inside while a slot is free and the floor packs them, the rest tied down outside), the
 //          base row today's line, no page error.
-//   away   a v2 sandbox whose saved Cub stands AWAY at A0 (it landed there), the Cub on the stand (the working build
-//          names its slot): the roll-out starts at A0 (FLYDIY_PLAYER.rollFrom, then FLYDIY_ROUTE.where on the
-//          aerodrome A0 after the roll-out); a walk back to the shed mid-flight ends that flight for the clock and
-//          moves NOTHING (gp4: it stays away at A0); "bring it home" then puts it in HOME (free).
+//   away   a v2 sandbox whose saved Cub stands AWAY at w3 (it landed there), the Cub on the stand (the working build
+//          names its slot): the roll-out starts at w3 (FLYDIY_PLAYER.rollFrom, then FLYDIY_ROUTE.where on the
+//          aerodrome w3 after the roll-out); a walk back to the shed mid-flight ends that flight for the clock and
+//          moves NOTHING (gp4: it stays away at w3); "bring it home" then puts it in HOME (free).
 // ~4 min and ~3.5 GB a boot.
 //
 //   node tools/prem_s2_page.js [--only lift|away] [--out file]
@@ -26,7 +26,7 @@ const slot = (name, txt) => { const o = JSON.parse(txt); o.name = name; return J
 const CUB = slot('Cub', B('cub_2026-09-20_corrected.json'));
 const AWAY = JSON.stringify({ what: 'flydiy-player', v: 2, wallet: 0, mode: 'sandbox', here: 'HOME', clock: 3600,
   sheds: { HOME: { shell: 'club', kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'office', 'comfort', 'curio', 'wip'], base: 'HOME', tenure: 'own' } },
-  fleet: { Cub: { hangar: null, aero: 'A0', outSince: 0, left: 'HOME' } }, ledger: [] });
+  fleet: { Cub: { hangar: null, aero: 'w3', outSince: 0, left: 'HOME' } }, ledger: [] });
 const CASES = {
   lift: { 'flydiy.player': V1, 'flydiy.build.Cub': CUB, 'flydiy.build.Jodel': slot('Jodel', B('jodel_2026-09-20_corrected.json')),
           'flydiy.build.Cessna': slot('Cessna', B('cessna172_2026-09-20_corrected.json')) },
@@ -67,16 +67,17 @@ const log = s => { console.log(s); lines.push(s); };
       log('   fleet  : ' + names.map(n => n + ' ' + W.FLYDIY_PLAYER.place(n).text).join(' · '));
     } else {
       const G = W.GARAGE_SPEC;
+      ck(!!W.FLIGHT_PROBE.world().aerodromes.find(a => a.id === 'w3'), 'the page\'s world has Tamgas Hill (w3)');
       ck(!!G && G.name() === 'Cub', 'the Cub is on the stand (its slot restored with the working build)');
       ck(W.FLYDIY_PLAYER.place('Cub').text.indexOf('away at') === 0, 'it stands ' + W.FLYDIY_PLAYER.place('Cub').text);
-      ck(W.FLYDIY_PLAYER.rollFrom() === 'A0', 'its roll-out starts where it stands: ' + W.FLYDIY_PLAYER.rollFrom());
+      ck(W.FLYDIY_PLAYER.rollFrom() === 'w3', 'its roll-out starts where it stands: ' + W.FLYDIY_PLAYER.rollFrom());
       const n0 = (W.FLYDIY_TRIPS || []).length;
       W.document.getElementById('bGo').click();
       const okR = await P.until(() => { const L = W.FLYDIY_TRIPS || []; const t = L[L.length - 1]; return L.length > n0 && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'; }, 900000);
       await P.frames(30);
       const wh = W.FLYDIY_ROUTE.where(), R0 = W.FLYDIY_ROUTE.get(), T = (W.FLYDIY_TRIPS || []).slice(-1)[0] || {};
-      ck(okR && wh && wh.id === 'A0', 'rolled out ON A0 (' + (wh && wh.kind) + ' ' + (wh && wh.id) + '; the leg\'s From ' + R0.from + '; the roll-out shot ' + T.anim + ')');
-      ck(R0.from === 'A0', 'the flight\'s From is A0, not the base');
+      ck(okR && wh && wh.id === 'w3' && (wh.kind === 'stand' || wh.kind === 'apron' || wh.kind === 'runway'), 'rolled out ON w3 (' + (wh && wh.kind) + ' ' + (wh && wh.id) + '; the leg\'s From ' + R0.from + '; the roll-out shot ' + T.anim + ')');
+      ck(R0.from === 'w3', 'the flight\'s From is w3, not the base');
       ck(W.FLYDIY_PLAYER.slot() === 'Cub', 'the flight flies the Cub\'s airframe');
       await P.frames(240);
       W.document.getElementById('bHangar2').click();
@@ -84,7 +85,7 @@ const log = s => { console.log(s); lines.push(s); };
       doc = stored();
       const E = W.FLYDIY_PLAYER.last();
       ck(!!E && E.how === 'abandoned' && !E.moved, 'walked back to the shed mid-flight: the flight ended for the clock, nothing moved');
-      ck(doc.clock > 3600 && doc.fleet.Cub.aero === 'A0' && !doc.fleet.Cub.hangar, 'the clock ran (' + doc.clock.toFixed(1) + ' s) and the Cub is still away at A0 (gp4)');
+      ck(doc.clock > 3600 && doc.fleet.Cub.aero === 'w3' && !doc.fleet.Cub.hangar, 'the clock ran (' + doc.clock.toFixed(1) + ' s) and the Cub is still away at w3 (gp4)');
       ck(doc.fleet.Cub.foot && doc.fleet.Cub.foot.half > 4, 'its footprint was measured at the roll-out: ' + JSON.stringify(doc.fleet.Cub.foot));
       const bh = W.FLYDIY_PLAYER.bringHome('Cub');
       doc = stored();
