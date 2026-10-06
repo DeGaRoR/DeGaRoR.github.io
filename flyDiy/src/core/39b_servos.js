@@ -85,6 +85,12 @@ const SERVO_GAINS = {
   // G1937: THE STEP-ATTITUDE HOLD (servoStepHold): de = stepDe0 + stepK (stepTrim - trim) - stepD trim-rate, trim in
   // deg, from stepV (m/s) on the step - DAMP's GATE FLOATS script law, owned here as a technique the gates call
   stepDe0: 0.2, stepK: 0.04, stepD: 0.01, stepTrim: 6, stepV: 9,
+  // G1880 (DMG-FLOATTO): THE POWER HOLDS THE NOSE (S.thrustPitch, 43's FEATURE thrustPitch). On a water take-off, an
+  // aeroplane whose thrust couple at full power is a lever of more than thrPitchLever (m: THRUST_ARM x T_static / W,
+  // how far forward full power moves its CG in effect) takes power off as its nose falls: the throttle's ceiling is
+  // 1 - thrPitchKq x the nose-down rate (deg/s) - thrPitchKth x the degrees under thrPitchTh0, never under
+  // thrPitchMin, followed by the hand in thrPitchS (s)
+  thrPitchLever: 0.10, thrPitchKq: 0.015, thrPitchKth: 0.05, thrPitchTh0: -2, thrPitchMin: 0.3, thrPitchS: 0.1,
   // G1949 (PILOT-ONE-2): THE PITCH LIMIT CYCLE (S.holdPitch): in the air, an elevator swing of oscAmp or more between
   // two reversals at most oscHalf s apart scores one; the score decays over oscWin s; at oscN the pitch gains step
   // down by oscStep (oscKMin at least) and the score restarts
@@ -117,7 +123,7 @@ function servoCrossWind(out, F) {
 //   trike        the nosewheel steers (the G630 trike schedule)
 //   rotateTD     a taildragger that lifts its tail (the tail-up steer arms)
 //   TW           { Lwb, steer } the follower's geometry (the trike's bandwidth cap)
-//   features     { trimCalm, groundP1D, xwBank, water, deTop } — 43's own laws
+//   features     { trimCalm, groundP1D, xwBank, water, deTop, thrustPitch } — 43's own laws
 function makeServos(sim, def, opts) {
   opts = opts || {};
   const A = (def && def.params && def.params.ap) || {};
@@ -139,7 +145,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
-    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
+    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -203,6 +209,25 @@ function makeServos(sim, def, opts) {
   };
 
   // ---- pitch ----------------------------------------------------------------
+  // G1880 (DMG-FLOATTO): THE POWER HOLDS THE NOSE - a high thrust line's water take-off (43's FEATURE thrustPitch).
+  // With DMG-DAMP's honest damper (G1885) the user's twin on floats (two 582s 0.54 m over the CG, T/W 0.51: a lever of
+  // 0.27 m) nosed over at 2, 2.5, 4.5 and 5 m/s across. Traced (HANDOVER G1880-G1882): past PILOT-ONE-2's power ramp
+  // the plough itself is passed nose-up; on the step the hull porpoises, every trough driven by the thrust couple
+  // (~1.3 kN m nose-down at full power, more than the elevator holds near Vs: the nose went from +31 to -50 deg in the
+  // air with the stick on its stop), until the water throws it out below Vs and it goes in bow first. A pilot of such
+  // an aeroplane flies its pitch with the throttle: as the nose falls the power comes off, and goes back on as it
+  // stops falling. The throttle's ceiling: 1 - thrPitchKq x the nose-down rate (deg/s) - thrPitchKth x the degrees
+  // under thrPitchTh0, at least thrPitchMin, through the hand's lag thrPitchS. `armed`: the pilot's water take-off
+  // (ROLL / LIFTOFF on floats); `lever`: the aeroplane's THRUST_ARM x T_static / W (m), against thrPitchLever - an
+  // aeroplane whose thrust line runs through its CG (the Cessna on floats: 0.003 m) never arms. Returns the ceiling
+  // (1 when not armed: the base's throttle to the bit)
+  S.thrustPitch = (armed, lever) => {
+    if (!FT.thrustPitch || !armed || !(lever > g('thrPitchLever'))) { S.thrCap = 1; return 1; }
+    const R2D = 180 / Math.PI, thD = S.th * R2D, qD = S.q * R2D;
+    const want = Math.max(g('thrPitchMin'), 1 - g('thrPitchKq') * Math.max(0, -qD) - g('thrPitchKth') * Math.max(0, g('thrPitchTh0') - thD));
+    S.thrCap += Math.min(1, S.dt / g('thrPitchS')) * (want - S.thrCap);
+    return S.thrCap;
+  };
   S.holdPitch = (thC) => {
     const dt = S.dt, th = S.th;
     if (!holdWas) S.thCA = th;                // (re-)engage from the current attitude
@@ -470,7 +495,12 @@ function makeServos(sim, def, opts) {
       const wX = -(o.windX || 0) * F.uz + (o.windZ || 0) * F.ux;
       const vRef = trike ? g('VSteer') : g('VTailUp');
       let phW = g('xwBank') * wX * clamp(vRef / Math.max(V, 6), 0.4, 1.6);
-      if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -g('xwBankGround'), g('xwBankGround'));
+      // G1881 (DMG-FLOATTO): ...AND AFLOAT TOO. The water had no bound: xwBank x the wind x (vRef / V) asked the user's
+      // twin on floats for 17-27 deg of bank at 5 m/s across, so the aileron sat on its stop the whole run and, as the
+      // speed built, rolled the floats onto their windward chines (the roll -9 <-> +7.5 deg, the floats' loads
+      // swapping 0.03 / 0.45 W); with the thrust couple below that was the porpoise that grew into the skip. Afloat
+      // the bank is the floats' business, as on the wheels: the same bound
+      if (onWater ? onG > 0 : onG >= (trike ? 3 : 1)) phW = clamp(phW, -g('xwBankGround'), g('xwBankGround'));
       c.da = S.groundAil(phW, G.gAilRoll);
     } else c.da = S.groundAil(0, G.gAilTaxi);
     S.tailUp = tailUp;
