@@ -77171,3 +77171,32 @@ GATES PREMISES, CABIN, LIFE PASS. Not done: forestK 0.5 on potato (-37..-49 k, ~
 density, not the reach) - dropped.
 THE POTATO TAXI, ALL TOLD (FRAMECOST census, the Cub, potato): 4.13 M (train 31's 1 px patch) -> 3.42 M (G1527 + G1528 + the
 cabins) - ~-4 ms on the GTX 660 by G1527's fit.
+
+## G1530 POTATO-DEEP: THE PREMISES PATCH COARSER FOR EVERY PRESET? - THE COUNTS AND THE DETAIL SHOTS (2026-10-06, POTATO-DEEP for A0; the user: "if it could reduce it that much, and I don't see a difference, worth doing this for all?")
+
+THE COUNTS (FRAMECOST census, the Cub, node; `FRAMECOST_QUERY=patchtol=N`, the preset by FRAMECOST_GFX; the taxi pin / the stand):
+    preset   | taxi M  1 px -> 3 px -> 6 px      | saved at 3 / 6 px      | stand M 1 -> 3 -> 6
+    retro    | 7.21 -> 6.78 -> 6.63              | -0.42 (-5.9 %) / -0.57 (-8.0 %) | 8.09 -> 7.69 -> 7.61
+    current  | 12.48 -> 12.06 -> 11.91           | -3.4 % / -4.6 %        | 16.26 -> 15.86 -> 15.78
+    gamer    | 13.28 -> 12.86 -> 12.71           | -3.2 % / -4.3 %        | 17.62 -> 17.22 -> 17.14
+    ultra    | 14.15 -> 13.73 -> 13.57           | -3.0 % / -4.1 %        | 19.35 -> 18.96 -> 18.87
+The same patch everywhere: the same -0.42 / -0.57 M on every preset, so it weighs most on retro (the user's laptop target): by
+HW-COVERAGE's laptop flight fit (~20 ms a million triangles) ~-8 / -11 ms a frame there. The 3080's own GPU ms at this size are
+inside its noise (A0's ruling: counts + the cards' fits). The sink deepens to 8.4 m under the pavement at 3 and 6 px alike.
+THE DETAIL SHOTS (the 11:20-11:55 untimed slot, the box's GPU, gamer, Jolene's HOME, `?patchtol=1|3|6` in one build -
+index_detail.html with the new FLIGHT_PROBE.devFree; `tools/perf/potato_census.js --detail --orbits ... --lowagl 50`), noon and
+golden hour: `reports/evidence/POTATO-DEEP/g1530_gamer_{noon,golden}_patch1_3_6px_diff.jpg` - rows: the stand, two low orbits at
+the apron / grass seam (14 m, 20 m, 4 deg), the eye 8 m off the runway's edge at 1.8 m looking 25 m along it, the eye 6 m off a
+road's edge (the nearest road to HOME found by the premises overlay's pavedAt), the taxi, a 50 m low pass; columns 1 | 3 | 6 px |
+the 1-vs-6 difference x4. THE PIXELS DIFFERING BY MORE THAN 40/255 (1 vs 3 / 1 vs 6):
+    noon:   stand 3.19 / 3.11 %, seam A 3.02 / 2.84, seam B 4.71 / 4.59, RUNWAY EDGE 0.08 / 0.08, ROAD EDGE 0.00 / 0.00
+    golden: stand 0.47 / 0.10 %, seam A 0.45 / 0.11, seam B 1.01 / 0.30, RUNWAY EDGE 0.01 / 0.01, ROAD EDGE 0.00 / 0.00
+READ: the edges at eye height - the pavement-to-grass seams the patch could spoil - are the same to the pixel. The stand's and
+the orbits' few percent are the same at 3 and at 6 px (and smaller at 6 than at 3 at golden hour): a run-to-run sub-pixel
+camera offset (the diff outlines every hangar, fence and pole, not the ground), not the patch. The taxi and the low pass are
+moving frames (the aeroplane's place differs run to run) - for the eye, not for the diff.
+NOT DONE: retro's shots (the slot ran out after gamer's six boots - the census beside them made each ~5.5 min); retro draws the
+same patch geometry (the 'lean' ground program on it), so gamer's geometric evidence carries, but its eye is owed.
+PROPOSAL (A0 relays; the user decides - every desktop preset's budget is frozen in GATE GFX §10 until then): `patchTolPx: 6` on
+retro, current, gamer and ultra too (the -0.57 M everywhere; nothing visible at 1-50 m or from 400-1 200 m, the pavement held
+by G1528's sink and 1 px pavement tolerance). The conservative step is 3 px (-0.42 M). One BUDGETS field per row + §10's freeze.
