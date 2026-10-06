@@ -89,15 +89,17 @@ async function pageStage(o) {
   // THE CRASH WINDOW: from the first step to the last pass of the damage drawn (+ a second): the links counted
   const L0 = window.__dsL ? window.__dsL.n : -1, prog0 = P.renderer().info.programs.length;
   const ms = []; let s = 0, settled = 0, t1 = performance.now();
+  // (o.fast, the cloud's SwiftShader: a frame is seconds there - the crash stepped in one go, as DMG-D4a's soft stills
+  // stepped theirs, then the page's frames carry the skin and the damage drawn to rest)
   for (; s < (o.steps || 1200); s += 2) {
     step(1 / 60); step(1 / 60);
-    await raf();
-    const t2 = performance.now(); ms.push(t2 - t1); t1 = t2;
+    if (!o.fast) { await raf(); const t2 = performance.now(); ms.push(t2 - t1); t1 = t2; }
     const D = sim.damage();
     if (D.over || (!D.crashed && s > 500)) { if (++settled > 40) break; }
   }
-  for (let f = 0; f < 600; f++) { await raf(); const S = window.FLYDIY_SCUFF_STATS && FLYDIY_SCUFF_STATS(); if (!S || !S.busy) break; }
-  for (let f = 0; f < 60; f++) await raf();
+  if (!ms.length) ms.push(0);
+  for (let f = 0; f < (o.fast ? 240 : 600); f++) { await raf(); const S = window.FLYDIY_SCUFF_STATS && FLYDIY_SCUFF_STATS(); if (S && S.on && !S.busy && S.passes > 0 && f > 4) break; }
+  for (let f = 0; f < (o.fast ? 4 : 60); f++) await raf();
   if ('__dsWind0' in window) { world.wind = window.__dsWind0; delete window.__dsWind0; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, yields: D.yields, work: Math.round(D.work), slid: Math.round(D.scW || 0),
@@ -192,7 +194,7 @@ async function sequence(run, shot, log, names) {
     const C = CASES[k], out = { label: C.label, shots: [] };
     out.place = await run(pageStage, Object.assign({}, C.o, { placeOnly: true }));
     for (const [ci, c] of C.cams.entries()) { await run(pageView, c); out.shots.push({ cam: c, kind: 'intact', file: await shot(k + '_' + (ci + 1) + '_intact.jpg') }); }
-    out.crash = await run(pageStage, Object.assign({}, C.o));
+    out.crash = await run(pageStage, Object.assign({}, C.o, { fast: !!process.env.SCUFF_FAST }));
     log(k + ' crash ' + JSON.stringify(out.crash).slice(0, 900));
     if (out.crash && out.crash.err) { R.cases[k] = out; continue; }
     for (const [ci, c] of C.cams.entries()) {
@@ -215,7 +217,7 @@ async function sequence(run, shot, log, names) {
     }
     // the block's cost on the wreck in view (the first camera)
     await run(pageView, C.cams[0]);
-    out.cost = await run(pageCost, 60);
+    out.cost = await run(pageCost, +(process.env.SCUFF_COSTN || 60));
     log(k + ' cost ' + JSON.stringify(out.cost));
     out.linksEnd = await run(pageLinks);
     R.cases[k] = out;
@@ -241,7 +243,8 @@ if (require.main === module) (async () => {
     // the cloud: soft_still.js boots the page on SwiftShader and runs this file as its stage
     const S = require('./soft_still.js');
     const size = opt('size', '1280x720').split('x').map(Number);
-    const o = Object.assign(S.parse(), { build: path.join(__dirname, '..', opt('build', 'builds/cub_2026-09-20_corrected.json')), q: 'damage=1&simw=0&fog=0', size,
+    process.env.SCUFF_FAST = '1'; if (!process.env.SCUFF_COSTN) process.env.SCUFF_COSTN = '4';
+    const o = Object.assign(S.parse(), { page: 'dev.html', build: path.join(__dirname, '..', opt('build', 'builds/cub_2026-09-20_corrected.json')), q: 'damage=1&simw=0&fog=0', size,
       stage: __filename, out: path.join(OUT, 'stand.jpg'), secs: +opt('secs', 7200), day: 'noon' });
     fs.mkdirSync(OUT, { recursive: true });
     const R = await S.still(o);
