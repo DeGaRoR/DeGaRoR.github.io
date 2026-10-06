@@ -1,0 +1,17 @@
+island_tour: the user's Cub (span 10.70 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 > tw_ski > mn_strip > w2 > HOME
+  ok   HOME > w3              559 s | dep: turned 104.7 deg, roll 108.9 m in, lift-off 103.8 m | final 2613.4 m / 208.8 m, clear 16 m (ground) | td sink 0.4 m/s, 19.4 m/s, run 159 m, off 0 m | fuel 43.5 L
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts 
+  ok   w3 > tw_ski            484 s | dep: turned 210.7 deg (U-turn), roll 31.4 m in, lift-off 95.1 m | final 2875.7 m / 448.2 m, clear 12.4 m (ground) | td sink -0.34 m/s, 17.1 m/s, run 75 m, off 0 m | fuel 41.7 L
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts slope: stopped on a 10.1 % grade — rolling 220 m on to the level part
+  ok   tw_ski > mn_strip      673 s | dep: turned 206.7 deg (U-turn), roll 27.2 m in, lift-off 93 m | final 1975.5 m / 387.6 m, clear 5.6 m (ground) | td sink 0.65 m/s, 19.4 m/s, run 141 m, off 0 m | fuel 39.7 L
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts committed-takeoff: past the point of stopping at V=15.8 with 266 m left — Vr in 4 m, continuing
+  ok   mn_strip > w2          991 s | dep: turned 198.1 deg (U-turn), roll 54.1 m in, lift-off 116.6 m | final 2203.3 m / 116.4 m, clear 22.5 m (ground) | td sink 1.13 m/s, 18.6 m/s, run 176 m, off 0 m | fuel 36.8 L
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts pivot: a 217 deg turn tighter than the wheels steer (11.3 m) — turning on the spot | committed-takeoff: past the point of stopping at V=12.9 with 135 m left — Vr in 37 m, continuing
+  ok   w2 > HOME              369 s | dep: turned 0 deg, roll 576 m in, lift-off 98.4 m | final 2139.5 m / 161.8 m, clear 31.3 m (ground) | td sink 0.52 m/s, 18.4 m/s, run 172 m, off 0 m | fuel 35.6 L
+    phases STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts 
+TOUR DONE - 5 legs, fuel left 35.6 L, 954 s wall

@@ -77866,8 +77866,16 @@ and fixed both:
     centreline) - the short-field IAF 900 m out turned a straight-in into a circuit whose DOWNWIND was entered 900 m short
     of its start. Not the turn pads: identical with tw_ski's `turn` and pads removed from the record (TOUR_FIXTURE). Now
     484 s, one approach. (Left: the leg follower orbits a DOWNWIND entered far past its start - not PILOT-ONE's.)
-  On PILOT-ONE-2's merge with this branch the Cub's tour is DONE, no fault (their report). A0: merge PILOT-ONE-2 (not
-  PILOT-ONE's train-34 READY) with this branch, and re-run GATE TOUR (full, 3 shards). This branch's own pilot change
+  VERIFIED HERE: this branch merged with PILOT-ONE-2's head (ed826c23: train 36 + PILOT-ONE + both fixes; the merge's one
+  conflict, 90_node_exports.js, is the union less the retired makeAutopilot / makeTestPilot), the three tours re-flown:
+    the user's Cub      HOME > w3 > tw_ski > mn_strip > w2 > HOME   DONE, 0 faults, 35.6 L left (w3 > tw_ski 484 s, one
+                        approach; at the mine the pivot on the spot, then the authored hold, airborne at 117 m)
+    the aluminium C172  HOME > w3 > tw_ski > w2 > HOME              DONE, 0 faults, 15.2 L left
+    the float Cessna    Annette Dock > Metlakatla > Annette Dock     DONE, 0 faults, 18.3 L left
+  (reports/evidence/ISLAND-TOUR/legs_*_on_pilot-one-2.md, tour_*_on_pilot-one-2.log, the pilot's verdicts per leg.)
+  PILOT-ONE-2 was not READY when this branch closed (its session idle: PILOTMATRIX red, its own); so it is NOT merged
+  here - A0: merge PILOT-ONE-2 (not PILOT-ONE's train-34 READY 5d294064, which lacks both fixes) with this branch, and
+  re-run GATE TOUR (full, 3 shards). This branch's own pilot change
   (G1969, planDeparture's passed nodes on a pad) and PILOT-ONE-2's pivot sit in different blocks of 43_pilot.js.
 
 THE BATTERY (`node tools/run_gates.js --all --jobs=3`, this cloud box: 4 cores, 15 GB; train 36 + DEST-TO + this branch,
