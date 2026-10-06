@@ -77134,3 +77134,40 @@ frame - the 1660 Ti has the GPU for it, the 4-core CPU pays ~2-3 ms) or the bake
 The laptop rung already has both cuts (townBoot 800, no bake). McAfee: real-time scanning of the media fetches would show
 as the 'world' / 'upload' / fetch-bound steps, not as the town's or the bake's CPU - unproven either way; a second log with
 the scanner paused would settle it.
+
+**G1528 READY - its distant-runway still (the 05:00-05:30 quiet slot, 05:00-05:06, `?patchtol=1` vs `?patchtol=6` in one build, the same
+8 orbits as G1527):** `reports/evidence/POTATO-DEEP/g1528_runways_{400m,1200m}_patch1px_vs_6px.jpg` and `..._diff_x4.jpg`. No ground
+shows through any runway, taxiway or far strip; 0.29-1.52 % of the pixels differ by more than 40/255, all of them trees (the
+impostors' dither and sway) and the pavement's joint lines - the sink and the pavement's own tolerance hold. The stand's frame
+4.09 -> 3.61 M triangles in the same runs.
+
+## G1529 POTATO-DEEP: RETRO FLIES THE LIVE AEROPLANE (NO FLOWN BAKE); THE TRAM'S CABINS CUT BY DISTANCE ON POTATO / LAPTOP (2026-10-06, POTATO-DEEP for A0, local GPU)
+
+**RETRO `flownBake: false`** (A0's call, after the user's i5-9300H / GTX 1660 Ti laptop loaded the garage in 120.5 s on retro: the
+bake 38.5 s, and 31.3 s AGAIN at the roll-out for a second build). townBoot STAYS 4000: at 1500 (the first A/B, 22:39-22:48 - during
+train 36's CPU battery, direction only) the town step fell 8.8-10.4 -> 1.6 s but the settle rose ~6 s and the houses not built
+under the screen streamed in DURING THE TAXI (0.3 builds a frame vs 0.01, 5-6 frames over 100 ms, the worst 217-250 ms vs 50) - a
+nearer boot town only moves the work into the flight. GATE GFX §10 freezes retro's budget with the reason.
+THE QUIET A/B2 (A0's 05:00-05:30 slot, nothing else on the box; rollout_perf, retro, chase, 1920 x 911, 60 s; base = this tree
+before the change): cold base / cold after / warm after / warm base -
+  garage 57.0 / 57.0 / 42.5 / 41.3 s; bake 6.6 / 0 / 0 / 2.5 (an IndexedDB hit); worldCompile 5.9 / 10.5 / 0.3 / 1.3; upload
+  2.0 / 2.6 / 5.2 / 2.1; the stand's render CPU 11.6 / 14.8 / 12.8 / 11.0 ms (+2-3 ms: the live aeroplane's draws); the taxi
+  30.0 fps delivered in all four, the worst taxi frame 50 ms in all four.
+READ: the even 30 holds (A0's condition). On this box the FIRST load does not get shorter - the bake's 6.6 s moves into the
+world's compile (the live aeroplane's programs link there instead of the bake's own). What it buys is EVERY NEW BUILD'S ROLL-OUT:
+the bake re-ran per build (31.3 s on the laptop for its Jodel), the live aeroplane only links its programs there (the laptop's
+'craft' step 2.1 s) - the game's own loop (edit, roll out) on the user's laptop. Both sides of the A/B paid this branch tree's
+stale parked cook equally (below).
+HW-COVERAGE's 4x-throttled retro load (train 37 + their branch; their worktree's tools/perf/hwcov/rollout_weak_retro.json):
+garage 169.4 s (potato 100.1): town 30.4 / 2.4, settle 30.0 / 22.4, bake 9.9 / 0, PARKED 13.3 / 0 - the last a STALE PARKED COOK
+(bootLog: how 'capture', why 'stale' for jodel / cub / c172, then live bakes 18.7 / 15.8 / 11.6 s): a branch tree's FLYDIY_BUILD
+is not the cook's; the deployed builds read 'parked 0 ms' (the user's own logs, both machines). Retro keeps its parked aeroplanes.
+Anyone timing loads on a branch: `node tools/parked_cook.js --check` first.
+
+**THE TRAM'S CABINS ON POTATO / LAPTOP (BUDGETS cabinFar 600 / 400 m, render_premises cabinCut):** the two cabins and their
+carriages were 136 k of the potato taxi's triangles (the line itself 7 k; FRAMECOST_TRIS_DEPTH=5); past cabinFar from the eye they
+are not drawn (a 4 m cabin at 600 m is ~7 px), the ropes, the docks and the pylons stay. The potato taxi 3.56 -> 3.42 M (-26 draws).
+GATES PREMISES, CABIN, LIFE PASS. Not done: forestK 0.5 on potato (-37..-49 k, ~1 %: the cards are the near stands, set by the
+density, not the reach) - dropped.
+THE POTATO TAXI, ALL TOLD (FRAMECOST census, the Cub, potato): 4.13 M (train 31's 1 px patch) -> 3.42 M (G1527 + G1528 + the
+cabins) - ~-4 ms on the GTX 660 by G1527's fit.
