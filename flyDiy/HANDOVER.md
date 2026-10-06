@@ -77542,6 +77542,21 @@ or not - a verification run, not a landing).
 3. ISLAND-TOUR (GATE TOUR) flies a calm day and the build file's fuel - not the game's tour. `_tour_lib.flyLeg` judges a
    diverted landing on the planned strip's box: phantom ground loops and off-strip.
 
+**OPEN QUESTIONS for the next tour session (the unexplained part of the gap):** in the same wind the page flies INBOUND
+36-38 m/s ground speed against node's 30, 50-70 m lower, turns base / final 300-400 m earlier, and rolls out about half
+as far. Each candidate below is testable in node with one change, then a re-fly beside the page's samples
+(tools/tour_real_report.js):
+1. THE WORKER PILOT'S SHAKEDOWN AT ITS OWN LOAD - sim_host makes the pilot with `shakedown: () => sd`, the page's trim
+   solve for the 29 L / 462 kg Cub (Vref 16.2 at East Point); node's comes from the 45 L / 476 kg build. Compare
+   ap.appr / cruise targets leg by leg; find where the page's 29 L comes from (`--fuel` on spec.fuel did not take).
+2. THE OBSTACLE REGISTRY - the page's worker world holds what the premises stream registered near the aeroplane (249 at
+   the stops), node registers every cooked thing within 700 m of a strip (324). Dump both near each approach.
+3. THE TREES - the page's solver: woodland cylinders OFF (`woodSolid` false) and 59 559 drawn trunks (treeHits); node:
+   woodland solid, 0 trunks. East Point's runway model is the same either way (reqGs 0.1701); the pilot's other tree
+   reads (canopyH) and the solver's contacts may not be.
+4. (also open) the page's day TICKS with sim time (DAY_CLOCK -> the climate's diurnal / sea breeze); node's is frozen.
+   The wind fields agreed to 0.07 m/s at East Point at 860-910 s; not checked elsewhere along the tour.
+
 **ISLAND-TOUR's landing**: its node tours are internally consistent, but they are not evidence of what the game flies.
 GATE TOUR should take the page's day and load before it is read as "the game's tour". Not landed by this session.
 Box: GPU 08:45-08:48 (shake-down), 09:00-09:37 (two runs; dropped 23 min early); CPU: node re-flies 04:00-04:16 (lock),
