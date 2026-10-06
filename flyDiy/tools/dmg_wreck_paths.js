@@ -57,6 +57,20 @@ function pageGiant() {
   }
   return { meshes: out.sort((a, b) => b.big - a.big).slice(0, 16) };
 }
+// THE CRASHED MODEL AFTER THE PATH (17:24: the census over the flight's model clean, a crashed Cub still drawn at the
+// stand): the model the crash was drawn on, kept before the path - is it still the page's model, is its group still in a
+// scene and visible, and how many of its triangles are past 2 m
+function pageOldMark() { window.__d4bOld = FLIGHT_PROBE.model(); return !!window.__d4bOld; }
+function pageOld() {
+  const O = window.__d4bOld, m = FLIGHT_PROBE.model(); if (!O || !O.grp) return { none: true };
+  let sc = null, vis = O.grp.visible; for (let q = O.grp.parent; q; q = q.parent) { if (q.isScene) sc = q; vis = vis && q.visible; }
+  let big = 0, tris = 0, meshes = 0;
+  O.grp.traverse(o => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return; meshes++;
+    const g = o.geometry, pa = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : pa.length / 9; tris += nt;
+    for (let t = 0; t < nt; t++) { const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2; if (a === b && b === c) continue;
+      const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]); if (Math.max(e(a, b), e(b, c), e(c, a)) > 2) big++; } });
+  return { sameModel: O === m, inScene: !!sc, scene: sc ? (sc === (FLIGHT_PROBE.hangarScene ? FLIGHT_PROBE.hangarScene() : null) ? 'hangar' : 'world') : null, visible: vis, meshes, tris: tris | 0, big };
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -87,6 +101,7 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.exercised = r.crash.broken > 0;
     await S.run(pageFree);
     r.wreck = await S.run(pageWreck);
+    await S.run(pageOldMark);
     if (k === 'retry') {
       r.act = await ev("(() => { FLIGHT_PROBE.endFlight('crashed'); document.getElementById('bGo').click(); return 'ok'; })()");
       await sleep(4000);
@@ -97,6 +112,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
     }
     r.after = await S.run(pageWreck);
     r.giant = await S.run(pageGiant);
+    r.old = await S.run(pageOld);
+    console.log('  ' + k + ' the crashed model after the path: ' + JSON.stringify(r.old));
     console.log('  ' + k + ' giant triangles (an edge past 2 m): ' + JSON.stringify(r.giant));
     r.ok = r.exercised && !r.after.active && r.after.bodies === 0 && r.after.debris === 0 && r.after.hidden === 0 && r.after.collapsed === 0 && !r.after.broken;
     // (two views of the fresh aeroplane, far enough to see all of it: a front quarter and from above-behind)
