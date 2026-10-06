@@ -5939,7 +5939,8 @@
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
-    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); player = playerFleetReconcile(player, playerSlotNames()).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
+    // (with no storage there are no slots to read: the document's own fleet is kept as handed)
+    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, playerSlotNames()).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
     place: n => (typeof playerPlace === 'function' ? playerPlace(playerLoad(), n, world) : null),
     wear: n => (typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), n) : 0),
     rollFrom: () => rollFromId(), slot: () => flSlot, last: () => flLastEnd,
@@ -8988,6 +8989,7 @@
     // moves the garage there (playerGoTo, instant: the Kerbal switch). The sandbox holds HOME alone: the same line.
     const hangarWords = (b, h, d) => (h === 'HOME' && b.id === 'HOME') ? b.hangar
       : (d.sheds[h] && d.sheds[h].name) || ('the ' + (((typeof SHELLS === 'object' && SHELLS[d.sheds[h] && d.sheds[h].shell]) || {}).name || 'hangar').toLowerCase() + (h !== b.id ? ' (' + h + ')' : ''));
+    const baseRows = {};                 // what each host's base row is (GATE UISMOKE reads it: FLYDIY_ROUTE.baseRow)
     const routeBuild = (host, where) => {
       if (!host) return;
       host.innerHTML = '';
@@ -9004,6 +9006,7 @@
           sel.title = 'The hangar the garage is in - an aeroplane rolls out from where it stands'; routeSels.push({ sel, kind: 'base', host });
           for (const x of held) { const o = document.createElement('option'); o.value = x.h; o.textContent = x.b.name + ' · ' + hangarWords(x.b, x.h, doc); sel.appendChild(o); }
           sel.value = doc.here;
+          baseRows[where] = { kind: 'select', sel, options: held.map(x => x.h), labels: held.map(x => x.b.name + ' · ' + hangarWords(x.b, x.h, doc)) };
           sel.onchange = e => {
             const r = typeof playerGoTo === 'function' ? playerGoTo(playerLoad(), e.target.value) : null;
             if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; }
@@ -9014,6 +9017,7 @@
           const b = bases[0], v = document.createElement('b');
           v.className = 'routeBase'; v.textContent = b ? b.name + ' · ' + b.hangar : 'Home base';
           v.title = 'Every roll-out starts at the base' + (b ? ' (' + (b.a.name || b.a.id) + ')' : '') + '; a flight goes on from wherever it lands';
+          baseRows[where] = { kind: 'line', text: v.textContent };
           lab.appendChild(v);
         }
         host.appendChild(lab);
@@ -9053,6 +9057,7 @@
       get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId }),
       sync: () => routeRefresh(), gear: () => refGear,
       to: id => setTo(id), where: () => flWhere(),
+      baseRow: where => baseRows[where] || null,   // PREM-S2: the base line / select each host shows
       // the perf rigs' spawn (rollout_perf --from, master_bench setFrom): the next roll-out starts there; null = the base
       spawn: id => { spawnId = id && id !== baseAeroId() ? id : null; routeRemember(); return spawnId || baseAeroId(); },
     };

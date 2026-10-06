@@ -497,6 +497,93 @@ try {
     frames(30);
     console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
   }
+  // ---- G2230 PREM-S2: THE GARAGE'S BASE LINE + SELECT, AND THE FLEET POPUP'S PLACE BADGE ----
+  // The bases are derived from the hangars held (38b_dest.js flightBasesOf, ruling gp1): the sandbox's one hangar is
+  // today's line ("Home base · the WWII hangar"); a second hangar held makes it a select, and picking one moves the
+  // garage there (playerGoTo). The fleet popup (garage.js, run from its own source on a shelf with three saved
+  // aeroplanes and THIS page's doors - app.js's garageInit api) shows where each stands ("in HOME", "out at <field>",
+  // "away at <field>"), greys an aeroplane standing at another base and asks "fly from there?", and its house button
+  // brings one home (free).
+  {
+    const PL = sandbox.window.FLYDIY_PLAYER, R = sandbox.window.FLYDIY_ROUTE, GA = sandbox.garageApi, P = sandbox.window.FLIGHT_PROBE;
+    if (!PL || typeof PL.set !== 'function' || typeof PL.place !== 'function') throw new Error('FLYDIY_PLAYER is missing (G2230)');
+    if (!GA || typeof GA.place !== 'function' || typeof GA.slotsChanged !== 'function' || typeof GA.flyFrom !== 'function' || typeof GA.bringHome !== 'function')
+      throw new Error('the garage bridge lacks the fleet ledger doors (place / slotsChanged / flyFrom / bringHome)');
+    const d0 = PL.doc();
+    if (d0.mode !== 'sandbox' || d0.here !== 'HOME' || Object.keys(d0.sheds).join() !== 'HOME') throw new Error('the page\'s player is not today\'s sandbox: ' + JSON.stringify(d0).slice(0, 200));
+    for (const w of ['garage', 'rollout']) {
+      const row = R.baseRow(w);
+      if (!row || row.kind !== 'line' || row.text !== 'Home base · the WWII hangar') throw new Error(`the sandbox's ${w} base row is not today's line: ${JSON.stringify(row && { kind: row.kind, text: row.text })}`);
+    }
+    const W = P.world(), other = W.aerodromes.find(a => a.kind !== 'meadow' && a.kind !== 'water' && !a.water && a.id !== 'HOME');
+    const doc = JSON.parse(JSON.stringify(d0));
+    doc.sheds[other.id] = { shell: 'field', kits: ['park'], base: other.id, tenure: 'own', dims: { HW: 8.5, HD: 9, EAVE: 3.6 }, since: 1 };
+    doc.fleet = { Cub: { hangar: 'HOME', aero: 'HOME' }, Jodel: { hangar: null, aero: other.id, outSince: 0 }, Twin: { hangar: null, aero: 'nowhere', outSince: 0 } };
+    PL.set(doc);
+    const rowG = R.baseRow('garage'), rowR = R.baseRow('rollout');
+    for (const row of [rowG, rowR])
+      if (!row || row.kind !== 'select' || row.options.join() !== 'HOME,' + other.id || !/^Home base · the WWII hangar$/.test(row.labels[0]))
+        throw new Error(`two hangars held: the base row is not a select of both: ${JSON.stringify(row && { kind: row.kind, options: row.options, labels: row.labels })}`);
+    rowG.sel.onchange({ target: { value: other.id } });
+    if (PL.doc().here !== other.id || R.get().base !== other.id) throw new Error(`picking ${other.id} on the base select did not move the garage there (here ${PL.doc().here}, base ${R.get().base})`);
+    rowG.sel.onchange({ target: { value: 'HOME' } });
+    if (PL.doc().here !== 'HOME') throw new Error('the base select did not come back to HOME');
+    // the place badge, as the page computes it
+    const pc = PL.place('Cub'), pj = PL.place('Jodel'), pt = PL.place('Twin');
+    if (pc.text !== 'in HOME' || !pc.here || pj.text !== 'out at ' + other.id || pj.here || !/^away at /.test(pt.text) || pt.here)
+      throw new Error(`the place badge: ${pc.text} / ${pj.text} / ${pt.text}`);
+    // THE POPUP, garage.js from its own source, its doors this page's
+    const kids = [];
+    const mk = (tag) => {
+      const e = { tag, children: [], style: {}, className: '', textContent: '', innerHTML: '', title: '', hidden: false, disabled: false, value: '', on: {}, _q: {},
+        addEventListener(k, f) { this.on[k] = f; }, appendChild(c) { this.children.push(c); kids.push(c); return c; },
+        querySelector(sel) { return this._q[sel] || (this._q[sel] = mk('q')); }, querySelectorAll: () => [], remove() {}, click() { if (this.on.click) this.on.click({ target: this }); },
+        setAttribute() {} };
+      return e;
+    };
+    const els2 = {}, store = new Map();
+    const LS = { get length() { return store.size; }, key: i => Array.from(store.keys())[i], getItem: k => (store.has(k) ? store.get(k) : null),
+                 setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } };
+    for (const n of ['Cub', 'Jodel', 'Twin']) LS.setItem('flydiy.build.' + n, JSON.stringify({ what: 'flydiy-build', name: n, spec: { meta: { name: n } } }));
+    let asked = null, flew = null;
+    const gb = { console, document: { getElementById: id => (els2[id] || (els2[id] = mk('#' + id))), createElement: t => mk(t), body: mk('body') },
+                 alert: () => {}, prompt: () => null, confirm: q => { asked = q; return true; },
+                 setTimeout: f => { f(); return 0; }, clearTimeout() {}, genNormaliseSpec: x => x, genSpecMerge: (a2, b2) => Object.assign({}, a2, b2) };
+    gb.window = { localStorage: LS };
+    vm.createContext(gb);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'garage.js'), 'utf8'), gb, { filename: 'garage.js' });
+    gb.garageInit({ defaults: () => ({}), apply() {}, resolved: () => null, isGen: () => true, inGarage: () => true,
+                    place: n => GA.place(n), flyFrom: n => { flew = n; return GA.flyFrom(n); }, bringHome: n => GA.bringHome(n), wear: n => 0 });
+    els2.gLoad.on.click();
+    const rowsOf = () => kids.filter(k => typeof k.className === 'string' && /\bgfRow\b/.test(k.className) && k.children.some(c => c.className === 'gfLoad'));
+    const byName = () => { const o = {}; for (const r of rowsOf()) { const b = r.children.find(c => c.className === 'gfLoad'); const nm = b.children.find(c => c.tag === 'b'); if (nm) o[nm.textContent] = r; } return o; };
+    let rows = byName();
+    const badge = r => { const b = r.children.find(c => c.className === 'gfLoad'); const i = b && b.children.find(c => /\bgfPlace\b/.test(c.className)); return i ? i.textContent : null; };
+    if (!rows.Cub || !rows.Jodel || !rows.Twin) throw new Error('the fleet popup did not list the three saved aeroplanes: ' + Object.keys(rows).join(','));
+    if (badge(rows.Cub) !== 'in HOME' || badge(rows.Jodel) !== 'out at ' + other.id || !/^away at /.test(badge(rows.Twin) || ''))
+      throw new Error(`the popup's place badges: ${badge(rows.Cub)} / ${badge(rows.Jodel)} / ${badge(rows.Twin)}`);
+    if (/gfAway/.test(rows.Cub.className) || !/gfAway/.test(rows.Jodel.className) || !/gfAway/.test(rows.Twin.className))
+      throw new Error(`the popup greys the wrong rows: Cub "${rows.Cub.className}", Jodel "${rows.Jodel.className}", Twin "${rows.Twin.className}"`);
+    const home = r => r.children.find(c => c.className === 'gfHome');
+    if (home(rows.Cub) || !home(rows.Jodel) || !home(rows.Twin)) throw new Error('"bring it home" is offered on the wrong rows');
+    // bring the Twin home from the popup: the page's ledger moves it to HOME (inside if a slot and the floor allow, else outside)
+    home(rows.Twin).on.click();
+    const pt2 = PL.place('Twin');
+    if (pt2.aero !== 'HOME' || !pt2.here) throw new Error('bring it home from the popup left the Twin ' + pt2.text);
+    rows = byName();
+    if (badge(rows.Twin) !== pt2.text) throw new Error('the popup did not redraw the Twin\'s place: ' + badge(rows.Twin));
+    // "fly from there?" on the greyed Jodel: asked, and the garage moves to its base (a hangar is held there)
+    rows.Jodel.children.find(c => c.className === 'gfLoad').on.click();
+    if (!asked || !/fly from there\?/.test(asked) || flew !== 'Jodel' || PL.doc().here !== other.id)
+      throw new Error(`"fly from there?": asked ${JSON.stringify(asked)}, flew ${flew}, the garage at ${PL.doc().here}`);
+    // the build on the stand here is unsaved (no slot): its roll-out is the garage's base - now that field
+    if (PL.rollFrom() !== other.id) throw new Error('the roll-out of the unsaved build on the stand is not the garage\'s base (' + other.id + '): ' + PL.rollFrom());
+    PL.set(d0);
+    if (PL.rollFrom() !== 'HOME') throw new Error('back in the sandbox, the roll-out is not HOME: ' + PL.rollFrom());
+    if (R.baseRow('garage').kind !== 'line') throw new Error('back to one hangar, the base row is not a line again');
+    console.log(`PREM-S2: the sandbox's base line "${rowR.labels[0]}"; two hangars -> a select (${rowG.options.join(', ')}), picking moves the garage; ` +
+      `the popup: ${badge(rows.Cub)} / out at ${other.id} (greyed) / away -> brought home (${pt2.text}); "fly from there?" moved the garage to ${other.id}`);
+  }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the
