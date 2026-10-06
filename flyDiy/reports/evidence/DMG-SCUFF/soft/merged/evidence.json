@@ -1,0 +1,581 @@
+{
+ "at": "2026-10-06T09:03:59.119Z",
+ "cases": {
+  "taxi": {
+   "label": "a taxi into a trunk at 3 m/s, the throttle shut",
+   "shots": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "kind": "intact",
+     "file": "taxi_1_intact.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "kind": "intact",
+     "file": "taxi_2_intact.jpg"
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "kind": "after",
+     "file": "taxi_1_after.jpg"
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "kind": "noscuff",
+     "file": "taxi_1_noscuff.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "kind": "after",
+     "file": "taxi_2_after.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "kind": "noscuff",
+     "file": "taxi_2_noscuff.jpg"
+    }
+   ],
+   "place": {
+    "placed": true,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 0,
+     "places": 0,
+     "frameMs": 0,
+     "tickMs": 0,
+     "tornMs": 0,
+     "mkMs": 0,
+     "bound": 0,
+     "uploads": 0,
+     "bytes": 0,
+     "any": false,
+     "uOn": 0,
+     "awake": false,
+     "flips": 4,
+     "mats": 75,
+     "prelinks": 2,
+     "premade": 176.1,
+     "made": true,
+     "phases": {
+      "fields": 0,
+      "rec1": 0,
+      "recs": 0,
+      "bind": 0,
+      "tick": 0,
+      "upload": 0
+     },
+     "bindUs": 10,
+     "panes": [],
+     "counts": {
+      "crush": 0,
+      "scrape": 0,
+      "torn": 0,
+      "verts": 280038
+     },
+     "busy": false
+    }
+   },
+   "crash": {
+    "steps": 582,
+    "crashed": false,
+    "over": false,
+    "reason": null,
+    "broken": 0,
+    "yields": 632,
+    "work": 753,
+    "slid": 720,
+    "frameMed": 0,
+    "frameMax": 0,
+    "links": 0,
+    "programsAdded": 0,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 2,
+     "places": 105246,
+     "frameMs": 11,
+     "tickMs": 3.6,
+     "tornMs": 0,
+     "mkMs": 0,
+     "bound": 4753,
+     "uploads": 92,
+     "bytes": 4480608,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 5,
+     "mats": 75,
+     "prelinks": 2,
+     "premade": 176.1,
+     "made": true,
+     "phases": {
+      "fields": 0.8,
+      "rec1": 0,
+      "recs": 0,
+      "bind": 4.7,
+      "tick": 5.4,
+      "upload": 1
+     },
+     "bindUs": 3.06,
+     "panes": [],
+     "counts": {
+      "crush": 17756,
+      "scrape": 15217,
+      "torn": 0,
+      "verts": 280038
+     },
+     "busy": false
+    },
+    "skin": {
+     "on": true,
+     "recs": 0,
+     "ms": {
+      "records": 0,
+      "event": 0,
+      "frames": 0,
+      "pose": 0,
+      "recordsT": 0,
+      "eventT": 0,
+      "poseT": 0,
+      "frameMax": 0,
+      "n": 0
+     },
+     "removed": 0,
+     "torn": 0,
+     "tris": 0,
+     "riding": 0
+    }
+   },
+   "close": {
+    "scrape": {
+     "hot": {
+      "p": [
+       -523.4431179656078,
+       34.34401851079059,
+       27.84986180140648
+      ],
+      "v": 0.9764705882352941,
+      "cls": 0
+     },
+     "aim": {
+      "az": 46.766646340763764,
+      "el": 10.560351541554011,
+      "dist": 3.000783989749509
+     },
+     "file": "taxi_close_scrape.jpg",
+     "fileOff": "taxi_close_scrape_noscuff.jpg"
+    },
+    "crease": {
+     "hot": {
+      "p": [
+       -523.1937853322224,
+       34.30676903893437,
+       27.55195655908055
+      ],
+      "v": 0.21411764705882352,
+      "cls": 0
+     },
+     "aim": {
+      "az": 33.41961036421583,
+      "el": 9.328160222762492,
+      "dist": 2.993238908218846
+     },
+     "file": "taxi_close_crease.jpg",
+     "fileOff": "taxi_close_crease_noscuff.jpg"
+    },
+    "torn": null,
+    "glass": null
+   },
+   "cost": {
+    "timer": true,
+    "off": {
+     "frameMed": 5349.9,
+     "gpuMed": 31.161,
+     "gpuN": 24
+    },
+    "on": {
+     "frameMed": 5245.8,
+     "gpuMed": 32.11,
+     "gpuN": 24
+    },
+    "off2": {
+     "frameMed": 5190.7,
+     "gpuMed": 28.368,
+     "gpuN": 24
+    },
+    "on2": {
+     "frameMed": 5147.2,
+     "gpuMed": 33.404,
+     "gpuN": 24
+    }
+   },
+   "linksEnd": {
+    "links": 0,
+    "programs": 330,
+    "failed": 0,
+    "bad": []
+   }
+  },
+  "noseover": {
+   "label": "a nose-over: 12 m/s on the ground into a 35 cm stump",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "kind": "intact",
+     "file": "noseover_1_intact.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "kind": "intact",
+     "file": "noseover_2_intact.jpg"
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "kind": "intact",
+     "file": "noseover_3_intact.jpg"
+    },
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "kind": "after",
+     "file": "noseover_1_after.jpg"
+    },
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "kind": "noscuff",
+     "file": "noseover_1_noscuff.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "kind": "after",
+     "file": "noseover_2_after.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "kind": "noscuff",
+     "file": "noseover_2_noscuff.jpg"
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "kind": "after",
+     "file": "noseover_3_after.jpg"
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "kind": "noscuff",
+     "file": "noseover_3_noscuff.jpg"
+    }
+   ],
+   "place": {
+    "placed": true,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 2,
+     "places": 105246,
+     "frameMs": 11,
+     "tickMs": 3.6,
+     "tornMs": 0,
+     "mkMs": 0,
+     "bound": 4753,
+     "uploads": 92,
+     "bytes": 4480608,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 5,
+     "mats": 75,
+     "prelinks": 2,
+     "premade": 176.1,
+     "made": true,
+     "phases": {
+      "fields": 0.8,
+      "rec1": 0,
+      "recs": 0,
+      "bind": 4.7,
+      "tick": 5.4,
+      "upload": 1
+     },
+     "bindUs": 3.06,
+     "panes": [],
+     "counts": {
+      "crush": 17756,
+      "scrape": 15217,
+      "torn": 0,
+      "verts": 280038
+     },
+     "busy": false
+    }
+   },
+   "crash": {
+    "steps": 380,
+    "crashed": true,
+    "over": true,
+    "reason": "a gear member broke",
+    "broken": 54,
+    "yields": 3630,
+    "work": 5578,
+    "slid": 9761,
+    "frameMed": 0,
+    "frameMax": 0,
+    "links": 0,
+    "programsAdded": 0,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 3,
+     "places": 157869,
+     "frameMs": 11,
+     "tickMs": 7.8,
+     "tornMs": 3.1,
+     "mkMs": 0,
+     "bound": 4753,
+     "uploads": 138,
+     "bytes": 6720912,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 5,
+     "mats": 75,
+     "prelinks": 2,
+     "premade": 176.1,
+     "made": true,
+     "phases": {
+      "fields": 0.8,
+      "rec1": 0,
+      "recs": 0,
+      "bind": 4.7,
+      "tick": 7.8,
+      "upload": 1
+     },
+     "bindUs": 3.06,
+     "panes": [],
+     "counts": {
+      "crush": 21866,
+      "scrape": 20031,
+      "torn": 13754,
+      "verts": 280038
+     },
+     "busy": false
+    },
+    "skin": {
+     "on": true,
+     "recs": 126,
+     "ms": {
+      "records": 286.5000000074506,
+      "event": 163.79999999701977,
+      "frames": 4,
+      "pose": 138.90000000596046,
+      "recordsT": 291.19999998807907,
+      "eventT": 165.49999999254942,
+      "poseT": 1762.7000000104308,
+      "frameMax": 673.7000000029802,
+      "n": 24,
+      "inh": 76.70000000298023,
+      "inhT": 236.3000000268221
+     },
+     "removed": 2922,
+     "torn": 1364,
+     "tris": 202022,
+     "riding": 606066
+    }
+   },
+   "close": {
+    "scrape": {
+     "hot": {
+      "p": [
+       -490.66784452922604,
+       33.39919867816005,
+       56.48692976819019
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -134.44878541459912,
+      "el": -5.637775272554575,
+      "dist": 4.841545456292963
+     },
+     "file": "noseover_close_scrape.jpg",
+     "fileOff": "noseover_close_scrape_noscuff.jpg"
+    },
+    "crease": {
+     "hot": {
+      "p": [
+       -489.2743597828004,
+       32.94664083974957,
+       57.65547430301266
+      ],
+      "v": 0.9058823529411765,
+      "cls": 1
+     },
+     "aim": {
+      "az": -128.57154053669248,
+      "el": -24.912924921363476,
+      "dist": 3.2002826310226635
+     },
+     "file": "noseover_close_crease.jpg",
+     "fileOff": "noseover_close_crease_noscuff.jpg"
+    },
+    "torn": {
+     "hot": {
+      "p": [
+       -490.44115089593936,
+       33.31738621738798,
+       56.73223625518149
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -134.6274635363455,
+      "el": -7.670886164085845,
+      "dist": 4.519373997080496
+     },
+     "file": "noseover_close_torn.jpg",
+     "fileOff": "noseover_close_torn_noscuff.jpg"
+    },
+    "glass": null
+   },
+   "cost": {
+    "timer": true,
+    "off": {
+     "frameMed": 3195.8,
+     "gpuMed": 32.581,
+     "gpuN": 24
+    },
+    "on": {
+     "frameMed": 3180.4,
+     "gpuMed": 32.27,
+     "gpuN": 24
+    },
+    "off2": {
+     "frameMed": 3249.7,
+     "gpuMed": 33.897,
+     "gpuN": 24
+    },
+    "on2": {
+     "frameMed": 3128.6,
+     "gpuMed": 35.072,
+     "gpuN": 24
+    }
+   },
+   "linksEnd": {
+    "links": 0,
+    "programs": 330,
+    "failed": 0,
+    "bad": []
+   }
+  }
+ },
+ "install": 0,
+ "links0": {
+  "links": 0,
+  "programs": 330,
+  "failed": 0,
+  "bad": []
+ },
+ "scuff0": {
+  "on": true,
+  "recs": 46,
+  "attrVerts": 544194,
+  "passes": 0,
+  "places": 0,
+  "frameMs": 0,
+  "tickMs": 0,
+  "tornMs": 0,
+  "mkMs": 0,
+  "bound": 0,
+  "uploads": 0,
+  "bytes": 0,
+  "any": false,
+  "uOn": 0,
+  "awake": false,
+  "flips": 4,
+  "mats": 75,
+  "prelinks": 2,
+  "premade": 176.1,
+  "made": true,
+  "phases": {
+   "fields": 0,
+   "rec1": 0,
+   "recs": 0,
+   "bind": 0,
+   "tick": 0,
+   "upload": 0
+  },
+  "bindUs": 10,
+  "panes": [],
+  "counts": {
+   "crush": 0,
+   "scrape": 0,
+   "torn": 0,
+   "verts": 280038
+  },
+  "busy": false
+ }
+}
