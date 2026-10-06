@@ -77208,3 +77208,46 @@ to the shed retro 150.6 s, potato 94.1 s (+56.5). Retro / potato: town 30.3 / 4.
 7.1 / 0, ring 8.0 / 6.9, upload 6.9 / 6.2, frames 5.0 / 1.8, spec 3.0 / 1.0, firstFrame 2.4 / 0.5, parked 0 / 0. Retro's gap to
 potato on a slow CPU is the town (+26 s - the 4 km boot town, kept: nearer moves it into the taxi), the settle (+6), the bake (+7,
 gone with G1529) and the first frames (+6).
+
+## G1531 POTATO-DEEP: NO GROUND AFTER TEXTURED -> PLAIN -> TEXTURED - THREE'S CACHED PROGRAM MET A PLAIN COMPILE'S UNIFORMS (2026-10-06, POTATO-DEEP for A0; found by GROUND-COST on the box)
+
+THE BUG (GROUND-COST, the box, 6 Oct): after the GRAPHICS ground row went plain and back to a textured step LIVE, the ground drew
+nothing - the haze's beige from the air, the lakes black (the water over no bed), its 60 draws ~0.01 ms, re-keying compiled nothing;
+it also corrupted the user's laptop ?diag rows after ground=plain (228 -> 68 ms: the ground not drawn).
+THE DIAGNOSIS, in three steps:
+1. NODE (FRAMECOST's census with a new hook, FRAMECOST_PROBE=<file>): a page BOOTED plain switched to lean recompiles the near
+   ring (key ':plain' -> plain, cache key 266 -> 260 chars, a fresh lean boot's 260) with the uniforms a fresh boot binds.
+2. GPU (17:00-17:03, potato_census --eval-stand): that FIRST switch is clean on the box - no GL error on 1 830-2 196 ground draws,
+   samplers within 16 (ring 10, outer 12, the patch twin 9, fine tiles 10 - a fresh lean boot's exactly), linked, the splat arrays
+   uploaded (BC7, 256 x 256 x 13, 9 mips), the still the fresh one's. Not the 16-unit limit.
+3. THE CASE IT NEEDS: a RETURN. three r186's getProgram (vendor/three.min.js): on a cache HIT (programs.get(key) defined) it does NOT
+   call onBeforeCompile and keeps V.uniforms - the uniforms object of the material's LAST compile. The ground hook handed the splat's
+   uniforms only when not plain: textured (compiled) -> plain (compiled: a uniforms object WITHOUT uSplat / uSplatN / uSplatOn) ->
+   textured (the cached program, the plain compile's uniforms): the two sampler2DArray uniforms never set, both on unit 0 where a
+   2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn. Node, the same cycle on retro
+   (tools/perf/probe_ground_cycle.js): before the fix the reused programs (#22 ring, #23 outer, #146 fine) read uSplat / uSplatN /
+   uSplatOn MISSING at C; after it, present at A, B and C.
+THE FIX (render_world's ground hook, one line): `Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {})` - every ground program the
+same uniforms whatever its state (a program ignores what it does not declare). The interim reload (6a32446f, a page booted plain
+reloaded to draw a textured ground) is REMOVED: live both ways again (A0's ruling: a reload on a settings change is a user-visible
+cost). GATE SPLAT holds the line (and that no hook passes SP's uniforms); GATE GFX §10: potato -> gamer and textured -> plain ->
+textured both live, no reload.
+THE REPRO, kept: `PROBE_EXIT=1 FRAMECOST_PROBE=tools/perf/probe_ground_cycle.js FRAMECOST_GFX='{"preset":"retro"}' node tools/_framecost_check.js --census cub`
+(every ground program 'yes' at A, B, C). potato_census gained `--eval-stand <file>` and `--gfxpref <json>` for the GPU side.
+THE SAME TRAP ELSEWHERE (A0 asked; a material whose cache key changes at run time AND whose hook hands different uniform sets per
+state): checked -
+- the ground family (ring, outer, fine tiles, the premises patch twin): THE BUG - fixed;
+- the premises patch's own clones (render_premises matOwn): key follows the ground's; the hook = the ground's (fixed) + the build-time
+  material injection - safe with the fix;
+- pavement (tableMat / the per-part path): PT.key moves with the dev pavtest mode, the hook hands the material's own shared
+  m.uniforms every time - safe;
+- trees (fade / fade-leaf): the key's '-leaf' is set once when the material is hooked, before any compile - no run-time cycle;
+- water: its tier (simple / full) pushes uniform VALUES, the key is constant - safe;
+- clouds, the sky, the aerial perspective: ShaderMaterials (three takes the material's own uniforms object) - immune;
+- impostors / impostor depth, HLOD, the town kit, the house arrays: a constant key per material - safe.
+THE STILL (A0's untimed 18:56-19:10 slot, the box's GPU, retro at HOME's stand, potato_census --eval-stand eval_cycle.js:
+`reports/evidence/POTATO-DEEP/g1531_cycle_fresh_fixed_unfixed.jpg`): a fresh retro boot | the FIXED build after lean -> plain ->
+lean (the same picture; 2.66 % of the pixels differ by more than 40/255 - the aeroplane a few pixels off between the boots) | the
+UNFIXED build after the same cycle: the grass beyond the apron gone to the haze's pale beige, the far mountains washed out where
+their ground is not drawn (the pavement, its own material, still drawn) - GROUND-COST's picture. (The low pass at 80 m did not
+finish inside the slot's shares; the stand shows the whole ground family failing, near and far.)
