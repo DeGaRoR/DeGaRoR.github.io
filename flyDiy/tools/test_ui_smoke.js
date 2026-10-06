@@ -17,7 +17,7 @@ const pick = (marker, label) => {
   if (!b) { console.log(`missing ${label} block (no "${marker}")`); console.log('GATE UISMOKE: FAIL'); process.exit(1); }
   return b;
 };
-const coreBlock = pick('function makeAutopilot', 'core');
+const coreBlock = pick('function makePilot(', 'core');
 // Model and prop payloads are <script src> refs since the multi-file artifact
 // (2026-09-01), not inline blocks. The gate still tests the ARTIFACT: it first
 // asserts the artifact references every published payload, then executes
@@ -42,7 +42,7 @@ const worldBootBlock = pick('FLYDIY_WORLD_COMPOSE = function', 'world boot');   
 // once, so BOOT.run unrolls synchronously inside app.js's eval - and so
 // the teardown is asserted on the real object, not a shim.
 const bootBlock = pick('window.BOOT = B', 'boot');
-if (html.indexOf('window.BOOT = B') > html.indexOf('function makeAutopilot'))
+if (html.indexOf('window.BOOT = B') > html.indexOf('function makePilot('))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
 if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<canvas id="c">'))
   throw new Error('#boot must be the first thing in <body>, ahead of the canvas');
@@ -759,7 +759,10 @@ try {
       if (!R.home(k) && !items.some(i => i.k === k)) throw new Error('the old rail item / section `' + k + '` has no home');
     // what each item must reach (a row or a pill each) - one or more per old item, and the moved rows
     const WANT = {
-      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…'],
+      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
+            // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
+            'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
+            'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),

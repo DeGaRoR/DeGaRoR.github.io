@@ -77377,8 +77377,9 @@ Cub East Point circuit 150 m     final 4 m over the slope at idle and 2.5 m/s fa
   (no flap)                      flare at 25.4 m/s (1.56 Vs), touched 213 m in,       in ground effect with 97 m left for a 134 m stop: round
                                  'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km):
                                                                                     landed there, 1.18 Vs, 0.4 m/s, run 158 m, 'completed'
-Cub Jumbo Mine circuit 250 m     SHORTFIELD_CUB_MN_BASE                              the 15 deg cone: 50 m over the slope at idle with the slip;
-  (no flap)                                                                         round twice ('past the aim'), divert
+Cub Jumbo Mine circuit 250 m     12.9 m over the slope, 4.9 m/s fast at idle; touched  the 15 deg cone: 50 m over the slope at idle with the slip;
+  (no flap)                      321 m past the aim at 1.43 Vs - ~100 m BEYOND the     round twice ('past the aim'), divert
+                                 250 m strip's end - 'completed'
 ```
 THE LIMITS FOUND (not the pilot's; for their owners): (a) THE SLIP IS WEAK IN THE SOLVER: 22 deg of sideslip at full
 rudder costs the Cub ~12 % of its L/D (9.7 -> 8.6), where a real Cub's full slip about doubles the sink - the body's
@@ -77404,11 +77405,16 @@ tightest turn was the tailwheel's steering (groundRmin: the Cub 9.4 m, the Jodel
   ONCE (a target 180 deg behind the nose is left or right by a degree of wobble), done within ~9 deg - the taxi's own
   steering takes the rest. THE SIGN: e > 0 is turned by NEGATIVE rudder (groundSteer's -kP x e) - the first cut had
   it backwards and overshot 35 deg.
-- where: a taxi path's hairpin tighter than 1/(1.1 Rmin) turning > 60 deg (on a strip under 300 m: any U-turn over
-  150 deg for every aeroplane, the site's lane U-turn being a 12 m arc 15 m from the end); a taxi point behind the
-  aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and on a strip under 300 m with 3/4 of it
+- where (A TAILDRAGGER ON A STRIP UNDER 300 m - the battery set the scope): a taxi path's U-turn (> 150 deg, a bend
+  tighter than 1/(1.1 x max(Rmin, 13 m)) - the site's lane U-turn is a 12 m arc 15 m from the end); a taxi point
+  behind the aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and with 3/4 of the strip
   ahead, the departure turns WHERE THE AEROPLANE STOPPED (planDeparture -> LINEUP) instead of the lane U-turn to the
-  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll).
+  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll). WHAT THE BATTERY
+  CUT: at 90 deg taxi corners the pivot beat the stock's taxi rudder to 62 reversals / min (GATE PILOTACT) and swung
+  the Cub's wing toward Jolene's apron fence; at Jolene HOME's lane U-turn (a fillet a hair under the Cub's 9.4 m)
+  it cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose; a TRICYCLE's pivot at East Point's lane U-turn
+  looped its replanning (never rolled). So: U-turns only, short strips only, taildraggers only - on every long strip
+  and for every tricycle the taxi is the base's to the bit.
 MEASURED (tools/pilot_one_turnaround.js: stopped 20 m from the closed end, nose to it, departFrom; the strip's own
 SURFACE is the judge - a site may lay its lane beside the strip on the same surface, G710):
 ```
@@ -77419,8 +77425,8 @@ Jodel, East Point      16.7 m off, 11.3 s off the strip, rejected roll         p
 C172, East Point       9.1 m, 0 s off, rejected roll                          the same (a nosewheel turns there; the roll rejected: 219 m needed)
 Cub, Jumbo Mine        17.8 m off, 14.3 m past the end, 19.2 s off            pivot at the far end; 0 s off the strip; airborne
 Jodel, Jumbo Mine      13.7 m off, 12.1 m past the end, 15.8 s off            pivot; 2.5 s off, 0.1 m past the end; roll rejected
-C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         pivot; 1.3 m past the end, 5.7 s off (PARTIAL: a tricycle's
-                                                                             pivot still swings wide of the lane)
+C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         the same - OWED: a tricycle's lane U-turn at a short strip's
+                                                                             end swings past it (its pivot is not yet sound, above)
 ```
 
 ### G1940-G1942 ONE PILOT (the retirement)
@@ -77435,7 +77441,77 @@ knows 43's phases. GATE TAKEOFF's fork check became "one pilot".
 `makePilot(.., { profile })`: PILOT_PROFILES expert (today's pilot, every hook bypassed - bit-identical) / club /
 student / bush / hamfist; hooks live today: reaction delay, smoothness (SV.slewK), ham-fisted inputs (seeded), over-
 rotation, late flare, bank / comfort-g limits, the field technique, the slip, the step hold. GATE INPUT's second slot
-flies 'club'. The menu row is owed (the design's §5).
+flies 'club'. The menu row is owed (the design's §5). THE REACTION ON THE WHEELS IS 0.15 s AT MOST: the student's
+0.45 s inside the ground steer swerved the stock 31 deg on the roll and it rejected every take-off. The five on the
+stock build's HOME circuit (calm; scratch): expert 1.05 m/s, 8 m short of the aim; club 2.11 m/s (a 0.25 s delay in
+the flare scatters it: 0.41 on another run); student 1.64 m/s, the roll's swerve 15.9 deg; bush (short everywhere)
+0.82 m/s, 6 m past the aim, slipped, a 130 m roll; ham-fist 0.90 m/s. Bands per profile are the design's §6 - owed.
+
+### G1944 THE GATES - every number the retirement and the techniques move (base = train 34 untouched in a worktree,
+`run_gates --only=... --verbose` on both sides with the SAME flags - `--only` implies the full tier; the printed blocks
+diffed, timings filtered; order-free for the sharded / tabled gates)
+```
+gate        pilot (base -> branch)   what moved (base -> branch)                                         why
+GEN         40 -> 43                 the circuit: TOUCHDOWN sink 1.22 -> 0.67 m/s (bound back to 1.2 from    THE PILOT's hold-off flare and rectangular circuit;
+                                     1.3 - the ruling's tightening), stop x -587 -> -419, rolloutPitchMin   the bound was widened FOR the classic (G457 note)
+                                     1.5 -> 8.8 (three-point), chatter 0.4 -> 0.0, touch 297 -> 338 s
+                                     (clock 300 -> 420 s: the longer circuit)
+                                     configurations' land sink: stock 1.22->0.67, tricycle 1.32->0.64,       43 lands each as the game lands it; every one
+                                     wing twin 1.52->0.67, high cantilever 0.91->0.69, low+trike+cargo      under the 2.0 bound; the firmer ones are 43's
+                                     1.18->1.11, pusher 1.16->1.22, twin boom 0.89->1.38, low cantilever    flare on those airframes (OWED to DMG-DAMP's
+                                     0.84->1.01, over the wing 1.30->1.44, mid wing 0.94->1.09, low wing    re-tune, which moves every flare anyway)
+                                     0.86->1.15
+                                     the extreme 30 deg sweep: 'gave-up' (3 verdicts) -> 'completed'        41 -> 43
+                                     (vref-raised)
+                                     CRUISE QUIET (3 m/s + gusts): bank p2p 0.94 -> 1.25 deg, aileron        43's DOWNWIND, measured once the arc is flown
+                                     0.06 -> 0.15, elevator 0.28 -> 0.37 deg/s (bounds 3 / 2 / 3)          (wings level 3 s)
+                                     flyLeg: 'flies to CRUISE' -> 'flies to CROSSWIND' (the leg reached)
+FLEX        40 -> 43                 peak loads +2-9 % (stock-class fus 4.28 -> 4.42 kN, wing 4.90 -> 5.02;  43's circuit (into-wind rectangle, steeper
+                                     the 6061 + Dacron: tail 1.32 -> 1.93 kN, fus 4.47 -> 5.08); cruise     final); the reference waits for the straight
+                                     hold at n 1.00 (was 1.03); THE 6061 + DACRON CRUISE HOLD p2p 0.17 ->   downwind. THE FLAIL IS 43's (OWED, below)
+                                     1.20 % of the semispan
+INPUT       40, 41 -> 43 (expert, club)  pilot/ctl, pilot/keys, club/ctl, club/keys all re-engage clean;   the club profile through the handoff; 43
+                                     the bank at 20-25 s 0-1.7 -> 13.5-23.0 deg (bound 25)                  re-joins its circuit path with an arc turn
+BENCH       41 -> 43                 phases 19 -> 22; the circuit ROLL..CRUISE TURNBACK INBOUND APPROACH..   43's phases; the run
+                                     -> ROLL..CROSSWIND DOWNWIND BASE FINAL..; the landing run 296 -> 219 m
+GE          40 -> 43                 the A/B flight ends in CROSSWIND (was CLIMB), 1355 -> 1484 airborne     A == B still identical
+                                     frames
+HOTHIGH     40 -> 43                 the run 357 -> 278 m standard, 431 -> 325 hot (ratio 1.208 -> 1.169,   43's take-off; the circuit 43's
+                                     EAS 1.004 -> 0.994, TAS 1.041 -> 1.030 - all in band); the circuit
+                                     sink 1.24 -> 1.11, rolloutPitchMin 1.8 -> 7.8, gear 11 -> 10 %
+SEAPLANE    43                       calm lift-off 7.9 -> 9.5 s; crosswind lift-off 7.8 -> 8.8 s, the run   G1937's 4 s throttle ramp on the water
+                                     5.6 -> 8.3 m off (bound 30), heading swing 28.0 -> 23.9 deg (bound 30)
+PILOTMATRIX 43                       one cell: cub HOME -> A5 (340 m, short): aim 30 -> 20 m in, touch      G1936 (A5 is a short strip in the analytic world)
+                                     44 -> 33 m in, sink 0.57 -> 0.58, the run 145 -> 112 m, +38 s
+TAKEOFF     40/41/43 source -> 43    + THE TECHNIQUE (7 builds) + THE TURN-AROUND; the fork check -> "one    G1942 (base would FAIL the technique: the
+                                     pilot"                                                               ultralight's 14.6 deg/s, the twin's dig, c172f)
+same at printed precision: PILOT, PILOTACT, LINEUP, TAXICLEAR, PLAN, SOAR, NAV, STRESS, FLAPS, MASS, STRIPSURF (the
+game's pilot flies every one of those flights exactly as train 34 does; STRESS / FLAPS / MASS / STRIPSURF's numbers
+did not move with the pilot change)
+ARCHETYPES  PASS on the branch (1166 s, 4 shards); base TIMED OUT at the runner's 3600 s cap on one shard at jobs=1
+            under load - no base numbers to diff; the archetypes fly 43 on both sides (the change there is G1936 only)
+```
+THE BATTERY (`node tools/run_gates.js --verbose`, the CORE battery on the final core, 4 jobs): 146 of 148 jobs PASS;
+red: FRAMECOST (24 - THE PARKED COOK IS STALE: `parked_cook --check`: manifest c8f3b024 vs this tree 2691d7e8, every
+key captured live - the gate's own HINT; A0 re-cooks on the train's final build, as PILOT-FORKS had it) and INSTANT
+(the runner's 1800 s cap - and the SAME on untouched base, re-run alone on both sides: 1800.4 s each; GATE INSTANT is the garage's drag-preview fingerprint and flies no pilot). The 21 pilot gates with `--only` (the full tier for ARCHETYPES / PILOTMATRIX / SEAPLANE / HOTHIGH /
+SOAR included): 21 of 21 PASS. AUDIO went red once in the first pass (one self-test mutation) and green in the
+clean pass; it is red on untouched base on this box too (4 failures, RADIO_BUDGET: a timing budget).
+
+OWED (seen, measured, not done here):
+- THE 6061 + DACRON BUILD'S CRUISE PITCH CYCLE: on 43's TECS the elevator limit-cycles at ~2.3 Hz, +-0.27 (slew-
+  limited, a triangle), the commanded pitch +-1.2 deg in step with the airframe, the pitch -0.3 <-> +5.8 deg at 36 m/s;
+  the floppy wing rides it (1.20 % p2p). It is 43's on base too (the game flies this build so today); the classic's
+  hold was quiet (0.17 %). The cure is the doctrine's (lower D + command slew / a slower TECS hdot filter: tHdot runs
+  at 0.5 a step) and it moves every flight of every aeroplane - DMG-DAMP re-tunes the pitch loop with the solver's
+  rigid-rotation damper removed right after this lands, so it is theirs to fold in (scratch probe: flail.js in this
+  session; the numbers above).
+- 43's flare on the twin boom / low wing / over-the-wing pairs is firmer than the classic's ramp was (table above).
+- A TRICYCLE's turn on the spot (its pivot looped the replanning at East Point; the C172's lane U-turn swings 7.7 m
+  past Jumbo Mine's end).
+- The solver's slip drag (D7) and the user's Cub's elevator authority at idle on final (G1936).
+- The profile row in the flight menu; per-profile bands in a gate (futureDesigns/PILOT-PERSONALITY §5-6).
+
 ## G573.2 - THE BLUEPRINT LIBRARY, and the Chinook 2S in it until release (2026-10-05)
 
 The user: "Start a blueprint library, like we have one for 3d planes, add this one and we'll delete it before release,
@@ -78254,3 +78330,276 @@ SUB-BLOCKS
 
 FOR THE NEXT GAME COORDINATOR: read study §15-§17 and the user's pasted calls (via A0); slice into chips (cloud
 first, titles [CLOUD]/[LOCAL]/[LOCAL-GPU]); integrate on claude/game-integration; hand A0 frozen SHAs per train.
+
+## G1949 - PILOT-ONE-2: PILOT-ONE ON TRAIN 36, ITS OWED ITEMS DONE (THE FLEX SETTLE, THE TRICYCLE'S TURN ON THE SPOT), EAST POINT LANDED, THE TOUR'S TWO LEGS (2026-10-06, PILOT-ONE-2 for A0, a CLOUD session: node only; branch claude/pilot-one-2-g1949 off origin/master 1ae2eebb = train 36)
+
+THE BRIEF (A0): PILOT-ONE was held out of train 36 - the full battery went red on the train (INPUT's club slot threw,
+GEN 76/77, PILOT's box, PILOTACT 62 taxi rudder reversals / min, TAXICLEAR's C172 from the mill, LINEUP's Cub at
+HOME, RWYTREES 8 still INBOUND at 800 s). Then (A0, 6 Oct): "don't redo the fixes - origin/claude/pilot-one-g1935 @
+4e54fa90 already has them; start from 4e54fa90, rebase onto origin/master, finish what its HANDOVER lists as owed
+(FLEX settle, the tricycle pivot), re-run INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES DMGINST, then READY".
+
+THE BRANCH: origin/master (train 36) + PILOT-ONE 5b184898 .. 5d294064 cherry-picked in order, THE BUILT COMMIT
+(9c15389e) DROPPED and c8eb2a64's generated hunks taken from master (index.html, dev.html, sw.js, version.json,
+tools/flight_core.js are master's on every commit); two conflicts resolved by hand (90_node_exports: master's line
++ servoStepHold / PILOT_PROFILES / pilotProfile, - makeAutopilot / makeTestPilot; 41_test_pilot.js deleted - master
+had changed only a comment in it). The PILOT-ONE HANDOVER section above is 5d294064's (the gate table, the battery,
+the owed list) in place of train 36's earlier copy. Then G1949 below. JOIN-PARITY (G1985) has no branch on the remote:
+nothing here depends on it.
+
+### WHAT A0'S RED LIST WAS, ON THIS BRANCH
+1-6 (INPUT's `c`, GEN 76/77, PILOT's box, PILOTACT, TAXICLEAR 9, LINEUP): PILOT-ONE's own later commits fixed them
+(c8eb2a64, 60c85562, 212e90b4, 4e54fa90) - re-measured on master + PILOT-ONE + MILL-TAXI before any G1949 change:
+all PASS; the aluminium C172 from the mill taxies and takes off exactly as on master's pilot (the trace to the digit).
+7 (RWYTREES 8, the Cub at East Point): G1949.1 below.
+And one the train's battery had not reached: GATE DMGINST (train 35) read src/core/41_test_pilot.js among its
+'broke-up' writers - the file is retired (G1940); 11 files now.
+
+### G1949.1 EAST POINT, LANDED (43: apply's flare power, FLARE, planArrival)
+The go-around was right (let through, the Cub touched 55 m in and stopped 23 m past the end). Two causes found:
+- THE FLARE WAS CUSHIONED ON POWER: under 1.15 Vs0 the assist (G970) took 0.2-0.3 of throttle from 1 m and held the
+  Cub at 0.75 m/s of sink - a float. On a short field with less strip ahead than the short stop + 40 m it now winds
+  up only while the sink is over 1 m/s and comes off at once under 0.9 (with the room - the Cub and the C172 into
+  Jumbo Mine - the cushion is unchanged: both landings identical to the digit; removing it outright put the Cub
+  into Jumbo Mine at 2.9 m/s).
+- ROUND AGAIN, AIM EARLIER: the short-field float go-around records its shortfall (stop - left) + 10 m and the next
+  arrival at that strip aims that much earlier (10 m before the threshold at most) - a pilot's second try.
+The Cub ('map' trees, RWYTREES 8's flight): round once (120 m left for 128), then touched 28 m in at 0.86 m/s and
+stopped with 11 m of strip left at 554 s, no tree contact. (master: 'completed' ~84 m past the end; PILOT-ONE before:
+twice round, diverted, INBOUND at 800 s.) THE USER'S CUB LANDS AT EAST POINT: the archetype `cub` builds to the same
+nodes and ap as builds/cub_2026-09-20_corrected.json - the G1936 'divert' is now the third try's, not the second's.
+
+### G1949.2 THE PIVOT'S SCOPE (ISLAND-TOUR, cross-session: their branch claude/island-tour-g1965 merged with this)
+- the path pivot only at a U-turn ENTERED ON THE CENTRELINE (2 m): MILL-TAXI's teardrop lobe leaves it first;
+- a path pivot RESUMES where the turn comes back by the aeroplane (the first point past the hairpin heading straight
+  back, 15 deg, within 12 m): resumed at the end of the tight part - the teardrop's far lobe, 11 m west - the follower
+  drove the Cub into mn_s_mine/clinic (their chained leg mn_strip > w2: 3338 members yielded, crashed 48 s in);
+- within the 9 deg its end asks the pivot's power is off and the brakes stop it (a burst there kept the Cub creeping
+  at 1.2 m/s, never 'done').
+Their tour tw_ski > mn_strip > w2 on the merge: DONE, the pivot within 2.8 m of the centreline, the roll 0.5 m off.
+
+### G1949.3 A SHORT FIELD'S LONG FINAL DOES NOT TURN A STRAIGHT-IN INTO A CIRCUIT (planFromHere)
+G1936's IAF 900 m before the slope (400 on a long strip) failed the straight-in test for an arrival lined up between
+the two: ISLAND-TOUR's Cub from w3 (one-way on their branch) into tw_ski joined a circuit whose downwind it entered
+900 m past its start and 560 m aside, ORBITED that start for 420 s (gave-up at 876 s, a go-around): 1390 s for a 480 s
+leg. When the straight-in fits the normal IAF and not the short one, the IAF is the normal one: 484 s, straight in.
+NOT FIXED (not this branch's): the orbit itself - a DOWNWIND entered far past its start circles back to it (the leg
+/ airPath follower); it no longer shows here.
+
+### G1949.4 THE TRICYCLE'S TURN ON THE SPOT (owed by G1938; 43 planDeparture, LINEUP, pivotFly, trackHold)
+MEASURED FIRST (scratch trk / trk2, the C172, full rudder + the inside toe brake, the stick at its taxi elevator): on
+the flat it turns 180 deg with the CG moving 4.3 m (0.6 throttle); on East Point's gravel the locked main slides and
+the CG swings ~7-8 m whatever the throttle (0.5-0.9). So a tricycle on a strip under 300 m:
+- turns where it stopped (planDeparture -> LINEUP, as the taildragger already did) instead of the lane U-turn beside
+  the strip;
+- SETS THE TURN UP: eases over to the far side near the closed end (8 m short of it, min(4 m, half-width - 2 m) off,
+  walking pace), then turns back across the centreline (stopped off the centreline, the way that swings it back);
+- its pivot power 0.6 at most, done at < 1.8 m/s (held to 1.0 its own power kept it 'not done', rolling 20 m along
+  East Point 8 m off for 40 s - G1938's loop);
+- walks back to the centreline (2.4 m/s, a 20 m look - 150 m of look gave 2 deg toward it) and stops lined up as HOLD
+  wants it (2 m, 6 deg - LINEUP's own 8 m / 9 deg left HOLD replanning a circle round the end).
+C172 at East Point (pilot_one_turnaround): base 9.1 m off -> 4.5 m off, 4.4 m short of the end, never off the strip,
+the roll at 33 s (rightly rejected: 150 m for a 313 m run). Taildraggers unchanged; Jumbo Mine unchanged (MILL-TAXI's
+authored teardrops are flown on the wheels).
+
+### G1949.5 THE FLEX SETTLE (owed by G1944; 39b holdPitch)
+THE PILOT's cruise on the 6061 tube + Dacron build (GEN_DEFAULT, aluTube): the elevator in a slew-limited triangle,
+~2.3 Hz, 0.585 p2p, the pitch 6.5 deg p2p at 36 m/s (FLEX's cruise hold 1.20 % p2p; the classic's 0.17). Its tuned
+gains (genTuneAP: pitchP 2.2, pitchD 0.99) close a loop round the airframe's own bending - MEASURED (scratch flail,
+AP overrides): attitude filter 0.4 worse (0.627), rate filter 0.08 worse (0.608), D x0.5 halves it (0.300), D 0.5 +
+P 1.5 dead quiet (0.001 / 0.04 deg). THE CURE (a pilot who feels the nose pump relaxes the grip): in the air, in the
+plain loop only (pitchK = pitchDK = 1 - not the flare's or the rotation's firmer gains), every elevator swing of 0.15
+or more between reversals at most 0.35 s apart scores one (decaying over 2 s); at 4 the pitch P and D step x0.85
+(0.45 at least). After: 0.004 elevator / 0.09 deg; FLEX's cruise hold 1.20 -> 0.00 % p2p (0.56 % at n 1.00). AN AIRFRAME THAT DOES NOT PUMP NEVER SCORES and flies the old
+flight to the bit (oscK exactly 1): the steel-tube cruise unchanged (0.001 / 0.04), THE LAND TAKE-OFFS (cub, jodel,
+c172; pilot_one_trace --csv) BYTE-IDENTICAL TO TRAIN 36's. THE BATTERY SET ITS SCOPE: counting slow swings backed the
+club profile's gains off (its 0.25 s reaction pumps at ~0.5 s; GATE INPUT's held bank ran to 120 deg) and counting the
+flare's firmer loop put the Stearman down at 1.49 m/s for 0.95 (GATE PILOTMATRIX) - both cut, both back to their
+numbers. FOR DMG-DAMP: SERVO_GAINS osc* are the knobs; the re-tune that removes the solver's rigid-rotation damper
+may make this fire more or less - one row.
+
+EVIDENCE: reports/evidence/PILOT-ONE-2/ (README: every file and its command).
+
+### THE GATES (the branch's head ed826c23; `node tools/run_gates.js --all --jobs=4 --only=...` - a 4-core cloud box)
+```
+INPUT     PASS   145 s   90/90; the club slot: 31 deg / 19 deg held, 4 m lost (the detector's scope, G1949.5)
+GEN       PASS   834 s   [4 shards] (the circuit's sink bound 1.2, 4e54fa90)
+PILOT     PASS   445 s   [3 shards]
+TAKEOFF   PASS   535 s
+PILOTACT  PASS   241 s
+TAXICLEAR PASS   345 s   (MILL-TAXI's 6-9 in: the aluminium C172 from the mill taxies and takes off)
+LINEUP    PASS   259 s
+DMGINST   PASS   308 s
+CONTACT   PASS   128 s
+BENCH     PASS   112 s
+FLEX      PASS   404 s   [3 shards]; the 6061 + Dacron cruise hold 0.00 % p2p (was 1.20)
+PILOTMATRIX PASS 1725 s  no cell worse than pilot_baseline.json (2 known bad, 1 warn - as before)
+RWYTREES  PASS   ~2400 s (full, run as `node tools/_rwytrees_check.js`: under run_gates it hit the runner's 1800 s cap
+                 while check 8 flew - the page harness composes Jolene three times, 1200 s of it on this box); 43 checks;
+                 8: the C172 HOME 440 s, the Cub HOME 626 s, THE CUB AT EAST POINT STOPPED 554 s, nearest tree 42 m
+```
+Also (not gates): the land take-offs byte-identical to train 36 (cub, jodel, c172: pilot_one_trace's 10 Hz CSVs); the
+ISLAND-TOUR merge's two legs DONE; the turn-arounds at East Point and Jumbo Mine (evidence/PILOT-ONE-2/).
+
+OWED (seen, not done here): the leg / airPath follower's ORBIT of a DOWNWIND entered far past its start (G1949.3 -
+no longer reached here); MILL-TAXI's south teardrop at Jumbo Mine from a STANDING start 68 m short of the end ends in
+mn_s_mine/shop's pallets on master's pilot too (scratch mn_pivot_replay, departFrom with the site - the teardrop /
+follower's); PILOT-ONE's own list above stands for the rest (43's firmer flare on some pairs, the solver's slip drag,
+the profile menu row and per-profile bands).
+
+READY for A0: claude/pilot-one-2-g1949 (source only - every generated file is master's; A0 builds on the train).
+
+## G2085 - PILOT-PERSONA: WHO FLIES IT - THE PERSONALITY ROW, THE CUSTOM PILOT'S KNOBS, THE PLAYER'S PILOT; A HUMAN THAT STAYS IN ITS LOOP (McRUER'S GAIN), EVERY PERSON ON THE FOUR VALIDATED AEROPLANES (2026-10-06, PILOT-PERSONA for A0, a CLOUD session: node + SwiftShader; branch claude/pilot-persona-g2085 = origin/master 068584d (train 37b) + claude/pilot-one-2-g1949 merged - TRAIN 38 HAD NOT LANDED: A0 re-bases it onto train 38, the merge is PILOT-ONE-2's own commits)
+
+THE BRIEF: the user (5 Oct): "The ultimate objective is to emulate pilot personalities, so we'll need the full model that
+can be tuned, the most advanced possible, that we might even downgrade for emulating pilot quirks or abilities." A0: (1)
+the menu row (futureDesigns/PILOT-PERSONALITY §5), persisted per player, a line each; (2) every profile flies visibly
+differently and SAFELY on the validated aeroplanes - a table; nobody crashes a validated aeroplane on a normal day (else a
+finding); (3) a 'custom' profile with the hook sliders (advanced, folded); (4) the gates.
+
+THE BASE: train 38 (PILOT-ONE + PILOT-ONE-2) was not on master when this started (master = train 37b, PILOT-ONE held out
+of 36/37). The branch's first commit (4116f38c) merges claude/pilot-one-2-g1949 into master: two conflicts by hand -
+90_node_exports (master's line, - makeAutopilot / makeTestPilot, + servoStepHold / PILOT_PROFILES / pilotProfile) and
+HANDOVER (both sides kept); no generated file (master's on every commit). A0: drop 4116f38c when rebasing onto train 38.
+
+### G2085 THE MEASUREMENT FIRST - THE HOOKS AS PILOT-ONE LANDED THEM WERE NOT SAFE
+tools/pilot_persona.js (new): the user's four validated aeroplanes - the Cub, the Jodel, the C172
+(builds/*_2026-09-20_corrected.json) and the C172 on Wipline 2350 floats (tools/fixtures/build_v10_c172_wipline2350_
+2026-09-20.json, off the SEA lane - the corrected C172 with floats for wheels cannot leave the water at all, G1937, every
+person's AND the expert's rejected: a build, not a person) - x the five people, calm, one pilot_trace flight each.
+pilot_trace.js gained `--profile <name | JSON>`, `--floats`, `--seed`, and the person's numbers: the take-off's LIFT-OFFS
+(off the surface >= 0.1 s from 5 m/s: 1 is clean), the rotation's peak pitch rate, the circuit's cross-track rms on the
+straights (fillets excluded), the BOUNCES (off the surface >= 0.15 s after the first touch), the peak attitude.
+THE FIRST SWEEP, on PILOT-ONE's hooks (evidence first_sweep_bare_delay.json): the Jodel club and student REJECTED every
+take-off (the 0.15 s delay on the wheels: a ground loop, the heading -1.9 -> 18 -> -19.5 -> 25 deg at 15 m/s); the C172
+student gave up at the clock; the club's ailerons cycled at 1.5 Hz (90 reversals / min on the Cub's downwind, the
+expert's 0.6); the elevator likewise (the club's pitch +-2.7 deg at 0.9 Hz, de +-0.13); the ham-fist's hand read 400+
+reversals / min (a vibration, not a hand). A bare delay line in a tuned loop is not a slow person - it is an unstable one.
+
+### G2086 THE HUMAN IN THE LOOP (43_pilot.js humanise, PILOT_PROFILES, PILOT_PROFILE_KNOBS, pilotProfile(Spec))
+- THE PERSON'S GAIN (McRuer's crossover model: a human sets their own gain so their loop stays stable with their
+  delay - a slow pilot is a LOOSE pilot, not an oscillating one). The command is the servo's HELD part (its 1 s average:
+  the trim, the steady bank) + `gain` x the rest, then delayed. `skill.gain` null (every named person): 1 / (1 +
+  reaction / 0.15 s) - the scan (the Cub club's downwind elevator, 0.25 s): gain 0.5 -> 59 reversals / min, 0.4 -> 8,
+  0.3 -> 3. A number is the person's own (> 1 over-controls: the design's §4.3 - a knob, 'grip').
+- ON THE WHEELS the delay is 0.10 s at most and the gain whole (0.15 s whole ground-looped the Jodel; 0.15 s eased swung
+  the Cub's roll-out 37-62 deg; 0.10 s whole: 2.5 / 0.9 deg).
+- THE FLARE is the person's quickest moment: the wheels' delay, the gain whole; the person still flares LATE (flareK)
+  with their own hands. Four variants over three seeds (evidence README): eased, the water landings 2.99 / 3.42 m/s;
+  whole at the full delay, the students 2.5-4.4 on three aeroplanes and the C172 ham-fist's pitch -5 -> +9 -> -8 deg in
+  the flare; a faster held part, the Jodel student 2.85-4.98; half the delay eased, 2.60-2.74; the wheels' delay whole
+  (kept): every wheeled person 0.43-1.99 m/s on every seed.
+- THE HAND (hamFist) band-limited as an arm is: an Ornstein-Uhlenbeck wander (0.5 s) through a 0.12 s lag,
+  rms-normalised (the 0.3 s unfiltered first cut: 400+ reversals / min) - the ham-fist now ~100 / min, "the stick never
+  still".
+- THE SEED: makePilot(.., { seed }) - the same person on another day (the hand's sequence); 1935 when unset (the game's:
+  a profile is a deterministic person, the design's §3). pilot_trace --seed, pilot_persona --seeds. IT MATTERED: on the
+  game's seed the student's landings looked fine; on three others they were 2.5-4.4 m/s - one flight is not evidence.
+- the EXPERT IS UNTOUCHED to the bit (PRA false: no HUM, no delay, no draws; `ap.profile` = 'expert' is the one new
+  field). GATE PILOT / TAKEOFF / PILOTACT pass unchanged.
+- PILOT_PROFILES carry `label` and `desc` (the menu's one line each); PILOT_PROFILE_KNOBS is every hook as a knob (sec,
+  k, label, unit, kind range / pick / bool, lo..hi, step, the expert's default, desc); pilotProfile CLAMPS an object
+  profile to it (a saved slider can never hand the pilot a NaN or a 5 s reaction); pilotProfileSpec is the inverse (the
+  knobs that differ from the expert's - what the player document stores).
+
+### G2087 THE ROW - WHERE THE PILOT IS CHOSEN (app.js, body.html, flight.css, style.css; sim_host / sim_link)
+- ONE KEEPER `#selPersona` (#flStore; its options off PILOT_PROFILES): Expert / Club / Student / Bush / Ham-fist / Custom.
+- THE SHED'S FLIGHT SETUP beside ROLL OUT and THE ROLL-OUT SCREEN: the route row (#edRoute / #bootRoute) reads base · to
+  · **pilot** (each option's hover its one line); on a held roll-out screen a pick re-makes the pilot on the stand, as
+  the base's does.
+- THE FLIGHT PLATE's `pilot` slot and FLY > controls (on the setup screen too): the style pills, the PERSONALITY pills, a
+  LINE EACH saying what that person does (the one flying in ink), and THE CUSTOM PILOT - "show the knobs" (folded; the
+  fold remembered with the rail's): reaction, hands, grip, unsteadiness, over-rotation, flare height, bank, comfort g,
+  field technique, slips, step hold; "start from" copies a personality into the knobs (the downgrade: the full model
+  tuned down to a person). A knob moved makes the pilot 'custom'. The plate reads "Pilot · auto · Student".
+- PERSISTED PER PLAYER: the player document (70_player.js) carries `pilot: { profile, custom }` - optional, ABSENT IS THE
+  EXPERT, no PLAYER_V step (a field added; an older game carries it as any unknown field); `playerPilot` reads it (an
+  unknown name is the expert, the custom person clamped). Changing the person restarts a flight (the style's rule); the
+  knobs fly from the next start.
+- THE WORKER flies the same person: sim_link hands `pilot.profile` (the name or the custom object), sim_host's makePilot
+  takes it.
+
+### THE TABLE (evidence/PILOT-PERSONA/table.txt - every flight; summary.txt - min-max over the seeds; calm; the four
+people on seeds 1935 / 1 / 2 / 3, the expert once; lifts = 1 everywhere: no hop on any take-off)
+```
+aeroplane    person   n  run m     lifts q deg/s   xt rms m   slope m   V rms     sink m/s   V/Vs       bnc GA  rev/min    outcome
+Cub          expert   1  106       1     3.1       1.5        0.7       0.13      0.64       1.15       0   0  4        completed
+Cub          club     4  106-107   1     3.9-4.2   1.3        0.6-0.7   0.11-0.12 0.43-0.54  1.18-1.20  0   0  56-64    completed
+Cub          student  4  106       1     3.9-4.9   1.4-1.6    0.6-0.8   0.14-0.17 0.55-0.61  1.19-1.21  0   0  60-70    completed
+Cub          bush     4  106       1     3.6-3.7   1.2-1.3    0.7       0.20      0.68-0.70  1.13       0   0  8-14     completed
+Cub          hamfist  4  106-112   1     5.8-7.8   1.8-2.0    0.8-0.9   0.28-0.30 0.44-1.11  1.22-1.27  2   0  102-102  completed
+Jodel        expert   1  178       1     5.7       2.3        0.6       0.08      1.04       1.14       0   0  6        completed
+Jodel        club     4  177-188   1     6.7-7.6   1.6-1.9    0.5-0.6   0.09      1.00-1.10  1.13-1.14  0   0  106-110  completed
+Jodel        student  4  181-205   1     9.3-12.7  1.6-9.3    0.8-0.9   0.24-0.29 0.93-1.24  1.14-1.22  2   0  46-90    completed
+Jodel        bush     4  177-185   1     5.7-6.5   1.4        0.6       0.05      0.93-0.96  1.14       0   0  15-32    completed
+Jodel        hamfist  4  169-203   1     9.8-13.1  1.9-3.7    1.3-1.5   0.49-0.59 1.21-1.40  1.14-1.21  3   0  108-148  completed
+C172         expert   1  262       1     7.7       2.7        0.9       0.06      1.14       1.09       0   0  4        completed
+C172         club     4  261-263   1     8.4-8.7   1.0-1.4    0.8-1.0   0.06-0.08 1.18-1.23  1.09       0   0  45-52    completed
+C172         student  4  251-259   1     9.2-10.5  3.1-17.4   0.8-1.0   0.13-0.18 0.90-1.31  1.07-1.11  0   0  58-77    completed
+C172         bush     4  262-263   1     8.4-8.6   4.6-5.0    0.7-0.8   0.17      1.16-1.22  1.05       0   0  50-54    completed
+C172         hamfist  4  247-266   1     9.7-11.6  2.1-4.6    1.2-1.4   0.30-0.36 1.09-1.99  1.06-1.21  0   0  108-135  completed
+C172 floats  expert   1  337       1     7.1       3.4        1.3       0.22      2.19       1.23       1   0  7        completed
+C172 floats  club     4  340-402   1     6.6-7.9   2.6-5.4    1.4-1.6   0.30-0.63 1.54-2.05  1.23-1.24  4   0  53-58    completed
+C172 floats  student  4  351-470   1     7.9-15.2  51.5-70.2  2.1-7.1   0.67-2.22 1.95-2.73  1.22-1.33  4   0  48-63    completed
+C172 floats  bush     4  338-388   1     6.9-9.3   2.9-3.2    4.2-4.3   0.82-0.83 1.91-2.04  1.23       4   0  48-66    completed
+C172 floats  hamfist  4  514-843   1     9.9-12.8  2.2-14.3   8.2-9.2   3.39-3.98 1.73-3.91  1.51-1.72  4   0  94-104   completed
+```
+READ: every wheeled flight (52 of 52, every seed) COMPLETED, sink 0.43-1.99 m/s, no go-around, no ground loop, one
+lift-off each. The people differ where people differ: the rotation (the expert's Cub 3.1 deg/s, the ham-fist's 5.8-7.8;
+the Jodel student's 9.3-12.7 against 5.7), the hands (control reversals / min, the worst phase group: the expert 4-7, the bush pilot 8-66 (his quick 0.15 s), the
+club 45-110 (the wheels: the take-off roll's and the roll-out's rudder), the student 46-90, the ham-fist 94-148),
+the tracking (the C172 student's circuit 3-17 m rms against the expert's 2.7), the speed on final (the ham-fist's 0.28-0.59
+m/s rms against 0.06-0.13), the aim (the bush pilot's short technique: -4..+13 m past the aim), the circuit's length (the
+bush pilot's long final: +46 s on the Cub), the bounces (the ham-fist's).
+FINDINGS (not features - for their owners; THE WATER): the Wipline C172 on the SEA lane with the STUDENT (sink 2.60 / 2.73
+on two of four seeds; the circuit 51-70 m off track - the eased roll loop, gain 0.25 at 0.45 s, on the floats' slow roll)
+and the HAM-FIST (2.56 / 3.91 on two of four; the take-off run 514-843 m - the hand's elevator holds the hull at the hump
+for ~40 s - and a fast, flat touchdown at 1.5-1.7 Vs off an unstable approach: slope rms 8-9 m, speed rms 3.4-4.0). The
+EXPERT's own water touchdown is already firm (2.19 m/s with one skip): the water flare is firm for everyone and the people
+add to it. Both complete their circuit and stop; neither is a crash in the solver (damage off) - but a sink over 2.5 is
+the line this ruling draws, so they are said here. OWED (a pilot session): an unstabilized-approach go-around for any
+person (the student and the ham-fist fly on down an unstable water final); the expert's water flare.
+
+### G2089 THE UI, SEEN (tools/persona_shot.js - SwiftShader, the user's Cub in flydiy.wip, one browser profile across a
+reload; evidence/PILOT-PERSONA/ui/: 1_garage_route_pilot.jpg, 3_flight_pilot_slot.jpg, 4_flight_custom_knobs.jpg,
+ui_notes.txt)
+- first boot: the player document has no pilot (the expert); the shed's route row reads base · to · pilot with the six
+  people and each one's line on hover;
+- Student picked in the shed -> player.pilot = { profile: 'student' }, #selPersona student; ROLLED OUT: the pilot on the
+  stand IS a new pilot and it is the student (FLIGHT_PROBE.ap().profile 'student', the worker live) - the plate reads
+  "Pilot · auto · Student";
+- the plate's pilot slot: the style, the six pills, the five lines; "show the knobs", the reaction moved to 0.3 s ->
+  player.pilot = { profile: 'custom', custom: { the student's knobs, reaction 0.3 } }, the plate "Pilot · auto · Custom";
+- RELOADED on the same storage: the player's pilot is still the custom one, the shed's picker and #selPersona on it.
+(The roll-out screen's own row, #bootRoute, was not up long enough on this box to be shot - the same routeBuild as the
+shed's; GATE ROUNDTRIP's setup child walks that screen.)
+A first cut of the rig read the SHED's standing pilot as "the pilot flying" (the plate shows in the shed too) and
+reported an expert under a Student plate - a rig artefact; the rig now waits for the shed's actions to go and for a new
+pilot object.
+
+### THE GATES (`node tools/run_gates.js --only=... --verbose --jobs=4`, a 4-core cloud box)
+```
+INPUT       PASS   102 s   the club slot (G1943's): club/ctl bank held 31 deg, re-engaged at 20.3 deg (20-25 s), 3 m lost;
+                           club/keys 46 deg held, 29 peak, 20.3, 15 m (PILOT-ONE-2: 31 / 19 deg, 4 m) - the person's gain
+PLAYER      PASS   0.1 s   41 checks (+ THE PILOT: absent is the expert, a vintage is not handed one, a known name survives,
+                           an unknown reads expert, the custom person clamped and round-tripped, app.js keeps it in the
+                           document); --selftest PASS (+ 'the personality moved to a view pref' caught)
+PILOT       PASS   315 s   [3 shards] - the expert untouched
+TAKEOFF     PASS   387 s
+PILOTACT    PASS   166 s   the expert's hands as before (stock taxi 14.6, the C172 16, the metal Cessna 16.3 / min)
+PILOTMATRIX PASS  1284 s   18 cells (+ THE PER-PROFILE ROW: cub:HOME:calm:club / student / bush / hamfist - in the
+                           baseline, insertions only; a profile cell is not judged on the expert's 'ctl rev', every
+                           other column is): 14 good, 2 warn, 2 bad (the known two); no cell worse than the baseline
+UISMOKE     PASS   149 s   the fly rail reaches the personality row, every person, the custom pilot's knobs (WANT += 21)
+ROUNDTRIP   PASS   954 s   (the player document gained an optional field)
+```
+
+OWED (seen, not done here): the go-around on an UNSTABILIZED approach for any person (the design's §4.4 'decisions'; no
+person went round in 68 flights, and a student "may go around more"); the expert's firm water flare (2.19 m/s, a skip);
+the club's rudder dither on the roll-out (the landing group's 68-110 reversals / min at a 2.5 deg swing: the wheels'
+0.10 s whole); the design's §4 hooks still to cut (precision, drift, decisions, crab / slip, fatigue, skill growth) -
+PILOT_PROFILE_KNOBS is where each lands as a knob; the per-person bands (pilot_persona PERSONA_BANDS) set from this
+sweep - move them by hand with the numbers when a pilot change moves a person.
+
+READY for A0: claude/pilot-persona-g2085 (source only - every generated file is master's; A0 builds on the train; drop
+the base merge 4116f38c when rebasing onto train 38).
