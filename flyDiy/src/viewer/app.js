@@ -3962,7 +3962,7 @@
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
   window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length, ms: Object.assign({}, BRK.ms),
     removed: BRK.recs.reduce((a, R) => a + (R.removed || 0), 0), torn: BRK.recs.reduce((a, R) => a + (R.torn || 0), 0),
-    tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0),
+    tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? (R.rideAll && R.active ? R.nv : R.ride.reduce((x, y) => x + y, 0)) : 0), 0),   // (G1818: a whole-riding record is its count - the sum over ~500k bytes was ~1.4 ms a call, every frame of the rigs)
     // G1818: the GPU's riding - linked (and in how long), the drawers, the records it rides, its frames' cost, what went up
     gpu: window.SKIN_GPU ? { on: window.FLYDIY_SKINGPU !== false, ok: SKIN_GPU.G.ok, linkMs: SKIN_GPU.G.linkMs, err: SKIN_GPU.G.err,
       drawers: BRK.gpu ? BRK.gpu.drawers.size : 0, recs: BRK.gpu ? [...BRK.gpu.ents.values()].filter(e => e && !e.cpu).length : 0,
