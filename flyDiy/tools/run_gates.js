@@ -563,7 +563,9 @@ const GATES = [
   // water terms against the fleet's envelope, the hump on three tows, the
   // touchdown's drag climbing over frames (~30 s)
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
-  { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  { id: 'WATER', file: '_water_check.js', tier: 'core' },
+  { id: 'WETFX', file: '_wetfx_check.js', tier: 'core' },   // G2090 WATER-LOOK: the wet body's contacts for the spray / wake / bubbles - write-only (the base's bits), the records, the worker's path   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  { id: 'WETFX-PAGE', file: '_wetfx_page_check.js', tier: 'full', weight: 2, wall: 300 },   // G2090: the page in node over a wheeled ditch - the pool hidden when dry, the splash / plough / field, warmed programs, no error
   // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },

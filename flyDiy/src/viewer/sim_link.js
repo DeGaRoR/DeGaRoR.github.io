@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'wetFx']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -406,6 +406,9 @@ const SIM_LINK = (() => {
       def('wheelsOnGround', { writable: true, value: () => V.wheelsOnGround() });
       def('wheelContacts', { writable: true, value: () => V.wheels || (saved.wheelContacts && saved.wheelContacts.value ? saved.wheelContacts.value() : null) });
       def('stats', { writable: true, value: () => V.stats() });
+      // G2090 (WATER-LOOK): the worker's wet-body contacts (sim_view's newest); each slam peak handed to the page once
+      def('wetFx', { writable: true, value: () => { const W = V.wet; if (!W) return null;
+        const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };

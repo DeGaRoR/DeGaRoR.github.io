@@ -4554,11 +4554,37 @@
   // `craft` in world coordinates. Nothing here touches the physics.
   const SPRAY_N = 600, WAKE_N = 48;
   let waterFx = null;
+  // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - a build without floats meets the water on its belly, its flying
+  // surfaces and its tyres (32_hydro.js wetBuild), so it gets the floats' sprite batch too: ONE pool for the page
+  // (it does not depend on the aeroplane; a garage commit never re-makes it), HIDDEN while nothing is in the air (no
+  // draw, no upload, the integration skipped: a dry flight's frame is the base's). It lives in the WORLD scene, not on
+  // `craft` (its particles are world coordinates either way): three's compile() walks EVERY material under the object it
+  // is given, hidden or not, and the boot compiles the craft in several states (the early craft compile and its band
+  // twins, the shed's snapshot, the bakes) - on `craft` the pool linked 8 programs in the garage's steps (GATE FRAMECOST,
+  // the Cub). In the world scene its one program is linked by the roll-out's world compile, under the screen - never on
+  // the first contact.
+  const WET_N = 1500;
+  let wetPool = null;
+  function wetPoolGet() {
+    if (wetPool || !window.SPRAY || !THREE.InstancedBufferGeometry) return wetPool;
+    wetPool = SPRAY.make(THREE, WET_N); wetPool.mesh.visible = false;
+    scene.add(wetPool.mesh);
+    return wetPool;
+  }
   function buildWaterFx() {
-    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
+    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { if (waterFx.shared && o === waterFx.pts) { o.visible = false; continue; } craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
       if (waterFx.drops.sheets) { craft.remove(waterFx.drops.sheets.mesh); waterFx.drops.sheets.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
-    if (!HY) return;
+    if (!HY) {   // G2090: the wet body's (the solver builds it at the water's edge; sim.wetFx hands its contacts)
+      const pool = typeof sim.wetFx === 'function' ? wetPoolGet() : null;
+      if (!pool) return;
+      pool.mesh.visible = false;
+      const NP = pool.n;
+      const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
+        size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray: pool, sheets: null, live: 0 };
+      waterFx = { pts: pool.mesh, drops, ribbons: [], t: 0, wasWet: [], vyPrev: [], shared: true, wet: wetFxState(), wetUntil: 0 };
+      return;
+    }
     const nF = HY.floats.length;
     // THE SPRITES (H7.1, G460.9): spray.js's instanced quad batch - lit, soft, motion-stretched, two kinds
     // (droplets and puffs); the Points (0.1 m additive squares) are the fallback without the module
@@ -4576,7 +4602,7 @@
     let sheets = null;
     if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 8, 6); craft.add(sheets.mesh); }
     const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
-      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets };
+      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets, live: 0 };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
     // as foam and ripples in the surface itself; the ribbon's list stays empty so its readers hold
     const ribbons = [];
@@ -4590,6 +4616,7 @@
     D.p[q * 3] = x; D.p[q * 3 + 1] = y; D.p[q * 3 + 2] = z; D.v[q * 3] = vx; D.v[q * 3 + 1] = vy; D.v[q * 3 + 2] = vz;
     D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
     D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
+    D.live++;   // G2090: the batch is drawn while anything lives (the integration recounts)
   }
   // THE ONE EMITTER ANYTHING ELSE MAY USE (2026-09-22): the whales' splash and
   // blow come through here, so there is one spray batch and one budget in the
@@ -4598,11 +4625,147 @@
   window.FLYDIY_SPRAY = (kind, x, y, z, vx, vy, vz) => {
     if (waterFx && waterFx.drops) sprayEmit(waterFx.drops, kind, x, y, z, vx, vy, vz);
   };
+  // ---- G2090 (WATER-LOOK): THE WET BODY SEEN - spray, wake, splash and bubbles off the physics' own contacts ---------
+  // The floats' law for everything else the water meets (GEAR-WATER 2's item 3): the solver's wet-body pass sums, per
+  // contact GROUP - a hull slice and its faces, a flying-surface strip (a wing tip in the water is its outer strips), a
+  // tyre - the wet area, its centroid, outward normal and velocity, the dynamic pressure, the horizontal drag, the slam
+  // peak since the page last read it, the submerged share and the fill (32_hydro.js wetFx; under the physics worker the
+  // snapshot carries it, sim_link.js hands each peak once). Nothing here is authored and nothing here triggers itself:
+  //   THE ENTRY (a ditching's splash, a tyre or a wing tip striking): the slam's peak read as the entry's sink speed -
+  //     pk = 1/2 rho (pi^2 / (2 tan beta)) Vd^2 at the deadrise floor (10 deg; a V'd face reads a slower entry), or the
+  //     face's own sink when it first goes wet - sizes a crater ring in the field, a crown of droplets thrown out and
+  //     forward with the body (the ditch's spray runs ahead) and a few puffs of mist; at most one a group every 0.2 s.
+  //   THE PLOUGH'S SPRAY: the power the water takes (drag x speed) thrown as droplets off the wet centroid - across
+  //     the motion on the side the wet faces look to, up with the speed; a tyre throws its side fans and a rooster tail.
+  //   THE WAKE: each wet group presses the field toward its draft (the floats' press), foam with the power - the trail
+  //     the field carries; the heaviest groups first (the field takes 16 stamps a frame).
+  //   THE BUBBLES (a sinking aeroplane): a flooding slice or wing slab lets its air go as its fill rises -
+  //     air x df / dt, m3/s - and that air boils up at the surface over it: a pop a litre, each a few fine droplets and
+  //     a speck of foam. A slice draining (rising) lets none.
+  // Zero when dry: no contacts, nothing alive -> the batch hidden, nothing integrated; the field asked for 10 s past
+  // the last contact (the wake decays in the field, then the field is let go).
+  const WFX_R = 18, WFX_H = 5, WFX_SLAM_K = 0.5 * 1000 * Math.PI * Math.PI / (2 * Math.tan(10 * Math.PI / 180));
+  // G2093 THE SPLASH'S RING FROM ITS ENERGY (the user, on the damage tests on the water: "the waves are cool, but they seem a
+  // little out of proportion"). The crater a touchdown stamps was its sink speed times a constant - 0.3 m a m/s, capped at
+  // 1.2 m (the floats since G460.8; the wet body copied it): a 2.3 m/s float touchdown dug 0.69 m, and an aeroplane bobbing
+  // after a ditching re-stamped one on every re-entry. Now the depth is what the entry's energy can raise: the water the
+  // wet patch sets moving (its added mass, a plate's ~0.4 rho A^1.5) at the sink speed, E = 1/2 m_a v^2, a share ETA of it
+  // radiated as the ring (INFERRED: the rest is the spray and the turbulence), and a ring of radius r holding E_ring as
+  // 1/2 rho g a^2 pi r^2: a = sqrt(ETA E / (1/2 rho g pi r^2)), capped at 0.5 m. A 2.3 m/s float touchdown 0.06 m, a Cub's
+  // 4 m/s belly slice ~0.1 m; a 0.5 m/s bob ~1 cm. ?splash=old: the old law (the before / after on one tree).
+  const SPLASH_ETA = 0.3, SPLASH_OLD = (() => { try { return /[?&]splash=old(&|$)/.test(location.search || ''); } catch (e) { return false; } })();
+  function splashDepth(A, v, r, kOld) {
+    if (SPLASH_OLD) return Math.min(1.2, kOld * v);
+    const ma = 1000 * 0.4 * Math.pow(Math.max(0.05, A), 1.5), E = 0.5 * ma * v * v;
+    return Math.min(0.5, Math.sqrt(SPLASH_ETA * E / (0.5 * 1000 * 9.81 * Math.PI * r * r)));
+  }
+  function wetFxState() { return { buf: null, any: false, gN: 0, seen: new Uint8Array(64), mark: new Uint32Array(64), fPrev: new Float32Array(64),
+    pk: new Float32Array(64), burst: new Float32Array(64).fill(-9), carry: new Float32Array(64), carryB: new Float32Array(64), frame: 0, order: [], last: null }; }
+  function wetGrow(W, g) {
+    if (g < W.seen.length) return;
+    const n = Math.max(g + 1, W.seen.length * 2), gr = (a, T, f) => { const b = new T(n); if (f) b.fill(f); b.set(a); return b; };
+    W.seen = gr(W.seen, Uint8Array); W.mark = gr(W.mark, Uint32Array); W.fPrev = gr(W.fPrev, Float32Array);
+    W.pk = gr(W.pk, Float32Array); W.burst = gr(W.burst, Float32Array, -9); W.carry = gr(W.carry, Float32Array); W.carryB = gr(W.carryB, Float32Array);
+  }
+  function wetEmit(dt) {
+    const W = waterFx.wet, D = waterFx.drops;
+    const b = typeof sim.wetFx === 'function' ? sim.wetFx(W.buf) : null;
+    if (b) W.buf = b;
+    const n = b ? b[0] : 0;
+    W.last = b && n ? b : null;
+    if (!n) { if (W.any) { W.seen.fill(0); W.any = false; } return false; }
+    W.any = true; waterFx.wetUntil = performance.now() + 10000;
+    const fr = ++W.frame, now = waterFx.t, run = dt > 0;
+    const WT = window.WATER && WATER.stamp && WATER.field ? WATER : null;
+    // the heaviest groups stamp first: the field folds 16 a frame (the float press and the whales share them)
+    const ord = W.order; ord.length = 0;
+    for (let i = 0; i < n; i++) ord.push(i);
+    ord.sort((x, y) => b[WFX_H + y * WFX_R + 14] - b[WFX_H + x * WFX_R + 14]);
+    let stamps = 10;
+    const PR = W.press || (W.press = { a: 0, x: 0, z: 0, w: 0 }); PR.a = PR.x = PR.z = PR.w = 0;
+    for (const i of ord) {
+      const o = WFX_H + i * WFX_R, g = b[o], kind = b[o + 1], A = b[o + 2];
+      const cx = b[o + 3], cy = b[o + 4], cz = b[o + 5], nx = b[o + 6], nz = b[o + 8];
+      const ux = b[o + 9], uy = b[o + 10], uz = b[o + 11], pk = b[o + 13], drag = b[o + 14], wetS = b[o + 15], f = b[o + 16], air = b[o + 17];
+      wetGrow(W, g); W.mark[g] = fr;
+      const h0 = world.waterH ? world.waterH(cx, cz) : NaN, h = Number.isFinite(h0) ? h0 : cy;
+      const V = Math.hypot(ux, uz), P = drag * V, rA = Math.sqrt(Math.max(0.05, A));
+      // THE ENTRY: the slam's sink speed, or the face's own when the group first goes wet
+      let vI = pk > 0 ? Math.sqrt(pk / WFX_SLAM_K) : 0;
+      if (!W.seen[g] && A > 0 && -uy > vI) vI = -uy;
+      if (vI > W.pk[g]) W.pk[g] = vI;
+      if (run && W.pk[g] > 0.4 && now - W.burst[g] > 0.2) {
+        const vy = W.pk[g]; W.pk[g] = 0; W.burst[g] = now;
+        const r = Math.max(0.5, rA) * (1 + 0.3 * Math.min(3, vy));
+        if (WT && stamps > 0) { WT.stamp(cx, cz, r, -splashDepth(A, vy, r, 0.25), Math.min(1, 0.4 + 0.2 * vy), 'ring'); stamps--; }   // (G2093: from the entry's energy)
+        const burst = Math.min(220, Math.round(35 * vy * Math.min(2, rA))), puffs = Math.min(16, Math.round(3 * vy * Math.min(2, rA)));
+        const s = Math.min(3, 0.6 * vy);
+        for (let j = 0; j < burst; j++) {
+          const a = Math.random() * 6.2832, rr = r * (0.4 + 0.6 * Math.random()), out = (1.2 + 2.4 * Math.random()) * s;
+          sprayEmit(D, 0, cx + Math.cos(a) * rr, h + 0.05, cz + Math.sin(a) * rr,
+            Math.cos(a) * out + ux * 0.35 * Math.random(), (1 + 2 * Math.random()) * s, Math.sin(a) * out + uz * 0.35 * Math.random());
+        }
+        for (let j = 0; j < puffs; j++) {
+          const a = Math.random() * 6.2832, rr = r * (0.2 + 0.6 * Math.random());
+          sprayEmit(D, 1, cx + Math.cos(a) * rr, h + 0.2, cz + Math.sin(a) * rr, Math.cos(a) * 0.8 * s + ux * 0.15, 0.5 + 0.8 * Math.random() * s, Math.sin(a) * 0.8 * s + uz * 0.15);
+        }
+      }
+      // THE PLOUGH'S SPRAY: the water's power (W) as droplets - 1 a second per 150 W, 400 at most a group
+      if (run && A > 0 && V > 1.5 && P > 0) {
+        const rate = Math.min(400, P / 150) * dt + W.carry[g];
+        let m = Math.floor(rate); W.carry[g] = rate - m;
+        const sx = -uz / V, sz = ux / V, ns = nx * sx + nz * sz;
+        const uo = Math.min(12, 0.42 * V), uu = Math.min(kind === 2 ? 4.5 : 3.5, (kind === 2 ? 0.3 : 0.24) * V);
+        for (let j = 0; j < m; j++) {
+          const side = kind !== 2 && Math.abs(ns) > 0.3 ? Math.sign(ns) : (Math.random() < 0.5 ? -1 : 1);   // (a tyre's normal is the axle: both fans)
+          const px = cx + (Math.random() - 0.5) * rA, pz = cz + (Math.random() - 0.5) * rA;
+          if (kind === 2 && Math.random() < 0.3) {   // the tyre's rooster tail: up behind it, barely carried
+            sprayEmit(D, 0, px, h + 0.05, pz, ux * 0.12 + (Math.random() - 0.5), Math.min(5, 0.4 * V) * (0.6 + 0.5 * Math.random()), uz * 0.12 + (Math.random() - 0.5));
+            continue;
+          }
+          const k = 0.7 + 0.4 * Math.random();
+          sprayEmit(D, 0, px, h + 0.05, pz, side * sx * uo * k + ux * 0.25, uu * (0.6 + 0.6 * Math.random()), side * sz * uo * k + uz * 0.25);
+        }
+        if (m > 0 && Math.random() < m / 12) sprayEmit(D, 1, cx, h + 0.15, cz, ux * 0.1 + sx * (Math.random() - 0.5) * 2, 0.3 + 0.4 * Math.random(), uz * 0.1 + sz * (Math.random() - 0.5) * 2);
+      }
+      // THE WAKE: the wet footprint presses the field toward its draft ONCE (summed here, stamped after the loop - G2093:
+      // a press a group, up to ten overlapping, each pulled the surface half-way to its depth a frame: together they
+      // overshot and pumped the coarse level to 1.6 m in a Cub's ditch); each group's white water is a foam stamp (no
+      // height), with the power (a group sunk a metre under neither presses nor foams)
+      if (A > 0 && h - cy < 1) {
+        PR.a += A; PR.x += A * cx; PR.z += A * cz; PR.w += A * Math.min(1, wetS);
+        if (WT && stamps > 1 && V > 2 && P > 3000) { WT.stamp(cx, cz, Math.min(2.5, Math.max(0.3, 0.8 * rA)), 0, Math.min(1, P / 30000), 'foam'); stamps--; }
+      }
+      // THE BUBBLES: the air a flooding slice or slab lets go (m3/s), a pop a litre, boiling up over it
+      if (run && kind !== 2 && air > 0 && wetS > 0.3) {
+        const df = f - W.fPrev[g];
+        if (df > 0) {
+          const pops = Math.min(30 * dt, air * df / 0.001) + W.carryB[g];
+          let m = Math.floor(pops); W.carryB[g] = pops - m;
+          for (let j = 0; j < m; j++) {
+            const px = cx + (Math.random() - 0.5) * 1.2 * rA, pz = cz + (Math.random() - 0.5) * 1.2 * rA, nd = 4 + Math.floor(Math.random() * 5);
+            for (let q = 0; q < nd; q++) { const a = Math.random() * 6.2832, sp = 0.2 + 0.5 * Math.random();
+              sprayEmit(D, 0, px, h + 0.02, pz, Math.cos(a) * sp, 0.5 + 1.1 * Math.random(), Math.sin(a) * sp); }
+            // the boil: a foam patch with a small ring every pop (G2094: at a pop a litre a sinking Cub lets 2-3 a second go - droplets alone did not read from 20 m)
+            if (WT && stamps > 0) { WT.stamp(px, pz, 0.35 + 0.35 * Math.random(), -0.02, 0.9, 'ring'); stamps--; }
+          }
+        }
+      }
+      W.fPrev[g] = f; W.seen[g] = A > 0 ? 1 : 0;
+    }
+    if (WT && PR.a > 0) { const x = PR.x / PR.a, z = PR.z / PR.a, hw = world.waterH ? world.waterH(x, z) : NaN;
+      if (Number.isFinite(hw)) WT.stamp(x, z, Math.min(3, Math.max(0.5, 0.7 * Math.sqrt(PR.a))), -0.04 - 0.10 * (PR.w / PR.a), 0, 'press'); }
+    for (let g = 0; g < W.seen.length; g++) if (W.mark[g] !== fr) W.seen[g] = 0;   // a group not in contact this read is dry
+    return true;
+  }
   function syncWaterFx(dt) {
-    if (!waterFx || !sim || !sim.hydro) return;
+    if (!waterFx || !sim) return;
     const HY = sim.hydro, D = waterFx.drops, G = 9.81;
+    // G2090: a build without floats - the wet body's contacts; nothing wet and nothing in the air: nothing to do
+    const tW = waterFx.shared && (D.live || waterFx.wet.any) ? performance.now() : 0;   // (the wet body's cost while active, WATER_FX.fx.ms: the rig names it; no clock read when dry)
+    if (!HY && !(waterFx.wet && wetEmit(dt)) && !D.live) { if (waterFx.pts.visible) waterFx.pts.visible = false; waterFx.ms = 0; return; }
     waterFx.t += dt;
-    for (let k = 0; k < HY.floats.length; k++) {
+    for (let k = 0; HY && k < HY.floats.length; k++) {
       const fx = HY.floats[k], F = fx.F, out = fx.out;
       const WT = window.WATER && WATER.field && WATER.field.on ? WATER : null;
       if (!fx.wet) { waterFx.wasWet[k] = false; if (D.sheets) { D.sheets.hide(k * 2); D.sheets.hide(k * 2 + 1); } continue; }
@@ -4626,7 +4789,7 @@
         if (!waterFx.wasWet[k]) {
           const vy = -Math.min(0, vK[1]);
           if (vy > 0.4) {
-            const amp = Math.min(1.2, 0.3 * vy), r = beam * (1.2 + 0.4 * Math.min(3, vy));
+            const r = beam * (1.2 + 0.4 * Math.min(3, vy)), amp = splashDepth(beam * beam, vy, r, 0.3);   // G2093: the step's patch (beam^2) entering at vy - from its energy
             WT.stamp(eK[0], eK[2], r, -amp, Math.min(1, 0.4 + 0.2 * vy), 'ring');
             // the crown: many FINE droplets thrown out and a little up along the ring (a first cut of 25 per m/s at
             // 4-12 cm read as popcorn, h7w/splash.png), the mist in fewer, slower puffs under them
@@ -4692,8 +4855,10 @@
     const S = D.spray, sp = S ? null : waterFx.pts.geometry.attributes.position.array;
     const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD;
     const wH = (x, z) => { const h = world.waterH ? world.waterH(x, z) : 0; return Number.isFinite(h) ? h : -1e9; };
+    let live = 0;
     for (let q = 0; q < D.age.length; q++) {
       if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
+      live++;
       const K = D.kind[q] ? KP : KD;
       D.age[q] += dt;
       // THE DRAG RELAXES TOWARD THE AIR, not toward nothing (CLIMATE K4). A
@@ -4711,6 +4876,8 @@
       if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
       else { sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2]; }
     }
+    D.live = live;
+    if (waterFx.shared) waterFx.pts.visible = live > 0;   // G2090: the wet body's pool drawn only while anything lives
     if (S) {
       S.commit();
       if (D.sheets) D.sheets.commit(waterFx.t);
@@ -4718,6 +4885,7 @@
       if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
         S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); if (D.sheets) D.sheets.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
     } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
+    if (tW) waterFx.ms = performance.now() - tW;
   }
   const sunIrr = new THREE.Color(), skyIrr = new THREE.Color();
   // WATER_FX.burst(x, z, n, vy): a splash's spray by hand at (x, water level, z) - the rig's and the dev panel's door
@@ -12283,7 +12451,8 @@
     // "at close range, the whales should trigger the water surface effects, just like the planes".
     // The ask expires in half a second: nothing keeps the field alive by forgetting to clear a flag.
     const wAsk = window.WATER && WATER.field && WATER.field.ask && performance.now() - WATER.field.ask < 500;   // window.WATER, ASKED: a bare WATER throws where the layer is absent (the headless smoke gate)
-    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force || wAsk)) {   // (no floats and nobody asking: the field runs only when the dev panel forces it)
+    const wWet = waterFx && waterFx.wetUntil > performance.now();   // G2090: the wet body's wake and splash (10 s past the last contact)
+    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force || wAsk || wWet)) {   // (no floats and nobody asking: the field runs only when the dev panel forces it)
       const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
       const want = Number.isFinite(wl) && cgF[1] - wl < 60;
       if (want !== WATER.field.on) WATER.fieldOn(want);
@@ -12640,6 +12809,7 @@
       try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
       try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
       try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
+      try { if (inWorld && window.WATER && WATER.warmList) lists.push(WATER.warmList(THREE, renderer)); } catch (e) {}   // G2090: the interaction field's step + derive (a landplane's first wet contact links nothing)
       for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(pass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
     }
     return Promise.all(jobs);

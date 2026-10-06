@@ -2903,6 +2903,9 @@ function makeSim(def, world) {
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
+           // G2090 (WATER-LOOK): the wet body's contacts for the page's spray / wake / bubbles (32_hydro.js wetFx; reading
+           // clears the slam peaks it hands over); null while no wet body was ever built
+           wetFx: dst => (WB && HYDRO.wetFx ? HYDRO.wetFx(WB, dst) : null),
            trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither

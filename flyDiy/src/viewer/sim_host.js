@@ -202,6 +202,17 @@ function simHostPanels(per) {
     for (const v of [o.c, o.n, o.Fp, o.Fm]) { f[j++] = v[0]; f[j++] = v[1]; f[j++] = v[2]; } });
   return f;
 }
+// G2090: the wet body's contact records, trimmed to the groups in contact (null when none: a dry flight posts nothing);
+// reading clears the slam peaks it hands over (the page sees each entry's splash once)
+let simHostWetBuf = null;
+function simHostWet(sim) {
+  if (typeof sim.wetFx !== 'function') return null;
+  const b = sim.wetFx(simHostWetBuf); if (!b) return null;
+  simHostWetBuf = b;
+  const n = b[0]; if (!(n > 0)) return null;
+  const H = (typeof HYDRO !== 'undefined' && HYDRO.WFX_HEAD) || 5, R = (typeof HYDRO !== 'undefined' && HYDRO.WFX_R) || 18;
+  return b.slice(0, H + n * R);
+}
 function simHostPlain(o, depth, skip) {
   if (o === null || typeof o !== 'object') return typeof o === 'function' ? undefined : o;
   if (ArrayBuffer.isView(o)) return o.length <= 64 ? Array.from(o) : undefined;
@@ -660,6 +671,8 @@ function makeSimHost(CORE, init, keptWorld) {
       // WET panels the spray reads, flat (simHostPanels)
       hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
+      // G2090 (WATER-LOOK): the wet body's contacts (32_hydro.js wetFx), only while any - a dry flight sends nothing
+      wet: simHostWet(sim),
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed

@@ -76,6 +76,14 @@ const ALLOW = [
   // same draws and programs - against a master whose parked cook was made stale alike, tools/perf A/B in HANDOVER G2055)
   { key: 'stand/bytes.bufferSubData', build: '*', rise: 100, why: 'the contact blobs vec4 instance attribute (G1002 had a float)', g: 'G2055' },
   { key: 'taxi/bytes.bufferSubData', build: '*', rise: 100, why: 'the contact blobs vec4 instance attribute (G1002 had a float)', g: 'G2055' },
+  // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - one instanced sprite batch for every landplane, made with the build and kept
+  // HIDDEN in the world scene (no draw, nothing per frame: stand / taxi unchanged to the count), its program linked by the
+  // garage's world compiles (the town step's prewarm, the snapshot's) instead of on a ditching's first contact: +1 link and
+  // +11 GL calls at garage:town, +2 links at garage:snapshot (Cub and Cessna, both-stale A/B against 068584d6)
+  { key: 'boot/garage:town/gl.calls', build: '*', rise: 14, why: 'the wet-body spray pool linked by the town step world compile (hidden, never drawn dry)', g: 'G2090' },
+  { key: 'boot/garage:town/links', build: '*', rise: 1, why: 'the wet-body spray pool linked by the town step world compile', g: 'G2090' },
+  { key: 'boot/garage:snapshot/links', build: '*', rise: 2, why: 'the wet-body spray pool in the snapshot compile states', g: 'G2090' },
+  { key: 'boot/garage:snapshot/gl.calls', build: '*', rise: 30, why: 'the same two links', g: 'G2090' },
   // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
   // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
   { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },

@@ -79489,3 +79489,99 @@ the GPU the shading itself (the lamps' shadow sampling 2.1 of the box's 7.6 ms -
 
 READY for A0 (the next train): claude/garage-room-merge-g2074 (on train 38's GARAGE-LAPTOP head 6a19a50d; sources, tools,
 evidence; generated files untouched). Gates run: ROOMMERGE, SHEDSHADOW, HANGAR PASS (node, 19:41-20:17).
+
+
+## G2090-G2094 - WATER-LOOK: THE WET BODY SEEN - SPRAY, WAKE, SPLASH AND BUBBLES OFF THE PHYSICS' OWN CONTACTS (THE TYRES, THE HULL'S WET FACES, THE WING TIPS); THE SPLASH'S WAVES FROM ITS ENERGY; A DITCHED AEROPLANE'S OSCILLATION MEASURED (2026-10-06, WATER-LOOK for A0, local GPU; branch claude/water-look-g2090 off origin/master 068584d6 = train 37b)
+READY for A0 (2026-10-06 20:10) - the sinking's still re-shot in A0's 21:52-21:58 untimed slot, committed as evidence only after READY.
+
+WHY: GEAR-WATER 2's session 3 (HANDOVER G1384.1-G1384.4, "THE SESSIONS TO A GOOD WATER MODEL"): "spray and wake from the wet
+body like the floats (buildWaterFx) - per contact: the tyres, the hull's wet faces, the wing tips ... plus a sinking aeroplane's
+bubbles off the flooding slices". Before this a wheeled aeroplane in the water drew NOTHING: its drag, slam and flooding were
+physics only (buildWaterFx returned for every build without floats - and with it the whales' spray near a landplane). Mid-session
+A0 relayed the user on the damage tests on the water ("the waves are cool, but they seem a little out of proportion"; "the
+oscillation seems a little long, like if the engine was still running"): G2093 and G2094.
+
+G2090 THE CONTACTS, FROM THE PHYSICS (src/core/32_hydro.js, 30_solver.js; WRITE-ONLY):
+- wetBuild names a GROUP per hull slice (its faces: the firewall face the first slice's, the tail cone the last's), per flying-surface
+  strip (its two plate triangles and its wing slab - a wing tip in the water is its outer strips), per tyre. wetCompute sums per
+  group, per compute (HYDRO_HZ): the wet area, the area-weighted centroid / outward normal / velocity / dynamic pressure (the
+  Newtonian term + the slam), the horizontal drag; it CARRIES the slam's peak (until read) and the fill; the volume loop writes the
+  submerged share. Nothing of it is read by the physics.
+- HYDRO.wetFx(WB, dst) / sim.wetFx(dst): the groups in contact packed 18 numbers each [g, kind, A, c, n, u, pd, pk, drag, wetS, f,
+  air as built], a head of 5 (count, wet, flood, drag, slamPeak); reading CLEARS the peaks handed (each entry's splash once).
+- THE WORKER: sim_host's snapshot carries `wet` (simHostWet: trimmed to the groups in contact, null when dry - a dry flight posts
+  nothing); sim_view carries an UNREAD peak onto the next snapshot's same group (simViewWetCarry: two snapshots between frames);
+  sim_link defines sim.wetFx on the page (each peak handed once) and restores the inline one at detach.
+- GATE WETFX (tools/_wetfx_check.js, core, ~20 s): the 80 km/h ditch and the 5 m/s pancake stepped with wetFx read every frame
+  are node-position FNV-IDENTICAL to the runs without, and to master's core (--base=, checked against 068584d6's flight_core);
+  dry = no wet body, null; the ditch's first slam is a hull slice's bottom (244 kPa), each peak handed once, the tyres plough
+  (5.5 kN) at the water level; 60 s in the water the slices' fill 34 -> 61 % (the record = the slice's own); the worker's trim,
+  carry and hand-over.
+
+G2091 THE WET BODY SEEN (src/viewer/app.js syncWaterFx / wetEmit; the floats' path untouched but for G2093):
+- THE POOL: ONE 1500-sprite batch (spray.js's, the floats' look) for every landplane, made once a page and kept HIDDEN in the
+  WORLD scene - no draw, no upload, no integration while nothing lives; shown only while a particle lives. (Not on `craft`:
+  three's compile() walks every material under its object, hidden or not, and the boot compiles the craft in several states -
+  on craft the pool linked 8 programs in the garage's steps.) Its program is linked by the world compiles under the screens.
+- From each group's record, nothing authored: THE ENTRY (the slam's peak read as the entry's sink speed - pk = 1/2 rho
+  (pi^2 / (2 tan beta)) Vd^2 at the 10 deg floor - or the face's own sink when first wet): a crater ring in the field, a crown of
+  droplets thrown out and forward with the body, a few mist puffs, at most one a group per 0.2 s. THE PLOUGH: the water's power
+  (drag x speed) as droplets, 1 a second per 150 W (400 at most a group), across the motion on the side the wet faces look to;
+  a tyre: both side fans and a rooster tail. THE WAKE: the wet footprint presses the field toward its draft (one press, G2093),
+  each group foams with the power. THE BUBBLES: a flooding slice or wing slab lets its air go (air x df/dt), a pop a litre:
+  a few fine droplets and a foam boil with a small ring each (G2094: droplets alone did not read from 20 m).
+- THE FIELD is asked while the wet body is in contact and 10 s after (the ask expires: GATE WATER's rule extended, "each ask
+  expires"); WATER.warmList (step + derive) joins the roll-out's compile step, so a landplane's first wet contact links nothing.
+- COST, named: the wet path's own JS (WATER_FX.fx.ms) 0.1 ms median, 0.2-0.3 p90, 0.4-0.8 ms max a frame DURING a ditch on the
+  box (6 runs); zero clock reads, draws or uploads when dry.
+- GATE WETFX-PAGE (tools/_wetfx_page_check.js, full tier, ~4 min, ~4 GB: take the CPU lock): the page in node, the user's Cub
+  rolled out, then ditched at the SEA lane: dry = pool hidden, nothing alive, field off; the spray pool's and the field's
+  programs linked BEFORE the contact and drawn with unchanged (the 5 programs linked meanwhile are the world's houses streaming
+  in at the SEA lane, a km from the stand - reported); 17 groups, ~1200 alive, the field stamped; no page error; the spray dies down.
+
+G2092 THE GATES AND THE COST WHEN DRY:
+- FRAMECOST, both-stale A/B against 068584d6 (a no-op rebuild of master, the parked cook stale on both): the Cub's and the metal
+  Cessna's STAND and TAXI views identical to the count; the boot's only rises the pool's program link: garage:town +1 link
+  +11 GL calls, garage:snapshot +2 links (ALLOW G2090 in _framecost_check.js). PROGRAMS PASS.
+- HYDRODYN, WATER, PROGRAMS, SIMWORKER, POSEBACK, WETFX, WETFX-PAGE PASS on this branch.
+
+G2093 THE SPLASH'S WAVES FROM ITS ENERGY (the user: "out of proportion"). The touchdown crater was the sink speed x 0.3 m, capped
+at 1.2 m (the floats since G460.8; the wet body had copied it): a 2.3 m/s float touchdown dug 0.69 m, and every re-entry of a
+bobbing hull stamped another. Now: the depth the entry's energy can raise - the wet patch's added mass (~0.4 rho A^1.5; a float's
+patch = beam^2) at the sink speed, 30 % radiated as the ring (INFERRED), a ring of radius r holding 1/2 rho g a^2 pi r^2: a = sqrt(
+0.3 E / (1/2 rho g pi r^2)), capped 0.5 m. And the wet body's wake is ONE press (a press per group - up to ten overlapping, each
+pulling the surface half-way to its depth a frame - overshot and pumped the coarse level). ?splash=old = the old law, for the A/B.
+MEASURED (the field's own readback, max |h| fine / coarse; STAGED placement over the SEA lane, physics on the WORKER - the game's
+default; one tree, ?splash=old vs not): the Cub ditched at 22 m/s 1.60 / 4.73 m -> 0.14 / 0.12 m; the Cessna floats' 2.3 m/s
+touchdown 0.70 / 0.21 -> 0.25 / 0.14 m (A0's target: a 0.2-0.5 m splash and a small wake). No reference footage was reviewed.
+
+G2094 THE DITCHED AEROPLANE'S OSCILLATION, MEASURED - THE PHYSICS (ROUTED BY A0 TO [CLOUD] WATER-DAMP G2105; NO HYDRO CHANGED HERE).
+tools/ditch_osc.js (STAGED INLINE, node: the real solver, the aeroplane placed over the SEA lane, no page, no drawn field) +
+tools/ditch_osc_plot.js -> reports/evidence/WATER-LOOK/osc/ (the CSVs, summary.json, osc_sheet.png):
+- the Cub ditched at 22 m/s, throttle closed: heave zeta 0.05 (period 1.2 s), pitch swings of +-40 deg for ~6 s; heave p-p 2.3 m
+  in 0-5 s, 0.18 m in 5-10 s; then a LIMIT CYCLE that never decays: +-1.2 cm at 0.6 s to 40 s. The metal Cessna: heave zeta 0.04,
+  pitch zeta 0.03 (17 cycles), +-1.7 cm at 4 s and a slow pitch drift (flooding) to 40 s. The Cessna FLOATS settle fully
+  (0.000 m p-p after 25 s): the wet-body model lacks a radiation-like (linear) damping - only the quadratic Newtonian face
+  pressure, which vanishes at small amplitude; the held hydro rate is a suspect for the cycle (inferred, not proven).
+- NOT the drawn field (page-only, never felt by the physics); the sea's amplitude was 0 in these runs.
+- THRUST: closed = 0 N; a prop under the water keeps FULL thrust if power is left on (729 N at 0.6): the prop strike exists only
+  on the ground (30_solver.js noseGnd) - "like the engine was still running" in a flown crash where the pilot holds power.
+- Damage on / off identical at this ditch (no yield).
+
+THE EVIDENCE (reports/evidence/WATER-LOOK/; headed Chrome on the box, 1280x720, tools/water_look_shots.js - STAGED placement
+over the SEA lane by FLIGHT_PROBE.place, the physics on the WORKER (the default; FLYDIY_SIMW 'live', 0 inline), untimed):
+ditch_cub_dmg0 / ditch_cub_dmg1 (?damage=1 ?simw=1) / ditch_cessna_dmg0 (shot before G2093's single press: its coarse waves are
+the old ones) / sink_cub (2x, 60 s) / float_cessna (take-off) / float_twin (take-off, before G2093 - no touchdown in it) /
+waves_* (the A/B) / waves_before_after.jpg / osc/. Each: stills, cast.webp (CDP screencast, 640 px), index.json (per frame the
+wet groups, live particles, the field's max |h|, the cost). 0 page exceptions in every run.
+
+THE STRICT GATE'S WATER TAXI ROW (A0's TIMED slot 19:50, a quiet box; master_bench's water scene - the Cessna floats on the
+SEA lane, chase, 25 s - one warm profile, master 068584d6 + a no-op rebuild vs this branch, alternating, two reps each):
+base 29.9 / 29.9 fps, p99 33.6 / 33.6 ms, >1.5x cap 0.40 / 0.40 %, >100 ms 0 / 0; branch 29.9 / 29.9, p99 33.6 / 33.5,
+0.40 / 0.27 %, 0 / 0; the loads 55.2 / 50.3 vs 54.3 / 47.4 s, links 415 / 409 vs 417 / 404 - unchanged.
+
+OWED: ONE still of the sinking's boils (the bubbles ARE emitted - 15-24 alive from 26 to 126 s of sim, 4-6 cm boil rings in the
+field, sink_cub/index.json - but the re-shoot's riding eye sat inside the wing; the rig's sink eye is fixed: high, 14 m off, 8 m
+up: `node tools/water_look_shots.js --port 8655 --scenario sink --secs 60 --out reports/evidence/WATER-LOOK/sink_cub`, 3 min
+untimed); wing tips of a FLOATPLANE (no wet
+body on a float build: no physics there, so no spray - stated); the bubbles are surface boils (no underwater bubble drawn).

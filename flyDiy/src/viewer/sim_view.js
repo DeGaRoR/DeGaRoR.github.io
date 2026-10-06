@@ -73,6 +73,14 @@ function simViewDmgApply(D, P) {
   return D;
 }
 
+// G2090 (WATER-LOOK): the newer wet-body record (32_hydro.js wetFx's layout: a head of 5, 18 numbers a group, the slam
+// peak at 13) with the older one's unread peaks carried onto the same groups - sim_link.js zeroes a peak once handed
+function simViewWetCarry(W0, W1) {
+  if (W0 && W1 && W0.length > 5 && W1.length > 5) { const R = 18, H = 5;
+    for (let i = 0; i < W0[0]; i++) { const pk = W0[H + i * R + 13]; if (!(pk > 0)) continue;
+      for (let j = 0; j < W1[0]; j++) if (W1[H + j * R] === W0[H + i * R]) { if (pk > W1[H + j * R + 13]) W1[H + j * R + 13] = pk; break; } } }
+  return W1;
+}
 function makeSimView(def, opts) {
   const R = opts.ready, S = R.slots, n = def.nodes.length, N3 = n * 3;
   const post = opts.post || (() => false);
@@ -158,7 +166,7 @@ function makeSimView(def, opts) {
     n, p, ctl, def, mismatch,
     v: R.withV ? new Float64Array(N3) : null,
     beams: def.beams,                      // the topology (a, b); the strains stay the host's (stats().smax)
-    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, ap: {}, snapCtl: null,
+    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, wet: null, ap: {}, snapCtl: null,
     starterOk: null,                       // the cockpit's (the bus) - read when a key turns, sent with it
     get t() { return B ? B.f[S.T] : 0; },
     get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
@@ -241,6 +249,9 @@ function makeSimView(def, opts) {
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;
+      // G2090 (WATER-LOOK): the wet body's contacts; a slam peak the page has not taken yet (two snapshots between its
+      // frames) is carried onto the newer record of the same group, so an entry's splash is never dropped
+      view.wet = simViewWetCarry(view.wet, M.wet || null);
       if (M.apNew) view.ap = {};             // G820 (C1c): a new pilot (Fly on, the skip) - no field of the last one kept
       if (M.ap) for (const k of Object.keys(M.ap)) view.ap[k] = M.ap[k];
       if (M.ctl) {
@@ -311,4 +322,4 @@ function makeSimView(def, opts) {
 }
 
 if (typeof window !== 'undefined') window.SIM_VIEW = { make: makeSimView, defSig: simViewDefSig, dmgState: simViewDmgState, dmgApply: simViewDmgApply };
-if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewDefSig, SIM_VIEW_LEVERS, simViewDmgState, simViewDmgApply };
+if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewWetCarry, simViewDefSig, SIM_VIEW_LEVERS, simViewDmgState, simViewDmgApply };
