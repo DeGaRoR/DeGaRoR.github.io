@@ -77,6 +77,12 @@ const SPLAT_GROUND = (() => {
   // full: the inspection's text too (the recolour's magenta mask) - the ground's production / full line (render_world
   // groundFull, COLD-LINKS G1311); the mask's uniform stays declared either way
   const glslCommon = full => `
+  // SPLAT_REG (G2075): the vote and the candidates in registers - the lean program's (the host defines it with SPLAT_ONE); the
+  // measuring strips regs / avrc (the arrays' vote, the registers' candidates) / rvac (the registers' vote, the arrays' candidates)
+  // put it in a full program - the bisect of the +4.5 s cold link it cost there
+#if (defined(GS_REGS) || defined(GS_AVRC) || defined(GS_RVAC)) && !defined(SPLAT_REG)
+#define SPLAT_REG 1
+#endif
   uniform highp sampler2DArray uSplat, uSplatN;
   uniform float uSplatOn;
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
@@ -383,7 +389,7 @@ const SPLAT_GROUND = (() => {
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
     gSSlope = slope;   // the pools read it in sMat (2026-09-23)
     if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
-#ifdef SPLAT_ONE
+#if defined(SPLAT_REG) && !defined(GS_AVRC)
     // (G2075: THE LEAN PROGRAM'S VOTE - the full programs keep the arrays below: in a program with three sets a type the
     // registers linked 4-5 s slower cold under ANGLE/D3D (cold_links_bench 2026-10-06, the reason not yet bisected) - lean only)
     // THE VOTE IN REGISTERS (GROUND-COST G2075): the 5 x 5 kernel's codes gathered into five (code, weight) slots - no array
@@ -398,9 +404,11 @@ const SPLAT_GROUND = (() => {
     ivec2 gmax = ivec2(uGGrid.zw / uGCell + 0.5) - 1;
     // THE ONE-CODE CELL (render_world ttFlagged: bit 7 = every cell of this window is one code): one tap, the same weights - a
     // land code all of the kernel (1 after the normalisation), or the sea all of it (its share, the bed's sand)
+#ifndef GS_NOHOMOG
     int cc = int(texelFetch(uGPackB, clamp(ivec2(b), ivec2(0), gmax), 0).g * 255.0 + 0.5);
     if (cc >= 128) { int c = min(cc - 128, 16); if (c == 1) c = 3; wsum = 1.0; if (c == 0) w0r = 1.0; else { k0 = c; v0 = 1.0; } }
     else
+#endif
     // (the bounds a uniform, 2: tried against the full program's +4 s cold link - no help there, harmless here; texelFetch takes
     // no derivative, so a real loop is free to diverge)
     for (int j = -uSVoteR; j <= uSVoteR; j++) for (int i = -uSVoteR; i <= uSVoteR; i++) {
@@ -582,7 +590,7 @@ const SPLAT_GROUND = (() => {
     if (uSDist2.z > 0.5) { vec2 a = pow(vec2(length(nTri.xz), abs(nTri.y)), vec2(uSDist2.z)); vec2 h = nTri.xz * nTri.xz; h *= h;
       float f = h.y / max(h.x + h.y, 1e-8); tw = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6); }
 #endif
-#ifdef SPLAT_ONE
+#if defined(SPLAT_REG) && !defined(GS_RVAC)
     // THE CANDIDATES IN REGISTERS (GROUND-COST G2075): the loop runs the CODES, two passes each (sMatPass: near, far), the bound a
     // uniform (uSNSlot = 17 codes x 2) - a code's weight read off the slots by comparison (no array), the derived codes (6 -> 12
     // cliff, 8 -> 13 old growth, 7 -> 14 dense scrub) their parent's share. BY CODE, NOT BY SLOT: a texture's derivatives are taken
@@ -598,16 +606,24 @@ const SPLAT_GROUND = (() => {
     float W0 = -1.0, W1 = -1.0, W2 = -1.0, W3 = -1.0, W4 = -1.0, W5 = -1.0, R0 = 0.0, R1 = 0.0, R2 = 0.0, R3 = 0.0, R4 = 0.0, R5 = 0.0;
     gSPoolM = 0.0; gSPoolD = 1.0;
 #ifndef GS_NOPOOLS
+#ifdef GS_AVRC
+    { float w3 = w[3], w7 = w[7];
+#else
     { float w3 = (k0 == 3 ? v0 : 0.0) + (k1 == 3 ? v1 : 0.0) + (k2 == 3 ? v2 : 0.0) + (k3 == 3 ? v3 : 0.0) + (k4 == 3 ? v4 : 0.0);
       float w7 = ((k0 == 7 ? v0 : 0.0) + (k1 == 7 ? v1 : 0.0) + (k2 == 7 ? v2 : 0.0) + (k3 == 7 ? v3 : 0.0) + (k4 == 7 ? v4 : 0.0)) * (1.0 - sDense);
+#endif
       if (uSPud.y > 0.0 && (w3 >= 0.004 || w7 >= 0.004)) sPools(vWPi); }
 #endif
     for (int j = 0; j < uSNSlot; j++) {
       int code = j / 2;
       int pc = code == 12 ? 6 : (code == 13 ? 8 : (code == 14 ? 7 : code));   // the slot a derived code's weight comes from
       float spl = pc == 6 ? sCliff : (pc == 8 ? sOld : (pc == 7 ? sDense : 0.0));
+#ifdef GS_AVRC
+      float wt = w[code];
+#else
       float kv = (k0 == pc ? v0 : 0.0) + (k1 == pc ? v1 : 0.0) + (k2 == pc ? v2 : 0.0) + (k3 == pc ? v3 : 0.0) + (k4 == pc ? v4 : 0.0);
       float wt = kv * (code == pc ? 1.0 - spl : spl);
+#endif
       // the six heaviest types are kept (an empty register reads -1): a seventh replaces the lightest when it weighs more
 #ifdef GS_CAND4
       float wmin = min(min(W0, W1), min(W2, W3));
@@ -641,6 +657,12 @@ const SPLAT_GROUND = (() => {
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
 #else
+#ifdef GS_RVAC
+    float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
+    for (int s5 = 0; s5 < 5; s5++) { int kc = s5 == 0 ? k0 : (s5 == 1 ? k1 : (s5 == 2 ? k2 : (s5 == 3 ? k3 : k4))); float kv = s5 == 0 ? v0 : (s5 == 1 ? v1 : (s5 == 2 ? v2 : (s5 == 3 ? v3 : v4)));
+      if (kc >= 0) { float spl = kc == 6 ? sCliff : (kc == 8 ? sOld : (kc == 7 ? sDense : 0.0)); w[kc] += kv * (1.0 - spl);
+        if (spl > 0.0) w[kc == 6 ? 12 : (kc == 8 ? 13 : 14)] += kv * spl; } }
+#endif
     vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
     // NO CONTINUE IN THIS LOOP (PERF 2026-09-23): ANGLE's D3D back end makes a gradient-free copy ('Lod0',
     // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
@@ -908,7 +930,7 @@ const SPLAT_GROUND = (() => {
     // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
     // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
     // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
-    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4)$/;
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|regs|avrc|rvac|nohomog)$/;
     let strips = [];
     try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {

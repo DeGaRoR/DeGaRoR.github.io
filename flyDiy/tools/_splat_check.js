@@ -217,11 +217,19 @@ function checkManifest(G, text, rootDir, quiet) {
 // G2075: the splat's text for one program - the lean row's (SPLAT_ONE defined: one set a type, the vote in registers) or the full
 // programs' (the arrays); every other directive (the GS_* measuring strips) kept as written
 function oneVariant(text, on) {
+  // a directive that names SPLAT_ONE / SPLAT_REG is decided here (both defined for the lean program, neither for the full ones; every
+  // GS_* strip undefined - production); any other is kept as written. '#if defined(A) && !defined(B) || ...' and '#ifdef / #ifndef'.
+  const D = on ? { SPLAT_ONE: 1, SPLAT_REG: 1 } : {};
+  const ev = c => c.split('||').some(t => t.split('&&').every(x => { const m = x.trim().match(/^(!)?\s*defined\s*\(\s*(\w+)\s*\)$/); return m ? (!!D[m[2]] !== !!m[1]) : false; }));
   const st = []; const keep = () => st.every(e => e.k !== 'one' || e.live);
   return text.split('\n').filter(l => {
     const t = l.trim();
-    if (/^#if(def|ndef)?\b/.test(t)) { const one = /^#ifdef\s+SPLAT_ONE\b/.test(t); st.push({ k: one ? 'one' : 'other', live: one ? on : true }); return !one && keep(); }
-    if (/^#else\b/.test(t)) { const e = st[st.length - 1]; if (e && e.k === 'one') { e.live = !on; return false; } return keep(); }
+    if (/^#if(def|ndef)?\b/.test(t)) {
+      if (!/SPLAT_(ONE|REG)\b/.test(t)) { st.push({ k: 'other' }); return keep(); }
+      const c = /^#ifdef\s+(\w+)/.test(t) ? 'defined(' + RegExp.$1 + ')' : /^#ifndef\s+(\w+)/.test(t) ? '!defined(' + RegExp.$1 + ')' : t.replace(/^#if\s+/, '');
+      const v = ev(c); const up = keep(); st.push({ k: 'one', live: v, cond: v, up }); return false;
+    }
+    if (/^#else\b/.test(t)) { const e = st[st.length - 1]; if (e && e.k === 'one') { e.live = !e.cond; return false; } return keep(); }
     if (/^#endif\b/.test(t)) { const e = st.pop(); return !(e && e.k === 'one') && keep(); }
     return keep();
   }).join('\n');

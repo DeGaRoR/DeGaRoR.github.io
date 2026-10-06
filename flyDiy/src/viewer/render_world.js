@@ -1873,7 +1873,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
-        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n#define SPLAT_REG 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nattribute float aPav; varying float vPav;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
