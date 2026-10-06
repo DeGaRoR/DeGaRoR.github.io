@@ -32,7 +32,7 @@ const GROUND = new Set(['DEPART', 'TAXI', 'STOP', 'HOLD', 'LINEUP', 'ROLL', 'ROL
 // the tour's world: Jolene with the solid things near every land strip registered
 function tourWorld(C, IN, fs, opt) {
   const o = opt || {};
-  const txt = fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8');
+  const txt = fs.readFileSync(o.fixture || process.env.TOUR_FIXTURE || path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8');   // (a variant record: an experiment's)
   const W = IN.islandWorld('jolene', { premises: txt });
   const SH = TL.islandObstacles(C, 'jolene', o.variant || 'town').concat(TL.treeTrunks(W));
   let nO = 0, nT = 0;
