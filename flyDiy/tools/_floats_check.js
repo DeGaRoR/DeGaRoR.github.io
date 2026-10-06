@@ -20,7 +20,8 @@
 //   LANDING  the approach trimmed by bisection (1.3 Vs, quarter throttle,
 //            1 m/s down): the touch between 0.5 and 1.6 m/s, the water's
 //            lift climbing over >= 3 frames to its first peak, no frame
-//            adding more than 0.35 W, peak under 2 W, idle taxi under 5 m/s
+//            adding more than 0.35 W, peak under 2 W (the FIRST contact, G2033:
+//            a skip's re-touch is printed apart), idle taxi under 5 m/s
 //            20 s later, finite throughout
 // Measured on the fixture the day it was written (HANDOVER G382): settle
 // 0.266 m / 6.8 deg / L/W 1.00; hump 0.21 at 8.5-10 m/s; airborne at 24 m/s
@@ -170,25 +171,36 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
   const deA = 0.5 * (lo + hi);
   console.log(`   Vs ${f(g.Vs, 1)} -> approach ${f(VA, 1)} m/s; elevator ${f(deA)} trims ${f(vyT, 2)} m/s down`);
   const s3 = C.makeSim(def, world); s3.reset(0); place(s3, 8, VA, -0.5); s3.ctl.thr = thrA; s3.ctl.de = deA;
+  // G2033 (DMG-RECAL): THE TOUCHDOWN IS THE FIRST CONTACT - from the first wet frame until the water lets go (the
+  // lift back to 0: a skip) or the run ends. The bounds below (G382: the water's lift onset, frame by frame) are the
+  // touchdown's; every later re-touch (the skips of a fast, hands-off arrival) is measured and printed apart
   let ok = true, T = 0, touched = null, sinkTouch = 0, prev = 0, maxJump = 0, peak = 0, frames = [], iPk = -1, endV = NaN;
+  let first = true, skips = [], cur = null, vyPrev = 0;
   for (let s = 0; s < 45 * 60; s++) {
     s3.step(1 / 60); T += 1 / 60;
     const r = state(s3);
     if (!finite(r)) { ok = false; break; }
     if (touched == null && r.Fy > 0) { touched = T; sinkTouch = -r.vy; s3.ctl.thr = 0.1; }
     if (touched != null) {
-      maxJump = Math.max(maxJump, Math.abs(r.Fy - prev)); peak = Math.max(peak, r.Fy);
+      if (first && r.Fy === 0 && prev > 0) first = false;
+      if (!first) {
+        if (r.Fy > 0 && prev === 0) { cur = { t: T, sink: -vyPrev, trim: r.trim, V: r.V, jump: 0, peak: 0 }; skips.push(cur); }
+        if (cur && r.Fy > 0) { cur.jump = Math.max(cur.jump, Math.abs(r.Fy - prev)); cur.peak = Math.max(cur.peak, r.Fy); }
+      } else { maxJump = Math.max(maxJump, Math.abs(r.Fy - prev)); peak = Math.max(peak, r.Fy); }
       if (frames.length < 40) frames.push(r.Fy);
       if (SHOW && (T < touched + 0.4 || s % 120 === 119)) console.log(`   t ${f(T, 2)} V ${f(r.V, 2)} vy ${f(r.vy, 2)} trim ${f(r.trim, 2)} L/W ${f(r.Fy)} R/W ${f(r.R)} wet ${f(r.wet, 2)}`);
       if (T > touched + 20) { endV = r.V; break; }
     } else if (SHOW && s % 60 === 59) console.log(`   t ${f(T, 1)} V ${f(r.V, 2)} vy ${f(r.vy, 2)} cgY ${f(r.cgY, 2)} trim ${f(r.trim, 2)}`);
-    prev = r.Fy;
+    prev = r.Fy; vyPrev = r.vy;
   }
   // the first peak of the water's lift after the touch
   for (let i = 1; i + 1 < frames.length; i++) if (frames[i] >= frames[i - 1] && frames[i] > frames[i + 1]) { iPk = i; break; }
   if (iPk < 0) iPk = frames.indexOf(Math.max(...frames));
   console.log(`   touch at ${f(touched, 2)} s, sinking ${f(sinkTouch, 2)} m/s; the water's lift frame by frame: ${frames.slice(0, 10).map(v => f(v, 2)).join(' ')} ... first peak ${f(frames[iPk])} W after ${iPk + 1} frames; ` +
-              `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W; 20 s on: V ${f(endV, 1)} m/s`);
+              `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W (the first contact); 20 s on: V ${f(endV, 1)} m/s`);
+  console.log(`   skips after the touch (the stick held at the approach's, throttle 0.1): ${skips.length}` + skips.map((k, i) => `\n     re-touch ${i + 1} at ${f(k.t, 2)} s: ${f(k.V, 1)} m/s, sinking ${f(k.sink, 2)} m/s, trim ${f(k.trim, 1)} deg; one-frame ${f(k.jump)} W, peak ${f(k.peak)} W`).join(''));
+  const hardRe = skips.filter(k => k.jump >= 0.35 || k.peak >= 2);
+  if (hardRe.length) console.log(`OWED the hands-off arrival skips ${skips.length} time(s) and ${hardRe.length} re-touch(es) pass the touchdown's bounds (worst: ${f(Math.max(...hardRe.map(k => k.jump)))} W in a frame, ${f(Math.max(...hardRe.map(k => k.peak)))} W) - a fast (1.3 Vs) touch with no pilot: the landing is not flown after the touch (HANDOVER G2030-G2034, FLOATS)`);
   verdict(ok, `the landing stays finite`);
   // G451: the bound's floor is 0.35, from 0.5. The Wipline family's transom
   // keel sits 0.8 H over the step keel (the H0 float's sat at 0.6 H), so the

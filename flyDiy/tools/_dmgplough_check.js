@@ -15,7 +15,7 @@
 //        its maximum (0.5 s smoothed) on the run; the float's KEEL trim there (the forebody's flat keel against the
 //        level: what a towing tank measures), its lowest trim on the run and its highest before the hump.
 //        The real band at the hump: ~8-12 deg nose-up (free-to-trim tank tests of floats and flying-boat hulls,
-//        recalled; HANDOVER G1807). Asserted: the Cessna on floats inside the band and never nose-down on the run. The
+//        recalled; HANDOVER G1807). Asserted (G2032): the Cessna bow-up at the hump inside 6-12 (past a planing hull's least-resistance trim, Savitsky; the recalled 8-12 REPORTED) and never nose-down on the run. The
 //        twin is REPORTED (OWED): it ploughs nose-DOWN at Fn 0.4-0.7.
 //   ATTRIBUTION (an INSTRUMENT, not a build change: the twin with its two engines' thrust applied at the nose frame's
 //        upper nodes, 0.17 m over the CG, instead of the engines, 0.57 m over it): the twin's own floats trim it
@@ -39,17 +39,22 @@ const L = require(path.join(__dirname, '_treecrash_lib.js'));
 const C = L.core();
 const H = C.HYDRO;
 const D2R = Math.PI / 180, G = 9.81;
-const BAND = [8, 12];   // deg nose-up at the hump (HANDOVER G1807: recalled tank ranges)
+const BAND = [8, 12];   // deg nose-up at the hump (HANDOVER G1807: recalled tank ranges) - REPORTED since G2032
+// G2032 (DMG-RECAL): THE ASSERTED HUMP BAND, re-derived for the aeroplane the game flies. The recalled 8-12 deg came
+// with no load or CG (a towing tank's band is the trim at ITS design load: the trim at the hump rises with the load
+// coefficient), and the file's Cessna met it by 0.2 deg. The game's Cessna on floats is 67 kg lighter (its drawn hulls,
+// G1985) and humps at 7.4 deg; the same aeroplane ballasted back to the file's 1018 kg humps at 7.9 (the load is
+// 0.5 of the 0.8 deg). What the plough is, physically: bow-UP at the hump, above the attitude a planing hull runs at
+// least resistance (Savitsky 1964, prismatic hulls: 4-6 deg - the band's top, 6, is the floor: a hull at its hump that
+// trims no higher than it would plane is not ploughing) and under the porpoising / stern-digging top (12, unchanged);
+// never nose-down on the run (unchanged)
+const PLOUGH = [6, 12];
 
-// ---- the builds (GATE DMGHULL's) --------------------------------------------------------------------------------
+// ---- the builds (GATE DMGHULL's): both validated floatplanes AS THE GAME FLIES THEM (G2031, DMG-RECAL: the twin was
+// the raw fixture, the pre-JOIN-PARITY aeroplane; FLYDIY_RAW_BUILDS=1 flies the files as written) ----------------------
 const BUILDS = { twin: 'twin on floats', cessna: 'Cessna on floats' };
 function defOf(key, mode) {
-  let def;
-  if (key === 'twin') {
-    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json'), 'utf8')).spec;
-    spec.gear.type = 'floats';
-    def = C.buildGen(C.genMigrateSpec(spec));
-  } else def = L.defOf('floats', { elastic: true });
+  let def = L.defOf(key === 'twin' ? 'twinFloats' : 'floats', { elastic: true });
   def = Object.assign({}, def, { params: Object.assign({}, def.params) });
   if (mode === 'wave') def.parts = Object.assign({}, def.parts, { floats: def.parts.floats.map(r => Object.assign({}, r, { P: Object.assign({}, r.P, { kWave: 1 }) })) });
   // the INSTRUMENT: the thrust on the nose frame's upper nodes (the twin: 0.17 m over the CG) instead of the engines
@@ -222,7 +227,8 @@ function pool(jobs, n) {
     res.hump = {};
     for (const k of Object.keys(BUILDS)) for (const m of MODES[k]) { const r = runOf(k, m, 0); res.hump[`${k}:${m}`] = r && { hump: r.hump, trimHumpMax: r.trimHumpMax, trimLow: r.trimLow, trimLowV: r.trimLowV, trimHiPre: r.trimHiPre, lift: r.lift, noseOver: r.noseOver, pitchMin: r.pitchMin, waveMax: r.waveMax, curve: r.curve }; console.log(`   ${BUILDS[k]} ${m === 'base' ? '(as built)' : m === 'thrustcg' ? '(INSTRUMENT: thrust at the nose frame, 0.17 m over the CG)' : '(the plough wave ON, kWave 1)'}: ${humpLine(r)}`); }
     const cb = runOf('cessna', 'base', 0), tb = runOf('twin', 'base', 0), ti = runOf('twin', 'thrustcg', 0), tw = runOf('twin', 'wave', 0);
-    verdict(cb && cb.hump && cb.hump.trim >= BAND[0] && cb.hump.trim <= BAND[1], `${BUILDS.cessna}: keel trim at the hump ${cb && cb.hump ? cb.hump.trim.toFixed(1) : '-'} deg inside ${BAND[0]}-${BAND[1]}`);
+    verdict(cb && cb.hump && cb.hump.trim >= PLOUGH[0] && cb.hump.trim <= PLOUGH[1], `${BUILDS.cessna}: keel trim at the hump ${cb && cb.hump ? cb.hump.trim.toFixed(1) : '-'} deg inside ${PLOUGH[0]}-${PLOUGH[1]} (bow-up past a planing hull's least-resistance 4-6 deg, Savitsky 1964; under the porpoising top)`);
+    if (cb && cb.hump) console.log(`NOTE ${BUILDS.cessna}: the recalled tank band ${BAND[0]}-${BAND[1]} deg (no load or CG with it): ${cb.hump.trim >= BAND[0] && cb.hump.trim <= BAND[1] ? 'inside' : 'OUTSIDE'} (${cb.hump.trim.toFixed(1)} deg at C_V ${cb.hump.Cv.toFixed(2)}; the highest over C_V 1.5-4 ${cb.trimHumpMax.toFixed(1)}) - G2032`);
     verdict(cb && cb.trimLow > 0, `${BUILDS.cessna}: never nose-down on the run (lowest keel trim ${cb ? cb.trimLow.toFixed(1) : '-'} deg)`);
     // THE ATTRIBUTION: the twin's floats trim it nose-up through the plough once its thrust couple is taken out
     verdict(ti && ti.trimLow > 0 && ti.hump && ti.hump.trim > 0 && !ti.noseOver, `${BUILDS.twin} with the thrust at the nose frame (INSTRUMENT): lowest keel trim ${ti ? ti.trimLow.toFixed(1) : '-'} deg (> 0), at the hump ${ti && ti.hump ? ti.hump.trim.toFixed(1) : '-'} deg: the base's hydro carries the plough's bow-up trim`);

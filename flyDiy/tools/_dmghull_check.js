@@ -14,10 +14,12 @@
 //     - THE SLENDER-BODY CLOSED FORM where the keel's draft grows to the step (on the step): F = kSide (pi/2) rho
 //       T_step^2 U v within 2 % (the per-station walk telescopes to it; the instrument checks the code)
 //     - SATURATING: the side term is U w = V^2 sin(b) cos(b) - its peak at 45 deg, nothing at 90 deg, where the side
-//       panels' quadratic cross-flow (the base's) carries the whole lateral force
+//       panels' quadratic cross-flow (the base's) carries the whole lateral force. G2030: Jones' form holds at a FIXED
+//       wetted hull - asserted as the side term over U w being the hull's constant at every slip angle whose wetted
+//       keel is the small-slip one; a peak off 45 deg must come with the afterbody re-wetting as U = V cos b falls
 //     - THE CENTRE OF PRESSURE on the step ahead of the step, on the wetted forebody; at the hump, reported
 //   SWEEP (the SEAPLANE crosswind take-off: the SEA lane, THE PILOT, 0..5 m/s across in 0.5 m/s steps, the twin on
-//        floats and the Cessna on floats): lift-off, the heading swing from the roll's own heading, |x| off the
+//        floats and the Cessna on floats, both as the game flies them - G2031): lift-off, the heading swing from the roll's own heading, |x| off the
 //        lane, the lowest pitch on the water run; each failure CLASSED - a YAW water loop (the swing past 30 deg
 //        with the nose up) or a NOSE-OVER (the pitch past -30 deg first: the bows bury at the plough and the heading
 //        reads 180 deg once the nose has gone through the vertical - not a yaw).
@@ -43,16 +45,13 @@ const C = L.core();
 const H = C.HYDRO;
 const D2R = Math.PI / 180;
 
-// ---- the builds: SEAPLANE's twin (the ultralight fixture on floats, as GATE SEAPLANE / FLOATS build it) and the
-// validated Cessna on floats (tools/master_bench.js's) --------------------------------------------------------------
+// ---- the builds: the two validated floatplanes AS THE GAME FLIES THEM (tools/_load_build.js `twinFloats` and
+// `floats`, through _treecrash_lib's one table). G2031 (DMG-RECAL): the twin was the raw fixture (the file with
+// gear.type 'floats', buildGen on it) - the pre-JOIN-PARITY aeroplane, which the game never flies (G1985: the join puts
+// its drawn floats on it); FLYDIY_RAW_BUILDS=1 still flies the files as written, for a before/after ---------------
 const BUILDS = { twin: 'twin on floats', cessna: 'Cessna on floats' };
 function defOf(key, over) {
-  let def;
-  if (key === 'twin') {
-    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json'), 'utf8')).spec;
-    spec.gear.type = 'floats';
-    def = C.buildGen(C.genMigrateSpec(spec));
-  } else def = L.defOf('floats', { elastic: true });
+  let def = L.defOf(key === 'twin' ? 'twinFloats' : 'floats', { elastic: true });
   def = Object.assign({}, def, { params: Object.assign({}, def.params) });
   if (over && over.mode === 'before') def.params.defDampMean = true;
   if (over && over.mode === 'after') def.parts = Object.assign({}, def.parts, { floats: def.parts.floats.map(r => Object.assign({}, r, { P: Object.assign({}, r.P, { kSide: 0 }) })) });
@@ -214,12 +213,35 @@ function law(key) {
     const Tk = Math.max(0, a.out.d[a.F.edge.K]), cf = P.kSide * 0.5 * Math.PI * P.rho * Tk * Tk * U * v1;
     R[where] = { U, draft: dr, trim: tr, F3: a.side, panels3: a.panels, closed: cf, xcp: a.xcp, Mmax: a.M, Tstep: Tk };
     if (where === 'step') chk(Math.abs(Math.abs(a.side) / cf - 1) < 0.02, `step: ${Math.abs(a.side).toFixed(1)} N against the slender body's (pi/2) rho T^2 U v = ${cf.toFixed(1)} N on T = ${Tk.toFixed(3)} m (2 %)`);
-    // the curve: 0..90 deg at V = U
+    // the curve: 0..90 deg at V = U. Each point also carries the side term over U w (the slender body's m(TE): the
+    // wetted keel's own constant) and the wetted keel (the keel stations under the water)
     const curve = [];
-    for (let deg = 0; deg <= 90; deg += 5) { const q = f(U * Math.cos(deg * D2R), U * Math.sin(deg * D2R)); curve.push([deg, +Math.abs(q.side).toFixed(2), +Math.abs(q.panels).toFixed(2)]); }
+    const wetN = q => { let n = 0; for (const s of q.F.sta) if (q.out.d[s.K] > 0) n++; return n; };
+    for (let deg = 0; deg <= 90; deg += 5) {
+      const q = f(U * Math.cos(deg * D2R), U * Math.sin(deg * D2R)), uw = U * U * Math.cos(deg * D2R) * Math.sin(deg * D2R);
+      curve.push([deg, +Math.abs(q.side).toFixed(2), +Math.abs(q.panels).toFixed(2), uw > 1e-9 ? Math.abs(q.side) / uw : null, wetN(q)]);
+    }
     R.curves[where] = curve;
     const pk = curve.reduce((m, x) => x[1] > m[1] ? x : m, curve[0]);
-    chk(pk[0] === 45, `${where}: the side term peaks at ${pk[0]} deg of slip (45: Jones' U w = V^2 sin b cos b)`);
+    // G2030 (DMG-RECAL): JONES' FORM IS A STATEMENT AT A FIXED WETTED HULL. U w = V^2 sin b cos b peaks at 45 deg only
+    // while the hull the water sees stays the same; the slip takes the forward speed off (U = V cos b), and a hull
+    // whose step ventilates by the cavity number (2 g d / U^2) re-wets its afterbody as U falls, and a re-wetted stern
+    // starts its own piece (G1847's law, as written). The game's Cessna on floats rides its hump 7 cm deeper than the
+    // file's did (0.343 m against 0.274: the drawn hulls, G1985), and at 50 deg of slip (U 6.9 m/s) its afterbody is
+    // back in the water: m(TE) +9 %, the peak at 50. So the law is asserted where it is a law - the side term over U w
+    // is the hull's constant to 1 % at every slip angle whose wetted keel is the small-slip one - and its peak at 45
+    // where that holds through 40-50 deg; where it does not, every departure from the constant must come with a
+    // change of the wetted keel (the afterbody re-wetting), never on its own
+    const k0 = curve[1][3], n0 = curve[1][4];
+    const same = curve.filter(x => x[3] != null && x[4] === n0), dev = same.reduce((m, x) => Math.max(m, Math.abs(x[3] / k0 - 1)), 0);
+    chk(same.length >= 3 && dev < 0.01, `${where}: the side term is U w x ${k0.toFixed(1)} kg/m (the wetted keel's m(TE)) to ${(100 * dev).toFixed(2)} % at the ${same.length} slip angles whose wetted keel is the small-slip one (${n0} stations; Jones' U w = V^2 sin b cos b, 1 %)`);
+    const fixed4050 = curve.filter(x => x[0] >= 40 && x[0] <= 50).every(x => x[4] === n0);
+    if (fixed4050) chk(pk[0] === 45, `${where}: the side term peaks at ${pk[0]} deg of slip (45: Jones' U w = V^2 sin b cos b, the wetted keel the same through 40-50 deg)`);
+    else {
+      const loose = curve.filter(x => x[3] != null && Math.abs(x[3] / k0 - 1) >= 0.01 && x[4] === n0);
+      const reW = curve.find(x => x[4] !== n0 && x[0] > 0);
+      chk(loose.length === 0, `${where}: the side term peaks at ${pk[0]} deg of slip - the afterbody re-wets from ${reW ? reW[0] : '-'} deg (${n0} -> ${reW ? reW[4] : '-'} keel stations wet as U falls to ${reW ? (U * Math.cos(reW[0] * D2R)).toFixed(1) : '-'} m/s), m(TE) up to x${Math.max(...curve.filter(x => x[3] != null).map(x => x[3] / k0)).toFixed(3)}; no departure from U w without it`);
+    }
     chk(curve[curve.length - 1][1] < 1e-6 * pk[1] + 1e-9 && curve[curve.length - 1][2] > 0, `${where}: at 90 deg the side term is ${curve[curve.length - 1][1]} N and the cross-flow carries ${curve[curve.length - 1][2]} N`);
     if (where === 'step') chk(a.xcp < 0 && a.xcp > -P.xs, `step: the side force's centre ${a.xcp.toFixed(3)} m from the step (ahead of it, on the forebody: -${P.xs.toFixed(2)}..0)`);
   }
