@@ -1,0 +1,9 @@
+  THE SHOT'S PHASES (the club shed, the garage's own framing: the app's front shot), seconds:
+    the user's Cub (A-65)                start 2.90 + check 3.30 + roll 5.59 = 11.79  (1 engine, crank 266 rpm, idle 644, the roll's 0.14 throttle 992 rpm)
+    the Jodel D112 (A-65)                start 2.90 + check 3.30 + roll 5.43 = 11.63  (1 engine, crank 266 rpm, idle 644, the roll's 0.14 throttle 992 rpm)
+    the Cessna 172 (flat four 5.9 L)     start 2.90 + check 3.30 + roll 5.71 = 11.91  (1 engine, crank 229 rpm, idle 686, the roll's 0.14 throttle 1056 rpm)
+    the twin-582 (two Rotax 582)         start 5.40 + check 3.30 + roll 5.59 = 14.29  (2 engines, crank 290 rpm, idle 1820, the roll's 0.14 throttle 2803 rpm)
+    a turboprop (the metal Cessna on a PT6A-114A) start 2.90 + check 3.30 + roll 5.71 = 11.91  (1 engine, crank 250 rpm, idle 1900, the roll's 0.14 throttle 1900 rpm)
+  20 / 20 mutations caught; 87.8 s
+GATE ROLLSND: PASS
+exit 0

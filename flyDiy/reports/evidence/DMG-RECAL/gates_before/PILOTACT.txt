@@ -1,0 +1,17 @@
+PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791322784493.js
+  ok stock:HOME:calm:stand       completed 380.2 s · sink 0.66 · 1.2 Vs · aim 45 · swing 0
+  ~  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:standcompleted 383.3 s · sink 1.83 · 1.38 Vs · aim -19 · swing 0.7
+  ok c172:HOME:calm:stand        completed 376.2 s · sink 1.1 · 1.08 Vs · aim 38 · swing 0.2
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  stock:HOME:calm:stand         completed          0        6 m    0.9/min  taxi 14.6      0.8 m   0.16 m/s   0.66 m/s        1.2       45 m        0 m      0 deg          0 380.2
+  c172:HOME:calm:stand          completed          0        9 m    1.2/min  taxi 17.5      0.9 m   0.07 m/s    1.1 m/s       1.08       38 m      0.1 m    0.2 deg          0 376.2
+ ~fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand  completed          0        4 m    0.7/min  taxi 16.2      0.8 m  ~2.57 m/s  ~1.83 m/s      ~1.38      -19 m      0.3 m    0.7 deg          0 383.3
+
+3 cells: 2 good, 1 warn, 0 bad
+wall 412 s
+  stock:HOME:calm:stand                                taxi 1.5/14.6  takeoff 0/0  climb 0/0  legs 6/6  downwind 0.6/0  base 2/4  final 4.8/1  landing 0/0
+  c172:HOME:calm:stand                                 taxi 0/17.5  takeoff 0/0  climb 0/0  legs 7.5/3.7  downwind 0/0  base 3.3/3.3  final 1.2/1.2  landing 0/0
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/16.2  takeoff 0/0  climb 0/0  legs 4/4  downwind 0/0  base 3.7/1.9  final 1/1.9  landing 0/0
+GATE PILOTACT: PASS
+exit 0 secs 412

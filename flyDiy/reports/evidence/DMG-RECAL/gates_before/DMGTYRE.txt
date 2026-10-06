@@ -1,0 +1,4 @@
+FAIL the Cub's crosswind roll-out at 4 m/s across: completed, the heading's largest error 19.5 deg (<= 15), 0 reversals (<= 3), touchdown 1 m off the centre line (<= 3) at 1.44 m/s, rudder peak 0.95
+FAIL the Cub's crosswind roll-out at 5 m/s across: completed, the heading's largest error 28.5 deg (<= 15), 0 reversals (<= 3), touchdown 1.1 m off the centre line (<= 3) at 1.54 m/s, rudder peak 0.95
+GATE DMGTYRE: FAIL (2)
+exit 1 secs 389

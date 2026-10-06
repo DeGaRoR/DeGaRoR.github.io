@@ -5,8 +5,9 @@ Plots are written by `node tools/dmgrecal_evidence.js` from `data/`.
 
 | file | what | how it was measured |
 |---|---|---|
-| `gates_before.txt` / `gates_after.txt` | the 17 targeted gates, whole outputs (`run_gates --no-build --verbose --jobs=4 --only=...`) | base worktree / this branch, both built with `node tools/build.js` (exit 0) |
-| `gates_diff.txt` | the two, diffed (timings and progress lines dropped) | `diff` |
+| `gates_before/<ID>.txt` / `gates_after/<ID>.txt` | the 17 targeted gates (+ ROLLSND, whose loader this branch touched), whole outputs, `exit` and seconds appended | each gate run alone (`node tools/_<gate>_check.js`), two at a time a tree, in a worktree of 7846e790 / on this branch, both built with `node tools/build.js` (exit 0); `gates_after/DMGTYRE_show.txt`: the same gate with `--show` (its passing rows printed) |
+| `gates_diff.txt` | before against after, every gate (timings and core-file names dropped) | `diff` |
+| `gates_after/JOINPARITY.txt` | the final run, after the floatplanes' page re-capture (G2034b) | `node tools/_joinparity_check.js` |
 | `hull_side.svg`, `data/hull_law_*.json` | G2030: GATE DMGHULL's LAW bench at each float's hump pose - the side term over U w and the wetted keel stations against the slip angle | `node tools/_dmghull_check.js --child=law:<cessna|twin>` (this branch's gate), the file as written with `FLYDIY_RAW_BUILDS=1` |
 | `plough_hump.svg`, `data/plough_cessna_*.json` | G2032: the Cessna on floats' calm take-off - keel trim and R/W against C_V | `node tools/_dmgplough_check.js --child=xw:cessna:0:base` (game / `FLYDIY_RAW_BUILDS=1`) |
 | `data/plough_cessna_game_ballast1018.txt`, `data/plough_cessna_game_de.txt` | INSTRUMENT: the game's Cessna with every node's mass x1.07 (the file's 1018 kg, the CG kept); the stick through the plough (0.02: G396.4's neutral) | a scratch script stepping `makePilot` + `makeSim` on `L.defOf('floats')` |
