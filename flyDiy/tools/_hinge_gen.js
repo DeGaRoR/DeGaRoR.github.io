@@ -84,7 +84,9 @@ const flipF = F => ({ p: F.p, x: F.x, y: mul(F.y, -1), z: mul(F.z, -1) });
 // (a ray through the drawn surface); with it, each point of the tail sits
 // at the measured skin plus the gauge. Without it (the headless gate, a
 // page without the meshes), the cylinder stands in as before.
-function strapHalf(bag, F, S, dir, zOff) {
+// `noEye` (G2050): the strap's tail only - the second face of a two-faced
+// station, whose eye the first face's half already turned round the pin
+function strapHalf(bag, F, S, dir, zOff, noEye) {
   const r = S.r, t = S.t, w = S.w, reach = S.reach;
   const lie = r + t * 0.5 + 0.0008;             // the skin, plus the gauge
   const far0 = dir > 0 ? lie * 0.86 : lie;      // aft thins, forward does not
@@ -162,8 +164,9 @@ function strapHalf(bag, F, S, dir, zOff) {
   // 45 mm fin); the boss is no wider than the gap allows, and never under
   // the pin's own collar.
   const rEye = wallEnd ? Math.max(S.pinR * 1.3, Math.min(w * 0.42, dEdge - t * 0.6)) : w * 0.42;
-  revolve(bag, at(F, 0, 0, zOff - w * 0.5), F.z,
-    [[S.pinR * 1.05, 0], [rEye, 0], [rEye, w], [S.pinR * 1.05, w]], 14, false);
+  if (!noEye)
+    revolve(bag, at(F, 0, 0, zOff - w * 0.5), F.z,
+      [[S.pinR * 1.05, 0], [rEye, 0], [rEye, w], [S.pinR * 1.05, w]], 14, false);
   // two rivets down the tail, which is what says "riveted on" at 2 m. A DOME,
   // not GEAR_KIT's `bolt`: a hex head and a shank on a 4 mm rivet is 200
   // triangles nobody can resolve, and a hinge carries six of them.
@@ -187,11 +190,26 @@ function strapPin(bag, F, S, zOff, span) {
 // ONE STATION OF A STRAP HINGE: the airframe's half, the surface's half beside
 // it, and the pin through both. The two are offset along the hinge line by
 // just over their own width, which is the clearance that lets them pass.
-function strapHinge(bF, bM, F, S) {
-  const w = S.w, d = w * 0.55 + 0.0015;
-  strapHalf(bF, F, S, -1, -d);
-  strapHalf(bM, F, S, +1, +d);
-  strapPin(bF, F, S, 0, w * 2.4);
+// THE SECOND FACE IS THE SAME HINGE (G2050, JODEL-TAIL; the user, 6 Oct: "the
+// Jodel flickers at the tail, at the root of the stabs"). A rudder wears its
+// straps on both faces of the fin, and the layer drew the second face as a
+// whole second hinge on the flipped frame - and a flipped face flips the
+// frame's z (z = x * y), so that hinge's fixed half landed on the first one's
+// MOVING half: two pin bosses turned round the one pin, identical, one in the
+// fin's mesh and one in the rudder's. The rudder turns about that very axis,
+// so the pair stayed coincident at every deflection - a z-fight that no depth
+// buffer resolves, on every two-faced station of every aeroplane (the Jodel's
+// lowest sits on its stab root). A real fin hinge is one fitting a side: the
+// airframe's eye and the surface's eye, each with a strap leg on both faces
+// (a clevis round the spar). So `second` lays the second face's legs on the
+// SAME sides of the station as the first face's (the offsets reversed with
+// the frame's z) and turns no eye and drives no pin: the first face's are
+// the hinge's.
+function strapHinge(bF, bM, F, S, second) {
+  const w = S.w, d = (w * 0.55 + 0.0015) * (second ? -1 : 1);
+  strapHalf(bF, F, S, -1, -d, !!second);
+  strapHalf(bM, F, S, +1, +d, !!second);
+  if (!second) strapPin(bF, F, S, 0, w * 2.4);
 }
 
 // ---------------------------------------------------------------------------
@@ -254,9 +272,9 @@ function pianoHinge(bF, bM, F, S, len) {
 // the rivets are the strap's - which already follow the measured skin and
 // go round the cove's lip (G304).
 // ---------------------------------------------------------------------------
-function bracketHinge(bF, bM, F, S) {
+function bracketHinge(bF, bM, F, S, second) {
   const S2 = Object.assign({}, S, { w: S.bracketW || 0.025, reach: S.bracketReach || 0.035 });
-  strapHinge(bF, bM, F, S2);
+  strapHinge(bF, bM, F, S2, second);   // G2050: a fin's second face rides the first's eyes
 }
 
 // ---------------------------------------------------------------------------

@@ -1062,6 +1062,54 @@ console.log(`health: ${cases} cases (dorsal x root x keel x crease x ` +
   }
 }
 
+// §10 NO FOLD (G2050, JODEL-TAIL; the user, 6 Oct: "the Jodel flickers at
+// the tail, at the root of the stabs"). The Jodel's stab asked for its u row
+// below the root guard pair and its TE-root corner outboard of the u row and
+// forward of its chord; two control quads turned inside out and the
+// subdivided elevator lay over itself (41 faces, 1045 cm2 a side of
+// opposite-winding sheet, a z-fight on the double-sided skin). The rule: the
+// drawn sheet (subdivided, before the thickening - the measure's own input)
+// of every validated build's fin and stab has every face the same way round
+// in its plane (x = 0). A face with the other sign is a fold.
+const foldsOf = s => {
+  let n = 0, a = 0;
+  for (const f of s.F) {
+    const v = f.v.map(i => s.V[i]);
+    let A = 0;
+    for (let i = 0; i < v.length; i++) { const p = v[i], q = v[(i + 1) % v.length]; A += p[1] * q[2] - q[1] * p[2]; }
+    if (A < 0) { n++; a -= A / 2; }
+  }
+  return { n, a };
+};
+{
+  let SH = null;
+  try { SH = require('./_scene_headless.js'); } catch (e) { fail('§10: the headless scene: ' + e.message); }
+  if (SH) {
+    const BUILDS = [['jodel', '../builds/jodel_2026-09-20_corrected.json'], ['cub', '../builds/cub_2026-09-20_corrected.json'],
+                    ['cessna', '../builds/cessna172_2026-09-20_corrected.json'], ['cessna floats', '../bugReports/cessnaFloatsWOrks.json'],
+                    ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
+    const said = [];
+    for (const [name, file] of BUILDS) {
+      const r = SH.sceneBuild(SH.loadFixture(path.join(__dirname, file)).spec, {});
+      for (const [lay, L] of [['fin', r.W.CAGE_FIN], ['stab', r.W.CAGE_STAB]]) {
+        if (!L || !L.mesh || !L.mesh.F.length) { fail('§10: ' + name + ' drew no ' + lay); continue; }
+        const f = foldsOf(L.mesh);
+        if (f.n) fail('§10: ' + name + ' ' + lay + ' sheet folds over itself (' + f.n + ' faces, ' + f.a.toFixed(4) + ' cage units^2)');
+        said.push(name + ' ' + lay + ' ' + L.mesh.F.length);
+      }
+    }
+    // the counter must see a fold: one face of a good sheet turned over
+    {
+      const r = SH.sceneBuild(SH.loadFixture(path.join(__dirname, BUILDS[0][1])).spec, {});
+      const m = r.W.CAGE_STAB.mesh, base = foldsOf(m).n;
+      const k = m.F.findIndex(f => foldsOf({ V: m.V, F: [f] }).n === 0);
+      const F = m.F.map((f, i) => i !== k ? f : Object.assign({}, f, { v: f.v.slice().reverse() }));
+      if (foldsOf({ V: m.V, F }).n !== base + 1) fail('§10 selftest: one face turned over is not counted as a fold');
+    }
+    console.log('§10: folds counted in ' + said.length + ' sheets (' + said.join(', ') + ' faces)');
+  }
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 console.log('GATE FIN: ' + (anyFail ? 'FAIL' : 'PASS'));

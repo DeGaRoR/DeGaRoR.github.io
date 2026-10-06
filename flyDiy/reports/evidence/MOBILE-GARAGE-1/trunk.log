@@ -1,0 +1,5 @@
+[0.7s] nav http://127.0.0.1:44251/flyDiy/index.html?day=afternoon mobile emulation 390x844 @3
+[19.6s] still reports/evidence/MOBILE-GARAGE-1/trunk_loading.jpg
+[188.9s] garage {"profile":"desktop","steps":24,"world":"jolene","preset":"potato"}
+[209.4s] still reports/evidence/MOBILE-GARAGE-1/trunk_trunk.jpg
+PHONE_STILL {"mode":"trunk under mobile emulation","size":[390,844],"dpr":3,"errors":[],"t":{"garage":186.8,"total":209.4},"wire":{"world":57115774,"all":74616883,"n":1064},"heap":{"garage":179.5,"peak":257.9},"checks":{},"profile":"desktop","htmlPhone":false,"steps":["treeBins","aircraft","garage","editor","seed","world","town","parking","trees","ring","settle","parked","snapshot","bake","spec","restore","images","upload","worldCompile","compile","firstFrame","frames","craft","recheck"],"world":"jolene","simWorker":true,"preset":"potato","soft":true,"phoneRows":null,"stills":["reports/evidence/MOBILE-GARAGE-1/trunk_trunk.jpg"]}

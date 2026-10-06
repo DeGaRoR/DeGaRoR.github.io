@@ -131,6 +131,7 @@
       if (!ready) return;
       const tg = AF.airframeStep(P, st, dt);
       const lag = api.lagS ? api.lagS[0] : 0, t = ctx.currentTime + lag;   // SND-SPACE: heard when its sound arrives
+      const tau = api.tauS && api.tauS[0] > TAU ? api.tauS[0] : TAU;   // G1724: the frame's tau (src_engine.js)
       if (tg[T.stall] > 0) {
         stallClk[0] += dt;
         if (!(stallClk[1] > 0) || stallClk[0] >= STALL_EMIT_S) { stallClk[0] = 0; stallClk[1] = 1; api.emit('stall', 1); }
@@ -140,7 +141,7 @@
       for (let i = 0; i < NP; i++) {
         const v = tg[i];
         if (v === last[i]) continue;
-        if (discrete[i]) params[i].setValueAtTime(v, t); else params[i].setTargetAtTime(v, t, TAU);
+        if (discrete[i]) params[i].setValueAtTime(v, t); else params[i].setTargetAtTime(v, t, tau);
         last[i] = v;
       }
       // the events: a one-shot recording when its key resolved (asked on the first such event), the procedural always

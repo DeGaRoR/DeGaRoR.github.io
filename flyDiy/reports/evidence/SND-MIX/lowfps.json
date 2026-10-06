@@ -1,0 +1,29 @@
+[
+ {
+  "build": "jodel",
+  "dt": 0.016666666666666666,
+  "tau": 0.03,
+  "slopeOverRamp": 1.26,
+  "maxStepDb": 4.13,
+  "stepsOver1dB": 132,
+  "tag": "60fps"
+ },
+ {
+  "build": "jodel",
+  "dt": 0.33,
+  "tau": 0.03,
+  "slopeOverRamp": 10.55,
+  "maxStepDb": 4.13,
+  "stepsOver1dB": 138,
+  "tag": "3fps_tau30ms"
+ },
+ {
+  "build": "jodel",
+  "dt": 0.33,
+  "tau": 0.198,
+  "slopeOverRamp": 2.04,
+  "maxStepDb": 4.13,
+  "stepsOver1dB": 153,
+  "tag": "3fps_frametau"
+ }
+]

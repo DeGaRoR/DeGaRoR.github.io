@@ -143,11 +143,13 @@
   // Everything that reads or writes depth by hand asks FLYDIY_DEPTH: the clouds' march and
   // composite, the post passes, the far cascade and the canopy cover.
   const RZ = (typeof window !== 'undefined' && typeof document !== 'undefined' && !window.FLYDIY_RENDERER && !(typeof location !== 'undefined' && /[?&]depth=log/.test(location.search))) && (() => {
-    try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); const ok = !!(g && g.getExtension('EXT_clip_control'));
+    try { const c = document.createElement('canvas'), g = c.getContext('webgl2', { powerPreference: 'high-performance' }); const ok = !!(g && g.getExtension('EXT_clip_control'));
       const lose = g && g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); return ok; } catch (e) { return false; } })();
   if (typeof window !== 'undefined') window.FLYDIY_DEPTH = window.FLYDIY_RENDERER ? 'node' : RZ ? 'reversed' : 'log';
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
-    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
+    // G1997b (A0, the laptop's ?diag: the context said powerPreference 'default'): a game asks for the HIGH-PERFORMANCE GPU - on a
+    // hybrid / laptop machine the fast GPU and its fast path; one GPU, nothing changes (the probes above and welcome.js ask the same)
+    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
@@ -4238,14 +4240,101 @@
 
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
-  // the ground it stands on - contact_shadow.js says why and how. In the world only: the hangar has its own floor.
-  let contactMesh = null;
+  // the ground it stands on - contact_shadow.js says why and how.
+  // G2055 (WHEEL-AO): a core (the tyre's footprint) and a halo per tyre, the footprint sized from the drawn tyre's own
+  // width (measured once a model, tyreWidths) and its deflection; and on THE SHED'S FLOOR too - the cage build's own
+  // contacts (CAGE_GEAR, through the mount edSitP) while it stands, the flown model's wheels (sim.p through `craft`,
+  // which the roll-out shot moves) otherwise. Two meshes, one per scene, ONE material program; both made here at load
+  // and left in their scenes hidden, so the world's and the garage's compile steps link it (no link on first contact).
+  let contactMesh = null, contactMeshG = null;
+  function contactMeshes() {
+    if (contactMesh || typeof CONTACT_SHADOW === 'undefined' || !THREE.InstancedMesh || !THREE.InstancedBufferAttribute) return;
+    try {
+      contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh);
+      contactMeshG = CONTACT_SHADOW.make(THREE); contactMeshG.name = 'contact:blobs:shed'; hangarScene.add(contactMeshG);
+    } catch (e) { contactMesh = contactMeshG = null; }
+  }
+  contactMeshes();
+  // the drawn tyre's width per wheel node: its parts' box along the axle (the wheel spins about its local z, poseModel)
+  function tyreWidths() {
+    if (!model || !model.wheelParts) return null;
+    if (model.csTyreW !== undefined) return model.csTyreW;
+    const out = {}, inv = new THREE.Matrix4(), m4 = new THREE.Matrix4(), bb = new THREE.Box3(), b1 = new THREE.Box3();
+    try {
+      for (const w of model.wheelParts) {
+        if (!w.obj || !w.obj.traverse || !w.obj.updateWorldMatrix || !(w.R > 0)) continue;
+        w.obj.updateWorldMatrix(true, true);
+        inv.copy(w.obj.matrixWorld).invert(); bb.makeEmpty();
+        w.obj.traverse(o => {
+          if (!o.isMesh || !o.geometry) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          b1.copy(o.geometry.boundingBox).applyMatrix4(m4.multiplyMatrices(inv, o.matrixWorld)); bb.union(b1);
+        });
+        const W = bb.max.z - bb.min.z;
+        if (Number.isFinite(W) && W > 0.02 && W < 2.5 * w.R) out[w.idx] = W;
+      }
+    } catch (e) { return (model.csTyreW = null); }
+    return (model.csTyreW = out);
+  }
+  const csV = THREE.Vector3 ? new THREE.Vector3() : null, csA = THREE.Vector3 ? new THREE.Vector3() : null, csWheels = [];
+  function shedContacts() {
+    const fy = hangar.group.position.y, ground = { h: () => fy };
+    csWheels.length = 0;
+    const G = window.CAGE_GEAR;
+    if (edSit.visible && G && G.contacts && G.contacts.length) {
+      // the cage build stands: its contacts (axle, R) in the build's own frame, through the mount
+      edSitP.updateWorldMatrix(true, false);
+      // the tyres' width over radius off the generated model's drawn wheels (the same build), else the module's
+      const M = edSitP.matrixWorld, tW = tyreWidths();
+      let wr = 0, nw = 0;
+      if (tW && def && def.nodes) for (const k in tW) { const r = def.nodes[k] && def.nodes[k].r; if (r > 0) { wr += tW[k] / r; nw++; } }
+      for (const c of G.contacts) {
+        csV.set(c.p[0], c.p[1], c.p[2]).applyMatrix4(M);
+        csWheels.push({ x: csV.x, y: csV.y, z: csV.z, R: c.R, W: nw ? c.R * wr / nw : 0 });
+      }
+      csA.set(0, 0, 1).transformDirection(M);
+      return CONTACT_SHADOW.blobsAt(csWheels, ground, { axis: [csA.x, csA.z] });
+    }
+    const F = window.CAGE_FLOAT;
+    if (edSit.visible && F && F.P && Number.isFinite(F.gy) && Number.isFinite(F.track)) {
+      // a seaplane in the shed stands level on its keels: each float's flat (its end to the step: z from the step
+      // forward in the cage frame, float x aft = cage -z) on the floor
+      edSitP.updateWorldMatrix(true, false);
+      const M = edSitP.matrixWorld, Lf = Math.max(0.2, (+F.P.flatK || 0.5) * (+F.P.xs || 1)), B = +F.P.B || 0.5, out = [];
+      csA.set(0, 0, 1).transformDirection(M);
+      for (const sd of [-1, 1]) {
+        csV.set(sd * F.track, F.gy, F.zStep + 0.5 * Lf).applyMatrix4(M);
+        const b = CONTACT_SHADOW.keelBlob({ x: csV.x, z: csV.z, ax: [csA.x, csA.z], L: Lf, W: 0.12 * B, B }, csV.y - fy, fy);
+        if (b) out.push(b);
+      }
+      return out;
+    }
+    if (!sim || !def || !def.refs || !model || !model.grp || !model.grp.visible || sim.hydro) return [];
+    // the flown model: its wheel nodes through `craft` (identity, but for the roll-out shot's move)
+    craft.updateWorldMatrix(true, false);
+    const M = craft.matrixWorld, R = def.refs, tW = tyreWidths();
+    for (const i of (R.mains || []).concat(R.tw != null && R.tw >= 0 ? [R.tw] : [])) {
+      csV.set(sim.p[i * 3], sim.p[i * 3 + 1], sim.p[i * 3 + 2]).applyMatrix4(M);
+      csWheels.push({ x: csV.x, y: csV.y, z: csV.z, R: def.nodes[i].r || 0.1, W: tW && tW[i] > 0 ? tW[i] : 0 });
+    }
+    const xA = sim.axes()[0];
+    csA.set(xA[0], xA[1], xA[2]).transformDirection(M);
+    return CONTACT_SHADOW.blobsAt(csWheels, ground, { axis: [csA.x, csA.z] });
+  }
   function contactShadows() {
     const CS = CONTACT_SHADOW;
-    if (inGarage || !CS.S.on || !sim || !def || !world || !world.terrainH) { if (contactMesh) contactMesh.visible = false; return; }
-    if (!contactMesh) { contactMesh = CS.make(THREE); scene.add(contactMesh); }
+    if (!contactMesh) return;
+    if (!CS.S.on) { contactMesh.visible = contactMeshG.visible = false; return; }
+    if (inGarage) {
+      contactMesh.visible = false;
+      if (!hangar || !hangar.group) { contactMeshG.visible = false; return; }
+      CS.update(THREE, contactMeshG, shedContacts());
+      return;
+    }
+    contactMeshG.visible = false;
+    if (!sim || !def || !world || !world.terrainH) { contactMesh.visible = false; return; }
     const xA = sim.axes()[0];
-    CS.update(THREE, contactMesh, CS.blobsFor(sim, def, world, { axis: [xA[0], xA[2]] }));
+    CS.update(THREE, contactMesh, CS.blobsFor(sim, def, world, { axis: [xA[0], xA[2]], tyreW: tyreWidths() }));
   }
   function applySkinVis() {
     const b = $('bSkin'), has = !!model;
@@ -4549,25 +4638,21 @@
   // it unbounded. (Until the fleet retired, 2026-09-05, 'auto' also meant
   // "classic under a fiche" — there is no fiche now, so 'auto' is 'test'.)
   // G202: 'auto' is THE PILOT (43_pilot.js) in its normal style; 'cautious'
-  // and 'brisk' are its other two; 'test' keeps the G107 test pilot for A/B
-  // and 'classic' the unbounded autopilot.
+  // and 'brisk' are its other two. G1940 (PILOT-ONE): the G107 test pilot
+  // ('test') and the classic autopilot ('classic') RETIRED - one pilot; a
+  // choice of either (an old page, a link) flies THE PILOT's normal style.
   let pilotChoice = 'auto';
   // G202.1: ONE navigator for the flight screen (the aerodromes as its
   // database), handed to every pilot so the AP box's NAV mode has a plan
   let flNav = null;
   const mkPilot = () => {
-    if (pilotChoice === 'classic') return makeAutopilot(sim, def, world);
-    if (pilotChoice === 'test' && typeof makeTestPilot === 'function') return makeTestPilot(sim, def, world);
-    if (typeof makePilot === 'function') {
-      // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
-      // memoised one (shakeOf), handed as a getter — a TDZ before the bench
-      // block runs reads as "no shakedown yet", never as a throw
-      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice,
-                                             shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
-      if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
-      return p;
-    }
-    return makeTestPilot(sim, def, world);
+    // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
+    // memoised one (shakeOf), handed as a getter — a TDZ before the bench
+    // block runs reads as "no shakedown yet", never as a throw
+    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal',
+                                           shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
+    if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
+    return p;
   };
   if ($('selPilot')) $('selPilot').onchange = e => {
     pilotChoice = e.target.value;
@@ -4616,11 +4701,37 @@
   // `craft` in world coordinates. Nothing here touches the physics.
   const SPRAY_N = 600, WAKE_N = 48;
   let waterFx = null;
+  // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - a build without floats meets the water on its belly, its flying
+  // surfaces and its tyres (32_hydro.js wetBuild), so it gets the floats' sprite batch too: ONE pool for the page
+  // (it does not depend on the aeroplane; a garage commit never re-makes it), HIDDEN while nothing is in the air (no
+  // draw, no upload, the integration skipped: a dry flight's frame is the base's). It lives in the WORLD scene, not on
+  // `craft` (its particles are world coordinates either way): three's compile() walks EVERY material under the object it
+  // is given, hidden or not, and the boot compiles the craft in several states (the early craft compile and its band
+  // twins, the shed's snapshot, the bakes) - on `craft` the pool linked 8 programs in the garage's steps (GATE FRAMECOST,
+  // the Cub). In the world scene its one program is linked by the roll-out's world compile, under the screen - never on
+  // the first contact.
+  const WET_N = 1500;
+  let wetPool = null;
+  function wetPoolGet() {
+    if (wetPool || !window.SPRAY || !THREE.InstancedBufferGeometry) return wetPool;
+    wetPool = SPRAY.make(THREE, WET_N); wetPool.mesh.visible = false;
+    scene.add(wetPool.mesh);
+    return wetPool;
+  }
   function buildWaterFx() {
-    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
+    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { if (waterFx.shared && o === waterFx.pts) { o.visible = false; continue; } craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
       if (waterFx.drops.sheets) { craft.remove(waterFx.drops.sheets.mesh); waterFx.drops.sheets.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
-    if (!HY) return;
+    if (!HY) {   // G2090: the wet body's (the solver builds it at the water's edge; sim.wetFx hands its contacts)
+      const pool = typeof sim.wetFx === 'function' ? wetPoolGet() : null;
+      if (!pool) return;
+      pool.mesh.visible = false;
+      const NP = pool.n;
+      const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
+        size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray: pool, sheets: null, live: 0 };
+      waterFx = { pts: pool.mesh, drops, ribbons: [], t: 0, wasWet: [], vyPrev: [], shared: true, wet: wetFxState(), wetUntil: 0 };
+      return;
+    }
     const nF = HY.floats.length;
     // THE SPRITES (H7.1, G460.9): spray.js's instanced quad batch - lit, soft, motion-stretched, two kinds
     // (droplets and puffs); the Points (0.1 m additive squares) are the fallback without the module
@@ -4638,7 +4749,7 @@
     let sheets = null;
     if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 8, 6); craft.add(sheets.mesh); }
     const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
-      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets };
+      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets, live: 0 };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
     // as foam and ripples in the surface itself; the ribbon's list stays empty so its readers hold
     const ribbons = [];
@@ -4652,6 +4763,7 @@
     D.p[q * 3] = x; D.p[q * 3 + 1] = y; D.p[q * 3 + 2] = z; D.v[q * 3] = vx; D.v[q * 3 + 1] = vy; D.v[q * 3 + 2] = vz;
     D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
     D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
+    D.live++;   // G2090: the batch is drawn while anything lives (the integration recounts)
   }
   // THE ONE EMITTER ANYTHING ELSE MAY USE (2026-09-22): the whales' splash and
   // blow come through here, so there is one spray batch and one budget in the
@@ -4660,11 +4772,147 @@
   window.FLYDIY_SPRAY = (kind, x, y, z, vx, vy, vz) => {
     if (waterFx && waterFx.drops) sprayEmit(waterFx.drops, kind, x, y, z, vx, vy, vz);
   };
+  // ---- G2090 (WATER-LOOK): THE WET BODY SEEN - spray, wake, splash and bubbles off the physics' own contacts ---------
+  // The floats' law for everything else the water meets (GEAR-WATER 2's item 3): the solver's wet-body pass sums, per
+  // contact GROUP - a hull slice and its faces, a flying-surface strip (a wing tip in the water is its outer strips), a
+  // tyre - the wet area, its centroid, outward normal and velocity, the dynamic pressure, the horizontal drag, the slam
+  // peak since the page last read it, the submerged share and the fill (32_hydro.js wetFx; under the physics worker the
+  // snapshot carries it, sim_link.js hands each peak once). Nothing here is authored and nothing here triggers itself:
+  //   THE ENTRY (a ditching's splash, a tyre or a wing tip striking): the slam's peak read as the entry's sink speed -
+  //     pk = 1/2 rho (pi^2 / (2 tan beta)) Vd^2 at the deadrise floor (10 deg; a V'd face reads a slower entry), or the
+  //     face's own sink when it first goes wet - sizes a crater ring in the field, a crown of droplets thrown out and
+  //     forward with the body (the ditch's spray runs ahead) and a few puffs of mist; at most one a group every 0.2 s.
+  //   THE PLOUGH'S SPRAY: the power the water takes (drag x speed) thrown as droplets off the wet centroid - across
+  //     the motion on the side the wet faces look to, up with the speed; a tyre throws its side fans and a rooster tail.
+  //   THE WAKE: each wet group presses the field toward its draft (the floats' press), foam with the power - the trail
+  //     the field carries; the heaviest groups first (the field takes 16 stamps a frame).
+  //   THE BUBBLES (a sinking aeroplane): a flooding slice or wing slab lets its air go as its fill rises -
+  //     air x df / dt, m3/s - and that air boils up at the surface over it: a pop a litre, each a few fine droplets and
+  //     a speck of foam. A slice draining (rising) lets none.
+  // Zero when dry: no contacts, nothing alive -> the batch hidden, nothing integrated; the field asked for 10 s past
+  // the last contact (the wake decays in the field, then the field is let go).
+  const WFX_R = 18, WFX_H = 5, WFX_SLAM_K = 0.5 * 1000 * Math.PI * Math.PI / (2 * Math.tan(10 * Math.PI / 180));
+  // G2093 THE SPLASH'S RING FROM ITS ENERGY (the user, on the damage tests on the water: "the waves are cool, but they seem a
+  // little out of proportion"). The crater a touchdown stamps was its sink speed times a constant - 0.3 m a m/s, capped at
+  // 1.2 m (the floats since G460.8; the wet body copied it): a 2.3 m/s float touchdown dug 0.69 m, and an aeroplane bobbing
+  // after a ditching re-stamped one on every re-entry. Now the depth is what the entry's energy can raise: the water the
+  // wet patch sets moving (its added mass, a plate's ~0.4 rho A^1.5) at the sink speed, E = 1/2 m_a v^2, a share ETA of it
+  // radiated as the ring (INFERRED: the rest is the spray and the turbulence), and a ring of radius r holding E_ring as
+  // 1/2 rho g a^2 pi r^2: a = sqrt(ETA E / (1/2 rho g pi r^2)), capped at 0.5 m. A 2.3 m/s float touchdown 0.06 m, a Cub's
+  // 4 m/s belly slice ~0.1 m; a 0.5 m/s bob ~1 cm. ?splash=old: the old law (the before / after on one tree).
+  const SPLASH_ETA = 0.3, SPLASH_OLD = (() => { try { return /[?&]splash=old(&|$)/.test(location.search || ''); } catch (e) { return false; } })();
+  function splashDepth(A, v, r, kOld) {
+    if (SPLASH_OLD) return Math.min(1.2, kOld * v);
+    const ma = 1000 * 0.4 * Math.pow(Math.max(0.05, A), 1.5), E = 0.5 * ma * v * v;
+    return Math.min(0.5, Math.sqrt(SPLASH_ETA * E / (0.5 * 1000 * 9.81 * Math.PI * r * r)));
+  }
+  function wetFxState() { return { buf: null, any: false, gN: 0, seen: new Uint8Array(64), mark: new Uint32Array(64), fPrev: new Float32Array(64),
+    pk: new Float32Array(64), burst: new Float32Array(64).fill(-9), carry: new Float32Array(64), carryB: new Float32Array(64), frame: 0, order: [], last: null }; }
+  function wetGrow(W, g) {
+    if (g < W.seen.length) return;
+    const n = Math.max(g + 1, W.seen.length * 2), gr = (a, T, f) => { const b = new T(n); if (f) b.fill(f); b.set(a); return b; };
+    W.seen = gr(W.seen, Uint8Array); W.mark = gr(W.mark, Uint32Array); W.fPrev = gr(W.fPrev, Float32Array);
+    W.pk = gr(W.pk, Float32Array); W.burst = gr(W.burst, Float32Array, -9); W.carry = gr(W.carry, Float32Array); W.carryB = gr(W.carryB, Float32Array);
+  }
+  function wetEmit(dt) {
+    const W = waterFx.wet, D = waterFx.drops;
+    const b = typeof sim.wetFx === 'function' ? sim.wetFx(W.buf) : null;
+    if (b) W.buf = b;
+    const n = b ? b[0] : 0;
+    W.last = b && n ? b : null;
+    if (!n) { if (W.any) { W.seen.fill(0); W.any = false; } return false; }
+    W.any = true; waterFx.wetUntil = performance.now() + 10000;
+    const fr = ++W.frame, now = waterFx.t, run = dt > 0;
+    const WT = window.WATER && WATER.stamp && WATER.field ? WATER : null;
+    // the heaviest groups stamp first: the field folds 16 a frame (the float press and the whales share them)
+    const ord = W.order; ord.length = 0;
+    for (let i = 0; i < n; i++) ord.push(i);
+    ord.sort((x, y) => b[WFX_H + y * WFX_R + 14] - b[WFX_H + x * WFX_R + 14]);
+    let stamps = 10;
+    const PR = W.press || (W.press = { a: 0, x: 0, z: 0, w: 0 }); PR.a = PR.x = PR.z = PR.w = 0;
+    for (const i of ord) {
+      const o = WFX_H + i * WFX_R, g = b[o], kind = b[o + 1], A = b[o + 2];
+      const cx = b[o + 3], cy = b[o + 4], cz = b[o + 5], nx = b[o + 6], nz = b[o + 8];
+      const ux = b[o + 9], uy = b[o + 10], uz = b[o + 11], pk = b[o + 13], drag = b[o + 14], wetS = b[o + 15], f = b[o + 16], air = b[o + 17];
+      wetGrow(W, g); W.mark[g] = fr;
+      const h0 = world.waterH ? world.waterH(cx, cz) : NaN, h = Number.isFinite(h0) ? h0 : cy;
+      const V = Math.hypot(ux, uz), P = drag * V, rA = Math.sqrt(Math.max(0.05, A));
+      // THE ENTRY: the slam's sink speed, or the face's own when the group first goes wet
+      let vI = pk > 0 ? Math.sqrt(pk / WFX_SLAM_K) : 0;
+      if (!W.seen[g] && A > 0 && -uy > vI) vI = -uy;
+      if (vI > W.pk[g]) W.pk[g] = vI;
+      if (run && W.pk[g] > 0.4 && now - W.burst[g] > 0.2) {
+        const vy = W.pk[g]; W.pk[g] = 0; W.burst[g] = now;
+        const r = Math.max(0.5, rA) * (1 + 0.3 * Math.min(3, vy));
+        if (WT && stamps > 0) { WT.stamp(cx, cz, r, -splashDepth(A, vy, r, 0.25), Math.min(1, 0.4 + 0.2 * vy), 'ring'); stamps--; }   // (G2093: from the entry's energy)
+        const burst = Math.min(220, Math.round(35 * vy * Math.min(2, rA))), puffs = Math.min(16, Math.round(3 * vy * Math.min(2, rA)));
+        const s = Math.min(3, 0.6 * vy);
+        for (let j = 0; j < burst; j++) {
+          const a = Math.random() * 6.2832, rr = r * (0.4 + 0.6 * Math.random()), out = (1.2 + 2.4 * Math.random()) * s;
+          sprayEmit(D, 0, cx + Math.cos(a) * rr, h + 0.05, cz + Math.sin(a) * rr,
+            Math.cos(a) * out + ux * 0.35 * Math.random(), (1 + 2 * Math.random()) * s, Math.sin(a) * out + uz * 0.35 * Math.random());
+        }
+        for (let j = 0; j < puffs; j++) {
+          const a = Math.random() * 6.2832, rr = r * (0.2 + 0.6 * Math.random());
+          sprayEmit(D, 1, cx + Math.cos(a) * rr, h + 0.2, cz + Math.sin(a) * rr, Math.cos(a) * 0.8 * s + ux * 0.15, 0.5 + 0.8 * Math.random() * s, Math.sin(a) * 0.8 * s + uz * 0.15);
+        }
+      }
+      // THE PLOUGH'S SPRAY: the water's power (W) as droplets - 1 a second per 150 W, 400 at most a group
+      if (run && A > 0 && V > 1.5 && P > 0) {
+        const rate = Math.min(400, P / 150) * dt + W.carry[g];
+        let m = Math.floor(rate); W.carry[g] = rate - m;
+        const sx = -uz / V, sz = ux / V, ns = nx * sx + nz * sz;
+        const uo = Math.min(12, 0.42 * V), uu = Math.min(kind === 2 ? 4.5 : 3.5, (kind === 2 ? 0.3 : 0.24) * V);
+        for (let j = 0; j < m; j++) {
+          const side = kind !== 2 && Math.abs(ns) > 0.3 ? Math.sign(ns) : (Math.random() < 0.5 ? -1 : 1);   // (a tyre's normal is the axle: both fans)
+          const px = cx + (Math.random() - 0.5) * rA, pz = cz + (Math.random() - 0.5) * rA;
+          if (kind === 2 && Math.random() < 0.3) {   // the tyre's rooster tail: up behind it, barely carried
+            sprayEmit(D, 0, px, h + 0.05, pz, ux * 0.12 + (Math.random() - 0.5), Math.min(5, 0.4 * V) * (0.6 + 0.5 * Math.random()), uz * 0.12 + (Math.random() - 0.5));
+            continue;
+          }
+          const k = 0.7 + 0.4 * Math.random();
+          sprayEmit(D, 0, px, h + 0.05, pz, side * sx * uo * k + ux * 0.25, uu * (0.6 + 0.6 * Math.random()), side * sz * uo * k + uz * 0.25);
+        }
+        if (m > 0 && Math.random() < m / 12) sprayEmit(D, 1, cx, h + 0.15, cz, ux * 0.1 + sx * (Math.random() - 0.5) * 2, 0.3 + 0.4 * Math.random(), uz * 0.1 + sz * (Math.random() - 0.5) * 2);
+      }
+      // THE WAKE: the wet footprint presses the field toward its draft ONCE (summed here, stamped after the loop - G2093:
+      // a press a group, up to ten overlapping, each pulled the surface half-way to its depth a frame: together they
+      // overshot and pumped the coarse level to 1.6 m in a Cub's ditch); each group's white water is a foam stamp (no
+      // height), with the power (a group sunk a metre under neither presses nor foams)
+      if (A > 0 && h - cy < 1) {
+        PR.a += A; PR.x += A * cx; PR.z += A * cz; PR.w += A * Math.min(1, wetS);
+        if (WT && stamps > 1 && V > 2 && P > 3000) { WT.stamp(cx, cz, Math.min(2.5, Math.max(0.3, 0.8 * rA)), 0, Math.min(1, P / 30000), 'foam'); stamps--; }
+      }
+      // THE BUBBLES: the air a flooding slice or slab lets go (m3/s), a pop a litre, boiling up over it
+      if (run && kind !== 2 && air > 0 && wetS > 0.3) {
+        const df = f - W.fPrev[g];
+        if (df > 0) {
+          const pops = Math.min(30 * dt, air * df / 0.001) + W.carryB[g];
+          let m = Math.floor(pops); W.carryB[g] = pops - m;
+          for (let j = 0; j < m; j++) {
+            const px = cx + (Math.random() - 0.5) * 1.2 * rA, pz = cz + (Math.random() - 0.5) * 1.2 * rA, nd = 4 + Math.floor(Math.random() * 5);
+            for (let q = 0; q < nd; q++) { const a = Math.random() * 6.2832, sp = 0.2 + 0.5 * Math.random();
+              sprayEmit(D, 0, px, h + 0.02, pz, Math.cos(a) * sp, 0.5 + 1.1 * Math.random(), Math.sin(a) * sp); }
+            // the boil: a foam patch with a small ring every pop (G2094: at a pop a litre a sinking Cub lets 2-3 a second go - droplets alone did not read from 20 m)
+            if (WT && stamps > 0) { WT.stamp(px, pz, 0.35 + 0.35 * Math.random(), -0.02, 0.9, 'ring'); stamps--; }
+          }
+        }
+      }
+      W.fPrev[g] = f; W.seen[g] = A > 0 ? 1 : 0;
+    }
+    if (WT && PR.a > 0) { const x = PR.x / PR.a, z = PR.z / PR.a, hw = world.waterH ? world.waterH(x, z) : NaN;
+      if (Number.isFinite(hw)) WT.stamp(x, z, Math.min(3, Math.max(0.5, 0.7 * Math.sqrt(PR.a))), -0.04 - 0.10 * (PR.w / PR.a), 0, 'press'); }
+    for (let g = 0; g < W.seen.length; g++) if (W.mark[g] !== fr) W.seen[g] = 0;   // a group not in contact this read is dry
+    return true;
+  }
   function syncWaterFx(dt) {
-    if (!waterFx || !sim || !sim.hydro) return;
+    if (!waterFx || !sim) return;
     const HY = sim.hydro, D = waterFx.drops, G = 9.81;
+    // G2090: a build without floats - the wet body's contacts; nothing wet and nothing in the air: nothing to do
+    const tW = waterFx.shared && (D.live || waterFx.wet.any) ? performance.now() : 0;   // (the wet body's cost while active, WATER_FX.fx.ms: the rig names it; no clock read when dry)
+    if (!HY && !(waterFx.wet && wetEmit(dt)) && !D.live) { if (waterFx.pts.visible) waterFx.pts.visible = false; waterFx.ms = 0; return; }
     waterFx.t += dt;
-    for (let k = 0; k < HY.floats.length; k++) {
+    for (let k = 0; HY && k < HY.floats.length; k++) {
       const fx = HY.floats[k], F = fx.F, out = fx.out;
       const WT = window.WATER && WATER.field && WATER.field.on ? WATER : null;
       if (!fx.wet) { waterFx.wasWet[k] = false; if (D.sheets) { D.sheets.hide(k * 2); D.sheets.hide(k * 2 + 1); } continue; }
@@ -4688,7 +4936,7 @@
         if (!waterFx.wasWet[k]) {
           const vy = -Math.min(0, vK[1]);
           if (vy > 0.4) {
-            const amp = Math.min(1.2, 0.3 * vy), r = beam * (1.2 + 0.4 * Math.min(3, vy));
+            const r = beam * (1.2 + 0.4 * Math.min(3, vy)), amp = splashDepth(beam * beam, vy, r, 0.3);   // G2093: the step's patch (beam^2) entering at vy - from its energy
             WT.stamp(eK[0], eK[2], r, -amp, Math.min(1, 0.4 + 0.2 * vy), 'ring');
             // the crown: many FINE droplets thrown out and a little up along the ring (a first cut of 25 per m/s at
             // 4-12 cm read as popcorn, h7w/splash.png), the mist in fewer, slower puffs under them
@@ -4754,8 +5002,10 @@
     const S = D.spray, sp = S ? null : waterFx.pts.geometry.attributes.position.array;
     const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD;
     const wH = (x, z) => { const h = world.waterH ? world.waterH(x, z) : 0; return Number.isFinite(h) ? h : -1e9; };
+    let live = 0;
     for (let q = 0; q < D.age.length; q++) {
       if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
+      live++;
       const K = D.kind[q] ? KP : KD;
       D.age[q] += dt;
       // THE DRAG RELAXES TOWARD THE AIR, not toward nothing (CLIMATE K4). A
@@ -4773,6 +5023,8 @@
       if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
       else { sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2]; }
     }
+    D.live = live;
+    if (waterFx.shared) waterFx.pts.visible = live > 0;   // G2090: the wet body's pool drawn only while anything lives
     if (S) {
       S.commit();
       if (D.sheets) D.sheets.commit(waterFx.t);
@@ -4780,6 +5032,7 @@
       if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
         S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); if (D.sheets) D.sheets.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
     } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
+    if (tW) waterFx.ms = performance.now() - tW;
   }
   const sunIrr = new THREE.Color(), skyIrr = new THREE.Color();
   // WATER_FX.burst(x, z, n, vy): a splash's spray by hand at (x, water level, z) - the rig's and the dev panel's door
@@ -5031,6 +5284,12 @@
   // Flight and the plain stand view keep left-drag orbit only.
   const edPan = new THREE.Vector3();
   let panD = null;
+  // G2101 (MOBILE-GARAGE 1): THE PHONE'S VIEW GESTURES (profile.js ui 'touch'; on the desktop profile false and nothing
+  // below changes). One finger orbits and two pinch, as ever; on the phone the two fingers also PAN the orbit centre in
+  // the screen plane (the mouse's middle / right drag - R20), a pinch's end never jumps the orbit (the finger left
+  // standing takes over from where it is), and a double tap re-centres (the mouse's dblclick)
+  const TOUCH_UI = !!(typeof window !== 'undefined' && window.PROFILE && window.PROFILE.is && window.PROFILE.is('ui', 'touch'));
+  let pinchMid = null, tapT = 0;
   canvas.addEventListener('pointerdown', e => {
     flReveal = 0;                      // a hand on it ends the roll-out shot
     if (!inGarage && director.on) director.stop();   // A9: ...and the director's cuts
@@ -5054,6 +5313,7 @@
     if (touches.size === 2) {
       const [a, b] = [...touches.values()];
       pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = dist;
+      if (TOUCH_UI) { pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, base: edPan.clone() }; downAt = null; }   // G2101: two fingers are never a tap
     }
   });
   canvas.addEventListener('contextmenu', e => {
@@ -5157,7 +5417,9 @@
   let downAt = null;
   const HOVER_MS = 110;
   let hoverT = 0;
-  const endTouch = e => { panD = null; touches.delete(e.pointerId); };
+  const endTouch = e => { panD = null; touches.delete(e.pointerId);
+    // G2101: the finger left standing after a pinch orbits from where it IS (it was a jump to its old place)
+    if (TOUCH_UI) { pinchMid = null; if (touches.size === 1) { const [r] = [...touches.values()]; px = r.x; py = r.y; } } };
   // THE SWITCHES WORK IN THE SHED'S INTERIOR (G305, the user: "the controls
   // should be triggerable like in flight in interior view, so I could also
   // test the buttons, their effect, the lighting"). From the pilot's eye a
@@ -5189,6 +5451,9 @@
   // (a declaration, hoisted: loop() asks it too)
   function bbProp() { return (inGarage && hangar && hangar.mobileProp) ? hangar.mobileProp('boombox') : null; }
   canvas.addEventListener('pointerup', e => {
+    // G2101: a double tap on the phone re-centres the orbit, as the mouse's dblclick does (a tap is still a pick)
+    if (TOUCH_UI && e.pointerType === 'touch' && downAt && edSit.visible && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 10) {
+      const now = Date.now(); if (now - tapT < 320) { edPan.set(0, 0, 0); tapT = 0; } else tapT = now; }
     if (downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500) {
@@ -5241,6 +5506,13 @@
       if (pinch0 > 0) distT = Math.max(edEyeOn() ? 0.12 : ORBIT_MIN,
         Math.min(edEyeOn() ? 3 : 200, dist0 * pinch0 / Math.max(20, d)));
       if (!edEyeOn()) setNear(distT < 3 ? Math.max(0.06, distT * 0.2) : CAM_NEAR);
+      // G2101: ...and the pair's midpoint pans the orbit centre (in the shed, outside the cabin), as the mouse's pan does
+      if (TOUCH_UI && pinchMid && edSit.visible && !edEye) {
+        const wpp = 2 * dist * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, canvas.clientHeight || canvas.height);
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+        edPan.copy(pinchMid.base).addScaledVector(right, -((a.x + b.x) / 2 - pinchMid.x) * wpp).addScaledVector(up, ((a.y + b.y) / 2 - pinchMid.y) * wpp);
+      }
     }
   });
   // leaving the render clears the hover: a tint that outlives the pointer
@@ -5732,6 +6004,9 @@
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
+                          // G1530 (POTATO-DEEP): a rig's free eye at a place - the detail shots at a runway's or a road's edge (the free
+                          // camera, then its pose: x y z in world metres, yaw / pitch in radians as devCam reads them)
+                          devFree: (x, y, z, yaw, pitch) => { if (cam.mode !== 'free') flCamMode('free'); devCam.pos.set(x, y, z); devCam.yaw = yaw; devCam.pitch = pitch; devCam.last = performance.now(); return cam.mode; },
                           craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
@@ -6281,7 +6556,8 @@
     const s2 = makeSim(def, world);
     s2.reset(0);
     placeAtAerodrome(s2, sea);
-    const pilot = (typeof makeTestPilot === 'function') ? makeTestPilot(s2, def, world) : makeAutopilot(s2, def, world);
+    // G1940: THE PILOT flies the certificate (the test pilot it flew had no water law at all - 41 never read sim.hydro)
+    const pilot = makePilot(s2, def, world);
     pilot.setRoute(sea, sea);
     let M = 0; for (const n of def.nodes) M += n.m;
     const P = def.parts.floats[0].P;
@@ -7462,6 +7738,7 @@
   if (typeof window !== 'undefined') window.CERT_STATE = () => ({ last: certLast, pending: !!certJob, cached: certCache.size,
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
@@ -11251,6 +11528,7 @@
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
+    if (window.GFX && window.GFX.hw) window.GFX.hw.reveal();   // G1995: the step-down's measuring starts from the hand-over
     flShedBox = worldShedBox();
     flReveal = 0;
     // the panel arc (session 4b): rolling out INTO the cockpit seats the
@@ -12114,12 +12392,18 @@
   // SIMW-BENCH (G1095-G1099, the box 2026-09-30): KEPT - as even as inline at the 30 the cap settles on, the same frames,
   // the page's loop 19.5 -> 13.8 ms (Cub) / 22.7 -> 13.6 ms (metal Cessna); 60 holds on neither path (HANDOVER G1095-G1099)
   const SIMW_DEFAULT = true;
+  // G2100 (MOBILE-GARAGE 1): THE PHONE PROFILE BOOTS THE GARAGE ALONE (profile.js 'phone': boot 'garage', fly 'none').
+  // Every use below is a SUBTRACTION from the desktop's boot, and on the desktop profile this is false and the page
+  // runs exactly as it did: the world's boot rows, the parked cook, the flown bake, the world's compile / frames, the
+  // craft's programs, the recheck's re-plan (with bake and craft out it would run the flown bake - the study's §1.3),
+  // the sim worker, the setup screen (the flight's options and its Fly) and the roll-out itself
+  const GARAGE_ONLY = !!(typeof window !== 'undefined' && window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage'));
   // G1898: ?damage=1|0 - the damage layer for this page's flights (and the worker's, through its init), ahead of
   // GEN_DAMAGE_DEFAULT; a build's own params.damage still wins
   try { const m = /[?&]damage=([01])(&|$)/.exec(location.search || ''); if (m) window.FLYDIY_DAMAGE = m[1] === '1'; } catch (e) {}
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
-  const SIMW = (SIMW_ON && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
+  const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
     get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
@@ -12340,7 +12624,8 @@
     // "at close range, the whales should trigger the water surface effects, just like the planes".
     // The ask expires in half a second: nothing keeps the field alive by forgetting to clear a flag.
     const wAsk = window.WATER && WATER.field && WATER.field.ask && performance.now() - WATER.field.ask < 500;   // window.WATER, ASKED: a bare WATER throws where the layer is absent (the headless smoke gate)
-    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force || wAsk)) {   // (no floats and nobody asking: the field runs only when the dev panel forces it)
+    const wWet = waterFx && waterFx.wetUntil > performance.now();   // G2090: the wet body's wake and splash (10 s past the last contact)
+    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force || wAsk || wWet)) {   // (no floats and nobody asking: the field runs only when the dev panel forces it)
       const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
       const want = Number.isFinite(wl) && cgF[1] - wl < 60;
       if (want !== WATER.field.on) WATER.fieldOn(want);
@@ -12391,8 +12676,13 @@
     }
     if (FR) FR.lap(FR.S.mirror);
     let framePresented = true;
+    // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
+    // out of the shed its static depths are let go
+    const shedSh = inGarage && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
+    if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
     if (aa) framePresented = aa.render(inGarage ? garageScene() : scene, camera) !== 'held';
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
     if (drawGuard && !inGarage) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
     // F1: the contract comes OFF here, after the main render and the mirror capture it covers
@@ -12468,7 +12758,7 @@
   // first time you roll out (rollOutScreen below), with the tree ring, the
   // atlases and the world's shaders. Only the tree bins are asked for now,
   // so they are in by the time the ring is grown.
-  bootStep('treeBins', 'the tree models', 1, () => { if (typeof treeWarm === 'function') treeWarm().catch(() => {}); });
+  bootStep('treeBins', 'the tree models', 1, () => { if (!GARAGE_ONLY && typeof treeWarm === 'function') treeWarm().catch(() => {}); });   // G2100: no trees in the phone garage
   bootStep('aircraft', 'building your aeroplane', 6, () => {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
@@ -12511,7 +12801,7 @@
     }
     setAircraft('gen');
   });
-  bootStep('garage', 'raising the shed', 15, () => { enterGarage(); setupOpen(); });   // B8: the setup screen from here (the shed and the aeroplane stand)
+  bootStep('garage', 'raising the shed', 15, () => { enterGarage(); if (!GARAGE_ONLY) setupOpen(); });   // (G2100: the phone garage has no flight to set up)   // B8: the setup screen from here (the shed and the aeroplane stand)
   // THE EDITOR IS HELD FROM ITS BOOT TO THE END OF THE SEED (G995; parked.js holdEditor's lesson, A4-FREEZE). The
   // page's own first build (CAGE_UI_BOOT) arms the editor's timers - the autosave's touch, BENCH_DIRTY's fingerprint,
   // the energy layer's 120 ms commitLater -> GARAGE_SPEC.update - and those used to fire after the seed, in the same
@@ -12570,13 +12860,13 @@
   // B9 (G1020): THE WORLD, IN THE ONE LOADING - its build, the town and its parked aeroplanes, the forest ring, the world
   // at rest round the stand - BEFORE the build is committed: the parked aeroplanes' captures put the player's build back
   // through the editor, and the build's export moves after them; committed first, the first roll-out found it changed
-  for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);
+  if (!GARAGE_ONLY) for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);   // G2100
   // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
   // empty holders at the world step (the editor did not exist yet); each is
   // captured now through the editor - a round trip, the user's build put back
   // - under the loading screen, where the seconds belong. PARKED.ready after
   // this: a build the world editor parks later captures on the spot.
-  bootStep('parked', 'parking the other aeroplanes', 8, () => {
+  if (!GARAGE_ONLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
@@ -12587,9 +12877,9 @@
   bootStep('snapshot', 'committing the build', 10, () => { tripSync = null;
     // (each kick in a task of its own: the gathers walk whole scenes, and the shed's key environment is a PMREM render -
     // one task with the commit's first slice was 1.0-1.3 s on the GPU box)
-    setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);
+    if (!GARAGE_ONLY) setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);   // (G2100: no world to prelink)
     return tripRun(TRIP_BY.snapshot, bootTrip); });
-  bootTripStep('bake');
+  if (!GARAGE_ONLY) bootTripStep('bake');   // G2100: the flown bake is a roll-out's
   // G1085 (LOAD-COMPILE): the flown model is built here - its programs (in the world's lights, and in the shed as the
   // roll-out shot dresses it) start linking now, under the world's compile, the shed's and first light; 'craft' waits
   const specStep = TRIP_BY.spec;
@@ -12610,7 +12900,7 @@
   // boot's screen round the stand the route names (standAnchor: the aeroplane is still in the shed), then the
   // aeroplane's programs in the world's lights; the shed compiles and lights up after them, and the world is drawn
   // once from the stand at the end. The first roll-out finds every key unchanged.
-  for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (B9: the rest of the world's steps: see 'settle' above the commit)
+  if (!GARAGE_ONLY) for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (G2100: none in the phone garage)   // (B9: the rest of the world's steps: see 'settle' above the commit)
   // THE SHADERS COMPILE IN PARALLEL (LOADING S2, G407). Every program used
   // to be compiled synchronously on its first draw: measured 25 s of a cold
   // boot inside three's link-status query. renderer.compileAsync issues every
@@ -12692,6 +12982,7 @@
       try { if (aa && aa.warmList) lists.push(aa.warmList()); } catch (e) {}
       try { if (typeof POST_FX !== 'undefined' && POST_FX.warmList) lists.push(POST_FX.warmList()); } catch (e) {}
       try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmList) lists.push(CLOUDS.warmList()); } catch (e) {}
+      try { if (inWorld && window.WATER && WATER.warmList) lists.push(WATER.warmList(THREE, renderer)); } catch (e) {}   // G2090: the interaction field's step + derive (a landplane's first wet contact links nothing)
       for (const g of PROG_WARM.passes(THREE, lists)) jobs.push(pass(g.helper, g.target === null ? null : PLAIN_RT()).catch(e => console.warn('pass compile:', e && e.message)));
     }
     return Promise.all(jobs);
@@ -13084,18 +13375,19 @@
     if (typeof renderer.compileAsync !== 'function' || !hangar) return;   // (the harness: nothing to warm, the boot stays synchronous)
     return new Promise(res => setTimeout(res, 0)).then(() => compileXrayVariants());
   });
-  bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
+  if (!GARAGE_ONLY) bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
   // ...and the aeroplane's programs in the world's light LAST: the parked batch's restore is followed by the editor's
   // autosave commit and the energy layer's re-placed tanks (_cage_energy commit -> GARAGE_SPEC.update: the flying model
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
-  bootTripStep('craft');
+  if (!GARAGE_ONLY) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
   // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
   // sizing, the energy layer re-places the tanks - and the export moves a hair after it (the metal Cessna's tail stabH
   // 0.04729 -> 0.04720, converged after one more sync). The loading re-plans the aircraft's keyed steps once at its end
   // and runs what moved, under the same screen: the first roll-out then finds nothing to do.
   bootStep('recheck', 'your aeroplane, as it settled', 2, () => {
     tripSync = null;
+    if (GARAGE_ONLY) return;   // G2100: re-planning with bake and craft out would run the flown bake here (the study, §1.3)
     const plan = tripPlan('craft'); if (!plan.length) return;
     const t = tripOpen('recheck');
     let p = null;

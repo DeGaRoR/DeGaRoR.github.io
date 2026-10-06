@@ -16,7 +16,7 @@
 //             group, one shared quad; the prop's own materials are shared per record by MATLIB and are never touched).
 //   THE PANEL a small floating card in #edView (the rail's flyout's plate, editor.css #bbPanel), anchored beside the
 //             radio's top: now playing, the stations (the six, the mix, the player's own folder once there, off), the
-//             music and master volumes, skip, Radio Jolene's talk, music in the garage / in flight, MY MUSIC (folder
+//             music, master and engine (G1722) volumes, skip, Radio Jolene's talk, music in the garage / in flight, MY MUSIC (folder
 //             pick, reconnect, forget; my_music.js), the credits. It follows the radio while open - frame() runs a
 //             projection and two style writes only then, and returns at once when closed - and closes on Esc, on a
 //             press outside it, when the radio leaves the screen, or when the shed does.
@@ -243,6 +243,9 @@ var BOOMBOX = (function () {
     body.appendChild(w);
     refs.music = range(body, 'music', () => A.get('music'), v => A.set('music', v));
     refs.master = range(body, 'master', () => A.get('master'), v => A.set('master', v));
+    // G1722 (SND-MIX): the engine's own volume, the same setting as the sound rails' row (the music against the engine is
+    // what a player balances here)
+    refs.engine = A.get('engine') != null ? range(body, 'engine', () => A.get('engine'), v => A.set('engine', v)) : null;
     const ctl = el('div', 'bbBtns');
     refs.skip = pill(ctl, 'skip track', () => M.skip(), 'The next track now');
     body.appendChild(ctl);
@@ -317,7 +320,7 @@ var BOOMBOX = (function () {
     }
     const playing = radio.playing();
     for (const b of refs.st || []) b.classList.toggle('on', b.dataset.st === M.station && (playing || M.station === 'off'));
-    for (const r of [refs.music, refs.master]) if (r && D().activeElement !== r.i) { r.i.value = Math.round(r.get() * 100); r.v.textContent = r.i.value + ' %'; }
+    for (const r of [refs.music, refs.master, refs.engine]) if (r && D().activeElement !== r.i) { r.i.value = Math.round(r.get() * 100); r.v.textContent = r.i.value + ' %'; }
     if (refs.talk) refs.talk.checked = !!M.talk;
     if (refs.garage) refs.garage.checked = !!A.get('musicGarage');
     if (refs.flight) refs.flight.checked = !!A.get('musicFlight');

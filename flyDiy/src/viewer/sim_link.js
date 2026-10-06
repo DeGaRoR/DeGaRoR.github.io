@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState', 'wetFx']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -411,6 +411,9 @@ const SIM_LINK = (() => {
       // physics worker - the default - no break ever reached the page, so D4a's skin break, D4b's debris and the wreck's
       // GPU riding never ran (the worker crashed; the page drew the aeroplane whole)
       def('dmgState', { writable: true, value: () => V.dmgState() });
+      // G2090 (WATER-LOOK): the worker's wet-body contacts (sim_view's newest); each slam peak handed to the page once
+      def('wetFx', { writable: true, value: () => { const W = V.wet; if (!W) return null;
+        const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };

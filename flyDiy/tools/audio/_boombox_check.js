@@ -55,7 +55,7 @@ function balanced(src, at) {
 // ---- recording stand-ins (BB_QUICK, BB_PANEL) ---------------------------------------------------------------------------
 function fakeAudio(o, store) {
   o = o || {};
-  const calls = [], H = {}, set = { musicGarage: o.mg ? 1 : 0, music: 0.6, master: 0.8, musicFlight: 0 };
+  const calls = [], H = {}, set = { musicGarage: o.mg ? 1 : 0, music: 0.6, master: 0.8, engine: 1, musicFlight: 0 };   // (G1722: the engine's own volume)
   const A = { enabled: o.enabled !== false, state: o.state || 'running', calls,
     enable(on) {
       calls.push(['enable', !!on]);
@@ -312,7 +312,7 @@ function checkPanel(S) {
     const ranges = [...q(doc, '#bbPanel input[type=range]')];
     const rowOf = el => el.parentNode && el.parentNode.querySelector('.k') && el.parentNode.querySelector('.k').textContent;
     const rng = k => ranges.find(r => rowOf(r) === k);
-    for (const [k, v] of [['music', 30], ['master', 55]]) {
+    for (const [k, v] of [['music', 30], ['master', 55], ['engine', 70]]) {   // (G1722: the engine beside the music)
       const r = rng(k);
       if (!r) { F.push('no ' + k + ' slider'); continue; }
       r.value = String(v); r.dispatchEvent(ev(pg, 'input'));
@@ -638,6 +638,7 @@ const MUT = [
   ['the frame call gone', 'app', '    if (window.BOOMBOX) BOOMBOX.frame(camera, bbProp);', '', 'BB_HIT'],
   ['mobileProp by the wrong name', 'hangar', "if (o.name === 'prop:' + key) return o;", 'if (o.name === key) return o;', 'BB_HIT'],
   ['the music slider sets the master', 'boombox', "v => A.set('music', v));", "v => A.set('master', v));", 'BB_PANEL'],
+  ['the engine slider sets the music', 'boombox', "v => A.set('engine', v))", "v => A.set('music', v))", 'BB_PANEL'],
   ['a station button without the garage music', 'boombox', "() => (k === 'off' ? radio.off() : radio.listen(k))", "() => (k === 'off' ? radio.off() : MU().setStation(k))", 'BB_PANEL'],
   ['no Esc', 'boombox', "function onKey(e) { if (e && e.key === 'Escape')", 'function onKey(e) { if (false)', 'BB_PANEL'],
   ['a press outside ignored', 'boombox', "      Dc.addEventListener('pointerdown', onDown, true);\n", '', 'BB_PANEL'],

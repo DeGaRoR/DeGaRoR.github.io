@@ -106,21 +106,22 @@ const MANIFEST = {
     // derived From), the To a picker offers and the pref's migration; pure.
     '38b_dest.js',
     '39_ground_path.js',
-    // THE SERVOS (G1570, review E4): the inner loops of all three pilots, one
-    // module and one gain table (SERVO_GAINS); pure, read by 40_, 41_ and 43_.
+    // THE SERVOS (G1570, review E4): the pilot's inner loops, one module and
+    // one gain table (SERVO_GAINS); pure, read by 43_.
     '39b_servos.js',
-    '40_autopilot.js',
-    // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
-    // attempts, structured verdicts. Generated builds fly it; the fleet keeps 40_.
-    '41_test_pilot.js',
+    // THE PLACEMENT (G1940): the spawn identity, the stand, the true ground, the
+    // line-up pose - moved out of 40_autopilot.js when the classic (40_) and the
+    // test pilot (41_) retired (PILOT-ONE, G1935-G1944): ONE pilot, 43_.
+    '39c_placement.js',
     // THE CROSSWIND LIMIT (G193.2): the plaque's measured crosswind, a ladder
-    // of departures on the test pilot; pure, polled by the page, run whole by
+    // of departures on THE PILOT; pure, polled by the page, run whole by
     // the gates.
     '42_crosswind.js',
-    // THE PILOT (G202): the third pilot — the test pilot's inner loops under a
-    // new decision layer (rectangular circuit into wind, planned arrival,
-    // accelerate-stop reject, trike rotation, taxi-back with a U-turn, a
-    // published status). Generated builds fly it; 41_ stays for A/B.
+    // THE PILOT (G202): the game's pilot and, since PILOT-ONE (G1940), the
+    // only one — a decision layer (rectangular circuit into wind, planned
+    // arrival, accelerate-stop reject, trike rotation, taxi-back with a U-turn
+    // or a pivot, a published status) over 39b's servos; personalities are
+    // profiles on it (G1943), never forks.
     '43_pilot.js',
     '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
     '50_model_codec.js',
@@ -312,7 +313,9 @@ const MANIFEST = {
     // the palette it uses for the same reason flight.css does.
     // ...and blueprint.css (G573): the blueprint desk, a full-screen sheet
     // appended inside #wsUI, scoped entirely under #bpDesk.
-    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css'],
+    // ...and phone.css (G2102, MOBILE-GARAGE 1): the workshop re-laid for a phone, scoped entirely under html.phone
+    // (profile.js sets it on the phone profile only - on the desktop not one of its selectors matches)
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css', 'phone.css'],
     body: 'body.html',
     // THE LOADING SCREEN (LOADING S1, 2026-09-14): boot.js fills the BOOT slot
     // of body.html - a plain script in BOTH pages (inlined here, a src ref in
@@ -327,6 +330,9 @@ const MANIFEST = {
     // G1210 (WELCOME): the welcome screen and the device gate - its OWN inline block right after boot.js's (a plain
     // script in both pages): it decides before the vendor, and the island loader waits on its FLYDIY_WELCOME
     welcome: 'welcome.js',
+    // G2100 (MOBILE-GARAGE 1): THE PROFILES (window.PROFILE: 'desktop', the trunk, or 'phone', a subtract-only profile
+    // of it) - in the welcome's inline block, ahead of welcome.js (which picks the profile on a phone's device gate)
+    profile: 'profile.js',
     // G1535 (UPDATE-NOW): the version check and its "Update" pill - its own inline block right after boot.js's,
     // before welcome.js's, behind a one-line script that sets FLYDIY_BUILD / FLYDIY_BUILD_DATE (known on the welcome and
     // loading screens, long before the CORE slot's line runs)
@@ -403,6 +409,7 @@ const MANIFEST = {
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
+              'shed_shadow.js',   // G2070: the shed's shadow cache (app.js: SHED_SHADOW.pre / post round the garage's render)
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
@@ -476,6 +483,7 @@ const MANIFEST = {
     // gfx_settings.js (G286) before editor.js and app.js: both rails host its
     // menu and app.js applies its saved choice the moment the world exists
               'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
+              'phone.js',   // G2101 (MOBILE-GARAGE 1): the phone garage's touch layer - returns at once on the desktop profile
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
@@ -765,16 +773,19 @@ function buildViewer(coreBody) {
   if (cardsJs) syntaxCheck(V.bootCards, cardsJs);
   const welcomeJs = V.welcome && fs.existsSync(path.join(VIEW_DIR, V.welcome)) ? read(path.join(VIEW_DIR, V.welcome)) : '';
   if (welcomeJs) syntaxCheck(V.welcome, welcomeJs);
+  const profileJs = V.profile && fs.existsSync(path.join(VIEW_DIR, V.profile)) ? read(path.join(VIEW_DIR, V.profile)) : '';
+  if (profileJs) syntaxCheck(V.profile, profileJs);
   const updateJs = V.updateNow && fs.existsSync(path.join(VIEW_DIR, V.updateNow)) ? read(path.join(VIEW_DIR, V.updateNow)) : '';
   if (updateJs) syntaxCheck(V.updateNow, updateJs);
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
   const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
-    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
+    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
   const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
+    + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')
     + (welcomeJs ? `\n<script src="src/viewer/${V.welcome}?v=${sha(welcomeJs).slice(0, 8)}"></script>` : ''));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
@@ -884,6 +895,9 @@ function buildViewer(coreBody) {
   // the player has chosen (welcome.js, in the BOOT slot, publishes FLYDIY_WELCOME only when it shows a screen)
   if (window.FLYDIY_WELCOME) window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () { return window.FLYDIY_WELCOME; });
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
+    // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
+    // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
+    if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];
     window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);
@@ -1238,12 +1252,12 @@ window.FLYDIY_BOOT.then(function () {
   }
   // the CORE marker block is filled above; the worker's registration is storage.js's (RENDER)
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
-  if (!art.includes('function makeAutopilot')) {
+  if (!art.includes('function makePilot(')) {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
     process.exit(1);
   }
   // the loading screen precedes the vendor, and every baked picture is on the page
-  if (art.indexOf('window.BOOT = B') < 0 || art.indexOf('window.BOOT = B') > art.indexOf('function makeAutopilot')) {
+  if (art.indexOf('window.BOOT = B') < 0 || art.indexOf('window.BOOT = B') > art.indexOf('function makePilot(')) {
     console.error('POST-BUILD ASSERTION FAILED: boot.js must precede the core in index.html');
     process.exit(1);
   }

@@ -1,0 +1,4 @@
+nav http://localhost:8581/flyDiy/index.html?gfx=retro
+garage up in 48.9 s
+IDENTITY (by pane) at rest {"stat":{"bakes":2,"baked":1232,"live":3},"shadow":{"px":0,"max":0},"both":{"px":698.3,"max":184},"noise":{"px":0,"max":0},"glass":{"frames":334,"ok":329,"why":"","skipped":661,"drawn":107,"panes":19,"lo":[null,null,-14.975000000335276],"hi":[12.364999999627472,null,14.975000000335276]},"pixels":518400}
+(the rung: CPU 0x, GPU proxy 0x)
