@@ -1,0 +1,4 @@
+=== DMGSCUFF ===
+  ok    the solver records the slide only behind DMG_ON (2 call sites)
+(90/90 checks, 62 s)
+GATE DMGSCUFF: PASS
