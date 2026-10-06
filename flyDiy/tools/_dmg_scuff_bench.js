@@ -93,7 +93,7 @@
       for (let i = 0; i < na.count; i++) { if (vc[i] !== SV.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
         p.fromBufferAttribute(pa, i).applyMatrix4(M); if (p.z < zMid) continue; const y = p.y; if (y < fy) { fy = y; front = o; best = i; } }
     }
-    // the impact: the windscreen's middle - the forward-facing glass within 0.25 m of its most forward point, their mean
+    // the impact: the windscreen's middle - the forward-facing glass within 0.6 m of its most forward point, their mean
     let paneObj = null, paneAt = null;
     if (front) {
       const vc = vclsOf(front), { M, N } = craftOf(front), pa = front.geometry.attributes.position, na = front.geometry.attributes.normal, n = pa.count, q = new T.Vector3(), p = new T.Vector3();
@@ -101,7 +101,7 @@
       const zMid2 = box.min.z + 0.5 * (box.max.z - box.min.z);
       for (let i = 0; i < n; i++) { if (vc[i] !== SV.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
         p.fromBufferAttribute(pa, i).applyMatrix4(M); if (p.z < zMid2) continue;
-        if (p.y < fy + 0.25) { ok[i] = 1; c0.add(p.fromBufferAttribute(pa, i)); k++; } }
+        if (p.y < fy + 0.6) { ok[i] = 1; c0.add(p.fromBufferAttribute(pa, i)); k++; } }   // (the screen's middle: the metal Cessna's base hides behind its cowl)
       c0.multiplyScalar(1 / Math.max(1, k));
       let bd = Infinity; for (let i = 0; i < n; i++) { if (!ok[i]) continue; const dd = p.fromBufferAttribute(pa, i).distanceTo(c0); if (dd < bd) { bd = dd; best = i; } }
       paneObj = new T.Vector3().fromBufferAttribute(pa, best); front.updateMatrixWorld(true); paneAt = paneObj.clone().applyMatrix4(front.matrixWorld);
@@ -198,7 +198,7 @@
     nose: () => [0.35, 0.12, 1.5, toScene(pat().nose)],
     belly: () => { const P = pat(); return [0.75, -0.8, 1.2, toScene(new T.Vector3((P.box.min.x + P.box.max.x) / 2, P.box.min.y + 0.35 * P.L, P.box.min.z + 0.1))]; },
     wing: () => { const P = pat(); return [0.5, 1.0, 1.5, toScene(new T.Vector3(P.cut, P.box.min.y + 0.3 * P.L, P.box.max.z - 0.15))]; },
-    pane: () => { const c = pat().paneAt; return c ? [0.35, 0.12, 2.6, [c.x, c.y, c.z]] : [0.3, 0.35, 1.5, null]; },
+    pane: () => { const c = pat().paneAt; return c ? [0.35, 0.28, 2.6, [c.x, c.y, c.z]] : [0.3, 0.35, 1.5, null]; },
   };
   function look(v) { if (OWN[v]) { const p = OWN[v](); UI.setView(p[0], p[1], p[2], p[3]); draw(); } else B.look(v); }
   function measure(layer, view) {
