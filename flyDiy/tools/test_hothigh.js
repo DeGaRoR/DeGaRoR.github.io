@@ -24,7 +24,7 @@
 //
 // Run: node tools/test_hothigh.js   (contract: one final `GATE HOTHIGH: ...`)
 
-const { makeWorld, makeSim, makeAutopilot, placeAtAerodrome,
+const { makeWorld, makeSim, makePilot, placeAtAerodrome,
         buildGen, genDensityAlt, makeAtmos, GEN_DEFAULT,
         GEN_FUELS } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
@@ -112,7 +112,7 @@ function takeoffRun(build, weather, stripName) {
   sim.reset(0);
   placeAtAerodrome(sim, strip);
   for (let s = 0; s < 5 * 60; s++) sim.step(1 / 60);       // settle on the gear
-  const ap = makeAutopilot(sim, def, W);
+  const ap = makePilot(sim, def, W);   // G1940: THE PILOT (the classic retired)
   ap.setRoute(strip, strip);
   const c0 = sim.cgPos();
   // UNSTICK IS WHEN THE WHEELS LEAVE, and it is a different event from the
@@ -267,7 +267,8 @@ console.log('--- 4. a whole circuit, off a hot strip, in sheared wind ---');
 const R = [];
 R.push(runCircuit({
   id: 'HH-GEN', build: buildGen, world: worldAt(HOT_DAY), from: HIGH,
-  uprightCheck: false, perturb: { z: 1.0, v: 0.001 }, settleS: 12, maxS: 320,
+  // 320 -> 420 s (G1940): THE PILOT's rectangular circuit is longer than the classic's out-and-back - a clock
+  uprightCheck: false, perturb: { z: 1.0, v: 0.001 }, settleS: 12, maxS: 420,
   // tip/mid stations from the spec, like GATE STRESS: the generated wing
   // moves when a slider does
   tip: { tag: 'WF', midZ: GEN_ZS[0], tipZ: GEN_ZS[GEN_ZS.length - 1], tol: 0.1 },
