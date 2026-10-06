@@ -142,6 +142,30 @@ function pageReupload() {
       if (g.index) g.index.needsUpdate = true; }); }
   return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(n))));
 }
+// THE SKINNED POSITIONS (the coordinator: a CPU-clean geometry drawn stretched is a skinned one - read it AS DRAWN): every
+// visible SkinnedMesh's vertices through its bones (three's getVertexPosition), its triangles past 2 m, the bones those
+// triangles ride (their part's name, their scale: a part collapsed by a debris release reads ~1e-6) - no GPU needed
+function pageSkinned() {
+  const P = FLIGHT_PROBE, out = [], seen = new Set(), v = new THREE.Vector3(), sc3 = new THREE.Vector3(), p3 = new THREE.Vector3(), q4 = new THREE.Quaternion();
+  for (const sc of [P.craft() && P.craft().parent, P.hangarScene ? P.hangarScene() : null]) { if (!sc) continue;
+    sc.traverse(o => { if (!o.isSkinnedMesh || !o.skeleton || seen.has(o) || typeof o.getVertexPosition !== 'function') return; seen.add(o);
+      let vis = o.visible; for (let q = o.parent; q && vis; q = q.parent) vis = q.visible; if (!vis) return;
+      const g = o.geometry, n = g.attributes.position.count, X = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { o.getVertexPosition(i, v); X[i * 3] = v.x; X[i * 3 + 1] = v.y; X[i * 3 + 2] = v.z; }
+      const ix = g.index ? g.index.array : null, nt = ix ? ix.length / 3 : n / 3, SI = g.attributes.skinIndex ? g.attributes.skinIndex.array : null;
+      let big = 0, worst = 0; const bonesHit = new Map();
+      for (let t = 0; t < nt; t++) { const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2; if (a === b && b === c) continue;
+        const e = (i, j) => Math.hypot(X[i * 3] - X[j * 3], X[i * 3 + 1] - X[j * 3 + 1], X[i * 3 + 2] - X[j * 3 + 2]);
+        const L = Math.max(e(a, b), e(b, c), e(c, a)); if (L > worst) worst = L;
+        if (L > 2) { big++; if (SI) for (const k of [a, b, c]) { const bi = SI[k * 4]; bonesHit.set(bi, (bonesHit.get(bi) || 0) + 1); } } }
+      const parts = (o.userData && o.userData.flownMerge) || {};
+      const bl = [...bonesHit.entries()].sort((x, y) => y[1] - x[1]).slice(0, 8).map(([bi, c]) => { const B = o.skeleton.bones[bi]; if (!B) return { bone: bi, c };
+        B.matrixWorld.decompose(p3, q4, sc3); return { bone: bi, c, scale: +Math.max(sc3.x, sc3.y, sc3.z).toExponential(2), at: [p3.x, p3.y, p3.z].map(x => +x.toFixed(2)) }; });
+      const chain = []; for (let q = o; q && chain.length < 4; q = q.parent) chain.push(q.name || q.type);
+      out.push({ chain: chain.join(' < '), verts: n, tris: nt | 0, big, worst: +worst.toFixed(2), bones: o.skeleton.bones.length, merge: parts, bonesOfBig: bl });
+    }); }
+  return out;
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -188,6 +212,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.old = await S.run(pageOld);
     r.snap = await S.run(pageSnap);
     r.bones = await S.run(pageBones);
+    r.skinned = await S.run(pageSkinned);
+    console.log('  ' + k + ' skinned meshes as drawn (positions through their bones): ' + JSON.stringify(r.skinned.filter(x => x.big).slice(0, 8)) + ' (' + r.skinned.length + ' skinned, ' + r.skinned.filter(x => x.big).length + ' with triangles past 2 m)');
     console.log('  ' + k + ' skinned meshes and their bones: ' + JSON.stringify(r.bones.slice(0, 12)));
     console.log('  ' + k + ' the aeroplane snapshot after the path: ' + JSON.stringify(r.snap));
     r.scene = await S.run(pageScene);
