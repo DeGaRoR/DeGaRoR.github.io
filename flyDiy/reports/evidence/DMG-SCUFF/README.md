@@ -77,8 +77,12 @@ SwiftShader - the box's GPU timer says what it is on a GPU).
 
 ## Other files
 
-- `gate_dmgscuff.txt` - GATE DMGSCUFF's full output (99/99).
-- `gates_run1.txt` ... `gates_run4.txt` - the targeted gate set (UISMOKE, DMGSKIN, DMGSCUFF, BUILD,
+- `gate_dmgscuff.txt` - GATE DMGSCUFF's full output (116/116: every claim also on DMG-WALL's inherited binding).
+- `gates_run5.txt` - the targeted set after merging DMG-WALL / DMG-WINDBREAK / train 37b (+ DMGWALL, DMGWIND): all PASS
+  but one DMGSKIN check, **red on the base too** - `dmgskin_on_base.txt` is GATE DMGSKIN on claude/dmg-integration built
+  from its own sources (the same check, the same case).
+- `soft/merged/` - the real page after the merge (the taxi, the nose-over): the scuff on WALL's records.
+- `gates_run1.txt` ... `gates_run4.txt` - the targeted gate set before the merge (UISMOKE, DMGSKIN, DMGSCUFF, BUILD,
   WEATHER, JOIN; DMGINST in run 1). Run 1 had DMGSKIN red on a static check (scuffFrame's call moved out of brkCage's
   opening) and DMGSCUFF's verdict line misread; run 2 after the fixes; run 3 on the sleeping block, run 4 on the final code: all PASS. DMGWRECK
   is not on this base (it rides the unmerged D4b branch).
