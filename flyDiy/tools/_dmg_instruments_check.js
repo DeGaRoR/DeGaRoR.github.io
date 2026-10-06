@@ -57,7 +57,8 @@ console.log('1. G1800: sim-diverged (the numbers) vs broke-up (the structure)');
   for (const f of ['src/viewer/app.js', 'src/viewer/bench.js', 'src/viewer/sim_host.js', 'src/viewer/sim_link.js', 'src/core/41_test_pilot.js', 'src/core/42_crosswind.js', 'src/core/43_pilot.js', 'src/core/65_gen_loadtest.js',
                    'tools/_bench_check.js', 'tools/pilot_trace.js', 'tools/arch_fly.js', 'tools/_simworker_edges_check.js'])
     for (const ln of src(f).split('\n')) {
-      const code = ln.replace(/\/\/.*$/, '');
+      // (G2044: a READER is no writer - D4b's G1868 compares the outcome, `outcome === 'broke-up'`, to time the crash card)
+      const code = ln.replace(/\/\/.*$/, '').replace(/[!=]==\s*['"]broke-up['"]/g, '');
       // G1898.3: the one writer allowed is the structure's ending (DMG-D1b's refs-core, read off DMG.brokeUp)
       if (/['"]broke-up['"]/.test(code) && !(f === 'src/viewer/app.js' && /endFlight\(up \? 'broke-up' : 'crashed'\)/.test(code))) writers.push(f);
     }
