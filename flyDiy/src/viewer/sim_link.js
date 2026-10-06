@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -406,6 +406,11 @@ const SIM_LINK = (() => {
       def('wheelsOnGround', { writable: true, value: () => V.wheelsOnGround() });
       def('wheelContacts', { writable: true, value: () => V.wheels || (saved.wheelContacts && saved.wheelContacts.value ? saved.wheelContacts.value() : null) });
       def('stats', { writable: true, value: () => V.stats() });
+      // G1818 (DMG-SKINGPU, found on the box): THE DAMAGE STATE TOO - the view's (G1850: the broken list and the pieces,
+      // sent on change). Without it the page's dmgNow asked the page's own sim, which the worker never steps: under the
+      // physics worker - the default - no break ever reached the page, so D4a's skin break, D4b's debris and the wreck's
+      // GPU riding never ran (the worker crashed; the page drew the aeroplane whole)
+      def('dmgState', { writable: true, value: () => V.dmgState() });
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };
