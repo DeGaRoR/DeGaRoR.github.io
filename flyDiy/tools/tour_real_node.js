@@ -12,6 +12,9 @@
 //   node tools/tour_real_node.js --root D:/Dev/wt-tour [--build builds/cub_2026-09-20_corrected.json]
 //        [--order HOME,w3,tw_ski,mn_strip,w2,HOME] [--damage 0|1] [--out <file.json>] [--hz 4]
 // A heavy node job (~10-15 min, one process): boxlock.sh take cpu <who> first.
+// --game (G1970, ISLAND-TOUR-2): THE GAME'S FLIGHT - _tour_lib gameHost: the worker's host (the page's placement, its
+// pilot with the garage's shakedown and the nav), the game's day (DAY_CLOCK's, ticked every step; --day replaces it,
+// --calm holds it calm) and the game's aeroplane (pilot_trace specOf = the load door's spec, JOIN-PARITY G1985)
 'use strict';
 const fs = require('fs'), path = require('path');
 const argv = process.argv.slice(2);
@@ -28,11 +31,21 @@ const order = opt('order', 'HOME,w3,tw_ski,mn_strip,w2,HOME').split(',');
 const DAMAGE = opt('damage', '0') === '1';
 const HZ = +opt('hz', 4);
 const LEGS = +opt('legs', 99), TMAX = opt('tmax', null);   // a smoke run: --legs 1 --tmax 20
+const GAME = argv.includes('--game');
 const OUT = opt('out', path.join(__dirname, '..', 'reports', 'evidence', 'TOUR-REAL', 'node_tour.json'));
 
 const spec = PT.specOf(BUILD).spec;
 // --fuel <litres>: the load the page flies (its first sample's fuelL - the game does not take the build file's spec.fuel)
 if (opt('fuel', null) != null) { spec.fuel = Object.assign({}, spec.fuel || {}, { litres: +opt('fuel') }); console.log('  fuel set to ' + spec.fuel.litres + ' L'); }
+// --capacity <litres> (G1970): the tank the energy layer shaped, at another capacity - TOUR-REAL's page (6 Oct, before
+// JOIN-PARITY's G1986) booted the user's Cub with its nose tank shaped against a crew still loading: 29 L, 462.3 kg (the
+// load door's is 27 L, 460.4 kg). `--capacity 29` is that aeroplane (TOUR-REAL logged 462 kg): the comparator for its tracks
+if (opt('capacity', null) != null) {
+  const V = spec.energy && spec.energy.vessels && spec.energy.vessels[0];
+  if (!V) throw new Error('--capacity: the spec has no energy vessel');
+  V.capacity = +opt('capacity'); spec.fuel = Object.assign({}, spec.fuel || {}, { litres: V.capacity });
+  console.log('  the tank\'s capacity set to ' + V.capacity + ' L');
+}
 const def = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
 def.params = Object.assign({}, def.params, { damage: DAMAGE });
 const t0 = Date.now();
@@ -50,12 +63,19 @@ const mk = C.makePilot;
 C.makePilot = function () { AP = mk.apply(this, arguments); return AP; };
 
 const A = id => W.aerodromes.find(q => q.id === id);
-const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
 const a0 = A(order[0]);
-const st0 = C.siteOf(a0.id) && C.siteOf(a0.id).stand;
-if (st0) C.placeAtStand(sim, a0, st0); else C.placeAtAerodrome(sim, a0);
-for (let i = 0; i < 600; i++) sim.step(1 / 60);
-
+let sim, H = null;
+if (GAME) {
+  const dayG = argv.includes('--calm') ? null : DAYJ ? JSON.parse(JSON.stringify(W.day.spec())) : undefined;
+  H = TR.gameHost(C, W, def, a0, A(order[1]), { day: dayG, damage: DAMAGE });
+  sim = H.sim;
+  console.log('  the game\'s flight: ' + JSON.stringify(H.game));
+} else {
+  sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
+  const st0 = C.siteOf(a0.id) && C.siteOf(a0.id).stand;
+  if (st0) C.placeAtStand(sim, a0, st0); else C.placeAtAerodrome(sim, a0);
+  for (let i = 0; i < 600; i++) sim.step(1 / 60);
+}
 const rows = [], legs = [];
 const r2 = v => Math.round(v * 100) / 100;
 let T0 = 0, leg = 0, n = 0;
@@ -65,25 +85,26 @@ sim.step = dt => {
   step0(dt); T0 += dt;
   if ((n++ % every) !== 0) return;
   const cg = sim.cgPos(), v = sim.cgVel(), xA = sim.axes()[0], nl = Math.hypot(xA[0], xA[2]) || 1e-9;
-  rows.push([r2(T0), r2(cg[0]), r2(cg[1]), r2(cg[2]), r2(cg[1] - W.terrainH(cg[0], cg[2])), AP ? AP.phase : '', r2(Math.hypot(v[0], v[2])),
+  const P_ = H ? H.ap : AP;
+  rows.push([r2(T0), r2(cg[0]), r2(cg[1]), r2(cg[2]), r2(cg[1] - W.terrainH(cg[0], cg[2])), P_ ? P_.phase : '', r2(Math.hypot(v[0], v[2])),
     +Math.atan2(-xA[2] / nl, -xA[0] / nl).toFixed(4), sim.wheelsOnGround ? sim.wheelsOnGround() : -1, leg]);
 };
 for (let i = 1; i < order.length && i <= LEGS; i++) {
   leg = i;
   const a = A(order[i - 1]), b = A(order[i]);
   const tStart = T0, i0 = rows.length;
-  let L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1 }, TMAX ? { tMax: +TMAX } : {}));
+  let L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1, host: H }, TMAX ? { tMax: +TMAX } : {}));
   // A REJECTED TAKE-OFF: ONE retry, as the page rig does (the same To from where it stopped - flightLeg's From)
   if (L.faults.some(f => f.k === 'abort')) {
-    for (let k = 0; k < 600 && !(AP && AP.phase === 'STOPPED'); k++) sim.step(1 / 60);
+    for (let k = 0; k < 600 && !((H ? H.ap : AP) && (H ? H.ap : AP).phase === 'STOPPED'); k++) { if (H) H.step(); else sim.step(1 / 60); }
     console.log(TR.fmtLeg(L) + '  <- rejected; one retry');
     const L1 = L;
-    L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: false }, TMAX ? { tMax: +TMAX } : {}));
+    L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: false, host: H }, TMAX ? { tMax: +TMAX } : {}));
     L.retryOf = { faults: L1.faults, verdicts: L1.verdicts, t: L1.t, dep: L1.dep };
     L.faults = L1.faults.map(f => Object.assign({}, f, { k: f.k === 'abort' ? 'abort-retried' : f.k + '-try1' })).concat(L.faults);
   }
   L.tStart = r2(tStart); L.tEnd = r2(T0); L.rows = [i0, rows.length];
-  L.landedAt = AP && AP.route && AP.route.to ? AP.route.to.id : null;   // the field it really landed on (a diversion's)
+  { const P_ = H ? H.ap : AP; L.landedAt = L.landedOn || (P_ && P_.route && P_.route.to ? P_.route.to.id : null); }   // the field it really landed on (a diversion's)
   legs.push(L);
   console.log(TR.fmtLeg(L));
   writeOut(false);   // after every leg: a killed run keeps what it flew
@@ -107,6 +128,7 @@ fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify({ kind: 'node', build: path.basename(BUILD), damage: DAMAGE, order, done, hz: HZ,
   cols: ['t', 'x', 'y', 'z', 'agl', 'phase', 'Vg', 'nose', 'onG', 'leg'], rows, legs, obstacles: obst,
   fuel: sim.fuel ? r2(sim.fuel.litres) : null, wall: (Date.now() - t0) / 1000,
+  game: H ? H.game : null,
   world: { weather: JSON.parse(JSON.stringify(W.weather || null)), day: W.day && W.day.spec ? JSON.parse(JSON.stringify(W.day.spec())) : null, woodSolid: W.woodSolid,
     obstacles: W.obstacles ? W.obstacles.count : null, trunks: TW.trunks } }));
 }

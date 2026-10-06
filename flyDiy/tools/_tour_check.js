@@ -26,7 +26,8 @@
 //   4 THE MINE'S APRON: a gravel apron (apron: true) under the stand and the C172's parked box, 1.5 m off every
 //     footprint, on the street's level
 // THE TOURS (one heavy job each - shards: 3):
-//   5 the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > 02/20 >
+//   5 (G1970: THE GAME'S FLIGHT - _tour_lib gameHost: the worker's host and placement, the page's pilot with the garage's
+//     shakedown, DAY_CLOCK's day ticked, the load door's aeroplane) the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > 02/20 >
 //     HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
 //     250 m); East Point (150 m) fits no validated land build (the Cub's roll alone is ~145 m - _tour_lib ORDERS); the
 //     float Cessna (bugReports/cessnaFloatsWOrks.json): Annette Dock > Metlakatla > Annette Dock. The damage ON. Each leg: stopped at its To, no member yielded or broken, no dent, no
@@ -170,12 +171,23 @@ if (!STRIPS) {
     const def = TR.defOf(C, PT, B.key);
     const TW = TR.tourWorld(C, IN, fs);
     const t0 = Date.now();
-    const R = TR.flyTour(C, TW.W, def, order, { log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
+    // G1970 (ISLAND-TOUR-2): THE GAME'S FLIGHT - TOUR-REAL (G2065) flew this tour in the game and node's was not it (a calm
+    // day, the file's 45 L, a pilot with no shakedown): the worker's host, the game's day ticked, the load door's aeroplane
+    const R = TR.flyTour(C, TW.W, def, order, { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' - ' + (R.done ? 'DONE' : 'NOT DONE') + ', ' + R.legs.length + ' legs, fuel left ' + R.fuel + ' L (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
-    check(def.params.damage === true, '5 ' + B.name + ': the damage is ON');
+    check(def.params.damage === true && R.game && R.game.damage === true, '5 ' + B.name + ': the damage is ON');
+    // the flight is the game's: DAY_CLOCK's day (the 8 kt breeze), the garage's shakedown behind the pilot, the aeroplane the
+    // load door makes (pilot_trace specOf -> tools/_load_build.js: the Cub's tank 27 L, not the file's 45 L)
+    const GW = R.game && R.game.day && R.game.day.wind;
+    check(!!(GW && GW.kts === 8 && GW.dirDeg === 250 && R.game.shake), '5 ' + B.name + ': the game\'s flight - the game\'s day and the page\'s pilot', JSON.stringify(R.game && { wind: GW, shake: R.game.shake, stand: R.game.stand }));
+    const raw = JSON.parse(fs.readFileSync(B.key, 'utf8')), rawFuel = ((raw.spec || raw).fuel || {}).litres;
+    const mGame = def.nodes.reduce((m, q) => m + q.m, 0);
+    check(!!(R.game && Math.abs(R.game.mass - mGame) < 0.1), '5 ' + B.name + ': the load door\'s aeroplane flies', R.game ? R.game.mass + ' kg (the game spec\'s ' + mGame.toFixed(1) + '), ' + R.game.fuel + ' L at the start (the file says ' + rawFuel + ' L)' : '-');
     for (const L2 of R.legs) {
       const id = '5 ' + B.name + ' ' + L2.from + ' > ' + L2.to;
       check(L2.ok, id + ': stopped at its To with no fault', L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.phases.slice(-6).join('>'));
+      // G1970: the landing judged on the strip it was made on (_tour_lib: flightWhere under the wheels at the touchdown)
+      check(L2.landedOn === L2.to, id + ': landed on its To (the landing judged on ' + L2.landedOn + ')');
       const a = TW.W.aerodromes.find(q => q.id === L2.from);
       const oneWay = typeof a.takeoffHdg === 'number' || a.altiport;
       if (oneWay && L2.from !== order[0]) {

@@ -59,12 +59,19 @@ const axisErr = (nose, hdg) => Math.min(Math.abs(wrap(nose - hdg)), Math.abs(wra
 // fly one leg from `a` (where the aeroplane stands) to `b`; returns the leg's record
 function flyLeg(C, W, sim, def, a, b, opt) {
   const o = opt || {};
-  const ap = C.makePilot(sim, def, W, { style: o.style || 'normal' });
+  // THE GAME'S FLIGHT (G1970, o.host): the worker's own host (src/viewer/sim_host.js makeSimHost - the page's placement,
+  // its pilot with the garage's shakedown and the nav, the day ticked every step) flies the leg; the first leg is the
+  // host's own start (app.js applyRoute, then 'start'), every next one its 'leg' command (app.js nextLeg -> SIMW.leg)
+  const H = o.host || null;
+  let ap = H ? H.ap : C.makePilot(sim, def, W, { style: o.style || 'normal' });
   const L = { from: a.id, to: b.id, phases: [], verdicts: null, t: 0, ok: false, faults: [] };
   if (o.first) {
-    // the flight's first departure: off the stand, the site's way out (the page's applyRoute)
-    ap.setRoute(a, b);
-    ap.departFrom(a, b, C.siteOf(a.id));
+    if (H) H.queueCmd({ cmd: 'start' });   // placed on the walked stand and departing (makeSimHost place())
+    else {
+      // the flight's first departure: off the stand, the site's way out (the page's applyRoute)
+      ap.setRoute(a, b);
+      ap.departFrom(a, b, C.siteOf(a.id));
+    }
   } else {
     // A CHAINED LEG, the page's own (DEST-TO G1945, app.js nextLeg): the To picked at STOPPED, the leg flightLeg derives -
     // the From UNDER THE AEROPLANE, not the last leg's To - and a fresh pilot's departFrom(from, to), no site, no reset
@@ -72,7 +79,8 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     const FL = typeof C.flightLeg === 'function' ? C.flightLeg(W, C.stripGear(def), cg0[0], cg0[2], b.id, { legFrom: a }) : { from: a, to: b, depart: true };
     L.where = FL.where ? { kind: FL.where.kind, at: FL.from && FL.from.id } : null;
     if (!FL.depart || !FL.from || FL.from.id !== a.id) L.faults.push({ k: 'where', note: 'flightLeg put the From at ' + (FL.from && FL.from.id) + ' (' + (FL.where && FL.where.kind) + '), not ' + a.id, t: 0 });
-    ap.departFrom(FL.from || a, FL.to || b);
+    if (H) H.queueCmd({ cmd: 'leg', from: (FL.from || a).id, to: (FL.to || b).id });
+    else ap.departFrom(FL.from || a, FL.to || b);
   }
   const fault = (k, note) => { if (!L.faults.some(f => f.k === k)) L.faults.push({ k, note, t: r1(L.t) }); };
   const FA = stripFrame(a), FB = stripFrame(b);
@@ -84,10 +92,12 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   // the arrival: the final's start, the lowest clearance under it, the touchdown, the stop
   let finalAt = null, finalH = null, apprMin = { c: Infinity }, tdAt = null, stopAt = null;
   let gLoop = 0, offStrip = 0, obstSteps = 0, obstMax = 0, airborne = false, nan = false;
+  let landB = null, FL = null;   // the strip really landed on, and its frame (G1970)
   const dt = 1 / 60, tMax = o.tMax || 1800;
   let k = 0, lastPhase = null;
   for (; k < tMax / dt; k++) {
-    ap.update(dt); sim.step(dt); L.t += dt;
+    if (H) { H.step(); ap = H.ap; } else { ap.update(dt); sim.step(dt); }
+    L.t += dt;
     const ph = ap.phase;
     if (ph !== lastPhase) { L.phases.push(ph); lastPhase = ph; }
     if (o.debug && L.t < o.debug && (k % 15) === 0 && o.debugLeg === L.from) {
@@ -132,11 +142,20 @@ function flyLeg(C, W, sim, def, a, b, opt) {
         if (c < apprMin.c) apprMin = { c, d: dThr, what: T.what };
       }
     }
+    // THE STRIP LANDED ON (G1970, ISLAND-TOUR-2): the landing is judged on the strip under the wheels at the touchdown,
+    // not on the planned To - after a diversion the planned To's box is another field's (TOUR-REAL's phantom ground loops
+    // and off-strip excursions: the w3 landing measured on East Point's 150 x 12 m box). The strip under the aeroplane
+    // the first time it is on its wheels in the FLARE / ROLLOUT is 38b_dest flightWhere's (the page's own From)
+    if ((ph === 'ROLLOUT' || ph === 'FLARE') && onG && airborne && !landB) {
+      const wh = typeof C.flightWhere === 'function' ? C.flightWhere(W, cg[0], cg[2]) : null;
+      landB = (wh && wh.aero && (wh.kind === 'runway' || wh.kind === 'water')) ? wh.aero : ((ap.route && ap.route.to) || b);
+      FL = stripFrame(landB);
+    }
     if (ph === 'ROLLOUT' && !tdAt) tdAt = [cg[0], cg[2]];
-    if ((ph === 'ROLLOUT' || ph === 'FLARE') && onG && Vg > 5) {
-      const e = axisErr(nose, b.hdg);
-      if (e > 30 / 57.3) { gLoop++; fault('ground-loop', 'the nose ' + r1(e * 57.3) + ' deg off the landing roll at ' + r1(Vg) + ' m/s'); }
-      if (Math.abs(FB.c(cg[0], cg[2])) > b.wid / 2 || Math.abs(FB.s(cg[0], cg[2])) > b.len / 2 + 2) { offStrip++; fault('off-strip', 'the landing roll left ' + b.id + "'s box"); }
+    if ((ph === 'ROLLOUT' || ph === 'FLARE') && onG && Vg > 5 && landB) {
+      const e = axisErr(nose, landB.hdg);
+      if (e > 30 / 57.3) { gLoop++; fault('ground-loop', 'the nose ' + r1(e * 57.3) + ' deg off the landing roll on ' + landB.id + ' at ' + r1(Vg) + ' m/s'); }
+      if (Math.abs(FL.c(cg[0], cg[2])) > landB.wid / 2 || Math.abs(FL.s(cg[0], cg[2])) > landB.len / 2 + 2) { offStrip++; fault('off-strip', 'the landing roll left ' + landB.id + "'s box"); }
     }
     // ---- the ends
     const Dm = sim.damage ? sim.damage() : null;
@@ -171,9 +190,10 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   L.arr = {
     final: finalAt ? { d: r1(Math.hypot(finalAt[0] - b.x, finalAt[1] - b.z) - b.len / 2), h: r1(finalH) } : null,
     apprClear: isFinite(apprMin.c) ? { c: r1(apprMin.c), d: r1(apprMin.d), what: apprMin.what } : null,
-    td: tdAt ? { fromThr: LD ? null : null, s: r1(FB.s(tdAt[0], tdAt[1])), c: r1(FB.c(tdAt[0], tdAt[1])) } : null,
+    td: tdAt ? { s: r1((FL || FB).s(tdAt[0], tdAt[1])), c: r1((FL || FB).c(tdAt[0], tdAt[1])) } : null,
     landing: LD, stopS: stopAt ? r1(FB.s(stopAt[0], stopAt[1])) : null,
   };
+  L.landedOn = landB ? landB.id : null;   // the strip the landing was judged on (G1970: != L.to after a diversion)
   L.fuel = sim.fuel ? { litres: r1(sim.fuel.litres), burnt: r1(fuel0 - sim.fuel.litres) } : null;
   L.damage = D ? { yields: D.yields, breaks: D.breaks, dented: !!D.dented, crashed: !!D.crashed, gPeak: r1(D.gPeak || 0) } : null;
   L.groundLoop = gLoop; L.offStrip = offStrip; L.nan = nan;
@@ -183,14 +203,24 @@ function flyLeg(C, W, sim, def, a, b, opt) {
 }
 
 // the whole tour: `order` a list of aerodrome ids, the first the start (the aeroplane at its stand), the last the end
+// `opt.game` (G1970, GATE TOUR's mode): THE GAME'S FLIGHT - the worker's host (gameHost) flies it from the page's own
+// placement, on the game's day (gameDay, ticked every step) and the game's aeroplane (`def` is the game spec's build:
+// tools/_load_build.js through pilot_trace specOf, JOIN-PARITY G1985); without it, the ISLAND-TOUR rig as it was (a
+// calm, frozen day, the placement 600 steps on the authored stand, a pilot with no shakedown)
 function flyTour(C, W, def, order, opt) {
   const o = opt || {};
   const A = id => W.aerodromes.find(q => q.id === id);
-  const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
   const a0 = A(order[0]);
-  const st0 = C.siteOf(a0.id) && C.siteOf(a0.id).stand;
-  if (st0) C.placeAtStand(sim, a0, st0); else C.placeAtAerodrome(sim, a0);
-  for (let i = 0; i < 600; i++) sim.step(1 / 60);
+  let sim, H = null;
+  if (o.game) {
+    H = gameHost(C, W, def, a0, A(order[1]), o.game);
+    sim = H.sim; def = H.def;
+  } else {
+    sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
+    const st0 = C.siteOf(a0.id) && C.siteOf(a0.id).stand;
+    if (st0) C.placeAtStand(sim, a0, st0); else C.placeAtAerodrome(sim, a0);
+    for (let i = 0; i < 600; i++) sim.step(1 / 60);
+  }
   const legs = [], track = [];
   const tick = () => { const cg = sim.cgPos(); track.push([r1(cg[0]), r1(cg[2]), r1(cg[1])]); };
   for (let i = 1; i < order.length; i++) {
@@ -201,14 +231,57 @@ function flyTour(C, W, def, order, opt) {
     let n = 0;
     sim.step = (dt) => { step0(dt); if ((n++ % 120) === 0) tick(); };
     let L;
-    try { L = flyLeg(C, W, sim, def, a, b, Object.assign({}, o, { first: i === 1 })); } finally { sim.step = step0; }
+    try { L = flyLeg(C, W, sim, def, a, b, Object.assign({}, o, { first: i === 1, host: H })); } finally { sim.step = step0; }
     L.trackI = [t0, track.length];
     legs.push(L);
     if (o.log) o.log(L);
     if (!L.ok) break;
   }
   const done = legs.length === order.length - 1 && legs.every(L => L.ok);
-  return { order, legs, track, done, fuel: sim.fuel ? r1(sim.fuel.litres) : null };
+  return { order, legs, track, done, fuel: sim.fuel ? r1(sim.fuel.litres) : null, game: H ? H.game : null };
+}
+
+// ---- THE GAME'S DAY, THE GAME'S PLACEMENT, THE GAME'S PILOT (G1970, ISLAND-TOUR-2) -------------------------------------
+// TOUR-REAL (G2065) flew the tour in the game on the GPU and found node's tour was not the game's: a calm day against the
+// game's 8 kt breeze, the build file's 45 L against the game's 27-29 L, and a faster, lower INBOUND. Each of the three is
+// the page's own code run here, not a copy of it:
+//   THE DAY        src/viewer/day_clock.js DAY_CLOCK.bind(world) - a new player's day (no pref, no URL): GAME_DAY, the
+//                  'light breeze' 8 kt from 250 deg, 16:00 local on midsummer; ticked every step by the host (H.dayTick:
+//                  world.dayTick(1/60, sim.t, the CG) - the worker's real-time clock), so the breeze, the sea breeze and
+//                  the gusts are the game's at every sim.t
+//   THE AEROPLANE  the game spec (tools/_load_build.js, JOIN-PARITY G1985: the energy layer's tank - the Cub 27 L at
+//                  460.4 kg, not the file's 45 L at 476.2), built by the host as the worker builds it
+//   THE FLIGHT     src/viewer/sim_host.js makeSimHost - the worker's own host: app.js applyRoute's placement (the stand
+//                  walked out of the default player's shed - standFor -, the wheels seated, no settling steps, the
+//                  site's departure), app.js mkPilot's pilot (the garage's shakedown genShakedown(def, {corners: false})
+//                  behind the machine sheet, the nav), one step = the commands, ap.update, sim.step, the day's tick;
+//                  each next leg the 'leg' command app.js nextLeg posts
+const SH_PATH = path.join(__dirname, '..', 'src', 'viewer', 'sim_host.js');
+function gameDay(C) {
+  const vm = require('vm'), fs = require('fs');
+  const ctx = vm.createContext({ console, Math, JSON, Date });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_clock.js'), 'utf8') + '\n;this.DAY_CLOCK = DAY_CLOCK;', ctx, { filename: 'day_clock.js' });
+  // a probe world: the clock binds to it as to the page's (setDay GAME_DAY), the spec read back is the game's first day
+  const w = C.makeWorld(0, {});
+  ctx.DAY_CLOCK.bind(w);
+  return JSON.parse(JSON.stringify(w.day.spec()));
+}
+function gameHost(C, W, def, from, to, g) {
+  const SH = require(SH_PATH);
+  const spec = def.spec;
+  const day = g.day === undefined ? gameDay(C) : g.day;   // (null: calm, no tick - an experiment's)
+  const shake = g.shake === false ? null : C.genShakedown(C.buildGen(spec), { corners: false });
+  const st = C.siteOf(from.id);
+  // app.js applyRoute: the stand walked out of the player's shed (playerShedDims of the default player, at HOME)
+  const shedD = st && C.playerShedDims && C.playerDefault ? C.playerShedDims(C.playerDefault(), 'HOME', st) : null;
+  const stand = st ? (shedD && C.standFor ? C.standFor(st, shedD, (x, z) => W.terrainH(x, z)) : st.stand) : null;
+  const H = SH.makeSimHost(C, { spec, place: { from: from.id, to: to.id, stand: stand ? JSON.parse(JSON.stringify(stand)) : false, seat: true },
+    pilot: { kind: 'auto', shakedown: shake, nav: g.nav !== false }, withV: false, day: day || null,
+    damage: g.damage !== undefined ? !!g.damage : !!(def.params && def.params.damage) }, W);
+  if (!day) H.dayTick = () => {};
+  H.game = { day, shake: !!shake, stand: stand ? { x: r1(stand.x), z: r1(stand.z) } : null, mass: r1(H.sim.totalM), fuel: H.sim.fuel ? r1(H.sim.fuel.litres) : null,
+             damage: typeof globalThis.FLYDIY_DAMAGE === 'boolean' ? globalThis.FLYDIY_DAMAGE : null };
+  return H;
 }
 
 // THE BUILDS (the validated ones - master_bench.js's list): the user's Cub first, then the Cessna (the aluminium C172
@@ -261,4 +334,4 @@ function mdTable(R) {
   }
   return rows.join('\n');
 }
-module.exports = { mdTable, BUILDS, ORDERS, defOf, fmtLeg, tourWorld, flyLeg, flyTour, stripFrame, GROUND };
+module.exports = { mdTable, BUILDS, ORDERS, defOf, fmtLeg, tourWorld, flyLeg, flyTour, stripFrame, GROUND, gameDay, gameHost };
