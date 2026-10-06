@@ -1,0 +1,18 @@
+# the solver's bits: 18 runs (6 standard crashes x 3 builds), the base core (origin/claude/dmg-integration 9500f197, tools/build.js) against this branch's; md5 of p and v at the end, 12 hex
+== off_base
+off cub taxi d625c743f4bd | noseover 02b2dad8c5b5 | fly0 b62745e3ee07 | fly25 4e51316dc487 | drop fc9880d79b52 | drop6 03f3606381e6
+off jodel taxi ea3844300a0b | noseover 34973046af3e | fly0 14b21666abbf | fly25 1860e9ec66f8 | drop 504acefd9e7b | drop6 60e684e55a98
+off metal taxi 22a3c63d12d1 | noseover e6aefdb9d20f | fly0 3a35138567c7 | fly25 9747916aeb0c | drop e7014170726e | drop6 f9e8aef0e321
+== off_here
+off cub taxi d625c743f4bd | noseover 02b2dad8c5b5 | fly0 b62745e3ee07 | fly25 4e51316dc487 | drop fc9880d79b52 | drop6 03f3606381e6
+off jodel taxi ea3844300a0b | noseover 34973046af3e | fly0 14b21666abbf | fly25 1860e9ec66f8 | drop 504acefd9e7b | drop6 60e684e55a98
+off metal taxi 22a3c63d12d1 | noseover e6aefdb9d20f | fly0 3a35138567c7 | fly25 9747916aeb0c | drop e7014170726e | drop6 f9e8aef0e321
+== on_base
+on cub taxi b65d92b555b5 | noseover af5689ba166f | fly0 d0b8caed755b | fly25 52db32c1a6e2 | drop fc9880d79b52 | drop6 8ca0cb1fd615
+on jodel taxi 6d6cfa99b49b | noseover 3126e0cb0e7a | fly0 a4c59ef3c002 | fly25 372d40ee1d22 | drop 504acefd9e7b | drop6 d5baa866d1c6
+on metal taxi 9f33b898e2e3 | noseover 5961b847ee22 | fly0 42acccd544ec | fly25 3ed3fa6fac3d | drop e7014170726e | drop6 aa511cba222d
+== on_here
+on cub taxi b65d92b555b5 | noseover af5689ba166f | fly0 d0b8caed755b | fly25 52db32c1a6e2 | drop fc9880d79b52 | drop6 8ca0cb1fd615
+on jodel taxi 6d6cfa99b49b | noseover 3126e0cb0e7a | fly0 a4c59ef3c002 | fly25 372d40ee1d22 | drop 504acefd9e7b | drop6 d5baa866d1c6
+on metal taxi 9f33b898e2e3 | noseover 5961b847ee22 | fly0 42acccd544ec | fly25 3ed3fa6fac3d | drop e7014170726e | drop6 aa511cba222d
+OFF: identical; ON (the certificate stamped): identical

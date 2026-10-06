@@ -143,6 +143,7 @@ function noseOver(key, o) {
   const tl = [], t0 = sim.t;
   for (let f = 0; f < 60 * (o.secs || 2); f++) {
     sim.step(1 / 60);
+    if (o.onFrame) o.onFrame(sim, f);              // G2357 (DMG-SCAR): a gate's per-frame reader (the ground's contacts)
     const Dm = sim.damage(), lw = low();
     if (strikeT === null && Dm.propStrike) strikeT = sim.t - t0;
     if (discT === null && lw.gap < 0) discT = sim.t - t0;

@@ -4247,6 +4247,32 @@
     const xA = sim.axes()[0];
     CS.update(THREE, contactMesh, CS.blobsFor(sim, def, world, { axis: [xA[0], xA[2]] }));
   }
+  // G2357-G2360 (DMG-SCAR): THE GROUND'S SCAR. A crash's ground contacts, sealed by the physics into craters, gouges and
+  // the sweep (34_scar.js) and carried on the damage hop (dmgNow: the worker's on change, inline the same hop), are laid
+  // on the world ONCE an event: the decal (ground_scar.js - its mesh made and parked in worldSettle, so the roll-out's
+  // compile links its program: none links in a crash) and the cover ring's cull (cover_ring.js scar: the grass out of
+  // the footprint, the shrubs and the debris out of the sweep too). The shed, a reset or a new flight lets it go: the
+  // decal's buffers freed, the ring's cells under it planted again whole. Damage off: never a read (one compare a frame)
+  let scarMesh = null;
+  const SCARS = { st: null, vS: -1, on: false, last: null };
+  const scarPageOn = () => (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : (typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT === true));
+  function groundScars() {
+    const D = !inGarage && sim && world && scarPageOn() ? dmgNow() : null;
+    if (!(D && D.scar && D.scar.length)) { if (SCARS.on) scarsClear(); return; }
+    if (SCARS.st === D && SCARS.vS === D.vS) return;
+    SCARS.st = D; SCARS.vS = D.vS; SCARS.on = true;
+    const t0 = performance.now(), st = GROUND_SCAR.build(THREE, scarMesh, D.scar, world);
+    const ring = window.TREE_FILL && TREE_FILL.cover ? TREE_FILL.cover() : null, cut = ring && ring.scar ? ring.scar(D.scar) : null;
+    SCARS.last = { prims: D.scar.length, tris: st.tris, decalBytes: st.bytes, decalMs: +st.ms.toFixed(2), cut: cut ? cut.cut : null, cells: cut ? cut.cells : null,
+                   cullMs: cut ? +cut.ms.toFixed(2) : null, ms: +(performance.now() - t0).toFixed(2) };
+    window.FLYDIY_SCAR = SCARS.last;   // the coordinator's read (the box stills)
+  }
+  function scarsClear() {
+    GROUND_SCAR.clear(scarMesh);
+    const ring = window.TREE_FILL && TREE_FILL.cover ? TREE_FILL.cover() : null;
+    if (ring && ring.scar) ring.scar(null);
+    SCARS.st = null; SCARS.vS = -1; SCARS.on = false; window.FLYDIY_SCAR = null;
+  }
   function applySkinVis() {
     const b = $('bSkin'), has = !!model;
     // `ready` gates on texture decode: the wireframe holds the frame rather
@@ -7982,6 +8008,8 @@
       if (life && PR && typeof PR.tick === 'function') for (let i = 0; i < 3; i++) PR.tick(0.1);
       if (life && typeof CONTACT_SHADOW !== 'undefined' && CONTACT_SHADOW.S && CONTACT_SHADOW.S.on && !contactMesh && CONTACT_SHADOW.make) {
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
+      // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
+      if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
     } catch (e) { console.warn('world settle:', e && e.message); }
     finally { camera.position.copy(keep); }
   }
@@ -12304,6 +12332,7 @@
     poseModel();
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
+    if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event
     // G1080 (SHADOW-EYES): the craft's shadow maps aimed at THIS frame's pose (worldUpdate ran before poseModel, on the
     // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
     if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();

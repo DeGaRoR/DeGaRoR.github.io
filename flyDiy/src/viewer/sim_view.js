@@ -55,8 +55,10 @@ function simViewDefSig(def) {
 //   br       the broken members, in order; broken[bi] 1 for each
 //   pc       each node's piece (0 = the core: the piece the body's refs are on), null while one piece
 //   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
+//   scar     G2357 (DMG-SCAR): the ground's scar - the primitives 34_scar.js sealed (craters, gouges, the sweep); vS bumps
+//            when they changed (the page's grass cull and decal: ground_scar.js, once an event)
 function simViewDmgState(n, nb) {
-  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0' };
+  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0', scar: [], vS: 0, sC: 0 };
 }
 function simViewDmgApply(D, P) {
   if (!P) return D;
@@ -69,6 +71,7 @@ function simViewDmgApply(D, P) {
   }
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;
+  if (P.sc) { D.scar = P.sc.slice(); D.sC = P.sC; D.vS++; }   // G2357
   D.v++;
   return D;
 }

@@ -232,10 +232,12 @@ function simHostPlain(o, depth, skip) {
 // The page applies it with sim_view.js simViewDmgApply; app.js's inline sim runs the same hop with no window.
 const SIM_DMG_SET_S = 0.1;
 const SIM_DMG_SET_MIN = 1e-4;
+// G2357 (DMG-SCAR): the third signature - the ground's scar (sim.damage().scar, 34_scar.js: { v, prims }, sealed per event:
+// the wreck at rest or its contacts quiet) - its version; 0 with no record or nothing ever sealed
 function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents];
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0];
 }
 // the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
 function simDmgPieces(sim, coreNode) {
@@ -258,25 +260,29 @@ function simDmgSets(sim) {
   });
   return st;
 }
-// hop: { sB, sS, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
+// hop: { sB, sS, sC, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
 function simDmgHop(sim, hop, coreNode, win) {
   const sg = simDmgSigs(sim);
   if (!sg) return null;
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
   let out = null;
+  if (sg[2] !== hop.sC) {           // G2357: the scar alone (its own payload: the page's grass and decal, once an event)
+    hop.sC = sg[2];
+    out = { sC: sg[2], sc: sim.damage().scar.prims.slice() };
+  }
   if (sg[0] !== hop.sB) {
     hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
-    out = { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) };
+    out = Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
     hop.sS = sg[1]; hop.t = sim.t;
-    out = { sS: sg[1], st: simDmgSets(sim) };
-  } else return null;
+    out = Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) });
+  } else if (!out) return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;
 }
 // the pristine hop (an intact airframe, as a new view holds it)
-const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', t: -Infinity });
+const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', sC: 0, t: -Infinity });
 // G1826 (DMG-DRIVE): THE DRIVETRAIN'S STATE, TO THE PAGE, while any engine has one (an overspeed band, a strike, the gearbox,
 // a failure: sim.damage().drive, 33_drive.js genDriveState) - every snapshot then (the vibration and the tip's Mach move;
 // one or two small objects), nothing at all before it (the layer off: no drive array; an untouched drivetrain: one loop

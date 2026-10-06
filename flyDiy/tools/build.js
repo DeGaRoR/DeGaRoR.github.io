@@ -95,6 +95,9 @@ const MANIFEST = {
     // gearbox, the mount's torque and gyroscopic loads - pure; read by the solver (behind the damage layer) and the
     // certificate (66_), at call time
     '33_drive.js',
+    // THE GROUND'S SCAR (G2357, DMG-SCAR): a crash's ground contacts reduced to craters, gouges and the sweep - pure;
+    // the solver feeds it behind the damage layer, the page's grass and decal read its primitives
+    '34_scar.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -417,7 +420,7 @@ const MANIFEST = {
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
-              'trees_pack.js', 'trees.js', 'cover_ring.js', 'stand_cards.js', 'rock_map.js', 'cliffs.js', 'render_world.js',
+              'trees_pack.js', 'trees.js', 'cover_ring.js', 'ground_scar.js', 'stand_cards.js', 'rock_map.js', 'cliffs.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
               'vessel_tex.js', 'panel_tex.js',

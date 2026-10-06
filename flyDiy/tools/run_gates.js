@@ -256,6 +256,11 @@ const GATES = [
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
   { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G2357-G2360 (DMG-SCAR): the ground's scar - nothing on an intact aircraft or with the layer off (the page's bytes); the
+  // standard crashes scar the ground under their contacts (craters, gouges, the prop's slot, the sweep; at most 64), read
+  // never pushed (the same bits), the hop through the worker = inline, reset restores; the grass cull exactly the footprint
+  // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once
+  { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 900 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
