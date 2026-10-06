@@ -1,0 +1,159 @@
+{
+ "when": "2026-10-06T01:40:29.044Z",
+ "size": [
+  800,
+  450
+ ],
+ "builds": {
+  "metal": {
+   "build": "bugReports/cessnaMetal (1).json",
+   "noscuff": {
+    "n": 66,
+    "hash": "5e93b8af",
+    "links": 33
+   },
+   "noscuffErrors": [],
+   "loaded": {
+    "n": 66,
+    "hash": "5e93b8af",
+    "links": 33
+   },
+   "sameAsNoscuff": true,
+   "stills": [
+    "metal_pane_before.jpg",
+    "metal_pane_after.jpg"
+   ],
+   "arm": {
+    "meshes": 704,
+    "links": 10,
+    "front": true,
+    "uDmgM": 0.745
+   },
+   "crashLinks": 0,
+   "measure": [
+    {
+     "pct": 4.0654296875,
+     "mean": 0.744921875,
+     "lum": -0.4269025917968833,
+     "layer": "crush",
+     "view": "nose",
+     "ok": true
+    },
+    {
+     "pct": 20.80859375,
+     "mean": 5.27341796875,
+     "lum": 4.10701179687525,
+     "layer": "scrape",
+     "view": "belly",
+     "ok": true
+    },
+    {
+     "pct": 5.7802734375,
+     "mean": 1.75060546875,
+     "lum": 0.8386121757812542,
+     "layer": "torn",
+     "view": "wing",
+     "ok": true
+    },
+    {
+     "pct": 3.134765625,
+     "mean": 1.541044921875,
+     "lum": 1.461649935546892,
+     "layer": "glass",
+     "view": "pane",
+     "ok": true
+    }
+   ],
+   "cost": {
+    "plain": 12277.5,
+    "armedOff": 13767.799999998882,
+    "armedIntact": 13875.099999999627,
+    "armedFull": 23067.900000000373,
+    "links": 0,
+    "ratioFull": 1.879,
+    "ratioIntact": 1.13
+   },
+   "sourcesEnd": {
+    "n": 106,
+    "hash": "2f749373",
+    "links": 53
+   },
+   "errors": []
+  },
+  "cub": {
+   "build": "builds/cub_2026-09-20_corrected.json",
+   "noscuff": {
+    "n": 62,
+    "hash": "226e0692",
+    "links": 31
+   },
+   "noscuffErrors": [],
+   "loaded": {
+    "n": 62,
+    "hash": "226e0692",
+    "links": 31
+   },
+   "sameAsNoscuff": true,
+   "stills": [
+    "cub_pane_before.jpg",
+    "cub_pane_after.jpg"
+   ],
+   "arm": {
+    "meshes": 466,
+    "links": 9,
+    "front": true,
+    "uDmgM": 0.68
+   },
+   "crashLinks": 0,
+   "measure": [
+    {
+     "pct": 8.1513671875,
+     "mean": 2.16466796875,
+     "lum": -0.6989477792968755,
+     "layer": "crush",
+     "view": "nose",
+     "ok": true
+    },
+    {
+     "pct": 31.392578125,
+     "mean": 8.805517578125,
+     "lum": 1.1319919218750185,
+     "layer": "scrape",
+     "view": "belly",
+     "ok": true
+    },
+    {
+     "pct": 23.8759765625,
+     "mean": 11.729716796875,
+     "lum": -3.802025351562462,
+     "layer": "torn",
+     "view": "wing",
+     "ok": true
+    },
+    {
+     "pct": 5.1923828125,
+     "mean": 2.533876953125,
+     "lum": 2.277975132812506,
+     "layer": "glass",
+     "view": "pane",
+     "ok": true
+    }
+   ],
+   "cost": {
+    "plain": 14998.699999999255,
+    "armedOff": 15862,
+    "armedIntact": 16455.200000001118,
+    "armedFull": 23190,
+    "links": 0,
+    "ratioFull": 1.546,
+    "ratioIntact": 1.097
+   },
+   "sourcesEnd": {
+    "n": 98,
+    "hash": "29ab2ad7",
+    "links": 49
+   },
+   "errors": []
+  }
+ }
+}
