@@ -1,6 +1,10 @@
 # THE NARRATIVE + PORTRAITS PROMPT PACK — for an external AI (prepared, NOT run)
 ### (2026-10-06, G2201, the GAME COORDINATOR; companion of `futureDesigns/GAME-2026-10-06.md` §9-§11)
 
+**Updated after the user's calls (6 Oct ~20:30; study §R):** five providers (the mine and the dock merged), **four**
+recruitable pilots on the existing Mixamo bodies (no download), one delivery per build contract followed by a
+follow-up from a happy client, and no running costs or wages in the text.
+
 **Status: PREPARED, NOT RUN.** Nothing in this pack has been sent to any AI or service. **The user chooses which AI to
 use and runs it** (or explicitly OKs a session to run it; GAME §16 GQ21). The outputs come back as files that a
 session imports into `src/game/` (text) and `media/portraits/` (images), with credits in `CREDITS.md`.
@@ -14,7 +18,6 @@ session imports into `src/game/` (text) and `media/portraits/` (images), with cr
    - **Match the body first.** Each pilot is worn by a Mixamo character. Before generating, take a still of that
      character in the garage's crew picker (or ask a session for `tools/char_stills.js`, owed). Then edit the
      **APPEARANCE** line so the face and clothes agree with the 3-D body.
-   - The `NEW:` bodies need a Mixamo download first (your OK, GQ13).
 3. **Licences**: the AI's terms must allow commercial use of the outputs. Record the AI, the date and the terms in
    `CREDITS.md` (the project's credit-only rule).
 
@@ -37,7 +40,7 @@ water) and a seaplane base by the town (Metlakatla Seaplane Base, water).
 PREMISE. The old Army airfield has been a weed field for decades. The Field Trust leases it to anyone who
 will bring it back to life. The player arrives with a crate of tools, a small grant, a voucher for one
 small aeroplane, and one pilot who believes in them. The island needs air links: the mine wants to
-reopen, the dock wants its mail and its fish spotted, the resort wants guests, the survey office wants
+reopen and ship through the dock, the dock wants its mail and its fish spotted, the resort wants guests, the survey office wants
 eyes on the coast, and private clients want aeroplanes nobody sells. The player designs the aeroplanes
 that do the work.
 
@@ -53,7 +56,10 @@ DESIGN RULES THE TEXT MUST RESPECT.
 - The player chooses freely: no text may say the player MUST use a given aeroplane or pilot.
 - Time passes only in flight; do not write deadlines in days or hours ("by Friday"). Conditions are fine
   ("before dark", "if the cloud lifts").
-- Money is "credits"; do not invent prices (the game computes them).
+- Money is "credits"; do not invent prices (the game computes them). There are no wages or running costs:
+  pilots sign on for a one-time fee; contracts pay net.
+- A client gets ONE aeroplane per build contract. A happy client comes back with a FOLLOW-UP: the same need
+  with one thing changed (faster, one more seat, a smaller tank, floats, cheaper).
 
 HARD CONSTRAINTS (non-negotiable).
 1. The island's real counterpart is home to a living Indigenous community. Every person and organisation
@@ -73,25 +79,25 @@ Answer only in the JSON shapes requested.
 ## BLOCK 1 — the providers and their voices
 
 ```
-Write the six contract providers. For each: a name for the organisation (keep the provided working name
+Write the five contract providers. For each: a name for the organisation (keep the provided working name
 if it fits, or improve it), a one-paragraph description (60-90 words), the CONTACT PERSON who gives the
 player work (name, age, role, 3-sentence personality, how they talk), five sample "bark" lines the
 contact says in the UI (under 12 words each), and the provider's three-act arc as titles + 2-sentence
 summaries. Each arc ends with something BUILT on the island (given below). JSON: Block 5, "providers".
 
-1. field   — "The Field Trust", the airfield's landlord at Jolene AFB. Tutorial work, restoring the field.
-             Arc ends: the second WWII hangar restored and the old tower relit.
-2. mine    — "Jumbo Mine Co.", reopening an old copper mine reached by the 250 m street strip. Crews,
-             parts, samples, heavy loads into a short field. Arc ends: a new headframe and ore shed.
-3. dock    — "The Dock & Cannery", Annette Dock and the seaplane base. Fish spotting, float freight, mail.
-             Arc ends: the pier extended, a cold store and a slipway.
-4. resort  — "Skyline Resort", the snow altiport above the hill. Guests, sightseeing, a VIP who wants an
-             electric aeroplane. Arc ends: the lodge built and the snow strip lengthened.
-5. survey  — "The Survey Office", a two-desk science office. Wildlife counts, coast and weather flights,
-             proving new landing sites (East Point, gravel bars). Arc ends: new stations on the map.
-6. clients — "Private clients & the Club": individuals who want an aeroplane built for them, and the
-             flying club's challenges. Arc ends: a club house, and a small museum hangar for the
-             player's best design.
+1. field    — "The Field Trust", the airfield's landlord at Jolene AFB. Tutorial work, restoring the field.
+              Arc ends: the second WWII hangar restored and the old tower relit.
+2. minedock — "Jumbo Mine & Dock Co.", one company reopening an old copper mine (reached by the 250 m
+              street strip) and shipping through Annette Dock and the seaplane base: crews, parts, samples,
+              heavy loads into a short field, float freight, mail, fish spotting for the dock's cannery
+              tenants. Arc ends: a new headframe and ore shed, then the pier extended with a slipway.
+3. resort   — "Skyline Resort", the snow altiport above the hill. Guests, sightseeing, a VIP who wants an
+              electric aeroplane. Arc ends: the lodge built and the snow strip lengthened.
+4. survey   — "The Survey Office", a two-desk science office. Wildlife counts, coast and weather flights,
+              proving new landing sites (East Point, gravel bars). Arc ends: new stations on the map.
+5. clients  — "Private clients & the Club": individuals who want an aeroplane built for them, and the
+              flying club's challenges. Arc ends: a club house, and a small museum hangar for the
+              player's best design.
 ```
 
 ---
@@ -106,7 +112,8 @@ For each provider write:
     Use only the airfields listed in Block 0.
 (b) 8 JOB TEMPLATES (repeatable one-leg runs): title pattern with {from} {to} {load} slots, a one-line
     brief, and the kind of load (passengers / mail / parts / fish / samples / gear / guests).
-(c) For "clients" and "resort" and "mine", 3 BUILD-CONTRACT BRIEFS each. A brief is the client asking for
+(c) For "clients", "resort" and "minedock", 3 BUILD-CONTRACT BRIEFS each, and for each brief ONE FOLLOW-UP
+    brief (the same client, happy with the first aeroplane, asking for the same with one thing changed). A brief is the client asking for
     an aeroplane in their own words; then list the measurable criteria in plain words underneath (seats
     occupied, empty mass limit, cruise speed with that load, endurance on a fuel limit, electric, lands
     at a given strip, crosswind, cost limit, aerobatic strength). Use these as inspiration, then invent
@@ -123,51 +130,44 @@ JSON: Block 5, "contracts", "jobs", "builds", "challenges".
 
 ---
 
-## BLOCK 3 — the sixteen recruitable pilots
+## BLOCK 3 — the four recruitable pilots
 
 The game's flying is a **profile** (PILOT-PERSONA: `reaction` s, `smooth` ×, `hamFist`, `overRotate` rad, `flareK`,
 `bankK`, `comfortG` g, `field` short/normal, `slip`, and the style cautious/normal/brisk). **The numbers below are
 fixed by the design; the AI writes the PERSON who flies like that.** The traits are game hooks (refusals, skill
-growth, economy); the AI may phrase them but not change them.
+growth, repairs); the AI may phrase them but not change them. **Each pilot is worn by an existing Mixamo body**, so
+the seed (age, look) follows the body. Two more bodies are reserved and are not recruits: ch20 (the red racing
+suit) is the TEST PILOT, and ch02 is kept for the user's own purposes.
 
 ```
-Write each of these sixteen pilots as a person. Keep the given profile facts, traits and the age/role
-seed; you may change the NAME (keep it plausible and diverse) and invent everything else. For each:
-name, age, pronouns, one-line tagline, backstory (80-120 words: where they learned to fly, why they are
-on Jolene, one thing they are proud of, one thing they avoid talking about), how they talk (2 sentences),
-8 barks (under 12 words: hired, take-off, landing well, landing badly, refusing a job (use the trait),
-weather, idle chat, after a long day), a one-line "flies like" description a player can read
-(translate the profile into plain words), and a HIRE pitch (2 sentences they'd say at the interview).
-JSON: Block 5, "pilots".
+Write each of these four pilots as a person. Keep the given profile facts, traits and the seed (the age
+range and the look come from the 3-D body and must not change); you may change the NAME (plausible,
+diverse) and invent everything else. For each:
+- name, age, pronouns, a one-line tagline;
+- a backstory (80-120 words: where they learned to fly, why they are on Jolene, one thing they are proud
+  of, one thing they avoid talking about);
+- how they talk (2 sentences);
+- 8 barks, each under 12 words: hired, take-off, landing well, landing badly, refusing a job (use the
+  trait), weather, idle chat, after a long day;
+- a one-line "flies like" a player can read (translate the profile into plain words);
+- a HIRE pitch (2 sentences they'd say at the interview).
+One of them (marked COMPANION) arrives with the player at the start and believes in them; give them a
+reason. JSON: Block 5, "pilots".
 
-ID      SEED (age, role)                         PROFILE (base + knobs)                           TRAITS (game hooks)
-sven    70, the airfield's old mechanic who      student base; reaction .30, smooth .75,          mechanic (field repairs ×0.9), cautious style,
-        flies — THE STARTING COMPANION           bankK .8, comfortG 1.2, style cautious           night-shy, grows slowly (ceiling: club)
-peg     61, retired bush pilot, legend           bush; reaction .12, smooth 1.0, slip,            short-field, loves taildraggers, expensive,
-                                                 field short, bankK 1.2, comfortG 1.7             refuses nothing
-tomas   24, brand-new commercial licence         student; reaction .40, overRotate .03,           eager (cheap), grows fast (ceiling: bush)
-                                                 flareK .85
-ingrid  38, ex-airline first officer             club; reaction .15, smooth .7, bankK .8,         paved-strip nerves (refuses strips < 300 m),
-                                                 comfortG 1.2                                     night-capable
-kofi    45, coastal float pilot                  bush base, smooth .9, field short                float-rated (refuses nothing on water),
-                                                                                                  dislikes snow strips
-dale    52, ex-crop-duster                       hamfist; hamFist .04, comfortG 1.9, bankK 1.25   fearless (no weather refusals), hard on
-                                                                                                  airframes (repair bills ×1.1)
-aiko    33, glider instructor                    club; smooth .6, reaction .18, flareK 1.05       smooth (endurance legs measured best),
-                                                                                                  refuses aerobatic jobs
-rosa    29, ex-helicopter pilot converting       club; reaction .12, hamFist .02, smooth 1.3      night-capable, grows fast (ceiling: expert)
-noah    19, island kid with 40 hours             student; reaction .45, overRotate .035,          local knowledge (weather barks), grows fast
-                                                 flareK .8, bankK .7                              (ceiling: bush), cheapest
-bea     41, flight nurse turned pilot            club; reaction .2, comfortG 1.25, style          medevac jobs pay more with her, refuses
-                                                 cautious                                         aerobatic jobs
-lars    35, ski-plane specialist                 bush base, field short, bankK 1.1                snow-rated, refuses water
-camille 27, aerobatic competitor                 expert-like custom: reaction .1, bankK 1.3,      brisk style, impatient (refuses jobs paying
-                                                 comfortG 2.0, smooth 1.2                         under her rate), aerobatic challenges +
-elias   58, retired land surveyor                club; reaction .3, smooth .65, style cautious    survey jobs measured precise, night-shy
-hal     66, raconteur, ex-charter pilot          club; reaction .25, flareK .95                   chatty (many barks), grumpy in rain
-priya   31, engineer and test pilot              expert (profile off: flies as tuned)             test pilot (acceptance legs tighter), the
-                                                                                                  most expensive, will not do cargo runs
-walt    49, ferry pilot, long legs               expert-like; reaction .1, field normal           long-range legs, refuses strips < 250 m
+ID     BODY  SEED (look from the body; age range)            PROFILE (base + knobs)                     TRAITS (game hooks)
+kit    ch01  COMPANION. 30s; short-cropped light hair,       club; reaction .25, smooth .8, bankK .85,  mechanic (field repairs x0.9), cautious,
+             white T-shirt, jeans, white trainers. Fixes     comfortG 1.25, style cautious              night-shy, grows steadily (ceiling: bush)
+             engines and flies a little; the one who came
+             with you.
+rafe   ch42  late 20s-30s; tattooed forearms and hands,      hamfist; hamFist .04, comfortG 1.9,        fearless (no weather refusals), hard on
+             red T-shirt, light ripped jeans, white          bankK 1.25                                 airframes (repair bills x1.1)
+             trainers. Ex-crop-duster / airshow ground crew
+             turned pilot: loud, brave, rough hands.
+remy   remy  20s; a smart-casual young man. A brand-new      student; reaction .40, overRotate .03,     eager (the cheapest sign-on), grows fast
+             commercial licence and no hours.                flareK .85                                 (ceiling: expert)
+sky    ch22  20s-30s; white shirt, dark jeans. A bush        bush; reaction .12, smooth 1.0, slip,      short-field, loves taildraggers, the
+             pilot who grew up landing on gravel bars.       field short, bankK 1.2, comfortG 1.7       priciest sign-on, refuses nothing
+             (Gender and look from the body's still.)
 ```
 
 ---
@@ -183,41 +183,22 @@ of a hangar or shoreline behind, the person looks at the viewer, natural express
 proportions, no text, no logos, no brand marks, no insignia, square 1:1, 1024x1024.
 ```
 
-**Per pilot.** `BODY` is the Mixamo character that wears the pilot in 3-D (GAME §9.1). `APPEARANCE` must be edited to
-match that body's still before generating (hair, skin tone, build, clothes). `NEW:` means a Mixamo character to be
-chosen and downloaded (the user's OK).
+**Per pilot.** `BODY` is the Mixamo character that wears the pilot in 3-D. `APPEARANCE` was read from each body's
+texture atlas (the faces are not readable there). **Confirm it against a still** of the character in the garage's
+crew picker before generating, and correct hair, skin tone, build and clothes so the portrait and the 3-D body agree.
 
-| id | BODY | APPEARANCE (edit to the body's still) | the rest of the prompt |
+| id | BODY | APPEARANCE (confirm on the still) | the rest of the prompt |
 |---|---|---|---|
-| sven | ch20 (the default pilot today) | an older man, 70, weathered face, grey stubble; *the body's red coverall* | "a mechanic's patience, a pencil behind the ear, grease on the knuckles, kind tired eyes" |
-| peg | NEW: older woman, outdoor clothes | a woman of 61, silver hair tied back, deep laugh lines | "a faded flight jacket over a wool sweater, a look that has seen every weather" |
-| tomas | remy | a young man, 24 | "an eager half-smile, a brand-new headset around his neck, a crisp shirt" |
-| ingrid | NEW: woman, smart casual | a woman of 38, neat hair | "composed, a fleece over an old airline uniform shirt with no insignia, an assessing look" |
-| kofi | ch42 | a man of 45 | "a rain jacket with the hood down, salt-stained cap, steady calm eyes, sea behind" |
-| dale | NEW: heavy-set man, work wear | a man of 52, sunburnt | "a battered cap, a grin with a chipped tooth, an old work shirt, swagger" |
-| aiko | ch02 | a woman of 33 | "a light windbreaker, sunglasses pushed up into her hair, a serene focused look" |
-| rosa | ch22 | a woman of 29 | "a flight suit with the sleeves tied at the waist and a T-shirt, direct confident gaze" |
-| noah | NEW: teenage boy, casual | a young man of 19 | "a hoodie, rain-wet hair, a shy proud smile, a logbook held to his chest" |
-| bea | NEW: woman, practical | a woman of 41 | "a practical jacket with a small first-aid patch (no text), warm competent expression" |
-| lars | NEW: man, cold-weather gear | a man of 35 | "a knitted hat, a snow-dusted parka, ski goggles on the hat, mountains behind" |
-| camille | NEW: young woman, sporty | a woman of 27 | "a sleek sports jacket, a confident half-smirk, wind-tossed hair" |
-| elias | ch01 | a man of 58 | "round glasses, a field vest with many pockets, a folded map, a methodical calm" |
-| hal | NEW: old man, cardigan | a man of 66, bushy eyebrows | "a cardigan under a waxed jacket, mid-story, raised eyebrow, a mug of coffee" |
-| priya | NEW: woman, technical | a woman of 31 | "a plain technical jacket, a tablet with a graph (no readable text), sharp curious eyes" |
-| walt | NEW: man, travel-worn | a man of 49 | "a leather jacket, a duffel strap over the shoulder, a quiet distant look, runway lights behind" |
+| kit | ch01 | short-cropped light hair, white T-shirt, blue jeans | "a mechanic's patience, a rag over one shoulder, grease on the knuckles, kind tired eyes, the hangar door behind" |
+| rafe | ch42 | dark hair, tattooed forearms and hands, a red T-shirt | "a wide grin, a battered cap pushed back, swagger, sun on the face, a windsock behind" |
+| remy | remy | the body's own look (a young man, casual) | "an eager half-smile, a brand-new headset around the neck, crisp clothes, a bright overcast sky" |
+| sky | ch22 | dark hair, a white shirt (gender from the still) | "a calm weathered look, a fleece over the shirt, a gravel bar and a river behind" |
 
-**Optional, provider contacts**: the same style line, head and shoulders, one per provider contact from Block 1, using
-the AI's own description. These are 2-D portraits only (no 3-D body needed).
+**Not recruits:** ch20 (the red racing suit) is the TEST PILOT, and ch02 is kept for the user's own purposes. Neither
+needs a portrait unless the user asks.
 
-**The body map in short:**
-- **Six existing bodies**: ch20 → sven, remy → tomas, ch42 → kofi, ch02 → aiko, ch22 → rosa, ch01 → elias.
-  - These are **assignments to verify against the stills**. The ages and genders above follow the seeds, not the
-    meshes. If a mesh disagrees (for example ch02 is a man), swap pilots between bodies, or edit the seed's age and
-    gender before writing Block 3.
-- **Ten new bodies (`NEW:`)**: these need Mixamo downloads, about 12-20 MB of PNG each after the CHAR-BUDGET
-  compression, and the LIVE-CREW texture-budget ruling.
-  - The alternative to downloading (GQ13): retextured clothes on the six existing bodies. That needs no download but
-    gives less variety.
+**Downloads:** none. The four recruits wear bodies already in the game. If the user prefers four new Mixamo
+characters, list the picks first; each download needs the user's OK and the LIVE-CREW texture-budget ruling.
 
 ---
 
@@ -225,18 +206,19 @@ the AI's own description. These are 2-D portraits only (no 3-D body needed).
 
 ```json
 {
-  "providers": [ { "id": "mine", "name": "", "desc": "",
+  "providers": [ { "id": "minedock", "name": "", "desc": "",
                    "contact": { "name": "", "age": 0, "role": "", "personality": "", "voice": "" },
                    "barks": ["", "", "", "", ""],
                    "arc": [ { "act": 1, "title": "", "summary": "" } ] } ],
-  "contracts": [ { "id": "mine.01", "provider": "mine", "title": "", "brief": "",
+  "contracts": [ { "id": "minedock.01", "provider": "minedock", "title": "", "brief": "",
                    "stages": [ { "line": "", "from": "HOME", "to": "mn_strip", "load": "3 engineers" } ],
                    "done": "", "builds": "" } ],
-  "jobs":      [ { "provider": "dock", "title": "{load} for {to}", "brief": "", "load": "mail" } ],
+  "jobs":      [ { "provider": "minedock", "title": "{load} for {to}", "brief": "", "load": "mail" } ],
   "builds":    [ { "id": "clients.b1", "provider": "clients", "client": "", "brief": "",
-                   "criteria": [ "4 aboard", "cruise at least 200 km/h with them", "lands at Jumbo Mine Street" ] } ],
+                   "criteria": [ "4 aboard", "cruise at least 200 km/h with them", "lands at Jumbo Mine Street" ],
+                   "followUp": { "brief": "", "changed": "one more seat" } } ],
   "challenges":[ { "id": "", "provider": "clients", "title": "", "line": "" } ],
-  "pilots":    [ { "id": "sven", "name": "", "age": 0, "pronouns": "", "tagline": "", "backstory": "",
+  "pilots":    [ { "id": "kit", "name": "", "age": 0, "pronouns": "", "tagline": "", "backstory": "",
                    "voice": "", "barks": { "hired": "", "takeoff": "", "goodLanding": "", "badLanding": "",
                    "refuse": "", "weather": "", "idle": "", "longDay": "" },
                    "fliesLike": "", "pitch": "" } ]

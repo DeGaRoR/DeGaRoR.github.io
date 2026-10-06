@@ -78090,9 +78090,26 @@ For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the
 
 ## G2200 - GAME COORDINATOR (2026-10-06, a LOCAL sub-coordinator under A0, like Deform / Sound; integration branch claude/game-integration off origin/master 068584d6; G-block G2200-G2399)
 
-STATUS (kept current): **STUDY DONE, waiting for the user's redesign.**
-- Deliverables 1-3 are on claude/game-integration. Deliverable 4 (slicing, chips, integration) starts after the user's
-  calls. Rows 1-3 of the phasing need no redesign decision and were offered to A0 to start now.
+STATUS (kept current, 6 Oct ~21:00): **THE USER HAS RULED** (the review page, relayed by A0). Study §R records the
+calls and their consequences:
+- **Defaults kept everywhere except:**
+  - GQ5: "bring it home" is free in both modes;
+  - GQ26: one delivery per build contract, then a follow-up with one criterion changed;
+  - G-PROV: five providers, the mine and the dock merged;
+  - G-COST: no running costs; contracts pay net; hangars are bought only; a pilot costs a one-time sign-on fee;
+    ruling az now comes from physical gates.
+- **The notes:**
+  - GQ7: faster visual wear outside; slots are the main hangar's build bay + 2, and a side hangar 1 (2 for a club);
+    residents show as L2 props in the garage, hidden in close views.
+  - GQ13: 4 recruits on ch01 / ch42 / remy / ch22, no download; ch20 is the test pilot and ch02 is kept.
+  - GQ19: the phone runs the no-simulation bench and certificate items.
+  - GQ22: the career's main hangar is the works preset made cozy (LOCAL-GPU WORKS-COZY). The sandbox keeps the club
+    (GQ29).
+- The prompt pack has been updated (5 providers, 4 pilots, follow-ups).
+- **Chips:**
+  - issued: [CLOUD] WELCOME-MODES G2210, [CLOUD] FLEET-PROPS A G2220;
+  - next: [CLOUD] PREM-S2 G2230, whose step 0 makes GAME-PREMISES S1 READY with the calls' amendments for **train
+    40**.
 
 DELIVERABLES
 1. `futureDesigns/GAME-2026-10-06.md`: the final study. It covers:
