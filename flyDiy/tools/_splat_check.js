@@ -250,6 +250,11 @@ function checkShader(G, splice, quiet) {
   // splice of the splat's text goes through SP, the program keys ':plain', and the sets are fetched only when a step asks
   say(rw.includes('const SP = SPL && !SPL.api.plain() ? SPL : null;') && !/SPL\.glsl(Map|Normal|Rough|Common)/.test(rw)
       && rw.includes("(groundPlain() ? ':plain' : '')"), "the plain ground's programs carry no splat (SP null, every splice through SP, keyed ':plain')");
+  // G1531: the hook hands every ground program the SAME uniforms whatever its state (the splat's even when plain) - three r186 reuses a
+  // material's cached program without the hook and keeps the LAST compile's uniforms object: a plain compile's set left a reused
+  // lean program's array samplers unset (GL_INVALID_OPERATION, no ground drawn - GROUND-COST, 6 Oct)
+  say(rw.includes('Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});') && !rw.includes('Object.assign(sh.uniforms, gU, SP ? SP.uniforms'),
+      "every ground program takes the splat's uniforms in every state (plain included): a cached program never meets a plain compile's uniforms");
   { const sg = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'splat_ground.js'), 'utf8');
     say(/if \(!plain\) ensure\(\);/.test(sg) && /if \(!asked\) \{ LIB = keys; return true; \}/.test(sg), "a plain ground fetches no set until a step asks (ensure on plain(false), a grow before it builds nothing)"); }
   // THE FOREST FLOOR'S GRASS IS PULLED BY VALUE, TOWARD A MEASURED TARGET (2026-09-23, the user:

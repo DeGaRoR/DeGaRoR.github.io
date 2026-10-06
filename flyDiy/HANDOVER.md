@@ -79356,3 +79356,84 @@ BEFORE = train 34's index.html, AFTER = this branch's build. Sheets: tools/perf/
 ## TRAIN 38 - G1985 JOIN-PARITY HELD OUT (A0, 6 Oct ~20:00)
 
 JOIN-PARITY (aba8187f) is reverted out of train 38 at the user's call: on the game's aeroplanes it turns FLOATS, TREECRASH, DMGGEAR and DMGCLUSTERS red and PILOTACT (metal Cessna landing sink 1.11 -> 1.89 m/s) to WARN - real findings, not rebaselined. It lands in train 39 (the damage train) with DMG-RECAL (G2030-G2034) and a FLOATS answer, via DMG-FLOATTO's bundle. Its HANDOVER section above stays as the record of the work.
+
+
+## G1530 POTATO-DEEP: THE PREMISES PATCH COARSER FOR EVERY PRESET? - THE COUNTS AND THE DETAIL SHOTS (2026-10-06, POTATO-DEEP for A0; the user: "if it could reduce it that much, and I don't see a difference, worth doing this for all?")
+
+THE COUNTS (FRAMECOST census, the Cub, node; `FRAMECOST_QUERY=patchtol=N`, the preset by FRAMECOST_GFX; the taxi pin / the stand):
+    preset   | taxi M  1 px -> 3 px -> 6 px      | saved at 3 / 6 px      | stand M 1 -> 3 -> 6
+    retro    | 7.21 -> 6.78 -> 6.63              | -0.42 (-5.9 %) / -0.57 (-8.0 %) | 8.09 -> 7.69 -> 7.61
+    current  | 12.48 -> 12.06 -> 11.91           | -3.4 % / -4.6 %        | 16.26 -> 15.86 -> 15.78
+    gamer    | 13.28 -> 12.86 -> 12.71           | -3.2 % / -4.3 %        | 17.62 -> 17.22 -> 17.14
+    ultra    | 14.15 -> 13.73 -> 13.57           | -3.0 % / -4.1 %        | 19.35 -> 18.96 -> 18.87
+The same patch everywhere: the same -0.42 / -0.57 M on every preset, so it weighs most on retro (the user's laptop target): by
+HW-COVERAGE's laptop flight fit (~20 ms a million triangles) ~-8 / -11 ms a frame there. The 3080's own GPU ms at this size are
+inside its noise (A0's ruling: counts + the cards' fits). The sink deepens to 8.4 m under the pavement at 3 and 6 px alike.
+THE DETAIL SHOTS (the 11:20-11:55 untimed slot, the box's GPU, gamer, Jolene's HOME, `?patchtol=1|3|6` in one build -
+index_detail.html with the new FLIGHT_PROBE.devFree; `tools/perf/potato_census.js --detail --orbits ... --lowagl 50`), noon and
+golden hour: `reports/evidence/POTATO-DEEP/g1530_gamer_{noon,golden}_patch1_3_6px_diff.jpg` - rows: the stand, two low orbits at
+the apron / grass seam (14 m, 20 m, 4 deg), the eye 8 m off the runway's edge at 1.8 m looking 25 m along it, the eye 6 m off a
+road's edge (the nearest road to HOME found by the premises overlay's pavedAt), the taxi, a 50 m low pass; columns 1 | 3 | 6 px |
+the 1-vs-6 difference x4. THE PIXELS DIFFERING BY MORE THAN 40/255 (1 vs 3 / 1 vs 6):
+    noon:   stand 3.19 / 3.11 %, seam A 3.02 / 2.84, seam B 4.71 / 4.59, RUNWAY EDGE 0.08 / 0.08, ROAD EDGE 0.00 / 0.00
+    golden: stand 0.47 / 0.10 %, seam A 0.45 / 0.11, seam B 1.01 / 0.30, RUNWAY EDGE 0.01 / 0.01, ROAD EDGE 0.00 / 0.00
+READ: the edges at eye height - the pavement-to-grass seams the patch could spoil - are the same to the pixel. The stand's and
+the orbits' few percent are the same at 3 and at 6 px (and smaller at 6 than at 3 at golden hour): a run-to-run sub-pixel
+camera offset (the diff outlines every hangar, fence and pole, not the ground), not the patch. The taxi and the low pass are
+moving frames (the aeroplane's place differs run to run) - for the eye, not for the diff.
+NOT DONE: retro's shots (the slot ran out after gamer's six boots - the census beside them made each ~5.5 min); retro draws the
+same patch geometry (the 'lean' ground program on it), so gamer's geometric evidence carries, but its eye is owed.
+PROPOSAL (A0 relays; the user decides - every desktop preset's budget is frozen in GATE GFX §10 until then): `patchTolPx: 6` on
+retro, current, gamer and ultra too (the -0.57 M everywhere; nothing visible at 1-50 m or from 400-1 200 m, the pavement held
+by G1528's sink and 1 px pavement tolerance). The conservative step is 3 px (-0.42 M). One BUDGETS field per row + §10's freeze.
+
+**G1529 CORRECTION - HW-COVERAGE's throttled retro load WITH A FRESH COOK** (their tree re-cooked, `parked_cook.js --check` same,
+every parked aeroplane 'cook'; --cpu-throttle 4, 1920 x 1080, warm, 6 Oct 12:35-12:47; JSONs tools/perf/hwcov/
+rollout_load_{retro,potato}_cooked.json on claude/hw-coverage-g1995 71b02a70) - REPLACES their 04:34 row (169 s, a stale cook):
+to the shed retro 150.6 s, potato 94.1 s (+56.5). Retro / potato: town 30.3 / 4.0, settle 29.7 / 23.6, world 27.8 / 25.8, bake
+7.1 / 0, ring 8.0 / 6.9, upload 6.9 / 6.2, frames 5.0 / 1.8, spec 3.0 / 1.0, firstFrame 2.4 / 0.5, parked 0 / 0. Retro's gap to
+potato on a slow CPU is the town (+26 s - the 4 km boot town, kept: nearer moves it into the taxi), the settle (+6), the bake (+7,
+gone with G1529) and the first frames (+6).
+
+## G1531 POTATO-DEEP: NO GROUND AFTER TEXTURED -> PLAIN -> TEXTURED - THREE'S CACHED PROGRAM MET A PLAIN COMPILE'S UNIFORMS (2026-10-06, POTATO-DEEP for A0; found by GROUND-COST on the box)
+
+THE BUG (GROUND-COST, the box, 6 Oct): after the GRAPHICS ground row went plain and back to a textured step LIVE, the ground drew
+nothing - the haze's beige from the air, the lakes black (the water over no bed), its 60 draws ~0.01 ms, re-keying compiled nothing;
+it also corrupted the user's laptop ?diag rows after ground=plain (228 -> 68 ms: the ground not drawn).
+THE DIAGNOSIS, in three steps:
+1. NODE (FRAMECOST's census with a new hook, FRAMECOST_PROBE=<file>): a page BOOTED plain switched to lean recompiles the near
+   ring (key ':plain' -> plain, cache key 266 -> 260 chars, a fresh lean boot's 260) with the uniforms a fresh boot binds.
+2. GPU (17:00-17:03, potato_census --eval-stand): that FIRST switch is clean on the box - no GL error on 1 830-2 196 ground draws,
+   samplers within 16 (ring 10, outer 12, the patch twin 9, fine tiles 10 - a fresh lean boot's exactly), linked, the splat arrays
+   uploaded (BC7, 256 x 256 x 13, 9 mips), the still the fresh one's. Not the 16-unit limit.
+3. THE CASE IT NEEDS: a RETURN. three r186's getProgram (vendor/three.min.js): on a cache HIT (programs.get(key) defined) it does NOT
+   call onBeforeCompile and keeps V.uniforms - the uniforms object of the material's LAST compile. The ground hook handed the splat's
+   uniforms only when not plain: textured (compiled) -> plain (compiled: a uniforms object WITHOUT uSplat / uSplatN / uSplatOn) ->
+   textured (the cached program, the plain compile's uniforms): the two sampler2DArray uniforms never set, both on unit 0 where a
+   2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn. Node, the same cycle on retro
+   (tools/perf/probe_ground_cycle.js): before the fix the reused programs (#22 ring, #23 outer, #146 fine) read uSplat / uSplatN /
+   uSplatOn MISSING at C; after it, present at A, B and C.
+THE FIX (render_world's ground hook, one line): `Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {})` - every ground program the
+same uniforms whatever its state (a program ignores what it does not declare). The interim reload (6a32446f, a page booted plain
+reloaded to draw a textured ground) is REMOVED: live both ways again (A0's ruling: a reload on a settings change is a user-visible
+cost). GATE SPLAT holds the line (and that no hook passes SP's uniforms); GATE GFX §10: potato -> gamer and textured -> plain ->
+textured both live, no reload.
+THE REPRO, kept: `PROBE_EXIT=1 FRAMECOST_PROBE=tools/perf/probe_ground_cycle.js FRAMECOST_GFX='{"preset":"retro"}' node tools/_framecost_check.js --census cub`
+(every ground program 'yes' at A, B, C). potato_census gained `--eval-stand <file>` and `--gfxpref <json>` for the GPU side.
+THE SAME TRAP ELSEWHERE (A0 asked; a material whose cache key changes at run time AND whose hook hands different uniform sets per
+state): checked -
+- the ground family (ring, outer, fine tiles, the premises patch twin): THE BUG - fixed;
+- the premises patch's own clones (render_premises matOwn): key follows the ground's; the hook = the ground's (fixed) + the build-time
+  material injection - safe with the fix;
+- pavement (tableMat / the per-part path): PT.key moves with the dev pavtest mode, the hook hands the material's own shared
+  m.uniforms every time - safe;
+- trees (fade / fade-leaf): the key's '-leaf' is set once when the material is hooked, before any compile - no run-time cycle;
+- water: its tier (simple / full) pushes uniform VALUES, the key is constant - safe;
+- clouds, the sky, the aerial perspective: ShaderMaterials (three takes the material's own uniforms object) - immune;
+- impostors / impostor depth, HLOD, the town kit, the house arrays: a constant key per material - safe.
+THE STILL (A0's untimed 18:56-19:10 slot, the box's GPU, retro at HOME's stand, potato_census --eval-stand eval_cycle.js:
+`reports/evidence/POTATO-DEEP/g1531_cycle_fresh_fixed_unfixed.jpg`): a fresh retro boot | the FIXED build after lean -> plain ->
+lean (the same picture; 2.66 % of the pixels differ by more than 40/255 - the aeroplane a few pixels off between the boots) | the
+UNFIXED build after the same cycle: the grass beyond the apron gone to the haze's pale beige, the far mountains washed out where
+their ground is not drawn (the pavement, its own material, still drawn) - GROUND-COST's picture. (The low pass at 80 m did not
+finish inside the slot's shares; the stand shows the whole ground family failing, near and far.)

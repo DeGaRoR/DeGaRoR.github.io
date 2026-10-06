@@ -377,17 +377,21 @@ console.log('GATE GFX');
   ok(wc.GFX.get().preset === 'custom' && wc.GFX.get().shadows === 'off', '...a custom mix keeps its rows');
   // the live hooks: the plain ground (the splat's plain()), the shed glass (FLYDIY_SHED), the MSAA cap (FLYDIY_AA.setMsaaCap)
   const hook = q => { const w = makeWindow({}); const calls = { plain: [], msaa: [] };
-    w.WORLD.ground = { splat: () => ({ blend() {}, plain: v => { calls.plain.push(v); return v; } }) };
+    let pl = false; calls.reload = 0;   // the splat's plain state (a real page builds it as the budget's row says)
+    w.WORLD.ground = { splat: () => ({ blend() {}, plain: v => { if (v === undefined) return pl; calls.plain.push(v); pl = !!v; return pl; } }) };
+    w.location = Object.assign({ search: '', reload: () => { calls.reload++; } }, w.location || {});
     const glass = { isMeshPhysicalMaterial: true, transmission: 0.9 }; w.FLYDIY_SHED = () => ({ mats: { glass } }); calls.glass = glass;
     w.FLYDIY_AA.setMsaaCap = n => { calls.msaa.push(n); return n; };
-    if (q) w.location = { search: q };
+    if (q) w.location.search = q;
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
     w.GFX.onWorld(); return { w, calls }; };
   const hp = hook('?gfx=potato'), hg = hook(''), hl = hook('?gfx=laptop');
   ok(hp.calls.plain[0] === true && hg.calls.plain[0] === false && hl.calls.plain[0] === true, 'the plain ground reaches the splat: potato and laptop plain, gamer not');
   ok(hp.calls.glass.transmission === 0 && hg.calls.glass.transmission === 0.9, "the shed's glass: no transmission on potato, gamer's as it was");
   hp.w.GFX.set('preset', 'gamer');
-  ok(hp.calls.glass.transmission === 0.9 && hp.calls.plain[hp.calls.plain.length - 1] === false, '...both back live when the preset goes to gamer');
+  // G1531: both ways LIVE, no reload (the root fix: render_world's ground hook, the same uniforms in every state - GATE SPLAT)
+  ok(hp.calls.reload === 0 && hp.calls.plain[hp.calls.plain.length - 1] === false && hp.calls.glass.transmission === 0.9, '...potato -> gamer: the textured ground and the glass back LIVE (no reload, G1531)');
+  { const h2 = hook('?gfx=gamer'); h2.w.GFX.set('ground', 'plain'); h2.w.GFX.set('ground', 'lean'); ok(h2.calls.reload === 0 && h2.calls.plain.slice(-2).join() === 'true,false', '...textured -> plain -> textured, live both ways'); }
   ok(hl.calls.msaa[0] === 0 && hg.calls.msaa.length === 0 && hp.calls.msaa.length === 0, 'the MSAA cap: laptop 0; potato and gamer never set one');
   hl.w.GFX.set('preset', 'gamer');
   ok(hl.calls.msaa[hl.calls.msaa.length - 1] === null, '...laptop -> gamer lifts it');
