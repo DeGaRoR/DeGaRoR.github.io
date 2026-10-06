@@ -282,7 +282,10 @@ async function pageRunOn(o) {
 // member (the event), 2 the stretch tear (a fabric record's own; WALL's tube or sheet bound on a tube / sheet record;
 // the confetti islands counted apart), 3 the wall cut, 4 gone with its covering, 5 taken by a debris body
 function pageTears() {
-  const P = FLIGHT_PROBE, sim = P.sim(), def = P.def(), m = P.model(), D = sim.damage(), tg = i => def.nodes[i].tag || i;
+  const P = FLIGHT_PROBE, sim = P.sim(), def = P.def(), m = P.model(), tg = i => def.nodes[i].tag || i;
+  // (under the worker the page's own sim is never stepped: the breaks are the mirror's dmgState, the work the worker's verdict)
+  const DS = sim.dmgState ? sim.dmgState() : null, V0 = P.damage() || {}, D0 = sim.damage ? sim.damage() : {};
+  const D = DS ? { broken: DS.br || [], work: V0.work != null ? V0.work : NaN, reason: V0.reason || null } : D0;
   const o = window.__d4bO || {}, M = sim.totalM || 0, V = o.V || 0, sink = o.sink || 0;
   const out = { broken: D.broken.length, members: D.broken.map(i => tg(sim.beams[i].a) + '-' + tg(sim.beams[i].b)), workJ: Math.round(D.work || 0),
                 energyJ: Math.round(0.5 * M * (V * V + sink * sink)), reason: D.reason, wings: {}, other: {} };

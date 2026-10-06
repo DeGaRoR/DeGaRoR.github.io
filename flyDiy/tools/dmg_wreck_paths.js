@@ -30,7 +30,7 @@ function pageWreck() {
   for (const o of parts) { if (!o) continue; if (!o.visible) hidden++; const e = o.matrix.elements; if (Math.abs(e[0]) < 1e-4 && Math.abs(e[5]) < 1e-4 && Math.abs(e[10]) < 1e-4) collapsed++; }
   const SB = window.FLYDIY_SKINBREAK_STATS ? FLYDIY_SKINBREAK_STATS() : null, D = P.sim().damage ? P.sim().damage() : null;
   return { active: !!W.active, bodies: (W.bodies || []).length, gone: (W.parts || []).filter(p => p.gone).map(p => p.kind + ':' + p.why), debris, parts: parts.length, hidden, collapsed,
-           skinRecs: SB ? (SB.recs != null ? SB.recs : SB.n) : null, broken: D ? D.broken.length : null, t: +P.sim().t.toFixed(2), garage: document.body.classList.contains('mode-ws') };
+           skinRecs: SB ? (SB.recs != null ? SB.recs : SB.n) : null, broken: (P.sim().dmgState ? (P.sim().dmgState().br || []).length : (D ? D.broken.length : null)), t: +P.sim().t.toFixed(2), garage: document.body.classList.contains('mode-ws') };
 }
 const waitFor = async (js, ms) => { const t = Date.now() + ms; while (Date.now() < t) { if (await ev(js) === true) return true; await sleep(500); } return false; };
 const inWorld = "(window.BOOT ? BOOT.state === 'gone' : true) && !document.body.classList.contains('mode-ws') && !!(window.FLIGHT_PROBE && FLIGHT_PROBE.sim())";
@@ -46,7 +46,7 @@ const inShed = "document.body.classList.contains('mode-ws')";
     // steps, the sim's clock - and the path marked NOT EXERCISED if it still breaks nothing)
     const crashOnce = async () => { const x = await S.run(S.pageStage, S.CASES['trunk-0'].o);
       const why = await ev("JSON.stringify({ hits: FLIGHT_PROBE.sim().trunkHits ? FLIGHT_PROBE.sim().trunkHits() : null, t: FLIGHT_PROBE.sim().t, held: !!window.__d4bStep, world: !!FLIGHT_PROBE.world().treeHits })");
-      return { broken: x.broken, reason: x.reason, steps: x.steps, why: typeof why === 'string' ? JSON.parse(why) : why }; };
+      return { broken: x.worker ? (x.pageBr || 0) : x.broken, worker: !!x.worker, reason: x.reason, steps: x.steps, why: typeof why === 'string' ? JSON.parse(why) : why }; };
     r.crash = await crashOnce();
     if (!r.crash.broken) { r.crash0 = r.crash; await S.run(pageFree); r.crash = await crashOnce(); }
     r.exercised = r.crash.broken > 0;
