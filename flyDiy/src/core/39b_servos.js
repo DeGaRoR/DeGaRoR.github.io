@@ -224,7 +224,8 @@ function makeServos(sim, def, opts) {
     // water again (a second skip). G396.2's own reading: this lift-off asks
     // ~0.5 of stick. The water's top holds through LIFTOFF
     const deTop = FT.deTop ? FT.deTop(S.onG) : G.deMax;
-    c.de = clamp(g('pitchP') * S.pitchK * S.oscK * (S.thCA - th) - g('pitchD') * S.pitchDK * S.oscK * S.q + S.Ith, G.deMin, deTop);
+    const plain = S.pitchK === 1 && S.pitchDK === 1, kO = plain ? S.oscK : 1;   // G1949 (below): the plain loop's only
+    c.de = clamp(g('pitchP') * S.pitchK * kO * (S.thCA - th) - g('pitchD') * S.pitchDK * kO * S.q + S.Ith, G.deMin, deTop);
     if (S.deFloor > 0 && S.deFloor > c.de) c.de = S.deFloor;
     // G1949 (PILOT-ONE-2, the owed FLEX settle): A PILOT WHO FEELS THE NOSE PUMP RELAXES THE GRIP. On the 6061 tube +
     // Dacron build (GEN_DEFAULT, aluTube) THE PILOT's cruise held the elevator in a slew-limited triangle, +-0.29 at
@@ -237,7 +238,9 @@ function makeServos(sim, def, opts) {
     // pitch on re-engage), decaying over oscWin, and at
     // oscN of them the pitch gains step down by oscStep - the airframe that does not pump never scores, and its
     // flight is the old one to the bit (oscK stays exactly 1)
-    if (S.onG === 0) {
+    // ...ONLY IN THE PLAIN LOOP: the flare's and the rotation's firmer gains (pitchK / pitchDK set by the pilot) reverse
+    // fast by design - counted, the Stearman's hold-off was backed off and it arrived at 1.49 m/s for 0.95 (PILOTMATRIX)
+    if (S.onG === 0 && plain) {
       if (oscPrev !== null) {
         const d = c.de - oscPrev, sg = d > 0 ? 1 : d < 0 ? -1 : 0;
         if (sg !== 0 && oscDir !== 0 && sg !== oscDir) {
