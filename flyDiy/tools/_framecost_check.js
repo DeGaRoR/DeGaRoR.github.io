@@ -380,6 +380,9 @@ async function census(build) {
   C.phase = () => P.rec.phase;
   if (SHADOW_PASSES) shadowPassHooks(W, C);
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
+  // FRAMECOST_PROBE=<file.js> (G1531, a debugging aid, never the gate's): module.exports = async (W, P, FP) => ..., run here, before
+  // the views - a repro's live switch and its read-back (stderr)
+  if (process.env.FRAMECOST_PROBE) { try { await require(path.resolve(process.env.FRAMECOST_PROBE))(W, P, FP); } catch (e) { process.stderr.write('PROBE threw ' + (e && e.stack) + '\n'); } }
   views.stand = await measure();
   const craft = { stand: await craftCensus(W, P, FP, C) };
   const detail = { stand: drawnDetail(C) };

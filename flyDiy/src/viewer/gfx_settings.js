@@ -466,7 +466,13 @@
     if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
     { const sp = W.WORLD && W.WORLD.ground && W.WORLD.ground.splat && W.WORLD.ground.splat();
       if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' || S.ground === 'plain' ? 1 : 3, S.ground === 'full' ? 3 : 1, S.ground === 'full' ? 0 : 100, S.ground === 'full' ? 0 : 400);
-        if (sp.plain) sp.plain(S.ground === 'plain');   // G1521: the plain ground re-keys the ground's programs (and fetches the sets the first time a step wants them)
+        // G1521: the plain ground re-keys the ground's programs (and fetches the sets the first time a step wants them).
+        // G1531 (GROUND-COST found it on the box, 6 Oct): LEAVING plain LIVE drew no ground at all (the haze's beige from the
+        // air, the lakes black, its draws ~0 ms - skipped by the driver; node's census binds the same program and uniforms
+        // as a fresh boot, so the fault is the GPU's draw, still being traced): until it is, a page booted plain RELOADS to
+        // draw a textured ground (as the colour and the towns rows do); going TO plain stays live
+        if (sp.plain) { if (sp.plain() && S.ground !== 'plain' && W.location && typeof W.location.reload === 'function') { save(); W.location.reload(); return; }
+          sp.plain(S.ground === 'plain'); }
         applied.ground = S.ground; } }
     if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
       const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
