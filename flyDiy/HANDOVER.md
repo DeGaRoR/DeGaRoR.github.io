@@ -79157,3 +79157,88 @@ apart: 3 px over 8 differ) and diff_lamps_on_off.png, lamps_on_off_side_by_side.
 shadow on the floor under the lamps, the trestle's and the tool rack's (106 k px over 8, max 82); it saves ~2.1 ms of
 the box's ~7.6 ms GPU in the shed (no draw: the maps are cached).
 
+
+
+
+## G1975 - DEADWOOD-BRIGHT: THE WHITE SNAG IS THE LARCH'S - BARK-ONLY IMPOSTOR SHEETS TAKE THEIR OWN LIGHT, CONTRAST, ALPHA AND LEVEL; NO DIAL SCALES THE IMPOSTORS TWICE; THE MIXES' SNAG SHARE PROPOSED (OFF) (2026-10-06, DEADWOOD-BRIGHT for A0, local GPU; branch claude/deadwood-bright-g1975 off origin/master e9e14880, train 37b merged in; G1976-G1979 unused)
+
+**READY for A0** - draw-time uniforms only (no bake-cache bump, no generated file); FRAMECOST's census identical to master's;
+the leafy sheets draw as before (measured: every leafy row of `final/*_match.json` within noise of master).
+
+**The report (the user, 5 Oct):** "one of the impostor dead tree renders really too bright, almost white" - all presets.
+
+**Confirmed on screen: the LARCH snag** (`larch_tree.glb|Larch_LOD0`, series `snag`, 9 % of the conifer mixes; the
+brightest bark sheet baked, albedo Y 0.143 against 0.01-0.10). `larch_snag_before_after.png` (rows: potato into the sun,
+potato front-lit, gamer into the sun, gamer front-lit, golden hour, at the hand-over + 10 m; columns GEOMETRY | master |
+this branch): master draws it as a pale, fat, feathery tree - pink-beige and glowing into the sun - where its geometry is a
+thin pole with sub-pixel twigs; the branch draws a thin pole. Impostor / geometry over the pixels both draw (`core`):
+potato front-lit 1.67 -> 1.09, side 1.64 -> 1.00; gamer front-lit 1.40 -> 1.14 (the hand-over's box `pop` +1.14 -> +0.39);
+pine_georgeous snag potato front-lit 1.31 -> 1.09.
+
+**Four causes, all on BARK-ONLY sheets** (each species' snag series, dead_conifer, dead_deciduous) - and the fix for each
+(src/viewer/render_world.js impostorMat; `tintUniformsOf` reports `bark` = no leaf part, carried in IMPA.tbl row 1 `.w` for
+the merged meshes and `uBark` on one-layer materials; the bark terms are shared uniforms, dials on
+`TREE_LOD.imp({ barkWrap, barkSSS, barkFlat, barkSolid, barkCut, barkLit })`):
+1. THE LEAF TERMS: every impostor drew uLeaf 1 - the wrap 0.80 and the translucency 1.12 (pow 5.75) the bark geometry never
+   gets (trees.js uLeaf 0). The translucency IS the pale glow into the sun: `barkSSS 0`. The wrap stays (`barkWrap 1`):
+   without it the backlit sheet goes navy-black where the round trunk's geometry catches a brown rim the baked normal loses.
+2. THE CONTRAST: uFlat 1.30 about the conifer foliage's pivot 0.05 pushed every bark texel above 0.05 up (larch +20 %) and
+   every one below toward black (maple / oak / birch3 snags, albedo 0.007-0.014): `barkFlat 1`, the texel as baked.
+3. THE SHAPE: a twig is one texel of the 128-px tile; the 3-tap union (uISolid 1) at the snag's cut 0.10 x gain 6 made each
+   one a square blob on a pole fattened across views: `barkSolid 0` (the weighted taps) and `barkCut 0.4` (a floor on the
+   cut). The pole stays, the twigs dissolve - as the geometry's sub-pixel twigs do at the hand-over (`alpha_sweep/`: solid
+   1/0 x cut 0/0.3/0.5; 0.5 is a hair cleaner, 0.4 keeps a far snag's pole a mip longer).
+4. THE LEVEL: a bare snag barely shades itself, so its geometry's match is uILit 0.9 on EVERY preset, where the leafy match is
+   1.242 without tree shadows (below): `barkLit 0.725` = 0.9 / 1.242, the bark sheets' share of uILit.
+
+**THE DOUBLE COUNT (A0's code read) - half a bug; the other half is the user's call.**
+- THE BUG, FIXED: `envAlbedo(k)` (G483 268cbdc3: `uILit = base x k x 0.9`; G485 d2158ad1: `0.9 x k`, its own comment saying
+  "uILit is the match, not the level, the tint carries the level") and the world rail's trees' `lightness`
+  (`uILit = v x 0.9`) scaled the impostors' lit term AS WELL AS the tint, which already reaches them (IMPA.tbl row 1): any
+  move of either dial reached the impostors as k^2 and the geometry as k. No dial writes uILit any more.
+- WHAT db226efa INTENDED (A0 asked): to make the user's F8 world look (flydiy-world-look-2026-10-031424, env. albedo 1.38) the
+  default with envAlbedo() neutral at 1. It baked 1.38 into the leaves' master light AND uILit (0.9 x 1.38) because that is
+  what the user saw on screen, the k^2 included - faithful to the user's look, not a choice to brighten the impostors. Kept.
+- THE MEASUREMENT (`handover_sweep/`, impostor / geometry `core`, leafy, front-lit): uILit 1.242 IS the match where trees
+  cast no shadow (potato 0.92-1.21) and runs 1.33-1.81 where they do (gamer: the geometry darkens under its own crown, the
+  impostor does not); 0.9 is gamer's (0.93-1.16). All views averaged: gamer at 0.9 = 0.84, potato at 1.242 = 0.82 - one
+  value cannot hold both presets.
+- OPEN, THE USER'S CALL (A0 shows them `far_forest_sheet.png`: gamer, 300 m / 1 km x noon / golden, columns master | uILit
+  0.9 | 0.9 + the trees' lightness x1.38): uILit 0.9 on the presets whose trees cast shadows (current / gamer / ultra), a
+  value keyed in gfx_settings' shadows apply. Their far forest drops ~22 % (the trees' own pixels: 300 m noon 0.172 ->
+  0.135, 1 km golden 0.087 -> 0.067); the trees' lightness x1.38 restores only half (0.155) because uILit also scaled the
+  sky-reflection terms the tint never touches - a full restore is ~x1.7 and the near trees 70 % brighter. Default if no
+  answer: as landed, 1.242 everywhere.
+
+**PROPOSED, OFF - THE MIXES' SNAG SHARE (the user's call, A0 recommends ON):** the game deals snags by the collection's
+`place.dead` and never reads the mixes' own `species[sp].dead`. pine_georgeous carries 0.53 on its collection (it came in
+with G454 BIOMES 203a58d0, unexplained - a pack-level share, not a design) and 0 / 0.03 / 0.03 in every mix that plants it.
+`TREE_MIX.mixDead` / `?mixdead=1` deals each tree's series by the mix's share for that species where it stands (the
+collection's where the mix names none; the fill's walk record carries it - 7 floats a tree). Measured on gamer
+(`mixdead_off.json` / `mixdead_on.json`, `mixdead_300m_sheet.png` left OFF right ON): within 3 km of HOME snags 22 837 ->
+7 104 (share 11.8 -> 3.7 %; pine_georgeous 53.2 -> 0.3 %); the near tier at the stand 679 k -> 755 k triangles (+11 %: the
+living trees that replace the snags carry 2-4x the triangles) - a perf cost to weigh with the look.
+
+**Evidence (reports/evidence/DEADWOOD-BRIGHT/):** `larch_snag_before_after.png` (the complaint); `final/` (master | final |
+final with cut 0.5, golden, gamer + potato, the strips, the potato json and both logs - the gamer page's json was cut by its
+time box, its rows are in `F_g_golden_log.txt`; the potato context stills at 2.2 x the hand-over, master and final);
+`far_forest_sheet.png` + `far_forest.json`; `handover_sweep/` (the uILit / bark-term sweep, gamer + potato x golden + noon:
+GEOMETRY | master | lit 0.9 | lit 0.9 bark none | lit 0.9 bark wrap); `alpha_sweep/` (potato golden: GEOMETRY | master |
+colour fix | solid 0 | solid 0 cut 0.3 | solid 0 cut 0.5 | cut 0.3); `mixdead_*`; `framecost_census_{master,branch}_cub.txt`.
+The rig: tools/perf/deadwood/ (drv.js the headless boot; match2.js the hand-over sweep - one tree at the preset's hand-over
+from the free camera, the sim held, the day frozen, geometry / impostor / no-trees frames, `core` and `pop`; alt.js the far
+forest; mixd.js the mix-dead A/B; run*.sh the slots; sheet.js). `TREE_LOD.find(..., ser)` takes a series (2 = snags).
+
+**Gates (the final code, 13:20):** GFX, TREES, TREE, PROGRAMS PASS; FRAMECOST `--census cub` train 37b (068584d6) vs this
+branch `--compare`: nothing moved in the stand, taxi or boot tables (`framecost_census_{master,branch}_cub.txt`); the full
+FRAMECOST gate PASS at 03:20 on the colour fix. TREECRASH / TREEHIT: no geometry changed.
+
+**Side findings (reported, not fixed):**
+- dead_conifer's impostor reads pale pink and 1.2-1.8x front-lit against its dark olive geometry with or without this fix
+  (its dark sheet is brightened by contrast 1 about as much as barkLit darkens it): a hue / AO difference between the
+  tiers, its own look.
+- into the sun every species' impostor reads darker than its geometry (core 0.3-0.7) - the geometry's backlit translucency
+  and its edges against the sky; pre-existing.
+- the bake frames on `parts[0]`'s bounding sphere only (bakeImpostorAtlasNow): DeciduousDead1_29 crops its trunk bottom.
+- the twigs proper (a higher-res or thin-branch-aware bake for bark sheets, or the snags' geometry kept further - a larch
+  snag is 5 490 triangles in its one rung, conifer snags 3.5-6.9 k) are a separate chantier if the dissolve is not enough.

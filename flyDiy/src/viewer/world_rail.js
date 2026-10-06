@@ -946,7 +946,7 @@
       const C = sec(body, 'the trees’ colour', false, 'every species');
       range(C, 'hue', -0.2, 0.2, 0.005, () => L.master().hue, v => L.tint({ hue: v }), v => v.toFixed(3), 0);
       range(C, 'saturation', 0, 2, 0.02, () => L.master().sat, v => L.tint({ sat: v }), null, 1);
-      range(C, 'lightness', 0.2, 2, 0.02, () => L.master().light, v => { L.tint({ light: v }); if (WF() && WF().treeLod) WF().treeLod.lit.value = v * 0.9; }, null, 1);
+      range(C, 'lightness', 0.2, 2, 0.02, () => L.master().light, v => L.tint({ light: v }), null, 1);   // the tint reaches the impostors too (IMPA.tbl); G1975: this also scaled their lit term - twice for them
       if (W.TREE_MIX) { range(C, 'furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, v => { W.TREE_MIX.furnished = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); });
         range(C, 'size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, v => { W.TREE_MIX.spread = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); }); }
       note(C, 'each species’ own colour and size are on its card (TYPES > biome); the LOD ladder and the leaf shading stay on F8 - they are the renderer’s, not the art’s');

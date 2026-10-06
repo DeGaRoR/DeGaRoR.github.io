@@ -1,0 +1,37 @@
+F_g_golden hand-over 120 m, D 130 - 24 picks
+larch_tree.glb|Larch_LOD0                snag  into occl 3.74  box geo 0.4257 none 0.4999 | master pop -0.46 core 0.48 | final pop -0.27 core 0.25 | cut5 pop -0.21 core 0.27 |
+   strip: A | B_master | B_final | B_cut5
+larch_tree.glb|Larch_LOD0                snag  away occl 2.82  box geo 0.0692 none 0.0500 | master pop +1.14 core 1.40 | final pop +0.39 core 1.14 | cut5 pop +0.37 core 1.13 |
+   strip: A | B_master | B_final | B_cut5
+larch_tree.glb|Larch_LOD0                snag  side occl 3.25  box geo 0.0680 none 0.2278 | master pop +0.03 core 1.52 | final pop +0.03 core 1.51 | cut5 pop +0.03 core 1.50 |
+   strip: A | B_master | B_final | B_cut5
+larch_tree.glb|Larch_LOD0                rungs into occl 2.29  box geo 0.2121 none 0.4382 | master pop -0.03 core 1.02 | final pop -0.01 core 1.05 | cut5 pop -0.01 core 1.06 |
+   strip: A | B_master | B_final | B_cut5
+larch_tree.glb|Larch_LOD0                rungs away occl 0.84  box geo 0.2358 none 0.3600 | master pop +0.06 core 1.43 | final pop +0.06 core 1.43 | cut5 pop +0.06 core 1.44 |
+   strip: A | B_master | B_final | B_cut5
+larch_tree.glb|Larch_LOD0                rungs side occl 0.55  box geo 0.1898 none 0.2684 | master pop -0.15 core 0.51 | final pop -0.15 core 0.49 | cut5 pop -0.15 core 0.49 |
+   strip: A | B_master | B_final | B_cut5
+spruce_tree.glb|Spruce_LOD0              snag  into occl 0.6   box geo 0.0055 none 0.0053 | master pop -1.45 core 0.00 | final pop -1.84 core 0.00 | cut5 pop -1.92 core 0.00 |
+   strip: A | B_master | B_final | B_cut5
+spruce_tree.glb|Spruce_LOD0              snag  away occl 0     box geo 0.1310 none 0.1552 | master pop +0.56 core 1.51 | final pop +0.44 core 1.37 | cut5 pop +0.45 core 1.37 |
+   strip: A | B_master | B_final | B_cut5
+spruce_tree.glb|Spruce_LOD0              snag  side occl 2.26  box geo 0.1274 none 0.2260 | master pop -0.14 core 0.48 | final pop -0.12 core 0.50 | cut5 pop -0.11 core 0.52 |
+   strip: A | B_master | B_final | B_cut5
+spruce_tree.glb|Spruce_LOD0              rungs into occl 0     box geo 0.2040 none 0.2561 | master pop -0.15 core 0.57 | final pop -0.16 core 0.53 | cut5 pop -0.16 core 0.53 |
+   strip: A | B_master | B_final | B_cut5
+spruce_tree.glb|Spruce_LOD0              rungs away occl 0.28  box geo 0.2654 none 0.3334 | master pop +0.06 core 1.76 | final pop +0.06 core 1.75 | cut5 pop +0.06 core 1.75 |
+   strip: A | B_master | B_final | B_cut5
+spruce_tree.glb|Spruce_LOD0              rungs side occl 0     box geo 0.0666 none 0.2138 | master pop -0.00 core 1.34 | final pop -0.00 core 1.34 | cut5 pop -0.00 core 1.33 |
+   strip: A | B_master | B_final | B_cut5
+pine_georgeous.glb|Pine01_LOD0           snag  into occl 0.51  box geo 0.4050 none 0.4491 | master pop -0.58 core 0.72 | final pop -0.09 core 0.70 | cut5 pop -0.03 core 0.73 |
+   strip: A | B_master | B_final | B_cut5
+pine_georgeous.glb|Pine01_LOD0           snag  away occl 0.41  box geo 0.2011 none 0.2795 | master pop -0.15 core 0.83 | final pop -0.15 core 0.78 | cut5 pop -0.15 core 0.78 |
+   strip: A | B_master | B_final | B_cut5
+pine_georgeous.glb|Pine01_LOD0           snag  side occl 0.35  box geo 0.1828 none 0.2323 | master pop -0.09 core 0.82 | final pop -0.03 core 0.70 | cut5 pop -0.02 core 0.70 |
+   strip: A | B_master | B_final | B_cut5
+pine_georgeous.glb|Pine01_LOD0           rungs into occl 1.2   box geo 0.2791 none 0.4211 | master pop -0.05 core 0.69 | final pop -0.06 core 0.65 | cut5 pop -0.06 core 0.65 |
+   strip: A | B_master | B_final | B_cut5
+pine_georgeous.glb|Pine01_LOD0           rungs away occl 0.27  box geo 0.0583 none 0.0433 | master pop +0.89 core 1.24 | final pop +0.74 core 1.21 | cut5 pop +0.74 core 1.21 |
+   strip: A | B_master | B_final | B_cut5
+pine_georgeous.glb|Pine01_LOD0           rungs side occl 0.19  box geo 0.1568 none 0.2028 | master pop -0.07 core 0.64 | final pop -0.07 core 0.60 | cut5 pop -0.07 core 0.60 |
+   strip: A | B_master | B_final | B_cut5
