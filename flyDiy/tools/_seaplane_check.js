@@ -11,7 +11,7 @@
 //            back on the lane's water (deep, inside its width), a roll-out
 //            to STOPPED inside 400 s, never more than 30 m off the lane's
 //            centreline on the water, finite
-//   CROSSWIND 0.2 V_SO across the lane (G1888; FAR 23.233): the take-off run holds the lane — under
+//   CROSSWIND 5 m/s across the lane (G1882; 0.30 V_SO, FAR 23.233 asks 0.2): the run holds the lane — under
 //            30 m off the centreline and under 30 deg of heading swing —
 //            and lifts off inside 25 s (the water rudder below the step,
 //            the air rudder on it; without H4 it left 186 m off at 51 deg)
@@ -115,11 +115,20 @@ if (ONLY.includes('crosswind')) {
 // twin's own thrust couple (two engines 0.57 m over the CG, the water drag 1.5 m under it) beating its floats' nose-down
 // restoring once the afterbody unwets - with the thrust put 0.17 m over the CG (an instrument) it is clean 0-5 m/s.
 // GATE DMGPLOUGH; HANDOVER G1807-G1809, open question 1 (the pilot's power at the plough, or the build).
-const XW = 0.2 * (def.params.gen.VsFlap || def.params.gen.Vs);
-console.log(`\nCROSSWIND TAKE-OFF (${f(XW, 1)} m/s across the lane = 0.2 V_SO, FAR 23.233)`);
+// G1882 (DMG-FLOATTO): RESTORED TO 5 m/s. Past PILOT-ONE-2's water power ramp the twin's failures were the CHOP the
+// wind raises on the lane (0.07 m crest to trough at 2 m/s, 0.18 m at 5; with the sea flattened every crosswind run is
+// the calm one) driving a porpoise on the step the solver no longer damps, until the water threw the hull out below Vs
+// and the thrust couple beat the elevator. With the pilot's technique (G1880: the porpoise damped by both hands; G1881:
+// the into-wind bank afloat bounded as on the wheels) every validated floatplane takes off clean 0-5 m/s across (GATE
+// DMGFLOATTO: the twin's lowest pitch at a float contact -7.7 deg, its run's worst swing 15.9; the Cessna on floats
+// -1.1 / 18.6), so the bar is the pre-DAMP 5 m/s again - 0.30 V_SO on this build, above FAR 23.233's 0.2 V_SO (3.3
+// m/s). And the take-off is judged to CLIMB: a hop that is dry for 2 s, settles back and is rejected read as a pass
+const V_SO = def.params.gen.VsFlap || def.params.gen.Vs, XW = Math.max(5, 0.2 * V_SO);
+console.log(`\nCROSSWIND TAKE-OFF (${f(XW, 1)} m/s across the lane = ${f(XW / V_SO, 2)} V_SO; FAR 23.233 asks 0.2)`);
   const R = fly({ wind: [XW, 0, 0], untilPhase: 'CLIMB', maxS: 120 });
   console.log(`   lift-off ${f(R.lift, 1)} s (airborne = dry 2 s; ${R.skips} skip${R.skips === 1 ? '' : 's'} before it); the run: max |x| ${f(R.maxXRun, 1)} m, max heading swing ${f(R.maxHdgRun, 1)} deg from the roll's ${f(R.hdgRef, 0)}; phases: ${R.phases.map(p => p.split(' ')[1]).join(' ')}`);
   verdict(R.finite && R.lift != null && R.lift < 25, `off the water inside 25 s (${f(R.lift, 1)})`);
+  verdict(R.phases.some(p => p.endsWith(' CLIMB')), `the pilot reaches CLIMB (G1882: ${R.phases.map(p => p.split(' ')[1]).join(' ')})`);
   // the ultralight hops once on the step at 13 m/s (0.4 s dry, the nose-high
   // trim the ventilated step leaves it with — the owed hump-trim item) and
   // touches once after the unstick; the loop is what the heading and lane

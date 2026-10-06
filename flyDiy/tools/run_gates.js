@@ -270,6 +270,12 @@ const GATES = [
   // (the old law's at-rest hold), the user's Cub's crosswind roll-out at 3 / 4 / 5 m/s held (three pilot_trace
   // children), the Jodel's and the metal Cessna's taxi turns within 0.80-1.10 of the old radius; ~6 min
   { id: 'DMGTYRE', file: '_dmgtyre_check.js', tier: 'core', weight: 4, wall: 420 },
+  // G1882 (DMG-FLOATTO): the floatplanes' crosswind take-off in the chop the wind raises, flown as a high-thrust-line
+  // seaplane is (G1880: the porpoise damped by both hands - the power off as the nose falls, the stick forward as it
+  // rises; G1881: the into-wind bank afloat bounded) - the twin on floats and the Cessna on floats, THE PILOT, the SEA
+  // lane, 0-5 m/s across in 0.5 steps: every run reaches CLIMB, no nose-over (pitch at every float contact >= -20 deg),
+  // the run's swing and lane under 30; the technique never arms on a wheeled take-off. 24 runs in children, ~2.5 min
+  { id: 'DMGFLOATTO', file: '_dmgfloatto_check.js', tier: 'full', weight: 4, wall: 300 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

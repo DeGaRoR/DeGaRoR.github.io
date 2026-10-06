@@ -85,12 +85,13 @@ const SERVO_GAINS = {
   // G1937: THE STEP-ATTITUDE HOLD (servoStepHold): de = stepDe0 + stepK (stepTrim - trim) - stepD trim-rate, trim in
   // deg, from stepV (m/s) on the step - DAMP's GATE FLOATS script law, owned here as a technique the gates call
   stepDe0: 0.2, stepK: 0.04, stepD: 0.01, stepTrim: 6, stepV: 9,
-  // G1880 (DMG-FLOATTO): THE POWER HOLDS THE NOSE (S.thrustPitch, 43's FEATURE thrustPitch). On a water take-off, an
-  // aeroplane whose thrust couple at full power is a lever of more than thrPitchLever (m: THRUST_ARM x T_static / W,
-  // how far forward full power moves its CG in effect) takes power off as its nose falls: the throttle's ceiling is
-  // 1 - thrPitchKq x the nose-down rate (deg/s) - thrPitchKth x the degrees under thrPitchTh0, never under
-  // thrPitchMin, followed by the hand in thrPitchS (s)
-  thrPitchLever: 0.10, thrPitchKq: 0.015, thrPitchKth: 0.05, thrPitchTh0: -2, thrPitchMin: 0.3, thrPitchS: 0.1,
+  // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS (S.porpoise, 43's FEATURE porpoise). On a water take-off, an
+  // aeroplane whose thrust couple at full power is a lever of more than porpLever (m: THRUST_ARM x T_static / W, how far
+  // forward full power moves its CG in effect) damps its pitch with the power and the stick. The throttle's ceiling:
+  // 1 - porpKq x the nose-down rate (deg/s) - porpKth x the degrees under porpTh0, never under porpMin, followed by
+  // the hand in porpS (s). The stick, while a float is wet above porpDeV (m/s): forward by porpDeQ per deg/s of
+  // nose-up rate, to deMin at most
+  porpLever: 0.10, porpKq: 0.015, porpKth: 0.05, porpTh0: -2, porpMin: 0.3, porpS: 0.1, porpDeQ: 0.02, porpDeV: 6,
   // G1949 (PILOT-ONE-2): THE PITCH LIMIT CYCLE (S.holdPitch): in the air, an elevator swing of oscAmp or more between
   // two reversals at most oscHalf s apart scores one; the score decays over oscWin s; at oscN the pitch gains step
   // down by oscStep (oscKMin at least) and the score restarts
@@ -123,7 +124,7 @@ function servoCrossWind(out, F) {
 //   trike        the nosewheel steers (the G630 trike schedule)
 //   rotateTD     a taildragger that lifts its tail (the tail-up steer arms)
 //   TW           { Lwb, steer } the follower's geometry (the trike's bandwidth cap)
-//   features     { trimCalm, groundP1D, xwBank, water, deTop, thrustPitch } — 43's own laws
+//   features     { trimCalm, groundP1D, xwBank, water, deTop, porpoise } — 43's own laws
 function makeServos(sim, def, opts) {
   opts = opts || {};
   const A = (def && def.params && def.params.ap) || {};
@@ -209,23 +210,26 @@ function makeServos(sim, def, opts) {
   };
 
   // ---- pitch ----------------------------------------------------------------
-  // G1880 (DMG-FLOATTO): THE POWER HOLDS THE NOSE - a high thrust line's water take-off (43's FEATURE thrustPitch).
-  // With DMG-DAMP's honest damper (G1885) the user's twin on floats (two 582s 0.54 m over the CG, T/W 0.51: a lever of
-  // 0.27 m) nosed over at 2, 2.5, 4.5 and 5 m/s across. Traced (HANDOVER G1880-G1882): past PILOT-ONE-2's power ramp
-  // the plough itself is passed nose-up; on the step the hull porpoises, every trough driven by the thrust couple
-  // (~1.3 kN m nose-down at full power, more than the elevator holds near Vs: the nose went from +31 to -50 deg in the
-  // air with the stick on its stop), until the water throws it out below Vs and it goes in bow first. A pilot of such
-  // an aeroplane flies its pitch with the throttle: as the nose falls the power comes off, and goes back on as it
-  // stops falling. The throttle's ceiling: 1 - thrPitchKq x the nose-down rate (deg/s) - thrPitchKth x the degrees
-  // under thrPitchTh0, at least thrPitchMin, through the hand's lag thrPitchS. `armed`: the pilot's water take-off
-  // (ROLL / LIFTOFF on floats); `lever`: the aeroplane's THRUST_ARM x T_static / W (m), against thrPitchLever - an
-  // aeroplane whose thrust line runs through its CG (the Cessna on floats: 0.003 m) never arms. Returns the ceiling
-  // (1 when not armed: the base's throttle to the bit)
-  S.thrustPitch = (armed, lever) => {
-    if (!FT.thrustPitch || !armed || !(lever > g('thrPitchLever'))) { S.thrCap = 1; return 1; }
+  // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS - a high thrust line's water take-off (43's FEATURE
+  // porpoise). With DMG-DAMP's honest damper (G1885) the user's twin on floats (two 582s 0.54 m over the CG, T/W 0.51:
+  // a lever of 0.27 m) nosed over at 2, 2.5, 4.5 and 5 m/s across. Traced (HANDOVER G1880-G1882): past PILOT-ONE-2's
+  // power ramp the plough is passed nose-up, and with the sea flattened every crosswind run is the calm one - the
+  // failures are THE CHOP the wind raises on the lane (0.07 m crest to trough at 2 m/s, 0.18 m at 5, beam-on) driving
+  // a porpoise on the step that the hull no longer damps: it grows until the water throws the hull out below Vs, where
+  // the thrust couple (~1.3 kN m at full power) beats the elevator, and the bow goes in. An instrument pitch damper of
+  // 2 /s (roll or yaw: nothing) keeps it bounded at 5 m/s; this is the pilot's: the power comes off as the nose falls
+  // (the couple is nose-down: less of it is nose-up), the stick goes forward as it rises (aft stick and less power were
+  // both measured to grow it - the twin's is upper-limit porpoising, its trim already high). `armed`: the pilot's water
+  // take-off (ROLL / LIFTOFF on floats); `lever`: the aeroplane's THRUST_ARM x T_static / W (m), against porpLever - an
+  // aeroplane whose thrust line runs through its CG (the Cessna on floats: 0.003 m) never arms. Moves c.thr and c.de
+  // (after the laws that set them); returns the throttle's ceiling (1 when not armed: the base's controls to the bit)
+  S.porpoise = (armed, lever) => {
+    if (!FT.porpoise || !armed || !(lever > g('porpLever'))) { S.thrCap = 1; return 1; }
     const R2D = 180 / Math.PI, thD = S.th * R2D, qD = S.q * R2D;
-    const want = Math.max(g('thrPitchMin'), 1 - g('thrPitchKq') * Math.max(0, -qD) - g('thrPitchKth') * Math.max(0, g('thrPitchTh0') - thD));
-    S.thrCap += Math.min(1, S.dt / g('thrPitchS')) * (want - S.thrCap);
+    const want = Math.max(g('porpMin'), 1 - g('porpKq') * Math.max(0, -qD) - g('porpKth') * Math.max(0, g('porpTh0') - thD));
+    S.thrCap += Math.min(1, S.dt / g('porpS')) * (want - S.thrCap);
+    if (S.thrCap < 1) c.thr = Math.min(c.thr, S.thrCap);
+    if (S.onG > 0 && S.V > g('porpDeV')) c.de = Math.max(G.deMin, c.de - g('porpDeQ') * Math.max(0, qD));
     return S.thrCap;
   };
   S.holdPitch = (thC) => {
