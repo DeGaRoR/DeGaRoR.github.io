@@ -38,7 +38,13 @@ function pageLinksInstall() {
   P.linkProgram = function (p) { L.n++; return lp.call(this, p); };
   return 0;
 }
-function pageLinks() { return { links: window.__dsL ? window.__dsL.n : -1, programs: FLIGHT_PROBE.renderer().info.programs.length }; }
+function pageLinks() {
+  const P = FLIGHT_PROBE.renderer().info.programs;
+  // a program that failed (three's diagnostics, checkShaderErrors on): its material's name and the first log line
+  const bad = P.filter(p => p.diagnostics && p.diagnostics.runnable === false).map(p => ({ name: p.name, fs: String(p.diagnostics.fragmentShader && p.diagnostics.fragmentShader.log || '').split('\n').slice(0, 3).join(' | '),
+    vs: String(p.diagnostics.vertexShader && p.diagnostics.vertexShader.log || '').split('\n').slice(0, 2).join(' | ') }));
+  return { links: window.__dsL ? window.__dsL.n : -1, programs: P.length, failed: bad.length, bad: bad.slice(0, 6) };
+}
 function pageKeys() {
   const ks = FLIGHT_PROBE.renderer().info.programs.map(p => p.cacheKey);
   let h = 0x811c9dc5; for (const s of ks.slice().sort()) for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }

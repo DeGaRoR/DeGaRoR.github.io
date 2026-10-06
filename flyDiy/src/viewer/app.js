@@ -1933,7 +1933,11 @@
       for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[q] !== undefined && c[q] !== undefined) c[q] = m[q];
       // the glass's blend follows the pooled pane's (aeroSetGlassBlend flips the pool's, live)
       if (k === 'glass') Object.defineProperty(c, 'blendDst', { get: () => m.blendDst, set: () => {}, configurable: true });
-      c.onBeforeCompile = SCUFF.wrap(Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : null, k, SCUFF.U);
+      // the material's OWN hook: in the game ATMO turns onBeforeCompile into a prototype accessor that keeps a material's
+      // hook in _atmoHook and serves it wrapped (atmo.js install; flown_bake.js hookOf) - an own-property test alone found
+      // none, and the copy drew without AEROSKIN's hook (its programs failed to compile: the soft-still run, 2026-10-06)
+      const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
+      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U);
       c.name = (m.name || 'aeroskin') + ':scuff';
       c.needsUpdate = true;
       return c;

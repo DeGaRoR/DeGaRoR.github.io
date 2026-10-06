@@ -159,7 +159,7 @@
         c.userData = Object.assign({}, ud, { scuff: k });
         if (m.defines) c.defines = Object.assign({}, m.defines);
         for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity', 'blendDst']) if (m[q] !== undefined) c[q] = m[q];
-        c.onBeforeCompile = S.wrap(Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : null, k, DS.U);
+        c.onBeforeCompile = S.wrap(Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null), k, DS.U);   // (ATMO's accessor: app.js scuffMat)
         c.needsUpdate = true;
         DS.copies.set(m, c); c.userData.scuffOrig = m;
       }
