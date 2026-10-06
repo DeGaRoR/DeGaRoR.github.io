@@ -60,6 +60,8 @@
     panes: 8,         // the pane slots (uDmgPane)
     budget: 8000,     // places a frame (a place is ~0.3 us in node - GATE DMGSCUFF times it: ~2.5 ms a frame; the torn band a tick of its own)
     bindBudget: 1500, // places a frame bound through skin_break's own binding when a no-break scuff needs them
+    frameMs: 4,       // AND a frame's time: the place counts above are node's; the real page on SwiftShader ran a place
+                      //   at ~1.4 us (an 8000-place tick 10.9 ms) - so the pass and the binding also stop at this many ms
   };
   // the finish -> the record's class (what the block draws: 0 metal, 1 fabric, 2 wood, 3 other, 4 glass)
   const CLS = { metal: 0, fabric: 1, wood: 2, other: 3, glass: 4 };
@@ -279,18 +281,20 @@
   }
   // up to `budget` place-units this frame (a place is one; a record's torn band costs a quarter of its places and runs
   // in a tick of its own when the budget left cannot hold it); returns the records finished now (their bytes whole)
-  function tick(st, budget) {
+  // msCap: the frame's time left for it (a place count is node's; stops between chunks of 256 places past it)
+  function tick(st, budget, msCap) {
     if (!st.q.length && st.next) { const N = st.next; st.next = null; begin(st, N.F, N.recs); }
-    const t0 = now(), fin = [], B = budget == null ? SC.budget : budget;
+    const t0 = now(), fin = [], B = budget == null ? SC.budget : budget, cap = msCap == null ? Infinity : msCap;
     let left = B;
-    while (st.q.length && left > 0) {
+    while (st.q.length && left > 0 && now() - t0 < cap) {
       const R = st.q[0], S = R.sc, F = st.F, np = S.pl.length;
       if (S.cls === CLS.glass) { glassBytes(R); finish(R); st.q.shift(); fin.push(R); left -= np >> 3; continue; }
       if (F.zero) { S.rec.fill(0); for (let v = 0; v < R.nv; v++) { S.dir[v * 4] = S.dir[v * 4 + 1] = S.dir[v * 4 + 2] = 0; S.dir[v * 4 + 3] = S.cls; } S.any = false; finish(R); st.q.shift(); fin.push(R); left -= np >> 4; continue; }
       if (S.phase === 0) {
         const e = Math.min(np, S.cur + left);
-        for (let p = S.cur; p < e; p++) place(R, F, S.pl[p]);
-        left -= e - S.cur; st.places += e - S.cur; S.cur = e;
+        let p = S.cur;
+        while (p < e) { const c = Math.min(e, p + 256); for (; p < c; p++) place(R, F, S.pl[p]); if (p < e && now() - t0 >= cap) break; }
+        left -= p - S.cur; st.places += p - S.cur; S.cur = p;
         if (S.cur < np) break;
         S.phase = 1;
       }

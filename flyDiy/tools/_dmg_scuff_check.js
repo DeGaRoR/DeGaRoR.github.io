@@ -124,6 +124,11 @@ if (argv[0] === '--build') {
     while (st.q.length) { const t0 = process.hrtime.bigint(); SS.tick(st, 2000); worst = Math.max(worst, Number(process.hrtime.bigint() - t0) / 1e6); ticks++; }
     out.tick2000 = { worst, ticks };
     out.places = np;
+    // the same pass cut by TIME (the page's frameMs cap, here 0.05 ms: a chunk of 256 places a tick) - the same bytes
+    const h0 = G.hashOf(r2.recs), sT = SS.state(); for (const R of r2.recs) { R.sc.rec.fill(0); R.sc.dir.fill(0); }   // (zeroed: a no-op pass cannot pass)
+    const hZ = G.hashOf(r2.recs); SS.begin(sT, F, r2.recs); let tT = 0;
+    while (sT.q.length && tT < 1e6) { SS.tick(sT, null, 0.05); tT++; }
+    out.timeCut = { ticks: tT, same: hZ !== h0 && G.hashOf(r2.recs) === h0, h0 };
   }
   // damage OFF: the trunk at 30 m/s, no payload, no record
   const off = G.run(k, 'trunk-0', { skin: SK, damage: false });
@@ -175,6 +180,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     yes(r.det.a === r.det.b, 'deterministic: the 30 m/s trunk twice, the same bytes (' + r.det.a + ' / ' + r.det.b + ')');
     yes(r.off.payloads === 0 && !r.off.recs && r.off.sW === 0, 'damage OFF, the 30 m/s trunk: no payload, no record, no slide array (' + r.off.payloads + ')');
     console.log('  cost: ' + r.placeUs.toFixed(3) + ' us a place (' + r.places + ' places), the worst torn band ' + r.tornMs.toFixed(2) + ' ms, a tick of 2000 places at worst ' + r.tick2000.worst.toFixed(2) + ' ms (' + r.tick2000.ticks + ' ticks)');
+    yes(r.timeCut.same && r.timeCut.ticks > r.tick2000.ticks, 'the pass cut by the frame\'s time (0.05 ms a tick: ' + r.timeCut.ticks + ' ticks) makes the same bytes');
     yes(r.placeUs < 3 && r.tick2000.worst < 25, 'the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)');
   }
   // ---- 8b. THE BLOCK ASLEEP UNTIL THE FIRST DAMAGE (skin_scuff.js waker / wakeSet): asleep the wrapper is its hook and

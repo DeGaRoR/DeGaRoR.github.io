@@ -4232,14 +4232,14 @@
       // the binding the pass reads: with nothing broken, skin_break's own where the damage is (bindWanted); broken, the
       // break path's budgeted binding - a pass again once either has moved
       let pend = 0;
-      let b = 0;
-      if (!D.br.length && at.F && !at.F.zero) { for (const R of at.recs) b += S.bindWanted(R, at.F, SB, K.T, S.SC.bindBudget - b); if (b) { at.bound += b; at.req = true; } }
-      at.lastBound = b;
+      let b = 0, cut = false;   // (cut: the frame's time ran out before every record was asked - more next frame)
+      if (!D.br.length && at.F && !at.F.zero) { for (const R of at.recs) { if (performance.now() - t0 > S.SC.frameMs) { cut = true; break; } b += S.bindWanted(R, at.F, SB, K.T, S.SC.bindBudget - b); } if (b) { at.bound += b; at.req = true; } }
+      at.lastBound = b || (cut ? 1 : 0);
       for (const R of at.recs) if (R.pending) pend += R.pending.length;
       if (at.pend && !pend) at.req = true;
       at.pend = pend;
       if (at.req && at.F) { S.request(at.st, at.F, at.recs); at.req = false; }
-      const fin = S.tick(at.st);
+      const fin = S.tick(at.st, null, Math.max(0.5, S.SC.frameMs - (performance.now() - t0)));   // (the frame's time left)
       for (const R of fin) scuffUpload(at, R);
       if (fin.length) {
         if (fin.some(R => R.sc.cls === S.CLS.glass)) {
