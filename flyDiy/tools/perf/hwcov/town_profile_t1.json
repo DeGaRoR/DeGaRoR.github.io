@@ -1,0 +1,1564 @@
+{
+ "file": "D:/Dev/DeGaRoR.github.io/.claude/worktrees/recursing-wozniak-07764c/flyDiy/tools/perf/hwcov/rollout_town_t1_boot.cpuprofile",
+ "root": "/^(prewarmW?|premisesPrewarm)$/",
+ "totalMs": 47954.62000000013,
+ "stepMs": 6196.118999999999,
+ "parts": [
+  [
+   "hwPlace render_premises.js:3208",
+   4528.193999999998
+  ],
+  [
+   "hitPendingStep render_premises.js:2544",
+   1022.5070000000002
+  ],
+  [
+   "fillStep :5391",
+   501.3719999999998
+  ],
+  [
+   "afterBuilt render_premises.js:3095",
+   127.91900000000001
+  ],
+  [
+   "(the root itself)",
+   6.188
+  ],
+  [
+   "hitPendingReady render_premises.js:3059",
+   4.697
+  ],
+  [
+   "sortFrom render_premises.js:2977",
+   3.1159999999999997
+  ],
+  [
+   "worldCmd :199",
+   1.577
+  ],
+  [
+   "freezeStatic render_premises.js:95",
+   0.549
+  ]
+ ],
+ "self": [
+  [
+   "rasterise :10533",
+   2071.978999999999
+  ],
+  [
+   "addMesh render_premises.js:2473",
+   1894.2769999999991
+  ],
+  [
+   "mark :10554",
+   1196.273999999999
+  ],
+  [
+   "knobs :751",
+   199.44799999999998
+  ],
+  [
+   "mergeInto render_premises.js:128",
+   57.519999999999996
+  ],
+  [
+   "knobs :10459",
+   52.632999999999996
+  ],
+  [
+   "walk render_premises.js:2463",
+   51.573
+  ],
+  [
+   "shapeOf render_premises.js:2457",
+   47.748000000000005
+  ],
+  [
+   "getY index.html:5567",
+   34.644999999999996
+  ],
+  [
+   "getX index.html:5567",
+   34.169000000000004
+  ],
+  [
+   "fromBufferAttribute index.html:5567",
+   27.665999999999997
+  ],
+  [
+   "getZ index.html:5567",
+   26.826999999999995
+  ],
+  [
+   "terrainH :2755",
+   26.189999999999998
+  ],
+  [
+   "(anon) :231",
+   16.985
+  ],
+  [
+   "query :7513",
+   14.895999999999997
+  ],
+  [
+   "toArray index.html:5567",
+   13.438
+  ],
+  [
+   "fetch :0",
+   11.690000000000001
+  ],
+  [
+   "terrainH :3365",
+   10.979
+  ],
+  [
+   "surfaceAt :9098",
+   10.821
+  ],
+  [
+   "bakeAO _house_kit.js:812",
+   10.375
+  ],
+  [
+   "grHeight :8745",
+   9.981
+  ],
+  [
+   "s index.html:5567",
+   9.896
+  ],
+  [
+   "hash2 _village_gen.js:44",
+   9.525
+  ],
+  [
+   "walkRows :4936",
+   9.434999999999999
+  ],
+  [
+   "normalFromHeight :517",
+   8.771
+  ],
+  [
+   "computeBoundingSphere index.html:5567",
+   8.484
+  ],
+  [
+   "uniApply premises_build.js:74",
+   8.253
+  ],
+  [
+   "scan :4441",
+   8.135
+  ],
+  [
+   "decodePropPart :22384",
+   8.071
+  ],
+  [
+   "distanceToSquared index.html:5567",
+   7.314
+  ],
+  [
+   "Se index.html:5567",
+   6.317
+  ],
+  [
+   "inAeroBox :3485",
+   6.2059999999999995
+  ],
+  [
+   "prefOf :4372",
+   6.122999999999999
+  ],
+  [
+   "regSurf :3436",
+   5.818
+  ],
+  [
+   "buildGen :5019",
+   4.755
+  ],
+  [
+   "min index.html:5567",
+   4.624
+  ],
+  [
+   "prewarm render_premises.js:3060",
+   4.622
+  ],
+  [
+   "hitAdd render_premises.js:2536",
+   4.572
+  ],
+  [
+   "excludeAt :9106",
+   4.566
+  ],
+  [
+   "poolAt :10295",
+   4.5489999999999995
+  ],
+  [
+   "compose index.html:5567",
+   4.548
+  ],
+  [
+   "coverAt :3269",
+   4.548
+  ],
+  [
+   "distPtSeg :7134",
+   4.5440000000000005
+  ],
+  [
+   "terrainFast :9010",
+   4.26
+  ],
+  [
+   "traverse index.html:5567",
+   3.6149999999999998
+  ],
+  [
+   "setFromBufferAttribute index.html:5567",
+   3.5890000000000004
+  ],
+  [
+   "at :529",
+   3.4290000000000003
+  ],
+  [
+   "edgeDist _village_gen.js:1262",
+   3.419
+  ],
+  [
+   "(anon) :2905",
+   3.367
+  ],
+  [
+   "tex _house_gen.js:640",
+   3.2939999999999996
+  ],
+  [
+   "premTreeEx :1367",
+   3.279
+  ],
+  [
+   "hitPendingReady render_premises.js:3059",
+   3.153
+  ],
+  [
+   "dt :10582",
+   3.1260000000000003
+  ],
+  [
+   "sortFrom render_premises.js:2977",
+   3.1159999999999997
+  ],
+  [
+   "pr index.html:5571",
+   3.1
+  ],
+  [
+   "propLevels :432",
+   3.099
+  ],
+  [
+   "fillStep :5391",
+   3.093
+  ],
+  [
+   "genDress premises_build.js:355",
+   3.088
+  ],
+  [
+   "(anon) :5057",
+   3.0869999999999997
+  ],
+  [
+   "propBuild :166",
+   3.077
+  ],
+  [
+   "grCooked :8862",
+   3.061
+  ],
+  [
+   "vnoise :4366",
+   3.056
+  ],
+  [
+   "vnoise :10280",
+   3.051
+  ],
+  [
+   "tV2 :3180",
+   3.049
+  ],
+  [
+   "build _hangar_gen.js:190",
+   3.048
+  ],
+  [
+   "max index.html:5567",
+   3.0460000000000003
+  ],
+  [
+   "lakeAt :9845",
+   3.0460000000000003
+  ],
+  [
+   "nearTree :1313",
+   3.0460000000000003
+  ],
+  [
+   "shadeHouse _house_gen.js:767",
+   3.043
+  ],
+  [
+   "dryAt _village_gen.js:1279",
+   3.04
+  ],
+  [
+   "coverAt :9082",
+   3.037
+  ],
+  [
+   "batchGroup render_premises.js:164",
+   3.019
+  ],
+  [
+   "coastAt :9835",
+   3.018
+  ],
+  [
+   "padRamp :3099",
+   3.002
+  ],
+  [
+   "buildHouse render_premises.js:2605",
+   2.7279999999999998
+  ],
+  [
+   "apply :7473",
+   2.641
+  ],
+  [
+   "add index.html:5567",
+   2.41
+  ],
+  [
+   "hyp2 :39",
+   2.052
+  ],
+  [
+   "treeAeroBlocked :3491",
+   1.994
+  ],
+  [
+   "darkAt _village_gen.js:1338",
+   1.967
+  ],
+  [
+   "setMatrixAt index.html:5567",
+   1.9140000000000001
+  ],
+  [
+   "sigOf :103",
+   1.854
+  ],
+  [
+   "updateWorldMatrix index.html:5567",
+   1.849
+  ],
+  [
+   "terrainH :8999",
+   1.837
+  ],
+  [
+   "poolPick :4388",
+   1.83
+  ],
+  [
+   "d2Of :5332",
+   1.803
+  ],
+  [
+   "codeAt :4469",
+   1.777
+  ],
+  [
+   "put :932",
+   1.766
+  ],
+  [
+   "bed :9984",
+   1.756
+  ],
+  [
+   "lakeAt :4463",
+   1.735
+  ],
+  [
+   "lotGround _village_gen.js:1249",
+   1.577
+  ],
+  [
+   "unpack premises_build.js:542",
+   1.577
+  ],
+  [
+   "post :928",
+   1.577
+  ],
+  [
+   "inPoly _village_gen.js:305",
+   1.567
+  ],
+  [
+   "prewarmW render_premises.js:3270",
+   1.566
+  ],
+  [
+   "walk render_premises.js:2507",
+   1.557
+  ],
+  [
+   "multiplyMatrices index.html:5567",
+   1.557
+  ],
+  [
+   "treeVary :3935",
+   1.553
+  ],
+  [
+   "now index.html:3852",
+   1.55
+  ],
+  [
+   "apply :7402",
+   1.548
+  ],
+  [
+   "effClass :10032",
+   1.545
+  ],
+  [
+   "smf :2922",
+   1.544
+  ],
+  [
+   "load :86",
+   1.543
+  ],
+  [
+   "houseThrift render_premises.js:2907",
+   1.54
+  ],
+  [
+   "genHangarBuild :67",
+   1.539
+  ],
+  [
+   "grUnlink :8684",
+   1.539
+  ],
+  [
+   "paint index.html:3871",
+   1.538
+  ],
+  [
+   "carve :4479",
+   1.538
+  ],
+  [
+   "convert index.html:5567",
+   1.537
+  ],
+  [
+   "localH :9067",
+   1.536
+  ],
+  [
+   "Pn index.html:5567",
+   1.536
+  ],
+  [
+   "dEdgeOf :9167",
+   1.536
+  ],
+  [
+   "drive index.html:3971",
+   1.534
+  ],
+  [
+   "sstep :2923",
+   1.532
+  ],
+  [
+   "computeVertexNormals index.html:5567",
+   1.53
+  ],
+  [
+   "impMerged :3577",
+   1.526
+  ],
+  [
+   "makeMats _house_gen.js:70",
+   1.525
+  ],
+  [
+   "hash2 :10265",
+   1.525
+  ],
+  [
+   "billboardFinish _big_gen.js:1151",
+   1.524
+  ],
+  [
+   "designatorTexture _big_gen.js:197",
+   1.521
+  ],
+  [
+   "hsh :3050",
+   1.518
+  ],
+  [
+   "inPoly :7126",
+   1.517
+  ],
+  [
+   "applyFinish _hangar_gen.js:518",
+   1.516
+  ],
+  [
+   "setFromMatrix4 index.html:5567",
+   1.515
+  ],
+  [
+   "RemoteBag premises_build.js:111",
+   1.514
+  ],
+  [
+   "setValues index.html:5567",
+   1.51
+  ],
+  [
+   "walk :4931",
+   1.51
+  ],
+  [
+   "setFromAxisAngle index.html:5567",
+   1.51
+  ],
+  [
+   "grCellKey :8776",
+   1.509
+  ],
+  [
+   "(anon) :9896",
+   1.508
+  ],
+  [
+   "setBar index.html:3964",
+   1.506
+  ],
+  [
+   "cellAt :9828",
+   1.506
+  ],
+  [
+   "cellOf :9976",
+   1.505
+  ],
+  [
+   "key :7502",
+   1.504
+  ],
+  [
+   "trunksOf :3078",
+   1.503
+  ],
+  [
+   "inBB :8655",
+   1.502
+  ],
+  [
+   "expandByPoint index.html:5567",
+   1.501
+  ],
+  [
+   "baseH :3244",
+   1.501
+  ],
+  [
+   "add :11000",
+   1.5
+  ],
+  [
+   "buildOne render_premises.js:3084",
+   1.482
+  ],
+  [
+   "applyFinish _house_gen.js:1386",
+   1.442
+  ],
+  [
+   "propReady :143",
+   1.436
+  ],
+  [
+   "coverAt :9215",
+   1.34
+  ],
+  [
+   "each :11078",
+   1.325
+  ],
+  [
+   "treeTrunk :116",
+   1.264
+  ],
+  [
+   "placeDress render_premises.js:2685",
+   1.218
+  ],
+  [
+   "propInstProxy :536",
+   1.15
+  ],
+  [
+   "layerOf :3590",
+   1.128
+  ],
+  [
+   "face _house_kit.js:149",
+   1.12
+  ],
+  [
+   "rasterLazyAt :9021",
+   1.076
+  ],
+  [
+   "buildGroundAO _house_gen.js:1315",
+   1.038
+  ],
+  [
+   "(anon) render_premises.js:2933",
+   0.948
+  ],
+  [
+   "(anon) _house_kit.js:132",
+   0.911
+  ],
+  [
+   "geometry lot_tex.js:164",
+   0.891
+  ],
+  [
+   "plane :7547",
+   0.876
+  ],
+  [
+   "boxAB _house_kit.js:216",
+   0.814
+  ],
+  [
+   "ttypeAt :4463",
+   0.675
+  ],
+  [
+   "B.codeOf :10464",
+   0.674
+  ],
+  [
+   "HAND _house_gen.js:200",
+   0.626
+  ],
+  [
+   "batchLots render_premises.js:163",
+   0.572
+  ],
+  [
+   "placeBuilt render_premises.js:2572",
+   0.564
+  ],
+  [
+   "lushAt _village_gen.js:1312",
+   0.475
+  ],
+  [
+   "bin :11062",
+   0.46499999999999997
+  ],
+  [
+   "afterBuilt render_premises.js:3095",
+   0.459
+  ],
+  [
+   "expect index.html:4234",
+   0.432
+  ],
+  [
+   "terrainAt :9065",
+   0.416
+  ],
+  [
+   "clamp01 :10291",
+   0.374
+  ],
+  [
+   "B.density :10482",
+   0.351
+  ],
+  [
+   "std _house_gen.js:63",
+   0.247
+  ],
+  [
+   "(anon) render_premises.js:167",
+   0.241
+  ],
+  [
+   "wall _house_kit.js:576",
+   0.16
+  ],
+  [
+   "(anon) render_premises.js:199",
+   0.142
+  ],
+  [
+   "freezeStatic render_premises.js:95",
+   0.131
+  ],
+  [
+   "speciesWeight :4373",
+   0.102
+  ],
+  [
+   "forestHere :1386",
+   0.039
+  ],
+  [
+   "v _house_kit.js:82",
+   0.038
+  ],
+  [
+   "(anon) render_premises.js:2937",
+   0.025
+  ],
+  [
+   "poolAt :5209",
+   0.015
+  ],
+  [
+   "treeGround :3797",
+   0.009
+  ]
+ ],
+ "incl": [
+  [
+   "prewarmW render_premises.js:3270",
+   5687.0009999999975
+  ],
+  [
+   "hitAdd render_premises.js:2536",
+   5272.605999999999
+  ],
+  [
+   "shapeOf render_premises.js:2457",
+   5264.976999999998
+  ],
+  [
+   "hwPlace render_premises.js:3208",
+   4528.193999999998
+  ],
+  [
+   "buildOne render_premises.js:3084",
+   4525.102999999997
+  ],
+  [
+   "buildOne0 render_premises.js:3089",
+   4523.620999999997
+  ],
+  [
+   "buildHouse render_premises.js:2605",
+   4316.758999999997
+  ],
+  [
+   "rasterise :10533",
+   3271.378999999998
+  ],
+  [
+   "walk render_premises.js:2463",
+   1945.8499999999988
+  ],
+  [
+   "addMesh render_premises.js:2473",
+   1894.2769999999991
+  ],
+  [
+   "mark :10554",
+   1196.273999999999
+  ],
+  [
+   "hitPendingStep render_premises.js:2544",
+   1022.5070000000002
+  ],
+  [
+   "fillStep :5391",
+   501.3719999999998
+  ],
+  [
+   "prewarm :5461",
+   501.3719999999998
+  ],
+  [
+   "walk :4931",
+   461.07099999999986
+  ],
+  [
+   "walkRows :4936",
+   459.56099999999986
+  ],
+  [
+   "poolAt :5209",
+   208.96199999999996
+  ],
+  [
+   "knobs :751",
+   199.44799999999998
+  ],
+  [
+   "computeBoundingSphere index.html:5567",
+   148.95400000000004
+  ],
+  [
+   "buildItem render_premises.js:2811",
+   146.40099999999998
+  ],
+  [
+   "freezeStatic render_premises.js:95",
+   128.00900000000001
+  ],
+  [
+   "afterBuilt render_premises.js:3095",
+   127.91900000000001
+  ],
+  [
+   "fromBufferAttribute index.html:5567",
+   123.10300000000004
+  ],
+  [
+   "batchGroup render_premises.js:164",
+   122.203
+  ],
+  [
+   "batchLots render_premises.js:163",
+   121.81500000000001
+  ],
+  [
+   "terrainH :3365",
+   107.112
+  ],
+  [
+   "codeAt :4469",
+   102.25399999999999
+  ],
+  [
+   "mergeInto render_premises.js:128",
+   85.744
+  ],
+  [
+   "placeDress render_premises.js:2685",
+   84.006
+  ],
+  [
+   "walk render_premises.js:2507",
+   80.13900000000004
+  ],
+  [
+   "hitReady render_premises.js:2505",
+   80.13900000000004
+  ],
+  [
+   "propBuild :166",
+   78.58200000000004
+  ],
+  [
+   "propInstFull :528",
+   78.58200000000004
+  ],
+  [
+   "genItem premises_build.js:446",
+   68.56099999999999
+  ],
+  [
+   "setFromBufferAttribute index.html:5567",
+   68.445
+  ],
+  [
+   "B.codeOf :10464",
+   53.306999999999995
+  ],
+  [
+   "knobs :10459",
+   52.632999999999996
+  ],
+  [
+   "baseH :3244",
+   51.24399999999999
+  ],
+  [
+   "tV2 :3180",
+   49.74299999999999
+  ],
+  [
+   "houseThrift render_premises.js:2907",
+   49.234
+  ],
+  [
+   "forestHere :1386",
+   47.23800000000001
+  ],
+  [
+   "build _hangar_gen.js:190",
+   39.417
+  ],
+  [
+   "treeGround :3797",
+   38.90500000000001
+  ],
+  [
+   "islandSurface :3773",
+   38.89600000000001
+  ],
+  [
+   "propMerge :226",
+   37.943999999999996
+  ],
+  [
+   "propDraws :258",
+   37.943999999999996
+  ],
+  [
+   "getY index.html:5567",
+   34.644999999999996
+  ],
+  [
+   "getX index.html:5567",
+   34.169000000000004
+  ],
+  [
+   "buildGen :5019",
+   30.848000000000003
+  ],
+  [
+   "terrainH :10028",
+   29.208
+  ],
+  [
+   "h0 :2964",
+   29.208
+  ],
+  [
+   "getZ index.html:5567",
+   26.826999999999995
+  ],
+  [
+   "terrainH :2755",
+   26.189999999999998
+  ],
+  [
+   "genDress premises_build.js:355",
+   26.186
+  ],
+  [
+   "treeAeroBlocked :3491",
+   24.744000000000003
+  ],
+  [
+   "poolPick :4388",
+   24.525
+  ],
+  [
+   "openHere :1374",
+   24.432999999999996
+  ],
+  [
+   "terrainFast :9010",
+   24.2
+  ],
+  [
+   "bakeShell _hangar_gen.js:473",
+   23.449000000000005
+  ],
+  [
+   "lotGround _village_gen.js:1249",
+   23.098
+  ],
+  [
+   "propPlace :466",
+   22.465999999999994
+  ],
+  [
+   "aeroSurfAll :3455",
+   21.709999999999994
+  ],
+  [
+   "genHangarBuild :67",
+   19.137
+  ],
+  [
+   "islandGround :3778",
+   17.186
+  ],
+  [
+   "(anon) :231",
+   16.985
+  ],
+  [
+   "coverAt :3269",
+   16.543999999999997
+  ],
+  [
+   "groundAt :4360",
+   16.469999999999995
+  ],
+  [
+   "query :7513",
+   16.4
+  ],
+  [
+   "surfaceAt :9098",
+   15.891999999999998
+  ],
+  [
+   "grHeight :8745",
+   15.456999999999997
+  ],
+  [
+   "propMesh :390",
+   15.176
+  ],
+  [
+   "toArray index.html:5567",
+   13.438
+  ],
+  [
+   "load :86",
+   13.233
+  ],
+  [
+   "assetFetch :97",
+   13.233
+  ],
+  [
+   "placeBuilt render_premises.js:2572",
+   12.386000000000001
+  ],
+  [
+   "normalFromHeight :517",
+   12.200000000000001
+  ],
+  [
+   "coverAt :9082",
+   11.996
+  ],
+  [
+   "applyFinish _house_gen.js:1386",
+   11.704999999999998
+  ],
+  [
+   "fetch :0",
+   11.690000000000001
+  ],
+  [
+   "propWarm :148",
+   11.681
+  ],
+  [
+   "Se index.html:5567",
+   11.662
+  ],
+  [
+   "rasterLazyAt :9021",
+   11.460999999999999
+  ],
+  [
+   "carve :4479",
+   11.408
+  ],
+  [
+   "buildObject render_premises.js:2761",
+   11.227
+  ],
+  [
+   "bakeAO _house_kit.js:812",
+   10.375
+  ],
+  [
+   "setColorAt index.html:5567",
+   10.368
+  ],
+  [
+   "s index.html:5567",
+   9.896
+  ],
+  [
+   "hash2 _village_gen.js:44",
+   9.525
+  ],
+  [
+   "vnoise _village_gen.js:48",
+   9.525
+  ],
+  [
+   "fbm _village_gen.js:56",
+   9.525
+  ],
+  [
+   "poolAt :10295",
+   9.499
+  ],
+  [
+   "premTreeEx :1367",
+   9.347
+  ],
+  [
+   "expandByPoint index.html:5567",
+   9.171
+  ],
+  [
+   "coverAt :9215",
+   8.959000000000001
+  ],
+  [
+   "uniApply premises_build.js:74",
+   8.253
+  ],
+  [
+   "traverse index.html:5567",
+   8.187
+  ],
+  [
+   "scan :4441",
+   8.135
+  ],
+  [
+   "decodePropPart :22384",
+   8.071
+  ],
+  [
+   "(anon) :22427",
+   8.071
+  ],
+  [
+   "decodeProp :22425",
+   8.071
+  ],
+  [
+   "makeMats _house_gen.js:70",
+   7.883000000000001
+  ],
+  [
+   "makeFinish _house_gen.js:1241",
+   7.883000000000001
+  ],
+  [
+   "bed :9984",
+   7.815
+  ],
+  [
+   "lakeCarve :3407",
+   7.815
+  ],
+  [
+   "distanceToSquared index.html:5567",
+   7.314
+  ],
+  [
+   "distPtSeg :7134",
+   6.596000000000001
+  ],
+  [
+   "roadDist :7266",
+   6.596000000000001
+  ],
+  [
+   "expect index.html:4234",
+   6.5600000000000005
+  ],
+  [
+   "propMaterial :101",
+   6.446
+  ],
+  [
+   "speciesWeight :4373",
+   6.225
+  ],
+  [
+   "inAeroBox :3485",
+   6.2059999999999995
+  ],
+  [
+   "prewarm render_premises.js:3060",
+   6.169
+  ],
+  [
+   "paint index.html:3871",
+   6.128
+  ],
+  [
+   "prefOf :4372",
+   6.122999999999999
+  ],
+  [
+   "padRamp :3099",
+   6.077999999999999
+  ],
+  [
+   "excludeAt :9106",
+   6.068
+  ],
+  [
+   "terrainH :8999",
+   6.026
+  ],
+  [
+   "regSurf :3436",
+   5.818
+  ],
+  [
+   "mesh lot_tex.js:175",
+   5.550000000000001
+  ],
+  [
+   "mesh premises_build.js:118",
+   5.055000000000001
+  ],
+  [
+   "terrainAt :9065",
+   5.029
+  ],
+  [
+   "localH :9067",
+   5.017
+  ],
+  [
+   "setMatrixAt index.html:5567",
+   4.984
+  ],
+  [
+   "placeFence render_premises.js:2673",
+   4.907
+  ],
+  [
+   "billboardFinish _big_gen.js:1151",
+   4.802
+  ],
+  [
+   "hitPendingReady render_premises.js:3059",
+   4.697
+  ],
+  [
+   "computeVertexNormals index.html:5567",
+   4.694
+  ],
+  [
+   "pr index.html:5571",
+   4.6370000000000005
+  ],
+  [
+   "min index.html:5567",
+   4.624
+  ],
+  [
+   "propTexture :51",
+   4.592
+  ],
+  [
+   "drive index.html:3971",
+   4.59
+  ],
+  [
+   "dEdgeOf :9167",
+   4.578
+  ],
+  [
+   "vnoise :10280",
+   4.5760000000000005
+  ],
+  [
+   "vnoise :4366",
+   4.574
+  ],
+  [
+   "hitPass :5363",
+   4.5569999999999995
+  ],
+  [
+   "updateMatrixWorld index.html:5567",
+   4.554
+  ],
+  [
+   "compose index.html:5567",
+   4.548
+  ],
+  [
+   "propInstProxy :536",
+   4.191
+  ],
+  [
+   "geometry lot_tex.js:164",
+   3.9880000000000004
+  ],
+  [
+   "grCooked :8862",
+   3.937
+  ],
+  [
+   "ttypeAt :4463",
+   3.699
+  ],
+  [
+   "at :529",
+   3.4290000000000003
+  ],
+  [
+   "edgeDist _village_gen.js:1262",
+   3.419
+  ],
+  [
+   "(anon) :2905",
+   3.367
+  ],
+  [
+   "waterAt :3588",
+   3.367
+  ],
+  [
+   "waterH :3621",
+   3.367
+  ],
+  [
+   "std _house_gen.js:63",
+   3.312
+  ],
+  [
+   "Th premises_build.js:544",
+   3.3
+  ],
+  [
+   "h.ground premises_build.js:195",
+   3.3
+  ],
+  [
+   "tex _house_gen.js:640",
+   3.2939999999999996
+  ],
+  [
+   "dressMat _house_gen.js:661",
+   3.2939999999999996
+  ],
+  [
+   "makeFinish _big_gen.js:108",
+   3.282
+  ],
+  [
+   "normalizeNormals index.html:5567",
+   3.1639999999999997
+  ],
+  [
+   "dt :10582",
+   3.1260000000000003
+  ],
+  [
+   "sortFrom render_premises.js:2977",
+   3.1159999999999997
+  ],
+  [
+   "tiltToGround render_premises.js:2564",
+   3.099
+  ],
+  [
+   "propLevels :432",
+   3.099
+  ],
+  [
+   "unpack premises_build.js:542",
+   3.091
+  ],
+  [
+   "(anon) :5057",
+   3.0869999999999997
+  ],
+  [
+   "sstep :2923",
+   3.076
+  ],
+  [
+   "ni index.html:5567",
+   3.0549999999999997
+  ],
+  [
+   "Pn index.html:5567",
+   3.0460000000000003
+  ],
+  [
+   "max index.html:5567",
+   3.0460000000000003
+  ],
+  [
+   "lakeAt :9845",
+   3.0460000000000003
+  ],
+  [
+   "nearTree :1313",
+   3.0460000000000003
+  ],
+  [
+   "shadeHouse _house_gen.js:767",
+   3.043
+  ],
+  [
+   "dryAt _village_gen.js:1279",
+   3.04
+  ],
+  [
+   "coastAt :9835",
+   3.018
+  ],
+  [
+   "updateMatrix index.html:5567",
+   2.997
+  ],
+  [
+   "applyFinish _hangar_gen.js:518",
+   2.958
+  ],
+  [
+   "impMerged :3577",
+   2.94
+  ],
+  [
+   "Ma index.html:5567",
+   2.92
+  ],
+  [
+   "trunksOf :3078",
+   2.767
+  ],
+  [
+   "(anon) _hangar_gen.js:488",
+   2.758
+  ],
+  [
+   "apply :7473",
+   2.641
+  ],
+  [
+   "mesh _house_kit.js:114",
+   2.508
+  ],
+  [
+   "add index.html:5567",
+   2.41
+  ],
+  [
+   "hyp2 :39",
+   2.052
+  ],
+  [
+   "darkAt _village_gen.js:1338",
+   1.967
+  ],
+  [
+   "sigOf :103",
+   1.854
+  ],
+  [
+   "shared :135",
+   1.854
+  ],
+  [
+   "updateWorldMatrix index.html:5567",
+   1.849
+  ],
+  [
+   "d2Of :5332",
+   1.803
+  ],
+  [
+   "(anon) :5356",
+   1.803
+  ],
+  [
+   "refreshQueue :5335",
+   1.803
+  ],
+  [
+   "bin :11062",
+   1.79
+  ],
+  [
+   "set :11097",
+   1.79
+  ],
+  [
+   "put :932",
+   1.766
+  ],
+  [
+   "lakeAt :4463",
+   1.735
+  ],
+  [
+   "lod1Bags render_premises.js:1570",
+   1.655
+  ],
+  [
+   "fillPropMesh :373",
+   1.58
+  ],
+  [
+   "post :928",
+   1.577
+  ],
+  [
+   "post :216",
+   1.577
+  ],
+  [
+   "worldCmd :199",
+   1.577
+  ],
+  [
+   "prewarm :240",
+   1.577
+  ],
+  [
+   "inPoly _village_gen.js:305",
+   1.567
+  ],
+  [
+   "multiplyMatrices index.html:5567",
+   1.557
+  ],
+  [
+   "treeVary :3935",
+   1.553
+  ],
+  [
+   "load :115",
+   1.552
+  ],
+  [
+   "makeRotationFromQuaternion index.html:5567",
+   1.551
+  ]
+ ]
+}
