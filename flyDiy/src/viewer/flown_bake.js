@@ -1143,6 +1143,15 @@
       const upd = mesh.updateMatrixWorld;
       const ranges = [];
       let stale = false;
+      // G2352 (DMG-FOLDNODE): A WHOLE UPLOAD STAYS OWED UNTIL THREE MAKES IT. Three uploads an attribute only where it DRAWS
+      // it, and then whole only if no update range is set (r186 WebGLAttributes updateBuffer); the whole upload asked for
+      // below (the heal's stale mark, a fold shown again, > 32 ranges) was lost when the fold was not drawn that frame (out
+      // of the shot, culled) and a rig's write added a range the next: three then sent the range alone and the rest of the
+      // buffer stayed as the GPU last held it - the stand's ghost on a fold a rig writes every frame, D4b's mark on or off
+      // (GATE DMGUPLOAD with the fake bake: the Cub's fuselage fold, 202 428 floats). Owed, no range is added (the whole
+      // covers it); three's upload callback pays the debt. window.FLYDIY_FOLD_NOOWE = true: as before (the A/B, the selftest)
+      let oweP = false, oweN = false;
+      aP.onUploadCallback = () => { oweP = false; }; aN.onUploadCallback = () => { oweN = false; };
       mesh.updateMatrixWorld = function (force) {
         ranges.length = 0;
         let nd = 0;
@@ -1163,9 +1172,10 @@
           else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {
             stale = false;
             aP.clearUpdateRanges(); aN.clearUpdateRanges(); aP.needsUpdate = true; aN.needsUpdate = true;
+            if (!W.FLYDIY_FOLD_NOOWE) oweP = oweN = true;
           } else for (const r of ranges) {
-            if (r.p) { aP.addUpdateRange(r.s, r.e - r.s); aP.needsUpdate = true; }
-            if (r.nn) { aN.addUpdateRange(r.s, r.e - r.s); aN.needsUpdate = true; }
+            if (r.p) { if (!oweP) aP.addUpdateRange(r.s, r.e - r.s); aP.needsUpdate = true; }
+            if (r.nn) { if (!oweN) aN.addUpdateRange(r.s, r.e - r.s); aN.needsUpdate = true; }
           }
         }
         if (boneMat) boneMat();

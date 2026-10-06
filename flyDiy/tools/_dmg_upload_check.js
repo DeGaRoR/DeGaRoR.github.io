@@ -6,7 +6,9 @@
 // the CPU arrays, and stubs the render after the roll-out (so nothing is ever uploaded).
 //
 //   node tools/_dmg_upload_check.js                 -> "GATE DMGUPLOAD: PASS|FAIL"
-//   node tools/_dmg_upload_check.js --selftest      -> the heal's upload marking off (the bug as it was) must turn it red
+//   node tools/_dmg_upload_check.js --selftest      -> the heal's upload marking off (the bug as it was) must turn it red;
+//                                                      (G2352) so must the fold's owed whole upload unguarded
+//   --fakebake=0  the page without the flown bake's fake (the gate as D4b left it: no fold in the node page)
 //   --only=cub|metal   --secs=S (sim seconds of the crash, default 5)
 //
 // THE PAGE ITSELF IN NODE (tools/_page_node.js): dev.html?simw=1&damage=1 - the DEFAULT mode (the solver in a worker
@@ -24,7 +26,8 @@
 // buildModel, mergeModel's folds and views, the range uploads and the hybrid are the game's - and asserted besides:
 //   4 the flown bake was the fake (FB.last.hit 'fake'), the hybrid on, folds made; drawn fold buffers were checked
 //     fresh and after the path (a fold's position / normal is where a heal's write goes stale);
-//   --selftest: window.FLYDIY_HEAL_NOMARK = true (D4b's fix off: the bug as it was) must go red ON A FOLD.
+//   --selftest: window.FLYDIY_HEAL_NOMARK = true (D4b's fix off: the bug as it was) must go red ON A FOLD, and so must
+//     window.FLYDIY_FOLD_NOOWE = true (G2352 off: D4b's mark alone - the fold sees it found the box's ghost only in part).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawnSync } = require('child_process');
@@ -96,6 +99,7 @@ async function child() {
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark') W.FLYDIY_HEAL_NOMARK = true;   // (the selftest: the heal's upload marking off - the bug as it was)
+  if (fault === 'noowe') W.FLYDIY_FOLD_NOOWE = true;     // (G2352's selftest: a fold's owed whole upload let a range replace it - D4b's fix alone)
   const tripN = () => (W.FLYDIY_TRIPS || []).length;
   const tripDone = (kind, n0) => { const T = W.FLYDIY_TRIPS || []; const t = T[T.length - 1]; return T.length > n0 && !!(t && t.kind === kind && t.done && W.BOOT.state === 'gone'); };
   const SW = () => W.FLYDIY_SIMW || null;
@@ -175,14 +179,21 @@ function judge(R, say) {
 function parent() {
   const secs = +arg('secs', 5), say = m => console.log(m), only = arg('only', null), keys = Object.keys(BUILDS).filter(k => !only || only.split(',').includes(k));
   if (argv.includes('--selftest')) {
-    say('DMGUPLOAD selftest: the heal\'s upload marking off (the bug as it was) must turn it red');
-    // (G2350: red ON A FOLD - the class D4b's fix covers; the fold rows themselves must hold, else the red tests nothing)
-    const R = runChild('cub', 'nomark', secs), f = judge(R, say), red = f.some(x => /STALE/.test(x)), onFold = ((R.after && R.after.stale) || []).some(x => x.cls === 'fold');
-    const foldRows = !!R.fakeBake && !f.some(x => /fake|fold was made|fold buffer checked/.test(x)), ok = red && onFold && foldRows;
-    say('  ' + (red ? 'ok  ' : 'FAIL') + '  the fault turned the stale-buffer row red' + (f.length ? ': ' + f.join(' | ') : ''));
-    say('  ' + (onFold ? 'ok  ' : 'FAIL') + '  a stale buffer is a FOLD\'s (' + ((R.after && R.after.stale) || []).filter(x => x.cls === 'fold').length + ' fold buffers stale)');
-    say('  ' + (foldRows ? 'ok  ' : 'FAIL') + '  the fake bake made the folds and they were drawn and checked');
-    console.log('GATE DMGUPLOAD-SELFTEST: ' + (ok ? 'PASS' : 'FAIL')); process.exit(ok ? 0 : 1);
+    // two faults, each must go red ON A FOLD (the class the two fixes cover), with the fold rows themselves holding (else
+    // the red tests nothing): nomark - D4b's heal marking off (the bug as it was); noowe (G2352) - the mark on, the owed
+    // whole upload unguarded (D4b's fix alone: the fuselage fold a rig writes every frame stays stale)
+    say('DMGUPLOAD selftest: each fix off must turn it red on a fold');
+    let all = true;
+    for (const [fault, what] of [['nomark', 'the heal\'s upload marking off (the bug as it was)'], ['noowe', 'the fold\'s owed whole upload unguarded (G2352 off, D4b\'s mark on)']]) {
+      say(' ' + fault + ': ' + what);
+      const R = runChild('cub', fault, secs), f = judge(R, say), red = f.some(x => /STALE/.test(x)), onFold = ((R.after && R.after.stale) || []).some(x => x.cls === 'fold');
+      const foldRows = !!R.fakeBake && !f.some(x => /fake|fold was made|fold buffer checked/.test(x));
+      say('  ' + (red ? 'ok  ' : 'FAIL') + '  ' + fault + ' turned the stale-buffer row red' + (f.length ? ': ' + f.join(' | ') : ''));
+      say('  ' + (onFold ? 'ok  ' : 'FAIL') + '  a stale buffer is a FOLD\'s (' + ((R.after && R.after.stale) || []).filter(x => x.cls === 'fold').length + ' fold buffers stale)');
+      say('  ' + (foldRows ? 'ok  ' : 'FAIL') + '  the fake bake made the folds and they were drawn and checked');
+      all = all && red && onFold && foldRows;
+    }
+    console.log('GATE DMGUPLOAD-SELFTEST: ' + (all ? 'PASS' : 'FAIL')); process.exit(all ? 0 : 1);
   }
   say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)');
   let fails = [];
