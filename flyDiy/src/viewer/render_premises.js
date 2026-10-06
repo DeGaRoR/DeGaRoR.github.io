@@ -3551,7 +3551,10 @@ function make(THREE, scene, world, rec0, opts) {
   // ground under (null: nothing built, or a rebuild came between - the next rebuild decides again)
   function* geoLaterSteps() {
     if (!GEO.pending || !patch || !patchAct) return null;
-    const ep = GEO.epoch, b = extentWorld(), A = activeChunks(b, null), old = patchAct;
+    // the whole record's active set: a chunk is active when ANY feature marks it, so it is the base set (built) and the
+    // town's own features' marks - only those are walked here (the same set activeChunks(b, null) gives)
+    const ep = GEO.epoch, b = extentWorld(), old = patchAct, A = activeChunks(b, e => !isTown(e));
+    for (const k of old.act) A.act.add(k);
     yield 'town chunks';
     if (ep !== GEO.epoch) return null;
     const blocks = new Set(); let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -3564,6 +3567,7 @@ function make(THREE, scene, world, rec0, opts) {
     GEO.split = false;   // from here every build is the whole record's
     if (blocks.size) { const g = buildPatchSteps({ A, blocks }); for (;;) { const r = g.next(); if (r.done) break; yield r.value; if (ep !== GEO.epoch) return null; } }
     const g2 = buildRoadsSteps(true); for (;;) { const r = g2.next(); if (r.done) break; yield r.value; if (ep !== GEO.epoch) return null; }
+    yield 'town freeze';
     freezeStatic(false);   // (the new ones alone: the rest stays as frozen as it was)
     GEO.pending = false; stats.townGeo = { blocks: blocks.size, at: Math.round(performance.now()) };
     return isFinite(x0) ? { x0: x0 - PCH, z0: z0 - PCH, x1: x1 + PCH, z1: z1 + PCH } : null;

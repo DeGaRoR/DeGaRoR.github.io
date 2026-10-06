@@ -37,7 +37,7 @@ async function child(side, out) {
           return r; }; }
     },
   };
-  const P = await openPage({ quiet: true, hooks, query: side === 'on' ? 'town=1' : 'town=0' });
+  const P = await openPage({ quiet: true, hooks, query: (side === 'on' ? 'town=1' : 'town=0') + (process.env.METLA_QUERY ? '&' + process.env.METLA_QUERY : '') });   // METLA_QUERY: more (towngeo=0)
   const W = P.win, t0 = Date.now();
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 1800000);
   FC.bootMark.close();
@@ -50,15 +50,15 @@ async function child(side, out) {
   // build paths, made the same ground and roads exactly when the digests are equal
   const crypto = require('crypto');
   const digestNow = () => { const parts = [], inv = {};
-  W.WORLD.scene.traverse(o => { if (!(o.isMesh || o.isLine) || !/^(premises:patch|road|pave|rail|poles|strip|runway)/.test(o.name || '') || !o.geometry) return;
+  W.WORLD.scene.traverse(o => { const far = !!(o.userData && o.userData.farTerrain); if (!(o.isMesh || o.isLine) || !(far || /^(premises:patch|road|pave|rail|poles|strip|runway)/.test(o.name || '')) || !o.geometry) return;   // (G2063: the far tier too, 'far')
     const H = crypto.createHash('sha256'), g = o.geometry; H.update(o.name + '|' + o.renderOrder + '|' + (o.material && o.material.type));
     o.updateMatrixWorld(true); H.update(Buffer.from(new Float64Array(o.matrixWorld.elements).buffer));
     for (const k of Object.keys(g.attributes).sort()) { const a = g.attributes[k].array; H.update(k); H.update(Buffer.from(a.buffer, a.byteOffset, a.byteLength)); }
     if (g.index) { const a = g.index.array; H.update(Buffer.from(a.buffer, a.byteOffset, a.byteLength)); }
-    parts.push(o.name.split(':')[0] + ':' + H.digest('hex').slice(0, 16));
+    parts.push((far ? 'far' : o.name.split(':')[0]) + ':' + H.digest('hex').slice(0, 16));
     // an invariant of the class that merging cannot move: vertices, triangles and the world positions' sums (a mesh
     // merged with others keeps its vertices, wherever they are batched)
-    const cls = o.name.split(':')[0], I = inv[cls] || (inv[cls] = { v: 0, t: 0, x: 0, y: 0, z: 0 }), pa = g.attributes.position, e = o.matrixWorld.elements;
+    const cls = far ? 'far' : o.name.split(':')[0], I = inv[cls] || (inv[cls] = { v: 0, t: 0, x: 0, y: 0, z: 0 }), pa = g.attributes.position, e = o.matrixWorld.elements;
     if (pa) { I.v += pa.count; I.t += g.index ? g.index.count / 3 : pa.count / 3; for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i); I.x += e[0] * x + e[4] * y + e[8] * z + e[12]; I.y += e[1] * x + e[5] * y + e[9] * z + e[13]; I.z += e[2] * x + e[6] * y + e[10] * z + e[14]; } }
     for (const an of Object.keys(g.attributes)) { if (an === 'position') continue; const a = g.attributes[an].array; let t = 0; for (let i = 0; i < a.length; i++) t += a[i]; I['a.' + an] = (I['a.' + an] || 0) + t; } });
     for (const k of Object.keys(inv)) for (const q of Object.keys(inv[k])) if (q !== 'v' && q !== 't') inv[k][q] = +(+inv[k][q]).toFixed(1);
@@ -76,7 +76,7 @@ async function child(side, out) {
     const g = R.geoLaterSteps(), by = {}; let label = 'start', bb = null;
     for (;;) { const t = process.hrtime.bigint(), r = g.next(), d = ms(t); const k = label.replace(/[0-9]+/g, '#'), e = by[k] || (by[k] = { n: 0, ms: 0, max: 0 }); e.n++; e.ms += d; e.max = Math.max(e.max, d); if (r.done) { bb = r.value; break; } label = String(r.value); }
     let refreshMs = null; if (bb && W.WORLD.refreshGround) { const t = process.hrtime.bigint(); W.WORLD.refreshGround(bb); refreshMs = +ms(t).toFixed(0); }
-    geoSteps = { by: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, { n: v.n, ms: Math.round(v.ms), max: Math.round(v.max) }])), refreshMs, bb };
+    geoSteps = { by: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, { n: v.n, ms: Math.round(v.ms), max: Math.round(v.max) }])), refreshMs, bb, digest: digestNow() };
     console.log('GEOSTEPS ' + JSON.stringify(geoSteps));
   }
   if (W.WORLD.townGeoFinish && R && R.geoPending && R.geoPending()) {
