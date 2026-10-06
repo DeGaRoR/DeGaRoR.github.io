@@ -77553,3 +77553,121 @@ chase flight, garage->world worst task) were a peer's node work (DMG-WALL 21:41-
 Battery: PASS but for PILOT-ONE's reds; targeted re-run on the landed tree: INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES
 AA UISMOKE DMGINST GFX ROLLANIM MEDIA BUILT PASS. Metlakatla-on measured (train 35, A,B,B,A): warm +7 s load, first visit
 +26 s and a 47 % uneven taxi -> stays OFF. boxlock.sh: CPU locks now exclusive (in the main checkout; committed next train).
+
+## G1949 - PILOT-ONE-2: PILOT-ONE ON TRAIN 36, ITS OWED ITEMS DONE (THE FLEX SETTLE, THE TRICYCLE'S TURN ON THE SPOT), EAST POINT LANDED, THE TOUR'S TWO LEGS (2026-10-06, PILOT-ONE-2 for A0, a CLOUD session: node only; branch claude/pilot-one-2-g1949 off origin/master 1ae2eebb = train 36)
+
+THE BRIEF (A0): PILOT-ONE was held out of train 36 - the full battery went red on the train (INPUT's club slot threw,
+GEN 76/77, PILOT's box, PILOTACT 62 taxi rudder reversals / min, TAXICLEAR's C172 from the mill, LINEUP's Cub at
+HOME, RWYTREES 8 still INBOUND at 800 s). Then (A0, 6 Oct): "don't redo the fixes - origin/claude/pilot-one-g1935 @
+4e54fa90 already has them; start from 4e54fa90, rebase onto origin/master, finish what its HANDOVER lists as owed
+(FLEX settle, the tricycle pivot), re-run INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES DMGINST, then READY".
+
+THE BRANCH: origin/master (train 36) + PILOT-ONE 5b184898 .. 5d294064 cherry-picked in order, THE BUILT COMMIT
+(9c15389e) DROPPED and c8eb2a64's generated hunks taken from master (index.html, dev.html, sw.js, version.json,
+tools/flight_core.js are master's on every commit); two conflicts resolved by hand (90_node_exports: master's line
++ servoStepHold / PILOT_PROFILES / pilotProfile, - makeAutopilot / makeTestPilot; 41_test_pilot.js deleted - master
+had changed only a comment in it). The PILOT-ONE HANDOVER section above is 5d294064's (the gate table, the battery,
+the owed list) in place of train 36's earlier copy. Then G1949 below. JOIN-PARITY (G1985) has no branch on the remote:
+nothing here depends on it.
+
+### WHAT A0'S RED LIST WAS, ON THIS BRANCH
+1-6 (INPUT's `c`, GEN 76/77, PILOT's box, PILOTACT, TAXICLEAR 9, LINEUP): PILOT-ONE's own later commits fixed them
+(c8eb2a64, 60c85562, 212e90b4, 4e54fa90) - re-measured on master + PILOT-ONE + MILL-TAXI before any G1949 change:
+all PASS; the aluminium C172 from the mill taxies and takes off exactly as on master's pilot (the trace to the digit).
+7 (RWYTREES 8, the Cub at East Point): G1949.1 below.
+And one the train's battery had not reached: GATE DMGINST (train 35) read src/core/41_test_pilot.js among its
+'broke-up' writers - the file is retired (G1940); 11 files now.
+
+### G1949.1 EAST POINT, LANDED (43: apply's flare power, FLARE, planArrival)
+The go-around was right (let through, the Cub touched 55 m in and stopped 23 m past the end). Two causes found:
+- THE FLARE WAS CUSHIONED ON POWER: under 1.15 Vs0 the assist (G970) took 0.2-0.3 of throttle from 1 m and held the
+  Cub at 0.75 m/s of sink - a float. On a short field with less strip ahead than the short stop + 40 m it now winds
+  up only while the sink is over 1 m/s and comes off at once under 0.9 (with the room - the Cub and the C172 into
+  Jumbo Mine - the cushion is unchanged: both landings identical to the digit; removing it outright put the Cub
+  into Jumbo Mine at 2.9 m/s).
+- ROUND AGAIN, AIM EARLIER: the short-field float go-around records its shortfall (stop - left) + 10 m and the next
+  arrival at that strip aims that much earlier (10 m before the threshold at most) - a pilot's second try.
+The Cub ('map' trees, RWYTREES 8's flight): round once (120 m left for 128), then touched 28 m in at 0.86 m/s and
+stopped with 11 m of strip left at 554 s, no tree contact. (master: 'completed' ~84 m past the end; PILOT-ONE before:
+twice round, diverted, INBOUND at 800 s.) THE USER'S CUB LANDS AT EAST POINT: the archetype `cub` builds to the same
+nodes and ap as builds/cub_2026-09-20_corrected.json - the G1936 'divert' is now the third try's, not the second's.
+
+### G1949.2 THE PIVOT'S SCOPE (ISLAND-TOUR, cross-session: their branch claude/island-tour-g1965 merged with this)
+- the path pivot only at a U-turn ENTERED ON THE CENTRELINE (2 m): MILL-TAXI's teardrop lobe leaves it first;
+- a path pivot RESUMES where the turn comes back by the aeroplane (the first point past the hairpin heading straight
+  back, 15 deg, within 12 m): resumed at the end of the tight part - the teardrop's far lobe, 11 m west - the follower
+  drove the Cub into mn_s_mine/clinic (their chained leg mn_strip > w2: 3338 members yielded, crashed 48 s in);
+- within the 9 deg its end asks the pivot's power is off and the brakes stop it (a burst there kept the Cub creeping
+  at 1.2 m/s, never 'done').
+Their tour tw_ski > mn_strip > w2 on the merge: DONE, the pivot within 2.8 m of the centreline, the roll 0.5 m off.
+
+### G1949.3 A SHORT FIELD'S LONG FINAL DOES NOT TURN A STRAIGHT-IN INTO A CIRCUIT (planFromHere)
+G1936's IAF 900 m before the slope (400 on a long strip) failed the straight-in test for an arrival lined up between
+the two: ISLAND-TOUR's Cub from w3 (one-way on their branch) into tw_ski joined a circuit whose downwind it entered
+900 m past its start and 560 m aside, ORBITED that start for 420 s (gave-up at 876 s, a go-around): 1390 s for a 480 s
+leg. When the straight-in fits the normal IAF and not the short one, the IAF is the normal one: 484 s, straight in.
+NOT FIXED (not this branch's): the orbit itself - a DOWNWIND entered far past its start circles back to it (the leg
+/ airPath follower); it no longer shows here.
+
+### G1949.4 THE TRICYCLE'S TURN ON THE SPOT (owed by G1938; 43 planDeparture, LINEUP, pivotFly, trackHold)
+MEASURED FIRST (scratch trk / trk2, the C172, full rudder + the inside toe brake, the stick at its taxi elevator): on
+the flat it turns 180 deg with the CG moving 4.3 m (0.6 throttle); on East Point's gravel the locked main slides and
+the CG swings ~7-8 m whatever the throttle (0.5-0.9). So a tricycle on a strip under 300 m:
+- turns where it stopped (planDeparture -> LINEUP, as the taildragger already did) instead of the lane U-turn beside
+  the strip;
+- SETS THE TURN UP: eases over to the far side near the closed end (8 m short of it, min(4 m, half-width - 2 m) off,
+  walking pace), then turns back across the centreline (stopped off the centreline, the way that swings it back);
+- its pivot power 0.6 at most, done at < 1.8 m/s (held to 1.0 its own power kept it 'not done', rolling 20 m along
+  East Point 8 m off for 40 s - G1938's loop);
+- walks back to the centreline (2.4 m/s, a 20 m look - 150 m of look gave 2 deg toward it) and stops lined up as HOLD
+  wants it (2 m, 6 deg - LINEUP's own 8 m / 9 deg left HOLD replanning a circle round the end).
+C172 at East Point (pilot_one_turnaround): base 9.1 m off -> 4.5 m off, 4.4 m short of the end, never off the strip,
+the roll at 33 s (rightly rejected: 150 m for a 313 m run). Taildraggers unchanged; Jumbo Mine unchanged (MILL-TAXI's
+authored teardrops are flown on the wheels).
+
+### G1949.5 THE FLEX SETTLE (owed by G1944; 39b holdPitch)
+THE PILOT's cruise on the 6061 tube + Dacron build (GEN_DEFAULT, aluTube): the elevator in a slew-limited triangle,
+~2.3 Hz, 0.585 p2p, the pitch 6.5 deg p2p at 36 m/s (FLEX's cruise hold 1.20 % p2p; the classic's 0.17). Its tuned
+gains (genTuneAP: pitchP 2.2, pitchD 0.99) close a loop round the airframe's own bending - MEASURED (scratch flail,
+AP overrides): attitude filter 0.4 worse (0.627), rate filter 0.08 worse (0.608), D x0.5 halves it (0.300), D 0.5 +
+P 1.5 dead quiet (0.001 / 0.04 deg). THE CURE (a pilot who feels the nose pump relaxes the grip): in the air, in the
+plain loop only (pitchK = pitchDK = 1 - not the flare's or the rotation's firmer gains), every elevator swing of 0.15
+or more between reversals at most 0.35 s apart scores one (decaying over 2 s); at 4 the pitch P and D step x0.85
+(0.45 at least). After: 0.004 elevator / 0.09 deg; FLEX's cruise hold 1.20 -> 0.00 % p2p (0.56 % at n 1.00). AN AIRFRAME THAT DOES NOT PUMP NEVER SCORES and flies the old
+flight to the bit (oscK exactly 1): the steel-tube cruise unchanged (0.001 / 0.04), THE LAND TAKE-OFFS (cub, jodel,
+c172; pilot_one_trace --csv) BYTE-IDENTICAL TO TRAIN 36's. THE BATTERY SET ITS SCOPE: counting slow swings backed the
+club profile's gains off (its 0.25 s reaction pumps at ~0.5 s; GATE INPUT's held bank ran to 120 deg) and counting the
+flare's firmer loop put the Stearman down at 1.49 m/s for 0.95 (GATE PILOTMATRIX) - both cut, both back to their
+numbers. FOR DMG-DAMP: SERVO_GAINS osc* are the knobs; the re-tune that removes the solver's rigid-rotation damper
+may make this fire more or less - one row.
+
+EVIDENCE: reports/evidence/PILOT-ONE-2/ (README: every file and its command).
+
+### THE GATES (the branch's head ed826c23; `node tools/run_gates.js --all --jobs=4 --only=...` - a 4-core cloud box)
+```
+INPUT     PASS   145 s   90/90; the club slot: 31 deg / 19 deg held, 4 m lost (the detector's scope, G1949.5)
+GEN       PASS   834 s   [4 shards] (the circuit's sink bound 1.2, 4e54fa90)
+PILOT     PASS   445 s   [3 shards]
+TAKEOFF   PASS   535 s
+PILOTACT  PASS   241 s
+TAXICLEAR PASS   345 s   (MILL-TAXI's 6-9 in: the aluminium C172 from the mill taxies and takes off)
+LINEUP    PASS   259 s
+DMGINST   PASS   308 s
+CONTACT   PASS   128 s
+BENCH     PASS   112 s
+FLEX      PASS   404 s   [3 shards]; the 6061 + Dacron cruise hold 0.00 % p2p (was 1.20)
+PILOTMATRIX PASS 1725 s  no cell worse than pilot_baseline.json (2 known bad, 1 warn - as before)
+RWYTREES  PASS   ~2400 s (full, run as `node tools/_rwytrees_check.js`: under run_gates it hit the runner's 1800 s cap
+                 while check 8 flew - the page harness composes Jolene three times, 1200 s of it on this box); 43 checks;
+                 8: the C172 HOME 440 s, the Cub HOME 626 s, THE CUB AT EAST POINT STOPPED 554 s, nearest tree 42 m
+```
+Also (not gates): the land take-offs byte-identical to train 36 (cub, jodel, c172: pilot_one_trace's 10 Hz CSVs); the
+ISLAND-TOUR merge's two legs DONE; the turn-arounds at East Point and Jumbo Mine (evidence/PILOT-ONE-2/).
+
+OWED (seen, not done here): the leg / airPath follower's ORBIT of a DOWNWIND entered far past its start (G1949.3 -
+no longer reached here); MILL-TAXI's south teardrop at Jumbo Mine from a STANDING start 68 m short of the end ends in
+mn_s_mine/shop's pallets on master's pilot too (scratch mn_pivot_replay, departFrom with the site - the teardrop /
+follower's); PILOT-ONE's own list above stands for the rest (43's firmer flare on some pairs, the solver's slip drag,
+the profile menu row and per-profile bands).
+
+READY for A0: claude/pilot-one-2-g1949 (source only - every generated file is master's; A0 builds on the train).
