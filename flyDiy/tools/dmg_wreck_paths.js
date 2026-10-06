@@ -42,7 +42,14 @@ const inShed = "document.body.classList.contains('mode-ws')";
   const strips = places.filter(p => p.kind === 'strip');
   for (const k of opt('paths', 'retry,garage,place').split(',')) {
     const r = { path: k };
-    r.crash = await S.run(S.pageStage, S.CASES['trunk-0'].o).then(x => ({ broken: x.broken, reason: x.reason }));
+    // (a staged crash that breaks nothing proves nothing about the path: staged once more, the why kept - the hits, the
+    // steps, the sim's clock - and the path marked NOT EXERCISED if it still breaks nothing)
+    const crashOnce = async () => { const x = await S.run(S.pageStage, S.CASES['trunk-0'].o);
+      const why = await ev("JSON.stringify({ hits: FLIGHT_PROBE.sim().trunkHits ? FLIGHT_PROBE.sim().trunkHits() : null, t: FLIGHT_PROBE.sim().t, held: !!window.__d4bStep, world: !!FLIGHT_PROBE.world().treeHits })");
+      return { broken: x.broken, reason: x.reason, steps: x.steps, why: typeof why === 'string' ? JSON.parse(why) : why }; };
+    r.crash = await crashOnce();
+    if (!r.crash.broken) { r.crash0 = r.crash; await S.run(pageFree); r.crash = await crashOnce(); }
+    r.exercised = r.crash.broken > 0;
     await S.run(pageFree);
     r.wreck = await S.run(pageWreck);
     if (k === 'retry') {
@@ -54,14 +61,14 @@ const inShed = "document.body.classList.contains('mode-ws')";
       r.rollOut = await ev(MB.A.rollOut); r.world = await waitFor(inWorld, 300000); await sleep(5000);
     }
     r.after = await S.run(pageWreck);
-    r.ok = !r.after.active && r.after.bodies === 0 && r.after.debris === 0 && r.after.hidden === 0 && r.after.collapsed === 0 && !r.after.broken;
+    r.ok = r.exercised && !r.after.active && r.after.bodies === 0 && r.after.debris === 0 && r.after.hidden === 0 && r.after.collapsed === 0 && !r.after.broken;
     await S.run(S.pageView, [150, 12, 9]);
     const f = path.join(OUT, 'path_' + k + '_after.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shot = f;
-    console.log(k + ': crash ' + JSON.stringify(r.crash) + ' wreck ' + JSON.stringify(r.wreck) + ' -> after ' + JSON.stringify(r.after) + ' ' + (r.ok ? 'CLEAN' : 'LEFT OVER'));
+    console.log(k + ': crash ' + JSON.stringify(r.crash) + ' wreck ' + JSON.stringify(r.wreck) + ' -> after ' + JSON.stringify(r.after) + ' ' + (!r.exercised ? 'NOT EXERCISED (the staged crash broke nothing)' : r.ok ? 'CLEAN' : 'LEFT OVER'));
     R.paths[k] = r;
     // (back to the home strip for the next path)
     if (k === 'place') { await ev(MB.A.rollIn); await waitFor(inShed, 120000); await ev(MB.A.setFrom('HOME')); await ev(MB.A.rollOut); await waitFor(inWorld, 300000); await sleep(4000); }
   }
   fs.writeFileSync(path.join(OUT, 'paths.json'), JSON.stringify(R, null, 1));
-  console.log('WRECK_PATHS ' + Object.entries(R.paths).map(([k, r]) => k + ' ' + (r.ok ? 'CLEAN' : 'LEFT OVER')).join(', '));
+  console.log('WRECK_PATHS ' + Object.entries(R.paths).map(([k, r]) => k + ' ' + (!r.exercised ? 'NOT EXERCISED' : r.ok ? 'CLEAN' : 'LEFT OVER')).join(', '));
 })().catch(e => { console.log('WRECK_PATHS_FAIL ' + (e && e.stack || e)); process.exit(1); });
