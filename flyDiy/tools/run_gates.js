@@ -199,6 +199,11 @@ const GATES = [
   // floats trim it nose-up through the plough, so the nose-down is its thrust couple); GATE SEAPLANE's crosswind
   // take-off swept 0-5 m/s on both floatplanes and on the instrumented twin, every failure classed. 37 runs in children
   { id: 'DMGPLOUGH', file: '_dmgplough_check.js', tier: 'full', weight: 4, wall: 900 },
+  // G1846 (DMG-TYRE): the tyre's side force is its slip angle's - measured in the solver per tyre class (zero at zero
+  // slip, F = cN tan(beta) N linear, then the Coulomb mu N; the old law as the control), parked 30 s without jitter
+  // (the old law's at-rest hold), the user's Cub's crosswind roll-out at 3 / 4 / 5 m/s held (three pilot_trace
+  // children), the Jodel's and the metal Cessna's taxi turns within 0.80-1.10 of the old radius; ~6 min
+  { id: 'DMGTYRE', file: '_dmgtyre_check.js', tier: 'core', weight: 4, wall: 420 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

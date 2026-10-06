@@ -75968,3 +75968,186 @@ STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the cha
 (T0 = tip, 16.4 ms in that session); the mn_strip trip task gone. BATTERY: the full battery on the first build (3 boombox
 reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
 SKINMAT, PARTS, HANGAR). Parked re-cooked.
+## G1844-G1846 DMG-TYRE: THE TYRE'S SIDE FORCE IS ITS SLIP ANGLE'S (2026-10-05, DMG-TYRE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-tyre off claude/dmg-damp 8a22a4f9 - its READY; master carried no train 34, so nothing merged; G1844-G1846 all used)
+
+DMG-DAMP's open question 1. Its fix (G1885, honest physics: the deformation damper no longer damps rigid rotation) took
+away the hidden 2 s angular damper that had been the ground's only rate-proportional yaw resistance, and the user's Cub
+ground-looped on a crosswind roll-out (PILOTMATRIX cub:HOME:x4 RED, 106-140 deg). The cause was the tyre, as DMG-DAMP
+said: **its side force was Coulomb friction regularised at 0.02 m/s at every speed** (30_solver `kL`). At 14 m/s a slip of
+0.08 deg already took the full mu N. Every tyre was a bang-bang switch: no cornering stiffness, no yaw damping that grows
+with the yaw rate, and the rudder-steered third wheel all or nothing. No damping was added anywhere.
+
+### G1844 - THE LAW (src/core/30_solver.js, the one `kL` line; 00_registry.js TYRE_CN; 62_gen_aero.js params.tyre)
+- **F_y = C_alpha tan(alpha), C_alpha = cN N, linear until the same Coulomb limit mu N** (mu = the surface row's lateral
+  mu, grass 0.8, as before). As the existing coefficient on the lateral velocity:
+  `kL = min(mu N / max(|v_lat|, 0.02, |v_roll| mu / cN), m/dt)`. The regularising speed grows with the rolling speed,
+  so this is the only change: one extra term in the max.
+- **At rest: the old law to the bit.** Below |v_roll| = 0.02 cN / mu (0.2 m/s on a standard tyre on grass), the old 0.02 m/s
+  floor wins, so a parked or creeping wheel holds exactly as it always held (no jitter: GATE DMGTYRE part 2). Rolling
+  straight with no slip, the force is zero (v_lat = 0).
+- **cN, per unit load (/rad), by tyre class.** Per unit load because C_alpha/Fz of a pneumatic tyre near its rated load
+  is roughly size-independent (a bigger tyre carries a bigger rated load), so the wheel's size enters only through its
+  class. The values are RECALLED RANGES, not measured here (A0 to check against a source in hand). Light-aircraft and
+  car-sized pneumatic tyres at rated load read ~0.1-0.2 /deg = 6-11 /rad (NASA TR R-64, Smiley & Horne 1960; Pacejka's car
+  tyres). Each value below is the middle of its range:
+
+| class | cN (/rad) | recalled range | who |
+|---|---|---|---|
+| standard main | 8 | 6-11 | cage whProfile 0 (all five validated builds; a spec without a cage) |
+| tundra balloon main | 4.5 | 3-6 (6-15 psi bush tyre) | whProfile 1 |
+| slim main | 10 | 8-13 (narrow, high pressure) | whProfile 2 |
+| tailwheel | 10 | 8-15 (solid / small hard tyre) | the third wheel of a taildragger |
+| nose wheel | 8 | 6-10 (5.00-5) | the third wheel of a tricycle |
+
+- **Braking, rolling resistance, the vertical spring and damper: untouched.** Brakes act along the rolling direction, so
+  a braking tyre's lateral limit is the same mu N as before (no friction ellipse: open question 3).
+- **The third wheel is steered by the rudder as the solver always flew it.** The cage's 'castor' row (s2Steer 2) is the
+  picture's only; every validated build is 'linked'. A full-castering wheel has no side force beyond its swivel friction
+  and is steered by differential brakes, which no pilot here flies (open question 2).
+- **The control:** `params.tyreCoulomb` brings back the pre-G1844 law (an instrument, like defDampMean; no build sets it).
+- **Sensitivity (not a tune):** PILOTMATRIX's crosswind cells re-flown with every cN at its range's low end (main 6 / tail 8
+  / nose 6), its high end (11 / 15 / 10), and both mixes (main 11 + tail 8, the most oversteering; main 6 + tail 15):
+
+| cell | mid (as landed) | low | high | main hi + tail lo | main lo + tail hi |
+|---|---|---|---|---|---|
+| cub:HOME:x4 swing | 9.4 | 8.9 | 9.8 | 9.8 | 8.9 |
+| cub:HOME:x2 swing | 5.5 | 5.1 | 6.0 | 6.0 | 5.1 |
+| stearman:HOME:x4 swing | 3.7 | 3.8 | 3.8 | 5.2 | 2.2 |
+
+  So the result does not hinge on where in the range the constants sit.
+
+### G1846 - GATE DMGTYRE (tools/_dmgtyre_check.js, core tier, ~5 min; run_gates row, weight 4)
+1. **The law, in the solver** (the Cub and the metal Cessna settled in vacuum, every node at 10 m/s at slip beta, one
+   substep, the ground's lateral impulse / dt / W; every class): zero at zero slip (<= 1e-6; measured 1e-14);
+   F/W = cN tan(beta) where that is <= 0.6 mu (to 2 %; measured 0.02-0.07 %); = mu where cN tan(beta) >= 1.5 mu (to 1 %);
+   monotone and never above mu; at 2 deg, 5 / 10 / 20 m/s give the same reading (the slip's, not the speed's). The CONTROL
+   (`tyreCoulomb`): 0.49 W at 0.5 deg and mu W at 1 deg, the "before".
+2. **Parked 30 s** at HOME (the Cub, the Jodel, the metal Cessna): over the last 20 s the fastest node moves 0.003-0.041 mm/s
+   (<= 2) and the CG creeps 0.010-0.031 mm (<= 5), the same as the old law to the printed digit; the CG at 30 s is the old
+   law's within 0.235 mm (<= 1; 0.0000 on the Cessna).
+3. **The user's Cub's crosswind roll-out** at 3 / 4 / 5 m/s straight across, flown by THE PILOT round HOME
+   (tools/pilot_trace.js), on PILOTMATRIX's own bars: completed, swing <= 15 deg (the matrix's line between warn and
+   bad), reversals <= 3, <= 3 m off the centre line. **8.0 / 10.4 / 12.3 deg, 0 / 0 / 1 reversals, 0.7 / 1.0 / 1.1 m.**
+   (The 3 m/s case is FAR 23.233's demonstrated 0.2 V_SO, ~3.4 m/s for a Cub, recalled; 5 m/s is normal practice.)
+   The swing that remains is the pilot's, not the tyre's: open question 1.
+4. **Taxi turns** at 3 m/s, rudder held at 0.2 / 0.4, radius = V / yaw rate over the last 10 s, against the old law
+   (which turned on the kinematic bicycle radius, to 1-2 %). The bar is 0.80-1.10 of the old radius, the same sense.
+   **The Jodel is a TAILDRAGGER** (its build's gear.type; the brief asked to check). The metal Cessna is the tricycle.
+   | build | rudder | R old (m) | R new (m) | x | kinematic (m) |
+   |---|---|---|---|---|---|
+   | Jodel | 0.2 | 41.4 | 36.6 | 0.885 | 41.3 |
+   | Jodel | 0.4 | 20.5 | 18.2 | 0.885 | 20.4 |
+   | metal Cessna | 0.2 | 25.3 | 21.8 | 0.860 | 25.8 |
+   | metal Cessna | 0.4 | 12.8 | 11.9 | 0.929 | 12.8 |
+   The turns are 7-14 % TIGHTER. The cause is measured: with the same tailwheel steer and a quarter of the rudder (the
+   aerodynamic yaw of the rudder in the prop wash), the Jodel's new radius equals the old one (x0.995). The rudder now
+   yaws the aeroplane against a finite cornering stiffness; it could not against the 0.02 m/s Coulomb wall. That is
+   real taxi feel: in a taildragger, the rudder in the blast helps the turn.
+
+### G1845 - THE GROUND GATES RE-READ (before = base 8a22a4f9, after = this branch; whole outputs diffed, timings aside)
+**PILOTMATRIX (the quick set, 14 cells): base FAIL (cub:HOME:x2 regressed good -> warn) -> PASS, no cell worse than the
+baseline, on the gate's existing bars (the baseline file NOT moved).**
+
+| cell | swing before -> after (deg) | verdict before -> after | reading |
+|---|---|---|---|
+| cub:HOME:x4 | **106.7 -> 9.4** | bad -> warn | the ground loop is gone; 9-17 before DMG-DAMP (with the hidden damper) |
+| cub:HOME:x2 | 7.6 -> 5.5 | warn -> good | the ratchet's regression cleared (baseline 2.9) |
+| stearman:HOME:x4 | 8.6 -> 3.7 | bad -> bad | bad on its TAKE-OFF rudder activity on both (118 -> 122 reversals/min, limit 20); the roll-out is good |
+| stearman:HOME:x2 | 4.1 -> 1.8 | bad -> bad | the same: take-off rudder 84 -> 48 /min (limit 20, bad over 40); not this work's |
+| c172:HOME:x2 | 1.5 -> 3.5 | good -> good | the trike's roll-out is less locked than on the Coulomb wall |
+| stearman:HOME:calm | 0.2 -> 0.1 | good | |
+| the other 8 (calm, A3, A5, up4, dn4, sand, rh) | unchanged to the printed digit | good | |
+
+- **TAKEOFF: the crosswind limit (the plaque's, on the ultralight twin fixture) 3 -> 4.5 m/s.** It needed a re-anchor of
+  the probe's definition, so read this one. On the new tyre the band-only verdict read "> 10 m/s": past its limit the
+  fixture lifted off 58 / 87 / 99 deg off the strip at 6 / 10 / 12 m/s, swinging ACROSS the strip inside the 12.5 m
+  edge band. The probe's comment explained why the heading had been "reported, not judged": "a tail-up taildragger
+  weathervanes into wind on its scrubbing mains". The scrubbing was the Coulomb tyre's. **42_crosswind.js now also
+  judges the heading as the wheels leave: <= 30 deg** (`opts.heading`; a lift-off crab is atan(w / V_lo), ~14 deg at
+  4 m/s; the probe's own docstring says the number means "leaves this field straight"); the new fail reason
+  'swung off the heading' (the page shows a why other than the edge line as 'bad'). The ladder now reads: 2 ok (5.8 deg),
+  4 ok (14.4), 4.5 ok (20.6, 9.85 m), 5 x (37.1), 6 x (58.0). The base, read the same way, swung 41 deg at 3 m/s.
+  _takeoff_check.js's two rows follow (a pass = in the band AND within 30 deg; the failure may be the heading). The trace
+  of the 6 m/s run: the pilot raises the tail at 11 m/s (0.7 Vs), the rudder is on its stop from 0.25 s later, and with
+  only the mains down nothing but the rudder holds the heading against the fin (open question 1).
+- **PILOTACT: PASS.** The C172 archetype's taxi rudder 16 -> 17.5 reversals/min (limit 20); the stock build's taxi aileron
+  2.9 -> 1.5; the user's metal Cessna's sink 1.18 -> 1.19 m/s, swing 0.2 -> 0.
+- **TAXICLEAR: PASS.** The aluminium C172's nearest wing to a parked footprint 1.75 -> 1.73 m (the tighter taxi turn); the
+  stock build's 2.14 unchanged.
+- **GEN: PASS (4 shards)**, its ground cases: the archetypes' landing sinks +-0.02 (low cantilever 0.83 -> 0.85, wing twin
+  1.56 -> 1.57); the default aeroplane's roll-out minimum pitch 1.1 -> 1.3 deg; every phase time, touchdown and stop
+  the same to the metre. In the air: the gust-cruise bank p2p 0.93 -> 0.99 deg.
+- **TREECRASH: PASS** (damage on). Its crash and taxi cases move by a few percent: the Jodel into a trunk on the centreline
+  at 30 m/s 63 -> 61 members broken, 117.8 -> 113.4 kJ; the metal Cessna's wing-out strike 32.5 -> 32.3 kJ, 8.36 -> 8.28 g;
+  its taxi dent 759 -> 761 J; the Cub's circuit 1.32 -> 1.31 g; the reset's bit equality holds (new hashes both sides).
+- **SIMWORKER: PASS.** Freeze drift 0.913 -> 0.906 m; the snapshot counts move with the box's timing; every replay is
+  bit-equal.
+- **Byte for byte the base (timings aside): LINEUP, GEAR, LOAD, BENCH, FLOATS, SEAPLANE, DMGDAMP.** FLOATS and SEAPLANE
+  run on the water (no wheel on land); DMGDAMP flies in vacuum 3 km up.
+- **DMGTYRE: PASS** (above).
+- **Not run (full tier, A0's battery):** ARCHETYPES (tools/arch_fly.js reads genCrosswindLimit "ok at >= 4 m/s": every
+  archetype's plaque crosswind may move under the heading row), the rest of the full tier.
+
+### The crosswind table: the user's Cub's roll-out, a steady wind straight across HOME (reports/evidence/DMG-TYRE/rollout.svg)
+| wind | before (base, Coulomb tyre) | after (C_alpha tyre) | |
+|---|---|---|---|
+| 3 m/s (~FAR 23.233's 0.2 V_SO) | 110.3 deg, ground loop | 8.0 deg, 0 reversals, 0.2 m off at the stop | rudder peak 0.50 |
+| 4 m/s | 89.2 deg, ground loop, 22.6 m off | 10.4 deg, 0 reversals, 0.2 m off | rudder 0.64 |
+| 5 m/s | 151.3 deg, ground loop | 12.3 deg, 1 reversal, 0.3 m off | rudder 0.72 |
+(PILOTMATRIX cub:HOME:x4, 4 m/s across plus 1 down the strip, gusting 0.6: 106.7 -> 9.4 deg.) The swing peaks 2-3 s
+after a two-wheel touchdown with the tail up, as the nose weathercocks back toward the crab; it is gone by the time the
+tailwheel is down. The rudder is NOT on its stop (0.5-0.72 of 0.95).
+
+### Perf (the hard rule: within 2 % of the base, nothing touching)
+sim.step(1/60) of the Cub and the metal Cessna, damage off, flat ground. Three cases: parked, taxiing at 8 m/s on rudder
+0.1 (the new term's own branch), and 300 m up at 1.6 Vs. The base core (DMG-DAMP 8a22a4f9) against this one, in ALTERNATING
+child processes, 600 steps each; two runs of 15 processes per side, pooled (`reports/evidence/DMG-TYRE/perf.txt`):
+
+| case | run 1 | run 2 | pooled (median of 30) | pooled ms base -> now |
+|---|---|---|---|---|
+| the Cub, parked | +2.09 % | -0.72 % | **-0.04 %** | 4.837 -> 4.835 |
+| the Cub, taxiing | +1.90 % | -0.53 % | **-1.27 %** | 5.092 -> 5.028 |
+| the Cub, air | +1.44 % | +3.45 % | **+2.06 %** | 4.605 -> 4.700 |
+| the metal Cessna, parked | -2.20 % | +1.12 % | **-0.66 %** | 8.430 -> 8.374 |
+| the metal Cessna, taxiing | -2.96 % | +0.31 % | **-0.55 %** | 8.867 -> 8.819 |
+| the metal Cessna, air | +1.13 % | +0.82 % | **+0.77 %** | 8.016 -> 8.078 |
+
+- The change is one more term in a `Math.max` per WHEEL IN CONTACT. Parked and taxiing, where it runs, the pooled reads
+  are -1.3..0 %.
+- **In the air NO changed line executes** (no wheel touches; two constants are set once at makeSim), yet the Cub's air
+  case reads +2.06 % pooled, from runs of +1.44 and +3.45. This box's process-to-process noise is +-2-4 % (DMG-DAMP measured
+  the same core reading 3.85 and 3.48 ms on two runs), so that is the box, not the code; it sits ON the bar, and I say
+  so rather than call it a pass. **A0 to re-measure on the box** (`node tools/dmgtyre_evidence.js --base <base core>
+  --no-traces --perf-reps 15`).
+
+### Open questions (the user, through A0)
+1. **THE PILOT'S TAIL-UP GROUND LOOP HAS NO ANTICIPATION** (43_pilot.js groundSteer, not touched here: a PILOT / PILOT-FORKS
+   question). With an honest tyre a taildragger on its mains has no yaw stiffness from the ground; only the fin and the
+   rudder hold the heading, as in a real one. The pilot's rudder is P+D on the heading error, so against the weathercock
+   it holds a steady error. On the roll-out that is 8-12 deg at 3-5 m/s across (the matrix's warn band, the rudder not on
+   its stop); a pilot holding the rudder the touchdown sideslip asks for (a crosswind feed-forward) or an integral would
+   take it out. On the take-off the ultralight raises its tail at 0.7 Vs in any wind and then weathervanes on full rudder
+   past 4.5 m/s; a crosswind pilot keeps the tail down longer. Neither is tuned here: the pilot is another chantier's
+   (PILOT-FORKS is unifying its servos), and this one is the tyre.
+2. **THE CASTERING THIRD WHEEL is not modelled.** The solver steers the third wheel with the rudder, as it always has; the
+   cage's 'castor' row (s2Steer 2) is drawn only (every validated build is 'linked'). A free-castering wheel carries
+   only its swivel friction sideways and is steered by differential brakes, which no pilot here flies; modelling it would
+   leave those builds unsteerable. Owed with differential braking.
+3. **No combined slip, no relaxation length.** Braking (along the roll) and cornering (across) each keep their own mu N
+   (no friction ellipse, as before this work); the side force builds at once, where a real tyre needs ~half to one
+   radius of travel. Neither was needed by any gate; both are the next refinements of the same law, not tuning.
+4. **THE CONSTANTS ARE RECALLED RANGES** (the table above); A0 to check them against a source in hand (NASA TR R-64,
+   Pacejka). The sensitivity table shows the matrix's crosswind cells do not care where in the range they sit.
+5. **THE PLAQUE'S CROSSWIND LIMIT now judges the heading (30 deg) beside the band** (G1845, TAKEOFF). That is a change
+   of a certificate number's DEFINITION, made because the band alone read a 58-99 deg swing across the strip as a pass.
+   The user to confirm the 30 deg; the full tier's ARCHETYPES (arch_fly's "ok at >= 4 m/s") was not run here.
+6. **The Stearman's crosswind cells stay bad on the take-off rudder's activity** (x2 84 -> 48, x4 118 -> 122 reversals/min,
+   limit 20), as on the base; their roll-outs are good (1.8 / 3.7 deg). A pilot question, not this one.
+
+### Files
+src/core/30_solver.js (G1844, the `kL` line and the inverse cN), src/core/00_registry.js (TYRE_CN),
+src/core/62_gen_aero.js (params.tyre), src/core/90_node_exports.js (TYRE_CN), src/core/42_crosswind.js (G1845, the
+heading row), tools/_takeoff_check.js (G1845), tools/_dmgtyre_check.js + its run_gates.js row (G1846),
+tools/dmgtyre_evidence.js, reports/evidence/DMG-TYRE/ (slip.svg/json, rollout.svg, rollout_zoom.svg, rollout.json,
+rollout_<w>_<before|after>.csv, perf.txt/json, README.md). The generated files (flight_core.js, index.html, dev.html,
+sw.js, version.json) are NOT committed.

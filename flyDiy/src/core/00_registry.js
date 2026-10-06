@@ -669,4 +669,15 @@ const GROUND_SURF = {
   7: [0.10, 0.30, 0.6],             // SAND — reserved with the enum
 };
 const GROUND_DEF = GROUND_SURF[0];
+// G1844 (DMG-TYRE): THE TYRE'S CORNERING STIFFNESS, per unit of its load (/rad): a rolling tyre's side force is
+// C_alpha * tan(slip angle), linear, until it reaches the surface's Coulomb limit mu * N (the lateral mu of the row
+// above), and C_alpha = TYRE_CN[class] * N. Per unit load because C_alpha/Fz of a pneumatic tyre near its rated
+// load is roughly size-independent (a bigger tyre carries a bigger rated load); the class is the carcass and its
+// pressure. RANGES RECALLED from the tyre literature, not measured here (A0 to check against a source in hand):
+// light-aircraft and car-sized pneumatic tyres at rated load and pressure read ~0.1-0.2 /deg = 6-11 /rad (NASA TR
+// R-64, Smiley & Horne 1960, aircraft tyres; Pacejka's car tyres ~0.15-0.2 /deg); a low-pressure bush ("tundra")
+// tyre at 6-15 psi is softer, ~3-6 /rad; a narrow high-pressure tyre stiffer, ~8-13; a solid or small hard
+// tailwheel tyre ~8-15; a 5.00-5 nose wheel ~6-10. Each value the middle of its range. Keyed by the build's wheel
+// carcass (the cage's whProfile: standard, tundra balloon, slim) for the mains and by the gear type for the third.
+const TYRE_CN = { standard: 8, tundra: 4.5, slim: 10, tailwheel: 10, nosewheel: 8 };
 
