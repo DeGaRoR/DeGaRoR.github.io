@@ -18,6 +18,13 @@
 //   2 EVERY DRAWN ATTRIBUTE AND INDEX of the flown model (its folds, its merges, the rest): the GPU's copy equals its CPU
 //     array, byte for byte - a mismatch is a stale buffer (the CPU written without the upload), named with its mesh;
 //   3 no page or worker error.
+// G2350 (DMG-FOLDNODE): THE FOLDS ARE IN IT. The node page makes no real flown bake (the recording GL's read-back is zeros),
+// so before G2350 the flown model had no fold here and this gate passed with D4b's fix taken out. The page now runs with
+// _page_node's opts.fakeBake (flown_bake.js fakeSet, test only: a 1x1 zero atlas, no GL pass, no unwrap) - forPayload,
+// buildModel, mergeModel's folds and views, the range uploads and the hybrid are the game's - and asserted besides:
+//   4 the flown bake was the fake (FB.last.hit 'fake'), the hybrid on, folds made; drawn fold buffers were checked
+//     fresh and after the path (a fold's position / normal is where a heal's write goes stale);
+//   --selftest: window.FLYDIY_HEAL_NOMARK = true (D4b's fix off: the bug as it was) must go red ON A FOLD.
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawnSync } = require('child_process');
@@ -55,7 +62,7 @@ function shadowGL() {
 }
 // every drawn attribute / index of the flown model against its GPU copy -> the stale ones
 function staleOf(W, S) {
-  const m = W.FLIGHT_PROBE.model(), out = [], seen = new Set(), CL = {}; let checked = 0, never = 0;
+  const m = W.FLIGHT_PROBE.model(), out = [], seen = new Set(), CL = {}, CK = {}; let checked = 0, never = 0;
   if (!m || !m.grp) return { none: true };
   m.grp.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
@@ -66,14 +73,14 @@ function staleOf(W, S) {
     for (const [k, a] of list) {
       if (!a || !a.array || a.isInterleavedBufferAttribute || seen.has(a.array)) continue; seen.add(a.array);
       const b = S.ofArray.get(a.array); if (!b) { never++; continue; }
-      const sh = S.bytes.get(b), cpu = new Uint8Array(a.array.buffer, a.array.byteOffset, a.array.byteLength); checked++;
+      const sh = S.bytes.get(b), cpu = new Uint8Array(a.array.buffer, a.array.byteOffset, a.array.byteLength); checked++; CK[cls] = (CK[cls] || 0) + 1;
       if (!sh || sh.length !== cpu.length) { out.push({ mesh: o.name || o.type, cls, attr: k, why: 'size ' + (sh && sh.length) + ' vs ' + cpu.length }); continue; }
       let bad = 0, first = -1; const es = a.array.BYTES_PER_ELEMENT || 4;
       for (let i = 0; i < cpu.length; i += es) { let d = false; for (let j = 0; j < es; j++) if (sh[i + j] !== cpu[i + j]) { d = true; break; } if (d) { bad++; if (first < 0) first = i / es; } }
       if (bad) out.push({ mesh: o.name || o.type, cls, attr: k, elements: bad, of: cpu.length / es, first, version: a.version });
     }
   });
-  return { checked, never, stale: out, classes: CL };
+  return { checked, never, stale: out, classes: CL, checkedBy: CK };
 }
 
 // ============================================================ THE CHILD: one build, one page
@@ -83,7 +90,9 @@ async function child() {
   const R = { key, fault, damage: dmg, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
   const SG = shadowGL(), S = SG.S;
-  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1', workers: /sim_host\.js/, glWrap: SG.wrapGL });
+  const fake = arg('fakebake', '1') !== '0';   // (G2350: --fakebake=0 the gate as D4b left it - no fold in the node page)
+  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1', workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
+  R.fakeBake = fake;
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark') W.FLYDIY_HEAL_NOMARK = true;   // (the selftest: the heal's upload marking off - the bug as it was)
@@ -116,7 +125,10 @@ async function child() {
   R.live1 = await rollOut();
   for (let i = 0; i < 20; i++) await P.frames(1);
   R.after = staleOf(W, S);
-  try { const FB = W.FLOWN_BAKE; R.bake = { module: !!FB, forPayload: !!(FB && FB.forPayload && W.CAGE_VISUAL && FB.forPayload(W.CAGE_VISUAL)), hybrid: !!(FB && FB.opts && FB.opts.hybrid) }; } catch (e) { R.bake = { err: String(e && e.message) }; }
+  // (G2350: read, never forPayload - that call resets the folds' list)
+  try { const FB = W.FLOWN_BAKE, L = FB && FB.FB.last, F = FB && FB.folds ? FB.folds() : [];
+    R.bake = { module: !!FB, hit: L ? L.hit : null, cm: L ? L.cm : null, hybrid: !!(FB && FB.FB.hybrid), hyT: FB ? FB.FB.hyT : null, folds: F.length,
+               foldMeshes: F.reduce((k, f) => k + ((f.meshes || []).length), 0), views: F.reduce((k, f) => k + ((f.live || []).length), 0), merge: FB ? FB.FB.merge || null : null }; } catch (e) { R.bake = { err: String(e && e.message) }; }
   R.gl = { uploads: S.uploads, subs: S.subs, contexts: S.contexts };
   R.healUploads = (W.FLYDIY_HEAL_UPLOAD || {}).n || 0;
   const s1 = SW() ? SW().state() : null;
@@ -129,7 +141,7 @@ async function child() {
 // ============================================================ THE PARENT
 function runChild(key, fault, secs, damage) {
   const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + '.json');
-  const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
+  const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs, '--fakebake=' + arg('fakebake', '1')]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
   if (r.status !== 0 || !fs.existsSync(out)) return { key, failed: 'child exit ' + r.status + (r.signal ? ' ' + r.signal : '') };
   const R = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return R;
@@ -149,6 +161,13 @@ function judge(R, say) {
   } else if (!(R.crash && R.crash.br > 0)) bad('the crash broke nothing on the page - the path tests nothing');
   if (!R.live1) bad('the roll-out after the shed never went live');
   if (!(R.after && R.after.checked > 0)) bad('no drawn buffer of the flown model was checked after the path');
+  if (R.fakeBake) {   // G2350: the folds are in the page, and drawn
+    const B = R.bake || {}, fk = X => (X && X.checkedBy && X.checkedBy.fold) || 0;
+    say('  ' + R.key + ': fold buffers checked fresh ' + fk(R.fresh) + ', after ' + fk(R.after) + ' (by class ' + JSON.stringify(R.after.checkedBy || {}) + ')');
+    if (B.hit !== 'fake') bad('the flown bake was not the test\'s fake (FB.last.hit ' + JSON.stringify(B.hit) + ')');
+    if (!B.hybrid || !(B.foldMeshes > 0)) bad('no hybrid fold was made (' + JSON.stringify(B) + ')');
+    if (!(fk(R.fresh) > 0) || !(fk(R.after) > 0)) bad('no drawn fold buffer checked (fresh ' + fk(R.fresh) + ', after ' + fk(R.after) + ')');
+  }
   if (st(R.after).length) bad('STALE GPU BUFFERS after crash -> the shed -> roll-out (the CPU written without the upload): ' + st(R.after).slice(0, 6).map(s => s.cls + ':' + s.mesh + '.' + s.attr + ' ' + (s.elements || s.why)).join(', '));
   if ((R.errors || []).length || (R.workerErrors || []).length) bad('errors: page ' + JSON.stringify(R.errors).slice(0, 300) + ', worker ' + JSON.stringify(R.workerErrors).slice(0, 200));
   return f;
@@ -157,9 +176,13 @@ function parent() {
   const secs = +arg('secs', 5), say = m => console.log(m), only = arg('only', null), keys = Object.keys(BUILDS).filter(k => !only || only.split(',').includes(k));
   if (argv.includes('--selftest')) {
     say('DMGUPLOAD selftest: the heal\'s upload marking off (the bug as it was) must turn it red');
-    const R = runChild('cub', 'nomark', secs), f = judge(R, say), red = f.some(x => /STALE/.test(x));
+    // (G2350: red ON A FOLD - the class D4b's fix covers; the fold rows themselves must hold, else the red tests nothing)
+    const R = runChild('cub', 'nomark', secs), f = judge(R, say), red = f.some(x => /STALE/.test(x)), onFold = ((R.after && R.after.stale) || []).some(x => x.cls === 'fold');
+    const foldRows = !f.some(x => /fake|fold was made|fold buffer checked/.test(x)), ok = red && onFold && foldRows;
     say('  ' + (red ? 'ok  ' : 'FAIL') + '  the fault turned the stale-buffer row red' + (f.length ? ': ' + f.join(' | ') : ''));
-    console.log('GATE DMGUPLOAD-SELFTEST: ' + (red ? 'PASS' : 'FAIL')); process.exit(red ? 0 : 1);
+    say('  ' + (onFold ? 'ok  ' : 'FAIL') + '  a stale buffer is a FOLD\'s (' + ((R.after && R.after.stale) || []).filter(x => x.cls === 'fold').length + ' fold buffers stale)');
+    say('  ' + (foldRows ? 'ok  ' : 'FAIL') + '  the fake bake made the folds and they were drawn and checked');
+    console.log('GATE DMGUPLOAD-SELFTEST: ' + (ok ? 'PASS' : 'FAIL')); process.exit(ok ? 0 : 1);
   }
   say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)');
   let fails = [];

@@ -1296,6 +1296,37 @@
     return out;
   }
 
+  // ---- G2350 (DMG-FOLDNODE): THE FAKE BAKE - TEST ONLY --------------------------------------------------------------------
+  // window.FLYDIY_TEST_FAKE_BAKE === true (set by tools/_page_node.js opts.fakeBake before the page's scripts run; nothing
+  // in the game sets it). The node page draws on a recording GL: there no bake is made (the read-back is zeros, so the
+  // atlas bows out at 0 % written; the unwrap and the mips are seconds of CPU), so no fold ever existed for a node gate to
+  // read - GATE DMGUPLOAD could not see the stand's ghost (DMG-D4b). The fake SKIPS the GL passes, PARKED.unwrap, the
+  // gutters, the mips, the cache and the budget: a 1x1 zero atlas a map (the same materialOf, the same material class)
+  // and a zero atlas uv per vertex. Everything after is the game's own - remember / attach, forPayload, buildModel's
+  // baked geometries, mergeModel's folds and the members' views into them, the range-upload bookkeeping, the hybrid's
+  // live / bake switching (nearT reads the stats' cm: estimated here from the set's area at the real atlas's size and
+  // a 0.6 fill, so the band sits where the real one does, within the packing's spread).
+  const FAKE = () => W.FLYDIY_TEST_FAKE_BAKE === true;
+  function fakeSet(THREE, vis, j) {
+    const { set, list, key, S } = j, A = W.AEROSKIN, seen = new Set();
+    let area = 0, nvt = 0, nt = 0, cc = 0;
+    for (const e of list) {
+      const P = restOf(e.g), I = e.g.idx, n = e.g.pos.length / 3;
+      for (let c = 0; c + 2 < I.length; c += 3) {
+        const a = I[c] * 3, b = I[c + 1] * 3, d = I[c + 2] * 3;
+        const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[d] - P[a], vy = P[d + 1] - P[a + 1], vz = P[d + 2] - P[a + 2];
+        area += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+      }
+      e.uv = new Uint16Array(n * 2); nvt += n; nt += I.length / 3;
+      if (!seen.has(e.k)) { seen.add(e.k); const src = A.aeroMaterial(THREE, aeroArgs(THREE, vis.mats[e.k] || {})); if (src && src.clearcoat > 0) cc++; }   // (bakeAtlas's rule)
+    }
+    const s = Math.sqrt(0.6 * S * S / Math.max(area, 1e-6)), z = () => [{ data: new Uint8Array(4), width: 1, height: 1 }];
+    const mat = materialOf(THREE, { S: 1, cc: cc > 0, levels: [z(), z(), z()] }, set);
+    const stats = { hit: 'fake', fake: true, S: 1, bytes: 12, groups: list.length, verts: nvt, tris: nt, split: 0, cm: +(100 / s).toFixed(2), cc: cc > 0 };
+    remember(set, key, mat, stats, list);
+    return { mat, stats };
+  }
+
   // ---- ONE ATLAS: the cache, else the bake ----------------------------------------------------------------------------
   // j: { set, list, key, S }. Resolves { mat, stats } (null: this set flies live). The page's own tasks: the cache read
   // (async), the unzip (a stream), the charts' uv per vertex, the compile (awaited, parallel), a pass a task, the upload.
@@ -1308,6 +1339,7 @@
       list.forEach((e, i) => { e.uv = M.uvs[i]; });
       return { mat: M.mat, stats: Object.assign({}, M.stats, { hit: 'memory' }) };
     }
+    if (FAKE()) return fakeSet(THREE, vis, j);   // (G2350: test only, above)
     // THE CACHE
     phase('baking your aeroplane: the cache', 0.05);
     let t0 = performance.now();
@@ -1382,11 +1414,12 @@
     const T0 = performance.now();
     const THREE = W.THREE, vis = opt && opt.payload, spec = opt && opt.spec;
     const phase = (l, f) => { if (opt && opt.phase) try { opt.phase(l, f); } catch (e) {} };
-    if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || !W.PARKED || !W.PARKED.unwrap) return null;
+    const fake = FAKE();   // (G2350: the test's fake bake needs neither the unwrap, the budget nor the renderer)
+    if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || (!fake && (!W.PARKED || !W.PARKED.unwrap))) return null;
     // G1523 (POTATO-DEEP): a build budget without the bake (potato) - the live shader flies, nothing baked nor held
-    if (W.GFX && typeof W.GFX.budget === 'function' && W.GFX.budget().flownBake === false) { log('the budget makes no bake (' + W.GFX.budget().preset + ')'); return null; }
-    const R = renderer();
-    if (!R) return null;
+    if (!fake && W.GFX && typeof W.GFX.budget === 'function' && W.GFX.budget().flownBake === false) { log('the budget makes no bake (' + W.GFX.budget().preset + ')'); return null; }
+    const R = fake ? null : renderer();
+    if (!R && !fake) return null;
     const sets = bakedSets(vis), jobs = [];
     for (const set of SETS) {
       const names = new Set(); for (const [k, s2] of sets) if (s2 === set) names.add(k);
