@@ -330,6 +330,14 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
     const again = F('separation', 'alu', at('rigid', 0.3, 230), 0.35);
     yes(JSON.stringify(again) === JSON.stringify(pM), 'seeded by the strike: the same grade at the same moment, the same picture');
   }
+  // UNDER THE PHYSICS WORKER (the default): the page's sim is sim_link's mirror, never stepped - the breaks (dmgState) and
+  // DMG-DRIVE's grade (drv) reach the page only if the mirror carries them (2026-10-06: neither did; no break reached the page)
+  {
+    const L = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_link.js'), 'utf8'), A = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    const saved = /for \(const k of \[[^\]]*'dmgState'[^\]]*'drv'[^\]]*\]\) saved\[k\] = own\(k\)/.test(L);
+    yes(saved && /def\('dmgState', \{[^}]*V\.dmgState\(\)/.test(L) && /def\('drv', \{ get: \(\) => V\.drv/.test(L) && /'drv' in sim\) return sim\.drv/.test(A),
+      'under the physics worker the page\'s sim mirrors the breaks (dmgState) and DMG-DRIVE\'s grade (drv), saved and restored at detach; the prop reads the mirror first');
+  }
   // app.js: the wreck path behind the damage state
   {
     const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
