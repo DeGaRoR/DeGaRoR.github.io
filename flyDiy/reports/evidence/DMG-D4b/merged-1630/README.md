@@ -32,3 +32,9 @@ and pushes it into a trunk / stump sent as a tree hit, the conditions calm, then
 
 `worker_stills.json`, `inline_stills.json`, `worker_paths.json`: every number (the stage, the cowl panels, the strikes,
 the tear census per wing).
+
+**CORRECTION (2026-10-07, DMG-DRIVE2 found it): the INLINE taxi here was NOT run with the throttle shut.** The stills rig set the
+throttle once and the page's own loop wrote it back from the input every frame (0.62: 1710 rpm, 3 -> 4.27 m/s before the strike).
+Its DRIVE "separation" and the mount it tore are a POWERED strike - expected, not a DMG-DRIVE bug; the "strike first at an
+idle tip speed" finding is withdrawn. Fixed in the rig (3455e001: hands on, the controls zeroed before every step pair).
+The worker-staged shots were unaffected.

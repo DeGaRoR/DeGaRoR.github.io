@@ -22,3 +22,9 @@ be the giant sheets' root cause (see below).
 - 3 m/s into a trunk: DMG-DRIVE graded 'separation' at t 2.933 s (biteR 1.197, rigid, wood, the throttle shut); the
   first engine-mount member broke at t 3.267 s (ENGL-S0BR), 12 members in all - **the strike first**: a DMG-DRIVE finding
   (the coordinator's cloud chip).
+
+**CORRECTION (2026-10-07, DMG-DRIVE2 found it): the INLINE taxi here was NOT run with the throttle shut.** The stills rig set the
+throttle once and the page's own loop wrote it back from the input every frame (0.62: 1710 rpm, 3 -> 4.27 m/s before the strike).
+Its DRIVE "separation" and the mount it tore are a POWERED strike - expected, not a DMG-DRIVE bug; the "strike first at an
+idle tip speed" finding is withdrawn. Fixed in the rig (3455e001: hands on, the controls zeroed before every step pair).
+The worker-staged shots were unaffected.
