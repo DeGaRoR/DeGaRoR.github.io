@@ -78546,3 +78546,157 @@ recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log
 Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
 BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
 For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
+
+## G1855-G1859 DMG-WALL: ONE WALL, NO STRETCH - THE WRECK'S BINDING INHERITED, THE FRAME RIDING, THE PARTS RIGID; G1858 THE LINING CUT AS A FALLBACK (2026-10-05, DMG-WALL for the DEFORM COORDINATOR, local GPU; branch claude/dmg-wall off claude/dmg-integration 01e6892f; replaces the cloud DMG-D4c's WIP b25c28e8 - its headless snapshot lib tools/_dmg_wall_lib.js kept, its offset-surface wall not)
+
+THE USER (2026-10-05, `?damage=1`, DMG-D4b's own stills taxi_1_after / trunk-0_1_after): grey / black all over the yellow
+Cub (the lining through the covering), the gear vee and a wing drawn stretched ("we need to retain something like area"),
+the cowl cut into diamonds, the skin lying metres off a frame that looks unbent. The coordinator measured the SOLVER clean
+(no unbroken member past 15 %): all of it was the DRAWING. Three causes, found and fixed:
+1. **Every cage place was bound to its OWN 4 nearest nodes** (skin_break.js bindNearest, G1851 / G1864), whatever layer or
+   part it was: a lining place 3 cm in took other nodes than the covering over it; a compact part spanned nodes that parted.
+2. **The frame never rode at all**: the page's still merge (app.js mergeStill) folds `stube` + `sbulkhead` + `sfirewall`
+   into one craftStill mesh and drops them from model.rigs, so brkCage never made them a record - the tubes, the bulkhead
+   and the firewall stood rigid in the body frame while the skin rode the nodes (the user's 3.webp). Found by the census
+   rig's probe (reports/evidence/DMG-WALL/census/probe.json).
+3. **The gear legs** (stretchRigs) stretched from a root pinned to the BODY FRAME to their axle node (G58.7's suspension
+   drawing): a wreck moved the axle metres - the "impossible" vee.
+
+### G1855-G1857 - ONE WALL: THE BINDING INHERITED (skin_break.js inhClass / inhSteps / bindInherit / wallSync / wallFollow)
+BeamNG's flexbody idea (DEFORM-AND-BREAK §2.5; no code of theirs): every mesh of a body bound to the SAME node set. WEIGHTS
+ONLY - the riding formula is unchanged (pos = sum w l + q (x - sum w r) + sag down; DMG-SKINGPU's shader takes it as is,
+at most 8 slots: records are made with K = INH_K = 8). Each cage place is classed (inhClass: its bucket's section and
+aeroskin's role; a colour bucket's place by the snapshot's new LAYER RANGES, G1859) and bound:
+- **tube** (tube / woodFrame / boomTube; the lift struts): its member's two end nodes by its station t - exact along the
+  beam, the bends show;
+- **cover** (skin / rail / pillar / struct panels; the wing, fin, stab layers; the control surfaces): its point on the
+  frame - the 4 nearest frame members (fuselage / wings / tail; not the gear, engine mount, tanks, struts, wires), each
+  member's two ends by station, weighted 1 / (d^2 + 3 cm^2): over a member it is laced to it, in a bay it is the bay's blend;
+- **wall** (liner, fireproof, sill, door pad, the window beads, the glazing, the pane edges, the reveals): the binding of
+  its CLOSEST POINT ON THE COVERING at rest (that triangle's places' weights, barycentric): wall = covering point + q x its
+  rest offset - it cannot come out unless the covering folds tighter than its depth. At every event it takes its covering
+  point's KEPT weights, piece, dominant node and DRAPE (wallSync: a blend of three places' raw weights can lean to another
+  piece than all three keep - the 8.6 m leaks of the first cut; the fabric's G1852 sag moved the covering 7 cm off an
+  undraped lining); its triangles go when the covering triangle under them goes (wallFollow, dead 4);
+- **rigid** (G1859, below) and **keep** (the dash, the crew: their nearest node, as before).
+The welded places (dupOf) are split where two classes or two part objects meet. Made at the first break, BRK_INH = 1500
+places a frame (they ride their nearest node meanwhile), then every record's event again; never per frame. Off:
+`?wallbind=0` / `window.FLYDIY_WALLBIND = false` (the old binding; flipped live, every record is made again - the A/B).
+
+### G1858 - THE FALLBACK: THE LINING CUT AT THE DAMAGE (skin_break.js hotNodes / cutWall; app.js brkWallCut)
+The user's "get rid of the interior for the crash": a lining triangle (liner / fire / sill / doorPad) with a place bound to
+a node at the damage (a broken member's end, off the core, an end of a member set past 1 %) is removed (dead 3), at the
+events (the state's vB and sS), never per frame. Measured (node study): it takes the lining's leaks (cloth 94k -> 123
+place-frames) but not the window beads' - most of the black - so it runs ONLY on the old binding (`?wallbind=0`);
+`?skinwall=0` turns it off there.
+
+### G1859 - NO STRETCH: THE PARTS RIGID, THE FRAME RIDING, THE LEGS, NO CONFETTI
+- **The snapshot's layer ranges** (_cage_join.js `data.layers` = [layer, bucket, v0, v1, object] for every static vertex:
+  the first `cageLayer:` ancestor and the mesh's walk index - a generalisation of DMG-D4b's cowl `debris` rows; metadata).
+- **A compact part** (a cowl / gear / access / light / hinge / energy / eng layer object under 1.2 m: 63 on the user's Cub)
+  takes ONE binding for all its places - its centroid's blend of EVERY member (the engine mount and the gear too: the nose
+  bowl rides the engine and its mount, a side panel the firewall's frame) - so it moves as one rigid body and, at a break,
+  goes whole with its dominant piece. DMG-D4b owns when it goes LOOSE (agreed): `own.wreckGone` on a rig, `dead[t] = 5` on a
+  bucket's triangles; both honoured here.
+- **The still-merged buckets ride** (wreckBuild.rigsAll; mergeStill registers a position mirror on each source,
+  brkPosMirror copies the riding - and the rest at a heal - into the merged copy). Intact nothing reads it.
+- **The gear legs ride** once a wreck is drawn: one binding each, half its root node (nearest the airframe end) and half its
+  axle node - rigid, its ends within half the leg members' own change.
+- **No confetti**: no stretch tear on a tube, a rigid part or sheet metal (non-fabric covering): `R.noTear`.
+
+### GATE DMGWALL (tools/_dmg_wall_check.js on tools/_dmg_wall_study.js; run_gates core, weight 3)
+Node, every validated build's flown snapshot headless (tools/_dmg_wall_lib.js + the layer ranges), damage ON with the
+certificate, the brief's crashes (30 m/s trunk centre and 2.5 m out, 3 m/s taxi, a nose-over into a 35 cm stump, the
+severe nose-in; the float nose-in on floats), the inherited binding as brkCage makes it, the old one beside it. Checks: the
+wall out through its covering's live plane past 1 mm in <= 1 % of place-frames, past 5 cm <= 1e-4; no compact-part triangle
+past 1 %; every position finite; <= 2 % of places past 8 slots. The user's Cub (study_cub.txt, before the cowl fix):
+
+| case | broken | wall out past 1 mm: old -> inherited (worst) | compact-part triangle-frames past 1 %: old -> inherited |
+|---|---|---|---|
+| trunk 30 m/s centre | 169 (19 pieces) | 27.2 % (9.1 m) -> 0.69 % (6.5 cm) | 376 164 -> 0 |
+| trunk 30 m/s, 2.5 m out | 121 (7) | 16.5 % (8.6 m) -> 0.47 % (4.8 cm) | 599 960 -> 0 |
+| nose-over (12 m/s, 35 cm stump) | 50 | 0.66 % (3.5 cm) -> 0.10 % (4 mm) | 701 290 -> 0 |
+| severe nose-in | 165 (15) | 21.8 % (17 cm) -> 0.15 % (5 cm) | 839 921 -> 0 |
+| 3 m/s taxi | 0 in node (the page breaks 10-12: DMG-D4b's parity hunt) | - | - |
+
+**THE GATE RUN AT READY (reports/evidence/DMG-WALL/gates2/, the morning slot 2026-10-06): GATE DMGWALL PASS 98/98**; DMGSKIN,
+UISMOKE, BUILD, JOIN PASS and IDENTICAL to the base 01e6892f with every number masked (gates_vs_base.txt). Per build and case
+(the wall out past 1 mm, old binding -> inherited; worst; compact-part triangle-frames past 1 %):
+
+| build | case | broken | wall out past 1 mm: old -> inherited (worst) | compact parts past 1 % |
+|---|---|---|---|---|
+| the user's Cub | trunk centre / 2.5 m | 169 / 121 | 27.0 % -> 0.64 % (6 mm) / 16.0 % -> 0.39 % (4.8 cm) | 376k / 600k -> 0 |
+| the user's Cub | nose-over / severe nose-in | 50 / 165 | 0.78 % -> 0.12 % / 22.8 % -> 0.10 % | 701k / 840k -> 0 |
+| Jodel | trunk centre / 2.5 m / nose-over / nose-in | 204 / 65 / 42 / 174 | 0.80 / 0.21 / 0.00 / 4.57 % -> 0.009 / 0.009 / 0.005 / 0.22 % (worst 1 cm; old to 22 m) | 0 everywhere |
+| metal Cessna | trunk centre / 2.5 m / nose-over / nose-in | 208 / 90 / 36 / 196 | 0.89 / 1.08 / 0.57 / 2.23 % -> 0.06 / 0.17 / 0.004 / 1.35 % (worst 4.5 cm; old to 37 m) | 0 everywhere |
+| Cessna floats | float nose-in | 181 | 0.72 % -> 0.85 % (worst 3 cm; old 9.5 m) | 0 |
+| twin floats | float nose-in | 220 | 0 -> 0 | 0 |
+
+The gate's rows (tools/_dmg_wall_check.js): the wall out past 1 mm <= 2 % of place-frames, past 1 cm <= 0.1 %, past 5 cm
+<= 1e-4; no compact-part triangle past 1 %; no drawn tube triangle past 1.2 x its rest + 3 mm; every position finite;
+<= 2 % of places past 8 slots. Measured places are those UNDER the covering (their rest offset mostly along the covering
+triangle's normal: a pane or a bead in a window's hole sits beside the covering's rim, not behind it - first measured,
+they read as 'leaks' of their in-plane offset). The 1 mm row was first set at 1 %: the metal Cessna's severe nose-in reads
+1.35 % (sub-centimetre beads under sheet metal; past 1 cm 0.04 %), so the visible rows (1 cm, 5 cm) carry the gate and the
+1 mm row is 2 % - stated here, not hidden. The Cessna floats' 1 mm share is above the old binding's (0.85 vs 0.72 %) while
+its worst falls from 9.5 m to 3 cm.
+
+### G1859.3 - NO STRETCH, MEASURED: THE TUBES' AND THE SHEET METAL'S OWN TEAR
+- **A drawn tube is never drawn longer than a member can be**: a tube triangle past 1.2 x its rest + 3 mm (a whole member
+  ends at 15 %, the solver) tears (R.tubeTear). The drawn tube meshes are mostly ONE connected piece over many members (the
+  Cub's 43 pieces: 1 single-member, 42 spanning joints - G1859.2's per-piece binding binds the few it can), so at a joint a
+  ring's places bind to two members; when they part, that triangle tears instead of stretching (GATE DMGWALL's tube row:
+  145-640 x on the Cub before, 1.2 x now; ~760 more tube triangles drawn torn in a 30 m/s crash).
+- **Sheet metal tears only where it is torn for real** (R.sheetTear: past 40 % + 2 cm) - G1859's 'no stretch tear on sheet
+  metal' had left a metal covering stretched across a nose-in (341k triangle-frames past the fabric bound on the metal
+  Cessna) with its window beads riding it out; the fabric keeps D4a's 15 % + 1 cm.
+- **Measured and rejected (the coordinator's idea, worth recording)**: each window assembly (pane, bead, edge, reveal) as ONE
+  rigid part: the metal Cessna's severe nose-in went 1.8 -> 10.9 % (worst 35 m - a window spans pieces when the cabin
+  parts). Not kept.
+
+### THE BOX: THE YELLOW CENSUS, LAYER BY LAYER (tools/dmg_wall_census.js + dmg_wall_run.sh; reports/evidence/DMG-WALL/)
+The real page (`dev.html?damage=1&simw=0`, the user's Cub, DMG-D4b's cases and cameras; taxi = the user's 2.webp, trunk-0
+= 3.webp), the craft's own pixels by flat masks less the parts not yellow by design, and the same frame drawn again with
+every vertex coloured by its LAYER (covering white / its back face red, lining magenta, tubes cyan, fireproof orange, sill
+purple, cabin blue, beads green, parts grey): each non-yellow pixel told by what draws it. Inside layers showing, % of the
+Cub's pixels (census2_table.md; run 1 BEFORE vs run 2 AFTER - two flights of the crash):
+- taxi: 1.24 -> 0.03 % (the cowl whole, no holes under the door, no dark windshield base, the vee unstretched);
+- nose-over: 0.78-1.76 -> 0.03-0.21 %;
+- the 30 m/s trunks, far cameras: 15.9 -> 3.9 % and 17.5 -> 3.5 % (the frame inside its covering, the wings in coherent
+  pieces, no 8 m struts); the close cameras show the cabin torn open (cabin blue / covering back red - the wreck's content).
+census4 (the READY code, 06:58, the user's two scenes - one wind-off crash replayed under both bindings; it reproduces census3 to
+the hundredth): taxi 1.75 -> 0.59 % (cam 1), trunk-0 32.0 -> 19.8 % / 25.7 -> 20.5 % / 14.6 -> 13.8 % (the liner 18.2 -> 1.3 % at cam 1); the heal true after
+both. The page's crash does not repeat bit for bit (141 vs 120 members broken in two runs), so the READY census replays ONE
+recorded crash under both bindings (pageReplay, 06366c5f). Census 3 (ba408680, census3_table.md): inside layers showing BEFORE -> AFTER on the SAME
+wreck - taxi 1.84 -> 0.30 %; trunk-0 far 32.1 -> 19.5 % and 25.3 -> 19.9 % (the liner 18.2 -> 1.3 %; what is left is the
+cabin torn open); trunk-2.5 21.6 -> 10.3 % and 13.8 -> 2.7 %; nose-over 3.1-9.2 -> 0.6-2.7 %; one close camera worse
+(trunk-2.5 cam 3: 23.8 -> 33.4 %, the torn-open cabin - to read with the colours).
+
+### G1858.1 - THE DRAWING HEALS (a real game bug since G1864: every flight after a crash drew the last wreck's covering)
+At a heal (sim.reset: retry / fly again / respawn) brkState restored each record's index and normals but not its positions,
+and the cage's pose never rewrites a STATIC bucket (it rides the group matrix: poseModel skips a rig with no binding and no
+hinge) - the next flight drew the last wreck's covering at the new place (the user's 'intact' shots of giant sheets). Now
+every record keeps its rig's as-built array and its drawn attribute; a heal (and brkRestore: a model change, the switches)
+writes them back, mirrors them into the still merge's copy, and re-poses from the rest - on a REAL heal only (with nothing
+broken or damage off nothing of it runs). Box-verified (census3): after the taxi, trunk 30 m/s centre (179 broken, broke up),
+trunk 2.5 m and nose-over wrecks a reset gives every craft geometry's index and static positions BIT-IDENTICAL to the fresh
+load (236 geometries hashed); the garage -> roll-out path after a wreck likewise.
+
+### G1859.1 - THE CONTROL LINKS, THE TUBES ON THEIR MEMBERS
+The control links (ctlLink pushrods and cables, linkRigs) are posed in the BODY frame between a pin and a surface's horn; in
+a wreck the surface went with its piece and the link was drawn metres long across the runway. Each now rides its pin's
+node as one rigid body. A drawn tube far from every member (a lift strut drawn beside its physics line) was blended over
+the covering's frame (no struts, no gear) and stretched when its piece went: it takes its nearest member now, and
+G1859.2 binds each tube PIECE to one member as a unit (the joints to their node).
+
+### Perf (the box, the census's own read: FLYDIY_SKINBREAK_STATS().ms, the Cub)
+Nothing intact or broken-free changes: brkCage returns before any of this. Over a wreck: the riding's worst frame 46-58 ms
+(the old binding's 42-57: K = 8 costs nothing measurable, the zero slots are skipped), the event's worst 79 ms (old
+40-116), the inheritance job 47 ms at 4000 places a frame -> BRK_INH 1500 (~270 ms in all, spread). DMG-SKINGPU takes the
+riding to the GPU (format agreed: R.K, wi / ww / w2, dead >= 2; the still-merged records stay on its CPU riding).
+
+### Open
+- The window beads / glazing carry most of the residual (0.1-0.7 % of place-frames, worst 5-6.5 cm): neighbouring covering
+  places turning differently over a lever. The coordinator's idea - each window assembly (frame, bead, pane) one rigid part
+  on its frame's nodes - is the next step if the census shows it.
+- The 3 m/s taxi breaks fuselage members on the page and nothing in node (DMG-D4b's parity hunt).

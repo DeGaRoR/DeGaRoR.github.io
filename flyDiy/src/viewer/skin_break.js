@@ -264,7 +264,7 @@
     const { nv, K, wi, ww } = R, idx = R.idx;
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
       if (R.idx0) idx.set(R.idx0);
-      R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = 0;
+      R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = R.cut = 0;
       return !!R.idx0;
     }
     if (!R.idx0) R.idx0 = idx.slice();
@@ -298,7 +298,7 @@
     let removed = 0;
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
-      let gone = dead[t] === 2;                   // torn by stretch earlier: stays torn
+      let gone = dead[t] >= 2;                   // torn by stretch earlier (or cut off the wall, G1858; gone with its covering, G1856): stays gone
       if (!gone) {
         gone = vp[a] !== vp[b] || vp[b] !== vp[c] ||
                BP.has(dom[a], dom[b]) || BP.has(dom[b], dom[c]) || BP.has(dom[a], dom[c]);
@@ -570,22 +570,28 @@
   }
   // ---- THE TEAR: a watched triangle past TEAR over its rest edge is torn for good. Returns the triangles torn now ----
   function tear(R, base, pos) {
-    if (!R.watch) return 0;
+    if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear)) return 0;                  // (G1859: a tube, a rigid part, sheet metal - never cut to confetti)
     const i0 = R.idx0, idx = R.idx, dead = R.dead, W = R.watch;
     let n = 0;
     for (let j = 0; j < W.length; j++) {
       const t = W[j]; if (dead[t]) continue;
       const a = i0[t * 3] * 3, b = i0[t * 3 + 1] * 3, c = i0[t * 3 + 2] * 3;
-      if (over(pos, base, a, b) || over(pos, base, b, c) || over(pos, base, a, c)) {
+      if (over(pos, base, a, b, R) || over(pos, base, b, c, R) || over(pos, base, a, c, R)) {
         dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++;
       }
     }
     R.torn += n; R.removed += n;
     return n;
   }
-  function over(pos, base, a, b) {
+  function over(pos, base, a, b, R) {
     const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
     const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
+    // (G1859.3: a drawn TUBE's own bound - a whole member ends at 15 % (the solver), so a tube triangle past 20 % + 3 mm
+    // spans two bindings that parted at a joint: drawn torn, never stretched)
+    if (R && R.tubeTear) return !(l <= 1.2 * r + 0.003);
+    // (G1859.3: SHEET METAL tears only where it is torn for real - past 40 % + 2 cm: no confetti from a few frames of
+    // elastic bay shear, but no sheet drawn stretched across a wreck either)
+    if (R && R.sheetTear) return !(l <= 1.4 * r + 0.02);
     return !(l <= (1 + TEAR) * r + TEAR_ABS);          // (a NaN edge is torn too)
   }
   // the gate's measure over every live triangle of a group: the worst edge past its bound (m: l - (1 + TEAR) r - TEAR_ABS,
@@ -606,7 +612,358 @@
     }
     return { ex, m, t: at };
   }
-  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch };
+  // ---- G1858 (DMG-WALL, the user's fallback: "if we struggle too much with the interior, we could simply get rid of it
+  // for the crash"): THE INSIDE WALL CUT AT THE DAMAGE. The lining (aeroskin's liner / fire / sill / doorPad roles - not
+  // the frame's tubes, not the furniture) is bound to other nodes than the covering over it and pokes through it where
+  // the frame bends or breaks: grey and black on the yellow Cub. So once broken, a lining triangle with a vertex bound to
+  // a node AT THE DAMAGE is removed as a torn one is (its indices collapsed; dead 3, kept until a heal): the nodes at the
+  // ends of a broken member, the nodes off the core (a piece that came off), the ends of a member set past SET_HOT.
+  // Away from the damage the cabin keeps its lining. Made at the events (a break, a new set), never per frame
+  const SET_HOT = 0.01;       // a member's permanent set past 1 % puts its two ends at the damage
+  function hotNodes(T, D) {
+    const hot = new Uint8Array(T.n);
+    for (const bi of D.br) { const b = T.beams[bi]; if (b) hot[b.a] = hot[b.b] = 1; }
+    if (D.pc) for (let i = 0; i < T.n; i++) if (D.pc[i] !== 0) hot[i] = 1;
+    if (D.set) for (let bi = 0; bi < T.nb; bi++) { const s = D.set[bi]; if (s > SET_HOT || s < -SET_HOT) { const b = T.beams[bi]; hot[b.a] = hot[b.b] = 1; } }
+    return hot;
+  }
+  // returns the triangles cut now (R: an inside-wall record after its event; hot: hotNodes)
+  function cutWall(R, hot) {
+    if (!R.active || !R.dead) return 0;
+    const K = R.K, wi = R.wi, w2 = R.w2, i0 = R.idx0, idx = R.idx, dead = R.dead, near = R.g.near;
+    const nv = R.nv, vh = R._vh && R._vh.length === nv ? R._vh : (R._vh = new Uint8Array(nv));
+    for (let v = 0; v < nv; v++) { let h = near && hot[near[v]] ? 1 : 0; const o = v * K;
+      for (let k = 0; k < K && !h; k++) if (w2[o + k] !== 0 && hot[wi[o + k]]) h = 1;
+      vh[v] = h; }
+    let n = 0;
+    for (let t = 0; t < R.nt; t++) {
+      if (dead[t]) continue;
+      const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
+      if (vh[a] || vh[b] || vh[c]) { dead[t] = 3; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = a; n++; }
+    }
+    R.cut = (R.cut || 0) + n; R.removed += n;
+    return n;
+  }
+  // ---- G1855-G1857 / G1859 (DMG-WALL): ONE WALL - THE BINDING INHERITED. The user (2026-10-05): the outer covering and the
+  // inside lining "are 2 meshes, but they really are the same physical thing"; a gear vee and a wing drawn stretched
+  // ("we need to retain something like area"); a cowl cut into diamonds; the skin lying metres off its frame. The solver
+  // does not stretch (no unbroken member past 15 % on the user's Cub's crashes, measured by the coordinator): the drawing
+  // did - every snapshot place bound to ITS OWN 4 nearest nodes, whatever layer or part it belonged to. BeamNG's flexbody
+  // idea (§2.5; no code of theirs): every mesh of a body is bound to the SAME node set as the body. So the weights are
+  // INHERITED, layer from layer, and the riding formula is unchanged (pos = sum w l + q (x - sum w r): the same cost a
+  // frame, the same format for DMG-SKINGPU's shader - at most INH_K nodes a place, top INH_K by weight, renormalised):
+  //   - 'tube' (the frame's own drawn tubes): its member's two end nodes, by the place's station t along it - exact along
+  //     the beam (the bends show), its radius the offset the ends' turn carries;
+  //   - 'cover' (the covering, the struct panels, the flying surfaces' skins): its point on the frame - the blend of the
+  //     INH_M nearest frame members' points (each member's two ends by its station), weighted 1 / (d^2 + INH_EPS^2): over a
+  //     member the place is laced to it, in a bay it is the bay's members' blend. The fabric never leaves its frame;
+  //   - 'wall' (the lining, the window beads, the glazing and pane edges: what sits on the covering): the binding of its
+  //     CLOSEST POINT ON THE COVERING at rest - the barycentric blend of that covering triangle's places' weights - so with
+  //     the same weights and the same turn, wall = covering point + q x (its rest offset off it): it cannot come out
+  //     through the covering unless the covering folds tighter than the wall's depth. Its triangles go when the covering
+  //     triangle under them goes (wallFollow);
+  //   - 'rigid' (a compact part: a cowl panel, a gear plate, a fitting, a light, a hinge; one object of the snapshot's
+  //     layers under RIGID_D across): ONE binding for all its places - its centroid's 'cover' binding - so it moves as one
+  //     rigid body with its mount and never stretches; a break gives all its places one piece (event's majority), so it
+  //     goes whole with its dominant piece;
+  //   - 'keep' (the cabin's furniture): as before.
+  // Made once a record set at the first break (never before: nothing of it runs on an intact aeroplane), never per frame.
+  // A record's class and its places' objects come from the page (app.js brkCage: the bucket's section role, the
+  // snapshot's layer ranges). PURE, like the rest of this file.
+  const INH_K = 8;            // the nodes a place may blend (DMG-SKINGPU's slots)
+  const INH_M = 4;            // the frame members a covering place blends
+  const INH_EPS = 0.03;       // m: the blend's softening (a place 3 cm off two members weighs them nearly alike)
+  const TUBE_R = 0.08;        // m: a drawn tube farther than this from every member is bound as covering
+  const WALL_BOUND = 0.15;    // m: a lining place with no covering this near is bound as covering (the frame's blend)
+  const RIGID_D = 1.2;        // m: a part object wider than this is not compact (a door's long frame, a wing's hinge line)
+  // the frame's members a covering may be laced to (not the gear, the engine mount, the tanks, the struts or the wires:
+  // they pass near the skin without carrying it)
+  const FRAME_SEC = new Set(['fuselage', 'wings', 'tail']);
+  function frameSegs(T, rest, all) {
+    const L = [];
+    T.beams.forEach((b, bi) => { if (!all && (b.cls === 'wire' || (b.sec && !FRAME_SEC.has(b.sec)))) return;
+      const ax = rest[b.a * 3], ay = rest[b.a * 3 + 1], az = rest[b.a * 3 + 2], ex = rest[b.b * 3] - ax, ey = rest[b.b * 3 + 1] - ay, ez = rest[b.b * 3 + 2] - az;
+      const L2 = ex * ex + ey * ey + ez * ez; if (L2 > 1e-8) L.push({ bi, a: b.a, b: b.b, ax, ay, az, ex, ey, ez, L2 }); });
+    return L;
+  }
+  // a point's members: the M nearest (distance to the segment), each with its station t
+  const _md = new Float64Array(16), _mi = new Int32Array(16), _mt = new Float64Array(16);
+  function nearSegs(S, x, y, z, M) {
+    let m = 0;
+    for (let s = 0; s < S.length; s++) { const g = S[s];
+      let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = g.ax + t * g.ex - x, dy = g.ay + t * g.ey - y, dz = g.az + t * g.ez - z, d = dx * dx + dy * dy + dz * dz;
+      if (m === M && d >= _md[M - 1]) continue;
+      let j = m < M ? m++ : M - 1; while (j > 0 && _md[j - 1] > d) { _md[j] = _md[j - 1]; _mi[j] = _mi[j - 1]; _mt[j] = _mt[j - 1]; j--; }
+      _md[j] = d; _mi[j] = s; _mt[j] = t; }
+    return m;
+  }
+  // the tube pieces of a record: its tube places joined by its triangles (welded: the record's rep), each piece's member or
+  // node -> Map(place -> { seg, node })
+  const JOINT_D = 0.06;       // m: a tube piece no wider than this is a knuckle at a node
+  const TUBE_SEG = 0.10;      // m: ...and a piece farther than this from every member along its length is no member's tube
+  function tubePieces(E, Sall, st) {
+    const R = E.R, cv = E.cv, P = R.g.pos, rp = R.rep, ix = R.idx0 || R.idx, nt = (ix.length / 3) | 0;
+    if (cv.indexOf(INH.tube) < 0) return null;
+    const par = new Int32Array(R.nv); for (let v = 0; v < R.nv; v++) par[v] = v;
+    const f = v => { while (par[v] !== v) { par[v] = par[par[v]]; v = par[v]; } return v; };
+    const pl = v => rp ? rp[v] : v;
+    for (let t = 0; t < nt; t++) { const a = pl(ix[t * 3]), b = pl(ix[t * 3 + 1]), c = pl(ix[t * 3 + 2]);
+      if (cv[a] !== INH.tube || cv[b] !== INH.tube || cv[c] !== INH.tube) continue;
+      const ra = f(a), rb = f(b), rc = f(c); par[rb] = ra; par[f(rc)] = ra; }
+    const pieces = new Map();
+    for (let v = 0; v < R.nv; v++) { if (cv[v] !== INH.tube || (rp && rp[v] !== v)) continue; const r = f(v); let L = pieces.get(r); if (!L) pieces.set(r, L = []); L.push(v); }
+    const out = new Map();
+    for (const L of pieces.values()) {
+      let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, cx = 0, cy = 0, cz = 0;
+      for (const v of L) { const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; cx += x; cy += y; cz += z;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+      cx /= L.length; cy /= L.length; cz /= L.length;
+      if (Math.hypot(x1 - x0, y1 - y0, z1 - z0) <= JOINT_D) {             // a knuckle: its nearest node (a member's end)
+        const m = nearSegs(Sall, cx, cy, cz, 1); if (!m) continue; const g = Sall[_mi[0]];
+        const node = _mt[0] < 0.5 ? g.a : g.b; for (const v of L) out.set(v, { seg: -1, node }); st.tubeJoint = (st.tubeJoint || 0) + 1; continue; }
+      // the member closest along the whole piece: candidates from the piece's centroid, each scored by its worst place
+      const m = nearSegs(Sall, cx, cy, cz, 6); const cand = []; for (let j = 0; j < m; j++) cand.push(_mi[j]);
+      let best = -1, bw = Infinity;
+      for (const s2 of cand) { const g = Sall[s2]; let w = 0;
+        for (const v of L) { const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+          let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const d = Math.hypot(g.ax + t * g.ex - x, g.ay + t * g.ey - y, g.az + t * g.ez - z); if (d > w) w = d; if (w >= bw) break; }
+        if (w < bw) { bw = w; best = s2; } }
+      if (best < 0 || bw > TUBE_SEG) { st.tubeLoose = (st.tubeLoose || 0) + 1; continue; }   // (place by place, below)
+      for (const v of L) out.set(v, { seg: best, node: -1 });
+      st.tubePieces = (st.tubePieces || 0) + 1;
+    }
+    return out;
+  }
+  // a node-weight accumulator (a small map), cut to the top INH_K and renormalised into wi / ww at o
+  function Acc() { this.n = 0; this.i = new Int32Array(64); this.w = new Float64Array(64); }
+  Acc.prototype.clear = function () { this.n = 0; return this; };
+  Acc.prototype.add = function (node, w) { if (!(w > 0)) return; for (let k = 0; k < this.n; k++) if (this.i[k] === node) { this.w[k] += w; return; }
+    if (this.n < 64) { this.i[this.n] = node; this.w[this.n++] = w; } };
+  Acc.prototype.put = function (wi, ww, o, K) {
+    const n = this.n, I = this.i, W = this.w;
+    for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) if (W[b] > W[a]) { const tw = W[a]; W[a] = W[b]; W[b] = tw; const ti = I[a]; I[a] = I[b]; I[b] = ti; }
+    const m = Math.min(n, K); let s = 0; for (let k = 0; k < m; k++) s += W[k];
+    for (let k = 0; k < K; k++) { wi[o + k] = k < m ? I[k] : I[0]; ww[o + k] = k < m && s > 0 ? W[k] / s : 0; }
+    return n > K;                                         // (truncated past K: counted)
+  };
+  const _acc = new Acc();
+  function coverInto(acc, S, x, y, z) {
+    const m = nearSegs(S, x, y, z, INH_M);
+    for (let j = 0; j < m; j++) { const g = S[_mi[j]], t = _mt[j], a = 1 / (_md[j] + INH_EPS * INH_EPS);
+      acc.add(g.a, a * (1 - t)); acc.add(g.b, a * t); }
+    return m;
+  }
+  // L: [{ R (a cage record, K = INH_K), cv (Uint8Array a vertex: its class - INH.keep / tube / cover / wall / rigid; or
+  // cls, one class for the record), obj (Int32Array a vertex: the rigid part's object) }], all records in one frame
+  // (R.g.pos: their rest, `rest` the nodes'). Fills wi / ww for every place but the furniture's (the copies copied),
+  // marks them bound (the furniture is left to the event's nearest-node binding, as before), returns the stats
+  const INH = { keep: 0, tube: 1, cover: 2, wall: 3, rigid: 4 };
+  // a place's class: by its bucket's section (sec, aeroskin's role of it) or, for a colour bucket, by its layer (the
+  // snapshot's layer ranges). The page and GATE DMGWALL ask this one rule
+  const INH_TUBE = new Set(['tube', 'woodFrame', 'boomTube']);
+  const INH_RIGID_LAYER = new Set(['cowl', 'gear', 'access', 'light', 'hinge', 'energy', 'eng']);
+  function inhClass(sec, role, layer) {
+    if (sec) {
+      if (INH_TUBE.has(sec)) return INH.tube;
+      if (sec === 'reveal') return INH.wall;
+      if (role === 'skin' || role === 'rail' || role === 'pillar' || role === 'struct') return INH.cover;
+      if (role === 'liner' || role === 'fire' || role === 'sill' || role === 'doorPad' || role === 'glass' || role === 'bead' || role === 'seal' || role === 'edge') return INH.wall;
+      return INH.keep;                                   // the dash's pad and facia
+    }
+    if (layer === 'crew') return INH.keep;
+    if (INH_RIGID_LAYER.has(layer)) return INH.rigid;
+    return INH.cover;                                    // the wing, the fin, the stab, a boom, a float; the sheet's own
+  }
+  function* inhSteps(L, T, rest, st, every) {
+    Object.assign(st, { places: 0, tube: 0, tubeFar: 0, cover: 0, wall: 0, wallFar: 0, rigid: 0, parts: 0, bigParts: 0, keep: 0, over8: 0, done: false });
+    const S = frameSegs(T, rest), Sall = frameSegs(T, rest, true); let _n = 0;
+    for (const E of L) if (!E.cv) E.cv = new Uint8Array(E.R.nv).fill(INH[E.cls] || 0);
+    // a welded place never spans two classes or two part objects (two panels touching at a seam are two places: each
+    // goes with its own part) - the record's rep split there, before any event reads it
+    for (const E of L) { const R = E.R, rp = R.rep; if (!rp) continue; const cv = E.cv, obj = E.obj, first = new Map();
+      for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u === v || (cv[u] === cv[v] && (!obj || obj[u] === obj[v]))) continue;
+        const key = u * 64 + cv[v] * 8 + 1 + (obj ? (obj[v] & 0xffff) * 1e9 : 0); const f = first.get(key);
+        if (f == null) { first.set(key, v); rp[v] = v; } else rp[v] = f; } }
+    const placesOf = (E, c) => { const R = E.R, out = []; for (let v = 0; v < R.nv; v++) if ((!R.rep || R.rep[v] === v) && E.cv[v] === c) out.push(v); return out; };
+    // 1. the frame's tubes and the covering. A TUBE is bound as a UNIT (G1859.2, the coordinator: a tube bound place by
+    // place to its nearest member put one ring's places on two members at a joint, and the ring was drawn 145-640 x its
+    // rest once they parted): its drawn pieces (the places joined by its triangles) each take ONE member - the one whose
+    // segment lies closest along the whole piece - every place its station t on it; a piece no wider than JOINT_D (a
+    // joint's knuckle, a fitting) takes the nearest node alone; a piece no member runs along (worst place past TUBE_SEG)
+    // is bound place by place as before
+    for (const E of L) {
+      const R = E.R, K = R.K, P = R.g.pos;
+      const tubeOf = tubePieces(E, Sall, st);
+      for (const c of [INH.tube, INH.cover]) for (const v of placesOf(E, c)) {
+        const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+        if (++_n >= every) { _n = 0; yield st.places; } _acc.clear(); st.places++;
+        if (c === INH.tube && tubeOf && tubeOf.has(v)) { const u = tubeOf.get(v);
+          if (u.node >= 0) _acc.add(u.node, 1);
+          else { const g = Sall[u.seg]; let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+            _acc.add(g.a, 1 - t); _acc.add(g.b, t); }
+          st.tube++; }
+        else if (c === INH.tube) { const m = nearSegs(Sall, x, y, z, 1);
+          // (always its nearest member, however far: a drawn tube off the physics line - a lift strut drawn beside its member -
+          // blended over the covering's frame was stretched metres when its piece went; counted past TUBE_R)
+          if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++; } }
+        else { coverInto(_acc, S, x, y, z); st.cover++; }
+        if (_acc.n && _acc.put(R.wi, R.ww, v * K, K)) st.over8++;
+      }
+    }
+    // 2. the compact parts: one binding an object (its centroid's covering binding)
+    for (const E of L) {
+      const R = E.R, K = R.K, P = R.g.pos, box = new Map(), list = placesOf(E, INH.rigid);
+      if (!list.length) continue;
+      const obj = E.obj;
+      if (E.fixed) {                                     // (the page's own: a gear leg, half its root node, half its axle's)
+        _acc.clear(); for (const [i, w] of E.fixed) _acc.add(i, w);
+        const wi = new Int32Array(K), ww = new Float32Array(K); _acc.put(wi, ww, 0, K); st.parts++;
+        for (const v of list) { for (let k = 0; k < K; k++) { R.wi[v * K + k] = wi[k]; R.ww[v * K + k] = ww[k]; } st.places++; st.rigid++; }
+        continue;
+      }
+      for (const v of list) { const id = obj ? obj[v] : 0; let b = box.get(id);
+        if (!b) box.set(id, b = { n: 0, x: 0, y: 0, z: 0, x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity, wi: null, ww: null });
+        const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; b.n++; b.x += x; b.y += y; b.z += z;
+        b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.z0 = Math.min(b.z0, z); b.x1 = Math.max(b.x1, x); b.y1 = Math.max(b.y1, y); b.z1 = Math.max(b.z1, z); }
+      for (const b of box.values()) { b.wi = new Int32Array(K); b.ww = new Float32Array(K);
+        b.big = Math.hypot(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) > RIGID_D;
+        // (a part rides what carries it - every member, the engine mount and the gear's too: a nose bowl on the engine and
+        // its mount, a side panel on the firewall's frame, a gear plate on its leg)
+        if (!b.big) { _acc.clear(); coverInto(_acc, Sall, b.x / b.n, b.y / b.n, b.z / b.n); _acc.put(b.wi, b.ww, 0, K); st.parts++; } else st.bigParts++; }
+      for (const v of list) { if (++_n >= every) { _n = 0; yield st.places; } const b = box.get(obj ? obj[v] : 0); st.places++;
+        if (b.big) { _acc.clear(); coverInto(_acc, S, P[v * 3], P[v * 3 + 1], P[v * 3 + 2]); if (_acc.put(R.wi, R.ww, v * K, K)) st.over8++; st.cover++; }
+        else { for (let k = 0; k < K; k++) { R.wi[v * K + k] = b.wi[k]; R.ww[v * K + k] = b.ww[k]; } st.rigid++; } }
+    }
+    // 3. what sits on the covering: its closest point on it at rest, that triangle's places' weights blended
+    const walls = L.filter(E => E.cv.indexOf(INH.wall) >= 0);
+    if (walls.length) {
+      const G = coverGrid(L);
+      for (const E of walls) {
+        const R = E.R, K = R.K, P = R.g.pos, on = E.on = new Int32Array(R.nv * 2).fill(-1), ob = E.ob = new Float32Array(R.nv * 3);
+        for (const v of placesOf(E, INH.wall)) {
+          if (++_n >= every) { _n = 0; yield st.places; } const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; st.places++;
+          const h = closestCover(G, L, x, y, z, WALL_BOUND);
+          _acc.clear();
+          if (h) { const C = L[h.r].R, Kc = C.K, ix = C.idx0 || C.idx;
+            for (let q = 0; q < 3; q++) { const u = C.rep ? C.rep[ix[h.t * 3 + q]] : ix[h.t * 3 + q], bq = h.b[q];   // (a copy's weights come last: its place's)
+              for (let k = 0; k < Kc; k++) _acc.add(C.wi[u * Kc + k], bq * C.ww[u * Kc + k]); }
+            on[v * 2] = h.r; on[v * 2 + 1] = h.t; ob[v * 3] = h.b[0]; ob[v * 3 + 1] = h.b[1]; ob[v * 3 + 2] = h.b[2]; st.wall++; }
+          else { coverInto(_acc, S, x, y, z); st.wallFar++; }
+          if (_acc.n && _acc.put(R.wi, R.ww, v * K, K)) st.over8++;
+        }
+        if (R.rep) for (let v = 0; v < R.nv; v++) { const u = R.rep[v]; if (u !== v) { on[v * 2] = on[u * 2]; on[v * 2 + 1] = on[u * 2 + 1]; for (let j = 0; j < 3; j++) ob[v * 3 + j] = ob[u * 3 + j]; } }
+      }
+    }
+    // the copies (welded places), bound
+    for (const E of L) { const R = E.R, K = R.K, rp = R.rep, cv = E.cv;
+      for (let v = 0; v < R.nv; v++) { const u = rp ? rp[v] : v;
+        if (cv[u] === INH.keep) { st.keep++; continue; }
+        if (u !== v) for (let k = 0; k < K; k++) { R.wi[v * K + k] = R.wi[u * K + k]; R.ww[v * K + k] = R.ww[u * K + k]; }
+        R.g.bound[v] = 1; }
+      if (R.pending) { const P2 = Array.from(R.pending).filter(v => !R.g.bound[v]); R.pending = P2.length ? Int32Array.from(P2) : null; }
+      R.dv = (R.dv || 0) + 1; R.dirtyPl = null; }
+    st.done = true;
+    return st;
+  }
+  // the whole binding at once (GATE DMGWALL, node); the page runs inhSteps a budget a frame
+  function bindInherit(L, T, rest) { const st = {}; for (const _ of inhSteps(L, T, rest, st, Infinity)) {} return st; }
+  // the covering's triangles on a grid (4 cm), and the closest one to a point within `reach` (its barycentrics)
+  function coverGrid(cov) {
+    const h = 0.04, cells = new Map(), key = (i, j, k) => ((i + 4096) * 8192 + (j + 4096)) * 8192 + (k + 4096);
+    cov.forEach((E, r) => { const R = E.R, P = R.g.pos, ix = R.idx0 || R.idx, cv = E.cv;
+      if (cv.indexOf(INH.cover) < 0) return;
+      for (let t = 0; t < R.nt; t++) { const a = ix[t * 3] * 3, b = ix[t * 3 + 1] * 3, c = ix[t * 3 + 2] * 3;
+        if ((a === b && b === c) || cv[a / 3] !== INH.cover || cv[b / 3] !== INH.cover || cv[c / 3] !== INH.cover) continue;
+        const x0 = Math.floor(Math.min(P[a], P[b], P[c]) / h), x1 = Math.floor(Math.max(P[a], P[b], P[c]) / h);
+        const y0 = Math.floor(Math.min(P[a + 1], P[b + 1], P[c + 1]) / h), y1 = Math.floor(Math.max(P[a + 1], P[b + 1], P[c + 1]) / h);
+        const z0 = Math.floor(Math.min(P[a + 2], P[b + 2], P[c + 2]) / h), z1 = Math.floor(Math.max(P[a + 2], P[b + 2], P[c + 2]) / h);
+        if ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1) > 4096) continue;
+        for (let i = x0; i <= x1; i++) for (let j = y0; j <= y1; j++) for (let k = z0; k <= z1; k++) { const q = key(i, j, k); let Lc = cells.get(q); if (!Lc) cells.set(q, Lc = []); Lc.push(r, t); } } });
+    return { h, cells, key };
+  }
+  function closestCover(G, cov, x, y, z, reach) {
+    const h = G.h, ci = Math.floor(x / h), cj = Math.floor(y / h), ck = Math.floor(z / h), rr = Math.ceil(reach / h);
+    let best = null, bd = reach * reach;
+    for (let r = 0; r <= rr; r++) {
+      if (best && (r - 1) * h * (r - 1) * h > bd) break;
+      for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) for (let k = ck - r; k <= ck + r; k++) {
+        if (Math.max(Math.abs(i - ci), Math.abs(j - cj), Math.abs(k - ck)) !== r) continue;
+        const Lc = G.cells.get(G.key(i, j, k)); if (!Lc) continue;
+        for (let q = 0; q < Lc.length; q += 2) { const R = cov[Lc[q]].R, t = Lc[q + 1], P = R.g.pos, ix = R.idx0 || R.idx;
+          const res = triClosest(P, ix[t * 3] * 3, ix[t * 3 + 1] * 3, ix[t * 3 + 2] * 3, x, y, z);
+          if (res.d < bd) { bd = res.d; best = { r: Lc[q], t, b: [res.u, res.v, res.w], d0: res.d }; } }
+      }
+    }
+    return best;
+  }
+  // the closest point of a triangle (Ericson, Real-Time Collision Detection 5.1.5): its squared distance and barycentrics
+  const _tc = { d: 0, u: 0, v: 0, w: 0 };
+  function triClosest(P, a, b, c, px, py, pz) {
+    const abx = P[b] - P[a], aby = P[b + 1] - P[a + 1], abz = P[b + 2] - P[a + 2], acx = P[c] - P[a], acy = P[c + 1] - P[a + 1], acz = P[c + 2] - P[a + 2];
+    const apx = px - P[a], apy = py - P[a + 1], apz = pz - P[a + 2];
+    const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+    let u, v, w;
+    if (d1 <= 0 && d2 <= 0) { u = 1; v = 0; w = 0; }
+    else { const bpx = px - P[b], bpy = py - P[b + 1], bpz = pz - P[b + 2], d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+      if (d3 >= 0 && d4 <= d3) { u = 0; v = 1; w = 0; }
+      else { const vc = d1 * d4 - d3 * d2;
+        if (vc <= 0 && d1 >= 0 && d3 <= 0) { const s = d1 / (d1 - d3); u = 1 - s; v = s; w = 0; }
+        else { const cpx = px - P[c], cpy = py - P[c + 1], cpz = pz - P[c + 2], d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+          if (d6 >= 0 && d5 <= d6) { u = 0; v = 0; w = 1; }
+          else { const vb = d5 * d2 - d1 * d6;
+            if (vb <= 0 && d2 >= 0 && d6 <= 0) { const s = d2 / (d2 - d6); u = 1 - s; v = 0; w = s; }
+            else { const va = d3 * d6 - d5 * d4;
+              if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const s = (d4 - d3) / ((d4 - d3) + (d5 - d6)); u = 0; v = 1 - s; w = s; }
+              else { const dn = 1 / (va + vb + vc); v = vb * dn; w = vc * dn; u = 1 - v - w; } } } } } }
+    const qx = u * P[a] + v * P[b] + w * P[c] - px, qy = u * P[a + 1] + v * P[b + 1] + w * P[c + 1] - py, qz = u * P[a + 2] + v * P[b + 2] + w * P[c + 2] - pz;
+    _tc.d = qx * qx + qy * qy + qz * qz; _tc.u = u; _tc.v = v; _tc.w = w;
+    return _tc;
+  }
+  // THE WALL TAKES ITS COVERING'S EVENT (G1856): after every record's event, a wall place's kept weights, piece and
+  // dominant node are its covering point's - the barycentric blend of that triangle's places' KEPT weights (w2) - not
+  // its own reading of the pieces (a blend of three places' weights can lean to another piece than all three keep).
+  // An event's work, never a frame's
+  const _sy = new Acc();
+  function wallSync(E, L) {
+    const R = E.R, on = E.on, ob = E.ob; if (!R.active || !on || !R.w2) return;
+    const K = R.K, wi = R.wi, w2 = R.w2, rp = R.rep;
+    let sag = null;
+    for (let v = 0; v < R.nv; v++) {
+      const r = on[v * 2]; if (r < 0 || (rp && rp[v] !== v)) continue;
+      const C = L[r].R, t = on[v * 2 + 1]; if (!C.w2) continue;
+      const Kc = C.K, ix = C.idx0 || C.idx; _sy.clear();
+      for (let q = 0; q < 3; q++) { const u = ix[t * 3 + q], bq = ob[v * 3 + q]; for (let k = 0; k < Kc; k++) { const w = C.w2[u * Kc + k]; if (w !== 0) _sy.add(C.wi[u * Kc + k], bq * w); } }
+      const o = v * K; let s = 0, d = wi[o], dw = -1;
+      for (let k = 0; k < K; k++) { let w = 0; const i = wi[o + k];
+        let firstSlot = true; for (let j = 0; j < k; j++) if (wi[o + j] === i) { firstSlot = false; break; }
+        if (firstSlot) for (let j = 0; j < _sy.n; j++) if (_sy.i[j] === i) { w = _sy.w[j]; break; }
+        w2[o + k] = w; s += w; if (w > dw) { dw = w; d = i; } }
+      if (s > 0) for (let k = 0; k < K; k++) w2[o + k] /= s;
+      R.vp[v] = C.vp[ix[t * 3]]; R.dom[v] = d;
+      // ...and its drape (G1852's sag of a slack fabric panel: the lining hangs with the covering it is laced behind)
+      if (C.sag) { const h = ob[v * 3] * C.sag[ix[t * 3]] + ob[v * 3 + 1] * C.sag[ix[t * 3 + 1]] + ob[v * 3 + 2] * C.sag[ix[t * 3 + 2]];
+        if (h > 0) { if (!sag) sag = new Float32Array(R.nv); sag[v] = h; } }
+    }
+    R.sag = sag;
+    if (sag && rp) for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u !== v) sag[v] = sag[u]; }
+    if (rp) for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u === v || on[u * 2] < 0) continue; R.vp[v] = R.vp[u]; R.dom[v] = R.dom[u]; for (let k = 0; k < K; k++) w2[v * K + k] = w2[u * K + k]; }
+    R.dv = (R.dv || 0) + 1; R.dirtyPl = null;          // (DMG-SKINGPU re-packs a record's places on it)
+  }
+  // THE WALL GOES WITH ITS COVERING (G1856): a wall triangle with a place on a covering triangle that is gone (removed at
+  // an event, torn, cut) goes too (dead 4, kept until a heal). E: a 'wall' entry of bindInherit (E.on), cov its covering
+  // entries. Returns the triangles removed now
+  function wallFollow(E, cov) {
+    const R = E.R, on = E.on; if (!R.active || !R.dead || !on) return 0;
+    const i0 = R.idx0, idx = R.idx, dead = R.dead; let n = 0;
+    for (let t = 0; t < R.nt; t++) { if (dead[t]) continue;
+      for (let q = 0; q < 3; q++) { const v = i0[t * 3 + q], r = on[v * 2]; if (r < 0) continue; const C = cov[r].R;
+        if (C.dead && C.dead[on[v * 2 + 1]]) { dead[t] = 4; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; break; } } }
+    R.removed += n; R.followed = (R.followed || 0) + n;
+    return n;
+  }
+  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch, hotNodes, cutWall };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();
