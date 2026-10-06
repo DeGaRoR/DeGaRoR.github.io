@@ -467,7 +467,9 @@ vec3 dmgCell(vec3 x) {
         // (the cells read through a warp - the buckle and crease fields bend them - so the network is a craquelure, not
         // a honeycomb)
         // (the network fades where a cell would cover fewer than ~4 pixels: far off it is a moire, not a craquelure)
-        vec3 cc = dmgCell(dP * 38.0 + 1.6 * vec3(nF.x - 0.5, nB.x - 0.5, nF.y * 0.02));
+        // (the warp's own slope stays well under the cells' 38 a metre - 1.6 x the 31/m crease field FOLDED the domain
+        // and the cells drew as contour stripes on the real page's cowl)
+        vec3 cc = dmgCell(dP * 38.0 + vec3(0.5 * (nB.x - 0.5) + 0.2 * (nF.x - 0.5), 0.5 * (nB.x - 0.5) - 0.2 * (nF.x - 0.5), 0.3 * (nF.x - 0.5)));
         float edgeD = cc.y - cc.x;
         float crack = (1.0 - smoothstep(0.0, 0.03 + 38.0 * dFw, edgeD)) * (1.0 - smoothstep(0.003, 0.008, dFw));
         float crz = crack * smoothstep(0.40, 0.85, cr) * smoothstep(0.45, 0.70, nF.x + 0.2 * cr);
