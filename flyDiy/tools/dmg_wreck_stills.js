@@ -150,7 +150,7 @@ async function pageStageW(o) {
   const P = FLIGHT_PROBE, world = P.world(), wait = ms => new Promise(r => setTimeout(r, ms));
   const SW = window.FLYDIY_SIMW, live = () => !!(SW && SW.state().phase === 'live' && SW.state().flight && SW.state().flight.live);
   if (o.kind !== 'trunk') return { err: 'worker: a ' + o.kind + ' case needs the aeroplane turned (only trunk cases under the worker)' };
-  window.FLYDIY_WRECK = true; window.FLYDIY_SKINBREAK = true;
+  window.FLYDIY_WRECK = !window.__d4bWreckOff; window.FLYDIY_SKINBREAK = true;
   const cond = document.getElementById('selCond');
   if (cond && [...cond.options].some(x => x.value === 'calm') && cond.value !== 'calm') { cond.value = 'calm'; cond.onchange({ target: cond }); }
   // the flight running, hands on, the throttle shut, the brakes off
@@ -207,7 +207,7 @@ async function pageStage(o) {
   if (!window.__d4bStep) window.__d4bStep = sim.step;
   const step = window.__d4bStep;
   sim.step = () => {};
-  window.FLYDIY_WRECK = true; window.FLYDIY_SKINBREAK = true;
+  window.FLYDIY_WRECK = !window.__d4bWreckOff; window.FLYDIY_SKINBREAK = true;
   // THE WIND OFF while staged (the solver reads world.wind every step, a gust field at sim.t: the same staging at another t
   // was another crash - 2.43 vs 3.11 kJ on the metal Cessna's taxi); back at the run's end (pageRunOn)
   if (!('__d4bWind' in window)) window.__d4bWind = world.wind;

@@ -4308,8 +4308,10 @@
     const ts = sim.t, dtS = WK.t == null ? 0 : Math.max(0, Math.min(0.25, ts - WK.t));
     WK.t = ts;
     const vel = wreckVel();
-    wreckStrikes(vel);
-    const ids = WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
+    // (the bisect's switches: window.FLYDIY_WRECK_OFF = { strikes, release, ride, eye } - a debug A/B, off by default)
+    const OFF = window.FLYDIY_WRECK_OFF || null;
+    if (!(OFF && OFF.strikes)) wreckStrikes(vel);
+    const ids = OFF && OFF.release ? [] : WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
     // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
     WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
@@ -4320,8 +4322,8 @@
       B.obj.matrixWorldNeedsUpdate = true;
       if (B.sunk && B.obj.visible) B.obj.visible = false;
     }
-    wreckRide(D);
-    wreckEye(D);
+    if (!(OFF && OFF.ride)) wreckRide(D);
+    if (!(OFF && OFF.eye)) wreckEye(D);
     // G1868: the orbit the cockpit rule cut to turns slowly round the wreck (WRECK_DRIFT rad/s) until the player takes it
     if (WK.drift) { if (cam.mode === 'orbit') azT += WRECK_DRIFT * frameDt(); else WK.drift = false; }
     WK.ms.frame = performance.now() - t0;
