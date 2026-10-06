@@ -4561,7 +4561,9 @@
   // spinner dented - from the rate it turned at (the prop loop's seizeRate) and the hub's speed
   // G1861.5: DMG-DRIVE's per-engine state (sim.damage().drive inline; the worker's meta.drv once its link carries it -
   // sim.drv), or null on a solver without DRIVE
-  function wreckDrive() { const D2 = sim && sim.damage ? sim.damage() : null; return (D2 && D2.drive) || (sim && sim.drv) || null; }
+  // (under the physics worker the page's own sim is never stepped - its damage().drive is an untouched array: the mirror's
+  // drv, the worker's, is the one; inline there is no drv on the sim)
+  function wreckDrive() { if (sim && 'drv' in sim) return sim.drv || null; const D2 = sim && sim.damage ? sim.damage() : null; return (D2 && D2.drive) || null; }
   function wreckStrikes(vel) {
     const WD = window.WRECK_DEBRIS, E = sim.eng || [], DV = wreckDrive();
     for (let k = 0; k < E.length; k++) {

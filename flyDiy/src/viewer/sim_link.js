@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState', 'drv']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -411,6 +411,8 @@ const SIM_LINK = (() => {
       // physics worker - the default - no break ever reached the page, so D4a's skin break, D4b's debris and the wreck's
       // GPU riding never ran (the worker crashed; the page drew the aeroplane whole)
       def('dmgState', { writable: true, value: () => V.dmgState() });
+      // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
+      def('drv', { get: () => V.drv || null });
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };
