@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState', 'drv']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState', 'drv', 'vView', 'engView']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -413,6 +413,10 @@ const SIM_LINK = (() => {
       def('dmgState', { writable: true, value: () => V.dmgState() });
       // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
       def('drv', { get: () => V.drv || null });
+      // (...and the worker's node velocities and engines, under their own names - the wreck's reads only: a released part
+      // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
+      def('vView', { get: () => V.v || null });
+      def('engView', { get: () => V.eng || null });
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };

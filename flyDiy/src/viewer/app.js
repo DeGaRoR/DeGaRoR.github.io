@@ -3448,7 +3448,7 @@
         const ei = ud.engIdx || 0;
         // G1861 (DMG-D4b): A SEIZED PROP STOPS IN THE FRAME IT SEIZED (TREE-CRASH's eng.seized: a ground or trunk strike).
         // The rate it had is kept for the strike's energy (wreckStrikes), the disc goes, the blades stand where they were
-        const se0 = sim.eng && sim.eng[ei];
+        const E0 = wreckEng(), se0 = E0 && E0[ei];
         if (se0 && se0.seized) {
           if (ud.seizeRate == null) { ud.seizeRate = ud.spinRate || 0; if (ud.disc) ud.disc.update(0, ud.spinAxis ? (ud.spinAng || 0) : p.rotation.x, 1, frameDt()); }
           ud.spinRate = 0; poseRigid(p); continue;
@@ -4292,7 +4292,7 @@
   function wreckState() {
     if (!window.WRECK_DEBRIS || window.FLYDIY_WRECK === false || !model || model.gen || !model.wreckBuild || !sim || !def) { if (WK.model) wreckHeal(); return null; }
     if (WK.model && WK.model !== model) wreckHeal();
-    let seized = false; const E = sim.eng;
+    let seized = false; const E = wreckEng();
     if (E) for (let k = 0; k < E.length; k++) if (E[k] && E[k].seized) { seized = true; break; }
     const D = dmgNow();
     // (G1861.5: a strike DRIVE graded - a brush or a bend - marks the prop without a seizure or a break)
@@ -4307,7 +4307,7 @@
     if (WK.model !== model) wreckPlan();
     const ts = sim.t, dtS = WK.t == null ? 0 : Math.max(0, Math.min(0.25, ts - WK.t));
     WK.t = ts;
-    const vel = sim.v && sim.v.length === sim.n * 3 ? sim.v : null;
+    const vel = wreckVel();
     wreckStrikes(vel);
     const ids = WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
@@ -4563,9 +4563,12 @@
   // sim.drv), or null on a solver without DRIVE
   // (under the physics worker the page's own sim is never stepped - its damage().drive is an untouched array: the mirror's
   // drv, the worker's, is the one; inline there is no drv on the sim)
+  // (the same under the worker for the node velocities and the engines: the mirror's vView / engView, the worker's own)
+  function wreckEng() { return (sim && 'engView' in sim && sim.engView) || (sim && sim.eng) || null; }
+  function wreckVel() { const v = sim && 'vView' in sim ? sim.vView : (sim && sim.v); return v && sim && v.length === sim.n * 3 ? v : null; }
   function wreckDrive() { if (sim && 'drv' in sim) return sim.drv || null; const D2 = sim && sim.damage ? sim.damage() : null; return (D2 && D2.drive) || null; }
   function wreckStrikes(vel) {
-    const WD = window.WRECK_DEBRIS, E = sim.eng || [], DV = wreckDrive();
+    const WD = window.WRECK_DEBRIS, E = wreckEng() || [], DV = wreckDrive();
     for (let k = 0; k < E.length; k++) {
       // the grade to draw: DRIVE's (G1861.5), else TREE-CRASH's seizure (G1861's own strike); drawn again only when it rises
       const dv = DV && DV[k] && WD.DRV_RANK[DV[k].strike] ? DV[k] : null;

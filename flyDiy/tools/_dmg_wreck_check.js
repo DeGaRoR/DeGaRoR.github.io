@@ -334,9 +334,13 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
   // DMG-DRIVE's grade (drv) reach the page only if the mirror carries them (2026-10-06: neither did; no break reached the page)
   {
     const L = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_link.js'), 'utf8'), A = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-    const saved = /for \(const k of \[[^\]]*'dmgState'[^\]]*'drv'[^\]]*\]\) saved\[k\] = own\(k\)/.test(L);
+    const saved = /for \(const k of \[[^\]]*'dmgState'[^\]]*'drv'[^\]]*'vView'[^\]]*'engView'[^\]]*\]\) saved\[k\] = own\(k\)/.test(L);
     yes(saved && /def\('dmgState', \{[^}]*V\.dmgState\(\)/.test(L) && /def\('drv', \{ get: \(\) => V\.drv/.test(L) && /'drv' in sim\) return sim\.drv/.test(A),
       'under the physics worker the page\'s sim mirrors the breaks (dmgState) and DMG-DRIVE\'s grade (drv), saved and restored at detach; the prop reads the mirror first');
+    // (...and the worker's node velocities and engines: a released part leaves with its nodes' velocity, a seized prop stops)
+    yes(/def\('vView', \{ get: \(\) => V\.v/.test(L) && /def\('engView', \{ get: \(\) => V\.eng/.test(L) && /'engView' in sim && sim\.engView/.test(A) && /'vView' in sim \? sim\.vView/.test(A)
+      && !/const vel = sim\.v &&/.test(A) && /const E0 = wreckEng\(\), se0 = E0 && E0\[ei\]/.test(A),
+      'under the physics worker the wreck reads the worker\'s node velocities (vView) and engines (engView): released parts fly off, a seized prop stops');
   }
   // app.js: the wreck path behind the damage state
   {
