@@ -49,7 +49,7 @@ const BUILD = opt('build', 'builds/cub_2026-09-20_corrected.json');
 const ORDER = opt('order', 'HOME,w3,tw_ski,mn_strip,w2,HOME').split(',');
 const DAMAGE = opt('damage', '0');
 const RATE = +opt('rate', 2);
-const SPORT = +opt('port', 8771);
+let SPORT = +opt('port', 8771);
 const SIZE = opt('size', '1600x900').split('x').map(Number);
 const FALLBACK = opt('fallback', 'D:/Dev/DeGaRoR.github.io');
 const CAST_NTH = +opt('cast-nth', 5);
@@ -114,6 +114,7 @@ const INSTALL = `(() => {
       const s = FLIGHT_PROBE.sim(), ap = FLIGHT_PROBE.ap(), W = FLIGHT_PROBE.world();
       if (s && ap && W) {
         const t = s.t, ph = ap.phase || '';
+        if (ph !== R.last && ph === 'ABORT') R.nAbort = (R.nAbort || 0) + 1;
         if (ph !== R.last) { R.ev.push([+t.toFixed(3), ph, R.leg, ap.route ? (ap.route.to && ap.route.to.id) || ap.route.to || null : null]); R.last = ph; }
         if (t >= R.nextT) {
           R.nextT = Math.floor(t * 4 + 1) / 4;
@@ -137,14 +138,18 @@ const STATE = `JSON.stringify((() => {
   const rt = ap.route ? { from: (ap.route.from && ap.route.from.id) || ap.route.from || null, to: (ap.route.to && ap.route.to.id) || ap.route.to || null } : null;
   return { t: s.t, x: cg[0], y: cg[1], z: cg[2], agl: FLIGHT_PROBE.agl(), ph: ap.phase || '', rt, Vg: Math.hypot(v[0], v[2]),
     nose: Math.atan2(-xA[2] / nl, -xA[0] / nl), onG: s.wheelsOnGround(), over: FLIGHT_PROBE.over(), apT: ap.t,
-    dil: w && w.live ? w.dil : null, dropped: w && w.live ? w.droppedS : null, stepMs: w && w.live ? w.stepMs : null, rows: (R.rows || []).length, err: R.err || null, frames: R.frames || 0,
+    nAbort: R.nAbort || 0, dil: w && w.live ? w.dil : null, dropped: w && w.live ? w.droppedS : null, stepMs: w && w.live ? w.stepMs : null, rows: (R.rows || []).length, err: R.err || null, frames: R.frames || 0,
     rate: window.TEST_FLIGHT ? TEST_FLIGHT.rate(${RATE}) : null };
 })())`;
 
 (async () => {
   log('tour_real: root ' + ROOT + ' · build ' + BUILD + ' · damage ' + DAMAGE + ' · rate ' + RATE + ' · ' + ORDER.join(' > ') + ' · out ' + OUT);
   if (!URL) {
-    if (await portAnswer() !== null) { log('*** port ' + SPORT + ' already answers - another server; pass --port'); process.exit(4); }
+    // the port FREE at the socket (any listener - a peer's driver held 8771 on 6 Oct), else the next one
+    const free1 = (p, h) => new Promise(res => { const t = require('net').createServer(); t.once('error', () => res(false)); t.listen(p, h, () => t.close(() => res(true))); });
+    const portFree = async p => await free1(p, '127.0.0.1') && await free1(p);   // (Windows: a wildcard bind succeeds beside a 127.0.0.1 listener)
+    for (let k = 0; k < 20 && !(await portFree(SPORT) && await portAnswer() === null); k++) { log('  port ' + SPORT + ' is taken - trying ' + (SPORT + 1)); SPORT++; }
+    if (!(await portFree(SPORT))) { log('*** no free port'); process.exit(4); }
     server = spawn(process.execPath, [path.join(ROOT, 'flyDiy', 'tools', '_serve.js'), String(SPORT), ROOT, '--fallback', FALLBACK], { stdio: 'ignore' });
     server.on('exit', c => { serverExit = c; });
     let root = null;
@@ -260,6 +265,10 @@ const STATE = `JSON.stringify((() => {
   const dThr = (b, st) => Math.hypot(st.x - b.x, st.z - b.z) - b.len / 2;
   const GROUND_PRE = new Set(['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD']);
 
+  // THE TO PICKER, THE PLAYER'S WAY: #selDest set and its change event fired (app.js setTo -> destApply -> nextLeg at STOPPED)
+  const pickTo = async id => JSON.parse(await ev("JSON.stringify((() => { const s = document.getElementById('selDest'); const o = [...s.options].find(q => q.value === " + JSON.stringify(id) + ");"
+    + " if (!o) return { err: 'no option ' + " + JSON.stringify(id) + " }; const dis = o.disabled; s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true }));"
+    + " return { last: window.FLYDIY_DEST_LAST, disabled: dis, t: FLIGHT_PROBE.sim().t, phase: FLIGHT_PROBE.ap().phase, from: FLYDIY_ROUTE.get().from }; })())"));
   // ---- the tour --------------------------------------------------------------------------------------------------
   const legs = [], rateLog = [];
   let st = JSON.parse(await ev(STATE)), lastT = st.t, lastTWall = Date.now(), rowsPulled = 0, evPulled = 0;
@@ -274,13 +283,11 @@ const STATE = `JSON.stringify((() => {
   const flightStartWall = Date.now();
   for (let li = 1; li < ORDER.length && li <= LEGS && !end; li++) {
     let a = A(ORDER[li - 1]), FA = frame(a); const b = A(ORDER[li]);
-    const L = { leg: li, from: a.id, to: b.id, tStart: st.t, wallStart: Date.now(), cmd: null, moments: {}, rate: [], stop: null, report: null, faults: [] };
+    const L = { leg: li, from: a.id, to: b.id, tStart: st.t, wallStart: Date.now(), cmd: null, moments: {}, rate: [], retries: 0, stop: null, report: null, faults: [] };
     if (li > 1) {
       // THE NEXT TO, THE PLAYER'S WAY: the plate's To picker, its change event (app.js setTo -> destApply -> nextLeg)
       await sleep(800);
-      const r = JSON.parse(await ev("JSON.stringify((() => { const s = document.getElementById('selDest'); const o = [...s.options].find(q => q.value === " + JSON.stringify(b.id) + ");"
-        + " if (!o) return { err: 'no option ' + " + JSON.stringify(b.id) + " }; const dis = o.disabled; s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true }));"
-        + " return { last: window.FLYDIY_DEST_LAST, disabled: dis, t: FLIGHT_PROBE.sim().t, phase: FLIGHT_PROBE.ap().phase, from: FLYDIY_ROUTE.get().from }; })())"));
+      const r = await pickTo(b.id);
       // the From the page derived (DEST-TO: the aerodrome under the aeroplane) - after a diversion, not the plan's
       if (r.from && r.from !== a.id && A(r.from)) { log('  the From is ' + r.from + ' (the plan said ' + a.id + ')'); L.fromActual = r.from; a = A(r.from); FA = frame(a); }
       L.cmd = r; L.tStart = r.t != null ? r.t : st.t;
@@ -290,7 +297,7 @@ const STATE = `JSON.stringify((() => {
     } else log('  LEG 1 ' + a.id + ' > ' + b.id + ' (the roll-out: the route pref ' + JSON.stringify(start.route) + ')');
     await ev("window.FLIGHT_REC && FLIGHT_REC.mark && FLIGHT_REC.mark('TOUR-REAL leg " + li + " " + a.id + " > " + b.id + "'), 1").catch(() => 0);
     let effSum = 0, effN = 0, effMin = Infinity;
-    let turned = 0, prevNose = null, sawRoll = false, sawLift = false, air = false, sawFinal = false, sawTd = false, stopT = null, divT = null, lastStill = 0;
+    let turned = 0, prevNose = null, sawRoll = false, sawLift = false, air = false, sawFinal = false, sawTd = false, stopT = null, divT = null, abT = null, abortSeen = false, lastStill = 0, nAbort0 = st.nAbort || 0;
     const M = L.moments;
     const take = async (k, D) => { if (M[k]) return; M[k] = await shot(li, k, st, D); };
     for (;;) {
@@ -331,7 +338,22 @@ const STATE = `JSON.stringify((() => {
       if (air && !sawTd && (st.ph === 'ROLLOUT' || (st.onG > 0 && st.agl < 1.5 && (st.ph === 'FLARE' || st.ph === 'FINAL')))) { sawTd = true; await take('touchdown', 250); }
       // the ends
       if (st.over) { end = 'the flight ended (the card): ' + JSON.stringify(await ev("JSON.stringify(FLIGHT_PROBE.ap().report ? { outcome: FLIGHT_PROBE.ap().report.outcome, verdicts: FLIGHT_PROBE.ap().report.verdicts } : null)")); L.faults.push({ k: 'over', note: end }); await take('over', 300); break; }
-      if (st.ph === 'STOPPED' && st.rt && st.rt.to === b.id && legT > 20) {
+      const newAbort = st.nAbort > nAbort0; nAbort0 = st.nAbort;
+      if ((st.ph === 'ABORT' || newAbort) && !abortSeen) { abortSeen = true; L.faults.push({ k: 'abort', note: 'the take-off was rejected at t ' + st.t.toFixed(1) + ' (try ' + (L.retries + 1) + ')' }); log('  !!! ABORT: the take-off rejected'); await take('abort' + (L.retries || ''), 250); }
+      // AFTER A REJECTED TAKE-OFF (ABORT -> STOPPED, the To unchanged): ONE retry the player's way - the same To picked
+      // again from where it stopped (a fresh pilot, no reset); a second rejection ends the tour
+      if (!abortSeen && !air && st.ph === 'STOPPED' && legT > 90 && st.Vg < 0.5) { abortSeen = true; L.faults.push({ k: 'stopped-on-ground', note: 'STOPPED without a take-off at t ' + st.t.toFixed(1) }); log('  !!! STOPPED on the ground without a take-off'); await take('groundstop' + (L.retries || ''), 250); }
+      if (abortSeen && st.ph === 'STOPPED' && st.Vg < 0.5) {
+        if (abT === null) abT = now;
+        if (now - abT > 800) {
+          if (L.retries >= 1) { end = 'the take-off rejected twice'; break; }
+          L.retries++; abortSeen = false; abT = null; turned = 0; prevNose = null; sawRoll = false; sawLift = false;
+          const r = await pickTo(b.id); L.retry = r; log('  RETRY ' + a.id + ' > ' + b.id + ': the To picker -> ' + JSON.stringify(r));
+          if (!r.last || r.last.how !== 'leg') { end = 'the retry did not start a leg'; break; }
+          continue;
+        }
+      } else abT = null;
+      if (air && st.ph === 'STOPPED' && st.rt && st.rt.to === b.id && legT > 20) {
         if (stopT === null) stopT = now;
         if (now - stopT > 600) { await take('stop', 250); break; }
       } else stopT = null;
@@ -341,7 +363,6 @@ const STATE = `JSON.stringify((() => {
         if (divT === null) divT = now;
         if (now - divT > 600) { L.faults.push({ k: 'diverted', note: 'stopped at ' + st.rt.to + ', not ' + b.id }); log('  !!! DIVERTED: stopped at ' + st.rt.to + ', not ' + b.id + ' - the tour flies on from there'); await take('stop', 250); break; }
       } else divT = null;
-      if (st.ph === 'ABORT') { end = 'the take-off was rejected (ABORT)'; L.faults.push({ k: 'abort', note: end }); await take('abort', 250); break; }
       if (legT > 1800) { end = 'the leg took over 1800 s'; L.faults.push({ k: 'timeout', note: end }); break; }
       if (SHAKEDOWN && now - flightStartWall > SHAKEDOWN * 1000) { end = 'shakedown: ' + SHAKEDOWN + ' s'; break; }
       if (now > deadlineMs) { end = 'the deadline ' + DEADLINE; L.faults.push({ k: 'deadline', note: end }); break; }

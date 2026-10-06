@@ -66,14 +66,27 @@ for (let i = 1; i < order.length && i <= LEGS; i++) {
   leg = i;
   const a = A(order[i - 1]), b = A(order[i]);
   const tStart = T0, i0 = rows.length;
-  const L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1 }, TMAX ? { tMax: +TMAX } : {}));
+  let L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1 }, TMAX ? { tMax: +TMAX } : {}));
+  // A REJECTED TAKE-OFF: ONE retry, as the page rig does (the same To from where it stopped - flightLeg's From)
+  if (L.faults.some(f => f.k === 'abort')) {
+    for (let k = 0; k < 600 && !(AP && AP.phase === 'STOPPED'); k++) sim.step(1 / 60);
+    console.log(TR.fmtLeg(L) + '  <- rejected; one retry');
+    const L1 = L;
+    L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: false }, TMAX ? { tMax: +TMAX } : {}));
+    L.retryOf = { faults: L1.faults, verdicts: L1.verdicts, t: L1.t, dep: L1.dep };
+    L.faults = L1.faults.map(f => Object.assign({}, f, { k: f.k === 'abort' ? 'abort-retried' : f.k + '-try1' })).concat(L.faults);
+  }
   L.tStart = r2(tStart); L.tEnd = r2(T0); L.rows = [i0, rows.length];
   L.landedAt = AP && AP.route && AP.route.to ? AP.route.to.id : null;   // the field it really landed on (a diversion's)
   legs.push(L);
   console.log(TR.fmtLeg(L));
   // a leg that did not end at its To: the tour stops - unless it is a DIVERSION (stopped on the ground at another field,
   // the sim sane), which the page rig flies on from too (the next To picked where the aeroplane stands)
-  if (!L.ok && !(L.faults.length && L.faults.every(f => f.k === 'diverted' || f.k === 'where'))) break;
+  // (_tour_lib judges a landing roll against the PLANNED To's box: after a diversion its ground-loop / off-strip are the
+  // other field's roll measured on the wrong strip - tour_real_report re-measures each leg on the field really landed on)
+  const hard = L.faults.filter(f => !['diverted', 'where', 'ground-loop', 'off-strip', 'obstacle', 'trunk', 'abort-retried'].includes(f.k) && !/-try1$/.test(f.k));
+  const arrived = L.arr && L.arr.stopS != null;   // stopped at its To (flyLeg's stopAt)
+  if (!L.ok && !((arrived || L.faults.some(f => f.k === 'diverted')) && !hard.length)) break;
 }
 sim.step = step0;
 const done = legs.length === order.length - 1 && legs.every(L => L.ok);
