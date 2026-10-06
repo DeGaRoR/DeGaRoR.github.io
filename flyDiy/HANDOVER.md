@@ -78169,14 +78169,14 @@ GATE BOOTLIFT, the page in node (03:41-03:56, CPU slot; ~2 min a child, diag 6 m
 - CAVEAT: the harness ran the boot in ~2 virtual s, so 'hard' barely meets the 2 s watchdog tick: it does not discriminate
   (train 36's run was skipped for time); GATE HWCOV 1A-1D is the watchdog's real test (a virtual clock where steps take time).
 
-THE LOAD ON A SLOW CPU (box, timed 04:30-05:00, rollout_perf --cpu-throttle 4, 1920x1080, warm C:/hwr; JSONs tools/perf/hwcov/):
-retro 169.4 s to the shed, potato 100.1 s. Steps retro / potato: world 28.1 / 26.7, town 30.4 / 2.4 (retro 103 long tasks,
-24.7 s of the thread), settle 30.0 / 22.4, bake 9.9 / 0, upload 7.1 / 8.1, parked 13.3 / 0 - BUT the parked 13.3 s is THIS
-BRANCH'S STALE COOK (FLYDIY_BUILD differs from media/parked's manifest: captured + baked live; 0 ms on a deployed build -
-POTATO-DEEP's catch, A0: the capture AND ~46 s of live bakes spread over the later steps): THE RETRO LOAD FIGURE IS VOID until
-re-taken on a fresh cook (`node tools/parked_cook.js --port <free>`, then `--check` says same); potato's (parked off) stands.
-4x on the box's i7 ~ the laptop's i5-9300H for the town step (laptop 28.5 s). The step-down persisting the lower preset is what
-makes the NEXT load potato's on a machine measured slow.
+THE LOAD ON A SLOW CPU (box, timed 12:35-12:50 on a FRESH PARKED COOK - parked_cook --check: same, every parked aeroplane
+'cook'; rollout_perf --cpu-throttle 4, 1920x1080, warm C:/hwr; tools/perf/hwcov/rollout_load_{retro,potato}_cooked.json): to the shed
+retro 150.6 s, potato 94.1 s (+56.5 s). Retro / potato: world 27.8 / 25.8, TOWN 30.3 / 4.0 (retro 103 long tasks, 24.7 s of the
+thread), ring 8.0 / 6.9, SETTLE 29.7 / 23.6, BAKE 7.1 / 0, spec 3.0 / 1.0, upload 6.9 / 6.2, firstFrame 2.4 / 0.5, frames 5.0 / 1.8.
+4x on the box's i7 ~ the laptop's i5-9300H for the town step (its log: 28.5 s). The night's first retro figure (169 s, 04:34) is
+VOID: this branch's build did not match the shipped cook, the page captured and baked the parked aeroplanes live (POTATO-DEEP's
+catch; before any branch load timing: `node tools/parked_cook.js --port <free>` then `--check` = same). The step-down persisting
+the lower preset is what makes the NEXT load potato's on a machine measured slow.
 
 ?diag ON THE BOX (timed, retro 1920x1080, the stand paused, the same view every row): GPU 12.8 ms; THE LEAN GROUND is 8 of it
 (ground 'plain' 4.9 ms); terrain 6 -2.6, town low -2.7, scale 0.5 -3.5; shadows / glare / mist ~0 (drift 2.8 ms between the two
