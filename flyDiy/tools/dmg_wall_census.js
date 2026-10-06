@@ -288,6 +288,37 @@ function pageTears() {
   }
   return out;
 }
+// UNDER THE PHYSICS WORKER (A0's rule: the default mode): the page's own loop flies the crash - the flight started, the
+// hand on the controls, the aeroplane placed with its speed (FLIGHT_PROBE.place: the worker's sim, never the view's
+// arrays), the trunk / stump in world.treeHits (it reaches the worker, G1330) - then watched until the solver's 'over'
+// (or the time cap) and its debris at rest. Not a replay: one crash, the drawing as the game draws it
+async function pageFlyW(o) {
+  const P = FLIGHT_PROBE, world = P.world();
+  const go = document.getElementById('bGo'); if (go && !P.over() && go.offsetParent) go.click();
+  await new Promise(r => setTimeout(r, 2500));
+  P.setManual(true);
+  const sim = P.sim(), [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl;
+  const c = sim.cgPos(), g = world.terrainH(c[0], c[2]);
+  let yMin = Infinity; for (let i = 1; i < sim.p.length; i += 3) yMin = Math.min(yMin, sim.p[i]);
+  await P.place({ at: [c[0], g + (o.agl || 0) + (c[1] - yMin) + 0.05, c[2]], zeroV: true, dv: [o.V * fx, 0, o.V * fz] });
+  const c2 = sim.cgPos(), tx = c2[0] + fx * o.D - fz * (o.off || 0), tz = c2[2] + fz * o.D + fx * (o.off || 0), gt = world.terrainH(tx, tz), R = o.r || 0.3, H = o.top || 10;
+  world.treeHits.set('fill:wallworker', [tx, tz, gt, R, gt + H]);
+  const scene = P.craft().parent;
+  if (window.__dwTrunkW) scene.remove(window.__dwTrunkW);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R + 0.05, H, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
+  m.position.set(tx, gt + H / 2, tz); m.castShadow = true; scene.add(m); window.__dwTrunkW = m;
+  try { sim.ctl.thr = 0; } catch (e) {}
+  const t0 = performance.now(); let overAt = 0;
+  while (performance.now() - t0 < (o.secs || 14) * 1000) {
+    await new Promise(r => setTimeout(r, 250));
+    const D = sim.damage ? sim.damage() : null;
+    if (D && D.over && !overAt) overAt = performance.now();
+    if (overAt && performance.now() - overAt > 3000) break;
+  }
+  const D = sim.damage ? sim.damage() : {};
+  return { worker: !!sim.dmgState, crashed: !!D.crashed, over: !!D.over, reason: D.reason, broken: D.broken ? D.broken.length : null,
+           skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null };
+}
 // THE BOOT: the page up, the build kept, rolled out, the roll-out screen gone
 async function pageBootStep(k) {
   if (k === 'ready') return await Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('boot timeout'), 240000))]);
@@ -323,6 +354,31 @@ if (require.main === module) (async () => {
   console.log('fresh ' + JSON.stringify(R0.fresh));
   if (has('probe')) { const pr = await run(pageProbe); fs.writeFileSync(path.join(OUT, 'probe.json'), JSON.stringify(pr, null, 1)); console.log(JSON.stringify(pr).slice(0, 3000)); if (!opt('cases', null)) return; }
   const names = opt('cases', Object.keys(CASES).join(',')).split(','), modes = opt('modes', 'after').split(',');
+  if (has('worker')) {                                    // (the default mode: one crash a case, flown by the page)
+    const RW = { at: new Date().toISOString(), worker: true, cases: {} };
+    const shootW = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
+      const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
+    for (const k of names) {
+      const C = CASES[k], out = { label: C.label, shots: [] };
+      out.fly = await run(pageFlyW, C.o);
+      out.tears = await run(pageTears);
+      console.log(k + ' worker ' + JSON.stringify(out.fly).slice(0, 500) + ' tears ' + JSON.stringify(out.tears));
+      for (const [ci, c] of C.cams.entries()) { await run(pageView, c); const f = path.join(OUT, k + '_' + (ci + 1) + '_worker.jpg');
+        const cz = await run(pageCensus); if (cz && cz.clsJpg) { fs.writeFileSync(f.replace(/\.jpg$/, '_cls.jpg'), Buffer.from(cz.clsJpg, 'base64')); delete cz.clsJpg; }
+        out.shots.push({ cam: c, file: await shootW(f), census: cz }); console.log('  worker cam' + (ci + 1) + ' other ' + cz.other + ' % ' + JSON.stringify(cz.otherBy)); }
+      RW.cases[k] = out;
+      // (the next case from a fresh aeroplane: back to the hangar and out again - the heal checked on the way)
+      await post('/eval', "(() => { const b = document.getElementById('bHangar2'); if (!b) return 'no button'; b.click(); return 'ok'; })()");
+      await sleep(6000);
+      for (let a = 0; a < 6; a++) { await run(pageBootStep, 'go'); await sleep(5000); if (await run(pageBootStep, 'flying')) break; }
+      for (let i = 0; i < 60; i++) { const bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
+      await sleep(2000);
+      out.healNext = await run(pageHeal, 'check');
+      fs.writeFileSync(path.join(OUT, 'census_worker.json'), JSON.stringify(RW, null, 1));
+    }
+    console.log('WALL_CENSUS done ' + OUT);
+    return;
+  }
   const R = Object.assign(R0, { at: new Date().toISOString(), modes, cases: {} });
   const shoot = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
     const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
