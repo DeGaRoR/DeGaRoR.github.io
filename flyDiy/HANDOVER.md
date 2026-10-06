@@ -77040,3 +77040,119 @@ certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a n
 **Rulings this train** (DEFORM-AND-BREAK §12): dm10-dm12 (the user's), dm13 the fitting factor, dm14 headroom, dm15 the
 gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
 23.473-.499, 23.521-.537.
+
+## G1883-G1884 DMG-WINDBREAK - THE BREEZE THAT BROKE THE CUB'S ENGINE MOUNT: NOT THE WIND, THREE TRUNK-CONTACT ARTEFACTS; GATE DMGWIND (2026-10-06, DMG-WINDBREAK for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-windbreak off claude/dmg-integration 01e6892f; G1883-G1884 borrowed from DMG-D5's unused range)
+
+**The finding (DMG-D4b, the box, `dev.html?damage=1`):** the user's Cub taxied at 3 m/s into a trunk, throttle shut. Wind off: 0 members
+broken, 0.78 kJ. With the page's wind (~5.5 m/s, the climate's gust field): the whole engine mount broke (ENG*/CGE*-S0*, 10-11 members),
+at less plastic work (0.49-0.54 kJ).
+
+### 1. Reproduced in node (node's own def; `tools/_treecrash_lib.js` atTrunk gained `wind`: a vector or the climate's field)
+- The page's vector (D4b's log [4.88, -0.01, -2.49] at its strip's heading 0.7156) is 2.05 m/s from behind and 5.09 m/s across: 5.48 m/s
+  from 112 deg off the nose. Turned onto node's strip, at the page's staging (settled 2 s in the wind, 3 m/s, throttle shut, trunk 6 m ahead):
+  **wind off 0 broken, 0.42 kJ; wind on the same 10 mount members (ENGR-S0TR first, a kink), 0.51 kJ.** A STEADY vector does it, so the
+  gust field's stepping is not the cause; the climate's own gust field (gust 0.5 and 1) gives the same.
+- Node's def reproduces it; the page's def (VSNL/VSNR at the firewall's foot, 13.9 kg lighter: A0's JOIN-PARITY) was not needed.
+- **Parity note:** on node's flat grass the 6 m roll slows the Cub to 2.2 m/s at the trunk; the page's ground kept ~2.95. Node's base meets
+  the page exactly at that speed (started at 3.6 m/s): wind off 0 broken; the page's wind 10 broken. Both speeds are measured below.
+
+### 2. Attributed (per substep: `sim.onSubstep`, `sim.damageCaps()`, `sim.damagePush(true)` - read-only instruments, G1883)
+- **The wind puts no load on the nose.** The aero pass at the frame before contact (sim.probe on that pose): **0 N on every nose node**
+  (ENGL/ENGR/CGE/S0*/VSN*) with the wind and without; 64 N sideways on the whole aeroplane (q = 18.4 Pa), against mount loads of kN.
+  (reports/evidence/DMG-WINDBREAK/aero_nose.json)
+- **The first quantity that parts is WHERE the Cub meets the trunk.** The settle in the wind weathercocks the parked Cub 2.2 deg, and the
+  roll drifts it 14 cm; the trunk then lands ON the thrust node ENGR (t = 1.00 on ENGL-ENGR, t = 0 on the three ENGR-S0* mount tubes and
+  CGE-ENGR) instead of the flange bar's middle (divergence.svg). The same taxi with no wind and the trunk moved across the nose broke the
+  mount at 8 of 19 offsets, 5 cm off centre among them (offset.svg): the wind was only the thing that moved the contact.
+- **Artefact 1 - a node was pushed once per member meeting there.** The contact pushes a member's two ends by their share (1-t, t); a
+  trunk on a node makes t = 0 or 1 on every member there, so ENGR took **5x its ground spring and damper** (CGn 2.1 kN.s/m: ~6 kN a
+  member at 3 m/s, ~31 kN on a 10.7 kg node). The push stepped to ~18 kN on the first substep (push_engine.svg); ENGR-S0TR reached its
+  crush (11.7 kN, 1.03) within ~5 ms, crushed its 3 % and kinked, and the kink broke the `eng:mount` group: **one kink takes the whole
+  mount (§4.4's break group)** - that is why a WHOLE mount goes, and why the plastic work is LOWER (a group lets go brittle; the engine,
+  off, crushes nothing more).
+- **Artefact 2 - a push along a member was judged as a bend.** TREE-CRASH's collapse cap P_c = M_p / (L t (1-t)) is for a member pushed
+  ACROSS; met along its length the contact's normal is square to it by construction, but met at an END it may run along it - the trunk
+  on ENGR pushes the three mount tubes aft, along them. They "bent" at their ends, lost their chord (M_p / dk), the engine pivoted and the
+  far side's fittings pulled out (the corner hits that remained after fix 1).
+- **Artefact 3 (found by GATE TREECRASH's springback rule after fix 1) - the contact sprang back.** With one contact per node, the
+  per-node damper is ~0.12 of critical for the 462 kg aeroplane one node stops (0.8 sqrt(10.7/462)): a 3 m/s taxi rolled 2.1-2.5 m back
+  off the trunk (the gate: under 2). The five-fold over-count had damped it by accident (0.27 of critical) - so the base's "no break in a
+  calm" was itself partly the over-count.
+- Ruled out: the gust stepping (a steady vector does it), aero on distorted geometry / few nodes (0 N on the nose), the probe or the
+  certificate (the same stamped limits both ways; the mount members are on the certificate's floor: FY 4.95-6.19 kN, FC 2.03-11.71 kN),
+  the damper DEFDAMP (unchanged; the first divergence is the contact point).
+
+### 3. The fix (30_solver.js, all three only with the damage layer on; off = master's bits)
+- **G1883 a node takes ONE contact's push from a trunk** (`tkShares`): the shares a trunk puts on a node are a partition of one - where
+  they sum past 1 they are scaled to 1 (the node's own spring and damper, once, as on the ground), split between its members as before; a
+  node no trunk meets more than once is untouched bit for bit; a node two trunks meet in one substep keeps the old sum (rare).
+- **G1883 a push along a member is not a bend**: the collapse check uses the push's share ACROSS the member (sA, the sine between the
+  push and the member); for every hit along a member sA = 1 exactly (bit for bit as before); at an end the along-share is the member's
+  axial load (its own crush and kink in the beam loop).
+- **G1883 the contact crushes, it does not spring back**: the contact's spring stands for what the lattice does not carry as members where
+  the trunk meets it (skin, cowl, spinner): it loads on KGn and unloads along TK_RU = 10 x KGn from the member's deepest intrusion (its
+  spring's depth plus any bend), so a tenth of what it stored comes back; per member, cleared by reset(). TREECRASH's taxi springback:
+  the Cub 1.18 -> 0.37 m, the Jodel 0.21 -> 0.23, the metal Cessna 1.25 -> 0.35.
+- **G1884** the trunk contact pass moved into its own function (`trunkPass`, bit for bit: the page wind's run hash 23d4604cd11e before and
+  after) - inside substep() it measured +1.6 % / pair median +2.1 % on the metal Cessna's step with nothing touching; out, +0.2 % / +2.0 %.
+- **Tried and withdrawn:** the engine's own body (the CG locators CGE-ENG*) solid against the trunk (no bend): it took the trunk's push
+  onto the 90 kg CG node, whose contact spring scales with its mass (1.36 MN/m), 35 kN, and the Jodel's mount went in GATE TREECRASH's
+  taxi. Without it the Cub's crankcase stand-in still folds round a trunk at ~3 m/s (a nose dent, TREE-CRASH's own stand-in) - see open 2.
+- Not touched: no limit, no certificate case, no archetype, no gate's criterion; GEN_DAMAGE_DEFAULT unchanged (damage stays OFF).
+
+### 4. GATE DMGWIND (tools/_dmg_wind_check.js, run_gates core, weight 3, wall 1500; ~11-18 min, 3 children at once) - PASS 11/11
+1. The page's staging, steady winds 0 / 2.5 / 5 / 7.5 / 10 m/s from 12 directions (every 30 deg off the nose), printed per direction:
+   no member that breaks an engine's mount group breaks - **the Jodel and the metal Cessna to 10 m/s (49/49 each); the Cub to 5 m/s
+   (25/25)**, its 7.5 and 10 m/s REPORTED (1 of 24 breaks: 7.5 m/s from 210 deg - open 1).
+2. The page's own wind on the Cub (steady; the climate's gust field at gust 0.5 and 1): no mount member, at the page's staging.
+3. The floatplanes (no trunk on the water): 10 s taxiing at 3 m/s on the sea lane in 0 / 5 / 10 m/s from four quarters: nothing breaks.
+4. The instruments change nothing (the same hash with the per-substep reader on).
+REPORTs: mirror symmetry (every pair within 5 % after; 3 pairs differed before), the page's impact speed, the trunk across the nose.
+
+**Before / after** (the same gate on the base: FAIL 4/9; reports/evidence/DMG-WINDBREAK/sweep.svg) - winds of 49 that take the mount off:
+
+| | the page's staging (met at 1.2-2.5 m/s) | the page's impact speed (met at 2.2-3.1 m/s) |
+|---|---|---|
+| the user's Cub | **10 -> 1** | 24 -> 17 |
+| Jodel | **10 -> 0** | 12 -> 0 |
+| metal Cessna | 0 -> 0 | 4 -> 4 |
+| the Cub, no wind, the trunk across the nose (19 offsets) | 8 -> 3 | 17 -> 11 |
+| the page's own wind (steady, gust 0.5, gust 1) | 3 of 3 -> 0 | 3 of 3 -> 1 (gust 1) |
+
+### 5. The targeted battery (§11.3; reports/evidence/DMG-WINDBREAK/battery_vs_base.txt)
+- This branch: **BATTERY PASS 16/16** - TREECRASH, DMGCERT, DMGGEAR, DMGINST, DMGFPS, DMGMEMBERS, DMGINTEGRITY, DMGCLUSTERS, DMGWIND,
+  and LOAD, BENCH, FLEX, SIMWORKER, SOAR, TREEHIT, OBSTACLE. After G1884's move: TREECRASH, DMGFPS, DMGINTEGRITY re-run, the same.
+- **Damage OFF = the base's bytes** (each gate's whole output, the base 01e6892f + the instruments against this branch): TREEHIT, BENCH,
+  OBSTACLE, SOAR, LOAD the same bytes; SIMWORKER only its clock (every step's FNV equal, f2b3de3f / cbccf99f); FLEX every base line in
+  this branch's (sharded here, unsharded on the base).
+- **TREECRASH (damage ON) moved, all PASS:** the 3 m/s taxi - the Cub 10 set / 731 J / back 1.18 m -> 5 / 722 J / 0.37 m; the Jodel 10 /
+  1120 J (1 of the nose broken) / 0.21 -> 10 / 766 J / 0.23; the metal Cessna 11 / 929 J / 1.25 -> 7 / 1012 J / 0.35. The 30 m/s trunks
+  still crash (the Cub's centreline 169 -> 177 broken, 29.9 -> 23.7 kJ; the Jodel's wing 2.5 m out 65 -> 153 broken, 2.0 -> 4.2 kJ). The
+  normal-operations margins, the water and reset-heals rows are unchanged in verdict.
+- **Perf** (node sim.step(1/60), nothing touching, a far 4000-trunk set; the median of 10 processes' medians a side, alternating):
+  damage ON the Cub ground +0.0 %, air -1.7 %, the metal Cessna ground +1.3 %, air +0.2 %; damage OFF -2.8 / +0.8 / -1.4 / -4.0 %
+  (the box's noise is +-4 %). Pinned pairs (16, alternating order) damage ON: the metal ground +0.2 % (pair median +2.0 %), the Cub
+  ground 0.0 % (+0.6 %). reports/evidence/DMG-WINDBREAK/perf.txt. **Re-run the pinned pairs on the box.**
+
+### Evidence (flyDiy/reports/evidence/DMG-WINDBREAK/, README.md captions each)
+divergence.svg, push_engine.svg, mount_force.svg (the mount member's force over its limit vs time, wind off / on, before / after),
+sweep.svg, offset.svg, aero_nose.json, gate_dmgwind(.txt/.json), gate_dmgwind_before(.txt/.json), battery_vs_base.txt, perf.txt, runs.json.
+Tools: `tools/_dmg_wind_lib.js` (the runs), `tools/_dmg_wind_check.js` (the gate), `tools/dmg_windbreak_evidence.js` (the pictures; its
+`--base` is the base's tools/ with the three instruments applied - they are this branch's `subHook` / `damageCaps` / `damagePush` lines).
+
+### Open (the coordinator / A0)
+1. **The acceptance is met to 5.5 m/s, not to 10 m/s on the Cub:** one wind of 24 at 7.5-10 m/s (7.5 from 210 deg) still breaks its mount
+   at the page's staging. The trunk meets the engine's corner; CGE-S0TR crushes at its certified 2.03 kN and then pulls apart at its
+   5.05 kN fitting limit (both the certificate's floor, kappa x physics); the mirror wind loads CGE-S0TL, stamped 6.19 kN, and holds with
+   the same plastic work. No limit was moved. Candidates, not mine to take: an off-centre nose case in the certificate (impactNose reacts
+   on the centreline only), or D1a's open question - a mount node between the bearer (which bends) and its bolts (which shear).
+2. **At the page's impact speed (~3 m/s) the Cub still loses its mount in 17 of 49 winds** (24 before), mostly after the crankcase
+   stand-in (CGE-ENGL/R, a thin 4130 tube's M_p) folds round the trunk and tears at 1.2 rad. A crankcase does not fold round a tree; the
+   nose has no crush layer for the prop, the spinner and the cowl (TREE-CRASH's open question). That belongs with DMG-DRIVE's graded prop
+   strike / D4b's debris: a crushable prop disc ahead of the engine's nodes. The Jodel 12 -> 0, the metal Cessna 4 -> 4.
+3. **The impact-speed parity:** node's flat grass slows the 6 m roll to 2.2 m/s, the page's ground kept ~2.95 (the surface's rolling
+   resistance, or the page's settle) - JOIN-PARITY / the coordinator's taxi_parity rig to confirm on the box.
+4. **TK_RU = 10** (a tenth of the contact's stored energy returned) is a declared crush-recovery ratio, not a fitted one; TREECRASH's
+   springback rows read 0.23-0.37 m with it.
+5. The node contact's stiffness scales with the node's mass (KGn = 1.5e4 m, the ground's support law); against a trunk a heavy node (the
+   engine's CG, 90 kg) meets it at 1.36 MN/m. Reported, not changed.
