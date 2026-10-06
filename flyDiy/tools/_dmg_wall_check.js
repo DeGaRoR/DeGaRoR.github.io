@@ -14,7 +14,8 @@
 //      1 mm and up to 9 m on the Cub; a millimetre's bead under sheet metal is not what the user sees - the centimetres are);
 //   b. NO STRETCH: no triangle of a compact part (one layer object under 1.2 m: a cowl panel, a fitting, a light, a hinge)
 //      changes an edge by more than 1 % (the base: up to 250 %);
-//   c. every drawn position finite; at most 2 % of the places past the GPU's 8 binding slots (the top 8 kept).
+//   c. every drawn position finite; no weightless place (G1818 merge: every kept weight 0 - the CPU drew it at its rest
+//      coordinates in the world); at most 2 % of the places past the GPU's 8 binding slots (the top 8 kept).
 // Reported, not gated: covering torn with no node at the damage, torn where no member among its nodes strained past the
 // tear (unbraced bays shear), the binding's cost. Damage OFF / nothing broken: no record is made at all (the page's
 // brkCage returns before; GATE DMGSKIN's bitwise checks cover the skin's path).
@@ -56,6 +57,7 @@ const one = k => new Promise(res => {
       yes(s.tested ? s.leak5cm / s.tested <= LEAK5_SHARE : true, k + ' ' + c.case + ': past 5 cm ' + s.leak5cm + ' of ' + s.tested);
       yes(s.rigidBad === 0, k + ' ' + c.case + ': no compact part triangle past 1 % (' + s.rigidTris + ' triangle-frames)');
       yes(s.nonFinite === 0, k + ' ' + c.case + ': every drawn position finite');
+      yes(!s.weightless, k + ' ' + c.case + ': no weightless place (every kept weight 0: nothing to ride; ' + (s.weightless || 0) + ' place-frames)');
       yes(s.tubeBad === 0, k + ' ' + c.case + ': no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst ' + (+s.tubeWorst || 0).toFixed(3) + ', ' + s.tubeTris + ' triangle-frames)');
       yes(s.inh.over8 <= OVER8_SHARE * s.inh.places, k + ' ' + c.case + ': places past 8 slots ' + s.inh.over8 + ' <= 2 %');
     }

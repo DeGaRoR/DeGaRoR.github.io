@@ -161,6 +161,11 @@ function run(P, caseId) {
   function measure(sc, Dd) {
     const m = sc.m; m.frames++;
     for (const R of sc.recs) { const W = R.w; for (let q = 0; q < W.length; q++) if (!Number.isFinite(W[q])) { m.nonFinite++; break; } }
+    // (G1818 merge, DMG-SKINGPU: a WEIGHTLESS place - every kept weight 0 - has no node to ride: drawn at its rest coordinates
+    // in the world on the CPU, ~500 m off, unrotated about the CG on the GPU. wallSync read the covering's weights at
+    // welded copies, which G1818's prep once a place never writes. Counted per place-frame, places only)
+    for (const R of sc.recs) { if (!R.active || !R.w2) continue; const K = R.K, rp = R.rep, w2 = R.w2;
+      for (let v = 0; v < R.nv; v++) { if (rp && rp[v] !== v) continue; let t = 0; for (let k = 0; k < K; k++) t += w2[v * K + k]; if (!(t > 0)) m.weightless = (m.weightless || 0) + 1; } }
     // a covering triangle torn this frame while its own frame held: none of the members among its places' nodes broken,
     // none strained past the tear's 15 % (the drawing stretched where the structure did not)
     if (!sc.seen) sc.seen = sc.recs.map(R => new Uint8Array(R.nt));

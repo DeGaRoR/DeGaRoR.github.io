@@ -4167,6 +4167,20 @@
     return { cpuBuffers: D.map(d => d.A.array.buffer), recordAttrs: [...GS.ents.values()].filter(e => e && !e.cpu).map(e => e.pa),
       drawers: D.map(d => ({ nV: d.nV, geos: d.geos.length, recs: d.recs.length, fold: !!d.views, viewMode: d.F ? !!d.F.viewMode : null })) };
   };
+  // the rig's census of WEIGHTLESS places (every kept weight 0: the riding has no node to put it on - the CPU's onNodes
+  // then draws it at its rest coordinates in the world, the GPU's at its rest about the CG): per record, how many, and
+  // the record's state (its binding's progress, the inheritance's, its event's versions)
+  window.FLYDIY_SKINBREAK_ZEROW = () => {
+    const K = model && model.brk, out = { inhDone: !!(K && K.inhSt && K.inhSt.done), inhL: K && K.inhL ? K.inhL.length : 0, recs: [] };
+    BRK.recs.forEach((R, ri) => { if (!R.active || !R.w2) return;
+      const Kk = R.K, pl = R.pl || SKIN_BREAK.placesOf(R).pl; let zero = 0, first = -1;
+      for (let j = 0; j < pl.length; j++) { const o = pl[j] * Kk; let s = 0; for (let k = 0; k < Kk; k++) s += R.w2[o + k];
+        if (!(s > 0)) { zero++; if (first < 0) first = pl[j]; } }
+      if (zero) { const E = K && K.inhL ? K.inhL.find(x => x.R === R) : null;
+        out.recs.push({ ri, nv: R.nv, places: pl.length, zero, first, bound: first >= 0 && R.g.bound ? R.g.bound[first] : null, ww: first >= 0 ? Array.from(R.ww.subarray(first * Kk, first * Kk + Kk)).filter(w => w) .length : null,
+          on: E && E.on && first >= 0 ? E.on[first * 2] : null, cv: E ? E.cv : null, dv: R.dv, evDv: R.evDv, pending: R.pending ? R.pending.length : 0, boundAll: !!R.boundAll, K: Kk }); } });
+    return out;
+  };
   window.FLYDIY_SKINGPU_CHECK = () => {
     const GS = BRK.gpu, K = model && model.brk;
     if (!GS || !K || !BRK.X) return { err: 'nothing rides on the GPU' };

@@ -858,7 +858,7 @@
     if (!R.active || !R.dead) return 0;
     const K = R.K, wi = R.wi, w2 = R.w2, i0 = R.idx0, idx = R.idx, dead = R.dead, near = R.g.near;
     const nv = R.nv, vh = R._vh && R._vh.length === nv ? R._vh : (R._vh = new Uint8Array(nv));
-    for (let v = 0; v < nv; v++) { let h = near && hot[near[v]] ? 1 : 0; const o = v * K;
+    for (let v = 0; v < nv; v++) { let h = near && hot[near[v]] ? 1 : 0; const o = (R.rep ? R.rep[v] : v) * K;   // (G1818: a copy's kept weights are its place's)
       for (let k = 0; k < K && !h; k++) if (w2[o + k] !== 0 && hot[wi[o + k]]) h = 1;
       vh[v] = h; }
     let n = 0;
@@ -1159,14 +1159,18 @@
     for (let v = 0; v < R.nv; v++) {
       const r = on[v * 2]; if (r < 0 || (rp && rp[v] !== v)) continue;
       const C = L[r].R, t = on[v * 2 + 1]; if (!C.w2) continue;
-      const Kc = C.K, ix = C.idx0 || C.idx; _sy.clear();
-      for (let q = 0; q < 3; q++) { const u = ix[t * 3 + q], bq = ob[v * 3 + q]; for (let k = 0; k < Kc; k++) { const w = C.w2[u * Kc + k]; if (w !== 0) _sy.add(C.wi[u * Kc + k], bq * w); } }
+      const Kc = C.K, ix = C.idx0 || C.idx, crp = C.rep; _sy.clear();
+      // (G1818 merge: the covering's kept weights are read at its PLACE - a welded copy's are never written, G1818's prep
+      // once a place: read at a copy corner they were zeros, and a pane, a bead or the lining went weightless - the CPU
+      // drew it at its rest coordinates in the world, ~500 m off, the GPU unrotated about the CG; the box, 20:45)
+      for (let q = 0; q < 3; q++) { const u0 = ix[t * 3 + q], u = crp ? crp[u0] : u0, bq = ob[v * 3 + q]; for (let k = 0; k < Kc; k++) { const w = C.w2[u * Kc + k]; if (w !== 0) _sy.add(C.wi[u * Kc + k], bq * w); } }
       const o = v * K; let s = 0, d = wi[o], dw = -1;
       for (let k = 0; k < K; k++) { let w = 0; const i = wi[o + k];
         let firstSlot = true; for (let j = 0; j < k; j++) if (wi[o + j] === i) { firstSlot = false; break; }
         if (firstSlot) for (let j = 0; j < _sy.n; j++) if (_sy.i[j] === i) { w = _sy.w[j]; break; }
         w2[o + k] = w; s += w; if (w > dw) { dw = w; d = i; } }
       if (s > 0) for (let k = 0; k < K; k++) w2[o + k] /= s;
+      else { w2[o] = 1; d = wi[o]; }                      // (none of its covering point's kept nodes among its own: rigid on its first - never weightless)
       R.vp[v] = C.vp[ix[t * 3]]; R.dom[v] = d;
       // ...and its drape (G1852's sag of a slack fabric panel: the lining hangs with the covering it is laced behind)
       if (C.sag) { const h = ob[v * 3] * C.sag[ix[t * 3]] + ob[v * 3 + 1] * C.sag[ix[t * 3 + 1]] + ob[v * 3 + 2] * C.sag[ix[t * 3 + 2]];
