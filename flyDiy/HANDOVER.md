@@ -78261,7 +78261,7 @@ SUB-BLOCKS
 - G2200-G2209 coordinator (G2200 study, G2201 pack, G2202 review page).
 - WELCOME-MODES G2210-19; FLEET-PROPS A G2220-24 / B G2225-29; PREM-S2 G2230-39; CONTRACT-MODEL G2240-49; MAP-MENU
   G2250-59; ECONOMY G2260-69; ACCEPT G2270-79; PROCURE G2280-89; PILOTS G2290-99; STAGES G2300-09; PREM-S3 G2310-19;
-  PREM-S4 + CAREER-START G2320-39; OBSERVATORY G2340-49. (G2350-G2399 are DMG's, A0 7 Oct; the game block ends at G2349.)
+  PREM-S4 + CAREER-START G2320-39; OBSERVATORY G2340-49. (G2350-G2399 are DMG's, A0 7 Oct; the game block is G2200-G2349 + the reserve G2400-G2449.)
 
 FOR THE NEXT GAME COORDINATOR: read study §15-§17 and the user's pasted calls (via A0); slice into chips (cloud
 first, titles [CLOUD]/[LOCAL]/[LOCAL-GPU]); integrate on claude/game-integration; hand A0 frozen SHAs per train.
