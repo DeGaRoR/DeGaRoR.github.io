@@ -5571,6 +5571,9 @@
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
+                          // G1530 (POTATO-DEEP): a rig's free eye at a place - the detail shots at a runway's or a road's edge (the free
+                          // camera, then its pose: x y z in world metres, yaw / pitch in radians as devCam reads them)
+                          devFree: (x, y, z, yaw, pitch) => { if (cam.mode !== 'free') flCamMode('free'); devCam.pos.set(x, y, z); devCam.yaw = yaw; devCam.pitch = pitch; devCam.last = performance.now(); return cam.mode; },
                           craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
