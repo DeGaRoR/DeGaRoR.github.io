@@ -71,6 +71,11 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G2055 (WHEEL-AO, 2026-10-06): the contact blobs' per-instance attribute is a vec4 (halo, core, the core's radii) where
+  // G1002's was a float: 8 x 16 B in place of 8 x 4 B uploaded a frame while a wheel is down (+96 B, Cub and Cessna, the
+  // same draws and programs - against a master whose parked cook was made stale alike, tools/perf A/B in HANDOVER G2055)
+  { key: 'stand/bytes.bufferSubData', build: '*', rise: 100, why: 'the contact blobs vec4 instance attribute (G1002 had a float)', g: 'G2055' },
+  { key: 'taxi/bytes.bufferSubData', build: '*', rise: 100, why: 'the contact blobs vec4 instance attribute (G1002 had a float)', g: 'G2055' },
   // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
   // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
   { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },

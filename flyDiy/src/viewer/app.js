@@ -4093,14 +4093,101 @@
 
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
-  // the ground it stands on - contact_shadow.js says why and how. In the world only: the hangar has its own floor.
-  let contactMesh = null;
+  // the ground it stands on - contact_shadow.js says why and how.
+  // G2055 (WHEEL-AO): a core (the tyre's footprint) and a halo per tyre, the footprint sized from the drawn tyre's own
+  // width (measured once a model, tyreWidths) and its deflection; and on THE SHED'S FLOOR too - the cage build's own
+  // contacts (CAGE_GEAR, through the mount edSitP) while it stands, the flown model's wheels (sim.p through `craft`,
+  // which the roll-out shot moves) otherwise. Two meshes, one per scene, ONE material program; both made here at load
+  // and left in their scenes hidden, so the world's and the garage's compile steps link it (no link on first contact).
+  let contactMesh = null, contactMeshG = null;
+  function contactMeshes() {
+    if (contactMesh || typeof CONTACT_SHADOW === 'undefined' || !THREE.InstancedMesh || !THREE.InstancedBufferAttribute) return;
+    try {
+      contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh);
+      contactMeshG = CONTACT_SHADOW.make(THREE); contactMeshG.name = 'contact:blobs:shed'; hangarScene.add(contactMeshG);
+    } catch (e) { contactMesh = contactMeshG = null; }
+  }
+  contactMeshes();
+  // the drawn tyre's width per wheel node: its parts' box along the axle (the wheel spins about its local z, poseModel)
+  function tyreWidths() {
+    if (!model || !model.wheelParts) return null;
+    if (model.csTyreW !== undefined) return model.csTyreW;
+    const out = {}, inv = new THREE.Matrix4(), m4 = new THREE.Matrix4(), bb = new THREE.Box3(), b1 = new THREE.Box3();
+    try {
+      for (const w of model.wheelParts) {
+        if (!w.obj || !w.obj.traverse || !w.obj.updateWorldMatrix || !(w.R > 0)) continue;
+        w.obj.updateWorldMatrix(true, true);
+        inv.copy(w.obj.matrixWorld).invert(); bb.makeEmpty();
+        w.obj.traverse(o => {
+          if (!o.isMesh || !o.geometry) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          b1.copy(o.geometry.boundingBox).applyMatrix4(m4.multiplyMatrices(inv, o.matrixWorld)); bb.union(b1);
+        });
+        const W = bb.max.z - bb.min.z;
+        if (Number.isFinite(W) && W > 0.02 && W < 2.5 * w.R) out[w.idx] = W;
+      }
+    } catch (e) { return (model.csTyreW = null); }
+    return (model.csTyreW = out);
+  }
+  const csV = THREE.Vector3 ? new THREE.Vector3() : null, csA = THREE.Vector3 ? new THREE.Vector3() : null, csWheels = [];
+  function shedContacts() {
+    const fy = hangar.group.position.y, ground = { h: () => fy };
+    csWheels.length = 0;
+    const G = window.CAGE_GEAR;
+    if (edSit.visible && G && G.contacts && G.contacts.length) {
+      // the cage build stands: its contacts (axle, R) in the build's own frame, through the mount
+      edSitP.updateWorldMatrix(true, false);
+      // the tyres' width over radius off the generated model's drawn wheels (the same build), else the module's
+      const M = edSitP.matrixWorld, tW = tyreWidths();
+      let wr = 0, nw = 0;
+      if (tW && def && def.nodes) for (const k in tW) { const r = def.nodes[k] && def.nodes[k].r; if (r > 0) { wr += tW[k] / r; nw++; } }
+      for (const c of G.contacts) {
+        csV.set(c.p[0], c.p[1], c.p[2]).applyMatrix4(M);
+        csWheels.push({ x: csV.x, y: csV.y, z: csV.z, R: c.R, W: nw ? c.R * wr / nw : 0 });
+      }
+      csA.set(0, 0, 1).transformDirection(M);
+      return CONTACT_SHADOW.blobsAt(csWheels, ground, { axis: [csA.x, csA.z] });
+    }
+    const F = window.CAGE_FLOAT;
+    if (edSit.visible && F && F.P && Number.isFinite(F.gy) && Number.isFinite(F.track)) {
+      // a seaplane in the shed stands level on its keels: each float's flat (its end to the step: z from the step
+      // forward in the cage frame, float x aft = cage -z) on the floor
+      edSitP.updateWorldMatrix(true, false);
+      const M = edSitP.matrixWorld, Lf = Math.max(0.2, (+F.P.flatK || 0.5) * (+F.P.xs || 1)), B = +F.P.B || 0.5, out = [];
+      csA.set(0, 0, 1).transformDirection(M);
+      for (const sd of [-1, 1]) {
+        csV.set(sd * F.track, F.gy, F.zStep + 0.5 * Lf).applyMatrix4(M);
+        const b = CONTACT_SHADOW.keelBlob({ x: csV.x, z: csV.z, ax: [csA.x, csA.z], L: Lf, W: 0.12 * B, B }, csV.y - fy, fy);
+        if (b) out.push(b);
+      }
+      return out;
+    }
+    if (!sim || !def || !def.refs || !model || !model.grp || !model.grp.visible || sim.hydro) return [];
+    // the flown model: its wheel nodes through `craft` (identity, but for the roll-out shot's move)
+    craft.updateWorldMatrix(true, false);
+    const M = craft.matrixWorld, R = def.refs, tW = tyreWidths();
+    for (const i of (R.mains || []).concat(R.tw != null && R.tw >= 0 ? [R.tw] : [])) {
+      csV.set(sim.p[i * 3], sim.p[i * 3 + 1], sim.p[i * 3 + 2]).applyMatrix4(M);
+      csWheels.push({ x: csV.x, y: csV.y, z: csV.z, R: def.nodes[i].r || 0.1, W: tW && tW[i] > 0 ? tW[i] : 0 });
+    }
+    const xA = sim.axes()[0];
+    csA.set(xA[0], xA[1], xA[2]).transformDirection(M);
+    return CONTACT_SHADOW.blobsAt(csWheels, ground, { axis: [csA.x, csA.z] });
+  }
   function contactShadows() {
     const CS = CONTACT_SHADOW;
-    if (inGarage || !CS.S.on || !sim || !def || !world || !world.terrainH) { if (contactMesh) contactMesh.visible = false; return; }
-    if (!contactMesh) { contactMesh = CS.make(THREE); scene.add(contactMesh); }
+    if (!contactMesh) return;
+    if (!CS.S.on) { contactMesh.visible = contactMeshG.visible = false; return; }
+    if (inGarage) {
+      contactMesh.visible = false;
+      if (!hangar || !hangar.group) { contactMeshG.visible = false; return; }
+      CS.update(THREE, contactMeshG, shedContacts());
+      return;
+    }
+    contactMeshG.visible = false;
+    if (!sim || !def || !world || !world.terrainH) { contactMesh.visible = false; return; }
     const xA = sim.axes()[0];
-    CS.update(THREE, contactMesh, CS.blobsFor(sim, def, world, { axis: [xA[0], xA[2]] }));
+    CS.update(THREE, contactMesh, CS.blobsFor(sim, def, world, { axis: [xA[0], xA[2]], tyreW: tyreWidths() }));
   }
   function applySkinVis() {
     const b = $('bSkin'), has = !!model;

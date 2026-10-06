@@ -78772,3 +78772,85 @@ premises stream, 6 km), or cook them offline. Then the HOME garage would build o
 - cessna_links.js: a load may carry its query (`cub@town=1`): which slow links are new sources.
 - metla_boot_steps.js: the garage load's steps, on - off.
 - metla_boot_prof.js: the garage load's CPU, on - off.
+
+
+## G2055 - WHEEL-AO: THE CONTACT AO UNDER EVERY WHEEL; G1002'S CONTACT SHADOW HAD NEVER DRAWN A PIXEL (2026-10-06, WHEEL-AO for A0, local GPU; branch claude/wheel-ao-g2055 off origin/master 1ae2eebb = train 36; G2055-G2057 used, G2058-G2059 unused)
+
+The user (6 Oct): "a small contact shadow below each wheel ... an ellipse with blurred contours ... add to the existing
+shadow, and be slightly more dark ... removed as soon as the plane is off the ground (with a slight fade out effect).
+Faking contact AO." Also, mid-session: "do you handle the tailwheel too? We also need tricycle shots."
+
+THE FINDING (G2056). The contact layer already existed: A6-GROUND's G1002 (contact_shadow.js, 28 Sep), one InstancedMesh
+of blobs under the tyres. IT NEVER DREW A PIXEL. update() built each instance as x = fwd, y = the normal, z = n x fwd. That
+basis is LEFT-handed (det -1): every quad was mirrored, faced DOWN and was culled as a back face. It was traced live: the
+mesh is in the main pass every frame (onBeforeRender with the main camera), yet an opaque red, depth-test-off copy drew
+nothing; the same mesh alone with DoubleSide drew. This is why SHADOW-EYES's A/B found "contact shadow off did nothing",
+and why the playtest's "floaty" taxi stayed floaty. GATE CONTACT was green the whole time: it checked the up vector and the
+position, never the handedness. Now z = fwd x n. The gate holds every instance with det > 0 and its first triangle's front
+face up the normal; master's module reads det -1, so the gate is red on it.
+
+THE LAYER (G2055, contact_shadow.js + app.js contactShadows / shedContacts / tyreWidths):
+- PER TYRE, ONE QUAD, TWO ELLIPSES (one per-instance vec4 aS: halo, core, the core's radii in the quad):
+  - the CORE is the footprint. Its length is the deflected tyre's chord 2 sqrt(2 R d), d = 0.06 R (static) minus the
+    tyre's height h: pressed in, it lengthens; unloading, it closes. Its width is the DRAWN tyre's (measured once per
+    model off model.wheelParts' boxes along the axle; 0.7 R otherwise). Strength S.core 0.90; gone in the first
+    S.coreReach 8 cm of lift.
+  - the HALO is the AO round it: past the tyre (and a spat) by 1.35 R along and 0.85 R across, gaussian-like, S.halo
+    0.80 at its middle. It spreads by 60 % and fades (smoothstep) over S.reach 0.4 m.
+  - the two compose as occlusions do, 1 - (1 - core)(1 - halo). The quad is black under normal blending, so the ground
+    is MULTIPLIED by (1 - a), the sun's shadow included: darker where both lie. The existing shadow system is untouched.
+- PER WHEEL: each main, the tail wheel or the nosewheel (refs.mains + refs.tw), by its own height. A tail-up roll keeps
+  the mains planted while the tail's blob fades.
+- NO Z-FIGHT, NOTHING BURIES IT: the vertex shader pulls the quad 3 cm toward the eye along its own ray (same pixel,
+  nearer depth). polygonOffset is gone: under reversed depth three flips its factor but not its units.
+- WHERE: the world (terrainH, the ground's normal); the SHED's floor (hangar.group's y), through the build that stands
+  there (CAGE_GEAR's contacts through edSitP while the cage stands, else the flown model's wheel nodes through `craft`,
+  which the ROLL-OUT SHOT moves, so the blobs roll out under the tyres); a SEAPLANE in the shed stands on its keels:
+  one keel-flat blob per float (CAGE_FLOAT: track, zStep, the flat's length flatK x xs, the beam). On water: none (as before).
+- COST: two meshes (the world's, the shed's) made AT LOAD and left in their scenes hidden, one material program. The
+  world's and the garage's compile steps link it (no link on first contact). One draw per scene while a blob shows. The
+  body's faint pool (G1002's, 0.24, gone by 3 m) is kept.
+- Not done: the parked aeroplanes (optional in the brief; their cook would need the blobs baked in).
+
+EVIDENCE (reports/evidence/WHEEL-AO/): sheet_cub.jpg, sheet_jodel.jpg, sheet_cessna.jpg (the user's Cub
+builds/cub_2026-09-20_corrected.json, the Jodel, the metal Cessna bugReports/cessnaMetal (1).json, a tricycle). Per view
+(the shed low + 3/4, the stand at noon and golden hour side + 3/4, the taxi golden side + rear, the taxi at noon), each
+contact x3: master | layer off | layer on | the darkening x4. Then the lift-off strip: the mains at 0 / 0.10 / 0.25 /
+0.45 m. key/: the golden-hour stand and taxi off|on. Rig: tools/perf/wheel_ao_stills.js (on a live_driver page: each view
+twice on one held frame, CONTACT_SHADOW.S.on off/on; the lift-off paused by a page-side watcher on the mains' height),
+tools/perf/wheel_ao_sheet.py (the contacts found where the layer darkened the frame). Read: on master no wheel touches
+the ground in any shot. With the layer, each tyre stands on a dark footprint (the Cessna's spats too, the footprint past
+the fairing). At golden hour, where the cast shadow is long and off to the side, it is what plants the wheel. The fade
+reads 0 -> 0.10 -> 0.25 m and is gone at 0.45. Strength: a first set at halo 0.72 / core 0.85 read in the crops but
+faintly at full frame; A0 asked for a notch up (0.80 / 0.90), and every sheet is at the final dials.
+OWED: the Cessna on floats in the shed (keel blobs), A0's 08:20-08:45 slot.
+
+TRAPS MET:
+1. PORTS 8591/8592 were held by two stale _serve.js from 1 Oct (strange-khayyam, W-CHECK's). live_driver's own server
+   died on EADDRINUSE without a word, and Chrome loaded THEIR old tree, while the cmd port (bound to 127.0.0.1) still
+   answered from my page. A whole pass shot old code. A0 killed both by PID. Rule: check `netstat -ano | grep :<port>`
+   before a driver, and read CONTACT_SHADOW (or any new symbol) off the page before trusting a shot.
+2. A green geometry gate is not a drawn pixel: test the handedness, or render it.
+
+GATES (targeted, branch 277736e9 + the stills rig's SHEDONLY; the build at the final dials):
+- CONTACT, PROGRAMS, GFX, STAND, UISMOKE: PASS (the last four under boxlock cpu, 03:39-03:41; CONTACT also before and after
+  each change).
+- FRAMECOST (04:16, 04:19 under boxlock cpu): FAIL 28 on the branch, but master FAILS 24 the same way once its parked cook
+  is made stale alike (a comment in app.js, rebuilt). The parked cook is signed with FLYDIY_BUILD, so any app.js change
+  captures the parked aeroplanes live: +130 main / +90 shadow draws, garage:parked updateMatrixWorld 0 -> 81 722. That is
+  the cook, not this branch; the landing's re-cook (node tools/parked_cook.js under the gpu lock) clears it. `--compare`
+  master-stale -> branch: the ONLY per-frame count that moves is stand/taxi bytes.bufferSubData 544 -> 640 (+96 B, the vec4
+  instance attribute replacing G1002's float; ALLOW G2055 added). Draws, programs, materials, links: equal. Once at boot:
+  garage:town gl.calls 780 -> 791 (the shed's mesh, already inside an ALLOW). PROGRAMS: no new program; both meshes are in
+  their scenes at load, so the compile steps link the one program.
+READY for A0 (train 38): claude/wheel-ao-g2055. Cargo: contact_shadow.js, app.js (the contact block), _contact_check.js,
+_framecost_check.js (ALLOW), tools/perf/wheel_ao_stills.js + wheel_ao_sheet.py, the evidence. Re-cook the parked
+aeroplanes at landing, as for any build.
+THE CESSNA ON FLOATS (bugReports/cessnaFloatsWOrks.json, A0's 08:20 slot, shed only - on water no contact is drawn):
+the cage stands on its keels, one keel blob per float, placed exactly (live: the blobs' centres on each float's flat,
+step to the flat's end, at the floor; the floats' boxes z +-0.43..1.17, the blobs at z +-0.80). The first cut's halo
+(0.45 beam a side) hid under the 0.74 m hull. Now 0.8 beam a side and 0.5 beam past each end: the floor darkens between
+and beside the floats under the hull line (key/floats_shed_low_off_on.jpg, sheet_floats.jpg). The narrow cut's stills
+are in floats/narrow_keel (untracked).
+- Not run (no file of theirs touched): the physics, gear and pilot gates. contact_shadow.js and app.js's contact block
+  read sim.p / def / terrainH and write only their own two meshes.
