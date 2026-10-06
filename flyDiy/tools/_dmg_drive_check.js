@@ -133,10 +133,15 @@ const rep = msg => console.log('  --    ' + msg);
   console.log('  (' + R369.source + ')');
   for (const [cyl, fam, want] of [[4, 'four', 2], [3, 'four', 3], [2, 'two', 4], [6, 'four', 1.33], [9, 'four', 1.33], [0, 'turbine', 1.25]])
     yes(C.genDriveTorqueFactor(cyl, fam) === want, '23.361(c): ' + (fam === 'turbine' ? 'a turboprop' : cyl + ' cylinders') + ' -> limit torque = mean x ' + want + ' ' + FLAG);
-  for (const [bite, surf, tip, sep, want, why] of [[0.02, 'soft', 200, 120, 1, 'tips dressed on the ground (no separation on a soft brush)'], [0.10, 'soft', 80, 120, 2, 'a bite of 10 % into the ground at idle: bent'],
+  for (const [bite, surf, tip, sep, want, why, eR] of [[0.02, 'soft', 200, 120, 1, 'tips dressed on the ground (no separation on a soft brush)'], [0.10, 'soft', 80, 120, 2, 'a bite of 10 % into the ground at idle: bent'],
     [0.30, 'soft', 80, 120, 3, '30 %: the prop stopped (SB 533\'s sudden stoppage)'], [0.10, 'rigid', 80, 120, 3, 'a trunk 10 % into the disc stops it'], [0.20, 'water', 80, 120, 2, 'the water gives: bent at 20 %'],
-    [0.03, 'rigid', 211, 120, 4, 'a wood tip grazing a trunk at full power breaks off'], [0.03, 'rigid', 150, 200, 1, 'an alloy tip at 150 m/s only dents'], [0.10, 'soft', 211, 120, 4, 'wood into the ground at full power: a blade breaks'], [0.05, 'water', 150, 120, 2, 'carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed)']])
-    yes(C.genDriveStrikeTier(bite, 1, surf, tip, sep) === want, 'a strike ' + (bite * 100).toFixed(0) + ' % into the disc (' + surf + ', tip ' + tip + ' m/s, the blade\'s ' + sep + '): ' + C.GEN_DRIVE_STRIKE[want] + ' - ' + why + ' ' + GAME);
+    [0.03, 'rigid', 211, 120, 4, 'a wood tip grazing a trunk at full power breaks off'], [0.03, 'rigid', 150, 200, 1, 'an alloy tip at 150 m/s only dents'], [0.10, 'soft', 211, 120, 4, 'wood into the ground at full power: a blade breaks'], [0.05, 'water', 150, 120, 2, 'carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed)'],
+    // G2036 (DMG-DRIVE2): a brittle blade on a rigid obstacle past the brush grades on its energy (eR = 0.5 I w^2 / its root's
+    // rupture work), not the tip speed: the Cub's idle 650 rpm holds 25 x it, a prop turned by hand 0.5 x
+    [1.0, 'rigid', 65, 120, 4, 'a wood prop at idle into a trunk: its blades break (the engine stops; the hub stays on its flange)', 24.7],
+    [1.0, 'rigid', 13, 120, 3, 'a wood prop barely turning (eR 0.5) into a trunk stops whole', 0.5],
+    [0.03, 'rigid', 65, 120, 1, 'a wood tip grazing a trunk at idle: a brush still (the energy grades past the brush only)', 24.7]])
+    yes(C.genDriveStrikeTier(bite, 1, surf, tip, sep, eR) === want, 'a strike ' + (bite * 100).toFixed(0) + ' % into the disc (' + surf + ', tip ' + tip + ' m/s, the blade\'s ' + sep + (eR != null ? ', eR ' + eR : '') + '): ' + C.GEN_DRIVE_STRIKE[want] + ' - ' + why + ' ' + (eR != null ? FLAG : GAME));
 
   // ---- the children ----
   const { spawn } = require('child_process');

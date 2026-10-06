@@ -186,7 +186,7 @@ function trunkStrike(key, o) {
 
 // ---- A TRUNK IN THE DISC, TIED DOWN (the separation and the gearbox rows): settled on its wheels on the flat (a floatplane
 // too: its floats on the grass), brakes on, the throttle run up to `thr` over 1 s and held 2 s, then a trunk set `fwd` m
-// ahead of engine `eng`'s hub with its circle reaching `bite` m into the disc from the side (bite >= R: through the hub)
+// ahead of engine `eng`'s hub (G2035: by default half the hub's depth - the blades' plane) with its circle reaching `bite` m into the disc from the side (bite >= R: through the hub)
 // and the run held `secs` s: the strike's tier, the engine, the imbalance, the mount
 function tipStrike(key, o) {
   const C = L.core(), def = L.defOf(key, o), elev = 0, { W, TH, strip } = L.flatWorld(elev);
@@ -198,7 +198,7 @@ function tipStrike(key, o) {
   const k = o.eng || 0, E = def.refs.engine || [], EO = def.refs.engineOf || E.map(() => 0);
   let hx = 0, hy = 0, hz = 0, c = 0; E.forEach((i, j) => { if ((EO[j] | 0) === k) { hx += sim.p[i*3]; hy += sim.p[i*3+1]; hz += sim.p[i*3+2]; c++; } }); hx /= c; hy /= c; hz /= c;
   const ax = sim.axes(), fx = -ax[0][0], fz = -ax[0][2], fl = Math.hypot(fx, fz), ux = fx / fl, uz = fz / fl, R = (def.params.prop || {}).D / 2, rt = 0.15;
-  const lat = Math.max(0, R + rt - o.bite), fw = o.fwd == null ? 0.3 : o.fwd;
+  const lat = Math.max(0, R + rt - o.bite), fw = o.fwd == null ? C.genDriveSpec(def).hub / 2 : o.fwd;   // G2035: in the disc (the hub's band; it stood 0.3 m ahead, which only the old 1 m band reached)
   // to the aeroplane's left of the hub (away from the cabin on the twin's left engine: -z is its side)
   const sd = hz < -0.3 ? -1 : (hz > 0.3 ? 1 : -1), lx = -uz * sd, lz = ux * sd;
   TH.set('fill:test', [hx + ux * fw + lx * lat, hz + uz * fw + lz * lat, elev - 0.5, rt, elev + 10]);

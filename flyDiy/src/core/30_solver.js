@@ -1300,31 +1300,37 @@ function makeSim(def, world) {
         _pr[_prN * 2] = bi; _pr[_prN * 2 + 1] = k; _prN++;
       }
     }
-    if (_tkN && DMG_ON) propTrunk();
+    if (_tkN && DMG_ON) propTrunk(Math.sqrt(v2) * dtFrame);
   }
-  // G1470: A PROP STRIKE. The disc (diameter PR.D) about each engine's thrust nodes, from 0.2 m behind them to 1 m
-  // ahead along the thrust line - the prop of a nose tractor stands ahead of its mount nodes, a pusher's behind the
-  // nacelle node it is rigged on, and the band covers both: a trunk inside it (its circle within the disc's half
-  // span of the hub, its height spanning the disc's) stops that engine for good (eng.seized, reset() clears it).
-  // Only when trunkFrame found trunks in reach, so never in the open air.
+  // G1470: A PROP STRIKE - a trunk in an engine's disc stops it (graded by DMG-DRIVE, driveStrike). G2035 (DMG-DRIVE2):
+  // THE DISC IS WHERE THE BLADES ARE. The disc (diameter PR.D) stands at the engine's thrust nodes (the flange) across the
+  // hub's depth (GEN_NOSE.hub, the spec's material: a tractor's hub ahead of its flange, an engine without a nose either
+  // side of it); a trunk strikes once its circle reaches that band (or passed it within the frame's travel), and the
+  // BITE is the blade's span it meets: the disc's radius less the distance from the hub's axis to the trunk's nearest point
+  // in the band (its chord there across, its foot or top up or down) - at most R, the whole blade. Before, the band ran
+  // from 0.2 m behind the thrust nodes to 1 m ahead and the bite was the circle's lateral overlap R + r - lat: the user's
+  // Cub's 3 m/s trunk taxi was graded 0.87-0.95 m BEFORE the trunk reached the flange (0.2-0.3 s before the spinner
+  // touched; the engine seized there) at a bite of 1.31 R. Only when trunkFrame found trunks in reach, never in the air
   const ENG_N = def.refs.engine || [], ENG_K = def.refs.engineOf || ENG_N.map(() => 0);
-  function propTrunk() {
+  function propTrunk(trav) {
     bodyAxes();
     let hx = -xAft[0], hz = -xAft[2]; const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
-    const Rp = PR.D / 2;
+    const Rp = PR.D / 2, th = DRV.sp.hub;
     for (let k = 0; k < eng.length; k++) {
-      if (eng[k].seized && !(DRV && DRV.st[k].strike !== 'separation')) continue;   // G1826: an engine stopped by an overspeed still strikes (a stopped prop in a trunk is a strike: the bill's teardown)
+      if (eng[k].seized && DRV.st[k].strike === 'separation') continue;   // G1826: an engine stopped by an overspeed still strikes (a stopped prop in a trunk is a strike: the bill's teardown)
       let cx = 0, cy = 0, cz = 0, c = 0;
       for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const e = ENG_N[j] * 3; cx += p[e]; cy += p[e+1]; cz += p[e+2]; c++; }
       if (!c) continue;
       cx /= c; cy /= c; cz /= c;
+      const a0 = NOSE && NOSE[k] ? 0 : -th, a1 = th;  // the hub's band along the heading, from the thrust nodes
       for (let t = 0; t < _tkN; t++) {
-        const o = t * 5, dx = _tk[o] - cx, dz = _tk[o+1] - cz, ax = dx * hx + dz * hz;
-        if (ax < -0.2 - _tk[o+3] || ax > 1 + _tk[o+3]) continue;
-        const lx = dx - ax * hx, lz = dz - ax * hz;
-        const lat = Math.hypot(lx, lz);
-        if (lat > Rp + _tk[o+3] || cy - Rp > _tk[o+4] || cy + Rp < _tk[o+2]) continue;
-        propStrike(k, 'trunk', Rp + _tk[o+3] - lat, 'rigid');   // G1826: the bite, its circle's reach into the disc
+        const o = t * 5, rT = _tk[o+3], dx = _tk[o] - cx, dz = _tk[o+1] - cz, ax = dx * hx + dz * hz;
+        if (ax - rT > a1 || ax + rT < a0 - trav) continue;
+        const e = ax > a1 ? ax - a1 : ax < a0 ? a0 - ax : 0, h = e < rT ? Math.sqrt(rT * rT - e * e) : 0;
+        const lat = Math.hypot(dx - ax * hx, dz - ax * hz), ly = Math.max(0, lat - h);
+        const vy = _tk[o+2] > cy ? _tk[o+2] - cy : _tk[o+4] < cy ? cy - _tk[o+4] : 0, dmin = Math.hypot(ly, vy);
+        if (dmin >= Rp) continue;
+        propStrike(k, 'trunk', Rp - dmin, 'rigid');   // the blade's span the trunk meets (G1826's grade on it)
         break;
       }
     }
@@ -1586,8 +1592,8 @@ function makeSim(def, world) {
   // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
   function driveStrike(k, what, bite, surf) {
     const e = eng[k], st = DRV.st[k], S = DRV.sp; if (!e || !st) return;
-    const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60;
-    const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip);
+    const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60, w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
+    const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip, S.Ub > 0 && surf === 'rigid' ? 0.5 * S.I * w * w / S.Ub : null);   // G2036
     if (tier <= GEN_DRIVE_STRIKE.indexOf(st.strike)) return;
     const first = !st.strike;
     st.strike = GEN_DRIVE_STRIKE[tier]; st.teardown = true;
