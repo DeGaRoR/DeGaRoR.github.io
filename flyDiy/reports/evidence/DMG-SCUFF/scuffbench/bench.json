@@ -73,7 +73,16 @@
      "view": "pane",
      "ok": true
     }
-   ]
+   ],
+   "cost": {
+    "plain": 7171.4000000003725,
+    "armedOff": 7662.5,
+    "armedIntact": 7582.699999999721,
+    "armedFull": 11253.5,
+    "links": 0,
+    "ratioFull": 1.569,
+    "ratioIntact": 1.057
+   }
   }
  }
 }
