@@ -58,7 +58,8 @@ if (argv[0] === '--part') {
       const T = C.GEN_DRIVE.strike.turf;
       // (the disc set 2 cm past the turf with the nose RISING at 0.3 m/s: one touch, then the tail settles - at rest the Jodel's would tip on over)
       { const r = D.noseOver(k, Object.assign({ V: -0.3, gap: -(T + 0.02), thr: 0.2, secs: 2 }, o)); out.brush = { running: r.running, d: (r.drive || []).map(slim), finite: r.finite }; }
-      { const r = D.trunkStrike(k, Object.assign({ V: 3, thr: 0.3, across: 0.75 }, o));   // G2035: in the disc, clear of the spinner out.trunk3 = { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }; }
+      // (G2035: the trunk in the disc, 0.75 m across - clear of the spinner, which takes a centred 3 m/s taxi before the blades reach it)
+      { const r = D.trunkStrike(k, Object.assign({ V: 3, thr: 0.3, across: 0.75 }, o)); out.trunk3 = { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }; }
     } else {
       out.noseIn = [{ V: 25, sink: 5, pitch: 20 }, { V: 41.7, sink: 10, pitch: 60 }].map(c => { const r = D.noseIn(k, Object.assign({ thr: 0.2 }, c, o));
         return Object.assign({}, c, { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }); });
