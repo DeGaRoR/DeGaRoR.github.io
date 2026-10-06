@@ -78672,3 +78672,103 @@ GATES PREMISES, CABIN, LIFE PASS. Not done: forestK 0.5 on potato (-37..-49 k, ~
 density, not the reach) - dropped.
 THE POTATO TAXI, ALL TOLD (FRAMECOST census, the Cub, potato): 4.13 M (train 31's 1 px patch) -> 3.42 M (G1527 + G1528 + the
 cabins) - ~-4 ms on the GTX 660 by G1527's fit.
+
+
+## G2060 - METLA-COOK: THE TOWN'S FIRST VISIT COSTS WHAT A WARM ONE DOES (+10 s GARAGE, NOTHING IN THE TAXI); THE HOUSE CACHE NOW HITS ACROSS THE TOWN SWITCH; WHAT IS LEFT IS METLAKATLA'S GEOMETRY BUILT IN THE HOME GARAGE LOAD - THE TOWN STAYS OFF (2026-10-06, METLA-COOK for A0, local GPU; branch claude/metla-cook-g2060 off train 37b 068584d6; G2063-G2064 unused)
+
+**READY for A0.** Three commits on 068584d6: 4153a5be (the cook's order + the rigs), fa0bea0c (the re-cook), and this
+HANDOVER with tools/perf/metla_boot_steps.js, metla_boot_prof.js and the evidence (tools/perf/metla_cook_g2060.json).
+Tools and data only: no src/ change, no generated file. The town-off page fetches the same files and reads the same bits.
+
+**VERDICT.** On train 37b with this branch, the town's FIRST visit (a profile warm for the town-off page, never loaded
+with the town) costs the same as a warm town-on visit. The town costs **+10 s of garage load, cold or warm**. The
+roll-out, the taxi and the pass cost nothing measurable. Train 35's first visit (+26 s garage, taxi 47 % uneven) did not
+reproduce. The 10 s are CPU work in the garage load, every load: Metlakatla's patch and roads built and its records
+composed, 9 km from HOME. That fails the user's load-time rule, so the town should stay OFF until G2062's next step.
+
+**G2060 THE FIRST VISIT, IN NODE** (tools/perf/metla_keys.js: GATE FRAMECOST's census with the town off and on, every
+program with its step, key, GLSL hash and stack, and in flight what the compile was for).
+- **Programs.** The town changes no shared program source: 0 of 352 differ. At HOME (garage, roll-out, stand, taxi) it
+  adds 7 light programs (two tree materials, the town kit's batched plain, glass and depth programs, two depth variants).
+  All 7 are prelinked under the garage screen, and nothing links in flight at HOME. 15 more link in flight only over
+  Metlakatla itself (FRAMECOST_METLAKATLA's view): the HLOD near groups' house_tarr materials with the craft lights, an
+  sRGB / no-uv twin, two props. Those are a cost of the overflight, not of the HOME scenes (see G2062).
+- **The house cache (G2061 below).** The house worker's cache keys each house on its tallies. The town variant's cooked
+  tallies ran in RECORD order, with Metlakatla's entries interleaved (zones 2-25 of 28, sites 4-64 of 69, objects
+  50-89). So 131 of Jolene's 215 entries had other tallies with the town on. Proof in node (two _houseworker_check
+  children on one fake IndexedDB, town=0 first, then town=1): before, the town-on page regenerated 8 of the 92 houses
+  within reach (272 of 4 867 ms of generation). After, it regenerated 0 (92 hits). All 137 HOME entries are
+  bit-identical town on and off, both times. This is a real first-visit cost, but a small one.
+
+**G2061 THE COOK'S ORDER** (tools/premises_cook.js cookPlaces: `first`). A variant that adds entries to the base's (the
+town: 480 Metlakatla entries beside Jolene's 215) now cooks the base's entries first, in their own order, and its own
+entries after. Every base entry has the same tallies in both variants, so the same house, the same dressing and the
+same cache key. The page ranks its queue by id (rankQueue), so nothing on the page changes.
+- **Re-cook:** only `t_town` changed (2a9eb634 -> fe4cf589, a few KB) and 3 lines of the manifest. The town's places
+  hash is unchanged (84becec0d763fe34), as are the raster, every default file, and the default tallies.
+- **Gates:** GATE PREMCOOK PASS (the backwards build on the cooked tallies gives the cooked placements) and GATE MEDIA
+  PASS. HOUSEWORKER was not re-run: the default variant is byte-identical.
+- **Look:** unchanged at HOME. The 137 entries placed within reach were bit-identical town on and off before and after;
+  the 8 regenerated houses only had other cache keys. Metlakatla's own dressing tallies now start after Jolene's, and
+  its placements' hash did not move.
+
+**G2062 THE BOX** (RTX 3080, gamer, the Cub, 10:00-10:14 under the GPU lock; tools/perf/metla_ab.js `--warmup A`: the
+fresh profile's warm-up is a town-OFF load, then each slot in its own Chrome, A,B,B,A. Row 0 is the control for "the
+first relaunch after the warm-up": train 35's first B was both that relaunch and the town's first visit.)
+
+| row | garage | roll-out | taxi fps / uneven@30 / worst | pass fps / uneven@30 / worst / worst task | links (>5 s) | house worker at the garage |
+|---|---|---|---|---|---|---|
+| 0 A off (first relaunch) | 40.9 s | 11.9 s | 30 / 0.7 % / 50 ms | 30 / 2.0 % / 50 ms / 54 ms | 397 (1) | 92 hits, 0 built |
+| 1 B on, **first visit** | 52.1 s | 12.1 s | 30 / 0.2 % / 50 ms | 30 / 2.5 % / 67 ms / 70 ms | 404 (1) | 92 hits, 0 built |
+| 2 B on, warm | 51.4 s | 12.2 s | 30 / 0 % / 34 ms | 30 / 2.7 % / 50 ms / 55 ms | 404 (1) | 92 hits, 0 built |
+| 3 A off | 41.6 s | 12.1 s | 30 / 0 % / 34 ms | 30 / 1.3 % / 50 ms / 53 ms | 398 (1) | 92 hits, 0 built |
+
+- The taxi's CPU work per frame is 18.9 ms on vs 16.4-17.0 ms off: the render +2 ms and +150 draw calls (the far town
+  from HOME). The 30 cap hides it on this box.
+- **Where the +10 s go** (tools/perf/metla_boot_steps.js, A,B,B,A garage loads, BOOT.log's steps, medians):
+  - `world` 6.8 -> 12.3 s (+5.5)
+  - `compile` 1.7 -> 3.7 s (+2.0)
+  - `settle` +0.6, `bake` +0.4, `upload` +0.4
+  - `frames` + `firstFrame` -1.6 s
+  - Garage 41.2 -> 50.4 s.
+- **What the main thread does** (tools/perf/metla_boot_prof.js, a CDP profile of one load each): busy 37.3 -> 44.8 s,
+  +7.5 s. Inclusive, on - off:
+  - render_premises rebuildSteps +3.8 s: buildPatchSteps 1.8 s (the 2 m patch over Metlakatla through groundB ->
+    terrainHBuild -> the cooked raster's tile decode; stripKeep 1.0, patchDrop 0.6) and buildRoadsSteps 1.65 s
+    (roadGeometry 1.3 s; the edge distances distPtSeg / sdPoly / roadDist: hyp2's self time alone 1.6 s).
+  - setPremises / compose +1.6 s (116 modifiers against 43; sowPlots 0.9 s, planForest 0.7 s).
+  - makeWorld +0.8 s.
+  - The garage's warm draws +1.2 s.
+- **Train 35's +26 s / 47 % first visit did not come back.** Not by the cache fix alone: that is ~0.3 s of house
+  generation. Either it was A0's slot (the first relaunch after a warm-up whose disk caches the next Chrome had not
+  found) or something trains 36-37 fixed. Row 0 says the relaunch itself costs nothing today. I cannot tell which.
+
+**THE DEFAULT - PROPOSAL: OFF**, until the HOME garage stops building Metlakatla. With the town on:
+- garage +10 s (+24 %), cold and warm
+- roll-out +0.2 s
+- taxi: the same (uneven@30 0-0.2 % against 0-0.7 %)
+- pass: +0.5-1 point uneven (2.5-2.7 % against 1.3-2.0 %), its worst frame 67 against 50 ms once
+- render CPU +2 ms a frame
+
+The user's rule (Metlakatla only if every objective passes) fails on the load time alone.
+
+**NEXT (A0's call; not started):** TOWN-GEO. Build Metlakatla's patch chunks and roads by REACH, like its houses (the
+premises stream, 6 km), or cook them offline. Then the HOME garage would build only HOME's geometry.
+- Expected: -3.5 to -5 s of the 10.
+- Trap: sinkFar sinks the far ground 4 m under every premises, so an unbuilt patch must keep its sink or be built
+  before the eye comes near.
+- The composition (+1.6 s) and makeWorld (+0.8 s) are the rest.
+- An exact speed-up of the edge distances, i.e. a bounding-box test before hyp2, would help town off too. It touches
+  27_premises.js (flight_core): the cook's signature and FLYDIY_BUILD move.
+- The overflight's 15 in-flight links (G2060) are a separate item: prelink the house_tarr near-group variants with the
+  craft lights in worldCompile when the town is on.
+
+**THE RIGS** (all under tools/perf; read their headers, never --help):
+- metla_keys.js: the program census (see G2060).
+- metla_ab.js:
+  - `--warmup A|B`: the warm-up's side.
+  - A fresh Chrome for the first slot after a warm-up too.
+  - The house worker's hits and misses at each garage and in `check`.
+- cessna_links.js: a load may carry its query (`cub@town=1`): which slow links are new sources.
+- metla_boot_steps.js: the garage load's steps, on - off.
+- metla_boot_prof.js: the garage load's CPU, on - off.
