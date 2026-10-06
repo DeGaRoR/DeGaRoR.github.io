@@ -1,0 +1,16 @@
+node sim.step(1/60), 900 steps after 300 warm-up, nothing touching (a flat world at 300 m, a far trunk set); base = claude/dmg-tune 849058d8's core built in a worktree; pairs alternate the order; one process at a time, the cloud box (4 cores, idle otherwise). damage ON here is D1a's physics (no certificate: the certificate's stamp is build time).
+cub ground dmg0      base 2.109 ms mine 2.087 ms  median-of-medians -1.0%  pair median -0.5% n 6
+cub ground dmg1      base 2.057 ms mine 2.055 ms  median-of-medians -0.1%  pair median -0.9% n 6
+cub air dmg0         base 2.690 ms mine 2.863 ms  median-of-medians 6.4%  pair median 5.8% n 6
+cub air dmg1         base 2.756 ms mine 2.743 ms  median-of-medians -0.5%  pair median -0.8% n 6
+metal ground dmg0    base 3.531 ms mine 3.570 ms  median-of-medians 1.1%  pair median 0.6% n 6
+metal ground dmg1    base 3.669 ms mine 3.679 ms  median-of-medians 0.3%  pair median 0.3% n 6
+metal air dmg0       base 4.432 ms mine 4.398 ms  median-of-medians -0.8%  pair median -1.6% n 6
+metal air dmg1       base 4.592 ms mine 4.647 ms  median-of-medians 1.2%  pair median 0.7% n 6
+composite study {"k":"jodel","where":"air","dm":"1","ms":5.0139,"broken":0,"yields":0}
+composite study {"k":"composite","where":"air","dm":"1","ms":5.0129,"broken":0,"yields":0}
+composite study {"k":"jodel","where":"air","dm":"1","ms":5.1815,"broken":0,"yields":0}
+composite study {"k":"composite","where":"air","dm":"1","ms":5.8994,"broken":0,"yields":0}
+composite study {"k":"jodel","where":"air","dm":"1","ms":4.8293,"broken":0,"yields":0}
+composite study {"k":"composite","where":"air","dm":"1","ms":4.5466,"broken":0,"yields":0}
+cub air dmg0 x12: base 2.747 mine 2.713 -1.2% pair median 0.5%

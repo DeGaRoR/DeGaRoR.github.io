@@ -78841,3 +78841,154 @@ the pinned pairs on the box.**
    as D2b found for the Jodel.
 5. **Perf on the box**: the cloud's process noise (an identical core against itself reads +1.7 % / pair +2.8 %) is the size of the gate.
 6. The materials' rows (4130 ~11 % under MIL-HDBK-5, 2024 ~6 % over; no plywood row) - reported, not changed.
+
+## G2047-G2049 DMG-COMPOSITE - SOMETHING MADE OF GLASS FIBRE: E-GLASS / EPOXY AS THE GARAGE'S SIXTH CONSTRUCTION, THE CARBON ROW'S CRASH LIMITS A LAMINATE'S (NOT THE UD COUPON'S), COMPOSITES BREAK BRITTLE (NO SET, BONDS, LAMINATE FITTINGS, THE SANDWICH'S CORE), THE SHELL CRACKS; THE JODEL IN GLASS CERTIFIES (BROKE AT 6.11 g), FLIES A CIRCUIT AND FRAGMENTS (2026-10-07, DMG-COMPOSITE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-composite off origin/claude/dmg-tune 849058d8; damage stays OFF by default)
+
+**The ask (the user, 2026-10-06): "I would also like to see ... something made out of glassfiber/carbon" crash.** In scope as an
+explicit request (the standing rule is validated aircraft only): the build is the VALIDATED Jodel's geometry, its material
+switched the garage's way - no archetype's tuning. Node only: nothing here was rendered; the coordinator shoots the stills.
+
+### 1. THE MATERIALS (G2047) - 60_gen_spec.js GEN_MATERIALS.glass, GEN_CRASH carbon / glass, GEN_SURF_MATERIALS.glass
+Every source AS RECALLED - nothing was opened in this session; A0 opens them before a number becomes a gate.
+| | E-glass / epoxy (new) | carbon / epoxy (the row, checked) | source (as recalled) |
+|---|---|---|---|
+| stiffness (phys.E) | 20 GPa (QI / woven, Vf 0.40-0.50) | 135 GPa kept - the UD fibre-direction number, GATE FLEX's comparison; a QI carbon laminate is 45-55 | MIL-HDBK-17-2 / CMH-17 Vol 2; Hexcel 7781, Gurit SE 84 datasheets |
+| density | 1900 | 1550 | glass 2540 / epoxy 1150-1200 at Vf 0.45 |
+| tension (GEN_CRASH ty = tu, brittle) | **300 MPa** (QI / BID + UNI wet layup 250-350) | **600 MPa** (was the UD coupon's 1500; QI AS4/3501-6, T300 fabric 500-650) | CMH-17 QI laminate tables; Rutan's BID / UNI class |
+| compression (cy) | 180 (0.6 x) | 360 (0.6 x; was 1500) | CMH-17 QI and open-hole compression; compression after impact lower |
+| interlaminar shear | 40-60 MPa | 70-90 MPa | short-beam shear, CMH-17 (the delamination; stated, the bond row stands for it) |
+| strength scatter (seeded, plain members) | +-10 % | +-10 % | CMH-17 B-basis CoV 5-10 % |
+| a fitting in the laminate (fitE) | 0.5 of the laminate | 0.5 | Hart-Smith, NASA CR-144899 / CR-3271 (1976-80): bolted composite joints seldom over 0.5 |
+| the sandwich's core (tauC, cC, tS) | 0.9 MPa, 9.5 mm, 0.8 mm skins | 0.9 MPa, 9.5 mm, 0.6 mm | Divinycell / Airex H60-H80 0.8-1.2 MPa; 3/8 in cores, 2-3 plies (VariEze / Long-EZ, Glasair) |
+| mass (lin, cover) | x1.3 / x1.25 the carbon row's | unchanged | a glass glider's structure +20-30 % over its carbon successor (ASW 19 / 24, LS4 / 8 class) |
+| k / c | the carbon row's x0.5 (fus, wing), c by root(k m) (x0.81); the gear's row the carbon's | unchanged | E x A: 20 / 50 GPa on 1.3 x the section |
+- The garage: **the construction tile's sixth stop, 'glassfibre'** (cage intCons 5 -> spec.fuselage.material 'glass'; the
+  surfaces' rows wgCons / finCons / stCons 6 -> 'glass'; appended last, so every save keeps its index), GEN_SURF_DEFAULT(_TAIL)
+  glass -> glass, GEN_BUILD_GRAMMAR.glass = the carbon moulding's (no fasteners, the parting line), a white gelcoat finish
+  (aeroskin 'gelcoat', AERO_BY_CONS.glass), the composite shop, the composite access rule (no laced rings / screwed panels:
+  `genComposite(m)`), the wet body's row (32_hydro WB_MAT), the cowling's kg/m2, the join's states (GEN_FIELDS). The cage
+  interior draws glass as it draws carbon (the moulded shell's idiom).
+- **No validated build uses either row** (Cub tube, Jodel wood, Cessnas alloy, the twin aluTube): their stamps, certificates and
+  bytes are untouched (section 5).
+
+### 2. THE FAILURE MODEL (G2048) - 30_solver.js dmgMember / beamKink / the trunk contact; 61_gen_frame.js dmgSeamIn; skin_break.js
+A laminate goes from elastic to in pieces. On a build with a laminate member (CMP / PCORE, typed arrays - null on every other
+build: "no cost when intact" and no new field on the beam objects):
+- **No plastic set.** Tension breaks at its strength (etu 0); compression past cy is crushed through at once (ecu 0: broken, its
+  kink floor still pushes - the crushed shell is still in the way); BENT by a trunk it does not fold and hang on (thf 0): it
+  cracks at its FRACTURE moment (the thin tube's elastic section A D / 4, not the plastic A D / pi) - beamKink returns before
+  noteSet, booking no work (a crack's G_c x area is joules).
+- **A seeded scatter** (+-10 %) on the plain members, both ways; the certificate keeps it upward only, as spruce's.
+- **Glue lines (bond, D1a's 0.6-0.8 of the member, seeded):** the ribs and box webs of a glass / carbon wing and tail (as wood's),
+  the cabin-to-tailcone joint, and NEW: **the moulded shell's two halves bonded at the centreline** (a member of one ring from the
+  left side to the right: the crown, the floor, the frame's diagonal - the glider's and the Glasair / Long-EZ kit's left and
+  right shells taped at the crown and the keel). On the glass Jodel: 189 bonds, 78 fittings, 10 openings.
+- **Fittings in the laminate** at fitE 0.5 (Hart-Smith) x D1a's 1.15.
+- **The sandwich's core in shear (delamination):** a trunk's transverse load on a member is held to min(its fracture moment's
+  collapse load, PCORE = 2 tauC b cC, b = A / 2 tS) - past it the skin parts from the core, broken 'core'.
+- **The skin cracks (skin_break.js shellTear, app.js brkComposite):** a carbon or glass covering's watched triangle is gone past
+  **5 % + 1 cm** over its rest (a laminate breaks at 1-2.5 % strain; + the lattice's own elastic give) - never fabric's 15 %, never
+  sheet metal's 40 %; no drape. The event's rule (a triangle across a break or two pieces removed) gives the large pieces; the
+  crack the jagged edges between them.
+
+### 3. THE BUILD (G2047) - builds/composite_jodel_2026-10-07.json
+The validated Jodel D112 (builds/jodel_2026-09-20_corrected.json) with the construction tile on glassfibre (intCons 2 -> 5), every
+surface 'as the aeroplane' (glass wing, fin, stab), the member screws off (memFast 0: a moulding has none), registration F-PGLA.
+Geometry, engine, gear, paint untouched.
+| | Jodel (wood) | **Jodel in glass** | Jodel in carbon (report) |
+|---|---|---|---|
+| mass as flown (kg) | 463.0 | **513.4** (fuselage +19, wings +31: a moulded wing against fabric over a ply D-box) | 458.8 |
+| CG % MAC | 26.6 | **29.3** | 24.7 |
+| V_S (m/s) | 18.90 | **19.42** | 18.36 |
+| the pilot's circuit from HOME | completed, 360 s | **completed, 413 s** (ROLL > LIFTOFF > ... > FLARE > ROLLOUT > STOPPED, n_z max 1.69; on the certificate: 0 yields, 0 broken) | - |
+| BROKE AT (band [5.70, 6.13] g) | 6.05 g | **6.11 g** (wing0L:root, a fitting; first member a glue line in the wing box) | 6.14 g (0.01 over) |
+| set on the bench at 1.0 / 1.2 x the limit, at the ultimate | 0 / 0, HELD | **0 / 0, HELD, 0 broken** | - |
+- genCertify unchanged (**GEN_CERT_V 4**): no new case was needed - the laminate's brittle stamp is D2a's rule for spruce.
+- Glass is the build: the user asked for glass fibre first, and it is the homebuilt's material. The carbon variant flies the same
+  file on the composite tile and is reported only (its card 0.01 g over the band: not chased).
+
+### 4. THE CRASHES (G2049) - reports/evidence/DMG-COMPOSITE/crash_table.md, broken_by_crash.svg, member_work.svg
+DMG-TUNE's standard crashes, damage ON, the certificate stamped; references in words AS RECALLED (BFU / AAIB glider field-landing and
+tree reports, NTSB Glasair / Lancair / Cirrus / Long-EZ briefs, NASA Langley's composite GA crash tests - none opened). Members
+broken (member work kJ):
+| crash | Jodel in glass | Jodel in carbon | Jodel (wood) | metal Cessna | glass plausible |
+|---|---|---|---|---|---|
+| 3 m/s taxi | 1 (1.1) | 0 (0.9) | 0 (0.7) | 1 (1.0) | yes |
+| nose-over, 35 cm stump | **36** (0.1) - gear 7, tail 26, wings 2; fin 5 kg and tailwheel off | 3 (0.2) | 3 (1.6) | 7 (3.6) | **NO** |
+| 30 m/s centreline | **238** (10.4) - 27 pieces: the engine, both wings, the shell in 11 body pieces of 4-37 kg, the tail in pieces | 174 (9.3) | 154 (32.2) | 178 (65.8) | yes |
+| 30 m/s, 2.5 m out | 139 (1.0) - the struck wing in two pieces, the other off whole, engine ON | 66 (0.6) | 96 (5.1) | 26 (9.1) | yes |
+| drop 1.5 x 23.473 | 0 (0.0) | 0 | 0 | 0 | yes |
+- **Brittle, as asked: no laminate member is ever set and whole** (0 in every crash); the glass breaks by tension 52, bonds 51,
+  fittings 15 + their groups 50, crushed 8 (the centreline). **The members' work is a third of the wood's and a sixth of the
+  metal's** (10 / 32 / 66 kJ at 30 m/s): a laminate does not crumple, it parts - the energy the aeroplane loses is the same (the
+  trunk stops it: 256 / 231 / 441 kJ taken), it goes into the contact and the pieces' motion, not the structure. The composite
+  references say the same in words ("little plastic deformation", "fragmented").
+- **The shell** over the centreline crash (GATE DMGCOMPOSITE 5): no live triangle past 5 % + 1 cm on any frame, the skin on 11
+  pieces; **70 % of the generated wing / tail skin's triangles go** (4514 of 6430; 3838 cracked) - the confetti follows the 238
+  breaks, not the bound (8 % / 12 %: 66 / 59 % gone). On the box this may read as too little shell left: the coordinator's eye.
+- **NOT plausible: the glass nose-over** (36 against the wood's 3). It does not go over (pitch max 14 deg, upright): after the
+  gear's axle bar (2.97 s) the tail slams back onto its tailwheel and the stab's fittings go from -0.15 of their limit to past
+  their break in ONE substep (3.32 s), then the fin's root cut and the tailwheel's group. Not the fittings' efficiency (fitE 1.0:
+  still 34, and the card leaves the band at 6.16 g). The glass tail's fittings sit on the body floor (0.5 x a laminate's
+  physics, half the wood's); the slam's spike is the lever - the tailwheel's bracket passing the impact into the tail truss.
+  Reported, not tuned.
+- The carbon variant breaks less than the glass everywhere (twice the strength on a lighter section) and its nose-over is the
+  wood's (3).
+
+### 5. VALIDATED AIRCRAFT UNTOUCHED - and a finding (reports/evidence/DMG-COMPOSITE/validated_hashes.txt, jit_finding.txt)
+- **Damage OFF = the base's bytes:** the Cub, the Jodel and the metal Cessna into the 30 m/s trunk, sha1 of p and v, base 849058d8
+  built in a worktree = this branch (GATE DMGCOMPOSITE's last check, off_ref.json).
+- **Damage ON, their crash numbers unchanged:** the 30 m/s centreline and the nose-over on the certificate, all six hashes equal
+  the base's (Cub 125 / 7, Jodel 154 / 3, metal 178 / 7). No shared code path changes for a build without a laminate member.
+- **THE FINDING (G2048): the 30 m/s numbers move with V8's optimiser.** A first cut added one untaken branch to beamYield (a
+  `return` after the kink, never fired - counted and instrumented) and the Jodel's centreline went 154 -> 204 broken (Cub 125 ->
+  169, metal 178 -> 208; the nose-overs identical); `node --no-opt` gave 154 for both trees, and so did the same branch with an
+  instrumented push. Removed (not needed: the crushed laminate member is broken in the same step), the bytes are back. **Every
+  30 m/s count in the DMG gates and tables can move with an unrelated edit to the solver's hot functions** - most likely an
+  operation whose float result differs between V8 tiers on that path; not isolated here.
+
+### THE GATES (targeted; reports/evidence/DMG-COMPOSITE/gates/)
+`GATES_CORE=1 run_gates --only=DMGCOMPOSITE,TREECRASH,TREEHIT,BUILD,LOAD,JOIN,SKINMAT,DMGCERT,DMGCERTCOST,DMGGEAR,DMGINST,DMGFPS,
+DMGINTEGRITY,DMGMEMBERS,DMGCLUSTERS,DMGWIND,DMGDRIVE,DMGSKIN,DMGWALL --verbose --jobs=3` (gates/battery.txt, 4807 s wall): **16 PASS, 3 FAIL**, then:
+- **JOIN FAIL -> fixed, PASS:** its clamp check pinned the last construction tile to aluTube (G466); the sixth stop is glass now
+  (_join_check.js: the per-tile sweep covers intCons 0..5, the clamp lands on glass).
+- **DMGCOMPOSITE "FAIL" -> fixed, PASS:** the gate passed 13 / 13 but printed its verdict with a suffix; run_gates reads the bare
+  `GATE <ID>: PASS` line. Re-run through the runner: DMGCOMPOSITE PASS, JOIN PASS (gates/rerun_dmgcomposite_join.txt).
+- **DMGWALL FAIL on one case, the Jodel's 30 m/s centreline: the base's** - the same 2.224 % past 1 mm, 6038 past 1 cm, 1923 past
+  5 cm that DMG-TUNE reported red on claude/dmg-tune (its open; this branch flies the Jodel on the base's bytes). Not touched.
+- TREECRASH, TREEHIT, BUILD, LOAD (the glass rows in: the cantilever, the strut and the tail survive the ultimate, linear),
+  SKINMAT (the gelcoat finish), DMGCERT, DMGCERTCOST (its reference not rewritten), DMGGEAR, DMGINST, DMGFPS, DMGINTEGRITY,
+  DMGMEMBERS, DMGCLUSTERS, DMGWIND, DMGDRIVE, DMGSKIN PASS.
+- **GATE DMGCOMPOSITE --selftest PASS** (gates/selftest.txt): the real run clean; each of its 13 checks doctored red alone; the
+  glass row made ductile (etu 0.02, ecu 0.03, a fold) sets 30 members in the centreline crash and 3 in the nose-over - caught.
+
+### PERF
+Nothing new runs per substep on a build without a laminate member (CMP / PCORE null; the trunk contact's one null test). Node
+sim.step(1/60), nothing touching, base 849058d8's core against this branch, 6 alternating pairs a cell (perf/perf.txt): the Cub
+ground -1.0 / -0.1 % (damage off / on), air +6.4 / -0.5 %, the metal Cessna ground +1.1 / +0.3 %, air -0.8 / +1.2 %. The Cub's
+air +6.4 % re-measured with 12 pairs: -1.2 % (pair median +0.5 %) - the box's noise (DMG-TUNE: a byte copy of the core against
+itself +1.7 %). The glass Jodel against the wood one in the air, damage on: 5.01 / 5.01 ms a step (medians of 3), the same.
+**Re-measure the pinned pairs on the box.**
+
+### THE FILES
+- src/core/60_gen_spec.js (GEN_MATERIALS.glass, GEN_CRASH carbon / glass, GEN_SURF_MATERIALS.glass, genComposite, the defaults,
+  the grammar, the access rules, the tables), 61_gen_frame.js (the seams), 30_solver.js (the laminate's limits, the crack, the
+  core), 32_hydro.js, 26_hangar_fit.js; src/viewer/skin_break.js (shellTear), app.js (brkComposite), aeroskin.js (gelcoat);
+  tools/_cage_ui / _page5 / _join / _wing / _fin / _stab / _hinge / _design / _gen.js (the sixth stop); builds/composite_jodel_2026-10-07.json.
+- tools/_dmg_composite_lib.js (the runs), _dmg_composite_check.js (GATE DMGCOMPOSITE, registered in run_gates.js, core tier),
+  dmg_composite_evidence.js (the table and the plots); _join_check.js (the sixth stop).
+- reports/evidence/DMG-COMPOSITE/: crash_table.md / .json, broken_by_crash.svg, member_work.svg, validated_hashes.txt, off_ref.json
+  (the gate's reference), jit_finding.txt, experiments.txt, gates/, perf/.
+
+### Open (the coordinator / A0)
+1. **The glass nose-over's tail slam** (section 4): the tailwheel's bracket and the tail fittings' body floor on a laminate - the
+   coordinator's (D2b's gear bracket or a tail case on the certificate).
+2. **The shell's confetti** at 30 m/s (70 % of the generated skin gone): judge on the box; the lever is the binding (skin_break's
+   per-piece pose), not the crack's bound.
+3. The carbon variant's card at 6.14 g (0.01 over the band); the glass build is the one gated.
+4. **The JIT sensitivity** (section 5): the 30 m/s trunk counts are not a stable number under code edits - a gate that pins them
+   (TREECRASH's counts, the sanity table) should allow for it or pin node's flags.
+5. Sources: every number above AS RECALLED; A0 opens CMH-17 Vol 2 (QI laminate tables), Hart-Smith CR-3271, the foam datasheets,
+   and the BFU / NTSB composite reports before any of them becomes a gate.
+6. The cage editor's glassfibre stop is wired (the tile, the surfaces, the join, the design flow) but not seen: its icon is the
+   composite's, its interior idiom the carbon's; the gelcoat finish is untested on the box.
