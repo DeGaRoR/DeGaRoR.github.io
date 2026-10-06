@@ -1,0 +1,135 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=retro",
+ "preset": "retro",
+ "day": "",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 40,
+ "at": "2026-10-06T09:59:10.870Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (664 ms to flow)",
+   "frameGpuMs": 13.01,
+   "fps": 26.66,
+   "draws": 939,
+   "mtris": 10.26,
+   "groundMs": 6.59,
+   "groundN": 17,
+   "gdraws": 83
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "slots",
+   "strip": [
+    "slots"
+   ],
+   "knobs": {},
+   "how": "rekeyed (30431 ms to flow)",
+   "frameGpuMs": 11.57,
+   "fps": 29.99,
+   "draws": 340,
+   "mtris": 4.05,
+   "groundMs": 6.61,
+   "groundN": 17,
+   "gdraws": 52
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "same1",
+   "strip": [
+    "same1"
+   ],
+   "knobs": {},
+   "how": "rekeyed (25396 ms to flow)",
+   "frameGpuMs": 11.59,
+   "fps": 29.99,
+   "draws": 353,
+   "mtris": 4.28,
+   "groundMs": 7.09,
+   "groundN": 17,
+   "gdraws": 57
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "lazycoast",
+   "strip": [
+    "lazycoast"
+   ],
+   "knobs": {},
+   "how": "rekeyed (26558 ms to flow)",
+   "frameGpuMs": 12.27,
+   "fps": 29.99,
+   "draws": 356,
+   "mtris": 4.1,
+   "groundMs": 7.43,
+   "groundN": 17,
+   "gdraws": 52
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "cheap",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "nohex",
+    "notri",
+    "norecol",
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (12877 ms to flow)",
+   "frameGpuMs": 10.37,
+   "fps": 29.99,
+   "draws": 316,
+   "mtris": 3.57,
+   "groundMs": 3.82,
+   "groundN": 18,
+   "gdraws": 50
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "flat",
+   "strip": [
+    "flat"
+   ],
+   "knobs": {},
+   "how": "rekeyed (2119 ms to flow)",
+   "frameGpuMs": 7.22,
+   "fps": 29.99,
+   "draws": 312,
+   "mtris": 3.42,
+   "groundMs": 2.18,
+   "groundN": 17,
+   "gdraws": 53
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "plain",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed +1 gfx (651 ms to flow)",
+   "frameGpuMs": 8.9,
+   "fps": 29.99,
+   "draws": 330,
+   "mtris": 3.64,
+   "groundMs": 0.95,
+   "groundN": 17,
+   "gdraws": 54
+  }
+ ],
+ "errs": []
+}

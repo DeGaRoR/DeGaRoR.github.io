@@ -1774,7 +1774,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1251 B IN TWO CHANNELS (QUICK-BYTES): only (ndvi, terrain type) were ever read - .r and .g, which an RG8
       // texture returns unchanged - so B is RG8: 2 bytes a texel, not 4 (23.14 MiB on the 3095x3920 grid). A row is
       // 2 x 3095 = 6190 bytes, not a multiple of 4: the unpack alignment is 1 or every row after the first shears
-      const pk2 = (r, g) => { const make = () => { const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
+      const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
+        const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
       const tintRGBA = () => rgbTexels(ISLA.tint);
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
@@ -1793,7 +1794,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       Object.assign(gU, {
         uGTint: { value: tintTex },
         uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype) },
+        // (G2075, GROUND-COST: bit 7 of the type = the splat's vote window is one code - splat_ground oneCode; the GPU copy only)
+        // (a plain ground at the build skips it: no vote reads the bit, and a cell without it is only the full vote - correct either way)
+        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype ? () => (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND.oneCode && !(typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain')
+          ? SPLAT_GROUND.oneCode(ISLA.ttype, G.w, G.h) : ISLA.ttype) : null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
@@ -1824,7 +1828,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1521 (POTATO-DEEP): the GRAPHICS row's 'plain' ground at the build (potato) - the programs carry no splat and the
       // sets are never fetched until a step asks for them (gfx_settings.js apply: sp.plain(false))
       const GPLAIN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain';
-      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0 }) : null;
+      // G2075 (GROUND-COST): ...and the LEAN program at the build (retro: one set a type compiled in) - the row's own key from the first compile
+      const GLEAN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'lean';
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0, lean: GLEAN0 }) : null;
       // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
       // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
@@ -1846,10 +1852,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1521: ...and the PLAIN ground (the 'ground' row's cheapest step): the splat's text out of every ground program
       const groundPlain = () => !!(SPL && SPL.api.plain());
       let groundPlainNow = groundPlain();
-      groundSync = () => { const f = groundFull(), p = groundPlain(); if (f === groundFullNow && p === groundPlainNow) return; groundFullNow = f; groundPlainNow = p; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
+      // GROUND-COST G2075: the measuring strips (splat_ground api.strip) key the programs apart too ('' = none, production)
+      const groundStrip = () => (SPL && SPL.api.stripKey ? SPL.api.stripKey() : '') + (SPL && SPL.api.lean && SPL.api.lean() && !SPL.api.plain() ? ':lean' : '');   // (+ G2075's lean program)
+      let groundStripNow = groundStrip();
+      groundSync = () => { const f = groundFull(), p = groundPlain(), st = groundStrip(); if (f === groundFullNow && p === groundPlainNow && st === groundStripNow) return; groundFullNow = f; groundPlainNow = p; groundStripNow = st; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
-      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '');
+      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '') + groundStrip();
       const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
         // G1521: the splat in this program, or not (the plain ground: none of its text, its arrays or its uniforms)
@@ -1860,6 +1869,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
@@ -1876,7 +1886,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'float gVnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
             '  return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' +
             (full ?   // the inspection's own helpers (groundFull, G1311)
-            'float gTT(vec2 uv){ vec2 gn = uGGrid.zw / uGCell; return texture2D(uGPackB, (floor(uv * gn) + 0.5) / gn).g; }\n' +
+            'float gTT(vec2 uv){ vec2 gn = uGGrid.zw / uGCell; return mod(floor(texture2D(uGPackB, (floor(uv * gn) + 0.5) / gn).g * 255.0 + 0.5), 128.0) / 255.0; }\n' +   // (G2075: bit 7 is the vote's one-code flag)
             // the class colours, DISTINCT (G405): tree, shrub, grass, crop, built, bare, snow, water, wetland, moss
             'vec3 gClassRow(int i){ if (i == 0) return vec3(0.02,0.45,0.05); if (i == 1) return vec3(0.75,0.55,0.05); if (i == 2) return vec3(0.65,0.95,0.20);\n' +
             '  if (i == 3) return vec3(0.95,0.30,0.75); if (i == 4) return vec3(0.35,0.35,0.35); if (i == 5) return vec3(0.02,0.10,0.95);\n' +
@@ -2043,6 +2053,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (SC && SC.lights_physical_pars_fragment) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>',
           SC.lights_physical_pars_fragment.replace('reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;',
                                                    'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'));
+        if (GSD) {   // GROUND-COST G2075: the strips the host owns - the IBL's radiance, the stack - then the defines on top
+          if (/GS_NOIBL/.test(GSD)) sh.fragmentShader = sh.fragmentShader.replace(/vec3 iblRadiance = getIBLRadiance\([^;]*;/, 'vec3 iblRadiance = vec3(0.0);');
+          if (/GS_NOSTACK/.test(GSD)) sh.fragmentShader = sh.fragmentShader.replace('  for (int i = 0; i < 5; i++) {\n    if (i < uLStart', '  t = tint;\n  for (int i = 0; i < 0; i++) {\n    if (i < uLStart');
+          sh.fragmentShader = GSD + sh.fragmentShader;
+        }
       };
       islandGroundHook = islandGroundHookFor(-1, true);        // the near ring (the rock map: 13 units)
       islandGroundHook0 = islandGroundHookFor(0, false);       // the twin (the premises patch: 15, no room)

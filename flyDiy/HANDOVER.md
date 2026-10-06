@@ -79780,3 +79780,70 @@ looking only.
 Build 53f482316b37 (assembly c22f17e2). Sessions: JOIN-PARITY OUT (reverted, -> train 39 with DMG-RECAL, the user's call); PILOT-ONE + PILOT-ONE-2 (G1935-G1949), HW-COVERAGE G1995-G1999 + ?diag v2 G1997b, POTATO-DEEP G1528-G1531 (the 6 px premises patch on every preset - the user's OK; the G1521 root fix: three's cached program kept the plain compile's uniforms, the interim reload removed), METLA-COOK G2060-G2062, WHEEL-AO G2055, JODEL-TAIL G2050, GARAGE-LAPTOP G2070-G2074 (shed shadow cache, glass by pane, the room merged 523 -> 16), SND-MIX G1720-G1724 + GATE AUDIO robust, DEADWOOD-BRIGHT G1975, SHORES-2 G1955-G1964, WATER-LOOK G2090-G2094 (splash waves from entry energy), MOBILE-GARAGE 1 G2100-G2104 (?profile=phone; desktop untouched); exports without makeAutopilot / makeTestPilot.
 Smokes after assembly: SIMWORKER, INPUT, UISMOKE, UISMOKE-PHONE, SPLAT PASS. Battery (--all, 6 jobs): every gate PASS, SOFTGPU SKIP (no basisu here). Strict gate (full, vs baseline 5a2c2e7e of 3 Oct): 95 within slack, 47 better, 15 RED - exactly train 37's standing set minus two (fuseLen busy, metal frame busy now within slack): the 30 fps cap rows (the user's stable-30 target: chase/cockpit/garage/taxi/water fps -> 30, loop/render +2 ms under the cap's pacing), the first garage -> world 12.0 s / warm first flight 58.7 s / round trip 11.8 s (37: 12.06 / 59.1 / 11.76). No row worse than live train 37. FRAMECOST named allowances: WHEEL-AO's bufferSubData, WATER-LOOK's garage:town +1 link / +11 calls and garage:snapshot +2 links.
 Next: re-baseline the accepted strict rows by name (the user: no standing reds).
+
+## G2075 - GROUND-COST: THE LEAN GROUND A QUARTER TO A THIRD CHEAPER WITH THE SAME PICTURE, ITS COLD LINK HALVED - THE SPLAT'S VOTE IN REGISTERS (D3D SPILLED ITS ARRAYS TO MEMORY), THE ONE-CODE CELLS VOTING WITH ONE TAP, THE LEAN ROW'S OWN PROGRAM; THE PART-BY-PART COST OF THE GROUND (2026-10-06, GROUND-COST for A0, local GPU; branch claude/ground-cost-g2075 off train 37b = 068584d6 - SHORES-2 (train 38) ported on a scratch merge, the rebase tonight; G2076-G2079 unused)
+READY for A0 - train 40 (2026-10-06 18:40; the night confirmation on the rebased tip below, by 08:00).
+
+WHY: the user's target - an even 30 on their GTX 1660 Ti laptop at retro. HW-COVERAGE's ?diag on the box: retro's GPU 12.8 ms at
+the stand, the LEAN GROUND 8 of it. The ground had to get several times cheaper per pixel.
+
+THE MEASUREMENT (new rig tools/perf/ground_cost.js; retro 1920x1080, RTX 3080, the frame uncapped - at the preset's 30 cap the
+clocks fall and one program read 5.7-7.6 ms row to row - the aeroplane paused on its stand, the eye moved only): every draw of the
+island ground's materials (GROUND_FAMILY) in its own TIME_ELAPSED query, summed per frame; each part STRIPPED at compile time
+(splat_ground api.strip / ?gstrip=: #define GS_<name>, the programs keyed apart) and measured against base, base2 for drift.
+The ground's own GPU ms (air ~290 m / taxi / stand):
+  base (train 37b's lean)        6.6 / 3.8 / 6.1
+  flat (the splat's code, returning at once)  0.84 / 0.67 / 0.78  - the splat is ~5.7 ms from the air
+  the vote's arrays -> registers -1.76 / -1.15 / -1.85  (THE biggest part: w[code] += k and C[n] = ... are indexable temps under
+                                 ANGLE/D3D - local memory)
+  the vote's taps 25 -> 4        -1.5 / -1.1 / -1.75 (a look change: not taken; the one-code cells below take the exact share)
+  the normal array's fetches     -1.3 / -1.2 / -1.85 (a look change)
+  hex tiling                     -0.75 / -1.0 / -1.5 (a look change; 'hexfar' - none past 300 m - -0.9 from the air, VISIBLE tiling)
+  triplanar / recolour / sRGB decode / IBL radiance / coast gradient / one set compiled in / aniso 16 -> 8: ~0 each (+-0.3)
+  a fetch branched off past the normal's fade (1400 m): ~0 - few pixels are that far; past 300 m a branch DOES skip work on D3D
+THE CHANGE (look-preserving; the register vote in the LEAN ROW'S OWN PROGRAM only - see COLD LINKS):
+- src/viewer/splat_ground.js: THE VOTE IN REGISTERS - the 5 x 5 kernel gathered into five (code, weight) slots by comparison,
+  the cells by texelFetch (sCodeAt(ivec2, gmax)); the sea's dry share, the lake as muskeg, the bank's handover (SHORES-2's code 17
+  in BANK_SLOT 1, every slot but 5/6 - rock's cliff split after at the same share) done per slot; the candidate loop runs the CODES
+  (uSNSlot = NCODE x 2, a code's weight read off the slots) and keeps the six heaviest in registers for the height blend - NO local
+  array left (GATE SPLAT holds it). BY CODE, NOT BY SLOT: a loop by slot sampled different sets in one iteration across a 2 x 2 pixel
+  quad (wrong texture levels: 2.5 % of the ground from 300 m sparkled, reports/evidence/GROUND-COST/g2075_slot_loop_speckles_FIXED.jpg).
+  THE ONE-CODE CELLS: oneCode(T, w, h) flags bit 7 of the type byte (the GPU copy only) where the cell's whole 5 x 5 window is one
+  code as the vote reads it - 35.8 % of Jolene's land - and those vote with ONE tap (the same weights exactly; 151 ms of CPU at the
+  build on Jolene's 12.1 M cells, skipped for a plain ground). THE SAME SETS: the near/far 'same' test on the sets a pixel wears
+  (forest's 81/3/0 vs 81/0/0 drew two identical samples of the 100-400 m band at lean). THE LEAN PROGRAM: SPLAT_ONE - one set a type
+  compiled in (the 2nd/3rd sets, their blend and the mix noise out); api.lean(), the host keys ':lean' (render_world groundKey) and
+  the build starts on it (GLEAN0, as G1521's plain) - no re-key on the load. The measuring strips stay (zero cost: no define, no key).
+- src/viewer/render_world.js: uGPackB's type channel carries the flag (pk2 takes a lazy array); gTT masks it; the strips' and the
+  lean program's defines and keys; the IBL / stack strips the host owns.
+- src/viewer/pavement.js: PAVTEST t4 pins the new code read (texelFetch) and the one-code path.
+- tools/_splat_check.js: the rules for the new vote (the candidate loop bound by uSNSlot, no local arrays, the one-code path masked),
+  oneCode against the 5 x 5 brute force on 200 000 of Jolene's cells (0 off), the alias rule reads the gather's lake turn; selftest
+  catches an array put back.
+- tools/perf/ground_cost.js (NEW), tools/perf/ground_diff.py (NEW: A | B | x4 diff and the numbers).
+
+RESULT (before = train 37b, after = this branch, the same session's rig, retro 1920x1080, 3080):
+  retro, ground ms           before   after            current (full programs), ground ms   before   after (= 37b)
+  air ~290 m                 6.75     5.20  -23 %      air ~290 m                           8.21     8.15
+  40 m                       5.57     4.33  -22 %      taxi                                 4.29     4.28
+  grass at taxi height       4.32     2.79  -35 %
+  taxi                       3.90     2.80  -28 %
+  stand                      5.47     4.30  -21 %
+  the frame from the air     9.15     7.6 ms
+THE LOOK: pixel-identical - ground pixels off by > 3 levels: 0.0 % from the air, <= 0.9 % at taxi / stand / 40 m (the noise floor),
+noon and golden (reports/evidence/GROUND-COST/*_before_after_x4.jpg).
+COLD LINKS (cold_links_bench, the ground's programs as the driver got them, fresh profiles; the four ground programs linked in
+parallel): retro 10.6 -> 4.9 s (the lean program is half the code). THE REGISTER VOTE IN THE FULL PROGRAMS (current and up) linked
+10.7 -> 15.2 s (+4.5 s on a cold first visit) for -14..-23 % of runtime - not bisected (four register candidates and a uniform-bound
+vote loop did not help); so the full programs keep train 37b's arrays (#ifdef SPLAT_ONE / #else): current links 10.4 s and draws as
+37b (rows above). Bisecting it would hand current its -20 % too (next).
+LAPTOP-EQUIVALENT (the FP32 ratio, 3080 29.8 TF / 1660 Ti mobile ~4.6 TF = 6.5x): the lean ground from the air ~44 -> ~34 ms, at
+taxi height ~28 -> ~18 ms; the retro frame from the air ~59 -> ~49 ms of GPU - not yet an even 30 on its own.
+
+NOT TAKEN (the look changes, for the user's call): no hex past 300 m (-0.9 ms from the air, visible tiling - REJECTED,
+reports/evidence/GROUND-COST/g2075_option_hexfar_REJECTED_tiling.jpg); fewer normal taps (one-tap hex normal -0.25: visibly flatter
+forest floor); a narrower vote far out. NEXT LEVERS: the ground UNDER the apron at the stand (half the screen there) is shaded in
+full - the pavement is a transparent decal drawn after it; a one-fetch skip where the paving is opaque, or an early stencil, would
+take most of the stand's ground; the normal array's cost (1.3-1.85 ms) is the biggest part left.
+FOUND: ground row plain -> lean LIVE left the ground drawing nothing in my rig (flat beige, its draws ~0 ms) - matching the laptop
+?diag's 228 -> 68 ms drift after its plain row (POTATO-DEEP G1521 took it; HW-COVERAGE the ?diag row order).

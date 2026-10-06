@@ -1,0 +1,121 @@
+{
+ "runs": [
+  {
+   "issued": 3,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring",
+     "ms": 14680,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 183633,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer",
+     "ms": 11993,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 162126,
+     "hlslVs": 11135
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin",
+     "ms": 10525,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 155229,
+     "hlslVs": 10887
+    },
+    {
+     "name": "island-fine",
+     "ms": 15317,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 183515,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "tools/perf/gcost/t8_prod_progs.json",
+   "wallS": 15.3,
+   "udd": "C:\\clb8_0"
+  },
+  {
+   "issued": 3,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring:gs-cand4",
+     "ms": 15294,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 183113,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer:gs-cand4",
+     "ms": 10988,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 161606,
+     "hlslVs": 11135
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin:gs-cand4",
+     "ms": 10678,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 154709,
+     "hlslVs": 10887
+    },
+    {
+     "name": "island-outer:gs-cand4",
+     "ms": 13626,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 162126,
+     "hlslVs": 11135
+    },
+    {
+     "name": "island-fine:gs-cand4",
+     "ms": 15394,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 182995,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "tools/perf/gcost/t8_cand4_progs.json",
+   "wallS": 15.4,
+   "udd": "C:\\clb8_1"
+  }
+ ]
+}
