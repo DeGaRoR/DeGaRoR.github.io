@@ -143,11 +143,13 @@
   // Everything that reads or writes depth by hand asks FLYDIY_DEPTH: the clouds' march and
   // composite, the post passes, the far cascade and the canopy cover.
   const RZ = (typeof window !== 'undefined' && typeof document !== 'undefined' && !window.FLYDIY_RENDERER && !(typeof location !== 'undefined' && /[?&]depth=log/.test(location.search))) && (() => {
-    try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); const ok = !!(g && g.getExtension('EXT_clip_control'));
+    try { const c = document.createElement('canvas'), g = c.getContext('webgl2', { powerPreference: 'high-performance' }); const ok = !!(g && g.getExtension('EXT_clip_control'));
       const lose = g && g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); return ok; } catch (e) { return false; } })();
   if (typeof window !== 'undefined') window.FLYDIY_DEPTH = window.FLYDIY_RENDERER ? 'node' : RZ ? 'reversed' : 'log';
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
-    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
+    // G1997b (A0, the laptop's ?diag: the context said powerPreference 'default'): a game asks for the HIGH-PERFORMANCE GPU - on a
+    // hybrid / laptop machine the fast GPU and its fast path; one GPU, nothing changes (the probes above and welcome.js ask the same)
+    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
