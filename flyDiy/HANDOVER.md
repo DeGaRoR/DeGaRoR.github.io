@@ -77377,8 +77377,9 @@ Cub East Point circuit 150 m     final 4 m over the slope at idle and 2.5 m/s fa
   (no flap)                      flare at 25.4 m/s (1.56 Vs), touched 213 m in,       in ground effect with 97 m left for a 134 m stop: round
                                  'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km):
                                                                                     landed there, 1.18 Vs, 0.4 m/s, run 158 m, 'completed'
-Cub Jumbo Mine circuit 250 m     SHORTFIELD_CUB_MN_BASE                              the 15 deg cone: 50 m over the slope at idle with the slip;
-  (no flap)                                                                         round twice ('past the aim'), divert
+Cub Jumbo Mine circuit 250 m     12.9 m over the slope, 4.9 m/s fast at idle; touched  the 15 deg cone: 50 m over the slope at idle with the slip;
+  (no flap)                      321 m past the aim at 1.43 Vs - ~100 m BEYOND the     round twice ('past the aim'), divert
+                                 250 m strip's end - 'completed'
 ```
 THE LIMITS FOUND (not the pilot's; for their owners): (a) THE SLIP IS WEAK IN THE SOLVER: 22 deg of sideslip at full
 rudder costs the Cub ~12 % of its L/D (9.7 -> 8.6), where a real Cub's full slip about doubles the sink - the body's

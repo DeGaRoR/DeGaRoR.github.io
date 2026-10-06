@@ -1,0 +1,24 @@
+piperCub (file tail) mn_strip calm · normal
+  ROLL@0 LIFTOFF@13.1 CLIMB@28.7 CROSSWIND@49 DOWNWIND@68.5 BASE@89.5 FINAL@113.1 GOAROUND@204.9 CROSSWIND@226 DOWNWIND@291.1 BASE@368.5 FINAL@392.1 GOAROUND@483.9 CROSSWIND@504.9 DOWNWIND@570.4 BASE@647.8 FINAL@671.4
+  take-off: run 115 m, lift-off 17.4 m/s · crosswind turn at 69 m
+  CROSSWIND overshoot    3 m  settle 8.9 s  roll reversals 0.5/min
+  DOWNWIND  overshoot    4 m  settle 8.6 s  roll reversals 0.5/min
+  BASE      overshoot    6 m  settle 9.9 s  roll reversals 0.8/min
+  CROSSWIND overshoot  333 m  settle 19.7 s  roll reversals 4.6/min
+  DOWNWIND  overshoot  201 m  settle 8.6 s  roll reversals 0.3/min
+  BASE      overshoot    6 m  settle 10 s  roll reversals 0.8/min
+  CROSSWIND overshoot  332 m  settle 20.1 s  roll reversals 4.6/min
+  DOWNWIND  overshoot  201 m  settle 8.6 s  roll reversals 0.3/min
+  BASE      overshoot    6 m  settle 10 s  roll reversals 0.8/min
+  final: captured at 151.1 s · above-slope rms 51.8 m · V-VAppr rms 2.15 (mean 1.61) · thr 0.05..0.83
+  departure: short · Vx 19.6 m/s · run needed 156 m of 250
+  circuit: left-hand at 115 m, join straight
+  approach: short · Vref 19.2 m/s · aim 15 m in · flap 0 · run needed 135 m of 250
+  control reversals /min (da dr de): takeoff 4 14 10 · climb 0 0 10 · legs 30.3 92.4 19 · downwind 13 3.1 0 · base 23.7 5.1 9.3 · final 4.2 5.7 17
+  ! 10.9s committed-takeoff: past the point of stopping at V=14.9 with 159 m left — Vr in 17 m, continuing
+  ! 154s slip: high on energy on the short final (+2.0 m at idle) — slipping it down
+  ! 205s go-around: past the aim at 12 m (attempt 1)
+  ! 483.9s go-around: past the aim at 13 m (attempt 2)
+  ! 600s gave-up: still in DOWNWIND at t=600 s — out of patience, not out of sky
+  gave-up at 700 s (270 s wall)
+{"key":"builds/cub_2026-09-20_corrected.json","name":"piperCub","from":"mn_strip","to":"mn_strip","style":"normal","tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"gave-up","phase":"FINAL","t":700,"phases":["ROLL@0","LIFTOFF@13.1","CLIMB@28.7","CROSSWIND@49","DOWNWIND@68.5","BASE@89.5","FINAL@113.1","GOAROUND@204.9","CROSSWIND@226","DOWNWIND@291.1","BASE@368.5","FINAL@392.1","GOAROUND@483.9","CROSSWIND@504.9","DOWNWIND@570.4","BASE@647.8","FINAL@671.4"],"goArounds":2,"verdicts":["10.9s committed-takeoff: past the point of stopping at V=14.9 with 159 m left — Vr in 17 m, continuing","154s slip: high on energy on the short final (+2.0 m at idle) — slipping it down","205s go-around: past the aim at 12 m (attempt 1)","483.9s go-around: past the aim at 13 m (attempt 2)","600s gave-up: still in DOWNWIND at t=600 s — out of patience, not out of sky"],"takeoff":{"run":115,"Vlo":17.4},"climb":{"hTurn":69,"vsMean":2.04},"legs":[{"name":"CROSSWIND","overshoot":3,"settleT":8.9,"rollRev":0.5},{"name":"DOWNWIND","overshoot":4,"settleT":8.6,"rollRev":0.5},{"name":"BASE","overshoot":6,"settleT":9.9,"rollRev":0.8},{"name":"CROSSWIND","overshoot":333,"settleT":19.7,"rollRev":4.6},{"name":"DOWNWIND","overshoot":201,"settleT":8.6,"rollRev":0.3},{"name":"BASE","overshoot":6,"settleT":10,"rollRev":0.8},{"name":"CROSSWIND","overshoot":332,"settleT":20.1,"rollRev":4.6},{"name":"DOWNWIND","overshoot":201,"settleT":8.6,"rollRev":0.3},{"name":"BASE","overshoot":6,"settleT":10,"rollRev":0.8}],"final":{"captureT":151.1,"aboveRms":51.8,"vRms":2.15,"vErrMean":1.61,"thrMin":0.05,"thrMax":0.83},"flare":null,"landing":null,"activity":{"takeoff":{"s":29,"da":4,"dr":14,"de":10},"climb":{"s":20,"da":0,"dr":0,"de":10},"legs":{"s":192,"da":30.3,"dr":92.4,"de":19},"downwind":{"s":176,"da":13,"dr":3.1,"de":0},"base":{"s":71,"da":23.7,"dr":5.1,"de":9.3},"final":{"s":212,"da":4.2,"dr":5.7,"de":17}},"rollout":null,"Vs":16.3,"VsLanding":16.3,"VAppr":19.2,"appr":{"technique":"short","Vref":19.2,"Vbase":19.2,"gust":0,"aimIn":15,"flap":0,"len":250,"surface":6,"runNeed":135,"gs":0.149,"reqGs":0.271},"dep":{"technique":"short","Vx":19.6,"runNeed":156,"len":250,"surface":6},"circuit":{"hand":"left","hC":115,"join":"straight","declared":null},"mass":474,"sheet":{"Vs":15.98,"Vs0":15.98,"Vref":20.78,"Vrot":16.2,"Vx":19.58,"Vy":22.5,"Vbg":22.61,"Vms":17.19,"Vcruise":31.4,"climbMax":2.97,"sinkMin":2.11,"LDbest":9.4,"TORun":156,"LDGrun":134.73,"mass":476.19},"tecs":true,"path":true,"wall":270,"csv":"/tmp/claude-0/-home-user-DeGaRoR-github-io/e7e858f3-5d06-56b7-b9c9-c9722c2634d1/scratchpad/ep5/cub_mn_strip.csv"}
