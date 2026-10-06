@@ -79,10 +79,12 @@ const SERVO_GAINS = {
   xwBank: 0.06, xwBankGround: 0.035,
   // taxi
   taxiDe: 0.30, taxiThrMax: 0.85, taxiP: 0.18, taxiIK: 0.10, taxiForgetS: 2, 
-  // G2080: THE TAXI'S PEDALS, a 0.5 s low-pass on the taxi rudder: the swirl at breakaway power (0.85 from the stand)
-  // turned the C172 out of its stand faster and overshot (+3 deg), and its pedals reversed 24.8 a minute (GATE
-  // PILOTACT's 20; master 16) - 0.3 s: 13 reversals in the first 90 s, 0.5 s: 12 (master 11), the gate's cells 17.4
-  taxiRudTau: 0.5,
+  // G2080: THE TAXI'S PEDALS, a 0.25 s low-pass on the taxi rudder. The swirl at breakaway power (0.85 from the stand)
+  // turns an aeroplane out of its stand faster and it overshoots (the C172 +3 deg): GATE PILOTACT's taxi rudder read
+  // stock / c172 / metal Cessna 20.5 / 24.8 / 16.3 reversals a minute against the limit's 20 (master 14.6 / 16 /
+  // 16.3). Measured: 0.25 s -> 16 / 18.9 / 19.2; 0.35 s -> 16 / 20.4 / 20.7; 0.5 s -> 17.3 / 17.4 / 20.7 (the lag
+  // overshoots the heavy metal Cessna's turns). A rate term (the error's or the yaw rate's) was worse at every gain
+  taxiRudTau: 0.25,
   taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgTau: 0.4, taxiHdgForgetS: 0.5,
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
