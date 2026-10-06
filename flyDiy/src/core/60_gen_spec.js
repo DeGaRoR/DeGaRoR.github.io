@@ -2006,6 +2006,13 @@ const GEN_FAIR_MATS = {
 // geometrically similar, so this is a fitted exponent, not a derivation.
 // Anchors: a 1.88 m two-blade wooden prop is about 4.8 kg, and a 1.73 m
 // three-blade carbon one about 3.9 kg (E-Props Durandal, ~4 kg real).
+// G2080: THE PROP'S POLAR MOMENT, I = GEN_PROP_IK . mass . R^2 (the gyroscopic couple's I_p). A blade is thick and
+// heavy at the hub and thin at the tip, so it sits well under a uniform rod's 1/3. Anchors: the 75-in two-blade metal
+// prop (McCauley 1C160 class, 16.1 kg installed per its data sheet) is 1.67 slug.ft2 = 2.26 kg.m2 in JSBSim's
+// engine/prop_75in2f.xml -> 0.156; the E-Props carbon blades measured by their maker (Durandal 4-blade 1.92 m 3.2 kg
+// 4 100 kg.cm2 -> 0.139; Excalibur 4-blade 1.72 m 2.9 kg 2 800 kg.cm2 -> 0.131). The hub, the spinner and the crank
+// are not counted (a few per cent of a light prop's figure).
+const GEN_PROP_IK = 0.15;
 const GEN_PROP_MATS = {
   wood:   { name: 'Wood',      kg: 2.40, price: 900 },
   alu:    { name: 'Aluminium', kg: 4.20, price: 2200 },

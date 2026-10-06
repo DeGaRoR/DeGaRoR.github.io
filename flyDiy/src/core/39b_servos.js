@@ -56,6 +56,9 @@ const SERVO_GAINS = {
   hdgP: 0.7, hdgD: 0.9, bankLim: 0.30, bankSlew: 0.18,
   rollP: 2.0, rollD: 2.0, daMax: 0.30,
   betaK: 0.3, yawDampK: 0.6, ariK: 0.35, drAirMax: 0.25,
+  // G2080: THE BALL CENTRED - the slip integrated into a standing rudder (the right boot a pilot holds on a climb
+  // at full power; the propeller's torque, P-factor and swirl make it), rad of rudder per rad.s of slip, its stop
+  betaI: 0.6, drTrimMax: 0.20,
   trimK: 0.15, trimMax: 0.10, trimWin: 0.2, trimBleed: 0.8,
   windArm: 0.5,          // |wind| that arms the classic's in-wind course trim
   // speed (throttle)
@@ -127,7 +130,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0,
-    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
+    eTrim: 0, drTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -168,7 +171,7 @@ function makeServos(sim, def, opts) {
       S.aDe = c.de; S.aDa = c.da; S.aDr = c.dr;
       S.Ith = 0; S.It = 0; S.thcI = 0.06; S.thrC = A.thrCruise ?? 0.6;
       S.IthMax = S.IthMaxT = G.IthMax0; S.IthGain = null;
-      S.eTrim = 0; holdWas = holdActive = false;
+      S.eTrim = 0; S.drTrim = 0; holdWas = holdActive = false;
     }
     const AF = g('attFilt');
     thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
@@ -227,7 +230,10 @@ function makeServos(sim, def, opts) {
     const bs = g('bankSlew') * S.dt;
     S.phCA += clamp(phC - S.phCA, -bs, bs);
     c.da = clamp(g('rollP') * (S.phCA - S.ph) - g('rollD') * S.p, -G.daMax, G.daMax);
-    c.dr = clamp(-g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
+    // G2080: the slip's integral is the rudder trim (the beta term alone left the climb at full power 4.8 deg
+    // crossed on the Cub: a P loop against a standing yaw keeps a standing error)
+    S.drTrim = clamp(S.drTrim - g('betaI') * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
+    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
   };
   // course over ground: the standing course trim (a slipping aeroplane needs a
@@ -265,7 +271,10 @@ function makeServos(sim, def, opts) {
   // runway), the opposite sign. G970: with a slow integral (P alone left a
   // standing crab), reset whenever the decrab was not flown a step ago
   S.decrab = (bl) => {
+    // (the decrab's slip is flown on purpose: the rudder trim holds what it had)
+    const trim = S.drTrim;
     S.airLateral(bl ?? G.decrabBank);
+    S.drTrim = trim;
     const t = now(), e = S.e;
     if (t - S.dcT > 0.1) S.dcI = 0;
     S.dcT = t;
