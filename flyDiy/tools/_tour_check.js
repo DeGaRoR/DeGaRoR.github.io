@@ -33,7 +33,7 @@
 //     prop strike, no node inside an obstacle, no trunk hit, no ground loop (30 deg off the runway at > 5 m/s on the
 //     roll or the roll-out), no off-strip excursion (the CG off the strip's box at > 5 m/s), the final's lowest node
 //     >= 3 m over the ground and the forest under it; a one-way strip turned round on its pad (>= 150 deg on the
-//     ground before the roll) and the roll began within 40 m of the end; the fuel never short; the tour back at HOME
+//     ground before the roll) and the roll began at the strip's own hold (+ 15 m) or nearer the end; the fuel never short; the tour back at HOME
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname;
@@ -180,7 +180,11 @@ if (!STRIPS) {
       const oneWay = typeof a.takeoffHdg === 'number' || a.altiport;
       if (oneWay && L2.from !== order[0]) {
         check(L2.dep.uturn, id + ': turned round on the ground before the roll (a one-way strip)', L2.dep.turned + ' deg');
-        check(L2.dep.rollFromEnd !== null && L2.dep.rollFromEnd <= 40, id + ': the roll began within 40 m of the end', L2.dep.rollFromEnd + ' m');
+        // the strip's own hold: the pad's r + 9 m, or an authored pattern's (Jumbo Mine's 55 m, G522) - the roll began
+        // there or nearer the end (+ 15 m: the aeroplane brakes to a stop past the hold node, its CG measured - the Cub 13 m past Tamgas Hill's)
+        const P = C.sitePattern(a, C.siteOf(a.id), {}), R = C.siteRunway(a);
+        const holdIn = Math.max(...(P.stops || []).map(h => { const q = P.nodes.find(n => n.id === h); return q ? Math.min(Math.hypot(q.x - R.end0.x, q.z - R.end0.z), Math.hypot(q.x - R.end1.x, q.z - R.end1.z)) : 0; }));
+        check(L2.dep.rollFromEnd !== null && L2.dep.rollFromEnd <= holdIn + 15, id + ': the roll began at the strip\'s hold or nearer the end', L2.dep.rollFromEnd + ' m (the hold ' + holdIn.toFixed(0) + ' m in)');
       }
       if (L2.arr.apprClear) check(L2.arr.apprClear.c >= 3, id + ': the final\'s lowest node 3 m over the ground and the forest', L2.arr.apprClear.c + ' m (' + L2.arr.apprClear.what + ', ' + L2.arr.apprClear.d + ' m out)');
       check(L2.fuel && L2.fuel.litres > 0, id + ': fuel left', L2.fuel ? L2.fuel.litres + ' L' : '-');
