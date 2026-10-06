@@ -1,0 +1,8 @@
+island_tour: the float Cessna (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; SEA > mk_sea > SEA
+  ok   SEA > mk_sea           396 s | dep: turned 0 deg, roll 35.3 m in, lift-off 488.9 m | final 2299.4 m / 196.1 m, clear 28.7 m (ground) | td sink 2.13 m/s, 25 m/s, run 215 m, off -0.1 m | fuel 23.9 L
+    phases HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 31.0 m/s until clear
+  ok   mk_sea > SEA           526 s | dep: turned 202.4 deg (U-turn), roll 148.9 m in, lift-off 481.2 m | final 2767.1 m / 144 m, clear 40.3 m (ground) | td sink 2.21 m/s, 24.9 m/s, run 214 m, off 0.1 m | fuel 18.3 L
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts 
+TOUR DONE - 2 legs, fuel left 18.3 L, 492 s wall

@@ -1027,7 +1027,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false, turn: null };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -1180,6 +1180,10 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
+           // THE TURN PADS (ISLAND-TOUR G1966, contract v1.32): `turn` [end 0, end 1] of { r, side } or null - the U-turn
+           // the derived pattern draws on a pad beside the strip at that end (25_airfield.js turnPadNodes); the pad's
+           // ground is authored (a flatten / grade and a surface of the strip's class, tools/turn_pads.js)
+           turn: Array.isArray(r.turn) ? r.turn.map(t => (t && +t.r > 0 ? { r: +t.r, side: +t.side < 0 ? -1 : 1 } : null)) : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -2569,6 +2573,17 @@ function issues(rec0) {
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    if (r.departure !== undefined && r.departure !== null && r.departure !== 0 && r.departure !== 1) out.push('runway ' + r.id + ': departure is 0, 1 or null');
+    // G1966: the turn pads - [end 0, end 1], each null or { r: the U-turn's radius 5..20 m, side: +1 | -1 }
+    if (r.turn != null) {
+      if (!Array.isArray(r.turn) || r.turn.length !== 2) out.push('runway ' + r.id + ': turn is [end 0, end 1] of { r, side } or null');
+      else r.turn.forEach((t, k) => {
+        if (t == null) return;
+        if (typeof t !== 'object' || !(+t.r >= 5 && +t.r <= 20)) out.push('runway ' + r.id + ': turn[' + k + '].r is the U-turn radius, 5 to 20 m');
+        else if (t.side !== 1 && t.side !== -1) out.push('runway ' + r.id + ': turn[' + k + '].side is +1 or -1');
+        else if (2 * +t.r + 3 > (+r.len || 0) / 3) out.push('runway ' + r.id + ': turn[' + k + '] - a ' + t.r + ' m U-turn takes over a third of the strip');
+      });
+    }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');

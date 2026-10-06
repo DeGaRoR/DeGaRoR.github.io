@@ -76949,6 +76949,82 @@ STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the cha
 reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
 SKINMAT, PARTS, HANGAR). Parked re-cooked.
 
+## G1925-G1929 - MILL-TAXI: EVERY STAND AND TAXI ROUTE AGAINST EVERY SOLID THING; JUMBO MINE STREET'S WAYS ON ITS CENTRELINE, ITS STAND OFF THE AIR TAXI OFFICE; HOME'S TWO PARKED AEROPLANES 2.5 m WEST; NO PROCEDURAL STRIP ON A HOUSE (2026-10-05, MILL-TAXI for A0, cloud - node + headless Chromium, no GPU; branch claude/mill-taxi-g1925 off train 34 = 55dd98b7)
+
+THE USER (5 Oct): "In the old mill, the taxi circuit is too close from buildings, and an attempt to launch from there hits
+a building on the right. Can you modify this?" The old mill is JUMBO MINE STREET (`mn_strip`, the place picker's name; the
+Kennecott mill `mn_s_mine/mill` stands on its east side, G522). FLOWN before the fix (THE PILOT, node, the obstacles in the
+world): the user's Cub left the stand, took out[1] - the LANE 6.5 m east of the centreline up the 18 m street - and put its
+right wing into the mill 15 s in (5 node contacts), then looped TAXI > STOP > HOLD > DEPART for 200 s, never airborne; the
+C172 did the same into cottage 4 and the person beside it (21 contacts). The parked C172's right wingtip stood 0.35 m off
+the air taxi office.
+
+THE CAUSE. A route was held off the PARKED AEROPLANES only (G710 gpClearWay, GATE TAXICLEAR 1-5); nothing measured a route
+against a house. The street is 17-18 m between faces (the clinic and the school stood 0.5 m inside the strip's 9 m half
+width): only the centreline clears an 11 m span with 3 m to spare, and the authored pattern (G522's, frozen in
+runway.site.pattern) used the generic lane and U-turns: out[1] up the east lane (1.67 m from the mill's front), back[0]'s
+U-turn north along the west lane into the clinic (0.20 m), the stand 5.84 m from the air taxi office.
+
+G1925 THE CENSUS (tools/_taxiclear_lib.js, tools/taxi_census.js). What the game registers as solid (render_premises.js
+hitAdd), read off what SHIPS: the cooked places (premises_packs.json, media/world/<id>/premises p_*.bin) carry every house's,
+item's and outbuilding's OBSTACLE GRID - the page's own lo / hi columns (GATE PREMCOOK holds the cook to the page) - at `at`
+(yaw = the group's rotation.y); their props (people, yard props, lamps) as each prop's bb (PROP_REG, the props + pier packs)
+in the owner's frame; the dressing's cars / boats / lot cars; the objects (a prop's box, a parked aeroplane's
+GP_PARKED_FOOT box, a billboard); the premises' trees as trunks (trunkOf's radius); the analytic world's settlement boxes
+(the registry). 9 256 things on Jolene (town variant). Each stand x each validated build (the stock build 10.0 m, the
+aluminium C172 11.0 m - the widest -, the user's Cub builds/cub_2026-09-20_corrected.json 10.7 m), each on ITS pattern
+(HOME bends per span): the stand point, the PARKED BOX (the build's nodes at the stand, nose to the first taxi point),
+out[0], out[1], back[0], back[1] sampled as THE PILOT's path (patternPath, 1 m), each against half-span + 3 m (the box: 3 m);
+the roll (threshold to threshold) printed, not held. `node tools/taxi_census.js` prints it (violations first; --json;
+--svg <id> <out.svg> [--at x,z] a plan). BEFORE: 405 held rows, 24 VIOLATIONS (reports/evidence/MILL-TAXI/census_before.txt):
+  - mn_strip (x 3 builds): the stand 5.84 m (air taxi office), the parked box 0.35-0.83 m (office), out[0] 5.84, out[1] 1.67
+    (THE MILL), back[0] 0.20 (the clinic)
+  - HOME (x 3 builds): out[0] / out[1] 6.89-7.32 m from the parked Cub o1 (G710 bent to half + 1.5 m only)
+  - procedural seed 1: A1 (a village "main" field) - a settlement house ON the stand, out[0] and back[0]; seeds 6, 12 and 42
+    had one on the roll of a main field (seed 0, the game's world: clean)
+  - w2, w3, nv_strip, tw_ski: clean (tw_ski's nearest a prop at 8.96 m off out[1] for the C172)
+AFTER: 0 violations (census_after.txt); Jumbo Mine Street's tightest 8.82 m (the clinic) for an 8.50 m need.
+
+G1926 HOME: the parked Cub o1 and C172 o2 2.5 m WEST (o1 -150 -> -152.5, o2 -148 -> -150.5; jolene_author.py club_world lz
+40 -> 37.5, 42 -> 39.5). The authored ways out (G772) now clear them by 9.39-9.47 m for every span with NO bend (G710's
+k0 / j0 corners gone: the routes are the authored polylines). Considered and rejected: GP_CLEAR 1.5 -> 3 (one law for the
+planner and the census) - it crowded the C172's out[1] between o1 and o2 into a 3.4 m corner (a sitePatternIssues
+complaint); GP_CLEAR stays 1.5 (the planner's fallback for a parked aeroplane an author puts near a way), the census holds
+3 m. TAXICLEAR 4's calibration measures the pre-G772 way at half + 3 m (o1 moved; it still reads 2+ m inside).
+
+G1927 JUMBO MINE STREET (tools/jolene_parts/mn_mine.json and the fixture, the same edit - jolene_author.py needs the bench
+to regenerate, so both were written by one script; rev 23):
+  - the STAND 4.2 m WNW on its pad: (7281.85, -15319.76) -> (7278.0, -15318.0), heading -1.9484 (toward tx0, which stays); its
+    lane `mn_stand_lane` starts there (GATE CONTACT's rule). 10.02 m to the office, parked box 4.46 m (C172).
+  - out[1] (the way to the north end) on the CENTRELINE: stand > tx0 > c0 > c1 > l1a > l1b > l1c > d1 > hold1, c1 moved from
+    the east lane by the stand to the centreline 205 m up the strip (past the last house, where the north turning bay
+    opens); back[1] = c1 > l1a ... (a pose on the street reaches the U-turn along the centreline, not across the lane)
+  - back[0] (the south U-turn) a teardrop on the south turning bay: e0 (28 m in, centreline) > l0a (0, 9 m W) > l0b
+    (0, 13 m E) > l0c (20 m, 13 m E) > d0 (40 m, centreline) > hold0; rMin 8.0 m, sitePatternIssues empty
+  - the CLINIC and the SCHOOL 1 m west (site z -33 -> -34, -35 -> -36): both stood 0.5 m inside the strip's edge; the
+    street's centreline now keeps 8.82 m (was 8.38)
+  The look is kept: the same street, houses and pad; the stand and two houses moved by a metre or four.
+  NOTE for the editor: the pattern is AUTHORED (G522); moving or turning the strip drops it (the editor's rule) and the
+  derived pattern's lanes come back - on this street they hit the houses; re-run tools/taxi_census.js after an edit.
+
+G1928 THE PROCEDURAL WORLD (24_world_aero.js clean(), 20_world.js passes SET.buildings): a candidate strip whose runway
+rectangle comes within HOUSE_CLEAR 9.5 m (5.5 + 3 + 1) of a settlement house's circle is not clean - the next best by the
+score is taken, so a strip that was clear stands where it stood. Changed: seed 1 A1, seed 6 A2, seed 12 A0, seed 42 A2,
+seed 31415 A1 (its circle only); seeds 0, 2, 3, 7, 777, 999, 2718, 12345 bit-identical (aerodromes compared).
+
+G1929 GATE TAXICLEAR (core, ~5.5 min, wall 330): 6 the Jolene census (135 rows, every stand), 7 seeds 0 1 6 12 42 (the
+widest build; no roll within 8.5 m of a house), 8 CALIBRATION (the mill's old pattern replayed: out[1] < 2 m from the mill,
+back[0] < 2 m from the clinic, the old stand < 8.5 m from the office), 9 FLOWN from the mill with the obstacles in the
+world (intoWorld: the cooked grids through 29_obstacles rasterise, the props / cars as 0.5 m boxes, the trunks on
+treeHits): the C172 airborne at 84 s, the Cub at 103 s, 0 node contacts, 0 trunk hits, no crash, the wing >= 2.98 m off
+every footprint (min at the turn onto the centreline by the clinic). tools/soft_still.js --from <strip id> rolls out at
+that stand (flydiy.route).
+
+RE-COOKED (premises_cook.js --island jolene): only p_28_m60, p_28_m61 (the mill), r_28_m60 (the stand lane's raster),
+p_m1_2 (HOME's apron), the two tallies; premises_packs.json. No frame cost: data and a world-gen rule; nothing per frame.
+EVIDENCE reports/evidence/MILL-TAXI/: census_before/after (.txt, .json), plan_mill_before/after and plan_home_before/after
+(.svg, .png: footprints, the strip, every route with its 8.5 m band), flown_before/after (.json, .txt: the tracks),
+views_mill.json (shadowsky_shots views for the box), the stills (below).
 ## G1866-G1867 DMG-D4b: THE D4a FIX - THE SKIN BREAK REACHES THE DEFAULT GAME'S DRAWING (the hybrid bake), RIDES IN THE WORLD, WHOLE, AND COSTS NOTHING AT REST (2026-10-05, DMG-D4b for the DEFORM COORDINATOR, local GPU; branch claude/dmg-d4a-fix off claude/dmg-integration bd0b9d0b; the D4b work rides on top in claude/dmg-d4b-wreck)
 
 Found on the box with `?damage=1&simw=0`, the user's Cub at a trunk at 30 m/s: in the DEFAULT game (the flown bake's hybrid: the
@@ -77054,6 +77130,152 @@ PERF (the coordinator's quiet A/B, damage OFF vs train 34, 20 rotated rounds): +
 STRICT GATE (full): 95 in slack, 50 better, 12 RED = the 30 cap's rows + the known hybrid-band rows; chase / cockpit loop
 15.25 / 15.35 / 16.2 ms (train 34's gate: 16.2 / 16.15 / 16.35) - no damage cost. BATTERY: the full battery PASS but AUDIO,
 which passed alone (145 s; its wall-clock read under the 6-job battery and D4b's untimed page boot). Parked re-cooked.
+## G1945-G1954 - DEST-TO: ONE "TO" - THE FROM IS WHERE THE AEROPLANE IS, A NEW DESTINATION IS THE AUTOPILOT'S, NEVER A RESET; A BASE TO START FROM (2026-10-05, DEST-TO for A0, cloud - node + SwiftShader, no GPU; branch claude/dest-to-g1945 off origin/master 55dd98b7 = train 34; G1950-G1954 unused)
+
+The user (5 Oct): "I'm landing at an airport. I'd want the plane to take off from that very airport, to a new
+destination. I can't do that now, it will always reset the plane to the default starting location. It needs to start
+from where it is. Actually we could gradually drop the FROM-TO in favour of a simple 'To', which can be updated in flight
+or on the ground. The plane reacts like its autopilot's destination has been updated. Right now our original location is
+always the WWII hangar, so easy, but in the future we'll have a few bases out of which we will be able to spawn airplanes."
+
+**WHAT WAS THERE.** W14's chain (a destination picked while STOPPED made a fresh pilot `departFrom(ap.route.to, dest)`)
+and G700's `Fly on` (the same chain) already flew on in place - but only STOPPED, and with the From taken as the last
+leg's TO (a landing the pilot diverted - a forced landing, the wrong-surface fallback - or a stop by hand somewhere else
+departed from a field it was not on). Every other change reset: the From select (`fullReset`), a destination changed in flight or on the stand (`fullReset`, back to the hangar).
+
+**G1945 THE MODEL** (`src/core/38b_dest.js`, new, pure, in MANIFEST.core after 38_nav and in 90_node_exports):
+- `FLIGHT_BASES` / `FLIGHT_BASE_DEFAULT` / `flightBases(world)` / `flightBase(world, id)` - a base = an aerodrome id +
+  the words a picker shows (its site, 25_airfield.js, is the hangar / stand set). One today: HOME, "Home base · the WWII
+  hangar". A second base is a row here (+ its site's stand); the pickers grow a base select at two.
+- `flightWhere(world, x, z, {air})` - THE DERIVED FROM: `airborne` | `runway` | `water` (a lane) | `stand` (25 m of a
+  site's stand) | `apron` (450 m of the strip: apron, taxiways, the grass beside) | `out`; with the aerodrome it is about.
+  `flightCanDepart(where)`: on an aerodrome, not in the air, not `out`.
+- `flightToChoices(world, gear)` - the To picker's rows: '⟳ Circuit' (the field the aeroplane is at), then every
+  non-meadow aerodrome with its surface word, disabled with its reason where STRIP-SURFACE's `stripAllows` says no.
+- `flightToRecord(world, gear, toId, here)` / `flightLeg(world, gear, x, z, toId, {air, legFrom})` - the leg a To asks for
+  from here: From = the aerodrome under the aeroplane (in the air: the leg's From, so a Circuit picked in flight goes
+  back), To = the record (a lane asked of wheels, or an id the world lacks, falls back to the circuit here, `why` says).
+- `flightRouteMigrate(saved)` - the pref `flydiy.route` v1 `{ from, dest }` -> v2 `{ v: 2, base, to, spawn? }`.
+
+**G1946 THE PILOT'S DESTINATION** (`43_pilot.js`, for PILOT-ONE's merge - the plan / destination interface only, no
+control law, no take-off):
+- NEW `ap.setDest(to)` (after `ap.departFrom`), with `ap.nextTo`, the closure flags `replanReq` / `replanning` and the
+  lists `DEST_KEPT` / `DEST_REPLAN`. Returns `kept` (DEPART..CLIMB, GOAROUND, BOX: `ap.route.to` / `ap.xc` / the budget
+  moved, the arrival planned from it when the climb hands over; after a go-around its first leg is re-planned),
+  `replan` (CROSSWIND, DOWNWIND, BASE, ENROUTE, INBOUND, FINAL), `queued` (FLARE, ROLLOUT, GLIDE, STOPPED: NOTHING moves -
+  FLARE / ROLLOUT read `ap.route.to` for the runway they land on - the To kept in `ap.nextTo` for the page to chain),
+  `same`, `none`. It says `new-destination` in the verdicts.
+- NEW hook in `ap.update`, just before `const phRun = ap.phase` (ahead of the phase switch): `replanReq` on a leg phase,
+  airborne, box off -> `go(planFromHere())` with `replanning` set, `ap.holdDir` = the track flown, `committed` /
+  `slopeCaptured` / `finalLevel` / `heldOut` / `escapeHdg` cleared.
+- `planFromHere` (two conditions): `if (ap.xc || replanning) u = dirAt(to, to - cg)` and the crosswind form only
+  `if (!ap.xc && !replanning && ...)` - a re-plan always joins the cross-country way. The first leg begins two turn radii
+  ahead on the track and the path is filleted from the aeroplane (`pathFrom`) - the turn onto it is the path's own.
+- 38_nav.js: untouched (the AP box's navigator is not the route). 39_ground_path.js: untouched - the departure planner
+  (`planDeparture`: the U-turn, the site's `routes.out` / `routes.back`) already plans from any pose; the chain just
+  hands it the right From.
+
+**G1947 THE PAGE** (`app.js`, `sim_link.js`, `sim_host.js`, `body.html`, the CSS):
+- `destId` is the To; `baseId` the base; `spawnId` the perf rigs' override (pref v2 `spawn`, `FLYDIY_ROUTE.spawn(id)`,
+  on no picker); `fromId` is no longer a choice - the From of the leg flying (the base's aerodrome at every roll-out,
+  `applyRoute`; where the aeroplane stood at a chained leg, `nextLeg`), so every old reader (the logbook, the map's line,
+  the cockpit's field, the tower camera, the worker's init) reads what it read.
+- `setTo(id)` (every To picker: `#selDest` borrowed by the plate's `route` flyout, `#edRoute` in the shed, `#bootRoute`
+  under the roll-out screen, `FLYDIY_ROUTE.to`) -> `destApply()`: the shed - remembered for the roll-out; STOPPED on an
+  aerodrome - `nextLeg()` (`held` out in a field: Restart); else `ap.setDest(record)` and `SIMW.dest(id)`; `queued` sets a
+  pending leg chained by the HUD's STOPPED branch (after the logbook row). The classic and test pilots (no setDest) reset
+  before the start and keep their route in flight. No To change resets any more.
+- `nextLeg()` takes `flightLeg` - the From under the aeroplane, not the last leg's To.
+- THE WORKER: `sim_link.dest(to)` -> a stamped `{ cmd: 'dest', to }` (a flight not live yet sends it at k 0 in
+  `attach`); `sim_host` `case 'dest'`: `ap.setDest(aeroById(to))` (+ `init.place.to`).
+- THE UI: `#selFrom` retired (body.html, the plate's flyout, flTrip). The plate's `route` flyout: a `from` LINE (where
+  the aeroplane is: the field, `airborne`, `off-field`; the base's field before the roll-out) and the `to` picker, with a
+  note per state ("A new destination re-plans the flight from here, like an autopilot's" / "...taxis out from here and
+  flies there - same flight, no reset" / landing: "flown from where the aeroplane stops"). The trip line reads
+  "<where> -> <To>". The shed and the roll-out screen: a `base` line ("Home base · the WWII hangar", a select once there
+  are two bases) and the `to` picker. The rail's route sub: "the destination, or the circuit - on the ground or in the air".
+- THE PREF: read through `flightRouteMigrate`, written back as v2 once. Tools: `rollout_perf.js` writes v2 (a `--from`
+  other than HOME rides as `spawn`); `master_bench.js setFrom` calls `FLYDIY_ROUTE.spawn` (the shed's Departure select is
+  gone); the rigs writing v1 `{ from: 'HOME', dest: 'CIRCUIT' }` (master_bench, rollout_shots, woodland_shots,
+  master_bench_smoke) migrate to exactly that.
+
+**WHAT IS LEFT OF THE OLD FROM-TO** (retire when no saved profile can hold it): the v1 branch of `flightRouteMigrate`
+(and its one-time write-back); `FLYDIY_ROUTE.get()` still returns `from` / `dest` beside `to` / `base` / `spawn` (the
+rigs' readers); `fromId` / `destId` as the variable names; the logbook rows' `{ from, to }` (true: the leg's From and
+To); the rigs' `spawn` (a developer's spawn-anywhere, deliberately on no picker); the worker's `place.from` (the base or
+the spawn).
+
+**G1948 GATE DESTTO** (`tools/_destto_check.js`, core, 3 shards; `--show`, `--only`, `--evidence`, `--selftest`).
+Jolene, the real sim and pilot, the damage model ON, the validated builds only (`_treecrash_lib` BUILDS):
+A. no flight - the base (HOME, its stand reads `stand / HOME`), flightWhere's kinds, the picker's surface rule (wheels:
+   no lane; floats: the lanes only; every refusal says why), the migration (v1 HOME/w3, v1 from w3 -> the base, v2 passes),
+   and THE DEFAULT START UNCHANGED: a Cub on HOME's stand departs by the same taxi route ids and take-off direction from
+   the derived From as from master's `departFrom(HOME, to, site)`.
+B. LAND, THEN DEPART (`ltd:<build>`): a To picked IN THE ROLL-OUT is `queued` (the runway it lands on untouched); at
+   STOPPED the page's chain (`flightLeg`, a fresh pilot on the same sim): the From derived, no reset (the leg's first step
+   where the stop was, `sim.t` and the fuel and the damage state carried), DEPART -> TAXI|STOP -> HOLD -> ROLL, take-off,
+   the To landed on. Measured (`reports/evidence/DEST-TO/destto_cases.txt`, the three shards, `--show --evidence`):
+     metal Cessna   HOME -> landed on w3 (274 s); To w2: 522 m of backtrack taxi, take-off, landed on 02/20 (402 s);
+                    fuel 18.47 -> 16.06 kg; the From w3 (not the leg's HOME)
+     Cub            a circuit at HOME (336 s), stopped on 13/31; To w3: rolled from the stop (lined up, the run ahead
+                    enough: STOP > HOLD > ROLL), landed on w3 (378 s); fuel 31.67 -> 30.83 kg
+     Jodel          a circuit at HOME (362 s), then To w3: the same, landed on w3 (331 s)
+     Cessna floats  a circuit on Annette Dock (373 s), stopped on the lane; To Metlakatla: 1132 m of water taxi,
+                    take-off, 10 km, landed on mk_sea (661 s); fuel 17.41 -> 11.97 kg
+     twin on floats the same (290 s, then 453 s); fuel 12.17 -> 9.49 kg
+   no member broken in any; no rejected take-off, no wrong surface, no lost taxi; no step moves the aeroplane further
+   than it flies (< 0.5 m).
+C. A NEW TO IN THE AIR (`air:<build>`): lined up at HOME bound for w3; 40 % down the enroute leg the To becomes 02/20
+   (w2), behind the aeroplane - `replan`; the new path's first point ON the aeroplane (0.0 m); the bank inside the
+   pilot's limit + 4 deg (Cub 23.4 deg, Cessna 23.6); the track's rate against g tan(limit)/V at most 0.93 (Cub) and 1.10
+   (Cessna) - the bound is 1.3, a heading step would read tens; both landed on 02/20, completed (389 s, 326 s).
+NEGATIVE-VERIFIED (`--selftest`, the metal case's chain and the Cub's air case, each doctored): the OLD chain (the From =
+the leg's own From) - caught ('the From is DERIVED'); a re-plan that is a jump (the legs swapped for a straight line to
+the field, no path re-planned) - caught twice ('re-plans from here', 'the new path starts at the aeroplane': 846 m).
+
+**MEASURED ON MASTER, NOT THIS BRANCH'S** (the old chain, from the field's own stand; `reports/evidence/DEST-TO/
+master_w3.txt`): the user's Cub cannot line up at Tamgas Hill (`could not line up in 60 s` x 3, `taxi-lost`); the Jodel
+rejects its take-off there (`will not reach Vr: 1.45 m/s^2 ... 327 m left`); and in this branch's first cut the Cub's
+arrival from w3 into 13/31 flew a 392 s DOWNWIND (leg-timeout), went around 283 m off the centreline and ran out of the
+watchdog's budget (`gave-up` at 736 s - the budget is set at departFrom and never grows for a go-around); the metal
+Cessna, landed on w3 and sent to HOME, backtracked 522 m and took off fine, then flew a 280 s DOWNWIND at 13/31, went
+around "past the aim at 148 m" and gave up the same way - a fresh pilot's own `departFrom(w3, HOME)`, nothing of the
+chain. The gate's cases avoid them (the pilot's and the strip's: PILOT-ONE's take-off / circuit work, and worth a look -
+an arrival at 13/31 from the south-west is the case a player flying home from Tamgas Hill will meet).
+
+**G1949 THE EVIDENCE** (`reports/evidence/DEST-TO/`): the traces, 1 Hz (leg, t, phase, x, z, y, heading, bank, ground
+speed, fuel, the route's To) - `ltd_*.csv`, `air_*.csv`; the UI before / after (`tools/destto_shot.js`, SwiftShader,
+the same saved v1 route `{ from: HOME, dest: w3 }`): `before_garage.jpg` / `after_garage.jpg` (the shed's from + to
+selects -> the base line + the To), `before_flight_route.jpg` / `after_flight_route.jpg` (the plate's flyout: two
+selects and "Changing the origin restarts the flight" -> the from line and the To, "A new destination re-plans the flight
+from here, like an autopilot's"), `ui_before_after.txt` (every picker's rows, the trip line, FLYDIY_ROUTE). The
+roll-out screen's picker was not shot (the screen lifted before the rig saw #bootRoute; it is the same `routeBuild` as
+the shed's). `destto_cases.txt` (the gate's own lines, the selftest), `master_w3.txt` (the w3 departures on master, and
+the 13/31 arrivals that went around), `framecost_control.txt` (FRAMECOST, the branch against master + one comment).
+
+**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 104 min wall on the 4-core cloud box): 158 jobs, every row
+PASS but four, none this branch's - DESTTO (3 shards, new), ROUNDTRIP, UISMOKE (with its new DEST-TO block), PILOT (3
+shards), NAV, PLAN, LINEUP, TAKEOFF, STRIPSURF, HONESTY, GEN, FLEX, LOAD among the passes.
+- FRAMECOST FAIL (24): THE STALE PARKED COOK (`parked_cook.js --check`: STALE, keys arch:c172 / cub / jodel - any viewer
+  edit moves the build id). Proven by a control: master 55dd98b with ONE COMMENT appended to app.js gives the same 24
+  rises to the unit (cub stand draws.main 914 -> 1046, draws.shadow 169.5 -> 259.5, uniform4f 6 -> 222; the Cessna's the
+  same) - `reports/evidence/DEST-TO/framecost_control.txt`. So DEST-TO costs nothing a frame; A0's re-cook clears it.
+- HITBOX FAIL (1 of 84): its captures say "not cooked in this page (a stale or missing parked cook)" and its one red row
+  is a wall-clock one (the spec shape 380 ms against the raster's 186, under the 4 jobs); alone (`--only=HITBOX
+  --jobs=1`): PASS.
+- SETTLE FAIL (bake budget, wall-clock under the 4 jobs): alone PASS.
+- BIOME FAIL (surface perf < 5 us/call): box-bound - interleaved runs read master 4.9 / 5.1 / 4.8 / 4.7 / 5.0 / 5.3 and
+  this branch 5.1 / 5.3 / 5.0 / 4.9 / 4.6 / 5.2: master itself fails half the time here; nothing of this branch is on
+  `world.surface`'s path.
+THE FULL TIER: SEAPLANE and HOTHIGH (the full rows that fly the pilot over water and a hot strip) run on the branch:
+PASS. ARCHETYPES and PILOTMATRIX were NOT run (hours each on this box; `ap.setDest` is inert until called - no flag, no
+branch of the phase machine moves without it - and the core pilot gates PASS); A0's `--all` at the train is the verdict.
+
+**A0 AT LANDING.** Re-cook the parked aeroplanes on the train's final build (any viewer edit stales the cook -
+FRAMECOST / HITBOX above); no spec, no asset moved. Frame cost: none (the To work runs on a pick; the pilot's
+hook is one boolean a step). PILOT-ONE: the merge surface in 43 is `ap.setDest` (+ `ap.nextTo`, `DEST_KEPT` /
+`DEST_REPLAN`, `replanReq` / `replanning`), the hook before `phRun`, and the two `replanning` conditions in
+`planFromHere`; a unified pilot needs the same entry (the classic and test pilots have none - the page keeps their route).
 ## G1590-G1599 - RELEASE-CHECKS: THE BUILD ID HASHES EVERY SHIPPED INPUT, GATE BUILT, THE POST-PUSH PAGES CHECK, THE BUILD'S OWN CHECKS (2026-10-04/05, RELEASE-CHECKS for A0, cloud - node only; branch claude/release-checks-g1590, REBASED (A0, 5 Oct) onto master 0fd1fa34 = train 33, which carries the review and UPDATE-NOW G1535; rides train 36)
 
 The review's release findings (reports/INDEPENDENT-REVIEW-2026-10-04.md): B27 (nothing verifies the committed outputs against
@@ -78087,3 +78309,198 @@ recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log
 Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
 BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
 For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
+
+## G1965-G1974 - ISLAND-TOUR: ONE AEROPLANE ROUND THE ISLAND IN ONE GO - THE APPROACH CENSUS, A TURN PAD AT EVERY SHORT STRIP'S END, THE MINE'S APRON, THE WATER OFF THE RUNWAYS; THE TOUR AND GATE TOUR (2026-10-05, ISLAND-TOUR for A0, a CLOUD session: node + headless SwiftShader for the stills; branch claude/island-tour-g1965 off origin/master 55dd98b7 = train 34; MILL-TAXI, train 35, DEST-TO's READY and train 36 merged)
+
+THE USER (5 Oct): "The ultimate test of PILOT-ONE should be to do a full tour of the island's locations in one go. Land
+at each, U-turn, take off again, visit the next one. Success when it gets undamaged back to the mother airport. You have
+the authority to modify the strips, their approach paths, their U-turn zones, etc. You should just work with their
+length as-is. Note that the mine also needs a proper apron for its start/park area."
+
+THE RESULT (on train 36 + DEST-TO + this branch, today's pilot 43 - see THE DEPENDENCIES for PILOT-ONE): three tours, damage ON (params.damage
+true: every member can yield and break), the island's solid things within 700 m of every strip in the world (the cooked
+houses, items, outbuildings, props, cars, parked aeroplanes - _taxiclear_lib intoWorld) and the woodland's trunks:
+  the user's Cub        HOME > Tamgas Hill > Skyline Altiport > Jumbo Mine Street > 02/20 > HOME   DONE, 0 faults, 35.8 L of 45 left
+  the aluminium C172    HOME > Tamgas Hill > Skyline Altiport > 02/20 > HOME                      DONE, 0 faults, 15.4 L of 28 left
+  the float Cessna      Annette Dock > Metlakatla > Annette Dock                                  DONE, 0 faults, 18.3 L of 28 left
+Every one-way strip was left after a U-turn on its own pad or bay (171-253 deg on the ground) and a roll from 17-54 m in;
+no refuel stop is needed (the C172's, the tightest: 12.6 L burnt of 28). The per-leg tables:
+reports/evidence/ISLAND-TOUR/legs_*.md (the approach, the final's least clearance, the touchdown's sink, speed and roll,
+the U-turn, the roll's start, the lift-off distance, the fuel, the pilot's verdicts); the map: tour_map.svg / .png.
+EAST POINT (150 m) IS IN NO LAND TOUR, and the strip cannot be made to take one at its length: the user's Cub - and the
+archetype Cub, which it is to the decimal - floats to a touchdown 100 m in and stops 136 m later, 85 m past the north end
+(flown before the pads and after: legs_before_cub.md, `island_tour.js --order nv_strip,nv_strip`; no damage - the fan
+north of it is clear), and PILOT-ONE measured its three-point roll alone at 143-152 m. The C172 needs 313 m (G531) and
+leaves out Jumbo Mine (250 m) too. WHAT WOULD LAND A CUB THERE (the user's call, not taken): a profile - East Point landed
+northbound uphill at ~6 % (9 m of earthwork on the flat headland, 19-21 m) would take ~45 m off the roll; or a build with
+flaps.
+THE STRIPS (G1966-G1968). Every change in the world's own record (tools/fixtures/island_jolene.json rev 23 -> 24, and
+the same entries in its sources - the owners' parts and jolene_author.py's literal, written by `node tools/turn_pads.js`,
+which also explains each number), re-cooked (premises_cook.js --island jolene). No strip is longer: every `len` is as it
+was.
+  - THE APPROACH CENSUS (tools/approach_census.js, tools/_approach_lib.js; GATE TOUR 1-2). Per land strip, per
+    direction it is landed in and taken off in: an obstacle clearance surface from an inner edge 60 m out at the
+    threshold's height (ICAO's), 1:20 on a strip of 600 m+ / 1:15 under (G527.3's East Point rule), the half-width +
+    15 m a side diverging 10 %, out to 3 / 1.5 km - against the terrain, THE FOREST THE FILL PLANTS (the tree map's TREE
+    class where treeAeroBlocked and the premises' tree excludes allow, at the map's canopy >= 10 m - the node world's
+    `trees` are 64 m seeds, 1-2 per strip, and say nothing of the woods the player sees), the woodland's trees, and
+    every cooked solid thing; plus the pilot's own 5.7 % final's least clearance. The runway model's cone
+    (siteRunwayModel) answers the pilot's scoring and was left alone: it reads a 27 % approach at the mine off the
+    sidehill 30 m beside the street.
+    BEFORE: East Point's final (over the cove) passed 4.8 m UNDER the forest's tops 50 m out (+18.6 m through the
+    1:15 surface: 23 m canopy 20-26 m off the centreline, outside the user's fan); Jumbo Mine's take-off south had the
+    ridge 148 m through the surface 1.5 km out; Tamgas Hill's uphill take-off the hill 4.6 m through 75 m out.
+    AFTER: no tree, forest or thing through any surface flown; the ground <= 1.6 m through near two thresholds (02/20's
+    k1 75 m out, the mine's sidehill 25 m out - the pilot's final clears both by 11-15 m).
+  - EAST POINT'S FAN (nv_fan_s, native.json): its two inner corner pairs out to the surface's own corridor (+-14 ->
+    +-22 m at the end, +-22 -> +-28 m 60 m out); the user's outer lines (G527.3: +-36 m at 130 m, +-55 m at 230 m) kept.
+  - ONE-WAY TAKE-OFFS (`departure`, G527.3's field): Tamgas Hill 0 (downhill, over the water - the way it is landed
+    from is uphill, approach 0); Jumbo Mine 1 (north, over the open end it is landed over; south is the ridge).
+    `issues` now checks `departure` as it checks `approach`.
+  - THE TURN PADS (`turn`, contract v1.32; 25_airfield.js turnOf / turnPadNodes; GATE TOUR 3). Why: the derived
+    U-turn is a long runway's - two corners `lane` = min(12, half - 2.5) either side of the centreline: a 6.5 m radius
+    on an 18 m strip, 3.5 m on East Point's 12 m - and its hold 110 m in (a quarter of a short strip), so a strip
+    under 600 m gave the turn a fifth to a third of its length, and the altiport's turn at the top put the Cub's
+    propeller into the summit station (the BEFORE tour: prop strike, a node inside the station for 330 s, four
+    DEPART > TAXI > HOLD loops). A pad is a one-sided bulb at the end: down the centreline, a 45 deg swing out to the
+    bulb's lane 2r off it, along it to 3 m from the end, a half circle of radius r across the end, out on the
+    centreline lined up, the hold r + 9 m in. The run left = the strip less r + 9 m (502 of 520 m at Tamgas, 362 of
+    380 at the altiport, 132 of 150 at East Point; the generic holds were 110, 110, 37.5). r = 9 m: the C172's
+    tightest taxi turn is 5.9 m (groundRmin), the Cub's tailwheel 11.3 m on its steering alone - the follower takes a
+    9 m corner with the Cub's brakes (flown, GATE TOUR 5). The pad's GROUND is authored like the editor's apron
+    (jolene_parts/turnpads.json, prefix tp_): tp_t_* a flatten at the strip's level where it is level there, else a
+    slope polygon on the strip's local gradient (the altiport's foot: 10 %) - the bulb continues the strip, no step;
+    tp_y_* a surface of the strip's class; tp_m_* the gravel look where the strip is gravel; tp_x_* an exclude of
+    trees and plots over the pad + 8.5 m (the wing's sweep). The SIDE: turn_pads.js takes the side with no solid
+    thing within 8.5 m of the path and the least earthwork - Tamgas + / -, the altiport - at its foot and + at the top
+    (the - side's path ran through the summit station), East Point - at both (its stand stands on the north pad).
+    HOME and 02/20 declare none: 45 m wide, the generic lane-and-U-turn has a 12 m radius on the pavement and their
+    turnaround octagons (y_turn_*, 55 m) were already there. Jumbo Mine declares none: its pattern is AUTHORED
+    (G522 / G1927's teardrops on the two 35 m turning bays) and an authored pattern is the author's.
+  - THE MINE'S APRON (G1968, mn_mine.json): the stand's pad (mn_y_stand) and the south turning bay's east half as
+    one gravel apron - mn_y_apron (surface 6, apron: true: the scenery's apron life), mn_m_apron (the gravel look),
+    mn_t_apron (the street's level, 346.8) - 48 m along the street from 6 m past its south end, from the strip's edge
+    to 26 m east by the stand (the C172's parked tail swings to 25.5) and 25 m north of it (the air taxi office and
+    the fuel shed): 1.87 m off every footprint. The stand and its way out (MILL-TAXI's) unchanged.
+  - THE STANDS / PARK AREAS (the census, every validated build, 0 violations): HOME's apron (G772 / MILL-TAXI's o1-o2 move,
+    unchanged); 02/20 is HOME's field (no stand of its own: the HOME apron serves both); Tamgas Hill's stand by the shed
+    (the C172's parked box 9.9 m off it, unchanged); the altiport's head platform (G540, unchanged); Jumbo Mine's stand on
+    its new apron (G1968); East Point's stand ON its north turn pad - the pad's ground grown past the parked tail (26 m out
+    where the turn needs 21: GATE CONTACT's tyres at the stand read the drawn ground 4 cm off the true one in the feather).
+  - NO WATER ON A STRIP (G1971, 20_world.js waterAt; GATE TOUR 3a). FOUND BY THE TOUR: the C172, stopped on 02/20
+    after its landing and rolling straight from there to 13/31, rejected its take-off 9.6 s in ("will not reach Vr:
+    0.02 m/s^2") - reproduced from a placed stop in 20 s of sim, identical with the take-off flap set or not: 45 m into
+    the roll at 16 m/s the nose went to -4 deg on one wheel and the speed fell 4 m/s^2. 0.30 m of WATER stood on the
+    concrete there - the island's cover-water fallback (a cell the 10 m cover grid calls WATER with no lake or river
+    record behind it: the DEM held flat under 30 cm) - on 13 patches of 02/20 (247 m of its length) and one of 13/31
+    (14 m): WorldCover reads the old dark slabs as water. GEAR-WATER's wheel in the water did the rest. Every gate
+    rolled 02/20 on a dry stretch by chance; GATE STRIPGROUND's own "no water" walks the procedural strips only.
+    THE FIX: ground the premises declare dry - a land surface of the record (a strip, a pad, an apron, a road) or within
+    10 m of a pavement (a wheel run off the edge) - is never cover-water. Only a cover-water cell asks (the premises'
+    surface lookup runs there and nowhere else): no frame cost. AFTER: every land strip of Jolene, every pad and the
+    apron dry (GATE TOUR 3a), the C172 off 02/20 from the same stop airborne at 18.5 s. The drawn water reads the
+    same waterH: the puddles on 02/20 are gone from the picture too.
+
+THE TOUR (G1969-G1970). tools/_tour_lib.js + tools/island_tour.js (`--build cub|c172|floats|<file> --order ... --json
+--md --debug N --debug-leg <id>`). The real sim and THE PILOT (43), damage ON, the obstacles in the world as above. The
+first departure is off the start's stand the page's way (applyRoute: departFrom(from, to, site)); every next leg is the
+page's own chain (DEST-TO's nextLeg): at STOPPED, flightLeg derives the From UNDER THE AEROPLANE (asserted: the strip it
+landed on) and a fresh pilot departFrom(from, to) - no site, no reset, the fuel burnt stays burnt. A leg ends at STOPPED at
+its To; a diversion (STOPPED elsewhere), an ABORT, a crash (damage().over), a NaN or 1800 s is a fault; 'gave-up' is the
+pilot's verdict on its own budget, not an end (it keeps flying) - a warning in the table. FAULTS per leg: a member yielded
+or broken, a dent, a prop strike, a node inside an obstacle (sim.out.obst), a trunk contact, a ground loop (the nose 30 deg
+off the runway at > 5 m/s on the roll or the roll-out), an off-strip excursion (the CG off the strip's box at > 5 m/s).
+RECORDED per leg: the ground run before the roll (the heading turned through - the U-turn -, the furthest off the
+centreline), the roll's start from the end, the lift-off distance, the final's start, the final's least clearance (the
+lowest node over the ground and the forest under it, 40-1500 m out), the touchdown (ap.report.landing: sink, speed, run,
+off the centreline), the fuel, the pilot's verdicts. tools/tour_map.js: the island raster (sea, land by height, the woods),
+every strip, each tour's track a colour a leg -> SVG (+ PNG through Playwright).
+THE ORDER: clockwise from HOME - Tamgas Hill (2.7 km NW), the altiport (5.4 km on), Jumbo Mine (10.7 km NE), 02/20 (18 km
+home), HOME (13/31); the C172 without the mine; the floats Annette Dock > Metlakatla > Annette Dock (mk_sea is the town
+variant's - on by default since G1408).
+
+A PILOT CHANGE, IN PILOT-ONE'S SPIRIT (G1969, 43_pilot.js planDeparture, to reconcile): on a strip with a turn pad at the
+end the departure turns round at, the back route's nodes the aeroplane has already passed on its way to that end are
+dropped (down to the half circle's two corners and the hold) - a short strip's roll-out stops inside the pad's own swing
+(East Point: ~20 m from the end, the teardrop's entry 35 m in) and the follower was handed a corner behind it. PILOT-ONE's
+pivot (G1938: a hairpin the wheels cannot steer, a taxi point behind - a taildragger on a strip under 300 m) is the other
+half of the same problem; with both, the pad's half circle is flown on the wheels and a stop past its entry pivots.
+
+GATE TOUR (G1972, tools/_tour_check.js, FULL tier, shards 3, timeout 3600 s; --strips for the strips' block alone, ~1 min;
+--show). Shard 0, THE STRIPS: 1 the approach census (every land strip, every direction landed in and taken off in: no tree,
+forest or solid thing through the surface, the ground <= 2.5 m, the pilot's 5.7 % final >= 10 m over everything); 2 the
+calibration (East Point with the user's old fan: the forest +18.6 m through; Tamgas Hill uphill: the hill +4.6 m; Jumbo
+Mine south: the ridge +148 m); 3a no water on any land strip, pad or the apron; 3 each of the six pads: the U-turn's wheel
+track (1.5 m either side of the pilot's path) on the strip or the pad's surface, the ground under it within 0.3 m of the
+strip's height, the wing's sweep 8.5 m off every solid thing and every tree, the hold r + 9 m in, the pattern sound; 4 the
+mine's apron (gravel, apron: true, the stand and the C172's parked box on it, 1.5 m off every footprint, on 346.8). The
+TOURS, one a shard (the Cub, the C172, the floats): every leg ok, a one-way strip left after a U-turn (>= 150 deg) and a
+roll from within 40 m of the end, the final's lowest node >= 3 m over the ground and the forest, fuel left, the tour back
+at its last stop. ~15 min a shard here (4 cores).
+
+OTHER GATES TOUCHED: TAXICLEAR (the census now walks the pads' back[] routes and the new out[] routes: 0 violations, 405
+rows); CONTACT's G1542 probe follows the mine's apron (1.5 m past the stand lane's dead end is PAVED now - the apron - and
+the patch sunk under it; without the apron the probe is G1542's own, unchanged); PREMISES 372 checks (the record's `turn`
+and `departure` checked by issues).
+
+FILES. core: 25_airfield.js (turnOf / turnPadNodes / TURN_S0; sitePattern's pad U-turn, the ways out onto a pad - padFrom),
+27_premises.js (RUNWAY_DEF turn, the aerodrome's `turn`, issues for turn and departure), 20_world.js (waterAt: no
+cover-water on the premises' dry ground), 43_pilot.js (planDeparture's passed nodes, G1969), 90_node_exports.js. The record:
+tools/fixtures/island_jolene.json (rev 24), tools/jolene_parts/turnpads.json (new, prefix tp_), mn_mine.json (departure,
+the apron), native.json (turn, nv_fan_s), tramway.json (turn), tools/jolene_author.py (w3's departure and turn, rev 24).
+The cook: media/world/jolene/premises (Tamgas Hill's three cells, the altiport's two, East Point's one, the mine's two) +
+src/core/premises_packs.json. Tools: _approach_lib.js, approach_census.js, turn_pads.js, _tour_lib.js, island_tour.js,
+tour_map.js, _tour_check.js; run_gates.js (TOUR). The contract: futureDesigns/PREMISES-CONTRACT-2026-09-13.md v1.32.
+NO FRAME COST: the pads and the apron are record data (five paved polygons more, drawn by the pavement module as every
+apron is - the FRAMECOST stand view +2 main draws and +6k triangles against the control, 0.2 % / 0.05 %); the water rule asks
+the premises only at a cover-water cell; the pilot change runs once a departure.
+
+EVIDENCE reports/evidence/ISLAND-TOUR/: legs_cub.md, legs_c172.md, legs_floats.md (the tables), tour_*.log, tour_*.json.gz
+(the legs and the 2 s track), tour_map.svg / .png; BEFORE: legs_before_cub.md / tour_cub_before.log (no pads: the
+altiport's turn-round put the Cub's propeller into the summit station, four DEPART > TAXI > HOLD loops), legs_before_c172_
+water.md (the C172's rejected take-off off 02/20's water); approach_census_before.txt / _after.txt; taxi_census_after.txt;
+stills (tools/soft_still.js on SwiftShader): still_mine_apron.jpg (--from mn_strip, an orbit over the apron), still_altiport_
+top.jpg (--from tw_ski, the head's platform and the strip).
+
+THE DEPENDENCIES. DEST-TO's READY (4f741534) is merged: the tour chains its legs DEST-TO's way (flightLeg, then a fresh
+pilot's departFrom(from, to)), and the three tours were re-flown on it (all DONE, 0 faults, the numbers above). PILOT-ONE:
+its READY (5d294064, train 34) does not carry PILOT-ONE-2's fixes, and on it the Cub's tour breaks at Jumbo Mine. PILOT-ONE-2
+(claude/pilot-one-2-g1949, the port onto train 36) was told what the tour found, reproduced it on a merge with this branch,
+and fixed both:
+  - THE MINE (6f4c93be): the Cub, stopped 68 m short of the south end, pivoted on the centreline at MILL-TAXI's teardrop
+    (rMin 8 m < the Cub's 11.3 m), then resumed the path at the END of the hairpin, on the far lobe 11 m west, and the
+    follower dragged its wing into mn_s_mine/clinic: 56 yields, 6 breaks, crashed 40 s into the leg (3016173d's crB0
+    had not covered it: the teardrop's entry e0 is ON the centreline). Now a pivot resumes where the turn comes back by
+    the aeroplane, and stops on its heading;
+  - THE ALTIPORT (6616f5f4): the Cub's w3 > tw_ski took 1390 s (a 474 s downwind, 'gave-up', a go-around 53 m off the
+    centreline) - the short-field IAF 900 m out turned a straight-in into a circuit whose DOWNWIND was entered 900 m short
+    of its start. Not the turn pads: identical with tw_ski's `turn` and pads removed from the record (TOUR_FIXTURE). Now
+    484 s, one approach. (Left: the leg follower orbits a DOWNWIND entered far past its start - not PILOT-ONE's.)
+  VERIFIED HERE: this branch merged with PILOT-ONE-2's head (ed826c23: train 36 + PILOT-ONE + both fixes; the merge's one
+  conflict, 90_node_exports.js, is the union less the retired makeAutopilot / makeTestPilot), the three tours re-flown:
+    the user's Cub      HOME > w3 > tw_ski > mn_strip > w2 > HOME   DONE, 0 faults, 35.6 L left (w3 > tw_ski 484 s, one
+                        approach; at the mine the pivot on the spot, then the authored hold, airborne at 117 m)
+    the aluminium C172  HOME > w3 > tw_ski > w2 > HOME              DONE, 0 faults, 15.2 L left
+    the float Cessna    Annette Dock > Metlakatla > Annette Dock     DONE, 0 faults, 18.3 L left
+  (reports/evidence/ISLAND-TOUR/legs_*_on_pilot-one-2.md, tour_*_on_pilot-one-2.log, the pilot's verdicts per leg.)
+  PILOT-ONE-2 was not READY when this branch closed (its session idle: PILOTMATRIX red, its own); so it is NOT merged
+  here - A0: merge PILOT-ONE-2 (not PILOT-ONE's train-34 READY 5d294064, which lacks both fixes) with this branch, and
+  re-run GATE TOUR (full, 3 shards). This branch's own pilot change
+  (G1969, planDeparture's passed nodes on a pad) and PILOT-ONE-2's pivot sit in different blocks of 43_pilot.js.
+
+THE BATTERY (`node tools/run_gates.js --all --jobs=3`, this cloud box: 4 cores, 15 GB; train 36 + DEST-TO + this branch,
+15 660 s wall): 178 of 182 PASS; the four reds, each run down:
+  - TOUR (shard 0): the gate's own first cut held a one-way strip's roll to 40 m from the end - Jumbo Mine's AUTHORED hold
+    is 55 m in (the Cub rolled from 54). Now held to the strip's own hold + 15 m; re-run: PASS, all three shards.
+  - FRAMECOST: THE STALE PARKED COOK (parked_cook.js --check: STALE - any source change moves the build id, the parked
+    aeroplanes are then captured live). DEST-TO's control (master + one comment in app.js) gives the same 24 rises; this
+    branch's stand view is that control +2 main draws and +6k triangles (0.2 % / 0.05 %, the five paved polygons) - under
+    the 1 % tolerance. parked_cook.js needs the box's Chrome (no cloud cook); A0's re-cook clears it.
+  - INSTANT: the runner's 1800 s timeout on this box (its wall is 480 s on A0's); run directly, uncapped and alone: GATE
+    INSTANT PASS in 2448 s. Master on this box timed out the same (and was OOM-killed beside the battery once: 6.7 GB).
+  - BIOME: "surface perf < 5 us" under three jobs; alone: PASS, 3.9 us/call.
+Run alone before the battery: PREMISES PASS (372 checks), PREMCOOK, PREMRASTER, STRIPGROUND, TAXICLEAR, WORLD, CONTACT, AUDIO,
+SETTLE all PASS on this branch.
+STATUS: READY (2026-10-06). The strips, the tour, GATE TOUR and the evidence on train 36 + DEST-TO; PILOT-ONE-2 verified on a
+merge, not merged (see THE DEPENDENCIES). Owed / for A0: the parked re-cook (FRAMECOST); PILOT-ONE-2's merge and a GATE TOUR
+re-run on it; East Point's slope (or a flapped build) if the user wants a land tour to include it - the user's call.
