@@ -210,8 +210,9 @@
   // the editor's layers read the GARAGE's spec while they build, and the garage's spec stayed the PLAYER's: the hinge
   // kit picks its family off GARAGE_SPEC.get().fuselage.material (the metal Cessna's piano hinges on the C172's
   // ailerons, flaps, rudder and elevators, its bellcranks in the steel tube bucket), the crew, the access doors and the
-  // panel read get(), the energy layer resolved(), and the snapshot's spec was GARAGE_SPEC.preview(spec): the PARKED
-  // spec merged over the PLAYER's (the player's measured glazing rode in). While a parked aeroplane stands in the
+  // panel read get(), the energy layer resolved(), the float layer the flown CG (FLYDIY_CG_MODEL), the snapshot's spec
+  // was GARAGE_SPEC.preview(spec): the PARKED spec merged over the PLAYER's (the player's measured glazing rode in), and
+  // the snapshot carried every mesh through the editor's sit-pitch mount, still at the player's pitch (neutralMount). While a parked aeroplane stands in the
   // editor these four doors answer for IT (`as`): get / preview / resolved off its own normalised spec, images off its
   // own pages (none for an archetype). `unAs` hands them back before the player's restore. PARKED.cleanCapture =
   // false re-opens the leak (GATE PARKED 11's negative control: the row must go red with it).
@@ -232,9 +233,20 @@
       G.preview = j => mergeSpec(cl(), JSON.parse(JSON.stringify(j)));
       G.resolved = () => res || (res = (typeof resolveSpec === 'function') ? resolveSpec(cl()) : cl());
       G.images = () => images || null;
+      asCg(cl());
       asOn = true;
     };
-    const unAs = () => { if (asOn && G && doors) Object.assign(G, doors); asOn = false; };
+    // ...AND THE FLOWN AEROPLANE'S CG AND MASS (app.js publishes them off the player's def; the float layer stands its
+    // step 12 deg aft of that CG): the parked aeroplane's own, off its own frame (the same node sum), for the hold
+    const cg0 = W.FLYDIY_CG_MODEL, mass0 = W.FLYDIY_MASS_MODEL, datum0 = W.CAGE_DATUM;
+    const asCg = s => {
+      let cg = null, mm = 0;
+      try { if (typeof buildGen === 'function') { const def = buildGen(s); let cx = 0, cy = 0; for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; } if (mm > 0) cg = [cx / mm, cy / mm]; } } catch (e) { cg = null; }
+      W.FLYDIY_CG_MODEL = cg || undefined; W.FLYDIY_MASS_MODEL = cg ? mm : undefined;
+    };
+    // (the join's datums too: a capture's measure leaves the PARKED aeroplane's, and the player's restore would stand its
+    // floats on them)
+    const unAs = () => { if (asOn && G && doors) { Object.assign(G, doors); W.FLYDIY_CG_MODEL = cg0; W.FLYDIY_MASS_MODEL = mass0; W.CAGE_DATUM = datum0; } asOn = false; };
     if (upd) G.update = () => { refused++; return G.get ? G.get() : null; };
     let viewHeld = !!(J && J.viewHold && J.viewHold());
     // (G999) the view and the spec door back ahead of the release: the player's restore is sliced under the hold
@@ -242,7 +254,13 @@
     const unrefuse = () => { unAs(); if (upd) G.update = upd; };
     const later = []; let open = true;
     const realST = W.setTimeout;
+    // G2220: while a parked aeroplane is held, every step runs with the editor's sit-pitch mount at the identity (the
+    // layers measure hinge lines and datums through it; the player's pitch moved their last digits)
     const run = fn => {
+      const unmount = asOn && W.PARKED.neutralSteps !== false ? neutralMount(J) : null;
+      try { return run0(fn); } finally { if (unmount) unmount(); }
+    };
+    const run0 = fn => {
       W.setTimeout = function (cb, ms) { const a = Array.prototype.slice.call(arguments, 2);
         return realST.call(W, function () { if (open) later.push(() => cb.apply(null, a)); else cb.apply(null, a); }, ms); };
       try { return fn(); } finally { W.setTimeout = realST; }
@@ -317,23 +335,33 @@
         // the editor's build in two tasks where it can (CAGE_UI.applySpecSteps: the sheet | the layers), each inside the hold
         let tA = 0;
         try {
-          if (E.applySpecSteps) { const g = H.run(() => E.applySpecSteps(spec)); for (;;) { const t1 = performance.now(); const r = H.run(() => g.next()); tA += performance.now() - t1; if (r.done) break; yield key; } }
-          else { H.run(() => E.applySpec(spec)); tA = performance.now() - t0; }
+          // G2220: A FLOATPLANE IS BUILT TWICE. The float layer stands its step off the join's datums (CAGE_DATUM), which
+          // only the join's measure writes - after the layers built: the first build stands the floats on the aeroplane
+          // the editor held before. Clean, the parked one is measured and built again on its own datums
+          for (let pass = 0; pass < 2; pass++) {
+            if (E.applySpecSteps) { const g = H.run(() => E.applySpecSteps(spec)); for (;;) { const t1 = performance.now(); const r = H.run(() => g.next()); tA += performance.now() - t1; if (r.done) break; yield key; } }
+            else { const t1 = performance.now(); H.run(() => E.applySpec(spec)); tA += performance.now() - t1; }
+            if (!clean || pass || !W.CAGE_FLOAT || !J.export) break;
+            const d0 = JSON.stringify(W.CAGE_DATUM || null);
+            H.run(() => J.export());
+            if (JSON.stringify(W.CAGE_DATUM || null) === d0) break;
+            yield key;
+          }
         } catch (e) { console.error('parked: capture', key, e); continue; }
         yield key;
         const t1 = performance.now();
         let vis = null, block = null, atlas = null, panel = {};
         try {
           H.run(() => {
-            // G2220: clean, the join's export merged over the PARKED spec (the aeroplane that would fly were it the
-            // player's: the garage's own preview of its export); the leak's way, the parked spec over the PLAYER's
-            const flown = clean ? (G.preview && J.export ? G.preview(J.export()) : normSpec(spec)) : (G.preview ? G.preview(spec) : spec);
+            // G2220: clean, the PARKED spec alone, normalised (merged over the PLAYER's it took the player's measured
+            // glazing; merged under the join's export it took that build's floats - the export's last digits move
+            // with what the editor built before); the leak's way, the parked spec over the player's
+            const flown = clean ? normSpec(spec) : (G.preview ? G.preview(spec) : spec);
             // G2220: the snapshot carries every mesh into the mount's frame through inv(mount.matrixWorld) x
             // mesh.matrixWorld - and the mount (edSitP, the editor's sit pitch) still holds the PLAYER's resting pitch
             // while a parked aeroplane stands in it: the same frame, other floats (every normal 1 ulp apart). Clean, the
-            // mount and its holder stand at the identity for the snapshot
-            const unmount = clean ? neutralMount(J) : null;
-            try { vis = J.snapshot(flown); } finally { if (unmount) unmount(); }
+            // mount and its holder stand at the identity for every held step (holdEditor's run)
+            vis = J.snapshot(flown);                // (inside H.run: the mount at the identity, clean)
             if (vis && U) {
               // the block as the editor left it for THIS aeroplane, made explicit with
               // the payload's own numbers (the flight side's calls, on the same door)
@@ -456,14 +484,16 @@
       tick();
     });
   }
-  // G2220: the mount (the editor's sit pitch, CAGE_JOIN.mount) and its holder at the identity; returns the undo
+  // G2220: THE CANONICAL MOUNT - the editor's sit-pitch mount (CAGE_JOIN.mount) level and at its holder's origin, the
+  // holder at the scene's origin; the holder keeps its TURN (the garage's constant quarter turn: the layers measure
+  // in that orientation - the hinge kit's stations moved with it, 4 352 triangles); returns the undo
   function neutralMount(J) {
     const m = J && J.mount ? J.mount() : null;
     if (!m) return null;
     const objs = [m, m.parent].filter(o => o && !o.isScene);
     const keep = objs.map(o => ({ o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() }));
     const top = objs[objs.length - 1];
-    for (const o of objs) { o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1); o.updateMatrix(); }
+    for (const o of objs) { o.position.set(0, 0, 0); if (o === m) o.quaternion.identity(); o.scale.set(1, 1, 1); o.updateMatrix(); }
     top.updateMatrixWorld(true);
     return () => { for (const k of keep) { k.o.position.copy(k.p); k.o.quaternion.copy(k.q); k.o.scale.copy(k.s); k.o.updateMatrix(); } top.updateMatrixWorld(true); };
   }

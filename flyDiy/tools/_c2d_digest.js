@@ -65,14 +65,44 @@ function make(cv, io) {
   const axisAligned = () => Math.abs(st.m[1]) < 1e-12 && Math.abs(st.m[2]) < 1e-12;
   const inside = (a, b) => a && b && a[0] >= b[0] - 1e-6 && a[1] >= b[1] - 1e-6 && a[2] <= b[2] + 1e-6 && a[3] <= b[3] + 1e-6;
   const meets = (a, b) => !a || !b || (a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]);
+  // pixels outside the canvas do not exist: a box is clamped to it (an unbounded draw stays null: never retired)
+  const clampBox = b => { if (!b) return null; const c = [Math.max(0, b[0]), Math.max(0, b[1]), Math.min(cv.width, b[2]), Math.min(cv.height, b[3])]; return c[2] > c[0] && c[3] > c[1] ? c : [0, 0, 0, 0]; };
+  const isect = (a, b) => { const c = [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])]; return c[2] > c[0] && c[3] > c[1] ? c : null; };
+  // is `r` wholly covered by the union of `rects` (axis-aligned): strip by strip in x, the y intervals merged
+  const covered = (r, rects) => {
+    if (!r) return true;
+    const L = rects.filter(q => meets(q, r));
+    if (!L.length) return false;
+    const xs = [r[0], r[2]]; for (const q of L) { if (q[0] > r[0] && q[0] < r[2]) xs.push(q[0]); if (q[2] > r[0] && q[2] < r[2]) xs.push(q[2]); }
+    xs.sort((a, b) => a - b);
+    for (let i = 0; i + 1 < xs.length; i++) {
+      const xa = xs[i], xb = xs[i + 1]; if (xb - xa < 1e-9) continue;
+      const iv = L.filter(q => q[0] <= xa + 1e-9 && q[2] >= xb - 1e-9).map(q => [q[1], q[3]]).sort((a, b) => a[0] - b[0]);
+      let y = r[1]; for (const [a, b] of iv) { if (a > y + 1e-9) break; y = Math.max(y, b); }
+      if (y < r[3] - 1e-9) return false;
+    }
+    return true;
+  };
   const push = (name, args, box, extra) => {
     sized();
     const d = name + '(' + args.map(a => (a && typeof a === 'object' ? digest(a) : r6(a))).join(',') + ')' + (extra || '') + '|m=' + st.m.map(r6).join(',') + '|' + styleKey();
-    ops.push({ d: H(d), box });
+    ops.push({ d: H(d), box: clampBox(box), n: d.slice(0, 160), after: [] });
   };
-  // a draw that certainly replaces every pixel of `box`: the earlier draws wholly inside it are gone
-  const cover = box => { sized(); if (!box) return; ops = ops.filter(o => !inside(o.box, box)); };
+  // a draw that certainly replaces every pixel of `box`: every earlier draw it meets remembers it, and one whose box the
+  // occluders after it cover together is gone
+  const cover = box => {
+    sized(); if (!box) return; const b = clampBox(box);
+    for (const o of ops) if (o.box && meets(o.box, b)) o.after.push(b);
+    ops = ops.filter(o => !(o.box && covered(o.box, o.after)));
+  };
+  // the draws still seen inside `r`
+  const seenIn = r => ops.filter(o => !o.box || (meets(o.box, r) && !covered(isect(o.box, r), o.after)));
   const exactRect = (x, y, w, h) => (axisAligned() && !st.clip) ? rectBox(x, y, w, h) : null;
+  const fontPx = () => { const m = /(\d+(?:\.\d+)?)px/.exec(String(st.font)); return m ? +m[1] : 10; };
+  const textBox = (t, x, y, pad) => {
+    const px = fontPx(), w = t.length * 0.6 * px, al = st.textAlign, x0 = al === 'center' ? x - w / 2 : (al === 'right' || al === 'end') ? x - w : x;
+    return rectBox(x0 - pad, y - px - pad, w + 2 * pad, 2 * px + 2 * pad);
+  };
   const gradient = (kind, args) => { const stops = []; const g = { addColorStop: (o, c) => { stops.push(r6(o) + ':' + c); }, __c2d: () => kind + '(' + args.map(r6).join(',') + ')[' + stops.join(';') + ']' }; return g; };
   const imgData = (w, h) => { const o = { width: w | 0, height: h | 0, data: new Uint8ClampedArray(Math.max(0, (w | 0) * (h | 0) * 4)), colorSpace: 'srgb' }; return o; };
   const pathPts = () => (path || (path = { d: [], pts: [] }));
@@ -104,7 +134,7 @@ function make(cv, io) {
     clip: rule => { const p = path || { d: [], pts: [] }; st.clip = H(st.clip + '|' + (typeof rule === 'string' ? rule : 'nonzero') + p.d.join('') + '|m=' + st.m.map(r6).join(',')); },
     clearRect: (x, y, w, h) => {
       const ex = exactRect(x, y, w, h);
-      if (ex) { cover(ex); if (ops.some(o => meets(o.box, ex))) push('clearRect', [x, y, w, h], ex); }
+      if (ex) { cover(ex); if (seenIn(clampBox(ex)).length) push('clearRect', [x, y, w, h], ex); }
       else push('clearRect', [x, y, w, h], rectBox(x, y, w, h));
     },
     fillRect: (x, y, w, h) => {
@@ -113,9 +143,10 @@ function make(cv, io) {
       push('fillRect', [x, y, w, h], rectBox(x, y, w, h));
     },
     strokeRect: (x, y, w, h) => { const b = rectBox(x, y, w, h), e = st.lineWidth + 2; push('strokeRect', [x, y, w, h], b ? [b[0] - e, b[1] - e, b[2] + e, b[3] + e] : null); },
-    fillText: (t, x, y, mw) => { const px = parseFloat(/(\d+(?:\.\d+)?)px/.exec(st.font) ? /(\d+(?:\.\d+)?)px/.exec(st.font)[1] : 10) || 10, w = String(t).length * px;
-      push('fillText', [String(t), x, y, mw === undefined ? null : mw], rectBox(x - w, y - 2 * px, 2 * w, 4 * px)); },
-    strokeText: (t, x, y, mw) => { const px = 40, w = String(t).length * px; push('strokeText', [String(t), x, y, mw === undefined ? null : mw], rectBox(x - w, y - 2 * px, 2 * w, 4 * px)); },
+    // a text's box off the page's OWN metrics (this context's measureText - the one the page lays its text out by), its
+    // alignment and baseline, the stroke's half width round it
+    fillText: (t, x, y, mw) => push('fillText', [String(t), x, y, mw === undefined ? null : mw], textBox(String(t), x, y, 0)),
+    strokeText: (t, x, y, mw) => push('strokeText', [String(t), x, y, mw === undefined ? null : mw], textBox(String(t), x, y, st.lineWidth / 2 + 1)),
     drawImage: (img, ...a) => {
       io.c2dDraw = (io.c2dDraw || 0) + 1;
       let s = null, dx, dy, dw, dh;
@@ -124,25 +155,34 @@ function make(cv, io) {
       else { [dx, dy] = a; dw = img && (img.width || img.naturalWidth) || 0; dh = img && (img.height || img.naturalHeight) || 0; }
       const ex = exactRect(dx, dy, dw, dh);
       if (ex && st.globalCompositeOperation === 'copy') cover(ex);
-      push('drawImage', [img].concat(s || []).concat([dx, dy, dw, dh]), rectBox(dx, dy, dw, dh));
+      // a sub-rectangle of a digest canvas reads only the draws that reach it (a page of an atlas is that page)
+      const sc = s && img && img._ctx && img._ctx.kind === '2d' && img._ctx.ctx && img._ctx.ctx.__digestRect ? img._ctx.ctx.__digestRect(s[0], s[1], s[2], s[3]) : null;
+      push('drawImage', [sc || img].concat(s || []).concat([dx, dy, dw, dh]), rectBox(dx, dy, dw, dh));
     },
     putImageData: (im, dx, dy, x0, y0, w0, h0) => {
       io.c2dPut = (io.c2dPut || 0) + 1;
       const w = w0 === undefined ? im.width : w0, h = h0 === undefined ? im.height : h0, ox = x0 || 0, oy = y0 || 0;
       sized();
       const box = [dx + ox, dy + oy, dx + ox + w, dy + oy + h];      // device space: putImageData ignores the transform and the clip
-      ops = ops.filter(o => !inside(o.box, box));
+      cover(box);
       const d = 'putImageData(' + digest(im) + ',' + [dx, dy, ox, oy, w, h].map(r6).join(',') + ')';
-      ops.push({ d: H(d), box });
+      ops.push({ d: H(d), box: clampBox(box), n: d.slice(0, 160), after: [] });
     },
     getImageData: (x, y, w, h) => { io.c2dRead = (io.c2dRead || 0) + 1; io.c2dReadBytes = (io.c2dReadBytes || 0) + Math.max(0, (w | 0) * (h | 0) * 4); return imgData(w, h); },
     createImageData: (w, h) => (typeof w === 'object' ? imgData(w.width, w.height) : imgData(w, h)),
-    measureText: s => ({ width: String(s).length * 6, actualBoundingBoxAscent: 7, actualBoundingBoxDescent: 2, actualBoundingBoxLeft: 0, actualBoundingBoxRight: String(s).length * 6, fontBoundingBoxAscent: 8, fontBoundingBoxDescent: 2 }),
+    // a monospace-like font's metrics off the font's own size (the plain node context answers 6 px a glyph whatever the
+    // font, and a page that fits its text by them scales a 96 px line 24 times)
+    measureText: t => { const px = fontPx(), w = String(t).length * 0.6 * px;
+      return { width: w, actualBoundingBoxAscent: 0.72 * px, actualBoundingBoxDescent: 0.2 * px, actualBoundingBoxLeft: 0, actualBoundingBoxRight: w, fontBoundingBoxAscent: 0.8 * px, fontBoundingBoxDescent: 0.2 * px }; },
     createLinearGradient: (...a) => gradient('lin', a), createRadialGradient: (...a) => gradient('rad', a), createConicGradient: (...a) => gradient('con', a),
     createPattern: (img, rep) => { const o = { setTransform: m => { o.m = m ? [m.a, m.b, m.c, m.d, m.e, m.f].map(r6).join(',') : ''; }, m: '', __c2d: () => 'pat(' + digest(img) + ',' + rep + ',' + o.m + ')' }; return o; },
     isPointInPath: () => false, isPointInStroke: () => false,
     getContextAttributes: () => ({ alpha: true }),
     __digest: () => { sized(); return 'c2d:' + size + ':' + H(ops.map(o => o.d).join('|')) + ':' + ops.length; },
+    __digestRect: (x, y, w, h) => { sized(); const r = [x, y, x + w, y + h], l = seenIn(r);
+      if (typeof st.__spy === 'function') st.__spy(x, y, w, h, l);           // (a probe's hook: what a copy read)
+      return 'c2dr:' + size + ':' + H(l.map(o => o.d).join('|')) + ':' + l.length; },
+    __list: (x, y, w, h) => { const r = [x, y, x + w, y + h]; return seenIn(r).map(o => ({ d: o.d, n: o.n, box: o.box && o.box.map(v => +v.toFixed(1)) })); },
     __resize: () => { size = ''; sized(); },
     __ops: () => ops.length,
   };

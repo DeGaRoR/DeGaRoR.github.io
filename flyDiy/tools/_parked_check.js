@@ -726,6 +726,7 @@ async function pageRows() {
     K.cleanCapture = false;
     let a = null, b = null;
     try { a = capUnder(CUB, 'mine:parkC172'); b = capUnder(MET, 'mine:parkC172'); } finally { K.cleanCapture = true; }
+    if (a && b) console.log('  11 NEGATIVE CONTROL (the leak re-opened): mine:parkC172 ' + a.tris + ' tris under the Cub, ' + b.tris + ' under the metal Cessna; geometry ' + a.g + ' / ' + b.g + ', atlas ' + a.a + ' / ' + b.a);
     check(!!(a && b) && (a.g !== b.g || a.a !== b.a), '11 NEGATIVE CONTROL: with the leak re-opened (PARKED.cleanCapture = false) the same spec captures DIFFERENTLY under the two builds - the row goes red',
       a && b ? a.tris + ' / ' + b.tris + ' tris, geometry ' + (a.g === b.g ? 'same' : 'differs') + ', atlas ' + (a.a === b.a ? 'same' : 'differs') : 'no capture');
   }
@@ -749,7 +750,7 @@ async function pageRows() {
     // FLYING: a save is queued, nothing starts; a decode is refused
     setHolds({ inGarage: false });
     G.save('fleetB');
-    await P.until(() => false, 20000);
+    await P.until(() => false, 8000);                       // past FLEET.idleMs and a worldMs re-look
     const H = PW.THREE;
     const gA = K.place(H, 'mine:fleetA', 0, 0, 0, 0);
     await P.until(() => false, 2000);
