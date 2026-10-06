@@ -187,6 +187,28 @@ function pageFrame() {
     tris += nt; big += b; if (b) worstOf.push({ name: o.name || o.type, big: b, skinned: !!o.isSkinnedMesh }); });
   return { frames: chain, worldTris: tris | 0, worldBig: big, meshesBig: worstOf.sort((a, b) => b.big - a.big).slice(0, 8) };
 }
+// THE NEW MESHES (21:40: the shed clean, the ghost only after the roll-out, the model and the snapshot clean, the world's
+// big group's count changed): every drawn mesh of both scenes by uuid at ANY depth; after a path, the meshes a fresh load
+// did not have, with triangles past 2 m (in the world, matrixWorld applied), their whole owner chain and material
+function pageMeshIds() { const P = FLIGHT_PROBE, ids = [];
+  for (const sc of [P.craft() && P.craft().parent, P.hangarScene ? P.hangarScene() : null]) if (sc) sc.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) ids.push(o.uuid); });
+  window.__d4bFreshIds = ids; return ids.length; }
+function pageNewMeshes() {
+  const P = FLIGHT_PROBE, F = new Set(window.__d4bFreshIds || []), out = [], w = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (const [sn, sc] of [['world', P.craft() && P.craft().parent], ['hangar', P.hangarScene ? P.hangarScene() : null]]) { if (!sc) continue;
+    sc.traverse(o => { if (!(o.isMesh) || F.has(o.uuid) || !o.geometry || !o.geometry.attributes.position) return;
+      let vis = o.visible; for (let q = o.parent; q && vis; q = q.parent) vis = q.visible;
+      const g = o.geometry, pa = g.attributes.position, ix = g.index ? g.index.array : null, nt = ix ? ix.length / 3 : pa.count / 3; let big = 0;
+      o.updateMatrixWorld(true);
+      for (let t = 0; t < nt && t < 400000; t++) { const id = [ix ? ix[t * 3] : t * 3, ix ? ix[t * 3 + 1] : t * 3 + 1, ix ? ix[t * 3 + 2] : t * 3 + 2]; if (id[0] === id[1] && id[1] === id[2]) continue;
+        for (let k = 0; k < 3; k++) w[k].fromBufferAttribute(pa, id[k]).applyMatrix4(o.matrixWorld);
+        if (Math.max(w[0].distanceTo(w[1]), w[1].distanceTo(w[2]), w[2].distanceTo(w[0])) > 2) big++; }
+      const chain = []; for (let q = o; q && chain.length < 10; q = q.parent) chain.push((q.name || q.type) + (q.userData && Object.keys(q.userData).length ? '{' + Object.keys(q.userData).slice(0, 4).join(',') + '}' : ''));
+      const mt = Array.isArray(o.material) ? o.material[0] : o.material;
+      out.push({ scene: sn, visible: vis, type: o.type, tris: nt | 0, big, chain: chain.join(' < '), material: mt ? (mt.name || mt.type) : null }); }); }
+  out.sort((a, b) => b.big - a.big);
+  return { newMeshes: out.length, withBig: out.filter(e => e.big).length, top: out.slice(0, 15) };
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -206,6 +228,7 @@ const inShed = "document.body.classList.contains('mode-ws')";
   const pl0 = await ev(MB.A.places), places = typeof pl0 === 'string' ? JSON.parse(pl0) : pl0;
   const strips = places.filter(p => p.kind === 'strip');
   R.fresh = await S.run(pageScene);   // (a fresh load: the stand, before any crash)
+  R.freshIds = await S.run(pageMeshIds);
   R.freshSnap = await S.run(pageSnap); console.log('fresh load: the snapshot ' + JSON.stringify(R.freshSnap));
   for (const k of opt('paths', 'retry,garage,place').split(',')) {
     const r = { path: k };
@@ -226,6 +249,9 @@ const inShed = "document.body.classList.contains('mode-ws')";
       await sleep(4000);
     } else {
       r.rollIn = await ev(MB.A.rollIn); r.shed = await waitFor(inShed, 120000); await sleep(3000);
+      // (A0: WALL's clean shot is IN THE SHED, before a roll-out - the same moment shot here, then the census there)
+      { await S.run(S.pageView, [235, 30, 18]).catch(() => 0); await sleep(800); const f = path.join(OUT, 'path_' + k + '_in_shed.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shedShot = f;
+        r.shedFrame = await S.run(pageFrame).catch(e => String(e)); console.log('  ' + k + ' IN THE SHED: the model frame ' + JSON.stringify(r.shedFrame)); }
       if (k === 'place') { const other = strips.find(p => p.id !== 'HOME') || strips[0]; r.from = other && other.id; r.set = await ev(MB.A.setFrom(r.from)); }
       r.rollOut = await ev(MB.A.rollOut); r.world = await waitFor(inWorld, 300000); await sleep(5000);
     }
@@ -236,7 +262,9 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.bones = await S.run(pageBones);
     r.frame = await S.run(pageFrame);
     console.log('  ' + k + ' the model frame and its triangles in the world: ' + JSON.stringify(r.frame));
-    r.skinned = await S.run(pageSkinned);
+    r.newMeshes = await S.run(pageNewMeshes);
+    console.log('  ' + k + ' NEW MESHES since the fresh load: ' + JSON.stringify(r.newMeshes));
+    r.skinned = await S.run(pageSkinned); if (!Array.isArray(r.skinned)) { console.log('  ' + k + ' skinned census failed: ' + String(r.skinned).slice(0, 200)); r.skinned = []; }
     console.log('  ' + k + ' skinned meshes as drawn (positions through their bones): ' + JSON.stringify(r.skinned.filter(x => x.big).slice(0, 8)) + ' (' + r.skinned.length + ' skinned, ' + r.skinned.filter(x => x.big).length + ' with triangles past 2 m)');
     console.log('  ' + k + ' skinned meshes and their bones: ' + JSON.stringify(r.bones.slice(0, 12)));
     console.log('  ' + k + ' the aeroplane snapshot after the path: ' + JSON.stringify(r.snap));
