@@ -78,12 +78,12 @@ function staleOf(W, S) {
 
 // ============================================================ THE CHILD: one build, one page
 async function child() {
-  const out = arg('out'), fault = arg('fault', ''), SECS = +arg('secs', 5), key = arg('build', 'cub');
+  const out = arg('out'), fault = arg('fault', ''), SECS = +arg('secs', 5), key = arg('build', 'cub'), dmg = arg('damage', '1') !== '0';
   const { openPage } = require('./_page_node.js');
-  const R = { key, fault, errors: [] };
+  const R = { key, fault, damage: dmg, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
   const SG = shadowGL(), S = SG.S;
-  const P = await openPage({ quiet: true, storage, query: 'simw=1&damage=1', workers: /sim_host\.js/, glWrap: SG.wrapGL });
+  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1', workers: /sim_host\.js/, glWrap: SG.wrapGL });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark') W.FLYDIY_HEAL_NOMARK = true;   // (the selftest: the heal's upload marking off - the bug as it was)
@@ -118,6 +118,7 @@ async function child() {
   R.after = staleOf(W, S);
   try { const FB = W.FLOWN_BAKE; R.bake = { module: !!FB, forPayload: !!(FB && FB.forPayload && W.CAGE_VISUAL && FB.forPayload(W.CAGE_VISUAL)), hybrid: !!(FB && FB.opts && FB.opts.hybrid) }; } catch (e) { R.bake = { err: String(e && e.message) }; }
   R.gl = { uploads: S.uploads, subs: S.subs, contexts: S.contexts };
+  R.healUploads = (W.FLYDIY_HEAL_UPLOAD || {}).n || 0;
   const s1 = SW() ? SW().state() : null;
   R.workerErrors = s1 && s1.errors ? s1.errors.slice(0, 10) : [];
   R.errors = P.errors.filter(e => !/impostor bake/.test(e)).slice(0, 20);
@@ -126,9 +127,9 @@ async function child() {
 }
 
 // ============================================================ THE PARENT
-function runChild(key, fault, secs) {
-  const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + '.json');
-  const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs]; if (fault) a.push('--fault=' + fault);
+function runChild(key, fault, secs, damage) {
+  const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + '.json');
+  const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
   if (r.status !== 0 || !fs.existsSync(out)) return { key, failed: 'child exit ' + r.status + (r.signal ? ' ' + r.signal : '') };
   const R = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return R;
@@ -142,7 +143,10 @@ function judge(R, say) {
       + '; after the shed and the roll-out (live ' + R.live1 + ') - ' + (R.after.checked || 0) + ' checked, ' + st(R.after).length + ' STALE; uploads ' + JSON.stringify(R.gl) + '; drawn meshes by class ' + JSON.stringify(R.after.classes || {}) + '; the flown bake ' + JSON.stringify(R.bake || null));
   for (const s of st(R.after).slice(0, 12)) say('      stale: ' + JSON.stringify(s));
   if (st(R.fresh).length) bad('a fresh roll-out already holds stale buffers: ' + JSON.stringify(st(R.fresh).slice(0, 4)));
-  if (!(R.crash && R.crash.br > 0)) bad('the crash broke nothing on the page - the path tests nothing');
+  if (R.damage === false) {   // DAMAGE OFF: the same path, no break - and the heal's upload marking never fires (no extra upload)
+    say('  ' + R.key + ' DAMAGE OFF: the heal upload marking fired ' + R.healUploads + ' times; ' + st(R.after).length + ' stale');
+    if (R.healUploads) bad('damage OFF: the heal marked folds for upload ' + R.healUploads + ' times (an extra upload with damage off)');
+  } else if (!(R.crash && R.crash.br > 0)) bad('the crash broke nothing on the page - the path tests nothing');
   if (!R.live1) bad('the roll-out after the shed never went live');
   if (!(R.after && R.after.checked > 0)) bad('no drawn buffer of the flown model was checked after the path');
   if (st(R.after).length) bad('STALE GPU BUFFERS after crash -> the shed -> roll-out (the CPU written without the upload): ' + st(R.after).slice(0, 6).map(s => s.cls + ':' + s.mesh + '.' + s.attr + ' ' + (s.elements || s.why)).join(', '));
@@ -160,6 +164,7 @@ function parent() {
   say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)');
   let fails = [];
   for (const k of keys) fails = fails.concat(judge(runChild(k, '', secs), say));
+  fails = fails.concat(judge(runChild(keys[0], '', secs, false), say));   // (damage OFF: one build)
   for (const x of fails) say('  FAIL  ' + x);
   console.log('GATE DMGUPLOAD: ' + (fails.length ? 'FAIL' : 'PASS'));
   process.exit(fails.length ? 1 : 0);

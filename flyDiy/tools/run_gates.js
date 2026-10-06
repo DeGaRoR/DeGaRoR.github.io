@@ -244,6 +244,10 @@ const GATES = [
   // and why, every body at rest on the ground or the water, the prop strike's bend or break, the clip against the live
   // cabin, the cockpit rule; damage off (and nothing broken) = no release, the crash's bits unread. Three at once
   { id: 'DMGWRECK', file: '_dmg_wreck_check.js', tier: 'core', weight: 3, wall: 150 },
+  // DMG-D4b: what the GPU holds after a wreck is what the CPU holds (the page in node, the worker: crash -> the shed ->
+  // roll-out; every drawn buffer of the flown model shadowed off the GL, GPU copy = CPU array; damage off: no extra upload).
+  // The hybrid bake's folds are not made in node (no GPU bake): their heal upload is box-proved, not gated here
+  { id: 'DMGUPLOAD', file: '_dmg_upload_check.js', tier: 'core', weight: 3, wall: 900 },
   // G1824-G1827 (DMG-DRIVE): the drivetrain against the real numbers (reports/evidence/DMG-DRIVE/real_numbers.json, every
   // row's source printed with its 'as recalled - A0 to open' flag): Lycoming SB 369's overspeed bands in the dives (V_NE and
   // 1.1 V_D at full throttle), the graded prop strike (SB 533: nose-overs, a brush, a trunk, the bow in the water, a tip lost

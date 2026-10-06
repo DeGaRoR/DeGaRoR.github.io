@@ -1426,8 +1426,9 @@
   }
 
   // (DMG-D4b: every fold under a model group, or every fold made, marked stale - the heal's upload; see mergeModel's dirty)
-  function dirtyAll(grp) { let n = 0; const mark = o => { const F = o && o.userData && o.userData.flownMerge; if (F && F.dirty) { F.dirty(); n++; } };
-    if (grp && grp.traverse) grp.traverse(mark); for (const F of FOLDS) for (const m of (F && F.meshes) || []) mark(m); return n; }
+  function dirtyAll(grp) { let n = 0, bytes = 0; const seen = new Set(); const mark = o => { const F = o && o.userData && o.userData.flownMerge; if (!F || !F.dirty || seen.has(o)) return; seen.add(o); F.dirty(); n++;
+      const A = o.geometry && o.geometry.attributes; if (A) for (const k of ['position', 'normal']) if (A[k] && A[k].array) bytes += A[k].array.byteLength; };
+    if (grp && grp.traverse) grp.traverse(mark); for (const F of FOLDS) for (const m of (F && F.meshes) || []) mark(m); return { folds: n, bytes }; }
   W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, rest, nearT, liveTwin, bandOf, FB_FADE, dirtyAll, folds: () => FOLDS.slice(),
                    warmPairs: () => FB.noWarm ? [] : FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,

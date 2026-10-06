@@ -223,6 +223,18 @@ function pageReuploadKind(kind) {
       if (g.index) g.index.needsUpdate = true; }); }
   return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(n))));
 }
+// THE HEAL'S UPLOAD COST (the coordinator: the bytes once, the ms on the frame it lands): 20 frames' times, then every fold
+// marked stale (FLOWN_BAKE.dirtyAll - what a heal does) and the next frames' times
+async function pageHealCost() {
+  const FB = window.FLOWN_BAKE, m = FLIGHT_PROBE.model(); if (!FB || !FB.dirtyAll || !m) return { none: true };
+  const raf = () => new Promise(r => requestAnimationFrame(() => r(performance.now())));
+  let t = await raf(); const base = [];
+  for (let i = 0; i < 20; i++) { const t2 = await raf(); base.push(t2 - t); t = t2; }
+  const r = FB.dirtyAll(m.grp); const after = [];
+  for (let i = 0; i < 4; i++) { const t2 = await raf(); after.push(t2 - t); t = t2; }
+  const q = base.slice().sort((a, b) => a - b);
+  return { folds: r.folds, bytes: r.bytes, baseMedMs: +q[q.length >> 1].toFixed(1), baseMaxMs: +q[q.length - 1].toFixed(1), afterMs: after.map(x => +x.toFixed(1)), healCount: (window.FLYDIY_HEAL_UPLOAD || {}).n || 0 };
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -295,6 +307,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
       await S.run(S.pageView, cam); await sleep(800);
       const f = path.join(OUT, 'path_' + k + '_after_' + (i + 1) + '.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shots.push(f);
     }
+    r.healCost = await S.run(pageHealCost);
+    console.log('  ' + k + ' HEAL COST (every fold marked stale, then the frame it lands on): ' + JSON.stringify(r.healCost));
     // (the bisect: one class at a time, a still after each - the first to clear the ghost names the stale buffer)
     r.bisect = [];
     for (const kind of ['fold', 'still', 'model', 'other']) {

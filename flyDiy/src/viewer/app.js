@@ -3977,7 +3977,9 @@
   // re-upload): A HEAL OWES THE HYBRID BAKE'S FOLDS THEIR UPLOAD - a fold uploads its members' views by range on a version
   // it sees change, and the heal's writes did not all reach it; marked stale, each uploads whole on its next drawn frame,
   // once (flown_bake.js dirtyAll). An event's cost. window.FLYDIY_HEAL_NOMARK = true: off (the A/B, the gate's selftest)
-  function brkHealUpload(mdl) { if (window.FLYDIY_HEAL_NOMARK || !window.FLOWN_BAKE || !FLOWN_BAKE.dirtyAll) return; FLOWN_BAKE.dirtyAll((mdl || model) && (mdl || model).grp); }
+  function brkHealUpload(mdl) { if (window.FLYDIY_HEAL_NOMARK || !window.FLOWN_BAKE || !FLOWN_BAKE.dirtyAll) return;
+    const r = FLOWN_BAKE.dirtyAll((mdl || model) && (mdl || model).grp), H = window.FLYDIY_HEAL_UPLOAD || (window.FLYDIY_HEAL_UPLOAD = { n: 0, last: null });
+    H.n++; H.last = r; }
   function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
     if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
   // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
