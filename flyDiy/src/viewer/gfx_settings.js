@@ -305,8 +305,10 @@
   //   town       'nearby': Metlakatla is never built, whatever the 'town' row says (A0, train 32: the row's default becomes 'all';
   //              potato, laptop and the software rung stay on the field and the sites - world_boot.js TOWN, the loader's
   //              raster variant in build.js; ?town=1 in the URL still asks for it)
-  //   patchTolPx the premises' ground patch's level error in px (render_premises PL.tolPx; potato / laptop 3 - 6 needs the pavement sink deeper): the
+  //   patchTolPx the premises' ground patch's level error in px (render_premises PL.tolPx; potato / laptop 6 - G1528: the sink follows the error, the pavement keeps 1 px): the
   //              patch was 780 k of the potato taxi's 4.1 M triangles at gamer's 1 px (G1527, the user's GTX 660 log of 5 Oct)
+  //   cabinFar   the tram's two cabins drawn within this many metres of the eye (render_premises cabinCut; potato 600, laptop 400):
+  //              136 k of the potato taxi's triangles; the line, the docks and the hit volumes stay (G1529)
   //   msaa       the scene target's MSAA samples at most (aa_resolve.js setMsaaCap; laptop 0) - absent: the tier's own
   //   shedLamps  false: the shed's lamps cast no shadow (hangar.js lamp: five 1024 spot maps, ~3 600 depth draws a frame -
   //              74 % of the shed's draws); the key light's map stays (the aeroplane's shadow on the floor)
@@ -314,10 +316,14 @@
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
     laptop:  { heapMB: 600,  mipSkip: 1, townBoot: 800,  townReach: 1200, parked: false, forestK: 0.5,  islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby', patchTolPx: 3 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby', patchTolPx: 6, cabinFar: 400 },
     potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby', patchTolPx: 3 },
-    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby', patchTolPx: 6, cabinFar: 600 },
+    // G1529 (POTATO-DEEP, A0's call 2026-10-05): the user's gaming laptop (i5-9300H 4c/8t, GTX 1660 Ti) on retro loaded the
+    // garage in 120.5 s - the flown bake 38.5 s (+31.3 s again at the roll-out for a second build): retro flies the live aeroplane
+    // (no bake: the stand +2-3 ms of render CPU on the box, the taxi at the 30 cap - HANDOVER G1529). townBoot stays 4000: at 1500
+    // the houses not built under the screen streamed in during the taxi (0.3 builds a frame, 217-250 ms hitches - measured)
+    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1, flownBake: false },
     current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },

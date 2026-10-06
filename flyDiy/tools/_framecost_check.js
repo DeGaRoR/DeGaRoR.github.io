@@ -464,6 +464,9 @@ async function census(build) {
     kitTown: (R => (R && R.kitTownStats ? R.kitTownStats() : null))(W.WORLD && W.WORLD.premises) };
   craft.bake = W.FLOWN_BAKE ? (W.FLOWN_BAKE.FB.last || null) : undefined;
   detail.scene = matCensus(W.WORLD && W.WORLD.scene);
+  // (G1528, POTATO-DEEP) the premises patch's own numbers: its level-0 / all-level triangles, the sunk vertices, the deepened sink
+  detail.patch = (() => { let g = null; if (W.WORLD && W.WORLD.scene) W.WORLD.scene.traverse(o => { if (!g && o.name === 'premises:patch' && o.userData && o.userData.blocks) g = o; });
+    return g ? { tris0: g.userData.tris, trisAll: g.userData.trisAll, blocks: g.userData.blocks, sunk: g.userData.sunk, sinkDeep: g.userData.sinkDeep } : null; })();
   if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
@@ -608,7 +611,7 @@ function drawnDetail(C) {
       if (g.drawRange && g.drawRange.count !== Infinity) n = Math.min(n, g.drawRange.count);
       const inst = o.isInstancedMesh ? o.count : (g.isInstancedBufferGeometry && g.instanceCount !== Infinity ? g.instanceCount : 1);
       const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
-      const k = path.slice(0, 3).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
+      const k = path.slice(0, +(process.env.FRAMECOST_TRIS_DEPTH || 3)).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
     tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
   return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
 }

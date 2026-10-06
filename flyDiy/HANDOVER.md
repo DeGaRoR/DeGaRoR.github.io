@@ -78592,3 +78592,83 @@ designed. The frame stayed at 15 fps: at 4x the box's own loop is CPU-bound (58-
 step-down did its part. B2 = 3x: 18 fps throughout, above the 15 floor, no step (correct); the box stays CPU-bound there, so the
 8x GPU proxy never binds on it. The laptop itself is GPU-bound at 3-4 fps: in the shed (8-10 fps) it would step retro -> potato,
 and potato's own taxi (the user's potato log: 14.5 fps) would step on to laptop at the next state.
+
+
+## G1528 POTATO-DEEP: THE PATCH AT 6 px WITH ITS OWN SINK AND A PAVEMENT TOLERANCE (train 38); NO DISTANCE CAP; THE GAMING LAPTOP'S 120 s LOAD (2026-10-05, POTATO-DEEP for A0, node first)
+
+**LEVER 1 - the premises patch at 6 px on potato / laptop (BUDGETS patchTolPx 3 -> 6), made safe for the pavement.** Two
+rules in render_premises' patch build, both only where PL.tolPx > 1 (every desktop preset is 1: `SK` null, nothing runs):
+(a) THE SINK FOLLOWS THE ERROR: per block, the worst height of every coarser level OVER the fine ground at the pavement's own
+(sunk) vertices x 1.25 is the block's sink when deeper than PAVEMENT.SINK.S (0.8 m) - the ground under the opaque interior
+drops by it (the pavement is drawn at terrainH there; the wheels read terrainH, never the mesh). Deepest on Jolene: 8.4 m.
+(b) THE PAVEMENT'S OWN TOLERANCE: a narrow road crossing a coarse cell keeps its off-road corners at the ground, which no sink
+reaches - so each level also measures its SUNK surface's height over the fine ground at the pavement's vertices and waits
+until that height is under gamer's 1 px (d >= half + pierce x focal) before it switches in. On the census views it never
+binds (the counts are (a)'s alone), it is the guarantee.
+MEASURED (FRAMECOST census, potato, the Cub; `FRAMECOST_QUERY=patchtol=N`, new `detail.patch`): the patch at the taxi 780 k
+(1 px) -> 358 k (3 px, train 37) -> 205 k (6 px); the taxi frame 4.13 -> 3.71 -> 3.56 M (-14 % vs 1 px: ~-3.4 ms on the GTX 660
+by G1527's fit). GATES PREMISES, CONTACT, PREMRASTER, PAVEMENT PASS. A dev knob `?patchtol=N` forces the level error (the
+stills' A/B). NOT LANDED WITHOUT ITS OWN STILLS (the runways at 300 m-2 km, 6 px vs 1 px).
+**LEVER 2 - the far terrain's draw-distance cap: NOT RECOMMENDED.** The far terrain (768 k at the potato taxi) is already
+cut by its PROJECTED error (6 px on potato); a distance cap removes what stands tallest on screen at range - the island's
+skyline: a 1 000 m ridge at 30 km is ~35 px tall on a 911 px canvas (K = 911 / (2 tan 23 deg) = 1 073). Scaling its K by the render scale (0.67)
+would only be a 9 px tolerance in disguise (the error the eye sees is display pixels). The next taxi triangles are elsewhere:
+forestK 0.5 on potato (the cards, ~-150 k) and the tram hidden on potato (143 k).
+
+**THE GAMING LAPTOP'S LOAD** (A0: i5-9300H 4c/8t, GTX 1660 Ti, 16 GB; retro, build 51c5b0ca; flydiy-flightlog-20261005T194416-ivvv.json):
+garage load 120.5 s - world 17.3, TOWN 38.6, settle 23.1, BAKE 38.5, worldCompile 15.1, compile 10.2; roll-out BAKE 31.3 s;
+25 long tasks of 1.0-3.1 s (setTimeout slices: a slice's single unit - a house, an HLOD merge, a bake job - overrunning its
+40 ms on a slower core). WHAT THE STEPS DO (FRAMECOST's per-step counters, retro vs potato, node, this box):
+- TOWN: retro's budget builds the premises within townBoot 4 000 m under the screen: 182 houses (86 near + 96 far, 1.19 M
+  triangles, 2.4 s of house generation alone in node here) vs potato's 1 house (1 200 m). The laptop's cores are ~2-3x
+  this box's per thread under a laptop power limit, and the step is single-threaded JS + the house worker.
+- BAKE: the flown bake is 1 020 draws, 146 MB of buffers and 83 program links (its own programs, linked cold) - on potato
+  it is skipped (G1523). The roll-out baked AGAIN because the user flew the Jodel (the garage boot bakes the build it opens
+  on; a different build is a different atlas - the IndexedDB cache serves it only on a later visit).
+- SETTLE (23 s) and WORLD (17 s): the streamers at rest round the stand and the world's composition - CPU, scaling with
+  townReach / the forest's reach.
+RECOMMENDATION (retro is not this session's to change silently - GATE GFX §10 freezes its row; the user's / A0's call):
+retro `townBoot: 1500` (the field and the village built under the screen, the rest streamed: the town step ~-60 %), and
+either `flownBake: false` on retro too (-38 s at the garage load, -31 s per new build at the roll-out; +~150 draws a
+frame - the 1660 Ti has the GPU for it, the 4-core CPU pays ~2-3 ms) or the bake moved off the boot's critical path
+(baked after the reveal, the live aeroplane flying meanwhile - FLOWN_BAKE's hybrid already swaps live <-> baked).
+The laptop rung already has both cuts (townBoot 800, no bake). McAfee: real-time scanning of the media fetches would show
+as the 'world' / 'upload' / fetch-bound steps, not as the town's or the bake's CPU - unproven either way; a second log with
+the scanner paused would settle it.
+
+**G1528 READY - its distant-runway still (the 05:00-05:30 quiet slot, 05:00-05:06, `?patchtol=1` vs `?patchtol=6` in one build, the same
+8 orbits as G1527):** `reports/evidence/POTATO-DEEP/g1528_runways_{400m,1200m}_patch1px_vs_6px.jpg` and `..._diff_x4.jpg`. No ground
+shows through any runway, taxiway or far strip; 0.29-1.52 % of the pixels differ by more than 40/255, all of them trees (the
+impostors' dither and sway) and the pavement's joint lines - the sink and the pavement's own tolerance hold. The stand's frame
+4.09 -> 3.61 M triangles in the same runs.
+
+## G1529 POTATO-DEEP: RETRO FLIES THE LIVE AEROPLANE (NO FLOWN BAKE); THE TRAM'S CABINS CUT BY DISTANCE ON POTATO / LAPTOP (2026-10-06, POTATO-DEEP for A0, local GPU)
+
+**RETRO `flownBake: false`** (A0's call, after the user's i5-9300H / GTX 1660 Ti laptop loaded the garage in 120.5 s on retro: the
+bake 38.5 s, and 31.3 s AGAIN at the roll-out for a second build). townBoot STAYS 4000: at 1500 (the first A/B, 22:39-22:48 - during
+train 36's CPU battery, direction only) the town step fell 8.8-10.4 -> 1.6 s but the settle rose ~6 s and the houses not built
+under the screen streamed in DURING THE TAXI (0.3 builds a frame vs 0.01, 5-6 frames over 100 ms, the worst 217-250 ms vs 50) - a
+nearer boot town only moves the work into the flight. GATE GFX §10 freezes retro's budget with the reason.
+THE QUIET A/B2 (A0's 05:00-05:30 slot, nothing else on the box; rollout_perf, retro, chase, 1920 x 911, 60 s; base = this tree
+before the change): cold base / cold after / warm after / warm base -
+  garage 57.0 / 57.0 / 42.5 / 41.3 s; bake 6.6 / 0 / 0 / 2.5 (an IndexedDB hit); worldCompile 5.9 / 10.5 / 0.3 / 1.3; upload
+  2.0 / 2.6 / 5.2 / 2.1; the stand's render CPU 11.6 / 14.8 / 12.8 / 11.0 ms (+2-3 ms: the live aeroplane's draws); the taxi
+  30.0 fps delivered in all four, the worst taxi frame 50 ms in all four.
+READ: the even 30 holds (A0's condition). On this box the FIRST load does not get shorter - the bake's 6.6 s moves into the
+world's compile (the live aeroplane's programs link there instead of the bake's own). What it buys is EVERY NEW BUILD'S ROLL-OUT:
+the bake re-ran per build (31.3 s on the laptop for its Jodel), the live aeroplane only links its programs there (the laptop's
+'craft' step 2.1 s) - the game's own loop (edit, roll out) on the user's laptop. Both sides of the A/B paid this branch tree's
+stale parked cook equally (below).
+HW-COVERAGE's 4x-throttled retro load (train 37 + their branch; their worktree's tools/perf/hwcov/rollout_weak_retro.json):
+garage 169.4 s (potato 100.1): town 30.4 / 2.4, settle 30.0 / 22.4, bake 9.9 / 0, PARKED 13.3 / 0 - the last a STALE PARKED COOK
+(bootLog: how 'capture', why 'stale' for jodel / cub / c172, then live bakes 18.7 / 15.8 / 11.6 s): a branch tree's FLYDIY_BUILD
+is not the cook's; the deployed builds read 'parked 0 ms' (the user's own logs, both machines). Retro keeps its parked aeroplanes.
+Anyone timing loads on a branch: `node tools/parked_cook.js --check` first.
+
+**THE TRAM'S CABINS ON POTATO / LAPTOP (BUDGETS cabinFar 600 / 400 m, render_premises cabinCut):** the two cabins and their
+carriages were 136 k of the potato taxi's triangles (the line itself 7 k; FRAMECOST_TRIS_DEPTH=5); past cabinFar from the eye they
+are not drawn (a 4 m cabin at 600 m is ~7 px), the ropes, the docks and the pylons stay. The potato taxi 3.56 -> 3.42 M (-26 draws).
+GATES PREMISES, CABIN, LIFE PASS. Not done: forestK 0.5 on potato (-37..-49 k, ~1 %: the cards are the near stands, set by the
+density, not the reach) - dropped.
+THE POTATO TAXI, ALL TOLD (FRAMECOST census, the Cub, potato): 4.13 M (train 31's 1 px patch) -> 3.42 M (G1527 + G1528 + the
+cabins) - ~-4 ms on the GTX 660 by G1527's fit.
