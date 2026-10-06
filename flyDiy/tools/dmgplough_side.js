@@ -9,11 +9,8 @@ const C = require(path.join(__dirname, 'flight_core.js'));
 const L = require(path.join(__dirname, '_treecrash_lib.js'));
 const H = C.HYDRO, D2R = Math.PI / 180;
 function floatP(key) {
-  if (key === 'twin') {
-    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json'), 'utf8')).spec;
-    spec.gear.type = 'floats'; return C.buildGen(C.genMigrateSpec(spec)).parts.floats[0].P;
-  }
-  return L.defOf('floats', { elastic: true }).parts.floats[0].P;
+  // G2031 (DMG-RECAL): the twin AS THE GAME FLIES IT (tools/_load_build.js `twinFloats`); FLYDIY_RAW_BUILDS=1: the fixture
+  return L.defOf(key === 'twin' ? 'twinFloats' : 'floats', { elastic: true }).parts.floats[0].P;
 }
 // DMG-HULL's hump poses (GATE DMGHULL's law table: V, step keel draft, trim) and the CG in the float frame (x aft of
 // the step keel, measured at rest off the sim: the twin 0.22 m ahead of the step, the Cessna 0.67 m)

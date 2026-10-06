@@ -12,10 +12,8 @@ const L = require(path.join(__dirname, '_treecrash_lib.js'));
 const H = C.HYDRO, D2R = Math.PI / 180;
 const key = ARGS[0] || 'twin';
 let def;
-if (key === 'twin') {
-  const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json'), 'utf8')).spec;
-  spec.gear.type = 'floats'; def = C.buildGen(C.genMigrateSpec(spec));
-} else def = L.defOf('floats', { elastic: true });
+// G2031 (DMG-RECAL): the twin AS THE GAME FLIES IT (tools/_load_build.js `twinFloats`); FLYDIY_RAW_BUILDS=1: the fixture
+def = L.defOf(key === 'twin' ? 'twinFloats' : 'floats', { elastic: true });
 const P0 = def.parts.floats[0].P;
 // the aeroplane's CG in the float frame (at rest: measured off the sim)
 const cgX = +arg('cgx', key === 'twin' ? -0.22 : -0.67), cgY = +arg('cgy', key === 'twin' ? 1.54 : 1.57);

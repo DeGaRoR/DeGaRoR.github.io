@@ -10,11 +10,8 @@ const L = require(path.join(__dirname, '_treecrash_lib.js'));
 const key = ARGS[0] || 'twin', wind = +(ARGS[1] || 0), every = +arg('every', 0.25);
 function defOf(key) {
   let def;
-  if (key === 'twin') {
-    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json'), 'utf8')).spec;
-    spec.gear.type = 'floats';
-    def = C.buildGen(C.genMigrateSpec(spec));
-  } else def = L.defOf('floats', { elastic: true });
+  // G2031 (DMG-RECAL): the twin AS THE GAME FLIES IT (tools/_load_build.js `twinFloats`); FLYDIY_RAW_BUILDS=1: the fixture
+  def = L.defOf(key === 'twin' ? 'twinFloats' : 'floats', { elastic: true });
   def = Object.assign({}, def, { params: Object.assign({}, def.params) });
   const kw = arg('kWave', null);
   if (kw != null) def.parts = Object.assign({}, def.parts, { floats: def.parts.floats.map(r => Object.assign({}, r, { P: Object.assign({}, r.P, { kWave: +kw }) })) });

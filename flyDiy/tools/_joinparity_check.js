@@ -177,11 +177,16 @@ const DOORS = {
   // the real page loads the build itself (flydiy.wip / the shelf): its own chain, nothing to align
   page: ['_framecost_check', '_instant_check', '_roundtrip_check', '_sheyes_probe', '_simworker_edges_check',
     '_simworker_page_check', '_simworker_place_check', 'craft_order_probe', 'master_bench', 'rollout_perf',
-    'rollout_ratchet', 'dmg_skin_stills', 'surface_shot', 'join_parity_page'],
+    'rollout_ratchet', 'dmg_skin_stills', 'surface_shot', 'join_parity_page',
+    // G2034 (DMG-RECAL): the bundle's (DMG-WALL's census drives the real page through tools/live_driver.js)
+    'dmg_wall_census'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
-  viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix'],
-  viaTreecrash: ['_dmg_instruments_check'],
+  viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
+    // G2034 (DMG-RECAL): the bundle's - GATE DMGTYRE and its evidence spawn pilot_trace.js on the Cub's file, MILL-TAXI's
+    // build list is flown through PT.specOf by _taxiclear_check / taxi_census
+    '_dmgtyre_check', 'dmgtyre_evidence', '_taxiclear_lib'],
+  viaTreecrash: ['_dmg_instruments_check', '_destto_check'],
   // never flies it: the stock designs' source (_cage_page5 rows were imported from these files), a comment, a paint
   // round trip at the spec level
   spec: ['_cage_page5', '_cage_stab', '_livery_check'],
