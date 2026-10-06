@@ -304,6 +304,7 @@
       }
       const tc = R.active && R.dead ? np >> 2 : 0;
       if (tc > left && left < B) break;          // the torn band next frame, on its own
+      if (tc && cap < Infinity && left < B && now() - t0 > 0.25 * cap) break;   // ...as soon as this frame has done work by time
       if (tc) { const t1 = now(); tornBand(R); st.ms.torn = Math.max(st.ms.torn, now() - t1); left -= tc;
         const T = S.torn; for (let p = 0; p < np; p++) { if (T[p] > 0) S.any = true; S.rec[S.pl[p] * 4 + 2] = Math.round(255 * T[p]); } }
       else for (let p = 0; p < np; p++) S.rec[S.pl[p] * 4 + 2] = 0;

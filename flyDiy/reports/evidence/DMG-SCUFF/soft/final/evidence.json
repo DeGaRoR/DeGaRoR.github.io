@@ -1,0 +1,897 @@
+{
+ "at": "2026-10-06T05:53:43.302Z",
+ "cases": {
+  "taxi": {
+   "label": "a taxi into a trunk at 3 m/s, the throttle shut",
+   "shots": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "kind": "intact",
+     "file": "taxi_1_intact.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "kind": "intact",
+     "file": "taxi_2_intact.jpg"
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "kind": "after",
+     "file": "taxi_1_after.jpg"
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "kind": "noscuff",
+     "file": "taxi_1_noscuff.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "kind": "after",
+     "file": "taxi_2_after.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "kind": "noscuff",
+     "file": "taxi_2_noscuff.jpg"
+    }
+   ],
+   "place": {
+    "placed": true,
+    "scuff": {
+     "on": true,
+     "recs": 0,
+     "attrVerts": 544194,
+     "passes": 0,
+     "places": 0,
+     "frameMs": 0,
+     "tickMs": 0,
+     "tornMs": 0,
+     "mkMs": 0,
+     "bound": 0,
+     "uploads": 0,
+     "bytes": 0,
+     "any": false,
+     "uOn": 0,
+     "awake": false,
+     "flips": 4,
+     "mats": 81,
+     "prelinks": 2,
+     "phases": {
+      "fields": 0,
+      "rec1": 0,
+      "recs": 0,
+      "bind": 0,
+      "tick": 0,
+      "upload": 0
+     },
+     "bindUs": 10,
+     "panes": [],
+     "counts": {
+      "crush": 0,
+      "scrape": 0,
+      "torn": 0,
+      "verts": 0
+     },
+     "busy": false
+    }
+   },
+   "crash": {
+    "steps": 582,
+    "crashed": false,
+    "over": false,
+    "reason": null,
+    "broken": 0,
+    "yields": 1456,
+    "work": 782,
+    "slid": 830,
+    "frameMed": 0,
+    "frameMax": 0,
+    "links": 0,
+    "programsAdded": 0,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 2,
+     "places": 105246,
+     "frameMs": 35.2,
+     "tickMs": 4.9,
+     "tornMs": 0,
+     "mkMs": 147.3,
+     "bound": 3121,
+     "uploads": 92,
+     "bytes": 4480608,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 5,
+     "mats": 81,
+     "prelinks": 2,
+     "phases": {
+      "fields": 1.8,
+      "rec1": 31.4,
+      "recs": 35.1,
+      "bind": 8.4,
+      "tick": 4.9,
+      "upload": 2.2
+     },
+     "bindUs": 2.98,
+     "panes": [],
+     "counts": {
+      "crush": 16692,
+      "scrape": 11260,
+      "torn": 0,
+      "verts": 280038
+     },
+     "busy": false
+    },
+    "skin": {
+     "on": true,
+     "recs": 0,
+     "ms": {
+      "records": 0,
+      "event": 0,
+      "frames": 0,
+      "pose": 0,
+      "recordsT": 0,
+      "eventT": 0,
+      "poseT": 0,
+      "frameMax": 0,
+      "n": 0
+     },
+     "removed": 0,
+     "torn": 0,
+     "tris": 0,
+     "riding": 0
+    }
+   },
+   "close": {
+    "scrape": {
+     "hot": {
+      "p": [
+       -524.8759772202392,
+       34.359630203158325,
+       26.69467183316885
+      ],
+      "v": 0.996078431372549,
+      "cls": 0
+     },
+     "aim": {
+      "az": 49.16368023380814,
+      "el": 10.86882146317327,
+      "dist": 2.9940623073252146
+     },
+     "file": "taxi_close_scrape.jpg",
+     "fileOff": "taxi_close_scrape_noscuff.jpg"
+    },
+    "crease": {
+     "hot": {
+      "p": [
+       -524.547374889409,
+       34.30311354376197,
+       26.215001860718765
+      ],
+      "v": 0.2964705882352941,
+      "cls": 0
+     },
+     "aim": {
+      "az": 28.809855091318596,
+      "el": 9.237641137864829,
+      "dist": 2.937812762722717
+     },
+     "file": "taxi_close_crease.jpg",
+     "fileOff": "taxi_close_crease_noscuff.jpg"
+    },
+    "torn": null,
+    "glass": null
+   },
+   "cost": {
+    "timer": true,
+    "off": {
+     "frameMed": 5179.5,
+     "gpuMed": 28.869,
+     "gpuN": 24
+    },
+    "on": {
+     "frameMed": 5153.1,
+     "gpuMed": 29.221,
+     "gpuN": 24
+    },
+    "off2": {
+     "frameMed": 5197.4,
+     "gpuMed": 32.064,
+     "gpuN": 24
+    },
+    "on2": {
+     "frameMed": 5196.7,
+     "gpuMed": 34.291,
+     "gpuN": 24
+    }
+   },
+   "linksEnd": {
+    "links": 0,
+    "programs": 321,
+    "failed": 0,
+    "bad": []
+   }
+  },
+  "noseover": {
+   "label": "a nose-over: 12 m/s on the ground into a 35 cm stump",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "kind": "intact",
+     "file": "noseover_1_intact.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "kind": "intact",
+     "file": "noseover_2_intact.jpg"
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "kind": "intact",
+     "file": "noseover_3_intact.jpg"
+    },
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "kind": "after",
+     "file": "noseover_1_after.jpg"
+    },
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "kind": "noscuff",
+     "file": "noseover_1_noscuff.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "kind": "after",
+     "file": "noseover_2_after.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "kind": "noscuff",
+     "file": "noseover_2_noscuff.jpg"
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "kind": "after",
+     "file": "noseover_3_after.jpg"
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "kind": "noscuff",
+     "file": "noseover_3_noscuff.jpg"
+    }
+   ],
+   "place": {
+    "placed": true,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 2,
+     "places": 105246,
+     "frameMs": 35.2,
+     "tickMs": 4.9,
+     "tornMs": 0,
+     "mkMs": 147.3,
+     "bound": 3121,
+     "uploads": 92,
+     "bytes": 4480608,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 5,
+     "mats": 81,
+     "prelinks": 2,
+     "phases": {
+      "fields": 1.8,
+      "rec1": 31.4,
+      "recs": 35.1,
+      "bind": 8.4,
+      "tick": 4.9,
+      "upload": 2.2
+     },
+     "bindUs": 2.98,
+     "panes": [],
+     "counts": {
+      "crush": 16692,
+      "scrape": 11260,
+      "torn": 0,
+      "verts": 280038
+     },
+     "busy": false
+    }
+   },
+   "crash": {
+    "steps": 318,
+    "crashed": true,
+    "over": true,
+    "reason": "a gear member broke",
+    "broken": 63,
+    "yields": 4986,
+    "work": 5478,
+    "slid": 22310,
+    "frameMed": 0,
+    "frameMax": 0,
+    "links": 0,
+    "programsAdded": 0,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 3,
+     "places": 157869,
+     "frameMs": 35.2,
+     "tickMs": 8.2,
+     "tornMs": 3.1,
+     "mkMs": 147.3,
+     "bound": 3121,
+     "uploads": 138,
+     "bytes": 6720912,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 5,
+     "mats": 81,
+     "prelinks": 2,
+     "phases": {
+      "fields": 1.8,
+      "rec1": 31.4,
+      "recs": 35.1,
+      "bind": 8.4,
+      "tick": 8.2,
+      "upload": 2.2
+     },
+     "bindUs": 2.98,
+     "panes": [],
+     "counts": {
+      "crush": 8476,
+      "scrape": 25947,
+      "torn": 19683,
+      "verts": 280038
+     },
+     "busy": false
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 80.30000000074506,
+      "event": 145.69999999925494,
+      "frames": 27.699999999254942,
+      "pose": 135.70000000298023,
+      "recordsT": 81.09999999776483,
+      "eventT": 146.79999999701977,
+      "poseT": 913.9000000022352,
+      "frameMax": 390.5,
+      "n": 14
+     },
+     "removed": 3255,
+     "torn": 1656,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "close": {
+    "scrape": {
+     "hot": {
+      "p": [
+       -507.334184811691,
+       32.86241501993508,
+       40.75209124926593
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -138.08824034088715,
+      "el": -10.043203808052361,
+      "dist": 5.2073589956179145
+     },
+     "file": "noseover_close_scrape.jpg",
+     "fileOff": "noseover_close_scrape_noscuff.jpg"
+    },
+    "crease": {
+     "hot": {
+      "p": [
+       -506.0515133935827,
+       32.957608030170476,
+       41.47551280435755
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -130.56000041263144,
+      "el": -13.559313224282269,
+      "dist": 3.800360527926208
+     },
+     "file": "noseover_close_crease.jpg",
+     "fileOff": "noseover_close_crease_noscuff.jpg"
+    },
+    "torn": {
+     "hot": {
+      "p": [
+       -507.1199433772159,
+       33.05676769295421,
+       40.436656553514304
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -132.55270030023735,
+      "el": -7.087948155264786,
+      "dist": 5.247189034036318
+     },
+     "file": "noseover_close_torn.jpg",
+     "fileOff": "noseover_close_torn_noscuff.jpg"
+    },
+    "glass": null
+   },
+   "cost": {
+    "timer": true,
+    "off": {
+     "frameMed": 3060.8,
+     "gpuMed": 28.859,
+     "gpuN": 24
+    },
+    "on": {
+     "frameMed": 3168.3,
+     "gpuMed": 27.577,
+     "gpuN": 24
+    },
+    "off2": {
+     "frameMed": 3059.9,
+     "gpuMed": 27.984,
+     "gpuN": 24
+    },
+    "on2": {
+     "frameMed": 3044.3,
+     "gpuMed": 30.751,
+     "gpuN": 24
+    }
+   },
+   "linksEnd": {
+    "links": 0,
+    "programs": 321,
+    "failed": 0,
+    "bad": []
+   }
+  },
+  "trunk-0": {
+   "label": "a trunk at 30 m/s, the centreline",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "kind": "intact",
+     "file": "trunk-0_1_intact.jpg"
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "kind": "intact",
+     "file": "trunk-0_2_intact.jpg"
+    },
+    {
+     "cam": [
+      120,
+      12,
+      7
+     ],
+     "kind": "intact",
+     "file": "trunk-0_3_intact.jpg"
+    },
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "kind": "after",
+     "file": "trunk-0_1_after.jpg"
+    },
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "kind": "noscuff",
+     "file": "trunk-0_1_noscuff.jpg"
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "kind": "after",
+     "file": "trunk-0_2_after.jpg"
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "kind": "noscuff",
+     "file": "trunk-0_2_noscuff.jpg"
+    },
+    {
+     "cam": [
+      120,
+      12,
+      7
+     ],
+     "kind": "after",
+     "file": "trunk-0_3_after.jpg"
+    },
+    {
+     "cam": [
+      120,
+      12,
+      7
+     ],
+     "kind": "noscuff",
+     "file": "trunk-0_3_noscuff.jpg"
+    }
+   ],
+   "place": {
+    "placed": true,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 5,
+     "places": 210492,
+     "frameMs": 35.2,
+     "tickMs": 8.2,
+     "tornMs": 3.1,
+     "mkMs": 147.3,
+     "bound": 3121,
+     "uploads": 230,
+     "bytes": 11201520,
+     "any": false,
+     "uOn": 0,
+     "awake": false,
+     "flips": 6,
+     "mats": 81,
+     "prelinks": 2,
+     "phases": {
+      "fields": 1.8,
+      "rec1": 31.4,
+      "recs": 35.1,
+      "bind": 8.4,
+      "tick": 8.2,
+      "upload": 2.2
+     },
+     "bindUs": 2.98,
+     "panes": [],
+     "counts": {
+      "crush": 0,
+      "scrape": 0,
+      "torn": 0,
+      "verts": 280038
+     },
+     "busy": false
+    }
+   },
+   "crash": {
+    "steps": 160,
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "broken": 179,
+    "yields": 14044,
+    "work": 27683,
+    "slid": 27345,
+    "frameMed": 0,
+    "frameMax": 0,
+    "links": 0,
+    "programsAdded": 0,
+    "scuff": {
+     "on": true,
+     "recs": 46,
+     "attrVerts": 544194,
+     "passes": 6,
+     "places": 263115,
+     "frameMs": 35.2,
+     "tickMs": 8.2,
+     "tornMs": 3.1,
+     "mkMs": 147.3,
+     "bound": 3121,
+     "uploads": 276,
+     "bytes": 13441824,
+     "any": true,
+     "uOn": 1,
+     "awake": true,
+     "flips": 7,
+     "mats": 81,
+     "prelinks": 2,
+     "phases": {
+      "fields": 1.8,
+      "rec1": 31.4,
+      "recs": 35.1,
+      "bind": 8.4,
+      "tick": 8.2,
+      "upload": 2.2
+     },
+     "bindUs": 2.98,
+     "panes": [
+      {
+       "sev": 1,
+       "slot": 0
+      },
+      {
+       "sev": 1,
+       "slot": 1
+      },
+      {
+       "sev": 1,
+       "slot": 2
+      },
+      {
+       "sev": 1,
+       "slot": 3
+      },
+      {
+       "sev": 1,
+       "slot": 4
+      },
+      {
+       "sev": 1,
+       "slot": 5
+      },
+      {
+       "sev": 1,
+       "slot": 6
+      }
+     ],
+     "counts": {
+      "crush": 84117,
+      "scrape": 90905,
+      "torn": 65067,
+      "verts": 280038
+     },
+     "busy": false
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 80.30000000074506,
+      "event": 145.69999999925494,
+      "frames": 27.699999999254942,
+      "pose": 135.70000000298023,
+      "recordsT": 86.90000000596046,
+      "eventT": 267.3999999836087,
+      "poseT": 6238.5,
+      "frameMax": 390.5,
+      "n": 98
+     },
+     "removed": 16464,
+     "torn": 4941,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "close": {
+    "scrape": {
+     "hot": {
+      "p": [
+       -494.5617027914719,
+       32.8873109276762,
+       48.15651482604121
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -115.67540391081508,
+      "el": -15.38625543229018,
+      "dist": 10.242991795604128
+     },
+     "file": "trunk-0_close_scrape.jpg",
+     "fileOff": "trunk-0_close_scrape_noscuff.jpg"
+    },
+    "crease": {
+     "hot": {
+      "p": [
+       -497.4535415811272,
+       32.93045611643153,
+       49.891684394085935
+      ],
+      "v": 1,
+      "cls": 1
+     },
+     "aim": {
+      "az": -137.67548538022047,
+      "el": -14.56779349556449,
+      "dist": 10.562098400552358
+     },
+     "file": "trunk-0_close_crease.jpg",
+     "fileOff": "trunk-0_close_crease_noscuff.jpg"
+    },
+    "torn": {
+     "hot": {
+      "p": [
+       -497.4126508824886,
+       35.21555354719761,
+       48.86561137756484
+      ],
+      "v": 1,
+      "cls": 0
+     },
+     "aim": {
+      "az": -133.00602428051909,
+      "el": -0.264346913665915,
+      "dist": 10.957136128840327
+     },
+     "file": "trunk-0_close_torn.jpg",
+     "fileOff": "trunk-0_close_torn_noscuff.jpg"
+    },
+    "glass": {
+     "hot": {
+      "p": [
+       -481.1232206027093,
+       32.69513981957876,
+       64.5005589249754
+      ],
+      "v": 1,
+      "cls": 4
+     },
+     "aim": {
+      "az": 41.46285170808575,
+      "el": -11.205578991853292,
+      "dist": 14.299046350726499
+     },
+     "file": "trunk-0_close_glass.jpg",
+     "fileOff": "trunk-0_close_glass_noscuff.jpg"
+    }
+   },
+   "cost": {
+    "timer": true,
+    "off": {
+     "frameMed": 2804.4,
+     "gpuMed": 27.681,
+     "gpuN": 24
+    },
+    "on": {
+     "frameMed": 2835.1,
+     "gpuMed": 27.952,
+     "gpuN": 24
+    },
+    "off2": {
+     "frameMed": 2877,
+     "gpuMed": 29.452,
+     "gpuN": 24
+    },
+    "on2": {
+     "frameMed": 2896,
+     "gpuMed": 33.294,
+     "gpuN": 24
+    }
+   },
+   "linksEnd": {
+    "links": 0,
+    "programs": 321,
+    "failed": 0,
+    "bad": []
+   }
+  }
+ },
+ "install": 0,
+ "links0": {
+  "links": 0,
+  "programs": 321,
+  "failed": 0,
+  "bad": []
+ },
+ "scuff0": {
+  "on": true,
+  "recs": 0,
+  "attrVerts": 544194,
+  "passes": 0,
+  "places": 0,
+  "frameMs": 0,
+  "tickMs": 0,
+  "tornMs": 0,
+  "mkMs": 0,
+  "bound": 0,
+  "uploads": 0,
+  "bytes": 0,
+  "any": false,
+  "uOn": 0,
+  "awake": false,
+  "flips": 4,
+  "mats": 81,
+  "prelinks": 2,
+  "phases": {
+   "fields": 0,
+   "rec1": 0,
+   "recs": 0,
+   "bind": 0,
+   "tick": 0,
+   "upload": 0
+  },
+  "bindUs": 10,
+  "panes": [],
+  "counts": {
+   "crush": 0,
+   "scrape": 0,
+   "torn": 0,
+   "verts": 0
+  },
+  "busy": false
+ }
+}
