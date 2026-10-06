@@ -690,12 +690,7 @@
   const FRAME_SEC = new Set(['fuselage', 'wings', 'tail']);
   function frameSegs(T, rest, all) {
     const L = [];
-    // ('engines': the ENGINE's own members - those whose two ends are nodes no airframe member reaches (ENGL / ENGR / CGE
-    // on the Cub): a cowl rides the engine, not the firewall the mount ties it to - G1859.6; all the mount's when none is)
-    let air = null;
-    if (all === 'engines') { air = new Uint8Array(T.n); T.beams.forEach(b => { if (b.sec !== 'engines') air[b.a] = air[b.b] = 1; });
-      if (!T.beams.some(b => b.sec === 'engines' && !air[b.a] && !air[b.b])) air = null; }
-    T.beams.forEach((b, bi) => { if (all === 'engines' ? (b.sec !== 'engines' || (air && (air[b.a] || air[b.b]))) : (!all && (b.cls === 'wire' || (b.sec && !FRAME_SEC.has(b.sec))))) return;
+    T.beams.forEach((b, bi) => { if (all === 'engines' ? b.sec !== 'engines' : (!all && (b.cls === 'wire' || (b.sec && !FRAME_SEC.has(b.sec))))) return;
       const ax = rest[b.a * 3], ay = rest[b.a * 3 + 1], az = rest[b.a * 3 + 2], ex = rest[b.b * 3] - ax, ey = rest[b.b * 3 + 1] - ay, ez = rest[b.b * 3 + 2] - az;
       const L2 = ex * ex + ey * ey + ez * ez; if (L2 > 1e-8) L.push({ bi, a: b.a, b: b.b, ax, ay, az, ex, ey, ez, L2 }); });
     return L;
