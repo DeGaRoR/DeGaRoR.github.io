@@ -273,14 +273,16 @@ const STATE = `JSON.stringify((() => {
   let end = null;
   const flightStartWall = Date.now();
   for (let li = 1; li < ORDER.length && li <= LEGS && !end; li++) {
-    const a = A(ORDER[li - 1]), b = A(ORDER[li]), FA = frame(a);
+    let a = A(ORDER[li - 1]), FA = frame(a); const b = A(ORDER[li]);
     const L = { leg: li, from: a.id, to: b.id, tStart: st.t, wallStart: Date.now(), cmd: null, moments: {}, rate: [], stop: null, report: null, faults: [] };
     if (li > 1) {
       // THE NEXT TO, THE PLAYER'S WAY: the plate's To picker, its change event (app.js setTo -> destApply -> nextLeg)
       await sleep(800);
       const r = JSON.parse(await ev("JSON.stringify((() => { const s = document.getElementById('selDest'); const o = [...s.options].find(q => q.value === " + JSON.stringify(b.id) + ");"
         + " if (!o) return { err: 'no option ' + " + JSON.stringify(b.id) + " }; const dis = o.disabled; s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true }));"
-        + " return { last: window.FLYDIY_DEST_LAST, disabled: dis, t: FLIGHT_PROBE.sim().t, phase: FLIGHT_PROBE.ap().phase }; })())"));
+        + " return { last: window.FLYDIY_DEST_LAST, disabled: dis, t: FLIGHT_PROBE.sim().t, phase: FLIGHT_PROBE.ap().phase, from: FLYDIY_ROUTE.get().from }; })())"));
+      // the From the page derived (DEST-TO: the aerodrome under the aeroplane) - after a diversion, not the plan's
+      if (r.from && r.from !== a.id && A(r.from)) { log('  the From is ' + r.from + ' (the plan said ' + a.id + ')'); L.fromActual = r.from; a = A(r.from); FA = frame(a); }
       L.cmd = r; L.tStart = r.t != null ? r.t : st.t;
       log('  LEG ' + li + ' ' + a.id + ' > ' + b.id + ': the To picker -> ' + JSON.stringify(r));
       if (!r.last || r.last.how !== 'leg') { L.faults.push({ k: 'to-picker', note: JSON.stringify(r) }); log('  !!! the To did not start a leg'); }
@@ -288,7 +290,7 @@ const STATE = `JSON.stringify((() => {
     } else log('  LEG 1 ' + a.id + ' > ' + b.id + ' (the roll-out: the route pref ' + JSON.stringify(start.route) + ')');
     await ev("window.FLIGHT_REC && FLIGHT_REC.mark && FLIGHT_REC.mark('TOUR-REAL leg " + li + " " + a.id + " > " + b.id + "'), 1").catch(() => 0);
     let effSum = 0, effN = 0, effMin = Infinity;
-    let turned = 0, prevNose = null, sawRoll = false, sawLift = false, air = false, sawFinal = false, sawTd = false, stopT = null, lastStill = 0;
+    let turned = 0, prevNose = null, sawRoll = false, sawLift = false, air = false, sawFinal = false, sawTd = false, stopT = null, divT = null, lastStill = 0;
     const M = L.moments;
     const take = async (k, D) => { if (M[k]) return; M[k] = await shot(li, k, st, D); };
     for (;;) {
@@ -333,7 +335,12 @@ const STATE = `JSON.stringify((() => {
         if (stopT === null) stopT = now;
         if (now - stopT > 600) { await take('stop', 250); break; }
       } else stopT = null;
-      if (st.ph === 'STOPPED' && st.rt && st.rt.to !== b.id && legT > 60 && st.onG > 0) { end = 'stopped bound for ' + st.rt.to + ', not ' + b.id; L.faults.push({ k: 'diverted', note: end }); await take('stop', 250); break; }
+      // A DIVERSION (the pilot's own: 'divert twice round ...'): the leg failed, the tour flies on from where it stopped
+      // (the next To picked there, as a player would) - the failure is the finding, the rest of the tour still flown
+      if (st.ph === 'STOPPED' && st.rt && st.rt.to !== b.id && legT > 60 && st.onG > 0) {
+        if (divT === null) divT = now;
+        if (now - divT > 600) { L.faults.push({ k: 'diverted', note: 'stopped at ' + st.rt.to + ', not ' + b.id }); log('  !!! DIVERTED: stopped at ' + st.rt.to + ', not ' + b.id + ' - the tour flies on from there'); await take('stop', 250); break; }
+      } else divT = null;
       if (st.ph === 'ABORT') { end = 'the take-off was rejected (ABORT)'; L.faults.push({ k: 'abort', note: end }); await take('abort', 250); break; }
       if (legT > 1800) { end = 'the leg took over 1800 s'; L.faults.push({ k: 'timeout', note: end }); break; }
       if (SHAKEDOWN && now - flightStartWall > SHAKEDOWN * 1000) { end = 'shakedown: ' + SHAKEDOWN + ' s'; break; }

@@ -140,13 +140,17 @@ function deviation(Pg, Nd) {
 // ---- THE LEGS -----------------------------------------------------------------------------------------------------
 const legs = [];
 for (let i = 1; i < order.length; i++) {
-  const a = A(order[i - 1]), b = A(order[i]);
+  const b = A(order[i]);
   const Pg = pageRows.filter(p => p.leg === i), Nd = nodeRows.filter(p => p.leg === i);
   const pl = PL.legs.find(L => L.leg === i) || null, nl = ND.legs[i - 1] || null;
+  // the From each really left (after a diversion, not the plan's)
+  const aP = A((pl && pl.fromActual) || order[i - 1]), aN = A((nl && nl.where && nl.where.at) || order[i - 1]), a = aP;
+  const rtTo = pl && pl.report && pl.report.route ? (pl.report.route.to && pl.report.route.to.id) || pl.report.route.to : null;
+  const bP = A(rtTo) || b, bN = A(nl && nl.landedAt) || b;
   if (!pl && !Nd.length) continue;
   // the page leg's rows end at its stop (the rows after the stop, before the next To, belong to the stop)
   const P2 = pl && pl.tStop != null ? Pg.filter(p => p.t <= pl.tStop + 0.01) : Pg;
-  const M = { leg: i, from: a.id, to: b.id, page: legMetrics(P2, a, b), node: legMetrics(Nd, a, b), dev: deviation(P2, Nd) };
+  const M = { leg: i, from: a.id, fromNode: aN.id, to: b.id, landedPage: bP.id, landedNode: bN.id, page: legMetrics(P2, aP, bP), node: legMetrics(Nd, aN, bN), dev: deviation(P2, Nd) };
   M.page && (M.page.done = !!(pl && !pl.faults.length && pl.report && pl.report.phase === 'STOPPED'));
   M.page && (M.page.pilot = pl && pl.report && pl.report.report ? { outcome: pl.report.report.outcome, landing: pl.report.report.landing, verdicts: (pl.report.report.verdicts || []).map(v => v.code + (v.note ? ': ' + v.note : '')) } : null);
   M.page && (M.page.rigFaults = pl ? pl.faults : []);
@@ -185,7 +189,7 @@ const T1 = ['| leg | done page / node | faults page / node | sim time page / nod
 for (const M of legs) {
   const p = M.page || {}, n = M.node || {}, pd = p.dep || {}, nd = n.dep || {}, pa = p.arr || {}, na = n.arr || {};
   const fl = q => (q && q.length ? q.join(', ') : 'none');
-  T1.push('| ' + M.from + ' > ' + M.to + ' | ' + (p.done ? 'yes' : 'NO') + ' / ' + (n.done ? 'yes' : 'NO') + ' | ' + fl((p.faults || []).concat((p.rigFaults || []).map(q => q.k))) + ' / ' + fl((n.faults || []).concat((n.libFaults || []).map(q => q.k))) +
+  T1.push('| ' + M.from + ' > ' + M.to + (M.landedPage !== M.to ? ' (page landed at ' + M.landedPage + ')' : '') + (M.landedNode !== M.to ? ' (node landed at ' + M.landedNode + ')' : '') + (M.fromNode !== M.from ? ' (node left ' + M.fromNode + ')' : '') + ' | ' + (p.done ? 'yes' : 'NO') + ' / ' + (n.done ? 'yes' : 'NO') + ' | ' + fl((p.faults || []).concat((p.rigFaults || []).map(q => q.k))) + ' / ' + fl((n.faults || []).concat((n.libFaults || []).map(q => q.k))) +
     ' | ' + f(p.t) + ' s / ' + f(n.t) + ' s | ' + f(pd.turned) + ' deg, ' + f(pd.latMax) + ' m / ' + f(nd.turned) + ' deg, ' + f(nd.latMax) + ' m | ' + f(pd.roll && pd.roll.fromEnd) + ' / ' + f(nd.roll && nd.roll.fromEnd) +
     ' | ' + f(pd.lift && pd.lift.dist) + ' / ' + f(nd.lift && nd.lift.dist) + ' | ' + (pa.td ? pa.td.pastThr + ' m, ' + pa.td.c + ' m' : '-') + ' / ' + (na.td ? na.td.pastThr + ' m, ' + na.td.c + ' m' : '-') +
     ' | ' + f(pa.run) + ' / ' + f(na.run) + ' | ' + (M.dev ? M.dev.p50 + ' / ' + M.dev.p95 + ' / ' + M.dev.max + ' (' + M.dev.backMax + ')' : '-') + ' | ' + (M.dev ? M.dev.runs.length : '-') + ' |');
@@ -217,9 +221,9 @@ function raster(x0, z0, x1, z1, PX) {
 }
 const NODE_COL = '#1f5fd6', PAGE_COL = '#ff7a00', CLOUD_COL = '#6b6b6b';
 function mapSvg(x0, z0, x1, z1, PX, widthPx, title, opts) {
-  const vw = x1 - x0, vh = z1 - z0, scale = widthPx / vw, S = [], hd = 70 / scale;
+  const vw = x1 - x0, vh = z1 - z0, scale = widthPx / vw, S = [], hd = 80 / scale;
   const png = raster(x0, z0, x1, z1, PX).toString('base64');
-  S.push('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + Math.round(vw * scale) + '" height="' + Math.round(vh * scale + 70) + '" viewBox="' + x0 + ' ' + (z0 - hd) + ' ' + vw + ' ' + (vh + hd) + '">');
+  S.push('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + Math.round(vw * scale) + '" height="' + Math.round(vh * scale + 80) + '" viewBox="' + x0 + ' ' + (z0 - hd) + ' ' + vw + ' ' + (vh + hd) + '">');
   S.push('<rect x="' + x0 + '" y="' + (z0 - hd) + '" width="' + vw + '" height="' + (vh + hd) + '" fill="#fff"/>');
   S.push('<image x="' + x0 + '" y="' + z0 + '" width="' + vw + '" height="' + vh + '" preserveAspectRatio="none" xlink:href="data:image/png;base64,' + png + '" href="data:image/png;base64,' + png + '"/>');
   const sw = 1.2 / scale, fs1 = 13 / scale;
@@ -242,8 +246,9 @@ function mapSvg(x0, z0, x1, z1, PX, widthPx, title, opts) {
   for (const M of legs) for (const [m, col] of [[M.node, NODE_COL], [M.page, PAGE_COL]]) if (m) { mark(m.arr.td, col, 'o'); mark(m.dep.roll, col, 'x'); mark(m.arr.stop, col, 'sq'); if (m.dep.uturnAt) mark(m.dep.uturnAt, col, 'sq'); }
   const ty = z0 - hd + 22 / scale;
   S.push('<text x="' + (x0 + 10 / scale) + '" y="' + ty + '" font-size="' + 15 / scale + '" font-family="sans-serif" font-weight="bold">' + title + '</text>');
-  S.push('<text x="' + (x0 + 10 / scale) + '" y="' + (ty + 20 / scale) + '" font-size="' + 12 / scale + '" font-family="sans-serif"><tspan fill="' + NODE_COL + '">━ node (tour_real_node, same source)</tspan>   <tspan fill="' + PAGE_COL + '">━ page (GPU, 2x)</tspan>' + (CLOUD ? '   <tspan fill="' + CLOUD_COL + '">┅ ISLAND-TOUR cloud json</tspan>' : '') +
-    '   ○ touchdown  ✕ roll start  □ stop / 90° into the U-turn   <tspan fill="#777">■ node obstacles</tspan>  <tspan fill="#e00">■ page-only obstacles</tspan></text>');
+  S.push('<text x="' + (x0 + 10 / scale) + '" y="' + (ty + 20 / scale) + '" font-size="' + 12 / scale + '" font-family="sans-serif"><tspan fill="' + NODE_COL + '">━ node (tour_real_node, same source)</tspan>   <tspan fill="' + PAGE_COL + '">━ page (GPU, 2x)</tspan>' + (CLOUD ? '   <tspan fill="' + CLOUD_COL + '">┅ ISLAND-TOUR cloud json</tspan>' : '') + '</text>');
+  S.push('<text x="' + (x0 + 10 / scale) + '" y="' + (ty + 38 / scale) + '" font-size="' + 12 / scale + '" font-family="sans-serif">' +
+    '○ touchdown  ✕ roll start  □ stop / 90° into the U-turn   <tspan fill="#777">■ node obstacles</tspan>  <tspan fill="#e00">■ page-only obstacles</tspan></text>');
   S.push('</svg>');
   return S.join('\n');
 }

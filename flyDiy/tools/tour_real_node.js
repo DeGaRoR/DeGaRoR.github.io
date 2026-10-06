@@ -68,9 +68,12 @@ for (let i = 1; i < order.length && i <= LEGS; i++) {
   const tStart = T0, i0 = rows.length;
   const L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1 }, TMAX ? { tMax: +TMAX } : {}));
   L.tStart = r2(tStart); L.tEnd = r2(T0); L.rows = [i0, rows.length];
+  L.landedAt = AP && AP.route && AP.route.to ? AP.route.to.id : null;   // the field it really landed on (a diversion's)
   legs.push(L);
   console.log(TR.fmtLeg(L));
-  if (!L.ok) break;
+  // a leg that did not end at its To: the tour stops - unless it is a DIVERSION (stopped on the ground at another field,
+  // the sim sane), which the page rig flies on from too (the next To picked where the aeroplane stands)
+  if (!L.ok && !(L.faults.length && L.faults.every(f => f.k === 'diverted' || f.k === 'where'))) break;
 }
 sim.step = step0;
 const done = legs.length === order.length - 1 && legs.every(L => L.ok);
