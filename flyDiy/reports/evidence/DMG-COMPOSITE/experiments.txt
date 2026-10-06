@@ -1,0 +1,28 @@
+G2047-G2049 DMG-COMPOSITE - the experiments (node, the glass Jodel unless said, damage ON, the certificate stamped)
+
+1. THE CARBON ROW'S STRENGTH (the Jodel in carbon, bench to destruction, GATE DMGCERT's band [5.70, 6.13] g; ty = tu, cy 0.6 x):
+     UD 1500 MPa, cy 1500 (the row as it was)  BROKE UP, first a plain wing member at 7.93 g (the whole wing on the floor: 0.1 x 1500 MPa)
+     1500 / 900                               BROKE AT 7.19 g
+     600 / 360                                BROKE AT 6.16 g    (before the laminate fittings and the scatter)
+     400 / 240                                BROKE AT 6.21 g
+     300 / 180                                BROKE AT 7.33 g
+     200 / 120                                BROKE AT 6.17 g
+   With the failure model in (fitE 0.5, scatter, fracture moment): glass 300 / 180 -> 6.11 g (in), carbon 600 / 360 -> 6.14 g
+   (0.01 over the band's 6.135: reported, the carbon variant is not the build).
+2. THE FITTING'S EFFICIENCY (glass; Hart-Smith 0.5 the row's):
+     fitE 0.5   nose-over 36 broken (tail 26)   2.5 m 139   centreline 238   BROKE AT 6.11 g
+     fitE 0.75  nose-over 34 (tail 26)          2.5 m 34    centreline 231   BROKE AT 6.14 g (out)
+     fitE 1.0   nose-over 34 (tail 26)          2.5 m 81    centreline 236   BROKE AT 6.16 g (out)
+   Not the nose-over's lever; kept at 0.5.
+3. THE NOSE-OVER (glass vs wood): neither goes over (pitch max 14 / 10 deg, upright at the end). The glass: the gear's axle
+   bar at 2.97 s, then at 3.32 s the stab's fittings in TENSION from -0.15 of their limit the substep before (a slam back onto
+   the tailwheel: compression to past the break in 1/600 s), the fin's root cut (D3) and the tailwheel's group at 3.35 s.
+   The wood and the carbon Jodel: the gear only (3).
+4. THE SHELL'S CRACK BOUND (glass, the 30 m/s centreline, 238 broken, 37 pieces; the generated wing / tail skin, 6430 triangles):
+     SHELL 5 % + 1 cm   removed 4514 (cracked 3838)  live 1916  on 11 pieces   worst live edge <= the bound
+     8 % + 2 cm         removed 4246 (3564)          live 2184  on 11
+     12 % + 3 cm        removed 3820 (3136)          live 2610  on 11
+   The confetti follows the members' breaks, not the bound; the laminate's own 5 % + 1 cm kept.
+5. THE FLIGHT: the pilot's circuit from HOME (_treecrash_lib circuit, maxS 700): the wood Jodel completed in 360 s
+   (ROLL > ... > STOPPED, n_z max 1.67); the glass Jodel completed in 413 s (n_z max 1.69; on the certificate's limits in
+   the gate: 0 yields, 0 broken).
