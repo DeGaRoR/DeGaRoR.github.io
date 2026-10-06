@@ -1,0 +1,26 @@
+THE TARGETED BATTERY (DMG-NOSE, 2026-10-06; DEFORM §11.3: never the full battery). node tools/run_gates.js --only=... --verbose, cloud box (4 cores).
+
+Final verdicts on this branch (the last source):
+  DMGNOSE      PASS  41/41   gate_dmgnose.txt (its own run: DMGNOSE_JOBS=4)
+  DMGWIND      PASS  12/12   battery_run1.log
+  TREECRASH    PASS  50/50   battery_run2.log  (run 1 FAILED its 3 m/s taxi row: "a dent" required a member SET; the dent is the nose's
+                              crush now and no member sets - the row accepts either, prints the crush; G2015)
+  DMGDRIVE     PASS 131/131  battery_run2.log  (run 1 FAILED the Jodel's 1.1 V_D dive: 'failed' at +35 % where 'overhaul' was wanted. The
+                              Jodel's fin attach lets go at 10.8 s in that dive ON THE BASE TOO (240 members broken there, 200 here), and its
+                              V_NE dive loses the fin at 9.87 s on both, the same bits; the speed is "reached" by a falling wreck. Such a row
+                              is now a REPORT (a wreck's windmill is no engine's band) - two rows, the Jodel's; 133 -> 131 checks; G2015)
+  DMGCERT      PASS  70/70   battery_run1.log  (BROKE AT 6.01 / 6.02 / 6.06 / 6.08 / 6.01 g, a fitting first, on the five builds)
+  DMGCERTCOST  PASS          dmgcertcost.log   (the stored reference rewritten with --write-ref: GEN_CERT_V 4 -> 5; frames unchanged, the
+                              envelope to the bit; its node-time ceiling failed on the two floatplanes only when run beside the battery -
+                              46.9 / 51.8 s against 42 / 48 - and passed alone: 40.8 / 43.6 s)
+  DMGGEAR      PASS  72/72   battery_run2.log  (run 1: killed at the runner's 1800 s timeout beside three other gates; alone 1540 s)
+  DMGINST      PASS  33/33   battery_run1.log
+  LOAD, BENCH, UISMOKE, BUILD, JOIN  PASS, and the BASE'S BYTES with damage off: off_bytes.txt
+
+What moved (damage ON), against claude/dmg-integration d3d5e24 (measured on its core, the gate's own staging):
+  TREECRASH 3 m/s taxi: the Cub 5 members set / 722 J / back 0.37 m -> 0 set / 0 J, the nose crushed 17 cm / back 0.12 m;
+            the Jodel 10 / 766 J / 0.23 -> 0 / 0 J, 15 cm / 0.34 m; the metal Cessna 7 set + 1 broken / 1012 J / 0.35 -> 0 / 0 J, 25 cm / 0.14 m.
+  TREECRASH 30 m/s, centreline: all three still CRASH (broke up at 1.30-1.32 s): the Cub 171 broken / 18.7 kJ, the Jodel 124 / 21.1 kJ,
+            the metal Cessna 215 / 36.8 kJ (each nose crushed to its core: 6.3-6.8 kJ of it); 2.5 m out: 105 / 98 / 39 broken.
+  DMGWIND   the page's staging: the Cub's 7.5-10 m/s REPORT 1 of 24 -> 0 of 24; the impact speed REPORT: the Cub 17 -> 0, the metal 4 -> 0.
+  DMGDRIVE  every strike row's tier unchanged (nose-overs stoppage / bent, the trunk in the disc separation / stoppage).

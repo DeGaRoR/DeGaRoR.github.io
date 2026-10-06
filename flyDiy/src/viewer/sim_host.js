@@ -285,10 +285,12 @@ function simDrvOf(sim) {
   const D = sim.damage && sim.damage(), R = D && D.drive;
   if (!R) return null;
   let any = false;
-  for (const x of R) if (x.os || x.strike || x.gearbox || x.failed) { any = true; break; }
+  for (const x of R) if (x.os || x.strike || x.gearbox || x.failed || x.crush > 0) { any = true; break; }
   if (!any) return null;
+  // (G2013, DMG-NOSE: `crush` - the nose's crush, m from the spinner's tip - and the layer it reached, for D4b's cowl debris)
   return R.map(x => ({ os: x.os, osPeak: x.osPeak, osSec: x.osSec, osExc: x.osExc, strike: x.strike, strikeAt: x.strikeAt, bladeLost: x.bladeLost, gearbox: x.gearbox,
-    failed: x.failed, why: x.why, teardown: x.teardown, internal: x.internal, thrustK: x.thrustK, vib: x.vib, tipMach: x.tipMach, imbN: x.imbN }));
+    failed: x.failed, why: x.why, teardown: x.teardown, internal: x.internal, thrustK: x.thrustK, vib: x.vib, tipMach: x.tipMach, imbN: x.imbN,
+    crush: x.crush || 0, crushOf: x.crushOf || 0, crushLayer: x.crushLayer || null }));
 }
 
 // the pilot's fields that are big and change rarely: sent when the object

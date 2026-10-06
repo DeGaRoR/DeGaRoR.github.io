@@ -1,0 +1,33 @@
+PERF (DMG-NOSE, 2026-10-06): sim.step(1/60) in node, nothing touching (TREE-CRASH's perf child: flat world, a far 4000-trunk set, 120 steps settled, 600 timed),
+the base's core (claude/dmg-integration d3d5e24) against this branch's, ALTERNATING child processes, 12 pairs a row; the paired ratio's median. tools/dmg_drive_perf.js;
+damage ON on the certificate (FLYDIY_CERT_DIR). Cloud box, 4 cores, nothing else running.
+
+1. A/B, the Cub and the metal Cessna:
+   damage off cub    ground base 4.705 ms, now 4.828 ms, paired +3.20 % (12 pairs)
+   damage off cub    air    base 4.578 ms, now 4.681 ms, paired +2.04 % (12 pairs)
+   damage off metal  ground base 8.356 ms, now 8.410 ms, paired +0.63 % (12 pairs)
+   damage off metal  air    base 7.836 ms, now 7.894 ms, paired -0.25 % (12 pairs)
+   damage on  cub    ground base 5.028 ms, now 4.977 ms, paired +0.65 % (12 pairs)
+   damage on  cub    air    base 4.984 ms, now 4.755 ms, paired -1.20 % (12 pairs)
+   damage on  metal  ground base 8.266 ms, now 8.367 ms, paired +1.57 % (12 pairs)
+   damage on  metal  air    base 8.005 ms, now 8.009 ms, paired -1.27 % (12 pairs)
+   pooled: damage OFF 1.33 %, damage ON -0.27 % (the median of the rows' paired medians)
+
+2. A/A - the base's core against ITSELF (the box's noise floor), the Cub:
+   damage off cub    ground base 4.963 ms, now 4.895 ms, paired -0.63 % (12 pairs)
+   damage off cub    air    base 4.600 ms, now 4.742 ms, paired +2.86 % (12 pairs)
+   damage on  cub    ground base 4.858 ms, now 5.095 ms, paired +3.22 % (12 pairs)
+   damage on  cub    air    base 4.653 ms, now 4.678 ms, paired -0.06 % (12 pairs)
+   pooled: damage OFF 1.12 %, damage ON 1.58 % (the median of the rows' paired medians)
+
+3. A/B again, the Cub:
+   damage off cub    ground base 4.776 ms, now 4.740 ms, paired -0.41 % (12 pairs)
+   damage off cub    air    base 4.630 ms, now 4.640 ms, paired +0.62 % (12 pairs)
+   damage on  cub    ground base 4.834 ms, now 4.825 ms, paired +1.00 % (12 pairs)
+   damage on  cub    air    base 4.625 ms, now 4.648 ms, paired +0.70 % (12 pairs)
+   pooled: damage OFF 0.10 %, damage ON 0.85 % (the median of the rows' paired medians)
+
+Reading: every A/B row is inside the A/A's spread (-0.6..+3.2 % on identical cores); the one row past 2 % (damage OFF, the Cub on the
+ground, +3.20 %) read -0.41 % on its repeat. Pooled: run 1 OFF +1.33 %, ON -0.27 %; run 3 (the Cub) OFF +0.10 %, ON +0.85 %. What the OFF path adds: one null compare a frame
+(NOSE) and one false boolean a substep (noseArm); ON with nothing in reach: one loop over the engines a frame (noseGeo, a trunk test).
+Re-run the pinned pairs on the box.

@@ -105,10 +105,15 @@ function genDriveSpec(def) {
            I: GEN_DRIVE.Ik * mass * R * R, sepTip: GEN_DRIVE.strike.sep[mat] || GEN_DRIVE.strike.sep.wood };
 }
 // a fresh per-engine state (the fields sim.damage().drive[k] carries)
+// (G2013, DMG-NOSE: `crush` the nose's deepest crush (m, from the spinner's tip - DMG-D4b's cowl debris reads it in place of
+// its own estimate), `crushOf` the stack's whole depth, `crushLayer` the layer it reached ('spinner' / 'prop' / 'bowl' /
+// 'core': used up, the engine itself against the obstacle), `crushJ` the work the crush took (J), `crushF` its peak force (N),
+// `crushOn` 'trunk' / 'ground', `crushArm` the frames something was in its reach - genNoseSpec below)
 function genDriveState() {
   return { os: null, osPeak: 0, osSec: 0, osExc: 0, osDose: 0, osT: [0, 0, 0],
            strike: null, strikeAt: null, bladeLost: 0, gearbox: null, failed: false, why: null,
-           teardown: false, internal: false, thrustK: 1, vib: 0, tipMach: 0, imbN: 0, rpmMax: 0, gapMin: Infinity };
+           teardown: false, internal: false, thrustK: 1, vib: 0, tipMach: 0, imbN: 0, rpmMax: 0, gapMin: Infinity,
+           crush: 0, crushOf: 0, crushLayer: null, crushJ: 0, crushF: 0, crushOn: null, crushArm: 0 };
 }
 // OVERSPEED, one frame: `st` the state, `ratio` engine rpm / max, `dt` s. Bands entered after GEN_DRIVE.os.filt s above
 // them (each band's own clock); the failure on the dose. Returns true when the engine has just failed
@@ -139,4 +144,132 @@ function genDriveStrikeTier(bite, R, surf, tip, sepTip) {
   const stop = S.stop[surf] != null ? S.stop[surf] : S.stop.soft;
   if (tip > sepTip * (surf === 'water' ? S.sepWater : 1)) return 4;
   return r > stop ? 3 : 2;
+}
+
+// ============================================================
+// THE CRUSHABLE NOSE (G2013-G2015, DMG-NOSE; TREE-CRASH's open question, DMG-WINDBREAK's open 1 and 2).
+//
+// Until this, a trunk met the engine's own lattice: the thrust nodes and the crankcase stand-in (CGE-ENGL / R, a thin
+// 4130 tube's M_p), each node with the ground's spring. At a taxi's pace the stand-in folded round the trunk and tore
+// at its fold angle, or the trunk landed on a thrust node and the engine pivoted on its mount: the user's Cub lost its
+// mount in 17 of 49 winds at the page's impact speed. A crankcase does not fold round a tree. What meets the obstacle
+// first is the SPINNER, then the PROPELLER at its hub, then the cowl's NOSE BOWL - and they crush, taking the energy
+// before the engine block is reached.
+//
+// THE NOSE of each tractor engine is one crush element: a circle (a sphere against the ground) of the nose bowl's
+// radius Rn whose front is the spinner's tip, on the engine's own axis (the engine's mass centre to its thrust nodes -
+// the disc DMG-DRIVE strikes). An obstacle inside it crushes it: the crush depth c (permanent; the deepest the
+// obstacle went, from the tip) runs through the STACK, front to back, each layer a plateau force over a depth:
+//   'spinner'  the spun shell ahead of the hub, crushing as a thin-walled shell: Alexander's mean crush load
+//              P = 6.08 sigma_0 t^1.5 sqrt(D) at the cone's local diameter (it grows from the tip to the base), over the
+//              spinner's length less the hub's;
+//   'prop'     the propeller at its hub: its blades' roots folded back (alloy) or broken off (wood, carbon) - n blades x
+//              the root's moment (sigma Z: the blade's chord and its root thickness) over an arm of twice the root station
+//              - over the hub's protrusion ahead of the flange. ONE PHYSICS WITH DMG-DRIVE: a prop that struck and stopped
+//              crushes as a hub (its blades still on it); a SEPARATION leaves less (drive.bladeLost of a blade gone: the
+//              layer's force x (blades - bladeLost) / blades); and the crush reaching the prop stops a prop still turning
+//              (a strike graded by DMG-DRIVE: a stoppage, or a separation at a tip faster than its blade takes);
+//   'bowl'     the cowl's nose bowl round the crankcase's front, crushing as a shell of the bowl's diameter, over its
+//              depth ahead of the crankcase;
+//   'core'     used up: the engine block itself against the obstacle - the node contact's own spring and damper on the
+//              engine's nodes (the ground's law, DMG-WINDBREAK's crush unloading), the residual the engine's mount takes.
+// The push lands on the engine's THRUST NODES (the hub), shared between them by where the obstacle meets the nose across
+// the engine - exactly where the certificate's nose cases react it (impactNose on the centreline, impactNoseL / R at a
+// corner: G2014), so the mount carries it into the firewall along the path it is certified for; nothing inside the
+// engine meets the obstacle (the crankcase is solid). Unloaded, the crushed nose springs back along TK_RU x the core's spring (a tenth of a crush comes back - none).
+// The obstacle's contact with the engine's members INSIDE the nose (the crankcase stand-in, the mount tubes' engine ends)
+// is the nose's: the trunk pass leaves it (30_solver noseIn). Against the ground (a nose-over) the stack is the same,
+// with no core: the engine's nodes meet the ground themselves once the nose is crushed past them.
+// THE NUMBERS (reports/evidence/DMG-NOSE/README.md has the table; AS RECALLED - A0 to open - or GAME, each marked):
+//   Alexander's 6.08 (J. M. Alexander, 'An approximate analysis of the collapse of thin cylindrical shells under axial
+//   loading', Q. J. Mech. Appl. Math. 13 (1960) 10-15: P_m = 6 sigma_0 t^1.5 D^0.5 in its simplest form, as recalled);
+//   the spinner spun 6061-T6, 0.032 in - sigma_0 the flow stress (F_ty 35 + F_tu 42 ksi) / 2 (MIL-HDBK-5J, as recalled;
+//   the gauge as recalled, 0.025-0.050 in in service); the bowl 5052-H32, 0.032 in ((23 + 31) / 2 ksi, as recalled);
+//   the blade root: yellow birch's modulus of rupture 114 MPa (USDA Wood Handbook FPL-GTR-190 Table 5-3a, as recalled),
+//   2025-T6's F_ty 255 MPa (MIL-HDBK-5J, as recalled), carbon GAME; the root's thickness ratio, the arm, the hub's
+//   protrusion and the bowl's depth GAME (no published figure found).
+// ============================================================
+const GEN_NOSE = {
+  alex: 6.08,                                   // Alexander (1960): P_m = 6.08 sigma_0 t^1.5 sqrt(D), as recalled
+  spinner: { t: 0.032 * 0.0254, s0: 0.5 * (35 + 42) * 6.895e6 },   // spun 6061-T6, 0.032 in (as recalled)
+  bowl: { t: 0.032 * 0.0254, s0: 0.5 * (23 + 31) * 6.895e6, d: 0.08 },   // 5052-H32, 0.032 in (as recalled); its depth GAME
+  // the hub's protrusion ahead of the crankshaft's flange, m (GAME: a fixed-pitch wood hub is 4-5 in thick, a forged
+  // alloy one 2.5-3 in, as recalled)
+  hub: { wood: 0.12, maple: 0.12, walnut: 0.12, carbon: 0.10, alu: 0.07 },
+  // the blade root: its stress (wood: the modulus of rupture, brittle - Z = c t^2 / 6; alloy: the yield, folding - the
+  // plastic Z = c t^2 / 4), its thickness over its chord (GAME), the arm over the root station (GAME)
+  blade: { sig: { wood: 114e6, maple: 114e6, walnut: 101e6, carbon: 600e6, alu: 255e6 },
+           tc: { wood: 0.40, maple: 0.40, walnut: 0.40, carbon: 0.30, alu: 0.15 },
+           plastic: { alu: true }, arm: 2 },
+  rnWing: 1.5,                                  // a nacelle's radius (no nose bowl spec) over its spinner's (GAME)
+  mu: 0.8,                                      // the nose scraping the ground (the scrape's own, 30_solver)
+  muBark: 0.3,                                  // ...and sliding on a trunk: aluminium and a stopped prop on bark (GAME: dry
+                                                // wood on metal 0.2-0.6, as recalled; measured on the Cub's five
+                                                // worst winds: 0.2-0.4 hold, 0 and 0.5 each lose one - HANDOVER G2013)
+};
+// Alexander's mean crush load of a shell of diameter D
+function genNoseShell(S, D) { return GEN_NOSE.alex * S.s0 * Math.pow(S.t, 1.5) * Math.sqrt(Math.max(0, D)); }
+// THE NOSE OF A DEF: per tractor engine its body (node indices and mass shares), its thrust nodes, the spinner's reach
+// ahead of the hub (Ls), the bowl's radius (Rn) and the stack. null when the def has no engine nodes
+function genNoseSpec(def) {
+  if (!def || !def.nodes || !def.refs) return null;
+  const E = def.refs.engine || [], EO = def.refs.engineOf || E.map(() => 0), n = def.nodes.length;
+  if (!E.length) return null;
+  const nE = Math.max(1, ...EO.map(k => (k | 0) + 1));
+  const SP = (def.spec && def.spec.prop) || {}, sp = SP.spinner || {}, P = def.params || {};
+  const D = (P.prop && P.prop.D > 0) ? P.prop.D : (SP.D > 0 ? SP.D : 1.8), R = D / 2;
+  const mat = SP.material || 'wood', blades = SP.blades > 0 ? SP.blades : 2;
+  const rs = sp.shape === 'none' ? 0 : (sp.dia > 0 ? sp.dia : 0.17) * R, Lsp = rs > 0 ? (sp.len > 0 ? sp.len : 2.2) * rs : 0;
+  const th = GEN_NOSE.hub[mat] != null ? GEN_NOSE.hub[mat] : GEN_NOSE.hub.wood;
+  const B = GEN_NOSE.blade, c = (SP.chord > 0 ? SP.chord : 0.1) * R, tb = (B.tc[mat] || B.tc.wood) * c;
+  const Mr = (B.sig[mat] || B.sig.wood) * c * tb * tb / (B.plastic[mat] ? 4 : 6);
+  const Fblade = Mr / (B.arm * Math.max(0.05, (SP.root > 0 ? SP.root : 0.16) * R));
+  const cowl = def.spec && def.spec.cowl, engs = (def.spec && def.spec.engines) || [];
+  // each item node to the engine of its nearest thrust node (66_gen_cert genCertDrive's rule)
+  const own = new Int32Array(n).fill(-1);
+  for (let i = 0; i < n; i++) if (/^(ENG|CGE|MNT)/.test(def.nodes[i].tag || '')) { let best = Infinity;
+    E.forEach((t, j) => { const a = def.nodes[i].p, b = def.nodes[t].p, d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); if (d < best) { best = d; own[i] = EO[j] | 0; } }); }
+  const out = [];
+  for (let k = 0; k < nE; k++) {
+    const thrust = E.filter((t, j) => (EO[j] | 0) === k), body = [];
+    for (let i = 0; i < n; i++) if (own[i] === k) body.push(i);
+    if (!thrust.length || !body.length) { out.push(null); continue; }
+    let m = 0; const cg = [0, 0, 0], H = [0, 0, 0];
+    for (const i of body) { m += def.nodes[i].m; for (let j = 0; j < 3; j++) cg[j] += def.nodes[i].m * def.nodes[i].p[j]; }
+    for (const i of thrust) for (let j = 0; j < 3; j++) H[j] += def.nodes[i].p[j] / thrust.length;
+    for (let j = 0; j < 3; j++) cg[j] /= m;
+    // a tractor only: its thrust nodes ahead of its mass centre (the def's x is aft); a pusher's spinner is behind it
+    if (!(H[0] < cg[0] - 0.02)) { out.push(null); continue; }
+    const nose = (engs[k] && engs[k].mount) ? engs[k].mount === 'nose' : k === 0 && nE === 1;
+    const half = Math.max(...thrust.map(i => Math.abs(def.nodes[i].p[2] - H[2])));
+    const Rn = Math.max(rs, half + 0.02, nose && cowl && cowl.atEngine && cowl.atEngine.halfW > 0 ? cowl.atEngine.halfW : GEN_NOSE.rnWing * Math.max(rs, 0.1));
+    const lFree = Math.max(0, Lsp - th), Ls = Math.max(Lsp, th);
+    const layers = [];
+    let d = 0;
+    if (lFree > 0) { layers.push({ name: 'spinner', d0: d, d1: d + lFree, cone: true, Ls: Lsp, rs }); d += lFree; }
+    layers.push({ name: 'prop', d0: d, d1: d + th, F: blades * Fblade, blades }); d += th;
+    layers.push({ name: 'bowl', d0: d, d1: d + GEN_NOSE.bowl.d, F: genNoseShell(GEN_NOSE.bowl, 2 * Rn) }); d += GEN_NOSE.bowl.d;
+    out.push({ k, body, w: body.map(i => def.nodes[i].m / m), m, thrust, mT: thrust.reduce((a, i) => a + def.nodes[i].m, 0), Ls, Rn, layers, Dc: d, Fblade, blades, mat });
+  }
+  return out.some(x => x) ? out : null;
+}
+// the stack's plateau at crush depth c (N): `keep` the prop layer's share of its blades still on (a separation leaves less)
+function genNoseF(N, c, keep) {
+  for (const L of N.layers) if (c <= L.d1) {
+    if (L.cone) return genNoseShell(GEN_NOSE.spinner, 2 * L.rs * Math.min(1, Math.max(0, c) / (L.Ls || 1)));
+    return L.name === 'prop' ? L.F * keep : L.F;
+  }
+  const L = N.layers[N.layers.length - 1]; return L.F;
+}
+// the layer at crush depth c ('core' past the stack)
+function genNoseLayer(N, c) { for (const L of N.layers) if (c <= L.d1) return L.name; return 'core'; }
+// the work the stack takes from 0 to c (J; the cone's integral by quadrature, the flat layers exact)
+function genNoseWork(N, c, keep) {
+  let W = 0;
+  for (const L of N.layers) {
+    const a = L.d0, b = Math.min(c, L.d1); if (b <= a) break;
+    if (L.cone) { const K = 24; for (let i = 0; i < K; i++) W += genNoseF(N, a + (i + 0.5) * (b - a) / K, keep) * (b - a) / K; }
+    else W += (L.name === 'prop' ? L.F * keep : L.F) * (b - a);
+  }
+  return W;
 }
