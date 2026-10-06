@@ -79242,3 +79242,14 @@ FRAMECOST gate PASS at 03:20 on the colour fix. TREECRASH / TREEHIT: no geometry
 - the bake frames on `parts[0]`'s bounding sphere only (bakeImpostorAtlasNow): DeciduousDead1_29 crops its trunk bottom.
 - the twigs proper (a higher-res or thin-branch-aware bake for bark sheets, or the snags' geometry kept further - a larch
   snag is 5 490 triangles in its one rung, conifer snags 3.5-6.9 k) are a separate chantier if the dissolve is not enough.
+
+  the taxi), the delivered fps under 15 in TWO 8 s readings running (after 5 s in the state; G1997b: one slow window - a clock
+  ramp - is not a class) -> the preset one rung down (ultra > gamer > current >
+THE LOAD ON A SLOW CPU (box, timed 12:35-12:50 on a FRESH PARKED COOK - parked_cook --check: same, every parked aeroplane
+'cook'; rollout_perf --cpu-throttle 4, 1920x1080, warm C:/hwr; tools/perf/hwcov/rollout_load_{retro,potato}_cooked.json): to the shed
+retro 150.6 s, potato 94.1 s (+56.5 s). Retro / potato: world 27.8 / 25.8, TOWN 30.3 / 4.0 (retro 103 long tasks, 24.7 s of the
+thread), ring 8.0 / 6.9, SETTLE 29.7 / 23.6, BAKE 7.1 / 0, spec 3.0 / 1.0, upload 6.9 / 6.2, firstFrame 2.4 / 0.5, frames 5.0 / 1.8.
+4x on the box's i7 ~ the laptop's i5-9300H for the town step (its log: 28.5 s). The night's first retro figure (169 s, 04:34) is
+VOID: this branch's build did not match the shipped cook, the page captured and baked the parked aeroplanes live (POTATO-DEEP's
+catch; before any branch load timing: `node tools/parked_cook.js --port <free>` then `--check` = same). The step-down persisting
+the lower preset is what makes the NEXT load potato's on a machine measured slow.
