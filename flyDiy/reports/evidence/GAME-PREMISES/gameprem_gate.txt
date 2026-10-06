@@ -4,7 +4,7 @@ ROOM (how many of each fit, empty):
   c172     club/bare 4 · club/full 2 · works/bare 12 · works/full 6 · field/bare 0 · field/full 0
   caravan  club/bare 4 · club/full 1 · works/bare 8 · works/full 3 · field/bare 0 · field/full 0
   twinBush club/bare 2 · club/full 1 · works/bare 8 · works/full 4 · field/bare 0 · field/full 0
-456 checks
+458 checks
 GATE GAMEPREM: PASS
 
   caught  the walk drops the shed's dress  (1 new)
