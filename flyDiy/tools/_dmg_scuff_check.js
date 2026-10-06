@@ -192,6 +192,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
   // (the call sites in the step: not the definitions, and not scuffTrunk's own call of scuffAdd - reached only through them)
   const calls = sol.split('\n').filter(l => /scuffAdd\(|scuffTrunk\(/.test(l) && !/function scuff/.test(l) && !/if \(st > 0\.05\) scuffAdd/.test(l));
   yes(calls.length >= 2 && calls.every(l => /DMG_ON/.test(l)), 'the solver records the slide only behind DMG_ON (' + calls.length + ' call sites)');
-  console.log('GATE DMGSCUFF: ' + (fails ? 'FAIL' : 'PASS') + ' (' + (checks - fails) + '/' + checks + ', ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+  console.log('(' + (checks - fails) + '/' + checks + ' checks, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+  console.log('GATE DMGSCUFF: ' + (fails ? 'FAIL' : 'PASS'));   // (run_gates.js reads this line exactly)
   process.exit(fails ? 1 : 0);
 })();
