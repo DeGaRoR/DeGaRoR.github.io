@@ -389,10 +389,9 @@ console.log('GATE GFX');
   ok(hp.calls.plain[0] === true && hg.calls.plain[0] === false && hl.calls.plain[0] === true, 'the plain ground reaches the splat: potato and laptop plain, gamer not');
   ok(hp.calls.glass.transmission === 0 && hg.calls.glass.transmission === 0.9, "the shed's glass: no transmission on potato, gamer's as it was");
   hp.w.GFX.set('preset', 'gamer');
-  // G1531: leaving plain RELOADS the page (the live plain -> textured switch drew no ground on the box); the glass is live
-  ok(hp.calls.reload === 1 && hp.calls.plain.indexOf(false) < 0, '...potato -> gamer leaves the plain ground by a RELOAD, not live (G1531)');
-  { const h2 = hook('?gfx=gamer'); h2.w.GFX.set('ground', 'plain'); ok(h2.calls.reload === 0 && h2.calls.plain[h2.calls.plain.length - 1] === true, '...going TO plain stays live (no reload)'); }
-  { const h3 = hook('?gfx=potato'); h3.w.GFX.set('preset', 'laptop'); ok(h3.calls.reload === 0, '...plain -> plain (potato -> laptop) does not reload'); }
+  // G1531: both ways LIVE, no reload (the root fix: render_world's ground hook, the same uniforms in every state - GATE SPLAT)
+  ok(hp.calls.reload === 0 && hp.calls.plain[hp.calls.plain.length - 1] === false && hp.calls.glass.transmission === 0.9, '...potato -> gamer: the textured ground and the glass back LIVE (no reload, G1531)');
+  { const h2 = hook('?gfx=gamer'); h2.w.GFX.set('ground', 'plain'); h2.w.GFX.set('ground', 'lean'); ok(h2.calls.reload === 0 && h2.calls.plain.slice(-2).join() === 'true,false', '...textured -> plain -> textured, live both ways'); }
   ok(hl.calls.msaa[0] === 0 && hg.calls.msaa.length === 0 && hp.calls.msaa.length === 0, 'the MSAA cap: laptop 0; potato and gamer never set one');
   hl.w.GFX.set('preset', 'gamer');
   ok(hl.calls.msaa[hl.calls.msaa.length - 1] === null, '...laptop -> gamer lifts it');

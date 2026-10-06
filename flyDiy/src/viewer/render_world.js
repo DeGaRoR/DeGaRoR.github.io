@@ -1836,7 +1836,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // G1521: the splat in this program, or not (the plain ground: none of its text, its arrays or its uniforms)
         const SP = SPL && !SPL.api.plain() ? SPL : null;
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-        Object.assign(sh.uniforms, gU, SP ? SP.uniforms : {});
+        // G1531: THE SAME UNIFORMS IN EVERY STATE - the splat's even when this program is plain (a program ignores what it does not
+        // declare). three r186 reuses a material's CACHED program (lean again after plain) WITHOUT this hook, keeping the uniforms
+        // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
+        // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
+        Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
