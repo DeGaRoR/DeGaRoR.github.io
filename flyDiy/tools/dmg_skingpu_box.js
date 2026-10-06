@@ -96,6 +96,16 @@ async function pageFlown(o) {
   return { first, trace, reason: P.damage && P.damage() ? P.damage().reason : null, broken: trace.length ? trace[trace.length - 1].broken : 0, progs: [progs0, R3.info.programs.length],
     check: null, skin: SB3 };
 }
+// the GPU's readback on the wreck held (the worker's: its clock stopped by the player's Pause): the riding re-posed on the
+// GPU first (a flip off and on), the check two frames later
+async function pageCheckHeld() {
+  const raf = () => new Promise(r => requestAnimationFrame(() => r()));
+  window.FLYDIY_SKINGPU = false; window.FLYDIY_BRK_RIGSKIP = false; for (let i = 0; i < 6; i++) await raf();
+  window.FLYDIY_SKINGPU = true; window.FLYDIY_BRK_RIGSKIP = true; for (let i = 0; i < 8; i++) await raf();
+  const c = window.FLYDIY_SKINGPU_CHECK();
+  return c && { recs: c.recs, verts: c.verts, dPmm: +(c.dP * 1000).toFixed(4), dN: +(+c.dN).toFixed(5), over: c.over, ambiguous: c.ambiguous, nanG: c.nanG, err: c.err || null, at: c.at,
+    zeroW: window.FLYDIY_SKINBREAK_ZEROW ? window.FLYDIY_SKINBREAK_ZEROW() : null };
+}
 // THE STILL PAIR (--stills): the wreck at rest (the stepper done, the solver held), one camera, drawn by the GPU's riding
 // and then by the CPU's (window.FLYDIY_SKINGPU flipped: the page re-poses on the flip), each shot by the driver's CDP
 // screenshot (a WebGL canvas reads back black without a preserved drawing buffer: the first pairs were blank) - two
@@ -141,6 +151,28 @@ const summary = st => {
   }
   const out = { at: new Date().toISOString(), q: await W.post('/eval', 'location.search'), cases: {} };
   const check = +opt('check', 15);
+  // THE STILL PAIRS of the wreck as it stands (two of the case's cameras): the GPU's riding with the rig rows' skip, then the
+  // base's way (FLYDIY_SKINGPU and FLYDIY_BRK_RIGSKIP off: the rows posed, the CPU's riding); files <case>_<n>[_worker]_<gpu|cpu>.jpg
+  const stillPairs = async (k, tag) => {
+      const dir = path.resolve(opt('shots', path.join(__dirname, '..', 'reports', 'evidence', 'DMG-SKINGPU')));
+      fs.mkdirSync(dir, { recursive: true }); const out2 = [];
+      for (const [ci, cam] of W.CASES[k].cams.slice(0, 2).entries()) {
+        await W.run(W.pageView, cam);
+        const shot = async tag => { const f = path.join(dir, '_tmp_' + tag + '.png'); await W.get('/shot?f=' + encodeURIComponent(f)); const b = fs.readFileSync(f).toString('base64'); fs.unlinkSync(f); return b; };
+        const fg = await W.run(pageFlip, true), pg = await shot('gpu');
+        const fc = await W.run(pageFlip, false), pc = await shot('cpu');
+        await W.run(pageFlip, true);
+        const P2 = await W.run(pageDiff, [pg, pc]);
+        if (!P2 || !P2.gpu) { out2.push({ cam, err: JSON.stringify(P2).slice(0, 200) }); continue; }
+        P2.flip = { gpu: fg, cpu: fc };
+        const base = k + '_' + (ci + 1) + (tag === 'worker' ? '_worker' : '');
+        fs.writeFileSync(path.join(dir, base + '_gpu.jpg'), Buffer.from(P2.gpu, 'base64')); fs.writeFileSync(path.join(dir, base + '_cpu.jpg'), Buffer.from(P2.cpu, 'base64'));
+        out2.push({ cam, gpu: base + '_gpu.jpg', cpu: base + '_cpu.jpg', diffPx: P2.diff, share: P2.share, lit: P2.lit, flip: P2.flip });
+        console.log('  still (' + tag + ') ' + base + ': ' + P2.diff + ' pixels differ (' + (P2.share * 100).toFixed(3) + ' %), ' + P2.lit + ' lit; GPU records riding ' + JSON.stringify(P2.flip));
+      }
+      await W.post('/run', "document.getElementById('d4bHide') && document.getElementById('d4bHide').remove(); FLIGHT_PROBE.camMode('chase'); return 1;");
+      return out2;
+    };
   // UNDER THE WORKER: a page load a run (a crash ends the flight), cpu and gpu in turn, each case
   if (argv.includes('--flown')) {
     const FL = { 'trunk-0': { D: 40, off: 0, V: 30 }, 'trunk-2.5': { D: 40, off: 2.5, V: 30 } };
@@ -156,6 +188,14 @@ const summary = st => {
       if (!st || !st.trace) { console.log(k + ':flown:' + mode + ' FAILED ' + JSON.stringify(st).slice(0, 500)); continue; }
       const S = summary(st);
       out.cases[k + ':flown:' + mode] = Object.assign(S, { trace: st.trace });
+      // (--stills, the GPU's run: the wreck held - the player's Pause, the worker's clock stopped - then the readback on the
+      // riding re-posed on the GPU, and the still pairs, captioned 'worker')
+      if (argv.includes('--stills') && mode === 'gpu') {
+        await W.post('/run', "const b = document.getElementById('bPause'); if (b && /Pause/.test(b.textContent)) b.click(); await new Promise(r => setTimeout(r, 600)); return 1;");
+        S.check = await W.run(pageCheckHeld, null);
+        console.log('  readback (worker, held): ' + JSON.stringify(S.check).slice(0, 400));
+        S.stills = await stillPairs(k, 'worker');
+      }
       console.log(k + ':flown:' + mode + ' ' + JSON.stringify({ reason: S.reason, broken: S.broken, impactMean: S.impactMean, impactFrames: S.impactFrames, crash: S.crash, worst: S.worst, calm: S.calm, rest: S.rest,
         impactSum: S.impactSum, progs: S.progs, gpu: S.gpu && { ok: S.gpu.ok, linkMs: S.gpu.linkMs, drawers: S.gpu.drawers, recs: S.gpu.recs, err: S.gpu.err, stats: S.gpu.stats } }));
       const f = opt('out', null); if (f) { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(out, null, 1)); }
@@ -171,25 +211,7 @@ const summary = st => {
     if (!st || !st.trace) { console.log(k + ':' + mode + ' FAILED ' + JSON.stringify(st).slice(0, 500)); continue; }
     const S = summary(st);
     out.cases[k + ':' + mode] = Object.assign(S, { trace: st.trace });
-    if (argv.includes('--stills') && mode === 'gpu') {
-      const dir = path.resolve(opt('shots', path.join(__dirname, '..', 'reports', 'evidence', 'DMG-SKINGPU')));
-      fs.mkdirSync(dir, { recursive: true }); S.stills = [];
-      for (const [ci, cam] of W.CASES[k].cams.slice(0, 2).entries()) {
-        await W.run(W.pageView, cam);
-        const shot = async tag => { const f = path.join(dir, '_tmp_' + tag + '.png'); await W.get('/shot?f=' + encodeURIComponent(f)); const b = fs.readFileSync(f).toString('base64'); fs.unlinkSync(f); return b; };
-        const fg = await W.run(pageFlip, true), pg = await shot('gpu');
-        const fc = await W.run(pageFlip, false), pc = await shot('cpu');
-        await W.run(pageFlip, true);
-        const P2 = await W.run(pageDiff, [pg, pc]);
-        if (!P2 || !P2.gpu) { S.stills.push({ cam, err: JSON.stringify(P2).slice(0, 200) }); continue; }
-        P2.flip = { gpu: fg, cpu: fc };
-        const base = k + '_' + (ci + 1);
-        fs.writeFileSync(path.join(dir, base + '_gpu.jpg'), Buffer.from(P2.gpu, 'base64')); fs.writeFileSync(path.join(dir, base + '_cpu.jpg'), Buffer.from(P2.cpu, 'base64'));
-        S.stills.push({ cam, gpu: base + '_gpu.jpg', cpu: base + '_cpu.jpg', diffPx: P2.diff, share: P2.share, lit: P2.lit, flip: P2.flip });
-        console.log('  still ' + base + ': ' + P2.diff + ' pixels differ (' + (P2.share * 100).toFixed(3) + ' %), ' + P2.lit + ' lit; GPU records riding ' + JSON.stringify(P2.flip));
-      }
-      await W.post('/run', "document.getElementById('d4bHide') && document.getElementById('d4bHide').remove(); FLIGHT_PROBE.camMode('chase'); return 1;");
-    }
+    if (argv.includes('--stills') && mode === 'gpu') S.stills = await stillPairs(k, 'inline');
     console.log(k + ':' + mode + ' ' + JSON.stringify({ reason: S.reason, broken: S.broken, impactMean: S.impactMean, impactFrames: S.impactFrames, impactQ: S.impactQ, firstBreak: S.firstBreak, events: S.events, lose: S.lose, crash: S.crash, worst: S.worst, calm: S.calm, rest: S.rest,
       impactSum: S.impactSum, check: S.check, progs: S.progs, gpu: S.gpu && { ok: S.gpu.ok, linkMs: S.gpu.linkMs, drawers: S.gpu.drawers, recs: S.gpu.recs, err: S.gpu.err, stats: S.gpu.stats } }));
     const f = opt('out', null); if (f) { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(out, null, 1)); }

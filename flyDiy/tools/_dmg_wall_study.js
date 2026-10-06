@@ -25,7 +25,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const ROOT = path.join(__dirname, '..');
 const WL = require('./_dmg_wall_lib.js');
 const L = require('./_treecrash_lib.js');
-const SB = require(path.join(ROOT, 'src', 'viewer', 'skin_break.js'));
+const SB = require(process.env.DMGWALL_SB || path.join(ROOT, 'src', 'viewer', 'skin_break.js'));   // (DMGWALL_SB: GATE DMGWALL's selftest, an older skin_break.js)
 const SH = require(path.join(ROOT, 'src', 'viewer', 'sim_host.js'));
 const SV = require(path.join(ROOT, 'src', 'viewer', 'sim_view.js'));
 const AS = WL.AS;
