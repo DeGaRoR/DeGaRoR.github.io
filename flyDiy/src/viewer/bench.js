@@ -658,9 +658,13 @@ function benchInit(api) {
   let trimUse = true;      // the advisor's trim accepted as the roll-out default
   let withdrawnNote = ''; // the header's line after a withdrawal
 
+  // G2100 (MOBILE-GARAGE 1): THE PROFILE'S TESTS OFF (profile.js 'bench': the phone garage has no world - no test flight,
+  // no crosswind, no water - and the live sandbag rig waits for the phone's heat to be measured); the desktop's is null
+  const benchOff = id => { const P = typeof window !== 'undefined' && window.PROFILE; const off = P && P.get ? P.get('benchOff') : null; return !!(off && off.indexOf(id) >= 0); };
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function') &&
-    (!t.when || t.when(api));                         // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
+    (!t.when || t.when(api)) &&                       // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
+    !benchOff(t.id);                                  // G2100: a test the profile subtracts (the phone: the world's and the flight's)
   // the row buttons are dead while a flight is out (the bench cannot run
   // two things, and the aeroplane is not on the stand)
   const busyNow = () => !!live || !!flown;

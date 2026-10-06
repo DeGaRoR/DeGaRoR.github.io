@@ -273,6 +273,11 @@ console.log('GATE GFX');
   ok(D(phone).screen === 'gate' && D(ipad).screen === 'gate', 'a phone and a tablet get the device gate');
   ok(D(desk('', { webgl2: false })).screen === 'gate' && /WebGL2/.test(D(desk('', { webgl2: false })).why), 'a browser without WebGL2 gets the device gate');
   ok(D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) }).screen === 'none', '"try anyway" is remembered (no gate the next time)');
+  // G2100 (MOBILE-GARAGE 1): "Build on this phone" is remembered too, as the phone profile - and only on a phone
+  { const phoneRec = { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'laptop', tried: true, profile: 'phone' }) };
+    const dp = D(phone, phoneRec), dd = D(desk('NVIDIA GeForce RTX 3080'), phoneRec), dt = D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) });
+    ok(dp.screen === 'none' && dp.profile === 'phone' && !dd.profile && dt.profile === undefined && D(desk('NVIDIA GeForce RTX 3080')).profile === undefined,
+       '"build on this phone" remembered: the phone profile again with no gate; a desktop, "try anyway" and a first visit never get it'); }
   // THE RIGS NEVER SEE EITHER SCREEN
   const rigs = [{ webdriver: true, userAgent: 'Mozilla/5.0 Chrome/140' }, { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/140.0' }];
   ok(rigs.every(n => D(desk('NVIDIA GeForce RTX 3080'), {}, '', n).screen === 'none' && D(phone, {}, '', n).screen === 'none' && D(desk('', { webgl2: false }), {}, '', n).screen === 'none'),

@@ -395,6 +395,11 @@
     // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
     try { const wp = W.WELCOME && W.WELCOME.pick;
           if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; S.build = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
+    // G2100 (MOBILE-GARAGE 1): THE PROFILE'S PRESET - the phone profile (profile.js) draws on the lightest one (laptop),
+    // for THIS page only: not saved, so a desktop that looked at ?profile=phone keeps its own choice; ?gfx= still wins.
+    // On the desktop profile the table says null and nothing here runs
+    try { const pp = W.PROFILE && W.PROFILE.get && W.PROFILE.get('preset');
+          if (pp && PRESETS[pp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { Object.assign(S, PRESETS[pp]); S.preset = pp; S.build = pp; if (!S.fpsOwn) S.fps = FPS_OF(pp); } } catch (e) {}
   };
   // G1526: the town this page builds - the row, under the budget's cap (potato / laptop) and the software rung (always 'nearby')
   const townAll = () => S.town === 'all' && budget().town !== 'nearby' && !SOFT;

@@ -309,7 +309,9 @@ const MANIFEST = {
     // the palette it uses for the same reason flight.css does.
     // ...and blueprint.css (G573): the blueprint desk, a full-screen sheet
     // appended inside #wsUI, scoped entirely under #bpDesk.
-    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css'],
+    // ...and phone.css (G2102, MOBILE-GARAGE 1): the workshop re-laid for a phone, scoped entirely under html.phone
+    // (profile.js sets it on the phone profile only - on the desktop not one of its selectors matches)
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css', 'blueprint.css', 'phone.css'],
     body: 'body.html',
     // THE LOADING SCREEN (LOADING S1, 2026-09-14): boot.js fills the BOOT slot
     // of body.html - a plain script in BOTH pages (inlined here, a src ref in
@@ -324,6 +326,9 @@ const MANIFEST = {
     // G1210 (WELCOME): the welcome screen and the device gate - its OWN inline block right after boot.js's (a plain
     // script in both pages): it decides before the vendor, and the island loader waits on its FLYDIY_WELCOME
     welcome: 'welcome.js',
+    // G2100 (MOBILE-GARAGE 1): THE PROFILES (window.PROFILE: 'desktop', the trunk, or 'phone', a subtract-only profile
+    // of it) - in the welcome's inline block, ahead of welcome.js (which picks the profile on a phone's device gate)
+    profile: 'profile.js',
     // G1535 (UPDATE-NOW): the version check and its "Update" pill - its own inline block right after boot.js's,
     // before welcome.js's, behind a one-line script that sets FLYDIY_BUILD / FLYDIY_BUILD_DATE (known on the welcome and
     // loading screens, long before the CORE slot's line runs)
@@ -474,6 +479,7 @@ const MANIFEST = {
     // gfx_settings.js (G286) before editor.js and app.js: both rails host its
     // menu and app.js applies its saved choice the moment the world exists
               'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
+              'phone.js',   // G2101 (MOBILE-GARAGE 1): the phone garage's touch layer - returns at once on the desktop profile
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
@@ -763,16 +769,19 @@ function buildViewer(coreBody) {
   if (cardsJs) syntaxCheck(V.bootCards, cardsJs);
   const welcomeJs = V.welcome && fs.existsSync(path.join(VIEW_DIR, V.welcome)) ? read(path.join(VIEW_DIR, V.welcome)) : '';
   if (welcomeJs) syntaxCheck(V.welcome, welcomeJs);
+  const profileJs = V.profile && fs.existsSync(path.join(VIEW_DIR, V.profile)) ? read(path.join(VIEW_DIR, V.profile)) : '';
+  if (profileJs) syntaxCheck(V.profile, profileJs);
   const updateJs = V.updateNow && fs.existsSync(path.join(VIEW_DIR, V.updateNow)) ? read(path.join(VIEW_DIR, V.updateNow)) : '';
   if (updateJs) syntaxCheck(V.updateNow, updateJs);
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
   const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
-    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
+    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
   const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
+    + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')
     + (welcomeJs ? `\n<script src="src/viewer/${V.welcome}?v=${sha(welcomeJs).slice(0, 8)}"></script>` : ''));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
@@ -882,6 +891,9 @@ function buildViewer(coreBody) {
   // the player has chosen (welcome.js, in the BOOT slot, publishes FLYDIY_WELCOME only when it shows a screen)
   if (window.FLYDIY_WELCOME) window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () { return window.FLYDIY_WELCOME; });
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
+    // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
+    // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
+    if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];
     window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);

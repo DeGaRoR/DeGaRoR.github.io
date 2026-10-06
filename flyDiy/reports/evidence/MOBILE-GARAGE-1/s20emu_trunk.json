@@ -1,0 +1,8358 @@
+{
+ "at": "2026-10-06T12:59:23.659Z",
+ "url": "http://localhost:8700/flyDiy/index.html",
+ "build": "cub",
+ "cold": true,
+ "device": "",
+ "android": "",
+ "thermalsAtStart": {
+  "batteryC": null,
+  "status": null,
+  "temps": {}
+ },
+ "chrome": "Chrome/141.0.7390.37",
+ "boot": {
+  "state": "gone",
+  "sec": 197.2,
+  "rows": [
+   [
+    1194,
+    "reading the island",
+    2,
+    164.2
+   ],
+   [
+    2758,
+    "reading the model",
+    17.9,
+    467.3
+   ],
+   [
+    6706,
+    "reading the model",
+    46.8,
+    496
+   ],
+   [
+    9392,
+    "building your aeroplane",
+    82,
+    536.4
+   ],
+   [
+    13456,
+    "your aeroplane on the stand",
+    105,
+    567.5
+   ],
+   [
+    15538,
+    "laying out the world: light",
+    110,
+    611.2
+   ],
+   [
+    17334,
+    "laying out the world: ground colour",
+    143.4,
+    756.7
+   ],
+   [
+    18599,
+    "laying out the world: ground colour",
+    96.9,
+    633
+   ],
+   [
+    20246,
+    "laying out the world: ground fields",
+    131.2,
+    657.8
+   ],
+   [
+    21979,
+    "laying out the world: water",
+    131.1,
+    762
+   ],
+   [
+    23481,
+    "laying out the world: premises made",
+    225.2,
+    820.4
+   ],
+   [
+    24593,
+    "laying out the world: patch ground",
+    224.7,
+    893.6
+   ],
+   [
+    25674,
+    "laying out the world: patch ground",
+    236.9,
+    937.8
+   ],
+   [
+    26862,
+    "laying out the world: patch block",
+    247.6,
+    990.3
+   ],
+   [
+    27956,
+    "laying out the world: lots",
+    238.8,
+    1068.1
+   ],
+   [
+    29034,
+    "laying out the world: pavement:merge",
+    268,
+    1130.8
+   ],
+   [
+    30611,
+    "laying out the world: far terrain sink",
+    183.6,
+    872.2
+   ],
+   [
+    32410,
+    "building the field 0 / 50",
+    192.2,
+    1008
+   ],
+   [
+    33958,
+    "building the field 37 / 50",
+    192.9,
+    1029.3
+   ],
+   [
+    35022,
+    "building the field 48 / 50",
+    188.4,
+    1097.3
+   ],
+   [
+    36078,
+    "growing the forest 7 / 148",
+    197.4,
+    1145.1
+   ],
+   [
+    37134,
+    "growing the forest 17 / 148",
+    204.3,
+    1152.9
+   ],
+   [
+    38511,
+    "the world settling round the stand · 0 to build",
+    214.7,
+    1172.4
+   ],
+   [
+    40271,
+    "the world settling round the stand · 0 to build",
+    182.3,
+    937.3
+   ],
+   [
+    47548,
+    "the world settling round the stand · 0 to build",
+    212.8,
+    997.1
+   ],
+   [
+    48613,
+    "the world settling round the stand · 0 to build",
+    208.1,
+    1047.3
+   ],
+   [
+    49646,
+    "the world settling round the stand · 0 to build",
+    233.8,
+    1057
+   ],
+   [
+    50660,
+    "the world settling round the stand · 0 to build",
+    223.9,
+    1060
+   ],
+   [
+    51689,
+    "the world settling round the stand · 0 to build",
+    218.1,
+    1063.5
+   ],
+   [
+    92043,
+    "busy",
+    213.3,
+    1073.6
+   ],
+   [
+    94395,
+    "committing your build",
+    273.6,
+    1001.5
+   ],
+   [
+    97662,
+    "your aeroplane, built",
+    284.5,
+    1055.6
+   ],
+   [
+    99582,
+    "uploading the textures 16 / 171",
+    306.6,
+    1055.6
+   ],
+   [
+    100741,
+    "uploading the textures 51 / 171",
+    290.3,
+    1075.5
+   ],
+   [
+    101763,
+    "uploading the textures 121 / 171",
+    323.4,
+    1075.5
+   ],
+   [
+    105365,
+    "compiling the shaders",
+    295.8,
+    1076.4
+   ],
+   [
+    135966,
+    "busy",
+    301,
+    1076.4
+   ],
+   [
+    150800,
+    "first light",
+    181.2,
+    953.3
+   ],
+   [
+    158466,
+    "first light 215 / 215",
+    179.1,
+    946.4
+   ],
+   [
+    165750,
+    "first light 215 / 215",
+    179.6,
+    946.4
+   ],
+   [
+    171514,
+    "first light 215 / 215",
+    180.6,
+    946.5
+   ],
+   [
+    176870,
+    "first light 215 / 215",
+    180.7,
+    946.5
+   ],
+   [
+    182134,
+    "first light 215 / 215",
+    183.2,
+    946.5
+   ],
+   [
+    186612,
+    "your aeroplane, as it settled",
+    183,
+    946.5
+   ],
+   [
+    190316,
+    "landing",
+    183,
+    946.5
+   ],
+   [
+    194166,
+    "landing",
+    183.4,
+    946.5
+   ],
+   [
+    197230,
+    "gone",
+    182.9,
+    946.5
+   ]
+  ],
+  "pss": [
+   [
+    1194,
+    "reading the island",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    6706,
+    "reading the model",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    13456,
+    "your aeroplane on the stand",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    18599,
+    "laying out the world: ground colour",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    24593,
+    "laying out the world: patch ground",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    30611,
+    "laying out the world: far terrain sink",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    36078,
+    "growing the forest 7 / 148",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    47548,
+    "the world settling round the stand · 0 to build",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    92043,
+    "busy",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    97662,
+    "your aeroplane, built",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    105365,
+    "compiling the shaders",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    135966,
+    "busy",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    150800,
+    "first light",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    158466,
+    "first light 215 / 215",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    165750,
+    "first light 215 / 215",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    171514,
+    "first light 215 / 215",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    176870,
+    "first light 215 / 215",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    182134,
+    "first light 215 / 215",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    190316,
+    "landing",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    197230,
+    "gone",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ]
+  ],
+  "lastStep": "gone",
+  "log": [
+   {
+    "k": "boot.js",
+    "t": 1
+   },
+   {
+    "k": "phase",
+    "t": 1,
+    "id": "scripts"
+   },
+   {
+    "k": "phase",
+    "t": 109,
+    "id": "vendor"
+   },
+   {
+    "k": "phase",
+    "t": 433,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 670,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 671,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 716,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 717,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 861,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 897,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 898,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 899,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 899,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 899,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 899,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 1053,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 1106,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 1107,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 1842,
+    "id": "core"
+   },
+   {
+    "k": "phase",
+    "t": 4619,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 4734,
+    "id": "renderer"
+   },
+   {
+    "k": "phase",
+    "t": 5135,
+    "id": "aeroplane"
+   },
+   {
+    "k": "run",
+    "t": 6577,
+    "set": "garage",
+    "steps": 24
+   },
+   {
+    "k": "step",
+    "t": 6617,
+    "id": "treeBins",
+    "ms": 8,
+    "programs": 0
+   },
+   {
+    "k": "step",
+    "t": 6664,
+    "id": "aircraft",
+    "ms": 1254,
+    "programs": 0
+   },
+   {
+    "k": "landed",
+    "t": 7940,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 7940,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 7940,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 7941,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "step",
+    "t": 7941,
+    "id": "garage",
+    "ms": 1142,
+    "programs": 2
+   },
+   {
+    "k": "landed",
+    "t": 8017,
+    "key": "room",
+    "ok": true,
+    "what": "st:8700/flyDiy/media/tex/floor/diff.9b41f6e1.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 8017,
+    "key": "room",
+    "ok": true,
+    "what": ":8700/flyDiy/media/tex/floor/rough.0aee720d.webp"
+   },
+   {
+    "k": "landed",
+    "t": 8017,
+    "key": "room",
+    "ok": true,
+    "what": "st:8700/flyDiy/media/tex/floor/nor.1a132ce7.webp"
+   },
+   {
+    "k": "landed",
+    "t": 9284,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9285,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9286,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9293,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9293,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9293,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9293,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9293,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9294,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9294,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9294,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9294,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9294,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9301,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9304,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9356,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "step",
+    "t": 9356,
+    "id": "editor",
+    "ms": 217,
+    "programs": 2
+   },
+   {
+    "k": "landed",
+    "t": 9709,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9709,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9710,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9715,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 9720,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "step",
+    "t": 10696,
+    "id": "seed",
+    "ms": 2460,
+    "programs": 2
+   },
+   {
+    "k": "phase",
+    "t": 11123,
+    "id": "seed"
+   },
+   {
+    "k": "landed",
+    "t": 11167,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11182,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11187,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11246,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11246,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11253,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11253,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11256,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11257,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11257,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11258,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11258,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11258,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11278,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11278,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11278,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11278,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11282,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11282,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11282,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11282,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11288,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11341,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11345,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11356,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11357,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11359,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11362,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11363,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11363,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11363,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11365,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11365,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11387,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11389,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11395,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11405,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11407,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11407,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11407,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11409,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11409,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11410,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11417,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11422,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11427,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11427,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11428,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11428,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11431,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11431,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11431,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11432,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11432,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11432,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11432,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11433,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11433,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11437,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11438,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11438,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11438,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11440,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11441,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11452,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11456,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11458,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11467,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11467,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11470,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11470,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11477,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11478,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11489,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11499,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11522,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11531,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11531,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11531,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11532,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11533,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11533,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11539,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11539,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11539,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11539,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11547,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11547,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11547,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11547,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11550,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11552,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11553,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11553,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11555,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11555,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11558,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11558,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11561,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11563,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11564,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11567,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11568,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11571,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11575,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11576,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11608,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11621,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11627,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11627,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11628,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11628,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11628,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11628,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11628,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11628,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11630,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11630,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11630,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11631,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11631,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11631,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11631,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11631,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11637,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11643,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11643,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11644,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11644,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11644,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11645,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11645,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11647,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11647,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11647,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11653,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11655,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11658,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11658,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11658,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11658,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11658,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11658,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11659,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11659,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11659,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11659,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11659,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11659,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11660,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11661,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11661,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11661,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11662,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11662,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11662,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11662,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11662,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11663,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11663,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11663,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11665,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11665,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11665,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11665,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11665,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11665,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11666,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11666,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11666,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11666,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11672,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11672,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11678,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11678,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11678,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11678,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11690,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11690,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11690,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11690,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11690,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11691,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11691,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11691,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11691,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11691,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11708,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11713,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11715,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 11715,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13247,
+    "key": "skin",
+    "ok": true,
+    "what": "Diy/media/tex/skin/leather_aero_512.73449514.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 13251,
+    "key": "skin",
+    "ok": true,
+    "what": "flyDiy/media/tex/skin/panel_aero_1k.3609dbf2.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 13260,
+    "key": "skin",
+    "ok": true,
+    "what": "flyDiy/media/tex/skin/foil_aero_512.b96de146.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 13263,
+    "key": "skin",
+    "ok": true,
+    "what": "yDiy/media/tex/skin/sillAlu_aero_1k.a51b4a39.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 13285,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13285,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13290,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13301,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13307,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13309,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13321,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13321,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13325,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13325,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13328,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13343,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13343,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13343,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13343,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13345,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13346,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13353,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13357,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13360,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13360,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13360,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13360,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13360,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13363,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13372,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13372,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 13380,
+    "key": "skin",
+    "ok": true,
+    "what": "flyDiy/media/tex/skin/hide_aero_512.2e381f49.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 13391,
+    "key": "skin",
+    "ok": true,
+    "what": "/media/tex/skin/plasticScr_aero_512.b1bfbee8.jpg"
+   },
+   {
+    "k": "step",
+    "t": 14280,
+    "id": "world",
+    "ms": 16766,
+    "programs": 6
+   },
+   {
+    "k": "phase",
+    "t": 14730,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 14744,
+    "key": "skin",
+    "ok": true,
+    "what": "/media/tex/skin/plasticGrn_aero_512.a351409b.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 14746,
+    "key": "skin",
+    "ok": true,
+    "what": "media/tex/skin/plasticWorn_aero_512.81fe75e2.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 14748,
+    "key": "skin",
+    "ok": true,
+    "what": "lyDiy/media/tex/wood/maple_aero_512.2a5e4c9d.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 14756,
+    "key": "skin",
+    "ok": true,
+    "what": "/media/tex/skin/rubberGrip_aero_512.e371d52d.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 14762,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14764,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14778,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14778,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14778,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14778,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14778,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14784,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14795,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14807,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14807,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14814,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14815,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14827,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14839,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14844,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14844,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14845,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14845,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14852,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14856,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14863,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14863,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14863,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14864,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14864,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14869,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14869,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14869,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14872,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14889,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14889,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14889,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14889,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14889,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 14964,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 15244,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 15252,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 15258,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 15265,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 15869,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 15887,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 15894,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 15901,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 15906,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 16879,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 16884,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17069,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17114,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17122,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17132,
+    "key": "propTex",
+    "ok": true,
+    "what": "t:8700/flyDiy/media/tex/panelhw/ddee1e364d55.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 17132,
+    "key": "propTex",
+    "ok": true,
+    "what": "t:8700/flyDiy/media/tex/panelhw/45b3f5dcacbb.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 17132,
+    "key": "propTex",
+    "ok": true,
+    "what": "t:8700/flyDiy/media/tex/panelhw/3a60ad7d066c.jpg"
+   },
+   {
+    "k": "phase",
+    "t": 17218,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 17340,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 17348,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17425,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 17528,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 17567,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17571,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 17655,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 17737,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 17823,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 17834,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 17912,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 17914,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17950,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17954,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17957,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 17957,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 18028,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 18032,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18032,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18033,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 18104,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 18105,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18108,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18108,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18113,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18113,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18113,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 18180,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 18190,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18193,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18193,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18193,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18197,
+    "key": "treeBin",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 18405,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 18410,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18411,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18411,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 18513,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 18518,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18521,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18521,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18527,
+    "key": "crew",
+    "ok": true,
+    "what": "ch22"
+   },
+   {
+    "k": "phase",
+    "t": 18593,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 18594,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18596,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 18596,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19382,
+    "key": "crewBuild",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19400,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19401,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19401,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 19450,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 19465,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19465,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19465,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 19539,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 19618,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19618,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 19618,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20112,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20158,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20158,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20158,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20357,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20360,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20361,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20361,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20378,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20380,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20381,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20423,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20426,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20426,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20426,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20433,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20434,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20480,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20480,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20486,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20487,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20539,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20542,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20543,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20543,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20602,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20603,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20607,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20607,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20662,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20663,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20664,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20666,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20709,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20717,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20717,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20717,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20778,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20783,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20783,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20783,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 20898,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 20915,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20915,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20915,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 21528,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 21531,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 21531,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 21531,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 21891,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 21894,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 21894,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 21894,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 21939,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 21939,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 21941,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 21942,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 21983,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 22050,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 22051,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 22057,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 22116,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 22135,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 22135,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 22135,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 23144,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 23154,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23154,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23154,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23184,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 23250,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 23252,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23332,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23396,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 23781,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 23781,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23782,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23782,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 23844,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 23846,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23848,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23848,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 23905,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 23918,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23918,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23918,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 23981,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 23989,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23989,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 23989,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24050,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24053,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24053,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24053,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24117,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24118,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24122,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24122,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24180,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24180,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24185,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24185,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24251,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24254,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24254,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24254,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24324,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24326,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24326,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24326,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24380,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24383,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24383,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24383,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24448,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24453,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24453,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24453,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24505,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24508,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24508,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24508,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24560,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24560,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24562,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24563,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24618,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24618,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24620,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24620,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24666,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24667,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24667,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24669,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24673,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24714,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24715,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24716,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24717,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24774,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24774,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24774,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24774,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24826,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24828,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24828,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24828,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24871,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24872,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24873,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24873,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24917,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24917,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24917,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24919,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 24971,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 24971,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24971,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 24973,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25032,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25035,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25035,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25035,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25082,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25082,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25084,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25084,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25133,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25133,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25133,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25133,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25184,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25185,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25185,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25185,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25234,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25235,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25236,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25236,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25289,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25292,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25292,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25292,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25351,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25353,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25353,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25353,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25410,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25410,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25412,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25412,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25472,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25474,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25474,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25474,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25528,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25529,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25531,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25531,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25586,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25589,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25589,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25589,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25652,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25653,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25655,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25655,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25701,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25702,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25702,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25704,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25769,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25770,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25772,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25772,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25824,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25827,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25827,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25827,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25869,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 25925,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25925,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25929,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 25933,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 25994,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 25997,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 26062,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26116,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26178,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26229,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26296,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26348,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26396,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26449,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26580,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26650,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26762,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26821,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26888,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26940,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 26990,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27039,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27086,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27134,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27208,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27257,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27306,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27371,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27418,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27470,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27529,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27581,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27641,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27701,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27747,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27865,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 27937,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28002,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28207,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28367,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 28372,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 28374,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 28442,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 28443,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 28444,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 28445,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 28454,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 28523,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28652,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 28657,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 28661,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 28706,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 28707,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 28760,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28818,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28865,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28942,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 28993,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 29068,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 29129,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 29153,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29154,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29155,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 29201,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 29201,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29202,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29204,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29204,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29205,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29209,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29210,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29211,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29212,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29213,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29214,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29231,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29232,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29234,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29234,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29235,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29236,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29238,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 29286,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 29294,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29296,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29297,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29300,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29301,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29301,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29304,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29307,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29310,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29311,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29312,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29319,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29319,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29319,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29319,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29319,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29320,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29320,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29320,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29320,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29320,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29323,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29325,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 29389,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 29464,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_1.e3798b26.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29464,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_0.04ecce9e.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29475,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_2.b30f2732.jpg"
+   },
+   {
+    "k": "phase",
+    "t": 29544,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 29546,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_5.a6c359fa.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29546,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_4.e3ae8afe.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29547,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_6.255839ad.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29547,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/bear/bear_1.ee297f7d.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29547,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/bear/bear_3.b997f40b.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29547,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/bear/bear_4.ab1ff8b5.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29547,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/doe/doe_2.df26a4f7.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29547,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/orca/orca_0.33a00a14.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29548,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/orca/orca_1.3307fabe.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29548,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/elk/elk_3.146778e0.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29551,
+    "key": "propTex",
+    "ok": true,
+    "what": "Diy/media/tex/animals/whale/whale_2.76362efd.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29551,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/doe/doe_0.5ef5d17b.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29551,
+    "key": "propTex",
+    "ok": true,
+    "what": "/flyDiy/media/tex/animals/doe/doe_1.b7a5c667.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29552,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/bear/bear_0.b563e922.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29552,
+    "key": "propTex",
+    "ok": true,
+    "what": "lyDiy/media/tex/animals/bear/bear_2.bac73a24.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29552,
+    "key": "propTex",
+    "ok": true,
+    "what": "Diy/media/tex/animals/whale/whale_0.1064263c.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29552,
+    "key": "propTex",
+    "ok": true,
+    "what": "Diy/media/tex/animals/whale/whale_1.a100b2e6.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 29595,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29599,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29600,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 29600,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 29657,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 30170,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30174,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30174,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 30374,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 30390,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30390,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30390,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 30523,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 30531,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30532,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30532,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 30585,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 30592,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30592,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 30592,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 30635,
+    "id": "world"
+   },
+   {
+    "k": "landed",
+    "t": 30639,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 30795,
+    "id": "world"
+   },
+   {
+    "k": "step",
+    "t": 31362,
+    "id": "town",
+    "ms": 3648,
+    "programs": 53
+   },
+   {
+    "k": "phase",
+    "t": 31410,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 31537,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32315,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32378,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32500,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32529,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32538,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32544,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32557,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 32712,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 33624,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 33659,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 33829,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 33842,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33845,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33845,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33846,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33847,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33847,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33847,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33848,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33856,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33857,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33857,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33858,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33860,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33862,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33863,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33867,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33868,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33870,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33871,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 33905,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 33919,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33919,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33920,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33924,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 33950,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 33961,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33972,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33972,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33972,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33972,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33973,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33975,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33975,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33976,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33977,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33977,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33979,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33983,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33983,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33985,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33988,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33991,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33992,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33994,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 33994,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34008,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34018,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34018,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34020,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34022,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34042,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34078,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34106,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34122,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34123,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34127,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34136,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34152,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34153,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34154,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34154,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34170,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34170,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34175,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34184,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34192,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34201,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34202,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34210,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34211,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34213,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34225,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34231,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34234,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34236,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34246,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34287,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34291,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34291,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34292,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34298,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34305,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34307,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34309,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34309,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34350,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34351,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34360,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34367,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34370,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34378,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34387,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34392,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34397,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34417,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34428,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34435,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34436,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34442,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34470,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34486,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34486,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34487,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34507,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34528,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34528,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34531,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34534,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34560,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34560,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34562,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34565,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34591,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34592,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34612,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34621,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34634,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34635,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34639,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34666,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34669,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34681,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34691,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34691,
+    "key": "env",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34691,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34708,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34711,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34712,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34725,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34729,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34731,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34737,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34738,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34747,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34817,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34821,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34821,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34824,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34830,
+    "id": "town"
+   },
+   {
+    "k": "phase",
+    "t": 34842,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34844,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34847,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34849,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34854,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34860,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34913,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34914,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34916,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34917,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34923,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34931,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34940,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34943,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34946,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34950,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34953,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34956,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34957,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 34960,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34963,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 34964,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 34999,
+    "id": "town"
+   },
+   {
+    "k": "landed",
+    "t": 35030,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35030,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35030,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "step",
+    "t": 35038,
+    "id": "parking",
+    "ms": 111,
+    "programs": 53
+   },
+   {
+    "k": "landed",
+    "t": 35050,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35051,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35088,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35089,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35091,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35104,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35119,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 35121,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "step",
+    "t": 35155,
+    "id": "trees",
+    "ms": 0,
+    "programs": 53
+   },
+   {
+    "k": "landed",
+    "t": 35159,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "step",
+    "t": 35159,
+    "id": "ring",
+    "ms": 2576,
+    "programs": 53
+   },
+   {
+    "k": "phase",
+    "t": 35201,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35249,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35300,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35350,
+    "id": "ring"
+   },
+   {
+    "k": "landed",
+    "t": 35372,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 35412,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35463,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35517,
+    "id": "ring"
+   },
+   {
+    "k": "landed",
+    "t": 35531,
+    "key": "props",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 35577,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35629,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35674,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35719,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35764,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35812,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35857,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35901,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35947,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 35992,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36037,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36082,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36128,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36175,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36225,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36270,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36314,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36360,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36404,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36448,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36492,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36537,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36582,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36630,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36677,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36726,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36772,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36818,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36864,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36910,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 36954,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37002,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37047,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37094,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37141,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37188,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37233,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37280,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37327,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37373,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37418,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37464,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37510,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37556,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37604,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37656,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37705,
+    "id": "ring"
+   },
+   {
+    "k": "phase",
+    "t": 37735,
+    "id": "ring"
+   },
+   {
+    "k": "step",
+    "t": 37740,
+    "id": "settle",
+    "ms": 54202,
+    "programs": 68
+   },
+   {
+    "k": "phase",
+    "t": 38212,
+    "id": "settle"
+   },
+   {
+    "k": "landed",
+    "t": 38212,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 38212,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 38212,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 38387,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 38601,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 39407,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 39794,
+    "id": "settle"
+   },
+   {
+    "k": "landed",
+    "t": 39802,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 40175,
+    "id": "settle"
+   },
+   {
+    "k": "landed",
+    "t": 40192,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 40192,
+    "key": "propTex",
+    "ok": true
+   },
+   {
+    "k": "phase",
+    "t": 40422,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 40571,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 40719,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 40782,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 40847,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 40912,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 41008,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 41073,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 41124,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 41229,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47456,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47586,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47639,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47686,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47739,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47791,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47835,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47889,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47937,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 47986,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48031,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48075,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48120,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48164,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48208,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48253,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48297,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48345,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48390,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48434,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48479,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48524,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48569,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48613,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48666,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48710,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48756,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48805,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48852,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48899,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48944,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 48994,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49038,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49087,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49133,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49178,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49223,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49276,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49322,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49371,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49416,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49463,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49511,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49555,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49603,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49652,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49697,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49751,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49796,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49842,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49889,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49937,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 49989,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50037,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50085,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50135,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50181,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50226,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50270,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50315,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50363,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50415,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50473,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50522,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50571,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50621,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50672,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50728,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50779,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50839,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50888,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50939,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 50994,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51042,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51089,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51134,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51179,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51241,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51308,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51357,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51408,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51454,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51505,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51553,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51598,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51645,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51689,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51734,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51779,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51825,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51878,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51924,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 51973,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52022,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52070,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52121,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52171,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52217,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52265,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52313,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52357,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52402,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52457,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52504,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52548,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 52596,
+    "id": "settle"
+   },
+   {
+    "k": "phase",
+    "t": 91941,
+    "id": "settle"
+   },
+   {
+    "k": "step",
+    "t": 92219,
+    "id": "parked",
+    "ms": 0,
+    "programs": 68
+   },
+   {
+    "k": "step",
+    "t": 92253,
+    "id": "snapshot",
+    "ms": 2221,
+    "programs": 116
+   },
+   {
+    "k": "phase",
+    "t": 93369,
+    "id": "snapshot"
+   },
+   {
+    "k": "phase",
+    "t": 94303,
+    "id": "snapshot"
+   },
+   {
+    "k": "step",
+    "t": 94560,
+    "id": "bake",
+    "ms": 1,
+    "programs": 131
+   },
+   {
+    "k": "step",
+    "t": 94654,
+    "id": "spec",
+    "ms": 2594,
+    "programs": 137
+   },
+   {
+    "k": "step",
+    "t": 97536,
+    "id": "restore",
+    "ms": 26,
+    "programs": 176
+   },
+   {
+    "k": "step",
+    "t": 98217,
+    "id": "images",
+    "ms": 133,
+    "programs": 191
+   },
+   {
+    "k": "step",
+    "t": 98598,
+    "id": "upload",
+    "ms": 3526,
+    "programs": 316
+   },
+   {
+    "k": "phase",
+    "t": 98813,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 99302,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 99545,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 99637,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 99794,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100051,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100142,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100375,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100569,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100640,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100802,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 100891,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101039,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101113,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101188,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101256,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101307,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101355,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101415,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101456,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101506,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101547,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101588,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101635,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101672,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101710,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101747,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101785,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101849,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101908,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 101974,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 102017,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 102086,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 102120,
+    "id": "upload"
+   },
+   {
+    "k": "phase",
+    "t": 102124,
+    "id": "upload"
+   },
+   {
+    "k": "step",
+    "t": 102129,
+    "id": "worldCompile",
+    "ms": 100,
+    "programs": 319
+   },
+   {
+    "k": "step",
+    "t": 102239,
+    "id": "compile",
+    "ms": 3336,
+    "programs": 325
+   },
+   {
+    "k": "phase",
+    "t": 105397,
+    "id": "compile"
+   },
+   {
+    "k": "phase",
+    "t": 105505,
+    "id": "compile"
+   },
+   {
+    "k": "phase",
+    "t": 105543,
+    "id": "compile"
+   },
+   {
+    "k": "phase",
+    "t": 105568,
+    "id": "compile"
+   },
+   {
+    "k": "step",
+    "t": 105581,
+    "id": "firstFrame",
+    "ms": 32303,
+    "programs": 325
+   },
+   {
+    "k": "frame1",
+    "t": 107561
+   },
+   {
+    "k": "step",
+    "t": 139989,
+    "id": "frames",
+    "ms": 36793,
+    "programs": 326
+   },
+   {
+    "k": "phase",
+    "t": 140125,
+    "id": "frames"
+   },
+   {
+    "k": "step",
+    "t": 181984,
+    "id": "craft",
+    "ms": 45,
+    "programs": 328
+   },
+   {
+    "k": "step",
+    "t": 184673,
+    "id": "recheck",
+    "ms": 17,
+    "programs": 328
+   },
+   {
+    "k": "landing",
+    "t": 188345
+   },
+   {
+    "k": "ready",
+    "t": 192151
+   },
+   {
+    "k": "gone",
+    "t": 192152
+   }
+  ],
+  "peakHeap": 323.4,
+  "peakAB": 1172.4,
+  "peakRenderer": 0,
+  "peakGpu": 0,
+  "steps": [
+   {
+    "step": "reading the island",
+    "t": 1194,
+    "heap": 2,
+    "ab": 164.2
+   },
+   {
+    "step": "reading the model",
+    "t": 2758,
+    "heap": 46.8,
+    "ab": 496
+   },
+   {
+    "step": "building your aeroplane",
+    "t": 9392,
+    "heap": 82,
+    "ab": 536.4
+   },
+   {
+    "step": "your aeroplane on the stand",
+    "t": 13456,
+    "heap": 105,
+    "ab": 567.5
+   },
+   {
+    "step": "laying out the world: light",
+    "t": 15538,
+    "heap": 110,
+    "ab": 611.2
+   },
+   {
+    "step": "laying out the world: ground colour",
+    "t": 17334,
+    "heap": 96.9,
+    "ab": 633
+   },
+   {
+    "step": "laying out the world: ground fields",
+    "t": 20246,
+    "heap": 131.2,
+    "ab": 657.8
+   },
+   {
+    "step": "laying out the world: water",
+    "t": 21979,
+    "heap": 131.1,
+    "ab": 762
+   },
+   {
+    "step": "laying out the world: premises made",
+    "t": 23481,
+    "heap": 225.2,
+    "ab": 820.4
+   },
+   {
+    "step": "laying out the world: patch ground",
+    "t": 24593,
+    "heap": 236.9,
+    "ab": 937.8
+   },
+   {
+    "step": "laying out the world: patch block",
+    "t": 26862,
+    "heap": 247.6,
+    "ab": 990.3
+   },
+   {
+    "step": "laying out the world: lots",
+    "t": 27956,
+    "heap": 238.8,
+    "ab": 1068.1
+   },
+   {
+    "step": "laying out the world: pavement:merge",
+    "t": 29034,
+    "heap": 268,
+    "ab": 1130.8
+   },
+   {
+    "step": "laying out the world: far terrain sink",
+    "t": 30611,
+    "heap": 183.6,
+    "ab": 872.2
+   },
+   {
+    "step": "building the field 0 / 50",
+    "t": 32410,
+    "heap": 192.2,
+    "ab": 1008
+   },
+   {
+    "step": "building the field 37 / 50",
+    "t": 33958,
+    "heap": 192.9,
+    "ab": 1029.3
+   },
+   {
+    "step": "building the field 48 / 50",
+    "t": 35022,
+    "heap": 188.4,
+    "ab": 1097.3
+   },
+   {
+    "step": "growing the forest 7 / 148",
+    "t": 36078,
+    "heap": 197.4,
+    "ab": 1145.1
+   },
+   {
+    "step": "growing the forest 17 / 148",
+    "t": 37134,
+    "heap": 204.3,
+    "ab": 1152.9
+   },
+   {
+    "step": "the world settling round the stand · 0 to build",
+    "t": 38511,
+    "heap": 218.1,
+    "ab": 1063.5
+   },
+   {
+    "step": "busy",
+    "t": 92043,
+    "heap": 213.3,
+    "ab": 1073.6
+   },
+   {
+    "step": "committing your build",
+    "t": 94395,
+    "heap": 273.6,
+    "ab": 1001.5
+   },
+   {
+    "step": "your aeroplane, built",
+    "t": 97662,
+    "heap": 284.5,
+    "ab": 1055.6
+   },
+   {
+    "step": "uploading the textures 16 / 171",
+    "t": 99582,
+    "heap": 306.6,
+    "ab": 1055.6
+   },
+   {
+    "step": "uploading the textures 51 / 171",
+    "t": 100741,
+    "heap": 290.3,
+    "ab": 1075.5
+   },
+   {
+    "step": "uploading the textures 121 / 171",
+    "t": 101763,
+    "heap": 323.4,
+    "ab": 1075.5
+   },
+   {
+    "step": "compiling the shaders",
+    "t": 105365,
+    "heap": 295.8,
+    "ab": 1076.4
+   },
+   {
+    "step": "busy",
+    "t": 135966,
+    "heap": 301,
+    "ab": 1076.4
+   },
+   {
+    "step": "first light",
+    "t": 150800,
+    "heap": 181.2,
+    "ab": 953.3
+   },
+   {
+    "step": "first light 215 / 215",
+    "t": 158466,
+    "heap": 183.2,
+    "ab": 946.5
+   },
+   {
+    "step": "your aeroplane, as it settled",
+    "t": 186612,
+    "heap": 183,
+    "ab": 946.5
+   },
+   {
+    "step": "landing",
+    "t": 190316,
+    "heap": 183.4,
+    "ab": 946.5
+   },
+   {
+    "step": "gone",
+    "t": 197230,
+    "heap": 182.9,
+    "ab": 946.5
+   }
+  ],
+  "afterGC": {
+   "heap": 177.9,
+   "ab": 945.9,
+   "pss": {
+    "rendererMB": 0,
+    "gpuMB": 0,
+    "browserMB": 0
+   }
+  }
+ },
+ "share": {
+  "share": false,
+  "canShareUrl": false,
+  "json": false,
+  "txt": false,
+  "flydiy": false,
+  "persisted": false,
+  "estimate": {
+   "quotaMB": 154812,
+   "usageMB": 156
+  },
+  "standalone": false,
+  "coarse": true,
+  "dpr": 2.625,
+  "w": 412,
+  "h": 915
+ },
+ "frames": {
+  "rest": {
+   "n": 3,
+   "fps": 0.9,
+   "p50": 1583.3,
+   "p95": 1583.3,
+   "p99": 1583.3,
+   "over50": 2
+  },
+  "orbit": {
+   "n": 3,
+   "fps": 1,
+   "p50": 1466.5,
+   "p95": 1466.5,
+   "p99": 1466.5,
+   "over50": 2
+  }
+ },
+ "exceptions": [],
+ "thermalsAtEnd": {
+  "batteryC": null,
+  "status": null,
+  "temps": {}
+ }
+}

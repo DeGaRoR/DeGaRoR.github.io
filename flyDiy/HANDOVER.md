@@ -79614,3 +79614,163 @@ UISMOKE PASS. Chrome on the box 20:30 (?diag=quick, retro 1920x1080): the platea
 100 % of its rating at the two ends (ALU x 0.994); every row within 0.3 ms of its bracket but scale 0.5 (-2.4); ground plain
 flagged DRIFT (the base after it 10.1 against 13.2 before - the live switch-back, caught).
 FOR THE USER once live: index.html?diag=bench, then index.html?diag - each a .json for HW-COVERAGE.
+
+
+## G2100 - MOBILE-GARAGE 1: THE GARAGE ON A PHONE - A SUBTRACT-ONLY PHONE PROFILE OF THE TRUNK: THE GARAGE ALONE (NO WORLD, NO ISLAND, NO SIM WORKER), THE LAPTOP PRESET, THE WORKSHOP AS ONE SHEET UNDER (PORTRAIT) OR BESIDE (LANDSCAPE) THE VIEW, A FINGER KNOB ON EVERY SLIDER, ORBIT / PINCH / TWO-FINGER PAN; THE DESKTOP PIXEL-IDENTICAL (2026-10-06, MOBILE-GARAGE 1 for A0, cloud - node + SwiftShader under mobile emulation, no GPU; branch claude/mobile-garage-1-g2100 off origin/master 068584d = train 37b; block G2100-G2104)
+
+**READY for A0.** Source only (no generated file committed: build.js regenerates index.html / dev.html / sw.js /
+version.json). The user (5 Oct: "the mobile garage is promising, but that's a new non-essential feature, so it goes
+later"; 6 Oct: build the first slice WITHOUT any desktop change). The study is futureDesigns/MOBILE-GARAGE-2026-10-04.md
+(G1510); this is its slice 1 - M1's garage-only boot + M4's touch chrome on today's rows, with the profile table of §6.
+NOT in it (later slices): the black studio (M2: the phone still draws the shed, on laptop), the share link / Send (M5),
+the row model (M3) and the tiers (R14: every row is reachable, none hidden), undo (R22), the PWA (M7).
+
+**HOW A PAGE BECOMES A PHONE.** `?profile=phone` on any device (the rigs, the S20 over adb, a desktop to look at it), or
+the welcome's device gate on a phone / tablet: its primary button is now **Build on this phone** (the "try anyway" link
+still loads the whole game on potato). The choice is remembered (flydiy.welcome `{tried, profile:'phone'}`): the next
+visit on that phone goes straight to the phone garage. `?profile=desktop` forces the trunk. A desktop never gets it.
+
+**G2100 THE PROFILE** (`src/viewer/profile.js`, NEW, in the welcome's inline block, ahead of welcome.js). `window.PROFILE`:
+a table, `desktop` = the trunk (every switch at its old value, no class, no listener) and `phone` =
+`{ boot:'garage', fly:'none', ui:'touch', preset:'laptop', rail:[camera, display, explode, graphics], benchOff:[flight,
+xwind, load, hydro] }`. Code asks `PROFILE.is(k, v)` / `get(k)`, never the device (the study's one-trunk rule). Every
+switch SUBTRACTS:
+- boot 'garage' (app.js `GARAGE_ONLY`): the boot runs 11 steps, not 24 - treeBins (a no-op), aircraft, garage, editor,
+  seed, snapshot, spec, restore, compile, firstFrame, recheck (which re-plans nothing: with bake / craft out it would run
+  the flown bake, the study's §1.3). Off: world, town, parking, trees, ring, settle, parked, bake, images, upload,
+  worldCompile, frames, craft, the world prelink, the setup screen (the flight's options and Fly), the sim worker. The
+  island loader (build.js ISLAND_LOADER) takes FLYDIY_WORLD 'none' after the welcome: **0 bytes of the island**.
+- fly 'none': `rollOut()` returns at once (Roll out, #bGo, the garage bridge's rollOut all reach it); phone.css hides
+  #edActs and the route pickers.
+- preset 'laptop' (gfx_settings.js): applied for the page only, NOT saved - a desktop that looked at ?profile=phone keeps
+  its own choice; ?gfx= still wins.
+- benchOff (bench.js `usable`): the test flight, the crosswind, the hydro test (they need the world) and the live sandbag
+  rig (a worker's seconds: its heat on a phone first, v2) are not offered; the bench check and the density altitude stay.
+- ui 'touch' -> G2101 / G2102.
+
+**G2101 THE VIEW'S GESTURES** (app.js `TOUCH_UI`, false on the desktop). One finger orbits and two pinch, as before; on the
+phone two fingers also PAN the orbit centre (their midpoint, the mouse's middle / right drag - R20), the finger left after
+a pinch orbits from where it is (it jumped), a double tap re-centres (the mouse's dblclick), two fingers are never a tap.
+A tap still picks a part (the 4 px / 500 ms rule).
+
+**G2102 THE WORKSHOP ON A PHONE** (`src/viewer/phone.css` + `src/viewer/phone.js`, NEW). Not a second editor: the same
+columns and _cage_ui.js's own rows, re-laid.
+- phone.css: EVERY selector is under `html.phone` (or hides a phone-only element) - GATE UISMOKE-PHONE parses it and fails
+  on any other. Portrait: the view on the top 40 % (canvas + its chrome in one box), one SHEET below, a tab bar in the thumb
+  zone (Parts / Edit / Plaque - the tree, the properties column, the information panel). Landscape: the view left, a
+  min(400 px, 50 vw) sheet right. The Edit tab scrolls WHOLE (its heads scroll away with the rows: a fixed head left the
+  rows ~190 px). A slider row is two lines (R2): the label (wrapping, never ellipsised) and its value chip, then
+  - scale +. 48 px targets (R1). A rail flyout opens over the sheet. The rail keeps the profile's four entries.
+- phone.js (returns at once on the desktop): the tabs (a part picked in the tree or by a tap on the aeroplane opens
+  Edit); THE FINGER KNOB on every slider of the sheet and the flyouts - the native range takes no touch (a finger on the
+  scale scrolls the sheet, any direction: R4, the user's ruling), a 48 px hit area over the thumb (touch-action none,
+  pointer captured) moves the value RELATIVELY (the scale's width is the range; no jump to the finger), held still 0.35 s
+  it goes FINE x0.1 (judged on the events' own timestamps, so a busy main thread cannot turn a held press coarse: R9), a
+  bubble over the finger says the value (R11), - / + steppers repeat when held (400 ms, then 80: R6), the value chip is
+  _cage_ui's own typed field (inputmode decimal: R7). THE EVENTS ARE THE EDITOR'S (R12): a pointerdown on the range
+  (GARAGE-INSTANT's DRAG_ON), `input` ticks (the preview path), the release (the window's pointerup, then `change`); at most
+  one tick a frame (R13), and the tick still waiting when the finger lifts is delivered by profile.js's early window
+  pointerup hook - registered before any deferred script, so before _cage_ui.js's release build.
+- The page: no browser zoom (a pinch is the view's), no pull-to-refresh, the setup screen and the roll-out verbs hidden.
+
+**LOAD / SAVE on the phone**: the name's menu (save, save as, new, load, import, export) and the fleet popup fit the
+width, unchanged - checked by touch below (a save-as lands in flydiy.build.<name>, Load lists it).
+
+**G2103 THE EVIDENCE RIGS**
+- `tools/phone_still.js` (NEW, cloud): the real page on SwiftShader under Playwright MOBILE EMULATION (isMobile, hasTouch,
+  DPR 3, an Android Chrome UA) at 390 x 844: the loading screen, the garage in portrait, the same at 844 x 390 (the stills
+  first, then) `--checks` with real CDP touch events (each stamped with the finger's own time): tabs, knob, scale, fine,
+  stepper, orbit, pinch (+ pan), save / load, the landscape knob. `--trunk`: the same emulation on today's whole game
+  (the baseline), `--desktop`: no emulation.
+- `tools/perf/mobile_phone_cdp.js` (the study's S20 rig) gains the TOUCH section (`--skip touch`): on ?profile=phone the
+  same checks on the phone's own screen through Input.dispatchTouchEvent + a screenshot of the garage
+  (`phone_<build>_<stamp>_garage.jpg`); `--emulate` dresses a desktop Chrome as the S20 (the cloud's smoke test of the
+  rig, and the box's before the phone is plugged in); adb found on the PATH, else D:/Dev/platform-tools/adb.exe, else ADB=.
+
+**G2104 THE GATES**
+- **UISMOKE-PHONE** (NEW row, core: `test_ui_smoke.js --phone`; run_gates rows may carry `argv` now): profile.js run on
+  ?profile=phone ahead of the graphics menu and app.js; the boot's 11 steps in order; no sim worker; preset laptop; #bGo
+  and the bridge's rollOut leave it in the garage; phone.css's 98 selectors all under html.phone. Mutation: the
+  rollOut guard taken out -> FAIL "Roll out left the phone garage".
+- GATE GFX: + the remembered "Build on this phone" (a phone gets the profile with no gate; a desktop, "try anyway" and a
+  first visit never do).
+- THE DESKTOP, UNCHANGED: nothing of the phone runs on a desktop (profile.js sets no class and no listener, phone.js returns at
+  its first line, every app.js / bench.js / gfx_settings.js addition is a constant flag that reads the trunk's value), and:
+  - **the pixels**: the desktop garage, master 068584d vs the branch, `soft_still.js --place garage --keep-hud --size
+    1600x900` on SwiftShader: mean |difference| 0.003 / 255, 0.003 % of pixels over 12 (a few dozen pixels), the
+    same 24 boot steps, 4,286 draw calls, 3.55 M triangles, 331 programs, 430 textures, 0 errors (`desktop_ab.json`, the
+    two stills); the live geometry count read 2404 vs 2396 (counted mid-dispose on a live page);
+  - **GATE INSTANT**: its whole output byte-identical between master and the branch (the Cub and the metal Cessna, 13 rows
+    each: every preview kind, every object count, every release path, the boot spec hashes ffb2719f / 7f43413d;
+    `instant_master.log`, `instant_branch.log`);
+  - **GARAGE-INSTANT's response numbers** (`tools/perf/garage_release.js --build cub`, real ms in node): the same previews
+    and release paths in every run; the heaviest six releases, both sides from scratch worktrees, alternating x3: release
+    sum median 5,008 ms master / 4,792 branch (0.96), ticks 719 / 731 (1.02) - noise (`release_isolated.txt`). (A first
+    ABBA over all 19 rows, the branch run from the repo and master from a worktree, read the branch 6-8 % slower in every
+    pair - `release_abba.txt`; the isolated alternation above, same code, shows it was where the runs ran, not the code.)
+  - GATES on the final tree: UISMOKE, **UISMOKE-PHONE**, BUILD, ROUNDTRIP (965 s), GFX, BENCH, VIEW,
+    BOOT, UPDATE, MEDIA, BUILT, SAVE, PLAYER, PARTS, JOIN - BATTERY: PASS (`run_gates --only=... --jobs=3`); INSTANT PASS
+    (run directly: under the runner's 1800 s cap it timed out once on the busy cloud box, every row it had reached
+    'same'). NOT run: the whole `--all` battery (the core physics sweeps - nothing of the core changed:
+    tools/flight_core.js builds identical) - A0's train battery is the delivery verdict.
+
+**MEASURED (cloud, SwiftShader; times are not a phone's - only the bytes, the heap and the checks are read off it)**
+The same page, the Cub, headless Chromium 141 on SwiftShader under the S20 FE's metrics (412 x 915 at 2.625, touch:
+`mobile_phone_cdp.js --emulate --cold`), whole game (`index.html`, the trunk: potato through the software rung) vs the
+phone garage (`?profile=phone`, laptop):
+
+| (SwiftShader, S20 metrics, cold) | boot steps | island / world bytes | JS heap peak (V8 + ArrayBuffer backing stores) | after GC | page errors |
+|---|---:|---:|---:|---:|---:|
+| whole game (the trunk) | 24 | 57.1 MB of 74.6 MB on the wire, 1,064 requests | 323 + 1,172 = **~1,496 MB** | 178 + 946 = 1,124 MB | 0 |
+| **phone garage** | **11** | **0** of 17.7 MB, 446 requests | 158 + 304 = **~461 MB** | 61 + 233 = **293 MB** | **0** |
+
+- The wire bytes are before Pages' gzip (tools/_serve.js does not compress) - `phone_still.js` (390 x 844 at DPR 3).
+- **3.2x less memory at peak, 3.8x after GC**, under the S20's ~700 MB budget (the study's prototype: 365 MB - this
+  slice keeps the snapshot / spec steps and draws the SHED; the studio, M2, is the next lever).
+- The GPU's share (textures, the shed's draws) is not in these numbers: the S20 run's dumpsys PSS is.
+- Boot seconds on SwiftShader are not a phone's (frames take seconds there): not read.
+
+THE TOUCH CHECKS, ALL OK on the final build (`phone_still.js --checks`, phone.json): tabs (Parts shows the tree, Wings
+picked opens Edit, Plaque shows the bench); knob (wgDx 0 -> 1.05 for 70 px, expected 1.07; one pointerdown, 10 input
+ticks, one change - the editor's own drag); scale (a horizontal and a vertical swipe on the scale: the value stays 1.05,
+the column scrolled 1069 -> 1174 px); fine (held 0.45 s, 150 px: -0.25 where coarse would be -2.3); stepper (+ one step
+0.05, one release); orbit (az -2.5 -> -1.78); pinch (dist 14 -> 3.3, the orbit centre panned); save (save as "Phone Cub"
+-> flydiy.build.Phone Cub, Load lists it, the fleet fits 390 px and closes); the landscape knob (0.85 -> 1.75 for +0.88
+expected). The S20 rig's own touch section ran the same on its S20-sized emulation (`s20emu_phone.log`): all ok.
+
+Evidence (`reports/evidence/MOBILE-GARAGE-1/`): `phone_loading.jpg`, `phone_portrait.jpg` (390 x 844),
+`phone_landscape.jpg` (844 x 390), `phone_load.jpg` (the fleet), `phone.json` / `.log` (the checks); `trunk_*` (today's
+game under the same emulation); `s20emu_phone|trunk.json / .log` + `s20emu_phone_garage.jpg` (the S20 rig, emulated);
+`desktop_master.jpg`, `desktop_branch.jpg`, `desktop_ab.json`; `instant_master.log`, `instant_branch.log`;
+`release_*_cub.json / .log` (garage_release.js, ABBA).
+
+**FOR A0 - THE S20 FE RUN** (the box serves the tree, the phone reaches it as its own localhost):
+```
+node tools/_serve.js 8700 D:/Dev/DeGaRoR.github.io
+D:/Dev/platform-tools/adb.exe reverse tcp:8700 tcp:8700
+node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?profile=phone" --build cub --cold --soak 10
+node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?profile=phone" --build metal --soak 0
+```
+WHAT THE S20 RUN SHOULD CHECK:
+1. **It loads and is not killed**: `boot: gone` (not CRASHED), 11 steps; the JS heap peak + backing stores under the
+   phone's ~700 MB, the renderer PSS + GPU process (dumpsys) - the study's baseline is the whole game killed at "building
+   the field" (~2 GB heap). The cold load's seconds on the phone's own CPU / GPU (the first true number: SwiftShader's
+   are not).
+2. **The touch section, all ok**: tabs, knob (one press, ticks, one release), scale (no value change, the sheet scrolled),
+   fine (~a tenth), stepper, orbit, pinch - by a real Chrome on a real touch screen.
+3. **drag**: tick / release drawn ms on the cage rows (paxLen, halfW release whole: the study expects ~1-2 s on a phone -
+   the worst feel; R19's "the release never blanks the view" is a later slice).
+4. **frames** at rest and orbiting (the shed on laptop - the studio M2 is the lever if it is slow), and **soak** 10 min:
+   fps vs battery / skin temperature.
+5. **share**: canShare .json / .txt (M5's question), persisted(), the DPR.
+6. **By the user's thumb** (no rig): open http://localhost:8700/flyDiy/index.html?profile=phone (or the live page once the
+   train lands: the gate's "Build on this phone") - drag a knob, hold it still then drag (fine, amber), swipe the list
+   starting on a scale (must scroll, never move a value), - / + held, orbit, pinch, two-finger pan, double tap, rotate the
+   phone, save as / load, export (a .json download). Any knob that feels small, any row cut off, any hover-only thing
+   missed is the next slice's list.
+
+**KNOWN / NEXT**: the shed is still drawn (on laptop) - the black studio (M2) is the phone's big memory and draw lever;
+the cage rows' whole releases (~1-2 s on a phone, R19); the tiers (R14) - a part's sheet shows every row, so long parts
+are long; the hover-only help (R17) stays desktop-only for now (labels wrap, the full text is there); undo; the share
+sheet's Send (M5); `?profile=phone` on a desktop shows the phone layout full-window (the desktop's own width), meant for
+looking only.
