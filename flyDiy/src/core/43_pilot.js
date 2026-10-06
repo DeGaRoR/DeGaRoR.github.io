@@ -585,6 +585,20 @@ function makePilot(sim, def, world, opts) {
   // not the nose - Jolene's calm day was settled by the stand's heading alone (0.12 points: a 0.4 % grade
   // against the nose), which sent the aeroplane on a 1.7 km taxi when 0.9 km went to the other end
   const TAXI_K = 1.0 / 1000;
+  // G2080 ENGINE-TORQUE: ON THE WATER THE TORQUE CHOOSES THE CROSSWIND'S SIDE. The propeller's reaction torque heels a
+  // floatplane at full power (the Lycoming hand: left float down), and across the wind the downwind float is the one
+  // that buries - the water-loop (FAA-H-8083-23: "right aileron control is usually required to offset the effect of
+  // torque when full power is applied"; torque and crosswind "can either counteract or aggravate" each other). The
+  // user's same-hand twin on floats, 5 m/s across from its right at full power, heeled onto the downwind float with
+  // the aileron already at its stop and capsized at 3 s; from its left it lifts off at 7.3 s, 28 deg of swing. So a
+  // take-off from the water scores the crosswind from the side the NET torque rolls toward: TQ_SIDE_K m/s of headwind
+  // per m/s of such crosswind - a pure crosswind's tie goes that way, any real headwind still wins. A counter-rotating
+  // pair (no net torque) and every land take-off: nothing
+  const TQ_SIDE_K = 0.15;
+  const tqHand = (() => { let s = 0; for (const e of (def.params.engines || [])) s += e.sense === -1 ? -1 : 1; return Math.sign(s); })();
+  // the crosswind FROM THE LEFT of a direction u (m/s; + = from the left), wind velocity w = [x, z] (where it goes)
+  const xwFromLeft = (u, w) => -(w[0] * u[1] - w[1] * u[0]);
+  const tqBonus = (a, u, w, mode) => (mode === 'takeoff' && tqHand && (sim.hydro || a.surface === 4)) ? TQ_SIDE_K * tqHand * xwFromLeft(u, w) : 0;
   const dirAt = (a, px, pz, mode, taxiLen) => {
     const axx = snap(Math.cos(a.hdg)), axz = snap(Math.sin(a.hdg));
     const w = windAt(a, 30);
@@ -599,6 +613,9 @@ function makePilot(sim, def, world, opts) {
       const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
       if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
       const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
+      // G2080: the torque's side, in the scorer's points (3 a m/s of headwind, G772's scale)
+      const tq = M.dir.map(D => 3 * tqBonus(a, D.u, w, mode));
+      if (tq[0] || tq[1]) { sc.score = sc.score.map((x, i) => x + tq[i]); sc.k = sc.score[0] >= sc.score[1] ? 0 : 1; }
       if (taxiLen && mode === 'takeoff') {
         const s2 = M.dir.map((D, i) => {
           const L = taxiLen[(D.u[0] * axx + D.u[1] * axz) >= 0 ? 0 : 1];
@@ -612,7 +629,12 @@ function makePilot(sim, def, world, opts) {
     }
     let dx = px, dz = pz;
     if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
-    else if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    else if (Math.hypot(w[0], w[1]) > 0.7) {
+      dx = -w[0]; dz = -w[1];
+      // G2080: the headwind along each way, plus the torque's side on the water; the better way
+      const hw = sg => -(w[0] * axx + w[1] * axz) * sg + tqBonus(a, [axx * sg, axz * sg], w, mode);
+      if (tqBonus(a, [axx, axz], w, mode)) { const sg = hw(1) >= hw(-1) ? 1 : -1; dx = axx * sg; dz = axz * sg; }
+    }
     else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = Math.cos(a.takeoffHdg); dz = Math.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
@@ -954,7 +976,7 @@ function makePilot(sim, def, world, opts) {
       }
       t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff', tl);
     }
-    else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
+    else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1], 'takeoff');   // (G2080: a take-off - the torque's side on the water)
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
     const T = (t[0] * d0[0] + t[1] * d0[1]) >= 0 ? 0 : 1;

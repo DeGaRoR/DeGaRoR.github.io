@@ -70,11 +70,19 @@ const SERVO_GAINS = {
   steerTailUpK: 1.4, steerTailUpD: 3.0, steerTailUpMin: 0.6, steerTailUpMax: 2.0,
   VTailUp: 12, VSteer: 12, steerMin: 0.30, steerBW: 3.5, trikeSteerD: 0.25,
   steerMassRef: 500, steerMassMin: 200,
+  // G2080: THE GROUND'S RUDDER TRIM - the heading error's integral on the roll (1/s) and its stop (rad): the metal
+  // Cessna rotated 4.1 deg off its heading on P-D alone (0.5 -> 3.5, 1.0 -> 2.8, 2.0 -> 1.7 deg); 1.0 brought the
+  // trike crosswind's pursuit from 14.2 to 10.1 deg and the C172's climb-out from the mill clear of house3 again
+  steerI: 1.0, steerIMax: 0.25,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   gAilP: 2.0, gAilD: 1.0, gBankDb: 0.010, gRateDb: 0.02, gAilTaxi: 0.25, gAilRoll: 0.30,
   xwBank: 0.06, xwBankGround: 0.035,
   // taxi
-  taxiDe: 0.30, taxiThrMax: 0.85, taxiP: 0.18, taxiIK: 0.10, taxiForgetS: 2,
+  taxiDe: 0.30, taxiThrMax: 0.85, taxiP: 0.18, taxiIK: 0.10, taxiForgetS: 2, 
+  // G2080: THE TAXI'S PEDALS, a 0.5 s low-pass on the taxi rudder: the swirl at breakaway power (0.85 from the stand)
+  // turned the C172 out of its stand faster and overshot (+3 deg), and its pedals reversed 24.8 a minute (GATE
+  // PILOTACT's 20; master 16) - 0.3 s: 13 reversals in the first 90 s, 0.5 s: 12 (master 11), the gate's cells 17.4
+  taxiRudTau: 0.5,
   taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgTau: 0.4, taxiHdgForgetS: 0.5,
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
@@ -130,7 +138,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0,
-    eTrim: 0, drTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
+    eTrim: 0, drTrim: 0, gI: 0, gIT: -1e9, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -426,7 +434,15 @@ function makeServos(sim, def, opts) {
       drMax = tailUp ? G.drTailUp : G.drTailDown;
     }
     const [kP, kD] = S.steerK(tailUp);
-    c.dr = clamp(-kP * e - kD * S.eR, -drMax, drMax);
+    // G2080: THE GROUND'S RUDDER TRIM - the heading error's integral (the propeller's swirl and P-factor are a standing
+    // yaw on the roll; P-D alone held it with a standing error: the metal Cessna rotated 4.1 deg off its heading),
+    // forgotten when the steer was not flown a step ago, and handed to the air's slip trim so the lift-off is bumpless
+    const t = now();
+    if (t - S.gIT > 0.1) S.gI = 0;
+    S.gIT = t;
+    S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax'));
+    S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
+    c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
       // loop flies; P1.D: on the wheels within xwBankGround
@@ -466,7 +482,16 @@ function makeServos(sim, def, opts) {
   };
   // G630: the taxi rudder — the steer schedule's P, the curvature feed-forward,
   // NO rate term (at taxi speed the wheel steers the heading kinematically)
-  S.taxiRudder = (ff, lim) => { const u = -S.steerK(false)[0] * S.e; return clamp(ff ? u + ff : u, -lim, lim); };
+  let taxiDrF = null, taxiDrT = -1e9;
+  S.taxiRudder = (ff, lim) => {
+    const u = clamp(ff ? -S.steerK(false)[0] * S.e + ff : -S.steerK(false)[0] * S.e, -lim, lim);
+    const tau = g('taxiRudTau'), t = now();
+    if (!(tau > 0)) return u;
+    if (taxiDrF == null || t - taxiDrT > 0.1) taxiDrF = u;
+    else taxiDrF += (u - taxiDrF) * Math.min(1, S.dt / tau);
+    taxiDrT = t;
+    return taxiDrF;
+  };
 
   // ---- the servo slew, on the axes the pilot owns ----------------------------------
   S.slew = (ownV = true, ownL = true) => {

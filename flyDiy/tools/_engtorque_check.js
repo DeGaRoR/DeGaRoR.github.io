@@ -178,5 +178,6 @@ if (SELF) {
   for (const [name, fn] of doc) { const R2 = JSON.parse(JSON.stringify(R)); fn(R2); const red = judge(R2).some(r => !r.ok); if (red) caught++; console.log(`selftest ${red ? 'caught' : 'MISSED'}: ${name}`); }
   if (caught !== doc.length) fails++;
 }
-console.log(`GATE ENGTORQUE: ${fails ? 'FAIL' : 'PASS'} (${rows.length - fails}/${rows.length})`);
+console.log(`${rows.length - fails}/${rows.length} checks`);
+console.log(`GATE ENGTORQUE: ${fails ? 'FAIL (' + fails + ')' : 'PASS'}`);
 process.exit(fails ? 1 : 0);
