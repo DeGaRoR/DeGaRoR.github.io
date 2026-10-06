@@ -178,7 +178,7 @@ function parent() {
     say('DMGUPLOAD selftest: the heal\'s upload marking off (the bug as it was) must turn it red');
     // (G2350: red ON A FOLD - the class D4b's fix covers; the fold rows themselves must hold, else the red tests nothing)
     const R = runChild('cub', 'nomark', secs), f = judge(R, say), red = f.some(x => /STALE/.test(x)), onFold = ((R.after && R.after.stale) || []).some(x => x.cls === 'fold');
-    const foldRows = !f.some(x => /fake|fold was made|fold buffer checked/.test(x)), ok = red && onFold && foldRows;
+    const foldRows = !!R.fakeBake && !f.some(x => /fake|fold was made|fold buffer checked/.test(x)), ok = red && onFold && foldRows;
     say('  ' + (red ? 'ok  ' : 'FAIL') + '  the fault turned the stale-buffer row red' + (f.length ? ': ' + f.join(' | ') : ''));
     say('  ' + (onFold ? 'ok  ' : 'FAIL') + '  a stale buffer is a FOLD\'s (' + ((R.after && R.after.stale) || []).filter(x => x.cls === 'fold').length + ' fold buffers stale)');
     say('  ' + (foldRows ? 'ok  ' : 'FAIL') + '  the fake bake made the folds and they were drawn and checked');
