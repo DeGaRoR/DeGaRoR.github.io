@@ -6,8 +6,9 @@
 // the CPU arrays, and stubs the render after the roll-out (so nothing is ever uploaded).
 //
 //   node tools/_dmg_upload_check.js                 -> "GATE DMGUPLOAD: PASS|FAIL"
-//   node tools/_dmg_upload_check.js --selftest      -> the heal's upload marking off (the bug as it was) must turn it red;
-//                                                      (G2352) so must the fold's owed whole upload unguarded
+//   node tools/_dmg_upload_check.js --selftest      -> the bug as it was (D4b's heal marking off, G2352's owed upload
+//                                                      unguarded) must turn it red on a fold; so must G2352 alone off
+//   --fault=nomark|noowe|aswas  a fix taken out on the gate's own runs (the A/B; the selftest runs aswas and noowe)
 //   --fakebake=0  the page without the flown bake's fake (the gate as D4b left it: no fold in the node page)
 //   --only=cub|metal   --secs=S (sim seconds of the crash, default 5)
 //
@@ -26,8 +27,9 @@
 // buildModel, mergeModel's folds and views, the range uploads and the hybrid are the game's - and asserted besides:
 //   4 the flown bake was the fake (FB.last.hit 'fake'), the hybrid on, folds made; drawn fold buffers were checked
 //     fresh and after the path (a fold's position / normal is where a heal's write goes stale);
-//   --selftest: window.FLYDIY_HEAL_NOMARK = true (D4b's fix off: the bug as it was) must go red ON A FOLD, and so must
-//     window.FLYDIY_FOLD_NOOWE = true (G2352 off: D4b's mark alone - the fold sees it found the box's ghost only in part).
+//   --selftest: the bug as it was (window.FLYDIY_HEAL_NOMARK = true and window.FLYDIY_FOLD_NOOWE = true) must go red ON A
+//     FOLD, and so must FLYDIY_FOLD_NOOWE alone (G2352 off, D4b's mark on: with the folds in the page D4b's mark alone left
+//     the Cub's fuselage fold stale - the lost whole upload was the ghost here, see flown_bake.js G2352).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawnSync } = require('child_process');
@@ -98,8 +100,8 @@ async function child() {
   R.fakeBake = fake;
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
-  if (fault === 'nomark') W.FLYDIY_HEAL_NOMARK = true;   // (the selftest: the heal's upload marking off - the bug as it was)
-  if (fault === 'noowe') W.FLYDIY_FOLD_NOOWE = true;     // (G2352's selftest: a fold's owed whole upload let a range replace it - D4b's fix alone)
+  if (fault === 'nomark' || fault === 'aswas') W.FLYDIY_HEAL_NOMARK = true;   // (D4b's heal marking off)
+  if (fault === 'noowe' || fault === 'aswas') W.FLYDIY_FOLD_NOOWE = true;     // (G2352 off: a fold's owed whole upload a range can replace)
   const tripN = () => (W.FLYDIY_TRIPS || []).length;
   const tripDone = (kind, n0) => { const T = W.FLYDIY_TRIPS || []; const t = T[T.length - 1]; return T.length > n0 && !!(t && t.kind === kind && t.done && W.BOOT.state === 'gone'); };
   const SW = () => W.FLYDIY_SIMW || null;
@@ -179,12 +181,15 @@ function judge(R, say) {
 function parent() {
   const secs = +arg('secs', 5), say = m => console.log(m), only = arg('only', null), keys = Object.keys(BUILDS).filter(k => !only || only.split(',').includes(k));
   if (argv.includes('--selftest')) {
-    // two faults, each must go red ON A FOLD (the class the two fixes cover), with the fold rows themselves holding (else
-    // the red tests nothing): nomark - D4b's heal marking off (the bug as it was); noowe (G2352) - the mark on, the owed
-    // whole upload unguarded (D4b's fix alone: the fuselage fold a rig writes every frame stays stale)
+    // two faults, each must go red ON A FOLD, with the fold rows themselves holding (else the red tests nothing):
+    //   aswas - the code as it was before D4b's fix: the heal's marking off (FLYDIY_HEAL_NOMARK) AND the owed whole upload
+    //           unguarded (FLYDIY_FOLD_NOOWE);
+    //   noowe - D4b's fix alone (the mark on, G2352 off): the fuselage fold a rig writes every frame stays stale.
+    // (--fault=nomark alone - G2352 on, the mark off - is GREEN on this path: every heal write here bumps a member's
+    // version while the model is hidden in the shed, so the fold owes itself the whole upload anyway; G2352's report)
     say('DMGUPLOAD selftest: each fix off must turn it red on a fold');
     let all = true;
-    for (const [fault, what] of [['nomark', 'the heal\'s upload marking off (the bug as it was)'], ['noowe', 'the fold\'s owed whole upload unguarded (G2352 off, D4b\'s mark on)']]) {
+    for (const [fault, what] of [['aswas', 'the heal\'s upload marking off and the owed whole upload unguarded (the bug as it was)'], ['noowe', 'the fold\'s owed whole upload unguarded (G2352 off, D4b\'s mark on)']]) {
       say(' ' + fault + ': ' + what);
       const R = runChild('cub', fault, secs), f = judge(R, say), red = f.some(x => /STALE/.test(x)), onFold = ((R.after && R.after.stale) || []).some(x => x.cls === 'fold');
       const foldRows = !!R.fakeBake && !f.some(x => /fake|fold was made|fold buffer checked/.test(x));
@@ -197,7 +202,9 @@ function parent() {
   }
   say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)');
   let fails = [];
-  for (const k of keys) fails = fails.concat(judge(runChild(k, '', secs), say));
+  const pf = arg('fault', '');   // (G2350: --fault=nomark|noowe|aswas on the gate's own runs - a fix's A/B; the gate's verdict then reads it)
+  if (pf) say('  (fault ' + pf + ')');
+  for (const k of keys) fails = fails.concat(judge(runChild(k, pf, secs), say));
   fails = fails.concat(judge(runChild(keys[0], '', secs, false), say));   // (damage OFF: one build)
   for (const x of fails) say('  FAIL  ' + x);
   console.log('GATE DMGUPLOAD: ' + (fails.length ? 'FAIL' : 'PASS'));
