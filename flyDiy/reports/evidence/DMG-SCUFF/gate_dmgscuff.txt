@@ -1,4 +1,114 @@
-=== DMGSCUFF ===
+(58 s, 3 builds, damage on)
+Cub: the skin 11 meshes, 11650 vertices (genWing's groups, every member's tube, two panes)
+  an intact taxi at 5 m/s (nothing touches): 0 broken, 0 yields, 0 J plastic, 0 J slid; 0 payloads, 0 passes; crush 0 / scrape 0 (soil 0) / torn 0 of 0 vertices; panes  [5.5 s]
+  a 3 m/s taxi into a trunk: 0 broken, 781 yields, 417 J plastic, 551 J slid; 8 payloads, 6 passes; crush 130 / scrape 77 (soil 0) / torn 0 of 11416 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [7.5 s]
+  ok    taxi-3: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 130)
+  ok    taxi-3: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    taxi-3: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    taxi-3: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a wing-low slide (rolled 25 deg left onto the tip, 15 m/s): 0 broken, 0 yields, 0 J plastic, 1589 J slid; 9 payloads, 8 passes; crush 0 / scrape 92 (soil 92) / torn 0 of 11416 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [4.8 s]
+  ok    slide-L: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    slide-L: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a nose-over (12 m/s into a 35 cm stump): 43 broken, 3196 yields, 6364 J plastic, 16356 J slid; 41 payloads, 29 passes; crush 2516 / scrape 2613 (soil 2313) / torn 1316 of 11416 vertices; panes windscreen 0.286 cracked (hit 0.286, set 0 mm), rearWindow 1 cracked (hit 0.335, set 64.1 mm) [9.8 s]
+  ok    noseover: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 2516)
+  ok    noseover: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    noseover: the windscreen cracks exactly as its nodes and frame say (severity 0.286, the gate's 0.286)
+  ok    noseover: the rearWindow cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    noseover: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  a trunk at 30 m/s, the centreline: 82 broken, 13308 yields, 50485 J plastic, 16173 J slid; 93 payloads, 58 passes; crush 6647 / scrape 3075 (soil 1850) / torn 3665 of 11416 vertices; panes windscreen 1 cracked (hit 1, set 325.5 mm), rearWindow 0 clean (hit 0.086, set 4.6 mm) [10 s]
+  ok    trunk-0: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 6647)
+  ok    trunk-0: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    trunk-0: the windscreen cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    trunk-0: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  ok    intact: no payload, no record, nothing drawn
+  ok    the wing-low slide scrapes the low (left) side only: 92 vertices scraped, 0 on the right
+  ok    the wing-low slide: no scraped vertex faces up (0)
+  ok    the slide on grass stains what it scraped (92 of 92)
+  ok    the slide without a yield crushes nothing
+  ok    the 30 m/s trunk cracks the windscreen (1), not the rear window
+  ok    intact: no pane cracked
+  ok    slide-L: no pane cracked
+  ok    a reset after the crash: a payload, the fields zero, every record byte zero (0 non-zero)
+  ok    deterministic: the 30 m/s trunk twice, the same bytes (bb56b3ff / bb56b3ff)
+  ok    damage OFF, the 30 m/s trunk: no payload, no record, no slide array (0)
+  cost: 0.228 us a place (11650 places), the worst torn band 1.20 ms, a tick of 2000 places at worst 1.71 ms (8 ticks)
+  ok    the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)
+Jodel: the skin 10 meshes, 12382 vertices (genWing's groups, every member's tube, two panes)
+  an intact taxi at 5 m/s (nothing touches): 0 broken, 0 yields, 0 J plastic, 0 J slid; 0 payloads, 0 passes; crush 0 / scrape 0 (soil 0) / torn 0 of 0 vertices; panes  [7.6 s]
+  a 3 m/s taxi into a trunk: 0 broken, 1889 yields, 713 J plastic, 337 J slid; 9 payloads, 6 passes; crush 144 / scrape 244 (soil 0) / torn 0 of 12148 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [9.4 s]
+  ok    taxi-3: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 144)
+  ok    taxi-3: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    taxi-3: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    taxi-3: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a wing-low slide (rolled 25 deg left onto the tip, 15 m/s): 0 broken, 0 yields, 0 J plastic, 2944 J slid; 16 payloads, 11 passes; crush 0 / scrape 140 (soil 140) / torn 0 of 12148 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [7.5 s]
+  ok    slide-L: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    slide-L: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a nose-over (12 m/s into a 35 cm stump): 1 broken, 59 yields, 1389 J plastic, 75 J slid; 2 payloads, 3 passes; crush 128 / scrape 154 (soil 0) / torn 18 of 12148 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [8.5 s]
+  ok    noseover: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 128)
+  ok    noseover: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    noseover: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  a trunk at 30 m/s, the centreline: 103 broken, 5062 yields, 17922 J plastic, 35264 J slid; 25 payloads, 16 passes; crush 2974 / scrape 3034 (soil 2438) / torn 3438 of 12148 vertices; panes windscreen 1 cracked (hit 1, set 264.4 mm), rearWindow 0 clean (hit 0, set 0 mm) [9.8 s]
+  ok    trunk-0: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 2974)
+  ok    trunk-0: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    trunk-0: the windscreen cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    trunk-0: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  ok    intact: no payload, no record, nothing drawn
+  ok    the wing-low slide scrapes the low (left) side only: 140 vertices scraped, 0 on the right
+  ok    the wing-low slide: no scraped vertex faces up (0)
+  ok    the slide on grass stains what it scraped (140 of 140)
+  ok    the slide without a yield crushes nothing
+  ok    the 30 m/s trunk cracks the windscreen (1), not the rear window
+  ok    intact: no pane cracked
+  ok    slide-L: no pane cracked
+  ok    a reset after the crash: a payload, the fields zero, every record byte zero (0 non-zero)
+  ok    deterministic: the 30 m/s trunk twice, the same bytes (9e4c09af / 9e4c09af)
+  ok    damage OFF, the 30 m/s trunk: no payload, no record, no slide array (0)
+  cost: 0.254 us a place (12382 places), the worst torn band 1.05 ms, a tick of 2000 places at worst 1.56 ms (9 ticks)
+  ok    the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)
+metal Cessna: the skin 11 meshes, 11758 vertices (genWing's groups, every member's tube, two panes)
+  an intact taxi at 5 m/s (nothing touches): 0 broken, 0 yields, 0 J plastic, 0 J slid; 0 payloads, 0 passes; crush 0 / scrape 0 (soil 0) / torn 0 of 0 vertices; panes  [6.6 s]
+  a 3 m/s taxi into a trunk: 0 broken, 2938 yields, 607 J plastic, 748 J slid; 16 payloads, 12 passes; crush 228 / scrape 207 (soil 0) / torn 0 of 11524 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [8.9 s]
+  ok    taxi-3: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 228)
+  ok    taxi-3: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    taxi-3: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    taxi-3: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a wing-low slide (rolled 25 deg left onto the tip, 15 m/s): 0 broken, 0 yields, 0 J plastic, 692 J slid; 7 payloads, 5 passes; crush 0 / scrape 29 (soil 29) / torn 0 of 11524 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [5 s]
+  ok    slide-L: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    slide-L: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a nose-over (12 m/s into a 35 cm stump): 38 broken, 809 yields, 3404 J plastic, 20619 J slid; 13 payloads, 11 passes; crush 2022 / scrape 2290 (soil 2212) / torn 772 of 11524 vertices; panes windscreen 0.397 cracked (hit 0.397, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [11.7 s]
+  ok    noseover: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 2022)
+  ok    noseover: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    noseover: the windscreen cracks exactly as its nodes and frame say (severity 0.397, the gate's 0.397)
+  ok    noseover: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  a trunk at 30 m/s, the centreline: 107 broken, 9992 yields, 76477 J plastic, 93736 J slid; 29 payloads, 19 passes; crush 6289 / scrape 3248 (soil 1778) / torn 2693 of 11524 vertices; panes windscreen 1 cracked (hit 1, set 647.4 mm), rearWindow 0 clean (hit 0, set 0 mm) [9.7 s]
+  ok    trunk-0: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 6289)
+  ok    trunk-0: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    trunk-0: the windscreen cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    trunk-0: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  ok    intact: no payload, no record, nothing drawn
+  ok    the wing-low slide scrapes the low (left) side only: 29 vertices scraped, 0 on the right
+  ok    the wing-low slide: no scraped vertex faces up (0)
+  ok    the slide on grass stains what it scraped (29 of 29)
+  ok    the slide without a yield crushes nothing
+  ok    the 30 m/s trunk cracks the windscreen (1), not the rear window
+  ok    intact: no pane cracked
+  ok    slide-L: no pane cracked
+  ok    a reset after the crash: a payload, the fields zero, every record byte zero (0 non-zero)
+  ok    deterministic: the 30 m/s trunk twice, the same bytes (1cb44864 / 1cb44864)
+  ok    damage OFF, the 30 m/s trunk: no payload, no record, no slide array (0)
+  cost: 0.182 us a place (11758 places), the worst torn band 0.64 ms, a tick of 2000 places at worst 4.22 ms (9 ticks)
+  ok    the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)
+  ok    app.js reaches skin_scuff.js only inside its DMG-SCUFF block (0 outside)
+  ok    buildModel: scuffMat hands back the material it was given unless the layer is on (scuffFor)
+  ok    scuffFrame returns on its first test with the layer off (no model.scuff)
+  ok    the attributes are attached only with the layer on (scuffAttach behind SCUFF)
+  ok    flown_bake.js: the baked band keeps a wrapper only a damage material carries (scuffRe)
   ok    the solver records the slide only behind DMG_ON (2 call sites)
-(90/90 checks, 62 s)
+(90/90 checks, 58 s)
 GATE DMGSCUFF: PASS
