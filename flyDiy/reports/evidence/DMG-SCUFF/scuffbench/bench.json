@@ -82,7 +82,28 @@
     "links": 0,
     "ratioFull": 1.569,
     "ratioIntact": 1.057
-   }
+   },
+   "sourcesEnd": {
+    "n": 98,
+    "hash": "7249e28b",
+    "links": 49
+   },
+   "errors": []
+  },
+  "metal": {
+   "build": "bugReports/cessnaMetal (1).json",
+   "noscuff": {
+    "n": 66,
+    "hash": "5e93b8af",
+    "links": 33
+   },
+   "noscuffErrors": [],
+   "loaded": {
+    "n": 66,
+    "hash": "5e93b8af",
+    "links": 33
+   },
+   "sameAsNoscuff": true
   }
  }
 }
