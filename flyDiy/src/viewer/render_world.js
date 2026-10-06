@@ -2686,10 +2686,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       FARLOD.resink = bb => { const g = FARLOD.resinkSteps(bb); let r; while (!(r = g.next()).done); return r.value; };
       // G995 (A5-LOAD): the same, a quadrant a step - the roll-out's world build runs it in slices ('premises ground')
       FARLOD.resinkSteps = function* (bb) {
-        farSinkOn = true; let n = 0;
-        for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); n++; } }
+        farSinkOn = true; let n = 0; const gone = new Set();
+        for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); gone.add(f); n++; } }
         if (!n) return 0;
-        for (const Q of FARLOD.quads.values()) Q.sig = '';
+        // G2063: only the quadrants that drew a dropped patch are stale - the others rebuild from the same cached patches,
+        // the same mesh (a town's sink 9 km out re-cut every quadrant: 66 ms frames in flight)
+        for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) Q.sig = '';
         FARLOD.update(true, 1);
         while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain sink'; FARLOD.update(false, 1); }
         return n;

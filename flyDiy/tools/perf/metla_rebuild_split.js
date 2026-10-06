@@ -69,7 +69,16 @@ async function child(side, out) {
   // G2063: THE TOWN'S GEOMETRY LATER, run to its end (WORLD.townGeoFinish) - its time, the geometry after it (a tree that
   // defers must end on the digest a tree that builds the town at boot starts with), and the programs a compile of the
   // scene asks for that it did not before (a town block or road on a material no program was linked for)
-  let later = null;
+  let later = null, geoSteps = null;
+  // METLA_GEOSTEPS=1: the town's deferred build stepped by hand, each step timed under the label it yielded (the longest
+  // step is the in-flight frame's cost: render_world slices it at 3 ms a frame, and a step cannot be cut)
+  if (process.env.METLA_GEOSTEPS && R && R.geoPending && R.geoPending() && R.geoLaterSteps) {
+    const g = R.geoLaterSteps(), by = {}; let label = 'start', bb = null;
+    for (;;) { const t = process.hrtime.bigint(), r = g.next(), d = ms(t); const k = label.replace(/[0-9]+/g, '#'), e = by[k] || (by[k] = { n: 0, ms: 0, max: 0 }); e.n++; e.ms += d; e.max = Math.max(e.max, d); if (r.done) { bb = r.value; break; } label = String(r.value); }
+    let refreshMs = null; if (bb && W.WORLD.refreshGround) { const t = process.hrtime.bigint(); W.WORLD.refreshGround(bb); refreshMs = +ms(t).toFixed(0); }
+    geoSteps = { by: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, { n: v.n, ms: Math.round(v.ms), max: Math.round(v.max) }])), refreshMs, bb };
+    console.log('GEOSTEPS ' + JSON.stringify(geoSteps));
+  }
   if (W.WORLD.townGeoFinish && R && R.geoPending && R.geoPending()) {
     const Rr = W.FLYDIY_RENDERER, cam = W.FLIGHT_PROBE && (typeof W.FLIGHT_PROBE.camera === 'function' ? W.FLIGHT_PROBE.camera() : W.FLIGHT_PROBE.camera);
     const progs = () => (Rr && Rr.info && Rr.info.programs ? Rr.info.programs.length : 0);
@@ -78,7 +87,7 @@ async function child(side, out) {
     try { if (Rr && cam) Rr.compile(W.WORLD.scene, cam); } catch (e) {}
     later = { ms: +msF.toFixed(0), programsNew: progs() - p0, pending: R.geoPending(), stats: R.stats.townGeo || null, digest: digestNow(), box: null };
   }
-  fs.writeFileSync(out, JSON.stringify({ side, wall: Date.now() - t0, steps, slices: SL, compose: COMP, count, digest, later, errors: P.errors.slice(0, 8), warns: (P.logs || []).filter(l => /premises|town/i.test(l)).slice(0, 8) }));
+  fs.writeFileSync(out, JSON.stringify({ side, wall: Date.now() - t0, steps, slices: SL, compose: COMP, count, digest, later, geoSteps, errors: P.errors.slice(0, 8), warns: (P.logs || []).filter(l => /premises|town/i.test(l)).slice(0, 8) }));
   process.exit(0);
 }
 
