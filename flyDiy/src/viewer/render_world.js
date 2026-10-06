@@ -404,10 +404,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G1975: a BARK-ONLY sheet's own terms (impostorMat): the leaf wrap and translucency as a share of the leaves', its
   // contrast. Measured at the hand-over (HANDOVER G1975): the translucency is the snag's pale glow into the sun (off);
   // the wrap stands in for the rim light a round trunk catches and the baked normal loses - without it the backlit
-  // sheet goes navy-black where the geometry is brown (kept); contrast 1 = the texel as baked, as the bark geometry
-  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 1, barkCut: 0 };
+  // sheet goes navy-black where the geometry is brown (kept); contrast 1 = the texel as baked, as the bark geometry.
+  // THE SHAPE: a twig is one texel of the 128-px tile, and the 3-tap union (solid 1) at the snag's cut 0.10 made every
+  // one a square blob on a fat pole; solid 0 and a 0.4 floor on the cut leave the pole and dissolve the twigs, as the
+  // geometry's sub-pixel twigs do at the hand-over. THE LEVEL: a bare snag barely shades itself, so its geometry's
+  // match is uILit 0.9 on every preset (the leafy one is 1.242 without tree shadows) - barkLit 0.725 = 0.9 / 1.242
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.725 };
   const uBarkW = { value: IMPK.barkWrap }, uBarkS = { value: IMPK.barkSSS }, uBarkF = { value: IMPK.barkFlat },
-        uBarkSol = { value: IMPK.barkSolid }, uBarkCut = { value: IMPK.barkCut };   // and its alpha: the 3-tap union's share, a floor on its cut
+        uBarkSol = { value: IMPK.barkSolid }, uBarkCut = { value: IMPK.barkCut },   // and its alpha: the 3-tap union's share, a floor on its cut
+        uBarkL = { value: IMPK.barkLit };   // and its share of the tier gain uILit
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -3797,7 +3802,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFlatK = uIFlat; sh.uniforms.uFlatMean = uIFlatMean;   // uFlat, uWrap, uSSS themselves are set per fragment (G1975)
         sh.uniforms.uWrapK = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSSK = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
-        sh.uniforms.uBarkW = uBarkW; sh.uniforms.uBarkS = uBarkS; sh.uniforms.uBarkF = uBarkF; sh.uniforms.uBarkSol = uBarkSol; sh.uniforms.uBarkCut = uBarkCut;
+        sh.uniforms.uBarkW = uBarkW; sh.uniforms.uBarkS = uBarkS; sh.uniforms.uBarkF = uBarkF; sh.uniforms.uBarkSol = uBarkSol; sh.uniforms.uBarkCut = uBarkCut; sh.uniforms.uBarkL = uBarkL;
         sh.uniforms.uLeaf = { value: 1 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
@@ -3859,7 +3864,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
             (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nfloat uIGain, uICut, uHue, uSat, uLight;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark;\n') +
-            'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -3870,7 +3875,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // most of its life) and straight-down at the centre.
             inst ? 'uIGain = vImpP.x; uICut = vImpP.y; uHue = vImpT.x; uSat = vImpT.y; uLight = vImpT.z;' : '',
             // a bark-only sheet takes its own share of the leaf terms and its own contrast (G1975)
-            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; }',
+            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; _iLit = _bk ? uILit * uBarkL : uILit; }',
             'vec3 dI = vImpDir;',
             'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
             'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
@@ -3917,8 +3922,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the tier gain, on all four terms - the multiscatter one rides on
             // the sky and not the albedo, and scaling the diffuse alone leaves
             // a floor that eats the dial (the bench's W0a.2)
-            'reflectedLight.directDiffuse *= uILit;\nreflectedLight.indirectDiffuse *= uILit;\n' +
-            'reflectedLight.directSpecular *= uILit;\nreflectedLight.indirectSpecular *= uILit;');
+            // (G1975: _iLit - a bark-only sheet's is uILit x IMPK.barkLit, set with the sheet's other terms)
+            'reflectedLight.directDiffuse *= _iLit;\nreflectedLight.indirectDiffuse *= _iLit;\n' +
+            'reflectedLight.directSpecular *= _iLit;\nreflectedLight.indirectSpecular *= _iLit;');
       };
       return m;
     }
@@ -3963,11 +3969,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
       const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
     treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
-        for (const k of ['flat', 'mean', 'vary', 'barkWrap', 'barkSSS', 'barkFlat', 'barkSolid', 'barkCut']) if (o[k] !== undefined) IMPK[k] = +o[k];
+        for (const k of ['flat', 'mean', 'vary', 'barkWrap', 'barkSSS', 'barkFlat', 'barkSolid', 'barkCut', 'barkLit']) if (o[k] !== undefined) IMPK[k] = +o[k];
         uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean;
-        uBarkW.value = IMPK.barkWrap; uBarkS.value = IMPK.barkSSS; uBarkF.value = IMPK.barkFlat; uBarkSol.value = IMPK.barkSolid; uBarkCut.value = IMPK.barkCut; }
+        uBarkW.value = IMPK.barkWrap; uBarkS.value = IMPK.barkSSS; uBarkF.value = IMPK.barkFlat; uBarkSol.value = IMPK.barkSolid; uBarkCut.value = IMPK.barkCut; uBarkL.value = IMPK.barkLit; }
       return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary,
-               barkWrap: IMPK.barkWrap, barkSSS: IMPK.barkSSS, barkFlat: IMPK.barkFlat, barkSolid: IMPK.barkSolid, barkCut: IMPK.barkCut }; };
+               barkWrap: IMPK.barkWrap, barkSSS: IMPK.barkSSS, barkFlat: IMPK.barkFlat, barkSolid: IMPK.barkSolid, barkCut: IMPK.barkCut, barkLit: IMPK.barkLit }; };
     treeLod.impVary = () => IMPK.vary;
     // WHERE A SPECIES STANDS (G1110, TREES-NEAR's evidence rig): the planted trees of the subjects whose key starts with
     // `key` (a collection name, e.g. 'spruce_tree.glb'), living (the specimen series) and rooted r0..r1 m from (x, z),
