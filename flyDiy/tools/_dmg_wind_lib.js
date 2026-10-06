@@ -96,6 +96,8 @@ function taxi(key, o) {
     groups: (Dm.groups || []).map(g => g.key), mountOff: (Dm.groups || []).some(g => /:mount$/.test(g.key)),
     peak, peakAt, peakWho: peakWho >= 0 && peakWho !== null ? nameOf(def, B[peakWho]) : null,
     hash: r.hash, finite: r.finite, propStrike: Dm.propStrike,
+    // G2013 (DMG-NOSE): each engine's nose - its crush (m), the stack's depth, the layer reached, the work (J), the peak force (N)
+    nose: Dm.drive ? Dm.drive.map(x => ({ crush: x.crush || 0, of: x.crushOf || 0, layer: x.crushLayer || null, J: x.crushJ || 0, F: x.crushF || 0, on: x.crushOn || null, strike: x.strike })) : null,
   };
   if (trace) { out.trace = trace; out.mountNames = mount.map(bi => nameOf(def, B[bi])); out.mountLim = mount.map(bi => [caps.FY[bi], caps.FC[bi]]); }
   return out;

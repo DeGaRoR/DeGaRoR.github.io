@@ -1440,6 +1440,147 @@ function makeSim(def, world) {
   function driveReset() {
     for (let k = 0; k < nE0; k++) Object.assign(DRV.st[k], genDriveState());
     DK.fill(1); DRV.imb = false; DRV.ph.fill(0); DRV.tI = 0;
+    if (NOSE) { NZ.c.fill(0); NZ.im.fill(0); NZ.it.fill(-2); NZ.gs.fill(0); NZ.arm.fill(0); noseArm = false; }   // G2013
+  }
+  // ---- G2013-G2015 (DMG-NOSE, 33_drive.js genNoseSpec): THE CRUSHABLE NOSE - the spinner, the propeller at its hub and the
+  // cowl's nose bowl, one crush element per tractor engine ahead of its nodes, against the trunks and the ground. Null with
+  // the layer off (DRV null): nothing below runs, the trunk pass is the base's. Per engine: NZ.c the crush (m from the
+  // spinner's tip, permanent, at most the stack's depth), NZ.im / NZ.it the core's deepest intrusion and the substep it was
+  // last in contact (the crush unloading, as the trunk contact's), NZ.g the nose's centre and radius this substep (x, y, z,
+  // Rn), NZ.gy / NZ.gs the ground under the disc (DMG-DRIVE's sample, once a frame) and whether there is one, NZ.arm the
+  // frame's arming (1 a trunk in reach, 2 the ground, 3 both); per node the engine whose body it is (+1), per member 2 when
+  // both its ends are in one engine's body (the crankcase stand-in: the nose is its contact), 1 when one is
+  const NOSE = DRV && typeof genNoseSpec === 'function' ? genNoseSpec(def) : null;
+  const NZ = NOSE ? { c: new Float64Array(NOSE.length), im: new Float64Array(NOSE.length), it: new Int32Array(NOSE.length).fill(-2),
+                      g: new Float64Array(NOSE.length * 4), gy: new Float64Array(NOSE.length), gs: new Uint8Array(NOSE.length),
+                      arm: new Uint8Array(NOSE.length), node: new Int8Array(n), beam: new Uint8Array(nb), K: new Float64Array(NOSE.length),
+                      C: new Float64Array(NOSE.length), wt: new Float64Array(8), sub: 0 } : null;
+  let noseArm = false;
+  if (NOSE) {
+    NOSE.forEach((N, k) => { if (!N) return; for (const i of N.body) { NZ.node[i] = k + 1; NZ.K[k] += KGn0(i); } NZ.C[k] = 1.6 * Math.sqrt(NZ.K[k] * N.m); });
+    for (let bi = 0; bi < nb; bi++) { const a = NZ.node[beams[bi].a], b = NZ.node[beams[bi].b]; NZ.beam[bi] = a && a === b ? 2 : (a || b) ? 1 : 0; }
+  }
+  // the node contact's spring as rigGround sets it (the core's: the engine's nodes against the obstacle)
+  function KGn0(i) { const mi = def.nodes[i].m; return mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi; }
+  // engine k's nose now: its centre (the spinner's tip less Rn along the engine's own axis - its mass centre to its thrust
+  // nodes, which a bent mount tilts) into NZ.g, its body's velocity into _nzV; false for no nose
+  const _nzV = new Float64Array(3);
+  function noseGeo(k) {
+    const N = NOSE[k]; if (!N) return false;
+    let hx = 0, hy = 0, hz = 0, cx = 0, cy = 0, cz = 0, vx = 0, vy = 0, vz = 0;
+    for (const i of N.thrust) { hx += p[i*3]; hy += p[i*3+1]; hz += p[i*3+2]; }
+    hx /= N.thrust.length; hy /= N.thrust.length; hz /= N.thrust.length;
+    for (let j = 0; j < N.body.length; j++) { const i3 = N.body[j] * 3, w = N.w[j]; cx += w * p[i3]; cy += w * p[i3+1]; cz += w * p[i3+2]; vx += w * v[i3]; vy += w * v[i3+1]; vz += w * v[i3+2]; }
+    let ax = hx - cx, ay = hy - cy, az = hz - cz; const al = Math.sqrt(ax*ax + ay*ay + az*az);
+    if (al > 1e-6) { ax /= al; ay /= al; az /= al; } else { ax = -xAft[0]; ay = -xAft[1]; az = -xAft[2]; }
+    const s = N.Ls - N.Rn, o = k * 4;
+    NZ.g[o] = hx + ax * s; NZ.g[o+1] = hy + ay * s; NZ.g[o+2] = hz + az * s; NZ.g[o+3] = N.Rn;
+    _nzV[0] = vx; _nzV[1] = vy; _nzV[2] = vz;
+    return true;
+  }
+  // ONCE A FRAME: is anything in the nose's reach - a trunk trunkFrame gathered (its circle within the nose's and a frame's
+  // travel, its height spanning it), the ground under the disc (DMG-DRIVE's own sample) within half a metre? Then the
+  // nose's ground is sampled under its centre, once, and the substeps run nosePass. Nothing in reach: one loop over the
+  // engines, no sample
+  function noseFrame(dtFrame) {
+    noseArm = false;
+    for (let k = 0; k < NOSE.length; k++) {
+      NZ.arm[k] = 0;
+      if (!noseGeo(k)) continue;
+      const o = k * 4, gx = NZ.g[o], gyc = NZ.g[o+1], gz = NZ.g[o+2], Rn = NZ.g[o+3];
+      // (a frame's travel: across, to a trunk; down, to the ground - a landing's roll at 30 m/s is no nearer the ground)
+      const mg = 0.1 + 2 * Math.sqrt(_nzV[0]*_nzV[0] + _nzV[2]*_nzV[2]) * dtFrame, mgY = 0.1 + 2 * Math.max(0, -_nzV[1]) * dtFrame;
+      for (let t = 0; t < _tkN; t++) {
+        const q = t * 5, dx = gx - _tk[q], dz = gz - _tk[q+1], R = _tk[q+3] + Rn + mg;
+        if (dx*dx + dz*dz > R*R || gyc - Rn > _tk[q+4] || gyc + Rn < _tk[q+2] - 1) continue;
+        NZ.arm[k] |= 1; break;
+      }
+      if (world && typeof world.terrainH === 'function') {
+        const yb = gyc - Rn;
+        if (!NZ.gs[k] || yb - NZ.gy[k] < 0.5 + mgY) { const g = world.terrainH(gx, gz); if (yb - g < mgY) { NZ.arm[k] |= 2; NZ.gy[k] = g; } }
+      }
+      if (NZ.arm[k]) { noseArm = true; DRV.st[k].crushArm++; }   // (the frames it was armed: GATE DMGNOSE's normal operations)
+    }
+  }
+  // EVERY SUBSTEP OF AN ARMED FRAME: each armed nose against its deepest obstacle (a trunk's circle in the horizontal plane,
+  // or the ground under it), crushed through its stack (genNoseF), the push on the engine's thrust nodes
+  function nosePass(dt) {
+    NZ.sub++;
+    for (let k = 0; k < NOSE.length; k++) {
+      const N = NOSE[k]; if (!N || !NZ.arm[k] || !noseGeo(k)) continue;
+      const o = k * 4, gx = NZ.g[o], gyc = NZ.g[o+1], gz = NZ.g[o+2], Rn = NZ.g[o+3];
+      let best = 0, nx = 0, ny = 0, nz = 0, onT = false;
+      if (NZ.arm[k] & 1) for (let t = 0; t < _tkN; t++) {
+        const q = t * 5, dx = gx - _tk[q], dz = gz - _tk[q+1], d = Math.sqrt(dx*dx + dz*dz) || 1e-6, pen = _tk[q+3] + Rn - d;
+        if (pen <= best || gyc - Rn > _tk[q+4] || gyc + Rn < _tk[q+2] - 1) continue;
+        best = pen; nx = dx / d; ny = 0; nz = dz / d; onT = true;
+      }
+      if (NZ.arm[k] & 2) { const pen = NZ.gy[k] - (gyc - Rn); if (pen > best) { best = pen; nx = 0; ny = 1; nz = 0; onT = false; } }
+      if (best <= 0) continue;
+      const st = DRV.st[k], keep = st.bladeLost > 0 ? Math.max(0, N.blades - st.bladeLost) / N.blades : 1;
+      const vin = -(_nzV[0] * nx + _nzV[1] * ny + _nzV[2] * nz);   // the nose's speed INTO the obstacle
+      const c0 = NZ.c[k];
+      let F;
+      if (best >= c0) {                              // crushing: the plateau at the depth it has reached
+        const c1 = best < N.Dc ? best : N.Dc;
+        if (c1 > c0) { st.crushJ += 0.5 * (genNoseF(N, c0, keep) + genNoseF(N, c1, keep)) * (c1 - c0); NZ.c[k] = c1; }
+        F = genNoseF(N, c1, keep);
+        if (best > N.Dc && onT) {                    // used up: the engine block against the trunk (the core)
+          const e = best - N.Dc; let ret = 0;
+          if (NZ.it[k] < NZ.sub - 1 || e > NZ.im[k]) NZ.im[k] = e; else ret = (TK_RU - 1) * (NZ.im[k] - e);
+          NZ.it[k] = NZ.sub;
+          F += Math.max(0, NZ.K[k] * (e - ret) + NZ.C[k] * vin);
+          st.crushLayer = 'core';
+        } else if (st.crushLayer !== 'core') st.crushLayer = genNoseLayer(N, c1);
+      } else F = Math.max(0, genNoseF(N, c0, keep) - TK_RU * NZ.K[k] * (c0 - best));   // unloaded: a tenth comes back
+      if (!(F > 0)) continue;
+      if (F > st.crushF) st.crushF = F;
+      st.crush = NZ.c[k]; st.crushOf = N.Dc; st.crushOn = onT ? 'trunk' : 'ground';
+      // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
+      // a stoppage, or a separation at a tip faster than its blade takes)
+      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && st.strike !== 'separation')
+        propStrike(k, onT ? 'trunk' : 'ground', DRV.sp.R, onT ? 'rigid' : 'soft');
+      let fx = F * nx, fy = F * ny, fz = F * nz;
+      if (!onT) {                                    // the nose scraping the ground
+        const sp = Math.sqrt(_nzV[0]*_nzV[0] + _nzV[2]*_nzV[2]);
+        if (sp > 1e-6) { const kf = Math.min(GEN_NOSE.mu * F / sp, N.mT / dt); fx -= kf * _nzV[0]; fz -= kf * _nzV[2]; }
+      } else {                                       // ...and sliding on the trunk's bark: the crushed cowl and the stopped
+        // prop dig in (GEN_NOSE.muBark). Without it a corner hit slid off the trunk with its energy kept and swung the cabin's
+        // corner into it (the Cub, 7.5 m/s across: a 7 kN blow on VSNR tore a mount fitting the corner push had not)
+        const vt = -_nzV[0] * nz + _nzV[2] * nx;     // the slip along the trunk (the horizontal tangent (-nz, nx))
+        if (vt > 1e-6 || vt < -1e-6) { const Ft = Math.min(GEN_NOSE.muBark * F, N.mT * Math.abs(vt) / dt) * (vt > 0 ? 1 : -1); fx += Ft * nz; fz -= Ft * nx; }
+      }
+      // THE PUSH LANDS ON THE THRUST NODES - the hub, where the certificate's nose cases react it (impactNose on the
+      // centreline, impactNoseL / R at a corner: G2014) - shared between them by where the obstacle meets the nose
+      // across the engine (the contact point's station on the line between them, clamped: a corner hit is the corner
+      // case). (By mass share it went 81 % to the Cub's 90 kg crankcase node, whose tubes no case loads that way: they
+      // crushed at their floor and the mount's bottom fittings tore, 10 of 49 winds)
+      const TN = N.thrust;
+      if (TN.length === 2) {
+        const a3 = TN[0] * 3, b3 = TN[1] * 3, ex = p[b3] - p[a3], ez = p[b3+2] - p[a3+2], e2 = ex * ex + ez * ez;
+        const px = gx - nx * Rn, pz = gz - nz * Rn;
+        let t = e2 > 1e-9 ? ((px - p[a3]) * ex + (pz - p[a3+2]) * ez) / e2 : 0.5; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        NZ.wt[0] = 1 - t; NZ.wt[1] = t;
+      } else for (let j = 0; j < TN.length; j++) NZ.wt[j] = 1 / TN.length;
+      for (let j = 0; j < TN.length; j++) {
+        const i = TN[j], i3 = i * 3, w = NZ.wt[j];
+        f[i3] += fx * w; f[i3+1] += fy * w; f[i3+2] += fz * w;
+        if (tkPush !== null && onT) tkPush[i] += F * w;
+      }
+      cIx += fx * dt; cIy += fy * dt; cIz += fz * dt;
+      if (onT) _tkHits++;
+    }
+  }
+  // THE TRUNK PAIR q IS THE NOSE'S (G2013): its member inside an engine's nose - both ends in the engine's body (the crankcase
+  // stand-in), or one end there and the contact point within the nose's circle (a mount tube's engine end, behind the bowl):
+  // the nose is the engine's contact there; past the circle (the cowl's side, towards the firewall) the member meets the
+  // trunk as before
+  function noseIn(q) {
+    const bi = _pr[q * 2], nb_ = NZ.beam[bi]; if (!nb_) return false;
+    if (nb_ === 2) return true;
+    const b = beams[bi], k = (NZ.node[b.a] || NZ.node[b.b]) - 1, o = k * 4, ia = b.a * 3, ib = b.b * 3, t = _tc[0];
+    const dx = p[ia] + t * (p[ib] - p[ia]) - NZ.g[o], dz = p[ia+2] + t * (p[ib+2] - p[ia+2]) - NZ.g[o+2];
+    return dx * dx + dz * dz < NZ.g[o+3] * NZ.g[o+3];
   }
   // A STRIKE on engine k: `bite` m into the disc, on a surface 'soft' (the ground), 'water' or 'rigid' (a trunk); the tier
   // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
@@ -1510,6 +1651,7 @@ function makeSim(def, world) {
         if (!c) continue;
         cx /= c; cy /= c; cz /= c;
         const lx = cx + Rp * dx, ly = cy + Rp * dy, lz = cz + Rp * dz, g = world.terrainH(lx, lz);
+        if (NOSE) { NZ.gy[k] = g; NZ.gs[k] = 1; }  // G2013: the nose's ground reference (its arming)
         let pen = g - ly - GEN_DRIVE.strike.turf, surf = 'soft', gap = ly - g;
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
@@ -2585,7 +2727,7 @@ function makeSim(def, world) {
   function tkShares() {
     tkNorm = false;
     for (let q = 0; q < _prN; q++) {
-      if (!tkHit(q)) continue;
+      if (!tkHit(q) || (NOSE && noseIn(q))) continue;   // G2013: the nose's pairs are the nose's
       const b = beams[_pr[q * 2]], k = _pr[q * 2 + 1], t = _tc[0];
       tkAdd(b.a, k, 1 - t); tkAdd(b.b, k, t);
     }
@@ -2602,7 +2744,7 @@ function makeSim(def, world) {
   function trunkPass(dt) {
     if (DMG_ON && _prN) { tkSub++; tkShares(); }     // G1883: a node takes one contact's push from a trunk
     for (let q = 0; q < _prN; q++) {
-      if (!tkHit(q)) continue;
+      if (!tkHit(q) || (NOSE && noseIn(q))) continue;   // G2013: the nose's pairs are the nose's
       const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
       {
         const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1];
@@ -2791,6 +2933,7 @@ function makeSim(def, world) {
       // per node (KGn) and its damper on the velocity along the normal, the force never pulling (CGn): the woodland's softer KTn could not
       // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
     }
+    if (noseArm) nosePass(dt);                       // G2013 (DMG-NOSE): the crushable nose (an armed frame only)
     if (_prN) trunkPass(dt);                         // G1883: its own function (the hot substep stays the base's size)
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:
     // with no beam left to test it would fly through the tree it was torn off on
@@ -2886,6 +3029,7 @@ function makeSim(def, world) {
     }
     obstFrame();
     trunkFrame(dtFrame);
+    if (NOSE) noseFrame(dtFrame);                   // G2013 (DMG-NOSE)
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     armFrame();
     postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
@@ -3037,7 +3181,7 @@ function makeSim(def, world) {
   // settle shared is the unshared one to the bit).
   // Only for a WHOLE aeroplane: nothing bent, broken or parted, no wet body - snap() returns null otherwise (a damaged
   // lattice's structure is not its def's). Never in the step: what a step costs is untouched.
-  const whole = () => !(DMG.breaks || DMG.yields || DMG.dents || DMG.cl.length || WB || clQ.length);
+  const whole = () => !(DMG.breaks || DMG.yields || DMG.dents || DMG.cl.length || WB || clQ.length || (NOSE && NZ.c.some(x => x > 0)));
   function snap() {
     if (!whole()) return null;
     return { n, nb, nodes: def.nodes, beams: def.beams,
