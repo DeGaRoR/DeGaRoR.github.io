@@ -62,8 +62,12 @@ const inShed = "document.body.classList.contains('mode-ws')";
     }
     r.after = await S.run(pageWreck);
     r.ok = r.exercised && !r.after.active && r.after.bodies === 0 && r.after.debris === 0 && r.after.hidden === 0 && r.after.collapsed === 0 && !r.after.broken;
-    await S.run(S.pageView, [150, 12, 9]);
-    const f = path.join(OUT, 'path_' + k + '_after.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shot = f;
+    // (two views of the fresh aeroplane, far enough to see all of it: a front quarter and from above-behind)
+    r.shots = [];
+    for (const [i, cam] of [[150, 14, 14], [235, 30, 18]].entries()) {
+      await S.run(S.pageView, cam); await sleep(800);
+      const f = path.join(OUT, 'path_' + k + '_after_' + (i + 1) + '.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shots.push(f);
+    }
     console.log(k + ': crash ' + JSON.stringify(r.crash) + ' wreck ' + JSON.stringify(r.wreck) + ' -> after ' + JSON.stringify(r.after) + ' ' + (!r.exercised ? 'NOT EXERCISED (the staged crash broke nothing)' : r.ok ? 'CLEAN' : 'LEFT OVER'));
     R.paths[k] = r;
     // (back to the home strip for the next path)
