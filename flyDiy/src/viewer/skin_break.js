@@ -59,6 +59,9 @@
   // far as the tie lets its panel stretch - its strain at break over its slack length (GEN_COVER.fabric: 15 % over the
   // drape's 0.96 %) - compounded with the drawing's own TEAR; past that the drawing is no longer the panel the tie holds
   // (a panel swung or sheared round its tie line) and it tears there
+  // (...and a vertex REACHES the other side through a weight past REACH: a sliver of a weight - a few thousandths, the
+  // binding's own regularisation - bridged a windshield triangle across a parting, drawn 19 cm through its lining)
+  const REACH = 0.05;
   const HELD = (() => { const F = typeof GEN_COVER !== 'undefined' && GEN_COVER.fabric ? GEN_COVER.fabric : { eu: 0.15, slack: (8 / 3) * 0.06 * 0.06 };
     return (1 + F.eu) * (1 + F.slack) * (1 + 0.15); })();
 
@@ -329,12 +332,10 @@
     // G2040: a covering's triangle that the ties hold ACROSS a parting is HELD - stretched as the physics' tie stretches,
     // never torn by the drawing's own stretch (tear() skips it): the physics tears it, by its tie
     const held = cov ? (R.held && R.held.length === nt ? R.held.fill(0) : (R.held = new Uint8Array(nt))) : (R.held = null);
-    const reach = (x, q) => { const o = x * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] === q) return true; return false; };
+    const reach = (x, q) => { const o = x * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
     const bridged = (x, y) => vp[x] === vp[y] || reach(x, vp[y]) || reach(y, vp[x]);
     const vx = x => { const o = x * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
     // (a vertex reaching across turns with its OWN piece's nodes only - onNodes: two pieces' turns blended swung its lever)
-    R.xv = null;
-    if (cov) { const X = new Uint8Array(nv); let any = false; for (let v = 0; v < nv; v++) if (vx(v)) { X[v] = 1; any = true; } if (any) R.xv = X; }
     if (!R.heldTorn) R.heldTorn = 0;
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
@@ -515,7 +516,9 @@
     let lx = 0, ly = 0, lz = 0, rx = 0, ry = 0, rz = 0, qx = 0, qy = 0, qz = 0, qw = 0, d = -1, dw = -Infinity;
     for (let k = 0; k < K; k++) { const w = w2[o + k]; if (w !== 0 && w > dw) { dw = w; d = wi[o + k]; } }
     const dx0 = Q[d * 4], dy0 = Q[d * 4 + 1], dz0 = Q[d * 4 + 2], dw0 = Q[d * 4 + 3];
-    const own = R.xv && R.xv[v] ? R.vp[v] : -1, PC = R.pc;           // (G2040: a vertex the covering holds across turns with its own piece)
+    // (G2040: a vertex the covering holds across a parting turns with its OWN piece's nodes - a wall place too, which takes its
+    // covering point's weights after the event (wallSync), whatever its record. A vertex all on its piece is as before, to the bit)
+    const own = R.pc && R.vp ? R.vp[v] : -1, PC = R.pc;
     for (let k = 0; k < K; k++) { const w = w2[o + k]; if (w === 0) continue; const i = wi[o + k], i3 = i * 3, i4 = i * 4;
       lx += w * live[i3]; ly += w * live[i3 + 1]; lz += w * live[i3 + 2]; rx += w * rest[i3]; ry += w * rest[i3 + 1]; rz += w * rest[i3 + 2];
       if (own >= 0 && PC[i] !== own) continue;
@@ -1007,6 +1010,23 @@
     if (sag && rp) for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u !== v) sag[v] = sag[u]; }
     if (rp) for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u === v || on[u * 2] < 0) continue; R.vp[v] = R.vp[u]; R.dom[v] = R.dom[u]; for (let k = 0; k < K; k++) w2[v * K + k] = w2[u * K + k]; }
     R.dv = (R.dv || 0) + 1; R.dirtyPl = null;          // (DMG-SKINGPU re-packs a record's places on it)
+    // (G2040: the places just taken from their covering may now sit on two pieces the event's test never saw - a wall
+    // triangle across a parting stays only where its places reach across, as the covering's own; returns true when the
+    // index changed: the caller re-uploads it)
+    if (!R.cov || !R.dead || !R.pc) return false;
+    const pc = R.pc, vp = R.vp, i0 = R.idx0, idx = R.idx, dead = R.dead, held = R.held;
+    const reach = (x, q) => { const o = x * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
+    const br = (x, y) => vp[x] === vp[y] || reach(x, vp[y]) || reach(y, vp[x]);
+    let ch = false;
+    for (let t = 0; t < R.nt; t++) {
+      if (dead[t]) continue;
+      const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
+      if (on[a * 2] < 0 && on[b * 2] < 0 && on[c * 2] < 0) continue;
+      if (vp[a] === vp[b] && vp[b] === vp[c]) continue;
+      if (br(a, b) && br(b, c) && br(a, c)) { if (held) held[t] = 1; continue; }
+      dead[t] = 1; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = a; R.removed++; ch = true;
+    }
+    return ch;
   }
   // THE WALL GOES WITH ITS COVERING (G1856): a wall triangle with a place on a covering triangle that is gone (removed at
   // an event, torn, cut) goes too (dead 4, kept until a heal). E: a 'wall' entry of bindInherit (E.on), cov its covering

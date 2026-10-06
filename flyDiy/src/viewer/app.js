@@ -4115,7 +4115,7 @@
       tEv += performance.now() - t1;
     }
     // (G1856: a wall place takes its covering point's event - its kept weights, piece and drape)
-    if (evd && K.inhL && K.inhSt.done) for (const E of K.inhL) if (E.on) SB.wallSync(E, K.inhL);
+    if (evd && K.inhL && K.inhSt.done) for (const E of K.inhL) if (E.on && SB.wallSync(E, K.inhL)) brkIdx(E.R);   // (G2040: true when a held wall triangle went)
     brkWallCut(groups, D);                                // G1858
     // G1864: THE BINDING SPREAD OVER FRAMES - the full binding (each place's 4 nodes, a small least squares) costs 1-2 us a
     // place, ~85k places on the user's Cub (500k vertices welded): at the first break in one go it was a 0.2-0.5 s frame on

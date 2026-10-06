@@ -78841,3 +78841,206 @@ the pinned pairs on the box.**
    as D2b found for the Jodel.
 5. **Perf on the box**: the cloud's process noise (an identical core against itself reads +1.7 % / pair +2.8 %) is the size of the gate.
 6. The materials' rows (4130 ~11 % under MIL-HDBK-5, 2024 ~6 % over; no plywood row) - reported, not changed.
+
+## G2040-G2043 DMG-FABRIC - THE COVERING HOLDS THE WRECK UNTIL IT TEARS: A TENSION-ONLY COVER TIE ACROSS EVERY COVERED PANEL THE FRAME PARTS UNDER (FABRIC 80 LB/IN TO 15 %, 2024-T3 BY ITS TEAR-OUT), TORN BY STRAIN, BAY BY BAY; THE SKIN DRAWN HELD WHERE THE TIE HOLDS; GATE DMGFABRIC (2026-10-06, DMG-FABRIC for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-fabric off origin/claude/dmg-tune 849058d8; G2043 the evidence)
+
+**THE USER (2026-10-06):** "breaking in pieces looks good ... I have the feeling it breaks apart a little too fast though. In
+reference pictures, the cloth holds the broken debris inside for quite a while before it tears." **THE FACT:** the covering was
+mass and drag only (60_gen_spec's "fabric covering NOT A MEMBER"); once a group let go or a cluster parted, nothing joined the
+pieces, and the drawn skin tore at its own 1.15 x stretch. Damage stays OFF by default (GEN_DAMAGE_DEFAULT untouched).
+
+### G2040 - THE MODEL (60_gen_spec GEN_COVER; 61_gen_frame parts.dmg.cover; 30_solver tieEvent / tiePass)
+- **The panels as built.** The generator's `cover(area, ids)` already billed every covered panel (the fuselage bays' four
+  faces, each wing / stab / fin bay, the wing and stab centre bays, a boom's tube); it now also records each one - its area,
+  its corners, its billing row's material and whether it is cloth - in `parts.dmg.cover` (metadata; nothing reads it with the
+  damage layer off). On the builds: the Cub 41 panels / 50.4 m2, the Jodel 41 / 45.4, the metal Cessna 41 / 64.4, the Cessna
+  floats 40 / 60.4, the twin 17 / 42.2. Covering by row: cloth rows (tube + fabric, wood + fabric, steel + fabric, Dacron) and
+  the wood fuselage (the Jodel's ply under its doped fabric - the user's "fabric over ply") -> **fabric**; alloy -> **sheet**;
+  carbon -> none (the laminate is its members).
+- **When a tie is made.** At a break EVENT (compEvent: the outermost beamBreak, its group whole) and when a cluster's part is
+  re-formed (clApply): every panel whose corners now sit on two PIECES (D1b's union-find: live members, clusters still on) ties
+  each corner to its nearest corner on another piece (at rest). A pair is tied once, ever (a torn tie is never re-made); a
+  second panel spanning the same pair adds its share. **A tie never joins pieces** for the strips, the refs-core or 'broke up'
+  (a wing held by its cloth does not fly).
+- **The tie: a membrane.** Tension only (no compression, no bending: nothing below its slack length, the damper only while it
+  pulls), from the slack length Ls = the rest distance x (1 + slack) - the covering is longer than the chord by the sag D4a's
+  drape draws between two frame nodes ((8/3) 0.06^2 = 0.96 %), so "the fabric bulges first". Its width w = its share of the
+  panel's area over its length (a fuselage bay's longeron pair: half the side's height plus half the top's width - the two
+  panels add).
+  - **fabric:** strength tuN x w, linear to it at eu = 15 % over Ls (modulus = strength / strain, 93 kN/m per unit strain);
+    unloads ru = 10 x stiffer than it loaded - the crimp and the dope do not come back, so **the doped cloth takes 9/10 of each
+    stretch's energy** (a declared ratio, as TREE-CRASH's TK_RU); damper 5 % of critical on the pair's reduced mass.
+  - **sheet:** elastic at E t w_tear / L to the tear-out force Ftu t w_tear (one rivet pitch of ligament per panel), then flat -
+    the sheet tearing - to 2024-T3's 15 %; t by section (fuselage 0.025 in, wing 0.020 in, tail 0.016 in).
+  - a tie's stiffness is held to its ends' stiffest member as built (the explicit step's own bound, SUPPORT's rule).
+- **It tears BY STRAIN:** past eu over its slack length on its peak stretch - a geometric test on the substep's own positions,
+  nothing else (no rate, no force, no frame). The next tie of the seam takes the load and goes next: **bay by bay**. A pair
+  already further apart than the covering stretches when the pieces part is **torn at birth** (the covering tore as they
+  parted - counted, shown).
+- **The cost when intact: nothing.** The ties exist only after a covered panel parted. The per-substep pass runs inside
+  substep()'s postLive branch (G1898.4) only while a tie is live; step() reads one counter there, `nPost` (the floors' and the
+  live ties'), where it read `nFlr` - the same one compare a frame. compEvent's panel walk is an event's.
+
+### SOURCES (as recalled unless marked; A0 opens them before a number becomes a gate)
+| number | taken | source |
+|---|---|---|
+| fabric strength | 80 lb/in = 14.0 kN/m (new) | AC 43.13-1B Table 2-1, grade A cotton (the brief's and 60_gen_spec's row); a polyester STC fabric at or over it |
+| the replace-at | 56 lb/in = 9.8 kN/m (70 % of new) | AC 43.13-1B ch. 2 (the sensitivity row) |
+| Ceconite 102 | 108 lb/in = 18.9 kN/m | **Aircraft Spruce's catalogue page for P/N 09-00900, read through a web search summary this session** (breaking strength ~108 lb/in, tear warp 109 / fill 118 lb); the Ceconite / Poly-Fiber STC manuals NOT opened (sensitivity row) |
+| fabric elongation at break | 15 % (of 15-20 %) | polyester systems (as recalled); GEN_CRASH.fabric.etu and the drawing's TEAR already 0.15 |
+| the sag (slack) | 0.96 % | derived: skin_break DRAPE_K 0.06 of the span, a parabola's excess length (8/3) (s/L)^2 |
+| ru (unloading) | 10 | declared (TK_RU's ratio), not fitted |
+| 2024-T3 Ftu / elongation | 64 ksi = 441 MPa / 15 % | MIL-HDBK-5J Table 3.2.3.0(b) (GEN_CRASH.alloy's own source) |
+| the tear-out width | 25 mm | one rivet pitch: AC 43.13-1B ch. 4 rivet spacing 6-8 D, 1/8 in rivets on a light single's skin |
+| sheet gauges | 0.025 / 0.020 / 0.016 in | a 172's structural repair manual (fuselage / wing / tail), as recalled; 60_gen_spec G461's 0.5 mm tail skin |
+| what wrecks look like | - | NTSB / AAIB fabric-aeroplane wreck descriptions (DMG-TUNE's sanity references, as recalled): a Cub's or Champ's wing torn by a tree hangs on by its fabric and cables; the fuselage truss buckled inside an intact or split sock |
+
+### G2041 - THE DRAWING AGREES (sim_host simDmgTies, sim_view simViewDmgTies, skin_break)
+- **The flag, as the broken list:** once a tie has been made the hop's payload carries `ty` (the live ties' node pairs) and `tt`
+  (the torn); a tear is a break event of the covering - its count joins the payload's signature (`breaks:cuts:tornTies`, the
+  third field only once a tie exists: intact, the signature is the base's string). The page's state gains `tied` / `torn` (sets
+  of pairs) and `pcH` (the HELD pieces). Nothing before the first tie: no key, no field set, not one op a frame.
+- **A covering (fabric, or sheet - R.fabric / R.sheetTear) while the physics ties a parting, LOCALLY, tie by tie:** a vertex keeps
+  its weight on a node of another piece when that node is TIED to its own piece; a tied broken pair is no break for it (a torn
+  tie's pair is one again, member or not); a triangle across two pieces stays when its vertices reach across through those
+  weights (it is BRIDGED). So the wreck is drawn held, its covering stretched across the parting, whole, and torn where the
+  physics tore the tie. A vertex reaching across turns with its OWN piece's nodes (two pieces' turns blended swung its lever: the
+  first cut drew a flap triangle 11 x its length); a tied member is held taut (no drape). Everything else - the frame's tubes, a
+  rigid part, the lining's wall - is as before.
+- **A HELD triangle is not torn at the drawing's 1.15 x**: it stretches as far as the tie lets its panel stretch, (1 + eu)(1 +
+  slack), compounded with the drawing's own 15 % - past that (a panel swung or sheared round its tie line, which the tie cannot
+  represent) it tears there; counted (R.heldTorn).
+
+### G2042 - THE STANDARD CRASHES, BEFORE / AFTER (reports/evidence/DMG-FABRIC/table.md, pieces.svg, share.svg, tears.svg)
+Damage ON, the certificate stamped, the Cessnas on JOIN-PARITY's page-loaded spec (DMG-TUNE's specs/); BEFORE = the ties
+disabled (GEN_COVER.on false: the base's physics to the bit, GATE DMGFABRIC §5), AFTER = this branch; t = 0 at first contact;
+a piece is 1 kg or more; "held" = the pieces the live members, the clusters AND the live cover ties hold together. Every run
+not listed (the taxi, the nose-over, the drop, the dig-in, on every build) parts no covered panel: 0 ties, identical before and
+after (the nose-over breaks 3-7 gear / nose members on the land builds and separates nothing but the metal Cessna's tailwheel).
+
+| build | crash | broken before / after | pieces BEFORE @ 0.5 / 1 / 2 / 4 s | HELD AFTER @ 0.5 / 1 / 2 / 4 s | largest share @ 1 s before -> after | ties made / torn (at birth) | tears (s after contact) | far at rest before -> after |
+|---|---|---|---|---|---|---|---|---|
+| the user's Cub | 30 m/s centreline | 125 / 124 | 13 / 13 / 15 / 15 | 10 / 10 / 12 / 12 | 0.29 -> 0.29 | 19 / 14 (2) | 0.044 - 0.096 | 40.2 -> 38.9 m |
+| the user's Cub | 30 m/s, 2.5 m out | 49 / 62 | 2 / 2 / 3 / 3 | **1 / 1 / 2 / 2** | 0.96 -> **1.00** | 4 / 0 | - (all 4 live at the end) | **14.2 -> 4.2 m** |
+| Jodel | 30 m/s centreline | 154 / 157 | 12 / 12 / 12 / 12 | 11 / 11 / 11 / 11 | 0.43 -> 0.43 | 2 / 0 | - | 25.6 -> 25.3 m |
+| Jodel | 30 m/s, 2.5 m out | 96 / 116 | 2 / 2 / 5 / 5 | 2 / 3 / 5 / 5 (pieces after 4 / 5 / 7 / 7) | 0.96 -> 0.92 | 7 / 4 (3) | 0.089 - 0.114 | 49.2 -> 52.3 m |
+| metal Cessna | 30 m/s centreline | 154 / 180 | 14 / 14 / 14 / 14 | 14 / 14 / 14 / 14 (pieces after 16) | 0.22 -> 0.22 | 30 sheet / 17 (10) | 0.05 - 0.39 | 19.7 -> 19.2 m |
+| metal Cessna | 30 m/s, 2.5 m out | 28 / 28 | 5 / 5 / 5 / 5 | 5 / 5 / 5 / 5 | 0.92 -> 0.92 | 2 sheet / 2 | 0.057, 0.209 | 37.1 -> 36.7 m |
+| Cessna floats | 30 m/s centreline | 167 / 167 | 10 / 10 / 10 / 10 | 10 / 10 / 10 / 10 | 0.48 -> 0.48 | 0 | - | 21.3 -> 21.3 m |
+| Cessna floats | 30 m/s, 2.5 m out | 10 / 12 | 2 / 2 / 2 / 2 | 2 / 2 / 2 / 2 | 0.95 -> 0.95 | 2 sheet / 2 | 0.079, 0.097 | 21.4 -> 16.2 m |
+| twin floatplane | 30 m/s centreline | 89 / 89 | 2 / 2 / 2 / 2 | 2 / 2 / 2 / 2 | 0.94 -> 0.94 | 0 | - | 25.2 -> 25.2 m |
+| twin floatplane | 30 m/s, 2.5 m out | 78 / 56 | 2 / 4 / 6 / 6 | **1 / 3 / 4 / 4** | 0.83 -> 0.88 (0.64 -> 0.75 @ 4 s) | 2 / 0 | - (both live) | 9.9 -> 10.3 m |
+
+**What it does and what it cannot (the brief's target, honestly):**
+- **Where a covered bay parts, the covering holds:** the Cub's outer wing torn by the trunk stays on its inner wing by its
+  fabric for the whole run (4 ties, peak stretch 5.4 %, none torn; the outer panel ends 4.2 m from the wreck instead of 14.2),
+  the twin's likewise for the first half second and 6 -> 4 pieces at rest. That is the reference pictures' wing hanging in its
+  cloth.
+- **At 30 m/s on the centreline the trunk goes THROUGH the cabin:** the Cub's cabin covering is born across pairs already
+  separating at 18-37 m/s (one cabin post pair at 36 m/s) and tears in 1-50 ms; 3 of 15 pieces stay held (the two
+  wing halves by their centre bay, the firewall ring and a cabin fragment by their own ties). Ceconite 102's 108 lb/in holds no more of it (the sensitivity rows below).
+- **Most of a 30 m/s wreck parts at JOINTS no one covering spans** - the wing roots and struts, the engine mount, the gear,
+  the stab: a Cub's wing, its tail surfaces and its fuselage are separate coverings (the Cub at 1 s on the centreline: body+tail
+  140 kg, engine 90, the cabin in five fragments 10-50 kg, each wing 43, the gear legs, the fin). The covering cannot hold those;
+  control cables would (not modelled - open 2). So the brief's "held for the first 1-2 s of a 30 m/s break-up" is met where a
+  covered panel parts (the wing strikes) and not where the parting is a joint or the trunk itself cuts the cabin.
+- **The nose-over:** nothing separates on any build (3-7 gear and nose members, DMG-TUNE's fix) - no tie is needed, none is made.
+- **The metal skin:** 30 sheet ties on the centreline, 10 torn at birth (the pairs already past 15 % when the rivet line went),
+  the rest torn over 0.05-0.39 s - a seam unzipping bay by bay (tears.svg) - 13 still holding at rest.
+- **A divergence, reported:** with the ties on, the Cub's wing strike also loses its engine mount in the ground slam at 1.33 s
+  (12 g; the run is DMG-TUNE's 4 m-up power-off pass that sinks onto the runway): eng:mount by kink - without the ties the same
+  slam takes the two wing roots only. The held outer panel changes how the wreck meets the ground; no tie loads the mount.
+  Likewise the Jodel's wing strike breaks 116 members instead of 96 (the struck wing's glue lines, DMG-TUNE's open 1).
+- **The fabric's strength barely moves it** (table.md's sensitivity): 56 lb/in (the replace-at), 80 (taken), 108 (Ceconite
+  102) - the Cub's wing strike is held 1 / 1 / 2 / 2 at all three; the centreline 11 / 10 / 11 held at 1 s. The physics is
+  set by WHERE the covering spans, not by how strong it is.
+
+### PERF (reports/evidence/DMG-FABRIC/perf_ties.txt, perf_pairs.txt)
+- **The pass, a tie a substep** (`node tools/dmg_fabric_perf.js --ties`: the solver's own tiePass lifted from its source,
+  run over copies of real wrecks' live ties and nodes, the median of 7 x 200k passes; in situ it is microseconds of a 3-8 ms
+  step, under the step's noise):
+
+```
+cub    trunk25  ties made 4 live at rest 4 (taut 0) | the pass 122.8 ns -> 30.7 ns a tie a substep; 75 substeps a frame -> 9.21 us a frame
+jodel  trunk25  ties made 7 live at rest 3 (taut 0) | the pass 170.7 ns -> 56.9 ns a tie a substep; 120 substeps a frame -> 20.49 us a frame
+cub    trunk0   ties made 19 live at rest 5 (taut 1) | the pass 171.4 ns -> 34.3 ns a tie a substep; 75 substeps a frame -> 12.86 us a frame
+metal  trunk0   ties made 30 live at rest 13 (taut 1) | the pass 310.9 ns -> 23.9 ns a tie a substep; 120 substeps a frame -> 37.31 us a frame
+twinFloats trunk25  ties made 2 live at rest 2 (taut 0) | the pass 75.0 ns -> 37.5 ns a tie a substep; 120 substeps a frame -> 9.00 us a frame
+```
+  **24-57 ns a tie a substep**; the most ties in a standard crash: the metal Cessna's centreline, 30 made, 13 live at rest ->
+  ~37-41 us a frame (120 substeps) on a WRECK. The Cub's wing strike: 4 live, ~9 us a frame.
+- **An intact aeroplane: not one op.** No tie exists until a covered panel parts; the step's code differs from the base's only in
+  the counter postLive reads (nPost for nFlr: the same compare). Alternating processes, damage ON, nothing touching, a far
+  4000-trunk set, 12 pairs a case (`--pairs`, the base = 849058d8 built in a worktree):
+
+```
+cub:ground    base 4.991 ms, now 4.913 ms: -1.6 % (pair median -0.9 %, armed 0/0/0/0/0/0/0/0/0/0/0/0)
+metal:ground  base 8.566 ms, now 8.438 ms: -1.5 % (pair median 1.3 %, armed 0/0/0/0/0/0/0/0/0/0/0/0)
+metal:air     base 8.001 ms, now 8.029 ms: 0.4 % (pair median 0.6 %, armed 0/0/0/0/0/0/0/0/0/0/0/0)
+```
+  Inside the cloud box's +-2-4 % process noise (DMG-TUNE measured the base's core against a copy of itself at +1.7 %); armed 0
+  frames in every timed run. **Re-measure the pinned pairs on the box.**
+- **The hop:** no field and no key until a tie is made; then `ty` / `tt` on a payload (the Cub's centreline: 19 pairs, under
+  0.2 kB). The skin's event walks a Map of the tied nodes (a handful) per vertex; per frame a vertex reaching across skips
+  the other piece's turns (one compare a slot).
+
+### G2043 - GATE DMGFABRIC (tools/_dmg_fabric_check.js; run_gates core, weight 3, wall 600; ~2.5 min on 3 cores)
+**PASS 49/49** (reports/evidence/DMG-FABRIC/gate_dmgfabric.txt); **--selftest RED with the ties disabled** (GEN_COVER.on false:
+7 checks fail - no tie made in the four crashes, the struck wing not held, nothing reaches the page; gate_dmgfabric_selftest.txt).
+1. **The panels:** every build carries its covered panels, each covered as its row says (the Cub, the Jodel, the twin all fabric;
+   both Cessnas all sheet).
+2. **None when intact** (damage ON): parked 5 s, the FAR 23.473 drop at its limit sink, a flown 3.8 g pull - 0 ties, 0 broken, on
+   all five builds.
+3. **In the crashes, the certificate stamped** (the Cub's wing strike and centreline, the Jodel's wing strike, the metal
+   Cessna's centreline), per substep, every tie: never a push, nothing while slack; a live tie never past eu (the worst 14.96 -
+   14.98 %); every torn one past it (the least 15.01 - 15.07 %); a pair tied once; no tie before the first break. The Cub's
+   struck wing HELD on every frame a tie is live (275 / 275).
+4. **Frame-rate independent:** the Cub's wing strike with the page's reads (damage(), the ties, the CG, the axes, the hop) every
+   1 / 2 / 6 / 30 fixed steps - the same ties torn at the same instants, the same bits (56544e62a07f x 4). The tear reads the
+   substep's own positions only; the substeps are the solver's.
+5. **The base's bytes:** the Cub and the metal Cessna, 30 m/s centreline and 2.5 m out, D1a's physics: damage OFF = the base
+   849058d8's run hash and no tie store; damage ON with the ties disabled = the base's damage-ON hash (all four); damage ON with
+   the ties on = the base's where no covered panel parts (both centrelines), its own where one does (both wing strikes, 2 ties).
+6. **The hop:** no tie key in any payload before a tie is made; the live and the torn ties in the page's state on every payload
+   after (57 of 57); a tear is a payload of its own.
+
+### THE TARGETED GATES (every DMG* gate, TREECRASH, TREEHIT; GATES_CORE=1 --verbose --jobs=3; reports/evidence/DMG-FABRIC/gates.txt)
+`GATES_CORE=1 run_gates --only=DMGMEMBERS,DMGCERT,DMGGEAR,DMGCERTCOST,DMGWIND,DMGCLUSTERS,DMGINST,DMGFPS,DMGINTEGRITY,DMGSKIN,
+DMGDRIVE,DMGWALL,DMGFABRIC,TREECRASH,TREEHIT --verbose --jobs=3` (7662 s wall): **14 PASS, DMGWALL FAIL** - TREEHIT 19/19 (damage
+off), TREECRASH 50/50, DMGMEMBERS 84/84, DMGCERT 70/70, DMGGEAR 72/72, DMGCERTCOST, DMGWIND 12/12, DMGCLUSTERS 83/83, DMGINST
+33/33, DMGFPS 145/145 (the page's batching never moves a bit with the ties either), DMGINTEGRITY 54/54, DMGSKIN 116/116, DMGDRIVE
+133/133, DMGFABRIC 49/49 (gates.txt).
+- **DMGWALL, found by this battery and fixed in the drawing (re-run: gates_rerun.txt, DMGSKIN / DMGWALL / DMGFABRIC):** the first
+  cut let the lining leak through a HELD covering on the Cub's centreline (7.4 % of place-frames past 1 mm) and on the metal
+  Cessna's (past 5 cm 297-404). Two causes: a wall place takes its covering point's weights AFTER the event (wallSync), so it
+  blended two pieces' turns where its covering turned with its own piece's (onNodes now turns every vertex with its own piece's
+  nodes - a vertex all on its piece is as before, to the bit); and a sliver of a weight (a few thousandths) "bridged" a
+  windshield triangle across a parting (REACH = 0.05 now; wallSync also re-tests the triangles its places moved).
+- **DMGWALL stays RED on ONE case, the Jodel's 30 m/s centreline - the base's own red case (DMG-TUNE: "Not hidden: the gate is red
+  on this branch for that one case"), now less bad on every row:** past 1 mm 2.22 % -> 1.35 % (gate 2 %: passes now), past 1 cm
+  6038 -> 2011 place-frames (gate 1214), past 5 cm 1923 -> 335 (gate 121). The base's DMGWALL re-run here: gate_dmgwall_base.txt.
+  Every other case PASSES; against the base: the Cub's centreline 0.31 -> 1.58 % past 1 mm (worst 4 -> 5 mm), its wing strike
+  0.60 -> 0.83 % (worst 7 -> 11 mm), the metal Cessna's centreline 0.84 -> 0.62 % but past 5 cm 264 -> 145 (worst 0.35 -> 0.42
+  m), its nose-in 0.11 -> 0.27 % (past 5 cm 0 -> 78, worst 1.1 -> 9.4 cm): the lining under a covering now held stretched across a
+  parting, where the base had removed that covering. Inside the gate's bounds; for the box's census to judge.
+- **Damage OFF = the base's bytes:** GATE DMGFABRIC §5 (the run hashes), TREEHIT (damage off) PASS; DMGSKIN's own checks (no
+  payload, the skin the base's bit for bit with damage off, every frame before the first break bit for bit).
+- The generated outputs (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed.
+
+### Open (the coordinator / A0)
+1. **The target is met where a covered panel parts, not at a joint:** a fabric aeroplane's 30 m/s wreck parts mostly at its
+   joints (wing roots, struts, the engine mount, the gear, the tail surfaces), which are separate coverings - nothing physical in
+   the covering holds them. What holds a real wing on after its fittings go is its CONTROL CABLES and fuel lines (as recalled from
+   wreck photographs): tension-only ties of their own (a 1/8 in 7x19 cable ~2000 lb, as recalled), routed root to aileron horn -
+   the same machinery (a tie made at a group's release) would take them. The coordinator's call.
+2. **Ties are made when PIECES separate (the brief), not when the member under the covering breaks:** a pair stretched past 15 %
+   while the frame still joined it elsewhere is torn at birth (the metal Cessna's centreline: 10 of 30). Making the tie at the
+   member's break would load the covering earlier; it would also make ties inside pieces still whole.
+3. **The divergence:** with the ties on, the Cub's wing strike loses its engine mount in the run's ground slam (12 g at 1.33 s,
+   DMG-TUNE's sinking pass) where without them it does not - the held outer panel changes how the wreck meets the runway.
+   DMG-TUNE's "the wing strike keeps every engine" no longer holds on the Cub in this run; the mount is at its margin in that slam.
+4. **The ply:** the Jodel's fuselage is treated as covered in doped fabric over its ply (the user's words); its ply skin is not a
+   member (DMG-TUNE's open 1).
+5. **ru = 10, slack 0.96 %, the 25 mm tear-out, the sheet gauges** are declared / recalled, not fitted; the fabric's own strength
+   barely moves the result (the sensitivity rows).
+6. **DMGWALL on the Jodel's centreline** (above) and the lining under a held covering: for the box's census (DMG-WALL's tools).

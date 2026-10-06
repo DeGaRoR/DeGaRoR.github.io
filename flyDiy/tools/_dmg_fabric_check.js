@@ -176,7 +176,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     yes(S.tiesBeforeBreak === 0, k + ' ' + id + ': no tie before the first break');
     yes(S.neg === 0 && S.slackF === 0, k + ' ' + id + ': tension only - never a push, nothing while slack (' + S.tieSubs + ' substeps with ties)');
     yes(S.liveOver === 0, k + ' ' + id + ': a live tie never past its strain at break (the worst live ' + (S.maxLiveStrain * 100).toFixed(2) + ' %)');
-    yes(S.tornUnder === 0, k + ' ' + id + ': every torn tie tore by strain, past eu over its slack length (the least ' + (!(S.minTornStrain < Infinity) ? '- (none torn)' : (S.minTornStrain * 100).toFixed(2) + ' %') + ')');
+    yes(S.tornUnder === 0, k + ' ' + id + ': every torn tie tore by strain, past eu over its slack length (the least ' + (S.minTornStrain == null || !(S.minTornStrain < Infinity) ? '- (none torn)' : (S.minTornStrain * 100).toFixed(2) + ' %') + ')');
     yes(S.remade === 0, k + ' ' + id + ': a pair is tied once, ever');
     if (id === 'trunk25' && k === 'cub') {
       yes(S.heldFrames > 0 && S.heldFrames === S.splitFrames, k + ' ' + id + ': the covering HOLDS the struck wing - fewer held pieces than pieces on every frame a tie is live (' + S.heldFrames + ' / ' + S.splitFrames + ' frames)');

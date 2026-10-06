@@ -24,4 +24,5 @@ node tools/dmg_fabric_perf.js --pairs <the base's tools/flight_core.js>   # an i
 | `table.md` | **The brief's measures** for every build and standard crash: members broken, pieces at 0.5 / 1 / 2 / 4 s, the largest share, the ties made / torn and when, the furthest piece at rest, the energy the covering took; and the fabric strength's sensitivity (56 / 80 / 108 lb/in). |
 | `sweep.json`, `sweep_56lb.json`, `sweep_108lb.json` | every run's numbers (the series every 3rd frame). |
 | `perf_ties.txt`, `perf_pairs.txt` | the cost: the solver's own tiePass on real wrecks (ns a tie a substep), and an intact aeroplane's step against the base's core. |
-| `gate_dmgfabric.txt`, `gate_dmgfabric_selftest.txt`, `gates.txt` | GATE DMGFABRIC (and its selftest: red with the ties disabled), and the targeted battery (every DMG* gate, TREECRASH, TREEHIT). |
+| `gate_dmgfabric.txt`, `gate_dmgfabric_selftest.txt` | GATE DMGFABRIC 49/49 and its selftest (red with the ties disabled: 7 checks fail). |
+| `gates.txt`, `gates_rerun.txt`, `gate_dmgwall_base.txt` | the targeted battery (every DMG* gate, TREECRASH, TREEHIT; 14 PASS, DMGWALL red), the re-run of DMGSKIN / DMGWALL / DMGFABRIC after the drawing's two fixes (DMGWALL red on the Jodel's centreline alone), and the base's own DMGWALL (red on the same case). |
