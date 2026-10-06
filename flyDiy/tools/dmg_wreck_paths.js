@@ -22,6 +22,27 @@ const ev = async js => { const b = await S.post('/eval', js); try { return JSON.
 // the page's own frames again (the stills rig holds the sim's step; the paths need the game's loop)
 function pageFree() { const sim = FLIGHT_PROBE.sim(); if (window.__d4bStep) { sim.step = window.__d4bStep; delete window.__d4bStep; } return 1; }
 // the wreck as drawn now
+// THE GIANT SHEETS (the user: "giant sheets after a crash" in the fresh aeroplane's shots): every drawn mesh of the model,
+// its triangles with an edge past 2 m, and its longest edge against the longest it has as built (wreckBuild's meshes0
+// copy where there is one) - which geometry holds them, by name and bucket section
+function pageGiant() {
+  const P = FLIGHT_PROBE, m = P.model(); if (!m || !m.grp) return { none: true };
+  const out = [], v = [0, 0, 0];
+  m.grp.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
+    const g = o.geometry, pa = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : pa.length / 9;
+    let big = 0, worst = 0;
+    for (let t = 0; t < nt; t++) {
+      const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2;
+      if (a === b && b === c) continue;
+      const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]);
+      const L = Math.max(e(a, b), e(b, c), e(c, a)); if (L > worst) worst = L; if (L > 2) big++;
+    }
+    if (big) out.push({ name: o.name || '', key: m.wreckBuild && m.wreckBuild.keyOf ? (m.wreckBuild.keyOf.get(o) || null) : null,
+      sec: (m.mats && o.name && m.mats[o.name] && m.mats[o.name].sec) || null, tris: nt | 0, big, worst: +worst.toFixed(2), skinned: !!o.isSkinnedMesh });
+  });
+  return { meshes: out.sort((a, b) => b.big - a.big).slice(0, 12) };
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -61,6 +82,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
       r.rollOut = await ev(MB.A.rollOut); r.world = await waitFor(inWorld, 300000); await sleep(5000);
     }
     r.after = await S.run(pageWreck);
+    r.giant = await S.run(pageGiant);
+    console.log('  ' + k + ' giant triangles (an edge past 2 m): ' + JSON.stringify(r.giant));
     r.ok = r.exercised && !r.after.active && r.after.bodies === 0 && r.after.debris === 0 && r.after.hidden === 0 && r.after.collapsed === 0 && !r.after.broken;
     // (two views of the fresh aeroplane, far enough to see all of it: a front quarter and from above-behind)
     r.shots = [];
