@@ -75390,3 +75390,101 @@ STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the cha
 (T0 = tip, 16.4 ms in that session); the mn_strip trip task gone. BATTERY: the full battery on the first build (3 boombox
 reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
 SKINMAT, PARTS, HANGAR). Parked re-cooked.
+
+## G1955-G1964 - SHORES-2: THE BANK IS ITS OWN ROCK, BLENDED OVER METRES - THE SMOOTH SLOPE, A RAGGED RAMP, A TRIPLANAR ORIENTED TO THE FACE; THE WORLD RAIL EDITS IT (2026-10-05/06, SHORES-2 for A0, local GPU; branch claude/shores-2-g1955 off train 34 55dd98b7)
+
+The user (5 Oct, on SHORES' banks): "The transitions with the other ground materials are much too harsh. These textures should
+be accessible through the world editor. These are small patches, so I think you don't need hex anti-tiling, you just need a
+good cliff texture, ideally oriented with respect to the slope. But we need good blending - right now it's like you simply
+apply a setting to a cell, with no management of transitions and blending." Then (via A0, on SHORES' own sea_shingle /
+sea_rocky stills): "Super straight lines separating the new and old textures."
+Evidence: reports/evidence/SHORES-2/ - sea_before_after.jpg (sea_shingle, sea_rocky, sea_beach, sea_forest, sea_air),
+lakes_before_after.jpg (lake_shore, lake_shore_back, lake_air, airport_edge), closeups_before_after.jpg (close_shingle,
+close_rocky, close_lake), world_rail_bank_panel.jpg; views.json (tools/shadowsky_shots.js, noon, the box's RTX 3080);
+BEFORE = train 34's index.html, AFTER = this branch's build. Sheets: tools/perf/ba_sheet.py (new, committed).
+
+- G1955 WHAT THE STRAIGHT LINES WERE. Both of the user's circles are one cause: the bank's code was switched by the slope of
+  the FACET - sSplat's slope came from gN, the screen derivatives of the world position (render_world's hook), which is
+  constant over a triangle. sea_rocky's saw-teeth are the coast mesh's steep triangles; sea_shingle's ruler-straight top
+  is the edge between the step's steep row and the flat row above it (the coast's step: 28_island seaFloor is -5 m AT the
+  line, so the land ends in one row of steep triangles 1-2 m high, G1503). The stretch: SHORES' bank wore code 11's sets -
+  coastA and coastSand are AERIAL photographs (20 m and 15 m tiles) laid on a 2 m face - through the old triplanar, whose
+  x / z side planes read a face turned 45 degrees between them stretched 1.4x, and whose top plane WON on a 45-degree face
+  (pow(n, 8): 0.64 over two of 0.54) and smeared it down the face; and the macro (the 10 m imagery, half the near colour)
+  laid from above: one colour per column, vertical streaks.
+- G1955 THE BANK IS ITS OWN CODE (17, 'bank'), derived in the shader like 12-14: within bankReach of a lake's line or the coast,
+  the steep faces of EVERY type (not 5 / 6 / 12, already mineral) hand their weight to it. ITS SETS: the rocky shore's row
+  (code 11's: coastA, rocksG, coastSand, their scales, aerial sets and mask) - the colour SHORES' banks wore. A first
+  candidate wore a new rock, Poly Haven dark_rock_02 (`darkRock`, CC0, Amal Kumar, 2 m; credited; media/tex/ground/ + KTX2
+  kAl / kN, basisu 1.16.4) over dark gravel; the user on its sheets (6 Oct): "the blending is good, but the new colour and
+  lightness is not. We have lost the nice colour of the original texture, and the new one is too dark. But the blending is
+  good." - so 17 went back to 11's sets (G1963; the three-column sheet shows train 34 | darkRock | the original colour) and
+  darkRock stays in the library: a pick in the rail's bank slots, never fetched unless a code names it. Hex tiling KEPT:
+  the coast's step is a band kilometres long and a plain 3 m tile read as a row of bricks along it (iteration 1). reachKeys
+  adds 17 with a lake or the sea (G1500's `seen[11]` test ran after the zeroing and never fired - removed).
+- G1956 THE BLEND. sSplat reads the SMOOTH slope for the codes (the vertex normals, interpolated: glslMap passes
+  inverseTransformDirection(vNormal, viewMatrix) - what the lighting has always used) - a slope-switched code no longer
+  follows the triangles. The bank's weight is a ramp widened by bankSoft each side and swung by a three-octave noise (the
+  hook's gVnoise; its domain carries the height, or on a face it runs in vertical streaks; the low octave keeps a far bank's
+  edge ragged) of bankJit degrees and bankCell metres; inside the ramp the candidates' height blend lets the taller texel
+  win. The wet band (lakes, bankWet m from the line) noise-broken too, and the SEA's (bankWetSea m of height) - darken only
+  (a gloss there caught the sun as a white line at the face's foot). THE CREST (G1959): the rock spills up to bankLip m over
+  the sea step's crest, ragged, where the ground stands over the water.
+- G1957 THE TOP PLANE STAYS OFF A FACE. The triplanar's weights were pow(|n|, 8) per axis: on a 45-degree face turned between
+  x and z the TOP plane won (0.64^8 over two of 0.54^8) and smeared the set down the face. Now the side is ONE weight, |n.xz|
+  against |n.y|, split between the x and z planes by nx^4 : nz^4: a face is read from the side, square-on along x or z and
+  1.4x at a diagonal (as before). It reads the FACET (nTri = gN): a gully's vertex normal is flatter than its faces, and the
+  top plane laid there stretched grass down the face (it2); the codes read the smooth slope. Flat ground keeps its one
+  fetch. TRIED AND DROPPED (G1962): side planes turned to the slope's own azimuth (two of four fixed 45-degree ones, atan /
+  floor / cos / sin a pixel - diagonals square-on too). It is what the stills of the first sheets show, and it linked the
+  ground's programs 1.5-2 s slower cold. The user's sheets were judged on it; this form differs only at diagonal faces.
+  The macro gives way on ANY face (30 -> 48 deg) to a third (a full removal left a dark outline round the coast from the
+  air, sea_air it2). Every steep slope changes a little (cliff code 12 included), for the better, with the same fetch count.
+- G1958 THE WORLD RAIL (the user: "accessible through the world editor"). TYPES > bank: its own chip, no biome tab (it plants
+  nothing), a panel - WHERE THE BANK IS (reach, rock from, full at, over the crest), THE BLEND (softness, ragged edge, edge
+  cell), THE WET BAND (lakes, the sea) - and the ground tab's detail / aerial slots, mask, variation and recolour: any
+  library set, any scale. Saved with the splat state (the browser's flydiy.ground.splat.v1 and the world look's export,
+  like every other ground setting); the splat has no per-island store (one recipe per world), so neither does this.
+  Defaults (28b RECIPE knobs): bankReach 30, bankLo 22, bankHi 36, bankSoft 4, bankJit 20, bankCell 3.5, bankWet 2.5,
+  bankWetSea 0.9, bankLip 4; code 17's row = code 11's.
+- G1960 GATES TOUCHED (decisions written down, as the gates ask): GATE SPLAT's reach rule knows 17 and darkRock is a rock set
+  as shipped (no gain); GATE ASSETS's ground JPEG-normal ratchet 63 -> 64 (darkRock: GATE SPLAT's manifest contract is four
+  .jpg maps a splat set; the GPU reads the cooked planes / KTX2 kN; Poly Haven's own nor_gl is a JPEG, like the other 19);
+  GATE GROUNDLIB's fingerprints take darkRock (`--update`; only splat.darkRock moved; the Chrome provenance header kept).
+- G1961 THE LOOK, ITERATED ON THE BOX (four rounds, each named above where it changed something). OPEN for the user:
+  (a) close_shingle's crest is softened (ragged rock over it) but still close to a line: that line is GEOMETRY - the land
+  meets the -5 m shelf in one mesh row - and texture can only blur it; shelving the seabed from the land's height (G1503's
+  proposal) is the real fix (touches FLOATS / SEAPLANE / the far mesh). (b) The white flecks at sea_forest's waterline are
+  the water's own shore lap foam (water.js G798), which the old pale sand hid; not touched. (c) The darker bank band round
+  a lake from far off (lake_shore, close_lake) is the carved face in rock - the bank's `reach 0` turns it off.
+- G1962 PERFORMANCE (the box, RTX 3080; A0's timed slots). NODE: SPLAT, LAKEBED, PREMRASTER, PREMCOOK, PROGRAMS, FRAMECOST,
+  GFX, PAVEMENT, ASSETS, GROUNDLIB, KTX2, MEDIA PASS. PROGRAMS: lc_keyprobe (node) 404 programs / 397 keys on both master and
+  this branch, default and ?gfx=potato - no new variant; no sampler added (two uniforms: uSBank2, uSBankLip).
+  STRICT GATE: train_gate --light rollout,bench, this branch against master run minutes before (same box, same slot,
+  01:09-01:32): TRAIN GATE PASS (INFO: warm links over 5 s 1 -> 2 for both builds, a cache miss, not gated).
+  POTATO (potato_census, ?gfx=potato, the plain ground): master vs branch, two pairs in both orders - VRAM 1420.4 / 1422.4 MB
+  both, draws and ktris equal, programs equal (306 / 307 the second pair; the first pair's +6 was boot timing - the node
+  probe has the same key set), GPU ms equal or lower. The plain ground carries none of this (the splat's text is out of it).
+  COLD LINKS (tools/perf/cold_links_bench.js; the ground's programs' exact sources from lc_keyprobe LC_SRC=full; variants
+  made by splicing the splat's GLSL into them; each variant against train 34 in BOTH orders within one run; the box idle):
+  the branch as first shot: island-ring +1.1 / +1.6 s, fine +1.3 / +2.0, outer +1.1 / +1.0, the patch twin +1.6 / +1.9
+  (base ~12 / 12.5 / 10 / 9 s) - RED. The bisect (A0's slots 10:25 and 14:20, 6 Oct): cutting the branches (one bank branch,
+  the lip branchless, no plain-tiling path) barely moved it; the old bank logic or two noise octaves, nothing; the old
+  triplanar took ~0.5 s off; the rest was the per-code arrays and the local w[] grown 17 -> 18. SHIPPED: THE BANK RIDES
+  SHADER SLOT 1 (the lake's - the vote always empties it, `w[3] += w[1]; w[1] = 0.0`): NCODE stays 17, push() uploads
+  R.codes[17] into slot 1 (`const BANK = 17, BANK_SLOT = 1`), the bank's handover goes to w[1]; the recipe, the rail and the
+  editor still call it 17 (GATE SPLAT's constants check knows the alias, and that the slot is one the vote empties). With the
+  cheap triplanar above: ring +0.7 / +0.1, outer -0.2 / 0.0, fine +0.2 / +0.2 (within the bench's run-to-run noise of
+  +-0.5), the patch twin +0.7 / +0.9 (9.7 s, under the ring's 12 s - the cold visit waits on the slowest). The full oriented
+  triplanar with the alias: ring +1.6 / +2.1 - not shipped. The strict gate, potato and FRAMECOST rows above were measured
+  on the first form (same programs, same sampler count, the same per-frame work but the triplanar's few ALU); A0's train
+  pass re-measures the shipped one. GROUND-COST (G2075) rebases its splat restructure onto this (agreed): its slot-shaped
+  vote takes the bank as one more per-slot handover, and the alias becomes moot there.
+- G1963 TOOLS: tools/perf/ba_sheet.py (before / after sheets from shadowsky_shots pairs). The bisect's splice (the splat's GLSL
+  as one source makes it, replaced by another's in the extracted program sources - a variant without a page boot) stayed a
+  scratch script: its recipe is in this entry.
+- G1964 NOT RUN: the full battery (A0: two batteries at once both go red, no CPU window; the targeted gates above for READY,
+  A0's train battery is the full check when SHORES-2 rides train 38). Generated files not committed (node tools/build.js);
+  the parked aeroplanes need the train's cook (this branch was measured with FLYDIY_BUILD pinned to the landed cook,
+  tools/perf/lc_build.sh). TRAP met: tools/shadowsky_shots.js --port 8563 was a peer's _serve.js over another worktree - the
+  rail still showed THEIR world_rail.js; check the port is free (Get-NetTCPConnection) before any rig run.

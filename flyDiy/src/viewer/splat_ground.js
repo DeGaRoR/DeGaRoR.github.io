@@ -46,8 +46,9 @@
 const SPLAT_GROUND = (() => {
   // NCODE is the WIDTH of the per-code uniform arrays, so it must exceed the highest
   // code: 15 lush (authored by a premises cover polygon) made it 16 on 2026-09-22.
-  const NCODE = 18, NLIB = 24;   // 16 residential is a code now (2026-09-23); 17 the bank (SHORES-2 G1955, derived)
+  const NCODE = 17, NLIB = 24;   // 16 residential is a code now (2026-09-23); 17 the bank (SHORES-2 G1955, derived)
   const G = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
+  const BANK = 17, BANK_SLOT = 1;
 
   // ---- the state: the recipe (the module's default under the browser's copy) --
   // THE FILTERING KNOBS (the world rail, 2026-09-24): defaults that sit under the recipe's own knobs until the recipe
@@ -104,8 +105,6 @@ const SPLAT_GROUND = (() => {
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
   vec3 gSN; float gSRough; float gSHexRot;
-  // THE SIDE PROJECTIONS' TWO AXES (SHORES-2 G1957)
-  vec2 gSAx1 = vec2(1.0, 0.0), gSAx2 = vec2(0.0, 1.0);
   ${G.glsl}
   struct Smp { vec4 c; vec4 n; };
   vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
@@ -225,10 +224,8 @@ const SPLAT_GROUND = (() => {
     Smp t = sTile(layer, p / scale);
     vec2 tt = vec2(ca * t.n.x + sa * t.n.y, -sa * t.n.x + ca * t.n.y);
     Smp o; o.c = t.c * tw.y; o.n = vec4(tt.x, 0.0, tt.y, t.n.a) * tw.y;
-    // the two side projections: vertical planes facing gSAx1 / gSAx2 (sSplat: the two of the four 45-degree azimuths that
-    // bracket the slope's own), u along the plane's level line, v up - a face is read nearly square-on, never stretched
-    if (tw.x > 0.01) { vec2 t1 = vec2(-gSAx1.y, gSAx1.x); Smp u = sTile(layer, vec2(dot(P.xz, t1), P.y) / scale); o.c += u.c * tw.x; o.n += vec4(t1.x * u.n.x, u.n.y, t1.y * u.n.x, u.n.a) * tw.x; }
-    if (tw.z > 0.01) { vec2 t2 = vec2(-gSAx2.y, gSAx2.x); Smp u = sTile(layer, vec2(dot(P.xz, t2), P.y) / scale); o.c += u.c * tw.z; o.n += vec4(t2.x * u.n.x, u.n.y, t2.y * u.n.x, u.n.a) * tw.z; }
+    if (tw.x > 0.01) { Smp u = sTile(layer, P.zy / scale); o.c += u.c * tw.x; o.n += vec4(0.0, u.n.y, u.n.x, u.n.a) * tw.x; }
+    if (tw.z > 0.01) { Smp u = sTile(layer, P.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
     // THE RECOLOUR ONCE PER SET (2026-09-25): after the triplanar sum, not per projection - one inlined copy per sSet call
     // site instead of three (ANGLE/fxc inlines every call; the ground program's compile is the long pole on D3D). The
     // weights sum to 1, so a recolour of the blend is the blend of the recolours up to the recolour's curvature.
@@ -415,7 +412,7 @@ const SPLAT_GROUND = (() => {
       gSBank = max(gSBank, step(0.01, uSBankLip) * step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, max(uSBankLip, 0.02), sd + bn * uSBankLip * 1.2))
                            * smoothstep(0.3, 1.0, vWPi.y) * 0.95);   // (no branch of its own: a branch is link time, COLD-LINKS)
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
-      for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12 && i != 17) { w[17] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
+      for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12) { w[1] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }   // (the bank rides slot 1: BANK_SLOT)
     }
     vec2 e = vec2(1.0 / uGGrid.z, 1.0 / uGGrid.w) * 1.5;
     vec2 gr = vec2(texture2D(uGPackA, uv + vec2(e.x, 0.0)).b - texture2D(uGPackA, uv - vec2(e.x, 0.0)).b,
@@ -424,24 +421,15 @@ const SPLAT_GROUND = (() => {
     float d = distance(vWPi, cameraPosition);
     float fw = smoothstep(uSDist.x, uSDist.y, d);
     float mw = uSDist2.x * smoothstep(uSDist.z, uSDist.w, d);
-    // THE TRIPLANAR FOLLOWS THE SLOPE (SHORES-2 G1957, the user: "a good cliff texture, ideally oriented with respect to the
-    // slope"): the side projections were the x and z planes - a face turned 45 degrees between them was read through both,
-    // each stretched 1.4x, and on a 45-degree face the top projection won (pow(n, k) of 0.64 over two of 0.54) and smeared it
-    // down the face. Now the side is ONE weight, |n.xz| against n.y, shared between the two of the four fixed azimuths
-    // (0, 45, 90, 135 deg) that bracket the slope's own - the plane a face is read through is never more than 22.5 deg off
-    // it (1.08x), and fixed planes do not swim as the normal turns. Steep texels only: flat ground keeps its one fetch.
-    // THE PROJECTION READS THE FACE ITSELF (nTri, the facet's normal), the CODES the smooth slope (nGeo): a gully's vertex
-    // normal is flatter than its faces, and the top projection laid there stretched down the face (it3, sea_rocky)
+    // THE TOP PLANE STAYS OFF A FACE (SHORES-2 G1957, the user: "a good cliff texture, ideally oriented with respect to the
+    // slope"): the weights were pow(|n|, k) per axis - on a 45-degree face turned between x and z the TOP plane won (0.64^8
+    // over two of 0.54^8) and smeared the set down the face. Now the side is ONE weight, |n.xz| against |n.y|, split between
+    // the x and z planes by nx^4 : nz^4 - a face is read from the side. (Planes turned to the slope's own azimuth - two of four
+    // fixed 45-degree ones, atan / floor / cos / sin a pixel - read diagonals square-on too, but linked the ground's programs
+    // 1.5-2 s slower cold: cold_links_bench, G1962; this form is within noise.) Read on the facet (nTri); flat ground: one fetch.
     vec3 tw = vec3(0.0, 1.0, 0.0);
-    if (uSDist2.z > 0.5) {
-      float hl = length(nTri.xz);
-      float sec = mod(atan(nTri.z, nTri.x) + 6.28318531, 3.14159265) * 1.27323954;   // 0..4 quarter-turns (a plane's two faces are one)
-      float k0 = floor(sec), f = smoothstep(0.25, 0.75, sec - k0);
-      float a1 = k0 * 0.78539816, a2 = mod(k0 + 1.0, 4.0) * 0.78539816;   // (the fourth wraps to the first: the same plane, the same u)
-      gSAx1 = vec2(cos(a1), sin(a1)); gSAx2 = vec2(cos(a2), sin(a2));
-      vec2 a = pow(vec2(hl, abs(nTri.y)), vec2(uSDist2.z));
-      tw = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6);
-    }
+    if (uSDist2.z > 0.5) { vec2 a = pow(vec2(length(nTri.xz), abs(nTri.y)), vec2(uSDist2.z)); vec2 h = nTri.xz * nTri.xz; h *= h;
+      float f = h.y / max(h.x + h.y, 1e-8); tw = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6); }
     vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
     // NO CONTINUE IN THIS LOOP (PERF 2026-09-23): ANGLE's D3D back end makes a gradient-free copy ('Lod0',
     // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
@@ -674,7 +662,7 @@ const SPLAT_GROUND = (() => {
       if (seen[0]) seen[4] = 1; if (seen[1]) seen[3] = 1; seen[0] = seen[1] = 0;
       if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
       const keys = new Set();
-      for (let c = 0; c < NCODE; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
+      for (let c = 0; c < 32; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
         for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }
       return keys;
     };
@@ -725,7 +713,7 @@ const SPLAT_GROUND = (() => {
     const push = () => {
       const K = R.knobs;
       for (let i = 0; i < NCODE; i++) {
-        const m = R.codes[i], A = U.uSMatA.value[i], S = U.uSMatS.value[i], F = U.uSMatF.value[i], FS = U.uSMatFS.value[i], M = U.uSMatM.value[i], Vv = U.uSVary.value[i];
+        const m = R.codes[i === BANK_SLOT ? BANK : i], A = U.uSMatA.value[i], S = U.uSMatS.value[i], F = U.uSMatF.value[i], FS = U.uSMatFS.value[i], M = U.uSMatM.value[i], Vv = U.uSVary.value[i];
         if (!m) { A.set(-1, -1, -1, 0); continue; }
         const li = k => k ? LIB.indexOf(k) : -1;
         A.set(li(m.tex[0]), li(m.tex[1]), li(m.tex[2]), m.orient === 'sea' ? 1 : 0);
