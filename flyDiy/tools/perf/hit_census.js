@@ -21,7 +21,8 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
         wrapped = true; const r0 = O.rasterise;
         O.rasterise = function (pos, idx, cell, opts) {
           const t = process.hrtime.bigint(); const s = r0.apply(this, arguments);
-          last = { verts: pos.length / 3, tris: idx.length / 3, cell, base: !!(opts && opts.base), ms: Number(process.hrtime.bigint() - t) / 1e6, stack: (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/^at /, '').replace(/\(.*[\/\\]/, '(')).join(' < ') };
+          last = { verts: pos.length / 3, tris: idx ? idx.length / 3 : 0, pts: opts && opts.pts ? opts.pts.length / 3 : 0, cell, base: !!(opts && opts.base), ms: Number(process.hrtime.bigint() - t) / 1e6, stack: (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/^at /, '').replace(/\(.*[\/\\]/, '(')).join(' < ') };
+          if (cell === 0.25) last.tag = 'prop-key (once a key, G1999)';   // the per-key raster - not a registration
           calls.push(last); return s;
         };
       }
