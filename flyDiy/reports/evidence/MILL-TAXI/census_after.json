@@ -1,0 +1,7384 @@
+{
+ "margin": 3,
+ "builds": [
+  {
+   "name": "stock build",
+   "span": 10
+  },
+  {
+   "name": "aluminium C172",
+   "span": 11
+  },
+  {
+   "name": "the user's Cub",
+   "span": 10.7
+  }
+ ],
+ "rows": [
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "stock build",
+   "what": "stand",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    942.965,
+    -900.195
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    942.965,
+    -900.195
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    210.819,
+    714.622
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    935.257,
+    -912.384
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    210.819,
+    714.622
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    957.2015332805549,
+    -932.1687572064726
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    942.965,
+    -900.195
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    942.965,
+    -900.195
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    210.819,
+    714.622
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    935.257,
+    -912.384
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    210.819,
+    714.622
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    957.2015332805549,
+    -932.1687572064726
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    942.965,
+    -900.195
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    942.965,
+    -900.195
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    210.819,
+    714.622
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    935.257,
+    -912.384
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    210.819,
+    714.622
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w2",
+   "name": "Jolene AFB 02/20",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    957.2015332805549,
+    -932.1687572064726
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "stand",
+   "d": 23.831312738495658,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "aircraft ob:o3"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "parked box",
+   "d": 16.232857871692243,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -153.3682326634716,
+    719.6322389802332
+   ],
+   "near": "aircraft ob:o3"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": 9.465944977629693,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -137.63405858912347,
+    670.9710466344202
+   ],
+   "near": "aircraft ob:o1"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": 9.38973508933773,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -137.71026813452315,
+    670.8776968785279
+   ],
+   "near": "aircraft ob:o1"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -1165.834,
+    -514.911
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    548.089,
+    975.024
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -1178.3384417844657,
+    -541.6817872266297
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": 23.831312738495658,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "aircraft ob:o3"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": 15.657856494166946,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -153.140622332527,
+    720.1693666819801
+   ],
+   "near": "aircraft ob:o3"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": 9.465944977629693,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -137.63405858912347,
+    670.9710466344202
+   ],
+   "near": "aircraft ob:o1"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": 9.38973508933773,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -137.71026813452315,
+    670.8776968785279
+   ],
+   "near": "aircraft ob:o1"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1165.834,
+    -514.911
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    548.089,
+    975.024
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -1178.3384417844657,
+    -541.6817872266297
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": 23.831312738495658,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "aircraft ob:o3"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "parked box",
+   "d": 16.17674858447011,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -152.90134439284319,
+    719.5853319428762
+   ],
+   "near": "aircraft ob:o3"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": 9.465944977629693,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -137.63405858912347,
+    670.9710466344202
+   ],
+   "near": "aircraft ob:o1"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": 9.38973508933773,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -137.71026813452315,
+    670.8776968785279
+   ],
+   "near": "aircraft ob:o1"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -1165.834,
+    -514.911
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    548.089,
+    975.024
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "HOME",
+   "name": "Jolene AFB 13/31",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -1178.3384417844657,
+    -541.6817872266297
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "stand",
+   "d": 16.48928671286148,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "parked box",
+   "d": 10.194533077582971,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -674.73978784762,
+    -2376.8297081392607
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": 16.48928671286148,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": 16.48928671286148,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -576.621,
+    -2466.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -1026.743,
+    -2345.975
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -548.8588320057117,
+    -2467.291260490978
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": 16.48928671286148,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": 9.893919938114696,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -674.1790741665894,
+    -2376.6687336113314
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": 16.48928671286148,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": 16.48928671286148,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -576.621,
+    -2466.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1026.743,
+    -2345.975
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -548.8588320057117,
+    -2467.291260490978
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": 16.48928671286148,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "parked box",
+   "d": 10.507014171141751,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -674.4825342346936,
+    -2377.2221434919497
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": 16.48928671286148,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": 16.48928671286148,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -681.07,
+    -2381.14
+   ],
+   "near": "item s_strip/shed"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -576.621,
+    -2466.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -1026.743,
+    -2345.975
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "w3",
+   "name": "Tamgas Hill Strip",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -548.8588320057117,
+    -2467.291260490978
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "stock build",
+   "what": "stand",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    874.847,
+    -3164.329
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    874.847,
+    -3164.329
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -151.266,
+    -4171.841
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    888.937,
+    -3167.404
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -151.266,
+    -4171.841
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    900.0243998881286,
+    -3140.01646715466
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    874.847,
+    -3164.329
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    874.847,
+    -3164.329
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -151.266,
+    -4171.841
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    888.937,
+    -3167.404
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -151.266,
+    -4171.841
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    900.0243998881286,
+    -3140.01646715466
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    874.847,
+    -3164.329
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    874.847,
+    -3164.329
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -151.266,
+    -4171.841
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    888.937,
+    -3167.404
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -151.266,
+    -4171.841
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "SEA",
+   "name": "Annette Dock",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    900.0243998881286,
+    -3140.01646715466
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "stock build",
+   "what": "stand",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -4467.631,
+    -8897.084
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -4467.631,
+    -8897.084
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -3478.136,
+    -9940.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -4464.311,
+    -8883.05
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    -3478.136,
+    -9940.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4491.5013746315235,
+    -8871.487152611662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4467.631,
+    -8897.084
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4467.631,
+    -8897.084
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3478.136,
+    -9940.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4464.311,
+    -8883.05
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3478.136,
+    -9940.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4491.5013746315235,
+    -8871.487152611662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -4467.631,
+    -8897.084
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -4467.631,
+    -8897.084
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -3478.136,
+    -9940.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -4464.311,
+    -8883.05
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    -3478.136,
+    -9940.582
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mk_sea",
+   "name": "Metlakatla Seaplane Base",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4491.5013746315235,
+    -8871.487152611662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "stand",
+   "d": 10.021718635984998,
+   "need": 8,
+   "ok": true,
+   "at": [
+    7278,
+    -15318
+   ],
+   "near": "item mn_s_mine/airtaxi"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "parked box",
+   "d": 4.9617250334707945,
+   "need": 3,
+   "ok": true,
+   "at": [
+    7282.359919457827,
+    -15320.569192667212
+   ],
+   "near": "item mn_s_mine/airtaxi"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": 8.822993975709272,
+   "need": 8,
+   "ok": true,
+   "at": [
+    7256.322553892294,
+    -15353.480529246532
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": 8.81833059136482,
+   "need": 8,
+   "ok": true,
+   "at": [
+    7256.339014041332,
+    -15353.286523346973
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": 8.821148451441763,
+   "need": 8,
+   "ok": true,
+   "at": [
+    7256.327821904476,
+    -15353.41945545632
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": 11.890107956351171,
+   "need": 8,
+   "ok": true,
+   "at": [
+    7243.576,
+    -15499.103
+   ],
+   "near": "item mn_s_mine/school"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": 8.830385422139207,
+   "need": null,
+   "ok": true,
+   "at": [
+    7256.306653688828,
+    -15353.659449474408
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": 10.021718635984998,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    7278,
+    -15318
+   ],
+   "near": "item mn_s_mine/airtaxi"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": 4.464856096746073,
+   "need": 3,
+   "ok": true,
+   "at": [
+    7282.814079901984,
+    -15320.780303375052
+   ],
+   "near": "item mn_s_mine/airtaxi"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": 8.822993975709272,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    7256.322553892294,
+    -15353.480529246532
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": 8.81833059136482,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    7256.339014041332,
+    -15353.286523346973
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": 8.821148451441763,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    7256.327821904476,
+    -15353.41945545632
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": 11.890107956351171,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    7243.576,
+    -15499.103
+   ],
+   "near": "item mn_s_mine/school"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": 8.830385422139207,
+   "need": null,
+   "ok": true,
+   "at": [
+    7256.306653688828,
+    -15353.659449474408
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": 10.021718635984998,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    7278,
+    -15318
+   ],
+   "near": "item mn_s_mine/airtaxi"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "parked box",
+   "d": 4.557779771136851,
+   "need": 3,
+   "ok": true,
+   "at": [
+    7282.533678694181,
+    -15321.080425879749
+   ],
+   "near": "item mn_s_mine/airtaxi"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": 8.822993975709272,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    7256.322553892294,
+    -15353.480529246532
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": 8.81833059136482,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    7256.339014041332,
+    -15353.286523346973
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": 8.821148451441763,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    7256.327821904476,
+    -15353.41945545632
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": 11.890107956351171,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    7243.576,
+    -15499.103
+   ],
+   "near": "item mn_s_mine/school"
+  },
+  {
+   "world": "jolene",
+   "id": "mn_strip",
+   "name": "Jumbo Mine Street",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": 8.830385422139207,
+   "need": null,
+   "ok": true,
+   "at": [
+    7256.306653688828,
+    -15353.659449474408
+   ],
+   "near": "item mn_s_mine/clinic"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "stand",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    10062.964373474879,
+    -11719.453985623866
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    10043.649,
+    -11724.459
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    10009.59,
+    -11597.352
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    10049.411738836332,
+    -11732.444353785164
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    10062.927083711076,
+    -11718.954547025523
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10043.649,
+    -11724.459
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10009.59,
+    -11597.352
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    10049.411738836332,
+    -11732.444353785164
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    10062.547328127846,
+    -11719.111020832179
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    10063.83,
+    -11724.44
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    10043.649,
+    -11724.459
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    10009.59,
+    -11597.352
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "nv_strip",
+   "name": "East Point Clearing",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    10049.411738836332,
+    -11732.444353785164
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "stand",
+   "d": 14.42775103749713,
+   "need": 8,
+   "ok": true,
+   "at": [
+    310.4,
+    -7844
+   ],
+   "near": "item tw_s_summit/pilothut"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "parked box",
+   "d": 7.822443540017246,
+   "need": 3,
+   "ok": true,
+   "at": [
+    307.8763474607841,
+    -7851.230586399471
+   ],
+   "near": "item tw_s_summit/station"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "route out[0]",
+   "d": 11.77493074244351,
+   "need": 8,
+   "ok": true,
+   "at": [
+    314.97523317246487,
+    -7807.876995975283
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "route out[1]",
+   "d": 8.958158537124346,
+   "need": 8,
+   "ok": true,
+   "at": [
+    313.2421304721586,
+    -7810.7247317231395
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8,
+   "ok": true,
+   "at": [
+    181.13,
+    -7563.048
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "route back[1]",
+   "d": 8.958158537124346,
+   "need": 8,
+   "ok": true,
+   "at": [
+    313.2421304721586,
+    -7810.7247317231395
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "stock build",
+   "what": "the roll (reported)",
+   "d": 11.774385828073108,
+   "need": null,
+   "ok": true,
+   "at": [
+    314.9997539956154,
+    -7807.919088869291
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": 14.42775103749713,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    310.4,
+    -7844
+   ],
+   "near": "item tw_s_summit/pilothut"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": 7.244199729110433,
+   "need": 3,
+   "ok": true,
+   "at": [
+    307.86609353575045,
+    -7851.8138594811035
+   ],
+   "near": "item tw_s_summit/station"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": 11.77493074244351,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    314.97523317246487,
+    -7807.876995975283
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": 8.958158537124346,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    313.2421304721586,
+    -7810.7247317231395
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    181.13,
+    -7563.048
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": 8.958158537124346,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    313.2421304721586,
+    -7810.7247317231395
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": 11.774385828073108,
+   "need": null,
+   "ok": true,
+   "at": [
+    314.9997539956154,
+    -7807.919088869291
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "stand",
+   "d": 14.42775103749713,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    310.4,
+    -7844
+   ],
+   "near": "item tw_s_summit/pilothut"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "parked box",
+   "d": 7.639518297122011,
+   "need": 3,
+   "ok": true,
+   "at": [
+    308.3220212781773,
+    -7851.377418875082
+   ],
+   "near": "item tw_s_summit/station"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "route out[0]",
+   "d": 11.77493074244351,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    314.97523317246487,
+    -7807.876995975283
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "route out[1]",
+   "d": 8.958158537124346,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    313.2421304721586,
+    -7810.7247317231395
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    181.13,
+    -7563.048
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "route back[1]",
+   "d": 8.958158537124346,
+   "need": 8.35,
+   "ok": true,
+   "at": [
+    313.2421304721586,
+    -7810.7247317231395
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "jolene",
+   "id": "tw_ski",
+   "name": "Skyline Altiport",
+   "build": "the user's Cub",
+   "what": "the roll (reported)",
+   "d": 11.774385828073108,
+   "need": null,
+   "ok": true,
+   "at": [
+    314.9997539956154,
+    -7807.919088869291
+   ],
+   "near": "prop ob:tw_o19"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -157.97186465722982,
+    708.1103029289354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1043,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    30,
+    -6.735557395310443e-14
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2403,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1997,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2430,
+    -1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1567,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    2033,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    1540,
+    1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3613,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3187,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3640,
+    650
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    1277
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4.5924254968025744e-14,
+    1250
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A0",
+   "name": "Morford Airfield",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4540.245,
+    -501.777
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A0",
+   "name": "Morford Airfield",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4540.245,
+    -501.777
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A0",
+   "name": "Morford Airfield",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4872.02,
+    267.842
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A0",
+   "name": "Morford Airfield",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4548.27,
+    -513.76
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A0",
+   "name": "Morford Airfield",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4872.02,
+    267.842
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A0",
+   "name": "Morford Airfield",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4526.851170620755,
+    -534.1128159209018
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A1",
+   "name": "Pelham Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4585.143,
+    -11066.247
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A1",
+   "name": "Pelham Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4585.143,
+    -11066.247
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A1",
+   "name": "Pelham Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5125.131,
+    -10833.377
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A1",
+   "name": "Pelham Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4574.499,
+    -11061.456
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A1",
+   "name": "Pelham Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5125.131,
+    -10833.377
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A1",
+   "name": "Pelham Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    4552.8070830383385,
+    -11079.64136896482
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A2",
+   "name": "Lunford Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9797.836,
+    64.054
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A2",
+   "name": "Lunford Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9797.836,
+    64.054
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A2",
+   "name": "Lunford Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10344.33,
+    281.219
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A2",
+   "name": "Lunford Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9793.698,
+    53.14
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A2",
+   "name": "Lunford Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10344.33,
+    281.219
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A2",
+   "name": "Lunford Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -9765.499995702448,
+    50.66030978649586
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A3",
+   "name": "Berton Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8637.419,
+    7159.232
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A3",
+   "name": "Berton Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8637.419,
+    7159.232
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A3",
+   "name": "Berton Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8219.419,
+    7167.732
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A3",
+   "name": "Berton Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8645.419,
+    7167.732
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A3",
+   "name": "Berton Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8219.419,
+    7167.732
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A3",
+   "name": "Berton Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -8672.41915067801,
+    7159.2319820583125
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A4",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1895.366,
+    8723.361
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A4",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1895.366,
+    8723.361
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A4",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2154.692,
+    8823.741
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A4",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1890.462,
+    8714.294
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A4",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2154.692,
+    8823.741
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A4",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -1863.0300683461696,
+    8709.966609500361
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1713.735,
+    -9268.892
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1713.735,
+    -9268.892
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1814.116,
+    -9009.566
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1704.668,
+    -9273.795
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1814.116,
+    -9009.566
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    1700.340831711901,
+    -9301.227469227406
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9060.529,
+    11240.999
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9060.529,
+    11240.999
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9054.029,
+    11518.999
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9054.029,
+    11232.999
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9054.029,
+    11518.999
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 0",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    9060.528738424182,
+    11205.99945999682
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -157.97186465722982,
+    708.1103029289354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1043,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    30,
+    -6.735557395310443e-14
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2403,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1997,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2430,
+    -1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1567,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    2033,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    1540,
+    1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3613,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3187,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3640,
+    650
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    1277
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4.5924254968025744e-14,
+    1250
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A0",
+   "name": "Weswesford Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7617.618,
+    -843.11
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A0",
+   "name": "Weswesford Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7617.618,
+    -843.11
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A0",
+   "name": "Weswesford Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7207.849,
+    -421.32
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A0",
+   "name": "Weswesford Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7629.285,
+    -842.756
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A0",
+   "name": "Weswesford Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7207.849,
+    -421.32
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A0",
+   "name": "Weswesford Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -7642.366555707465,
+    -867.8583266252169
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A1",
+   "name": "Pelholstad Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5820.544,
+    87.854
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A1",
+   "name": "Pelholstad Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5820.544,
+    87.854
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A1",
+   "name": "Pelholstad Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6408.544,
+    96.354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A1",
+   "name": "Pelholstad Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5812.544,
+    96.354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A1",
+   "name": "Pelholstad Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6408.544,
+    96.354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A1",
+   "name": "Pelholstad Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    5785.544224855368,
+    87.85369403930457
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A2",
+   "name": "Morwick Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2326.406,
+    -11451.772
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A2",
+   "name": "Morwick Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2326.406,
+    -11451.772
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A2",
+   "name": "Morwick Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1738.406,
+    -11443.272
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A2",
+   "name": "Morwick Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2334.406,
+    -11443.272
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A2",
+   "name": "Morwick Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1738.406,
+    -11443.272
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A2",
+   "name": "Morwick Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2361.4061894290685,
+    -11451.772314237121
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A3",
+   "name": "Morholford Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3653.748,
+    -900.88
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A3",
+   "name": "Morholford Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3653.748,
+    -900.88
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A3",
+   "name": "Morholford Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3886.619,
+    -360.892
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A3",
+   "name": "Morholford Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": 30.964919909577347,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3657.9374240260395,
+    -874.3268298039548
+   ],
+   "near": "settle reg91"
+  },
+  {
+   "world": "seed 1",
+   "id": "A3",
+   "name": "Morholford Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3886.619,
+    -360.892
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A3",
+   "name": "Morholford Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3640.354562554958,
+    -933.2157011862566
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A4",
+   "name": "Lunby Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4035.469,
+    -10851.664
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A4",
+   "name": "Lunby Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4035.469,
+    -10851.664
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A4",
+   "name": "Lunby Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4203.284,
+    -10468.735
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A4",
+   "name": "Lunby Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4040.261,
+    -10862.308
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A4",
+   "name": "Lunby Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4203.284,
+    -10468.735
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A4",
+   "name": "Lunby Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4022.075297578059,
+    -10883.999625740587
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A5",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -712.805,
+    10701.245
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A5",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -712.805,
+    10701.245
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A5",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -913.977,
+    10893.225
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A5",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -711.745,
+    10690.992
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A5",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -913.977,
+    10893.225
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A5",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -688.0564234694633,
+    10676.49645595906
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3132.572,
+    6946.012
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3132.572,
+    6946.012
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3391.898,
+    7046.393
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3127.668,
+    6936.946
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3391.898,
+    7046.393
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A6",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3100.236129903105,
+    6932.618517301989
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A7",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10991.06,
+    5043.042
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A7",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10991.06,
+    5043.042
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A7",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10997.56,
+    5321.042
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A7",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10997.56,
+    5035.042
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A7",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -10997.56,
+    5321.042
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 1",
+   "id": "A7",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -10991.059565544128,
+    5008.041990101337
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -157.97186465722982,
+    708.1103029289354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1043,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    30,
+    -6.735557395310443e-14
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2403,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1997,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2430,
+    -1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1567,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    2033,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    1540,
+    1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3613,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3187,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3640,
+    650
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    1277
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4.5924254968025744e-14,
+    1250
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A0",
+   "name": "Nordorf Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3918.345,
+    -508.827
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A0",
+   "name": "Nordorf Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3918.345,
+    -508.827
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A0",
+   "name": "Nordorf Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4151.215,
+    31.161
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A0",
+   "name": "Nordorf Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3923.136,
+    -519.471
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A0",
+   "name": "Nordorf Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -4151.215,
+    31.161
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A0",
+   "name": "Nordorf Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3904.950615354961,
+    -541.163012926218
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A1",
+   "name": "Morwesham Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4486.09,
+    78.952
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A1",
+   "name": "Morwesham Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4486.09,
+    78.952
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A1",
+   "name": "Morwesham Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5074.09,
+    87.452
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A1",
+   "name": "Morwesham Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4478.09,
+    87.452
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A1",
+   "name": "Morwesham Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5074.09,
+    87.452
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A1",
+   "name": "Morwesham Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": 21.389563658458542,
+   "need": null,
+   "ok": true,
+   "at": [
+    4451.090374860823,
+    78.95233001642363
+   ],
+   "near": "settle reg40"
+  },
+  {
+   "world": "seed 6",
+   "id": "A2",
+   "name": "Torvimham Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4367.874,
+    -12019.962
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A2",
+   "name": "Torvimham Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4367.874,
+    -12019.962
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A2",
+   "name": "Torvimham Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4777.642,
+    -11598.173
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A2",
+   "name": "Torvimham Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4356.206,
+    -12019.609
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A2",
+   "name": "Torvimham Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4777.642,
+    -11598.173
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A2",
+   "name": "Torvimham Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    4343.124777230664,
+    -12044.710830061576
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A3",
+   "name": "Vimham Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6773.372,
+    345.391
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A3",
+   "name": "Vimham Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6773.372,
+    345.391
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A3",
+   "name": "Vimham Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6390.443,
+    513.206
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A3",
+   "name": "Vimham Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6784.015,
+    350.183
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A3",
+   "name": "Vimham Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6390.443,
+    513.206
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A3",
+   "name": "Vimham Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -6805.707311320775,
+    331.99725358418686
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A4",
+   "name": "Torton Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8976.714,
+    -11684.741
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A4",
+   "name": "Torton Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8976.714,
+    -11684.741
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A4",
+   "name": "Torton Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8808.899,
+    -11301.812
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A4",
+   "name": "Torton Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8971.923,
+    -11695.385
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A4",
+   "name": "Torton Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8808.899,
+    -11301.812
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A4",
+   "name": "Torton Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    8990.10801509515,
+    -11717.076779979569
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8891.054,
+    6617.374
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8891.054,
+    6617.374
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8636.703,
+    6729.766
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8900.932,
+    6620.318
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -8636.703,
+    6729.766
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A5",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -8923.389582938644,
+    6603.980546690536
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A6",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    923.297,
+    10660.57
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A6",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    923.297,
+    10660.57
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A6",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    916.797,
+    10938.57
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A6",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    916.797,
+    10652.57
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A6",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    916.797,
+    10938.57
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A6",
+   "name": "Tyl Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    923.296744376421,
+    10625.570281520486
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1717.665,
+    6617.331
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1717.665,
+    6617.331
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1918.837,
+    6809.311
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1716.605,
+    6607.078
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1918.837,
+    6809.311
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 6",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -1692.916517286578,
+    6592.582374951819
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -157.97186465722982,
+    708.1103029289354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1043,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    30,
+    -6.735557395310443e-14
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2403,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1997,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2430,
+    -1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1567,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    2033,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    1540,
+    1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3613,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3187,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3640,
+    650
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    1277
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4.5924254968025744e-14,
+    1250
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A0",
+   "name": "Holby Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9218.407,
+    -1020.981
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A0",
+   "name": "Holby Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9218.407,
+    -1020.981
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A0",
+   "name": "Holby Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8671.913,
+    -803.816
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A0",
+   "name": "Holby Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9222.545,
+    -1031.896
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A0",
+   "name": "Holby Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    8671.913,
+    -803.816
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A0",
+   "name": "Holby Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    9250.742576064578,
+    -1034.3752896900642
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A1",
+   "name": "Vimnorford Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6258.309,
+    -541.991
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A1",
+   "name": "Vimnorford Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6258.309,
+    -541.991
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A1",
+   "name": "Vimnorford Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6266.809,
+    -123.991
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A1",
+   "name": "Vimnorford Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6266.809,
+    -549.991
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A1",
+   "name": "Vimnorford Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6266.809,
+    -123.991
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A1",
+   "name": "Vimnorford Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -6258.308926487065,
+    -576.9912417013845
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A2",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6821.576,
+    9293.678
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A2",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6821.576,
+    9293.678
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A2",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7080.902,
+    9394.059
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A2",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -6816.673,
+    9284.611
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A2",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7080.902,
+    9394.059
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A2",
+   "name": "Ulv Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -6789.24040193936,
+    9280.28383149208
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A3",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4761.293,
+    -1051.235
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A3",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4761.293,
+    -1051.235
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A3",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5039.293,
+    -1044.735
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A3",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4753.293,
+    -1044.735
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A3",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5039.293,
+    -1044.735
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A3",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    4726.293451078236,
+    -1051.2354958802462
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A4",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3830.187,
+    9879.059
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A4",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3830.187,
+    9879.059
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A4",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3717.795,
+    10133.41
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A4",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3827.243,
+    9869.18
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A4",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3717.795,
+    10133.41
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 12",
+   "id": "A4",
+   "name": "Stein Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    3843.580438323306,
+    9846.722986318973
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "parked box",
+   "d": null,
+   "need": 3,
+   "ok": true,
+   "at": [
+    -157.97186465722982,
+    708.1103029289354
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -154,
+    712
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    3,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1043,
+    -12
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "HOME",
+   "name": "Home Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    30,
+    -6.735557395310443e-14
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2403,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -1997,
+    -1488
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M1",
+   "name": "Meadow 1",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2430,
+    -1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    1567,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    2033,
+    1512
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M2",
+   "name": "Meadow 2",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    1540,
+    1500
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3613,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -3187,
+    662
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "M3",
+   "name": "Meadow 3",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -3640,
+    650
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    0,
+    1285
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    1277
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -12,
+    2723
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "SEA",
+   "name": "The Sound",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -4.5924254968025744e-14,
+    1250
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A0",
+   "name": "Tordalstad Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4404.871,
+    -273.456
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A0",
+   "name": "Tordalstad Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4404.871,
+    -273.456
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A0",
+   "name": "Tordalstad Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4172,
+    266.533
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A0",
+   "name": "Tordalstad Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4400.079,
+    -284.099
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A0",
+   "name": "Tordalstad Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    4172,
+    266.533
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A0",
+   "name": "Tordalstad Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    4418.264813627787,
+    -305.79139918580205
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A1",
+   "name": "Torstad Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2649.984,
+    -11245.832
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A1",
+   "name": "Torstad Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2649.984,
+    -11245.832
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A1",
+   "name": "Torstad Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2061.984,
+    -11237.332
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A1",
+   "name": "Torstad Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2657.984,
+    -11237.332
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A1",
+   "name": "Torstad Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -2061.984,
+    -11237.332
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A1",
+   "name": "Torstad Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -2684.9836301771848,
+    -11245.832085209991
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A2",
+   "name": "Rosdorf Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -5862.55,
+    -320.449
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A2",
+   "name": "Rosdorf Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -5862.55,
+    -320.449
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A2",
+   "name": "Rosdorf Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -5452.782,
+    101.34
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A2",
+   "name": "Rosdorf Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -5874.218,
+    -320.095
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A2",
+   "name": "Rosdorf Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -5452.782,
+    101.34
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A2",
+   "name": "Rosdorf Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -5887.29909089927,
+    -345.1976574537139
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A3",
+   "name": "Norlundorf Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6383.264,
+    -10599.151
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A3",
+   "name": "Norlundorf Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6383.264,
+    -10599.151
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A3",
+   "name": "Norlundorf Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6150.393,
+    -10059.162
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A3",
+   "name": "Norlundorf Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6378.472,
+    -10609.795
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A3",
+   "name": "Norlundorf Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    6150.393,
+    -10059.162
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A3",
+   "name": "Norlundorf Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    6396.657756527054,
+    -10631.486441074561
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A4",
+   "name": "Torfield Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10109.303,
+    -11428.845
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A4",
+   "name": "Torfield Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10109.303,
+    -11428.845
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A4",
+   "name": "Torfield Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9941.488,
+    -11045.916
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A4",
+   "name": "Torfield Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    10104.511,
+    -11439.489
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A4",
+   "name": "Torfield Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    9941.488,
+    -11045.916
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A4",
+   "name": "Torfield Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    10122.696693673346,
+    -11461.180997058666
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A5",
+   "name": "Fendorf Field",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7736.92,
+    312.861
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A5",
+   "name": "Fendorf Field",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7736.92,
+    312.861
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A5",
+   "name": "Fendorf Field",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7904.735,
+    695.789
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A5",
+   "name": "Fendorf Field",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7741.712,
+    302.217
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A5",
+   "name": "Fendorf Field",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -7904.735,
+    695.789
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A5",
+   "name": "Fendorf Field",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -7723.52607543133,
+    280.5247423710294
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A6",
+   "name": "Brekk Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5225.476,
+    5178.223
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A6",
+   "name": "Brekk Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5225.476,
+    5178.223
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A6",
+   "name": "Brekk Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5113.085,
+    5432.574
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A6",
+   "name": "Brekk Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5222.532,
+    5168.345
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A6",
+   "name": "Brekk Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    5113.085,
+    5432.574
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A6",
+   "name": "Brekk Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    5238.870117381202,
+    5145.887536884156
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9396.837,
+    9620.702
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9396.837,
+    9620.702
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9403.337,
+    9898.702
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9403.337,
+    9612.702
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -9403.337,
+    9898.702
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A7",
+   "name": "Vass Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -9396.837358549237,
+    9585.702437832952
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A8",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "stand",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -11323.019,
+    6160.552
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A8",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route out[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -11323.019,
+    6160.552
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A8",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route out[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -11068.667,
+    6272.943
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A8",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route back[0]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -11332.897,
+    6163.495
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A8",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "route back[1]",
+   "d": null,
+   "need": 8.5,
+   "ok": true,
+   "at": [
+    -11068.667,
+    6272.943
+   ],
+   "near": "nothing"
+  },
+  {
+   "world": "seed 42",
+   "id": "A8",
+   "name": "Kar Strip",
+   "build": "aluminium C172",
+   "what": "the roll (reported)",
+   "d": null,
+   "need": null,
+   "ok": true,
+   "at": [
+    -11355.354335948023,
+    6147.157603748155
+   ],
+   "near": "nothing"
+  }
+ ]
+}

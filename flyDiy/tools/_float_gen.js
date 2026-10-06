@@ -674,7 +674,96 @@ function build(P, opts) {
   return out;
 }
 
-const API = { build, meshStats, vertexNormals, ringSide, RING_N, RING_LEN, Bag };
+// ---- THE REFERENCE (G1930, FLOAT-SHAPE) ------------------------------------------
+// What a preset's hull is held to, and where each number comes from. The user (2026-10-05): "the shape of the Cessna
+// floats seems a little off. The back part is really thin." No Wipaire lines drawing was reachable from the session
+// that wrote this (wipaire.com, the manuals' mirrors and NACA's servers were outside its network), so the reference
+// is three kinds of fact, each tagged:
+//   CAT  the catalogue (wipaire.com product pages; HYDRO.FLOAT_PRESETS): seaplane length, hull width, hull height,
+//        maximum flotation - measured, the hull lands on them exactly (the fineness fit);
+//   RULE the seaplane design rules: the STERNPOST ANGLE (the step's keel point to the stern keel, against the
+//        forebody keel) 7-9 deg (NACA tank practice as Gudmundsson's App. C3 and the USNA EN486 notes quote it), a
+//        STRAIGHT afterbody keel (the line that angle is defined on), the step 10-15 deg aft of the CG (the
+//        placement, _cage_float.js); the step's station 0.55 L (G451's reading of the 2350 parts manual's p. 97
+//        installation profile);
+//   INF  inferred from photographs of Wipline 2100 / 2350 floats on 172s and the parts manual's rigging (the aft
+//        spreader bar sits across a parallel-sided deck just aft of the step; the water rudder's bearing brackets
+//        on a transom of real width): the plan HOLDS its beam to the aft spreader bar, the stern deck is about
+//        half the beam, the stern keeps a quarter of the step's depth, the mid-afterbody section half the step's.
+// `measure` reads a hull (the 32_hydro section family, so the drawn float and the physics one); `check` judges it;
+// `outline` is the reference as line segments in the model frame (x aft, y up, z starboard) for the bench (?ref=1).
+const REF = {
+  sternpost: [7, 9],        // RULE, deg
+  keelDev: 0.01,            // RULE: the afterbody keel off its straight chord, at most this fraction of H
+  stepPos: [0.52, 0.58],    // RULE (G451's parts-manual reading): the step's station, fraction of L from the bow
+  sternDepth: 0.25,         // INF: the stern's depth (keel to deck) at least this fraction of the step's
+  sternWidth: [0.45, 0.65], // INF: the stern's deck width, fraction of the hull width
+  holdAft: 0.97,            // INF: the deck's width at the aft spreader bar, at least this fraction of the step's
+  midArea: 0.45,            // INF: the section half-way down the afterbody, at least this fraction of the step's (forebody side)
+  aftShare: [0.30, 0.45],   // INF: the afterbody's share of the hull's volume
+  src: {
+    CAT: 'wipaire.com product pages (Wipline 2100 / 2350 / 3000 / 3450 / 6100 / 8750 / 13000: length, hull width, hull height, displacement, maximum flotation)',
+    RULE: 'sternpost angle 7-9 deg: NACA float / hull practice (Gudmundsson, General Aviation Aircraft Design, App. C3; USNA EN486 ch. 12-14); straight afterbody keel: the definition of that angle; step 0.55 L: G451, 2350 parts manual p. 97',
+    INF: 'photographs of Wipline 2100 / 2350 floats on Cessna 172s; 2350 parts manual rigging (aft spreader bar just aft of the step)',
+  },
+};
+// a section's full area (keel to deck, both sides: secAreaTo returns the pair)
+function secArea(HY, P, s) { return HY.secAreaTo(P, s, s.yd + 1); }
+function measure(P, HY) {
+  const LA = P.L - P.xs;
+  const sF = HY.sectionOf(P, -1e-6), sA = HY.sectionOf(P, 1e-6), sT = HY.sectionOf(P, LA - 1e-6);
+  const xAft = Math.min(LA - 0.2, P.xAft != null ? P.xAft : 0.36 * (P.scale || 1));
+  const A0 = secArea(HY, P, sF);
+  let dev = 0;
+  for (let i = 1; i < 20; i++) {
+    const x = LA * i / 20, chord = sA.yk + (sT.yk - sA.yk) * i / 20;
+    dev = Math.max(dev, Math.abs(HY.sectionOf(P, x).yk - chord));
+  }
+  let vF = 0, vA = 0; const N = 300;
+  for (let i = 0; i < N; i++) { const x = -P.xs + P.L * (i + 0.5) / N; const a = secArea(HY, P, HY.sectionOf(P, x)) * P.L / N; if (x < 0) vF += a; else vA += a; }
+  const st = [];
+  for (let i = 0; i <= 10; i++) { const x = Math.min(LA - 1e-6, Math.max(1e-6, LA * i / 10)), s = HY.sectionOf(P, x); st.push({ u: i / 10, x, keel: s.yk, deck: s.yd, width: 2 * s.bd, area: secArea(HY, P, s), areaRel: secArea(HY, P, s) / A0 }); }
+  return {
+    L: P.L, B: P.B, Hover: P.H * (1 + (P.sheerK || 0)), stepPos: P.xs / P.L,
+    sternpost: Math.atan(sT.yk / LA) / D2R, keelDev: dev / P.H,
+    sternDepth: (sT.yd - sT.yk) / (sF.yd - sF.yk), sternWidth: 2 * sT.bd / P.B,
+    holdAft: HY.sectionOf(P, xAft).bd / sA.bd, midArea: secArea(HY, P, HY.sectionOf(P, 0.5 * LA)) / A0,
+    aftShare: vA / (vF + vA), stations: st,
+  };
+}
+// every rule against a measure: [{ key, value, ok, bound, src }]
+function check(m) {
+  const inR = (v, r) => v >= r[0] && v <= r[1];
+  return [
+    { key: 'stepPos', value: m.stepPos, ok: inR(m.stepPos, REF.stepPos), bound: REF.stepPos.join('-'), src: 'RULE' },
+    { key: 'sternpost', value: m.sternpost, ok: inR(m.sternpost, REF.sternpost), bound: REF.sternpost.join('-') + ' deg', src: 'RULE' },
+    { key: 'keelDev', value: m.keelDev, ok: m.keelDev <= REF.keelDev, bound: '<= ' + REF.keelDev + ' H', src: 'RULE' },
+    { key: 'sternDepth', value: m.sternDepth, ok: m.sternDepth >= REF.sternDepth, bound: '>= ' + REF.sternDepth, src: 'INF' },
+    { key: 'sternWidth', value: m.sternWidth, ok: inR(m.sternWidth, REF.sternWidth), bound: REF.sternWidth.join('-'), src: 'INF' },
+    { key: 'holdAft', value: m.holdAft, ok: m.holdAft >= REF.holdAft, bound: '>= ' + REF.holdAft, src: 'INF' },
+    { key: 'midArea', value: m.midArea, ok: m.midArea >= REF.midArea, bound: '>= ' + REF.midArea, src: 'INF' },
+    { key: 'aftShare', value: m.aftShare, ok: inR(m.aftShare, REF.aftShare), bound: REF.aftShare.join('-'), src: 'INF' },
+  ];
+}
+// the reference drawn: the catalogue's box (L x W x overall H, the step at its station), the sternpost band (7 and 9
+// deg from the step's keel point), the stern's minimum depth and its width band, the parallel deck to the aft bar
+function outline(P, HY, R) {
+  const LA = P.L - P.xs, x0 = -P.xs, x1 = LA, Ho = (R && R.H) || P.H * (1 + (P.sheerK || 0)), hb = 0.5 * ((R && R.B) || P.B);
+  const seg = [], S = (a, b) => seg.push(a, b);
+  for (const z of [-hb, hb]) { S([x0, 0, z], [x1, 0, z]); S([x0, Ho, z], [x1, Ho, z]); S([x0, 0, z], [x0, Ho, z]); S([x1, 0, z], [x1, Ho, z]); }
+  for (const y of [0, Ho]) { S([x0, y, -hb], [x0, y, hb]); S([x1, y, -hb], [x1, y, hb]); }
+  S([0, 0, hb], [0, Ho, hb]); S([0, 0, -hb], [0, Ho, -hb]);                      // the step's station
+  for (const a of REF.sternpost) S([0, 0, hb + 0.002], [x1, x1 * Math.tan(a * D2R), hb + 0.002]);   // the sternpost band
+  const sF = HY.sectionOf(P, -1e-6), sT = HY.sectionOf(P, LA - 1e-6);
+  const yMin = sT.yd - REF.sternDepth * (sF.yd - sF.yk);
+  S([x1 - 0.05, yMin, hb], [x1 + 0.05, yMin, hb]); S([x1, yMin, hb], [x1, sT.yd, hb]);                 // the stern's minimum depth
+  for (const w of REF.sternWidth) for (const sd of [-1, 1]) S([x1 - 0.06, Ho, sd * w * hb], [x1 + 0.06, Ho, sd * w * hb]);   // the stern's width band
+  const xAft = Math.min(LA - 0.2, P.xAft != null ? P.xAft : 0.36 * (P.scale || 1));
+  for (const sd of [-1, 1]) S([0, Ho, sd * REF.holdAft * HY.sectionOf(P, 1e-6).bd], [xAft, Ho, sd * REF.holdAft * HY.sectionOf(P, 1e-6).bd]);
+  return seg;
+}
+
+const API = { build, meshStats, vertexNormals, ringSide, RING_N, RING_LEN, Bag, REF, measure, check, outline };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.FLOAT_GEN = API;
 })();

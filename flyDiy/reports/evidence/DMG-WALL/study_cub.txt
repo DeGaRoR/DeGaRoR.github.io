@@ -1,0 +1,30 @@
+build cub: 40 groups, classes {"rigid":136692,"cover":38184,"wall":61152,"tube":29316,"keep":8064}
+trunk-0 (14919 ms) broken 169 pieces 19 first 79
+  base   leak 333879/1226482 (0.27222, >1cm 168255, >5cm 3929, piece 47, worst 9.146 m) by {"cloth":154459,"pasengerWindow":1178,"pilotWindow":3532,"windshield":768,"paneEdge":4682,"joint":161632,"fireProof":3797,"fireSeal":2068,"shoulder":1763}
+         overStretched 0 rigid bad 376164/2042024 worst 2.5864  bayTorn 0  removed 24074 torn 17113 cut 0 followed 0
+  g1858  leak 173860/678602 (0.2562, >1cm 75478, >5cm 1317, piece 47, worst 9.146 m) by {"pasengerWindow":1178,"pilotWindow":3532,"windshield":768,"paneEdge":4682,"joint":161632,"fireSeal":2068}
+         overStretched 0 rigid bad 376164/2042024 worst 2.5864  bayTorn 0  removed 29932 torn 13543 cut 10408 followed 0
+  inh    leak 9558/1395022 (0.00685, >1cm 151, >5cm 42, piece 0, worst 0.0649 m) by {"cloth":7924,"pasengerWindow":407,"windshield":432,"joint":326,"pilotWindow":469}
+         overStretched 0 rigid bad 0/2381172 worst 0  bayTorn 0  removed 18291 torn 4610 cut 0 followed 8220  inh {"places":50003,"tube":4553,"tubeFar":419,"cover":25257,"wall":13301,"wallFar":17,"rigid":6456,"parts":32,"bigParts":8,"keep":8064,"over8":552,"done":true,"ms":207}
+trunk-2.5 (16688 ms) broken 121 pieces 7 first 82
+  base   leak 289056/1754000 (0.1648, >1cm 136055, >5cm 3849, piece 128, worst 8.6254 m) by {"cloth":94397,"joint":185639,"pasengerWindow":1221,"pilotWindow":694,"windshield":311,"paneEdge":3372,"fireProof":1646,"fireSeal":888,"shoulder":888}
+         overStretched 0 rigid bad 599960/2160812 worst 2.4668  bayTorn 178  removed 22962 torn 18300 cut 0 followed 0
+  g1858  leak 192248/1279826 (0.15021, >1cm 86940, >5cm 1997, piece 128, worst 8.6254 m) by {"cloth":123,"joint":185639,"pasengerWindow":1221,"pilotWindow":694,"windshield":311,"paneEdge":3372,"fireSeal":888}
+         overStretched 0 rigid bad 599960/2160812 worst 2.4668  bayTorn 178  removed 28772 torn 14479 cut 10687 followed 0
+  inh    leak 8982/1922895 (0.00467, >1cm 738, >5cm 0, piece 0, worst 0.0477 m) by {"pilotWindow":482,"joint":6264,"pasengerWindow":473,"windshield":137,"cloth":1017,"shoulder":609}
+         overStretched 0 rigid bad 0/2348994 worst 0  bayTorn 5  removed 15179 torn 3622 cut 0 followed 7700  inh {"places":50003,"tube":4553,"tubeFar":419,"cover":25257,"wall":13301,"wallFar":17,"rigid":6456,"parts":32,"bigParts":8,"keep":8064,"over8":552,"done":true,"ms":176}
+taxi (3072 ms) broken 0 pieces 1 first -1
+noseover (29135 ms) broken 50 pieces 1 first 62
+  base   leak 20835/3168275 (0.00658, >1cm 910, >5cm 0, piece 0, worst 0.0348 m) by {"cloth":20731,"joint":104}
+         overStretched 0 rigid bad 701290/3098815 worst 2.4639  bayTorn 12  removed 8151 torn 7405 cut 0 followed 0
+  g1858  leak 253/2835743 (0.00009, >1cm 0, >5cm 0, piece 0, worst 0.0039 m) by {"cloth":149,"joint":104}
+         overStretched 0 rigid bad 701290/3098815 worst 2.4639  bayTorn 12  removed 13340 torn 5354 cut 7468 followed 0
+  inh    leak 3291/3302259 (0.001, >1cm 0, >5cm 0, piece 0, worst 0.0041 m) by {"cloth":3291}
+         overStretched 0 rigid bad 0/3207074 worst 0  bayTorn 5  removed 3372 torn 1364 cut 0 followed 976  inh {"places":50003,"tube":4553,"tubeFar":419,"cover":25257,"wall":13301,"wallFar":17,"rigid":6456,"parts":32,"bigParts":8,"keep":8064,"over8":552,"done":true,"ms":237}
+nosein (20947 ms) broken 165 pieces 15 first 2
+  base   leak 318649/1462977 (0.21781, >1cm 136624, >5cm 3753, piece 0, worst 0.1737 m) by {"joint":181027,"cloth":124730,"fireProof":4948,"fireSeal":1446,"pasengerWindow":989,"pilotWindow":1159,"paneEdge":3693,"windshield":615,"shoulder":42}
+         overStretched 0 rigid bad 839921/2272094 worst 2.4845  bayTorn 0  removed 20417 torn 13896 cut 0 followed 0
+  g1858  leak 188931/799555 (0.2363, >1cm 81476, >5cm 1697, piece 0, worst 0.1737 m) by {"joint":181027,"cloth":2,"fireSeal":1446,"pasengerWindow":989,"pilotWindow":1159,"paneEdge":3693,"windshield":615}
+         overStretched 0 rigid bad 839921/2272094 worst 2.4845  bayTorn 0  removed 27180 torn 11413 cut 10874 followed 0
+  inh    leak 2243/1541767 (0.00145, >1cm 147, >5cm 1, piece 0, worst 0.0502 m) by {"windshield":150,"pasengerWindow":280,"pilotWindow":172,"joint":1207,"fireProof":108,"cloth":236,"fireSeal":70,"paneEdge":20}
+         overStretched 0 rigid bad 0/2563514 worst 0  bayTorn 0  removed 18159 torn 5388 cut 0 followed 7935  inh {"places":50003,"tube":4553,"tubeFar":419,"cover":25257,"wall":13301,"wallFar":17,"rigid":6456,"parts":32,"bigParts":8,"keep":8064,"over8":552,"done":true,"ms":209}

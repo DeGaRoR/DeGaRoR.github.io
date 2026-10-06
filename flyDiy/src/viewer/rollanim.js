@@ -25,10 +25,24 @@
 // (model.moving / model.surfaces: a flapless build skips the flaps). (2) THE ROLL, as before, with the surfaces
 // held NEUTRAL and still: the four drives written 0 every frame (the linkage already snapped to 0, so nothing is
 // re-posed or re-uploaded while it rolls - GATE FRAMECOST). A skip in either phase goes to the end pose at once.
+// G1715 (SND-ROLLOUT, the user 2026-10-05: "this one needs sound too, using the same methods as the real aircraft would"):
+// THREE PHASES - (0) THE START before the check (S.start*, startPlan / engStep): every engine stopped at the first frame
+// (setEngine key 'off'), the master and the key, a brief silence, then each engine in turn - the starter cranking the
+// solver's own 1.5 s (setEngine start; burn's countdown) to the catch, a hand swing without a starter, an electric motor
+// powered - and the check starts as the catch's flare settles. The SAME FIELDS a start in flight moves: sim.eng[i].key /
+// crank / running, sim.out.rpm / rpmEng / thrustPer off the solver's laws (0 while it cranks), sim.ctl.thr - so audio_params and
+// the voices hear a start, its catch and its idle exactly as in flight. The drawn prop turns at the rpm the engine's VOICE
+// makes (the crank at crankRpm through each compression, the catch's surge, the settle), not at the solver's 0. Then the
+// check at idle, and the roll with a little throttle to break away, back to idle as it rolls. Every field put back at the
+// end (o.handover: the stand's idle left in sim.out - see engBack). o.audioPose: space.js's shotPose, written each frame.
 //
-//   ROLLANIM.play(opts) -> handle { cancel(), skip(), tick(dt), done, skipped, plan, phase, tCheck }
-//                     (phase 'check' | 'roll' | 'done'; plan.check = { T, segs: [{ drive, t0, t1, amp }] },
-//                     plan.Ttotal = plan.check.T + plan.T.T)
+//   ROLLANIM.play(opts) -> handle { cancel(), skip(), tick(dt), done, skipped, plan, phase, tCheck, tStart, thr }
+//                     (phase 'start' | 'check' | 'roll' | 'done'; plan.check = { T, segs: [{ drive, t0, t1, amp }] },
+//                     plan.start = { T, n, engines: [{ k, kind, method, tGo, tCatch, ... }] },
+//                     plan.Ttotal = plan.start.T + plan.check.T + plan.T.T)
+//     opts.start      false: no start (the engines left alone, as before G1715)
+//     opts.handover   true: the world follows with its engines running (app.js's roll-out) - see engBack
+//     opts.audioPose  a Float64Array(5) the space reads (AUDIO.space.shotPose): [on, dx, dy, dz, inside the shed]
 //     opts.craft      the aeroplane's root Object3D (app.js `craft`); moved, then PUT BACK (identity)
 //                     before onDone - the caller re-homes it in the world as it does today
 //     opts.scene      the garage scene (hangarScene); only read
@@ -94,7 +108,26 @@ const ROLLANIM = (() => {
     bLeave: 1.0, bLmin: 4,         // the front shot: the roll this far on once the aeroplane has left the picture, and at least
     bLat: 0.55,                    // the eye's bay: this fraction of the room's half-width either side of its centre line
     bKitMax: 12,                   // a piece of the room longer than this (m) on a side is its shell (floor, walls, roof), not kit
+    // G1715 (SND-ROLLOUT) THE START before the check, the way the aeroplane starts in flight (30_solver.js setEngine + burn):
+    // the shot opens with every engine stopped (key off), the master and the key at startKeyAt, a brief silence, then each
+    // engine in turn: the starter cranks the solver's own crankS (setEngine's 1.5 s, counted down by burn's two lines) and
+    // it catches; the next engine cranks catchNext s after a catch, the check starts catchCheck s after the last one (the
+    // catch's flare peaks ~0.75 s in and is gone by 1.25 s: its tail under the check's still lead). A build without a starter
+    // is SWUNG (setEngine swing: it catches at once, the cockpit's hand on the prop); an electric motor is POWERED (the
+    // cockpit's pack key: swing) and spins up in spinS. No engine: no start
+    start: true, startKeyAt: 0.2, startLead: 0.6, crankS: 1.5, catchNext: 1.0, catchCheck: 0.8, spinS: 0.6,
+    // THE ROLL'S THROTTLE: a little to break away (rollThr: ~+350 rpm on the A-65), up over thrUp s from the roll's start,
+    // held to thrHold of the roll, back to idle by thrDown of it (the solver's ctl.thr; the shaft law answers)
+    rollThr: 0.14, thrUp: 0.3, thrHold: 0.35, thrDown: 0.85,
+    // ...in thrStep steps, the linkage snapped on each: a control that moves re-poses and re-uploads the aeroplane every frame
+    // (poseModel: any link key past 1e-4 - ctl.thr rides the linkage, the lever and the crew's hand), so the lever moves
+    // ~14 times in the roll, not ~170 (a 2 % step of the lever is not seen; the voice smooths it: tau 30 ms on the load)
+    thrStep: 0.02,
+    doorBlend: 4,                  // m: the engines' "inside the shed" share (audioPose[4]) goes 1 -> 0 across the door plane
   };
+  // G1715: the engine state's stride (per engine, a typed row: see engStep) and the patches the shot hands setEngine
+  const ESW = 10;
+  const P_OFF = { key: 'off' }, P_KEY = { key: 'both' }, P_START = { key: 'both', start: true }, P_SWING = { key: 'both', swing: true };
   // the check's order (the user's list) and the ctl keys it drives
   const CHECK_ORDER = ['da', 'de', 'dr', 'flap'];
   const TWO_PI = Math.PI * 2;
@@ -130,6 +163,19 @@ const ROLLANIM = (() => {
       if (nodes[i] && nodes[i].r > 0 && !seen.has(i))
         rig.wheels.push({ obj: null, R: nodes[i].r, x: P[i * 3], y: P[i * 3 + 1], z: P[i * 3 + 2] });
     const out = sim && sim.out;
+    // G1715: the drawn props by engine, for the start's own rpm (engVis: each prop's spinRate - what poseModel spins it by -
+    // set to the rpm the engine's VOICE turns at, from a typed row: no double handed to a call)
+    if (model && model.props && model.props.length) {
+      const uds = [], ei = [];
+      // (a prop that never spun gets its rate as a DOUBLE field now: the start's first write is 0 - a Smi field, later
+      // generalised - and the frame's stores then boxed two doubles a frame now and then: GATE ROLLANIM's fixed roll, 65.5 B)
+      for (const p of model.props) { const ud = p.userData || (p.userData = {}); if (typeof ud.spinRate !== 'number') ud.spinRate = 1e-9; uds.push(ud); ei.push(ud.engIdx || 0); }
+      const E = Int32Array.from(ei), K = 2 * Math.PI / 60;
+      // (written only when it moved: a double stored into an object's field can box - GATE ROLLANIM's fixed roll read +32 B a
+      // frame now and then with a store every frame; 1e-6 rad/s is nothing on screen)
+      rig.engVis = (ES, n) => { for (let i = 0; i < uds.length; i++) { const e = E[i]; if (e >= n) continue; const ud = uds[i], v = ES[e * ESW + 8] * K, d = v - ud.spinRate;
+        if (d > 1e-6 || d < -1e-6) ud.spinRate = v; } };
+    }
     if (out && model && model.props && model.props.length) {
       const eng = [];                                  // (an array: a Set's iterator is an allocation a frame)
       for (const p of model.props) { const e = (p.userData && p.userData.engIdx) || 0; if (eng.indexOf(e) < 0) eng.push(e); }
@@ -208,6 +254,47 @@ const ROLLANIM = (() => {
       t += d;
     }
     return { T: segs.length ? t + S.checkSettle : 0, segs, drives: segs.map(g => g.drive), ctl };
+  }
+  // ---- G1715 THE START'S PLAN ---------------------------------------------------------------------------------
+  // What the solver flies (def.params.engine || POWERPLANTS[powerplant].engine and .prop, 30_solver.js's own lookup) and how
+  // each engine starts: 'starter' (the key's start: setEngine start, the solver's crank), 'swing' (no starter fitted -
+  // genSystemsResolve(spec).starter false - the hand on the prop) or 'power' (an electric motor: the pack key, swing).
+  // The SHAFT LAW at rest (00_registry.js genShaftRpm at V = 0, sea level): n^2 is linear in the throttle (n = nS sqrt(t),
+  // t = idle + (1 - idle) thr), so two calls at play - idle and full - give it exactly for every frame (n^2 = nIdle^2 +
+  // (nFull^2 - nIdle^2) thr) with no call a frame; a constant-speed row (a turboprop) answers nR at both. The VOICE'S
+  // numbers (crankRpm, idleRpm, firingPerRev) are engine_config.js's (ENGINE_SOUND, in the bundle with or without
+  // ?audio=0): the drawn prop turns at the rpm the voice makes (engStep), not at the solver's 0 while it cranks.
+  function startPlan(o) {
+    const none = { T: 0, n: 0, engines: [], why: '' };
+    const sim = o.sim, def = o.def;
+    if (o.start === false || !S.start) return Object.assign(none, { why: 'off' });
+    if (!sim || !def || !def.params || !Array.isArray(sim.eng) || !sim.eng.length || !sim.out) return Object.assign(none, { why: 'no sim engines' });
+    if (typeof genShaftRpm !== 'function') return Object.assign(none, { why: 'no shaft law' });
+    const P_ = def.params, reg = typeof POWERPLANTS !== 'undefined' ? POWERPLANTS : {}, PP = reg[P_.powerplant] || {};
+    const EN = P_.engine || PP.engine, PR = P_.prop || PP.prop;
+    if (!EN || !(EN.rpm > 0) || !PR || P_.nEngines === 0) return Object.assign(none, { why: 'no engine' });
+    const n = Math.min(4, sim.eng.length, P_.nEngines || sim.eng.length);
+    const fam = EN.family || 'four', kind = fam === 'electric' ? 2 : fam === 'turbine' ? 1 : 0;
+    let starter = true;
+    try { if (typeof genSystemsResolve === 'function' && def.spec) { const f = genSystemsResolve(def.spec); if (f && f.starter === false) starter = false; } } catch (e) {}
+    const method = kind === 2 ? 'power' : (starter || kind === 1) ? 'starter' : 'swing';
+    const gear = EN.gear > 0 ? EN.gear : 1;
+    const nIdle = genShaftRpm(EN, PR, 0, 0, 1, 1, true), nFull = genShaftRpm(EN, PR, 1, 0, 1, 1, true);
+    const ESN = (typeof window !== 'undefined' && window.ENGINE_SOUND) || (typeof ENGINE_SOUND !== 'undefined' ? ENGINE_SOUND : null);
+    const engines = [];
+    let t = S.startLead;
+    for (let k = 0; k < n; k++) {
+      let cfg = null;
+      try { cfg = ESN && def.spec ? ESN.engineSoundConfig(def.spec, k, reg) : null; } catch (e) { cfg = null; }
+      const pist = !!(cfg && cfg.piston);
+      const crank = method === 'starter' ? S.crankS : 0;
+      const last = k === n - 1;
+      engines.push({ k, kind: ['piston', 'turbine', 'electric'][kind], method, tGo: t, tCatch: t + crank,
+        crankRpm: pist && cfg.crankRpm > 0 ? cfg.crankRpm : 250, idleEng: pist && cfg.idleRpm > 0 ? cfg.idleRpm : nIdle * gear,
+        cpr: pist && cfg.firingPerRev > 0 ? cfg.firingPerRev : 2, gear, nIdle, nFull });
+      t += crank + (kind === 2 ? S.spinS : last ? S.catchCheck : S.catchNext);
+    }
+    return { T: t, n, engines, EN, PR, kind, method, gear, nIdle, nFull, starter, why: '' };
   }
   // ---- THE PLAN (once, at play) -----------------------------------------------------------------------
   // The roll's length L is the SHORTEST that leaves the whole aeroplane S.clear past the door plane AND puts
@@ -298,7 +385,12 @@ const ROLLANIM = (() => {
     const xMain = nMain ? xMainSum / nMain : xMid;
     for (const w of wheels) if (Math.abs(w.z - cg[2]) <= 0.2) { xThird = w.x; break; }
     const floorY = room ? room.floorY : box.min.y;
-    const check = checkPlan(o);
+    const check = checkPlan(o), start = startPlan(o);
+    // G1715: where the engines stand along the roll (the mean of the solver's engine nodes, else the nose): the
+    // audioPose's "inside the shed" share is theirs
+    let xEng = ax < 0 ? box.min.x : box.max.x;
+    { const R = o.def && o.def.refs, Pp = o.sim && o.sim.p;
+      if (R && Array.isArray(R.engine) && R.engine.length && Pp) { let sx = 0, nx = 0; for (const j of R.engine) if (j >= 0) { sx += Pp[j * 3]; nx++; } if (nx) xEng = sx / nx; } }
     // G1115 THE FIXED SHOT (o.follow false): THE EYE STAYS IN THE SHED. A three-quarter view from behind and beside the tail,
     // taken at once (the snap) and held: the aeroplane checks its surfaces, then rolls away from it out through the door and
     // S.bOut m on - not followed, so the room is the picture and the door a bright opening at its end
@@ -425,7 +517,7 @@ const ROLLANIM = (() => {
     }
     const Lb = fixed ? (fixed.L > 0 ? fixed.L : Math.max(1, (trail - xDoor) * -ax + S.bOut)) : c.L, Tb = fixed ? goTiming(Lb) : c.T;
     return {
-      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, Ttotal: check.T + Tb.T, fixed,
+      skip: null, rig, wheels, room, box, cg, D, mode, ax, xDoor, Lmin, check, start, xEng, Ttotal: start.T + check.T + Tb.T, fixed,
       L: Lb, T: Tb, side: c.side, lag: c.lag, lagE: c.lagE, bad: c.bad, cands: cands.length,
       az0, el0, d0, fresh, az1: c.az1, el1: c.el1, d1: c.d1, wtw: c.wtw, waz: c.waz, wel: c.wel, wd: c.wd, look0, fov0, fov1,
       pivot: [xMain, floorY], xThird,
@@ -637,7 +729,7 @@ const ROLLANIM = (() => {
     const props = (P.rig.props || []).filter(p => p && p.obj);
     const pAx = props.map(p => p.axis ? new THREE.Vector3(p.axis[0], p.axis[1], p.axis[2]).normalize() : null);
     const pAng = new Float64Array(props.length);
-    const propRpm = P.rig.propRpm;
+    const propRpm = P.start.n ? null : P.rig.propRpm;   // (G1715: with engines to start, the shot writes sim.out itself - engStep)
     const lookV = new THREE.Vector3(), eyeV = new THREE.Vector3();
     // G1064 THE CONTROL CHECK: its segments flat (typed arrays - the frame hands no double to a call), the controls
     // it drives and the linkage it snaps (the host's model.link: the drawn surfaces follow the profile exactly)
@@ -646,16 +738,165 @@ const ROLLANIM = (() => {
     CK.segs.forEach((g, i) => { sT0[i] = g.t0; sT1[i] = g.t1; sA[i] = g.amp; sK[i] = g.code; });
     const link = ctl && o.model && o.model.link && typeof o.model.link.snap === 'function' ? o.model.link : null;
     const neutral = () => { if (!ctl) return; ctl.da = 0; ctl.de = 0; ctl.dr = 0; ctl.flap = 0; if (link) link.snap(ctl); };
+    // G1715 THE ENGINES (the START's plan, P.start): the fields a real start moves, saved here and put back at the end
+    // (putBack), then every engine STOPPED for the shot's first frame - the solver's own writer, setEngine key 'off'
+    const SP = P.start, NE = SP.n, sim = o.sim, simCtl = sim && sim.ctl;
+    const Eng = NE ? sim.eng : null, out = NE ? sim.out : null;
+    const engSaved = NE ? Eng.map(e => [e.running, e.key, e.crank]) : null;
+    const hadRpm = NE && Array.isArray(out.rpm), hadRpmE = NE && Array.isArray(out.rpmEng), hadTp = NE && Array.isArray(out.thrustPer);
+    const rpmSaved = hadRpm ? out.rpm.slice() : null, rpmESaved = hadRpmE ? out.rpmEng.slice() : null, tpSaved = hadTp ? out.thrustPer.slice() : null;
+    // the thrust a running engine pulls at rest (the solver's Ti = thr x lever x Tcap, Tcap = Tstatic at V = 0, sea level):
+    // the prop voice's loading (src_prop.js: P.thrustPer)
+    const Tcap = SP.PR && SP.PR.Tstatic > 0 ? SP.PR.Tstatic : 0;
+    const thrSaved = simCtl ? simCtl.thr : 0;
+    // the per-engine constants, flat; ES the state (stride ESW): [0] the voice's engine rpm, [1] the starter's envelope,
+    // [2] the catch's clock, [3] catching, [4] running last frame, [5] / [6] the solver's prop / engine rpm, [7] the crank's
+    // revolutions, [8] the DRAWN prop's rpm (the voice's / gear, through each compression while it cranks), [9] spare
+    const eKind = new Int8Array(NE), eMeth = new Int8Array(NE), eGo = new Float64Array(NE), eI2 = new Float64Array(NE),
+      eD2 = new Float64Array(NE), eGear = new Float64Array(NE), eCrank = new Float64Array(NE), eIdle = new Float64Array(NE),
+      eCpr = new Float64Array(NE), eDone = new Int8Array(NE);
+    for (let k = 0; k < NE; k++) {
+      const g = SP.engines[k];
+      eKind[k] = g.kind === 'turbine' ? 1 : g.kind === 'electric' ? 2 : 0; eMeth[k] = g.method === 'swing' ? 1 : g.method === 'power' ? 2 : 0;
+      eGo[k] = g.tGo; eI2[k] = g.nIdle * g.nIdle; eD2[k] = g.nFull * g.nFull - g.nIdle * g.nIdle; eGear[k] = g.gear;
+      eCrank[k] = g.crankRpm; eIdle[k] = g.idleEng; eCpr[k] = g.cpr;
+    }
+    const ES = new Float64Array(Math.max(1, NE) * ESW);
+    const engVis = P.rig.engVis || null;
+    let keyed = 0;
+    // setEngine with the master ON: the starter turns if the build has one (the cockpit asks its bus; the shot's battery is
+    // fresh) - sim.starterOk lent for the call and given back
+    const okStart = () => SP.starter !== false;
+    function engSet(k, patch) {
+      const e = Eng[k];
+      if (typeof sim.setEngine === 'function') {
+        const own = Object.prototype.hasOwnProperty.call(sim, 'starterOk'), was = sim.starterOk;
+        sim.starterOk = okStart;
+        try { sim.setEngine(k, patch); } finally { if (own) sim.starterOk = was; else delete sim.starterOk; }
+        return;
+      }
+      // (a sim without the writer: its rules, written out)
+      if (patch.key !== undefined) { e.key = patch.key; if (e.key === 'off') { e.running = false; e.crank = 0; } }
+      if (patch.swing) e.running = true;
+      if (patch.start && !e.running) e.crank = S.crankS;
+    }
+    if (NE) {
+      if (!hadRpm) out.rpm = [];
+      if (!hadRpmE) out.rpmEng = [];
+      if (!hadTp) out.thrustPer = [];
+      for (let k = 0; k < NE; k++) { engSet(k, P_OFF); out.rpm[k] = 0; out.rpmEng[k] = 0; out.thrustPer[k] = 0; }
+      if (ctl) neutral();                                // (the surfaces still through the start: snapped once, held at 0)
+    }
+    // THE ENGINES, a frame: the start's events at its clock tS (< 0: the start is over), the solver's crank countdown (burn's
+    // two lines: crank -= dt, at 0 it runs), the solver's shaft law at the throttle thr x the engine's lever, written to
+    // sim.out as the solver writes it; then the VOICE'S rpm (engine_worklet.js's law: the starter's envelope, the crank at
+    // crankRpm, the catch's surge 0.45 idle over 0.25-1.25 s, the taus, the run-down's friction; the turbine's Np and the
+    // motor's rpm their prop_worklet laws) for the drawn prop. thr and tS come in through st[11] / st[10]: no double handed
+    // to a call (d: st[12])
+    function engStep() {
+      const tS = st[10], thr = st[11], d = st[12];
+      {
+        if (!keyed && tS >= S.startKeyAt) { keyed = 1; for (let k = 0; k < NE; k++) engSet(k, P_KEY); }
+        for (let k = 0; k < NE; k++) if (!eDone[k] && tS >= eGo[k]) { eDone[k] = 1; engSet(k, eMeth[k] === 0 ? P_START : P_SWING); }
+      }
+      if (simCtl && simCtl.thr !== thr) simCtl.thr = thr;   // (only when it stepped: see engVis)
+      const L = simCtl && simCtl.eng;
+      for (let k = 0; k < NE; k++) {
+        const e = Eng[k], o9 = k * ESW;
+        if (e.crank > 0) { e.crank -= d; if (e.crank <= 0) { e.crank = 0; e.running = true; } }
+        const run = !!e.running, le = L && L[k];
+        let te = run ? thr * (le ? (le.on ? +le.thr : 0) : 1) : 0;
+        te = te < 0 ? 0 : te > 1 ? 1 : te;
+        const n = run ? Math.sqrt(eI2[k] + eD2[k] * te) : 0, gear = eGear[k];
+        ES[o9 + 5] = n; ES[o9 + 6] = n * gear;
+        const ne = n * gear, ti = te * Tcap;
+        if (out.rpm[k] !== n) out.rpm[k] = n;
+        if (out.rpmEng[k] !== ne) out.rpmEng[k] = ne;
+        if (out.thrustPer[k] !== ti) out.thrustPer[k] = ti;
+        let v = ES[o9], vis;
+        const kd = eKind[k];
+        if (kd === 0) {
+          const crk = e.crank > 0 && !run, idle = eIdle[k];
+          if (run && !(ES[o9 + 4] > 0)) { ES[o9 + 2] = 0; ES[o9 + 3] = v < 0.85 * idle ? 1 : 0; }
+          ES[o9 + 4] = run ? 1 : 0;
+          if (run) { ES[o9 + 2] += d; if (ES[o9 + 2] > 2) ES[o9 + 3] = 0; }
+          let env = ES[o9 + 1];
+          env += ((crk ? 1 : 0) - env) * (1 - Math.exp(-d / (crk ? 0.06 : 0.25)));
+          if (env < 1e-6) env = 0;
+          ES[o9 + 1] = env;
+          const rIn = n * gear, cT = ES[o9 + 2], catching = ES[o9 + 3] > 0;
+          let tgt = rIn, tau = 1.2;
+          if (run) {
+            tgt = rIn + (catching && cT > 0.25 && cT < 1.25 ? 0.45 * idle * Math.sin(Math.PI * (cT - 0.25)) : 0);
+            tau = tgt > v ? (catching ? 0.16 : 0.3) : 0.45;
+          } else if (env > 0.01) { tgt = rIn > eCrank[k] * env ? rIn : eCrank[k] * env; tau = 0.2; }
+          v += (tgt - v) * (1 - Math.exp(-d / tau));
+          if (!run && env <= 0.01 && v > tgt) { v -= 120 * d; if (v < tgt) v = tgt; }
+          if (v < 1e-3) v = 0;
+          let rev = ES[o9 + 7] + v / 60 * d; rev -= Math.floor(rev); ES[o9 + 7] = rev;
+          const cm = run ? 0 : 0.32 * env;
+          vis = v * (1 + cm * Math.sin(TWO_PI * rev * eCpr[k])) / gear;
+        } else if (kd === 1) {
+          v += (n - v) * (1 - Math.exp(-d / (run ? 2.0 : 6.0)));
+          vis = v;
+        } else {
+          v += (n * gear - v) * (1 - Math.exp(-d / (run ? 0.25 : 2.5)));
+          vis = v / gear;
+        }
+        ES[o9] = v; ES[o9 + 8] = vis;
+      }
+      if (engVis) engVis(ES, NE);
+    }
+    // THE ROLL'S THROTTLE at the roll's clock st[0] (into st[11]): up to S.rollThr over S.thrUp, held, back to 0 by S.thrDown
+    // of the roll (the smootherstep written out), in S.thrStep steps; true when it stepped
+    function rollThr() {
+      const Tr = P.T.Tr, t = st[0];
+      let a = t / S.thrUp; a = a < 0 ? 0 : a > 1 ? 1 : a;
+      const t1 = S.hold0 + S.thrHold * Tr, t2 = S.hold0 + S.thrDown * Tr;
+      let b = (t - t1) / (t2 - t1); b = b < 0 ? 0 : b > 1 ? 1 : b;
+      const v = S.rollThr * a * a * a * (a * (a * 6 - 15) + 10) * (1 - b * b * b * (b * (b * 6 - 15) + 10));
+      const q = Math.round(v / S.thrStep) * S.thrStep;
+      if (q === st[11]) return false;
+      st[11] = q; return true;
+    }
+    // the engines put back: every field the shot wrote, as it found them - except, when the HOST says the stand follows with
+    // its engines running (o.handover: app.js's roll-out; the solver's reset() runs them, 30_solver.js resetPanel) and the shot
+    // ended or was skipped, sim.out's rpm / rpmEng are left at the idle the stand's first step writes: the voice idles across
+    // the cut (no dip, no second catch)
+    function engBack(how) {
+      if (!NE) return;
+      for (let k = 0; k < NE; k++) { const e = Eng[k], s0 = engSaved[k]; e.running = s0[0]; e.key = s0[1]; e.crank = s0[2]; }
+      if (simCtl) simCtl.thr = thrSaved;
+      if (o.handover && how !== 'cancel') {
+        for (let k = 0; k < NE; k++) { const g = SP.engines[k]; out.rpm[k] = g.nIdle; out.rpmEng[k] = g.nIdle * g.gear; out.thrustPer[k] = 0; }
+        return;
+      }
+      if (hadTp) { out.thrustPer.length = 0; for (let i = 0; i < tpSaved.length; i++) out.thrustPer[i] = tpSaved[i]; } else delete out.thrustPer;
+      if (hadRpm) { out.rpm.length = 0; for (let i = 0; i < rpmSaved.length; i++) out.rpm[i] = rpmSaved[i]; } else delete out.rpm;
+      if (hadRpmE) { out.rpmEng.length = 0; for (let i = 0; i < rpmESaved.length; i++) out.rpmEng[i] = rpmESaved[i]; } else delete out.rpmEng;
+    }
+    // G1715 THE AUDIO POSE (o.audioPose: space.js's shotPose, a Float64Array): [0] on, [1..3] the aeroplane's offset from
+    // where the solver stands it (the roll), [4] the engines' share inside the shed - the space hears the shot's aeroplane where
+    // it is, through the shed's door
+    const AP = o.audioPose && o.audioPose.length >= 5 ? o.audioPose : null;
+    const xEngA = P.xEng, xDoorA = P.xDoor;
+    // (at rest - the start and the check - it holds still: written once, here; the roll writes its own, in its tick)
+    if (AP) {
+      const u = room ? 0.5 + (xEngA - xDoorA) * -ax / S.doorBlend : 1;
+      AP[0] = 1; AP[1] = 0; AP[2] = 0; AP[3] = 0; AP[4] = u < 0 ? 0 : u > 1 ? 1 : u;
+    }
     // THE SHOT'S CLOCK IN A TYPED ARRAY: a double held in a closure's variable is a fresh heap number at
     // every write (V8 boxes context slots) - 100+ bytes a frame measured, where these slots cost none.
     // (the slots: see advance)
-    const st = new Float64Array(10); st[3] = st[4] = NaN;
+    // G1715: [10] the start's clock, [11] the throttle the engines see, [12] the frame's (clamped) seconds - engStep's
+    const st = new Float64Array(13); st[3] = st[4] = NaN;
     let raf = 0, lastT = 0, fin = false;
     // sill events: the time each group reached the sill (NaN: not yet)
     const h = {
       done: false, skipped: null, plan: P, spun: wSpun, hidden,
       get t() { return st[0]; }, get rolled() { return st[1]; },
-      get tCheck() { return st[9]; }, get phase() { return h.done ? 'done' : st[9] < CK.T ? 'check' : 'roll'; },
+      get tCheck() { return st[9]; }, get tStart() { return st[10]; }, get thr() { return st[11]; }, eng: ES,   // (G1715: ES, stride ESW - for the gate)
+      get phase() { return h.done ? 'done' : st[10] < SP.T ? 'start' : st[9] < CK.T ? 'check' : 'roll'; },
       tick, cancel, skip, _cam: applyCam,
     };
     const FX = P.fixed;                                  // (G1115 the fixed shot: the eye held where the plan put it)
@@ -684,17 +925,23 @@ const ROLLANIM = (() => {
     }
     function tick(dt) {
       if (h.done || fin) return false;
+      if (st[10] < SP.T) return startTick(dt);
       if (st[9] < CK.T) return checkTick(dt);
       // THE ROLL: the surfaces neutral and still (over the shed's sweep, which the host wrote earlier in the frame)
       if (ctl) { ctl.da = 0; ctl.de = 0; ctl.dr = 0; ctl.flap = 0; }
       advance(P, st, dt);
+      if (NE) {                                         // (G1715: the throttle to break away, back to idle; the lever snapped on a step)
+        const stepped = rollThr();
+        st[12] = dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0; engStep();
+        if (stepped && link) link.snap(ctl);
+      }
       const s = st[1], ds = st[5], th = st[7];
       // the wheels: distance over radius, the sense poseModel spins them by (forward, rotation.z grows)
       for (let i = 0; i < wObj.length; i++) { const a = ds / wR[i]; wObj[i].rotation.z += a; wSpun[i] += a; }
       // the propeller: idle, spooled up over the first half second (the host's: only while it spools - a
       // call a frame boxes its double)
       if (propRpm && st[8]) propRpm(st[2]);
-      const w = st[2] * TWO_PI / 60 * (dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0);
+      const w = (NE ? ES[8] : st[2]) * TWO_PI / 60 * (dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0);
       for (let i = 0; i < props.length; i++) {
         const p = props[i], sense = p.sense || 1;
         pAng[i] += sense * w;
@@ -707,6 +954,11 @@ const ROLLANIM = (() => {
       craft.quaternion.set(quat0.x * hc + quat0.y * hs, quat0.y * hc - quat0.x * hs, quat0.z * hc + quat0.w * hs, quat0.w * hc - quat0.z * hs);
       craft.position.set(pos0.x + ax * s + px - (px * c - py * sn), pos0.y + st[6] + py - (px * sn + py * c), pos0.z);
       if (print) print.position.x = printX0 + ax * s;
+      if (AP) {                                         // (G1715 the audio pose, written out: a call here boxed 32 B a frame)
+        AP[0] = 1; AP[1] = ax * s; AP[2] = st[6]; AP[3] = 0;
+        const u = room ? 0.5 + (xEngA + ax * s - xDoorA) * -ax / S.doorBlend : 1;
+        AP[4] = u < 0 ? 0 : u > 1 ? 1 : u;
+      }
       frameCam();
       applyCam();
       if (st[0] >= P.T.T) { fin = true; Promise.resolve().then(finish); }
@@ -729,10 +981,13 @@ const ROLLANIM = (() => {
       }
       ctl.da = da; ctl.de = de; ctl.dr = dr; ctl.flap = fl;
       if (link) link.snap(ctl);
-      const ur = t / 0.6 < 1 ? t / 0.6 : 1, rpm = S.idleRpm * ur * ur * ur * (ur * (ur * 6 - 15) + 10);
-      st[8] = rpm !== st[2] ? 1 : 0; st[2] = rpm;
-      if (propRpm && st[8]) propRpm(st[2]);
-      const w = st[2] * TWO_PI / 60 * d;
+      if (NE) { st[11] = 0; st[12] = d; engStep(); }               // (G1715: at idle, the engines settling from their start)
+      else {
+        const ur = t / 0.6 < 1 ? t / 0.6 : 1, rpm = S.idleRpm * ur * ur * ur * (ur * (ur * 6 - 15) + 10);
+        st[8] = rpm !== st[2] ? 1 : 0; st[2] = rpm;
+        if (propRpm && st[8]) propRpm(st[2]);
+      }
+      const w = (NE ? ES[8] : st[2]) * TWO_PI / 60 * d;
       for (let i = 0; i < props.length; i++) {
         const p = props[i], sense = p.sense || 1;
         pAng[i] += sense * w;
@@ -742,31 +997,49 @@ const ROLLANIM = (() => {
       applyCam();
       return true;
     }
-    function putBack() {
+    // G1715 THE START, a frame: the aeroplane at rest, the camera held on its start (as the check holds it), the surfaces
+    // neutral (over the shed's sweep, when the shot drives them), the engines through their start at idle throttle
+    function startTick(dt) {
+      const d = dt > 0 ? (dt < 1 / 15 ? dt : 1 / 15) : 0;
+      st[10] = st[10] + d < SP.T ? st[10] + d : SP.T;
+      if (ctl) { ctl.da = 0; ctl.de = 0; ctl.dr = 0; ctl.flap = 0; }
+      st[11] = 0; st[12] = d; engStep();
+      const w = ES[8] * TWO_PI / 60 * d;
+      for (let i = 0; i < props.length; i++) {
+        const p = props[i], sense = p.sense || 1;
+        pAng[i] += sense * w;
+        if (pAx[i]) p.obj.quaternion.setFromAxisAngle(pAx[i], pAng[i]); else p.obj.rotation.x += sense * w;
+      }
+      applyCam();
+      return true;
+    }
+    function putBack(how) {
       if (FX && cam.fov !== P.fov0) { cam.fov = P.fov0; cam.updateProjectionMatrix(); }   // (the fixed shot's lens: the host's back)
       craft.position.copy(pos0); craft.quaternion.copy(quat0);
       craft.updateMatrixWorld(true);
       if (print) print.position.x = printX0;
       for (const k of hidden) k.visible = true;
       if (propRpm) propRpm(null);
+      engBack(how);                                       // (G1715: the engines' fields; the stand's idle on a handover)
+      if (AP) { AP[0] = 0; AP[1] = 0; AP[2] = 0; AP[3] = 0; AP[4] = 1; }
       neutral();                                          // (a skip or a cancel mid-check leaves nothing deflected)
       stopInput();
       if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
       raf = 0;
       if (active === h) active = null;
     }
-    function finish() {
+    function finish(how) {
       if (h.done) return;
-      putBack(); h.done = true;
+      putBack(how === 'skip' ? 'skip' : 'done'); h.done = true;
       try { onDone(h); } catch (e) { if (typeof console !== 'undefined') console.error('ROLLANIM onDone:', e); }
     }
     function skip() {                                    // a click or a key: the end pose, then onDone at once
       if (h.done) return;
       h.skipped = 'skipped by the player';
-      st[9] = CK.T; st[0] = P.T.T; st[1] = P.L; frameCam(); applyCam();
-      finish();
+      st[10] = SP.T; st[9] = CK.T; st[0] = P.T.T; st[1] = P.L; frameCam(); applyCam();
+      finish('skip');
     }
-    function cancel() { if (h.done) return; h.skipped = 'cancelled'; putBack(); h.done = true; }
+    function cancel() { if (h.done) return; h.skipped = 'cancelled'; putBack('cancel'); h.done = true; }
     // THE SKIP: the first click or key, taken in the capture phase so it does nothing else
     const onInput = e => { if (h.done) return; if (e.type === 'keydown' && (e.repeat || /^(Shift|Control|Alt|Meta)/.test(e.key || ''))) return;
       try { e.preventDefault(); e.stopImmediatePropagation(); } catch (x) {} skip(); };

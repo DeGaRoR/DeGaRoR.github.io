@@ -1758,7 +1758,7 @@
         const g = meshes[n].geometry, c = g.attributes.position.count;
         for (const k of at) arr[k].set(g.attributes[k].array.subarray(0, c * g.attributes[k].itemSize), vo * g.attributes[k].itemSize);
         const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
-        mir.push([g, { ix: idx, io, vo, n: g.index.count, attr: null }]);
+        mir.push([g, { ix: idx, io, vo, n: g.index.count, attr: null, nv: c }]);
         vo += c; io += g.index.count;
       }
       const geo = new THREE.BufferGeometry();
@@ -1767,6 +1767,9 @@
       // G1866 (DMG-D4b, the D4a fix): each source's INDEX MIRROR - a triangle the wreck removes from a bucket's own index
       // (skin_break's tear) reaches the merged copy through it (app.js idxMirror)
       for (const [g, M] of mir) { M.attr = geo.index; (g.userData.ixMirror || (g.userData.ixMirror = [])).push(M); }
+      // (G1859, DMG-WALL: ...and its POSITIONS' - the merged copy draws its own copy of a bucket's vertices, so a wreck's
+      // riding of the bucket reaches it through this (app.js brkPosMirror); metadata, nothing reads it intact)
+      for (const [, M] of mir) { M.pos = geo.attributes.position; M.nrm = geo.attributes.normal || null; }
       geo.computeBoundingSphere();
       const mesh = new THREE.Mesh(geo, m0.material);
       mesh.name = 'craftStill';
@@ -3145,8 +3148,11 @@
     // G1866 (DMG-D4b, the D4a fix): EACH GEOMETRY BY ITS POSITION ATTRIBUTE, taken before the fold and the still merge
     // take meshes out of the graph - what a rig writes is how skin_break's records find their geometry, folded or not
     // (a map over objects that exist anyway; no frame reads it until a break)
-    const wreckBuild = { geoOf: new Map() };
-    grp.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) wreckBuild.geoOf.set(o.geometry.attributes.position, o.geometry); });
+    // (G1858, DMG-WALL: meshes0 - each bucket's own mesh by its payload key, before the fold and the still merge rename
+    // them: what the wall's records read their section from; parentOf - each mesh's parent as built, as DMG-D4b keeps it)
+    const wreckBuild = { geoOf: new Map(), parentOf: new Map(), meshes0: Object.assign({}, meshes), rigsAll: null };
+    grp.traverse(o => { if (!o.isMesh || !o.geometry) return; wreckBuild.parentOf.set(o, o.parent);
+      if (o.geometry.attributes.position) wreckBuild.geoOf.set(o.geometry.attributes.position, o.geometry); });
     // G2004 (DMG-SCUFF): each geometry's finish (the record's class: metal, fabric, wood, glass), taken here with the map
     if (SCUFF) { wreckBuild.finOf = new Map(); grp.traverse(o => { if (o.isMesh && o.geometry && o.material && o.material.userData) wreckBuild.finOf.set(o.geometry, o.material.userData.aeroFinish || ''); }); }
     let fold = null, foldIn = null, foldEye = null;
@@ -3170,6 +3176,10 @@
     }
     // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL - see mergeStill
     const still = data.cage ? mergeStill(grp, meshes, mats, rigs, lamps) : null;
+    // (G1859, DMG-WALL: every bucket's rig, the still-merged ones too - a wreck must ride the frame's tubes, the bulkheads
+    // and the firewall, which the still merge takes out of model.rigs: they stood rigid in the body frame while the skin
+    // rode its nodes - the user's 'the frame looks unbent')
+    wreckBuild.rigsAll = rigs;
     // ...which may have folded a kept fold's members (the cabin's hidden live buckets; the A/B build's baked ones) per
     // material: the swap shows what stands now
     // (G1124: a zone's still meshes are the ones on that zone's live copies)
@@ -3957,6 +3967,7 @@
   // (G1864: ms - each phase's worst frame and total, the box's own read of the cost: records = the first break's binding,
   // event = the break events, frames = the nodes' frames, pose = the riding and the tear)
   const BRK_BIND = 4000;                                  // G1864: the places a frame the full binding takes
+  const BRK_INH = 1500;                                   // G1855: ...and the inherited one (each place weighs every member: ~12 us a place on the box, measured: 4000 was a 47 ms frame)
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
   try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
@@ -3972,7 +3983,14 @@
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
   // same payload group - their index attributes wrap the same array)
   // (G1864: the normals a riding vertex turned, back as built)
-  function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; } }
+  function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
+    if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
+  // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
+  function brkPosMirror(R, P, N) {
+    const M = R.geo && R.geo.userData && R.geo.userData.ixMirror; if (!M) return;
+    for (const m of M) { if (!m.pos || !m.nv) continue; m.pos.array.set(P.subarray(0, m.nv * 3), m.vo * 3); m.pos.needsUpdate = true;
+      if (N && m.nrm) { m.nrm.array.set(N.subarray(0, m.nv * 3), m.vo * 3); m.nrm.needsUpdate = true; } }
+  }
   function brkIdx(R) { for (const g of R.geos || [R.geo]) if (g && g.index) { g.index.needsUpdate = true; idxMirror(g); } }
   // G1866 (DMG-D4b, the D4a fix): ...AND EVERY MERGED COPY OF IT. The flown bake's fold (flown_bake.js mergeModel) and the
   // still merge (mergeStill) draw a bucket from their own copy of its index, offset - its positions they share (views),
@@ -3992,7 +4010,8 @@
     const D = dmgNow();
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
-      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+      if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+        model._pose = null; model._poseNG = null; }   // (G1858.1: a real heal only - re-posed from the rest, the rigs a pose writes)
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
     }
@@ -4003,14 +4022,14 @@
   // the record of one group: g { nv, idx }, geo its geometry, base its rest in the frame of `rest` (the nodes'); its
   // binding is made here, at the first break (skin_break.js bindNearest: the generated skin's whole, the cage's on its
   // nearest node and then where the breaks are)
-  function brkRec(owner, g, geo, base, rest, fabric, cage, noPush) {
+  function brkRec(owner, g, geo, base, rest, fabric, cage, K, noPush) {
     if (owner.brkR) { if (!noPush && BRK.recs.indexOf(owner.brkR) < 0) BRK.recs.push(owner.brkR); return owner.brkR; }
     if (!cage) Object.assign(g, SKIN_BREAK.bindNearest(base, g.nv, rest, def.nodes.length));
     // (G1867: the cage's records welded - its vertices bound, evented and posed once a place - and riding whole: see brkCage)
-    const R = SKIN_BREAK.make(g, SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage });
+    const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
-    R.geo = geo; R.geos = [geo]; owner.brkR = R; if (!noPush) BRK.recs.push(R);   // (G2004: a scuff's record joins the break list at the first break)
+    R.geo = geo; R.geos = [geo]; owner.brkR = R; if (!noPush) BRK.recs.push(R);   // (G2004: a scuff's record, on the break list at the first break)
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
   }
@@ -4034,60 +4053,59 @@
   // two ends). Its frame is the visual's: a node at B^-1 (p - origin) - o (app.js nodeVis, G267.2), o = off + oRest
   // (G1864: the cage is re-posed over a break when a node moved - poseModel's own test - or a new break event came: a
   // wreck at rest stands still)
-  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB; };
-  // the 3x3 inverse of the pose's oblique basis (columns X, Y, X x Y), as nodeVis takes it; and the basis itself
+  // ---- G2004 (DMG-SCUFF): THE BREAK PATH'S RECORDS FOR THE SCUFF, made as brkCage makes them (brkCage itself untouched:
+  // these mirror it, and a record made here is the one brkCage finds on its owner at the first break) ----
   const brkInv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
     const a = X[0], b = Y[0], c = Z[0], d = X[1], e = Y[1], f = Z[1], g = X[2], h = Y[2], k = Z[2];
     const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
     return [(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det, (f * g - d * k) / det, (a * k - c * g) / det,
             (c * d - a * f) / det, (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]; };
   const brkBasis = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]]; return [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]]; };
-  // the cage's record state (model.brk) and its rest frame - made at the first break (brkState) or the first scuff (G2004)
+  // the cage's record state (model.brk) and its rest frame - brkCage's own `!K.rest` block, the same numbers (the scuff
+  // may come first: its records are made at the roll-out); X0 / Y0 the body's rest axes in the design frame
   function brkK() {
     if (!model.brk || model.brk.def !== def) model.brk = { def, T: SKIN_BREAK.topo(def.beams, def.nodes.length), NF: {}, down: [0, -1, 0] };
     const K = model.brk, N = def.nodes, n = N.length;
-    // G1864: THE NODES IN THE WORLD. rest: the frame's own coordinates (the design's: metres, orthonormal), live: the
-    // sim's; a group's rest goes there through the REST basis (og + B0 (v + o)), its riding comes back through the live
-    // one. The visual frame is the body's OBLIQUE basis, and a broken-up wreck turns it to anything (165 degrees between
-    // xA and yU, measured): fitted there, every node's turn was a shear and the whole skin tore
-    if (!K.rest) {
+    if (!K.rest || !K.X0) {
       const R2 = def.refs, avg = ids => { const q = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) q[j] += N[i].p[j] / ids.length; return q; };
       const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
       const t1 = avg(R2.noseFrame), t2 = avg(R2.tailMid), u1 = avg(R2.upLo), u2 = avg(R2.upHi);
       const X0 = nrm([t2[0]-t1[0], t2[1]-t1[1], t2[2]-t1[2]]), Y0 = nrm([u2[0]-u1[0], u2[1]-u1[1], u2[2]-u1[2]]);
-      K.B0 = brkBasis(X0, Y0); K.Mi0 = brkInv3(X0, Y0); K.og = avg(R2.origin || R2.noseFrame);
-      K.X0 = X0; K.Y0 = Y0;   // (G2004: the scuff's body axes in the design frame)
-      K.rest = new Float64Array(n * 3); for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) K.rest[i*3+j] = N[i].p[j];
-      // which geometry each rigged position buffer belongs to (the index each record edits) - G1864: the build's own map
-      // (model.wreckBuild.geoOf): the hybrid bake's fold takes its members out of the graph, and a walk of the graph found
-      // none of them - every folded group went without its record (no riding, no tear) in the default game
-      K.geoOf = (model.wreckBuild && model.wreckBuild.geoOf) || new Map();
-      if (!K.geoOf.size) model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
+      if (!K.rest) {
+        K.B0 = brkBasis(X0, Y0); K.Mi0 = brkInv3(X0, Y0); K.og = avg(R2.origin || R2.noseFrame);
+        K.rest = new Float64Array(n * 3); for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) K.rest[i*3+j] = N[i].p[j];
+        K.geoOf = (model.wreckBuild && model.wreckBuild.geoOf) || new Map();
+        if (!K.geoOf.size) model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
+      }
+      K.X0 = X0; K.Y0 = Y0;
     }
     return K;
   }
-  // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
-  // the struts and the tail's anchored parts (unrebased) - [owner, g, posAttr, base, off, fabric]
+  // the skin's groups as brkCage lists them - [owner, g, posAttr, base, off, fabric] (the gear legs and control links it
+  // adds under the wall are rigid parts, not skin the scuff draws on)
   function brkGroups() {
     const fabW = brkFabricWing(), fabB = def.spec && def.spec.material === 'tubeFabric';
     const groups = [];
-    for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    const rigsW = (model.wreckBuild && model.wreckBuild.rigsAll && brkInhWant()) ? model.wreckBuild.rigsAll : model.rigs;
+    for (const r of rigsW) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
     for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
     for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
+    for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);
     return groups;
   }
-  // a group's record, made once: its rest in the frame's coordinates, og + B0 (base + off + o), and its normals there
-  // (B0^-T n); noPush (G2004): made for a scuff, not on the break list until a break
+  // a group's record, made once and as brkCage makes it (the wall's binding size when the wall binds, the heal's rest),
+  // kept off the break list (noPush) until a break
   function brkCageRec(own, pa, base, off, fab, o, noPush) {
-    const K = model.brk, geo = K.geoOf.get(pa);
+    const K = model.brk, SB = SKIN_BREAK, geo = K.geoOf.get(pa);
     if (!geo || !geo.index) return null;
-    if (own.brkR) { if (!noPush && BRK.recs.indexOf(own.brkR) < 0) BRK.recs.push(own.brkR); return own.brkR; }   // (a record let go at a heal or an A/B: held again)
+    if (own.brkR) return own.brkR;
     const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
     const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
     for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
       bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
-    const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, noPush);
+    const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, brkInhWant() ? SB.INH_K : SB.NEAR_K, noPush);
     R.baseD = bD; R.w = new Float64Array(nv * 3);
+    R.base0 = base; R.paRef = pa;
     const na = geo.attributes.normal;
     if (na && na.count === nv) {
       R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
@@ -4097,34 +4115,108 @@
     }
     return R;
   }
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || brkWallStale(D); };
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
     // still test, which brkCageOn no longer forces off) and no new break event: nothing to re-pose (it was every frame,
     // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
-    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recs.some(R => R.pending)) return;
-    const K = brkK(), SB = SKIN_BREAK;
-    const inv3 = brkInv3, basis = brkBasis;
-    K.down[0] = 0; K.down[1] = -1; K.down[2] = 0;
-    const groups = brkGroups();
-    const tm = performance.now(); let tRec = 0, tEv = 0, bud = BRK_BIND;
+    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recs.some(R => R.pending) && !brkWallStale(D)) return;
+    const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
+    // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
+    const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
+      const a = X[0], b = Y[0], c = Z[0], d = X[1], e = Y[1], f = Z[1], g = X[2], h = Y[2], k = Z[2];
+      const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
+      return [(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det, (f * g - d * k) / det, (a * k - c * g) / det,
+              (c * d - a * f) / det, (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]; };
+    const basis = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]]; return [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]]; };
+    // G1864: THE NODES IN THE WORLD. rest: the frame's own coordinates (the design's: metres, orthonormal), live: the
+    // sim's; a group's rest goes there through the REST basis (og + B0 (v + o)), its riding comes back through the live
+    // one. The visual frame is the body's OBLIQUE basis, and a broken-up wreck turns it to anything (165 degrees between
+    // xA and yU, measured): fitted there, every node's turn was a shear and the whole skin tore
+    if (!K.rest) {
+      const R2 = def.refs, avg = ids => { const q = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) q[j] += N[i].p[j] / ids.length; return q; };
+      const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
+      const t1 = avg(R2.noseFrame), t2 = avg(R2.tailMid), u1 = avg(R2.upLo), u2 = avg(R2.upHi);
+      const X0 = nrm([t2[0]-t1[0], t2[1]-t1[1], t2[2]-t1[2]]), Y0 = nrm([u2[0]-u1[0], u2[1]-u1[1], u2[2]-u1[2]]);
+      K.B0 = basis(X0, Y0); K.Mi0 = inv3(X0, Y0); K.og = avg(R2.origin || R2.noseFrame);
+      K.rest = new Float64Array(n * 3); for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) K.rest[i*3+j] = N[i].p[j];
+      // which geometry each rigged position buffer belongs to (the index each record edits) - G1864: the build's own map
+      // (model.wreckBuild.geoOf): the hybrid bake's fold takes its members out of the graph, and a walk of the graph found
+      // none of them - every folded group went without its record (no riding, no tear) in the default game
+      K.geoOf = (model.wreckBuild && model.wreckBuild.geoOf) || new Map();
+      if (!K.geoOf.size) model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
+    }
+    K.down[0] = 0; K.down[1] = -1; K.down[2] = 0; K.oLast = o;
+    const fabW = brkFabricWing(), fabB = def.spec && def.spec.material === 'tubeFabric';
+    // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
+    // the struts and the tail's anchored parts (unrebased)
+    const groups = [];
+    const rigsW = (model.wreckBuild && model.wreckBuild.rigsAll && brkInhWant()) ? model.wreckBuild.rigsAll : model.rigs;
+    for (const r of rigsW) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
+    for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
+    // G1859: the gear legs too, once the wreck binds by inheritance (they stretched from a root pinned to the body frame to
+    // their axle node: the user's impossible gear vee) - one rigid binding each, half its root node and half its axle's
+    const inhOn = brkInhWant();
+    if (inhOn) for (const s2 of model.stretchRigs || []) groups.push([s2, null, s2.posAttr, s2.base, null, false, 'leg']);
+    // (G1859.1: ...and the control links - the pushrods and cables, a line from a pin on the airframe to a horn on its
+    // surface, posed in the body frame: in a wreck the surface went with its piece and the link was drawn metres long
+    // across the runway. Each rides its pin's node as one rigid body)
+    if (inhOn) for (const s2 of model.linkRigs || []) if (s2.pin) groups.push([s2, null, s2.posAttr, s2.base, null, false, 'link']);
+    for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);   // (a part gone loose: DMG-D4b's debris)
+    if (K.inhOn != null && K.inhOn !== inhOn) brkInhReset(groups);   // (?wallbind flipped: every record made again)
+    K.inhOn = inhOn;
+    const tm = performance.now(); let tRec = 0, tEv = 0, bud = inhOn ? 0 : BRK_BIND;
     for (const [own, , pa, base, off, fab] of groups) {
       const geo = K.geoOf.get(pa);
       if (!geo || !geo.index) continue;
       const t0 = performance.now();
-      brkCageRec(own, pa, base, off, fab, o);
-      const R = own.brkR, t1 = performance.now(); tRec += t1 - t0;
+      if (!own.brkR) {
+        // its rest in the frame's coordinates, og + B0 (base + off + o), and its normals there (B0^-T n)
+        const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
+        const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
+        for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
+          bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
+        const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
+        R.baseD = bD; R.w = new Float64Array(nv * 3);
+        // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
+        // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
+        // so a wreck's riding stayed in it after a reset: the next flight drew the last wreck's covering - the user's
+        // 'intact' shots full of giant sheets)
+        R.base0 = base; R.paRef = pa;
+        const na = geo.attributes.normal;
+        if (na && na.count === nv) {
+          R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
+          for (let v = 0; v < nv; v++) { const x = na.array[v*3], y = na.array[v*3+1], z = na.array[v*3+2];
+            const a = Mi0[0]*x + Mi0[3]*y + Mi0[6]*z, b = Mi0[1]*x + Mi0[4]*y + Mi0[7]*z, c = Mi0[2]*x + Mi0[5]*y + Mi0[8]*z, L = Math.hypot(a, b, c) || 1;
+            nB[v*3] = a / L; nB[v*3+1] = b / L; nB[v*3+2] = c / L; }
+        }
+      } else if (BRK.recs.indexOf(own.brkR) < 0) BRK.recs.push(own.brkR);   // (a record let go at a heal or an A/B: held again)
+      tRec += performance.now() - t0;
+    }
+    // G1855-G1857 / G1859 (DMG-WALL): THE BINDING INHERITED, BRK_BIND places a frame (skin_break.js inhSteps); until it is
+    // done every place rides its nearest node (as G1864's budget); when it is, every record's event is made again on it
+    let tInh = 0;
+    if (inhOn) { const t0 = performance.now(); brkInhStep(groups); tInh = performance.now() - t0; }
+    let evd = false;
+    for (const [own] of groups) {
+      const R = own.brkR; if (!R) continue;
+      const t1 = performance.now();
       R.lastBound = 0;
-      if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) brkIdx(R);
+      if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) { brkIdx(R); evd = true; }
       bud -= R.lastBound || 0;                            // (an event binds within what is left of the frame's budget)
       tEv += performance.now() - t1;
     }
+    // (G1856: a wall place takes its covering point's event - its kept weights, piece and drape)
+    if (evd && K.inhL && K.inhSt.done) for (const E of K.inhL) if (E.on) SB.wallSync(E, K.inhL);
+    brkWallCut(groups, D);                                // G1858
     // G1864: THE BINDING SPREAD OVER FRAMES - the full binding (each place's 4 nodes, a small least squares) costs 1-2 us a
     // place, ~85k places on the user's Cub (500k vertices welded): at the first break in one go it was a 0.2-0.5 s frame on
     // the box. BRK_BIND places a frame instead (the break's own zone first); a place not bound yet rides its nearest node
     let left = bud;
-    for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
+    if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
     const t3 = performance.now();
@@ -4135,11 +4227,108 @@
       SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       if (gain === 1 && SB.tear(R, R.baseD, R.w)) brkIdx(R);
       pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true;
+      brkPosMirror(R, pa.array, R.nAttr ? R.nAttr.array : null);
     }
+    // (G1856: the wall goes with its covering - asked only when a covering triangle went since the last time)
+    if (K.inhL && K.inhSt.done) { let gone = 0; for (const E of K.inhL) if (E.cv.indexOf(SB.INH.cover) >= 0) gone += E.R.removed;
+      if (gone !== K.inhGone) { K.inhGone = gone; for (const E of K.inhL) if (E.on && SB.wallFollow(E, K.inhL)) brkIdx(E.R); } }
     BRK.vB = D.vB; BRK.posed = true;
     const t4 = performance.now(), M = BRK.ms;
     M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);
     M.recordsT += tRec; M.eventT += tEv; M.poseT += t4 - t3; M.frameMax = Math.max(M.frameMax, t4 - tm); M.n++;
+    M.inh = Math.max(M.inh || 0, tInh); M.inhT = (M.inhT || 0) + tInh;
+  }
+  // G1855-G1857 / G1859 (DMG-WALL, skin_break.js bindInherit says what and why): ?wallbind=0 (or window.FLYDIY_WALLBIND =
+  // false at any time) - the wreck bound as G1851 / G1864 bound it, each place on its own nearest nodes: the A/B
+  try { if (/[?&]wallbind=0(&|$)/.test(location.search || '')) window.FLYDIY_WALLBIND = false; } catch (e) {}
+  const brkInhWant = () => window.FLYDIY_WALLBIND !== false && !!(window.SKIN_BREAK && SKIN_BREAK.inhSteps) && typeof AEROSKIN !== 'undefined';
+  // the switch flipped under a wreck: every record let go and made again on the other binding (the A/B rig's)
+  function brkInhReset(groups) {
+    brkRestore();
+    for (const [own] of groups) own.brkR = null;
+    for (const r of model.rigs) r.brkR = null;
+    const K = model.brk; if (K) { K.inhL = null; K.inhSt = null; K.inhIt = null; K.inhGone = -1; K.wallKey = null; }
+    BRK.model = model;
+  }
+  // the job: each record's places classed (the bucket's section and aeroskin's role; a colour bucket's layer ranges from
+  // the snapshot, G1859), the legs one binding each, then inhSteps a budget a frame
+  function brkInhStep(groups) {
+    const K = model.brk, SB = SKIN_BREAK;
+    if (!K.inhIt) {
+      const lay = new Map(); for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
+      const surf = new Set(model.surfParts || []), strut = new Set(model.strutRigs || []);
+      const L = [];
+      for (const [own, , , , , , kind] of groups) {
+        const R = own.brkR; if (!R) continue;
+        const nv = R.nv, cv = new Uint8Array(nv), obj = new Int32Array(nv).fill(-1), E = { R, cv, obj };
+        if (kind === 'leg') {
+          // its root: the place nearest the airframe end (the stretch weight 0), on its nearest node; its axle: the rig's node
+          let vr = 0; for (let v = 1; v < nv; v++) if (own.w[v] < own.w[vr]) vr = v;
+          let rn = 0, bd = Infinity; const P = R.g.pos, Rs = K.rest;
+          for (let i = 0; i < Rs.length / 3; i++) { const d = (Rs[i*3] - P[vr*3]) ** 2 + (Rs[i*3+1] - P[vr*3+1]) ** 2 + (Rs[i*3+2] - P[vr*3+2]) ** 2; if (d < bd) { bd = d; rn = i; } }
+          E.fixed = rn === own.idx ? [[rn, 1]] : [[rn, 0.5], [own.idx, 0.5]]; cv.fill(SB.INH.rigid);
+        } else if (kind === 'link') {
+          // its pin (the airframe end) in the nodes' frame, on its nearest node
+          const B0 = K.B0, og = K.og, o0 = K.oLast || [0, 0, 0], a = own.pin[0] + o0[0], b = own.pin[1] + o0[1], c = own.pin[2] + o0[2];
+          const px = og[0] + B0[0]*a + B0[1]*b + B0[2]*c, py = og[1] + B0[3]*a + B0[4]*b + B0[5]*c, pz = og[2] + B0[6]*a + B0[7]*b + B0[8]*c;
+          let rn = 0, bd = Infinity; const Rs = K.rest;
+          for (let i = 0; i < Rs.length / 3; i++) { const d = (Rs[i*3] - px) ** 2 + (Rs[i*3+1] - py) ** 2 + (Rs[i*3+2] - pz) ** 2; if (d < bd) { bd = d; rn = i; } }
+          E.fixed = [[rn, 1]]; cv.fill(SB.INH.rigid);
+        } else if (surf.has(own)) cv.fill(SB.INH.cover);
+        else if (strut.has(own)) cv.fill(SB.INH.tube);
+        else if (own.name) {
+          const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
+          const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
+          for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
+          for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(sec, role, layer[v]);
+        } else cv.fill(SB.INH.cover);
+        // no stretch tear on a tube, a rigid part or sheet metal (G1859: not cut to confetti) - the fabric's tear stays
+        const has = c => cv.indexOf(c) >= 0, fabric = R.fabric;
+        R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
+        R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
+        R.inhRec = true; L.push(E);
+      }
+      K.inhL = L; K.inhSt = {}; K.inhGone = -1;
+      K.inhIt = SB.inhSteps(L, K.T, K.rest, K.inhSt, BRK_INH);
+    }
+    if (K.inhSt.done) return;
+    const r = K.inhIt.next();
+    if (r.done) { for (const E of K.inhL) { E.R.vB = -1; } }       // (every record's event made again on the binding)
+  }
+
+  // G1858 (DMG-WALL): THE INSIDE WALL CUT AT THE DAMAGE (skin_break.js cutWall: the user's fallback - the lining poked
+  // through the covering where the frame bent or broke, grey and black on the yellow Cub). The cage's inside-wall
+  // buckets (aeroskin's liner / fire / sill / doorPad roles, by the bucket's section) lose their triangles bound to a
+  // node at the damage, at each break event and each new set (the state's vB and sS), never per frame.
+  // ?skinwall=0 (or window.FLYDIY_SKINWALL = false at any time): the lining as G1851 drew it - the A/B
+  // (tools/dmg_wall_census.js). Measured: it takes the lining's leaks but not the window beads' (most of the black), so
+  // it is the FALLBACK - it runs only on the old binding (?wallbind=0); the inherited one (G1855-G1857) keeps the
+  // lining whole on its covering
+  const WALL_ROLES = new Set(['liner', 'fire', 'sill', 'doorPad']);
+  try { if (/[?&]skinwall=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINWALL = false; } catch (e) {}
+  window.FLYDIY_SKINWALL_STATS = () => { const L = BRK.recs.filter(R => R.wallIn), K = model && model.brk;
+    return { on: brkWallWant(), inh: brkInhWant(), recs: L.length, tris: L.reduce((a, R) => a + R.nt, 0), cut: L.reduce((a, R) => a + (R.cut || 0), 0),
+             followed: BRK.recs.reduce((a, R) => a + (R.followed || 0), 0), bind: K && K.inhSt ? Object.assign({}, K.inhSt) : null }; };
+  const brkWallWant = () => window.FLYDIY_SKINWALL !== false && typeof AEROSKIN !== 'undefined' && !brkInhWant();
+  // (the wreck at rest is not re-posed: a new set or the switch flipped must still reach it)
+  const brkWallStale = D => !!(model && model.brk && (model.brk.wallKey !== (brkWallWant() ? D.vB + '|' + D.sS : 'off') ||
+    (model.brk.inhOn != null && model.brk.inhOn !== brkInhWant()) || (model.brk.inhSt && !model.brk.inhSt.done)));
+  function brkWallCut(groups, D) {
+    const K = model.brk, on = brkWallWant(), key = on ? D.vB + '|' + D.sS : 'off';
+    if (K.wallKey === key) return;
+    const was = K.wallKey; K.wallKey = key;
+    const recs = [];
+    for (const [own] of groups) { const R = own.brkR; if (!R) continue;
+      if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])); }
+      if (R.wallIn) recs.push(R); }
+    if (!on) {                                            // switched off: the cut triangles back as they were
+      if (was && was !== 'off') for (const R of recs) { if (!R.dead || !R.idx0) continue; let n = 0;
+        for (let t = 0; t < R.nt; t++) if (R.dead[t] === 3) { R.dead[t] = 0; for (let k = 0; k < 3; k++) R.idx[t * 3 + k] = R.idx0[t * 3 + k]; n++; }
+        R.removed -= n; R.cut = 0; if (n) brkIdx(R); }
+      return;
+    }
+    const hot = SKIN_BREAK.hotNodes(K.T, D);
+    for (const R of recs) if (SKIN_BREAK.cutWall(R, hot)) brkIdx(R);
   }
 
   // ---- G2000-G2009 (DMG-SCUFF): THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT (skin_scuff.js) ------------------------------
@@ -4223,7 +4412,9 @@
       // (the binding's budget from its own measured cost a place - skin_break's bindNearest, ~10 us a place assumed
       // until measured - so one record's call never runs past the frame's time)
       const tB = performance.now();
-      if (!D.br.length && at.F && !at.F.zero) {
+      // (DMG-WALL: once a break bound the records by inheritance - K.inhL - that IS the binding, kept through a heal;
+      // nearest-node binding here would overwrite it)
+      if (!D.br.length && at.F && !at.F.zero && !(K.inhL && K.inhL.length)) {
         for (const R of at.recs) {
           const left = S.SC.frameMs - (performance.now() - t0);
           if (left <= 0) { cut = true; break; }
@@ -4237,6 +4428,10 @@
       }
       PM.bind = Math.max(PM.bind, performance.now() - tB);
       at.lastBound = b || (cut ? 1 : 0);
+      // a record's binding moved (skin_break bumps R.dv: an event's kept weights, the wall's inheritance done) - a pass
+      // again on it, once there is damage to draw
+      let dv = 0; for (const R of at.recs) dv += R.dv || 0;
+      if (dv !== at.dv) { at.dv = dv; if (at.F && !at.F.zero) at.req = true; }
       for (const R of at.recs) if (R.pending) pend += R.pending.length;
       if (at.pend && !pend) at.req = true;
       at.pend = pend;
@@ -4259,7 +4454,8 @@
         at.W.awake = at.any; S.wakeSet(at.W);
       }
     }
-    at.work = !at.made || at.req || S.busy(at.st) || at.pend > 0 || at.lastBound > 0;   // (bound places this frame: maybe more next)
+    at.work = !at.made || at.req || S.busy(at.st) || at.pend > 0 || at.lastBound > 0
+      || !!(K.inhIt && !(K.inhSt && K.inhSt.done));   // (the wall's inheritance still binding: its R.dv to come)   // (bound places this frame: maybe more next)
     at.frameMax = Math.max(at.frameMax, performance.now() - t0);
   }
   // G2004.1: THE DAMAGE'S PROGRAMS AT THE ROLL-OUT (compileCraftLinks, after the craft's own). The wrapped materials draw asleep (the plain program)
@@ -4410,12 +4606,23 @@
     applySkinVis();
   }
 
-  // ---- W10 route: spawn at any aerodrome (default the home base), fly
-  // a circuit there or cross-country to any other strip ----
-  let fromId = 'HOME', destId = 'CIRCUIT';
-  // G710: THE ROUTE IS REMEMBERED (flydiy.route: { from, dest }); checked against the world's strips
-  // where the selects are filled (an id the world no longer has falls back to HOME / the circuit)
-  try { const r = JSON.parse(prefGet('flydiy.route', 'null')); if (r && typeof r.from === 'string') fromId = r.from; if (r && typeof r.dest === 'string') destId = r.dest; } catch (e) {}
+  // ---- W10 route: a circuit at the start or cross-country to any other strip ----
+  // G1945 DEST-TO: THE FLIGHT HAS ONE CHOICE, ITS TO (38b_dest.js). `destId` is the To (an aerodrome id, or
+  // 'CIRCUIT': the field the aeroplane is at); a change is the autopilot's destination moving (setTo below),
+  // on the ground or in the air, never a reset. `fromId` is NOT a choice any more: it is the From of the leg
+  // flying - the base's aerodrome at a roll-out, where the aeroplane stood when a leg was chained (nextLeg) -
+  // and every reader (the logbook, the map's line, the cockpit's field, the tower camera) reads it as before.
+  // `baseId` is where a roll-out spawns (FLIGHT_BASES: HOME, the WWII hangar, today); `spawnId` is the perf
+  // rigs' override (a v2 pref's `spawn`, FLYDIY_ROUTE.spawn) - on no picker.
+  let baseId = 'HOME', spawnId = null, destId = 'CIRCUIT', routeMigrated = false;
+  // G710: THE ROUTE IS REMEMBERED (flydiy.route, v2 { v: 2, base, to }; a v1 { from, dest } migrates once:
+  // flightRouteMigrate); checked against the world's strips where the picker is filled
+  try {
+    const r = typeof flightRouteMigrate === 'function' ? flightRouteMigrate(JSON.parse(prefGet('flydiy.route', 'null'))) : null;
+    if (r) { baseId = r.base; destId = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
+  } catch (e) {}
+  const baseAeroId = () => { const B = typeof FLIGHT_BASES === 'object' && FLIGHT_BASES[baseId]; return B ? B.aero : 'HOME'; };
+  let fromId = spawnId || baseAeroId();
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   // G1375 STRIP-SURFACE: THE GEAR DECIDES WHERE THE ROUTE MAY GO (25_airfield.js stripSurface / stripAllows: wheels
   // anywhere but water, floats on water only, amphibians both, skis snow and grass). `garage` reads the build on the
@@ -4436,7 +4643,7 @@
     if (did !== 'CIRCUIT') { const d = world.aerodromes.find(a => a.id === did); if (!d || !stripAllows(gear, d).ok) did = 'CIRCUIT'; }
     return [fid, did];
   };
-  const routeFit = gear => { [fromId, destId] = routeFitted(gear, fromId, destId); };
+  const routeFit = gear => { destId = routeFitted(gear, fromId, destId)[1]; };   // G1945: the From is derived - only the To is fitted
   let routeRefresh = () => {};   // the pickers re-labelled for the gear (the selects' block below)
   // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
   // the flight layer's flPref objects are declared far below this and this
@@ -4473,8 +4680,10 @@
     // player's choice and only this placement is fitted
     const gearNow = routeGear(false);
     let shed = false; try { shed = inGarage; } catch (e) {}
-    const [fid, did] = routeFitted(gearNow, fromId, destId);
-    if (!shed) { fromId = fid; destId = did; routeRefresh(false); }
+    // G1945 DEST-TO: every roll-out starts at the base (or the rig's spawn), never where the last flight was
+    const [fid, did] = routeFitted(gearNow, spawnId || baseAeroId(), destId);
+    fromId = fid;
+    if (!shed) { destId = did; routeRefresh(false); }
     const from = aeroById(fid);
     const to = did === 'CIRCUIT' ? from : aeroById(did);
     // G151: ON THE APRON, NOT ON THE RUNWAY. `placeAtAerodrome` puts the
@@ -5747,6 +5956,8 @@
     // the trace is OF (distance flown, time), and what HAPPENED is the arrival
     // card's whole job. The logging is unchanged and still automatic.
     if (ap.phase === 'STOPPED' && (ap.tdInfo || ap.report)) logFlight();
+    // G1945 DEST-TO: a To picked in the flare or the roll-out - the next leg begins where the aeroplane stopped
+    if (ap.phase === 'STOPPED' && !manual && flDestPend()) { $('arrCard').hidden = true; arrivalShown = false; return; }
     // THE ARRIVAL CARD (G107.2): shown ONCE per stop, gone the moment the
     // phase moves on (a new leg, a reset, a fresh roll) — so `nextLeg` and
     // `departFrom` dismiss it by flying, with no extra wiring.
@@ -5766,6 +5977,7 @@
   let flightOver = false;
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
+  let flDestPend = () => false;   // G1945 DEST-TO: a To picked in the flare / roll-out - chained at STOPPED
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
@@ -7426,7 +7638,9 @@
     return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
   }
   // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
-  function rollAnimPlay(done) {
+  // G1715 (SND-ROLLOUT): `handover` - the stand follows (the roll-out: its reset runs the engines, so the shot leaves them
+  // idling in sim.out across the cut); the solo shot goes back to the shed and puts every engine field back
+  function rollAnimPlay(done, handover) {
     raBusy = true;
     // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
     for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
@@ -7438,6 +7652,7 @@
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
         camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow', front: RA_Q === 'back' ? null : garageFraming(),
+        handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
@@ -7472,44 +7687,61 @@
   // A page without the screen machinery (the harness) syncs and rolls out inline, as before.
   // G1831 (DMG-D2a): THE CERTIFICATE (66_gen_cert.js), only while the damage layer is on. Never in the garage's edit
   // loop: asked for when the aeroplane ROLLS OUT (the roll-out shot and the stand give its thread the seconds it
-  // takes - 2.6-9.6 s in node on the validated builds, the gear drop and the floats' bow most of it), on the bench's thread
+  // takes - 8-24 s in node on the validated builds since G1891, the landings, the rough taxi and the floats' water cases
+  // most of it), on the bench's thread
   // (bench_worker.js 'cert'), kept by the build's spec hash (a second flight of the same build stamps at once). The
   // page does nothing while it computes: the flight rolls out and starts on D1a's physics limits, and the stamp lands
   // on the live sim the moment the answer does (sim.certStamp - refused once anything has bent; under the physics
   // worker sim_link forwards it). No worker (file://): the page computes it in one task after the roll-out.
+  // G1891 (DMG-CERTCOST): AND KEPT ACROSS PAGE LOADS (bench_worker.js certStoreGet / certStorePut: IndexedDB, keyed by
+  // genCertKey, checked against GEN_CERT_V, PHYSICS_V and a checksum): a build is certified once, ever - the memory
+  // cache first, then the store (how: 'store'), and only then the worker; whatever the worker or the page computes is
+  // kept. A stale or corrupt record is deleted and computed again; no IndexedDB is a miss.
   const certCache = new Map();
   let certJob = null, certLast = null;
   function certKick() {
     try {
       if (curKey !== 'gen' || !def || typeof genCertKey !== 'function' || typeof genDamageOn !== 'function' || !genDamageOn(def)) return;
       const key = genCertKey(def);
-      const land = (C, how) => {
+      const land = (C, how, ms) => {
         if (certJob && certJob.key === key) certJob = null;
         if (!C || !C.Ft || C.nb !== def.beams.length) return;
         certCache.set(key, C); while (certCache.size > 8) certCache.delete(certCache.keys().next().value);
         if (curKey !== 'gen' || !def || genCertKey(def) !== key) return;   // the build changed meanwhile: kept for its return
         def.cert = C;
         const ok = !!(sim && typeof sim.certStamp === 'function' && sim.certStamp(C));
-        certLast = { key, how, stamped: ok, ms: C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
+        certLast = { key, how, stamped: ok, ms: ms != null ? ms : C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
       };
       const hit = certCache.get(key);
       if (hit) { land(hit, 'cache'); return; }
       if (certJob && certJob.key === key) return;                         // on its way
       if (certJob && certJob.w) certJob.w.kill();
       const W = window.BENCH_WORKER, job = certJob = { key, w: null, t0: perfNow() };
+      const ver = { cert: typeof GEN_CERT_V !== 'undefined' ? GEN_CERT_V : null, phys: typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : null };
+      const keep = C => { if (W && typeof W.certPut === 'function') W.certPut(key, C, ver); };   // G1891
       const onPage = () => setTimeout(() => {
         if (certJob !== job || genCertKey(def) !== key) return;
-        land(genCertify(def, {}), 'page');
+        const C = genCertify(def, {}); keep(C); land(C, 'page');
       }, 0);
-      const w = (W && typeof W.start === 'function') ? W.start(m => {
-        if (certJob !== job || !m) return;
-        if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
-        if (m.kind !== 'cert') return;
-        if (job.w) job.w.kill(); job.w = null;
-        land(m, 'worker');
-      }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
-      if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
-      else { if (w) w.kill(); onPage(); }
+      const compute = () => {
+        if (certJob !== job) return;
+        const w = (W && typeof W.start === 'function') ? W.start(m => {
+          if (certJob !== job || !m) return;
+          if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
+          if (m.kind !== 'cert') return;
+          if (job.w) job.w.kill(); job.w = null;
+          keep(m); land(m, 'worker');
+        }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
+        if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
+        else { if (w) w.kill(); onPage(); }
+      };
+      // G1891: the store first (a miss, a stale or a corrupt record, no IndexedDB: computed)
+      if (W && typeof W.certGet === 'function') {
+        W.certGet(key, def.beams.length, ver).then(C => {
+          if (certJob !== job) return;
+          if (C && curKey === 'gen' && def && genCertKey(def) === key) land(C, 'store', perfNow() - job.t0); else compute();
+        }, compute);
+      } else compute();
     } catch (e) { console.warn('certificate:', e && e.message); }
   }
   if (typeof window !== 'undefined') window.CERT_STATE = () => ({ last: certLast, pending: !!certJob, cached: certCache.size,
@@ -7578,7 +7810,7 @@
       if (hh && hh.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
       if (hh && !hh.skipped && !over) trip.dissolveMs = +raDissolve().toFixed(1);   // (G1115: played to its end - the fade)
       fin(!hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played');
-    });
+    }, true);
   }
   window.addEventListener('keydown', e => { if (rollAnimSkip && e.key === 'Escape') { rollAnimSkip(); e.preventDefault(); } });
   function rollOutStand() {
@@ -8939,88 +9171,121 @@
     if (td) td.onclick = () => show(false);
     if (tb) tb.onclick = () => show(true);
   }
-  { // departure + destination selects: spawn anywhere, fly circuit or leg
+  { // G1945 DEST-TO: THE TO PICKER (was G710's departure + destination selects: spawn anywhere, fly circuit or leg)
     // G1375: every strip says its surface ('Annette Dock · water'), and one the gear may not use is greyed and
-    // says why ('— floats land on water only'); `gear` is the gear the labels are for (routeGear)
-    const fill = (sel, first, firstLabel, skipId, gear) => {
+    // says why ('— floats land on water only'); `gear` is the gear the labels are for (routeGear). The choices
+    // are 38b_dest.js flightToChoices: '⟳ Circuit' (the field the aeroplane is at) first, then every aerodrome.
+    const fill = (sel, gear) => {
       sel.innerHTML = '';
-      const opt = (v, label, off, why) => {
+      const L = typeof flightToChoices === 'function' ? flightToChoices(world, gear || 'wheels')
+              : [{ id: 'CIRCUIT', label: '⟳ Circuit', ok: true, why: '' }];
+      for (const c of L) {
         const o = document.createElement('option');
-        o.value = v; o.textContent = label; o.disabled = !!off; if (why) o.title = why; sel.appendChild(o);
-      };
-      if (first) opt(first, firstLabel);
-      for (const a of world.aerodromes) {
-        if (a.kind === 'meadow' || a.id === skipId) continue;
-        const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
-        const A = typeof stripAllows === 'function' ? stripAllows(gear || 'wheels', a) : { ok: true, why: '' };
-        opt(a.id, `${a.name}${a.flyIn ? ' (fly-in)' : ''}${S ? ' · ' + S.word : ''}${A.ok ? '' : ' — ' + A.why}`, !A.ok, A.why);
+        o.value = c.id; o.textContent = c.id === 'CIRCUIT' ? '⟳ Circuit' : c.label; o.disabled = !c.ok; if (c.why) o.title = c.why;
+        sel.appendChild(o);
       }
     };
     const gear0 = routeGear(false);
     routeFit(gear0);
-    fill($('selFrom'), null, null, null, gear0);
-    fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null, gear0);
+    fill($('selDest'), gear0);
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
-    if (![...$('selFrom').options].some(o => o.value === fromId)) fromId = 'HOME';
     if (![...$('selDest').options].some(o => o.value === destId)) destId = 'CIRCUIT';
-    if ([...$('selDest').options].some(o => o.value === destId)) $('selDest').value = destId;
-    // the select SAYS where the flight starts (G434): HOME need not be the registry's first row (Jolene's
-    // 02/20 is composed before 13/31 so the crossing keeps 13/31's profile) and the bar read the first option
-    if ([...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
-    $('selFrom').onchange = e => { fromId = e.target.value; fullReset(); };
-    // W14 multi-hop: picking a new destination AFTER LANDING chains the
-    // next leg seamlessly — same sim, no reset, no teleport. The fresh AP
-    // taxis back / turns around if the runway left is too short, then
-    // departs (into the wind if any). Mid-flight changes still reset.
-    $('selDest').onchange = e => {
-      destId = e.target.value;
-      if (started && ap.phase === 'STOPPED') nextLeg();
-      else fullReset();
-    };
-    // G710: THE ROUTE, CHOSEN BEFORE THE FLIGHT (the Jolene playtest: "there should be a way to select
-    // the circuit either from the garage, or straight at roll out"). It was #selFrom / #selDest alone,
-    // which live in #flStore and are borrowed by the flight plate's `route` flyout - reachable only once
-    // flying, where a change restarts the flight. Two more pickers, the same two choices: in the shed
-    // beside ROLL OUT (#edRoute: it sets the route the roll-out applies - fullReset -> applyRoute) and
-    // on the roll-out screen (#bootRoute: under the screen nothing has stepped (G690), so a change
-    // re-plans the stand and the taxi there and then). Every picker, the flight's two included, shows
-    // the one fromId / destId, and every change is remembered (flydiy.route). A departure changed under
-    // the screen takes the new stand; its town and trees then stream in flight as any spawn's do.
-    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ from: fromId, dest: destId }));
-    const routeSels = [];                // { sel, kind } - the pickers this block built
+    $('selDest').value = destId;
+    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ v: 2, base: baseId, to: destId, spawn: spawnId || undefined }));
+    if (routeMigrated) { routeMigrated = false; routeRemember(); }   // G1945: a v1 pref is written back as v2, once
+    const routeSels = [];                // { sel, kind } - the pickers this block built ('to', and 'base' when there are bases to pick)
     const routeSync = () => {
-      for (const r of routeSels) r.sel.value = r.kind === 'from' ? fromId : destId;
-      if ($('selFrom').value !== fromId && [...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
+      for (const r of routeSels) r.sel.value = r.kind === 'base' ? baseId : destId;
       if ($('selDest').value !== destId) $('selDest').value = destId;
     };
+    // WHERE THE AEROPLANE IS (38b_dest.js flightWhere); a 'Circuit' means the aerodrome under it on the ground,
+    // in the air the field it left (the leg's From) - a circuit picked in flight goes back (flightLeg)
+    const flWhere = () => {
+      if (!sim || !world) return null;
+      const cg = sim.cgPos(), onG = sim.wheelsOnGround();
+      const air = onG === 0 && cg[1] - groundH(cg[0], cg[2]) > 3;
+      return typeof flightWhere === 'function' ? flightWhere(world, cg[0], cg[2], { air }) : null;
+    };
+    const asAero = a => (a && typeof a === 'object') ? a : (typeof a === 'string' ? aeroById(a) : null);   // a record, or an id read as one
+    // A NEW TO, APPLIED - the autopilot's destination moving (43_pilot.js ap.setDest), never a reset:
+    //   stopped on an aerodrome (after a landing, or parked by hand) -> the next leg from where it stands (nextLeg);
+    //   on the stand / taxiing / rolling / climbing -> the route is the new one ('kept');
+    //   on a leg of the arrival -> re-planned from here ('replan');
+    //   flaring / rolling out -> the next departure, from where it stops ('queued': chained at STOPPED)
+    // The classic and test pilots have no setDest: before the start a reset re-plans the stand, in flight their
+    // route is kept as it was (the old "a change mid-flight resets" is gone - the To waits for the next leg).
+    let destPend = false;
+    // the leg a To asks for from here (38b_dest.js flightLeg: the From under the aeroplane, the To fitted to the gear)
+    const legHere = () => {
+      if (!sim || typeof flightLeg !== 'function') { const c = aeroById(fromId); return { from: c, to: destId === 'CIRCUIT' ? c : aeroById(destId), where: null, depart: true }; }
+      const cg = sim.cgPos(), air = sim.wheelsOnGround() === 0 && cg[1] - groundH(cg[0], cg[2]) > 3;
+      return flightLeg(world, routeGear(false), cg[0], cg[2], destId, { air, legFrom: asAero(ap && ap.route && ap.route.from) || aeroById(fromId) });
+    };
+    function destApply() {
+      if (!ap || !sim || inGarage) return 'shed';
+      if (flightOver) return 'over';              // a crash, a give-up: the card's way on (Restart / Fly on) takes the To
+      const R = legHere();
+      if (!R.to) return 'none';
+      if (started && ap.phase === 'STOPPED') {
+        if (!R.depart) return 'held';             // out in a field: Restart is the way back to the base
+        nextLeg(); return 'leg';
+      }
+      if (typeof ap.setDest !== 'function') { if (!started) { fullReset(); return 'reset'; } return 'later'; }
+      const r = ap.setDest(R.to);
+      if (SIMW && R.to.id) SIMW.dest(R.to.id);     // the worker's pilot, at the same step boundary
+      destPend = r === 'queued';
+      return r;
+    }
+    window.FLYDIY_DEST_LAST = null;
+    function setTo(id) {
+      destId = id; routeRemember(); routeSync();
+      const r = destApply();
+      window.FLYDIY_DEST_LAST = { to: id, how: r, phase: ap ? ap.phase : null };
+      if (FL.ready) flRender();
+      return r;
+    }
+    $('selDest').onchange = e => setTo(e.target.value);
+    // G710: THE ROUTE, CHOSEN BEFORE THE FLIGHT (the Jolene playtest: "there should be a way to select the circuit
+    // either from the garage, or straight at roll out"): the same To picker in the shed beside ROLL OUT (#edRoute: the
+    // roll-out applies it - fullReset -> applyRoute) and on the roll-out screen (#bootRoute: the pilot on the stand is
+    // handed it). G1945: the From picker is retired - a flight starts at the BASE; the base is a row of its own,
+    // a picker only once a world has two (FLIGHT_BASES), else the line that says where the roll-out starts.
     const routeBuild = (host, where) => {
       if (!host) return;
       host.innerHTML = '';
-      const pick = (kind, label, cap) => {
+      const bases = typeof flightBases === 'function' ? flightBases(world) : [];
+      {
         const lab = document.createElement('label');
-        const sp = document.createElement('span'); sp.textContent = cap; lab.appendChild(sp);
-        const sel = document.createElement('select');
-        sel.title = label; routeSels.push({ sel, kind });
-        if (kind === 'from') fill(sel, null, null, null, gear0); else fill(sel, 'CIRCUIT', '⟳ Circuit', null, gear0);
-        // the build on the bench may have changed its gear since: the labels are re-read before a pick
-        sel.addEventListener('pointerenter', () => routeRefresh(where === 'garage' || inGarage));
-        sel.addEventListener('focus', () => routeRefresh(where === 'garage' || inGarage));
-        sel.value = kind === 'from' ? fromId : destId;
-        sel.onchange = e => {
-          if (kind === 'from') fromId = e.target.value; else destId = e.target.value;
-          routeRemember(); routeSync();
-          if (where === 'rollout' && rollHold && !inGarage) fullReset();
-        };
-        lab.appendChild(sel); host.appendChild(lab);
-      };
-      pick('from', 'Departure', 'from');
-      pick('dest', 'Destination', 'to');
+        const sp = document.createElement('span'); sp.textContent = 'base'; lab.appendChild(sp);
+        if (bases.length > 1) {
+          const sel = document.createElement('select');
+          sel.title = 'Base'; routeSels.push({ sel, kind: 'base' });
+          for (const b of bases) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name + ' · ' + (b.a.name || b.a.id); sel.appendChild(o); }
+          sel.value = baseId;
+          sel.onchange = e => { baseId = e.target.value; routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset(); };
+          lab.appendChild(sel);
+        } else {
+          const b = bases[0], v = document.createElement('b');
+          v.className = 'routeBase'; v.textContent = b ? b.name + ' · ' + b.hangar : 'Home base';
+          v.title = 'Every roll-out starts at the base' + (b ? ' (' + (b.a.name || b.a.id) + ')' : '') + '; a flight goes on from wherever it lands';
+          lab.appendChild(v);
+        }
+        host.appendChild(lab);
+      }
+      const lab = document.createElement('label');
+      const sp = document.createElement('span'); sp.textContent = 'to'; lab.appendChild(sp);
+      const sel = document.createElement('select');
+      sel.title = 'Destination'; routeSels.push({ sel, kind: 'to' });
+      fill(sel, gear0);
+      // the build on the bench may have changed its gear since: the labels are re-read before a pick
+      sel.addEventListener('pointerenter', () => routeRefresh(where === 'garage' || inGarage));
+      sel.addEventListener('focus', () => routeRefresh(where === 'garage' || inGarage));
+      sel.value = destId;
+      sel.onchange = e => setTo(e.target.value);
+      lab.appendChild(sel); host.appendChild(lab);
     };
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
-    // the flight's own two: remembered and mirrored (their handlers - the reset, the chained leg - untouched)
-    $('selFrom').addEventListener('change', () => { routeRemember(); routeSync(); });
-    $('selDest').addEventListener('change', () => { routeRemember(); routeSync(); });
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
@@ -9030,24 +9295,37 @@
       routeFit(g);
       if (g !== refGear) {
         refGear = g;
-        fill($('selFrom'), null, null, null, g);
-        fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null, g);
-        for (const r of routeSels) { if (r.kind === 'from') fill(r.sel, null, null, null, g); else fill(r.sel, 'CIRCUIT', '⟳ Circuit', null, g); }
+        fill($('selDest'), g);
+        for (const r of routeSels) if (r.kind === 'to') fill(r.sel, g);
       }
       routeSync();
     };
-    window.FLYDIY_ROUTE = { get: () => ({ from: fromId, dest: destId }), sync: () => routeRefresh(), gear: () => refGear };
+    window.FLYDIY_ROUTE = {
+      // `from` is the leg's From (derived), kept in the shape the rigs read
+      get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId }),
+      sync: () => routeRefresh(), gear: () => refGear,
+      to: id => setTo(id), where: () => flWhere(),
+      // the perf rigs' spawn (rollout_perf --from, master_bench setFrom): the next roll-out starts there; null = the base
+      spawn: id => { spawnId = id && id !== baseAeroId() ? id : null; routeRemember(); return spawnId || baseAeroId(); },
+    };
+    // A NEW LEG FROM WHERE THE AEROPLANE STANDS (W14's chain; G700's Fly on; G1945: the From derived - the aerodrome
+    // under the aeroplane, 38b_dest.js flightWhere - not the last leg's To, so a stop by hand on another field, or a
+    // landing the pilot diverted, departs from where it really is). Same sim, a fresh pilot: it taxis out from here
+    // (its departure planner: a U-turn and backtrack on the strip, the site's taxi graph off it) and flies the To.
     function nextLeg() {
-      const cur = (ap.route && ap.route.to) || aeroById(fromId);
-      if (cur.id) { fromId = cur.id; $('selFrom').value = fromId; }
+      const R = legHere(), cur = R.from || aeroById(fromId), to = R.to || cur;
+      if (cur && cur.id) fromId = cur.id;
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey);
-      ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
-      if (SIMW) SIMW.leg(cur.id, destId);   // G820 (C1c): the worker's pilot made anew at the same step boundary
+      ap.departFrom(cur, to);
+      destPend = false;
+      if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
     }
     flNextLeg = nextLeg;
+    // a To changed in the flare or the roll-out: the leg it asks for begins where the aeroplane stops
+    flDestPend = () => { if (!destPend) return false; destPend = false; return destApply() === 'leg'; };
   }
   // ---- W13 wind, G72 conditions: presets drive world.setWeather live — no
   // reset needed, the AP flies EAS and takes changes mid-flight. FRESH is
@@ -9635,7 +9913,7 @@
   // THE SECTIONS - the old rail's items (their k / label / title kept as they were) and the four G760 added.
   // `head` is the fold's own name where the item's one word no longer says it; `sub` the line under it.
   const FL_SECS = [
-    { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the departure, the destination or the circuit' },
+    { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the destination, or the circuit - on the ground or in the air' },
     // 2026-09-04: WHERE THE FLIGHT STARTS - the stand and a taxi out (G151), or lined up on the strip
     { k: 'start', label: 'start', title: 'Where the flight starts', sub: 'from the stand, or lined up' },
     // G193: THE PATTERNS - the taxi graph, the glide slopes and the two touchdown targets
@@ -10179,15 +10457,19 @@
                    'restarts the flight.');
     },
     slot_route(body) {
-      // BORROWED, not rebuilt: #selDest's "change while stopped chains the
-      // next leg" behaviour is its own handler's, and it is kept by not
-      // touching it.
-      flBorrow(flS('From'), flRow(body, 'from'));
+      // G1945 DEST-TO: ONE CHOICE, THE TO. BORROWED, not rebuilt: #selDest's handler is the autopilot's destination
+      // moving (setTo: on the ground the next leg from where it stands, in the air a re-plan from here). The From
+      // is a line, never a choice: where the aeroplane is (38b_dest.js flightWhere), the base before a roll-out.
+      const fr = flRow(body, 'from');
+      const v = document.createElement('span');
+      v.className = 'v'; v.style.flex = '1'; v.style.textAlign = 'left'; v.style.font = "400 11px/1.2 'IBM Plex Sans'";
+      v.textContent = flFrom(); fr.appendChild(v);
       flBorrow(flS('Dest'), flRow(body, 'to'));
-      flNote(body, railPhase === 'STOPPED'
-        ? 'Picking a new destination now chains the next leg — same flight, ' +
-          'no reset.'
-        : 'Changing the origin restarts the flight.');
+      const ph = ap ? ap.phase : '';
+      flNote(body, inGarage || !started ? 'The flight starts at the base. The destination can be changed at any time - on the ground or in the air.'
+        : ph === 'STOPPED' ? 'Picking a new destination now taxis out from here and flies there - same flight, no reset.'
+        : ['FLARE', 'ROLLOUT', 'GLIDE'].includes(ph) ? 'Landing: a new destination is flown from where the aeroplane stops.'
+        : 'A new destination re-plans the flight from here, like an autopilot\'s.');
     },
     // 2026-09-20: THE DAY PANEL (day_ui.js) - the same panel the shed's `night` flyout mounts:
     // the conditions (#selCond stays the keeper, pressed through its own change), the clock's
@@ -11254,6 +11536,7 @@
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
+    if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     flShedBox = worldShedBox();
     flReveal = 0;
     // the panel arc (session 4b): rolling out INTO the cockpit seats the
@@ -11468,11 +11751,21 @@
   });
 
   // ---- THE BRIEF, THE VERBS AND THE NOTICE --------------------------------
+  // G1945 DEST-TO: THE FROM IS WHERE THE AEROPLANE IS (38b_dest.js flightWhere) - the field under it, 'airborne'
+  // in the air, the base before the roll-out - and the trip line reads it, not a picker
+  const flFrom = () => {
+    try {
+      if (inGarage || !started || !sim || typeof flightWhere !== 'function') { const a = aeroById(fromId); return a ? a.name || a.id : '—'; }
+      const cg = sim.cgPos(), air = sim.wheelsOnGround() === 0 && cg[1] - groundH(cg[0], cg[2]) > 3;
+      const W = flightWhere(world, cg[0], cg[2], { air });
+      if (W.kind === 'airborne') return 'airborne';
+      if (!W.aero || W.kind === 'out') return 'off-field';
+      return W.aero.name || W.aero.id;
+    } catch (e) { return '—'; }
+  };
   const flTrip = () => {
-    const f = flS('From'), d = flS('Dest');
-    const fo = f.options[f.selectedIndex], dov = d.options[d.selectedIndex];
-    return (fo ? fo.textContent : '—') + ' → ' +
-           (dov ? dov.textContent.replace(/^⟳\s*/, '') : '—');
+    const d = flS('Dest'), dov = d.options[d.selectedIndex];
+    return flFrom() + ' → ' + (dov ? dov.textContent.replace(/^⟳\s*/, '').replace(/ · .*$/, '') : '—');
   };
   const flSel = sel => {
     const o = sel.options[sel.selectedIndex];
@@ -12119,6 +12412,11 @@
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
+  // THE LOOP STARTS ONCE, WHATEVER STARTS IT (the laptop log, 5 Oct): 'first light' was its only start, and a garage
+  // load the watchdog lifted at 120 s, then a Fly press, superseded that step (G640: a newer run owns the chain) -
+  // no frame ever drawn. The boot's done() starts it too.
+  let loopOn = false;
+  function startLoop() { if (loopOn) return; loopOn = true; loop(); }
   function loop(ts) {
     requestAnimationFrame(loop);
     POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
@@ -13066,7 +13364,7 @@
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => {
-    hud(); loop();
+    hud(); startLoop();
     // G441: the see-through programs, after the room is up. G1027 (B8B9 on train 14): UNDER THE SCREEN, a task after first
     // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
     // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
@@ -13127,7 +13425,7 @@
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
-      if (SIMW) SIMW.prewarm(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (SIMW) SIMW.prewarm(); startLoop(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };

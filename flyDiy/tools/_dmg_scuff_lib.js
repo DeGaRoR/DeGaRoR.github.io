@@ -97,12 +97,12 @@ function run(k, caseId, opts) {
   const T = SB.topo(d0.beams, n), core = d0.refs.noseFrame[0];
   const hop = SH.simDmgHop0(), D = SV.simViewDmgState(n, d0.beams.length);
   const st = SS.state(), NF = {}, live = new Float32Array(n * 3);
-  let recs = null, Fl = null, vB = 0, vS = 0, payloads = 0, passes = 0, frameMax = 0, bound = 0, recMs = 0;
+  let recs = null, Fl = null, vB = 0, vS = 0, payloads = 0, passes = 0, frameMax = 0, bound = 0, recMs = 0, inh = null;
   const mk = () => {
     const t0 = process.hrtime.bigint();
     recs = meshes.map(m => {
       const g = { nv: m.g.nv, idx: Uint32Array.from(m.g.idx) };
-      const R = SB.make(g, SB.NEAR_K, { cage: true, pos: m.g.pos, rest, rideAll: true, fabric: m.cls === 1 });
+      const R = SB.make(g, o.wall ? SB.INH_K : SB.NEAR_K, { cage: true, pos: m.g.pos, rest, rideAll: true, fabric: m.cls === 1 });
       const nrm = SS.restNormals(m.g.pos, m.g.idx, m.g.nv, null);
       SS.prep(R, { cls: m.cls, nrm, base: m.g.pos, Mi: null, nA: nrm });
       R.restN = rest; R.mesh = m; R.pos = m.g.pos.slice();
@@ -118,8 +118,12 @@ function run(k, caseId, opts) {
     if (P) { payloads++; SV.simViewDmgApply(D, P); }
     if (!P && !recs) continue;
     if (!recs) mk();
+    // (o.wall, DMG-WALL as the page's brkCage runs it: at the first break every record bound by INHERITANCE - the tubes
+    // on their members, the covering on its frame, the panes on their covering - before the events; whole here, the page
+    // a budget a frame)
+    if (o.wall && D.br.length && !inh) inh = SB.bindInherit(recs.map(R => ({ R, cls: R.mesh.nm === 'members' ? 'tube' : R.mesh.cls === SS.CLS.glass ? 'wall' : 'cover' })), T, rest);
     // the break events (the page's brkCage: the binding's budget, then bindMore)
-    let bud = 4000;
+    let bud = o.wall && inh ? 0 : 4000;
     for (const R of recs) { R.lastBound = 0; if (D.br.length || R.active) SB.event(R, T, D, rest, R.mesh.g.pos, Math.max(0, bud)); bud -= R.lastBound || 0; }
     for (const R of recs) { if (bud <= 0) break; if (R.pending) bud -= SB.bindMore(R, T, bud); }
     // the riding and the tear (world frame, as the page's): only once broken
@@ -134,7 +138,7 @@ function run(k, caseId, opts) {
       vB = D.vB; vS = D.vS;
       Fl = SS.fields(d0, D, B); SS.request(st, Fl, recs);
     }
-    if (!D.br.length && Fl) for (const R of recs) bound += SS.bindWanted(R, Fl, SB, T, SS.SC.bindBudget);
+    if (!D.br.length && Fl && !inh) for (const R of recs) bound += SS.bindWanted(R, Fl, SB, T, SS.SC.bindBudget);   // (the page's: not once inherited)
     const t0 = process.hrtime.bigint();
     SS.tick(st);
     frameMax = Math.max(frameMax, Number(process.hrtime.bigint() - t0) / 1e6);
@@ -142,11 +146,11 @@ function run(k, caseId, opts) {
   // to the end: the binding owed, the last pass whole
   if (recs) {
     for (const R of recs) while (R.pending) SB.bindMore(R, T, 1e9);
-    for (let q = 0; q < 50; q++) { let b = 0; for (const R of recs) b += SS.bindWanted(R, SS.fields(d0, D, B), SB, T, 1e9); if (!b) break; bound += b; }
+    if (!inh) for (let q = 0; q < 50; q++) { let b = 0; for (const R of recs) b += SS.bindWanted(R, SS.fields(d0, D, B), SB, T, 1e9); if (!b) break; bound += b; }
     st.next = null; SS.begin(st, SS.fields(d0, D, B), recs); passAll();
   }
   passes = st.passes;
-  return { sim, def, D, recs, st, payloads, passes, frameMax, bound, recMs, SK, damage: sim.damage() };
+  return { sim, def, D, recs, st, payloads, passes, frameMax, bound, recMs, SK, inh, damage: sim.damage() };
 }
 // the records' bytes, hashed (FNV-1a over every record's rec and dir, in order)
 function hashOf(recs) {

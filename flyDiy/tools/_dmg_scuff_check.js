@@ -29,7 +29,7 @@ const BUILDS = (argv[argv.indexOf('--builds') + 1] && argv.includes('--builds') 
 const CASE_IDS = ['intact', 'taxi-3', 'slide-L', 'noseover', 'trunk-0'];
 
 if (argv[0] === '--build') {
-  const G = require('./_dmg_scuff_lib.js'), { SS, L } = G;
+  const G = require('./_dmg_scuff_lib.js'), { SS, L, SB } = G;
   const k = argv[1], SK = G.skinOf(k), d0 = SK.d0, out = { key: k, label: L.BUILDS[k].label, cases: {} };
   out.skin = { meshes: SK.meshes.length, verts: SK.meshes.reduce((a, m) => a + m.g.nv, 0) };
   const dotL = (p, o) => (p[o] - SK.mid[0]) * SK.left[0] + (p[o + 1] - SK.mid[1]) * SK.left[1] + (p[o + 2] - SK.mid[2]) * SK.left[2];
@@ -112,6 +112,32 @@ if (argv[0] === '--build') {
     }
     out.cases[c] = C;
   }
+  // DMG-WALL: the same claims on the INHERITED binding (K = 8, skin_break.bindInherit at the first break, as brkCage)
+  out.wall = {};
+  for (const c of ['slide-L', 'noseover', 'trunk-0']) {
+    const r = G.run(k, c, { skin: SK, wall: true }), W = { K8: true, inh: !!(r.inh && r.inh.done), crush: 0, orphan: 0, scrape: 0, scrapeR: 0, torn: 0, tornNoDead: 0, plBad: 0 };
+    if (r.recs) {
+      const F = SS.fields(d0, r.D, SK.B), worked = new Uint8Array(d0.nodes.length);
+      for (let bi = 0; bi < d0.beams.length; bi++) if (F.eB[bi] > 0) { worked[d0.beams[bi].a] = 1; worked[d0.beams[bi].b] = 1; }
+      for (const R of r.recs) {
+        const S = R.sc; if (R.K !== SB.INH_K) W.K8 = false;
+        let np = 0; for (let v = 0; v < R.nv; v++) if (!R.rep || R.rep[v] === v) np++;
+        if (np !== S.pl.length) W.plBad++;
+        if (S.cls === SS.CLS.glass) continue;
+        for (let v = 0; v < R.nv; v++) {
+          const c8 = S.rec[v * 4], s8 = S.rec[v * 4 + 1], t8 = S.rec[v * 4 + 2];
+          if (c8) { W.crush++; const K = R.K, src = (R.active && R.w2) ? R.w2 : R.ww; let ok = false;
+            for (let q = 0; q < K; q++) if (src[v * K + q] > 0 && worked[R.wi[v * K + q]]) ok = true;
+            if (!ok) W.orphan++; }
+          if (s8) { W.scrape++; if (dotL(R.mesh.g.pos, v * 3) < -0.05) W.scrapeR++; }
+          if (t8) { W.torn++; if (!(R.active && R.dead)) W.tornNoDead++; }
+        }
+      }
+    }
+    W.hash = G.hashOf(r.recs);
+    out.wall[c] = W;
+  }
+  out.wall.det = G.hashOf(G.run(k, 'trunk-0', { skin: SK, wall: true }).recs);
   // determinism: the 30 m/s trunk again, fresh
   const r2 = G.run(k, 'trunk-0', { skin: SK });
   out.det = { a: out.cases['trunk-0'].hash, b: G.hashOf(r2.recs) };
@@ -182,6 +208,14 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     yes(r.det.a === r.det.b, 'deterministic: the 30 m/s trunk twice, the same bytes (' + r.det.a + ' / ' + r.det.b + ')');
     yes(r.off.payloads === 0 && !r.off.recs && r.off.sW === 0, 'damage OFF, the 30 m/s trunk: no payload, no record, no slide array (' + r.off.payloads + ')');
     console.log('  cost: ' + r.placeUs.toFixed(3) + ' us a place (' + r.places + ' places), the worst torn band ' + r.tornMs.toFixed(2) + ' ms, a tick of 2000 places at worst ' + r.tick2000.worst.toFixed(2) + ' ms (' + r.tick2000.ticks + ' ticks)');
+    { const Wl = r.wall, s = Wl['slide-L'], no = Wl.noseover, tr = Wl['trunk-0'];
+      console.log('  DMG-WALL (inherited, K = 8): ' + ['slide-L', 'noseover', 'trunk-0'].map(c => c + ' crush ' + Wl[c].crush + ' / scrape ' + Wl[c].scrape + ' / torn ' + Wl[c].torn).join('; '));
+      yes([s, no, tr].every(W => W.K8) && no.inh && tr.inh, k + ', DMG-WALL: the records at K = 8 and bound by inheritance at the first break (nose-over, trunk)');
+      yes([s, no, tr].every(W => W.orphan === 0) && tr.crush > 0, k + ', DMG-WALL: every crushed vertex on an end of a member that took work, through the inherited weights (' + (no.orphan + tr.orphan) + ' not, of ' + (no.crush + tr.crush) + ')');
+      yes(s.scrape > 0 && s.scrapeR === 0, k + ', DMG-WALL: the wing-low slide scrapes the low side only (' + s.scrape + ' / ' + s.scrapeR + ' on the right)');
+      yes([no, tr].every(W => W.tornNoDead === 0), k + ', DMG-WALL: the torn band only where triangles went');
+      yes([s, no, tr].every(W => W.plBad === 0), k + ', DMG-WALL: every record\'s place list follows its welds after the inheritance split them');
+      yes(tr.hash === Wl.det, k + ', DMG-WALL: deterministic (' + tr.hash + ' / ' + Wl.det + ')'); }
     yes(r.timeCut.same && r.timeCut.ticks > r.tick2000.ticks, 'the pass cut by the frame\'s time (0.05 ms a tick: ' + r.timeCut.ticks + ' ticks) makes the same bytes');
     yes(r.placeUs < 3 && r.tick2000.worst < 25, 'the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)');
   }

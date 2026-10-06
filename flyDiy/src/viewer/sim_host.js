@@ -297,6 +297,19 @@ function simDmgHop(sim, hop, coreNode, win) {
 }
 // the pristine hop (an intact airframe, as a new view holds it)
 const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', t: -Infinity });
+// G1826 (DMG-DRIVE): THE DRIVETRAIN'S STATE, TO THE PAGE, while any engine has one (an overspeed band, a strike, the gearbox,
+// a failure: sim.damage().drive, 33_drive.js genDriveState) - every snapshot then (the vibration and the tip's Mach move;
+// one or two small objects), nothing at all before it (the layer off: no drive array; an untouched drivetrain: one loop
+// over the engines). D4b's look, D5's bill and the sound read `meta.drv` (HANDOVER G1826 names the fields)
+function simDrvOf(sim) {
+  const D = sim.damage && sim.damage(), R = D && D.drive;
+  if (!R) return null;
+  let any = false;
+  for (const x of R) if (x.os || x.strike || x.gearbox || x.failed) { any = true; break; }
+  if (!any) return null;
+  return R.map(x => ({ os: x.os, osPeak: x.osPeak, osSec: x.osSec, osExc: x.osExc, strike: x.strike, strikeAt: x.strikeAt, bladeLost: x.bladeLost, gearbox: x.gearbox,
+    failed: x.failed, why: x.why, teardown: x.teardown, internal: x.internal, thrustK: x.thrustK, vib: x.vib, tipMach: x.tipMach, imbN: x.imbN }));
+}
 
 // the pilot's fields that are big and change rarely: sent when the object
 // changes (by reference), the rest of the pilot every snapshot
@@ -571,6 +584,13 @@ function makeSimHost(CORE, init, keptWorld) {
         H.end = { air: false, wasAir: false, still: 0, over: H.end.over };
         break;
       }
+      // G1945 DEST-TO: a new To (app.js setTo): the pilot's destination moves - 43_pilot.js ap.setDest, as the page's
+      case 'dest': {
+        const to = c.to == null ? null : aeroById(c.to);
+        if (to && ap.setDest) ap.setDest(to);
+        if (to && init.place) init.place = Object.assign({}, init.place, { to: c.to });
+        break;
+      }
       case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
         H.end.over = !!c.on;
         if (c.on && c.outcome) { if (!ap.report) ap.report = { verdicts: [], outcome: c.outcome, landing: null }; else if (!ap.report.outcome) ap.report.outcome = c.outcome; }
@@ -662,6 +682,7 @@ function makeSimHost(CORE, init, keptWorld) {
     const HY = sim.hydro;
     const dmgB = simDmgHop(sim, dmgHop, dmgCore);
     if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
+    const drv = simDrvOf(sim);                      // G1826
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
@@ -677,6 +698,7 @@ function makeSimHost(CORE, init, keptWorld) {
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
+      ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)

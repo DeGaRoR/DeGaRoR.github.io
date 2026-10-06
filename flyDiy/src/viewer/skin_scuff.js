@@ -119,13 +119,25 @@
   // ---- A RECORD'S PASS ----
   // the record's scuff state: places (each place's first vertex), the triangle incidence (for the torn band and the
   // panes), its class, and the output bytes in the record's own vertex order
-  function prep(R, o) {
-    if (R.sc) return R.sc;
-    const nv = R.nv, rp = R.rep;
-    const pl = []; const plOf = new Int32Array(nv);
+  // the record's places from its welds (rep) - and again when they moved: DMG-WALL's inheritance splits a place that
+  // spans two classes or two parts (skin_break.js inhSteps) and bumps R.dv
+  function placesOf(R) {
+    const nv = R.nv, rp = R.rep, pl = [], plOf = new Int32Array(nv);
     for (let v = 0; v < nv; v++) { if (!rp || rp[v] === v) { plOf[v] = pl.length; pl.push(v); } }
     if (rp) for (let v = 0; v < nv; v++) if (rp[v] !== v) plOf[v] = plOf[rp[v]];
-    R.sc = { pl: Int32Array.from(pl), plOf, cls: o && o.cls != null ? o.cls : 3, nrm: (o && o.nrm) || null, base: (o && o.base) || null,
+    return { pl: Int32Array.from(pl), plOf };
+  }
+  function replace(R) {
+    const S = R.sc, rp = R.rep;
+    let np = 0; if (rp) { for (let v = 0; v < R.nv; v++) if (rp[v] === v) np++; } else np = R.nv;
+    if (np === S.pl.length && (R.dv || 0) === S.dv) return false;
+    const P = placesOf(R); S.pl = P.pl; S.plOf = P.plOf; S.inc = null; S.torn = null; S.dv = R.dv || 0;
+    return true;
+  }
+  function prep(R, o) {
+    if (R.sc) return R.sc;
+    const nv = R.nv, { pl, plOf } = placesOf(R);
+    R.sc = { pl, plOf, dv: R.dv || 0, cls: o && o.cls != null ? o.cls : 3, nrm: (o && o.nrm) || null, base: (o && o.base) || null,
              Mi: (o && o.Mi) || null, nA: (o && o.nA) || null,
              rec: new Uint8Array(nv * 4), dir: new Int8Array(nv * 4), cur: -1, done: true, inc: null, torn: null, panes: null, ver: 0, any: false };
     return R.sc;
@@ -277,7 +289,7 @@
   function request(st, F, recs) { st.next = { F, recs: recs.slice() }; }
   function begin(st, F, recs) {
     st.F = F; st.recs = recs.slice(); st.ver++; st.passes++; st.q = []; st.panes = [];
-    for (const R of st.recs) { const S = R.sc; if (!S) continue; S.cur = 0; S.done = false; S.any = false; S.panes = null; S.phase = 0; st.q.push(R); }
+    for (const R of st.recs) { const S = R.sc; if (!S) continue; replace(R); S.cur = 0; S.done = false; S.any = false; S.panes = null; S.phase = 0; st.q.push(R); }
     // the glass first, whole (a few thousand vertices): its panes are slotted across the model before any byte is written
     for (const R of st.q) if (R.sc.cls === CLS.glass) { R.sc.panes = F.zero ? [] : panesOf(R, F); for (const P of R.sc.panes) st.panes.push(P); }
     st.panes.sort((a, b) => b.sev - a.sev || a.at - b.at);
@@ -716,7 +728,7 @@ vec3 dmgCell(vec3 x) {
     return UNI;
   }
   const API = { SC, CLS, FIN_CLS, clsOf, fields, prep, incidence, weightsOf, place, tornBand, panesOf, state, request, begin, tick, busy, finish, glassBytes,
-                paneVec, bindWanted, restNormals, wrap, waker, wakeSet, uniforms,
+                paneVec, bindWanted, restNormals, placesOf, replace, wrap, waker, wakeSet, uniforms,
                 AERO_DMG_VS_PARS, AERO_DMG_VS_MAIN, AERO_DMG_FS_PARS, AERO_DMG_SURF_FS, AERO_DMG_GLASS_FS, AERO_DMG_CC_FS };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_SCUFF = API;
