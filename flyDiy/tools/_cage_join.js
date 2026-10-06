@@ -2027,6 +2027,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     } catch (e) {}
     // merge the build's meshes into groups by material look
     const groups = {}, mats = {}, debris = [];
+    // G1859 (DMG-WALL): WHICH LAYER AND WHICH OBJECT EACH STATIC VERTEX IS - [layer, bucket, v0, v1, object] ranges (the
+    // buckets are unwelded: a vertex range is a triangle range), the layer the first 'cageLayer:' ancestor, the object
+    // the mesh's own walk index. A wreck's drawing binds a compact part (a cowl panel, a gear plate, a fitting) as one
+    // rigid body and the covering to the frame by them (app.js brkCage). Metadata only: nothing drawn moves
+    const layers = [];
+    let layObj = 0;
     mount.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
     const tmp = new THREE.Matrix4(), nm = new THREE.Matrix3(),
@@ -2155,6 +2161,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // nothing drawn moves
       let dbrTag = null;
       if (!part) for (let a = o; a && a !== mount; a = a.parent) if (a.name === 'cageLayer:cowl') { dbrTag = 'cowl'; break; }
+      let layTag = '';
+      const layId = layObj++;
+      if (!part) for (let a = o; a && a !== mount; a = a.parent) if (a.name && a.name.lastIndexOf('cageLayer:', 0) === 0) { layTag = a.name.slice(10); break; }
       const ranges = (matList.length > 1 && geo.groups && geo.groups.length)
         ? geo.groups
         : [{ start: 0, count: idx ? idx.count : p.count, materialIndex: 0 }];
@@ -2373,6 +2382,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const dv0 = G3.pos.length / 3;
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
         if (dbrTag && !part) debris.push([dbrTag, key, dv0, G3.pos.length / 3]);
+        if (!part) layers.push([layTag, key, dv0, G3.pos.length / 3, layId]);
       }
     });
     // (THE RESTORE USED TO BE HERE, AND THAT WAS THE BUG WITH TEETH. It runs
@@ -2853,6 +2863,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
+             layers,                     // G1859: the static vertices' layers and objects ([layer, bucket, v0, v1, object])
              // G357: the capture's map in the model's x-y plane (row-major
              // 2x2, the identity when no frame) — every rotation the flight
              // applies to a captured part is conjugated by it (app.js
