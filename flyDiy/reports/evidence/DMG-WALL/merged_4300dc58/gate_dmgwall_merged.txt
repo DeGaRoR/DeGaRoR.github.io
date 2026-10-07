@@ -1,0 +1,135 @@
+
+cub
+  trunk-0: 177 broken, 20 pieces; leak base 30.54 % (worst 0.0911 m) -> 0.967 % (worst 0.0145 m, past 5 cm 0); rigid past 1 % base 366835 -> 0; torn w/o damage base 0 -> 0, w/o strain 3582 -> 1977; bind 207 ms, over 8 552/50003
+  ok    cub trunk-0: the wall out past 1 mm 0.967 % <= 2 % (the base 30.54 %)
+  ok    cub trunk-0: past 1 cm 283 of 1208470 (<= 0.1 %)
+  ok    cub trunk-0: past 5 cm 0 of 1208470
+  ok    cub trunk-0: no compact part triangle past 1 % (2381172 triangle-frames)
+  ok    cub trunk-0: every drawn position finite
+  ok    cub trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1918735 triangle-frames)
+  ok    cub trunk-0: places past 8 slots 552 <= 2 %
+  trunk-2.5: 118 broken, 6 pieces; leak base 14.49 % (worst 1.9833 m) -> 1.233 % (worst 0.022 m, past 5 cm 0); rigid past 1 % base 656306 -> 0; torn w/o damage base 175 -> 0, w/o strain 2974 -> 1423; bind 185 ms, over 8 552/50003
+  ok    cub trunk-2.5: the wall out past 1 mm 1.233 % <= 2 % (the base 14.49 %)
+  ok    cub trunk-2.5: past 1 cm 676 of 1801582 (<= 0.1 %)
+  ok    cub trunk-2.5: past 5 cm 0 of 1801582
+  ok    cub trunk-2.5: no compact part triangle past 1 % (2348994 triangle-frames)
+  ok    cub trunk-2.5: every drawn position finite
+  ok    cub trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 2018588 triangle-frames)
+  ok    cub trunk-2.5: places past 8 slots 552 <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 50 broken, 1 pieces; leak base 0.71 % (worst 0.0596 m) -> 0.028 % (worst 0.0041 m, past 5 cm 0); rigid past 1 % base 667115 -> 0; torn w/o damage base 15 -> 10, w/o strain 1332 -> 583; bind 177 ms, over 8 552/50003
+  ok    cub noseover: the wall out past 1 mm 0.028 % <= 2 % (the base 0.71 %)
+  ok    cub noseover: past 1 cm 0 of 2808596 (<= 0.1 %)
+  ok    cub noseover: past 5 cm 0 of 2808596
+  ok    cub noseover: no compact part triangle past 1 % (3207074 triangle-frames)
+  ok    cub noseover: every drawn position finite
+  ok    cub noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 2872126 triangle-frames)
+  ok    cub noseover: places past 8 slots 552 <= 2 %
+  nosein: 165 broken, 15 pieces; leak base 22.81 % (worst 0.093 m) -> 0.089 % (worst 0.004 m, past 5 cm 0); rigid past 1 % base 839924 -> 0; torn w/o damage base 0 -> 0, w/o strain 3989 -> 2410; bind 148 ms, over 8 552/50003
+  ok    cub nosein: the wall out past 1 mm 0.089 % <= 2 % (the base 22.81 %)
+  ok    cub nosein: past 1 cm 0 of 1350887 (<= 0.1 %)
+  ok    cub nosein: past 5 cm 0 of 1350887
+  ok    cub nosein: no compact part triangle past 1 % (2563514 triangle-frames)
+  ok    cub nosein: every drawn position finite
+  ok    cub nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 2133655 triangle-frames)
+  ok    cub nosein: places past 8 slots 552 <= 2 %
+
+jodel
+  trunk-0: 197 broken, 19 pieces; leak base 0.02 % (worst 1.9287 m) -> 0.017 % (worst 0.0101 m, past 5 cm 0); rigid past 1 % base 414606 -> 0; torn w/o damage base 0 -> 0, w/o strain 563 -> 45; bind 230 ms, over 8 382/46406
+  ok    jodel trunk-0: the wall out past 1 mm 0.017 % <= 2 % (the base 0.02 %)
+  ok    jodel trunk-0: past 1 cm 61 of 1441608 (<= 0.1 %)
+  ok    jodel trunk-0: past 5 cm 0 of 1441608
+  ok    jodel trunk-0: no compact part triangle past 1 % (2375842 triangle-frames)
+  ok    jodel trunk-0: every drawn position finite
+  ok    jodel trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1208786 triangle-frames)
+  ok    jodel trunk-0: places past 8 slots 382 <= 2 %
+  trunk-2.5: 153 broken, 9 pieces; leak base 0.79 % (worst 31.4108 m) -> 0.008 % (worst 0.0099 m, past 5 cm 0); rigid past 1 % base 400427 -> 0; torn w/o damage base 45 -> 0, w/o strain 1522 -> 219; bind 181 ms, over 8 382/46406
+  ok    jodel trunk-2.5: the wall out past 1 mm 0.008 % <= 2 % (the base 0.79 %)
+  ok    jodel trunk-2.5: past 1 cm 0 of 1620619 (<= 0.1 %)
+  ok    jodel trunk-2.5: past 5 cm 0 of 1620619
+  ok    jodel trunk-2.5: no compact part triangle past 1 % (2354534 triangle-frames)
+  ok    jodel trunk-2.5: every drawn position finite
+  ok    jodel trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1281620 triangle-frames)
+  ok    jodel trunk-2.5: places past 8 slots 382 <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 97 broken, 7 pieces; leak base 0.21 % (worst 3.6146 m) -> 0.261 % (worst 0.0102 m, past 5 cm 0); rigid past 1 % base 169332 -> 0; torn w/o damage base 0 -> 0, w/o strain 534 -> 28; bind 191 ms, over 8 382/46406
+  ok    jodel noseover: the wall out past 1 mm 0.261 % <= 2 % (the base 0.21 %)
+  ok    jodel noseover: past 1 cm 191 of 2218023 (<= 0.1 %)
+  ok    jodel noseover: past 5 cm 0 of 2218023
+  ok    jodel noseover: no compact part triangle past 1 % (3206854 triangle-frames)
+  ok    jodel noseover: every drawn position finite
+  ok    jodel noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1724843 triangle-frames)
+  ok    jodel noseover: places past 8 slots 382 <= 2 %
+  nosein: 174 broken, 12 pieces; leak base 4.57 % (worst 3.8964 m) -> 0.216 % (worst 0.0104 m, past 5 cm 0); rigid past 1 % base 440986 -> 0; torn w/o damage base 0 -> 0, w/o strain 1390 -> 684; bind 174 ms, over 8 382/46406
+  ok    jodel nosein: the wall out past 1 mm 0.216 % <= 2 % (the base 4.57 %)
+  ok    jodel nosein: past 1 cm 500 of 1406675 (<= 0.1 %)
+  ok    jodel nosein: past 5 cm 0 of 1406675
+  ok    jodel nosein: no compact part triangle past 1 % (2546306 triangle-frames)
+  ok    jodel nosein: every drawn position finite
+  ok    jodel nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1187810 triangle-frames)
+  ok    jodel nosein: places past 8 slots 382 <= 2 %
+
+metal
+  trunk-0: 191 broken, 22 pieces; leak base 0.38 % (worst 14.0936 m) -> 0.041 % (worst 0.0092 m, past 5 cm 0); rigid past 1 % base 174995 -> 0; torn w/o damage base 0 -> 0, w/o strain 1626 -> 357; bind 347 ms, over 8 280/66004
+  ok    metal trunk-0: the wall out past 1 mm 0.041 % <= 2 % (the base 0.38 %)
+  ok    metal trunk-0: past 1 cm 0 of 3325665 (<= 0.1 %)
+  ok    metal trunk-0: past 5 cm 0 of 3325665
+  ok    metal trunk-0: no compact part triangle past 1 % (2060966 triangle-frames)
+  ok    metal trunk-0: every drawn position finite
+  ok    metal trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal trunk-0: places past 8 slots 280 <= 2 %
+  trunk-2.5: 42 broken, 6 pieces; leak base 0.58 % (worst 0.1162 m) -> 0.078 % (worst 0.0182 m, past 5 cm 0); rigid past 1 % base 110362 -> 0; torn w/o damage base 181 -> 0, w/o strain 778 -> 47; bind 341 ms, over 8 280/66004
+  ok    metal trunk-2.5: the wall out past 1 mm 0.078 % <= 2 % (the base 0.58 %)
+  ok    metal trunk-2.5: past 1 cm 22 of 4250156 (<= 0.1 %)
+  ok    metal trunk-2.5: past 5 cm 0 of 4250156
+  ok    metal trunk-2.5: no compact part triangle past 1 % (2042482 triangle-frames)
+  ok    metal trunk-2.5: every drawn position finite
+  ok    metal trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal trunk-2.5: places past 8 slots 280 <= 2 %
+  taxi: 1 broken, 1 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 214381 -> 0; torn w/o damage base 0 -> 0, w/o strain 0 -> 0; bind 334 ms, over 8 280/66004
+  ok    metal taxi: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    metal taxi: past 1 cm 0 of 5041500 (<= 0.1 %)
+  ok    metal taxi: past 5 cm 0 of 5041500
+  ok    metal taxi: no compact part triangle past 1 % (2310500 triangle-frames)
+  ok    metal taxi: every drawn position finite
+  ok    metal taxi: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal taxi: places past 8 slots 280 <= 2 %
+  noseover: 27 broken, 4 pieces; leak base 1.12 % (worst 0.5735 m) -> 0.096 % (worst 0.0045 m, past 5 cm 0); rigid past 1 % base 213997 -> 0; torn w/o damage base 134 -> 0, w/o strain 539 -> 83; bind 307 ms, over 8 280/66004
+  ok    metal noseover: the wall out past 1 mm 0.096 % <= 2 % (the base 1.12 %)
+  ok    metal noseover: past 1 cm 0 of 6143616 (<= 0.1 %)
+  ok    metal noseover: past 5 cm 0 of 6143616
+  ok    metal noseover: no compact part triangle past 1 % (2818810 triangle-frames)
+  ok    metal noseover: every drawn position finite
+  ok    metal noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal noseover: places past 8 slots 280 <= 2 %
+  nosein: 179 broken, 15 pieces; leak base 2.14 % (worst 17.1094 m) -> 1.470 % (worst 0.0311 m, past 5 cm 0); rigid past 1 % base 202401 -> 0; torn w/o damage base 0 -> 0, w/o strain 3493 -> 689; bind 294 ms, over 8 280/66004
+  ok    metal nosein: the wall out past 1 mm 1.470 % <= 2 % (the base 2.14 %)
+  ok    metal nosein: past 1 cm 1506 of 2809653 (<= 0.1 %)
+  ok    metal nosein: past 5 cm 0 of 2809653
+  ok    metal nosein: no compact part triangle past 1 % (2199596 triangle-frames)
+  ok    metal nosein: every drawn position finite
+  ok    metal nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal nosein: places past 8 slots 280 <= 2 %
+
+floats
+  nosein-water: 182 broken, 13 pieces; leak base 0.73 % (worst 9.5092 m) -> 0.846 % (worst 0.0305 m, past 5 cm 0); rigid past 1 % base 303050 -> 0; torn w/o damage base 0 -> 0, w/o strain 3096 -> 1571; bind 371 ms, over 8 879/64394
+  ok    floats nosein-water: the wall out past 1 mm 0.846 % <= 2 % (the base 0.73 %)
+  ok    floats nosein-water: past 1 cm 1974 of 2663100 (<= 0.1 %)
+  ok    floats nosein-water: past 5 cm 0 of 2663100
+  ok    floats nosein-water: no compact part triangle past 1 % (2144144 triangle-frames)
+  ok    floats nosein-water: every drawn position finite
+  ok    floats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    floats nosein-water: places past 8 slots 879 <= 2 %
+
+twinFloats
+  nosein-water: 220 broken, 19 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 348630 -> 0; torn w/o damage base 0 -> 0, w/o strain 2341 -> 1159; bind 105 ms, over 8 0/22776
+  ok    twinFloats nosein-water: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    twinFloats nosein-water: past 1 cm 0 of 0 (<= 0.1 %)
+  ok    twinFloats nosein-water: past 5 cm 0 of 0
+  ok    twinFloats nosein-water: no compact part triangle past 1 % (756196 triangle-frames)
+  ok    twinFloats nosein-water: every drawn position finite
+  ok    twinFloats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.191, 553332 triangle-frames)
+  ok    twinFloats nosein-water: places past 8 slots 0 <= 2 %
+
+105 checks, 0 failed, 99 s
+GATE DMGWALL: PASS

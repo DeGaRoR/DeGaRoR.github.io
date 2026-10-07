@@ -4005,6 +4005,31 @@
     H.n++; H.last = r; }
   function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
     if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
+  // G1858.2 (DMG-WALL): THE SNAPSHOT IS NEVER WRITTEN BY A WRECK. The flown geometries WRAP the cage snapshot's own
+  // arrays (mkGeo: its positions and index, no copy - and the parts' groups likewise), so a wreck's riding and its removed
+  // triangles were written into window.CAGE_VISUAL itself: crash -> the shed -> roll-out (no reset, so no heal) built the
+  // next model from them and took them as its rest - giant sheets for good (DMG-D4b's worker paths). Copy on the first
+  // break: before a record is made, the snapshot's group that owns its arrays takes COPIES of them (position, index,
+  // normal), and the flown model keeps riding the arrays every view of it already shares. An intact aeroplane pays
+  // nothing; a crash pays one copy of the arrays it rides. brkRestore still puts the flown model itself back at a reset
+  function brkDetach(pa, geo, base0) {
+    const data = model && model.data; if (!data || !pa || !pa.array) return;
+    if (window.FLYDIY_WALL_NODETACH) return;            // (GATE DMGWALLPATH --selftest only: the bug as it was)
+    let M = BRK.snapOf;
+    if (!M || BRK.snapData !== data) {                  // (the snapshot's arrays by identity, made at the first break)
+      M = BRK.snapOf = new Map(); BRK.snapData = data;
+      const add = G => { if (!G) return; for (const k in G) { const g = G[k]; if (!g) continue; for (const f of ['pos', 'idx', 'nrm']) if (g[f] && g[f].buffer) M.set(g[f], [g, f]); } };
+      add(data.groups); for (const pt of data.parts || []) add(pt.groups);
+    }
+    const arrs = [pa.array, geo && geo.index ? geo.index.array : null, geo && geo.attributes.normal ? geo.attributes.normal.array : null];
+    for (const a of arrs) { const hit = a && M.get(a); if (!hit) continue;
+      // (the positions from the rig's AS-BUILT array, not the live one: an ordinary flight already writes its pose into
+      // the shared positions - the wing's flex, the hinges, measured 32 of the Cub's arrays between the garage and the
+      // air - and a copy of the live array froze that pose into the snapshot)
+      const [g, f] = hit, c = (f === 'pos' && base0 && base0.length === a.length) ? Float32Array.from(base0) : a.slice(); g[f] = c; M.delete(a); M.set(c, hit);
+      // (the part's G58.4 rest copy follows its group: it was taken from the same array)
+    }
+  }
   // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
   function brkPosMirror(R, P, N) {
     const M = R.geo && R.geo.userData && R.geo.userData.ixMirror; if (!M) return;
@@ -4316,6 +4341,7 @@
         const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
         for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
           bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
+        brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
         R.baseD = bD; R.w = new Float64Array(nv * 3);
@@ -4438,12 +4464,13 @@
           const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
           for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
           for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(sec, role, layer[v]);
+          if (layer.indexOf('cowl') >= 0) { E.cowl = new Uint8Array(nv); for (let v = 0; v < nv; v++) if (layer[v] === 'cowl') E.cowl[v] = 1; }   // (G1859.5)
         } else cv.fill(SB.INH.cover);
         // no stretch tear on a tube, a rigid part or sheet metal (G1859: not cut to confetti) - the fabric's tear stays
         const has = c => cv.indexOf(c) >= 0, fabric = R.fabric;
         R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
         R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
-        R.inhRec = true; L.push(E);
+        R.inhRec = true; E.name = own.name || kind || ''; L.push(E);   // (the name: the rigs' tear accounting)
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;
       K.inhIt = SB.inhSteps(L, K.T, K.rest, K.inhSt, BRK_INH);
@@ -4467,25 +4494,34 @@
     return { on: brkWallWant(), inh: brkInhWant(), recs: L.length, tris: L.reduce((a, R) => a + R.nt, 0), cut: L.reduce((a, R) => a + (R.cut || 0), 0),
              followed: BRK.recs.reduce((a, R) => a + (R.followed || 0), 0), bind: K && K.inhSt ? Object.assign({}, K.inhSt) : null }; };
   const brkWallWant = () => window.FLYDIY_SKINWALL !== false && typeof AEROSKIN !== 'undefined' && !brkInhWant();
+  // the cut's key: its mode (G1858 on the old binding; G1858.3 the crushed bays on the inherited one, once its binding is
+  // done), the break events and the sets
+  const brkWallKey = D => { const K = model && model.brk;
+    if (brkInhWant()) return window.FLYDIY_SKINWALL !== false && K && K.inhSt && K.inhSt.done ? 'inh|' + D.vB + '|' + D.sS : 'off';
+    return brkWallWant() ? 'old|' + D.vB + '|' + D.sS : 'off'; };
   // (the wreck at rest is not re-posed: a new set or the switch flipped must still reach it)
-  const brkWallStale = D => !!(model && model.brk && (model.brk.wallKey !== (brkWallWant() ? D.vB + '|' + D.sS : 'off') ||
+  const brkWallStale = D => !!(model && model.brk && (model.brk.wallKey !== brkWallKey(D) ||
     (model.brk.inhOn != null && model.brk.inhOn !== brkInhWant()) || (model.brk.inhSt && !model.brk.inhSt.done)));
   function brkWallCut(groups, D) {
-    const K = model.brk, on = brkWallWant(), key = on ? D.vB + '|' + D.sS : 'off';
+    const K = model.brk, key = brkWallKey(D);
     if (K.wallKey === key) return;
-    const was = K.wallKey; K.wallKey = key;
+    const was = K.wallKey || 'off'; K.wallKey = key;
+    const mode = key.split('|')[0], wasMode = was.split('|')[0];
+    // the old binding's records: the lining's sections (G1858)
     const recs = [];
     for (const [own] of groups) { const R = own.brkR; if (!R) continue;
       if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])); }
       if (R.wallIn) recs.push(R); }
-    if (!on) {                                            // switched off: the cut triangles back as they were
-      if (was && was !== 'off') for (const R of recs) { if (!R.dead || !R.idx0) continue; let n = 0;
+    // the inherited binding's: every record with wall places (the lining, the beads, the glazing - G1858.3)
+    const inh = mode === 'inh' || wasMode === 'inh' ? (K.inhL || []).filter(E => E.cv.indexOf(SKIN_BREAK.INH.wall) >= 0) : [];
+    if (mode !== wasMode && wasMode !== 'off') {         // the mode changed (or switched off): the cut triangles back as they were
+      const back = (wasMode === 'inh' ? inh.map(E => E.R) : recs);
+      for (const R of back) { if (!R.dead || !R.idx0) continue; let n = 0;
         for (let t = 0; t < R.nt; t++) if (R.dead[t] === 3) { R.dead[t] = 0; for (let k = 0; k < 3; k++) R.idx[t * 3 + k] = R.idx0[t * 3 + k]; n++; }
         R.removed -= n; R.cut = 0; if (n) brkIdx(R); }
-      return;
     }
-    const hot = SKIN_BREAK.hotNodes(K.T, D);
-    for (const R of recs) if (SKIN_BREAK.cutWall(R, hot)) brkIdx(R);
+    if (mode === 'old') { const hot = SKIN_BREAK.hotNodes(K.T, D); for (const R of recs) if (SKIN_BREAK.cutWall(R, hot)) brkIdx(R); }
+    else if (mode === 'inh') { const hot = SKIN_BREAK.hotNodes(K.T, D, SKIN_BREAK.SET_CRUSH); for (const E of inh) if (SKIN_BREAK.cutWall(E.R, hot, E.cv)) brkIdx(E.R); }
   }
 
   // ---- G1860-G1863 (DMG-D4b WRECK DRAWN): THE WRECK'S NON-MEMBER PARTS (src/viewer/wreck_debris.js says why and how) ----

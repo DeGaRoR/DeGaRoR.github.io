@@ -1,0 +1,181 @@
+tools/flight_core.js (2315.2 KB), index.html (11547.3 KB), dev.html (108.0 KB) — syntax OK, build 988a2635fc23 (311 named inputs), 551 ms
+[run_gates] 0/18 jobs done · running DMGGEAR 30 s, DMGINST 30 s
+[run_gates] 0/18 jobs done · running DMGGEAR 60 s, DMGINST 60 s
+[run_gates] 0/18 jobs done · running DMGGEAR 90 s, DMGINST 90 s
+[run_gates] 1/18 jobs done · running DMGGEAR 120 s, UISMOKE 23 s
+[run_gates] 1/18 jobs done · running DMGGEAR 150 s, UISMOKE 53 s
+[run_gates] 1/18 jobs done · running DMGGEAR 180 s, UISMOKE 83 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce1002 _ce1011 _ce1015 _ce1019 _ce1027 _ce1030 _ce1039 _ce1043 _ce1047 _ce105 _ce1055 _ce1058 _ce1062 _ce1071 _ce1075 _ce1079 _ce1087 _ce1090 _ce1094 _ce1103 _ce1111 _ce1112 _ce1115 _ce1124 _ce1132 _ce1135 _ce1139 _ce1148 _ce1152 _ce1156 _ce116 _ce1164 _ce1167 _ce1176 _ce1180 _ce120 _ce124 _ce130 _ce135 _ce136 _ce138 _ce139 _ce140 _ce143 _ce147 _ce151 _ce155 _ce159 _ce163 _ce167 _ce173 _ce178 _ce184 _ce191 _ce192 _ce193 _ce194 _ce195 _ce196 _ce201 _ce202 _ce203 _ce204 _ce208 _ce209 _ce210 _ce211 _ce212 _ce213 _ce217 _ce218 _ce219 _ce220 _ce224 _ce225 _ce228 _ce232 _ce236 _ce240 _ce244 _ce248 _ce255 _ce265 _ce276 _ce282 _ce286 _ce292 _ce296 _ce300 _ce304 _ce308 _ce31 _ce316 _ce322 _ce325 _ce332 _ce333 _ce338 _ce341 _ce346 _ce347 _ce349 _ce350 _ce351 _ce354 _ce358 _ce362 _ce366 _ce372 _ce379 _ce383 _ce387 _ce391 _ce395 _ce399 _ce403 _ce407 _ce411 _ce415 _ce419 _ce425 _ce429 _ce433 _ce436 _ce442 _ce445 _ce446 _ce447 _ce450 _ce460 _ce461 _ce465 _ce468 _ce47 _ce473 _ce495 _ce501 _ce509 _ce510 _ce513 _ce520 _ce521 _ce522 _ce523 _ce524 _ce525 _ce530 _ce531 _ce532 _ce533 _ce537 _ce538 _ce539 _ce540 _ce541 _ce542 _ce546 _ce547 _ce548 _ce549 _ce553 _ce554 _ce557 _ce564 _ce565 _ce566 _ce567 _ce571 _ce572 _ce576 _ce577 _ce58 _ce581 _ce582 _ce583 _ce584 _ce585 _ce586 _ce59 _ce590 _ce591 _ce592 _ce593 _ce594 _ce595 _ce599 _ce60 _ce600 _ce604 _ce605 _ce607 _ce61 _ce614 _ce615 _ce616 _ce617 _ce62 _ce621 _ce622 _ce623 _ce624 _ce628 _ce629 _ce63 _ce630 _ce631 _ce635 _ce636 _ce637 _ce638 _ce64 _ce642 _ce643 _ce647 _ce648 _ce649 _ce65 _ce651 _ce658 _ce659 _ce663 _ce664 _ce666 _ce67 _ce673 _ce674 _ce675 _ce679 _ce680 _ce681 _ce682 _ce686 _ce687 _ce689 _ce696 _ce697 _ce698 _ce70 _ce702 _ce703 _ce704 _ce705 _ce709 _ce710 _ce711 _ce715 _ce716 _ce720 _ce721 _ce725 _ce726 _ce728 _ce73 _ce735 _ce736 _ce740 _ce741 _ce742 _ce746 _ce747 _ce751 _ce752 _ce755 _ce76 _ce761 _ce766 _ce770 _ce774 _ce778 _ce782 _ce786 _ce79 _ce790 _ce794 _ce798 _ce802 _ce806 _ce810 _ce813 _ce82 _ce821 _ce824 _ce833 _ce841 _ce842 _ce845 _ce85 _ce854 _ce859 _ce863 _ce869 _ce873 _ce878 _ce879 _ce88 _ce881 _ce882 _ce883 _ce886 _ce890 _ce894 _ce898 _ce902 _ce906 _ce91 _ce910 _ce914 _ce925 _ce929 _ce933 _ce94 _ce941 _ce947 _ce950 _ce954 _ce959 _ce97 _ce981 _ce987 _ce991 _ce999 bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+[run_gates] 2/18 jobs done · running DMGGEAR 210 s, TREEHIT 15 s
+[run_gates] 2/18 jobs done · running DMGGEAR 240 s, TREEHIT 45 s
+[run_gates] 2/18 jobs done · running DMGGEAR 270 s, TREEHIT 75 s
+[run_gates] 2/18 jobs done · running DMGGEAR 300 s, TREEHIT 105 s
+[run_gates] 2/18 jobs done · running DMGGEAR 330 s, TREEHIT 135 s
+=== TREEHIT ===
+  ok   the page's own fill trunk: flown at it (4 m AGL, 30 m/s): 4181 beam contacts, stopped by it (the CG to 39.0 m, the trunk at 40); with no trunk it flies on past at 32.1 m/s, nothing touched
+  29/29 checks
+GATE TREEHIT: PASS
+[run_gates] 5/18 jobs done · running DMGGEAR 360 s
+[run_gates] 5/18 jobs done · running DMGGEAR 390 s
+[run_gates] 5/18 jobs done · running DMGGEAR 420 s
+[run_gates] 5/18 jobs done · running DMGGEAR 450 s
+[run_gates] 6/18 jobs done · running DMGWIND 17 s
+[run_gates] 6/18 jobs done · running DMGWIND 47 s
+[run_gates] 6/18 jobs done · running DMGWIND 77 s
+[run_gates] 6/18 jobs done · running DMGWIND 107 s
+[run_gates] 6/18 jobs done · running DMGWIND 137 s
+[run_gates] 6/18 jobs done · running DMGWIND 167 s
+[run_gates] 6/18 jobs done · running DMGWIND 197 s
+[run_gates] 6/18 jobs done · running DMGWIND 227 s
+[run_gates] 6/18 jobs done · running DMGWIND 257 s
+[run_gates] 6/18 jobs done · running DMGWIND 287 s
+[run_gates] 6/18 jobs done · running DMGWIND 317 s
+[run_gates] 6/18 jobs done · running DMGWIND 347 s
+[run_gates] 6/18 jobs done · running DMGWIND 377 s
+[run_gates] 7/18 jobs done · running DMGNOSE 19 s
+[run_gates] 7/18 jobs done · running DMGNOSE 49 s
+[run_gates] 7/18 jobs done · running DMGNOSE 79 s
+[run_gates] 7/18 jobs done · running DMGNOSE 109 s
+[run_gates] 7/18 jobs done · running DMGNOSE 139 s
+[run_gates] 7/18 jobs done · running DMGNOSE 169 s
+[run_gates] 7/18 jobs done · running DMGNOSE 199 s
+[run_gates] 7/18 jobs done · running DMGNOSE 229 s
+[run_gates] 7/18 jobs done · running DMGNOSE 259 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 9 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 39 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 69 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 99 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 129 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 159 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 189 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 219 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 249 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 279 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 309 s
+[run_gates] 8/18 jobs done · running DMGDRIVE 339 s
+[run_gates] 9/18 jobs done · running TREECRASH 29 s
+[run_gates] 9/18 jobs done · running TREECRASH 59 s
+[run_gates] 9/18 jobs done · running TREECRASH 89 s
+[run_gates] 9/18 jobs done · running TREECRASH 119 s
+[run_gates] 9/18 jobs done · running TREECRASH 149 s
+[run_gates] 9/18 jobs done · running TREECRASH 179 s
+[run_gates] 9/18 jobs done · running TREECRASH 209 s
+[run_gates] 9/18 jobs done · running TREECRASH 239 s
+[run_gates] 9/18 jobs done · running TREECRASH 269 s
+[run_gates] 9/18 jobs done · running TREECRASH 299 s
+=== TREECRASH ===
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 14.30 (gear, tension); 203 set {"fus":66,"wing":37,"tail":100}, 218 broken, 20.60 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
+  50/50 checks
+GATE TREECRASH: PASS
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 28 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 58 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 88 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 118 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 148 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 178 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 208 s
+[run_gates] 10/18 jobs done · running DMGCLUSTERS 238 s
+[run_gates] 11/18 jobs done · running DMGWALL 9 s
+[run_gates] 11/18 jobs done · running DMGWALL 39 s
+[run_gates] 11/18 jobs done · running DMGWALL 69 s
+[run_gates] 12/18 jobs done · running DMGFPS 13 s
+[run_gates] 12/18 jobs done · running DMGFPS 43 s
+[run_gates] 12/18 jobs done · running DMGFPS 73 s
+[run_gates] 13/18 jobs done · running DMGCERTCOST 20 s
+[run_gates] 14/18 jobs done · running DMGCERT 16 s
+[run_gates] 14/18 jobs done · running DMGCERT 46 s
+[run_gates] 14/18 jobs done · running DMGCERT 76 s
+[run_gates] 14/18 jobs done · running DMGCERT 106 s
+[run_gates] 14/18 jobs done · running DMGCERT 136 s
+[run_gates] 15/18 jobs done · running DMGSKIN 12 s
+[run_gates] 15/18 jobs done · running DMGSKIN 42 s
+[run_gates] 15/18 jobs done · running DMGSKIN 72 s
+[run_gates] 16/18 jobs done · running DMGINTEGRITY 9 s
+[run_gates] 17/18 jobs done · running DMGMEMBERS 11 s
+=== DMGMEMBERS ===
+  ok    the bench to destruction: first yield at 13.01 g; the first member broken at 28.03 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.03 g: wing0R:strut; 44 broken, groups wing0R:strut, wing0L:strut, engL:mount, engR:mount
+  80/80 checks
+GATE DMGMEMBERS: PASS
+=== DMGCERT ===
+  REPORT  the drawn lift struts in compression: member 133 certified 5.8 kN (bow) -> crushes at 10.5 kN (physics 36.3); member 134 certified 3.2 kN (dropDriftR) -> crushes at 5.9 kN (physics 36.3); member 135 certified 12.6 kN (dropDriftR) -> crushes at 22.8 kN (physics 36.3); member 136 certified 3.6 kN (flownElevF) -> crushes at 6.5 kN (physics 36.3)
+  70/70 checks
+GATE DMGCERT: PASS
+=== DMGGEAR ===
+  twin floatplane td 1.0 0.33 | td 1.5 0.39 | td 23.473 0.46 | taxi on the water at 4 m/s 0.19 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.19 | circuit 0.27 | crosswind circuit 0.40
+  72/72 checks
+GATE DMGGEAR: PASS
+=== DMGCERTCOST ===
+  ok   a corrupt record reads null and is deleted
+3. REPORT: no Playwright / Chromium here - the round trip in a browser not run (a cloud session runs it)
+GATE DMGCERTCOST: PASS
+=== DMGWIND ===
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  12/12 checks
+GATE DMGWIND: PASS
+=== DMGNOSE ===
+  --    REPORT metal Cessna: a nose-over at 4 m/s (DMG-DRIVE's): strike stoppage, the nose on the - 0 cm (-, 0 J, 0.0 kN), 0 broken
+  41/41 checks
+GATE DMGNOSE: PASS
+=== DMGCLUSTERS ===
+  REPORT  (clean) the BMR levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BMR station by bend at 3.33 s (17.57 kN.m bending, -0.00 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.2 mm and 0.34 m off; clusters now BML:17, BMR:14, FINR:16, FINL:17, BMR/aft:3
+  83/83 checks
+GATE DMGCLUSTERS: PASS
+=== DMGINST ===
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  33/33 checks
+GATE DMGINST: PASS
+=== DMGFPS ===
+  ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  145/145 checks
+GATE DMGFPS: PASS
+=== DMGINTEGRITY ===
+Broke up (the flight over at once): twin floatplane, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.14 s (TPB)
+  54/54 checks
+GATE DMGINTEGRITY: PASS
+=== DMGSKIN ===
+  ok    app.js: the skin's break path (17 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+=== DMGDRIVE ===
+  --    the teardown's internal damage (seeded, 15 %): AOPA, 2007 (the DEFORM doc §10.2's line: only 10-20 % of the engines torn down after a strike show internal damage) 10-20 % - a ratio for the bill, never a gate
+  131/131 checks
+GATE DMGDRIVE: PASS
+=== DMGWALL ===
+
+98 checks, 0 failed, 86 s
+GATE DMGWALL: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+
+──────── summary ────────
+UISMOKE   PASS    98.3 s
+TREEHIT   PASS   150.4 s
+TREECRASH PASS   301.4 s
+DMGMEMBERS PASS    23.7 s
+DMGCERT   PASS   153.7 s
+DMGGEAR   PASS   462.9 s
+DMGCERTCOST PASS    34.4 s
+DMGWIND   PASS   387.9 s
+DMGNOSE   PASS   280.4 s
+DMGCLUSTERS PASS   258.7 s
+DMGINST   PASS    96.6 s
+DMGFPS    PASS    82.4 s
+DMGINTEGRITY PASS    27.6 s
+DMGSKIN   PASS    93.7 s
+DMGDRIVE  PASS   339.9 s
+DMGWALL   PASS    86.7 s
+BUILD     PASS     1.0 s
+JOIN      PASS     2.6 s
+total           2882.3 s
+wall            2533.5 s  (jobs 4)
+
+BATTERY: PASS
