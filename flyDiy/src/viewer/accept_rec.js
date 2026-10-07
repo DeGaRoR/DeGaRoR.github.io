@@ -40,7 +40,9 @@
     if (F.manual && F.manual()) return { ok: false, why: (lastWhy = 'the hand is flying: the autopilot flies the acceptance leg') };
     if (running(ap) || inline) return { ok: false, why: (lastWhy = 'a leg is already being flown') };
     const m = typeof ap.instruments === 'function' ? ap.instruments() : (ap._m || null);
-    if (!m || m.onGround) return { ok: false, why: (lastWhy = 'in the air first: the leg is a cruise') };
+    // (no reading yet - the pilot has not updated - counts as the ground)
+    const wheels = typeof sim.wheelsOnGround === 'function' ? sim.wheelsOnGround() : 0;
+    if (!m || m.t == null || m.onGround || wheels > 0) return { ok: false, why: (lastWhy = 'in the air first: the leg is a cruise') };
     // the declared height: altAGL over the ground under the aeroplane, never below where it already is
     const gH = W && typeof W.terrainH === 'function' ? W.terrainH(m.x, m.z) : 0;
     const altAGL = opts.altAGL != null ? opts.altAGL : ACCEPT_RULES.altAGL;

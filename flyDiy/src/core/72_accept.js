@@ -310,7 +310,7 @@ function makeAcceptRecorder(opts) {
     stop() { on = false; },
     get on() { return on; },
     frame(s) {
-      if (!on || !s || !(s.t >= next - 1e-9)) return;
+      if (!on || !s || !(s.t >= next - 1e-3)) return;   // (1 ms: the flight's clock is a sum of 1/60 s steps)
       samples.push(s);
       next = Math.round((next + R.sampleS) * 1e6) / 1e6;
       if (s.t >= next) next = s.t + R.sampleS;
@@ -380,7 +380,8 @@ function makeAcceptLeg(opts) {
       L.alt = opts.alt != null ? opts.alt : (opts.fieldElev || 0) + (opts.altAGL != null ? opts.altAGL : R.altAGL);
       L.hdg = m.hdg * Math.PI / 180;
       L.resume = opts.resume || ap.phase;
-      L.t0 = m.t;
+      L.t0 = m.t; L.x0 = m.x; L.z0 = m.z;
+      L.budgetLeft = typeof ap.budget === 'number' ? Math.max(0, ap.budget - m.t) : null;
       ap.engage({ lat: 'HDG', vert: 'ALT', thr: 'FULL' }, { hdg: L.hdg, alt: L.alt });
       L.stage = 'climb';
       return L.stage;
@@ -403,11 +404,11 @@ function makeAcceptLeg(opts) {
     }
     if (L.stage === 'record') {
       rec.frame(acceptSampleOf(sim, ap));
-      if (m.t - L.tRec >= legMin * 60 - 1e-6) {
+      if (m.t - L.tRec >= legMin * 60 - 1e-3) {
         rec.stop();
         L.result = rec.result();
         L.stage = 'done';
-        ap.disengage(L.resume);
+        handBack(ap);
       }
       return L.stage;
     }
@@ -418,9 +419,20 @@ function makeAcceptLeg(opts) {
     rec.stop(); L.result = Object.assign(rec.result(), { valid: false }); L.result.why.push(why || 'aborted');
     const engaged = L.stage !== 'idle';
     L.stage = 'aborted';
-    if (engaged && ap && ap.box && ap.box.on) ap.disengage(L.resume || 'auto');
+    if (engaged && ap && ap.box && ap.box.on) handBack(ap);
     pub(ap);
   };
+  // THE HAND-BACK: the pilot resumes, and the leg costs it none of its watchdog budget - what it had left when the leg
+  // took over, plus the way back from where the leg ended (43_pilot routeBudget's own 1.6 x distance / VCruise).
+  // Measured without it: the user's Cub, 10 km out after its leg, landed at HOME as 'gave-up' (the page would have
+  // ended that flight in the air)
+  function handBack(ap) {
+    if (typeof ap.budget === 'number' && L.budgetLeft != null && ap._m) {
+      const d = Math.hypot((ap._m.x || 0) - (L.x0 || 0), (ap._m.z || 0) - (L.z0 || 0));
+      ap.budget = Math.max(ap.budget, ap.t + L.budgetLeft + 1.6 * d / Math.max(15, ap.VCruise || 30) + 120);
+    }
+    ap.disengage(L.resume || 'auto');
+  }
   return L;
 }
 // THE LEG ON A FLIGHT: the load as it flies (the tank or pack at departure),
