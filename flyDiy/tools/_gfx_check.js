@@ -541,14 +541,16 @@ const modes = async () => {
   const SRC = path.join(__dirname, '..', 'src');
   const files = []; const walk = d => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (/\.js$/.test(f)) files.push(p); } };
   walk(SRC); files.push(path.join(__dirname, 'build.js'));
-  const writes = files.filter(f => /FLYDIY_MODE\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f));
+  const writes = files.filter(f => /FLYDIY_MODE\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'));   // G2203: posix separators (Windows printed srciewer\...)
   ok(writes.join() === 'src/viewer/welcome.js', 'FLYDIY_MODE is written by welcome.js alone (' + writes.join(', ') + ')');
   // the device tests outside welcome.js, as they stood on 6 Oct: the three rig tests (app.js PACE, update_now.js, gfx_settings.js:
   // the same G528 test) and the two records that only report the browser (flight_recorder.js, diag.js). A new one fails here
-  const KNOWN = { 'src/viewer/app.js': 1, 'src/viewer/update_now.js': 1, 'src/viewer/gfx_settings.js': 1, 'src/viewer/flight_recorder.js': 1, 'src/viewer/diag.js': 2 };
+  // G2203 (game integration over train 38): gfx_settings.js 2 = the G528 rig test + HW-COVERAGE's localhost skip of the runtime
+  // step-down (G1995, train 38: offWhy's host test, landed after WELCOME-MODES' base)
+  const KNOWN = { 'src/viewer/app.js': 1, 'src/viewer/update_now.js': 1, 'src/viewer/gfx_settings.js': 2, 'src/viewer/flight_recorder.js': 1, 'src/viewer/diag.js': 2 };
   const DEV = /navigator\.userAgent|userAgentData|location\.hostname|location\.host\b|pointer:\s*coarse|innerWidth\s*</g;
   const extra = [];
-  for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;
+  for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;
     const n = (fs.readFileSync(f, 'utf8').replace(/\.uX \{[^}]*\}/g, '').match(DEV) || []).length;
     const allow = r === 'src/viewer/update_now.js' ? 2 : (KNOWN[r] || 0);   // update_now.js: its rig test + its pill's coarse-pointer CSS
     if (n > allow) extra.push(r + ' ' + n + ' > ' + allow); }
