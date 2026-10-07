@@ -6,7 +6,7 @@
 //        [--builds cub,jodel,cessna,twin582] [--solo] [--after 4000] [--swgl] [--log]
 //
 // boombox_evidence.js's rig (headless Chrome on this machine's GPU, CDP; --swgl: SwiftShader). For each build: the page
-// booted, the build put in the shed (GARAGE_SPEC.apply - the editor's own door), the sound unlocked by a REAL click on the
+// booted, the build put in the shed (GARAGE_SPEC.set - the door a new aeroplane enters by; there is no .apply), the sound unlocked by a REAL click on the
 // render (the gesture), the page's own mix TAPPED - AUDIO.bus('master') into a MediaStreamDestination and a MediaRecorder
 // (the master bus after the volumes: what the speakers get, before the soft limiter) - then "Roll out" pressed with a real
 // mouse click: the sync screen, THE SHOT (start, check, roll), the cut to the stand, and --after ms of the stand (the
@@ -86,7 +86,7 @@ const HOOK = `(() => {
     if (LOG && m.method === 'Runtime.consoleAPICalled') console.log('page ' + m.params.type + ': ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ').slice(0, 600)); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
-    if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
+    if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && ((r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description) || r.result.exceptionDetails.text))); return r.result.result.value; };
   const mouse = (type, x, y, extra) => cmd('Input.dispatchMouseEvent', Object.assign({ type, x, y, button: 'none', buttons: 0, pointerType: 'mouse' }, extra || {}));
   const click = async (x, y) => { await mouse('mouseMoved', x, y); await mouse('mousePressed', x, y, { button: 'left', buttons: 1, clickCount: 1 }); await sleep(60); await mouse('mouseReleased', x, y, { button: 'left', buttons: 0, clickCount: 1 }); };
   const centre = sel => ev("(()=>{const e=document.querySelector(" + JSON.stringify(sel) + ");if(!e||!e.offsetParent)return null;const r=e.getBoundingClientRect();return {x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)}})()");
@@ -104,7 +104,7 @@ const HOOK = `(() => {
     await sleep(4000);
     const keep = await centre('.dfClose'); if (keep) { await click(keep.x, keep.y); await sleep(1500); }
     // the build, through the editor's own door; then the shed settles
-    await ev('GARAGE_SPEC.apply(' + JSON.stringify(spec) + '), true');
+    await ev('GARAGE_SPEC.set(' + JSON.stringify(spec) + '), true');
     await sleep(8000);
     // THE GESTURE: a real click on the render (the sound's unlock), then the page's mix tapped
     const v = await ev("(()=>{const e=document.getElementById('edView')||document.getElementById('c');const r=e.getBoundingClientRect();return {x:Math.round(r.left+r.width*0.5),y:Math.round(r.top+r.height*0.15)}})()");
@@ -121,9 +121,13 @@ const HOOK = `(() => {
     else {
       const b = await centre('#bGo') || await ev("(()=>{const l=[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent);if(!l.length)return null;const r=l[0].getBoundingClientRect();return {x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)}})()");
       if (!b) throw new Error('no Roll out button');
-      await ev('window.__RSND.marks.click = performance.now(), true'); await click(b.x, b.y);
+      await ev('window.__RSND.marks.click = performance.now(), window.__RSND.trips0 = (window.FLYDIY_TRIPS || []).length, true'); await click(b.x, b.y);
     }
-    if (!await until('!!window.__RSND.marks.play', 300000)) throw new Error('the shot never started');
+    // the shot started, or the page's own trip log says why not (app.js rollAnim: trip.anim = 'none' / 'cannot' / 'threw' /
+    // 'timeout' / 'refused: ...'): fail fast with the reason, never a blind 5-minute wait (the box's first run, 2026-10-07)
+    const why = "(()=>{const T=window.FLYDIY_TRIPS||[],n=window.__RSND.trips0||0,t=T.slice(n).find(x=>x&&x.anim);return t?JSON.stringify({kind:t.kind,anim:t.anim,done:t.done,steps:(t.steps||[]).map(s=>s.id+(s.ran?'':'(skip)'))}):''})()";
+    if (!SOLO && !await until('!!window.__RSND.marks.play || !!' + why, 120000)) throw new Error('the shot never started, and no roll-out trip was logged in 120 s (the click missed Roll out?)');
+    if (!await ev('!!window.__RSND.marks.play')) throw new Error('the page did not play the shot: ' + await ev(why));
     if (!await until('!!window.__RSND.marks.done', 60000)) throw new Error('the shot never ended');
     if (!SOLO) await until("!FLYDIY_HOLDS().inGarage", 300000);
     await sleep(AFTER);
