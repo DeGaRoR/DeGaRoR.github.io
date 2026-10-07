@@ -16,7 +16,8 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
   const calls = []; let last = null, wrapped = false, regWrapped = false;
   const hooks = {
     afterScript(name, P) {
-      const O = P.win.OBSTACLES;
+      // (OBSTACLES is a top-level const of the core's script: a binding of the page's context, not a property of its window)
+      let O = null; try { O = require('vm').runInContext('typeof OBSTACLES !== "undefined" ? OBSTACLES : null', P.ctx); } catch (e) {}
       if (!wrapped && O && O.rasterise) {
         wrapped = true; const r0 = O.rasterise;
         O.rasterise = function (pos, idx, cell, opts) {
@@ -39,6 +40,12 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
   });
   const t0 = Date.now();
   await P.until(() => W.BOOT && W.BOOT.state === 'gone' && !(W.BOOT.busy && W.BOOT.busy()), 1800000);
+  // the harness has no async compile: its town step returns at once and the houses come in the world's own stream - so the
+  // frames run until the premises' queue round the stand is empty (or 6000 frames)
+  const PR = () => W.WORLD && W.WORLD.premises;
+  const q0 = PR() && PR().queued ? PR().queued() : -1;
+  for (let k = 0; k < 60; k++) { await P.frames(100); const q = PR() && PR().queued ? PR().queued() : 0; if (!q) break; }
+  console.log('  (premises queue round the stand ' + q0 + ' -> ' + (PR() && PR().queued ? PR().queued() : '?') + ' after the frames)');
   const town = (W.BOOT.log || []).find(e => e.k === 'step' && e.id === 'town');
   const byTag = {};
   for (const c of calls) { const k = (c.tag || '?') + ' @' + c.cell + (c.base ? ' +shape0' : ''); const e = byTag[k] || (byTag[k] = { n: 0, ms: 0, tris: 0 }); e.n++; e.ms += c.ms; e.tris += c.tris; }
