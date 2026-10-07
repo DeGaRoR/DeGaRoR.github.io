@@ -66,6 +66,8 @@ if (mode === 'save' && opt('chain', null)) {
   // (the saved state's def references are the saving process's: the same build's arrays here - unsnap checks them by identity)
   R.S.nodes = H.def.nodes; R.S.beams = H.def.beams;
   if (!H.sim.unsnap(R.S)) { console.log('unsnap: the saved state does not fit this build'); process.exit(2); }
+  // --apset k=v[,k=v]: a pilot / servo gain set on the build's ap record for the replay (an experiment's, never the game's)
+  if (opt('apset', null)) for (const kv of opt('apset').split(',')) { const [k, v] = kv.split('='); H.def.params.ap[k] = +v; console.log('  apset ' + k + ' = ' + v); }
   H.steps = R.steps;
   H.queueCmd({ cmd: 'start' });
   const trace = argv.includes('--trace') ? [] : null;
@@ -74,7 +76,10 @@ if (mode === 'save' && opt('chain', null)) {
     H.sim.step = dt => { st0(dt); if ((n++ % 15) === 0) { const s = H.sim, cg = s.cgPos(), v = s.cgVel(), a = A(at), ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
       const o = s.out || {}; trace.push([+(n / 60).toFixed(2), H.ap.phase, +((cg[0] - a.x) * ux + (cg[2] - a.z) * uz).toFixed(1), +(-(cg[0] - a.x) * uz + (cg[2] - a.z) * ux).toFixed(1), +(cg[1] - W.terrainH(cg[0], cg[2])).toFixed(2), +Math.hypot(v[0], v[2]).toFixed(2), +Math.hypot(v[0] - (o.windX || 0), v[2] - (o.windZ || 0)).toFixed(2), +((o.windX || 0) * ux + (o.windZ || 0) * uz).toFixed(2), +(s.ctl.thr || 0).toFixed(2), +(s.ctl.brake || 0).toFixed(2), +(s.ctl.flap || 0).toFixed(2),
       // the arrival: the distance to the To's centre, the height, the ground, the plan's height, the air's vertical
-      Math.round(Math.hypot(cg[0] - A(to).x, cg[2] - A(to).z)), Math.round(cg[1]), Math.round(W.terrainH(cg[0], cg[2])), H.ap.intent && H.ap.intent.h != null ? Math.round(H.ap.intent.h) : null, +(o.windY || 0).toFixed(2), +(o.Veas || 0).toFixed(1), +(s.ctl.thr || 0).toFixed(2)]); } };
+      Math.round(Math.hypot(cg[0] - A(to).x, cg[2] - A(to).z)), Math.round(cg[1]), Math.round(W.terrainH(cg[0], cg[2])), H.ap.intent && H.ap.intent.h != null ? Math.round(H.ap.intent.h) : null, +(o.windY || 0).toFixed(2), +(o.Veas || 0).toFixed(1), +(s.ctl.thr || 0).toFixed(2),
+      // the nose against the To's runway axis (deg, either way along it), the rudder, the brake, the wheels on the ground
+      (() => { const xA = s.axes()[0], h = Math.atan2(-xA[2], -xA[0]), d = Math.atan2(Math.sin(h - A(to).hdg), Math.cos(h - A(to).hdg)); return +((Math.abs(d) > Math.PI / 2 ? d - Math.sign(d) * Math.PI : d) * 57.3).toFixed(1); })(),
+      +(s.ctl.dr || 0).toFixed(2), +(s.ctl.brake || 0).toFixed(2), s.wheelsOnGround ? s.wheelsOnGround() : null]); } };
   }
   const L = TR.flyLeg(C, W, H.sim, H.def, A(at), A(to), { first: false, host: H, tMax: +opt('tmax', 1800) });
   console.log(TR.fmtLeg(L));
