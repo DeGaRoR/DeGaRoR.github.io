@@ -960,6 +960,7 @@ function makeSim(def, world) {
     if (ct.done) return;
     ct.done = true;
     const C = clusters[ct.cl];
+    if (HY && ct.kind === 'root' && C.cls === 'float' && HYDRO.hydroFree) HYDRO.hydroFree(HY, ct.inP, ct.P, m);   // G2368: the float rides the water on its own mass
     DMG.cl.push({ tag: C.tag, cl: ct.cl, cut: ct.kind, why, ratio: r, Mb: ct.Mb, T: ct.Tq, t: simT, grp: ct.grp >= 0 ? DGR[ct.grp].key : null });
     if (!DMG.firstCl) DMG.firstCl = DMG.cl[DMG.cl.length - 1];
     clQ.push(k);

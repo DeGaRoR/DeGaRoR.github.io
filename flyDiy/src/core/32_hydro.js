@@ -1459,7 +1459,22 @@ function hydroBuild(def, p, v) {
   // params.hydroEvery still overrides (1 = every substep, the H0-H4 calibration figure).
   const sub = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub * 60 / HYDRO_HZ)));
-  return { floats, every, tick: 0, fh: new Float64Array(p.length), wet: 0 };
+  return { floats, every, tick: 0, fh: new Float64Array(p.length), wet: 0, v };
+}
+// G2368 (DMG-BUNDLE-GREEN): A FLOAT THAT CAME OFF (its root's cut parted: 30_solver cutPart) rides the water on its own
+// mass. The water's dynamic terms (the planing pressure rho V^2, the cross-flow, the skin, the slam, the side force) are
+// explicit forces held for the compute's interval: on a float bolted to the aeroplane they meet the whole aeroplane's
+// mass, on a free one its own 30-40 kg - and rho V^2 A at 40 m/s reversed its velocity in one interval and overshot,
+// each compute the larger (the Cessna on floats' 150 km/h nose-in: the floats off at 0.134 s, a keel node at 1.2 km/s
+// within the frame, the whole sim at 1e16 m the next). `free` = the part's mass: its dynamic terms scaled so that one
+// interval can at most stop its motion through the water (a semi-implicit bound). Never set on an attached float
+function hydroFree(HY, inP, P, mArr) {
+  if (!HY) return;
+  for (const fx of HY.floats) {
+    if (fx.free || !Array.prototype.every.call(fx.rec.tetra, i => inP[i])) continue;
+    let M = 0; for (const i of P) M += mArr[i] || 0;
+    fx.free = M > 0 ? M : 1;
+  }
 }
 const HYDRO_EVERY = 8;   // (the S1 figure at 45 substeps; kept for the readers that quote it)
 const HYDRO_HZ = 360;    // the water's compute rate (G579)
@@ -1564,6 +1579,18 @@ function hydroSolverCompute(HY, world, f, simT, dt, ctl) {
     wetAny += fx.wet;
     waterRudder(fx, ctl, water, simT, f);
     const l = fx.lam;
+    const sd = out.side;
+    // G2368: a free float's dynamic terms, bounded by its own momentum through the water (hydroFree)
+    let kD = 1;
+    if (fx.free) {
+      let Dx = 0, Dy = 0, Dz = 0, vx = 0, vy = 0, vz = 0;
+      for (let k = 0; k < F.panels.length; k++) { const o = out.per[k]; if (!o.wet) continue;
+        Dx += o.Fp[0] + o.Ff[0] + o.Fx[0] + o.Fm[0] + o.Fr[0] + o.Fk[0]; Dy += o.Fp[1] + o.Ff[1] + o.Fx[1] + o.Fm[1] + o.Fr[1] + o.Fk[1]; Dz += o.Fp[2] + o.Ff[2] + o.Fx[2] + o.Fm[2] + o.Fr[2] + o.Fk[2]; }
+      for (let i = 0; i < sd.n; i++) { Dx += sd.F[i * 3]; Dz += sd.F[i * 3 + 2]; }
+      const T = fx.rec.tetra; for (const i of T) { vx += HY.v[i * 3]; vy += HY.v[i * 3 + 1]; vz += HY.v[i * 3 + 2]; }
+      const Dm = Math.sqrt(Dx * Dx + Dy * Dy + Dz * Dz), Vm = Math.sqrt(vx * vx + vy * vy + vz * vz) / T.length;
+      if (Dm * dt > fx.free * Vm) kD = fx.free * Vm / (Dm * dt);
+    }
     for (let k = 0; k < F.panels.length; k++) {
       const o = out.per[k];
       if (!o.wet) continue;
@@ -1572,14 +1599,14 @@ function hydroSolverCompute(HY, world, f, simT, dt, ctl) {
       ZERO3b[0] = o.Fp[0] + o.Ff[0] + o.Fx[0] + o.Fm[0] + o.Fr[0] + o.Fk[0];
       ZERO3b[1] = o.Fp[1] + o.Ff[1] + o.Fx[1] + o.Fm[1] + o.Fr[1] + o.Fk[1];
       ZERO3b[2] = o.Fp[2] + o.Ff[2] + o.Fx[2] + o.Fm[2] + o.Fr[2] + o.Fk[2];
+      if (kD !== 1) { ZERO3b[0] *= kD; ZERO3b[1] *= kD; ZERO3b[2] *= kD; }
       if (ZERO3b[0] || ZERO3b[1] || ZERO3b[2]) ctx.distribute(o.c, f, ZERO3b);
     }
     // G1847: the side force, slice by slice at its own point
-    const sd = out.side;
     for (let i = 0; i < sd.n; i++) {
       const i3 = i * 3;
       SIDE_PT[0] = sd.P[i3]; SIDE_PT[1] = sd.P[i3 + 1]; SIDE_PT[2] = sd.P[i3 + 2];
-      SIDE_F[0] = sd.F[i3]; SIDE_F[1] = 0; SIDE_F[2] = sd.F[i3 + 2];
+      SIDE_F[0] = sd.F[i3] * kD; SIDE_F[1] = 0; SIDE_F[2] = sd.F[i3 + 2] * kD;
       ctx.distribute(SIDE_PT, f, SIDE_F);
     }
   }
@@ -2240,7 +2267,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
