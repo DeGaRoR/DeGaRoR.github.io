@@ -40,6 +40,8 @@
 //   await P.until(fn, maxMs)   run the page's clock until fn() is true (or maxMs of virtual time)
 //   await P.frames(n)          run n animation frames
 //   P.errors                   the page's uncaught errors and console.error lines
+//   opts.fakeBake: true        (G2350) the flown bake made FAKE (window.FLYDIY_TEST_FAKE_BAKE): its folds, views and hybrid
+//                              as the game's, its atlas a 1x1 zero texel - a gate that must see the folds (DMGUPLOAD)
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
 const { makeGL, makeRecorder, THREE_SRC } = require('./_fake_gl.js');
@@ -481,6 +483,9 @@ async function openPage(opts) {
   const WL = {}; win.addEventListener = (t, f) => { (WL[t] = WL[t] || []).push(f); }; win.removeEventListener = (t, f) => { if (WL[t]) WL[t] = WL[t].filter(x => x !== f); };
   win.dispatchEvent = ev => { for (const f of (WL[ev.type] || []).slice()) f.call(win, ev); return true; };
   if (opts.storage) for (const [k, v] of Object.entries(opts.storage)) win.localStorage.setItem(k, v);
+  // (G2350 DMG-FOLDNODE: opts.fakeBake - the flown bake's TEST-ONLY fake, flown_bake.js fakeSet: a 1x1 zero atlas, no GL
+  // pass, no unwrap - so the hybrid's folds exist in the node page as the game makes them; GATE DMGUPLOAD reads them)
+  if (opts.fakeBake) win.FLYDIY_TEST_FAKE_BAKE = true;
   const ctx = win;
   win.Math.random = mathSeed;
   win.onerror = null;

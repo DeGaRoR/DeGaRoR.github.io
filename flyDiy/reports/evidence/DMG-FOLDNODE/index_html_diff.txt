@@ -1,0 +1,14 @@
+# index.html (the normal boot's page) - the build before G2350 (bf8e9d9e91dc, from 8f12bbf) against the build after (22321372b7c2): diff
+# the page loads src/viewer/flown_bake.js by URL; its bytes are the source diff (git diff 8f12bbf -- src/viewer/flown_bake.js): the gated fake (unreachable) and G2352
+3606c3606
+< <script>window.FLYDIY_BUILD='bf8e9d9e91dc';window.FLYDIY_BUILD_DATE='2026-10-06T22:00:14.997Z';</script>
+---
+> <script>window.FLYDIY_BUILD='22321372b7c2';window.FLYDIY_BUILD_DATE='2026-10-06T23:17:13.375Z';</script>
+48054c48054
+< <script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2b60d7d0f5b';window.FLYDIY_BUILD='bf8e9d9e91dc';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airf
+---
+> <script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2b60d7d0f5b';window.FLYDIY_BUILD='22321372b7c2';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airf
+171451c171451
+< <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=7fc1ee93"></script>
+---
+> <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=e74c4190"></script>
