@@ -1,0 +1,4 @@
+damage off cub    ground base 6.381 ms, now 7.331 ms, paired +13.27 % (8 pairs)
+damage off cub    air    base 5.727 ms, now 7.382 ms, paired +23.40 % (8 pairs)
+damage off jodel  ground base 14.447 ms, now 11.551 ms, paired -18.45 % (8 pairs)
+damage off jodel  air    base 13.559 ms, now 13.825 ms, paired +1.96 % (8 pairs)
