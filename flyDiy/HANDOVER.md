@@ -80210,3 +80210,232 @@ sweep - move them by hand with the numbers when a pilot change moves a person.
 
 READY for A0: claude/pilot-persona-g2085 (source only - every generated file is master's; A0 builds on the train; drop
 the base merge 4116f38c when rebasing onto train 38).
+
+## G2460 - PERSONA-2: AN UNSTABILISED APPROACH IS FLOWN AGAIN (FOR ANY PERSON), THE SEAPLANE'S FLARE ON POWER, THE PERSON ON THE WATER AND ON THE WHEELS (2026-10-07, PERSONA-2 for the PILOT COORDINATOR, a CLOUD session: node only; branch claude/persona-2-g2460 off origin/claude/pilot-persona-probe 5cc6856 = claude/pilot-integration 1c64198 (train 38 + ENGINE-TORQUE G2080 + ROUTE-DRAW G2120) + PILOT-PERSONA's own change - master had no G2085; pilot-integration's tip is in it; block G2460-G2466)
+
+THE BRIEF (PILOT-PERSONA's own owed list, HANDOVER G2085): (1) the go-around on an UNSTABILISED approach, for any person -
+a stabilised-approach rule (cite the criteria), the person's decision quality a knob (PILOT_PROFILE_KNOBS, the expert's
+default), the expert not going round on the validated aeroplanes' normal circuits; (2) the expert's water flare (2.19 m/s
+and a skip on the Wipline C172) under ~1.2 m/s without breaking the wheeled landings; (3) if cheap, the club's roll-out
+rudder dither, checked WITH ENGINE-TORQUE's taxiRudTau / steerI present. THE BAR: tools/pilot_persona.js (4 seeds, every
+person, the four validated aeroplanes) before / after; nobody crashes, no water touchdown > 2.5 m/s, every unstable final
+goes round or is named; no gate regresses, no bound loosened.
+
+EVIDENCE: reports/evidence/PERSONA-2/ (README: every file, its command, its MODE - node - and its TREE: before 5cc6856,
+after 5c57518 - the first after sweep, 00c2329, is superseded by G2466). Every number below is from there unless it says
+scratch.
+
+### THE MEASUREMENT FIRST - ON THIS BASE THE PEOPLE COULD NOT GET OFF THE WATER
+The before sweep (before_table.txt; 68 flights, node, 5cc6856 built): 12 FINDINGS, not G2085's 0 - ENGINE-TORQUE (G2080)
+landed under PILOT-PERSONA's numbers:
+- the Wipline C172's CLUB and STUDENT REJECTED EVERY TAKE-OFF (8 of 8): the student (seed 1935 traced; the four alike, rejected at
+  45-47 s) water-looped and CAPSIZED on the step at 10 m/s (the heading +-40 deg, the bank to 172 deg at 20 s, 'not accelerating' at 22 s); the club sat on the hump
+  (880 m used at 8.3 m/s, rejected at ~100 s). The person's 0.10 s on the wheels / water (G2085) inside the water run's
+  steer, which now carries G2080's standing rudder (the swirl at full power);
+- the ham-fist's water touchdowns 4.64-6.23 m/s on four seeds of four (1.57-1.63 Vs, slope rms 7.6-11.2 m);
+- NOT FLAGGED by the tool (outcome 'completed', no bound on it): roll-out GROUND LOOPS - the Cub student 64.4 deg off its
+  heading and 11 m off the centreline (seed 1935), the Cub ham-fist 52-53 deg, the Jodel student 41.5, the floats
+  ham-fist's water loop 84.8 deg (before_summary.txt's roll-out column);
+- the club's roll-out dither as G2085 said, WITH G2080's taxiRudTau / steerI: the landing group's rudder 60-70 reversals /
+  min on the Cub, 110-120 on the Jodel (taxiRudTau is the TAXI's pedal filter: the roll-out flies groundSteer, whose
+  steerI is in the loop).
+- the expert's water flare (the Wipline, calm; scratch trace): the throttle closed at the flare's start (0.27 -> 0), the
+  nose fell -3.5 -> -5.3 deg (full flap, the thrust line under the drag), the sink grew 2.24 -> 3.05 m/s, the elevator
+  stalled at 0.27-0.28 under the flare's deSat (0.30) - the nose still -1.1 deg at the touch, 2.16 m/s; then the
+  taildragger roll-out's full back stick at 25 m/s threw it to +16 deg and off the water for 3 s (the skip; the second
+  touch 2.74).
+
+### G2460 THE STABILISED APPROACH (43 PILOT_STAB; FINAL; every person, the expert included)
+THE CRITERIA (Flight Safety Foundation ALAR Tool Kit, Briefing Note 7.1 'Stabilized Approach'; FAA AC 120-71B's
+stabilized-approach criteria): by the gate the aeroplane is on the correct flight path, at not less than Vref nor more than
+Vref + 20 kt, sinking not more than 1000 fpm, in the landing configuration; "an approach that becomes unstabilized below
+[the gate] requires an immediate go-around". Scaled to a light aeroplane's visual circuit (PILOT_STAB, each with its why
+in 43):
+  the gate      300 ft (91 m), never above 0.6 of this circuit's height (FSF's VMC 500 ft is a transport's, a third of its
+                1500 ft pattern) - the Cub 69 m, the Jodel 78, the C172s 91
+  speed         -5 kt / +10 kt about the speed asked (Vref + half the gust), 1 s filtered (FSF's +20 kt is +14 % of a 140 kt
+                Vref; +10 kt is +17-20 % of a light aeroplane's)
+  path          off the slope by more than 0.7 deg seen from the aim (a PAPI's full deflection; the ILS's one dot is 0.35),
+                never tighter than the capture's 4 m
+  sink          1.5 x the slope's own rate (ground speed x slope) or that + 1 m/s, whichever larger, capped at 1000 fpm
+                (FSF's 1000 fpm is 1.35 x a transport's 3 deg sink at 140 kt), 1 s filtered
+  centreline    off it by more than 2 deg from the aim (the style's gaXT closer in)
+  configuration the flap short of the landing setting by 0.15 after 15 s of final
+THE DECISION: the time outside the criteria accumulates (leaking at half rate while inside) and at 2 s x the person's
+`decisionK` the approach is flown again (goAround 'unstabilised approach at <h> m: <why>'). Twice round and the third is
+committed (G1936's rule, kept); an unstable final landed then is SAID (ap.report.stab.committed, 'committed-unstable'). A
+final the expert would have flown again (past 2 s) that a late decider landed is named too (stab.tolerated). A go-around
+gives the watchdog another 400 s (the ham-fist's third circuit was 'out of patience' at 600 s in BASE before it).
+THE KNOB: PILOT_PROFILE_KNOBS 'decisions' (quirks.decisionK, 0.5-3, the expert's 1: under 1 decides sooner, over 1 late) -
+the student 0.5 ("may go around more"), the ham-fist 2 ("may go round late"); it scales 'high on the slope''s 3 s too. The
+custom pilot's fold shows it (app.js reads the list; GATE UISMOKE's WANT += 'decisions').
+THE EXPERT DOES NOT GO ROUND on the validated four (after_results.json, stab.worst - the worst of each criterion over the
+judged final as a fraction of its limit): the Cub path 0.03 / sink 0.53, the Jodel 0.01 / 0.58, the C172 0 / 0.67, the
+floats 0 / 0.67; speed and centreline <= 0.03. The expert's wheeled flights are the same to the digit (the table).
+pilot_trace reports `stab` ({ gateH, finals, ga, committed, tolerated, worst }); pilot_persona prints a `stab` column
+(ok / GAn / +U / +T) and names every +U / +T flight under its table.
+
+### G2461 THE PERSON ON THE WATER: NO DELAY
+humanise: on the water (sim.hydro, a float wet) the person's delay is 0 - the gain, the hands (slew) and the unsteadiness
+still fly it. Measured (experiments.txt §1, the take-off group's rudder / min): the base 0.10 s - the student capsized, the
+club rejected; 0.05 s - every person off once but the rudder dithering (the bush pilot 286, the ham-fist 391); none - the
+student 19, the club 6, the bush 6, the ham-fist 147 (his hand); the slew whole alone - still rejected.
+
+### G2462 THE SEAPLANE'S FLARE ON POWER; THE ATTITUDE HELD ON THE STEP
+- FLARE on the water (sim.hydro): the throttle stays where the approach had it and a PI on the sink trims it (flareWaterP
+  0.25, flareWaterI 0.10, at most +0.4) - the hold-off's pitch law unchanged (FAA-H-8083-23, the Seaplane Handbook: the
+  touchdown in a slightly nose-high attitude at a low rate of descent, power controlling it). The expert: pitch -3.5 ->
+  +1.5 deg, the sink held 0.73-0.89, the touch at 0.88 m/s (2.16), 72 m past the aim on a 1500 m lane.
+- ROLLOUT on the water: the touchdown attitude held to 0.7 Vs0, then the stick back (the handbook: back pressure added
+  gradually as the hull comes off the step) - no skip (was one, every flight).
+- The wheels: untouched (sim.hydro only).
+
+### G2463 THE MACHINE'S ADAPTATIONS ARE NOT FOOLED BY A HAND
+With G2460 in, the floats ham-fist went round twice on every seed - and his finals stayed 6-7 m/s fast and flapless:
+- the elevator's 'stop' was read off the elevator, which under a person is the person's HAND: G975's landing flap ("the
+  elevator cannot hold flap 1.00 - landing on 0.75" ... down to 0.25, in six steps) and G399.7's raised Vref ("the
+  elevator cannot hold 34.6 m/s" - in the climb-out at 74 s, then for the rest of the flight). Under a person they now read
+  `deHeld()`: the servo's own demand (before the person's delay, gain and hand) over HUM_HOLD (3 s), and the attitude's
+  shortfall over the same; and the Vref raise counts on the FINAL only under a person (the servo winds up behind an eased
+  grip at any speed). The expert reads the elevator as before (PRA false: SV.aDe). The steps (experiments.txt §3): the
+  raw demand - the flap still came in on every seed; held 1 s - Vref still raised in the climb-out; held 3 s - the
+  arrivals now came from the flare (2.48 / 2.91 / 3.32, a skip each) - G2465.
+
+### G2464 THE PERSON ON THE WHEELS: THE FEET UNDELAYED
+On the wheels (onG > 0) the rudder bypasses the delay line (the stick keeps the person's delay: the rotation, the touch).
+Measured (experiments.txt §2, seed 1935, the landing group's rudder / min and the roll-out's worst heading): the base -
+the Cub club 70 / 1.1 deg, the Jodel club 116 / 3.2; 0.05 s every axis - the Cub 44, the Jodel 114; the feet's gain 0.7 -
+the Cub's roll-out 39.6 deg; a 0.015 pedal backlash - the Cub 23.7 deg; the slew whole or no hand - unchanged (the delay
+is the cause); THE FEET UNDELAYED - the Cub club 8 / 0.6, the Jodel club 30 / 4.2, the Cub student 16 / 1.5 (base 64.4),
+the Cub ham-fist 50 / 21.6 (base 52.3). Over the sweep: the club's worst group 10-26 / min on all four (was 41-120 on the wheels).
+
+### G2465 THE HAND STEADIER THROUGH THE LANDING
+- THE LANDING IS THE PERSON'S STEADIEST MOMENT TOO (the delay and the gain already are the wheels' there, G2085): the
+  hand's wander halved in FLARE and ROLLOUT - in the flare, the floats ham-fist's water touchdowns 2.48 / 2.91 / 3.32 (a
+  skip each) -> 0.72-1.55 m/s on four seeds (the sweep: 0.72-1.59); the roll-out: G2466.
+
+### G2466 A STICK HELD AGAINST ITS STOP IS NOT WANDERED (THE FIRST BATTERY'S RED)
+The first battery on 00c2329 (all but this PASS): GATE PILOTMATRIX FAIL - cub:HOME:calm:hamfist's roll-out swing 2.8 deg
+(the baseline) -> 28.9 (the ratchet allows +5). THE BASE TREE FAILS IT WORSE (experiments.txt §6, 5cc6856's core, the
+three profile cells): the ham-fist 52.3 deg AND the student 64.4 - 6 regressed; 00c2329 had the student at 0.9. Traced:
+below 14 m/s, tail down, the heading swung +-14 -> +-28 deg at 0.3 Hz, the rudder on +-0.9. Measured (experiments.txt §5):
+no rudder hand on the wheels 33.1; the slew whole 32.9; NO ELEVATOR HAND on the wheels 6.5 - the taildragger's roll-out
+holds the stick full back (0.35, the stop) and the hand's wander worked the tailwheel's load. A hand pressing a stick
+against its stop cannot wander it: the elevator's wander is skipped while the command sits on the stop (0.35; on the
+water 0.70) - 7.5 (seed 1: 3.1); with the hand halved through the roll-out (G2465): the Cub 5.0 / 3.1, the Jodel 3.3, the
+C172 3.9. The four profile cells against the ratchet: PASS (ham-fist 5.0, student 0.6, club 0.9, bush 0.6).
+
+### THE TABLES (node; before 5cc6856, after 5c57518; calm; seeds 1935 / 1 / 2 / 3, the expert once; min-max over the seeds;
+stab: the stabilised-approach verdicts counted; roll-out deg: the roll-out's worst heading error)
+BEFORE (before_summary.txt; 12 FINDINGS):
+```
+aeroplane    person   n  run m    lifts q deg/s   xt rms m   slope m  V rms     sink m/s   V/Vs       bnc GA  stab                rev/min  roll-out deg outcome
+Cub          expert   1  105      1     3.1       1.3        0.7      0.14      0.65       1.15       0   0   -                   12       1.8          completed
+Cub          club     4  106-111  1     3.5-4.1   1.1-1.2    0.7      0.12-0.13 0.50-0.59  1.17-1.21  0   0   4x-                 60-70    1.1-1.8      completed
+Cub          student  4  104-124  1     4.1-5.4   1.0-1.2    0.7-0.8  0.15-0.18 0.49-0.75  1.18-1.22  0   0   4x-                 46-68    1.3-64.4     completed
+Cub          bush     4  106-107  1     3.6-3.8   1.1        0.7-0.8  0.20      0.68-0.69  1.13-1.14  0   0   4x-                 22-26    0.7-2.0      completed
+Cub          hamfist  4  107-128  1     6.1-7.0   1.6-1.9    0.8-0.9  0.28-0.30 0.64-0.96  1.19-1.28  2   0   4x-                 100-102  9.1-53.4     completed
+Jodel        expert   1  176      1     4.3       1.0        0.6      0.10      1.04       1.14       0   0   -                   14       3.2          completed
+Jodel        club     4  174-184  1     7.2-8.0   0.7-0.9    0.5-0.6  0.10-0.11 0.93-1.10  1.14       0   0   4x-                 110-120  2.6-3.6      completed
+Jodel        student  4  179-206  1-4   9.0-46.5  0.7-1.4    0.7-0.9  0.24-0.29 0.88-1.13  1.13-1.17  1   0   4x-                 54-122   4.1-41.5     completed
+Jodel        bush     4  173-177  1     6.1-6.5   0.8        0.6      0.04-0.05 0.92-1.00  1.14       0   0   4x-                 26-70    1.9-3.9      completed
+Jodel        hamfist  4  170-207  1     8.4-12.0  1.4-2.6    1.3-1.5  0.49-0.60 1.04-1.42  1.13-1.24  5   0   4x-                 106-146  3.7-7.1      completed
+C172         expert   1  253      1     7.9       1.5        1.0      0.08      1.14       1.09       0   0   -                   8        1.7          completed
+C172         club     4  251-254  1     8.1-9.3   0.6-0.7    1.0      0.08-0.10 1.12-1.24  1.09       0   0   4x-                 41-51    1.6-2.8      completed
+C172         student  4  242-250  1     9.4-11.5  1.8-4.3    0.9-1.1  0.15-0.19 1.21-1.30  1.09-1.13  0   0   4x-                 52-68    2.9-5.4      completed
+C172         bush     4  252-254  1     8.3-9.1   3.8-4.1    0.7-0.8  0.17      1.17-1.20  1.05-1.06  0   0   4x-                 34-43    0.5-1.4      completed
+C172         hamfist  4  245-263  1     8.2-16.1  2.1-2.4    1.2-1.5  0.30-0.35 0.96-2.48  1.09-1.17  0   0   4x-                 101-108  6.7-15.1     completed
+C172 floats  expert   1  321      1     7.0       2.0        1.5      0.20      2.16       1.22       1   0   -                   13       0.9          completed
+C172 floats  club     4  -        -     -         -          -        -         -          -          0   0   4x-                 25       -            rejected-takeoff
+C172 floats  student  4  -        -     -         -          -        -         -          -          0   0   4x-                 33-35    -            rejected-takeoff
+C172 floats  bush     4  624-669  1     15.6-15.7 1.8-2.0    3.7-3.8  0.67-0.73 2.07-2.17  1.22-1.23  4   0   4x-                 41-43    2.9-3.5      completed
+C172 floats  hamfist  4  553-620  1     10.7-14.4 1.8-10.9   7.6-11.2 2.52-4.90 4.64-6.23  1.57-1.63  7   1   4x-                 94-102   8.7-84.8     completed
+```
+AFTER (after_summary.txt; SAFE - no finding; 8 flights out of their person's band, all on the floats: the student's
+circuit tracking 36-45 m rms, the ham-fist's slope / speed rms):
+```
+aeroplane    person   n  run m    lifts q deg/s   xt rms m   slope m  V rms     sink m/s   V/Vs       bnc GA  stab                rev/min  roll-out deg outcome
+Cub          expert   1  105      1     3.1       1.3        0.7      0.14      0.65       1.15       0   0   ok                  12       1.8          completed
+Cub          club     4  105      1     4.0-4.2   1.1-1.2    0.7      0.12-0.13 0.44-0.52  1.18-1.20  0   0   4xok                14       0.6-1.2      completed
+Cub          student  4  103-104  1     4.2-4.9   1.0-1.3    0.7-0.8  0.16-0.18 0.41-0.58  1.18-1.21  0   0   4xok                46-48    0.6-3.0      completed
+Cub          bush     4  105      1     3.6-3.7   1.1        0.7-0.8  0.20      0.68-0.69  1.13-1.14  0   0   4xok                10-14    0.2-0.6      completed
+Cub          hamfist  4  96-106   1     5.4-6.9   1.7-2.2    0.8-0.9  0.27-0.30 0.49-0.67  1.17-1.26  0   0   4xok                100-102  3.1-7.2      completed
+Jodel        expert   1  176      1     4.3       1.0        0.6      0.10      1.04       1.14       0   0   ok                  14       3.2          completed
+Jodel        club     4  175-177  1     7.2-8.0   0.7-0.8    0.5-0.6  0.10      1.00-1.06  1.13-1.14  0   0   4xok                12-26    2.5-4.4      completed
+Jodel        student  4  169-175  1     7.1-10.7  0.8-2.1    0.8-1.1  0.26-0.32 0.93-1.12  1.14-1.21  2   0   4xok                40-60    2.6-10.0     completed
+Jodel        bush     4  176      1     6.4-6.5   0.8        0.6      0.04-0.05 0.94-1.00  1.14       0   0   4xok                12-14    2.4-3.0      completed
+Jodel        hamfist  4  167-181  1     9.4-15.0  1.4-2.7    1.3-1.5  0.49-0.57 0.93-1.16  1.14-1.24  5   0   2xok 2xok+T         90-116   3.0-6.1      completed
+C172         expert   1  253      1     7.9       1.5        1.0      0.08      1.14       1.09       0   0   ok                  8        1.7          completed
+C172         club     4  251-254  1     8.2-9.3   0.6-0.7    1.0      0.08-0.10 1.14-1.24  1.09       0   0   4xok                12-17    1.8-2.7      completed
+C172         student  4  241-249  1     9.2-11.4  2.1-4.4    0.9-1.1  0.15-0.20 1.06-1.30  1.10-1.12  0   0   4xok                40-46    1.8-3.7      completed
+C172         bush     4  251-253  1     8.4-9.0   3.8-4.1    0.7-0.8  0.17      1.17-1.19  1.05-1.06  0   0   4xok                8-11     0.5-1.0      completed
+C172         hamfist  4  244-261  1     8.8-16.1  2.1-2.4    1.2-1.4  0.30-0.35 1.08-1.79  1.12-1.14  0   0   4xok                101-117  3.9-15.5     completed
+C172 floats  expert   1  321      1     7.0       2.0        1.5      0.20      0.88       1.21       0   0   ok                  9        1.0          completed
+C172 floats  club     4  322-324  1     7.5-8.1   1.0-1.2    2.7-2.8  0.60-0.62 0.78-0.87  1.21-1.22  0   0   4xok                10-16    0.7-0.8      completed
+C172 floats  student  4  314-316  1     7.7-9.4   36.0-44.5  5.4-5.9  0.78-0.97 0.83-1.01  1.21-1.26  1   0   4xok                39-45    0.7-5.3      completed
+C172 floats  bush     4  320-324  1     7.5-7.7   2.0-2.1    3.7      0.67-0.68 0.83-0.86  1.21       0   0   4xok                10       0.9-1.3      completed
+C172 floats  hamfist  4  313-332  1     8.1-15.5  2.3-12.6   5.9-8.5  1.32-3.07 0.72-1.59  1.17-1.35  4   6   2xGA2+T ok+T GA2+U  106-147  2.5-4.5      completed
+```
+READ: 68 of 68 completed (before: 60; 8 rejected take-offs - the student's traced on seed 1935: capsized on the step). NO WATER TOUCHDOWN OVER 2.5 m/s: the
+worst 1.59 (the floats ham-fist; before 6.23); every water touchdown by every person 0.72-1.59, the expert 0.88 (2.16 and
+a skip). The wheeled landings unbroken: the expert's three wheeled rows the same to the digit; every wheeled person's sink
+inside the before's own range or under it (the C172 ham-fist 1.08-1.79, was 0.96-2.48). THE GO-AROUNDS: the floats
+ham-fist went round six times on three seeds (the reasons: sinking 3.5-5.4 m/s, 9 m high / 10 m low on the slope), the
+third final committed once ('U': low 13 m on the slope at 65 m - landed at 1.18 m/s); the late decider
+(decisionK 2) TOLERATED five finals the expert would have flown again ('T', named under the table: the Jodel ham-fist sinking
+2.4 m/s at 29 / 58 m for 2.2-2.6 s, the floats ham-fist sinking 3.5-3.6 m/s at 29-44 m for 2.7-3.8 s) - every unstable
+final went round or is named. The expert went round on none: its worst criterion over the judged final 0.53-0.67 of the
+limit (the sink; the path <= 0.03, the speed <= 0.03, the centreline <= 0.03); the club's worst 0.72, the bush pilot's 0.69,
+the student's 0.98 (the sink, no go-around: no student final was unstable on a calm day). THE ROLL-OUTS: the base's ground
+loops gone - the Cub student 0.6-3.0 deg (64.4), the Cub ham-fist 3.1-7.2 (53.4), the Jodel student 2.6-10.0 (41.5), the
+floats ham-fist 2.5-4.5 (84.8). THE CLUB'S HANDS: the worst group 10-26 reversals / min on all four (60-120 on the wheels).
+
+### THE GATES (node; tree 5c57518 built; `node tools/build.js` then `node --max-old-space-size=2048 tools/run_gates.js --no-build
+--only=PILOT,TAKEOFF,PILOTACT,PILOTMATRIX,SEAPLANE,INPUT,PLAYER,UISMOKE,ENGTORQUE --jobs=4 --verbose`, a 4-core cloud box;
+evidence gates.log) - BATTERY: PASS (2807 s wall)
+```
+INPUT       PASS   135 s   club/ctl bank held 31 deg, re-engaged at 20.4 deg (20-25 s), 3 m lost; club/keys 46 / 26 / 20.4 deg,
+                           13 m (G2085: 31 / 20.3 deg, 3 m; 46 / 29 / 20.3, 15 m)
+PILOT       PASS   443 s   [3 shards]
+TAKEOFF     PASS   513 s
+PILOTACT    PASS   238 s   the expert's taxi as before: the C172 18.9, the metal Cessna 19.2 / min (of 20 - G2080's THIN margin, not
+                           moved: no PERSONA-2 change reaches the expert's taxi)
+UISMOKE     PASS   221 s   the custom pilot's fold reaches 'decisions' (WANT += 1)
+PILOTMATRIX PASS  1931 s   18 cells: 12 good, 3 warn, 3 bad (the Stearman's three, known); NO CELL WORSE than pilot_baseline.json;
+                           the expert went round in no cell (x2, x4's gusts, the cross-countries to A3 / A5 included); the profile
+                           cells: club 0.9 deg, student 0.6, bush 0.6, ham-fist 5.0 (baseline 2.8; THE BASE TREE FAILS THIS GATE:
+                           6 regressed, the ham-fist 52.3 and the student 64.4 deg - experiments.txt §6; 00c2329 failed it at
+                           28.9 - G2466)
+SEAPLANE    PASS   343 s   the ultralight on floats: the circuit's touch on the lane's deep water, 0.5 m off the centreline;
+                           the crosswind run 3.4 m / 11.4 deg, 1 skip (bound 2); the idle taxi 9.7 deg / 1.0 m
+PLAYER      PASS   0.1 s   41 checks (the custom person clamped and round-tripped - 'decisions' is one more knob in it)
+ENGTORQUE   PASS   108 s   17/17
+```
+ROUNDTRIP not run: the player document did not change (`pilot.custom` carries one more optional knob, clamped by
+pilotProfile as every knob is; GATE PLAYER covers it). Never a bound loosened: pilot_persona's SAFE and PERSONA_BANDS are
+as G2085 set them; the tool's clock (--max 1500 per flight: a go-around is another circuit) is the persona sweep's, not a
+gate's.
+
+### OWED (seen, not done here)
+- THE FLOATS HAM-FIST'S PITCH: a +-10-14 deg, ~10 s pitch oscillation on the Wipline C172's final (slope rms 5.9-8.5 m, speed
+  rms 1.3-3.1 m/s) - his hand's slow wander (the Ornstein-Uhlenbeck's power below 0.1 Hz) feeding the phugoid TECS flies
+  through; he now goes round (twice on three seeds) and lands at 0.72-1.59 m/s, but the cause is not cut. The wheeled
+  ham-fists do not show it. A hand that corrects its own slow drift (a high-pass on the wander) is the next cut - it moves
+  every ham-fist flight.
+- THE FLOATS STUDENT'S CIRCUIT: 36-45 m rms off the straights (out of the student's 20 m band; G2085 51-70): the eased roll
+  loop (gain 0.25 at 0.45 s) on the floats' slow roll. The final is judged stable (the centreline at <= 0.25 of its limit).
+- NO WINDY PERSONA SWEEP: the student's "goes round more" is wired (decisionK 0.5) but no student final was unstable on a
+  calm day (the worst criterion 0.98 of the limit); `pilot_persona --weather x2|x4|breeze` with the people is the next table.
+  The expert in wind is covered by PILOTMATRIX (x2, x4: no go-around).
+- THE EXPERT'S WATER AIM: the power-on flare floats - 72 m past the aim on the SEA lane (1500 m: harmless); a short water
+  lane would want the aim earlier or the power taken off sooner.
+- decisionK scales the go-around's dwells only (the stabilised rule's and 'high on the slope''s); the design's §4.4 also names
+  the reject's dwell, the rotation speed, the gear / flap timings.
+- THE STABILISED RULE IS FINAL'S: a forced landing (GLIDE) has no go-around and is not judged.
+- G2085's own still owed: the design's §4 hooks (precision, drift, crab / slip, fatigue, skill growth).
+- FOR THE COORDINATOR: THE BASE (pilot-integration + PERSONA, 5cc6856) IS RED - GATE PILOTMATRIX FAIL (6 regressed: the Cub
+  student / ham-fist roll-out ground loops) and pilot_persona's 12 findings (the water take-offs) - ENGINE-TORQUE G2080
+  landing under PILOT-PERSONA G2085's people. This branch carries the fixes (G2463, G2464, G2466); landing PERSONA without
+  them is landing red.
+
+READY: claude/persona-2-g2460 (source + evidence only - no generated file committed; it builds on the train).

@@ -1,0 +1,107 @@
+PERSONA-2 (G2460-G2466) - THE EXPERIMENTS (node; scratch variants of the built core; each line one pilot_trace flight)
+
+== 1. THE WATER RUN (the Wipline C172, SEA lane, seed 1935 then 1; take-off only, --max 120): the person's delay on the water
+   none = the base's 0.10 s on the wheels/water; d0 = no delay on the water; s1 = the slew whole on the water; q05 = 0.05 s
+none student 1935 rejected-takeoff 45.4 to null land null bnc 0 ga 0 stab null act {"s":45,"da":33,"dr":22.5,"de":34.3} 22.2s rejected-takeoff: not accelerating (-0.89 m/s^2 at V=5.1) — thrust is going nowhere
+d0 student 1935 gave-up 120 to {"run":315,"Vlo":27.3,"lifts":1,"qMax":7.7} land null bnc 0 ga 0 stab null act {"s":31,"da":23.1,"dr":36.6,"de":25.1} 
+d0 club 1935 gave-up 120 to {"run":324,"Vlo":27.7,"lifts":1,"qMax":7.6} land null bnc 0 ga 0 stab null act {"s":31,"da":3.9,"dr":9.6,"de":1.9} 
+none club 1935 gave-up 120 to null land null bnc 0 ga 0 stab null act {"s":120,"da":29.5,"dr":32,"de":1} 106.1s rejected-takeoff: 880 m used (60 % of the run) still on the wheels at V=8.3 of Vr=24.8 (the sheet says 1099 m) — dro
+s1 student 1935 gave-up 120 to null land null bnc 0 ga 0 stab null act {"s":120,"da":35.5,"dr":35,"de":35.5} 99.2s rejected-takeoff: 880 m used (60 % of the run) still on the wheels at V=8.7 of Vr=24.8 (the sheet says 1099 m) — 
+d0s1 student 1935 gave-up 120 to {"run":315,"Vlo":27.3,"lifts":1,"qMax":7.7} land null bnc 0 ga 0 stab null act {"s":31,"da":23.1,"dr":36.6,"de":23.1} 
+s1 club 1935 gave-up 120 to null land null bnc 0 ga 0 stab null act {"s":120,"da":31.5,"dr":33,"de":3} 100.1s rejected-takeoff: 880 m used (60 % of the run) still on the wheels at V=8.8 of Vr=24.8 (the sheet says 1099 m) — dropp
+d0s1 club 1935 gave-up 120 to {"run":324,"Vlo":27.7,"lifts":1,"qMax":7.6} land null bnc 0 ga 0 stab null act {"s":31,"da":3.9,"dr":9.6,"de":1.9} 
+d05s1 student 1935 gave-up 120 to {"run":315,"Vlo":27.3,"lifts":1,"qMax":7.7} land null bnc 0 ga 0 stab null act {"s":31,"da":23.1,"dr":36.6,"de":23.1} 
+d05s1 club 1935 gave-up 120 to {"run":324,"Vlo":27.7,"lifts":1,"qMax":7.6} land null bnc 0 ga 0 stab null act {"s":31,"da":3.9,"dr":9.6,"de":1.9} 
+q05 bush 1 gave-up 120 to {"run":321,"Vlo":27.6,"lifts":1,"qMax":7.8} land null bnc 0 ga 0 stab null act {"s":31,"da":3.9,"dr":285.5,"de":5.8} 
+q05 hamfist 1 gave-up 120 to {"run":314,"Vlo":27.3,"lifts":1,"qMax":9.3} land null bnc 0 ga 0 stab null act {"s":31,"da":87.7,"dr":390.7,"de":102.9} 
+q05 student 1 gave-up 120 to {"run":404,"Vlo":27.6,"lifts":1,"qMax":9.7} land null bnc 0 ga 0 stab null act {"s":37,"da":35.7,"dr":43.8,"de":30.8} 
+q05 club 1 gave-up 120 to {"run":453,"Vlo":28.1,"lifts":1,"qMax":10.7} land null bnc 0 ga 0 stab null act {"s":39,"da":35.1,"dr":41.2,"de":15.3} 
+d0 student 1 gave-up 120 to {"run":314,"Vlo":27.3,"lifts":1,"qMax":8.9} land null bnc 0 ga 0 stab null act {"s":31,"da":17.3,"dr":19.2,"de":11.5} 
+d0 club 1 gave-up 120 to {"run":323,"Vlo":27.7,"lifts":1,"qMax":7.5} land null bnc 0 ga 0 stab null act {"s":31,"da":3.8,"dr":5.8,"de":5.8} 
+d0 hamfist 1 gave-up 120 to {"run":314,"Vlo":27.3,"lifts":1,"qMax":9.6} land null bnc 0 ga 0 stab null act {"s":31,"da":87.7,"dr":146.8,"de":91.5} 
+d0 bush 1 gave-up 120 to {"run":323,"Vlo":27.7,"lifts":1,"qMax":7.5} land null bnc 0 ga 0 stab null act {"s":31,"da":3.9,"dr":5.8,"de":5.8} 
+   (the base's student at 22 s: the heading +-40 deg, the bank to 172 deg - capsized - then 'rejected'; the d05s1 rows are d0s1: the first cut's name matched 'd0')
+
+== 2. THE ROLL-OUT DITHER (seed 1935; LDdr = the landing group's rudder reversals / min, roll.maxE = the roll-out's worst heading, deg)
+   none = base; g0.7 = the feet's gain eased; d0.05 = 0.05 s on every axis on the wheels; b0.015 = a pedal backlash; d0 = no delay on the wheels;
+   s1 = the slew whole on the wheels; n0 = no hand on the wheels; r0 = THE FEET UNDELAYED on the wheels (kept: G2464)
+none cub club completed lifts 1 sink 0.59 bnc 0 TOdr 26 LDdr 70 taxi undefined roll {"maxE":1.1,"zeroX":0,"maxDr":0.13,"xtEnd":0}
+none jodel club completed lifts 1 sink 1.06 bnc 0 TOdr 18.9 LDdr 116 taxi undefined roll {"maxE":3.2,"zeroX":0,"maxDr":0.15,"xtEnd":0}
+g0.7 cub club completed lifts 1 sink 0.53 bnc 0 TOdr 22 LDdr 14 taxi undefined roll {"maxE":39.6,"zeroX":0,"maxDr":0.8,"xtEnd":-5.3}
+d0.05 cub club completed lifts 1 sink 0.57 bnc 0 TOdr 26 LDdr 44 taxi undefined roll {"maxE":0.6,"zeroX":0,"maxDr":0.12,"xtEnd":0}
+g0.7 jodel club completed lifts 1 sink 1.13 bnc 1 TOdr 16.3 LDdr 94 taxi undefined roll {"maxE":4.3,"zeroX":0,"maxDr":0.09,"xtEnd":0}
+b0.015 cub club completed lifts 1 sink 0.55 bnc 0 TOdr 22 LDdr 20 taxi undefined roll {"maxE":23.7,"zeroX":0,"maxDr":0.83,"xtEnd":-1}
+d0.05 jodel club completed lifts 1 sink 1.07 bnc 0 TOdr 25.1 LDdr 114 taxi undefined roll {"maxE":4.2,"zeroX":0,"maxDr":0.12,"xtEnd":0}
+b0.015 jodel club completed lifts 1 sink 1.06 bnc 0 TOdr 19 LDdr 64 taxi undefined roll {"maxE":3.3,"zeroX":0,"maxDr":0.34,"xtEnd":0}
+d0 cub club completed lifts 1 sink 0.51 bnc 0 TOdr 14 LDdr 8 taxi undefined roll {"maxE":0.7,"zeroX":0,"maxDr":0.12,"xtEnd":0}
+s1 jodel club completed lifts 1 sink 0.98 bnc 0 TOdr 19.4 LDdr 112 taxi undefined roll {"maxE":2.2,"zeroX":0,"maxDr":0.13,"xtEnd":0}
+d0 jodel club completed lifts 1 sink 1.08 bnc 1 TOdr 7.4 LDdr 8 taxi undefined roll {"maxE":4.2,"zeroX":0,"maxDr":0.11,"xtEnd":0}
+s1 cub club completed lifts 1 sink 0.59 bnc 0 TOdr 30 LDdr 70 taxi undefined roll {"maxE":1.1,"zeroX":0,"maxDr":0.13,"xtEnd":0}
+n0 cub club completed lifts 1 sink 0.52 bnc 0 TOdr 22 LDdr 60 taxi undefined roll {"maxE":2.2,"zeroX":0,"maxDr":0.25,"xtEnd":0}
+n0 jodel club completed lifts 1 sink 1.1 bnc 0 TOdr 19.8 LDdr 122 taxi undefined roll {"maxE":2.6,"zeroX":0,"maxDr":0.15,"xtEnd":0}
+r0 jodel club completed lifts 1 sink 1.08 bnc 0 TOdr 7.4 LDdr 30 taxi undefined roll {"maxE":4.2,"zeroX":0,"maxDr":0.11,"xtEnd":0}
+r0 jodel hamfist completed lifts 1 sink 1.15 bnc 1 TOdr 85 LDdr 112 taxi undefined roll {"maxE":2.7,"zeroX":1,"maxDr":0.31,"xtEnd":0.1}
+r0 jodel student completed lifts 1 sink 1.06 bnc 1 TOdr 29 LDdr 36 taxi undefined roll {"maxE":5.2,"zeroX":0,"maxDr":0.18,"xtEnd":0}
+r0 cub club completed lifts 1 sink 0.53 bnc 0 TOdr 14 LDdr 8 taxi undefined roll {"maxE":0.6,"zeroX":0,"maxDr":0.12,"xtEnd":0}
+r0 cub student completed lifts 1 sink 0.65 bnc 0 TOdr 38 LDdr 16 taxi undefined roll {"maxE":1.5,"zeroX":0,"maxDr":0.24,"xtEnd":0}
+r0 cub hamfist completed lifts 1 sink 0.68 bnc 0 TOdr 76 LDdr 50 taxi undefined roll {"maxE":21.6,"zeroX":0,"maxDr":0.92,"xtEnd":1.1}
+r0 c172 club completed lifts 1 sink 1.18 bnc 0 TOdr 13.1 LDdr 4 taxi undefined roll {"maxE":2.1,"zeroX":0,"maxDr":0.05,"xtEnd":0}
+r0 c172 hamfist completed lifts 1 sink 2.71 bnc 1 TOdr 97.4 LDdr 86 taxi undefined roll {"maxE":6.2,"zeroX":1,"maxDr":0.13,"xtEnd":-0.1}
+r0 c172 student completed lifts 1 sink 1.22 bnc 0 TOdr 26.8 LDdr 48 taxi undefined roll {"maxE":2.7,"zeroX":0,"maxDr":0.07,"xtEnd":0}
+
+== 3. THE HAM-FIST ON FLOATS, step by step (4 seeds 1935/1/2/3, pilot_persona --only c172f --profiles hamfist): sink m/s per seed, the go-arounds
+  w5 s1935 3.02 GA2 | s1 1.67 GA2 | s2 4.35 GA2 | s3 4.63 GA2
+  w6 s1935 3.97 GA2 | s1 1.65 GA1 | s2 1.01 GA2 | s3 1.61 GA2
+  w7 s1935 0.28 GA2 | s1 0.36 GA2 | s2 7.16 GA2 | s3 2.26 GA2
+  w8 s1935 1.28 GA2 | s1 1.72 GA2 | s2 2.27 GA2 | s3 2.92 GA2
+  w9 s1935 2.48 GA2 | s1 1.06 GA1 | s2 2.91 GA1 | s3 3.32 GA2
+  w10 s1935 0.99 GA2 | s1 0.72 GA2 | s2 1.55 GA0 | s3 1.2 GA2
+   w5  = the stabilised-approach rule + no delay on the water (the water flare on power)
+   w6  = + the elevator's stop judged on the servo's raw demand (flap / Vref)         - the flap still came in on every seed
+   w7  = + the demand held over 1 s                                                  - Vref still raised in the climb-out (74 s)
+   w8  = + the attitude's shortfall held too
+   w9  = + held over 3 s, the feet undelayed on the wheels                           - the arrivals from the flare: 2.48 / 2.91 / 3.32
+   w10 = + Vref raised on the final only under a person, the hand halved in the flare  (kept)
+
+== 4. THE EXPERT'S WATER FLARE (the Wipline C172, SEA, calm): before - the throttle closed at the flare's start (0.27 -> 0), pitch -3.5 -> -5.3 deg,
+   sink 2.24 -> 3.05, the elevator held at 0.27-0.28 (the flare's deSat at 0.30), the nose -1.1 deg at the touch, 2.16 m/s; full back stick at 25 m/s
+   threw it to +16 deg and off the water for 3 s (one skip, the second touch at 2.74). After: the flare on power (a PI on the sink) - pitch -3.5 -> +1.5,
+   the sink held 0.73-0.89, touched at 0.88 m/s, the attitude held to 0.7 Vs0: no skip
+
+== 5. THE HAM-FIST'S ROLL-OUT (GATE PILOTMATRIX cub:HOME:calm:hamfist: the baseline 2.8 deg, the base tree 52.3, 00c2329 28.9 - the ratchet's limit 7.8)
+   on 00c2329's core; n0 = no hand on the wheels; nr = no rudder hand on the wheels; ne = no elevator hand on the wheels; s1 = the slew whole on the wheels;
+   stop = the elevator hand skipped while the command sits on its stop (G2466, kept); stoproll = + the hand halved in the roll-out (G2465, kept)
+nr cub hamfist completed lifts 1 sink 0.77 bnc 0 TOdr 60 LDdr 30 taxi undefined roll {"maxE":33.1,"zeroX":0,"maxDr":0.94,"xtEnd":3}
+n0 cub hamfist completed lifts 1 sink 0.85 bnc 0 TOdr 48 LDdr 32 taxi undefined roll {"maxE":5,"zeroX":0,"maxDr":0.47,"xtEnd":0}
+ne cub hamfist completed lifts 1 sink 0.86 bnc 1 TOdr 84 LDdr 74 taxi undefined roll {"maxE":6.5,"zeroX":0,"maxDr":0.48,"xtEnd":-0.1}
+s1 cub hamfist completed lifts 1 sink 0.81 bnc 0 TOdr 74 LDdr 36 taxi undefined roll {"maxE":32.9,"zeroX":0,"maxDr":0.95,"xtEnd":-0.1}
+stop cub hamfist completed lifts 1 sink 0.67 bnc 0 TOdr 76 LDdr 62 taxi undefined roll {"maxE":7.5,"zeroX":0,"maxDr":0.47,"xtEnd":-0.1}
+stop c172 hamfist completed lifts 1 sink 1.79 bnc 0 TOdr 97.4 LDdr 78 taxi undefined roll {"maxE":8.1,"zeroX":0,"maxDr":0.18,"xtEnd":-0.1}
+stop jodel hamfist completed lifts 1 sink 1.16 bnc 1 TOdr 85 LDdr 98 taxi undefined roll {"maxE":4.1,"zeroX":1,"maxDr":0.42,"xtEnd":0.1}
+stop cub hamfist completed lifts 1 sink 0.64 bnc 0 TOdr 90 LDdr 74 taxi undefined roll {"maxE":3.1,"zeroX":0,"maxDr":0.49,"xtEnd":0.3}
+stoproll cub hamfist completed lifts 1 sink 0.67 bnc 0 TOdr 76 LDdr 54 taxi undefined roll {"maxE":5,"zeroX":0,"maxDr":0.46,"xtEnd":-0.1}
+stoproll c172 hamfist completed lifts 1 sink 1.79 bnc 0 TOdr 97.4 LDdr 70 taxi undefined roll {"maxE":3.9,"zeroX":0,"maxDr":0.07,"xtEnd":0}
+stoproll jodel hamfist completed lifts 1 sink 1.16 bnc 1 TOdr 85 LDdr 90 taxi undefined roll {"maxE":3.3,"zeroX":1,"maxDr":0.34,"xtEnd":0}
+stoproll cub hamfist completed lifts 1 sink 0.64 bnc 0 TOdr 90 LDdr 56 taxi undefined roll {"maxE":3.1,"zeroX":0,"maxDr":0.47,"xtEnd":0.1}
+   (seed 1935, but the fourth cub line of stop and of stoproll: seed 1)
+
+== 6. GATE PILOTMATRIX's profile cells (node tools/pilot_matrix.js --cells cub:HOME:calm:hamfist,cub:HOME:calm:student,cub:HOME:calm:club --ratchet pilot_baseline.json)
+   on the BASE core (5cc6856):
+  X  cub:HOME:calm:hamfist       completed 334.4 s · sink 0.96 · 1.26 Vs · aim -26 · swing 52.3
+  X  cub:HOME:calm:student       completed 352.7 s · sink 0.75 · 1.22 Vs · aim 9 · swing 64.4
+  ok cub:HOME:calm:club          completed 338.8 s · sink 0.59 · 1.2 Vs · aim 17 · swing 1.1
+  REGRESSED cub:HOME:calm:hamfist: verdict warn -> false
+  REGRESSED cub:HOME:calm:hamfist: swing 2.8 deg -> 52.3 deg
+  REGRESSED cub:HOME:calm:hamfist: swing 2.8 -> 52.3
+  REGRESSED cub:HOME:calm:student: verdict true -> false
+  REGRESSED cub:HOME:calm:student: swing 2.8 deg -> 64.4 deg
+  REGRESSED cub:HOME:calm:student: swing 2.8 -> 64.4
+GATE PILOTMATRIX: FAIL (6 regressed)
+   on 00c2329:
+  X  cub:HOME:calm:hamfist       completed 334.6 s · sink 0.8 · 1.23 Vs · aim -1 · swing 28.9
+  ok cub:HOME:calm:club          completed 338.7 s · sink 0.51 · 1.2 Vs · aim 20 · swing 0.9
+  ok cub:HOME:calm:student       completed 353.5 s · sink 0.55 · 1.21 Vs · aim 17 · swing 0.9
+  REGRESSED cub:HOME:calm:hamfist: verdict warn -> false
+  REGRESSED cub:HOME:calm:hamfist: swing 2.8 deg -> 28.9 deg
+  REGRESSED cub:HOME:calm:hamfist: swing 2.8 -> 28.9
+GATE PILOTMATRIX: FAIL (3 regressed)
