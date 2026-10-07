@@ -4097,7 +4097,7 @@
       { const K = model && model.brk;
         if (K && K.recLive && K.allRecs) { K.recLive = false;
           if (window.FLYDIY_HEAL_HELDONLY !== true) {             // (GATE DMGHEAL's selftest: the heal as it was)
-            let n = 0; for (const R of K.allRecs) { if (BRK.recs.indexOf(R) >= 0 || !(R.dead || R.active || R.torn)) continue;
+            let n = 0; for (const R of K.allRecs) { if (BRK.recs.indexOf(R) >= 0 || !(R.dead || R.active || R.torn || R.held)) continue;   // (R.held: FABRIC's held covering, G2040)
               if (SKIN_BREAK.event(R, K.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); n++; }
             if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
