@@ -79,6 +79,10 @@
   "coastSand": {
    "A": "502fed7477bf7b1f338a807b38f30f98b021ce943218365bd95d7ef14043f9f4",
    "N": "6cf7add3062ced9b6f1b545c6af31a3591db315eaa8aedf691cdd77977ef4514"
+  },
+  "darkRock": {
+   "A": "bbe4fea0b472d4acee1a4c2978adf3f251dfe60384db5dfb41dbf4bebedfd7a1",
+   "N": "05619f4009c6b6f902248a657f9a4979471f9edc129a4fb5062eaf79a9b1e65c"
   }
  },
  "pavement": {
@@ -417,6 +421,12 @@
     "nor": "b2f0b5a884d196f40765514e785574568c14ee90309d882d7c64129c899d83c5",
     "rough": "6cf3034a549ed3ef2463613fbcf37ae4d2003f293d2c29366f0a9fa5468cbd79",
     "height": "ef67ae07399c22506a08449cb1ddd96f28c9b69a81e7284912d7d45b6dc03706"
+   },
+   "darkRock": {
+    "diff": "0d8a30f9f1f3a2f1931bd03f714898d551e0b10405c9dd7590a19859dd520d8d",
+    "nor": "79c2bb5b3d76dd69d2f0fa9d116600436a32569b0ba1ad64670e73db13489e84",
+    "rough": "1cde0b23be763c84288f6ba5bb19d452ac727ee82b6456408bab320552c2131c",
+    "height": "3be0402202ea8ec8cf5deaa3e551f07ea428907279adf7159a15cf885a1a68c9"
    }
   },
   "pavement": {

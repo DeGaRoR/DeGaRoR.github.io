@@ -1,0 +1,27 @@
+phone  (Android ), Chrome/141.0.7390.37; battery null C
+boot: gone in 257.1 s; JS heap peak 157.6 MB + backing stores 303.6 MB; renderer PSS peak 0 MB, GPU process 0 MB
+   reading the scripts                     3 s  heap 2.3 + 1.7 MB
+   reading the model                       7 s  heap 30.8 + 50.7 MB
+   building your aeroplane                 8 s  heap 44.1 + 60.7 MB
+   raising the shed                       11 s  heap 69.5 + 83.8 MB
+   your aeroplane on the stand            15 s  heap 126.6 + 135.1 MB
+   your aeroplane, built                  18 s  heap 120.9 + 256.5 MB
+   compiling the shaders                  20 s  heap 157.6 + 299 MB
+   busy                                   28 s  heap 85.2 + 243.2 MB
+   first light                            65 s  heap 88.8 + 243.9 MB
+   your aeroplane, as it settled          71 s  heap 79.2 + 242.2 MB
+   landing                                77 s  heap 65.9 + 232.9 MB
+   gone                                  257 s  heap 66.5 + 232.9 MB
+   after GC: heap 60.5 + 232.7 MB, PSS {"rendererMB":0,"gpuMB":0,"browserMB":0}
+share/storage probe: {"share":false,"canShareUrl":false,"json":false,"txt":false,"flydiy":false,"persisted":false,"estimate":{"quotaMB":154812,"usageMB":44.6},"standalone":false,"coarse":true,"dpr":2.625,"w":412,"h":915}
+touch page     {"profile":"phone","steps":"treeBins,aircraft,garage,editor,seed,snapshot,spec,restore,compile,firstFrame,recheck","world":"none","preset":"laptop","w":412,"h":915,"dpr":2.625,"rows":763}
+touch tabs     ok   {"ok":true,"parts":"parts","after":{"tab":"props","name":"Wings"}}
+touch knob     ok   {"ok":true,"key":"wgDx","from":0,"to":0.95,"events":{"down":1,"input":10,"change":1},"ms":84832}
+touch scale    ok   {"ok":true,"key":"wgDx","value":0.95,"afterHorizontal":0.95,"afterVertical":0.95,"scrolled":[907,1073]}
+touch fine     ok   {"ok":true,"key":"wgDx","from":0.95,"to":0.75,"coarseWouldBe":-2.089}
+touch stepper  ok   {"ok":true,"key":"wgDx","from":0.75,"to":0.8,"step":0.05}
+touch orbit    ok   {"ok":true,"az":[-2.5,-1.7799999999999994]}
+touch pinch    ok   {"ok":true,"dist":[14,3.3333333333333335]}
+frames at rest: {"n":2,"fps":0.4,"p50":-18.3,"p95":-18.3,"p99":-18.3,"over50":1}
+frames orbiting: {"n":2,"fps":0.4,"p50":-6.1,"p95":-6.1,"p99":-6.1,"over50":1}
+-> /home/user/DeGaRoR.github.io/flyDiy/reports/evidence/MOBILE-GARAGE-1/s20emu_phone.json

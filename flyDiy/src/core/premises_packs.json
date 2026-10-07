@@ -3,7 +3,7 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-10-05",
+   "cooked": "2026-10-06",
    "variants": [
     {
      "name": "default",
@@ -2772,9 +2772,9 @@
        "ship": 1013649
       },
       "tallies": {
-       "src": "media/world/jolene/premises/t_town.2a9eb634.bin",
+       "src": "media/world/jolene/premises/t_town.fe4cf589.bin",
        "n": 695,
-       "hash": "5ab692bd4b0b2249"
+       "hash": "165ff8f8b2a81863"
       }
      }
     }

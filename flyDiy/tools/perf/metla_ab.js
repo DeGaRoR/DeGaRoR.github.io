@@ -8,7 +8,7 @@
 // the heaviest self / inclusive functions inside its long tasks. --check: the generators (SPORT_GEN, MARINE_GEN) and
 // the town's sport/marine entries built, every load. Exceptions are counted per load.
 // Usage: node tools/perf/metla_ab.js --port 8651 --udd D:/um1 [--order A,B,B,A] [--builds cub,metal] [--taxi 15]
-//          [--pass 15] [--cpuprof pass] [--out file.json]
+//          [--pass 15] [--cpuprof pass] [--out file.json] [--warmup A|B]
 // METLA-TAXI (G1435): --gfx user|<file.json> (the user's custom near-ultra set, shader_guard's USER_GFX; default: none =
 // the preset's default, gamer); --frames: every recorder row of each scene kept (t, dt, work, gpu, calls, tris, cap, the
 // slots) with frame_dist's distribution; with --cpuprof, the profile is ALSO split per frame: the interval between two
@@ -49,7 +49,7 @@ const RECQ = (t0, t1) => `JSON.stringify((() => { const R = window.FLIGHT_REC &&
   out.ev = R.events.filter(e => e[0] >= ${t0} - 500 && e[0] <= ${t1} && (e[1] !== 'prem' || e[2] > 8) && e[1] !== 'cap').slice(-60); return out; })())`;
 const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const T = window.FLYDIY_TOWN || {};
   let sport = 0, marine = 0; try { for (const it of (P && P.items ? P.items() : []) || []) { const k = String(it.key || ''); if (k.startsWith('sport/')) sport++; if (k.startsWith('marine/')) marine++; } } catch (e) {}
-  return { town: !!T.all, cut: T.n || 0, gfx: (() => { try { const g = window.GFX && GFX.get(); return g ? { preset: g.preset, fps: g.fps, town: g.town, density: g.density, shadows: g.shadows } : null; } catch (e) { return null; } })(), SPORT_GEN: !!window.SPORT_GEN, MARINE_GEN: !!window.MARINE_GEN, sportEntries: sport, marineEntries: marine,
+  return { town: !!T.all, cut: T.n || 0, gfx: (() => { try { const g = window.GFX && GFX.get(); return g ? { preset: g.preset, fps: g.fps, town: g.town, density: g.density, shadows: g.shadows } : null; } catch (e) { return null; } })(), hw: window.HOUSE_WORKER && HOUSE_WORKER.stats ? HOUSE_WORKER.stats() : null, SPORT_GEN: !!window.SPORT_GEN, MARINE_GEN: !!window.MARINE_GEN, sportEntries: sport, marineEntries: marine,
     stats: P && P.stats ? { houses: P.stats.houses, objects: P.stats.objects, queued: P.stats.queued } : null, kit: P && P.kitTownStats ? (() => { try { return P.kitTownStats(); } catch (e) { return 'err ' + e.message; } })() : null }; })())`;
 
 (async () => {
@@ -97,18 +97,23 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   };
   const flying = async () => { await sleep(1500); const a = await b.ev(MB.A.simT); await sleep(1200); const c = await b.ev(MB.A.simT); if (!(c > a)) await b.ev(MB.A.run); };
   let home = null;
-  if (fresh) { log('== warm-up (discarded) ' + UDD); await b.load(BASE + '?town=1', MB.preScript(MB.BUILDS[WANT[0]].build, GFX)); await trip(); await sleep(3000); }
+  // G2060 (METLA-COOK): --warmup A: the fresh profile's discarded warm-up is a town-OFF load, so the first B slot is the
+  // town's FIRST VISIT on a profile warm for everything else (its programs, caches and files never seen)
+  const WU = opt('warmup', 'B');
+  if (fresh) { log('== warm-up (discarded, ' + (SIDE[WU] || 'town=1') + ') ' + UDD); await b.load(BASE + '?' + (SIDE[WU] || 'town=1'), MB.preScript(MB.BUILDS[WANT[0]].build, GFX)); await trip(); await sleep(3000); }
   for (const side of ORDER) for (const bk of WANT) {
     const B = MB.BUILDS[bk]; log('== ' + side + ' (' + (SIDE[side] || 'town off') + ') ' + B.label);
-    if (R.rows.length && !argv.includes('--one-chrome')) { await b.close(); b = await MB.browser(UDD); }
+    if ((R.rows.length || fresh) && !argv.includes('--one-chrome')) { await b.close(); b = await MB.browser(UDD); }   // G2060: the first slot too gets its own Chrome after a warm-up
     const e0 = b.exc.length;
     const l = await b.load(BASE + (SIDE[side] ? '?' + SIDE[side] : ''), MB.preScript(B.build, GFX, B.patch));
     const lk = await b.links(0, 1e12);
+    // G2060: the house worker's cache at the garage (a first visit generates what a warm one reads back)
+    const hwG = JSON.parse(await b.ev('JSON.stringify(window.HOUSE_WORKER && HOUSE_WORKER.stats ? HOUSE_WORKER.stats() : null)').catch(() => 'null'));
     if (!home) { const pl = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + MB.A.places + '; })()')); home = pl.find(p => p.id === 'HOME'); }
     await sleep(1500);
     const tr = await trip(); await flying();
-    const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk };
-    log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)');
+    const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk, hwGarage: hwG };
+    log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)' + (hwG ? ', houses: built ' + hwG.built + ' hits ' + hwG.hits + ' misses ' + hwG.misses + ' gen ' + hwG.genMs + ' ms' : ''));
     await b.ev(MB.A.cam('chase'));
     row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C');
     const ph = await b.ev(MB.A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(3000);

@@ -35,6 +35,30 @@ const EVAL = opt('eval', null);
 // each (<shots>/orbit_<name>.jpg) - the distant runway from 300 m to 2 km; az/el in degrees, dist in m
 const ORBITS = (opt('orbits', '') || '').split(';').filter(Boolean).map(s => { const [n, v] = s.split(':'); const [a, e, d] = v.split(',').map(Number); return { n, a, e, d }; });
 const ORBIT_WAIT = +opt('orbit-wait', 6);
+// --detail (G1530): at the stand, after the orbits, two EYE-HEIGHT views by the free camera (FLIGHT_PROBE.devFree): 8 m off HOME's
+// runway edge looking 25 m along it, and 6 m off the nearest road's edge (world.premises.overlay.pavedAt) looking 25 m along it
+const DETAIL = flag('detail');
+// --eval-stand <file> (G1531): a page body (an async function's, `return` its result) run at the paused stand BEFORE its census -
+// a live switch and its diagnosis; the result lands in the JSON (evalStand) and on stdout
+const EVAL_STAND = opt('eval-stand', null) ? fs.readFileSync(path.resolve(opt('eval-stand', null)), 'utf8') : null;
+const EDGES = `
+  const wd = FLIGHT_PROBE.world(), A = wd.aerodromes.find(a => a.id === 'HOME') || wd.aerodromes[0], H = (x, z) => wd.terrainH(x, z);
+  const look = (e, t) => { const f = [t[0] - e[0], t[1] - e[1], t[2] - e[2]], l = Math.hypot(f[0], f[1], f[2]); return [Math.atan2(f[0] / l, -f[2] / l), Math.asin(f[1] / l)]; };
+  const out = {};
+  { const dir = [Math.cos(A.hdg), Math.sin(A.hdg)], perp = [-dir[1], dir[0]], s0 = A.len * 0.15;
+    const ex = A.x + dir[0] * s0 + perp[0] * A.wid / 2, ez = A.z + dir[1] * s0 + perp[1] * A.wid / 2;
+    const eye = [ex + perp[0] * 8, H(ex + perp[0] * 8, ez + perp[1] * 8) + 1.8, ez + perp[1] * 8], tx = ex + dir[0] * 25, tz = ez + dir[1] * 25;
+    out.rwyEdge = { eye, yp: look(eye, [tx, H(tx, tz), tz]) }; }
+  const PO = wd.premises && wd.premises.overlay;
+  if (PO && PO.pavedAt) { let best = null;
+    for (let r = 60; r <= 900 && !best; r += 20) for (let k = 0; k < 64 && !best; k++) { const a = k / 64 * 2 * Math.PI, x = A.x + Math.cos(a) * r, z = A.z + Math.sin(a) * r;
+      const q = PO.pavedAt(x, z); if (q && q.kind === 'road' && q.d > 0.2 && q.d < 1.2) best = [x, z]; }
+    if (best) { const dd = (x, z) => { const q = PO.pavedAt(x, z); return q && q.kind === 'road' ? q.d : -1; };
+      const gx = dd(best[0] + 2, best[1]) - dd(best[0] - 2, best[1]), gz = dd(best[0], best[1] + 2) - dd(best[0], best[1] - 2), gl = Math.hypot(gx, gz) || 1;
+      const o = [-gx / gl, -gz / gl], t = [-o[1], o[0]];
+      const eye = [best[0] + o[0] * 6, H(best[0] + o[0] * 6, best[1] + o[1] * 6) + 1.8, best[1] + o[1] * 6], tx = best[0] + t[0] * 25, tz = best[1] + t[1] * 25;
+      out.roadEdge = { eye, yp: look(eye, [tx, H(tx, tz), tz]), at: best }; } }
+  return out;`;
 // --ab <file.json>: { "<name>": { "on": "<js>", "off": "<js>", "views": "stand,taxi" }, ... } - at each listed view (default every
 // world view) each toggle is switched on, the frame re-counted (draws, triangles) and re-timed, then switched off again
 const AB = opt('ab', null) ? JSON.parse(fs.readFileSync(path.resolve(opt('ab', null)), 'utf8')) : null;   // an extra page expression run after the boot, before the garage census (an A/B toggle)
@@ -170,6 +194,8 @@ const CENSUS = (frames, split) => `
   const until = async (cond, ms, what) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await run('return !!(' + cond + ');')) === true) return Date.now() - t0; await sleep(500); } throw new Error('timed out: ' + what); };
   const pre = [fs.readFileSync(path.join(__dirname, 'potato_vram_hook.js'), 'utf8'),
     'try{for(const k of Object.keys(localStorage)) if(/^flydiy\\.(fl([A-Z]|$)|route$|world$|gfx$|premises\\.game)/.test(k)) localStorage.removeItem(k);}catch(e){}'];
+  // --gfxpref '<json>' (G1531): a saved graphics choice seeded before the page (after the clear) - e.g. potato's rows on a lean ground
+  if (opt('gfxpref', null)) pre.push('try{localStorage.setItem("flydiy.gfx",' + JSON.stringify(opt('gfxpref', null)) + ')}catch(e){}');
   if (BUILD === 'default') pre.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
   else pre.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(fs.readFileSync(path.resolve(ROOT, 'flyDiy', BUILD), 'utf8')) + ')}catch(e){}');
   await cmd('Page.enable'); await cmd('Runtime.enable');
@@ -223,10 +249,16 @@ const CENSUS = (frames, split) => `
     await sleep(6000);
     if (VIEWS.includes('stand')) {
       if (!(await run('return !!window.FLYDIY_HELD;'))) await run(`document.getElementById('bPause').click(); return 1;`);
-      await sleep(4000); await census('stand', SPLIT); await shot('stand');
+      await sleep(4000);
+      if (EVAL_STAND) { const r = await run(EVAL_STAND); res.evalStand = r; save(); console.log('evalStand ' + JSON.stringify(r).slice(0, 3000)); await shot('stand_evalStand'); }
+      await census('stand', SPLIT); await shot('stand');
       for (const O of ORBITS) {
         await run(`FLIGHT_PROBE.camSet(${O.a * Math.PI / 180}, ${O.e * Math.PI / 180}, ${O.d}); return 1;`);
         await sleep(ORBIT_WAIT * 1000); await shot('orbit_' + O.n); console.log('orbit ' + O.n); }
+      if (DETAIL) { const E = await run(EDGES); res.edges = E; console.log('edges ' + JSON.stringify(E).slice(0, 300));
+        for (const k of ['rwyEdge', 'roadEdge']) { const v = E && E[k]; if (!v) { console.log('no ' + k); continue; }
+          await run(`return FLIGHT_PROBE.devFree(${v.eye[0]}, ${v.eye[1]}, ${v.eye[2]}, ${v.yp[0]}, ${v.yp[1]});`); await sleep(ORBIT_WAIT * 1000); await shot('edge_' + k); console.log('edge ' + k); }
+        await run(`FLIGHT_PROBE.camMode('chase'); return 1;`); await sleep(2000); }
       await run(`if (window.FLYDIY_HELD) document.getElementById('bPause').click(); return 1;`);
     }
     if (VIEWS.includes('taxi') || VIEWS.includes('low')) {

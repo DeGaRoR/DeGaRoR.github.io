@@ -1,0 +1,7 @@
+nav http://localhost:8581/flyDiy/index.html?gfx=retro
+garage up in 59.6 s
+IDENTITY at rest {"stat":{"bakes":2,"baked":1232,"live":3},"shadow":{"px":0,"max":0},"both":{"px":180.8,"max":184},"noise":{"px":0,"max":0},"glass":{"frames":325,"ok":320,"why":"","skipped":440,"drawn":328},"pixels":518400}
+IDENTITY a prop moved "ERR SyntaxError: Identifier 'SC' has already been declared"
+IDENTITY a lamp moved "ERR SyntaxError: Identifier 'SC' has already been declared"
+FATAL TypeError: Cannot read properties of undefined (reading 'push')
+    at D:\Dev\DeGaRoR.github.io\.claude\worktrees\friendly-roentgen-980840\flyDiy\tools\perf\garage_fps.js:133:43

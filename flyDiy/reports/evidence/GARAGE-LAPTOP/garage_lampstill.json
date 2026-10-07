@@ -1,0 +1,96 @@
+{
+ "url": "http://localhost:8581/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "build": "builds/jodel_2026-09-20_corrected.json",
+ "throttle": 0,
+ "gpux": 0,
+ "secs": 12,
+ "orbit": false,
+ "errs": [],
+ "load": 48.929,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "town": "nearby"
+ },
+ "identityPane": {
+  "stat": {
+   "bakes": 2,
+   "baked": 1232,
+   "live": 3
+  },
+  "shadow": {
+   "px": 0,
+   "max": 0
+  },
+  "both": {
+   "px": 698.3,
+   "max": 184
+  },
+  "noise": {
+   "px": 0,
+   "max": 0
+  },
+  "glass": {
+   "frames": 334,
+   "ok": 329,
+   "why": "",
+   "skipped": 661,
+   "drawn": 107,
+   "panes": 19,
+   "lo": [
+    null,
+    null,
+    -14.975000000335276
+   ],
+   "hi": [
+    12.364999999627472,
+    null,
+    14.975000000335276
+   ]
+  },
+  "pixels": 518400
+ },
+ "rung": {
+  "N": 0,
+  "K": 0
+ },
+ "wall": 80.201
+}

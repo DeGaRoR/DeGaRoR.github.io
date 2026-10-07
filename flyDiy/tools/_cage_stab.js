@@ -346,11 +346,21 @@ PAGE.post = ctx => {
     const shared = GS.find(g => Math.abs(g.z - zS) < 0.12) || FSn.find(g => Math.abs(g.z - zS) < 0.12);
     const zUse = shared ? shared.z : zS;
     const Wp = 2 * (P.stX || 0) * FS + 0.06, Lp = 0.09;
-    const rec = RF.saddle(bag, { ctr: [0, 0.5 * (rodSeat.yT + rodSeat.yB) * FS, zUse], axis: [0, 0, -1],
-                                 r: rodSeat.r * FS, collar: !shared, plate: { top: 1, W: Wp, L: Lp } });
+    // ONE PLATE A CROWN (G2050, JODEL-TAIL's sweep of the validated builds): on
+    // the twin the fin's saddle and the stab's share the tailwheel's collar,
+    // and each laid its own top plate on it - the same crown, the same gauge,
+    // 0.133 against 0.1345 m wide: two plates and eight bolts in one place,
+    // fin's and stab's, z-fighting. When the fin has already plated this
+    // station the stab is bolted onto that plate (its pedestal stands on it);
+    // a station only the gear's collar holds still gets the stab's own plate.
+    const finPlate = FSn.find(g => g.top && Math.abs(g.z - zUse) < 0.005);
+    const rec = finPlate ? { top: finPlate.top }
+      : RF.saddle(bag, { ctr: [0, 0.5 * (rodSeat.yT + rodSeat.yB) * FS, zUse], axis: [0, 0, -1],
+                         r: rodSeat.r * FS, collar: !shared, plate: { top: 1, W: Wp, L: Lp } });
     const under = (yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05)) * FS;
     const gap = rec && rec.top ? under - rec.top[1] : 0;
-    if (gap > 0.005) RF.pedestal(bag, { base: rec.top, axis: [0, 0, -1], h: gap + 0.001, W: Wp * 0.8, L: Lp * 0.8 });
+    const Wb = finPlate ? Math.min(Wp, finPlate.W) : Wp, Lb = finPlate ? Math.min(Lp, finPlate.L) : Lp;
+    if (gap > 0.005) RF.pedestal(bag, { base: rec.top, axis: [0, 0, -1], h: gap + 0.001, W: Wb * 0.8, L: Lb * 0.8 });
     const sad = new THREE.Group();
     sad.name = 'edSaddle_stab';
     sad.scale.setScalar(1 / FS);

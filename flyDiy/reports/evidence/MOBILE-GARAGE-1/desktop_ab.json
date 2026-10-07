@@ -1,0 +1,26 @@
+{
+ "what": "the desktop garage, master 068584d vs claude/mobile-garage-1-g2100, tools/soft_still.js --place garage --keep-hud --size 1600x900 --day afternoon (SwiftShader, the software rung)",
+ "meanAbsDiff": 0.003,
+ "shareOver12": 3e-05,
+ "maxDiff": 45,
+ "base": {
+  "bootSteps": 24,
+  "bootDone": true,
+  "sceneCalls": 4286,
+  "sceneTris": 3546538,
+  "errors": [],
+  "programs": 331,
+  "textures": 430,
+  "geometries": 2404
+ },
+ "branch": {
+  "bootSteps": 24,
+  "bootDone": true,
+  "sceneCalls": 4286,
+  "sceneTris": 3546538,
+  "errors": [],
+  "programs": 331,
+  "textures": 430,
+  "geometries": 2396
+ }
+}

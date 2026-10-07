@@ -91,14 +91,22 @@
     "part": "garage"
    }
   ],
-  "reports": "tools/perf/tg_t26"
+  "reports": "tools/perf/tg_t26",
+  "rebaselined": {
+   "train": 38,
+   "commit": "c22f17e2",
+   "date": "2026-10-07",
+   "accepted": 12,
+   "ratcheted": 65,
+   "note": "by name: only the user-accepted cap/hybrid rows take the new value; better rows ratchet down; rows within slack keep the old value; the three load rows (garage->world first, warm first flight, round trip 2) are NOT accepted and stay red until fixed"
+  }
  },
  "rows": [
   {
    "id": "rollout|cub chase|fps",
    "part": "rollout",
    "what": "cub chase fps",
-   "value": 32.8,
+   "value": 30,
    "runs": 2,
    "rule": {
     "up": true,
@@ -106,13 +114,20 @@
     "abs": 1,
     "unit": "fps",
     "info": false
+   },
+   "accepted": {
+    "was": 32.8,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
    "id": "rollout|cub chase|p99",
    "part": "rollout",
    "what": "cub chase p99",
-   "value": 41.7,
+   "value": 33.5,
    "runs": 2,
    "rule": {
     "up": false,
@@ -140,7 +155,7 @@
    "id": "rollout|cub chase|over15",
    "part": "rollout",
    "what": "cub chase over15",
-   "value": 0.0668,
+   "value": 0.0009,
    "runs": 2,
    "rule": {
     "up": false,
@@ -154,7 +169,7 @@
    "id": "rollout|cub chase|taxiOver15",
    "part": "rollout",
    "what": "cub chase taxiOver15",
-   "value": 0.0851,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -168,7 +183,7 @@
    "id": "rollout|cub chase|uneven",
    "part": "rollout",
    "what": "cub chase uneven",
-   "value": 0.1606,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -196,7 +211,7 @@
    "id": "rollout|cub chase|over3x",
    "part": "rollout",
    "what": "cub chase over3x",
-   "value": 0.0024,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -224,7 +239,7 @@
    "id": "rollout|cub chase|loop",
    "part": "rollout",
    "what": "cub chase loop",
-   "value": 13.1,
+   "value": 15.35,
    "runs": 2,
    "rule": {
     "up": false,
@@ -232,13 +247,20 @@
     "abs": 0.8,
     "unit": "ms",
     "info": false
+   },
+   "accepted": {
+    "was": 13.1,
+    "by": "user",
+    "why": "the frame paced under the 30 fps cap and the cockpit-live hybrid band (the user's choices); +2 ms loop/render held since train 36",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
    "id": "rollout|cub chase|render",
    "part": "rollout",
    "what": "cub chase render",
-   "value": 9.55,
+   "value": 11.5,
    "runs": 2,
    "rule": {
     "up": false,
@@ -246,6 +268,13 @@
     "abs": 0.6,
     "unit": "ms",
     "info": false
+   },
+   "accepted": {
+    "was": 9.55,
+    "by": "user",
+    "why": "the frame paced under the 30 fps cap and the cockpit-live hybrid band (the user's choices); +2 ms loop/render held since train 36",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -392,7 +421,7 @@
    "id": "rollout|cub cockpit|fps",
    "part": "rollout",
    "what": "cub cockpit fps",
-   "value": 38.9,
+   "value": 30,
    "runs": 2,
    "rule": {
     "up": true,
@@ -400,6 +429,13 @@
     "abs": 1,
     "unit": "fps",
     "info": false
+   },
+   "accepted": {
+    "was": 38.9,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -434,7 +470,7 @@
    "id": "rollout|cub cockpit|over15",
    "part": "rollout",
    "what": "cub cockpit over15",
-   "value": 0.0445,
+   "value": 0.0023,
    "runs": 2,
    "rule": {
     "up": false,
@@ -448,7 +484,7 @@
    "id": "rollout|cub cockpit|taxiOver15",
    "part": "rollout",
    "what": "cub cockpit taxiOver15",
-   "value": 0.0545,
+   "value": 0.0017,
    "runs": 2,
    "rule": {
     "up": false,
@@ -462,7 +498,7 @@
    "id": "rollout|cub cockpit|uneven",
    "part": "rollout",
    "what": "cub cockpit uneven",
-   "value": 0.0988,
+   "value": 0.0088,
    "runs": 2,
    "rule": {
     "up": false,
@@ -490,7 +526,7 @@
    "id": "rollout|cub cockpit|over3x",
    "part": "rollout",
    "what": "cub cockpit over3x",
-   "value": 0.0031,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -518,7 +554,7 @@
    "id": "rollout|cub cockpit|loop",
    "part": "rollout",
    "what": "cub cockpit loop",
-   "value": 13.95,
+   "value": 15.4,
    "runs": 2,
    "rule": {
     "up": false,
@@ -526,6 +562,13 @@
     "abs": 0.8,
     "unit": "ms",
     "info": false
+   },
+   "accepted": {
+    "was": 13.95,
+    "by": "user",
+    "why": "the frame paced under the 30 fps cap and the cockpit-live hybrid band (the user's choices); +2 ms loop/render held since train 36",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -686,7 +729,7 @@
    "id": "rollout|metal chase|fps",
    "part": "rollout",
    "what": "metal chase fps",
-   "value": 32.85,
+   "value": 30,
    "runs": 2,
    "rule": {
     "up": true,
@@ -694,6 +737,13 @@
     "abs": 1,
     "unit": "fps",
     "info": false
+   },
+   "accepted": {
+    "was": 32.85,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -728,7 +778,7 @@
    "id": "rollout|metal chase|over15",
    "part": "rollout",
    "what": "metal chase over15",
-   "value": 0.0759,
+   "value": 0.0005,
    "runs": 2,
    "rule": {
     "up": false,
@@ -742,7 +792,7 @@
    "id": "rollout|metal chase|taxiOver15",
    "part": "rollout",
    "what": "metal chase taxiOver15",
-   "value": 0.0965,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -756,7 +806,7 @@
    "id": "rollout|metal chase|uneven",
    "part": "rollout",
    "what": "metal chase uneven",
-   "value": 0.1814,
+   "value": 0.0093,
    "runs": 2,
    "rule": {
     "up": false,
@@ -770,7 +820,7 @@
    "id": "rollout|metal chase|p999",
    "part": "rollout",
    "what": "metal chase p999",
-   "value": 66.75,
+   "value": 50,
    "runs": 2,
    "rule": {
     "up": false,
@@ -784,7 +834,7 @@
    "id": "rollout|metal chase|over3x",
    "part": "rollout",
    "what": "metal chase over3x",
-   "value": 0.0027,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -812,7 +862,7 @@
    "id": "rollout|metal chase|loop",
    "part": "rollout",
    "what": "metal chase loop",
-   "value": 13.1,
+   "value": 15.65,
    "runs": 2,
    "rule": {
     "up": false,
@@ -820,13 +870,20 @@
     "abs": 0.8,
     "unit": "ms",
     "info": false
+   },
+   "accepted": {
+    "was": 13.1,
+    "by": "user",
+    "why": "the frame paced under the 30 fps cap and the cockpit-live hybrid band (the user's choices); +2 ms loop/render held since train 36",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
    "id": "rollout|metal chase|render",
    "part": "rollout",
    "what": "metal chase render",
-   "value": 9.65,
+   "value": 11.85,
    "runs": 2,
    "rule": {
     "up": false,
@@ -834,6 +891,13 @@
     "abs": 0.6,
     "unit": "ms",
     "info": false
+   },
+   "accepted": {
+    "was": 9.65,
+    "by": "user",
+    "why": "the frame paced under the 30 fps cap and the cockpit-live hybrid band (the user's choices); +2 ms loop/render held since train 36",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -980,7 +1044,7 @@
    "id": "rollout|metal cockpit|fps",
    "part": "rollout",
    "what": "metal cockpit fps",
-   "value": 38.55,
+   "value": 30,
    "runs": 2,
    "rule": {
     "up": true,
@@ -988,6 +1052,13 @@
     "abs": 1,
     "unit": "fps",
     "info": false
+   },
+   "accepted": {
+    "was": 38.55,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -1022,7 +1093,7 @@
    "id": "rollout|metal cockpit|over15",
    "part": "rollout",
    "what": "metal cockpit over15",
-   "value": 0.0517,
+   "value": 0.0018,
    "runs": 2,
    "rule": {
     "up": false,
@@ -1036,7 +1107,7 @@
    "id": "rollout|metal cockpit|taxiOver15",
    "part": "rollout",
    "what": "metal cockpit taxiOver15",
-   "value": 0.0627,
+   "value": 0.0006,
    "runs": 2,
    "rule": {
     "up": false,
@@ -1050,7 +1121,7 @@
    "id": "rollout|metal cockpit|uneven",
    "part": "rollout",
    "what": "metal cockpit uneven",
-   "value": 0.1137,
+   "value": 0.0029,
    "runs": 2,
    "rule": {
     "up": false,
@@ -1078,7 +1149,7 @@
    "id": "rollout|metal cockpit|over3x",
    "part": "rollout",
    "what": "metal cockpit over3x",
-   "value": 0.0032,
+   "value": 0,
    "runs": 2,
    "rule": {
     "up": false,
@@ -1274,7 +1345,7 @@
    "id": "garage|cub fuseLen|sync",
    "part": "garage",
    "what": "cub fuseLen sync",
-   "value": 261.3,
+   "value": 7.3,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1296,7 +1367,7 @@
    "id": "garage|cub fuseWidth|sync",
    "part": "garage",
    "what": "cub fuseWidth sync",
-   "value": 296.2,
+   "value": 5.2,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1307,7 +1378,7 @@
    "id": "garage|cub fuseWidth|busy",
    "part": "garage",
    "what": "cub fuseWidth busy",
-   "value": 374,
+   "value": 301,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1318,7 +1389,7 @@
    "id": "garage|cub wingSpan|sync",
    "part": "garage",
    "what": "cub wingSpan sync",
-   "value": 251.5,
+   "value": 30.3,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1329,7 +1400,7 @@
    "id": "garage|cub wingSpan|busy",
    "part": "garage",
    "what": "cub wingSpan busy",
-   "value": 251,
+   "value": 81,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1340,7 +1411,7 @@
    "id": "garage|cub wingChord|sync",
    "part": "garage",
    "what": "cub wingChord sync",
-   "value": 248.2,
+   "value": 26.2,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1351,7 +1422,7 @@
    "id": "garage|cub wingChord|busy",
    "part": "garage",
    "what": "cub wingChord busy",
-   "value": 248,
+   "value": 80,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1362,7 +1433,7 @@
    "id": "garage|cub tailSize|sync",
    "part": "garage",
    "what": "cub tailSize sync",
-   "value": 250,
+   "value": 3.7,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1373,7 +1444,7 @@
    "id": "garage|cub tailSize|busy",
    "part": "garage",
    "what": "cub tailSize busy",
-   "value": 250,
+   "value": 63,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1384,7 +1455,7 @@
    "id": "garage|cub gearTrack|sync",
    "part": "garage",
    "what": "cub gearTrack sync",
-   "value": 242.4,
+   "value": 25,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1395,7 +1466,7 @@
    "id": "garage|cub gearTrack|busy",
    "part": "garage",
    "what": "cub gearTrack busy",
-   "value": 242,
+   "value": 62,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1406,7 +1477,7 @@
    "id": "garage|cub engine|sync",
    "part": "garage",
    "what": "cub engine sync",
-   "value": 258.5,
+   "value": 197.9,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1417,7 +1488,7 @@
    "id": "garage|cub engine|busy",
    "part": "garage",
    "what": "cub engine busy",
-   "value": 258,
+   "value": 198,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1428,7 +1499,7 @@
    "id": "garage|cub tankCap|sync",
    "part": "garage",
    "what": "cub tankCap sync",
-   "value": 690.7,
+   "value": 22.1,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1450,7 +1521,7 @@
    "id": "garage|cub livery|sync",
    "part": "garage",
    "what": "cub livery sync",
-   "value": 242.9,
+   "value": 4.9,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1461,7 +1532,7 @@
    "id": "garage|cub livery|busy",
    "part": "garage",
    "what": "cub livery busy",
-   "value": 319,
+   "value": 0,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1472,7 +1543,7 @@
    "id": "garage|cub frame|sync",
    "part": "garage",
    "what": "cub frame sync",
-   "value": 240.8,
+   "value": 7.6,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1494,7 +1565,7 @@
    "id": "garage|metal fuseLen|sync",
    "part": "garage",
    "what": "metal fuseLen sync",
-   "value": 379.5,
+   "value": 9.9,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1516,7 +1587,7 @@
    "id": "garage|metal fuseWidth|sync",
    "part": "garage",
    "what": "metal fuseWidth sync",
-   "value": 429.2,
+   "value": 8.7,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1538,7 +1609,7 @@
    "id": "garage|metal wingSpan|sync",
    "part": "garage",
    "what": "metal wingSpan sync",
-   "value": 381.3,
+   "value": 27.7,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1549,7 +1620,7 @@
    "id": "garage|metal wingSpan|busy",
    "part": "garage",
    "what": "metal wingSpan busy",
-   "value": 439,
+   "value": 86,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1560,7 +1631,7 @@
    "id": "garage|metal wingChord|sync",
    "part": "garage",
    "what": "metal wingChord sync",
-   "value": 373.1,
+   "value": 25.8,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1571,7 +1642,7 @@
    "id": "garage|metal wingChord|busy",
    "part": "garage",
    "what": "metal wingChord busy",
-   "value": 434,
+   "value": 86,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1582,7 +1653,7 @@
    "id": "garage|metal tailSize|sync",
    "part": "garage",
    "what": "metal tailSize sync",
-   "value": 361.9,
+   "value": 5.1,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1593,7 +1664,7 @@
    "id": "garage|metal tailSize|busy",
    "part": "garage",
    "what": "metal tailSize busy",
-   "value": 418,
+   "value": 63,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1604,7 +1675,7 @@
    "id": "garage|metal gearTrack|sync",
    "part": "garage",
    "what": "metal gearTrack sync",
-   "value": 376.7,
+   "value": 22.8,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1615,7 +1686,7 @@
    "id": "garage|metal gearTrack|busy",
    "part": "garage",
    "what": "metal gearTrack busy",
-   "value": 436,
+   "value": 66,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1626,7 +1697,7 @@
    "id": "garage|metal engine|sync",
    "part": "garage",
    "what": "metal engine sync",
-   "value": 364.7,
+   "value": 242.1,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1637,7 +1708,7 @@
    "id": "garage|metal engine|busy",
    "part": "garage",
    "what": "metal engine busy",
-   "value": 425,
+   "value": 297,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1648,7 +1719,7 @@
    "id": "garage|metal tankCap|sync",
    "part": "garage",
    "what": "metal tankCap sync",
-   "value": 1037.6,
+   "value": 27.8,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1670,7 +1741,7 @@
    "id": "garage|metal livery|sync",
    "part": "garage",
    "what": "metal livery sync",
-   "value": 374.8,
+   "value": 6.8,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1681,7 +1752,7 @@
    "id": "garage|metal livery|busy",
    "part": "garage",
    "what": "metal livery busy",
-   "value": 471,
+   "value": 0,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1692,7 +1763,7 @@
    "id": "garage|metal frame|sync",
    "part": "garage",
    "what": "metal frame sync",
-   "value": 354.9,
+   "value": 7.2,
    "rule": {
     "rel": 0.12,
     "abs": 25,
@@ -1714,7 +1785,7 @@
    "id": "garage|cub ALL|sync",
    "part": "garage",
    "what": "cub every change, sync summed",
-   "value": 2982.5,
+   "value": 330.2,
    "rule": {
     "rel": 0.06,
     "abs": 60,
@@ -1725,7 +1796,7 @@
    "id": "garage|cub ALL|busy",
    "part": "garage",
    "what": "cub every change, busy summed",
-   "value": 3187,
+   "value": 1995,
    "rule": {
     "rel": 0.06,
     "abs": 60,
@@ -1736,7 +1807,7 @@
    "id": "garage|metal ALL|sync",
    "part": "garage",
    "what": "metal every change, sync summed",
-   "value": 4433.7,
+   "value": 383.9,
    "rule": {
     "rel": 0.06,
     "abs": 60,
@@ -1747,7 +1818,7 @@
    "id": "garage|metal ALL|busy",
    "part": "garage",
    "what": "metal every change, busy summed",
-   "value": 5008,
+   "value": 2896,
    "rule": {
     "rel": 0.06,
     "abs": 60,
@@ -1758,7 +1829,7 @@
    "id": "bench|cub cold: navigation -> garage|sec",
    "part": "bench",
    "what": "cub cold: navigation -> garage",
-   "value": 72.8,
+   "value": 58.3,
    "rule": {
     "rel": 0.12,
     "abs": 8,
@@ -1791,7 +1862,7 @@
    "id": "bench|cub cold: first flight|sec",
    "part": "bench",
    "what": "cub cold: first flight",
-   "value": 82,
+   "value": 70.5,
    "rule": {
     "rel": 0.12,
     "abs": 8,
@@ -2013,12 +2084,19 @@
    "id": "bench|cub garage|fps",
    "part": "bench",
    "what": "cub garage fps",
-   "value": 37.4,
+   "value": 30,
    "rule": {
     "up": true,
     "rel": 0.05,
     "abs": 1,
     "unit": "fps"
+   },
+   "accepted": {
+    "was": 37.4,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -2036,7 +2114,7 @@
    "id": "bench|cub garage|over15",
    "part": "bench",
    "what": "cub garage over15",
-   "value": 0.0756,
+   "value": 0,
    "rule": {
     "rel": 0.2,
     "abs": 0.005,
@@ -2104,7 +2182,7 @@
    "id": "bench|cub garage|uneven",
    "part": "bench",
    "what": "cub garage uneven",
-   "value": 0.152,
+   "value": 0,
    "rule": {
     "rel": 0,
     "abs": 0.05,
@@ -2139,7 +2217,7 @@
    "id": "bench|cub taxi chase @HOME|over15",
    "part": "bench",
    "what": "cub taxi chase @HOME over15",
-   "value": 0.0449,
+   "value": 0,
    "rule": {
     "rel": 0.2,
     "abs": 0.005,
@@ -2183,7 +2261,7 @@
    "id": "bench|cub taxi chase @HOME|p999",
    "part": "bench",
    "what": "cub taxi chase @HOME p999",
-   "value": 50.1,
+   "value": 33.6,
    "rule": {
     "rel": 0.25,
     "abs": 10,
@@ -2207,7 +2285,7 @@
    "id": "bench|cub taxi chase @HOME|uneven",
    "part": "bench",
    "what": "cub taxi chase @HOME uneven",
-   "value": 0.107,
+   "value": 0,
    "rule": {
     "rel": 0,
     "abs": 0.05,
@@ -2219,12 +2297,19 @@
    "id": "bench|cub taxi chase @mn_strip|fps",
    "part": "bench",
    "what": "cub taxi chase @mn_strip fps",
-   "value": 39.6,
+   "value": 30,
    "rule": {
     "up": true,
     "rel": 0.05,
     "abs": 1,
     "unit": "fps"
+   },
+   "accepted": {
+    "was": 39.6,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -2242,7 +2327,7 @@
    "id": "bench|cub taxi chase @mn_strip|over15",
    "part": "bench",
    "what": "cub taxi chase @mn_strip over15",
-   "value": 0.0387,
+   "value": 0.0022,
    "rule": {
     "rel": 0.2,
     "abs": 0.005,
@@ -2310,7 +2395,7 @@
    "id": "bench|cub taxi chase @mn_strip|uneven",
    "part": "bench",
    "what": "cub taxi chase @mn_strip uneven",
-   "value": 0.076,
+   "value": 0.013,
    "rule": {
     "rel": 0,
     "abs": 0.05,
@@ -2322,12 +2407,19 @@
    "id": "bench|floats water taxi @SEA|fps",
    "part": "bench",
    "what": "floats water taxi @SEA fps",
-   "value": 56.5,
+   "value": 29.9,
    "rule": {
     "up": true,
     "rel": 0.05,
     "abs": 1,
     "unit": "fps"
+   },
+   "accepted": {
+    "was": 56.5,
+    "by": "user",
+    "why": "the 30 fps cap: the user's stable-30 target (EVEN-30, 2026-10-02/04)",
+    "train": 38,
+    "date": "2026-10-07"
    }
   },
   {
@@ -2345,7 +2437,7 @@
    "id": "bench|floats water taxi @SEA|over15",
    "part": "bench",
    "what": "floats water taxi @SEA over15",
-   "value": 0.0078,
+   "value": 0.0027,
    "rule": {
     "rel": 0.2,
     "abs": 0.005,
@@ -2419,6 +2511,17 @@
     "abs": 0.05,
     "unit": "",
     "info": true
+   }
+  },
+  {
+   "id": "bench|floats world -> garage|taskWorst",
+   "part": "bench",
+   "what": "floats world -> garage worst task",
+   "value": 62,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
    }
   }
  ],

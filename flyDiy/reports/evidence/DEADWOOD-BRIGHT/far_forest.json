@@ -1,0 +1,90 @@
+{
+ "stand": {
+  "x": 25.10557523220814,
+  "z": -2237.380402614177,
+  "y": 13.367293671186461,
+  "n": 13
+ },
+ "res": [
+  {
+   "agl": 300,
+   "day": "noon",
+   "master": {
+    "trees": 0.1715,
+    "frame": 0.2466
+   },
+   "fix": {
+    "trees": 0.1329,
+    "frame": 0.2403
+   },
+   "fixwrap": {
+    "trees": 0.1354,
+    "frame": 0.2407
+   },
+   "fixdial": {
+    "trees": 0.1548,
+    "frame": 0.2439
+   }
+  },
+  {
+   "agl": 300,
+   "day": "golden",
+   "master": {
+    "trees": 0.0765,
+    "frame": 0.1077
+   },
+   "fix": {
+    "trees": 0.0553,
+    "frame": 0.1026
+   },
+   "fixwrap": {
+    "trees": 0.0554,
+    "frame": 0.1026
+   },
+   "fixdial": {
+    "trees": 0.0675,
+    "frame": 0.1056
+   }
+  },
+  {
+   "agl": 1000,
+   "day": "noon",
+   "master": {
+    "trees": 0.1499,
+    "frame": 0.2216
+   },
+   "fix": {
+    "trees": 0.1272,
+    "frame": 0.2182
+   },
+   "fixwrap": {
+    "trees": 0.1287,
+    "frame": 0.2184
+   },
+   "fixdial": {
+    "trees": 0.1386,
+    "frame": 0.2199
+   }
+  },
+  {
+   "agl": 1000,
+   "day": "golden",
+   "master": {
+    "trees": 0.0866,
+    "frame": 0.0889
+   },
+   "fix": {
+    "trees": 0.0668,
+    "frame": 0.085
+   },
+   "fixwrap": {
+    "trees": 0.0669,
+    "frame": 0.085
+   },
+   "fixdial": {
+    "trees": 0.0768,
+    "frame": 0.087
+   }
+  }
+ ]
+}
