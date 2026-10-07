@@ -111,7 +111,11 @@ const REPORT = `(() => {
     keyDirMoon: !!(w.KEY_SKY), hemiI: w.hemi ? +w.hemi.intensity.toExponential(3) : null, exposure: +R.toneMappingExposure.toExponential(3),
     moonPhase: +d.moonPhase.toFixed(3), moonEl: +d.moonEl.toFixed(1), sunEl: +d.sunEl.toFixed(1), cover: d.cloudCoverEff,
     night: W.LIGHT_RIG && W.LIGHT_RIG.nightU ? Array.from(W.LIGHT_RIG.nightU.uNightEye.value.toArray ? W.LIGHT_RIG.nightU.uNightEye.value.toArray() : W.LIGHT_RIG.nightU.uNightEye.value).map(v => +v.toFixed(3)) : null,
-    linear: W.FLYDIY_AA && W.FLYDIY_AA.linear ? W.FLYDIY_AA.linear() : null };
+    linear: W.FLYDIY_AA && W.FLYDIY_AA.linear ? W.FLYDIY_AA.linear() : null,
+    // the exposure's chain: the schedule's, the declared base, the ease, the eye, the rig row
+    exSched: W.LIGHT_RIG ? +W.LIGHT_RIG.exposureFor(d.sunEl).toExponential(3) : null, exBase: W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : null, eyeK: W.GFX && W.GFX.eye ? W.GFX.eye() : null,
+    ease: W.LIGHT_EASE ? { on: W.LIGHT_EASE.on, init: W.LIGHT_EASE.init, ex: W.LIGHT_EASE.ex, tEx: W.LIGHT_EASE.tEx, setEx: W.LIGHT_EASE.setEx, applies: W.LIGHT_EASE.applies, writes: W.LIGHT_EASE.writes } : null,
+    rig: w.rig && w.rig.get ? (r => ({ manual: r.manual, exposure: r.exposure, env: r.env }))(w.rig.get()) : null, inGarage: !!(W.FLYDIY_IN_GARAGE) };
   try {
     const rt = W.FLYDIY_AA && W.FLYDIY_AA.target && W.FLYDIY_AA.target();
     if (rt) {
@@ -199,7 +203,7 @@ async function runPage(page) {
       if (hasNight) await ev('(LIGHT_RIG.setNight(Object.assign(LIGHT_RIG.nightDefaults(), ' + JSON.stringify(VAR || {}) + ')), window.WORLD && WORLD.relight && WORLD.relight(), 1)');
       const vt = hasNight && !/^noon/.test(V.name) ? vtag(VAR) : '';
       const plan = await ev(SETUP(V));
-      await ev(FRAMES(90)); await sleep(5000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
+      await ev(FRAMES(90)); await sleep(12000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
       await ev(SETUP(V));                          // again: the aeroplane and the orbit where they were asked (a fit or a probe moved nothing, but be sure)
       await ev(FRAMES(120)); await sleep(1500);
       const png1 = await cmd('Page.captureScreenshot', { format: 'png' });
@@ -209,6 +213,7 @@ async function runPage(page) {
       const row = { view: V.name, page: tag, dials: hasNight ? VAR : null, plan, still: st, light: page, file: path.relative(path.join(__dirname, '..'), file).replace(/\\/g, '/') };
       rows.push(row);
       console.log((V.name + vt).padEnd(30) + ' ' + tag.padEnd(22) + ' meanY ' + st.meanY.toFixed(4) + ' code ' + st.meanCode.toFixed(0) + ' sky ' + st.skyCode.toFixed(0) + ' gnd ' + st.groundCode.toFixed(0)
+        + ' | ex sched ' + page.exSched + ' base ' + page.exBase + ' ease ' + JSON.stringify(page.ease) + ' rig ' + JSON.stringify(page.rig)
         + ' | ' + page.key + ' I ' + page.keyI + ' keyY ' + page.keyY + ' hemi ' + page.hemiI + ' ex ' + page.exposure + (page.rt ? ' | rt meanY ' + page.rt.meanY + ' minG ' + page.rt.minG + ' distinct ' + page.rt.distinctG + ' sub ' + page.rt.subnormalShare : '') + ' | ' + plan.local);
     }
     try { await cmd('Browser.close'); } catch (e) {}

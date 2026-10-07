@@ -6925,7 +6925,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
       LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity; LE.wSunC.copy(LE.sunC); LE.wHemiC.copy(LE.hemiC); LE.wGndC.copy(LE.gndC); LE.writes++;
     }
-    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex)) exSet(LE.ex);
+    // G2601 (MOONLIGHT): `!(... <= ...)`, not `... > ...` - LE.setEx starts NaN (nothing written yet), and NaN > x is
+    // false: the first write never came, so since G1352 (2026-10-03) the world's exposure stayed at the boot row's 1.12
+    // at EVERY hour - noon 0.92 asked, sunset 2.8, the night 32 911 (+15 stops): the night was black, the day +0.28 stop
+    if (LE.ex > 0 && !(Math.abs(LE.ex - LE.setEx) <= LE.ex * (force ? 1e-4 : LE_STEP.ex))) exSet(LE.ex);
   }
   // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
   function lightEase(now) {
