@@ -21,7 +21,7 @@ const run = async body => { const t = await post('/run', body); try { return JSO
 const shotF = async f => { await fetch('http://127.0.0.1:' + PORT + '/shot?f=' + encodeURIComponent(f)); return f; };
 const until = async (cond, ms, what) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await run('return !!(' + cond + ');')) === true) return true; await sleep(1000); } throw new Error('timed out: ' + what); };
 const frames = n => run(`await new Promise(r => { let k = ${n}; const f = () => (--k > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }); return 1;`);
-const PTS = [[1500, -2500, 170], [-1500, -5500, 350], [-4000, -3000, 300], [-3500, 0, 220], [-1500, 2500, 170]];   // tools/_route_check.js ROUTE_PTS
+const PTS = [[1500, -2500, 175], [-3000, -5000, 320], [-4500, -2000, 260], [-3500, 1000, 215], [-1500, 2500, 170]];   // tools/_route_check.js ROUTE_PTS
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const info = { date: new Date().toISOString(), shots: [] };

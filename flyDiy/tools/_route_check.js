@@ -25,8 +25,9 @@
 //    the ground, taken over at the climb-out; then, against the gate's own trace:
 //      every point captured inside its radius (routeCaptureR: the fly-by's own miss at that corner + 80 m, >= 150 m)
 //      the altitude at each point within +-15 m of the drawn one
-//      the vertical speed asked inside TECS's published limits every step, the one flown inside them (+0.5 m/s, 1 s mean)
-//      no terrain conflict: the aeroplane >= 40 m over the ground on the route, no 'route-terrain' floor flown
+//      the vertical speed asked inside TECS's published limits every step, the one flown inside them (+0.5 m/s, 1 s mean;
+//        from 10 s after the climb-out's hand-over - its own climb arrives with it, logged)
+//      no terrain conflict: the aeroplane >= 40 m over the ground on the route, no 'terrain-react' (PILOT-PROFILE's guard)
 //      the hands: aileron and rudder reversals per minute on the route under PILOTACT's limit for legs (12)
 //      the plan published: ap.intent.route is the state, intent.to the active point, intent.h the height TECS was asked
 //    and the end as drawn: the Cub 'home' (lands back at HOME, completed), the Jodel 'hold' (150 s orbiting the last
@@ -47,7 +48,10 @@ const log = s => { if (SHOW) console.log('  ' + s); };
 const jolene = () => IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8') });
 
 // THE ROUTE: offsets from HOME's centre (m) and the altitude asked (m MSL)
-const ROUTE_PTS = [[1500, -2500, 170], [-1500, -5500, 350], [-4000, -3000, 300], [-3500, 0, 220], [-1500, 2500, 170]];
+// (G2125 rebase: PILOT-PROFILE's planner lifts a leg to its minimum en-route altitude over its whole length - the old
+// route's WP2 sat on the hill north-west of the field and its leg's 219 m floor lifted WP1 from 170 to 214 m; WP2 is
+// over the sea now, and the planner flies every point as drawn for all three)
+const ROUTE_PTS = [[1500, -2500, 175], [-3000, -5000, 320], [-4500, -2000, 260], [-3500, 1000, 215], [-1500, 2500, 170]];
 function gateRoute(W, end) {
   const H = W.aerodromes.find(a => a.id === 'HOME');
   const R = C.routeNew('gate');
@@ -103,11 +107,13 @@ function model(check, doctor) {
   const prof = (R, from) => doctor && doctor.profile ? doctor.profile(R, W, perf) : C.routeProfile(R, W, { perf, from });
   const R1 = gateRoute(W, 'home');
   const P1 = prof(R1, { x: H.x, z: H.z, h: H.elev });
+  check(P1.pts.every(q => Math.abs(q.hPlan - q.h) <= 3), 'PILOT-PROFILE\'s planner (VPROFILE.plan, drawn) flies the gate route as drawn', P1.pts.map(q => Math.round(q.h) + '->' + Math.round(q.hPlan)).join(' '));
   check(P1.ok && !P1.unsafe && P1.samples[0].join, 'the gate route from the field is clean (the climb-out not a conflict)', P1.warnings.join('; ') || 'min clearance ' + P1.minClr.toFixed(0) + ' m');
   // a point drawn under the hill north-east of the field (ground ~ 600 m)
   const R2 = gateRoute(W, 'home'); R2.pts.splice(2, 0, { x: Math.round(H.x + 6000), z: Math.round(H.z - 2000), alt: 400, ref: 'msl', V: null });
   const P2 = prof(R2, { x: H.x, z: H.z, h: H.elev });
   check(P2.unsafe && P2.conflicts.length > 0 && P2.minClr < 0 && /TERRAIN/.test(P2.warnings.join(' ')), 'a point drawn under a hill is red, and said', P2.warnings.join('; '));
+  check(P1.raised.length === 0 && P2.raised.length > 0 && P2.samples.some(q => q.hPlan - q.h > 50), 'a drawing under a leg\'s minimum en-route altitude is flown higher, and flagged', P2.raised.map(i => 'WP' + (i + 1)).join(' '));
   // a climb the Cub cannot make: 600 m in 2 km
   const R3 = gateRoute(W, 'home'); R3.pts[1].alt = 900;
   const P3 = prof(R3, { x: H.x, z: H.z, h: H.elev });
@@ -161,12 +167,17 @@ function drawing(check, doctor) {
 }
 
 // ---- B. a flight --------------------------------------------------------------------------------------------------
-function flight(key, end, check, doctor) {
+// `persona` (G2085, train 40): a PILOT_PROFILES name flying the same route - the expert's laws with the person's traits
+// on top; the capture radius is that person's own (routePerf at their bank), the altitude +-25 m, and the hands' checks
+// (the reversals, the vertical speed flown) are logged, not judged: unsteady hands are the person
+function flight(key, end, check, doctor, persona) {
   const W = jolene(), H = W.aerodromes.find(a => a.id === 'HOME');
   const def = L.defOf(key);                     // the damage model ON (_treecrash_lib: damage unless `elastic`)
-  const tag = 'fly:' + key + ': ';
+  const tag = 'fly:' + key + (persona ? '/' + persona : '') + ': ';
   const { sim, pose, site } = startAt(def, W, H);
-  const ap = C.makePilot(sim, def, W, {});
+  const ap = C.makePilot(sim, def, W, persona ? { profile: persona } : {});
+  if (persona) check(ap.profile && ap.profile !== 'expert', tag + 'the persona flies (' + ap.profile + ')', ap.profile);
+  const tolH = persona ? 25 : 15;
   ap.departFrom(H, H, site, { atHold: pose });
   const R = gateRoute(W, end), perf = ap.routePerf();
   const prof = C.routeProfile(R, W, { perf, from: { x: H.x, z: H.z, h: H.elev } });
@@ -178,7 +189,7 @@ function flight(key, end, check, doctor) {
   const best = R.pts.map(() => ({ d: Infinity, dh: null, t: null }));
   const hB = R.pts.map(p => C.routeAltMSL(p, W));
   const da = revCounter(), dr = revCounter();
-  let routeSteps = 0, startT = null, endT = null, aglMin = Infinity, vsAskBad = 0, vsFlyBad = 0, vsWorst = 0, pubBad = 0, holdT = 0, holdHmax = 0, holdRmax = 0;
+  let vsEntry = -Infinity, routeSteps = 0, startT = null, endT = null, aglMin = Infinity, vsAskBad = 0, vsFlyBad = 0, vsWorst = 0, pubBad = 0, holdT = 0, holdHmax = 0, holdRmax = 0;
   const vsWin = []; let vsSum = 0;
   const phases = []; let last = null, s = 0;
   const maxS = end === 'hold' ? 1400 : 1700;
@@ -193,7 +204,11 @@ function flight(key, end, check, doctor) {
       const g = C.routeGroundAt(W, c[0], c[2], false); aglMin = Math.min(aglMin, c[1] - g);
       if (I.vsCmd != null && (I.vsCmd > I.vsUp + 1e-9 || I.vsCmd < I.vsDn - 1e-9)) vsAskBad++;
       vsWin.push(v[1]); vsSum += v[1]; if (vsWin.length > 60) vsSum -= vsWin.shift();
-      if (vsWin.length === 60) { const m = vsSum / 60; if (m > I.vsUp + 0.5 || m < I.vsDn - 0.5) { vsFlyBad++; vsWorst = Math.max(vsWorst, m - I.vsUp, I.vsDn - m); } }
+      // (judged from 10 s after the hand-over: the climb-out's own climb arrives with it - train 40's take-off climb on
+      // speed, at Vx, decelerating, read +3.7 m/s against the steady 2.97 for 2.5 s on the Cub; logged as `entry`)
+      if (vsWin.length === 60) { const m = vsSum / 60, out = Math.max(m - I.vsUp, I.vsDn - m) - 0.5;
+        if (ap.t - startT < 10) vsEntry = Math.max(vsEntry, out + 0.5);
+        else if (out > 0) { vsFlyBad++; vsWorst = Math.max(vsWorst, out + 0.5); } }
       const Lg = I.legs && I.legs[I.legI];
       if (I.route !== ap.drawn || !Lg || I.to !== Lg.name || !(Math.abs(I.h - ap.afcs.sel.alt) < 1e-6)) pubBad++;
     } else if (startT != null && endT == null) endT = ap.t;
@@ -219,14 +234,14 @@ function flight(key, end, check, doctor) {
   for (let i = 0; i < best.length; i++) {
     const b = best[i];
     check(b.d <= capR[i], tag + 'WP' + (i + 1) + ' captured inside ' + capR[i].toFixed(0) + ' m', b.d.toFixed(0) + ' m at t=' + (b.t == null ? '-' : b.t.toFixed(0)));
-    check(b.dh != null && Math.abs(b.dh) <= 15, tag + 'WP' + (i + 1) + ' at ' + hB[i].toFixed(0) + ' m +-15', b.dh == null ? 'never' : (b.dh >= 0 ? '+' : '') + b.dh.toFixed(1) + ' m');
+    check(b.dh != null && Math.abs(b.dh) <= tolH, tag + 'WP' + (i + 1) + ' at ' + hB[i].toFixed(0) + ' m +-' + tolH, b.dh == null ? 'never' : (b.dh >= 0 ? '+' : '') + b.dh.toFixed(1) + ' m');
     log(tag + 'WP' + (i + 1) + ' ' + b.d.toFixed(0) + ' m of ' + capR[i].toFixed(0) + ', ' + (b.dh == null ? '-' : (b.dh >= 0 ? '+' : '') + b.dh.toFixed(1)) + ' m');
   }
   check(vsAskBad === 0, tag + 'the vertical speed asked stays inside the published limits', vsAskBad + ' of ' + routeSteps + ' steps outside');
-  check(vsFlyBad === 0, tag + 'the vertical speed flown stays inside them (1 s mean, +-0.5 m/s)', (vsFlyBad / 60).toFixed(1) + ' s outside (' + vsFlyBad + ' steps), worst ' + vsWorst.toFixed(2) + ' m/s past');
-  check(aglMin >= 40 && !verdicts.some(q => q.code === 'route-terrain'), tag + 'no terrain conflict on the route (>= 40 m over the ground, no floor flown)', 'min ' + aglMin.toFixed(0) + ' m over the ground');
+  if (!persona) check(vsFlyBad === 0, tag + 'the vertical speed flown stays inside them (1 s mean, +-0.5 m/s)', (vsFlyBad / 60).toFixed(1) + ' s outside (' + vsFlyBad + ' steps), worst ' + vsWorst.toFixed(2) + ' m/s past');
+  check(aglMin >= 40 && !verdicts.some(q => q.code === 'terrain-react'), tag + 'no terrain conflict on the route (>= 40 m over the ground, no floor flown)', 'min ' + aglMin.toFixed(0) + ' m over the ground');
   const mins = Math.max(0.5, routeSteps / 3600), rA = da.n / mins, rR = dr.n / mins;
-  check(Math.max(rA, rR) <= ACT_LIMIT.legs, tag + 'the hands: reversals on the route under PILOTACT\'s ' + ACT_LIMIT.legs + '/min', 'da ' + rA.toFixed(1) + ' dr ' + rR.toFixed(1) + ' /min over ' + (routeSteps / 60).toFixed(0) + ' s');
+  if (!persona) check(Math.max(rA, rR) <= ACT_LIMIT.legs, tag + 'the hands: reversals on the route under PILOTACT\'s ' + ACT_LIMIT.legs + '/min', 'da ' + rA.toFixed(1) + ' dr ' + rR.toFixed(1) + ' /min over ' + (routeSteps / 60).toFixed(0) + ' s');
   check(routeSteps > 0 && pubBad === 0, tag + 'the plan published: the route state, the active point, the height asked', pubBad + ' of ' + routeSteps + ' steps wrong');
   check(ap.drawn && ap.drawn.cap.every((q, i) => Math.abs(q.d - best[i].d) < 40), tag + 'the pilot\'s own captures agree with the trace', ap.drawn ? ap.drawn.cap.map(q => q.d.toFixed(0)).join(' ') : '-');
   const crashed = sim.damage && sim.damage().crashed;
@@ -245,13 +260,18 @@ function flight(key, end, check, doctor) {
       check(near && want === near.id, tag + 'the nearest strip it lands on', want + ' vs ' + (near && near.id));
     }
   }
-  log(tag + phases.join('>') + ' in ' + (s / 60).toFixed(0) + ' s; route ' + (startT || 0).toFixed(0) + '-' + (endT || 0).toFixed(0) + ' s, min ' + aglMin.toFixed(0) + ' m agl, reversals ' + rA.toFixed(1) + '/' + rR.toFixed(1));
+  log(tag + phases.join('>') + ' in ' + (s / 60).toFixed(0) + ' s; vs flown outside ' + (vsFlyBad / 60).toFixed(1) + ' s (worst ' + vsWorst.toFixed(2) + ', the hand-over\'s first 10 s ' + vsEntry.toFixed(2) + ' m/s past); route ' + (startT || 0).toFixed(0) + '-' + (endT || 0).toFixed(0) + ' s, min ' + aglMin.toFixed(0) + ' m agl, reversals ' + rA.toFixed(1) + '/' + rR.toFixed(1));
 }
 
 const CASES = [
   { id: 'fly:cub', run: (c, d) => flight('cub', 'home', c, d) },
   { id: 'fly:jodel', run: (c, d) => flight('jodel', 'hold', c, d) },
   { id: 'fly:metal', run: (c, d) => flight('metal', 'land', c, d) },
+  // G2085 PILOT-PERSONA (train 40): the same route by the Cub's three people (A0: "build your laws as the expert
+  // baseline that the persona traits act on top of")
+  { id: 'persona:club', run: (c, d) => flight('cub', 'home', c, d, 'club') },
+  { id: 'persona:student', run: (c, d) => flight('cub', 'home', c, d, 'student') },
+  { id: 'persona:hamfist', run: (c, d) => flight('cub', 'home', c, d, 'hamfist') },
 ];
 
 function battery(doctor, only) {

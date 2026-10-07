@@ -524,8 +524,11 @@ function makePilot(sim, def, world, opts) {
   // (LOITER: an orbit through the last point at its altitude), 'home' (the field the flight left, the arrival and its
   // circuit planned from there), 'land' (the nearest strip this gear lands on with room)
   ap.drawn = null;
-  let routeGo = false, routeFloorSaid = false, routePerfV = null;
+  let routeGo = false, routePerfV = null;
   ap.routePerf = () => routePerfV || (routePerfV = (typeof routePerf === 'function' ? routePerf(sheetOf(), A, bankLim) : null));
+  // a drawn leg's speed: the point's own, inside the aeroplane's Vmin..Vmax; none, the cruise (the leg is flown AND
+  // filleted at it - buildAirPath's speedOf)
+  const routeVleg = (L) => { const PF = ap.routePerf(); return L.V != null ? Math.max(PF ? PF.Vmin : 0, Math.min(PF ? PF.Vmax : 200, L.V)) : ap.VCruise; };
   ap.flyRoute = (record) => {
     const ph = ap.phase;
     if (record == null) {
@@ -1160,7 +1163,10 @@ function makePilot(sim, def, world, opts) {
     const bC = Math.min(bankLim, A.bankClimb ?? 0.35);
     const nodes = [], ids = [];
     const add = (x, z, r) => { const id = 'p' + nodes.length; nodes.push({ id, x, z, kind: 'air', r }); ids.push(id); };
-    const speedOf = L => typeof L.V === 'number' ? L.V : L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;   // G2120: a drawn leg's own speed
+    // G2120: a drawn leg's own speed - and a drawn leg with none is flown at the cruise (case 'ROUTE'), so it is filleted
+    // at the cruise: it fell through to VAppr, and the metal Cessna (49.6 m/s, its turn ~590 m) chased a 178 m fillet
+    // 36-46 deg behind it, the path's stepping target a rudder sawtooth (13.5 reversals / min on the route)
+    const speedOf = L => L.drawn ? routeVleg(L) : typeof L.V === 'number' ? L.V : L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
     // P0.8: the fillet is followed over the GROUND (L1 on the ground track),
     // so it is planned at the ground speed a turn can reach — the airspeed
     // plus the wind (the beaver / twin in 2 m/s across crossed the crosswind
@@ -2045,7 +2051,7 @@ function makePilot(sim, def, world, opts) {
     // altitude the drawing's (hA at its start - the aeroplane's own for the first -, hB at the point)
     const routeStart = () => {
       const D = ap.drawn;
-      D.state = 'flying'; D.i = 0; D.hold = null; routeFloorSaid = false;
+      D.state = 'flying'; D.i = 0; D.hold = null;
       const legs = D.legs.map(L => Object.assign({}, L));
       const tl0 = Math.hypot(vcg[0], vcg[2]);
       const Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
@@ -2058,6 +2064,17 @@ function makePilot(sim, def, world, opts) {
         L.hA = k ? legs[k - 1].hB : cg[1];
         L.hPlan = Math.round(L.hB); L.hPlanA = Math.round(L.hA);
       }
+      // G2125 / G2120: THE ROUTE'S VERTICAL PROFILE IS PILOT-PROFILE'S PLANNER (44_vprofile.js, 'drawn' mode), planned
+      // ONCE here from the aeroplane's height with the strip's own numbers (38c_route.js routeVPerf): the drawing's ramp
+      // raised to each leg's minimum en-route altitude, its climbs moved earlier, its descents held; each leg's hPlan the
+      // height planned at its point (what the map and the plan line show is what is flown)
+      // (D.vp not enumerable: the worker's snapshot mirrors ap.drawn, and the page's strip plans its own from the same numbers)
+      let vp = null; vpReact = false;
+      if (typeof VPROFILE === 'object' && typeof routeVPerf === 'function') {
+        try { vp = VPROFILE.plan(world, legs.map(L => ({ name: L.name, A: L.A, B: L.B, hA: L.hA, hB: L.hB })), routeVPerf(D.route, ap.routePerf(), cg[1]), {}); } catch (e) { vp = null; }
+      }
+      Object.defineProperty(D, 'vp', { value: vp, enumerable: false, configurable: true, writable: true });
+      if (D.vp) for (let k = 0; k < legs.length; k++) { legs[k].hPlan = Math.round(VPROFILE.at(D.vp, D.vp.legs[k].s1)); legs[k].hPlanA = Math.round(VPROFILE.at(D.vp, D.vp.legs[k].s0)); }
       ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null;
       pathFrom = tl0 > 3 ? [cg[0], cg[2]] : null;
       const tl = Math.hypot(vcg[0], vcg[2]);
@@ -3138,15 +3155,19 @@ function makePilot(sim, def, world, opts) {
         const next = ap.legs[ap.legI + 1] || null;
         const r = navLeg(L, lookC, next);
         if (!airPath) { airPath = buildAirPath(ap.legs, pathFrom); airPathI = 0; pathFrom = null; }
+        // the plan (VPROFILE.at) read 5 s ahead - TECS's 0.2 /s height gain: the lead is the gradient's feed-forward;
+        // without a world (no plan) the point's own height
         const lead = 5 * Math.max(o_.Vg ?? Vg, 10);
-        const ramp = (Lg, s, len) => Lg.hA + (Lg.hB - Lg.hA) * clamp(s / Math.max(1, len), 0, 1);
-        let hTgt = ramp(L, r.s + lead, r.len);
-        if (next && r.s + lead > r.len) hTgt = ramp(next, r.s + lead - r.len, legGeom(next).len);
+        let hTgt = D.vp ? VPROFILE.at(D.vp, VPROFILE.legS(D.vp, ap.legI, r.s) + lead) : L.hB;
+        // THE GROUND AS THE EXCEPTION (PILOT-PROFILE's own guard, the enroute leg's): 1.5 km ahead along the leg, 2 hSafe
+        // (40 m at least) over it - a terrain closer than that raises the target and is said (ap.vpReact counts them)
         const g = legGeom(L);
-        const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 600) + 30;
-        if (floor > hTgt) { hTgt = floor; if (!routeFloorSaid) { routeFloorSaid = true; say('route-terrain', 'the drawn profile is under the ground ahead on ' + L.name + ' - flying ' + Math.round(floor) + ' m'); } }
-        const PF = ap.routePerf();
-        const Vleg = L.V != null ? clamp(L.V, PF ? PF.Vmin : 0, PF ? PF.Vmax : 200) : ap.VCruise;
+        const react = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
+        if (react > hTgt + 1) {
+          if (!vpReact) { vpReact = true; ap.vpReact = (ap.vpReact || 0) + 1; say('terrain-react', 'the ground ahead stands within ' + Math.round(Math.max(2 * A.hSafe, 40)) + ' m of the plan on ' + L.name + ' - climbing to ' + Math.round(react) + ' m (planned ' + Math.round(hTgt) + ')'); }
+          hTgt = react;
+        } else if (react < hTgt - 20) vpReact = false;
+        const Vleg = routeVleg(L);
         altMode(hTgt, Vleg, bankLim, airPath ? 'PATH' : 'NAV');
         flapTgt = 0;
         pubH = hTgt; pubN = L.name; pubX = L.B[0]; pubZ = L.B[1];

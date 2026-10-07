@@ -415,7 +415,9 @@ const ROUTE_DRAW = (() => {
     if (!S.route || !S.route.pts.length) return '';
     const parts = [];
     if (pr) {
-      parts.push(fmtKm(pr.len) + ', lowest ' + Math.round(pr.minClr) + ' m over the ground (margin ' + pr.margin + ')');
+      parts.push(fmtKm(pr.len) + ', lowest ' + Math.round(pr.minClr) + ' m over what stands under it (margin ' + pr.margin + ')');
+      let up = 0; for (const s of pr.samples) if (s.hPlan != null) up = Math.max(up, s.hPlan - s.h);
+      if (up > 3) parts.push('flown up to ' + Math.round(up) + ' m over the drawing (dashed)');
       if (pf) parts.push('plan limits +' + pf.climb.toFixed(1) + ' / −' + pf.sink.toFixed(1) + ' m/s');
     }
     if (flying() && a && a.intent) {
@@ -440,7 +442,7 @@ const ROUTE_DRAW = (() => {
     if (!pr || !pr.samples.length) { g.fillStyle = 'rgba(251,244,234,.6)'; g.font = '500 13px "IBM Plex Sans", sans-serif'; g.fillText('the profile: altitude against distance, the ground under the legs', 14, H / 2); return; }
     const ml = 42, mr = 10, mt = 10, mb = 20;
     let lo = Infinity, hi = -Infinity;
-    for (const s of pr.samples) { lo = Math.min(lo, s.g); hi = Math.max(hi, s.h, s.g + pr.margin); }
+    for (const s of pr.samples) { lo = Math.min(lo, s.g); hi = Math.max(hi, s.h, s.hPlan != null ? s.hPlan : s.h, s.g + pr.margin); }
     lo = Math.max(-20, lo - 20); hi = hi + 40;
     const len = Math.max(1, pr.len);
     const X = d => ml + (W - ml - mr) * d / len, Y = h => mt + (H - mt - mb) * (1 - (h - lo) / (hi - lo));
@@ -464,6 +466,15 @@ const ROUTE_DRAW = (() => {
       g.strokeStyle = (!b.join && b.clr < pr.margin) ? COL.bad : b.join ? COL.routeDim : COL.route; g.lineWidth = (!b.join && b.clr < pr.margin) ? 3.2 : 2.2;
       g.beginPath(); g.moveTo(X(a.d), Y(a.h)); g.lineTo(X(b.d), Y(b.h)); g.stroke();
     }
+    // THE PLAN AS FLOWN (PILOT-PROFILE's planner, 44_vprofile.js): amber, dashed, where it leaves the drawing (raised to
+    // a leg's minimum en-route altitude, a climb moved earlier, a descent held)
+    g.setLineDash([5, 3]); g.strokeStyle = COL.amber; g.lineWidth = 1.6;
+    g.beginPath(); let on = false;
+    for (const s of pr.samples) {
+      const off = s.hPlan != null && Math.abs(s.hPlan - s.h) > 3;
+      if (off) { if (on) g.lineTo(X(s.d), Y(s.hPlan)); else { g.moveTo(X(s.d), Y(s.hPlan)); on = true; } } else on = false;
+    }
+    g.stroke(); g.setLineDash([]);
     // the points
     const a = ap(), act = flying() && a && a.intent ? a.intent.legI : -1;
     g.font = '600 10px "IBM Plex Mono", monospace';

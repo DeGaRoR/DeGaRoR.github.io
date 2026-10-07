@@ -26,7 +26,7 @@ try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSy
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const WIP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_cub_wip.json'), 'utf8');
 // GATE ROUTE's route (tools/_route_check.js ROUTE_PTS): offsets from HOME's centre, m MSL
-const PTS = [[1500, -2500, 170], [-1500, -5500, 350], [-4000, -3000, 300], [-3500, 0, 220], [-1500, 2500, 170]];
+const PTS = [[1500, -2500, 175], [-3000, -5000, 320], [-4500, -2000, 260], [-3500, 1000, 215], [-1500, 2500, 170]];
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
