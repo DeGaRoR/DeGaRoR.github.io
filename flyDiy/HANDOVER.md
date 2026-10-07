@@ -81240,3 +81240,168 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2480 - HAND-CONTROLS: EVERY CONTROL THE SIM MODELS, ON THE HAND - THE TOE BRAKES (KEYS AND PEDAL AXES) ONTO brake + brakeD, BRAKE-STEER, RUDDER AND AILERON TRIM, TRIM WHEELS AND A FLAP LEVER AS AXES, THE WATER-RUDDER HANDLE, THE REST OF THE DASH; THE PARKING BRAKE THAT NEVER HELD UNDER THE HAND; brakeD AND wr THROUGH THE WORKER (2026-10-07, HAND-CONTROLS for the PILOT COORDINATOR, cloud - node + SwiftShader, no GPU; branch claude/hand-controls-g2480 off origin/claude/pilot-integration 9546d2ee = train 40 + ENGINE-TORQUE + ROUTE-DRAW; G2480 used, G2481-G2489 unused)
+
+**STATUS: READY for the PILOT COORDINATOR.** The user (7 Oct): differential braking "to the mapping for hand flying. Overall,
+as many controls as possible should be exposed to hand flying." Every gate of the brief PASSES (the list at the end).
+
+**THE AUDIT** (every control the aeroplane / sim / panel accepts, against what input.js exposed on the base):
+
+| control | where it lives | on the base (9546d2ee) | G2480 |
+|---|---|---|---|
+| elevator / aileron / rudder | sim.ctl de / da / dr | exposed: pitch, roll, yaw (arrows, , .) | - |
+| throttle | ctl.thr | exposed (PgUp/PgDn/Home/End) | - |
+| brakes, both mains | ctl.brake | exposed (B) | + brake-steer option |
+| **differential brake** | ctl.brakeD (30_solver G1938) | **missing - real** (only the AP's pivot wrote it) | **left / right toe brake: [ ] + pedal toe axes** |
+| flaps | ctl.flap | exposed: steps F / G | **+ flap lever axis** (the nearest notch) |
+| per-engine levers | ctl.eng[i].thr | exposed: eng1-4 axes (unbound) | - |
+| per-engine on/off | ctl.eng[i].on | not on the hand (G441: the dash key is the switch) | candidate (below) |
+| elevator trim | input-side bias (no tab in the model) | exposed: num 1 / num 7 | **+ trim wheel axis** |
+| **rudder trim** | none on the hand; the AP holds its own (39b drTrim, G2080) | **missing - real** (the rudder is) | **num 0 / num enter + knob axis** |
+| **aileron trim** | none | **missing - real** | **num 4 / num 6 + knob axis; num 5 centres rudder + aileron** |
+| master | cockpit sw_master -> 31_elec bus | exposed (M) | - |
+| **alternator** | cockpit sw_alt -> bus.alt (charging) | **missing - real** (a cockpit click only) | **E** |
+| **avionics master** | cockpit sw_avionics -> the radios' loads | **missing - real** | **X** |
+| ignition key / starter / magnetos | setEngine key off/l/r/both/start; crank 1.5 s on the bus's starterOk | exposed: J / H walk OFF-L-R-BOTH-START | - (L / R run as BOTH: not modelled) |
+| fuel selector | CK.sw.fuel; OFF stops the engine | exposed (U) | - (L / R pick no tank: not modelled) |
+| **parking brake** | CK.park -> ctl.brake = 1 once a frame after the steps | exposed (P) but **BROKEN under the hand**: the hand's write before every step put its own brake back (inline and worker) | **fixed: a floor under the hand's brakes** (INP.parkFrom) |
+| lights taxi / landing / nav / beacon, instrument + flood dimmers | cockpit sw_* | exposed (T L N K I O) | - |
+| **pedal light** | sw_pedal -> pedalLight + its load | **missing - real** | **Y** (a quarter up, round to off) |
+| passenger light | sw_pax: a 0.5 A load, nothing drawn | not exposed | candidate |
+| **floats' water rudders** | 32_hydro waterRudder: steered by dr; raised / lowered by THE RULE (down < 12 m/s, up at take-off power) | steering exposed (yaw); **the handle missing** | **V: AUTO - UP - DOWN** (ctl.wr; null = the rule) |
+| tailwheel lock / castor | the tailwheel always steers (twSteer x dr), never castors | not modelled | candidate |
+| AP toggle / view | events | exposed (A / C) | - |
+| head axes | six pass axes | exposed (nothing consumes them yet) | - |
+
+NOT MODELLED (no physics invented for them - each a physics item first): **mixture** (needs a fuel-air law and the rpm it
+costs - G2080's shaft law is the place), **carb heat / carb ice** (needs an icing model on humidity and the venturi's
+temperature drop), **the primer** (a start that can fail cold - the crank is a sure 1.5 s today), **an electric fuel
+pump** (needs a fuel-pressure state the engine can starve on), **a magneto's rpm drop** (L / R run as BOTH: needs the
+shaft law's power x ~0.97 per single mag), **the fuel selector's L / R tanks** (32 vessels exist; nothing draws them
+per side), **a castoring tailwheel with a lock** (a breakout angle and a lock state), **a castoring nosewheel** (the metal
+Cessna's nosewheel is held to its 20 deg steering range, so a locked inside main cannot tighten its 5 m arc - measured
+below; the G1949.4 tricycle pivot note), **cowl flaps, prop pitch / constant speed** (the shaft law is fixed pitch),
+**a trim TAB on any surface** (all three trims are a hand held on the controls - the model's honesty since G200).
+REAL BUT LEFT: a per-engine key / starter on the twin (setEngine(i) is per engine; the dash draws ONE key - a panel
+change first), the AP box's mode keys (G202.1 - they change who flies), the hand-prop (CK.swing: no caller anywhere),
+the passenger light. TOUCH FLYING ON THE PHONE: nothing to put it on - the phone is the garage alone (G2100, fly
+'none'); the mapping panel with the new rows renders on the phone (the still below), touch flying waits for the phone
+to fly.
+
+**WHAT WAS EXPOSED, AND HOW** (src/viewer/input.js; the defaults avoid every key bound before and the head-cam's Z W S Q
+D R F, the dev-cam's W A S D C Space, F7 / F8 / F9):
+- **THE TOE BRAKES** `brakeL` [ / `brakeR` ] - buttons that read an AXIS as analog (`analog: true`: listen binds a pedal's
+  toe axis as a lever from its rest, not a hat). write() puts every source ON ITS MAIN - the pair's brake on both, each
+  toe on its own, the parking brake under all - and hands the solver its pair: **brake = (L + R) / 2, brakeD = (L - R) /
+  2**, exact on each main through the solver's clamp(brake + side x brakeD, 0, 1). **THE SIDE, MEASURED on the built
+  pose: the +z main is the LEFT main** (the Cub's at +0.91 m to the left, the Jodel's +0.98, the metal Cessna's +1.27;
+  the default gen +0.82 - GATE INPUT holds it), so brakeD > 0 brakes the left main and yaws left - the solver's "the way a
+  positive rudder does". When the mains agree brakeD is exactly 0: the symmetric brake to the bit (B alone writes
+  brake === the ramp, brakeD 0). The button ramp is now each button's own (s.ramp; the brake's numbers unchanged).
+- **BRAKE-STEER** (the keyboard's differential brake most sims offer; profile.opts.brakeSteer, OFF by default - the
+  panel's checkbox in the BRAKES group): the brake key with the pedal held lets the OUTSIDE main off in proportion -
+  L = B x (1 - right pedal), R = B x (1 - left pedal): full right pedal + B = the right main alone.
+- **RUDDER / AILERON TRIM**: steps (num 0 left / num enter right, 0.01 a press, +-0.30; num 4 / num 6, 0.01, +-0.20;
+  num 5 centres both, the elevator's stays), the same input-side bias after the merge as the elevator's.
+- **AXES**: `trimPitch` (a trim wheel: full = +-0.5), `trimYaw` (+-0.3), `trimRoll` (+-0.2) - a wheel that MOVES sets its
+  trim and a key steps from where it left it; `flapLever` (latch: the nearest notch, travelling at the aeroplane's rate).
+- **THE WATER-RUDDER HANDLE** `waterRudder` V: AUTO -> UP -> DOWN -> AUTO into `ctl.wr` (null = THE RULE; 0 up; 1 down).
+  32_hydro reads it ahead of its rule; 30_solver's ctl carries `wr: null` and reset() gives it back to the rule. With wr
+  null (every caller but the hand) the line is the rule's own - bit-identical (below).
+- **THE DASH**: `alt` E, `avionics` X, `dimPedal` Y (cockpit.js dashAction).
+- **THE PARKING BRAKE UNDER THE HAND**: app.js hands INP the knob (`INP.parkFrom(() => CK.park)`); write() floors both
+  mains at 1. (G318 believed "the parking brake holds the wheels through ctl.brake after the hand's write" - the write
+  ran again before every step; under the worker the page's brake = 1 patch was then overwritten by writeHand.)
+- **OLD PREFS LOAD**: normalise() gives an action a stored profile never heard of its DEFAULT (an action the player
+  unbound is stored as [] and stays unbound); a default key the old profile already gives another action is left off
+  (nothing fires twice). The profile gains `opts` (VERSION unchanged). GATE INPUT loads a pre-G2480 profile.
+- **THE PANEL** (input_panel.js, controls.css): groups Flying / **Brakes - on the ground and the water** / **Trim** / The
+  flight / The dash / Engines / Head; a LIVE line per new group (the pair, each toe, the handle; the three trims), the
+  brake-steer checkbox (it blurs after the click, or the keys would stay in the checkbox), the toe brakes' axis tuning
+  reads as a lever (idle / full, no sensitivity); listen prompts for the toes, the wheels, the lever.
+
+**THE WORKER** (the default mode): sim_link.js's hand packet now carries `brakeD` and `wr`; sim_host.js writeHand writes
+them (`H.HAND_KEYS`; wr's null is a value - THE RULE - so it is written whenever the packet has the field). Before
+G2480 the packet stopped at the flaps: a differential brake the page set never reached the worker's sim.
+PROVEN: GATE SIMWORKER's scripted hand now carries brakeD +0.4 / -0.1 and wr 0 / null (steps 230 / 260) and the page
+and the host stay bit-equal - NEGATIVE CONTROL: the host with brakeD dropped from HAND_KEYS (a scratch copy) FAILS,
+"FIRST DIVERGES AT STEP 231" on both builds (stock, cessnaMetal). tools/hand_controls_probe.js WORKER (makeSimHost, the
+page's packet built from sim_link's own template): the Cub on HOME's stand, [ held -> the worker's ctl brake 0.5 /
+brakeD +0.5, ] -> -0.5; the Cessna floats on the SEA lane, the handle UP at 3.3 m/s -> both floats' wrDown 0 where
+the rule holds them down (1), DOWN -> 1, AUTO -> the rule's 1.
+
+**THE HANDOVER, BOTH WAYS.** Hand -> pilot (app.js setManual(false), sim_host 'manual' handOff, GATE SIMWORKER's
+replica): ctl.brakeD = 0 and ctl.wr = null - what only the hand writes leaves with it (the pilot clears brakeD itself
+outside the box anyway; it never knew wr). UISMOKE: a held [ reaches sim.ctl.brakeD > 0.3 under the hand, and
+setManual(false) leaves brakeD 0, wr null. The probe's worker case: the pilot back at step 170 -> brakeD 0, wr null
+(was 0). The hand's trims stay in INP (the pilot writes de / da / dr every step - nothing of them reaches it). Pilot ->
+hand (INP.seed(ctl, { air })): IN THE AIR the pilot's rudder and aileron become the hand's trims, bumpless, as the
+elevator always did (the Cub's climb holds 0.14 of right rudder against the swirl; a keyboard's pedals centre); ON THE
+GROUND they start at 0 (a taxi's steering is not a trim); brakeD 0 and the handle AUTO always - nothing the pilot set
+stays stuck on the player. **THE AUTOPILOT IS BIT-IDENTICAL WHEN THE HAND IS NOT FLYING**: tools/hand_controls_apsame.js,
+THE PILOT from the stands / the sea lane, 180 s on the Cub, the Jodel, the metal Cessna, the Cessna floats and the twin
+on floats: all 90 FNV(p, v) hashes equal, base (9546d2ee built) vs this branch (reports/evidence/
+hand_controls_g2480_apsame.txt).
+
+**MEASURED BY HAND, IN NODE** (tools/hand_controls_probe.js -> reports/evidence/hand_controls_g2480.json / .log; mode:
+node, the flat world at 300 m; tree 9546d2ee + the G2480 working tree = this commit): through input.js's press() /
+mapBinding / write() - the keys a player presses, 0.7 throttle walked up on PgUp, the stick centred, full pedal:
+
+| aeroplane | way | tailwheel / nosewheel steering alone | + the INSIDE TOE BRAKE ([ / ]) |
+|---|---|---|---|
+| Cub | right | 180 deg in 8.7 s, r 9.5 m, CG out 18.9 m | **9.3 s, r 1.3 m, CG out 2.7 m** |
+| Cub | left | 8.9 s, r 9.4 m, 18.7 m | **8.3 s, r 1.3 m, 2.5 m** |
+| Jodel | right / left | 8.4 / 8.5 s, r 7.7 m | **10.7 / 7.7 s, r 1.4 / 1.3 m, CG out 2.8 / 2.5 m** |
+| metal Cessna 0.7 | right / left | 5.3 / 5.1 s, r 5.1 / 5.0 m | 6.2 / 5.8 s, r 5.0 / 4.5 m (half toe: 5.7 / 5.5 s, 5.0 / 4.9 m) |
+| metal Cessna 0.35 | right / left | 8.0 / 7.7 s, r 5.0 m | full toe: 164 deg in 40 s / 35.8 s r 3.3 m; **half toe (a toe AXIS at 0): 11.8 / 11.1 s, r 4.9 / 4.7 m** |
+
+The Cub matches the autopilot's G1938 pivot (180 deg in 8.6 s, the CG moving 2.6 m; the tailwheel alone 9.4 m) - the
+hand now turns where the pilot does. Brake-steer (B + full pedal) reads the same per-main brakes as the toe and flies
+the same numbers, row for row. THE METAL CESSNA: its nosewheel is held to its 20 deg steering range and never castors,
+so a locked inside main cannot tighten the ~5 m arc; at low power it stalls the turn (0.2 throttle: no 180 in 40 s
+with either toe) - the castoring nosewheel is in the not-modelled list.
+
+THE TAKE-OFF WITH THE RUDDER TRIM (the Cub from rest, full throttle; a hand on a STICK - a gamepad fixture through
+mapBinding: tail up at VTailUp, 9 deg of climb attitude from VRot, wings level; the FEET on the pedals for the roll,
+OFF at 60 m; the climb flown on the trim alone, 30 s):
+
+| rudder trim (presses) | airborne | off the line on the roll | climb, feet off: beta | heading | vs |
+|---|---|---|---|---|---|
+| 0 | 13.0 s | 5.09 m | 7.01 deg | -11.2 deg (-0.37 deg/s) | 2.63 m/s |
+| 0.07 (7) | 13.1 s | 2.96 m | 3.75 | -7.0 (-0.23) | 2.67 |
+| **0.14 (14)** | 13.1 s | 0.82 m | **0.47** | **-2.8 (-0.09)** | 2.69 |
+| 0.20 (20) | 13.1 s | 1.02 m | -2.35 | +0.8 (+0.03) | 2.69 |
+
+0.14 is the autopilot's own climb rudder for this aeroplane (G2080: -0.142) - the ball centred, the vs up a little.
+
+THE DOM KEY PATH (tools/hand_controls_still.js; the real page, headless Chromium on SwiftShader, desktop 1600x900 and
+?profile=phone 390x844 @3 under mobile emulation, tree 9546d2ee + this commit's sources built): KeyboardEvents dispatched
+on window (input.js's own listener), INP.update stepped by hand: [ -> brake 0.5 / brakeD +0.5 (L 1, R 0) and the event
+defaultPrevented; ] -> -0.5 (L 0, R 1); released -> 0 / 0; brake-steer + B + . -> L 0, R 1, dr -1; num enter x5 ->
+dr -0.05 (trims.r 0.05); V x3 -> 0, 1, null; [ typed into a textarea -> nothing (the guard). Identical on both screens.
+STILLS: reports/evidence/HAND-CONTROLS/desktop_brakes.jpg, desktop_trim.jpg, phone_brakes.jpg, phone_trim.jpg (the panel
+open in the shed, [ held - "left toe 0.53" on its ramp - and the trims at rudder +0.14, aileron +0.02).
+
+**GATES** (`node tools/build.js`, then `run_gates --no-build --only=... --jobs=2..4`, cloud, on this commit's sources):
+INPUT **PASS** (125 checks: +35 for G2480 - the toes per main, brake-steer, the park floor, the pedal toe axes' listen
+and analog read, the rudder / aileron trims and their bounds, the trim wheels, the flap lever, the handle's walk, the
+seed in the air and on the ground, an old profile loading, the side measured on the built pose; its default-code shape
+check now admits Bracket(Left|Right) - still a KeyboardEvent.code, still refuses a .key string), UISMOKE **PASS** (+ the
+left toe brake through app.js's own write and the hand-off), UISMOKE-PHONE **PASS**, SIMWORKER **PASS** (+ the hand's
+brakeD / wr; negative control red), PLAYER **PASS** (the player pref is untouched; the input pref is its own and old ones
+load - GATE INPUT), PILOT **PASS** (3 shards), PILOTACT **PASS**, TAKEOFF **PASS**, LINEUP **PASS**, TAXICLEAR **PASS**.
+No bound loosened. The autopilot bit-identical (above).
+
+**FILES**: src/viewer/input.js (the actions, the per-main write, opts, the seed, the trims, the handle, parkFrom,
+normalise's defaults for unknown actions, inferBinding's analog buttons), input_panel.js + controls.css (the groups, the
+live lines, the option), cockpit.js (alt, avionics, the pedal light), app.js (setManual's seed / hand-off, parkFrom,
+the controls flyout's key note), sim_link.js + sim_host.js (brakeD / wr in the hand's packet, handOff), src/core/
+30_solver.js (ctl.wr), 32_hydro.js (the handle ahead of the rule); tools/test_input.js, test_ui_smoke.js,
+_simworker_check.js; NEW tools/hand_controls_probe.js, hand_controls_still.js, hand_controls_apsame.js;
+reports/evidence/hand_controls_g2480.json / .log / _apsame.txt, reports/evidence/HAND-CONTROLS/;
+futureDesigns/MANUAL-CONTROLS-2026-09-05.md (a G2480 section).
+
+**OWED / NAMED**: the not-modelled list above (each a physics chantier); a real pedal set's listen (no hardware in a cloud
+session - the TFRP-shaped fixture is GATE INPUT's); the twin's per-engine key; touch flying when the phone flies. The
+brake-steer default (OFF) is the coordinator's / the user's call.
