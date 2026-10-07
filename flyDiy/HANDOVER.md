@@ -86007,3 +86007,257 @@ Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard kille
   50 m/s stagings break up on? The likely answer is that the staging misses the trunk squarely: the Cub lifts at 40 m/s
   with the throttle shut. Not checked: a trace of the strike's lateral offset and the nose height at the trunk would
   answer it.
+
+## G2388-G2392 DMG-POLES (2026-10-07, cloud, node only; branch claude/dmg-poles off the train-41 assembly origin/claude/dmg-t41 4b036029): TWO POLES NARROWER THAN THE SPAN - THE WINGS DID NOT BREAK CLEANLY; THEY DO NOW (G2391: THE CERTIFIED BEND)
+
+The user (2026-10-07): "what happens when a plane tries to fly through 2 poles and quite does not fit? Do the wings break
+cleanly?"
+
+**The answer.** On train 41, **no**. In 117 of 144 wings across the matrix, the wing parted in the wrong place. In 103 of
+the 144, a spar inboard of the pole's bay broke first: the **root bay pulled apart**. This happened even at 8 m/s, on all
+three aeroplanes, and often the outer wing stayed on while the root went. The Jodel's box shredded over two or three bays.
+The cause is in the damage model, not the staging (G2391 below). With G2391, **144 of 144 wings break cleanly**:
+- every spar that breaks lies in the bay the pole stands in;
+- **one** outboard piece comes off;
+- the wing stays on out to that bay's inner rib;
+- nothing breaks inboard except the strut going with the panel it holds, or one drag brace per bay.
+Damage OFF is byte-identical. An intact aircraft pays nothing.
+
+### G2388 the staging (tools/_dmg_poles_lib.js; _treecrash_lib.js flyRun `poles` / `level`)
+- `atTrunk`'s flat world (300 m, calm air) with two vertical poles instead of the one test trunk. Both poles go in the one
+  `'fill:test'` TREE_HITS set: rigid, unbreakable, and met by the trunk law (30_solver tkHit / trunkPass). They stand
+  **10 m ahead of the CG** (GAME), at lateral stations `±f x semispan`. The gap is narrower than the span.
+- **The asymmetric variant**: the aeroplane 0.5 m right of the gap's centre. The right wing meets its pole 0.5 m further
+  in, the left 0.5 m further out. The poles stand abreast, so both wings meet them at the same moment.
+- **The wooden pole: r 0.13 m, 9 m tall.** ANSI O5.1 (recalled, not opened): a class 4-5, 35-40 ft distribution pole is
+  ~21-23 in round at the top and ~31-37 in at 6 ft from the butt, i.e. 17-30 cm across; 26 cm is its middle. 9 m is the
+  pole's length less its setting depth (10 % + 2 ft, the same standard's rule, recalled).
+- **The steel pole: r 0.06 m, 9 m tall.** A 4-4.5 in pipe (ASME B36.10, 4 in NPS = 114.3 mm OD, recalled). Its 9 m height
+  is the wooden pole's (GAME).
+- `_treecrash_lib.flyRun`'s new options leave every existing case's bits unchanged (verified: DMGDETERMINISM's tiers and
+  every library hash).
+  - `poles`: each pole's lateral axis is the def's +z laid flat. The solver's `zRt` points the other way on these builds:
+    the first asymmetric runs put the offset on the wrong wing.
+  - `level`: the air pass pitched about the CG until the body's x axis is level, then lifted so its lowest node is
+    `agl` m up. Spawned in its ground attitude at 35 m/s, the Cub balloons at 3-5 g before it reaches the poles.
+- **The exact staging, for the box's stills: reports/evidence/DMG-POLES/staging.md**
+  - pole stations per build;
+  - the lift-off speeds (ap.VRot: Cub 15.9, Jodel 18.7, metal Cessna 22.2 m/s);
+  - the contact times;
+  - a node one-liner to replay any case;
+  - how to stage two trunks for `dmg_wreck_stills.js`, which stages one. It was not changed: it runs on the box only.
+
+### G2389 the matrix
+- **The aeroplanes:** the Cub, the Jodel and the metal Cessna.
+- **The poles:** wood or steel.
+- **Where they stand:** 85 / 65 / 45 % of the semispan.
+- **The speeds:**
+  - 8 m/s taxiing;
+  - the lift-off speed, on the wheels;
+  - 35 m/s, levelled, the wheels 2 m up (AGL_AIR, GAME).
+- **The asymmetric rows:** the 65 % rows again, with the aeroplane 0.5 m off-centre.
+- **Each run:** the throttle shut at the start, no pilot, 6 s flown (GAME), the certificate stamped (damage on, as the
+  game runs it).
+- **72 cases, each flown on two cores:**
+  - "after": this branch;
+  - "before": this branch's core with G2391's one line taken out, which is train 41's behaviour.
+- The cases run in child processes, the certificate handed over as the game's bench thread hands it.
+- **Evidence, in reports/evidence/DMG-POLES/:**
+  - cases.md: a table per build, every case and wing, before -> after;
+  - matrix.json;
+  - span_<build>.svg: every broken member along the span by class, before | after;
+  - time_<build>.svg: the root load of both wings and the yaw over time, for the gate's key rows.
+- **Regenerate:** `node tools/dmg_poles_evidence.js` (about 15 min at 2 jobs), or with `--replot` from matrix.json.
+
+### G2390 what "cleanly" means, and what each aeroplane does
+Each wing is judged over the **pole phase**: from the first contact to the last new contact, plus 0.25 s (GAME). A break
+after that window is the wreck landing; it is reported but not judged.
+- **WHERE it parted.** Read from the bays whose spars broke.
+  - The lattice's resolution is one bay, between two rib stations:
+    - Cub: 0.37 / 2.03 / 3.69 / 5.35 m;
+    - Jodel: 0.53 / 1.74 / 2.52 / 2.94 / 4.15 m;
+    - metal Cessna: 0.53 / 2.18 / 2.61 / 3.84 / 5.50 m.
+  - So the Cub's 65 % and 45 % poles both take off the same 20.4 kg outer panel.
+- **The members broken, by class:**
+  - spar;
+  - drag brace (a diagonal or a rib);
+  - root fitting;
+  - strut;
+  - the fan, the planar strut wing's hidden box stand-in (61_gen_frame).
+- **How each member went:**
+  - its joint group let go;
+  - it bent round the pole and tore at its fold angle;
+  - it kinked;
+  - it pulled apart mid-member.
+- **HOW MANY pieces:** a union-find over the live members and whole clusters, pieces of 0.5 kg and more (crashStats' own).
+- **Inboard failures.** Each one is tagged with its load path, or flagged UNEXPLAINED:
+  - **strut**: the strut's root group lets go when the strut's station is outboard of the cut. The strut goes with the
+    panel it holds: the strut-braced wing's legitimate second failure. On the Cub at 65 / 45 %, the pole is inboard of
+    the 3.69 m strut. On the metal Cessna at 45 %, it is inboard of the 2.61 m strut.
+  - **drag**: one drag brace per bay (or rib station), pulled at its certified cap by the pole's drag shear. That shear
+    runs undiminished to the root. Only the Jodel shows these: 29 over the matrix, all diagonals or ribs, never a spar.
+- **Sanity:** positions finite, no velocity-guard fault ('sim-diverged'). The mechanical energy never rose above its start
+  (x 1.000 throughout). The fastest node reached at most 1.8 x the impact speed: the Jodel's severed tip at 8 m/s went
+  14 m/s, flung as it parted.
+
+**After G2391:**
+
+The outboard piece, per build and pole station:
+
+| | 85 % | 65 % | 45 % |
+|---|---|---|---|
+| Cub | 7.9 kg | 20.4 kg | 20.4 kg |
+| Jodel | 6.8 kg | 14.9 kg | 22.5 kg |
+| metal Cessna | 11.9 kg | 31.6 kg | 46.6 kg |
+
+- **The root load.** Each wing's members on the fuselage, as a vector sum:
+  - taxi: 1.1-17 kN peak;
+  - lift-off speed: 1.7-18 kN peak;
+  - 35 m/s: 2.5-34 kN peak. The 34 kN is the Jodel at 45 %, in the landing after the pole phase.
+  - Before G2391 the root load at taxi was 5-18 kN, and it parted the root.
+- **The two-pole symmetric cases:** no yaw.
+  - Taxiing, the aeroplane rolls on through the gap at 2.5-4.6 m/s, its outer panels behind it.
+  - At lift-off speed, it rolls on at 9-18 m/s.
+  - At 35 m/s:
+    - **85 % on every build:** it flies on with clipped wings: 22-30 m/s at 6 s, nothing else broken.
+    - **The metal Cessna at 65 % and 45 %:** it also flies on.
+    - **The Cub and the Jodel at 65 / 45 %:** they lose 30-55 % of each wing's span. They come down inside the 6 s, break
+      the gear, and slew and roll in the wreck (the Jodel at 45 %: yaw 174 deg, roll 57 deg). That is the landing, after
+      the pole phase.
+- **Asymmetric (0.5 m off), the wing further in loses the larger panel:**
+  - Cub 20.4 vs 7.9 kg;
+  - Jodel 22.5 vs 6.8 kg;
+  - metal Cessna 31.6 vs 11.9 kg.
+- **Asymmetric, the yaw toward the wing that lost more:**
+  - at the lift-off speed: 9.5-30 deg;
+  - taxiing: 1-4 deg, either way (both wings stop on poles at once, so the drag nearly cancels);
+  - at 35 m/s: 18 to 180 deg, either way, decided by the landing that follows.
+- **Before G2391, by build (failing wings of 48):**
+  - Cub: 40 cut in the wrong bay, 42 with an unexplained inboard break;
+  - Jodel: 44 and 46;
+  - metal Cessna: 26 and 26.
+
+**Against real accidents** (as recalled, no report opened). Light aeroplanes striking utility poles or wires with a wing,
+NTSB narratives: "the outboard N ft of the wing separated", "the wing was cut / torn at the pole", the aeroplane yawing
+toward the struck side and often cartwheeling at speed. Taxi strikes on light poles: leading-edge crush and spar damage at
+the strike, the aeroplane pivoting round the pole.
+- **Agrees (after G2391):**
+  - the wing parts at the pole's station, as one outboard panel, the inboard wing intact;
+  - a strut-braced wing struck inboard of its strut loses the strut with the panel;
+  - the side that loses more is the side the aeroplane slews toward.
+- **Before G2391 it did not:** the root bay parting at 8 m/s with the tip still on is the opposite of the record.
+- **Disagrees, or is not modelled:**
+  1. **Taxi speed severs too cleanly.** At 8 m/s the model cuts the bay right through. Real taxi strikes more often crush
+     the leading edge and leave the panel hanging on fabric, skin or control cables. The lattice has no leading-edge crush
+     element, and DMG-FABRIC's ties did not hold the panel here.
+  2. **The cut lands on a lattice bay, not at the pole's own station** (0.4-1.7 m resolution).
+  3. **The poles never give.** A heavier aeroplane can snap a wooden pole.
+  4. **In two-pole symmetric staging the yaw is cancelled.** Real strikes are mostly one wing, where the yaw is large.
+
+### G2391 the cause, fixed at the cause: the bend is the same section as the pull (30_solver.js certStamp)
+- **The mismatch.** The trunk law bends a member pushed at a point along it at `Pc = mp / (L t (1 - t))`. Here `mp` is
+  D1a's physics: the billed section's equivalent tube.
+  - The certificate (DMG-D2a) stamps a member's pull and crush from its certified envelope, down to `kappa` (0.1) x its
+    physics on the wing.
+  - It left the bend at the whole billed section.
+- **What that did on the Cub.** The pole had to bend the outer bay's spars at ~7.7 kN each (the physics). The root bay
+  reacting it was certified at ~9-10 kN in tension: its spar and diagonal sit on the 0.1 floor, at kappa x 80-100 kN.
+  With the in-plane lever arm, the root bay pulled apart first: reports/evidence/DMG-POLES, the "before" column.
+- **The physics without the certificate** (`--physics`, D1a) cuts cleanly. That fingered the certificate, not the
+  contact law.
+- **The fix.** A member sized to its certified loads is the smaller section in every way it is loaded. Its bend now scales
+  with its certified break over its physics break: the same diameter and the wall it was sized to, so mp is in
+  proportion to A. In code:
+  `if (CERT_WING[bi] && MPP[bi] < Infinity && fuP < Infinity) b.mp = b.fu < fuP ? MPP[bi] * (b.fu / fuP) : MPP[bi];`
+  - **Idempotent:** `MPP` holds each member's physics `mp`, read once by the first stamp, before anything bends. It lives
+    in a typed array, with no new field on the beam objects (the beam loop's hidden class).
+  - **The wing's load path only** (CERT_WING), where the card's kappa floor makes the mismatch up to 10x.
+  - **The body is untouched.** Its floor is half its physics (GEN_CERT_FLOOR.body), so its mismatch is at most 2x, and
+    its nose crushes on DMG-NOSE's own law.
+- **What it costs:**
+  - **Damage OFF:** certStamp never runs (`PHY` null). Bytes on the base's: GATE DMGPOLES offBytes, and the damage-off
+    rows of every neighbour.
+  - **An intact aircraft:** `mp` is read only in trunkPass, on a frame a trunk is in reach. An intact certified 6 s flight
+    lands on the base's bytes: GATE DMGPOLES intact.
+  - **Per frame:** nothing.
+  - **The stamp:** one multiply per wing member, once.
+
+### G2392 GATE DMGPOLES (tools/_dmg_poles_check.js, run_gates core, wall 600)
+- **The key rows, each on the Cub, the Jodel and the metal Cessna:**
+  - `wood/taxi/0.85`;
+  - `wood/air/0.65`;
+  - `steel/lof/0.45`;
+  - `wood/lof/0.65/0.5`.
+- **Per wing:**
+  - **cut**: spars broke, and every broken spar is in the pole's bay;
+  - **pieces**: at most 1 piece of 0.5 kg or more, no crumbs, wholly outboard of the bay's inner rib;
+  - **kept**: the wing is on to that rib;
+  - **inboard**: nothing broke inboard without its load path, strut or drag as above.
+- **Per row:**
+  - **sane**: finite, no guard fault, energy x 1.01 at most (KE_TOL, GAME);
+  - **asym**: the wing further in loses more.
+- **offBytes**: damage OFF through the 65 % poles at 35 m/s matches the base's hashes.
+- **intact**: damage ON, certified, no pole (STANDARD.flight shortened to 6 s, INTACT_S, GAME: in 20 s the unflown metal
+  Cessna flies into the ground) matches the base's hashes, nothing broken.
+- **The base's hashes:** reports/evidence/DMG-POLES/off_ref.json. They come from the train-41 core (4b036029, build
+  c8ea9da1ef95, a worktree); `--write-ref <core> <label>` rewrites them.
+- **First full run: 116/117.** The one red was the intact row's metal Cessna breaking 66 members in the 20 s unflown
+  flight; fixed to 6 s.
+- **--selftest:**
+  - every check doctored red, one at a time;
+  - the core with G2391 taken out (a temp FLYDIY_CORE, the bug as found) must go red on cut / inboard.
+
+### The neighbours (one process and one log per gate, CPU shared with the matrix; logs in the session)
+- **PASS:** TREEHIT, DMGWIND, DMGCLUSTERS, DMGSETTLE.
+- **TREECRASH: its own 56/56 checks pass. The six 30 m/s ensembles MOVED against tools/fixtures/treecrash_ensemble_ref.json.**
+  This is the deliberate change: a wing at a trunk now gives at its certified bend. Medians, before -> after:
+
+  | case | broken | pieces | member work | engine mount off |
+  |---|---|---|---|---|
+  | Cub, centreline | 170 -> 117 | 18.5 -> 10 | 18.2 -> 32.9 kJ | — |
+  | Cub, 2.5 m out | 116 -> 51 | 7 -> 5 | 13.3 -> 5.8 kJ | 16/16 -> 0/16 |
+  | Jodel, centreline | — | 16 -> 13 | — | — |
+  | Jodel, 2.5 m out | 103 -> 78 | — | 3.6 -> 5.0 kJ | 15/16 -> 0/16 |
+  | metal Cessna, centreline | 169 -> 151 | — | — | — |
+  | metal Cessna, 2.5 m out | — | — | — | 14/16 -> 0/16 |
+
+  A 30 m/s wing strike 2.5 m out no longer tears the engine off its mount: the wing gives at the trunk instead of
+  carrying the blow into the fuselage.
+  - The failing log: reports/evidence/DMG-POLES/treecrash_moved_g2391.txt.
+  - The reference was rewritten with `--write-ref`, as the gate's own note prescribes for a deliberate change.
+- **DMGCERT, DMGFABRIC, DMGCOMPOSITE, DMGDETERMINISM: FAIL, and all four fail the same way on the untouched base.**
+  - **DMGCERT** (bench rows, no trunk, where `mp` is never read): run in a worktree of 4b036029, it fails the same three
+    "ultimate x 1.1" rows with the same g values (10.38, 16.18, 8.98 g).
+  - **DMGFABRIC and DMGCOMPOSITE** fail only their damage-OFF / ties-off byte references. Their FAIL lines are identical
+    on the base: stale references from before train 40.
+  - **DMGDETERMINISM:** the tiers and the certificate all pass; the page-vs-node parity rows fail.
+    - The parity script (tools/_dmg_parity_run.js) builds its aeroplane from the raw build file
+      (`buildGen(genMigrateSpec(spec))`); the library flies `loadValidated`, the game's join chain (G1985).
+    - On the base core, damage OFF, the parity script gives `d31881c3...` against the library's `585c3629...`: exactly
+      the pair in the failing log. The page agrees with the parity script in node, so it is the def, not the engine.
+- **Second batch (the other core DMG gates, DMGFPS alone, TREECRASH and DMGPOLES again after the rewrite):**
+  BATCH2_RESULTS
+
+### Numbers with no source (GAME)
+- **The staging:**
+  - the poles' line 10 m ahead;
+  - AGL_AIR 2 m;
+  - 6 s flown;
+  - the pole phase's 0.25 s tail;
+  - the steel pole's 9 m.
+- **The thresholds:**
+  - pieces counted from 0.5 kg (crashStats', DMG-TUNE's);
+  - KE_TOL 1.01;
+  - one drag brace per bay;
+  - INTACT_S 6 s.
+- **Given by the brief:** 0.5 m off-centre, 8 and 35 m/s.
+
+### Open (for the coordinator)
+1. **The body's bend.** It is still D1a's physics against a certificate floor of 0.5. Judged out of scope: at most 2x,
+   and DMG-NOSE owns the nose.
+2. **On `--physics` (no certificate, not the game's mode)** the Cub's strut-root group lets go when the pole severs the
+   fan's members to the tip. They are a third of the group's capacity, and a hidden stand-in's loss counts as the strut
+   lug's.
+3. **Taxi-speed severance is cleaner than the record** (above).
+4. **DMGDETERMINISM's parity script should fly `loadValidated`'s spec**, and DMGFABRIC / DMGCOMPOSITE's off references
+   need a refresh. All three are red on train 41 already.
