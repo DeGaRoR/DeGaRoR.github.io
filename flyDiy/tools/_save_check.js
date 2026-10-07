@@ -157,7 +157,7 @@ function mkStore() {
            removeItem: k => { m.delete(k); }, _map: m };
 }
 
-function mkShelf(src) {
+function mkShelf(src, extraApi) {
   const els = {}, store = mkStore();
   // THE EDITOR. `P` is the live parameter set a slider moves; applySpec and
   // toSpec are the real conversions, so the only thing stubbed is the panel.
@@ -207,6 +207,7 @@ function mkShelf(src) {
     defaults: () => clone(GEN_DEFAULT),
     apply(s) { applied = s; },
     resolved: () => null, isGen: () => true, inGarage: () => true,
+    ...(extraApi || {}),
   });
   return { S: gbox.window.GARAGE_SPEC, P, store,
            blob: () => lastBlob, applied: () => applied };
@@ -550,6 +551,38 @@ function doorsIn(src, report) {
 doorsIn(GARAGE_SRC, ok);
 
 // ---------------------------------------------------------------------------
+// PREM-S2 (G2230): THE SLOTS ARE THE FLEET. A save tells the player's document
+// which builds are saved (app.js playerSlotsChanged -> the lift), naming the
+// slot it wrote, and says whether the FINISH changed (a repaint resets the
+// airframe's outside wear). A save is still the same bytes - the fleet ledger
+// lives in flydiy.player, never in a build envelope.
+// ---------------------------------------------------------------------------
+function slotsDoor(src, report) {
+  const calls = [];
+  const H = mkShelf(src, { slotsChanged: (names, info) => calls.push({ names: names.slice(), info: Object.assign({}, info) }) });
+  const last = () => calls[calls.length - 1] || { names: [], info: {} };
+  H.S.set(clone(GEN_DEFAULT));
+  H.S.save('fleet one');
+  const c1 = calls[calls.length - 1];
+  report(!!c1 && c1.names.includes('fleet one') && c1.info.saved === 'fleet one' && c1.info.repainted === false,
+         'PREM-S2: a save tells the fleet ledger the slots, the slot written, and no repaint (a new slot)');
+  const bytes = H.store.getItem('flydiy.build.fleet one') || '';
+  report(!/"fleet"|"outSince"|"wearOut"/.test(bytes), 'PREM-S2: the build envelope carries nothing of the fleet ledger');
+  H.S.save('fleet one');
+  report(calls.length >= 2 && last().info.repainted === false, 'PREM-S2: saved again unchanged - no repaint');
+  const sp = H.S.get();
+  sp.finish = Object.assign({}, sp.finish || {}, { weather: { age: 0.33 } });
+  H.S.update({ finish: sp.finish });
+  H.S.save('fleet one');
+  report(last().info.repainted === true, 'PREM-S2: saved with a new finish - a repaint (the wear resets)');
+  H.S.save('fleet two');
+  const c4 = last();
+  report(c4.names.join() === 'fleet one,fleet two' && c4.info.saved === 'fleet two', 'PREM-S2: save as - both slots handed over');
+  return calls.length;
+}
+slotsDoor(GARAGE_SRC, ok);
+
+// ---------------------------------------------------------------------------
 // NEGATIVE VERIFICATION — both bugs, put back.
 // ---------------------------------------------------------------------------
 if (process.argv.includes('--selftest')) {
@@ -567,6 +600,8 @@ if (process.argv.includes('--selftest')) {
      rep => run(DEEP_CAGE, '', rep)],
     ['a door that writes the build down with no commit',
      rep => doorsIn(NO_COMMIT, rep)],
+    ['a save that never tells the fleet ledger (PREM-S2)',
+     rep => slotsDoor(GARAGE_SRC.replace('slotsChanged({ saved: name, repainted });', ''), rep)],
   ];
   let bad = 0;
   for (const [name, fn] of cases) {

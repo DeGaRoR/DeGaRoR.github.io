@@ -166,6 +166,49 @@ function landThenDepart(key, check, trace, doctor, lead) {
   check(Math.max(r1.jump, r2.jump) < 0.5, tag + 'continuous: no step moves the aeroplane further than it flies', Math.max(r1.jump, r2.jump).toFixed(3) + ' m');
   check(!dmg(sim).crashed && fuelKg(sim) <= f1, tag + 'no crash, the fuel only went down', (dmg(sim).reason || '') + ' ' + fuelKg(sim));
   log(tag + 'leg 2 ' + ph.join('>') + ' in ' + r2.t.toFixed(0) + ' s, ' + taxiM.toFixed(0) + ' m on the ground before the roll, stopped ' + w3.kind + ' ' + w3.id + '; fuel ' + f1 + ' -> ' + fuelKg(sim) + ' kg; members broken ' + dmg(sim).members);
+  if (key === 'cub' && P.b === 'w3' && w3.id === 'w3') premW3(W, A, sim, def, check, r1.t + r2.t);
+}
+
+// ---- PREM-S2 (G2230): THE CUB LANDS AT w3 WITH A SIDE HANGAR HELD THERE -> IN w3; A RELOAD -> IT ROLLS OUT AT w3 -------
+// The Cub of ltd:cub has just flown HOME -> w3 and stopped there. The player's document as the page holds it (app.js
+// playerFlightEnd: the clock, then flightWhere -> playerArrive; a reload: playerLoad's walk + lift; the roll-out:
+// rollFromId -> playerRollFrom, applyRoute's stand at that field walked out of the hangar held there - shedDimsAt)
+function premW3(W, A, sim, def, check, secs) {
+  const tag = 'prem:cub@w3: ';
+  const foot = C.playerFootOfDef(def);
+  let d = C.playerNormalise(C.playerMigrate(C.playerDefault()));
+  const acq = C.playerAcquire(d, 'w3', 'w3', 'field', 'own');
+  check(acq.ok, tag + 'a side hangar held at Tamgas Hill (its offered field shed)', acq.why);
+  d = C.playerFleetReconcile(acq.doc, ['Cub'], { foots: { Cub: foot } }).doc;
+  const W0 = C.playerWhere(d, 'Cub');
+  check(W0.kind === 'in' && W0.hangar === 'HOME', tag + 'the Cub departed from HOME\'s hangar (the lift at load)', JSON.stringify(W0));
+  check(C.playerRollFrom(d, 'Cub') === 'HOME', tag + 'before the flight it rolls out at HOME');
+  // the stop, as the page reads it after the logbook row
+  const c = sim.cgPos(), Wh = C.flightWhere(W, c[0], c[2], {});
+  check(C.flightCanDepart(Wh) && Wh.id === 'w3', tag + 'it stopped on an aerodrome, w3', Wh.kind + ' ' + Wh.id);
+  d = C.playerClock(d, secs).doc;
+  const r = C.playerArrive(d, 'Cub', Wh.aero.id, {});
+  check(r.ok && r.kind === 'in' && r.hangar === 'w3', tag + 'in w3: into the side hangar there (a slot free, the floor packs it, the span ' + (2 * foot.half).toFixed(1) + ' m through its ' + C.hangarDoor(r.doc.sheds.w3).w.toFixed(1) + ' m door)', r.kind + ' ' + r.hangar + ' ' + (r.why || ''));
+  check(r.doc.fleet.Cub.left === 'HOME' && !C.playerResidents(r.doc, 'HOME').includes('Cub'), tag + 'its room at HOME is free, and HOME is the hangar it left');
+  check(r.doc.clock === Math.round(secs) || Math.abs(r.doc.clock - secs) < 1e-6, tag + 'the clock ran the flight\'s ' + secs.toFixed(0) + ' s', r.doc.clock);
+  check(r.doc.wallet === d.wallet && r.doc.ledger.length === d.ledger.length, tag + 'the flight cost nothing (G-COST)');
+  // a reload: the stored text, the walk, the lift with the same slots
+  const re = C.playerFleetReconcile(C.playerNormalise(C.playerMigrate(JSON.parse(JSON.stringify(r.doc)))), ['Cub']).doc;
+  check(C.playerWhere(re, 'Cub').hangar === 'w3' && JSON.stringify(re) === JSON.stringify(r.doc), tag + 'a reload: still in w3, the document unchanged');
+  // the roll-out: from where it stands
+  const from = C.playerRollFrom(re, 'Cub');
+  check(from === 'w3', tag + 'a reload -> it rolls out at w3', from);
+  const st = C.siteOf(from), a = A(from);
+  if (!check(!!(st && st.stand && a), tag + 'w3 has a stand to roll out on')) return;
+  const ground = (x, z) => W.terrainH(x, z);
+  const stand = C.standFor ? C.standFor(st, C.playerShedDims(re, 'w3', st), ground) : st.stand;
+  const s2 = C.makeSim(def, W); s2.reset(0); if (s2.stance) s2.stance();
+  C.placeAtStand(s2, a, stand); C.seatOnGround(s2, ground, def.refs);
+  const c2 = s2.cgPos(), w2 = C.flightWhere(W, c2[0], c2[2], {});
+  check(w2.id === 'w3' && (w2.kind === 'stand' || w2.kind === 'apron'), tag + 'placed on Tamgas Hill\'s stand', w2.kind + ' ' + w2.id + ' (' + c2[0].toFixed(0) + ', ' + c2[2].toFixed(0) + ')');
+  const Lg = C.flightLeg(W, 'wheels', c2[0], c2[2], 'HOME', {});
+  check(Lg.depart && Lg.from && Lg.from.id === 'w3' && Lg.to && Lg.to.id === 'HOME', tag + 'the next flight is planned FROM w3 (the From derived), To HOME', (Lg.from && Lg.from.id) + ' -> ' + (Lg.to && Lg.to.id));
+  log(tag + 'arrived in w3 after ' + secs.toFixed(0) + ' s (clock ' + r.doc.clock + ' s); reload -> rolls out at ' + from + ', placed ' + w2.kind + ' ' + w2.id + ' at (' + c2[0].toFixed(0) + ', ' + c2[2].toFixed(0) + '); foot ' + JSON.stringify(foot));
 }
 
 // ---- C. a new To in the air ----------------------------------------------------------------------------------------------

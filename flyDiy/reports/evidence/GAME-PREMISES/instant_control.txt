@@ -1,0 +1,10 @@
+# GATE INSTANT, run directly (no runner cap), master 068584d and this branch side by side on the 4-core cloud box
+# in the battery (4 jobs) and alone under the runner it hit the runner's 1800 s cap at 19 of 26 rows, every row 'same'
+## master
+  every drag ended on the plain build's aeroplane
+GATE INSTANT: PASS
+EXIT 0 WALL 2598 s
+## branch
+  every drag ended on the plain build's aeroplane
+GATE INSTANT: PASS
+EXIT 0 WALL 2753 s

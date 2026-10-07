@@ -14,17 +14,28 @@
 // tools/fixtures/player_*.json forever, because ruling 4 holds for property
 // the way it holds for builds.
 //
-// RESERVED FOR P6: `fleet` and `logs`. The fleet is rows of named aeroplanes
-// with plaques, logbooks, hours and wear — the same sentence as the sheds —
-// and when it moves in, the lift from the flydiy.build.* slots is
-// PLAYER_MIGRATORS' first real entry beside a frozen v1 fixture, NOT a second
-// container. (The slot store itself may well stay underneath as the file
-// cabinet — per-item envelopes, individually shareable; this document is the
-// ledger of ownership, not the filing.)
+// v2 (G2095, GAME-PREMISES-2026-10-06.md): THE SHEDS STAND AT BASES. A shed
+// is a hangar the player holds at an aerodrome: its key is a HANGAR id (the
+// first hangar at a base keeps the base's own id, so HOME is still HOME), and
+// `base` says which aerodrome it stands on — in v1 the key WAS the aerodrome,
+// which is the one change of HOME this version exists for (PLAYER_MIGRATORS[1]).
+// Beside it: `tenure` (own | rent), and at the top level `mode` (sandbox |
+// career: who pays), `here` (the hangar the garage opens in), `clock` (flown
+// seconds — time advances in flight, GAME-LAYER ruling ax), `fleet` and
+// `ledger`. Nothing in a v1 shed moves.
+//
+// THE FLEET MOVED IN AT v2 as the LEDGER OF WHERE: `fleet[slotName]` says
+// which hangar (or which aerodrome's tie-downs) each saved build stands at.
+// The flydiy.build.* slots stay the file cabinet (per-item envelopes,
+// individually shareable); this document is the ledger of ownership, not the
+// filing. The lift from the slots is NOT a migrator — a migrator sees only
+// this document and the slot names live in the browser's storage — it is
+// playerFleetReconcile (71_player_bases.js), pure, handed the slot names by
+// the page. `logs` stay in the envelopes (garage.js) for now.
 //
 // The name is `player`, not `estate` — ROADMAP G77.1 already spends "free
 // estate" on screen real-estate, and this is property, not pixels.
-const PLAYER_V = 1;
+const PLAYER_V = 2;
 
 // { fromVersion: doc => doc } — each entry lifts a document one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw
@@ -32,7 +43,19 @@ const PLAYER_V = 1;
 // or HOME; the mechanism exists before its first real entry so that entry
 // lands in an exercised, gated machine (GATE PLAYER injects a throwaway
 // migrator, runs the walk, and removes it — G106's idiom).
-const PLAYER_MIGRATORS = {};
+// 1 -> 2 (G2095): the shed's KEY stops being its aerodrome — `base` takes
+// that job, so a second hangar at one field is a second key, not a clash.
+// Defensive: a v0 or junk document walked through here has no sheds at all.
+const PLAYER_MIGRATORS = {
+  1: doc => {
+    if (doc && doc.sheds && typeof doc.sheds === 'object')
+      for (const id of Object.keys(doc.sheds)) {
+        const s = doc.sheds[id];
+        if (s && typeof s === 'object' && typeof s.base !== 'string') s.base = id;
+      }
+    return doc;
+  },
+};
 
 function playerMigrate(r) {
   if (!r || typeof r !== 'object') return r;
@@ -51,10 +74,16 @@ function playerMigrate(r) {
 // game has always shown. `dims`, `parts` and `name` are OPTIONAL and absent:
 // absent means DERIVED (the shell's defaults), the same null-means-derived
 // ruling the spec lives by.
+// v2: the default player holds ONE hangar, the club at HOME, owned, in
+// sandbox (nothing is charged until the career exists — GAME-PREMISES §4),
+// with an empty fleet: the page's reconcile lifts the saved builds into it.
 function playerDefault() {
   return {
     what: 'flydiy-player', v: PLAYER_V,
     wallet: 0,
+    mode: 'sandbox',
+    here: 'HOME',
+    clock: 0,
     sheds: {
       HOME: {
         shell: 'club',
@@ -62,8 +91,11 @@ function playerDefault() {
                ? HANGAR_KITS_DEFAULT.slice()
                : ['park', 'bench', 'wood', 'metal', 'store', 'handling',
                   'office', 'comfort', 'curio', 'wip']),
+        base: 'HOME', tenure: 'own',
       },
     },
+    fleet: {},
+    ledger: [],
   };
 }
 
@@ -82,6 +114,34 @@ function playerNormalise(r) {
   const h = r.sheds.HOME;
   if (typeof h.shell !== 'string') h.shell = 'club';
   if (!Array.isArray(h.kits)) h.kits = def.sheds.HOME.kits;
+  // v2: every shed stands somewhere and is held somehow. A shed with no
+  // `base` stands on the aerodrome its key names (v1's meaning, so a
+  // document that skipped the walk still lands right); unknown shed ids ride
+  // along exactly as before, only gaining these two words.
+  for (const id of Object.keys(r.sheds)) {
+    const s = r.sheds[id];
+    if (!s || typeof s !== 'object') continue;
+    if (typeof s.base !== 'string' || !s.base) s.base = id;
+    if (s.tenure !== 'own' && s.tenure !== 'rent') s.tenure = 'own';
+  }
+  // GQ4 (G2230, GAME-2026-10-06.md §R): the main hangar (HOME) and at most
+  // two side hangars. An older document holding more keeps EVERY one - the
+  // extra ones (the newest: `since`, then the id) are marked `legacy`: still
+  // usable, counted by the cap, never offered again. Refuse nothing, and no
+  // PLAYER_V step: the v2 shape holds (a v2 game reads `legacy` as one more
+  // field riding along).
+  {
+    const max = typeof PREM_SIDE_MAX === 'number' ? PREM_SIDE_MAX : 2;
+    const sides = Object.keys(r.sheds).filter(id => id !== 'HOME' && r.sheds[id] && typeof r.sheds[id] === 'object')
+      .sort((a, b) => ((+r.sheds[a].since || 0) - (+r.sheds[b].since || 0)) || (a < b ? -1 : a > b ? 1 : 0));
+    for (const id of sides.slice(max)) r.sheds[id].legacy = true;
+  }
+  if (r.mode !== 'sandbox' && r.mode !== 'career') r.mode = 'sandbox';
+  if (typeof r.here !== 'string' || !r.sheds[r.here] || typeof r.sheds[r.here] !== 'object')
+    r.here = 'HOME';
+  if (typeof r.clock !== 'number' || !isFinite(r.clock) || r.clock < 0) r.clock = 0;
+  if (!r.fleet || typeof r.fleet !== 'object' || Array.isArray(r.fleet)) r.fleet = {};
+  if (!Array.isArray(r.ledger)) r.ledger = [];
   return r;
 }
 
