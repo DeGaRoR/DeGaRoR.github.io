@@ -340,6 +340,12 @@ const GATES = [
   // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
   // Three children at once
   { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
+  // G2388-G2392 (DMG-POLES): two poles narrower than the span - each wing parts AT its pole (every spar broken in the bay
+  // the pole stands in), one piece off, the wing kept to that bay, nothing inboard without its load path (the strut's
+  // root group, one drag brace a bay), finite, no energy from nowhere; the off-centre row loses more on the wing further
+  // in; damage OFF and an intact certified flight on the base's bytes. The Cub, the Jodel, the metal Cessna, four rows
+  // each, three children at once. Carries --selftest (the core without G2391 - the bug as found - goes red)
+  { id: 'DMGPOLES', file: '_dmg_poles_check.js', tier: 'core', weight: 3, wall: 600 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

@@ -206,6 +206,9 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  // G2388 (DMG-POLES): `level` (with agl) - the pose pitched about the CG until the body's x axis is level, then lifted
+  // so its lowest node stands `agl` m over the ground (a spawn in the ground attitude balloons at speed)
+  if (o.level && o.agl) levelPose(sim, def, elev + o.agl);
   // G2354 (DMG-DETERMINISM): `perturb` {seed, amp} - the ensemble's member: every node's start nudged by up to amp m
   // (seeded, uniform per coordinate; seed 0 the run as it was; amp ENS_AMP unless given)
   if (o.perturb && o.perturb.seed) perturbPose(sim, o.perturb.seed, o.perturb.amp == null ? ENS_AMP : o.perturb.amp);
@@ -213,7 +216,17 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   const c0 = sim.cgPos().slice(), off = o.off || 0;
   const tk = o.trunk || { r: 0.3, h: 10.05, sink: 0 };
   const tx = c0[0] + fx * o.D - fz * off, tz = c0[2] + fz * o.D + fx * off;
-  if (!o.noTrunk) TH.set('fill:test', [tx, tz, elev - tk.sink, tk.r, elev - tk.sink + tk.h]);
+  // G2388 (DMG-POLES): `poles` [{ s, r, h }] - vertical poles in place of the one trunk, D m ahead, each standing at
+  // the aeroplane's own lateral station s (m from its centreline at the start, + its right wing: the def's +z, the side
+  // its ...R nodes stand on, laid flat), radius r, h tall from the ground, all in the one 'fill:test' set
+  let poles = null;
+  if (o.poles) {
+    let zx = 0, zz = 0; for (let i = 0; i < sim.n; i++) { const w = def.nodes[i].p[2]; zx += w * (sim.p[i*3] - c0[0]); zz += w * (sim.p[i*3+2] - c0[2]); }
+    const zl = Math.hypot(zx, zz) || 1, rx = zx / zl, rz = zz / zl, arr = [];
+    poles = o.poles.map(q => ({ s: q.s, r: q.r, h: q.h, x: c0[0] + fx * o.D + rx * q.s, z: c0[2] + fz * o.D + rz * q.s }));
+    for (const q of poles) arr.push(q.x, q.z, elev, q.r, elev + q.h);
+    TH.set('fill:test', arr);
+  } else if (!o.noTrunk) TH.set('fill:test', [tx, tz, elev - tk.sink, tk.r, elev - tk.sink + tk.h]);
   sim.ctl.thr = o.thr == null ? 0 : o.thr;
   clearPeak(sim);
   if (o.onStart) o.onStart(sim, def);
@@ -242,7 +255,20 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   const c = sim.cgPos(), along = (c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz;
   const hash = require('crypto').createHash('md5').update(Buffer.from(sim.p.buffer)).update(Buffer.from(sim.v.buffer)).digest('hex').slice(0, 12);
   return { bad, reach, end: along, vPass, vNodeMax, ke0, keMax, hash, hits: sim.trunkHits(), spread: maxSpread, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim) && !bad,
-    eng: sim.eng.map(e => ({ running: e.running, seized: !!e.seized })), trunk: loc(tx, tz), trunkR: tk.r, frames, trace, sim, def, loc };
+    eng: sim.eng.map(e => ({ running: e.running, seized: !!e.seized })), trunk: loc(tx, tz), trunkR: tk.r, frames, trace, sim, def, loc,
+    poles: poles && poles.map(q => ({ s: q.s, r: q.r, h: q.h, at: loc(q.x, q.z) })) };
+}
+
+function levelPose(sim, def, yLow) {
+  const n = sim.n, p = sim.p, [xA, , zR] = sim.axes(), c0 = sim.cgPos();
+  const th = Math.asin(Math.max(-1, Math.min(1, xA[1] / (Math.hypot(xA[0], xA[1], xA[2]) || 1)))), k = zR, cs = Math.cos(th), sn = Math.sin(th);
+  for (let i = 0; i < n; i++) {
+    const d = [p[i*3] - c0[0], p[i*3+1] - c0[1], p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
+    const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
+    for (let j = 0; j < 3; j++) p[i*3+j] = c0[j] + d[j] * cs + cr[j] * sn + k[j] * kd * (1 - cs);
+  }
+  let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - def.nodes[i].r);
+  for (let i = 0; i < n; i++) p[i*3+1] += yLow - yMin;
 }
 
 // THE WATER (A0, with GEAR-WATER 2's wet body): a build put 0.3 m over the analytic world's sea lane, `V` m/s along its

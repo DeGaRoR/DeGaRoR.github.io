@@ -1,0 +1,13 @@
+{
+ "off": {
+  "cub": "976cd4a813ff4060",
+  "jodel": "3c770ebfe8f5e346",
+  "metal": "873fc1773643a5e1"
+ },
+ "intact": {
+  "cub": "b862960e4e3e93ca",
+  "jodel": "45e062e27d651012",
+  "metal": "f1e5ef4feff77015"
+ },
+ "base": "claude/dmg-t41 4b036029 (core build c8ea9da1ef95)"
+}

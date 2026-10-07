@@ -815,12 +815,14 @@ function makeSim(def, world) {
   //   and nothing past its physics either way (a member the certificate asks more of than its section can give is
   //     the bad design the bench finds).
   // Kept apart from the beam objects (no new fields on them: the beam loop's hidden class): the physics in PHY.
+  let MPP = null;   // G2391 (DMG-POLES): each member's physics bend (mp), read once by the first certStamp
   function certStamp(Cc) {
     if (!PHY || !Cc || !Cc.Ft || Cc.Ft.length !== nb || DMG.yields || DMG.breaks || DMG.dents || peakOn) return false;
     const K = typeof GEN_CERT !== 'undefined' ? GEN_CERT : null; if (!K) return false;
     // G1895 (DMG-TUNE): the floor per role - the wing at kappa (the card's), the rest at GEN_CERT_FLOOR.body (66_gen_cert)
     const m = K.m, kapW = K.kappa, kapB = typeof GEN_CERT_FLOOR !== 'undefined' ? GEN_CERT_FLOOR.body : K.kappa;
     let kap = kapW;
+    if (MPP === null) { MPP = new Float64Array(nb); for (let bi = 0; bi < nb; bi++) MPP[bi] = beams[bi].mp; }   // G2391
     const cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], fyP = PHY[bi * 4], fuP = PHY[bi * 4 + 1], fcP = PHY[bi * 4 + 2];
@@ -837,6 +839,19 @@ function makeSim(def, world) {
       if (!brittle && K.etu > 0 && b.etu > K.etu) b.etu = K.etu;
       if (!b.tens) b.fc0 = cap(1.5 * m * Fc * K.uMember, fcP);
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0;
+      // G2391 (DMG-POLES): THE BEND IS THE SAME SECTION AS THE PULL. A trunk that pushes a member at a point along it bends
+      // it at its collapse load mp / (L t (1 - t)) (trunkPass), mp D1a's physics - the billed section's equivalent tube.
+      // The certificate stamped the member's pull and crush from its envelope (down to kappa x its physics on the wing)
+      // and left its bend at the whole billed section: a pole across a wing had to bend the bay it stood in at the
+      // physics (the Cub's outer spar 7.7 kN) while the root bay reacting it was certified at ~10 kN in tension (kappa
+      // x 80-100 kN) - and the ROOT bay pulled apart first, at 8 m/s on all three validated aeroplanes, the Jodel's box
+      // shredded over three bays (HANDOVER G2391, reports/evidence/DMG-POLES). A member sized to its certified loads is
+      // the smaller section in every way it is loaded: its bend scales with its certified break over its physics (the
+      // same diameter, the wall it was sized to: mp in proportion to A). The wing's load path only (CERT_WING, where
+      // the card's kappa floor lives - up to 10x); the body's floor is half its physics (GEN_CERT_FLOOR.body) and its
+      // nose crushes on DMG-NOSE's own law. Stamped once with the certificate: nothing per substep, nothing off
+      // (from the physics' bend, MPP - kept on the first stamp, before anything bent: a second stamp is the same)
+      if (CERT_WING[bi] && MPP[bi] < Infinity && fuP < Infinity) b.mp = b.fu < fuP ? MPP[bi] * (b.fu / fuP) : MPP[bi];
     }
     CERT = Cc;
     return true;
