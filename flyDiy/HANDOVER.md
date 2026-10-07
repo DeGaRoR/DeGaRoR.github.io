@@ -84232,3 +84232,166 @@ itself +1.7 %). The glass Jodel against the wood one in the air, damage on: 5.01
    and the BFU / NTSB composite reports before any of them becomes a gate.
 6. The cage editor's glassfibre stop is wired (the tile, the surfaces, the join, the design flow) but not seen: its icon is the
    composite's, its interior idiom the carbon's; the gelcoat finish is untested on the box.
+
+
+## G2357-G2360 DMG-SCAR - THE GROUND'S SCAR AFTER A CRASH: THE CONTACTS RECORDED (CRATERS, GOUGES, THE PROP'S SLOTS, THE SWEEP), THE GRASS CULLED EXACTLY UNDER THEM, A DECAL OF TORN TURF AND SOIL ON A PROGRAM LINKED AT ROLL-OUT; GATE DMGSCAR (2026-10-07, DMG-SCAR for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-scar off claude/dmg-integration 9500f197 (train 38 not there yet); train 38's merge-back (f7b5afb4) merged in at the end, one conflict (90_node_exports: theirs + the scar's exports); G2357-G2360 used)
+
+READY for the coordinator's box stills. **Damage OFF = the base's bits**: no record exists (null), the hop sends nothing, the solver's
+hashes on 18 runs identical to the base core's (9500f197; reports/evidence/DMG-SCAR/solver_bits.txt); **damage ON the solver's bits are the base's
+too** (the record reads the contacts, never pushes them: the same 18 runs, identical). GEN_DAMAGE_DEFAULT untouched.
+
+The user (2026-10-07, after the Jodel's 30 m/s wing-strike stills): *"the ground should also be impacted. I think we should at minimum
+remove the grass at impact, and possibly put an impact decal on the ground."*
+
+### G2357 - THE RECORD (src/core/34_scar.js, new; 30_solver.js: four hooks behind `SCR !== null`)
+- **What is read**: the solver's own ground contacts - every node that is NOT a wheel (the mains and the tailwheel roll; the rest
+  scrapes at mu 0.8: the ground pass's else-branch) and the crushable nose against the ground (G2013 nosePass, slot n + k at the
+  nose's centre). Per contact per substep `scarHit(R, i, x, z, Fn, vy, pf, dt)`: where (the frame's first and last touch - a node
+  skipping at 30 m/s travels half a metre a frame), the normal impulse Fn dt, the BLOW (the vertical approach's work Fn max(0,-vy) dt),
+  the friction's work (kf |v|^2 dt) - numbers the contact law had already computed. And DMG-DRIVE's disc sample (driveFrame, once a
+  frame): a strike DMG-DRIVE grades a STOPPAGE or a SEPARATION, the prop still turning, chops a SLOT (`scarStrike`; a brush or a
+  bent blade on a whole airframe leaves no scar - the metal Cessna bends its prop in a FAR 23.473 drop on the base, and GATE DMGSKIN
+  holds that drop to no payload at all).
+- **Once a frame** (`scarFrame`, after dmgOver, only on a frame with a contact or an event open): each contact's SLIDE (a path of
+  points 0.4 m apart, its length, its friction work; off the ground > 0.25 s = a new slide) and its BLOW (the approach's work over its
+  first 0.15 s); the EVENT lives while its contacts WORK (> 2 J a frame: a wreck lying on its nose does ~0) and is SEALED at the wreck's
+  rest (DMG.over: the same step the page learns the flight is over) or 1 s after its contacts went quiet. Sealed only if ARMED: a
+  break, the crash's verdict, a prop's slot, or > 250 J of contact work (a wingtip brush on landing does tens of J: no scar).
+- **The primitives** (DMG.scar = { v, prims }, at most 64 a crash; v bumps per sealed event and on reset):
+  - crater `{ k:'c', x, z, r, d, s, E }`: a blow of E J pushes a soil volume V = E / qB past its bearing (qB 200 kPa), a shallow bowl
+    of depth r_b/3 (V = pi r_b^3/6), the torn turf out to r = 1.4 r_b; blows that overlap are one bowl; at most 16;
+  - gouge `{ k:'g', p:[x,z,...], w, d, s, E }`: a slide's path (simplified to 8 cm, at most 24 points); the furrow's section A = kP x
+    the mean friction / qP (a plough's specific draft, 60 kPa; kP 0.5 GAME), d = A / the contact's width (by the member's ledger
+    section, GAME table), the strip w = width + 2 d (the spoil); parallel slides closer than their half-widths + 0.4 m merge (a belly
+    between its longerons); a prop SLOT is a gouge across the disc's plane, the chord its bite cuts long (2 sqrt(2 R b - b^2)), b deep
+    (`ps: 1`);
+  - sweep `{ k:'s', p, ws, w }`: the CG's track while the wreck touched (a point a metre), at each point twice the reach of its LOW
+    nodes (under 1.2 m: a shrub's height) across the track + 0.5 m;
+  - `s` the ground: 0 turf (grass, forest floor), 1 bare (sand, gravel, scree), 2 hard (paved, rock: a scuff, no bowl, no furrow);
+    **over water nothing** (a ripple is WATER-LOOK's): a slide into a lake ends at the shore.
+- Sources (README's table): Terzaghi / Bowles' presumptive bearing for qB, ASAE D497's plough drafts for qP - **AS RECALLED, A0 to
+  open**; GAME: kP, the rim and spoil factors, eArm, eCrater, the width table, the blade's slot width, hSweep.
+- `params.scar === false` flies with no record (the selftest; the A/B); `sim.damageScar()` the record (null with the layer off).
+
+### G2358 - THE HOP AND THE GRASS (sim_host.js simDmgHop, sim_view.js, cover_ring.js scar)
+- **The hop**: a third signature, the scar's version; a payload `{ sC, sc }` (the primitives) only when it changed - once a sealed
+  event, once on reset (empty). Under the worker (the default) through the host's meta, inline through app.js dmgNow - the same
+  function; the page's `dmgS.scar` / `vS`. Damage off or an intact flight: no key, no byte.
+- **The cull (cover_ring.js `scar(prims)`, CPU, once at the event)**: the grass (kind 'cover': the tufts, the flowers, the lawn) out
+  of the FOOTPRINT (the craters' discs, the gouges' strips); the shrubs and the debris out of the footprint AND the sweep; the rocks
+  stay. Each live cell under it compacts its instance arrays (a prototype's parts share one record: compacted once) and its block is
+  marked dirty - rebuilt by the ring's own block budget (the instances re-uploaded ONCE); the batched shrubs / debris are
+  `deleteInstance`d (and let go of by a cell still growing). A cell planted later skips them in `push` (after the draws: the cell's
+  random stream, so every other instance, is the same). `scar(null)` drops the cells under the old footprint: they plant again whole
+  (the planting is hashed on the cell). **No shader change, no uniform, no program key**: the fade's program draws fewer instances.
+- **The trees**: the woodland and the fill (trees.js / render_world.js LOD rungs: InstancedMeshes in ordered count ranges) have no
+  cheap per-instance hide - **untouched** (a trunk the wreck hit stands, as TREE-CRASH's rigid trunk does). The cover ring's SHRUBS and
+  DEBRIS do (BatchedMesh `deleteInstance`): those inside the sweep go.
+
+### G2359 - THE DECAL (src/viewer/ground_scar.js, new; app.js worldSettle / groundScars)
+- One mesh laid on the terrain at each vertex (terrainH + 3 cm, a vertex every ~0.3 m; the normal from the ground's differences),
+  drawn after the pavement (renderOrder 4) with a polygon offset (-2, -2) as the contact blobs: a crater is a polar grid (7 rings x 22)
+  - the bowl's floor darker by its depth, the rim ragged INWARD and turf-tinted, alpha to 0 at the edge; a gouge a strip (7 across,
+  resampled every 0.3 m) - the furrow's floor dark down its middle, the spoil turf-tinted at its edges, its ends faded; a hard ground's
+  scuff grey at half strength. No decal for the sweep; a vertex over water at alpha 0.
+- **Its material is linked at roll-out**: MATLIB 'glass' (MeshStandardMaterial, transparent, depthWrite off, vertex colours RGBA, the
+  map below, roughness 1) - lit, shadowed and fogged as the ground. The mesh is made ONCE in worldSettle (before the worldCompile
+  step's compilePass, damage on only), PARKED in the world scene - hidden, on an EMPTY geometry with the very attributes a scar's has
+  (position, normal, uv, colour RGBA, index) - so the roll-out's compile (renderer.compile traverses hidden objects; so does the
+  sliced compile) and the lamps' prelink key and link it with the world's programs. A scar swaps the geometry and shows the same
+  mesh: same material, same object state, same key. **Census (GATE DMGSCAR 7, the real three r186 on the fake GL): links 7 -> 7,
+  program keys 7 -> 7, the same** with the decal parked, compiled, the scar laid and drawn and the ring's cull done. The draw guard
+  (G1340) would still hold a draw rather than link in a frame, should a key ever move.
+- **Texture**: generated in the file (128 x 128 RGBA value-noise loam, clods, grit, root threads, a few torn green blades; 64 KB,
+  mipmapped, tiled every 1.6 m in world space). No asset, nothing to credit.
+- **Reset**: the page lets the scar go when the scar it holds is empty (a reset sends an empty version), the sim changed (a new
+  flight's view), or the shed (inGarage): the decal's buffers DISPOSED and the mesh parked again (the material, the texture and the
+  program stay: the session's), the ring's cells under the scar dropped and planted again whole. **Scars are not kept per site** across
+  a reset (the simplest that cannot leak; keeping them would mean a per-site list the ring re-applies - not done).
+- `window.FLYDIY_SCAR` (the coordinator's read): { prims, tris, decalBytes, decalMs, cut, cells, cullMs, ms } of the last event.
+
+### G2360 - GATE DMGSCAR (tools/_dmg_scar_check.js, run_gates core, weight 3, wall 900; ~12 min with 3 children) - PASS 66/66
+1. **nothing on an intact aircraft, nothing with the layer off**: the layer off - no record (null), no DMG.scar, not one damage payload
+   from the hop in a whole 30 m/s crash (the page's bytes); the layer on - a circuit (all three: 0 contacts recorded, no scar), the
+   3 m/s taxi into a trunk (only the wheels touch: 0), the drops onto the wheels at 10 ft/s (0) - a drop that crashes (the Cub's and
+   the metal Cessna's 6 m/s: a gear member broke) scars, and is held to;
+2. **the standard crashes scar on the ground under their contacts**: the 30 m/s centreline and 2.5 m-out crashes leave craters and
+   gouges, the nose-over its prop's slot (+ the nose's crater on the Cub and the Jodel); at most 64; every crater's centre / gouge
+   point within its radius / half-width + 0.5 m of a contact the GATE's OWN reader saw (a non-wheel node's bottom at the ground), a
+   slot or a nose crater within the disc's radius + 0.5 m of the hub's track, the sweep within 0.5 m of the CG's track; water: a
+   synthetic slide into a lake - its scar stops at the shore;
+3. **read, never pushed**: all 18 cases with the record and without (params.scar false): the same bits;
+4. **the hop**: the 2.5 m crash, the worker's hop (its 0.1 s window, payloads through v8 as postMessage) and the inline one, applied
+   to the page's state: the page's scar = the sim's at every one of 480 frames; one scar payload per sealed event;
+5. **reset restores**: the scar empty under a new version, sent once, the page's empty; the ring's cells planted again - the very
+   instances before the crash; the decal's buffers disposed, the mesh parked; no link;
+6. **the grass cull is exactly the footprint** (the real cover_ring.js on the real three r186 over a fake WebGL2, GATE COVER's stub
+   pack, its tuft at the shipped reed row 0.48/m2 x density 2, the Cub's 2.5 m scar laid under the eye): 75 tufts gone of 188 736,
+   68 shrubs and 20 debris (the sweep too), none outside, none left inside, the rocks all kept; cells planted after the event plant
+   none in it;
+7. **no new program** (above): links 7 -> 7, keys 7 -> 7; every decal vertex at terrainH + 3 cm on a hilly ground (worst 0.001 mm)
+   and inside the footprint; a frame after the event uploads nothing more than a frame before the crash (16: the batches' own cull
+   textures), the decal's buffers and the rebuilt blocks went once (88).
+`--selftest`: the gate with the record off in every child - red on the scar checks (1, 2, 4, 5; not on a crash of the gate):
+reports/evidence/DMG-SCAR/selftest.txt.
+### MEASURE (GATE DMGSCAR's REPORTs, the certificate stamped; the cull / decal on the gate's ring, the reed at its shipped density)
+| build | crash | prims (craters / gouges incl. slots / sweep) | torn m2 (+ sweep) | B on the hop | seal ms | tufts / shrubs / debris culled | decal tris, KB | cull + decal ms |
+|---|---|---|---|---|---|---|---|---|
+| Cub | 3 m/s taxi into a trunk | 0 | 0 | 0 | - | 0 | - | - |
+| Cub | nose-over 4 m/s | 3 (1 / 1 slot / 1) | 1.3 (12.1) | 192 | 0.66 | 3 / 0 / 0 | 334, 10.9 | 0.6 + 0.9 |
+| Cub | 30 m/s centreline | 22 (16 / 5 / 1) | 30.8 (406.6) | 1586 | 1.21 | 21 / 92 / 33 | 5200, 165 | 4.9 + 8.8 |
+| Cub | 30 m/s 2.5 m out | 20 (8 / 11 incl. 1 slot / 1) | 84.8 (242.7) | 1943 | 1.58 | 75 / 68 / 20 | 7136, 236 | 4.3 + 10.6 |
+| Cub | drop 10 ft/s / 6 m/s | 0 / 3 (2 / 1 slot / 0; crashed) | 0 / 1.2 | 0 / 199 | - / 0.13 | 0 / 2 tufts | 620, 19.8 | 0.6 + 1.2 |
+| Jodel | 3 m/s taxi | 0 | 0 | 0 | - | 0 | - | - |
+| Jodel | nose-over | 2 (1 / 1 slot / 0) | 1.1 | 138 | 0.65 | 1 / 0 / 0 | 334, 10.9 | 0.7 + 0.8 |
+| Jodel | 30 m/s centreline | 22 (13 / 8 / 1) | 49.1 (197.0) | 1578 | 2.06 | 51 / 24 / 25 | 5182, 168 | 12.9 + 8.3 |
+| Jodel | 30 m/s 2.5 m out | 13 (4 / 8 incl. 1 slot / 1) | 51.7 (1707) | 1494 | 0.60 | 52 / 378 / 200 | 3928, 131 | 26.7 + 9.1 |
+| Jodel | drops | 0 / 0 | 0 | 0 | - | 0 | - | - |
+| metal Cessna | 3 m/s taxi | 0 | 0 | 0 | - | 0 | - | - |
+| metal Cessna | nose-over | 1 (slot) | 0.9 | 78 | 0.49 | 0 | 60, 2.3 | 0.2 + 0.3 |
+| metal Cessna | 30 m/s centreline | 29 (16 / 12 / 1) | 44.2 (597.8) | 2061 | 2.18 | 42 / 120 / 56 | 6400, 208 | 20.2 + 25.9 |
+| metal Cessna | 30 m/s 2.5 m out | 19 (6 / 12 incl. 1 slot / 1) | 209.4 (1244.8) | 1813 | 1.45 | 204 / 306 / 156 | 6600, 220 | 14.8 + 11.9 |
+| metal Cessna | drop 10 ft/s / 6 m/s | 0 (its prop 'bent': no scar) / 3 (crashed) | 0 / 1.3 | 0 / 203 | - / 0.17 | 0 / 1 tuft | 632, 20.2 | 0.4 + 1.2 |
+- **The event's cost**: the seal 0.1-2.2 ms (in the physics, the worker's thread under ?simw=1), the cull 0.2-27 ms and the decal
+  0.3-26 ms on the page ONCE (node, the fake GL; the block rebuilds then go by the ring's own budget), the hop 0.1-2.1 KB once an event.
+  **Per frame after: nothing** on the page but one compare (the scar's version) - the decal is one more draw while in view (one
+  transparent mesh); no upload (gate 7). Damage off: scarMesh never made, one null compare a frame.
+- **The record's cost while recording**: one call a contacting non-wheel node a substep and a pass over the touched ones a frame -
+  the 2.5 m crash's step with the record / without, median of 3 alternated: Cub 7.96 / 8.18, Jodel 14.38 / 13.99, metal 12.59 / 13.26
+  ms a frame (inside the box's noise). Not one contact recorded in a circuit, so a normal flight pays the null compares only.
+- The contacts' share inside the footprint: 73-100 % on the crashes (a node that slid under 0.3 m and dug no bowl - a skip, a
+  resting piece - leaves none: the light touches are not scars).
+- The sweep is wide where a wreck cartwheels on its wings (the Jodel's 2.5 m-out: 1707 m2): the shrubs and the debris inside it go,
+  the grass stays (only the footprint culls grass).
+### The targeted battery (reports/evidence/DMG-SCAR/battery.txt)
+DMGSCAR 66/66, TREECRASH, TREEHIT, DMGMEMBERS, DMGCERT, DMGGEAR, DMGCERTCOST, DMGWIND, DMGNOSE, DMGCLUSTERS, DMGINST, DMGFPS,
+DMGINTEGRITY, DMGSKIN, DMGDRIVE, UISMOKE, BUILD, JOIN, LOAD, COVER: **PASS**. **DMGWALL: FAIL - on the base too, identically** (the metal
+Cessna's nose-in, the wall out past 1 mm 2.746 % against 2 %, 6012 past 1 cm: dmgwall_on_base.txt, the base worktree 9500f197); a
+water case, where no scar code runs and the solver's bits are the base's. The first run was cut by a container restart after 10 of 21
+(UISMOKE, TREEHIT passed in it); the second's two own reds were fixed and re-run (DMGSKIN - the metal Cessna's FAR drop bends its prop
+and the scar had sealed that slot; DMGSCAR - its verdict line). LOAD, UISMOKE, BUILD, JOIN with damage off against the base's outputs:
+**every stdout byte identical** (off_bytes.txt).
+After merging train 38 (f7b5afb4): DMGSCAR, DMGSKIN, TREECRASH, DMGFPS, COVER, BUILD, JOIN, LOAD, UISMOKE re-run - **PASS** (battery.txt run 4).
+Not run: the full tier, GATE PROGRAMS / FRAMECOST (the page with damage off makes no scar mesh and reads nothing).
+### Evidence (flyDiy/reports/evidence/DMG-SCAR/, README.md captions each and tables the sources)
+scars.svg (every standard crash from above: the reader's contacts, the CG, the hub, the sweep, the gouges and slots, the craters),
+scars.json, gate_dmgscar.txt / .json, selftest.txt, solver_bits.txt, battery.txt, dmgwall_on_base.txt, off_bytes.txt. Tools:
+tools/_dmg_scar_check.js (the gate; --selftest, --page-only), tools/_dmg_scar_lib.js (the cases and their readers),
+tools/dmg_scar_evidence.js (the picture). Two lib hooks added: _treecrash_lib.js defOf's `scar: false`, _dmg_drive_lib.js noseOver's
+onFrame.
+
+### Open (the coordinator / A0)
+1. **The box stills** (the coordinator): ?damage=1, the Jodel's 30 m/s wing strike; window.FLYDIY_SCAR after the wreck stops gives
+   the event's numbers. Look at: the decal's height on the DRAWN ground (terrainH + 3 cm, polygon offset -2/-2 as the contact blobs -
+   if the drawn terrain's LOD sits above terrainH somewhere it can hide; `GROUND_SCAR.S.lift`), its colours under the day's light
+   (FLOOR / DEEP / TURF / SCUFF multipliers on the soil map), the cull's edge against the decal's ragged rim.
+2. **Open the sources** (README's table): qB (Terzaghi / Bowles), qP (ASAE D497) - AS RECALLED. Rule on the GAME numbers: kP, rim,
+   spoil, eArm, eCrater, the width table, the slot's width, hSweep.
+3. **Not kept per site**: a reset or the shed lets the scar go (the simplest that cannot leak). Keeping a site's scars for the session
+   is a list the ring and the decal re-apply on a new flight - small, not done.
+4. The scar appears when the wreck comes to REST (or 4 s after the crash, DMG.over), not while it slides: one event, one cull, one
+   decal. A live trail would mean several seals a crash (each a cull and a decal rebuild) - possible, not asked.
+5. The trees (the woodland, the fill) are untouched: their LOD rungs have no per-instance hide.
+6. DMGWALL's metal nose-in is red on the base (above) - D4b / WALL's to look at.
+7. Jodel circuit outcome reads null in this gate's circuit (the record's 0 contacts is what is checked) - the same lib call DMGINST
+   and TREECRASH use; not looked at further.

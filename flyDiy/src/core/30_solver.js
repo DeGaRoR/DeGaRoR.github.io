@@ -443,6 +443,12 @@ function makeSim(def, world) {
                 groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
                 // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
                 brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
+  // G2357 (DMG-SCAR, 34_scar.js): THE GROUND'S SCAR - the contacts of a crash recorded (read, never pushed: the bits are the
+  // base's), sealed per event into DMG.scar = { v, prims } (craters, gouges, the sweep) for the page's grass and decal. Null
+  // with the layer off: one compare a frame and one in the scrape branch
+  // (params.scar === false: no record - GATE DMGSCAR's selftest, the A/B of its cost)
+  const SCR = DMG_ON && P_.scar !== false && typeof scarMake === 'function' ? scarMake(def, P_.nEngines || 1) : null;
+  if (SCR !== null) DMG.scar = SCR.out;
   // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
@@ -1225,6 +1231,7 @@ function makeSim(def, world) {
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
     tkSub += 2;       // G1883: every member's contact starts again
+    if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
@@ -1749,7 +1756,9 @@ function makeSim(def, world) {
       let fx = F * nx, fy = F * ny, fz = F * nz;
       if (!onT) {                                    // the nose scraping the ground
         const sp = Math.sqrt(_nzV[0]*_nzV[0] + _nzV[2]*_nzV[2]);
-        if (sp > 1e-6) { const kf = Math.min(GEN_NOSE.mu * F / sp, N.mT / dt); fx -= kf * _nzV[0]; fz -= kf * _nzV[2]; }
+        if (sp > 1e-6) { const kf = Math.min(GEN_NOSE.mu * F / sp, N.mT / dt); fx -= kf * _nzV[0]; fz -= kf * _nzV[2];
+          if (SCR !== null) scarHit(SCR, n + k, gx, gz, F, _nzV[1], kf * sp * sp, dt); }   // G2357: the nose's furrow
+        else if (SCR !== null) scarHit(SCR, n + k, gx, gz, F, _nzV[1], 0, dt);
       } else {                                       // ...and sliding on the trunk's bark: the crushed cowl and the stopped
         // prop dig in (GEN_NOSE.muBark). Without it a corner hit slid off the trunk with its energy kept and swung the cabin's
         // corner into it (the Cub, 7.5 m/s across: a 7 kN blow on VSNR tore a mount fitting the corner push had not)
@@ -1862,6 +1871,12 @@ function makeSim(def, world) {
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
         if (pen > 0) propStrike(k, 'ground', pen / dl, surf);
+        // G2357 (DMG-SCAR): the slot a turning prop chops in the ground when the strike stops it or tears a blade off (the
+        // grade DMG-DRIVE just gave it; a brush or a bent blade on an airframe that is otherwise whole leaves the turf to hide it)
+        if (SCR !== null && pen > 0 && surf === 'soft' && (st.strike === 'stoppage' || st.strike === 'separation') && (out.rpm[k] || 0) > 30) {
+          const hl = Math.hypot(xAft[0], xAft[2]) || 1;
+          scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + GEN_DRIVE.strike.turf) / dl, Rp, simT);
+        }
       }
     }
     const a = Math.sqrt(1.4 * 287.05 * ((out.oatC != null ? out.oatC : 15) + 273.15));
@@ -3217,7 +3232,8 @@ function makeSim(def, world) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
-        }
+          if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
+        } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
@@ -3370,6 +3386,7 @@ function makeSim(def, world) {
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
     dmgOver();
+    if (SCR !== null && (SCR.nt > 0 || SCR.ev.open)) scarFrame(SCR, p, m, world, simT, DMG);   // G2357 (DMG-SCAR)
   }
 
   // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
@@ -3516,6 +3533,7 @@ function makeSim(def, world) {
   }
   function unsnap(Sn) {
     if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
+    if (SCR !== null) scarReset(SCR);               // G2357: the snapshot is a whole aeroplane on unscarred ground
     [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
       .forEach((a, k) => a.set(Sn.A[k]));
     const O = Sn.O, B = O[7];
@@ -3556,6 +3574,7 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           damageScar: () => SCR,   // G2357 (DMG-SCAR): the ground's record (34_scar.js scarMake), null with the layer off
            // G1883 (DMG-WINDBREAK): the instruments - the live caps each member is judged against (FY tension, FC
            // compression; PHY its physics, 4 a member: yield, break, crush, sigY A) and a per-substep reader
            // (fn(s, dt), after the substep; null clears it) - nothing of either runs unless asked

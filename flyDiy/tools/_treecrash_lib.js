@@ -49,7 +49,8 @@ function defOf(key, opts) {
   }
   const d = _defs[key];
   // a shallow copy with its own params (the probe flag) - the beams are copied by makeSim
-  const o = Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) }) });   // G1898: the damage gates say what they test (the default is off)
+  const o = Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) },
+    (opts && opts.scar === false) ? { scar: false } : {}) });   // G2357 (DMG-SCAR): `scar: false` flies with no ground record   // G1898: the damage gates say what they test (the default is off)
   // G1831 (DMG-D2a): `cert` - the certificate stamped (66_gen_cert, computed once per build, the floats' drop on the
   // analytic world's sea lane); without it the members are D1a's physics
   if ((opts && opts.cert) || (process.env.FLYDIY_CERT === '1' && !(opts && opts.cert === false))) o.cert = certOf(key);

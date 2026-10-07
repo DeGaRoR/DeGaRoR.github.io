@@ -1,0 +1,6 @@
+# damage off (the default): LOAD / UISMOKE / BUILD / JOIN run as files (node tools/<gate>), the base worktree (origin/claude/dmg-integration 9500f197, built) against this branch - diff of the whole stdout
+test_load.js: base 117 lines, here 117 lines, diff lines 0 -> IDENTICAL; GATE LOAD: PASS exit 0
+test_ui_smoke.js: base 29 lines, here 29 lines, diff lines 0 -> IDENTICAL; GATE UISMOKE: PASS exit 0
+test_build.js: base 199 lines, here 199 lines, diff lines 0 -> IDENTICAL; GATE BUILD: PASS exit 0
+_join_check.js: base 247 lines, here 247 lines, diff lines 0 -> IDENTICAL; GATE JOIN: PASS exit 0
+(the solver's own bits: solver_bits.txt)
