@@ -7817,6 +7817,25 @@
   // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
   // G1715 (SND-ROLLOUT): `handover` - the stand follows (the roll-out: its reset runs the engines, so the shot leaves them
   // idling in sim.out across the cut); the solo shot goes back to the shed and puts every engine field back
+  // DMG-D4b (the user's 'giant sheets after a crash'; the box, 2026-10-07: a roll-out with no crash shows the Cub whole in
+  // the shot, one after a crash shows the WRECK): THE ROLL-OUT SHOT PLAYS BEFORE THE STAND'S RESET (the trip: the aircraft,
+  // the animation, then the stand), so it posed the crashed flight's sim - under the worker the mirror of its last
+  // snapshot, its breaks and its pieces - and the wreck rolled out of the hangar. A sim that holds a crash (breaks on the
+  // page, crashed, over) is reset before the shot and the wreck's drawing healed (the skin break's records, the debris):
+  // the shot then poses the aeroplane as built, and the stand's own reset follows as before. Untouched otherwise.
+  // window.FLYDIY_ROLL_NORESET = true: off (GATE DMGUPLOAD's selftest)
+  function rollWreckReset() {
+    try {
+      if (window.FLYDIY_ROLL_NORESET || !sim) return false;
+      const D0 = dmgNow(), dm = sim.damage ? sim.damage() : null;
+      if (!((D0 && (D0.br.length || D0.sS !== '0:0')) || (dm && (dm.crashed || dm.over)))) return false;
+      sim.reset(0);
+      if (WK.model) wreckHeal();
+      if (BRK.recs.length) brkRestore();
+      window.FLYDIY_ROLL_RESETS = (window.FLYDIY_ROLL_RESETS || 0) + 1;
+      return true;
+    } catch (e) { console.warn('roll-out shot: the wreck reset', e && e.message); return false; }
+  }
   function rollAnimPlay(done, handover) {
     raBusy = true;
     // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
@@ -7825,6 +7844,7 @@
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     const cage = showCage; showCage = false; applySkinVis();
     rollShotUi(true);
+    rollWreckReset();   // DMG-D4b: the shot poses an aeroplane, never the last crash's wreck
     let h = null;
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,

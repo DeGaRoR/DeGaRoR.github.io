@@ -87,15 +87,28 @@ async function child() {
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark') W.FLYDIY_HEAL_NOMARK = true;   // (the selftest: the heal's upload marking off - the bug as it was)
+  if (fault === 'noreset') W.FLYDIY_ROLL_NORESET = true;   // (the selftest: the shot's wreck reset off - the bug as it was)
   const tripN = () => (W.FLYDIY_TRIPS || []).length;
   const tripDone = (kind, n0) => { const T = W.FLYDIY_TRIPS || []; const t = T[T.length - 1]; return T.length > n0 && !!(t && t.kind === kind && t.done && W.BOOT.state === 'gone'); };
   const SW = () => W.FLYDIY_SIMW || null;
   const live = () => { const s = SW() && SW().state(); return !!(s && s.phase === 'live' && s.flight && s.flight.live); };
   // (the render KEPT: the uploads are what is measured)
-  const rollOut = async () => { const n0 = tripN(); W.document.getElementById('bGo').click(); await P.until(() => tripDone('rollout', n0), 900000);
+  // THE SHOT'S SHAPE (the roll-out shot plays before the stand's reset: after a crash it posed the WRECK): each frame of the
+  // roll-out trip, the sim's nodes rigidly fitted to the design's rest (WRECK_DEBRIS.fit) - the worst residual (m)
+  const shapeNow = () => { try { const sim = W.FLIGHT_PROBE.sim(), def = W.FLIGHT_PROBE.def(), n = def.nodes.length, rest = new Float64Array(n * 3), ids = [];
+      def.nodes.forEach((nd, i) => { rest[i*3] = nd.p[0]; rest[i*3+1] = nd.p[1]; rest[i*3+2] = nd.p[2]; ids.push(i); });
+      const F = W.WRECK_DEBRIS.fit(ids, rest, sim.p), R = F.R; let worst = 0;
+      for (const i of ids) { const d = [rest[i*3] - F.cr[0], rest[i*3+1] - F.cr[1], rest[i*3+2] - F.cr[2]];
+        const x = F.cl[0] + R[0]*d[0] + R[1]*d[1] + R[2]*d[2], y = F.cl[1] + R[3]*d[0] + R[4]*d[1] + R[5]*d[2], z = F.cl[2] + R[6]*d[0] + R[7]*d[1] + R[8]*d[2];
+        const e = Math.hypot(sim.p[i*3] - x, sim.p[i*3+1] - y, sim.p[i*3+2] - z); if (e > worst) worst = e; }
+      return worst; } catch (e) { return -1; } };
+  const rollOut = async (watch) => { const n0 = tripN(); W.document.getElementById('bGo').click();
+    if (watch) { watch.frames = 0; watch.worst = 0; watch.shot = 0; for (let i = 0; i < 6000 && !tripDone('rollout', n0); i++) { await P.frames(1); watch.frames++;
+        if (W.document.body.classList.contains('rollShot')) { watch.shot++; const w = shapeNow(); if (w > watch.worst) watch.worst = w; } } }
+    await P.until(() => tripDone('rollout', n0), 900000);
     for (let i = 0; i < 600 && !live(); i++) await P.frames(1); return live(); };
   const rollIn = async () => { const n0 = tripN(); const b = W.document.getElementById('bHangar2'); if (!b) return false; b.click(); await P.until(() => tripDone('rollin', n0), 900000); for (let i = 0; i < 30; i++) await P.frames(1); return true; };
-  R.live0 = await rollOut();
+  R.shot0 = {}; R.live0 = await rollOut(R.shot0); R.shot0.worst = +R.shot0.worst.toFixed(3);
   for (let i = 0; i < 10; i++) await P.frames(1);
   R.fresh = staleOf(W, S);
   if (!R.live0) { R.errors = P.errors.slice(0, 20); fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }
@@ -113,7 +126,7 @@ async function child() {
     R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null }; }
   // ---- the shed, then Roll out, then frames rendered
   await rollIn();
-  R.live1 = await rollOut();
+  R.shot1 = {}; R.live1 = await rollOut(R.shot1); R.shot1.worst = +R.shot1.worst.toFixed(3); R.rollResets = W.FLYDIY_ROLL_RESETS || 0;
   for (let i = 0; i < 20; i++) await P.frames(1);
   R.after = staleOf(W, S);
   try { const FB = W.FLOWN_BAKE; R.bake = { module: !!FB, forPayload: !!(FB && FB.forPayload && W.CAGE_VISUAL && FB.forPayload(W.CAGE_VISUAL)), hybrid: !!(FB && FB.opts && FB.opts.hybrid) }; } catch (e) { R.bake = { err: String(e && e.message) }; }
@@ -142,6 +155,9 @@ function judge(R, say) {
   say('  ' + R.key + ': fresh - ' + (R.fresh.checked || 0) + ' drawn buffers checked, ' + st(R.fresh).length + ' stale; the crash ' + JSON.stringify(R.crash)
       + '; after the shed and the roll-out (live ' + R.live1 + ') - ' + (R.after.checked || 0) + ' checked, ' + st(R.after).length + ' STALE; uploads ' + JSON.stringify(R.gl) + '; drawn meshes by class ' + JSON.stringify(R.after.classes || {}) + '; the flown bake ' + JSON.stringify(R.bake || null));
   for (const s of st(R.after).slice(0, 12)) say('      stale: ' + JSON.stringify(s));
+  say('  ' + R.key + ' THE ROLL-OUT SHOT: fresh - ' + JSON.stringify(R.shot0) + '; after the crash - ' + JSON.stringify(R.shot1) + ' (the shot’s wreck resets ' + R.rollResets + ')');
+  if (R.damage !== false && R.shot1 && R.shot1.shot && R.shot1.worst > 0.3) bad('THE ROLL-OUT SHOT POSED THE WRECK after the crash: its nodes ' + R.shot1.worst + ' m off the aeroplane as built (fresh ' + (R.shot0 && R.shot0.worst) + ' m)');
+  if (R.damage !== false && !(R.shot1 && R.shot1.shot)) say('  ' + R.key + ' (note: no roll-out shot frames seen after the crash - the shot row tests nothing)');
   if (st(R.fresh).length) bad('a fresh roll-out already holds stale buffers: ' + JSON.stringify(st(R.fresh).slice(0, 4)));
   if (R.damage === false) {   // DAMAGE OFF: the same path, no break - and the heal's upload marking never fires (no extra upload)
     say('  ' + R.key + ' DAMAGE OFF: the heal upload marking fired ' + R.healUploads + ' times; ' + st(R.after).length + ' stale');
@@ -156,9 +172,9 @@ function judge(R, say) {
 function parent() {
   const secs = +arg('secs', 5), say = m => console.log(m), only = arg('only', null), keys = Object.keys(BUILDS).filter(k => !only || only.split(',').includes(k));
   if (argv.includes('--selftest')) {
-    say('DMGUPLOAD selftest: the heal\'s upload marking off (the bug as it was) must turn it red');
-    const R = runChild('cub', 'nomark', secs), f = judge(R, say), red = f.some(x => /STALE/.test(x));
-    say('  ' + (red ? 'ok  ' : 'FAIL') + '  the fault turned the stale-buffer row red' + (f.length ? ': ' + f.join(' | ') : ''));
+    say('DMGUPLOAD selftest: the roll-out shot\'s wreck reset off (the bug as it was) must turn the shot row red');
+    const R = runChild('cub', 'noreset', secs), f = judge(R, say), red = f.some(x => /POSED THE WRECK/.test(x));
+    say('  ' + (red ? 'ok  ' : 'FAIL') + '  the fault turned the shot row red' + (f.length ? ': ' + f.join(' | ') : ''));
     console.log('GATE DMGUPLOAD-SELFTEST: ' + (red ? 'PASS' : 'FAIL')); process.exit(red ? 0 : 1);
   }
   say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)');
