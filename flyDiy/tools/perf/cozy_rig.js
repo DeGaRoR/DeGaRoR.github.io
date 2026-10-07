@@ -71,9 +71,11 @@ const GPUX_SRC = `(function(){ if (window.__GPUXH || typeof WebGL2RenderingConte
 })();`;
 
 // the cameras (az, el, dist about the stand's target; the garage's orbit clamps the eye inside the room): `room` is the
-// garage's own framing (garageCamera's targets), `wide` stands back to read the room, `side` the editor's side view
+// garage's own default framing (garageFraming), `wide` stands back to read the room, `side` the editor's side view
 const CAM = {
-  room: 'FLIGHT_PROBE.camSet(...(() => { const c = FLIGHT_PROBE.cam(); return [c.azT, c.elT, c.distT]; })());',
+  // the GARAGE'S OWN default framing (app.js garageFraming: az -2.5, el 0.22, 14 m in any room 5 m or more to the eave),
+  // set literally - re-reading the orbit's targets would read back the last camera this rig set
+  room: 'FLIGHT_PROBE.pan && FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(-2.5, 0.22, 14);',
   wide: 'FLIGHT_PROBE.camSet(-2.35, 0.30, 24);',
   back: 'FLIGHT_PROBE.camSet(-0.75, 0.22, 22);',
   side: 'FLIGHT_PROBE.camSet(-Math.PI / 2, 0.06, 13);',
