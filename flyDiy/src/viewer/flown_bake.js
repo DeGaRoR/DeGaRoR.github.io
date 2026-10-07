@@ -1069,6 +1069,9 @@
       mesh.castShadow = m0.castShadow; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder;
       mesh.layers.mask = m0.layers.mask; mesh.frustumCulled = m0.frustumCulled;
       mesh.userData.flownMerge = { subs: list.length, bones: bones.length, verts: nV };
+      // G1818 (DMG-SKINGPU): the members' views on its buffers - a wreck rides the ones a record holds on the GPU and
+      // sends the rest up by range (app.js brkGpu); not enumerable: nothing that walks userData sees them
+      Object.defineProperty(mesh.userData.flownMerge, 'views', { value: views });
       // the roll-out's crumb rule (G564) reads this, not the merged sphere: a crumb fold casts nothing out there
       if (F.crumb) mesh.userData.crumbR = F.rMax;
       // the bones: stand-ins outside the graph, their matrixWorld the part's transform in the model group's frame
@@ -1287,7 +1290,7 @@
         if (on) { if (saved) return; saved = [out.meshes.map(f => f.visible), out.live.map(m => m.visible)]; for (const f of out.meshes) f.visible = true; for (const m of out.live) m.visible = false; }
         else if (saved) { out.meshes.forEach((f, i) => { f.visible = saved[0][i]; }); out.live.forEach((m, i) => { m.visible = saved[1][i]; }); saved = null; }
       };
-      out.set = set; out.zone = zone;
+      out.set = set; out.zone = zone; out.viewMode = VIEWS;   // (G1818: whether its live side draws the fold's own buffers)
       FOLDS.push(out);
     }
     return out;
