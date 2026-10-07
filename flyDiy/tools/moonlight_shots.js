@@ -47,20 +47,24 @@ const CLEAR = { cloudCover: 0 }, OVERCAST = { cloudCover: 1, cloudType: 'st' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME's threshold);
 //        aim 'runway' (along the strip toward its far end / threshold) | 'seaMoon' | 'seaNoMoon' (toward the nearest sea, the
 //        hour moved on the night so the moon is ahead / behind) ; dist the orbit's distance, el its elevation (rad)
+const OVERCAST_P = { cloudCover: 0.9, cloudType: 'st', cloudUpper: null };   // the panel's own overcast (clouds_ui.js)
 const VIEWS = [
+  { name: 'noon_over',     day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30, settle: 14 },
+  { name: 'noon_over_b',   day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30, settle: 2 },   // the control: noon_over again, nothing moved
   { name: 'noon_stand',    day: Object.assign({}, NOON, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },
-  { name: 'full_stand',    day: Object.assign({}, FULL, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },
+  { name: 'dusk_1700',     day: Object.assign({ date: '2026-09-26', utc: 3600 }, CLEAR), at: 'over', aim: 'sun', el: 0.05, dist: 30, settle: 14 },   // 17:00 AKDT on the 25th, the sun at 12.8 deg
+  { name: 'sunset',        day: Object.assign({ date: '2026-09-26', utc: 3600 }, CLEAR), preset: 'sunset', at: 'over', aim: 'sun', el: 0.05, dist: 30, settle: 14 },
+  { name: 'full_stand',    day: Object.assign({}, FULL, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 14 },
   { name: 'full_sea_moon_ahead', day: Object.assign({}, FULL, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
-  { name: 'full_sea_moon_behind', day: Object.assign({}, FULL, CLEAR), at: 'over', aim: 'seaNoMoon', el: 0.05, dist: 30 },
-  { name: 'full_final',    day: Object.assign({}, FULL, CLEAR), at: 'final', aim: 'runway', el: 0.06, dist: 22 },
+  { name: 'full_moon_behind', day: Object.assign({}, FULL, CLEAR), at: 'over', aim: 'awayMoon', el: 0.05, dist: 30 },
+  { name: 'full_moon_up',  day: Object.assign({}, FULL, CLEAR), at: 'over', aim: 'moon', el: -0.45, dist: 30 },
+  { name: 'full_final',    day: Object.assign({}, FULL, CLEAR), at: 'final', aim: 'runway', el: 0.14, dist: 24 },
   { name: 'half_stand',    day: Object.assign({}, HALF, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },
-  { name: 'half_over',     day: Object.assign({}, HALF, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
+  { name: 'half_over',     day: Object.assign({}, HALF, CLEAR), at: 'over', aim: 'moon', el: 0.05, dist: 30 },
   { name: 'new_stand',     day: Object.assign({}, NEW_, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },
   { name: 'new_over',      day: Object.assign({}, NEW_, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
-  { name: 'overcast_stand', day: Object.assign({}, FULL, OVERCAST), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },
-  { name: 'overcast_over', day: Object.assign({}, FULL, OVERCAST), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
-  { name: 'noon_over',     day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
-  { name: 'noon_stand_b',  day: Object.assign({}, NOON, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },   // the control: noon_stand again in the same page
+  { name: 'overcast_stand', day: Object.assign({}, FULL, OVERCAST_P), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 25 },
+  { name: 'overcast_over', day: Object.assign({}, FULL, OVERCAST_P), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
 ].filter(v => !ONLY.length || ONLY.includes(v.name));
 
 // ---- in the page ----
@@ -91,10 +95,13 @@ const SETUP = V => `(async () => {
     if (best && best.c > 0.5) day.utc = best.utc;
   }
   DAY_CLOCK.set(day);
+  if (${JSON.stringify(V.preset || null)}) DAY_CLOCK.preset(${JSON.stringify(V.preset || null)});   // a named hour solved on that date (the clock's own)
   let px = cx, pz = cz, agl = 0, look = [dx, dz];
   if (${JSON.stringify(V.at)} === 'stand') { agl = null; look = [dx, dz]; }
   else if (${JSON.stringify(V.at)} === 'over') { agl = 300; look = [sea[0], sea[1]]; }
-  else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 2000; pz = tz - lh[1] * 2000; agl = 150; look = [lh[0], lh[1]]; }
+  else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
+  if (aim === 'sun') { const sv = DAY_CLOCK.day().sun, h = Math.hypot(sv[0], sv[2]) || 1; look = [sv[0] / h, sv[2] / h]; }
+  if (aim === 'moon' || aim === 'awayMoon') { const mv = DAY_CLOCK.day().moon, h = Math.hypot(mv[0], mv[2]) || 1, k = aim === 'moon' ? 1 : -1; look = [mv[0] / h * k, mv[2] / h * k]; }
   if (aim === 'runway' && ${JSON.stringify(V.at)} === 'stand') { const cg = s.cgPos(); look = [cx - cg[0] + dx * len * 0.3, cz - cg[2] + dz * len * 0.3]; const l = Math.hypot(look[0], look[1]) || 1; look = [look[0] / l, look[1] / l]; }
   if (agl != null) { const cg = s.cgPos(), gy = Math.max(w.terrainH(px, pz), w.waterH ? (w.waterH(px, pz) || -1e9) : -1e9) + agl;
     await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
@@ -199,11 +206,11 @@ async function runPage(page) {
     fs.mkdirSync(OUT, { recursive: true });
     const hasNight = await ev('!!(window.LIGHT_RIG && window.LIGHT_RIG.setNight)');
     for (const V of VIEWS) for (const [vi, VAR] of VARIANTS.entries()) {
-      if (vi > 0 && (/^noon/.test(V.name) || !hasNight)) continue;
+      if (vi > 0 && (/^(noon|dusk|sunset)/.test(V.name) || !hasNight)) continue;
       if (hasNight) await ev('(LIGHT_RIG.setNight(Object.assign(LIGHT_RIG.nightDefaults(), ' + JSON.stringify(VAR || {}) + ')), window.WORLD && WORLD.relight && WORLD.relight(), 1)');
-      const vt = hasNight && !/^noon/.test(V.name) ? vtag(VAR) : '';
+      const vt = hasNight && !/^(noon|dusk|sunset)/.test(V.name) ? vtag(VAR) : '';
       const plan = await ev(SETUP(V));
-      await ev(FRAMES(90)); await sleep(12000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
+      await ev(FRAMES(90)); await sleep((V.settle || 8) * 1000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
       await ev(SETUP(V));                          // again: the aeroplane and the orbit where they were asked (a fit or a probe moved nothing, but be sure)
       await ev(FRAMES(120)); await sleep(1500);
       const png1 = await cmd('Page.captureScreenshot', { format: 'png' });
@@ -230,11 +237,11 @@ async function runPage(page) {
   } finally { try { execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} }
   // the day's proof: each daytime view, page against page (the first two pages)
   const t = (n, p) => path.join(OUT, n + '_' + path.basename(p, '.html') + (Q ? '_' + Q.replace(/\W+/g, '') : '') + '.png');
-  if (PAGES.length >= 2) for (const V of VIEWS.filter(v => /^noon/.test(v.name))) {
+  if (PAGES.length >= 2) for (const V of VIEWS.filter(v => /^(noon|dusk|sunset)/.test(v.name))) {
     if (fs.existsSync(t(V.name, PAGES[0])) && fs.existsSync(t(V.name, PAGES[1]))) { const d = diff(t(V.name, PAGES[0]), t(V.name, PAGES[1])); console.log('DAY PROOF ' + V.name + ' (page vs page): ' + JSON.stringify(d)); all.push({ view: V.name, dayProof: d }); }
   }
-  for (const p of PAGES) if (fs.existsSync(t('noon_stand', p)) && fs.existsSync(t('noon_stand_b', p))) {   // the noise floor: one page, one view, twice
-    const d = diff(t('noon_stand', p), t('noon_stand_b', p)); console.log('CONTROL noon_stand twice in ' + p + ': ' + JSON.stringify(d)); all.push({ view: 'noon_stand', control: p, d });
+  for (const p of PAGES) if (fs.existsSync(t('noon_over', p)) && fs.existsSync(t('noon_over_b', p))) {   // the noise floor: one page, one place, twice, nothing moved
+    const d = diff(t('noon_over', p), t('noon_over_b', p)); console.log('CONTROL noon_over twice in ' + p + ': ' + JSON.stringify(d)); all.push({ view: 'noon_over', control: p, d });
   }
   const jf = path.join(OUT, 'moonlight_' + (Q ? Q.replace(/\W+/g, '') : 'default') + '.json');
   fs.writeFileSync(jf, JSON.stringify(all, null, 1));

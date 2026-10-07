@@ -729,6 +729,12 @@ ${MIST_GLSL}
         vec3 g = floor(d * 900.0);
         float h = hash13(g), h2 = hash13(g + 17.0);
         float star = smoothstep(0.985, 1.0, h) * (0.4 + 0.6 * h2);
+        // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
+        // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
+        // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
+        // By day the term is already 0 (the sky hides every star): the day is untouched.
+        float wash = clamp(uEMoon / 2.5e-6, 0.0, 1.0) * smoothstep(-0.02, 0.1, uMoon.y);
+        star *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
         vec3 tint = mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2);
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
         L += tint * star * uStars * 1.5e-5 * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
