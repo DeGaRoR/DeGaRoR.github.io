@@ -615,6 +615,11 @@ const GATES = [
   // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
   // logbook's stop at a strip, the page's wrapper and the worker's door, acceptVerdict per kind; --selftest 24 rules
   { id: 'ACCEPT', file: '_accept_check.js', tier: 'core', wall: 300 },
+  // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
+  // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
+  // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
+  // five designs' shakedown, cached in the OS temp dir by content)
+  { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR
