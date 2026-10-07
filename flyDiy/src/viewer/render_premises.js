@@ -2561,49 +2561,6 @@ function make(THREE, scene, world, rec0, opts) {
   const HIT_SKIP = /^(hitbox:|smoke|aoskirt)/;
   const OBST_IDS = new Set();
   const STATS_HIT = { base: 0, walk: 0 };   // G844: registrations over a worker's shape0 / whole walks
-  // G1999 (TOWN-CHEAP) A PROP'S HIT SHAPE, ONCE PER KEY. The retro town step on a 4x-throttled CPU (rollout_perf --profile-boot,
-  // tools/perf/town_profile.js, 6 Oct) was 82 % this function: every placement walked its props' FULL levels (a cardboard box
-  // ~10 k triangles), carried every vertex into the group's frame and rasterised them - the same key's mesh, placement after
-  // placement. Now a prop (its root: 'prop:<key>' with userData.prop - a LOD, a mesh, an instanced proxy) is rasterised ONCE, in
-  // its own frame, at PROP_HIT_FINE, and each placement stands that raster's columns as points (OBSTACLES.columnPoints: a
-  // column's four corners at its low and its high) - a SUPERSET of the full mesh's raster, wider by at most the fine cell
-  // (GATE PROPHIT holds both). The flat and ghost filters run per mesh in the prop's frame, as addMesh's below.
-  // ?prophit=0: every prop walked whole, as before (the A/B)
-  const PROP_HIT_FINE = 0.25, PROP_HIT = new Map();
-  const PROP_HIT_ON = !(typeof location !== 'undefined' && /[?&]prophit=0(&|$)/.test(location.search || ''));
-  const propKeyOf = obj => (obj && obj.userData && obj.userData.prop && typeof obj.name === 'string' && obj.name.startsWith('prop:') ? obj.name.slice(5) : null);
-  // the key's points in the prop's own frame (null: nothing solid); `obj` one placement of it, its bytes landed (hitReady)
-  function propHitPoints(obj, key) {
-    const ck = key + '|' + (typeof propLodForce === 'function' ? propLodForce() : -1);
-    let pts = PROP_HIT.get(ck);
-    if (pts !== undefined) return pts;
-    obj.updateMatrixWorld(true);
-    const toLocal = new THREE.Matrix4().copy(obj.matrixWorld).invert(), M = new THREE.Matrix4();
-    const pos = [], idx = [];
-    const add = (geometry, mt, matrixWorld) => {
-      if (mt && mt.transparent && (mt.opacity < 0.5 || mt.depthWrite === false)) return;   // smoke, skirts, glows (shapeOf's filter)
-      const P = geometry.attributes.position; if (!P) return;
-      M.multiplyMatrices(toLocal, matrixWorld);
-      const m = M.elements, base = pos.length / 3, v = new THREE.Vector3();
-      let y0 = Infinity, y1 = -Infinity;
-      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i); const x = v.x, y = v.y, z = v.z, w = 1 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
-        const X = (m[0] * x + m[4] * y + m[8] * z + m[12]) * w, Y = (m[1] * x + m[5] * y + m[9] * z + m[13]) * w, Z = (m[2] * x + m[6] * y + m[10] * z + m[14]) * w;
-        pos.push(X, Y, Z); if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
-      if (y1 - y0 < 0.15) { pos.length = base * 3; return; }                                   // a flat thing is the ground's
-      const I = geometry.index; if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i);
-    };
-    const walk = o => {
-      if (o.isLOD) { const l0 = o.levels.length ? o.levels[0].object : null; if (l0) walk(l0); return; }
-      const full = typeof propInstFull === 'function' ? propInstFull(o) : undefined;
-      if (full) { for (let i = 0; i < full.dgeos.length; i++) add(full.dgeos[i], full.dmats[i], o.matrixWorld); return; }
-      if (o.isMesh && o.geometry && !HIT_SKIP.test(o.name || '')) add(o.geometry, o.material, o.matrixWorld);
-      for (const c of o.children) walk(c);
-    };
-    walk(obj);
-    pts = idx.length ? OBSTACLES.columnPoints(OBSTACLES.rasterise(pos, idx, PROP_HIT_FINE, { pad: 0 })) : null;
-    PROP_HIT.set(ck, pts);
-    return pts;
-  }
   // (G844: a group the house worker rasterised - userData.shape0, its own bags - walks only what the page added: its props)
   function shapeOf(grp, cell) {
     const base = grp.userData.shape0 && grp.userData.shape0.cell === cell ? grp.userData.shape0 : null, skip = base ? grp.userData.bagMeshes : null;
@@ -2612,7 +2569,6 @@ function make(THREE, scene, world, rec0, opts) {
     const inv = new THREE.Matrix4().makeRotationY(yaw).setPosition(px, py, pz).invert();
     const pos = [], idx = [], M = new THREE.Matrix4(), v = new THREE.Vector3();
     const walk = obj => {
-      if (PROP_HIT_ON && obj !== grp) { const pk = propKeyOf(obj); if (pk) { const P = propHitPoints(obj, pk); if (P) addPoints(P, obj.matrixWorld); return; } }   // G1999: the key's points
       if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; }   // the full level only
       if (skip && skip.has(obj)) return;   // (G844: the build's own bags, in the worker's shape0 already)
       // an INSTANCED prop (props.js proxy, G934) has no meshes: its full level's geometry at the proxy's matrix, as the
@@ -2644,22 +2600,9 @@ function make(THREE, scene, world, rec0, opts) {
         }
       }
     }
-    // G1999: a prop's points (its own frame) into the group's frame (rasterise's `pts`: each marked once)
-    const pts = [];
-    function addPoints(P, matrixWorld) {
-      M.multiplyMatrices(inv, matrixWorld);
-      const m = M.elements, n = P.length / 3;
-      for (let i = 0; i < n; i++) {
-        const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2], w = 1 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
-        pts.push((m[0] * x + m[4] * y + m[8] * z + m[12]) * w, (m[1] * x + m[5] * y + m[9] * z + m[13]) * w, (m[2] * x + m[6] * y + m[10] * z + m[14]) * w);
-      }
-    }
-    // (a prop placed ALONE - hitAdd(g, 'prop') - is its own group: its points too)
-    if (PROP_HIT_ON && propKeyOf(grp)) { const P = propHitPoints(grp, propKeyOf(grp)); if (P) addPoints(P, grp.matrixWorld); }
-    else walk(grp);
-    if (!idx.length && !base && !pts.length) return null;
-    const ro = base || pts.length ? {} : undefined; if (base) ro.base = base; if (pts.length) ro.pts = pts;
-    const shape = OBSTACLES.rasterise(pos, idx, cell, ro);
+    walk(grp);
+    if (!idx.length && !base) return null;
+    const shape = OBSTACLES.rasterise(pos, idx, cell, base ? { base } : undefined);
     if (base) STATS_HIT.base++; else STATS_HIT.walk++;
     return shape ? { x: px, z: pz, yaw, y0: py, shape } : null;
   }

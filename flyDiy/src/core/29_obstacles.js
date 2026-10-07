@@ -40,17 +40,13 @@ const OBSTACLES = (() => {
   // both share (every grid starts on a multiple of the cell), grown to hold both, the base's columns copied in and the new
   // triangles marked over them. The same cells, lows and highs one pass over both soups gives, up to a vertex lying
   // exactly on a lattice line.
-  // opts.pts (G1999): POINTS, x y z flat, each marked once (columnPoints' - a prop key's raster stood in the object's frame), with
-  // the triangles or alone; their box joins the grid's. Absent, nothing changes.
   function rasterise(pos, idx, cell, opts) {
     const B = opts && opts.base && opts.base.cell === cell ? opts.base : null;
-    const PT = opts && opts.pts && opts.pts.length ? opts.pts : null;
     const nTri = idx ? idx.length / 3 : pos.length / 9;
-    if (!nTri && !B && !PT) return null;
+    if (!nTri && !B) return null;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     const nv = nTri ? pos.length / 3 : 0;
     for (let i = 0; i < nv; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
-    if (PT) for (let i = 0; i < PT.length; i += 3) { const x = PT[i], z = PT[i + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
     if (!isFinite(x0) && !B) return null;
     const pad = (opts && opts.pad !== undefined) ? opts.pad : 1;
     let ox = isFinite(x0) ? Math.floor(x0 / cell) * cell - pad * cell : Infinity, oz = isFinite(z0) ? Math.floor(z0 / cell) * cell - pad * cell : Infinity;
@@ -72,7 +68,6 @@ const OBSTACLES = (() => {
       if (y < lo[k]) lo[k] = y;
       if (y > hi[k]) hi[k] = y;
     };
-    if (PT) for (let i = 0; i < PT.length; i += 3) mark(PT[i], PT[i + 1], PT[i + 2]);   // (G1999: the points, once each)
     // every triangle sampled on a barycentric lattice at half a cell (its vertices always)
     const step = cell * 0.5;
     for (let t = 0; t < nTri; t++) {
@@ -546,33 +541,7 @@ const OBSTACLES = (() => {
     };
     return api;
   }
-  // ---- A SHAPE AS POINTS (G1999, TOWN-CHEAP): a column grid's occupied columns as a k x k lattice of points over the
-  // column's square (k = 3: its corners, its edges' midpoints, its centre), at the column's low, at its high and every `dy`
-  // between them (0.5 m: a column TILTED with its placement - a pole on a slope - leans, and its mid-height reaches cells its
-  // foot and its top do not) - k^2 points a level, x y z flat. Rasterised again (as degenerate triangles, rasterise above) in another frame - turned,
-  // tilted, scaled - and at a coarser cell, they mark the cells the column's square reaches, between its low and its high:
-  // every point of the square lies within half a lattice step's diagonal (0.088 m at a 0.25 m column, k 3) of a marked
-  // point, so a vertex of the mesh the grid was made from is in an occupied cell, or within that of one (GATE PROPHIT).
-  // The page rasterises a prop key's full level ONCE at a fine cell and stands its points per placement (render_premises.js
-  // shapeOf): the retro town step on a 4x-throttled CPU was 82 % the raster of the props' full meshes, every placement again.
-  // eps keeps a corner inside its own column (one on a lattice line would read as the neighbour's)
-  function columnPoints(shape, eps, k, dy) {
-    if (!shape) return null;
-    const c = shape.cell, e = eps === undefined ? c * 1e-3 : eps, K = Math.max(2, k | 0 || 3), DY = dy > 0 ? dy : 0.5;
-    let levels = 0;
-    for (let q = 0; q < shape.nx * shape.nz; q++) if (shape.hi[q] >= shape.lo[q]) levels += 1 + Math.max(1, Math.ceil((shape.hi[q] - shape.lo[q]) / DY));
-    const out = new Float32Array(levels * 3 * K * K), st = (c - 2 * e) / (K - 1);
-    let o = 0;
-    for (let j = 0; j < shape.nz; j++) for (let i = 0; i < shape.nx; i++) {
-      const kk = j * shape.nx + i, lo = shape.lo[kk], hi = shape.hi[kk];
-      if (!(hi >= lo)) continue;
-      const x0 = shape.ox + i * c + e, z0 = shape.oz + j * c + e, nL = Math.max(1, Math.ceil((hi - lo) / DY));
-      for (let L = 0; L <= nL; L++) { const y = L === nL ? hi : lo + (hi - lo) * L / nL;
-        for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) { out[o++] = x0 + a * st; out[o++] = y; out[o++] = z0 + b * st; } }
-    }
-    return o === out.length ? out : out.subarray(0, o);
-  }
-  return { rasterise, box, penetration, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn, columnPoints };
+  return { rasterise, box, penetration, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
 })();
 
 // ---- TREE_HITS (G1330, TREE-HITBOX) - THE TREES YOU SEE ARE THE TREES YOU HIT ---------------------------------------

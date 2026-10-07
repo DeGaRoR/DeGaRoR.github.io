@@ -71,14 +71,6 @@ const FD = require('./frame_dist.js');   // G1360: the frame-length distribution
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
-// G1999: an unknown flag stops the rig before anything starts (a mistyped or a newer branch's flag - --cpu-throttle on a
-// branch that predated it - was silently ignored and the run measured something else). The known set is every opt('..') /
-// flag('..') this file reads, plus --chrome-flag (whose value is itself a Chrome switch).
-{ const known = new Set(['chrome-flag']);
-  for (const m of fs.readFileSync(__filename, 'utf8').matchAll(/\b(?:opt|flag)\('([a-z0-9-]+)'/g)) known.add(m[1]);
-  for (let i = 0; i < argv.length; i++) { const a = argv[i]; if (!a.startsWith('--')) continue;
-    if (a === '--chrome-flag') { i++; continue; }
-    if (!known.has(a.slice(2))) { console.error('rollout_perf: unknown flag ' + a + ' - nothing run (known: ' + [...known].sort().join(', ') + ')'); process.exit(2); } } }
 const COLD = flag('cold');
 const SECS = +opt('secs', 150);
 const BUILD = opt('build', null);

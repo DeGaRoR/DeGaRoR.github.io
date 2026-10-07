@@ -80956,3 +80956,7 @@ ALSO TODAY (A0's asks, train 38): the laptop's re-apply throw ('boundingSphere' 
 on the box (Jodel, Cub: 0 errors, 0 frustum throwers, 0 drawables without geometry before and after) - waits for the laptop's stack. The
 metal Cessna (tools/fixtures/build_v10_cessnaMetal_2026-09-26.json) at the stand: the propeller disc clear of the ground
 (g1532_t38_cessnaMetal_prop_front/_side/_34.jpg; Deform: the 2.3 cm is train 41's JOIN-PARITY geometry).
+
+## TRAIN 40: G1999 TOWN-CHEAP held out (A0, 7 Oct 20:40)
+
+Reverted from train 40: the strict gate read the first garage -> world worst task 318 ms (train 38: 264), the per-key rasters paid in one task. HW-COVERAGE slices them (97b47a830, PENDING_HIT) for train 42, proven at the 23:55 slot. The G1999 section above records the work.

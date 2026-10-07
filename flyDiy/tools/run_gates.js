@@ -557,10 +557,6 @@ const GATES = [
   // prop's shape against its own mesh (a cell, 0.5 m), an aeroplane rolled at
   // a wall stops against it, the analytic world's settlements registered (~40 s)
   { id: 'OBSTACLE', file: '_obstacle_check.js', tier: 'core' },
-  // G1999 (TOWN-CHEAP): a prop's hit shape from its KEY's raster stood as points (29_obstacles.js columnPoints, render_premises.js
-  // propHitPoints) - every baked prop, turned / tilted / scaled, at 0.5 m and 1 m: every vertex of the mesh covered (to 0.1 m in
-  // x z, 5 cm in y), the full raster's columns covered, nothing past a cell + 0.25 m, and the points' raster cheap. ~15 s
-  { id: 'PROPHIT', file: '_prophit_check.js', tier: 'core', wall: 20 },
   // G1060-G1062: a parked aeroplane's hitbox from its own spec (convex pieces off the physics frame, no grid) - the
   // pieces' push, every archetype stands one, then the page in node (one page, ~3 GB): the Jolene captures' wing
   // covered to 5 mm and overhung by <= 5 cm (the old raster's tip printed), a taxi past at 10 cm / into the wing, the cost
