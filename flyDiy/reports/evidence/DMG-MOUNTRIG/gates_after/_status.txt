@@ -18,3 +18,5 @@ _dmgtyre_check exit 0 1091 s
 _dmgfloatto_check exit 0 612 s
 _joinparity_check exit 0 266 s
 _treecrash_check exit 0 2481 s
+_dmg_skin_check exit 0 359 s
+_seaplane_check exit 0 599 s
