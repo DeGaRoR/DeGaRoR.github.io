@@ -166,7 +166,7 @@ function makeSimView(def, opts) {
     n, p, ctl, def, mismatch,
     v: R.withV ? new Float64Array(N3) : null,
     beams: def.beams,                      // the topology (a, b); the strains stay the host's (stats().smax)
-    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, wet: null, ap: {}, snapCtl: null,
+    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, wet: null, ap: {}, snapCtl: null, occ: null,
     starterOk: null,                       // the cockpit's (the bus) - read when a key turns, sent with it
     get t() { return B ? B.f[S.T] : 0; },
     get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
@@ -247,6 +247,7 @@ function makeSimView(def, opts) {
       if ('dmg' in M) view.dmg = M.dmg;   // G1470: the crash's verdict (null until there is one)
       if (M.dmgB) simViewDmgApply(dmgS, M.dmgB);   // G1850: the broken list, on change
       view.drv = M.drv || null;              // G1861.5 (DMG-D4b): DMG-DRIVE's per-engine state (sim_host simDrvOf; absent = none)
+      if (M.occ !== undefined) view.occ = M.occ;   // G2373 (DMG-OCCUPANT): the occupants' bands, sent once (sim_host simOccHop)
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;

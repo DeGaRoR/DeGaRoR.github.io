@@ -304,6 +304,24 @@ function simDrvOf(sim) {
     crush: x.crush || 0, crushOf: x.crushOf || 0, crushLayer: x.crushLayer || null }));
 }
 
+// G2373 (DMG-OCCUPANT): THE OCCUPANTS' BANDS, TO THE PAGE, ONCE - when the solver closes an event (34_occupant.js: a
+// crash's at its end), its wire ({ name, band } per occupied seat: the criteria stay in the worker); null again after a
+// reset. A sim with no occupants' record (the damage layer off, no cabin) makes no hop: simOccHop returns null and the
+// meta never asks. hop: { v } the version the page holds; returns undefined (nothing new) or the payload (array | null)
+function simOccHop(sim) {
+  const O = sim.occupants && sim.occupants();
+  if (!O) return null;
+  const hop = { v: 0 };
+  const fn = () => {
+    const D = sim.damage(), v = D.occ ? O.state.ver : 0;
+    if (v === hop.v) return undefined;
+    hop.v = v;
+    return v && typeof genOccWire === 'function' ? genOccWire(D.occ) : null;
+  };
+  fn.forget = () => { hop.v = 0; };
+  return fn;
+}
+
 // the pilot's fields that are big and change rarely: sent when the object
 // changes (by reference), the rest of the pilot every snapshot
 const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site'];
@@ -650,6 +668,7 @@ function makeSimHost(CORE, init, keptWorld) {
   let dmgHop = simDmgHop0();
   const dmgCore = (def.refs && def.refs.noseFrame && def.refs.noseFrame.length) ? def.refs.noseFrame[0] : 0;
   H.dmgBytes = 0; H.dmgSends = 0; H.dmgMs = 0;   // the hop's cost, read by GATE DMGSKIN
+  const occHop = simOccHop(sim);                   // G2373: null with no occupants' record (the layer off)
   H.meta = () => {
     const ap = H.ap, A = {};
     // G820 (C1c): a NEW PILOT (Fly on's leg, the skip's) - every field again, and the view starts its copy afresh
@@ -675,6 +694,7 @@ function makeSimHost(CORE, init, keptWorld) {
     const dmgB = simDmgHop(sim, dmgHop, dmgCore);
     if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
     const drv = simDrvOf(sim);                      // G1826
+    const occ = occHop ? occHop() : undefined;      // G2373: once, at an event's close
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
@@ -693,10 +713,11 @@ function makeSimHost(CORE, init, keptWorld) {
       ap: A, apNew,
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
       ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
+      ...(occ !== undefined ? { occ } : {}),   // G2373: the occupants' bands, once (null: a reset took them)
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)
-  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); };   // (G1850: a new view holds nothing)
+  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); if (occHop) occHop.forget(); };   // (G1850: a new view holds nothing)
   H.ready = () => ({ kind: 'ready', n, substeps: def.params.substeps, withV, len: LEN, fuelIdx: fuelIdx.slice(),
                      slots: SIM_SNAP, dt: SIM_HOST_DT, defSig: simHostDefSig(def), epoch: H.epoch });
   return H;
@@ -967,4 +988,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart,
-                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S };
+                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S, simOccHop };

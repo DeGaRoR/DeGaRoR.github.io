@@ -95,6 +95,9 @@ const MANIFEST = {
     // gearbox, the mount's torque and gyroscopic loads - pure; read by the solver (behind the damage layer) and the
     // certificate (66_), at call time
     '33_drive.js',
+    // THE OCCUPANTS IN A CRASH (G2373, DMG-OCCUPANT): each filled seat's pulse and space, the criteria, five bands -
+    // pure; read by the solver behind the damage layer
+    '34_occupant.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
