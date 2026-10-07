@@ -551,7 +551,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
   // that billed the mass knows what it was, and a list maintained anywhere else
   // goes stale the first time a section is added.
-  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1 };
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1 };   // podLoad: the freight in the belly pod (G2410)
   const bill = (mass, cost) => {
     const e = ledger[SEC] ||
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
@@ -2761,6 +2761,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
            pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load); }
   }
 
+  // THE BELLY POD (G2410, BELLY-POD; src/core/60d_gen_pod.js). Off by default and absent by default: with no pod no
+  // section opens, so the ledger, the nodes and every number after them are the bytes they were (GATE POD). On: the
+  // shell (empty weight) and its price on the two rings that straddle the shell's centroid, the fittings on their
+  // lower longerons (billAt: the pod's mounts, 66_gen_cert's mount rows); the freight in it is payload, on the rings
+  // that straddle the hold's centroid.
+  const podR = genPodResolve(S, ST);
+  if (podR) {
+    sec('pod');
+    billAt(podR.xShell, podR.shellKg);
+    spend(podR.price);
+    if (podR.loadKg > 0) { sec('podLoad'); billAt(podR.xLoad, podR.loadKg); }
+  }
+
   const refs = {
     noseFrame: [F[0].BL, F[0].BR, F[0].TL, F[0].TR],
     tailMid: [TPB, TPT],
@@ -2798,6 +2811,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     gauged, gaugeRef, gauge: GG,
     degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
+  if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
   for (const C of clusters) if (C.omega && typeof C.omega === 'object') {

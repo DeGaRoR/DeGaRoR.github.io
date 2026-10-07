@@ -82491,3 +82491,149 @@ part) or a folding / scoop stretcher <= ~1 m packed - the user's call, below.
   would thread diagonally may read tight. The rule errs on the side of "it does not go".
 
 READY for the GAME COORDINATOR: claude/freight-model-g2340 0ff43ed (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2410-G2419 - BELLY-POD: THE POD AS A PART (A SPEC OPTION, OFF AND ABSENT BY DEFAULT; ITS SHAPE, CARGO SPACE KIND 'pod' WITH ITS FLOOR LIMIT AND DOOR, MASS AND PRICE ON THE LEDGER), ITS GROUND / WATER CLEARANCE PER ATTITUDE, ITS DRAG (RAYMER'S BUILD-UP) AND WHAT IT COSTS IN CRUISE / CLIMB / RANGE AND ON THE FLOWN LEG, A BENCH ROW, THE MOUNTS IN THE CERTIFICATE, THE CG FULL; TRIALS ON THE FIVE VALIDATED BUILDS; GATE POD (2026-10-07, BELLY-POD for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader for the stills, no GPU; branch claude/belly-pod-g2410 off origin/claude/game-integration fe45b9a; G2419 unused)
+
+The brief: FREIGHT-2026-10-07.md §4 and the user's ruling of 7 Oct ("a bench first, tried on the different planes, a
+check for ground clearance, maybe in the certification, an impact on aerodynamics"). No generated file committed.
+
+**G2410 THE PART** (`src/core/60d_gen_pod.js`, pure; MANIFEST between 60c_ and 61_; exports appended to 90_):
+- `spec.pod = { on, len, width, depth, noseFair, tailFair, x, loadKg, door }` (`GEN_POD.def` / `.clamp`). **Absent =
+  off = the bytes it was** (no key is added to GEN_DEFAULT, GEN_FIELDS or the join; `genPodOn` needs `pod.on` truthy).
+  Default when on: 2.0 x 0.56 x 0.28 m, a quarter-ellipse nose fairing (22 %), a boat-tail ramp (30 %), centred on the
+  wing's quarter chord but never ahead of firewall + 0.15 m (on every validated build that clamp wins: the pod runs
+  0.15-2.15 m aft of the firewall).
+- `genPodResolve(S, ST)`: the top is the keel line (the lower longerons, ST.yb), the floor flat `depth` under the flat
+  run's lowest keel point (deeper aft where the belly rises - a C206 / C208 pod's shape), half-width cut to 0.95 of the
+  belly's; 24 sampled stations; exposed wetted area, frontal, volume, the hold (the flat run inset by a 0.02 m wall),
+  the floor area, the rated load (146 kg/m2 = 30 lb/ft2, the C208 pod placards' order), the shell mass (2.2 kg/m2
+  glass/foam + 3.0 kg/m2 floor + 4 kg fittings), the price (1 500 + 700 cr/m2: the spat's glassfibre datum), the door
+  (a left side hatch over the middle 55 % of the floor, 80 % of the shallowest hold tall, sill on the floor), the mounts
+  (the two rings straddling the shell's centroid - 61_gen_frame's own `straddle`).
+- `genPodSpace(S, ST)`: **THE CARGO SPACE for FREIGHT-MODEL's packer**: `{ kind: 'pod', id, name, external: true,
+  box: { x0, x1, y0, y1, halfW }, litres, floorM2, floorKgM2, maxKg, station, door: { side, x0, x1, y0, y1, w, h } }`
+  (aeroplane metres, x aft of the firewall). FREIGHT-MODEL is not in this tree; the record is the contract it reads.
+- **61_gen_frame**: with a pod, section `pod` (empty weight: the shell at its centroid by `billAt` on the lower
+  longerons' BL/BR nodes, + its price) and, with `loadKg`, section `podLoad` (PAYLOAD_SECS: payload, at the hold's
+  centroid); `parts.pod` = the resolved record. Without one no section opens (an empty `sec()` would add a ledger key:
+  the selftest proves it). The pod's rated load is NOT added to the design gross: a pod's freight competes for the
+  aeroplane's existing gross (`balance.overGross` reports it), as a bolt-on pod does on a real aeroplane.
+- **No UI for the sizes**: the bench carries a "fit one / take it off" door (`api.podToggle` -> `GARAGE_SPEC.update({
+  pod: { on } })`); the fitting sliders are FREIGHT-LOAD's. The console: `GARAGE_SPEC.update({ pod: { on: 1, depth:
+  0.35 } })`.
+
+**G2411 GROUND CLEARANCE** (`genPodClearance(def, mass)`, on the shakedown as `pod.clearance`): the pod's lowest point
+in each attitude its gear takes, off the lattice as built: **level** (a tricycle at rest, a taildragger tail-up),
+**three-point** (a taildragger at rest: rotated tail-down by the plaque's own deck angle about the mains' contact),
+**rotated to the tail strike** (a tricycle: the steepest the aft keel allows about the mains), **at rest on the water**
+(floats: the even-keel waterline at the all-up mass, fresh water, Archimedes over the hull's own sections -
+32_hydro `levelVolume` - bisected). The undercarriage: the main legs' lateral gap reported, a nose leg or tailwheel
+under the pod's run a conflict. `ok` = the worst clearance > 0 and no conflict; `warn` under 0.08 m. **Shown, not
+forbidden**: the plaque's `pod clearance` row (amber < 0.08, red at a strike, with the number), the bench row refuses.
+
+**G2412 AERODYNAMICS** (`genPodCdA`; 62_gen_aero adds it): **CdA = Cf FF Q box Swet** - Raymer, Aircraft Design 12.5:
+Cf the moulded row's 0.0045/m2 (GEN_MATERIALS.carbon.cdWet, the same a moulded fuselage pays), FF = 1 + 60/f^3 + f/400
+(12.31, genFusCdA's own), **Q = 1.5 "for a store mounted directly on the fuselage"** (12.5.5), the slab-side 1.10
+(GEN_DRAG.boxK, Hoerner ch. 6); Swet the exposed area (the belly it covers not subtracted). On the axial row; its plan
+and side areas (x 0.57, the body's) on the forward blob's cross-flow; its volume joins the body's Munk volume.
+**The Cd check against a published cost**: AOPA's Turbine Quick Look (C208): the belly pod "penalizes cruise speed by
+nine knots" (~5.3 % of ~170 KTAS) = ~16 % more parasite area at constant power, ~0.12 m2 if the C208's CD0 is 0.03 on
+26 m2 (MY assumption, not a published figure); this build-up on a smooth pod that size (4.6 x 1.1 x 0.55 m) gives
+0.088 m2 - under it, as it should be for a smooth pod against the C208's stepped, blunt-ended one. A Skymaster
+owner quotes 3 mph for the 337's pod from its 1969 POH (a forum post: weak). The model's C172 with the default pod:
+3.5 km/h on the probe, 3.9 km/h flown (~2 kt). Sources: aopa.org Turbine Pilot Quick Look C208 (2016, 2017);
+337skymaster.com forum; Raymer 12.5. **Measured on each aeroplane**: the shakedown's `pod.cruise` solves genTrim's
+own cruise rule (drag = 65 % of the thrust there) WITHOUT the 1.55-2.2 Vs clamp, from the best-glide speed up, on the
+sim's probe, with the pod and with the pod's CdA taken back off the same probe (same mass: the drag alone); the climb
+loses CdA x VClimb^3 rho/2 / W; the sheet's range moves with the speed. **The sheet's own VCruise is not a drag
+measure**: it is clamped to 1.55-2.2 Vs and Vs grows with the pod's mass, so on the floats builds it RISES with the pod
+(204.1 -> 204.5, 129.6 -> 131.4) - the table shows both and says which is which.
+
+**G2413 THE BENCH, THE CG, THE CERTIFICATE**:
+- `bench.js` BENCH_TESTS `pod`: instant, ADVISORY (never withholds the airworthiness), `when: api.hasPod()`, `sticker:
+  false` (an option measured, not a rating worn: STICKER_ORDER stays the six; GATE BENCH's sticker rule now names the
+  one exception). Verdict `POD FITS` / `POD FITS — CLOSE TO THE GROUND` / `POD REFUSED — <why, with the number>`
+  (a strike, a leg under it, the margin full < 0.05); the note: every attitude's clearance, the drag area, the cruise
+  and climb cost, the CG full and the margin, the mounts' kN. The bridge (`app.js`): `hasPod`, `podToggle`.
+- **The CG full** (`genPodBalance`, `pod.balance`): the pod loaded to its rated load at the hold's centroid, by moment
+  on the sheet's own mass and CG (checked against the aeroplane re-built full: within 1 cm); the static margin off the
+  neutral point; against the four loading corners' range when the sheet has them; `overGross` against the frame's
+  design gross. **There is no certified CG range in the model**: the corners are the as-drawn loadings' span, and the
+  margin is the stability check - so the bench refuses on the margin, and the table quotes the corners.
+- **The mounts** (`66_gen_cert genCertPodMounts(def, cert)`, `pod.mountRows`): four fittings (the two straddling rings'
+  lower longerons, left / right), each its kg with the pod FULL (shell + rated load by lever), and the force at the
+  certificate's +3.8 g limit, -0.4 x that, the 5.7 g ultimate and 23.561(b)(3)'s 9 g forward (as recalled); with a
+  certificate, each fitting node's members and their certified envelope, and the pod's limit share of it. **The
+  certificate is of the aeroplane AS LOADED** (the pod's mass is on the nodes, so every certified case carries it): a
+  pod certified full is one built with `loadKg` = its rated load when genCertify runs.
+- Plaque (`app.js` drawPlaque, `plaque.js`): section **belly pod** - `pod`, `pod clearance` (bounds >= 0.08 m, red at a
+  strike), `pod drag`, `pod full` (margin >= 0.05), `pod mounts`; every row explained.
+
+**G2414 THE SHELL** (`genPodShell(R)`): a clean lofted mesh in the generator's body frame (rounded-box sections, a
+superellipse of 4, open on top against the belly), gated (finite, inside its box, the lowest vertex the floor). **It is
+not drawn on the aeroplane yet**: the garage's and the flown visual is the cage's frozen snapshot (CAGE_VISUAL), whose
+frame and units are the cage's; wiring the shell into the cage (a `_cage_*` layer like `_cage_energy`'s vessels) is a
+LOCAL-GPU task. The stills (`tools/pod_still.js`, `reports/evidence/POD/still_{cub,c172,floats}.png`) draw it under
+each lattice in its worst attitude, the ground or water line beside it.
+
+**G2415-G2417 THE TRIALS** (`tools/pod_trials.js` -> `reports/evidence/POD/trials.{md,json}`; the flown legs
+`tools/_pod_fly.js` -> `reports/evidence/POD/flights.json`: ACCEPT's own leg, 5 min at 75 % throttle, HOME + 300 m,
+calm; real certificates of each build with the pod full):
+
+| build | fits? | clearance per attitude (m) | deepest pod (strike / amber) | CdA · share of the body | cruise rule (probe) | climb (drag alone) | flown TAS off / on / full | flown range off / on / full | CG full (% MAC) · margin | mounts full |
+|---|---|---|---|---|---|---|---|---|---|---|
+| the user's Cub | **yes** | level 0.378 · three-point 0.152 · mains 0.062 beside it | 0.44 / 0.36 m | 0.0299 m² · 5.1 % | 113.0 -> 111.7 km/h (-1.1 %) | -0.045 m/s | 126.9 / 124.5 / 121.5 km/h | 346 / 339 / 331 km | 23.3 -> 26.5 (corners 23.3-37.8) · 0.171 -> 0.139 | 38/38/3/3 kg, 1.43 kN at +3.8 g, <= 9 % of the node's envelope |
+| the Jodel | **no, full** (the margin) | level 0.498 · three-point 0.187 | 0.48 / 0.39 m | 0.0264 · 6.5 % | 125.3 -> 121.8 (-2.8 %) | -0.064 | 137.4 / 133.3 / 124.8 | 375 / 363 / 340 | 27.6 -> 32.6 (corners 27.6-30.4) · 0.032 -> **-0.018** | 26/26/16/16, 0.97 kN, <= 18 % |
+| the Cessna 172 | **yes** | level 0.225 · tail strike (11.3°) 0.172 | 0.46 / 0.38 m | 0.0244 · 6.5 % | 183.7 -> 180.2 (-1.9 %) | -0.064 | 195.5 / 191.6 / 188.8 | 1074 / 1053 / 1038 | 35.4 -> 37.1 (corners 36.3-43.6) · 0.216 -> 0.199 | 36/36/5/5, 1.34 kN, <= 12 % |
+| the C172 on floats | **yes** | water 0.447 | > 0.60 m | 0.0244 · 5.2 % | 207.6 -> 204.5 (-1.5 %) | -0.068 | (not flown: ACCEPT's legs are wheel builds) | | 33.4 -> 34.1 · 0.175 -> 0.168 | 36/36/5/5, 1.34 kN, <= 3 % |
+| the twin on floats | **yes** | water 0.296 | 0.58 / 0.50 m | 0.0242 · 2.5 % | 139.0 -> 138.0 (-0.8 %) | -0.037 | (not flown) | | 31.1 -> 32.2 · 0.143 -> 0.133 (76 kg over its design gross full) | 33/33/8/8, 1.22 kN, <= 2 % |
+
+Read: the default pod FITS every validated build on the ground and the water. **The Cub's tail-down stance is the
+tightest** (0.152 m three-point, deepest it takes 0.44 m; a 0.60 m pod strikes at -0.09 m and is refused with the
+number). **The Jodel takes the pod but not FULL**: its as-drawn margin is already 0.032, and 73 kg at 1.15 m walks it
+to -0.018 (the bench: `POD REFUSED — full, its static margin is -0.02`) - a smaller load, or the pod forward. The
+pod's price on the clean Jodel is the largest (-2.8 % cruise, -4.1 km/h flown, -12.6 km/h full), on the draggy twin the
+smallest. The flown leg's cost exceeds the probe's (75 % vs 65 % thrust); the flow is the throttle's, so the flown
+range falls with the TAS. Empty weight +11.9 kg on the Cub (10.3 kg shell + the gauge re-sized on it), +3 027 cr.
+
+**G2416 GATE POD** (`tools/_pod_check.js`, core tier after ACCEPT, ~45 s with the stored legs; `--fly` flies them
+again, ~6 min on 4 cores): **PASS, 228 checks; `--selftest` 21 of 21 caught** (`reports/evidence/POD/selftest.txt`).
+- **OFF = TODAY'S BYTES**: the Cub, Jodel, C172, C172 floats, twin on floats and metal Cessna each build to the def and
+  the shakedown sheet of the base core (FNV digests of the whole JSON in `tools/_pod_base.json`, blessed from a
+  worktree of origin/claude/game-integration fe45b9a - `--bless` is ONLY for that); `pod: { on: 0 }` = the same lattice,
+  aero and ledger; an old spec normalises with no `pod` key.
+- the part on each (inside the body, top = keel, the space and its door, the ledger rows and their moments, the payload
+  full, the shell); the clearance rows per gear re-derived off the SHELL's vertices (to 2 mm), the three-point = the
+  deck angle, the tail strike, the waterline displacing the all-up mass (1 %), deterministic; the deep pod refused WITH
+  its number by the bench row; the drag terms and the axial growth = the pod's CdA, the cross-flow, the cruise / climb
+  cost negative and deterministic; the bench row per build; the CG full = the re-built full aeroplane; the mounts'
+  arithmetic and moment; a REAL certificate of the Cub full vs empty (every fitting node certified, the envelope rises);
+  the flown legs (valid, slower on, no faster full, the load carried); the page's sources.
+- `--selftest` (21): billed when off, an empty section opened, Q 1.0, the drag not reaching the aeroplane, the cross-flow
+  forgotten, the three-point level, the ground at the wheel centre, the water at the keel, the tail strike never
+  reached, the freight as empty weight, the freight on the shell's station, the rated load off the floor limit, the
+  mounts' lever reversed, the mounts at the ultimate for the limit, the CG walking the wrong way, the door off the
+  floor, the cruise cost off the clamped VCruise, the bench passing a strike, the bench refusing without the number,
+  a plaque row unexplained, the bridge without its door.
+
+**OTHER GATES** (`reports/evidence/POD/gates_touched.txt`, the runner, 4 jobs, 106 s wall): **POD, BENCH, SAVE (an old
+spec unchanged), BUILD, SPECFIX, ENERGYBASE, UISMOKE, CONTRACTS, GAMEPREM: PASS - BATTERY: PASS**; BENCH `--selftest` PASS.
+JOINPARITY not touched (no join row). Not run: the full tier; GEN / PILOT / FLEX (the pod-off path is byte-identical by GATE POD's digests, which
+is a stronger statement than their bands); FRAMECOST / HITBOX (any viewer edit moves the build id).
+
+**OPEN / FOR THE COORDINATOR**
+- **The drawn pod** (the cage / flown visual) is not wired - `genPodShell` is the mesh, a LOCAL session puts it in the
+  cage (its frame, the paint, the hatch's seam) and in the parked / fleet bakes.
+- **The sizes have no UI** beyond fit / remove (FREIGHT-LOAD's fitting view should carry len / depth / x and the load).
+- FREIGHT-MODEL consumes `genPodSpace` (kind 'pod'); FREIGHT-STRAP's strapped items in the pod replace `loadKg`.
+- No certified CG range exists in the model (the corners are the as-drawn span): a placarded range would be a
+  certificate field; the bench refuses on the static margin meanwhile.
+- The certificate is computed as loaded: the page's certKick certifies the aeroplane rolled out; a pod carried full
+  should be certified full - decide whether the bench's certificate always loads the pod to its rating.
+- Sim-honesty: G477's strut-mounted tank pods pay NO drag (ROADMAP item 7 now says so).
+- Merge points: `90_node_exports.js` (appended), `build.js` (60d_ after 60c_), `run_gates.js` (POD after ACCEPT),
+  `_bench_check.js` (the sticker rule's one exception).
+
+Proved from a clean worktree at c72cecc (build, GATE POD 228 / 0 failed, GATE BENCH PASS). Wall clock ~3 h 30 of the 5 h bound.
+
+READY for the GAME COORDINATOR: claude/belly-pod-g2410 c72cecc (the code, gates and evidence; this section rides one docs-only commit on top)

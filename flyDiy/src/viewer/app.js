@@ -7444,6 +7444,25 @@
         (s.groundThrCap < 1 ? ' · pilots hold ' + n1(s.groundThrCap * 100, 0) + '% until the tail is up' : ''),
         judge('power nose-over', s.powerOver));
     if (s.gearFolded) R('gear', 'FOLDED', 'bad');
+    // G2410 (BELLY-POD): THE POD, when the build carries one - the engineer's handbook: shown, not forbidden
+    if (s.pod && s.pod.clearance) {
+      const p = s.pod, C = p.clearance, w = C.worst, b = p.balance || {}, cr = p.cruise || {};
+      H('belly pod');
+      R('pod', n1(p.len, 2) + ' × ' + n1(p.width, 2) + ' × ' + n1(p.depth, 2) + ' m · ' + n1(p.litres, 0) + ' L · '
+        + n1(p.maxKg, 0) + ' kg rated' + (p.loadKg > 0 ? ' · ' + n1(p.loadKg, 0) + ' kg aboard' : ''));
+      R('pod clearance', n1(w.clear, 2) + ' m · ' + w.name + (w.clear > 0 ? '' : ' — STRIKES')
+        + ((C.legs || []).some(l => !l.ok) ? ' · ' + C.legs.filter(l => !l.ok).map(l => l.name).join(', ') : ''),
+        (C.legs || []).some(l => !l.ok) ? 'bad' : judge('pod clearance', w.clear));
+      R('pod drag', n1(p.cda, 3) + ' m² · ' + n1((p.dragShare || 0) * 100, 0) + '% of the body · '
+        + n1((cr.dV || 0) * 3.6, 1) + ' km/h cruise · ' + n1(cr.dClimb, 2) + ' m/s climb');
+      if (b.staticMargin != null)
+        R('pod full', (b.cgPct != null ? n1(b.cgPct * 100, 0) + '% MAC' : n1(b.cgX, 2) + ' m') + ' · margin '
+          + n1(b.staticMargin, 2) + (b.overGross > 0 ? ' · ' + n1(b.overGross, 0) + ' kg over the design gross' : ''),
+          judge('pod full', b.staticMargin));
+      if (p.mountRows)
+        R('pod mounts', n1(Math.min(...p.mountRows.rows.map(r => r.kg)), 1) + '–' + n1(Math.max(...p.mountRows.rows.map(r => r.kg)), 1)
+          + ' kg a fitting · ' + n1(p.mountRows.worstUp / 1000, 2) + ' kN at +' + n1(p.mountRows.limit, 1) + ' g');
+    }
     PQ.mount($('pqRows'));
     if (PQ.missing.length && !drawPlaque.saidMissing) {
       drawPlaque.saidMissing = true;
@@ -12749,6 +12768,10 @@
     // sea lane, offscreen, on the test pilot; a row the bench shows for a
     // float build only
     hasFloats: () => !!(def && def.parts && def.parts.floats && def.parts.floats.length),
+    // G2410 (BELLY-POD): the pod's row, for a build that carries one
+    hasPod: () => !!(def && def.parts && def.parts.pod),
+    // ...and its door: the spec's `pod.on`, through the join's own merge (a rebuild; the bench re-renders on it)
+    podToggle: on => { if (window.GARAGE_SPEC && curKey === 'gen') window.GARAGE_SPEC.update({ pod: { on: on ? 1 : 0 } }); },
     hydroStart: () => htStart(),
     hydroPoll: () => htPoll(),
     hydroEnd: () => htEnd(),
