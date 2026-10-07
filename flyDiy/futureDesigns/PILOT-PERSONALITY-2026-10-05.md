@@ -17,7 +17,8 @@ how fast they see, how smoothly they move, what they choose, how far they will p
 |---|---|---|---|---|
 | skill | `reaction` | s | 0 | a pure delay line on the stick and pedals (de, da, dr), per physics step |
 | skill | `smooth` | × | 1 | multiplies the servo slew (`SV.slewK`): < 1 smoother and slower, > 1 snatchier |
-| skill | `hamFist` | stick units rms | 0 | a deterministic Ornstein-Uhlenbeck disturbance (0.3 s) on de / da / dr, fixed seed |
+| skill | `hamFist` | stick units rms | 0 | a deterministic disturbance on de / da / dr, fixed seed - G2085: a HAND's band (an Ornstein-Uhlenbeck wander, 0.5 s, through a 0.12 s lag; the 0.3 s unfiltered first cut read 400+ reversals / min, a vibration) |
+| skill | `gain` (G2085) | × | null (auto) | THE PERSON'S GAIN (McRuer's crossover model): the command is the servo's held part (its 1 s average) + `gain` × the rest, delayed. null: eased to suit the delay, 1 / (1 + reaction / 0.15 s); > 1 over-controls (§4.3). Whole on the wheels and in the FLARE (a planned manoeuvre is flown, not regulated) |
 | quirks | `overRotate` | rad | 0 | added to the rotation's attitude target (ROLL) |
 | quirks | `flareK` | × | 1 | multiplies the flare height (< 1: a late flare) |
 | limits | `bankK` | × | 1 | multiplies the circuit's bank limit (on top of the style's) |
@@ -81,12 +82,25 @@ Each of these is a numbered seam in 43, listed so the next session cuts one at a
 9. **Skill growth** — the player's own pilot learning: `reaction` and `precision` relaxing toward the expert's with
    logged landings (a profile is data; it can be saved with the player).
 
-## 5. How a profile is chosen (UI, owed)
+## 5. How a profile is chosen (UI - DONE G2085, see below)
 
 The flight menu keeps its three styles (auto / cautious / brisk). A profile row (Expert / Club / Student / Bush /
 Ham-fist, and "the player's own" when §4.9 lands) belongs in the same flyout; `mkPilot` (app.js) and the worker's
 (`sim_host.js`) pass `{ profile }` through as they pass `{ style }`. Not wired in PILOT-ONE: the hooks and the gate
 come first; the menu is a one-line change once a profile has been flown and seen.
+
+**AS BUILT (G2085, PILOT-PERSONA).** One keeper, `#selPersona` (body.html's #flStore; its options app.js's, off
+`PILOT_PROFILES` - one table): Expert / Club / Student / Bush / Ham-fist / Custom. Shown where the pilot is chosen:
+- the shed's flight setup beside ROLL OUT and the roll-out screen (`#edRoute` / `#bootRoute`: base · to · **pilot**,
+  each option's hover its one line);
+- the flight plate's `pilot` slot (the style pills, the personality pills, A LINE EACH saying what that person does,
+  the one flying in ink) and FLY > controls (on the setup screen too);
+- THE CUSTOM PILOT, folded ("show the knobs"): every hook as a knob (`PILOT_PROFILE_KNOBS`: reaction, hands, grip,
+  unsteadiness, over-rotation, flare height, bank, comfort g, field technique, slips, step hold), "start from" a
+  personality (the downgrade: the full model tuned down to a person). A knob moved makes the pilot 'custom'.
+PERSISTED PER PLAYER: the player document (70_player.js) carries `pilot: { profile, custom }` - optional, absent is the
+expert, no version step; `playerPilot` reads it (an unknown name is the expert, the custom person clamped to the knobs
+by `pilotProfile`). Changing the person restarts a flight, as the style does; the knobs fly from the next start.
 
 ## 6. Measuring a person
 
@@ -94,3 +108,10 @@ A personality is judged with the instruments the expert is: pilot_trace's summar
 sink and point, the control reversals per minute per phase — GATE PILOTACT's counter), pilot_one_trace (the take-off
 technique), pilot_one_turnaround. A profile ships with its own expected band (a student's sink 1.0-1.6 m/s, a bush
 pilot's touchdown within 20 m of the aim) so a change to the pilot that moves a person is seen as such.
+
+**AS BUILT (G2085).** `tools/pilot_persona.js`: the user's four validated aeroplanes (Cub, Jodel, C172, the Wipline
+C172 on floats off the SEA lane) x the five people, calm, one pilot_trace flight each (pilot_trace gained `--profile`,
+`--floats`, the take-off's lift-offs and rotation rate, the circuit's cross-track rms, the bounces). SAFE ON A NORMAL
+DAY is absolute (completed or diverted, sink <= 2.5 m/s, <= 2 go-arounds - else a FINDING, the exit code); each
+person's band (`PERSONA_BANDS`) flags '~'. GATE PILOTMATRIX carries the per-profile row (the Cub's calm HOME circuit
+flown by club / student / bush / ham-fist, in the ratchet's baseline). The table: HANDOVER G2085.

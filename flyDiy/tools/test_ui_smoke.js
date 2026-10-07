@@ -927,7 +927,10 @@ try {
       if (!R.home(k) && !items.some(i => i.k === k)) throw new Error('the old rail item / section `' + k + '` has no home');
     // what each item must reach (a row or a pill each) - one or more per old item, and the moved rows
     const WANT = {
-      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…'],
+      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
+            // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
+            'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
+            'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),

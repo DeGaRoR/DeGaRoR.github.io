@@ -109,6 +109,8 @@ function runTrace(o) {
   const C = coreOf();
   const t0 = Date.now();
   const S = specOf(o.key, o.drawnTail);
+  // G2085 (PILOT-PERSONA): --floats puts the build on floats (pilot_one_trace's 'c172f': the user's Cessna on floats)
+  if (o.floats) { S.spec = JSON.parse(JSON.stringify(S.spec)); S.spec.gear = Object.assign({}, S.spec.gear, { type: 'floats' }); S.spec = C.genMigrateSpec(S.spec); }
   // THE ISLAND (G434): --world jolene flies the data world with its own premises (tools/island_node.js
   // reads what the page's loader fetches; absent files throw - the caller asked for an island)
   const world0 = o.world ? (() => { const IN = require(path.join(T, 'island_node.js')); const fx = path.join(T, 'fixtures', 'island_' + o.world + '.json');
@@ -166,7 +168,8 @@ function runTrace(o) {
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   // the machine sheet (P0.4): the shakedown handed lazily (2 s, once), the ladder flag on request
   let shk = null;
-  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
+  // G2085 (PILOT-PERSONA): --profile <name | JSON> - the personality the pilot flies (43 PILOT_PROFILES; 'expert' = none)
+  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', profile: o.profile || undefined, seed: o.seed, shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
   if (site && site.stand) { ap.setRoute(from, to); ap.departFrom(from, to, site); }
   else if (from !== to || from.id !== 'HOME' || o.world) ap.setRoute(from, to);
   const A = def.params.ap, G = def.params.gen;
@@ -184,6 +187,11 @@ function runTrace(o) {
   const legs = []; let leg = null;
   let capT = null, above = [], vErr = [], thrs = [];
   let flare = null; const roll = { e: [], dr: [], xt: [] };
+  // G2085 (PILOT-PERSONA): the person's numbers - the take-off's lift-offs (the contacts leaving the surface for >= 0.1 s
+  // before the aeroplane is away: one is clean, more are hops), the rotation's peak pitch rate (0.25 s filtered, ROLL ..
+  // CLIMB), the circuit's cross-track rms on the straight legs (the fillets excluded), the touchdowns after the first
+  // (a bounce: off the surface for >= 0.15 s after the first touch, before ROLLOUT ends) and the attitude's peak
+  const PX = { lifts: 0, offT: 0, wasOff: false, qF: 0, qMax: 0, thP: null, toDone: false, xt: [], td: 0, tdOffT: 0, tdOff: false, landed: false, pitchMax: -99 };
   // G630: CONTROL ACTIVITY — the surfaces' REVERSALS per minute, per phase
   // group: a reversal is a turn of the surface's motion after it moved more
   // than ACT_H (1.7 deg) from the last extreme, so a clean fillet counts 2
@@ -219,6 +227,22 @@ function runTrace(o) {
       last = ph;
     }
     if (ph === 'LIFTOFF' && lo == null && rollS0 != null) lo = { run: Math.round(Math.abs(d.s - rollS0)), Vlo: r1(d.V) };
+    {
+      // the take-off: ROLL to CLIMB (the first CLIMB ends it)
+      const inTO = !PX.toDone && rollS0 != null;
+      if (inTO) {
+        if (!onG && d.V > 5) { PX.offT += 1 / 60; if (PX.offT >= 0.1 && !PX.wasOff) { PX.wasOff = true; PX.lifts++; } }
+        else { PX.offT = 0; PX.wasOff = false; }
+        const th = d.th; if (PX.thP != null) { const q = (th - PX.thP) * 60 * 57.3; PX.qF += (q - PX.qF) * Math.min(1, (1 / 60) / 0.25); PX.qMax = Math.max(PX.qMax, PX.qF); } PX.thP = th;
+        if (ph === 'CLIMB' || ph === 'CROSSWIND') PX.toDone = true;
+      }
+      // the landing: from the first touch in FLARE / ROLLOUT, every lift of >= 0.15 s back off the surface is a bounce
+      if (ph === 'FLARE' || ph === 'ROLLOUT') {
+        if (onG) { if (!PX.landed) PX.landed = true; PX.tdOffT = 0; PX.tdOff = false; }
+        else if (PX.landed) { PX.tdOffT += 1 / 60; if (PX.tdOffT >= 0.15 && !PX.tdOff) { PX.tdOff = true; PX.td++; } }
+      } else if (ph === 'GOAROUND') { PX.landed = false; }
+      if (!onG) PX.pitchMax = Math.max(PX.pitchMax, d.th * 57.3);
+    }
     if (ph === 'CLIMB') climbVs.push(v[1]);
     if (leg) {
       // the SIGNED cross-track to the current leg (the status line carries |xt|)
@@ -247,6 +271,7 @@ function runTrace(o) {
         const inFillet = Math.abs(d.kap || 0) > 1e-4;
         if (!leg.crossed && Math.abs(xt) < 15) leg.crossed = true;
         else if (leg.crossed && !inFillet) leg.overshoot = Math.max(leg.overshoot, Math.abs(xt));
+        if (leg.crossed && !inFillet) PX.xt.push(xt);   // G2085: the tracking error on the straights
         if (leg.settleT == null && t - leg.t0 > 8 && Math.abs(xt) < 20) leg.settleT = r1(t - leg.t0);
       }
     }
@@ -272,14 +297,14 @@ function runTrace(o) {
   let zeroX = 0;
   for (let i = 1; i < roll.e.length; i++) if (roll.e[i - 1] * roll.e[i] < 0 && Math.abs(roll.e[i]) > 0.5) zeroX++;
   const out = {
-    key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail, slope: o.slope || 0, surface: o.surface ?? null,
+    key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', profile: o.profile ? (typeof o.profile === 'string' ? o.profile : 'custom') : 'expert', seed: o.seed ?? null, floats: !!o.floats, tail: S.tail, slope: o.slope || 0, surface: o.surface ?? null,
     weather: Object.keys(weather).length ? weather : null,
     day: world0.day ? world0.day.local : null,                       // SKY chantier: the world's date-time the fixture flew in
     outcome: nan ? 'sim-diverged' : (rep.outcome || 'gave-up'), phase: ap.phase, t: r1(tEnd),
     phases: phases.map(p => p.ph + '@' + p.t),
     goArounds: ap.gaN || 0,
     verdicts: rep.verdicts.map(x => x.t + 's ' + x.code + ': ' + x.note),
-    takeoff: lo, climb: { hTurn, vsMean: climbVs.length ? r2(mean(climbVs)) : null },
+    takeoff: lo ? Object.assign({}, lo, { lifts: PX.lifts, qMax: r1(PX.qMax) }) : null, climb: { hTurn, vsMean: climbVs.length ? r2(mean(climbVs)) : null },
     // rollRev: the roll LIMIT CYCLE on the leg as bank-rate REVERSALS per minute
     // with more than 2 deg of swing between them — a clean fillet (roll in,
     // hold, roll out) counts 2; the C172's 9-22 deg cycle at 2 s counted 30+
@@ -293,6 +318,8 @@ function runTrace(o) {
     final: capT == null ? null : { captureT: r1(capT), aboveRms: r1(rms(above)), vRms: r2(rms(vErr)), vErrMean: r2(mean(vErr)),
                                    thrMin: r2(Math.min(...thrs)), thrMax: r2(Math.max(...thrs)) },
     flare: flare,
+    track: { xtRms: PX.xt.length ? r1(rms(PX.xt)) : null, n: PX.xt.length },   // G2085: the circuit's cross-track rms on the straights (m)
+    bounces: PX.td, pitchMax: r1(PX.pitchMax),
     landing: L ? { sink: L.sink, V: L.V, VoverVs: r2(L.V / VsL), pastAim: L.pastAim, off: L.offCentre, run: L.run,
                    three: !!L.three, drift: TD ? r2(TD.drift) : null } : null,
     // G630: reversals per minute per phase group (a group under 30 s is
@@ -325,6 +352,9 @@ function parseArgs(argv) {
     else if (a === '--oat') o.oat = +nx();
     else if (a === '--qnh') o.qnh = +nx();
     else if (a === '--style') o.style = nx();
+    else if (a === '--profile') { const q = nx(); o.profile = q.trim().startsWith('{') ? JSON.parse(q) : q; }   // G2085: a personality (a name or a JSON profile)
+    else if (a === '--floats') o.floats = true;
+    else if (a === '--seed') o.seed = +nx();      // G2085: the person's hand on another day (43 opts.seed)     // G2085: the build on floats
     else if (a === '--max') o.maxS = +nx();
     else if (a === '--slope') o.slope = +nx();
     else if (a === '--surface') o.surface = +nx();   // P1.B: the destination's surface class overridden (7 = sand, 3 = forest floor: the soft-field technique)
@@ -351,9 +381,10 @@ if (require.main === module) {
   catch (e) { console.log(JSON.stringify({ key: o.key, error: e.message })); process.exit(1); }
   if (!o.quiet) {
     console.log(out.name + ' (' + out.tail + ' tail) ' + out.from + (out.to !== out.from ? ' -> ' + out.to : '') +
-                (out.weather ? ' ' + JSON.stringify(out.weather) : ' calm') + ' · ' + out.style);
+                (out.weather ? ' ' + JSON.stringify(out.weather) : ' calm') + ' · ' + out.style + (out.profile !== 'expert' ? ' · ' + out.profile : ''));
     console.log('  ' + out.phases.join(' '));
-    if (out.takeoff) console.log('  take-off: run ' + out.takeoff.run + ' m, lift-off ' + out.takeoff.Vlo + ' m/s · crosswind turn at ' + out.climb.hTurn + ' m');
+    if (out.takeoff) console.log('  take-off: run ' + out.takeoff.run + ' m, lift-off ' + out.takeoff.Vlo + ' m/s (' + out.takeoff.lifts + ' lift-off' + (out.takeoff.lifts === 1 ? '' : 's') + ', rotation ' + out.takeoff.qMax + ' deg/s) · crosswind turn at ' + out.climb.hTurn + ' m');
+    if (out.track && out.track.xtRms != null) console.log('  circuit tracking: cross-track rms ' + out.track.xtRms + ' m on the straights · bounces ' + out.bounces);
     for (const l of out.legs) console.log('  ' + l.name.padEnd(9) + ' overshoot ' + String(l.overshoot).padStart(4) + ' m  settle ' + (l.settleT == null ? '  —' : l.settleT + ' s') + '  roll reversals ' + l.rollRev + '/min');
     if (out.final) console.log('  final: captured at ' + out.final.captureT + ' s · above-slope rms ' + out.final.aboveRms + ' m · V-VAppr rms ' + out.final.vRms + ' (mean ' + out.final.vErrMean + ') · thr ' + out.final.thrMin + '..' + out.final.thrMax);
     if (out.flare) console.log('  flare: from ' + out.flare.entryAgl + ' m at ' + out.flare.entryVs + ' m/s, ' + out.flare.dur + ' s');
