@@ -462,23 +462,26 @@ function run(mut) {
 
 // --------------------------------------------------------------------------
 // ---- G2310 (PREM-S3): THE PLOTS, on Jolene composed -------------------------------------------------------------
-const PLOTW = (() => {
-  const IN = require('./island_node.js');
-  // (the island composes ITS sites into the shared registry: the analytic ones every other block reads are put back)
-  const REGS = CORE.AIRFIELD_SITES, keep = Object.assign({}, REGS);
-  const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8') });
-  const sites = {}; for (const a of W.aerodromes) sites[a.id] = JSON.parse(JSON.stringify(CORE.siteOf(a.id) || null));
-  for (const k of Object.keys(REGS)) delete REGS[k];
-  Object.assign(REGS, keep);
-  return { W, sites };
-})();
+// IN A CHILD PROCESS: composing the island writes its sites (and its world) into the core's shared state, and the
+// analytic blocks above read that state - two of their selftest breaks went unseen in one process. The child composes
+// Jolene, runs the plot rows (and their calibrations, or one selftest break), and prints its verdict as JSON.
 // the footprint of the largest shell a plot is offered with (BASE_OFFERS: the plot's dims per shell, else the shell's own)
 const plotFoot = id => { for (const a in CORE.BASE_OFFERS) { const P = CORE.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
   for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || CORE.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD, water: !!P.water }; } return null; };
-function plotRun(mut) {
+const PLOT_MUTS = {
+  // the inline calibrations (every run): w3 moved 40 m down the slope, HOME.2 turned away from its stand, SEA's slip stand ashore
+  'cal: a plot on the slope': S => { const p = S.w3.plots.find(q => q.id === 'w3'); p.x += 40; p.z -= 30; },
+  'cal: a plot turned away from its stand': S => { const p = S.HOME.plots.find(q => q.id === 'HOME.2'); p.hdg += Math.PI; p.ry -= Math.PI; },
+  "cal: a slipway's stand ashore": S => { const p = S.SEA.plots.find(q => q.id === 'SEA'); p.stand.x = p.x; p.stand.z = p.z; },
+  // the --selftest breaks
+  'a plot moved off its field': S => { const p = S.mn_strip.plots[0]; p.x += 900; },
+  'HOME\'s plot is not the club hangar': S => { S.HOME.plots[0].x += 1; },
+  'a plot\'s frame drifts': S => { S.HOME.plots[1].ry += 0.3; },
+};
+function plotRun(W, sites0, mut) {
   const fl = [], ck = { n: 0 };
   const okp = (c, msg) => { ck.n++; if (!c) fl.push(msg); };
-  const W = PLOTW.W, sites = JSON.parse(JSON.stringify(PLOTW.sites));
+  const sites = JSON.parse(JSON.stringify(sites0));
   if (mut) mut(sites, W);
   let n = 0;
   for (const a of W.aerodromes) {
@@ -515,15 +518,25 @@ function plotRun(mut) {
   okp(n >= 6, 'Jolene composes its plots (' + n + ')');
   return { fails: fl, checks: ck.n };
 }
-const PLOT0 = plotRun(null);
-// inline calibration: the plot rows see a fault (w3 moved 40 m down the slope, HOME.2 turned away from its stand, the
-// slipway at SEA with its stand on the shore) - each must turn rows red
-{
-  const cal = [['a plot on the slope', S => { const p = S.w3.plots.find(q => q.id === 'w3'); p.x += 40; p.z -= 30; }],
-               ['a plot turned away from its stand', S => { const p = S.HOME.plots.find(q => q.id === 'HOME.2'); p.hdg += Math.PI; }],
-               ["a slipway's stand ashore", S => { const p = S.SEA.plots.find(q => q.id === 'SEA'); p.stand.x = p.x; p.stand.z = p.z; }]];
-  for (const [what, m] of cal) { const r = plotRun(m); PLOT0.checks++; if (!(r.fails.length > PLOT0.fails.length)) PLOT0.fails.push('calibration: ' + what + ' is not seen'); }
+if (process.argv.includes('--plots-child')) {
+  const IN = require('./island_node.js');
+  const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8') });
+  const sites = {}; for (const a of W.aerodromes) sites[a.id] = JSON.parse(JSON.stringify(CORE.siteOf(a.id) || null));
+  const which = process.argv[process.argv.indexOf('--plots-child') + 1];
+  const out = { base: plotRun(W, sites, null), cal: {} };
+  if (which && which !== '-') out.brk = plotRun(W, sites, PLOT_MUTS[which]);
+  else for (const k of Object.keys(PLOT_MUTS).filter(k => /^cal: /.test(k))) out.cal[k] = plotRun(W, sites, PLOT_MUTS[k]).fails.length;
+  process.stdout.write('\n@@PLOTS ' + JSON.stringify(out) + '\n');
+  process.exit(0);
 }
+const plotChild = which => {
+  const txt = require('child_process').execFileSync(process.execPath, [__filename, '--plots-child', which || '-'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  const line = txt.split('\n').find(l => l.indexOf('@@PLOTS ') === 0);
+  if (!line) throw new Error('the plots child printed no verdict');
+  return JSON.parse(line.slice(8));
+};
+const PLOTC = plotChild(null), PLOT0 = PLOTC.base;
+for (const k of Object.keys(PLOTC.cal)) { PLOT0.checks++; if (!(PLOTC.cal[k] > PLOT0.fails.length)) PLOT0.fails.push('calibration: ' + k.slice(5) + ' is not seen'); }
 const base = run(null);
 base.fails.push(...PLOT0.fails); base.checks += PLOT0.checks;
 if (!SELF) {
@@ -607,14 +620,11 @@ const BREAKS = [
     const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
     P.nodes.find(n => n.id === 'hold0').x = -900; S.pattern = P; } }],
 ];
-// G2310: the plots broken in the composed record's sites (plotRun's own mutations)
-for (const [name, m] of [['a plot moved off its field', S => { const p = S.mn_strip.plots[0]; p.x += 900; }],
-                         ['HOME\'s plot is not the club hangar', S => { S.HOME.plots[0].x += 1; }],
-                         ['a plot\'s frame drifts', S => { S.HOME.plots[1].ry += 0.3; }]])
-  BREAKS.push([name, { plot: m }]);
+// G2310: the plots broken in the composed record's sites (the child's own mutations: PLOT_MUTS)
+for (const name of Object.keys(PLOT_MUTS).filter(k => !/^cal: /.test(k))) BREAKS.push([name, { plot: name }]);
 let bad = 0;
 for (const [name, mut] of BREAKS) {
-  const r = mut.plot ? (q => ({ fails: base.fails.concat(q.fails.slice(PLOT0.fails.length)).concat(q.fails.length > PLOT0.fails.length ? ['x'] : []) }))(plotRun(mut.plot)) : run(mut);
+  const r = mut.plot ? (q => ({ fails: base.fails.concat(q.brk.fails.length > q.base.fails.length ? ['the plots: ' + q.brk.fails[0]] : []) }))(plotChild(mut.plot)) : run(mut);
   const caught = r.fails.length > base.fails.length;
   console.log((caught ? '  caught  ' : '  MISSED  ') + name +
     (caught ? '  (' + (r.fails.length - base.fails.length) + ' new)' : ''));

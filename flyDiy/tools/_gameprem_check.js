@@ -649,6 +649,7 @@ function run(mut) {
     const strip = o => { if (!o) return o; const c = clone(o); delete c.plots; return Object.keys(c).length ? c : null; };   // (a lane's site is its plots alone: none before)
     for (const id of Object.keys(B.sites)) ok(eq(strip(A2.sites[id]), B.sites[id]), 'S3 identity: the site of ' + id + ' is the same but for its plots', J(B.sites[id]).slice(0, 80));
     ok(eq(A2.sites.HOME.hangar, B.sites.HOME.hangar), 'S3 identity: HOME\'s hangar byte for byte');
+    ok(!eq(A2.sites.HOME, B.sites.HOME) && !!A2.sites.HOME.plots && !B.sites.HOME.plots, 'S3 identity, calibrated: the two composes DO differ - by the plots, and only by them (the rows above can see a difference)');
     // the page's side sheds for the sandbox: nothing (app.js worldSideSheds, render_world.js setPlayerSheds - lifted, run)
     const lift = (src, a, b) => { const i = src.indexOf(a), j = i < 0 ? -1 : src.indexOf(b, i); return i < 0 || j < 0 ? null : src.slice(i, j); };
     const wssSrc = lift(R.__app, '  const worldSideSheds = () => {', '  // the world follows the room');

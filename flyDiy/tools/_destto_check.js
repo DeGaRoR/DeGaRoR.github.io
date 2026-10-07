@@ -284,6 +284,9 @@ function premRollW3(W, A, doc, def, check) {
   const ground = (x, z) => W.terrainH(x, z);
   const stand = C.standFor(PS.site, C.playerShedDims(doc, rh, PS.site), ground);
   check(Math.abs(stand.x - PS.plot.stand.x) < 1e-9 && Math.abs(stand.z - PS.plot.stand.z) < 1e-9, tag + 'the stand is the plot\'s, off the shed\'s door (not walked: authored for this shed)', JSON.stringify(stand));
+  // calibration: the field's own site (PREM-S2's roll-out) puts it 58 m away on the strip's stand - the row above sees it
+  const fs0 = C.standFor(st0, C.playerShedDims(doc, rh, st0), ground);
+  check(Math.hypot(fs0.x - PS.plot.stand.x, fs0.z - PS.plot.stand.z) > 20, tag + 'calibration: the field\'s stand is not the plot\'s (a roll-out that ignored the plot would be seen)', Math.hypot(fs0.x - PS.plot.stand.x, fs0.z - PS.plot.stand.z).toFixed(1) + ' m');
   const fx = Math.cos(PS.plot.hdg), fz = Math.sin(PS.plot.hdg);
   check((stand.x - PS.plot.x) * fx + (stand.z - PS.plot.z) * fz > C.playerShedDims(doc, rh, PS.site).HD, tag + 'the stand is in front of the shed\'s door');
   const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
@@ -334,6 +337,11 @@ function premMkSea(W, A, sim, def, check, secs) {
   d = C.playerClock(d, secs).doc;
   const r = C.playerArrive(d, 'Floats', Wh.aero.id, {});
   check(r.ok && r.kind === 'in' && r.hangar === 'mk_sea', tag + 'in mk_sea: up the slip into the shed (door ' + C.hangarDoor(r.doc.sheds.mk_sea).w.toFixed(1) + ' x ' + C.hangarDoor(r.doc.sheds.mk_sea).h.toFixed(1) + ' m, the floats ' + (2 * foot.half).toFixed(1) + ' x ' + (foot.h || 0).toFixed(1) + ' m)', r.kind + ' ' + r.hangar + ' ' + (r.why || ''));
+  // calibration: the same stop with a shed too low for the floats (the field shell at a 3.0 m eave: a 2.5 m door) is tied
+  // down outside - the row above can see a shed the aeroplane does not pass
+  { const low = JSON.parse(JSON.stringify(d)); low.sheds.mk_sea.dims = { HW: 9, HD: 10, EAVE: 3.0 };
+    const rl = C.playerArrive(low, 'Floats', Wh.aero.id, {});
+    check(rl.ok && rl.kind === 'out' && !rl.hangar, tag + 'calibration: a shed whose door is lower than the floats leaves them tied down outside', rl.kind + ' ' + (rl.why || '')); }
   if (!r.ok || r.kind !== 'in') return;
   // the page's roll-in: the garage opens in the hangar playerArrive chose
   const g = C.playerGoTo(r.doc, r.hangar);
