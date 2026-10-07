@@ -179,7 +179,10 @@ const DOORS = {
     '_simworker_page_check', '_simworker_place_check', 'craft_order_probe', 'master_bench', 'rollout_perf',
     'rollout_ratchet', 'dmg_skin_stills', 'surface_shot', 'join_parity_page',
     // G2034 (DMG-RECAL): the bundle's (DMG-WALL's census drives the real page through tools/live_driver.js)
-    'dmg_wall_census'],
+    'dmg_wall_census',
+    // G2365 (DMG-BUNDLE-GREEN): DMG-WALL's GATE DMGWALLPATH (merged with claude/dmg-wall-cowl) boots the page under node
+    // (_page_node.js) with the file as its autosave (flydiy.wip): the page's own load chain
+    '_dmg_wallpath_check'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
