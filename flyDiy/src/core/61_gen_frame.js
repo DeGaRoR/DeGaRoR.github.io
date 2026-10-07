@@ -2937,7 +2937,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const SUPP_GAP = 0.2, dmgSupp = [];
   if (F[0]) for (let i = 0; i < nodes.length; i++) {
     if (dmgPart(i).p !== 'eng') continue;                        // the nose engine (a wing engine is no firewall's)
-    if (MRING && MRING.indexOf(i) >= 0) continue;                 // G2361: the mount's ring (the engine's nodes hold the cabin)
+    // (G2361: the mount's cups too - a severe nose-in drove them 6-13 cm through the firewall with the engine's own held)
     const ax = P[i][0], stand = ST[0].x - ax;
     if (!(stand > 0.05)) continue;
     const x1 = ax + (1 - SUPP_GAP) * stand;                       // where the node is when the limiter closes
