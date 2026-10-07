@@ -79780,3 +79780,91 @@ looking only.
 Build 53f482316b37 (assembly c22f17e2). Sessions: JOIN-PARITY OUT (reverted, -> train 39 with DMG-RECAL, the user's call); PILOT-ONE + PILOT-ONE-2 (G1935-G1949), HW-COVERAGE G1995-G1999 + ?diag v2 G1997b, POTATO-DEEP G1528-G1531 (the 6 px premises patch on every preset - the user's OK; the G1521 root fix: three's cached program kept the plain compile's uniforms, the interim reload removed), METLA-COOK G2060-G2062, WHEEL-AO G2055, JODEL-TAIL G2050, GARAGE-LAPTOP G2070-G2074 (shed shadow cache, glass by pane, the room merged 523 -> 16), SND-MIX G1720-G1724 + GATE AUDIO robust, DEADWOOD-BRIGHT G1975, SHORES-2 G1955-G1964, WATER-LOOK G2090-G2094 (splash waves from entry energy), MOBILE-GARAGE 1 G2100-G2104 (?profile=phone; desktop untouched); exports without makeAutopilot / makeTestPilot.
 Smokes after assembly: SIMWORKER, INPUT, UISMOKE, UISMOKE-PHONE, SPLAT PASS. Battery (--all, 6 jobs): every gate PASS, SOFTGPU SKIP (no basisu here). Strict gate (full, vs baseline 5a2c2e7e of 3 Oct): 95 within slack, 47 better, 15 RED - exactly train 37's standing set minus two (fuseLen busy, metal frame busy now within slack): the 30 fps cap rows (the user's stable-30 target: chase/cockpit/garage/taxi/water fps -> 30, loop/render +2 ms under the cap's pacing), the first garage -> world 12.0 s / warm first flight 58.7 s / round trip 11.8 s (37: 12.06 / 59.1 / 11.76). No row worse than live train 37. FRAMECOST named allowances: WHEEL-AO's bufferSubData, WATER-LOOK's garage:town +1 link / +11 calls and garage:snapshot +2 links.
 Next: re-baseline the accepted strict rows by name (the user: no standing reds).
+
+## G2063-G2064 - TOWN-GEO: METLAKATLA'S PATCH AND ROADS BUILT AS THE EYE NEARS IT, NOT IN THE HOME GARAGE LOAD; THE ROADS' KEEPS AND THE COMPOSITION'S PLACEMENT TESTS CULLED, THE SAME ANSWERS - THE TOWN-ON GARAGE GAP +10 -> ~+4.6 s (2026-10-06/07, METLA-COOK for A0, local GPU; branch claude/metla-cook-g2060, rebased on train 38 751e1122, for train 40)
+
+**READY for A0** (one confirmation run owed, below).
+- Branch: claude/metla-cook-g2060 on 751e1122 (G2060-G2062 landed in train 38).
+- What changed: src/viewer/render_premises.js, render_world.js, src/core/27_premises.js (flight_core: FLYDIY_BUILD moves, so the parked cook needs re-cooking at the train build), and rigs under tools/perf.
+- Generated files are not committed.
+
+**VERDICT.**
+- Measured on the box, the town-on garage costs about +4.6 s over town off, by boot steps (+5.75 s in metla_ab). It was +10 s on train 37b.
+- The first town visit costs the same as a warm visit.
+- The taxi and the pass at HOME are unchanged.
+- Flying toward the town, the deferred build costs one ~100 ms frame, which G2063's last commit addresses (confirmation owed).
+- Town off: every mesh is bit-identical. Its road build is about 2x faster (node).
+- Proposal: still OFF. A0's aim is within ~2 s of off. What is left, and where, is listed at the end.
+
+**G2063 THE TOWN'S GEOMETRY LATER** (render_premises GEO, render_world geoTick).
+- With the town on, the boot's rebuild builds the patch, roads, aprons, rails and poles as the town-off page does: the town's entries (FLYDIY_TOWN.off's prefixes, `mk_`) are left out of activeChunks, buildRoadsSteps and buildPolysSteps.
+- geoLaterSteps adds them a chunk, a level or a road per step. render_world drives it at 3 ms a frame once the eye is within 7 km of the town's box (?towngeoreach=; the box is 8.5 km from HOME's stand, so never in the HOME taxi or pass).
+  - The patch blocks the town's chunks join or border (patchDepth reads the 8 chunks round each) are made again on the whole record's active set and stand in for the old ones (lod.userData.bk). Each block is then the block a whole build makes. The new LODs take their world matrices by hand, because the patch is frozen.
+  - The town's roads and aprons are built and merged beside the rest.
+  - Then refreshGroundSteps sinks the ground under the new chunks.
+- refreshGroundSteps now skips the inner ring's rebuild when no ring vertex moved.
+- The far tier's resink makes the dropped patches a quadrant still draws first, a patch a step, then rebuilds only the quadrants that lost one. It had re-cut every quadrant in one step: 66-100 ms frames in flight.
+- Edge cases:
+  - A stand within reach of the town builds it at boot.
+  - An eye arriving within 2.5 km of it (a location switch) finishes it at once.
+  - The editor's rebuild builds everything.
+  - Any rebuild restarts a pending town build (GEO.epoch).
+- Switches: ?towngeo=0 builds the town at boot, as before. WORLD.townGeoFinish() runs the rest at once. WORLD.farLod is the far tier, for rigs.
+- **Proof (node, the page's own boot; tools/perf/metla_rebuild_split.js; METLA_KEEPGEO keeps the uploaded arrays so the bytes can be hashed):**
+  - Deferred then finished, against the town built at boot:
+    - patch, rails, poles: bit-identical, every mesh
+    - roads, aprons, strips: equal in every attribute's sum and every vertex's world position; only the merge grouping and the pavement table's row ids (aPavId, assigned in another order, the same rows) differ
+    - far tier, patch by node: 461 of 461 shared nodes byte-identical; the cuts differ only by the eye's time (4 / 16 nodes)
+  - At boot, town off: the far tier and every other mesh are bit-identical before and after the resink change.
+  - The deferred build needs 0 new programs.
+
+**G2063 THE KEEPS' EARLY OUT** (render_premises: KB, bbOf, bbFar, keepBoxes).
+- stripKeep, pavedKeep (per road and strip vertex), railKeep and poleKeep (per rail and pole sample) walked every strip, apron, plot and road of the record.
+- A shape whose bounding box lies farther than the test's reach is now skipped, with the same answer.
+- Town-off garage geometry is bit-identical, and its road build is 467 -> 235 ms (node). This is a town-off gain too.
+
+**G2064 THE COMPOSITION'S PLACEMENT, CULLED** (27_premises.js).
+- sowPlots: the overlap test walks only the plots whose boxes meet the candidate, with no array concatenated per candidate.
+- planForest: the road, plot and tree tests use box early-outs and a tree grid (a ±2-cell neighbourhood); a NaN keeps the old answers.
+- Proof (the cook's headless world): plots, trees and items hashed identical in both variants. Town compose 2.6 -> 2.0 s; default unchanged.
+- On the page (node), the town-on compositions are 1.14 -> 0.64 s (makeWorld's) and 1.8 -> 1.25 s (the renderer's). GATE PREMISES PASS.
+
+**THE BOX** (Cub, gamer, lc_build pinned to the landed parked cook, a fresh profile, warm-up town=0, a Chrome per load).
+
+| | town off | town on, first visit | town on, warm |
+|---|---|---|---|
+| train 37b, before (G2062) | 40.9 / 41.6 s | 52.1 s | 51.4 s |
+| 37b + TOWN-GEO (19:25) | 41.2 / 42.1 s | 48.2 s | 46.8 s |
+| train 38 + TOWN-GEO (02:12) | 42.4 / 42.6 s | 48.2 s | 48.3 s |
+
+- Taxi uneven@30 is 0-1 % on both sides; the pass 1-3 % on both.
+- Approach (metla_ab --approach 40: 8 km from the town, flying at it):
+  - town off: worst frame 66-83 ms
+  - town on, train 38: one ~100 ms frame (prem 97, the far tier's forced re-cut), no frame over 100 ms; the 66-69 ms world frames are gone
+  - the patch-warming commit 43e04d4a (after the run) removes that step: **owed, one run** to confirm
+- metla_boot_steps (train 38, A,B,B,A), on - off by step, about +4.6 s in all (garage medians 43.2 -> 47.8 s):
+
+| step | on - off |
+|---|---|
+| world | +1.2 s (+5.5 before) |
+| settle | +0.7 s |
+| bake | +0.6 s |
+| firstFrame + frames | +1.7 s (these vary 0.5-4.3 s per load) |
+| town | +0.3 s |
+| compile | -0.4 s |
+
+- The shed's 'compile' +2.2 s of the 19:25 run did not come back. Its last prop lands 15-16 s before it begins, so nothing there waits on fetches.
+- cessna_links: the town's first visit makes exactly 7 new programs, each under 1 s cold; a warm visit makes none.
+
+**WHAT IS LEFT of the ~4.6 s, and its levers** (not done):
+- The world step's +1.2 s: the two compositions (~0.5 + 0.6 s node after G2064; sowPlots' shoreDepth walk is the rest) and the kit host's build.
+- settle / bake / first light (+1-2 s): the far town's kit host (426 houses, 1.19 M vertices) built, uploaded and drawn in the garage's warm draws. Deferring the kit host like the patch is the next lever; it is the town's far look from HOME, so it is a look decision (build it at first light after the garage, or when the eye is within N km).
+- In flight over Metlakatla itself: the 15 link-in-flight programs of G2060 (house_tarr HLOD near groups with the craft lights).
+
+**RIGS** (tools/perf; read the headers, never --help):
+- metla_rebuild_split.js:
+  - node, town off and on: boot steps, rebuild slices, compositions
+  - mesh digests + merge-invariant sums + the far tier by node
+  - METLA_QUERY (more query), METLA_GEOSTEPS (the deferred build stepped and timed by label), METLA_KEEPGEO
+- metla_ab --approach N [--approach-at x,z] [--approach-from m]
+- metla_boot_steps.js: now also each step's start and BOOT.log's landings.
