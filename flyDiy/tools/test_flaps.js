@@ -10,7 +10,7 @@
 // (controls.flap.type 'none'), so the subject is the stock build with the
 // SLOTTED flap declared — the same family the PA-18 fiche was calibrated on
 // (POH ratio ~0.90), and what genClMax hands the AP's approach speeds.
-const { buildGen, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+const { buildGen, makeSim, makePilot, makeWorld } = require('./flight_core.js');
 const FLAPPED = { controls: { flap: { type: 'slotted' } } };
 const buildFlapped = () => buildGen(JSON.parse(JSON.stringify(FLAPPED)));
 
@@ -59,11 +59,11 @@ if (!(def.params.flaps.ldg > 0)) {
 const sim = makeSim(def, world);
 sim.reset(0);
 for (let s = 0; s < 120; s++) sim.step(1/60);
-const ap = makeAutopilot(sim, def);
+const ap = makePilot(sim, def);   // G1940: THE PILOT (the classic retired)
 const rate = def.params.flaps.rate;
 let flapAt1s = 0, tFull = null;
 for (let s = 0; s < 20 * 60; s++) {
-  ap.phase = 'APPROACH';                // pin the phase; servo targets ldg
+  ap.phase = 'FINAL';                   // pin the phase; servo targets ldg (G1940: 43's FINAL, the classic's APPROACH)
   ap.update(1/60);
   if (s === 59) flapAt1s = sim.ctl.flap;
   if (tFull === null && sim.ctl.flap >= (def.params.flaps.ldg ?? 1) - 1e-6) tFull = (s + 1) / 60;

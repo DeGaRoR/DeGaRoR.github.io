@@ -103,6 +103,7 @@
       if (!ready) return;
       if (P.def !== def) build(P);
       const PS = W.PROP_SOUND, t = ctx.currentTime + (A.lagS ? A.lagS[0] : 0);   // SND-SPACE: heard when its sound arrives
+      const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;   // G1724: the frame's tau (src_engine.js)
       for (let k = 0; k < props.length; k++) {
         const v = props[k], o = k * NP;
         wire(k);
@@ -112,7 +113,7 @@
           const eps = j === 1 ? EPS[1] * v.Ts : EPS[j];
           if (Math.abs(x - lastP[o + j]) <= eps) continue;
           lastP[o + j] = x;
-          if (j === 7) v.params[j].setValueAtTime(x, t); else v.params[j].setTargetAtTime(x, t, TAU);
+          if (j === 7) v.params[j].setValueAtTime(x, t); else v.params[j].setTargetAtTime(x, t, tau);
         }
       }
       for (let k = 0; k < drivers.length; k++) {
@@ -122,7 +123,7 @@
           const x = valD[j];
           if (Math.abs(x - lastD[o + j]) <= (j === 0 ? 0.5 : 0.002)) continue;
           lastD[o + j] = x;
-          if (j >= 2) v.params[j].setValueAtTime(x, t); else v.params[j].setTargetAtTime(x, t, TAU);
+          if (j >= 2) v.params[j].setValueAtTime(x, t); else v.params[j].setTargetAtTime(x, t, tau);
         }
       }
     },

@@ -34,6 +34,13 @@
 //   --build puts that validated build in flydiy.wip before the page's first script (the phone opens on it).
 //   --cold clears the origin's cache and storage first (a first visit); otherwise a warm load (run it twice: the first warms).
 //   When the garage-only entry exists (MOBILE-GARAGE phase M1), point --url at it: the same rig, the same table.
+// G2103 (MOBILE-GARAGE 1, 6 Oct): THE PHONE GARAGE EXISTS - ?profile=phone (profile.js: the garage alone, laid out for a
+// touch screen, on the laptop preset). On it the rig adds a TOUCH section (skip it with --skip touch): real finger events
+// through Input.dispatchTouchEvent on the phone's own screen - the sheet's tabs, a knob dragged (its slider moves, one
+// press / ticks / one release), the scale swiped (the value must NOT move, the sheet must scroll), - and +, a one-finger
+// orbit, a pinch - and a screenshot of the garage (phone_<build>_<stamp>_garage.jpg). The S20 run for A0:
+//   node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?profile=phone" --build cub --cold --soak 10
+// (ADB: the PATH's adb, else D:/Dev/platform-tools/adb.exe, else ADB=<path>.)
 'use strict';
 const { execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -41,7 +48,8 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
 const ROOT = path.join(__dirname, '..', '..');
-const ADB = process.env.ADB || 'adb';
+const ADB = process.env.ADB || (() => { try { execFileSync('adb', ['version'], { stdio: 'ignore' }); return 'adb'; } catch (e) {}
+  for (const p of ['D:/Dev/platform-tools/adb.exe', 'D:\\Dev\\platform-tools\\adb.exe']) if (fs.existsSync(p)) return p; return 'adb'; })();
 const PORT = +opt('port', 9222), URL0 = opt('url', 'http://localhost:8700/flyDiy/index.html?gfx=potato');
 const BK = opt('build', 'cub'), ROWS = opt('rows', 'wgSpan,wgChord,stSpan,paxLen').split(','), REPS = +opt('reps', 3), TICKS = +opt('ticks', 4);
 const FRAMES = +opt('frames', 10), SOAK = +opt('soak', 10), SKIP = new Set(opt('skip', '').split(',').filter(Boolean));
@@ -93,7 +101,80 @@ async function connect() {
     if (r.error) throw new Error(r.error.message); const d = r.result; if (d.exceptionDetails) throw new Error((d.exceptionDetails.exception || {}).description || d.exceptionDetails.text);
     return d.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Inspector.enable'); await cmd('Performance.enable');
+  // --emulate (G2103): a desktop Chrome / headless Chromium dressed as the S20 FE (412 x 915 at 2.625, touch) - the cloud's
+  // smoke test of this rig, and the box's before the phone is plugged in. Never on the phone itself
+  if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true });
+    await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
   return { ver, tab, cmd, ev, S, close: async () => { try { await fetch(base + '/json/close/' + tab.id); } catch (e) {} } };
+}
+
+// G2103: THE PHONE GARAGE'S TOUCH CHECKS on the phone's own screen (CSS px coordinates, as the page reports them)
+async function touchChecks(C) {
+  const T = {}; const say = (k, v) => { T[k] = v; log('touch ' + k.padEnd(8) + ' ' + (v.ok ? 'ok  ' : 'FAIL') + ' ' + JSON.stringify(v)); };
+  const tp = pts => pts.map((p, i) => ({ x: p[0], y: p[1], id: i, radiusX: 8, radiusY: 8, force: 1 }));
+  // each event stamped with the time a finger would make it (a slow page acks a dispatch late; the knob's fine mode reads the
+  // events' own timestamps)
+  const touch = (type, pts, ts) => C.cmd('Input.dispatchTouchEvent', Object.assign({ type, touchPoints: tp(pts) }, ts ? { timestamp: ts } : {}));
+  const swipe = async (a, b, n = 10, hold = 0) => { const t0 = Date.now() / 1000; await touch('touchStart', [a], t0); if (hold) await sleep(hold);
+    for (let i = 1; i <= n; i++) { await touch('touchMove', [[a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]], t0 + (hold + 30 * i) / 1000); await sleep(30); }
+    await touch('touchEnd', [], t0 + (hold + 30 * n + 20) / 1000); await sleep(400); };
+  const tap = async p => { await touch('touchStart', [p]); await sleep(50); await touch('touchEnd', []); await sleep(400); };
+  const J = async (e, ms) => JSON.parse(await C.ev('JSON.stringify(' + e + ')', ms || 60000));   // (60 s: a software GPU's frames are seconds)
+  const centre = sel => J('(() => { const e = document.querySelector(' + JSON.stringify(sel) + '); if (!e) return null; e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()');
+  try {
+    await C.ev('(() => { for (const x of document.querySelectorAll(".dfClose")) try { x.click(); } catch (e) {} return 1; })()');
+    // the garage as the phone shows it
+    try { const shot = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 80 }); if (shot.result) fs.writeFileSync(OUT.replace(/\.json$/, '_garage.jpg'), Buffer.from(shot.result.data, 'base64')); } catch (e) {}
+    T.page = await J('({ profile: PROFILE.name, steps: (BOOT.steps || []).map(s => s.id).join(","), world: window.FLYDIY_WORLD, preset: window.GFX && GFX.get().preset, w: innerWidth, h: innerHeight, dpr: devicePixelRatio, rows: window.PHONE_UI && PHONE_UI.rows() })');
+    log('touch page     ' + JSON.stringify(T.page));
+    // TABS
+    await tap(await centre('#phTabs button[data-t=parts]'));
+    const parts = await J('PHONE_UI.tab()');
+    const lab = await centre('#edTree .edN[data-p=wings] > span');
+    if (lab) await tap(lab);
+    const after = await J('({ tab: PHONE_UI.tab(), name: document.getElementById("edPartName").textContent })');
+    say('tabs', { ok: parts === 'parts' && after.tab === 'props' && /wing/i.test(after.name), parts, after });
+    // THE KNOB: the first mid-range slider of the part, brought on screen
+    const probe = () => J('(() => { const r = [...document.querySelectorAll("#edRows .r.phSlider")].find(r => { const g = r.querySelector("input[type=range]"); const f = (g.value - g.min) / (g.max - g.min); return r.offsetParent && !g.disabled && f > 0.2 && f < 0.8; });' +
+      ' if (!r) return null; r.scrollIntoView({ block: "center" }); PHONE_UI.placeAll(); const g = r.querySelector("input[type=range]"), k = r.querySelector(".phKnob").getBoundingClientRect(), b = g.getBoundingClientRect();' +
+      ' window.__ev = { down: 0, input: 0, change: 0 }; if (!g.__mp) { g.__mp = 1; g.addEventListener("pointerdown", () => __ev.down++); g.addEventListener("input", () => __ev.input++); g.addEventListener("change", () => __ev.change++); }' +
+      ' return { key: r.dataset.k, x: k.left + k.width / 2, y: k.top + k.height / 2, v: +g.value, lo: +g.min, hi: +g.max, st: +g.step, x0: b.left, x1: b.right, w: b.width }; })()');
+    const valOf = async k => J('({ v: +document.getElementById(' + JSON.stringify('p_' + k) + ').value, ev: window.__ev })');
+    let r = await probe();
+    if (!r) say('knob', { ok: false, why: 'no slider on screen' });
+    else {
+      const dx = r.x + 70 < r.x1 ? 70 : -70;
+      const t0 = Date.now(); await swipe([r.x, r.y], [r.x + dx, r.y]); const a = await valOf(r.key);
+      say('knob', { ok: Math.sign(a.v - r.v) === Math.sign(dx) && a.ev.down === 1 && a.ev.change === 1 && a.ev.input >= 1, key: r.key, from: r.v, to: a.v, events: a.ev, ms: Date.now() - t0 });
+      r = await probe();
+      const sx = r.x > (r.x0 + r.x1) / 2 ? r.x0 + 30 : r.x1 - 30;
+      const top0 = await J('document.getElementById("edProps").scrollTop');
+      await swipe([sx, r.y], [sx + (sx < r.x ? 60 : -60), r.y]); const h = await valOf(r.key);
+      await swipe([sx, r.y], [sx, r.y - 140]); const v = await valOf(r.key);
+      const top1 = await J('document.getElementById("edProps").scrollTop');
+      say('scale', { ok: h.v === r.v && v.v === r.v && top1 > top0, key: r.key, value: r.v, afterHorizontal: h.v, afterVertical: v.v, scrolled: [top0, top1] });
+      r = await probe();
+      const fdx = r.x + 150 < r.x1 ? 150 : -150;
+      await swipe([r.x, r.y], [r.x + fdx, r.y], 12, 450); const f = await valOf(r.key);
+      const coarse = fdx / Math.max(40, r.w - 26) * (r.hi - r.lo);
+      say('fine', { ok: f.v !== r.v && Math.abs(f.v - r.v) <= Math.abs(coarse) * 0.15 + r.st, key: r.key, from: r.v, to: f.v, coarseWouldBe: +coarse.toFixed(3) });
+      r = await probe();
+      const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
+      await tap(pl); const p = await valOf(r.key);
+      say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
+    }
+    // THE VIEW
+    const vb = await J('(() => { const b = document.getElementById("c").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()');
+    const cam = () => J('(() => { const c = FLIGHT_PROBE.cam(); return { az: c.azT, dist: c.distT }; })()');
+    const c0 = await cam(); await swipe([vb[0] - 60, vb[1]], [vb[0] + 60, vb[1]]); const c1 = await cam();
+    say('orbit', { ok: Math.abs(c1.az - c0.az) > 0.3, az: [c0.az, c1.az] });
+    await touch('touchStart', [[vb[0] - 30, vb[1]], [vb[0] + 30, vb[1]]]);
+    for (let i = 1; i <= 8; i++) { await touch('touchMove', [[vb[0] - 30 - i * 12, vb[1]], [vb[0] + 30 + i * 12, vb[1]]]); await sleep(30); }
+    await touch('touchEnd', []); await sleep(400); const c2 = await cam();
+    say('pinch', { ok: c2.dist < c1.dist * 0.75, dist: [c1.dist, c2.dist] });
+    await C.ev('(FLIGHT_PROBE.pan(0, 0, 0), 1)');
+  } catch (e) { T.error = String(e && e.message || e); log('touch: ' + T.error); }
+  return T;
 }
 
 (async () => {
@@ -151,7 +232,7 @@ async function connect() {
       json: can(f('My Cub.flydiy.json', 'application/json')), txt: can(f('My Cub.flydiy.txt', 'text/plain')), flydiy: can(f('My Cub.flydiy', 'application/octet-stream')),
       persisted: st.persisted ? await st.persisted() : null, estimate: st.estimate ? await st.estimate().then(e => ({ quotaMB: Math.round(e.quota / 1048576), usageMB: +(e.usage / 1048576).toFixed(1) })) : null,
       standalone: matchMedia('(display-mode: standalone)').matches, coarse: matchMedia('(pointer: coarse)').matches, dpr: devicePixelRatio, w: innerWidth, h: innerHeight });
-  })()`, 15000)); log('share/storage probe: ' + JSON.stringify(R.share)); save(); } catch (e) { R.share = { error: String(e) }; }
+  })()`, 60000)); log('share/storage probe: ' + JSON.stringify(R.share)); save(); } catch (e) { R.share = { error: String(e) }; }
   // the page-side helpers: a drag the player's way, timed to the handler and to the second frame after it
   await C.ev(`window.__MP = {
     frame2: () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
@@ -180,6 +261,9 @@ async function connect() {
         for (let i = 0; i < 20 && this.on; i++) { x += dir * (hi - lo) * 0.01; if (x > hi || x < lo) { dir = -dir; x = Math.min(hi, Math.max(lo, x)); }
           el.value = String(x); el.dispatchEvent(new Event('input')); this.n++; await new Promise(z => setTimeout(z, 100)); }
         el.dispatchEvent(new Event('change')); window.dispatchEvent(new PE('pointerup')); this.rel++; } } } }; 'ok'`);
+  // ---- TOUCH (G2103): the phone garage under a real finger ----
+  let phone = false; try { phone = await C.ev('!!(window.PROFILE && PROFILE.name === "phone")', 60000); } catch (e) {}
+  if (phone && !SKIP.has('touch')) { R.touch = await touchChecks(C); save(); }
   // ---- DRAG ----
   if (!SKIP.has('drag')) {
     R.drag = [];

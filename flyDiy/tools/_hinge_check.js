@@ -60,6 +60,7 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const nrm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1;
                    return [a[0] / l, a[1] / l, a[2] / l]; };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 // ---- the cases -------------------------------------------------------------
 // Spread on the two things the cove's geometry actually depends on — the
@@ -575,6 +576,85 @@ let STOCK_SCENE = null;   // the stock headless scene, built once for TWSTEER an
   }
 }
 
+// ---- 4g ONE FITTING A STATION (G2050, JODEL-TAIL) ---------------------------
+// The user, 6 Oct: "the Jodel flickers at the tail, at the root of the stabs".
+// A rudder's second face was drawn as a whole second strap hinge on the
+// flipped frame, whose z flips with its face, so its fixed eye sat exactly on
+// the first face's moving eye: two identical pin bosses, one in the fin's mesh
+// and one in the rudder's, coincident at every deflection because the rudder
+// turns about that very axis - 32 cm2 of z-fight a station on every aeroplane.
+// On the twin the stab laid its own top plate on the fin's at the shared
+// collar. The rule: no tail HARDWARE (hinge halves, saddles) shares a face -
+// the same plane, the same facing, overlapping - with any other drawn part of
+// the tail. Measured on the validated builds (Jodel, Cub, Cessna, the twin),
+// in the scene metres every layer draws in. Contact faces that FACE each
+// other (a pedestal on its plate) are a seat, not a fight, and are allowed.
+const coincidence = (() => {
+  const TAIL = /^(edHinge_|edSaddle_|edFinSkin|edFinFillet|edSurf_rud|edStabSkin|edSurf_elev|edLink_)/;
+  const HW = /^(edHinge_|edSaddle_)/;
+  const keyOf = m => m.name || (m.parent && m.parent.name) || '';
+  return (meshes, THREE) => {
+    const tris = [], v = new THREE.Vector3();
+    for (const m of meshes) {
+      const who = keyOf(m), g = m.geometry;
+      if (!TAIL.test(who) || !g || !g.attributes.position) continue;
+      m.updateWorldMatrix(true, false);
+      const pos = g.attributes.position, idx = g.index, n = idx ? idx.count : pos.count;
+      const P = i => { v.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m.matrixWorld); return [v.x, v.y, v.z]; };
+      for (let k = 0; k + 2 < n; k += 3) {
+        const a = P(k), b = P(k + 1), c = P(k + 2);
+        const nn = cross(sub(b, a), sub(c, a)), l = Math.hypot(nn[0], nn[1], nn[2]);
+        if (l < 1e-10) continue;
+        tris.push({ who, hw: HW.test(who), a, b, c, n: nn.map(x => x / l), area: l / 2,
+                    ctr: [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3] });
+      }
+    }
+    // a 2 cm grid on the centroids: candidates are the 27 cells round one
+    const C = 0.02, cell = p => p.map(x => Math.floor(x / C)), grid = new Map();
+    for (const t of tris) { const k = cell(t.ctr).join(); (grid.get(k) || grid.set(k, []).get(k)).push(t); }
+    const inside = (p, t) => {
+      const v0 = sub(t.c, t.a), v1 = sub(t.b, t.a), v2 = sub(p, t.a);
+      const d00 = dot(v0, v0), d01 = dot(v0, v1), d02 = dot(v0, v2), d11 = dot(v1, v1), d12 = dot(v1, v2);
+      const den = d00 * d11 - d01 * d01; if (Math.abs(den) < 1e-18) return false;
+      const u = (d11 * d02 - d01 * d12) / den, w = (d00 * d12 - d01 * d02) / den;
+      return u > 1e-4 && w > 1e-4 && u + w < 1 - 1e-4;
+    };
+    const hits = {};
+    for (const A of tris) {
+      const [i, j, k] = cell(A.ctr);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (let dk = -1; dk <= 1; dk++)
+        for (const B of grid.get([i + di, j + dj, k + dk].join()) || []) {
+          if (B.who === A.who || !(A.hw || B.hw) || dot(A.n, B.n) < 0.999) continue;
+          const d = dot(sub(A.ctr, B.a), B.n);
+          if (Math.abs(d) > 5e-5 || !inside(A.ctr, B)) continue;
+          const key = [A.who, B.who].sort().join(' / ');
+          hits[key] = (hits[key] || 0) + A.area;
+        }
+    }
+    return { tris: tris.length, hits };
+  };
+})();
+{
+  let SH = null;
+  try { SH = require(path.join(T, '_scene_headless.js')); }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  if (SH) {
+    const THREE = SH.context().THREE;
+    const BUILDS = [['jodel', '../builds/jodel_2026-09-20_corrected.json'], ['cub', '../builds/cub_2026-09-20_corrected.json'],
+                    ['cessna', '../builds/cessna172_2026-09-20_corrected.json'], ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
+    for (const [name, file] of BUILDS) {
+      const S = SH.sceneBuild(SH.loadFixture(path.join(T, file)).spec, {});
+      const meshes = []; S.scene.traverse(o => { if (o.isMesh) meshes.push(o); });
+      const r = coincidence(meshes, THREE);
+      check(r.tris > 1000, 'ONE FITTING: ' + name + ': no tail drawn to measure', r.tris + ' tris');
+      const bad = Object.entries(r.hits);
+      check(!bad.length, 'ONE FITTING: ' + name + ': tail hardware shares a face with another part (z-fight)',
+            bad.map(([k, a]) => k + ' ' + (a * 1e4).toFixed(1) + ' cm2').join('; '));
+      if (VERBOSE) console.log('  ONE FITTING ' + name + ': ' + r.tris + ' tail tris, ' + bad.length + ' coincident pairs');
+    }
+  }
+}
+
 // ---- 4c THE DOOR'S EDGES (G310) --------------------------------------------
 // A door is a zone of faces; `cageDoorEdges` reads its outline off the built
 // sheet, per door per side: the forward run is the max-z standing chain (+z
@@ -724,6 +804,25 @@ if (SELF) {
     say(M0.curb > GEN_EDGE.curb * 0.85 && M1.curb < GEN_EDGE.curb * 0.85,
         'a collapsed trailing edge is caught by the curb check');
   }
+  // (f) G2050: the rudder's two faces drawn as two whole hinges (the old
+  // drawing) must be caught by ONE FITTING; the one fitting must pass it
+  try {
+    const SH = require(path.join(T, '_scene_headless.js'));
+    const W = SH.context().ctx, THREE = SH.context().THREE, HG = W.HINGE_GEN, K = W.GEAR_KIT;
+    const F = { p: [0, 0.4, -1.4], x: [0, 0, -1], y: [1, 0, 0], z: [0, -1, 0] };
+    const S = { r: 0.022, gap: 0.004, w: 0.04, t: 0.0016, reach: 0.06, pinR: 0.003, detail: 1 };
+    const draw = second => {
+      const bF = K.Bag(), bM = K.Bag();
+      HG.strapHinge(bF, bM, F, S);
+      HG.strapHinge(bF, bM, { p: F.p, x: F.x, y: [-1, 0, 0], z: [0, 1, 0] }, S, second);
+      const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial();
+      const mF = bF.mesh(g, mat), mM = bM.mesh(g, mat);
+      mF.name = 'edHinge_edFinSkin_metal'; mM.name = 'edHinge_rud_metal';
+      return Object.keys(coincidence([mF, mM], THREE).hits).length;
+    };
+    say(draw(false) > 0, 'two whole hinges on a two-faced station are caught by ONE FITTING');
+    say(draw(true) === 0, 'the one fitting (the second face\'s legs only) passes ONE FITTING');
+  } catch (e) { say(false, 'the ONE FITTING probe ran: ' + e.message); }
   console.log(probes.join('\n'));
   if (probes.some(p => p.indexOf('MISS') >= 0)) fails.push('selftest: a probe missed');
 }

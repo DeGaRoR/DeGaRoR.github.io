@@ -1,0 +1,26 @@
+tools/perf/garage_release.js --build cub --reps 3 (real ms in node, each value the median of 3 reps); run order A B | B A | B A
+A = master 068584d (train 37b), B = claude/mobile-garage-1-g2100; the machine otherwise idle
+row             tick A   tick B release A release B  previews / release path in all six runs
+wgSpan           102.9     93.2     291.3     288.4  same
+wgChord           89.3     76.7     234.7     234.0  same
+stSpan            11.3     10.4     185.2     182.9  same
+s1X               78.0     85.1     187.8     185.3  same
+seatH            134.4    129.8     630.4     705.1  same
+paxLen            24.5     25.0    1043.0    1226.2  same
+halfW             15.8     16.9     908.7     949.2  same
+roofY             14.2     14.8     917.1    1147.4  same
+noseDroop         13.8     14.4    1013.1     884.6  same
+rimW             170.1    198.2     714.6     672.9  same
+dashDepth         98.3     97.3     661.9     774.7  same
+dashBack         258.9    270.4     646.4     744.7  same
+rimRivet         186.6    225.2     563.6     668.0  same
+rimRise          206.2    208.7     587.9     578.0  same
+dashLip           82.3    104.8     717.7     926.4  same
+shoulderT         46.2     48.2     715.3     743.5  same
+doorDepth        102.9    104.1     750.9     764.7  same
+skinT             83.1     99.0     767.9     728.2  same
+winSillPilot     117.2    120.0     683.3     752.1  same
+rows: 19 | previews and release paths identical in all six runs: True
+sum over rows, B/A: tick 1.058, release 1.077
+A per run, sum of releases (ms): [12631, 11673, 12591]  ticks: [1926, 1717, 1889]
+B per run, sum of releases (ms): [13962, 12477, 13152]  ticks: [2139, 1923, 1934]

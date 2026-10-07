@@ -152,6 +152,8 @@ function makePage(S, opt) {
   if (opt.noAC !== true) win.AudioContext = AudioContextStub;
   const ctx = { window: win, document: doc, console: opt.quiet ? { warn() {}, log() {}, error() {}, info() {} } : console,
     URLSearchParams, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout: id => { if (timers[id - 1]) timers[id - 1].fn = null; } };
+  // G1723: the pump's 4 Hz timer, only when a check asks for it (opt.interval: an array that receives the callbacks)
+  if (opt.interval) { ctx.setInterval = (fn, ms) => { opt.interval.push({ fn, ms }); return opt.interval.length; }; ctx.clearInterval = id => { if (opt.interval[id - 1]) opt.interval[id - 1].fn = null; }; }
   if (opt.airframe) {
     // the worklet node (SND-AIRFRAME): its params count what is scheduled, its port counts the events
     C.posted = []; C.nodesAW = 0;
@@ -428,7 +430,7 @@ function checkGesture(S) {
   if (connected) F.push('a source connected before the gesture');
   pg.gesture('pointerdown');
   if (pg.C.ctx !== 1) F.push('the gesture made ' + pg.C.ctx + ' contexts (want 1)');
-  if (pg.C.nodes !== 9) F.push('the bus graph is ' + pg.C.nodes + ' nodes (want 9: 7 buses, the fade, the limiter)');
+  if (pg.C.nodes !== 10) F.push('the bus graph is ' + pg.C.nodes + ' nodes (want 10: 7 buses, the fade, the limiter, the interior trim - G1720)');
   if (ready !== 1 || connected !== 1) F.push('ready ' + ready + ' / connected ' + connected + ' after the gesture (want 1 / 1)');
   if (!A.params || !A.params.block) F.push('no parameter block after the gesture');
   pg.gesture('keydown'); pg.gesture('pointerdown');
@@ -512,13 +514,103 @@ function checkSettings(S) {
   if (g('music') !== 0) F.push('music plays in flight with music in flight off (' + g('music') + ')');
   if (!near(g('aircraft'), 1, 1e-9)) F.push('the headset cut the exterior aircraft (' + g('aircraft') + ')');
   go('cockpit');
+  const kInt = Math.pow(10, B.MIX.interior / 20);   // G1720: the cockpit's listening level (audio.js MIX.interior)
   if (g('aircraft.ext') !== 0 || g('aircraft.int') !== 1) F.push('interior: ext ' + g('aircraft.ext') + ' int ' + g('aircraft.int'));
+  if (!B.bus('intTrim') || !near(g('intTrim'), kInt, 1e-9)) F.push('the interior trim is ' + (B.bus('intTrim') ? g('intTrim') : 'missing') + ' (want MIX.interior ' + kInt.toFixed(4) + ')');
   if (!near(g('aircraft'), Math.pow(10, -0.75), 1e-6)) F.push('the headset in the cockpit is not -15 dB (' + g('aircraft') + ')');
   if (persp !== 1) F.push('the perspective event fired ' + persp + ' times (want 1)');
   go('cockpit', true);
   if (!near(g('music'), 0.6, 1e-9)) F.push('music in the shed ' + g('music') + ' (want its volume 0.6)');
   B.set('musicFlight', 1); go('chase');
-  if (!near(g('music'), 0.6, 1e-9)) F.push('music in flight ON is still silent (' + g('music') + ')');
+  const kMus = Math.pow(10, B.MIX.music / 20);   // G1720: in flight the music sits MIX.music under the shed's level
+  if (!near(g('music'), 0.6 * kMus, 1e-9)) F.push('music in flight ON is ' + g('music') + ' (want its volume x MIX.music: ' + (0.6 * kMus).toFixed(4) + ')');
+  return F;
+}
+
+// G1720-G1724 (SND-MIX): THE MIX - the engine's own volume, the measured trims, the cabin's tonal, the frame's tau, the pump
+function checkMix(S) {
+  const F = [];
+  // THE ROW: 'engine' (the engine and the propeller), a volume, default 100 %, before the airframe; 'aircraft' is the airframe
+  { const pg = makePage(S, { quiet: true, store: {} }), A = pg.A, R = A.SETTINGS;
+    const re = R.find(r => r[0] === 'engine'), ra = R.find(r => r[0] === 'aircraft');
+    if (!re || re[1] !== 1 || re[2] !== 'vol' || re[3] !== 'engine') F.push('no "engine" volume row at 100 % (' + JSON.stringify(re) + ')');
+    if (!ra || ra[3] !== 'airframe' || !/wind/.test(ra[4])) F.push('the "aircraft" row is not the airframe (' + JSON.stringify(ra) + ')');
+    if (re && ra && !(R.indexOf(re) < R.indexOf(ra))) F.push('the engine row does not come before the airframe');
+    A.set('engine', 0.55);
+    if (pg.store['flydiy.audio.engine'] !== '0.55') F.push('the engine volume is not persisted as flydiy.audio.engine (' + pg.store['flydiy.audio.engine'] + ')'); }
+  // A STORED 'aircraft' (it scaled the engine and the airframe) moves neither: the engine takes its value, and keeps it
+  { const st = { 'flydiy.audio.aircraft': '0.4' }, pg = makePage(S, { quiet: true, store: st });
+    if (pg.A.get('engine') !== 0.4 || pg.A.get('aircraft') !== 0.4 || st['flydiy.audio.engine'] !== '0.4') F.push('a stored aircraft 0.4 left the engine at ' + pg.A.get('engine') + ' (stored ' + st['flydiy.audio.engine'] + '): the player would hear the engine move');
+    pg.A.set('aircraft', 0.9);
+    const p2 = makePage(S, { quiet: true, store: st });
+    if (p2.A.get('engine') !== 0.4) F.push('moving the airframe to 0.9 dragged the engine to ' + p2.A.get('engine') + ' on the next load');
+    const p3 = makePage(S, { quiet: true, store: { 'flydiy.audio.aircraft': '0.4', 'flydiy.audio.engine': '0.7' } });
+    if (p3.A.get('engine') !== 0.7) F.push('a stored engine 0.7 was overwritten by the stored aircraft (' + p3.A.get('engine') + ')'); }
+  // THE GROUPS: the engine volume on every engine group's inputs (the exhaust, the prop's tonal and broadband - each feeds
+  // the exterior chain AND the cabin, so both perspectives and the headset), nothing else; the airframe's on its group and
+  // its interior-only node; the world's trim out of the shed only
+  { const pg = spacePage(S, { record: true }), A = pg.A, sp = A.space;
+    pg.place(60, 2, 0); for (let i = 0; i < 6; i++) pg.frame(true);
+    const G = sp.graph(), g0 = G.groups[0], gA = G.groups[sp.GAF], kE = Math.pow(10, A.MIX.engine / 20), kA = Math.pow(10, A.MIX.airframe / 20);
+    const ins = () => [0, 1, 2].map(k => g0.ins[k] ? g0.ins[k].gain.value : NaN);
+    if (!g0 || !gA || [0, 1, 2].some(k => !g0.ins[k])) return F.concat(['the engine group has no three inputs']);
+    if (ins().some(v => !near(v, 1, 1e-9)) || !near(gA.ins[3].gain.value, 1, 1e-9)) F.push('in the shed the groups are not at the plain volumes (engine ' + ins() + ', airframe ' + gA.ins[3].gain.value + '): the garage must not move');
+    for (let i = 0; i < 4; i++) pg.frame(false);
+    if (ins().some(v => !near(v, kE, 1e-9))) F.push('out of the shed the engine inputs are ' + ins().map(v => v.toFixed(3)) + ' (want MIX.engine ' + kE.toFixed(3) + ')');
+    if (!near(gA.ins[3].gain.value, kA, 1e-9) || !near(G.afIn.gain.value, kA, 1e-9)) F.push('out of the shed the airframe is ' + gA.ins[3].gain.value.toFixed(3) + ' / ' + G.afIn.gain.value.toFixed(3) + ' (want MIX.airframe ' + kA.toFixed(3) + ')');
+    A.set('engine', 0.5); pg.frame(false);
+    if (ins().some(v => !near(v, 0.5 * kE, 1e-9))) F.push('the engine slider at 50 % left the engine inputs at ' + ins().map(v => v.toFixed(3)));
+    if (!near(gA.ins[3].gain.value, kA, 1e-9) || !near(G.afIn.gain.value, kA, 1e-9) || !near(A.bus('aircraft').gain.value, 1, 1e-9)) F.push('the engine slider moved the airframe (' + gA.ins[3].gain.value.toFixed(3) + ', ' + G.afIn.gain.value.toFixed(3) + ', bus ' + A.bus('aircraft').gain.value + ')');
+    if (!near(G.world.gain.value, 0.5 * kE, 1e-9)) F.push('the other aircraft (their engines) are not at the engine volume (' + G.world.gain.value + ')');
+    A.set('engine', 1); A.set('aircraft', 0.25); pg.frame(false);
+    if (ins().some(v => !near(v, kE, 1e-9))) F.push('the airframe slider moved the engine (' + ins() + ')');
+    if (!near(gA.ins[3].gain.value, 0.25 * kA, 1e-9) || !near(G.afIn.gain.value, 0.25 * kA, 1e-9)) F.push('the airframe slider at 25 % left the airframe at ' + gA.ins[3].gain.value.toFixed(3) + ' / ' + G.afIn.gain.value.toFixed(3));
+    // both perspectives: each input feeds its directivity (outside) and the cabin (inside: the side, the tonal through its trim)
+    const to = (n, d) => n.edges.some(e => e.d === d);
+    for (let k = 0; k < 3; k++) if (!to(g0.ins[k], g0.dirs[k]) || !(to(g0.ins[k], g0.side) || (g0.tonalCab && to(g0.ins[k], g0.tonalCab)))) F.push('engine input ' + k + ' does not reach both the exterior chain and the cabin');
+    // G1721 THE CABIN'S TONAL: the prop's tonal enters the cabin CABIN_TONAL_DB under, through its own node; the rest straight
+    const kT = Math.pow(10, spcOf(S).CABIN_TONAL_DB / 20);
+    if (!(spcOf(S).CABIN_TONAL_DB <= -6) || !g0.tonalCab || to(g0.ins[1], g0.side) || !to(g0.tonalCab, g0.side) || !near(g0.tonalCab.gain.value, kT, 1e-9)) F.push('the prop\'s tonal does not enter the cabin through its trim (' + spcOf(S).CABIN_TONAL_DB + ' dB, node ' + !!g0.tonalCab + ')');
+    if (!to(g0.ins[0], g0.side) || !to(g0.ins[2], g0.side)) F.push('the exhaust or the broadband lost its straight path into the cabin');
+    // THE AMBIENCE: the garage's untouched, out of the shed MIX.ambience (and the running engine's duck)
+    pg.frame(true);
+    if (!near(A.bus('ambience').gain.value, A.get('environment'), 1e-9)) F.push('the ambience in the shed is x' + (A.bus('ambience').gain.value / A.get('environment')).toFixed(3) + ' (the garage must not move)');
+    pg.frame(false);
+    const kAm = A.bus('ambience').gain.value / A.get('environment');
+    if (!(kAm <= Math.pow(10, A.MIX.ambience / 20) + 1e-9)) F.push('out of the shed the ambience is x' + kAm.toFixed(3) + ' (want <= MIX.ambience)');
+    // G1724 THE FRAME'S TAU: at 3 fps the engine's rpm is scheduled with a tau that bridges the 0.33 s between frames
+    for (let i = 0; i < 12; i++) { A.ctx.currentTime += 0.33; A.update(pg.sim, pg.camera, 0.33, pg.def, pg.cam, false, { surface: () => 0 }); }
+    if (!(A.tauS[0] > 0.15 && A.tauS[0] <= 0.25)) F.push('at 3 fps the frame tau is ' + A.tauS[0].toFixed(3) + ' s (want 0.15-0.25: 0.6 x dt)');
+    const eng = pg.aw('flydiy-engine')[0], prop = pg.aw('flydiy-prop')[0];
+    pg.sim.out.rpmEng = pg.sim.out.rpmEng.map(x => x * 0.6); pg.sim.out.rpm = pg.sim.out.rpm.map(x => x * 0.6); pg.sim.ctl.thr = 0.3;
+    A.ctx.currentTime += 0.33; A.update(pg.sim, pg.camera, 0.33, pg.def, pg.cam, false, { surface: () => 0 });
+    const lastT = n => { const e = n && n.parameters.get(n === eng ? 'rpm' : 'rpm').ev.filter(x => x.k === 'T').pop(); return e ? e.tau : 0; };
+    if (!(lastT(eng) >= 0.15)) F.push('at 3 fps the engine rpm is scheduled with tau ' + lastT(eng) + ' s (a 30 ms step every 0.33 s: the zipper)');
+    if (!(lastT(prop) >= 0.15)) F.push('at 3 fps the prop rpm is scheduled with tau ' + lastT(prop) + ' s');
+    for (let i = 0; i < 30; i++) { A.ctx.currentTime += 1 / 60; A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, false, { surface: () => 0 }); }
+    if (!(Math.abs(A.tauS[0] - 0.03) < 1e-3)) F.push('back at 60 fps the frame tau is ' + A.tauS[0].toFixed(3) + ' s (want the 30 ms it always was)'); }
+  // G1723 THE PUMP: the loop stalled (no first light yet, a held render) - the 4 Hz timer runs update() itself, and only then
+  { const iv = [], T = { ms: 0 }, pg = makePage(S, { quiet: true, store: {}, interval: iv, clock: () => T.ms }), A = pg.A;
+    if (iv.length) F.push('a timer before the gesture');
+    pg.gesture();
+    const tick = () => { for (const x of iv) if (x.fn) x.fn(); };
+    if (iv.length !== 1 || !(iv[0].ms <= 250)) F.push('the gesture made ' + iv.length + ' pump timer(s) (want one at <= 250 ms)');
+    T.ms = 200; tick();
+    if (A.pumped !== 0) F.push('the pump ran 0.2 s after the last frame (want only past 0.4 s)');
+    T.ms = 700; tick();
+    if (A.pumped !== 1) F.push('the pump did not run 0.7 s into a stalled loop (' + A.pumped + ')');
+    A.update(null, null, 1 / 60, null, null, false, null); T.ms = 900; tick();
+    if (A.pumped !== 1) F.push('the pump ran although the loop had just updated');
+    pg.doc.hidden = true; pg.docEvent('visibilitychange'); T.ms = 3000; tick();
+    if (A.pumped !== 1) F.push('the pump ran in a hidden tab');
+    A.enable(false);
+    if (iv.some(x => x.fn)) F.push('sound off left the pump running'); }
+  // ...and THE LOADING SCREEN'S SONG starts under a stalled loop (the first boot: no frame yet; a place change: held)
+  { const iv = [], T = { ms: 0 }, boot = { state: 'loading' };
+    const mp = musicPage(S, { boot, interval: iv, clock: () => T.ms, noGesture: true });
+    mp.gesture('pointerdown');
+    for (let k = 1; k <= 6; k++) { T.ms = k * 250; mp.A.ctx.currentTime = k * 0.25; for (const x of iv) if (x.fn) x.fn(); }
+    if (mp.M.context !== 'welcome' || mp.F.streaming() !== 1) F.push('under a stalled loop the loading screen is ' + mp.M.context + ' with ' + mp.F.streaming() + ' streaming (want its song)'); }
   return F;
 }
 
@@ -1054,7 +1146,7 @@ function musicPage(S, o) {
   if (!o.factory && !('flydiy.audio.musicLoading' in store)) store['flydiy.audio.musicLoading'] = '1';   // (off by default since 2026-10-05, like the garage's)
   // ...and they were written on lo-fi (the shipped start is Radio Jolene since 2026-10-05: o.factory checks it)
   if (!o.factory && !('flydiy.audio.station' in store)) store['flydiy.audio.station'] = 'lofi';   // the shipped default is OFF (2026-10-04): the music checks turn it on
-  const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook,
+  const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook, interval: o.interval,
     before: win => { win.FLYDIY_MUSIC = o.cat || SYN; if (o.base != null) win.FLYDIY_ASSET_BASE = o.base; if (o.boot) win.BOOT = o.boot;
       if (o.beforeWin) o.beforeWin(win);   // G1683: the recorded voice's catalogue and fetch
       if (o.speech) { win.speechSynthesis = o.speech.S; win.SpeechSynthesisUtterance = o.speech.U; }   // G1678: the voice's stub
@@ -1150,25 +1242,50 @@ function checkMusicContexts(S) {
   const s0 = X.starts.length;
   X.air(true, 55, 900, 0, 0); X.run(40);
   if (X.starts.length !== s0 || M.context !== 'none') F.push('a cruise with music in flight OFF played (' + M.context + ')');
-  // music in flight ON: only in a cruise - not on the ground, not before the dwell, not on the approach
+  // G1723 (SND-MIX) music in flight ON: AT ONCE and ANYWHERE in flight - on the ground, in the climb-out, in a circuit; the
+  // switch answers on its own event (no frame between the set and the start), at the laptop's 3 fps as at 60; the dip on
+  // short final is a dip, never a silence
+  X.air(false, 5, 0); X.run(1);
+  const s1 = X.starts.length;
   A.set('musicFlight', 1);
-  X.air(false, 20, 0); X.run(3);
-  if (M.context !== 'none') F.push('on the ground with music in flight on: ' + M.context);
-  X.air(true, 55, 600, 0, 0); X.run(15);
-  if (M.context !== 'none') F.push('15 s into the climb-out (dwell 20 s) the context is already ' + M.context);
-  X.run(7);
-  if (M.context !== 'cruise' || X.streaming() < 1) F.push('22 s high and level with music in flight on: ' + M.context + ', ' + X.streaming() + ' streaming');
-  const cs = X.starts.filter(s => s.ctx === 'cruise');
-  if (!cs.length || cs.some(s => SYN.find(t => t.id === s.id).contexts.indexOf('cruise') < 0)) F.push('the cruise played ' + cs.map(s => s.id) + ' (want cruise tracks)');
-  X.air(true, 50, 600, 0, 0.4); X.run(0.5);
-  if (M.context !== 'none') F.push('flaps out: still ' + M.context);
-  X.air(true, 55, 600, 0, 0); X.run(25);
-  if (M.context !== 'cruise') F.push('flaps up again, 25 s level: ' + M.context);
-  X.air(true, 50, 380, -4, 0); X.run(1);
-  if (M.context !== 'none') F.push('descending at 4 m/s at 380 m (the approach): still ' + M.context);
-  X.air(true, 50, 900, 0, 0); X.run(25);
+  if (M.context !== 'cruise' || X.starts.length !== s1 + 1) F.push('music in flight switched on, on the ground: ' + M.context + ' with ' + (X.starts.length - s1) + ' start(s) before any frame (want cruise and 1, on the settings event)');
+  X.run(0.4);
+  if (X.streaming() !== 1 || !near(bus(), 0.6 * Math.pow(10, A.MIX.music / 20), 1e-9)) F.push('on the ground with music in flight on: ' + X.streaming() + ' streaming, the bus ' + bus().toFixed(4));
+  // the flight deals from EVERY track of the station (a 'cruise' tag is no longer a gate): over a few rounds the bag
+  // must reach a track not tagged 'cruise'
+  { const seen = new Set(); for (let k = 0; k < 12; k++) { M.skip(); X.run(5); const np = M.nowPlaying(); if (np) seen.add(np.id); }
+    if (![...seen].some(id => SYN.find(t => t.id === id).contexts.indexOf('cruise') < 0)) F.push('the flight dealt only cruise-tagged tracks (' + [...seen].join(',') + '): it must play the station'); }
+  // a climb-out, a circuit at 300 m, a low pass at 100 m: the music plays on through all of it
+  for (const [on, V, alt, vs, fl, what] of [[true, 30, 50, 3, 0.1, 'the climb-out with take-off flaps'], [true, 45, 300, 0, 0, 'the circuit'], [true, 40, 100, 0, 0, '100 m above the ground']]) {
+    X.air(on, V, alt, vs, fl); X.run(1);
+    if (M.context !== 'cruise' || X.streaming() < 1) F.push(what + ': ' + M.context + ', ' + X.streaming() + ' streaming (want the music on)');
+  }
+  // SHORT FINAL: flaps out, 120 m, sinking 3 m/s -> the dip (the duck's gain toward FINAL_K), the music still on
+  { X.air(true, 28, 120, -3, 0.4); X.run(4);
+    const dk = findDuck(pg);   // (the duck's gain: the first non-bus gain scheduled under 1)
+    if (M.context !== 'cruise' || !M.finalDip || X.streaming() < 1) F.push('short final: ' + M.context + ', dip ' + M.finalDip + ', ' + X.streaming() + ' streaming (want the music on, dipped)');
+    if (!dk || !(Math.abs(dk.value - M.FINAL_K) < 1e-6)) F.push('short final: the duck at ' + (dk && dk.value) + ' (want FINAL_K ' + M.FINAL_K.toFixed(3) + ' - a dip, not silence)');
+    if (!(M.FINAL_K > 0.3)) F.push('the short final dip is ' + M.FINAL.dB + ' dB: deeper than -10 dB hides the music');
+    X.air(false, 25, 0, 0, 0.4); X.run(1);
+    if (M.finalDip || (dk && !(Math.abs(dk.value - 1) < 1e-6))) F.push('the wheels down did not end the dip (' + M.finalDip + ', ' + (dk && dk.value) + ')');
+    X.air(true, 28, 120, -3, 0.4); X.run(1); X.air(true, 30, 140, 2, 0.4); X.run(1);
+    if (M.finalDip) F.push('a go-around (climbing) kept the dip');
+    X.air(true, 30, 300, -3, 0.4); X.run(1);
+    if (M.finalDip) F.push('a descent with flaps at 300 m dipped (it is not a short final)'); }
+  // the laptop: 3 fps - the switch answers within the frame; off, the music leaves at once (a fade, no wait)
+  A.set('musicFlight', 0);
+  if (M.context !== 'none') F.push('music in flight switched off: still ' + M.context + ' (want none at once)');
+  X.run(0.66, 0.33);
+  A.set('musicFlight', 1);
+  if (M.context !== 'cruise') F.push('at 3 fps music in flight back on: ' + M.context);
+  X.run(0.66, 0.33);
+  if (X.streaming() < 1) F.push('at 3 fps music in flight back on: nothing streams after two frames');
+  // a station switch in flight plays at once
+  { const n0 = X.starts.length; M.setStation('jazz', true); X.run(0.1);
+    if (X.starts.length !== n0 + 1 || M.context !== 'cruise') F.push('a station switch in flight did not start the next track at once (' + (X.starts.length - n0) + ' starts)');
+    M.setStation('lofi', true); X.run(5); }
   X.air(true, 50, 100, 0, 0); X.run(1);
-  if (M.context !== 'none') F.push('100 m above the ground: still ' + M.context);
+  if (M.context !== 'cruise') F.push('100 m above the ground: ' + M.context);
   // the garage setting: off -> silence in the shed; back on -> the track resumes where it was left
   X.garage = true; X.run(12);
   const left = M.nowPlaying(), leftEl = pg.st.els.find(e => e._s && !e.paused), leftAt = leftEl ? leftEl.currentTime : 0;
@@ -1529,7 +1646,8 @@ function checkRadioStations(S) {
   // stationLists: jazz has the garage (and the welcome / photo borrow it), the cruise falls to lo-fi's; blues has nothing
   const ix = id => RSYN.findIndex(t => t.id === id), ids = l => l.map(i => RSYN[i].id).join();
   const J = M.stationLists(RSYN, 'jazz');
-  if (ids(J.lists[1]) !== 'j0,j1' || ids(J.lists[0]) !== 'j0,j1' || ids(J.lists[2]) !== 'l0,l2' || J.fell.join() !== '0,0,1,0' || J.empty) F.push('jazz\'s lists are ' + J.lists.map(ids).join(' | ') + ' fell ' + J.fell + ' (want j0,j1 | j0,j1 | l0,l2 | j0,j1, the cruise fallen to lo-fi)');
+  // (G1723: the flight - 'cruise' - deals every track of the station: jazz's own two, nothing fallen to lo-fi)
+  if (ids(J.lists[1]) !== 'j0,j1' || ids(J.lists[0]) !== 'j0,j1' || ids(J.lists[2]) !== 'j0,j1' || J.fell.join() !== '0,0,0,0' || J.empty) F.push('jazz\'s lists are ' + J.lists.map(ids).join(' | ') + ' fell ' + J.fell + ' (want j0,j1 | j0,j1 | j0,j1 | j0,j1: the flight plays the station)');
   const B = M.stationLists(RSYN, 'blues');
   if (!B.empty || ids(B.lists[1]) !== 'l0,l1,l2' || B.fell.join() !== '1,1,1,1') F.push('blues (no track) is ' + B.lists.map(ids).join(' | ') + ' (want lo-fi\'s, said empty)');
   const O = M.stationLists(RSYN, 'off');
@@ -2664,7 +2782,7 @@ function checkSpGraph(S) {
   else if (!to(spl.d, g0.ins[1], 0) || !to(spl.d, g0.ins[2], 1)) F.push('the splitter does not feed propT (tonal, channel 0) and propB (broadband, channel 1)');
   if (prop[0].edges.some(e => e.o === 0)) F.push('the prop\'s mono output 0 is still wired (it would double the prop)');
   if (af[0].opts.numberOfOutputs !== 3 || String(af[0].opts.outputChannelCount) !== '1,2,1') F.push('the airframe node is not made with 3 outputs [1, 2, 1] (' + af[0].opts.numberOfOutputs + ', ' + af[0].opts.outputChannelCount + ')');
-  if (!to(af[0], gA.ins[3], 0) || !to(af[0], G.intIn, 1) || !to(af[0], G.intIn, 2)) F.push('the airframe\'s outputs: 0 -> its group ' + to(af[0], gA.ins[3], 0) + ', 1 -> interior ' + to(af[0], G.intIn, 1) + ', 2 -> interior ' + to(af[0], G.intIn, 2));
+  if (!to(af[0], gA.ins[3], 0) || !to(af[0], G.afIn, 1) || !to(af[0], G.afIn, 2) || !to(G.afIn, G.intIn)) F.push('the airframe\'s outputs: 0 -> its group ' + to(af[0], gA.ins[3], 0) + ', 1 -> interior ' + to(af[0], G.afIn, 1) + ', 2 -> interior ' + to(af[0], G.afIn, 2) + ' (G1722: through its volume, G.afIn -> the interior)');
   // no placeholder low-pass anywhere (the 1.4 kHz the sources had); the cabin filters are cabinTransfer's
   const ph = pg.C.nodes.filter(n => n.kind === 'biquad' && n.type === 'lowpass' && Math.abs(n.frequency.value - 1400) < 1);
   if (ph.length) F.push(ph.length + ' placeholder 1.4 kHz low-pass(es) left in the graph');
@@ -2711,8 +2829,10 @@ function checkSpGraph(S) {
   A.set('headset', 1); pg.frame();
   const hc = SPCFG_PAGE(S).headsetCurve('passive');
   if (Math.abs(G.hsHi.gain.value - hc.filters[0].gain) > 1e-6 || Math.abs(G.hsGain.gain.value - Math.pow(10, hc.gainDb / 20)) > 1e-6) F.push('the headset\'s nodes are not its passive curve');
-  if (Math.abs(A.bus('aircraft').gain.value - A.get('aircraft')) > 1e-9) F.push('the flat -15 dB headset still applies over the space\'s curve');
-  const ak = A.bus('ambience').gain.value / A.get('environment'), wantK = want.ambienceK * SPCFG_PAGE(S).headsetK('passive');
+  if (Math.abs(A.bus('aircraft').gain.value - 1) > 1e-9) F.push('the flat -15 dB headset (or the airframe\'s volume) still applies on the aircraft bus over the space (' + A.bus('aircraft').gain.value + ')');
+  // (G1720: out of the shed the ambience carries MIX.ambience, and MIX.ambienceRun with the engine running)
+  const mxA = Math.pow(10, (A.MIX.ambience + A.MIX.ambienceRun) / 20);
+  const ak = A.bus('ambience').gain.value / A.get('environment'), wantK = want.ambienceK * SPCFG_PAGE(S).headsetK('passive') * mxA;
   if (!(Math.abs(ak - wantK) < 1e-6)) F.push('the ambience inside is x' + ak.toFixed(4) + ' (want the insulation duck x the headset: ' + wantK.toFixed(4) + ')');
   A.set('headsetAnr', 1); pg.frame();
   if (Math.abs(G.hsLo.gain.value - SPCFG_PAGE(S).headsetCurve('anr').filters[1].gain) > 1e-6) F.push('the ANR setting did not set the low-shelf');
@@ -4157,58 +4277,69 @@ async function checkAniAlloc(S, report) {
   for (let i = 0; i < 600; i++) R.tick(1 / 30);
   const out = new Float64Array(M.MAXANI * M.AROW);
   let n = 0;
-  for (let i = 0; i < 20000; i++) n = R.sound(out);   // warm
-  // (the heap's own noise is a few KB a window whatever runs: the reads are measured against a twin loop doing nothing,
-  // over 30 000 reads - one boxed double a read would be 480 KB)
-  const NR = 30000, noop = () => 0;
-  const win = async f => { let best = null;
-    for (let w = 0; w < 2; w++) {
-      global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
-      let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
-      const h0 = process.memoryUsage().heapUsed, t0 = performance.now();
-      for (let i = 0; i < NR; i++) n = f(out);
-      const ms = (performance.now() - t0) / NR, d = process.memoryUsage().heapUsed - h0;
-      await new Promise(r => setTimeout(r, 5)); obs.disconnect();
-      if (!best || g < best.g || (g === best.g && d < best.d)) best = { g, d, ms };
-    }
-    return best; };
-  for (let i = 0; i < 20000; i++) noop(out);
-  const B0 = await win(noop), best = await win(R.sound);
-  if (!(n >= 36)) F.push('the reader wrote ' + n + ' rows for the island\'s cast (want >= 36)');
-  best.d -= Math.max(0, B0.d);
-  if (best.g > B0.g || best.d > NR * 0.5) F.push('the reader allocates: ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing (' + best.g + ' vs ' + B0.g + ' GC; want none)');
-  // THE MODEL: recorded rows replayed (600 frames of the cast, events and all) against its twin with no animals
-  const FR = 600, rec = new Float64Array(FR * M.MAXANI * M.AROW), cnt = new Int32Array(FR), clk = new Float64Array(FR);
-  for (let f = 0; f < FR; f++) { R.tick(1 / 60); eye.x = 0; cnt[f] = R.sound(out); clk[f] = R.clock(); for (let k = 0; k < cnt[f] * M.AROW; k++) rec[f * M.MAXANI * M.AROW + k] = out[k]; }
-  const meas = async (withAni, windows) => {
-    const { AM } = MM, Wm = ambWorld(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), amb = AM.ambienceState(), st = M.emittersState('full');
-    st.ready.fill(1); M.seed(st, 3); Wm.day.sunEl = -3;
-    const F_ = new Int32Array(1), base = new Float64Array(1);
-    const prov = { animalSpecies: () => L.AR.SOUND.SPECIES, animalClock: () => base[0] + clk[F_[0] % FR],
-      animals(o) { if (!withAni) return 0; const f = F_[0] % FR, q = f * M.MAXANI * M.AROW, m = cnt[f]; for (let k = 0; k < m * M.AROW; k++) o[k] = rec[q + k]; return m; } };
-    P.s[P.I.listenerX] = 100; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 450;
-    const go = () => { F_[0]++; if (F_[0] % FR === 0) base[0] += clk[FR - 1]; AM.ambienceStep(amb, P, Wm, 1 / 60); M.emittersStep(st, P, amb, Wm, prov, 1 / 60, null); st.vNew.fill(0); };
-    for (let i = 0; i < 20000; i++) go();   // (warm: V8's optimising tier, where a double local is not a heap box)
-    let res = null;
-    for (let w = 0; w < windows; w++) {
-      global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
-      let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
-      const n0 = st.n.reduce((a, b) => a + b, 0), h0 = process.memoryUsage().heapUsed, t0 = performance.now();
-      for (let i = 0; i < 20000; i++) go();
-      const ms = (performance.now() - t0) / 20000, d = process.memoryUsage().heapUsed - h0, calls = st.n.reduce((a, b) => a + b, 0) - n0;
-      await new Promise(r => setTimeout(r, 5)); obs.disconnect();
-      const m = { g, d, ms, calls };
-      if (!res || m.g < res.g || (m.g === res.g && m.d - 4096 * m.calls < res.d - 4096 * res.calls)) res = m;
-    }
-    return res;
+  // ROBUST TO A LOADED BOX (A0, train 37: red under a 6-job battery + a peer's node work, green alone): the whole
+  // measurement is an ATTEMPT; a failing one is measured again (up to 3), and the check fails only when every attempt
+  // does - a real allocation fails all three (the mutations), a GC that a neighbour's load provoked does not repeat
+  const attempt = async () => {
+  const Fa = [];
+    for (let i = 0; i < 20000; i++) n = R.sound(out);   // warm
+    // (the heap's own noise is a few KB a window whatever runs: the reads are measured against a twin loop doing nothing,
+    // over 30 000 reads - one boxed double a read would be 480 KB)
+    const NR = 30000, noop = () => 0;
+    const win = async f => { let best = null;
+      for (let w = 0; w < 2; w++) {
+        global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+        let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+        const h0 = process.memoryUsage().heapUsed, t0 = performance.now();
+        for (let i = 0; i < NR; i++) n = f(out);
+        const ms = (performance.now() - t0) / NR, d = process.memoryUsage().heapUsed - h0;
+        await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+        if (!best || g < best.g || (g === best.g && d < best.d)) best = { g, d, ms };
+      }
+      return best; };
+    for (let i = 0; i < 20000; i++) noop(out);
+    const B0 = await win(noop), best = await win(R.sound);
+    if (!(n >= 36)) Fa.push('the reader wrote ' + n + ' rows for the island\'s cast (want >= 36)');
+    best.d -= Math.max(0, B0.d);
+    if (best.g > B0.g || best.d > NR * 0.5) Fa.push('the reader allocates: ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing (' + best.g + ' vs ' + B0.g + ' GC; want none)');
+    // THE MODEL: recorded rows replayed (600 frames of the cast, events and all) against its twin with no animals
+    const FR = 600, rec = new Float64Array(FR * M.MAXANI * M.AROW), cnt = new Int32Array(FR), clk = new Float64Array(FR);
+    for (let f = 0; f < FR; f++) { R.tick(1 / 60); eye.x = 0; cnt[f] = R.sound(out); clk[f] = R.clock(); for (let k = 0; k < cnt[f] * M.AROW; k++) rec[f * M.MAXANI * M.AROW + k] = out[k]; }
+    const meas = async (withAni, windows) => {
+      const { AM } = MM, Wm = ambWorld(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), amb = AM.ambienceState(), st = M.emittersState('full');
+      st.ready.fill(1); M.seed(st, 3); Wm.day.sunEl = -3;
+      const F_ = new Int32Array(1), base = new Float64Array(1);
+      const prov = { animalSpecies: () => L.AR.SOUND.SPECIES, animalClock: () => base[0] + clk[F_[0] % FR],
+        animals(o) { if (!withAni) return 0; const f = F_[0] % FR, q = f * M.MAXANI * M.AROW, m = cnt[f]; for (let k = 0; k < m * M.AROW; k++) o[k] = rec[q + k]; return m; } };
+      P.s[P.I.listenerX] = 100; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 450;
+      const go = () => { F_[0]++; if (F_[0] % FR === 0) base[0] += clk[FR - 1]; AM.ambienceStep(amb, P, Wm, 1 / 60); M.emittersStep(st, P, amb, Wm, prov, 1 / 60, null); st.vNew.fill(0); };
+      for (let i = 0; i < 20000; i++) go();   // (warm: V8's optimising tier, where a double local is not a heap box)
+      let res = null;
+      for (let w = 0; w < windows; w++) {
+        global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+        let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+        const n0 = st.n.reduce((a, b) => a + b, 0), h0 = process.memoryUsage().heapUsed, t0 = performance.now();
+        for (let i = 0; i < 20000; i++) go();
+        const ms = (performance.now() - t0) / 20000, d = process.memoryUsage().heapUsed - h0, calls = st.n.reduce((a, b) => a + b, 0) - n0;
+        await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+        const m = { g, d, ms, calls };
+        if (!res || m.g < res.g || (m.g === res.g && m.d - 4096 * m.calls < res.d - 4096 * res.calls)) res = m;
+      }
+      return res;
+    };
+    // (the first model measured in a realm allocates more - V8's tiers settling: measured 465 vs 320 KB for the same twin -
+    // so a twin is measured first and thrown away)
+    await meas(false, 0);
+    const A = await meas(true, 2), B = await meas(false, 2);
+    const own = A.d - B.d - 4096 * A.calls;
+    if (A.g > B.g || own > 16384) Fa.push('the model\'s animals allocate: ' + ((A.d - B.d) / 20000).toFixed(1) + ' B a frame over its twin (' + A.g + ' vs ' + B.g + ' GC; ' + A.calls + ' calls allow ' + 4096 * A.calls + ' B + 16 KB)');
+    if (!(A.calls >= 1)) Fa.push('the replayed cast made no call in 20 000 frames (the check proves nothing)');
+  return { Fa, best, n, A, B, NR };
   };
-  // (the first model measured in a realm allocates more - V8's tiers settling: measured 465 vs 320 KB for the same twin -
-  // so a twin is measured first and thrown away)
-  await meas(false, 0);
-  const A = await meas(true, 2), B = await meas(false, 2);
-  const own = A.d - B.d - 4096 * A.calls;
-  if (A.g > B.g || own > 16384) F.push('the model\'s animals allocate: ' + ((A.d - B.d) / 20000).toFixed(1) + ' B a frame over its twin (' + A.g + ' vs ' + B.g + ' GC; ' + A.calls + ' calls allow ' + 4096 * A.calls + ' B + 16 KB)');
-  if (!(A.calls >= 1)) F.push('the replayed cast made no call in 20 000 frames (the check proves nothing)');
+  let at = null;
+  for (let k = 0; k < 3; k++) { at = await attempt(); if (!at.Fa.length) break; }
+  F.push(...at.Fa);
+  const { best, A, B, NR } = at;   // (n: the outer count, which the attempt wrote)
   if (report) report.push('the animals: the reader ' + (best.ms * 1000).toFixed(1) + ' us for ' + n + ' rows, ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing; the model with them ' + (A.ms * 1000).toFixed(1) + ' us a frame vs ' + (B.ms * 1000).toFixed(1) + ' us without (+' + ((A.ms - B.ms) * 1000).toFixed(1) + ' us), ' + ((A.d - B.d) / 20000).toFixed(2) + ' B a frame over the twin, ' + A.calls + ' calls');
   return F;
 }
@@ -4269,7 +4400,7 @@ function checkVoiceWiring(S) {
   return F;
 }
 
-const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
+const CHECKS = { MIX: checkMix, NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
@@ -4314,7 +4445,7 @@ const MUT = [
   ['the suspend never comes', 'audio', 'suspendTimer = setTimeout(doSuspend,', 'suspendTimer = setTimeout(() => {},', 'SILENCE'],
   ['the settings not persisted', 'audio', "prefSet(PREF + '.' + k, set[k]);", '', 'SETTINGS'],
   ['the headset in the open', 'audio', 'const hs = interior && set.headset && !sp ? HEADSET_K : 1;', 'const hs = set.headset && !sp ? HEADSET_K : 1;', 'SETTINGS'],
-  ['music in flight by default', 'audio', "set.music * (flying && !set.musicFlight ? 0 : 1)", 'set.music', 'SETTINGS'],
+  ['music in flight by default', 'audio', "set.music * (flying ? (set.musicFlight ? MIXK.music : 0) : 1)", 'set.music * (flying ? MIXK.music : 1)', 'SETTINGS'],
   ['a throwing source kept', 'audio', "catch (e) { r.live = false; console.warn('flyDiy audio: the source '", "catch (e) { console.warn('flyDiy audio: the source '", 'SOURCES'],
   ['sound off keeps the context', 'audio', 'ctx = null; api.ctx = null; silent = false;', 'api.ctx = null; silent = false;', 'SOURCES'],
   ['the loop\'s call gone', 'app', '    if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);', '', 'WIRING'],
@@ -4360,14 +4491,34 @@ const MUT = [
   ['an unhashed file validates', 'music', '[A-Za-z0-9_-]+\\.[0-9a-f]{8}\\.(mp3', '[A-Za-z0-9_.-]+\\.(mp3', 'MUSIC_CAT'],
   ['the asset base ignored', 'music', ": base + t.file));", ": t.file));", 'MUSIC_CAT'],
   ['the welcome is the air', 'audio', 'fl = inGarage || wl ? 0 : 1;', 'fl = inGarage ? 0 : 1;', 'MUSIC_CTX'],
-  ['music in flight ignores its setting', 'music', 'return musicFlight && cruise ? C_CRUISE : C_NONE;', 'return cruise ? C_CRUISE : C_NONE;', 'MUSIC_CTX'],
-  ['the cruise needs no dwell', 'music', 'if (st[1] >= CRUISE.dwellS) st[0] = 1;', 'st[0] = 1;', 'MUSIC_CTX'],
-  ['the approach is a cruise', 'music', 'const approach = flap > CRUISE.flapMax || (vs < CRUISE.approachVs && agl < CRUISE.approachAgl);', 'const approach = flap > CRUISE.flapMax;', 'MUSIC_CTX'],
+  ['music in flight ignores its setting', 'music', 'return musicFlight && flight ? C_CRUISE : C_NONE;', 'return flight ? C_CRUISE : C_NONE;', 'MUSIC_CTX'],
+  // G1723 (SND-MIX): the music in flight at once and anywhere, the toggle on its own event, the short final's dip
+  ['the flight waits off the ground again', 'music', '    const want = wantNow(au);\n', '    const want = s[I.onGround] > 0 && wantNow(au) === C_CRUISE ? C_NONE : wantNow(au);\n', 'MUSIC_CTX'],
+  ['the toggle waits for a frame', 'music', "offs = [au.onEvent('settings', d =>", "offs = [au.onEvent('settingsX', d =>", 'MUSIC_CTX'],
+  ['the short final cuts to silence', 'music', 'const FINAL_K = Math.pow(10, FINAL.dB / 20);', 'const FINAL_K = 0;', 'MUSIC_CTX'],
+  ['no dip on short final', 'music', '    if (fin !== PS[S_FIN]) finalDip(fin);\n', '\n', 'MUSIC_CTX'],
+  ['the dip held on the ground', 'music', 'if (onGround > 0 || flap <= FINAL.flap ||', 'if (flap <= FINAL.flap ||', 'MUSIC_CTX'],
+  ['the flight deals only the cruise tags', 'music', '(c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(', '(c === C_WELCOME ? ix.slice() : ix.filter(', 'MUSIC_CTX'],
+  ['the loading screen read a frame late', 'audio', 'get welcome() { return welcomeNow() === 1; }', 'get welcome() { return welcome === 1; }', 'MUSIC_WIRING'],
+  // G1720-G1724 (SND-MIX): the engine's volume, the trims, the cabin's tonal, the frame's tau, the pump
+  ['the engine volume reaches no input', 'space', 'if (gr) for (let k = 0; k < 3; k++) if (gr.ins[k]) st(gr.ins[k].gain, lv[0]);', '', 'MIX'],
+  ['the engine slider moves the airframe', 'space', 'if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[1]);', 'if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[0]);', 'MIX'],
+  ['the airframe\'s interior layers deaf to its volume', 'space', 'st(G.afIn.gain, lv[1]);', '', 'MIX'],
+  ['a stored aircraft silently moves the engine', 'audio', "if (a != null && +a === +a) ls.setItem(PREF + '.engine', String(a));", '', 'MIX'],
+  ['the garage gets the flight trims', 'audio', 'lv[0] = set.engine * (world ? MIXK.engine : 1);', 'lv[0] = set.engine * MIXK.engine;', 'MIX'],
+  ['the shed\'s ambience trimmed', 'audio', '* (world ? MIXK.ambience : 1) * kRun,', '* MIXK.ambience * kRun,', 'MIX'],
+  ['the prop\'s tonal untrimmed in the cabin', 'spcfg', 'const CABIN_TONAL_DB = -10;', 'const CABIN_TONAL_DB = 0;', 'MIX'],
+  ['the engine\'s frame tau ignored', 'engine', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;', 'const tau = TAU;', 'MIX'],
+  ['the prop\'s frame tau ignored', 'srcprop', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;   // G1724', 'const tau = TAU;   // G1724', 'MIX'],
+  ['the frame tau never comes back', 'audio', 'TAU_S[1] += (d - TAU_S[1]) * 0.25;', 'TAU_S[1] = Math.max(TAU_S[1], d);', 'MIX'],
+  ['the pump never runs', 'audio', 'if (el < PUMP_STALL_S || hidden) return;', 'return;', 'MIX'],
+  ['the pump runs over the loop', 'audio', 'if (el < PUMP_STALL_S || hidden) return;', 'if (hidden) return;', 'MIX'],
+  ['the pump outlives the context', 'audio', 'clearSuspend(); stopPump();', 'clearSuspend();', 'MIX'],
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
   ['the shed back to full', 'ambmodel', 'const GARAGE_K = Math.pow(10, -12 / 20);', 'const GARAGE_K = 1;', 'AMBPLACES'],
   ['the loading setting ignored', 'music', 'if (welcome) return musicLoading ? C_WELCOME : C_NONE;', 'if (welcome) return C_WELCOME;', 'MUSIC_WIRING'],
-  ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME ? ix.slice() : ix.filter(', '(c === -9 ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
+  ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(', '(c === C_CRUISE ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
   ['only the first boot is a loading screen', 'audio', "welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],
   ['leaving a context keeps the track', 'music', '      fadeOut(a, XFADE_S);\n    }\n    hideNow();', '    }\n    hideNow();', 'MUSIC_CTX'],
   ['a faded element keeps streaming', 'music', 'if (DK[o + K_STOP] <= 0) release(k); }', '}', 'MUSIC_CTX'],
@@ -4385,7 +4536,7 @@ const MUT = [
   ['a 2 s crossfade', 'music', 'const XFADE_S = 4,', 'const XFADE_S = 2,', 'MUSIC_XFADE'],
   ['the level untrimmed', 'music', 'fadeTo(k, trims[t] * PS[S_BED], fade);', 'fadeTo(k, PS[S_BED], fade);', 'MUSIC_XFADE'],
   ['skip keeps the old track', 'music', '    if (a >= 0) fadeOut(a, XFADE_S);\n    PS[S_GAP] = -1;', '    PS[S_GAP] = -1;', 'MUSIC_XFADE'],
-  ['no duck', 'music', 'p.setTargetAtTime(DUCK_K, t, DUCK_IN_TAU);', '', 'MUSIC_DUCK'],
+  ['no duck', 'music', 'p.setTargetAtTime(DUCK_K * (PS[S_FIN] > 0 ? FINAL_K : 1), t, DUCK_IN_TAU);', '', 'MUSIC_DUCK'],
   ['the duck -3 dB', 'music', 'DUCK_K = Math.pow(10, -10 / 20)', 'DUCK_K = Math.pow(10, -3 / 20)', 'MUSIC_DUCK'],
   ['the duck never released', 'music', 'if (PS[S_DUCK] <= 0) unDuck(); }', '}', 'MUSIC_DUCK'],
   ['the hold not re-armed', 'music', '    PS[S_DUCK] = DUCK_HOLD_S;\n    if (!fresh) return;', '    if (!fresh) return;\n    PS[S_DUCK] = DUCK_HOLD_S;', 'MUSIC_DUCK'],
@@ -4489,7 +4640,7 @@ const MUT = [
   ['one bag for every visit', 'music', 'bags = bagsBy[station] || (bagsBy[station] = lists.map(makeBag));', 'bags = lists.map(makeBag);', 'RADIO_STATIONS'],
   ['no lo-fi fallback', 'music', 'lists: own.map((l, c) => (l.length ? l : lo[c].slice()))', 'lists: own', 'RADIO_STATIONS'],
   ['the station not persisted', 'music', "station = s; prefPut('station', s);", 'station = s;', 'RADIO_STATIONS'],
-  ['the radio off still plays', 'music', "const want = station === 'off' ? C_NONE : contextOf(", 'const want = contextOf(', 'RADIO_STATIONS'],
+  ['the radio off still plays', 'music', "const wantNow = au => (station === 'off' ? C_NONE : contextOf(", 'const wantNow = au => (contextOf(', 'RADIO_STATIONS'],
   ['a switch keeps the old track', 'music', '    PS[S_GAP] = -1;\n    if (a >= 0) fadeOut(a, XFADE_S);\n    if (!nextWithTalk(c))', '    PS[S_GAP] = -1;\n    if (!nextWithTalk(c))', 'RADIO_STATIONS'],
   ['no station row', 'music', "      pick('station', STATION_KEYS.concat(['off'])", "      if (0) pick('station', STATION_KEYS.concat(['off'])", 'RADIO_PICKER'],
   ['the empty station unsaid', 'music', " ? ' — no tracks yet, plays ' + labelOf(ST_DEFAULT) : '');", " ? '' : '');", 'RADIO_PICKER'],

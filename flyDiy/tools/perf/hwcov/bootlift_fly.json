@@ -1,0 +1,37 @@
+[
+ {
+  "which": "fly",
+  "errors": [],
+  "lift": {
+   "lifted": true,
+   "at": "compile",
+   "busy": true,
+   "frameNo": 6
+  },
+  "fly": {
+   "landed": true,
+   "inShed": false,
+   "trip": {
+    "kind": "rollout",
+    "done": true,
+    "ran": [
+     "craft",
+     "frames"
+    ]
+   },
+   "screen": "rollout",
+   "worldDrawn": 60,
+   "reveals": 2,
+   "fails": [
+    "hard timeout (GATE BOOTLIFT)"
+   ]
+  },
+  "renders": {
+   "world": 63,
+   "shed": 718,
+   "other": 13584
+  },
+  "wallS": 109,
+  "bad": []
+ }
+]

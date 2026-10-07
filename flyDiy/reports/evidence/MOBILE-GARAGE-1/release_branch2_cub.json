@@ -1,0 +1,1531 @@
+{
+ "date": "2026-10-06T13:43:15.543Z",
+ "build": "cub",
+ "query": "",
+ "rows": [
+  {
+   "key": "wgSpan",
+   "tick": 92.3,
+   "release": 221,
+   "releaseMax": 389.8,
+   "idle": 5.9,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 1
+   },
+   "chain": [
+    [
+     "crew",
+     -1
+    ],
+    [
+     "panel",
+     0.7
+    ],
+    [
+     "cowl",
+     -1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     -1
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     -1
+    ],
+    [
+     "float",
+     -1
+    ],
+    [
+     "fin",
+     -1
+    ],
+    [
+     "stab",
+     -1
+    ],
+    [
+     "access",
+     33.5
+    ],
+    [
+     "light",
+     18.2
+    ],
+    [
+     "energy",
+     54.8
+    ],
+    [
+     "hinge",
+     53.8
+    ],
+    [
+     "ext",
+     0.2
+    ]
+   ],
+   "why": "{\"n\":3,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "wgChord",
+   "tick": 74,
+   "release": 234,
+   "releaseMax": 260.2,
+   "idle": 6.9,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 1.6
+   },
+   "chain": [
+    [
+     "crew",
+     -1
+    ],
+    [
+     "panel",
+     0.7
+    ],
+    [
+     "cowl",
+     -1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     -1
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     -1
+    ],
+    [
+     "float",
+     -1
+    ],
+    [
+     "fin",
+     -1
+    ],
+    [
+     "stab",
+     -1
+    ],
+    [
+     "access",
+     40
+    ],
+    [
+     "light",
+     18.1
+    ],
+    [
+     "energy",
+     28.8
+    ],
+    [
+     "hinge",
+     63.4
+    ],
+    [
+     "ext",
+     0.2
+    ]
+   ],
+   "why": "{\"n\":7,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "stSpan",
+   "tick": 10.3,
+   "release": 174.7,
+   "releaseMax": 188.8,
+   "idle": 6.1,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 1.6
+   },
+   "chain": [
+    [
+     "crew",
+     -1
+    ],
+    [
+     "panel",
+     0.6
+    ],
+    [
+     "cowl",
+     -1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     -1
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     -1
+    ],
+    [
+     "float",
+     -1
+    ],
+    [
+     "fin",
+     -1
+    ],
+    [
+     "stab",
+     -1
+    ],
+    [
+     "access",
+     38.4
+    ],
+    [
+     "light",
+     19.6
+    ],
+    [
+     "energy",
+     -1
+    ],
+    [
+     "hinge",
+     55.9
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":11,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "s1X",
+   "tick": 114.2,
+   "release": 280.4,
+   "releaseMax": 462.5,
+   "idle": 8.3,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 2.1
+   },
+   "chain": [
+    [
+     "crew",
+     -1
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     -1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     -1
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     -1
+    ],
+    [
+     "float",
+     -1
+    ],
+    [
+     "fin",
+     -1
+    ],
+    [
+     "stab",
+     -1
+    ],
+    [
+     "access",
+     47.5
+    ],
+    [
+     "light",
+     30.3
+    ],
+    [
+     "energy",
+     -1
+    ],
+    [
+     "hinge",
+     117.6
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": "{\"n\":15,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "seatH",
+   "tick": 129.5,
+   "release": 714.9,
+   "releaseMax": 863.1,
+   "idle": 8.6,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 37.9
+   },
+   "chain": [
+    [
+     "crew",
+     80.7
+    ],
+    [
+     "panel",
+     0.9
+    ],
+    [
+     "cowl",
+     42.4
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     35.4
+    ],
+    [
+     "wing",
+     124.3
+    ],
+    [
+     "brace",
+     0.2
+    ],
+    [
+     "gear",
+     90.3
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     11.3
+    ],
+    [
+     "stab",
+     9.8
+    ],
+    [
+     "access",
+     47.1
+    ],
+    [
+     "light",
+     31.9
+    ],
+    [
+     "energy",
+     35.1
+    ],
+    [
+     "hinge",
+     74.7
+    ],
+    [
+     "ext",
+     0.5
+    ]
+   ],
+   "why": "{\"n\":15,\"whole\":5,\"last\":{\"whole\":\"the crew moved in the drag\"}}",
+   "prof": null
+  },
+  {
+   "key": "paxLen",
+   "tick": 26.1,
+   "release": 1061.8,
+   "releaseMax": 1196.6,
+   "idle": 6.5,
+   "sheet": 154.1,
+   "previews": "4/4/4",
+   "fn": {
+    "sheet": 154.1,
+    "CAGE_ON_BUILD": 31.4
+   },
+   "chain": [
+    [
+     "crew",
+     120.7
+    ],
+    [
+     "panel",
+     1.1
+    ],
+    [
+     "cowl",
+     46.9
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     45.8
+    ],
+    [
+     "wing",
+     98
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     65.7
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     7.8
+    ],
+    [
+     "stab",
+     9.1
+    ],
+    [
+     "access",
+     84.3
+    ],
+    [
+     "light",
+     33.9
+    ],
+    [
+     "energy",
+     70.6
+    ],
+    [
+     "hinge",
+     71.2
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":15,\"whole\":9,\"last\":{\"whole\":\"a deformed drag\"}}",
+   "prof": null
+  },
+  {
+   "key": "halfW",
+   "tick": 16.9,
+   "release": 926.4,
+   "releaseMax": 998.4,
+   "idle": 6.2,
+   "sheet": 128.2,
+   "previews": "4/4/4",
+   "fn": {
+    "sheet": 128.2,
+    "CAGE_ON_BUILD": 36.8
+   },
+   "chain": [
+    [
+     "crew",
+     101.9
+    ],
+    [
+     "panel",
+     0.9
+    ],
+    [
+     "cowl",
+     39
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     44.8
+    ],
+    [
+     "wing",
+     75.9
+    ],
+    [
+     "brace",
+     0.2
+    ],
+    [
+     "gear",
+     62.1
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     7.9
+    ],
+    [
+     "stab",
+     7.6
+    ],
+    [
+     "access",
+     51.5
+    ],
+    [
+     "light",
+     30.4
+    ],
+    [
+     "energy",
+     47.7
+    ],
+    [
+     "hinge",
+     59.8
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":15,\"whole\":13,\"last\":{\"whole\":\"a deformed drag\"}}",
+   "prof": null
+  },
+  {
+   "key": "roofY",
+   "tick": 13.2,
+   "release": 915.3,
+   "releaseMax": 933.5,
+   "idle": 7,
+   "sheet": 111.5,
+   "previews": "4/4/4",
+   "fn": {
+    "sheet": 111.5,
+    "CAGE_ON_BUILD": 34.3
+   },
+   "chain": [
+    [
+     "crew",
+     127.3
+    ],
+    [
+     "panel",
+     0.8
+    ],
+    [
+     "cowl",
+     47.3
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     45.8
+    ],
+    [
+     "wing",
+     86.2
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     52.5
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     6.1
+    ],
+    [
+     "stab",
+     5.8
+    ],
+    [
+     "access",
+     39.9
+    ],
+    [
+     "light",
+     27.9
+    ],
+    [
+     "energy",
+     61.2
+    ],
+    [
+     "hinge",
+     55.7
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":15,\"whole\":17,\"last\":{\"whole\":\"a deformed drag\"}}",
+   "prof": null
+  },
+  {
+   "key": "noseDroop",
+   "tick": 14.4,
+   "release": 884.6,
+   "releaseMax": 1302.2,
+   "idle": 6.5,
+   "sheet": 95.5,
+   "previews": "4/4/4",
+   "fn": {
+    "sheet": 95.5,
+    "CAGE_ON_BUILD": 32.9
+   },
+   "chain": [
+    [
+     "crew",
+     121.2
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     53
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     44.3
+    ],
+    [
+     "wing",
+     68.2
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     59.4
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     9.9
+    ],
+    [
+     "stab",
+     6.9
+    ],
+    [
+     "access",
+     48.8
+    ],
+    [
+     "light",
+     31.7
+    ],
+    [
+     "energy",
+     64.6
+    ],
+    [
+     "hinge",
+     72.5
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": "{\"n\":15,\"whole\":21,\"last\":{\"whole\":\"a deformed drag\"}}",
+   "prof": null
+  },
+  {
+   "key": "rimW",
+   "tick": 233.1,
+   "release": 764.7,
+   "releaseMax": 967.8,
+   "idle": 10.5,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 40.9
+   },
+   "chain": [
+    [
+     "crew",
+     123.5
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     53.2
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     52.1
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     84.4
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     7.7
+    ],
+    [
+     "stab",
+     6.3
+    ],
+    [
+     "access",
+     69
+    ],
+    [
+     "light",
+     39.3
+    ],
+    [
+     "energy",
+     64.6
+    ],
+    [
+     "hinge",
+     97.2
+    ],
+    [
+     "ext",
+     0.7
+    ]
+   ],
+   "why": "{\"n\":19,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "dashDepth",
+   "tick": 97.3,
+   "release": 774.7,
+   "releaseMax": 915.5,
+   "idle": 6.2,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 25.9
+   },
+   "chain": [
+    [
+     "crew",
+     101.9
+    ],
+    [
+     "panel",
+     1.1
+    ],
+    [
+     "cowl",
+     63.1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     49.6
+    ],
+    [
+     "wing",
+     89.8
+    ],
+    [
+     "brace",
+     0.3
+    ],
+    [
+     "gear",
+     82.2
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     7.8
+    ],
+    [
+     "stab",
+     7.8
+    ],
+    [
+     "access",
+     56.2
+    ],
+    [
+     "light",
+     34.1
+    ],
+    [
+     "energy",
+     35.4
+    ],
+    [
+     "hinge",
+     64.9
+    ],
+    [
+     "ext",
+     0.5
+    ]
+   ],
+   "why": "{\"n\":23,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "dashBack",
+   "tick": 255.1,
+   "release": 664.6,
+   "releaseMax": 679.1,
+   "idle": 10.1,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 1.5
+   },
+   "chain": [
+    [
+     "crew",
+     -1
+    ],
+    [
+     "panel",
+     0.7
+    ],
+    [
+     "cowl",
+     39.3
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     37.7
+    ],
+    [
+     "wing",
+     86
+    ],
+    [
+     "brace",
+     0.3
+    ],
+    [
+     "gear",
+     66.8
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     7.3
+    ],
+    [
+     "stab",
+     5.6
+    ],
+    [
+     "access",
+     45.3
+    ],
+    [
+     "light",
+     20.9
+    ],
+    [
+     "energy",
+     71
+    ],
+    [
+     "hinge",
+     97.7
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": "{\"n\":27,\"whole\":21,\"last\":{\"ran\":[\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"cut again\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "rimRivet",
+   "tick": 220.8,
+   "release": 668,
+   "releaseMax": 824.7,
+   "idle": 8,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 42.1
+   },
+   "chain": [
+    [
+     "crew",
+     112.6
+    ],
+    [
+     "panel",
+     1.4
+    ],
+    [
+     "cowl",
+     41.1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     48.1
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     69.1
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     7
+    ],
+    [
+     "stab",
+     7.3
+    ],
+    [
+     "access",
+     47.2
+    ],
+    [
+     "light",
+     33.2
+    ],
+    [
+     "energy",
+     71.9
+    ],
+    [
+     "hinge",
+     90.4
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": "{\"n\":31,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "rimRise",
+   "tick": 174.1,
+   "release": 524.9,
+   "releaseMax": 656.8,
+   "idle": 8.3,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 27.6
+   },
+   "chain": [
+    [
+     "crew",
+     81.6
+    ],
+    [
+     "panel",
+     0.9
+    ],
+    [
+     "cowl",
+     38
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     41.3
+    ],
+    [
+     "wing",
+     -1
+    ],
+    [
+     "brace",
+     -1
+    ],
+    [
+     "gear",
+     74.2
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     4.9
+    ],
+    [
+     "stab",
+     7.7
+    ],
+    [
+     "access",
+     48
+    ],
+    [
+     "light",
+     23.2
+    ],
+    [
+     "energy",
+     31.9
+    ],
+    [
+     "hinge",
+     59.4
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":35,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "dashLip",
+   "tick": 90.7,
+   "release": 874.2,
+   "releaseMax": 915.2,
+   "idle": 12.6,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 29.7
+   },
+   "chain": [
+    [
+     "crew",
+     112.4
+    ],
+    [
+     "panel",
+     1.2
+    ],
+    [
+     "cowl",
+     52.1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     47.6
+    ],
+    [
+     "wing",
+     78.5
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     89.1
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     6
+    ],
+    [
+     "stab",
+     10.9
+    ],
+    [
+     "access",
+     47.9
+    ],
+    [
+     "light",
+     26.3
+    ],
+    [
+     "energy",
+     45.2
+    ],
+    [
+     "hinge",
+     73.7
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": "{\"n\":39,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "shoulderT",
+   "tick": 48.2,
+   "release": 743.5,
+   "releaseMax": 793.8,
+   "idle": 12.9,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 26.2
+   },
+   "chain": [
+    [
+     "crew",
+     79.7
+    ],
+    [
+     "panel",
+     0.8
+    ],
+    [
+     "cowl",
+     40.4
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     32.8
+    ],
+    [
+     "wing",
+     68.2
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     60.1
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     5.6
+    ],
+    [
+     "stab",
+     9
+    ],
+    [
+     "access",
+     46.3
+    ],
+    [
+     "light",
+     18.6
+    ],
+    [
+     "energy",
+     52.3
+    ],
+    [
+     "hinge",
+     63.1
+    ],
+    [
+     "ext",
+     0.5
+    ]
+   ],
+   "why": "{\"n\":43,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "doorDepth",
+   "tick": 93.8,
+   "release": 647.1,
+   "releaseMax": 789.9,
+   "idle": 8,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 24.2
+   },
+   "chain": [
+    [
+     "crew",
+     88
+    ],
+    [
+     "panel",
+     0.8
+    ],
+    [
+     "cowl",
+     37.5
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     35.8
+    ],
+    [
+     "wing",
+     75.8
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     60.2
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     5.7
+    ],
+    [
+     "stab",
+     8.9
+    ],
+    [
+     "access",
+     44.3
+    ],
+    [
+     "light",
+     18.9
+    ],
+    [
+     "energy",
+     44.5
+    ],
+    [
+     "hinge",
+     58.9
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":47,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "skinT",
+   "tick": 99,
+   "release": 722.8,
+   "releaseMax": 982,
+   "idle": 11.7,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 38.9
+   },
+   "chain": [
+    [
+     "crew",
+     78.3
+    ],
+    [
+     "panel",
+     0.9
+    ],
+    [
+     "cowl",
+     45.1
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     35.6
+    ],
+    [
+     "wing",
+     75.5
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     63
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     8.9
+    ],
+    [
+     "stab",
+     6.7
+    ],
+    [
+     "access",
+     46.6
+    ],
+    [
+     "light",
+     23.5
+    ],
+    [
+     "energy",
+     42.2
+    ],
+    [
+     "hinge",
+     88.3
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": "{\"n\":51,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  },
+  {
+   "key": "winSillPilot",
+   "tick": 120,
+   "release": 679.4,
+   "releaseMax": 849.9,
+   "idle": 10.9,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 25
+   },
+   "chain": [
+    [
+     "crew",
+     82
+    ],
+    [
+     "panel",
+     0.9
+    ],
+    [
+     "cowl",
+     38.2
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     25.8
+    ],
+    [
+     "wing",
+     54
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     71.2
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     12.3
+    ],
+    [
+     "stab",
+     12.1
+    ],
+    [
+     "access",
+     55.7
+    ],
+    [
+     "light",
+     24.2
+    ],
+    [
+     "energy",
+     48.5
+    ],
+    [
+     "hinge",
+     65.7
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": "{\"n\":55,\"whole\":21,\"last\":{\"ran\":[\"crew\",\"panel\",\"cowl\",\"cowlAft\",\"eng\",\"wing\",\"brace\",\"gear\",\"float\",\"fin\",\"stab\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always)\",\"floor\":\"kept\",\"ms\":0}}",
+   "prof": null
+  }
+ ]
+}

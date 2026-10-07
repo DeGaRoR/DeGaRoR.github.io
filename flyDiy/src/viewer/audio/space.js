@@ -95,6 +95,8 @@ var AUDIO_SPACE = (function () {
     g.hsHi = biq(c, 'highshelf', 1500, 0, 0); g.hsLo = biq(c, 'lowshelf', 300, 0, 0); g.hsGain = c.createGain();
     g.cabGain.connect(g.intIn); g.intIn.connect(g.hsHi); g.hsHi.connect(g.hsLo); g.hsLo.connect(g.hsGain);
     g.hsGain.connect(A.bus('aircraft.int'));
+    // G1722: the airframe's interior-only layers and its structure-borne part (interior()) through the airframe's volume
+    g.afIn = c.createGain(); g.afIn.connect(g.intIn);
     // the world bus (other aircraft): outside, and through the cabin
     g.world = c.createGain(); g.world.connect(A.bus('aircraft.ext')); g.world.connect(g.cabIn);
     // the shed: the wet sends into one convolver (no IR yet: it outputs silence)
@@ -107,9 +109,10 @@ var AUDIO_SPACE = (function () {
     }
     g.revOut.connect(A.bus('master'));
     g.wet = new Float64Array(3).fill(-1);
-    last.fill(-1e9); pLast.fill(-1); pNode.fill(null); pParam.fill(null);
+    last.fill(-1e9); pLast.fill(-1); pNode.fill(null); pParam.fill(null); lvLast.fill(-1);
     if (def) applyCabin();
     applyHeadset();
+    if (A.levels) applyLevels(A.levels);
     return g;
   }
   function makeGroup(gi) {
@@ -144,11 +147,37 @@ var AUDIO_SPACE = (function () {
       const c = G.ctx;
       gr.ins[k] = c.createGain(); gr.dirs[k] = c.createGain();
       gr.ins[k].connect(gr.dirs[k]); gr.dirs[k].connect(gr.sum);
-      gr.ins[k].connect(gr.side);
+      // G1721: the prop's TONAL part enters the cabin SC.CABIN_TONAL_DB under the rest (see space_config.js: in a direct
+      // drive its blade tone and the exhaust's firing tone are one frequency, phase-locked at a session's chance angle)
+      if (k === 1 && SC.CABIN_TONAL_DB) { const t = c.createGain(); t.gain.value = Math.pow(10, SC.CABIN_TONAL_DB / 20); gr.ins[k].connect(t); t.connect(gr.side); gr.tonalCab = t; }
+      else gr.ins[k].connect(gr.side);
+      lvLast.fill(-1); if (A.levels) applyLevels(A.levels);   // (the new input at its group's volume)
     }
     return gr.ins[k];
   }
-  function interior() { return ensure() ? G.intIn : null; }
+  function interior() { return ensure() ? G.afIn : null; }   // (G1722: the airframe's own interior layers, at its volume)
+
+  // ---- THE VOLUMES (G1722, SND-MIX): the player's 'engine' and 'airframe' (audio.js 'aircraft') on the groups' INPUTS -
+  // every kind an engine group takes (the exhaust, the prop's tonal and broadband) at lv[0], the airframe group's input and
+  // its interior-only node at lv[1] - so a volume reaches both perspectives and the headset alike (each input feeds the
+  // exterior chain AND the cabin); the other aircraft (their engines' baked loops) at the engine's. audio.js applyGains
+  // hands lv = [engine x the world's trim, airframe, tau]; a value that did not move schedules nothing.
+  const lvLast = new Float64Array(2).fill(-1);
+  function applyLevels(lv) {
+    if (!G) return;
+    const t = G.ctx.currentTime, tau = lv[2] > 0 ? lv[2] : TAU;
+    const st = (p, v) => { if (p.setTargetAtTime) p.setTargetAtTime(v, t, tau); else p.value = v; };
+    if (lv[0] !== lvLast[0]) {
+      lvLast[0] = lv[0];
+      for (let gi = 0; gi < GAF; gi++) { const gr = G.groups[gi]; if (gr) for (let k = 0; k < 3; k++) if (gr.ins[k]) st(gr.ins[k].gain, lv[0]); }
+      st(G.world.gain, lv[0]);
+    }
+    if (lv[1] !== lvLast[1]) {
+      lvLast[1] = lv[1];
+      const ga = G.groups[GAF]; if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[1]);
+      st(G.afIn.gain, lv[1]);
+    }
+  }
 
   // ---- THE CABIN AND THE HEADSET ----------------------------------------------------------------------------------
   function applyCabin() {
@@ -227,12 +256,25 @@ var AUDIO_SPACE = (function () {
     L[0] = x; L[1] = y; L[2] = z; L[15] = 1;
   }
   // the panner at X3[0..2] (the camera's frame)
+  // G1724: the frame's tau (audio.js tauS: 0.6 x the smoothed dt) when it is longer than a law's own - a 3 fps laptop's
+  // positions, gains and doppler glide across the 0.3 s between frames instead of stepping
+  // (typed slots, set once a frame in update(): a double handed to a helper is a heap box) TF: 0 gains, 1 positions, 2 pitch,
+  // 3 slow (1: the frame's tau is longer than a law's own). A double READ from a slot and handed to setTargetAtTime is a
+  // fresh box too (measured: +5 B a frame on the roll-out shot), so a frame at speed hands the laws' constants as before
+  // and only a slow frame (the laptop's) hands the slot - a few frames a second
+  const TF = new Float64Array([TAU, POS_TAU, PITCH_TAU, 0]);
+  function frameTaus() {
+    const f = A.tauS ? A.tauS[0] : 0;
+    TF[0] = f > TAU ? f : TAU; TF[1] = f > POS_TAU ? f : POS_TAU; TF[2] = f > PITCH_TAU ? f : PITCH_TAU;
+    TF[3] = f > TAU ? 1 : 0;
+  }
   function placeRel(pan, o) {
     const t = G.ctx.currentTime, rx = X3[0], ry = X3[1], rz = X3[2];
     if (Math.abs(rx - last[o]) + Math.abs(ry - last[o + 1]) + Math.abs(rz - last[o + 2]) < 0.01) return;
     last[o] = rx; last[o + 1] = ry; last[o + 2] = rz;
     if (pan.positionX) {
-      pan.positionX.setTargetAtTime(rx, t, POS_TAU); pan.positionY.setTargetAtTime(ry, t, POS_TAU); pan.positionZ.setTargetAtTime(rz, t, POS_TAU);
+      if (TF[3] > 0) { pan.positionX.setTargetAtTime(rx, t, TF[1]); pan.positionY.setTargetAtTime(ry, t, TF[1]); pan.positionZ.setTargetAtTime(rz, t, TF[1]); }
+      else { pan.positionX.setTargetAtTime(rx, t, POS_TAU); pan.positionY.setTargetAtTime(ry, t, POS_TAU); pan.positionZ.setTargetAtTime(rz, t, POS_TAU); }
     } else if (pan.setPosition) pan.setPosition(rx, ry, rz);
   }
   // a gain toward X3[3] when it moved more than 0.005 (tau TAU)
@@ -240,7 +282,7 @@ var AUDIO_SPACE = (function () {
     const v = X3[3];
     if (Math.abs(v - last[o]) <= 0.005) return;
     last[o] = v;
-    p.setTargetAtTime(v, G.ctx.currentTime, TAU);
+    if (TF[3] > 0) p.setTargetAtTime(v, G.ctx.currentTime, TF[0]); else p.setTargetAtTime(v, G.ctx.currentTime, TAU);
   }
   // the pitch of the voices a group drives (the doppler); slot q = gi * 3 + k
   function pitchSlot(q, node) {
@@ -253,7 +295,7 @@ var AUDIO_SPACE = (function () {
     const pm = pParam[q];
     if (!pm || Math.abs(v - pLast[q]) <= 2e-4) return;
     pLast[q] = v;
-    pm.setTargetAtTime(v, G.ctx.currentTime, PITCH_TAU);
+    if (TF[3] > 0) pm.setTargetAtTime(v, G.ctx.currentTime, TF[2]); else pm.setTargetAtTime(v, G.ctx.currentTime, PITCH_TAU);
   }
   // the group's voices toward the doppler in X3[3]
   function pitchGroup(gi) {
@@ -270,6 +312,7 @@ var AUDIO_SPACE = (function () {
     const s = P.s, I = P.I;
     if (P.def !== def) resolve(P.def);
     stats.frames++;
+    frameTaus();
     const d0 = dt > 0 && dt < 1 ? dt : 0;
     const clk = T[0] += d0;
     const garage = s[I.inGarage] > 0 ? 1 : 0, inn = s[I.interior] > 0 ? 1 : 0;
@@ -328,7 +371,7 @@ var AUDIO_SPACE = (function () {
         SC.dopplerAt(SD, 4); kDop = SD[7];
         if (!haveMain && (gi === 0 || gi === GAF)) { lagT = RS[0]; haveMain = 1; }
       }
-      if (Math.abs(fAbs - last[o + 7]) > 0.015 * fAbs) { last[o + 7] = fAbs; gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TAU); }
+      if (Math.abs(fAbs - last[o + 7]) > 0.015 * fAbs) { last[o + 7] = fAbs; if (TF[3] > 0) gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TF[0]); else gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TAU); }
       X3[3] = kDop; pitchGroup(gi);
       OUT[o + 8] = kDop; OUT[o + 9] = dist; OUT[o + 7] = fAbs; OUT[o + 3] = cosT;
     }
@@ -583,7 +626,7 @@ var AUDIO_SPACE = (function () {
   }
 
   // ---- REGISTRATION -----------------------------------------------------------------------------------------------
-  const api = { input, interior, ambienceK, addCraft, removeCraft, setBaker, crafts: () => crafts.slice(), stats,
+  const api = { input, interior, ambienceK, applyLevels, addCraft, removeCraft, setBaker, crafts: () => crafts.slice(), stats,
                 cabin: () => cab, setExits(k) { exits = Math.max(0, Math.min(1, +k || 0)); applyCabin(); if (A.refreshGains) A.refreshGains(); },
                 graph: () => G, frame: OUT, LW, NG, GAF, lag: () => T[1], room: () => (G && G.room) || null,
                 // for the gate: the shed's IR now (synchronously), and the craft frame

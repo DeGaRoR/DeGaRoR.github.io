@@ -14,7 +14,7 @@
 //   2. THE DRAWN TYRE IS ON ITS NODE (G1000, tools/ground_gap.js's arithmetic): the stock build at rest on flat ground,
 //      every wheel's drawn bottom within 8 mm of the ground (the join's snapshot posed by poseModel's law).
 //      [only with --drawn: ~15 s of the headless editor; the battery row runs the rest]
-//   3. THE CONTACT SHADOWS (G1002, contact_shadow.js): at rest a blob under each wheel at full strength and one under
+//   3. THE CONTACT SHADOWS (G1002 + G2055 WHEEL-AO, contact_shadow.js): at rest a blob (core + halo) under each wheel and one under
 //      the body; lifted, the strength falls with the height and is gone at `reach`; none on floats; update() writes
 //      the instance on the ground's plane at the wheel; one InstancedMesh, depthWrite off, drawn after the pavement;
 //      app.js poses them after poseModel, build.js ships the module.
@@ -98,13 +98,26 @@ if (process.argv.includes('--drawn')) {
   const b0 = CS.blobsFor(sim, def, flat, { axis: ax });
   const nW = def.refs.mains.length + (def.refs.tw >= 0 ? 1 : 0);
   ok(b0.length === nW + 1, 'at rest: a blob under each wheel and one under the body', b0.length + ' for ' + nW + ' wheels');
-  ok(b0.slice(0, nW).every(b => b.a > 0.9 * CS.S.a), 'at rest the wheels\' blobs are at full strength', b0.map(b => b.a.toFixed(2)).join(' '));
+  ok(b0.slice(0, nW).every(b => b.a > 0.9 * CS.S.a * CS.S.halo && b.core > 0.9 * CS.S.a * CS.S.core), 'at rest the wheels\' blobs are at full strength (halo and core, G2055)', b0.map(b => b.a.toFixed(2) + '/' + b.core.toFixed(2)).join(' '));
   const wIds = def.refs.mains.concat([def.refs.tw]);
   ok(b0.slice(0, nW).every((b, i) => Math.hypot(b.x - sim.p[wIds[i] * 3], b.z - sim.p[wIds[i] * 3 + 2]) < 1e-9 && b.gy === 0), 'each wheel\'s blob is straight under its node, on the ground');
   // lifted: the same pose raised by h
   const lifted = h => { const p = Float64Array.from(sim.p); for (let i = 1; i < p.length; i += 3) p[i] += h; return CS.blobsFor({ p, hydro: null }, def, flat, { axis: ax }); };
   const b1 = lifted(0.2), b2 = lifted(CS.S.reach + 0.01);
   ok(b1.length && b1[0].a < b0[0].a && b1[0].a > 0, '20 cm up the blobs are fainter', b1[0] && b1[0].a.toFixed(3));
+  // G2055 (WHEEL-AO): the core is the footprint - gone in the first coreReach of lift; the halo spreads as it fades; a
+  // tyre pressed in (the solver's deflection) prints a longer footprint; the drawn tyre's width widens it
+  const b3 = lifted(CS.S.coreReach + 0.005);
+  ok(b3.length && b3[0].core < 0.002 && b3[0].a > 0.5 * b0[0].a, 'lifted past coreReach: the core is gone, the halo stays', b3[0] && (b3[0].core.toFixed(3) + ' / ' + b3[0].a.toFixed(3)));
+  ok(b1[0].len > b0[0].len && b1[0].wid > b0[0].wid, 'lifted, the halo spreads', b0[0].len.toFixed(3) + ' -> ' + b1[0].len.toFixed(3) + ' m');
+  const R0 = def.nodes[wIds[0]].r, wb = (h, W) => CS.wheelBlob({ R: R0, W }, h, 0, 0, 0, [0, 1, 0], [1, 0]);
+  const fp = b => b.cu * b.len;                                // the core's full length
+  ok(fp(wb(-0.02)) > 1.3 * fp(wb(0)) && fp(wb(0)) > 0, 'pressed 2 cm in, the footprint lengthens', fp(wb(0)).toFixed(3) + ' -> ' + fp(wb(-0.02)).toFixed(3) + ' m');
+  ok(wb(0, 0.30).wid > wb(0, 0.10).wid && Math.abs(wb(0, 0.30).cv * wb(0, 0.30).wid - CS.S.coreWid * 0.30) < 1e-9, 'the core is as wide as the drawn tyre');
+  ok(wb(CS.S.reach + 0.001) === null, 'past reach: no blob');
+  // the shed's floor: blobsAt over a flat ground at the floor's height (app.js shedContacts)
+  const fl = CS.blobsAt(wIds.map(i => ({ x: sim.p[i * 3], y: sim.p[i * 3 + 1] + 3, z: sim.p[i * 3 + 2], R: def.nodes[i].r })), { h: () => 3 }, { axis: ax });
+  ok(fl.filter(b => b.kind === 'wheel').length === nW && fl.every(b => b.gy === 3 && b.n[1] === 1), 'on a floor 3 m up: the same blobs, on the floor', fl.length);
   ok(b2.filter(b => b.kind === 'wheel').length === 0, 'past `reach` the wheels cast no blob', b2.length + ' left (the body\'s fades by bodyReach)');
   ok(CS.blobsFor({ p: sim.p, hydro: {} }, def, flat, { axis: ax }).length === 0, 'on floats (sim.hydro) no blob');
   const wet = { terrainH: () => 0, waterH: () => 0.5 };
@@ -112,6 +125,8 @@ if (process.argv.includes('--drawn')) {
   // update(): the instances on the ground's plane
   const mesh = CS.make(THREE);
   ok(mesh.isInstancedMesh && mesh.material.depthWrite === false && mesh.material.transparent && mesh.renderOrder > 3 && !mesh.castShadow, 'one InstancedMesh, transparent, no depth write, after the pavement (renderOrder ' + mesh.renderOrder + '), casting nothing');
+  ok(/mvPosition\.xyz \*= max\(0\.0, 1\.0 - [0-9.]+ \/ max\(dE/.test(CS.VS) && /1\.0 - \(1\.0 - vS\.x \* fh\) \* \(1\.0 - vS\.y \* fc\)/.test(CS.FS) && /gl_FragColor = vec4\(0\.0, 0\.0, 0\.0, a\)/.test(CS.FS),
+     'the shader: pulled toward the eye on its ray, halo and core composed as occlusions, black (the ground multiplied)');
   const slope = { terrainH: (x, z) => 0.1 * x, waterH: () => -Infinity };
   const bs = CS.blobsFor(sim, def, slope, { axis: ax });
   CS.update(THREE, mesh, bs);
@@ -119,7 +134,21 @@ if (process.argv.includes('--drawn')) {
   const m4 = new THREE.Matrix4().fromArray(mesh.instanceMatrix.array, 0), c = new THREE.Vector3().setFromMatrixPosition(m4);
   const up = new THREE.Vector3(0, 1, 0).transformDirection(m4), want = new THREE.Vector3(-0.1, 1, 0).normalize();
   ok(Math.abs(c.y - (slope.terrainH(bs[0].x, bs[0].z) + CS.S.lift * want.y)) < 1e-4 && up.angleTo(want) < 1e-3, 'the first blob sits on the sloped ground, on its plane', 'y ' + c.y.toFixed(4) + ', tilt ' + (up.angleTo(want) * 57.3).toFixed(3) + ' deg');
-  ok(Math.abs(mesh.userData.aA.array[0] - bs[0].a) < 1e-6, 'its strength rides the instance attribute');
+  // G2055: THE INSTANCE IS NOT MIRRORED. G1002 wrote a left-handed basis (across = n x fwd): every quad faced down and
+  // was culled as a back face - the blobs never drew a pixel live from 28 Sep to 6 Oct while this gate was green. Every
+  // instance's determinant > 0, and the quad's front face (its +y, the material's FrontSide) looks up the ground's normal
+  let mirrored = 0, facing = 0;
+  for (let k = 0; k < mesh.count; k++) {
+    const mk = new THREE.Matrix4().fromArray(mesh.instanceMatrix.array, k * 16);
+    if (!(mk.determinant() > 0)) mirrored++;
+    // the quad's first triangle, wound as drawn, its normal through the instance
+    const g = mesh.geometry, P = g.attributes.position, I = g.index;
+    const v = j => new THREE.Vector3().fromBufferAttribute(P, I ? I.getX(j) : j).applyMatrix4(mk);
+    const nTri = new THREE.Vector3().subVectors(v(1), v(0)).cross(new THREE.Vector3().subVectors(v(2), v(0)));
+    if (nTri.y > 0) facing++;
+  }
+  ok(mirrored === 0 && facing === mesh.count && mesh.material.side === THREE.FrontSide, 'every instance right-handed, its front face up the normal (G1002\'s were mirrored and culled)', (mesh.count - mirrored) + '/' + mesh.count + ' unmirrored, ' + facing + ' facing up');
+  ok(Math.abs(mesh.userData.aS.array[0] - bs[0].a) < 1e-6 && Math.abs(mesh.userData.aS.array[1] - bs[0].core) < 1e-6 && Math.abs(mesh.userData.aS.array[2] - bs[0].cu) < 1e-6, 'its halo, core and footprint ride the instance attribute');
   CS.update(THREE, mesh, []);
   ok(mesh.count === 0 && !mesh.visible, 'no blob: nothing drawn');
   // the wiring
@@ -127,6 +156,10 @@ if (process.argv.includes('--drawn')) {
   const iPose = app.indexOf('    poseModel();\n    // G1002'), iCs = app.indexOf('contactShadows();', iPose);
   ok(iPose > 0 && iCs > iPose && iCs - iPose < 200, 'app.js poses the contact shadows right after poseModel in the frame');
   ok(/'contact_shadow\.js'/.test(build) && build.indexOf("'contact_shadow.js'") < build.indexOf("'app.js'"), 'build.js ships contact_shadow.js before app.js');
+  // G2055: both meshes made at load and left in their scenes (the compile steps link the one program), the shed's floor
+  const iMk = app.indexOf('  function contactMeshes() {'), iCall = app.indexOf('\n  contactMeshes();\n', iMk);
+  ok(iMk > 0 && iCall > iMk && /scene\.add\(contactMesh\)/.test(app) && /hangarScene\.add\(contactMeshG\)/.test(app), 'app.js makes the world\'s and the shed\'s blob meshes at load, in their scenes');
+  ok(/if \(inGarage\) \{[\s\S]{0,200}CS\.update\(THREE, contactMeshG, shedContacts\(\)\)/.test(app) && /CAGE_GEAR/.test(app.slice(app.indexOf('function shedContacts'), app.indexOf('function contactShadows'))), 'in the shed: the cage\'s contacts or the flown wheels, on the floor');
 }
 
 // ---- 4. nothing loose on a pavement (G1003) ---------------------------------------------------------------------

@@ -31,7 +31,7 @@
 // assert bounds. Asserting realism targets nobody has agreed to would be
 // trading a fact for a preference, and the whole point of the chantier is to
 // produce the numbers that decide what the targets should be.
-const { buildGen, makeSim, makeAutopilot, makeWorld,
+const { buildGen, makeSim, makePilot, makeWorld,
         GEN_MATERIALS, GEN_DEFAULT, GEN_RULES, genNormaliseSpec } = require('./flight_core.js');
 
 const world = makeWorld();
@@ -262,15 +262,23 @@ function flex(name, def, matKey) {
   const restRise = tipRise(sim.p, root, tip, ryB);
   const restTwist = incidence(sim.p, tip, rxB, ryB) - incidence(sim.p, root, rxB, ryB);
 
-  const ap = makeAutopilot(sim, def);
+  const ap = makePilot(sim, def);   // G1940: THE PILOT (the classic retired); its cruise is the settled DOWNWIND
   let t = 0;
   // 200 s to reach cruise, not 120 (2026-09-08): this gate measures FLEX at
   // cruise and does not care how long the climb took, and the alloy sheet —
   // the fleet's heaviest airframe — now reaches it at 121 s with the tail
   // carrying its own structure (TAIL CHANTIER 2 P4). A build that truly
   // cannot climb still says so, one second past the old window did not.
-  while (ap.phase !== 'CRUISE' && t < 200) { ap.update(1/60); sim.step(1/60); t += 1/60; }
-  if (ap.phase !== 'CRUISE') { say(`  ${name}: never reached cruise`); return null; }
+  while (ap.phase !== 'DOWNWIND' && t < 200) { ap.update(1/60); sim.step(1/60); t += 1/60; }
+  if (ap.phase !== 'DOWNWIND') { say(`  ${name}: never reached cruise`); return null; }
+  // G1940: THE PILOT flies the crosswind -> downwind ARC under DOWNWIND - the 1 g reference waits for the straight
+  // leg (wings within 2 deg for 3 s, 40 s at most): measured from the arc the Dacron wing read a 1.08 % p2p "cruise
+  // flail" at n 1.05 that was the turn (the classic's CRUISE was straight from its first frame)
+  { let lvl = 0;
+    for (let f = 0; f < 60 * 40 && lvl < 180 && ap.phase === 'DOWNWIND'; f++) {
+      ap.update(1/60); sim.step(1/60); t += 1/60;
+      const [, yB0, zB0] = sim.axes(); lvl = Math.abs(Math.atan2(zB0[1], yB0[1]) * 57.3) < 2 ? lvl + 1 : 0;
+    } }
 
   // peak member load and strain, per class, over the whole measured run
   const peak = {};

@@ -1,0 +1,857 @@
+{
+ "url": "http://localhost:8591/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "views": {
+  "garage": {
+   "timed": {
+    "rafMs": 16.7,
+    "drawn": 30,
+    "fps": 30,
+    "gpuMs": 10.135,
+    "gpuN": 59
+   },
+   "info": {
+    "calls": 1205,
+    "ktris": 1315.4,
+    "points": 0,
+    "lines": 33,
+    "programs": 379,
+    "textures": 635,
+    "geometries": 2741
+   },
+   "byOwner": {
+    "Group": {
+     "draws": 1194,
+     "ktris": 1315.4
+    },
+    "Mesh:ShaderMaterial": {
+     "draws": 5,
+     "ktris": 0
+    },
+    "shedShadowCopy": {
+     "draws": 6,
+     "ktris": 0
+    }
+   },
+   "byProg": {
+    "MeshStandardMaterial": {
+     "draws": 954,
+     "ktris": 462.2
+    },
+    "matlib:arr": {
+     "draws": 64,
+     "ktris": 369.6
+    },
+    "MeshDepthMaterial": {
+     "draws": 16,
+     "ktris": 301.1
+    },
+    "char:ch20:Ch20_body": {
+     "draws": 2,
+     "ktris": 99.7
+    },
+    "MeshPhysicalMaterial": {
+     "draws": 116,
+     "ktris": 77.5
+    },
+    "ShaderMaterial": {
+     "draws": 9,
+     "ktris": 4.8
+    },
+    "MeshBasicMaterial": {
+     "draws": 24,
+     "ktris": 0.4
+    },
+    "MeshLambertMaterial": {
+     "draws": 9,
+     "ktris": 0
+    },
+    "shedShadowCopy": {
+     "draws": 6,
+     "ktris": 0
+    },
+    "LineBasicMaterial": {
+     "draws": 3,
+     "ktris": 0
+    },
+    "SpriteMaterial": {
+     "draws": 2,
+     "ktris": 0
+    }
+   },
+   "byTarget": {
+    " 816x918 s4": {
+     "draws": 1178,
+     "ktris": 1014.2
+    },
+    " 1024x1024": {
+     "draws": 18,
+     "ktris": 250.9
+    },
+    " 2048x2048": {
+     "draws": 4,
+     "ktris": 50.3
+    },
+    " 192x108": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 2048x546": {
+     "draws": 1,
+     "ktris": 0
+    },
+    "canvas": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 64x36": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 1x1": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "canvas": [
+    960,
+    1080
+   ],
+   "scale": 0.85,
+   "vram": {
+    "totalMB": 2915.6,
+    "byKindMB": {
+     "tex2d": 1400.7,
+     "texCube": 3,
+     "texArray": 718.1,
+     "tex3d": 0,
+     "rb": 62.6,
+     "buffer": 464.8,
+     "rb:msaa": 89,
+     "texArray:bc": 157.6,
+     "tex2d:bc": 19.8
+    },
+    "top": [
+     {
+      "kind": "texArray",
+      "w": 1024,
+      "h": 1024,
+      "d": 59,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 314.7,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 1024,
+      "h": 1024,
+      "d": 59,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 314.7,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 4096,
+      "h": 4096,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 85.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 36,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 48,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": "Mesh:MeshStandardMaterial / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 4096,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 42.7,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 30,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 40,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 95,
+      "fmt": "0x8e8d",
+      "bc": true,
+      "samples": 0,
+      "MB": 31.7,
+      "name": "matlib:page:color|512x512|ETC1S|#1 @ propInstances / matlib:arr.mlMapPage"
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 90,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 30,
+      "name": "matlib:page:data|512x512|UASTC|#3 @ propInstances / matlib:arr.mlArmPage"
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 71,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 23.7,
+      "name": "matlib:page:normal|512x512|UASTC|#2 @ propInstances / matlib:arr.mlNorPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x822b",
+      "bc": false,
+      "samples": 0,
+      "MB": 23.1,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 816,
+      "h": 918,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 4,
+      "MB": 22.9,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 816,
+      "h": 918,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 4,
+      "MB": 22.9,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 816,
+      "h": 918,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 4,
+      "MB": 22.9,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": "Group / flown:baked:in.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": "Group / flown:baked:in.normalMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": "Group / flown:baked:in.roughnessMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": "Group / flown:baked.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": "Group / flown:baked.normalMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": "Group / flown:baked.roughnessMap"
+     },
+     {
+      "kind": "texArray",
+      "w": 1024,
+      "h": 1024,
+      "d": 14,
+      "fmt": "0x8e8d",
+      "bc": true,
+      "samples": 0,
+      "MB": 18.7,
+      "name": "matlib:page:color|1024x1024|ETC1S|#10 @ propInstances / matlib:arr.mlMapPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 816,
+      "h": 918,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 4,
+      "MB": 11.4,
+      "name": null
+     },
+     {
+      "kind": "buffer",
+      "w": 0,
+      "h": 0,
+      "d": 1,
+      "fmt": "0x0",
+      "bc": false,
+      "samples": 0,
+      "MB": 9.7,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 1024,
+      "h": 1024,
+      "d": 7,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 9.3,
+      "name": "matlib:page:normal|1024x1024|UASTC|#20 @ premises / matlib:arr.mlNorPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 546,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 8.5,
+      "name": "PerspectiveCamera / ShaderMaterial.uApAtlas"
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 8,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 8,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 23,
+      "fmt": "0x8e8d",
+      "bc": true,
+      "samples": 0,
+      "MB": 7.7,
+      "name": "premises / pavement.uPavA"
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 23,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 7.7,
+      "name": "premises / pavement.uPavN"
+     },
+     {
+      "kind": "texArray",
+      "w": 1024,
+      "h": 1024,
+      "d": 5,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 6.7,
+      "name": "matlib:page:data|1024x1024|UASTC|#22 @ premises / matlib:arr.mlArmPage"
+     }
+    ],
+    "texByNameMB": {
+     "coverRing / MeshStandardMaterial.map 1024x1024": 64,
+     "premises / MeshStandardMaterial.map 1024x1024": 64,
+     "premises / MeshStandardMaterial.normalMap 1024x1024": 53.3,
+     "premises / MeshStandardMaterial.roughnessMap 1024x1024": 53.3,
+     "Mesh:MeshStandardMaterial / MeshStandardMaterial.map 3095x3920": 46.3,
+     "Group / MeshStandardMaterial.map 4096x2048": 42.7,
+     "premises / MeshStandardMaterial.map 512x512": 33,
+     "matlib:page:color|512x512|ETC1S|#1 @ propInstances / matlib:arr.mlMapPage 512x512x95": 31.7,
+     "matlib:page:data|512x512|UASTC|#3 @ propInstances / matlib:arr.mlArmPage 512x512x90": 30,
+     "premises / MeshStandardMaterial.normalMap 512x512": 27,
+     "premises / MeshStandardMaterial.roughnessMap 512x512": 25,
+     "matlib:page:normal|512x512|UASTC|#2 @ propInstances / matlib:arr.mlNorPage 512x512x71": 23.7,
+     "Group / flown:baked:in.map 2048x2048": 21.3,
+     "Group / flown:baked:in.normalMap 2048x2048": 21.3,
+     "Group / flown:baked:in.roughnessMap 2048x2048": 21.3,
+     "Group / flown:baked.map 2048x2048": 21.3,
+     "Group / flown:baked.normalMap 2048x2048": 21.3,
+     "Group / flown:baked.roughnessMap 2048x2048": 21.3,
+     "matlib:page:color|1024x1024|ETC1S|#10 @ propInstances / matlib:arr.mlMapPage 1024x1024x14": 18.7,
+     "rocks:w2 / MeshStandardMaterial.map 1024x1024": 16,
+     "premises / parked:baked.map 1024x1024": 16,
+     "premises / parked:baked.normalMap 1024x1024": 16,
+     "premises / parked:baked.roughnessMap 1024x1024": 16,
+     "Group / MeshStandardMaterial.map 512x512": 11,
+     "Group / MeshStandardMaterial.map 1024x1024": 10.7,
+     "Group / MeshStandardMaterial.normalMap 512x512": 9.3,
+     "matlib:page:normal|1024x1024|UASTC|#20 @ premises / matlib:arr.mlNorPage 1024x1024x7": 9.3,
+     "Group / MeshStandardMaterial.roughnessMap 512x512": 9,
+     "PerspectiveCamera / ShaderMaterial.uApAtlas 2048x546": 8.5,
+     "premises / pavement.uPavA 512x512x23": 7.7,
+     "premises / pavement.uPavN 512x512x23": 7.7,
+     "matlib:page:data|1024x1024|UASTC|#22 @ premises / matlib:arr.mlArmPage 1024x1024x5": 6.7,
+     "PMREM.cubeUv @ world.environment 768x1024": 6,
+     "PMREM.cubeUv @ Group / MeshStandardMaterial.envMap 768x1024": 6,
+     "Group / MeshStandardMaterial.map 512x2240": 5.8,
+     "coverRing / BirchBranchAtlas.map 1024x1024": 5.3,
+     "coverRing / BirchBark.map 1024x1024": 5.3,
+     "coverRing / CommonBark.map 1024x1024": 5.3,
+     "LOD / MeshStandardMaterial.map 1024x1024": 5.3,
+     "LOD / MeshStandardMaterial.normalMap 1024x1024": 5.3,
+     "LOD / MeshStandardMaterial.roughnessMap 1024x1024": 5.3,
+     "premises / animal:elk:Head.map 1024x1024": 5.3,
+     "premises / animal:elk:Body.map 1024x1024": 5.3,
+     "premises / animal:bear:Material_003.map 1024x1024": 5.3,
+     "premises / animal:bear:Material_001.map 1024x1024": 5.3,
+     "premises / animal:doe:Material.map 1024x1024": 5.3,
+     "premises / animal:doe:Material_005.map 1024x1024": 5.3,
+     "premises / animal:orca:Material_0.map 1024x1024": 5.3,
+     "premises / animal:orca:Material_0.normalMap 1024x1024": 5.3,
+     "premises / animal:whale:lambert1.map 1024x1024": 5.3,
+     "premises / animal:whale:lambert1.aoMap 1024x1024": 5.3,
+     "premises / animal:whale:lambert1.normalMap 1024x1024": 5.3,
+     "coverRing / grass1.map 1024x1024": 5.3,
+     "Group / MeshStandardMaterial.normalMap 1024x1024": 5.3,
+     "Group / MeshStandardMaterial.roughnessMap 1024x1024": 5.3,
+     "coverRing / MeshStandardMaterial.map 512x512": 5.3,
+     "Group / MeshBasicMaterial.alphaMap 1024x1024": 4,
+     "premises / MeshStandardMaterial.map 256x256": 4,
+     "premises / MeshStandardMaterial.map 1024x341": 3.5,
+     "matlib:page:color|512x512|UASTC|#16 @ propInstances / matlib:arr.mlMapPage 512x512x9": 3
+    },
+    "texByOwnerMB": {
+     "? texArray 1024x1024x59": 629.3,
+     "premises": 419.7,
+     "Group": 247.5,
+     "? tex2d 1024x1024": 145,
+     "propInstances": 115.9,
+     "? tex2d 3095x3920": 115.7,
+     "? tex2d 2048x2048": 100,
+     "coverRing": 92,
+     "? tex2d 4096x4096": 85.3,
+     "? rb 816x918": 82.9,
+     "? tex2d 768x1024": 54,
+     "? texArray 512x512x36": 48,
+     "Mesh:MeshStandardMaterial": 46.3,
+     "? tex2d 512x512": 42.7,
+     "? texArray 512x512x30": 40,
+     "? rb 2048x2048": 32,
+     "LOD": 24.5,
+     "? tex2d 816x918": 17.1,
+     "? tex2d 2048x1024": 16,
+     "? rb 1024x1024": 16,
+     "rocks:w2": 16,
+     "? rb 256x256": 11.8,
+     "? rb 768x1024": 9,
+     "PerspectiveCamera": 8.8,
+     "? texArray 512x512x13": 8.7,
+     "? tex2d 256x1024": 6.7,
+     "world.environment": 6,
+     "? tex2d 512x1024": 5.3,
+     "? tex2d 256x256": 4.2,
+     "? texCube 256x256": 3
+    },
+    "geoByOwnerMB": {
+     "premises": 573.9,
+     "Group": 86.6,
+     "Mesh:MeshLambertMaterial": 68.4,
+     "Mesh:MeshStandardMaterial": 36.8,
+     "groundRing": 18.3,
+     "rocks:HOME": 6.2,
+     "rocks:w2": 4.9,
+     "pavement:merged": 2.9,
+     "rocks:w3": 2.3,
+     "coverRing": 2.2,
+     "propInstances": 1.4,
+     "rocks:tw_ski": 1.2,
+     "Mesh:water": 1.1,
+     "rocks:mn_strip": 0.6
+    }
+   },
+   "gfx": {
+    "preset": "retro",
+    "build": "retro",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "lean",
+    "scale": 0.85,
+    "cover": "lean",
+    "scenery": "lean",
+    "drawDist": "vis",
+    "terrain": 2,
+    "aa": "off",
+    "density": 100,
+    "bands": "near",
+    "shadows": "near",
+    "canopy": "off",
+    "rails": "on",
+    "poles": "off",
+    "glare": "on",
+    "sway": "off",
+    "mist": "on",
+    "clouds": "off",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "off",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "budget": {
+    "preset": "retro",
+    "terrain": 2,
+    "heapMB": 1500,
+    "mipSkip": 0,
+    "townBoot": 4000,
+    "townReach": 6000,
+    "parked": true,
+    "forestK": 1
+   },
+   "agl": 0,
+   "heapMB": 3159,
+   "split": {
+    "base": 13.111,
+    "owners": {
+     "Group": {
+      "n": 5,
+      "gpuMs": 3.88,
+      "saved": 9.231
+     }
+    },
+    "after": 13.004
+   }
+  }
+ },
+ "errs": [],
+ "t": {
+  "garage": 40717
+ },
+ "boot": [
+  [
+   "treeBins",
+   2
+  ],
+  [
+   "aircraft",
+   539
+  ],
+  [
+   "garage",
+   531
+  ],
+  [
+   "editor",
+   82
+  ],
+  [
+   "seed",
+   770
+  ],
+  [
+   "world",
+   6367
+  ],
+  [
+   "town",
+   7640
+  ],
+  [
+   "parking",
+   103
+  ],
+  [
+   "trees",
+   0
+  ],
+  [
+   "ring",
+   564
+  ],
+  [
+   "settle",
+   7719
+  ],
+  [
+   "parked",
+   2868
+  ],
+  [
+   "snapshot",
+   461
+  ],
+  [
+   "bake",
+   1494
+  ],
+  [
+   "spec",
+   357
+  ],
+  [
+   "restore",
+   11
+  ],
+  [
+   "images",
+   107
+  ],
+  [
+   "upload",
+   1826
+  ],
+  [
+   "worldCompile",
+   537
+  ],
+  [
+   "compile",
+   2061
+  ],
+  [
+   "firstFrame",
+   2146
+  ],
+  [
+   "frames",
+   757
+  ],
+  [
+   "craft",
+   75
+  ],
+  [
+   "recheck",
+   5
+  ]
+ ],
+ "wall": 51706
+}

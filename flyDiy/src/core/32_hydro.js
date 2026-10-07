@@ -1746,24 +1746,34 @@ function wetBuild(def, p, v, m, fuel) {
   }
   // the flying surfaces as plates (both faces): a wing, a stab or a fin dragged through the water flat-on is a
   // paddle - each strip's spar quad, its area scaled to the strip's own
+  const gK = slices.map(() => 0), gN = slices.map(S8 => S8.n);   // G2090: the FX groups - a slice each first
   for (const st of (def.strips || [])) {
     const q = [st.fIn, st.fOut, st.rOut, st.rIn];
     if (q.some(i => i == null || !def.nodes[i])) continue;
     const A = P0(q[0]), B = P0(q[1]), Cc = P0(q[2]), Dd = P0(q[3]);
     const aq = 0.5 * len(cross(sub(B, A), sub(Cc, A))) + 0.5 * len(cross(sub(Cc, A), sub(Dd, A)));
     const kA = aq > 1e-4 && st.area > 0 ? Math.min(4, st.area / aq) : 1;
+    const g = gK.length; gK.push(1); gN.push(q);
     T(q[0], q[1], q[2], true, kA); T(q[0], q[2], q[3], true, kA);
+    tris[tris.length - 1].g = tris[tris.length - 2].g = g;
     // G1384.4 THE WING'S OWN BUOYANCY: a slab of the strip's area x WB_WING_TC of its chord (x 0.68, an aerofoil's
     // section over its box), the air its surface material holds; the floods as the fuselage's
     if (st.kind === 'wing' && st.area > 0 && st.chord > 0) {
       let wk = 'fabric';
       try { if (typeof genSurfKey === 'function') wk = genSurfKey(spec, 'wing', st.plane || 0); } catch (e) {}
       const WM = WB_WING[wk] || WB_WING.fabric, th = WB_WING_TC * st.chord;
-      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0 });
+      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0, g });
     }
   }
   const tanks = wetTanks(def, spec, F, slices, slabs, MAT);
   if (!tris.length && !wheels.length) return null;
+  // G2090 WATER-LOOK: the contacts the page draws (wetFx below) - a group per hull slice, per flying-surface strip,
+  // per tyre; each hull face is its slice's (the firewall face the first, the tail cone the last)
+  for (const t of tris) if (t.g == null) t.g = t.sl >= 0 ? t.sl : 0;
+  const gW = wheels.map(i => { gK.push(2); gN.push([i]); return gK.length - 1; });
+  const gV = new Float64Array(gK.length);   // the air the group holds as built (m3): what a flooding slice lets go of
+  slices.forEach((S8, j) => { gV[j] = S8.air0 * sliceVol0(def, S8.n); });
+  for (const SB of slabs) gV[SB.g] += SB.air0 * SB.vol;
   const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices.map(s => s.n), ...slabs.map(s => s.n), ...tanks.map(s => s.n), wheels))];
   const R = new Float64Array(p.length / 3); for (const i of wheels) R[i] = def.nodes[i].r;
   // the axle's direction: the mains' pair, else the firewall's bottom edge (left -> right)
@@ -1773,7 +1783,8 @@ function wetBuild(def, p, v, m, fuel) {
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
   return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
            fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0,
-           def, torn: false, every0: every };   // G1898.9: the rest the tear reads; the hold restored at reset
+           def, torn: false, every0: every,   // G1898.9: the rest the tear reads; the hold restored at reset
+           gK: Uint8Array.from(gK), gN, gW, gV, G: new Float64Array(gK.length * WFX) };   // G2090: the FX groups' accumulators
 }
 // the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
 function flood(f, wetS, tau, dt) {
@@ -1825,6 +1836,7 @@ function wetReset(WB) {
   for (const t of WB.tris) t.dead = false;   // G1898.5
   WB.torn = false; WB.every = WB.every0;     // G1898.9
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
+  if (WB.G) WB.G.fill(0);                    // G2090
 }
 function wetSolverPass(WB, world, f, simT, dt) {
   if (WB.every > 1 && WB.tick++ % WB.every) { if (WB.wet) { const fh = WB.fh; for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } } return WB.wet; }
@@ -1848,11 +1860,58 @@ function wetSolverPass(WB, world, f, simT, dt) {
   if (wet) for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; }
   return wet;
 }
+// ---- G2090 WATER-LOOK: THE WET BODY'S CONTACTS, FOR THE PAGE ---------------------------------------------------------
+// The page's spray, wake and bubbles read the physics' own numbers, never a trigger of their own: per group (a hull
+// slice with its faces, a flying-surface strip's plate and slab, a tyre) the compute above sums the wet area, the
+// area-weighted centroid / outward normal / velocity / dynamic pressure (the Newtonian term and the slam), the
+// horizontal drag; it carries the slam's peak since the page last read it, the submerged share and the fill. Nothing
+// here is read by the physics (write-only: the trajectory is the base's to the bit).
+// G (per group, WFX numbers): 0 A, 1-3 sum A c, 4-6 sum A n, 7-9 sum A u, 10 sum A pn, 11 drag, 12 pk, 13 wetS, 14 f
+const WFX = 15, WFX_PK = 12, WFX_WS = 13, WFX_F = 14;
+// wetFx(WB, dst): the groups in contact (wet faces, a submerged share, a slam unread, or a fill not yet drained),
+// packed WFX_R numbers each into dst (grown as needed; returned): [g, kind (0 slice / 1 surface / 2 tyre), A,
+// c xyz, n xyz (unit), u xyz, pd (Pa), pk (Pa, cleared by this read), drag (N), wetS, f, air (m3 as built)].
+// Head (WFX_HEAD numbers): the count, wet (0/1), WB.flood, WB.drag, WB.slamPeak; the records follow.
+const WFX_R = 18, WFX_HEAD = 5;
+function wetFx(WB, dst) {
+  const nG = WB && WB.G ? WB.gK.length : 0;
+  if (!dst || dst.length < WFX_HEAD + nG * WFX_R) dst = new Float32Array(WFX_HEAD + Math.max(8, nG) * WFX_R);
+  dst[0] = 0;
+  if (!nG) return dst;
+  const GA = WB.G, p = WB.p;
+  dst[1] = WB.wet ? 1 : 0; dst[2] = WB.flood; dst[3] = WB.drag; dst[4] = WB.slamPeak;
+  let j = WFX_HEAD, cnt = 0;
+  for (let g = 0; g < nG; g++) {
+    const o = g * WFX, A = WB.wet ? GA[o] : 0, ws = WB.wet ? GA[o + WFX_WS] : 0, pk = GA[o + WFX_PK], f = GA[o + WFX_F];
+    if (!(A > 0) && !(ws > 0) && !(pk > 0) && !(f > 1e-4)) continue;
+    dst[j] = g; dst[j + 1] = WB.gK[g]; dst[j + 2] = A;
+    if (A > 0) {
+      dst[j + 3] = GA[o + 1] / A; dst[j + 4] = GA[o + 2] / A; dst[j + 5] = GA[o + 3] / A;
+      const nl = Math.hypot(GA[o + 4], GA[o + 5], GA[o + 6]) || 1;
+      dst[j + 6] = GA[o + 4] / nl; dst[j + 7] = GA[o + 5] / nl; dst[j + 8] = GA[o + 6] / nl;
+      dst[j + 9] = GA[o + 7] / A; dst[j + 10] = GA[o + 8] / A; dst[j + 11] = GA[o + 9] / A; dst[j + 12] = GA[o + 10] / A;
+    } else {   // no wet face (submerged by volume only, or draining): the group's nodes' centre, at rest
+      const nn = WB.gN[g]; let x = 0, y = 0, z = 0;
+      for (const i of nn) { x += p[i * 3]; y += p[i * 3 + 1]; z += p[i * 3 + 2]; }
+      dst[j + 3] = x / nn.length; dst[j + 4] = y / nn.length; dst[j + 5] = z / nn.length;
+      for (let k = 6; k <= 12; k++) dst[j + k] = 0;
+      dst[j + 7] = -1;
+    }
+    dst[j + 13] = pk; GA[o + WFX_PK] = 0;
+    dst[j + 14] = WB.wet ? GA[o + 11] : 0; dst[j + 15] = ws; dst[j + 16] = f; dst[j + 17] = WB.gV[g];
+    j += WFX_R; cnt++;
+  }
+  dst[0] = cnt;
+  return dst;
+}
 const WBS = { P: [v3(), v3(), v3()], D: [0, 0, 0], poly: [], n: v3(), u: v3(), Fv: v3(), c: v3(), l: [0, 0, 0],
               e1: v3(), e2: v3(), q: v3(), X: [] };
 function wetCompute(WB, fh, dtH) {
   const p = WB.p, v = WB.v, m = WB.m, H = WB.h, rho = WB.rho, S = WBS;
   let wet = 0, dragX = 0, buoy = 0;
+  // G2090: the FX groups' per-compute sums cleared (the slam's peak and the fill are carried: the page reads them)
+  const GA = WB.G;
+  for (let o = 0; o < GA.length; o += WFX) { for (let k = 0; k < WFX_PK; k++) GA[o + k] = 0; GA[o + WFX_WS] = 0; }
   // THE BELLY'S BUOYANCY, by volume (Archimedes, never a per-face head: a deep fuselage's faces would crush the light
   // frame between pressures it does not feel - it floods): each slice's 27 samples, each its Jacobian's share of the
   // slice's volume, wet by a smooth ramp over WB_DELTA about the surface, its lift onto the slice's 8 nodes by its own
@@ -1863,13 +1922,14 @@ function wetCompute(WB, fh, dtH) {
   // (last compute's wetS). Water inside a submerged hull is neutral, so the flooding takes lift away and adds no
   // mass; a hull that floods to its waterline sinks lower, floods further, and goes down unless the wings hold it.
   let fl = 0, flN = 0;
-  for (const S8 of WB.slices) {
+  for (let sI = 0; sI < WB.slices.length; sI++) {
+    const S8 = WB.slices[sI];
     if (S8.dead) continue;                                  // G1898.5: parted by a break
     if (WB.torn && S8.V0 > 0 && wetSliceVol(p, S8.n) > 2 * S8.V0) { S8.dead = true; continue; }   // G1898.9
     const sl = S8.n;
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
-    if (!anyWet) { if (S8.f) S8.f = flood(S8.f, 0, S8.tau, dtH); S8.wetS = 0; fl += S8.f; flN++; continue; }
+    if (!anyWet) { if (S8.f) S8.f = flood(S8.f, 0, S8.tau, dtH); S8.wetS = 0; fl += S8.f; flN++; GA[sI * WFX + WFX_F] = S8.f; continue; }
     const k = S8.air * (S8.wetS > 1e-3 ? Math.max(0, S8.wetS - S8.f) / S8.wetS : 1);
     let vW = 0, vT = 0;
     for (const Q of WB_Q) {
@@ -1892,6 +1952,7 @@ function wetCompute(WB, fh, dtH) {
     const tau = S8.br ? S8.tau / WB_BREACH_K : S8.tau;
     S8.f = flood(S8.f, S8.wetS, tau, dtH);
     fl += S8.f; flN++;
+    GA[sI * WFX + WFX_WS] = S8.wetS; GA[sI * WFX + WFX_F] = S8.f;   // G2090
   }
   // G1384.4 THE WINGS: four samples a slab (the quad's bilinear quarter points), each a quarter of the volume, wet by a
   // ramp over the slab's thickness, its lift onto the four spar nodes by the same bilinear weights; flooding as above
@@ -1901,7 +1962,7 @@ function wetCompute(WB, fh, dtH) {
     const q = SB.n;
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
-    if (!anyWet) { if (SB.f) SB.f = flood(SB.f, 0, SB.tau, dtH); SB.wetS = 0; fl += SB.f; flN++; continue; }
+    if (!anyWet) { if (SB.f) SB.f = flood(SB.f, 0, SB.tau, dtH); SB.wetS = 0; fl += SB.f; flN++; GA[SB.g * WFX + WFX_F] = SB.f; continue; }
     const k = SB.air * (SB.wetS > 1e-3 ? Math.max(0, SB.wetS - SB.f) / SB.wetS : 1);
     let wS = 0;
     for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
@@ -1920,6 +1981,7 @@ function wetCompute(WB, fh, dtH) {
     SB.wetS = wS;
     SB.f = flood(SB.f, wS, SB.tau, dtH);
     fl += SB.f; flN++;
+    GA[SB.g * WFX + WFX_WS] = wS; GA[SB.g * WFX + WFX_F] = SB.f;   // G2090
   }
   WB.flood = flN ? fl / flN : 0;
   // G1385 THE TANKS: each side's tank wet by a ramp over its height (a wing tank: its slab's thickness) at its kilos'
@@ -1994,6 +2056,7 @@ function wetCompute(WB, fh, dtH) {
         pn += ps;
         if (t.sl >= 0) { const S8 = WB.slices[t.sl]; if (S8) { if (ps > S8.breach) S8.br = true; if (ps > S8.pk) S8.pk = ps; } }
         if (ps > WB.slamPeak) WB.slamPeak = ps;
+        if (ps > GA[t.g * WFX + WFX_PK]) GA[t.g * WFX + WFX_PK] = ps;   // G2090: the entry's splash, the page's to read
       }
     }
     const Fv = S.Fv;
@@ -2004,10 +2067,15 @@ function wetCompute(WB, fh, dtH) {
     for (let k = 0; k < 3; k++) { const i3 = tn[k] * 3; fh[i3] += l[k] * Fv[0]; fh[i3 + 1] += l[k] * Fv[1]; fh[i3 + 2] += l[k] * Fv[2]; }
     wet += 1e-9;                     // wet, even with nothing advancing
     dragX += Math.hypot(Fv[0], Fv[2]);
+    { const o = t.g * WFX;            // G2090: the group's wet area, its centroid, normal, velocity, pressure and drag
+      GA[o] += A; GA[o + 1] += A * c[0]; GA[o + 2] += A * c[1]; GA[o + 3] += A * c[2];
+      GA[o + 4] += A * n[0]; GA[o + 5] += A * n[1]; GA[o + 6] += A * n[2];
+      GA[o + 7] += A * u[0]; GA[o + 8] += A * u[1]; GA[o + 9] += A * u[2];
+      GA[o + 10] += A * pn; GA[o + 11] += Math.hypot(Fv[0], Fv[2]); }
   }
   // THE WHEELS: a bluff plate in the wheel's plane, the disc segment across it, the displaced volume
-  for (const i of WB.wheels) {
-    const i3 = i * 3, R = WB.R[i];
+  for (let wI = 0; wI < WB.wheels.length; wI++) {
+    const i = WB.wheels[wI], i3 = i * 3, R = WB.R[i];
     const d = Math.min(2 * R, H[i] - (p[i3 + 1] - R));
     if (!(d > 0)) continue;
     const wT = WB_TYRE_W * R;
@@ -2023,6 +2091,11 @@ function wetCompute(WB, fh, dtH) {
     const Fy = -kP * py - kS * va * ax[1] + rho * G * seg * wT;
     fh[i3] += Fx; fh[i3 + 1] += Fy; fh[i3 + 2] += Fz;
     wet += seg * wT; dragX += Math.hypot(Fx, Fz);
+    { const o = WB.gW[wI] * WFX, Ab = wT * d;   // G2090: the tyre's plough - its frontal area, at the waterline, the axle as its normal
+      GA[o] = Ab; GA[o + 1] = Ab * p[i3]; GA[o + 2] = Ab * H[i]; GA[o + 3] = Ab * p[i3 + 2];
+      GA[o + 4] = Ab * ax[0]; GA[o + 5] = Ab * ax[1]; GA[o + 6] = Ab * ax[2];
+      GA[o + 7] = Ab * vx; GA[o + 8] = Ab * vy; GA[o + 9] = Ab * vz;
+      GA[o + 10] = Ab * 0.5 * rho * Vm * Vm; GA[o + 11] = Math.hypot(Fx, Fz); GA[o + WFX_WS] = d / (2 * R); }
   }
   if (!wet) return 0;
   // the float's slamCap: a node's force against its own velocity stops it at most, over the held interval
@@ -2039,7 +2112,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

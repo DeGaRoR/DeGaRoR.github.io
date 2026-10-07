@@ -71,6 +71,19 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G2055 (WHEEL-AO, 2026-10-06): the contact blobs' per-instance attribute is a vec4 (halo, core, the core's radii) where
+  // G1002's was a float: 8 x 16 B in place of 8 x 4 B uploaded a frame while a wheel is down (+96 B, Cub and Cessna, the
+  // same draws and programs - against a master whose parked cook was made stale alike, tools/perf A/B in HANDOVER G2055)
+  { key: 'stand/bytes.bufferSubData', build: '*', rise: 100, why: 'the contact blobs vec4 instance attribute (G1002 had a float)', g: 'G2055' },
+  { key: 'taxi/bytes.bufferSubData', build: '*', rise: 100, why: 'the contact blobs vec4 instance attribute (G1002 had a float)', g: 'G2055' },
+  // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - one instanced sprite batch for every landplane, made with the build and kept
+  // HIDDEN in the world scene (no draw, nothing per frame: stand / taxi unchanged to the count), its program linked by the
+  // garage's world compiles (the town step's prewarm, the snapshot's) instead of on a ditching's first contact: +1 link and
+  // +11 GL calls at garage:town, +2 links at garage:snapshot (Cub and Cessna, both-stale A/B against 068584d6)
+  { key: 'boot/garage:town/gl.calls', build: '*', rise: 14, why: 'the wet-body spray pool linked by the town step world compile (hidden, never drawn dry)', g: 'G2090' },
+  { key: 'boot/garage:town/links', build: '*', rise: 1, why: 'the wet-body spray pool linked by the town step world compile', g: 'G2090' },
+  { key: 'boot/garage:snapshot/links', build: '*', rise: 2, why: 'the wet-body spray pool in the snapshot compile states', g: 'G2090' },
+  { key: 'boot/garage:snapshot/gl.calls', build: '*', rise: 30, why: 'the same two links', g: 'G2090' },
   // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
   // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
   { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },
@@ -380,6 +393,9 @@ async function census(build) {
   C.phase = () => P.rec.phase;
   if (SHADOW_PASSES) shadowPassHooks(W, C);
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
+  // FRAMECOST_PROBE=<file.js> (G1531, a debugging aid, never the gate's): module.exports = async (W, P, FP) => ..., run here, before
+  // the views - a repro's live switch and its read-back (stderr)
+  if (process.env.FRAMECOST_PROBE) { try { await require(path.resolve(process.env.FRAMECOST_PROBE))(W, P, FP); } catch (e) { process.stderr.write('PROBE threw ' + (e && e.stack) + '\n'); } }
   views.stand = await measure();
   const craft = { stand: await craftCensus(W, P, FP, C) };
   const detail = { stand: drawnDetail(C) };
@@ -464,6 +480,9 @@ async function census(build) {
     kitTown: (R => (R && R.kitTownStats ? R.kitTownStats() : null))(W.WORLD && W.WORLD.premises) };
   craft.bake = W.FLOWN_BAKE ? (W.FLOWN_BAKE.FB.last || null) : undefined;
   detail.scene = matCensus(W.WORLD && W.WORLD.scene);
+  // (G1528, POTATO-DEEP) the premises patch's own numbers: its level-0 / all-level triangles, the sunk vertices, the deepened sink
+  detail.patch = (() => { let g = null; if (W.WORLD && W.WORLD.scene) W.WORLD.scene.traverse(o => { if (!g && o.name === 'premises:patch' && o.userData && o.userData.blocks) g = o; });
+    return g ? { tris0: g.userData.tris, trisAll: g.userData.trisAll, blocks: g.userData.blocks, sunk: g.userData.sunk, sinkDeep: g.userData.sinkDeep } : null; })();
   if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
@@ -608,7 +627,7 @@ function drawnDetail(C) {
       if (g.drawRange && g.drawRange.count !== Infinity) n = Math.min(n, g.drawRange.count);
       const inst = o.isInstancedMesh ? o.count : (g.isInstancedBufferGeometry && g.instanceCount !== Infinity ? g.instanceCount : 1);
       const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
-      const k = path.slice(0, 3).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
+      const k = path.slice(0, +(process.env.FRAMECOST_TRIS_DEPTH || 3)).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
     tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
   return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
 }

@@ -305,8 +305,10 @@
   //   town       'nearby': Metlakatla is never built, whatever the 'town' row says (A0, train 32: the row's default becomes 'all';
   //              potato, laptop and the software rung stay on the field and the sites - world_boot.js TOWN, the loader's
   //              raster variant in build.js; ?town=1 in the URL still asks for it)
-  //   patchTolPx the premises' ground patch's level error in px (render_premises PL.tolPx; potato / laptop 3 - 6 needs the pavement sink deeper): the
+  //   patchTolPx the premises' ground patch's level error in px (render_premises PL.tolPx; potato / laptop 6 - G1528: the sink follows the error, the pavement keeps 1 px): the
   //              patch was 780 k of the potato taxi's 4.1 M triangles at gamer's 1 px (G1527, the user's GTX 660 log of 5 Oct)
+  //   cabinFar   the tram's two cabins drawn within this many metres of the eye (render_premises cabinCut; potato 600, laptop 400):
+  //              136 k of the potato taxi's triangles; the line, the docks and the hit volumes stay (G1529)
   //   msaa       the scene target's MSAA samples at most (aa_resolve.js setMsaaCap; laptop 0) - absent: the tier's own
   //   shedLamps  false: the shed's lamps cast no shadow (hangar.js lamp: five 1024 spot maps, ~3 600 depth draws a frame -
   //              74 % of the shed's draws); the key light's map stays (the aeroplane's shadow on the floor)
@@ -314,10 +316,14 @@
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
     laptop:  { heapMB: 600,  mipSkip: 1, townBoot: 800,  townReach: 1200, parked: false, forestK: 0.5,  islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby', patchTolPx: 3 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby', patchTolPx: 6, cabinFar: 400 },
     potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby', patchTolPx: 3 },
-    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby', patchTolPx: 6, cabinFar: 600 },
+    // G1529 (POTATO-DEEP, A0's call 2026-10-05): the user's gaming laptop (i5-9300H 4c/8t, GTX 1660 Ti) on retro loaded the
+    // garage in 120.5 s - the flown bake 38.5 s (+31.3 s again at the roll-out for a second build): retro flies the live aeroplane
+    // (no bake: the stand +2-3 ms of render CPU on the box, the taxi at the 30 cap - HANDOVER G1529). townBoot stays 4000: at 1500
+    // the houses not built under the screen streamed in during the taxi (0.3 builds a frame, 217-250 ms hitches - measured)
+    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1, flownBake: false },
     current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
@@ -389,6 +395,11 @@
     // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
     try { const wp = W.WELCOME && W.WELCOME.pick;
           if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; S.build = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
+    // G2100 (MOBILE-GARAGE 1): THE PROFILE'S PRESET - the phone profile (profile.js) draws on the lightest one (laptop),
+    // for THIS page only: not saved, so a desktop that looked at ?profile=phone keeps its own choice; ?gfx= still wins.
+    // On the desktop profile the table says null and nothing here runs
+    try { const pp = W.PROFILE && W.PROFILE.get && W.PROFILE.get('preset');
+          if (pp && PRESETS[pp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { Object.assign(S, PRESETS[pp]); S.preset = pp; S.build = pp; if (!S.fpsOwn) S.fps = FPS_OF(pp); } } catch (e) {}
   };
   // G1526: the town this page builds - the row, under the budget's cap (potato / laptop) and the software rung (always 'nearby')
   const townAll = () => S.town === 'all' && budget().town !== 'nearby' && !SOFT;
@@ -462,7 +473,10 @@
     if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
     { const sp = W.WORLD && W.WORLD.ground && W.WORLD.ground.splat && W.WORLD.ground.splat();
       if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' || S.ground === 'plain' ? 1 : 3, S.ground === 'full' ? 3 : 1, S.ground === 'full' ? 0 : 100, S.ground === 'full' ? 0 : 400);
-        if (sp.plain) sp.plain(S.ground === 'plain');   // G1521: the plain ground re-keys the ground's programs (and fetches the sets the first time a step wants them)
+        // G1521: the plain ground re-keys the ground's programs (and fetches the sets the first time a step wants them) - live
+        // both ways (G1531: leaving plain once drew no ground - three's cached program met a plain compile's uniforms; the
+        // ground hook now hands every state the same uniforms, render_world; GATE SPLAT holds it)
+        if (sp.plain) sp.plain(S.ground === 'plain');
         applied.ground = S.ground; } }
     if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
       const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
@@ -585,7 +599,8 @@
   // seven GROUPS above and the preset heads `performance`; the map row (mountWorld), the fps meter and the flight log
   // (FLIGHT_REC.mountMeter / mountLog) are the hosts' to place - the flight rail puts them in SKY & WORLD, VIEW and DEV.
   // WITHOUT it the menu is the one flat list it was (every row, the map and the recorder's rows included).
-  const pickFor = H => (k, v) => { set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
+  // G1995: a pick in the menu is the player's own choice (S.own, saved): the runtime step-down (HW below) never fights it
+  const pickFor = H => (k, v) => { if (k !== 'fps') S.own = true; set(k, v); if (H.refresh) H.refresh(); if (k !== 'fps' && typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE(k); };
   // B8 (G1024): `reload` - the options a change of which RELOADS the page (town, colour management); a host that asks
   // H.noReload (the loading screen's setup: a reload there would throw the load away) mounts the menu without them
   const optionRow = (host, H, o, pick) => {
@@ -627,6 +642,12 @@
         H.pills(perf, [{ label: 're-check my computer', value: 'recheck', title: 'detect the graphics card and the memory again and suggest a preset (the lower of the two)' }],
           () => false, () => W.WELCOME.recheck().then(p => { if (p && PRESETS[p]) pick('preset', p); }));
       }
+      // G1995: the step-down's word - what it measured, what it lowered, and the way back (a pick: the player's from then on)
+      { const L = HW.last(); if (L && PRESETS[L.from] && L.to === S.preset) { H.row(perf, 'measured');
+          H.note(perf, HW.words(L));
+          H.pills(perf, [{ label: 'back to ' + (PRESET_LABEL[L.from] || L.from), value: L.from, title: 'your pick from now on: the automatic step-down will not lower it again' }]
+              .concat(L.reload && !H.noReload ? [{ label: 'reload to build lighter', value: '__reload', title: 'the lighter build (' + L.reload.join(', ') + ') applies at the next load' }] : []),
+            () => false, o => { if (o.value === '__reload') { try { W.location.reload(); } catch (e) {} } else pick('preset', o.value); }); } }
       if (grouped) { for (const k of GROUPS[0].rows) optionRow(perf, H, OPT[k], pick); }
       else for (const o of OPTIONS) optionRow(perf, H, o, pick);
       readout = H.note(perf, frameText());
@@ -665,6 +686,163 @@
     }, 500);
   };
 
+  // ---- G1995 (HW-COVERAGE): THE RUNTIME STEP-DOWN ------------------------------------------------------------------
+  // The welcome picks a preset from the card's NAME (welcome.js gpuClass); nothing ever checked it against the frame. The
+  // user's GTX 1660 Ti laptop took 'retro' by name and drew the stand and the taxi at 3-4 fps for 15 min: the frame clock's
+  // auto only moves between 60 and 30 (and only on 'auto', ultra's - G1295), the render scale's auto only when the player
+  // picked it (aa_resolve.js AUTO) - no rung below the preset existed. So: where the delivered frame rate stays far under
+  // the frame cap's (under FLOOR_FPS over WIN_MS, the first SETTLE_MS of a state left out) in the SHED or ON THE GROUND (the
+  // stand, the taxi), the preset steps down ONE rung (ORDER: ultra > gamer > current > retro > potato > laptop) - once per
+  // state a page, through the settings screen like a pick in the menu - and says so on screen and in the GRAPHICS menu
+  // (`measured`, with the way back). The step is saved (S.hw; the measured class per card under flydiy.hwclass).
+  // NEVER FIGHTS A CHOICE: a pick in the menu (S.own), a preset picked on the welcome other than its suggestion, a custom
+  // mix, ?gfx= in the URL - none is ever lowered. NEVER ON A RIG: a driven / headless browser, or a page from localhost (the
+  // box's rigs drive a headed Chrome there) - ?hwstep=1 turns it on for a rig, ?hwstep=0 off anywhere. Off, nothing runs:
+  // no timer, no reading.
+  if (!('own' in S)) S.own = false;           // (keys in S before load(): load() reads back only the keys S has)
+  if (!('hw' in S)) S.hw = null;
+  const HW = (() => {
+    const ORDER = ['laptop', 'potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds welcome.js's ORDER to the presets
+    const P = { FLOOR_FPS: 15, WIN_MS: 8000, SETTLE_MS: 5000, TICK_MS: 1000, MIN_FRAMES: 12, READINGS: 2 };
+    const q = () => (W.location && W.location.search) || '';
+    const host = () => (W.location && W.location.hostname) || '';
+    const st = { on: false, why: '', kind: null, since: 0, stepped: [], last: null, ticks: 0, iv: 0, reading: null, inputT: -1e9 };
+    // why the step-down stands down here (the page's own place), '' when it may run
+    function offWhy() {
+      if (/[?&]hwstep=0/.test(q())) return '?hwstep=0';
+      if (FORCE('hwstep')) return '';
+      if (RIG) return 'a rig (a driven or headless browser)';
+      if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(host())) return 'localhost (a rig or a dev server)';
+      if (/[?&]gfx=[a-z]/.test(q())) return '?gfx= chose the preset';
+      return '';
+    }
+    // the player's own choice: never lowered
+    function explicit() {
+      if (S.own) return 'your pick in the menu';
+      if (!PRESETS[S.preset]) return 'your own mix (custom)';
+      if (/[?&]gfx=[a-z]/.test(q()) && !FORCE('hwstep')) return '?gfx=';
+      try { const r = JSON.parse(W.localStorage.getItem('flydiy.welcome') || 'null');
+            if (r && r.preset && r.suggested && r.preset !== r.suggested && r.preset === S.preset) return 'your pick on the welcome screen'; } catch (e) {}
+      return '';
+    }
+    // THE DECISION, pure (GATE HWCOV): { preset, fps, frames, kind, stepped[], explicit } -> { to: preset | null, why }
+    function decide(r) {
+      if (!r || !r.kind) return { to: null, why: 'no state measured' };
+      if (r.explicit) return { to: null, why: 'never lowers ' + r.explicit };
+      if ((r.stepped || []).indexOf(r.kind) >= 0) return { to: null, why: 'already stepped down once in the ' + r.kind };
+      if (!(r.frames >= P.MIN_FRAMES)) return { to: null, why: 'too few frames (' + (r.frames | 0) + ')' };
+      if (!(r.fps < P.FLOOR_FPS)) return { to: null, why: 'holds ' + (+r.fps || 0).toFixed(1) + ' fps' };
+      const i = ORDER.indexOf(r.preset);
+      if (i < 0) return { to: null, why: 'not a preset (' + r.preset + ')' };
+      if (i === 0) return { to: null, why: 'the lightest preset already' };
+      return { to: ORDER[i - 1], why: (+r.fps).toFixed(1) + ' fps in the ' + r.kind + ' on ' + r.preset };
+    }
+    // the state the page is in: 'shed', 'ground' (the stand and the taxi), else null (in the air, under a screen, paused away)
+    function kindNow() {
+      const B = W.BOOT;
+      if (B && (B.state !== 'gone' || (typeof B.busy === 'function' && B.busy()))) return null;
+      if (W.document && W.document.hidden) return null;
+      const body = W.document && W.document.body;
+      if (body && body.classList && body.classList.contains('mode-ws')) return 'shed';
+      const R = W.FLIGHT_REC && W.FLIGHT_REC.rec;
+      if (R && R.frame > 0) { const row = R.row(R.frame - 1); if (row && row.agl === row.agl && row.agl < 3 && !(row.spd >= 15)) return 'ground'; return null; }
+      return null;
+    }
+    // the last WIN_MS of rendered frames (the recorder's ring; a hidden gap or a frame under a screen left out):
+    // delivered fps, the median frame, the median GPU timer and loop work
+    function measure(winMs) {
+      winMs = winMs || P.WIN_MS;
+      const R = W.FLIGHT_REC && W.FLIGHT_REC.rec;
+      const dts = [], gpus = [], works = [];
+      if (R && R.frame > 0) {
+        const F = R.F || {}, last = R.row(R.frame - 1), tEnd = last ? last.t : 0;
+        for (let f = R.frame - 1; f >= Math.max(0, R.frame - Math.min(R.N || 4096, 4096)); f--) {
+          const row = R.row(f); if (!row || tEnd - row.t >= winMs) break;
+          const fl = row.flags | 0; if ((F.away && (fl & F.away)) || (F.boot && (fl & F.boot)) || !(row.dt === row.dt)) continue;
+          dts.push(row.dt); if (row.gpu === row.gpu) gpus.push(row.gpu); if (row.work === row.work) works.push(row.work);
+        }
+      } else {
+        const PC = W.FLYDIY_PACE, rec = PC && PC.recent ? PC.recent() : null;   // (the recorder off: the clock's own history)
+        if (rec) { let sum = 0; for (let i = rec.length - 1; i >= 0 && sum < winMs; i--) { dts.push(rec[i]); sum += rec[i]; } }
+      }
+      const med = a => { if (!a.length) return NaN; const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; };
+      const sum = dts.reduce((a, b) => a + b, 0);
+      return { frames: dts.length, fps: sum > 0 ? 1000 * dts.length / sum : 0, medMs: med(dts), gpuMs: med(gpus), workMs: med(works) };
+    }
+    function gpuName() { try { const E = W.WELCOME && W.WELCOME.env; return E && W.WELCOME.cleanGpu ? W.WELCOME.cleanGpu(E.gpu) : ''; } catch (e) { return ''; } }
+    function noteOnScreen(L) {
+      const d = W.document; if (!d || !d.createElement || !d.body) return;
+      let el = d.getElementById('hwNote');
+      if (!el) { el = d.createElement('div'); el.id = 'hwNote';
+        el.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:85;max-width:min(560px,92vw);padding:10px 34px 10px 14px;' +
+          'background:rgba(26,24,21,.92);color:#f4efe6;border:1px solid rgba(255,255,255,.14);border-radius:8px;font:400 13px/1.45 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+        const x = d.createElement('button'); x.textContent = '×'; x.type = 'button'; x.setAttribute('aria-label', 'close');
+        x.style.cssText = 'position:absolute;top:4px;right:6px;background:none;border:0;color:inherit;font-size:18px;cursor:pointer';
+        x.onclick = () => { el.hidden = true; }; el.appendChild(x); el.appendChild(d.createElement('span')); d.body.appendChild(el); }
+      el.lastChild.textContent = 'Your machine measured slower than its class (' + L.fps.toFixed(1) + ' fps ' + (L.kind === 'shed' ? 'in the shed' : 'on the ground') +
+        ' on ' + (PRESET_LABEL[L.from] || L.from) + ') - graphics lowered to ' + (PRESET_LABEL[L.to] || L.to) + '. Change it in GRAPHICS.';
+      // POTATO-DEEP's catch: the BUDGETS levers that are BUILD-time (the impostor tile, the aeroplane's atlas, the flown bake,
+      // the town under the screen, the mips) apply at the next load - the step's drawn rows are live, the memory is not
+      let rl = d.getElementById('hwNoteReload');
+      if (L.reload) {
+        if (!rl) { rl = d.createElement('button'); rl.id = 'hwNoteReload'; rl.type = 'button';
+          rl.style.cssText = 'display:block;margin-top:6px;font:600 12px system-ui,sans-serif;padding:3px 10px;border-radius:5px;border:1px solid #888;background:#2c2a26;color:inherit;cursor:pointer';
+          rl.onclick = () => { try { W.location.reload(); } catch (e) {} }; el.insertBefore(rl, el.firstChild.nextSibling); }
+        rl.textContent = 'reload to build lighter (' + L.reload.join(', ') + ' - less memory, a shorter load)'; rl.hidden = false;
+      } else if (rl) rl.hidden = true;
+      el.hidden = false;
+      clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, L.reload ? 30000 : 15000);
+    }
+    function step(to, r) {
+      const from = S.preset;
+      const L = { from, to, kind: r.kind, fps: +r.fps.toFixed(2), medMs: +(r.medMs || 0).toFixed(1), gpuMs: r.gpuMs === r.gpuMs ? +r.gpuMs.toFixed(1) : null,
+                  workMs: r.workMs === r.workMs ? +r.workMs.toFixed(1) : null, gpu: gpuName(), at: new Date().toISOString(), t: Math.round(performance.now()) };
+      // the build-time levers the new rung lowers (BUDGETS: applied at the next load) - the note offers the reload
+      // (POTATO-DEEP's list: shedGlass and the msaa cap are live, town reloads by its own rule)
+      { const BT = ['mipSkip', 'townBoot', 'parked', 'forestK', 'impTile', 'aeroAtlas', 'flownBake', 'islandHalf', 'islandColour', 'patchTolPx', 'cabinFar', 'shedLamps'], a = BUDGETS[S.build] || {}, b = BUDGETS[to] || {};
+        const ch = BT.filter(k => JSON.stringify(a[k]) !== JSON.stringify(b[k])); if (ch.length) L.reload = ch; }
+      st.stepped.push(r.kind); st.last = L;
+      set('preset', to);                     // (saved, applied, logged as a 'gfx' event - S.own untouched: not the player's pick)
+      S.hw = L; save();
+      try { W.localStorage.setItem('flydiy.hwclass', JSON.stringify(L)); } catch (e) {}
+      if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('hwstep', null, L);
+      noteOnScreen(L);
+      if (typeof W.FLYDIY_SETTLE === 'function') W.FLYDIY_SETTLE('preset');   // the new programs under the settings screen
+      st.since = 0;
+    }
+    function tick() {
+      st.ticks++;
+      if (st.held) { st.kind = null; return; }   // (the self-test holds it: its variants are not the player's frame)
+      const k = kindNow(), t = performance.now();
+      if (k !== st.kind) { st.kind = k; st.since = t; st.below = 0; return; }
+      if (!k || !st.since || t - st.since < P.SETTLE_MS + P.WIN_MS) return;
+      // the SHED with the player's hands on the editor (a slider dragged, a click, the wheel) in the window: the frames are the
+      // editor's rebuilds, not the picture's - no reading (GARAGE-LAG's case is not the graphics card's)
+      if (k === 'shed' && t - st.inputT < P.WIN_MS) { st.since = t - P.SETTLE_MS; return; }
+      const m = measure(P.WIN_MS);
+      const r = Object.assign({ preset: S.preset, kind: k, stepped: st.stepped, explicit: explicit() }, m);
+      const d = decide(r); st.reading = Object.assign({ verdict: d.why }, m, { kind: k });
+      // G1997b THE PLATEAU (A0, the laptop's ?diag: its card changed state mid-run, ~3x): a step needs TWO readings running under the
+      // floor in the same state - one slow window (a clock ramp, a transient) is not a machine's class
+      st.below = d.to ? (st.below || 0) + 1 : 0;
+      if (d.to && st.below >= P.READINGS) { st.below = 0; step(d.to, r); }
+      else st.since = t - P.SETTLE_MS;       // (judged: the next reading is a fresh window, WIN_MS on)
+    }
+    function start() {
+      st.why = offWhy(); st.on = !st.why;
+      if (st.on && W.addEventListener) for (const ev of ['pointerdown', 'input', 'wheel', 'keydown']) W.addEventListener(ev, () => { st.inputT = performance.now(); }, { capture: true, passive: true });
+      if (st.on && !st.iv && typeof setInterval === 'function') st.iv = setInterval(tick, P.TICK_MS);
+    }
+    return {
+      P, ORDER, decide, measure, start, tick, explicit, offWhy,
+      reveal: () => { st.kind = null; st.since = 0; },
+      hold: on => { st.held = !!on; return st.held; },   // diag.js (?diag) holds it while it measures   // (app.js flRevealStart: the flight's first frames are not a reading)
+      last: () => S.hw || null,
+      words: L => 'on ' + (L.at || '').slice(0, 10) + ' this machine drew ' + L.fps + ' fps ' + (L.kind === 'shed' ? 'in the shed' : 'on the ground') + ' on ' +
+                  (PRESET_LABEL[L.from] || L.from) + (L.gpuMs ? ' (' + L.gpuMs + ' ms of GPU a frame)' : '') + ': the game lowered it to ' + (PRESET_LABEL[L.to] || L.to) + '.',
+      state: () => ({ on: st.on, why: st.why, kind: st.kind, stepped: st.stepped.slice(), last: st.last, reading: st.reading, ticks: st.ticks, explicit: explicit() }),
+    };
+  })();
   load();
   // the colour row must SAY what runs: the page's loader decided it before
   // this script, from the same stored key, so read the truth back
@@ -674,6 +852,7 @@
     get: () => Object.assign({}, S),
     BUDGETS, budget, townAll,   // G1230; G1526 townAll: Metlakatla built (the row under the budget's cap and the software rung): the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
+    hw: HW,   // G1995: the runtime step-down (hw.state(), hw.decide(), hw.reveal(), hw.measure())
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // G1460: the software rung - null on a graphics card; else what the rung is and why
     soft: () => (SOFT ? { tier: 'software', gpu: (W.WELCOME && W.WELCOME.env && W.WELCOME.env.gpu) || '', forced: FORCE('soft'), preset: S.preset } : null),
@@ -687,4 +866,5 @@
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', town: 'reloads the page (G590)', anything: 'no restart' }),
   };
+  HW.start();   // G1995: off (no timer at all) on a rig, on localhost, under ?gfx= / ?hwstep=0
 })();
