@@ -71,6 +71,12 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
+  // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
+  // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
+  // 2026-10-07); taxi unchanged (-480), draws -2. The near tier at the stand moves 0..+11 % with what the streamer has dealt
+  { key: 'stand/tris.main', build: 'cub', upTo: 17710000, why: 'the snags by the mixes own share: living trees in place of snags (+84 141 at the stand vs ?mixdead=0)', g: 'G1975.2' },
+  { key: 'stand/tris.main', build: 'cessna', upTo: 17835000, why: 'the snags by the mixes own share: living trees in place of snags (+84 141 at the Cub stand vs ?mixdead=0)', g: 'G1975.2' },
   // G2055 (WHEEL-AO, 2026-10-06): the contact blobs' per-instance attribute is a vec4 (halo, core, the core's radii) where
   // G1002's was a float: 8 x 16 B in place of 8 x 4 B uploaded a frame while a wheel is down (+96 B, Cub and Cessna, the
   // same draws and programs - against a master whose parked cook was made stale alike, tools/perf A/B in HANDOVER G2055)
@@ -475,6 +481,8 @@ async function census(build) {
   const health = { metlakatla, premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5),
+    // G1532: draws that sample a texture attached to their own framebuffer (the fake GL's feedback tracker) - the GPU refuses them
+    feedbacks: P.rec.feedbacks || 0, feedback: (P.rec.feedback || []).slice(0, 4),
     // (C3c, G864) Metlakatla with the town on (FRAMECOST_QUERY=town=1): the premises' own count and the town kit's state
     premisesStats: (R => (R && R.stats ? { houses: R.stats.houses, objects: R.stats.objects, queued: R.stats.queued, houseTris: R.stats.houseTris, lights: R.stats.lights, obstacles: R.stats.obstacles } : null))(W.WORLD && W.WORLD.premises),
     kitTown: (R => (R && R.kitTownStats ? R.kitTownStats() : null))(W.WORLD && W.WORLD.premises) };
@@ -1020,6 +1028,8 @@ async function main() {
     ok(RL && RL.n >= 4 && RL.heldAfterRollout === 0 && RL.classWeights === false && RL.rederived === RL.n && RL.heldAfterRestore === RL.n && RL.heldAfterReupload === 0,
        r.build + ': the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)', JSON.stringify(RL));
     ok(!(H.thrown || []).length, r.build + ': no script, timer or frame of the page threw', (H.thrown || []).join(' | ') || undefined);
+    ok(H.feedbacks === 0, r.build + ': no draw samples a texture attached to the framebuffer it draws into (a feedback loop: GL_INVALID_OPERATION, nothing drawn - G1532)',
+       H.feedbacks === undefined ? 'no count' : H.feedbacks + ' feedback draws, first ' + JSON.stringify(H.feedback));
     CEN.builds[r.build] = r;
   }
   const base = fs.existsSync(BASE_FILE) ? JSON.parse(fs.readFileSync(BASE_FILE, 'utf8')) : null;

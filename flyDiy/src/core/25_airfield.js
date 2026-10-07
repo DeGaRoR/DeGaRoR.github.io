@@ -1018,3 +1018,156 @@ function stripLandable(gear, aerodromes, from, to) {
   if (!alt || alt === to) return { to, why: '' };
   return { to: alt, why: (to.name || to.id) + ' is ' + stripSurface(to).word + ' (' + stripAllows(gear, to).why + ') - landing at ' + (alt.name || alt.id) + ' instead' };
 }
+
+// ---- G2223 THE FLEET'S TIE-DOWN SPOTS (FLEET-PROPS A; GAME-2026-10-06 §4.2 point 3) ---------------------------------
+// Where the player's own aeroplanes stand as props at an aerodrome: an ORDERED list of spots, the fleet taking them in
+// airframe order, so the same fleet always stands the same way. PURE: the aerodrome, its site, and what the caller
+// knows of the ground -> the same list every call. First the record's painted STANDS (premises v1.21: a material
+// polygon's `stands`, n lead-in lines `pitch` m apart, the nose stop at the far end - PAVEMENT.standMarks' own frame);
+// then the APRON RING computed off the runway's site: rings round the site's stand (where the player rolls out), the
+// nose toward it, nearest first; then ROWS along the runway on its two sides (the stand's side first), the nose toward
+// the strip, the first row FLEET_SPOT.rwyClr past a paved runway's edge (rwyNarrow past a narrow strip's; on water
+// waterClr off the lane's centreline), ordered by the distance from the stand.
+// EVERY SPOT IS CLEAR BY MILL-TAXI's RULES (G1925, tools/_taxiclear_lib.js): its box keeps MARGIN (3 m) off every solid
+// thing the caller names (opts.solid: (x, z, reach) -> the plan distance to the nearest one) and off the site's hangar,
+// and every route the site's pattern hands the pilot (out[0], out[1], back[0], back[1], sampled as THE PILOT's path)
+// keeps the widest validated build's half-span + MARGIN (5.5 + 3 m) off the box; it stands inside the field
+// (fleetField), on flat ground (opts.ground: the box's corners within flatTol), dry on land and afloat on water
+// (opts.wet), and no two spots' boxes come within `gap` of each other. A spot's box is its CAPACITY ({half, fwd, aft}):
+// a footprint (GP_PARKED_FOOT's rule: half-span, nose + prop ahead of the mount, tail behind) that fits in it may stand
+// there - every spot's is every archetype's envelope (FLEET_SPOT_FOOT). A spot: { id, kind: 'stand' | 'apron' | 'ring',
+// x, z, ry (rotation.y, the record's yaw: the nose along (cos ry, -sin ry)), half, fwd, aft }.
+//   opts: { pave: [{ id, poly: [[x, z]...] world, yaw: world, stands }], solid, ground, wet, pattern, taxiHalf, max }
+const FLEET_SPOT = { margin: 3.0, taxiHalf: 5.5, gap: 1.5, rwyClr: 25, rwyNarrow: 8, waterClr: 40, across: 110, standR: 150, endIn: 30, rowGap: 4, rows: 2, flatTol: 0.6, max: 12, step: 0.25,
+                     apronR: [22, 34, 46, 58, 70], apronStep: 15 };
+const FLEET_SPOT_FOOT = (() => {
+  let h = GP_PARKED_DEFAULT[0], f = GP_PARKED_DEFAULT[1], a = GP_PARKED_DEFAULT[2];
+  for (const k in GP_PARKED_FOOT) { const d = GP_PARKED_FOOT[k]; h = Math.max(h, d[0]); f = Math.max(f, d[1]); a = Math.max(a, d[2]); }
+  return { half: h, fwd: f, aft: a };
+})();
+// the signed plan distance from (x, z) to a spot's box (negative inside) - gpParkedDist's frame
+function fleetSpotDist(sp, x, z) {
+  const c = CORE_MATH.cos(sp.ry), s = CORE_MATH.sin(sp.ry), dx = x - sp.x, dz = z - sp.z;
+  const ox = dx * c - dz * s, oz = dx * s + dz * c;
+  const ex = Math.max(-sp.aft - ox, ox - sp.fwd, 0), ez = Math.max(Math.abs(oz) - sp.half, 0);
+  if (ex || ez) return Math.hypot(ex, ez);
+  return -Math.min(sp.fwd - ox, ox + sp.aft, sp.half - Math.abs(oz));
+}
+// a box's outline every `step` m (and its inside every 2 m: a small thing wholly inside is still found), world (x, z)
+function fleetSpotPts(sp, step, inner) {
+  const c = CORE_MATH.cos(sp.ry), s = CORE_MATH.sin(sp.ry), out = [];
+  const at = (u, v) => out.push([sp.x + u * c + v * s, sp.z - u * s + v * c]);   // nose u (along (c, -s)), right v
+  const C = [[sp.fwd, -sp.half], [sp.fwd, sp.half], [-sp.aft, sp.half], [-sp.aft, -sp.half]];
+  for (let k = 0; k < 4; k++) {
+    const A = C[k], B = C[(k + 1) % 4], n = Math.max(1, Math.ceil(Math.hypot(B[0] - A[0], B[1] - A[1]) / (step || 0.25)));
+    for (let i = 0; i < n; i++) at(A[0] + (B[0] - A[0]) * i / n, A[1] + (B[1] - A[1]) * i / n);
+  }
+  if (inner) for (let u = -sp.aft + 1; u < sp.fwd; u += 2) for (let v = -sp.half + 1; v < sp.half; v += 2) at(u, v);
+  return out;
+}
+// THE FIELD: the strip's zone (along its length, out to `across` past the paved edge; on water the lane's rectangle),
+// the site's stand and its apron (within standR of the stand), and the stand polygons the record paints near it
+function fleetField(aero, site, pave) {
+  const R = siteRunway(aero), water = !!aero.water;
+  const st = site && site.stand ? site.stand : null;
+  const inPoly = (poly, x, z) => { let ins = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins; } return ins; };
+  const base = (x, z) => {
+    const dx = x - R.cx, dz = z - R.cz, a = dx * R.dx + dz * R.dz, c = dx * R.nx + dz * R.nz;
+    if (Math.abs(a) <= R.len / 2 && Math.abs(c) <= R.wid / 2 + (water ? 0 : FLEET_SPOT.across)) return true;
+    if (st && Math.hypot(x - st.x, z - st.z) <= FLEET_SPOT.standR) return true;
+    if (site && site.apron && x >= site.apron.x0 && x <= site.apron.x1 && z >= site.apron.z0 && z <= site.apron.z1) return true;
+    return false;
+  };
+  // a stand polygon belongs to this field when its centre does
+  const polys = (pave || []).filter(p => p && p.poly && p.stands && base(...fleetPolyCentre(p.poly)));
+  const f = (x, z) => base(x, z) || polys.some(p => inPoly(p.poly, x, z));
+  f.polys = polys;
+  return f;
+}
+const fleetPolyCentre = poly => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of poly) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } return [(x0 + x1) / 2, (z0 + z1) / 2]; };
+function fleetSpots(aero, site, opts) {
+  const o = opts || {}, F = FLEET_SPOT, R = siteRunway(aero), water = !!aero.water;
+  const env = o.foot || FLEET_SPOT_FOOT, margin = F.margin, need = (o.taxiHalf || F.taxiHalf) + margin;
+  const solid = typeof o.solid === 'function' ? o.solid : null;
+  const P = o.pattern || sitePattern(aero, site || null, { half: o.taxiHalf || F.taxiHalf });
+  // the routes, as THE PILOT samples them
+  const routes = [];
+  if (P && P.routes && typeof patternPath === 'function')
+    for (const k of ['out', 'back']) for (const T of [0, 1]) { const ids = P.routes[k] && P.routes[k][T]; if (ids && ids.length >= 2) for (const q of patternPath(P, ids, 1.0).pts) routes.push(q); }
+  const stNode = P && P.nodes ? P.nodes.find(n => n.kind === 'stand') : null;
+  const ref = (site && site.stand) || stNode || { x: R.cx, z: R.cz };
+  const field = fleetField(aero, site, o.pave);
+  // the site's hangar (the garage's shed), as the circle round its box: whatever way it is turned
+  const hang = site && site.hangar && site.hangar.HW ? site.hangar : null;
+  const hangarD = (x, z) => (hang ? Math.hypot(x - hang.x, z - hang.z) - Math.hypot(hang.HW, hang.HD) : Infinity);
+  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0 };
+  const no = (sp, w, d) => { why[w]++; if (o.trace) o.trace.push({ id: sp.id, why: w, d: d === undefined ? null : +(+d).toFixed(2) }); return false; };
+  // the runway's keep-out: a paved runway's strip (rwyClr past its edge); a narrow strip's own edge + rwyNarrow (an 11 m span
+  // rolling on its centreline clears a spot there by its half-span and more); on water, off the lane's centreline
+  const keep = water ? F.waterClr : R.wid / 2 + (R.wid >= 30 ? F.rwyClr : F.rwyNarrow);
+  const ok = [];
+  const test = sp => {
+    const C = fleetSpotPts(Object.assign({}, sp, {}), 1e9);      // the four corners
+    if (!C.every(q => field(q[0], q[1]))) return no(sp, 'field');
+    const cs = C.map(q => (q[0] - R.cx) * R.nx + (q[1] - R.cz) * R.nz), as = C.map(q => (q[0] - R.cx) * R.dx + (q[1] - R.cz) * R.dz);
+    const along = as.some(a => Math.abs(a) <= R.len / 2 + margin);
+    if (along && !(cs.every(c => c >= keep) || cs.every(c => c <= -keep))) return no(sp, 'runway');
+    if (o.wet) { const w = C.map(q => !!o.wet(q[0], q[1])); if (water ? !w.every(Boolean) : w.some(Boolean)) return no(sp, 'water'); }
+    if (o.ground && !water) { const h = C.concat([[sp.x, sp.z]]).map(q => o.ground(q[0], q[1])); const d = Math.max(...h) - Math.min(...h); if (d > F.flatTol) return no(sp, 'flat', d); }
+    const pts = fleetSpotPts(sp, F.step, true);
+    for (const q of pts) { const d = Math.min(hangarD(q[0], q[1]), solid ? solid(q[0], q[1], margin + 1) : Infinity); if (d < margin) return no(sp, 'solid', d); }
+    const rr = Math.max(sp.half, sp.fwd, sp.aft) + need + 2;
+    for (const q of routes) if (Math.abs(q.x - sp.x) < rr && Math.abs(q.z - sp.z) < rr) { const d = fleetSpotDist(sp, q.x, q.z); if (d < need) return no(sp, 'route', d); }
+    for (const b of ok) {
+      if (Math.hypot(b.x - sp.x, b.z - sp.z) > Math.hypot(b.half, Math.max(b.fwd, b.aft)) + Math.hypot(sp.half, Math.max(sp.fwd, sp.aft)) + F.gap) continue;
+      if (fleetSpotPts(sp, 0.5).some(q => fleetSpotDist(b, q[0], q[1]) < F.gap) || fleetSpotPts(b, 0.5).some(q => fleetSpotDist(sp, q[0], q[1]) < F.gap)) return no(sp, 'overlap');
+    }
+    return true;
+  };
+  const r3 = v => +v.toFixed(3);
+  const max = o.max || F.max;
+  // 1 THE PAINTED STANDS of this field, in their order: the nose at the stop, the box the envelope's (a stand whose
+  // neighbour is taken - by a spot before it, or by a thing the record parks there - is refused by the rules above)
+  const near = field.polys.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const p of near) {
+    const so = p.stands, n = Math.max(1, Math.min(24, (so.n | 0) || 6)), pitch = +so.pitch > 0 ? +so.pitch : 11, lead = +so.lead > 0 ? +so.lead : 9;
+    const v0 = -(n - 1) * pitch / 2 + (+so.vOff || 0), uStop = (so.u0 === undefined ? -lead / 2 : +so.u0) + lead, ctr = fleetPolyCentre(p.poly);
+    const c = CORE_MATH.cos(p.yaw || 0), s = CORE_MATH.sin(p.yaw || 0);
+    for (let i = 0; i < n && ok.length < max; i++) {
+      const v = v0 + i * pitch, u = uStop - env.fwd;
+      const sp = { id: 'stand:' + p.id + ':' + i, kind: 'stand', x: r3(ctr[0] + u * c - v * s), z: r3(ctr[1] + u * s + v * c), ry: r3(-(p.yaw || 0)), half: env.half, fwd: env.fwd, aft: env.aft };
+      if (test(sp)) ok.push(sp);
+    }
+  }
+  // 2 THE APRON round the site's stand (where the player rolls out): rings of spots, the nose toward the stand, nearest
+  // first, then by bearing from the runway's heading
+  const st0 = (site && site.stand) || stNode;
+  if (st0 && !water) {
+    const cand = [];
+    for (const rad of F.apronR) for (let b = 0; b < 360; b += F.apronStep) {
+      const th = R.hdg + b * Math.PI / 180, x = st0.x + CORE_MATH.cos(th) * rad, z = st0.z + CORE_MATH.sin(th) * rad;
+      const hx = st0.x - x, hz = st0.z - z;                                          // the nose toward the stand
+      cand.push({ id: 'apron:' + rad + ':' + b, kind: 'apron', x: r3(x), z: r3(z), ry: r3(Math.atan2(-hz, hx)), half: env.half, fwd: env.fwd, aft: env.aft });
+    }
+    for (const sp of cand) { if (ok.length >= max) break; if (test(sp)) ok.push(sp); }
+  }
+  // 3 THE ROWS along the runway: both sides (the stand's first), rows outward, along the strip
+  const sgRef = (ref.x - R.cx) * R.nx + (ref.z - R.cz) * R.nz >= 0 ? 1 : -1;
+  const ring = [];
+  const pitchA = 2 * env.half + F.gap;
+  for (const sg of [sgRef, -sgRef]) for (let row = 0; row < F.rows; row++) {
+    const d = keep + env.fwd + 0.5 + row * (env.fwd + env.aft + F.rowGap + 2 * margin);
+    const nAlong = Math.floor((R.len - 2 * F.endIn) / pitchA);
+    for (let j = 0; j <= nAlong; j++) {
+      const a = -R.len / 2 + F.endIn + env.half + j * pitchA;
+      if (a > R.len / 2 - F.endIn - env.half) break;
+      const x = R.cx + R.dx * a + R.nx * d * sg, z = R.cz + R.dz * a + R.nz * d * sg;
+      const hx = -R.nx * sg, hz = -R.nz * sg;                  // the nose toward the runway
+      ring.push({ id: 'ring:' + (sg > 0 ? 'L' : 'R') + row + ':' + j, kind: 'ring', x: r3(x), z: r3(z), ry: r3(Math.atan2(-hz, hx)), half: env.half, fwd: env.fwd, aft: env.aft,
+                  _d: Math.hypot(x - ref.x, z - ref.z) + (sg === sgRef ? 0 : 1e5) + row * 1e4 });
+    }
+  }
+  ring.sort((p, q) => p._d - q._d || (p.id < q.id ? -1 : 1));
+  for (const sp of ring) { if (ok.length >= max) break; delete sp._d; if (test(sp)) ok.push(sp); }
+  return { spots: ok, why, foot: env, ref: { x: r3(ref.x), z: r3(ref.z) } };
+}

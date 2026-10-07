@@ -35,19 +35,45 @@ const FLIGHT_BASE_DEFAULT = 'HOME';
 const FLIGHT_BASES = {
   HOME: { id: 'HOME', aero: 'HOME', name: 'Home base', hangar: 'the WWII hangar' },
 };
-// the bases this world has: the aerodrome exists and is not a meadow
-function flightBases(world) {
+// THE BASES ARE DERIVED FROM THE HANGARS HELD (G2230 PREM-S2, GAME-PREMISES ruling gp1): handed the player's
+// document, a base is every aerodrome where a hangar is held (70_player.js / 71_player_bases.js: `sheds[id].base`),
+// in the order HOME first, then by id; each row carries its hangars. HOME's row is FLIGHT_BASES.HOME's words
+// verbatim, so the sandbox (the starter club at HOME, nothing else held) reads exactly as before. Without a document
+// (the gates, the rigs) the registry above answers, as it always did.
+function flightBasesOf(doc) {
+  const S = (doc && doc.sheds && typeof doc.sheds === 'object') ? doc.sheds : null;
+  if (!S) return FLIGHT_BASES;
+  const out = {};
+  const ids = Object.keys(S).filter(id => S[id] && typeof S[id] === 'object' && typeof S[id].base === 'string')
+    .sort((a, b) => (a === 'HOME' ? -1 : b === 'HOME' ? 1 : (a < b ? -1 : a > b ? 1 : 0)));
+  for (const id of ids) {
+    const aero = S[id].base;
+    if (!out[aero]) {
+      const B = FLIGHT_BASES[aero];
+      const O = typeof BASE_OFFERS === 'object' ? BASE_OFFERS[aero] : null;
+      const sh = typeof SHELLS === 'object' && SHELLS[S[id].shell];
+      out[aero] = B ? Object.assign({}, B, { hangars: [] })
+        : { id: aero, aero, name: S[id].name || (O && O.words ? O.words.split(' · ')[0] : aero),
+            hangar: 'the ' + ((sh && sh.name) || S[id].shell || 'hangar').toLowerCase(), hangars: [] };
+    }
+    out[aero].hangars.push(id);
+  }
+  return Object.keys(out).length ? out : FLIGHT_BASES;
+}
+// the bases this world has: the aerodrome exists and is not a meadow (`doc`: the player's document - the held hangars)
+function flightBases(world, doc) {
   const L = (world && world.aerodromes) || [];
+  const R = doc ? flightBasesOf(doc) : FLIGHT_BASES;
   const out = [];
-  for (const id of Object.keys(FLIGHT_BASES)) {
-    const B = FLIGHT_BASES[id], a = L.find(x => x.id === B.aero);
+  for (const id of Object.keys(R)) {
+    const B = R[id], a = L.find(x => x.id === B.aero);
     if (a && a.kind !== 'meadow') out.push(Object.assign({}, B, { a }));
   }
   return out;
 }
 // the base `id`, else the default, else the first — null in a world with none
-function flightBase(world, id) {
-  const L = flightBases(world);
+function flightBase(world, id, doc) {
+  const L = flightBases(world, doc);
   return L.find(b => b.id === id) || L.find(b => b.id === FLIGHT_BASE_DEFAULT) || L[0] || null;
 }
 

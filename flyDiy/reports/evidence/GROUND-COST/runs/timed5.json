@@ -1,0 +1,186 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=retro",
+ "preset": "retro",
+ "day": "",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 60,
+ "at": "2026-10-06T12:16:16.903Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (307 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 7.3,
+   "fps": 132.84,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 4.93,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (369 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 6.41,
+   "fps": 144.83,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 3.87,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "hexfar",
+   "strip": [
+    "hexfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (358 ms to flow)",
+   "splat": "R hexfar",
+   "frameGpuMs": 6.47,
+   "fps": 147.64,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 4.05,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "lodfar",
+   "strip": [
+    "lodfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (323 ms to flow)",
+   "splat": "R lodfar",
+   "frameGpuMs": 6.56,
+   "fps": 147.75,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 3.95,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (260 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 7.32,
+   "fps": 132.51,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 4.97,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (455 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 8.44,
+   "fps": 84.78,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.48,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (461 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 8.06,
+   "fps": 85.47,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.15,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "hexfar",
+   "strip": [
+    "hexfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (460 ms to flow)",
+   "splat": "R hexfar",
+   "frameGpuMs": 8.28,
+   "fps": 88.27,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.53,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "lodfar",
+   "strip": [
+    "lodfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (448 ms to flow)",
+   "splat": "R lodfar",
+   "frameGpuMs": 8.44,
+   "fps": 87.15,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.58,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (466 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 8.46,
+   "fps": 88.06,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.72,
+   "groundN": 55,
+   "gdraws": 167
+  }
+ ],
+ "errs": []
+}

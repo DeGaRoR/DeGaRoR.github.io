@@ -1,0 +1,1 @@
+PROBE {"preset":"current","aa":"off","clouds":"half","active":true,"ready":true,"baked":true,"waited":40,"samples":0,"compositeDraws":6,"readsOwnDepth":false,"feedbacks":0,"feedbackAll":0,"first":[]}

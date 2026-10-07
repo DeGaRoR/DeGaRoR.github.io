@@ -644,7 +644,7 @@ const GATES = [
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
   // on the same ground, the material dupe, the island's parked objects (~2 s)
-  { id: 'PARKED', file: '_parked_check.js', tier: 'core' },
+  { id: 'PARKED', file: '_parked_check.js', tier: 'core', wall: 600 },   // G2220-G2224: + the page in node (11 the capture leak and its negative control, 12p the fleet); --pure: seconds
   // C4a (G870): the flown aeroplane's texture bake - what bakes, the atlas uv per vertex (and the split), the key,
   // the tangent frame riding the flex, the Toksvig mips, the dilation, the wiring (~1 s)
   { id: 'FLOWNBAKE', file: '_flown_bake_check.js', tier: 'core' },
@@ -696,6 +696,13 @@ const GATES = [
   // hold for property the way it holds for builds. Source-scans app.js for
   // the write-stop: nothing may quietly write the old pref keys again.
   { id: 'PLAYER', file: '_player_check.js', tier: 'core' },
+  // THE GAME PREMISES (G2095, GAME-PREMISES-2026-10-06.md): the player's bases,
+  // hangars and fleet as data (PLAYER_V 2) and the rules - the v1 -> v2 walk
+  // leaves every old shed byte-identical, the door is hangar.js's own, the
+  // packer's contract (placed or reported, no overlap, no wall, no fit-out,
+  // order-free), the fleet lift refuses nothing, moving is flying, every
+  // refusal leaves the document as it came; 16 doctored rules. ~2 s
+  { id: 'GAMEPREM', file: '_gameprem_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

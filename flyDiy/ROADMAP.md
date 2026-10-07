@@ -6,6 +6,10 @@
 > "Friendly Welcome" release is under way: `futureDesigns/FRIENDLY-WELCOME-PLAN-2026-10-03.md` (the order, the owners,
 > the session rules) and `futureDesigns/FRIENDLY-WELCOME-BUDGETS.md` (device budgets). The live board is the
 > "Friendly Welcome" artifact. Next big release after it: "the game premises" (hangar management).
+>
+> **2026-10-06 (G2095): THE GAME PREMISES IS DESIGNED, AND ITS MODEL IS LANDED** — `futureDesigns/GAME-PREMISES-2026-10-06.md`
+> (bases, hangars from the three presets, where every aeroplane stands, the money loop, the world blend, the screen, four
+> sessions S1-S4, twenty open questions with defaults). S1 = `PLAYER_V` 2 + `src/core/71_player_bases.js` + GATE GAMEPREM.
 
 This document SUPERSEDES `HANDOVER.md` § ROADMAP (the sessions 1-6 / W-branch
 list). That section stays where it is as history — its entries are cited all

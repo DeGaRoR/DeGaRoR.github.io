@@ -1,0 +1,28 @@
+== v1  (178 s)
+   stored : {"v":2,"mode":"sandbox","here":"HOME","wallet":0,"clock":0,"fleet":{},"HOME":{"shell":"club","kits":["park","bench","wood","metal","store","handling","office","comfort","curio","wip"],"dims":{"HW":18,"HD":14,"EAVE":8},"parts":{"ground":{"set":"cracked","tile":4,"rough":1,"nrm":1},"wallSides":{"set":"planks09","tile":2,"rough":1.2,"nrm":1}},"name":"Home hangar","base":"HOME","tenure":"own"}}
+   room   : {"shell":"club","HW":18,"HD":14,"EAVE":8,"kits":["bench","wood","metal","store","handling","office","comfort","curio","wip"]}
+   ok    the stored player document is v2
+   ok    sandbox, the garage at HOME, HOME at HOME
+   ok    the saved shed's shell unchanged
+   ok    the saved shed's kits unchanged
+   ok    the saved shed's dims unchanged
+   ok    the saved shed's parts unchanged
+   ok    the saved shed's name unchanged
+   ok    the wallet unchanged
+   ok    the room the garage built is the saved 18 x 14 x 8
+   ok    no page error (0; 53 GL-less bake notes)
+== prefs  (210 s)
+   stored : {"v":2,"mode":"sandbox","here":"HOME","wallet":0,"clock":0,"fleet":{},"HOME":{"shell":"club","kits":["park","bench","wood","metal","store","handling","office","comfort","curio","wip"],"base":"HOME","tenure":"own","dims":{"HW":16,"HD":13,"EAVE":7.5},"parts":{"ground":{"set":"cracked","tile":4,"rough":1,"nrm":1}}}}
+   room   : {"shell":"club","HW":16,"HD":13,"EAVE":7.5,"kits":["bench","wood","metal","store","handling","office","comfort","curio","wip"]}
+   ok    the stored player document is v2
+   ok    sandbox, the garage at HOME, HOME at HOME
+   ok    the pre-S1 prefs are lifted into the room
+   ok    no page error (0; 53 GL-less bake notes)
+== fresh  (296 s)
+   stored : {"v":2,"mode":"sandbox","here":"HOME","wallet":0,"clock":0,"fleet":{},"HOME":{"shell":"club","kits":["park","bench","wood","metal","store","handling","office","comfort","curio","wip"],"base":"HOME","tenure":"own"}}
+   room   : {"shell":"club","HW":15,"HD":12.5,"EAVE":7,"kits":["bench","wood","metal","store","handling","office","comfort","curio","wip"]}
+   ok    the stored player document is v2
+   ok    sandbox, the garage at HOME, HOME at HOME
+   ok    a fresh profile stands in the club at its own size
+   ok    no page error (0; 53 GL-less bake notes)
+GAMEPREM PAGE: PASS

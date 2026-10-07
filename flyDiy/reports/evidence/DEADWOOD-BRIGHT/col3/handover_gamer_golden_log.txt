@@ -1,0 +1,62 @@
+S_g_golden as booted: treeShadowed true uILit 0.9 shadeK 1.38 imp {"gain":1,"solid":1,"flat":1.3,"mean":0.05,"vary":0.1,"barkWrap":1,"barkSSS":0,"barkFlat":1,"barkSolid":0,"barkCut":0.4,"barkLit":0.9}
+S_g_golden hand-over 120 m, D 130 - 30 picks
+cedar_tree.glb|Cedar_LOD0                snag  into occl 1.87  box geo 0.0054 none 0.0069 | master pop -0.08 core 0.00 | col3 pop +0.00 core 0.00 |
+   strip: A_master | B_master | A_col3 | B_col3
+cedar_tree.glb|Cedar_LOD0                snag  away occl 2.18  box geo 0.1111 none 0.1776 | master pop +0.34 core 1.59 | col3 pop +0.23 core 1.30 |
+   strip: A_master | B_master | A_col3 | B_col3
+cedar_tree.glb|Cedar_LOD0                snag  side occl 0.26  box geo 0.1258 none 0.2252 | master pop -0.13 core 0.87 | col3 pop -0.11 core 0.78 |
+   strip: A_master | B_master | A_col3 | B_col3
+cedar_tree.glb|Cedar_LOD0                rungs into occl 1.03  box geo 0.2347 none 0.3795 | master pop -0.06 core 0.99 | col3 pop -0.08 core 0.83 |
+   strip: A_master | B_master | A_col3 | B_col3
+cedar_tree.glb|Cedar_LOD0                rungs away occl 0.55  box geo 0.2245 none 0.3456 | master pop +0.06 core 1.27 | col3 pop +0.01 core 1.05 |
+   strip: A_master | B_master | A_col3 | B_col3
+cedar_tree.glb|Cedar_LOD0                rungs side occl 0.08  box geo 0.1244 none 0.2157 | master pop -0.08 core 0.93 | col3 pop -0.13 core 0.69 |
+   strip: A_master | B_master | A_col3 | B_col3
+larch_tree.glb|Larch_LOD0                snag  into occl 3.74  box geo 0.4291 none 0.5038 | master pop -0.52 core 0.56 | col3 pop -0.33 core 0.40 |
+   strip: A_master | B_master | A_col3 | B_col3
+larch_tree.glb|Larch_LOD0                snag  away occl 2.82  box geo 0.0694 none 0.0506 | master pop +1.15 core 1.38 | col3 pop +0.37 core 1.13 |
+   strip: A_master | B_master | A_col3 | B_col3
+larch_tree.glb|Larch_LOD0                snag  side occl 3.25  box geo 0.0682 none 0.2278 | master pop +0.03 core 1.53 | col3 pop -0.02 core 1.18 |
+   strip: A_master | B_master | A_col3 | B_col3
+larch_tree.glb|Larch_LOD0                rungs into occl 2.29  box geo 0.2230 none 0.4257 | master pop -0.09 core 0.96 | col3 pop -0.11 core 0.85 |
+   strip: A_master | B_master | A_col3 | B_col3
+larch_tree.glb|Larch_LOD0                rungs away occl 0.84  box geo 0.2383 none 0.3559 | master pop +0.04 core 1.32 | col3 pop -0.00 core 1.11 |
+   strip: A_master | B_master | A_col3 | B_col3
+larch_tree.glb|Larch_LOD0                rungs side occl 0.55  box geo 0.1898 none 0.2688 | master pop -0.15 core 0.49 | col3 pop -0.16 core 0.40 |
+   strip: A_master | B_master | A_col3 | B_col3
+spruce_tree.glb|Spruce_LOD0              snag  into occl 0.6   box geo 0.0053 none 0.0056 | master pop -0.94 core 0.00 | col3 pop +0.24 core 0.00 |
+   strip: A_master | B_master | A_col3 | B_col3
+spruce_tree.glb|Spruce_LOD0              snag  away occl 0     box geo 0.1382 none 0.1477 | master pop +0.67 core 1.14 | col3 pop +0.22 core 1.02 |
+   strip: A_master | B_master | A_col3 | B_col3
+spruce_tree.glb|Spruce_LOD0              snag  side occl 2.26  box geo 0.1282 none 0.2266 | master pop -0.15 core 0.48 | col3 pop -0.14 core 0.43 |
+   strip: A_master | B_master | A_col3 | B_col3
+spruce_tree.glb|Spruce_LOD0              rungs into occl 0     box geo 0.2049 none 0.2525 | master pop -0.19 core 0.70 | col3 pop -0.24 core 0.66 |
+   strip: A_master | B_master | A_col3 | B_col3
+spruce_tree.glb|Spruce_LOD0              rungs away occl 0.28  box geo 0.2656 none 0.3335 | master pop +0.06 core 1.72 | col3 pop -0.02 core 1.26 |
+   strip: A_master | B_master | A_col3 | B_col3
+spruce_tree.glb|Spruce_LOD0              rungs side occl 0     box geo 0.0665 none 0.2139 | master pop -0.00 core 1.34 | col3 pop -0.05 core 0.95 |
+   strip: A_master | B_master | A_col3 | B_col3
+pine_georgeous.glb|Pine01_LOD0           snag  into occl 0.51  box geo 0.4089 none 0.4417 | master pop -0.90 core 0.70 | col3 pop -0.27 core 0.73 |
+   strip: A_master | B_master | A_col3 | B_col3
+pine_georgeous.glb|Pine01_LOD0           snag  away occl 0.41  box geo 0.2018 none 0.2782 | master pop -0.16 core 0.83 | col3 pop -0.23 core 0.69 |
+   strip: A_master | B_master | A_col3 | B_col3
+pine_georgeous.glb|Pine01_LOD0           snag  side occl 0.35  box geo 0.1827 none 0.2319 | master pop -0.09 core 0.80 | col3 pop -0.05 core 0.64 |
+   strip: A_master | B_master | A_col3 | B_col3
+pine_georgeous.glb|Pine01_LOD0           rungs into occl 1.2   box geo 0.2799 none 0.4215 | master pop -0.06 core 0.68 | col3 pop -0.09 core 0.59 |
+   strip: A_master | B_master | A_col3 | B_col3
+pine_georgeous.glb|Pine01_LOD0           rungs away occl 0.27  box geo 0.0584 none 0.0439 | master pop +0.92 core 1.23 | col3 pop +0.94 core 1.19 |
+   strip: A_master | B_master | A_col3 | B_col3
+pine_georgeous.glb|Pine01_LOD0           rungs side occl 0.19  box geo 0.1568 none 0.2026 | master pop -0.07 core 0.62 | col3 pop -0.09 core 0.53 |
+   strip: A_master | B_master | A_col3 | B_col3
+dead_conifer|Coniferous Dead Tree_13     rungs into occl 0.5   box geo 0.0232 none 0.0237 | master pop -1.67 core 0.00 | col3 pop -0.04 core 0.00 |
+   strip: A_master | B_master | A_col3 | B_col3
+dead_conifer|Coniferous Dead Tree_13     rungs away occl 0.29  box geo 0.3086 none 0.3204 | master pop -0.36 core 0.42 | col3 pop +0.12 core 0.59 |
+   strip: A_master | B_master | A_col3 | B_col3
+dead_conifer|Coniferous Dead Tree_13     rungs side occl 0.29  box geo 0.1520 none 0.2125 | master pop -0.02 core 0.85 | col3 pop -0.05 core 0.66 |
+   strip: A_master | B_master | A_col3 | B_col3
+dead_conifer|Coniferous Dead Tree 2_14   rungs into occl 0.08  box geo 0.3593 none 0.4208 | master pop -0.55 core 0.49 | col3 pop -0.31 core 0.48 |
+   strip: A_master | B_master | A_col3 | B_col3
+dead_conifer|Coniferous Dead Tree 2_14   rungs away occl 0.15  box geo 0.1854 none 0.2023 | master pop +0.05 core 1.17 | col3 pop +0.07 core 1.06 |
+   strip: A_master | B_master | A_col3 | B_col3
+dead_conifer|Coniferous Dead Tree 2_14   rungs side occl 0.53  box geo 0.1804 none 0.2662 | master pop -0.21 core 0.48 | col3 pop -0.20 core 0.46 |
+   strip: A_master | B_master | A_col3 | B_col3

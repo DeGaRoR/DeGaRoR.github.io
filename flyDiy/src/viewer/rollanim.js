@@ -115,7 +115,10 @@ const ROLLANIM = (() => {
     // catch's flare peaks ~0.75 s in and is gone by 1.25 s: its tail under the check's still lead). A build without a starter
     // is SWUNG (setEngine swing: it catches at once, the cockpit's hand on the prop); an electric motor is POWERED (the
     // cockpit's pack key: swing) and spins up in spinS. No engine: no start
-    start: true, startKeyAt: 0.2, startLead: 0.6, crankS: 1.5, catchNext: 1.0, catchCheck: 0.8, spinS: 0.6,
+    // TIGHTENED 2026-10-07 (the user's pick, A0's strict gate: the start cost +2.9 s a roll-out): the key at 0.1 s, the
+    // crank at 0.25 s, the check 0.35 s after the catch (the flare's tail under the check's still lead), the next engine
+    // 0.7 s after a catch: a single engine's start 2.90 -> 2.10 s, the twin's 5.40 -> 4.30 s; the crank is still the solver's
+    start: true, startKeyAt: 0.1, startLead: 0.25, crankS: 1.5, catchNext: 0.7, catchCheck: 0.35, spinS: 0.6,
     // THE ROLL'S THROTTLE: a little to break away (rollThr: ~+350 rpm on the A-65), up over thrUp s from the roll's start,
     // held to thrHold of the roll, back to idle by thrDown of it (the solver's ctl.thr; the shaft law answers)
     rollThr: 0.14, thrUp: 0.3, thrHold: 0.35, thrDown: 0.85,

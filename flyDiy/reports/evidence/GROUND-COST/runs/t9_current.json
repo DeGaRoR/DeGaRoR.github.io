@@ -1,0 +1,46 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=current",
+ "preset": "current",
+ "day": "",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 60,
+ "at": "2026-10-06T16:24:13.835Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "prod",
+   "strip": [],
+   "knobs": {},
+   "how": "same (456 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": null,
+   "fps": 91.84,
+   "draws": 619,
+   "mtris": 6.13,
+   "groundMs": 8.15,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "prod",
+   "strip": [],
+   "knobs": {},
+   "how": "same (523 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": null,
+   "fps": 76.59,
+   "draws": 1180,
+   "mtris": 18.87,
+   "groundMs": 4.28,
+   "groundN": 55,
+   "gdraws": 167
+  }
+ ],
+ "errs": []
+}

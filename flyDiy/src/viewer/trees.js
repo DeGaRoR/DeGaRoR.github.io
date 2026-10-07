@@ -364,6 +364,11 @@
   // default: nothing moves until the world rail moves it (TREE_LEAF.kindTint; the world look's `kindTint`).
   const COVER_BASE = { sat: 1.58, light: 1.12 };
   const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1 }, shrub: { hue: 0, sat: 1, light: 1 } };
+  // G1975 (DEADWOOD-BRIGHT, the user's far-forest call 2026-10-07): THE SHADE COMPENSATION - a lightness factor over the
+  // trees and the bushes (every kind riding on MASTER; not the grass) on BOTH tiers, set by the renderer when the world
+  // casts tree shadows (render_world treeShadowed: x1.38 with uILit 0.9 there - the geometry darkens under its own crown,
+  // the impostor does not). Not a dial and not saved: MASTER.light stays the user's
+  const SHADE = { k: 1 };
   const TINT_GLSL = [
     // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
     // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
@@ -601,7 +606,7 @@
     }
     mat.userData.uSat.value = leaf ? (t.sat === undefined ? 1 : t.sat) * MASTER.sat * (K ? K.sat : 1) : 1;
     mat.userData.uLight.value = (leaf ? (t.light === undefined ? 1 : t.light)
-                                      : (t.bark === undefined ? 1 : t.bark)) * MASTER.light * (K ? K.light : 1);
+                                      : (t.bark === undefined ? 1 : t.bark)) * MASTER.light * (K ? K.light : 1) * SHADE.k;
   }
   // the sway's uniform, for the climate's link to fill (K4)
   if (typeof window !== 'undefined') window.TREE_WIND = U_WIND;
@@ -640,6 +645,8 @@
     // the master tint over every collection, and the edge sharpen:
     // TREE_LEAF.tint({ light: 1.2 }), TREE_LEAF.sharp(0) for the plain cutoff
     master: () => Object.assign({}, MASTER),
+    // G1975: the shade compensation (see SHADE); returns it
+    shadeK: k => { if (k !== undefined && isFinite(+k) && +k > 0 && +k !== SHADE.k) { SHADE.k = +k; for (const m of HOOKED) retint(m); } return SHADE.k; },
     tint: o => { for (const k of ['hue', 'sat', 'light']) if (o[k] !== undefined) MASTER[k] = +o[k];
       for (const m of HOOKED) retint(m); return Object.assign({}, MASTER); },
     // G1385: the grass's ('cover') and the bushes' ('shrub') own master over their kind - TREE_LEAF.kindTint('cover', { sat: 0.8 })
