@@ -174,7 +174,7 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
       yes(M.every(m => m.finite && m.crashed && m.wing > 0 && m.keMax <= m.ke0 * 1.001), L.BUILDS[k].label + ', ' + L.STANDARD[id].label + ': every member crashed, a wing member broken, finite, the energy bounded - ' + desc + ' (kJ for the work)');
       const R0 = ref && ref.rows && ref.rows[tag];
       if (!R0 || WRITE) { console.log('        (no reference' + (WRITE ? ': --write-ref' : '') + ')'); if (!WRITE) yes(false, tag + ': a stored reference distribution'); continue; }
-      const cmp = L.ensCompare({ members: R0.members }, { members: M });
+      const cmp = L.ensCompare({ members: R0.members }, { members: out.rows[tag].members });   // (both as stored: the work to 0.1 J)
       const moved = L.ENS_FIELDS.filter(f => cmp[f].moved);
       yes(!moved.length, tag + ' against the reference: ' + L.ENS_FIELDS.map(f => f + ' ' + (cmp[f].moved ? 'MOVED ' : '') + 'p ' + cmp[f].p.toFixed(3)).join(', ') +
         (moved.length ? ' - ' + moved.map(f => f + ' median ' + cmp[f].a.median + ' -> ' + cmp[f].b.median + ' (pooled p10-p90 spread ' + cmp[f].pooled.toFixed(1) + ')').join('; ') : ''));

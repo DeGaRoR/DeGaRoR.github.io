@@ -191,7 +191,7 @@ const GATES = [
   // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once.
   // G1833 (DMG-D2a): flown on THE CERTIFICATE's limits (the game's, with the layer on): the load test clean to its limit and
   // held at its ultimate, the pull read to the limit; `--physics` flies D1a's physics limits as before
-  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 900 },
+  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 1300 },   // (G2354: + the 30 m/s ensembles)
   // G1810-G1817 (DMG-D1a MEMBERS): the seams and the break groups (closed sets, in the generator and in the solver), Euler on
   // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
   // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
@@ -261,7 +261,7 @@ const GATES = [
   // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
   // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
   // Three children at once
-  { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1500 },
+  { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

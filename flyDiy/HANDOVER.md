@@ -78844,3 +78844,199 @@ tools/dmg_nose_evidence.js (the pictures).
    case (the trunk sideways at the hub) would certify them; not in this brief.
 5. The stack is crushed in its order whichever way it is met (a corner meets the bowl's side first in life; the energies are of a size).
 6. GATE DMGWIND's offset part flies the Cub whatever key it is given (harmless: it is only called with 'cub').
+
+## G2353-G2356 DMG-DETERMINISM - THE "JIT" 154 / 204 WAS A STALE GENERATED CORE (NODE NOW REFUSES ONE); EVERY V8 TIER FLIES THE SAME BITS; THE PAGE'S CRASH WAS ITS OWN (CHROME'S sin / cos / pow) AND IS NOW NODE'S TO THE BIT; THE 30 M/S CRASH AS AN ENSEMBLE; DMG-TUNE SETTLED (2026-10-07, DMG-DETERMINISM for the DEFORM COORDINATOR, cloud, node + headless Chromium 141; branch claude/dmg-determinism off claude/dmg-integration 9500f197; G2356 the evidence)
+
+READY for the coordinator - the targeted battery green but for DMGWALL's metal nose-in, red on dmg-integration 9500f197 with the same
+numbers (section 7). Damage stays OFF by default (GEN_DAMAGE_DEFAULT untouched). NOTHING NODE COMPUTES MOVED: the core's new
+sin / cos / pow are node's own builtins to the bit (0 of 4 million arguments differ), the validated hashes are the base's
+(checked before and after every core change: the Jodel's centreline 450e36435e130623, damage off
+b57461dd0edccec4, the Cub's taxi 18b9c7a9e8cdd9cc, a 20 s flight 60c72711470b5acd; the 18 standard runs of section 2 one hash in every tier
+and in the page), and every targeted gate's numbers are the base's (below).
+
+### 1. THE FINDING WAS NOT THE OPTIMISER (G2353)
+DMG-COMPOSITE's G2048 (reports/evidence/DMG-COMPOSITE/jit_finding.txt): one untaken branch in beamYield moved the Jodel's 30 m/s
+centreline 154 -> 204 broken (a474fbbd6ba2b8fe, 39568.3 J), the Cub 125 -> 169, the metal Cessna 178 -> 208; `--no-opt` gave 154.
+Measured here, every way the finding could be re-made:
+- the branch re-added to DMG-TUNE's tree (849058d8), to DMG-COMPOSITE's tip (ebb045b4) and to dmg-integration (9500f197), each
+  rebuilt, flown alone, in DMG-COMPOSITE's own sequence (damage off then on, the three builds in one process), with the certificate
+  computed in-process and read from another process: **154 / 4702df076ce1bee8 every time** (125 / 178 on the Cub / Cessna) - with and
+  without the branch, under the default, `--no-opt`, `--max-opt=1/2/3`;
+- **the 204 is the COMMITTED generated core**: `git show 849058d8:flyDiy/tools/flight_core.js` (blob b5004b69 - the same file on
+  every DMG branch: train 37's build of master, 9870c0f1) flown with DMG-TUNE's tools gives **a474fbbd6ba2b8fe 204 / 39568.3 J, the
+  Cub 8873243509ec2bb5 169 / 29862.2, the metal 44b1e9ea5f39a293 208 / 51335** - DMG-COMPOSITE's three "base" rows of
+  validated_hashes.txt to the bit. A tree whose generated files were put back from git (`git checkout -- tools/flight_core.js` before
+  a commit - "never commit generated files" - a stash, a fresh worktree) flies train 37's core until its next build. Nothing reads
+  tools/flight_core.js's header against its sources, so it ran silently. The "between DMG-TUNE and DMG-WALL 154 vs 204" is the same
+  file: no merged branch moved a crash that way.
+- **THE FIX, AT THE CAUSE** (tools/_core_fresh.js): node refuses a stale core. The build writes `// body-sha256: <16 hex>` (sha256 of
+  MANIFEST.core joined); fresh() hashes src/core again; assertFresh() throws `STALE CORE: ... run node tools/build.js first`. Called
+  by the core itself in node (src/core/90_node_exports.js - so every tool that loads a core built from now on is covered, the 117
+  that require it directly too) and by the crash library before it loads one (_treecrash_lib core(), _dmg_wall_lib, TREEHIT's check:
+  a core from before G2353 cannot check itself). A core copied out of its tree (no src/core beside it) is not judged;
+  FLYDIY_STALE_OK=1 loads one anyway; FLYDIY_CORE=<file> flies another core on purpose (the library's hook for comparisons).
+  ~10 ms once a process. Red with the op as it was: GATE DMGDETERMINISM's selftest loads git HEAD's core in a tree - refused.
+
+### 2. THE TIERS (G2353) - one hash under every flag
+Leads (a)-(d) checked: (a) Math.* - node's sin, cos, tan, atan, atan2, asin, acos, sqrt, hypot (2 and 3), pow (general, 2, 0.5,
+0.25), exp, expm1, log, log1p, log2, log10, cbrt, tanh, fround, round under the interpreter against TurboFan and Maglev, 200 000
+arguments each: 0 differ (V8 12.4 calls one ieee754 routine from every tier); (b) the solver sorts nothing per substep; (c)/(d)
+no read past a typed array, no Float32Array on the state path (the hashes below say it). The certificate itself (genCertify, its
+own sims) is one hash under the interpreter, TurboFan and Maglev+TurboFan on all three builds.
+GATE DMGDETERMINISM --full --branch --selftest (reports/evidence/DMG-DETERMINISM/tiers_full.txt / .json, 63/63, 207 children):
+the seven tier sets - the interpreter (`--max-opt=0`), + Sparkplug (`--max-opt=1`), Maglev without TurboFan (`--maglev --max-opt=2`),
+TurboFan (the default; node 22 has Maglev off), Maglev + TurboFan (`--maglev`), `--no-opt`, `--always-turbofan` - on every case, the
+certificate stamped (computed once in its own child; its own hash equal under the interpreter, TurboFan and Maglev+TurboFan on all
+three builds); G2048's branch re-added to the generated core under the interpreter, --no-opt, TurboFan, Maglev+TurboFan:
+| case | broken | member work J | the hash under all 7 tier sets, with the branch (ignition / --no-opt / TurboFan / Maglev+TF), and in Chromium 141 |
+|---|---|---|---|
+| cub/taxi/on | 0 | 0 | 18b9c7a9e8cdd9cc |
+| cub/noseover/on | 46 | 3252.7 | 8a9b14e081ea34d8 |
+| cub/trunk0/on | 171 | 18720.5 | 70e9c0641baf145f |
+| cub/trunk25/on | 109 | 13416.8 | f76c330a0daea513 |
+| cub/trunk0/off | 0 | 0 | 2e0c8285a6411676 |
+| cub/flight/off | 0 | 0 | cd2ec9bd851f7864 |
+| jodel/taxi/on | 0 | 0 | 7b64a25f6d12932c |
+| jodel/noseover/on | 97 | 2811.7 | 613c4daff0f454ed |
+| jodel/trunk0/on | 124 | 21119.2 | 450e36435e130623 |
+| jodel/trunk25/on | 101 | 3014.5 | dc371f3b9bae57c9 |
+| jodel/trunk0/off | 0 | 0 | b57461dd0edccec4 |
+| jodel/flight/off | 0 | 0 | 60c72711470b5acd |
+| metal/taxi/on | 0 | 0 | d54f2ae5fd59450a |
+| metal/noseover/on | 7 | 2973.8 | 638963224563a2e2 |
+| metal/trunk0/on | 215 | 36843.9 | 685f5922e53c6ccb |
+| metal/trunk25/on | 39 | 10233.2 | a173e06e8aba1904 |
+| metal/trunk0/off | 0 | 0 | e8c9a7a14da2a696 |
+| metal/flight/off | 0 | 0 | 0deca7701700c1aa |
+
+**Damage-OFF flight hashes do not differ between tiers either** (the 30 m/s trunk elastic and a 20 s flight at full power, rows
+above). GATE DMGDETERMINISM (new) runs the fast tiers on every case and the interpreter / Sparkplug / --no-opt on the three
+centrelines and the Jodel's flight (`--full`: every set on every case, `--branch` with G2048's branch, `--cache f` resumable).
+
+### 3. THE PAGE WAS NOT NODE - Chrome's sin / cos / pow (G2355)
+The parity run (tools/_dmg_parity_run.js: atTrunk's state path, a plain script for node and a page; its node run IS the library's
+hash) in headless Chromium 141 (V8 14.1) against node 22 (V8 12.4), the certificate handed in as the bench thread hands it: the
+Jodel's centreline 124 broken in both - but another hash, and damage OFF too, and the Cub's taxi. The op, measured on 200 000
+arguments a function built from exact operations only (powers of two by multiplication - a sweep whose inputs come from Math.pow measures pow
+twice): **Math.sin and Math.cos differ in the last bit on 2-4 % of arguments (Chrome's are glibc-derived, node's fdlibm: node =
+fdlibm on 0 of 3 million), Math.pow with a general exponent on 4-8 % (Chrome's ~correctly rounded - 0.8 % off glibc; node's is
+V8's e_pow)**; tan, atan, atan2, asin, acos, sqrt, hypot, exp, log, log2, log10, cbrt, tanh, sinh, cosh, expm1, log1p, x ** 2 and
+pow(x, 0.5) agree. The solver calls them every substep (the polar's sine: 15 million calls in one Jodel crash and flight; the
+atmosphere's pressure, a pow every substep), so a page's wreck was its own from the first frame.
+**THE FIX** (src/core/00_registry.js, the top): the core shadows Math with a frozen object literal of the builtins whose sin, cos,
+pow are plain JS on doubles - the same in every tier of every engine:
+- fsin / fcos: fdlibm 5.3 (e_rem_pio2 with k_rem_pio2's Payne-Hanek for |x| past 2^19 pi/2 - 2/pi's 1584 bits generated by
+  BigInt Machin, not typed; k_sin; k_cos). = node's Math.sin / cos on 3 million arguments (any double's bits, the huge reductions,
+  the specials): 0 differ.
+- fpow: fdlibm's e_pow differs from node's on 3.7 %. Node's own binary told why (objdump + gdb on v8::base::ieee754::pow: the
+  constants are e_pow's, read out of .rodata; the instruction trace of one failing argument): V8's computes the polynomial's tail
+  inside the divisor, r = z t1 / ((t1 - 2) - (w + z w)), where e_pow has z t1 / (t1 - 2) - (w + z w). With that one change: = node's
+  Math.pow on 4 million arguments (random, integer and arbitrary-bit exponents, the specials): 0 differ. ECMAScript's NaN cases first.
+- **in Chromium the standard crashes are now node's hashes** (GATE DMGDETERMINISM 4: all 18 rows above, Chromium 141.0.7390.37 = node 12.4.254.21 to the hash), the core's Math in the page
+  against node's builtins 0 differ; red with the op as it was (the selftest's page with the builtins put back: the Jodel's
+  centreline 28ab6d84adbee4fc against node's 450e36435e130623 - the same 124 broken / 21119.2 J, other bits).
+- In node the shadow is the module's own; in a page it is the classic scripts' shared global scope, so the viewer's Math.sin /
+  cos / pow are these too (the same numbers; nothing else of Math changes).
+- `x ** 2` (14 sites, all squares) needs nothing: both engines give x * x.
+**What a full page-vs-node check of a USER's crash still needs** (not done here; the open gaps - the Cub's 3 m/s taxi with 10-13
+engine-mount members on the page and 0 in node, the nose-over upright on the page - are not comparable until it exists): the page
+to record its inputs - the build's spec as the page loaded it (JOIN-PARITY), the certificate it stamped, the spawn pose and
+velocities, the wind field's samples, the controls and the dt of every frame (the worker's batching: DMGFPS says a batch is bitwise
+the 60 fps run) - and node to replay them through the parity script; with the core's Math the replay is then bit for bit or names its
+first differing frame. Also: a page must run a current bundle (the page's FLYDIY_CORE_SHA against the core's body-sha256); and
+other engines (Safari's JavaScriptCore uses the system libm for every transcendental) would need atan / atan2 / asin / acos / exp /
+log / tan / cbrt ported the same way.
+
+### 4. THE ENSEMBLE (G2354)
+_treecrash_lib: `perturb {seed, amp}` (every node's start nudged by up to amp, uniform, seeded; atTrunk and DMGWALL's study at the
+same place - after the settle, before the speed), `crashStats` (members broken; pieces of 0.5 kg and more - the live members' and the
+whole clusters' union-find; member work; the engine mount off = a `*:mount` group let go; the cowl off = the mount off or the nose
+crushed through its stack), `ensemble(key, id, {n, jobs, core, certDir, o})` (child processes, the certificate computed once in its
+own child), `ensStats` (median, p10, p90, spread), `rankTest` (two-sided Mann-Whitney, ties corrected, normal approximation),
+`ensCompare` (moved = p < 0.01; the median's shift against the pooled spread reported). STANDARD: DMG-TUNE's crashes (taxi,
+noseover, trunk0, trunk25) and a damage-OFF flight.
+**How far a 30 m/s crash depends on its start** (16 members, amp_sweep.json / .svg):
+| nudge | the Jodel | the Cub | the metal Cessna |
+|---|---|---|---|
+| 1e-9 m | 124 [124-124], 21.1 kJ | 169 [168-171], 18.7 kJ | 215 [215-215], 36.9 kJ |
+| 1e-6 m | 124 [123-124], 21.1 kJ | 159 [157-170], 18.7 kJ | 215 [215-216], 36.8 kJ |
+| 1 mm | **168 [135-196]**, 21.2 [14.7-25.7] kJ | **170 [158-216]**, 18.2 [14.5-19.8] kJ | **169 [151-193]**, 33.0 [19.2-43.4] kJ |
+(members broken, median [p10-p90]; the engine mount and the cowl off in every member). One ulp on one coordinate is rounded away
+within a few substeps (the selftest's first cut: the run's bits unchanged).
+Bit-level noise moves the wreck's bits, hardly its counts - the premise "a 1-ulp nudge legitimately moves 154 to 204" does not
+hold (the 204 was another core). A MILLIMETRE does: the counts are one draw from a wide distribution (the metal Cessna's single 215
+is its tail; its median at 1 mm is 169). So the gates' ensembles nudge by **1 mm** (ENS_AMP; at the brief's 1e-9 m the Jodel's and the Cessna's members all count the same).
+**DMG-TUNE settled** (tune_vs_base.json / .svg, 32 members each, the Jodel's centreline, each tree's own core built, this library):
+| | base 4300dc58 | TUNE 849058d8 | rank test |
+|---|---|---|---|
+| 1e-9 m, broken | 197 [197-197] | 154 [154-154] | moved, p < 1e-4 |
+| 1 mm, broken | **192 [165-206]** | **141 [131-155]** | moved, p < 1e-4 |
+| 1 mm, pieces | 19 [13-20] | 12 [10-13] | moved |
+| 1 mm, member work | 32.4 [19.5-43.8] kJ | 42.9 [32.3-50.9] kJ | moved |
+| 1 mm, mount / cowl off | 32 / 32 | 32 / 32 | - |
+TUNE's 197 -> 154 is real: at 1 mm the medians move 192 -> 141 (the shift 51 against a pooled p10-p90 spread of 41), the pieces
+19 -> 12, the member work UP 32 -> 43 kJ (the energy goes into the members TUNE's floors now let yield before the groups let go).
+The "204" was never TUNE's base.
+
+### 5. THE GATES CONVERTED (G2354)
+- **TREECRASH** 7 (new): the 30 m/s centreline and 2.5 m out on the Cub, the Jodel and the metal Cessna, 16 members at 1 mm: every
+  member crashed, a wing member broken, finite, the energy bounded (the old single-run rows 4 stay: they assert no count); the
+  distribution of broken / pieces / work / mount off / cowl off against tools/fixtures/treecrash_ensemble_ref.json - red only when the
+  rank test moves (p < 0.01); `--write-ref` rewrites it (a deliberate change of the physics: say so). The reference (this branch, 16 members at 1 mm): the centreline Cub 170 [158-216], Jodel 168 [135-196], metal 169 [151-193];
+  2.5 m out Cub 116 [105-160], Jodel 103 [85-189] (the mount off in 15 / 16), metal 141 [71-159] (14 / 16) - treecrash_ensemble.svg.
+  The ensembles cost 284 s of the gate's 527 + 284 s (3 children at once).
+- **DMGWALL**: the trunk-0 / trunk-2.5 rows an 8-member ensemble (member 0 the run as it was, both schemes; 7 nudged, the
+  inheritance only): the leak shares (past 1 mm / 1 cm / 5 cm, past 8 slots) judged on the ensemble's median (p90 and the worst
+  printed); a compact part stretched, a position not finite, a tube past 1.2 x - on every member. wall 900 -> 1200 (the gate 729 s here).
+- Not converted, and why: DMGSKIN, DMGINTEGRITY, DMGMEMBERS, DMGNOSE, DMGINST assert invariants of each run at 30 m/s (no triangle
+  across a broken member, the work sums to its total, the first group a fitting, crashed), not counts - one run is a valid test of an
+  invariant. DMG-TUNE's sanity table is not on this base (claude/dmg-tune is unmerged): it should read L.ensemble's median [p10-p90]
+  at 1 mm where it prints a 30 m/s count.
+- **DMGDETERMINISM** (new, run_gates core, weight 3, wall 1500): 1 fresh / stale; 2 the tiers + the certificate; 3 `--branch`; 4 the
+  page (REPORTED as not run where Chromium is absent, never a pass); `--selftest` red on the committed core, a 1-ulp nudge, the page
+  with the builtins.
+
+### 6. PERF
+- **The step** (tools/dmg_drive_perf.js: the stock step(1/60), 600 timed after 120, the base's core = dmg-integration's against this
+  one in ALTERNATING child processes, 8 pairs a row, the Cub / the Jodel / the metal Cessna, on the ground and in the air, damage OFF and
+  ON): rows -2.4 ... +3.5 %, pooled +1.2 % OFF / +0.7 % ON - **inside the noise floor**: the base against ITSELF reads rows -3.1 ...
+  +2.4 %, pooled +0.3 / +1.2 % (perf/step_ab.txt, step_aa_noise.txt).
+- On the way (kept as evidence): the first cut built the core's Math by Object.create(null) + assign - a dictionary-mode object, so
+  TurboFan no longer folded Math.abs / max / sqrt to inlined builtins: 10 x a call, **the step +26 ... +40 %**. As an object literal
+  it is the builtin's speed; then fdlibm's |x| tests through the typed array and a sign branch that mispredicts cost +1 ... +7 %; the
+  polar's stalled terms (two sines, a strip a substep, multiplied by s = 0 in attached flow) now run only past the stall's start -
+  exact: a signed zero added to a sum that is never zero, the whole formula where it is.
+- **Per call** (perf/ns_per_call.txt): fsin ~9 ns against the builtin's ~4 in the polar's range (fdlibm's branches on random signs),
+  fcos 13-19 / 9, past the long reduction 45 / 23, fpow ~125 / ~50. The atmosphere's pow is the one left on the hot path (a few
+  hundred a frame: ~25 us).
+- The freshness check: ~10 ms once a process (node only). The ensembles: in child processes, 3 at once (TREECRASH +284 s; DMGWALL
+  +7 members x 2 cases x 3 builds ~17 s each; wall 900 -> 1200).
+
+### 7. THE GATES
+Run here, each gate alone in its lane (two lanes; logs reports/evidence/DMG-DETERMINISM/gates/), the generated files built:
+| gate | verdict | checks | wall s |
+|---|---|---|---|
+| DMGDETERMINISM (new; the default: fast tiers on every case, slow on four, the page) | PASS | 44/44 | 1442 |
+| (DMGDETERMINISM --full --branch --selftest, tiers_full.txt) | PASS | 63/63 | 207 children, cached |
+| TREECRASH (+ 7: six ensembles, every rank test p >= 0.895) | PASS | 62/62 | 1182 |
+| DMGWALL | **FAIL - not this branch's**: the metal Cessna's severe ground NOSE-IN, past 1 mm 2.746 % (2 %) and past 1 cm 6012 of 2694557 (0.1 %); the base 9500f197 run here gives the SAME numbers (gates/base_9500f197/DMGWALL_metal.txt). Its six converted 30 m/s ensembles all pass (median past 1 mm 0.007-0.866 %) | 102/104 | 729 |
+| DMGGEAR / DMGWIND / DMGNOSE / DMGDRIVE / DMGCLUSTERS | PASS | 72 / 12 / 41 / 131 / 83 | 1498 / 1357 / 929 / 1073 / 770 |
+| DMGCERT / DMGCERTCOST / DMGMEMBERS / DMGINST / DMGINTEGRITY / DMGSKIN / DMGFPS | PASS | 70 / - / 80 / 33 / 54 / 116 / 145 | 461 / 82 / 68 / 201 / 55 / 109 / 195 |
+| TREEHIT / BUILD / LOAD / JOIN / PILOTMATRIX | PASS | | 361 / 2 / 270 / 6 / 1201 |
+| UISMOKE / BOOT (the page-wide Math shadow) | PASS | | |
+**Every gate number that moved: none.** BUILD, JOIN, LOAD, DMGINST, DMGMEMBERS, DMGSKIN, DMGINTEGRITY, DMGCERT, DMGFPS, DMGCERTCOST
+run on the base 9500f197 here too (gates/base_9500f197/): their outputs equal this branch's line for line once the timings are
+masked (DMGCERT: its ms figures only; the base's DMGCERTCOST went red on its wall-clock ceilings with three gates on four cores -
+this branch's, alone, PASS). The heavier gates' numbers follow from the hashes: the 18 standard runs and the certificates are the
+base's bits. NEW rows only: TREECRASH 7, DMGWALL's ensemble rows (the old single-run 30 m/s rows replaced), DMGDETERMINISM.
+Wall hints: TREECRASH 900 -> 1300, DMGWALL 900 -> 1200, DMGDETERMINISM 1800.
+**For A0: DMGWALL is red on dmg-integration as merged** (the metal nose-in) - this branch neither causes nor fixes it; the 50 m/s
+nose-in is a single run, and an ensemble of it (the same machinery: `--ens`, a '#seed' case) would say whether 2.7 % is its median or
+its tail.
+
+### Files
+src/core/00_registry.js (the core's Math: fsin / fcos / fpow), src/core/30_solver.js (the polar's stalled terms), src/core/90_node_exports.js
+(the freshness hook; fsin / fcos / fpow exported), tools/_core_fresh.js, tools/_dmg_determinism_check.js, tools/_dmg_parity_run.js,
+tools/_treecrash_lib.js (STANDARD, stateHash, the ensemble, FLYDIY_CORE), tools/_treecrash_check.js (7), tools/_dmg_wall_check.js /
+_dmg_wall_study.js (the ensemble rows), tools/_dmg_wall_lib.js / _treehit_check.js (fresh), tools/dmg_determinism_evidence.js,
+tools/fixtures/treecrash_ensemble_ref.json, tools/run_gates.js; reports/evidence/DMG-DETERMINISM/.
