@@ -48,7 +48,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       console.log('  ' + f + '  pill ' + st.pill + ' ' + JSON.stringify(st.box) + '  ' + note);
     };
     const until = async (fn, ms, arg) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (await pg.evaluate(fn, arg)) return true; } catch (e) {} await sleep(500); } return false; };
-    const url = 'http://127.0.0.1:' + PORT + '/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato';
+    // &mode=sandbox (G2210): ?welcome=1 forces the mode menu too; the mode named, the card alone leads to the load as before
+    const url = 'http://127.0.0.1:' + PORT + '/flyDiy/index.html?welcome=1&mode=sandbox&update=1&audio=0&gfx=potato';
     await pg.goto(url, { waitUntil: 'domcontentloaded' });
     await until(() => !!document.getElementById('updNow') && !!document.getElementById('welcome'), 20000);
     if (SCREENS.includes('welcome')) await shot('welcome', size === 'phone' ? 'the device gate (a phone), its footer stamped' : 'the welcome card, its footer stamped');

@@ -1,0 +1,35 @@
+== lift
+   fleet  : Cessna in HOME · Cub in HOME · Jodel out at HOME
+   stored : {"v":2,"mode":"sandbox","here":"HOME","wallet":0,"clock":0,"fleet":{"Cessna":{"hangar":"HOME","aero":"HOME"},"Cub":{"hangar":"HOME","aero":"HOME"},"Jodel":{"hangar":null,"aero":"HOME","outSince":0}},"ledger":[]}
+   ok    a v2 sandbox, the garage at HOME
+   ok    the saved shed's shell unchanged
+   ok    the saved shed's kits unchanged
+   ok    the saved shed's dims unchanged
+   ok    the saved shed's parts unchanged
+   ok    the saved shed's name unchanged
+   ok    the wallet unchanged, nothing charged
+   ok    the room the garage built is the saved 18 x 14 x 8
+   ok    the three saved builds are three airframes in the fleet (Cessna, Cub, Jodel)
+   ok    all three stand at HOME
+   ok    inside while a slot is free and the floor packs them (Cessna, Cub), outside after (Jodel)
+   ok    those outside start their wear clock
+   ok    the base row is today's line
+   ok    no page error (0; 53 GL-less bake notes)
+   (186 s)
+== away
+   stored : {"v":2,"mode":"sandbox","here":"HOME","wallet":0,"clock":3604.5,"fleet":{"Cub":{"hangar":"HOME","aero":"HOME","left":"HOME","foot":{"half":5.4,"fwd":1.2,"aft":5.5,"h":2.8},"wearOut":0.1001}},"ledger":[{"k":"recover","amt":0,"ref":"Cub","clock":3605,"free":true}]}
+   ok    the page's world has Tamgas Hill (w3)
+   ok    the Cub is on the stand (its slot restored with the working build)
+   ok    it stands away at Tamgas Hill Strip
+   ok    its roll-out starts where it stands: w3
+   ok    rolled out ON w3 (stand w3; the leg's From w3; the roll-out shot away)
+   ok    the flight's From is w3, not the base
+   ok    the flight flies the Cub's airframe
+   ok    walked back to the shed mid-flight: the flight ended for the clock, nothing moved
+   ok    the clock ran (3604.5 s) and the Cub is still away at w3 (gp4)
+   ok    its footprint was measured at the roll-out: {"half":5.4,"fwd":1.2,"aft":5.5,"h":2.8}
+   ok    bring it home: in HOME, free
+   ok    and its next roll-out is HOME again
+   ok    no page error (0; 53 GL-less bake notes)
+   (257 s)
+PREM-S2 PAGE: PASS

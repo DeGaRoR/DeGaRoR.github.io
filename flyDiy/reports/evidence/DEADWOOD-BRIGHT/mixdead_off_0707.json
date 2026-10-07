@@ -1,0 +1,90 @@
+{
+ "mixDead": false,
+ "cg": [
+  -149.9575592149723,
+  31.63082709917935,
+  706.448314431364
+ ],
+ "census": {
+  "inst": [
+   19,
+   105,
+   0
+  ],
+  "tris": [
+   87204,
+   585430,
+   0
+  ],
+  "draws": [
+   10,
+   28,
+   0
+  ],
+  "bands": [
+   50,
+   120,
+   120
+  ],
+  "fade": 12
+ },
+ "keys": {
+  "cedar_tree.glb|Cedar_LOD0": {
+   "snags": 997,
+   "live": 7576
+  },
+  "fir_tree_georgeous.glb|Fir01_LOD0": {
+   "snags": 888,
+   "live": 9861
+  },
+  "larch_tree.glb|Larch_LOD0": {
+   "snags": 107,
+   "live": 1116
+  },
+  "realistic_fir_trees_pack_lods_gameready.glb|Christmas tree": {
+   "snags": 4561,
+   "live": 51908
+  },
+  "realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2": {
+   "snags": 2302,
+   "live": 26324
+  },
+  "spruce_tree.glb|Spruce_LOD0": {
+   "snags": 1295,
+   "live": 14966
+  },
+  "pine_georgeous.glb|Pine01_LOD0": {
+   "snags": 12686,
+   "live": 11165
+  },
+  "pine_evolveduk.glb|Tree_0": {
+   "snags": 0,
+   "live": 22071
+  },
+  "birch|Birch1_20": {
+   "snags": 0,
+   "live": 1
+  },
+  "birch|Birch2_21": {
+   "snags": 0,
+   "live": 2
+  },
+  "oak|Oak_25": {
+   "snags": 0,
+   "live": 2
+  },
+  "dead_conifer|Coniferous Dead Tree_13": {
+   "snags": 0,
+   "live": 12732
+  },
+  "dead_conifer|Coniferous Dead Tree 2_14": {
+   "snags": 0,
+   "live": 12735
+  }
+ },
+ "total": {
+  "snags": 22836,
+  "live": 170459,
+  "share": 0.118
+ }
+}

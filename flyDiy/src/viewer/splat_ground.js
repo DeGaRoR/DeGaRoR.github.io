@@ -103,8 +103,9 @@ const SPLAT_GROUND = (() => {
   uniform float uSBankLip;   // SHORES-2 G1959: the sea's step crest - how far (m) the bank's rock spills over it, ragged (0 = off)
   uniform vec4 uSBank2;  // SHORES-2 G1956: the bank's blend - x the ramp's widening each side (deg), y the noise's swing (deg), z its cell (m), w the sea's wet band (m of height)
   uniform float uSBeachRot;
-  uniform int uSNCode, uSNCand;
-  vec3 gSN; float gSRough; float gSHexRot;
+  uniform int uSNCode, uSNCand, uSNSlot, uSVoteR;   // uSNCand: the full programs' candidates (C[8]); G2075's lean program: uSNSlot the
+                                                    // candidate loop's bound (the codes x 2 passes), uSVoteR the vote's half width (2: 5 x 5)
+  vec3 gSN = vec3(0.0); float gSRough = 0.9; float gSHexRot;   // (defined for a pixel that skips the splat: G2075's apron) float gSFarOn = 0.0;   // (GROUND-COST's hexfar strip)
   ${G.glsl}
   struct Smp { vec4 c; vec4 n; };
   vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
@@ -140,11 +141,21 @@ const SPLAT_GROUND = (() => {
   Smp sFetch(float layer, vec2 uv, vec2 cs){
     Smp o;
     o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);
-    o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;   // the colour is sRGB bytes decoded here (an sRGB array texture is refused - GL 1281); the height in alpha is linear
+#ifdef GS_NOSRGB
+    o.c.rgb *= o.c.rgb;
+#else
+    o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;
+#endif
+    // (above) the colour is sRGB bytes decoded here (an sRGB array texture is refused - GL 1281); the height in alpha is linear
+#ifdef GS_NONRM
+    vec4 nr = vec4(0.5, 0.5, 1.0, 0.9);
+#else
     vec4 nr = texture(uSplatN, vec3(uv, layer), uSFilt.x);
+#endif
     vec2 t = nr.xy * 2.0 - 1.0;
     t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);
     o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
+#ifndef GS_NOGRADE
     vec4 g = uSGrade[int(layer + 0.5)];
     o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
     // THE GRASS UNDER THE TREES IS THE SAME GRASS (the user, 2026-09-23, circling the forest
@@ -178,6 +189,7 @@ const SPLAT_GROUND = (() => {
       float veg = clamp((o.c.g - max(o.c.r, o.c.b)) / max(max(o.c.r, max(o.c.g, o.c.b)), 1e-4) * 3.0, 0.0, 1.0);
       o.c.rgb = mix(o.c.rgb, o.c.rgb * vec3(0.96, 1.08, 0.92), veg * uSVeg.x);
     }
+#endif
     return o;
   }
   // FEW FETCHES IN THE PROGRAM (G568, 2026-09-24): HLSL has no calls - fxc inlines every call site. sMat's three
@@ -188,7 +200,13 @@ const SPLAT_GROUND = (() => {
   // 27 fetch sites. NO LOOP INSIDE the candidate loop: a nested loop holding the sets (tried: the fetches in one
   // loop, 3 s to compile) drew the ground 1.5-2x slower on the GPU even where it ran zero times.
   Smp sTile(float layer, vec2 st){
+#ifdef GS_NOHEX
+    bool hex = false;
+#elif defined(GS_HEXFAR)
+    bool hex = !(uSHex.y < 0.5 || gSHexRot < 0.0) && gSFarOn < 0.5;   // (the far ground: the plain tile, one tap)
+#else
     bool hex = !(uSHex.y < 0.5 || gSHexRot < 0.0);
+#endif
     vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uSHex.z);
     vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
     float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
@@ -207,7 +225,8 @@ const SPLAT_GROUND = (() => {
       Smp s2v = sFetch(layer, R2 * st + r2 * 7.3, vec2(cos(a2), sin(a2)));
       Smp s3 = sFetch(layer, R3 * st + r3 * 7.3, vec2(cos(a3), sin(a3)));
       vec3 hw = sHweights3(s1.c.a, w.x, s2v.c.a, w.y, s3.c.a, w.z, uSHex.x);
-      o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+      o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z;
+      o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
     }
     return o;
   }
@@ -229,7 +248,9 @@ const SPLAT_GROUND = (() => {
     // THE RECOLOUR ONCE PER SET (2026-09-25): after the triplanar sum, not per projection - one inlined copy per sSet call
     // site instead of three (ANGLE/fxc inlines every call; the ground program's compile is the long pole on D3D). The
     // weights sum to 1, so a recolour of the blend is the blend of the recolours up to the recolour's curvature.
+#ifndef GS_NORECOL
     if (uSRecolOn > 0.5) { int Li = int(layer + 0.5); o.c.rgb = sRecolour(o.c.rgb, Li, uSLum[Li]); }
+#endif
     return o;
   }
   // the triplet's height blend of its (up to) three sampled sets; A says which exist
@@ -243,6 +264,9 @@ const SPLAT_GROUND = (() => {
   }
   Smp sTriplet(vec4 A, vec4 S, vec3 P, vec3 tw, float ang, float m1, float m2){
     Smp a = sSet(A.x, S.x, P, tw, ang);
+#ifdef SPLAT_ONE
+    return a;   // (one set a type, near and far - 'lean': the second and third sets and their blend out of the program)
+#endif
     if (A.y < 0.0) return a;
     Smp b = sSet(A.y, S.y, P, tw, ang);
     Smp c = b;
@@ -298,17 +322,33 @@ const SPLAT_GROUND = (() => {
     // THE BLEND'S DEPTH, A DIAL (PERF 2026-09-23): a type's 2nd and 3rd sets are its dearest pixels (each set hex-tiled,
     // colour + normal, triplanar on a slope: one set per type measured 8-10 ms cheaper at 5120 x 1440). uSNearN 1 =
     // one set everywhere (the lower tiers), uSFarN 1 = one set past the detail fade, where a blotch is a few pixels
+#ifdef SPLAT_ONE
+    A.y = -1.0; A.z = -1.0;
+#else
     if (uSNearN < 1.5) { A.y = -1.0; A.z = -1.0; }
+#endif
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) { gSOut = o; return pass == 0; }
     float ang = A.w > 0.5 ? seaAng : 0.0;
     float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;   // 2x (4x cut the sets into hard blotches once lit in the game)
+#ifdef SPLAT_ONE
+    float m1 = 0.0, m2 = 0.0;
+#else
     float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
+#endif
     vec4 F = uSMatF[i], FS = uSMatFS[i];
     if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
+#ifdef SPLAT_ONE
+    F.y = -1.0; F.z = -1.0;
+#else
     if (uSFarN < 1.5) { F.y = -1.0; F.z = -1.0; }
-    bool same = F == A && FS == S;
+#endif
+    // THE SAME SETS ARE THE SAME (GROUND-COST G2075): the near and far triplets compared on the sets a pixel can wear - an absent
+    // set's scale slot (forest's near 81 / 3 / 0 against its far 81 / 0 / 0, one set each at 'lean') no longer makes two
+    // identical samples of the band (100-400 m) - and a scale within 1 % (heath's 15.04 near, 15 far) is the same tile
+    vec3 sm = vec3(1.0, A.y >= 0.0 ? 1.0 : 0.0, A.z >= 0.0 ? 1.0 : 0.0);
+    bool same = F.xyz == A.xyz && all(lessThanEqual(abs(FS.xyz - S.xyz) * sm, 0.01 * abs(S.xyz) + 1e-4));
     bool needN = fw < 0.999, needF = fw > 0.001 && !(same && needN);
     bool run = pass == 0 ? needN : needF, last = pass == 0 ? !needF : needF;   // exactly one pass completes a type
     if (!run && !last) return false;
@@ -327,30 +367,132 @@ const SPLAT_GROUND = (() => {
     }
     gSOut = o; return true;
   }
-  int sCodeAt(vec2 cellIx){
-    vec2 gn = uGGrid.zw / uGCell;
-    // 15 is the ceiling, not 11: the raster carries 0-11, and a premises cover polygon
-    // stamps 15 (lush) into it. A byte over the clamp used to read as shingle.
-    return min(int(texture2D(uGPackB, (cellIx + 0.5) / gn).g * 255.0 + 0.5), 16);
+  // the cell's code as the vote reads it: clamped to the grid (an edge cell repeats, as the old linear read's clamp did), bit 7
+  // (G2075's one-code flag) masked, 15 the ceiling not 11 (a premises cover polygon stamps 15 lush; a byte over it read as shingle)
+  int sCodeAt(ivec2 cell, ivec2 gmax){
+    return min(int(texelFetch(uGPackB, clamp(cell, ivec2(0), gmax), 0).g * 255.0 + 0.5) & 127, 16);
   }
   // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
   vec3 sSplat(vec3 macro, vec3 nGeo, vec3 nTri, float canopy, vec2 uv, float sd, float lsd){
     gSN = vec3(0.0); gSRough = 0.9;
+#ifdef GS_FLAT
+    return macro;
+#endif
     gSPixM = max(length(fwidth(vWPi.xz)), 1e-4);   // here, before any branch: the derivative is the whole quad's
     vec2 xz = vWPi.xz, p = xz;
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
     gSSlope = slope;   // the pools read it in sMat (2026-09-23)
     if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
+#ifdef SPLAT_ONE
+    // (G2075: THE LEAN PROGRAM'S VOTE - the full programs keep the arrays below: in a program with three sets a type the
+    // registers linked 4-5 s slower cold under ANGLE/D3D (cold_links_bench 2026-10-06, the reason not yet bisected) - lean only)
+    // THE VOTE IN REGISTERS (GROUND-COST G2075): the 5 x 5 kernel's codes gathered into five (code, weight) slots - no array
+    // written at a computed index (w[code] += k: an indexable temp, local memory on D3D), the cell read by texelFetch (no
+    // filter, no derivative). A sea cell is its own sum (its dry share, below); a lake cell votes as muskeg at once (it did
+    // after the normalisation: the same, the sums are linear). A sixth distinct code in one kernel is dropped (the blend
+    // normalises by what it keeps).
+    int k0 = -1, k1 = -1, k2 = -1, k3 = -1, k4 = -1; float v0 = 0.0, v1 = 0.0, v2 = 0.0, v3 = 0.0, v4 = 0.0, w0r = 0.0;
+    vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
+    vec2 b = floor(g), f = g - b;
+    float R = max(uSSplit2.w, 0.3), wsum = 0.0;
+    ivec2 gmax = ivec2(uGGrid.zw / uGCell + 0.5) - 1;
+    // THE ONE-CODE CELL (render_world ttFlagged: bit 7 = every cell of this window is one code): one tap, the same weights - a
+    // land code all of the kernel (1 after the normalisation), or the sea all of it (its share, the bed's sand)
+    int cc = int(texelFetch(uGPackB, clamp(ivec2(b), ivec2(0), gmax), 0).g * 255.0 + 0.5);
+    if (cc >= 128) { int c = min(cc - 128, 16); if (c == 1) c = 3; wsum = 1.0; if (c == 0) w0r = 1.0; else { k0 = c; v0 = 1.0; } }
+    else
+    // (the bounds a uniform, 2: tried against the full program's +4 s cold link - no help there, harmless here; texelFetch takes
+    // no derivative, so a real loop is free to diverge)
+    for (int j = -uSVoteR; j <= uSVoteR; j++) for (int i = -uSVoteR; i <= uSVoteR; i++) {
+      vec2 o = vec2(float(i), float(j));
+      float dk = length(o - f) / R;
+      if (dk < 1.0) {
+        float k = (1.0 - dk) * (1.0 - dk);
+        int c = sCodeAt(ivec2(b + o), gmax);
+        wsum += k;
+        if (c == 0) w0r += k;
+        else {
+          if (c == 1) c = 3;
+          if (c == k0) v0 += k; else if (c == k1) v1 += k; else if (c == k2) v2 += k; else if (c == k3) v3 += k; else if (c == k4) v4 += k;
+          else if (k0 < 0) { k0 = c; v0 = k; } else if (k1 < 0) { k1 = c; v1 = k; } else if (k2 < 0) { k2 = c; v2 = k; } else if (k3 < 0) { k3 = c; v3 = k; } else if (k4 < 0) { k4 = c; v4 = k; }
+        }
+      }
+    }
+    // THE BANK'S ZONE AND ITS NOISE (SHORES-2 G1956): within the bank's reach of a lake's line or of the coast. The noise
+    // (two octaves of the hook's value noise, -0.5..0.5) breaks every edge the shore draws - the slope's ramp, the wet line,
+    // the sea's sand under the water - so none of them is a ruler line along a row of the mesh or a height over the water
+    float bR = max(uSBank.x, 1.0);
+    float bankZ = step(0.5, uSBank.x) * max((1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)),
+                                            (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd));
+    float bn = 0.0;
+    // (SHORES G1503, below: the sea's dry share is taken out of the normaliser)
+    float landF = (wsum - w0r) / max(wsum, 1e-4);
+    float dry = smoothstep(-0.8, 0.3, vWPi.y) * smoothstep(0.02, 0.3, landF);
+    float inv = 1.0 / max(wsum - w0r * dry, 1e-4);
+    v0 *= inv; v1 *= inv; v2 *= inv; v3 *= inv; v4 *= inv;
+    // the sea's wet share is the bed's sand (4): into code 4's slot, else the first free one
+    { float sea = w0r * inv * (1.0 - dry);
+      if (sea > 0.0) { if (k0 == 4) v0 += sea; else if (k1 == 4) v1 += sea; else if (k2 == 4) v2 += sea; else if (k3 == 4) v3 += sea; else if (k4 == 4) v4 += sea;
+        else if (k0 < 0) { k0 = 4; v0 = sea; } else if (k1 < 0) { k1 = 4; v1 = sea; } else if (k2 < 0) { k2 = 4; v2 = sea; } else if (k3 < 0) { k3 = 4; v3 = sea; } else if (k4 < 0) { k4 = 4; v4 = sea; } } }
+    float lakeM = 0.0;
+    if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
+    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope);
+    float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
+    float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
+    // THE CARVED BANK IS ROCK WHERE IT IS STEEP (SHORES G1500, the user 2026-10-04: the lake banks "read as steep, stretched
+    // slopes"). LAKE-HOLES carves the bed and its bank into the DEM (28_island lakeBed): within the bank's reach of a lake's
+    // line a face the carve made steep wore the hill's own grass or forest floor, and the macro's 10 m imagery (the tint, the
+    // radar) was laid on it from above - stretched down the face. There, past the slope's lo..hi, every code that is not
+    // already mineral hands its weight to the rocky shore (11: the dark foreshore, its pale stones and tufted upper shore - the island's own
+    // shore material; the cliff's pale rock read as a quarry ring round a lake); the macro gives way on it below
+    // (a texture from above has nothing to say about a face). A bank the carve left gentle keeps its ground.
+    // (SHORES G1503: and the sea's own rise - the DEM climbs off a coast the shelf meets at -5 m; its steep first metres wore
+    // the sea's sand, then the forest floor laid from above)
+    // SHORES-2 (the user, 2026-10-05: "the transitions with the other ground materials are much too harsh ... it's like you simply
+    // apply a setting to a cell, with no management of transitions and blending"): THE BANK IS ITS OWN CODE (17: its own rock,
+    // the world rail's) and its WEIGHT IS A SOFT RAMP - the slope it reads is the SMOOTH one (the vertex normals, glslMap: the
+    // flat facet's had cut the rock along the mesh's triangles - the user's sea_rocky saw-teeth and sea_shingle's straight top),
+    // widened by bankSoft each side and swung by the noise (bankJit deg), so the rock thins into the cover over metres along a
+    // ragged line; the codes' own height blend (the candidates below) then lets the taller texel win inside that ramp
+    float gSBank = 0.0, gSBankM = 0.0;
+#ifdef GS_NOBANK
+    bankZ = 0.0;
+#endif
+    if (bankZ > 0.0) {
+      vec2 q = (xz + vWPi.y * vec2(0.71, -0.59)) / max(uSBank2.z, 0.5);   // (the height in it: on a face a noise of xz alone runs in vertical streaks)
+      bn = gVnoise(q * 0.21 - 5.1) * 0.45 + gVnoise(q) * 0.35 + gVnoise(q * 2.71 + 17.3) * 0.2 - 0.5;   // (three octaves: a far bank's edge is ragged too)
+      float sj = slope + bn * uSBank2.y;
+      gSBank = bankZ * smoothstep(uSBank.y - uSBank2.x, uSBank.z + uSBank2.x, sj);
+      // THE CREST OF THE SEA'S STEP (G1959): the land keeps its own height to the coastline and the shelf drops to -5 m just
+      // past it (28_island seaFloor), so the face's top is the first row of land vertices - a long line at one height. The
+      // rock spills over it by up to bankLip m, ragged, where the ground stands over the water (a real step, not a flat beach)
+      gSBank = max(gSBank, step(0.01, uSBankLip) * step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, max(uSBankLip, 0.02), sd + bn * uSBankLip * 1.2))
+                           * smoothstep(0.3, 1.0, vWPi.y) * 0.95);   // (no branch of its own: a branch is link time, COLD-LINKS)
+      gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
+      // (G2075: the handover per slot, BEFORE the derived splits - every slot's whole weight but scree's and rock's (5, 6) gives gSBank of
+      // itself to the bank, which rides slot 1 (BANK_SLOT: a lake's raster code, muskeg in the vote - never a slot, never handing to itself);
+      // rock keeps its full weight and its cliff (12) is cut from it after, 13 / 14 lose their parent's share - SHORES-2's loop, in slots)
+      float mv = 0.0, kb = 1.0 - gSBank;
+      if (k0 > 1 && k0 != 5 && k0 != 6) { mv += v0 * gSBank; v0 *= kb; }
+      if (k1 > 1 && k1 != 5 && k1 != 6) { mv += v1 * gSBank; v1 *= kb; }
+      if (k2 > 1 && k2 != 5 && k2 != 6) { mv += v2 * gSBank; v2 *= kb; }
+      if (k3 > 1 && k3 != 5 && k3 != 6) { mv += v3 * gSBank; v3 *= kb; }
+      if (k4 > 1 && k4 != 5 && k4 != 6) { mv += v4 * gSBank; v4 *= kb; }
+      if (mv > 0.0) { if (k0 < 0) { k0 = 1; v0 = mv; } else if (k1 < 0) { k1 = 1; v1 = mv; } else if (k2 < 0) { k2 = 1; v2 = mv; } else if (k3 < 0) { k3 = 1; v3 = mv; } else if (k4 < 0) { k4 = 1; v4 = mv; }
+ }   // (all five full - 0.03 % of kernels: the share is dropped, the blend normalises by what it keeps)
+    }
+#else
     float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
     vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
     vec2 b = floor(g), f = g - b;
     float R = max(uSSplit2.w, 0.3), wsum = 0.0;
+    ivec2 gmax = ivec2(uGGrid.zw / uGCell + 0.5) - 1;
     for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
       vec2 o = vec2(float(i), float(j));
       float d = length(o - f) / R;
       if (d >= 1.0) continue;
       float k = (1.0 - d) * (1.0 - d);
-      w[sCodeAt(b + o)] += k; wsum += k;
+      w[sCodeAt(ivec2(b + o), gmax)] += k; wsum += k;
     }
     // THE BANK'S ZONE AND ITS NOISE (SHORES-2 G1956): within the bank's reach of a lake's line or of the coast. The noise
     // (two octaves of the hook's value noise, -0.5..0.5) breaks every edge the shore draws - the slope's ramp, the wet line,
@@ -414,11 +556,19 @@ const SPLAT_GROUND = (() => {
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
       for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12) { w[1] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }   // (the bank rides slot 1: BANK_SLOT)
     }
+#endif
+#ifdef GS_NOCOAST
+    float seaAng = uSBeachRot;
+#else
     vec2 e = vec2(1.0 / uGGrid.z, 1.0 / uGGrid.w) * 1.5;
     vec2 gr = vec2(texture2D(uGPackA, uv + vec2(e.x, 0.0)).b - texture2D(uGPackA, uv - vec2(e.x, 0.0)).b,
                    texture2D(uGPackA, uv + vec2(0.0, e.y)).b - texture2D(uGPackA, uv - vec2(0.0, e.y)).b);
     float seaAng = uSBeachRot - atan(gr.x, gr.y);
+#endif
     float d = distance(vWPi, cameraPosition);
+#ifdef GS_HEXFAR
+    gSFarOn = d > 300.0 ? 1.0 : 0.0;
+#endif
     float fw = smoothstep(uSDist.x, uSDist.y, d);
     float mw = uSDist2.x * smoothstep(uSDist.z, uSDist.w, d);
     // THE TOP PLANE STAYS OFF A FACE (SHORES-2 G1957, the user: "a good cliff texture, ideally oriented with respect to the
@@ -428,8 +578,69 @@ const SPLAT_GROUND = (() => {
     // fixed 45-degree ones, atan / floor / cos / sin a pixel - read diagonals square-on too, but linked the ground's programs
     // 1.5-2 s slower cold: cold_links_bench, G1962; this form is within noise.) Read on the facet (nTri); flat ground: one fetch.
     vec3 tw = vec3(0.0, 1.0, 0.0);
+#ifndef GS_NOTRI
     if (uSDist2.z > 0.5) { vec2 a = pow(vec2(length(nTri.xz), abs(nTri.y)), vec2(uSDist2.z)); vec2 h = nTri.xz * nTri.xz; h *= h;
       float f = h.y / max(h.x + h.y, 1e-8); tw = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6); }
+#endif
+#ifdef SPLAT_ONE
+    // THE CANDIDATES IN REGISTERS (GROUND-COST G2075): the loop runs the CODES, two passes each (sMatPass: near, far), the bound a
+    // uniform (uSNSlot = 17 codes x 2) - a code's weight read off the slots by comparison (no array), the derived codes (6 -> 12
+    // cliff, 8 -> 13 old growth, 7 -> 14 dense scrub) their parent's share. BY CODE, NOT BY SLOT: a texture's derivatives are taken
+    // across the 2 x 2 pixel quad, and a loop by slot sampled different sets at different scales in the same iteration where two
+    // neighbours' kernels saw their codes in another order - a wrong level at every border pixel (2.5 % of the ground from 300 m,
+    // the box's first stills); by code, neighbours sample a type in the same iteration, as the arrays' loop did.
+    // Up to six sampled types kept in registers for the height blend (four
+    // dropped a light type whose tall texels won a pixel at a forest edge: the original kept eight, first come - 0.03 % of
+    // kernels hold more than five codes, and a code and its derived one are two types)
+    float ma = -10.0;
+    vec4 C0 = vec4(0.0), C1 = vec4(0.0), C2 = vec4(0.0), C3 = vec4(0.0), C4 = vec4(0.0), C5 = vec4(0.0);
+    vec4 N0 = vec4(0.0), N1 = vec4(0.0), N2 = vec4(0.0), N3 = vec4(0.0), N4 = vec4(0.0), N5 = vec4(0.0);
+    float W0 = -1.0, W1 = -1.0, W2 = -1.0, W3 = -1.0, W4 = -1.0, W5 = -1.0, R0 = 0.0, R1 = 0.0, R2 = 0.0, R3 = 0.0, R4 = 0.0, R5 = 0.0;
+    gSPoolM = 0.0; gSPoolD = 1.0;
+#ifndef GS_NOPOOLS
+    { float w3 = (k0 == 3 ? v0 : 0.0) + (k1 == 3 ? v1 : 0.0) + (k2 == 3 ? v2 : 0.0) + (k3 == 3 ? v3 : 0.0) + (k4 == 3 ? v4 : 0.0);
+      float w7 = ((k0 == 7 ? v0 : 0.0) + (k1 == 7 ? v1 : 0.0) + (k2 == 7 ? v2 : 0.0) + (k3 == 7 ? v3 : 0.0) + (k4 == 7 ? v4 : 0.0)) * (1.0 - sDense);
+      if (uSPud.y > 0.0 && (w3 >= 0.004 || w7 >= 0.004)) sPools(vWPi); }
+#endif
+    for (int j = 0; j < uSNSlot; j++) {
+      int code = j / 2;
+      int pc = code == 12 ? 6 : (code == 13 ? 8 : (code == 14 ? 7 : code));   // the slot a derived code's weight comes from
+      float spl = pc == 6 ? sCliff : (pc == 8 ? sOld : (pc == 7 ? sDense : 0.0));
+      float kv = (k0 == pc ? v0 : 0.0) + (k1 == pc ? v1 : 0.0) + (k2 == pc ? v2 : 0.0) + (k3 == pc ? v3 : 0.0) + (k4 == pc ? v4 : 0.0);
+      float wt = kv * (code == pc ? 1.0 - spl : spl);
+      // the six heaviest types are kept (an empty register reads -1): a seventh replaces the lightest when it weighs more
+#ifdef GS_CAND4
+      float wmin = min(min(W0, W1), min(W2, W3));
+#else
+      float wmin = min(min(min(W0, W1), min(W2, W3)), min(W4, W5));
+#endif
+      if (wt >= 0.004 && wt > wmin && sMatPass(code, j - code * 2, vWPi, tw, seaAng, fw, slope)) {
+        Smp m = gSOut;
+        if (W0 == wmin) { C0 = m.c; N0 = m.n; W0 = wt; R0 = gSRel; }
+        else if (W1 == wmin) { C1 = m.c; N1 = m.n; W1 = wt; R1 = gSRel; }
+        else if (W2 == wmin) { C2 = m.c; N2 = m.n; W2 = wt; R2 = gSRel; }
+        else if (W3 == wmin) { C3 = m.c; N3 = m.n; W3 = wt; R3 = gSRel; }
+#ifndef GS_CAND4
+        else if (W4 == wmin) { C4 = m.c; N4 = m.n; W4 = wt; R4 = gSRel; }
+        else { C5 = m.c; N5 = m.n; W5 = wt; R5 = gSRel; }
+#endif
+      }
+    }
+    if (W0 >= 0.0) ma = max(ma, C0.a + W0); if (W1 >= 0.0) ma = max(ma, C1.a + W1);
+    if (W2 >= 0.0) ma = max(ma, C2.a + W2); if (W3 >= 0.0) ma = max(ma, C3.a + W3);
+    if (W4 >= 0.0) ma = max(ma, C4.a + W4); if (W5 >= 0.0) ma = max(ma, C5.a + W5);
+    ma -= uSSeam.x;
+    float b0 = W0 >= 0.0 ? max(C0.a + W0 - ma, 0.0) : 0.0, b1 = W1 >= 0.0 ? max(C1.a + W1 - ma, 0.0) : 0.0;
+    float b2 = W2 >= 0.0 ? max(C2.a + W2 - ma, 0.0) : 0.0, b3 = W3 >= 0.0 ? max(C3.a + W3 - ma, 0.0) : 0.0;
+    float b4 = W4 >= 0.0 ? max(C4.a + W4 - ma, 0.0) : 0.0, b5 = W5 >= 0.0 ? max(C5.a + W5 - ma, 0.0) : 0.0;
+    float tot = b0 + b1 + b2 + b3 + b4 + b5;
+    vec3 col = C0.rgb * b0 + C1.rgb * b1 + C2.rgb * b2 + C3.rgb * b3 + C4.rgb * b4 + C5.rgb * b5;
+    vec4 nrm = N0 * b0 + N1 * b1 + N2 * b2 + N3 * b3 + N4 * b4 + N5 * b5;
+    float rel = R0 * b0 + R1 * b1 + R2 * b2 + R3 * b3 + R4 * b4 + R5 * b5;
+    rel = tot > 1e-5 ? rel / tot : 1.0;
+    col = tot > 1e-5 ? col / tot : macro;
+    nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
+#else
     vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
     // NO CONTINUE IN THIS LOOP (PERF 2026-09-23): ANGLE's D3D back end makes a gradient-free copy ('Lod0',
     // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
@@ -455,6 +666,7 @@ const SPLAT_GROUND = (() => {
     rel = tot > 1e-5 ? rel / tot : 1.0;
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
+#endif
     // THE DETAIL'S CONTRAST BY DISTANCE (the world rail, 2026-09-24; the user: "how noisy detailed textures appear"):
     // the texel over its set's mean (rel) raised to a power - 1 as shipped, under 1 the texture's grain flattens toward
     // the set's own colour. Near and far values, faded between two distances: the pebbles keep their grain at the wheel
@@ -633,6 +845,26 @@ const SPLAT_GROUND = (() => {
     } catch (e) {}
     return out;
   }
+  // GROUND-COST G2075: THE ONE-TYPE CELLS, FLAGGED IN THE TYPE'S BYTE (bit 7, the GPU copy only - ISLA.ttype is untouched): a
+  // cell whose whole 5 x 5 window (the splat's vote, clamped at the grid's edges as the shader clamps) is one code as the vote
+  // reads it (a lake as muskeg, over 16 as 16) - 36 % of Jolene's land - votes with one tap instead of 25 (sSplat,
+  // the same weights exactly). Two O(n) run passes (rows, then columns of the row-even cells): 151 ms on Jolene's 12.1 M cells
+  // in node. Every reader of the byte masks the bit (sCodeAt and the vote here, render_world gTT). GATE SPLAT proves it against the brute force.
+  function oneCode(T, w, h) {
+    const n = w * h, m = new Uint8Array(n), ok = new Uint8Array(n);
+    for (let k = 0; k < n; k++) { let v = T[k]; if (v > 16) v = 16; if (v === 1) v = 3; m[k] = v; }
+    for (let y = 0; y < h; y++) { const r = y * w; let s = 0;
+      for (let x = 1; x <= w; x++) { if (x < w && m[r + x] === m[r + s]) continue;
+        const e = x - 1; for (let i = s; i <= e; i++) if ((i - s >= 2 || s === 0) && (e - i >= 2 || e === w - 1)) ok[r + i] = 1;
+        s = x; } }
+    const out = new Uint8Array(T);   // a copy: the bit set where the window is one code (a raw byte >= 128 never flags)
+    for (let x = 0; x < w; x++) { let s = 0; const val = y => ok[y * w + x] ? m[y * w + x] : 255;
+      for (let y = 1; y <= h; y++) { if (y < h && val(y) !== 255 && val(y) === val(s)) continue;
+        const e = y - 1;
+        if (val(s) !== 255) for (let i = s; i <= e; i++) if ((i - s >= 2 || s === 0) && (e - i >= 2 || e === h - 1) && out[i * w + x] < 128) out[i * w + x] |= 128;
+        s = y; } }
+    return out;
+  }
   // opts.plain (G1521, POTATO-DEEP): the ground starts PLAIN - the host's programs carry none of this file's code (api.plain()
   // says so; render_world keys them ':plain') and the arrays are not fetched until a step asks for the sets (api.plain(false))
   function make(gU, isla, opts) {
@@ -669,7 +901,16 @@ const SPLAT_GROUND = (() => {
     const setsFor = keys => SPLAT_TEX_SETS.filter(s => !keys || keys.has(s.key));
     let LIB = setsFor(reachKeys()).map(s => s.key);
     let building = null;   // the keys an array build in flight carries
-    let plain = !!(opts && opts.plain), asked = false;   // G1521: the plain ground (no splat code drawn) and whether the arrays were ever asked for
+    let plain = !!(opts && opts.plain), asked = false;
+    // GROUND-COST G2075: THE LEAN PROGRAM - one set a type near and far (the GRAPHICS 'ground' row's lean, uSNearN = uSFarN = 1) is
+    // compiled in (SPLAT_ONE: the second and third sets, their blend and the mix noise out of the text); the host keys it apart
+    let lean = !!(opts && opts.lean);   // G1521: the plain ground (no splat code drawn) and whether the arrays were ever asked for
+    // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
+    // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
+    // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4)$/;
+    let strips = [];
+    try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {
       const want = new Set(LIB.concat(building || []));
       const need = reachKeys(); if (need) for (const k of need) want.add(k);
@@ -707,7 +948,7 @@ const SPLAT_GROUND = (() => {
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBank: { value: V4() }, uSBank2: { value: V4() }, uSBankLip: { value: 0 },
-      uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
+      uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 }, uSNSlot: { value: NCODE * 2 }, uSVoteR: { value: 2 },
     };
     let ready = false;
     const push = () => {
@@ -795,6 +1036,7 @@ const SPLAT_GROUND = (() => {
       // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
       // the screenshots at 30 / 100 / 300 m showed no difference from the recipe's 150-900 m, and 1-2 ms more came back
       blend: (near, far, from, to) => { U.uSNearN.value = near; U.uSFarN.value = far; BLEND.from = from || 0; BLEND.to = to || 0;
+        { const l = near < 1.5 && far < 1.5; if (l !== lean) { lean = l; if (api.onInspect) api.onInspect(); } }   // (G2075: the lean program re-keys)
         const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
@@ -805,6 +1047,11 @@ const SPLAT_GROUND = (() => {
       masking: () => U.uSMaskL.value >= 0,   // the mask is shown: the ground's programs carry it (G1311)
       // G1521 (POTATO-DEEP): THE PLAIN GROUND - the GRAPHICS 'ground' row's cheapest step. plain() reads it; plain(v) sets it,
       // asks for the arrays the first time the sets are wanted, and re-keys the host's programs (onInspect: groundSync)
+      // GROUND-COST G2075: the strips (above) - strip() reads them, strip([..]) sets them and re-keys the host's programs
+      strip: v => { if (v === undefined) return strips.slice(); strips = [].concat(v).filter(x => GS_OK.test(x)).sort(); if (api.onInspect) api.onInspect(); return strips.slice(); },
+      lean: () => lean,   // G2075: the lean program (one set a type compiled in) - the host keys ':lean' and defines SPLAT_ONE
+      stripKey: () => (strips.length ? ':gs-' + strips.join('-') : ''),
+      stripDefs: () => strips.map(x => '#define GS_' + x.toUpperCase() + ' 1\n').join(''),
       plain: v => { if (v === undefined) return plain; v = !!v; if (v === plain) return plain; plain = v; if (!plain) ensure(); if (api.onInspect) api.onInspect(); return plain; },
       onInspect: null,                        // the host's re-key (render_world groundSync)
       // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
@@ -821,6 +1068,6 @@ const SPLAT_GROUND = (() => {
     };
     return { uniforms: U, glslCommon: glslCommon(false), glslCommonFull: glslCommon(true), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
-  return { make };
+  return { make, oneCode };
 })();
 if (typeof window !== 'undefined') window.SPLAT_GROUND = SPLAT_GROUND;

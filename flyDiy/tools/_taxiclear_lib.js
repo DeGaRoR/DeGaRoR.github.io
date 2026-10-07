@@ -367,4 +367,60 @@ function flyOut(C, W, I, def, a, s, opt) {
 }
 const fmtWhat = s => (s ? s.tag + ' ' + s.id : 'nothing');
 
-module.exports = { BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat };
+// ---- THE FLEET'S TIE-DOWN SPOTS (G2223, FLEET-PROPS A) held to the census's own rules, independently of the planner -----
+// the record's stand polygons in the world frame (what 25_airfield.js fleetSpots reads as opts.pave)
+function paveOf(W) {
+  const O = W.premises && W.premises.overlay;
+  if (!O || !O.pavePolys) return [];
+  return O.pavePolys.filter(p => p.stands).map(p => ({ id: p.id, poly: p.poly.map(q => { const w = O.frame.toWorld(q[0], q[1]); return Array.isArray(w) ? [w[0], w[1]] : [w.x, w.z]; }),
+    yaw: (p.yaw || 0) + (O.frame.yaw || 0), stands: p.stands }));
+}
+// the planner's inputs off the census's world: the solid things (the index), the ground, the water
+function spotInputs(W, I, pave) {
+  const wl = typeof W.waterH === 'function' ? W.waterH : null;
+  return { pave, solid: (x, z, reach) => { const n = I.nearest(x, z, reach); return n ? n.d : Infinity; }, ground: (x, z) => W.terrainH(x, z),
+           wet: wl ? (x, z) => W.terrainH(x, z) < wl(x, z) - 0.2 : null };
+}
+// every aerodrome's spots, and for each spot every archetype footprint that fits in it, held to the rules: inside the
+// field (fleetField, the four corners), on flat ground (land: the corners and the mount within FLEET_SPOT.flatTol),
+// dry on land / afloat on water, MARGIN off every solid thing (the outline every 0.25 m, the inside every 2 m), every
+// route of every validated build's pattern its half-span + MARGIN off, and no two spots' boxes within FLEET_SPOT.gap
+// -> { per: [{ id, n, kinds, spots }], rows: [{ id, spot, what, ok, d, need, near }] }
+function spotCensus(C, W, I, builds, foots, opt) {
+  const pave = paveOf(W), inp = spotInputs(W, I, pave), F = C.FLEET_SPOT, rows = [], per = [];
+  for (const a of W.aerodromes) {
+    const s = C.siteOf(a.id) || null;
+    const res = C.fleetSpots(a, s, inp), again = C.fleetSpots(a, s, inp);
+    per.push({ id: a.id, n: res.spots.length, kinds: res.spots.map(q => q.kind[0]).join(''), spots: res.spots, why: res.why, same: JSON.stringify(res.spots) === JSON.stringify(again.spots) });
+    const field = C.fleetField(a, s, pave), water = !!a.water;
+    const pats = builds.map(B => ({ B, P: C.sitePattern(a, s, { half: B.dims.half }) }));
+    const routes = pats.map(({ B, P }) => ({ B, pts: routesOf(C, P).reduce((l, r) => l.concat(r.pts), []) }));
+    for (const sp of res.spots) {
+      for (const [fk, f] of Object.entries(foots)) {
+        if (f.half > sp.half + 1e-9 || f.fwd > sp.fwd + 1e-9 || f.aft > sp.aft + 1e-9) continue;
+        const box = { x: sp.x, z: sp.z, ry: sp.ry, half: f.half, fwd: f.fwd, aft: f.aft };
+        const row = (what, ok, d, need, near) => rows.push({ id: a.id, spot: sp.id, foot: fk, what, ok, d, need, near: near || '' });
+        const corners = C.fleetSpotPts(box, 1e9);
+        row('inside the field', corners.every(q => field(q[0], q[1])), null, null);
+        if (!water) { const h = corners.concat([[sp.x, sp.z]]).map(q => W.terrainH(q[0], q[1])); const d = Math.max(...h) - Math.min(...h); row('flat', d <= F.flatTol + 1e-9, d, F.flatTol); }
+        if (inp.wet) { const w = corners.map(q => inp.wet(q[0], q[1])); row(water ? 'afloat' : 'dry', water ? w.every(Boolean) : !w.some(Boolean), null, null); }
+        let wS = null; for (const q of C.fleetSpotPts(box, 0.25, true)) { const n = I.nearest(q[0], q[1], MARGIN + 25); const d = n ? n.d : Infinity; if (!wS || d < wS.d) wS = { d, s: n ? n.s : null }; }
+        row('clear of solid things', wS.d >= MARGIN - 1e-9, wS.d, MARGIN, fmtWhat(wS.s));
+        for (const { B, pts } of routes) {
+          const need = B.dims.half + MARGIN;
+          let w = Infinity; for (const q of pts) { if (Math.abs(q.x - sp.x) > 60 || Math.abs(q.z - sp.z) > 60) continue; w = Math.min(w, C.fleetSpotDist(box, q.x, q.z)); }
+          row('clear of ' + B.name + "'s routes", w >= need - 1e-9, w, need);
+        }
+      }
+    }
+    // no two spots' capacity boxes within the gap
+    for (let i = 0; i < res.spots.length; i++) for (let j = i + 1; j < res.spots.length; j++) {
+      const A = res.spots[i], B = res.spots[j];
+      let d = Infinity; for (const q of C.fleetSpotPts(A, 0.25)) d = Math.min(d, C.fleetSpotDist(B, q[0], q[1])); for (const q of C.fleetSpotPts(B, 0.25)) d = Math.min(d, C.fleetSpotDist(A, q[0], q[1]));
+      rows.push({ id: a.id, spot: A.id + ' / ' + B.id, foot: 'capacity', what: 'not overlapping', ok: d >= F.gap - 1e-9, d, need: F.gap, near: '' });
+    }
+  }
+  return { per, rows, pave };
+}
+
+module.exports = { paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat };

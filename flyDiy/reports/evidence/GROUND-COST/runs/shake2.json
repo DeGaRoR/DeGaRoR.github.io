@@ -1,0 +1,426 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=retro",
+ "preset": "retro",
+ "day": "",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 40,
+ "at": "2026-10-06T10:06:13.194Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (665 ms to flow)",
+   "frameGpuMs": 12.78,
+   "fps": 27.5,
+   "draws": 935,
+   "mtris": 9.93,
+   "groundMs": 6.72,
+   "groundN": 18,
+   "gdraws": 83
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "slots",
+   "strip": [
+    "slots"
+   ],
+   "knobs": {},
+   "how": "rekeyed (30348 ms to flow)",
+   "frameGpuMs": 9.2,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.52,
+   "groundN": 17,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "cheap",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "nohex",
+    "notri",
+    "norecol",
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (12745 ms to flow)",
+   "frameGpuMs": 10.46,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 2.68,
+   "groundN": 18,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (13692 ms to flow)",
+   "frameGpuMs": 10.14,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.89,
+   "groundN": 18,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "notri",
+   "strip": [
+    "notri"
+   ],
+   "knobs": {},
+   "how": "rekeyed (14325 ms to flow)",
+   "frameGpuMs": 8.31,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.51,
+   "groundN": 17,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "norecol",
+   "strip": [
+    "norecol"
+   ],
+   "knobs": {},
+   "how": "rekeyed (23666 ms to flow)",
+   "frameGpuMs": 8.5,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.88,
+   "groundN": 18,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "nosrgb",
+   "strip": [
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (23182 ms to flow)",
+   "frameGpuMs": 8.77,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.92,
+   "groundN": 17,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "nonrm",
+   "strip": [
+    "nonrm"
+   ],
+   "knobs": {},
+   "how": "rekeyed (22049 ms to flow)",
+   "frameGpuMs": 8.67,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.54,
+   "groundN": 18,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "noibl",
+   "strip": [
+    "noibl"
+   ],
+   "knobs": {},
+   "how": "rekeyed (23987 ms to flow)",
+   "frameGpuMs": 9.2,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 4.07,
+   "groundN": 17,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "vote4",
+   "strip": [
+    "vote4"
+   ],
+   "knobs": {},
+   "how": "rekeyed (23894 ms to flow)",
+   "frameGpuMs": 8.72,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 3.19,
+   "groundN": 17,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "flat",
+   "strip": [
+    "flat"
+   ],
+   "knobs": {},
+   "how": "rekeyed (2106 ms to flow)",
+   "frameGpuMs": 8.43,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 1.26,
+   "groundN": 18,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "plain",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed +1 gfx (654 ms to flow)",
+   "frameGpuMs": 9.35,
+   "fps": 29.99,
+   "draws": 229,
+   "mtris": 8.08,
+   "groundMs": 1.37,
+   "groundN": 18,
+   "gdraws": 6
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same +1 gfx (632 ms to flow)",
+   "frameGpuMs": 9.54,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 17,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "slots",
+   "strip": [
+    "slots"
+   ],
+   "knobs": {},
+   "how": "rekeyed (664 ms to flow)",
+   "frameGpuMs": 9.5,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 18,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "cheap",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "nohex",
+    "notri",
+    "norecol",
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (660 ms to flow)",
+   "frameGpuMs": 9.5,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 17,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (664 ms to flow)",
+   "frameGpuMs": 9.42,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 17,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "notri",
+   "strip": [
+    "notri"
+   ],
+   "knobs": {},
+   "how": "rekeyed (655 ms to flow)",
+   "frameGpuMs": 9.33,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 18,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "norecol",
+   "strip": [
+    "norecol"
+   ],
+   "knobs": {},
+   "how": "rekeyed (655 ms to flow)",
+   "frameGpuMs": 9.41,
+   "fps": 30.15,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 17,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nosrgb",
+   "strip": [
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (656 ms to flow)",
+   "frameGpuMs": 9.41,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 17,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nonrm",
+   "strip": [
+    "nonrm"
+   ],
+   "knobs": {},
+   "how": "rekeyed (654 ms to flow)",
+   "frameGpuMs": 9.32,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 18,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "noibl",
+   "strip": [
+    "noibl"
+   ],
+   "knobs": {},
+   "how": "rekeyed (661 ms to flow)",
+   "frameGpuMs": 9.42,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 18,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "vote4",
+   "strip": [
+    "vote4"
+   ],
+   "knobs": {},
+   "how": "rekeyed (652 ms to flow)",
+   "frameGpuMs": 9.42,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 0,
+   "groundN": 17,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "flat",
+   "strip": [
+    "flat"
+   ],
+   "knobs": {},
+   "how": "rekeyed (654 ms to flow)",
+   "frameGpuMs": 6.89,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 2.51,
+   "groundN": 18,
+   "gdraws": 56
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "plain",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed +1 gfx (632 ms to flow)",
+   "frameGpuMs": 6.97,
+   "fps": 29.99,
+   "draws": 338,
+   "mtris": 4.09,
+   "groundMs": 1.24,
+   "groundN": 18,
+   "gdraws": 56
+  }
+ ],
+ "errs": []
+}

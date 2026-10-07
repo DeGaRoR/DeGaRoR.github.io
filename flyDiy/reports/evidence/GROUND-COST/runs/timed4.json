@@ -1,0 +1,203 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=retro",
+ "preset": "retro",
+ "day": "",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 60,
+ "at": "2026-10-06T12:13:26.889Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (267 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 4.76,
+   "fps": 148.37,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 0.19,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (267 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 4.73,
+   "fps": 151.47,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 0.2,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "hexfar",
+   "strip": [
+    "hexfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (275 ms to flow)",
+   "splat": "R hexfar",
+   "frameGpuMs": 4.68,
+   "fps": 155.5,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 0.19,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "lodfar",
+   "strip": [
+    "lodfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (253 ms to flow)",
+   "splat": "R lodfar",
+   "frameGpuMs": 4.75,
+   "fps": 148.81,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 0.21,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (259 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 4.69,
+   "fps": 154.85,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 0.21,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (455 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 7.71,
+   "fps": 86.9,
+   "draws": 1104,
+   "mtris": 10.75,
+   "groundMs": 0.27,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (454 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 7.66,
+   "fps": 88.27,
+   "draws": 1104,
+   "mtris": 10.75,
+   "groundMs": 0.26,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "hexfar",
+   "strip": [
+    "hexfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (489 ms to flow)",
+   "splat": "R hexfar",
+   "frameGpuMs": 7.75,
+   "fps": 87.68,
+   "draws": 1104,
+   "mtris": 10.75,
+   "groundMs": 0.29,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "lodfar",
+   "strip": [
+    "lodfar"
+   ],
+   "knobs": {},
+   "how": "rekeyed (449 ms to flow)",
+   "splat": "R lodfar",
+   "frameGpuMs": 7.7,
+   "fps": 87.83,
+   "draws": 1104,
+   "mtris": 10.75,
+   "groundMs": 0.27,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (497 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 7.81,
+   "fps": 86.62,
+   "draws": 1104,
+   "mtris": 10.75,
+   "groundMs": 0.28,
+   "groundN": 55,
+   "gdraws": 167
+  }
+ ],
+ "errs": [
+  "console: THREE.WebGLProgram: Shader Error 0 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:519: 'gSFar' : redefinition\nERROR: 0:555: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'high",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:462: 'gSFar' : redefinition\nERROR: 0:498: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:519: 'gSFar' : redefinition\nERROR: 0:555: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:459: 'gSFar' : redefinition\nERROR: 0:495: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3223)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:520: 'gSFar' : redefinition\nERROR: 0:556: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:463: 'gSFar' : redefinition\nERROR: 0:499: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:520: 'gSFar' : redefinition\nERROR: 0:556: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:460: 'gSFar' : redefinition\nERROR: 0:496: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3223)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:520: 'gSFar' : redefinition\nERROR: 0:556: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:463: 'gSFar' : redefinition\nERROR: 0:499: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:520: 'gSFar' : redefinition\nERROR: 0:556: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:460: 'gSFar' : redefinition\nERROR: 0:496: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3223)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:520: 'gSFar' : redefinition\nERROR: 0:556: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:463: 'gSFar' : redefinition\nERROR: 0:499: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'hi",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshStandardMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:520: 'gSFar' : redefinition\nERROR: 0:556: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3226)' to 'h",
+  "console: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nMaterial Name: \nMaterial Type: MeshLambertMaterial\n\nProgram Info Log: Fragment shader is not compiled.\n\nFRAGMENT\n\nERROR: 0:460: 'gSFar' : redefinition\nERROR: 0:496: 'assign' : cannot convert from 'structure 'Smp' (symbol id 3223)' to 'hi"
+ ]
+}

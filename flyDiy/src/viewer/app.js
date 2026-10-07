@@ -469,6 +469,12 @@
       doc = playerLift(dims, parts);
     }
     player = playerNormalise(playerMigrate(doc));
+    // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
+    // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
+    // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
+    // went (deleted in another tab) leaves. Idempotent, and it refuses nothing: forty builds keep forty aeroplanes.
+    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, playerSlotNames()).doc; }
+    catch (e) { console.warn('flyDiy: the fleet lift failed -', e && e.message); }
     // persist what the first load decided — a lift that is only re-run every
     // boot would keep reading prefs that may go stale under it, and a
     // migrated document should not need migrating twice
@@ -476,6 +482,30 @@
     return player;
   }
   function playerSave() { if (player) prefSet(PLAYER_KEY, JSON.stringify(player)); }
+  // the saved builds' names, read where garage.js keeps them (one key per named build)
+  function playerSlotNames() {
+    const out = [];
+    try { for (let i = 0; i < (PREF ? PREF.length : 0); i++) { const k = PREF.key(i); if (k && k.lastIndexOf('flydiy.build.', 0) === 0) out.push(k.slice(13)); } }
+    catch (e) {}
+    return out.sort();
+  }
+  // PREM-S2: THE SLOTS DOOR (garage.js save / save as / delete / import -> api.slotsChanged). The lift again over the
+  // names the shelf now holds; a SAVE measures the aeroplane on the stand (playerFootOfDef: its own nodes - the
+  // footprint the hangar packs it by), and a save that REPAINTED it (the finish changed) resets its outside wear (GQ7).
+  function playerSlotsChanged(names, info) {
+    info = info || {};
+    try {
+      const foots = {};
+      if (info.saved && curKey === 'gen' && def && typeof playerFootOfDef === 'function') { const f = playerFootOfDef(def); if (f) foots[info.saved] = f; }
+      let d = playerFleetReconcile(playerLoad(), Array.isArray(names) ? names : playerSlotNames(), { foots }).doc;
+      if (info.saved && d.fleet[info.saved]) {
+        if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
+        if (info.repainted) d = playerWearReset(d, info.saved).doc;
+      }
+      player = d; playerSave();
+    } catch (e) { console.warn('flyDiy: the fleet ledger could not follow the shelf -', e && e.message); }
+    return player;
+  }
   const shedHome = () => playerLoad().sheds.HOME;
 
   // THE WORLD'S SHED IS THE PLAYER'S SHED (HANGARS S1). The site declares
@@ -4280,7 +4310,48 @@
     const r = typeof flightRouteMigrate === 'function' ? flightRouteMigrate(JSON.parse(prefGet('flydiy.route', 'null'))) : null;
     if (r) { baseId = r.base; destId = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
   } catch (e) {}
-  const baseAeroId = () => { const B = typeof FLIGHT_BASES === 'object' && FLIGHT_BASES[baseId]; return B ? B.aero : 'HOME'; };
+  // PREM-S2 (G2230): THE BASE IS THE GARAGE'S - the hangar it opens in (the player's `here`), its aerodrome the base
+  // (38b_dest.js flightBasesOf: the bases derived from the hangars held, ruling gp1). A pref's `base` is no longer a
+  // second authority: the document is. The sandbox holds HOME alone, so it reads 'HOME' exactly as before.
+  try { const h = playerLoad(); if (h && h.sheds[h.here] && typeof h.sheds[h.here].base === 'string') baseId = h.sheds[h.here].base; } catch (e) {}
+  const baseAeroId = () => {
+    try { const h = playerLoad(); if (h && h.sheds[h.here] && typeof h.sheds[h.here].base === 'string') return h.sheds[h.here].base; } catch (e) {}
+    const B = typeof FLIGHT_BASES === 'object' && FLIGHT_BASES[baseId]; return B ? B.aero : 'HOME';
+  };
+  // PREM-S2: THE SAVED AIRFRAME ON THE STAND (garage.js's slot, when the fleet ledger holds it): null for an unsaved
+  // build or a stock design - those roll out from the base, as every build did
+  const slotOnStand = () => {
+    try {
+      if (curKey !== 'gen') return null;
+      const G = window.GARAGE_SPEC, n = G && G.name ? G.name() : '';
+      const d = playerLoad();
+      return n && d && d.fleet && d.fleet[n] ? n : null;
+    } catch (e) { return null; }
+  };
+  // PREM-S2 (GQ7): the outside wear of the airframe on the stand (0 for an unsaved build), its step, and a spec that
+  // wears it (for the flown bake: visual only, what flies is the spec itself)
+  const wearOnStand = () => {
+    try { const n = slotOnStand(); return n && typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), n) : 0; } catch (e) { return 0; }
+  };
+  const wearStep = () => (typeof PREM_WEAR === 'object' ? Math.round(wearOnStand() / PREM_WEAR.step) : 0);
+  const wornSpec = sp => { const w = wearOnStand(); return (w > 0 && typeof playerWearSpec === 'function') ? playerWearSpec(sp, w) : sp; };
+  // PREM-S2: WHERE THE NEXT ROLL-OUT STARTS - the rigs' spawn, else where the aeroplane on the stand STANDS (its fleet
+  // row: inside a hangar, that base; tied down at w3, w3 - 71_player_bases.js playerRollFrom), else the base. The
+  // sandbox's fleet stands where it was left: a Cub landed at Tamgas Hill rolls out there next time.
+  const rollFromId = () => {
+    if (spawnId) return spawnId;
+    let id = null;
+    try { if (typeof playerRollFrom === 'function') id = playerRollFrom(playerLoad(), slotOnStand()); } catch (e) {}
+    return id || baseAeroId();
+  };
+  // ...and the shed that stand is walked out of: HOME's is the player's own room (the sliders); elsewhere the hangar
+  // held there, if any, else the site's declared one
+  const shedDimsAt = (aeroId, st) => {
+    if (!st || typeof playerShedDims !== 'function') return null;
+    if (aeroId === 'HOME') return playerShedDims(playerLoad(), 'HOME', st);
+    const ids = typeof playerHangarsAt === 'function' ? playerHangarsAt(playerLoad(), aeroId) : [];
+    return playerShedDims(playerLoad(), ids[0] || '', st);
+  };
   let fromId = spawnId || baseAeroId();
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   // G1375 STRIP-SURFACE: THE GEAR DECIDES WHERE THE ROUTE MAY GO (25_airfield.js stripSurface / stripAllows: wheels
@@ -4340,7 +4411,9 @@
     const gearNow = routeGear(false);
     let shed = false; try { shed = inGarage; } catch (e) {}
     // G1945 DEST-TO: every roll-out starts at the base (or the rig's spawn), never where the last flight was
-    const [fid, did] = routeFitted(gearNow, spawnId || baseAeroId(), destId);
+    // PREM-S2 (G2230): ...at the place the fleet ledger says the aeroplane stands (rollFromId) - the base for a build
+    // with no slot; a stop on an aerodrome moved it there (playerArrive), a crash or a field landing moved nothing
+    const [fid, did] = routeFitted(gearNow, rollFromId(), destId);
     fromId = fid;
     if (!shed) { destId = did; routeRefresh(false); }
     const from = aeroById(fid);
@@ -4388,7 +4461,7 @@
     // on every applyRoute, so RESTART is what applies it.
     // THE STAND FOLLOWS THE DOOR (2026-09-20): the site's stand is authored for the declared shell; the
     // player's (the works is 7.5 m deeper) walks it out of the doorway - 25_airfield.js standFor
-    const shedD = (st && typeof playerShedDims === 'function') ? playerShedDims(playerLoad(), 'HOME', st) : null;
+    const shedD = shedDimsAt(from.id, st);   // PREM-S2: the shed at THIS field (HOME's is the player's room)
     // G700: ...on ITS OWN GROUND - the walked stand reads the terrain under it (it fell back to the runway's elevation)
     const stGround = (world && typeof world.terrainH === 'function') ? ((x, z) => world.terrainH(x, z)) : null;
     const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
@@ -4497,6 +4570,56 @@
   // ('test') and the classic autopilot ('classic') RETIRED - one pilot; a
   // choice of either (an old page, a link) flies THE PILOT's normal style.
   let pilotChoice = 'auto';
+  // G2085 (PILOT-PERSONA): AND WHO THE PILOT IS - the personality (43 PILOT_PROFILES: expert / club / student / bush /
+  // ham-fist, or the player's own 'custom' person off the knobs, PILOT_PROFILE_KNOBS) that flies under the style. One
+  // keeper, #selPersona (the flyout borrows its options as pills, as it does #selPilot's); persisted in the PLAYER
+  // document (`pilot: { profile, custom }`, 70_player.js playerPilot - it is the player's pilot, not a view pref), read
+  // once at the first pilot made. Changing the person restarts the flight, as the style does; the custom knobs fly
+  // from the next start.
+  const PERSONA_ORDER = ['expert', 'club', 'student', 'bush', 'hamfist'];
+  let personaChoice = 'expert', personaCustom = {}, personaRead = false;
+  function personaLoad() {
+    if (personaRead) return;
+    personaRead = true;
+    try {
+      const P = (typeof playerPilot === 'function') ? playerPilot(playerLoad()) : { profile: 'expert' };
+      personaChoice = P.profile; personaCustom = P.custom || {};
+    } catch (e) { personaChoice = 'expert'; personaCustom = {}; }
+    personaSync();
+  }
+  function personaSave() {
+    try {
+      const pl = playerLoad();
+      pl.pilot = { profile: personaChoice };
+      if (Object.keys(personaCustom).length) pl.pilot.custom = JSON.parse(JSON.stringify(personaCustom));
+      playerSave();
+    } catch (e) {}
+    personaSync();
+  }
+  // every view of the keeper on it (#selPersona, the route rows' mirrors)
+  function personaSync() {
+    try { for (const s of document.querySelectorAll('#selPersona, .routePick select.persona')) s.value = personaChoice; } catch (e) {}
+  }
+  // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
+  function personaProfile() {
+    personaLoad();
+    if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
+    return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
+  }
+  // the rigs' and the gates' handle (read-only): the choice, the custom person, what makePilot is handed
+  if (typeof window !== 'undefined') window.FLYDIY_PERSONA = { get: () => ({ choice: personaChoice, custom: JSON.parse(JSON.stringify(personaCustom)), profile: personaProfile() }) };
+  const personaLabel = k => k === 'custom' ? 'Custom' : ((typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[k] && PILOT_PROFILES[k].label) || k);
+  // THE KEEPER'S OPTIONS, off the one table (the HTML carries the select empty)
+  (() => {
+    const s = $('selPersona');
+    if (!s || s.options.length || typeof PILOT_PROFILES === 'undefined') return;
+    for (const k of PERSONA_ORDER.concat(['custom'])) {
+      const o = document.createElement('option'); o.value = k; o.textContent = personaLabel(k);
+      o.title = k === 'custom' ? 'your own pilot, off the knobs' : PILOT_PROFILES[k].desc;
+      s.appendChild(o);
+    }
+    s.value = 'expert';
+  })();
   // G202.1: ONE navigator for the flight screen (the aerodromes as its
   // database), handed to every pilot so the AP box's NAV mode has a plan
   let flNav = null;
@@ -4504,7 +4627,7 @@
     // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
     // memoised one (shakeOf), handed as a getter — a TDZ before the bench
     // block runs reads as "no shakedown yet", never as a throw
-    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal',
+    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
     if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
     return p;
@@ -4513,6 +4636,12 @@
     pilotChoice = e.target.value;
     // mid-flight the change takes effect through a fresh departure; in the
     // garage it simply decides who flies the next roll-out
+    if (!inGarage) fullReset();
+  };
+  if ($('selPersona')) $('selPersona').onchange = e => {
+    personaLoad();
+    personaChoice = e.target.value === 'custom' || PERSONA_ORDER.includes(e.target.value) ? e.target.value : 'expert';
+    personaSave();
     if (!inGarage) fullReset();
   };
   // THE FLOATS IN FLIGHT (H1, G383). A float build carries sim.hydro — the
@@ -5002,8 +5131,13 @@
         // older build's one `finish.wear` read as age + flight — through the
         // module's one keeper, so the flown aeroplane wears what was built.
         // Before this nothing on the flight side set the condition at all.
-        if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetMacro)
+        // PREM-S2 (G2230, GQ7): ...WITH THE OUTSIDE WEAR laid on (an airframe stationed outside chalks and streaks with
+        // the flown hours: playerWearMacro over the spec's own macros - visual only, the spec untouched)
+        if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetMacro) {
           AEROWX.aeroWxSetMacro(THREE, AEROWX.aeroWxMacroFromSpec(genSpec));
+          const wo = wearOnStand();
+          if (wo > 0 && typeof playerWearMacro === 'function') AEROWX.aeroWxSetMacro(THREE, playerWearMacro(AEROWX.aeroWxMacroFromSpec(genSpec), wo));
+        }
         // ...and the spinner's spiral, off the same merged decal block
         if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetSpiral && window.AEROSKIN.aeroDecalMerge)
           AEROWX.aeroWxSetSpiral(THREE, window.AEROSKIN.aeroDecalMerge(genSpec));
@@ -5798,6 +5932,8 @@
     // the trace is OF (distance flown, time), and what HAPPENED is the arrival
     // card's whole job. The logging is unchanged and still automatic.
     if (ap.phase === 'STOPPED' && (ap.tdInfo || ap.report)) logFlight();
+    // PREM-S2 (G2230): ...and then the player's document - the clock, and the aeroplane where it stopped
+    if (ap.phase === 'STOPPED' && (ap.tdInfo || ap.report)) playerFlightEnd('stopped');
     // G1945 DEST-TO: a To picked in the flare or the roll-out - the next leg begins where the aeroplane stopped
     if (ap.phase === 'STOPPED' && !manual && flDestPend()) { $('arrCard').hidden = true; arrivalShown = false; return; }
     // THE ARRIVAL CARD (G107.2): shown ONCE per stop, gone the moment the
@@ -5829,6 +5965,7 @@
     running = false;
     $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
     logFlight();
+    playerFlightEnd('over');   // PREM-S2: the clock runs; a crash, a give-up moves nothing (gp4) - "bring it home" is offered
     arrivalShown = true; showArrival();
   }
   // the capture rig's one handle into the flight (G130): the probe page
@@ -6011,6 +6148,15 @@
     $('arrTag').textContent = good ? (td ? 'landed' : 'stopped')
       : String(outcome).replace(/-/g, ' ');
     el.classList.toggle('bad', !good);
+    // PREM-S2 (G2230, gp4 / GQ5): a crash, a give-up or a stop out in a field moved nothing - the airframe stands where it
+    // departed from; "bring it home" is offered (free, instant: the hangar it last left, else the main hangar)
+    const bb = $('bBring');
+    if (bb) {
+      const E = flLastEnd;
+      bb.hidden = !(E && E.slot && !E.moved);
+      if (!bb.hidden) bb.title = '“' + E.slot + '” stays where it departed from' + (E.where && E.where.kind === 'out' ? ' (it stopped out in a field)' : '') +
+        ' - bring it home: free, back into the hangar it last left, else the main hangar';
+    }
     // THE PLAQUE'S OWN TWO-COLUMN GRAMMAR, so the flight's numbers and the
     // bench's numbers read as the same kind of thing.
     const rows = [];
@@ -6075,6 +6221,63 @@
   // it into the fleet rack — but a flight that leaves no trace is why an
   // aeroplane never becomes yours. One row per arrival, not one per frame:
   // STOPPED persists for as long as you leave it sitting there.
+  // ---- PREM-S2 (G2230): THE FLIGHT AND THE PLAYER'S DOCUMENT ----------------------------------------------------------
+  // `flSlot` is the saved airframe this flight flies (garage.js's slot, the fleet ledger's row; null for an unsaved
+  // build or a stock design - those move nothing). At the roll-out its footprint is measured off the built nodes
+  // (playerFootOfDef). At each leg's end, once (the logbook's latch, cleared by nextLeg / fullReset):
+  //   the CLOCK (playerClock: time runs in flight, ruling ax; G-COST: nothing accrues on it), then
+  //   a STOP ON AN AERODROME (flightWhere: a strip, a lane, a stand, an apron) moves the airframe there (playerArrive:
+  //   into a hangar of yours with a free slot and the floor, else tied down - out at a base, away elsewhere);
+  //   anything else - a crash, a give-up, a stop out in a field, a flight abandoned - moves NOTHING (gp4): it stands
+  //   where it departed from, and the arrival card offers "bring it home" (playerBringHome, free in both modes, GQ5).
+  let flSlot = null, flEnded = false, flLastEnd = null;
+  function playerFlightStart() {
+    flSlot = slotOnStand(); flEnded = false; flLastEnd = null;
+    if (!flSlot) return;
+    try {
+      const f = (def && typeof playerFootOfDef === 'function') ? playerFootOfDef(def) : null;
+      if (f) { playerLoad().fleet[flSlot].foot = parkFoot(f); playerSave(); }
+    } catch (e) {}
+  }
+  function playerFlightEnd(how) {
+    if (flEnded || !flSlot || curKey !== 'gen' || !ap || typeof playerClock !== 'function') return null;
+    flEnded = true;
+    let out = { how, slot: flSlot, moved: null, where: null };
+    try {
+      let d = playerClock(playerLoad(), Math.max(0, ap.t || 0)).doc;
+      const cg = sim.cgPos(), W = typeof flightWhere === 'function' ? flightWhere(world, cg[0], cg[2], {}) : null;
+      out.where = W ? { kind: W.kind, id: W.id } : null;
+      const wrecked = !!(sim.damage && (() => { try { return sim.damage().crashed; } catch (e) { return false; } })());
+      if (how === 'stopped' && W && flightCanDepart(W) && !wrecked) {
+        const r = playerArrive(d, flSlot, W.aero.id, {});
+        if (r.ok) { d = r.doc; out.moved = { kind: r.kind, hangar: r.hangar || null, aero: W.aero.id }; }
+      }
+      player = d; playerSave();
+    } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
+    flLastEnd = out;
+    return out;
+  }
+  // "BRING IT HOME" (GQ5): the hangar it last left, else the main hangar, else outside at HOME - free, instant
+  function playerBringHomeNow(name) {
+    const n = name || flSlot;
+    if (!n || typeof playerBringHome !== 'function') return null;
+    try {
+      const r = playerBringHome(playerLoad(), n, {});
+      if (r.ok) { player = r.doc; playerSave(); }
+      return r;
+    } catch (e) { return null; }
+  }
+  window.FLYDIY_PLAYER = {
+    doc: () => JSON.parse(JSON.stringify(playerLoad())),
+    // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
+    // (with no storage there are no slots to read: the document's own fleet is kept as handed)
+    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, playerSlotNames()).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
+    place: n => (typeof playerPlace === 'function' ? playerPlace(playerLoad(), n, world) : null),
+    wear: n => (typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), n) : 0),
+    rollFrom: () => rollFromId(), slot: () => flSlot, last: () => flLastEnd,
+    bringHome: n => playerBringHomeNow(n), slotsChanged: (names, info) => playerSlotsChanged(names, info),
+    onChange: null,
+  };
   let flightLogged = false;
   function logFlight() {
     if (flightLogged || curKey !== 'gen') return;
@@ -7392,6 +7595,8 @@
       let mode = null; try { mode = PC && PC.state ? PC.state().mode : null; } catch (e) {}   // (GATE UISMOKE's vm has no performance)
       if (mode === 'auto') PC.set('auto');
     }
+    // PREM-S2: a flight walked away from (the shed door mid-flight) still flew its time - the clock, nothing moves
+    if (!inGarage && started && flSlot && !flEnded) playerFlightEnd('abandoned');
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -7646,6 +7851,9 @@
   function rollAnim(trip, next) {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || typeof ROLLANIM.play !== 'function') { trip.anim = 'none'; next(); return; }
     if (!rollAnimCan()) { trip.anim = 'cannot'; next(); return; }
+    // PREM-S2 (G2230): the shot rolls out of HOME's door - an aeroplane standing elsewhere (tied down at Tamgas Hill)
+    // is cut to where it stands, under the roll-out screen (the world grown round its stand: standAnchor)
+    if (rollFromId() !== 'HOME') { trip.anim = 'away'; next(); return; }
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     benchFp = true;
     let over = false, h = null;
@@ -7674,6 +7882,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
@@ -7803,10 +8012,10 @@
   // the town before the aeroplane has left the shed, and the world's key after
   function standAnchor() {
     try {
-      if (sim && sim.hydro) { const f0 = aeroById(fromId), sea = (f0 && f0.kind === 'water') ? f0 : (aeroById('SEA') || { spawn: [0, 1285], elev: 0 }); return [sea.spawn[0], sea.elev || 0, sea.spawn[1]]; }   // G1375: the lane the route names
-      const from = aeroById(fromId); if (!from) return null;
+      if (sim && sim.hydro) { const f0 = aeroById(inGarage ? rollFromId() : fromId), sea = (f0 && f0.kind === 'water') ? f0 : (aeroById('SEA') || { spawn: [0, 1285], elev: 0 }); return [sea.spawn[0], sea.elev || 0, sea.spawn[1]]; }   // G1375: the lane the route names
+      const from = aeroById(inGarage ? rollFromId() : fromId); if (!from) return null;   // PREM-S2: in the shed, where the next roll-out starts
       const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
-      const shedD = (st && typeof playerShedDims === 'function') ? playerShedDims(playerLoad(), 'HOME', st) : null;
+      const shedD = shedDimsAt(from.id, st);
       const stand = st ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, null) : st.stand) : null;
       if (stand && flStartTaxi()) return [stand.x, stand.elev !== undefined ? stand.elev : (from.elev || 0), stand.z];
       const sp = from.spawn || [0, 0]; return [sp[0], from.elev || 0, sp[1]];
@@ -8135,9 +8344,11 @@
     // stats | null (null: the live shader flies); the spec is the one that WILL fly (the snapshot's). Between the snapshot
     // and the spec applied, so the model is built once, on the bake - `rebuild` (the model rebuilt when it was already
     // built live on this payload) stays for a payload the spec had already met
-    { id: 'bake', part: 'craft', label: 'baking your aeroplane', w: 8, key: buildKey, deps: ['snapshot'],
+    // PREM-S2 (G2230, GQ7): the bake wears the outside wear (the spec handed to it is playerWearSpec's copy, quantised
+    // to PREM_WEAR.step, so it re-bakes per step of wear and never per flown second); its key carries the step
+    { id: 'bake', part: 'craft', label: 'baking your aeroplane', w: 8, key: () => { const k = buildKey(), q = wearStep(); return (k && q) ? k + '|wear' + q : k; }, deps: ['snapshot'],
       when: () => !!(window.FLOWN_BAKE && typeof window.FLOWN_BAKE.step === 'function'),
-      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: tripSync ? (tripSync.flown || tripSync.spec) : genSpec,
+      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || tripSync.spec) : genSpec),
         phase: (l, f) => BOOT.phase('bake', l || 'baking your aeroplane', f),
         rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
@@ -8492,6 +8703,13 @@
     $('arrCard').hidden = true; arrivalShown = false;
     rollInScreen();
   };
+  // PREM-S2 (GQ5): "bring it home" - the ledger moves it home (free), and the door goes back to the shed
+  if ($('bBring')) $('bBring').onclick = () => {
+    playerBringHomeNow(flLastEnd && flLastEnd.slot);
+    $('bBring').hidden = true;
+    $('arrCard').hidden = true; arrivalShown = false;
+    rollInScreen();
+  };
   // `What went wrong` opens the rest of the pilot's verdicts. The teaching
   // report the ROADMAP wants lands behind this button; until it does, this
   // shows the material it will be built from rather than pretending to be it.
@@ -8509,6 +8727,9 @@
   };
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
+    // PREM-S2: a Restart mid-flight ends that flight for the clock (nothing moves: it restarts where it stands)
+    if (started && flSlot && !flEnded) playerFlightEnd('abandoned');
+    flEnded = false; flLastEnd = null;
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
     // REVIEW 2026-10-04 (A8): a diverged sim left the chase camera's yaw-rate filter and azimuth at NaN, and only the
     // garage roll-out reveal ever rewrote them - "Fly again" after a crash placed the eye at (NaN, NaN, NaN)
@@ -9041,7 +9262,7 @@
     if (routeMigrated) { routeMigrated = false; routeRemember(); }   // G1945: a v1 pref is written back as v2, once
     const routeSels = [];                // { sel, kind } - the pickers this block built ('to', and 'base' when there are bases to pick)
     const routeSync = () => {
-      for (const r of routeSels) r.sel.value = r.kind === 'base' ? baseId : destId;
+      for (const r of routeSels) r.sel.value = r.kind === 'base' ? playerLoad().here : destId;
       if ($('selDest').value !== destId) $('selDest').value = destId;
     };
     // WHERE THE AEROPLANE IS (38b_dest.js flightWhere); a 'Circuit' means the aerodrome under it on the ground,
@@ -9096,24 +9317,40 @@
     // roll-out applies it - fullReset -> applyRoute) and on the roll-out screen (#bootRoute: the pilot on the stand is
     // handed it). G1945: the From picker is retired - a flight starts at the BASE; the base is a row of its own,
     // a picker only once a world has two (FLIGHT_BASES), else the line that says where the roll-out starts.
+    // PREM-S2 (G2230): THE BASE LINE IS THE GARAGE'S HANGAR (GAME-PREMISES §6): the bases are DERIVED from the hangars
+    // held (flightBases(world, doc), ruling gp1), and the line becomes a select once two hangars are held - picking one
+    // moves the garage there (playerGoTo, instant: the Kerbal switch). The sandbox holds HOME alone: the same line.
+    const hangarWords = (b, h, d) => (h === 'HOME' && b.id === 'HOME') ? b.hangar
+      : (d.sheds[h] && d.sheds[h].name) || ('the ' + (((typeof SHELLS === 'object' && SHELLS[d.sheds[h] && d.sheds[h].shell]) || {}).name || 'hangar').toLowerCase() + (h !== b.id ? ' (' + h + ')' : ''));
+    const baseRows = {};                 // what each host's base row is (GATE UISMOKE reads it: FLYDIY_ROUTE.baseRow)
     const routeBuild = (host, where) => {
       if (!host) return;
       host.innerHTML = '';
-      const bases = typeof flightBases === 'function' ? flightBases(world) : [];
+      for (let i = routeSels.length - 1; i >= 0; i--) if (routeSels[i].host === host) routeSels.splice(i, 1);
+      const doc = playerLoad();
+      const bases = typeof flightBases === 'function' ? flightBases(world, playerLoad()) : [];
+      const held = [];
+      for (const b of bases) for (const h of (b.hangars || [b.id])) held.push({ b, h });
       {
         const lab = document.createElement('label');
         const sp = document.createElement('span'); sp.textContent = 'base'; lab.appendChild(sp);
-        if (bases.length > 1) {
+        if (held.length > 1) {
           const sel = document.createElement('select');
-          sel.title = 'Base'; routeSels.push({ sel, kind: 'base' });
-          for (const b of bases) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name + ' · ' + (b.a.name || b.a.id); sel.appendChild(o); }
-          sel.value = baseId;
-          sel.onchange = e => { baseId = e.target.value; routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset(); };
+          sel.title = 'The hangar the garage is in - an aeroplane rolls out from where it stands'; routeSels.push({ sel, kind: 'base', host });
+          for (const x of held) { const o = document.createElement('option'); o.value = x.h; o.textContent = x.b.name + ' · ' + hangarWords(x.b, x.h, doc); sel.appendChild(o); }
+          sel.value = doc.here;
+          baseRows[where] = { kind: 'select', sel, options: held.map(x => x.h), labels: held.map(x => x.b.name + ' · ' + hangarWords(x.b, x.h, doc)) };
+          sel.onchange = e => {
+            const r = typeof playerGoTo === 'function' ? playerGoTo(playerLoad(), e.target.value) : null;
+            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; }
+            routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset();
+          };
           lab.appendChild(sel);
         } else {
           const b = bases[0], v = document.createElement('b');
           v.className = 'routeBase'; v.textContent = b ? b.name + ' · ' + b.hangar : 'Home base';
           v.title = 'Every roll-out starts at the base' + (b ? ' (' + (b.a.name || b.a.id) + ')' : '') + '; a flight goes on from wherever it lands';
+          baseRows[where] = { kind: 'line', text: v.textContent };
           lab.appendChild(v);
         }
         host.appendChild(lab);
@@ -9121,7 +9358,7 @@
       const lab = document.createElement('label');
       const sp = document.createElement('span'); sp.textContent = 'to'; lab.appendChild(sp);
       const sel = document.createElement('select');
-      sel.title = 'Destination'; routeSels.push({ sel, kind: 'to' });
+      sel.title = 'Destination'; routeSels.push({ sel, kind: 'to', host });
       fill(sel, gear0);
       // the build on the bench may have changed its gear since: the labels are re-read before a pick
       sel.addEventListener('pointerenter', () => routeRefresh(where === 'garage' || inGarage));
@@ -9129,9 +9366,28 @@
       sel.value = destId;
       sel.onchange = e => setTo(e.target.value);
       lab.appendChild(sel); host.appendChild(lab);
+      // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
+      // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
+      // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
+      // on a held roll-out screen the pilot on the stand is made again, as the base's pick does
+      const lp = document.createElement('label');
+      const sq = document.createElement('span'); sq.textContent = 'pilot'; lp.appendChild(sq);
+      const ps = document.createElement('select');
+      ps.title = 'Who flies it'; ps.className = 'persona';
+      const ks = $('selPersona');
+      if (ks) for (const o of ks.options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.textContent; e.title = o.title; ps.appendChild(e); }
+      personaLoad(); ps.value = personaChoice;
+      ps.onchange = e => {
+        personaChoice = e.target.value; personaSave();
+        if (where === 'rollout' && rollHold && !inGarage) fullReset();
+        if (FL.ready) flRender();
+      };
+      lp.appendChild(ps); host.appendChild(lp);
     };
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
+    // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
+    window.FLYDIY_PLAYER.onChange = () => { try { routeBuild($('edRoute'), 'garage'); routeBuild($('bootRoute'), 'rollout'); routeSync(); } catch (e) {} };
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
@@ -9151,6 +9407,7 @@
       get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId }),
       sync: () => routeRefresh(), gear: () => refGear,
       to: id => setTo(id), where: () => flWhere(),
+      baseRow: where => baseRows[where] || null,   // PREM-S2: the base line / select each host shows
       // the perf rigs' spawn (rollout_perf --from, master_bench setFrom): the next roll-out starts there; null = the base
       spawn: id => { spawnId = id && id !== baseAeroId() ? id : null; routeRemember(); return spawnId || baseAeroId(); },
     };
@@ -9168,6 +9425,7 @@
       if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
+      flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
     }
     flNextLeg = nextLeg;
     // a To changed in the flare or the roll-out: the leg it asks for begins where the aeroplane stops
@@ -10287,6 +10545,73 @@
   window.SHOT_MODE = { enter: () => shotSet(true), exit: () => shotSet(false),
                        get on() { return SHOT.on; } };
 
+  // G2085 (PILOT-PERSONA): THE PERSON WHO FLIES - the design's §5 row. The five personalities as pills (the keeper is
+  // #selPersona, borrowed as the style's #selPilot is), a line each saying what that person does, and the CUSTOM
+  // person's knobs (43 PILOT_PROFILE_KNOBS: every hook) in a fold of its own, folded by default - advanced. A knob
+  // moved makes the pilot 'custom' (its values start from the person picked), saved in the player document at once;
+  // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
+  // the full model, tuned down to a person).
+  function flPersona(body) {
+    const sel = $('selPersona');
+    if (!sel || typeof PILOT_PROFILES === 'undefined') return;
+    personaLoad();
+    sel.value = personaChoice;
+    flRow(body, 'personality');
+    // (off the one table, not the select's options: the keeper's value is what a pill writes - flPick)
+    flPills(body, PERSONA_ORDER.concat(['custom']).map(k => ({ label: personaLabel(k), value: k,
+              title: k === 'custom' ? 'your own pilot, off the knobs below' : PILOT_PROFILES[k].desc })),
+            o => o.value === personaChoice, o => flPick(sel, o.value));
+    const L = document.createElement('div'); L.className = 'fnote fpersona';
+    for (const k of PERSONA_ORDER.concat(personaChoice === 'custom' ? ['custom'] : [])) {
+      const d = document.createElement('div'); d.className = 'fpLine' + (k === personaChoice ? ' on' : ''); d.dataset.p = k;
+      const b = document.createElement('b'); b.textContent = personaLabel(k);
+      const t = document.createElement('span'); t.textContent = ' ' + (k === 'custom' ? 'your own pilot: the knobs below' : PILOT_PROFILES[k].desc);
+      d.appendChild(b); d.appendChild(t);
+      L.appendChild(d);
+    }
+    body.appendChild(L);
+    // the fold is the pilot's own, not a rail section (a section is an old item's home - the census holds the list):
+    // a pill that shows or hides the knobs, remembered with the rail's folds (flydiy.flSec 'persona'); a census opens it
+    const open = flCensus ? true : flSecIsOpen('persona');
+    flRow(body, 'custom pilot');
+    flPills(body, [{ label: open ? 'hide the knobs' : 'show the knobs', value: !open, title: 'advanced: every trait of the pilot as a knob' }],
+            () => open, o => flSecSet('persona', o.value));
+    if (!open) return;
+    const fb = document.createElement('div'); fb.className = 'fpKnobs'; body.appendChild(fb);
+    // the knobs read the person flying (a named one until a knob moves), write the custom person
+    const cur = () => personaChoice === 'custom' ? pilotProfile(Object.assign({ name: 'custom', active: true }, personaCustom))
+                                                : pilotProfile(personaChoice);
+    const put = (K, v) => {
+      const R = Object.assign({}, cur()); R[K.k] = v;
+      personaCustom = pilotProfileSpec(pilotProfile(Object.assign({ name: 'custom', active: true }, pilotProfileSpec(R))));
+      if (personaChoice !== 'custom') { personaChoice = 'custom'; sel.value = 'custom'; }
+      personaSave(); flRender();
+    };
+    flRow(fb, 'start from');
+    flPills(fb, PERSONA_ORDER.map(k => ({ label: personaLabel(k), value: k, title: 'copy the ' + personaLabel(k) + ' into the knobs' })), () => false,
+            o => { personaCustom = pilotProfileSpec(o.value); personaChoice = 'custom'; sel.value = 'custom'; personaSave(); flRender(); });
+    for (const K of PILOT_PROFILE_KNOBS) {
+      const R = cur();
+      if (K.kind === 'range') {
+        const toUi = K.toUi || (x => x), k = toUi(1) === 1 ? 1 : toUi(1);
+        const off = K.d === null;   // the top stop is the knob's null: 'off' (comfort g: the bank limit alone), 'auto' (grip)
+        const hi = off ? K.hi + K.step : K.hi;
+        const get = () => { const v = cur()[K.k]; return v == null ? hi * k : v * k; };
+        const dp = Math.max(1, Math.min(3, Math.ceil(-Math.log10(K.step * k) - 1e-9)));   // the knob's own resolution (0.015, not 0.02)
+        const fmt = x => (off && x >= hi * k - 1e-9) ? (K.nullLabel || 'off') : (+x.toFixed(dp)) + (K.unit ? ' ' + K.unit : '');
+        const r = flRange(fb, K.label, K.lo * k, hi * k, K.step * k, get,
+                          x => put(K, off && x >= hi * k - 1e-9 ? null : x / k), fmt);
+        r.title = K.desc;
+      } else if (K.kind === 'pick') {
+        flRow(fb, K.label).title = K.desc;
+        flPills(fb, K.opts.map(v => ({ label: v == null ? 'own' : v, value: v })), o => o.value === R[K.k], o => put(K, o.value));
+      } else if (K.kind === 'bool') {
+        flToggle(fb, K.label, () => cur()[K.k], v => put(K, !!v)).title = K.desc;
+      }
+    }
+    flNote(fb, 'A knob moved makes the pilot your own (custom), kept with your player. It flies from the next start.');
+  }
+
   const FL_BUILD = {
     // -------- the four brief slots --------------------------------------
     slot_ac(body) {
@@ -10296,11 +10621,12 @@
                    'bench subjects are measured in node, not flown here.');
     },
     slot_pilot(body) {
+      flRow(body, 'style');
       flPills(body, flOpts(flS('Pilot')), o => o.value === flS('Pilot').value,
               o => flPick(flS('Pilot'), o.value));
-      flNote(body, 'Auto puts the test pilot under your own build and the ' +
-                   'classic autopilot under anything else. Changing it ' +
-                   'restarts the flight.');
+      flPersona(body);
+      flNote(body, 'The style is the margins the pilot keeps (cautious: wider, brisk: tighter); the personality is who ' +
+                   'holds the stick. Changing either restarts the flight.');
     },
     slot_route(body) {
       // G1945 DEST-TO: ONE CHOICE, THE TO. BORROWED, not rebuilt: #selDest's handler is the autopilot's destination
@@ -10423,6 +10749,9 @@
       flRow(body, 'the pilot');
       flPills(body, [{ label: 'autopilot', value: false }, { label: 'by hand', value: true }],
               o => o.value === manual, o => setManual(o.value));
+      // G2085 (PILOT-PERSONA): who the autopilot is - here too, so the setup screen (this section is on it) and the
+      // FLY rail choose the person where the pilot is chosen; the same keeper as the plate's pilot slot
+      flPersona(body);
       // A9: the clock, on the test flight — 2× is two solver steps a frame
       if (testFlight) {
         flRow(body, 'time');
@@ -11649,7 +11978,8 @@
     $('flPlate').hidden = flFolded;
     $('flLine').hidden = !flFolded;
     $('acName').textContent = flSel(flS('Ac')).replace(/^⚒\s*/, '');
-    $('flPilotV').textContent = flSel(flS('Pilot'));
+    personaLoad();
+    $('flPilotV').textContent = flSel(flS('Pilot')) + (personaChoice !== 'expert' ? ' \u00b7 ' + personaLabel(personaChoice) : '');
     $('flRouteV').textContent = flTrip();
     $('flDayV').textContent = flDay();
     $('flLineName').textContent = $('acName').textContent;
@@ -11781,6 +12111,22 @@
   window.CAGE_RESET_BUILD = () => { if (window.GARAGE_SPEC) window.GARAGE_SPEC.set(playerDefaultSpec()); };
   if (typeof garageInit === 'function') garageInit({
     defaults: playerDefaultSpec,
+    // PREM-S2 (G2230): THE SHELF'S DOORS INTO THE FLEET LEDGER - save / save as / delete / import (the lift), the
+    // place badge of a row, "fly from there?" (the garage goes to that base when a hangar is held there; the roll-out
+    // starts where the aeroplane stands either way), and "bring it home" (GQ5)
+    slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
+    place: n => window.FLYDIY_PLAYER.place(n),
+    wear: n => window.FLYDIY_PLAYER.wear(n),
+    flyFrom: n => {
+      const d = playerLoad(), P = playerPlace(d, n, world);
+      const ids = P && P.aero ? playerHangarsAt(d, P.aero) : [];
+      if (ids.length && d.sheds[d.here] && d.sheds[d.here].base !== P.aero) {
+        const r = playerGoTo(d, P.hangar && ids.includes(P.hangar) ? P.hangar : ids[0]);
+        if (r.ok) { player = r.doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); }
+      }
+      return P;
+    },
+    bringHome: n => { const r = playerBringHomeNow(n); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return r; },
     // a changed spec is a DIFFERENT AEROPLANE, and editing one puts it back on
     // the stand: the solver stops, so a slider drag costs you nothing
     // ...UNLESS THE AEROPLANE HAS ALREADY ROLLED OUT (G434): the roll-out's own syncBuild commits the
@@ -12259,7 +12605,7 @@
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
-    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: personaProfile(), lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
