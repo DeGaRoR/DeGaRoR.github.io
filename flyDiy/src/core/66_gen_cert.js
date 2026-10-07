@@ -110,12 +110,13 @@ const GEN_CERT = {
 const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
 // the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
 const GEN_CERT_RING = /^flown(Elev|Rud)/;
-const GEN_CERT_V = 5;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+const GEN_CERT_V = 6;        // the certificate's own version (a cached answer is only valid for the rules that made it);
                              // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps;
                              // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope);
                              // 4: G1826 (DMG-DRIVE) - the engine's torque, side and gyroscopic loads on its mount (23.361 / .363 / .371)
                              //    (merged after CERTCOST, which had also taken 3: a stored certificate without the drive cases is stale)
                              // 5: G2014 (DMG-NOSE) - the nose's 9 g reacted at either corner (impactNoseL / R), the mount's mirror pairs alike
+                             // 6: G2361-G2363 (DMG-MOUNTRIG) - the nose engine on a mount ring (new members), its tubes and its isolators each one kind
 
 // is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
 // default) - the page asks before it spends a thread on a certificate
@@ -1034,7 +1035,26 @@ function genCertCombine(def, cases, opt) {
     if (Ft[j] > Ft[i]) { Ft[i] = Ft[j]; byT[i] = byT[j]; } else if (Ft[i] > Ft[j]) { Ft[j] = Ft[i]; byT[j] = byT[i]; }
     if (Fc[j] > Fc[i]) { Fc[i] = Fc[j]; byC[i] = byC[j]; } else if (Fc[i] > Fc[j]) { Fc[j] = Fc[i]; byC[j] = byC[i]; }
   }
+  // G2363 (DMG-MOUNTRIG): A MOUNT IS WELDED FROM ONE TUBE AND HUNG ON ONE KIND OF ISOLATOR. A nose engine's mount
+  // (61_gen_frame's ring) is sized as a builder sizes one: every tube of it - the bearers and the ring - is the tube its
+  // worst member needs, every isolator the part its worst cup needs, and their bolts alike. Each member of a kind takes
+  // the largest envelope of its kind, tension and compression apart. Measured without it: the Cub's lower cross bearers
+  // (MNTBL-S0BR, the bottom V's diagonals) were certified by the engine's gyroscopic case alone, 2.0 kN in tension - on
+  // their floor (kappa x physics, 4.0 kN) - and a 2 m/s taxi into a trunk pulled them to 5.3 kN: the mount's fittings let
+  // go and it was a crash (the lower isolators to the CG sat at 0.97 of theirs). Only ever raises a limit
+  if (!(opt && opt.mount === false)) for (const G of genCertMountKinds(def)) {
+    let t = 0, c = 0, it = -1, ic = -1;
+    for (const bi of G) { if (Ft[bi] > t) { t = Ft[bi]; it = byT[bi]; } if (Fc[bi] > c) { c = Fc[bi]; ic = byC[bi]; } }
+    for (const bi of G) { if (Ft[bi] < t) { Ft[bi] = t; byT[bi] = it; } if (Fc[bi] < c) { Fc[bi] = c; byC[bi] = ic; } }
+  }
   return { Ft, Fc, byT, byC, names };
+}
+// the nose mount's kinds (G2363): [its tubes (a member with an end on a ring cup, MNT TL / TR / BL / BR, that is no
+// isolator), its isolators (b.iso)] - none on a build without a ring
+function genCertMountKinds(def) {
+  const N = def.nodes, cup = i => /^MNT[TB][LR]$/.test(N[i].tag || ''), tube = [], iso = [];
+  def.beams.forEach((b, bi) => { if (b.iso) iso.push(bi); else if (b.cls !== 'gear' && (cup(b.a) || cup(b.b))) tube.push(bi); });
+  return [tube, iso].filter(G => G.length > 1);
 }
 // the engine mount's mirror pairs [i, j] (G2014): members with an end on an ENG / CGE / MNT node whose mirror (each end's
 // node across z = 0 within a millimetre) is another member; computed once per def
