@@ -9,7 +9,7 @@
 //      within LIFE, at rest on the ground or the water (its lowest corner within 3 cm of the surface it rests on, never
 //      under it), the same rest whatever the frame rate (stepped at 60 and at 12 frames a second);
 //   2. THE PROP STRIKE (G1861): the seized engines - the strike's energy, bend or break by WRECK_DEBRIS.strike (the
-//      3 m/s taxi into a trunk bends, the 30 m/s impacts break a blade), seeded (the same strike, the same answer), a
+//      30 m/s impacts strike on the trunk; the 3 m/s taxi crushes the nose first, DRIVE2), seeded (the same strike, the same answer), a
 //      broken blade's body at rest; the curl and the dent on a drawn prop (a synthetic two-blade prop and spinner: the
 //      tips move aft, each blade keeps its length, the dent only on the strike's side);
 //   3. THE CLIP ON THE WRECK (G1862, §8.5 at the end states): no debris body's corner inside a live cabin bay of the core
@@ -197,6 +197,7 @@ function runCase(k, c, damage, opt) {
   });
   const D = sim.damage();
   return { hash, bad, crashed: D.crashed, reason: D.reason, broken: D.broken.length, payloads, rel: rel.map(r => ({ kind: r.kind, why: r.why, crush: r.crush != null ? +r.crush.toFixed(3) : null, t: +r.t.toFixed(2) })),
+    drive: (D.drive || []).map(d => ({ strike: d.strike || null, crush: +(d.crush || 0).toFixed(3), on: d.crushOn || null, layer: d.crushLayer || null })),
     bodies, strikes, eye: CAB ? WD.crushed(CAB, sim.p, st.pc) : null, eyeBay: CAB ? CAB.bay : null, eyeD0: CAB ? CAB.d0 : null,
     stillN: P.parts.filter(q => !q.gone).length, final: W.bodies.map(B => B.x.concat(B.q)) };
 }
@@ -294,7 +295,17 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
       // G1861.2: the build's prop material decides - wood (and carbon) snaps, aluminium bends
       for (const s of S.strikes) if (!s.drive) yes(s.metal ? (!s.breaks && s.curl.every(x => x > 0)) : (s.breaks || s.info.wet), 'the ' + s.info.material + ' prop ' + (s.metal ? 'bends, none breaks' : s.breaks ? 'snaps on every blade' : 'stops whole in the water') + ' (' + c.id + ')');
         else console.log('    DMG-DRIVE graded the strike "' + s.drive + '" (engine ' + s.eng + '): curl ' + s.curl.map(f2).join(' / ') + ', cut ' + s.cut.map(f2).join(' / '));
-      if (c.id === 'taxi') yes(S.strikes.length > 0, 'the 3 m/s taxi into a trunk strikes the prop');
+      // (train 39, DMG-DRIVE2 ab53b8e4: the strike is graded at the hub's band - at a walking pace the spinner's crush takes
+      // the taxi first, no blade meets the trunk (DRIVE2's sweep: the Cub strikes from 4 m/s). The taxi row asserts the nose
+      // crush and that nothing struck is drawn without DRIVE's grade; the prop strike on a trunk is drawn by trunk-0)
+      for (const d of S.drive) console.log('    DMG-DRIVE nose: crush ' + (d.crush * 100).toFixed(1) + ' cm on ' + d.on + (d.layer ? ' (' + d.layer + ')' : '') + ', strike ' + (d.strike || 'none'));
+      if (c.id === 'taxi') {
+        yes(S.drive.some(d => d.crush > 0 && d.on === 'trunk'), 'the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)');
+        const graded = S.drive.some(d => WD.DRV_RANK[d.strike]);
+        yes((S.strikes.length > 0) === graded && S.rel.every(x => x.kind !== 'blade' || S.strikes.some(s => s.breaks)),
+          'the taxi draws a strike only as DMG-DRIVE grades one (' + (S.strikes.length ? S.strikes.map(s => s.drive || 'seized').join(', ') : 'none graded: the prop drawn whole') + ')');
+      }
+      if (c.id === 'trunk-0') yes(S.strikes.some(s => s.info.what === 'trunk'), 'a trunk at 30 m/s strikes the prop on the trunk, drawn');
       // G1860.1: dented sheet stays on its fasteners - a cowl panel or a spinner leaves crushed only past TORN
       yes(S.rel.every(x => !((x.kind === 'cowl' || x.kind === 'spinner') && x.why === 'crushed') || x.crush > WD.TORN), 'a cowl / spinner leaves only loose, off or torn past ' + (WD.TORN * 100) + ' cm (' + c.id + ')');
       if (S.eye) console.log('    the cockpit (eye in bay ' + S.eyeBay + ', ' + (S.eyeD0 * 100).toFixed(0) + ' cm clear at rest): ' + (S.eye.crushed ? 'CRUSHED - ' + S.eye.why + ': the chase view' : 'clear (' + (S.eye.depth * 100).toFixed(0) + ' cm, the bay at ' + (S.eye.vol * 100).toFixed(0) + ' % of its volume)'));
