@@ -220,6 +220,7 @@ function makePilot(sim, def, world, opts) {
   const PRF = pilotProfile(opts.profile);
   const PRA = PRF.active;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const WATER_LEAD = 0.5, WATER_BAND = 0.05;   // G2470: the water's pull leads the nose (ROLL)
   // P0.4 (PILOT-ROADMAP §6.3 rule 5): THE MACHINE SHEET — built lazily (the
   // shakedown behind it costs ~2 s; the garage memoises one, a gate may pass
   // one, `opts.shakedown` is a value or a getter). `opts.sheet` (the flag)
@@ -1422,6 +1423,7 @@ function makePilot(sim, def, world, opts) {
     // target, the wrapped rates, the slow roll / climb / acceleration filters
     SV.sense(dt, e, eA, tgtH, thRaw, phRaw, beta, V, Vg, vcg[1], onG);
     const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, accF = SV.accF, vsSlow = SV.vsSlow;
+    const waterPull = (thTgt) => (A.deWater ?? 0.70) * clamp((thTgt - (th + q * WATER_LEAD)) / WATER_BAND, 0, 1);
 
     // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
     // on the ground for 0.3 s (a rough strip's contact flickers)
@@ -2643,7 +2645,17 @@ function makePilot(sim, def, world, opts) {
         // 15 m/s in a 5 m/s crosswind, ballooned it, dropped it back crabbed
         // at 12.5 m/s and water-looped it 140 deg. Pulled at 1.12 Vr it
         // touches once and climbs away (max swing 21 deg).
-        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? (A.deWater ?? 0.70) : 0.02;
+        // G2470 (JODEL-PITCH): ...AND IT LEADS THE NOSE. The full stick was a FLOOR held whatever the nose did until the
+        // hull let go - so the elevator sat at 0.70 the instant the floats unstuck and the aeroplane over-rotated. On the
+        // sea lane (world +z) the Munk body couple's old arm was the rings' VERTICAL offset, ~10x the true couple once
+        // pitched up on the step: that fictitious nose-up couple unstuck the Wipline C172 at 27.7 m/s, 0.1 under the
+        // 1.12 Vr where this pull arms, and it never met the full stick. With the true couple it reaches 1.12 Vr wet,
+        // took the step to 0.69 in 0.4 s and pitched 20.1 deg/s (GATE TAKEOFF's 12). A seaplane pilot eases the back
+        // pressure as the nose comes up to the lift-off attitude: the pull is full while the attitude, LED by its rate
+        // (WATER_LEAD s), is short of the lift-off attitude, and eases to nothing over its last WATER_BAND - the
+        // attitude servo (the rotation's integrator) holds it from there. 10.2 deg/s, 28.4 m/s (1.16 Vs); a hull that
+        // never reaches the attitude (the twin's) keeps the full stick as before
+        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : 0.02;
         c.brake = 0;
         if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null; }
         break;
@@ -2692,7 +2704,7 @@ function makePilot(sim, def, world, opts) {
         // and the card skimmed the step 2 s to 115 km/h where full stick
         // unsticks it at 96: the stick stays back while a float is still
         // wet, and the servo takes over once the aeroplane is clear.
-        if (sim.hydro && onG > 0) SV.deFloor = A.deWater ?? 0.70;
+        if (sim.hydro && onG > 0) SV.deFloor = Math.max(0.02, waterPull(A.liftoffTh));
         if (aglL > A.hSafe || (ap.dep && ap.dep.technique === 'soft'))   // P1.C soft: the attitude for speed from the first metre — level in ground effect until Vy
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
