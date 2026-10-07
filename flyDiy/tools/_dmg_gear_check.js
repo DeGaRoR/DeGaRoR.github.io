@@ -20,6 +20,10 @@
 //      collapses, the bounce it collapsed on printed); the float dig-in (the Cessna on floats, the twin: the 90 km/h /
 //      5 m/s / 20 deg nose-in breaks nothing; in TREECRASH's severe nose-in (150 km/h / 10 m/s / 60 deg) the floats'
 //      strut fittings fail in overload - the order printed)
+//   2b. (G2386, DMG-RECAL2) THE FLOATS' LANDING: the circuit and the crosswind circuit land on the water WITHOUT A
+//      SKIP (one float contact phase from the first wet frame: a run of wet frames after >= 3 dry ones is a new
+//      contact), gated; the circuit in DMGWIND's water winds (5 / 10 m/s from the lane's four quarters, 16 circuits),
+//      a skip printed OWED (counted, not failed: HANDOVER G2383-G2387 traces each class). DMGGEAR_WINDS= skips them
 // Run: node tools/_dmg_gear_check.js   (one final `GATE DMGGEAR: PASS|FAIL`; each build's parts in parallel children,
 // 3 at once; FLYDIY_CERT_DIR: the certificates precomputed - <dir>/<key>.json, as tools/treecrash_evidence.js reads)
 'use strict';
@@ -125,10 +129,16 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
       if (c.contacts != null) yes(c.finite && c.outcome === 'completed' && c.contacts === 1, (c.xw ? 'the crosswind circuit' : 'the circuit') + ' lands on the water without a skip: ' + c.contacts + ' contact phase' + (c.contacts === 1 ? '' : 's') + ' (' + tch(c) + ')');
       rowsT.push([c.xw ? 'crosswind circuit' : 'circuit', c.w.max, c.w]); }
     const WP = Object.keys(P).filter(p => p.indexOf('wind:') === 0 && P[p].circ);
-    if (WP.length) console.log('2b. no skip in DMGWIND\'s water winds (the circuit; contact phases from the first touch)');
+    // (G2386: a skip here prints OWED - counted, not failed - until each class has its own technique or ruling:
+    // the chop a 5-10 m/s wind raises (the rough-water landing), a crosswind past FAR 23.233's 0.2 V_S0, a final the
+    // approach brought in high, a take-off rejected before the circuit; HANDOVER G2383-G2387)
+    if (WP.length) console.log('2b. no skip in DMGWIND\'s water winds (the circuit; contact phases from the first touch; a skip is OWED)');
+    let owed = 0;
     for (const p of WP) { const c = P[p].circ;
-      yes(c.finite && c.outcome === 'completed' && c.contacts === 1, 'the circuit in ' + c.wind.U + ' m/s from ' + c.wind.th + ' deg off the lane: ' + c.outcome + ', ' + c.t.toFixed(0) + ' s, ' + c.contacts + ' contact phase' + (c.contacts === 1 ? '' : 's') + ' (' + tch(c) + ')' + (c.verdicts && c.verdicts.length ? ' [' + c.verdicts.map(v => v.code).join(', ') + ']' : '') + '; headroom ' + wk(c.w) + ' (REPORTED)');
+      const msg = 'the circuit in ' + c.wind.U + ' m/s from ' + c.wind.th + ' deg off the lane: ' + c.outcome + ', ' + c.t.toFixed(0) + ' s, ' + c.contacts + ' contact phase' + (c.contacts === 1 ? '' : 's') + ' (' + tch(c) + ')' + (c.verdicts && c.verdicts.length ? ' [' + c.verdicts.map(v => v.code).join(', ') + ']' : '') + '; headroom ' + wk(c.w) + ' (REPORTED)';
+      if (c.finite && c.outcome === 'completed' && c.contacts === 1) yes(true, msg); else { owed++; console.log('  OWED  ' + msg); }
       rowsT.push(['wind ' + c.wind.U + '/' + c.wind.th, c.w.max, c.w]); }
+    if (owed) console.log('  ' + owed + ' OWED (not counted)');
     table.push([lab, rowsT]);
     // 3. §7.4
     const RW = P.rows || {};

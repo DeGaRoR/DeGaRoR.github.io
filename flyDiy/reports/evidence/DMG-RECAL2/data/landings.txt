@@ -1,0 +1,41 @@
+run | outcome | float contact phases | the first touch: t s, V m/s (ground), sink m/s, pitch deg, bank deg, throttle, peak W | the heels at the touch (deg) | the spreaders' peak (over the certified yield)
+after_floats_0_0 | completed | 1 | 340.6 30.63 1.60 3.73 -0.05 0.00 1.87 | 1.61 / 1.61 | 0.04 | 217.1 vref-raised
+after_floats_10_0 | completed | 7 | 335.533 20.20 1.84 3.72 0.00 0.00 1.95 | 1.6 / 1.61 | 0.10
+after_floats_10_180 | rejected-takeoff | 0 | - | - | 0.00 | 20.8 rejected-takeoff
+after_floats_10_270 | completed | 4 | 350.133 29.20 1.18 6.73 2.76 0.00 1.05 | -1.43 / -1.44 | 0.67
+after_floats_10_90 | completed | 6 | 343.667 29.52 0.93 5.50 5.40 0.00 0.86 | -0.17 / -0.17 | 0.71 | 106.4 wont-climb, 226 vref-raised
+after_floats_4.984_90 | completed | 1 | 352.333 29.54 1.25 5.87 1.13 0.00 1.59 | -0.52 / -0.53 | 0.27
+after_floats_5_0 | completed | 2 | 322.517 27.28 7.55 -9.67 -0.11 0.11 9.69 | 14.01 / 13.85 | 0.31
+after_floats_5_180 | rejected-takeoff | 0 | - | - | 0.00 | 21.5 rejected-takeoff
+after_floats_5_270 | completed | 1 | 345.767 29.62 1.29 5.96 -0.57 0.00 1.26 | -0.61 / -0.61 | 0.29
+after_floats_5_90 | completed | 3 | 352.4 29.52 1.24 5.86 1.25 0.00 1.13 | -0.52 / -0.52 | 0.34
+after_twinFloats_0_0 | completed | 1 | 267.383 19.68 0.53 8.11 0.00 0.00 1.23 | 0.7 / 0.7 | 0.10
+after_twinFloats_10_0 | completed | 4 | 315.117 9.63 1.02 6.10 0.00 0.30 0.82 | 2.74 / 2.74 | 0.15
+after_twinFloats_10_180 | rejected-takeoff | 0 | - | - | 0.00 | 11.6 rejected-takeoff
+after_twinFloats_10_270 | completed | 6 | 306.867 18.45 1.08 6.75 -5.31 0.30 0.78 | 2.06 / 2.03 | 1.61 | 11.8 vx-climb
+after_twinFloats_10_90 | completed | 6 | 313.783 18.18 1.34 6.78 5.25 0.30 1.01 | 2.03 / 2.03 | 0.65
+after_twinFloats_3.312_90 | completed | 1 | 276.55 19.11 0.68 8.18 0.18 0.03 1.41 | 0.64 / 0.64 | 0.13
+after_twinFloats_5_0 | completed | 6 | 261.467 14.67 0.61 8.12 0.00 0.00 0.72 | 0.7 / 0.7 | 0.13
+after_twinFloats_5_180 | rejected-takeoff | 0 | - | - | 0.00 | 12.1 rejected-takeoff
+after_twinFloats_5_270 | completed | 1 | 282.65 19.03 0.55 8.42 0.88 0.00 1.20 | 0.4 / 0.38 | 0.25 | 14.1 vx-climb
+after_twinFloats_5_90 | rejected-takeoff | 0 | - | - | 0.00 | 14.9 balked, 24.2 rejected-takeoff
+before_floats_0_0 | gave-up | 4 | 536.65 39.41 0.88 1.56 1.76 0.00 0.80 | 3.75 / 3.75 | 0.11 | 63.6 vref-raised, 268.8 go-around, 600 gave-up
+before_floats_10_0 | completed | 6 | 275.9 30.34 2.27 -0.88 0.18 0.00 3.13 | 6.08 / 6.04 | 0.15 | 66.3 vref-raised
+before_floats_10_180 | rejected-takeoff | 0 | - | - | 0.00 | 20.8 rejected-takeoff
+before_floats_10_270 | completed | 6 | 285.833 38.86 2.05 -0.68 -1.54 0.00 2.65 | 5.9 / 5.99 | 0.73 | 62.9 vref-raised
+before_floats_10_90 | completed | 7 | 298.433 33.84 0.53 3.18 3.16 0.00 0.61 | 2.14 / 2.15 | 0.57 | 62.8 vref-raised
+before_floats_4.984_90 | completed | 4 | 555.35 38.86 3.16 -2.93 0.47 0.00 4.14 | 8.18 / 8.03 | 0.75 | 64.4 vref-raised, 273.2 go-around
+before_floats_5_0 | completed | 17 | 287.5 28.57 0.28 4.96 0.97 0.00 0.25 | 0.39 / 0.39 | 0.10 | 72.9 vref-raised
+before_floats_5_180 | rejected-takeoff | 0 | - | - | 0.00 | 21.5 rejected-takeoff
+before_floats_5_270 | completed | 4 | 286.3 40.85 2.40 -1.73 1.77 0.00 2.77 | 6.96 / 7.04 | 0.63 | 62.9 vref-raised
+before_floats_5_90 | completed | 2 | 286.667 41.97 2.63 -1.38 0.44 0.00 3.33 | 6.7 / 6.69 | 0.81 | 64.3 vref-raised, 313.6 off-the-strip
+before_twinFloats_0_0 | completed | 3 | 264.217 19.07 1.49 6.05 0.00 0.00 1.48 | 2.75 / 2.75 | 0.19
+before_twinFloats_10_0 | completed | 2 | 311.967 8.71 1.56 6.09 0.00 0.05 1.20 | 2.72 / 2.72 | 0.12
+before_twinFloats_10_180 | rejected-takeoff | 0 | - | - | 0.00 | 11.6 rejected-takeoff
+before_twinFloats_10_270 | completed | 3 | 304.633 16.40 1.72 6.65 -1.53 0.00 1.65 | 2.16 / 2.17 | 2.09 | 11.8 vx-climb
+before_twinFloats_10_90 | completed | 2 | 312.65 15.84 1.54 6.50 1.52 0.30 1.54 | 2.34 / 2.35 | 1.27
+before_twinFloats_3.312_90 | completed | 2 | 273.183 18.74 1.59 6.49 1.05 0.00 1.46 | 2.33 / 2.33 | 2.00
+before_twinFloats_5_0 | completed | 3 | 258.783 13.66 1.36 6.94 0.00 0.18 1.91 | 1.91 / 1.9 | 0.22
+before_twinFloats_5_180 | rejected-takeoff | 0 | - | - | 0.00 | 12.1 rejected-takeoff
+before_twinFloats_5_270 | completed | 2 | 279.1 18.44 1.63 6.80 -1.20 0.00 1.53 | 2.01 / 2.02 | 0.98 | 14.1 vx-climb
+before_twinFloats_5_90 | rejected-takeoff | 0 | - | - | 0.00 | 14.9 balked, 24.2 rejected-takeoff

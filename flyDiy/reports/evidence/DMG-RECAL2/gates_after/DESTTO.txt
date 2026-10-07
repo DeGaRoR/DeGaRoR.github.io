@@ -1,0 +1,14 @@
+  ltd:cub: ok (227 s)
+  ltd:metal: 5 failed (1104 s)
+  ltd:floats: ok (622 s)
+  air:cub: ok (105 s)
+  ltd:jodel: ok (413 s)
+  ltd:twinFloats: ok (384 s)
+  air:metal: ok (187 s)
+  FAIL ltd:metal: stopped on w3's strip - apron w3
+  FAIL ltd:metal: leg 2 goes from the landing stop to its take-off (DEPART -> TAXI|STOP -> HOLD -> ROLL) - TAXI>STOP>HOLD>LINEUP>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>STOPPED
+  FAIL ltd:metal: leg 2 takes off - TAXI>STOP>HOLD>LINEUP>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>STOPPED
+  FAIL ltd:metal: leg 2 flies to w2 and lands there - gave-up STOPPED runway w3 after 553 s | 173.6 lineup-timeout: could not line up in 60 s — stopping to replan / 178.2 replan: not lined up with a run ahead (184 m, 12.7 m off) — planning the departure again / 298.7 lineup-timeout: could not line up in 60 s — stopping to replan / 303.3 replan: not lined up with a run ahead (184 m, 12.7 m off) — planning the departure again / 423.7 lineup-timeout: could not line up in 60 s — stopping to replan / 428.4 replan: not lined up with a run ahead (184 m, 12.7 m off) — planning the departure again / 548.8 lineup-timeout: could not line up in 60 s — stopping to replan / 553.4 taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground
+  FAIL ltd:metal: no rejected take-off, no wrong surface, no lost taxi - lineup-timeout,replan,lineup-timeout,replan,lineup-timeout,replan,lineup-timeout,taxi-lost
+DESTTO: 5 failure(s), 3048 s
+GATE DESTTO: FAIL

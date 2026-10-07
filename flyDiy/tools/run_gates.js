@@ -205,7 +205,7 @@ const GATES = [
   // nothing breaks at 1.2 x, NASA 172 Test 1 breaks it, the gear first), the headroom of normal operations (the circuit,
   // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
-  { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 2900 },   // G2386: + the floats' 16 wind circuits (2816 s measured, 3 children)
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round

@@ -19,7 +19,7 @@ P.forEach(([k, lab], i) => {
   const y0 = T + i * (H + G) + 10, sb = B.s(k), sa = A.s(k), all = sb.concat(sa).map(p => p[1]);
   let lo = Math.min(...all), hi = Math.max(...all); if (k === 'spreader') { lo = 0; hi = Math.max(hi, 1.05); } if (hi - lo < 1e-6) hi = lo + 1;
   const Y = v => y0 + H - (v - lo) / (hi - lo) * H;
-  svg += `<rect x="${L}" y="${y0}" width="${W - L - R}" height="${H}" fill="none" stroke="#ccc"/>\n<text x="4" y="${y0 + 12}">${lab}</text>\n`;
+  svg += `<rect x="${L}" y="${y0}" width="${W - L - R}" height="${H}" fill="none" stroke="#ccc"/>\n<text x="${L}" y="${y0 - 4}" font-weight="bold">${lab}</text>\n`;
   svg += `<text x="${L - 4}" y="${Y(hi) + 4}" text-anchor="end">${hi.toFixed(2)}</text><text x="${L - 4}" y="${Y(lo)}" text-anchor="end">${lo.toFixed(2)}</text>\n`;
   if (k === 'spreader') for (const [v, c] of [[1, '#c00'], [2 / 3, '#e90']]) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c}" stroke-dasharray="4 3"/><text x="${W - R - 2}" y="${Y(v) - 2}" text-anchor="end" fill="${c}">${v === 1 ? 'the envelope (1)' : 'ordinary operations (2/3)'}</text>\n`;
   if (lo < 0 && hi > 0) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="#eee"/>\n`;
