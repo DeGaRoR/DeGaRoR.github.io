@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e3f361034f591786
+// body-sha256: 715084ed592c5dab
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6285,6 +6285,159 @@ function stripLandable(gear, aerodromes, from, to) {
   if (!alt || alt === to) return { to, why: '' };
   return { to: alt, why: (to.name || to.id) + ' is ' + stripSurface(to).word + ' (' + stripAllows(gear, to).why + ') - landing at ' + (alt.name || alt.id) + ' instead' };
 }
+
+// ---- G2223 THE FLEET'S TIE-DOWN SPOTS (FLEET-PROPS A; GAME-2026-10-06 §4.2 point 3) ---------------------------------
+// Where the player's own aeroplanes stand as props at an aerodrome: an ORDERED list of spots, the fleet taking them in
+// airframe order, so the same fleet always stands the same way. PURE: the aerodrome, its site, and what the caller
+// knows of the ground -> the same list every call. First the record's painted STANDS (premises v1.21: a material
+// polygon's `stands`, n lead-in lines `pitch` m apart, the nose stop at the far end - PAVEMENT.standMarks' own frame);
+// then the APRON RING computed off the runway's site: rings round the site's stand (where the player rolls out), the
+// nose toward it, nearest first; then ROWS along the runway on its two sides (the stand's side first), the nose toward
+// the strip, the first row FLEET_SPOT.rwyClr past a paved runway's edge (rwyNarrow past a narrow strip's; on water
+// waterClr off the lane's centreline), ordered by the distance from the stand.
+// EVERY SPOT IS CLEAR BY MILL-TAXI's RULES (G1925, tools/_taxiclear_lib.js): its box keeps MARGIN (3 m) off every solid
+// thing the caller names (opts.solid: (x, z, reach) -> the plan distance to the nearest one) and off the site's hangar,
+// and every route the site's pattern hands the pilot (out[0], out[1], back[0], back[1], sampled as THE PILOT's path)
+// keeps the widest validated build's half-span + MARGIN (5.5 + 3 m) off the box; it stands inside the field
+// (fleetField), on flat ground (opts.ground: the box's corners within flatTol), dry on land and afloat on water
+// (opts.wet), and no two spots' boxes come within `gap` of each other. A spot's box is its CAPACITY ({half, fwd, aft}):
+// a footprint (GP_PARKED_FOOT's rule: half-span, nose + prop ahead of the mount, tail behind) that fits in it may stand
+// there - every spot's is every archetype's envelope (FLEET_SPOT_FOOT). A spot: { id, kind: 'stand' | 'apron' | 'ring',
+// x, z, ry (rotation.y, the record's yaw: the nose along (cos ry, -sin ry)), half, fwd, aft }.
+//   opts: { pave: [{ id, poly: [[x, z]...] world, yaw: world, stands }], solid, ground, wet, pattern, taxiHalf, max }
+const FLEET_SPOT = { margin: 3.0, taxiHalf: 5.5, gap: 1.5, rwyClr: 25, rwyNarrow: 8, waterClr: 40, across: 110, standR: 150, endIn: 30, rowGap: 4, rows: 2, flatTol: 0.6, max: 12, step: 0.25,
+                     apronR: [22, 34, 46, 58, 70], apronStep: 15 };
+const FLEET_SPOT_FOOT = (() => {
+  let h = GP_PARKED_DEFAULT[0], f = GP_PARKED_DEFAULT[1], a = GP_PARKED_DEFAULT[2];
+  for (const k in GP_PARKED_FOOT) { const d = GP_PARKED_FOOT[k]; h = Math.max(h, d[0]); f = Math.max(f, d[1]); a = Math.max(a, d[2]); }
+  return { half: h, fwd: f, aft: a };
+})();
+// the signed plan distance from (x, z) to a spot's box (negative inside) - gpParkedDist's frame
+function fleetSpotDist(sp, x, z) {
+  const c = Math.cos(sp.ry), s = Math.sin(sp.ry), dx = x - sp.x, dz = z - sp.z;
+  const ox = dx * c - dz * s, oz = dx * s + dz * c;
+  const ex = Math.max(-sp.aft - ox, ox - sp.fwd, 0), ez = Math.max(Math.abs(oz) - sp.half, 0);
+  if (ex || ez) return Math.hypot(ex, ez);
+  return -Math.min(sp.fwd - ox, ox + sp.aft, sp.half - Math.abs(oz));
+}
+// a box's outline every `step` m (and its inside every 2 m: a small thing wholly inside is still found), world (x, z)
+function fleetSpotPts(sp, step, inner) {
+  const c = Math.cos(sp.ry), s = Math.sin(sp.ry), out = [];
+  const at = (u, v) => out.push([sp.x + u * c + v * s, sp.z - u * s + v * c]);   // nose u (along (c, -s)), right v
+  const C = [[sp.fwd, -sp.half], [sp.fwd, sp.half], [-sp.aft, sp.half], [-sp.aft, -sp.half]];
+  for (let k = 0; k < 4; k++) {
+    const A = C[k], B = C[(k + 1) % 4], n = Math.max(1, Math.ceil(Math.hypot(B[0] - A[0], B[1] - A[1]) / (step || 0.25)));
+    for (let i = 0; i < n; i++) at(A[0] + (B[0] - A[0]) * i / n, A[1] + (B[1] - A[1]) * i / n);
+  }
+  if (inner) for (let u = -sp.aft + 1; u < sp.fwd; u += 2) for (let v = -sp.half + 1; v < sp.half; v += 2) at(u, v);
+  return out;
+}
+// THE FIELD: the strip's zone (along its length, out to `across` past the paved edge; on water the lane's rectangle),
+// the site's stand and its apron (within standR of the stand), and the stand polygons the record paints near it
+function fleetField(aero, site, pave) {
+  const R = siteRunway(aero), water = !!aero.water;
+  const st = site && site.stand ? site.stand : null;
+  const inPoly = (poly, x, z) => { let ins = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins; } return ins; };
+  const base = (x, z) => {
+    const dx = x - R.cx, dz = z - R.cz, a = dx * R.dx + dz * R.dz, c = dx * R.nx + dz * R.nz;
+    if (Math.abs(a) <= R.len / 2 && Math.abs(c) <= R.wid / 2 + (water ? 0 : FLEET_SPOT.across)) return true;
+    if (st && Math.hypot(x - st.x, z - st.z) <= FLEET_SPOT.standR) return true;
+    if (site && site.apron && x >= site.apron.x0 && x <= site.apron.x1 && z >= site.apron.z0 && z <= site.apron.z1) return true;
+    return false;
+  };
+  // a stand polygon belongs to this field when its centre does
+  const polys = (pave || []).filter(p => p && p.poly && p.stands && base(...fleetPolyCentre(p.poly)));
+  const f = (x, z) => base(x, z) || polys.some(p => inPoly(p.poly, x, z));
+  f.polys = polys;
+  return f;
+}
+const fleetPolyCentre = poly => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of poly) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } return [(x0 + x1) / 2, (z0 + z1) / 2]; };
+function fleetSpots(aero, site, opts) {
+  const o = opts || {}, F = FLEET_SPOT, R = siteRunway(aero), water = !!aero.water;
+  const env = o.foot || FLEET_SPOT_FOOT, margin = F.margin, need = (o.taxiHalf || F.taxiHalf) + margin;
+  const solid = typeof o.solid === 'function' ? o.solid : null;
+  const P = o.pattern || sitePattern(aero, site || null, { half: o.taxiHalf || F.taxiHalf });
+  // the routes, as THE PILOT samples them
+  const routes = [];
+  if (P && P.routes && typeof patternPath === 'function')
+    for (const k of ['out', 'back']) for (const T of [0, 1]) { const ids = P.routes[k] && P.routes[k][T]; if (ids && ids.length >= 2) for (const q of patternPath(P, ids, 1.0).pts) routes.push(q); }
+  const stNode = P && P.nodes ? P.nodes.find(n => n.kind === 'stand') : null;
+  const ref = (site && site.stand) || stNode || { x: R.cx, z: R.cz };
+  const field = fleetField(aero, site, o.pave);
+  // the site's hangar (the garage's shed), as the circle round its box: whatever way it is turned
+  const hang = site && site.hangar && site.hangar.HW ? site.hangar : null;
+  const hangarD = (x, z) => (hang ? Math.hypot(x - hang.x, z - hang.z) - Math.hypot(hang.HW, hang.HD) : Infinity);
+  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0 };
+  const no = (sp, w, d) => { why[w]++; if (o.trace) o.trace.push({ id: sp.id, why: w, d: d === undefined ? null : +(+d).toFixed(2) }); return false; };
+  // the runway's keep-out: a paved runway's strip (rwyClr past its edge); a narrow strip's own edge + rwyNarrow (an 11 m span
+  // rolling on its centreline clears a spot there by its half-span and more); on water, off the lane's centreline
+  const keep = water ? F.waterClr : R.wid / 2 + (R.wid >= 30 ? F.rwyClr : F.rwyNarrow);
+  const ok = [];
+  const test = sp => {
+    const C = fleetSpotPts(Object.assign({}, sp, {}), 1e9);      // the four corners
+    if (!C.every(q => field(q[0], q[1]))) return no(sp, 'field');
+    const cs = C.map(q => (q[0] - R.cx) * R.nx + (q[1] - R.cz) * R.nz), as = C.map(q => (q[0] - R.cx) * R.dx + (q[1] - R.cz) * R.dz);
+    const along = as.some(a => Math.abs(a) <= R.len / 2 + margin);
+    if (along && !(cs.every(c => c >= keep) || cs.every(c => c <= -keep))) return no(sp, 'runway');
+    if (o.wet) { const w = C.map(q => !!o.wet(q[0], q[1])); if (water ? !w.every(Boolean) : w.some(Boolean)) return no(sp, 'water'); }
+    if (o.ground && !water) { const h = C.concat([[sp.x, sp.z]]).map(q => o.ground(q[0], q[1])); const d = Math.max(...h) - Math.min(...h); if (d > F.flatTol) return no(sp, 'flat', d); }
+    const pts = fleetSpotPts(sp, F.step, true);
+    for (const q of pts) { const d = Math.min(hangarD(q[0], q[1]), solid ? solid(q[0], q[1], margin + 1) : Infinity); if (d < margin) return no(sp, 'solid', d); }
+    const rr = Math.max(sp.half, sp.fwd, sp.aft) + need + 2;
+    for (const q of routes) if (Math.abs(q.x - sp.x) < rr && Math.abs(q.z - sp.z) < rr) { const d = fleetSpotDist(sp, q.x, q.z); if (d < need) return no(sp, 'route', d); }
+    for (const b of ok) {
+      if (Math.hypot(b.x - sp.x, b.z - sp.z) > Math.hypot(b.half, Math.max(b.fwd, b.aft)) + Math.hypot(sp.half, Math.max(sp.fwd, sp.aft)) + F.gap) continue;
+      if (fleetSpotPts(sp, 0.5).some(q => fleetSpotDist(b, q[0], q[1]) < F.gap) || fleetSpotPts(b, 0.5).some(q => fleetSpotDist(sp, q[0], q[1]) < F.gap)) return no(sp, 'overlap');
+    }
+    return true;
+  };
+  const r3 = v => +v.toFixed(3);
+  const max = o.max || F.max;
+  // 1 THE PAINTED STANDS of this field, in their order: the nose at the stop, the box the envelope's (a stand whose
+  // neighbour is taken - by a spot before it, or by a thing the record parks there - is refused by the rules above)
+  const near = field.polys.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const p of near) {
+    const so = p.stands, n = Math.max(1, Math.min(24, (so.n | 0) || 6)), pitch = +so.pitch > 0 ? +so.pitch : 11, lead = +so.lead > 0 ? +so.lead : 9;
+    const v0 = -(n - 1) * pitch / 2 + (+so.vOff || 0), uStop = (so.u0 === undefined ? -lead / 2 : +so.u0) + lead, ctr = fleetPolyCentre(p.poly);
+    const c = Math.cos(p.yaw || 0), s = Math.sin(p.yaw || 0);
+    for (let i = 0; i < n && ok.length < max; i++) {
+      const v = v0 + i * pitch, u = uStop - env.fwd;
+      const sp = { id: 'stand:' + p.id + ':' + i, kind: 'stand', x: r3(ctr[0] + u * c - v * s), z: r3(ctr[1] + u * s + v * c), ry: r3(-(p.yaw || 0)), half: env.half, fwd: env.fwd, aft: env.aft };
+      if (test(sp)) ok.push(sp);
+    }
+  }
+  // 2 THE APRON round the site's stand (where the player rolls out): rings of spots, the nose toward the stand, nearest
+  // first, then by bearing from the runway's heading
+  const st0 = (site && site.stand) || stNode;
+  if (st0 && !water) {
+    const cand = [];
+    for (const rad of F.apronR) for (let b = 0; b < 360; b += F.apronStep) {
+      const th = R.hdg + b * Math.PI / 180, x = st0.x + Math.cos(th) * rad, z = st0.z + Math.sin(th) * rad;
+      const hx = st0.x - x, hz = st0.z - z;                                          // the nose toward the stand
+      cand.push({ id: 'apron:' + rad + ':' + b, kind: 'apron', x: r3(x), z: r3(z), ry: r3(Math.atan2(-hz, hx)), half: env.half, fwd: env.fwd, aft: env.aft });
+    }
+    for (const sp of cand) { if (ok.length >= max) break; if (test(sp)) ok.push(sp); }
+  }
+  // 3 THE ROWS along the runway: both sides (the stand's first), rows outward, along the strip
+  const sgRef = (ref.x - R.cx) * R.nx + (ref.z - R.cz) * R.nz >= 0 ? 1 : -1;
+  const ring = [];
+  const pitchA = 2 * env.half + F.gap;
+  for (const sg of [sgRef, -sgRef]) for (let row = 0; row < F.rows; row++) {
+    const d = keep + env.fwd + 0.5 + row * (env.fwd + env.aft + F.rowGap + 2 * margin);
+    const nAlong = Math.floor((R.len - 2 * F.endIn) / pitchA);
+    for (let j = 0; j <= nAlong; j++) {
+      const a = -R.len / 2 + F.endIn + env.half + j * pitchA;
+      if (a > R.len / 2 - F.endIn - env.half) break;
+      const x = R.cx + R.dx * a + R.nx * d * sg, z = R.cz + R.dz * a + R.nz * d * sg;
+      const hx = -R.nx * sg, hz = -R.nz * sg;                  // the nose toward the runway
+      ring.push({ id: 'ring:' + (sg > 0 ? 'L' : 'R') + row + ':' + j, kind: 'ring', x: r3(x), z: r3(z), ry: r3(Math.atan2(-hz, hx)), half: env.half, fwd: env.fwd, aft: env.aft,
+                  _d: Math.hypot(x - ref.x, z - ref.z) + (sg === sgRef ? 0 : 1e5) + row * 1e4 });
+    }
+  }
+  ring.sort((p, q) => p._d - q._d || (p.id < q.id ? -1 : 1));
+  for (const sp of ring) { if (ok.length >= max) break; delete sp._d; if (test(sp)) ok.push(sp); }
+  return { spots: ok, why, foot: env, ref: { x: r3(ref.x), z: r3(ref.z) } };
+}
 // ===========================================================================
 // THE FIT-OUT — what a hangar IS, what is IN it, and what you can DO there.
 // ===========================================================================
@@ -7672,7 +7825,16 @@ function sowPlots(zone, roads, ctx) {
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0, 1);
   const gapOdds = clamp(V.gapOdds + 0.6 * (1 - density), 0, 0.95);
   const plots = [];
-  const all = () => ctx.plots.concat(plots);
+  // G2063 (TOWN-GEO): A PLOT WHOSE BOX IS CLEAR OF THE CANDIDATE'S CANNOT OVERLAP IT - polysOverlap asks only whether a corner
+  // of one is inside the other, and a point outside a polygon's box is outside the polygon - so the test walks the plots
+  // whose boxes meet (the record's 500 at Metlakatla, every candidate and every pull of its back: 0.6 s of a composition).
+  // The same answer; no concatenation per candidate either
+  const pbox = new Map(), boxOf = poly => { let b = pbox.get(poly); if (b) return b; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const c of poly) { if (c[0] < x0) x0 = c[0]; if (c[0] > x1) x1 = c[0]; if (c[1] < z0) z0 = c[1]; if (c[1] > z1) z1 = c[1]; } pbox.set(poly, b = [x0, z0, x1, z1]); return b; };
+  const apart = (a, b) => a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1];   // (a NaN box is never apart)
+  const overlapsAny = q => { const qb = boxOf(q);
+    for (const L of [ctx.plots, plots]) for (const p of L) if (!apart(boxOf(p.poly), qb) && polysOverlap(p.poly, q)) return true;
+    return false; };
   const rejectAt = (x, z) => !inPoly(zone.poly, x, z) || ctx.excludes.some(p => inPoly(p, x, z)) || (ctx.keepOut || []).some(p => inPoly(p, x, z));
   // A PLOT MAY NOT LIE ON A ROAD THAT IS NOT ITS OWN (2026-09-23, the user, of three
   // houses in the carriageway: "Some houses are drawn over the roads. Not what we
@@ -7755,7 +7917,7 @@ function sowPlots(zone, roads, ctx) {
           for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
             back(cut);
             const q = [f0, f1, b1, b0];
-            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
+            ok = !overlapsAny(q) && !q.some(c => rejectAt(c[0], c[1])) && !onOtherRoad(q, road.id);
           }
           if (!ok) continue;
           be = [b1[0] - b0[0], b1[1] - b0[1]];
@@ -7814,9 +7976,27 @@ function planForest(zone, ctx) {
   const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
   const rnd = mulberry32(zoneSeed);
   const draw = () => { const tot = list.reduce((s, p) => s + (p.proportion || 1), 0); let r = rnd() * tot; for (const p of list) { r -= (p.proportion || 1); if (r <= 0) return p; } return list[list.length - 1]; };
-  const roadNear = (x, z) => { let d = 1e9; for (const r of ctx.roads) d = Math.min(d, roadDist(r, x, z) - (r.w || 3.6) / 2); return d; };
+  // G2063 (TOWN-GEO): THE THREE TESTS, CULLED, THE SAME ANSWERS. A road whose box (its points') lies farther than its half
+  // width + `r` cannot come within `r` of its edge; a plot whose box lies 1.5 m clear cannot have the point within 1.5 m;
+  // a tree farther than two grid cells (a cell is the spacing m) is farther than m. Each walked every road, plot and tree
+  // of the record for every candidate (Metlakatla: 0.45 s of a composition). A NaN keeps the old answers: a road's NaN
+  // distance made the min NaN (no road near), a tree at NaN is never clear of
+  const RB = ctx.roads.map(r => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of r.pts || []) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { r, hw: (r.w || 3.6) / 2, b: [x0, z0, x1, z1] }; });
+  const farBox = (b, x, z, r) => Math.max(b[0] - x, x - b[2], b[1] - z, z - b[3]) > r + 1e-3;   // (NaN: never far)
+  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDist(R.r, x, z) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
+  const PB = ctx.plots.map(p => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of p.poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { p, b: [x0, z0, x1, z1] }; });
+  const plotWithin = (x, z, r) => PB.some(P => !farBox(P.b, x, z, r) && sdPoly(P.p.poly, x, z) < r);
   const trees = [];
-  const clearOf = (x, z, m) => trees.every(t => Math.hypot(t.x - x, t.z - z) >= m) && ctx.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+  const GRID = new Map(), gridM = Math.min(3.2, step * 0.55), gk = (i, j) => i * 1048576 + j, odd = [];   // (the one m clearOf is asked with)
+  const gridAdd = t => { if (!(isFinite(t.x) && isFinite(t.z))) { odd.push(t); return; } const k = gk(Math.floor(t.x / gridM), Math.floor(t.z / gridM)); let c = GRID.get(k); if (!c) GRID.set(k, c = []); c.push(t); };
+  for (const t of ctx.trees) gridAdd(t);
+  const clearOf = (x, z, m) => {
+    if (m !== gridM || !(isFinite(x) && isFinite(z))) return trees.every(t => Math.hypot(t.x - x, t.z - z) >= m) && ctx.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+    for (const t of odd) if (!(Math.hypot(t.x - x, t.z - z) >= m)) return false;
+    const i0 = Math.floor(x / gridM), j0 = Math.floor(z / gridM);
+    for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) { const c = GRID.get(gk(i, j)); if (c) for (const t of c) if (!(Math.hypot(t.x - x, t.z - z) >= m)) return false; }
+    return true;
+  };
   const bb = polyBBox(zone.poly), s = zoneSeed % 1000 * 0.618 + 9;
   const clearing = zone.rules && zone.rules.clearings === false ? -1 : 0.38;
   for (let z = bb.z0 + 1; z < bb.z1; z += step) for (let x = bb.x0 + 1; x < bb.x1; x += step) {
@@ -7824,8 +8004,8 @@ function planForest(zone, ctx) {
     if (!inPoly(zone.poly, px, pz)) continue;
     if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < clearing) continue;
     if (ctx.T(px, pz) < ctx.waterY + 0.6) continue;
-    if (roadNear(px, pz) < 3) continue;
-    if (ctx.plots.some(p => sdPoly(p.poly, px, pz) < 1.5)) continue;
+    if (roadWithin(px, pz, 3)) continue;
+    if (plotWithin(px, pz, 1.5)) continue;
     if (ctx.excludes.some(p => inPoly(p, px, pz))) continue;
     if (!clearOf(px, pz, Math.min(3.2, step * 0.55))) continue;
     const p = draw();
@@ -7833,7 +8013,8 @@ function planForest(zone, ctx) {
     // forest, just not too tall"): a MEDIUM canopy is the same species grown less.
     const sizeK = zone.rules && zone.rules.size !== undefined ? +zone.rules.size : 1;
     const size = (p.size || 1) * (0.82 + rnd() * 0.4) * sizeK;
-    trees.push({ x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id });
+    const tr = { x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id };
+    trees.push(tr); gridAdd(tr);
   }
   return trees;
 }
@@ -16460,19 +16641,45 @@ const FLIGHT_BASE_DEFAULT = 'HOME';
 const FLIGHT_BASES = {
   HOME: { id: 'HOME', aero: 'HOME', name: 'Home base', hangar: 'the WWII hangar' },
 };
-// the bases this world has: the aerodrome exists and is not a meadow
-function flightBases(world) {
+// THE BASES ARE DERIVED FROM THE HANGARS HELD (G2230 PREM-S2, GAME-PREMISES ruling gp1): handed the player's
+// document, a base is every aerodrome where a hangar is held (70_player.js / 71_player_bases.js: `sheds[id].base`),
+// in the order HOME first, then by id; each row carries its hangars. HOME's row is FLIGHT_BASES.HOME's words
+// verbatim, so the sandbox (the starter club at HOME, nothing else held) reads exactly as before. Without a document
+// (the gates, the rigs) the registry above answers, as it always did.
+function flightBasesOf(doc) {
+  const S = (doc && doc.sheds && typeof doc.sheds === 'object') ? doc.sheds : null;
+  if (!S) return FLIGHT_BASES;
+  const out = {};
+  const ids = Object.keys(S).filter(id => S[id] && typeof S[id] === 'object' && typeof S[id].base === 'string')
+    .sort((a, b) => (a === 'HOME' ? -1 : b === 'HOME' ? 1 : (a < b ? -1 : a > b ? 1 : 0)));
+  for (const id of ids) {
+    const aero = S[id].base;
+    if (!out[aero]) {
+      const B = FLIGHT_BASES[aero];
+      const O = typeof BASE_OFFERS === 'object' ? BASE_OFFERS[aero] : null;
+      const sh = typeof SHELLS === 'object' && SHELLS[S[id].shell];
+      out[aero] = B ? Object.assign({}, B, { hangars: [] })
+        : { id: aero, aero, name: S[id].name || (O && O.words ? O.words.split(' · ')[0] : aero),
+            hangar: 'the ' + ((sh && sh.name) || S[id].shell || 'hangar').toLowerCase(), hangars: [] };
+    }
+    out[aero].hangars.push(id);
+  }
+  return Object.keys(out).length ? out : FLIGHT_BASES;
+}
+// the bases this world has: the aerodrome exists and is not a meadow (`doc`: the player's document - the held hangars)
+function flightBases(world, doc) {
   const L = (world && world.aerodromes) || [];
+  const R = doc ? flightBasesOf(doc) : FLIGHT_BASES;
   const out = [];
-  for (const id of Object.keys(FLIGHT_BASES)) {
-    const B = FLIGHT_BASES[id], a = L.find(x => x.id === B.aero);
+  for (const id of Object.keys(R)) {
+    const B = R[id], a = L.find(x => x.id === B.aero);
     if (a && a.kind !== 'meadow') out.push(Object.assign({}, B, { a }));
   }
   return out;
 }
 // the base `id`, else the default, else the first — null in a world with none
-function flightBase(world, id) {
-  const L = flightBases(world);
+function flightBase(world, id, doc) {
+  const L = flightBases(world, doc);
   return L.find(b => b.id === id) || L.find(b => b.id === FLIGHT_BASE_DEFAULT) || L[0] || null;
 }
 
@@ -17790,22 +17997,70 @@ const PILOT_UNITS = {
 //              slip      true: the forward slip on ANY final high on energy at idle (the expert: short ones only)
 //              stepHold  true: the step-attitude hold on the water (39b servoStepHold)
 const PILOT_PROFILES = {
-  expert:  { name: 'expert', active: false },
-  club:    { name: 'club pilot', active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
-  student: { name: 'student', active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
-  bush:    { name: 'bush pilot', active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
-  hamfist: { name: 'ham-fist', active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02 } },
+  expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
+             active: false },
+  club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
+             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
+  student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
+             active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+  bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
+             active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
+  hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02 } },
 };
+// G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
+// `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
+// document (or a link) can never hand the pilot a NaN or a 5 s reaction. `kind`: 'range' (lo..hi, step) | 'pick' (opts)
+// | 'bool'. `show`/`read`: the menu's unit (degrees for the over-rotation). The ranges are the design's §2 envelope widened
+// to where the battery still lands a validated aeroplane (HANDOVER G2085: the sweep).
+const PILOT_PROFILE_KNOBS = [
+  { sec: 'skill', k: 'reaction', label: 'reaction', unit: 's', kind: 'range', lo: 0, hi: 0.6, step: 0.05, d: 0, desc: 'the delay between seeing and moving the stick' },
+  { sec: 'skill', k: 'smooth', label: 'hands', unit: '×', kind: 'range', lo: 0.5, hi: 2, step: 0.05, d: 1, desc: 'the stick\'s speed: under 1 smooth and slow, over 1 snatchy' },
+  { sec: 'skill', k: 'hamFist', label: 'unsteadiness', unit: '', kind: 'range', lo: 0, hi: 0.08, step: 0.005, d: 0, desc: 'the stick\'s wander, rms (a steady hand is 0)' },
+  { sec: 'skill', k: 'gain', label: 'grip', unit: '×', kind: 'range', lo: 0.3, hi: 1.5, step: 0.05, d: null, nullLabel: 'auto', desc: 'how hard the pilot answers an error (auto: eased to suit the reaction; over 1 over-controls)' },
+  { sec: 'quirks', k: 'overRotate', label: 'over-rotation', unit: '°', kind: 'range', lo: 0, hi: 0.07, step: 0.0035, d: 0, toUi: r => r * 180 / Math.PI, desc: 'degrees of extra nose-up at the rotation' },
+  { sec: 'quirks', k: 'flareK', label: 'flare height', unit: '×', kind: 'range', lo: 0.6, hi: 1.3, step: 0.05, d: 1, desc: 'under 1 a late flare, over 1 an early one' },
+  { sec: 'limits', k: 'bankK', label: 'bank', unit: '×', kind: 'range', lo: 0.5, hi: 1.3, step: 0.05, d: 1, desc: 'the circuit\'s bank against the expert\'s' },
+  { sec: 'limits', k: 'comfortG', label: 'comfort g', unit: 'g', kind: 'range', lo: 1.05, hi: 2, step: 0.05, d: null, desc: 'the load factor the pilot will pull in a turn (off: the bank limit alone)' },
+  { sec: 'technique', k: 'field', label: 'field technique', kind: 'pick', opts: [null, 'normal', 'short'], d: null, desc: 'the approach flown everywhere (own: the strip decides)' },
+  { sec: 'technique', k: 'slip', label: 'slips', kind: 'bool', d: false, desc: 'the forward slip on any final high at idle' },
+  { sec: 'technique', k: 'stepHold', label: 'step hold', kind: 'bool', d: false, desc: 'holds the step attitude on the water' },
+];
 function pilotProfile(p) {
   const base = PILOT_PROFILES.expert;
   if (!p) return base;
   const P = typeof p === 'string' ? (PILOT_PROFILES[p] || base) : Object.assign({ name: 'custom', active: true }, p);
   const g = (sec, k, d) => (P[sec] && P[sec][k] != null) ? P[sec][k] : d;
-  return { name: P.name, active: !!P.active,
-           reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0),
+  const R = { name: P.name, active: !!P.active,
+           reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
            overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
            field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false) };
+  // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
+  // profile is the table's own and passes as written (the expert's bypass is untouched)
+  if (typeof p !== 'string') {
+    for (const K of PILOT_PROFILE_KNOBS) {
+      const v = R[K.k];
+      if (K.kind === 'range') {
+        if (K.d === null && (v === null || v === undefined || v === false)) { R[K.k] = null; continue; }
+        const x = +v;
+        R[K.k] = Number.isFinite(x) ? Math.max(K.lo, Math.min(K.hi, x)) : K.d;
+      } else if (K.kind === 'pick') R[K.k] = K.opts.indexOf(v) >= 0 ? v : K.d;
+    }
+  }
+  return R;
+}
+// G2085: the custom person as the menu and the player document hold it ({ skill, quirks, limits, technique }, only the
+// knobs that differ from the expert's) - from a resolved profile (pilotProfile's shape) or a named one
+function pilotProfileSpec(p) {
+  const R = typeof p === 'string' || !p || p.reaction === undefined ? pilotProfile(p) : p;
+  const o = {};
+  for (const K of PILOT_PROFILE_KNOBS) {
+    const v = R[K.k];
+    if (v === K.d || (K.d === null && v == null) || (K.d === false && !v)) continue;
+    (o[K.sec] || (o[K.sec] = {}))[K.k] = v;
+  }
+  return o;
 }
 
 function makePilot(sim, def, world, opts) {
@@ -18154,23 +18409,59 @@ function makePilot(sim, def, world, opts) {
   // G1943: THE HUMAN IN THE LOOP (a profile's skill; the expert never enters it) - the reaction's delay line on the
   // stick and pedals, the ham-fist's disturbance (an Ornstein-Uhlenbeck sequence, 0.3 s, from a fixed seed: every
   // flight of a profile is the same flight, the gates stay deterministic)
-  const HUM = PRA ? { n: 0, buf: null, i: 0, x: [0, 0, 0], seed: 1935 } : null;
+  // (G2085: opts.seed - the same person on another day: the hand's sequence from another seed; 1935 when unset)
+  const HUM = PRA ? { n: 0, buf: null, i: 0, x: [0, 0, 0], y: [0, 0, 0], ref: null, seed: Number.isFinite(opts.seed) ? opts.seed | 0 : 1935 } : null;
   if (PRA) SV.slewK = PRF.smooth;
+  ap.profile = PRF.name;   // G2085: who flies (the page's evidence, the gates): the profile's name, 'expert' for none
   const humRand = () => { HUM.seed = (HUM.seed + 0x6D2B79F5) | 0; let t = HUM.seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  // G2085 (PILOT-PERSONA): THE PERSON'S GAIN (McRuer's crossover model: a human in a loop sets their own gain so the
+  // loop stays stable with their delay - a slow pilot is a LOOSE pilot, not an oscillating one). MEASURED FIRST: the
+  // bare delay line drove the Jodel into a ground loop at 0.15 s (the heading +-25 deg, every club / student take-off
+  // rejected) and the Cub's ailerons into a 1.5 Hz limit cycle on the club's downwind (90 reversals / min, the expert
+  // 0.6). The person's command is the servo's HELD part (its 1 s average: the trim, the steady bank) plus `gain` x the
+  // rest, delayed: steady tracking is the servo's, the quick corrections are the person's. `gain` null: from the delay,
+  // 1 / (1 + reaction / 0.15 s) (the Cub club's pitch scan, 0.25 s: 0.5 cycled at 59 / min, 0.4 at 8, 0.3 at 3); a
+  // number: the person's own (> 1 over-controls - the design's §4.3).
+  // ON THE WHEELS: THE FEET ARE QUICK - the delay 0.10 s at most and the gain whole (the ground steer is the tightest
+  // loop the pilot flies): 0.15 s at full gain ground-looped the Jodel, and the eased gain at 0.15 s let the Cub's
+  // roll-out swing 37-62 deg; 0.10 s whole: the Jodel's roll 2.5 deg, the Cub's roll-out 0.9 deg
+  const HUM_TG = 0.15, HUM_REF = 1.0, HUM_GCAP = 0.10;
+  // THE FLARE IS THE PERSON'S QUICKEST MOMENT: a planned manoeuvre flown with full attention - their delay there is the
+  // wheels' (0.10 s at most) and their gain whole (McRuer's easing is the error-correcting loop's). MEASURED over four
+  // seeds (pilot_persona --seeds): eased in the flare the pull came out at a fraction (the Wipline C172's water landing
+  // 2.99 m/s club / 3.42 student); whole at the full delay it cycled (the C172 ham-fist -5 -> +9 -> -8 deg pitch in
+  // the flare, 3.69 m/s; the students 2.5-4.4 m/s on three aeroplanes); half the delay eased to 1 / (1 + rx / 0.4)
+  // left the Jodel student's balloon-and-drop (2.6-2.9); the wheels' delay whole: the Jodel student 0.93-1.24, the
+  // ham-fists 1.09-1.99 on every seed. The person still flares LATE (flareK) with their own hands (smooth, hamFist)
+  const humGain = (rx, onG) => (onG > 0 || ap.phase === 'FLARE') ? 1 : PRF.gain != null ? PRF.gain : 1 / (1 + rx / HUM_TG);
   const humanise = (dt, onG) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
-    if (PRF.hamFist > 0) {
-      const a = Math.min(1, dt / 0.3), sq = Math.sqrt(2 * a);
-      for (let k = 0; k < 3; k++) {
-        const g = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * Math.cos(2 * Math.PI * humRand());
-        HUM.x[k] += -a * HUM.x[k] + sq * g;
-      }
-      c.de += PRF.hamFist * HUM.x[0]; c.da += PRF.hamFist * HUM.x[1]; c.dr += PRF.hamFist * HUM.x[2];
+    // ON THE WHEELS THE DELAY IS SHORT (G1943: the student's 0.45 s inside the ground steer swerved the stock build 31
+    // deg on the roll, a rejected take-off every time; G2085: 0.15 s still ground-looped the Jodel) - a person on the
+    // roll watches the centreline and the feet are quick; in the air the delay is whole
+    const rx = (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
+    const g = humGain(rx, onG);
+    if (g !== 1) {
+      const a = Math.min(1, dt / HUM_REF);
+      if (!HUM.ref) HUM.ref = [c.de, c.da, c.dr];
+      const R = HUM.ref;
+      R[0] += (c.de - R[0]) * a; R[1] += (c.da - R[1]) * a; R[2] += (c.dr - R[2]) * a;
+      c.de = R[0] + g * (c.de - R[0]); c.da = R[1] + g * (c.da - R[1]); c.dr = R[2] + g * (c.dr - R[2]);
     }
-    // ON THE WHEELS THE DELAY IS 0.15 s AT MOST: the ground steer is the tightest loop the pilot flies, and the
-    // student's 0.45 s inside it swerved the stock build 31 deg on the roll (0.10 m/s^2, a rejected take-off every
-    // time) - a person on the roll watches the centreline and the feet are quick; in the air the delay is whole
-    const N = Math.round((onG > 0 ? Math.min(PRF.reaction, 0.15) : PRF.reaction) / Math.max(1e-3, dt));
+    if (PRF.hamFist > 0) {
+      // G2085: A HAND, NOT A BUZZ - the disturbance band-limited the way an arm is: an Ornstein-Uhlenbeck wander (0.5 s)
+      // through the hand's own lag (0.12 s), rms-normalised; the first cut (0.3 s, unfiltered) read 400+ reversals /
+      // min on the ham-fist - a vibration, not a coarse hand
+      const a = Math.min(1, dt / 0.5), sq = Math.sqrt(2 * a), b = Math.min(1, dt / 0.12);
+      for (let k = 0; k < 3; k++) {
+        const w = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * Math.cos(2 * Math.PI * humRand());
+        HUM.x[k] += -a * HUM.x[k] + sq * w;
+        HUM.y[k] += (HUM.x[k] - HUM.y[k]) * b;
+      }
+      const K = PRF.hamFist * 1.12;   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      c.de += K * HUM.y[0]; c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
+    }
+    const N = Math.round(rx / Math.max(1e-3, dt));
     if (N > 0) {
       if (!HUM.buf || HUM.n !== N) { HUM.n = N; HUM.buf = new Float64Array(3 * (N + 1)); for (let k = 0; k <= N; k++) { HUM.buf[3 * k] = c.de; HUM.buf[3 * k + 1] = c.da; HUM.buf[3 * k + 2] = c.dr; } HUM.i = 0; }
       const B = HUM.buf, w = HUM.i, r = (w + 1) % (N + 1);
@@ -36409,17 +36700,33 @@ function genCertAttach(def, opt) {
 // tools/fixtures/player_*.json forever, because ruling 4 holds for property
 // the way it holds for builds.
 //
-// RESERVED FOR P6: `fleet` and `logs`. The fleet is rows of named aeroplanes
-// with plaques, logbooks, hours and wear — the same sentence as the sheds —
-// and when it moves in, the lift from the flydiy.build.* slots is
-// PLAYER_MIGRATORS' first real entry beside a frozen v1 fixture, NOT a second
-// container. (The slot store itself may well stay underneath as the file
-// cabinet — per-item envelopes, individually shareable; this document is the
-// ledger of ownership, not the filing.)
+// v2 (G2095, GAME-PREMISES-2026-10-06.md): THE SHEDS STAND AT BASES. A shed
+// is a hangar the player holds at an aerodrome: its key is a HANGAR id (the
+// first hangar at a base keeps the base's own id, so HOME is still HOME), and
+// `base` says which aerodrome it stands on — in v1 the key WAS the aerodrome,
+// which is the one change of HOME this version exists for (PLAYER_MIGRATORS[1]).
+// Beside it: `tenure` (own | rent), and at the top level `mode` (sandbox |
+// career: who pays), `here` (the hangar the garage opens in), `clock` (flown
+// seconds — time advances in flight, GAME-LAYER ruling ax), `fleet` and
+// `ledger`. Nothing in a v1 shed moves.
+//
+// THE FLEET MOVED IN AT v2 as the LEDGER OF WHERE: `fleet[slotName]` says
+// which hangar (or which aerodrome's tie-downs) each saved build stands at.
+// The flydiy.build.* slots stay the file cabinet (per-item envelopes,
+// individually shareable); this document is the ledger of ownership, not the
+// filing. The lift from the slots is NOT a migrator — a migrator sees only
+// this document and the slot names live in the browser's storage — it is
+// playerFleetReconcile (71_player_bases.js), pure, handed the slot names by
+// the page. `logs` stay in the envelopes (garage.js) for now.
+//
+// G2085 (PILOT-PERSONA): AND THE PLAYER'S PILOT - `pilot: { profile, custom }`, the personality that flies the
+// player's aeroplanes (43_pilot.js PILOT_PROFILES; the design's §4.9: "a profile is data; it can be saved with the
+// player"). OPTIONAL and absent by default: absent is the expert, the null-means-derived ruling again; no version step
+// (a field added, not one that changed units, sign or home - an older game carries it untouched, as any unknown field).
 //
 // The name is `player`, not `estate` — ROADMAP G77.1 already spends "free
 // estate" on screen real-estate, and this is property, not pixels.
-const PLAYER_V = 1;
+const PLAYER_V = 2;
 
 // { fromVersion: doc => doc } — each entry lifts a document one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw
@@ -36427,7 +36734,19 @@ const PLAYER_V = 1;
 // or HOME; the mechanism exists before its first real entry so that entry
 // lands in an exercised, gated machine (GATE PLAYER injects a throwaway
 // migrator, runs the walk, and removes it — G106's idiom).
-const PLAYER_MIGRATORS = {};
+// 1 -> 2 (G2095): the shed's KEY stops being its aerodrome — `base` takes
+// that job, so a second hangar at one field is a second key, not a clash.
+// Defensive: a v0 or junk document walked through here has no sheds at all.
+const PLAYER_MIGRATORS = {
+  1: doc => {
+    if (doc && doc.sheds && typeof doc.sheds === 'object')
+      for (const id of Object.keys(doc.sheds)) {
+        const s = doc.sheds[id];
+        if (s && typeof s === 'object' && typeof s.base !== 'string') s.base = id;
+      }
+    return doc;
+  },
+};
 
 function playerMigrate(r) {
   if (!r || typeof r !== 'object') return r;
@@ -36446,10 +36765,16 @@ function playerMigrate(r) {
 // game has always shown. `dims`, `parts` and `name` are OPTIONAL and absent:
 // absent means DERIVED (the shell's defaults), the same null-means-derived
 // ruling the spec lives by.
+// v2: the default player holds ONE hangar, the club at HOME, owned, in
+// sandbox (nothing is charged until the career exists — GAME-PREMISES §4),
+// with an empty fleet: the page's reconcile lifts the saved builds into it.
 function playerDefault() {
   return {
     what: 'flydiy-player', v: PLAYER_V,
     wallet: 0,
+    mode: 'sandbox',
+    here: 'HOME',
+    clock: 0,
     sheds: {
       HOME: {
         shell: 'club',
@@ -36457,8 +36782,11 @@ function playerDefault() {
                ? HANGAR_KITS_DEFAULT.slice()
                : ['park', 'bench', 'wood', 'metal', 'store', 'handling',
                   'office', 'comfort', 'curio', 'wip']),
+        base: 'HOME', tenure: 'own',
       },
     },
+    fleet: {},
+    ledger: [],
   };
 }
 
@@ -36477,7 +36805,50 @@ function playerNormalise(r) {
   const h = r.sheds.HOME;
   if (typeof h.shell !== 'string') h.shell = 'club';
   if (!Array.isArray(h.kits)) h.kits = def.sheds.HOME.kits;
+  // v2: every shed stands somewhere and is held somehow. A shed with no
+  // `base` stands on the aerodrome its key names (v1's meaning, so a
+  // document that skipped the walk still lands right); unknown shed ids ride
+  // along exactly as before, only gaining these two words.
+  for (const id of Object.keys(r.sheds)) {
+    const s = r.sheds[id];
+    if (!s || typeof s !== 'object') continue;
+    if (typeof s.base !== 'string' || !s.base) s.base = id;
+    if (s.tenure !== 'own' && s.tenure !== 'rent') s.tenure = 'own';
+  }
+  // GQ4 (G2230, GAME-2026-10-06.md §R): the main hangar (HOME) and at most
+  // two side hangars. An older document holding more keeps EVERY one - the
+  // extra ones (the newest: `since`, then the id) are marked `legacy`: still
+  // usable, counted by the cap, never offered again. Refuse nothing, and no
+  // PLAYER_V step: the v2 shape holds (a v2 game reads `legacy` as one more
+  // field riding along).
+  {
+    const max = typeof PREM_SIDE_MAX === 'number' ? PREM_SIDE_MAX : 2;
+    const sides = Object.keys(r.sheds).filter(id => id !== 'HOME' && r.sheds[id] && typeof r.sheds[id] === 'object')
+      .sort((a, b) => ((+r.sheds[a].since || 0) - (+r.sheds[b].since || 0)) || (a < b ? -1 : a > b ? 1 : 0));
+    for (const id of sides.slice(max)) r.sheds[id].legacy = true;
+  }
+  if (r.mode !== 'sandbox' && r.mode !== 'career') r.mode = 'sandbox';
+  if (typeof r.here !== 'string' || !r.sheds[r.here] || typeof r.sheds[r.here] !== 'object')
+    r.here = 'HOME';
+  if (typeof r.clock !== 'number' || !isFinite(r.clock) || r.clock < 0) r.clock = 0;
+  if (!r.fleet || typeof r.fleet !== 'object' || Array.isArray(r.fleet)) r.fleet = {};
+  if (!Array.isArray(r.ledger)) r.ledger = [];
+  if ('pilot' in r) r.pilot = playerPilot(r);
   return r;
+}
+
+// G2085: THE PLAYER'S PILOT, read (never invented into the document): { profile, custom } with the profile a name the
+// pilot knows ('custom' included) - anything else is the expert - and the custom person clamped to the knobs
+// (43 pilotProfile / pilotProfileSpec: a saved slider can never hand the pilot a NaN). Absent: the expert.
+function playerPilot(r) {
+  const P = r && r.pilot && typeof r.pilot === 'object' ? r.pilot : {};
+  const known = (typeof PILOT_PROFILES !== 'undefined') ? PILOT_PROFILES : { expert: 1 };
+  const profile = typeof P.profile === 'string' && (known[P.profile] || P.profile === 'custom') ? P.profile : 'expert';
+  const out = { profile };
+  if (P.custom && typeof P.custom === 'object')
+    out.custom = (typeof pilotProfileSpec === 'function' && typeof pilotProfile === 'function')
+      ? pilotProfileSpec(pilotProfile(P.custom)) : P.custom;
+  return out;
 }
 
 // THE ONE-TIME LIFT: the two old pref values (already parsed, or null) into
@@ -36512,5 +36883,838 @@ function playerShedDims(doc, id, site) {
   const h = (site && site.hangar) || {};
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
+// ===========================================================================
+// THE GAME PREMISES — bases, hangars, and where every aeroplane stands.
+// (G2095, futureDesigns/GAME-PREMISES-2026-10-06.md — the first slice: the
+// data model and the rules, pure, node-tested by GATE GAMEPREM.)
+// ===========================================================================
+// THE WORDS. The player sees "premises" (the release's name). The code says
+// `player*` / `hangar*` / `BASE_OFFERS`, because PREMISES_* is already the
+// world editor's record (27_premises.js) and the two must never be confused:
+// that one says where a field's buildings stand; this one says which of them
+// the player HOLDS and what is parked inside.
+//
+// THE MODEL (all of it lives in the player document, 70_player.js v2):
+//   a BASE      an aerodrome where the player holds at least one hangar —
+//               DERIVED from the sheds' `base`, never stored twice.
+//   a HANGAR    `doc.sheds[id]`: one of the three garage presets (SHELLS:
+//               field / club / works) with its OWN dims, kits and dress — the
+//               unique interior — plus `base`, `tenure` (own | rent). Its id
+//               is the PLOT it stands on (BASE_OFFERS), so a plot is held at
+//               most once by construction. HOME's starter is plot HOME.
+//   the FLEET   `doc.fleet[slotName]` = { hangar, aero, foot? }: inside a
+//               hangar (hangar set, aero = its base) or tied down outside at
+//               an aerodrome (hangar null). A slot is one airframe — the
+//               flydiy.build.* envelope stays the file cabinet.
+//   MONEY       `doc.mode`: 'sandbox' records what things WOULD cost and
+//               charges nothing (today's game, and every migrated profile);
+//               'career' charges the wallet. The rules are the same in both.
+//
+// THE RULES THIS FILE HOLDS (GATE GAMEPREM proves each, and each refusal
+// leaves the document exactly as it came — every operation works on a
+// clone and returns { ok, doc, why }):
+//   CAPACITY    an aeroplane is IN a hangar only if its span passes the
+//               door and the whole set inside packs on the floor beside the
+//               fit-out (hangarPark). Repacked from scratch every time — the
+//               hangar crew shuffles; history never decides what fits.
+//   STORING     wheel in / wheel out at the base the aeroplane stands at.
+//   MOVING      only by flying it (playerArrive after a stop): into a hangar
+//               of yours with room there, else tied down outside. A flight
+//               that ends anywhere else (a crash, a field, the page closed)
+//               moves nothing — the aeroplane is where it departed from
+//               (playerRecover charges the trip home in career).
+//   HOLDING     acquire a free plot (bought: the price), release an EMPTY
+//               hangar (never the main one), upgrade shell / dims / kits only
+//               while everything inside still fits.
+//
+// THE USER'S CALLS (6 Oct, GAME-2026-10-06.md §R; G2230 PREM-S2 amends S1's
+// rules to them — no PLAYER_V step, the v2 shape holds):
+//   GQ4     AT MOST TWO SIDE HANGARS. The MAIN hangar is HOME's starter shed
+//           (plot HOME); a side hangar is any other held shed. playerAcquire
+//           refuses a third, with a reason. An older document holding more
+//           keeps them all (playerNormalise marks the extra ones `legacy`;
+//           they still work, and the cap still counts them: refuse nothing).
+//   GQ5     "BRING IT HOME" IS FREE in both modes: playerRecover charges 0
+//           and still writes its ledger line; playerBringHome puts it back in
+//           the hangar it last left, else the main hangar, else stationed at
+//           HOME.
+//   G-COST  NO RUNNING COSTS: no rent (tenure 'rent' is never offered and
+//           playerAcquire refuses it; the field stays so v2 is unchanged and
+//           an old rented shed is kept), no per-hour charge of any kind.
+//   GQ7     SLOTS ON TOP OF GEOMETRY: the main hangar holds the build bay + 2
+//           parked; a side hangar 1, or 2 if its shell is the club. An
+//           aeroplane is inside only if a slot is free AND hangarPark packs
+//           it — a slot is a cap, never a promise the room cannot keep.
+//   GQ7     OUTSIDE WEAR, visual only: a fleet row stationed outside carries
+//           `outSince` (the flown clock it went outside at) and `wearOut`
+//           (0..1, frozen by a hangar stop, reset by Repair / Paint);
+//           playerWearNow reads it, playerWearMacro hands it to the G345
+//           weathering macros. No physics, no cost.
+//
+// Pure: no THREE, no DOM, no storage. Reads SHELLS / HANGAR_KITS / hangarFit
+// / hangarFootprint / hangarCaps (26_hangar_fit.js), GP_PARKED_DEFAULT
+// (25_airfield.js) and the document helpers of 70_player.js.
+// ===========================================================================
+
+// ---- WHAT CAN BE HELD -----------------------------------------------------
+// Per aerodrome id (Jolene's, the island the game plays; the analytic world
+// has HOME only): its plots, keyed by the HANGAR ID a holder gets. The first
+// plot of a field is the field's own id, so v1's `sheds.HOME` IS plot HOME.
+//   shells   which of the three presets that plot takes (a hill strip has
+//            no room for a works; a seaplane base's slipway takes a timber
+//            shed or a club)
+//   kits     what comes with it — a derelict shed with a bench in it
+//            (HANGARS §6's fantasy) is a plot whose kits say so
+//   pf       the price factor on the shell's price: remote is cheaper
+//   dims     per shell, the size this plot's shed is offered at (inside the
+//            shell's lims) — the unique interior starts here: Tamgas Hill's
+//            field shed is wide enough for a Cub's 10.8 m (door 12 m), the
+//            mine's derelict one is the bare 14 m shed that takes a Jodel
+//            and nothing wider, the seaplane bases' are tall enough for floats
+// w2 (02/20) is HOME's own field and gets no plot of its own; East Point
+// Clearing (150 m) has tie-downs and nothing to build on. The plot's
+// PLACE in the world (x, z, door heading) is the premises record's —
+// session 3 (GAME-PREMISES §5); HOME's is the club hangar G434 stood.
+const BASE_OFFERS = {
+  HOME: {
+    words: 'Jolene AFB · the WWII field',
+    plots: {
+      HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
+              dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
+      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
+                  dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
+    },
+  },
+  w3: {
+    words: 'Tamgas Hill · a strip above the trees',
+    plots: { w3: { shells: ['field'], kits: ['park', 'bench'], pf: 0.8,
+                   dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
+  },
+  tw_ski: {
+    words: 'Skyline Altiport · snow, and a short slope',
+    plots: { tw_ski: { shells: ['field', 'club'], kits: ['park'], pf: 0.9,
+                       dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
+  },
+  mn_strip: {
+    words: 'Jumbo Mine · a derelict shed on the street',
+    plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
+  },
+  SEA: {
+    words: 'Annette Dock · a slipway',
+    plots: { SEA: { shells: ['field', 'club'], kits: ['park', 'store'], pf: 1, water: true,
+                    dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
+  },
+  mk_sea: {
+    words: 'Metlakatla · the seaplane float',
+    plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
+                       dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
+  },
+};
+
+// The money, declared in one place (calibration is P5a's; these are the
+// defaults GAME-PREMISES §4 proposes, every one an open question there).
+// A stock Cub's ledger is ~30 000 (genShakedown on GEN_DEFAULT).
+const PREM_RATES = {
+  clubPrice: 10000,      // SHELLS.club.price is 0 because it is the starter; a club bought elsewhere is not
+  // (G-COST, G2230: no rent - `rentPerHour` is gone with every per-hour charge; hangars are bought, never rented)
+  resale: 0.5,           // an owned hangar released returns this share of what it cost
+  rebuildCredit: 0.5,    // a shell swapped in place credits this share of the old shell's price
+  recoverBase: 0,        // GQ5 (G2230): "bring it home" is FREE in both modes - the ledger line is still written...
+  recoverKm: 0,          // ...at 0, so the history says it happened
+  labourFit: 0.8,        // repairs / edits in a hangar that has every verb the aeroplane wants
+  labourShort: 1.0,      // ...that lacks one
+  labourAway: 1.25,      // ...with no hangar of yours (a field's mechanic)
+  ledgerMax: 200,
+};
+// what a kit costs to fit (the starter's kits came with it); nothing refunds a kit
+const KIT_PRICES = { park: 0, bench: 800, wood: 2500, metal: 3500, store: 300, handling: 600,
+                     office: 1500, comfort: 900, curio: 0, wip: 0 };
+
+// THE THREE CONCEPTS, AS NUMBERS (GAME §R GQ4 / GQ7; G2230). The main hangar
+// is HOME's starter shed - the workshop, the only place an aeroplane is built
+// (GQ3). Its slots: the build bay + 2 parked. A side hangar: 1, or 2 for a
+// club shell (a field shed is honestly a one-aeroplane shed). At most two
+// side hangars. Checked ON TOP of hangarPark: an aeroplane is inside only if
+// a slot is free AND the floor packs it.
+const PREM_MAIN = 'HOME';
+const PREM_SIDE_MAX = 2;
+const PREM_SLOTS = { bay: 1, main: 2, side: 1, sideClub: 2 };
+// THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
+// stationed outside. `age` carries the chalk and the fade (aeroweather.js
+// AERO_WX_LAYERS: chalk 0.70 x age -> 0.42 at full wear), `rain` the drips.
+// `step` quantises what a bake is signed with (a prop re-bakes per step, not
+// per flown second).
+const PREM_WEAR = { hours: 10, age: 0.6, rain: 0.5, step: 0.05 };
+
+// ---- THE ROOM, AS A FLOOR --------------------------------------------------
+// A hangar's dims: the shell's defaults under the shed's own, per key (the
+// page's setShell always writes them explicitly; the starter's absent dims
+// are the club's, which is the site's declaration too — playerShedDims).
+function hangarDims(shed) {
+  const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
+  const d = (shed && shed.dims) || {};
+  const pick = k => (typeof d[k] === 'number' && isFinite(d[k]) && d[k] > 0) ? d[k] : sh.dims[k];
+  return { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+}
+// THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
+// two cannot drift): nearly the whole gable end; the portal's header takes
+// 1.4 m under the eave (6.4 at most), the timber lintel 0.5.
+function hangarDoor(shed) {
+  const D = hangarDims(shed);
+  const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
+  const timber = sh.frame === 'timber';
+  return { w: Math.max(6, 2 * D.HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
+}
+// What the fit-out stands on the floor: every prop and recipe hangarFit
+// PLACED (an unplaced one stands nowhere), as a plan rectangle at its
+// footprint — full height, conservatively: a high wing passing over a low
+// bench is a later refinement (GAME-PREMISES Q9), and it can only add room.
+function hangarObstacles(shed, reg) {
+  if (typeof hangarFit !== 'function') return [];
+  const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg });
+  const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
+  const out = [];
+  for (const p of fit.placed) {
+    const f = orient(hangarFootprint(p.prop, reg), p.ry);
+    out.push({ key: p.prop, x0: p.x - f[0], x1: p.x + f[0], z0: p.z - f[1], z1: p.z + f[1] });
+  }
+  for (const r of fit.recipes) {
+    const K = HANGAR_KITS[r.kit], row = K && K.recipes.find(q => q.recipe === r.recipe);
+    if (!row || !row.foot) continue;
+    const f = orient(row.foot, r.ry);
+    out.push({ key: r.recipe, x0: r.x - f[0], x1: r.x + f[0], z0: r.z - f[1], z1: r.z + f[1] });
+  }
+  return out;
+}
+
+// ---- PARKING ----------------------------------------------------------------
+// An aeroplane's plan footprint is 25_airfield.js's: { half (the half-span),
+// fwd (nose and prop ahead of the engine mount), aft (the tail behind it),
+// h? (the height, when measured) }. A build nobody measured yet is the
+// default single (GP_PARKED_DEFAULT: 12 m span) — wrong for a microlight, but
+// wrong in the safe direction.
+const PARK_CLR = 0.5;        // round every parked aeroplane: 1 m wingtip to wingtip, 0.5 m to a wall
+const PARK_DOOR_CLR = 0.3;   // each side of the span, through the door
+const PARK_STEP = 0.5;       // the packer's scan, metres
+function parkFoot(f) {
+  const d = (typeof GP_PARKED_DEFAULT !== 'undefined') ? GP_PARKED_DEFAULT : [6.0, 1.6, 6.6];
+  const n = (v, def) => (typeof v === 'number' && isFinite(v) && v > 0) ? v : def;
+  const o = { half: n(f && f.half, d[0]), fwd: n(f && f.fwd, d[1]), aft: n(f && f.aft, d[2]) };
+  if (f && typeof f.h === 'number' && isFinite(f.h) && f.h > 0) o.h = f.h;
+  return o;
+}
+// does it pass the door? -> '' or why not
+function hangarDoorWhy(shed, foot) {
+  const door = hangarDoor(shed), f = parkFoot(foot);
+  const span = 2 * f.half;
+  if (span + 2 * PARK_DOOR_CLR > door.w)
+    return 'the span (' + span.toFixed(1) + ' m) does not pass the ' + door.w.toFixed(1) + ' m door';
+  if (f.h && f.h > door.h - 0.1)
+    return 'the height (' + f.h.toFixed(1) + ' m) does not pass the ' + door.h.toFixed(1) + ' m door';
+  return '';
+}
+// THE PACKER. hangarPark(shed, planes[{ name, foot }], opts{ reg }) ->
+//   { placed[{ name, x, z, rect }], unplaced[{ name, why }], door, dims, area, used, how }
+// with placed.length + unplaced.length === planes.length, always (opts.bail,
+// hangarRoomFor's own, stops at the first miss and does not hold that).
+// In the room's frame (hangar.js): doors at -x, x across the depth (+-HD),
+// z across the width (+-HW). Every aeroplane is parked NOSE TO THE DOOR.
+// First fit, biggest first (keep-out area, then name — deterministic), each
+// scanned from the BACK wall forward. Two orders across the width, the better
+// kept (more placed; a tie keeps the first): from the CENTRE line outward —
+// a lone aeroplane stands in the middle of the bay, as the garage shows it —
+// and from the WALL across, which packs a bare shed two abreast. The scan is
+// a 0.5 m grid plus every position flush against a wall, the fit-out or an
+// aeroplane already parked (the corner points a hand would try first).
+function hangarPark(shed, planes, opts) {
+  const D = hangarDims(shed), door = hangarDoor(shed);
+  const obs = hangarObstacles(shed, opts && opts.reg);
+  const list = (planes || []).map(p => {
+    const f = parkFoot(p.foot);
+    return { name: p.name, f, lx: f.fwd + f.aft + 2 * PARK_CLR, lz: 2 * (f.half + PARK_CLR) };
+  });
+  list.sort((a, b) => (b.lx * b.lz - a.lx * a.lz) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const hit = (r, q) => r.x0 < q.x1 - 1e-9 && r.x1 > q.x0 + 1e-9 && r.z0 < q.z1 - 1e-9 && r.z1 > q.z0 + 1e-9;
+  const run = how => {
+    const placed = [], unplaced = [], rects = [];
+    for (const p of list) {
+      const why = hangarDoorWhy(shed, p.f);
+      if (why) { unplaced.push({ name: p.name, why }); continue; }
+      // the engine mount's range: the keep-out rectangle inside the walls
+      const cxHi = D.HD - p.f.aft - PARK_CLR, cxLo = -D.HD + p.f.fwd + PARK_CLR;
+      const czHi = D.HW - p.f.half - PARK_CLR, czLo = -czHi;
+      let got = null;
+      if (cxHi >= cxLo - 1e-9 && czHi >= -1e-9) {
+        const near = obs.concat(rects);
+        const xs = new Set(), zs = new Set();
+        for (let x = cxHi; x >= cxLo - 1e-9; x -= PARK_STEP) xs.add(+x.toFixed(3));
+        for (let k = 0; k * PARK_STEP <= czHi + 1e-9; k++) { zs.add(+(k * PARK_STEP).toFixed(3)); zs.add(+(-k * PARK_STEP).toFixed(3)); }
+        xs.add(+cxLo.toFixed(3)); zs.add(+czHi.toFixed(3)); zs.add(+czLo.toFixed(3));
+        for (const o of near) {
+          xs.add(+(o.x0 - p.f.aft - PARK_CLR).toFixed(3)); xs.add(+(o.x1 + p.f.fwd + PARK_CLR).toFixed(3));
+          zs.add(+(o.z0 - p.f.half - PARK_CLR).toFixed(3)); zs.add(+(o.z1 + p.f.half + PARK_CLR).toFixed(3));
+        }
+        const X = Array.from(xs).filter(x => x <= cxHi + 1e-9 && x >= cxLo - 1e-9).sort((a, b) => b - a);
+        const Z = Array.from(zs).filter(z => z <= czHi + 1e-9 && z >= czLo - 1e-9)
+          .sort(how === 'centre' ? ((a, b) => (Math.abs(a) - Math.abs(b)) || (b - a)) : ((a, b) => a - b));
+        for (const cx of X) {
+          const x0 = cx - p.f.fwd - PARK_CLR, x1 = cx + p.f.aft + PARK_CLR;
+          const band = near.filter(o => x0 < o.x1 - 1e-9 && x1 > o.x0 + 1e-9);   // what this depth meets
+          for (const cz of Z) {
+            const r = { x0, x1, z0: cz - p.f.half - PARK_CLR, z1: cz + p.f.half + PARK_CLR };
+            if (band.some(o => hit(r, o))) continue;
+            got = { name: p.name, x: cx, z: cz, rect: r };
+            break;
+          }
+          if (got) break;
+        }
+      }
+      if (got) { placed.push(got); rects.push(got.rect); }
+      else {
+        unplaced.push({ name: p.name, why: 'no floor left' + (obs.length ? ' beside the fit-out' : '') });
+        if (opts && opts.bail) break;     // hangarRoomFor's yes / no: the first miss answers it
+      }
+    }
+    return { placed, unplaced, rects, how };
+  };
+  let best = run('centre');
+  if (best.unplaced.length) {
+    const w = run('wall');
+    if (w.placed.length > best.placed.length) best = w;
+  }
+  const area = 4 * D.HW * D.HD;
+  const used = best.rects.reduce((s, r) => s + (r.x1 - r.x0) * (r.z1 - r.z0), 0);
+  return { placed: best.placed, unplaced: best.unplaced, door, dims: D, area, used, how: best.how };
+}
+// how many of THIS aeroplane the hangar takes beside what is in it (the
+// premises screen's "room for 2 more Cubs"): the largest n for which the
+// residents and n copies all pack — a binary search, five packs not twenty
+// (the packer is monotone in practice: one more copy never makes room).
+// Capped at 24: it is a readout, not a census.
+function hangarRoomFor(shed, foot, residents, opts) {
+  if (hangarDoorWhy(shed, foot)) return 0;
+  const base = (residents || []).slice();
+  const fits = n => {
+    const extra = [];
+    for (let i = 0; i < n; i++) extra.push({ name: '\u0000room' + String(i).padStart(2, '0'), foot });
+    return !hangarPark(shed, base.concat(extra), Object.assign({}, opts, { bail: true })).unplaced.length;
+  };
+  if (!fits(1)) return 0;
+  let lo = 1, hi = 2;                       // doubling, then halving: a full shed answers in a few packs
+  while (hi <= 24 && fits(hi)) { lo = hi; hi *= 2; }
+  if (hi > 24) { if (fits(24)) return 24; hi = 24; }
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (fits(m)) lo = m; else hi = m; }
+  return lo;
+}
+
+// ---- THE DOCUMENT -----------------------------------------------------------
+const pbClone = o => JSON.parse(JSON.stringify(o));
+const pbNo = (doc, why) => ({ ok: false, doc, why });
+// the hangars held at an aerodrome, sorted (the order a choice is made in)
+function playerHangarsAt(doc, aero) {
+  const S = (doc && doc.sheds) || {};
+  return Object.keys(S).filter(id => S[id] && S[id].base === aero).sort();
+}
+// the bases: the aerodromes the player holds a hangar at, sorted
+function playerBaseIds(doc) {
+  const S = (doc && doc.sheds) || {}, out = new Set();
+  for (const id of Object.keys(S)) if (S[id] && typeof S[id].base === 'string') out.add(S[id].base);
+  return Array.from(out).sort();
+}
+function playerResidents(doc, hangarId) {
+  const F = (doc && doc.fleet) || {};
+  return Object.keys(F).filter(n => F[n] && F[n].hangar === hangarId).sort();
+}
+function playerFootOf(doc, name, foots) {
+  return parkFoot((foots && foots[name]) || (doc && doc.fleet && doc.fleet[name] && doc.fleet[name].foot));
+}
+// where an aeroplane stands -> { kind: 'in' | 'out' (tied down at a base of
+// yours) | 'away' (tied down where you hold nothing) | 'none', hangar, aero }
+function playerWhere(doc, name) {
+  const e = doc && doc.fleet && doc.fleet[name];
+  if (!e) return { kind: 'none', hangar: null, aero: null };
+  if (e.hangar && doc.sheds[e.hangar]) return { kind: 'in', hangar: e.hangar, aero: doc.sheds[e.hangar].base };
+  const aero = e.aero || null;
+  return { kind: aero && playerHangarsAt(doc, aero).length ? 'out' : 'away', hangar: null, aero };
+}
+// would this set stand in that hangar? (the residents + the newcomers)
+function playerPack(doc, hangarId, names, foots, opts) {
+  const shed = doc.sheds[hangarId];
+  return hangarPark(shed, names.map(n => ({ name: n, foot: playerFootOf(doc, n, foots) })), opts);
+}
+// the money door: career charges, sandbox records what it would have cost
+function playerCharge(doc, amt, k, ref) {
+  amt = Math.round(amt || 0);
+  if (!amt) return doc;
+  const free = doc.mode !== 'career';
+  if (!free) doc.wallet -= amt;
+  doc.ledger.push({ k, amt, ref: ref || null, clock: Math.round(doc.clock || 0), free });
+  if (doc.ledger.length > PREM_RATES.ledgerMax) doc.ledger.splice(0, doc.ledger.length - PREM_RATES.ledgerMax);
+  return doc;
+}
+const pbAfford = (doc, cost) => doc.mode !== 'career' || doc.wallet >= cost;
+// a line the history must hold even at 0 (GQ5: a free "bring it home" still
+// says it happened) - playerCharge writes nothing for a 0
+function playerLedger(doc, k, amt, ref) {
+  amt = Math.round(amt || 0);
+  if (amt) return playerCharge(doc, amt, k, ref);
+  doc.ledger.push({ k, amt: 0, ref: ref || null, clock: Math.round(doc.clock || 0), free: doc.mode !== 'career' });
+  if (doc.ledger.length > PREM_RATES.ledgerMax) doc.ledger.splice(0, doc.ledger.length - PREM_RATES.ledgerMax);
+  return doc;
+}
+
+// ---- THE THREE CONCEPTS (GAME §R GQ4 / GQ7; G2230) ---------------------------
+const playerIsMain = (doc, id) => id === PREM_MAIN && !!(doc && doc.sheds && doc.sheds[id]);
+// the side hangars held: every shed but the main one, oldest first (`since`,
+// then the id) - the order the cap keeps them in (playerNormalise's legacy)
+function playerSideIds(doc) {
+  const S = (doc && doc.sheds) || {};
+  return Object.keys(S).filter(id => id !== PREM_MAIN && S[id] && typeof S[id] === 'object')
+    .sort((a, b) => ((+S[a].since || 0) - (+S[b].since || 0)) || (a < b ? -1 : a > b ? 1 : 0));
+}
+// the slots of a hangar: { bay, parked, total } - the main hangar the build
+// bay + 2 parked, a side hangar 1 (2 for a club shell)
+function playerSlots(doc, id) {
+  const s = doc && doc.sheds && doc.sheds[id];
+  if (!s) return { bay: 0, parked: 0, total: 0 };
+  if (id === PREM_MAIN) return { bay: PREM_SLOTS.bay, parked: PREM_SLOTS.main, total: PREM_SLOTS.bay + PREM_SLOTS.main };
+  const n = s.shell === 'club' ? PREM_SLOTS.sideClub : PREM_SLOTS.side;
+  return { bay: 0, parked: n, total: n };
+}
+// would this set stand in that hangar? A slot each (the cap), THEN the floor
+// (hangarPark): -> { ok, why, P }
+function playerFits(doc, id, names, foots, opts) {
+  const sl = playerSlots(doc, id);
+  if (names.length > sl.total)
+    return { ok: false, why: id + ' has ' + sl.total + ' slot' + (sl.total === 1 ? '' : 's') + ' (' + names.length + ' asked)', P: null };
+  const P = playerPack(doc, id, names, foots, opts);
+  if (P.unplaced.length) return { ok: false, why: 'no room in ' + id + ' (' + P.unplaced.map(u => u.name + ': ' + u.why).join('; ') + ')', P };
+  return { ok: true, why: '', P };
+}
+
+// ---- THE OUTSIDE WEAR (GQ7) ----------------------------------------------------
+// 0..1: what was frozen at the last hangar stop, plus the flown hours since
+// it was stationed outside (none while it stands inside)
+function playerWearNow(doc, name) {
+  const e = doc && doc.fleet && doc.fleet[name];
+  if (!e) return 0;
+  let w = (typeof e.wearOut === 'number' && isFinite(e.wearOut)) ? Math.max(0, e.wearOut) : 0;
+  if (!e.hangar && typeof e.outSince === 'number' && isFinite(e.outSince))
+    w += Math.max(0, (+doc.clock || 0) - e.outSince) / (PREM_WEAR.hours * 3600);
+  return Math.min(1, w);
+}
+// a row stationed outside (on a clone): the wear starts running now, unless
+// it was outside already (it keeps running from when it went out)
+function pbOut(d, name, aero) {
+  const e = d.fleet[name];
+  if (e.hangar || typeof e.outSince !== 'number') e.outSince = Math.round(d.clock || 0);
+  e.hangar = null;
+  e.aero = aero;
+}
+// a row put inside (on a clone): the wear freezes where it stands
+function pbIn(d, name, id) {
+  const e = d.fleet[name];
+  if (!e.hangar && typeof e.outSince === 'number') {
+    const w = playerWearNow(d, name);
+    if (w > 0) e.wearOut = +w.toFixed(4);
+  }
+  delete e.outSince;
+  e.hangar = id;
+  e.aero = d.sheds[id].base;
+}
+// Repair / Paint: the airframe comes back clean (still outside: it starts again)
+function playerWearReset(doc, name) {
+  const e = doc.fleet[name];
+  if (!e) return pbNo(doc, name + ' is not in the fleet');
+  const d = pbClone(doc), r = d.fleet[name];
+  delete r.wearOut;
+  if (!r.hangar) r.outSince = Math.round(d.clock || 0);
+  return { ok: true, doc: d, why: '' };
+}
+// the G345 macros { age, flight, bush, rain } with the outside wear laid on:
+// chalk and fade ride `age`, the drips `rain` (pure; aeroweather reads them)
+function playerWearMacro(macro, w) {
+  const c = v => Math.max(0, Math.min(1, +v || 0));
+  const m = macro || {}, k = c(w);
+  return { age: c(c(m.age) + PREM_WEAR.age * k), flight: c(m.flight), bush: c(m.bush), rain: c(c(m.rain) + PREM_WEAR.rain * k) };
+}
+// ...and a spec that WEARS it, for a bake or a prop to draw: a copy whose
+// `finish.weather` carries the worn macros (the spec's own read as
+// aeroWxMacroFromSpec reads it). Quantised to PREM_WEAR.step, so a cache
+// signed by the finish re-bakes per step. Visual only: what flies is the
+// saved spec, untouched; w 0 hands back the spec itself.
+function playerWearSpec(spec, w) {
+  const q = Math.round(Math.max(0, Math.min(1, +w || 0)) / PREM_WEAR.step) * PREM_WEAR.step;
+  if (!spec || !(q > 0)) return spec;
+  const s = pbClone(spec), f = (s.finish && typeof s.finish === 'object') ? s.finish : (s.finish = {});
+  const base = { age: 0, flight: 0, bush: 0, rain: 0 };
+  if (f.weather && typeof f.weather === 'object') { for (const k of Object.keys(base)) if (f.weather[k] != null) base[k] = +f.weather[k] || 0; }
+  else if (f.wear != null) base.age = base.flight = +f.wear || 0;
+  const m = playerWearMacro(base, q), out = {};
+  for (const k of Object.keys(m)) if (m[k]) out[k] = +m[k].toFixed(4);
+  f.weather = out;
+  delete f.wear;
+  return s;
+}
+
+// ---- THE FOOTPRINT, MEASURED (S2: at save and at roll-out) ---------------------
+// A built aeroplane's plan box from its own nodes in the design frame (x aft,
+// y up, z across; the origin the engine mount) - GATE TAXICLEAR's reading of
+// GP_PARKED_FOOT (half-span, nose + 0.3 m of propeller, tail), plus the
+// height (the lowest node to the highest, + 0.3 for the wheels' and the
+// fin's skins), each rounded UP to 0.1 m. null when there are no nodes.
+function playerFootOfDef(def) {
+  const N = def && def.nodes;
+  if (!N || !N.length) return null;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, zm = 0;
+  for (const nd of N) {
+    const p = nd && nd.p;
+    if (!p) continue;
+    x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]);
+    y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]);
+    zm = Math.max(zm, Math.abs(p[2]));
+  }
+  if (!isFinite(x0) || !(zm > 0)) return null;
+  const up = v => Math.ceil(v * 10 - 1e-9) / 10;
+  return { half: up(zm), fwd: up(Math.max(0.3, -x0 + 0.3)), aft: up(Math.max(0.3, x1)), h: up(y1 - y0 + 0.3) };
+}
+
+// ---- THE PLACE, IN WORDS (the fleet popup's badge, the premises screen) -------
+// -> { kind, aero, hangar, text: 'in HOME' | 'out at w3' | 'away at Jumbo Mine',
+//      here: standing at the garage's base, wear }
+function playerPlace(doc, name, world) {
+  const W = playerWhere(doc, name);
+  if (W.kind === 'none') return { kind: 'none', aero: null, hangar: null, text: '', here: true, wear: 0 };
+  const L = (world && world.aerodromes) || [];
+  const a = L.find(x => x.id === W.aero);
+  const nm = W.kind === 'away' ? ((a && a.name) || W.aero) : W.aero;
+  const text = W.kind === 'in' ? 'in ' + W.hangar : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
+  const hereBase = doc.sheds[doc.here] ? doc.sheds[doc.here].base : PREM_MAIN;
+  return { kind: W.kind, aero: W.aero, hangar: W.hangar, text, here: W.aero === hereBase, wear: playerWearNow(doc, name) };
+}
+
+// ---- THE FLEET LIFT (the first load of a v2 game, and every load after) ------
+// Every saved slot is an airframe the player owns, so it must stand
+// somewhere: a slot the ledger does not know is lifted to the `here` hangar's
+// base — inside while a slot is free and the packer finds room, then any
+// other hangar there, then the tie-downs outside (its outside wear starts
+// there). NOTHING IS REFUSED: an old save with forty builds keeps all forty
+// at HOME, every one flyable from the stand as today. A ledger row whose slot
+// is gone (deleted, in this tab or another) goes too. A row stationed outside
+// with no `outSince` (an S1 document) starts its wear clock here. Idempotent:
+// reconciling a reconciled document changes nothing.
+function playerFleetReconcile(doc, slotNames, opts) {
+  const d = pbClone(doc), names = Array.from(new Set(slotNames || [])).sort();
+  const want = new Set(names), lifted = [], dropped = [];
+  for (const n of Object.keys(d.fleet).sort())
+    if (!want.has(n)) { delete d.fleet[n]; dropped.push(n); }
+  for (const n of Object.keys(d.fleet)) {
+    const e = d.fleet[n];
+    if (e && !e.hangar && typeof e.outSince !== 'number') e.outSince = Math.round(d.clock || 0);
+  }
+  const home = d.sheds[d.here] ? d.sheds[d.here].base : 'HOME';
+  const order = [d.here].concat(playerHangarsAt(d, home).filter(id => id !== d.here));
+  const foots = opts && opts.foots;
+  for (const n of names) {
+    if (d.fleet[n]) continue;
+    d.fleet[n] = { hangar: null, aero: home };
+    if (foots && foots[n]) d.fleet[n].foot = parkFoot(foots[n]);
+    let at = null;
+    for (const id of order) {
+      if (!d.sheds[id]) continue;
+      if (playerFits(d, id, playerResidents(d, id).concat([n]), foots, opts).ok) { at = id; break; }
+    }
+    if (at) pbIn(d, n, at); else pbOut(d, n, home);
+    lifted.push({ name: n, kind: at ? 'in' : 'out', hangar: at, aero: home });
+  }
+  return { ok: true, doc: d, lifted, dropped };
+}
+
+// ---- STORING: in and out, at the base it stands at ----------------------------
+function playerStore(doc, name, hangarId, foots, opts) {
+  const e = doc.fleet[name], shed = doc.sheds[hangarId];
+  if (!e) return pbNo(doc, name + ' is not in the fleet');
+  if (!shed) return pbNo(doc, 'no hangar ' + hangarId);
+  const W = playerWhere(doc, name);
+  if (W.aero !== shed.base) return pbNo(doc, name + ' is at ' + W.aero + ': fly it to ' + shed.base + ' first');
+  if (e.hangar === hangarId) return { ok: true, doc, why: 'already inside' };
+  const why = hangarDoorWhy(shed, playerFootOf(doc, name, foots));
+  if (why) return pbNo(doc, why);
+  const F = playerFits(doc, hangarId, playerResidents(doc, hangarId).concat([name]), foots, opts);
+  if (!F.ok) return pbNo(doc, F.why);
+  const d = pbClone(doc);
+  pbIn(d, name, hangarId);
+  return { ok: true, doc: d, why: '' };
+}
+function playerWheelOut(doc, name) {
+  const e = doc.fleet[name];
+  if (!e) return pbNo(doc, name + ' is not in the fleet');
+  if (!e.hangar) return { ok: true, doc, why: 'already outside' };
+  const d = pbClone(doc), W = playerWhere(doc, name);
+  d.fleet[name].left = e.hangar;
+  pbOut(d, name, W.aero);
+  return { ok: true, doc: d, why: '' };
+}
+
+// ---- MOVING: only by flying it ---------------------------------------------------
+// The flight STOPPED on aerodrome `aero` (flightWhere's aero id; the page
+// calls this only for a named build that stopped on an aerodrome, whole).
+// Back at the base it left, it goes back into the hangar it left (its room
+// was never given away — nothing moves in the document while it flies).
+// Anywhere else: the first hangar of yours there with a free slot and the
+// floor for it (opts.prefer first), else the tie-downs (its wear runs).
+// The hangar it leaves is remembered (`left`): "bring it home" goes back there.
+// -> { ok, doc, kind: 'in' | 'out' | 'away', hangar }
+function playerArrive(doc, name, aero, opts) {
+  opts = opts || {};
+  const e = doc.fleet[name];
+  if (!e) return pbNo(doc, name + ' is not in the fleet');
+  if (!aero) return pbNo(doc, 'no aerodrome: an aeroplane stopped off-field is recovered, not arrived');
+  const W = playerWhere(doc, name);
+  if (W.aero === aero && W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'back where it left' };
+  const d = pbClone(doc);
+  if (W.kind === 'in') d.fleet[name].left = W.hangar;
+  if (opts.foots && opts.foots[name]) d.fleet[name].foot = parkFoot(opts.foots[name]);
+  const ids = playerHangarsAt(d, aero);
+  const order = (opts.prefer && ids.includes(opts.prefer)) ? [opts.prefer].concat(ids.filter(i => i !== opts.prefer)) : ids;
+  for (const id of order) {
+    if (hangarDoorWhy(d.sheds[id], playerFootOf(d, name, opts.foots))) continue;
+    if (playerFits(d, id, playerResidents(d, id).filter(n => n !== name).concat([name]), opts.foots, opts).ok) {
+      pbIn(d, name, id);
+      return { ok: true, doc: d, kind: 'in', hangar: id, why: '' };
+    }
+  }
+  pbOut(d, name, aero);
+  return { ok: true, doc: d, kind: ids.length ? 'out' : 'away', hangar: null,
+           why: ids.length ? 'no slot or no room inside: tied down outside' : 'no hangar of yours here: tied down' };
+}
+// A flight that ended off an aerodrome, in a wreck, or was abandoned: the
+// aeroplane never left the document's place for it, so recovery moves
+// nothing. GQ5: it is FREE in both modes - the ledger line is still written
+// (at 0: PREM_RATES.recoverBase / recoverKm are 0), so the history says so.
+function playerRecover(doc, name, opts) {
+  if (!doc.fleet[name]) return pbNo(doc, name + ' is not in the fleet');
+  const km = Math.max(0, (opts && +opts.km) || 0);
+  const fee = PREM_RATES.recoverBase + PREM_RATES.recoverKm * km;
+  const d = playerLedger(pbClone(doc), 'recover', fee, name);
+  return { ok: true, doc: d, fee: Math.round(fee), why: '' };
+}
+// "BRING IT HOME" (GAME §3.4, GQ5): wherever it stands (or stopped: a field,
+// a wreck), back into the hangar it last left, else the main hangar - a slot
+// free and the floor for it, as any arrival - else stationed outside at
+// HOME. Free and instant in both modes; the recovery line is written at 0.
+function playerBringHome(doc, name, opts) {
+  opts = opts || {};
+  const e = doc.fleet[name];
+  if (!e) return pbNo(doc, name + ' is not in the fleet');
+  const W = playerWhere(doc, name);
+  const order = [];
+  for (const id of [e.left, PREM_MAIN]) if (id && doc.sheds[id] && !order.includes(id)) order.push(id);
+  // inside a hangar of yours already: it is home (a resident is never shuffled by this door)
+  if (W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
+  const d = pbClone(doc);
+  let at = null;
+  for (const id of order) {
+    if (hangarDoorWhy(d.sheds[id], playerFootOf(d, name, opts.foots))) continue;
+    if (playerFits(d, id, playerResidents(d, id).concat([name]), opts.foots, opts).ok) { at = id; break; }
+  }
+  const homeAero = d.sheds[PREM_MAIN] ? d.sheds[PREM_MAIN].base : PREM_MAIN;
+  if (at) pbIn(d, name, at);
+  else pbOut(d, name, homeAero);
+  playerLedger(d, 'recover', 0, name);
+  return { ok: true, doc: d, kind: at ? 'in' : 'out', hangar: at,
+           why: at ? '' : 'no slot or no room in ' + (order.join(' or ') || 'a hangar') + ': stationed outside at ' + homeAero };
+}
+
+// ---- HOLDING: acquire, release, upgrade -----------------------------------------
+function shellPrice(shell) {
+  const S = (typeof SHELLS !== 'undefined') && SHELLS[shell];
+  if (!S) return NaN;
+  return S.price || (shell === 'club' ? PREM_RATES.clubPrice : 0);
+}
+function plotPrice(aero, plotId, shell) {
+  const P = BASE_OFFERS[aero] && BASE_OFFERS[aero].plots[plotId];
+  return P ? Math.round(shellPrice(shell) * (P.pf || 1)) : NaN;
+}
+// the offers this world has, each plot with its state: held | free; `capped`
+// when two side hangars are held already (GQ4: a third is refused), and no
+// rent (G-COST: bought only)
+function playerOffers(doc, world) {
+  const L = (world && world.aerodromes) || null;
+  const out = [];
+  const capped = playerSideIds(doc).length >= PREM_SIDE_MAX;
+  for (const aero of Object.keys(BASE_OFFERS)) {
+    const a = L ? L.find(x => x.id === aero && x.kind !== 'meadow') : null;
+    if (L && !a) continue;
+    const O = BASE_OFFERS[aero];
+    for (const plot of Object.keys(O.plots)) {
+      const P = O.plots[plot];
+      const held = !!(doc && doc.sheds && doc.sheds[plot]);
+      out.push({ aero, plot, name: a ? (a.name || aero) : aero, words: O.words, held,
+                 capped: !held && plot !== PREM_MAIN && capped,
+                 shells: P.shells.map(s => ({ shell: s, price: plotPrice(aero, plot, s) })),
+                 kits: P.kits ? P.kits.slice() : null, water: !!P.water, derelict: !!P.derelict });
+    }
+  }
+  return out;
+}
+function playerAcquire(doc, aero, plotId, shell, tenure) {
+  const O = BASE_OFFERS[aero], P = O && O.plots[plotId];
+  if (!P) return pbNo(doc, 'nothing to hold at ' + aero + ' / ' + plotId);
+  if (doc.sheds[plotId]) return pbNo(doc, plotId + ' is already yours');
+  if (!P.shells.includes(shell) || !SHELLS[shell] || SHELLS[shell].status !== 'live')
+    return pbNo(doc, 'a ' + shell + ' does not stand on ' + plotId);
+  // G-COST (G2230): no running costs - a hangar is bought, never rented
+  if (tenure === 'rent') return pbNo(doc, 'hangars are bought, never rented: there are no running costs');
+  // GQ4 (G2230): the main hangar and at most two side hangars
+  const sides = playerSideIds(doc);
+  if (plotId !== PREM_MAIN && sides.length >= PREM_SIDE_MAX)
+    return pbNo(doc, 'two side hangars are held already (' + sides.join(', ') + '): release one first');
+  tenure = 'own';
+  const price = plotPrice(aero, plotId, shell);
+  const cost = price;
+  if (!pbAfford(doc, cost)) return pbNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the ' + shell + ' costs ' + cost);
+  const d = pbClone(doc);
+  d.sheds[plotId] = {
+    shell, kits: (P.kits || HANGAR_KITS_DEFAULT).slice(), base: aero, tenure,
+    dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price, since: Math.round(d.clock || 0),
+  };
+  playerCharge(d, cost, 'acquire', plotId);
+  return { ok: true, doc: d, hangar: plotId, cost, why: '' };
+}
+function playerRelease(doc, hangarId) {
+  const shed = doc.sheds[hangarId];
+  if (!shed) return pbNo(doc, 'no hangar ' + hangarId);
+  if (hangarId === PREM_MAIN) return pbNo(doc, 'the main hangar is the workshop: it cannot go');
+  const inside = playerResidents(doc, hangarId);
+  if (inside.length) return pbNo(doc, hangarId + ' is not empty: ' + inside.join(', '));
+  const ids = Object.keys(doc.sheds).filter(id => doc.sheds[id] && typeof doc.sheds[id] === 'object');
+  if (ids.length <= 1) return pbNo(doc, 'the last hangar cannot go: a player always has a door to open');
+  const d = pbClone(doc);
+  delete d.sheds[hangarId];
+  if (d.here === hangarId) {
+    const same = playerHangarsAt(d, shed.base);
+    d.here = same.length ? same[0] : Object.keys(d.sheds).sort()[0];
+  }
+  const back = shed.tenure === 'own' ? (+shed.price || 0) * PREM_RATES.resale : 0;
+  playerCharge(d, -back, 'release', hangarId);
+  return { ok: true, doc: d, refund: Math.round(back), why: '' };
+}
+// what a change costs: { cost, lines[{ what, cost }] }
+// change = { shell?, dims?: { HW?, HD?, EAVE? }, kits?: [...] }; `plotId` (the
+// hangar's id) applies its plot's price factor to the building work — a shed
+// extended at the mine costs what the mine's shed cost; kits are the same
+// price everywhere
+function playerUpgradeCost(shed, change, plotId) {
+  const lines = [];
+  const next = pbNextShed(shed, change);
+  const O = BASE_OFFERS[shed.base], P = O && plotId && O.plots[plotId], pf = (P && P.pf) || 1;
+  const price = sk => shellPrice(sk) * pf;
+  if (change.shell && change.shell !== shed.shell) {
+    const c = price(next.shell) - PREM_RATES.rebuildCredit * (+shed.price || price(shed.shell));
+    lines.push({ what: 'rebuild as ' + SHELLS[next.shell].name, cost: Math.max(0, Math.round(c)) });
+  } else {
+    const a0 = hangarDims(shed), a1 = hangarDims(next), d0 = SHELLS[next.shell].dims;
+    const grow = 4 * (a1.HW * a1.HD - a0.HW * a0.HD);
+    if (grow > 1e-6) lines.push({ what: 'extend by ' + Math.round(grow) + ' m²',
+                                  cost: Math.round(price(next.shell) * grow / (4 * d0.HW * d0.HD)) });
+    if (a1.EAVE > a0.EAVE + 1e-6) lines.push({ what: 'raise the eave',
+                                               cost: Math.round(price(next.shell) * 0.1 * (a1.EAVE - a0.EAVE) / d0.EAVE) });
+  }
+  const had = new Set(shed.kits || []);
+  for (const k of next.kits) if (!had.has(k)) lines.push({ what: 'fit the ' + (HANGAR_KITS[k] ? HANGAR_KITS[k].name : k), cost: KIT_PRICES[k] || 0 });
+  return { cost: lines.reduce((s, l) => s + l.cost, 0), lines: lines.filter(l => l.cost > 0) };
+}
+function pbNextShed(shed, change) {
+  const n = pbClone(shed);
+  if (change.shell && change.shell !== shed.shell) { n.shell = change.shell; n.dims = Object.assign({}, SHELLS[change.shell].dims); }
+  if (change.dims) n.dims = Object.assign(hangarDims(n), change.dims);
+  if (Array.isArray(change.kits)) n.kits = HANGAR_KITS_DEFAULT.filter(k => k === 'park' || change.kits.includes(k));
+  return n;
+}
+function playerUpgrade(doc, hangarId, change, opts) {
+  const shed = doc.sheds[hangarId];
+  if (!shed) return pbNo(doc, 'no hangar ' + hangarId);
+  change = change || {};
+  if (change.shell && (!SHELLS[change.shell] || SHELLS[change.shell].status !== 'live')) return pbNo(doc, 'no shell ' + change.shell);
+  const O = BASE_OFFERS[shed.base], P = O && O.plots[hangarId];
+  if (change.shell && P && !P.shells.includes(change.shell)) return pbNo(doc, 'a ' + change.shell + ' does not stand on ' + hangarId);
+  if (Array.isArray(change.kits) && change.kits.some(k => !HANGAR_KITS[k])) return pbNo(doc, 'no such kit');
+  const next = pbNextShed(shed, change);
+  const L = shellLims(next.shell), D = hangarDims(next);
+  for (const k of ['HW', 'HD', 'EAVE'])
+    if (D[k] < L[k][0] - 1e-9 || D[k] > L[k][1] + 1e-9) return pbNo(doc, k + ' ' + D[k] + ' is outside the ' + next.shell + "'s " + L[k][0] + '..' + L[k][1]);
+  const inside = playerResidents(doc, hangarId);
+  if (inside.length) {
+    const R = hangarPark(next, inside.map(n => ({ name: n, foot: playerFootOf(doc, n, opts && opts.foots) })), opts);
+    if (R.unplaced.length) return pbNo(doc, 'it would no longer hold ' + R.unplaced.map(u => u.name).join(', ') + ': wheel them out first');
+    // GQ7: a club side hangar rebuilt as a field shed loses a slot
+    const sl = playerSlots({ sheds: { [hangarId]: next } }, hangarId);
+    if (inside.length > sl.total) return pbNo(doc, 'it would no longer hold ' + inside.slice(sl.total).join(', ') + ' (' + sl.total + ' slot' + (sl.total === 1 ? '' : 's') + '): wheel them out first');
+  }
+  const C = playerUpgradeCost(shed, change, hangarId);
+  if (!pbAfford(doc, C.cost)) return pbNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the work costs ' + C.cost);
+  const d = pbClone(doc);
+  if (change.shell && change.shell !== shed.shell) next.price = P ? plotPrice(shed.base, hangarId, change.shell) : shellPrice(change.shell);
+  d.sheds[hangarId] = next;
+  playerCharge(d, C.cost, 'upgrade', hangarId);
+  return { ok: true, doc: d, cost: C.cost, lines: C.lines, why: '' };
+}
+
+// ---- THE GARAGE'S DOOR, THE CLOCK, THE LABOUR ------------------------------------
+// which hangar the garage opens in (the premises screen's "go there"):
+// instant — the pilot travels with the aeroplanes (GAME-PREMISES Q7)
+function playerGoTo(doc, hangarId) {
+  if (!doc.sheds[hangarId]) return pbNo(doc, 'no hangar ' + hangarId);
+  const d = pbClone(doc);
+  d.here = hangarId;
+  return { ok: true, doc: d, why: '' };
+}
+// TIME RUNS IN FLIGHT (GAME-LAYER ruling ax): the page hands every flight's
+// seconds here at its end. G-COST (G2230): nothing accrues on them - no rent,
+// no per-hour charge; the clock only ages what stands outside (playerWearNow).
+function playerClock(doc, seconds) {
+  const s = Math.max(0, +seconds || 0);
+  const d = pbClone(doc);
+  d.clock = (d.clock || 0) + s;
+  return { ok: true, doc: d, dues: 0, why: '' };
+}
+// what the hangar's fit-out does to a repair / an edit's labour (DMG-D5's
+// bill multiplies its labour lines by this): every verb the aeroplane wants
+// (hangarWants) present -> labourFit; one missing -> labourShort; no hangar
+// of yours (an aeroplane away) -> labourAway
+function playerLabourFactor(shed, wants) {
+  if (!shed) return PREM_RATES.labourAway;
+  const caps = new Set(typeof hangarCaps === 'function' ? hangarCaps(shed) : []);
+  return (wants || []).every(w => caps.has(w)) ? PREM_RATES.labourFit : PREM_RATES.labourShort;
+}
+
+// ---- WHERE THE NEXT ROLL-OUT STARTS (S2) --------------------------------------
+// The aerodrome the build on the stand stands at (its fleet row: in a hangar,
+// that hangar's base; tied down, that field - "out at w3" rolls out at w3),
+// else - an unsaved build, a stock design - the garage's own base (`here`).
+// The page plans the stand / apron from it (applyRoute); the rigs' spawn
+// still overrides it there.
+function playerRollFrom(doc, name) {
+  const W = name ? playerWhere(doc, name) : { kind: 'none' };
+  if (W.kind !== 'none' && W.aero) return W.aero;
+  const h = doc && doc.sheds && doc.sheds[doc.here];
+  return h && typeof h.base === 'string' ? h.base : PREM_MAIN;
+}
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec };
+
+// (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
+// tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
+// worktree) runs an older core than its src/core says - DMG-COMPOSITE's "Jodel 154 -> 204" (read as V8's optimiser) was, to
+// the bit, the committed train-37 core. Loaded in node from its tree, the core asks tools/_core_fresh.js to hash src/core the
+// way the build does and throws when its own `body-sha256` header differs. Node only; a core copied out of its tree is not
+// judged; FLYDIY_STALE_OK=1 loads one anyway. ~10 ms once a process.
+if (typeof module !== 'undefined' && typeof require === 'function' && typeof __filename === 'string') (function () {
+  // (train 40) only a core loaded from a FILE is judged: a worker that evals the core's text has no real __filename
+  // ('[worker eval]'), and require() of a bare relative name there throws
+  const P = require('path'); if (!P.isAbsolute(__filename) || !/\.js$/.test(__filename)) return;
+  const f = P.join(P.dirname(__filename), '_core_fresh.js');
+  if (require('fs').existsSync(f)) require(f).assertFresh(__filename);
+})();

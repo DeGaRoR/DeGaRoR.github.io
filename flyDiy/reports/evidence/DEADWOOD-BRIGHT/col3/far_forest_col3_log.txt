@@ -1,0 +1,10 @@
+stand {
+  x: 25.10557523220814,
+  z: -2237.380402614177,
+  y: 13.367293671186461,
+  n: 13
+}
+  300 m noon   trees 13.7 % of the frame | master 0.1664 | col3 0.1485 |
+  300 m golden trees 23.2 % of the frame | master 0.0780 | col3 0.0639 |
+ 1000 m noon   trees 12.5 % of the frame | master 0.1767 | col3 0.1614 |
+ 1000 m golden trees 17.3 % of the frame | master 0.0748 | col3 0.0623 |

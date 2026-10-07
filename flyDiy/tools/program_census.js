@@ -89,7 +89,9 @@ async function boot(n) {
     await sleep(2000);
     console.log('  boot ' + n + ': the shed at ' + T());
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
-    for (;;) { await sleep(2000); let s = null; try { s = JSON.parse(await ev('JSON.stringify({ st: BOOT.state, set: BOOT.set, done: BOOT.stepI >= BOOT.steps.length })')); } catch (e) { continue; }
+    // (the roll-out now asks 'Roll out untested' / 'keep the current build': answered each poll, or the wait never ends)
+    for (;;) { await sleep(2000); try { await ev("(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.offsetParent && /roll out untested|keep the current build/i.test(b.textContent)); if(b) b.click(); return !!b;})()"); } catch (e) {}
+      let s = null; try { s = JSON.parse(await ev('JSON.stringify({ st: BOOT.state, set: BOOT.set, done: BOOT.stepI >= BOOT.steps.length })')); } catch (e) { continue; }
       if (s.set === 'rollout' && s.st === 'gone' && s.done) break; if (Date.now() - t0 > 3600000) throw new Error('the roll-out never lifted'); }
     await sleep(5000);
     const reveal = await ev('__LINKS.length');
