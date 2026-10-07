@@ -81018,3 +81018,48 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2405-G2409 - FREIGHT-ASSETS: THE LOADS' OWN MODELS - THE EXISTING PROPS MAPPED TO ITEM KINDS (THE CATALOGUE, DIMS MEASURED OFF THE BINS), 10 POLY HAVEN LOADS + 4 CAMP PROPS BAKED AS-IS, THE IN-CABIN LEVEL <= ~2k, GATE LOADS, THE SKETCHFAB GAP LIST (2026-10-07, FREIGHT-ASSETS for the GAME COORDINATOR, local - node + python, no GPU; branch claude/freight-assets-g2405 off origin/claude/game-integration fe45b9a9; G2409 unused)
+
+The user (7 Oct): "The loads will need their own models. You are allowed to use polyhaven if you find matching assets,
+otherwise I'll scout sketchfab." The whole report, the catalogue table and THE GAP LIST:
+**futureDesigns/game/FREIGHT-ASSETS-2026-10-07.md**.
+
+- **G2405 the library**: a THIRD table on the one prop baker (the pier kit's pattern) - `tools/load_table.py` (rows,
+  SOURCES, CATALOGUE) -> `tools/load_prep.py` -> `src/loads/loads_load.js`, `loads_camp.js` + `media/geo/loads/`,
+  `media/tex/loads/`. Not rows in props_table.py: GATE HANGAR rule 4 wants every hangar prop claimed by one hangar
+  kit. Keys `load_*` / `camp_*` (no collision across the 460 registered props). In the build's WORLD pack after the
+  pier's (slim manifests, bins on first use); listed in GATE MEDIA's manifests and GATE GEO's packs.
+  `tools/polyhaven_fetch.py <dest> <id>...` fetches a model as delivered (md5-checked) - the sources sit in the MAIN
+  checkout's gitignored `flyDiy/assets/loads/` (13 models, 29 MB; media_lib.asset_src reads them from a worktree).
+- **G2406 the Poly Haven matches (CC0)**: medical case (`medical_box`), fish box (`plastic_crate_02`), fish tote
+  (`industrial_pastic_container`, body only - its lids are delivered flung open), lidded tub = the cooler's stand-in
+  (`plastic_container`), ore-sample crate (`wooden_crate_01`), steel ammo / sample can (`ammo_box`), ONE cement bag
+  (`cement_bag`, the unit a bulk load splits into), portable generator, a suitcase (`vintage_suitcase`, the first of
+  the pair), life jacket (laid face-up); camp: fire pit, folding table + chair (`outdoor_table_chair_set_01`, the chair
+  squared up -13.91 deg), storm lantern. As-is geometry; rigid turns / node selection only. 14 props, 89.7k tris as-is,
+  1.48 MB geometry + 2.47 MB maps. CREDITS.md has its section.
+- **G2407 the budget**: `prop_lod.js --kit loads`, ladder `load` = [[2000, 2000, 2], [400, 400, 15]]: every load's
+  `_l1` (the in-cabin level, from 2 m) is <= 2 000 tris (the generator 2 049: its glass keeps MIN_TRIS); the tote
+  (2.4k) and the cement bag (844) are in budget as delivered. `camp` takes the yard's ladder. 26 levels, 27.6k tris.
+- **G2408 the catalogue**: `CATALOGUE` in load_table.py, written with MEASURED dims to `src/loads/loads_catalogue.json`
+  (25 items: 15 existing props first - crates, cardboard box, drums, jerrycans, propane, tool chest, sacks, oil tin, the
+  pallet - then the 10 new). kind = the packer's class (crate/box/bag/drum/long/bulk), item, kg, rigid/stack/fragile.
+  **For FREIGHT-MODEL: read the dims from this JSON.**
+- **GATE LOADS** (`tools/_load_check.js`, core tier, ~1 s): table = bake; decode / origin; maps within `tex`; levels =
+  the ladder; the in-cabin <= ~2k (2.5k) + a <= 600 level from 15 m; catalogue = table, dims = the baked props', kinds,
+  3-2500 kg/m3, every load catalogued, no camp prop; every source credit-only and named in CREDITS.md.
+  `--selftest`: 11 breaks, 11 red.
+
+Open / for the coordinator:
+- **THE GAP LIST for the user's Sketchfab scouting** (doc §3): mail sacks, the stretcher with a patient (HERO, patient as
+  its own node), a real cooler, backpacks, tent bags / duffels, a canoe, ratchet buckle + cargo net texture (the strap
+  band better drawn by FREIGHT-STRAP), pitched tents, fabric camp chairs, an ambulance (or a livery on
+  `auto_van_econoline`), a log cabin, the people (chars track). Each with size / look / budget / search words.
+- `pallet_one` is OVERSIZE as delivered (1.72 x 1.17 m vs a 1.2 x 0.8 EUR pallet): catalogued as `bulk`, belly-pod only.
+- **OWED: the KTX2 twins** of the loads' maps (add a `loads` family to tools/ktx2_twins.js FAMILIES, then
+  `node tools/ktx2_twins.js --family loads` on a box with basisu; the coordinator's call, 7 Oct).
+- **No stills** (no GPU window asked; the props bench reads the hangar packs only).
+- **GATE MEDIA is red on the integration base, not from this branch**: `media/map/jolene_map.c620385a.png` and
+  `jolene_proj.2f8c83c4.json` orphaned - MAP-MENU's `src/viewer/map_pack.js` is not in `_media_check.js`'s manifest list.
+  FIXED by the coordinator on game-integration 4912029e (_media_check.js reads map_pack.js); this branch rides train 43.

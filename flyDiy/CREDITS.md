@@ -679,6 +679,25 @@ more** (`person_charles`, `person_luke`, `person_koky`, G280) come from the
 same source, one whole-scene export (`charles.glb`) selected by node — same
 licence, same caveat.
 
+## Freight loads and camp dressing (`assets/loads/`, baked and served from media/)
+
+The freight's own models (FREIGHT-ASSETS, G2405; the user, 7 Oct: "The loads
+will need their own models. You are allowed to use polyhaven"). Declared in
+`tools/load_table.py` (its `SOURCES` block is the machine-readable version of
+this list, its `CATALOGUE` maps these and the existing props to freight item
+kinds), fetched as delivered by `tools/polyhaven_fetch.py`, baked as-is by
+`tools/load_prep.py` (the prop baker's runner pointed at this table) into
+`src/loads/` + `media/geo/loads/` + `media/tex/loads/`, levels cut beside the
+as-is by `tools/prop_lod.js --kit loads`.
+
+**Poly Haven, CC0** — no attribution required, recorded here anyway:
+`medical_box` (Ulan Cabanilla), `plastic_crate_02` (Fabi_G),
+`industrial_pastic_container` (Galo Benivegna), `plastic_container` and
+`cement_bag` and `life_jacket` (PierreB3D), `wooden_crate_01`,
+`portable_generator`, `outdoor_table_chair_set_01` and `wooden_lantern_01`
+(James Ray Cock), `ammo_box` (DanKit), `vintage_suitcase` (Maximilian
+Schuster), `stone_fire_pit` (Sebastian Platen) (https://polyhaven.com/a/<id>).
+
 ## Tram cabin (`assets/cabin/`, baked and served from media/)
 
 The aerial tramway's cabin (`src/viewer/cabin.js`, G343): the user's
