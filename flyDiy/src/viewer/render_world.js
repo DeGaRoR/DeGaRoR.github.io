@@ -6474,7 +6474,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         scene.add(keep(m));
       }
       standRunwayLights(a, keep);                       // G443: the edge and threshold lenses, stood with the strip
-      // windsock off the strip edge
+      // windsock off the strip edge (G2300 STAGES: none where the strip's stage says `sock: false` - East Point before
+      // the survey's first stage; the sandbox's strips never say it)
+      if (a.sock === false) return;
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6), poleMat);

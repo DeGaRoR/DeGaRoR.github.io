@@ -169,6 +169,9 @@ const MANIFEST = {
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
     '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
+    // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
+    // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
+    '76_stages.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172

@@ -81006,3 +81006,10 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2300-G2309 - STAGES (IN PROGRESS - not READY; the amendment number, early, for the coordinator)
+
+STAGES takes premises amendment **v1.33** (`stage` on any layer entry and any site item). The last amendment on
+`claude/game-integration` is v1.31; **v1.32 is already taken** by ISLAND-TOUR G1966 (`runway.turn`, on the unmerged
+branches claude/island-tour-g1965 / island-tour-2-g1975x / wizardly-maxwell-89dri5), so STAGES skips it. PREM-S3 G2310
+takes the next after STAGES (v1.34). Branch `claude/stages-g2300` off origin/claude/game-integration f4c47a5.

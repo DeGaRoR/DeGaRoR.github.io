@@ -663,6 +663,227 @@ function restorePlaces(rec, cut) {
   }
   return out;
 }
+// ---- STAGES (contract v1.33, G2300 STAGES; GAME-2026-10-06.md §11) ---------------------------------------------------
+// THE BUILDINGS THAT MISSIONS PUT UP. Any entry of any layer, and any ITEM of a site, may carry
+//   stage: { track: 'minedock', show: [lo, hi | null], vary: [ { show: [lo, hi], ...what changes } ] }
+// and stands only while the career's world progress `tracks[track]` (a small integer, 74_career.js, advanced by a
+// contract's `unlock: { stage: '<track>:<n>' }`) lies in [lo, hi]; hi null (or absent) = no upper bound. `vary` (the
+// first band holding the value) changes the entry while it stands: a RUNWAY's len / c / surface / look / profile / wid
+// (its ground and its surface - physics, so a stage applies at composition only, never in flight: 76_stages.js), its
+// `sock` / `ties` (false: no windsock, no tie-down spots); an item's or an object's P (merged).
+// A CONSTRUCTION KIT is an object { kind: 'kit', kit: <STAGE_KITS name>, x, z, yaw, w, d } - data: it expands, where it
+// stands, into the kit's props (the existing props: a fence round the plot, pallets, crates, drums, trestles) and, when
+// the kit names one, a partial frame built by an existing generator; its own tree exclude over the plot.
+// THE SANDBOX IS EVERY TRACK AT ITS MAX: `tracks` null, every value +Infinity - what stands is what has no upper bound,
+// with the `stage` fields taken off, so the sandbox's record is TODAY'S, byte for byte (GATE STAGES holds it against
+// the island cook's recorded hash). A career's record is stageView(rec, career.tracks): the page composes it at load
+// (world_boot.js) and recomposes it at a roll-out / roll-in when a stage advanced (app.js; never in flight).
+const STAGE_RUNWAY_VARY = ['len', 'c', 'wid', 'surface', 'look', 'profile', 'sock', 'ties'];
+const STAGE_KITS = {
+  // the fenced plot alone: the old fence round it, a gate gap, a pallet by the gate
+  plot:  { fence: true, props: [['pallet_one', 0.12, 0.85, 0.3]] },
+  // the building site: the plot fenced, the materials stacked, the trestles, the drums, and a frame going up
+  build: { fence: true, frame: { key: 'shed/lean-to', P: { L: 9, w: 5, wallH: 3.2, missing: 0.35, openFront: 1, firewood: 0, shake: 0.6 }, at: [-0.18, 0.1, 0] },
+           props: [['pallets_stack', 0.32, -0.3, 0.2], ['pallets_three', 0.32, -0.05, 1.4], ['cement_bags', 0.3, 0.22, 0.6], ['cinder_pallet', 0.12, -0.36, 0],
+                   ['crate_wood_a', 0.05, 0.36, 0.3], ['crate_wood_b', 0.1, 0.38, 1.1], ['crate_wood_c', 0.18, 0.36, -0.2],
+                   ['drum_steel', -0.38, 0.34, 0], ['drum_steel', -0.33, 0.37, 0.8], ['barrel_plastic', -0.36, 0.28, 0.2],
+                   ['work_trestle', 0.02, -0.12, 1.57], ['work_trestle', 0.12, -0.12, 1.57], ['stepladder', -0.05, 0.12, 0.4], ['handtruck', 0.22, 0.12, 2.1]] },
+  // the dock's site: the plot fenced on the shore, the timbers and the drums for a pier
+  shore: { fence: true, props: [['pallets_stack', -0.3, -0.25, 0.1], ['pallets_three', -0.05, -0.3, 1.2], ['drum_steel', 0.3, 0.3, 0], ['drum_steel', 0.34, 0.24, 0.9],
+                                ['barrel_plastic', 0.26, 0.34, 0.3], ['work_trestle', 0, 0.1, 0], ['work_trestle', 0.1, 0.1, 0], ['crate_wood_c', -0.3, 0.3, 0.3], ['cement_bags', 0.32, -0.3, 0.5]] },
+};
+const STAGE_FENCE = { key: 'fence_old', len: 4.6, gate: 0.5 };   // the pier pack's old fence (4.6 m a stretch); the gate: half a side's middle stretch left open
+const stageBand = s => { const b = s && Array.isArray(s.show) ? s.show : [0, null]; return [+b[0] || 0, b[1] === null || b[1] === undefined ? null : +b[1]]; };
+const stageValue = (tracks, t) => (tracks && typeof tracks === 'object' && isFinite(+tracks[t]) && tracks[t] !== null && tracks[t] !== '' ? +tracks[t] : Infinity);
+const stageIn = (band, v) => v >= band[0] && (band[1] === null || v <= band[1]);
+function stageStands(st, tracks) { return !st || stageIn(stageBand(st), stageValue(tracks, st.track)); }
+function stageVaryOf(st, tracks) {
+  if (!st || !Array.isArray(st.vary)) return null;
+  const v = stageValue(tracks, st.track);
+  for (const q of st.vary) if (q && stageIn(stageBand(q), v)) return q;
+  return null;
+}
+// a kit's props and frame, in the record's frame, ids `<kit id>:<n>` (seeded per kit: the same record, the same kit)
+function stageKitObjects(k) {
+  const K = STAGE_KITS[k.kit]; if (!K) return [];
+  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  // local (u across w, v across d) -> the record's frame, the placement law of an item in its site (x = u c + v s, z = -u s + v c)
+  const at = (u, v) => [+(+k.x + u * c + v * s).toFixed(3), +(+k.z - u * s + v * c).toFixed(3)];
+  const rnd = mulberry32(hash32(7, fnv('kit:' + k.id))), out = [];
+  let n = 0;
+  const put = (key, u, v, ry, extra) => { const p = at(u, v); out.push(Object.assign({ id: k.id + ':' + (n++), kind: 'prop', key, x: p[0], z: p[1], yaw: +(yaw + ry).toFixed(4) }, extra || {})); };
+  if (K.fence && k.fence !== false) {
+    const sides = [[[-w / 2, -d / 2], [w / 2, -d / 2]], [[w / 2, -d / 2], [w / 2, d / 2]], [[w / 2, d / 2], [-w / 2, d / 2]], [[-w / 2, d / 2], [-w / 2, -d / 2]]];
+    sides.forEach((sd, si) => {
+      const L = Math.hypot(sd[1][0] - sd[0][0], sd[1][1] - sd[0][1]), m = Math.max(1, Math.round(L / STAGE_FENCE.len)), a = Math.atan2(-(sd[1][1] - sd[0][1]), sd[1][0] - sd[0][0]);
+      for (let i = 0; i < m; i++) {
+        if (si === 0 && m >= 3 && i === Math.floor(m / 2)) continue;   // the gate: the front side's middle stretch
+        const t = (i + 0.5) / m;
+        put(STAGE_FENCE.key, sd[0][0] + (sd[1][0] - sd[0][0]) * t, sd[0][1] + (sd[1][1] - sd[0][1]) * t, a + (rnd() - 0.5) * 0.06);
+      }
+    });
+  }
+  for (const p of K.props) put(p[0], p[1] * w, p[2] * d, p[3] + (rnd() - 0.5) * 0.3);
+  if (K.frame && k.frame !== false) {   // the frame fits the plot: at most 0.6 of its width and 0.45 of its depth
+    const p = at(K.frame.at[0] * w, K.frame.at[1] * d), P = Object.assign({ seed: 1 + (hash32(3, fnv(k.id)) % 997) }, K.frame.P);
+    P.L = +Math.max(1.6, Math.min(P.L, 0.6 * w)).toFixed(2); P.w = +Math.max(1.2, Math.min(P.w, 0.45 * d)).toFixed(2);
+    out.push({ id: k.id + ':frame', key: K.frame.key, x: p[0], z: p[1], yaw: +(yaw + K.frame.at[2]).toFixed(4), y: null, P });
+  }
+  return out;
+}
+// the kit's plot as a polygon (the tree exclude while it stands)
+function stageKitPoly(k) {
+  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  return [[-w, -d], [w, -d], [w, d], [-w, d]].map(q => [+(+k.x + q[0] * c + q[1] * s).toFixed(3), +(+k.z - q[0] * s + q[1] * c).toFixed(3)]);
+}
+// a COPY of the record as it stands at `tracks` (null: the sandbox), and what was cut / changed, so an edit made on the
+// staged record can be put back into the whole one (stageRestore). `n`: entries cut or expanded; `staged`: the record
+// carried any stage at all
+function stageView(rec, tracks) {
+  const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
+  const cut = {}, kept = {}, varied = {}, kits = {};
+  let n = 0, staged = false;
+  const strip = (e, where) => {
+    staged = true;
+    const c = Object.assign({}, e); delete c.stage;
+    kept[where] = e.stage;
+    const q = stageVaryOf(e.stage, tracks);
+    if (q) {
+      const ch = {};
+      for (const key of Object.keys(q)) {
+        if (key === 'show') continue;
+        if (key === 'P') { ch.P = c.P; c.P = Object.assign({}, c.P || {}, q.P); continue; }
+        ch[key] = c[key]; c[key] = q[key];
+      }
+      varied[where] = { was: ch, now: q };
+    }
+    return c;
+  };
+  for (const L of Object.keys(out.layers)) {
+    const a = out.layers[L]; if (!Array.isArray(a)) continue;
+    if (!a.some(e => e && (e.stage || (L === 'sites' && (e.items || []).some(it => it && it.stage)) || (L === 'objects' && e.kind === 'kit')))) continue;
+    const keep = [];
+    for (const e of a) {
+      if (!e) { keep.push(e); continue; }
+      if (e.stage && !stageStands(e.stage, tracks)) { (cut[L] = cut[L] || []).push(e); n++; staged = true; continue; }
+      let c = e.stage ? strip(e, L + ':' + e.id) : e;
+      if (L === 'sites' && (c.items || []).some(it => it && it.stage)) {
+        const items = [];
+        for (const it of c.items) {
+          if (it && it.stage && !stageStands(it.stage, tracks)) { (cut['items:' + c.id] = cut['items:' + c.id] || []).push(it); n++; staged = true; continue; }
+          items.push(it && it.stage ? strip(it, 'items:' + c.id + ':' + it.id) : it);
+        }
+        c = Object.assign({}, c, { items });
+      }
+      if (L === 'objects' && c.kind === 'kit') {   // a kit that stands expands into its props, its frame and its exclude
+        staged = true; kits[c.id] = c; n++;
+        for (const o of stageKitObjects(c)) keep.push(o);
+        out.layers.exclude = (out.layers.exclude || []).concat([{ id: c.id + ':clear', poly: stageKitPoly(c), what: ['trees'] }]);
+        continue;
+      }
+      keep.push(c);
+    }
+    out.layers[L] = keep;
+  }
+  return { rec: out, n, staged, cut, kept, varied, kits, tracks: tracks || null, whole: rec };
+}
+// put a staged record's edit back into the whole record: the cut entries and items return, the kept entries get their
+// `stage` back, a varied field the edit did not touch returns to its whole-record value, the kits' expansions go (an
+// expanded id is `<kit id>:<n>` / `:frame` / `:clear`) and the kits return. Undefined in the editor's stage UI (later):
+// this is what keeps a save made on a career's page from deleting a stage
+function stageRestore(edited, V) {
+  if (!V || !V.staged || !V.whole) return edited;
+  const W = V.whole, out = Object.assign({}, edited, { layers: Object.assign({}, edited.layers) });
+  const kitOf = id => { const m = /^(.+):(\d+|frame|clear)$/.exec(String(id)); return m && V.kits[m[1]] ? m[1] : null; };
+  const back = (e, where) => {
+    const st = V.kept[where]; if (!st) return e;
+    const c = Object.assign({}, e); delete c.stage; c.stage = st;   // (the key last, as the author writes it)
+    const vr = V.varied[where];
+    if (vr) for (const key of Object.keys(vr.was)) {
+      if (key === 'P') { const P = Object.assign({}, c.P || {}); for (const pk of Object.keys(vr.now.P || {})) if (JSON.stringify(P[pk]) === JSON.stringify(vr.now.P[pk])) { if (vr.was.P && pk in vr.was.P) P[pk] = vr.was.P[pk]; else delete P[pk]; } c.P = P; continue; }
+      if (JSON.stringify(c[key]) === JSON.stringify(vr.now[key])) { if (vr.was[key] === undefined) delete c[key]; else c[key] = vr.was[key]; }
+    }
+    return c;
+  };
+  // in the WHOLE record's order: a cut entry (or a kit) from the whole, an edited one from the edit (its stage back), one
+  // the edit deleted gone; then whatever the edit added
+  const merge = (whole, edit, cutList, whereOf, isKit) => {
+    const cut = new Set((cutList || []).map(e => e.id)), byId = new Map();
+    for (const e of edit || []) if (e && e.id !== undefined && !kitOf(e.id)) byId.set(e.id, e);
+    const res = [], used = new Set();
+    for (const e of whole || []) {
+      if (!e || e.id === undefined) { res.push(e); continue; }
+      if (cut.has(e.id) || (isKit && isKit(e))) { res.push(e); used.add(e.id); continue; }
+      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e))); used.add(e.id); }
+    }
+    for (const e of edit || []) if (e && (e.id === undefined || !kitOf(e.id)) && !used.has(e.id) && !(e.id !== undefined && cut.has(e.id))) res.push(e);
+    return res;
+  };
+  for (const L of Object.keys(out.layers)) {
+    if (!Array.isArray(out.layers[L])) continue;
+    let res = merge(W.layers[L], out.layers[L], V.cut[L], e => L + ':' + e.id, L === 'objects' ? (e => e.kind === 'kit') : null);
+    if (L === 'sites') res = res.map(st => {
+      const ws = (W.layers.sites || []).find(q => q.id === st.id);
+      if (!ws || !Array.isArray(st.items) || !(V.cut['items:' + st.id] || (ws.items || []).some(it => it && it.stage))) return st;
+      return Object.assign({}, st, { items: merge(ws.items, st.items, V.cut['items:' + st.id], it => 'items:' + st.id + ':' + it.id, null) });
+    });
+    out.layers[L] = res;
+  }
+  return out;
+}
+// the shape of every `stage` (issues() reports these): a known track word, an integer band, vary bands inside the
+// stage's own band, a runway varying only its own fields, a kit naming a kit; `maxes` (optional, { track: max }:
+// 72_contract_data.js CONTRACT_TRACKS) adds the sandbox's law - a band is open above or ends BELOW the track's max, so
+// every track at its max IS the sandbox (no element the sandbox lacks stands at max)
+function stageIssues(rec0, maxes) {
+  const rec = rec0 && rec0.layers ? rec0 : normalise(rec0), out = [];
+  const band = (what, b) => {
+    if (!Array.isArray(b) || b.length !== 2) { out.push(what + ': show is [lo, hi | null]'); return null; }
+    if (!(Number.isInteger(b[0]) && b[0] >= 0)) out.push(what + ': show[0] is an integer 0 or more');
+    if (!(b[1] === null || (Number.isInteger(b[1]) && b[1] >= b[0]))) out.push(what + ': show[1] is null or an integer >= show[0]');
+    return b;
+  };
+  const one = (what, st, kind, e) => {
+    if (!st || typeof st !== 'object') { out.push(what + ': stage is { track, show, vary? }'); return; }
+    if (typeof st.track !== 'string' || !/^\w+$/.test(st.track)) out.push(what + ': stage.track is a word');
+    const b = st.show === undefined ? [0, null] : band(what, st.show);
+    const mx = maxes && st.track in maxes ? +maxes[st.track] : null;
+    if (maxes && mx === null) out.push(what + ': no track "' + st.track + '"');
+    if (b && mx !== null) {
+      if (b[0] > mx) out.push(what + ': show starts at ' + b[0] + ', past ' + st.track + '\'s max ' + mx);
+      if (b[1] !== null && b[1] >= mx) out.push(what + ': show ends at ' + b[1] + ' - a band through the max (' + mx + ') must be open (null), or the sandbox and the max differ');
+    }
+    if (st.vary !== undefined) {
+      if (!Array.isArray(st.vary)) { out.push(what + ': vary is a list'); return; }
+      st.vary.forEach((q, i) => {
+        const vb = q && band(what + ' vary[' + i + ']', q.show);
+        if (vb && b && (vb[0] < b[0] || (b[1] !== null && (vb[1] === null || vb[1] > b[1])))) out.push(what + ' vary[' + i + ']: outside the stage\'s own band');
+        if (vb && mx !== null && (vb[1] === null || vb[1] >= mx)) out.push(what + ' vary[' + i + ']: a change at the max is the sandbox\'s, not a stage\'s');
+        for (const key of Object.keys(q || {})) {
+          if (key === 'show') continue;
+          if (kind === 'runway' ? STAGE_RUNWAY_VARY.indexOf(key) < 0 : key !== 'P') out.push(what + ' vary[' + i + ']: ' + key + ' is not a ' + (kind === 'runway' ? 'runway field a stage may change' : 'P'));
+        }
+        // a varied strip is still a strip: 150 m, 8 m wide, its profile inside the pilot's (or the altiport's) limits
+        if (kind === 'runway' && e && q) {
+          const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
+          if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
+          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+        }
+      });
+    }
+  };
+  for (const L of LAYERS) for (const e of rec.layers[L] || []) {
+    if (!e) continue;
+    if (e.stage !== undefined) one(L + ' ' + e.id, e.stage, L === 'runways' ? 'runway' : 'P', e);
+    if (L === 'objects' && e.kind === 'kit') { if (!STAGE_KITS[e.kit]) out.push('kit ' + e.id + ': unknown kit ' + e.kit); if (!e.stage) out.push('kit ' + e.id + ': a construction kit stands only at a stage'); }
+    if (L === 'sites') for (const it of e.items || []) if (it && it.stage !== undefined) one('site ' + e.id + ' item ' + it.id, it.stage, 'P');
+  }
+  // a link names its two items: a staged item would leave it dangling
+  const stagedItems = new Set();
+  for (const st of rec.layers.sites || []) { if (st.stage) for (const it of st.items || []) stagedItems.add(st.id + '/' + it.id); for (const it of st.items || []) if (it && it.stage) stagedItems.add(st.id + '/' + it.id); }
+  for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
+  return out;
+}
 const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
@@ -1134,6 +1355,9 @@ function runwaySite(r, F) {
   if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
   return out;
 }
+// (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
+// absent - the record never says it - the aerodrome is untouched
+function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -1425,7 +1649,10 @@ function smoothPath(pts, radius) {
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
   const o = opts || {};
-  const rec = normalise(rec0);
+  // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
+  // unstaged record is untouched, and a staged one composes exactly as its stageView would
+  const SV = stageView(normalise(rec0), o.tracks);
+  const rec = SV.staged ? normalise(SV.rec) : normalise(rec0);
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
@@ -1453,7 +1680,7 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null));
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
       r.site = null;
       continue;
     }
@@ -1466,7 +1693,7 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)));   // T1 sees the strip's own grade (pushed above)
+    aerodromes.push(stageAero(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)), r));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
     // G710: THE PARKED AEROPLANES the way out must clear (25_airfield.js gpClearWay): every `aircraft`
     // object within 400 m of the stand or a taxi point, in the world (x, z, and `ry` = rotation.y, the
@@ -1929,7 +2156,7 @@ function compose(rec0, world, opts) {
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
+    n: mods.length, nAuthored: nAuth, rec, stage: SV.staged ? { n: SV.n, tracks: SV.tracks } : null, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
     // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
     // vegMixes the polygons' own biomes by '@id'; vegSig a string that changes when any of it does (the renderer's replant)
     // (and the strips' own clearances - G1385's third item: the fill and the ring replant on either)
@@ -2605,6 +2832,7 @@ function issues(rec0) {
     else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
   }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
+  for (const i of stageIssues(rec)) out.push(i);   // v1.33: the stages' shape (the max law is GATE STAGES', with the career's tracks)
   return out;
 }
 
@@ -2809,6 +3037,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, 
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
