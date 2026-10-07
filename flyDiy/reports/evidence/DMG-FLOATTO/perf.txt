@@ -1,0 +1,25 @@
+DMG-FLOATTO perf (tools/dmgfloatto_perf.js: ap.update and sim.step timed apart, alternating child processes, the median of each process's median).
+Cores: base = the assembled bundle at 7eacfba1; int = claude/dmg-integration d3d5e24e; after = this branch (final law, gains hoisted, thrCap a getter).
+compute-only = this branch's core with the law's two control writes replaced by a sink (the base's trajectory to the bit, the law's arithmetic kept): it isolates the law's own cost.
+
+1. THE PILOT'S UPDATE, THE LAW'S OWN COST (calm water, the twin, identical trajectory), base -> compute-only, three series (15 / 21 / 21 processes a side):
+   water damage off  pilot update 0.1014 -> 0.1090 ms (  7.5 %)   step 8.2737 -> 8.5206 ms (  3.0 %)   [LIFTOFF / LIFTOFF]
+   water damage off  pilot update 0.0944 -> 0.0988 ms (  4.6 %)   step 7.0828 -> 7.3376 ms (  3.6 %)   [CLIMB / CLIMB]
+   water damage off  pilot update 0.1015 -> 0.1013 ms ( -0.2 %)   step 7.1219 -> 7.3605 ms (  3.4 %)   [CLIMB / CLIMB]
+   THE NULL (base -> an identical copy of base), same case, three series:
+   water damage off  pilot update 0.0902 -> 0.0899 ms ( -0.4 %)   step 7.8913 -> 7.9798 ms (  1.1 %)   [LIFTOFF / LIFTOFF]
+   water damage off  pilot update 0.0984 -> 0.0954 ms ( -3.1 %)   step 7.2617 -> 7.1932 ms ( -0.9 %)   [CLIMB / CLIMB]
+   water damage off  pilot update 0.0944 -> 0.0984 ms (  4.2 %)   step 7.1575 -> 7.2543 ms (  1.4 %)   [CLIMB / CLIMB]
+   The law alone, micro-benchmarked (2e6 calls of S.porpoise on a real sim): 16.7 ns a call armed, 6.8 ns unarmed (hrtime itself 55 ns).
+
+2. THE PILOT'S UPDATE, the real cores, base -> after (15 processes a side): land = the Cub's take-off (law never armed); water = the twin at 3 m/s (a DIFFERENT flight after: the law changes it)
+   land  damage off  pilot update 0.0654 -> 0.0656 ms (  0.2 %)   step 3.2844 -> 3.1841 ms ( -3.1 %)   [ROLL / ROLL]
+   water damage off  pilot update 0.1158 -> 0.1276 ms ( 10.2 %)   step 11.1906 -> 11.9678 ms (  6.9 %)   [LIFTOFF / LIFTOFF]
+
+3. THE STEP, DAMAGE OFF AND ON, the integration base -> this branch (the whole bundle; 11 processes a side):
+   air   damage off  pilot update 0.1281 -> 0.1386 ms (  8.2 %)   step 5.0396 -> 5.2667 ms (  4.5 %)   [CLIMB / CLIMB]
+   ground damage off  pilot update 0.0633 -> 0.0623 ms ( -1.5 %)   step 5.2096 -> 5.1590 ms ( -1.0 %)   [ROLL / ROLL]
+   water damage off  pilot update 0.0930 -> 0.1065 ms ( 14.5 %)   step 10.2133 -> 10.8835 ms (  6.6 %)   [LIFTOFF / LIFTOFF]
+   air   damage on   pilot update 0.1219 -> 0.1252 ms (  2.7 %)   step 5.0204 -> 5.0333 ms (  0.3 %)   [CLIMB / CLIMB]
+   ground damage on   pilot update 0.0572 -> 0.0577 ms (  0.8 %)   step 5.1255 -> 5.2180 ms (  1.8 %)   [ROLL / ROLL]
+   water damage on   pilot update 0.0929 -> 0.1014 ms (  9.2 %)   step 10.4973 -> 10.9453 ms (  4.3 %)   [LIFTOFF / LIFTOFF]

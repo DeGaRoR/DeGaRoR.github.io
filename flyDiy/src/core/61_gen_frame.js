@@ -228,7 +228,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // bolt), so it is a `fitting` and belongs to the group of the part that comes off ("the child": the gear off the
   // body, the engine off its mount, the wing off the cabin). Read only by the damage layer (30_solver.js, behind
   // params.damage); zero cost to anything else. dmgGroups (returned) is the group table.
-  const dmgGroups = [], dmgGrpKey = {}, dmgSib = [];
+  const dmgGroups = [], dmgGrpKey = {}, dmgSib = [], dmgIso = [];   // dmgIso: G2361, the nose mount's isolators
+  const dmgLump = [];               // G2367: a wing nacelle's fans over its bay (parts.dmg.lump: lumped stand-ins, no Euler)
   const dmgRootZ = [];                                   // per plane: the wing roots' |z| (a root node is a root fitting's)
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
@@ -402,6 +403,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                   P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
       ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
                           ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
+    // G2362 (DMG-MOUNTRIG): `opt.ghost` - a member that is BILLED and not built: its mass (and its gauge's record) as the
+    // member would weigh, nothing in the lattice. The nose leg's wires, moved off the flange onto the mount's lower cups,
+    // weigh what they did (so the aeroplane does not move); the new pair is built weightless
+    const ghost = !!(opt && opt.ghost);
+    if (!ghost) {
     const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
@@ -427,6 +433,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
       bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
       bm.mat = genPhysKey(MM.phys);
+      // G2361 (DMG-MOUNTRIG): a member whose section is its own and not its class row's (the nose mount's bearer, its
+      // isolators, the engine's case: GEN_RULES.mountTubeA / mountIsoA / mountCaseA) - weightless ones, so only the
+      // damage layer reads it; `iso` an isolator (no Euler: a rubber cup bottoms, it does not buckle)
+      // (an isolator is listed in parts.dmg.iso, not flagged on the member: a field on 8 members of ~450 gives the solver's
+      // hottest loop two shapes of beam - measured, the Cub's step with the damage layer on 2.5 -> 5 ms a frame)
+      if (opt && opt.A > 0) bm.A = opt.A;
+      if (opt && opt.iso) dmgIso.push(beams.length);
+      if (opt && opt.lump) dmgLump.push(beams.length);
     }
     // G1810 / G1815 (DMG-D1a): the seam and the break group (see dmgPart above). Every member carries both fields (one
     // shape for the solver's beam loop); a member that is no joint reads null / -1
@@ -445,6 +459,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       } else bm.seam = dmgSeamIn(a, b, cls, mnt, opt, bm.mat, pa);
     }
     beams.push(bm);
+    }
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
@@ -794,8 +809,78 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   let EL = -1, ER = -1;
   // every engine bearer member, on every mount, goes through here (G179)
   const BM = (a, b, vis) => B(a, b, 'fus', false, vis || null, true);
+  // G2361 (DMG-MOUNTRIG): the nose mount's ring, when it has one ([TL, TR, BL, BR]; the nose leg is braced to its lower pair)
+  let MRING = null;
   if (noseEng) {
     [EL, ER] = NM(S.engX, S.engY, 0.55 * cab.halfW, 'ENG');
+    // G2361-G2364 (DMG-MOUNTRIG): THE NOSE ENGINE ON A REAL MOUNT. Since G445.1 `engX` is the DRAWN FLANGE (and node flies it
+    // since JOIN-PARITY, G1985): on the metal Cessna 1.16 m ahead of the firewall, its 199 kg CG node 0.83. The rig below
+    // it (the bearers from the flange pair and the CG node to the firewall's corners, 1.1-1.5 m of 4130 at the class's
+    // section, the nose leg's wires 44 deg forward to the flange) was the prop rule's, never re-shaped: a 3 m/s taxi into
+    // a trunk spent 2.7 kJ of plastic work in it (DMG-RECAL's data/taxi_work_metal.txt). A real nose engine sits on a
+    // MOUNT: a ring of steel tube at the engine's REAR face ~0.4 m ahead of the firewall (GEN_RULES.mountRing), bearers
+    // from the firewall to it, the engine bolted to the ring through rubber ISOLATORS (dynafocal: their axes meet at the
+    // engine's CG), and the engine itself - its case from the rear face to the flange - one rigid body. So:
+    //   - the ring: four nodes (MNT TL / TR / BL / BR, the isolator cups) at the engine's rear face, as wide as the flange
+    //     pair, as deep as it is wide inside the firewall; twelve bearers to the firewall's corners, each cup on three (see
+    //     them below); 4130 tube at the type's section (GEN_RULES.mountTubeA);
+    //   - the isolators: each cup to the CG node (its dynafocal axis) and to its side's flange node (the case is rigid
+    //     between them): their own break section (an AN7 through-bolt, GEN_RULES.mountIsoA), no Euler (a rubber cup
+    //     bottoms, it does not buckle), stamped by the certificate's own mount cases like any member;
+    //   - the engine's case: the flange pair and the CG node (the crankcase, GEN_RULES.mountCaseA): rigid - elastic, never set;
+    //   - a tricycle's nose leg braced to the ring's lower cups (the 172's nose strut to its mount's lower ring), not the
+    //     flange (the gear block, below).
+    // THE AEROPLANE DOES NOT CHANGE: every new member is weightless, and the old rig's seven bearer tubes are billed as
+    // they always were (the same seven amounts, the same ledger) - their mass is the MOUNT's: a quarter on each cup, and
+    // what is left on the flange pair and the firewall's corners split so the CG stays where it was, to the last bit
+    // the arithmetic allows (x and y; z by symmetry). The engine's node carries the installed engine exactly (GATE
+    // ENGINE), the flange the blades. The inertia moves by what a ~4-5 kg mount's moving 0.4-0.8 m makes (HANDOVER
+    // G2361: -0.02 to -0.14 %, pitch the most). A build whose engine CG sits too close to the firewall for a mount (or with no measured CG)
+    // keeps the rig below, byte for byte.
+    const xFw = ST[0].x, xCG = S.engCgAft != null ? S.engX + S.engCgAft : null;
+    const gapCg = R.mountCgGap ?? 0.10, gapFw = R.mountFw ?? 0.10;
+    const xRg = xCG == null ? null : Math.min(xFw - gapFw, Math.max(xFw - (R.mountRing ?? 0.40), xCG + gapCg));
+    const yB0 = P[F[0].BL][1], yT0 = P[F[0].TL][1], wR = 0.55 * cab.halfW;
+    const hR = Math.min(wR, S.engY - yB0 - 0.03, yT0 - S.engY - 0.03);
+    if (xRg != null && S.engX < xCG - 0.05 && xRg >= xCG + gapCg - 1e-9 && hR >= 0.06) {
+      const CG = N(xCG, S.engY, 0, 'CGE');
+      const [RTL, RTR] = NM(xRg, S.engY + hR, wR, 'MNTT'), [RBL, RBR] = NM(xRg, S.engY - hR, wR, 'MNTB');
+      MRING = [RTL, RTR, RBL, RBR];
+      // the old rig's bearers, billed as they were (G179: the bearer is 4130 on every aeroplane, half to each end)
+      const lin = (GEN_MATERIALS.tubeFabric || M).lin.fus, prc = (GEN_MATERIALS.tubeFabric || M).price;
+      const add = new Map(), A0 = (i, h) => add.set(i, (add.get(i) || 0) + h);
+      let Mrig = 0;
+      for (const [a, b] of [[EL, ER], [EL, F[0].TL], [EL, F[0].BL], [EL, F[0].BR], [ER, F[0].TR], [ER, F[0].BR], [ER, F[0].BL]]) {
+        const L = Math.hypot(P[b][0] - P[a][0], P[b][1] - P[a][1], P[b][2] - P[a][2]), h = 0.5 * L * lin;
+        A0(a, h); A0(b, h); Mrig += 2 * h; bill(2 * h, 2 * h * prc);
+      }
+      // the mount's mass on its cups; the flange pair and the firewall's top and bottom pairs give up what keeps the CG
+      // (pair totals: dF ahead, dT + dB behind - x; dT against dB - y, the ring's centre on the engine's line)
+      const x0 = P[F[0].TL][0], dF = -Mrig * (xRg - x0) / (S.engX - x0), Sb = -Mrig - dF;
+      const dT = Sb * (S.engY - yB0) / (yT0 - yB0), dB = Sb - dT;
+      A0(EL, 0.5 * dF); A0(ER, 0.5 * dF); A0(F[0].TL, 0.5 * dT); A0(F[0].TR, 0.5 * dT); A0(F[0].BL, 0.5 * dB); A0(F[0].BR, 0.5 * dB);
+      for (const q of MRING) A0(q, 0.25 * Mrig);
+      for (const [i, m] of add) nodes[i].m += m;
+      const W = { noMass: true };
+      const tubeA = engDryM > (R.mountTubeHeavy ?? 120) ? (R.mountTubeA ? R.mountTubeA.heavy : 9.45e-5) : (R.mountTubeA ? R.mountTubeA.light : 5.96e-5);
+      const CASE = Object.assign({ A: R.mountCaseA ?? 4e-3 }, W), ISO = Object.assign({ A: R.mountIsoA ?? 9.7e-5, iso: true }, W), TUBE = Object.assign({ A: tubeA }, W);
+      // the case (rigid), the isolators, the bearers, the ring's sides
+      B(EL, ER, 'fus', false, 'inner', true, CASE); B(CG, EL, 'fus', false, 'inner', true, CASE); B(CG, ER, 'fus', false, 'inner', true, CASE);
+      for (const q of MRING) B(q, CG, 'fus', false, 'inner', true, ISO);
+      B(RTL, EL, 'fus', false, 'inner', true, ISO); B(RBL, EL, 'fus', false, 'inner', true, ISO);
+      B(RTR, ER, 'fus', false, 'inner', true, ISO); B(RBR, ER, 'fus', false, 'inner', true, ISO);
+      // the bearers: each upper cup to its side's top and bottom corners and across to the other top; each lower cup to both
+      // bottom corners and up to its side's top - every cup on three, no two of them in one plane. (Measured on the stiffness
+      // matrix, firewall pinned: eight bearers - each cup on two - left the cups a near-mechanism, its softest mode 1/40 of the
+      // old rig's, and the engine swung 0.43 m aft and 0.36 m up on its mount in a 4 m/s taxi; the ring's own tubes between
+      // the cups add under 7 % once each cup stands on three, and are not built: their weight is the cups')
+      for (const [c, f] of [[RTL, F[0].TL], [RTL, F[0].BL], [RTL, F[0].TR], [RTR, F[0].TR], [RTR, F[0].BR], [RTR, F[0].TL],
+                            [RBL, F[0].BL], [RBL, F[0].BR], [RBL, F[0].TL], [RBR, F[0].BR], [RBR, F[0].BL], [RBR, F[0].TR]])
+        B(c, f, 'fus', false, null, true, TUBE);
+      pt(CG, engDryM);
+      pt(EL, 0.5 * S.prop.mass);
+      pt(ER, 0.5 * S.prop.mass);
+    } else {
     BM(EL, ER);
     BM(EL, F[0].TL); BM(EL, F[0].BL); BM(EL, F[0].BR);
     BM(ER, F[0].TR); BM(ER, F[0].BR); BM(ER, F[0].BL);
@@ -828,6 +913,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else {
       pt(EL, 0.5 * (engDryM + S.prop.mass));
       pt(ER, 0.5 * (engDryM + S.prop.mass));
+    }
     }
   }
   spend((PP.price || 0) * S.engines.length);
@@ -1452,10 +1538,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                   [NR, 'R', feet && feet[1]]]) {
           const W = wf[o];
           const ring = [W.F[b], W.F[b + 1], W.R[b], W.R[b + 1]];
-          for (const q of ring) BM(n, q);
+          // G2367 (DMG-BUNDLE-GREEN): the fans to the bay's four spar nodes are the nacelle's structure LUMPED onto the
+          // spar box (they reach the bay's far end: 1.15-1.71 m on the twin, where a real nacelle bolts a short mount
+          // to its spar fittings) - not a thin tube of the class's section: no Euler (30_solver dmgMember, as the
+          // strut fan's hidden members). Measured: the twin's ENGL-WR (1.71 m) buckled at 4.52 kN, 1.47 x 23.361's limit
+          // torque, against its certified 8.69 kN. The post keeps its tube
+          const LUMP = { lump: true };
+          for (const q of ring) B(n, q, 'fus', false, null, true, LUMP);
           if (ft != null) {
             BM(n, ft);                                   // the post
-            for (const q of ring) BM(ft, q, 'inner');
+            for (const q of ring) B(ft, q, 'fus', false, 'inner', true, LUMP);
             // a box's own cap can sit where the foot does (an engine drawn
             // exactly on a station, on the spar) — a zero-length member is
             // strain = Infinity, so that one leg is simply not built
@@ -2208,8 +2300,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // B11: the engine mount only when the engine IS on the nose; a pusher's
     // or a nacelle's EL / ER are 2.3 m away — the firewall's top corners are
     // the airframe above the leg there (off the belly plane, rule 10)
-    const twUpL = noseEng ? EL : F[0].TL, twUpR = noseEng ? ER : F[0].TR;
-    B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire');
+    // G2362 (DMG-MOUNTRIG): ...and a nose engine on a MOUNT braces it to the mount's lower cups, the 172's nose strut to
+    // its engine mount's lower ring, near-vertical above the leg (rule 10) - not 44 deg forward to the flange
+    const twUpL = noseEng ? (MRING ? MRING[2] : EL) : F[0].TL, twUpR = noseEng ? (MRING ? MRING[3] : ER) : F[0].TR;
+    if (MRING) {
+      B(TW, EL, 'gear', false, 'wire', undefined, { ghost: true }); B(TW, ER, 'gear', false, 'wire', undefined, { ghost: true });
+      B(TW, twUpL, 'gear', false, 'wire', undefined, { noMass: true }); B(TW, twUpR, 'gear', false, 'wire', undefined, { noMass: true });
+    } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
@@ -2850,6 +2947,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const SUPP_GAP = 0.2, dmgSupp = [];
   if (F[0]) for (let i = 0; i < nodes.length; i++) {
     if (dmgPart(i).p !== 'eng') continue;                        // the nose engine (a wing engine is no firewall's)
+    // (G2361: the mount's cups too - a severe nose-in drove them 6-13 cm through the firewall with the engine's own held)
     const ax = P[i][0], stand = ST[0].x - ax;
     if (!(stand > 0.05)) continue;
     const x1 = ax + (1 - SUPP_GAP) * stand;                       // where the node is when the limiter closes
@@ -2861,7 +2959,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues,
     // G1821 (DMG-D1b): every node's part (the body's 'body'), for the refs-core's gate (the body frame's refs on the body)
-    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp };
+    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp, iso: dmgIso, lump: dmgLump };
   return { nodes, beams, refs, parts, clusters };
 }
 

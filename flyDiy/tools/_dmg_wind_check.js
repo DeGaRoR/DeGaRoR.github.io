@@ -59,7 +59,12 @@ if (argv[0] === '--part') {
       let I = 0;
       for (let f = 0; f < 120; f++) sim.step(1 / 60);
       for (let f = 0; f < 600; f++) {
-        const v = sim.cgVel(), e = 3 - (v[0] * fx + v[2] * fz); I = Math.max(-2, Math.min(2, I + e / 60));
+        // G2366 (DMG-BUNDLE-GREEN): 3 m/s along the aeroplane's OWN heading (its taxi speed through the water). The speed
+        // along the heading it started on read a floatplane that had weathervaned into a beam wind (the twin turns 92 deg
+        // into 10 m/s from 270) as stopped, and the loop opened the throttle to full: a 23 m/s run into the wind, the
+        // twin porpoising +-30 deg and nosing over on its thrust couple (DMG-PLOUGH's) - not the taxi this row describes
+        const xa = sim.axes()[0], ha = Math.hypot(xa[0], xa[2]) || 1, hx = -xa[0] / ha, hz = -xa[2] / ha;
+        const v = sim.cgVel(), e = 3 - (v[0] * hx + v[2] * hz); I = Math.max(-2, Math.min(2, I + e / 60));
         sim.ctl.thr = Math.max(0, Math.min(1, 0.25 + 0.15 * e + 0.1 * I)); sim.step(1 / 60);
       }
       const D = sim.damage(), mset = new Set(W.mountOf(def));

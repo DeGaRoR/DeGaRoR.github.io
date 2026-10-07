@@ -1,0 +1,18 @@
+== cub
+  parked    md5 351d115342a4 -> cda0c7b2dd9e  cgY 1.0321 -> 1.0621 (+3.00e-2), pitchDeg -7.2282 -> -7.2306 (-2.37e-3)
+  land473   md5 30760cab7d74 -> 2ede30aa63b3  gMax 1.6670 -> 1.6667 (-3.33e-4)
+  circuit   md5 70e7dba89fe2 -> ea5919217688  outcome completed -> completed, t 321.4500 -> 321.4000 (-5.00e-2), nzMax 1.2860 -> 1.2964 (+1.05e-2), phases 10.0000 -> 10.0000 (+0.00e+0)
+== jodel
+  parked    md5 cb23580ab987 -> 50e5427a80d7  cgY 1.0194 -> 1.0075 (-1.19e-2), pitchDeg -9.5817 -> -9.5813 (+4.10e-4)
+  land473   md5 fb6c3615ed5a -> 0d2f6d2b611a  gMax 1.8584 -> 1.8588 (+3.69e-4)
+  circuit   md5 fddc2c5330fd -> 3039685cef1e  outcome null -> null, t 340.0000 -> 340.0000 (+0.00e+0), nzMax 1.6655 -> 1.6422 (-2.33e-2), phases 9.0000 -> 9.0000 (+0.00e+0)
+== metal
+  parked    md5 f3f71f042d46 -> bda5cbaf068d  cgY 1.0986 -> 1.1731 (+7.45e-2), pitchDeg 1.0647 -> 1.0243 (-4.04e-2)
+  land473   md5 1b2e4d8d7d16 -> 671784d6b85b  gMax 2.1135 -> 2.1172 (+3.67e-3)
+  circuit   md5 c76725875641 -> 5ab94baeb7bb  outcome null -> completed, t 340.0000 -> 339.7000 (-3.00e-1), nzMax 2.2216 -> 1.8707 (-3.51e-1), phases 9.0000 -> 10.0000 (+1.00e+0)
+== floats
+  parked    md5 23bd68fd6a77 -> 36d0489c06e7  cgY 1.2871 -> 1.3529 (+6.59e-2), pitchDeg -1.2283 -> -1.1179 (+1.10e-1)
+  land473   md5 96c7705470fc -> 390a2399ced3  gMax 1.6556 -> 1.6632 (+7.61e-3)
+  circuit   md5 3e075ea0924f -> 0a8d8c44378e  outcome null -> null, t 340.0000 -> 340.0000 (+0.00e+0), nzMax 1.5804 -> 1.6145 (+3.41e-2), phases 10.0000 -> 10.0000 (+0.00e+0)
+
+[exited with code 0]

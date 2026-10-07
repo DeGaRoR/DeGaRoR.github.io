@@ -128,6 +128,22 @@ function noseOver(key, o) {
   const gap0 = o.gap == null ? 0.03 : o.gap; let th = 0, gp = low(), it = 0;
   const step = -0.2 * Math.PI / 180;
   while (gp.gap > gap0 && it++ < 900) { rot(step); th += step; gp = low(); }
+  // G2367 (DMG-BUNDLE-GREEN): A TRICYCLE NOSES OVER ON A FOLDED NOSE LEG. Pitched about its mains until its disc is
+  // `gap` off, a tricycle's nose wheel is IN the ground (the metal Cessna at its drawn thrustline: 0.148 m, the leg then
+  // throws the nose back up and its disc never bites the turf at 2 m/s) - a certified tricycle keeps its disc clear with
+  // the nose strut bottomed and its tyre flat (FAR 23.925(a), as recalled): its prop meets the ground only once the nose
+  // leg has gone. So the leg is folded as a break folds a member (its members slack: k, c 0) and the wheel left on the
+  // ground under the nose. A taildragger (its third wheel aft) is untouched. (The old metal Cessna's disc sat lower than
+  // its nose wheel, 2.4 cm in the ground at rest: the rig never met the leg)
+  const twN = def.refs.tw;
+  // (a fall only: the brush row lifts the nose off the turf at 0.3 m/s on its leg)
+  if (o.foldNose !== false && o.V > 0 && twN != null && mains.length && !sim.hydro) {
+    let mx = 0; for (const i of mains) mx += def.nodes[i].p[0]; mx /= mains.length;
+    if (def.nodes[twN].p[0] < mx) {
+      for (const b of sim.beams) if ((b.a === twN || b.b === twN) && !b.broken) { b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true; }
+      const g = surf(p[twN*3], p[twN*3+2]) + def.nodes[twN].r; if (p[twN*3+1] < g) p[twN*3+1] = g;
+    }
+  }
   // the angular rate that drops the lowest point at V: omega = V / (its horizontal arm from the pivot)
   const E = def.refs.engine || []; let hx = 0; for (const i of E) hx += p[i*3]; hx /= E.length;
   const arm = Math.max(0.3, Math.abs((hx - px) * xA[0] + 0) + Math.abs(hx - px) * 0) || 1;
@@ -207,19 +223,27 @@ function tipStrike(key, o) {
   const hub = C.genDriveSpec(def).hub, fw = o.fwd == null ? hub + rt / 2 : o.fwd, e = Math.max(0, fw - hub), hc = e < rt ? Math.sqrt(rt * rt - e * e) : 0;
   const lat = Math.max(0, R + hc - o.bite);
   // to the aeroplane's left of the hub (away from the cabin on the twin's left engine: -z is its side)
-  // (G2035: (lx, lz) is the body's right for sd -1, its left for +1 - the off-centre engine's side was inverted: the twin's left
-  // engine's trunk stood inboard, 0.4 m from the cabin pod, which it touched; the centreline engines keep their side)
-  const sd = hz < -0.3 ? 1 : (hz > 0.3 ? -1 : -1), lx = -uz * sd, lz = ux * sd;
+  // G2367 (DMG-BUNDLE-GREEN): the side is the hub's own, ACROSS THE HEADING from the CG - the world z's sign times a
+  // perpendicular that turns with the heading put the twin's trunk INBOARD on the game's strip (z -0.58, the hub's
+  // -1.65): into the pod's side, which then shoved the left nacelle 1 cm into its disc and an idle brush (0.031 R)
+  // read as a stoppage (0.040 R). A nose engine (on the centreline) keeps the aeroplane's left as before
+  const pxv = -uz, pzv = ux, cg = sim.cgPos(), off = (hx - cg[0]) * pxv + (hz - cg[2]) * pzv;
+  const sd = off < -0.3 ? -1 : (off > 0.3 ? 1 : -1), lx = pxv * sd, lz = pzv * sd;
   TH.set('fill:test', [hx + ux * fw + lx * lat, hz + uz * fw + lz * lat, elev - 0.5, rt, elev + 10]);
   const t0 = sim.t, before = sim.out.rpm.slice();
   let mountAt = null, imbMax = 0, failAt = null, peakEng = 0;
   const MB = mountBeams(def);
+  // G2367 (DMG-BUNDLE-GREEN): the engine LEAVES when its mount's group breaks - or, on DMG-MOUNTRIG's ring, when every
+  // member from its own nodes (ENG / CGE) to anything else is broken: the eight isolators tear before the twelve bearers
+  // (the group) go, the ring staying on the firewall (the metal Cessna's full-power graze: all eight at 7 ms)
+  const engOwn = i => /^(ENG|CGE)/.test(def.nodes[i].tag || '');
+  const tie = []; def.beams.forEach((b, bi) => { if (engOwn(b.a) !== engOwn(b.b)) tie.push(bi); });
   for (let f = 0; f < 60 * (o.secs || 4); f++) {
     sim.step(1 / 60);
     const Dm = sim.damage(), st = Dm.drive ? Dm.drive[k] : null;
     if (st) { imbMax = Math.max(imbMax, st.imbN || 0); if (st.failed && failAt == null) failAt = sim.t - t0; }
     peakEng = Math.max(peakEng, sim.out.rpmEng[k] || 0);
-    if (mountAt == null && (Dm.groups || []).some(G => /mount$/.test(G.key))) mountAt = sim.t - t0;
+    if (mountAt == null && ((Dm.groups || []).some(G => /mount$/.test(G.key)) || (tie.length && tie.every(bi => sim.beams[bi].broken)))) mountAt = sim.t - t0;
     if (!finite(sim)) break;
   }
   const Dm = sim.damage();

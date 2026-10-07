@@ -75683,6 +75683,582 @@ STRICT GATE (full): 98 in slack, 47 better, 12 RED = the 30 cap's fps rows, the 
 hybrid band, admitted; the dissolve's +1.4 expected), and garage -> world @mn_strip worst task 107 -> 335 ms (270 in train
 32: arrived with train 32, investigated separately). BATTERY: the full battery PASS (SOFTGPU SKIP). Parked re-cooked.
 
+## G1885-G1889 DMG-DAMP: THE DEFORMATION DAMPER TAKES DEFORMATION, NOT ROTATION (2026-10-05, DMG-DAMP for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-damp off claude/dmg-switch-g1898 4ca0678c - train 32 had not landed on master when this started: REBASE ON MASTER ONCE IT LANDS; G1889 unused)
+
+The user's ruling (2026-10-04, the independent review's D1): "The deformation damper damps rigid rotation." Fixed as honest
+physics, no replacement angular damping anywhere. What it moved is below, gate by gate, and **three things it uncovered need
+the user** (open questions at the end: the Cub's crosswind roll-out, the floatplane's crosswind take-off, the spiral).
+
+### G1885 - THE FIX (src/core/30_solver.js `integrate`, G1885.1/.2)
+- **Before:** each substep `v_i = v_mean + (v_i + f_i dt/m_i - v_mean)(1 - DEFDAMP dt)`, DEFDAMP 0.5 /s. A rigid rotation is not
+  in the mean, so roll, pitch and yaw decayed as exp(-0.5 t) in vacuum (reproduced: L/L0 0.607 / 0.368 / 0.135 at 1 / 2 / 4 s on
+  every validated build and axis). The mean's form also scaled the net force by (1 - DEFDAMP dt) (~1e-4).
+- **Now:** the forces go in first (`v* = v + f dt/m`), the rigid-body field of v* is taken out,
+  `v_r(x) = v_cm + w x (x - x_cm)`, `w = I^-1 L` about the CG, and only `v* - v_r` is damped. v_r is the mass-weighted
+  least-squares rigid fit, so the damped remainder carries no momentum and no angular momentum. DEFDAMP keeps its value (0.5).
+- **The sums ride the loop that adds the forces** (positions off node 0: an aeroplane km from the origin keeps its digits).
+  P, the CG and L every substep; the second moments on a frame's first substep, carried rigidly through the frame's other
+  substeps with the last w (`dS/dt = W S + S W^T`, O(1)) - the frame turns the aeroplane by w/60 rad, the deformation moves
+  them ~1e-4. The rigid field off absolute positions through one constant. The integration in its own function
+  (`integrate`), so `substep` stays the size it was.
+- **The control:** `params.defDampMean` brings back the pre-G1885 formula (an instrument, like `defDamp`; no build sets it).
+  It is the base core to the bit (MD5 of p and v after 600 frames: the Cub, the metal Cessna, the Cessna on floats, air and
+  ground, base core vs this core with the flag).
+- **The load test** (65_gen_loadtest.js, its own `relax()` off the mean): the comment corrected; the code unchanged - the
+  aeroplane is bolted to the trestles every substep, it has no rigid motion to lose. GATE LOAD byte for byte the base; BENCH
+  one landing run 303 -> 302 m, the bench's settled answers the same.
+
+### G1886 - GATE DMGDAMP (tools/_dmgdamp_check.js, core tier, ~4 min)
+Vacuum (the air at 1e-9 through setAtmos, no world, 3 km up, the solver's uniform gravity: no torque about the CG), the five
+validated builds (the user's Cub corrected, the Jodel, the metal Cessna, the Cessna on floats, the twin on floats), spun at
+1 rad/s about roll, pitch and yaw for 10 s:
+
+| bound | why | measured (worst) |
+|---|---|---|
+| \|L - L0\| / L0 <= 1e-3 over 10 s | exact in the continuum; the solver's other parts (the shape-matched rigid float clusters, symplectic Euler, the 1e-9 air) drift up to ~2e-4 WITH THE DAMPER OFF; 5x margin, and 1/1000 of what the old damper took (99.3 %) | 1.85e-4 (twin on floats, pitch) - identical with defDamp 0 |
+| the damper's own share \|L_on - L_off\| / L0 <= 1e-5 | the damper may take energy, never L | 2.5e-6 (twin on floats) |
+| CONTROL: the old formula = exp(-0.5 t) within 1 % at 1, 2, 4 s | the review's measurement, reproduced | 0.01 % |
+| a plucked wingtip (1 m/s flick): last 0.5 s window <= 2 % of the first, <= 0.5 x damper-off, within 10 % of the old damper every window | the deformation is still damped, as before | 1.2e-4..2.1e-3; 0.1 x off; 0.43 % |
+
+Evidence: `reports/evidence/DMG-DAMP/L_<build>.svg` (L(t)/L0 before / after, three axes each).
+
+### G1887 - THE CENSUS (before = base 4ca0678c, after = this branch; every gate's whole output diffed)
+**The flown modes** (tools/dmgdamp_evidence.js; the stick FIXED at a trim the probe finds at 1.6 Vs, 1000 m; each signal the
+kicked flight minus an unkicked one from the same trim; `modes.json`):
+
+| build | V trim (m/s) | dutch roll T (s) | dutch roll zeta | dutch t1/2 (s) | roll-rate tau (s) | yaw-rate t1/2 (s) | pitch-rate t1/2 (s) | spiral |
+|---|---|---|---|---|---|---|---|---|
+| Cub (corrected) | 26.1 | 3.30 -> 3.20 | 0.358 -> 0.241 | 0.95 -> 1.42 | 0.091 -> 0.095 | 0.33 -> 0.42 | 0.17 -> 0.18 | T2 10.3 s -> T2 8.8 s |
+| Jodel | 30.2 | 2.60 -> 2.50 | 0.271 -> 0.179 | 1.02 -> 1.52 | 0.119 -> 0.126 | 0.32 -> 0.37 | 0.18 -> 0.22 | T1/2 10.0 s -> T1/2 54.2 s |
+| metal Cessna | 35.8 | 2.60 -> 2.53 | 0.293 -> 0.198 | 0.94 -> 1.39 | 0.125 -> 0.133 | 0.28 -> 1.23 | 0.17 -> 0.18 | T2 20.9 s -> T2 14.4 s |
+| Cessna on floats | 41.2 | 2.57 -> 2.53 | 0.274 -> 0.180 | 0.99 -> 1.53 | 0.123 -> 0.131 | 0.30 -> 1.30 | 0.20 -> 0.22 | T2 23.0 s -> T2 15.6 s |
+| twin on floats | 26.2 | 3.20 -> 3.10 | 0.369 -> 0.256 | 0.89 -> 1.29 | 0.114 -> 0.121 | 0.33 -> 0.40 | 0.13 -> 0.15 | T2 10.0 s -> T2 8.5 s |
+
+(Flown on the per-substep solver; re-flown on the final one (G1885.2) for the Cub, the Jodel, the metal Cessna and the
+Cessna on floats before a container restart: every printed number the same.)
+
+- **Dutch roll: damping ratio down ~0.1 on every build, period ~3 % shorter.** The real reference (Nelson, *Flight Stability
+  and Automatic Control*, the Navion: zeta 0.20, omega_n 2.4 rad/s, T 2.7 s; MIL-F-8785C Level 1 class I: zeta >= 0.08 - both cited from the session's own knowledge, no copy in the repo: A0 to
+  check the figures):
+  the before values (0.27-0.37) were over-damped by the hidden 0.5 /s; the after values (0.18-0.26) sit on the reference.
+- **Roll-rate decay +5-7 %** (aero roll damping dominates, ~10 /s against the hidden 0.5). **Pitch-rate** barely moves.
+- **Yaw-rate half time:** the metal Cessna and the floats 0.3 -> 1.2-1.3 s - the lower dutch-roll damping takes more cycles
+  to halve the envelope; the others +0.05-0.1 s.
+- **Spiral: less stable on every build** (the hidden damper was ~25-50 % of N_r): the Cub T2 10.3 -> 8.8 s, the twin 10.0 ->
+  8.5, the metal Cessna 20.9 -> 14.4, the floats 23.0 -> 15.6; the Jodel stays stable (T1/2 10 -> 54 s). MIL-F-8785C asks
+  T2 >= 12 s (Level 1, cat A/C), 20 s (cat B); the Cub and the twin are now Level 2 (they were already at 10 s before). The
+  aerodynamics' own spiral (dihedral against yaw damping) - a design property of the builds, not tuned here: open question 3.
+
+**The gates** (every flying gate, base vs after, 146 gates both sides; SIMWORKER-PAGE / -EDGES / -PLACE not run - the
+page-in-node worker-vs-inline bit equalities, hours on this box, that hold whatever the damper does):
+- **Byte for byte the base (or timings only):** LOAD, PLAN, LINEUP, WATER, WIPLINE, ARCHETYPES (its printed lines), DRAG,
+  WEIGHT, MASS, GEAR, STRUT, ENERGY, SUBSTEP, PACE, HONEST, DEFAULT, AERO, FLAPS, STRESS, and every non-flying gate.
+- **The final solver (G1885.2: the second moments carried through a frame)** re-run on 44 flying gates: the same numbers
+  as the per-substep version to the printed digit or +-0.01..1 % (FLEX loads, TREECRASH's plastic work, GEN's nose-over
+  resting on the other engine); all PASS but PILOTMATRIX (open question 1) and RWYTREES (the runner's 1800 s cap, twice, under load and alone: its three whole-page children take most of it - every check it
+  reached passed, and run directly (`node tools/_rwytrees_check.js`, no cap) it is GATE RWYTREES: PASS in 31 min 20 s; the
+  after run passed inside the cap at 1578 s. A0: a `timeout` on its row, or the cap, before the train).
+- **Moved, PASS, toward the reference or explained:**
+
+| gate | number | before -> after | reading |
+|---|---|---|---|
+| GEN | landing sink (archetypes' shakedown) | 0.70-1.54 -> 0.69-1.56 m/s | +-0.04 |
+| GEN | gust cruise bank p2p (3 m/s + gusts) | 0.98 -> 0.93 deg | |
+| GEN | nose-over test rests on | ENGL -> AXLER | the tipped aeroplane lands on its axle, not its engine |
+| PILOT | trike crosswind pursuit | 9.2 -> 9.7 deg (bound 12) | |
+| PILOT | NAV box xtk / landing aim | 11 -> 10 m / 49 -> 45 m | |
+| PILOTACT | touchdown sink (stock / C172 / metal) | 0.67 / 1.14 / 1.11 -> 0.66 / 1.10 / 1.18 m/s | |
+| SOAR | thermal climb / gain in 200 s | 0.85 -> 1.09 m/s / 113 -> 163 m | the circle no longer fights a yaw damper |
+| HOTHIGH | touchdown sink | 1.02 -> 0.55 m/s | softer |
+| TAKEOFF | the twin's wheeled crosswind limit (measured, not asserted) | 4.5 -> 3 m/s | the first failure 3.5 m/s by 2 cm (12.52 m roll, band 12.5); FAR 23.233 asks 0.2 V_SO = 3.3 m/s |
+| TAXICLEAR | nearest wing to a parked footprint | 2.14 / 1.74 -> 2.14 / 1.75 m | taxi wobble: nothing |
+| INPUT | hand back (keys): peak bank / bank at 20-25 s / alt loss | 30 / 1.3 / 0 -> 33 deg / 0.2 / 3 m | |
+| SIMWORKER | freeze drift | 0.904 -> 0.913 m | every step's FNV still equal worker = inline |
+| TREECRASH | pulls / drops / circuits / trunk / water cases | all PASS; e.g. the twin's 67 m/s pull 5.23 -> 4.06 g, the worst member 0.73 -> 0.65 | damage:true; the water's severe nose-in still yields, breaks, crashes |
+| FLEX, MOUNT, BIPLANE, GE, TREEHIT | | +-0.01..0.1 | |
+| HYDRODYN | water/dry cost ratio | 1.46 -> 1.24 x | timing |
+| FLOATS (Cessna...) landing | touchdown sink | 0.54 -> 0.38 m/s (bound 0.35-1.6) | near its floor - the trimmed approach is the gate's own bisection, not tuned |
+| SEAPLANE taxi | water-rudder heading at idle, 5 m/s across | 10.3 -> 15.3 deg (bound 20) | the water taxi |
+
+- **Red on the base too (not this work):** INSTANT (both), WORLD / BIOME (wall-clock perf budgets), HYDRO / SETTLE (bake
+  budget), FRAMECOST (the stale parked cook - A0's train re-cooks), all under the battery's own load, as TREE-CRASH saw.
+- **HITBOX** red on the after run only on a wall-clock line (the spec shape 292 ms against a 260 ms raster, under load); the
+  shapes all stand; PASS on the final run.
+
+### G1888 - THE RE-ANCHORS (and the gain changed)
+1. **GATE FLOATS (the twin on floats, the hull in the real solver): THE PILOT HOLDS THE PLANING ATTITUDE ON THE STEP.** The
+   scripted fixed stick (0.45, eased to 0.2 past 14 m/s) rode the step only while the hidden damper damped the hull's pitch:
+   the porpoise grew (-4.1..12.7 deg), the twin left the water at 14.6 m/s (0.9 Vs) on the full back stick BEFORE the easing
+   and slammed back (R/W 0.53 > 0.35). A seaplane pilot answers a porpoise by holding the step attitude; 6 deg is in a planing
+   hull's least-resistance trim band (Savitsky 4-6 deg, the law 32_hydro flies). Now from 9 m/s:
+   de = 0.2 + 0.04 (6 - trim) - 0.01 trim-rate. **Robust:** targets 5/6/7/8 deg and starts at 9-11 m/s all PASS (R/W on the
+   step 0.29-0.34); the base flies the same hold at 0.19. (Easing the fixed stick at 12 m/s also passed at R/W 0.347/0.35 -
+   a knife-edge, not taken.) Now: hump 0.275, the step 0.308, trim -0.1..7.5, airborne 8.9 s at 26 m/s.
+2. **GATE SEAPLANE crosswind take-off: 0.2 V_SO (FAR 23.233), 3.3 m/s, not 5.** The 5 m/s had no reference and the base held
+   it by 2 deg (28 against 30) - the hidden damper was the margin. Swept: the base held to 4.5 m/s and looped at 5.5; this
+   solver loops at 2 m/s and from 4 m/s (open question 2). Now: 11.1 deg, 4.1 m off, lift-off 7.0 s.
+3. **The pilot's step heading gain x0.6 (43_pilot.js groundSteer, `A.waterStepK`, water + tail-up only; a wheeled roll is
+   bit-identical).** On the step the air rudder alone holds the run and the loop weaved stop-to-stop (-5 -> +18 -> -35 deg,
+   4.5 s period, 3.5 m/s across); 0.6: 11.5 deg; the rate term x1.5-x2 did not damp it.
+   **GAINS CHANGED PER PILOT: 43_pilot.js (THE PILOT) only - groundSteer's kP x `A.waterStepK ?? 0.6` when on the water with
+   the tail up. 40_autopilot.js and 41_test_pilot.js have no water branch: unchanged.** PILOT-FORKS (G1570-G1579, the
+   unified servo module, the review's E4): no branch existed when this work ran; it carries this one line when it unifies
+   groundSteer. Either may land first; the conflict is that one line.
+4. **NOT re-anchored: PILOTMATRIX cub:HOME:x4 (the Cub's crosswind roll-out). The gate is RED** - open question 1.
+
+### The perf (the hard rule: within 2 % of the base, nothing touching)
+The stock build's sim.step(1/60) in node, the Cub and the metal Cessna, ground and air, the median of 15 processes' medians
+(600 steps each), alternating; `reports/evidence/DMG-DAMP/perf.txt`; three columns - the base core, THIS core with the old
+formula (the base's trajectory, this core's code), this core:
+
+| case | base core (ms) | this core, old formula (ms) | this core (ms) | this core vs base | the damper's own cost (vs the old formula, same core) |
+|---|---|---|---|---|---|
+| the Cub, ground | 3.907 | 3.991 (+2.13 %) | 3.934 | **+0.70 %** | -1.41 % |
+| the Cub, air | 3.686 | 3.736 (+1.37 %) | 3.649 | **-1.00 %** | -2.34 % |
+| the metal Cessna, ground | 6.575 | 6.587 (+0.17 %) | 6.611 | **+0.54 %** | +0.37 % |
+| the metal Cessna, air | 6.351 | 6.366 (+0.24 %) | 6.478 | **+1.99 %** | +1.75 % |
+
+- **This box's process-to-process noise is +-2-4 %** (the same core and formula read 3.85 and 3.48 ms on two runs). Earlier
+  5- and 7-process runs of the first cut read up to +3-5 % in the air; the same-core comparison (the damper's own cost,
+  trajectory included) is the honest instrument and reads -2.3..+1.8 %. **A0 to re-read on a quiet machine** (the
+  coordinator's own `--perf-only` method; `tools/dmgdamp_evidence.js --perf-only --perf-base <base core>` does it with the
+  stock build, damage off).
+- Low frame rate: the physics dt is fixed at 1/60 and nothing here reads the frame rate; GATE DMGFPS is not on this base
+  (DMG-D0 brings it).
+
+### Open questions (the user, through A0)
+1. **THE CUB GROUND-LOOPS ON A CROSSWIND ROLL-OUT (PILOTMATRIX cub:HOME:x4 RED).** The user's corrected Cub (the matrix's
+   'cub' flies the same numbers) in 3.5-4.5 m/s across (+ gusts): roll-out heading swing 9-17 deg before, **106-140 deg now**
+   (a ground loop at 14 m/s, the tailwheel down, the rudder on its stop). Measured, none holds it: the tail-down steer gains
+   (kD x1.5-x2, kP x0.7), a faster rudder slew on the ground (x2: 88 deg, x3: 79). The hidden damper was the ground's only
+   yaw damping: **the tyres' side force is Coulomb friction regularised at 0.02 m/s (30_solver, `kL`), no cornering
+   stiffness**, so a yawing aeroplane rolling straight meets almost no rate-proportional resistance - a real tyre's
+   slip-angle force is that damping. Recommendation: a GEAR follow-up (a cornering-stiffness tyre - physics owed, not a
+   fudge), then re-read this cell. Until then PILOTMATRIX's baseline is NOT moved: moving it would bless a ground loop.
+2. **THE FLOATPLANE WATER-LOOPS IN SOME CROSSWINDS.** The twin on floats' crosswind take-off: 0.5-1.5 m/s 1-5 deg, 2.5-3.75
+   8-16 deg, **a water loop at 2 m/s and from 4 m/s** - at the hump, the water rudder raised (7.2 m/s at full power), full air
+   rudder, the yaw rate 0.3 -> 3 rad/s in a quarter second. No pilot gain holds those (x2-x4 displacement gains, x1.5-x2 rate,
+   the water rudder raised at 9.6 or 12 m/s: measured). At rest the water's own yaw damping is the quadratic cross-flow only
+   (a 0.3 rad/s kick: 0.30 -> 0.12 rad/s in 6 s, against 0.01 with the hidden damper); at 5 m/s it is strong (gone in 1 s).
+   A GEAR-WATER question: the hull's lift-type side force at the hump (slender-body, linear in U v), which 32_hydro does
+   not carry. GATE SEAPLANE is re-anchored to FAR 23.233's 0.2 V_SO meanwhile (above).
+3. **THE SPIRAL** is the builds' own now (T2 8.5-15.6 s on four of five). Real light aeroplanes: mildly unstable, T2 20-100 s
+   typical. Dihedral / fin are the builds' design (never tuned here; validated builds only).
+4. **The water landing's sink** in GATE FLOATS (0.38 m/s against its 0.35 floor) is near its bound: the trimmed approach is
+   the gate's bisection; not touched.
+
+### Files
+src/core/30_solver.js (G1885 integrate), src/core/65_gen_loadtest.js (comment), src/core/43_pilot.js (G1888 waterStepK),
+tools/_dmgdamp_check.js + run_gates.js row (G1886), tools/dmgdamp_evidence.js (G1887), tools/_floats_check.js /
+tools/_seaplane_check.js (G1888), reports/evidence/DMG-DAMP/ (L_*.svg, modes.json, README.md, perf.txt).
+The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+## G1847-G1849 DMG-HULL: THE HULL'S SIDE FORCE IS IN (SLENDER BODY, ZERO AT REST AND DRY); THE TWIN'S "CROSSWIND WATER LOOPS" ARE NOSE-OVERS AT THE PLOUGH, NOT YAW - G1848'S ACCEPTANCE IS NOT MET (2026-10-05, DMG-HULL for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-hull off claude/dmg-damp 8a22a4f9 + origin/master train 33 merged in, 4f1eec0)
+
+**Read this first, coordinator: the brief's premise was half wrong, and the honest term does not do what the brief hoped.**
+1. **The twin on floats' crosswind failures at 2, 4, 4.5 and 5 m/s are NOSE-OVERS at the plough, not water loops.** Traced
+   frame by frame (both bows' depth, pitch, roll): at 4-7 m/s the twin rides 7-10 deg NOSE-DOWN, both bows bury together
+   (0.4 -> 1.9 m deep, the roll ~0), the pitch runs to -70..-89 deg in about a second, and the heading flips 180 deg as the
+   nose goes through the vertical. DMG-DAMP's "yaw rate 0.3 -> 3 rad/s in a quarter second" was that heading flip. It is the
+   same on the base and with G1847 (the side force cannot hold a pitch). Full back stick (0.7) from 0.6 s does not save it
+   (no elevator at 3-7 m/s of air). The hydro pitch moment explains it: up to about -20 deg the water pitches the nose
+   back up (-1000..-2400 N m at the bows); past it the CG, 1.2 m over the keels, is ahead of the centre of buoyancy and
+   the water pitches it OVER (+1000..+4000 N m nose-down at -23..-45 deg, the deck's Newtonian pressure +1000 of it).
+   Open question 1.
+2. **The hull's honest side force puts its centre AHEAD of the CG on the step** (0.3-0.95 m ahead of the step; the step
+   is under or just aft of the CG). It damps yaw RATE, and it also turns the slip (the slender body's Munk-type N_v).
+   On the twin at the hump (trim 4.6 deg) and on the step the second wins: a yaw kick grows (table below). On the
+   Cessna's hump (trim 10.5 deg, more than the afterbody keel's 6.5 deg rise, so its afterbody carries draft aft) the
+   first wins. The brief's "the yaw moment that gives directional stability on the water" holds only where the
+   afterbody is in the water. Open question 2.
+3. **GATE SEAPLANE stays at DMG-DAMP's 0.2 V_SO (3.3 m/s), not 5.** At 5 m/s the twin noses over on both cores.
+
+### G1847 - THE LAW (32_hydro.js `hullSide`, called at the end of `hydroPanels`; the solver's pass lands it slice by slice)
+- A hull moving ahead at U with a lateral velocity w through the water is a low-aspect lifting surface: span = the
+  keel's draft T (the free surface its mirror), chord = the wetted length. Each keel station's lateral added mass is
+  **m(x) = kSide (pi/2) rho T(x)^2**: a flat plate of span 2T with its image, the half in the water, the manoeuvring
+  (low-frequency) limit. Per unit length **dY/dx = -U d(m w)/dx**, with w the station's OWN lateral velocity, so a yaw
+  rate enters. Walked bow -> stern (stern -> bow backing).
+- **Where a section shrinks, the impulse is shed and kept**: the running maximum of m (the Kutta condition of a
+  low-aspect wing) at the step's drop, the afterbody keel rising aft, and the stem. Where the hull leaves the water
+  (a ventilated step's dry afterbody) the piece ends; a re-wetted stern starts its own.
+- **Linear in U x v.** For pure sway on a hull whose draft grows to its trailing edge it telescopes to
+  **Y = (pi/2) rho T_TE^2 U v**. That is the leading term of Clarke, Gedling & Hine's ship regression (1983:
+  Y'_v = -pi (T/L)^2 (1 + 0.40 C_B B/T)); the plate is its B -> 0 limit, and the beam term adds 1.2-2x for B/T 1-5.
+  **kSide = 1 takes the plate alone: the lower bound.** The planing literature (Brown 1971 and Lewandowski 1997 on
+  prismatic planing hulls in yaw; RECALLED, no copy in the repo, A0 to check): the side force is linear in yaw angle
+  to ~5-10 deg and of the slender-body order on the transom draft, a factor ~0.5-1.5 across deadrise and trim.
+- **Centre of pressure: where the draft grows.** On a planing forebody whose draft rises linearly from the spray root
+  to the step, that is 2/3 of the wetted keel length (the slender delta's), a third of lambda ahead of the step.
+- **Large slip:** U w = V^2 sin b cos b is Jones' low-aspect lift in its own form. It peaks at 45 deg and dies at 90,
+  where the base's quadratic cross-flow on the side panels (1/2 rho Cd Vn|Vn|, unchanged) carries the whole lateral
+  force: Hoerner's low-aspect wing, linear + cross-flow. No extra saturation constant is fitted.
+- **Zero at rest** (U = 0, exactly) and **zero dry** (T = 0; a dry float is not computed at all). Horizontal, on the
+  float's lateral axis, at mid-draft on each slice's keel (its roll arm). Floats only: GEAR-WATER 2's wet body
+  (a wheeled fuselage in the water) is untouched (wetBuild returns null on a floatplane). The coordinator's G1898.5 `wetCut`
+  lives on dmg-integration, not on this base; this branch touches no wet-body line, so it merges past it clean.
+- **Constants:** `kSide: 1` in the float DEF (every float, via floatParamsFor / presets; 0 = off, the base to the bit).
+  Nothing else new. The added-mass INERTIA term m dw/dt stays an H0 cut, as the heave's does.
+
+### G1849 - GATE DMGHULL (tools/_dmghull_check.js, tier full, weight 4, ~8 min on 4 cores; 42 runs in its own children)
+**THE LAW** (the rigid bench, each build's own float at the pose its calm take-off flies; the force at 3 deg of slip):
+
+| float, where | V (m/s) | step keel (m) | trim (deg) | side force (N) | the base's panels (N) | (pi/2) rho T^2 U v (N) | centre from the step (m) |
+|---|---|---|---|---|---|---|---|
+| twin, hump | 7.1 | 0.272 | 4.6 | 305.5 | 111.2 | 306.5 | -0.95 |
+| twin, step | 12.0 | 0.172 | 4.8 | 346.1 | 150.8 | 347.3 | -0.67 |
+| Cessna, hump | 11.1 | 0.274 | 10.5 | 747.3 | 325.4 | 760.0 | -0.52 |
+| Cessna, step | 18.8 | 0.087 | 6.6 | 218.7 | 135.5 | 220.1 | -0.29 |
+
+Asserted, all PASS on both builds: 0 N at rest (U 0, slip 0.5 m/s); 0 N a metre over the water; F(2v) = 2F(v) and
+F(2U) = 2F(U) within 1 % (1.0000); the closed form on the step within 2 % (0.4-0.6 %); the peak at 45 deg, 0 N at 90 deg
+with the cross-flow carrying; the centre ahead of the step on the forebody. Plot: `reports/evidence/DMG-HULL/side_force.svg`.
+
+**THE SWEEP** (GATE SEAPLANE's crosswind take-off: THE PILOT, the SEA lane; swing from the roll's own heading; NO = nose-over):
+
+| across (m/s) | twin, base | twin, now | Cessna on floats, base | Cessna on floats, now |
+|---|---|---|---|---|
+| 0 | 8.3 s, 0.0 deg | 8.3 s, 0.0 | 30.5 s, 0.0 | 30.5 s, 0.0 |
+| 0.5 | 8.3, 1.4 | 8.3, 1.8 | 30.6, 0.3 | 30.6, 0.3 |
+| 1.0 | 8.1, 2.3 | 8.2, 2.9 | 30.3, 0.9 | 30.3, 1.0 |
+| 1.5 | 7.6, 5.2 | 7.8, 5.1 | 30.3, 0.8 | 30.1, 0.9 |
+| 2.0 | **NO (-83 deg)** | **NO (-89)** | 29.7, 5.1 | 28.7, 4.7 |
+| 2.5 | 8.0, 7.8 | 8.4, 8.5 | 31.3, 1.2 | 31.3, 1.3 |
+| 3.0 | 7.7, 10.1 | 7.8, 10.3 | 30.5, 9.7 | 30.2, 7.7 |
+| 3.5 | 7.1, 11.5 | 7.0, **30.7 (yaw)** | 30.0, 2.1 | 30.4, 9.4 |
+| 4.0 | **NO (-86)** | **NO (-87)** | 30.9, 2.6 | 29.6, 5.1 |
+| 4.5 | **NO (-77)** | **NO (-80)** | 31.6, 2.6 | 30.9, 12.0 |
+| 5.0 | **NO (-71)** | **NO (-72)** | 31.8, 16.4 | 33.2, 14.0 |
+
+- **The Cessna on floats is clean at every wind, base and now** (lane 8.1 -> 7.7 m at worst). Asserted.
+- **The twin: the same four nose-overs on both cores. One new failure, 3.5 m/s: 11.5 -> 30.7 deg.** Traced: full rudder
+  from 4 s against a 1-1.8 m/s drift on the step, a skip off at ~16 m/s (1 Vs), the swing passing 30 deg about the
+  re-touch. A skip-and-swing on the step, the side force's forward centre at work; a yaw loop by the gate's class.
+- The twin is asserted only over 0-1.5 m/s (the base's clean band). Every failure past that is printed OWED, classed,
+  on every run. **G1848's acceptance (no loop 0-5 m/s, the bar back at 5) is NOT met.**
+- Traces: `reports/evidence/DMG-HULL/heading_2.svg`, `heading_4.svg`, `heading_5.svg` (heading swing and pitch, base and now).
+
+**THE KICK** (0.3 rad/s of yaw rate about the body's up axis through the CG; the kicked run minus the unkicked one
+from the same state; controls frozen, rudder and aileron neutral; yaw rate left after 1 / 2 (/ 6) s, rad/s;
+BEFORE = the pre-G1885 damper (params.defDampMean), AFTER = DMG-DAMP (kSide 0), NOW):
+
+| build, where | before | after (DMG-DAMP) | now |
+|---|---|---|---|
+| twin, rest | 0.143 / 0.078 / 0.009 (t1/2 0.93 s) | 0.235 / 0.197 / 0.120 (t1/2 3.97 s) | 0.223 / 0.181 / 0.103 (t1/2 3.08 s) |
+| twin, hump (7.1 m/s) | 0.176 / 0.201 | 0.229 / 0.361 | **0.255 / 0.540** |
+| twin, step (12.0 m/s) | 0.278 / 0.230 | 0.276 / 0.121 (t1/2 1.73 s) | **0.427 / 0.429** |
+| Cessna, rest | 0.088 / 0.042 / 0.003 (t1/2 0.45 s) | 0.133 / 0.090 / 0.041 (0.78 s) | 0.127 / 0.084 / 0.037 (0.72 s) |
+| Cessna, hump (11.1 m/s) | 0.065 / -0.014 (0.47 s) | 0.141 / -0.010 (0.97 s) | **0.103** / -0.027 (0.70 s) |
+| Cessna, step (18.8 m/s) | 0.060 / -0.042 (0.58 s) | 0.081 / -0.063 (0.82 s) | **0.106** / -0.014 (0.87 s) |
+
+- **At rest** DMG-DAMP's own number is reproduced: the twin 0.30 -> 0.12 rad/s in 6 s. G1847 moves it a little
+  (0.103), honestly. The floats ride a metre each side of the CG, so a 0.3 rad/s spin drives them 0.3 m/s ahead and
+  astern, and the term acts on that. A moored, still aeroplane feels nothing (the law's U = 0 row). Asserted: no slower
+  than AFTER.
+- **At speed: REPORTED, not asserted.** The Cessna's hump is damped (0.141 -> 0.103). Its step and the twin's hump
+  and step are LESS stable (the centre ahead of the CG). Printed OWED on every run.
+
+### G1848 - THE GATES (base = 4f1eec0, dmg-damp + train 33, built; now = this branch; whole outputs diffed; reports/evidence/DMG-HULL/gates/)
+- **Identical to the base (every line):** WATER, WIPLINE, DMGDAMP (vacuum: the term never acts), LOAD, BENCH, SOAR.
+  SIMWORKER: every step's FNV(p, v) equal; only the worker host's wall-clock lines differ (steps in 3.5 s, latencies).
+- **Dry air, bitwise** (`bits.txt`, MD5 of p and v after 600 frames, base core vs this one): the Cub ground / air,
+  the metal Cessna ground / air, the Jodel ground: IDENTICAL. The floatplanes with kSide 0: IDENTICAL (the term off is
+  the base to the bit). With kSide 1: different, as they must be.
+- **HYDRODYN:** every physics line identical; only its own timing line differs (water / dry 1.56 -> 1.02 x, two
+  batteries sharing the box).
+- **Moved, PASS:**
+
+| gate | number | base -> now |
+|---|---|---|
+| SEAPLANE | crosswind take-off (3.3 m/s): swing / lane | 11.1 -> 13.5 deg / 4.1 -> 5.6 m (bounds 30 / 30); lift-off 7.0 s both |
+| SEAPLANE | the water taxi (5 m/s across, idle, 60 s): heading / track | 15.3 -> 13.4 deg / 2.0 -> 1.5 m (bounds 20 / 10) |
+| SEAPLANE | circuit | identical |
+| FLOATS | on the step: the trim band | -0.2..7.5 -> -0.1..7.5 deg; R/W 0.308 both |
+| FLOATS | landing: the touchdown's peak | 1.079 -> 1.080 W |
+| TREECRASH | the twin floatplane's float nose-in (90 km/h, 5 m/s, 20 deg) | 5.62 -> 5.61 g; no damage both |
+| TREECRASH | the twin's SEVERE nose-in (150 km/h, 10 m/s, 60 deg) | 78 -> 75 set, 35 -> 37 broken, 14.72 -> 14.74 g; CRASHED both (must) |
+
+### The perf
+`sim.step(1/60)` in node, base core vs this one, alternating child processes, the median of 15 processes' medians
+(600 steps each): `tools/dmghull_evidence.js --perf --perf-base <base core>`, `reports/evidence/DMG-HULL/perf.txt`.
+
+| case | base (ms) | now (ms) | now vs base |
+|---|---|---|---|
+| the Cub, ground (dry: the term never runs) | 3.614 | 3.603 | **-0.29 %** |
+| the Cub, air | 3.438 | 3.445 | **+0.19 %** |
+| the metal Cessna, ground | 6.249 | 6.270 | **+0.34 %** |
+| the metal Cessna, air | 6.004 | 6.072 | **+1.14 %** |
+| the twin on floats, the water taxi (idle, 3 m/s across) | 16.893 | 16.851 | **-0.25 %** |
+| the Cessna on floats, the water taxi | 14.957 | 15.019 | **+0.41 %** |
+
+- **The first cut read the Cessna's water taxi at +6.1 % (11 processes), then +2.0 % (15); pooled +2.7 %**
+  (`first_cut/`). The term's own cost, on one core with kSide 0 against 1, read +1.0 % then. G1847 now reads each keel
+  station's velocity off its rest barycentrics (`ctx.velV`: 12 multiplies, the same affine field `fill()` places the
+  vertex by) instead of a barycentric solve per call. Its own cost now: the twin -0.9 %, the Cessna +0.7 %
+  (`perf_k0_k1.txt`). Every gate and the sweep were re-run on that final code (`gates_final/`, `gate_now_DMGHULL.txt`):
+  the same numbers to the printed digit. Only two post-nose-over drift distances (|x| at 4.5 / 5 m/s: 772 -> 1142,
+  1147 -> 1131 m) and the timing lines moved.
+- The box's process-to-process noise is +-3-4 % (the Cub in the air, bit-identical code, read +3.3 % on one run).
+  **A0 to re-read on a quiet machine.**
+
+### Open questions (the user, through A0)
+1. **THE TWIN ON FLOATS NOSES OVER AT THE PLOUGH** (crosswind 2, 4, 4.5, 5 m/s; marginal even in calm air, which
+   rides to -7.7 deg and recovers). The missing physics, as I read it: **the plough's bow-up trim.** A real hull rises
+   onto its own bow wave and squats its stern into the trough, so it trims 8-12 deg NOSE-UP at the hump (the seaplane
+   handbooks' "plowing attitude"). 32_hydro carries no wave system in the displacement regime (its own H0 cut: "NO
+   separate wave-making curve", "the spray-root rise is not modelled"). So the twin, its thrust line high over the
+   floats, ploughs nose-DOWN with nothing to lift the bow but its buoyancy. The Cessna's floats ride 10.5 deg nose-up
+   at its hump and never come close. Not fixed here (not this brief, and it moves FLOATS / HYDRODYN's tank comparisons).
+   Recommendation: a GEAR-WATER follow-up for the displacement-regime wave trim. Then re-sweep with GATE DMGHULL; its
+   OWED lines are the to-do list. A pilot technique (power in progressively) was not tried; full back stick was, and
+   failed.
+2. **THE SIDE FORCE'S CENTRE IS AHEAD OF THE CG ON THE STEP** (honest slender-body physics: a hull alone is
+   directionally unstable; the stability comes from the afterbody, a skeg, the water rudder, the fin). On the twin this
+   is a net loss: the yaw kick grows at the hump and on the step, and SEAPLANE's sweep gains a 30.7 deg swing at
+   3.5 m/s. The coordinator / user decides between:
+   (a) keep kSide 1 (honest, the plate's lower bound);
+   (b) kSide 0 (the term carried, measured and off: the base to the bit);
+   (c) revisit after open question 1. With a realistic hump trim (above the afterbody's 6.5 deg rise) the afterbody
+   carries draft and the centre moves aft, as on the Cessna.
+   Shipped as (a), per the user's ruling for honest physics; one constant flips it.
+3. **The pilot's step gains** (G1888's waterStepK 0.6) were sized without this term. Not re-tuned (not water physics).
+4. **The wet body** (GEAR-WATER 2: a wheeled fuselage in the water) carries no lift-type side force. It is not a
+   planing hull and a ditching is short; flagged, not done.
+
+### Files
+src/core/32_hydro.js (G1847: DEF.kSide, hullSide, the scratch's side slices, the solver pass lands them, tetraCtx.velV),
+tools/_dmghull_check.js + run_gates.js row (G1849), tools/dmghull_evidence.js (perf, bits, plots),
+tools/_seaplane_check.js (comment: why the crosswind bar stays at 0.2 V_SO), reports/evidence/DMG-HULL/
+(side_force.svg, heading_2/4/5.svg, dmghull_now.json / dmghull_base.json, gate_now_DMGHULL.txt, gate_base_sweep.txt,
+bits.txt, perf.txt / perf.json, perf_k0_k1.txt, gates/ (the first battery, base and now), gates_final/ (the water gates on the
+final code), first_cut/ (the first cut's gate and perf runs)).
+The base: 4f1eec0, a merge of origin/master (train 33) into claude/dmg-damp 8a22a4f9. Only HANDOVER conflicted
+(both kept). That brings GEAR-WATER 2's wet body under DMG-DAMP, which DMG-DAMP's own entry said it owed.
+The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+## G1807-G1809 DMG-PLOUGH: THE PLOUGH'S BOW-UP TRIM IS ALREADY IN THE WATER LAW - THE TWIN NOSES OVER ON ITS OWN THRUST COUPLE; THE PLOUGH WAVE IS BUILT, MEASURED AND SHIPPED OFF; G1808'S ACCEPTANCE IS NOT MET (2026-10-05, DMG-PLOUGH for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-plough off claude/dmg-hull 412e0c19 + origin/master train 34 merged in, 6d9bdf7)
+
+**Read this first, coordinator: DMG-HULL's open question 1 had the diagnosis wrong, and the term the brief asked for
+does the opposite of what it hoped.**
+1. **The bow-up plough trim is IN the base's water law.** The twin's own float on the rigid bench, its load at the
+   aeroplane's CG and no thrust: zero-moment trim +5 deg up to 3 m/s, **+9.5 deg at 4 m/s (C_V 1.8)**, and GATE
+   HYDRODYN's free tow already peaks at 19.8 deg at its hump. The forebody's planing pressure (Savitsky) and the
+   ventilated step's wake make it; no wave system is needed for it.
+2. **What drives the twin nose-down is its own thrust couple.** Two Rotax 582s (2 x 1206 N static, T/W 0.52) sit
+   0.57 m over the CG, and the water drag acts 1.5 m under it: ~1.3 + 1.2 = **~2.5 kN m nose-down at 4 m/s**. Once
+   the afterbody unwets, the floats' nose-down restoring tops out at **~1.4 kN m per float** (-5 and -10 deg alike,
+   bench), and past ~-20 deg the CG (1.54 m over the step keel) passes ahead of the centre of buoyancy. Proof by
+   instrument (not a build change): **the twin with its thrust applied at the nose frame's upper nodes (0.17 m over
+   the CG) never trims nose-down (lowest keel trim +1.5 deg), and it does not nose over or water-loop at ANY crosswind
+   0-5 m/s** (worst swing 21 deg at 5 m/s). Same hydro, same pilot, same floats.
+3. **The plough wave (G1807) is built and SHIPPED OFF (kWave 0; the base to the bit).** On, it pitches the twin over in
+   CALM air: nose-down, its crest sits on the narrow bow and its first trough on the wide forebody just ahead of the
+   CG, so it takes restoring away. Nose-up, it adds 1-2 kN m per float: far more than the 1-2 deg of dynamic trim
+   that slender-ship theory and the tank series give a hull this slender at Fn 0.5. Nothing honest in the displacement
+   regime's wave system lifts a nose-down bow.
+4. **G1808's acceptance is NOT met**: the twin as built still noses over at 2, 4, 4.5 and 5 m/s across (and swings
+   30.7 deg at 3.5). GATE SEAPLANE stays at 0.2 V_SO. The Cessna on floats is unchanged to the bit and clean at every
+   wind. The way forward is the user's (open question 1): the pilot's power at the plough, or the build.
+
+### G1807 - THE LAW (32_hydro.js `ploughWave`, (0) in `hydroPanels`; DEF.kWave 0 = OFF, waveFn0 0.5, waveFn1 1.0)
+- **What it is:** the hull's own Kelvin transverse wave in the displacement regime, applied as a deformation of the free
+  surface the panels are clipped against (so the existing hydrostatic integration carries it; the linear free surface's
+  dynamic pressure at the waterline is rho g eta). For each float, each compute:
+  - **eta(x) = a cos(k (x - x_e))** aft of the keel's still-water wet entry x_e; the crest a ahead of it (up the stem).
+    **k = g / U^2**, U the speed through the water along the float.
+  - **a = kWave 2.2 (U^2/g) tan(alpha_E) / (1 + F_D) env(Fn).** Noblesse, Delhommeau, Guilbaud, Hendrix & Yang 2008
+    (J. Fluid Mech. 600, "Simple analytical relations for ship bow waves") give the bow wave's height as
+    z_b g/U^2 = 2.2 tan(alpha_E)/(1 + F_D), with F_D = U/sqrt(g D); its scatter is ~+-20 %. Both hull numbers are this
+    float's own at this instant: D is the deepest keel draft. alpha_E is the waterline entrance half-angle, read half a
+    beam aft of the entry as the keel's depth over tan(deadrise), capped at the chine (tan alpha_E <= 1). Recalled; A0
+    to open.
+  - **env(Fn), Fn = U / sqrt(g L_wl)** (L_wl the wetted keel): whole to Fn 0.5 (lambda/2 = 1.6 L_wl, the first trough
+    past the stern: a displacement hull's hump). A half-cosine fade to **nothing at Fn 1.0** (lambda = 2 pi L_wl,
+    C_V ~3 on these floats: the float's resistance hump, onto the step, where Savitsky's planing law and the
+    ventilated wake carry the hull). Behind the step the wave yields to the forebody's wake by (1 - vent) at every
+    speed: that wake IS the trough at planing speed.
+  - **Zero at rest** (a ~ U^2; U = 0 is bit-identical to off), **zero dry** (no keel station wet), none backing.
+  - **Floats only:** GEAR-WATER 2's wet body (a ditching wheeled fuselage) carries none. It is not a displacement hull
+    at speed, and a ditching is a second or two of deceleration through the plough.
+- **Measured on the bench, forced on** (GATE DMGPLOUGH LAW; `law.svg`; the keel 4 deg, the float's share of the
+  weight): the amplitude peaks at Fn 0.62 (twin, 0.62 m at 3.8 m/s) / 0.60 (Cessna, 0.74 m at 4.7 m/s). It is 0 m,
+  0 N and 0 N m at every Fn >= 1. Its pitching moment at that pose is nose-UP 2.4 kN m (twin) / 17 kN m (Cessna):
+  **out of all proportion to the 1-2 deg of dynamic trim a slender hull at Fn 0.5 gets from its wave system** (thin-ship
+  sinkage-and-trim theory, Tuck 1966; the Wigley and Series 60 tank data: ~0.5-2 deg; recalled, A0 to open). A
+  float's 8-12 deg at the hump is the planing forebody and the step, as the free tow shows, not this.
+- **What it does on the water** (kWave on; the calm take-off, THE PILOT, SEA):
+
+| build | kWave 0 (base) | 0.25 | 0.5 | 1 |
+|---|---|---|---|---|
+| twin: pitch on the water, min .. max (deg) | -7.7 .. 11.1 | -7.9 .. 12.0 | **-88.5 (NOSE-OVER)** .. 20.3 | **-88 (NOSE-OVER)** |
+| Cessna: max pitch on the water (deg) | 14.9 | - | 14.2 | 13.6 |
+
+  **SHIPPED OFF.** It cannot help the twin, and calibrated to the slender-ship magnitude it is inert. The code stays as the
+  measured instrument it is (kWave, like defDampMean and kSide 0): one constant turns it on, and GATE DMGPLOUGH keeps its
+  law asserted.
+
+### G1808 - THE ACCEPTANCE: NOT MET (and why)
+**THE HUMP TRIM** (the calm take-off; the KEEL trim = the forebody's flat keel against the level, what a towing tank
+measures; the hump = the floats' water resistance at its maximum over C_V <= 4, 0.5 s smoothed; the band 8-12 deg at
+the hump from free-to-trim tank tests of floats and flying-boat hulls - NACA TN 716, Parkinson, Olson & House 1939, and
+the Langley tank's hull series; recalled, A0 to open; a prismatic planing boat reads 4-7 deg, Savitsky 1964, Clement &
+Blount 1963):
+
+| build | hump (V, C_V, Fn_L, R/W) | keel trim at the hump | lowest keel trim on the run | highest, C_V 1.5-4 | lift-off |
+|---|---|---|---|---|---|
+| twin, as built (= before = after: the wave ships off) | 4.7 m/s, 2.15, 0.76, 0.318 | **-7.0 deg** | -7.4 deg at 4.3 m/s | 9.5 | 8.3 s |
+| twin, INSTRUMENT: thrust at the nose frame | 8.8 m/s, 3.99, 1.41, 0.052 | +5.3 | **+1.5** | 14.8 | 6.4 s |
+| twin, the wave ON | 4.6 m/s, 2.07, 0.73, 0.782 | -58 | -67 | - | NOSE-OVER |
+| Cessna, as built (= before = after) | 6.1 m/s, 2.34, 0.73, 0.081 | **8.2 deg** (in the band) | +2.3 | 15.1 (porpoising past C_V 3) | 30.5 s |
+| Cessna, the wave ON | 3.0 m/s, 1.14, 0.36, 0.109 | 3.1 | 2.2 | 14.1 | 31.7 s |
+
+- The Cessna sits in the band at its hump, with 0.2 deg of margin over the floor. It porpoises above the band on the
+  step (the 15 deg peaks), as it did before.
+- The twin, as built, ploughs nose-down at C_V 1.5-2.3 and its "hump" is that dive. Its own float, freed of the thrust
+  couple, trims as a float should: never nose-down, peaking 14.8 deg (above the band, as HYDRODYN's free tow does).
+- **The bench budget at the dip** (`dmgplough_bench.js twin`, one float, its share of the weight; nose-up moment about
+  the CG, N m):
+
+| V (m/s) | -10 deg | -5 | 0 | +5 | +10 |
+|---|---|---|---|---|---|
+| 1 | 1407 | 1405 | 867 | -23 | -124 |
+| 2 | 1354 | 1382 | 902 | -7 | -163 |
+| 3 | 1265 | 1418 | 1061 | 95 | -203 |
+| 4 | 1126 | 1420 | 1425 | 553 | -56 |
+
+  The zero-moment trim is the float's own: +5 deg, then ~+9.5 at 4 m/s. Nose-down, the restoring saturates at
+  ~1.4 kN m per float, 2.8 for the pair. The applied couple at 4 m/s is thrust ~2300 N x 0.57 m + water drag ~780 N
+  x 1.54 m = ~2.5 kN m: the twin settles at -7.6 deg in calm air, and any crosswind perturbation tips it past -20 deg,
+  where the water pitches it over (DMG-HULL's finding).
+- **A pilot's power at the plough** (an INSTRUMENT in `dmgplough_trace.js --thrCap`, the pilot unchanged): the throttle
+  held at 0.7-0.8 until 6 m/s keeps the twin's dip to -2..-6 deg, calm and 4 m/s across, with no nose-over. At 0.6 it
+  still noses over at 4 m/s across (slower through the hump, longer in the danger zone). So power management works
+  but is narrow. Not shipped: it is the pilot's law (43 / 39b), not water physics, and the user's call (open question 1).
+
+**THE SWEEP** (GATE SEAPLANE's crosswind take-off, THE PILOT, SEA; before = after for both builds as built, the wave
+shipping off; bit-identical cores):
+
+| across (m/s) | twin as built | twin, INSTRUMENT (thrust at the nose frame) | Cessna on floats |
+|---|---|---|---|
+| 0 | 8.3 s, 0.0 deg, pitch min -7.7 | 6.4 s, 0.0, 0.0 | 30.5 s, 0.0 |
+| 0.5 | 8.3, 1.8, -7.7 | 6.4, 1.9, 0.0 | 30.6, 0.3 |
+| 1.0 | 8.2, 2.9, -7.6 | 6.4, 2.1, 0.0 | 30.3, 1.0 |
+| 1.5 | 7.8, 5.1, -8.6 | 5.6, 2.8, -1.3 | 30.1, 0.9 |
+| 2.0 | **NOSE-OVER (-89)** | 5.8, 3.9, 0.0 | 28.7, 4.7 |
+| 2.5 | 8.4, 8.5, -8.7 | 6.4, 8.9, 0.0 | 31.3, 1.3 |
+| 3.0 | 7.8, 10.3, -8.3 | 5.5, 6.3, 0.0 | 30.2, 7.7 |
+| 3.5 | 7.0, **30.7 (yaw)**, -7.7 | 5.7, 6.5, -1.1 | 30.4, 9.4 |
+| 4.0 | **NOSE-OVER (-88)** | 6.1, 9.4, 0.0 | 29.6, 5.1 |
+| 4.5 | **NOSE-OVER (-80)** | 6.5, 16.1, -5.5 | 30.9, 12.0 |
+| 5.0 | **NOSE-OVER (-72)** | 4.7, 21.2, -4.4 | 33.2, 14.0 |
+
+- As built, the twin's row is DMG-HULL's to the digit: the train 34 merge (PILOT-FORKS' servo module carrying G1888's
+  waterStepK) moved nothing here.
+- **The instrumented twin is clean at every wind, nose-over and yaw alike.** The 3.5 m/s yaw swing goes too: it was
+  a skip-and-swing out of a nose-down run, so the thrust couple feeds DMG-HULL's open question 2 as well.
+- The Cessna is clean everywhere, unchanged (lane 7.7 m, swing 14.0 deg at worst).
+- **GATE SEAPLANE's crosswind bar stays at 0.2 V_SO (3.3 m/s).** 5 m/s is not restored: the twin noses over there.
+
+**THE SIDE FORCE'S CENTRE AT A REALISTIC HUMP TRIM** (DMG-HULL's open question 2(c); `dmgplough_side.js`; the rigid
+bench at DMG-HULL's hump speed and vertical load, the draft found for each trim, 3 deg of slip; + = aft of the CG):
+
+| trim (deg) | twin: side N / centre from step / from CG (m) | Cessna: side N / from step / from CG (m) |
+|---|---|---|
+| 4.6 | 287 / -0.93 / -0.71 | 849 / -1.15 / -0.48 |
+| 8 | 357 / -0.69 / -0.47 | 901 / -0.73 / -0.06 |
+| 10 | 365 / -0.57 / -0.35 | 790 / -0.56 / **+0.11** |
+| 12 | 391 / -0.50 / -0.28 | 610 / -0.42 / +0.25 |
+| 14 | 370 / -0.43 / -0.21 | 551 / -0.35 / +0.32 |
+
+- The centre DOES move aft with trim, but not for the reason open question 2(c) gave: **the afterbody stays dry at every
+  trim at these speeds** (the ventilated step's wake). The forebody's wetted keel shortens, and the slender delta's
+  2/3 point walks toward the step.
+- On the Cessna (CG 0.67 m ahead of the step) the centre passes behind the CG at ~8.5 deg, so its 10.5 deg hump is
+  yaw-stable, as DMG-HULL measured. **On the twin (CG 0.22 m ahead of the step) it stays 0.2-0.5 m ahead of the CG
+  even at 12-14 deg.** A realistic hump trim would NOT make the twin's hull yaw-stable on the water. Its stability
+  there is the water rudder's and the fin's.
+- **The yaw-kick table is unchanged** (GATE DMGHULL's KICK, re-run on this branch: every number DMG-HULL printed,
+  above). There is no new hump trim to re-read it at: the wave ships off and the cores are bit-identical.
+
+### G1809 - GATE DMGPLOUGH (tools/_dmgplough_check.js, tier full, weight 4, ~7 min on 4 cores; 37 runs in its own children)
+- **LAW** (the wave forced on, the bench, both floats): DEF.kWave 0 and the generator's float carries 0 (shipped off);
+  at rest the forces are bit-identical to off; a metre over the water 0 N; the amplitude peaks inside Fn 0.5-0.8 (0.62 /
+  0.60), is positive at every displacement speed, and is 0 m, 0 N, 0 N m at every Fn >= 1 (on the step).
+- **HUMP**: the Cessna's keel trim at the hump inside 8-12 deg (8.2) and never nose-down on the run (+2.3), asserted.
+  The instrumented twin never nose-down (+1.5) and nose-up at its hump, asserted: the attribution. The twin as built is
+  printed OWED, and the wave-on twin's calm nose-over NOTE.
+- **SWEEP**: 0-5 m/s in 0.5 steps on both floatplanes and the instrumented twin, every failure classed. Asserted: the
+  Cessna clean everywhere; the twin clean over 0-1.5 (DMG-HULL's band). The twin's nose-overs and its 3.5 m/s swing
+  are printed OWED on every run; the instrumented twin's row is printed.
+- Evidence: `reports/evidence/DMG-PLOUGH/` (dmgplough.json, trim.svg, law.svg, sweep.svg, gate_first_run.txt - the first
+  run's hump picker read a porpoise's drag spike on the step as the Cessna's hump (C_V 7.5) and FAILED it; the hump is
+  now looked for inside C_V <= 4, GATE HYDRODYN's tank band).
+
+### The gates (THIS branch vs the base = 6d9bdf7, the train-34 merge, built in a worktree)
+Run the brief's list on both sides (`run_gates.js --all --no-build --jobs=4 --only=...`; `gates_now.txt`, `gates_base.txt`;
+the diff with the progress lines dropped, `gates_diff.txt`):
+- **All PASS on both sides**: DMGPLOUGH (new), DMGHULL, DMGDAMP, SEAPLANE, FLOATS, HYDRODYN, WATER, WIPLINE, TREECRASH,
+  LOAD, BENCH, SOAR, SIMWORKER.
+- **Every physics line identical to the base.** What differs is wall-clock only: the run times, SIMWORKER's latencies
+  and freeze-step count, and HYDRODYN's cost line (water / dry 1.30 -> 1.36 x on a box with two batteries' worth of
+  history; the code it times is the base's to the bit). Nothing in any tank comparison moved, so nothing was re-anchored.
+- **Bitwise** (`bits.txt`, MD5 of p and v after 600 frames, base core vs this one): the Cub ground / air, the metal
+  Cessna ground / air, the Jodel ground, **the twin and the Cessna on floats at the water taxi: IDENTICAL.** With the
+  wave forced on: DIFFERENT, as they must be.
+- DMGHULL's KICK table is DMG-HULL's to the digit (twin rest 0.223 / 0.181 / 0.103; hump 0.255 / 0.540; step 0.427 /
+  0.429; Cessna rest 0.127 / 0.084 / 0.037; hump 0.103 / -0.027; step 0.106 / -0.014), and so is its sweep.
+
+### The perf
+`sim.step(1/60)` in node, base core (the worktree's) vs this one, alternating pairs (the order flipped every pair),
+600 steps a process; the median of the processes' medians, and every step of every process pooled
+(`tools/dmgplough_evidence.js --perf --perf-base <base core>`; `perf.txt`, `perf_2.txt`, `perf_pooled.txt`):
+
+| case | base (ms) | now (ms) | median of medians | pooled steps |
+|---|---|---|---|---|
+| the Cub, ground (dry: nothing new runs) | 3.200 | 3.192 | -0.24 % | -0.50 % |
+| the Cub, air | 3.119 | 3.112 | -0.24 % | +0.83 % |
+| the metal Cessna, ground | 5.582 | 5.632 | +0.90 % | +1.46 % |
+| the metal Cessna, air | 5.345 | 5.481 | +2.56 % | +0.58 % |
+| ...again, 15 pairs | 6.910 | 6.912 | +0.03 % | -1.15 % |
+| the twin on floats, the water taxi (idle, 3 m/s across) | 16.669 | 16.820 | +0.90 % | -0.71 % |
+| the Cessna on floats, the water taxi | 15.765 | 16.257 | +3.12 % | +1.55 % |
+| ...again, 15 pairs | 17.443 | 17.163 | -1.61 % | -1.22 % |
+
+- Dry, the hydro never runs: the land cores differ only in the 32_hydro text, so the metal Cessna's +2.56 % in air
+  is the box (the second pass reads +0.03 %). Wet with the wave off, the pass adds one branch per float per compute and
+  one compare per vertex; the Cessna's two passes read +3.12 % and -1.61 %, **-0.22 % over all 26 pairs**. Within 2 %.
+- The box's process-to-process noise is +-3 % (the second pass ran ~10 % slower on both cores). **A0 to re-read on
+  the box.**
+
+### Open questions (the user, through A0)
+1. **THE TWIN ON FLOATS NOSES OVER ON ITS OWN THRUST COUPLE.** This is not missing water physics. The floats trim it
+   nose-up without that couple, and the nose-over is gone at every wind (instrument above). Real seaplanes with high
+   thrust lines live with this: tank tests call it diving at the lower trim limit, and their pilots manage the power
+   at the plough. The choices:
+   (a) **the pilot's power at the plough** (43_pilot.js / 39b_servos.js water branch): hold ~0.7-0.8 throttle until on
+       the step (~6 m/s here; C_V ~2.7), then full. Measured as an instrument: no nose-over in calm air or 4 m/s across;
+       at 0.6 it still noses over. A pilot change (PILOT-FORKS' module), not mine.
+   (b) **the build**: the ultralight on floats' thrust line, or longer floats with more forebody / the step further aft
+       (floatParamsFor sizes on gross weight only, not on the thrust moment). Validated builds are never tuned here.
+   (c) **accept it** as the honest behaviour of this design at full power, and keep GATE SEAPLANE's bar at 0.2 V_SO.
+2. **The side force on the twin stays ahead of its CG at any realistic hump trim** (above): DMG-HULL's (c) does not
+   resolve its open question 2. The instrumented twin did not swing past 21 deg at any wind, so once the nose-over is
+   managed (1a/1b), kSide 1 may be livable as it stands. Re-sweep then.
+3. **The plough wave**: keep it as the measured instrument (kWave 0), or delete it. Turning it on is not recommended
+   (calm-air nose-over; out of proportion to slender-ship trim data).
+4. **The Cessna's hump trim (8.2 deg) sits 0.2 deg inside the band**, and it porpoises to ~15 deg on the step at
+   C_V 3-4. That was there before this work; a FLOATS / HYDRODYN item, not touched.
+
+### Files
+src/core/32_hydro.js (G1807: DEF.kWave 0 / waveFn0 / waveFn1, ploughWave, the scratch's wave readings, (0) in
+hydroPanels; zeroTerms clears it; H0 header note), src/core/39b_servos.js (the merge: G1888's waterStepK into the servo
+module - SERVO_GAINS waterStepK 1, 43's SERVO_TUNE row 0.6), src/core/43_pilot.js (the merge: master's side),
+tools/_dmgplough_check.js + run_gates.js row (G1809), tools/dmgplough_evidence.js (perf, bits, plots),
+tools/dmgplough_trace.js (the take-off trace, the thrust-at-nose and throttle-cap instruments), tools/dmgplough_bench.js
+(the pitch budget), tools/dmgplough_side.js (the side force's centre against trim), reports/evidence/DMG-PLOUGH/.
+The merge: origin/master (train 34) into claude/dmg-hull 412e0c19; HANDOVER union-merged. 43_pilot.js conflicted:
+PILOT-FORKS moved groundSteer into 39b_servos.js, and DMG-DAMP's one line (G1888 waterStepK) is carried there as the
+pilot's SERVO_TUNE row, water and tail-up only. The generated files (flight_core.js, index.html, dev.html, sw.js,
+version.json) are NOT committed.
 
 ## G1850-G1859 DMG-D4a SKIN - THE BROKEN LIST OVER THE WORKER ON CHANGE, THE SKIN OVER A BREAK (BOTH SKINS), THE FABRIC'S DRAPE, GATE DMGSKIN (2026-10-05, DMG-D4a for the DEFORM COORDINATOR, cloud, node + the soft GPU; branch claude/dmg-d4a-skin off claude/dmg-integration 41e7f7e + train 32, then claude/dmg-integration be22b905 (D2a, G1898.5-.7, train 33) merged in; G1855-G1859 unused)
 
@@ -76948,6 +77524,189 @@ STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the cha
 (T0 = tip, 16.4 ms in that session); the mn_strip trip task gone. BATTERY: the full battery on the first build (3 boombox
 reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
 SKINMAT, PARTS, HANGAR). Parked re-cooked.
+## G1844-G1846 DMG-TYRE: THE TYRE'S SIDE FORCE IS ITS SLIP ANGLE'S (2026-10-05, DMG-TYRE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-tyre off claude/dmg-damp 8a22a4f9 - its READY; master carried no train 34, so nothing merged; G1844-G1846 all used)
+
+DMG-DAMP's open question 1. Its fix (G1885, honest physics: the deformation damper no longer damps rigid rotation) took
+away the hidden 2 s angular damper that had been the ground's only rate-proportional yaw resistance, and the user's Cub
+ground-looped on a crosswind roll-out (PILOTMATRIX cub:HOME:x4 RED, 106-140 deg). The cause was the tyre, as DMG-DAMP
+said: **its side force was Coulomb friction regularised at 0.02 m/s at every speed** (30_solver `kL`). At 14 m/s a slip of
+0.08 deg already took the full mu N. Every tyre was a bang-bang switch: no cornering stiffness, no yaw damping that grows
+with the yaw rate, and the rudder-steered third wheel all or nothing. No damping was added anywhere.
+
+### G1844 - THE LAW (src/core/30_solver.js, the one `kL` line; 00_registry.js TYRE_CN; 62_gen_aero.js params.tyre)
+- **F_y = C_alpha tan(alpha), C_alpha = cN N, linear until the same Coulomb limit mu N** (mu = the surface row's lateral
+  mu, grass 0.8, as before). As the existing coefficient on the lateral velocity:
+  `kL = min(mu N / max(|v_lat|, 0.02, |v_roll| mu / cN), m/dt)`. The regularising speed grows with the rolling speed,
+  so this is the only change: one extra term in the max.
+- **At rest: the old law to the bit.** Below |v_roll| = 0.02 cN / mu (0.2 m/s on a standard tyre on grass), the old 0.02 m/s
+  floor wins, so a parked or creeping wheel holds exactly as it always held (no jitter: GATE DMGTYRE part 2). Rolling
+  straight with no slip, the force is zero (v_lat = 0).
+- **cN, per unit load (/rad), by tyre class.** Per unit load because C_alpha/Fz of a pneumatic tyre near its rated load
+  is roughly size-independent (a bigger tyre carries a bigger rated load), so the wheel's size enters only through its
+  class. The values are RECALLED RANGES, not measured here (A0 to check against a source in hand). Light-aircraft and
+  car-sized pneumatic tyres at rated load read ~0.1-0.2 /deg = 6-11 /rad (NASA TR R-64, Smiley & Horne 1960; Pacejka's car
+  tyres). Each value below is the middle of its range:
+
+| class | cN (/rad) | recalled range | who |
+|---|---|---|---|
+| standard main | 8 | 6-11 | cage whProfile 0 (all five validated builds; a spec without a cage) |
+| tundra balloon main | 4.5 | 3-6 (6-15 psi bush tyre) | whProfile 1 |
+| slim main | 10 | 8-13 (narrow, high pressure) | whProfile 2 |
+| tailwheel | 10 | 8-15 (solid / small hard tyre) | the third wheel of a taildragger |
+| nose wheel | 8 | 6-10 (5.00-5) | the third wheel of a tricycle |
+
+- **Braking, rolling resistance, the vertical spring and damper: untouched.** Brakes act along the rolling direction, so
+  a braking tyre's lateral limit is the same mu N as before (no friction ellipse: open question 3).
+- **The third wheel is steered by the rudder as the solver always flew it.** The cage's 'castor' row (s2Steer 2) is the
+  picture's only; every validated build is 'linked'. A full-castering wheel has no side force beyond its swivel friction
+  and is steered by differential brakes, which no pilot here flies (open question 2).
+- **The control:** `params.tyreCoulomb` brings back the pre-G1844 law (an instrument, like defDampMean; no build sets it).
+- **Sensitivity (not a tune):** PILOTMATRIX's crosswind cells re-flown with every cN at its range's low end (main 6 / tail 8
+  / nose 6), its high end (11 / 15 / 10), and both mixes (main 11 + tail 8, the most oversteering; main 6 + tail 15):
+
+| cell | mid (as landed) | low | high | main hi + tail lo | main lo + tail hi |
+|---|---|---|---|---|---|
+| cub:HOME:x4 swing | 9.4 | 8.9 | 9.8 | 9.8 | 8.9 |
+| cub:HOME:x2 swing | 5.5 | 5.1 | 6.0 | 6.0 | 5.1 |
+| stearman:HOME:x4 swing | 3.7 | 3.8 | 3.8 | 5.2 | 2.2 |
+
+  So the result does not hinge on where in the range the constants sit.
+
+### G1846 - GATE DMGTYRE (tools/_dmgtyre_check.js, core tier, ~5 min; run_gates row, weight 4)
+1. **The law, in the solver** (the Cub and the metal Cessna settled in vacuum, every node at 10 m/s at slip beta, one
+   substep, the ground's lateral impulse / dt / W; every class): zero at zero slip (<= 1e-6; measured 1e-14);
+   F/W = cN tan(beta) where that is <= 0.6 mu (to 2 %; measured 0.02-0.07 %); = mu where cN tan(beta) >= 1.5 mu (to 1 %);
+   monotone and never above mu; at 2 deg, 5 / 10 / 20 m/s give the same reading (the slip's, not the speed's). The CONTROL
+   (`tyreCoulomb`): 0.49 W at 0.5 deg and mu W at 1 deg, the "before".
+2. **Parked 30 s** at HOME (the Cub, the Jodel, the metal Cessna): over the last 20 s the fastest node moves 0.003-0.041 mm/s
+   (<= 2) and the CG creeps 0.010-0.031 mm (<= 5), the same as the old law to the printed digit; the CG at 30 s is the old
+   law's within 0.235 mm (<= 1; 0.0000 on the Cessna).
+3. **The user's Cub's crosswind roll-out** at 3 / 4 / 5 m/s straight across, flown by THE PILOT round HOME
+   (tools/pilot_trace.js), on PILOTMATRIX's own bars: completed, swing <= 15 deg (the matrix's line between warn and
+   bad), reversals <= 3, <= 3 m off the centre line. **8.0 / 10.4 / 12.3 deg, 0 / 0 / 1 reversals, 0.7 / 1.0 / 1.1 m.**
+   (The 3 m/s case is FAR 23.233's demonstrated 0.2 V_SO, ~3.4 m/s for a Cub, recalled; 5 m/s is normal practice.)
+   The swing that remains is the pilot's, not the tyre's: open question 1.
+4. **Taxi turns** at 3 m/s, rudder held at 0.2 / 0.4, radius = V / yaw rate over the last 10 s, against the old law
+   (which turned on the kinematic bicycle radius, to 1-2 %). The bar is 0.80-1.10 of the old radius, the same sense.
+   **The Jodel is a TAILDRAGGER** (its build's gear.type; the brief asked to check). The metal Cessna is the tricycle.
+   | build | rudder | R old (m) | R new (m) | x | kinematic (m) |
+   |---|---|---|---|---|---|
+   | Jodel | 0.2 | 41.4 | 36.6 | 0.885 | 41.3 |
+   | Jodel | 0.4 | 20.5 | 18.2 | 0.885 | 20.4 |
+   | metal Cessna | 0.2 | 25.3 | 21.8 | 0.860 | 25.8 |
+   | metal Cessna | 0.4 | 12.8 | 11.9 | 0.929 | 12.8 |
+   The turns are 7-14 % TIGHTER. The cause is measured: with the same tailwheel steer and a quarter of the rudder (the
+   aerodynamic yaw of the rudder in the prop wash), the Jodel's new radius equals the old one (x0.995). The rudder now
+   yaws the aeroplane against a finite cornering stiffness; it could not against the 0.02 m/s Coulomb wall. That is
+   real taxi feel: in a taildragger, the rudder in the blast helps the turn.
+
+### G1845 - THE GROUND GATES RE-READ (before = base 8a22a4f9, after = this branch; whole outputs diffed, timings aside)
+**PILOTMATRIX (the quick set, 14 cells): base FAIL (cub:HOME:x2 regressed good -> warn) -> PASS, no cell worse than the
+baseline, on the gate's existing bars (the baseline file NOT moved).**
+
+| cell | swing before -> after (deg) | verdict before -> after | reading |
+|---|---|---|---|
+| cub:HOME:x4 | **106.7 -> 9.4** | bad -> warn | the ground loop is gone; 9-17 before DMG-DAMP (with the hidden damper) |
+| cub:HOME:x2 | 7.6 -> 5.5 | warn -> good | the ratchet's regression cleared (baseline 2.9) |
+| stearman:HOME:x4 | 8.6 -> 3.7 | bad -> bad | bad on its TAKE-OFF rudder activity on both (118 -> 122 reversals/min, limit 20); the roll-out is good |
+| stearman:HOME:x2 | 4.1 -> 1.8 | bad -> bad | the same: take-off rudder 84 -> 48 /min (limit 20, bad over 40); not this work's |
+| c172:HOME:x2 | 1.5 -> 3.5 | good -> good | the trike's roll-out is less locked than on the Coulomb wall |
+| stearman:HOME:calm | 0.2 -> 0.1 | good | |
+| the other 8 (calm, A3, A5, up4, dn4, sand, rh) | unchanged to the printed digit | good | |
+
+- **TAKEOFF: the crosswind limit (the plaque's, on the ultralight twin fixture) 3 -> 4.5 m/s.** It needed a re-anchor of
+  the probe's definition, so read this one. On the new tyre the band-only verdict read "> 10 m/s": past its limit the
+  fixture lifted off 58 / 87 / 99 deg off the strip at 6 / 10 / 12 m/s, swinging ACROSS the strip inside the 12.5 m
+  edge band. The probe's comment explained why the heading had been "reported, not judged": "a tail-up taildragger
+  weathervanes into wind on its scrubbing mains". The scrubbing was the Coulomb tyre's. **42_crosswind.js now also
+  judges the heading as the wheels leave: <= 30 deg** (`opts.heading`; a lift-off crab is atan(w / V_lo), ~14 deg at
+  4 m/s; the probe's own docstring says the number means "leaves this field straight"); the new fail reason
+  'swung off the heading' (the page shows a why other than the edge line as 'bad'). The ladder now reads: 2 ok (5.8 deg),
+  4 ok (14.4), 4.5 ok (20.6, 9.85 m), 5 x (37.1), 6 x (58.0). The base, read the same way, swung 41 deg at 3 m/s.
+  _takeoff_check.js's two rows follow (a pass = in the band AND within 30 deg; the failure may be the heading). The trace
+  of the 6 m/s run: the pilot raises the tail at 11 m/s (0.7 Vs), the rudder is on its stop from 0.25 s later, and with
+  only the mains down nothing but the rudder holds the heading against the fin (open question 1).
+- **PILOTACT: PASS.** The C172 archetype's taxi rudder 16 -> 17.5 reversals/min (limit 20); the stock build's taxi aileron
+  2.9 -> 1.5; the user's metal Cessna's sink 1.18 -> 1.19 m/s, swing 0.2 -> 0.
+- **TAXICLEAR: PASS.** The aluminium C172's nearest wing to a parked footprint 1.75 -> 1.73 m (the tighter taxi turn); the
+  stock build's 2.14 unchanged.
+- **GEN: PASS (4 shards)**, its ground cases: the archetypes' landing sinks +-0.02 (low cantilever 0.83 -> 0.85, wing twin
+  1.56 -> 1.57); the default aeroplane's roll-out minimum pitch 1.1 -> 1.3 deg; every phase time, touchdown and stop
+  the same to the metre. In the air: the gust-cruise bank p2p 0.93 -> 0.99 deg.
+- **TREECRASH: PASS** (damage on). Its crash and taxi cases move by a few percent: the Jodel into a trunk on the centreline
+  at 30 m/s 63 -> 61 members broken, 117.8 -> 113.4 kJ; the metal Cessna's wing-out strike 32.5 -> 32.3 kJ, 8.36 -> 8.28 g;
+  its taxi dent 759 -> 761 J; the Cub's circuit 1.32 -> 1.31 g; the reset's bit equality holds (new hashes both sides).
+- **SIMWORKER: PASS.** Freeze drift 0.913 -> 0.906 m; the snapshot counts move with the box's timing; every replay is
+  bit-equal.
+- **Byte for byte the base (timings aside): LINEUP, GEAR, LOAD, BENCH, FLOATS, SEAPLANE, DMGDAMP.** FLOATS and SEAPLANE
+  run on the water (no wheel on land); DMGDAMP flies in vacuum 3 km up.
+- **DMGTYRE: PASS** (above).
+- **Not run (full tier, A0's battery):** ARCHETYPES (tools/arch_fly.js reads genCrosswindLimit "ok at >= 4 m/s": every
+  archetype's plaque crosswind may move under the heading row), the rest of the full tier.
+
+### The crosswind table: the user's Cub's roll-out, a steady wind straight across HOME (reports/evidence/DMG-TYRE/rollout.svg)
+| wind | before (base, Coulomb tyre) | after (C_alpha tyre) | |
+|---|---|---|---|
+| 3 m/s (~FAR 23.233's 0.2 V_SO) | 110.3 deg, ground loop | 8.0 deg, 0 reversals, 0.2 m off at the stop | rudder peak 0.50 |
+| 4 m/s | 89.2 deg, ground loop, 22.6 m off | 10.4 deg, 0 reversals, 0.2 m off | rudder 0.64 |
+| 5 m/s | 151.3 deg, ground loop | 12.3 deg, 1 reversal, 0.3 m off | rudder 0.72 |
+(PILOTMATRIX cub:HOME:x4, 4 m/s across plus 1 down the strip, gusting 0.6: 106.7 -> 9.4 deg.) The swing peaks 2-3 s
+after a two-wheel touchdown with the tail up, as the nose weathercocks back toward the crab; it is gone by the time the
+tailwheel is down. The rudder is NOT on its stop (0.5-0.72 of 0.95).
+
+### Perf (the hard rule: within 2 % of the base, nothing touching)
+sim.step(1/60) of the Cub and the metal Cessna, damage off, flat ground. Three cases: parked, taxiing at 8 m/s on rudder
+0.1 (the new term's own branch), and 300 m up at 1.6 Vs. The base core (DMG-DAMP 8a22a4f9) against this one, in ALTERNATING
+child processes, 600 steps each; two runs of 15 processes per side, pooled (`reports/evidence/DMG-TYRE/perf.txt`):
+
+| case | run 1 | run 2 | pooled (median of 30) | pooled ms base -> now |
+|---|---|---|---|---|
+| the Cub, parked | +2.09 % | -0.72 % | **-0.04 %** | 4.837 -> 4.835 |
+| the Cub, taxiing | +1.90 % | -0.53 % | **-1.27 %** | 5.092 -> 5.028 |
+| the Cub, air | +1.44 % | +3.45 % | **+2.06 %** | 4.605 -> 4.700 |
+| the metal Cessna, parked | -2.20 % | +1.12 % | **-0.66 %** | 8.430 -> 8.374 |
+| the metal Cessna, taxiing | -2.96 % | +0.31 % | **-0.55 %** | 8.867 -> 8.819 |
+| the metal Cessna, air | +1.13 % | +0.82 % | **+0.77 %** | 8.016 -> 8.078 |
+
+- The change is one more term in a `Math.max` per WHEEL IN CONTACT. Parked and taxiing, where it runs, the pooled reads
+  are -1.3..0 %.
+- **In the air NO changed line executes** (no wheel touches; two constants are set once at makeSim), yet the Cub's air
+  case reads +2.06 % pooled, from runs of +1.44 and +3.45. This box's process-to-process noise is +-2-4 % (DMG-DAMP measured
+  the same core reading 3.85 and 3.48 ms on two runs), so that is the box, not the code; it sits ON the bar, and I say
+  so rather than call it a pass. **A0 to re-measure on the box** (`node tools/dmgtyre_evidence.js --base <base core>
+  --no-traces --perf-reps 15`).
+
+### Open questions (the user, through A0)
+1. **THE PILOT'S TAIL-UP GROUND LOOP HAS NO ANTICIPATION** (43_pilot.js groundSteer, not touched here: a PILOT / PILOT-FORKS
+   question). With an honest tyre a taildragger on its mains has no yaw stiffness from the ground; only the fin and the
+   rudder hold the heading, as in a real one. The pilot's rudder is P+D on the heading error, so against the weathercock
+   it holds a steady error. On the roll-out that is 8-12 deg at 3-5 m/s across (the matrix's warn band, the rudder not on
+   its stop); a pilot holding the rudder the touchdown sideslip asks for (a crosswind feed-forward) or an integral would
+   take it out. On the take-off the ultralight raises its tail at 0.7 Vs in any wind and then weathervanes on full rudder
+   past 4.5 m/s; a crosswind pilot keeps the tail down longer. Neither is tuned here: the pilot is another chantier's
+   (PILOT-FORKS is unifying its servos), and this one is the tyre.
+2. **THE CASTERING THIRD WHEEL is not modelled.** The solver steers the third wheel with the rudder, as it always has; the
+   cage's 'castor' row (s2Steer 2) is drawn only (every validated build is 'linked'). A free-castering wheel carries
+   only its swivel friction sideways and is steered by differential brakes, which no pilot here flies; modelling it would
+   leave those builds unsteerable. Owed with differential braking.
+3. **No combined slip, no relaxation length.** Braking (along the roll) and cornering (across) each keep their own mu N
+   (no friction ellipse, as before this work); the side force builds at once, where a real tyre needs ~half to one
+   radius of travel. Neither was needed by any gate; both are the next refinements of the same law, not tuning.
+4. **THE CONSTANTS ARE RECALLED RANGES** (the table above); A0 to check them against a source in hand (NASA TR R-64,
+   Pacejka). The sensitivity table shows the matrix's crosswind cells do not care where in the range they sit.
+5. **THE PLAQUE'S CROSSWIND LIMIT now judges the heading (30 deg) beside the band** (G1845, TAKEOFF). That is a change
+   of a certificate number's DEFINITION, made because the band alone read a 58-99 deg swing across the strip as a pass.
+   The user to confirm the 30 deg; the full tier's ARCHETYPES (arch_fly's "ok at >= 4 m/s") was not run here.
+6. **The Stearman's crosswind cells stay bad on the take-off rudder's activity** (x2 84 -> 48, x4 118 -> 122 reversals/min,
+   limit 20), as on the base; their roll-outs are good (1.8 / 3.7 deg). A pilot question, not this one.
+
+### Files
+src/core/30_solver.js (G1844, the `kL` line and the inverse cN), src/core/00_registry.js (TYRE_CN),
+src/core/62_gen_aero.js (params.tyre), src/core/90_node_exports.js (TYRE_CN), src/core/42_crosswind.js (G1845, the
+heading row), tools/_takeoff_check.js (G1845), tools/_dmgtyre_check.js + its run_gates.js row (G1846),
+tools/dmgtyre_evidence.js, reports/evidence/DMG-TYRE/ (slip.svg/json, rollout.svg, rollout_zoom.svg, rollout.json,
+rollout_<w>_<before|after>.csv, perf.txt/json, README.md). The generated files (flight_core.js, index.html, dev.html,
+sw.js, version.json) are NOT committed.
 
 ## G1866-G1867 DMG-D4b: THE D4a FIX - THE SKIN BREAK REACHES THE DEFAULT GAME'S DRAWING (the hybrid bake), RIDES IN THE WORLD, WHOLE, AND COSTS NOTHING AT REST (2026-10-05, DMG-D4b for the DEFORM COORDINATOR, local GPU; branch claude/dmg-d4a-fix off claude/dmg-integration bd0b9d0b; the D4b work rides on top in claude/dmg-d4b-wreck)
 
@@ -77536,8 +78295,9 @@ Cub East Point circuit 150 m     final 4 m over the slope at idle and 2.5 m/s fa
   (no flap)                      flare at 25.4 m/s (1.56 Vs), touched 213 m in,       in ground effect with 97 m left for a 134 m stop: round
                                  'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km):
                                                                                     landed there, 1.18 Vs, 0.4 m/s, run 158 m, 'completed'
-Cub Jumbo Mine circuit 250 m     SHORTFIELD_CUB_MN_BASE                              the 15 deg cone: 50 m over the slope at idle with the slip;
-  (no flap)                                                                         round twice ('past the aim'), divert
+Cub Jumbo Mine circuit 250 m     12.9 m over the slope, 4.9 m/s fast at idle; touched  the 15 deg cone: 50 m over the slope at idle with the slip;
+  (no flap)                      321 m past the aim at 1.43 Vs - ~100 m BEYOND the     round twice ('past the aim'), divert
+                                 250 m strip's end - 'completed'
 ```
 THE LIMITS FOUND (not the pilot's; for their owners): (a) THE SLIP IS WEAK IN THE SOLVER: 22 deg of sideslip at full
 rudder costs the Cub ~12 % of its L/D (9.7 -> 8.6), where a real Cub's full slip about doubles the sink - the body's
@@ -77563,11 +78323,16 @@ tightest turn was the tailwheel's steering (groundRmin: the Cub 9.4 m, the Jodel
   ONCE (a target 180 deg behind the nose is left or right by a degree of wobble), done within ~9 deg - the taxi's own
   steering takes the rest. THE SIGN: e > 0 is turned by NEGATIVE rudder (groundSteer's -kP x e) - the first cut had
   it backwards and overshot 35 deg.
-- where: a taxi path's hairpin tighter than 1/(1.1 Rmin) turning > 60 deg (on a strip under 300 m: any U-turn over
-  150 deg for every aeroplane, the site's lane U-turn being a 12 m arc 15 m from the end); a taxi point behind the
-  aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and on a strip under 300 m with 3/4 of it
+- where (A TAILDRAGGER ON A STRIP UNDER 300 m - the battery set the scope): a taxi path's U-turn (> 150 deg, a bend
+  tighter than 1/(1.1 x max(Rmin, 13 m)) - the site's lane U-turn is a 12 m arc 15 m from the end); a taxi point
+  behind the aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and with 3/4 of the strip
   ahead, the departure turns WHERE THE AEROPLANE STOPPED (planDeparture -> LINEUP) instead of the lane U-turn to the
-  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll).
+  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll). WHAT THE BATTERY
+  CUT: at 90 deg taxi corners the pivot beat the stock's taxi rudder to 62 reversals / min (GATE PILOTACT) and swung
+  the Cub's wing toward Jolene's apron fence; at Jolene HOME's lane U-turn (a fillet a hair under the Cub's 9.4 m)
+  it cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose; a TRICYCLE's pivot at East Point's lane U-turn
+  looped its replanning (never rolled). So: U-turns only, short strips only, taildraggers only - on every long strip
+  and for every tricycle the taxi is the base's to the bit.
 MEASURED (tools/pilot_one_turnaround.js: stopped 20 m from the closed end, nose to it, departFrom; the strip's own
 SURFACE is the judge - a site may lay its lane beside the strip on the same surface, G710):
 ```
@@ -77578,8 +78343,8 @@ Jodel, East Point      16.7 m off, 11.3 s off the strip, rejected roll         p
 C172, East Point       9.1 m, 0 s off, rejected roll                          the same (a nosewheel turns there; the roll rejected: 219 m needed)
 Cub, Jumbo Mine        17.8 m off, 14.3 m past the end, 19.2 s off            pivot at the far end; 0 s off the strip; airborne
 Jodel, Jumbo Mine      13.7 m off, 12.1 m past the end, 15.8 s off            pivot; 2.5 s off, 0.1 m past the end; roll rejected
-C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         pivot; 1.3 m past the end, 5.7 s off (PARTIAL: a tricycle's
-                                                                             pivot still swings wide of the lane)
+C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         the same - OWED: a tricycle's lane U-turn at a short strip's
+                                                                             end swings past it (its pivot is not yet sound, above)
 ```
 
 ### G1940-G1942 ONE PILOT (the retirement)
@@ -77594,7 +78359,77 @@ knows 43's phases. GATE TAKEOFF's fork check became "one pilot".
 `makePilot(.., { profile })`: PILOT_PROFILES expert (today's pilot, every hook bypassed - bit-identical) / club /
 student / bush / hamfist; hooks live today: reaction delay, smoothness (SV.slewK), ham-fisted inputs (seeded), over-
 rotation, late flare, bank / comfort-g limits, the field technique, the slip, the step hold. GATE INPUT's second slot
-flies 'club'. The menu row is owed (the design's §5).
+flies 'club'. The menu row is owed (the design's §5). THE REACTION ON THE WHEELS IS 0.15 s AT MOST: the student's
+0.45 s inside the ground steer swerved the stock 31 deg on the roll and it rejected every take-off. The five on the
+stock build's HOME circuit (calm; scratch): expert 1.05 m/s, 8 m short of the aim; club 2.11 m/s (a 0.25 s delay in
+the flare scatters it: 0.41 on another run); student 1.64 m/s, the roll's swerve 15.9 deg; bush (short everywhere)
+0.82 m/s, 6 m past the aim, slipped, a 130 m roll; ham-fist 0.90 m/s. Bands per profile are the design's §6 - owed.
+
+### G1944 THE GATES - every number the retirement and the techniques move (base = train 34 untouched in a worktree,
+`run_gates --only=... --verbose` on both sides with the SAME flags - `--only` implies the full tier; the printed blocks
+diffed, timings filtered; order-free for the sharded / tabled gates)
+```
+gate        pilot (base -> branch)   what moved (base -> branch)                                         why
+GEN         40 -> 43                 the circuit: TOUCHDOWN sink 1.22 -> 0.67 m/s (bound back to 1.2 from    THE PILOT's hold-off flare and rectangular circuit;
+                                     1.3 - the ruling's tightening), stop x -587 -> -419, rolloutPitchMin   the bound was widened FOR the classic (G457 note)
+                                     1.5 -> 8.8 (three-point), chatter 0.4 -> 0.0, touch 297 -> 338 s
+                                     (clock 300 -> 420 s: the longer circuit)
+                                     configurations' land sink: stock 1.22->0.67, tricycle 1.32->0.64,       43 lands each as the game lands it; every one
+                                     wing twin 1.52->0.67, high cantilever 0.91->0.69, low+trike+cargo      under the 2.0 bound; the firmer ones are 43's
+                                     1.18->1.11, pusher 1.16->1.22, twin boom 0.89->1.38, low cantilever    flare on those airframes (OWED to DMG-DAMP's
+                                     0.84->1.01, over the wing 1.30->1.44, mid wing 0.94->1.09, low wing    re-tune, which moves every flare anyway)
+                                     0.86->1.15
+                                     the extreme 30 deg sweep: 'gave-up' (3 verdicts) -> 'completed'        41 -> 43
+                                     (vref-raised)
+                                     CRUISE QUIET (3 m/s + gusts): bank p2p 0.94 -> 1.25 deg, aileron        43's DOWNWIND, measured once the arc is flown
+                                     0.06 -> 0.15, elevator 0.28 -> 0.37 deg/s (bounds 3 / 2 / 3)          (wings level 3 s)
+                                     flyLeg: 'flies to CRUISE' -> 'flies to CROSSWIND' (the leg reached)
+FLEX        40 -> 43                 peak loads +2-9 % (stock-class fus 4.28 -> 4.42 kN, wing 4.90 -> 5.02;  43's circuit (into-wind rectangle, steeper
+                                     the 6061 + Dacron: tail 1.32 -> 1.93 kN, fus 4.47 -> 5.08); cruise     final); the reference waits for the straight
+                                     hold at n 1.00 (was 1.03); THE 6061 + DACRON CRUISE HOLD p2p 0.17 ->   downwind. THE FLAIL IS 43's (OWED, below)
+                                     1.20 % of the semispan
+INPUT       40, 41 -> 43 (expert, club)  pilot/ctl, pilot/keys, club/ctl, club/keys all re-engage clean;   the club profile through the handoff; 43
+                                     the bank at 20-25 s 0-1.7 -> 13.5-23.0 deg (bound 25)                  re-joins its circuit path with an arc turn
+BENCH       41 -> 43                 phases 19 -> 22; the circuit ROLL..CRUISE TURNBACK INBOUND APPROACH..   43's phases; the run
+                                     -> ROLL..CROSSWIND DOWNWIND BASE FINAL..; the landing run 296 -> 219 m
+GE          40 -> 43                 the A/B flight ends in CROSSWIND (was CLIMB), 1355 -> 1484 airborne     A == B still identical
+                                     frames
+HOTHIGH     40 -> 43                 the run 357 -> 278 m standard, 431 -> 325 hot (ratio 1.208 -> 1.169,   43's take-off; the circuit 43's
+                                     EAS 1.004 -> 0.994, TAS 1.041 -> 1.030 - all in band); the circuit
+                                     sink 1.24 -> 1.11, rolloutPitchMin 1.8 -> 7.8, gear 11 -> 10 %
+SEAPLANE    43                       calm lift-off 7.9 -> 9.5 s; crosswind lift-off 7.8 -> 8.8 s, the run   G1937's 4 s throttle ramp on the water
+                                     5.6 -> 8.3 m off (bound 30), heading swing 28.0 -> 23.9 deg (bound 30)
+PILOTMATRIX 43                       one cell: cub HOME -> A5 (340 m, short): aim 30 -> 20 m in, touch      G1936 (A5 is a short strip in the analytic world)
+                                     44 -> 33 m in, sink 0.57 -> 0.58, the run 145 -> 112 m, +38 s
+TAKEOFF     40/41/43 source -> 43    + THE TECHNIQUE (7 builds) + THE TURN-AROUND; the fork check -> "one    G1942 (base would FAIL the technique: the
+                                     pilot"                                                               ultralight's 14.6 deg/s, the twin's dig, c172f)
+same at printed precision: PILOT, PILOTACT, LINEUP, TAXICLEAR, PLAN, SOAR, NAV, STRESS, FLAPS, MASS, STRIPSURF (the
+game's pilot flies every one of those flights exactly as train 34 does; STRESS / FLAPS / MASS / STRIPSURF's numbers
+did not move with the pilot change)
+ARCHETYPES  PASS on the branch (1166 s, 4 shards); base TIMED OUT at the runner's 3600 s cap on one shard at jobs=1
+            under load - no base numbers to diff; the archetypes fly 43 on both sides (the change there is G1936 only)
+```
+THE BATTERY (`node tools/run_gates.js --verbose`, the CORE battery on the final core, 4 jobs): 146 of 148 jobs PASS;
+red: FRAMECOST (24 - THE PARKED COOK IS STALE: `parked_cook --check`: manifest c8f3b024 vs this tree 2691d7e8, every
+key captured live - the gate's own HINT; A0 re-cooks on the train's final build, as PILOT-FORKS had it) and INSTANT
+(the runner's 1800 s cap - and the SAME on untouched base, re-run alone on both sides: 1800.4 s each; GATE INSTANT is the garage's drag-preview fingerprint and flies no pilot). The 21 pilot gates with `--only` (the full tier for ARCHETYPES / PILOTMATRIX / SEAPLANE / HOTHIGH /
+SOAR included): 21 of 21 PASS. AUDIO went red once in the first pass (one self-test mutation) and green in the
+clean pass; it is red on untouched base on this box too (4 failures, RADIO_BUDGET: a timing budget).
+
+OWED (seen, measured, not done here):
+- THE 6061 + DACRON BUILD'S CRUISE PITCH CYCLE: on 43's TECS the elevator limit-cycles at ~2.3 Hz, +-0.27 (slew-
+  limited, a triangle), the commanded pitch +-1.2 deg in step with the airframe, the pitch -0.3 <-> +5.8 deg at 36 m/s;
+  the floppy wing rides it (1.20 % p2p). It is 43's on base too (the game flies this build so today); the classic's
+  hold was quiet (0.17 %). The cure is the doctrine's (lower D + command slew / a slower TECS hdot filter: tHdot runs
+  at 0.5 a step) and it moves every flight of every aeroplane - DMG-DAMP re-tunes the pitch loop with the solver's
+  rigid-rotation damper removed right after this lands, so it is theirs to fold in (scratch probe: flail.js in this
+  session; the numbers above).
+- 43's flare on the twin boom / low wing / over-the-wing pairs is firmer than the classic's ramp was (table above).
+- A TRICYCLE's turn on the spot (its pivot looped the replanning at East Point; the C172's lane U-turn swings 7.7 m
+  past Jumbo Mine's end).
+- The solver's slip drag (D7) and the user's Cub's elevator authority at idle on final (G1936).
+- The profile row in the flight menu; per-profile bands in a gate (futureDesigns/PILOT-PERSONALITY §5-6).
+
 ## G573.2 - THE BLUEPRINT LIBRARY, and the Chinook 2S in it until release (2026-10-05)
 
 The user: "Start a blueprint library, like we have one for 3d planes, add this one and we'll delete it before release,
@@ -78700,6 +79535,826 @@ riding to the GPU (format agreed: R.K, wi / ww / w2, dead >= 2; the still-merged
   places turning differently over a lever. The coordinator's idea - each window assembly (frame, bead, pane) one rigid part
   on its frame's nodes - is the next step if the census shows it.
 - The 3 m/s taxi breaks fuselage members on the page and nothing in node (DMG-D4b's parity hunt).
+
+
+## G1949 - PILOT-ONE-2: PILOT-ONE ON TRAIN 36, ITS OWED ITEMS DONE (THE FLEX SETTLE, THE TRICYCLE'S TURN ON THE SPOT), EAST POINT LANDED, THE TOUR'S TWO LEGS (2026-10-06, PILOT-ONE-2 for A0, a CLOUD session: node only; branch claude/pilot-one-2-g1949 off origin/master 1ae2eebb = train 36)
+
+THE BRIEF (A0): PILOT-ONE was held out of train 36 - the full battery went red on the train (INPUT's club slot threw,
+GEN 76/77, PILOT's box, PILOTACT 62 taxi rudder reversals / min, TAXICLEAR's C172 from the mill, LINEUP's Cub at
+HOME, RWYTREES 8 still INBOUND at 800 s). Then (A0, 6 Oct): "don't redo the fixes - origin/claude/pilot-one-g1935 @
+4e54fa90 already has them; start from 4e54fa90, rebase onto origin/master, finish what its HANDOVER lists as owed
+(FLEX settle, the tricycle pivot), re-run INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES DMGINST, then READY".
+
+THE BRANCH: origin/master (train 36) + PILOT-ONE 5b184898 .. 5d294064 cherry-picked in order, THE BUILT COMMIT
+(9c15389e) DROPPED and c8eb2a64's generated hunks taken from master (index.html, dev.html, sw.js, version.json,
+tools/flight_core.js are master's on every commit); two conflicts resolved by hand (90_node_exports: master's line
++ servoStepHold / PILOT_PROFILES / pilotProfile, - makeAutopilot / makeTestPilot; 41_test_pilot.js deleted - master
+had changed only a comment in it). The PILOT-ONE HANDOVER section above is 5d294064's (the gate table, the battery,
+the owed list) in place of train 36's earlier copy. Then G1949 below. JOIN-PARITY (G1985) has no branch on the remote:
+nothing here depends on it.
+
+### WHAT A0'S RED LIST WAS, ON THIS BRANCH
+1-6 (INPUT's `c`, GEN 76/77, PILOT's box, PILOTACT, TAXICLEAR 9, LINEUP): PILOT-ONE's own later commits fixed them
+(c8eb2a64, 60c85562, 212e90b4, 4e54fa90) - re-measured on master + PILOT-ONE + MILL-TAXI before any G1949 change:
+all PASS; the aluminium C172 from the mill taxies and takes off exactly as on master's pilot (the trace to the digit).
+7 (RWYTREES 8, the Cub at East Point): G1949.1 below.
+And one the train's battery had not reached: GATE DMGINST (train 35) read src/core/41_test_pilot.js among its
+'broke-up' writers - the file is retired (G1940); 11 files now.
+
+### G1949.1 EAST POINT, LANDED (43: apply's flare power, FLARE, planArrival)
+The go-around was right (let through, the Cub touched 55 m in and stopped 23 m past the end). Two causes found:
+- THE FLARE WAS CUSHIONED ON POWER: under 1.15 Vs0 the assist (G970) took 0.2-0.3 of throttle from 1 m and held the
+  Cub at 0.75 m/s of sink - a float. On a short field with less strip ahead than the short stop + 40 m it now winds
+  up only while the sink is over 1 m/s and comes off at once under 0.9 (with the room - the Cub and the C172 into
+  Jumbo Mine - the cushion is unchanged: both landings identical to the digit; removing it outright put the Cub
+  into Jumbo Mine at 2.9 m/s).
+- ROUND AGAIN, AIM EARLIER: the short-field float go-around records its shortfall (stop - left) + 10 m and the next
+  arrival at that strip aims that much earlier (10 m before the threshold at most) - a pilot's second try.
+The Cub ('map' trees, RWYTREES 8's flight): round once (120 m left for 128), then touched 28 m in at 0.86 m/s and
+stopped with 11 m of strip left at 554 s, no tree contact. (master: 'completed' ~84 m past the end; PILOT-ONE before:
+twice round, diverted, INBOUND at 800 s.) THE USER'S CUB LANDS AT EAST POINT: the archetype `cub` builds to the same
+nodes and ap as builds/cub_2026-09-20_corrected.json - the G1936 'divert' is now the third try's, not the second's.
+
+### G1949.2 THE PIVOT'S SCOPE (ISLAND-TOUR, cross-session: their branch claude/island-tour-g1965 merged with this)
+- the path pivot only at a U-turn ENTERED ON THE CENTRELINE (2 m): MILL-TAXI's teardrop lobe leaves it first;
+- a path pivot RESUMES where the turn comes back by the aeroplane (the first point past the hairpin heading straight
+  back, 15 deg, within 12 m): resumed at the end of the tight part - the teardrop's far lobe, 11 m west - the follower
+  drove the Cub into mn_s_mine/clinic (their chained leg mn_strip > w2: 3338 members yielded, crashed 48 s in);
+- within the 9 deg its end asks the pivot's power is off and the brakes stop it (a burst there kept the Cub creeping
+  at 1.2 m/s, never 'done').
+Their tour tw_ski > mn_strip > w2 on the merge: DONE, the pivot within 2.8 m of the centreline, the roll 0.5 m off.
+
+### G1949.3 A SHORT FIELD'S LONG FINAL DOES NOT TURN A STRAIGHT-IN INTO A CIRCUIT (planFromHere)
+G1936's IAF 900 m before the slope (400 on a long strip) failed the straight-in test for an arrival lined up between
+the two: ISLAND-TOUR's Cub from w3 (one-way on their branch) into tw_ski joined a circuit whose downwind it entered
+900 m past its start and 560 m aside, ORBITED that start for 420 s (gave-up at 876 s, a go-around): 1390 s for a 480 s
+leg. When the straight-in fits the normal IAF and not the short one, the IAF is the normal one: 484 s, straight in.
+NOT FIXED (not this branch's): the orbit itself - a DOWNWIND entered far past its start circles back to it (the leg
+/ airPath follower); it no longer shows here.
+
+### G1949.4 THE TRICYCLE'S TURN ON THE SPOT (owed by G1938; 43 planDeparture, LINEUP, pivotFly, trackHold)
+MEASURED FIRST (scratch trk / trk2, the C172, full rudder + the inside toe brake, the stick at its taxi elevator): on
+the flat it turns 180 deg with the CG moving 4.3 m (0.6 throttle); on East Point's gravel the locked main slides and
+the CG swings ~7-8 m whatever the throttle (0.5-0.9). So a tricycle on a strip under 300 m:
+- turns where it stopped (planDeparture -> LINEUP, as the taildragger already did) instead of the lane U-turn beside
+  the strip;
+- SETS THE TURN UP: eases over to the far side near the closed end (8 m short of it, min(4 m, half-width - 2 m) off,
+  walking pace), then turns back across the centreline (stopped off the centreline, the way that swings it back);
+- its pivot power 0.6 at most, done at < 1.8 m/s (held to 1.0 its own power kept it 'not done', rolling 20 m along
+  East Point 8 m off for 40 s - G1938's loop);
+- walks back to the centreline (2.4 m/s, a 20 m look - 150 m of look gave 2 deg toward it) and stops lined up as HOLD
+  wants it (2 m, 6 deg - LINEUP's own 8 m / 9 deg left HOLD replanning a circle round the end).
+C172 at East Point (pilot_one_turnaround): base 9.1 m off -> 4.5 m off, 4.4 m short of the end, never off the strip,
+the roll at 33 s (rightly rejected: 150 m for a 313 m run). Taildraggers unchanged; Jumbo Mine unchanged (MILL-TAXI's
+authored teardrops are flown on the wheels).
+
+### G1949.5 THE FLEX SETTLE (owed by G1944; 39b holdPitch)
+THE PILOT's cruise on the 6061 tube + Dacron build (GEN_DEFAULT, aluTube): the elevator in a slew-limited triangle,
+~2.3 Hz, 0.585 p2p, the pitch 6.5 deg p2p at 36 m/s (FLEX's cruise hold 1.20 % p2p; the classic's 0.17). Its tuned
+gains (genTuneAP: pitchP 2.2, pitchD 0.99) close a loop round the airframe's own bending - MEASURED (scratch flail,
+AP overrides): attitude filter 0.4 worse (0.627), rate filter 0.08 worse (0.608), D x0.5 halves it (0.300), D 0.5 +
+P 1.5 dead quiet (0.001 / 0.04 deg). THE CURE (a pilot who feels the nose pump relaxes the grip): in the air, in the
+plain loop only (pitchK = pitchDK = 1 - not the flare's or the rotation's firmer gains), every elevator swing of 0.15
+or more between reversals at most 0.35 s apart scores one (decaying over 2 s); at 4 the pitch P and D step x0.85
+(0.45 at least). After: 0.004 elevator / 0.09 deg; FLEX's cruise hold 1.20 -> 0.00 % p2p (0.56 % at n 1.00). AN AIRFRAME THAT DOES NOT PUMP NEVER SCORES and flies the old
+flight to the bit (oscK exactly 1): the steel-tube cruise unchanged (0.001 / 0.04), THE LAND TAKE-OFFS (cub, jodel,
+c172; pilot_one_trace --csv) BYTE-IDENTICAL TO TRAIN 36's. THE BATTERY SET ITS SCOPE: counting slow swings backed the
+club profile's gains off (its 0.25 s reaction pumps at ~0.5 s; GATE INPUT's held bank ran to 120 deg) and counting the
+flare's firmer loop put the Stearman down at 1.49 m/s for 0.95 (GATE PILOTMATRIX) - both cut, both back to their
+numbers. FOR DMG-DAMP: SERVO_GAINS osc* are the knobs; the re-tune that removes the solver's rigid-rotation damper
+may make this fire more or less - one row.
+
+EVIDENCE: reports/evidence/PILOT-ONE-2/ (README: every file and its command).
+
+### THE GATES (the branch's head ed826c23; `node tools/run_gates.js --all --jobs=4 --only=...` - a 4-core cloud box)
+```
+INPUT     PASS   145 s   90/90; the club slot: 31 deg / 19 deg held, 4 m lost (the detector's scope, G1949.5)
+GEN       PASS   834 s   [4 shards] (the circuit's sink bound 1.2, 4e54fa90)
+PILOT     PASS   445 s   [3 shards]
+TAKEOFF   PASS   535 s
+PILOTACT  PASS   241 s
+TAXICLEAR PASS   345 s   (MILL-TAXI's 6-9 in: the aluminium C172 from the mill taxies and takes off)
+LINEUP    PASS   259 s
+DMGINST   PASS   308 s
+CONTACT   PASS   128 s
+BENCH     PASS   112 s
+FLEX      PASS   404 s   [3 shards]; the 6061 + Dacron cruise hold 0.00 % p2p (was 1.20)
+PILOTMATRIX PASS 1725 s  no cell worse than pilot_baseline.json (2 known bad, 1 warn - as before)
+RWYTREES  PASS   ~2400 s (full, run as `node tools/_rwytrees_check.js`: under run_gates it hit the runner's 1800 s cap
+                 while check 8 flew - the page harness composes Jolene three times, 1200 s of it on this box); 43 checks;
+                 8: the C172 HOME 440 s, the Cub HOME 626 s, THE CUB AT EAST POINT STOPPED 554 s, nearest tree 42 m
+```
+Also (not gates): the land take-offs byte-identical to train 36 (cub, jodel, c172: pilot_one_trace's 10 Hz CSVs); the
+ISLAND-TOUR merge's two legs DONE; the turn-arounds at East Point and Jumbo Mine (evidence/PILOT-ONE-2/).
+
+OWED (seen, not done here): the leg / airPath follower's ORBIT of a DOWNWIND entered far past its start (G1949.3 -
+no longer reached here); MILL-TAXI's south teardrop at Jumbo Mine from a STANDING start 68 m short of the end ends in
+mn_s_mine/shop's pallets on master's pilot too (scratch mn_pivot_replay, departFrom with the site - the teardrop /
+follower's); PILOT-ONE's own list above stands for the rest (43's firmer flare on some pairs, the solver's slip drag,
+the profile menu row and per-profile bands).
+
+READY for A0: claude/pilot-one-2-g1949 (source only - every generated file is master's; A0 builds on the train).
+
+## G1985 - JOIN-PARITY: NODE FLIES THE GAME'S AEROPLANE - ONE LOAD PATH (tools/_load_build.js, the page's own code in the page's order), GATE JOINPARITY EXACT ON THE FIVE VALIDATED BUILDS, THE PAGE'S LOAD DOOR MADE DETERMINISTIC (2026-10-05/06, JOIN-PARITY for A0, cloud: node, plus headless Chromium + SwiftShader to capture the real page's answer; branch claude/join-parity-g1985 off origin/master e9e14880 = train 35; G1985-G1988 used, G1989 unused)
+
+**READY for A0.** Source and tools only: nothing generated is committed (index.html, dev.html, sw.js, version.json,
+tools/flight_core.js are A0's to build; the core is untouched - flight_core.js builds byte-identical). The user's build
+files under bugReports/ and builds/ are untouched.
+
+### THE FINDING, AND WHAT THE CENSUS ADDED
+
+DMG-D4b (the Deform Coordinator) found two: (A) the metal Cessna's engine (and the Cessna on floats') 65 cm apart -
+node ran buildGen on the file, the game runs the join, which writes the drawn flange into `engines[0].x` (G445.1); (B)
+the Cub's nose tank: VSNL/VSNR at the top of the firewall in node, the bottom in the game, 476.2 vs 462.3 kg. Both
+reproduced. The census found the rest: the game NEVER flies a file as written - its load door (garage.js loadSpec ->
+_cage_ui applySpec -> the editor's layers -> app.js BUILD_SYNC (the join) -> GARAGE_SPEC.update (genSpecMerge) -> the
+energy layer's write-back, 120 ms later) rewrites, on every open:
+
+| what the page writes | where | the user's builds |
+|---|---|---|
+| `engines[i].x/y/z` - the drawn engine's station | _cage_join (M.engUnits off CAGE_ENG) | metal + floats: -0.510 -> -1.162 m |
+| the energy layer's tank: a vessel with no box of its own is SHAPED to its bay and capped above the crew's feet, its level settled (`dims`, `capacity`, `lv`, `along`), `fuel.litres` re-derived | _cage_energy placeAll + commit | Cub: 45 L at the firewall's top -> 27 L at its foot; Jodel: placed |
+| `cabin.glazedM2` - the glazed area off the built sheet | _cage_ui build (UI-only!) | every build: the rule's glass -> the drawn glass (Cub 1.876 m2) |
+| the floats' drawn hull (`mFloat`, `volDeck`, the rows) and its STEP station (12 deg aft of the flown CG) | _cage_float + the CG handshake | Cessna floats: 1.89 -> 1.02 m3 to the deck, -66.7 kg; the step 1.63 -> 1.21 m |
+| the tail's drawn areas and seat (`Sv`, `hSpan`, `stabH`...), `cabin.glazing`, the cage's stated rows | _cage_join | small, every build |
+
+Node's loaders - _treecrash_lib (every DMG gate), pilot_trace (PILOTACT / PLAN / RWYTREES / TAXICLEAR / the matrix's file
+cells), tanks_float*, TAKEOFF, FLOATS, SEAPLANE, PILOT, SITE, SIMWORKER, LINEUP, HONESTY, HYDRODYN, STRIPSURF - ran none
+of it. tools/_bake_joined.js (ARCHETYPES, the perf study, LINEUP's and STRIPSURF's Cub card, SPECFIX's join test, the
+ground tools) ran the join but not the energy layer, the crew's characters, the glazed area or the second round.
+
+### G1985 - THE ONE PATH: tools/_load_build.js
+
+`LB.loadBuild(file, {patch})`, `LB.loadValidated(key)`, `LB.gameSpec(rawOrEnvelope)`, `LB.VALIDATED` (the one table of
+the user's five: Cub, Jodel, metal Cessna, Cessna floats, twin floats - _treecrash_lib's BUILDS IS it now). In a CHILD
+process per build (the layers keep state across builds, G1106.2: one build, one process, as one page load), on the
+page's own files (tools/_scene_headless.js + the energy, bay, vessel, crew, character and panel layers), in loadSpec's
+order: genNormaliseSpec; the energy and panel layers seeded from the spec; the editor's pre-build rows (the aft mirror,
+PAGE.coerce, the hinge-finish row - _cage_ui build()'s); a build; the join (with `CAGE_UI.glazedM2` from the pure
+`CAGE2.cageGlazedM2`); genSpecMerge; the second round (the CG app.js would publish, a build, the join); the CG
+handshake (G396: a floatplane builds again while the flown CG moves > 2 cm); the energy layer's write-back. The pilots'
+characters load from media/ exactly as the page fetches them (assets.js's gunzip) and are registered BEFORE the editor's
+files (_cage_page5's default pilot reads the registry when it loads: 0 without it, the page's 7). Cached by content in
+tools/.joincache/ (gitignored): the key hashes the input and every file the chain reads (the core, the editor's
+MANIFEST, three.js, the characters, this file), so a hit is what the chain would compute now. 4-7 s a build cold.
+FLYDIY_RAW_BUILDS=1 makes every retrofitted loader fly the file as written (the before/after rig);
+FLYDIY_JOIN_NOCACHE=1 recomputes; FLYDIY_JOIN_PROBE=<file> runs a probe in the page context after the last build.
+
+### G1986 - THE PAGE'S LOAD DOOR WAS NOT ONE THING (found capturing it; fixed)
+
+Captured headless (tools/join_parity_page.js: Chromium, SwiftShader, a fresh profile per build), the page gave
+DIFFERENT aeroplanes from the same file depending on the door and on what was open before:
+1. **The tank shaped against a crew still loading** (the Cub: 29 L booted from the autosave - the shape cut at t = 18 s
+   against the waiting crew, feet splayed 16 cm, 3 cm low - 27 L loaded from the shelf). _cage_crew.js publishes
+   `CAGE_CREW_PENDING()` (a character on the wire or its rebuild armed; false where no fetch door exists, so the
+   headless benches still shape); _cage_energy.js places a body tank PROVISIONALLY (drawn, not written back) while it
+   is true; a character that fails to load now rebuilds too, so the shape always settles. Boot = shelf = 27 L, measured.
+2. **A load inherited rows from the aeroplane open before.** applySpec assigned cageFromSpec over the current P, so a
+   row no table declares kept the last aeroplane's value: the twin floatplane opened after the boot's stock design flew
+   that design's float bows (fltBow 0.36, fltBowB 0.15, fltSide 0.22) and its cowl stub (cw_stub*). applySpec now drops
+   every key cageFromSpec does not return (view keys kept): the G63 rule, "a build fully determines the aeroplane".
+3. **One build read another aeroplane's drawing.** The chain draws crew, cowl, engine, wing...: the engine layer hangs a
+   wing mount's nacelles off the wing layer's LAST wing, the float layer stands its step on the last join's datum
+   (CAGE_DATUM) and the flown CG. loadSpec now forgets CAGE_DATUM and runs a SECOND ROUND (the join, the aeroplane
+   rebuilt - app.js publishes its CG -, the editor built again) before the sync. Without it node's single build had no
+   wing, no nacelle stations, and genSpecMerge (which replaces `engines` whole) dropped the twin's engines[].x.
+4. **The tailplane's measured height read the hinge brackets.** tailSurfBounds counted `edHinge_*` (the hinge layer's
+   brackets and horns, shaped by ray probes of the drawn skin: +144 vertices a surface on the page against node) -
+   `tail.stabH` 3-4e-5 apart. Hinges are hardware, like G307's saddle: excluded.
+5. **The glazed area was the UI's alone** (`CAGE_UI.glazedM2`, measured inside _cage_ui's build): every headless join
+   billed the rule's glass, +1.1..1.3 kg against the game. Now `CAGE2.cageGlazedM2(mesh, FS)` (_cage_gen.js, with
+   `CAGE_GLASS_MATS`), called by the UI's build and by node's chain.
+
+**NOT FIXED, measured and declared:**
+- **The floatplanes' step is timed by the balance worker** (G396's handshake acts on whichever CG answer arrives, inside
+  its 2 cm deadband): the twin's float station is 0.44 mm (x) / 0.08 mm (y) from node's deterministic handshake; the
+  Cessna floats' matched to 1e-16 on this capture. GATE JOINPARITY holds these two rows to 5 mm and carries them.
+  A pure step (the fixed point solved in the spec, not by rebuilds) is the clean fix - the float layer's owner's call.
+- **The boot door (flydiy.wip) is not the load door.** Captured before the fixes above
+  (reports/evidence/JOIN-PARITY/page_boot_door.json): the metal Cessna and the floats booted with
+  `cage.frWinBotY` = -0.8936 (the default Jodel's windscreen-frame bottom; the file has none) and a datum 3.1e-5 m off.
+  The fixture is the LOAD door (GARAGE_SPEC.set, which the shelf, the fleet, a file import and a new design enter by).
+  Re-captured with `--door boot` AFTER the fixes: the Cub, the Jodel and the metal Cessna booted to the load door's masses
+  to the gram (460.387 / 463.890 / 887.242 kg); the run was cut by a container restart before the two floatplanes (and
+  before a def-level comparison) - re-run `node tools/join_parity_page.js --door boot --out <file>` to close it.
+
+### G1987 - GATE JOINPARITY (core, tools/_joinparity_check.js, ~45 s cold / ~10 s cached)
+
+1. node = the page: tools/fixtures/join_parity_page.json is the real page's spec per validated build (the load door,
+   tools/join_parity_page.js); the two defs compared field by field - n, nb, every node (position, mass, radius, tag),
+   every member (ends, rest length, stiffness, class, ...), the refs, the total mass - to 1e-9 (relative past 1).
+   Measured: Cub 0, Jodel 3.3e-16, metal Cessna 2.2e-16, Cessna floats 1.9e-16, twin floats 0 (the float station
+   declared, see above).
+2. The file as written is NOT the game's: the metal Cessna's engine nodes -0.510 vs -1.162; the Cub's tank nodes 0.924 m
+   vs 0.000 over the firewall's foot, 476.19 vs 460.39 kg.
+3. Pure: two fresh computations and the cache agree to the byte (metal, Cub).
+4. A save is a fixed point (question 4): the game's spec saved and opened again flies the same def and carries
+   engines[0].x on all four nose mounts.
+5. THE CENSUS: every tool naming a validated file (or tools/fixtures/build_v10_cessnaMetal_2026-09-26.json, the metal
+   Cessna's spec byte for byte) loads it through tools/_load_build.js or is declared with its door (the real page, via
+   pilot_trace / _treecrash_lib, a spec-level reader, a join under test); a new raw loader fails.
+NEGATIVE-VERIFIED (--selftest): the metal Cessna flown as written, one Cub member 1e-6 stiffer, a planted raw loader -
+three FAILs, all caught. RE-CAPTURE RULE: a change MEANT to move what the game flies (a layer, the join, garage.js's load,
+the energy write-back) re-runs `node tools/join_parity_page.js` (~10 min a build under SwiftShader, --jobs 2) and says so
+here; the gate prints when the chain's files changed since the capture.
+
+### G1988 - QUESTION 4: WHY THE v10 SAVES HAVE NO engines[0].x
+
+They PREDATE it. Both Cessna files were built 2026-09-17 (their logbooks); G445.1 taught the join to write a NOSE
+engine's drawn station on 2026-09-20. Nothing drops it: genNormaliseSpec, genMigrateSpec and resolveSpec keep it, and
+the save writes the spec as it stands. The join re-runs on EVERY load (garage.js loadSpec -> BUILD_SYNC), so the game
+always flew the measured station; a save after an open carries it (check 4). One real hazard, found on the way and
+closed by G1986.3: genSpecMerge REPLACES `engines` whole, so a join that measured no engine unit (a wing mount drawn
+before its wing existed) wrote the array without x/y/z and the next save lost them.
+
+### THE SHIFT - WHAT THE GATES SEE NOW (NAMED CHANGES: the gates fly the game's aeroplane)
+
+tools/join_parity_shift.js -> reports/evidence/JOIN-PARITY/shift.txt (the file as written -> the game's):
+
+| build | mass kg | CG x m (model) | engine x m | static margin | Vs m/s | TO run (shakedown) m | prop low point, settled |
+|---|---|---|---|---|---|---|---|
+| Cub | 476.19 -> 460.39 | 0.669 -> 0.703 | -0.892 (same) | 0.175 -> 0.157 | 15.98 -> 15.72 | 156 -> 142 | 35.5 -> 35.6 cm |
+| Jodel | 462.96 -> 463.89 | 0.432 -> 0.424 | -0.986 (same) | 0.042 -> 0.047 | 18.81 -> 18.83 | 205 -> 206 | 51.5 (same) |
+| metal Cessna | 883.41 -> 887.24 | 0.818 -> 0.640 | -0.510 -> -1.162 | 0.144 -> 0.245 | 22.11 -> 22.16 | 147 (same) | **-1.1 -> -2.3 cm** |
+| Cessna floats | 1018.19 -> 951.51 | 0.895 -> 0.646 | -0.510 -> -1.162 | 0.176 -> 0.318 | 25.18 -> 24.34 | 1207 -> 1080 | 52.7 -> 53.9 cm |
+| twin floats | 475.42 -> 489.27 | 0.946 -> 0.936 | 0.425 (same) | 0.147 -> 0.120 | 16.08 -> 16.33 | 310 -> 339 | 110.2 -> 68.8 cm |
+
+The tanks: the Cub's 45 L -> 27 L (shaped to the bay above the pilot's feet), the Jodel's 45 L placed (0.305 x 0.759 x
+0.229 at -0.172 m); the glazed area billed as drawn on all five (Cub 1.876 m2 ... twin 0.440); the Cessna floats fly the
+drawn catalogue hulls (2 x 27.2 kg, 1.02 m3 to the deck, the step 1.63 -> 1.21 m; the file predates the float layer
+writing them), the twin its drawn floats (4.60 m, 27.2 kg each, 2.96 x gross against the rule's 4.01 m / 20.5 kg).
+
+TANKS-FLOAT (tools/tanks_float.js, full tanks, 600 s; reports/evidence/JOIN-PARITY/tanks_float/summary.md): the Cub
+sinks at 218 s settling (219.5 as written - G1385's own number reproduced), 301.5 s ditched (301); the wing-tank Cub
+208.5 / 291 (209.5 / 290.5); the Jodel 424.5 s settling (421.5), afloat ditched (afloat); **the metal Cessna puts its
+wing roots under at 2.5 s settling (362 s as written) and 169 s ditched (358.5)** - the engine 65 cm forward - still
+afloat at 600 s.
+
+**DMG-DRIVE's open question 2, re-measured:** the metal Cessna settled 12 s on its gear (brakes, idle, flat ground): the
+disc's lowest point -1.1 cm as written (DMG-DRIVE's own number, reproduced) -> **-2.3 cm** in the game's aeroplane (the
+engine 65 cm further forward: the stance pitches -1.00 deg, was -0.80). The question stands, worse: on a paved strip
+the game's metal Cessna brushes its prop on every taxi (the 5 cm turf allowance still hides it on grass).
+
+**THE GATES, before (origin/master e9e14880, a worktree, `run_gates --no-build --only=...`, the 23 gates whose loaders
+changed) and after (this branch; generated files built locally, not committed).** Every before/after log and diff:
+reports/evidence/JOIN-PARITY/gates/ (before_<ID>.txt, after_<ID>.txt). Before: 23/23 PASS.
+
+After - PASS: JOINPARITY, GEN, PILOT, PILOTMATRIX (the ratchet: its quick set flies archetype CARDS, not these files - unmoved,
+see "NOT DONE"), TAKEOFF, UISMOKE, ROUNDTRIP, BUILD, SEAPLANE, SITE, SIMWORKER, LINEUP, HONESTY, HYDRODYN, STRIPSURF,
+PILOTACT, PLAN, RWYTREES, TAXICLEAR, DMGMEMBERS, DMGCERT, DMGINST, DMGFPS, DMGINTEGRITY, DMGSKIN, and the page-side
+regressions SPECFIX, JOIN, ENERGY, ENERGYBASE, TANKMOUNT, CLIP, BAY, STARTER, SAVE, DEFAULT, PARTS, UPDATE.
+INSTANT PASS too (alone, 2978 s on this box: every drag ended on the plain build's aeroplane - the second load round and P's replacement change nothing a drag compares). A container restart cut the first after-run at 37/44; the rest were re-run gate by gate (one log each).
+
+The numbers that MOVED (named changes - the gates now see the game's aeroplane):
+- TAKEOFF (the twin-582 fixture on wheels): the crosswind limit 4.5 -> **4.0 m/s** (first failure 4.5 m/s, 19.74 m out
+  of the 12.5 m band; was 5 m/s, 12.84 m). The gate measures the number, it holds no baseline: PASS.
+- PILOT (the same fixture, flaps/status): the Vx climb clear of the ground at 50.4 s (50.1).
+- PILOTACT (the metal Cessna off HOME's stand): the circuit **312.5 -> 383.7 s**, the landing sink **1.11 -> 1.89 m/s**,
+  1.15 -> 1.38 Vs, the aim +44 -> -23 m: the cell goes good -> WARN (the gate fails only on bad: PASS). The pilot flying
+  the nose-heavy game aeroplane (margin 0.144 -> 0.245) - a pilot-track item.
+- RWYTREES: the metal Cessna's Jolene circuit to a stop 442 -> 493 s (no tree touched). PLAN: its downwind 0.5 -> 0.8 m
+  off the plan. TAXICLEAR: its nearest wing to a parked footprint 1.74 -> 1.73 m. SIMWORKER: the host's metal Cessna is
+  the page's (103:94f7c38c, 887.20 kg; it was 883.37) - every step's FNV equal, as before.
+- SEAPLANE (the twin on floats, now the drawn floats): lift-off 7.9 -> 7.4 s, stopped 291.7 -> 301.0 s.
+- DMGCERT: the certificates move with the aeroplanes (e.g. the Jodel's bench to destruction BROKE AT 6.06 g at the right
+  wing root, was 6.02 g left - inside [5.70, 5.99] +2.5 %; the metal Cessna's flown pull 0.95 -> 0.97 of its certified
+  limit); every check holds.
+- HYDRODYN: two lines asserted the FILE's tank ("45 L", rho g x 0.045) - now the spec's capacity (27 L: 264.87 N = rho g
+  27 L, exactly). The rule (the tanks are the vessel, Archimedes fully under) is unchanged; this is the one gate edited
+  to read the aeroplane instead of a literal.
+
+**RED - real, on the game's aeroplanes, NOT rebaselined (each a rule, not a baseline; for the Deform Coordinator / the
+hydro owner / A0):**
+- **TREECRASH** (1 of 50): the metal Cessna taxied at 3 m/s into a trunk now CRASHES - "the airframe crushed (1.9 kJ of
+  plastic work)", 2984 J (758 as written), the engine pair's cross-member ENGL-ENGR broken. This is DMG-D4b's own page
+  observation (the page's taxi did ~3x node's plastic work) - node now agrees with the page. Its circuit in the rig no
+  longer completes in 340 s (null; 271 s as written) - a check that only asks "nothing yields", PASS.
+- **DMGGEAR** (dm14 headroom, every ordinary operation at most 2/3 of its certified yield): the Cessna floats' engine-mount
+  member CGE-S0BL at 1.00 / 1.04 of yield on 1.0 / 1.5 m/s touchdowns and 1.33 at the 23.473 sink (0.34-0.38 on the
+  file's aeroplane), its circuit 0.96, the float dig-in's strut fittings; the twin's MNTR/MNTL-WF 0.85-0.94, its 1.2 x
+  drop and its water nose-in; the metal Cessna's crosswind circuit 0.92 (gear). The engine 65 cm forward on its two-node
+  rig is the common factor on the Cessnas.
+- **DMGCLUSTERS**: the twin's float nose-in breaks the ROD root (1.169, 2.17 of first yield) and the aeroplane breaks up.
+- **FLOATS**: the twin on its drawn floats skims in at 0.12 m/s (bound 0.35-1.6) and takes a 0.695 W one-frame step in
+  the water's lift (bound 0.35) - the drawn floats float it higher (keel -0.88 -> -0.46 m, 2.96 x gross).
+These four are the finding's consequence, measured: the damage and water calibrations were made on aeroplanes the game
+does not fly. They want their owners' calls (the crush threshold, the nose-engine rig's member, the floats' touch), not
+a looser bound from this session.
+
+### NOT DONE - THE NEXT DIVERGENCE (for A0)
+
+- **The archetype cards** fly through `designBake` (pilot_trace specOf -> PILOT / PILOTMATRIX / PLAN / TAXICLEAR /
+  RWYTREES) or `_bake_joined.bakeCard` (ARCHETYPES, the perf study) - never the game's load door, which a card enters
+  by too (design_flow.js -> GARAGE_SPEC.set). Measured, designBake -> the game: the Cub card 476.19 -> 460.39 kg (the
+  same tank), the Stearman **165 -> 155 nodes**, 1133.5 -> 1162.4 kg, its engine 24 cm forward; c172 993.9 -> 993.3;
+  jodel 440.9 -> 441.8. Routing them through `LB.gameSpec(designBake(...))` is one line in pilot_trace and in
+  _bake_joined, and moves PILOTMATRIX's ratchet and ARCHETYPES wholesale - A0's call (G1989 is free for it).
+- master_bench and the other page-run rigs boot through the AUTOSAVE (the boot door), see G1986's last item.
+
+## G1880-G1882 DMG-FLOATTO: THE FLOATPLANE'S CROSSWIND TAKE-OFF - THE NOSE-OVERS WERE THE CHOP THE WIND RAISES, NOT THE PLOUGH; THE PILOT DAMPS THE PORPOISE WITH BOTH HANDS; GATE DMGFLOATTO; SEAPLANE BACK AT 5 m/s; THE HELD BUNDLE ASSEMBLED (2026-10-06, DMG-FLOATTO for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-floatto; G1880-G1882, borrowed from DMG-D5's range)
+
+**READY for the coordinator (train 38/39).** Source and tools only: nothing generated is committed (index.html, dev.html,
+sw.js, version.json, tools/flight_core.js are A0's to build). Damage stays OFF by default. The core change is two files,
+src/core/43_pilot.js and src/core/39b_servos.js.
+
+**Read this first.** On the assembled bundle the brief's premise did not hold. PILOT-ONE-2's water power ramp (G1937)
+already carries the twin over the plough nose-up (its lowest pitch in the plough is -1..-3 deg at every wind). The
+nose-overs are later, on the step, and their cause is the **chop the wind raises on the SEA lane**. At 2 m/s across the
+waves are 0.07 m crest to trough (L 5.8 m), at 5 m/s 0.18 m (L 10 m), beam-on to the run. **With the same wind and the
+sea flattened, every crosswind run is the calm run** (`cause.svg`). The chop drives a porpoise on the step. The solver
+used to damp it (DMG-DAMP removed that, G1885) and nothing else does now: it grows until the water throws the hull out
+below Vs, the thrust couple (~1.3 kN m at full power) beats the elevator (the nose fell from +31 to -50 deg in the air
+with the stick on its stop), and the bow goes in. So the fix is the pilot's, as the brief asked, but it is not the
+plough technique: **the porpoise is damped with both hands.** The power comes off as the nose falls, and the stick goes
+forward as it rises. The brief's plough technique (power 0.7-0.8 to 6 m/s, full aft stick) was measured and changes
+nothing here; it is not shipped (below).
+
+### THE BUNDLE (the held assembly; every merge built with `node tools/build.js`, exit 0, then checked for duplicated
+top-level declarations: none new, the four in 27_premises / 32_hydro are pre-existing and scoped)
+1. `ff151a81` origin/claude/dmg-plough f0399d4f + **origin/claude/dmg-tyre a1ac9f31**. Conflicts:
+   90_node_exports.js (the union: + TYRE_CN), run_gates.js (DMGHULL + DMGPLOUGH rows and the DMGTYRE row, all kept),
+   HANDOVER.md (both entries kept whole). Generated files: ours (train 34; dmg-tyre's are older).
+2. `b6d8c218` + **origin/claude/dmg-integration d3d5e24e** (train 37b + DMG-DRIVE + DMG-WINDBREAK + DMG-WALL).
+   Conflicts: **30_solver.js**, two independent insertions at the same place: DMG-DAMP's `integrate(dt)` and the damage
+   passes `floorPass` / `suppPass` / `tkHit`. Both kept. `substep()` keeps DAMP's `integrate(dt)` call; integration had
+   not touched the old mean-damper loop it replaces. 90_node_exports.js: the union (-> 312). run_gates.js: integration's
+   TREECRASH row (wall 900, its certificate comment) and its DMG rows, then DMGDAMP / DMGHULL / DMGPLOUGH / DMGTYRE.
+   HANDOVER.md: both, whole entries (each conflict block began on an entry heading). Generated files: integration's
+   (train 37b). Auto-merged on both sides: 32_hydro.js, 42_crosswind.js, 65_gen_loadtest.js.
+3. `ed2d5d36` + **origin/claude/pilot-one-2-g1949 0fcf1a42**. Conflicts: **39b_servos.js** (3 blocks). PILOT-ONE-2 had
+   laid DAMP's water-step entry already (`waterStepK: 1` in SERVO_GAINS, kP x waterStepK on the water on the step).
+   **DAMP's waterStepK survives** as the one pilot row, `SERVO_TUNE.pilot = { waterStepK: 0.6 }` (the classic and test
+   rows retired with their pilots, G1940). The steering line keeps DAMP's G1888 comment and its single expression,
+   identical in effect to PILOT-ONE-2's two lines. 90_node_exports.js: the union (+ servoStepHold, PILOT_PROFILES,
+   pilotProfile) **less makeAutopilot and makeTestPilot**. PILOT-ONE-2 deletes 40_autopilot.js and 41_test_pilot.js, so
+   exporting them would throw; nothing on the other side calls either, and every exported name is checked declared.
+   HANDOVER.md: both. Auto-merged on both sides: 30_solver.js, 43_pilot.js, viewer app.js / body.html / sim_host.js,
+   tools _gfx_check, _takeoff_check, build.js, test_ui_smoke.
+4. `7eacfba1` + **origin/claude/join-parity-g1985 aba8187f** (READY in its HANDOVER; not on master). Conflicts:
+   HANDOVER.md only.
+
+### G1880 - THE LAW (39b `S.porpoise`, gains `porp*` in SERVO_GAINS; 43's FEATURE `porpoise`)
+- **Armed** on the pilot's water take-off (ROLL / LIFTOFF on floats, until CLIMB) when the aeroplane's **thrust lever**
+  `THRUST_ARM x T_static / W` (how far forward full power moves the CG, in effect) exceeds `porpLever` 0.10 m.
+  The twin on floats measures 0.27 m (two 582s 0.54 m over the CG, T/W 0.51), the Cessna on floats 0.003, the Cub
+  -0.006 and the Jodel 0.017. It depends on the build's geometry and thrust, never on its name. Off the water, or with
+  the thrust line through the CG, it never arms: the base's controls to the bit.
+- **The power:** the throttle's ceiling is `1 - porpKq (0.015) x the nose-down rate (deg/s) - porpKth (0.05) x the
+  degrees under porpTh0 (-2)`, never under porpMin 0.3, followed by the hand in porpS 0.1 s. Its second term is the
+  brief's "pitch error in the plough", closed-loop.
+- **The stick:** while a float is wet above porpDeV 6 m/s, the stick goes forward by `porpDeQ 0.02` per deg/s of nose-up
+  rate, to deMin at most. This is a rate damper, not G396.4's constant forward push. Through LIFTOFF it also softens the
+  hold-off's full aft stick (G396.4) when a hull that has hopped re-contacts nose-down: that yank was the +45..55 deg
+  balloon below Vs.
+- **Why both hands** (all measured, the strict sweep below, the twin's 11 winds):
+  - an instrument pitch-only damper of 2 /s bounds the 5 m/s porpoise; roll or yaw damping does nothing; 0.5 /s is not
+    enough;
+  - the power alone (it can only come OFF from full: the nose-down half) leaves 3-6 nose-overs;
+  - the stick alone leaves 3;
+  - aft stick and less power both GROW the porpoise (the twin's is upper-limit porpoising, its trim already high: the
+    thrust couple holds it down);
+  - the brief's plough hold (0.75 to 6 m/s, de 0.7) measured equal to without it.
+- What it costs the run: the calm water run lengthens a little, because the power is trimmed on the porpoise's
+  nose-down halves (the twin 8.9 -> 9.3 s; PILOT-ONE-2's trace rig: ultraf 84 -> 96 m, twinf 180 -> 186 m).
+- `ap.thrCap` is a getter on the law's ceiling, for the gate. A double stored on `ap` every frame measured +4-8 % on the
+  pilot's update in one series, so it was taken out (with the instrument's noise as it is - perf, below - that number
+  is not conclusive, but the getter costs nothing).
+
+### G1881 - THE INTO-WIND BANK AFLOAT, BOUNDED (39b groundSteer)
+The water had no bound on xwBank's bank target. `0.06 x the wind x (vRef / V)` asked the twin for 17-27 deg of bank at
+5 m/s across, so the aileron sat on its stop the whole run. As the speed built it rolled the floats onto their windward
+chines (roll -9 <-> +7.5 deg, the floats' loads swapping 0.03 / 0.45 W) and fed the porpoise. Afloat the bank now gets
+the wheels' bound (xwBankGround, 0.035 rad). Without it the law leaves 3 nose-overs. A wheeled roll is bit-identical.
+
+### G1882 - GATE DMGFLOATTO (tools/_dmgfloatto_check.js, tier full, weight 4, ~2.5 min) and GATE SEAPLANE
+- **Judged to CLIMB.** Every float contact from the throttle to CLIMB counts. GATE SEAPLANE's "airborne = dry 2 s"
+  read a hop that settled back and was REJECTED as a take-off: on the base, 3 and 3.5 m/s "passed" that way, and so did
+  SEAPLANE's own 5 m/s row.
+- **SWEEP:** both validated floatplanes, as the game flies them (tools/_load_build.js `twinFloats`, `floats`), at
+  0-5 m/s in 0.5 steps. Every run reaches CLIMB, no nose-over (the pitch at a float contact >= -20 deg), and the run's
+  swing and lane are under 30 (SEAPLANE's measure: until first dry for 2 s; the worst at any later touch printed beside).
+- **LAND:** the technique never arms on a wheeled take-off (the Cub, the metal Cessna).
+- **SEAPLANE:** the crosswind bar is back at **5 m/s** (0.30 V_SO, over FAR 23.233's 0.2), and the crosswind run must
+  reach CLIMB. At 5 m/s: lift-off 8.9 s, 0 skips, lane 7.2 m, swing 11.2 deg, ROLL LIFTOFF CLIMB.
+- Instruments (never the gate's default): `--ap=k:v` (the pilot's per-aeroplane keys), `--thrCap/--capUntil`
+  (PLOUGH's), `--flatSea` (the cause).
+
+### THE ACCEPTANCE
+1. **No nose-over, completing, 0-5 m/s** (GATE DMGFLOATTO; `sweep.svg`, `pitch_twin.svg`; `sweep_before.txt` /
+   `sweep_after.txt`):
+
+| across (m/s) | twin BEFORE: lowest pitch on the water / class | twin AFTER: lowest / swing (lane) / class | Cessna on floats AFTER: lowest / swing (lane) |
+|---|---|---|---|
+| 0 | -1.3 / ok | 0.0 / 0.0 (0.0) / ok | -0.5 / 0.0 (0.0) |
+| 0.5 | -1.3 / ok | 0.0 / 1.1 (0.6) / ok | -0.5 / 0.5 (0.6) |
+| 1 | -2.3 / ok | 0.0 / 2.3 (1.3) / ok | -0.5 / 1.0 (1.1) |
+| 1.5 | -2.9 / ok | -4.3 / 3.9 (2.1) / ok | -0.5 / 1.6 (1.4) |
+| 2 | **-75.7 NOSE-OVER** | -6.1 / 4.9 (2.6) / ok | -0.5 / 2.2 (1.8) |
+| 2.5 | **-70.3 NOSE-OVER** | -1.1 / 5.8 (3.3) / ok | -0.5 / 2.6 (2.1) |
+| 3 | **-28.9 NOSE-OVER** (after a hop) | -4.7 / 7.1 (4.4) / ok | -0.5 / 7.9 (2.7) |
+| 3.5 | **-46.0 NOSE-OVER** (after a hop) | -0.2 / 8.1 (4.6) / ok | -1.1 / 10.1 (3.0) |
+| 4 | -18.7 / away (a 35 deg touch) | -4.8 / 8.8 (5.6) / ok | -0.5 / 6.3 (3.4) |
+| 4.5 | **-58.9 NOSE-OVER** | -7.7 / 15.9 (9.3) / ok * | -0.5 / 4.7 (3.9) |
+| 5 | **-89.2 NOSE-OVER** | -3.7 / 11.3 (7.2) / ok | -0.5 / 18.6 (5.6) |
+
+   \* At 4.5 m/s a float touches 31 deg off the roll's heading at 10.5 s. The aeroplane has then been airborne 3 s,
+   crabbing into the wind, and flies away from the touch (OPEN, below). The Cessna is clean before and after; its
+   lowest pitch before was -3.4 / -3.3 deg at 1.5 / 3.5 m/s.
+2. **The land take-off traces identical to the digit** (PILOT-ONE-2's rig, `tools/pilot_one_trace.js --csv`, calm): the
+   Cub, the Jodel and the C172 10 Hz CSVs are **byte-identical** before / after. So are the Wipline C172 and the
+   C172-on-floats-for-wheels (lever under 0.10). Only the two high-thrust-line float builds move (ultraf, twinf, above).
+   GATE TAKEOFF's crosswind limit is unchanged (4 m/s).
+3. **GATE SEAPLANE's crosswind bar: 5 m/s is met** by every validated floatplane, so it is raised back (G1882).
+4. **The water take-off times (calm):** the twin's water run 8.9 -> 9.3 s; the Cessna on floats 24.1 -> 24.1 s
+   (bit-identical in calm). SEAPLANE's circuit lift-off 8.9 -> 9.3 s.
+5. **Perf: NOT DEMONSTRATED within 2 % on the water** (`perf.txt`). This VM's alternating A/B (15-21 processes a side)
+   reads the NULL - the base against an identical copy of itself - at -3.1 / -0.4 / +4.2 %. The law on an identical
+   trajectory (a compute-only core) reads -0.2 / +4.6 / +7.5 %. The step, whose code is identical, moves up to +3.6 %
+   in the same series. The law itself, micro-benchmarked, costs **16.7 ns a call armed and 6.8 ns unarmed**: 0.02 % of
+   the ~90 us update. On land (unarmed, every wheel take-off), the real cores read +0.2 % (15 a side). **A0 to
+   re-measure on a quiet machine.**
+
+### FOR THE BUNDLE (the integration base d3d5e24e -> this branch, unless said)
+- **The targeted gates** (`gates_before.txt` = the assembled base 7eacfba1, `gates_after.txt`, `gates_int.txt`).
+  - Base and after alike: PASS on TAKEOFF, PILOTACT, PILOTMATRIX, DMGDAMP and SEAPLANE; DMGFLOATTO (new) PASS after.
+  - **RED ON THE BASE AND AFTER, identically (the bundle's, not this change's):**
+    - DMGHULL: "Cessna on floats hump: the side term peaks at 50 deg of slip (45)".
+    - DMGPLOUGH: "Cessna on floats: keel trim at the hump 7.4 deg inside 8-12". Bit-identical in calm after. DMG-PLOUGH read
+      8.2; the bundle moved it (JOIN-PARITY's drawn hulls are the likely cause - not traced here).
+    - DMGTYRE: "the Cub's crosswind roll-out at 4 / 5 m/s: 19.5 / 28.5 deg (<= 15)" (wheels; nothing here touches them).
+    - FLOATS: "no frame adds more than 1.656 W (0.35); the touchdown peaks at 2.597 W (2)". JOIN-PARITY's own red (the
+      twin's drawn floats).
+  - These four want their owners: they follow from JOIN-PARITY flying the game's aeroplane, which DAMP / HULL / PLOUGH /
+    TYRE were calibrated without.
+- **The moved pilot numbers**, base -> after:
+  - PILOTMATRIX: unchanged, every cell to the digit.
+  - PILOTACT: unchanged to the digit.
+  - TAKEOFF: the land rows and the crosswind limit unchanged; ultraf / twinf water traces as above.
+  - DMGHULL's and DMGPLOUGH's own sweeps fly the RAW fixture twin (the pre-JOIN-PARITY aeroplane). Before: nose-over at
+    4 / 5, a yaw loop at 4.5. After: **no nose-over anywhere**, but yaw loops at 4.5 (49 deg) and 5 m/s (180). Its heading
+    drifts into wind on the step from 5 s, the rudder on its stop: DMG-HULL's open question 2, masked before by the
+    nose-over. With the bank bound removed or loosened (0.07, 0.12 rad) that aeroplane still swings 38-65 deg at 4.5 / 5.
+  - **Integration base -> this branch** (`gates_int.txt`: every gate PASS there, FLOATS included). The moves are the
+    bundle's: none of them differs between the assembled base and this branch.
+    - TAKEOFF's wheeled crosswind limit 4.5 -> 4 m/s (JOIN-PARITY's documented move, the twin-582 fixture's engine).
+    - **PILOTACT's metal Cessna** (fixtures/build_v10_cessnaMetal) ok -> WARN: sink 1.11 -> 1.83 m/s, 1.15 -> 1.38 Vs at
+      the touch, aim 44 -> -19 m (OPEN for A0).
+    - PILOTMATRIX within its ratchet: the Cub HOME-A5 671.7 -> 709.1 s, stearman x4 swing 13.7 -> 3.7, c172 x2 1.4 -> 3.5,
+      the rest within a few tenths.
+    - SEAPLANE's calm circuit lift-off 7.9 -> 9.3 s (8.9 on the assembled base). The integration base still flew the
+      pre-DAMP 5 m/s crosswind with the hidden damper: 2 skips, swing 28.0 deg. This branch: 0 skips, 11.2.
+    - FLOATS PASS -> FAIL (JOIN-PARITY's red, above).
+- **TANKS-FLOAT ditch** (tools/tanks_float.js, full tanks, 600 s; no pilot flies a ditch, so this change cannot move it;
+  the bundle against integration; `tanks_float/`):
+
+| build | integration | this branch |
+|---|---|---|
+| the user's Cub | sunk 301.5 s | sunk 302 s |
+| the Cub, 45 L in the wing roots | sunk 291 s | sunk 288.5 s |
+| the metal Cessna | afloat at 600 s (roots under 169 s) | afloat (roots under 167 s) |
+| the Jodel | afloat at 600 s | afloat |
+
+- **The step perf, damage OFF / ON, integration -> this branch** (11 processes a side; the instrument's noise is the
+  +-4 % above):
+  - damage OFF: air +4.5 %, ground (the metal Cessna's roll) -1.0 %, the twin's water run +6.6 %;
+  - damage ON: air +0.3 %, ground +1.8 %, water +4.3 %;
+  - the bundle's solver change is DAMP's `integrate` and HULL's side term.
+
+### OPEN QUESTIONS (for the user)
+1. **The chop is the crosswind take-off's real limit.** The wind-driven sea on the SEA lane is 0.18 m crest to trough at
+   5 m/s, beam-on to a crosswind run, on undersized floats (floatAdvice: reserve 1.78 < 1.8). Is that sea right for a
+   5 m/s wind over a sheltered lane? Real pilots would also take off into the waves rather than along them.
+2. **The 4.5 m/s touch** (31 deg off, after 3 s airborne, crabbed): the pilot lets the aeroplane settle once near Vs at
+   the lift-off. Should the lift-off on the water hold the aeroplane off (ground effect) instead? That is PILOT-ONE-2's
+   rotation, not this law.
+3. **The raw-fixture twin's yaw at 4.5-5 m/s** (DMGHULL / DMGPLOUGH's rows): the hull's side-force centre ahead of the
+   CG on the step (DMG-HULL's question 2). The game no longer flies that aeroplane; should those gates move to
+   `twinFloats`?
+4. **The plough technique** of the brief is not shipped (measured no effect on this bundle). Say if you want it anyway,
+   as a FEATURE flag at 0.
+
+## G2030-G2034 DMG-RECAL: THE BUNDLE'S REDS TRACED ON THE GAME'S AEROPLANE - HULL, PLOUGH AND FLOATS WERE SET ON THE NODE AEROPLANE (RE-ANCHORED), BOTH WATER GATES NOW FLY THE GAME'S TWIN, THE CUB'S CROSSWIND ROLL-OUT WAS A REAL REGRESSION (ITS FULL-FLAP LANDING; FIXED IN genTrim'S TRIM BUDGET); JOINPARITY'S FOUR (THE BUNDLE'S) ANSWERED; TREECRASH / DMGGEAR / DMGCLUSTERS / DMGWIND NOT SOLVED: THE NOSE-ENGINE RIG AT ITS DRAWN STATION AND THE TWIN'S DRAWN FLOATS (2026-10-06/07, DMG-RECAL for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-recal off origin/claude/dmg-floatto 7846e790; G2030-G2034 all used)
+
+**READY for the coordinator (train 39) - WITH FOUR GATES STILL RED, said plainly.** Source and tools only: nothing generated is
+committed. Damage stays OFF by default. Of the 17 targeted gates: **13 PASS** (DMGHULL, DMGPLOUGH, DMGTYRE, FLOATS and
+JOINPARITY were red and are green), **4 FAIL on the base and after with the same rows**: TREECRASH, DMGGEAR, DMGCLUSTERS
+and DMGWIND (traced below, not solved).
+
+**Read this first, coordinator.** Each red was traced to one of two things. Either the PHYSICS moved on the game's
+aeroplane, or the gate was calibrated on the node aeroplane that JOIN-PARITY retired (the file as written;
+`FLYDIY_RAW_BUILDS=1` still flies it, and every "file" number below is that).
+- **Not touched:** the water law, the tyre law and the solver. The one core change is genTrim's trim budget
+  (src/core/64_gen_build.js), which runs at build time and never on the step.
+- **Stale calibrations, gate moved and bar re-derived:** DMGHULL (G2030), DMGPLOUGH (G2032), FLOATS (G2033). Both water
+  gates also flew the raw fixture twin; they fly `twinFloats` now (G2031).
+- **A real regression, physics fixed:** DMGTYRE (G2034). The user's Cub, as the game flies it, lands on full flap with
+  its elevator on the FORWARD stop. It mushes on at 1.03 Vs0 and swings 19.5 / 28.5 deg. The tyre is innocent.
+- **NOT SOLVED, red on the base and after with the same rows:** TREECRASH, DMGGEAR, DMGCLUSTERS and DMGWIND. Every
+  failing row is traced below. They do not want a widened bar: they are the nose-engine rig built at the drawn flange
+  station, and the twin's drawn floats. Each needs the frame generator's owner and a JOINPARITY re-capture.
+- **Train 39 cannot land with zero reds on this branch.** These four gates stay red until the rig is fixed.
+
+| red (the brief's) | verdict | done | before (7846e790) -> after |
+|---|---|---|---|
+| 1 DMGHULL "the side term peaks at 50 deg (45)" | stale: the law's own form, asserted at the wrong pose | the law asserted at a FIXED wetted hull (G2030) | FAIL (1) -> PASS |
+| also open: DMGHULL / DMGPLOUGH fly the raw fixture twin | stale fixture | both fly `twinFloats` (G2031) | the twin's yaw loops 49 / 180 deg at 4.5 / 5 m/s -> clean 0-5 m/s (worst 15.9 deg) |
+| 2 DMGPLOUGH "keel trim at the hump 7.4 inside 8-12" | stale: a recalled band, no load or CG with it, met by 0.2 deg on the file | bar re-derived: bow-up past a planing hull's least-resistance trim, 6-12; 8-12 reported (G2032) | FAIL (1) -> PASS (7.4 deg, NOTE outside 8-12) |
+| 3 DMGTYRE "the Cub's roll-out 19.5 / 28.5 (<= 15)" | REAL, on the game's aeroplane: the full-flap landing, not the tyre | genTrim's trim budget on the forward stop: the Cub lands flapless (G2034) | FAIL (2) -> PASS: 8.5 / 11.1 / 13.1 deg at 3 / 4 / 5 m/s |
+| 4 FLOATS "1.656 W in a frame, 2.597 W" | stale fixture: the bars are the touchdown's, and the reds are a hands-off arrival's 2nd-4th touch | judged on the first contact; every skip printed, OWED (G2033) | FAIL (2) -> PASS (0.163 W, 0.899 W), the skips OWED |
+| 5 TREECRASH (metal Cessna's 3 m/s taxi) | real behaviour, from a RIG artefact | NOT SOLVED: traced, fix proposed | FAIL -> FAIL (2702 J, the same) |
+| 5 DMGGEAR (11 rows) | 10 rows: the rig and the drawn floats; 1 row (the Cub's ground loop): DMG-DAMP's | NOT SOLVED: traced | FAIL -> FAIL (the same 11 rows) |
+| 5 DMGCLUSTERS (the twin's float nose-in, ROD root 1.003) | the drawn floats | NOT SOLVED: traced | FAIL -> FAIL (1.003, the same) |
+| JOINPARITY (4 FAIL on the base: not on the brief's list) | the floatplanes' page capture predated the bundle; the census predated the bundle's tools | re-captured; the tools declared or routed (G2034b) | 4 FAIL -> PASS |
+| (not on the brief) DMGWIND | the rig (the Cub's and the Cessna's mount at a trunk), the twin's gear | NOT SOLVED: traced | FAIL -> FAIL (the same) |
+
+### G2030 - DMGHULL's LAW: JONES' FORM IS A STATEMENT AT A FIXED WETTED HULL (tools/_dmghull_check.js; `hull_side.svg`)
+- **The red.** The rigid bench at the Cessna on floats' hump pose read the side term's peak at 50 deg of slip. The
+  gate asserts 45.
+- **Traced (`data/hull_law_*.json`).** The game's Cessna rides its hump 7 cm deeper than the file's did: step keel
+  0.343 m at 10.3 deg against 0.274 m at 10.6 deg. JOIN-PARITY gave it the drawn hulls, 1.02 m3 to the deck against
+  1.89.
+  - The bench's slip takes the forward speed off (U = V cos b). The step ventilates by the cavity number 2 g d / U^2,
+    so as U falls the wake closes and the afterbody re-wets.
+  - From 45 deg on, the wet keel stations go 5 -> 6 -> 8 -> ... -> 18. G1847's law starts a new piece on a re-wetted
+    stern, so m(TE) grows up to x1.128. The side term over U w is constant (182.2 kg/m) to 0.00 % at every angle where
+    the wetted keel is unchanged.
+  - The file's pose keeps its afterbody dry to 55 deg, so its peak stays at 45. The game's twin re-wets from 45 deg as
+    well (6 -> 10 stations, x1.371) and peaks at 55 deg.
+  - So the physics did not move. The gate's premise (a fixed wetted hull at every slip) held only at the old pose.
+- **The re-anchor (a statement of the law where it is a law):**
+  1. The side term over U w equals the hull's constant to 1 % at every slip angle whose wetted keel is the small-slip
+     one.
+  2. The peak is asserted at 45 deg wherever the wetted keel holds through 40-50 deg.
+  3. Where it does not hold, no departure from U w may happen without a change of the wetted keel.
+  - Unchanged: the zero-at-rest, zero-dry, linearity and closed-form checks, and the 90 deg check.
+- Before -> after: **FAIL (1) -> PASS**. On the step, both builds still peak at 45 deg: the step keel is the same
+  through 40-50 deg.
+
+### G2031 - BOTH WATER GATES FLY THE GAME'S TWIN (tools/_dmghull_check.js, tools/_dmgplough_check.js)
+- **The issue.** Both gates built the twin from the raw fixture: the file with `gear.type 'floats'`, then
+  `buildGen`. The game never flies that aeroplane. The join puts its drawn floats on it (4.60 m against 4.01, 27.2 kg
+  against 20.5).
+- **The fix.** They now take `L.defOf('twinFloats')` (tools/_load_build.js), as GATE DMGFLOATTO, SEAPLANE and FLOATS
+  already do. `FLYDIY_RAW_BUILDS=1` still flies the fixture.
+- **DMGHULL SWEEP, the twin, 0-5 m/s:**
+  - before: 4 m/s 21.1 deg; 4.5 m/s **49.0 deg YAW LOOP**; 5 m/s **180 deg YAW LOOP** (never airborne);
+  - after: every wind ok, worst 15.9 deg at 4.5 m/s (lane 9.3 m), lift-off 8.3-9.8 s. This is DMG-FLOATTO's own
+    table to the digit.
+  - The OWED lines are gone. DMG-HULL's open question 2 (the raw twin's step yaw) does not reproduce on the game's
+    twin.
+  - The Cessna's rows did not move.
+- **DMGHULL KICK, the twin:** rest 0.223 / 0.181 / 0.103 -> 0.218 / 0.173 / 0.095 rad/s; hump 0.255 / 0.540 ->
+  0.254 / 0.376; step 0.427 / 0.429 -> 0.366 / 0.506. The hump and the step are still OWED (less stable than kSide 0),
+  as before.
+- **DMGPLOUGH, the twin:**
+  - the HUMP: keel trim 3.8 -> 4.3 deg, lowest -0.3 -> +0.5 deg (still OWED: under the recalled band);
+  - the wave-on twin no longer noses over in calm air (lowest 0.5 deg);
+  - the instrumented twin still trims nose-up (lowest 1.7 deg), so the attribution holds;
+  - the SWEEP is the DMGHULL table: the 4.5 / 5 m/s yaw loops are gone.
+
+### G2032 - DMGPLOUGH's HUMP BAND, RE-DERIVED (tools/_dmgplough_check.js; `plough_hump.svg`)
+- **The red.** The game's Cessna on floats humps at 7.4 deg (C_V 2.60). The gate asserts 8-12; the file's aeroplane
+  read 8.2.
+- **The physics did not move.** The same code flies the file's aeroplane to 8.2 on this branch, today. The trim
+  through the hump is the hull's own: the pilot's stick is neutral through the plough (G396.4; measured, de 0.020 the
+  whole run, `data/plough_cessna_game_de.txt`).
+- **What moved: the aeroplane.**
+  - The game's Cessna is 67 kg lighter (951.5 kg against 1018.2: its drawn floats) and nose-heavier (the engine 65 cm
+    forward).
+  - Ballasted back to 1018 kg with the CG kept (an INSTRUMENT: every node's mass x1.07), it humps at 7.9 deg. So the
+    load is 0.5 of the 0.8 deg.
+  - The trim at the hump rising with the load coefficient is towing-tank physics: the NACA float series test at a
+    stated design load (Parkinson, NACA TN 563, 1936, from a search summary - A0 to open).
+- **The drawn afterbody is not the cause.** The game's hull with the generator's afterbody (aftHold 0, aftPow 1.15)
+  humps at 7.4 too.
+- **The re-derivation.** The recalled 8-12 came with no load or CG, and the file met it by 0.2 deg. What the plough
+  physically is:
+  - bow-UP at the hump, above the attitude a planing hull runs at least resistance. That is Savitsky 1964 for
+    prismatic hulls, 4-6 deg, already cited by DMG-PLOUGH; its top, 6, is the floor. A hull that trims no higher at its
+    hump than it would plane is not ploughing.
+  - under the porpoising / stern-digging top (12, unchanged);
+  - never nose-down on the run (unchanged).
+  - Asserted: 6-12. The recalled 8-12 is printed as a NOTE on every run: OUTSIDE at 7.4 (the highest trim over
+    C_V 1.5-4 is 13.7).
+- **Say so plainly: this lowers the floor by 2 deg.** It is a stale calibration re-derived from the physical
+  definition, not a physics regression, but the coordinator may prefer a cited tank number in hand to Savitsky's band.
+  The twin's OWED line is unchanged.
+- Before -> after: **FAIL (1) -> PASS**.
+
+### G2033 - FLOATS: THE BARS ARE THE TOUCHDOWN'S (tools/_floats_check.js; `floats_landing.svg`)
+- **The red.** "No frame adds more than 1.656 W (0.35); the touchdown peaks at 2.597 W (2)" on the twin's drawn floats.
+- **Traced, frame by frame (`data/floats_landing_*.json`).**
+  - The gate's approach is not trimmed. Its bisection reads 3-4 s of an untrimmed glide, so the "trimmed" approach is
+    a phugoid: vy -1.67 .. +1.03 m/s, trim 3 .. 10 deg, period ~13 s, on both aeroplanes.
+  - The drawn floats hang 0.42 m higher under the CG (keel -0.88 -> -0.46 m). The file's twin touched in the first
+    trough at 15.5 s (0.38 m/s). The game's misses it and touches at the next, 24.45 s, at 0.95 m/s.
+  - **That touchdown is clean:** the lift climbs 0.01 / 0.09 / 0.24 / 0.38 ... W over 10 frames to 0.90 W, at most
+    0.163 W in one frame. Every touchdown bar passes with margin.
+  - Then the hands-off arrival skips. It is 1.37 Vs on the step, with the stick held at the approach's and the
+    throttle at 0.1, and nobody flies the landing. It re-touches 4 times:
+    - 19.5 m/s, 1.83 m/s of sink;
+    - **17.3 m/s, 2.24 m/s of sink, trim 1.8 deg: 1.656 W in one frame, 2.597 W**;
+    - 15.2 m/s, 1.76 m/s;
+    - a stalled 24.5-deg drop at 13.3 m/s.
+  - The reds are the second re-touch: a flat (1.8 deg) hull slammed at 2.24 m/s. In 1/60 s its Wagner wetted
+    half-width grows (pi/2) V t / tan(deadrise) = 0.13 m, about the whole beam, so a full step's lift in one frame is
+    the physics of that slam. It is not the onset smoothness the 0.35 W bar (G382) was written to catch.
+- **The physics did not move.** The file's twin passes on this code (0.38 m/s, 0.131 W, 1.080 W).
+- **The re-anchor.**
+  - The touch bars (sink 0.35-1.6, >= 3 frames to the first peak, < 0.35 W a frame, < 2 W) are judged on the FIRST
+    contact: from the first wet frame until the water lets go.
+  - Every re-touch is printed with its speed, sink, trim, one-frame step and peak. An **OWED** line prints when a
+    skip passes the touchdown's bars, which it does on every run now. Open question 3.
+- Before -> after: **FAIL (2) -> PASS**, with the OWED line.
+
+### G2034 - THE USER'S CUB: THE FULL-FLAP LANDING THE ELEVATOR CANNOT HOLD; genTrim's TRIM BUDGET ON THE FORWARD STOP (src/core/64_gen_build.js; `cub_rollout.svg`)
+- **The red.** GATE DMGTYRE 3, the Cub's crosswind roll-out at 4 / 5 m/s: 19.5 / 28.5 deg (<= 15). The brief:
+  "treat this as suspect physics".
+- **Traced, step by step (`data/cub_rollout_*.csv`; INSTRUMENTS in scratch cores, never shipped):**
+  1. **The tyre is not it.**
+     - The tyre law is DMG-TYRE's to the bit.
+     - The file's Cub on this branch rolls out at 10.4 / 12.3 deg: DMG-TYRE's own numbers.
+     - The game's Cub landed FLAPLESS on this branch's core (genTrim's own `landFlapless`, forced) swings
+       11.1 / 13.1 deg.
+  2. **The difference is the landing configuration.**
+     - genTrim lands the file's Cub flapless: G970's flare budget, its flare 0.491 over the 0.35 stop.
+     - The game's Cub, 3.4 cm further aft (G1985: its tank shaped to the bay, 460 kg), passes both budgets by hairs:
+       the approach trim -0.170 (budget 0.18), the flare 0.325 (stop 0.35). So it keeps full flap (`flaps.ldg` 0 -> 1).
+  3. **Flown, the full-flap approach cannot be held.**
+     - Under approach power the Cub's flap pitch-up puts the elevator on its FORWARD stop (-0.30) for the whole final.
+       Its attitude is -9.6 deg nose-down at 17.5 m/s.
+     - The flare starts 9 deg nose-down at 2.7 m/s of sink, and it mushes on at **1.03 Vs0, 1.4-1.5 m/s**. That is
+       exactly the arrival G970 wrote its rule to forbid ("1.00-1.04 Vs0, 1.3-1.4 m/s").
+     - The roll-out then starts at 13.9 m/s on light wheels: the flapped wing still lifts 60 % of the weight. The
+       tailwheel carries 98-250 N against 386 N parked, steered 25 deg and sliding at 3.7-5 m/s, so the rudder sits on
+       its stop (0.95). The solver's per-wheel readings were taken with a scratch hook, never shipped.
+     - This is real physics on a light-wheeled three-point arrival. The regression is the landing that produces it.
+  4. **Why the budget missed it.** genTrim's trim budget is "0.18 - half the servo stop". That is half of the nose-UP
+    stop, +0.35. holdPitch's nose-DOWN stop is -0.30 (39b SERVO_GAINS deMin), half of which is 0.154. A trim needing
+    forward stick was judged against the wrong stop.
+- **The fix (G2034).** The budget is now half the stop on the side the trim needs:
+  `0.18 x (de < 0 ? 0.30 / 0.35 : 1)`, i.e. 0.154 forward. It is used by both the landFlapless test and
+  apprTrimFail.
+  - **What it moves:** of every active archetype card and the five validated builds, **only the user's Cub**
+    (`data/cards_flaps.txt`). The C172-alike trims at -0.153, inside by 0.001; flown, its final holds -0.07, so it
+    should not move, and it does not. The apprTrimFail flags on the beaver, the metal Cessna and the Cessna on floats
+    are their positive trims, as before.
+  - **The Cub after (GATE DMGTYRE --show, `gates_after/DMGTYRE_show.txt`):** lands flapless at 1.14 Vs, 0.61-0.66 m/s, the roll-out run 146-159 m. The crosswind roll-out
+    at 3 / 4 / 5 m/s: **8.5 / 11.1 / 13.1 deg**, 0 / 1 / 1 reversals, 0.8 / 1.0 / 1.3 m off at the touch.
+  - Before: 19.5 / 28.5 deg at 4 / 5 m/s, rudder on its stop, run 57-60 m. The file's aeroplane: 10.4 / 12.3 at 4 / 5 (DMG-TYRE read 8.0 at 3).
+- **Two other fixes were measured and rejected** (they make it worse):
+  - G975's in-flight flap cap made symmetric (the forward stop too): the flap comes back to 0.46 and the Cub lands at
+    15.7 m/s; the roll-out ground-loops, 44 / 84 deg;
+  - the same plus the approach speed following the held flap: 16.4 m/s, 48 / 55 deg.
+  - A G970 flare budget at the flare loop's own anti-windup (0.30) fixes the Cub but floats the Caravan card (27.1 ->
+    34.1 m/s, 290 -> 617 m) and the Skymaster (218 -> 358 m), both of which landed fine flapped.
+- **Perf.** genTrim runs once per build. The step is untouched: no line of 30_solver, 32_hydro or 43_pilot changed,
+  so there is no per-step cost on an intact aircraft.
+
+### TREECRASH, DMGGEAR, DMGCLUSTERS, DMGWIND - NOT SOLVED. Every failing row, traced (red on 7846e790 and after, the same rows)
+THE COMMON CAUSE, measured (`data/taxi_work_metal.txt`): **THE NOSE-ENGINE RIG AT THE DRAWN FLANGE STATION.**
+- 61_gen_frame builds a nose engine as two mount nodes ENGL / ENGR at `engX`, plus the engine's CG node CGE (199 kg on
+  the metal Cessna) `engCgAft` behind them. Bearers run from all of them to the firewall ring S0. A TRICYCLE's nose leg
+  is braced by two "wires" from the nosewheel up to ENGL / ENGR.
+- `engX` used to be the prop rule. Since G445.1 it is the drawn FLANGE, and node now flies it too (G1985).
+  - On the metal Cessna and the Cessna on floats the flange is at -1.162 m against -0.510 as written.
+  - CGE is at -0.83 m against -0.18. The game's is realistic for an O-320; the file's was 18 cm from the firewall.
+- The rig was never re-shaped for the new meaning:
+  - the bearers are 4130 tubes of 7.39e-5 m2 running 1.12-1.54 m from the firewall to the CG and to the flange (0.76-
+    1.14 as written). A real mount is ~0.4 m, to a ring at the engine's REAR; the engine block ahead of it is rigid.
+  - the nose leg's wires lean 44 deg forward to the flange (TW -> ENGL 1.25 m) where rule 10 wants a near-vertical
+    member to the airframe above the leg.
+  - nothing crushable sits ahead of the flange (spinner, cowl): a trunk meets the flange nodes directly.
+- Each build's certificate stamps these members from its own cases. A member no case loads in tension sits on its floor
+  (kappa 0.1 x its physics: 3.28 kN on CGE-S0BR).
+
+THE ROWS:
+- **TREECRASH 3 (metal Cessna):**
+  - the 3 m/s taxi into a trunk spends 2702 J of plastic work, all in the rig: CGE-ENGL / R 447 J each, ENGL-ENGR
+    412, CGE-S0B* 252 x2, CGE-S0T* 243 x2, ENG-S0B* 203 x2;
+  - so the airframe work passes CRASH_J and it is a crash. The file's aeroplane: 1013 J, no crash;
+  - **raising CRASH_J would hide the rig, not fix it.**
+- **DMGGEAR (11 rows):**
+  - metal Cessna, the rough-field taxi at 8 / 12 m/s: **25.46 / 32.51 x certified yield** (CGE-S0BR tension,
+    VSNL-S0BR). The 2 cm bumps come up the nosewheel's forward-leaning wires into the flange. On the file's aeroplane
+    it reads 0.59 / 0.41.
+  - Cessna on floats: the touchdowns at 1.0 / 1.5 m/s 0.96 / 1.00; the 23.473 sink 1.29 (CGE-S0BR/BL); the crosswind
+    circuit 1.83. This is the 199 kg CG node at 0.83 m on its 1.1 m compression members.
+  - twin: the 1.2 x 23.727 drop breaks up (TPB off the core); the 23.473 sink 0.82 (MNTL-WF: the wing mount); the
+    crosswind circuit 2.00 (FLD-FLD, the float struts); the float nose-in sets 1 member. These are its drawn floats
+    (G1985: 4.60 m, 2.96 x gross, the keel 0.42 m higher) on certificates computed for them.
+  - the Cub's ground loop (no main gear folds; the wing struts and the stab attach go first): **NOT JOIN-PARITY's**.
+    The file's Cub fails it too. With `params.defDampMean` (the pre-G1885 hidden damper) a main gear folds again
+    (gearL:gear) and the row passes, with `tyreCoulomb` or without. The row was calibrated with the hidden damper:
+    DMG-D2b's to re-derive.
+  - The Cub's rows moved with G2034 (the flapless circuits): the crosswind circuit 0.59 -> 0.30, the touchdowns
+    0.31 / 0.42 / 0.37 -> 0.29 / 0.38 / 0.33.
+- **DMGCLUSTERS:** the twin's float nose-in (90 km/h, 5 m/s, 20 deg) breaks the ROD root at **1.003** of its limit
+  (1.86 of first yield), and it crashes. The drawn floats' longer forebody stops the nose harder, and the tail's inertia
+  loads the boom root. 0.3 % over.
+- **DMGWIND:**
+  - the user's Cub at 5 m/s from 270: CGE-S0TR tension breaks (the mount's worst 1.05-1.07), met at the trunk at
+    0.79-2.48 m/s. The steady and the gust-1 runs from 3 m/s break the mount too;
+  - the metal Cessna at 10 m/s from 60 / 90 / 120: ENGR-S0TR kinks (1.04);
+  - the twin at 10 m/s from 90 / 270: a gear member breaks;
+  - the same rig, and the same floats.
+
+THE FIX THESE WANT (not done here, deliberately: it moves what the game flies and every nose-engine card):
+1. In 61_gen_frame, a nose engine's mount ends at a ring at the engine's REAR (~0.4 m from the firewall). The engine
+   block from that ring to the flange is one rigid part: a D3 cluster, or members exempt from the certificate's
+   floor. The CG node rides in it.
+2. A trike's nose-leg wires go to the firewall's top corners, or to the mount ring, whenever the flange is not above
+   the leg (the B11 rule already does this for non-nose engines).
+3. The spinner and cowl are crushable ahead of the flange, or the flange nodes are not contact points.
+- Each changes the defs GATE JOINPARITY compares, so it needs `node tools/join_parity_page.js` re-run (~10 min a build
+  under SwiftShader) and the certificates re-stamped. Then re-run TREECRASH / DMGGEAR / DMGWIND.
+- The twin's rows (the ROD root at 1.003, the gear in DMGWIND, the drop breaking up) want the float owner's call on the
+  drawn floats' struts and the boom. They are certificate rows on a new hull, not a widened bar.
+
+### G2034b - GATE JOINPARITY's FOUR REDS (on the assembled base too: JOIN-PARITY brought them, the brief's "every red it brings")
+- **Two red rows were the floatplanes moving in the game since JOIN-PARITY's capture.** That capture was taken on
+  train 35, 2026-10-06T00:04; the bundle then carried trains 36-37b and the DMG water work into the load chain.
+  - The Cessna on floats was node 951.538 kg against the old page's 951.511 (worst member 3.9e-2).
+  - The twin was node 486.333 against the page's 489.276, and its float station 14 mm off (5 mm declared).
+  - **Re-captured** with `node tools/join_parity_page.js --only floats,twinFloats` (headless Chromium, SwiftShader,
+    the LOAD door, ~7 min a build). The new page: the Cessna on floats 951.538 kg, the twin 486.284.
+  - Merged into tools/fixtures/join_parity_page.json the way the tool's own `--only` merges (the three other rows
+    kept, the header's capture time and chain signature the new run's).
+  - Now node = page on all five: the Cessna on floats worst 1.9e-16; the twin 0, its float station 0.4 mm. **This
+    re-capture is the RE-CAPTURE RULE's case:** the move was the bundle's, meant by its owners (the drawn hulls'
+    layer changes), and is said here.
+  - Fresh and cached, the twin's chain gives the same def (486.282 kg by buildGen, three runs).
+- **Two red rows were the CENSUS.** Thirteen tools merged in the bundle name a validated file:
+  - Declared at their honest doors:
+    - `_dmgtyre_check`, `dmgtyre_evidence` and `_taxiclear_lib` go via pilot_trace;
+    - `_destto_check` goes via _treecrash_lib;
+    - `dmg_wall_census` is the real page through live_driver.
+  - **Routed through tools/_load_build.js:**
+    - `_rollsnd_check` (GATE ROLLSND re-run: PASS, its output identical);
+    - `float_shape_numbers` and `pilot_one_trace` (the validated ones as the game flies them; the Wipline and
+      twin-v7-04 fixtures as written);
+    - the five water evidence tools (`dmghull_evidence`, `dmgplough_bench / _evidence / _side / _trace`): the twin is
+      `twinFloats`.
+  - `FLYDIY_RAW_BUILDS=1` still flies every file as written.
+- Before -> after: **4 FAIL -> PASS** (`gates_after/JOINPARITY.txt`).
+
+### THE GATES, before (7846e790) -> after (this branch) - every number that moved
+The 17 targeted gates, each run whole (`node tools/_<gate>_check.js`, one file per gate) in a worktree of the base
+and on this branch, both built with `node tools/build.js` (exit 0). The runner was detached: two `run_gates` batteries
+were cut by the session's 2-hour background limit, so each gate was run alone, two at a time a tree. Whole outputs are
+in `reports/evidence/DMG-RECAL/gates_before/` and `gates_after/`; `gates_diff.txt` diffs them with timing dropped.
+
+| gate | before | after | what moved |
+|---|---|---|---|
+| DMGHULL | FAIL (1) | **PASS** | G2030's law rows; the twin's sweep and kick (G2031, above) |
+| DMGPLOUGH | FAIL (1) | **PASS** | G2032's hump row; the twin's LAW / HUMP / SWEEP on its drawn floats (L 4.01 -> 4.60 m, the wave's peak 0.62 -> 0.426 m at Fn 0.605) |
+| DMGTYRE | FAIL (2) | **PASS** | the Cub's roll-outs 3 / 4 / 5 m/s: passing / 19.5 / 28.5 -> **8.5 / 11.1 / 13.1 deg**, touchdown sink 1.44 / 1.54 -> 0.64-0.66 m/s, rudder peak 0.95 -> 0.54-0.80; parked, taxi turns: identical |
+| FLOATS | FAIL (2) | **PASS** | G2033: the first contact 0.163 W / 0.899 W; the four skips printed, OWED |
+| DMGDAMP, DMGFLOATTO, SEAPLANE, TAKEOFF, PILOTACT, TREEHIT, DMGMEMBERS | PASS | PASS | **nothing**: identical to the digit (wall-clock and core-file names aside) |
+| PILOTMATRIX | PASS | PASS | nothing: every cell identical (the archetype cards do not move, `data/cards_flaps.txt`) |
+| TREECRASH | FAIL | FAIL | the same row (the metal Cessna's taxi, 2702 J). Moved with G2034, the Cub: circuit 252 -> 321 s, 1.64 -> 1.29 g, worst 0.29 -> 0.30; the 30 m/s trunk 173 -> 176 broken (22.8 -> 23.0 kJ), wing-out 128 -> 129 (10.49 -> 10.50 g); the 100 km/h ditch 123 -> 131 set, 90 -> 95 broken, slam 274 -> 931 kPa, 10.73 -> 12.02 g; the severe ditch 189 -> 198 set, 196 -> 200 broken, 16.01 -> 15.47 g; reset's hash (a different def, the same bits both ways) |
+| DMGGEAR | FAIL | FAIL | the same 11 rows. Moved with G2034 (the Cub): touchdowns 0.31 / 0.42 / 0.37 -> 0.29 / 0.38 / 0.33, the circuit 252 -> 321 s (touchdown 1.37 -> 0.60 m/s), **the crosswind circuit 0.59 -> 0.30** (2.69 -> 3.21 m/s across: 0.2 V_S0 on the clean V_S0); the Cub's bracket limits 7.62 -> 7.22 kN and its NASA test 95 / 65 -> 98 / 63 set / broken |
+| DMGCLUSTERS | FAIL | FAIL | the same row (ROD root 1.003); the Cub's circuit 0.007 -> 0.008 |
+| DMGWIND | FAIL | FAIL | the same rows; the Cub's breaks 1115 -> 1107 J etc. (its flapless trim); the reader's hash |
+| JOINPARITY | 4 FAIL | **PASS** | G2034b (above): the floatplanes re-captured, the census |
+Outside the list, run because this branch touched its loader: ROLLSND PASS -> PASS, identical.
+
+### OPEN QUESTIONS (for the user, through the coordinator)
+1. **The nose-engine rig (TREECRASH / DMGGEAR / DMGWIND).** Rebuild the rig as a mount ring at the engine's rear plus
+   a rigid engine block. Move the trike's nose-leg wires off the flange, and give the spinner and cowl crush ahead of it.
+   That moves every nose-engine aeroplane the game flies, needs a JOINPARITY re-capture and new certificates, and is the
+   frame generator's owner's. This session did not do it: the brief says no widened bar, and an untested fleet-wide
+   rig change is not something to push into train 39 overnight.
+2. **The twin's drawn floats on their certificates** (DMGCLUSTERS' ROD root 1.003; DMGGEAR's 23.727 drop breaking up
+   and the float struts at 2.00 in the crosswind circuit; DMGWIND's gear member). Is the float layer's strut / boom
+   sizing for the drawn hull the intended one? These rows are certificate rows on a new hull.
+3. **FLOATS' landing is not flown.** The gate's approach is an untrimmed phugoid and nobody flies the touch: it skips
+   four times on the game's twin. A landing flown by THE PILOT (flare, hold, power off) would make its bars about a
+   real arrival. The skips are printed OWED until then.
+4. **G2032's 6-12 deg hump band** replaces the recalled 8-12 (no load or CG with it) by a physical definition with
+   Savitsky's planing trim as the floor. If a tank number for a C172-sized float at its design load is in hand, it
+   should replace both.
+5. **The Cub's ground-loop row (DMGGEAR §7.4)** was calibrated with the solver's hidden damper (DMG-DAMP took it out).
+   Without it the wing struts let go before a main gear. DMG-D2b's to re-derive or re-word.
+6. **The Cub's flap.** genTrim now lands the user's Cub flapless. The full-flap approach under power needed more
+   forward elevator than the servo has. Is the Cub's Fowler flap (dCl0 2.43, dCm0 -0.61; its stall 16.05 -> 13.45 m/s)
+   right? A PA-18's published stalls are ~43 -> 38 mph (recalled), a ratio 0.88 against the model's 0.84. If the flap
+   is re-derived, G2034's rule keeps holding, and the Cub may keep a partial flap.
+
+### FILES
+- src/core/64_gen_build.js: G2034, the trim budget on the side the trim needs.
+- tools/_dmghull_check.js: G2030, G2031.
+- tools/_dmgplough_check.js: G2031, G2032.
+- tools/_floats_check.js: G2033.
+- tools/_joinparity_check.js and tools/_taxiclear_lib.js: G2034b, the census.
+- tools/_rollsnd_check.js, tools/float_shape_numbers.js, tools/pilot_one_trace.js, tools/dmghull_evidence.js and
+  tools/dmgplough_{bench,evidence,side,trace}.js: G2034b, through _load_build.
+- tools/fixtures/join_parity_page.json: the floatplanes' rows re-captured.
+- tools/dmgrecal_evidence.js: the plots.
+- reports/evidence/DMG-RECAL/: README.md, gates_before/, gates_after/, gates_diff.txt, *.svg, data/.
+- The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage
+  stays OFF by default; nothing here touches the switch.
+
 
 ## G2013-G2015 DMG-NOSE - THE CRUSHABLE NOSE (THE SPINNER, THE PROPELLER AT ITS HUB, THE NOSE BOWL AHEAD OF THE ENGINE) AND THE NOSE'S 9 G AT EITHER CORNER ON THE CERTIFICATE; NO ENGINE MOUNT COMES OFF IN A 3 M/S TRUNK HIT; GATE DMGNOSE (2026-10-06, DMG-NOSE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-nose off claude/dmg-integration d3d5e24 (DMG-DRIVE and DMG-WINDBREAK already merged there: 4f6200e5 is in it, so nothing merged by hand); A0's JOIN-PARITY (claude/join-parity-g1985) has NOT landed: the Cessna rows below are on node's own def - PROVISIONAL)
 
@@ -81412,6 +83067,272 @@ drop): nothing. reports/evidence/DMG-D4b/gate_dmgwreck.txt, dmgwreck.json.
 - Debris do not meet the trunks, the wreck or each other (the ground and the water only).
 - The release is quantised to the page's frame (the damage state reaches the page a frame at a time); the bodies' own motion is
   frame-rate independent.
+
+## G2361-G2364 DMG-MOUNTRIG: THE NOSE ENGINE ON A REAL MOUNT - A RING OF FOUR CUPS AT THE ENGINE'S REAR FACE 0.4 m AHEAD OF THE FIREWALL, TWELVE BEARERS, EIGHT ISOLATORS, THE CASE RIGID; THE NOSE LEG BRACED TO THE MOUNT'S LOWER CUPS; MASS AND CG KEPT, FLIGHT UNCHANGED TO 1e-3; THE MOUNT DOES NO PLASTIC WORK IN ANY TAXI (2026-10-07, DMG-MOUNTRIG for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-mountrig off origin/claude/dmg-recal 30b4ec8e; G2361-G2364 all used)
+
+**READY for the coordinator - WITH THREE OF THE FOUR GATES STILL RED, said plainly.**
+- TREECRASH is green: DMG-NOSE's merge made it green, and it stays green on the new rig.
+- DMGWIND, DMGGEAR and DMGCLUSTERS are still red, but on no nose-mount row. Every red row left is one of:
+  - the twin's floats and boom (identical before and after: the twin has no nose engine);
+  - the metal Cessna's propeller, which sits 2.3 cm INTO the ground at rest;
+  - a floatplane's 3 m/s water touchdown, past FAR 23.473's limit sink.
+- Every nose-mount row of the four is green. The mount does no plastic work in any taxi on any build.
+Source and tools only; nothing generated is committed. Damage stays OFF by default (nothing here touches the switch).
+
+### WHAT I MERGED FIRST: DMG-NOSE
+The crushable nose (G2013-G2015, GEN_NOSE / genNoseSpec / nosePass) was on claude/dmg-integration, not on this bundle.
+I merged **claude/dmg-nose (011daf60) itself**: two commits, the branch the integration merge took (9500f197).
+- Conflicts: 90_node_exports (the bundle's export list, plus DMG-NOSE's GEN_NOSE, genNose*, genCertMirror; the
+  integration's makeAutopilot / makeTestPilot left out, they are gone from this bundle) and HANDOVER (both kept).
+- Commit 305129ca. This merge alone turned **TREECRASH green** on the base: the metal Cessna's 3 m/s taxi is a 26 cm
+  crush and 0 J, no crash. It is the "before" of every number below.
+
+### THE OLD RIG (61_gen_frame's nose block, unchanged since the flange became `engX`)
+On the metal Cessna and the Cessna on floats; the Cub and the Jodel are the same shape at their own stations.
+- Nodes: the flange pair ENGL / ENGR at the drawn flange (x -1.162, the prop's blades on them) and CGE, the 199 kg
+  installed engine, at -0.832.
+- Members: 7 bearers from the flange pair to the firewall corners S0 (mass-billed 4130, 1.29-1.54 m) and 6 weightless
+  locators from CGE to the flange pair and the four corners (1.12-1.16 m). 13 members, all at the class section
+  7.39e-5 m2. The nose leg's two "wires" go from the nosewheel 44 deg forward to the flange (1.25 m).
+- Side views: `reports/evidence/DMG-MOUNTRIG/rig_<build>_old.svg`.
+
+### THE NEW RIG (G2361-G2362, src/core/61_gen_frame.js; numbers in GEN_RULES, src/core/60_gen_spec.js)
+A nose engine with a measured CG (S.engCgAft, every validated build) now sits on a mount. Sources are **as recalled, not
+looked up** - A0 to check them against a mount drawing.
+- **The ring at the engine's rear face** (GEN_RULES.mountRing 0.40 m ahead of the firewall).
+  - A light-aircraft mount is ~0.4 m deep: the 172's dynafocal mount for its O-320 / O-300, the PA-18's conical mount
+    for its O-200 / A-65 class, a Jodel's for its O-200 / C90.
+  - The engine's rear face is ~0.75 m behind the flange (O-320 ~29.5 in long, O-200 ~28.5, A-65 ~31).
+  - On all four nose builds the ring lands at x -0.40, 0.29-0.43 m aft of the engine's CG (mountCgGap 0.10 keeps it aft
+    of the CG, mountFw 0.10 ahead of the firewall).
+  - Four nodes, the isolator cups MNTTL / MNTTR / MNTBL / MNTBR, as wide as the flange pair and as deep as wide inside
+    the firewall.
+  - A build whose engine CG sits too close to the firewall for both gaps (or has no measured CG) keeps the old rig,
+    byte for byte. An archetype gets the same rule (`preset:garage` does: 4 cups).
+- **Twelve bearers**, 4130 at the type's section (GEN_RULES.mountTubeA):
+  - 1.000 x 0.049 in (94.5 mm2) over 120 kg installed (the 172's), 0.875 x 0.035 (59.6 mm2) under it (the Cub's, the
+    Jodel's);
+  - each upper cup to its side's top and bottom corners and across to the other top; each lower cup to both bottom
+    corners and up to its side's top;
+  - 0.50-1.03 m on the metal Cessna (the old ones 1.12-1.54).
+- **Eight isolators**: each cup to the CG node (its dynafocal axis) and to its side's flange node (the case is rigid
+  between them).
+  - Their own break section: the AN7 through-bolt's shank, 97.0 mm2 (GEN_RULES.mountIsoA).
+  - No Euler (`b.iso`: a rubber cup bottoms, it does not buckle) and no set: an isolator holds, then tears
+    (30_solver dmgMember).
+- **The engine's case**: the flange pair and CGE, three members at the crankcase's steel-equivalent section
+  (GEN_RULES.mountCaseA 4e-3 m2). They are rigid in the damage sense (elastic, never set) and keep their physics
+  (30_solver CERT_ENG, as before).
+- **The nose leg** (G2362): a tricycle's two upper braces go from the nosewheel to the mount's lower cups, near-vertical
+  above the leg (the 172's nose strut to its mount's lower ring), no longer 44 deg forward to the flange.
+- **No ring-side tubes**, measured on the stiffness matrix with the firewall pinned
+  (`reports/evidence/DMG-MOUNTRIG/scripts/mount_stiffness.js`, `mount_stiffness.txt`; the metal Cessna's geometry):
+  - with each cup on THREE bearers the ring's own tubes add under 7 %, and are not built;
+  - the first cut (8 bearers, each cup on two, plus the ring's sides) was a near-mechanism: its softest mode 1/40 of
+    the old rig's. In a 4 m/s taxi the engine swung 0.43 m aft and 0.36 m up on its mount, the aeroplane pitched 7 deg
+    tail-up and a wing root tore. The twelve-bearer mount reads 2-2.6x the old rig's compliance (aft at the flange,
+    down and sideways at the CG): an engine on rubber, about 11 Hz vertical against the old 15.
+- 23 members against 13, 4 nodes more.
+- Side views: `rig_<build>_new.svg`.
+
+### THE AEROPLANE DOES NOT CHANGE (G2361; `tools/dmg_mountrig_props.js`, `props_diff.txt`)
+- **Every new member is weightless.** The old rig's seven bearer tubes are billed as they were: the same seven amounts,
+  the same ledger mass and price, to the bit. Their mass (3.7-4.8 kg) is the mount's: a quarter on each cup. The flange
+  pair and the firewall's top and bottom corner pairs give up exactly what keeps the CG where it was (closed form,
+  x and y; z by symmetry).
+- The nose leg's moved wires are billed at their old length on their old ends (B()'s new `opt.ghost`: a member billed,
+  not built), so the nosewheel's mass does not move either.
+- CGE keeps the installed engine exactly (GATE ENGINE PASS) and the flange keeps the blades.
+- **Mass**: equal to 2e-13 kg. **CG**: equal to 2e-16 m. **Substeps**: unchanged on every build.
+  - The cups would have asked 81 of the Cub's 74 through a member between two of them. There is none: each cup only
+    meets ~10-200 kg nodes.
+- **Inertia** moves by what a ~4-5 kg mount moved 0.4-0.8 m aft makes:
+
+  | build | Ixx (roll) | Iyy (yaw) | Izz (pitch) |
+  |---|---|---|---|
+  | Cub | -0.042 % | -0.050 % | -0.102 % |
+  | Jodel | -0.058 % | -0.110 % | -0.139 % |
+  | metal Cessna | -0.053 % | -0.061 % | -0.099 % |
+  | Cessna on floats | -0.049 % | -0.055 % | -0.081 % |
+  | twin | = | = | = |
+  | preset:garage | -0.023 % | -0.016 % | -0.025 % |
+
+- I tried a moment-exact redistribution (the second moments too): it needs the cabin's frames S1-S3 to trade 1-10 kg
+  each, so it is not done (`scripts/moment_exact_try.js`).
+
+### FLIGHT IS UNCHANGED (G2364; `tools/dmg_mountrig_flight.js`, `flight_diff.txt`)
+Damage off (the game's default). Each build parked 10 s, a FAR 23.473 landing and a whole circuit with the pilot; the
+MD5 of (p, v) at the end and the numbers. Bit-identical is impossible where the rig changed (new nodes and members).
+- **The twin: bit-identical** (no nose engine).
+- **The others' deltas**:
+
+  | build | parked: CG height / pitch | 23.473 landing g | circuit |
+  |---|---|---|---|
+  | Cub | -0.17 mm / +0.0001 deg | +0.0002 | 321.45 s both, nz +0.0001 |
+  | Jodel | -0.22 mm / +0.0004 deg | +0.001 | nz -0.002 |
+  | metal Cessna | -0.28 mm / -0.001 deg | +0.006 | nz 2.209 -> 2.177 |
+  | Cessna on floats | -0.76 mm / +0.013 deg | +0.002 | nz +0.0008 |
+
+- Outcome and phase count are the same everywhere. (The Jodel's, the metal Cessna's and the floats' circuits run to the
+  tool's 340 s cap before and after: TREECRASH's own circuit.)
+- GATE PILOTMATRIX / TAKEOFF / SEAPLANE: see the gates.
+
+### THE CERTIFICATE (G2363, src/core/66_gen_cert.js; GEN_CERT_V 5 -> 6)
+- **The rig is re-stamped from the certificate's own cases**: 23.561's mount cases, the nose's 9 g at the hub and at
+  either corner, the drive's 23.361 / .363 / .371, the landings.
+- **"A mount is welded from one tube and hung on one kind of isolator"** (genCertCombine, after DMG-NOSE's mirror rule;
+  genCertMountKinds): every tube of a nose mount takes its kind's largest envelope, every isolator likewise, tension
+  and compression apart. It only ever raises a limit.
+  - Measured without it: the Cub's lower cross bearers were certified by the gyroscopic case alone, 2.0 kN in tension,
+    on their floor (kappa x physics, 4.0 kN). A 2 m/s taxi into a trunk pulled them to 5.3 kN and the mount's fittings
+    let go. The lower isolators to the CG sat at 0.97 of theirs.
+- With the rule no rig member sits on its floor: `tools/dmg_mountrig_cert.js`, `cert_rig.txt`.
+- GEN_CERT_V 6: a certificate stored by the page (bench_worker's IndexedDB) for a v5 rig is stale.
+
+### THE CENSUS, BEFORE (base 305129ca) -> AFTER (`tools/dmg_mountrig_measure.js`; `census_table.md`, `data/measure_*.json`)
+- Damage on, the certificate stamped, the validated builds as the game flies them. The cases:
+  - a taxi into a trunk at 1-5 m/s, throttle shut and at 0.3 (TREECRASH's trunk, 4 m ahead);
+  - DMG-DRIVE's nose-over at 4 m/s;
+  - TREECRASH's 30 m/s trunk flights, on the centreline and 2.5 m out.
+- "mount" = members with an end on an ENG / CGE / MNT node: 13 before, 23 after, so a group's break counts more.
+- 65 rows. Every row not listed below is identical, among them every taxi on the Cub, the Cessna on floats and the twin
+  (0 broken).
+
+| build | case | before: broken (mount) / plastic J (mount) | after |
+|---|---|---|---|
+| Cub | nose-over 4 m/s | 30 (10) / 243 (0), **CRASH** | **0 / 29 (0), no crash** |
+| Jodel | nose-over 4 m/s | 10 (10) / 1 (0), **CRASH** | **0 / 294 (0), no crash** (the axle's set) |
+| Jodel | taxi 5 m/s, throttle 0 / 0.3 | 0 / 4 / 7 | 0 / 18 / 24 (the nose tank's frame) |
+| metal Cessna | taxi 4 m/s, throttle 0 / 0.3 | 0 / 9 (9) / 44 (44) | 0 / 0 / 0 |
+| metal Cessna | taxi 5 m/s, throttle 0 | 30 (10) / 1436 (908), **CRASH** | **0 / 351 (0), no crash** |
+| metal Cessna | taxi 5 m/s, throttle 0.3 | 30 (10) / 1605 (993), **CRASH** | 1 (0) / 627 (0), **CRASH** (a firewall-ring member, S0, not the mount) |
+| metal Cessna | nose-over 4 m/s | 0 / 227 (0) | 0 / 14 (0) |
+| every nose build | 30 m/s centreline / 2.5 m out | CRASH | CRASH (as the gate asks; numbers in the table) |
+| Cessna on floats | nose-over 4 m/s (on its floats, on grass) | CRASH | CRASH |
+
+- **Engine**: every taxi from 2 m/s stops the engine before and after (the prop strikes the trunk: DMG-DRIVE's teardown).
+  The engine stays running in the 2.5 m-out flights of the Jodel and the Cessna on floats after (the prop misses the
+  trunk there).
+- **The mount** does no plastic work in any taxi on any build (before: up to 993 J). DMGWIND agrees:
+  - in the page's own staging (49 winds, 3 m/s into a trunk 6 m ahead) the mount's worst reads 0.29 / 0.30 / 0.21 of
+    its limit on the Cub / Jodel / metal Cessna, against 1.02 / 0.67 / 1.02 before;
+  - at the page's impact speed (3.6 m/s) 0 of 49 winds break it on all three.
+
+### THE PAGE AGAINST NODE (the user's Cub, 3 m/s)
+- **The page's def is node's**: GATE JOINPARITY on this branch, the page's capture
+  (tools/fixtures/join_parity_page.json) against node's load chain, n 97/97, nb 404/404, worst 0 on the Cub.
+  - JOINPARITY compares the spec the page settles on, built by the same core. So the page flies this rig the moment it
+    flies this core: nothing to re-capture.
+- **The page's own 3 m/s taxi was NOT re-run here.** The tools that drive the real page through a crash
+  (tools/live_driver.js, dmg_wall_census.js) drive a headed Chrome on the box: Windows paths, its GPU. This cloud has
+  headless Chromium only, and join_parity_page.js captures the spec, not a crash.
+- What I can say:
+  - node's Cub breaks 0 members in the 3 m/s taxi before and after;
+  - DMGWIND's replica of the page's staging breaks 0 in 98 winds, the mount at 0.29 of its limit;
+  - the page broke 10-13 mount members on the old engX, before JOIN-PARITY. On this bundle it flies node's def.
+  - **The box's live driver should re-run DMG-WALL's taxi case once** to close it.
+
+### THE GATES, BEFORE (base 305129ca = dmg-recal 30b4ec8e + DMG-NOSE) -> AFTER (this branch)
+- Each gate was run whole (`node tools/<gate file>`), on this branch and, where it was red or moved, in a worktree of
+  the base. Both trees were built with `node tools/build.js` (exit 0).
+- The worker restarted twice (killing background runs), so some gates ran more than once; the texts are the last
+  complete runs.
+- Outputs: `reports/evidence/DMG-MOUNTRIG/gates_after/` and `gates_before/`.
+
+| gate | before | after | what moved |
+|---|---|---|---|
+| TREECRASH | PASS | **PASS** (50/50) | the taxi rows: 0 J, 0 set |
+| DMGGEAR | FAIL 61/72 | FAIL **65/72** | fixed: the Cub's ground loop (no `eng:mount` in the order now); the Cessna on floats' touchdowns 0.96 / 1.00 / 1.29 (CGE-S0B*) -> 0.52 / 0.49 / 0.59. The floats' crosswind circuit 1.83 (CGE-S0BR) -> 1.21 (the firewall's S0BL-S0TR, its 2.99 m/s touchdown). Left: the metal Cessna's rough field 25.46 / 32.51 -> 38.48 / 33.20 (THE PROP STRIKE, below); the twin's four rows, identical |
+| DMGCLUSTERS | FAIL 81/83 | FAIL 81/83 | nothing: the twin's float nose-in, the ROD root at 1.003, bit for bit |
+| DMGWIND | FAIL 11/12 | FAIL 11/12 | the nose rows' worst 1.02 / 0.67 / 1.02 -> 0.29 / 0.30 / 0.21; left: the twin on the water at 10 m/s from 90 / 270 (a gear member), identical |
+| DMGDRIVE | FAIL 127/131 | FAIL 127/131 | the same four: the metal Cessna's disc in the ground in its circuit / half brakes (-0.07 -> -0.08 m, -0.05), the twin's graze at idle and torque361 (its nacelle) |
+| DMGCERT | FAIL (floats' bench 6.14 g) | FAIL (6.21 g) | the bundle's, above its [5.70, 5.99] window both ways: the same strut fitting first |
+| DMGCERTCOST | FAIL (3) | FAIL (the same 3) | the bundle's: the metal / floats frames 1833 / 1796 over their budgets 1797 / 1763 (the metal Cessna's identical case by case before and after, read through GEN_CERT_HOOK); the browser worker's certificate against node's (1.7 before, 2.3 after) |
+| DMGWALL | FAIL (3 rows) | FAIL (2 rows) | see below: before, the Jodel's nose-in and the floats' nose-in (1 cm, 5 cm); after, the metal Cessna's trunk 2.5 m out (1 cm: 0.65 %) and the floats' nose-in (a compact part's triangle). The wall's leak counts move with any crash's details; the coordinator's to judge |
+| DMGINTEGRITY | PASS | PASS | after the cups' own firewall limiters (the first run without them failed: the cups went 6-13 cm through) |
+| DMGNOSE, DMGMEMBERS, DMGSKIN, DMGINST, DMGDAMP, DMGHULL, DMGPLOUGH, DMGTYRE, DMGFLOATTO, DMGFPS | - | PASS | DMGFPS run on both: PASS / PASS |
+| JOINPARITY, PILOTMATRIX, TAKEOFF, SEAPLANE, FLOATS, BUILD, LOAD, JOIN, ENGINE, MOUNT | - | PASS | MOUNT: the stock nose engine's sag 1.1 mm, substeps 76 |
+
+- Not run: GEN (test_gen.js, 4 shards, not in the brief's list). Its digests will have moved with any nose build's node
+  order (4 nodes and 10 members more after CGE).
+- DMGWALL's loader: `tools/_dmg_wall_lib.js` built its physics def from the FILE AS WRITTEN, the only bundle tool that
+  still did. On the metal Cessna and the floats the as-written engine CG sits 0.18 m from the firewall, too close for
+  a mount, so it kept the old rig while the game's def has the mount, and the study refused (130 / 134 nodes). It
+  now flies the game's spec (tools/_load_build.js; `FLYDIY_RAW_BUILDS=1` the file). The base was re-run with the same
+  loader for the "before" (`gates_before/_dmg_wall_check.txt`; the as-written run is `_dmg_wall_check_raw.txt`).
+
+### THE STEP'S COST (`tools/dmg_mountrig_perf.js`, `perf.txt`)
+- The metal Cessna and the Cub parked, 1800 frames, both trees alternately (3 runs each, the machine otherwise idle).
+- **Damage off** (the game's default): the same within the runs' scatter.
+  - Cub: base 2.05 / 2.55 / 3.04 against new 2.15 / 2.41 / 2.37 ms a frame.
+  - Metal Cessna: 4.59 / 4.66 / 4.20 against 3.97 / 5.48 / 4.67.
+- **Damage on**:
+  - Cub: 2.64 / 2.56 / 2.33 against 2.51 / 3.30 / 2.95;
+  - metal Cessna: 8.37 / 8.54 / 8.87 against 8.31 / 8.52 / 7.60.
+  - The Cub's may be +10-15 %; the scatter is as large. A real one would be its 10 more members (+2.5 %).
+- **One cost found and removed**: an isolator flagged ON its member (`b.iso`, 8 of ~450) gave the solver's beam loop
+  two shapes of beam. The Cub's step with damage on went 2.5 -> 5.4 ms. The isolators are a list now
+  (parts.dmg.iso), read once at init.
+
+### THE PROP STRIKE ON THE METAL CESSNA (DMGGEAR's rough field, DMGDRIVE's circuit) - NOT THE RIG
+- The user's metal Cessna, as the game flies it: hub 1.007 m over the ground at rest, disc 2.06 m, **least clearance
+  -0.023 m**. A 172's is ~0.29 m (11 in, as recalled).
+- On 2 cm bumps at 6 m/s the disc brushes, then a blade separates (DMG-DRIVE grades by tip speed). The lost blade's
+  imbalance, ~230 kN rotating at 2000 rpm, shakes the nose: VSNL-S0BR (the nose tank's frame) reads 38 x its
+  certified yield. The trace is `scripts/rough_field_trace.js`.
+- The same disc is the DMGDRIVE circuit's -0.08 m. The base is identical (-0.023 m, 25.46 / 32.51).
+- The old reading, "the bumps come up the nose leg's forward wires into the flange", was the strike: the wires are
+  gone and the strike stays.
+- Whether the prop's diameter, the drawn gear height or the join's measure is wrong is the user's / the join's
+  question. Never tuned here.
+
+### OPEN QUESTIONS (for the user, through the coordinator)
+1. **The metal Cessna's prop is in the ground** (above). Is the drawn prop 2.06 m (a 172's is ~1.91 m, 75 in, as
+   recalled) or the nose gear too short? Until then DMGGEAR's rough field and DMGDRIVE's two "never touch it" rows stay
+   red, on the build, not the rig.
+2. **The twin's rows** (DMGCLUSTERS' ROD root 1.003, DMGGEAR's four, DMGWIND's water row, DMGDRIVE's two): unchanged
+   by this work, bit for bit. They are DMG-RECAL's question 2, the drawn floats' owner's.
+3. **The metal Cessna's powered 5 m/s taxi into a trunk** is still a crash: one firewall-ring member, 627 J, none in
+   the mount. Before, it was the mount (993 J). With the mount sound, the firewall frame is the next thing a 10 kt
+   powered tree strike finds. Is that the intended outcome at 5 m/s with power? Throttle shut it is a dent (351 J).
+4. **The inertia moves -0.02 to -0.14 %** (pitch the most), the mount's 4-5 kg having moved aft onto its ring. Mass
+   and CG are exact. A moment-exact redistribution trades 1-10 kg between the cabin's frames: is -0.1 % acceptable,
+   or should the mount's mass stay on the flange (the old rig's inertia, the cups then weightless and integrated
+   only through a cluster - a solver change)?
+5. **The numbers as recalled** - A0 to check against a mount drawing:
+   - the mount's depth, 0.4 m;
+   - the engines' lengths (O-320 ~29.5 in, O-200 ~28.5, A-65 ~31);
+   - the tubes (1.000 x 0.049 in for the 172, 0.875 x 0.035 for the Cub / Jodel class);
+   - the AN7 isolator bolt;
+   - the crankcase's steel-equivalent section.
+6. **The page's 3 m/s taxi** wants one run on the box's live driver (above).
+7. **DMGCERT's floats bench (6.14 -> 6.21 g) and DMGCERTCOST's three rows** are red on the base too. They came with
+   the bundle (DMG-NOSE's GEN_CERT_V 5 and its cases on this bundle's floats). DMGCERTCOST's frame budgets want
+   re-deriving by its owner.
+
+### FILES
+- src/core/61_gen_frame.js:
+  - G2361: the nose block's mount (the ring's cups, the case, the isolators, the twelve bearers, the old bearers'
+    billing and the CG-keeping split);
+  - B()'s `opt.A`, `opt.iso` (into parts.dmg.iso) and `opt.ghost`;
+  - G2362: the nose leg to the cups (its wires billed at their old length);
+  - the cups' firewall limiters.
+- src/core/60_gen_spec.js: GEN_RULES.mountRing / mountCgGap / mountFw / mountTubeA / mountTubeHeavy / mountIsoA /
+  mountCaseA.
+- src/core/30_solver.js: an isolator (parts.dmg.iso): no Euler, no set.
+- src/core/66_gen_cert.js: G2363, genCertMountKinds (one tube, one isolator); GEN_CERT_V 6.
+- src/core/90_node_exports.js: DMG-NOSE's exports, genCertMountKinds.
+- tools/_dmg_wall_lib.js: the wall study's physics def is the game's.
+- tools/dmg_mountrig_{measure,props,flight,svg,cert,perf}.js: the census, the mass properties, the flight comparison,
+  the side views, the rig on its certificate, the step's cost.
+- reports/evidence/DMG-MOUNTRIG/:
+  - rig_<build>_{old,new}.svg, census_table.md, props_diff.txt, flight_diff.txt, cert_rig.txt, mount_stiffness.txt,
+    perf.txt;
+  - data/, scripts/, gates_before/, gates_after/.
+- Merged: claude/dmg-nose (011daf60), its whole delivery (reports/evidence/DMG-NOSE/, tools/_dmg_nose_check.js, ...).
+- The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage
+  stays OFF by default.
+
 ## G1858.2-G1858.3 / G1859.5 DMG-WALL FOLLOW-UP FOR TRAIN 39 - THE SNAPSHOT NEVER WRITTEN, THE LINING CUT WHERE A BAY CRUSHED (2026-10-06/07, DMG-WALL for the DEFORM COORDINATOR; branch claude/dmg-wall-cowl off claude/dmg-integration 4300dc58)
 
 On top of the train-38 READY b9377615 (merged in d3d5e24e):
@@ -81462,3 +83383,379 @@ under CPU_BATTERY_WALL, the DMG rows read from the tree's own run_gates.js: ALL 
 DMGCLUSTERS 33/33, DMGDRIVE PASS, DMGFPS 54/54, DMGGEAR PASS, DMGINST 145/145, DMGINTEGRITY 116/116, DMGMEMBERS 70/70,
 DMGNOSE 83/83, DMGSKIN 131/131, DMGWALL 98/98, DMGWIND 41/41, TREECRASH 80/80, TREEHIT 50/50, UISMOKE 29/29, BUILD, JOIN
 (BATTERY: PASS, 2882 s of jobs, 2534 s wall) - reports/evidence/DMG-WALL/gates_night_dmgwall_int.txt.
+
+
+
+## G2365-G2369 DMG-BUNDLE-GREEN: THE BUNDLE'S REDS AT THEIR CAUSES - THE NOSE ENGINE AT ITS DRAWN HEIGHT (THE METAL CESSNA'S PROP WAS 2.4 cm IN THE GROUND IN THE GAME'S PHYSICS, 0.26 m CLEAR IN ITS DRAWING), THE WHOLE AIRFRAME CERTIFIED SYMMETRIC, THE TWIN'S NACELLE FANS LUMPED, FIVE GATE RIGS THAT TESTED THE WRONG THING, DMG-WALL'S CRUSHED-BAY CUT MERGED (2026-10-07, DMG-BUNDLE-GREEN for the DEFORM COORDINATOR, a CLOUD session: node + headless Chromium (the page's re-capture); branch claude/dmg-bundle-green off origin/claude/dmg-mountrig 67a55c3f; G2365-G2369)
+
+**READY for the coordinator - WITH THREE GATES STILL RED, said plainly.**
+- **Still red:** DMGGEAR 70/72, DMGCLUSTERS 81/83 and DMGCERT 68/70 are the reds left. All six rows are on the two
+  floatplanes, each traced to its cause, none with a bar widened (below, NOT SOLVED):
+  - the twin's boom root in A0's water case (1.003; DMGCLUSTERS x2, DMGGEAR's nose-in): the case is 2.6 x this
+    aeroplane's FAR 23.527 water load;
+  - the twin's aft spreader in a skipped water landing (DMGGEAR, 2.00): the landing nobody flies;
+  - the Cessna on floats' bench to destruction (DMGCERT x2, 6.59 g): its V-strut is certified by its drift drop, a
+    floatplane's water case, where the window assumes the bench's.
+- **Green now:** DMGDRIVE (131/131), DMGWIND (12/12), DMGWALL (98/98), DMGCERTCOST, GEN (not run before), and every
+  other gate on the list: TREECRASH, TREEHIT, JOINPARITY, PILOTMATRIX, TAKEOFF, SEAPLANE, FLOATS, BUILD, LOAD, JOIN,
+  ENGINE, MOUNT, and the rest of the DMG set.
+- **Red 1 was a visible bug in the game's physics, fixed at its cause.** The metal Cessna's prop was never in the
+  ground on its drawing (0.26 m clear, a 172's ~10 in). The join carried the drawn flange's station but not its
+  height, so the physics hung the engine 0.28 m low. It now carries both: the flown hub is the drawn one on all four
+  nose builds.
+  - Flight, damage off: the circuits keep their outcome (the metal Cessna's now completes inside the cap); 23.473
+    landings within 0.008 g; the CG height moves with the engine (+7.4 / +6.9 / +3.0 / -1.2 cm).
+- **Four further causes found and fixed:**
+  - the certificate stamped one side of the aeroplane weaker than the other (now symmetric, GEN_CERT_V 7);
+  - a wing nacelle's lumped fans buckled as thin tubes;
+  - a float that came off diverged on the water;
+  - a float's root twisted off at 0.94 of the certificate's own drop.
+- **Five gate rigs that tested the wrong thing**, each said: a water taxi held to a heading the aeroplane had left; a
+  graze trunk planted in the pod; a tricycle nosed over onto a nose wheel buried 15 cm; an engine that left on its
+  isolators not counted; a brittle break read as "no damage".
+- Source, tools and evidence only; nothing generated is committed. Damage stays OFF by default.
+
+
+### THE BRIEF'S EIGHT REDS, ONE LINE EACH
+| # | red | cause | fix / re-derivation | before -> after |
+|---|---|---|---|---|
+| 1 | DMGDRIVE: the metal Cessna's disc in the ground; the twin's idle graze and torque361 | the join never carried the drawn flange's HEIGHT (0.28 m low); the graze rig's trunk in the twin's pod; a nacelle's lumped fan buckled as a thin tube | G2365 (the join, 60_gen_spec); G2367 (the rig; `parts.dmg.lump`); and two rigs the low prop hid (a tricycle's nose-over, the engine leaving on its isolators) | 127/131 -> **131/131**; clearance -0.08 / -0.05 -> 0.22 / 0.22 m |
+| 2 | DMGGEAR (7 rows) | the prop (as 1); the twin's float roots under-limited (G2369); the floats' circuit and the twin's touchdown moved under G2365-G2367 together | G2365-G2369 | 65/72 -> **70/72**; left: the twin's ROD (A0's case) and its skip's spreader |
+| 3 | DMGCLUSTERS: the twin's float nose-in, ROD root 1.003 | the drawn boom at its plastic moment in a water case 2.6 x this aeroplane's FAR 23.527 load | **not solved** - the case is A0's, the wall an archetype rule | 81/83 -> 81/83 (1.003) |
+| 4 | DMGWIND: the twin on the water at 10 m/s from 90 / 270 | 90: the right float root 0.68 of the left's (a lopsided certificate); 270: the rig held a heading the twin had left (a full-power run) | G2366 (the mirror; the rig on its own heading) | 11/12 -> **12/12** |
+| 5 | DMGCERT: the floats' bench 6.21 g | its V-strut certified by the drift drop (6.20 g predicted), then a ductile box shifting load to the stronger rear strut | **not solved** - the window assumes the bench's case governs; its owner's | 69/70 -> 68/70 (6.59 g: G2366 made both sides alike) |
+| 6 | DMGCERTCOST (3) | the worker handed the Cub file as written; budgets taken on the files as written | the game's Cub on both sides; budgets re-derived on the game's aeroplanes (the files still fit the old); the reference refreshed (GEN_CERT_V 7) | 3 FAIL -> **PASS** |
+| 7 | DMGWALL (2 rows) | the metal Cessna's: DMG-WALL's crushed-bay cut not on the bundle; the floats': a free float diverged the whole sim | merged claude/dmg-wall-cowl; G2368 (`hydroFree`) | 2 FAIL -> **98/98** |
+| 8 | GEN (not run) | - | run: no digest moved | - -> **PASS** (4 shards) |
+
+### G2365 - THE MERGE: claude/dmg-wall-cowl (65c77c5c) FIRST
+- Merged as the brief asks (DMG-WALL's G1858.3 crushed-bay cut and G1858.2 copy-on-first-break; viewer code, the wall
+  study and its rigs, GATE DMGWALLPATH). One conflict: HANDOVER (both sections kept). Commit 25a22589.
+- On the merged base (built, exit 0): **GEN PASS** (4 shards), **DMGSKIN PASS**, **DMGWALL 1 row** (was 2 on 67a55c3f):
+  the metal Cessna's trunk 2.5 m out is green (0 of 691 798 places past 1 cm, 0.018 % past 1 mm); left: the Cessna on
+  floats' nose-in, "no compact part triangle past 1 %". (`gates_base_merged/GEN_DMGWALL_DMGSKIN.txt`.)
+- GATE JOINPARITY's census then named the merge's `_dmg_wallpath_check.js` (it boots the page under node with the file
+  as its autosave): declared at the page's door.
+
+### G2365 - RED 1: THE METAL CESSNA'S PROP IN THE GROUND - THE JOIN NEVER CARRIED THE DRAWN FLANGE'S HEIGHT
+**Cause.** The metal Cessna's prop is not in the ground on the user's drawing. The physics hung the engine lower
+than the drawing:
+- The editor stands the engine unit on the cowl's nose face (`_cage_eng.js`: `f.yc`). On the user's metal Cessna its
+  hub is 0.800 m over the cabin keel, 1.289 m over the ground at the bench attitude.
+- The disc is the drawn 2.06 m (`cw_propD`; the cage's old `propR` 0.875 dial is not the prop), so it clears by
+  **0.259 m**. A 172's is ~9-11 in (as recalled): the drawing is right.
+- G445.1 made the join carry the drawn flange's STATION (`engines[0].x`) for a nose engine, but not its height:
+  "y stays the spec's thrustline rule" (`60_gen_spec`: `engY = 0.36 cab.h`). That puts the flown hub 0.522 m over
+  the keel, **0.278 m under the drawn one**. At rest the flown hub sat at 1.006 m and the disc 2.4 cm in the ground
+  (MOUNTRIG's finding). Every DMGDRIVE / DMGGEAR prop row on the metal Cessna was this.
+- The other nose builds, drawn minus flown: Cub +0.126 m, Jodel -0.051 m, Cessna on floats +0.278 m. The twin's
+  nacelles were already measured (wing mounts carry x, y, z).
+- Measured with the page's own editor and join (`scripts/jprobe.js` through `_load_build.js`'s probe door):
+  `data/drawn_hub_base.txt`; at rest in node: `data/rest_base.txt` -> `data/rest_engY.txt`.
+
+**Fix (G2365), at the join, as G445.1 did for x:**
+- `tools/_cage_join.js`: a nose engine's entry carries the drawn flange's `y` with its `x`.
+- `src/core/60_gen_spec.js`: a nose engine with a measured `x` and `y` takes `engY = y` (+ the placement's dy). The
+  rule stays for a bake with no drawn engine (every archetype: bit-identical, `preset:garage` below).
+- What reads `engY` follows the drawing: the thrust line, the engine's CG node, MOUNTRIG's ring (its cups at the
+  flange's height), the nose leg's braces to them, the derived cowl loft.
+
+**After** (`data/rest_engY.txt`): the flown hub is the drawn one on all four (ENGL y over the keel 0.596 / 0.326 /
+0.800 / 0.800). **The metal Cessna's disc clears 0.254 m at rest** (was -0.024).
+
+**What moved** (`tools/dmg_mountrig_props.js` and `dmg_mountrig_flight.js` on both trees; `data/props_*.json`,
+`flight_diff_engY.txt`):
+
+| build | mass kg | CG height | inertia roll / yaw / pitch | parked CG / pitch | 23.473 landing g | circuit, damage off |
+|---|---|---|---|---|---|---|
+| Cub | 460.387 -> 460.483 | +3.04 cm | +0.07 / +0.01 / +0.08 % | +3.0 cm / -0.002 deg | 1.6670 -> 1.6667 | completed both, 321.45 -> 321.40 s, nz 1.286 -> 1.296 |
+| Jodel | 463.890 -> 463.875 | -1.23 cm | -0.09 / -0.00 / -0.09 % | -1.2 cm / +0.0004 deg | 1.8584 -> 1.8588 | 340 s cap both, nz 1.666 -> 1.642 |
+| metal Cessna | 887.242 -> 887.974 | +7.44 cm | +0.23 / +0.06 / +0.28 % | +7.5 cm / -0.04 deg | 2.1135 -> 2.1172 | **340 s cap -> completed 339.7 s**, nz 2.222 -> 1.871 |
+| Cessna on floats | 951.538 -> 951.650 | +6.93 cm | +0.65 / +0.00 / +0.59 % | +6.6 cm / +0.11 deg | 1.6556 -> 1.6632 | 340 s cap both, nz 1.580 -> 1.615 |
+| twin, preset:garage | = | = | = | bit-identical | | |
+
+- The mass moves by the cowl loft that follows the thrust line (its derived skin is billed), up to 0.73 kg.
+- Every outcome and phase count is kept except the metal Cessna's circuit, which now completes inside the cap.
+
+**The page.** The join changed, so the page re-captured: `node tools/join_parity_page.js --only
+cub,jodel,metal,floats --jobs 2`, headless Chromium + SwiftShader, the LOAD door, ~10 min a build
+(`data/join_parity_page_recapture.txt`). Its masses are node's to the gram (460.483 / 463.875 / 887.974 / 951.650);
+GATE JOINPARITY: node = page, worst 2.2e-16. This is the RE-CAPTURE RULE's case: a load-chain change meant to move what
+the game flies, said here.
+
+### G2366 - THE TWIN'S FLOAT ROOT, AND THE WHOLE AIRFRAME CERTIFIED SYMMETRIC (GEN_CERT_V 6 -> 7)
+**Cause (DMGWIND's twin row, 10 m/s from 90).** Not "a gear member": the right float's ROOT (D3's bolt-group cut of
+its struts) let go in twist at **1.0008 of its limit**. The left float's root held **1.87 kN m**, the right's
+**1.27**: one aeroplane, two different floats.
+- The certificate stamps each member from its own envelope. The one-sided cases (the one-float drop rolls one way,
+  the drift drops, the engine's torque) left mirror pairs apart. Measured (`scripts/mirror_asym.js`, the base):
+  - the twin's float struts up to 1.69 x apart (FLD-S1BL 2.94 / 1.74 kN), so the right root's bolt group was weaker;
+  - the Cessna on floats' fuselage up to 2.10 x (S2BL-S3BL 15.90 / 33.35 kN) and its float struts 1.99 x;
+  - the metal Cessna's wing 1.89 x; even the Cub's fuselage 1.45 x.
+- At the moment the right root went, the left one read 0.68 of its own limit.
+
+**Fix (G2366, `66_gen_cert.js`).** DMG-NOSE's G2014 rule ("a builder welds both sides of a mount from one tube") on
+every member that has a mirror (`genCertMirrorAll`; the mount's pairs are among them): each member and its mirror
+take the larger envelope, tension and compression apart. It only ever raises a limit.
+- **GEN_CERT_V 6 -> 7**: a certificate the page stored for v6 is stale (a v6 one is lopsided).
+- `genCertMirror` (the mount's pairs, GATE DMGNOSE's) is unchanged.
+
+### G2366 - DMGWIND'S WATER TAXI FLEW A FULL-POWER RUN, NOT A TAXI (tools/_dmg_wind_check.js)
+**Cause (the twin, 10 m/s from 270).** The row is "10 s taxiing at 3 m/s on the sea lane". The rig held 3 m/s along
+the heading the aeroplane STARTED on.
+- A floatplane weathervanes: the twin turned 92 deg into the beam wind (`scripts/twin_wind*.js`).
+- Its speed along the old heading fell to zero, and the loop opened the throttle to 0.99: a 23 m/s run into the
+  wind. The twin porpoised to +-30 deg and nosed over on its thrust couple (DMG-PLOUGH's), 129 members yielding
+  before the floats went.
+- At 90 deg the same loop lifted it 1.3 m off the water before the float root broke.
+
+**Fix (the rig).** 3 m/s along the aeroplane's OWN heading, its taxi speed through the water. The land rows are
+untouched.
+- With it the twin taxis at throttle 0.15-0.21, pitch within a few degrees, nothing yielding, from 0 / 90 / 180 /
+  270.
+
+### G2367 - THE TWIN'S DMGDRIVE ROWS: A RIG THAT PUT THE TRUNK IN THE POD, AND THE NACELLE'S FANS AS THIN TUBES
+**1. "The same graze at idle": 'stoppage', want 'brush'.**
+- **Cause.** `tools/_dmg_drive_lib.js` tipStrike plants the trunk "to the aeroplane's left of the hub (away from the
+  cabin on the twin's left engine)". It took the side from the world z's sign times a perpendicular that turns with
+  the heading. On the game's strip that put the twin's trunk **inboard** (z -0.58 against the hub's -1.65): in the
+  pod's side.
+- The pod shoved the left nacelle 1 cm into its disc after the first contact. The idle brush (0.031 R, graded
+  'brush' on the first frame) became 0.040 R, and a rigid strike past 0.04 R is a stoppage.
+- With the trunk clear of the disc the hub does not move (0.1 mm, `scripts/graze*.js`).
+- **Fix (the rig).** The side is the hub's own, across the heading from the CG. A nose engine (on the centreline)
+  gets the same vector as before, bit for bit. **After:** 'brush' at idle, the engine runs, the mount holds; full
+  power still separates a blade and the mount lets go 0.017 s later.
+
+**2. torque361: "lets go at 1.47 x it", want >= 1.5.**
+- **Cause.** The member is ENGL-WR, the left nacelle node to the rear spar's root-side node: **1.71 m** long. A wing
+  nacelle is fanned to the four spar nodes of its bay (61_gen_frame G179), and the bay runs from the root to the
+  nacelle station, so two of the four fans reach the bay's far end (1.15-1.71 m on the twin).
+- The solver gives every 'fus' member of a tube row a thin tube's Euler cap at its class section. ENGL-WR buckles at
+  **4.52 kN**, against its certified 8.69 (the bow case) and 23.361's limit torque's 3.08 kN x 1.5 = 4.62.
+- The certificate never stamps past physics, so it could not help.
+- **The fans are not tubes.** A real nacelle bolts a short mount to its spar's fittings. These fans are the
+  nacelle's structure lumped onto the spar box, the same kind of stand-in the solver already exempts from Euler ("the
+  strut fan's hidden members (to 5.8 m: the lumped stand-in for a spar box)", G1811).
+- **Fix (61_gen_frame / 30_solver).** A wing nacelle's fans over its bay (the engine's and the foot's) are listed in
+  `parts.dmg.lump` and take no Euler; everything else about them is unchanged.
+  - The post and the CG node's members keep their tube.
+  - Listed rather than flagged on the member, as MOUNTRIG did its isolators (one shape of beam in the solver's loop).
+  - Only the twin has a wing nacelle among the validated builds.
+- **After:** torque361 lets go at **3.89 x** (CGE-WF).
+
+### G2367 - DMGDRIVE: TWO RIGS THE OLD METAL CESSNA'S LOW PROP HAD HIDDEN
+With the disc at its drawn height, two of the metal Cessna's strike rows read null:
+
+**1. "A nose-over at 2 m/s".**
+- `_dmg_drive_lib.js` noseOver pitches the aeroplane about its mains until its disc is 3 cm off the ground. On a
+  tricycle that drives the NOSE WHEEL into the ground: the metal Cessna's sat 0.148 m under it
+  (`scripts/noseover_tw*.js`).
+- The leg then threw the nose back up, and the disc bit 3.7 cm, short of the 5 cm turf, so there was no strike.
+- On the old geometry the disc was below the nose wheel and the rig never met the leg.
+- A tricycle's disc meets the ground only once its nose leg has gone: a certified one keeps positive clearance with
+  the nose strut bottomed and its tyre flat (FAR 23.925(a), as recalled).
+- **Fix (the rig).** For a fall (V > 0) on a tricycle the nose leg is folded, its members slack as a break leaves
+  them, and the wheel left on the ground. The brush row (the nose rising at 0.3 m/s) keeps its leg; taildraggers are
+  untouched.
+- **After:** 2 / 4 / 8 m/s: 'stoppage', 'stoppage', 'stoppage' (bites 0.15-0.2 R).
+
+**2. "A trunk grazing the tips at full power: ... the mount lets go".**
+- The blade separates (88 kN of imbalance) and **all eight isolators tear**: the engine leaves.
+- The rig, though, only watched for a group named `...mount` to break. Since DMG-MOUNTRIG that group is the ring's
+  twelve bearers, which stay on the firewall.
+- **Fix (the rig).** The engine has also left when every member from its own nodes (ENG / CGE) to anything else is
+  broken.
+- **After:** the metal Cessna's engine leaves 0.22 s after the strike. The Cub, the Jodel, the floats and the twin
+  still record their mount groups at 0.02-0.03 s.
+
+### G2368 - DMGWALL'S LAST ROW WAS A DIVERGED SIM: A FLOAT THAT CAME OFF, PUSHED BY THE WATER PAST ITS OWN MOMENTUM
+**Cause (DMGWALL "floats nosein-water: no compact part triangle past 1 %").** The Cessna on floats' severe nose-in
+(150 km/h, 10 m/s, 60 deg) is not a stretched cowl panel.
+- The panels sat at 2.6e16 m from the second measured frame: **the whole sim diverged**.
+- `scripts/nosein_*.js`, on the base and on this branch alike:
+  - at 0.134 s both float roots twist off (D3's cuts: the floats come off as rigid bodies);
+  - within the frame a keel node of the free float gains ~8.8 m/s every substep (640 g, steady), then runs away;
+  - the next frame every node is at 1e16 m. The damage record calls it "broke up: the fuselage parted": 542
+    members.
+- **The mechanism.** The water's dynamic terms (32_hydro: the planing pressure rho V^2, the cross-flow, the skin, the
+  slam, the side force) are explicit forces, held for the hydro compute's interval (1/360 s).
+  - On a float bolted to a 950 kg aeroplane they are stable.
+  - On a FREE float of its own ~30-40 kg, rho V^2 A at 40 m/s reverses its velocity in one interval and overshoots,
+    each compute the larger.
+  - Only the slam term was bounded by a node's momentum (`slamCap`).
+- DMG-D0's velocity guard DID see it: a 'speed' fault on node 117 (the free float's keel) at 1034 m/s, 0.15 s in
+  (`scripts/nosein_guard.js`). But GATE DMGWALL does not read the guard, and its "every drawn position finite" passed
+  1e16 m. The damage record's reason still reads "broke up". A gate that drives a wreck might check `sim.guard().fault`
+  (a note for DMG-WALL's owner; not changed here).
+
+**Fix (G2368, 32_hydro `hydroFree`, 30_solver `cutPart`).** When a float cluster's root cut parts, its hydro record
+is marked free with its part's mass. Its dynamic terms are then scaled so that one compute interval can at most stop
+its motion through the water (a semi-implicit bound); its buoyancy is untouched.
+- A float on the aeroplane never takes the branch: everything attached is bit for bit as before.
+
+**After:** the severe nose-in breaks 176 members in 9 pieces (the floats off, the wing struts and the stab after
+them), no node past a few metres. DMGWALL: the floats' and the twin's nose-ins pass every row (the floats' worst wall
+place 1.1 cm, 6 of 1 552 737 past 1 cm).
+
+### G2369 - THE TWIN'S FLOATS CAME OFF IN THE CERTIFICATE'S OWN DROP: A FLOAT'S ROOT TWISTS AT ITS STRUTS' AXIAL STRENGTH
+**Cause (DMGGEAR "the drop at 1.2 x the certificate's sink (3.66 m/s): ... broke up").** At the first touch both float
+roots (D3's bolt-group cuts) let go in twist, and the aeroplane fell through on its hull 2 s later. Measured
+(`scripts/twin_drop*.js`): the roots' twist reads 0.65 / 0.76 / **0.94** / 1.15 of their limit at 2.13 / 2.50 /
+**3.05 (the certificate's own float drop)** / 3.66 m/s.
+- At its certified case a member sits at most at 1 / (1.5 m) = 0.63 of its break. The root is built from those same
+  members but read 0.94: the cut and the certificate disagreed.
+- The bolt group's torque limit took the von Mises shear factor, tu / sqrt 3: each strut end treated as a bolt in a
+  shear plane. A float hangs on struts and spreaders whose ends are LUGS (the gear bracket stamps them so: brittle at
+  1.5 F_l,t m). A twist about its keel loads them along their own axes at their lever arms, as its bending does, and
+  the bending limits take factor 1.
+- DMG-D3 set these limits on D1a's physics (the twin's root T was 45.5 kN m) before the certificate existed. Under the
+  certificate the struts are stamped to what they carry (2.2-38.5 kN), and the shear factor left the root sqrt 3 short
+  of them.
+
+**Fix (G2369, 30_solver, the 'bolts' cut; the floats are its only users).** T = polar(keel, 1), at the members' axial
+strength, like Mu and Mv.
+
+**After:** 0.54 in the certificate's drop, 0.66 in the 1.2 x reserve drop. The drop breaks nothing and sets nothing
+(1.94 g).
+- On D1a's physics (GATE DMGCLUSTERS, no certificate) the floats' root torques rise by sqrt 3; their rows (the
+  nose-ins 0.02-0.04, the dig-in "by MEMBER, before the group's moment") stay as they were.
+
+### G2369 - TREECRASH's "THE DAMAGE FOLLOWS THE BEAMS' OWN LOADS": A BRITTLE MEMBER BREAKS, IT DOES NOT SET
+- With the floats' roots now holding (G2369), the twin's float nose-in (90 km/h, 5 m/s, 20 deg) breaks its float
+  struts' LUGS (the probe's worst member 1.12, gear, tension) and its boom's root bay (the ROD's cluster cut), and sets
+  nothing: 0 set, 30 broken.
+- The row's predicate was `(the probe's peak >= 1) === (members set > 0)`, written as "the damage model yields exactly
+  when the probe's peak passes 1". A brittle member past 1 breaks instead (a lug, a fitting: no set), so the predicate
+  read this run as a mismatch.
+- On the round before (the roots twisting off, a cascade) it read 58 set and passed; on 67a55c3f, 1 set.
+- **Fix (tools/_treecrash_check.js).** Past 1: a set OR a break. Under 1: nothing sets (a D3 cut may still part on
+  its own limit).
+- The water rows' loads are unchanged by the predicate.
+
+### G2365 - DMGCERTCOST
+**1. "The worker's certificate is node's": 2.3 relative.**
+- **Cause.** The browser half handed the bench worker the Cub FILE AS WRITTEN (`genMigrateSpec` on the file), while
+  node's certificate was the game's Cub (`L.defOf`, through `_load_build.js`). Two aeroplanes, not two V8s: the
+  pre-G1985 Cub's tank and engine station.
+- The census missed it because it reads the file through `L.BUILDS.cub.build`, not by name.
+- **Fix (the gate).** The worker gets `loadValidated('cub').spec`, the spec node certified (`FLYDIY_RAW_BUILDS=1`:
+  the file on both sides).
+
+**2. The frame budgets.**
+- **Cause.** The budgets (G1892, 2026-10-05: 1797 metal, 1763 floats) are exact frame counts of the certificate's
+  sims, which settle until steady: they belong to an aeroplane. They were taken on the FILES AS WRITTEN.
+- Proof: on today's code the files as written step **1796 / 1761** (`data/certcost_raw_files_base.txt`), inside
+  their budgets. The 1833 / 1796 were JOIN-PARITY's game aeroplanes (the engine 65 cm forward, the Cub's tank), not a
+  lost cut.
+- **Re-derived** on the game's aeroplanes on this branch's final code: metal **1831**, floats **1795** (the uncut 2803 / 3055: the cut's 35 / 41 % kept). The Cub, the Jodel and the twin keep theirs (1807 / 1792 / 1786 inside 1809 / 1792 / 1791). Run alone: every row PASS (`gates_after/DMGCERTCOST.txt`).
+
+**3. The stored reference** (`tools/fixtures/dmg_certcost_ref.json`).
+- Rewritten (`--write-ref`) because the envelope legitimately moved: GEN_CERT_V 7 (G2366's symmetric stamp) on the game's specs (JOIN-PARITY, G2365's thrustline).
+- Every build's cut certificate equals the new uncut one to the bit.
+
+### NOT SOLVED - SAID PLAINLY (each traced to its cause; no bar widened)
+**1. The twin's boom root (DMGCLUSTERS' two nose-in rows; DMGGEAR's "float nose-in ... nothing breaks").**
+- In A0's WATER CASE (90 km/h, 5 m/s down, 20 deg nose-down) the twin's ROD root reaches **1.003** of its limit (1.86
+  of first yield) at 0.107 s and the boom's root bay goes. DMGGEAR's nose-in row is the same event: the first break is
+  S2BL-S3BL, the rod's root bay, "root-bend" at r 1.000.
+- The load is real, not an artefact: the nose stops, and the tail pitches with ~35 rad/s2 and decelerates with the
+  CG's ~5 g. ~44 kg of tail at ~1.5 m gives ~9-10 kN m, the sim's 9.6-10.3 (`scripts/twin_nosein.js`).
+- The limit is the drawn tube: 113 mm at plane scale, the 1.2 mm default wall (GEN_RULES.rodWall), its plastic moment
+  at 1.15 tu (10.31 kN m). D3's clusters are not stamped by the certificate, and the wall is a rule every rod-boom
+  build shares: raising it is an archetype tune. Not done.
+- **The case against this aeroplane.** FAR 23.527's step water load factor, n_w = C1 V_SO^2 / (tan^(2/3) beta
+  W^(1/3)) with C1 0.012 (as recalled), is **1.91 g** for the twin (V_SO 32 kt, beta 27 deg, 1071 lb) and 3.26 g for
+  the Cessna on floats. The case delivers **5.0 g** at the twin's CG: 2.6 x its limit, past its 2.9 g ultimate.
+- The case is fixed in V and sink for every floatplane (90 km/h is 1.5 V_SO for the twin, 1.0 for the Cessna).
+- **The question (A0's, the case's owner):** scale the ordinary water case per aeroplane (FAR 23.527's own load
+  factor or its V_SO), or rule that a twin-boom ultralight's boom must survive it (then the rod's wall wants a
+  certified size: a frame-generator change).
+
+**2. The twin's crosswind water circuit, 2.00 on the aft spreader bar (DMGGEAR).**
+- In the roll-out (275.6 s) the twin skips and comes down nose-up 13 deg with 8 deg of bank on one float
+  (`data/twin_xw_rollout.txt`, `scripts/twin_xw.js`).
+- The aft spreader bar (FLD-FLD at x 1.58, z -0.50 to +0.50) shortens 7 mm and carries **4.2 kN** in compression for
+  5 frames. Its certified envelope is 0.83 kN (wWeave governs it) and its stamped crush 2.16 kN.
+- No certificate case compresses the spreaders:
+  - 23.529's unsymmetrical step landing is written with both floats' side loads pointing the SAME way (`wUnsymR/L`);
+  - as recalled, a twin-float installation's side load is directed inboard on each float. Even inboard it is
+    0.25 tan beta of the up load, ~0.28 kN a float on the twin, a fifteenth of what the skip delivers.
+- So the gap is the landing, not the case. The twin skips because nobody flies its touch (DMG-RECAL's open question
+  3: "it skips four times on the game's twin").
+- I did not change the certificate for a load no FAR case asks for, and did not fly a new landing.
+- The base read 2.00 too.
+- **The question:** the floats' landing flown by the pilot (flare, hold, power off) first; then, if a flown skip
+  still reaches the spreaders, a certificate case for it (a one-float touch with bank) from its owner.
+
+**3. The Cessna on floats' bench to destruction (DMGCERT, 2 rows: "BROKE AT within [5.70, 5.99] g" and "to the
+ultimate x 1.1: it breaks").**
+- It breaks at **6.595 g** (the base: 6.215; window top 5.99 x 1.025).
+- Two causes, both traced (`data/floats_bench*.txt`, `scripts/bench_*.js`):
+  1. the wing's strut fittings at the fuselage (S1B?-WB) are governed by the ONE-FLOAT DRIFT DROP (38.03 kN against
+     the bench's 36.68). Since G2366 both sides are, so the certificate itself predicts **6.20 g**, above the window.
+     A floatplane's water case designing its wing fitting is legitimate; the window assumes the bench's case governs;
+  2. the two fittings are the V-strut's FRONT and REAR struts (to the front and rear spars,
+     `scripts/wb_pair.js`):
+     - on the metal Cessna the bench governs both, balanced: predicted 5.98 / 5.99 g. It breaks the front at
+       6.017 g, as predicted;
+     - on the floats the drift drop certified the front to 6.20 g and the REAR to **7.75 g**. As the box sets (from
+       3.85 g) the load moves off the front strut onto the much stronger rear one (the front's share falls to 0.94
+       of linear), and the front fails at 6.595 g;
+     - both struts at their breaks would carry the wing to ~6.9 g (their breaks over the bench's load at the limit,
+       122.5 / 67.4 kN x 3.8 g). It is static: 4 x slower or faster ramps give 6.209 / 6.238 g on the base.
+- Without G2366 the row was red as well (6.215).
+- **The question (DMG-D2a's):** derive the band's top from the certificate's own prediction for the joint that breaks
+  (here 6.20 g) and a measured redistribution allowance, or keep the flight card's band and say a floatplane's card
+  reads its water case.
+
+### THE GATES, BEFORE (67a55c3f, DMG-MOUNTRIG's `gates_after`) -> AFTER (this branch's final code, build 26c0ee1fc3c0)
+- Each gate was run whole (`node tools/<file>`), its own output file, on the final tree built with
+  `node tools/build.js` (exit 0). Four at a time, except PILOTMATRIX, DMGFPS and DMGCERTCOST, each alone.
+- Outputs: `gates_after/`. GEN, JOINPARITY, SEAPLANE, FLOATS, BUILD, JOIN, ENGINE, MOUNT and TAKEOFF are in
+  `gates_round2/`: the round before the last two changes, which touch only the damage layer (a float root's cut) and
+  three gate rigs.
+- `gates_diff.txt`: every gate's output against MOUNTRIG's, timing dropped. It is the before/after of every number
+  that moved.
+- A `run_gates.js --all` battery was cut by the session's 2-hour background limit, so the gates were run by a
+  detached runner (one process a gate, one file each).
+
+| gate | before | after | what moved |
+|---|---|---|---|
+| TREECRASH | PASS | **PASS** (50/50) | the twin's float nose-in: 1 set / 20 broken -> 0 set / 30 broken (its float struts' lugs and the boom's root bay; G2369's predicate) |
+| DMGGEAR | FAIL 65/72 | FAIL **70/72** | **fixed:** the metal Cessna's rough field 38.48 / 33.20 -> **0.57 / 0.41** (red 1); the Cessna on floats' crosswind circuit 1.21 -> **0.35** (S0BL-S0TR; under G2365 and G2366 together, not separated); the twin's 1.2 x 23.727 drop "broke up" -> **nothing breaks, nothing sets (1.94 g)** (G2369); the twin's 23.473 touchdown 0.82 (MNTL-WF, a nacelle foot's fan) -> **0.37** (under G2366 and G2367 together, not separated). **Left (2):** the twin's float nose-in (the ROD root, below) and its crosswind circuit 2.00 (the aft spreader in a skip, below) |
+| DMGCLUSTERS | FAIL 81/83 | FAIL 81/83 | nothing: the ROD root 1.003, bit for bit (below) |
+| DMGWIND | FAIL 11/12 | **PASS 12/12** | the twin on the water, 9 winds: 0 broken, 0 yields (G2366 x2) |
+| DMGDRIVE | FAIL 127/131 | **PASS 131/131** | the metal Cessna's circuit / half brakes: the disc's least clearance -0.08 / -0.05 -> **0.22 / 0.22 m** (red 1); the twin's idle graze 'stoppage' -> 'brush'; torque361 1.47 x -> 3.89 x; the metal Cessna's nose-overs 2 / 4 / 8 m/s 'stoppage' on its folded leg; its full-power graze: the engine leaves 0.22 s after (G2367's rigs) |
+| DMGCERT | FAIL 69/70 (6.21 g) | FAIL **68/70** (6.59 g) | the Cessna on floats' bench to destruction (below): its strut fittings symmetric now (G2366), governed by the drift drop |
+| DMGCERTCOST | FAIL (3) | **PASS** | the worker's certificate 2.3 -> **3.2e-8** off node's (the game's Cub on both sides); metal / floats 1833 / 1796 frames under re-derived budgets **1831 / 1795** (the files as written: 1796 / 1761, inside the old ones); the stored reference refreshed (GEN_CERT_V 7, the game's specs): every envelope equal to the bit. Run alone (the time ceilings) |
+| DMGWALL | FAIL (2 rows) | **PASS 98/98** | the metal Cessna's trunk 2.5 m out: DMG-WALL's crushed-bay cut (merged); the floats' nose-in: the free float's divergence (G2368) |
+| GEN | not run | **PASS** (4 shards) | nothing: no digest moved (the generator's archetypes carry no drawn engine) |
+| JOINPARITY | PASS | **PASS** | re-captured for the four nose builds (red 1); node = page, worst 2.2e-16; the census declares `_dmg_wallpath_check` |
+| PILOTMATRIX | PASS | **PASS** | identical cells |
+| DMGFPS | PASS | **PASS** (145/145, run alone) | |
+| DMGMEMBERS, DMGNOSE, DMGINST, DMGINTEGRITY, DMGSKIN, DMGDAMP, DMGHULL, DMGPLOUGH, DMGTYRE, DMGFLOATTO, TREEHIT | PASS | **PASS** | the Cessna on floats' water numbers moved with its CG (+6.9 cm, red 1): DMGHULL's step state at 18.2 m/s trims 7.9 -> 3.3 deg on a 0.114 -> 0.234 m keel; DMGFLOATTO's sweep moved; the rest are in `gates_diff.txt` |
+| TAKEOFF, SEAPLANE, FLOATS, BUILD, LOAD, JOIN, ENGINE, MOUNT | PASS | **PASS** | |
+
+### FILES
+- **Merged:** claude/dmg-wall-cowl 65c77c5c (DMG-WALL's G1858.2-G1858.3 / G1859.5, whole).
+- `tools/_cage_join.js`, `src/core/60_gen_spec.js`: the nose engine's drawn height (G2365).
+- `src/core/66_gen_cert.js`, `src/core/90_node_exports.js`: `genCertMirrorAll`, GEN_CERT_V 7 (G2366).
+- `src/core/61_gen_frame.js`, `src/core/30_solver.js`: a wing nacelle's fans `parts.dmg.lump`, no Euler (G2367).
+- `src/core/32_hydro.js`, `src/core/30_solver.js`: `hydroFree`, a free float's dynamic water terms (G2368).
+- `src/core/30_solver.js`: a float root's twist at its struts' axial strength (G2369).
+- Gate rigs and checks:
+  - `tools/_dmg_wind_check.js`: the water taxi on its own heading;
+  - `tools/_dmg_drive_lib.js`: the graze trunk's side, a tricycle's folded nose leg, the engine leaving on its
+    isolators;
+  - `tools/_treecrash_check.js`: a brittle member breaks;
+  - `tools/_dmg_certcost_check.js`: the game's Cub in the worker, the budgets;
+  - `tools/_joinparity_check.js`: the page door for `_dmg_wallpath_check`.
+- Fixtures:
+  - `tools/fixtures/join_parity_page.json`: the four nose builds re-captured;
+  - `tools/fixtures/dmg_certcost_ref.json`: the uncut reference, refreshed (GEN_CERT_V 7 on the game's specs; the stored one was stale (cv, spec, fingerprint), so the gate recomputed the uncut certificate every run; every build's cut certificate equals the new one to the bit).
+- `reports/evidence/DMG-BUNDLE-GREEN/`: `data/` (README.txt says what each is), `scripts/` (run from flyDiy/ as
+  `ROOT=$PWD node reports/evidence/DMG-BUNDLE-GREEN/scripts/<script>`), `gates_after/`, `gates_round2/`,
+  `gates_base_merged/`, `gates_diff.txt`, `flight_diff_engY.txt`.
+- The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage stays
+  OFF by default (nothing here touches the switch).

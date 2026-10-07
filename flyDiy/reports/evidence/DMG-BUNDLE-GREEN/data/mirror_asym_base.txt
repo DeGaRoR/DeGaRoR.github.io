@@ -1,0 +1,8 @@
+# scripts/mirror_asym.js on the base (FLYDIY_CERT=1): every mirror pair of members, the certificate's envelope max/min
+cub {"fus":"124 pairs, 17 >1.1x, max 1.45","wing":"62 pairs, 2 >1.1x, max 1.26","tail":"158 pairs, 7 >1.1x, max 1.78","wire":"2 pairs, 0 >1.1x, max 1.06","gear":"12 pairs, 0 >1.1x, max 1.00"}
+jodel {"fus":"124 pairs, 15 >1.1x, max 1.35","wing":"182 pairs, 17 >1.1x, max 1.88","tail":"134 pairs, 16 >1.1x, max 1.31","wire":"2 pairs, 0 >1.1x, max 1.00","gear":"12 pairs, 1 >1.1x, max 1.13"}
+metal {"fus":"124 pairs, 18 >1.1x, max 1.64","wing":"134 pairs, 12 >1.1x, max 1.89","tail":"134 pairs, 14 >1.1x, max 1.71","wire":"2 pairs, 1 >1.1x, max 1.18","gear":"14 pairs, 4 >1.1x, max 1.47"}
+floats {"fus":"124 pairs, 38 >1.1x, max 2.10","wing":"134 pairs, 36 >1.1x, max 1.93","tail":"134 pairs, 17 >1.1x, max 1.74","wire":"2 pairs, 1 >1.1x, max 1.20","gear":"104 pairs, 5 >1.1x, max 1.99"}
+    2.10 fus C S2BL-S3BL 15.90 33.35 | 1.99 gear T FLD-S2TL 16.52 32.89 | 1.96 fus T S0TL-S1BL 9.60 18.84
+twinFloats {"fus":"130 pairs, 15 >1.1x, max 1.44","wing":"62 pairs, 2 >1.1x, max 1.21","tail":"172 pairs, 23 >1.1x, max 1.45","wire":"2 pairs, 0 >1.1x, max 1.00","gear":"104 pairs, 14 >1.1x, max 2.91"}
+    1.69 gear C FLD-S1BL 2.94 1.74 | 1.58 gear T FLD-S1TL 1.76 1.11

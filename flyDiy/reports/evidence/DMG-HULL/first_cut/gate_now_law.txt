@@ -1,0 +1,36 @@
+LAW (the rigid bench: each build's own float at the hump and on the step of its calm take-off)
+   twin on floats hump: V 7.1 m/s, step keel 0.272 m deep, trim 4.6 deg; at 3 deg of slip the side force 305.5 N (the base's panels 111.2 N), centre -0.953 m from the step; slender body on the step keel 306.5 N
+   twin on floats step: V 12.0 m/s, step keel 0.172 m deep, trim 4.8 deg; at 3 deg of slip the side force 346.1 N (the base's panels 150.8 N), centre -0.668 m from the step; slender body on the step keel 347.3 N
+PASS twin on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 23145.7 N
+PASS twin on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats step: 346.1 N against the slender body's (pi/2) rho T^2 U v = 347.3 N on T = 0.172 m (2 %)
+PASS twin on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats step: at 90 deg the side term is 0 N and the cross-flow carries 14417.32 N
+PASS twin on floats step: the side force's centre -0.668 m from the step (ahead of it, on the forebody: -2.22..0)
+   Cessna on floats hump: V 11.1 m/s, step keel 0.274 m deep, trim 10.5 deg; at 3 deg of slip the side force 747.3 N (the base's panels 325.4 N), centre -0.519 m from the step; slender body on the step keel 760.0 N
+   Cessna on floats step: V 18.8 m/s, step keel 0.087 m deep, trim 6.6 deg; at 3 deg of slip the side force 218.7 N (the base's panels 135.5 N), centre -0.292 m from the step; slender body on the step keel 220.1 N
+PASS Cessna on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS Cessna on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 62645.39 N
+PASS Cessna on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS Cessna on floats step: 218.7 N against the slender body's (pi/2) rho T^2 U v = 220.1 N on T = 0.087 m (2 %)
+PASS Cessna on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats step: at 90 deg the side term is 0 N and the cross-flow carries 2406.31 N
+PASS Cessna on floats step: the side force's centre -0.292 m from the step (ahead of it, on the forebody: -3.68..0)
+
+(2 runs in 21 s on 4 processes)
+GATE DMGHULL: PASS

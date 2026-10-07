@@ -2514,6 +2514,25 @@ const GEN_RULES = {
   // to the spar is shallow; past the spar the post is. The spar is the
   // stiff point of the wing, and the foot stands on it.
   mountFootAt: 1.0,
+  // G2361 (DMG-MOUNTRIG): A NOSE ENGINE'S MOUNT IS A RING AT THE ENGINE'S REAR FACE (61_gen_frame's nose block). The
+  // numbers are as recalled, not looked up (A0 to check them against a mount drawing):
+  //   mountRing   the ring's station, metres ahead of the firewall: a light-aircraft engine mount is ~0.4 m deep - the
+  //               172's dynafocal mount for its O-320 / O-300, the PA-18's conical mount for its O-200 / A-65 class, a
+  //               Jodel's for its O-200 / C90; the engine's rear (accessory) face sits on it, ~0.75 m behind the prop
+  //               flange (an O-320 is ~29.5 in long, an O-200 ~28.5, an A-65 ~31: flange to the rear face, as recalled)
+  //   mountCgGap  the ring stays at least this far aft of the engine's CG (the block's CG inside it), and mountFw this
+  //               far ahead of the firewall; a build whose engine CG sits too close to the firewall for both keeps the
+  //               old rig (no room for a mount: the lump hangs on the flange pair and the firewall, as before)
+  //   mountTubeA  the bearer's section, 4130 tube: 1.000 x 0.049 in (94.5 mm2) on an engine over mountTubeHeavy kg
+  //               installed (the 172's dynafocal mount, as recalled), 0.875 x 0.035 (59.6 mm2) under it (the Cub's and
+  //               the Jodel's conical mounts, as recalled)
+  //   mountIsoA   an isolator's own break section: the AN7 (7/16 in) through-bolt's shank, 0.150 in2 (97.0 mm2), 4130
+  //               class - the rubber cup carries the load to its snubbing washer and the bolt is what lets go
+  //   mountCaseA  the engine's own case between its rear face, its CG and the flange (the crankcase, cast aluminium,
+  //               ~6 mm wall round ~1.2 m of girth, as its steel equivalent): one rigid body - it never yields
+  mountRing: 0.40, mountCgGap: 0.10, mountFw: 0.10,
+  mountTubeA: { heavy: 9.45e-5, light: 5.96e-5 }, mountTubeHeavy: 120,
+  mountIsoA: 9.70e-5, mountCaseA: 4.0e-3,
   // WING STIFFNESS CORRECTION (2026-08-11, GATE FLEX). The wing class is x19
   // softer than the structure the MASS MODEL already pays for: lin.wing
   // 0.62 kg/m over rho 7850 is 0.79 cm2 of cap, and E*A/L at a 1.7 m bay is
@@ -5182,6 +5201,15 @@ function resolveSpec(spec) {
     const e0 = S.engines[0];
     if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0)
       S.engX = e0.x + pl.engineDx;
+    // G2365 (DMG-BUNDLE-GREEN): ...AND A MEASURED THRUSTLINE OUTRANKS ITS
+    // RULE. The join writes the drawn flange's height too (metres over the
+    // cabin keel). Measured: the rule hung the user's metal Cessna's hub
+    // 0.28 m under the drawn one and its 2.06 m disc 2.4 cm into the ground
+    // at rest (the drawing clears it by 0.26 m); the Cub's 0.13 m low, the
+    // Jodel's 0.05 m high. A bake with no drawn engine keeps the rule.
+    if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0
+        && typeof e0.y === 'number' && isFinite(e0.y))
+      S.engY = e0.y + pl.engineDy;
   }
 
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE

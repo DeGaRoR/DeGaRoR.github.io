@@ -302,9 +302,16 @@ function cageJoinSpec(P, M, T) {
         // a 172's is. Measured: 144 kg weighed 0.67 m aft of the drawn
         // engine, the CG 7 % MAC aft of the aeroplane on the screen. The
         // flange the layer drew (M.engUnits, kind 'nose') rides out as `x`
-        // like every other mount's; y stays the spec's thrustline rule (the
-        // cowl and the nose gear read engY).
-        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x) ? { x: EU[0].x } : {}),
+        // like every other mount's.
+        // G2365 (DMG-BUNDLE-GREEN): AND ITS HEIGHT. y stayed the spec's
+        // thrustline rule (0.36 of the cabin's height): on the user's metal
+        // Cessna that hung the flown hub 0.28 m under the drawn one, the
+        // disc 2.4 cm INTO the ground at rest where the drawn disc clears
+        // it by 0.26 m (a 172's ~10 in) - every taxi a prop strike. The
+        // flange's y rides out with its x (the cowl, the mount and the nose
+        // leg read engY, now the drawn thrustline).
+        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x)
+          ? Object.assign({ x: EU[0].x }, isFinite(EU[0].y) ? { y: EU[0].y } : {}) : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -1006,6 +1013,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // ...nor is HARDWARE a surface (G307): a saddle under a fin's root is
       // in the fin's group and would widen its measured bounds
       if (o.userData && o.userData.edHw) return;
+      // ...and the HINGES are hardware too (G1985, JOIN-PARITY): the elevator's and rudder's brackets and horns
+      // (_cage_hinge.js `edHinge_<surface>_metal`) hang below the surfaces they are bolted to, and their shape follows
+      // the hinge layer's ray probes of the drawn skin - +144 vertices a surface on the page against node's harness,
+      // the tailplane's measured height (tail.stabH) 3-4e-5 apart on the Jodel and both Cessnas
+      if (/^edHinge_/.test(o.name || '')) return;
       const p = o.geometry.attributes.position;
       if (!p) return;
       tmp.multiplyMatrices(inv, o.matrixWorld);

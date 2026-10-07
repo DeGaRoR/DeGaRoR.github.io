@@ -1,0 +1,22 @@
+the motorglider: mass 284 kg, Vs 15.3, Vbg 20.6 m/s, L/D 15.1, sinkBg 1.36 m/s, sinkMin 1.20
+S1. still air
+  ok   the sim stays finite
+  ok   flown sink 1.37 m/s at 21.3 m/s vs the sheet's 1.36 (within 25 %)
+S2. the ridge
+  the face at (8700, -5900) slope 0.247, ground 91 m, the crest 400 m east at 290 m
+  the band at 80 m over the face: (8700, -6050) ground 86 m, 3.98 m/s in the 8 m/s ridge day; the beat flies it at 206 m (2.93 m/s there against 1.36 of sink)
+  ok   both runs stay finite
+  ok   on the ridge the energy height goes 233 -> 246 m over 230 s (13 m, mean vs 0.05, mean updraft 1.51)
+  ok   with the terrain term off it goes 190 -> 121 m (-69 m, mean vs -0.24) and is down at 119 m, the surface under it 119 m (water), on the face's own 86
+  ok   and it is still flying the face (225 m, the ground under it 86)
+S3. the thermal
+  the column at (-5868, -5942) tops at 2071 m, peaks 4.75 m/s; 5.72 m/s where the glider is put in, against 1.20 of sink at Vms
+  circling at 41° and 15.7 m/s: a 29 m radius inside a 128 m core
+  ok   both runs stay finite
+  ok   it stays on the column: never more than 155 m off its axis (the core is 128)
+  ok   in the thermal it climbs 1.09 m/s (the air under it averaging 3.20)
+  ok   with the thermals off the same circle sinks -1.95 m/s - a banked turn's own polar
+  ok   the column is worth 3.05 m/s of climb
+  ok   and it GAINS 163 m in 200 s (899 -> 1062) where the same circle without the columns loses 400
+  ok   the netto vario reads the AIR to -0.35 m/s of the field itself on the mean of 169 samples (the instantaneous spread 1.06: a turn's load factor is not on a wings-level polar)
+GATE SOAR: PASS

@@ -1,0 +1,26 @@
+metal crashed true the airframe crushed (1.7 kJ of plastic work) work 2702 members 9 breaks 1 KE0 3993
+by class {"fus":2701.996433907099}
+   447 CGE-ENGL fus tubeFabric 7.39e-5
+   447 CGE-ENGR fus tubeFabric 7.39e-5
+   412 ENGL-ENGR fus tubeFabric 7.39e-5
+   252 CGE-S0BL fus tubeFabric 7.39e-5
+   252 CGE-S0BR fus tubeFabric 7.39e-5
+   243 CGE-S0TL fus tubeFabric 7.39e-5
+   243 CGE-S0TR fus tubeFabric 7.39e-5
+   203 ENGL-S0BR fus tubeFabric 7.39e-5
+   203 ENGR-S0BL fus tubeFabric 7.39e-5
+engine nodes ENGL m 20.1 x -1.162, ENGR m 20.1 x -1.162
+broken [109]
+
+== the file as written (FLYDIY_RAW_BUILDS=1)
+metal crashed false null work 1013 members 7 breaks 1 KE0 3975
+by class {"fus":977.6397066825825,"gear":35.27138978300752}
+   430 ENGL-ENGR fus tubeFabric 7.39e-5
+   153 ENGR-S0BL fus tubeFabric 7.39e-5
+   153 ENGL-S0BR fus tubeFabric 7.39e-5
+   121 CGE-ENGR fus tubeFabric 7.39e-5
+   121 CGE-ENGL fus tubeFabric 7.39e-5
+    18 TW-S1BR gear alloy 3.96e-4
+    18 TW-S1BL gear alloy 3.96e-4
+engine nodes ENGL m 19.5 x -0.510, ENGR m 19.5 x -0.510
+broken [109]

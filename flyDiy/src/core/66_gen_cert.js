@@ -123,12 +123,14 @@ const GEN_CERT_RING = /^flown(Elev|Rud)/;
 // tube's fitting break (~25 kN) is one AN5 bolt in single shear (25.6 kN, the AN bolt table as recalled). Kept apart
 // from GEN_CERT: the envelope (and its cache key, DMGCERTCOST's reference) does not depend on it.
 const GEN_CERT_FLOOR = { body: 0.5 };
-const GEN_CERT_V = 5;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+const GEN_CERT_V = 7;        // the certificate's own version (a cached answer is only valid for the rules that made it);
                              // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps;
                              // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope);
                              // 4: G1826 (DMG-DRIVE) - the engine's torque, side and gyroscopic loads on its mount (23.361 / .363 / .371)
                              //    (merged after CERTCOST, which had also taken 3: a stored certificate without the drive cases is stale)
                              // 5: G2014 (DMG-NOSE) - the nose's 9 g reacted at either corner (impactNoseL / R), the mount's mirror pairs alike
+                             // 6: G2361-G2363 (DMG-MOUNTRIG) - the nose engine on a mount ring (new members), its tubes and its isolators each one kind
+                             // 7: G2366 (DMG-BUNDLE-GREEN) - the whole airframe built symmetric (every member and its mirror one envelope)
 
 // is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
 // default) - the page asks before it spends a thread on a certificate
@@ -1043,17 +1045,48 @@ function genCertCombine(def, cases, opt) {
   // welds both sides of a mount from one tube, and a case that loads one side only (the one-wheel drop rolls one way,
   // the engine's torque turns one way) left the Cub's CGE-S0TR at 3.20 kN in tension where CGE-S0TL held 3.93. Only
   // ever raises a limit
-  if (!(opt && opt.mirror === false)) for (const [i, j] of genCertMirror(def)) {   // (opt.mirror false: the rules before, GATE DMGNOSE)
+  // G2366 (DMG-BUNDLE-GREEN): ...AND SO IS THE WHOLE AEROPLANE. The same rule on every member that has a mirror (the
+  // mount's pairs are among them): a builder builds the left float's struts, the left wing's strut fitting and the left
+  // longeron from the right's drawing. Measured without it, the one-sided cases (the one-float drop rolls one way, the
+  // drift drops, the engine's torque) left mirror pairs up to 2.1 x apart (the Cessna on floats' S2BL-S3BL 15.9 / 33.4
+  // kN); the twin's right float's struts 1.7 x under the left's, so its root (a bolt group of them) held 1.27 kN m in
+  // twist against the left's 1.87, and a 10 m/s beam wind on the water twisted it off at 1.0008 of that - at 0.68 of
+  // its mirror's. Only ever raises a limit
+  if (!(opt && opt.mirror === false)) for (const [i, j] of genCertMirrorAll(def)) {   // (opt.mirror false: the rules before, GATE DMGNOSE)
     if (Ft[j] > Ft[i]) { Ft[i] = Ft[j]; byT[i] = byT[j]; } else if (Ft[i] > Ft[j]) { Ft[j] = Ft[i]; byT[j] = byT[i]; }
     if (Fc[j] > Fc[i]) { Fc[i] = Fc[j]; byC[i] = byC[j]; } else if (Fc[i] > Fc[j]) { Fc[j] = Fc[i]; byC[j] = byC[i]; }
   }
+  // G2363 (DMG-MOUNTRIG): A MOUNT IS WELDED FROM ONE TUBE AND HUNG ON ONE KIND OF ISOLATOR. A nose engine's mount
+  // (61_gen_frame's ring) is sized as a builder sizes one: every tube of it - the bearers and the ring - is the tube its
+  // worst member needs, every isolator the part its worst cup needs, and their bolts alike. Each member of a kind takes
+  // the largest envelope of its kind, tension and compression apart. Measured without it: the Cub's lower cross bearers
+  // (MNTBL-S0BR, the bottom V's diagonals) were certified by the engine's gyroscopic case alone, 2.0 kN in tension - on
+  // their floor (kappa x physics, 4.0 kN) - and a 2 m/s taxi into a trunk pulled them to 5.3 kN: the mount's fittings let
+  // go and it was a crash (the lower isolators to the CG sat at 0.97 of theirs). Only ever raises a limit
+  if (!(opt && opt.mount === false)) for (const G of genCertMountKinds(def)) {
+    let t = 0, c = 0, it = -1, ic = -1;
+    for (const bi of G) { if (Ft[bi] > t) { t = Ft[bi]; it = byT[bi]; } if (Fc[bi] > c) { c = Fc[bi]; ic = byC[bi]; } }
+    for (const bi of G) { if (Ft[bi] < t) { Ft[bi] = t; byT[bi] = it; } if (Fc[bi] < c) { Fc[bi] = c; byC[bi] = ic; } }
+  }
   return { Ft, Fc, byT, byC, names };
 }
+// the nose mount's kinds (G2363): [its tubes (a member with an end on a ring cup, MNT TL / TR / BL / BR, that is no
+// isolator), its isolators (parts.dmg.iso)] - none on a build without a ring
+function genCertMountKinds(def) {
+  const N = def.nodes, cup = i => /^MNT[TB][LR]$/.test(N[i].tag || ''), tube = [];
+  const iso = ((def.parts && def.parts.dmg && def.parts.dmg.iso) || []).slice(), isI = new Set(iso);
+  def.beams.forEach((b, bi) => { if (!isI.has(bi) && b.cls !== 'gear' && (cup(b.a) || cup(b.b))) tube.push(bi); });
+  return [tube, iso].filter(G => G.length > 1);
+}
 // the engine mount's mirror pairs [i, j] (G2014): members with an end on an ENG / CGE / MNT node whose mirror (each end's
-// node across z = 0 within a millimetre) is another member; computed once per def
+// node across z = 0 within a millimetre) is another member; computed once per def. genCertMirrorAll (G2366): every
+// member's
 const GEN_CERT_MIRROR = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
-function genCertMirror(def) {
-  const hit = GEN_CERT_MIRROR && GEN_CERT_MIRROR.get(def.beams); if (hit) return hit;
+const GEN_CERT_MIRROR_ALL = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+function genCertMirrorAll(def) { return genCertMirror(def, true); }
+function genCertMirror(def, all) {
+  const MC = all ? GEN_CERT_MIRROR_ALL : GEN_CERT_MIRROR;
+  const hit = MC && MC.get(def.beams); if (hit) return hit;
   const N = def.nodes, n = N.length, mir = new Int32Array(n).fill(-1), key = (a, b) => a < b ? a + ',' + b : b + ',' + a;
   const grid = new Map(), cell = p => Math.round(p[0] * 1000) + ':' + Math.round(p[1] * 1000) + ':' + Math.round(p[2] * 1000);
   for (let i = 0; i < n; i++) { const c = cell(N[i].p); if (!grid.has(c)) grid.set(c, []); grid.get(c).push(i); }
@@ -1069,11 +1102,11 @@ function genCertMirror(def) {
   const at = new Map(); def.beams.forEach((b, bi) => at.set(key(b.a, b.b), bi));
   const item = i => /^(ENG|CGE|MNT)/.test(N[i].tag || ''), out = [];
   def.beams.forEach((b, bi) => {
-    if (!(item(b.a) || item(b.b)) || mir[b.a] < 0 || mir[b.b] < 0) return;
+    if (!(all || item(b.a) || item(b.b)) || mir[b.a] < 0 || mir[b.b] < 0) return;
     const bj = at.get(key(mir[b.a], mir[b.b]));
     if (bj != null && bj > bi) out.push([bi, bj]);
   });
-  if (GEN_CERT_MIRROR) GEN_CERT_MIRROR.set(def.beams, out);
+  if (MC) MC.set(def.beams, out);
   return out;
 }
 // G1890 (DMG-CERTCOST): THE EVIDENCE'S TAP - `frame(name, f, sim)` after every measured frame of a dynamic case (the

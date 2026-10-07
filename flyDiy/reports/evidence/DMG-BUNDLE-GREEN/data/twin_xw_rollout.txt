@@ -1,0 +1,7 @@
+# scripts/twin_xw.js (the twin's crosswind water circuit, 3.31 m/s across, the probe): the float hull's FLD-FLD peaks
+275.57 ROLLOUT FLD-FLD 1.30 C pitch -12.9 (nose up) roll -8.4 V 12.6 vy -0.67
+275.58 ROLLOUT FLD-FLD 2.00 C ... (5 frames over 1, a skip's second touch on one float)
+# member 508: the AFT SPREADER BAR (FLD at x 1.58, z -0.50 -> +0.50), L0 1.00244 -> L 0.99546 (7 mm), k 5.95e5 N/m: 4.2 kN in compression;
+# its certified Fc 0.826 kN (wWeave), its stamped crush 2.16 kN (an earlier read of member 413 - inside the left float cluster - was a
+# mis-pick; superseded). Member 413 for reference: both ends in the left float cluster, its certified Fc
+# 1.1e-7 N (bow: the cluster carries the hull in every case), its yield D1a's 61.5 kN

@@ -1,0 +1,6 @@
+cub ground: base 3.6137 ms, now 3.6034 ms, -0.29 % (the median of 15 processes' medians, 600 steps each, alternating)
+cub air: base 3.4381 ms, now 3.4445 ms, 0.19 % (the median of 15 processes' medians, 600 steps each, alternating)
+metal ground: base 6.2487 ms, now 6.2696 ms, 0.34 % (the median of 15 processes' medians, 600 steps each, alternating)
+metal air: base 6.0039 ms, now 6.0723 ms, 1.14 % (the median of 15 processes' medians, 600 steps each, alternating)
+twin taxi: base 16.8933 ms, now 16.8512 ms, -0.25 % (the median of 15 processes' medians, 600 steps each, alternating)
+cessna taxi: base 14.9571 ms, now 15.0186 ms, 0.41 % (the median of 15 processes' medians, 600 steps each, alternating)

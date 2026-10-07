@@ -287,6 +287,32 @@ const GATES = [
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
   { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
+  // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
+  // damper as the control reproduces exp(-0.5 t), and a plucked wingtip still rings down as before; ~3.5 min
+  { id: 'DMGDAMP', file: '_dmgdamp_check.js', tier: 'core', wall: 220 },
+  // G1849 (DMG-HULL): the hull's side force (G1847, slender body on the keel's draft): zero at rest and dry, linear in
+  // U x v, the closed form on the step, Jones' sin b cos b into the base's cross-flow; GATE SEAPLANE's crosswind take-off
+  // swept 0-5 m/s on the twin and the Cessna on floats, every failure classed (yaw loop / nose-over at the plough); a
+  // 0.3 rad/s yaw kick at rest, the hump and the step against DMG-DAMP's before / after. 42 runs in its own children
+  { id: 'DMGHULL', file: '_dmghull_check.js', tier: 'full', weight: 4, wall: 1800 },
+  // G1809 (DMG-PLOUGH): the plough - the plough wave (G1807, shipped OFF) on the bench forced on: zero at rest and dry,
+  // whole to Fn 0.5, gone by Fn 1 (on the step); the calm take-off's keel trim at the hump against the tank band (8-12
+  // deg: the Cessna on floats asserted, the twin OWED), the twin with its thrust at the nose frame (an INSTRUMENT: its
+  // floats trim it nose-up through the plough, so the nose-down is its thrust couple); GATE SEAPLANE's crosswind
+  // take-off swept 0-5 m/s on both floatplanes and on the instrumented twin, every failure classed. 37 runs in children
+  { id: 'DMGPLOUGH', file: '_dmgplough_check.js', tier: 'full', weight: 4, wall: 900 },
+  // G1846 (DMG-TYRE): the tyre's side force is its slip angle's - measured in the solver per tyre class (zero at zero
+  // slip, F = cN tan(beta) N linear, then the Coulomb mu N; the old law as the control), parked 30 s without jitter
+  // (the old law's at-rest hold), the user's Cub's crosswind roll-out at 3 / 4 / 5 m/s held (three pilot_trace
+  // children), the Jodel's and the metal Cessna's taxi turns within 0.80-1.10 of the old radius; ~6 min
+  { id: 'DMGTYRE', file: '_dmgtyre_check.js', tier: 'core', weight: 4, wall: 420 },
+  // G1882 (DMG-FLOATTO): the floatplanes' crosswind take-off in the chop the wind raises, flown as a high-thrust-line
+  // seaplane is (G1880: the porpoise damped by both hands - the power off as the nose falls, the stick forward as it
+  // rises; G1881: the into-wind bank afloat bounded) - the twin on floats and the Cessna on floats, THE PILOT, the SEA
+  // lane, 0-5 m/s across in 0.5 steps: every run reaches CLIMB, no nose-over (pitch at every float contact >= -20 deg),
+  // the run's swing and lane under 30; the technique never arms on a wheeled take-off. 24 runs in children, ~2.5 min
+  { id: 'DMGFLOATTO', file: '_dmgfloatto_check.js', tier: 'full', weight: 4, wall: 300 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
@@ -432,6 +458,11 @@ const GATES = [
   // the same lattice as the stand - on the five validated builds and an offset / envelope / null corpus; and the
   // page's join headless, on -> off -> commit through the garage's merge, back to never-on. ~70 s (the joins).
   { id: 'SPECFIX', file: '_specfix_check.js', tier: 'core', wall: 75 },
+  // NODE FLIES THE GAME'S AEROPLANE (G1985-G1989, JOIN-PARITY): tools/_load_build.js - the page's load chain under node
+  // (the join, the energy layer's tanks, the pilots' characters) - against the real page's spec for the five validated
+  // builds (tools/fixtures/join_parity_page.json, tools/join_parity_page.js), def to def to 1e-9; the file as written
+  // differs; the chain is pure; a save is a fixed point; every loader of a validated build goes through it. ~40 s cold.
+  { id: 'JOINPARITY', file: '_joinparity_check.js', tier: 'core', wall: 60 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

@@ -70,8 +70,13 @@ function snapshotOf(file, opts) {
   const J = W.CAGE_JOIN.export();
   const spec = BJ.merge(spec0, JSON.parse(JSON.stringify(J)));
   const snap = W.CAGE_JOIN.snapshot(spec);
-  // the physics' def: the saved build's (as GATE TREECRASH / DMGSKIN fly it)
-  const def = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec0) : spec0);
+  // the physics' def: the saved build's AS THE GAME FLIES IT (tools/_load_build.js, as GATE TREECRASH / DMGSKIN fly it
+  // since G1985). G2361 (DMG-MOUNTRIG): the file as written was flown here, and on the metal Cessna and the Cessna on
+  // floats its engine sits 0.65 m aft of the game's - so far aft that the nose mount's rule keeps the old rig there (the
+  // CG 0.18 m from the firewall: no room for a ring) and the snapshot's def and the physics' def no longer had one node
+  // count. FLYDIY_RAW_BUILDS=1 still flies the file as written
+  const def = process.env.FLYDIY_RAW_BUILDS === '1' ? C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec0) : spec0)
+    : C.buildGen(require(path.join(T, '_load_build.js')).gameSpec(j));
   // the nodes in the flown visual's frame (app.js brkCage K.rest: B^-1 (p - origin) - o, o = off + oRest)
   const N = def.nodes, R2 = def.refs;
   const avg = ids => { const q = [0, 0, 0]; for (const i of ids) for (let k = 0; k < 3; k++) q[k] += N[i].p[k] / ids.length; return q; };

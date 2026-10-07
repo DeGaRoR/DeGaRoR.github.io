@@ -1,0 +1,4 @@
+cap 0.6 until 6: calm pitch on the water: -0.89 .. 11.38 deg | 4 m/s pitch on the water: -39.55 .. 25.79 deg
+cap 0.6 until 8: calm pitch on the water: -2.73 .. 13.69 deg | 4 m/s pitch on the water: -51.87 .. 20.19 deg
+cap 0.7 until 6: calm pitch on the water: -2.22 .. 10.77 deg | 4 m/s pitch on the water: -5.13 .. 11.22 deg
+cap 0.8 until 6: calm pitch on the water: -3.74 .. 11.01 deg | 4 m/s pitch on the water: -5.56 .. 13.22 deg

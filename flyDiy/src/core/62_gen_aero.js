@@ -1406,6 +1406,16 @@ function genParams(S, fr, strips) {
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
+    // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
+    // carcass (the cage's whProfile: 0 standard, 1 tundra balloon, 2 slim; a spec without a cage reads standard), the
+    // third wheel by what it is (a tailwheel or a nose wheel). The third wheel is steered by the rudder as the solver
+    // has always flown it (the cage's 'castor' row is the picture's: a castering wheel needs differential brakes,
+    // which no pilot here flies - HANDOVER G1844, open)
+    tyre: (() => {
+      const prof = Math.round(+((S.cage && S.cage.whProfile) || 0));
+      return { main: TYRE_CN[prof === 1 ? 'tundra' : prof === 2 ? 'slim' : 'standard'],
+               tw: TYRE_CN[S.gear.type === 'tricycle' ? 'nosewheel' : 'tailwheel'] };
+    })(),
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
            Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, tailBraceDCdA, plant: pl,

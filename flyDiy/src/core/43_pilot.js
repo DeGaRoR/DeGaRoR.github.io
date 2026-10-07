@@ -222,6 +222,16 @@ function makePilot(sim, def, world, opts) {
   // (G396.4: neutral through the hump, the 0.15 ceiling) already say what
   // the stick does; the thrust line is theirs to hold, not this rule's.
   const highThrust = !sim.hydro && THRUST_ARM > (A.highThrustArm ?? 0.30);
+  // G1880 (DMG-FLOATTO): THE THRUST COUPLE'S LEVER - THRUST_ARM x the static thrust over the weight (m): how far
+  // forward full power moves the CG, in effect. The user's twin on floats 0.27 (two 582s 0.54 m over the CG, T/W 0.51),
+  // the Cessna on floats 0.003, the Cub -0.006, the Jodel 0.017. Its water take-off's porpoise law (39b S.porpoise)
+  // arms on it
+  const THRUST_LEVER = (() => {
+    const PP = POWERPLANTS[def.params.powerplant], PR = def.params.prop || (PP && PP.prop);
+    let M = 0;
+    for (const nd of def.nodes) M += nd.m;
+    return PR && M > 0 ? THRUST_ARM * PR.Tstatic * (def.params.nEngines || 1) / (M * 9.81) : 0;
+  })();
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -247,7 +257,7 @@ function makePilot(sim, def, world, opts) {
   // ground steer, the aileron into wind, the water's branch and stick top)
   const restH0 = servoRestHeight(def);      // B5: the design pose's CG rest height over the ground
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
-    trimCalm: true, groundP1D: true, xwBank: true, water: true,
+    trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
     deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35 } });
   const taxiFF = (() => {
@@ -346,6 +356,9 @@ function makePilot(sim, def, world, opts) {
     intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
               vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null },
   };
+  // G1882: the water take-off law's throttle ceiling, readable (GATE DMGFLOATTO): a getter, never a store per frame -
+  // measured, writing a double onto `ap` every update cost the pilot's update 4-8 % on the water
+  Object.defineProperty(ap, 'thrCap', { get: () => SV.thrCap });   // (not enumerable: nothing that copies `ap` sees it)
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
@@ -3036,6 +3049,10 @@ function makePilot(sim, def, world, opts) {
         break;
     }
     if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG); }   // G1943: a profile's hands (the expert's are the servos')
+    // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS on a high thrust line's water take-off (39b S.porpoise):
+    // the run and the lift-off on floats, until CLIMB; the power's ceiling and the stick's damping over what the laws
+    // above set (nothing anywhere else: the base's controls to the bit)
+    SV.porpoise(!BX.on && !!sim.hydro && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF'), THRUST_LEVER);
     // the servo slew on the axes the pilot owns; a hand-flown axis (the box
     // with that mode released) passes through and the servo tracks it, so
     // nothing jumps when the box takes the axis

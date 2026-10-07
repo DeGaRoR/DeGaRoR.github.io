@@ -557,14 +557,21 @@ function makeSim(def, world) {
   // 2 or 3 stages (seeded): it cracks to 60 % of its strength, pulls out at that over RAG_SLIP of its length, (to 30 %
   // and pulls out again,) then lets go
   const RAG_SLIP = 0.005;
+  // G2361 (DMG-MOUNTRIG): the nose mount's isolators (61_gen_frame parts.dmg.iso)
+  const ISO = new Uint8Array(nb);
+  if (def.parts && def.parts.dmg && def.parts.dmg.iso) for (const bi of def.parts.dmg.iso) if (bi >= 0 && bi < nb) ISO[bi] = 1;
+  // G2367 (DMG-BUNDLE-GREEN): a wing nacelle's fans over its bay (61_gen_frame parts.dmg.lump): lumped stand-ins, no Euler
+  const LUMP = new Uint8Array(nb);
+  if (def.parts && def.parts.dmg && def.parts.dmg.lump) for (const bi of def.parts.dmg.lump) if (bi >= 0 && bi < nb) LUMP[bi] = 1;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
     const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
-    if (tube && !b.tens && ph && ph.E > 0 && Lb > 0) {
+    if (tube && !b.tens && !ISO[bi] && !LUMP[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle; G2367: nor a lumped fan)
       const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
       if (fe < b.fc0) b.fc0 = fe;
     }
     const fu = R.tu * b.A;
+    if (ISO[bi]) { b.fy0 = b.fu; b.etu = 0; }       // G2361: an isolator takes no set - it holds, then tears (its own break)
     if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu; b.etu = 0; }
     else if (b.seam === 'rivet') { b.fu = 0.7 * fu; b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
     else if (b.seam === 'bond') { b.fy0 = b.fu = (0.6 + 0.2 * dmgRnd(bi, 1)) * fu; b.etu = 0; }
@@ -864,7 +871,13 @@ function makeSim(def, world) {
         pts.forEach((q, j) => { I += q.A * rho[j] * rho[j]; });
         let L = Infinity; pts.forEach((q, j) => { if (rho[j] > 1e-6) L = Math.min(L, q.ty * sh * I / rho[j]); }); return L; };
       const yr = Math.min(...pts.map(q => q.y));
-      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1 / SQ3), yb: yr, yt: yr };
+      // G2369 (DMG-BUNDLE-GREEN): the twist about the keel at the members' AXIAL strength, as the bending - a float hangs on
+      // struts and spreaders whose ends are lugs (the gear bracket stamps them so: brittle at 1.5 F_l,t m), and a turn
+      // about its keel loads them along their own axes at their lever arms, not as bolts in a shear plane (the von Mises
+      // tu / sqrt 3 G1840 took). On the certificate's struts that shear factor left the root sqrt 3 under what they hold
+      // together: the twin's floats twisted off at 0.94 of it in the certificate's OWN float drop (3.05 m/s; a member there
+      // sits at most 1 / 1.5 m = 0.63), and in 23.727's 1.2 x reserve drop at 1.15 - both at once, the aeroplane on its hull
+      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1), yb: yr, yt: yr };
       addCut(ci, 'root', S.part, null, lim, { nodes: Int32Array.from(pts.map(q => q.i)), w: Float64Array.from(pts.map(q => q.A)) }, S, -1);
       return;
     }
@@ -966,6 +979,7 @@ function makeSim(def, world) {
     if (ct.done) return;
     ct.done = true;
     const C = clusters[ct.cl];
+    if (HY && ct.kind === 'root' && C.cls === 'float' && HYDRO.hydroFree) HYDRO.hydroFree(HY, ct.inP, ct.P, m);   // G2368: the float rides the water on its own mass
     DMG.cl.push({ tag: C.tag, cl: ct.cl, cut: ct.kind, why, ratio: r, Mb: ct.Mb, T: ct.Tq, t: simT, grp: ct.grp >= 0 ? DGR[ct.grp].key : null });
     if (!DMG.firstCl) DMG.firstCl = DMG.cl[DMG.cl.length - 1];
     clQ.push(k);
@@ -2627,7 +2641,20 @@ function makeSim(def, world) {
   // (the G115 yaw probe ran free-yaw decay at two settings; the probe
   // retired with the fleet, 2026-09-05), not for play.
   // No fiche and no generated build sets it, so everything flies 0.5 as ever.
-  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
+  // G1885: it damps the DEFORMATION only (the velocity off the rigid-body field, substep below); defDampMean
+  // brings back the pre-G1885 damper (off the mean velocity, which damped rigid rotation too) for GATE DMGDAMP's
+  // control - an instrument, like defDamp; no build sets it.
+  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5, DEFDAMP_MEAN = !!def.params.defDampMean;
+  // G1885: the rigid fit's second moments about the CG (xx yy zz xy xz yz) and its last w, carried through a frame
+  const rigS = new Float64Array(6), rigW = new Float64Array(3);
+  let rigFresh = true;
+  // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad; 62_gen_aero `tyre`, TYRE_CN), held as
+  // its inverse (the side force below). A def without `tyre` (a hand-written fiche) reads a standard main and a
+  // tailwheel. `tyreCoulomb` brings back the pre-G1844 side force (Coulomb at 0.02 m/s at every speed) for GATE
+  // DMGTYRE's control - an instrument, like defDampMean; no build sets it.
+  const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
+  const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
+        iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -2670,6 +2697,96 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++)
       Mz += (p[i*3]-cgx)*(f[i*3+1]-G*m[i]) - (p[i*3+1]-cgy)*f[i*3];
     return -Mz;   // nose-up positive, gravity excluded
+  }
+  // G1885: the integration and the deformation damper, its own function (the substep stays the size it was: the
+  // JIT's budget for it is not spent on the damper's sums)
+  function integrate(dt) {
+    const dp = Math.max(0, 1 - DEFDAMP * dt);
+    if (DEFDAMP_MEAN) {
+      // the pre-G1885 damper, kept for GATE DMGDAMP's control only (params.defDampMean; no build sets it)
+      let vmx=0, vmy=0, vmz=0;
+      for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
+      vmx/=totalM; vmy/=totalM; vmz/=totalM;
+      for (let i = 0; i < n; i++) {
+        const i3 = i*3, im = dt/m[i];
+        v[i3]   = vmx + (v[i3]   + f[i3]*im   - vmx) * dp;
+        v[i3+1] = vmy + (v[i3+1] + f[i3+1]*im - vmy) * dp;
+        v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
+        p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
+      }
+    } else {
+      // G1885: THE DAMPER TAKES DEFORMATION, NOT ROTATION. It damped v - v_mean, and a rigid rotation is not in
+      // the mean: in vacuum the stock build's roll, pitch and yaw all decayed as exp(-0.5 t) (the independent
+      // review's D1, measured) - a 2 s angular damper on every aeroplane, independent of the air. Now the forces
+      // go in first (v* = v + f dt/m), then the rigid-body field of v* is taken out, v_r(x) = v_cm + w x (x - x_cm)
+      // with w = I^-1 L about the CG (I the nodes' inertia tensor, L their angular momentum, this substep's), and
+      // only v* - v_r is damped. v_r is the mass-weighted least-squares rigid fit, so the damped remainder carries
+      // no momentum and no angular momentum: the damper takes energy out of the deformation and never P or L, and
+      // the forces' impulse goes in whole (the mean's damper scaled the net force by dp as well). The sums ride the
+      // loop that adds the forces; positions relative to node 0 (an aeroplane kilometres from the origin keeps
+      // its digits in the second moments). DEFDAMP's value is the deformation's, unchanged.
+      const ox = p[0], oy = p[1], oz = p[2];
+      let Px=0, Py=0, Pz=0, Rx=0, Ry=0, Rz=0, Lx=0, Ly=0, Lz=0, Sxx=0, Syy=0, Szz=0, Sxy=0, Sxz=0, Syz=0;
+      // the second moments are summed on a frame's first substep (and after any reset); the frame's others carry
+      // them on rigidly with the last w (dS/dt = W S + S W^T): the frame turns the aeroplane by w/60 rad and the
+      // deformation moves them by ~1e-4, against a quarter of the loop's sums every substep (G1885's perf, HANDOVER)
+      const fresh = rigFresh || dp >= 1;
+      if (fresh) for (let i = 0; i < n; i++) {
+        const i3 = i*3, mi = m[i], im = dt/mi;
+        const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
+        const rx = p[i3] - ox, ry = p[i3+1] - oy, rz = p[i3+2] - oz;
+        const mx = mi*rx, my = mi*ry, mz = mi*rz;
+        Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
+        Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
+        Sxx += mx*rx; Syy += my*ry; Szz += mz*rz; Sxy += mx*ry; Sxz += mx*rz; Syz += my*rz;
+      } else for (let i = 0; i < n; i++) {
+        const i3 = i*3, mi = m[i], im = dt/mi;
+        const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
+        const mx = mi*(p[i3] - ox), my = mi*(p[i3+1] - oy), mz = mi*(p[i3+2] - oz);
+        Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
+        Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
+      }
+      if (dp < 1) {
+        const iM = 1 / totalM, ux = Px*iM, uy = Py*iM, uz = Pz*iM, cx = Rx*iM, cy = Ry*iM, cz = Rz*iM;
+        // about the CG: L - M c x v_cm, and (fresh) the second moments by the parallel axis
+        Lx -= Ry*uz - Rz*uy; Ly -= Rz*ux - Rx*uz; Lz -= Rx*uy - Ry*ux;
+        if (fresh) {
+          rigS[0] = Sxx - Rx*cx; rigS[1] = Syy - Ry*cy; rigS[2] = Szz - Rz*cz; rigS[3] = Sxy - Rx*cy; rigS[4] = Sxz - Rx*cz; rigS[5] = Syz - Ry*cz;
+          rigFresh = false;
+        } else {
+          const wx = rigW[0] * dt, wy = rigW[1] * dt, wz = rigW[2] * dt;
+          const s0 = rigS[0], s1 = rigS[1], s2 = rigS[2], s3 = rigS[3], s4 = rigS[4], s5 = rigS[5];   // xx yy zz xy xz yz
+          rigS[0] = s0 + 2 * (wy*s4 - wz*s3);
+          rigS[1] = s1 + 2 * (wz*s3 - wx*s5);
+          rigS[2] = s2 + 2 * (wx*s5 - wy*s4);
+          rigS[3] = s3 + (wy*s5 - wz*s1) + (wz*s0 - wx*s4);
+          rigS[4] = s4 + (wy*s2 - wz*s5) + (wx*s3 - wy*s0);
+          rigS[5] = s5 + (wz*s4 - wx*s2) + (wx*s1 - wy*s3);
+        }
+        Sxx = rigS[0]; Syy = rigS[1]; Szz = rigS[2]; Sxy = rigS[3]; Sxz = rigS[4]; Syz = rigS[5];
+        const a = Syy + Szz, b = Sxx + Szz, c = Sxx + Syy;           // I = [[a,-Sxy,-Sxz],[-Sxy,b,-Syz],[-Sxz,-Syz,c]]
+        const k0 = b*c - Syz*Syz, k1 = Sxy*c + Syz*Sxz, k2 = Sxy*Syz + b*Sxz;
+        const det = a*k0 - Sxy*k1 - Sxz*k2;
+        let wx = 0, wy = 0, wz = 0;
+        if (det > 1e-12 * a * b * c) {
+          const id = 1 / det, k4 = a*c - Sxz*Sxz, k5 = a*Syz + Sxy*Sxz, k8 = a*b - Sxy*Sxy;
+          wx = (k0*Lx + k1*Ly + k2*Lz) * id;
+          wy = (k1*Lx + k4*Ly + k5*Lz) * id;
+          wz = (k2*Lx + k5*Ly + k8*Lz) * id;
+        }
+        rigW[0] = wx; rigW[1] = wy; rigW[2] = wz;
+        // v_r = v_cm + w x (x - x_cm) = (v_cm - w x x_cm) + w x x, x_cm and x off node 0 (their digits kept)
+        const qx = ox + cx, qy = oy + cy, qz = oz + cz;
+        const gx = ux - (wy*qz - wz*qy), gy = uy - (wz*qx - wx*qz), gz = uz - (wx*qy - wy*qx);
+        for (let i = 0; i < n; i++) {
+          const i3 = i*3, px = p[i3], py = p[i3+1], pz = p[i3+2];
+          const rgx = gx + wy*pz - wz*py, rgy = gy + wz*px - wx*pz, rgz = gz + wx*py - wy*px;
+          const nx = rgx + (v[i3] - rgx) * dp, ny = rgy + (v[i3+1] - rgy) * dp, nz = rgz + (v[i3+2] - rgz) * dp;
+          v[i3] = nx; v[i3+1] = ny; v[i3+2] = nz;
+          p[i3] = px + nx*dt; p[i3+1] = py + ny*dt; p[i3+2] = pz + nz*dt;
+        }
+      } else for (let i = 0; i < n; i++) { const i3 = i*3; p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt; }
+    }
   }
   // G1813: the kinked members' floors - push only, below the crushed length (out of substep's own body: measured, the
   // loop inline cost the metal Cessna's step ~2 % in the air with no floor at all)
@@ -2919,7 +3036,16 @@ function makeSim(def, world) {
         // second); HOME remains bit-identical (muR == CRR there).
         const muRe = Math.abs(vr_) < 0.5 ? Math.max(muR, CRR) : muR;
         const kR = Math.min(muRe * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
+        // G1844 (DMG-TYRE): THE SIDE FORCE OF A ROLLING TYRE IS ITS SLIP ANGLE'S. It was Coulomb regularised at
+        // 0.02 m/s at every speed: at 14 m/s a slip of 0.08 deg already took the full mu N, so every tyre was a
+        // bang-bang switch - no cornering stiffness, no yaw damping proportional to the yaw rate, and the steered
+        // third wheel all-or-nothing - and the hidden 2 s angular damper (G1885 took it out) was the ground's
+        // only rate-proportional yaw resistance. Now F = C_alpha tan(alpha) = cN N |vl| / |vr|, linear, until it
+        // reaches the same Coulomb limit mu N; C_alpha = cN N (TYRE_CN, per unit load). As a coefficient on vl
+        // that is mu N / max(|vl|, |vr| mu / cN): the regularising speed grows with the rolling speed. Below
+        // 0.02 cN / mu (0.2 m/s on a standard tyre on grass) the old 0.02 m/s floor wins and the wheel holds as
+        // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
@@ -3007,20 +3133,10 @@ function makeSim(def, world) {
       }
     }
     if (out.trq) out.trqTotal = trqOf();
-    // integrate; damp only deformation (velocity relative to rigid mean)
-    let vmx=0, vmy=0, vmz=0;
-    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
-    vmx/=totalM; vmy/=totalM; vmz/=totalM;
+    // integrate; damp only deformation (G1885: the velocity relative to the RIGID-BODY field, not to the mean)
     // G348: a fresh reset's clusters take their rest from THIS pose (placed)
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
-    const dp = Math.max(0, 1 - DEFDAMP * dt);
-    for (let i = 0; i < n; i++) {
-      const i3 = i*3, im = dt/m[i];
-      v[i3]   = vmx + (v[i3]   + f[i3]*im   - vmx) * dp;
-      v[i3+1] = vmy + (v[i3+1] + f[i3+1]*im - vmy) * dp;
-      v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
-      p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
-    }
+    integrate(dt);
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -3042,6 +3158,7 @@ function makeSim(def, world) {
   function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
     aicFresh = true;
+    rigFresh = true;               // G1885: the frame's first substep sums the second moments
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
