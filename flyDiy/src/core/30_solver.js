@@ -2178,12 +2178,14 @@ function makeSim(def, world) {
     const s = Math.min(1, Math.max(0, (Math.abs(al) - (P.aStall - dAStall)) / 0.10));
     let a3 = P.a3d;
     if (sig < 1) a3 = 1 / (1 / P.a3d - (1 - sig) / P.eAR);
-    const Cl = (P.Cl0 + dCl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
+    // (G2355: the stalled terms only past the stall's start. With s = 0 each adds a signed zero, which leaves its sum the
+    // same number unless that sum is itself zero - then the whole formula runs, so the bits are the old ones; the attached
+    // flow then needs no sine at all, where it took three a strip a substep)
+    const Ca = (P.Cl0 + dCl0 + a3 * al) * (1 - s);
+    const Cl = s > 0 || Ca === 0 ? Ca + 1.1 * Math.sin(2 * al) * s : Ca;
     const CdAtt = P.Cd0 + dCd0 + sig * Cl * Cl / P.eAR;
-    // (G2355: the stalled drag's sin(al) once, and only past the stall's start - with s = 0 its term adds +0 to a drag that
-    // is never zero, so the attached flow's Cd is the same number without two sines a strip a substep)
     let Cd = CdAtt * (1 - s);
-    if (s > 0) { const sa = Math.sin(al); Cd += (P.Cd0 + dCd0 + 1.9 * sa * sa) * s; }
+    if (s > 0 || Cd === 0) { const sa = Math.sin(al); Cd += (P.Cd0 + dCd0 + 1.9 * sa * sa) * s; }
     return [Cl, Cd];
   }
 
