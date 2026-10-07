@@ -211,6 +211,8 @@ if (!STRIPS) {
   // game's flight here reproduces both to the metre (reports/evidence/ISLAND-TOUR-2). The landing is held; the take-off
   // is PILOT-ONE-2's owed fix (TOUR-REAL's routed item 1: the roll from the strip's end, the wind weighed, an abort that
   // stops on the strip) - printed, not gated, until it lands; then fold East Point into ORDERS.land
+  // G2450 (EAST-POINT-DEPART): it lands (the named way out had been refused by the runway model's crude climb-out cone
+  // and the Cub rolled the closed way, downwind, from 37 m in): gated below, and East Point is in ORDERS.land
   if (SHD.take()) {
     const B = TR.BUILDS.cub, order = ['HOME', 'nv_strip', 'mn_strip'];
     const def = TR.defOf(C, PT, B.key);
@@ -220,7 +222,13 @@ if (!STRIPS) {
     const L1 = R.legs[0], L2 = R.legs[1];
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
     check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
-    console.log('  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): ' + (L2 ? (L2.ok ? 'TAKES OFF - fold East Point into ORDERS.land' : L2.faults.map(f => f.k).join(', ') + ' - ' + L2.verdicts.filter(v => /reject|abort|off-the-strip/.test(v)).join('; ')) : 'not flown'));
+    // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
+    // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'
+    check(L1 && !L1.warnings.some(w => /go-around/.test(w)), '6 ' + B.name + ' HOME > nv_strip: the first approach lands (no go-around)', L1 ? (L1.warnings.join('; ') || 'final ' + JSON.stringify(L1.arr.final)) : '-');
+    // G2450: THE DEPARTURE, GATED (it was printed until it took off): from the strip's very end (within 15 m - the turn's
+    // spot is the half-span + 1.5 m in), the named way out, and on to Jumbo Mine with no fault
+    check(L2 && L2.ok && L2.landedOn === 'mn_strip', '6 ' + B.name + ' nv_strip > mn_strip: takes off from East Point and lands at Jumbo Mine, no fault', L2 ? (L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.verdicts.filter(v => /reject|abort|declin/.test(v)).join('; ') || 'ok') : 'not flown');
+    check(L2 && L2.dep.rollFromEnd != null && L2.dep.rollFromEnd <= 15, '6 ' + B.name + ' nv_strip > mn_strip: the roll began at the strip\'s end (<= 15 m in)', L2 ? L2.dep.rollFromEnd + ' m in' : '-');
   }
 }
 console.log('GATE TOUR' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));

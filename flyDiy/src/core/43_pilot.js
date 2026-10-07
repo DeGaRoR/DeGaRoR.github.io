@@ -384,6 +384,12 @@ function makePilot(sim, def, world, opts) {
   // floats) - no destination is planned on a surface it may not use (stripLandable: the circuit, else the fallback)
   const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
   ap.gear = gearK;
+  // G2450: why `to` is no destination for this aeroplane (a land strip shorter than the sheet's landing run), or null
+  const shortOfRun = (from, to) => {
+    if (!to || to === from || to.surface === 4 || to.water || !(to.len > 0)) return null;
+    const S = sheetOf(), run = S && S.LDGrun;
+    return run > to.len ? (to.name || to.id) + ' has ' + Math.round(to.len) + ' m of strip for a ' + Math.round(run) + ' m landing run' + (S.TORun > to.len ? ' (and a ' + Math.round(S.TORun) + ' m take-off)' : '') + ' - not going there' : null;
+  };
   const landable = (from, to) => {
     if (typeof stripLandable !== 'function') return to;
     const L = stripLandable(gearK, world && world.aerodromes, from, to);
@@ -425,6 +431,12 @@ function makePilot(sim, def, world, opts) {
     // arrival with no go-around left and 'committed' already said)
     rollN = 0; ap.gaN = 0; ap.gaWhy = null; committed = false; committedTO = false;
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
+    // G2450 EAST-POINT-DEPART: A STRIP SHORTER THAN THE LANDING RUN IS NOT A DESTINATION. The machine sheet's landing run
+    // (LDGrun: the touchdown speed's stop) over the strip's length: the Jodel (183 m) and the metal Cessna (249 m) sent to
+    // East Point's 150 m went round twice there - the Jodel broke up on the second go-around, the Cessna diverted and
+    // overran Tamgas Hill. The pilot says so and does not go (the outcome 'declined'; the player picks another To)
+    const tooShort = shortOfRun(from, to);
+    if (tooShort) { say('strip-too-short', tooShort); ap.report.outcome = ap.report.outcome || 'declined'; go('STOPPED'); return; }
     go('DEPART');
   };
   // G1945 DEST-TO: THE DESTINATION, CHANGED - like an autopilot's (38b_dest.js says what a flight's To is).
@@ -448,6 +460,7 @@ function makePilot(sim, def, world, opts) {
     if (!to || !ap.route) return 'none';
     const from = ap.route.from;
     to = landable(from, to);
+    { const tooShort = shortOfRun(from, to); if (tooShort) { say('strip-too-short', tooShort + ' - keeping ' + (ap.route.to.name || ap.route.to.id)); return 'none'; } }   // G2450
     const ph = ap.phase;
     if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
     ap.nextTo = null;
