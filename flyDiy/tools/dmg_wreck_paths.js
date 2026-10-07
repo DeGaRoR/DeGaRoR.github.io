@@ -260,7 +260,9 @@ const inShed = "document.body.classList.contains('mode-ws')";
     const r = { path: k };
     // (a staged crash that breaks nothing proves nothing about the path: staged once more, the why kept - the hits, the
     // steps, the sim's clock - and the path marked NOT EXERCISED if it still breaks nothing)
-    if (opt('pre', null)) await ev(opt('pre', null));   // (the A/B's switches, before the crash)
+    // (the A/B's switches, before the crash - through /run, which takes STATEMENTS: /eval wraps one expression, and a
+    // statement list there was a syntax error that ran nothing - the 21:37 'layer off' and the 03:05 'fix off' never took)
+    if (opt('pre', null)) r.pre = await S.post('/run', opt('pre', null) + '; return 1;');
     const crashOnce = async () => { const x = await S.run(S.pageStage, S.CASES['trunk-0'].o);
       const why = await ev("JSON.stringify({ hits: FLIGHT_PROBE.sim().trunkHits ? FLIGHT_PROBE.sim().trunkHits() : null, t: FLIGHT_PROBE.sim().t, held: !!window.__d4bStep, world: !!FLIGHT_PROBE.world().treeHits })");
       return { broken: x.worker ? (x.pageBr || 0) : x.broken, worker: !!x.worker, reason: x.reason, steps: x.steps, why: typeof why === 'string' ? JSON.parse(why) : why }; };
