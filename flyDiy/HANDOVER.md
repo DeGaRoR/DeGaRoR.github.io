@@ -80836,3 +80836,61 @@ Taxi unchanged (-480 tris), draws -2. TREES, TREEHIT PASS (positions unchanged -
   - METLA_QUERY (more query), METLA_GEOSTEPS (the deferred build stepped and timed by label), METLA_KEEPGEO
 - metla_ab --approach N [--approach-at x,z] [--approach-from m]
 - metla_boot_steps.js: now also each step's start and BOOT.log's landings.
+
+
+## G1999 - TOWN-CHEAP: THE RETRO TOWN STEP WAS 82 % OBSTACLE RASTER - EVERY HOUSE RASTERISED ITS DRESSING PROPS' FULL MESHES (84 HOUSES, 45 M TRIANGLES, 4.0 S IN NODE); NOW EACH PROP KEY IS RASTERISED ONCE INTO COLUMN POINTS AND A HOUSE ADDS POINTS (17x LESS RASTER WORK) (2026-10-07, HW-COVERAGE for A0, local GPU; branch claude/town-cheap-g1999 on train 38 = 751e1122a)
+STATUS: READY for A0, train 40 (2026-10-07 ~17:50). PENDING: the THROTTLED A/B/B/A confirmation (A0's GPU TIMED slot tonight
+23:55-00:20, a fresh parked cook, --cpu-throttle 4 checked in each run's output) - the Chrome A/B below ran UNTHROTTLED (caveat).
+
+THE ASK (A0): the retro town step on a slow CPU - within ~20 s of potato to the shed, no taxi hitch. G1995's slow-CPU load at
+--cpu-throttle 4 (fresh cook): retro 150.6 s, potato 94.1 s; of the 56 s, the town step +26.3 s.
+
+WHAT THE PROFILE SAYS (tools/perf/town_profile.js on the throttled boot's .cpuprofile, evidence town_profile_t1/t4.json):
+82 % of the town step is hitAdd -> shapeOf -> OBSTACLES.rasterise / addMesh / mark - the houses' obstacle columns, rasterised
+on the main thread. tools/perf/hit_census.js (the page in node, rasterise wrapped, the registry's add paired with it; the boot
+run to 'gone' and the world's stream until the premises queue round the stand is empty) names it: BEFORE (?prophit=0) 230
+rasterisations, 4 359 ms - 84 HOUSES at 1 m with shape0, 3 997 ms, 45.2 M TRIANGLES: shapeOf walked each house's whole group,
+and every dressing prop in it (the yard's barrels, crates, benches, the garden kit - the same few dozen keys again and again)
+was rasterised triangle by triangle at every placement. AFTER: 330 rasterisations, ~254 ms - 100 per-key rasters at 0.25 m
+(223 ms, once a key per page), the 84 houses 10 ms (their own shells, the props' points added). Evidence
+tools/perf/hwcov/hit_census_before.json / _after.json.
+
+THE CHANGE
+- src/core/29_obstacles.js: rasterise takes opts.pts (a Float32Array x y z: each point marked once, inside the bbox), and
+  OBSTACLES.columnPoints(shape, eps, k, dy) turns a rasterised shape back into points - a k x k lattice per column at its lo,
+  its hi and every dy between (3 x 3, 0.5 m: a tilted tall prop keeps its lean).
+- src/viewer/render_premises.js (outside the LIFTS regions - the premises cook is byte-identical, GATE PREMCOOK): PROP_HIT, a
+  per-key cache: propKeyOf(obj) (a 'prop:<key>' node with userData.prop), propHitPoints(obj, key) rasterises the prop's FULL
+  level once in its own frame at 0.25 m (the ghost / flat filters the walk applies) -> columnPoints. shapeOf's walk replaces a
+  prop root by its points in the house's frame; a standalone prop group uses its own points; then one rasterise(pos, idx, cell,
+  {base, pts}). ?prophit=0 is the A/B switch (the old full walk).
+- tools/_prophit_check.js GATE PROPHIT (core, run_gates after OBSTACLE): 141 prop keys x 3 placements x cells 0.5 / 1 m vs the
+  full raster - every vertex covered to 0.1 m in x/z and 5 cm in y, 100 % of the full raster's columns covered, bounded (no
+  column the full raster lacks beyond a neighbour), ~44x cheaper.
+- tools/rollout_perf.js: AN UNKNOWN FLAG STOPS THE RIG before anything starts (exit 2, the known list printed; the known set is
+  every opt('..') / flag('..') the file reads, plus --chrome-flag). Why: the town branch's rig predated --cpu-throttle and
+  ignored it silently - the 15:55 A/B below measured an unthrottled box (A0: "worth making rollout_perf reject unknown flags").
+  Verified by reading and a standalone run of the same check (no rig launched).
+
+THE A/B IN CHROME - UNTHROTTLED (CAVEAT: --cpu-throttle 4 was asked for and silently ignored, see above; the throttled figure
+is tonight's). Retro, 1920x1080, warm profile, fresh parked cook (--check same), a Chrome per load, A = ?prophit=0, B = the fix,
+7 Oct 16:00-16:05 (tools/perf/hwcov/town_ab_<n>_<side>.json):
+  run        garage ready   TOWN step   long tasks >= 50 ms   worst    SETTLE step
+  1 A        54.8 s         8.9 s       70 (5 971 ms)         282 ms   8.6 s
+  2 B        31.9 s         1.8 s        4 (430 ms)           159 ms   8.6 s
+  3 B        31.1 s         1.9 s        5 (489 ms)           159 ms   8.7 s
+  4 A        35.4 s         7.4 s       57 (4 467 ms)         251 ms   8.4 s
+  -> the town step -78 % (8.2 -> 1.85 s mean), long tasks 64 -> 4.5, worst task 282 -> 159 ms; settle unchanged (~8.6 s: not
+  the obstacles - the next lever). Run 1's garage 54.8 s is the first Chrome after the cook (an outlier, not explained); compare the garage on runs 2-4 only.
+  (An unlocked rollout_perf boot of mine ran 16:07-16:08 by mistake; all four loads had ended at 16:05:27 - no overlap.)
+
+GATES (7 Oct 17:20-17:45 CPU, wt-town on a0af0da27 + the flag check): PROPHIT, OBSTACLE, HITBOX, TAXICLEAR, PREMCOOK,
+HOUSEWORKER, SIMWORKER, UISMOKE, BUILT, MEDIA PASS. FRAMECOST RED (24 rows: stand draws.main 914 -> 1046, shadow 169.5 ->
+259.5, uniform4fv 741 -> 2762, ... on both builds; garage:landing bufferData 0 -> 768) - THE BRANCH'S STALE PARKED COOK, NOT
+THE FIX: run_gates builds, the build id moves (53f482316b37 -> 1424a8d2cc58), `parked_cook --check` says STALE (every parked
+key captured live: their draws, shadows and uniforms). Same built tree, at rest (FRAMECOST_SETTLE=600 --census cub), A
+(?prophit=0) and B read 1046 / 965 both - 0 of 39 stand counters differ, 0 of 40 taxi. The assembly's re-cook clears it (as
+WHEEL-AO's A/B against a master stale alike). No ALLOW added. (A trap met on the way: FRAMECOST run alone after the slot's
+restore loads the train's OLD built core - no columnPoints, the fix's hitAdd throws into its catch - so a standalone A/B on a
+source branch needs `node tools/build.js` first.)
+NEXT: the throttled A/B/B/A tonight; then the settle step (8.6 s) and the taxi hitch on the slow-CPU rung.
