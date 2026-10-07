@@ -202,7 +202,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);
   // G2354 (DMG-DETERMINISM): `perturb` {seed, amp} - the ensemble's member: every node's start nudged by up to amp m
-  // (seeded, uniform per coordinate; seed 0 the run as it was)
+  // (seeded, uniform per coordinate; seed 0 the run as it was; amp ENS_AMP unless given)
   if (o.perturb && o.perturb.seed) perturbPose(sim, o.perturb.seed, o.perturb.amp == null ? ENS_AMP : o.perturb.amp);
   if (o.V) for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.V * fx; sim.v[i*3+2] = o.V * fz; }
   const c0 = sim.cgPos().slice(), off = o.off || 0;
@@ -283,14 +283,17 @@ const stateHash = sim => require('crypto').createHash('sha1').update(Buffer.from
   .update(Buffer.from(sim.v.buffer, sim.v.byteOffset, sim.v.byteLength)).digest('hex').slice(0, 16);
 
 // ---- G2354 (DMG-DETERMINISM): THE ENSEMBLE ----
-// A 30 m/s crash is chaotic: one member broken a substep earlier sends the wreck another way, and a 1-ulp nudge of one
-// coordinate moves the Jodel's centreline from 124 broken to 100-odd or 150-odd (GATE DMGDETERMINISM's selftest). One
-// run's count is one draw. The ensemble flies N members, member 0 the run as it was and member s every node's start
-// nudged by up to ENS_AMP (1e-9 m, a nanometre: nothing physical) from a seeded generator, and reads the distribution:
-// median, p10-p90, spread, of the members broken, the pieces, the member work, the engine mount off, the cowl off.
-// A REGRESSION is called only when the distribution moves: a two-sided Mann-Whitney rank test at p < ENS_P (ties
+// One 30 m/s run is one draw of a wreck that depends on its start: N members, member 0 the run as it was and member s
+// every node's start nudged by up to ENS_AMP from a seeded generator, read as a distribution - median, p10-p90, spread -
+// of the members broken, the pieces, the member work, the engine mount off, the cowl off. Measured (HANDOVER G2354,
+// reports/evidence/DMG-DETERMINISM/amp_sweep.json), 16 members each, the Jodel / Cub / metal Cessna centreline:
+//   1e-9 m  124 [124-124] / 169 [168-171] / 215 [215-215]   (bit-level noise moves the wreck's bits, hardly its counts)
+//   1e-6 m  124 [123-124] / 159 [157-170] / 215 [215-216]
+//   1 mm    168 [135-196] / 170 [158-216] / 169 [151-193]   (the physical sensitivity: the metal's single 215 is its tail)
+// so the gates' ensembles nudge by 1 mm (ENS_AMP): the spread a crash really has, which a change of the physics must
+// beat. A REGRESSION is called only when the distribution moves: a two-sided Mann-Whitney rank test at p < ENS_P (ties
 // corrected, the normal approximation), not a single count.
-const ENS_AMP = 1e-9, ENS_P = 0.01;
+const ENS_AMP = 1e-3, ENS_P = 0.01;
 const mulberry = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 function perturbPose(sim, seed, amp) { const r = mulberry(seed * 2654435761 >>> 0); for (let i = 0; i < sim.n * 3; i++) sim.p[i] += amp * (2 * r() - 1); }
 // what the wreck is: the members broken, the pieces (the live members' and the whole clusters' union-find, pieces of
@@ -351,8 +354,8 @@ async function ensemble(key, id, o) {
   o = o || {};
   const { spawn } = require('child_process'), os = require('os'), N = o.n || 16, J = o.jobs || 3, t0 = Date.now();
   const env = Object.assign({}, process.env, o.core ? { FLYDIY_CORE: o.core } : {});
-  const runChild = args => new Promise(res => {
-    const c = spawn(process.execPath, (o.flags || []).concat([__filename], args), { stdio: ['ignore', 'pipe', 'pipe'], env });
+  const runChild = (args, envX) => new Promise(res => {
+    const c = spawn(process.execPath, (o.flags || []).concat([__filename], args), { stdio: ['ignore', 'pipe', 'pipe'], env: envX || env });
     let so = '', se = ''; c.stdout.on('data', d => { so += d; }); c.stderr.on('data', d => { se += d; });
     c.on('close', code => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { err: (se || so).slice(-600), code }); });
   });
@@ -362,7 +365,8 @@ async function ensemble(key, id, o) {
   if (o.certDir) env.FLYDIY_CERT_DIR = o.certDir;
   if (dmgOn && !(env.FLYDIY_CERT_DIR && fs.existsSync(path.join(env.FLYDIY_CERT_DIR, key + '.json')))) {
     const d = env.FLYDIY_CERT_DIR || (tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ens-')));
-    const c = await runChild(['--ens-cert', key, d]);
+    const e2 = Object.assign({}, env); delete e2.FLYDIY_CERT_DIR;   // (the certificate computed, not read)
+    const c = await runChild(['--ens-cert', key, d], e2);
     if (c.err) throw new Error('the certificate: ' + c.err);
     env.FLYDIY_CERT_DIR = d;
   }

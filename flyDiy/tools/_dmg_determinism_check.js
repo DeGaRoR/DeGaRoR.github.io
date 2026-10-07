@@ -128,16 +128,19 @@ function staleTree(dir, coreText) {
   const CT = FULL ? ['turbofan', 'ignition', 'maglevTf'] : ['turbofan', 'ignition'];
   const certR = await pool([].concat(...LAND.map(k => CT.map(tier => ({ tier, tag: k, run: () => child(TIERS[tier], ['cert', k, tier === 'turbofan' ? certDir : '-']) })))));
   report.certs = certR;
-  console.log('2. the tiers (' + (FULL ? 'every flag set' : 'the interpreter, Sparkplug, Maglev, TurboFan, --no-opt') + ')');
+  console.log('2. the tiers (' + (FULL ? 'every flag set on every case' : 'TurboFan, Maglev, --always-turbofan on every case; the interpreter, Sparkplug, --no-opt on the 30 m/s centrelines and the Jodel\'s flight') + ')');
   for (const k of LAND) {
     const r = certR.filter(x => x.tag === k), hs = new Set(r.map(x => x.hash));
     yes(r.every(x => x.hash) && hs.size === 1, k + ': the certificate under ' + r.map(x => x.tier + ' ' + (x.hash || 'ERR ' + x.err)).join(', '));
   }
-  const tiers = FULL ? Object.keys(TIERS) : ['turbofan', 'ignition', 'sparkplug', 'maglev', 'noOpt'];
+  // (the default: the fast tiers on every case, the slow ones - the interpreter, Sparkplug, --no-opt: 8-10 x the time - on
+  // the three 30 m/s centrelines and the Jodel's flight; --full: every tier set on every case)
+  const tiers = FULL ? Object.keys(TIERS) : ['turbofan', 'maglev', 'alwaysTf', 'ignition', 'sparkplug', 'noOpt'];
+  const SLOW = new Set(['ignition', 'sparkplug', 'noOpt']), slowCase = (k, id, dmg) => (id === 'trunk0' && dmg === 'on') || (k === 'jodel' && id === 'flight');
   const cases = [].concat(...LAND.map(k => ON.map(id => [k, id, 'on']).concat(OFF.map(id => [k, id, 'off']))));
   const env = { FLYDIY_CERT_DIR: certDir };
   const jobs = [];
-  for (const [k, id, dmg] of cases) for (const tier of tiers) jobs.push({ tier, tag: k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], env) });
+  for (const [k, id, dmg] of cases) for (const tier of tiers) if (FULL || !SLOW.has(tier) || slowCase(k, id, dmg)) jobs.push({ tier, tag: k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], env) });
   // the slow tiers first (the pool's tail is then the fast ones)
   const slow = t => (t === 'ignition' ? 0 : t === 'sparkplug' || t === 'noOpt' ? 1 : 2);
   jobs.sort((a, b) => slow(a.tier) - slow(b.tier));
@@ -152,7 +155,7 @@ function staleTree(dir, coreText) {
   // 3. the branch re-added
   if (BRANCH) {
     console.log('3. G2048\'s untaken branch re-added (beamYield: `if (!(b.ecu > 0)) return;` after the kink)');
-    const bf = branchCore(dir), bt = FULL ? tiers : ['turbofan', 'ignition', 'noOpt'];
+    const bf = branchCore(dir), bt = FULL ? ['turbofan', 'ignition', 'noOpt', 'maglevTf'] : ['turbofan', 'ignition', 'noOpt'];
     const bj = [];
     for (const [k, id, dmg] of cases) for (const tier of bt) bj.push({ tier, tag: k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], Object.assign({ FLYDIY_CORE: bf }, env)) });
     bj.sort((a, b) => slow(a.tier) - slow(b.tier));

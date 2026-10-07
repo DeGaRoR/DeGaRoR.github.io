@@ -255,7 +255,13 @@ const GATES = [
   // G1855-G1859 (DMG-WALL): one wall, no stretch - the flown snapshot's lining / beads / glazing stay on their covering
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
-  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
+  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 1200 },
+  // G2353-G2356 (DMG-DETERMINISM): the same crash is the same bits everywhere - node refuses a stale generated core (the
+  // "JIT" 154 / 204 was train 37's committed core); the standard crashes (taxi, nose-over, the 30 m/s trunks; damage OFF the
+  // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
+  // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
+  // Three children at once
+  { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1500 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

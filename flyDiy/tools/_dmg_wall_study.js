@@ -57,6 +57,7 @@ function go(k, c) {
     C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
     const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
     if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);
+    if (c.seed) L.perturbPose(sim, c.seed, L.ENS_AMP);   // G2354: an ensemble member (atTrunk's own perturb, the same place)
     for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.V * fx; sim.v[i*3+2] = o.V * fz; }
     const c0 = sim.cgPos().slice(), off = o.off || 0;
     TH.set('fill:test', [c0[0] + fx * o.D - fz * off, c0[2] + fz * o.D + fx * off, elev, o.r || 0.3, elev + (o.top || 10.05)]);
@@ -99,7 +100,9 @@ function prepare(k) {
 }
 
 function run(P, caseId) {
-  const C = L.core(), c = CASES[caseId], G = go(P.k, c), sim = G.sim, n = sim.n;
+  // G2354 (DMG-DETERMINISM): 'trunk-0#3' - the case as an ensemble member, its start nudged by seed 3 (_treecrash_lib perturb)
+  const [cid, sd] = caseId.split('#'), c = Object.assign({}, CASES[cid], { seed: +(sd || 0) });
+  const C = L.core(), G = go(P.k, c), sim = G.sim, n = sim.n;
   const core = P.def.refs.noseFrame[0], hop = SH.simDmgHop0(), D = SV.simViewDmgState(n, P.def.beams.length);
   const schemes = (opt('schemes', 'base,g1858,inh')).split(',').map(name => ({ name, recs: null, NF: {}, E: null, inhSt: null, wallKey: null,
     m: { frames: 0, tubeTris: 0, tubeBad: 0, tubeWorst: 0, nonFinite: 0, tnsBy: {}, tornNoStrain: 0, overStretched: 0, leak1cm: 0, leak5cm: 0, leakPiece: 0, leakBy: {}, leak: 0, tested: 0, worstLeak: 0, rigidTris: 0, rigidBad: 0, rigidWorst: 0, bayTorn: 0, removed: 0, torn: 0, cut: 0, followed: 0 } }));

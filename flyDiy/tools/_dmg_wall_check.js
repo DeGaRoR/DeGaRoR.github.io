@@ -18,7 +18,14 @@
 // Reported, not gated: covering torn with no node at the damage, torn where no member among its nodes strained past the
 // tear (unbraced bays shear), the binding's cost. Damage OFF / nothing broken: no record is made at all (the page's
 // brkCage returns before; GATE DMGSKIN's bitwise checks cover the skin's path).
-// Run: node tools/_dmg_wall_check.js [--only cub,jodel] [--par 3]   (one final `GATE DMGWALL: PASS|FAIL`)
+// G2354 (DMG-DETERMINISM): THE 30 M/S ROWS ARE AN ENSEMBLE. A 30 m/s trunk depends on its start (a millimetre on every
+// node moves the Jodel's centreline over 135-196 members broken: _treecrash_lib's ENSEMBLE note), so one run's leak share
+// is one draw - DMG-TUNE's Jodel centreline went red on one. The trunk-0 / trunk-2.5 rows fly ENS members (member 0 the
+// run as it was, members 1.. every node's start nudged by up to 1 mm, seeded:
+// _treecrash_lib perturb): the shares (past 1 mm / 1 cm / 5 cm, past 8 slots) are judged on the ensemble's MEDIAN, the
+// p90 and the worst member printed; what must never happen (a compact part stretched, a position not finite, a tube
+// past 1.2 x) is checked on EVERY member. The other cases stay single runs (slow enough not to be chaotic).
+// Run: node tools/_dmg_wall_check.js [--only cub,jodel] [--par 3] [--ens 8]   (one final `GATE DMGWALL: PASS|FAIL`)
 'use strict';
 const path = require('path'), fs = require('fs'), { spawn } = require('child_process');
 const argv = process.argv.slice(2);
@@ -27,25 +34,37 @@ const BUILDS = { cub: 'trunk-0,trunk-2.5,taxi,noseover,nosein', jodel: 'trunk-0,
                  floats: 'nosein-water', twinFloats: 'nosein-water' };
 const LEAK_SHARE = 0.02, LEAK1_SHARE = 1e-3, LEAK5_SHARE = 1e-4, OVER8_SHARE = 0.02;
 const only = opt('only', null), keys = Object.keys(BUILDS).filter(k => !only || only.split(',').includes(k)), PAR = +opt('par', 3);
+const ENS = +opt('ens', 8), FAST = new Set(['trunk-0', 'trunk-2.5']);
 const t0 = Date.now();
-const one = k => new Promise(res => {
-  const out = path.join(require('os').tmpdir(), 'dmgwall_' + k + '_' + process.pid + '.json');
-  const ch = spawn(process.execPath, ['--max-old-space-size=6144', path.join(__dirname, '_dmg_wall_study.js'), '--build', k, '--cases', BUILDS[k], '--schemes', 'base,inh', '--out', out],
+// the jobs: each build's cases (both schemes); a land build's ensemble members (the inheritance only: the base is a report)
+const JOBS = [];
+for (const k of keys) {
+  JOBS.push({ k, cases: BUILDS[k], schemes: 'base,inh' });
+  const mem = BUILDS[k].split(',').filter(c => FAST.has(c)), ids = [];
+  for (const c of mem) for (let s = 1; s < ENS; s++) ids.push(c + '#' + s);
+  if (ids.length) JOBS.push({ k, cases: ids.join(','), schemes: 'inh', ens: true });
+}
+const one = J => new Promise(res => {
+  const k = J.k, out = path.join(require('os').tmpdir(), 'dmgwall_' + k + (J.ens ? '_ens' : '') + '_' + process.pid + '.json');
+  const ch = spawn(process.execPath, ['--max-old-space-size=6144', path.join(__dirname, '_dmg_wall_study.js'), '--build', k, '--cases', J.cases, '--schemes', J.schemes, '--out', out],
     { env: Object.assign({}, process.env, { FLYDIY_CERT: '1' }), stdio: ['ignore', 'pipe', 'pipe'] });
   let log = ''; ch.stdout.on('data', d => log += d); ch.stderr.on('data', d => log += d);
-  ch.on('close', code => { let r = null; try { r = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); } catch (e) {} res({ k, code, r, log }); });
+  ch.on('close', code => { let r = null; try { r = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); } catch (e) {} res({ k, ens: !!J.ens, code, r, log }); });
 });
 (async () => {
-  const res = [], q = keys.slice();
+  // (the ensembles first: the longest jobs)
+  const res = [], q = JOBS.slice().sort((a, b) => (b.ens ? 1 : 0) - (a.ens ? 1 : 0));
   await Promise.all(Array.from({ length: Math.min(PAR, q.length) }, async () => { while (q.length) res.push(await one(q.shift())); }));
   let checks = 0, fails = 0;
   const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + msg); };
   for (const k of keys) {
-    const R = res.find(x => x.k === k);
+    const R = res.find(x => x.k === k && !x.ens), E = res.find(x => x.k === k && x.ens);
     console.log('\n' + k + (R.r ? '' : '  (no result: exit ' + R.code + ')\n' + R.log.slice(-1500)));
     if (!R.r) { yes(false, k + ': the study ran'); continue; }
+    if (E && !E.r) { console.log('  (the ensemble: no result, exit ' + E.code + ')\n' + E.log.slice(-1500)); yes(false, k + ': the ensemble ran'); }
     for (const c of R.r.cases) {
       const s = c.schemes.inh, b = c.schemes.base;
+      if (FAST.has(c.case) && E && E.r) { ensRows(k, c, E.r.cases.filter(x => x.case.split('#')[0] === c.case)); continue; }
       if (!s) { console.log('  ' + c.case + ': nothing broke (' + c.broken + ' broken) - nothing to draw'); continue; }
       const sh = x => x.tested ? x.leak / x.tested : 0;
       console.log('  ' + c.case + ': ' + c.broken + ' broken, ' + c.pieces + ' pieces; leak base ' + (100 * sh(b)).toFixed(2) + ' % (worst ' + b.worstLeak + ' m) -> ' +
@@ -59,6 +78,23 @@ const one = k => new Promise(res => {
       yes(s.tubeBad === 0, k + ' ' + c.case + ': no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst ' + (+s.tubeWorst || 0).toFixed(3) + ', ' + s.tubeTris + ' triangle-frames)');
       yes(s.inh.over8 <= OVER8_SHARE * s.inh.places, k + ' ' + c.case + ': places past 8 slots ' + s.inh.over8 + ' <= 2 %');
     }
+  }
+  // the ensemble's rows: member 0 (the run as it was, both schemes) and the nudged members (the inheritance)
+  function ensRows(k, c0, rest) {
+    const M = [c0].concat(rest), sch = M.map(c => c.schemes.inh).filter(Boolean), L = require('./_treecrash_lib.js');
+    const sh = x => (x.tested ? x.leak / x.tested : 0), q = (a, f) => L.ensStats(a.map(f));
+    const S1 = q(sch, sh), S1c = q(sch, x => (x.tested ? x.leak1cm / x.tested : 0)), S5 = q(sch, x => (x.tested ? x.leak5cm / x.tested : 0)), S8 = q(sch, x => x.inh.over8 / x.inh.places);
+    const B = L.ensStats(M.map(c => c.broken)), P = L.ensStats(M.map(c => c.pieces)), pc = x => (100 * x).toFixed(3) + ' %';
+    console.log('  ' + c0.case + ' (an ensemble of ' + M.length + ', ' + sch.length + ' with something broken): broken ' + B.median + ' [' + B.p10 + '-' + B.p90 + '], pieces ' + P.median + ' [' + P.p10 + '-' + P.p90 + ']; past 1 mm median ' + pc(S1.median) + ', p90 ' + pc(S1.p90) + ', worst ' + pc(S1.max) +
+      (c0.schemes.inh ? '; member 0: base ' + (100 * sh(c0.schemes.base)).toFixed(2) + ' %, worst leak ' + c0.schemes.inh.worstLeak + ' m' : ''));
+    yes(sch.length === M.length, k + ' ' + c0.case + ': every member broke something (' + sch.length + '/' + M.length + ')');
+    yes(S1.median <= LEAK_SHARE, k + ' ' + c0.case + ': the wall out past 1 mm, the ensemble\'s median ' + pc(S1.median) + ' <= ' + 100 * LEAK_SHARE + ' % (p90 ' + pc(S1.p90) + ')');
+    yes(S1c.median <= LEAK1_SHARE, k + ' ' + c0.case + ': past 1 cm, the median ' + pc(S1c.median) + ' <= 0.1 % (p90 ' + pc(S1c.p90) + ')');
+    yes(S5.median <= LEAK5_SHARE, k + ' ' + c0.case + ': past 5 cm, the median ' + pc(S5.median) + ' (p90 ' + pc(S5.p90) + ')');
+    yes(sch.every(s => s.rigidBad === 0), k + ' ' + c0.case + ': no compact part triangle past 1 % in any member');
+    yes(sch.every(s => s.nonFinite === 0), k + ' ' + c0.case + ': every drawn position finite in every member');
+    yes(sch.every(s => s.tubeBad === 0), k + ' ' + c0.case + ': no drawn tube triangle past 1.2 x its rest in any member (worst ' + Math.max(...sch.map(s => +s.tubeWorst || 0)).toFixed(3) + ')');
+    yes(S8.median <= OVER8_SHARE, k + ' ' + c0.case + ': places past 8 slots, the median ' + pc(S8.median) + ' <= 2 %');
   }
   console.log('\n' + checks + ' checks, ' + fails + ' failed, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
   console.log('GATE DMGWALL: ' + (fails ? 'FAIL' : 'PASS'));
