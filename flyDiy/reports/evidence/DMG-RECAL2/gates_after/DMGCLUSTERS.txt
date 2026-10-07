@@ -1,0 +1,125 @@
+(984 s, 6 builds)
+Cub:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.70 / 20.32 / 11.73 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.08 kN.m, the statics 0.08 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.038 (FIN root, bend; 0.06 of first yield)
+  ok    load test 5.7 g, the stab: 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    flown pull (TREECRASH's, from 42 m/s): 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s): 0.010 (FIN root, bend; 0.01 of first yield)
+  ok    drop at 10 ft/s: 0.013 (FIN root, bend; 0.02 of first yield)
+  ok    a circuit with the pilot: 0.008 (FIN root, bend; 0.01 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.45 s (6.70 kN.m bending, -8.50 torque; limits 6.70 / 20.32 / 11.73), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.27 m off; clusters now FIN:13
+Jodel:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 0.76 / 3.02 / 1.74 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.04 kN.m, the statics 0.04 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.735 (FIN root, bend; 0.85 of first yield)
+  ok    load test 5.7 g, the stab: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 49 m/s): 0.224 (FIN root, bend; 0.26 of first yield)
+  ok    drop at FAR 23.473 (7.1 ft/s): 0.129 (FIN root, bend; 0.15 of first yield)
+  ok    drop at 10 ft/s: 0.190 (FIN root, bend; 0.22 of first yield)
+  ok    a circuit with the pilot: 0.067 (FIN root, bend; 0.08 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.012)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 1.63 s (0.76 kN.m bending, -0.10 torque; limits 0.76 / 3.02 / 1.74), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 1.17 m off; clusters now FIN:13
+metal Cessna:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.54 / 24.15 / 13.94 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.13 kN.m, the statics 0.13 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.126 (FIN root, bend; 0.20 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 58 m/s): 0.015 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (7.8 ft/s): 0.008 (FIN root, bend; 0.01 of first yield)
+  ok    drop at 10 ft/s: 0.010 (FIN root, bend; 0.02 of first yield)
+  ok    a circuit with the pilot: 0.011 (FIN root, bend; 0.02 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.38 s (6.55 kN.m bending, -7.87 torque; limits 6.54 / 24.15 / 13.94), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.16 m off; clusters now FIN:13
+Cessna floats:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    3 clusters, each with its root cut: FIN root 6.94 / 25.63 / 14.80 (fin:attach); FLTL root 2825.46 / 2901.96 / 256.85 (floatL:strut); FLTR root 2825.46 / 2901.96 / 256.85 (floatR:strut)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.15 kN.m, the statics 0.15 (13 nodes)
+  ok    FLTL root: read 0.59 kN.m, the statics 0.60 (15 nodes)
+  ok    FLTR root: read 0.59 kN.m, the statics 0.60 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.144 (FIN root, bend; 0.23 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 65 m/s): 0.015 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (8.2 ft/s), onto the water: 0.024 (FIN root, bend; 0.04 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.030 (FIN root, bend; 0.05 of first yield)
+  ok    the 5 m/s level pancake on the water: 0.059 (FIN root, bend; 0.09 of first yield)
+  ok    a circuit with the pilot (on the water): 0.011 (FIN root, bend; 0.02 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.004)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.53 s (6.95 kN.m bending, -9.10 torque; limits 6.94 / 25.63 / 14.80), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.20 m off; clusters now FIN:13, FLTL:15, FLTR:15
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.47 s (252.71 kN.m bending, -22.63 torque; limits 2825.46 / 2901.96 / 256.85), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 0.45 m off; clusters now FIN:17, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.47 s (252.71 kN.m bending, 22.63 torque; limits 2825.46 / 2901.96 / 256.85), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 0.45 m off; clusters now FIN:17, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): the worst cut 0.050 (FIN root, bend); the floats' roots FLTL 0.01 bend / 0.01 twist, FLTR 0.01 bend / 0.01 twist; damage on: no cluster parts; groups - - finite
+  REPORT  the float nose-in (90 km/h, 5 m/s, 20 deg): the float fittings held (§7.4)
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 0.447 (FIN root, bend); the floats' roots FLTL 0.05 bend / 0.14 twist, FLTR 0.05 bend / 0.14 twist; damage on: FIN root by member at 0.43 s; groups eng:mount@0.161 wing0R:root@0.162 wing0L:root@0.162 stab:attach@0.191 fin:attach@0.432; CRASHED (a fus member broke) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin floatplane:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: ROD root 10.31 / 10.31 / 9.35 (its bay); ROD station 7.22 / 7.22 / 6.55 (its bay); FIN root 7.33 / 33.46 / 19.32 (fin:attach); FLTL root 620.59 / 634.54 / 104.84 (floatL:strut); FLTR root 620.59 / 634.54 / 104.84 (floatR:strut)
+  ok    ROD: its mid-span station at bay 2 (at 0.7 of the tube), the twist limits per bay 9.35 / 9.35 / 6.55 / 9.35
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    ROD root: read 3.92 kN.m, the statics 3.92 (61 nodes)
+  ok    ROD station: read 1.85 kN.m, the statics 1.83 (53 nodes)
+  ok    FIN root: read 0.07 kN.m, the statics 0.07 (17 nodes)
+  ok    FLTL root: read 0.30 kN.m, the statics 0.30 (15 nodes)
+  ok    FLTR root: read 0.30 kN.m, the statics 0.30 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (ROD twist bay, twist)
+  ok    load test 5.7 g, the fin: 0.126 (FIN root, bend; 0.18 of first yield)
+  ok    load test 5.7 g, the stab: 0.003 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 43 m/s): 0.800 (ROD root, bend; 1.48 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s), onto the water: 0.387 (ROD root, bend; 0.72 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.636 (ROD root, bend; 1.18 of first yield)
+  FAIL  the float nose-in (90 km/h, 5 m/s, 20 deg): 1.003 (ROD root, bend; 1.86 of first yield)
+  ok    a circuit with the pilot (on the water): 0.297 (ROD root, bend; 0.55 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.110)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 1.88 s (7.33 kN.m bending, -1.48 torque; limits 7.33 / 33.46 / 19.32), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 0.79 m off; clusters now ROD:22, FIN:17, FLTL:15, FLTR:15
+  ok    the ROD loaded down at its tail (n g on the tube and the tail, ramped): ROD root by bend at 1.37 s (10.31 kN.m bending, 0.63 torque; limits 10.31 / 10.31 / 9.35), 10 members broken (its bay, 0 others), the part rigid to 2.3 mm and 0.43 m off; clusters now ROD:18, FIN:21, FLTL:15, FLTR:15
+  ok    the ROD levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): ROD station by bend at 3.95 s (7.22 kN.m bending, 0.45 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 0.7 mm and 0.49 m off; clusters now ROD:12, FIN:21, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the ROD twisted (a torque on its last ring, ramped): ROD station by twist at 2.13 s (1.09 kN.m bending, -6.55 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.7 mm and 0.57 m off; clusters now ROD:12, FIN:21, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.43 s (47.30 kN.m bending, -9.50 torque; limits 620.59 / 634.54 / 104.84), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 0.24 m off; clusters now ROD:22, FIN:21, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.43 s (47.30 kN.m bending, 9.50 torque; limits 620.59 / 634.54 / 104.84), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 0.24 m off; clusters now ROD:22, FIN:21, FLTL:15, FLTR:15
+5. the water
+  FAIL  the float nose-in (90 km/h, 5 m/s, 20 deg): the worst cut 1.003 (ROD root, bend); the floats' roots FLTL 0.02 bend / 0.03 twist, FLTR 0.02 bend / 0.03 twist; damage on: ROD root by bend at 0.11 s; groups -; CRASHED (a fus member broke)
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 12.042 (ROD root, bend); the floats' roots FLTL 0.11 bend / 0.10 twist, FLTR 0.11 bend / 0.10 twist; damage on: ROD root by bend at 0.08 s; groups wing0R:strut@0.143 wing0L:strut@0.144; CRASHED (broke up: the fuselage parted (TPB off the core)) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin boom (FIXTURE, report only):
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: BML root 25.10 / 20.45 / 20.23 (boomL:attach); BML station 17.57 / 14.31 / 14.16 (its bay); BMR root 25.10 / 20.45 / 20.23 (boomR:attach); BMR station 17.57 / 14.31 / 14.16 (its bay); FINR root 5.63 / 41.60 / 24.02 (finR:attach); FINL root 5.63 / 41.60 / 24.02 (finL:attach)
+  ok    BML: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+  ok    BMR: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+4. the parts come off cleanly (the FIXTURE: reported)
+  REPORT  (clean) the FINR pulled sideways (n g on the fin, ramped): FINR root by bend at 1.98 s (5.64 kN.m bending, 2.30 torque; limits 5.63 / 41.60 / 24.02), 16 members broken (finR:attach, 0 others), the part rigid to 0.0 mm and 0.86 m off; clusters now BML:17, BMR:17, FINR:13, FINL:17
+  REPORT  (clean) the FINL pulled sideways (n g on the fin, ramped): FINL root by bend at 1.98 s (5.64 kN.m bending, 2.30 torque; limits 5.63 / 41.60 / 24.02), 16 members broken (finL:attach, 0 others), the part rigid to 0.0 mm and 0.86 m off; clusters now BML:17, BMR:17, FINR:17, FINL:13
+  REPORT  (clean) the BML loaded down at its tail (n g on the tube and the tail, ramped): BML root by bend at 3.58 s (25.07 kN.m bending, -0.11 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomL:attach, 0 others), the part rigid to 0.6 mm and 0.59 m off; clusters now BML:9, BMR:17, FINR:17, FINL:17
+  REPORT  (clean) the BMR loaded down at its tail (n g on the tube and the tail, ramped): BMR root by bend at 3.58 s (25.07 kN.m bending, 0.11 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomR:attach, 0 others), the part rigid to 0.6 mm and 0.59 m off; clusters now BML:17, BMR:9, FINR:17, FINL:17
+  REPORT  (clean) the BML levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BML station by bend at 3.27 s (17.57 kN.m bending, -0.02 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.1 mm and 0.76 m off; clusters now BML:14, BMR:17, FINR:17, FINL:16, BML/aft:3
+  REPORT  (clean) the BMR levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BMR station by bend at 3.27 s (17.57 kN.m bending, 0.02 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.1 mm and 0.76 m off; clusters now BML:17, BMR:14, FINR:16, FINL:17, BMR/aft:3
+  81/83 checks
+GATE DMGCLUSTERS: FAIL

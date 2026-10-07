@@ -1,0 +1,49 @@
+(1225 s; on the certificate, damage on)
+1. THE PAGE'S STAGING: settled 2 s in the wind, 3 m/s, the throttle shut, a trunk 6 m ahead (49 winds a build)
+  the user's Cub:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.0   (calm: one run)
+         2.5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+           5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+         7.5 m/s   0/0.0  0/0.0  0/0.2  0/0.4  0/0.1  0/0.0  0/0.0  0/0.0  0/0.1  0/0.4  0/0.2  0/0.0
+          10 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.4  0/0.0  0/0.4  0/0.0  0/0.0  0/0.0  0/0.0
+  ok    the user's Cub: no mount member breaks in any wind to 5 m/s (25 of 49 runs gated, 49 met the trunk at 1.00-2.53 m/s; the mount's worst 0.27 of its limit)
+  --    REPORT the user's Cub at 7.5 and 10 m/s: 0 of 24 winds break the mount
+  --    REPORT the user's Cub: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  Jodel:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.0   (calm: one run)
+         2.5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+           5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+         7.5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+          10 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+  ok    Jodel: no mount member breaks in any wind to 10 m/s (49 of 49 runs gated, 49 met the trunk at 1.65-2.42 m/s; the mount's worst 0.31 of its limit)
+  --    REPORT Jodel: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  metal Cessna:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.0   (calm: one run)
+         2.5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+           5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+         7.5 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+          10 m/s   0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0  0/0.0
+  ok    metal Cessna: no mount member breaks in any wind to 10 m/s (49 of 49 runs gated, 49 met the trunk at 2.29-2.39 m/s; the mount's worst 0.21 of its limit)
+  --    REPORT metal Cessna: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+2. THE PAGE'S OWN WIND on the Cub (5.48 m/s from 112 deg off the nose; the gust field 1 m over the CG at t = 2 s: -1.91, -0.11, 5.06)
+  ok    steady, started at 3 m/s (met the trunk at 2.28): mount 0, broken 0, 0 J, the mount's worst 0.29
+  ok    gust 0.5, started at 3 m/s (met the trunk at 2.28): mount 0, broken 0, 0 J, the mount's worst 0.29
+  ok    gust 1, started at 3 m/s (met the trunk at 2.27): mount 0, broken 0, 0 J, the mount's worst 0.30
+  ok    steady, started at 3.6 m/s (met the trunk at 3.01): mount 0, broken 0, 0 J, the mount's worst 0.35
+  ok    gust 0.5, started at 3.6 m/s (met the trunk at 3.01): mount 0, broken 0, 0 J, the mount's worst 0.35
+  ok    gust 1, started at 3.6 m/s (met the trunk at 3.01): mount 0, broken 0, 0 J, the mount's worst 0.35
+3. THE FLOATPLANES on the water, 10 s at 3 m/s in the wind
+  ok    Cessna floats: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    twin floatplane: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    the per-substep reader (sim.onSubstep, damagePush) changes nothing: 0c022edea0f7 / 0c022edea0f7 (13320 substeps read)
+REPORT: THE PAGE'S IMPACT SPEED (started at 3.6 m/s: the trunk met at ~3 m/s, as on the page)
+  --    REPORT the user's Cub: 0 of 49 winds break the mount (met at 2.02-3.19 m/s)
+  --    REPORT Jodel: 0 of 49 winds break the mount (met at 2.49-3.11 m/s)
+  --    REPORT metal Cessna: 0 of 49 winds break the mount (met at 3.03-3.11 m/s)
+  --    REPORT the Cub, no wind, started at 3 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  12/12 checks
+GATE DMGWIND: PASS

@@ -81189,3 +81189,325 @@ ultimate x 1.1: it breaks").**
   `gates_base_merged/`, `gates_diff.txt`, `flight_diff_engY.txt`.
 - The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage stays
   OFF by default (nothing here touches the switch).
+
+
+## G2383-G2387 DMG-RECAL2: THE FLOAT LANDING FLOWN - THE TOUCH UNDER THE HEELS' LINE, NO DRIFT, THE ATTITUDE HELD THROUGH THE STEP WITH THE POWER OFF, FULL BACK STICK OFF IT, THE WATER RUDDERS UP UNTIL DISPLACEMENT; THE TWIN'S CROSSWIND CIRCUIT BACK IN DMGGEAR (1 CONTACT, THE SPREADERS AT 0.13 OF THEIR ENVELOPE, WAS 2.00); A FLOATPLANE'S VREF RAISED ON THE FINAL ONLY (2026-10-07, DMG-RECAL2 for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-recal2 off origin/claude/dmg-bundle-green 90ebbbff; G2383-G2387)
+
+**READY for the coordinator. DMGGEAR's split row is back and green; DMGGEAR stays red on the one row it was red on
+before the skip (the twin's ROD root in A0's water case, not this chip's).**
+
+**The twin's crosswind water circuit lands without a skip.**
+- One float contact phase (was 2). The touch: 19.1 m/s, 0.68 m/s down, 8.2 deg nose-up, 0.2 deg of bank.
+- The spreaders' peak in the landing is **0.13** of their certified yield (was **2.00**). The row's worst member over
+  the whole circuit is 0.33, in the take-off.
+
+**The Cessna on floats lands too, which it never did inside DMGGEAR's window on 90ebbbff.**
+- 1 contact in calm and at 0.2 V_S0 across (was 4 each: a give-up at 600 s and a capsize). Spreaders 0.04 / 0.27.
+
+**DMGGEAR 70/72 -> 77/78.**
+- The split row is back on its own bar (2/3): 2.00 -> 0.33.
+- Four new gated rows (no skip, calm and 0.2 V_S0, both floatplanes) are green.
+- The wind set's 16 circuits print 2 'ok' and 14 OWED, counted, not failed: 5 take-offs rejected before any
+  landing, the same on 90ebbbff; 9 landings that skip. NOT SOLVED 1-5 traces them.
+
+**The four causes, each fixed at its cause:**
+1. the wheels' "full back stick under 1.15 VRot" flew the twin off the step;
+2. the water rudders dropped at 12 m/s with full pedal - that was the 2.00;
+3. the Cessna's Vref was raised in the climb and rode to the final at 1.7 Vs;
+4. the touch was flown past the heels (the Cessna) and drifting.
+
+**The landing is now the handbook's** (G2384): touch under the heels' line, no drift, the attitude held through the
+step with the power off, full back stick off the step, the water rudders lowered at displacement.
+
+**The rest of the list (state of every number in THE GATES):**
+- SEAPLANE, FLOATS, PILOTMATRIX, TAKEOFF, JOINPARITY, DMGWIND, TREECRASH, DMGFLOATTO, DMGHULL, DMGPLOUGH: PASS.
+- DMGCLUSTERS: FAIL 81/83, the same two rows (the ROD root).
+- DESTTO: ltd:floats and ltd:twinFloats ok. Its red is ltd:metal, the same 5 failures on 90ebbbff (a land build,
+  lineup time-outs at w3), not this chip's.
+- The wheels are bit-identical: PILOTMATRIX cells, TAKEOFF, the land rows of DMGGEAR and TREECRASH.
+
+**Not solved, said plainly (below): one landing is worse.** The Cessna on floats in a 5 m/s headwind now dives into
+the water (7.55 m/s down) where 90ebbbff skimmed in 17 times. Traced to the tail letting go at -0.18 of elevator on a
+TECS final at the true Vref (the approach, not the touch). The twin skims on wind-raised chop in headwinds, and the
+10 m/s crosswinds (0.4-0.6 V_S0) are past the type.
+
+### G2383 - HOW THE PILOT FLEW A WATER LANDING ON 90ebbbff, AND WHY THE TWIN SKIPPED
+Measured with `scripts/water_landing.js`: DMGGEAR's circuit rig (the game's twin on floats and the Cessna on floats,
+the certificate, the probe), the pilot from SEA's lane back to it, every frame from 15 m on the final to the stop.
+Each landing's pitch, sink, speed, bank, the floats wet, the hydro lift over the weight, the spreaders' worst load
+over its certified yield, the throttle and the controls are in `data/<run>.csv` (-4..+14 s round the touch). The
+table is `data/landings.txt`; all 40 landings are in the table below.
+
+**The laws on 90ebbbff.**
+- **The approach and the flare.**
+  - The land laws, unchanged: TECS down the slope, the G381 hold-off (the sink flown to max(0.35, h/tau)).
+  - The cap is the taildragger's: the rest attitude + 2 deg, or the flare's start + 1.7 deg; about 6.5 deg on the
+    twin.
+  - The throttle at IDLE. The G381.1 assist comes in only under 1.15 Vs0 or with the elevator past 0.30.
+- **No water technique.** There was none for the touch, the hold or the step. ROLLOUT's elevator was the wheels':
+  under 1.15 VRot, full back stick at once (G381's "the tail comes down at once"); over it, a pitch hold.
+- **The water rudders.** They drop by themselves under 12 m/s through the water.
+
+**The twin, 0.2 V_S0 (3.31 m/s) across (the split row), on 90ebbbff.**
+- **The flare.** It began at 268.9 s and sat on its 6.5 deg cap. The sink grew 1.19 -> 1.62 m/s at idle: 18.73 m/s
+  is not under the assist's 1.15 Vs0 = 18.72.
+- **The touch, 273.18 s.** 18.74 m/s (1.13 Vs), 1.59 m/s down, 6.5 deg nose-up, 1.0 deg of bank; 1.46 W on the
+  floats. That is under 1.15 VRot (18.86), so the stick went to full back: de 0.12 -> 0.35 in 0.15 s (the slew).
+- **The skip.** The nose went 6.5 -> 22.5 deg in 0.9 s and the twin flew off the step for 1.07 s, rolling to 18.8
+  deg. It came down at 274.67 s on one float: 15.5 m/s, 1.18 m/s down, 19.2 deg nose-up, 15.1 deg of bank.
+- **The 2.00.** At 275.58 s: 12.5 m/s, sliding sideways at 3.6-5.5 m/s, the rudder on its stop (dr 0.95). The water
+  rudders dropped at 12 m/s through the water. The aft spreader went 0.07 -> 2.00 in two frames.
+- **Why.** It is not porpoising and not the hull. It is the wheels' elevator law on a float at 1.13 Vs (a nose-high
+  skip, the handbook's upper limit), and the water rudders dropped at speed with full pedal.
+
+**The touches on 90ebbbff** (`before_*`; V is the ground speed):
+
+| run | contacts | the first touch | spreaders |
+|---|---|---|---|
+| twin, calm | 3 | 19.1 m/s, 1.49 down, 6.1 deg, 0 bank | 0.19 |
+| twin, 0.2 V_S0 across | 2 | 18.7, 1.59, 6.5, 1.0 | **2.00** |
+| twin, 5 m/s from 270 | 2 | 18.4, 1.63, 6.8, -1.2 | 0.98 |
+| twin, 10 from 270 / 90 | 3 / 2 | 16.4, 1.72 / 15.8, 1.54 | **2.09** / **1.27** |
+| Cessna, calm | 4 (**gave up**: 600 s) | 39.4 m/s (1.6 Vs), 0.88 down, 1.6 deg | 0.11 |
+| Cessna, 0.2 V_S0 across | 4 (**capsized**: bank -81 deg) | 38.9, 3.16 down, **-2.9 deg** | 0.75 |
+| Cessna, 5 m/s from 0 | **17** | 28.6 (headwind), 0.28 down | 0.10 |
+| Cessna, 5 from 90 / 270 | 2 / 4 | 42.0 / 40.9 m/s, 2.6 / 2.4 down, -1.4 / -1.7 deg | 0.81 / 0.63 |
+
+- **The Cessna on floats never landed inside DMGGEAR's 340 s.** Both its circuit rows read 'null, DOWNWIND'.
+- **The Vref raise.** In every circuit on 90ebbbff it was raised in the CLIMB at ~64 s ("the elevator cannot hold
+  34.4 m/s"). Its final ran at 40-43 m/s (1.7 Vs), +-6 m/s of sink. The terrain go-around came on the calm and the
+  0.2 V_S0 circuits, and the touch on the second circuit was at 39 m/s, nose-down.
+- **The heels.** The touch's heels (stern keel over step keel) on 90ebbbff: the twin +1.9..+2.8 deg at 6-7 deg of
+  pitch. Its heels' line is ~8.8 deg.
+
+### G2384 - THE FLOAT TOUCHDOWN AS A SEAPLANE PILOT FLIES IT (the sources, as recalled - none opened in this session)
+FAA-H-8083-23, *Seaplane, Skiplane, and Float/Ski Equipped Helicopter Operations Handbook*, the seaplane chapters on
+normal, crosswind, glassy and rough-water landings and on porpoising and skipping. Recalled, not opened:
+- **The normal landing.** The approach like a landplane's. The flare is to the landing attitude: the planing
+  attitude, or slightly higher. The touch is power-off, or with a little power to control the descent. Then the
+  throttle comes off, if it is not already. The attitude is held with back pressure that increases as the seaplane
+  decelerates. It comes off the step and settles into displacement, and then the elevator goes full back to keep the
+  bows up.
+- **Too nose-high.** The sterns (the heels) touch first, the bows slap down, and the seaplane may skip. Skipping is
+  instability above the upper trim limit, often after a touch with excess speed.
+- **Too flat or nose-low.** The bows can dig in, and the seaplane porpoises below the lower trim limit.
+- **The correction.** Take the planing attitude again. A porpoise or skip that does not damp at once wants power and
+  a go-around.
+- **The crosswind.** The sideslip: the upwind wing low to stop the drift, opposite rudder to keep the floats aligned,
+  the touch on the upwind float first. Aileron into the wind through the run, more of it as the speed falls, so that
+  the downwind float is not dug in. The seaplane weathervanes once it is off the step.
+- **The water rudders.** They are retracted for the take-off and the landing and lowered at taxi speed.
+- **Glassy and rough water.** Power-on: the landing attitude held and the descent flown at about 150-200 ft/min
+  (0.75-1.0 m/s) on power until contact. Rough water: the lowest practical speed, slightly nose-high, power off and
+  the stick back at once.
+
+**What this branch took from it, and the numbers it added:**
+
+| law | source | number | status |
+|---|---|---|---|
+| the touch under the heels' line | the handbook: no touch on the heels | the line itself (the hull's geometry, `hydroHeel`), less **1.0 deg** | the margin is **GAME** |
+| power-on touch on a high thrust line | the handbook's power-on landing | in at **0.75 m/s** of sink (150 ft/min, as recalled), out under **0.45** | 0.45 is **GAME**; the lever is `porpLever` 0.10 m (G1880's, existing) |
+| the drift killed before the touch | the handbook's sideslip | a PI on the drift over the lane: **0.1 rad per m/s, 0.1 /s**, inside the decrab's 0.12 rad | **GAME** |
+| hold the attitude through the step, power off | the handbook's normal landing | the touch attitude; the flare's own gains (flarePK / DK / rotateIMax / flareIth, existing) | - |
+| power off after the touch | the handbook | at once; on a high thrust line over **2 s** | 2 s is **GAME** |
+| full back stick off the step | the handbook | off the step = both afterbodies wet (wheelsOnGround's third contact) or under `stepV` 9 m/s (G1937's, existing) | - |
+| the water rudders up until displacement | the handbook | lowered at displacement or under 0.6 x WR_UP_V = 7.2 m/s (the take-off's own raise speed, G451, existing) | - |
+
+### G2385 - THE CHANGES (src/core/43_pilot.js, 39b_servos.js, 32_hydro.js; damage OFF flight; the wheels bit-identical)
+Every change is behind `sim.hydro` (a floatplane) except one zero: the servos' `phBias` (below), 0 on every other
+frame. So a wheeled flight runs the same arithmetic: PILOTMATRIX's cells, TAKEOFF and the land rows are bit-identical.
+1. **The touch under the heels' line** (43, FLARE's entry).
+   - The hold-off's cap on the water is the pitch at which the stern's keel comes down to the step keel's height,
+     less 1 deg.
+   - `32_hydro.js hydroHeel(HY, p)` gives it: the least, over the floats, of the step-keel -> stern-keel line's angle
+     above the horizontal, from each float's tetra. It is read once (the hull is rigid in pitch).
+   - It replaces the wheels' cap (the rest attitude + 2 deg, or the flare's start + 1.7 deg):
+     - twin on floats: ~7.8 deg (it touched at 6.5 with 2.3 deg to spare);
+     - Cessna on floats: ~4.3 deg (it touched at 6.4, 1.0-1.2 deg past its heels; `heelAtTouch` in the data).
+2. **The power-on touch on a high thrust line only** (43, apply's flare assist).
+   - At the cap, past 0.75 m/s of sink, the power winds in; under 0.45 it winds out. This applies only where
+     THRUST_LEVER > porpLever: the twin, 0.27 m.
+   - The Cessna on floats (0.003 m) lands power-off. On power it floated onto the water at 1.24 Vs and skipped in
+     every crosswind run.
+3. **The drift killed before the touch** (43 FLARE; 39b `S.phBias`).
+   - Under the decrab's arming height, on the water, a PI on the drift over the lane adds to the decrab's bank
+     (wing low into the drift).
+   - `phBias` is a phase's own bank term in `airLateral`, zeroed by every `sense()`.
+4. **The water roll-out** (43, ROLLOUT's new `sim.hydro` branch, ahead of the wheels' laws).
+   - On the step: the touch attitude held on the flare's gains; the power off at once, or ramped out over 2 s on a
+     high thrust line.
+   - Off the step: full back stick.
+   - The wheels' law it replaces put full back stick in 0.1 s under 1.15 VRot. That law was the skip.
+5. **The water rudders up until displacement.**
+   - 32_hydro `waterRudder` reads `ctl.wrUp`. 43 sets it through FLARE and the roll-out until the hull is in
+     displacement (onG 3) or under 7.2 m/s. It is lowered once and does not flicker.
+   - Unset, as for every other caller (the user's own flying, the gates' taxi rigs), it is as before. Without it the
+     blades dropped at 12 m/s with the pedals where the step's weathervane had put them: the base twin's 0.95 (on
+     its stop) in a 3.6-5.5 m/s sideslip. That puts 2-4 kN at the sterns in one frame.
+   - **That drop was the spreader's 2.00.** At 275.58 s on 90ebbbff: V 12.5 m/s, dr 0.95, one float wet. After the
+     skip was fixed, every crosswind roll-out still read 0.7-0.98 at exactly V 12.1 until the blades were held up.
+6. **A floatplane's Vref is raised on the final only** (43, TECS's G399.7 raise).
+   - The Cessna on floats earned the raise in the CLIMB: the integrator on its clamp at its climb speed, 34.4 m/s,
+     64 s in.
+   - The raise (+8.6 m/s at most) rode to the final. TECS flew it at 40-43 m/s (1.7 Vs), +-6 m/s of sink, under the
+     slope: the terrain go-around on every circuit. It reached the water at 39 m/s, 2.9 deg nose-down, porpoising to
+     a capsize (bank -81 deg; the outcome read 'completed').
+   - With the change the final is flown at the sheet's Vref (31.7 m/s, -1.46 m/s, on the slope), and it lands on the
+     first circuit.
+   - Wheels: as before.
+- **Perf.** On the wheels: one store (`phBias = 0` in `sense()`) and one add (in `airLateral`) per frame, nothing
+  else. On the floats: two comparisons and a flag per frame, and the heels' line once a landing. Nothing new runs per
+  frame in the solver (`hydroHeel` is called once a landing).
+
+### G2386 - DMGGEAR: THE ROW BACK, THE NEW ROWS
+`tools/_dmg_gear_lib.js` circuit():
+- **The contact phases.** On the water, from the first wet float on, a run of wet frames after at least 3 dry ones
+  (1/20 s) is a new contact. The touches go into the result with their speed, sink, pitch and bank.
+- **A floatplane's window.** 480 s (the wheels keep 340). On 90ebbbff the Cessna on floats never landed inside 340 s,
+  so its two circuit rows read 'null, DOWNWIND': they judged a circuit with no landing in it.
+- **`wind: { U, th }`.** DMGWIND's water quarters, from th deg off the lane's heading (90 is the gate's crosswind
+  side).
+
+`tools/_dmg_gear_check.js`:
+- **The split row is back, unchanged:** the twin's crosswind circuit (0.2 V_S0) at most 2/3 of its certified yield,
+  on the same bar. It is green at 0.33, the circuit's worst member (in the take-off; the landing's spreaders 0.13):
+  nothing past its envelope, under ordinary operations' 2/3.
+- **New, gated:** "the circuit / the crosswind circuit lands on the water without a skip: 1 contact phase", on both
+  floatplanes.
+- **New, the wind set** (section 2b): the circuit in DMGWIND's water winds (5 and 10 m/s from 0 / 90 / 180 / 270 deg
+  off the lane), on both floatplanes, 16 circuits, each its own child. One contact phase is an 'ok' row. A skip, a
+  rejected take-off or no landing prints **OWED**: counted, not failed (FLOATS' G2033 precedent).
+  - Every OWED class is traced below (NOT SOLVED 1-5), with its question. A0 decides whether they gate.
+  - `DMGGEAR_WINDS=` (empty) skips them.
+- The wind set adds ~16 circuits of ~7 min each to the gate (3 children at once).
+
+### G2387 - EVIDENCE (reports/evidence/DMG-RECAL2/)
+- **`svg/landing_<aeroplane>_<U>_<th>.svg`**, one per landing that both trees flew (15; the four '180' winds and the
+  twin's 5/90 rejected their take-offs on both). Each has pitch, sink, speed, bank, the spreaders' worst load over its
+  certified yield (with the envelope at 1 and ordinary operations at 2/3 drawn) and the floats wet. Grey is 90ebbbff,
+  blue is this branch, and t = 0 is each run's first float contact.
+  - The split row's landing is `landing_twinFloats_3.312_90.svg`; the Cessna's is `landing_floats_4.984_90.svg`.
+- **`data/landings.txt`**: the 40 landings' table (outcome, contact phases, the first touch, the heels at the touch,
+  the spreaders' peak, the pilot's verdicts).
+- **`data/<before|after>_<aeroplane>_<U>_<th>.csv`**: each landing's frames from 4 s before the first touch to 14 s
+  after (t, phase, pitch, bank, V, vy, wet, Fy/W, spreader, comp, thr, de, aglG, vlat, da, dr).
+- **`data/floats_5_0_final_<before|after>.txt`**: the Cessna's 5 m/s-headwind final (NOT SOLVED 1).
+- **`scripts/`** (run from flyDiy/, `ROOT=$PWD` for the tree):
+  - `water_landing.js` (a landing traced);
+  - `summary.js` (the table and the CSVs);
+  - `trace_svg.js` (the SVGs);
+  - `final_trace.js` (a final).
+  - The before runs: the same scripts with ROOT at a worktree of 90ebbbff (built, `node tools/build.js`).
+- **The matrix and the gate.** The matrix runs and DMGGEAR's own circuits share the rig. Their contact counts agree
+  in every case; the touches differ in the last digits (the twin's crosswind touch 0.68 / 0.72 m/s down).
+- **`gates_after/`**: every gate run on this branch's final tree, each its own process and log.
+  **`gates_before/DESTTO.txt`**: 90ebbbff's DESTTO. The other befores are DMG-BUNDLE-GREEN's own `gates_after/` and
+  `gates_round2/` (the same 90ebbbff tree, build 26c0ee1fc3c0).
+
+### THE LANDINGS, BEFORE (90ebbbff) -> AFTER (this branch), the pilot's circuit on SEA in DMGWIND's water winds
+V is over the ground (a headwind takes it off the airspeed); 'contacts' are float contact phases from the first touch.
+
+| aeroplane | wind | before: contacts, spreaders, outcome | after: contacts, spreaders, the touch (V ground, sink, pitch, bank, throttle) |
+|---|---|---|---|
+| twin | calm | 3, 0.19 | 1, 0.10 - 19.7, 0.53, 8.1, 0.0, 0.00 |
+| twin | 3.312 m/s across (0.2 V_S0) | 2, 2.00 | 1, 0.13 - 19.1, 0.68, 8.2, 0.2, 0.03 |
+| twin | 5 m/s from 0 | 3, 0.22 | 6, 0.13 - 14.7, 0.61, 8.1, 0.0, 0.00 |
+| twin | 5 m/s from 90 | 0, 0.00 (rejected-takeoff) | 0, 0.00 (rejected-takeoff) |
+| twin | 5 m/s from 180 | 0, 0.00 (rejected-takeoff) | 0, 0.00 (rejected-takeoff) |
+| twin | 5 m/s from 270 | 2, 0.98 | 1, 0.25 - 19.0, 0.55, 8.4, 0.9, 0.00 |
+| twin | 10 m/s from 0 | 2, 0.12 | 4, 0.15 - 9.6, 1.02, 6.1, 0.0, 0.30 |
+| twin | 10 m/s from 90 | 2, 1.27 | 6, 0.65 - 18.2, 1.34, 6.8, 5.3, 0.30 |
+| twin | 10 m/s from 180 | 0, 0.00 (rejected-takeoff) | 0, 0.00 (rejected-takeoff) |
+| twin | 10 m/s from 270 | 3, 2.09 | 6, 1.61 - 18.4, 1.08, 6.8, -5.3, 0.30 |
+| Cessna | calm | 4, 0.11 (gave-up) | 1, 0.04 - 30.6, 1.60, 3.7, -0.1, 0.00 |
+| Cessna | 4.984 m/s across (0.2 V_S0) | 4, 0.75 | 1, 0.27 - 29.5, 1.25, 5.9, 1.1, 0.00 |
+| Cessna | 5 m/s from 0 | 17, 0.10 | 2, 0.31 - 27.3, 7.55, -9.7, -0.1, 0.11 |
+| Cessna | 5 m/s from 90 | 2, 0.81 | 3, 0.34 - 29.5, 1.24, 5.9, 1.3, 0.00 |
+| Cessna | 5 m/s from 180 | 0, 0.00 (rejected-takeoff) | 0, 0.00 (rejected-takeoff) |
+| Cessna | 5 m/s from 270 | 4, 0.63 | 1, 0.29 - 29.6, 1.29, 6.0, -0.6, 0.00 |
+| Cessna | 10 m/s from 0 | 6, 0.15 | 7, 0.10 - 20.2, 1.84, 3.7, 0.0, 0.00 |
+| Cessna | 10 m/s from 90 | 7, 0.57 | 6, 0.71 - 29.5, 0.93, 5.5, 5.4, 0.00 |
+| Cessna | 10 m/s from 180 | 0, 0.00 (rejected-takeoff) | 0, 0.00 (rejected-takeoff) |
+| Cessna | 10 m/s from 270 | 6, 0.73 | 4, 0.67 - 29.2, 1.18, 6.7, 2.8, 0.00 |
+
+### THE GATES, BEFORE -> AFTER
+Each gate was run whole on this branch's final tree (build 4e25b55d4a1b; `node tools/build.js`, exit 0), one process
+and one log each (`gates_after/`). The befores are 90ebbbff (build 26c0ee1fc3c0): DMG-BUNDLE-GREEN's own
+`gates_after/` (DMGGEAR, DMGWIND, DMGCLUSTERS, TREECRASH, PILOTMATRIX, DMGFLOATTO, DMGHULL, DMGPLOUGH) and
+`gates_round2/` (SEAPLANE, FLOATS, TAKEOFF, JOINPARITY). DESTTO had no before there, so it was run on a 90ebbbff
+worktree (`gates_before/DESTTO.txt`).
+
+| gate | before | after | what moved |
+|---|---|---|---|
+| DMGGEAR | FAIL 70/72 | FAIL **77/78** | the twin's crosswind circuit **2.00 -> 0.33** (FLD-FLD in the take-off's ROLL; the landing's spreaders 0.13), touchdown 1.59 -> 0.72 m/s; its calm circuit 0.29 -> 0.29, touchdown 1.49 -> 0.53; the Cessna on floats' circuits **'null, 340 s' -> completed** (399 / 389 s), 0.34 / 0.35 -> 0.27 / 0.27, touchdowns 1.60 / 1.22 m/s; 4 new rows ok (no skip); 2b: 16 wind circuits, 2 ok + 14 OWED (the headroom table's new 'wind' columns: the twin's 5/90, 5/180 and 10/180 1.37 / 1.76 / 1.98 are its REJECTED TAKE-OFFS' spreaders, the same on 90ebbbff: 1.37 / 1.76 / 1.98 on its parts run there); left red: the float nose-in (the ROD root), unchanged |
+| DMGCLUSTERS | FAIL 81/83 | FAIL 81/83 | the twin's water circuit: FIN root 0.060 -> 0.011; the two ROD-root rows unchanged |
+| TREECRASH | PASS 50/50 | PASS 50/50 | the Cessna on floats' circuit (still 'null, 340 s': it lands at 341 s, the lib's 340 s window) 1.61 -> 1.76 g, its worst member 0.34 -> 0.27; the twin's circuit 302 -> 308 s, 1.84 -> 1.31 g, 0.29 -> 0.29 |
+| SEAPLANE | PASS | PASS | the circuit's touch 254.0 -> 257.4 s at z 2611 -> 2538, stopped 302.2 -> 307.4 s; the crosswind take-off and the taxi identical |
+| DESTTO | FAIL (5: ltd:metal) | FAIL (5: ltd:metal) | nothing: ltd:floats ok, ltd:twinFloats ok both sides; ltd:metal's 5 failures (lineup time-outs at w3, a land build) are 90ebbbff's own |
+| PILOTMATRIX | PASS | PASS | nothing: identical cells |
+| TAKEOFF, FLOATS, JOINPARITY | PASS | PASS | nothing (FLOATS flies its own approach; JOINPARITY's numbers identical, '[chain computed]' marks only) |
+| DMGWIND | PASS 12/12 | PASS 12/12 | nothing |
+| DMGFLOATTO, DMGHULL, DMGPLOUGH | PASS | PASS | nothing (the take-off and the hull rigs) |
+
+### NOT SOLVED - SAID PLAINLY
+**1. The Cessna on floats in a 5 m/s headwind now dives into the water. This is the worst arrival in the set.**
+- The touch: 7.55 m/s down, 9.7 deg nose-down, 9.7 W. The spreaders read 0.31, but the worst member, VSNL-VSNR
+  (fus), reads **1.14** of its certified yield (DMGGEAR 2b). On 90ebbbff it skimmed in 17 times at 28-40 m/s.
+- **Traced (`data/floats_5_0_final_after.txt`).** The final in a 5 m/s headwind is a TECS chase down to the slope at -4 m/s
+  (vsDn). The elevator pushes to -0.17..-0.19, and at that push the nose drops by itself, -2 -> -10 deg in 0.8 s,
+  with the elevator going back up to +0.35. It does this three times on one final: at 144 m, 84 m and 10 m.
+- The third is the arrival. The same rig on the calm final holds -0.03 of elevator.
+- It reads as the tail stalling at the push. 90ebbbff never met it: its raised Vref flew the final 8-11 m/s faster.
+- **Not fixed: the approach is TECS's (PILOT-ONE's), not the touch's.** Proposals:
+  - bound TECS's descent demand on the final to what the elevator holds nose-down;
+  - or have the eSat raise (G399.7) read a nose-DOWN saturation too.
+  The stab's negative stall at that push wants its own look from the aero side.
+
+**2. The twin skims on the chop the wind raises (5 and 10 m/s headwinds, 10 m/s across).**
+- The counts: 6 and 4 contacts in the headwinds, against 3 and 2 on 90ebbbff. The touch is the calm one (19.7 m/s
+  of air, 0.6 m/s down, 8.1 deg). The hull then hits each crest of the 10 m wind sea (2A = 0.18 m at 5 m/s) at the
+  encounter period, ~0.6 s, with the wing still carrying it at 1.2 Vs.
+- The loads are small: spreaders 0.13-0.15, peaks 0.7-1.4 W.
+- The handbook's rough-water landing (the lowest speed, nose-high, power off and the stick back at once) is the
+  technique for it. It is not added here: it needs a sea-state threshold (a GAME number) and a matrix of its own.
+- **The question:** a rough-water landing on the wind's sea, or a DMGGEAR rule that a skim under a load bar on a
+  wind-raised sea is not a skip.
+
+**3. The 10 m/s crosswinds are 0.4-0.6 V_S0, two to three times FAR 23.233's demonstrated 0.2.**
+- The twin: 6 contacts each side. From 270 its spreaders reach **1.61** (was 2.09); from 90, 0.65 (was 1.27).
+- The Cessna: 6 and 4 contacts (was 7 and 6).
+- On the step the twin weathervanes and rolls onto its downwind float. The aileron (G1881's bounded into-wind bias)
+  and the step's rudder gain (G1888's water step) cannot hold it. That is DMG-DAMP's open question on the water's
+  yaw.
+- **The question:** gate them, or carry them past the type's demonstrated crosswind.
+
+**4. Take-offs rejected before any landing, the same on 90ebbbff.**
+- Every '180' wind (a tailwind on the lane's placement heading): the twin at 5 and 10 m/s, the Cessna at 5 and 10.
+- The twin at 5 m/s from 90: balked, then rejected.
+- The pilot's water take-off runs the way it was placed; the take-off is PILOT-ONE's. These five rows are OWED
+  without a landing to judge.
+- In those take-offs the twin's spreaders read 1.37 / 1.76 / 1.98 (5/90, 5/180, 10/180): the same to the digit on
+  90ebbbff (its parts run there). That is the take-off's own load, reported.
+
+**5. The Cessna on floats at 5 m/s from 90: 3 contacts.** At 4.98 (DMGGEAR's 0.2 V_S0) it has 1.
+- The touch is the same; afterwards the weathervane's turn rolls it onto the downwind float.
+- The result at the demonstrated crosswind sits on that edge: the 0.2 V_S0 row is green by 0.02 m/s of wind.
+
+**6. Carried over, not this chip's: DMGGEAR's float nose-in row** (the twin's ROD root in A0's water case, 1.003;
+DMG-BUNDLE-GREEN's question 1) stays red as before.
+
+### FILES
+- `src/core/43_pilot.js`:
+  - the floats' landing: FLARE's heels-line cap and drift PI, the apply()'s high-thrust-line power at the cap,
+    ROLLOUT's water branch, `ctl.wrUp`;
+  - the floatplane Vref raise on the final only.
+- `src/core/39b_servos.js`: `S.phBias`, a phase's own bank in `airLateral`, zeroed by every `sense()`.
+- `src/core/32_hydro.js`: `hydroHeel(HY, p)` (exported on HYDRO); `waterRudder` reads `ctl.wrUp`.
+- `tools/_dmg_gear_lib.js`: circuit()'s float contact phases, the 480 s floatplane window, `wind: { U, th }`.
+- `tools/_dmg_gear_check.js`: the no-skip rows, section 2b (DMGWIND's water winds, OWED on a skip),
+  `DMGGEAR_WINDS`.
+- `tools/run_gates.js`: DMGGEAR's wall hint 1800 -> 2900 s.
+- `reports/evidence/DMG-RECAL2/`: `svg/` (15 landings), `data/` (README.txt, landings.txt, 30 CSVs (the 30 landings), the
+  headwind finals), `scripts/`, `gates_after/` (13 gates), `gates_before/DESTTO.txt`.
+- The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js, src/core/parked_packs.json,
+  media/parked/*) are NOT committed. Damage stays OFF by default (nothing here touches the switch).
