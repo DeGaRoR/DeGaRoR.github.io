@@ -81241,7 +81241,8 @@ hold), published as `ap.intent.route`.
   WP2 flagged ("climbs 5.4 m/s, plan limit +2.1"), the plan limits inside the law's, a point's speed clamped, the legs.
 - C. the drawing (route_draw.js in a vm, the core's globals, stub doors): points at their default, inserted into a leg,
   every edit remembered, FLY arms the pilot, a new flight's pilot handed it, a reload brings it back, leave disarms.
-- B. THE FLIGHTS on Jolene (the damage ON), lined up at HOME, the route drawn before the take-off: HOME + (1500, -2500)
+- B. THE FLIGHTS on Jolene (the damage ON), lined up at HOME, the route drawn before the take-off (ON TRAIN 38, THE FIRST
+  ROUTE - superseded: see "G2120 ON TRAIN 40 + PILOT-PROFILE" below for the route and the numbers now): HOME + (1500, -2500)
   170 m / (-1500, -5500) 350 m / (-4000, -3000) 300 m / (-3500, 0) 220 m / (-1500, 2500) 170 m MSL (16.9 km: two climbs,
   a descent over the sea, a descent back to the field; clean for all three):
 
@@ -81312,6 +81313,61 @@ tools/perf/route_draw_stills.js (new), reports/evidence/ROUTE-DRAW/.
   44_vprofile lands both become calls to it - no second planner kept; its API is the open question to PILOT-PROFILE.
 - **THE REBASE**: onto origin/master after train 40 lands (~21:00 UTC), then GATE ROUTE (+ persona), PILOT, PLAN,
   PILOTACT, UISMOKE again, and once more with ENGINE-TORQUE merged locally.
+
+**G2120 ON TRAIN 40 + PILOT-PROFILE (7 Oct 21:30 - 8 Oct, cloud, the scheduled check-in) - READY for A0**
+- **REBASED onto claude/pilot-profile-g2125 6ee0f4f4** (= train 40 bcf62797 + G2125 PILOT-PROFILE): the route USES
+  PILOT-PROFILE's planner, so it rides on that branch - ROUTE-DRAW lands with or after G2125. Conflicts: HANDOVER (both
+  entries kept) and 90_node_exports (theirs + the route's names); 43_pilot.js merged clean.
+- **ONE ALTITUDE PLANNER** (A0's ruling): the route's vertical profile is VPROFILE.plan's 'drawn' mode - no planner of
+  the route's own is left. 38c_route.js routeVPerf / routeVLegs are the ONE set of numbers the strip and the pilot hand
+  it (the route's margin, the climb and the descent at the plan limits' gradients at the cruise); routeProfile is built on
+  the plan (the strip draws the DRAWN line - red under the margin - and the line AS FLOWN, amber dashed where the planner
+  leaves it: raised to a leg's minimum en-route altitude over its whole length, a climb moved earlier, a descent held);
+  a point the plan flies more than 15 m over its drawing is flagged ("flown at N m: the leg's minimum en-route
+  altitude"). 43_pilot.js routeStart plans once (D.vp, not enumerable: the worker's mirror does not carry it), the ROUTE
+  phase reads VPROFILE.at 5 s ahead; PILOT-PROFILE's own terrain guard ('terrain-react', 1.5 km, 2 hSafe) replaced the
+  route's 600 m floor.
+- **A BUG OF MINE, FOUND BY THE REBASE**: a drawn leg with no speed (V null) fell through buildAirPath's speedOf to VAppr -
+  every drawn corner was filleted at the APPROACH speed. The metal Cessna (49.6 m/s, its turn ~590 m) chased a 178 m
+  fillet 36-46 deg behind it and the path's stepping target became a rudder sawtooth: 13.5 reversals / min on the
+  route (bursts of ~15 in 2-3 s at each corner). Now a drawn leg is flown AND filleted at the same speed (routeVleg: the
+  point's own clamped to Vmin..Vmax, none = the cruise): the metal Cessna 0 rudder reversals, the Cub 0.9 / min. The
+  wider (honest) fillets miss the corners by more, so WP1's capture radius is now its real corner's - the join's, from
+  where the route was joined (routeCaptureR `prev`; the map's rings use the field / the aeroplane).
+- **GATE ROUTE, REDRAWN**: the old route's WP2 sat on the hill north-west of the field; its leg's minimum en-route
+  altitude (219 m: 159 m of hill and trees + 60) lifts that leg over its whole length, so the planner flew WP1 at 214 m
+  for a drawn 170 - flagged, correctly. The gate route is now HOME + (1500, -2500) 175 / (-3000, -5000) 320 / (-4500,
+  -2000) 260 / (-3500, 1000) 215 / (-1500, 2500) 170 m MSL (17.1 km, over the sea to the west), which the planner flies
+  AS DRAWN for all three (every point within 1 m; checked). New model checks: the planner flies the gate route as drawn;
+  a drawing under a leg's minimum en-route altitude is flown higher and flagged.
+- **THE PERSONA PASS** (G2085, train 40): the Cub's club, student and ham-fist on the same route - the capture radius from
+  that person's own routePerf (their bank), the altitude +-25 m, the hands logged not judged.
+- **THE HAND-OVER**: train 40's take-off climb on speed (at Vx) arrives at the route still climbing over TECS's steady
+  limit (the Cub +3.7 m/s against 2.97 for 2.5 s): the flown-vertical-speed check now starts 10 s after the hand-over
+  and logs the entry.
+
+THE FLIGHTS on the final tree (`run_gates --only=ROUTE --verbose`; closest pass / capture radius, altitude against the drawn):
+
+| | WP1 | WP2 | WP3 | WP4 | WP5 | min agl | da/dr rev /min | the end |
+|---|---|---|---|---|---|---:|---:|---|
+| Cub | 135 of 206, +1.6 | 113 of 202, -6.0 | 25 of 150, -0.8 | 16 of 150, -0.8 | 0 of 150, +1.1 | 67 | 1.0 / 0.9 | home, landed HOME (960 s) |
+| Jodel | 238 of 305, +4.4 | 139 of 234, -6.3 | 30 of 150, +1.3 | 19 of 150, -1.7 | 0 of 150, +1.2 | 73 | 1.9 / 1.0 | hold over WP5 (150 s) |
+| metal Cessna | 365 of 422, +7.0 | 272 of 381, -9.0 | 53 of 150, -1.9 | 33 of 150, -1.0 | 0 of 150, +1.7 | 90 | 2.0 / 0.0 | land, the nearest: HOME |
+| Cub, club | 138 of 225, +2.1 | 126 of 217, -5.8 | 27 of 150, -0.9 | 17 of 150, -1.4 | 0 of 150, +1.3 | 67 | 5.7 / 0.0 | home |
+| Cub, student | 185 of 285, +3.8 | 164 of 259, -5.5 | 32 of 150, +0.6 | 21 of 150, -1.6 | 0 of 150, +1.7 | 67 | 46.1 / 34.2 (logged) | home |
+| Cub, ham-fist | 140 of 211, +0.9 | 109 of 202, -5.7 | 24 of 150, +0.0 | 19 of 150, -3.9 | 0 of 150, -0.5 | 67 | 103.5 / 88.1 (logged) | home |
+
+  (the personas' flown vertical speed outside the limits after the hand-over, logged: student 1.2 s, worst 0.86 m/s;
+  ham-fist 1.6 s, worst 1.26 - their hands; the expert three 0.0 s.)
+- **WITH ENGINE-TORQUE** (scratch worktree: this branch + origin/claude/engine-torque-g2080 cb7f0eef, the code merged
+  clean): **GATE ROUTE PASS**, all six flights - the Jodel included: on the redrawn route its WP4 descent is gone (the
+  pitch stick-slip of the addendum above is still the airframe's, unexcited here; it stays queued).
+
+**GATES on the final tree** (train 40 + G2125 + this; 4 cores): **ROUTE PASS** (6 flights, 3 shards, 811-841 s wall;
+`--selftest` PASS: 8 failures under the doctored profile / pilot, all three caught), **PILOT PASS** (445 s), **SIMWORKER
+PASS**, **UISMOKE PASS**, **UISMOKE-PHONE PASS**, **NAV PASS**, **SAVE PASS**, **PLAN PASS** (494 s), **PILOTACT PASS** (232 s). **ROUTE with ENGINE-TORQUE
+merged: PASS**. Not run here: PILOTMATRIX (G2125's own HANDOVER carries its run of the planner; the route's pilot code is
+inert unless a route is flown) and the whole --all battery - A0's train battery is the verdict.
 
 **KNOWN / NEXT**: the roll-out screen's own picker (#bootRoute) does not list the drawn route - FLY > drawn route does
 (the setup screen's rail too); the route's join from the field is the climb-out's straight line in the profile (the climb
