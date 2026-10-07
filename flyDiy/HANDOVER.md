@@ -81239,4 +81239,4 @@ selected; no page error.
 - The village's houses are drawn as blocks on their plots' centres (not the generated house's exact spot; < 1 px at 12 m/px).
 - Not run: the full tier.
 
-READY for the GAME COORDINATOR: claude/map-infra-g2435 (the code, gates, stills and this section)
+READY for the GAME COORDINATOR: claude/map-infra-g2435 638738b (the code, gates and stills; this section rides one docs-only commit on top)
