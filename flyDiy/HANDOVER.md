@@ -81006,3 +81006,158 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2260-G2269 - ECONOMY: ONE PRICE BOOK (RATIOS OF THE LEDGER'S CUB), THE CALIBRATION AS DATA AND GATED (A SIDE HANGAR AT 8, THE C172 AT 21-22, THE SECOND SIDE HANGAR AT 26-28, A FULL ARC AT 22-23 CONTRACTS), THE CAREER WALLET IN THE PAGE BEHIND ?career=1 (THE FIRST SAVE, THE SHED DOORS, REPAIR; THE TRUST'S LOAN JOB BELOW -20 000), THE SANDBOX UNCHANGED; GATE ECON (2026-10-07, ECONOMY for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/economy-g2260 off origin/claude/game-integration f4c47a5, also pushed as claude/pensive-mendel-o8monx; G2265-G2269 unused)
+
+The brief: GAME-2026-10-06.md §R (binding: G-COST, GQ5, GQ6, GQ23), §12, §15 row 8; G2095 / G2230 / G2240 / G2270 /
+G2320; DEFORM-AND-BREAK §10 + dm9-dm12. No generated file committed (`node tools/build.js` before the gates). No PLAYER_V
+step (the career's airframe row gains optional `paid` / `how` / `at`; a fleet row may carry D5's `damage`).
+
+**G2260 THE PRICE BOOK** - `src/core/76_economy.js` (new, pure, MANIFEST.core after 75_, exports appended to 90_).
+Credits are not dollars: every price is a RATIO of the ledger's stock Cub (`CONTRACT_DESIGNS.cub.cost` = 31 203, which
+GATE CONTRACTS re-derives from the build file each run). `ECON_BOOK`:
+- **airframe** (materialised from the drawing board) = the ledger (genFrame's bill, `econLedgerCost(def.parts.ledger)`)
+  x the MAIN hangar's labour factor for what the design wants (`playerLabourFactor(main, hangarWants)`: 0.8 fitted, 1.0
+  short of the verb): Cub 25 000, Jodel 27 500, C172 75 000, C172 floats 76 600, twin floats 28 400 (`econAirframePrice`);
+- **makers' catalogue** (PROCURE) = scratch (ledger x labourFit) x **1.35** (`econCatalogPrice(cost, margin?)`): Cub
+  33 700, C172 101 300;
+- **shells** (x the plot factor, BASE_OFFERS pf): field **1.8**, club **3.2**, works **5.4** Cubs = 56 200 / 99 800 /
+  168 500 (Tamgas Hill's field shed 44 960, Skyline's 50 580, the mine's 28 100). 71_ `shellPrice` reads
+  `econShellPrice`; `PREM_RATES.clubPrice` is gone. **kits** (x the Cub, `KIT_PRICES` now lives in 76_): bench 1 600,
+  wood 5 000, metal 7 500, store 600, handling 1 600, office 3 100, comfort 1 900 (park / curio / wip 0) - the metal
+  shop costs ~40 % of one C172's labour saving;
+- **sign-on fees** (PILOTS, one time, G-COST): `econSignOn('rookie' | 'pilot' | 'ace')` = 0.08 / 0.16 / 0.32 Cubs =
+  2 500 / 5 000 / 10 000 (an unknown tier pays a pilot's);
+- **repair** = DMG-D5's bill (sum of its lines) x `repairLabour` 1.0 x the labour where the airframe stands (fitted
+  0.8, short 1.0, away 1.25) (`econRepairCost(bill, labour)`).
+
+**G2261 THE PAY AND THE CALIBRATION** - `CONTRACT_PAY` (73_, ECONOMY's now): perKm 60 -> **160**, the surface bonuses x
+2.7 (short **1 100**, water **800**, snow **950**, altiport **1 350**), two new constants: **baseF 2.7** (the provider's
+job base x this) and **story 2.6** (an authored contract / survey / challenge's base x this, `contractStoryBase`; a
+build contract's base is priced against its airframe and paid as written). contractPay and contractPayTotal read them;
+nothing else changed in the pay's shape (still the job's, never the aeroplane's). A job now pays ~5-7 000, an arc
+contract 3 100-15 600.
+`ECON_BANDS` (data): hangar1 [6, 10], airframe [15, 25], hangar2 [25, 35], arc [20, 40] - in CONTRACTS COMPLETED.
+`ECON_REF` + `econReference(seed)` (pure, deterministic) = the career they are measured on, stated:
+- careerNew (the 60 000 grant, the voucher Cub = the fleet's first airframe);
+- **the grant is the career's FLOAT** (its first own airframe, a build contract's airframe, a repair): a milestone is
+  bought the moment the wallet would keep 60 000 after it. **This is my reading, please confirm**: with the grant
+  counted as savings, no hangar price can satisfy both 6-10 and 25-35 (the first side hangar would have to cost ~3x the
+  second). A player can still spend the grant on a hangar on day one: the wallet allows it;
+- each completed contract is one: the next arc contract the fleet can physically fly (providers in order), else the
+  best-paying job it can fly (contractDoers within the fleet); build contracts left out (their airframe is the player's
+  design);
+- buys, in order: a field shed at Tamgas Hill (w3), the C172 (scratch, main hangar), a field shed at Skyline (tw_ski).
+Measured on all 8 reference seeds (`econ_show.txt`): **hangar1 8, airframe 21-22, arc 22-23 (the Field Trust's: field.05
+needs the C172's cabin), hangar2 26-28.**
+
+**G2262 THE WALLET'S RULES** (pure; `{ ok, doc, why, cost }`, a refusal hands back the very document):
+- `econBuy(doc, cost, k, ref)` - a PURCHASE (kinds airframe / acquire / upgrade / signon / catalogue) needs the cash in
+  a career; the sandbox records it `free: true`. `econMaterialise(doc, slot, cost, wants, {price?, how?})` writes an
+  `airframe` line and `career.airframes[slot].paid`. `econAcquire` / `econUpgrade` are playerAcquire / playerUpgrade.
+- `econRepair(doc, slot, {wants})` (dm9/dm10): the fleet row's `damage` = D5's `{ damaged, writeOff, bill: [{section|
+  event, line, cost}] }`; charged only here; a write-off has no Repair; it clears the damage and the outside wear. **Only
+  the repair of the career's LAST flyable airframe may take the wallet below 0** (GQ6's non-choice: without it nothing
+  can earn); any other repair needs the cash. `econFlyable(doc)`: a damaged airframe is grounded.
+- **THE TRUST'S LOAN JOB (GQ6)**: while the wallet is below `loanBelow` -20 000, 74_ careerOfferIds puts
+  `loan:field:<n>` FIRST (`econLoanOffer`; never in a sandbox); `econLoanJob` = a CONTRACT-MODEL job record (kind 'job',
+  provider 'field', `loan: true`, HOME -> Tamgas Hill with 10 kg - every wheeled validated design flies it), paying the
+  wallet back to `loanTo` 0 (rounded up to 1 000; 21 000 on -20 001); contractPay honours its offered total (the map
+  shows it); careerComplete writes a **`loan`** line. Its text keys (`job.field.loan.*`, draft) are added to
+  CONTRACT_TEXT by 76_ (`ECON_TEXT`). **No repayment** (that would be a deduction on later pay; a question for you).
+- `ECON_LEDGER` / `econLedgerClass(k)`: income grant / contract / loan; purchase airframe / acquire / upgrade / signon
+  / catalogue; repair; free recover (always 0, GQ5) / release (a refund). Anything else is a running cost.
+
+**G2263 THE CAREER WALLET IN THE PAGE** (`app.js`, `garage.js`; only under CAREER-WIRE's `CAREER_DEV`, ?career=1):
+- **the first Save of a new airframe** is materialised: garage.js `saveAs` asks `api.canSave(name, isNew)` BEFORE it
+  writes the slot (refused: an alert saying the price and the wallet, nothing written); playerSlotsChanged then charges
+  `econMaterialise` for a slot the fleet did not hold (save-as under a new name = a new airframe; saving over one =
+  free; dm11's per-section edit billing is D5's). The price: the stand's `def.parts.ledger` x the main hangar's labour
+  for `hangarWants(GARAGE_SPEC.resolved())`.
+- **the shell / kit / size doors** (GARAGE_ENV.setShell / setKit / setDims) go through `playerUpgrade` on the main
+  hangar (`econShedDoor`): paid, or refused with the room unchanged (§4.3 of GAME-PREMISES).
+- **Repair** (`econRepairNow`, a `#ecRepair` button in the wallet line, shown only when the airframe on the stand
+  carries D5's `damage`): DMG-D5 has not landed, so no airframe carries one yet; the door and the rule are ready for it.
+- **credits**: careerOnStop's paid lines (CAREER-WIRE's stop) - unchanged.
+- **the wallet line**: `#ecWallet` in the garage's top bar ("Wallet 60 000 ₵ · the last thing paid or refused"),
+  redrawn on every save of the document; the flight plate's is CAREER-WIRE's `#crPlate` ("... · wallet N").
+- `window.FLYDIY_ECON { price, saveWhy, shed, repair, wallet, note, sync }` (career only).
+- **the sandbox**: every economy call outside its page half is behind CAREER_DEV (UISMOKE and ECON read app.js for
+  it); the shed doors' sandbox lines are today's, byte for byte; `canSave` answers '' without the flag.
+
+**GATE ECON** (`tools/_econ_check.js`, core tier, registered after CONTRACTS, ~26 s): **PASS, 148 checks** - the price
+book (every price a ratio of the ledger's Cub; the ledger's total = genFrame's bill off the Cub's build file; the hangar
+rules read the book on every plot; every kit priced; the five designs' wants re-derived from their build files; scratch
+in a fitted / a short shed; the catalogue above scratch; the repair by where), **az through physical gates** (authored +
+2 160 generated jobs: every one of the 7 classes offered and done by some validated design, no design does every class -
+the table below), **the calibration** (the bands as data, all 8 seeds in band, deterministic, the reference wallet =
+grant + pay - purchases), **no running cost** (every reference career's ledger is grant / contract / purchase / repair /
+loan; every ledger kind written in the core and app.js, scanned off the three money doors' kind argument, is the book's;
+no running-cost kind in the book; ten flown hours cost nothing; the pay invariant to the aeroplane), **the wallet**
+(purchases / materialising / a hangar / a rebuild short of the cash refused untouched; a running cost through the
+purchase door refused; materialising = the ledger x labour; Repair x the labour where it stands, the damage cleared;
+short = refused unless it is the last flyable airframe, then below 0; a write-off / an undamaged airframe refused;
+away at 1.25; grounded), **the loan** (none at -20 000 or -19 999 or 0; offered first at -20 001; a valid Field Trust
+job; flyable by every wheeled design; pays 21 000, on the map too; flown -> the wallet back, a `loan` line; a second
+loan is loan:field:2; never in a sandbox), **the sandbox** (an airframe, a purchase, a hangar, a rebuild, a kit, a
+repair: recorded "would cost" `free`, the wallet untouched, the document handed in untouched, never a loan), **the page
+doors** (source), **purity**. **`--selftest`: 33 of 33 doctored rules caught** (`econ_selftest.txt`, 4 min): a shell off
+the book, the reference not the Cub, a kit in credits, a free kit, no labour factor, a catalogue under scratch, the
+sign-on order, the repair ignoring where, a design's wants drifting, wheels on water, a class nobody can do, the pay
+halved, cheap hangars, the bands widened, the grant spent first, a fuel line, an hour that costs, a wage kind in the
+book, a purchase on credit, any repair below 0, a write-off repaired, the loan at -20 000, never offered, paid at a job's
+rate, written as a contract, a sandbox loan, the sandbox charged, the page charging the sandbox's save / pricing its
+shell, the save never asked, the kit door skipping the wallet, no wallet line, storage in 76_.
+
+```
+DESIGNS x JOB CLASSES (contracts of the class each can physically do, of the gate's sample)
+  cub   water 0 · short 205 · altiport 577 · group 0 · heavy 0 · bulk 0 · survey 268
+  jodel water 0 · short 25 · altiport 577 · group 0 · heavy 0 · bulk 0 · survey 268
+  c172  water 0 · short 251 · altiport 747 · group 238 · heavy 247 · bulk 66 · survey 268
+  c172f water 432 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 39 · survey 127
+  twinf water 126 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 0 · survey 126
+```
+
+**THE PAGE ITSELF** (`tools/econ_page.js`, the real index.html, SwiftShader; `econ_page.txt` / `econ_page.json`): **PASS** (19 rows)
+- the sandbox: no FLYDIY_ECON, no wallet line; a NEW airframe saved, a kit off and on, the room 1 m wider through the
+  garage's own doors - the player document's wallet (0) and ledger (0 lines) exactly as before; the airframe in the
+  fleet, the room grown; no career key;
+- ?career=1: flydiy.career.dev with the 60 000 grant; the wallet line "Wallet 60 000 ₵"; the build on the stand priced
+  (its ledger 30 817 -> 24 700, wants tube; read while the stand was still settling it reads the stock Cub's 31 203 ->
+  25 000 - the rig reads it again after the save, `reprice` in the json); saved -> an `airframe` line of 24 700, the wallet 35 300, `paid` on its row;
+  saved over again: nothing; the metal kit off then on: 7 500 (an `upgrade` line); the wallet at 500: a new airframe's
+  save REFUSED (no slot written, nothing charged) and a kit refused (the room unchanged); at -20 001 the MAP's record
+  opens with loan:field:1 paying 21 000; the flight plate carries the wallet; no page error. (No stills: the page boots
+  onto the roll-out card over the garage, so a picture would show the loading card; the line's own text is recorded.)
+
+**THE BATTERY** (`node tools/run_gates.js --only=ECON,CONTRACTS,GAMEPREM,PLAYER,SAVE,UISMOKE,UISMOKE-PHONE,GFX,BUILD,DESTTO
+--jobs=4`, `gates.txt`): **BATTERY PASS** - DESTTO 1038 s (3 shards), UISMOKE 217 s, UISMOKE-PHONE 60 s, CONTRACTS 58 s (2260), ECON 26 s (148), GAMEPREM (533), PLAYER, SAVE, GFX, BUILD.
+- CONTRACTS: one check reads the story factor (clients.03's gold = its paid base x 2); its selftest's "a running cost is
+  charged" anchor moved to careerComplete's new line (`rec.loan ? 'loan' : 'contract'`). Note: CONTRACTS' and GAMEPREM's
+  selftest harnesses count an anchor that is gone as "caught"; GAMEPREM has three such anchors already gone on the base
+  (`d.fleet[n].hangar = at;`, `if (P.unplaced.length) return pbNo(doc, 'no room in '`, `if (!P.unplaced.length) {
+  d.fleet[name].hangar = id;` - S1-era, not this branch's). ECON's harness reports a gone anchor as a failure.
+- GAMEPREM: three fixture wallets raised to 1 000 000 (a works now costs ~170 000; the checks are symbolic in the
+  prices).
+- UISMOKE / UISMOKE-PHONE: + the economy's source guard (every econ call outside its half behind CAREER_DEV, FLYDIY_ECON
+  behind the flag, the save's door) and the sandbox boot: no FLYDIY_ECON, no #ecWallet.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: `tools/build.js` (76_economy.js after 75_), `90_node_exports.js` (appended), `tools/run_gates.js` (the
+  ECON row after CONTRACTS), `71_` (shellPrice, KIT_PRICES moved out, clubPrice gone), `73_` (CONTRACT_PAY, contractPay's
+  base and loan total, contractPayTotal), `74_` (careerContract's loan branch, careerOfferIds' loan, careerComplete's
+  line kind), app.js (the shed doors, playerSlotsChanged, playerSave, the garageInit `canSave`, one half before
+  `window.FLYDIY_PLAYER = {`), garage.js (one line in saveAs), the three gates.
+- **To confirm**: the grant as the float (above); the repair rule (last flyable may go negative); the loan pays the
+  wallet back to 0 and is never repaid.
+- **PROCURE**: `econCatalogPrice(cost)` for a maker's model, `econMaterialise(doc, slot, cost, wants, { price, k:
+  'catalogue', how: 'catalogue' })` to buy one (the airframe row gets `paid` / `how`; write `design` beside it).
+  **PILOTS**: `econSignOn(tier)` + `econBuy(doc, fee, 'signon', pilotId)`. **DMG-D5**: put `damage: { damaged, writeOff,
+  bill }` on the fleet row; the garage's Repair button and `econRepair` are wired.
+- The size slider charges each growth step it is dragged through (playerUpgrade's per-m² rule; a shrink is free) - fine
+  for the dev career, S4's premises screen should size by a confirmed change.
+- `SHELLS[].price` in 26_hangar_fit.js (0 / 15 000 / 6 000) is now read by nothing (the book prices the shells); left in
+  place, not touched.
+- A jobs pays ~2.7x what CONTRACT-MODEL measured; MAP-MENU's fixture stills are unaffected (?mapsrc=fixture).
+
+READY for the GAME COORDINATOR: claude/economy-g2260 b4c9cfd (the code, gates and evidence; this section rides one docs-only commit on top)
