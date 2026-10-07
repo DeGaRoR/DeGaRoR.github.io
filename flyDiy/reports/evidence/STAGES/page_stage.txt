@@ -1,0 +1,5 @@
+# headless Chromium (SwiftShader, no world render) - reports/evidence/STAGES/page_stage.js, 2026-10-07, build 2aa86b5f4fd9
+# window.FLYDIY_STAGE (world_boot.js) and window.FLYDIY_STAGES (app.js) after the boot; n = entries cut or expanded
+?world=jolene {"key":"sandbox","n":7,"staged":true,"kits":[],"host":null,"objs":0} errors: []
+?world=jolene&career=1 {"key":"clients:0,field:0,minedock:0,resort:0,survey:0","n":18,"staged":true,"kits":["sg_k_club"],"objs":24} errors: []
+?world=jolene&career=1&stages=field:1,minedock:3,resort:1 {"key":"clients:0,field:1,minedock:3,resort:1,survey:0","n":17,"staged":true,"kits":["sg_k_hangar","sg_k_club","sg_k_dock","sg_k_lodge"],"host":{"composed":{"field":1,"minedock":3,"resort":1,"survey":0,"clients":0},"pending":null},"objs":132} errors: []

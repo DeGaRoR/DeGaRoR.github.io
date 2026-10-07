@@ -52,7 +52,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all')); } catch (e) {}
     return T;
   })();
-  const premisesPlaced = (() => {
+  let premisesPlaced = (() => {
     if (TOWN.all || !premisesAtBoot || typeof PREMISES_GEN === 'undefined') return premisesAtBoot;
     try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off);
       if (!D.n) return premisesAtBoot;
@@ -60,6 +60,34 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
   })();
   if (typeof window !== 'undefined') window.FLYDIY_TOWN = TOWN;
+  // THE STAGES (G2300 STAGES, contract v1.33; 76_stages.js, 27_premises.js stageView): the buildings the career's
+  // missions put up. THE SANDBOX stands every track at its max - the record's stageView(null), which is today's island
+  // byte for byte (the kits and the construction looks are below the max; GATE STAGES holds it against the island
+  // cook's hash). THE DEV CAREER (?career=1, CAREER-WIRE) stands its document's tracks, read here off the same key app.js
+  // keeps it under (careerKey('dev')) - a first load (no document yet) is careerNew's: every track 0. The staged record is
+  // what the world, the physics worker and the house worker compose (premisesPlaced below); the whole one stays for the
+  // roll-out's recompose when a stage advances (app.js 'stages' trip step) and for the editor's save (stageRestore)
+  const STAGE = (() => {
+    const S = { tracks: null, key: 'sandbox', view: null, text: null };
+    try {
+      if (!premisesPlaced || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.stageView || typeof stageKey !== 'function') return S;
+      if (/[?&]career=1(&|$)/.test(location.search || '') && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
+        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey('dev')) || 'null'); } catch (e) {}
+        S.tracks = stageTracksOf(doc) || stageTracksOf({ career: { tracks: {} } });
+        // the stills' door (tools/stages_shot.js): ?stages=field:1,minedock:3 composes those values over the document's,
+        // for this load only (nothing is written; with ?career=1 alone)
+        const m = /[?&]stages=([\w:,]+)/.exec(location.search || '');
+        if (m) for (const kv of m[1].split(',')) { const q = /^(\w+):(\d+)$/.exec(kv); if (q && q[1] in S.tracks) S.tracks[q[1]] = +q[2]; }
+      }
+      const U = PREMISES_GEN.unwrap(premisesPlaced);
+      S.view = PREMISES_GEN.stageView(U.rec, S.tracks); S.key = stageKey(S.tracks); S.name = U.name; S.plaque = U.plaque; S.log = U.log;
+      if (S.view.staged) S.text = PREMISES_GEN.envelope(U.name, S.view.rec, U.plaque, U.log);
+    } catch (e) { console.warn('stages: the record is composed whole -', e && e.message); }
+    return S;
+  })();
+  if (typeof window !== 'undefined') window.FLYDIY_STAGE = STAGE;
+  const premisesWhole = premisesPlaced;
+  premisesPlaced = STAGE.text || premisesPlaced;
   // (G1430, TOWN-COOK) the island loader fetched the raster cells of the variant IT read (build.js FLYDIY_TOWN_VARIANT, this
   // rule before GFX was in): a disagreement is a cook refused (lazy bakes), never a wrong ground - said, not hidden
   try { const v = window.FLYDIY_TOWN_VARIANT; if (v && v !== (TOWN.all ? 'town' : 'default')) console.warn('flyDiy: the loader fetched the ' + v + ' raster cells, the page composes ' + (TOWN.all ? 'town' : 'default') + ' - those cells bake lazily'); } catch (e) {}
@@ -96,5 +124,5 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // in, the town filter applied) says which species can stand; every tree fetch after this line (the garage's, the
   // roll-out's) asks for those alone. The analytic world answers null: the whole pack, as before
   try { if (typeof treeReach === 'function' && typeof treeReachOf === 'function') treeReach(treeReachOf(world)); } catch (e) { console.warn('trees: the reach', e); }
-  return { WIP_KEY, premisesAtBoot, TOWN, premisesPlaced, islandAtBoot, world };
+  return { WIP_KEY, premisesAtBoot, TOWN, STAGE, premisesWhole, premisesPlaced, islandAtBoot, world };
 };

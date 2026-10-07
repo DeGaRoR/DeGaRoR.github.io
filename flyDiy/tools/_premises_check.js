@@ -755,6 +755,52 @@ for (const fx of fixtures) {
   check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
 }
 
+// 17 THE STAGES (v1.33, G2300 STAGES): an entry, a site's item or a zone may carry `stage: { track, show, vary }` and
+// stands only while the career's track lies in its band. On a record of its own (no catalogue key: rule 13) on synth:
+// (a) a record with no stage composes untouched; (b) the sandbox (no tracks: every track at its max) stands what has no
+// upper bound, the `stage` taken off - the record a stageless author would have written, key for key; (c) below its band
+// an entry is cut, inside it it stands; a vary changes a runway's length while it holds; a `sock: false` reaches the
+// aerodrome; (d) a ZONE below its band still sows (a later zone keeps its plots) and builds nothing; (e) a kit expands
+// into its props (and its tree exclude) only while it stands; (f) the envelope round-trips the stages; stageRestore puts a
+// staged edit back into the whole record; (g) issues() refuses a bad band, a vary outside its band, a kit with no stage
+{
+  const base = { v: 1, id: 'stg', seed: 4, frame: { kind: 'free', extent: null, anchors: { '*': { x: 0, z: 0, yaw: 0 } } },
+    layers: { terrain: [], surface: [], material: [], exclude: [], ttype: [], links: [], sites: [],
+      roads: [{ id: 'r1', pts: [[-200, 0], [200, 0]], w: 6, cls: 'gravel' }],
+      zones: [{ id: 'z_a', kind: 'residential', poly: [[-150, -50], [0, -50], [0, 60], [-150, 60]], density: 1 }, { id: 'z_b', kind: 'residential', poly: [[-150, -50], [150, -50], [150, 60], [-150, 60]], density: 1 }],
+      runways: [{ id: 'w1', c: [0, -200], hdg: 0, len: 600, wid: 20, surface: 0 }],
+      objects: [{ id: 'p1', kind: 'prop', key: 'drum', x: 10, z: -40, yaw: 0 }] } };
+  const plain = PG.normalise(JSON.parse(JSON.stringify(base)));
+  const Op = PG.compose(plain, synth);
+  check(Op.stage === null && !PG.stageView(plain, null).staged, '17a a record with no stage composes untouched');
+  const st = JSON.parse(JSON.stringify(base));
+  st.layers.objects[0].stage = { track: 'tk', show: [2, null] };
+  st.layers.objects.push({ id: 'k1', kind: 'kit', kit: 'plot', x: -60, z: -60, yaw: 0.3, w: 20, d: 14, stage: { track: 'tk', show: [1, 1] } });
+  st.layers.runways[0].stage = { track: 'tk', show: [0, null], vary: [{ show: [0, 1], len: 400, sock: false }] };
+  st.layers.zones[0].stage = { track: 'tk', show: [2, null] };
+  const S = PG.normalise(st);
+  const Vs = PG.stageView(S, null);
+  check(JSON.stringify(PG.normalise(Vs.rec)) === JSON.stringify(plain), '17b the sandbox stands what has no upper bound, the stage taken off: the stageless record, key for key');
+  const Os = PG.compose(S, synth);
+  check(JSON.stringify(Os.rec) === JSON.stringify(Op.rec) && Os.terrainAt(0, -200) === Op.terrainAt(0, -200) && Os.records.plots.length === Op.records.plots.length, '17b the sandbox composes as the stageless record (the record, the ground, the plots)');
+  const O1 = PG.compose(S, synth, { tracks: { tk: 1 } }), O0 = PG.compose(S, synth, { tracks: { tk: 0 } });
+  const has = (O, id) => O.rec.layers.objects.some(o => o.id === id);
+  check(!has(O1, 'p1') && has(PG.compose(S, synth, { tracks: { tk: 2 } }), 'p1'), '17c below its band an entry is cut; inside it, it stands');
+  check(O1.aerodromes[0].len === 400 && O1.aerodromes[0].sock === false && Op.aerodromes[0].len === 600 && Op.aerodromes[0].sock === undefined, '17c a vary changes the strip while it holds (len 400, no windsock); the sandbox\'s strip is the record\'s');
+  const zb = O => JSON.stringify(O.records.plots.filter(p => p.zone === 'z_b').map(p => p.poly));
+  check(O1.records.plots.every(p => p.zone !== 'z_a') && zb(O1) === zb(Op) && O1.excludeAt(...O1.frame.toWorld(...PG.polyCentroid(Op.records.plots.find(p => p.zone === 'z_a').poly)), 'trees'), '17d a zone below its band sows (the next zone keeps its plots), builds nothing, and its ground keeps the trees off');
+  const kitN = O => O.rec.layers.objects.filter(o => /^k1:/.test(o.id)).length;
+  check(kitN(O1) >= 8 && kitN(O0) === 0 && kitN(Op) === 0 && O1.rec.layers.exclude.some(e => e.id === 'k1:clear'), '17e a kit expands into its fence and props (and its clearance) only while it stands', kitN(O1) + ' objects at 1');
+  check(JSON.stringify(PG.unwrap(PG.envelope(null, S)).rec) === JSON.stringify(S), '17f the envelope round-trips the stages');
+  const V1 = PG.stageView(S, { tk: 1 });
+  check(JSON.stringify(PG.normalise(PG.stageRestore(JSON.parse(JSON.stringify(V1.rec)), V1))) === JSON.stringify(S), '17f stageRestore puts a staged edit back into the whole record');
+  const badBand = JSON.parse(JSON.stringify(st)); badBand.layers.objects[0].stage.show = [3, 1];
+  const badVary = JSON.parse(JSON.stringify(st)); badVary.layers.runways[0].stage.vary[0].show = [5, 6]; badVary.layers.runways[0].stage.show = [0, 3];
+  const badKit = JSON.parse(JSON.stringify(st)); delete badKit.layers.objects[1].stage;
+  check(PG.issues(S).length === 0 && PG.issues(badBand).length > 0 && PG.issues(badVary).length > 0 && PG.issues(badKit).length > 0, '17g issues() takes the stages and refuses a bad band, a vary outside its band, a kit with no stage');
+  check(PG.stageIssues(S, { tk: 2 }).length === 0 && PG.stageIssues(S, { tk: 1 }).length > 0, '17g the sandbox\'s law: a band through the track\'s max must be open');
+}
+
 // 13 the contract held: no catalogue key literal in the editor's files
 {
   const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js').map(f => path.join(TOOLS, f))
@@ -787,6 +833,11 @@ if (SELFTEST) {
   // a flatten with a zero falloff is an issue (a step)
   const st = JSON.parse(JSON.stringify(rec)); st.layers.terrain[0].falloff = 0;
   neg.push([PG.issues(st).length > 0, 'a zero falloff is refused']);
+  // (v1.33) a stage whose band ends past the max, a vary of a field no stage may change: refused
+  const sg = JSON.parse(JSON.stringify(rec)); (sg.layers.objects = sg.layers.objects || []).push({ id: 'sg_t', kind: 'kit', kit: 'plot', x: 0, z: 0, stage: { track: 'tk', show: [1, 5] } });
+  neg.push([PG.stageIssues(sg, { tk: 2 }).length > 0, 'a stage band closed past the max is refused']);
+  const sv = JSON.parse(JSON.stringify(rec)); (sv.layers.runways = sv.layers.runways || []).push({ id: 'w_t', c: [0, 0], hdg: 0, len: 400, wid: 20, stage: { track: 'tk', vary: [{ show: [0, 0], hdg: 2 }] } });
+  neg.push([PG.issues(sv).some(i => /hdg is not a runway field/.test(i)), 'a stage varying a runway field no stage may change is refused']);
   for (const [ok, what] of neg) check(ok, 'selftest: ' + what);
 }
 

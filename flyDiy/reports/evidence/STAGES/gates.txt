@@ -1,0 +1,21 @@
+──────── summary ────────
+TAXICLEAR PASS   338.6 s
+UISMOKE   PASS   228.9 s
+BOOT      PASS     0.1 s
+GFX       PASS     0.6 s
+HOUSEWORKER PASS   587.6 s
+STAND     PASS     0.1 s
+SIMWORKER PASS   104.7 s
+SITE      PASS     7.3 s
+PREMISES  PASS   132.5 s
+PREMRASTER PASS   123.2 s
+PREMCOOK  PASS   371.9 s
+PLAYER    PASS     0.1 s
+GAMEPREM  PASS     4.2 s
+CONTRACTS PASS    40.3 s
+STAGES    PASS    88.8 s
+total           2028.9 s
+wall             587.6 s  (jobs 5)
+
+BATTERY: PASS
+EXIT 0

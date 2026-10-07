@@ -1,34 +1,304 @@
 {
- "note": "G2300 STAGES (contract v1.33; GAME-2026-10-06.md §11): the buildings the career's missions put up on Jolene. jolene_author.py apply_stages() writes these into the record AFTER the parts: `stage` puts a band on an entry of today's island (layer:id) or on a site's item (items:site:item); `add` appends the stage-only entries (the construction kits, the plots' tree clearances; ids sg_). THE SANDBOX IS EVERY TRACK AT ITS MAX: every band through a track's max is open (null), so the sandbox stands exactly today's island - nothing new at the max, every kit and clearance below it (GATE STAGES). Positions: the kits sit on the footprint of the building they become (the catalogue's foot, read in tools/_stages_check.js).",
+ "note": "G2300 STAGES (contract v1.33; GAME-2026-10-06.md \u00a711): the buildings the career's missions put up on Jolene. jolene_author.py apply_stages() writes these into the record AFTER the parts: `stage` puts a band on an entry of today's island (layer:id) or on a site's item (items:site:item); `add` appends the stage-only entries (the construction kits, the plots' tree clearances; ids sg_). THE SANDBOX IS EVERY TRACK AT ITS MAX: every band through a track's max is open (null), so the sandbox stands exactly today's island - nothing new at the max, every kit and clearance below it (GATE STAGES). Positions: the kits sit on the footprint of the building they become (the catalogue's foot, read in tools/_stages_check.js).",
  "stage": {
-  "items:s_club:hangar_long": { "track": "field", "show": [2, null] },
-  "items:s_club:clubhouse": { "track": "clients", "show": [1, null] },
-  "objects:af_club_table": { "track": "clients", "show": [1, null] },
-  "objects:af_club_chair1": { "track": "clients", "show": [1, null] },
-  "objects:af_club_chair2": { "track": "clients", "show": [1, null] },
-  "objects:af_club_man1": { "track": "clients", "show": [1, null] },
-  "objects:af_club_man2": { "track": "clients", "show": [1, null] },
-  "objects:af_club_planter": { "track": "clients", "show": [1, null] },
-  "objects:af_club_stool": { "track": "clients", "show": [1, null] },
-  "items:mn_s_mine:mill": { "track": "minedock", "show": [2, null] },
-  "items:mn_s_mine:shed": { "track": "minedock", "show": [2, null] },
-  "zones:z_harbour": { "track": "minedock", "show": [4, null] },
-  "items:tw_s_summit:lodge": { "track": "resort", "show": [2, null] },
-  "runways:tw_ski": { "track": "resort", "show": [0, null], "vary": [ { "show": [0, 2], "len": 320, "c": [272.0, -7733.44], "profile": [[0, -9.8], [0.4656, 4.94], [0.7862, 12.6], [1, 13.3]] } ] },
-  "runways:nv_strip": { "track": "survey", "show": [0, null], "vary": [ { "show": [0, 0], "sock": false, "ties": false } ] }
+  "items:s_club:hangar_long": {
+   "track": "field",
+   "show": [
+    2,
+    null
+   ]
+  },
+  "items:s_club:clubhouse": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_table": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_chair1": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_chair2": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_man1": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_man2": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_planter": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "objects:af_club_stool": {
+   "track": "clients",
+   "show": [
+    1,
+    null
+   ]
+  },
+  "items:mn_s_mine:mill": {
+   "track": "minedock",
+   "show": [
+    2,
+    null
+   ]
+  },
+  "items:mn_s_mine:shed": {
+   "track": "minedock",
+   "show": [
+    2,
+    null
+   ]
+  },
+  "zones:z_harbour": {
+   "track": "minedock",
+   "show": [
+    4,
+    null
+   ]
+  },
+  "items:tw_s_summit:lodge": {
+   "track": "resort",
+   "show": [
+    2,
+    null
+   ]
+  },
+  "runways:tw_ski": {
+   "track": "resort",
+   "show": [
+    0,
+    null
+   ],
+   "vary": [
+    {
+     "show": [
+      0,
+      2
+     ],
+     "len": 320,
+     "c": [
+      272.0,
+      -7733.44
+     ],
+     "profile": [
+      [
+       0,
+       -9.8
+      ],
+      [
+       0.4656,
+       4.94
+      ],
+      [
+       0.7862,
+       12.6
+      ],
+      [
+       1,
+       13.3
+      ]
+     ]
+    }
+   ]
+  },
+  "runways:nv_strip": {
+   "track": "survey",
+   "show": [
+    0,
+    null
+   ],
+   "vary": [
+    {
+     "show": [
+      0,
+      0
+     ],
+     "sock": false,
+     "ties": false
+    }
+   ]
+  }
  },
  "add": {
   "objects": [
-   { "id": "sg_k_hangar", "kind": "kit", "kit": "build", "x": -193.0, "z": 672.0, "yaw": 4.7124, "w": 26, "d": 34, "stage": { "track": "field", "show": [1, 1] } },
-   { "id": "sg_k_club", "kind": "kit", "kit": "build", "x": -184.0, "z": 642.0, "yaw": 4.7124, "w": 15, "d": 10, "stage": { "track": "clients", "show": [0, 0] } },
-   { "id": "sg_k_mill", "kind": "kit", "kit": "build", "x": 7295.84, "z": -15400.93, "yaw": 1.6581, "w": 40, "d": 30, "stage": { "track": "minedock", "show": [1, 1] } },
-   { "id": "sg_k_dock", "kind": "kit", "kit": "shore", "x": 1066.0, "z": -2828.0, "yaw": 0, "w": 44, "d": 36, "stage": { "track": "minedock", "show": [3, 3] } },
-   { "id": "sg_k_lodge", "kind": "kit", "kit": "build", "x": 285.0, "z": -7834.0, "yaw": 0, "w": 12, "d": 10, "stage": { "track": "resort", "show": [1, 1] } }
+   {
+    "id": "sg_k_hangar",
+    "kind": "kit",
+    "kit": "build",
+    "x": -193.0,
+    "z": 672.0,
+    "yaw": 4.7124,
+    "w": 26,
+    "d": 34,
+    "stage": {
+     "track": "field",
+     "show": [
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "sg_k_club",
+    "kind": "kit",
+    "kit": "build",
+    "x": -184.0,
+    "z": 642.0,
+    "yaw": 4.7124,
+    "w": 15,
+    "d": 10,
+    "stage": {
+     "track": "clients",
+     "show": [
+      0,
+      0
+     ]
+    }
+   },
+   {
+    "id": "sg_k_mill",
+    "kind": "kit",
+    "kit": "build",
+    "x": 7295.84,
+    "z": -15400.93,
+    "yaw": 1.6581,
+    "w": 40,
+    "d": 30,
+    "stage": {
+     "track": "minedock",
+     "show": [
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "sg_k_dock",
+    "kind": "kit",
+    "kit": "shore",
+    "x": 1066.0,
+    "z": -2828.0,
+    "yaw": 0,
+    "w": 44,
+    "d": 36,
+    "stage": {
+     "track": "minedock",
+     "show": [
+      3,
+      3
+     ]
+    }
+   },
+   {
+    "id": "sg_k_lodge",
+    "kind": "kit",
+    "kit": "build",
+    "x": 285.0,
+    "z": -7834.0,
+    "yaw": 0,
+    "w": 12,
+    "d": 10,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      1
+     ]
+    }
+   }
   ],
   "exclude": [
-   { "id": "sg_x_mill", "poly": [[7177.46, -15358.75], [7172.0, -15421.21], [7324.01, -15434.52], [7329.48, -15372.06]], "what": ["trees"], "stage": { "track": "minedock", "show": [0, 1] } },
-   { "id": "sg_x_dock", "poly": [[700, -2960], [1000, -2960], [1350, -2850], [1350, -2680], [760, -2740]], "what": ["trees"], "stage": { "track": "minedock", "show": [0, 3] } },
-   { "id": "sg_x_lodge", "poly": [[277, -7841], [293, -7841], [293, -7827], [277, -7827]], "what": ["trees"], "stage": { "track": "resort", "show": [0, 1] } }
+   {
+    "id": "sg_x_mill",
+    "poly": [
+     [
+      7177.46,
+      -15358.75
+     ],
+     [
+      7172.0,
+      -15421.21
+     ],
+     [
+      7324.01,
+      -15434.52
+     ],
+     [
+      7329.48,
+      -15372.06
+     ]
+    ],
+    "what": [
+     "trees"
+    ],
+    "stage": {
+     "track": "minedock",
+     "show": [
+      0,
+      1
+     ]
+    }
+   },
+   {
+    "id": "sg_x_lodge",
+    "poly": [
+     [
+      277,
+      -7841
+     ],
+     [
+      293,
+      -7841
+     ],
+     [
+      293,
+      -7827
+     ],
+     [
+      277,
+      -7827
+     ]
+    ],
+    "what": [
+     "trees"
+    ],
+    "stage": {
+     "track": "resort",
+     "show": [
+      0,
+      1
+     ]
+    }
+   }
   ]
  }
 }

@@ -683,7 +683,7 @@ const STAGE_KITS = {
   // the fenced plot alone: the old fence round it, a gate gap, a pallet by the gate
   plot:  { fence: true, props: [['pallet_one', 0.12, 0.85, 0.3]] },
   // the building site: the plot fenced, the materials stacked, the trestles, the drums, and a frame going up
-  build: { fence: true, frame: { key: 'shed/lean-to', P: { L: 9, w: 5, wallH: 3.2, missing: 0.35, openFront: 1, firewood: 0, shake: 0.6 }, at: [-0.18, 0.1, 0] },
+  build: { fence: true, frame: { gen: 'SHED_GEN', preset: 'lean-to', P: { L: 9, w: 5, wallH: 3.2, missing: 0.35, openFront: 1, firewood: 0, shake: 0.6 }, at: [-0.18, 0.1, 0] },
            props: [['pallets_stack', 0.32, -0.3, 0.2], ['pallets_three', 0.32, -0.05, 1.4], ['cement_bags', 0.3, 0.22, 0.6], ['cinder_pallet', 0.12, -0.36, 0],
                    ['crate_wood_a', 0.05, 0.36, 0.3], ['crate_wood_b', 0.1, 0.38, 1.1], ['crate_wood_c', 0.18, 0.36, -0.2],
                    ['drum_steel', -0.38, 0.34, 0], ['drum_steel', -0.33, 0.37, 0.8], ['barrel_plastic', -0.36, 0.28, 0.2],
@@ -727,10 +727,12 @@ function stageKitObjects(k) {
   if (K.frame && k.frame !== false) {   // the frame fits the plot: at most 0.6 of its width and 0.45 of its depth
     const p = at(K.frame.at[0] * w, K.frame.at[1] * d), P = Object.assign({ seed: 1 + (hash32(3, fnv(k.id)) % 997) }, K.frame.P);
     P.L = +Math.max(1.6, Math.min(P.L, 0.6 * w)).toFixed(2); P.w = +Math.max(1.2, Math.min(P.w, 0.45 * d)).toFixed(2);
-    out.push({ id: k.id + ':frame', key: K.frame.key, x: p[0], z: p[1], yaw: +(yaw + K.frame.at[2]).toFixed(4), y: null, P });
+    out.push({ id: k.id + ':frame', key: stageFrameKey(K.frame), x: p[0], z: p[1], yaw: +(yaw + K.frame.at[2]).toFixed(4), y: null, P });
   }
   return out;
 }
+// a kit's frame by its generator and preset (the catalogue's key, GEN_NS's namespace: no key is written here - rule 13)
+const stageFrameKey = f => (f.gen && GEN_NS[f.gen] ? GEN_NS[f.gen] + '/' + f.preset : f.key || null);
 // the kit's plot as a polygon (the tree exclude while it stands)
 function stageKitPoly(k) {
   const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
@@ -765,6 +767,10 @@ function stageView(rec, tracks) {
     const keep = [];
     for (const e of a) {
       if (!e) { keep.push(e); continue; }
+      // a ZONE below its band still SOWS - its land stays reserved, so a later zone never re-sows into it and the
+      // village beside the harbour stands the same plots at every stage - and builds nothing (compose drops its plots
+      // after the sowing, their ground kept clear of trees)
+      if (e.stage && L === 'zones' && !stageStands(e.stage, tracks)) { const z = strip(e, L + ':' + e.id); z.stageSown = true; keep.push(z); n++; continue; }
       if (e.stage && !stageStands(e.stage, tracks)) { (cut[L] = cut[L] || []).push(e); n++; staged = true; continue; }
       let c = e.stage ? strip(e, L + ':' + e.id) : e;
       if (L === 'sites' && (c.items || []).some(it => it && it.stage)) {
@@ -797,7 +803,7 @@ function stageRestore(edited, V) {
   const kitOf = id => { const m = /^(.+):(\d+|frame|clear)$/.exec(String(id)); return m && V.kits[m[1]] ? m[1] : null; };
   const back = (e, where) => {
     const st = V.kept[where]; if (!st) return e;
-    const c = Object.assign({}, e); delete c.stage; c.stage = st;   // (the key last, as the author writes it)
+    const c = Object.assign({}, e); delete c.stage; delete c.stageSown; c.stage = st;   // (the key last, as the author writes it)
     const vr = V.varied[where];
     if (vr) for (const key of Object.keys(vr.was)) {
       if (key === 'P') { const P = Object.assign({}, c.P || {}); for (const pk of Object.keys(vr.now.P || {})) if (JSON.stringify(P[pk]) === JSON.stringify(vr.now.P[pk])) { if (vr.was.P && pk in vr.was.P) P[pk] = vr.was.P[pk]; else delete P[pk]; } c.P = P; continue; }
@@ -2618,8 +2624,13 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
+    }
+    // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
+    if (O.records.plots.some(p => p.stageSown)) {
+      for (const p of O.records.plots) if (p.stageSown) excl.push({ poly: p.poly, bbox: polyBBox(p.poly), what: ['trees'], derived: true, stage: p.zone });
+      O.records.plots = O.records.plots.filter(p => !p.stageSown);
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
     // plot by the entry's own stand (totemPlot's shape: (plot, T, o) -> a plan with footprint, level,
@@ -3037,7 +3048,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, 
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
-  STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
+  STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core

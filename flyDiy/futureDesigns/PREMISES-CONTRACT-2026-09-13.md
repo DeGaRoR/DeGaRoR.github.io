@@ -392,6 +392,11 @@ overlay = { n, terrainH(x, z, h) /* h in, h out */, surfaceAt(x, z) /* -1 | SURF
     diverge from it.
 13. **THE CONTRACT HELD** (mechanical) — no catalogue key appears as a string literal in any
     `_premises_*` file (the MEDIA orphan-check idiom): the editor accepts a new asset without an edit.
+17. **THE STAGES** (v1.33) — a stageless record composes untouched; the sandbox (no tracks) stands the stageless record
+    key for key; an entry below its band is cut, inside it stands; a vary holds while its band does; a zone below its
+    band sows and builds nothing; a kit expands only while it stands; the envelope and stageRestore round-trip;
+    `issues()` refuses a bad band, a vary outside its band, a kit with no stage; the sandbox's law with the maxes. On
+    the island's own record: GATE STAGES (`tools/_stages_check.js`).
 
 ---
 
@@ -897,3 +902,37 @@ after the freeze, against this document.
   (60 m, 150 m, no taper) stands as before, in 'today' only; present, it stands in every `rwytrees`
   variant, wins over `treeBox: false`, and the strip's derived box + 30 m then keeps only the plots and
   the settlements off (the trees are the clearance's).
+- **v1.33 (2026-10-07, G2300 STAGES; GAME-2026-10-06.md §11; v1.32 is ISLAND-TOUR's `runway.turn` on its own
+  branches).** THE BUILDINGS THAT MISSIONS PUT UP. Any entry of any layer, and any ITEM of a site, may carry
+  **`stage: { track, show: [lo, hi | null], vary?: [ { show: [lo, hi], ...what changes } ] }`** and stands only while
+  the career's world progress `tracks[track]` (74_career.js; a contract's `unlock: { stage: '<track>:<n>' }`) lies in
+  `[lo, hi]` (`hi` null or absent: no upper bound; `show` absent: always). `vary` (the first band holding the value)
+  changes the entry while it stands: a **runway's** `len`, `c`, `wid`, `surface`, `look`, `profile`, and `sock: false` /
+  `ties: false` (no windsock: render_world; no tie-down spots: 25_airfield fleetSpots) - the strip's ground and surface
+  are physics, so a stage applies at COMPOSITION only (the load and a roll-out; never in flight: 76_stages.js
+  stageHost); an item's or an object's **`P`** (merged). A **construction kit** is an object
+  `{ kind: 'kit', kit: <STAGE_KITS name>, x, z, yaw, w, d, fence?, frame? }` and must carry a stage: where it stands it
+  expands into its props (the pier pack's old fence round the plot with a gate gap, pallets, cement, crates, drums,
+  trestles, a ladder - existing props only), a PARTIAL FRAME (an existing generator's preset: the shed generator's lean-to
+  with a third of its boards missing, sized to the plot) and its own tree exclude (`<id>:clear`); ids `<kit id>:<n>` /
+  `:frame`. A **zone** below its band still SOWS (its land stays reserved: a later zone sows the same plots at every
+  stage) and builds nothing - compose drops its plots after the sowing and keeps their ground clear of trees.
+  **THE SANDBOX IS EVERY TRACK AT ITS MAX**: `compose(rec, world, { tracks })` with no `tracks` stands what has no
+  upper bound, the `stage` fields taken off (27_premises.js `stageView(rec, null)`) - today's record, key for key, so the
+  island cook's hash holds with no re-cook. **The law that makes it so** (`stageIssues(rec, maxes)`, GATE STAGES with
+  CONTRACT_TRACKS' maxes): a band that reaches a track's max is OPEN (`null`), a vary ends below the max, a link never
+  names a staged item without a stage of its own - so nothing the sandbox lacks stands at the max, and the max is the
+  sandbox. `issues()` checks every stage's shape (a word track, integer bands, a vary inside its band, a runway varying
+  only its own fields and still a strip within the pilot's / the altiport's limits, a kit naming a kit and carrying a
+  stage). `stageRestore(edited, view)` puts an edit made on a staged record back into the whole one (the cut entries,
+  the stage fields, the varied fields the edit left, the kits) - the page's editor save goes through it, after the town
+  switch's restorePlaces' own.
+  - **The page:** world_boot.js composes the staged record at load (the sandbox's view; under `?career=1` the dev
+    career document's tracks, `?stages=t:n,...` over them for a still) and hands THAT text to makeWorld, the physics
+    worker and the house worker; app.js's `'stages'` trip step recomposes at a roll-out when a stage advanced (the world
+    editor's path: the renderer's setRecord + rebuild, world.premises.set reaching both workers) and leaves the reveal
+    (stageReveal: the camera target, the caption) for the roll-out's first frame.
+  - **The authoring:** Jolene's stages live in `tools/jolene_stages.json`, applied by `jolene_author.py apply_stages()`
+    after the parts (a band set on a named entry or item, the kits and the clearances appended with `sg_` ids); the
+    fixture stays output.
+  - **GATE PREMISES 17a-17g** hold the mechanism on a record of its own (synth); GATE STAGES holds Jolene's.
