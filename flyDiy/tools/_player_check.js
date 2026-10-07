@@ -125,6 +125,27 @@ function run(mut) {
   ok(c1.HW === 20 && c1.HD === S.hangar.HD && c1.EAVE === S.hangar.EAVE,
      'a partial dims record falls through PER KEY, not as a block');
 
+  // ---- THE PILOT (G2085, PILOT-PERSONA) -------------------------------------
+  // the player's pilot is OPTIONAL and absent by default (absent = the expert); a known profile survives the walk,
+  // an unknown one reads as the expert, the custom person is clamped to the knobs and survives a JSON round trip
+  ok(!('pilot' in CORE.playerDefault()), 'a fresh player has no pilot field (absent is the expert)');
+  ok(eq(CORE.playerPilot(CORE.playerDefault()), { profile: 'expert' }), 'an absent pilot reads as the expert');
+  for (const [f, raw] of fixtures)
+    ok(!('pilot' in CORE.playerNormalise(CORE.playerMigrate(JSON.parse(JSON.stringify(raw))))) || 'pilot' in raw,
+       'vintage ' + f + ' is not handed a pilot it never had');
+  const pd = CORE.playerDefault(); pd.pilot = { profile: 'student' };
+  ok(CORE.playerNormalise(pd).pilot.profile === 'student', 'a known personality survives normalisation');
+  const pu = CORE.playerDefault(); pu.pilot = { profile: 'acrobat' };
+  ok(CORE.playerNormalise(pu).pilot.profile === 'expert', 'an unknown personality reads as the expert');
+  const pc = CORE.playerDefault(); pc.pilot = { profile: 'custom', custom: { skill: { reaction: 9, smooth: 'x' }, quirks: { flareK: 0.8 } } };
+  const nc = CORE.playerNormalise(pc).pilot;
+  ok(nc.profile === 'custom' && nc.custom.skill.reaction === 0.6 && !('smooth' in nc.custom.skill) && nc.custom.quirks.flareK === 0.8,
+     'the custom person is clamped to the knobs (reaction 9 s -> 0.6, junk -> the expert\'s)');
+  ok(eq(nc, JSON.parse(JSON.stringify(nc))) && eq(CORE.playerNormalise(JSON.parse(JSON.stringify(pc))).pilot, nc),
+     'the player\'s pilot survives a JSON round trip');
+  ok(/pl\.pilot\s*=/.test(srcA) && /playerPilot\(\s*playerLoad\(\)/.test(srcA),
+     'app.js keeps the personality in the player document (pilot.profile), not a view pref');
+
   // ---- THE WRITE-STOP (source-scanned, the GATE SITE idiom) ---------------
   const code = srcA.replace(/\/\/[^\n]*/g, '');    // comments may TALK about it
   ok(/prefGet\(\s*PLAYER_KEY|prefGet\(\s*'flydiy\.player'/.test(code),
@@ -167,6 +188,8 @@ const BREAKS = [
    { srcA: s => s + "\nprefSet('flydiy.hangarParts', '{}');\n" }],
   ['the estate swallows the mobile-kit view pref',
    { srcA: s => s.replace(/prefSet\(\s*'flydiy\.hangarMobile'[^)]*\)/g, '0') }],
+  ['the personality moved to a view pref',
+   { srcA: s => s.replace(/pl\.pilot\s*=/g, 'pl.view =') }],
   ['the load path skips the walk',
    { srcA: s => s.replace(/playerNormalise\(\s*playerMigrate\(/g,
                           'playerNormalise((') }],

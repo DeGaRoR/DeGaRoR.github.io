@@ -80055,3 +80055,158 @@ itself is on the runway heading to the crosswind height); a drawn speed is IAS a
 in red and the floor of last resort holds 30 m over the ground 600 m ahead; the hold has no exit but a new To / route
 (the user's choice); the phone profile has no flight, so the drawing's touch path is checked by pointer events in Chromium,
 not on the S20.
+
+## G2085 - PILOT-PERSONA: WHO FLIES IT - THE PERSONALITY ROW, THE CUSTOM PILOT'S KNOBS, THE PLAYER'S PILOT; A HUMAN THAT STAYS IN ITS LOOP (McRUER'S GAIN), EVERY PERSON ON THE FOUR VALIDATED AEROPLANES (2026-10-06, PILOT-PERSONA for A0, a CLOUD session: node + SwiftShader; branch claude/pilot-persona-g2085 = origin/master 068584d (train 37b) + claude/pilot-one-2-g1949 merged - TRAIN 38 HAD NOT LANDED: A0 re-bases it onto train 38, the merge is PILOT-ONE-2's own commits)
+
+THE BRIEF: the user (5 Oct): "The ultimate objective is to emulate pilot personalities, so we'll need the full model that
+can be tuned, the most advanced possible, that we might even downgrade for emulating pilot quirks or abilities." A0: (1)
+the menu row (futureDesigns/PILOT-PERSONALITY §5), persisted per player, a line each; (2) every profile flies visibly
+differently and SAFELY on the validated aeroplanes - a table; nobody crashes a validated aeroplane on a normal day (else a
+finding); (3) a 'custom' profile with the hook sliders (advanced, folded); (4) the gates.
+
+THE BASE: train 38 (PILOT-ONE + PILOT-ONE-2) was not on master when this started (master = train 37b, PILOT-ONE held out
+of 36/37). The branch's first commit (4116f38c) merges claude/pilot-one-2-g1949 into master: two conflicts by hand -
+90_node_exports (master's line, - makeAutopilot / makeTestPilot, + servoStepHold / PILOT_PROFILES / pilotProfile) and
+HANDOVER (both sides kept); no generated file (master's on every commit). A0: drop 4116f38c when rebasing onto train 38.
+
+### G2085 THE MEASUREMENT FIRST - THE HOOKS AS PILOT-ONE LANDED THEM WERE NOT SAFE
+tools/pilot_persona.js (new): the user's four validated aeroplanes - the Cub, the Jodel, the C172
+(builds/*_2026-09-20_corrected.json) and the C172 on Wipline 2350 floats (tools/fixtures/build_v10_c172_wipline2350_
+2026-09-20.json, off the SEA lane - the corrected C172 with floats for wheels cannot leave the water at all, G1937, every
+person's AND the expert's rejected: a build, not a person) - x the five people, calm, one pilot_trace flight each.
+pilot_trace.js gained `--profile <name | JSON>`, `--floats`, `--seed`, and the person's numbers: the take-off's LIFT-OFFS
+(off the surface >= 0.1 s from 5 m/s: 1 is clean), the rotation's peak pitch rate, the circuit's cross-track rms on the
+straights (fillets excluded), the BOUNCES (off the surface >= 0.15 s after the first touch), the peak attitude.
+THE FIRST SWEEP, on PILOT-ONE's hooks (evidence first_sweep_bare_delay.json): the Jodel club and student REJECTED every
+take-off (the 0.15 s delay on the wheels: a ground loop, the heading -1.9 -> 18 -> -19.5 -> 25 deg at 15 m/s); the C172
+student gave up at the clock; the club's ailerons cycled at 1.5 Hz (90 reversals / min on the Cub's downwind, the
+expert's 0.6); the elevator likewise (the club's pitch +-2.7 deg at 0.9 Hz, de +-0.13); the ham-fist's hand read 400+
+reversals / min (a vibration, not a hand). A bare delay line in a tuned loop is not a slow person - it is an unstable one.
+
+### G2086 THE HUMAN IN THE LOOP (43_pilot.js humanise, PILOT_PROFILES, PILOT_PROFILE_KNOBS, pilotProfile(Spec))
+- THE PERSON'S GAIN (McRuer's crossover model: a human sets their own gain so their loop stays stable with their
+  delay - a slow pilot is a LOOSE pilot, not an oscillating one). The command is the servo's HELD part (its 1 s average:
+  the trim, the steady bank) + `gain` x the rest, then delayed. `skill.gain` null (every named person): 1 / (1 +
+  reaction / 0.15 s) - the scan (the Cub club's downwind elevator, 0.25 s): gain 0.5 -> 59 reversals / min, 0.4 -> 8,
+  0.3 -> 3. A number is the person's own (> 1 over-controls: the design's §4.3 - a knob, 'grip').
+- ON THE WHEELS the delay is 0.10 s at most and the gain whole (0.15 s whole ground-looped the Jodel; 0.15 s eased swung
+  the Cub's roll-out 37-62 deg; 0.10 s whole: 2.5 / 0.9 deg).
+- THE FLARE is the person's quickest moment: the wheels' delay, the gain whole; the person still flares LATE (flareK)
+  with their own hands. Four variants over three seeds (evidence README): eased, the water landings 2.99 / 3.42 m/s;
+  whole at the full delay, the students 2.5-4.4 on three aeroplanes and the C172 ham-fist's pitch -5 -> +9 -> -8 deg in
+  the flare; a faster held part, the Jodel student 2.85-4.98; half the delay eased, 2.60-2.74; the wheels' delay whole
+  (kept): every wheeled person 0.43-1.99 m/s on every seed.
+- THE HAND (hamFist) band-limited as an arm is: an Ornstein-Uhlenbeck wander (0.5 s) through a 0.12 s lag,
+  rms-normalised (the 0.3 s unfiltered first cut: 400+ reversals / min) - the ham-fist now ~100 / min, "the stick never
+  still".
+- THE SEED: makePilot(.., { seed }) - the same person on another day (the hand's sequence); 1935 when unset (the game's:
+  a profile is a deterministic person, the design's §3). pilot_trace --seed, pilot_persona --seeds. IT MATTERED: on the
+  game's seed the student's landings looked fine; on three others they were 2.5-4.4 m/s - one flight is not evidence.
+- the EXPERT IS UNTOUCHED to the bit (PRA false: no HUM, no delay, no draws; `ap.profile` = 'expert' is the one new
+  field). GATE PILOT / TAKEOFF / PILOTACT pass unchanged.
+- PILOT_PROFILES carry `label` and `desc` (the menu's one line each); PILOT_PROFILE_KNOBS is every hook as a knob (sec,
+  k, label, unit, kind range / pick / bool, lo..hi, step, the expert's default, desc); pilotProfile CLAMPS an object
+  profile to it (a saved slider can never hand the pilot a NaN or a 5 s reaction); pilotProfileSpec is the inverse (the
+  knobs that differ from the expert's - what the player document stores).
+
+### G2087 THE ROW - WHERE THE PILOT IS CHOSEN (app.js, body.html, flight.css, style.css; sim_host / sim_link)
+- ONE KEEPER `#selPersona` (#flStore; its options off PILOT_PROFILES): Expert / Club / Student / Bush / Ham-fist / Custom.
+- THE SHED'S FLIGHT SETUP beside ROLL OUT and THE ROLL-OUT SCREEN: the route row (#edRoute / #bootRoute) reads base · to
+  · **pilot** (each option's hover its one line); on a held roll-out screen a pick re-makes the pilot on the stand, as
+  the base's does.
+- THE FLIGHT PLATE's `pilot` slot and FLY > controls (on the setup screen too): the style pills, the PERSONALITY pills, a
+  LINE EACH saying what that person does (the one flying in ink), and THE CUSTOM PILOT - "show the knobs" (folded; the
+  fold remembered with the rail's): reaction, hands, grip, unsteadiness, over-rotation, flare height, bank, comfort g,
+  field technique, slips, step hold; "start from" copies a personality into the knobs (the downgrade: the full model
+  tuned down to a person). A knob moved makes the pilot 'custom'. The plate reads "Pilot · auto · Student".
+- PERSISTED PER PLAYER: the player document (70_player.js) carries `pilot: { profile, custom }` - optional, ABSENT IS THE
+  EXPERT, no PLAYER_V step (a field added; an older game carries it as any unknown field); `playerPilot` reads it (an
+  unknown name is the expert, the custom person clamped). Changing the person restarts a flight (the style's rule); the
+  knobs fly from the next start.
+- THE WORKER flies the same person: sim_link hands `pilot.profile` (the name or the custom object), sim_host's makePilot
+  takes it.
+
+### THE TABLE (evidence/PILOT-PERSONA/table.txt - every flight; summary.txt - min-max over the seeds; calm; the four
+people on seeds 1935 / 1 / 2 / 3, the expert once; lifts = 1 everywhere: no hop on any take-off)
+```
+aeroplane    person   n  run m     lifts q deg/s   xt rms m   slope m   V rms     sink m/s   V/Vs       bnc GA  rev/min    outcome
+Cub          expert   1  106       1     3.1       1.5        0.7       0.13      0.64       1.15       0   0  4        completed
+Cub          club     4  106-107   1     3.9-4.2   1.3        0.6-0.7   0.11-0.12 0.43-0.54  1.18-1.20  0   0  56-64    completed
+Cub          student  4  106       1     3.9-4.9   1.4-1.6    0.6-0.8   0.14-0.17 0.55-0.61  1.19-1.21  0   0  60-70    completed
+Cub          bush     4  106       1     3.6-3.7   1.2-1.3    0.7       0.20      0.68-0.70  1.13       0   0  8-14     completed
+Cub          hamfist  4  106-112   1     5.8-7.8   1.8-2.0    0.8-0.9   0.28-0.30 0.44-1.11  1.22-1.27  2   0  102-102  completed
+Jodel        expert   1  178       1     5.7       2.3        0.6       0.08      1.04       1.14       0   0  6        completed
+Jodel        club     4  177-188   1     6.7-7.6   1.6-1.9    0.5-0.6   0.09      1.00-1.10  1.13-1.14  0   0  106-110  completed
+Jodel        student  4  181-205   1     9.3-12.7  1.6-9.3    0.8-0.9   0.24-0.29 0.93-1.24  1.14-1.22  2   0  46-90    completed
+Jodel        bush     4  177-185   1     5.7-6.5   1.4        0.6       0.05      0.93-0.96  1.14       0   0  15-32    completed
+Jodel        hamfist  4  169-203   1     9.8-13.1  1.9-3.7    1.3-1.5   0.49-0.59 1.21-1.40  1.14-1.21  3   0  108-148  completed
+C172         expert   1  262       1     7.7       2.7        0.9       0.06      1.14       1.09       0   0  4        completed
+C172         club     4  261-263   1     8.4-8.7   1.0-1.4    0.8-1.0   0.06-0.08 1.18-1.23  1.09       0   0  45-52    completed
+C172         student  4  251-259   1     9.2-10.5  3.1-17.4   0.8-1.0   0.13-0.18 0.90-1.31  1.07-1.11  0   0  58-77    completed
+C172         bush     4  262-263   1     8.4-8.6   4.6-5.0    0.7-0.8   0.17      1.16-1.22  1.05       0   0  50-54    completed
+C172         hamfist  4  247-266   1     9.7-11.6  2.1-4.6    1.2-1.4   0.30-0.36 1.09-1.99  1.06-1.21  0   0  108-135  completed
+C172 floats  expert   1  337       1     7.1       3.4        1.3       0.22      2.19       1.23       1   0  7        completed
+C172 floats  club     4  340-402   1     6.6-7.9   2.6-5.4    1.4-1.6   0.30-0.63 1.54-2.05  1.23-1.24  4   0  53-58    completed
+C172 floats  student  4  351-470   1     7.9-15.2  51.5-70.2  2.1-7.1   0.67-2.22 1.95-2.73  1.22-1.33  4   0  48-63    completed
+C172 floats  bush     4  338-388   1     6.9-9.3   2.9-3.2    4.2-4.3   0.82-0.83 1.91-2.04  1.23       4   0  48-66    completed
+C172 floats  hamfist  4  514-843   1     9.9-12.8  2.2-14.3   8.2-9.2   3.39-3.98 1.73-3.91  1.51-1.72  4   0  94-104   completed
+```
+READ: every wheeled flight (52 of 52, every seed) COMPLETED, sink 0.43-1.99 m/s, no go-around, no ground loop, one
+lift-off each. The people differ where people differ: the rotation (the expert's Cub 3.1 deg/s, the ham-fist's 5.8-7.8;
+the Jodel student's 9.3-12.7 against 5.7), the hands (control reversals / min, the worst phase group: the expert 4-7, the bush pilot 8-66 (his quick 0.15 s), the
+club 45-110 (the wheels: the take-off roll's and the roll-out's rudder), the student 46-90, the ham-fist 94-148),
+the tracking (the C172 student's circuit 3-17 m rms against the expert's 2.7), the speed on final (the ham-fist's 0.28-0.59
+m/s rms against 0.06-0.13), the aim (the bush pilot's short technique: -4..+13 m past the aim), the circuit's length (the
+bush pilot's long final: +46 s on the Cub), the bounces (the ham-fist's).
+FINDINGS (not features - for their owners; THE WATER): the Wipline C172 on the SEA lane with the STUDENT (sink 2.60 / 2.73
+on two of four seeds; the circuit 51-70 m off track - the eased roll loop, gain 0.25 at 0.45 s, on the floats' slow roll)
+and the HAM-FIST (2.56 / 3.91 on two of four; the take-off run 514-843 m - the hand's elevator holds the hull at the hump
+for ~40 s - and a fast, flat touchdown at 1.5-1.7 Vs off an unstable approach: slope rms 8-9 m, speed rms 3.4-4.0). The
+EXPERT's own water touchdown is already firm (2.19 m/s with one skip): the water flare is firm for everyone and the people
+add to it. Both complete their circuit and stop; neither is a crash in the solver (damage off) - but a sink over 2.5 is
+the line this ruling draws, so they are said here. OWED (a pilot session): an unstabilized-approach go-around for any
+person (the student and the ham-fist fly on down an unstable water final); the expert's water flare.
+
+### G2089 THE UI, SEEN (tools/persona_shot.js - SwiftShader, the user's Cub in flydiy.wip, one browser profile across a
+reload; evidence/PILOT-PERSONA/ui/: 1_garage_route_pilot.jpg, 3_flight_pilot_slot.jpg, 4_flight_custom_knobs.jpg,
+ui_notes.txt)
+- first boot: the player document has no pilot (the expert); the shed's route row reads base · to · pilot with the six
+  people and each one's line on hover;
+- Student picked in the shed -> player.pilot = { profile: 'student' }, #selPersona student; ROLLED OUT: the pilot on the
+  stand IS a new pilot and it is the student (FLIGHT_PROBE.ap().profile 'student', the worker live) - the plate reads
+  "Pilot · auto · Student";
+- the plate's pilot slot: the style, the six pills, the five lines; "show the knobs", the reaction moved to 0.3 s ->
+  player.pilot = { profile: 'custom', custom: { the student's knobs, reaction 0.3 } }, the plate "Pilot · auto · Custom";
+- RELOADED on the same storage: the player's pilot is still the custom one, the shed's picker and #selPersona on it.
+(The roll-out screen's own row, #bootRoute, was not up long enough on this box to be shot - the same routeBuild as the
+shed's; GATE ROUNDTRIP's setup child walks that screen.)
+A first cut of the rig read the SHED's standing pilot as "the pilot flying" (the plate shows in the shed too) and
+reported an expert under a Student plate - a rig artefact; the rig now waits for the shed's actions to go and for a new
+pilot object.
+
+### THE GATES (`node tools/run_gates.js --only=... --verbose --jobs=4`, a 4-core cloud box)
+```
+INPUT       PASS   102 s   the club slot (G1943's): club/ctl bank held 31 deg, re-engaged at 20.3 deg (20-25 s), 3 m lost;
+                           club/keys 46 deg held, 29 peak, 20.3, 15 m (PILOT-ONE-2: 31 / 19 deg, 4 m) - the person's gain
+PLAYER      PASS   0.1 s   41 checks (+ THE PILOT: absent is the expert, a vintage is not handed one, a known name survives,
+                           an unknown reads expert, the custom person clamped and round-tripped, app.js keeps it in the
+                           document); --selftest PASS (+ 'the personality moved to a view pref' caught)
+PILOT       PASS   315 s   [3 shards] - the expert untouched
+TAKEOFF     PASS   387 s
+PILOTACT    PASS   166 s   the expert's hands as before (stock taxi 14.6, the C172 16, the metal Cessna 16.3 / min)
+PILOTMATRIX PASS  1284 s   18 cells (+ THE PER-PROFILE ROW: cub:HOME:calm:club / student / bush / hamfist - in the
+                           baseline, insertions only; a profile cell is not judged on the expert's 'ctl rev', every
+                           other column is): 14 good, 2 warn, 2 bad (the known two); no cell worse than the baseline
+UISMOKE     PASS   149 s   the fly rail reaches the personality row, every person, the custom pilot's knobs (WANT += 21)
+ROUNDTRIP   PASS   954 s   (the player document gained an optional field)
+```
+
+OWED (seen, not done here): the go-around on an UNSTABILIZED approach for any person (the design's §4.4 'decisions'; no
+person went round in 68 flights, and a student "may go around more"); the expert's firm water flare (2.19 m/s, a skip);
+the club's rudder dither on the roll-out (the landing group's 68-110 reversals / min at a 2.5 deg swing: the wheels'
+0.10 s whole); the design's §4 hooks still to cut (precision, drift, decisions, crab / slip, fatigue, skill growth) -
+PILOT_PROFILE_KNOBS is where each lands as a knob; the per-person bands (pilot_persona PERSONA_BANDS) set from this
+sweep - move them by hand with the numbers when a pilot change moves a person.
+
+READY for A0: claude/pilot-persona-g2085 (source only - every generated file is master's; A0 builds on the train; drop
+the base merge 4116f38c when rebasing onto train 38).
