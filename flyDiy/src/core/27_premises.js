@@ -1027,7 +1027,15 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+// THE PLOTS (G2310 PREM-S3, contract v1.33): `plots` [{ id, x, z, hdg, stand?, taxiOut?, taxiOut1? }] in the premises
+// frame are where a player's hangar MAY stand on this field (71_player_bases.js BASE_OFFERS names them; a plot id is the
+// hangar id its holder gets). The record's `hangar` IS the field's first plot, its id the runway's own (Jolene's HOME):
+// runwayPlots reads it as plot <runway id>, verbatim, so nothing at a field that had a hangar moves (the site's `hangar`
+// is still the record's `hangar` alone - a field with plots and no hangar gains none). A plot's
+// `stand` / `taxiOut` / `taxiOut1` are its own way out (the roll-out from that hangar's door); absent, the field's serve.
+// A plot on a WATER field is a slipway: its shed stands on the shore, its `stand` on the water off the slip. A plot is a
+// PLACE, not a building: the world stands a shed on it only while the player holds it (GAME §R GQ8).
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, plots: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -1113,6 +1121,36 @@ function runwayBox(r, margin) {
 // stand's heading DERIVED toward its first taxi point when the record gives none (an aeroplane is
 // parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
 // `site` (an authored pattern rides there untouched)
+// THE PLOTS OF A RUNWAY (G2310, v1.33), in the premises frame: the record's `hangar` as plot <runway id> (verbatim) unless
+// `plots` names that id itself, then every authored plot with a finite place, in the record's order
+const plotOk = p => !!p && typeof p.id === 'string' && p.id.length > 0 && isFinite(+p.x) && isFinite(+p.z);
+function runwayPlots(r) {
+  const own = Array.isArray(r.plots) ? r.plots.filter(plotOk) : [];
+  const out = [];
+  if (r.hangar && isFinite(+r.hangar.x) && isFinite(+r.hangar.z) && !own.some(p => p.id === r.id))
+    out.push({ id: r.id, x: +r.hangar.x, z: +r.hangar.z, hdg: +r.hangar.hdg || 0, main: true });
+  for (const p of own) { const q = Object.assign({}, p); delete q.main; out.push(q); }
+  return out;
+}
+// one plot into the world: the shed's centre, its door's heading and rotation.y (the club hangar's own rule, G434), its
+// own way out when it has one (the stand's heading derived toward its first taxi point, as the field's)
+function plotWorld(p, F) {
+  const W = q => F.toWorld(q[0], q[1]);
+  const hw = W([+p.x, +p.z]), hh = (+p.hdg || 0) - F.yaw;
+  const o = { id: p.id, x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) };
+  if (p.main) o.main = true;
+  if (p.stand && isFinite(+p.stand.x) && isFinite(+p.stand.z)) {
+    const st = W([+p.stand.x, +p.stand.z]), tx = Array.isArray(p.taxiOut) ? p.taxiOut.map(W) : [];
+    let hdg;
+    if (p.stand.hdg !== null && p.stand.hdg !== undefined) hdg = +p.stand.hdg - F.yaw;
+    else if (tx.length) hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
+    else hdg = hh;   // a slipway's stand with no way out faces where the door does
+    o.stand = { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) };
+    if (tx.length) o.taxiOut = tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+    if (Array.isArray(p.taxiOut1) && p.taxiOut1.length) o.taxiOut1 = p.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+  }
+  return o;
+}
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
   const base = Object.assign({}, r.site || {});
@@ -1122,6 +1160,10 @@ function runwaySite(r, F) {
     const hw = W([+r.hangar.x, +r.hangar.z]), hh = (+r.hangar.hdg || 0) - F.yaw;
     base.hangar = Object.assign({ x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) }, HANGAR_DIMS);
   }
+  // G2310: every plot into the site, the first (the hangar's) verbatim - only when the record authors `plots`, so a
+  // field without them composes to the very site it did (the key absent)
+  const P = Array.isArray(r.plots) ? runwayPlots(r) : [];
+  if (P.length) base.plots = P.map(p => plotWorld(p, F));
   if (!r.stand || !r.taxiOut || !r.taxiOut.length) return Object.keys(base).length ? base : null;
   const st = W([r.stand.x, r.stand.z]), tx = r.taxiOut.map(W);
   let hdg;
@@ -1454,7 +1496,9 @@ function compose(rec0, world, opts) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
       aerodromes.push(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null));
-      r.site = null;
+      // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
+      r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
+      if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
       continue;
     }
     const elev = T1(r.c[0], r.c[1]);
@@ -1483,6 +1527,10 @@ function compose(rec0, world, opts) {
     }
     if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
     if (r.site && r.site.hangar) { const L = F.toLocal(r.site.hangar.x, r.site.hangar.z); r.site.hangar.y = +T1(L[0], L[1]).toFixed(2); }   // the ground under the club hangar (G434): the shed stands on it
+    if (r.site && r.site.plots) for (const p of r.site.plots) {   // G2310: each plot's shed on its ground, its own stand's ground (the placer reads it)
+      const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2);
+      if (p.stand) { const Ls = F.toLocal(p.stand.x, p.stand.z); p.stand.elev = +T1(Ls[0], Ls[1]).toFixed(2); }
+    }
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -2563,6 +2611,7 @@ function issues(rec0) {
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
+  const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
@@ -2580,6 +2629,22 @@ function issues(rec0) {
     }
     if (r.papi && (!Array.isArray(r.papi) || r.papi.length !== 2 || !r.papi.every(v => v === true || v === false || v === 'vasi'))) out.push('runway ' + r.id + ': papi is [end 0, end 1] of true, false or vasi');
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
+    // G2310 (v1.33): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
+    // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    if (r.plots != null) {
+      if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
+      else for (const p of r.plots) {
+        if (!p || typeof p.id !== 'string' || !p.id) { out.push('runway ' + r.id + ': a plot without an id'); continue; }
+        if (!(isFinite(+p.x) && isFinite(+p.z))) out.push('runway ' + r.id + ': plot ' + p.id + ' needs x and z');
+        if (p.hdg != null && !isFinite(+p.hdg)) out.push('runway ' + r.id + ': plot ' + p.id + ': hdg is radians');
+        if (plotIds.has(p.id)) out.push('runway ' + r.id + ': plot ' + p.id + ' is named twice');
+        plotIds.add(p.id);
+        if (p.stand != null && !(isFinite(+p.stand.x) && isFinite(+p.stand.z))) out.push('runway ' + r.id + ': plot ' + p.id + ': the stand needs x and z');
+        for (const k of ['taxiOut', 'taxiOut1']) if (p[k] != null && !(Array.isArray(p[k]) && p[k].every(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])))) out.push('runway ' + r.id + ': plot ' + p.id + ': ' + k + ' is a list of [x, z]');
+        if (p.taxiOut != null && p.stand == null) out.push('runway ' + r.id + ': plot ' + p.id + ': a way out needs its stand');
+      }
+    }
+    if (r.hangar && isFinite(+r.hangar.x)) { if (plotIds.has(r.id)) out.push('runway ' + r.id + ': plot ' + r.id + ' is named twice'); plotIds.add(r.id); }
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -2804,7 +2869,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

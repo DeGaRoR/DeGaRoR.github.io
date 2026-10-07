@@ -1606,7 +1606,9 @@ if (!EXT) {
   // and building one to read four numbers would be absurd. No record, no
   // strip — the same ask-don't-assume the prop library and the sky payload use.
   const HOME = (opts && opts.home) || null;
-  const SITE = (typeof siteOf === 'function') ? siteOf('HOME') : null;
+  // G2310 (PREM-S3): a side hangar's room is handed ITS site (the field's, its plot's shed as the `hangar`: app.js
+  // playerPlotSite), so the strip through its door is that field's; without one, HOME's as before
+  const SITE = (opts && opts.site) || ((typeof siteOf === 'function') ? siteOf('HOME') : null);
   const R = (HOME && typeof siteRunway === 'function') ? siteRunway(HOME) : null;
   const HGR = SITE ? SITE.hangar : null;
 

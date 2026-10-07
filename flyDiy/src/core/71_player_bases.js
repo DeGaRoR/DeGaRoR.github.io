@@ -669,10 +669,22 @@ function playerOffers(doc, world) {
       out.push({ aero, plot, name: a ? (a.name || aero) : aero, words: O.words, held,
                  capped: !held && plot !== PREM_MAIN && capped,
                  shells: P.shells.map(s => ({ shell: s, price: plotPrice(aero, plot, s) })),
-                 kits: P.kits ? P.kits.slice() : null, water: !!P.water, derelict: !!P.derelict });
+                 kits: P.kits ? P.kits.slice() : null, water: !!P.water, derelict: !!P.derelict,
+                 // G2310: WHERE it stands - the premises record's plot (the site's `plots`, contract v1.33); `placed`
+                 // false when this world's record has no plot for it (Jolene's tw_ski: the summit has no free flat
+                 // ground - PREM-S3's HANDOVER); null without a world or a site registry to ask
+                 placed: plotPlaced(aero, plot, L) });
     }
   }
   return out;
+}
+// G2310: is the plot placed in this world's premises record? (the site's `plots`; the main plot is the site's hangar)
+function plotPlaced(aero, plot, L) {
+  if (!L || typeof siteOf !== 'function') return null;
+  const st = siteOf(aero);
+  if (!st) return false;
+  if (plot === aero && st.hangar && !st.plots) return true;
+  return !!(st.plots && st.plots.some(p => p.id === plot));
 }
 function playerAcquire(doc, aero, plotId, shell, tenure) {
   const O = BASE_OFFERS[aero], P = O && O.plots[plotId];
@@ -816,4 +828,58 @@ function playerRollFrom(doc, name) {
   if (W.kind !== 'none' && W.aero) return W.aero;
   const h = doc && doc.sheds && doc.sheds[doc.here];
   return h && typeof h.base === 'string' ? h.base : PREM_MAIN;
+}
+
+// ---- THE WORLD AND THE BLEND AT ANY BASE (G2310, PREM-S3) --------------------------
+// GAME §4.4 / GAME-PREMISES §5. The premises record places every PLOT a field offers (27_premises.js runwayPlots,
+// contract v1.33: the site's `plots`, HOME's the club hangar verbatim). These rules say which of them the world stands
+// a shed on and where a roll-out leaves from; the page (render_world.js setPlayerSheds, app.js) does the drawing.
+//   GQ8   a plot you do not hold shows NOTHING new: only held hangars are listed.
+//   GQ4   at most three player hangars ever stand: the main one and the two side hangars the cap keeps (playerSideIds'
+//         order); a legacy extra (an older document's) still works in the rules and is not drawn.
+//   §4.4  residents inside a shed are drawn only when its door is open AND the camera is within 60 m.
+const PREM_WORLD = { maxSheds: 1 + PREM_SIDE_MAX, residentsR: 60 };
+// the hangars the world stands, main first: [{ id, base, shell, dims (hangarDims), kits, parts, main }]
+function playerWorldSheds(doc) {
+  const S = (doc && doc.sheds) || {}, out = [];
+  const one = (id, main) => {
+    const s = S[id]; if (!s || typeof s !== 'object') return;
+    out.push({ id, base: typeof s.base === 'string' ? s.base : id, shell: s.shell || 'club', dims: hangarDims(s),
+               kits: Array.isArray(s.kits) ? s.kits.slice() : [], parts: s.parts ? pbClone(s.parts) : null, main: !!main });
+  };
+  if (S[PREM_MAIN]) one(PREM_MAIN, true);
+  for (const id of playerSideIds(doc).slice(0, PREM_SIDE_MAX)) one(id, false);
+  return out.slice(0, PREM_WORLD.maxSheds);
+}
+// may a shed's residents be drawn? (GAME §4.4: an open door and the camera within 60 m; a shut shed costs nothing)
+function premResidentsDrawn(doorOpen, camDist) {
+  return !!doorOpen && +camDist <= PREM_WORLD.residentsR;
+}
+// THE HANGAR THE NEXT ROLL-OUT LEAVES FROM: the hangar its fleet row says it is in; a build with no row (unsaved, a
+// stock design) leaves from the garage's own (`here`); an aeroplane tied down outside leaves from no door (null: the
+// page cuts to the field's stand, as PREM-S2 did for 'away').
+function playerRollHangar(doc, name) {
+  const W = name ? playerWhere(doc, name) : { kind: 'none' };
+  if (W.kind === 'in') return W.hangar;
+  if (W.kind !== 'none') return null;
+  return doc && doc.sheds && doc.sheds[doc.here] ? doc.here : (doc && doc.sheds && doc.sheds[PREM_MAIN] ? PREM_MAIN : null);
+}
+// THE SITE A ROLL-OUT FROM THAT HANGAR PLANS ON: the field's site with the plot's shed as its `hangar` (at the hangar's own
+// dims - the stand authored for it is not walked) and, when the plot has its own way out, its stand / taxiOut / taxiOut1
+// (an authored pattern is the field's own way and is dropped for the plot's; the parked list is kept). The main plot
+// (the field's `hangar`) and a plot with no stand return the field's site as it is - HOME byte for byte.
+// -> { site, plot, own } (own: the plot's own way out is used)
+function playerPlotSite(site, hangarId, shed) {
+  const P = site && Array.isArray(site.plots) ? site.plots.find(p => p.id === hangarId) : null;
+  if (!P || P.main) return { site, plot: P || null, own: false };
+  const D = shed ? hangarDims(shed) : null;
+  const out = Object.assign({}, site);
+  out.hangar = Object.assign({ x: P.x, z: P.z, hdg: P.hdg, ry: P.ry }, D || {}, P.y !== undefined ? { y: P.y } : {});
+  if (!P.stand) return { site: out, plot: P, own: false };
+  out.stand = Object.assign({}, P.stand);
+  if (P.taxiOut) out.taxiOut = P.taxiOut.map(q => q.slice()); else delete out.taxiOut;
+  if (P.taxiOut1) out.taxiOut1 = P.taxiOut1.map(q => q.slice()); else delete out.taxiOut1;
+  delete out.pattern;
+  delete out.plots;
+  return { site: out, plot: P, own: true };
 }

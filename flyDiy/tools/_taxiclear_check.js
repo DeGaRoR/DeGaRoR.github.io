@@ -47,6 +47,8 @@
 //  10 THE FLEET'S TIE-DOWN SPOTS (G2223): every Jolene runway's spots (25_airfield.js fleetSpots) for every archetype
 //     footprint that fits: in the field, flat, dry / afloat, 3 m off solids, every validated build's routes half + 3 m off,
 //     no overlap; deterministic; HOME's painted stands first; a calibration (a box on the stand, on the mill: faults)
+//  11 THE PLOTS (G2310 PREM-S3): every plot of Jolene's record (premises contract v1.33) off solids, the strip, the routes
+//     and the tie-down spots; every plot's own way out censused as a stand's; calibrated (the mine's shed's would-be way)
 // ~3-5 min (the island world, the cook read twice, four taxis).
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -259,6 +261,74 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const wm = bm ? C.fleetSpotPts(bm, 0.25, true).reduce((m, q) => Math.min(m, inp.solid(q[0], q[1], 30)), Infinity) : null;
   check(bm && wm < 3, '10 calibration: a box on the mill reads inside 3 m of a solid thing', bm ? wm.toFixed(2) + ' m' : 'no mill');
   console.log('  10 the fleet\'s spots: ' + SC.per.map(p => p.id + ' ' + p.n + ' (' + p.kinds + ')').join(', ') + '; ' + n + ' rows in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
+}
+
+// 11 THE PLOTS (G2310 PREM-S3, premises contract v1.33): every plot Jolene's record places, the footprint of the largest
+// shell it is offered with: 3 m off every solid thing, off the strip's box by 15 m, every validated build's routes on the
+// field's own pattern its half-span + 3 m off, and off the fleet's tie-down spots (FLEET_SPOT.gap); every plot with a way of
+// its own (playerPlotSite: its stand and taxiOut) censused as a stand is (6): the stand, its parked box, every route
+// half + 3 m off every solid thing, the pattern sound. CALIBRATION: the mine's shed given a way of its own (a stand off its
+// door, down the street) reads MILL-TAXI's faults - which is why its plot has none; a plot moved onto the hut is seen.
+{
+  const pave = L.paveOf(WI), inp = L.spotInputs(WI, IX, pave);
+  const foot = id => { for (const a in C.BASE_OFFERS) { const P = C.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
+    for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || C.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD }; } return null; };
+  const outline = (p, F, m) => { const fx = Math.cos(p.hdg), fz = Math.sin(p.hdg), nx = -fz, nz = fx, A = F.HD + m, B = F.HW + m, pts = [];
+    for (let u = -A; u <= A + 1e-9; u += 0.5) for (let v = -B; v <= B + 1e-9; v += 0.5) if (Math.abs(Math.abs(u) - A) < 1e-9 || Math.abs(Math.abs(v) - B) < 1e-9 || (Math.abs(u % 2) < 1e-9 && Math.abs(v % 2) < 1e-9)) pts.push([p.x + fx * u + nx * v, p.z + fz * u + nz * v]);
+    return pts; };
+  const plotRows = (p, a, s) => {
+    const F = foot(p.id), pts = outline(p, F, 0), R = C.siteRunway(a), rows = [];
+    let sol = Infinity, what = null; for (const q of pts) { const n = IX.nearest(q[0], q[1], 25); if (n && n.d < sol) { sol = n.d; what = n.s; } }
+    rows.push(['3 m off every solid thing', sol >= L.MARGIN - 1e-9, sol.toFixed(2) + ' m' + (what ? ' to ' + L.fmtWhat(what) : '')]);
+    const inR = pts.some(q => { const dx = q[0] - R.cx, dz = q[1] - R.cz, al = dx * R.dx + dz * R.dz, cr = dx * R.nx + dz * R.nz; return Math.abs(al) <= R.len / 2 + 15 && Math.abs(cr) <= R.half + 15; });
+    rows.push(['15 m off the strip', !inR, '']);
+    if (!a.water) for (const B of VB) {
+      const P = C.sitePattern(a, s, { half: B.dims.half }), need = B.dims.half + L.MARGIN;
+      let w = Infinity; for (const r of L.routesOf(C, P)) for (const q of r.pts) { if (Math.abs(q.x - p.x) > 90 || Math.abs(q.z - p.z) > 90) continue; for (const o of pts) w = Math.min(w, Math.hypot(q.x - o[0], q.z - o[1])); }
+      rows.push(['off ' + B.name + "'s routes by " + need.toFixed(1) + ' m', w >= need - 1e-9, (w === Infinity ? '>90' : w.toFixed(2)) + ' m']);
+    }
+    const spots = C.fleetSpots(a, s, inp).spots;
+    let sp = Infinity; for (const S of spots) for (const o of pts) sp = Math.min(sp, C.fleetSpotDist(S, o[0], o[1]));
+    rows.push(['off the fleet\'s tie-down spots', sp >= C.FLEET_SPOT.gap - 1e-9, (sp === Infinity ? 'none' : sp.toFixed(2)) + ' m']);
+    return rows;
+  };
+  let n = 0, nWay = 0;
+  for (const a of WI.aerodromes) {
+    const s = C.siteOf(a.id); if (!s || !s.plots) continue;
+    for (const p of s.plots) {
+      if (p.main) continue;
+      n++;
+      for (const [what, okr, d] of plotRows(p, a, s)) check(okr, '11 plot ' + p.id + ' ' + what, d);
+      const PS = C.playerPlotSite(s, p.id, null);
+      if (!PS.own || a.water || !PS.site.taxiOut) continue;
+      nWay++;
+      for (const B of VB) {
+        const P = C.sitePattern(a, PS.site, { half: B.dims.half }), iss = C.sitePatternIssues(P, a, PS.site, 6, C.patternPath);
+        check(!iss.length, '11 plot ' + p.id + ' ' + B.name + ' its way out is a sound pattern', iss[0] || '');
+        const need = B.dims.half + L.MARGIN, r = L.censusSite(C, IX, a, P, need);
+        check(r.stand && r.stand.d >= need - 1e-9, '11 plot ' + p.id + ' ' + B.name + ' its stand keeps ' + need.toFixed(2) + ' m', r.stand ? r.stand.d.toFixed(2) + ' m' : 'none');
+        const st = P.nodes.find(q => q.kind === 'stand'), fst = P.routes.out[0] && P.nodes.find(q => q.id === P.routes.out[0][1]);
+        const pc = L.parkedClear(IX, { x: st.x, z: st.z, hdg: Math.atan2(fst.z - st.z, fst.x - st.x) }, B.dims, L.MARGIN + 25);
+        check(pc.d >= L.MARGIN - 1e-9, '11 plot ' + p.id + ' ' + B.name + ' parked box keeps ' + L.MARGIN + ' m', pc.d.toFixed(2) + ' m to ' + L.fmtWhat(pc.s));
+        for (const q of r.routes) check(q.worst.d >= need - 1e-9, '11 plot ' + p.id + ' ' + B.name + ' route ' + q.name + ' keeps ' + need.toFixed(2) + ' m', q.worst.d.toFixed(2) + ' m to ' + L.fmtWhat(q.worst.what));
+      }
+    }
+  }
+  check(n >= 5 && nWay >= 2, '11 Jolene\'s plots were censused', n + ' plots, ' + nWay + ' with a way of their own');
+  // calibration: the mine's shed with a way of its own reads MILL-TAXI's faults; a plot on the hut is seen
+  {
+    const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip'), p = s.plots.find(q => q.id === 'mn_strip');
+    const fake = Object.assign({}, s, { plots: [Object.assign({}, p, { stand: { x: 7274, z: -15201, hdg: -1.7326 }, taxiOut: [[7266, -15250], [7259.5, -15320]] })] });
+    const PS = C.playerPlotSite(fake, 'mn_strip', null), B = VB.find(b => b.dims.half >= 5.49);
+    const P = C.sitePattern(a, PS.site, { half: B.dims.half }), r = L.censusSite(C, IX, a, P, B.dims.half + L.MARGIN);
+    const worst = r.routes.reduce((m, q) => Math.min(m, q.worst.d), Infinity);
+    check(worst < 4, '11 calibration: a way of its own for the mine\'s shed comes inside 4 m of a building (MILL-TAXI\'s fault)', worst.toFixed(2) + ' m');
+    const aw = WI.aerodromes.find(q => q.id === 'w3'), sw = C.siteOf('w3'), hut = SH.find(q => /s_strip\/hut$/.test(q.id));
+    const onHut = Object.assign({}, sw.plots.find(q => q.id === 'w3'), { x: hut.x, z: hut.z });
+    const rows = plotRows(onHut, aw, sw);
+    check(!rows[0][1], '11 calibration: a plot moved onto Tamgas Hill\'s hut reads inside 3 m of a solid thing', rows[0][2]);
+  }
+  console.log('  11 the plots: ' + n + ' censused, ' + nWay + ' with a way of their own');
 }
 
 console.log('GATE TAXICLEAR: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));

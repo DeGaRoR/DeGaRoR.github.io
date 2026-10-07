@@ -995,6 +995,18 @@ async function main() {
   const CEN = { date: new Date().toISOString().slice(0, 10), frames: FRAMES, warm: WARM, builds: {} };
   let fails = 0;
   const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; };
+  // G2310 (PREM-S3): THE SIDE HANGARS' COST, by source (the GPU number is A0's, on the box: tools/gameprem_world_shot.js).
+  // The census above boots the SANDBOX (HOME alone): no side shed is built, so these rows hold what a held one may cost.
+  {
+    const RWs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8'), APs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    const sps = RWs.slice(RWs.indexOf('function setPlayerSheds(list)'), RWs.indexOf('playerSheds = setPlayerSheds;'));
+    ok(/shedNodeAt\(/.test(sps) && /const merged = SHELL\.merge \? mergeShell\(shed\.group, SHELL\.castMin\) : null;/.test(RWs.slice(RWs.indexOf('function shedNodeAt('), RWs.indexOf('standShed(shedDims);'))),
+       'S3 source: a side hangar is HOME\'s build - merged by material, its coarse rung and LOD (shedNodeAt), ~ the club shed\'s draws each');
+    ok(/\.slice\(0, 2\)/.test(sps) && /q\.id !== 'HOME'/.test(sps), 'S3 source: at most two side sheds, never HOME\'s twice');
+    ok(/had && had\.key === key\) continue;/.test(sps), 'S3 source: a shed is built again only when its place, dims, shell or dress change (nothing per frame)');
+    ok(!/setPlayerSheds|worldSideSheds/.test(APs.slice(APs.indexOf('function frame('), APs.indexOf('function frame(') + 20000)) || APs.indexOf('function frame(') < 0, 'S3 source: nothing of it runs in the frame loop');
+    ok(!/premResidentsDrawn|playerResidents/.test(sps), 'S3 source: no resident is drawn by the world\'s sheds (shut doors: premResidentsDrawn is FLEET-PROPS\' to call)');
+  }
   for (const r of res) {
     ok(!r.failed, r.build + ': the page booted, rolled out and rendered its views', r.failed || ('garage ' + (r.wall.garage / 1000).toFixed(1) + ' s, roll-out ' + (r.wall.rollout / 1000).toFixed(1) + ' s, total ' + (r.wall.total / 1000).toFixed(1) + ' s wall; ' + r.programsTotal + ' programs; page errors ' + r.errorsN));
     if (!r.failed && r.mem) console.log('       memory after the roll-out (MiB, reported): ' + JSON.stringify(r.mem.rollout) + '; at the end ' + JSON.stringify(r.mem.end));
