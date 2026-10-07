@@ -79780,3 +79780,130 @@ looking only.
 Build 53f482316b37 (assembly c22f17e2). Sessions: JOIN-PARITY OUT (reverted, -> train 39 with DMG-RECAL, the user's call); PILOT-ONE + PILOT-ONE-2 (G1935-G1949), HW-COVERAGE G1995-G1999 + ?diag v2 G1997b, POTATO-DEEP G1528-G1531 (the 6 px premises patch on every preset - the user's OK; the G1521 root fix: three's cached program kept the plain compile's uniforms, the interim reload removed), METLA-COOK G2060-G2062, WHEEL-AO G2055, JODEL-TAIL G2050, GARAGE-LAPTOP G2070-G2074 (shed shadow cache, glass by pane, the room merged 523 -> 16), SND-MIX G1720-G1724 + GATE AUDIO robust, DEADWOOD-BRIGHT G1975, SHORES-2 G1955-G1964, WATER-LOOK G2090-G2094 (splash waves from entry energy), MOBILE-GARAGE 1 G2100-G2104 (?profile=phone; desktop untouched); exports without makeAutopilot / makeTestPilot.
 Smokes after assembly: SIMWORKER, INPUT, UISMOKE, UISMOKE-PHONE, SPLAT PASS. Battery (--all, 6 jobs): every gate PASS, SOFTGPU SKIP (no basisu here). Strict gate (full, vs baseline 5a2c2e7e of 3 Oct): 95 within slack, 47 better, 15 RED - exactly train 37's standing set minus two (fuseLen busy, metal frame busy now within slack): the 30 fps cap rows (the user's stable-30 target: chase/cockpit/garage/taxi/water fps -> 30, loop/render +2 ms under the cap's pacing), the first garage -> world 12.0 s / warm first flight 58.7 s / round trip 11.8 s (37: 12.06 / 59.1 / 11.76). No row worse than live train 37. FRAMECOST named allowances: WHEEL-AO's bufferSubData, WATER-LOOK's garage:town +1 link / +11 calls and garage:snapshot +2 links.
 Next: re-baseline the accepted strict rows by name (the user: no standing reds).
+
+## G2080 - ENGINE-TORQUE: THE PROPELLER'S REACTION TORQUE, GYROSCOPIC COUPLE, P-FACTOR AND SWIRL, FROM THE BUILD'S OWN NUMBERS; THE PILOT HOLDS THE RUDDER AGAINST THEM (2026-10-06/07, ENGINE-TORQUE for A0, cloud - node only; branch claude/engine-torque-g2080 off origin/master 068584d6 = train 37b, train 38 (751e1122) merged in; G2080-G2084)
+
+**STATUS: READY for A0 - with ONE RED, NAMED, A0's / the user's call: GATE SEAPLANE's crosswind case** (below: master passes it
+at 5.0 m/s alone - 4.6 / 4.8 / 5.2 / 5.4 m/s water-loop on master with no propeller effects at all). Every other gate of the
+brief PASS on the merged tree (the battery line at the end of this section).
+
+**THE AUDIT (what the model did).** A propeller was ONE force along the body axis at its mount nodes (30_solver, `Tper` per
+engine over `refs.engine`, G194) and a scalar `wash` on the strips flagged in it. Nothing read the hand (`engines[i].sense`,
+G194: "the solver reads nothing from it yet"); the prop had a mass (G4.7) and no inertia; the shaft law (00_registry
+genShaftRpm, G246) gave an rpm nothing used for a moment. futureDesigns/PROP-EFFECTS-2026-09-05.md was the assessment.
+
+**THE PHYSICS (30_solver `propMoments`, `swirlAt`; all from the build's own data).**
+- **Reaction torque**: Q = thrEff . powerK . P_rated / omega_rated at the PROP SHAFT (through the reduction) - the shaft law's
+  own Qe; sense . Q about +xAft (the Lycoming hand rolls the airframe left wing down). Cub (A-65) 201 N.m; metal Cessna
+  (O-540) 628; the twin's 582s 184.7 each, 369.5 same-hand.
+- **Gyroscopic**: H = I_p . Omega . sense . forward; the airframe pays H x omega_body. omega_body off the axes' own reference
+  nodes (noseFrame/tailMid/upLo/upHi velocities). I_p = GEN_PROP_IK (0.15) . m . R^2 from the blades' own mass (62_gen_aero
+  `params.prop.I`; 60_gen_spec GEN_PROP_IK, anchors: JSBSim engine/prop_75in2f.xml 1.67 slug.ft2 = 2.26 kg.m2 on a 16 kg
+  McCauley-class 75 in -> 0.156; E-Props' measured Durandal 4 100 kg.cm2 at 3.2 kg / 1.92 m -> 0.139, Excalibur 0.131).
+  Cub 0.683 kg.m2 (H 151 N.m.s static), metal Cessna 1.68 (416), twin 0.455 (110 each).
+- **P-factor**: blade-element theory on a constant-pitch, constant-chord blade (beta . Omega r = p n along the span): an
+  in-plane air velocity u_p at the disc loads the blade advancing into it; the moment is a VECTOR along u_p,
+  M = sense . (K p n / 2 + T / (2 Omega)) . u_p. K p is calibrated on the model's own static point (K = T0 / (Omega0 (p n0 -
+  v_i0)), p = V0 / n_rated the synthesis's zero-thrust pitch) - no invented blade constant, and K p barely depends on p (the
+  static thrust carries it). JSBSim's P-factor is a hand-set constant (FGPropeller P_Factor x angle); this is derived.
+- **Swirl**: the slipstream carries the torque's angular momentum; solid-body omega_s = 2 Q_s / (rho V_w pi R_w^4) in the
+  momentum-theory wake (R_w = R sqrt((V + v_i)/(V + 2 v_i))), Q_s the torque that goes with the model's thrust (linear in the
+  lever), added to the local air of every TAIL strip in the wash about the nearest engine's axis, faded over the wake's last
+  quarter. NOT the wing: in a nacelle's wake the grid has three strips (0.07 / 0.99 / 0.39) not centred on the axis, and the
+  swirl made a net lift there - a false roll at the nacelle's 1.65 m arm that leaned the same-hand twin RIGHT under its own
+  left torque (GATE ENGTORQUE caught it). The wing's real de-swirl (it takes back part of the torque's roll) is that cut.
+- The three moments are PURE COUPLES on each engine's mount nodes + their beam neighbours: f_i = (J^-1 M) x r_i (the
+  least-norm forces making exactly M; net force 2.6e-13 per N.m, moment miss 8e-16 - published `out.propFx.netF / mErr`).
+- `out.propFx` per engine: Q, rpm, H, the torque / gyro / P-factor moments in body axes, the swirl rate and wake radius.
+- **PAR.propFx** {torque, gyro, pfactor, swirl} (00_registry), read once per makeSim: ALL 0 IS MASTER'S SOLVER TO THE BIT
+  (a 60 s piloted twin flight hashes equal to train 37b's core). The evidence's A/B lever.
+- **PHYSICS_V 4 -> 5**: the certificate's flown cases run at full power and their mount and tail now carry the moments, so an
+  unchanged spec's certificate moves (the IndexedDB store and DMGCERTCOST's reference recompute on the bump). The plaque's own
+  numbers (the probes, the analytic roll, the stance with the engine stopped) do not move.
+
+**THE PILOT (39b_servos, one law for every pilot, gains in SERVO_GAINS; 43_pilot one tie-break). Never forked.**
+- `betaI 0.6, drTrimMax 0.20` - THE BALL CENTRED: the slip integrated into a standing rudder in `rollTo` (the decrab's
+  deliberate slip holds it). Before: the Cub climbed at full power 4.8 deg crossed (7.1 just after lift-off) on the beta P
+  term alone. After: every single climbs with |beta| <= 0.2 deg.
+- `steerI 1.0, steerIMax 0.25` - THE GROUND'S RUDDER TRIM: the heading error's integral in `groundSteer`, handed to the air's
+  slip trim at lift-off (bumpless). The metal Cessna rotated 4.1 deg off its heading on P-D alone (0.5 -> 3.5, 1.0 -> 2.8,
+  2.0 -> 1.7); the trike-xwind pursuit 14.2 -> 10.1 deg (bound 12); the C172's climb-out from the mill clear of house3 again.
+- `taxiRudTau 0.25` - THE TAXI'S PEDALS (a 0.25 s low-pass on the taxi rudder): the swirl at breakaway power turns an
+  aeroplane out of its stand faster and it overshoots; GATE PILOTACT's taxi rudder read stock / c172 / metal Cessna 20.5 /
+  24.8 / 16.3 reversals a minute (limit 20; master 14.6 / 16 / 16.3). 0.25 s -> 16 / 18.9 / 19.2; 0.35 -> 16 / 20.4 / 20.7;
+  0.5 -> 17.3 / 17.4 / 20.7 (the lag overshoots the heavy metal Cessna); a rate term (the error's or the yaw rate's) was
+  worse at every gain; a slewed taxi throttle changed nothing. THIN MARGIN (19.2 of 20) - named.
+- 43_pilot `dirAt`: ON THE WATER, a take-off the pilot plans scores the crosswind from the side the NET torque rolls toward
+  (TQ_SIDE_K 0.15 m/s of headwind per m/s; a pure crosswind's tie goes that way, any real headwind still wins; counter-rotating
+  pairs and every land take-off: nothing) - FAA-H-8083-23: "right aileron control is usually required to offset the effect
+  of torque when full power is applied"; torque and crosswind "can either counteract or aggravate". The windy no-model branch
+  now passes mode 'takeoff' (it only runs without a site model). GATE SEAPLANE's run is placed lined up, so it is not this.
+
+**MEASURED (tools/engine_torque_probe.js; reports/evidence/engine_torque_g2080.json - the five validated builds, ON / OFF).**
+Static, full throttle: Cub 2112 rpm (J-3 tied down 2150; the shaft law's anchor), Q 194.8 N.m, swirl 18.9 rad/s, R_w 0.68 m,
+swirl at the fin 21 deg; Jodel 2112 / 195 / 23.3 / 26 deg; metal Cessna 2365 / 628 / 27.8 / 25 deg; twin 2300 / 184.7 x2.
+Hands-off at full power, 6 s, every control at zero (swing + = LEFT): Cub 20.7 deg (it ground-loops - a taildragger does),
+Jodel 1.3, metal Cessna 6.0, Cessna floats 76.3 (no wheels to hold it), the same-hand twin 14.1; OFF 0.00 on all; the twin
+counter-rotating 0.01. The Cub one effect at a time: swirl 22.3 deg, torque -0.05, P-factor 0.01, gyro 0.00 - the swirl on
+the fin IS the ground swing (Wainfan, KITPLANES "Design Process: Slipstream Effects": the swirl on the fin is the primary
+cause on a conventional tail; the Ercoupe's end-plate fins out of the slipstream remove most of it).
+THE PILOT, a circuit each (dr < 0 = right rudder, rad; ON, OFF = 0 to the digit everywhere):
+| build | roll off-line m | rotate off m / hdg deg | ROLL dr mean [peak] | CLIMB dr / da | CLIMB beta deg | DOWNWIND dr |
+| Cub | 1.24 | -1.24 / 0.39 | -0.122 [-0.43] | -0.142 / +0.004 | -0.18 | -0.06 |
+| Jodel | 1.53 | -1.53 / 0.10 | -0.092 [-0.27] | -0.123 / +0.005 | -0.07 | |
+| metal Cessna | 1.72 (1.47 with steerI) | -1.72 / 4.10 (2.82) | -0.022 [-0.11] | -0.121 / +0.009 | -0.08 | |
+| Cessna floats | 5.44 | -5.44 / 0.41 | -0.179 [-0.51] | -0.109 / +0.008 | -0.15 | |
+| twin floats (same-hand) | 2.12 | -2.12 / 0.28 | -0.031 [-0.14] | -0.003 / +0.015 | +0.03 | |
+(the table is the pre-steerI run; steerI's column for the metal Cessna in brackets)
+- References (cited; INFERRED where marked): the Cub's climb rudder -0.14 rad (8 deg) with the swirl almost all of it; the
+  cruise boot (-0.06 rad = 3.4 deg of rudder, ~1.7 deg of equivalent fin incidence at tau 0.5) is the order designers build
+  in as a fin offset (the Do 27's fin ~3 deg left; the Cherokee's offset fin - INFERRED from type notes, no published rudder
+  angle found for the J-3 or the C172). No flight-test rudder angle for the J-3 / C172 take-off was reachable (FAA, Kitplanes,
+  FlightGear wiki pages blocked by the network policy; their search summaries were). The FAA Airplane Flying Handbook
+  (FAA-H-8083-3C): right rudder on the take-off roll, the tail-up's gyroscopic left yaw, P-factor at a high climb angle -
+  qualitative and all reproduced in sign.
+- Gyroscopic at the tail-up: the pilot raises the Cub's tail gently (q -0.02 rad/s at 11 m/s) - 3.6 N.m of left yaw; the
+  Cessna floats' 0.27 rad/s - 113 N.m. A ham-fisted tail-up is a real swing; THE PILOT is not one.
+- P-factor in the Cub's climb: -2 N.m (its disc sits near the flight path at Vy); Jodel / metal Cessna +12.5..14 N.m.
+- THE TWIN (the user's twin floats): BOTH +1 - the fixture states no sense, absent = +1 (G194) - SAME-HAND. 369.5 N.m of
+  roll, heels 2.9 deg on the water at full power. Counter-rotating (+1 / -1) cancels to 0.000 N.m and flies as OFF. One
+  engine cut in the climb: the rudder sits at the air's 0.25 stop either way, ON as OFF (pre-existing); the critical engine
+  shows in the ROLL (port out 1.2 deg more bank, starboard out 0.9 less), not the yaw at this alpha (P-factor 10 N.m against
+  the asymmetric thrust's kN.m). The tail sits out of both wakes: no swirl on it.
+
+**GATE ENGTORQUE (new, core, ~90 s, tools/_engtorque_check.js) 17/17, --selftest catches all 8 doctored records**: the switch
+inert; the shaft (rpm 2116 vs 2150 J-3, Q = P/omega to 0.1 %, H = I Omega); each effect ALONE against off off a PHYSICAL
+response, both hands mirrored within 25 % (torque leans the Cub -0.46 deg on its gear; the swirl swings it 9.8 deg hands-off;
+the gyro yaws it left after a nose-down kick; the P-factor yaws it left at 6 deg alpha); the couples force-free; the twin
+same-hand adds (369.5 N.m), leans left (-0.71 deg), swings; counter-rotating cancels all three.
+
+**GATE SEAPLANE - RED, AND WHY IT IS NOT THIS CHANTIER'S TO TUNE.** Its crosswind case (the twin on floats placed lined up on
+the SEA lane, 5 m/s straight across from the right, full power from rest) capsizes at 3 s ON: the torque heels it onto the
+downwind float while the bow ploughs (pitch -10 -> -42 deg; the aileron is already at its 0.30 stop into the wind from the
+first second, the water rudder at 0.95 by 2 s). Torque alone and P-factor alone each flip it; gyro or swirl alone do not.
+**tools/engine_torque_seasweep.js** (any core; 4.6 .. 5.4 m/s): MASTER (no propeller effects) passes ONLY at 5.0 - it
+water-loops at 4.6, 4.8, 5.2 and 5.4; this branch passes at 5.2 and fails the others. The case is a knife edge on master
+(its 27.1 deg against the bound 30 was luck of the wind speed), and the floatplane's displacement run (the 582s' thrust line
+0.55 m over the CG ploughing the bows - G970) is the floats track's. Tried and NOT kept: a throttle ramp (3 s passes, 2 and 5 s
+capsize), easing power on a growing swing (saves nothing at 5, aborts the OFF run), easing power on a growing heel (saves 5,
+aborts two others). PROPOSED: a FLOATS-XWIND chantier (the displacement run's pitch and the downwind float), and until then
+SEAPLANE's crosswind case read as the sweep's verdict, not one wind speed's - A0 / the user decide.
+
+**FILES**: src/core/00_registry.js (PAR.propFx), 30_solver.js (propMoments, swirlAt, bodyRate, applyCouple, out.propFx),
+39b_servos.js (betaI/drTrimMax, steerI/steerIMax, taxiRudTau), 43_pilot.js (the water's torque side), 60_gen_spec.js
+(GEN_PROP_IK, PHYSICS_V 5), 62_gen_aero.js (params.prop.I); tools/_engtorque_check.js (GATE ENGTORQUE), run_gates.js (its
+row), engine_torque_probe.js, engine_torque_seasweep.js; reports/evidence/engine_torque_g2080.json.
+
+**OWED / NAMED CUTS**: the wing's de-swirl (the torque's roll is not reduced by the wing taking back swirl - conservative);
+the swirl's radial distribution (solid-body: the right total angular momentum, the shape a cut); the upwash ahead of the wing
+on the disc's alpha (P-factor ~10-20 % low on a tractor); the propeller's normal force (the in-plane force at alpha - pitch
+stability); a windmilling prop's torque and P-factor (zero when the engine is off); the crank's own inertia and a gearbox's
+counter-rotation in H; the fin offset / rudder tab real aeroplanes are rigged with (the pilot holds the cruise boot instead).
+DMGCERTCOST's stored reference recomputes on PHYSICS_V 5 (`--write-ref` refreshes it - A0's train run).
+
+**GATES** (targeted, `run_gates --no-build --only=... --jobs=4`; A0's train runs the full battery). On train 37b + this branch
+(5978f9bb): GEN (4 shards), PILOT (3), TAKEOFF, LINEUP, PILOTACT, TAXICLEAR, PILOTMATRIX, HOTHIGH, JOIN, RPM, ENGTORQUE PASS;
+SEAPLANE FAIL (the crosswind case above). Numbers that moved, named: TAXICLEAR's C172 from the mill 3.13 -> 1.85 m off house3
+(bound 1.5); PILOT trike-xwind pursuit 10.1 deg (bound 12); PILOTACT taxi 16 / 18.9 / 19.2 (master 14.6 / 16 / 16.3), take-off
+rudder stock 0 -> 14, c172 0 -> 7.5 a minute (bound 20). On the train-38 merge (ba41333d): the run is in progress - this line
+is replaced with its verdicts.
