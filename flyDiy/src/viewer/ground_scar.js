@@ -6,10 +6,16 @@
 // carried to the page on the damage hop - sim_host.js simDmgHop -> sim_view.js dmgS.scar; inline app.js dmgNow) is
 // drawn here as ONE mesh laid on the terrain: torn turf and dark soil in each crater (a disc, its rim ragged and turf-
 // tinted, its bowl darker by its depth), a strip of the same along each gouge (the furrow's floor dark down its middle,
-// the spoil turf-tinted at its edges), a scuff where the ground is hard (paved, rock: grey, half-strength, no bowl).
+// the spoil turf-tinted at its edges), a scuff where the ground is hard (paved, rock: G2381 dark streaks along the slide, no bowl).
 // Nothing for the sweep (its shrubs are the cover ring's: cover_ring.js scar) and nothing over the water (a ripple is
 // WATER-LOOK's). Every vertex stands on terrainH + `lift` (the ground under it: a vertex every ~0.3 m), drawn after the
-// pavement with a polygon offset, as the tyres' contact blobs (contact_shadow.js).
+// pavement with a polygon offset, as the tyres' contact blobs (contact_shadow.js). (G2381: on hard ground + liftHard, the
+// mesh at renderOrder 6.5 - over the runway's ribbon and its paint, which hid the scuff: S below.)
+// G2379-G2381 (DMG-SCAR2): the rims and the edges RAGGED by a smooth wobble seeded from the primitive (a crater's rim in
+// 3-5-9 lobes, a furrow's two edges each their own along its length); a crater's spoil thrown DOWN-RANGE (its heading u);
+// a furrow drawn in the order it was ploughed - faded in at its entry, the spoil pushed up in a ragged lip ahead of where
+// it stopped; on HARD ground a scuff of dark streaks along the slide (rubber and metal), a blow there a streaked patch
+// along its heading - no bowl, no furrow. The same mesh, material and texture: only the vertices and their colours.
 //
 // NO PROGRAM LINKS IN A CRASH (SHADER-GUARD / COLD-LINKS: a link in flight is a freeze). The mesh is made ONCE, when the
 // world is built for a flight (app.js worldSettle, before the roll-out's compile), PARKED - in the world scene, hidden,
@@ -30,7 +36,13 @@
 // ============================================================================
 'use strict';
 var GROUND_SCAR = (() => {
-  const S = { lift: 0.03, step: 0.3, ring: 7, seg: 22, across: 6 };
+  // (G2379-G2381: seg 22 -> 28 round a rim for its lobes; rag the edges' wobble; acrossHard the scuff's streak columns,
+  // scuffA its strength - GAME, read in GATE DMGSCAR against the runway's own albedo from the chase camera)
+  // G2381: liftHard - on hard ground the decal stands over every pavement layer: render_premises.js's runway ribbon is
+  // OPAQUE at terrainH + 0.04 (renderOrder 5, writing depth) with its paint over it (6), pavement.js lifts a strip's side
+  // 0.06-0.08 - under any of them the scuff was drawn and then hidden (the runway's nose-over, 7 Oct). The mesh draws at
+  // renderOrder 6.5: after the runway's paint, before the editor's lines (7+)
+  const S = { lift: 0.03, liftHard: 0.08, step: 0.3, ring: 7, seg: 28, across: 6, rag: 0.25, acrossHard: 12, scuffA: 0.85, order: 6.5 };
   const TEX_M = 1.6;                              // metres a tile of the soil
   const hsh = (x, z, s) => { let h = (x * 374761393 + z * 668265263 + s * 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   // tileable value noise on a period-P lattice
@@ -80,43 +92,121 @@ var GROUND_SCAR = (() => {
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     m.name = 'scar:decal';
     const mesh = new THREE.Mesh(empty(THREE), m);
-    mesh.name = 'scar:decal'; mesh.visible = false; mesh.renderOrder = 4; mesh.matrixAutoUpdate = false;
+    mesh.name = 'scar:decal'; mesh.visible = false; mesh.renderOrder = S.order; mesh.matrixAutoUpdate = false;
     mesh.castShadow = false; mesh.receiveShadow = true;
     mesh.userData.parked = mesh.geometry; mesh.userData.stat = { tris: 0, verts: 0, bytes: 0, ms: 0, prims: 0 };
     return mesh;
   }
   // ---- the scar's mesh ------------------------------------------------------------------------------------------
   // colours (a multiply on the soil map; alpha the decal's strength): the floor, the bowl's or the furrow's darker floor,
-  // the turf-tinted rim (the torn sod and the spoil); a hard surface's scuff (grey)
-  const FLOOR = [0.85, 0.82, 0.8], DEEP = [0.55, 0.5, 0.48], TURF = [0.62, 0.78, 0.42], SCUFF = [0.32, 0.32, 0.33];
+  // the turf-tinted rim (the torn sod and the spoil). G2381: a hard surface's scuff - rubber and metal, dark, in streaks
+  // along the slide (SCUFF x the soil map: ~0.016 linear, over the runway's asphalt 0.045 / its concrete 0.05-0.23)
+  const FLOOR = [0.85, 0.82, 0.8], DEEP = [0.55, 0.5, 0.48], TURF = [0.62, 0.78, 0.42], SCUFF = [0.18, 0.18, 0.19];
   const mixC = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  // G2379: a smooth deterministic wobble in [-1, 1], seeded from the primitive - three sines of hashed phase: round a rim
+  // (`per`: 3, 5 and 9 lobes, periodic in the angle) or along an edge (wavelengths 1.9, 1.1 and 0.75 m of the strip)
+  const WA = [0.55, 0.3, 0.15], WP = [3, 5, 9], WL = [1.9, 1.1, 0.75];
+  const PH = new Map();   // (a seed's three phases, hashed once a build)
+  const wob = (a, seed, per) => { let f = PH.get(seed); if (!f) PH.set(seed, f = [0, 1, 2].map(k => 2 * Math.PI * hsh(k, 7, seed)));
+    let v = 0; for (let k = 0; k < 3; k++) v += WA[k] * Math.sin(a * (per ? WP[k] : 2 * Math.PI / WL[k]) + f[k]); return v; };
+  const seedOf = (x, z, k) => ((Math.round(x * 100) * 73856093) ^ (Math.round(z * 100) * 19349663) ^ (k * 83492791)) | 0;
+  // a polyline resampled every S.step
+  const resample = Q => {
+    const pts = [];
+    for (let j = 0; j + 3 < Q.length; j += 2) {
+      const ax = Q[j], az = Q[j + 1], bx = Q[j + 2], bz = Q[j + 3], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / S.step));
+      for (let q = 0; q < n; q++) pts.push(ax + (bx - ax) * q / n, az + (bz - az) * q / n);
+    }
+    pts.push(Q[Q.length - 2], Q[Q.length - 1]);
+    return pts;
+  };
   function build(THREE, mesh, prims, world) {
     const t0 = (typeof performance !== 'undefined' ? performance : Date).now();
-    clear(mesh);
+    clear(mesh); PH.clear();
     const P = (prims || []).filter(p => p.k === 'c' || p.k === 'g');
     if (!P.length || !world || typeof world.terrainH !== 'function') return mesh.userData.stat;
     const pos = [], nrm = [], uv = [], col = [], idx = [];
-    const gH = world.terrainH;
-    const wet = (x, z) => typeof scarSurf === 'function' ? scarSurf(world, x, z) < 0 : false;
+    const gH = world.terrainH, wH = typeof world.waterH === 'function' ? world.waterH : null;
+    // (G2382: three reads of the ground a vertex, not six - the normal from forward differences over e, the water test
+    // (scarSurf's: the water above the ground - 5 cm) on the height already read)
+    let lift = S.lift;
     const vert = (x, z, c, a) => {
       const y = gH(x, z), e = 0.25;
-      const nx = gH(x - e, z) - gH(x + e, z), nz = gH(x, z - e) - gH(x, z + e), ny = 2 * e, l = Math.hypot(nx, ny, nz);
-      pos.push(x, y + S.lift, z); nrm.push(nx / l, ny / l, nz / l); uv.push(x / TEX_M, z / TEX_M);
-      col.push(c[0], c[1], c[2], wet(x, z) ? 0 : a);
+      const nx = y - gH(x + e, z), nz = y - gH(x, z + e), ny = e, l = Math.hypot(nx, ny, nz);
+      pos.push(x, y + lift, z); nrm.push(nx / l, ny / l, nz / l); uv.push(x / TEX_M, z / TEX_M);
+      const w = wH ? wH(x, z) : NaN;
+      col.push(c[0], c[1], c[2], Number.isFinite(w) && w > y - 0.05 ? 0 : a);
       return pos.length / 3 - 1;
     };
+    // A STRIP along pts (resampled) of half-width h: the furrow (soft) or the scuff (hard). Every vertex within h of the
+    // path (inside the footprint: the gouge's capsule). Soft: the two edges ragged apart (G2379: each side its own
+    // wobble, 0.75-1 x h), the floor dark down the middle by the depth, the spoil turf-tinted at the edges, the entry
+    // faded in; `cap` - the end where it stopped: the spoil pushed ahead of it (a ragged lip of turf, inside the capsule's
+    // end); without it the end fades. Hard: S.acrossHard columns, each a streak of its own strength (rubber and metal
+    // drawn along the slide), dark, both ends faded.
+    const strip = (pts, h, hard, deep, seed, cap) => {
+      const N = pts.length / 2, A = hard ? S.acrossHard : S.across, base = pos.length / 3;
+      let Ltot = 0; for (let i = 1; i < N; i++) Ltot += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
+      const fadeL = Math.max(0.05, Math.min(h, Ltot / 3));
+      const sw = []; for (let q = 0; q <= A; q++) sw.push(hsh(q, 5, seed) > 0.45 ? 1 : 0.3);   // the streaks' strengths
+      let s = 0, tx = 1, tz = 0, hl = h, hr = h;
+      for (let i = 0; i < N; i++) {
+        const i0 = Math.max(0, i - 1), i1 = Math.min(N - 1, i + 1);
+        tx = pts[i1 * 2] - pts[i0 * 2]; tz = pts[i1 * 2 + 1] - pts[i0 * 2 + 1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+        if (i) s += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
+        const fin = Math.min(1, s / fadeL), fout = cap ? 1 : Math.min(1, (Ltot - s) / fadeL), end = Math.min(fin, fout);
+        hl = hard ? h : h * (1 - S.rag * (0.5 + 0.5 * wob(s, seed + 11, false)));
+        hr = hard ? h : h * (1 - S.rag * (0.5 + 0.5 * wob(s, seed + 23, false)));
+        for (let q = 0; q <= A; q++) {
+          const u = q / A * 2 - 1, k = Math.abs(u), o = u * (u < 0 ? hl : hr), edge = q === 0 || q === A;
+          let c, a;
+          if (hard) {
+            c = SCUFF; a = edge ? 0 : S.scuffA * sw[q] * (0.75 + 0.25 * wob(s, seed + 37 * q, false)) * end;
+          } else {
+            c = k < 0.4 ? mixC(DEEP, FLOOR, (k / 0.4) * (1 - deep * 0.6)) : mixC(FLOOR, TURF, (k - 0.4) / 0.6);
+            a = 0.95 * (edge ? 0 : k > 0.7 ? (1 - (k - 0.7) / 0.3 * 0.6) * (0.85 + 0.15 * wob(s, seed + 31, false)) : 1) * end;
+          }
+          vert(pts[i * 2] - tz * o, pts[i * 2 + 1] + tx * o, c, a);
+        }
+      }
+      for (let i = 0; i + 1 < N; i++) for (let q = 0; q < A; q++) {
+        const a = base + i * (A + 1) + q, b = a + 1, c = a + A + 1, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+      if (!cap || hard) return;
+      // the spoil's lip ahead of the end: two rows - the heap (turf, strong) and its ragged front (alpha 0) - each column
+      // pushed forward by h sqrt(1 - u^2) x (0.55-1): inside the end's disc of radius h
+      const ex = pts[N * 2 - 2], ez = pts[N * 2 - 1], last = base + (N - 1) * (A + 1);
+      for (const f of [0.5, 1]) for (let q = 0; q <= A; q++) {
+        const u = q / A * 2 - 1, o = u * (u < 0 ? hl : hr), fw = h * Math.sqrt(Math.max(0, 1 - u * u)) * (0.55 + 0.45 * (0.5 + 0.5 * wob(u * 2.2, seed + 41, true))) * f;
+        const a = f === 1 || q === 0 || q === A ? 0 : 0.9 * (1 - 0.4 * Math.abs(u));
+        vert(ex - tz * o + tx * fw, ez + tx * o + tz * fw, mixC(TURF, FLOOR, 0.25 * (0.5 + 0.5 * wob(u * 3.1, seed + 43, true))), a);
+      }
+      for (let r = 0; r < 2; r++) for (let q = 0; q < A; q++) {
+        const a = last + r * (A + 1) + q, b = a + 1, c = a + A + 1, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    };
+    const THROW = typeof SCAR !== 'undefined' && SCAR.throw != null ? SCAR.throw : 0.3;
     for (const p of P) {
-      const hard = p.s === 2, seed = Math.round(p.k === 'c' ? p.x * 7 + p.z * 13 : p.p[0] * 7 + p.p[1] * 13);
-      if (p.k === 'c') {
-        // a polar grid: the bowl's floor to the torn rim; the rim ragged inward (never past the footprint: r)
-        const NR = S.ring, NS = S.seg, base = pos.length / 3;
-        const deep = Math.min(1, (p.d || 0) / 0.25);
-        vert(p.x, p.z, hard ? SCUFF : mixC(FLOOR, DEEP, deep), hard ? 0.55 : 0.95);
+      const hard = p.s === 2; lift = hard ? S.liftHard : S.lift;
+      if (p.k === 'c' && hard) {
+        // a blow on hard ground: a scuff patch along its heading (no bowl), 1.5 r long and 1.2 r wide (inside its disc)
+        const ux = p.u ? p.u[0] : 1, uz = p.u ? p.u[1] : 0, a = 0.75 * p.r;
+        strip(resample([p.x - ux * a, p.z - uz * a, p.x + ux * a, p.z + uz * a]), 0.6 * p.r, true, 0, seedOf(p.x, p.z, 1), false);
+      } else if (p.k === 'c') {
+        // a polar grid: the bowl's floor out to its rim. G2379: the rim's outline r0 (0.84 + 0.16 wobble) round the bowl, and
+        // down-range (u, the heading it struck on) the spoil thrown up to r0 x throw beyond it - never past the footprint r
+        const NR = S.ring, NS = S.seg, base = pos.length / 3, seed = seedOf(p.x, p.z, 0);
+        const deep = Math.min(1, (p.d || 0) / 0.25), thu = p.u ? Math.atan2(p.u[1], p.u[0]) : 0, r0 = p.u ? p.r / (1 + THROW) : p.r;
+        vert(p.x, p.z, mixC(FLOOR, DEEP, deep), 0.95);
         for (let j = 1; j <= NR; j++) for (let s = 0; s < NS; s++) {
-          const th = s / NS * Math.PI * 2, rag = 0.82 + 0.18 * hsh(s, j === NR ? 1 : 0, seed);
-          const k = j / NR, rr = p.r * k * (j === NR ? rag : (0.9 + 0.1 * rag));
-          const c = hard ? SCUFF : k < 0.55 ? mixC(DEEP, FLOOR, k / 0.55 * (1 - deep * 0.5)) : mixC(FLOOR, TURF, (k - 0.55) / 0.45);
-          const a = hard ? 0.55 * (1 - k * k) : (j === NR ? 0 : k > 0.75 ? 0.95 * (1 - (k - 0.75) / 0.25 * 0.6) : 0.95);
+          const th = s / NS * Math.PI * 2, k = j / NR;
+          const fwd = p.u ? Math.max(0, Math.cos(th - thu)) : 0;
+          const rho = r0 * (0.84 + 0.16 * wob(th, seed, true)) + r0 * THROW * fwd * fwd * (0.75 + 0.25 * wob(th, seed + 1, true));
+          const rr = rho * k, q = rr / r0;
+          const c = q < 0.55 ? mixC(DEEP, FLOOR, q / 0.55 * (1 - deep * 0.5)) : q <= 1 ? mixC(FLOOR, TURF, (q - 0.55) / 0.45) : mixC(TURF, FLOOR, 0.3 * (0.5 + 0.5 * wob(th * 2, seed + 2, true)));
+          const a = j === NR ? 0 : k > 0.75 ? 0.95 * (1 - (k - 0.75) / 0.25 * 0.6) : 0.95;
           vert(p.x + rr * Math.cos(th), p.z + rr * Math.sin(th), c, a);
         }
         for (let s = 0; s < NS; s++) idx.push(base, base + 1 + (s + 1) % NS, base + 1 + s);
@@ -125,34 +215,8 @@ var GROUND_SCAR = (() => {
           idx.push(a, b, d, a, d, c);
         }
       } else {
-        // a strip along the furrow: the polyline resampled every S.step, across it S.across+1 vertices over its width
-        const Q = p.p, pts = [];
-        for (let j = 0; j + 3 < Q.length; j += 2) {
-          const ax = Q[j], az = Q[j + 1], bx = Q[j + 2], bz = Q[j + 3], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / S.step));
-          for (let q = 0; q < n; q++) pts.push(ax + (bx - ax) * q / n, az + (bz - az) * q / n);
-        }
-        pts.push(Q[Q.length - 2], Q[Q.length - 1]);
-        const N = pts.length / 2, A = S.across, base = pos.length / 3, h = p.w / 2, deep = Math.min(1, (p.d || 0) / 0.2);
-        let Ltot = 0; for (let i = 1; i < N; i++) Ltot += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
-        let s = 0;
-        for (let i = 0; i < N; i++) {
-          const i0 = Math.max(0, i - 1), i1 = Math.min(N - 1, i + 1);
-          let tx = pts[i1 * 2] - pts[i0 * 2], tz = pts[i1 * 2 + 1] - pts[i0 * 2 + 1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
-          if (i) s += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
-          // the ends rounded off over half a width (an alpha taper: the strip stays inside its footprint)
-          const end = Math.min(1, Math.min(s, Ltot - s) / Math.max(0.05, Math.min(h, Ltot / 3)));
-          for (let q = 0; q <= A; q++) {
-            const u = q / A * 2 - 1, rag = q === 0 || q === A ? 0.8 + 0.2 * hsh(i, q, seed) : 1, o = u * h * rag;
-            const k = Math.abs(u);
-            const c = hard ? SCUFF : k < 0.4 ? mixC(DEEP, FLOOR, (k / 0.4) * (1 - deep * 0.6)) : mixC(FLOOR, TURF, (k - 0.4) / 0.6);
-            const a = (hard ? 0.5 : 0.95) * (q === 0 || q === A ? 0 : k > 0.7 ? 1 - (k - 0.7) / 0.3 * 0.6 : 1) * end;
-            vert(pts[i * 2] - tz * o, pts[i * 2 + 1] + tx * o, c, a);
-          }
-        }
-        for (let i = 0; i + 1 < N; i++) for (let q = 0; q < A; q++) {
-          const a = base + i * (A + 1) + q, b = a + 1, c = a + A + 1, d = c + 1;
-          idx.push(a, c, b, b, c, d);
-        }
+        // a furrow (its path in the order it was ploughed: the spoil at its end) or a slot (both ends faded); a scuff on hard
+        strip(resample(p.p), p.w / 2, hard, Math.min(1, (p.d || 0) / 0.2), seedOf(p.p[0], p.p[1], 2), !p.ps);
       }
     }
     const g = new THREE.BufferGeometry();

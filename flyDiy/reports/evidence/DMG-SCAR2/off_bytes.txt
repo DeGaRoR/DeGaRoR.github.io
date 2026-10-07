@@ -1,0 +1,5 @@
+# damage off (the default): UISMOKE / BUILD / BOOT run as files (node tools/<gate>), the base worktree (4575e99f, built) against this branch (431d74d8, built) - diff of the whole stdout
+test_ui_smoke.js: base 29 lines, here 29 lines, diff lines 0 -> IDENTICAL; GATE UISMOKE: PASS exit 0
+test_build.js: base 199 lines, here 199 lines, diff lines 0 -> IDENTICAL; GATE BUILD: PASS exit 0
+test_boot.js: base 15 lines, here 15 lines, diff lines 0 -> IDENTICAL; GATE BOOT: PASS exit 0
+(the solver's bits damage ON: GATE DMGSCAR 3 - every case with the record and without the same hash; the base core against this one on the Jodel's stump: bf7a7de779a2 both)

@@ -25,16 +25,32 @@
 //      and drawn - the links and the program keys (renderer.info.programs) before and after are the same; the cull links
 //      nothing either. Every decal vertex on the ground (terrainH + lift, a hilly ground) and inside the footprint; the
 //      cleared decal frees its buffers. One frame after the event uploads nothing (no buffer, no texture).
+//   G2378-G2382 (DMG-SCAR2, the box stills of 7 Oct):
+//   2J THE JOIN: a node skipping along the ground (a synthetic record: 8 touches 0.35 s apart at 15 m/s, each blow under
+//      eBlow) is ONE gouge of 8 slides and no crater; skipping with blows over eBlow, the last one stopping: one gouge and
+//      ONE crater (where it stopped); a hard blow that stopped alone: a crater, no gouge. On the real crashes every
+//      SKIPPING run the gate's own reader saw (a node touching down 3 times or more, the gaps under joinT, over 2 m) lies
+//      80 % or more inside ONE gouge, with at most one crater on it.
+//   2H THE RESTING WRECK: at the run's end every piece of the wreck (the gate's own union-find over the members not
+//      broken), the convex hull of its nodes within hSweep of the ground - every point of it (its corners and a 10 cm grid
+//      inside) is inside the cull's footprint (the grass's: scarIn without the sweep); its area against the cull's.
+//   2S HARD GROUND: the runway's 12 m/s nose-over (paved) scars - a scuff: every primitive on hard ground, no bowl and no
+//      furrow (d 0), at least wScuff wide; on the page its decal darkens the runway's own albedo (asphalt, concrete:
+//      ground_tex.js's means) by 30 % or more, alpha-weighted, and is 10 px wide or more from the chase camera (the build's
+//      viewDist, the 46 deg lens, 1080 px).
+//   2W WATER: the Cessna on floats nosed into the water at 35 m/s: crashed, not one primitive (no decal, no cull).
 //   REPORT: per build and crash the primitives (craters, gouges, sweeps), their area (the footprint, rastered at 5 cm),
 //   the bytes on the hop, the event's cost (the seal; the decal; the cull) and the record's cost per frame.
 //
 //   node tools/_dmg_scar_check.js            -> "GATE DMGSCAR: PASS|FAIL", exit 1 on FAIL
-//   node tools/_dmg_scar_check.js --selftest -> the gate run with the record off (params.scar false): it must go red
+//   node tools/_dmg_scar_check.js --selftest -> the gate run with the record off (params.scar false): it must go red;
+//                                               and with the join off (SCAR.join false): red on the join's checks (2J)
 'use strict';
 const path = require('path'), fs = require('fs'), v8 = require('v8');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const OFF_SELF = argv.includes('--scar-off');            // (the selftest's children: the record disabled)
+const JOIN_OFF = argv.includes('--join-off');            // (G2382: the second selftest - the join disabled)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // THE CHILD: one build's physics (1-5)
@@ -44,6 +60,8 @@ if (argv[0] === '--build') {
   const L = require('./_treecrash_lib.js'), S = require('./_dmg_scar_lib.js');
   const SH = require(path.join(ROOT, 'src', 'viewer', 'sim_host.js')), SV = require(path.join(ROOT, 'src', 'viewer', 'sim_view.js'));
   const C = L.core(), out = { key: k, cases: [], intact: {}, hop: {}, reset: {} };
+  if (JOIN_OFF) C.SCAR.join = false;
+  out.viewDist = L.defOf(k).params.viewDist;
   const scarOpt = OFF_SELF ? { scar: false } : {};
   const hashOf = sim => require('crypto').createHash('md5').update(Buffer.from(sim.p.buffer)).update(Buffer.from(sim.v.buffer)).digest('hex').slice(0, 12);
   const d0 = L.defOf(k), Rp = ((d0.params.prop || {}).D || 1.8) / 2;
@@ -72,7 +90,49 @@ if (argv[0] === '--build') {
     // the footprint's area: rastered at 5 cm over its box (overlaps once)
     let area = 0, areaS = 0; { const b = C.scarBox(r.prims, true); if (b) { const h = 0.05; for (let x = b[0]; x <= b[2]; x += h) for (let z = b[1]; z <= b[3]; z += h) { if (C.scarIn(r.prims, x, z, false)) area += h * h; if (C.scarIn(r.prims, x, z, true)) areaS += h * h; } } }
     const R = sim.damageScar();
-    out.cases.push({ id: c.id, label: c.label, v: r.v, n: r.prims.length, craters: r.prims.filter(p => p.k === 'c').length, gouges: r.prims.filter(p => p.k === 'g').length,
+    // 2H: the wreck as it lies (the lib's reader) - every point of every piece's hull inside the grass's cull
+    let restPts = 0, restOut = 0, restArea = 0; const outAt = [];
+    const inPoly = (P, x, z) => { let w = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > z) !== (P[j][1] > z) && x < (P[j][0] - P[i][0]) * (z - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) w = !w; return w; };
+    if (r.prims.length) for (const pc of r.rest.pieces) {
+      const H = pc.hull; restArea += S.polyArea(H);
+      const test = (x, z) => { restPts++; if (!C.scarIn(r.prims, x, z, false)) { restOut++; if (outAt.length < 3) outAt.push(x.toFixed(2) + ',' + z.toFixed(2)); } };
+      for (const q of pc.pts) test(q[0], q[1]);
+      if (H.length >= 3) { let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const q of H) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }
+        for (let x = x0; x <= x1; x += 0.1) for (let z = z0; z <= z1; z += 0.1) if (inPoly(H, x, z)) test(x, z); }
+    }
+    // 2J: the skipping runs the reader saw - per node, its touchdowns (frames in contact, a gap over 1.5 frames between),
+    // a run of them with gaps under joinT, each landing on the run's line; a run of 3+ touchdowns over 2 m or more is a
+    // skipping slide; its coverage is along its path (samples 10 cm apart)
+    const skips = []; { const by = new Map(); for (let j = 0; j < r.contacts.length; j += 4) { const i = r.contacts[j + 3]; if (!by.has(i)) by.set(i, []); by.get(i).push(r.contacts[j], r.contacts[j + 1], r.contacts[j + 2]); }
+      for (const [i, A] of by) {
+        let run = null, td = 0, tPrev = -1;
+        const close = () => { if (run && td >= 3 && Math.hypot(run[run.length - 3] - run[0], run[run.length - 2] - run[1]) >= 2) skips.push({ i, td, pts: run }); };
+        for (let j = 0; j < A.length; j += 3) {
+          const t = A[j + 2];
+          if (tPrev >= 0 && t - tPrev > C.SCAR.joinT) { close(); run = null; }
+          // a touchdown off the line the run held (its first sample to its last, 0.5 m or more): the widest contacts'
+          // half-widths (0.3 m, SCAR.W's cowl) + merge + joinL x the way along - the core's rule, read from the samples
+          else if (run && run.length && t - tPrev > 1.5 / 60) { const k = run.length; let lx = run[k - 3] - run[0], lz = run[k - 2] - run[1]; const ll = Math.hypot(lx, lz);
+            if (ll >= 0.5) { lx /= ll; lz /= ll; const dx = A[j] - run[k - 3], dz = A[j + 1] - run[k - 2];
+              if (Math.abs(dx * lz - dz * lx) > C.SCAR.W.engines + C.SCAR.merge + C.SCAR.joinL * Math.abs(dx * lx + dz * lz)) { close(); run = null; } } }
+          if (!run) { run = []; td = 0; }
+          if (tPrev < 0 || t - tPrev > 1.5 / 60 || !run.length) td++;
+          // (the run's PATH: a sample 10 cm or more from the last kept - a node lying still is one sample, not hundreds)
+          if (!run.length || Math.hypot(A[j] - run[run.length - 3], A[j + 1] - run[run.length - 2]) >= 0.1) run.push(A[j], A[j + 1], t);
+          tPrev = t;
+        }
+        close();
+      } }
+    const skipBad = [];
+    for (const sk of skips) {
+      let best = 0; for (const g of r.prims) if (g.k === 'g' && !g.ps) { let inside = 0; for (let j = 0; j < sk.pts.length; j += 3) if (C.scarSegD(g.p, sk.pts[j], sk.pts[j + 1]) <= g.w / 2 + 0.3) inside++; best = Math.max(best, inside / (sk.pts.length / 3)); }
+      let cr = 0; for (const c of r.prims) if (c.k === 'c') { for (let j = 0; j < sk.pts.length; j += 3) if (Math.hypot(sk.pts[j] - c.x, sk.pts[j + 1] - c.z) <= c.r) { cr++; break; } }
+      sk.cover = +best.toFixed(2); sk.craters = cr;
+      if (best < 0.8 || cr > 1) skipBad.push('node ' + sk.i + ' (' + sk.td + ' touchdowns): ' + Math.round(best * 100) + ' % in one gouge, ' + cr + ' craters on it');
+    }
+    out.cases.push({ id: c.id, label: c.label, hard: !!c.hard, v: r.v, n: r.prims.length, hulls: r.prims.filter(p => p.k === 'h').length,
+      restPts, restOut, outAt, restArea: +restArea.toFixed(2), pieces: r.rest.pieces.length, skips: skips.map(x => ({ i: x.i, td: x.td, cover: x.cover, craters: x.craters })), skipBad, last: R ? R.last : null,
+      hardAll: r.prims.filter(p => p.k !== 's' && p.k !== 'h').every(p => p.s === 2 && p.d === 0), wMin: Math.min(...r.prims.filter(p => p.k === 'g').map(p => p.w).concat([Infinity])), craters: r.prims.filter(p => p.k === 'c').length, gouges: r.prims.filter(p => p.k === 'g').length,
       slots: r.prims.filter(p => p.ps).length, sweeps: r.prims.filter(p => p.k === 's').length, bytes: r.bytes, prims: r.prims, bad, contacts: nC, inFoot: inF,
       area: +area.toFixed(2), areaSweep: +areaS.toFixed(2), same: h1 === h0, h1, h0, rec: R ? { hits: R.hits, frames: R.frames, seals: R.seals, ms: +R.ms.toFixed(3) } : null,
       crashed: r.crashed, reason: r.reason, strike: r.strike, breaks: r.breaks });
@@ -82,6 +142,9 @@ if (argv[0] === '--build') {
     for (let rep = 0; rep < 3; rep++) for (const on of [true, false]) { const r = S.runCase(k, c, on ? scarOpt : { scar: false }); ms[on ? 'on' : 'off'].push(r.wallMs / r.frames); }
     const med = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
     out.cost = { onMs: +med(ms.on).toFixed(3), offMs: +med(ms.off).toFixed(3) }; }
+  // ---- 2W: the Cessna on floats nosed into the water (35 m/s, sinking 6 m/s, 30 deg down) - not one primitive ----
+  if (k === 'metal') { L.waterCase('floats', { V: 35, sink: 6, pitch: 30, secs: 6, cert: true }); const ws = L.lastRun.sim, D = ws.damage(), Rw = ws.damageScar();
+    out.water = { crashed: D.crashed, reason: D.reason, breaks: D.breaks, prims: D.scar ? D.scar.prims.length : null, hits: Rw ? Rw.hits : null }; }
   // ---- 4 + 5: the hop - the worker's (sim_host.js simDmgHop with its 0.1 s set window, as the host's meta() calls it on
   // every snapshot; its payload v8-serialized as postMessage does) and the inline page's (app.js dmgNow: no window) -
   // applied to the page's state (sim_view.js simViewDmgApply); then reset ----
@@ -114,7 +177,7 @@ if (argv[0] === '--build') {
 // ---------------------------------------------------------------------------------------------------------------------
 // THE PAGE (6, 7): the cover ring and the decal on the real three over a fake WebGL2
 // ---------------------------------------------------------------------------------------------------------------------
-function pageChecks(prims0, yes, rep, extra) {
+function pageChecks(prims0, yes, rep, extra, hard) {
   // _fake_gl.js boot(), with a RECORDER on its GL (the uploads counted per call: bufferData, texImage2D, ...)
   const FG = require('./_fake_gl.js'), vm = require('vm'), rec = FG.makeRecorder();
   const B = (() => { const links = [], { gl, WebGL2RenderingContext, canvas } = FG.makeGL({ links, rec });
@@ -240,39 +303,82 @@ function pageChecks(prims0, yes, rep, extra) {
     rep(e.label + ': culls ' + (by.cover || 0) + ' tufts, ' + (by.shrub || 0) + ' shrubs, ' + (by.debris || 0) + ' debris (' + cu.cells + ' cells, ' + per[per.length - 1].cullMs + ' ms); the decal ' + sd.tris + ' triangles, ' + per[per.length - 1].kb + ' KB, ' + per[per.length - 1].decalMs + ' ms');
     ctx.GROUND_SCAR.clear(decal); CR.scar(null); for (let i = 0; i < 4; i++) CR.update();
   }
-  return { cullMs, decalMs, tris: st.tris, bytes: st.bytes, cut: cutBy, per };
+  // 2S (G2381): THE RUNWAY'S SCUFF FROM THE CHASE CAMERA - each build's paved nose-over laid on a paved ground: its decal
+  // (the soil map's mean, linear, x each vertex's colour, at its alpha) over the runway's own albedo (ground_tex.js's
+  // means: the WWII runway's concrete, the worn asphalt, the apron's dirty concrete), alpha-weighted over the decal's
+  // vertices that show - the darkening; and its width as the chase camera sees it (viewDist, the 46 deg lens, 1080 px)
+  const scuff = [];
+  if (hard && hard.length) {
+    const lin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4), lum = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    const D = ctx.GROUND_SCAR.soil(THREE).image.data, tm = [0, 0, 0]; for (let i = 0; i < D.length; i += 4) for (let j = 0; j < 3; j++) tm[j] += lin(D[i + j] / 255) / (D.length / 4);
+    const GT = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'ground_tex.js'), 'utf8'), meanOf = key => { const m = new RegExp('"key":"' + key + '"[^}]*"mean":\\[([^\\]]+)\\]').exec(GT); return m ? m[1].split(',').map(Number) : null; };
+    const GR = [['the runway (concreteA)', meanOf('concreteA')], ['worn asphalt (asphaltW)', meanOf('asphaltW')], ['the apron (concreteD)', meanOf('concreteD')]];
+    const flat = { terrainH: () => 0, waterH: () => -100, surface: () => 5 };
+    for (const h of hard) {
+      const sd = Object.assign({}, ctx.GROUND_SCAR.build(THREE, decal, h.prims, flat));   // (a copy: clear() zeroes the stat)
+      const Cl = decal.geometry.getAttribute('color'), Ps = decal.geometry.getAttribute('position');
+      // over every pavement layer: the runway's opaque ribbon at terrainH + 0.04 (render_premises.js, renderOrder 5) and its
+      // paint (6), a pavement side's lift 0.06-0.08 (pavement.js) - every vertex over terrainH + 0.08, the mesh after 6
+      let yLow = Infinity; for (let i = 0; i < Ps.count; i++) yLow = Math.min(yLow, Ps.getY(i));
+      const row = { label: h.label, tris: sd.tris, by: [], px: 0, yLow: +yLow.toFixed(4), order: decal.renderOrder };
+      const wMin = Math.min(...h.prims.filter(p => p.k === 'g').map(p => p.w));
+      row.px = +(wMin / h.viewDist / (46 * Math.PI / 180) * 1080).toFixed(1);
+      for (const [name, G] of GR) {
+        if (!G) { row.by.push({ name, C: null }); continue; }
+        const Lg = lum(G); let sum = 0, wa = 0;
+        for (let i = 0; i < Cl.count; i++) { const a = Cl.getW(i); if (!(a > 0)) continue;
+          const Ld = lum([tm[0] * Cl.getX(i), tm[1] * Cl.getY(i), tm[2] * Cl.getZ(i)]); sum += a * (1 - ((1 - a) * Lg + a * Ld) / Lg); wa += a; }
+        row.by.push({ name, Lg: +Lg.toFixed(4), C: wa ? +(sum / wa).toFixed(3) : 0 });
+      }
+      scuff.push(row);
+      ctx.GROUND_SCAR.clear(decal);
+      yes(sd.tris > 0 && row.yLow >= 0.08 - 1e-6 && row.order > 6, '2S ' + h.label + ': the scuff over the runway\'s layers - its lowest vertex terrainH + ' + row.yLow + ' m (the ribbon +0.04, a pavement side +0.08), drawn at renderOrder ' + row.order + ' (the ribbon 5, its paint 6)');
+      yes(sd.tris > 0 && row.by.every(b => b.C != null && b.C >= 0.3) && row.px >= 10,
+        '2S ' + h.label + ': the scuff reads from the chase camera - it darkens ' + row.by.map(b => b.name + ' ' + Math.round(100 * b.C) + ' %').join(', ') + ' (alpha-weighted; 30 % or more), ' + wMin + ' m wide = ' + row.px + ' px at ' + h.viewDist + ' m (10 or more)', sd.tris + ' triangles');
+    }
+  }
+  return { cullMs, decalMs, tris: st.tris, bytes: st.bytes, cut: cutBy, per, scuff };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // THE GATE
 // ---------------------------------------------------------------------------------------------------------------------
-if (argv.includes('--page-only')) {   // (a quick run of 6 and 7 on the last run's Cub scar: reports/evidence/DMG-SCAR/gate_dmgscar.json)
-  const J = JSON.parse(fs.readFileSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR', 'gate_dmgscar.json'), 'utf8'));
+if (argv.includes('--page-only')) {   // (a quick run of 6 and 7 on the last run's Cub scar: reports/evidence/DMG-SCAR2/gate_dmgscar.json)
+  const J = JSON.parse(fs.readFileSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR2', 'gate_dmgscar.json'), 'utf8'));
   const extra = []; for (const k of Object.keys(J.results)) for (const c of J.results[k].cases) if (c.n) extra.push({ label: k + ', ' + c.label, prims: c.prims });
-  let f = 0; pageChecks(J.results.cub.cases.find(c => c.id === 'fly25').prims, (ok, m) => { if (!ok) f++; console.log((ok ? '  ok    ' : '  FAIL  ') + m); }, m => console.log('  REPORT  ' + m), extra);
+  const hard = []; for (const k of Object.keys(J.results)) for (const c of J.results[k].cases) if (c.hard && c.n) hard.push({ label: k + ', ' + c.label, prims: c.prims, viewDist: J.results[k].viewDist });
+  let f = 0; pageChecks(J.results.cub.cases.find(c => c.id === 'fly25').prims, (ok, m) => { if (!ok) f++; console.log((ok ? '  ok    ' : '  FAIL  ') + m); }, m => console.log('  REPORT  ' + m), extra, hard);
   process.exit(f ? 1 : 0);
 }
 if (argv.includes('--selftest')) {
-  // the gate itself, the record disabled in every child: it must go red
-  const r = require('child_process').spawnSync(process.execPath, [__filename, '--scar-off'], { encoding: 'utf8', maxBuffer: 64 << 20 });
-  // red, and for the scar's own checks (every build ran; the crashes' scars missing) - not a crash of the gate
-  const red = r.status !== 0 && /GATE DMGSCAR: FAIL/.test(r.stdout) && !/the build ran/.test(r.stdout) && /FAIL +2 30 m\/s into a trunk/.test(r.stdout);
-  console.log((r.stdout || '').split('\n').filter(l => /FAIL|GATE/.test(l)).slice(0, 12).join('\n'));
-  console.log('SELFTEST DMGSCAR: ' + (red ? 'PASS (the gate goes red with the scar disabled)' : 'FAIL (the gate stayed green with the scar disabled)'));
-  process.exit(red ? 0 : 1);
-}
+  // the gate itself, the record disabled in every child: it must go red; then (G2382) the join disabled: red on the join's
+  // checks (2J) - the two run side by side
+  const cp = require('child_process');
+  const go = flag => new Promise(res => { const c = cp.spawn(process.execPath, [__filename, flag], { stdio: ['ignore', 'pipe', 'pipe'] }); let so = ''; c.stdout.on('data', d => { so += d; }); c.on('close', st => res({ status: st, stdout: so })); });
+  (async () => {
+    const [r, j] = await Promise.all([go('--scar-off'), go('--join-off')]);
+    // red, and for the scar's own checks (every build ran; the crashes' scars missing) - not a crash of the gate
+    const red = r.status !== 0 && /GATE DMGSCAR: FAIL/.test(r.stdout) && !/the build ran/.test(r.stdout) && /FAIL +2 30 m\/s into a trunk/.test(r.stdout);
+    const redJ = j.status !== 0 && /GATE DMGSCAR: FAIL/.test(j.stdout) && !/the build ran/.test(j.stdout) && /FAIL +2J/.test(j.stdout);
+    console.log('-- the record disabled:\n' + (r.stdout || '').split('\n').filter(l => /FAIL|GATE/.test(l)).slice(0, 12).join('\n'));
+    console.log('-- the join disabled:\n' + (j.stdout || '').split('\n').filter(l => /FAIL|GATE/.test(l)).slice(0, 16).join('\n'));
+    console.log('SELFTEST DMGSCAR: ' + (red && redJ ? 'PASS (the gate goes red with the scar disabled, and red on the join\'s checks with the join disabled)' : 'FAIL (' + (red ? '' : 'green with the scar disabled; ') + (redJ ? '' : 'no join check red with the join disabled') + ')'));
+    process.exit(red && redJ ? 0 : 1);
+  })();
+} else {
 let checks = 0, fails = 0;
 const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + msg); };
 const rep = msg => console.log('  REPORT  ' + msg);
 (async () => {
   const { spawn } = require('child_process'), S = require('./_dmg_scar_lib.js'), t0 = Date.now();
+  const C = require('./_treecrash_lib.js').core();
   const run = k => new Promise(res => {
-    const c = spawn(process.execPath, [__filename, '--build', k].concat(OFF_SELF ? ['--scar-off'] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
+    const c = spawn(process.execPath, [__filename, '--build', k].concat(OFF_SELF ? ['--scar-off'] : [], JOIN_OFF ? ['--join-off'] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
     let so = '', se = ''; c.stdout.on('data', d => { so += d; }); c.stderr.on('data', d => { se += d; });
     c.on('close', () => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { key: k, err: se.slice(-1200) }); });
   });
   const R = {}; await Promise.all(S.BUILDS.map(async k => { R[k] = await run(k); }));
-  console.log('GATE DMGSCAR (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + S.BUILDS.length + ' builds, the certificate stamped' + (OFF_SELF ? '; THE RECORD DISABLED (selftest)' : '') + ')');
+  console.log('GATE DMGSCAR (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + S.BUILDS.length + ' builds, the certificate stamped' + (OFF_SELF ? '; THE RECORD DISABLED (selftest)' : '') + (JOIN_OFF ? '; THE JOIN DISABLED (selftest)' : '') + ')');
   const LAB = { cub: "the user's Cub", jodel: 'the Jodel', metal: 'the metal Cessna' };
   const all = {};
   let pick = null;
@@ -308,13 +414,24 @@ const rep = msg => console.log('  REPORT  ' + msg);
     for (const c of r.cases) rep(c.label + ': v' + c.v + ', ' + c.n + ' primitives (' + c.craters + ' craters, ' + c.gouges + ' gouges' + (c.slots ? ' incl. ' + c.slots + ' prop slot' : '') + ', ' + c.sweeps + ' sweep), ' + c.area.toFixed(2) + ' m2 (' + c.areaSweep.toFixed(2) + ' with the sweep), ' + c.bytes + ' B; '
       + (c.contacts ? Math.round(100 * c.inFoot / c.contacts) + ' % of ' + c.contacts + ' contact samples in it; ' : '') + 'record ' + (c.rec ? c.rec.hits + ' contacts, ' + c.rec.frames + ' frames, ' + c.rec.seals + ' seal(s), ' + c.rec.ms + ' ms sealing' : '-') + (c.crashed ? '; crashed (' + c.reason + ')' : '') + (c.strike ? '; prop ' + c.strike : ''));
     rep('the step with the record / without, the 2.5 m crash (median of 3 alternated): ' + r.cost.onMs + ' / ' + r.cost.offMs + ' ms a frame');
+    // G2378-G2382 (DMG-SCAR2)
+    for (const c of r.cases) {
+      if (!c.n) continue;
+      if (c.hulls) yes(c.restOut === 0, '2H ' + c.label + ': the wreck as it lies (' + c.pieces + ' piece(s), ' + c.restArea.toFixed(1) + ' m2 of hull) inside the grass\'s cull (' + c.area.toFixed(1) + ' m2, its ' + c.hulls + ' hull(s) with it) - ' + c.restPts + ' points' + (c.restOut ? ', ' + c.restOut + ' out: ' + c.outAt.join('; ') : ', none out'));
+      else yes(false, '2H ' + c.label + ': a scar with no hull of the resting wreck');
+      if (c.skips.length) yes(c.skipBad.length === 0, '2J ' + c.label + ': ' + c.skips.length + ' skipping run(s) the reader saw (' + c.skips.map(x => x.td).join(', ') + ' touchdowns) - each 80 % or more in ONE gouge, at most one crater on it' + (c.skipBad.length ? ' - ' + c.skipBad.slice(0, 3).join('; ') : ' (' + c.skips.map(x => Math.round(100 * x.cover) + ' %').join(', ') + ')'));
+      if (c.hard) yes(c.gouges > 0 && c.hardAll && c.wMin >= C.SCAR.wScuff - 1e-9, '2S ' + c.label + ': a scuff - ' + c.gouges + ' strip(s), ' + c.craters + ' patch(es), every one on hard ground with no bowl and no furrow (d 0), at least ' + C.SCAR.wScuff + ' m wide (' + c.wMin + ')');
+    }
+    if (r.water) yes(r.water.crashed && r.water.prims === 0, '2W the Cessna on floats nosed into the water at 35 m/s (' + (r.water.crashed ? 'crashed: ' + r.water.reason + ', ' + r.water.breaks + ' breaks' : 'not crashed') + '): ' + r.water.prims + ' primitives - no decal, no cull');
+    for (const c of r.cases) if (c.n) rep(c.label + ': the join - ' + (c.last ? c.last.slides + ' slides in ' + c.last.chains + ' chains (' + c.last.joined + ' joined), ' + c.last.blows + ' blows over eBlow (' + c.last.stopped + ' stopped: craters; ' + c.last.onWay + ' on the way: the furrow\'s), ' + c.last.gouges + ' gouges, ' + c.last.hulls + ' hulls (the last seal)' : '-') + '; the wreck ' + c.pieces + ' piece(s), ' + c.restArea.toFixed(1) + ' m2 of hull');
     if (!pick) { const f = by('fly25'); if (f && f.n) pick = f.prims; }
   }
   // 6 + 7: the page
   console.log('the page (the cover ring and the decal on the real three, a fake WebGL2):');
   let page = null;
   const extra = []; for (const k of S.BUILDS) if (all[k]) for (const c of all[k].cases) if (c.n) extra.push({ label: LAB[k] + ', ' + c.label, prims: c.prims });
-  if (pick) { try { page = pageChecks(pick, yes, rep, extra); } catch (e) { yes(false, 'the page checks ran: ' + (e && e.stack || e).toString().split('\n').slice(0, 4).join(' | ')); } }
+  const hardOnes = []; for (const k of S.BUILDS) if (all[k]) for (const c of all[k].cases) if (c.hard && c.n) hardOnes.push({ label: LAB[k] + ', ' + c.label, prims: c.prims, viewDist: all[k].viewDist });
+  if (pick) { try { page = pageChecks(pick, yes, rep, extra, hardOnes); } catch (e) { yes(false, 'the page checks ran: ' + (e && e.stack || e).toString().split('\n').slice(0, 4).join(' | ')); } }
   else yes(false, '6 a crash scar to lay under the ring');
   // the synthetic record: water - nothing scars over it
   { const C = require('./_treecrash_lib.js').core();
@@ -328,8 +445,35 @@ const rep = msg => console.log('  REPORT  ' + msg);
     D.over = true; C.scarFrame(R, p, m, W, 2, D);
     const P = R.out.prims; let wet = 0; for (const q of P) { if (q.k === 'c' && q.x > 0) wet++; if (q.k !== 'c') for (let j = 0; j < q.p.length; j += 2) if (q.p[j] > 0.05) wet++; }
     yes(P.length > 0 && wet === 0, '2 water: a slide from dry ground into the water - its scar stops at the shore (' + P.length + ' primitives, none over the water)'); }
+  // 2J THE JOIN, a synthetic record (G2382): one node skipping along +x at 15 m/s - `N` touches of 2 frames, 0.35 s apart
+  // (a skip longer than gapS: each touch a slide of its own), each with a blow of `E` J (Fn 6000 N, vy -E/200 m/s over its
+  // 48 substeps) and the friction of a slide (mu 0.8); `stopE` - the last touch a blow of that much that stops (it moves
+  // 5 cm). Returns the sealed primitives
+  { const C = require('./_treecrash_lib.js').core();
+    if (JOIN_OFF) C.SCAR.join = false;
+    const skip = (N, E, stopE) => {
+      const def = { nodes: [{ p: [0, 0, 0], m: 10, r: 0 }, { p: [0, 1, 0], m: 10, r: 0 }], beams: [{ a: 0, b: 1, sec: 'wings' }] };
+      const R = C.scarMake(def, 0), p = new Float64Array(6), m = new Float64Array([10, 10]), W = { terrainH: () => 0, waterH: () => -100, surface: () => 0 };
+      const D = { breaks: 1, crashed: true, over: false, broken: [] }, dt = 1 / 1440, Fn = 6000;
+      let x = 0, f = 0;
+      for (let q = 0; q < N; q++) {
+        const last = stopE && q === N - 1, vy = -(last ? stopE : E) * 30 / Fn, spd = last ? 0.05 * 30 : 15;
+        for (let k = 0; k < 2; k++, f++) { for (let s = 0; s < 24; s++) { x += spd * dt; C.scarHit(R, 0, x, 0, Fn, vy, 0.8 * Fn * spd, dt); }
+          p[0] = x; p[3] = x; p[4] = 1; C.scarFrame(R, p, m, W, f / 60, D); }
+        if (q < N - 1) for (let k = 0; k < 19; k++, f++) { x += 15 / 60; p[0] = x; p[3] = x; C.scarFrame(R, p, m, W, f / 60, D); }
+      }
+      D.over = true; C.scarFrame(R, p, m, W, f / 60 + 0.1, D);
+      return R.out.prims;
+    };
+    const cnt = (P, k) => P.filter(q => q.k === k).length;
+    const a = skip(8, 600, 0), b = skip(8, 1500, 3000), c = skip(1, 0, 3000);
+    const ga = a.find(q => q.k === 'g'), gb = b.find(q => q.k === 'g'), cb = b.find(q => q.k === 'c');
+    yes(cnt(a, 'g') === 1 && cnt(a, 'c') === 0 && ga && ga.n === 8, '2J the join: a node skipping 8 times along the ground (blows of 600 J, under eBlow ' + C.SCAR.eBlow + ' J) is ONE gouge of 8 slides (' + cnt(a, 'g') + ' gouge(s)' + (ga ? ' of ' + ga.n + ', ' + ga.w + ' m wide, ' + ga.d + ' m deep' : '') + '), no crater (' + cnt(a, 'c') + ')');
+    yes(cnt(b, 'g') === 1 && cnt(b, 'c') === 1 && cb && Math.abs(cb.x - Math.max(...gb.p.filter((v, j) => j % 2 === 0))) <= cb.r + 0.1, '2J the join: skipping with blows of 1.5 kJ on the way and a 3 kJ one that stops: one gouge (' + cnt(b, 'g') + ') and ONE crater where it stopped (' + cnt(b, 'c') + (cb ? ', r ' + cb.r + ' m at x ' + cb.x : '') + ')');
+    yes(cnt(c, 'c') === 1 && cnt(c, 'g') === 0, '2J a 3 kJ blow that stops alone: a crater (' + cnt(c, 'c') + '), no gouge (' + cnt(c, 'g') + ')'); }
   console.log('  ' + (checks - fails) + '/' + checks + ' checks');
   console.log('GATE DMGSCAR: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
-  if (!OFF_SELF) try { fs.writeFileSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR', 'gate_dmgscar.json'), JSON.stringify({ results: all, page }, null, 1)); } catch (e) {}
+  if (!OFF_SELF && !JOIN_OFF) try { fs.mkdirSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR2'), { recursive: true }); fs.writeFileSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR2', 'gate_dmgscar.json'), JSON.stringify({ results: all, page }, null, 1)); } catch (e) {}
   process.exit(fails ? 1 : 0);
 })();
+}

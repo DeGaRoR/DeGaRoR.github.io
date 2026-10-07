@@ -195,6 +195,8 @@ function atTrunk(key, o) {
   // G1883 (DMG-WINDBREAK): `wind` - the air the aeroplane taxies in: a function (x, y, z, t) -> [wx, wy, wz] (the
   // climate's field) or a fixed vector; without it the flat world is calm, as before
   if (o.wind) { const w = o.wind; W.wind = typeof w === 'function' ? w : () => w; }
+  // G2382 (DMG-SCAR2): `surface` - the ground's class everywhere (world.SURFACE: 5 PAVED - the runway's nose-over)
+  if (o.surface != null) { const sf = o.surface; W.surface = typeof sf === 'function' ? sf : () => sf; }
   const sim = C.makeSim(def, W); lastRun.sim = sim;
   const r = flyRun(C, sim, def, TH, strip, elev, o);
   // `then`: the same sim reset and flown again (reset must make the aeroplane whole)
