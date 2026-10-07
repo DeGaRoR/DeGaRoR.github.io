@@ -1,0 +1,51 @@
+# The targeted battery (node tools/run_gates.js --no-build --jobs=4 --only=...), three runs on this branch
+
+## run 1 (killed by a container restart after 10 of 21; its finished blocks: UISMOKE, TREEHIT)
+=== UISMOKE ===
+GATE UISMOKE: PASS
+=== TREEHIT ===
+  29/29 checks
+GATE TREEHIT: PASS
+
+## run 2 (the other 19)
+TREECRASH PASS   547.4 s
+DMGMEMBERS PASS    39.4 s
+DMGCERT   PASS   269.4 s
+DMGGEAR   PASS   788.3 s
+DMGCERTCOST PASS    72.3 s
+DMGWIND   PASS   665.2 s
+DMGNOSE   PASS   507.3 s
+DMGCLUSTERS PASS   465.2 s
+DMGINST   PASS   174.6 s
+DMGFPS    PASS   162.7 s
+DMGINTEGRITY PASS    47.5 s
+DMGSKIN   FAIL    93.3 s
+DMGDRIVE  PASS   615.7 s
+DMGWALL   FAIL   160.6 s
+DMGSCAR   FAIL   713.4 s
+COVER     PASS    12.8 s
+BUILD     PASS     1.8 s
+JOIN      PASS     5.3 s
+LOAD      PASS   226.2 s
+total           5568.4 s
+wall            5147.8 s  (jobs 4)
+BATTERY: FAIL — never deliver red.
+
+### run 2's FAIL lines
+  FAIL  nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.277 us a snapshot
+  FAIL  metal nosein: the wall out past 1 mm 2.746 % <= 2 % (the base 2.02 %)
+  FAIL  metal nosein: past 1 cm 6012 of 2694557 (<= 0.1 %)
+DMGSKIN   FAIL    93.3 s
+DMGWALL   FAIL   160.6 s
+DMGSCAR   FAIL   713.4 s
+
+- DMGSCAR: the gate printed 'GATE DMGSCAR: PASS (67 checks)' - the runner wants the line exactly 'GATE DMGSCAR: PASS' (fixed).
+- DMGSKIN: the metal Cessna's FAR 23.473 drop bends its prop (DMG-DRIVE 'bent', on the base too) and the scar sealed that slot: a payload where the gate wants none. Fixed: only a stoppage / separation strike scars (a bent blade on a whole airframe leaves the turf to hide it).
+- DMGWALL: metal nosein 2.746 % / 6012 past 1 cm - THE BASE FAILS IDENTICALLY (dmgwall_on_base.txt: the base worktree, origin/claude/dmg-integration 9500f197). Not this branch's (a water nose-in: no scar code runs; the solver's bits are the base's).
+
+## run 3 (after the two fixes)
+DMGSKIN   PASS    95.2 s
+DMGSCAR   PASS   754.1 s
+total            849.3 s
+wall             849.3 s  (jobs 4)
+BATTERY: PASS

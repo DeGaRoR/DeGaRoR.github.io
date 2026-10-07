@@ -7,7 +7,7 @@
 //      the crashes flown through the worker's host send no damage payload at all (the page's bytes). The layer on: a
 //      circuit, the 3 m/s taxi into a trunk (no part but the wheels on the ground) and the drops onto the wheels touch
 //      the ground with nothing that scrapes - not one contact recorded, no scar, no payload. (A drop whose propeller
-//      DMG-DRIVE grades past a brush is not intact: its scar is that slot alone, said so.)
+//      DMG-DRIVE grades a stoppage is not intact: its scar is that slot alone, said so; a drop that crashes scars.)
 //   2. THE STANDARD CRASHES SCAR, ON THE GROUND UNDER THEIR CONTACTS. The 30 m/s flights into a trunk (centreline, 2.5 m
 //      out) leave craters and gouges, the nose-over its propeller's slot; at most 64 primitives; every gouge's point and
 //      every crater's centre within its own half-width (radius) + 0.5 m of a ground contact the gate's own reader saw (a
@@ -99,7 +99,8 @@ if (argv[0] === '--build') {
     out.hop = { sends, scarSends, bytes, allBytes, mism, checks, v: simW && simW.damage().scar ? simW.damage().scar.v : null, prims: stW.scar.length, vS: stW.vS };
     // 5: reset
     simW.reset(0); const PW = SH.simDmgHop(simW, hopW, core), P = PW ? v8.deserialize(v8.serialize(PW)) : null; if (P) SV.simViewDmgApply(stW, P);
-    out.reset = { prims: simW.damage().scar.prims.length, v: simW.damage().scar.v, sent: !!(P && P.sc), page: stW.scar.length };
+    const SR = simW.damage().scar || { v: 0, prims: [] };
+    out.reset = { prims: SR.prims.length, v: SR.v, sent: !!(P && P.sc), page: stW.scar.length };
     const P2 = SH.simDmgHop(simW, hopW, core); out.reset.again = !!(P2 && P2.sc);
     // the layer off: the hop sends nothing in the whole crash (the host's meta() then carries no damage key)
     let keysOff = 0, bytesOff = 0; const hopO = SH.simDmgHop0();
@@ -254,7 +255,8 @@ if (argv.includes('--page-only')) {   // (a quick run of 6 and 7 on the last run
 if (argv.includes('--selftest')) {
   // the gate itself, the record disabled in every child: it must go red
   const r = require('child_process').spawnSync(process.execPath, [__filename, '--scar-off'], { encoding: 'utf8', maxBuffer: 64 << 20 });
-  const red = r.status !== 0 && /GATE DMGSCAR: FAIL/.test(r.stdout);
+  // red, and for the scar's own checks (every build ran; the crashes' scars missing) - not a crash of the gate
+  const red = r.status !== 0 && /GATE DMGSCAR: FAIL/.test(r.stdout) && !/the build ran/.test(r.stdout) && /FAIL +2 30 m\/s into a trunk/.test(r.stdout);
   console.log((r.stdout || '').split('\n').filter(l => /FAIL|GATE/.test(l)).slice(0, 12).join('\n'));
   console.log('SELFTEST DMGSCAR: ' + (red ? 'PASS (the gate goes red with the scar disabled)' : 'FAIL (the gate stayed green with the scar disabled)'));
   process.exit(red ? 0 : 1);
@@ -286,7 +288,7 @@ const rep = msg => console.log('  REPORT  ' + msg);
       '1 a circuit (' + r.intact.circuit.outcome + '): not one ground contact recorded, no scar');
     { const tx = by('taxi'); yes(tx.rec && tx.rec.hits === 0 && tx.v === 0 && tx.n === 0, '1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar'); }
     for (const id of ['drop', 'drop6']) { const d = by(id);
-      const struck = d.strike && d.strike !== 'brush';
+      const struck = d.strike === 'stoppage' || d.strike === 'separation';
       if (d.crashed || d.breaks) yes(d.n > 0, '2 ' + d.label + ': a crash (' + d.reason + ') - it scars (' + d.craters + ' craters, ' + d.gouges + ' gouges' + (d.slots ? ' incl. the prop\'s slot' : '') + ')');
       else if (!struck) yes(d.rec && d.rec.hits === 0 && d.v === 0 && d.n === 0, '1 ' + d.label + ': only the wheels touch - nothing recorded, no scar');
       else yes(d.n === d.slots && d.rec.hits === 0, '1 ' + d.label + ': nothing of the airframe touches; the propeller struck (DMG-DRIVE: ' + d.strike + ') - its scar is that slot alone (' + d.slots + ')');
@@ -326,7 +328,8 @@ const rep = msg => console.log('  REPORT  ' + msg);
     D.over = true; C.scarFrame(R, p, m, W, 2, D);
     const P = R.out.prims; let wet = 0; for (const q of P) { if (q.k === 'c' && q.x > 0) wet++; if (q.k !== 'c') for (let j = 0; j < q.p.length; j += 2) if (q.p[j] > 0.05) wet++; }
     yes(P.length > 0 && wet === 0, '2 water: a slide from dry ground into the water - its scar stops at the shore (' + P.length + ' primitives, none over the water)'); }
-  console.log('GATE DMGSCAR: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS (' + checks + ' checks)'));
-  try { fs.writeFileSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR', 'gate_dmgscar.json'), JSON.stringify({ results: all, page }, null, 1)); } catch (e) {}
+  console.log('  ' + (checks - fails) + '/' + checks + ' checks');
+  console.log('GATE DMGSCAR: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
+  if (!OFF_SELF) try { fs.writeFileSync(path.join(ROOT, 'reports', 'evidence', 'DMG-SCAR', 'gate_dmgscar.json'), JSON.stringify({ results: all, page }, null, 1)); } catch (e) {}
   process.exit(fails ? 1 : 0);
 })();

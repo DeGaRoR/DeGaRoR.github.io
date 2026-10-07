@@ -25,7 +25,7 @@
 //   sweep   { k: 's', p: [x, z, ...], ws: [w, ...], w }   the band the wreck itself swept: its CG's track while it touched
 //            the ground (a point a metre), at each point its width - twice the reach of its LOW nodes (under SCAR.hSweep:
 //            a shrub's height) across the track there, + 0.5 m; w the widest
-//   a propeller's strike into the ground (DMG-DRIVE's graded strike, past a brush) is a gouge too: a slot across the
+//   a propeller's strike into the ground (DMG-DRIVE's graded strike: a stoppage or a separation) is a gouge too: a slot across the
 //            disc's plane, the chord its bite cuts long, the bite deep (ps: 1)
 //   s: the ground under it (0 turf - grass or the forest floor; 1 bare - sand, gravel, scree; 2 hard - paved, rock:
 //      a scuff, no bowl and no furrow). Over water nothing: a ripple is WATER-LOOK's. E (J) the work it took.
@@ -96,8 +96,8 @@ function scarHit(R, i, x, z, Fn, vy, pf, dt) {
   A[o + 6] = x; A[o + 7] = z;
   R.hits++;
 }
-// a propeller's bite into the ground (30_solver driveFrame: DMG-DRIVE's own disc sample, a strike graded past a brush, the
-// prop still turning): the disc chops a slot across its plane at its lowest point - the chord its bite b cuts out of a
+// a propeller's bite into the ground (30_solver driveFrame: DMG-DRIVE's own disc sample, a strike graded a stoppage or a
+// separation, the prop still turning at the sample): the disc chops a slot across its plane at its lowest point - the chord its bite b cuts out of a
 // disc of radius Rp (2 sqrt(2 Rp b - b^2)) long, a blade's width and its throw wide, b deep. (ex, ez) the disc plane's
 // horizontal; one slot per 0.3 m of travel, at most 4 an engine
 function scarStrike(R, k, x, z, ex, ez, b, Rp, t) {

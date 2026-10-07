@@ -1665,8 +1665,9 @@ function makeSim(def, world) {
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
         if (pen > 0) propStrike(k, 'ground', pen / dl, surf);
-        // G2357 (DMG-SCAR): the slot a turning prop chops in the ground, past a brush (the grade DMG-DRIVE just gave it)
-        if (SCR !== null && pen > 0 && surf === 'soft' && st.strike && st.strike !== 'brush' && (out.rpm[k] || 0) > 30) {
+        // G2357 (DMG-SCAR): the slot a turning prop chops in the ground when the strike stops it or tears a blade off (the
+        // grade DMG-DRIVE just gave it; a brush or a bent blade on an airframe that is otherwise whole leaves the turf to hide it)
+        if (SCR !== null && pen > 0 && surf === 'soft' && (st.strike === 'stoppage' || st.strike === 'separation') && (out.rpm[k] || 0) > 30) {
           const hl = Math.hypot(xAft[0], xAft[2]) || 1;
           scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + GEN_DRIVE.strike.turf) / dl, Rp, simT);
         }

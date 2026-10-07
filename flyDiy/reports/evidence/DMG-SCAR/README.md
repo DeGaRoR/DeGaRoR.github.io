@@ -12,6 +12,7 @@ The ground's scar after a crash: the physics' record (src/core/34_scar.js), the 
 | `selftest.txt` | `node tools/_dmg_scar_check.js --selftest`: the gate with the record disabled (params.scar false) goes red. |
 | `solver_bits.txt` | The solver's bits on 18 runs (6 standard crashes x 3 builds), damage OFF and ON, the base core (origin/claude/dmg-integration 9500f197) against this branch: identical. |
 | `battery.txt` | The targeted battery (run_gates --only=..., --jobs=4): DMGSCAR, every DMG* gate, TREECRASH, TREEHIT, UISMOKE, BUILD, JOIN, LOAD, COVER. |
+| `dmgwall_on_base.txt` | GATE DMGWALL run on the base worktree (9500f197): its metal nose-in fails there identically (2.746 %, 6012 past 1 cm) - pre-existing. |
 | `off_bytes.txt` | LOAD / UISMOKE / BUILD / JOIN with damage off (the default): this branch's outputs against the base's. |
 
 ## The numbers' sources (AS RECALLED - A0 to open)
