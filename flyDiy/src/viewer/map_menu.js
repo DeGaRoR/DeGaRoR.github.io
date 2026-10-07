@@ -373,7 +373,7 @@
 #mapScreen{--mm-bg:#1c1814;--mm-bg2:#26211c;--mm-line:rgba(255,238,214,.13);--mm-ink:#f3ece2;--mm-mid:#b9ac9c;--mm-dim:#857a6e;--mm-acc:#ffb257;--mm-ok:#63d3cc;--mm-no:#ff8a6e;
   position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:var(--mm-bg);color:var(--mm-ink);font:400 14px/1.35 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;user-select:none;-webkit-user-select:none}
 #mapScreen *{box-sizing:border-box}
-#mapScreen button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;border-radius:0;box-shadow:none;min-width:0;text-transform:none;letter-spacing:normal;cursor:pointer;text-align:left}
+#mapScreen button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;border-radius:0;box-shadow:none;min-width:0;text-transform:none;letter-spacing:normal;backdrop-filter:none;-webkit-backdrop-filter:none;transition:none;transform:none;cursor:pointer;text-align:left}
 #mapScreen button:focus-visible{outline:2px solid var(--mm-acc);outline-offset:-2px}
 #mapScreen .mmTop{display:flex;align-items:center;gap:12px;height:56px;padding:0 8px 0 16px;border-bottom:1px solid var(--mm-line);flex:none}
 #mapScreen .mmTop h1{margin:0;font:600 13px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--mm-mid);flex:1}
@@ -384,7 +384,7 @@
 #mapScreen .mmRight{width:360px;flex:none;border-left:1px solid var(--mm-line);overflow-y:auto;touch-action:pan-y}
 #mapScreen .mmTabs{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px 0}
 #mapScreen .mmAssets{padding-bottom:10px;border-bottom:1px solid var(--mm-line)}
-#mapScreen .mmTab{min-height:48px;padding:0 12px;border-radius:24px;border:1px solid var(--mm-line);display:inline-flex;align-items:center;gap:6px;color:var(--mm-mid);font-weight:500;white-space:nowrap}
+#mapScreen .mmTab{flex:none;min-height:48px;min-width:48px;padding:0 12px;border-radius:24px;border:1px solid var(--mm-line);display:inline-flex;align-items:center;gap:6px;color:var(--mm-mid);font-weight:500;white-space:nowrap}
 #mapScreen .mmTab.on{border-color:var(--mm-acc);color:var(--mm-acc)}
 #mapScreen .mmN{font-size:12px;color:var(--mm-dim)}
 #mapScreen .mmDot{width:9px;height:9px;border-radius:50%;display:inline-block}
@@ -534,7 +534,8 @@
     // THE LABELS KEEP OUT OF EACH OTHER'S WAY: the badges stand first (obstacles), then the labels by priority - the
     // selection's two ends, then the fields, then the plots - each at the first free side (right, left, below, above),
     // else not drawn at this zoom (a zoom brings it back); a field's strip line shows near, or for the selection's ends
-    const boxes = [], hit = b => boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+    const MW = $.mmMap.clientWidth || 1e4, MH = $.mmMap.clientHeight || 1e4;   // a label that would leave the map counts as a collision
+    const boxes = [], hit = b => b[0] < 2 || b[2] > MW - 2 || b[1] < 2 || b[3] > MH - 2 || boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
     const ends = new Set(); { const c = (st.sel || '').startsWith('c:') ? M.contracts.find(x => 'c:' + x.id === st.sel) : null; if (c) for (const u of subsNow(M, c)) { if (u.from) ends.add(u.from); if (u.to) ends.add(u.to); } }
     let h = '';
     const badges = mk.filter(m => m.kind !== 'field' && m.kind !== 'plot'), labels = mk.filter(m => m.kind === 'field' || m.kind === 'plot');

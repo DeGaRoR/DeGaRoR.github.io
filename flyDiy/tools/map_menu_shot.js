@@ -39,7 +39,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const check = (c, what) => { if (!c) fails.push(what); console.log('  ' + (c ? 'ok  ' : 'FAIL') + ' ' + what); };
   const until = async (pg, fn, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (await pg.evaluate(fn)) return true; } catch (e) {} await sleep(250); } return false; };
   // the page's answers: what is loaded, the screen's targets (any under 48 px), title= anywhere in it, the rows, the card
-  const probe = pg => pg.evaluate(() => {
+  // what the page asked for, from the browser's side (the page's own resource-timing buffer is full long before: the game's ~500 files)
+  const REQ = new WeakMap();
+  const watch = pg => { const L = []; REQ.set(pg, L); pg.on('request', r => L.push(r.url())); return pg; };
+  const probe = async pg => { const L = REQ.get(pg) || []; const o = await probe0(pg);
+    o.loaded.picture = L.some(u => /media\/map\/jolene_map\./.test(u)); o.loaded.fixture = L.some(u => /contracts_sample/.test(u));
+    o.loaded.menuReq = L.some(u => /map_menu\.js/.test(u)); o.loaded.packReq = L.some(u => /map_pack\.js/.test(u)); return o; };
+  const probe0 = pg => pg.evaluate(() => {
     const scr = document.getElementById('mapScreen'), S = window.MAP_MENU && window.MAP_MENU.state ? window.MAP_MENU.state() : null;
     const res = performance.getEntriesByType('resource').map(r => r.name);
     const vis = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
@@ -48,7 +54,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const card = scr ? scr.querySelector(window.MAP_MENU.state().phone ? '.mmSheetBody' : '.mmRight') : null;
     return {
       entry: !!document.getElementById('mapEntry'), open: !!scr, phone: S ? S.phone : null, tab: S ? S.tab : null, sel: S ? S.sel : null, sheet: S ? S.sheet : null,
-      loaded: { menu: !!(window.FLYDIY_LAZY && FLYDIY_LAZY.has('map_menu')), pack: !!window.MAP_PACK, picture: res.some(u => /media\/map\//.test(u)), fixture: res.some(u => /contracts_sample/.test(u)) },
+      loaded: { menu: !!(window.FLYDIY_LAZY && FLYDIY_LAZY.has('map_menu')), pack: !!window.MAP_PACK, resources: res.length },
       rows: scr ? [...scr.querySelectorAll('.mmList .mmRow, .mmSheetBody .mmRow')].filter(vis).length : 0, markers: scr ? scr.querySelectorAll('.mmMk').length : 0,
       onMarkers: scr ? scr.querySelectorAll('.mmMk.on').length : 0, routes: scr ? scr.querySelectorAll('.mmSvg line').length / 2 : 0,
       titles: scr ? scr.querySelectorAll('[title]').length : 0, small,
@@ -71,24 +77,24 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   // ---- the sandbox: no entry, nothing loaded ------------------------------------------------------------------------
   {
-    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } }), pg = await ctx.newPage();
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } }), pg = watch(await ctx.newPage());
     pg.on('pageerror', e => errs.push('[sandbox] ' + String(e.message || e).slice(0, 160)));
     await pg.goto(URL0 + '?audio=0', { waitUntil: 'domcontentloaded' });
     await until(pg, () => !!window.FLYDIY_LAZY, 180000);
     await sleep(1500);
     const st = await shot(pg, 'desk', 'sandbox_no_entry', 'the sandbox (no ?map=1): no MAP entry, nothing of the map loaded');
-    check(!st.entry && !st.loaded.menu && !st.loaded.pack && !st.loaded.picture && !st.loaded.fixture, 'the sandbox: no MAP entry and nothing of the map loaded');
+    check(!st.entry && !st.loaded.menu && !st.loaded.pack && !st.loaded.picture && !st.loaded.fixture && !st.loaded.menuReq && !st.loaded.packReq, 'the sandbox: no MAP entry and nothing of the map loaded');
     await ctx.close();
   }
   // ---- the desktop ---------------------------------------------------------------------------------------------------
   {
-    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } }), pg = await ctx.newPage();
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } }), pg = watch(await ctx.newPage());
     pg.on('pageerror', e => errs.push('[desk] ' + String(e.message || e).slice(0, 160)));
     await pg.goto(URL0 + '?audio=0&map=1', { waitUntil: 'domcontentloaded' });
     await until(pg, () => !!document.getElementById('mapEntry'), 180000);
     await sleep(800);
     let st = await shot(pg, 'desk', 'entry', '?map=1: the MAP entry (top centre); nothing of the screen loaded yet');
-    check(st.entry && !st.loaded.menu && !st.loaded.pack && !st.loaded.picture && !st.loaded.fixture, '?map=1: the entry, and nothing of the screen, its picture or its contracts before the press');
+    check(st.entry && !st.loaded.menu && !st.loaded.pack && !st.loaded.picture && !st.loaded.fixture && !st.loaded.menuReq && !st.loaded.packReq, '?map=1: the entry, and nothing of the screen, its picture or its contracts before the press');
     await tapSel(pg, '#mapEntry');
     const opened = await until(pg, () => !!document.getElementById('mapScreen') && window.MAP_MENU.model() && document.querySelector('#mapScreen .mmPlane img').complete, 60000);
     check(opened, 'the press loads and opens the screen');
@@ -127,7 +133,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     check(st.markers === 4 && st.sel === 'f:Jodel' && /Tamgas Hill/.test(st.card), 'the fleet layer: 4 airframes where they stand; the Jodel\'s card');
     await ctx.close();
     // the empty source
-    const ctx2 = await browser.newContext({ viewport: { width: 1600, height: 900 } }), p2 = await ctx2.newPage();
+    const ctx2 = await browser.newContext({ viewport: { width: 1600, height: 900 } }), p2 = watch(await ctx2.newPage());
     p2.on('pageerror', e => errs.push('[empty] ' + String(e.message || e).slice(0, 160)));
     await p2.goto(URL0 + '?audio=0&map=1', { waitUntil: 'domcontentloaded' });
     await until(p2, () => !!document.getElementById('mapEntry'), 180000);
@@ -139,7 +145,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   }
   // ---- the phone ----------------------------------------------------------------------------------------------------
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }), pg = await ctx.newPage();
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }), pg = watch(await ctx.newPage());
     pg.on('pageerror', e => errs.push('[phone] ' + String(e.message || e).slice(0, 160)));
     await pg.goto(URL0 + '?audio=0&map=1&profile=phone', { waitUntil: 'domcontentloaded' });
     await until(pg, () => !!document.getElementById('mapEntry'), 180000);
