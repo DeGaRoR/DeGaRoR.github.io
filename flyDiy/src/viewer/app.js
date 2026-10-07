@@ -4284,7 +4284,7 @@
       out.recs++; }
     return out;
   };
-  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || brkWallStale(D) || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || brkWallStale(D) || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false) || !!BRK.reachCopies !== (window.FLYDIY_SKIN_REACHCOPIES === true); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
   // G1818: THE RECORDS AT THE BREAK FIRST. While records are still to be made (REC_BUDGET a frame), the groups whose bounds
   // (the geometry's sphere, taken to the frame's rest through the rest basis) hold an end of a broken member come first -
   // the skin where the wreck is torn rides first; the rest keep the cage's own pose a few frames more (intact there)
@@ -4358,6 +4358,10 @@
     for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);   // (a part gone loose: DMG-D4b's debris)
     if (K.inhOn != null && K.inhOn !== inhOn) brkInhReset(groups);   // (?wallbind flipped: every record made again)
     K.inhOn = inhOn;
+    // (train 41: the reach fix's A/B - window.FLYDIY_SKIN_REACHCOPIES = true judges FABRIC's held covering at the copy corners
+    // as before the fix; a flip re-makes every record's event whole)
+    { const rc = window.FLYDIY_SKIN_REACHCOPIES === true;
+      if (!!BRK.reachCopies !== rc) { BRK.reachCopies = rc; for (const R of BRK.recs) { R.reachCopies = rc; R.dv = (R.dv | 0) + 1; R.vB = -1; } } }
     brkRecOrder(groups, D, K, o);
     const tm = performance.now(); let tRec = 0, tEv = 0, bud = inhOn ? 0 : BRK_BIND, recLeft = REC_BUDGET;
     BRK.recPending = false;

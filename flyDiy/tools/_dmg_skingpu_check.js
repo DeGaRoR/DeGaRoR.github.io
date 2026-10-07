@@ -157,14 +157,15 @@ if (argv[0] === '--build') {
       if (!D.br.length) continue;
       S.frames++;
       if (!recs) {
-        recs = meshes.map(m => ({ m, C: mk(m, false), G: mk(m, true), F: mk(m, false), L: mk(m, false) }));
+        recs = meshes.map(m => ({ m, C: mk(m, false), G: mk(m, true), F: mk(m, false), L: mk(m, false), B: mk(m, false) }));
+        for (const r of recs) r.B.R.reachCopies = true;   // (B: FABRIC's reach / vx at the copy corners - before the train-41 fix)
         for (const r of recs) r.F.R.fullNext = true;   // (F: every event full - the reference; L: skipped / local as the page)
         // the GPU's side of each record: its own drawer's CPU arrays, laid out as skin_gpu.js layout lays them (p0 = 0)
         for (const r of recs) { SB.placesOf(r.G.R); r.Dm = { recs: [{ R: r.G.R, p0: 0 }], cpu: SB.placeArrays(Math.ceil(r.G.R.pl.length / SB.GPU_W)) }; r.G.R.dvUp = -1; S.gpuRecs++; }
       }
       const brokeNow = D.br.length !== nbSeen; nbSeen = D.br.length; if (brokeNow) S.breakFrames++;
       // the events and the binding, as brkCage: a budget of places a frame, each family its own (the same decisions)
-      for (const fam of ['C', 'G', 'F', 'L']) {
+      for (const fam of ['C', 'G', 'F', 'L', 'B']) {
         let bud = BRK_BIND;
         for (const r of recs) { const R = r[fam].R; R.lastBound = 0; const t0 = process.hrtime.bigint(); SB.event(R, T, D, restD, R.baseD, Math.max(0, bud)); S.ms.event += ms(t0); bud -= R.lastBound || 0; }
         for (const r of recs) { if (bud <= 0) break; const R = r[fam].R; if (R.pending) bud -= SB.bindMore(R, T, bud); }
@@ -208,6 +209,9 @@ if (argv[0] === '--build') {
           if (tearDue(R)) { R.tearF = s; const t1 = process.hrtime.bigint(); SB.tear(R, R.baseD, R.w); S.ms.tear += ms(t1); S.checksC++; }
           const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessC) S.excessC = ws.ex;
           for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.C.firstTorn[t] < 0) r.C.firstTorn[t] = s;
+          if (R.held) { let h = 0; for (let t = 0; t < nt; t++) if (R.held[t] && !R.dead[t]) h++; S.heldMax = Math.max(S.heldMax || 0, h); S.heldTorn = Math.max(S.heldTorn || 0, R.heldTorn || 0); }   // (G2040: the drawing's held covering)
+          { const RB = r.B.R; if (RB.active && RB.held) { let h = 0; for (let t = 0; t < nt; t++) if (RB.held[t] && !RB.dead[t]) h++; S.heldMaxB = Math.max(S.heldMaxB || 0, h); }
+            if (RB.active) { let gB = 0, gC = 0; for (let t = 0; t < nt; t++) { if (RB.dead[t] === 1) gB++; if (R.dead[t] === 1) gC++; } r.goneB = gB; r.goneC = gC; } }
           if (!r.C.run) r.C.run = new Uint16Array(nt);
           S.runC = Math.max(S.runC || 0, overRun(R, r.C.run, null)); }
         // THE GPU'S: the stale places packed as skin_gpu.js packs them; a places pass read back the frame after it ran
@@ -294,6 +298,7 @@ if (argv[0] === '--build') {
         }
       }
     }
+    if (recs) { S.goneB = recs.reduce((a, r) => a + (r.goneB || 0), 0); S.goneC = recs.reduce((a, r) => a + (r.goneC || 0), 0); if (S.heldMax == null && S.heldMaxB) S.heldMax = 0; }
     if (recs) for (const r of recs) {
       for (let t = 0; t < r.m.g.nt; t++) {
         const fc = r.C.firstTorn[t], fg = r.G.firstTorn[t];
@@ -360,6 +365,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G,
         'the tear on the read-back places: ' + S.tornG + ' torn (the CPU\'s full tear ' + S.tornC + '): ' + S.missed + ' it tore that this still draws (' + S.goneOther + ' more gone here by an event instead), ' + S.late + ' later (up to '
         + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)'
+        + (S.heldMax != null ? '; FABRIC held covering (the CPU path): up to ' + S.heldMax + ' triangles held at once (' + (S.heldMaxB || 0) + ' before the reach fix, which drew ' + (S.goneB || 0) + ' gone against ' + (S.goneC || 0) + ' now at the end), ' + (S.heldTorn || 0) + ' torn past HELD' : '')
         + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'
         + (S.missedAt ? '; misses (transients between the read-backs, past the bound at most ' + (S.missRun || 0) + ' frames on the GPU path) ' + JSON.stringify(S.missedAt) : ''));
       const f = (x, k) => (x / Math.max(1, k)).toFixed(2);

@@ -411,7 +411,7 @@
     // (G2040 x G1818, train 41: a vertex's kept weights are its PLACE's - a welded copy's w2 is never written (prepared once a
     // place): read at a triangle's copy corner they were zeros, and a covering triangle held across a parting was judged
     // unbridged / not reaching - gone instead of held, on both paths)
-    const rpT = R.rep, at = x => (rpT ? rpT[x] : x);
+    const rpT = R.reachCopies ? null : R.rep, at = x => (rpT ? rpT[x] : x);   // (R.reachCopies: the reading before the fix - the rigs' A/B)
     const reach = (x, q) => { const o = at(x) * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
     const bridged = (x, y) => vp[x] === vp[y] || reach(x, vp[y]) || reach(y, vp[x]);
     const vx = x => { const o = at(x) * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
