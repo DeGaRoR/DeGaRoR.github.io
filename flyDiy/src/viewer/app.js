@@ -4088,6 +4088,18 @@
       brkGpuFree();
       if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); } brkHealUpload(model);
         model._pose = null; model._poseNG = null; }   // (G1858.1: a real heal only - re-posed from the rest, the rigs a pose writes)
+      // G1859.8 (DMG-WALL; DMG-TUNE's 'torn wing on an intact wing'): A RECORD LET GO IS HEALED TOO. The records stay on their
+      // groups (own.brkR) and are held again at the next crash; only the heal above cleared their tears (R.dead), and only
+      // for the records HELD then. A record let go before the reset - the skin switched off (FLYDIY_SKINBREAK = false: the
+      // stills rig's 'before' shot), back on and 'Fly again' with no frame between - kept the last crash's tears, and the
+      // next crash drew them: the trunk-2.5 wing strike's torn bays on the nose-over's intact wing (8165 torn on 8 breaks).
+      // Every record the model ever made (K.allRecs) is healed at a heal - once (K.recLive), an event's cost
+      { const K = model && model.brk;
+        if (K && K.recLive && K.allRecs) { K.recLive = false;
+          if (window.FLYDIY_HEAL_HELDONLY !== true) {             // (GATE DMGHEAL's selftest: the heal as it was)
+            let n = 0; for (const R of K.allRecs) { if (BRK.recs.indexOf(R) >= 0 || !(R.dead || R.active || R.torn)) continue;
+              if (SKIN_BREAK.event(R, K.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); n++; }
+            if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
     }
@@ -4099,13 +4111,14 @@
   // binding is made here, at the first break (skin_break.js bindNearest: the generated skin's whole, the cage's on its
   // nearest node and then where the breaks are)
   function brkRec(owner, g, geo, base, rest, fabric, cage, K) {
-    if (owner.brkR) { if (BRK.recs.indexOf(owner.brkR) < 0) BRK.recs.push(owner.brkR); return owner.brkR; }
+    if (owner.brkR) { if (BRK.recs.indexOf(owner.brkR) < 0) { BRK.recs.push(owner.brkR); if (model.brk) model.brk.recLive = true; } return owner.brkR; }
     if (!cage) Object.assign(g, SKIN_BREAK.bindNearest(base, g.nv, rest, def.nodes.length));
     // (G1867: the cage's records welded - its vertices bound, evented and posed once a place - and riding whole: see brkCage)
     const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage, shell: !fabric && brkComposite() });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
     R.geo = geo; R.geos = [geo]; owner.brkR = R; BRK.recs.push(R);
+    { const K = model.brk; if (K) { (K.allRecs || (K.allRecs = [])).push(R); K.recLive = true; } }   // (G1859.8: every record, for the heal)
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
   }
@@ -4391,7 +4404,7 @@
             const a = Mi0[0]*x + Mi0[3]*y + Mi0[6]*z, b = Mi0[1]*x + Mi0[4]*y + Mi0[7]*z, c = Mi0[2]*x + Mi0[5]*y + Mi0[8]*z, L = Math.hypot(a, b, c) || 1;
             nB[v*3] = a / L; nB[v*3+1] = b / L; nB[v*3+2] = c / L; }
         }
-      } else if (BRK.recs.indexOf(own.brkR) < 0) BRK.recs.push(own.brkR);   // (a record let go at a heal or an A/B: held again)
+      } else if (BRK.recs.indexOf(own.brkR) < 0) { BRK.recs.push(own.brkR); K.recLive = true; }   // (a record let go at a heal or an A/B: held again)
       tRec += performance.now() - t0;
     }
     // G1855-G1857 / G1859 (DMG-WALL): THE BINDING INHERITED, BRK_BIND places a frame (skin_break.js inhSteps); until it is
