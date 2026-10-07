@@ -1,0 +1,18 @@
+LOAD — the sandbag test. FAR 23 normal category: LIMIT +3.8 g (no permanent
+set), ULTIMATE +5.7 g (no failure). Load laid out over the wing strips in
+proportion to their area, applied against the aeroplane's own inertia, and
+measured from the FREE-FALL jig shape. Deflection is % of semispan.
+
+Real light aircraft, for scale: ~0.3-1 % of semispan at 1 g, ~2-4 % at limit.
+
+airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric strut         0.18 %      0.68 %        1.02 %     37% of yield (wing)   ok
+  GEN tubeFabric cantilever    2.86 %     10.84 %       16.24 %    125% of yield (wing)   over yield
+  GEN wood strut               0.22 %      0.82 %        1.23 %     37% of yield (wing)   ok
+  GEN wood cantilever          2.11 %      7.90 %       11.73 %     99% of yield (wing)   ok
+  GEN alloy strut              0.08 %      0.29 %        0.44 %     29% of yield (wing)   ok
+  GEN alloy cantilever         1.01 %      3.81 %        5.70 %     82% of yield (wing)   ok
+  GEN carbon strut             0.05 %      0.18 %        0.27 %      4% of yield (wing)   ok
+  GEN carbon cantilever        0.61 %      2.33 %        3.49 %     13% of yield (wing)   ok
+  GEN aluTube strut            0.53 %      2.01 %        3.03 %     39% of yield (wing)   ok
+  GEN aluTube cantilever       6.92 %     25.38 %       36.82 %    113% of yield (wing)   over yield
