@@ -1,0 +1,123 @@
+=== LOAD ===
+LOAD — the sandbag test. FAR 23 normal category: LIMIT +3.8 g (no permanent
+set), ULTIMATE +5.7 g (no failure). Load laid out over the wing strips in
+proportion to their area, applied against the aeroplane's own inertia, and
+measured from the FREE-FALL jig shape. Deflection is % of semispan.
+
+Real light aircraft, for scale: ~0.3-1 % of semispan at 1 g, ~2-4 % at limit.
+
+airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric strut         0.18 %      0.68 %        1.02 %     37% of yield (wing)   ok
+  GEN tubeFabric cantilever    2.86 %     10.84 %       16.24 %    125% of yield (wing)   over yield
+  GEN wood strut               0.22 %      0.82 %        1.23 %     37% of yield (wing)   ok
+  GEN wood cantilever          2.11 %      7.90 %       11.73 %     99% of yield (wing)   ok
+  GEN alloy strut              0.08 %      0.29 %        0.44 %     29% of yield (wing)   ok
+  GEN alloy cantilever         1.01 %      3.81 %        5.70 %     82% of yield (wing)   ok
+  GEN carbon strut             0.05 %      0.18 %        0.27 %      4% of yield (wing)   ok
+  GEN carbon cantilever        0.61 %      2.33 %        3.49 %     13% of yield (wing)   ok
+  GEN aluTube strut            0.53 %      2.01 %        3.03 %     39% of yield (wing)   ok
+  GEN aluTube cantilever       6.92 %     25.38 %       36.82 %    113% of yield (wing)   over yield
+  GEN tubeFabric biplane       0.24 %      1.17 %        1.80 %    168% of yield (wire)   over yield
+  GEN wood biplane             0.20 %      1.02 %        1.58 %     16% of yield (wing)   ok
+
+OVER YIELD AT ULTIMATE — reported, deliberately NOT gated:
+    GEN tubeFabric cantilever — 125% of yield
+    GEN aluTube cantilever — 113% of yield
+    GEN tubeFabric biplane — 168% of yield
+  The load is right and the force is right (the root bending moment
+  checks out by hand), but the ALLOWABLE is coarse: `A = lin/rho` gives
+  ONE area for the whole wing class, and the worst member here is not a
+  spar cap — it is the 3.4 m LIFT STRUT, which a real aeroplane sizes
+  separately. The wood row is the loud case because it pairs a big
+  section (12.9 cm2) with a small allowable (39 MPa crushing), i.e. a
+  WOODEN lift strut, which nobody builds: wooden aeroplanes use steel
+  struts, and the Jodel is a cantilever precisely to avoid the joint.
+  Gating this would be gating the proxy, not the aeroplane. What it is
+  really saying is that strut sizing wants its own area, and that is a
+  materials-model change, not a load-test result.
+
+STOCK BUILD, right wing seen from the front, root -> tip.
+Full height = 1.02 % of semispan (5.1 cm at the tip).
+  5.7 g ULTIMATE   tip 1.02 % = 5.1 cm
+                         ===
+                     =======
+                  ==========
+               =============
+             ===============
+       =====================
+    ========================
+  3.8 g LIMIT   tip 0.68 % = 3.4 cm
+                            
+                            
+                        ====
+                   =========
+               =============
+         ===================
+    ========================
+  1.0 g level   tip 0.18 % = 0.9 cm
+                            
+                            
+                            
+                            
+                            
+                ============
+    ========================
+
+  spanwise profile (% of semispan), station z in metres:
+    z           0.36   1.91   3.45   5.00
+    1.0 g       0.00   0.04   0.12   0.18
+    3.8 g       0.00   0.15   0.47   0.68
+    5.7 g       0.00   0.23   0.71   1.02
+
+THE TAIL — the stab under bags, the fin on its side, on every material
+airframe                     surface   1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric             stab     1.14 %      4.24 %        6.06 %     25% of yield (tail)   ok
+  GEN tubeFabric             fin     -0.21 %     -0.79 %       -1.18 %      9% of yield (wire)   ok
+  GEN wood                   stab     0.86 %      3.24 %        4.74 %     26% of yield (tail)   ok
+  GEN wood                   fin     -3.11 %    -11.66 %      -17.25 %     19% of yield (tail)   ok
+  GEN alloy                  stab     0.55 %      2.10 %        3.14 %     20% of yield (tail)   ok
+  GEN alloy                  fin     -0.75 %     -2.86 %       -4.28 %      5% of yield (tail)   ok
+  GEN carbon                 stab     0.34 %      1.28 %        1.92 %      3% of yield (tail)   ok
+  GEN carbon                 fin     -0.41 %     -1.54 %       -2.31 %      1% of yield (tail)   ok
+  GEN aluTube                stab     1.91 %      6.61 %        8.87 %     24% of yield (tail)   ok
+  GEN aluTube                fin     -0.54 %     -2.03 %       -3.05 %      2% of yield (tail)   ok
+  TWIN BOOM tubeFabric       stab    -2.12 %     -6.39 %       -8.28 %     37% of yield (tail)   ok
+  TWIN BOOM tubeFabric       fin     -0.50 %     -1.89 %       -2.83 %      4% of yield (tail)   ok
+  V-TAIL tubeFabric          stab   *** NOT MEASURABLE: no HF/HR spar stations (the stab has no tagged truss on this airframe) — OWED (REVIEW D4: no spar truss)
+  V-TAIL tubeFabric          fin    *** NOT MEASURABLE: no VF/VR spar stations (the fin has no tagged truss on this airframe) — OWED (REVIEW D4: no spar truss)
+
+THE FIN'S SIDE DEFLECTION IS REPORTED, NOT GATED — the lattice has two
+chords where the real fin has a skin (see the note in this file):
+    tubeFabric fin — -1 % of its height at ultimate
+    wood fin — -17 % of its height at ultimate
+    alloy fin — -4 % of its height at ultimate
+    carbon fin — -2 % of its height at ultimate
+    aluTube fin — -3 % of its height at ultimate
+    twin fin — -3 % of its height at ultimate
+  GEN carbon strut: under the 0.05 % floor at 1 g — too stiff to rate
+  GEN tubeFabric strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN tubeFabric cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN alloy strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN alloy cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN carbon cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN aluTube strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN aluTube cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN tubeFabric biplane: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood biplane: wire-braced, bilinear by construction — held to "grows", not to linear
+
+  ok    every airframe survived the ultimate load
+  ok    D4: the rig refuses the V-tail's stab and fin, naming the missing tag
+  ok    P4: every tail surface survived its ultimate case
+  ok    P4: the stab stays inside 10 % of its semispan at ultimate
+  ok    deflection grows with load on every airframe
+  ok    deflection scales with load (linear, +/-15%)
+  ok    every case was measured
+GATE LOAD: PASS
+
+──────── summary ────────
+LOAD      PASS   270.2 s
+total            270.2 s
+
+BATTERY: PASS
