@@ -78200,6 +78200,15 @@ menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOB
 chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
 GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
 
+UPDATE 7 Oct ~11:40: CAREER-WIRE (670ce84) READY and merged (fast-forward), so game-integration 5810951a is the train-42 candidate:
+the map reads the real contract record, a dev career runs behind ?career=1 (the welcome's career row still 'coming'), a
+flight's stop advances the career through ACCEPT's verdict, 'Fly the acceptance leg' works, and the aerobatic contract
+(clients.05) is held out. Train-42 follow-ups (1)-(3) below are DONE. Open: ACCEPT reads at.pax / occupants / payloadKg,
+not CONTRACT-MODEL's at.kg (no authored criterion carries kg today). Map routes could later reuse A0's ROUTE-DRAW
+(route_draw.js, G2120). The touched-gate pass is 21:35-22:05 tonight (armed).
+Train 43 chips issued (A0's OK): [CLOUD] ECONOMY G2260, PROCURE G2280, PILOTS G2290, STAGES G2300, PREM-S3 G2310;
+[LOCAL-GPU] FLEET-PROPS B G2225 (8 Oct 06:00-06:55), WORKS-COZY G2315 (8 Oct 15:00-16:35).
+
 TRAIN 42 CARGO (7 Oct ~09:55): claude/game-integration 1e06bef0 = the train-40 freeze 67ee2ca4 + MAP-MENU (65cc378) + ACCEPT
 (9ef705a) + CONTRACT-MODEL (5f50b83), all READY. Merges: HANDOVER union; build.js / run_gates.js / 90_node_exports
 union (72_accept.js, then 72_contract_data.js, 73_contracts.js, 74_career.js). On the merged tree: GAMEPREM, PLAYER, GFX,
