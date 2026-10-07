@@ -408,9 +408,13 @@
     // never torn by the drawing's own stretch (tear() skips it): the physics tears it, by its tie. (Train 41 merge with
     // G1818's local event: an untouched triangle keeps its held bit as it stood - only a changed one is judged again)
     const held = cov ? (R.held && R.held.length === nt ? (chg ? R.held : R.held.fill(0)) : (R.held = new Uint8Array(nt))) : (R.held = null);
-    const reach = (x, q) => { const o = x * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
+    // (G2040 x G1818, train 41: a vertex's kept weights are its PLACE's - a welded copy's w2 is never written (prepared once a
+    // place): read at a triangle's copy corner they were zeros, and a covering triangle held across a parting was judged
+    // unbridged / not reaching - gone instead of held, on both paths)
+    const rpT = R.rep, at = x => (rpT ? rpT[x] : x);
+    const reach = (x, q) => { const o = at(x) * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
     const bridged = (x, y) => vp[x] === vp[y] || reach(x, vp[y]) || reach(y, vp[x]);
-    const vx = x => { const o = x * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
+    const vx = x => { const o = at(x) * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
     // (a vertex reaching across turns with its OWN piece's nodes only - onNodes: two pieces' turns blended swung its lever)
     if (!R.heldTorn) R.heldTorn = 0;
     for (let t = 0; t < nt; t++) {
@@ -847,7 +851,7 @@
   // its places mode, read back behind a fence - a frame old). Wp: the drawer's places (3 floats each, less a common
   // origin: only differences are read), p0 the record's first place there; base: the record's rest, read at each place's
   // first vertex (the copies are the same place)
-  function tearPlaces(R, Wp, p0, base) {
+  function tearPlaces(R, Wp, p0, base, heldAt) {
     if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear)) return 0;   // (tear()'s own rule: G1859)
     placesOf(R);
     // (G1859.3, DMG-WALL: a drawn tube tears past 1.2 x + 3 mm, sheet metal past 1.4 x + 2 cm, fabric at TEAR / TEAR_ABS - over())
@@ -860,7 +864,7 @@
       return l <= k1 * r + ab; };                        // (a NaN edge is torn too)
     // (train 41, with G2040: a HELD triangle - the covering's ties hold it across a parting - stretches to HELD + TEAR_ABS as
     // on the CPU's tear(), counted in heldTorn when it goes)
-    const H = R.held, okH = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
+    const H = heldAt !== undefined ? heldAt : R.held, okH = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
       const l = Math.hypot(Wp[A] - Wp[B], Wp[A + 1] - Wp[B + 1], Wp[A + 2] - Wp[B + 2]);
       const r = Math.hypot(base[va] - base[vb], base[va + 1] - base[vb + 1], base[va + 2] - base[vb + 2]);
       return l <= HELD * r + TEAR_ABS; };
@@ -1354,7 +1358,7 @@
     return out;
   }
   const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,
-                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, slotNode, slotTurns, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS };
+                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, slotNode, slotTurns, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS, HELD, REACH };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();

@@ -4446,9 +4446,11 @@
         if (onGpu && R.tearAsk != null) {
           const Wd = GP.places(ge, R.tearAsk);
           if (Wd) { R.tearT = Wd.wTag; R.tearAsk = null;
-            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD)) { brkIdx(R); R.tornNew = true; } }
+            // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
+            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
+            R.heldAsk = undefined; }
         } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
-          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; }
+          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; R.heldAsk = R.held ? R.held.slice() : null; }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s

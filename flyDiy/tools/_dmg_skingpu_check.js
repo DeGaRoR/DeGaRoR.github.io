@@ -41,14 +41,18 @@ const TEAR_FRAMES = 3;                                  // the page's TEAR_EVERY
 // frame old - is the longest a live edge may stand past the bound on the GPU path, and a miss must be such a transient)
 const PERIOD_G = TEAR_FRAMES + 1;
 function overRun(R, run, maxRun) {
-  const i0 = R.idx0 || R.idx, dead = R.dead, base = R.baseD, pos = R.w, k1 = 1 + SB.TEAR, ab = SB.TEAR_ABS; let mx = 0;
+  // (train 41: each triangle on the bound its tear holds it to - skin_break.js tear() / over(): a HELD covering triangle
+  // (G2040) stretches to HELD, a tube / a composite shell / sheet metal to theirs; a record that never tears is not measured)
+  if (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) return 0;
+  const i0 = R.idx0 || R.idx, dead = R.dead, base = R.baseD, pos = R.w, H = R.held; let mx = 0;
+  const k1 = R.tubeTear ? 1.2 : R.shellTear ? 1 + SB.SHELL_TEAR : R.sheetTear ? 1.4 : 1 + SB.TEAR, ab = R.tubeTear ? 0.003 : R.shellTear ? SB.SHELL_ABS : R.sheetTear ? 0.02 : SB.TEAR_ABS;
   for (let t = 0; t < R.nt; t++) {
     if (dead && dead[t]) { run[t] = 0; continue; }
-    let o = false;
+    let o = false; const kk = H && H[t] ? SB.HELD : k1, aa = H && H[t] ? SB.TEAR_ABS : ab;
     for (let e = 0; e < 3 && !o; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
       const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
       const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
-      if (!(l <= k1 * r + ab)) o = true; }
+      if (!(l <= kk * r + aa)) o = true; }
     run[t] = o ? run[t] + 1 : 0;
     if (maxRun && run[t] > maxRun[t]) maxRun[t] = run[t];
     if (run[t] > mx) mx = run[t];
@@ -179,8 +183,15 @@ if (argv[0] === '--build') {
           if (F.vp[v] !== Lr.vp[v] || F.dom[v] !== Lr.dom[v] || F.ride[v] !== Lr.ride[v] || (F.sag ? F.sag[v] : 0) !== (Lr.sag ? Lr.sag[v] : 0)) { pok = false; break; }
           for (let k = 0; k < K; k++) if (F.w2[v * K + k] !== Lr.w2[v * K + k]) { pok = false; break; } if (!pok) break; }
         S.evUnbound = Math.max(S.evUnbound || 0, unb);
-        const ok = pok && eq(F.dead, Lr.dead) && eq(F.idx, Lr.idx);
-        if (!ok) { S.evBad++; if (!S.evBadAt) S.evBadAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, places: pok, dead: eq(F.dead, Lr.dead), idx: eq(F.idx, Lr.idx), unb }; }
+        // (train 41: the triangles compared where both families' bindings agree - a triangle over a place bound in one family
+        // and not yet in the other rides that place's nearest node there, as the weights' comparison above allows)
+        let tok = true, tSkip = 0; { const i0 = F.idx0, rp = F.rep, nt = F.nt, bF = F.g.bound, bL = Lr.g.bound;
+          for (let t = 0; t < nt && tok; t++) { const a = rp ? rp[i0[t * 3]] : i0[t * 3], b = rp ? rp[i0[t * 3 + 1]] : i0[t * 3 + 1], c = rp ? rp[i0[t * 3 + 2]] : i0[t * 3 + 2];
+            if (bF[a] !== bL[a] || bF[b] !== bL[b] || bF[c] !== bL[c]) { tSkip++; continue; }
+            if (F.dead[t] !== Lr.dead[t] || F.idx[t * 3] !== Lr.idx[t * 3] || F.idx[t * 3 + 1] !== Lr.idx[t * 3 + 1] || F.idx[t * 3 + 2] !== Lr.idx[t * 3 + 2]) tok = false; } }
+        S.evTriSkip = Math.max(S.evTriSkip || 0, tSkip);
+        const ok = pok && tok;
+        if (!ok) { S.evBad++; if (!S.evBadAt) S.evBadAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, places: pok, tris: tok, trisSkipped: tSkip, dead: eq(F.dead, Lr.dead), idx: eq(F.idx, Lr.idx), unb }; }
         S.evSkipped = recs.reduce((a, q) => a + (q.L.R.skipped || 0), 0);
       }
       { const t0 = process.hrtime.bigint(); SB.nodeFrames(NF, T, D, restD, sim.p, true); S.ms.nodes += ms(t0); }
@@ -268,8 +279,8 @@ if (argv[0] === '--build') {
         // pass (this frame's positions, at its end); the read lands the next frame and the tear runs on those positions
         const fresh = () => r.wSeq && r.wSeq !== r.wUsed;
         if (R.tearAsk != null) {
-          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD); S.ms.tearPl += ms(t0); S.checks++; }
-        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; }
+          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held); R.heldAsk = undefined; S.ms.tearPl += ms(t0); S.checks++; }
+        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; R.heldAsk = R.held ? R.held.slice() : null; }
         const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessG) S.excessG = ws.ex;
         for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.G.firstTorn[t] < 0) r.G.firstTorn[t] = s;
         if (!r.G.run) { r.G.run = new Uint16Array(nt); r.G.maxRun = new Uint16Array(nt); }
