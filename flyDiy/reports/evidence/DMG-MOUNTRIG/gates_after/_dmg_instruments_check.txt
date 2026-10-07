@@ -1,0 +1,15 @@
+1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
+  ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
+  ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 11 readers / writers
+  ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
+  ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
+  ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
+2. G1801: the velocity guard (150 m/s off the CG)
+  ok    every k x 5 in flight (past the integrator's limit): tripped at frame 0 as 'speed' (node 77 at 965.78 m/s off the CG), every number finite, stats().bad; it never went NaN in 600 frames - the old watchdog would have flown it on (at rest the fastest node read 0.17 m/s)
+  ok    reset() clears it
+  ok    damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off runs the master path)
+  ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
+  ok    the whole aeroplane at 195.06 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.15 m/s off the CG
+  ok    the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
