@@ -4025,13 +4025,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // them all alike. So the size is the bench's rule now: `place.size` times
     // 1 + spread*(2w - 0.9), which at spread 0.2 is 0.82-1.22 - the bench's
     // committed spread - and nothing else. `T.s` stays the physics' number.
-    // G1975 (DEADWOOD-BRIGHT, PROPOSED - the user's call, OFF until they say): `mixDead` deals the snags by the MIX's own
+    // G1975 (DEADWOOD-BRIGHT; ON since the user's call 2026-10-07 - G1975.2): `mixDead` deals the snags by the MIX's own
     // `dead` share for the species where the tree stands (BIO.mixes[..].species[sp].dead, the bench's tuning) instead of
-    // the collection's `place.dead` - which the mixes never reach: pine_georgeous carries 0.53 on its collection and 0 /
-    // 0.03 in every mix that plants it, so half of it stands dead. Where a mix names no share, the collection's stays.
-    // ?mixdead=1 for the A/B; a replant (TREE_FILL / the woodland) takes a change
+    // the collection's `place.dead` - which the mixes never reached: pine_georgeous carries 0.53 on its collection and 0 /
+    // 0.03 in every mix that plants it, so half of it stood dead. Where a mix names no share, the collection's stays.
+    // Near HOME: 11.8 % of the trees dead -> 3.7 %. ?mixdead=0 for the old dealing (the A/B); a replant takes a change
     const TREE_MIX = { furnished: 1.0, spread: 0.2,
-                       mixDead: typeof location !== 'undefined' && /[?&]mixdead=1/.test(location.search || '') };
+                       mixDead: !(typeof location !== 'undefined' && /[?&]mixdead=0/.test(location.search || '')) };
     const sizeOf = (base, w) => (base || 1) * (1 + TREE_MIX.spread * (2 * w - 0.9));
     if (typeof window !== 'undefined') window.TREE_MIX = TREE_MIX;
     const SERIES = ['rungs', 'stand', 'snag'];        // index = series id

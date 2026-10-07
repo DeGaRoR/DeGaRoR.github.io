@@ -71,6 +71,12 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
+  // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
+  // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
+  // 2026-10-07); taxi unchanged (-480), draws -2. The near tier at the stand moves 0..+11 % with what the streamer has dealt
+  { key: 'stand/tris.main', build: 'cub', upTo: 17710000, why: 'the snags by the mixes own share: living trees in place of snags (+84 141 at the stand vs ?mixdead=0)', g: 'G1975.2' },
+  { key: 'stand/tris.main', build: 'cessna', upTo: 17835000, why: 'the snags by the mixes own share: living trees in place of snags (+84 141 at the Cub stand vs ?mixdead=0)', g: 'G1975.2' },
   // G2055 (WHEEL-AO, 2026-10-06): the contact blobs' per-instance attribute is a vec4 (halo, core, the core's radii) where
   // G1002's was a float: 8 x 16 B in place of 8 x 4 B uploaded a frame while a wheel is down (+96 B, Cub and Cessna, the
   // same draws and programs - against a master whose parked cook was made stale alike, tools/perf A/B in HANDOVER G2055)

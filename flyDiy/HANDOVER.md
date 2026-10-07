@@ -79210,7 +79210,7 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
   sky-reflection terms the tint never touches - a full restore is ~x1.7 and the near trees 70 % brighter. Default if no
   answer: as landed, 1.242 everywhere. ANSWERED 2026-10-07: column 3 - see G1975.1 below.
 
-**PROPOSED, OFF - THE MIXES' SNAG SHARE (the user's call, A0 recommends ON):** the game deals snags by the collection's
+**THE MIXES' SNAG SHARE (proposed OFF; ON by the user's call 2026-10-07 - G1975.2 below):** the game deals snags by the collection's
 `place.dead` and never reads the mixes' own `species[sp].dead`. pine_georgeous carries 0.53 on its collection (it came in
 with G454 BIOMES 203a58d0, unexplained - a pack-level share, not a design) and 0 / 0.03 / 0.03 in every mix that plants it.
 `TREE_MIX.mixDead` / `?mixdead=1` deals each tree's series by the mix's share for that species where it stands (the
@@ -79272,6 +79272,17 @@ values), checked by the gfx hook's own condition, not by a still.
 (068584d6) `--compare`: nothing moved - stand, taxi, boot, memory (`col3/framecost_census_*`). (A census against the
 newer origin/master 751e1122 shows only master's own boot gains since 37b, which this branch did not carry until the
 merge below.)
+
+### G1975.2 - THE MIXES' SNAG SHARE ON BY DEFAULT (2026-10-07, the user's call on `mixdead_sheet.jpg` / `mixdead_table.jpg`)
+
+`TREE_MIX.mixDead` defaults ON; `?mixdead=0` deals as before (the collection's `place.dead`). Measured on gamer within 3 km
+of HOME (`mixdead_{off,on}_0707.json`): dead trees 22 836 -> 7 116 (11.8 -> 3.7 % of the living species; pine_georgeous
+53 -> 0.3 %; birch / ash gain the mixes' 5 %; dead_conifer, a dead species, unaffected). THE COST: the near tier at the
+stand carries 0 .. +11 % triangles (672 k both on 2026-10-07, 679 k -> 755 k on 2026-10-06 - what the streamer had dealt
+at that moment: the living trees that replace snags carry 2-4x their triangles). FRAMECOST (2026-10-07 13:30, the cpu lock): one RED, `stand/tris.main` +1.2 % on both builds (the
+gate's tolerance 1 %) - of it +84 141 (+0.48 %) is this switch against the same code with ?mixdead=0 (census pair), the rest
+the baseline's earlier drift; admitted by name in `tools/_framecost_check.js` ALLOW (G1975.2, cub / cessna upTo), then PASS.
+Taxi unchanged (-480 tris), draws -2. TREES, TREEHIT PASS (positions unchanged - the switch picks the series only).
 
   the taxi), the delivered fps under 15 in TWO 8 s readings running (after 5 s in the state; G1997b: one slow window - a clock
   ramp - is not a class) -> the preset one rung down (ultra > gamer > current >
