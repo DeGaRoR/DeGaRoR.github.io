@@ -824,7 +824,7 @@ try {
       fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
             // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
             'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
-            'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
+            'unsteadiness', 'over-rotation', 'flare height', 'decisions', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],   // G2460: + decisions
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),

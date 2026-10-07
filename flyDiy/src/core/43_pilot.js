@@ -115,6 +115,25 @@ const PILOT_STYLES = {
   brisk:    { name: 'brisk',    rejectFrac: 0.70, bank: 1.15, VapprK: 0.97, gaHigh: 80,
               gaXT: 20, taxiK: 1.25, hTurnK: 0.75, reserve: 50,  patW: 2.3, needK: 0.9 },
 };
+// G2460 (PERSONA-2): THE STABILISED APPROACH - the criteria every person flies FINAL by (Flight Safety Foundation, ALAR
+// Tool Kit Briefing Note 7.1 'Stabilized Approach'; FAA AC 120-71B, its stabilized-approach criteria): by the gate the
+// aeroplane is on the correct flight path, at a speed not under Vref nor more than Vref + 20 kt, sinking no more than
+// 1000 fpm, in the landing configuration; "an approach that becomes unstabilized below [the gate] requires an
+// immediate go-around". Scaled to a light aeroplane's visual circuit:
+//   gateFt / gateK   the gate: FSF's VMC 500 ft is a transport's (a third of its 1500 ft pattern); a light aeroplane's is
+//                    300 ft, never above 0.6 of this circuit's own height (the Cub's 115 m circuit: 69 m)
+//   vLo / vHi        the speed band about the approach speed asked (Vref + the gust's half): -5 kt / +10 kt (FSF's
+//                    +20 kt on a 140 kt Vref is +14 %; +10 kt on a 50-60 kt light aeroplane is +17-20 %)
+//   devDeg / devMin  the path: off the slope by more than 0.7 deg seen from the aim (a PAPI's full deflection; the
+//                    ILS's 'one dot' is 0.35 deg on a 0.7 deg half-scale), never tighter than the capture's 4 m
+//   sinkK / sinkAdd  the sink: FSF's 1000 fpm is 1.35 x a transport's 3 deg sink at 140 kt; here 1.5 x the slope's own
+//   / sinkMax        rate (the ground speed x the slope) or that rate + 1 m/s, whichever larger, never over 1000 fpm
+//   xtDeg            the centreline: off it by more than 2 deg seen from the aim (the style's gaXT closer in)
+//   dwell            s of instability (accumulated, leaking at half the rate while stable) before the decision - x the
+//                    person's `decisionK` (PILOT_PROFILE_KNOBS: a student goes round sooner, a ham-fist late)
+//   tau              s, the filter on the speed and the sink (a gust is not an unstable approach)
+const PILOT_STAB = { gateFt: 300, gateK: 0.6, vLo: 2.6, vHi: 5.1, devDeg: 0.7, devMin: 4, sinkK: 1.5, sinkAdd: 1.0, sinkMax: 5.08,
+                     xtDeg: 2, dwell: 2, tau: 1 };
 // the rail's labels and the tick each phase sits under (app.js reads this)
 const PILOT_PHASES = {
   DEPART: ['DEPART', 'DEPART'], TAXI: ['TAXI', 'TAXI'], LINEUP: ['LINE UP', 'LINEUP'],
@@ -140,6 +159,8 @@ const PILOT_UNITS = {
 //              hamFist   the rms of a deterministic disturbance on de / da / dr (stick units)
 //   quirks     overRotate  rad added to the rotation's attitude target
 //              flareK      x the flare height (< 1: a late flare)
+//              decisionK   x the go-around's dwell (G2460: the stabilised approach's and 'high on the slope'; < 1 decides
+//                          sooner - goes round more; > 1 late)
 //   limits     bankK     x the circuit's bank limit (on top of the style's)
 //              comfortG  the load factor the pilot will pull in a turn (caps the bank: acos(1 / g))
 //   technique  field     null (the pilot's choice) | 'short' | 'normal' - the approach technique forced
@@ -151,11 +172,11 @@ const PILOT_PROFILES = {
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
              active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+             active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
              active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
-             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02 } },
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 } },
 };
 // G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
 // `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
@@ -169,6 +190,7 @@ const PILOT_PROFILE_KNOBS = [
   { sec: 'skill', k: 'gain', label: 'grip', unit: '×', kind: 'range', lo: 0.3, hi: 1.5, step: 0.05, d: null, nullLabel: 'auto', desc: 'how hard the pilot answers an error (auto: eased to suit the reaction; over 1 over-controls)' },
   { sec: 'quirks', k: 'overRotate', label: 'over-rotation', unit: '°', kind: 'range', lo: 0, hi: 0.07, step: 0.0035, d: 0, toUi: r => r * 180 / Math.PI, desc: 'degrees of extra nose-up at the rotation' },
   { sec: 'quirks', k: 'flareK', label: 'flare height', unit: '×', kind: 'range', lo: 0.6, hi: 1.3, step: 0.05, d: 1, desc: 'under 1 a late flare, over 1 an early one' },
+  { sec: 'quirks', k: 'decisionK', label: 'decisions', unit: '×', kind: 'range', lo: 0.5, hi: 3, step: 0.1, d: 1, desc: 'how long an unstable approach is put up with before going round: under 1 sooner, over 1 late' },
   { sec: 'limits', k: 'bankK', label: 'bank', unit: '×', kind: 'range', lo: 0.5, hi: 1.3, step: 0.05, d: 1, desc: 'the circuit\'s bank against the expert\'s' },
   { sec: 'limits', k: 'comfortG', label: 'comfort g', unit: 'g', kind: 'range', lo: 1.05, hi: 2, step: 0.05, d: null, desc: 'the load factor the pilot will pull in a turn (off: the bank limit alone)' },
   { sec: 'technique', k: 'field', label: 'field technique', kind: 'pick', opts: [null, 'normal', 'short'], d: null, desc: 'the approach flown everywhere (own: the strip decides)' },
@@ -182,7 +204,7 @@ function pilotProfile(p) {
   const g = (sec, k, d) => (P[sec] && P[sec][k] != null) ? P[sec][k] : d;
   const R = { name: P.name, active: !!P.active,
            reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
-           overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1),
+           overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1), decisionK: g('quirks', 'decisionK', 1),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
            field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false) };
   // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
@@ -580,11 +602,13 @@ function makePilot(sim, def, world, opts) {
   let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
+  let stabT = 0, stabVf = null, stabSf = 0, stabIn = false;   // G2460: the stabilised approach's dwell, its filters, past the gate
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
+  let flThr0 = 0, flWI = 0;   // G2462: the water flare's power - the approach throttle at the flare's start, its integrator
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
@@ -621,12 +645,28 @@ function makePilot(sim, def, world, opts) {
   // left the Jodel student's balloon-and-drop (2.6-2.9); the wheels' delay whole: the Jodel student 0.93-1.24, the
   // ham-fists 1.09-1.99 on every seed. The person still flares LATE (flareK) with their own hands (smooth, hamFist)
   const humGain = (rx, onG) => (onG > 0 || ap.phase === 'FLARE') ? 1 : PRF.gain != null ? PRF.gain : 1 / (1 + rx / HUM_TG);
+  // G2463 (PERSONA-2): WHAT THE ELEVATOR'S STOP IS JUDGED ON - the machine's own adaptations (G975's landing flap
+  // 'the elevator cannot hold it', G399.7's Vref raised 'the elevator cannot hold this speed') read the elevator to
+  // find the AEROPLANE's authority. Under a person they read the person's HAND: the ham-fist's wander (0.05 rms) on
+  // the Wipline C172's approach trim crossed 0.30 again and again, the flap came in 1.00 -> 0.25 in six steps and Vref
+  // was raised - a flapless final 6-7 m/s fast, four seeds of four, the touchdowns 3.0-4.6 m/s. A person is judged on
+  // the servo's demand (deDem: the command before the person's delay, gain and hand); the expert on the elevator, as before
+  let deDem = 0;
+  const deHeld = () => PRA ? deDem : SV.aDe;
   const humanise = (dt, onG) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
+    deDem = c.de;
     // ON THE WHEELS THE DELAY IS SHORT (G1943: the student's 0.45 s inside the ground steer swerved the stock build 31
     // deg on the roll, a rejected take-off every time; G2085: 0.15 s still ground-looped the Jodel) - a person on the
     // roll watches the centreline and the feet are quick; in the air the delay is whole
-    const rx = (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
+    // G2461 (PERSONA-2): ON THE WATER THERE IS NO DELAY. With ENGINE-TORQUE's standing rudder (G2080: the swirl at full
+    // power held on the step) the wheels' 0.10 s inside the water run's steer water-looped the Wipline C172's student
+    // at 10 m/s (the heading +-40 deg, the bank to 172 deg: capsized, 'rejected' at 22 s) and held the club on the hump
+    // (880 m at 8.3 m/s, rejected) on every seed - the base tree's own, before any PERSONA-2 change. Measured (seed 1,
+    // the take-off group's rudder reversals / min): 0.05 s lifted every person off once but dithered the rudder (bush
+    // 286, ham-fist 391); none: student 19, club 6, bush 6, ham-fist 147 (his hand) - the person's gain, hands and
+    // unsteadiness still fly the water, their delay does not
+    const rx = (!!sim.hydro && onG > 0) ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
     const g = humGain(rx, onG);
     if (g !== 1) {
       const a = Math.min(1, dt / HUM_REF);
@@ -1572,7 +1612,7 @@ function makePilot(sim, def, world, opts) {
       // 0.24 of elevator, the throttle on its floor - and went around twice
       // for the terrain. The integrator on its clamp with the attitude short
       // of the command is the same "cannot hold this speed"
-      const eSat = (SV.aDe > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
+      const eSat = (deHeld() > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
@@ -1820,6 +1860,9 @@ function makePilot(sim, def, world, opts) {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
       go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
+      // G2460: A GO-AROUND IS ANOTHER CIRCUIT - the watchdog's patience with it (the Wipline C172's ham-fist went round
+      // twice, unstabilised, and was 'out of patience' at 600 s in BASE of the third circuit it then landed from)
+      ap.budget = Math.max(ap.budget, ap.t + 400);
       SV.thrC = A.thrCruise; thLift0 = th;
       // G1936: TWICE ROUND A SHORT FIELD IS A DIVERSION, NOT A COMMITTED THIRD TRY. The go-around count is capped
       // at two and the third arrival is committed - into the trees past East Point's end on the user's Cub (touched
@@ -2913,6 +2956,7 @@ function makePilot(sim, def, world, opts) {
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
             slopeCaptured = false; finalT0 = ap.t; SV.thrC = A.thrAppr; deF = SV.aDe;
+            stabT = 0; stabVf = null; stabIn = false;   // G2460: a new final is judged afresh
             finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
@@ -3061,9 +3105,9 @@ function makePilot(sim, def, world, opts) {
         // filter) is past the trim budget the build was sized to, and it comes back a stage (0.25,
         // never below the take-off setting) when the elevator sits on its stop; the cap holds for
         // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
-        deF += (SV.aDe - deF) * Math.min(1, dt / 0.5);
+        deF += (deHeld() - deF) * Math.min(1, dt / 0.5);
         if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
-        if (FS && c.flap > fTO + 0.01 && SV.aDe > 0.30) {
+        if (FS && c.flap > fTO + 0.01 && deHeld() > 0.30) {
           fCapT += dt;
           if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
         } else fCapT = 0;
@@ -3082,7 +3126,7 @@ function makePilot(sim, def, world, opts) {
           cond('off centre', Math.round(Math.abs(sCr)), ST.gaXT, Math.abs(sCr) < ST.gaXT, 'm'),
           cond('flare at', aglG.toFixed(1), A.flareAgl, aglG < A.flareAgl, 'm')]);
         gaT = above > ST.gaHigh && d < 600 ? gaT + dt : 0;
-        if (gaT > 3) { if (canGA) { goAround('high on the slope ' + Math.round(d) + ' m out'); break; }
+        if (gaT > 3 * (PRA ? PRF.decisionK : 1)) { if (canGA) { goAround('high on the slope ' + Math.round(d) + ' m out'); break; }
                        else if (!committed) { committed = true; say('committed-landing', 'high but committed'); } }
         if (d < 250 && d > 0 && Math.abs(sCr) > ST.gaXT) {
           if (canGA) { goAround('off the centreline by ' + Math.round(Math.abs(sCr)) + ' m on short final'); break; }
@@ -3103,6 +3147,47 @@ function makePilot(sim, def, world, opts) {
         // G1936: A SHORT FINAL IS STABILIZED OR FLOWN AGAIN - 5 m/s over Vref under 20 m is a float the strip has no
         // room for (the Cub's 25 m/s at the flare touched 213 m into 150 m)
         if (ap.shortFld && canGA && d > 0 && aglG < 20 && V > iasF + 5) { goAround('fast on the short final: ' + V.toFixed(1) + ' m/s for ' + iasF.toFixed(1)); break; }
+        // G2460 (PERSONA-2): THE STABILISED APPROACH (PILOT_STAB, above: FSF ALAR 7.1 scaled to the light aeroplane). Below
+        // the gate, on the way to the flare, every final is judged on its path, speed, sink, centreline and flap; an
+        // approach that stays outside them for the dwell (x the person's decisionK) is flown again - 68 persona flights
+        // went round none, and the Wipline C172's student and ham-fist flew a water final 51-70 m off track / 8-9 m off
+        // the slope at 1.5-1.7 Vs on down to 2.6-3.9 m/s touchdowns. Twice round and the third is committed (G1936):
+        // then an unstable final is landed and SAID (ap.report.stab.committed)
+        {
+          const S = PILOT_STAB, hAim = cg[1] - aimAlt();
+          const hC = (ap.plan && ap.plan.hC) || ap.hCruise || 150;
+          const hGate = Math.min(S.gateFt * 0.3048, S.gateK * hC);
+          const a = Math.min(1, dt / S.tau);
+          stabVf = stabVf == null ? V : stabVf + (V - stabVf) * a;
+          stabSf += (-vcg[1] - stabSf) * a;
+          const R = ap.report.stab || (ap.report.stab = { gateH: Math.round(hGate), finals: 0, ga: 0, committed: null, worst: { vLo: 0, vHi: 0, dev: 0, sink: 0, xt: 0 } });
+          if (!stabIn && hAim < hGate && d > 0) { stabIn = true; R.finals++; }
+          if (stabIn && d > 0) {
+            const nomSink = Math.hypot(vcg[0], vcg[2]) * ap.gs;
+            const lim = {
+              vLo: S.vLo, vHi: S.vHi,
+              dev: Math.max(S.devMin, d * Math.tan(S.devDeg * Math.PI / 180)),
+              sink: Math.min(S.sinkMax, Math.max(S.sinkK * nomSink, nomSink + S.sinkAdd)),
+              xt: Math.max(ST.gaXT, d * Math.tan(S.xtDeg * Math.PI / 180)) };
+            const have = { vLo: iasF - stabVf, vHi: stabVf - iasF, dev: Math.abs(above), sink: stabSf, xt: Math.abs(sCr) };
+            let why = null;
+            for (const k in lim) {
+              const r = have[k] / lim[k];
+              if (r > R.worst[k]) R.worst[k] = Math.round(r * 100) / 100;
+              if (r > 1 && !why) why = k === 'vLo' ? 'slow ' + stabVf.toFixed(1) + ' m/s for ' + iasF.toFixed(1)
+                : k === 'vHi' ? 'fast ' + stabVf.toFixed(1) + ' m/s for ' + iasF.toFixed(1)
+                : k === 'dev' ? (above > 0 ? 'high ' : 'low ') + Math.abs(above).toFixed(0) + ' m on the slope'
+                : k === 'sink' ? 'sinking ' + stabSf.toFixed(1) + ' m/s'
+                : Math.abs(sCr).toFixed(0) + ' m off the centreline';
+            }
+            if (!why && FS && phaseT > 15 && c.flap < flapTgt - 0.15) why = 'not configured (flap ' + c.flap.toFixed(2) + ' for ' + flapTgt.toFixed(2) + ')';
+            stabT = why ? stabT + dt : Math.max(0, stabT - 0.5 * dt);
+            if (why && stabT > S.dwell * (PRA ? PRF.decisionK : 1)) {
+              if (canGA) { R.ga++; goAround('unstabilised approach at ' + Math.round(hAim) + ' m: ' + why); break; }
+              if (!R.committed) { R.committed = why + ' at ' + Math.round(hAim) + ' m'; if (!committed) committed = true; say('committed-unstable', 'unstabilised (' + why + ') but committed - landing it'); }
+            }
+          }
+        }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
         // GTRAM: onto an altiport's slope the height is over the SLOPE'S LINE through the aim, and the
@@ -3110,7 +3195,7 @@ function makePilot(sim, def, world, opts) {
         altG = altiGrade();
         const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
         if (hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V) {
-          go('FLARE'); thFlare0 = th;
+          go('FLARE'); thFlare0 = th; flThr0 = c.thr; flWI = 0;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
           // taildragger, thMax on a tricycle), its integrator and filter
@@ -3198,6 +3283,16 @@ function makePilot(sim, def, world, opts) {
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
+          else if (sim.hydro) {
+            // G2462 (PERSONA-2): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the seaplane handbook: the
+            // touchdown is made in a slightly nose-high attitude at a low rate of descent, power used to control it).
+            // The throttle stays where the approach had it and a PI on the sink trims it: closed at the flare's start,
+            // the Wipline C172 (full flap, the thrust line under the drag) pitched -3.5 -> -5.3 deg, sank 2.2 -> 3.0 m/s,
+            // the elevator never got the nose above -1 deg and the hull met the water at 2.16 m/s
+            const eS = vsC - flVsF;   // > 0: sinking faster than asked
+            flWI = clamp(flWI + (A.flareWaterI ?? 0.10) * eS * dt, -flThr0, 0.4);
+            engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareWaterP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
+          }
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
@@ -3240,7 +3335,13 @@ function makePilot(sim, def, world, opts) {
           // the weathercock (+/-9 deg, saturating), and the tail dropped
           // onto a heading 8 deg off — an 88 deg ground loop on the stearman
           // in 2 m/s across. The tailwheel steers from the first second now.
-          if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
+          // G2462 (PERSONA-2): ON THE WATER THE ATTITUDE IS HELD WHILE THE HULL PLANES (FAA-H-8083-23: after the
+          // touchdown the back pressure comes in gradually as the seaplane slows off the step) - full back stick the
+          // instant the floats touched at 25 m/s threw the Wipline C172 to +16 deg and off the water for 3 s, the
+          // second touch at 2.7 m/s. The touchdown attitude is held to 0.7 Vs0, then the stick comes back
+          const VsW = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
+          if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
+          else if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
           else engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         } else engage('RWY', 'DE', 'SET', { thr: 0, de: V > (A.VTailDown ?? A.VTailUp) ? -0.05
                     : (th > (A.thPinMax ?? 0.26) ? 0.05 : V > (A.VPinFull ?? 0) ? 0.14 : 0.35) });
