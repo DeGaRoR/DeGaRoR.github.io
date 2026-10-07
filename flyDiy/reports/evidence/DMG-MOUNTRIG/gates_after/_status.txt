@@ -8,3 +8,5 @@ _dmg_clusters_check exit 1 653 s
 _dmg_gear_check exit 1 2621 s
 test_load exit 0 267 s
 _dmg_members_check exit 0 47 s
+_dmg_cert_check exit 1 357 s
+_dmg_nose_check exit 0 782 s
