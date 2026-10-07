@@ -218,9 +218,9 @@ if (argv[0] === '--build') {
             if (!Number.isFinite(PG[v3]) || !Number.isFinite(PG[v3 + 1]) || !Number.isFinite(PG[v3 + 2])) { S.finite = false; continue; }
             // AMBIGUOUS: a slot's turn a quarter turn of quaternion off the dominant's (|q_i . q_0| under 1e-5: two nodes'
             // rotations 180 degrees apart) - either hemisphere is a blend, float32 or float64 picks; counted, not held
-            { const t4 = pf[v] * 4, i0 = (r.Dm.cpu.PI0[t4] | 0) * 4; let amb = false;
+            { const t4 = pf[v] * 4, i0 = SB.slotNode(r.Dm.cpu.PI0[t4]) * 4; let amb = false;
               for (let a = 1; a < 8 && !amb; a++) { const TXw = a < 4 ? r.Dm.cpu.PW0 : r.Dm.cpu.PW1, TXi = a < 4 ? r.Dm.cpu.PI0 : r.Dm.cpu.PI1, w = TXw[t4 + (a & 3)];
-                if (w === 0) continue; const i = (TXi[t4 + (a & 3)] | 0) * 4, Q = NF.q;
+                if (w === 0 || !SB.slotTurns(TXi[t4 + (a & 3)])) continue; const i = SB.slotNode(TXi[t4 + (a & 3)]) * 4, Q = NF.q;
                 if (Math.abs(Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 1e-5) amb = true; }
               if (amb) { S.ambiguous++; S.verts++; continue; } }
             // in the WORLD: the drawn frame is the body's oblique basis, which a broken-up wreck turns near-singular (its
@@ -237,9 +237,9 @@ if (argv[0] === '--build') {
             // ~|e| K eps / L; the exact CPU riding has no such error. Counted past 0.1 mm, 8 steps of the drawn frame AND
             // 16 eps (|e| + 1 m) / L - the GPU's own precision there, not a divergence)
             let cond = 0;
-            { const T = r.Dm.cpu, t4 = pf[v] * 4, Q = NF.q, i0 = (T.PI0[t4] | 0) * 4; let qx = 0, qy = 0, qz = 0, qw = 0;
+            { const T = r.Dm.cpu, t4 = pf[v] * 4, Q = NF.q, i0 = SB.slotNode(T.PI0[t4]) * 4; let qx = 0, qy = 0, qz = 0, qw = 0;
               for (let a = 0; a < 8; a++) { const w = (a < 4 ? T.PW0 : T.PW1)[t4 + (a & 3)]; if (a >= 4 && w === 0) break; if (w === 0) continue;
-                const i = ((a < 4 ? T.PI0 : T.PI1)[t4 + (a & 3)] | 0) * 4, sg = (Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 0 ? -w : w;
+                const fI = (a < 4 ? T.PI0 : T.PI1)[t4 + (a & 3)]; if (!SB.slotTurns(fI)) continue; const i = SB.slotNode(fI) * 4, sg = (Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 0 ? -w : w;
                 qx += sg * Q[i]; qy += sg * Q[i + 1]; qz += sg * Q[i + 2]; qw += sg * Q[i + 3]; }
               const Lq = Math.hypot(qx, qy, qz, qw), eN = Math.hypot(T.PA[t4], T.PA[t4 + 1], T.PA[t4 + 2]);
               let sw = 0; for (let a = 0; a < 8; a++) sw += (a < 4 ? T.PW0 : T.PW1)[t4 + (a & 3)];
