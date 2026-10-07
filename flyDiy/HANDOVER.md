@@ -80763,6 +80763,7 @@ MD5 of (p, v) at the end and the numbers. Bit-identical is impossible where the 
 - Merged: claude/dmg-nose (011daf60), its whole delivery (reports/evidence/DMG-NOSE/, tools/_dmg_nose_check.js, ...).
 - The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage
   stays OFF by default.
+
 ## G1858.2-G1858.3 / G1859.5 DMG-WALL FOLLOW-UP FOR TRAIN 39 - THE SNAPSHOT NEVER WRITTEN, THE LINING CUT WHERE A BAY CRUSHED (2026-10-06/07, DMG-WALL for the DEFORM COORDINATOR; branch claude/dmg-wall-cowl off claude/dmg-integration 4300dc58)
 
 On top of the train-38 READY b9377615 (merged in d3d5e24e):
@@ -80814,3 +80815,377 @@ DMGCLUSTERS 33/33, DMGDRIVE PASS, DMGFPS 54/54, DMGGEAR PASS, DMGINST 145/145, D
 DMGNOSE 83/83, DMGSKIN 131/131, DMGWALL 98/98, DMGWIND 41/41, TREECRASH 80/80, TREEHIT 50/50, UISMOKE 29/29, BUILD, JOIN
 (BATTERY: PASS, 2882 s of jobs, 2534 s wall) - reports/evidence/DMG-WALL/gates_night_dmgwall_int.txt.
 
+
+## G2365-G2369 DMG-BUNDLE-GREEN: THE BUNDLE'S REDS AT THEIR CAUSES - THE NOSE ENGINE AT ITS DRAWN HEIGHT (THE METAL CESSNA'S PROP WAS 2.4 cm IN THE GROUND IN THE GAME'S PHYSICS, 0.26 m CLEAR IN ITS DRAWING), THE WHOLE AIRFRAME CERTIFIED SYMMETRIC, THE TWIN'S NACELLE FANS LUMPED, FIVE GATE RIGS THAT TESTED THE WRONG THING, DMG-WALL'S CRUSHED-BAY CUT MERGED (2026-10-07, DMG-BUNDLE-GREEN for the DEFORM COORDINATOR, a CLOUD session: node + headless Chromium (the page's re-capture); branch claude/dmg-bundle-green off origin/claude/dmg-mountrig 67a55c3f; G2365-G2369)
+
+**READY for the coordinator - WITH THREE GATES STILL RED, said plainly.**
+- **Still red:** DMGGEAR 70/72, DMGCLUSTERS 81/83 and DMGCERT 68/70 are the reds left. All six rows are on the two
+  floatplanes, each traced to its cause, none with a bar widened (below, NOT SOLVED):
+  - the twin's boom root in A0's water case (1.003; DMGCLUSTERS x2, DMGGEAR's nose-in): the case is 2.6 x this
+    aeroplane's FAR 23.527 water load;
+  - the twin's aft spreader in a skipped water landing (DMGGEAR, 2.00): the landing nobody flies;
+  - the Cessna on floats' bench to destruction (DMGCERT x2, 6.59 g): its V-strut is certified by its drift drop, a
+    floatplane's water case, where the window assumes the bench's.
+- **Green now:** DMGDRIVE (131/131), DMGWIND (12/12), DMGWALL (98/98), DMGCERTCOST, GEN (not run before), and every
+  other gate on the list: TREECRASH, TREEHIT, JOINPARITY, PILOTMATRIX, TAKEOFF, SEAPLANE, FLOATS, BUILD, LOAD, JOIN,
+  ENGINE, MOUNT, and the rest of the DMG set.
+- **Red 1 was a visible bug in the game's physics, fixed at its cause.** The metal Cessna's prop was never in the
+  ground on its drawing (0.26 m clear, a 172's ~10 in). The join carried the drawn flange's station but not its
+  height, so the physics hung the engine 0.28 m low. It now carries both: the flown hub is the drawn one on all four
+  nose builds.
+  - Flight, damage off: the circuits keep their outcome (the metal Cessna's now completes inside the cap); 23.473
+    landings within 0.008 g; the CG height moves with the engine (+7.4 / +6.9 / +3.0 / -1.2 cm).
+- **Four further causes found and fixed:**
+  - the certificate stamped one side of the aeroplane weaker than the other (now symmetric, GEN_CERT_V 7);
+  - a wing nacelle's lumped fans buckled as thin tubes;
+  - a float that came off diverged on the water;
+  - a float's root twisted off at 0.94 of the certificate's own drop.
+- **Five gate rigs that tested the wrong thing**, each said: a water taxi held to a heading the aeroplane had left; a
+  graze trunk planted in the pod; a tricycle nosed over onto a nose wheel buried 15 cm; an engine that left on its
+  isolators not counted; a brittle break read as "no damage".
+- Source, tools and evidence only; nothing generated is committed. Damage stays OFF by default.
+
+
+### THE BRIEF'S EIGHT REDS, ONE LINE EACH
+| # | red | cause | fix / re-derivation | before -> after |
+|---|---|---|---|---|
+| 1 | DMGDRIVE: the metal Cessna's disc in the ground; the twin's idle graze and torque361 | the join never carried the drawn flange's HEIGHT (0.28 m low); the graze rig's trunk in the twin's pod; a nacelle's lumped fan buckled as a thin tube | G2365 (the join, 60_gen_spec); G2367 (the rig; `parts.dmg.lump`); and two rigs the low prop hid (a tricycle's nose-over, the engine leaving on its isolators) | 127/131 -> **131/131**; clearance -0.08 / -0.05 -> 0.22 / 0.22 m |
+| 2 | DMGGEAR (7 rows) | the prop (as 1); the twin's float roots under-limited (G2369); the floats' circuit and the twin's touchdown moved under G2365-G2367 together | G2365-G2369 | 65/72 -> **70/72**; left: the twin's ROD (A0's case) and its skip's spreader |
+| 3 | DMGCLUSTERS: the twin's float nose-in, ROD root 1.003 | the drawn boom at its plastic moment in a water case 2.6 x this aeroplane's FAR 23.527 load | **not solved** - the case is A0's, the wall an archetype rule | 81/83 -> 81/83 (1.003) |
+| 4 | DMGWIND: the twin on the water at 10 m/s from 90 / 270 | 90: the right float root 0.68 of the left's (a lopsided certificate); 270: the rig held a heading the twin had left (a full-power run) | G2366 (the mirror; the rig on its own heading) | 11/12 -> **12/12** |
+| 5 | DMGCERT: the floats' bench 6.21 g | its V-strut certified by the drift drop (6.20 g predicted), then a ductile box shifting load to the stronger rear strut | **not solved** - the window assumes the bench's case governs; its owner's | 69/70 -> 68/70 (6.59 g: G2366 made both sides alike) |
+| 6 | DMGCERTCOST (3) | the worker handed the Cub file as written; budgets taken on the files as written | the game's Cub on both sides; budgets re-derived on the game's aeroplanes (the files still fit the old); the reference refreshed (GEN_CERT_V 7) | 3 FAIL -> **PASS** |
+| 7 | DMGWALL (2 rows) | the metal Cessna's: DMG-WALL's crushed-bay cut not on the bundle; the floats': a free float diverged the whole sim | merged claude/dmg-wall-cowl; G2368 (`hydroFree`) | 2 FAIL -> **98/98** |
+| 8 | GEN (not run) | - | run: no digest moved | - -> **PASS** (4 shards) |
+
+### G2365 - THE MERGE: claude/dmg-wall-cowl (65c77c5c) FIRST
+- Merged as the brief asks (DMG-WALL's G1858.3 crushed-bay cut and G1858.2 copy-on-first-break; viewer code, the wall
+  study and its rigs, GATE DMGWALLPATH). One conflict: HANDOVER (both sections kept). Commit 25a22589.
+- On the merged base (built, exit 0): **GEN PASS** (4 shards), **DMGSKIN PASS**, **DMGWALL 1 row** (was 2 on 67a55c3f):
+  the metal Cessna's trunk 2.5 m out is green (0 of 691 798 places past 1 cm, 0.018 % past 1 mm); left: the Cessna on
+  floats' nose-in, "no compact part triangle past 1 %". (`gates_base_merged/GEN_DMGWALL_DMGSKIN.txt`.)
+- GATE JOINPARITY's census then named the merge's `_dmg_wallpath_check.js` (it boots the page under node with the file
+  as its autosave): declared at the page's door.
+
+### G2365 - RED 1: THE METAL CESSNA'S PROP IN THE GROUND - THE JOIN NEVER CARRIED THE DRAWN FLANGE'S HEIGHT
+**Cause.** The metal Cessna's prop is not in the ground on the user's drawing. The physics hung the engine lower
+than the drawing:
+- The editor stands the engine unit on the cowl's nose face (`_cage_eng.js`: `f.yc`). On the user's metal Cessna its
+  hub is 0.800 m over the cabin keel, 1.289 m over the ground at the bench attitude.
+- The disc is the drawn 2.06 m (`cw_propD`; the cage's old `propR` 0.875 dial is not the prop), so it clears by
+  **0.259 m**. A 172's is ~9-11 in (as recalled): the drawing is right.
+- G445.1 made the join carry the drawn flange's STATION (`engines[0].x`) for a nose engine, but not its height:
+  "y stays the spec's thrustline rule" (`60_gen_spec`: `engY = 0.36 cab.h`). That puts the flown hub 0.522 m over
+  the keel, **0.278 m under the drawn one**. At rest the flown hub sat at 1.006 m and the disc 2.4 cm in the ground
+  (MOUNTRIG's finding). Every DMGDRIVE / DMGGEAR prop row on the metal Cessna was this.
+- The other nose builds, drawn minus flown: Cub +0.126 m, Jodel -0.051 m, Cessna on floats +0.278 m. The twin's
+  nacelles were already measured (wing mounts carry x, y, z).
+- Measured with the page's own editor and join (`scripts/jprobe.js` through `_load_build.js`'s probe door):
+  `data/drawn_hub_base.txt`; at rest in node: `data/rest_base.txt` -> `data/rest_engY.txt`.
+
+**Fix (G2365), at the join, as G445.1 did for x:**
+- `tools/_cage_join.js`: a nose engine's entry carries the drawn flange's `y` with its `x`.
+- `src/core/60_gen_spec.js`: a nose engine with a measured `x` and `y` takes `engY = y` (+ the placement's dy). The
+  rule stays for a bake with no drawn engine (every archetype: bit-identical, `preset:garage` below).
+- What reads `engY` follows the drawing: the thrust line, the engine's CG node, MOUNTRIG's ring (its cups at the
+  flange's height), the nose leg's braces to them, the derived cowl loft.
+
+**After** (`data/rest_engY.txt`): the flown hub is the drawn one on all four (ENGL y over the keel 0.596 / 0.326 /
+0.800 / 0.800). **The metal Cessna's disc clears 0.254 m at rest** (was -0.024).
+
+**What moved** (`tools/dmg_mountrig_props.js` and `dmg_mountrig_flight.js` on both trees; `data/props_*.json`,
+`flight_diff_engY.txt`):
+
+| build | mass kg | CG height | inertia roll / yaw / pitch | parked CG / pitch | 23.473 landing g | circuit, damage off |
+|---|---|---|---|---|---|---|
+| Cub | 460.387 -> 460.483 | +3.04 cm | +0.07 / +0.01 / +0.08 % | +3.0 cm / -0.002 deg | 1.6670 -> 1.6667 | completed both, 321.45 -> 321.40 s, nz 1.286 -> 1.296 |
+| Jodel | 463.890 -> 463.875 | -1.23 cm | -0.09 / -0.00 / -0.09 % | -1.2 cm / +0.0004 deg | 1.8584 -> 1.8588 | 340 s cap both, nz 1.666 -> 1.642 |
+| metal Cessna | 887.242 -> 887.974 | +7.44 cm | +0.23 / +0.06 / +0.28 % | +7.5 cm / -0.04 deg | 2.1135 -> 2.1172 | **340 s cap -> completed 339.7 s**, nz 2.222 -> 1.871 |
+| Cessna on floats | 951.538 -> 951.650 | +6.93 cm | +0.65 / +0.00 / +0.59 % | +6.6 cm / +0.11 deg | 1.6556 -> 1.6632 | 340 s cap both, nz 1.580 -> 1.615 |
+| twin, preset:garage | = | = | = | bit-identical | | |
+
+- The mass moves by the cowl loft that follows the thrust line (its derived skin is billed), up to 0.73 kg.
+- Every outcome and phase count is kept except the metal Cessna's circuit, which now completes inside the cap.
+
+**The page.** The join changed, so the page re-captured: `node tools/join_parity_page.js --only
+cub,jodel,metal,floats --jobs 2`, headless Chromium + SwiftShader, the LOAD door, ~10 min a build
+(`data/join_parity_page_recapture.txt`). Its masses are node's to the gram (460.483 / 463.875 / 887.974 / 951.650);
+GATE JOINPARITY: node = page, worst 2.2e-16. This is the RE-CAPTURE RULE's case: a load-chain change meant to move what
+the game flies, said here.
+
+### G2366 - THE TWIN'S FLOAT ROOT, AND THE WHOLE AIRFRAME CERTIFIED SYMMETRIC (GEN_CERT_V 6 -> 7)
+**Cause (DMGWIND's twin row, 10 m/s from 90).** Not "a gear member": the right float's ROOT (D3's bolt-group cut of
+its struts) let go in twist at **1.0008 of its limit**. The left float's root held **1.87 kN m**, the right's
+**1.27**: one aeroplane, two different floats.
+- The certificate stamps each member from its own envelope. The one-sided cases (the one-float drop rolls one way,
+  the drift drops, the engine's torque) left mirror pairs apart. Measured (`scripts/mirror_asym.js`, the base):
+  - the twin's float struts up to 1.69 x apart (FLD-S1BL 2.94 / 1.74 kN), so the right root's bolt group was weaker;
+  - the Cessna on floats' fuselage up to 2.10 x (S2BL-S3BL 15.90 / 33.35 kN) and its float struts 1.99 x;
+  - the metal Cessna's wing 1.89 x; even the Cub's fuselage 1.45 x.
+- At the moment the right root went, the left one read 0.68 of its own limit.
+
+**Fix (G2366, `66_gen_cert.js`).** DMG-NOSE's G2014 rule ("a builder welds both sides of a mount from one tube") on
+every member that has a mirror (`genCertMirrorAll`; the mount's pairs are among them): each member and its mirror
+take the larger envelope, tension and compression apart. It only ever raises a limit.
+- **GEN_CERT_V 6 -> 7**: a certificate the page stored for v6 is stale (a v6 one is lopsided).
+- `genCertMirror` (the mount's pairs, GATE DMGNOSE's) is unchanged.
+
+### G2366 - DMGWIND'S WATER TAXI FLEW A FULL-POWER RUN, NOT A TAXI (tools/_dmg_wind_check.js)
+**Cause (the twin, 10 m/s from 270).** The row is "10 s taxiing at 3 m/s on the sea lane". The rig held 3 m/s along
+the heading the aeroplane STARTED on.
+- A floatplane weathervanes: the twin turned 92 deg into the beam wind (`scripts/twin_wind*.js`).
+- Its speed along the old heading fell to zero, and the loop opened the throttle to 0.99: a 23 m/s run into the
+  wind. The twin porpoised to +-30 deg and nosed over on its thrust couple (DMG-PLOUGH's), 129 members yielding
+  before the floats went.
+- At 90 deg the same loop lifted it 1.3 m off the water before the float root broke.
+
+**Fix (the rig).** 3 m/s along the aeroplane's OWN heading, its taxi speed through the water. The land rows are
+untouched.
+- With it the twin taxis at throttle 0.15-0.21, pitch within a few degrees, nothing yielding, from 0 / 90 / 180 /
+  270.
+
+### G2367 - THE TWIN'S DMGDRIVE ROWS: A RIG THAT PUT THE TRUNK IN THE POD, AND THE NACELLE'S FANS AS THIN TUBES
+**1. "The same graze at idle": 'stoppage', want 'brush'.**
+- **Cause.** `tools/_dmg_drive_lib.js` tipStrike plants the trunk "to the aeroplane's left of the hub (away from the
+  cabin on the twin's left engine)". It took the side from the world z's sign times a perpendicular that turns with
+  the heading. On the game's strip that put the twin's trunk **inboard** (z -0.58 against the hub's -1.65): in the
+  pod's side.
+- The pod shoved the left nacelle 1 cm into its disc after the first contact. The idle brush (0.031 R, graded
+  'brush' on the first frame) became 0.040 R, and a rigid strike past 0.04 R is a stoppage.
+- With the trunk clear of the disc the hub does not move (0.1 mm, `scripts/graze*.js`).
+- **Fix (the rig).** The side is the hub's own, across the heading from the CG. A nose engine (on the centreline)
+  gets the same vector as before, bit for bit. **After:** 'brush' at idle, the engine runs, the mount holds; full
+  power still separates a blade and the mount lets go 0.017 s later.
+
+**2. torque361: "lets go at 1.47 x it", want >= 1.5.**
+- **Cause.** The member is ENGL-WR, the left nacelle node to the rear spar's root-side node: **1.71 m** long. A wing
+  nacelle is fanned to the four spar nodes of its bay (61_gen_frame G179), and the bay runs from the root to the
+  nacelle station, so two of the four fans reach the bay's far end (1.15-1.71 m on the twin).
+- The solver gives every 'fus' member of a tube row a thin tube's Euler cap at its class section. ENGL-WR buckles at
+  **4.52 kN**, against its certified 8.69 (the bow case) and 23.361's limit torque's 3.08 kN x 1.5 = 4.62.
+- The certificate never stamps past physics, so it could not help.
+- **The fans are not tubes.** A real nacelle bolts a short mount to its spar's fittings. These fans are the
+  nacelle's structure lumped onto the spar box, the same kind of stand-in the solver already exempts from Euler ("the
+  strut fan's hidden members (to 5.8 m: the lumped stand-in for a spar box)", G1811).
+- **Fix (61_gen_frame / 30_solver).** A wing nacelle's fans over its bay (the engine's and the foot's) are listed in
+  `parts.dmg.lump` and take no Euler; everything else about them is unchanged.
+  - The post and the CG node's members keep their tube.
+  - Listed rather than flagged on the member, as MOUNTRIG did its isolators (one shape of beam in the solver's loop).
+  - Only the twin has a wing nacelle among the validated builds.
+- **After:** torque361 lets go at **3.89 x** (CGE-WF).
+
+### G2367 - DMGDRIVE: TWO RIGS THE OLD METAL CESSNA'S LOW PROP HAD HIDDEN
+With the disc at its drawn height, two of the metal Cessna's strike rows read null:
+
+**1. "A nose-over at 2 m/s".**
+- `_dmg_drive_lib.js` noseOver pitches the aeroplane about its mains until its disc is 3 cm off the ground. On a
+  tricycle that drives the NOSE WHEEL into the ground: the metal Cessna's sat 0.148 m under it
+  (`scripts/noseover_tw*.js`).
+- The leg then threw the nose back up, and the disc bit 3.7 cm, short of the 5 cm turf, so there was no strike.
+- On the old geometry the disc was below the nose wheel and the rig never met the leg.
+- A tricycle's disc meets the ground only once its nose leg has gone: a certified one keeps positive clearance with
+  the nose strut bottomed and its tyre flat (FAR 23.925(a), as recalled).
+- **Fix (the rig).** For a fall (V > 0) on a tricycle the nose leg is folded, its members slack as a break leaves
+  them, and the wheel left on the ground. The brush row (the nose rising at 0.3 m/s) keeps its leg; taildraggers are
+  untouched.
+- **After:** 2 / 4 / 8 m/s: 'stoppage', 'stoppage', 'stoppage' (bites 0.15-0.2 R).
+
+**2. "A trunk grazing the tips at full power: ... the mount lets go".**
+- The blade separates (88 kN of imbalance) and **all eight isolators tear**: the engine leaves.
+- The rig, though, only watched for a group named `...mount` to break. Since DMG-MOUNTRIG that group is the ring's
+  twelve bearers, which stay on the firewall.
+- **Fix (the rig).** The engine has also left when every member from its own nodes (ENG / CGE) to anything else is
+  broken.
+- **After:** the metal Cessna's engine leaves 0.22 s after the strike. The Cub, the Jodel, the floats and the twin
+  still record their mount groups at 0.02-0.03 s.
+
+### G2368 - DMGWALL'S LAST ROW WAS A DIVERGED SIM: A FLOAT THAT CAME OFF, PUSHED BY THE WATER PAST ITS OWN MOMENTUM
+**Cause (DMGWALL "floats nosein-water: no compact part triangle past 1 %").** The Cessna on floats' severe nose-in
+(150 km/h, 10 m/s, 60 deg) is not a stretched cowl panel.
+- The panels sat at 2.6e16 m from the second measured frame: **the whole sim diverged**.
+- `scripts/nosein_*.js`, on the base and on this branch alike:
+  - at 0.134 s both float roots twist off (D3's cuts: the floats come off as rigid bodies);
+  - within the frame a keel node of the free float gains ~8.8 m/s every substep (640 g, steady), then runs away;
+  - the next frame every node is at 1e16 m. The damage record calls it "broke up: the fuselage parted": 542
+    members.
+- **The mechanism.** The water's dynamic terms (32_hydro: the planing pressure rho V^2, the cross-flow, the skin, the
+  slam, the side force) are explicit forces, held for the hydro compute's interval (1/360 s).
+  - On a float bolted to a 950 kg aeroplane they are stable.
+  - On a FREE float of its own ~30-40 kg, rho V^2 A at 40 m/s reverses its velocity in one interval and overshoots,
+    each compute the larger.
+  - Only the slam term was bounded by a node's momentum (`slamCap`).
+- DMG-D0's velocity guard DID see it: a 'speed' fault on node 117 (the free float's keel) at 1034 m/s, 0.15 s in
+  (`scripts/nosein_guard.js`). But GATE DMGWALL does not read the guard, and its "every drawn position finite" passed
+  1e16 m. The damage record's reason still reads "broke up". A gate that drives a wreck might check `sim.guard().fault`
+  (a note for DMG-WALL's owner; not changed here).
+
+**Fix (G2368, 32_hydro `hydroFree`, 30_solver `cutPart`).** When a float cluster's root cut parts, its hydro record
+is marked free with its part's mass. Its dynamic terms are then scaled so that one compute interval can at most stop
+its motion through the water (a semi-implicit bound); its buoyancy is untouched.
+- A float on the aeroplane never takes the branch: everything attached is bit for bit as before.
+
+**After:** the severe nose-in breaks 176 members in 9 pieces (the floats off, the wing struts and the stab after
+them), no node past a few metres. DMGWALL: the floats' and the twin's nose-ins pass every row (the floats' worst wall
+place 1.1 cm, 6 of 1 552 737 past 1 cm).
+
+### G2369 - THE TWIN'S FLOATS CAME OFF IN THE CERTIFICATE'S OWN DROP: A FLOAT'S ROOT TWISTS AT ITS STRUTS' AXIAL STRENGTH
+**Cause (DMGGEAR "the drop at 1.2 x the certificate's sink (3.66 m/s): ... broke up").** At the first touch both float
+roots (D3's bolt-group cuts) let go in twist, and the aeroplane fell through on its hull 2 s later. Measured
+(`scripts/twin_drop*.js`): the roots' twist reads 0.65 / 0.76 / **0.94** / 1.15 of their limit at 2.13 / 2.50 /
+**3.05 (the certificate's own float drop)** / 3.66 m/s.
+- At its certified case a member sits at most at 1 / (1.5 m) = 0.63 of its break. The root is built from those same
+  members but read 0.94: the cut and the certificate disagreed.
+- The bolt group's torque limit took the von Mises shear factor, tu / sqrt 3: each strut end treated as a bolt in a
+  shear plane. A float hangs on struts and spreaders whose ends are LUGS (the gear bracket stamps them so: brittle at
+  1.5 F_l,t m). A twist about its keel loads them along their own axes at their lever arms, as its bending does, and
+  the bending limits take factor 1.
+- DMG-D3 set these limits on D1a's physics (the twin's root T was 45.5 kN m) before the certificate existed. Under the
+  certificate the struts are stamped to what they carry (2.2-38.5 kN), and the shear factor left the root sqrt 3 short
+  of them.
+
+**Fix (G2369, 30_solver, the 'bolts' cut; the floats are its only users).** T = polar(keel, 1), at the members' axial
+strength, like Mu and Mv.
+
+**After:** 0.54 in the certificate's drop, 0.66 in the 1.2 x reserve drop. The drop breaks nothing and sets nothing
+(1.94 g).
+- On D1a's physics (GATE DMGCLUSTERS, no certificate) the floats' root torques rise by sqrt 3; their rows (the
+  nose-ins 0.02-0.04, the dig-in "by MEMBER, before the group's moment") stay as they were.
+
+### G2369 - TREECRASH's "THE DAMAGE FOLLOWS THE BEAMS' OWN LOADS": A BRITTLE MEMBER BREAKS, IT DOES NOT SET
+- With the floats' roots now holding (G2369), the twin's float nose-in (90 km/h, 5 m/s, 20 deg) breaks its float
+  struts' LUGS (the probe's worst member 1.12, gear, tension) and its boom's root bay (the ROD's cluster cut), and sets
+  nothing: 0 set, 30 broken.
+- The row's predicate was `(the probe's peak >= 1) === (members set > 0)`, written as "the damage model yields exactly
+  when the probe's peak passes 1". A brittle member past 1 breaks instead (a lug, a fitting: no set), so the predicate
+  read this run as a mismatch.
+- On the round before (the roots twisting off, a cascade) it read 58 set and passed; on 67a55c3f, 1 set.
+- **Fix (tools/_treecrash_check.js).** Past 1: a set OR a break. Under 1: nothing sets (a D3 cut may still part on
+  its own limit).
+- The water rows' loads are unchanged by the predicate.
+
+### G2365 - DMGCERTCOST
+**1. "The worker's certificate is node's": 2.3 relative.**
+- **Cause.** The browser half handed the bench worker the Cub FILE AS WRITTEN (`genMigrateSpec` on the file), while
+  node's certificate was the game's Cub (`L.defOf`, through `_load_build.js`). Two aeroplanes, not two V8s: the
+  pre-G1985 Cub's tank and engine station.
+- The census missed it because it reads the file through `L.BUILDS.cub.build`, not by name.
+- **Fix (the gate).** The worker gets `loadValidated('cub').spec`, the spec node certified (`FLYDIY_RAW_BUILDS=1`:
+  the file on both sides).
+
+**2. The frame budgets.**
+- **Cause.** The budgets (G1892, 2026-10-05: 1797 metal, 1763 floats) are exact frame counts of the certificate's
+  sims, which settle until steady: they belong to an aeroplane. They were taken on the FILES AS WRITTEN.
+- Proof: on today's code the files as written step **1796 / 1761** (`data/certcost_raw_files_base.txt`), inside
+  their budgets. The 1833 / 1796 were JOIN-PARITY's game aeroplanes (the engine 65 cm forward, the Cub's tank), not a
+  lost cut.
+- **Re-derived** on the game's aeroplanes on this branch's final code: metal **1831**, floats **1795** (the uncut 2803 / 3055: the cut's 35 / 41 % kept). The Cub, the Jodel and the twin keep theirs (1807 / 1792 / 1786 inside 1809 / 1792 / 1791). Run alone: every row PASS (`gates_after/DMGCERTCOST.txt`).
+
+**3. The stored reference** (`tools/fixtures/dmg_certcost_ref.json`).
+- Rewritten (`--write-ref`) because the envelope legitimately moved: GEN_CERT_V 7 (G2366's symmetric stamp) on the game's specs (JOIN-PARITY, G2365's thrustline).
+- Every build's cut certificate equals the new uncut one to the bit.
+
+### NOT SOLVED - SAID PLAINLY (each traced to its cause; no bar widened)
+**1. The twin's boom root (DMGCLUSTERS' two nose-in rows; DMGGEAR's "float nose-in ... nothing breaks").**
+- In A0's WATER CASE (90 km/h, 5 m/s down, 20 deg nose-down) the twin's ROD root reaches **1.003** of its limit (1.86
+  of first yield) at 0.107 s and the boom's root bay goes. DMGGEAR's nose-in row is the same event: the first break is
+  S2BL-S3BL, the rod's root bay, "root-bend" at r 1.000.
+- The load is real, not an artefact: the nose stops, and the tail pitches with ~35 rad/s2 and decelerates with the
+  CG's ~5 g. ~44 kg of tail at ~1.5 m gives ~9-10 kN m, the sim's 9.6-10.3 (`scripts/twin_nosein.js`).
+- The limit is the drawn tube: 113 mm at plane scale, the 1.2 mm default wall (GEN_RULES.rodWall), its plastic moment
+  at 1.15 tu (10.31 kN m). D3's clusters are not stamped by the certificate, and the wall is a rule every rod-boom
+  build shares: raising it is an archetype tune. Not done.
+- **The case against this aeroplane.** FAR 23.527's step water load factor, n_w = C1 V_SO^2 / (tan^(2/3) beta
+  W^(1/3)) with C1 0.012 (as recalled), is **1.91 g** for the twin (V_SO 32 kt, beta 27 deg, 1071 lb) and 3.26 g for
+  the Cessna on floats. The case delivers **5.0 g** at the twin's CG: 2.6 x its limit, past its 2.9 g ultimate.
+- The case is fixed in V and sink for every floatplane (90 km/h is 1.5 V_SO for the twin, 1.0 for the Cessna).
+- **The question (A0's, the case's owner):** scale the ordinary water case per aeroplane (FAR 23.527's own load
+  factor or its V_SO), or rule that a twin-boom ultralight's boom must survive it (then the rod's wall wants a
+  certified size: a frame-generator change).
+
+**2. The twin's crosswind water circuit, 2.00 on the aft spreader bar (DMGGEAR).**
+- In the roll-out (275.6 s) the twin skips and comes down nose-up 13 deg with 8 deg of bank on one float
+  (`data/twin_xw_rollout.txt`, `scripts/twin_xw.js`).
+- The aft spreader bar (FLD-FLD at x 1.58, z -0.50 to +0.50) shortens 7 mm and carries **4.2 kN** in compression for
+  5 frames. Its certified envelope is 0.83 kN (wWeave governs it) and its stamped crush 2.16 kN.
+- No certificate case compresses the spreaders:
+  - 23.529's unsymmetrical step landing is written with both floats' side loads pointing the SAME way (`wUnsymR/L`);
+  - as recalled, a twin-float installation's side load is directed inboard on each float. Even inboard it is
+    0.25 tan beta of the up load, ~0.28 kN a float on the twin, a fifteenth of what the skip delivers.
+- So the gap is the landing, not the case. The twin skips because nobody flies its touch (DMG-RECAL's open question
+  3: "it skips four times on the game's twin").
+- I did not change the certificate for a load no FAR case asks for, and did not fly a new landing.
+- The base read 2.00 too.
+- **The question:** the floats' landing flown by the pilot (flare, hold, power off) first; then, if a flown skip
+  still reaches the spreaders, a certificate case for it (a one-float touch with bank) from its owner.
+
+**3. The Cessna on floats' bench to destruction (DMGCERT, 2 rows: "BROKE AT within [5.70, 5.99] g" and "to the
+ultimate x 1.1: it breaks").**
+- It breaks at **6.595 g** (the base: 6.215; window top 5.99 x 1.025).
+- Two causes, both traced (`data/floats_bench*.txt`, `scripts/bench_*.js`):
+  1. the wing's strut fittings at the fuselage (S1B?-WB) are governed by the ONE-FLOAT DRIFT DROP (38.03 kN against
+     the bench's 36.68). Since G2366 both sides are, so the certificate itself predicts **6.20 g**, above the window.
+     A floatplane's water case designing its wing fitting is legitimate; the window assumes the bench's case governs;
+  2. the two fittings are the V-strut's FRONT and REAR struts (to the front and rear spars,
+     `scripts/wb_pair.js`):
+     - on the metal Cessna the bench governs both, balanced: predicted 5.98 / 5.99 g. It breaks the front at
+       6.017 g, as predicted;
+     - on the floats the drift drop certified the front to 6.20 g and the REAR to **7.75 g**. As the box sets (from
+       3.85 g) the load moves off the front strut onto the much stronger rear one (the front's share falls to 0.94
+       of linear), and the front fails at 6.595 g;
+     - both struts at their breaks would carry the wing to ~6.9 g (their breaks over the bench's load at the limit,
+       122.5 / 67.4 kN x 3.8 g). It is static: 4 x slower or faster ramps give 6.209 / 6.238 g on the base.
+- Without G2366 the row was red as well (6.215).
+- **The question (DMG-D2a's):** derive the band's top from the certificate's own prediction for the joint that breaks
+  (here 6.20 g) and a measured redistribution allowance, or keep the flight card's band and say a floatplane's card
+  reads its water case.
+
+### THE GATES, BEFORE (67a55c3f, DMG-MOUNTRIG's `gates_after`) -> AFTER (this branch's final code, build 26c0ee1fc3c0)
+- Each gate was run whole (`node tools/<file>`), its own output file, on the final tree built with
+  `node tools/build.js` (exit 0). Four at a time, except PILOTMATRIX, DMGFPS and DMGCERTCOST, each alone.
+- Outputs: `gates_after/`. GEN, JOINPARITY, SEAPLANE, FLOATS, BUILD, JOIN, ENGINE, MOUNT and TAKEOFF are in
+  `gates_round2/`: the round before the last two changes, which touch only the damage layer (a float root's cut) and
+  three gate rigs.
+- `gates_diff.txt`: every gate's output against MOUNTRIG's, timing dropped. It is the before/after of every number
+  that moved.
+- A `run_gates.js --all` battery was cut by the session's 2-hour background limit, so the gates were run by a
+  detached runner (one process a gate, one file each).
+
+| gate | before | after | what moved |
+|---|---|---|---|
+| TREECRASH | PASS | **PASS** (50/50) | the twin's float nose-in: 1 set / 20 broken -> 0 set / 30 broken (its float struts' lugs and the boom's root bay; G2369's predicate) |
+| DMGGEAR | FAIL 65/72 | FAIL **70/72** | **fixed:** the metal Cessna's rough field 38.48 / 33.20 -> **0.57 / 0.41** (red 1); the Cessna on floats' crosswind circuit 1.21 -> **0.35** (S0BL-S0TR; under G2365 and G2366 together, not separated); the twin's 1.2 x 23.727 drop "broke up" -> **nothing breaks, nothing sets (1.94 g)** (G2369); the twin's 23.473 touchdown 0.82 (MNTL-WF, a nacelle foot's fan) -> **0.37** (under G2366 and G2367 together, not separated). **Left (2):** the twin's float nose-in (the ROD root, below) and its crosswind circuit 2.00 (the aft spreader in a skip, below) |
+| DMGCLUSTERS | FAIL 81/83 | FAIL 81/83 | nothing: the ROD root 1.003, bit for bit (below) |
+| DMGWIND | FAIL 11/12 | **PASS 12/12** | the twin on the water, 9 winds: 0 broken, 0 yields (G2366 x2) |
+| DMGDRIVE | FAIL 127/131 | **PASS 131/131** | the metal Cessna's circuit / half brakes: the disc's least clearance -0.08 / -0.05 -> **0.22 / 0.22 m** (red 1); the twin's idle graze 'stoppage' -> 'brush'; torque361 1.47 x -> 3.89 x; the metal Cessna's nose-overs 2 / 4 / 8 m/s 'stoppage' on its folded leg; its full-power graze: the engine leaves 0.22 s after (G2367's rigs) |
+| DMGCERT | FAIL 69/70 (6.21 g) | FAIL **68/70** (6.59 g) | the Cessna on floats' bench to destruction (below): its strut fittings symmetric now (G2366), governed by the drift drop |
+| DMGCERTCOST | FAIL (3) | **PASS** | the worker's certificate 2.3 -> **3.2e-8** off node's (the game's Cub on both sides); metal / floats 1833 / 1796 frames under re-derived budgets **1831 / 1795** (the files as written: 1796 / 1761, inside the old ones); the stored reference refreshed (GEN_CERT_V 7, the game's specs): every envelope equal to the bit. Run alone (the time ceilings) |
+| DMGWALL | FAIL (2 rows) | **PASS 98/98** | the metal Cessna's trunk 2.5 m out: DMG-WALL's crushed-bay cut (merged); the floats' nose-in: the free float's divergence (G2368) |
+| GEN | not run | **PASS** (4 shards) | nothing: no digest moved (the generator's archetypes carry no drawn engine) |
+| JOINPARITY | PASS | **PASS** | re-captured for the four nose builds (red 1); node = page, worst 2.2e-16; the census declares `_dmg_wallpath_check` |
+| PILOTMATRIX | PASS | **PASS** | identical cells |
+| DMGFPS | PASS | **PASS** (145/145, run alone) | |
+| DMGMEMBERS, DMGNOSE, DMGINST, DMGINTEGRITY, DMGSKIN, DMGDAMP, DMGHULL, DMGPLOUGH, DMGTYRE, DMGFLOATTO, TREEHIT | PASS | **PASS** | the Cessna on floats' water numbers moved with its CG (+6.9 cm, red 1): DMGHULL's step state at 18.2 m/s trims 7.9 -> 3.3 deg on a 0.114 -> 0.234 m keel; DMGFLOATTO's sweep moved; the rest are in `gates_diff.txt` |
+| TAKEOFF, SEAPLANE, FLOATS, BUILD, LOAD, JOIN, ENGINE, MOUNT | PASS | **PASS** | |
+
+### FILES
+- **Merged:** claude/dmg-wall-cowl 65c77c5c (DMG-WALL's G1858.2-G1858.3 / G1859.5, whole).
+- `tools/_cage_join.js`, `src/core/60_gen_spec.js`: the nose engine's drawn height (G2365).
+- `src/core/66_gen_cert.js`, `src/core/90_node_exports.js`: `genCertMirrorAll`, GEN_CERT_V 7 (G2366).
+- `src/core/61_gen_frame.js`, `src/core/30_solver.js`: a wing nacelle's fans `parts.dmg.lump`, no Euler (G2367).
+- `src/core/32_hydro.js`, `src/core/30_solver.js`: `hydroFree`, a free float's dynamic water terms (G2368).
+- `src/core/30_solver.js`: a float root's twist at its struts' axial strength (G2369).
+- Gate rigs and checks:
+  - `tools/_dmg_wind_check.js`: the water taxi on its own heading;
+  - `tools/_dmg_drive_lib.js`: the graze trunk's side, a tricycle's folded nose leg, the engine leaving on its
+    isolators;
+  - `tools/_treecrash_check.js`: a brittle member breaks;
+  - `tools/_dmg_certcost_check.js`: the game's Cub in the worker, the budgets;
+  - `tools/_joinparity_check.js`: the page door for `_dmg_wallpath_check`.
+- Fixtures:
+  - `tools/fixtures/join_parity_page.json`: the four nose builds re-captured;
+  - `tools/fixtures/dmg_certcost_ref.json`: the uncut reference, refreshed (GEN_CERT_V 7 on the game's specs; the stored one was stale (cv, spec, fingerprint), so the gate recomputed the uncut certificate every run; every build's cut certificate equals the new one to the bit).
+- `reports/evidence/DMG-BUNDLE-GREEN/`: `data/` (README.txt says what each is), `scripts/` (run from flyDiy/ as
+  `ROOT=$PWD node reports/evidence/DMG-BUNDLE-GREEN/scripts/<script>`), `gates_after/`, `gates_round2/`,
+  `gates_base_merged/`, `gates_diff.txt`, `flight_diff_engY.txt`.
+- The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage stays
+  OFF by default (nothing here touches the switch).

@@ -1,0 +1,14 @@
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+Cub:
+  ok   1. 1807 frames stepped (budget 1809; the uncut certificate 2779)
+Jodel:
+  ok   1. 1792 frames stepped (budget 1792; the uncut certificate 2764)
+metal Cessna:
+  ok   1. 1796 frames stepped (budget 1797; the uncut certificate 2768)
+Cessna floats:
+  ok   1. 1761 frames stepped (budget 1763; the uncut certificate 3021)
+twin floatplane:
+  ok   1. 1790 frames stepped (budget 1791; the uncut certificate 3050)
+GATE DMGCERTCOST: FAIL
+
+[exited with code 0]

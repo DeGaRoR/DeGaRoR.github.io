@@ -1,0 +1,35 @@
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+Cub:
+  ok   1. 1807 frames stepped (budget 1809; the uncut certificate 2779)
+  ok   1. 10.8 s in node (ceiling 18 s; the uncut 14.8 s; the target ~5 s: 5.8 s over) - static 0.8, settle 1.2, drop 0.4, dropLevel 0.3, dropOne 0.3, drop473 0.2, taxiRough 4.7, ground 0.3, flown 0.7, flownElev 0.7, flownRud 0.5, flownElevF 0.8
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+Jodel:
+  ok   1. 1792 frames stepped (budget 1792; the uncut certificate 2764)
+  ok   1. 19.1 s in node (ceiling 32 s; the uncut 29.3 s; the target ~5 s: 14.1 s over) - static 1.7, settle 2.0, drop 0.7, dropLevel 0.6, dropOne 0.6, drop473 0.9, taxiRough 8.4, ground 0.2, flown 0.9, flownElev 1.3, flownRud 0.7, flownElevF 1.1
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+metal Cessna:
+  ok   1. 1831 frames stepped (budget 1831; the uncut certificate 2803)
+  ok   1. 17.4 s in node (ceiling 30 s; the uncut 25.9 s; the target ~5 s: 12.4 s over) - static 1.2, settle 1.9, drop 0.6, dropNoseUp 0.5, dropOne 0.5, drop473 0.5, taxiRough 7.8, ground 0.2, flown 1.2, flownElev 1.3, flownRud 0.6, flownElevF 1.1
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+Cessna floats:
+  ok   1. 1795 frames stepped (budget 1795; the uncut certificate 3055)
+  ok   1. 27.2 s in node (ceiling 42 s; the uncut 40.2 s; the target ~5 s: 22.2 s over) - static 2.4, settle 3.8, drop 2.2, bow 1.1, dropStep 1.6, dropOne 1.3, dropDriftR 1.4, dropDriftL 1.7, drop473 1.1, wWeave 4.6, ground 0.6, flown 1.7, flownElev 1.5, flownRud 0.8, flownElevF 1.3
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+twin floatplane:
+  ok   1. 1786 frames stepped (budget 1791; the uncut certificate 3046)
+  ok   1. 25.5 s in node (ceiling 48 s; the uncut 38.4 s; the target ~5 s: 20.5 s over) - static 2.8, settle 4.1, drop 2.1, bow 1.1, dropStep 1.5, dropOne 1.4, dropDriftR 1.1, dropDriftL 1.4, drop473 1.1, wWeave 3.7, ground 0.3, flown 1.4, flownElev 1.2, flownRud 0.9, flownElevF 1.4
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+REPORT: the uncut reference written for cub, jodel, metal, floats, twinFloats (/tmp/claude-0/wt2/flyDiy/tools/fixtures/dmg_certcost_ref.json)
+3. the store (node, an in-memory IndexedDB):
+  ok   a miss reads null
+  ok   kept
+  ok   the second page load stamps from the store in 3.9 ms (< 50), the envelope to the bit
+  ok   a flipped value refused (checksum)
+  ok   another version refused
+  ok   another physics refused
+  ok   another member count refused
+  ok   a NaN refused
+  ok   another key refused
+  ok   the good record passes
+  ok   a corrupt record reads null and is deleted
+GATE DMGCERTCOST: PASS

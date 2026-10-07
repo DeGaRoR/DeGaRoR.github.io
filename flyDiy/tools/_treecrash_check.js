@@ -142,7 +142,10 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     console.log('6. the water - ' + L.BUILDS[k].label);
     for (const w of r.water) {
       if (w.skip) { console.log('  --    ' + w.lab + ': needs GEAR-WATER 2\'s wet body (32_hydro.js wetBuild), not in this core - skipped'); continue; }
-      const d = w.dmg, same = (w.peak.max >= 1) === (d.members > 0);
+      // G2369 (DMG-BUNDLE-GREEN): a member past its limit SETS where it is ductile and BREAKS where it is brittle (a lug, a
+      // fitting: no set) - the twin's float nose-in on the certificate breaks its float struts' lugs (1.12) and its boom's
+      // root bay (a cluster cut) and sets nothing. Under 1, nothing sets (a cluster's cut may still part: D3's own limit)
+      const d = w.dmg, same = w.peak.max >= 1 ? (d.members > 0 || d.breaks > 0) : d.members === 0;
       const what = w.lab + ': the worst member ' + pk(w.peak) + '; ' + d.members + ' set' + (d.members ? ' ' + JSON.stringify(w.yieldedCls) : '') + ', ' + d.breaks + ' broken'
         + (w.slam != null ? ', the slam ' + w.slam.toFixed(0) + ' kPa, ' + w.holed + ' hull slice(s) holed' : '') + ', ' + f2(d.gPeak) + ' g, '
         + (d.crashed ? 'CRASHED (' + d.reason + ')' : d.dented ? 'dented, no crash' : 'no damage');
