@@ -7,7 +7,9 @@ if (typeof module !== 'undefined')
 // numbers (HANDOVER G2353). Loaded in node from its tree, the core asks tools/_core_fresh.js to hash src/core the way the
 // build does and throws when its own `body-sha256` header differs. Node only (a page or a worker has no `module`); a
 // core copied out of its tree is not judged; FLYDIY_STALE_OK=1 loads one anyway. ~10 ms once a process.
-if (typeof module !== 'undefined' && typeof require === 'function' && typeof __filename === 'string') (function () {
+// (A0, train 40: a worker evals the core's TEXT - __filename '[worker eval]', dirname '.', and a bare relative require
+// throws: the guard runs only for a core loaded from a real file)
+if (typeof module !== 'undefined' && typeof require === 'function' && typeof __filename === 'string' && require('path').isAbsolute(__filename) && /\.js$/.test(__filename)) (function () {
   const f = require('path').join(require('path').dirname(__filename), '_core_fresh.js');
   if (require('fs').existsSync(f)) require(f).assertFresh(__filename);
 })();
