@@ -2533,7 +2533,7 @@ function makePilot(sim, def, world, opts) {
           const onStrip = Math.abs(sCr) <= half - 1;
           // G2450 EAST-POINT-DEPART: THE GO / NO-GO AT THE HOLD. The sheet's take-off distance (genTORunAt: measured, to
           // 2.5 m, in calm air) put on the wind along the run as a pilot's chart puts it - the ground speed at the rotation
-          // squared, ((Vr - headwind) / Vr)^2 - against the strip ahead. Not fitting, the aeroplane waits at the hold for the
+          // squared, ((Vr - headwind) / Vr)^2 - against the strip ahead. Not fitting WITH A TAILWIND, the aeroplane waits at the hold for the
           // wind (60 s, read again every step) and then declines the take-off, said with its numbers (the player sees why;
           // the outcome 'declined'). Rolled into instead, it was the roll's call - 'will not reach Vr', the abort past the
           // end. (Not on the water, not off an altiport: those runs are judged on their own laws.)
@@ -2547,7 +2547,9 @@ function makePilot(sim, def, world, opts) {
               // the hold and the roll never disagree; the whole 2.5 m distance refused the Cub East Point in calm air, where
               // it lifts off 104 m into the 112 m ahead - G1938, GATE TAKEOFF's turn-around)
               const needW = 0.85 * toRun * clamp(((vr0 - hw) / vr0) ** 2, 0.3, 4);
-              if (needW > left) noFit = { needW, hw, toRun };
+              // (only a TAILWIND makes it a no-go here: in calm air or into wind the roll's own call judges, as before -
+              // the sheet's run is a chart's, conservative against the roll it measures: GATE LINEUP's East Point skip)
+              if (needW > left && hw < -0.5) noFit = { needW, hw, toRun };
             }
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need && noFit) {
