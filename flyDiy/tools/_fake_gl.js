@@ -92,7 +92,11 @@ function makeRecorder() {
     // G800: a draw's triangles by pass (TRIANGLES only: count / 3, times the instances) - what the GPU is handed, not a cost
     draw(name, a) { R.count(name); R.draws[R.phase] = (R.draws[R.phase] || 0) + 1; const t = drawTris(name, a, R.TRI); if (t) R.tris[R.phase] = (R.tris[R.phase] || 0) + t; },
     snapshot() { return { calls: Object.assign({}, R.calls), bytes: Object.assign({}, R.bytes), draws: Object.assign({}, R.draws), tris: Object.assign({}, R.tris), links: R.links, progUsed: R.progUsed.size }; },
-    resetUsed() { R.progUsed = new Set(); } };
+    resetUsed() { R.progUsed = new Set(); },
+    // G1532 (POTATO-DEEP) A FEEDBACK LOOP IS A DRAW THE GPU REFUSES: a draw whose program samples a texture attached to the
+    // framebuffer it draws into (GL_INVALID_OPERATION in WebGL2 - nothing drawn, no exception). The clouds' composite read the
+    // depth it was drawn into at zero samples; GATE FRAMECOST holds the count at 0 for every census
+    feedbacks: 0, feedback: [], fb(info) { R.feedbacks++; if (R.feedback.length < 12) R.feedback.push(info); } };
   return R;
 }
 // the triangles a draw call hands the GPU: mode TRIANGLES (0x0004) only; drawElements(mode, count, ...), drawArrays(mode,
@@ -141,6 +145,19 @@ function makeGL(opts) {
     return rec ? (...a) => { rec.count(name + '.' + p); return null; } : () => null;
   } });
   const EXTS = new Map();
+  // G1532: THE FEEDBACK TRACKER (with a recorder only) - the draw framebuffer's attached textures, the units' bound textures,
+  // the current program's sampler units (uniform1i / 1iv; GL's default unit 0 when never set)
+  const FB = { draw: null, read: null, att: new Map(), unit: 0, units: [], prog: null, su: new Map() };
+  const SAMP = { 35678: 'TEXTURE_2D', 35682: 'TEXTURE_2D', 36298: 'TEXTURE_2D', 36306: 'TEXTURE_2D', 35679: 'TEXTURE_3D', 36299: 'TEXTURE_3D', 36307: 'TEXTURE_3D',
+    35680: 'TEXTURE_CUBE_MAP', 36293: 'TEXTURE_CUBE_MAP', 36300: 'TEXTURE_CUBE_MAP', 36308: 'TEXTURE_CUBE_MAP',
+    36289: 'TEXTURE_2D_ARRAY', 36292: 'TEXTURE_2D_ARRAY', 36303: 'TEXTURE_2D_ARRAY', 36311: 'TEXTURE_2D_ARRAY' };
+  const attach = (t, att, tex) => { const fb = N.get(t) === 'READ_FRAMEBUFFER' ? FB.read : FB.draw; if (!fb) return; let m = FB.att.get(fb); if (!m) FB.att.set(fb, m = new Map()); m.set(att, tex || null); };
+  const feedbackCheck = name => {
+    if (!FB.draw || !FB.prog) return; const att = FB.att.get(FB.draw), ref = REF.get(FB.prog); if (!att || !ref) return;
+    const texs = new Set(); for (const t of att.values()) if (t) texs.add(t); if (!texs.size) return;
+    for (const u of ref.uniforms) { const tg = SAMP[u.type]; if (!tg) continue;
+      const v = FB.su.get(FB.prog.id + '|' + u.name), list = Array.isArray(v) ? v : [v === undefined ? 0 : v];
+      for (const un of list) { const t = (FB.units[un] || {})[tg]; if (t && texs.has(t)) rec.fb({ phase: rec.phase, call: name, program: ref.name || FB.prog.id, sampler: u.name, unit: un }); } } };
   const fns = {
     getParameter: p => { const n = N.get(p); return n in params ? params[n] : 0; },
     getExtension: name => exts.includes(name) ? (EXTS.get(name) || (EXTS.set(name, extProxy(name)), EXTS.get(name))) : null,
@@ -153,7 +170,7 @@ function makeGL(opts) {
     attachShader: (p, s) => { PR.get(p).push(s); },
     linkProgram: p => { const sh = PR.get(p) || []; const vs = sh.find(s => s.type === k('VERTEX_SHADER')), fs = sh.find(s => s.type !== k('VERTEX_SHADER'));
       const L = { vs: vs ? SH.get(vs) : '', fs: fs ? SH.get(fs) : '' }; links.push(L);
-      if (rec) { rec.links++; REF.set(p, reflectProgram(L.vs, L.fs)); } },
+      if (rec) { rec.links++; const r = reflectProgram(L.vs, L.fs), sn = /#define SHADER_NAME (\S+)/.exec(L.fs || L.vs || ''); if (sn) r.name = sn[1]; REF.set(p, r); } },
     getProgramParameter: (p, q) => { const n = N.get(q);
       if (rec && REF.has(p)) { if (n === 'ACTIVE_UNIFORMS') return REF.get(p).uniforms.length; if (n === 'ACTIVE_ATTRIBUTES') return REF.get(p).attrs.length; }
       return /ACTIVE|ATTACHED/.test(n) ? 0 : true; },
@@ -166,10 +183,21 @@ function makeGL(opts) {
     isContextLost: () => false, getError: () => 0, getUniformBlockIndex: () => 0,
     readPixels: (x, y, w, h, f, t, buf) => { if (rec) rec.count('readPixels'); if (buf && buf.fill) buf.fill(0); },
   };
+  if (rec) Object.assign(fns, {
+    bindFramebuffer: (t, fb) => { const n = N.get(t); if (n !== 'READ_FRAMEBUFFER') FB.draw = fb || null; if (n !== 'DRAW_FRAMEBUFFER') FB.read = fb || null; },
+    framebufferTexture2D: (t, att, tt, tex) => attach(t, att, tex),
+    framebufferTextureLayer: (t, att, tex) => attach(t, att, tex),
+    framebufferRenderbuffer: (t, att) => attach(t, att, null),
+    deleteFramebuffer: fb => { FB.att.delete(fb); },
+    activeTexture: u => { FB.unit = u - k('TEXTURE0'); },
+    bindTexture: (t, tex) => { (FB.units[FB.unit] || (FB.units[FB.unit] = {}))[N.get(t)] = tex || null; },
+    uniform1i: (loc, v) => { if (loc && loc.p) FB.su.set(loc.p + '|' + loc.name, v); },
+    uniform1iv: (loc, v) => { if (loc && loc.p && v) FB.su.set(loc.p + '|' + loc.name, Array.from(v)); },
+  });
   const wrapped = new Map();
   const wrap = (p, f) => { let w = wrapped.get(p); if (w) return w;
-    w = rec ? (DRAWS.has(p) ? (...a) => { rec.draw(p, a); return f && f(...a); }
-      : p === 'useProgram' ? (prog) => { rec.count(p); if (prog) rec.progUsed.add(prog.id); }
+    w = rec ? (DRAWS.has(p) ? (...a) => { rec.draw(p, a); feedbackCheck(p); return f && f(...a); }
+      : p === 'useProgram' ? (prog) => { rec.count(p); FB.prog = prog || null; if (prog) rec.progUsed.add(prog.id); }
       : (...a) => { rec.count(p, byteCount(p, a)); return f ? f(...a) : undefined; }) : (f || (() => undefined));
     wrapped.set(p, w); return w; };
   const gl = new Proxy(Object.create(WebGL2RenderingContext.prototype), { get(t, p) {
