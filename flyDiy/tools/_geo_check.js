@@ -140,7 +140,7 @@ function loadManifests() {
   const list = (dir, json) => { const f = path.join(ROOT, 'src', dir, json); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).map(x => path.join(ROOT, 'src', dir, x)) : []; };
   const glob = (dir, re) => { const d = path.join(ROOT, 'src', dir); return fs.existsSync(d) ? fs.readdirSync(d).filter(f => re.test(f)).map(f => path.join(d, f)) : []; };
   for (const f of [].concat(list('props', 'props_packs.json'), list('pier', 'pier_packs.json'), list('totems', 'totems_packs.json'),
-                            list('cabin', 'cabin_packs.json'), list('panelhw', 'panelhw_packs.json'), list('animals', 'animals_packs.json'),
+                            list('cabin', 'cabin_packs.json'), list('loads', 'loads_packs.json'), list('panelhw', 'panelhw_packs.json'), list('animals', 'animals_packs.json'),
                             glob('models', /_model\.js$/), glob('chars', /_(?:char|anim)\.js$/), glob('animals', /_animal\.js$/))) run(f);
   const T = path.join(ROOT, 'src', 'core', 'trees_pack.json');
   if (fs.existsSync(T)) for (const c of JSON.parse(fs.readFileSync(T, 'utf8')).collections || []) if (c.bin) recs.push({ kind: 'tree', key: c.name, bin: c.bin, rec: c, src: 'src/core/trees_pack.json' });

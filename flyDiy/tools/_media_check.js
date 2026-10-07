@@ -218,6 +218,14 @@ function manifestFiles() {
     ? JSON.parse(fs.readFileSync(cabinMf, 'utf8'))
         .map(f => path.join(ROOT, 'src', 'cabin', f))
     : [];
+  // the freight loads (FREIGHT-ASSETS, G2405): the baker's table for the
+  // loads and the camp dressing, its own packs + levels (media/geo/loads,
+  // media/geo/loads_lod, media/tex/loads)
+  const loadsMf = path.join(ROOT, 'src', 'loads', 'loads_packs.json');
+  const loads = fs.existsSync(loadsMf)
+    ? JSON.parse(fs.readFileSync(loadsMf, 'utf8'))
+        .map(f => path.join(ROOT, 'src', 'loads', f))
+    : [];
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -275,7 +283,7 @@ function manifestFiles() {
     const vc = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'audio', 'voice_catalogue.json'), 'utf8'));
     if (vc.script && vc.script.file && fs.existsSync(path.join(ROOT, vc.script.file))) sound.push(path.join(ROOT, vc.script.file));
   } catch (e) {}
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit, sound);
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, models, chars, animals, trees, shots, worlds, townkit, sound);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)

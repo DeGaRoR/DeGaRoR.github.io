@@ -182,6 +182,9 @@ const GATES = [
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
+  // THE FREIGHT LOADS (FREIGHT-ASSETS, G2405): tools/load_table.py = the baked loads + camp dressing, the in-cabin
+  // ≤ ~2k level of every load, the catalogue's dims = the baked props' (props, pier, loads), credits. ~1 s.
+  { id: 'LOADS', file: '_load_check.js', tier: 'core' },
   // THE TOTEM POLES (2026-09-13): the declared table = the shipped pack (a
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
