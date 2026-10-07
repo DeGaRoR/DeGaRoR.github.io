@@ -27,9 +27,11 @@ const path = require('path'), fs = require('fs'), crypto = require('crypto');
 const argv = process.argv.slice(2);
 const ROOT = path.join(__dirname, '..');
 const BUILDS = ['cub', 'jodel', 'metal', 'floats', 'twinFloats'];
-// claude/dmg-tune 849058d8 (the base), node tools/_treecrash_lib.js atTrunk, secs 4, D1a's physics (no certificate)
-const BASE = { 'cub-t25-on': 'ae222ba0cb38', 'cub-t25-off': '6acfbf6ae0ed', 'cub-t0-on': 'fb541e6b5e3b', 'cub-t0-off': 'f97faec72e38',
-               'metal-t25-on': '7f63a2d9daf1', 'metal-t25-off': 'a0cfaca6dcd8', 'metal-t0-on': 'a6e31576d4d3', 'metal-t0-off': 'b5cc29e840c8' };
+// THE BASE (train 41 assembly, 8 Oct): claude/dmg-t41 037519846 with DMG-FABRIC's src/core changes reverted (its merge
+// 1e214874 against its first parent 7122b955) - node tools/_treecrash_lib.js atTrunk, secs 4, D1a's physics (no certificate).
+// Was claude/dmg-tune 849058d8 (FABRIC's own base); the train-41 assembly moved those bits (BUNDLE-GREEN's engine at its
+// drawn height, master's train 40), so the reference is FABRIC's absence on THIS tree. HANDOVER: TRAIN 41's references.
+const BASE = { 'cub-t25-on': '6c8a933ccd97', 'cub-t25-off': 'c4b54a686043', 'cub-t0-on': '0503144b2625', 'cub-t0-off': '9b507be9c5c5', 'metal-t25-on': '174ca146f36c', 'metal-t25-off': 'c67a2e50d137', 'metal-t0-on': '14bdcf12d3b7', 'metal-t0-off': 'd620f807b296' };
 const CRASH = [['cub', 'trunk25'], ['cub', 'trunk0'], ['jodel', 'trunk25'], ['metal', 'trunk0']];
 const KIND = { cub: 'fabric', jodel: 'fabric', metal: 'sheet', floats: 'sheet', twinFloats: 'fabric' };
 
