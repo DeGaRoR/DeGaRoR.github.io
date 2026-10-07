@@ -80501,8 +80501,13 @@ tools/dmg_nose_evidence.js (the pictures).
 
 ## G2361-G2364 DMG-MOUNTRIG: THE NOSE ENGINE ON A REAL MOUNT - A RING OF FOUR CUPS AT THE ENGINE'S REAR FACE 0.4 m AHEAD OF THE FIREWALL, TWELVE BEARERS, EIGHT ISOLATORS, THE CASE RIGID; THE NOSE LEG BRACED TO THE MOUNT'S LOWER CUPS; MASS AND CG KEPT, FLIGHT UNCHANGED TO 1e-3; THE MOUNT DOES NO PLASTIC WORK IN ANY TAXI (2026-10-07, DMG-MOUNTRIG for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-mountrig off origin/claude/dmg-recal 30b4ec8e; G2361-G2364 all used)
 
-**STATUS: see "THE GATES" below - TREECRASH green, DMGWIND / DMGGEAR / DMGCLUSTERS still red on rows that are NOT the nose
-rig (the twin's floats and boom, the metal Cessna's propeller in the ground, a floatplane's 3 m/s touchdown), said plainly.**
+**READY for the coordinator - WITH THREE OF THE FOUR GATES STILL RED, said plainly.**
+- TREECRASH is green: DMG-NOSE's merge made it green, and it stays green on the new rig.
+- DMGWIND, DMGGEAR and DMGCLUSTERS are still red, but on no nose-mount row. Every red row left is one of:
+  - the twin's floats and boom (identical before and after: the twin has no nose engine);
+  - the metal Cessna's propeller, which sits 2.3 cm INTO the ground at rest;
+  - a floatplane's 3 m/s water touchdown, past FAR 23.473's limit sink.
+- Every nose-mount row of the four is green. The mount does no plastic work in any taxi on any build.
 Source and tools only; nothing generated is committed. Damage stays OFF by default (nothing here touches the switch).
 
 ### WHAT I MERGED FIRST: DMG-NOSE
@@ -80614,3 +80619,147 @@ MD5 of (p, v) at the end and the numbers. Bit-identical is impossible where the 
     let go. The lower isolators to the CG sat at 0.97 of theirs.
 - With the rule no rig member sits on its floor: `tools/dmg_mountrig_cert.js`, `cert_rig.txt`.
 - GEN_CERT_V 6: a certificate stored by the page (bench_worker's IndexedDB) for a v5 rig is stale.
+
+### THE CENSUS, BEFORE (base 305129ca) -> AFTER (`tools/dmg_mountrig_measure.js`; `census_table.md`, `data/measure_*.json`)
+- Damage on, the certificate stamped, the validated builds as the game flies them. The cases:
+  - a taxi into a trunk at 1-5 m/s, throttle shut and at 0.3 (TREECRASH's trunk, 4 m ahead);
+  - DMG-DRIVE's nose-over at 4 m/s;
+  - TREECRASH's 30 m/s trunk flights, on the centreline and 2.5 m out.
+- "mount" = members with an end on an ENG / CGE / MNT node: 13 before, 23 after, so a group's break counts more.
+- 65 rows. Every row not listed below is identical, among them every taxi on the Cub, the Cessna on floats and the twin
+  (0 broken).
+
+| build | case | before: broken (mount) / plastic J (mount) | after |
+|---|---|---|---|
+| Cub | nose-over 4 m/s | 30 (10) / 243 (0), **CRASH** | **0 / 29 (0), no crash** |
+| Jodel | nose-over 4 m/s | 10 (10) / 1 (0), **CRASH** | **0 / 294 (0), no crash** (the axle's set) |
+| Jodel | taxi 5 m/s, throttle 0 / 0.3 | 0 / 4 / 7 | 0 / 18 / 24 (the nose tank's frame) |
+| metal Cessna | taxi 4 m/s, throttle 0 / 0.3 | 0 / 9 (9) / 44 (44) | 0 / 0 / 0 |
+| metal Cessna | taxi 5 m/s, throttle 0 | 30 (10) / 1436 (908), **CRASH** | **0 / 351 (0), no crash** |
+| metal Cessna | taxi 5 m/s, throttle 0.3 | 30 (10) / 1605 (993), **CRASH** | 1 (0) / 627 (0), **CRASH** (a firewall-ring member, S0, not the mount) |
+| metal Cessna | nose-over 4 m/s | 0 / 227 (0) | 0 / 14 (0) |
+| every nose build | 30 m/s centreline / 2.5 m out | CRASH | CRASH (as the gate asks; numbers in the table) |
+| Cessna on floats | nose-over 4 m/s (on its floats, on grass) | CRASH | CRASH |
+
+- **Engine**: every taxi from 2 m/s stops the engine before and after (the prop strikes the trunk: DMG-DRIVE's teardown).
+  The engine stays running in the 2.5 m-out flights of the Jodel and the Cessna on floats after (the prop misses the
+  trunk there).
+- **The mount** does no plastic work in any taxi on any build (before: up to 993 J). DMGWIND agrees:
+  - in the page's own staging (49 winds, 3 m/s into a trunk 6 m ahead) the mount's worst reads 0.29 / 0.30 / 0.21 of
+    its limit on the Cub / Jodel / metal Cessna, against 1.02 / 0.67 / 1.02 before;
+  - at the page's impact speed (3.6 m/s) 0 of 49 winds break it on all three.
+
+### THE PAGE AGAINST NODE (the user's Cub, 3 m/s)
+- **The page's def is node's**: GATE JOINPARITY on this branch, the page's capture
+  (tools/fixtures/join_parity_page.json) against node's load chain, n 97/97, nb 404/404, worst 0 on the Cub.
+  - JOINPARITY compares the spec the page settles on, built by the same core. So the page flies this rig the moment it
+    flies this core: nothing to re-capture.
+- **The page's own 3 m/s taxi was NOT re-run here.** The tools that drive the real page through a crash
+  (tools/live_driver.js, dmg_wall_census.js) drive a headed Chrome on the box: Windows paths, its GPU. This cloud has
+  headless Chromium only, and join_parity_page.js captures the spec, not a crash.
+- What I can say:
+  - node's Cub breaks 0 members in the 3 m/s taxi before and after;
+  - DMGWIND's replica of the page's staging breaks 0 in 98 winds, the mount at 0.29 of its limit;
+  - the page broke 10-13 mount members on the old engX, before JOIN-PARITY. On this bundle it flies node's def.
+  - **The box's live driver should re-run DMG-WALL's taxi case once** to close it.
+
+### THE GATES, BEFORE (base 305129ca = dmg-recal 30b4ec8e + DMG-NOSE) -> AFTER (this branch)
+- Each gate was run whole (`node tools/<gate file>`), on this branch and, where it was red or moved, in a worktree of
+  the base. Both trees were built with `node tools/build.js` (exit 0).
+- The worker restarted twice (killing background runs), so some gates ran more than once; the texts are the last
+  complete runs.
+- Outputs: `reports/evidence/DMG-MOUNTRIG/gates_after/` and `gates_before/`.
+
+| gate | before | after | what moved |
+|---|---|---|---|
+| TREECRASH | PASS | **PASS** (50/50) | the taxi rows: 0 J, 0 set |
+| DMGGEAR | FAIL 61/72 | FAIL **65/72** | fixed: the Cub's ground loop (no `eng:mount` in the order now); the Cessna on floats' touchdowns 0.96 / 1.00 / 1.29 (CGE-S0B*) -> 0.52 / 0.49 / 0.59. The floats' crosswind circuit 1.83 (CGE-S0BR) -> 1.21 (the firewall's S0BL-S0TR, its 2.99 m/s touchdown). Left: the metal Cessna's rough field 25.46 / 32.51 -> 38.48 / 33.20 (THE PROP STRIKE, below); the twin's four rows, identical |
+| DMGCLUSTERS | FAIL 81/83 | FAIL 81/83 | nothing: the twin's float nose-in, the ROD root at 1.003, bit for bit |
+| DMGWIND | FAIL 11/12 | FAIL 11/12 | the nose rows' worst 1.02 / 0.67 / 1.02 -> 0.29 / 0.30 / 0.21; left: the twin on the water at 10 m/s from 90 / 270 (a gear member), identical |
+| DMGDRIVE | FAIL 127/131 | FAIL 127/131 | the same four: the metal Cessna's disc in the ground in its circuit / half brakes (-0.07 -> -0.08 m, -0.05), the twin's graze at idle and torque361 (its nacelle) |
+| DMGCERT | FAIL (floats' bench 6.14 g) | FAIL (6.21 g) | the bundle's, above its [5.70, 5.99] window both ways: the same strut fitting first |
+| DMGCERTCOST | FAIL (3) | FAIL (the same 3) | the bundle's: the metal / floats frames 1833 / 1796 over 1797 / 1763 (identical per case before and after: `data/` has none, the counts were read with GEN_CERT_HOOK); the browser worker's certificate against node's (1.7 before, 2.3 after) |
+| DMGWALL | FAIL (3 rows) | FAIL (2 rows) | see below: before, the Jodel's nose-in and the floats' nose-in (1 cm, 5 cm); after, the metal Cessna's trunk 2.5 m out (1 cm: 0.65 %) and the floats' nose-in (a compact part's triangle). The wall's leak counts move with any crash's details; the coordinator's to judge |
+| DMGINTEGRITY | PASS | PASS | after the cups' own firewall limiters (the first run without them failed: the cups went 6-13 cm through) |
+| DMGNOSE, DMGMEMBERS, DMGSKIN, DMGINST, DMGDAMP, DMGHULL, DMGPLOUGH, DMGTYRE, DMGFLOATTO, DMGFPS | - | PASS | DMGFPS run on both: PASS / PASS |
+| JOINPARITY, PILOTMATRIX, TAKEOFF, SEAPLANE, FLOATS, BUILD, LOAD, JOIN, ENGINE, MOUNT | - | PASS | MOUNT: the stock nose engine's sag 1.1 mm, substeps 76 |
+
+- Not run: GEN (test_gen.js, 4 shards, not in the brief's list). Its digests will have moved with any nose build's node
+  order (4 nodes and 10 members more after CGE).
+- DMGWALL's loader: `tools/_dmg_wall_lib.js` built its physics def from the FILE AS WRITTEN, the only bundle tool that
+  still did. On the metal Cessna and the floats the as-written engine CG sits 0.18 m from the firewall, too close for
+  a mount, so it kept the old rig while the game's def has the mount, and the study refused (130 / 134 nodes). It
+  now flies the game's spec (tools/_load_build.js; `FLYDIY_RAW_BUILDS=1` the file). The base was re-run with the same
+  loader for the "before" (`gates_before/_dmg_wall_check.txt`; the as-written run is `_dmg_wall_check_raw.txt`).
+
+### THE STEP'S COST (`tools/dmg_mountrig_perf.js`, `perf.txt`)
+- The metal Cessna and the Cub parked, 1800 frames, both trees alternately (3 runs each, the machine otherwise idle).
+- **Damage off** (the game's default): the same within the runs' scatter.
+  - Cub: base 2.05 / 2.55 / 3.04 against new 2.15 / 2.41 / 2.37 ms a frame.
+  - Metal Cessna: 4.59 / 4.66 / 4.20 against 3.97 / 5.48 / 4.67.
+- **Damage on**:
+  - Cub: 2.64 / 2.56 / 2.33 against 2.51 / 3.30 / 2.95;
+  - metal Cessna: 8.37 / 8.54 / 8.87 against 8.31 / 8.52 / 7.60.
+  - The Cub's may be +10-15 %; the scatter is as large. A real one would be its 10 more members (+2.5 %).
+- **One cost found and removed**: an isolator flagged ON its member (`b.iso`, 8 of ~450) gave the solver's beam loop
+  two shapes of beam. The Cub's step with damage on went 2.5 -> 5.4 ms. The isolators are a list now
+  (parts.dmg.iso), read once at init.
+
+### THE PROP STRIKE ON THE METAL CESSNA (DMGGEAR's rough field, DMGDRIVE's circuit) - NOT THE RIG
+- The user's metal Cessna, as the game flies it: hub 1.007 m over the ground at rest, disc 2.06 m, **least clearance
+  -0.023 m**. A 172's is ~0.29 m (11 in, as recalled).
+- On 2 cm bumps at 6 m/s the disc brushes, then a blade separates (DMG-DRIVE grades by tip speed). The lost blade's
+  imbalance, ~230 kN rotating at 2000 rpm, shakes the nose: VSNL-S0BR (the nose tank's frame) reads 38 x its
+  certified yield. The trace is `scripts/rough_field_trace.js`.
+- The same disc is the DMGDRIVE circuit's -0.08 m. The base is identical (-0.023 m, 25.46 / 32.51).
+- The old reading, "the bumps come up the nose leg's forward wires into the flange", was the strike: the wires are
+  gone and the strike stays.
+- Whether the prop's diameter, the drawn gear height or the join's measure is wrong is the user's / the join's
+  question. Never tuned here.
+
+### OPEN QUESTIONS (for the user, through the coordinator)
+1. **The metal Cessna's prop is in the ground** (above). Is the drawn prop 2.06 m (a 172's is ~1.91 m, 75 in, as
+   recalled) or the nose gear too short? Until then DMGGEAR's rough field and DMGDRIVE's two "never touch it" rows stay
+   red, on the build, not the rig.
+2. **The twin's rows** (DMGCLUSTERS' ROD root 1.003, DMGGEAR's four, DMGWIND's water row, DMGDRIVE's two): unchanged
+   by this work, bit for bit. They are DMG-RECAL's question 2, the drawn floats' owner's.
+3. **The metal Cessna's powered 5 m/s taxi into a trunk** is still a crash: one firewall-ring member, 627 J, none in
+   the mount. Before, it was the mount (993 J). With the mount sound, the firewall frame is the next thing a 10 kt
+   powered tree strike finds. Is that the intended outcome at 5 m/s with power? Throttle shut it is a dent (351 J).
+4. **The inertia moves -0.02 to -0.14 %** (pitch the most), the mount's 4-5 kg having moved aft onto its ring. Mass
+   and CG are exact. A moment-exact redistribution trades 1-10 kg between the cabin's frames: is -0.1 % acceptable,
+   or should the mount's mass stay on the flange (the old rig's inertia, the cups then weightless and integrated
+   only through a cluster - a solver change)?
+5. **The numbers as recalled** - A0 to check against a mount drawing:
+   - the mount's depth, 0.4 m;
+   - the engines' lengths (O-320 ~29.5 in, O-200 ~28.5, A-65 ~31);
+   - the tubes (1.000 x 0.049 in for the 172, 0.875 x 0.035 for the Cub / Jodel class);
+   - the AN7 isolator bolt;
+   - the crankcase's steel-equivalent section.
+6. **The page's 3 m/s taxi** wants one run on the box's live driver (above).
+7. **DMGCERT's floats bench (6.14 -> 6.21 g) and DMGCERTCOST's three rows** are red on the base too. They came with
+   the bundle (DMG-NOSE's GEN_CERT_V 5 and its cases on this bundle's floats). DMGCERTCOST's frame budgets want
+   re-deriving by its owner.
+
+### FILES
+- src/core/61_gen_frame.js:
+  - G2361: the nose block's mount (the ring's cups, the case, the isolators, the twelve bearers, the old bearers'
+    billing and the CG-keeping split);
+  - B()'s `opt.A`, `opt.iso` (into parts.dmg.iso) and `opt.ghost`;
+  - G2362: the nose leg to the cups (its wires billed at their old length);
+  - the cups' firewall limiters.
+- src/core/60_gen_spec.js: GEN_RULES.mountRing / mountCgGap / mountFw / mountTubeA / mountTubeHeavy / mountIsoA /
+  mountCaseA.
+- src/core/30_solver.js: an isolator (parts.dmg.iso): no Euler, no set.
+- src/core/66_gen_cert.js: G2363, genCertMountKinds (one tube, one isolator); GEN_CERT_V 6.
+- src/core/90_node_exports.js: DMG-NOSE's exports, genCertMountKinds.
+- tools/_dmg_wall_lib.js: the wall study's physics def is the game's.
+- tools/dmg_mountrig_{measure,props,flight,svg,cert,perf}.js: the census, the mass properties, the flight comparison,
+  the side views, the rig on its certificate, the step's cost.
+- reports/evidence/DMG-MOUNTRIG/:
+  - rig_<build>_{old,new}.svg, census_table.md, props_diff.txt, flight_diff.txt, cert_rig.txt, mount_stiffness.txt,
+    perf.txt;
+  - data/, scripts/, gates_before/, gates_after/.
+- Merged: claude/dmg-nose (011daf60), its whole delivery (reports/evidence/DMG-NOSE/, tools/_dmg_nose_check.js, ...).
+- The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage
+  stays OFF by default.

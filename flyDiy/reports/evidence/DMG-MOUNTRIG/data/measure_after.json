@@ -216,7 +216,7 @@
    },
    {
     "lab": "30 m/s centreline",
-    "broken": 176,
+    "broken": 175,
     "brokenMount": 20,
     "mountBroken": [
      "MNTTL-CGE",
@@ -240,7 +240,7 @@
      "MNTBR-S0BR",
      "MNTBR-S0BL"
     ],
-    "work": 18626,
+    "work": 11801,
     "workMount": 2153,
     "crashed": true,
     "reason": "broke up: the fuselage parted (S0BR off the core)",
@@ -252,18 +252,18 @@
     ],
     "crush": 0.437,
     "top": [
-     "AXLEL-S0BR 1181",
-     "AXLER-S0BL 1179",
-     "S2TL-S2TR 770",
-     "S3TL-S3TR 634",
-     "S2BL-S2BR 630",
-     "S3BR-S4BL 585"
+     "AXLEL-S0BR 1081",
+     "AXLER-S0BL 1067",
+     "MNTBR-ENGR 472",
+     "MNTBL-ENGL 472",
+     "MNTTL-ENGL 462",
+     "MNTTR-ENGR 462"
     ],
     "finite": true
    },
    {
     "lab": "30 m/s 2.5 m out",
-    "broken": 129,
+    "broken": 123,
     "brokenMount": 18,
     "mountBroken": [
      "MNTTL-CGE",
@@ -285,7 +285,7 @@
      "MNTBR-S0BL",
      "MNTBR-S0TR"
     ],
-    "work": 14034,
+    "work": 13398,
     "workMount": 322,
     "crashed": true,
     "reason": "a wing member broke",
@@ -295,7 +295,7 @@
     "seized": [
      true
     ],
-    "crush": 0.299,
+    "crush": 0.286,
     "top": [
      "WF-WR 3199",
      "WR-WF 2492",
@@ -539,7 +539,7 @@
    },
    {
     "lab": "30 m/s centreline",
-    "broken": 194,
+    "broken": 192,
     "brokenMount": 20,
     "mountBroken": [
      "MNTTL-CGE",
@@ -563,7 +563,7 @@
      "MNTBR-S0BL",
      "MNTBR-S0TR"
     ],
-    "work": 22657,
+    "work": 22074,
     "workMount": 2810,
     "crashed": true,
     "reason": "broke up: the fuselage parted (TPB off the core)",
@@ -575,12 +575,12 @@
     ],
     "crush": 0.422,
     "top": [
-     "S0BL-S0BR 2500",
-     "AXLEL-S0BR 1716",
-     "S0BR-S0TL 1621",
-     "S0BL-S0TR 1615",
-     "AXLER-S0BL 1614",
-     "S2TL-S2TR 1513"
+     "S0BL-S0BR 2349",
+     "S0BR-S0TL 1562",
+     "S0BL-S0TR 1556",
+     "AXLEL-S0BR 1413",
+     "S2TL-S2TR 1366",
+     "AXLER-S0BL 1317"
     ],
     "finite": true
    },
@@ -845,7 +845,7 @@
    },
    {
     "lab": "30 m/s centreline",
-    "broken": 175,
+    "broken": 188,
     "brokenMount": 22,
     "mountBroken": [
      "MNTBL-CGE",
@@ -868,10 +868,10 @@
      "MNTBR-S0BR",
      "MNTBR-S0BL",
      "MNTBR-S0TR",
-     "TW-MNTBR",
-     "TW-MNTBL"
+     "TW-MNTBL",
+     "TW-MNTBR"
     ],
-    "work": 38857,
+    "work": 34128,
     "workMount": 6913,
     "crashed": true,
     "reason": "broke up: the fuselage parted (TPB off the core)",
@@ -883,19 +883,19 @@
     ],
     "crush": 0.465,
     "top": [
-     "S0BL-S0BR 1487",
-     "S0BR-S0TL 1279",
-     "S0BL-S0TR 1257",
-     "S3TL-S3TR 1218",
-     "S2TL-S2TR 1214",
-     "MNTBL-ENGL 1164"
+     "S0BL-S0BR 1448",
+     "MNTBL-ENGL 1164",
+     "MNTBR-ENGR 1164",
+     "MNTTL-ENGL 1123",
+     "MNTTR-ENGR 1123",
+     "S2TL-S2TR 1115"
     ],
     "finite": true
    },
    {
     "lab": "30 m/s 2.5 m out",
-    "broken": 95,
-    "brokenMount": 14,
+    "broken": 90,
+    "brokenMount": 15,
     "mountBroken": [
      "MNTTL-S0TL",
      "MNTTL-S0BL",
@@ -910,9 +910,10 @@
      "MNTBR-S0BL",
      "MNTBR-S0TR",
      "TW-MNTBL",
-     "TW-MNTBR"
+     "TW-MNTBR",
+     "MNTTL-CGE"
     ],
-    "work": 17354,
+    "work": 17245,
     "workMount": 0,
     "crashed": true,
     "reason": "a wing member broke",
@@ -922,14 +923,14 @@
     "seized": [
      true
     ],
-    "crush": 0.206,
+    "crush": 0.193,
     "top": [
      "WF-WF 5339",
      "S1BL-WF 2440",
      "S1BL-WB 2437",
      "WR-WF 1347",
      "WF-WR 776",
-     "S1BR-S2TR 433"
+     "WR-WF 373"
     ],
     "finite": true
    }
@@ -1132,7 +1133,7 @@
    },
    {
     "lab": "nose-over 4 m/s",
-    "broken": 157,
+    "broken": 149,
     "brokenMount": 12,
     "mountBroken": [
      "MNTBL-S0BL",
@@ -1148,7 +1149,7 @@
      "MNTBR-S0BL",
      "MNTBR-S0TR"
     ],
-    "work": 19249,
+    "work": 17944,
     "workMount": 0,
     "crashed": true,
     "reason": "a gear member broke",
@@ -1160,18 +1161,18 @@
     ],
     "crush": 0.465,
     "top": [
-     "S1BL-S2TL 1734",
-     "S0BR-S1BL 1589",
-     "S0BL-S1BR 1535",
+     "S0BR-S1BL 1544",
+     "S0BL-S1BR 1402",
      "S0BL-S1BL 1248",
      "S0BR-S1BR 1156",
-     "S1BL-S2BL 1057"
+     "S1BL-S2BL 1060",
+     "S1BL-S2TL 691"
     ],
     "finite": true
    },
    {
     "lab": "30 m/s centreline",
-    "broken": 146,
+    "broken": 144,
     "brokenMount": 18,
     "mountBroken": [
      "MNTTL-CGE",
@@ -1193,10 +1194,10 @@
      "MNTBL-CGE",
      "MNTBR-CGE"
     ],
-    "work": 28560,
+    "work": 30175,
     "workMount": 6459,
     "crashed": true,
-    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "reason": "a fus member broke",
     "running": [
      false
     ],
@@ -1205,12 +1206,12 @@
     ],
     "crush": 0.465,
     "top": [
-     "FLD-FLD 2882",
-     "S0BR-S1BL 2271",
-     "VSNL-S0BR 1546",
+     "FLD-FLD 2731",
+     "S0BR-S1BL 1446",
+     "S1BL-S1TR 1348",
      "MNTBL-ENGL 1259",
      "MNTBR-ENGR 1259",
-     "VSNL-VSNR 902"
+     "S0TL-S1TR 1223"
     ],
     "finite": true
    },
