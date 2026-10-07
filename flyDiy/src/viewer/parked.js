@@ -1943,6 +1943,7 @@ self.onmessage = function (e) {
     await store().put(key, v);
     FLEET.stats.stored++;
     log(key, 'fleet: baked and kept,', Math.round(u8.length / 1024), 'KB');
+    for (const g of RESIDENT) if (!g.userData.filled && g.userData.parkedKey === key) residentFill(g);   // G2315: a resident waiting on it
     return v;
   }
   // THE ROLL-OUT'S DOOR: the bytes decoded, or nothing (queued for the garage)
@@ -1985,6 +1986,8 @@ self.onmessage = function (e) {
       if (grp) { grp.remove(lod); PENDING.push({ key, grp, THREE: W.THREE }); }
       return false;
     });
+    // G2315: a garage resident standing it is emptied too (its rung's geometry goes below); the garage fills it again
+    for (const g of RESIDENT) if (g.userData.parkedKey === key && g.userData.filled) { g.clear(); g.userData.filled = false; }
     const bk = rec.baked;
     if (bk) { for (const g of bk.geos || []) if (g && g.dispose) g.dispose(); const m = bk.mat; if (m) { for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.clearcoatMap]) if (t && t.dispose) t.dispose(); if (m.dispose) m.dispose(); } }
   }
@@ -2020,6 +2023,51 @@ self.onmessage = function (e) {
     return FLEET.drawn.has(lod);
   }
 
+  // ---- G2315 GARAGE-RESIDENTS: the airframes parked in the main hangar beside the build stand ------------------------
+  // GAME-2026-10-06 §R GQ7: "yes in the garage, as low-detail props (L2) in their slots behind or beside the stand: not
+  // selectable, not editable, and they cost at most 2 draws in the main hangar". THE GARAGE'S DOOR into the fleet: ONE
+  // rung of the airframe's bake (L2 by default - bakedLevel's index 1: one mesh on the build's atlas), no ladder and no
+  // count (fleetGate ranks the world's; the garage stands its two itself), and NEVER a capture: the bytes decoded
+  // (fleetLoad - the roll-out's own door, allowed in the garage), a missing or stale bake queued for the garage's idle
+  // path as any is (FLEET-PROPS A's bake on save), the holder filled when it lands (fleetBake above). The holder comes
+  // back at once, empty until then; an eviction empties it (fleetEvict above) and residentFill stands it again.
+  // Not selectable: the editor picks through its own mount alone (app.js pickRay on edSitP).
+  const RESIDENT = new Set();
+  function resident(THREE, key, rung) {
+    const grp = new THREE.Group();
+    grp.name = 'resident:' + key;
+    grp.userData.parkedKey = key; grp.userData.rung = rung == null ? 1 : rung; grp.userData.filled = false;
+    RESIDENT.add(grp);
+    residentFill(grp);
+    return grp;
+  }
+  function residentFill(grp) {
+    const key = grp.userData.parkedKey;
+    if (grp.userData.filled || grp.userData.gone) return Promise.resolve(!!grp.userData.filled);
+    const go = rec => {
+      if (!rec || !rec.baked || grp.userData.filled || grp.userData.gone) return !!grp.userData.filled;
+      const THREE = W.THREE, st = rec.stance || (rec.stance = stance(rec.vis));
+      const i = Math.max(0, Math.min(2, grp.userData.rung | 0));
+      // the build()'s frame: model (x aft) -> the stance (pitch about z, lifted) -> nose to +x
+      const inner = new THREE.Group(); inner.rotation.z = st.pitch; inner.position.y = st.lift; inner.add(bakedLevel(THREE, rec.baked, i));
+      const flip = new THREE.Group(); flip.rotation.y = Math.PI; flip.add(inner);
+      grp.add(flip);
+      grp.userData.filled = true; grp.userData.tris = trisOf(grp);
+      fleetTouch(key);
+      return true;
+    };
+    const r = REC[key] && REC[key].fleet ? REC[key] : null;
+    if (r) return Promise.resolve(go(r));
+    if (grp.userData.loading) return grp.userData.loading;          // one look at the store at a time (the drag path asks)
+    return (grp.userData.loading = fleetLoad(key).then(go).finally(() => { grp.userData.loading = null; }));
+  }
+  function residentDrop(grp) {
+    if (!grp) return;
+    grp.userData.gone = true; RESIDENT.delete(grp);
+    if (grp.parent) grp.parent.remove(grp);
+    grp.clear();          // the rung's geometry and material are the record's (shared): never disposed here
+  }
+
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
   W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
@@ -2033,6 +2081,7 @@ self.onmessage = function (e) {
                // the offline tool's door (cookPack) and the A/B's live twin (abLive)
                COOK, cookable, cookSig, cookEncode, cookDecode, cookRecord, cookLoad, cookAll, cookPack, abLive, bakeData, cutBaked,
                // G2220-G2224, the fleet: the rules, the state, the doors (the garage's queue, the roll-out's decode), the pure pick
+               resident, residentFill, residentDrop, residents: RESIDENT,   // G2315: the garage's residents (one rung, decode only)
                FLEET_DRAW, fleet: FLEET, fleetOn, fleetSig, fleetQueue, fleetStep, fleetBake, fleetLoad, fleetTouch, fleetEvict, fleetPick, fleetLadder, garageIdle, mayDecode,
                bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers

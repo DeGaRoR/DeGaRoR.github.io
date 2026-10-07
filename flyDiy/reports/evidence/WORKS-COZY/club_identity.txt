@@ -1,0 +1,6 @@
+interior: 2298 entries; base vs this tree 0 differ; vs this tree with layout cozy named 0 differ
+exterior: 913 entries; base vs this tree 0 differ; vs this tree with layout cozy named 0 differ
+CLUB IDENTITY: PASS
+interior: 2298 entries; base vs this tree 10 differ; vs this tree with layout cozy named 10 differ
+exterior: 913 entries; base vs this tree 0 differ; vs this tree with layout cozy named 0 differ
+CLUB IDENTITY: FAIL

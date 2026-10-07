@@ -457,6 +457,258 @@ const HANGAR_KITS = {
 const HANGAR_KITS_DEFAULT = ['park', 'bench', 'wood', 'metal', 'store',
                              'handling', 'office', 'comfort', 'curio', 'wip'];
 
+// ---- THE LAYOUTS (G2315 WORKS-COZY) -----------------------------------------
+// A LAYOUT is the same kits STOOD DIFFERENTLY: the kit still says what is in
+// the room (its claims, its verbs, its ring), the layout says where it stands
+// in ONE shell. It exists because the kits' own rows were composed for the
+// club (fractions of the authored 26 x 36 frame), and stretched over the works'
+// 40 x 40 m they scatter a club's furniture thinly along four long walls - a
+// warehouse, which is what the user did NOT want (GAME-2026-10-06 §R GQ22:
+// "it should be updated to the largest hangar probably, even though I find the
+// medium one less intimidating and warmer. Main garage should be cozy").
+//
+// `cozy` is the career's main hangar: the works made warm and lived-in. The
+// floor reads as ROOMS round the build bay, each a kit or two gathered in one
+// place instead of strung along a wall:
+//   the BENCH CORNER   shop wall (+z), door half: the workbench under its tool
+//                      racks, the chests and carts, the metal machines at the
+//                      door end (drill, welder, compressor) - the workshop;
+//   the WOODSHOP BAY   build wall (-z), door half: the machine run, the panel
+//                      saw off the wall, the timber stock and the stock rack,
+//                      a Jodel fuselage on trestles and a wing on its stands;
+//   the OFFICE CORNER  back left: the desk under its lamp, the radio, the plan
+//                      table, the plan on the wall;
+//   the LOUNGE         back right: the stove in the corner, the rug, the
+//                      lounge chair turned to the room, a table by the wall;
+//   SCALE CUES         the back wall's shelving either side of its doors, and
+//                      the side walls' back half lined with racking two tiers
+//                      high (tallRack: 3.8 m, mezzanine height) - what tells
+//                      the eye this room is 40 m and not 25.
+// The middle stays clear for the build bay and the two parked residents
+// (§R GQ7: build bay + 2 parked): hangarPark packs them behind and beside the
+// stand around exactly these rows (71_player_bases hangarObstacles).
+//
+// AUTHORED IN THE WORKS' OWN METRES (HD 20, HW 20: x from the door -20 to the
+// back wall +20, z from the build wall -20 to the shop wall +20) and stored as
+// the engine's fractions, so a slid works shell scales it like any kit row.
+// A layout names its SHELL and applies only there (hangarFit falls back to the
+// kits' own rows in any other shell): the sandbox's club never sees it.
+// `light` is the room's warmth, read by hangar.js: the five fittings moved
+// over the rooms (x, z, the hang height y - lower over a room than over the
+// bay), a warmer filament, a stronger fire, and decorative pendants (shades
+// and bulbs, no light: the shadow-map budget stays the club's five maps).
+const HC_A = x => (x + 20) / 40;          // side walls: works x -> along
+const HC_B = z => (z + 20) / 40;          // back wall:  works z -> along
+const HC_F = v => v / 20;                 // floor: works metres -> fraction
+const HANGAR_LAYOUTS = {
+  cozy: {
+    name: 'The works, made cozy', shell: 'works',
+    kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'office',
+           'comfort', 'curio', 'wip'],
+    light: {
+      kelvin: 2700,                          // the warm filament (the club's 4000)
+      stove: { cd: 22, dist: 10 },           // the fire reaches the lounge
+      // the five fittings that light the room: x, z, hang y (metres)
+      lamps: [[1.0, 0, 7.0],                 // over the build bay
+              [15.0, 15.0, 4.6],             // the lounge
+              [15.0, -15.0, 4.6],            // the office
+              [-10.0, 16.0, 4.6],            // the bench corner
+              [-9.5, -13.0, 5.2]],           // the woodshop
+      // shades and bulbs only: the low pendants over a table or a bench
+      pendants: [[14.2, 18.6, 3.2], [13.6, -15.0, 3.4],
+                 [-13.4, 17.6, 4.0], [-13.0, -16.6, 4.2]],
+    },
+    rows: {
+      park: { sites: [], recipes: [] },
+      bench: {
+        sites: [
+          { prop: 'workbench_wood', at: 'shop', along: HC_A(-10.0), out: 1.00, dry: Math.PI },
+          { prop: 'vice_bench', at: 'shop', along: HC_A(-11.0), out: 1.10,
+            dry: Math.PI * 0.5, y: 0.96, on: 'workbench_wood' },
+          { prop: 'toolbox_open', at: 'shop', along: HC_A(-9.2), out: 1.00,
+            dry: Math.PI - 0.35, y: 0.96, on: 'workbench_wood' },
+          { prop: 'toolrack_wall', at: 'shop', along: HC_A(-10.0), out: 0.12,
+            dry: Math.PI, y: 1.62 },
+          { prop: 'toolrack_wall', at: 'shop', along: HC_A(-7.0), out: 0.12,
+            dry: Math.PI, y: 1.62 },
+          { prop: 'stool_wood', at: 'shop', along: HC_A(-11.6), out: 2.00, dry: -0.4 },
+          { prop: 'stool_wood', at: 'shop', along: HC_A(-8.6), out: 2.10, dry: 0.6 },
+          { prop: 'toolchest_metal', at: 'shop', along: HC_A(-7.4), out: 0.90,
+            dry: Math.PI + 0.12 },
+          { prop: 'toolchest_metal', at: 'shop', along: HC_A(-6.6), out: 0.90,
+            dry: Math.PI - 0.10 },
+        ],
+        recipes: [],
+      },
+      wood: {
+        sites: [
+          // the machine run along the build wall, in the timber's order
+          { prop: 'bandsaw', at: 'build', along: HC_A(-13.8), out: 1.16, dry: 0 },
+          { prop: 'jointer', at: 'build', along: HC_A(-11.2), out: 1.38, dry: 0 },
+          { prop: 'thicknesser', at: 'build', along: HC_A(-8.6), out: 0.93, dry: 0 },
+          { prop: 'panelsaw', at: 'build', along: HC_A(-11.6), out: 5.60, dry: 0 },
+          // the timber stock, stacked on the floor at the door end of the bay
+          { prop: 'crate_wood_c', at: 'floor', fx: HC_F(-16.5), fz: HC_F(-12.0), dry: 0.15 },
+          { prop: 'crate_wood_a', at: 'floor', fx: HC_F(-16.5), fz: HC_F(-12.0),
+            dry: -0.20, y: 0.41, on: 'crate_wood_c' },
+          { prop: 'crate_wood_b', at: 'floor', fx: HC_F(-17.3), fz: HC_F(-11.0), dry: 0.35 },
+          { prop: 'crate_wood_a', at: 'floor', fx: HC_F(-16.0), fz: HC_F(-10.2), dry: -0.3 },
+          { prop: 'crate_wood_c', at: 'floor', fx: HC_F(-17.4), fz: HC_F(-9.8), dry: 0.5 },
+        ],
+        recipes: [],
+      },
+      metal: {
+        sites: [
+          { prop: 'drillpress', at: 'shop', along: HC_A(-13.2), out: 0.90, dry: Math.PI + 0.10 },
+          { prop: 'weldingcart', at: 'shop', along: HC_A(-14.4), out: 1.00, dry: Math.PI - 0.20 },
+          { prop: 'compressor', at: 'shop', along: HC_A(-15.6), out: 1.20, dry: Math.PI },
+          { prop: 'drum_steel', at: 'shop', along: HC_A(-16.6), out: 0.90, dry: 0 },
+          { prop: 'drum_steel', at: 'shop', along: HC_A(-16.6), out: 1.60, dry: 0.5 },
+        ],
+        recipes: [
+          // THE SHELVING: the back wall either side of its doors (dry -PI/2:
+          // the shelves face into the room)
+          ...[7.2, 8.25, 9.3, 10.35, -7.2, -8.25].map(z =>
+            ({ recipe: 'loadedRack', at: 'back', along: HC_B(z), out: 0.55,
+               dry: -Math.PI / 2, foot: [0.5, 0.33],
+               props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                       'instrument_panel'] })),
+        ],
+      },
+      store: {
+        sites: [
+          { prop: 'box_cardboard', at: 'shop', along: HC_A(-5.2), out: 1.10,
+            dry: 0.3, y: 1.28, on: 'cart_storage' },
+          { prop: 'jerrycan', at: 'shop', along: HC_A(-12.2), out: 1.85, dry: 0.8 },
+          { prop: 'bottle_lpg', at: 'shop', along: HC_A(-18.4), out: 0.60, dry: 0.5 },
+          { prop: 'bottle_propane', at: 'shop', along: HC_A(-18.9), out: 0.60, dry: 0.4 },
+          { prop: 'bottle_propane', at: 'shop', along: HC_A(-18.8), out: 1.25, dry: -0.9 },
+          { prop: 'barrel_plastic', at: 'build', along: HC_A(-18.7), out: 0.70, dry: 0 },
+          { prop: 'bin_metal', at: 'build', along: HC_A(-17.6), out: 0.70, dry: 0.3 },
+          { prop: 'bin_metal', at: 'back', along: HC_B(-9.6), out: 0.60, dry: 0.3 },
+          { prop: 'bin_metal_rust', at: 'back', along: HC_B(-10.6), out: 0.60, dry: -0.5 },
+          { prop: 'jerrycan', at: 'back', along: HC_B(-11.4), out: 0.50, dry: 0.9 },
+        ],
+        recipes: [
+          // the long stock (tube, spruce, sheet) behind the woodshop's planer
+          { recipe: 'stockRack', at: 'build', along: HC_A(-2.4), out: 0.70,
+            dry: -Math.PI / 2, foot: [0.46, 5.3], props: [] },
+          // THE RACK LINE, two tiers high: the side walls' back half (the
+          // residents park inside it, the shelves stand behind their wings)
+          ...[4, 5, 6, 7, 8, 9].map(x =>
+            ({ recipe: 'tallRack', at: 'shop', along: HC_A(x), out: 0.55,
+               dry: Math.PI, foot: [0.5, 0.33],
+               props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                       'instrument_panel'] })),
+          ...[4, 5, 6, 7, 8, 9].map(x =>
+            ({ recipe: 'tallRack', at: 'build', along: HC_A(x), out: 0.55,
+               dry: 0, foot: [0.5, 0.33],
+               props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                       'instrument_panel'] })),
+        ],
+      },
+      handling: {
+        sites: [
+          { prop: 'cart_storage', at: 'shop', along: HC_A(-5.0), out: 1.10, dry: Math.PI + 0.08 },
+          { prop: 'cart_tool_cab', at: 'shop', along: HC_A(-3.4), out: 0.95, dry: Math.PI - 0.08 },
+          { prop: 'handtruck', at: 'shop', along: HC_A(-17.5), out: 0.55, dry: Math.PI + 0.15 },
+          // a ladder at the end of each rack line
+          { prop: 'stepladder', at: 'shop', along: HC_A(10.2), out: 1.20, dry: Math.PI + 0.5 },
+          { prop: 'stepladder', at: 'build', along: HC_A(10.2), out: 1.20, dry: -0.5 },
+        ],
+        recipes: [],
+      },
+      office: {
+        sites: [
+          { prop: 'desk_metal', at: 'build', along: HC_A(15.5), out: 0.90, dry: 0 },
+          { prop: 'lamp_desk', at: 'build', along: HC_A(16.2), out: 1.15,
+            dry: -0.55, y: 0.78, on: 'desk_metal', light: 'desk' },
+          { prop: 'instrument_panel', at: 'build', along: HC_A(14.9), out: 1.05,
+            dry: 0.35, y: 0.78, on: 'desk_metal' },
+          // the radio on the desk here (the club keeps it on the workbench)
+          { prop: 'radio_bench', at: 'build', along: HC_A(15.6), out: 0.85,
+            dry: 0.15, y: 0.78, on: 'desk_metal' },
+          // a stool at the desk and one at the plan table: references
+          { prop: 'stool_wood', at: 'build', along: HC_A(15.2), out: 1.90, dry: 0.3 },
+          { prop: 'stool_wood', at: 'floor', fx: HC_F(13.0), fz: HC_F(-13.6), dry: 1.0 },
+          // the plan on the back wall, clear of the back doors' leaves
+          { prop: 'plan_wall', at: 'back', along: HC_B(-15.5), out: 0.12,
+            dry: -Math.PI / 2, y: 2.35 },
+        ],
+        recipes: [
+          { recipe: 'planTable', at: 'floor', fx: HC_F(14.0), fz: HC_F(-14.6),
+            dry: 0.4, foot: [0.8, 0.55], props: [] },
+        ],
+      },
+      comfort: {
+        sites: [
+          { prop: 'rug_persian', at: 'floor', fx: HC_F(15.0), fz: HC_F(15.0),
+            dry: Math.PI / 4, y: 0.004 },
+          // the chair turned to the room: you sit by the fire and look at
+          // the aeroplanes
+          { prop: 'chair_lounge', at: 'floor', fx: HC_F(16.2), fz: HC_F(13.6), dry: -2.2 },
+          { prop: 'drum_steel', at: 'floor', fx: HC_F(17.6), fz: HC_F(12.6), dry: 0.2 },
+          { prop: 'barrel_plastic', at: 'floor', fx: HC_F(19.0), fz: HC_F(11.2), dry: 0.4 },
+          { prop: 'stool_wood', at: 'shop', along: HC_A(13.0), out: 1.50, dry: 1.1 },
+          { prop: 'hosereel_wall', at: 'shop', along: HC_A(11.6), out: 0.14,
+            dry: Math.PI, y: 2.20 },
+          // the woodshop's own heater (claimed, never stood in the club)
+          { prop: 'stove_barrel', at: 'floor', fx: HC_F(-1.6), fz: HC_F(-16.2), dry: 0.3 },
+        ],
+        recipes: [
+          // the fire in the corner, turned to the room's diagonal
+          { recipe: 'stoveCorner', at: 'floor', fx: HC_F(17.6), fz: HC_F(17.6),
+            dry: -Math.PI * 0.75, foot: [0.85, 0.85], props: ['stove_masonry'] },
+        ],
+      },
+      curio: {
+        sites: [
+          // the table by the lounge wall, a crate on it
+          { prop: 'table_wood', at: 'shop', along: HC_A(14.2), out: 0.60, dry: Math.PI },
+          { prop: 'crate_wood_a', at: 'shop', along: HC_A(14.6), out: 0.60,
+            dry: -0.25, y: 0.68, on: 'table_wood' },
+          // the old car under its cover, in the woodshop's door corner
+          { prop: 'car_covered', at: 'floor', fx: HC_F(-16.9), fz: HC_F(-17.5),
+            dry: Math.PI / 2 + 0.05 },
+        ],
+        recipes: [
+          { recipe: 'tyreStack', at: 'floor', fx: HC_F(-17.4), fz: HC_F(-15.4),
+            dry: 0, foot: [0.4, 0.4], n: 4, props: ['tyre'] },
+          { recipe: 'tyreStack', at: 'floor', fx: HC_F(-16.4), fz: HC_F(-15.5),
+            dry: 0, foot: [0.4, 0.4], n: 2, props: ['tyre'] },
+        ],
+      },
+      wip: {
+        sites: [],
+        recipes: [
+          // the Jodel's fuselage on its trestles in the woodshop bay, and a
+          // wing on its stands beside it - wood work, in the wood shop
+          { recipe: 'wipBody', at: 'floor', fx: HC_F(-5.4), fz: HC_F(-12.6),
+            dry: Math.PI + 0.21, foot: [3.1, 0.8],
+            props: ['airframe_jodel_body', 'work_trestle'] },
+          { recipe: 'wsWing', at: 'floor', fx: HC_F(-10.5), fz: HC_F(-8.6),
+            dry: 0.05, foot: [4.75, 1.0], props: ['work_trestle'] },
+          { recipe: 'wsEngine', at: 'floor', fx: HC_F(-12.0), fz: HC_F(15.0),
+            dry: -Math.PI / 2 + 0.2, foot: [0.65, 0.65], props: [] },
+        ],
+      },
+    },
+  },
+};
+// the layout that applies to a shell: the named one when its shell matches,
+// else none (a layout is one shell's arrangement - the kits' own rows stand
+// in any other)
+function hangarLayout(key, shell) {
+  const L = key && HANGAR_LAYOUTS[key];
+  return L && (!L.shell || L.shell === (shell || 'club')) ? L : null;
+}
+// a kit's rows under a layout: the layout's when it names the kit, else the
+// kit's own (a kit the layout never stood keeps its club arrangement)
+function hangarRows(k, layout) {
+  const r = layout && layout.rows && layout.rows[k];
+  return r ? { sites: r.sites || [], recipes: r.recipes || [] } : HANGAR_KITS[k];
+}
+
 // ---- THE ENGINE -----------------------------------------------------------
 // hangarFit(dims, kitKeys) -> { placed, recipes, unplaced } with the one
 // invariant this whole mechanism exists for:
@@ -506,6 +758,9 @@ function hangarFit(dims, kitKeys, opts) {
   const hasBackDoors = shellRec.doors === 'sixLeaf';
   const keys = (kitKeys && kitKeys.length ? kitKeys : HANGAR_KITS_DEFAULT)
     .filter(k => HANGAR_KITS[k]);
+  // G2315: a LAYOUT stands the same kits otherwise in its own shell (cozy:
+  // the works); without one - or in another shell - every row is the kit's
+  const layout = hangarLayout(opts && opts.layout, (opts && opts.shell) || 'club');
 
   const placed = [], recipes = [], unplaced = [];
   const placedKeys = new Set();
@@ -531,7 +786,7 @@ function hangarFit(dims, kitKeys, opts) {
     const p = resolve(row);
     const out = { kit, at: row.at, x: p.x, z: p.z, ry: row.dry || 0,
                   y: row.y || 0 };
-    if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; }
+    if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
 
@@ -595,12 +850,14 @@ function hangarFit(dims, kitKeys, opts) {
   // riders — so a box can ride a cart whichever kit declared the cart
   for (const pass of [0, 1])
     for (const k of keys) {
-      for (const s of HANGAR_KITS[k].sites)
+      const rows = hangarRows(k, layout);
+      for (const s of rows.sites)
         if ((s.on ? 1 : 0) === pass) fit(s, k, false);
-      for (const r of HANGAR_KITS[k].recipes)
+      for (const r of rows.recipes)
         if ((r.on ? 1 : 0) === pass) fit(r, k, true);
     }
-  return { placed, recipes, unplaced, dims: { HW, HD, EAVE } };
+  return { placed, recipes, unplaced, dims: { HW, HD, EAVE },
+           layout: layout ? opts.layout : null };
 }
 
 // ---- THE RING -------------------------------------------------------------

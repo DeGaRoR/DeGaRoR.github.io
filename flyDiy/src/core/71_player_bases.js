@@ -187,7 +187,8 @@ function hangarDoor(shed) {
 function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg });
+  // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {
@@ -196,8 +197,9 @@ function hangarObstacles(shed, reg) {
   }
   for (const r of fit.recipes) {
     const K = HANGAR_KITS[r.kit], row = K && K.recipes.find(q => q.recipe === r.recipe);
-    if (!row || !row.foot) continue;
-    const f = orient(row.foot, r.ry);
+    const foot = r.foot || (row && row.foot);          // the placed row's own (a layout's rows are not the kit's)
+    if (!foot) continue;
+    const f = orient(foot, r.ry);
     out.push({ key: r.recipe, x0: r.x - f[0], x1: r.x + f[0], z0: r.z - f[1], z1: r.z + f[1] });
   }
   return out;
@@ -244,7 +246,9 @@ function hangarDoorWhy(shed, foot) {
 // aeroplane already parked (the corner points a hand would try first).
 function hangarPark(shed, planes, opts) {
   const D = hangarDims(shed), door = hangarDoor(shed);
-  const obs = hangarObstacles(shed, opts && opts.reg);
+  // opts.keep (G2315, the garage's residents): floor already taken - the build stand's aeroplane, { x0, x1, z0, z1 } in
+  // the room's frame - packed around like the fit-out
+  const obs = hangarObstacles(shed, opts && opts.reg).concat((opts && Array.isArray(opts.keep)) ? opts.keep : []);
   const list = (planes || []).map(p => {
     const f = parkFoot(p.foot);
     return { name: p.name, f, lx: f.fwd + f.aft + 2 * PARK_CLR, lz: 2 * (f.half + PARK_CLR) };

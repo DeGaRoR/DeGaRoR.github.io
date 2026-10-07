@@ -465,6 +465,9 @@
   const CAREER_DEV = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })()
     && typeof careerNew === 'function';
   const PLAYER_KEY = CAREER_DEV ? careerKey('dev') : 'flydiy.player';
+  // G2315 (GARAGE-RESIDENTS): the career's airframes stand in its garage as fleet props, so the career turns the fleet on
+  // (FLEET-PROPS A's bake on save, decode at the stand) unless the page said otherwise; the sandbox is untouched
+  if (CAREER_DEV) try { if (window.FLYDIY_FLEET === undefined) window.FLYDIY_FLEET = true; } catch (e) {}
   let player = null;
   function playerLoad() {
     if (player) return player;
@@ -944,7 +947,7 @@
       // what the room is equipped with, and the fit engine does the placing.
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0],
-          kits: shed.kits, shell: shed.shell });
+          kits: shed.kits, shell: shed.shell, layout: shed.layout });
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
@@ -1121,6 +1124,7 @@
       // comes back through here (apply -> enterGarage -> applyEnv), so this IS
       // the drag path, and it is four 256^2 draws
       if (hangar.bakeCraftShadow) hangar.bakeCraftShadow(renderer, hangarScene, craft);
+      residentsSync(bb);          // G2315: the career's residents, packed round the stand (nothing in the sandbox)
     }
     // a pref saved against an older, shorter mood list is clamped here, once
     // the room is standing and can say how many skies it actually has
@@ -1128,6 +1132,74 @@
     setExp(inRoom ? hangar.setMood(hangarMood).ex : WORLD_EXPOSURE);
     syncEnvBtn();
   }
+  // ---- G2315 GARAGE-RESIDENTS: THE OTHER AEROPLANES IN THE MAIN HANGAR -------------------------------------------
+  // GAME-2026-10-06 §R GQ7: the main hangar = the build bay + 2 parked; the parked residents stand "in the garage, as
+  // low-detail props (L2) in their slots behind or beside the stand: not selectable, not editable", with "a 'show the
+  // other aeroplanes' toggle in the view rail, default on in the room view and off in close views". CAREER ONLY (the
+  // sandbox's garage is today's). WHO: the main hangar's residents in the fleet ledger (playerResidents), the airframe on
+  // the stand left out, at most its slots less the bay (playerSlots - 1). WHERE: hangarPark's places in this room - the
+  // fit-out (the shed's layout) and the stand's aeroplane (its measured box, `keep`) packed round - nose to the door.
+  // WHAT: parked.js's garage door (PARKED.resident: one L2 rung of the airframe's own bake, decoded, never captured; a
+  // build never baked is queued for the garage's idle path and stands when it lands). Their own group in the garage
+  // scene, NOT the room's (disposeHangar frees the room's geometry; a resident's is the fleet record's). Re-planned only
+  // when what decides it changes (the signature): a slider drag that keeps the stand's box costs a string compare.
+  // a `var` (hoisted: no TDZ) - applyEnv may run before this line has (the boot's order is not this file's)
+  var RES = { group: null, sig: '', holders: new Map(), plan: [], unplaced: [], view: 'room', user: null, ms: 0, rung: 1 };
+  function residentsSync(bb) {
+    if (!RES || !CAREER_DEV || !window.PARKED || !window.PARKED.resident || typeof hangarPark !== 'function') return;
+    const t0 = performance.now();
+    if (!RES.group) { RES.group = new THREE.Group(); RES.group.name = 'garageResidents'; }
+    if (RES.group.parent !== hangarScene) hangarScene.add(RES.group);
+    RES.group.position.y = hangar ? hangar.group.position.y : 0;
+    const d = playerLoad(), id = 'HOME', shed = d.sheds[id];
+    if (!shed) return;
+    const stand = slotOnStand();
+    const max = Math.max(0, (typeof playerSlots === 'function' ? playerSlots(d, id) : 3) - 1);
+    const names = playerResidents(d, id).filter(n => n !== stand).slice(0, max);
+    const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
+    const keep = (bb && isFinite(bb.min.x) && bb.max.x > bb.min.x)
+      ? [{ x0: q(bb.min.x) - clr, x1: q(bb.max.x) + clr, z0: q(bb.min.z) - clr, z1: q(bb.max.z) + clr }] : [];
+    const sig = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), keep, shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
+    if (sig !== RES.sig) {
+      RES.sig = sig;
+      const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: playerFootOf(d, n) })), { keep }) : { placed: [], unplaced: [] };
+      RES.plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); RES.unplaced = P.unplaced;
+      const want = new Set(RES.plan.map(p => 'mine:' + p.name));
+      for (const [k, g] of RES.holders) if (!want.has(k)) { window.PARKED.residentDrop(g); RES.holders.delete(k); }
+      for (const p of RES.plan) {
+        const k = 'mine:' + p.name;
+        let g = RES.holders.get(k);
+        if (!g) { g = window.PARKED.resident(THREE, k, RES.rung); RES.holders.set(k, g); RES.group.add(g); }
+        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI;            // nose to the door (-x), as the stand
+      }
+    }
+    for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
+    residentsShow();
+    RES.ms = performance.now() - t0;
+  }
+  // shown: the hand's choice while it holds (until the next view), else the view's default - on in the room view
+  // (the garage's own framing, 3/4 front, refit), off in the close views (side, plan, nose, interior)
+  const residentsOnNow = () => (RES.user !== null ? RES.user : RES.view === 'room');
+  function residentsShow() { if (RES && RES.group) RES.group.visible = residentsOnNow(); }
+  function residentsView(k) {
+    if (!RES) return;
+    RES.view = (k === 's' || k === 't' || k === 'f' || k === 'i') ? 'close' : 'room';
+    RES.user = null;
+    residentsShow();
+  }
+  const resHolder = n => RES.holders.get('mine:' + n) || { userData: {} };
+  const residentsApi = () => CAREER_DEV ? {
+    on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2),
+    plan: RES.plan.map(p => Object.assign({ filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 }, p)),
+    unplaced: RES.unplaced.slice(),
+  } : null;
+  function residentsSet(on) {
+    if (!CAREER_DEV) return null;
+    RES.user = on !== false;
+    residentsShow();
+    return residentsOnNow();
+  }
+
   // THE STANDING AEROPLANE'S LIGHTS FOLLOW THE HOUR (G440, the user: "do the owed shed aeroplane
   // lights at night too"): by day the shed shows the design's switch positions (the li_* rows);
   // when the sun goes, the pilot's rule (cockpit.js CK.lightsFor - the same one the flight
@@ -1265,6 +1337,8 @@
     // the mobile kit: where it stands, and whether it stands at all
     mobile: () => (getHangar() && hangar.mobile) ? hangar.mobile() : [],
     mobileShown: () => mobileOn,
+    // G2315: the career's residents (null in the sandbox) and the toggle, for the rigs and the console
+    residents: () => residentsApi(), setResidents: on => residentsSet(on),
     setMobile: on => {
       mobileOn = on !== false;
       prefSet('flydiy.hangarMobile', mobileOn ? '1' : '0');
@@ -7698,6 +7772,7 @@
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
     camera.up.set(0, 1, 0);
     edPan.set(0, 0, 0);
+    residentsView('room');         // G2315: the garage's own framing is the room view - the other aeroplanes on
     const F = garageFraming();
     az = azT = F.az; el = elT = F.el; dist = distT = F.dist;
     flReveal = 0;
@@ -12282,6 +12357,7 @@
     // the room's long axis, door end), so az = PI looks it in the nose and
     // az = 0 sits behind the tail.
     camera: k => {
+      residentsView(k);       // G2315: the other aeroplanes follow the view (on in the room, off close up)
       if (k !== 'i') exitInterior();
       if (k === 'r') { edPan.set(0, 0, 0); distT = 14; azT = -2.5; elT = 0.22; return; }
       if (k === 'q') { azT = -2.5; elT = 0.25; distT = 12; edPan.set(0, 0, 0); }
@@ -12292,6 +12368,9 @@
     },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
+    // G2315: the "show the other aeroplanes" toggle (career only: null in the sandbox)
+    residents: () => residentsApi(),
+    setResidents: on => residentsSet(on),
   });
 
   // THE RENDER IS THE FREE ESTATE, NOT THE WHOLE FRAME (G77.1, user: "when

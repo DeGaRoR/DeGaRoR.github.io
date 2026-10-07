@@ -98,6 +98,11 @@ const EXT = !!(opts && opts.exterior);
 // and not a rewrite.
 const SHELL = (opts && opts.shell) || 'club';
 const FRAME = SHELL === 'field' ? 'timber' : 'portal';
+// G2315 WORKS-COZY: the LAYOUT (26_hangar_fit HANGAR_LAYOUTS) - the kits stood otherwise in their own shell, and the
+// room's warmth (LAYIT: the lamps over the rooms, the filament, the fire, the low pendants). None in the sandbox's club:
+// every branch below on LAYOUT / LAYIT is skipped there, and the room is built call for call as before.
+const LAYOUT = (typeof hangarLayout === 'function') ? hangarLayout(opts && opts.layout, SHELL) : null;
+const LAYIT = (LAYOUT && LAYOUT.light) || null;
 
 // ===========================================================================
 // THE GARAGE. A working hangar, sized by its caller — 20 m deep, 28 m wide and
@@ -157,7 +162,7 @@ const FX = v => v * HD / 13, FZ = v => v * HW / 18;
 // THE STOVE'S FIRE. Declared up here because stoveCorner() builds it halfway
 // down the file and the mood code at the bottom has to be able to find it: a
 // light nothing holds a reference to is a light nothing can turn off.
-const STOVE = { light: null, cd0: 14 };
+const STOVE = { light: null, cd0: (LAYIT && LAYIT.stove) ? LAYIT.stove.cd : 14 };
 
 // THE GROUND, DECLARED. Every surface here is something the reflection probe
 // sees BELOW itself, and what a probe sees below itself is the single largest
@@ -2504,7 +2509,7 @@ function stoveCorner(x, z, ry) {
   //
   // It is registered now (STOVE below): the mood scales it with the lamps, and
   // the light panel can switch it off like anything else.
-  const glow = new THREE.PointLight(0xff7a2a, STOVE.cd0, 7, 2);
+  const glow = new THREE.PointLight(0xff7a2a, STOVE.cd0, (LAYIT && LAYIT.stove) ? LAYIT.stove.dist : 7, 2);
   glow.position.set(0, 0.6, 0.75); g.add(glow);
   STOVE.light = glow;
   // log basket + logs, still drawn: nothing in the library is a log
@@ -2621,6 +2626,26 @@ function loadedRack(x, z, ry) {
       const v = rr(-0.05, 0.05);                // in and out, local z
       prop(k, x + u * c + v * sn, z - u * sn + v * c, rand() * 3, y);
       u += rr(0.26, 0.36);
+    }
+  }
+}
+
+// G2315 THE RACK LINE, TWO TIERS (the cozy works' scale cue): a loaded rack and a second rack_steel standing on its
+// frame, its own shelves stocked the same way, a box or two on top - 3.8 m of racking, the mezzanine height a 40 m room
+// is read by. The lower tier IS loadedRack (one stock draw sequence per tier).
+const RACK_H = 1.92;                            // rack_steel's 1.90 frame + the feet's seat
+function tallRack(x, z, ry) {
+  loadedRack(x, z, ry);
+  prop('rack_steel', x, z, ry, RACK_H);
+  const c = Math.cos(ry), sn = Math.sin(ry);
+  for (const y of SHELVES.concat([1.92])) {
+    if (y > 1.5 && rand() < 0.55) continue;     // the top of the line is half empty
+    let u = -0.24;
+    while (u < 0.26) {
+      const k = SHELF_STOCK[Math.floor(rand() * SHELF_STOCK.length)];
+      const v = rr(-0.05, 0.05);
+      prop(k, x + u * c + v * sn, z - u * sn + v * c, rand() * 3, RACK_H + y);
+      u += rr(0.30, 0.42);
     }
   }
 }
@@ -2758,6 +2783,7 @@ function wipWingHang(wx, wz) {
 // a light nothing holds a reference to is a light nothing can turn off).
 const DRAW = {
   loadedRack: r => loadedRack(r.x, r.z, r.ry),
+  tallRack: r => tallRack(r.x, r.z, r.ry),
   tyreStack: r => tyreStack(r.x, r.z, r.n),
   stoveCorner: r => FURN.push(stoveCorner(r.x, r.z, r.ry)),
   planTable: r => FURN.push(planTable(r.x, r.z, r.ry)),
@@ -2776,7 +2802,7 @@ let FIT = { placed: [], recipes: [], unplaced: [], dims: { HW, HD, EAVE } };
 if (typeof hangarFit === 'function' && PROPS_OK) {
   FIT = hangarFit({ HW: HW, HD: HD, EAVE: EAVE }, KITS,
                   { reg: (typeof PROP_REG !== 'undefined') ? PROP_REG : null,
-                    shell: SHELL });
+                    shell: SHELL, layout: LAYOUT ? opts.layout : undefined });
   for (const p of FIT.placed) {
     const g = prop(p.prop, p.x, p.z, p.ry, p.y);
     // a group still waiting on its geometry has nothing to claim yet; the
@@ -2970,7 +2996,7 @@ const lamps = [];
 // the shed's floor in five discs with dark between them. Inside setLampRig's
 // own [0.10, 1.30] clamp and inside the slider's 20..140 range, both checked.
 const LAMP_HK = Math.max(0.1, Math.min(1.6, (EAVE / 7.0) * (EAVE / 7.0)));   // G439: the hang height's inverse square, club = 1
-const LAMP = { gain: 1, angle: 1.178097, kelvin: 4000,
+const LAMP = { gain: 1, angle: 1.178097, kelvin: LAYIT ? LAYIT.kelvin : 4000,
                rgb: new THREE.Color(0xffd9a0) };
 const kelvinRGB = (K, out) => {
   const t = Math.max(10, Math.min(400, K / 100));
@@ -2987,8 +3013,14 @@ const kelvinRGB = (K, out) => {
   return out.setRGB(c(r), c(g), c(b));
 };
 kelvinRGB(LAMP.kelvin, LAMP.rgb);
-for (const [ax, az] of LAMP_XZ) {
-  const x = FX(ax), z = FZ(az), y = EAVE * 0.74;
+// G2315: the cozy works hangs its five over the rooms (authored in the works' metres, scaled with the shell like the
+// layout's rows), each at its own height - and each keeps the club's floor light: hk is ITS hang height's inverse square
+// (LAMP_HK's rule, per fitting), read by setMood. The club: the cross at 0.74 of the eave, hk unset (LAMP_HK), as ever.
+const LAMP_AT = LAYIT
+  ? LAYIT.lamps.map(([lx, lz, ly]) => { const y = Math.min(ly, EAVE - 1.6);
+      return [lx * HD / 20, lz * HW / 20, y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
+  : LAMP_XZ.map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);
+for (const [x, z, y, hk] of LAMP_AT) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const hook = 1.30;                       // prop origin, above the group
   claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
@@ -3075,8 +3107,23 @@ for (const [ax, az] of LAMP_XZ) {
   L.target.position.set(x, 0, z);
   G.add(L.target);
   L.position.y = 0.12;                     // inside the prop's shade
+  if (hk) L.userData.hk = hk;              // G2315: this fitting's own hang height (setMood)
   g.add(L);
   lamps.push(L);
+  G.add(g);
+}
+// G2315 THE LOW PENDANTS (the cozy works): a shade on its rod and a lit bulb over a table or a bench - no light of their
+// own (the five fittings above light the rooms; a sixth shadow map is past the texture-unit budget the cross was cut
+// to), on the lamps' switch, so they burn and go out with the rig
+if (LAYIT && LAYIT.pendants) for (const [lx, lz, ly] of LAYIT.pendants) {
+  const x = lx * HD / 20, z = lz * HW / 20, y = Math.min(ly, EAVE - 1.6), hook = 1.30;
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  const rodH = roofY(z) - (y + hook);
+  g.add(cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb);
+  bulb.position.y = 0.12; bulb.castShadow = false;
+  g.add(bulb);
   G.add(g);
 }
 
@@ -3430,7 +3477,7 @@ const setMood = i => {
   // reloading the page"). Inverse-square on the hang height, the club's own
   // eave the identity, so every row's number still means what it measured.
   for (const L of lamps) {
-    L.intensity = m.lamp * LAMP.gain * LAMP_HK;
+    L.intensity = m.lamp * LAMP.gain * (L.userData.hk || LAMP_HK);
     L.angle = LAMP.angle;
     L.color.copy(LAMP.rgb);
   }
@@ -3842,7 +3889,7 @@ return {
   door: { w: DOOR_W, h: DOOR_H },
   craftPrint: () => CS.quad || null, mobileGroup: MOBILE,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
-  shell: SHELL,
+  shell: SHELL, layout: LAYOUT ? opts.layout : null,   // G2315: the layout this room stands in (cozy: the career's works)
   // the fit-out this room was built with, and what would not fit (HANGARS
   // S2): the editor paints the report, the gate asserts nothing is dropped
   // silently
