@@ -2,3 +2,4 @@ _engcustom_check exit 0 1 s
 _mount_check exit 0 63 s
 test_build exit 0 2 s
 _join_check exit 0 8 s
+_treecrash_check exit 0 1836 s
