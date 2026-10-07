@@ -161,8 +161,9 @@ async function child() {
 }
 
 // ============================================================ THE PARENT
-// the crash stagings: the mild one (the child's defaults) and the breaking-up one (chosen by a --probe sweep on train 39 + TUNE)
-const STAGES = { hard: { id: 'hard', V: 40, agl: 2, tr: 0.5, D: 40 } }, HARD_MIN = 100;
+// the crash stagings: the mild one (the child's defaults) and the breaking-up one (chosen by a --probe sweep on train 39 + TUNE,
+// 2026-10-07, reports/evidence/DMG-D4b/t41-sweep: 30 m/s 1 m up into a 0.5 m trunk breaks 114; at 40 m/s the Cub breaks 0-1 - not a monotone dial)
+const STAGES = { hard: { id: 'hard', V: 30, agl: 1, tr: 0.5, D: 40 } }, HARD_MIN = 80;   // (the sweep on 82cf6ed8: 114 broken, 12 bodies, both runs; the mild 12)
 function runChild(key, fault, secs, damage, stage) {
   const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + (stage ? '_' + stage.id : '') + '.json');
   const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs, '--fakebake=' + arg('fakebake', '1')]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
