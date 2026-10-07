@@ -28,8 +28,8 @@
 // THE TOURS (one heavy job each - shards: 4; 6 East Point the fourth, G1970):
 //   5 (G1970: THE GAME'S FLIGHT - _tour_lib gameHost: the worker's host and placement, the page's pilot with the garage's
 //     shakedown, DAY_CLOCK's day ticked, the load door's aeroplane) the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > 02/20 >
-//     HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
-//     250 m); East Point (150 m) fits no validated land build (the Cub's roll alone is ~145 m - _tour_lib ORDERS); the
+//     HOME (G2450: > East Point between Jumbo Mine and 02/20); the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
+//     250 m); East Point (150 m) is the Cub's alone (G2450: the Jodel and the C172 decline it - their landing runs 183 / 249 m); the
 //     float Cessna (bugReports/cessnaFloatsWOrks.json): Annette Dock > Metlakatla > Annette Dock. The damage ON. Each leg: stopped at its To, no member yielded or broken, no dent, no
 //     prop strike, no node inside an obstacle, no trunk hit, no ground loop (30 deg off the runway at > 5 m/s on the
 //     roll or the roll-out), no off-strip excursion (the CG off the strip's box at > 5 m/s), the final's lowest node

@@ -599,6 +599,7 @@ function makePilot(sim, def, world, opts) {
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
+  let holdOutLate = false;   // G2450 (ENROUTE's escape, below)
   let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
@@ -2542,12 +2543,15 @@ function makePilot(sim, def, world, opts) {
             if (toRun > 0 && !sim.hydro && fr.surface !== 4 && !fr.altiport) {
               const tD = ap.takeoffDir || [F.ux * ap.dirX, F.uz * ap.dirX];
               const hw = -((o_.windX || 0) * tD[0] + (o_.windZ || 0) * tD[1]), vr0 = A.VRot || 18;
-              const needW = toRun * clamp(((vr0 - hw) / vr0) ** 2, 0.3, 4);
+              // (0.85 of it: the rotation comes before the sheet's 2.5 m point - runNeeded's and the roll's own arithmetic, so
+              // the hold and the roll never disagree; the whole 2.5 m distance refused the Cub East Point in calm air, where
+              // it lifts off 104 m into the 112 m ahead - G1938, GATE TAKEOFF's turn-around)
+              const needW = 0.85 * toRun * clamp(((vr0 - hw) / vr0) ** 2, 0.3, 4);
               if (needW > left) noFit = { needW, hw, toRun };
             }
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need && noFit) {
-            if (ap.toWaitT == null) { ap.toWaitT = ap.t; say('takeoff-wait', 'the take-off needs ' + Math.round(noFit.needW) + ' m ' + (noFit.hw < 0 ? 'with ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : 'in ' + noFit.hw.toFixed(1) + ' m/s of headwind') + ' (' + Math.round(noFit.toRun) + ' m in calm air), ' + Math.round(left) + ' m ahead - waiting for the wind'); }
+            if (ap.toWaitT == null) { ap.toWaitT = ap.t; say('takeoff-wait', 'the take-off run needs ' + Math.round(noFit.needW) + ' m ' + (noFit.hw < 0 ? 'with ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : 'in ' + noFit.hw.toFixed(1) + ' m/s of headwind') + ' (' + Math.round(0.85 * noFit.toRun) + ' m in calm air), ' + Math.round(left) + ' m ahead - waiting for the wind'); }
             if (ap.t - ap.toWaitT > 60) {
               say('takeoff-declined', 'not taking off from ' + (ap.route.from.name || ap.route.from.id) + ': ' + Math.round(noFit.needW) + ' m needed, ' + Math.round(left) + ' m of strip ahead' + (noFit.hw < -0.5 ? ', ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind on the only way out' : ''));
               ap.report.outcome = ap.report.outcome || 'declined';
@@ -3077,7 +3081,13 @@ function makePilot(sim, def, world, opts) {
         // the ridge and crossed it by 9 m; held on the climb-out heading it
         // flew A3's k1 departure straight into the hill (aglT 0.5 m)
         let gNeed = -1, holdOut = false;
-        if (L.enroute && ap.legI === 0 && ap.holdDir && phaseT < 150) {
+        // G2450: ...AND PAST THE FIRST 150 s WHEN THE GROUND 1.5 km AHEAD ON THE LEG ASKS IT. The window closed while the
+        // Cub left East Point for 02/20 (the circuit's crosswind flown first): the leg then ran up a slope rising 25 %
+        // (29 m -> 671 m in 2.5 km) at its 10 % climb, the reactive floor chasing it, into the hillside. A climb the
+        // aeroplane cannot make over the next 1.5 km opens the escape (the fan, the climbing turn) whenever it comes
+        const g0 = L.enroute && ap.legI === 0 && ap.holdDir && phaseT >= 150 ? legGeom(L) : null;
+        const nearSteep = !!g0 && gradAhead(cg[0], cg[2], g0.ux, g0.uz, 1500, cg[1], 30) > gammaGA();
+        if (L.enroute && ap.legI === 0 && ap.holdDir && (phaseT < 150 || nearSteep || holdOutLate)) {
           const g = legGeom(L);
           gNeed = gradAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, r.len - r.s)), cg[1], 30);
           if (gNeed > gammaGA()) {
@@ -3101,6 +3111,7 @@ function makePilot(sim, def, world, opts) {
           }
         }
         if (!holdOut) { escapeHdg = null; escapeCircle = false; }
+        holdOutLate = holdOut && phaseT >= 150;   // G2450: an escape opened late stays open until the gradient is made
         // P1: the climb-out hold carried the aeroplane kilometres from the
         // enroute leg's start (its own take-off position); when the hold
         // ends the leg begins where the aeroplane is, and the path with it

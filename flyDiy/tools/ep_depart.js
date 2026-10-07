@@ -30,7 +30,21 @@ if (opt('winddir', null) != null || opt('windkts', null) != null) {
   game.day = d;
 }
 const t0 = Date.now();
-if (mode === 'save') {
+if (mode === 'save' && opt('chain', null)) {
+  // --chain HOME,w3,...,<at>: the tour's own chained legs (flyTour's: the first off the stand, each next the 'leg' command
+  // from where the aeroplane stopped), the state saved after the last - a later leg replayed as the tour flies it
+  const order = opt('chain').split(',');
+  const H = TR.gameHost(C, W, def, A(order[0]), A(order[1]), game);
+  for (let i = 1; i < order.length; i++) {
+    const L = TR.flyLeg(C, W, H.sim, H.def, A(order[i - 1]), A(order[i]), { first: i === 1, host: H });
+    console.log(TR.fmtLeg(L));
+    if (!L.ok) { console.log('the chain stopped at ' + L.from + ' > ' + L.to); process.exit(1); }
+  }
+  const S = H.sim.snap();
+  if (!S) { console.log('snap: the aeroplane is not whole - nothing saved'); process.exit(1); }
+  fs.writeFileSync(snapF, v8.serialize({ S, steps: H.steps, build: B.key }));
+  console.log('saved ' + snapF + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall)');
+} else if (mode === 'save') {
   const H = TR.gameHost(C, W, def, A(from), A(at), game);
   const arr = [];
   if (argv.includes('--trace')) {
