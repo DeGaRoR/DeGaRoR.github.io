@@ -79914,3 +79914,144 @@ DMGCERTCOST's stored reference recomputes on PHYSICS_V 5 (`--write-ref` refreshe
   (master 14.6 / 16 / 16.3; bound 20; THIN), take-off rudder stock 0 -> 14, c172 0 -> 7.5 (bound 20); SEAPLANE crosswind
   swing 11.4 deg at 5.0 m/s (master's 23.9 in the sweep's measure); every calm circuit's rudder and aileron traces stop being
   zero (the table above). GEN's SHAKEDOWN numbers do not move (probes; the stance with the engine stopped).
+
+## G2120 - ROUTE-DRAW: A ROUTE DRAWN ON THE MAP - CONTROL POINTS AND THEIR ALTITUDES (MSL OR AGL, A SAFE DEFAULT), A SPEED, THE PROFILE STRIP WITH THE GROUND UNDER IT (RED UNDER THE MARGIN, A POINT THE AEROPLANE CANNOT MAKE FLAGGED AS IT IS DRAWN); THE PILOT FLIES IT (FLY-BY LEGS, THE GRADIENT PROFILE INSIDE TECS'S LIMITS) AND ENDS IT AS DRAWN (HOLD / HOME / THE NEAREST STRIP); GATE ROUTE (2026-10-07, ROUTE-DRAW for A0, cloud - node + SwiftShader, no GPU; branch claude/route-draw-g2120 off origin/master 751e1122 = train 38; block G2120-G2124)
+
+**READY for A0.** Source only (no generated file committed: build.js regenerates index.html / dev.html / sw.js /
+version.json / tools/flight_core.js). The user (7 Oct): "regarding autopilot, can we now draw a trajectory (control points
++ altitude) for the autopilots?" Validated aircraft only (the user's Cub builds/cub_2026-09-20_corrected.json, the Jodel,
+the metal Cessna - tools/_treecrash_lib.js BUILDS). The game map (MAP-MENU, claude/map-menu-g2250) is untouched: the route
+is a plain JSON record it can show later (below).
+
+**G2120 THE RECORD AND ITS PROFILE** (`src/core/38c_route.js`, NEW, pure, MANIFEST.core after 38b_dest, in 90_node_exports).
+- The record: `{ v: 1, id, name, end: 'hold'|'home'|'land', margin: 60, pts: [{ x, z, alt, ref: 'msl'|'agl', V }] }` -
+  world metres (the aerodromes' frame), the altitude in the point's own reference, V the IAS asked on the leg INTO the point
+  (null = the cruise). `routeNormalise` makes anything (the save, the library, a message) sound or null; it round-trips
+  through JSON.
+- `routeSafeAlt`: a new point's default = ROUTE_AGL_DEFAULT (150 m) over the highest ground (and trees, canopyH) within
+  500 m, up to 10 m. `routeAddPt` (MSL or the same height as AGL), `routeSetRef` (MSL <-> AGL keeping the altitude).
+- `routePerf(sheet, ap, bankLim)`: what a drawn leg may ask - climb 0.70 x the sheet's measured climbMax, descent 0.80 x
+  TECS's own descent clamp (max(3, 1.5 sinkBg)), the cruise, Vmin / Vmax for a point's speed, the turn radius. The law's
+  own clamps (vsUp = climbMax, vsDn) ride along: the strip and the plan line show those as "the limit".
+- `routeProfile(route, world, { perf, from })`: the profile the pilot flies - a straight gradient point to point (from
+  `from`: the departure field before the start, the aeroplane in the air, the route's join while it is flown), the
+  ground + trees sampled every 50 m; verdicts: `conflicts` (clearance under the margin - red), `steep` (a leg whose
+  gradient x the leg's speed asks a climb / descent past the plan limits - "a point it can't make is flagged at drawing
+  time"), `warnings` in words. THE CLIMB-OUT IS NOT A CONFLICT: on the join leg the ground is judged only once the line
+  first clears it by the margin (a take-off starts on the ground); its gradient is judged.
+- `routeCaptureR`: a point's capture radius = the fly-by's own miss at that corner (R (1/cos(t/2) - 1), R at the leg's
+  speed on the pilot's bank, +15 %) + 80 m, >= 150 m. `routeLegs`: WP1..WPn with the drawn altitude at each.
+
+**G2121 THE PILOT FLIES IT** (`src/core/43_pilot.js`). `ap.flyRoute(record)` -> 'armed' (on the ground, the roll, the
+climb-out, the box: the climb-out hands over at the circuit's crosswind height - the circuit's hTurn even when a To is
+set), 'now' (a leg of the arrival, a route, its hold: from here at the next step), 'queued' (the landing committed or
+done), 'none'; `ap.flyRoute(null)` leaves a route being flown (the arrival planned from here, DEST-TO's re-plan). `ap.drawn`
+is the state (armed | flying | hold | done | left, the active point, the captures cap[i] = the closest pass d / dh / t, the
+hold), published as `ap.intent.route`.
+- **ROUTE** (new phase, rail label ROUTE under the ENROUTE tick): the first leg begins two turn radii ahead on the track
+  (planFromHere's join: the turn onto it is a corner the path fillets), the legs filleted at each corner's radius
+  (buildAirPath - THE FLY-BY) and followed by L1 (PATH), a leg passed at navLeg's turn anticipation. Vertically the
+  profile: hA -> hB along the leg read 5 s ahead (TECS's height gain is 0.2 /s, so the lead IS the gradient's
+  feed-forward; past the corner the next leg's ramp), TECS clamping it to its limits. A floor of last resort (the ground
+  600 m ahead + 30 m, said once as `route-terrain`) - a drawn profile under it was red when drawn. A point's speed is
+  clamped to Vmin..Vmax.
+- THE END as drawn: 'hold' -> **LOITER** (new phase, HOLDING): an orbit through the last point (tangent to the track there,
+  turning the way the route's last corner turned, R = max(300, 1.4 x the turn radius)), the heading the circle's tangent
+  read 2 s ahead with the radial error turned in, at the point's altitude, until a new To / route. 'home' -> the field the
+  flight left; 'land' -> the nearest strip this gear lands on (stripAllows, >= 1.4 x the sheet's landing run, 350 m at
+  least): both the cross-country arrival + circuit planned from here (planFromHere, `replanning`).
+- Inert unless called: DEST_REPLAN gains ROUTE / LOITER, planLegH skips a `drawn` leg, buildAirPath's speedOf takes a
+  numeric V, the intent publishes the legs the ROUTE step flew (the step that ends the route plans the arrival's) - every
+  existing flight is the same code path (no route: routeGo false, routeArmed false).
+- THE WORKER: `sim_link.js route(record)` / `{cmd:'route'}` in sim_host.js (DEST-TO's `dest` shape; before the flight is
+  live it goes at k 0), the page pilot's ARMED route rides the init (`pilot.route`, applied after the placement), and
+  `drawn` is mirrored whole (AP_WHOLE).
+
+**G2122 THE DRAWING** (`src/viewer/route_draw.js`, NEW, before app.js; app.js attaches it - `window.ROUTE_DRAW`).
+- THE MAP'S DRAW MODE (the in-flight minimap, #mm): the map shown and large, north up on the drawing's own view (fits the
+  route; wheel / pinch zoom about the cursor, drag the map to pan). Click / tap an empty spot: a point there at its safe
+  default (on a leg: inserted into it); drag a point: moved; right-click or long-press (0.6 s, touch / pen): deleted. Pointer
+  events throughout (mouse, pen, finger; `touch-action: none` on the canvas in draw mode; the plate's own drag never takes
+  a gesture of the drawing). The draft route dashed magenta (armed: solid), the join from the field / the aeroplane dotted,
+  red over the stretches under the margin, the capture rings faint, each point numbered with its altitude (MSL, + AGL).
+- THE PANEL (#rtp, under the map in the same plate): the name; the saved routes (`flydiy.routes`, by id, 40 at most:
+  load / new / save / delete); new points MSL | AGL; the end (hold / home / land); every point's altitude, its MSL | AGL,
+  its speed (km/h, empty = cruise), delete; THE PROFILE STRIP (altitude against distance: the ground and the trees filled,
+  the margin dashed, the profile magenta and red under the margin, the points - red where steep - and, while flown, the
+  aeroplane and the active point); the warnings in words; the status (length, the lowest clearance, the plan limits;
+  ARMED / FLYING WPn of N, the point's altitude, the vertical speed against its limit / HOLDING); FLY THIS ROUTE (or disarm /
+  leave the route / fly the edits).
+- REMEMBERED WITH THE FLIGHT: the draft and whether it is armed (`flydiy.routeDraw` { v, route, fly }) - every edit; an
+  ARMED route is handed to every new flight's pilot (app.js mkPilot - the reset, the skip to line-up, a new aeroplane; not
+  nextLeg's: that leg's route was flown); an edit to a route the pilot holds armed is handed to it at once, one being
+  flown waits for "fly the edits".
+- PRE-FLIGHT: FLY > **drawn route** (a new section of the flight rail, after route & circuit; the setup screen's rail too):
+  the route, its state, "draw on the map" / "fly it" / "leave". Drawn before the start, the climb-out hands over to it.
+- **HONESTY**: the plan line (railPlan) on a route: `<name> · WP2/5 1.2 km · at 350 m (214 agl) · asking 312 m now ·
+  climbing +1.4 m/s (limit +2.9)` and `⚠ terrain: the drawn profile clears the ground by N m` when it does; the map's plan
+  (drawPlanOnMap) labels a drawn point with its DRAWN altitude (not the live target), rings the active one, draws the hold's
+  circle.
+- No per-frame cost when no route is drawn: drawOnMap returns at its first line, tick runs from drawMap only (the map
+  open, at most twice a second), the pilot's ROUTE code runs in its phase only.
+- FOR THE CAREER MAP (MAP-MENU): `ROUTE_DRAW.route()` / the `flydiy.routes` records are the plain objects above; the game
+  map can draw one with routeProfile / routeLegs and hand it to `ap.flyRoute`.
+
+**G2123 GATE ROUTE** (`tools/_route_check.js`, NEW, core, 3 shards, ~7 min wall; `--selftest`; registered in run_gates).
+- A. the model: normalise, JSON round trip, the safe default (380 m over 223 m of ground + trees), AGL <-> MSL, the gate
+  route clean from the field (lowest 63 m), a point drawn on the hill north-east of the field RED (-323 m, said), a 900 m
+  WP2 flagged ("climbs 5.4 m/s, plan limit +2.1"), the plan limits inside the law's, a point's speed clamped, the legs.
+- C. the drawing (route_draw.js in a vm, the core's globals, stub doors): points at their default, inserted into a leg,
+  every edit remembered, FLY arms the pilot, a new flight's pilot handed it, a reload brings it back, leave disarms.
+- B. THE FLIGHTS on Jolene (the damage ON), lined up at HOME, the route drawn before the take-off: HOME + (1500, -2500)
+  170 m / (-1500, -5500) 350 m / (-4000, -3000) 300 m / (-3500, 0) 220 m / (-1500, 2500) 170 m MSL (16.9 km: two climbs,
+  a descent over the sea, a descent back to the field; clean for all three):
+
+| build (end) | WP1 | WP2 | WP3 | WP4 | WP5 | min agl | reversals da/dr | the end |
+|---|---|---|---|---|---|---:|---:|---|
+| Cub (home) | 39 m of 150, +1.9 | 46 of 193, -5.3 | 22 of 150, -2.4 | 11 of 150, +0.1 | 0 of 150, +1.0 | 67 m | 1.4 / 2.3 /min | lands HOME, completed (967 s) |
+| Jodel (hold) | 67 of 150, +6.2 | 57 of 223, -5.8 | 25 of 150, -1.6 | 12 of 150, -1.7 | 0 of 150, +1.0 | 73 m | 2.6 / 2.8 | holding over WP5: 150 s at +-4.0 m of its altitude, 30 m off the circle at most |
+| metal Cessna (land) | 49 of 150, +6.8 | 51 of 359, -6.7 | 26 of 164, -3.5 | 16 of 150, +1.0 | 0 of 150, +1.6 | 91 m | 2.5 / 9.7 | lands at HOME (the nearest), completed (695 s) |
+
+  (closest pass of the capture radius, m; the altitude there against the drawn one, m.) Every step: the vertical speed
+  asked inside the published limits, the flown one (1 s mean) inside them +-0.5; no `route-terrain`; the reversals under
+  PILOTACT's 12 /min for legs; the plan published (intent.route, the active point, intent.h = the height TECS was asked);
+  the pilot's own captures agree with the trace. `--selftest`: a profile that never judges the ground (the hill and the
+  steep point must go red) and a pilot handed every altitude +60 m (the +-15 m check must go red) - caught: 8 failures.
+- pilot_trace.js's activity groups count ROUTE / LOITER as legs.
+
+**G2124 THE STILLS**
+- `tools/route_draw_shot.js` (NEW, cloud, SwiftShader, Playwright; the WebGL canvas hidden for the shots, the map and the
+  strip are 2-D canvases drawn as the page draws them): reports/evidence/ROUTE-DRAW/ `draw.jpg` (the gate route, WP2
+  selected: the map, the panel, the strip), `draw_hill.jpg` (a point on the hill: the red stretch on the map and the strip,
+  the warning, -323 m), `armed.jpg` (FLY THIS ROUTE before the start: armed, "flown after the take-off's climb-out"),
+  `shots.txt` / `shots_ui.txt` the words. THE GESTURES, real pointer input on #mm (Playwright's mouse; a touch
+  pointerdown/up dispatched for the long-press): three clicks -> 3 points, a drag moved WP2, a right-click -> 2, a 0.8 s
+  touch long-press -> 1 - all four as wanted (the first run's first click went to the roll-out shot's skip, which takes
+  the first input by design - rollanim.js; the rig presses a key first now). NO FLYING STILL FROM THE CLOUD: under
+  SwiftShader the page's frames take seconds, the sim worker holds the flight on the page's heartbeat (G1365), and the
+  flight was still on its take-off roll after 1200 s (`shots.txt`) - the flown stills are the box script's.
+- **FOR A0'S BOX** `tools/perf/route_draw_stills.js <cmdPort> <outDir>` on a `tools/live_driver.js` page (the world drawn):
+  draw, hill, armed, the climb-out, the route flown with the drawing open (the strip's aeroplane), the plan line with the
+  drawing closed, the end -> route_<n>_<name>.png + route_stills.json. Run it: `node tools/live_driver.js <repo>
+  builds/cub_2026-09-20_corrected.json index.html 8572` then `node tools/perf/route_draw_stills.js 8572
+  reports/evidence/ROUTE-DRAW/box` (hold boxlock.sh's gpu lock).
+
+**GATES** (cloud, 4 cores, on the final tree, `run_gates --only=... --no-build` after a build): **ROUTE PASS** (3 shards,
+421 s wall; `--selftest` PASS), **PILOT PASS** (3 shards, 591 s), **PILOTMATRIX PASS** (1242 s: "no cell worse than
+pilot_baseline.json; 2 known bad, 1 warn" - the baseline's own), **PILOTACT PASS** (187 s), **PLAN PASS** (390 s), **NAV**,
+**SIMWORKER** (82 s), **UISMOKE** (the fly rail now builds route / drawn / start / ...), **UISMOKE-PHONE**, **SAVE** - all
+PASS. NOT run: the whole `--all` battery and the strict perf gate (no GPU here) - by construction nothing runs a frame
+without a drawn route (above); A0's train battery is the delivery verdict.
+
+**FILES**: src/core/38c_route.js (new), src/core/43_pilot.js, src/core/90_node_exports.js, src/viewer/route_draw.js (new),
+src/viewer/app.js, src/viewer/flight.css, src/viewer/sim_link.js, src/viewer/sim_host.js, tools/build.js (MANIFEST),
+tools/_route_check.js (new), tools/run_gates.js, tools/pilot_trace.js, tools/route_draw_shot.js (new),
+tools/perf/route_draw_stills.js (new), reports/evidence/ROUTE-DRAW/.
+
+**KNOWN / NEXT**: the roll-out screen's own picker (#bootRoute) does not list the drawn route - FLY > drawn route does
+(the setup screen's rail too); the route's join from the field is the climb-out's straight line in the profile (the climb
+itself is on the runway heading to the crosswind height); a drawn speed is IAS and the fly-by radius is planned at it
+(no wind in the capture radius); a point's altitude is not raised by the pilot when it is too low - the profile says so
+in red and the floor of last resort holds 30 m over the ground 600 m ahead; the hold has no exit but a new To / route
+(the user's choice); the phone profile has no flight, so the drawing's touch path is checked by pointer events in Chromium,
+not on the S20.
