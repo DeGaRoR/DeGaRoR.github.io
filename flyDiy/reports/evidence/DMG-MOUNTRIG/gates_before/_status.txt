@@ -6,3 +6,4 @@ _dmg_drive_check exit 1 1731 s
 _dmg_wind_check exit 1 2257 s
 _dmg_integrity_check exit 0 176 s
 _dmg_wall_check exit 1 920 s
+_dmg_wall_check exit 1 215 s
