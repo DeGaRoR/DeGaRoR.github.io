@@ -104,11 +104,14 @@ const VIEWK = { room: 'q', wide: 'q', back: 'q', side: 's' };
   res.gfx = await run('return GFX.get();');
   res.room = await run('const h = GARAGE_ENV._debug().hangar; return h ? { shell: h.shell, layout: h.layout, dims: h.dims, unplaced: (h.fitReport && h.fitReport.unplaced || []).length, lamps: h.lampRig && h.lampRig() } : null;');
   console.log('room ' + JSON.stringify(res.room));
+  res.debug = await run('let P = null; try { P = window.FLYDIY_PLAYER && FLYDIY_PLAYER.doc ? FLYDIY_PLAYER.doc() : null; } catch (e) { P = String(e); } return { keys: Object.keys(localStorage).filter(k => /flydiy\.(build|career|wip)/.test(k)), fleet: P && P.fleet, home: P && P.sheds && P.sheds.HOME, mode: P && P.mode, fleetOn: window.PARKED && PARKED.fleetOn(), res: GARAGE_ENV.residents ? GARAGE_ENV.residents() : "no api", flydiyFleet: window.FLYDIY_FLEET };');
+  console.log('debug ' + JSON.stringify(res.debug));
   // THE RESIDENTS: wait for the idle bake to bake both and the garage to stand them (the editor nudged so applyEnv runs)
   if (flag('residents') && /career=1/.test(Q)) {
     const t0 = Date.now();
     while (Date.now() - t0 < WAITS * 1000) {
-      const R = await run('const R = GARAGE_ENV.residents(); return R ? { plan: R.plan, unplaced: R.unplaced, stats: PARKED.fleet.stats, why: PARKED.fleet.why } : null;');
+      const R = await run('const R = GARAGE_ENV.residentsSync ? GARAGE_ENV.residentsSync() : GARAGE_ENV.residents(); return R ? { plan: R.plan, unplaced: R.unplaced, err: R.err, ms: R.ms, hasDoor: !!(window.PARKED && PARKED.resident), stats: window.PARKED && PARKED.fleet.stats, why: window.PARKED && PARKED.fleet.why } : null;');
+      if (R && (R.err || !R.hasDoor)) console.log('  residents: ' + JSON.stringify({ err: R.err, hasDoor: R.hasDoor, ms: R.ms }));
       res.residents = R;
       if (R && R.plan.length && R.plan.every(p => p.filled)) break;
       await run('if (window.FLIGHT_PROBE && FLIGHT_PROBE.camera) {} if (window.GARAGE_ENV && GARAGE_ENV.setMobile) GARAGE_ENV.setMobile(GARAGE_ENV.mobileShown()); return 1;');

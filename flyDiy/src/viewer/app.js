@@ -1144,9 +1144,19 @@
   // scene, NOT the room's (disposeHangar frees the room's geometry; a resident's is the fleet record's). Re-planned only
   // when what decides it changes (the signature): a slider drag that keeps the stand's box costs a string compare.
   // a `var` (hoisted: no TDZ) - applyEnv may run before this line has (the boot's order is not this file's)
-  var RES = { group: null, sig: '', holders: new Map(), plan: [], unplaced: [], view: 'room', user: null, ms: 0, rung: 1 };
+  var RES = { group: null, sig: '', holders: new Map(), plan: [], unplaced: [], view: 'room', user: null, ms: 0, rung: 1, bb: null, retry: null };
+  // parked.js is a WORLD script, and the garage's first rooms stand during the boot (before it, and before the stand's
+  // slot door is up): what cannot stand yet is looked at again shortly, never left for the next slider
+  function residentsLater() { if (!RES.retry) RES.retry = setTimeout(() => { RES.retry = null; if (inGarage) residentsSync(RES.bb); }, 1500); }
   function residentsSync(bb) {
-    if (!RES || !CAREER_DEV || !window.PARKED || !window.PARKED.resident || typeof hangarPark !== 'function') return;
+    if (!RES || !CAREER_DEV || typeof hangarPark !== 'function') return;
+    if (bb) RES.bb = bb;
+    if (!window.PARKED || !window.PARKED.resident) { RES.err = 'parked.js not loaded yet'; residentsLater(); return; }
+    try { residentsSync0(); RES.err = null; }
+    catch (e) { RES.err = String((e && e.message) || e); RES.fails = (RES.fails || 0) + 1; if (RES.fails < 40) residentsLater(); }
+  }
+  function residentsSync0() {
+    const bb = RES.bb;
     const t0 = performance.now();
     if (!RES.group) { RES.group = new THREE.Group(); RES.group.name = 'garageResidents'; }
     if (RES.group.parent !== hangarScene) hangarScene.add(RES.group);
@@ -1154,7 +1164,9 @@
     const d = playerLoad(), id = 'HOME', shed = d.sheds[id];
     if (!shed) return;
     const stand = slotOnStand();
-    const max = Math.max(0, (typeof playerSlots === 'function' ? playerSlots(d, id) : 3) - 1);
+    // the parked slots (playerSlots: { bay, parked, total } - the main hangar's bay is the stand's)
+    const S = typeof playerSlots === 'function' ? playerSlots(d, id) : null;
+    const max = Math.max(0, (S && isFinite(S.parked)) ? S.parked : 2);
     const names = playerResidents(d, id).filter(n => n !== stand).slice(0, max);
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
     const keep = (bb && isFinite(bb.min.x) && bb.max.x > bb.min.x)
@@ -1189,7 +1201,7 @@
   }
   const resHolder = n => RES.holders.get('mine:' + n) || { userData: {} };
   const residentsApi = () => CAREER_DEV ? {
-    on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2),
+    on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null,
     plan: RES.plan.map(p => Object.assign({ filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 }, p)),
     unplaced: RES.unplaced.slice(),
   } : null;
@@ -1339,6 +1351,7 @@
     mobileShown: () => mobileOn,
     // G2315: the career's residents (null in the sandbox) and the toggle, for the rigs and the console
     residents: () => residentsApi(), setResidents: on => residentsSet(on),
+    residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
     setMobile: on => {
       mobileOn = on !== false;
       prefSet('flydiy.hangarMobile', mobileOn ? '1' : '0');
