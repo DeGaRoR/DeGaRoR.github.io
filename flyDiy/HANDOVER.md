@@ -79857,3 +79857,24 @@ after = this branch; a fresh Chrome profile per load; ground ms, base / base2 wi
   cold links (the four ground programs in parallel): retro 11.1 -> 5.1 s; current 11.9 -> 11.5 s (= train 38).
 Gates on the tip: SPLAT (+ selftest), GROUNDLIB, LIGHT, LOOKS, PAVEMENT, LAKEBED, GFX, PROGRAMS, PREMISES, STRIPGROUND PASS. The strict
 gate (train_gate.js, the default preset = the full programs, unchanged) runs at train 40's pass. Runs: reports/evidence/GROUND-COST/runs/n_*.json.
+
+## G2076 - GROUND-COST LEVER 2: NOT UNDER THE APRON - THE GROUND UNDER A PAVEMENT'S OPAQUE INTERIOR IS NOT SPLATTED (2026-10-07, GROUND-COST for A0, local GPU; one commit on claude/ground-cost-g2075 after 13abb1d1)
+READY for A0 - train 40 (2026-10-07 15:15), as its own commit.
+
+WHY: at the stand the apron is half the screen; the pavement is a transparent decal drawn AFTER the ground (no depth write), so the
+premises patch under it was splatted in full and painted over.
+- src/viewer/render_premises.js: the patch's vertices carry aPav = how far the vertex is sunk under a pavement's opaque interior over
+  the full sink (G660's PAVEMENT.SINK: the patch drops 0.8 m where the paving is opaque for sure) - only where something is sunk.
+- src/viewer/render_world.js: every island ground program declares aPav / vPav (a mesh without the attribute reads 0: the ring, the
+  fine tiles, the far terrain; the patch keeps sharing its base's program - no new link) and skips the splat where vPav >= 0.999 (a
+  whole triangle under the opaque paving: the pavement drawn over it covers it).
+- src/viewer/splat_ground.js: gSN / gSRough start defined (a pixel that skips the splat still reads them).
+- tools/perf/ground_link_variants.js (NEW): the dumped ground programs with this tree's splat and one switch changed, no page (lever 1's bisect).
+RESULT (before = 13abb1d1, after = this commit; retro 1920x1080, 3080, ground ms; the box quiet, 14:40-14:52):
+  current:  stand 6.20 -> 5.22 (-16 %), taxi 4.08 -> 3.55 (-13 %), 40 m 7.27 -> 6.31 (-13 %), air ~290 m 7.51 -> 7.42
+  retro:    no change (stand 4.42, taxi 2.80, 40 m 4.37, air 5.33 both) - the patch's aPav is absent or under 1 at retro (both programs
+            carry the skip): a follow-up (train 42).
+  THE LOOK: pixel-identical on the ground (retro 0.0x %; current differs only in the trees' sway phase between sessions:
+  reports/evidence/GROUND-COST/g2076_apron_current_*_before_after_x4.jpg).
+  COLD LINKS: unchanged (retro 5.2 -> 5.0 s, current 11.1 -> 11.2 s). Gates: SPLAT, PREMISES, PAVEMENT, PROGRAMS, LAKEBED PASS.
+  Runs: reports/evidence/GROUND-COST/runs/ap_*.json.
