@@ -94,7 +94,7 @@
       "hits": 210984,
       "frames": 477,
       "seals": 1,
-      "ms": 0.66
+      "ms": 0.579
      },
      "crashed": true,
      "reason": "a fus member broke",
@@ -370,7 +370,7 @@
       "hits": 787767,
       "frames": 383,
       "seals": 2,
-      "ms": 1.208
+      "ms": 1.696
      },
      "crashed": true,
      "reason": "broke up: the fuselage parted (TPB off the core)",
@@ -719,7 +719,7 @@
       "hits": 338150,
       "frames": 336,
       "seals": 2,
-      "ms": 1.576
+      "ms": 1.721
      },
      "crashed": true,
      "reason": "a wing member broke",
@@ -812,7 +812,7 @@
       "hits": 79490,
       "frames": 293,
       "seals": 1,
-      "ms": 0.129
+      "ms": 0.147
      },
      "crashed": true,
      "reason": "a gear member broke",
@@ -851,8 +851,8 @@
     "again": false
    },
    "cost": {
-    "onMs": 7.962,
-    "offMs": 8.18
+    "onMs": 8.233,
+    "offMs": 8.478
    }
   },
   "jodel": {
@@ -935,7 +935,7 @@
       "hits": 88697,
       "frames": 456,
       "seals": 1,
-      "ms": 0.65
+      "ms": 0.677
      },
      "crashed": true,
      "reason": "a fus member broke",
@@ -1216,7 +1216,7 @@
       "hits": 1006532,
       "frames": 395,
       "seals": 3,
-      "ms": 2.056
+      "ms": 2.591
      },
      "crashed": true,
      "reason": "broke up: the fuselage parted (TPB off the core)",
@@ -1494,7 +1494,7 @@
       "hits": 517436,
       "frames": 395,
       "seals": 1,
-      "ms": 0.596
+      "ms": 0.67
      },
      "crashed": true,
      "reason": "a wing member broke",
@@ -1593,8 +1593,8 @@
     "again": false
    },
    "cost": {
-    "onMs": 14.38,
-    "offMs": 13.985
+    "onMs": 14.236,
+    "offMs": 13.886
    }
   },
   "metal": {
@@ -1668,7 +1668,7 @@
       "hits": 0,
       "frames": 62,
       "seals": 1,
-      "ms": 0.494
+      "ms": 0.547
      },
      "crashed": false,
      "reason": null,
@@ -2031,7 +2031,7 @@
       "hits": 1846670,
       "frames": 398,
       "seals": 2,
-      "ms": 2.178
+      "ms": 4.064
      },
      "crashed": true,
      "reason": "broke up: the fuselage parted (TPB off the core)",
@@ -2363,7 +2363,7 @@
       "hits": 283465,
       "frames": 396,
       "seals": 1,
-      "ms": 1.449
+      "ms": 2.156
      },
      "crashed": true,
      "reason": "a wing member broke",
@@ -2456,7 +2456,7 @@
       "hits": 58490,
       "frames": 298,
       "seals": 1,
-      "ms": 0.17
+      "ms": 0.131
      },
      "crashed": true,
      "reason": "a gear member broke",
@@ -2495,14 +2495,14 @@
     "again": false
    },
    "cost": {
-    "onMs": 12.59,
-    "offMs": 13.263
+    "onMs": 13.265,
+    "offMs": 13.538
    }
   }
  },
  "page": {
-  "cullMs": 15.352914,
-  "decalMs": 26.483259,
+  "cullMs": 21.184902,
+  "decalMs": 23.276382,
   "tris": 0,
   "bytes": 0,
   "cut": {
@@ -2517,10 +2517,10 @@
     "shrub": 0,
     "debris": 0,
     "cells": 1,
-    "cullMs": 0.62,
+    "cullMs": 0.65,
     "tris": 334,
     "kb": 10.9,
-    "decalMs": 0.9
+    "decalMs": 0.78
    },
    {
     "label": "the user's Cub, 30 m/s into a trunk, the centreline",
@@ -2528,10 +2528,10 @@
     "shrub": 92,
     "debris": 33,
     "cells": 4,
-    "cullMs": 4.91,
+    "cullMs": 4.8,
     "tris": 5200,
     "kb": 165.4,
-    "decalMs": 8.8
+    "decalMs": 8.29
    },
    {
     "label": "the user's Cub, 30 m/s into a trunk, 2.5 m out",
@@ -2539,10 +2539,10 @@
     "shrub": 68,
     "debris": 20,
     "cells": 2,
-    "cullMs": 4.26,
+    "cullMs": 11.81,
     "tris": 7136,
     "kb": 236.1,
-    "decalMs": 10.61
+    "decalMs": 14.35
    },
    {
     "label": "the user's Cub, a severe drop onto the wheels at 6 m/s",
@@ -2550,10 +2550,10 @@
     "shrub": 0,
     "debris": 0,
     "cells": 1,
-    "cullMs": 0.63,
+    "cullMs": 0.84,
     "tris": 620,
     "kb": 19.8,
-    "decalMs": 1.17
+    "decalMs": 1.84
    },
    {
     "label": "the Jodel, a nose-over at 4 m/s",
@@ -2561,10 +2561,10 @@
     "shrub": 0,
     "debris": 0,
     "cells": 1,
-    "cullMs": 0.71,
+    "cullMs": 0.98,
     "tris": 334,
     "kb": 10.9,
-    "decalMs": 0.76
+    "decalMs": 0.69
    },
    {
     "label": "the Jodel, 30 m/s into a trunk, the centreline",
@@ -2572,10 +2572,10 @@
     "shrub": 24,
     "debris": 25,
     "cells": 2,
-    "cullMs": 12.9,
+    "cullMs": 8.35,
     "tris": 5182,
     "kb": 167.5,
-    "decalMs": 8.27
+    "decalMs": 10.94
    },
    {
     "label": "the Jodel, 30 m/s into a trunk, 2.5 m out",
@@ -2583,10 +2583,10 @@
     "shrub": 378,
     "debris": 200,
     "cells": 5,
-    "cullMs": 26.7,
+    "cullMs": 31.57,
     "tris": 3928,
     "kb": 130.8,
-    "decalMs": 9.1
+    "decalMs": 5.8
    },
    {
     "label": "the metal Cessna, a nose-over at 4 m/s",
@@ -2594,10 +2594,10 @@
     "shrub": 0,
     "debris": 0,
     "cells": 0,
-    "cullMs": 0.18,
+    "cullMs": 0.16,
     "tris": 60,
     "kb": 2.3,
-    "decalMs": 0.33
+    "decalMs": 0.36
    },
    {
     "label": "the metal Cessna, 30 m/s into a trunk, the centreline",
@@ -2605,10 +2605,10 @@
     "shrub": 120,
     "debris": 56,
     "cells": 4,
-    "cullMs": 20.18,
+    "cullMs": 13.21,
     "tris": 6400,
     "kb": 207.6,
-    "decalMs": 25.86
+    "decalMs": 16.41
    },
    {
     "label": "the metal Cessna, 30 m/s into a trunk, 2.5 m out",
@@ -2616,10 +2616,10 @@
     "shrub": 306,
     "debris": 156,
     "cells": 5,
-    "cullMs": 14.82,
+    "cullMs": 15.56,
     "tris": 6600,
     "kb": 219.8,
-    "decalMs": 11.94
+    "decalMs": 15.17
    },
    {
     "label": "the metal Cessna, a severe drop onto the wheels at 6 m/s",
@@ -2627,10 +2627,10 @@
     "shrub": 0,
     "debris": 0,
     "cells": 1,
-    "cullMs": 0.4,
+    "cullMs": 0.42,
     "tris": 632,
     "kb": 20.2,
-    "decalMs": 1.21
+    "decalMs": 1.15
    }
   ]
  }

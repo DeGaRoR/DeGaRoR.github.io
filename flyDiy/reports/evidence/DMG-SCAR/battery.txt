@@ -49,3 +49,17 @@ DMGSCAR   PASS   754.1 s
 total            849.3 s
 wall             849.3 s  (jobs 4)
 BATTERY: PASS
+
+## run 4 (after merging train 38, f7b5afb4)
+UISMOKE   PASS   133.6 s
+TREECRASH PASS   540.0 s
+DMGFPS    PASS   164.4 s
+DMGSKIN   PASS    93.6 s
+DMGSCAR   PASS   738.8 s
+COVER     PASS    12.4 s
+BUILD     PASS     1.2 s
+JOIN      PASS     4.2 s
+LOAD      PASS   236.0 s
+total           1924.2 s
+wall            1536.8 s  (jobs 4)
+BATTERY: PASS
