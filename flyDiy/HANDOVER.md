@@ -78700,3 +78700,103 @@ riding to the GPU (format agreed: R.K, wi / ww / w2, dead >= 2; the still-merged
   places turning differently over a lever. The coordinator's idea - each window assembly (frame, bead, pane) one rigid part
   on its frame's nodes - is the next step if the census shows it.
 - The 3 m/s taxi breaks fuselage members on the page and nothing in node (DMG-D4b's parity hunt).
+
+## G2350-G2352 DMG-FOLDNODE - THE HYBRID BAKE'S FOLDS IN THE NODE PAGE (A TEST-ONLY FAKE BAKE); GATE DMGUPLOAD ON THEM; G2352 THE GHOST'S REAL CAUSE: A FOLD'S WHOLE UPLOAD LOST TO A RANGE (2026-10-07, DMG-FOLDNODE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-foldnode off origin/claude/dmg-d4b-wreck 8f12bbf, which carries D4b's 98f2b905; damage stays OFF by default)
+
+**Why.** DMG-D4b found the stand's ghost on the box (crash -> the shed -> roll-out: a stretched Cub on the stand, every CPU
+array healed) and fixed it with the heal's fold marking (98f2b905: mergeModel's dirty(), FLOWN_BAKE.dirtyAll after every
+heal write, window.FLYDIY_HEAL_NOMARK = true the A/B). GATE DMGUPLOAD stayed green without the fix: the node page makes
+NO FLOWN BAKE (the recording GL's read-back is zeros, so bakeSet bows out at 0 % of the atlas written; forPayload null),
+so no fold existed for the gate to read. The flown model in node was the live meshes and the still merges.
+
+### G2350 - THE FAKE BAKE (src/viewer/flown_bake.js fakeSet; tools/_page_node.js opts.fakeBake)
+- **The flag.** `window.FLYDIY_TEST_FAKE_BAKE === true`, set ONLY by `_page_node.js` `opts.fakeBake` before the page's
+  scripts run. No URL dial, nothing in src/ sets it (grep: the two lines in flown_bake.js that read it, the one in
+  _page_node.js that sets it).
+- **What it skips.** In `step()`: the PARKED.unwrap requirement, the GFX budget's `flownBake: false` and the renderer.
+  In `bakeSet()`, after the memory (round-trip) check: the cache read, the unwrap (worker or page), uvsOf's splits, the
+  GL passes (bakeAtlas), the gutters, the mips, the cache write.
+- **What it makes.** Per set (ext, in): a zero atlas uv per vertex (`e.uv`, Uint16, the real one's shape); the material
+  from the SAME `materialOf` on 1x1 zero maps (the map, normal and ORM chain: one level each). The clear coat is decided
+  by bakeAtlas's own rule (any of the set's AEROSKIN source materials with clearcoat > 0), so the material class is the
+  real one's. The stats carry `hit: 'fake', fake: true`, and `cm` is estimated from the set's rest-pose area at the real
+  atlas's size and a 0.6 fill: Cub 0.54, Cessna 0.59 cm a texel against the real Cessna's 0.79 (G870). nearT reads that
+  `cm`, so the hybrid band sits near the real one. `remember()` then holds it like a real bake, so the round trip after
+  the shed is the game's MEMS memory hit.
+- **What it shares (everything after).** attach / BAKED, forPayload, buildModel's baked geometries (mkGeo's uv1),
+  mergeModel's folds, the members' VIEWS into the fold's arrays, G1170's live views on the fold's own buffers, the
+  range-upload bookkeeping, the heal's dirty marks, idxMirror, the park / unpark, the hybrid's fade and band, rest().
+  Measured in the gate: Cub ext 107 meshes -> 3 folds (33 bones), in 63 -> 4 (20 bones), 126 live views; Cessna
+  111 -> 3, 71 -> 4, 136 views; hyT 0 at the gate's chase (the bake drawn, the views parked).
+
+### G2351 - GATE DMGUPLOAD ON THE FOLDS (tools/_dmg_upload_check.js)
+- The page now runs with `opts.fakeBake` (`--fakebake=0` gives the gate as D4b left it).
+- New rows: the bake was the fake (FB.last.hit 'fake'), the hybrid is on, folds were made, and drawn fold buffers were
+  checked both fresh and after the path (44 of them on each build).
+- The stale row names the class (fold / mesh / still).
+- R.bake now reads FLOWN_BAKE's state instead of calling forPayload, which resets the folds' list.
+- `--fault=nomark|noowe|aswas` runs the gate itself with a fix taken out (the A/B).
+- **--selftest** takes two faults, each of which must go red ON A FOLD with the fold rows holding:
+  - `aswas`: FLYDIY_HEAL_NOMARK and FLYDIY_FOLD_NOOWE, i.e. the code as it was before D4b;
+  - `noowe`: D4b's mark on, G2352 off.
+
+### G2352 - WHAT THE FOLDS SHOWED: D4b'S MARK ALONE DID NOT CLEAR THE GHOST IN NODE; THE OWED WHOLE UPLOAD WAS LOST (flown_bake.js mergeModel)
+- **With the folds in the page, D4b's fix ON, the gate went RED on both builds:**
+  - one stale fold buffer, the plain (still) fold `flownBaked`'s position (the fuselage's: its version moves EVERY frame,
+    so a rig writes it);
+  - Cub 202 428 of 585 378 floats stale from float 382 950; Cessna 328 626 of 700 938.
+  - With FLYDIY_HEAL_NOMARK (D4b's fix off): the SAME 202 428 floats. In this path, D4b's mark changed nothing.
+- **The trace** (a per-frame probe; GPU copy = CPU copy, version, ranges, drawn count):
+  - in the shed (frame 1028) the heal's dirtyAll marks the 7 folds, which are hidden and stay owed;
+  - at the roll-out's frame (1061) six come back fresh;
+  - the fuselage fold's version moved TWICE in that one frame, the whole upload asked and then a rig's range, before it
+    was drawn - and it stays stale every frame after.
+- **The cause** (three r186 WebGLAttributes: an attribute uploads only where it is DRAWN, and whole only if no update
+  range is set at that moment):
+  - mergeModel asked for the whole upload (`clearUpdateRanges` + `needsUpdate`) and forgot it;
+  - before the fold was drawn, the next pass's rig write added a range;
+  - three sent the range alone, and the rest of the buffer stayed as the GPU held it at the crash.
+  - A fold no rig writes every frame survives (nothing replaces its pending whole) - which is why only the fuselage fold
+    showed it.
+- **The fix.**
+  - Each fold's position / normal carries an `owe` flag, set where the whole upload is asked (the heal's stale mark, a
+    fold shown again after writes, > 32 ranges).
+  - While owed, a write adds no range; it only bumps the version, and the pending whole covers it.
+  - Three's `onUploadCallback` (called after any upload of the attribute) clears the flag.
+  - The cost: a boolean a frame, nothing uploaded that was not before (damage OFF: the same 17 067 uploads / 18 841
+    bufferSubData as without G2352).
+  - `window.FLYDIY_FOLD_NOOWE = true` restores the old behaviour (the A/B and the selftest's fault).
+- **D4b's mark is kept.** It is an event's cost and covers a heal write that bumps no version.
+  - On this path every heal write does bump a member's version while the model is hidden in the shed, so the fold owes
+    itself the whole upload anyway.
+  - With G2352 in, `--fault=nomark` alone is GREEN (evidence: gate_dmgupload_selftest_intermediate.txt). That is why the
+    selftest's "bug as it was" turns both off.
+- **FOR THE BOX:** I believe this is the ghost D4b saw (a forced re-upload of every attribute cleared it, as it clears
+  this), but it is not box-verified. Worth one look on the box with ?damage=1: crash, the shed, roll out, the stand, and
+  FLYDIY_FOLD_NOOWE = true for the A/B.
+- **GATE FLOWNBAKE 8** gains a G2352 row: a write while the whole upload is owed adds no range; after the upload callback,
+  a write flags its range again. It is red with FLYDIY_FOLD_NOOWE (checked with a temporary copy) and green without.
+
+### The game unchanged (bar G2352)
+- **The fake is unreachable without the test flag.** reports/evidence/DMG-FOLDNODE/unreachable.js boots the node page as
+  every gate does, without opts.fakeBake:
+  - damage OFF and damage ON: the flag unset, FB.last null, 0 folds (the path node always took);
+  - with the flag: hit 'fake', 7 folds;
+  - verdict: PASS.
+- **The page's bytes** (index.html, the normal boot; it loads src/viewer/flown_bake.js by URL): the build before against
+  the build after differ only in the build id and flown_bake.js's `?v=` hash (evidence: index_html_diff.txt).
+  flown_bake.js's own diff is the gated fake (the FAKE() test in step() and bakeSet(), fakeSet) and G2352 (the owe flag:
+  a game change, deliberate, above).
+- tools/_page_node.js gains one opt. No other src/ file is touched.
+
+### Gates (evidence: reports/evidence/DMG-FOLDNODE/)
+- **DMGUPLOAD.**
+  - Before (D4b's gate): PASS with no fold (Cub: 1148 buffers, classes still / mesh, forPayload false).
+  - Its selftest without folds (--fakebake=0): FAIL, i.e. the mark off is not seen.
+  - With the folds and D4b's fix only: FAIL on both builds (the fuselage fold).
+  - **After: PASS** (Cub 366 buffers / Cessna 427, 0 stale; 44 fold buffers each, fresh and after; damage OFF: 0 heal
+    marks, 0 stale).
+  - **--selftest: PASS** (aswas red on the fold, 202 428; noowe red on the fold, 202 428).
+- The battery (`run_gates --only=` every DMG* row bar DMGUPLOAD, run on its own above, + TREECRASH, TREEHIT, UISMOKE,
+  BUILD, JOIN, LOAD, FLOWNBAKE): see gates_battery.txt and the line below.
+- Node only; no Rigs of Rods / BeamNG code.

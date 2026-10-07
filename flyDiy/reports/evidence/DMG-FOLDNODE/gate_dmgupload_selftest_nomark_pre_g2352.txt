@@ -1,0 +1,13 @@
+# THE FOLDS IN THE PAGE (at 314dd60), G2352 not yet in, --selftest with only FLYDIY_HEAL_NOMARK: red - the same 202 428 floats as with the mark ON
+DMGUPLOAD selftest: the heal's upload marking off (the bug as it was) must turn it red
+  cub: fresh - 366 drawn buffers checked, 0 stale; the crash {"br":210,"wreck":11}; after the shed and the roll-out (live true) - 366 checked, 1 STALE; uploads {"uploads":16895,"subs":33025,"contexts":3}; drawn meshes by class {"mesh":67,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.54,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":126,"merge":{"ext":{"from":107,"to":3,"bones":33,"verts":530634,"skip":{}},"in":{"from":63,"to":4,"bones":20,"verts":273744,"skip":{}}}}
+      stale: {"mesh":"flownBaked","cls":"fold","attr":"position","elements":202428,"of":585378,"first":382950,"version":714}
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+  ok    the fault turned the stale-buffer row red: cub: STALE GPU BUFFERS after crash -> the shed -> roll-out (the CPU written without the upload): fold:flownBaked.position 202428
+  ok    a stale buffer is a FOLD's (1 fold buffers stale)
+  ok    the fake bake made the folds and they were drawn and checked
+GATE DMGUPLOAD-SELFTEST: PASS
+
+real	8m57.421s
+user	9m49.296s
+sys	1m2.206s

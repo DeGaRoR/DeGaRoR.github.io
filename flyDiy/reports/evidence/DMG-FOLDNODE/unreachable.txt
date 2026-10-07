@@ -1,0 +1,6 @@
+# node reports/evidence/DMG-FOLDNODE/unreachable.js - the node page booted without opts.fakeBake, damage off and on, then with it
+{"query":"","fakeBakeOpt":false,"flag":"unset","last":null,"foldsInModel":0,"errors":0}
+{"query":"damage=1","fakeBakeOpt":false,"flag":"unset","last":null,"foldsInModel":0,"errors":0}
+{"query":"damage=1","fakeBakeOpt":true,"flag":true,"last":{"hit":"fake","fake":true},"foldsInModel":7,"errors":0}
+FAKE BAKE UNREACHABLE WITHOUT THE FLAG: PASS
+exit 0
