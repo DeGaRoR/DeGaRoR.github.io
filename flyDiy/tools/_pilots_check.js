@@ -454,7 +454,12 @@ function run(mut) {
   { const box = { CAREER_DEV: false, pilotsProfileOf: () => { throw new Error('reached'); }, console };
     vm.createContext(box); vm.runInContext(ccp + ';this.r = careerCrewProfile();', box);
     ok(box.r === undefined, 'the sandbox: careerCrewProfile() is undefined - makePilot is handed the profile it was (the expert / the persona\'s)'); }
-  ok(/makePilot\(sim, def, world, \{[^}]*profile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP) && /pilotProfile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP), 'the inline pilot and the worker\'s read the career\'s door, behind the flag');
+  // the door into makePilot (inline and the worker's): before PILOT-PERSONA the flag's own ternary; with it, the persona
+  // keeper's personaProfile() answering the career first (the career's pick; 'me' the expert), the sandbox the persona's
+  const viaTernary = /makePilot\(sim, def, world, \{[^}]*profile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP) && /pilotProfile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP);
+  const viaPersona = /makePilot\(sim, def, world, \{[^}]*profile: personaProfile\(\)/.test(APP) && /pilotProfile: personaProfile\(\)/.test(APP)
+    && /function personaProfile\(\) \{\s*if \(CAREER_DEV\) return careerCrewProfile\(\) \|\| 'expert';/.test(APP);
+  ok(viaTernary || viaPersona, 'the inline pilot and the worker\'s read the career\'s door, behind the flag (' + (viaPersona ? 'through personaProfile' : 'the ternary') + ')');
   for (const call of ['careerCrewRow(host, where);', 'pilotsOnFlightEnd(d, {', 'r.pilot = crFlyer']) {
     const i = APP.lastIndexOf(call);
     ok(i > 0 && /CAREER_DEV/.test(APP.slice(APP.lastIndexOf('\n', i - 300), i)), 'the page\'s ' + call.split('(')[0] + ' is under CAREER_DEV');
@@ -466,7 +471,9 @@ function run(mut) {
   const hasPersona = /id="selPersona"/.test(BODY);
   if (hasPersona) {
     ok(/const PERSONA_ORDER = \['expert', 'club', 'student', 'bush', 'hamfist'\];/.test(APP), 'the sandbox persona select: PERSONA_ORDER is PILOT-PERSONA\'s five');
-    ok(/function personaProfile\(\) \{[\s\S]{0,400}?if \(CAREER_DEV\)/.test(APP) || !/personaProfile\(\)[\s\S]{0,40}careerCrew/.test(APP), 'the persona keeper answers the career only behind CAREER_DEV');
+    ok(/function personaProfile\(\) \{\s*if \(CAREER_DEV\) return careerCrewProfile\(\) \|\| 'expert';[^\n]*\n\s*personaLoad\(\);/.test(APP), 'the persona keeper answers the career first, behind CAREER_DEV, then the persona as before');
+    ok(/if \(CAREER_DEV\) careerCrewRow\(host, where\);[^\n]*\n\s*else \{\s*\n\s*\/\/ G2085 \(PILOT-PERSONA\): WHO FLIES IT/.test(APP), 'the route row: the career\'s roster pick, else PILOT-PERSONA\'s persona row untouched');
+    ok(/function flPersona\(body\) \{\s*if \(CAREER_DEV\) return;/.test(APP), 'the plate\'s persona pills: the sandbox\'s only');
   }
   lines.push('the sandbox: the career doors inert without ?career=1 (careerCrewProfile undefined; the row, the logbook, the flight\'s end, the crew body under CAREER_DEV); ' +
     (hasPersona ? 'the persona select PILOT-PERSONA\'s own' : 'no persona select in this tree yet (PILOT-PERSONA lands with train 40): makePilot\'s sandbox profile is unchanged'));
