@@ -951,7 +951,7 @@ ${MIST_GLSL}
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
     const s = day ? day.sun : [0, 1, 0], m = day ? day.moon : [0, -1, 0];
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
-    U.eMoon.value = day ? (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.MOON_RATIO : 2.5e-6) * day.moonPhase : 0;
+    U.eMoon.value = day ? ((typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase) : 0;   // G2600: the phase law (light_rig)
     U.r.value = P.Rg + Math.max(R_MIN, (camAltM || 0) / 1000);
     // THE NIGHT'S GAIN (A6, the playtest: "white bands on the night horizon"): the tables are HalfFloat and a
     // night sky is ~1e-6 of the sun - under 6e-5 a half float is subnormal and steps in 6e-8: at the night's

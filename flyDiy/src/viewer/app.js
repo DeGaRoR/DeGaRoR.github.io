@@ -5032,7 +5032,7 @@
       S.commit();
       if (D.sheets) D.sheets.commit(waterFx.t);
       // lit by the world's own sun and sky, in the eye's frame
-      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
+      if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position;   /* G2600: the key's direction (the moon's at night) */ sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
         S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); if (D.sheets) D.sheets.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
     } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
     if (tW) waterFx.ms = performance.now() - tW;
@@ -11010,6 +11010,7 @@
     night(body) {
       const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField };
       if (window.DAY_UI) window.DAY_UI.mount(body, H, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, open: flyOpenSet });
+      if (window.MOON_UI) window.MOON_UI.mount(body, H);   // G2600: the night's dials (the moonlight, the night eye, the night colour, the stars)
       // THE AEROPLANE'S LIGHTS: the cockpit's own switches (CK.sw), pressed from the rail - the
       // same write a click on the panel makes, and the same claim: a switch the hand set stays
       // the hand's until the next sunset or sunrise, when the pilot's rule takes all of them again
@@ -13094,7 +13095,7 @@
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (framePresented && typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {   // (G1340: a held frame draws nothing on the canvas)
       const L = SKY_LIGHT.last;
-      const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? (k => [k.x, k.y, k.z])(WF.KEY_SKY || WF.SUN_SKY) : null);   // G2600: the moon's glare when the moon is the key
       if (d) {
         glareDir.set(d[0], d[1], d[2]);
         SKY_GLARE.setOccluders(() => inGarage ? [garageScene()] : [craft]);

@@ -72,7 +72,8 @@ var SKY_LIGHT = (function () {
     const el = day.sunEl, sun = day.sun, moon = day.moon;
     // the light: sun or moon, with hysteresis
     if (!isMoon && el < -1.2) isMoon = true; else if (isMoon && el > -0.5) isMoon = false;
-    const moonE = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.MOON_RATIO : 2.5e-6) * day.moonPhase;
+    // G2600: the moon's light through the phase law (light_rig moonE: a half moon is ~9 % of the full, not 50 %)
+    const moonE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase;
     const dir = isMoon ? moon : sun;
     const key = o.key;
     if (key) {
@@ -136,6 +137,8 @@ var SKY_LIGHT = (function () {
     }
     // the dome's scale: the same K, the same unit
     if (ATMO.U && ATMO.U.scale) ATMO.U.scale.value = K_SUN * unit * gain;
+    // G2600 THE NIGHT EYE: the grade's share from the sun, its luminance scale from the room's (the dome's) - 0 by day
+    if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.nightGrade) LIGHT_RIG.nightGrade(el, K_SUN * unit * gain);
     // the exposure: the schedule, as a base
     // the schedule adapts the eye to the SKY; a room with lamps adapts to its lamps once the sky
     // is darker than they are - o.exposureCap is the exposure those lamps were judged at

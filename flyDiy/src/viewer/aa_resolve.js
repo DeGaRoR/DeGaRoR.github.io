@@ -187,7 +187,9 @@
   // display-space values and writes them out. No ACES, no transfer curve, no
   // exposure: one implementation of each of those exists in the project, in the
   // renderer, and this file is not a second one.
-  const AA_COMMON = `
+  const NIGHT_EYE = () => ((typeof window !== 'undefined' && window.LIGHT_RIG && window.LIGHT_RIG.NIGHT_GLSL) || 'vec3 nightEye(vec3 c) { return c; }');
+  const AA_COMMON = () => `
+    ${NIGHT_EYE()}
     uniform sampler2D tSrc;
     uniform vec2  uTexel;
     uniform float uR;
@@ -215,13 +217,17 @@
   // renderer's own two chunks run here, once, over background + reflection +
   // cloud summed in radiance - nothing of this file's own (GATE AA reads the
   // includes and no other colour math). In display mode the chunks are absent.
+  // G2600 THE NIGHT EYE: the rods' grade on the radiance, just before the curve (light_rig.js owns it - its GLSL,
+  // its uniforms, its dials; this file only calls it). Not a curve, not a transfer, no exposure: a mix toward a
+  // scotopic grey where the pixel's own luminance is under the cones' threshold, skipped whole by day.
   const AA_OUT = `
     #ifdef AA_LINEAR
+      gl_FragColor.rgb = nightEye(gl_FragColor.rgb);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     #endif
       gl_FragColor.rgb = aaDither(gl_FragColor.rgb);`;
-  const AA_FS_BLIT = AA_COMMON + `
+  const AA_FS_BLIT = () => AA_COMMON() + `
     void main() {
       gl_FragColor = vec4(texture2D(tSrc, vUv).rgb, 1.0);` + AA_OUT + `
     }`;
@@ -240,7 +246,7 @@
   // loop covers it exactly. Weights are computed per-axis (separable) and the
   // sum normalised; the negative lobes can push a pixel outside [0,1], and the
   // clamp is the price of the sharpness.
-  const AA_FS_TENT = AA_COMMON + `
+  const AA_FS_TENT = () => AA_COMMON() + `
     float crw(float t) {
       t = abs(t);
       if (t <= 1.0) return 1.5*t*t*t - 2.5*t*t + 1.0;
@@ -270,7 +276,7 @@
   // tent above is a downsample and would blur an enlargement). The frame is fill-bound at the resolutions
   // the game is played at (1080p 16-23 ms, 5120x1440 38-50 ms on the 3080 at the default preset), and this
   // is the lever that holds a frame rate on a big or a slow screen.
-  const AA_FS_UP = AA_COMMON + `
+  const AA_FS_UP = () => AA_COMMON() + `
     float crw(float t) {
       t = abs(t);
       if (t <= 1.0) return 1.5*t*t*t - 2.5*t*t + 1.0;
@@ -424,14 +430,14 @@
       }
       if (S.mat) S.mat.dispose();
       S.mat = new THREE.ShaderMaterial({
-        uniforms: {
+        uniforms: Object.assign({
           tSrc:    { value: S.rt.texture },
           uTexel:  { value: new THREE.Vector2(1 / SW, 1 / SH) },
           uR:      { value: R },
           uDither: { value: S.dither },
-        },
+        }, (typeof window !== 'undefined' && window.LIGHT_RIG && window.LIGHT_RIG.nightU) || {}),   // G2600: the night eye's two, shared by reference (light_rig)
         vertexShader: AA_VS,
-        fragmentShader: R > 1.001 ? AA_FS_TENT : R < 0.999 ? AA_FS_UP : AA_FS_BLIT,
+        fragmentShader: (R > 1.001 ? AA_FS_TENT : R < 0.999 ? AA_FS_UP : AA_FS_BLIT)(),   // G2600: built at the material, when light_rig's night eye is loaded
         defines: S.linear ? { AA_LINEAR: 1 } : {},
         depthTest: false, depthWrite: false,
         toneMapped: true,     // the blit carries the renderer's tone map in linear mode (a no-op define otherwise)

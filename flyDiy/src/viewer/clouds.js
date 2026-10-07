@@ -660,7 +660,7 @@ var CLOUDS = (function () {
   const _T = [0, 0, 0], _E = [0, 0, 0], _Em = [0, 0, 0], _Eg = [0, 0, 0], _Tv = [0, 0, 0], _Ev = [0, 0, 0], _Egv = [0, 0, 0], _w4 = [0, 0, 0, 0];
   const _cc = (typeof THREE !== 'undefined' && THREE.Color) ? new THREE.Color() : null;
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
-  let sunEl = 0, layKey = '', sunKey = 0;
+  let sunEl = 0, layKey = '', sunKey = 0, keyDir = [0, 1, 0];   // sunEl: the KEY's elevation (G2600: the moon's when it is the key)
   const drifts = [[0, 0], [0, 0], [0, 0]], winds = [[3, 1], [3, 1], [3, 1]];
   // THE DRIFT IS WRAPPED TO THE SPAN BEFORE IT IS UPLOADED (G1050, the user: "the clouds do flicker ... they seem to
   // regenerate slightly different every frame", "the RIM of the clouds in particular"). The drift is wind x the clock,
@@ -726,7 +726,11 @@ var CLOUDS = (function () {
     // the light: the sun's transmittance at the layer's middle, the sky's irradiance at its top, the ground's light below
     const midKm = (lay.base + lay.thick * 0.5) / 1000, topKm = lay.top / 1000;
     const sun = day.sun, moon = day.moon, A = (typeof ATMO !== 'undefined') ? ATMO : null;
-    sunEl = sun[1];
+    // G2600 MOONLIGHT: the layer's SHADOW (the splice) and its column (sunT) along the KEY - the moon when the moon is
+    // the key (sky_light's hysteresis). Both were the sun's at every hour, and the sun's fade below took them away at
+    // night: an overcast let the full moon through to the ground. By day the key is the sun: nothing moves.
+    keyDir = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon) ? moon : sun;
+    sunEl = keyDir[1];
     U.uSun.value.set(sun[0], sun[1], sun[2], 0);
     if (A) {
       A.sunTransmittance(midKm, sun[1], _T); A.skyIrradiance(topKm, sun, _E);
@@ -789,9 +793,9 @@ var CLOUDS = (function () {
     // S.shadowHold 0 is the old cut.
     if (!active() || S.inShed) shadowBaked = false;
     const on = active() && bakeAt >= NB + 1 && S.shadow > 0 && (!shadowDirty || (S.shadowHold && shadowBaked)) && !S.inShed ? 1 : 0;
-    const fade = Math.max(0, Math.min(1, (sun[1] - 0.02) / 0.13));
+    const fade = Math.max(0, Math.min(1, (keyDir[1] - 0.02) / 0.13));
     cloudScalars[0] = wrapSpan(drift[0], map.span); cloudScalars[1] = wrapSpan(drift[1], map.span); cloudScalars[2] = map.span; cloudScalars[3] = on;   // G1050
-    cloudScalars[4] = sun[0]; cloudScalars[5] = sun[1]; cloudScalars[6] = sun[2]; cloudScalars[7] = lay.base + lay.thick * 0.5;
+    cloudScalars[4] = keyDir[0]; cloudScalars[5] = keyDir[1]; cloudScalars[6] = keyDir[2]; cloudScalars[7] = lay.base + lay.thick * 0.5;   // G2600: the key's
     cloudScalars[8] = S.shadow * fade; cloudScalars[9] = 0; cloudScalars[10] = 0; cloudScalars[11] = 0;
   }
   const active = () => ready && S.mode !== 'off' && !!dayRef && lastCover > 0.003 && !!map;
@@ -956,7 +960,7 @@ var CLOUDS = (function () {
   // sunT(x, y, z): the layer's transmittance toward the sun from a world point (the CPU column, the flare's dimmer)
   function sunT(x, y, z) {
     if (!active() || !lay || !map || sunEl < 0.04 || S.shadow <= 0) return 1;
-    const s = dayRef.sun; let od = 0;
+    const s = keyDir; let od = 0;   // G2600: along the key (the sun's by day)
     for (let i = 0; i < lays.length; i++) {   // every deck whose middle is above the point, along the sun
       const l = lays[i]; if (l.cover <= 0.003) continue;
       const k = (l.base + l.thick * 0.5 - y) / s[1]; if (k < 0) continue;

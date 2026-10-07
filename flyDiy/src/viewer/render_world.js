@@ -34,6 +34,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the true direction, which is what the dome draws the disc at. Both are
   // written from world.day in dayApply() unless the rig is set to manual.
   const SUN_SKY = SUN.clone();
+  const KEY_SKY = SUN.clone();   // G2600: the key's true direction - the sun's by day, the moon's when the moon is the key
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let minimapBox = null;              // ...and WHERE it is: { x0, z0, size } in world metres.
                                       // An ISLAND's bounds are its own square - not centred on
@@ -6947,6 +6948,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (there) { LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC); if (LE.tEx > 0) LE.ex = LE.tEx; }
     lightShow(there);
   }
+  // keyAim(d): the key's direction (SUN: the light's placement, the shadow maps' and the impostors' depth) along d, held
+  // 2 deg over the horizon for the shadow maths; KEY_SKY the true one (the spray's light, the glare). G2600 MOONLIGHT
+  // (the user: "currently the night is absolutely dark"): since G408 SUN was the sun's every hour - with the MOON as the
+  // key (sky_light, below -1.2 deg) the moonlight came from under the far horizon on the sun's bearing, grazing at the
+  // 2 deg floor: a horizontal field took sin 2 deg (3.5 %) of it and every tree's shadow ran for hundreds of metres. The
+  // shed has aimed its key at the moon since S5 (hangar.js applyDay); the world now does the same.
+  function keyAim(d) {
+    KEY_SKY.set(d[0], d[1], d[2]);
+    SUN.copy(KEY_SKY);
+    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
+  }
   function dayApply() {
     const day = world.day;
     if (!day) return;
@@ -6988,8 +7000,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     dayVer = day.version; dayEl = el; dayAz = az;
     const v = day.sun;
     SUN_SKY.set(v[0], v[1], v[2]);
-    SUN.copy(SUN_SKY);
-    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
+    keyAim(v);
     rigCur.elev = el; rigCur.azim = day.rigAzim;
     const t = Math.min(1, Math.max(0, (el + 6) / 12)), k = t * t * (3 - 2 * t);
     if (ATMO_ON && typeof SKY_LIGHT !== 'undefined') {
@@ -7006,6 +7017,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
       if (LE.on && rL) lightTake(rL.exposure); else LE.init = false;   // G1352: the new light is the target, eased to
+      if (rL && rL.isMoon) keyAim(day.moon);   // G2600: the moon is the key - its light, its shadows, along the MOON
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
       sun.intensity = RIG.sun * LIGHT_UNIT * k;
@@ -7093,7 +7105,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const rigApply = () => {
     const R = rigCur, el = R.elev * Math.PI / 180, az = R.azim * Math.PI / 180;
     // the row's direction only when the rig is MANUAL (or the world has no day); otherwise the day's (dayApply)
-    if (R.manual || !world.day) { SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize(); SUN_SKY.copy(SUN); }
+    if (R.manual || !world.day) { SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize(); SUN_SKY.copy(SUN); KEY_SKY.copy(SUN); }
     dayVer = -1;                                   // a row write re-arms the day's pass on the next frame
     sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
     hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
@@ -7224,7 +7236,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
+    visM: () => VIS.visM, SUN, SUN_SKY, KEY_SKY, relight: () => { dayVer = -1; }, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
