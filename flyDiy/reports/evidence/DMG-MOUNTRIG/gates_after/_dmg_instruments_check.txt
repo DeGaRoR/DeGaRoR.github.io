@@ -13,3 +13,54 @@
   ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
   ok    the whole aeroplane at 195.06 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.15 m/s off the CG
   ok    the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
+        Cub: a flown 3.8 g pull: the fastest node 9.94 m/s off the CG
+        Cub: a 10 ft/s drop: the fastest node 3.41 m/s off the CG
+        Jodel: a flown 3.8 g pull: the fastest node 13.76 m/s off the CG
+        Jodel: a 10 ft/s drop: the fastest node 3.77 m/s off the CG
+        metal Cessna: a flown 3.8 g pull: the fastest node 7.97 m/s off the CG
+        metal Cessna: a 10 ft/s drop: the fastest node 3.44 m/s off the CG
+        Cessna floats: a flown 3.8 g pull: the fastest node 7.96 m/s off the CG
+        Cessna floats: a 10 ft/s drop: the fastest node 2.71 m/s off the CG
+        twin floatplane: a flown 3.8 g pull: the fastest node 10.08 m/s off the CG
+        twin floatplane: a 10 ft/s drop: the fastest node 1.97 m/s off the CG
+        the Cub: a circuit with the pilot: the fastest node 3.41 m/s off the CG
+        the Cub: 30 m/s into a trunk (crash): the fastest node 72.58 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 86.66 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 23.47 m/s off the CG
+        the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water: the fastest node 52.21 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 35.26 m/s off the CG
+  ok    the census: 16 runs, never tripped; the worst 86.66 m/s (the metal Cessna: 30 m/s into a trunk (crash)), under 3/4 of the guard
+3. G1802: the plastic work per beam
+  ok    DMG.wB: a Float64Array, one per beam (404), on sim.damage()
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (46691.072 J against 46691.072 J)
+  ok    92 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 30.5 kJ, wings 5.4 kJ, engines 5.2 kJ, vessel 3.0 kJ, gear 2.6 kJ, tail 0.0 kJ
+  ok    the metal Cessna's: 24223.813 J against 24223.813 J
+  ok    reset() after a crash zeroes every beam's work
+4. G1803: every beam carries its ledger section
+  ok    Cub: 404 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Jodel: 502 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 68, wing > bracing 118, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    metal Cessna: 452 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Cessna floats: 543 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 106, fus > vessel 9
+  ok    twin floatplane: 519 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, wing > wings 52, wing > bracing 12, fus > engines 28, tail > tail 199, wire > tail 4, gear > gear 106, fus > vessel 9
+5. G1804: the damage view's colours (src/viewer/dmg_overlay.js)
+  ok    calm: |F| / limit up to 0.25 draws the frame's neutral [0.34,0.49,0.69]
+  ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
+  ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
+  ok    the precedence: broken > set > stress > calm
+  ok    the Cub's 30 m/s crash drawn: {"calm":285,"stress":0,"set":23,"broken":96} - every broken member red, every set member orange / cyan
+  ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
+  ok    the layer off (params.damage false): all 2420 members of the five builds calm
+  ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression
+  ok    app.js: the view is off unless ?dmgview=1 or the overlays pill; off, sync() is the strain colouring; dmg_overlay.js is in the page (build.js) before app.js
+        the legend:
+          calm   |F| / limit <= 0.25    rgb 0.340 0.490 0.690  #577db0
+          stress |F| / limit = 0.625    rgb 0.670 0.635 0.405  #aba267
+          stress |F| / limit >= 1       rgb 1.000 0.780 0.120  #ffc71f
+          set    stretched 0.01 %       rgb 0.737 0.556 0.419  #bc8e6b
+          set    stretched >= 3 %       rgb 1.000 0.600 0.240  #ff993d
+          set    crushed 0.01 %         rgb 0.322 0.706 0.822  #52b4d2
+          set    crushed >= 3 %         rgb 0.310 0.850 0.910  #4fd9e8
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  33/33 checks
+GATE DMGINST: PASS

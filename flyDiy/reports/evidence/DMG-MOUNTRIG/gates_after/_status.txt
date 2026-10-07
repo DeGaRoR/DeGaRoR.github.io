@@ -21,3 +21,5 @@ _treecrash_check exit 0 2481 s
 _dmg_skin_check exit 0 359 s
 _seaplane_check exit 0 599 s
 _pilotmatrix_check exit 0 1570 s
+_dmg_instruments_check exit 0 282 s
+_dmgdamp_check exit 0 343 s
