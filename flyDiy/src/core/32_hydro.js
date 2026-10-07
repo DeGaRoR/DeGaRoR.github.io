@@ -1321,7 +1321,9 @@ function waterRudder(fx, ctl, water, simT, f) {
   // weathercocked 35 deg in a 5 m/s crosswind with them raised at the
   // first push of the throttle; the drag they cost at 7 m/s is nothing)
   const takeoffPower = ctl && ctl.thr > 0.6 && Vf > 0.6 * WR_UP_V;
-  const down = Vf < WR_UP_V && !takeoffPower ? 1 : 0;
+  // G2480 (HAND-CONTROLS): THE HANDLE. ctl.wr 0 (up) or 1 (down) is the hand's - the player's water-rudder
+  // handle (input.js waterRudder); anything else (null, the autopilot, every caller before) is the rule above
+  const down = ctl && (ctl.wr === 0 || ctl.wr === 1) ? ctl.wr : (Vf < WR_UP_V && !takeoffPower ? 1 : 0);
   fx.wrDown = down;
   if (!down) return;
   const delta = (ctl ? (ctl.dr || 0) : 0) * WR_TRAVEL;

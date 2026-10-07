@@ -233,6 +233,10 @@
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
     ? window.FLYDIY_COCKPIT.make(THREE) : null;
   window.FLYDIY_COCKPIT_I = CK;
+  // G2480 (HAND-CONTROLS): THE PARKING BRAKE UNDER THE HAND. cockpit.js wrote ctl.brake = 1 once a frame, after the
+  // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
+  // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
+  if (INP && INP.parkFrom) INP.parkFrom(() => !!(CK && CK.park));
   const scene = new THREE.Scene();
 
   // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
@@ -6027,8 +6031,11 @@
     if (!INP || on === manual) return;
     manual = on;
     prefSet('flydiy.flManual', on ? '1' : '0');
-    if (on) { INP.seed(sim.ctl); stillT = 0; }
+    // G2480: in the air the pilot's rudder and aileron become the hand's trims (the elevator always did); on the
+    // ground they start centred. Hand -> pilot: what only the hand writes leaves with it (sim_host handOff, the same)
+    if (on) { INP.seed(sim.ctl, { air: sim.wheelsOnGround() === 0 }); stillT = 0; }
     else {
+      sim.ctl.brakeD = 0; sim.ctl.wr = null;
       ap.reEngage({ phase: resyncPhase() });
       if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
     }
@@ -10830,8 +10837,9 @@
                 { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); });
       flNote(body, 'A controller appears once you press a button on it. On the ' +
                    'keyboard: arrows fly it, PageUp/PageDown the throttle, F/G ' +
-                   'the flaps, B the brakes, numpad 1/7 the trim, A hands it ' +
-                   'over either way, C walks the views.');
+                   'the flaps, B the brakes, [ and ] the left and right toe brakes, ' +
+                   'numpad 1/7 the trim, numpad 0/enter the rudder trim, 4/6 the aileron ' +
+                   'trim, A hands it over either way, C walks the views.');
     },
     // G387: WORLD - the premises editor over the flight scene
     world(body) {

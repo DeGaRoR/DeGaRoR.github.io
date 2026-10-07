@@ -1,0 +1,142 @@
+{
+ "mode": "desktop (1600x900 @1), headless Chromium on SwiftShader",
+ "tree": "9546d2ee31",
+ "errors": [],
+ "keys": {
+  "defaultPrevented": true,
+  "leftToe": {
+   "brake": 0.5,
+   "brakeD": 0.5,
+   "dr": 0,
+   "wr": null,
+   "L": 1,
+   "R": 0
+  },
+  "rightToe": {
+   "brake": 0.5,
+   "brakeD": -0.5,
+   "dr": 0,
+   "wr": null,
+   "L": 0,
+   "R": 1
+  },
+  "released": {
+   "brake": 0,
+   "brakeD": 0,
+   "dr": 0,
+   "wr": null,
+   "L": 0,
+   "R": 0
+  },
+  "brakeSteerRightPedal": {
+   "brake": 0.5,
+   "brakeD": -0.5,
+   "dr": -1,
+   "wr": null,
+   "L": 0,
+   "R": 1
+  },
+  "rudderTrim5": {
+   "brake": 0,
+   "brakeD": 0,
+   "dr": -0.05,
+   "wr": null,
+   "L": 0,
+   "R": 0,
+   "trims": {
+    "e": 0,
+    "r": 0.05,
+    "a": 0
+   }
+  },
+  "waterRudderOnce": 0,
+  "waterRudderTwice": 1,
+  "waterRudderThrice": null,
+  "inTextField": {
+   "brake": 0,
+   "brakeD": 0,
+   "dr": -0.05,
+   "wr": null,
+   "L": 0,
+   "R": 0
+  }
+ },
+ "stills": [
+  "reports/evidence/HAND-CONTROLS/desktop_brakes.jpg",
+  "reports/evidence/HAND-CONTROLS/desktop_trim.jpg"
+ ],
+ "panel": {
+  "rows": [
+   "pitch",
+   "roll",
+   "yaw",
+   "throttle",
+   "flapDown",
+   "flapUp",
+   "flapLever",
+   "brake",
+   "brakeL",
+   "brakeR",
+   "waterRudder",
+   "trimUp",
+   "trimDown",
+   "trimRudL",
+   "trimRudR",
+   "trimRollL",
+   "trimRollR",
+   "trimCentre",
+   "trimPitch",
+   "trimYaw",
+   "trimRoll",
+   "apToggle",
+   "viewNext",
+   "lightTaxi",
+   "lightLand",
+   "lightNav",
+   "lightBeacon",
+   "dimInstr",
+   "dimFlood",
+   "master",
+   "keyNext",
+   "keyPrev",
+   "park",
+   "fuelSel",
+   "alt",
+   "avionics",
+   "dimPedal",
+   "eng1",
+   "eng2",
+   "eng3",
+   "eng4",
+   "headYaw",
+   "headPitch",
+   "headRoll",
+   "headX",
+   "headY",
+   "headZ"
+  ],
+  "groups": [
+   "Flying",
+   "Brakes · on the ground and the water",
+   "Trim",
+   "The flight",
+   "The dash",
+   "Engines",
+   "Head (a tracker as a gamepad)"
+  ],
+  "live": [
+   "pair 0.00 · left toe 1.00 · right toe 0.00 · water rudders AUTO",
+   "elevator 0.00 · rudder +0.14 · aileron +0.02  (+ nose up / right)"
+  ],
+  "opt": true,
+  "hostVisible": true,
+  "box": [
+   480,
+   22,
+   640,
+   856
+  ],
+  "vw": 1600,
+  "vh": 900
+ }
+}

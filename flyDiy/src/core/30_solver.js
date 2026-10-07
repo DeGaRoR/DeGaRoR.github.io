@@ -1336,7 +1336,9 @@ function makeSim(def, world) {
   // a positive rudder (dr > 0) does - measured, scratch pivot. A main's brake is clamp(brake + side x brakeD, 0, 1); brakeD 0 (every caller before
   // this) is the symmetric brake to the bit. The pivot turn at the end of a one-way strip needs it: on the
   // tailwheel's steering alone the user's Cub turns on a 9.4 m radius, and East Point is 12 m wide
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0 };
+  // G2480 (HAND-CONTROLS): `wr` the floats' water-rudder handle - null THE RULE (32_hydro waterRudder), 0 up, 1 down;
+  // only the hand writes it (input.js), and a reset gives it back to the rule
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
@@ -1875,6 +1877,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
+    ctl.wr = null;                                   // G2480: the water rudders back to the rule
     ctl.eng = null;                                  // G194: every lever back to full
     // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
     // airframe AFTER reset — a strip at heading 0 is the built pose turned

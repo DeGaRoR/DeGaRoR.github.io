@@ -514,7 +514,8 @@ const SIM_LINK = (() => {
         cmd({ cmd: 'over', on: !!S.over, outcome: S.over && F.ap.report ? F.ap.report.outcome || null : null }); F.sent.over = !!S.over;
       }
       if (S.manual && S.INP) {
-        const h = { de: null, da: null, dr: null, thr: null, brake: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
+        // (G2480: the differential brake and the water rudders' handle ride with the rest - INP.write sets every field)
+        const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }

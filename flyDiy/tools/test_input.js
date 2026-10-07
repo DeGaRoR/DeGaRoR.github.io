@@ -57,7 +57,7 @@ ck('the solver\'s sign convention is carried by the yaw scale (dr>0 is nose LEFT
   ck('no default key is Space, Enter or Escape (they belong to the buttons and flyouts)',
      !codes.some(c => c === 'Space' || c === 'Enter' || c === 'Escape'));
   ck('defaults bind by KeyboardEvent.code (layout-independent), not by .key',
-     codes.every(c => /^(Key[A-Z]|Digit\d|Numpad\w+|Arrow\w+|Page\w+|Home|End|Period|Comma|F\d+)$/.test(c)));
+     codes.every(c => /^(Key[A-Z]|Digit\d|Numpad\w+|Arrow\w+|Page\w+|Home|End|Period|Comma|Bracket(Left|Right)|F\d+)$/.test(c)));   // (G2480: [ ] the toe brakes)
 }
 ck('the pref key', API.PREF === 'flydiy.input');
 ck('head axes exist for the tracker that is not wired yet (six, pass-through)',
@@ -293,6 +293,164 @@ const out = I => { const c = { eng: null }; I.write(c); return c; };
   ck('seed: the brakes are off (the parking brake was the AP\'s)', c.brake === 0);
   ck('active() says whether a hand is on it', I.active() === false && (I.press('ArrowUp', true), I.update(1 / 60), I.active()) === true);
 }
+
+// ---- G2480 HAND-CONTROLS: the toe brakes, the trims, the levers, the handle ----------
+// per main as the solver reads the pair (30_solver G1938: clamp(brake + side x brakeD, 0, 1), side +1 = the +z main)
+const mainsOf = c => ({ L: Math.max(0, Math.min(1, c.brake + (c.brakeD || 0))), R: Math.max(0, Math.min(1, c.brake - (c.brakeD || 0))) });
+{
+  const I = fresh();
+  I.press('BracketLeft', true); run(I, 30);
+  let c = out(I), m = mainsOf(c);
+  ck('G2480: [ held → the LEFT main alone (L 1, R 0: brake 0.5, brakeD +0.5)', near(m.L, 1, 1e-9) && near(m.R, 0, 1e-9) && near(c.brakeD, 0.5, 1e-9));
+  I.press('BracketLeft', false); run(I, 30);
+  I.press('BracketRight', true); run(I, 30);
+  c = out(I); m = mainsOf(c);
+  ck('G2480: ] held → the RIGHT main alone (brakeD −0.5)', near(m.R, 1, 1e-9) && near(m.L, 0, 1e-9) && near(c.brakeD, -0.5, 1e-9));
+  I.press('BracketRight', false); run(I, 30);
+  ck('G2480: released → no brake, no split', out(I).brake === 0 && out(I).brakeD === 0);
+  I.press('KeyB', true); run(I, 12);
+  c = out(I);
+  ck('G2480: B alone is the symmetric brake to the bit (brakeD exactly 0, brake the ramp)', c.brakeD === 0 && near(c.brake, 0.8, 1e-9) && c.brake === I.state().actions.brake.value);
+  I.press('KeyB', true); I.press('Period', true); run(I, 60);
+  c = out(I);
+  ck('G2480: B + full right pedal, brake-steer OFF (the default) → still symmetric', c.brakeD === 0 && near(c.brake, 1, 1e-9) && I.opt('brakeSteer') === false);
+  I.setOpt('brakeSteer', true);
+  c = out(I); m = mainsOf(c);
+  ck('G2480: brake-steer ON: B + full right pedal → the right (inside) main alone', near(m.R, 1, 1e-9) && near(m.L, 0, 1e-9));
+  I.press('Period', false); run(I, 6);   // the pedal half back (release 6/s for 1/10 s: 0.4 left)
+  const y = I.state().actions.yaw.value; c = out(I); m = mainsOf(c);
+  ck('G2480: ...and at part pedal the outside main is let off in proportion (L = 1 − pedal)', y > 0.2 && y < 0.8 && near(m.L, 1 - y, 1e-9) && near(m.R, 1, 1e-9));
+  I.press('KeyB', false); run(I, 60);
+  let pk = true; I.parkFrom(() => pk);
+  c = out(I);
+  ck('G2480: the parking brake is a floor on both mains under the hand', c.brake === 1 && c.brakeD === 0);
+  pk = false; c = out(I);
+  ck('...and off with the knob', c.brake === 0);
+  const I2 = API.make({}); I2.importJSON(I.exportJSON());
+  ck('G2480: the option round-trips through export / import', I2.opt('brakeSteer') === true);
+}
+{
+  // rudder pedals with TOE AXES (a TFRP: rudder on axis 2, toes on 0 / 1 resting at -1)
+  const ped = { id: 'T-Rudder (Vendor: 044f Product: b679)', axes: [-1, -1, 0], buttons: [] };
+  const snap = () => [ped];
+  const I = fresh();
+  let got = null;
+  I.listen('brakeL', { want: 'gamepad' }, b => { got = b; });
+  run(I, 2, snap()); ped.axes[0] = 1; run(I, 1, snap());
+  ck('G2480: listen: a toe axis pressed binds an AXIS (lever from its rest -1), not a hat', !!got && got.type === 'axis' && got.index === 0 && got.lo === -1 && got.hi === 1);
+  I.listen('brakeR', { want: 'gamepad' }, b => { got = b; });
+  ped.axes[0] = -1; run(I, 2, snap()); ped.axes[1] = 1; run(I, 1, snap());
+  ck('...the right one on its own axis', !!got && got.index === 1);
+  I.setBinding('brakeL', Object.assign({}, I.bound('brakeL').find(b => b.dev !== 'keyboard'), { dead: 0 }));
+  ped.axes[0] = 0; ped.axes[1] = -1; run(I, 3, snap());
+  let m = mainsOf(out(I));
+  ck('G2480: the left toe half down → the left main 0.5, the right free (analog, no ramp)', near(m.L, 0.5, 1e-6) && near(m.R, 0, 1e-9));
+  ped.axes[0] = 1; ped.axes[1] = 1; run(I, 3, snap());
+  const c = out(I);
+  ck('G2480: both toes full → brake 1 and NO split (the old line)', near(c.brake, 1, 1e-6) && c.brakeD === 0);
+}
+{
+  const I = fresh();
+  for (let i = 0; i < 5; i++) { I.press('NumpadEnter', true); run(I, 1); I.press('NumpadEnter', false); run(I, 1); }
+  ck('G2480: five rudder-trim-right presses → dr −0.05 (right pedal, the solver\'s nose-right)', near(out(I).dr, -0.05, 1e-9) && near(I.trims().r, 0.05, 1e-9));
+  I.press('Comma', true); run(I, 60);
+  ck('...a bias after the merge: full left pedal against it reads 0.95 of left (dr +0.95)', near(out(I).dr, 0.95, 1e-9));
+  I.press('Comma', false); I.press('Period', true); run(I, 60);
+  ck('...and full right pedal with it clamps at full right (dr −1)', near(out(I).dr, -1, 1e-9));
+  I.press('Period', false); run(I, 60);
+  for (let i = 0; i < 100; i++) { I.press('Numpad0', true); run(I, 1); I.press('Numpad0', false); run(I, 1); }
+  ck('G2480: rudder trim is bounded (±0.30)', near(out(I).dr, 0.30, 1e-9));
+  for (let i = 0; i < 3; i++) { I.press('Numpad6', true); run(I, 1); I.press('Numpad6', false); run(I, 1); }
+  ck('G2480: aileron trim right → da +0.03', near(out(I).da, 0.03, 1e-9));
+  I.press('Numpad5', true); run(I, 1); I.press('Numpad5', false); run(I, 1);
+  ck('G2480: trim centred → rudder and aileron 0, the elevator\'s kept', out(I).dr === 0 && out(I).da === 0);
+}
+{
+  const box = { id: 'Saitek Pro Flight Trim Wheel', axes: [0, 0, 0, 0], buttons: [] };
+  const snap = () => [box];
+  const I = fresh(); const dv = API.deviceKeys(snap())[0];
+  I.setBinding('trimPitch', { dev: dv, type: 'axis', index: 0, dead: 0 });
+  I.setBinding('trimYaw', { dev: dv, type: 'axis', index: 1, dead: 0 });
+  I.setBinding('flapLever', { dev: dv, type: 'axis', index: 2, lo: -1, hi: 1, dead: 0 });
+  run(I, 2, snap());
+  box.axes[0] = 1; box.axes[1] = -0.5; run(I, 2, snap());
+  ck('G2480: a trim WHEEL that moves sets the trim (full = +0.5 nose up)', near(out(I).de, 0.5, 1e-6));
+  ck('G2480: a rudder trim KNOB half left → rudder trim −0.15 (dr +0.15)', near(out(I).dr, 0.15, 1e-6));
+  I.press('Numpad7', true); run(I, 1, snap()); I.press('Numpad7', false); run(I, 1, snap());
+  ck('...a key steps from where the wheel left it', near(out(I).de, 0.48, 1e-6));
+  box.axes[2] = -0.1; run(I, 2, snap());      // the lever at 0.45 of its travel
+  ck('G2480: a flap LEVER picks the nearest notch (0.45 → 0.5)', I.state().flapI === 1);
+  run(I, 120, snap());
+  ck('...and the flap travels to it at the aeroplane\'s rate', near(out(I).flap, 0.5, 1e-6));
+}
+{
+  const I = fresh();
+  const wrs = [];
+  for (let i = 0; i < 4; i++) { I.press('KeyV', true); run(I, 1); I.press('KeyV', false); run(I, 1); wrs.push(out(I).wr); }
+  ck('G2480: the water-rudder handle walks AUTO → UP → DOWN → AUTO (null, the rule)', out(fresh()).wr === null &&
+     wrs[0] === 0 && wrs[1] === 1 && wrs[2] === null && wrs[3] === 0);
+  I.seed({ de: 0.1, da: 0.01, dr: 0.14, thr: 0.9, flap: 0, brake: 0, brakeD: 0.7 }, { air: true });
+  run(I, 5);
+  let c = out(I);
+  ck('G2480: seed in the AIR: the pilot\'s rudder and aileron become the hand\'s trims (bumpless)', near(c.dr, 0.14, 1e-9) && near(c.da, 0.01, 1e-9) && near(I.trims().r, -0.14, 1e-9));
+  ck('G2480: seed: the pilot\'s differential brake and the handle are NOT carried (brakeD 0, wr the rule)', c.brakeD === 0 && c.wr === null);
+  I.seed({ de: 0.3, da: 0.2, dr: 0.5, thr: 0.2, flap: 0, brake: 0.6 });
+  c = out(I);
+  ck('G2480: seed on the GROUND: the taxi\'s steering is not a trim (rudder and aileron trims 0)', c.dr === 0 && c.da === 0 && I.trims().r === 0);
+}
+{
+  // a profile saved BEFORE G2480 (the old action table): loads, and the new actions take their defaults
+  const old = JSON.parse(JSON.stringify(API.DEFAULTS));
+  for (const k of ['brakeL', 'brakeR', 'waterRudder', 'trimRudL', 'trimRudR', 'trimRollL', 'trimRollR', 'trimCentre', 'alt', 'avionics', 'dimPedal']) delete old.bindings[k];
+  delete old.opts;
+  old.bindings.pitch = [{ dev: 'keyboard', type: 'keys', pos: 'KeyW', neg: 'KeyS' }];
+  const store = { v: JSON.stringify(old), getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
+  const I = API.make({ store });
+  ck('G2480: an old profile loads: its own bindings kept', I.bound('pitch')[0].pos === 'KeyW');
+  ck('...and the actions it never heard of take their defaults', I.bound('brakeL')[0].code === 'BracketLeft' && I.bound('trimRudR')[0].code === 'NumpadEnter' && I.opt('brakeSteer') === false);
+  const old2 = JSON.parse(JSON.stringify(old)); old2.bindings.viewNext = [{ dev: 'keyboard', type: 'key', code: 'BracketLeft' }];
+  const n = API.normalise(old2);
+  ck('...but a default key the old profile gives another action is left off (nothing fires twice)', n.bindings.brakeL.length === 0 && n.bindings.brakeR[0].code === 'BracketRight');
+  const un = API.normalise(Object.assign({}, API.DEFAULTS, { bindings: Object.assign({}, API.DEFAULTS.bindings, { brakeL: [] }) }));
+  ck('...and an action the player UNBOUND stays unbound', un.bindings.brakeL.length === 0);
+}
+// THE SIDE, MEASURED ON THE BUILT POSE: the +z main is the LEFT main, and a left toe brake turns the aeroplane left
+let sideM = null;
+try {
+  const C = require('./flight_core.js');
+  const world = C.makeWorld(), def = C.buildGen();
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  // three rolls from rest at 0.7 throttle, the pedals and the stick centred: no brake, the left toe, the right toe -
+  // with the propeller's moments OFF (PAR.propFx, G2080's own A/B lever): its swirl swings the aeroplane left on its
+  // own, as much as a toe brake turns it right at this power, and the side is the question here, not the swing
+  const fx0 = C.PAR.propFx;
+  C.PAR.propFx = { torque: 0, gyro: 0, pfactor: 0, swirl: 0 };
+  const roll = code => {
+    const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0]);
+    for (let f = 0; f < 120; f++) sim.step(1 / 60);
+    const [xA, yA] = sim.axes(), fw = [-xA[0], -xA[1], -xA[2]];
+    const left = [yA[1] * fw[2] - yA[2] * fw[1], yA[2] * fw[0] - yA[0] * fw[2], yA[0] * fw[1] - yA[1] * fw[0]];
+    const cg = sim.cgPos(), pz = def.refs.mains.find(i => def.nodes[i].p[2] > 0);
+    const zLeft = dot([sim.p[pz * 3] - cg[0], sim.p[pz * 3 + 1] - cg[1], sim.p[pz * 3 + 2] - cg[2]], left);
+    const I = API.make({}); I.aircraft({ flaps: def.params.flaps, nEngines: 1 }); I.seed(sim.ctl);
+    I.press('PageUp', true); run(I, 84); I.press('PageUp', false);
+    if (code) I.press(code, true);
+    let bD = 0;
+    for (let f = 0; f < 300; f++) { I.update(1 / 60); I.write(sim.ctl); bD = sim.ctl.brakeD; sim.step(1 / 60); }
+    const [x2] = sim.axes();
+    return { zLeft, nose: -dot([x2[0], x2[1], x2[2]], left), brakeD: bD, thr: sim.ctl.thr };
+  };
+  let n0, nL, nR;
+  try { n0 = roll(null); nL = roll('BracketLeft'); nR = roll('BracketRight'); } finally { C.PAR.propFx = fx0; }
+  sideM = { zLeft: n0.zLeft, none: n0.nose, L: nL.nose, R: nR.nose, bL: nL.brakeD, bR: nR.brakeD };
+  console.log(`  G2480 side: the +z main sits ${n0.zLeft.toFixed(2)} m to the LEFT; 5 s at thr ${n0.thr.toFixed(2)} (propeller moments off), the nose toward the left: ` +
+              `no brake ${n0.nose.toFixed(3)}, [ (brakeD ${nL.brakeD.toFixed(2)}) ${nL.nose.toFixed(3)}, ] (brakeD ${nR.brakeD.toFixed(2)}) ${nR.nose.toFixed(3)}`);
+} catch (e) { console.log('  G2480 side probe threw: ' + (e && e.stack || e)); }
+ck('G2480: the +z main of the built pose is the LEFT main (the toe brakes\' side convention)', !!sideM && sideM.zLeft > 0.3);
+ck('G2480: the left toe brake turns the aeroplane LEFT and the right one RIGHT (against the same roll unbraked)',
+   // (measured: 5 s from rest, +0.031 / -0.031 of the nose's direction toward the left, 0.000 unbraked - mirrored)
+   !!sideM && sideM.bL > 0 && sideM.bR < 0 && sideM.L > sideM.none + 0.015 && sideM.R < sideM.none - 0.015 &&
+   Math.abs((sideM.L - sideM.none) + (sideM.R - sideM.none)) < 0.2 * Math.abs(sideM.L - sideM.none));
 
 // ---- wiring --------------------------------------------------------------------
 ck('build.js lists input.js and input_panel.js before editor.js',

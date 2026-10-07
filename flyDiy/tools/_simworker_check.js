@@ -151,7 +151,8 @@ function pageFlight(world, spec, opt) {
     manual(on) {                                            // app.js setManual, less the UI
       if (on === manual) return;
       manual = on;
-      if (!on) { ap.reEngage({ phase: resyncPhase() }); if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300); }
+      if (!on) { sim.ctl.brakeD = 0; sim.ctl.wr = null;   // G2480: the hand's own fields leave with it (app.js setManual)
+                 ap.reEngage({ phase: resyncPhase() }); if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300); }
     },
     hand(h) { hand = h; },                                  // INP's state; INP.write puts it on the levers each step
     setEngine(i, patch) { sim.setEngine(i, patch); },
@@ -162,7 +163,9 @@ function pageFlight(world, spec, opt) {
   function script(dt) {                                     // app.js script(), its non-UI lines
     if (!started) { sim.ctl.brake = 0.6; return; }
     if (manual) {
-      if (hand) for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'flap']) if (hand[k] != null) sim.ctl[k] = hand[k];
+      // G2480: the toe brakes' brakeD and the water rudders' wr ride with the hand (sim_host writeHand)
+      if (hand) { for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'brakeD', 'flap']) if (hand[k] != null) sim.ctl[k] = hand[k];
+                  if ('wr' in hand) sim.ctl.wr = hand.wr === 0 || hand.wr === 1 ? hand.wr : null; }
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
     } else ap.update(dt);
   }
@@ -200,7 +203,9 @@ const EVENTS = (def, late) => [
   [30, S => S.start()],
   [150 + (late || 0), S => S.impulse(tw(def), 0, 30, 0)],   // a knock under the tail
   [200, S => { S.manual(true); S.hand({ de: 0.1, da: -0.05, dr: 0.2, thr: 0.35, brake: 0, flap: 0.25 }); }],
-  [260, S => S.hand({ de: -0.05, da: 0.05, dr: -0.2, thr: 0.5, brake: 0.1, flap: 0 })],
+  // G2480: the hand's toe brakes (the left main harder: brakeD > 0) and the water rudders' handle reach the worker
+  [230, S => S.hand({ de: 0.1, da: -0.05, dr: 0.2, thr: 0.35, brake: 0.4, brakeD: 0.4, wr: 0, flap: 0.25 })],
+  [260, S => S.hand({ de: -0.05, da: 0.05, dr: -0.2, thr: 0.5, brake: 0.1, brakeD: -0.1, wr: null, flap: 0 })],
   [330, S => S.manual(false)],
   [380, S => S.setEngine(0, { key: 'off' })],
   [430, S => { S.starterOk = () => true; S.setEngine(0, { key: 'both', start: true }); }],

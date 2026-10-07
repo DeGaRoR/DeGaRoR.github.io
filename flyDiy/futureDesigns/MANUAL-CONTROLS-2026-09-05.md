@@ -198,3 +198,20 @@ as a setting or the field's elevation.
 
 1b (the accumulator) as soon as feel is judged on the real stick → 3 → 4a →
 4b. Needles (4a) are independent and fit any short session.
+
+## G2480 — HAND-CONTROLS: every control the sim models, on the hand (2026-10-07)
+
+The user: differential braking "to the mapping for hand flying. Overall, as many controls as possible should be
+exposed to hand flying." Landed in `input.js` / `input_panel.js` (the audit table and the measurements are HANDOVER
+G2480): the TOE BRAKES (`[` `]`, buttons or a pedal's toe axes) onto the solver's `brake` + `brakeD` per main (the +z
+main is the LEFT one, measured), the BRAKE-STEER option (B with the pedal held brakes the inside main), RUDDER and
+AILERON trim (numpad 0 / enter, 4 / 6, 5 centres them), trim wheels and a flap lever as AXES, the floats' WATER-RUDDER
+handle (V: AUTO · UP · DOWN), the alternator (E), the avionics master (X), the pedal light (Y), and the PARKING BRAKE
+as a floor under the hand (it never held under the hand before). The worker carries `brakeD` and `wr`.
+
+Still NOT modelled, and so not on the hand (each a physics item first): mixture, carb heat / carburettor ice, the
+primer, an electric fuel pump, a magneto's rpm drop (L / R run as BOTH), the fuel selector's L / R tanks (only OFF
+acts), a castoring tailwheel with a lock, cowl flaps, prop pitch / constant speed, a trim TAB on any surface (all
+three trims are a hand held on the controls). Real but left for later: a per-engine key / starter on the twin (the dash
+draws one key), the AP box's mode keys (G202.1), the hand-prop (`CK.swing`, no caller), the passenger light (a load
+with nothing drawn). Touch flying on the phone waits for the phone to fly (G2100: the phone is the garage alone).

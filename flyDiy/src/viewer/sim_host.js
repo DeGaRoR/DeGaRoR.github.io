@@ -507,12 +507,21 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // INP.write's door: the hand's axes every step it is on; an engine lever only where the aeroplane has one
+  // G2480 (HAND-CONTROLS): the toe brakes' brakeD and the water rudders' wr with them - before G2480 the hand's
+  // packet stopped at the flaps, and a differential brake the page set never reached the worker's sim. wr's null is a
+  // value (THE RULE), so it is written whenever the packet carries the field
+  const HAND_KEYS = ['de', 'da', 'dr', 'thr', 'brake', 'brakeD', 'flap'];
+  H.HAND_KEYS = HAND_KEYS;
   function writeHand(h) {
     const c = sim.ctl;
-    for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'flap']) if (h[k] != null) c[k] = h[k];
+    for (const k of HAND_KEYS) if (h[k] != null) c[k] = h[k];
+    if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }
+  // G2480: what only the hand writes leaves with it - the toe brakes' split (the pilot clears brakeD every update
+  // anyway, outside the box) and the water rudders' handle (the pilot never knew it: THE RULE again)
+  function handOff(c) { c.brakeD = 0; c.wr = null; }
   function apply(c) {
     const ap = H.ap;
     switch (c.cmd) {
@@ -529,6 +538,7 @@ function makeSimHost(CORE, init, keptWorld) {
         H.manual = !!c.on;
         if (H.manual) H.end.still = 0;           // app.js setManual(true): stillT = 0
         if (!H.manual) {
+          handOff(sim.ctl);                       // app.js setManual(false): the hand's own fields off the aeroplane (G2480)
           if (ap.reEngage) ap.reEngage({ phase: resyncPhase() });
           if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
         }
