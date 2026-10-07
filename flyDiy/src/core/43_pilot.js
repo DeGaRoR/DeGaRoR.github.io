@@ -512,7 +512,7 @@ function makePilot(sim, def, world, opts) {
   let finalLevel = null;
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
-  let pAsst = 0, flLeft = Infinity;
+  let pAsst = 0, flLeft = Infinity, flWet = false, flDI = 0, wrHold = false;   // G2385: the hold-off on the water at its touch attitude (FLARE -> apply)
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
   let slipK = 0, slipSg = 1, slipSaid = false;
   // G1938: THE PIVOT (TAXI / LINEUP, below) - the tightest turn the wheels steer (39_ground_path groundRmin, at the
@@ -1441,7 +1441,13 @@ function makePilot(sim, def, world, opts) {
       // of the command is the same "cannot hold this speed"
       const eSat = (SV.aDe > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
-      if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
+      // G2385 (DMG-RECAL2): ...ON THE APPROACH. On the floats the raise was earned in the CLIMB: the Cessna on floats'
+      // integrator sat on its clamp at 34.4 m/s (its climb speed, full power) 64 s into the circuit, the raise (+8.6
+      // m/s at most) rode to the final and the TECS approach flew 40-43 m/s (1.7 Vs), +-6 m/s of sink, under the slope
+      // (the terrain go-around, every circuit) and onto the water at 39 m/s nose-down, porpoising to a capsize. Without
+      // it the final is flown at the sheet's Vref (31.7 m/s, -1.46 m/s, on the slope). A floatplane raises it on the
+      // final only; the wheels as before
+      if (tDeSatT > 1.5 && (!sim.hydro || ap.phase === 'FINAL')) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
       const Vc = Math.max((o.ias || A.VAppr) + tVAdapt, 1.05 * tVs0);
       // the demands
@@ -1620,7 +1626,17 @@ function makePilot(sim, def, world, opts) {
       // trickle cap and the unwind are unchanged
       if (ap.phase === 'FLARE' && AF.thr === 'IDLE') {   // G399.7: FINAL's half retired — TECS carries its own saturation (the raised Vref)
         const slow = V < (A.flareFloorK ?? 1.15) * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99);
-        const sat = SV.aDe > 0.30 || (slow && SV.aDe > 0), free = SV.aDe < 0.22 && !slow;
+        // G2385 (DMG-RECAL2): ...AND ON A HIGH THRUST LINE'S FLOATS THE POWER CARRIES THE SINK THE ATTITUDE CANNOT (the
+        // power-on touch, FAA-H-8083-23's glassy / rough-water landing, as recalled). The flare stops at the heels' line
+        // (FLARE, below) and the sink is the power's: past 0.75 m/s (the handbook's 150 ft/min power-on descent, as
+        // recalled) it winds in, under 0.45 (GAME) it winds out. The twin on floats (two 582s 0.54 m over the CG, a lever
+        // of 0.27 m) held 6.5 deg at its cap with the elevator free and arrived at 1.62 m/s, 1.46 W on the floats; on its
+        // power the touch is ~0.7 m/s. An aeroplane whose thrust runs through its CG (the Cessna on floats, 0.003 m:
+        // under porpLever, 39b) lands power-off, the handbook's normal landing - on the power it floated onto the water
+        // at 1.24 Vs and skipped, every crosswind circuit. Off the water and on the low thrust lines: as before
+        const wPow = flWet && THRUST_LEVER > SERVO_GAINS.porpLever, sinkNow = -vcg[1];
+        const wSink = wPow && sinkNow > (A.flareSinkWater ?? 0.75);
+        const sat = SV.aDe > 0.30 || (slow && SV.aDe > 0) || wSink, free = wPow ? sinkNow < 0.45 : SV.aDe < 0.22 && !slow;
         // in the flare the assist depends on the SPEED: a slow arrival (the
         // C172-alike at 1.13 VRot, full flap) needs the power to finish its
         // hold-off (1.9 -> 1.0 m/s); a fast one (the Caravan-alike at 1.6
@@ -1636,7 +1652,7 @@ function makePilot(sim, def, world, opts) {
         // the short stop + 40 m (flLeft, FLARE) it winds up only while the sink is over 1 m/s and comes off at once (1/s)
         // under 0.9: the landing is put on, firmly, not floated. With the room (Jumbo Mine: ~220 m ahead for ~130) the
         // cushion is the one every landing has
-        const tight = ap.shortFld && flLeft < stopDistShort(V) + 40, sinkNow = -vcg[1];
+        const tight = ap.shortFld && flLeft < stopDistShort(V) + 40;
         pAsst = clamp(pAsst + (sat && !(tight && sinkNow < 1.0) ? (A.apAssistRate ?? 0.50) : (tight && sinkNow < 0.9) ? -1.0 : free ? -0.25 : 0) * dt, 0, cap);
         if (pAsst > 0) c.thr = clamp(c.thr + pAsst, 0, 1);
       } else pAsst = 0;
@@ -2844,6 +2860,13 @@ function makePilot(sim, def, world, opts) {
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
+          // G2385 (DMG-RECAL2): ON THE WATER THE TOUCH IS IN THE PLANING ATTITUDE, NEVER ON THE HEELS (FAA-H-8083-23,
+          // as recalled: a touch too nose-high puts the sterns in first and the bows slap down). The cap is the pitch at
+          // which the afterbody's keel comes down to the step's (32_hydro hydroHeel, read once here: the hull is rigid in
+          // pitch), less a degree (GAME) - the twin on floats ~7.8 deg, the Cessna on floats ~4.3. The wheels' cap (the
+          // rest attitude + 2 deg, or the flare's start + 1.7) let the twin touch at 6.6 deg with its 8.8 to spare and
+          // the Cessna at 6.4, 1.0-1.2 deg past its heels
+          if (sim.hydro) flCap = Math.min(A.thMax, th + HYDRO.hydroHeel(sim.hydro, sim.p) - (A.heelMargin ?? 0.0175));
           if (altG > 0) flCap += Math.atan(altG);   // GTRAM: the attitude on the slope is the slope's more
           flI = 0; flVsF = vcg[1];
         }
@@ -2869,7 +2892,7 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'FLARE': {
-        flapTgt = fLDG;
+        flapTgt = fLDG; flWet = false;
         const to = ap.route.to;
         const left = (to.x + F.ux * to.len / 2 - cg[0]) * F.ux + (to.z + F.uz * to.len / 2 - cg[2]) * F.uz;
         flLeft = left;   // G1949: the strip ahead, for the flare's power (apply)
@@ -2884,6 +2907,16 @@ function makePilot(sim, def, world, opts) {
         // B4: armed on the STRIP-FRAME crosswind (|windZ| + |windX| armed it on
         // a headwind straight down the strip too) — 39b_servos.js decrabArmed
         const decrab = SV.decrabArmed(agl, F);
+        // G2385 (DMG-RECAL2): ON THE WATER THE DRIFT IS KILLED BEFORE THE TOUCH - the upwind wing low (the sideslip),
+        // FAA-H-8083-23's crosswind landing (as recalled): a float that meets the water sliding sideways trips the
+        // aeroplane onto its downwind float. The decrab's bank is a track law; the Cessna on floats met the water drifting
+        // 0.6 m/s downwind in 5 m/s across and rode the downwind float (-3..-6 deg) from one skip to the next. Its bank
+        // here carries a PI on the drift over the lane, 0.1 rad per m/s and 0.1 /s (GAME), inside the decrab's 0.12
+        if (sim.hydro && decrab) {
+          const drift = -vcg[0] * F.uz + vcg[2] * F.ux;
+          flDI = clamp(flDI + 0.1 * drift * dt, -0.12, 0.12);
+          SV.phBias = -(0.1 * drift + flDI);
+        } else flDI = 0;
         if (A.flareMode === 'vs')
           engage(decrab ? 'DECRAB' : 'LOC', 'VS', 'IDLE', { vs: -(0.15 + 0.28 * Math.max(0, agl)), thMax: A.flareThMax ?? A.thMax, bank: 0.10, idle: A.flareThr ?? 0 });
         else if (A.flareMode === 'ramp')
@@ -2920,6 +2953,7 @@ function makePilot(sim, def, world, opts) {
           const deSat = SV.aDe > 0.30;
           flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
           const thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
+          flWet = !!sim.hydro && thC >= flCap - 0.005;   // G2385: at the touch attitude on the water (apply's power)
           // the pull: a firmer inner loop and the rotation's integrator authority
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
@@ -2932,7 +2966,7 @@ function makePilot(sim, def, world, opts) {
           // G381: a three-point arrival (the attitude at or above the rest
           // attitude, less 3 deg) is pinned from the first frame
           tdThree = !trike && th > (thRest != null ? thRest : A.liftoffTh) - 0.05;
-          ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V, drift: -vcg[0] * F.uz + vcg[2] * F.ux, three: tdThree, th };
+          ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V, drift: -vcg[0] * F.uz + vcg[2] * F.ux, three: tdThree, th, thr: c.thr };
         }
         break;
       }
@@ -2949,7 +2983,29 @@ function makePilot(sim, def, world, opts) {
           }
           break;
         }
-        if (trike) {
+        if (sim.hydro) {
+          // G2385 (DMG-RECAL2): ON THE WATER THE ATTITUDE IS HELD THROUGH THE STEP, THE POWER OFF; THE STICK COMES
+          // ALL THE WAY BACK ONLY OFF IT (FAA-H-8083-23, the normal water landing, as recalled: touch in the planing
+          // attitude, power off after the touch, hold the attitude as the seaplane decelerates, full back stick once
+          // it settles off the step into displacement). The wheels' law below (full back stick under 1.15 VRot, the
+          // tail flown down at once) put the twin on floats' stick on its stop 0.1 s after a 1.13 Vs touch: the
+          // nose went 6.5 -> 22.5 deg, it flew off the step and came down 19 deg nose-up with 15 deg of bank on one
+          // float, 4.2 kN through the aft spreader (2.00 of its envelope). Off the step: both afterbodies wet
+          // (wheelsOnGround's third contact) or under the step's own speed (SERVO_GAINS.stepV, 39b)
+          // On the step the hold is the flare's own grip (its firmer loop and integrator): the touch's water lift
+          // pitches the nose up, and at 1.2 Vs the wing flies again on 2 deg more (the twin rose 6.3 -> 8.1 deg on
+          // the plain loop and left the water for 0.37 s)
+          const offStep = onG >= 3 || V < SERVO_GAINS.stepV;
+          // the water rudders stay up until the hull is in displacement (or under the take-off's own raise speed)
+          wrHold = wrHold && !(onG >= 3 || V < 0.6 * HYDRO.WR_UP_V);   // (lowered once: no flicker on the hump)
+          SV.pitchK = offStep ? 1 : (A.flarePK ?? 2.0); SV.pitchDK = offStep ? 1 : (A.flareDK ?? 1.0);
+          SV.IthMaxT = offStep ? 0.15 : (A.rotateIMax ?? 0.30); SV.IthGain = offStep ? null : (A.flareIth ?? 0.4);
+          // the power off after the touch: at once, or on a high thrust line over 2 s (GAME) - its couple held the nose
+          // down through the touch, and chopped the twin's nose rose 6.3 -> 8.1 deg and it left the water for 0.37 s
+          const thrW = THRUST_LEVER > SERVO_GAINS.porpLever ? (ap.tdInfo && ap.tdInfo.thr || 0) * Math.max(0, 1 - phaseT / 2) : 0;
+          if (offStep) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
+          else engage('RWY', 'PITCH', 'SET', { thr: thrW, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
+        } else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
           if (V > (soft ? 0.7 * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
@@ -3048,6 +3104,7 @@ function makePilot(sim, def, world, opts) {
         if (onG > 0) go('ROLLOUT'); else go('CLIMB');
         break;
     }
+    if (sim.hydro) { c.wrUp = !BX.on && (ap.phase === 'FLARE' || (ap.phase === 'ROLLOUT' && wrHold)); if (ap.phase !== 'ROLLOUT') wrHold = true; }   // G2385: the water rudders held up through the landing
     if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG); }   // G1943: a profile's hands (the expert's are the servos')
     // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS on a high thrust line's water take-off (39b S.porpoise):
     // the run and the lift-off on floats, until CLIMB; the power's ceiling and the stick's damping over what the laws

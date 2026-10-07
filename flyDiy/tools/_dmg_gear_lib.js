@@ -42,12 +42,19 @@ function bumpyWorld(elev, A, lam) {
   return F;
 }
 
-// THE CIRCUIT with the pilot (calm, or a crosswind of `xw` m/s from the right of the runway), probed
+// THE CIRCUIT with the pilot (calm, or a crosswind of `xw` m/s from the right of the runway, or `wind` { U, th }: U m/s
+// from th deg off the lane's heading - 0 along it, 90 the gate's crosswind side, DMGWIND's quarters), probed. On the
+// water (G2386, DMG-RECAL2) the floats' CONTACT PHASES are counted from the first wet frame on: a run of wet frames
+// after at least 3 dry ones (1/20 s) is a new contact - a skip
 function circuit(key, o) {
   const C = L.core(), def = L.defOf(key, { probe: true }), world = C.makeWorld();
   const sim = C.makeSim(def, world); sim.reset(0); sim._def = def; L.lastRun.sim = sim;
   const a = world.aerodromes.find(x => x.id === (sim.hydro ? 'SEA' : 'HOME')) || world.aerodromes[0];
   if (o.xw && world.setWind) { const h = a.hdg; world.setWind({ base: [-Math.sin(h) * o.xw, 0, Math.cos(h) * o.xw], gust: 0 }); }
+  if (o.wind && o.wind.U && world.setWind) {
+    const h = a.hdg, U = o.wind.U, c = Math.cos(o.wind.th * Math.PI / 180), sn = Math.sin(o.wind.th * Math.PI / 180);
+    world.setWind({ base: [U * (-sn * Math.sin(h) - c * Math.cos(h)), 0, U * (sn * Math.cos(h) - c * Math.sin(h))], gust: 0 });
+  }
   if (sim.hydro) C.placeAtAerodrome(sim, a);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   const ap = C.makePilot(sim, def, world);
@@ -56,16 +63,31 @@ function circuit(key, o) {
   // per phase: the worst member (the probe cleared at each phase change; the run's worst is the worst phase's)
   const phases = []; let s = 0, ph = null, t0 = 0;
   const close = () => { if (ph) { const w = worst(sim); phases.push({ ph, t0, t1: sim.t, max: w.max, tags: w.tags, cls: w.cls, s: w.s, gear: w.gear, gtags: w.gtags }); } clearPeak(sim); };
-  for (; s < (o.maxS || 340) * 60; s++) {
+  const HY = sim.hydro, landing = p => p === 'FLARE' || p === 'ROLLOUT' || p === 'STOPPED';
+  const touches = []; let dry = 0, cur = null;
+  // (a floatplane's circuit is the longer one: the water lane's pattern and the roll-out off the step)
+  for (; s < (o.maxS || (HY ? 480 : 340)) * 60; s++) {
     ap.update(1 / 60);
     if (ap.phase !== ph) { close(); ph = ap.phase; t0 = sim.t; }
     sim.step(1 / 60);
+    if (HY && landing(ap.phase)) {
+      let wet = false; for (const fx of HY.floats) if (fx.wet > 0.05) { wet = true; break; }
+      if (wet) {
+        if (!cur || dry >= 3) {
+          const v = sim.cgVel(), d = ap.dbg || {};
+          cur = { t: sim.t, V: Math.hypot(v[0], v[2]), sink: -v[1], pitch: (d.th || 0) * 180 / Math.PI, bank: (d.ph || 0) * 180 / Math.PI };
+          touches.push(cur);
+        }
+        dry = 0;
+      } else if (cur) dry++;
+    }
     if (ap.phase === 'STOPPED' && ap.t > 3) break;
   }
   close();
   const top = phases.reduce((a, x) => (x.max > a.max ? x : a), { max: 0 }), gtop = phases.reduce((a, x) => (x.gear > a.gear ? x : a), { gear: 0 });
   const w = { max: top.max, tags: top.tags, cls: top.cls, s: top.s, phase: top.ph, gear: gtop.gear, gtags: gtop.gtags };
-  return { outcome: ap.report && ap.report.outcome, landing: ap.report && ap.report.landing, t: s / 60, w, phases, finite: finite(sim) };
+  return { outcome: ap.report && ap.report.outcome, landing: ap.report && ap.report.landing, t: s / 60, w, phases, finite: finite(sim),
+           contacts: HY ? touches.length : null, touches: HY ? touches : null, verdicts: ap.report ? ap.report.verdicts.filter(v => /go-around|gave-up|rejected|vref/.test(v.code)) : [] };
 }
 
 // A TAXI: `V` m/s held on the throttle, the heading held on the rudder (and the brakes off), `secs` s, on a flat field

@@ -42,9 +42,11 @@ if (argv[0] === '--part') {
     out.taxi = (fl ? [['on the water at 4 m/s', { V: 4 }], ['on the water at 4 m/s in a light chop (5 m/s of wind)', { V: 4, chop: 5 }]]
                    : [['on grass at 8 m/s', { V: 8 }], ['on a rough field (2 cm bumps, 3 m apart) at 8 m/s', { V: 8, rough: { A: 0.02, lam: 3 } }], ['on the rough field at 12 m/s', { V: 12, rough: { A: 0.02, lam: 3 } }]])
       .map(([lab, o]) => { const r = G.taxi(k, o); return { lab, V: r.V, w: W(r.w), finite: r.finite }; });
-  } else if (part === 'circ' || part === 'xw') {
-    const r = G.circuit(k, part === 'xw' ? { xw: 0.2 * vso } : {});
-    out.circ = { xw: part === 'xw' ? 0.2 * vso : 0, outcome: r.outcome, landing: r.landing, t: r.t, w: W(r.w), phases: r.phases, finite: r.finite };
+  } else if (part === 'circ' || part === 'xw' || part.indexOf('wind:') === 0) {
+    const wind = part.indexOf('wind:') === 0 ? { U: +part.split(':')[1], th: +part.split(':')[2] } : null;
+    const r = G.circuit(k, part === 'xw' ? { xw: 0.2 * vso } : wind ? { wind } : {});
+    out.circ = { xw: part === 'xw' ? 0.2 * vso : 0, wind, outcome: r.outcome, landing: r.landing, t: r.t, w: W(r.w), phases: r.phases, finite: r.finite,
+                 contacts: r.contacts, touches: r.touches, verdicts: r.verdicts };
   } else if (part === 'bracket') {
     out.bracket = G.bracket(k);
     const cap = 10 * 0.3048, v473 = L.far473(k);
@@ -70,6 +72,9 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
   // (DMGGEAR_PARTS: a subset - the evidence flies the headroom parts on the base's core for the table's 'before')
   const PARTS = (process.env.DMGGEAR_PARTS || 'xw,circ,ops,bracket,rows').split(',');
   for (const k of keys) for (const p of PARTS) jobs.push([k, p]);
+  // G2386 (DMG-RECAL2): the floatplanes' circuit in DMGWIND's water winds (5 / 10 m/s from the lane's four quarters)
+  const WINDS = (process.env.DMGGEAR_WINDS ?? '5:0,5:90,5:180,5:270,10:0,10:90,10:180,10:270').split(',').filter(Boolean);
+  for (const k of keys) if (/floats/i.test(k)) for (const w of WINDS) jobs.unshift([k, 'wind:' + w]);   // the long ones first
   const run = ([k, p]) => new Promise(res => {
     const c = spawn(process.execPath, [__filename, '--part', k, p], { stdio: ['ignore', 'pipe', 'pipe'] });
     let so = '', se = ''; c.stdout.on('data', d => { so += d; }); c.stderr.on('data', d => { se += d; });
@@ -113,9 +118,17 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
       rowsT.push([t.kind === 'ord' ? 'td ' + t.sink.toFixed(1) : 'td 23.473', t.kind === 'ord' ? t.w.max : t.w.air, t.w]);
     }
     for (const t of (O.taxi || [])) { yes(t.finite && t.w.max <= TWO3, 'a taxi ' + t.lab + ': ' + wk(t.w)); rowsT.push(['taxi ' + t.lab, t.w.max, t.w]); }
+    // G2386 (DMG-RECAL2): a floatplane's touch, its contact phases from the first wet frame (more than one: a skip)
+    const tch = c => c.touches && c.touches.length ? c.touches.map(x => x.t.toFixed(1) + ' s ' + f2(x.V) + ' m/s ' + f2(x.sink) + ' down ' + x.pitch.toFixed(1) + ' deg up ' + x.bank.toFixed(1) + ' bank').join('; ') : 'no touch';
     for (const p of ['circ', 'xw']) { const c = P[p] && P[p].circ; if (!c) continue;
       yes(c.finite && c.w.max <= TWO3, (c.xw ? 'a crosswind circuit (' + f2(c.xw) + ' m/s across, 0.2 V_S0)' : 'the circuit') + ' (' + c.outcome + ', ' + c.t.toFixed(0) + ' s' + (c.landing ? ', touchdown ' + f2(c.landing.sink) + ' m/s' : '') + '): ' + wk(c.w));
+      if (c.contacts != null) yes(c.finite && c.outcome === 'completed' && c.contacts === 1, (c.xw ? 'the crosswind circuit' : 'the circuit') + ' lands on the water without a skip: ' + c.contacts + ' contact phase' + (c.contacts === 1 ? '' : 's') + ' (' + tch(c) + ')');
       rowsT.push([c.xw ? 'crosswind circuit' : 'circuit', c.w.max, c.w]); }
+    const WP = Object.keys(P).filter(p => p.indexOf('wind:') === 0 && P[p].circ);
+    if (WP.length) console.log('2b. no skip in DMGWIND\'s water winds (the circuit; contact phases from the first touch)');
+    for (const p of WP) { const c = P[p].circ;
+      yes(c.finite && c.outcome === 'completed' && c.contacts === 1, 'the circuit in ' + c.wind.U + ' m/s from ' + c.wind.th + ' deg off the lane: ' + c.outcome + ', ' + c.t.toFixed(0) + ' s, ' + c.contacts + ' contact phase' + (c.contacts === 1 ? '' : 's') + ' (' + tch(c) + ')' + (c.verdicts && c.verdicts.length ? ' [' + c.verdicts.map(v => v.code).join(', ') + ']' : '') + '; headroom ' + wk(c.w) + ' (REPORTED)');
+      rowsT.push(['wind ' + c.wind.U + '/' + c.wind.th, c.w.max, c.w]); }
     table.push([lab, rowsT]);
     // 3. §7.4
     const RW = P.rows || {};

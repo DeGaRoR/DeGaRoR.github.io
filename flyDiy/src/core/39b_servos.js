@@ -146,7 +146,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
-    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
+    eTrim: 0, phBias: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -206,7 +206,7 @@ function makeServos(sim, def, opts) {
     if (vPrev !== null) S.accF += dt / G.accS * ((V - vPrev) / dt - S.accF);
     vPrev = V;
     S.th = th; S.ph = ph; S.e = e; S.eA = eA; S.beta = beta; S.V = V; S.Vg = Vg; S.vy = vy; S.onG = onG;
-    S.deFloor = 0;
+    S.deFloor = 0; S.phBias = 0;
   };
 
   // ---- pitch ----------------------------------------------------------------
@@ -327,7 +327,7 @@ function makeServos(sim, def, opts) {
       if (Math.abs(eA) < G.trimWin) S.eTrim = clamp(S.eTrim + G.trimK * eA * dt, -G.trimMax, G.trimMax);
       else S.eTrim -= G.trimBleed * S.eTrim * dt;
     }
-    const phC = clamp(g('hdgP') * eA + g('hdgD') * S.eAR + S.eTrim, -bl, bl);
+    const phC = clamp(g('hdgP') * eA + g('hdgD') * S.eAR + S.eTrim + S.phBias, -bl, bl);   // G2385: phBias, a phase's own bank (43's water flare), zeroed every sense()
     S.rollTo(phC);
   };
   // the crosswind decrab: wings near level (the bank keeps killing the drift),
