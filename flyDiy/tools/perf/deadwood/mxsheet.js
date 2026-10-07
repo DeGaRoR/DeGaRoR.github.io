@@ -11,12 +11,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej); });
 const url = p => 'file:///' + p.replace(/\\/g, '/');
 // ---- the pages ----
-const ROWS = [['1stand', 'the stand (the chase camera)'], ['2edge', 'a forest edge at 1.8 m, 150 m from the densest stand'], ['3alt300', '300 m over the densest stand'], ['4alt1000', '1 km over the densest stand']];
+const ROWS = [['1stand', 'the stand, the chase camera after the roll-out (nearly, not exactly, the same frame)'], ['3alt300', '300 m over the densest stand'], ['4alt1000', '1 km over the densest stand']];
 const css = '<style>body{margin:0;background:#15181c;color:#e8e8e8;font:15px/1.35 system-ui,Segoe UI,sans-serif}h1{font-size:20px;margin:14px 16px 4px}p{margin:2px 16px 10px;color:#b9c0c8}' +
   'table.g{border-collapse:separate;border-spacing:8px}td{vertical-align:top}td.l{width:150px;font-weight:600;padding-top:8px}img{width:960px;display:block}th{font-weight:600;text-align:left;padding:4px 8px}' +
   'table.t{border-collapse:collapse;margin:6px 16px 18px}table.t td,table.t th{border-bottom:1px solid #333a42;padding:4px 10px;font-variant-numeric:tabular-nums}.hi{color:#ffb86b}</style>';
 let g = '<!doctype html><meta charset=utf-8>' + css + '<h1>Dead trees: today (left) vs the mixes\' own share (right) - gamer, Jolene near HOME</h1>' +
-  '<p>The same frame in both columns. Right = <code>?mixdead=1</code> (the switch, OFF by default). Rows: noon then golden hour.</p><table class=g><tr><th></th><th>TODAY (the collection\'s share: pine_georgeous 53 % dead)</th><th>THE MIXES\' SHARE (?mixdead=1)</th></tr>';
+  '<p>The same frame in both columns (the stand: the chase camera after the roll-out, nearly the same). Right = <code>?mixdead=1</code> (the switch, OFF by default). Rows: noon then golden hour.</p><table class=g><tr><th></th><th>TODAY (the collection\'s share: pine_georgeous 53 % dead)</th><th>THE MIXES\' SHARE (?mixdead=1)</th></tr>';
 for (const [k, lab] of ROWS) for (const day of ['noon', 'golden'])
   g += `<tr><td class=l>${lab}<br><span style="font-weight:400;color:#9aa3ad">${day}</span></td><td><img src="${url(path.join(OUT, 'raw', `mx_off_${k}_${day}.png`))}"></td><td><img src="${url(path.join(OUT, 'raw', `mx_on_${k}_${day}.png`))}"></td></tr>`;
 g += '</table>';
