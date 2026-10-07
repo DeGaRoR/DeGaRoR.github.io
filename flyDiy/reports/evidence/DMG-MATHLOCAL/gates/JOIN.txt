@@ -244,8 +244,4 @@
   ok     G1283: a station inside the envelope flies as measured, in silence
   ok     G1283: no core loaded, no claim
 GATE JOIN: PASS
-
-real	0m11.349s
-user	0m13.793s
-sys	0m0.658s
-exit=0
+exit=0 wall_s=11

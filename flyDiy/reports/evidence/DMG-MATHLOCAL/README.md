@@ -11,3 +11,5 @@
   fsin / fcos / fpow, CORE_MATH) and a page (a viewer script's Math after 9fca23c6's core / after this core; CORE_MATH).
 - `perf/step_ab_vs_9fca23c6.*`, `perf/step_ab_vs_integration.*` (dmg-integration f7b5afb4), `perf/step_aa_noise.*` (this core vs a copy
   of itself) - tools/dmg_drive_perf.js --rounds=8 --builds=cub,jodel,metal, FLYDIY_CERT_DIR = the three certificates.
+- `gates/base_9fca23c6/DMGCERTCOST.txt` - the base 9fca23c6 built in a worktree on this machine, GATE DMGCERTCOST alone: red on the
+  same node-time ceilings. `gates/DMGCERTCOST_alternating.txt` - this branch and the base alternated twice: red every run, the same spread.

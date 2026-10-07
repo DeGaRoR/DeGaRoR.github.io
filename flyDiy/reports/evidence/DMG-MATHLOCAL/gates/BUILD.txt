@@ -196,8 +196,4 @@
   ok     the clock, the date and the run all ride the save envelope
 
 GATE BUILD: PASS
-
-real	0m4.581s
-user	0m3.910s
-sys	0m1.529s
-exit=0
+exit=0 wall_s=4

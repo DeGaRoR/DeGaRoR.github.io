@@ -34,7 +34,7 @@
    "work": 18720.5,
    "crashed": true,
    "finite": true,
-   "s": 122.158
+   "s": 163.303
   },
   {
    "tier": "ignition",
@@ -48,7 +48,7 @@
    "work": 21119.2,
    "crashed": true,
    "finite": true,
-   "s": 180.258
+   "s": 229.281
   },
   {
    "tier": "ignition",
@@ -62,7 +62,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 434.081
+   "s": 547.98
   },
   {
    "tier": "ignition",
@@ -76,7 +76,7 @@
    "work": 36843.9,
    "crashed": true,
    "finite": true,
-   "s": 162.156
+   "s": 202.246
   },
   {
    "tier": "sparkplug",
@@ -90,7 +90,7 @@
    "work": 18720.5,
    "crashed": true,
    "finite": true,
-   "s": 67.608
+   "s": 92.72
   },
   {
    "tier": "noOpt",
@@ -104,7 +104,7 @@
    "work": 18720.5,
    "crashed": true,
    "finite": true,
-   "s": 68.141
+   "s": 95.314
   },
   {
    "tier": "sparkplug",
@@ -118,7 +118,7 @@
    "work": 21119.2,
    "crashed": true,
    "finite": true,
-   "s": 101.301
+   "s": 133.114
   },
   {
    "tier": "noOpt",
@@ -132,7 +132,7 @@
    "work": 21119.2,
    "crashed": true,
    "finite": true,
-   "s": 104.548
+   "s": 132.727
   },
   {
    "tier": "sparkplug",
@@ -146,7 +146,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 265.673
+   "s": 294.551
   },
   {
    "tier": "noOpt",
@@ -160,7 +160,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 258.295
+   "s": 291.336
   },
   {
    "tier": "sparkplug",
@@ -174,7 +174,7 @@
    "work": 36843.9,
    "crashed": true,
    "finite": true,
-   "s": 96.804
+   "s": 117.086
   },
   {
    "tier": "noOpt",
@@ -188,7 +188,7 @@
    "work": 36843.9,
    "crashed": true,
    "finite": true,
-   "s": 96.717
+   "s": 106.985
   },
   {
    "tier": "turbofan",
@@ -202,7 +202,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 9.992
+   "s": 9.956
   },
   {
    "tier": "maglev",
@@ -216,7 +216,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 87.868
+   "s": 129.095
   },
   {
    "tier": "alwaysTf",
@@ -230,7 +230,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 13.281
+   "s": 13.326
   },
   {
    "tier": "turbofan",
@@ -244,7 +244,7 @@
    "work": 3252.7,
    "crashed": true,
    "finite": true,
-   "s": 12.14
+   "s": 14.259
   },
   {
    "tier": "maglev",
@@ -258,7 +258,7 @@
    "work": 3252.7,
    "crashed": true,
    "finite": true,
-   "s": 80.156
+   "s": 134.339
   },
   {
    "tier": "alwaysTf",
@@ -272,7 +272,7 @@
    "work": 3252.7,
    "crashed": true,
    "finite": true,
-   "s": 15.478
+   "s": 28.614
   },
   {
    "tier": "turbofan",
@@ -286,7 +286,7 @@
    "work": 18720.5,
    "crashed": true,
    "finite": true,
-   "s": 10.677
+   "s": 17.765
   },
   {
    "tier": "maglev",
@@ -300,7 +300,7 @@
    "work": 18720.5,
    "crashed": true,
    "finite": true,
-   "s": 62.61
+   "s": 109.279
   },
   {
    "tier": "alwaysTf",
@@ -314,7 +314,7 @@
    "work": 18720.5,
    "crashed": true,
    "finite": true,
-   "s": 13.127
+   "s": 15.752
   },
   {
    "tier": "turbofan",
@@ -328,7 +328,7 @@
    "work": 13416.8,
    "crashed": true,
    "finite": true,
-   "s": 10.47
+   "s": 16.884
   },
   {
    "tier": "maglev",
@@ -342,7 +342,7 @@
    "work": 13416.8,
    "crashed": true,
    "finite": true,
-   "s": 67.24
+   "s": 99.409
   },
   {
    "tier": "alwaysTf",
@@ -356,7 +356,7 @@
    "work": 13416.8,
    "crashed": true,
    "finite": true,
-   "s": 13.434
+   "s": 22.955
   },
   {
    "tier": "turbofan",
@@ -370,7 +370,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 7.634
+   "s": 13.712
   },
   {
    "tier": "maglev",
@@ -384,7 +384,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 60.089
+   "s": 78.576
   },
   {
    "tier": "alwaysTf",
@@ -398,7 +398,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 11.171
+   "s": 24.277
   },
   {
    "tier": "turbofan",
@@ -412,7 +412,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 13.626
+   "s": 18.017
   },
   {
    "tier": "maglev",
@@ -426,7 +426,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 145.991
+   "s": 193.921
   },
   {
    "tier": "alwaysTf",
@@ -440,7 +440,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 14.55
+   "s": 18.551
   },
   {
    "tier": "turbofan",
@@ -454,7 +454,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 13.816
+   "s": 16.962
   },
   {
    "tier": "maglev",
@@ -468,7 +468,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 137.982
+   "s": 210.935
   },
   {
    "tier": "alwaysTf",
@@ -482,7 +482,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 18.362
+   "s": 17.718
   },
   {
    "tier": "turbofan",
@@ -496,7 +496,7 @@
    "work": 2811.7,
    "crashed": true,
    "finite": true,
-   "s": 17.164
+   "s": 20.764
   },
   {
    "tier": "maglev",
@@ -510,7 +510,7 @@
    "work": 2811.7,
    "crashed": true,
    "finite": true,
-   "s": 124.707
+   "s": 211.646
   },
   {
    "tier": "alwaysTf",
@@ -524,7 +524,7 @@
    "work": 2811.7,
    "crashed": true,
    "finite": true,
-   "s": 22.272
+   "s": 34.792
   },
   {
    "tier": "turbofan",
@@ -538,7 +538,7 @@
    "work": 21119.2,
    "crashed": true,
    "finite": true,
-   "s": 15.149
+   "s": 19.36
   },
   {
    "tier": "maglev",
@@ -552,7 +552,7 @@
    "work": 21119.2,
    "crashed": true,
    "finite": true,
-   "s": 100.23
+   "s": 153.303
   },
   {
    "tier": "alwaysTf",
@@ -566,7 +566,7 @@
    "work": 21119.2,
    "crashed": true,
    "finite": true,
-   "s": 17.53
+   "s": 33.624
   },
   {
    "tier": "turbofan",
@@ -580,7 +580,7 @@
    "work": 3014.5,
    "crashed": true,
    "finite": true,
-   "s": 15.471
+   "s": 25.387
   },
   {
    "tier": "maglev",
@@ -594,7 +594,7 @@
    "work": 3014.5,
    "crashed": true,
    "finite": true,
-   "s": 96.785
+   "s": 142.528
   },
   {
    "tier": "alwaysTf",
@@ -608,7 +608,7 @@
    "work": 3014.5,
    "crashed": true,
    "finite": true,
-   "s": 16.963
+   "s": 32.878
   },
   {
    "tier": "turbofan",
@@ -622,7 +622,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 9.627
+   "s": 18.629
   },
   {
    "tier": "maglev",
@@ -636,7 +636,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 95.693
+   "s": 109.073
   },
   {
    "tier": "alwaysTf",
@@ -650,7 +650,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 12.46
+   "s": 16.495
   },
   {
    "tier": "turbofan",
@@ -664,7 +664,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 16.947
+   "s": 22.522
   },
   {
    "tier": "maglev",
@@ -678,7 +678,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 270.567
+   "s": 397.936
   },
   {
    "tier": "alwaysTf",
@@ -692,7 +692,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 24.983
+   "s": 28.393
   },
   {
    "tier": "turbofan",
@@ -706,7 +706,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 11.341
+   "s": 24.116
   },
   {
    "tier": "maglev",
@@ -720,7 +720,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 137.409
+   "s": 222.897
   },
   {
    "tier": "alwaysTf",
@@ -734,7 +734,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 18.267
+   "s": 30.735
   },
   {
    "tier": "turbofan",
@@ -748,7 +748,7 @@
    "work": 2973.8,
    "crashed": true,
    "finite": true,
-   "s": 15.62
+   "s": 27.812
   },
   {
    "tier": "maglev",
@@ -762,7 +762,7 @@
    "work": 2973.8,
    "crashed": true,
    "finite": true,
-   "s": 124.362
+   "s": 185.703
   },
   {
    "tier": "alwaysTf",
@@ -776,7 +776,7 @@
    "work": 2973.8,
    "crashed": true,
    "finite": true,
-   "s": 22.692
+   "s": 40.239
   },
   {
    "tier": "turbofan",
@@ -790,7 +790,7 @@
    "work": 36843.9,
    "crashed": true,
    "finite": true,
-   "s": 15.885
+   "s": 19.085
   },
   {
    "tier": "maglev",
@@ -804,7 +804,7 @@
    "work": 36843.9,
    "crashed": true,
    "finite": true,
-   "s": 107.614
+   "s": 151.039
   },
   {
    "tier": "alwaysTf",
@@ -818,7 +818,7 @@
    "work": 36843.9,
    "crashed": true,
    "finite": true,
-   "s": 19.323
+   "s": 26.869
   },
   {
    "tier": "turbofan",
@@ -832,7 +832,7 @@
    "work": 10233.2,
    "crashed": true,
    "finite": true,
-   "s": 14.473
+   "s": 21.948
   },
   {
    "tier": "maglev",
@@ -846,7 +846,7 @@
    "work": 10233.2,
    "crashed": true,
    "finite": true,
-   "s": 103.585
+   "s": 168.466
   },
   {
    "tier": "alwaysTf",
@@ -860,7 +860,7 @@
    "work": 10233.2,
    "crashed": true,
    "finite": true,
-   "s": 19.402
+   "s": 26.363
   },
   {
    "tier": "turbofan",
@@ -874,7 +874,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 9.702
+   "s": 19.456
   },
   {
    "tier": "maglev",
@@ -888,7 +888,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 90.699
+   "s": 140.462
   },
   {
    "tier": "alwaysTf",
@@ -902,7 +902,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 13.549
+   "s": 22.426
   },
   {
    "tier": "turbofan",
@@ -916,7 +916,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 18.595
+   "s": 36.33
   },
   {
    "tier": "maglev",
@@ -930,7 +930,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 242.06
+   "s": 269.782
   },
   {
    "tier": "alwaysTf",
@@ -944,7 +944,7 @@
    "work": 0,
    "crashed": false,
    "finite": true,
-   "s": 23.83
+   "s": 40.072
   }
  ],
  "certs": [
@@ -954,7 +954,7 @@
    "kind": "cert",
    "k": "cub",
    "hash": "96a20800d4b1baa837c2474b",
-   "s": 28.957
+   "s": 37.55
   },
   {
    "tier": "ignition",
@@ -962,7 +962,7 @@
    "kind": "cert",
    "k": "cub",
    "hash": "96a20800d4b1baa837c2474b",
-   "s": 447.104
+   "s": 675.427
   },
   {
    "tier": "turbofan",
@@ -970,7 +970,7 @@
    "kind": "cert",
    "k": "jodel",
    "hash": "2e562846f1bbed27aef97d84",
-   "s": 46.891
+   "s": 73.528
   },
   {
    "tier": "ignition",
@@ -978,7 +978,7 @@
    "kind": "cert",
    "k": "jodel",
    "hash": "2e562846f1bbed27aef97d84",
-   "s": 841.387
+   "s": 1134.955
   },
   {
    "tier": "turbofan",
@@ -986,7 +986,7 @@
    "kind": "cert",
    "k": "metal",
    "hash": "0a75ca5c1498d82bc3fe328d",
-   "s": 36.413
+   "s": 58.893
   },
   {
    "tier": "ignition",
@@ -994,7 +994,7 @@
    "kind": "cert",
    "k": "metal",
    "hash": "0a75ca5c1498d82bc3fe328d",
-   "s": 722.755
+   "s": 986.749
   }
  ],
  "branch": [],
@@ -1018,7 +1018,7 @@
     "work": 21119.2,
     "crashed": true,
     "finite": true,
-    "s": 15.169
+    "s": 21.348
    },
    {
     "tier": "turbofan+nudge",
@@ -1032,9 +1032,14 @@
     "work": 21119.2,
     "crashed": true,
     "finite": true,
-    "s": 13.619
+    "s": 21.879
    }
   ]
+ },
+ "census": {
+  "core": 350,
+  "kept": 19,
+  "stray": []
  },
  "page_math": {
   "same": true,
@@ -1056,7 +1061,7 @@
     "node": "18b9c7a9e8cdd9cc",
     "broken": 0,
     "work": 0,
-    "ms": 3396.3000000002794,
+    "ms": 4296.199999999255,
     "hash": "18b9c7a9e8cdd9cc"
    },
    {
@@ -1064,7 +1069,7 @@
     "node": "8a9b14e081ea34d8",
     "broken": 46,
     "work": 3252.749506683842,
-    "ms": 4932.799999999814,
+    "ms": 5234.4000000003725,
     "hash": "8a9b14e081ea34d8"
    },
    {
@@ -1072,7 +1077,7 @@
     "node": "70e9c0641baf145f",
     "broken": 171,
     "work": 18720.46255533777,
-    "ms": 5481.200000000186,
+    "ms": 5308.0999999996275,
     "hash": "70e9c0641baf145f"
    },
    {
@@ -1080,7 +1085,7 @@
     "node": "f76c330a0daea513",
     "broken": 109,
     "work": 13416.819156147993,
-    "ms": 5101.899999999907,
+    "ms": 5819.4000000003725,
     "hash": "f76c330a0daea513"
    },
    {
@@ -1088,7 +1093,7 @@
     "node": "2e0c8285a6411676",
     "broken": 0,
     "work": 0,
-    "ms": 4812.399999999907,
+    "ms": 4691.9000000003725,
     "hash": "2e0c8285a6411676"
    },
    {
@@ -1096,7 +1101,7 @@
     "node": "cd2ec9bd851f7864",
     "broken": 0,
     "work": 0,
-    "ms": 12756.899999999907,
+    "ms": 13625.800000000745,
     "hash": "cd2ec9bd851f7864"
    },
    {
@@ -1104,7 +1109,7 @@
     "node": "7b64a25f6d12932c",
     "broken": 0,
     "work": 0,
-    "ms": 11095.900000000373,
+    "ms": 11543.400000000373,
     "hash": "7b64a25f6d12932c"
    },
    {
@@ -1112,7 +1117,7 @@
     "node": "613c4daff0f454ed",
     "broken": 97,
     "work": 2811.734330055868,
-    "ms": 9955.400000000373,
+    "ms": 8712.89999999851,
     "hash": "613c4daff0f454ed"
    },
    {
@@ -1120,7 +1125,7 @@
     "node": "450e36435e130623",
     "broken": 124,
     "work": 21119.204869443023,
-    "ms": 10142.5,
+    "ms": 8946.599999999627,
     "hash": "450e36435e130623"
    },
    {
@@ -1128,7 +1133,7 @@
     "node": "dc371f3b9bae57c9",
     "broken": 101,
     "work": 3014.4911631168698,
-    "ms": 9599.5,
+    "ms": 9143.700000001118,
     "hash": "dc371f3b9bae57c9"
    },
    {
@@ -1136,7 +1141,7 @@
     "node": "b57461dd0edccec4",
     "broken": 0,
     "work": 0,
-    "ms": 9398.799999999814,
+    "ms": 7010.699999999255,
     "hash": "b57461dd0edccec4"
    },
    {
@@ -1144,7 +1149,7 @@
     "node": "60c72711470b5acd",
     "broken": 0,
     "work": 0,
-    "ms": 24117.19999999972,
+    "ms": 25475.599999999627,
     "hash": "60c72711470b5acd"
    },
    {
@@ -1152,7 +1157,7 @@
     "node": "d54f2ae5fd59450a",
     "broken": 0,
     "work": 0,
-    "ms": 12767.299999999814,
+    "ms": 11005.200000001118,
     "hash": "d54f2ae5fd59450a"
    },
    {
@@ -1160,7 +1165,7 @@
     "node": "638963224563a2e2",
     "broken": 7,
     "work": 2973.768769459096,
-    "ms": 8085.399999999907,
+    "ms": 7852,
     "hash": "638963224563a2e2"
    },
    {
@@ -1168,7 +1173,7 @@
     "node": "685f5922e53c6ccb",
     "broken": 215,
     "work": 36843.91652010807,
-    "ms": 8831.399999999907,
+    "ms": 12136.5,
     "hash": "685f5922e53c6ccb"
    },
    {
@@ -1176,7 +1181,7 @@
     "node": "a173e06e8aba1904",
     "broken": 39,
     "work": 10233.156483101666,
-    "ms": 8304.299999999814,
+    "ms": 7166.699999999255,
     "hash": "a173e06e8aba1904"
    },
    {
@@ -1184,7 +1189,7 @@
     "node": "e8c9a7a14da2a696",
     "broken": 0,
     "work": 0,
-    "ms": 7281.9000000003725,
+    "ms": 6451.699999999255,
     "hash": "e8c9a7a14da2a696"
    },
    {
@@ -1192,7 +1197,7 @@
     "node": "0deca7701700c1aa",
     "broken": 0,
     "work": 0,
-    "ms": 25505.600000000093,
+    "ms": 25120.799999998882,
     "hash": "0deca7701700c1aa"
    }
   ],

@@ -24,7 +24,8 @@
   ok    metal/trunk0/off: 0 broken, 0 J, one hash e8c9a7a14da2a696 under 3 tier sets
   ok    metal/flight/off: 0 broken, 0 J, one hash 0deca7701700c1aa under 3 tier sets
 4. the page (headless Chromium) against node; the page's Math untouched
-  FAIL  the sources: no `Math` binding in src/core (00_registry.js) nor in the built page (ONE); CORE_MATH declared 1 x in the page, elsewhere in src/ nowhere
+  ok    the sources: no `Math` binding in src/core (none) nor in the built page (none); CORE_MATH declared 1 x in the page, elsewhere in src/ nowhere
+  ok    the census: 350 sin / cos / pow sites in src/core on CORE_MATH, 19 kept the builtin (pow(x, 2 | 0.5), the GLSL text), none stray
   ok    the parity script in node: the Jodel's centreline 450e36435e130623 = the library's 450e36435e130623
   ok    THE PAGE'S Math UNTOUCHED after the core loads: `Math` is the page's own object (globalThis.Math too), Math.sin === the builtin true, Math.pow === the builtin true, 44 of 44 properties unchanged; CORE_MATH the core's own (frozen; its sin / pow not the builtins)
   ok    cub/taxi/on: Chromium 141.0.7390.37 18b9c7a9e8cdd9cc (0 broken, 0.0 J) - node 18b9c7a9e8cdd9cc (0)
@@ -55,10 +56,6 @@ SELFTEST (each must go red)
   red   the committed core (git HEAD): fresh() refuses it (1a458c96bd0b92b9 vs 41e29cbeeff43d1c)
   red   the Jodel's 30 m/s centreline, node 0 1e-9 m along x: 450e36435e130623 (124 broken, 21119.2 J) vs a9738eb78bfb2fc3 (124, 21119.2 J)
   ok    the selftest: every doctored case red
-  46/47 checks, 2926 s
-GATE DMGDETERMINISM: FAIL
-
-real	48m45.866s
-user	114m37.005s
-sys	0m56.484s
-exit=1
+  48/48 checks, 3833 s
+GATE DMGDETERMINISM: PASS
+exit=0 wall_s=3834
