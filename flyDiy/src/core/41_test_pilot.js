@@ -90,7 +90,7 @@ function makeTestPilot(sim, def, world) {
   const restH0 = servoRestHeight(def);
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   const mkFrame = (a, sx, sz) => {
-    let ux = snap(Math.cos(a.hdg)), uz = snap(Math.sin(a.hdg));
+    let ux = snap(CORE_MATH.cos(a.hdg)), uz = snap(CORE_MATH.sin(a.hdg));
     if (sx !== undefined) {
       const d = ux * sx + uz * sz;
       if (d < 0) { ux = -ux; uz = -uz; }
@@ -99,7 +99,7 @@ function makeTestPilot(sim, def, world) {
     // along -hdg on the record's own tdz, to the bit, so every calm gate keeps
     // its number; k = 1 lands along +hdg on the pattern's mirror target off
     // the other threshold — a wind-flipped arrival used to aim at mid-field.
-    const k = (ux * Math.cos(a.hdg) + uz * Math.sin(a.hdg)) > 0 ? 1 : 0;
+    const k = (ux * CORE_MATH.cos(a.hdg) + uz * CORE_MATH.sin(a.hdg)) > 0 ? 1 : 0;
     const PT = (k === 1 && ap.patOf) ? ap.patOf(a) : null;
     const td = (PT && PT.approaches && PT.approaches[1]) ? PT.approaches[1].td : a.tdz;
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k };
@@ -382,7 +382,7 @@ function makeTestPilot(sim, def, world) {
     switch (ap.phase) {
       case 'DEPART': {
         const from = ap.route.from;
-        const axx = snap(Math.cos(from.hdg)), axz = snap(Math.sin(from.hdg));
+        const axx = snap(CORE_MATH.cos(from.hdg)), axz = snap(CORE_MATH.sin(from.hdg));
         let dx = nose[0], dz = nose[1];
         if (world && world.wind) {
           const wv = world.wind(from.x, from.elev + 30, from.z, ap.t);
@@ -465,7 +465,7 @@ function makeTestPilot(sim, def, world) {
           // schedule's P + the curvature feed-forward, NO rate term (it only
           // differentiated the contact's yaw jitter)
           const hT = SV.taxiHeading(K.hdgL - eXT);
-          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          ap.targetDir = [CORE_MATH.cos(hT), 0, CORE_MATH.sin(hT)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
           c.dr = SV.taxiRudder(drFF, drMaxG);
@@ -518,7 +518,7 @@ function makeTestPilot(sim, def, world) {
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
           const hT = SV.taxiHeading(K.hdgL);              // G630
-          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          ap.targetDir = [CORE_MATH.cos(hT), 0, CORE_MATH.sin(hT)];
           c.dr = SV.taxiRudder(0, 0.85);
         } else c.dr = 0;
         c.da = SV.groundAil(0, 0.25);

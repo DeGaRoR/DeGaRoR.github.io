@@ -3,8 +3,9 @@
 // exactly (the flat world at 300 m with its own trunk set, the placement, the settle on the wheels, the ensemble's nudge,
 // the speed, the trunk, the throttle, 60 frames a second) on the core it is handed and a def built there from the build's
 // spec (buildGen o genMigrateSpec: the three land builds need no cage kit), the certificate handed in as the game's bench
-// thread hands it ({ nb, Ft, Fc }); it reads nothing back into the sim, so its bits are atTrunk's (GATE DMGDETERMINISM
-// proves it in node: the same hash as the library's). The fingerprint is the caller's: sha1 of p then v (float64).
+// thread hands it ({ nb, Ft, Fc }); its own trig is the core's (C.CORE_MATH, G2370); it reads nothing back into the sim,
+// so its bits are atTrunk's (GATE DMGDETERMINISM proves it in node: the same hash as the library's). The fingerprint is
+// the caller's: sha1 of p then v (float64).
 (function (root) {
   'use strict';
   const STD = {
@@ -24,7 +25,9 @@
     const sim = C.makeSim(def, W);
     sim.reset(0);
     C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
-    const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
+    // (G2370: the core's own sin / cos - in a page Math is the engine's, which is not node's in the last bit; in node
+    // CORE_MATH's are the builtins' bits, so the library's atTrunk, on Math, flies the same velocities)
+    const M = C.CORE_MATH || Math, fx = M.cos(strip.hdg), fz = M.sin(strip.hdg);
     if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);
     if (seed) { const r = mulberry(seed * 2654435761 >>> 0); for (let i = 0; i < sim.n * 3; i++) sim.p[i] += 1e-9 * (2 * r() - 1); }
     for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.V * fx; sim.v[i*3+2] = o.V * fz; }

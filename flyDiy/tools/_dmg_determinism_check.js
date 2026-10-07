@@ -23,7 +23,13 @@
 //   4. THE PAGE (when Chromium is there - playwright, the installed browser; else REPORTED as not run, never a pass): the
 //      same crashes in a page (tools/_dmg_parity_run.js - atTrunk's state path, bit for bit: its node run is checked
 //      against the library's hash here) on this core, the certificate handed in, against node's hashes; and the Math.*
-//      the solver calls (sin, cos, atan, atan2, asin, sqrt, hypot, pow, exp, log) on 200 000 inputs each, bit for bit
+//      the solver calls (sin, cos, atan, atan2, asin, sqrt, hypot, pow, exp, log) on 200 000 inputs each, bit for bit -
+//      the core's own (CORE_MATH's sin / cos / pow, the builtin for the rest) against node's builtins;
+//      THE PAGE'S Math UNTOUCHED (G2370, DMG-MATHLOCAL - A0: never replace the page's global Math): after the core loads,
+//      a later classic script's `Math` is the page's own object and every one of its functions the builtin it held
+//      before the core (Math.sin, Math.pow ... ===), CORE_MATH the core's one name; and in the sources: nothing in src/core
+//      binds `Math`, nothing in the built page does, one declaration of CORE_MATH in it (red when the core shadows or
+//      patches the global Math - the selftest's two doctored cores)
 // --selftest: the gate goes red (a) with the op as it was - a stale core (the committed one, or a header doctored) loads
 // and flies (expected: refused), (b) with one coordinate nudged by 1e-9 m in one child (expected: a hash differs -
 // and whether the count moves - GATE TREECRASH's ensemble rows read the distribution)
@@ -113,6 +119,23 @@ function staleTree(dir, coreText) {
   return path.join(tools, 'flight_core.js');
 }
 
+// (G2370) the page's Math, captured by a classic script BEFORE the core and read back by one AFTER it: the same object
+// under the name `Math` and globalThis.Math, every own property (sin, cos, pow, abs ... the constants) the value it held
+const MATH_BEFORE = 'window.__MATH0 = { M: Math, own: Object.getOwnPropertyNames(Math).map(k => [k, Math[k]]) };';
+async function mathUntouched(pg) {
+  await pg.addScriptTag({ content: 'window.__MATH1 = (() => { const b = window.__MATH0, now = Object.getOwnPropertyNames(Math);'
+    + ' const moved = b.own.filter(([k, v]) => !Object.is(Math[k], v)).map(([k]) => k).concat(now.filter(k => !b.own.some(([j]) => j === k)));'
+    + ' return { same: Math === b.M, global: globalThis.Math === b.M, moved, n: b.own.length,'
+    + ' sin: Math.sin === b.own.find(([k]) => k === "sin")[1], pow: Math.pow === b.own.find(([k]) => k === "pow")[1],'
+    + ' core: typeof CORE_MATH === "object" && CORE_MATH !== null && Object.isFrozen(CORE_MATH) && CORE_MATH.sin !== Math.sin && CORE_MATH.pow !== Math.pow }; })();' });
+  const g = await pg.evaluate(() => window.__MATH1);
+  g.ok = g.same && g.global && !g.moved.length && g.sin && g.pow && g.core;
+  g.msg = '`Math` ' + (g.same ? 'is' : 'IS NOT') + ' the page\'s own object (globalThis.Math ' + (g.global ? 'too' : 'NOT') + '), Math.sin === the builtin ' + g.sin
+    + ', Math.pow === the builtin ' + g.pow + ', ' + (g.n - g.moved.length) + ' of ' + g.n + ' properties unchanged' + (g.moved.length ? ' (MOVED: ' + g.moved.join(', ') + ')' : '')
+    + '; CORE_MATH ' + (g.core ? 'the core\'s own (frozen; its sin / pow not the builtins)' : 'MISSING or not its own');
+  return g;
+}
+
 (async () => {
   const t0 = Date.now(), FULL = argv.includes('--full'), BRANCH = argv.includes('--branch'), SELF = argv.includes('--selftest');
   const jsonOut = argv.includes('--json') ? argv[argv.indexOf('--json') + 1] : null;
@@ -180,7 +203,15 @@ function staleTree(dir, coreText) {
 
   // 4. THE PAGE
   {
-    console.log('4. the page (headless Chromium) against node');
+    console.log('4. the page (headless Chromium) against node; the page\'s Math untouched');
+    // (G2370) the sources: no `Math` binding in src/core (a top-level one in a classic script is the page's), none in the
+    // built page, CORE_MATH declared once in the page and nowhere in src/ but 00_registry.js
+    { const bindRe = /\b(?:const|let|var|class)\s+Math\b|\bfunction\s+Math\s*\(|(?:^|[^.\w$])Math\s*=(?!=)/m;
+      const cdir = path.join(T, '..', 'src', 'core'), bad = fs.readdirSync(cdir).filter(x => x.endsWith('.js') && bindRe.test(fs.readFileSync(path.join(cdir, x), 'utf8')));
+      const page = fs.readFileSync(path.join(T, '..', 'index.html'), 'utf8'), pageBind = bindRe.test(page), decl = (page.match(/\b(?:const|let|var|class|function)\s+CORE_MATH\b/g) || []).length;
+      const walk = d => [].concat(...fs.readdirSync(d, { withFileTypes: true }).map(e => e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.js') ? [path.join(d, e.name)] : []));
+      const elsewhere = walk(path.join(T, '..', 'src')).filter(x => !/00_registry\.js$/.test(x) && /\b(?:const|let|var|class|function)\s+CORE_MATH\b/.test(fs.readFileSync(x, 'utf8')));
+      yes(!bad.length && !pageBind && decl === 1 && !elsewhere.length, 'the sources: no `Math` binding in src/core (' + (bad.join(', ') || 'none') + ') nor in the built page (' + (pageBind ? 'ONE' : 'none') + '); CORE_MATH declared ' + decl + ' x in the page, elsewhere in src/ ' + (elsewhere.map(x => path.relative(path.join(T, '..'), x)).join(', ') || 'nowhere')); }
     const P = require('./_dmg_parity_run.js'), C = require('./flight_core.js'), crypto = require('crypto'), L = require('./_treecrash_lib.js');
     const sha = r => crypto.createHash('sha1').update(Buffer.from(r.p.buffer)).update(Buffer.from(r.v.buffer)).digest('hex').slice(0, 16);
     const specOf = k => { const j = JSON.parse(fs.readFileSync(path.join(T, '..', L.BUILDS[k].build), 'utf8')); return j.spec || j; };
@@ -196,12 +227,14 @@ function staleTree(dir, coreText) {
     else {
       const pg = await br.newPage();
       await pg.setContent('<!doctype html><meta charset="utf-8"><title>parity</title>');
-      await pg.addScriptTag({ path: path.join(T, 'flight_core.js') }); await pg.addScriptTag({ path: path.join(T, '_dmg_parity_run.js') });
+      await pg.addScriptTag({ content: MATH_BEFORE }); await pg.addScriptTag({ path: path.join(T, 'flight_core.js') }); await pg.addScriptTag({ path: path.join(T, '_dmg_parity_run.js') });
+      { const g = await mathUntouched(pg); report.page_math = g;
+        yes(g.ok, 'THE PAGE\'S Math UNTOUCHED after the core loads: ' + g.msg); }
       const ver = br.version();
       report.page = { chromium: ver, node: process.versions.v8, rows: [] };
       for (const [k, id, dmg] of cases) {
         const r = await pg.evaluate(([spec, cert, id]) => {
-          const C = { buildGen, genMigrateSpec, makeWorld, TREE_HITS, OBSTACLES, makeSim, placeAtAerodrome }, x = DMG_PARITY.run(C, spec, cert, id, 0), u = new Uint8Array(x.p.byteLength + x.v.byteLength);
+          const C = { buildGen, genMigrateSpec, makeWorld, TREE_HITS, OBSTACLES, makeSim, placeAtAerodrome, CORE_MATH }, x = DMG_PARITY.run(C, spec, cert, id, 0), u = new Uint8Array(x.p.byteLength + x.v.byteLength);
           u.set(new Uint8Array(x.p.buffer), 0); u.set(new Uint8Array(x.v.buffer), x.p.byteLength);
           let b64 = ''; for (let i = 0; i < u.length; i += 8192) b64 += String.fromCharCode.apply(null, u.subarray(i, i + 8192));
           return { bytes: btoa(b64), broken: x.broken, work: x.work, ms: x.ms };
@@ -212,7 +245,7 @@ function staleTree(dir, coreText) {
         yes(nd && r.hash === nd.hash, k + '/' + id + '/' + dmg + ': Chromium ' + ver + ' ' + r.hash + ' (' + r.broken + ' broken, ' + r.work.toFixed(1) + ' J) - node ' + (nd ? nd.hash + ' (' + nd.broken + ')' : '-'));
       }
       // the Math.* functions, bit for bit, node against the page: the BUILTINS (reported - what a page computes without
-      // the core's Math) and THE CORE'S Math (checked - the shadow 00_registry.js puts over sin, cos, pow); 200 000
+      // the core's Math) and THE CORE'S Math (checked - CORE_MATH's sin, cos, pow, the builtin for the rest); 200 000
       // seeded arguments each, built from exact operations only (powers of two by multiplication)
       const ops = ['sin', 'cos', 'tan', 'atan', 'atan2', 'asin', 'acos', 'sqrt', 'hypot', 'pow', 'exp', 'log', 'cbrt', 'tanh'];
       const mathSweep = (M, ops) => {
@@ -230,10 +263,10 @@ function staleTree(dir, coreText) {
         }
         return out;
       };
-      const C = require('./flight_core.js'), coreMath = { sin: C.fsin, cos: C.fcos, pow: C.fpow };
+      const C = require('./flight_core.js');
       const mN = mathSweep(globalThis.Math, ops);
       const mB = await pg.evaluate('(' + mathSweep.toString() + ')(globalThis.Math, ' + JSON.stringify(ops) + ')');
-      const mC = await pg.evaluate('(' + mathSweep.toString() + ')(Math, ' + JSON.stringify(ops) + ')');   // (the page's lexical Math: the core's)
+      const mC = await pg.evaluate('(' + mathSweep.toString() + ')(Object.assign(Object.fromEntries(Object.getOwnPropertyNames(Math).map(k => [k, Math[k]])), CORE_MATH), ' + JSON.stringify(ops) + ')');   // (the core's: CORE_MATH over the builtins)
       const cnt = (A, B) => ops.map(op => { let d = 0; for (let i = 0; i < A[op].length; i++) if (!Object.is(A[op][i], B[op][i])) d++; return [op, d]; });
       const dB = cnt(mN, mB), dC = cnt(mN, mC);
       report.page.mathBuiltin = dB; report.page.mathCore = dC;
@@ -254,12 +287,13 @@ function staleTree(dir, coreText) {
         const pg2 = await br.newPage();
         await pg2.setContent('<!doctype html><meta charset="utf-8"><title>parity, builtins</title>');
         const src0 = fs.readFileSync(path.join(T, 'flight_core.js'), 'utf8');
-        const raw = src0.replace('cos: fcos,', 'cos: globalThis.Math.cos,').replace('pow: fpow,', 'pow: globalThis.Math.pow,').replace('sin: fsin,', 'sin: globalThis.Math.sin,');
-        if (raw.length !== src0.length + 3 * 'globalThis.Math.'.length - 3) throw new Error('the selftest could not put the builtins back (00_registry.js\'s Math literal changed?)');
+        const lit = 'return Object.freeze({ sin: fsin, cos: fcos, pow: fpow });';
+        if (src0.split(lit).length !== 2) throw new Error('the selftest could not put the builtins back (00_registry.js\'s CORE_MATH literal changed?)');
+        const raw = src0.replace(lit, 'return Object.freeze({ sin: Math.sin, cos: Math.cos, pow: Math.pow });');
         await pg2.addScriptTag({ content: raw }); await pg2.addScriptTag({ path: path.join(T, '_dmg_parity_run.js') });
         const k = 'jodel', id = 'trunk0';
         const r = await pg2.evaluate(([spec, cert, id]) => {
-          const C = { buildGen, genMigrateSpec, makeWorld, TREE_HITS, OBSTACLES, makeSim, placeAtAerodrome }, x = DMG_PARITY.run(C, spec, cert, id, 0), u = new Uint8Array(x.p.byteLength + x.v.byteLength);
+          const C = { buildGen, genMigrateSpec, makeWorld, TREE_HITS, OBSTACLES, makeSim, placeAtAerodrome, CORE_MATH }, x = DMG_PARITY.run(C, spec, cert, id, 0), u = new Uint8Array(x.p.byteLength + x.v.byteLength);
           u.set(new Uint8Array(x.p.buffer), 0); u.set(new Uint8Array(x.v.buffer), x.p.byteLength);
           let b64 = ''; for (let i = 0; i < u.length; i += 8192) b64 += String.fromCharCode.apply(null, u.subarray(i, i + 8192));
           return { bytes: btoa(b64), broken: x.broken, work: x.work };
@@ -268,6 +302,19 @@ function staleTree(dir, coreText) {
         report.selftestPage = { hash: h, broken: r.broken, work: r.work, node: nd && nd.hash };
         selfPageRed = nd && h !== nd.hash;
         console.log('  ' + (selfPageRed ? 'red ' : 'MISS') + '  SELFTEST the page with the builtin sin / cos / pow (the core as it was): the Jodel\'s centreline ' + h + ' (' + r.broken + ' broken, ' + r.work.toFixed(1) + ' J) against node\'s ' + (nd && nd.hash));
+        // (G2370) the Math row with the op as it was: G2355's page-wide shadow (a top-level `Math` binding before the core),
+        // and a core that patches the global Math (Math.pow = CORE_MATH.pow) - each must read the page's Math as touched
+        const sm = [];
+        for (const [name, txt] of [['a top-level `const Math` (G2355\'s shadow)', 'const Math = Object.freeze(Object.create(globalThis.Math));\n' + src0],
+          ['the core patching Math.pow', src0 + '\nglobalThis.Math.pow = CORE_MATH.pow;\n']]) {
+          const p3 = await br.newPage();
+          await p3.setContent('<!doctype html><meta charset="utf-8"><title>math row selftest</title>');
+          await p3.addScriptTag({ content: MATH_BEFORE }); await p3.addScriptTag({ content: txt });
+          const g = await mathUntouched(p3); sm.push(!g.ok); await p3.close();
+          console.log('  ' + (!g.ok ? 'red ' : 'MISS') + '  SELFTEST the page\'s Math with ' + name + ': ' + g.msg);
+        }
+        report.selftestMathRow = sm;
+        selfPageRed = selfPageRed && sm.every(Boolean);
       }
       await br.close();
     }

@@ -224,7 +224,7 @@ const ident = () => [1, 0, 0, 0, 1, 0, 0, 0, 1];
 function rotExp(w, dt) {
   const th = len(w) * dt;
   if (th < 1e-12) return ident();
-  const k = nrm(scl(w, 1)), c = Math.cos(th), s = Math.sin(th), C = 1 - c;
+  const k = nrm(scl(w, 1)), c = CORE_MATH.cos(th), s = CORE_MATH.sin(th), C = 1 - c;
   return [c + k[0] * k[0] * C, k[0] * k[1] * C - k[2] * s, k[0] * k[2] * C + k[1] * s,
           k[1] * k[0] * C + k[2] * s, c + k[1] * k[1] * C, k[1] * k[2] * C - k[0] * s,
           k[2] * k[0] * C - k[1] * s, k[2] * k[1] * C + k[0] * s, c + k[2] * k[2] * C];
@@ -237,7 +237,7 @@ function orthonormalise(R) {
   return R;
 }
 // pitch about z (nose-up positive: the nose, at -x, goes up)
-const rotPitch = th => { const c = Math.cos(th), s = Math.sin(th); return [c, s, 0, -s, c, 0, 0, 0, 1]; };
+const rotPitch = th => { const c = CORE_MATH.cos(th), s = CORE_MATH.sin(th); return [c, s, 0, -s, c, 0, 0, 0, 1]; };
 const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 
 // ---- the hull --------------------------------------------------------------
@@ -259,7 +259,7 @@ function keelTable(P) {
   // P0 flat end, P1 along the flat, P2 back down the stem's line, P3 the foot
   const P0 = [xF, 0], P1 = [xF - 0.5 * d, 0];
   const kk = 0.48 * yFoot;
-  const P2 = [xFoot + kk * Math.sin(rk), yFoot - kk * Math.cos(rk)], P3 = [xFoot, yFoot];
+  const P2 = [xFoot + kk * CORE_MATH.sin(rk), yFoot - kk * CORE_MATH.cos(rk)], P3 = [xFoot, yFoot];
   const N = 512, X = new Float64Array(N + 1), Y = new Float64Array(N + 1);
   for (let i = 0; i <= N; i++) {
     const t = i / N, m = 1 - t;
@@ -290,7 +290,7 @@ function deckAt(P, x) {
   return Hd - rN + Math.sqrt(Math.max(0, rN * rN - q * q));
 }
 // the chine's plan: holds its beam near the step, narrows to a rounded point
-const planF = (P, t) => Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, t), P.planK)), 0.5);
+const planF = (P, t) => Math.pow(Math.max(0, 1 - CORE_MATH.pow(Math.min(1, t), P.planK)), 0.5);
 // the chine half-beam at the step from the HULL WIDTH (deck at the step)
 function chineHalfStep(P) {
   const tf = Math.tan(P.flare * D2R), tb = Math.tan(P.beta * D2R);
@@ -309,7 +309,7 @@ function sectionOf(P, x) {
     // of the flat keeps the step's deadrise, or the hull loses its lift at
     // the hump (measured: t^1.6 read 25 deg a metre ahead of the step and
     // the 172 sat at 11 m/s with its step 4 cm too deep to ventilate)
-    beta = P.beta + (P.betaBow - P.beta) * Math.pow(t, 2.5);
+    beta = P.beta + (P.betaBow - P.beta) * CORE_MATH.pow(t, 2.5);
   } else {
     body = 'A';
     const u = Math.min(1, x / LA);
@@ -321,7 +321,7 @@ function sectionOf(P, x) {
     // takes the family's: it is drawn and flown as it was)
     const hA = P.aftHold != null ? P.aftHold : DEF.aftHold, pw = P.aftPow != null ? P.aftPow : DEF.aftPow;
     const w = u <= hA ? 0 : (u - hA) / (1 - hA);
-    b = bS * (1 - (1 - P.bStern) * Math.pow(w, pw));
+    b = bS * (1 - (1 - P.bStern) * CORE_MATH.pow(w, pw));
     beta = P.betaA;
     // the transom keeps a height: the afterbody's chine never climbs past
     // 0.88 H (a keel rising through the deck line leaked the physics loft:
@@ -359,7 +359,7 @@ function makeFloat(over = {}) {
   // forebody stations crowd toward the bow (the rocker and the stem live in
   // the last fifth): a half-cosine from the step. The first station is the
   // bow tip itself, a point (its cap has no area and the clipper skips it)
-  for (let i = 0; i <= nF; i++) { const u = 1 - i / nF; sta.push(sectionOf(P, -P.xs * Math.sin(0.5 * Math.PI * u))); }
+  for (let i = 0; i <= nF; i++) { const u = 1 - i / nF; sta.push(sectionOf(P, -P.xs * CORE_MATH.sin(0.5 * Math.PI * u))); }
   for (let i = 0; i <= nA; i++) sta.push(sectionOf(P, 1e-9 + (LA * i) / nA));
   // each station's vertices: K, C-, C+, D-, D+   (- = port z<0, + = starboard)
   for (const s of sta) {
@@ -521,7 +521,7 @@ function gerstner(waves) {
   const W = waves.map(w => ({ A: w.A, k: 2 * Math.PI / w.L, om: Math.sqrt(G * 2 * Math.PI / w.L),
                               d: nrm([w.dir[0], 0, w.dir[1]]), ph: w.phase || 0 }));
   return {
-    h: (x, z, t) => { let y = 0; for (const w of W) y += w.A * Math.cos(w.k * (w.d[0] * x + w.d[2] * z) - w.om * t + w.ph); return y; },
+    h: (x, z, t) => { let y = 0; for (const w of W) y += w.A * CORE_MATH.cos(w.k * (w.d[0] * x + w.d[2] * z) - w.om * t + w.ph); return y; },
     v: () => [0, 0, 0],
     waves: W,
   };
@@ -741,11 +741,11 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     if (V2 > 1e-4) {
       if (isBottom) {
         if (Vn > 0) {
-          const cb = Math.cos(pn.beta * D2R);
+          const cb = CORE_MATH.cos(pn.beta * D2R);
           const alpha = Math.min(Math.PI / 2, Math.atan2(Vn, Vt) / cb);
           const kB = Math.max(0.3, 1 - P.kBeta * pn.beta);
           const gS = 1 / (2 * Math.sqrt(s / P.B + P.xi0));
-          const sa = Math.sin(alpha);
+          const sa = CORE_MATH.sin(alpha);
           const cPl = P.Cpl * kB * sa * gS, cNw = 0.5 * P.Cd * sa * sa;
           const pd = rho * V2 * Math.sqrt(cPl * cPl + cNw * cNw);
           scl(o.AN, -pd, fv);
@@ -786,7 +786,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
       for (let j = 0; j < pn.v.length; j++) if (Math.abs(V[pn.v[j]][2]) < 1e-9) { dk += D[pn.v[j]]; nk++; }
       dk = nk ? dk / nk : 0;
       if (dk > 0) {
-        const tb = Math.tan(pn.beta * D2R), cb = Math.cos(pn.beta * D2R);
+        const tb = Math.tan(pn.beta * D2R), cb = CORE_MATH.cos(pn.beta * D2R);
         const bHalf = halfBeamAt(F, cl[0]);
         const c = Math.min(bHalf, P.kw * dk / tb);
         const dcdd = c < bHalf ? P.kw / tb : 0;
@@ -1120,14 +1120,14 @@ function savitskyStatic(P, tauDeg, lam, Cv) {
   const Lw = lam * b;
   // geometric wedge under the plate: depth at distance s ahead of the transom = s tan(tau)
   const q = 0.5 * P.rho * V * V * b * b;
-  const CLb_sav = 0.0055 * Math.pow(lam, 2.5) * Math.pow(tauDeg, 1.1) / (Cv * Cv);
+  const CLb_sav = 0.0055 * CORE_MATH.pow(lam, 2.5) * CORE_MATH.pow(tauDeg, 1.1) / (Cv * Cv);
   const Lf = P.kTr * V * V / G;
   let lift = 0, liftArch = 0;
   const N = 200;
   for (let i = 0; i < N; i++) {
     const s = (i + 0.5) / N * Lw, ds = Lw / N;
     const d = s * Math.tan(tau);
-    const dF = P.rho * G * d * b * ds * Math.cos(tau);
+    const dF = P.rho * G * d * b * ds * CORE_MATH.cos(tau);
     liftArch += dF;
     lift += dF * (1 - Math.exp(-s / Lf));
   }
@@ -2012,7 +2012,7 @@ function wetCompute(WB, fh, dtH) {
     if (!(d > 0)) continue;
     const wT = WB_TYRE_W * R;
     const th = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - d / R)));
-    const seg = 0.5 * R * R * (th - Math.sin(th));             // the immersed disc segment
+    const seg = 0.5 * R * R * (th - CORE_MATH.sin(th));             // the immersed disc segment
     const ax = WB.axle;
     const vx = v[i3], vy = v[i3 + 1], vz = v[i3 + 2];
     const va = vx * ax[0] + vy * ax[1] + vz * ax[2];

@@ -296,7 +296,7 @@ const OBSTACLES = (() => {
         if (W.tipR > 1e-6) {
           rows = rows.filter(v => v < W.tipZ - 1e-3).concat([W.tipZ]);
           const nA = Math.max(2, TIP.arc | 0), th = Math.PI / 2 * 0.965;
-          for (let i = 1; i <= nA; i++) rows.push(W.tipZ + W.tipR * Math.sin(th * i / nA));
+          for (let i = 1; i <= nA; i++) rows.push(W.tipZ + W.tipR * CORE_MATH.sin(th * i / nA));
         }
         return rows.map(z => {
           let j = 0; while (j + 2 < zz.length && z > zz[j + 1]) j++;
@@ -369,8 +369,8 @@ const OBSTACLES = (() => {
     // THE WHEELS: every node with a radius, a drum of that radius across its axle (the tyre's width 0.45 r, 5 cm least)
     for (const nd of N) {
       if (!(nd.r > 0)) continue;
-      const w = Math.max(0.05, 0.45 * nd.r), R = nd.r / Math.cos(Math.PI / 12), ring = [];
-      for (let i = 0; i < 12; i++) { const a = 2 * Math.PI * i / 12; for (const s of [-1, 1]) ring.push([nd.p[0] + R * Math.cos(a), nd.p[1] + R * Math.sin(a), nd.p[2] + s * w]); }
+      const w = Math.max(0.05, 0.45 * nd.r), R = nd.r / CORE_MATH.cos(Math.PI / 12), ring = [];
+      for (let i = 0; i < 12; i++) { const a = 2 * Math.PI * i / 12; for (const s of [-1, 1]) ring.push([nd.p[0] + R * CORE_MATH.cos(a), nd.p[1] + R * CORE_MATH.sin(a), nd.p[2] + s * w]); }
       add('wheel', ring);
     }
     // THE ENGINES: each mount's nodes. On the nose (ahead of the first station, within its width) the cowl from the
@@ -423,7 +423,7 @@ const OBSTACLES = (() => {
     const BK = Math.abs(det) > 0.2 ? [yU[1] / det, -yU[0] / det, -xA[1] / det, xA[0] / det] : [1, 0, 0, 1];
     const lin = (x, y) => [BK[0] * x + BK[1] * y, BK[2] * x + BK[3] * y];
     const m = mean(refs.mains), lm = lin(m[0], m[1]), T = [drawn.mains[0] - lm[0], drawn.mains[1] - lm[1]];
-    const c = Math.cos(drawn.stance.pitch), s = Math.sin(drawn.stance.pitch), lift = drawn.stance.lift || 0;
+    const c = CORE_MATH.cos(drawn.stance.pitch), s = CORE_MATH.sin(drawn.stance.pitch), lift = drawn.stance.lift || 0;
     const map = p => { const l = lin(p[0], p[1]), vx = l[0] + T[0], vy = l[1] + T[1]; return [-(vx * c - vy * s), vx * s + vy * c + lift, p[2]]; };
     const list = aircraftPieces(fr, S, !!(drawn.props && drawn.props.length)).map(q => ({ tag: q.tag, pts: q.pts.map(map) }));
     // THE BLADES where the capture hung them (its prop parts' hubs, in the model frame, x aft: the stance and the turn
@@ -510,7 +510,7 @@ const OBSTACLES = (() => {
       add(o) {
         if (!o || !o.shape) return 0;
         const r = { id: nextId++, x: +o.x || 0, z: +o.z || 0, yaw: +o.yaw || 0, y0: +o.y0 || 0, c: 0, s: 0, shape: o.shape, tag: o.tag || '', bins: null };
-        r.c = Math.cos(r.yaw); r.s = Math.sin(r.yaw);
+        r.c = CORE_MATH.cos(r.yaw); r.s = CORE_MATH.sin(r.yaw);
         recs.set(r.id, r); link(r);
         const t = r.y0 + r.shape.top; if (t > maxTop) maxTop = t;
         return r.id;
@@ -518,7 +518,7 @@ const OBSTACLES = (() => {
       remove(id) { const r = recs.get(id); if (!r) return false; unlink(r); recs.delete(id); retop(); return true; },
       move(id, x, z, yaw, y0) {
         const r = recs.get(id); if (!r) return false;
-        r.x = x; r.z = z; if (yaw !== undefined) { r.yaw = yaw; r.c = Math.cos(yaw); r.s = Math.sin(yaw); }
+        r.x = x; r.z = z; if (yaw !== undefined) { r.yaw = yaw; r.c = CORE_MATH.cos(yaw); r.s = CORE_MATH.sin(yaw); }
         if (y0 !== undefined) { r.y0 = y0; const t = y0 + r.shape.top; if (t > maxTop) maxTop = t; }
         const nb = binsOf(r);
         if (!r.bins || nb.length !== r.bins.length || nb.some((k, i) => k !== r.bins[i])) { unlink(r); link(r); }

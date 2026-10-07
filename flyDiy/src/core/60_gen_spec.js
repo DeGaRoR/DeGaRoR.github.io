@@ -2078,7 +2078,7 @@ function genPropSynth(pr, pitchKey) {
   pr.fm = PI.fm * (1 + 0.055 * (pr.blades - 2));
   // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
   // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
-  pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * Math.pow(P, 2 / 3);
+  pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * CORE_MATH.pow(P, 2 / 3);
   // and the quadratic decay, through the speed at which thrust runs out. One
   // constant on the only velocity scale there is; the pitch trade rides in
   // Tstatic, so a fine prop's thrust runs out earlier without being told to.
@@ -2088,7 +2088,7 @@ function genPropSynth(pr, pitchKey) {
   pr.VPeak = pr.V0 / Math.sqrt(3);
   pr.pitchUsed = GEN_PROP_PITCH[pitchKey] ? pitchKey : 'standard';
   // blade mass, at the very front of the aeroplane
-  pr.mass = pr.blades * MT.kg * Math.pow(pr.D / 1.88, 2.5);
+  pr.mass = pr.blades * MT.kg * CORE_MATH.pow(pr.D / 1.88, 2.5);
   pr.price = Math.round(MT.price * pr.blades / 2 * Math.pow(pr.D / 1.88, 2));
   pr.name = `${pr.blades}-blade ${MT.name.toLowerCase()} ${pr.D.toFixed(2)} m`;
   return pr;
@@ -2698,8 +2698,8 @@ const GEN_RULES = {
   // a 26" bush tyre (0.33) 12, a 4" microlight wheel (0.13) 1.2 — the
   // exponent sits between area and volume. The stock Cub (R 0.20 / 0.10)
   // reproduces the 3.5 / 2.0 literals it had.
-  wheelKg:     R => 3.5 * Math.pow(Math.max(0.03, R) / 0.20, 2.5),
-  wheelTwKg:   R => 2.0 * Math.pow(Math.max(0.03, R) / 0.10, 1.5),
+  wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
+  wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -3740,7 +3740,7 @@ const genClampN = (v, lo, hi) => (v == null ? null : genClamp(v, lo, hi));
 // chord, and theory only supplies the TREND away from it.
 const genFlapTau = c => {
   const th = Math.acos(2 * genClamp(c, 0.05, 0.70) - 1);   // 0.70: GEN_TAIL_ENVELOPE's ceiling and a margin
-  return 1 - (th - Math.sin(th)) / Math.PI;
+  return 1 - (th - CORE_MATH.sin(th)) / Math.PI;
 };
 const genTauAt = (c, refC, refTau) => refTau * genFlapTau(c) / genFlapTau(refC);
 
@@ -5029,7 +5029,7 @@ function resolveSpec(spec) {
   // always pitch, which is why real V-tails are big.
   if (S.tail.type === 'v') {
     const G = S.tail.vAngle * Math.PI / 180;
-    const cG = Math.cos(G), sG = Math.sin(G);
+    const cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
     // A BUILT V-TAIL IS THE TAIL (2026-09-04, the G54.3 rule): when the join
     // measured the panels (hSpan = their horizontal projection, hChord their
     // chord), the panel span is that projection un-canted and the area is
@@ -5085,7 +5085,7 @@ function resolveSpec(spec) {
   //    axle track. At the clamp (20 deg, 0.40 m wheels) that is 14 cm on a
   //    track of about 1.5 m — an honest cut, and the only one camber makes.
   S.gear.camberRad = S.gear.camber * Math.PI / 180;
-  S.gear.contactR = S.gear.wheelR * Math.cos(S.gear.camberRad);
+  S.gear.contactR = S.gear.wheelR * CORE_MATH.cos(S.gear.camberRad);
   const REG = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
   // G134: a CUSTOM row (the editor's dials, resolved + clamped) outranks the
   // registry row it started from. Shape-compatible with a registry entry so

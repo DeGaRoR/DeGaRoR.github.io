@@ -223,7 +223,7 @@ function makeSim(def, world) {
   }
   // (Cm: G1840's measured substep - the turn's force on a node of a cut's part, m e / dt^2, reported to the cut)
   function rotateRing(r, c, a, phi, dt, Cm) {
-    const cw = Math.cos(phi), sw = Math.sin(phi), t = 1 - cw;
+    const cw = CORE_MATH.cos(phi), sw = CORE_MATH.sin(phi), t = 1 - cw;
     const [kx, ky, kz] = a;
     const nm = Cm ? Cm.nm : null;
     for (const i of r) {
@@ -334,7 +334,7 @@ function makeSim(def, world) {
       if (w < 1e-9) break;
       // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
       const ax = dx / w, ay = dy / w, az = dz / w;
-      const cw = Math.cos(w), sw = Math.sin(w), tt = 1 - cw;
+      const cw = CORE_MATH.cos(w), sw = CORE_MATH.sin(w), tt = 1 - cw;
       const Q = [cw + ax*ax*tt,    ax*ay*tt - az*sw, ax*az*tt + ay*sw,
                  ay*ax*tt + az*sw, cw + ay*ay*tt,    ay*az*tt - ax*sw,
                  az*ax*tt - ay*sw, az*ay*tt + ax*sw, cw + az*az*tt];
@@ -1627,7 +1627,7 @@ function makeSim(def, world) {
       if (!(st.bladeLost > 0) || eng[k].seized) { st.imbN = 0; continue; }
       const w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
       DRV.ph[k] += w * dtI;
-      const F = mL * eL * w * w, c = Math.cos(DRV.ph[k]) * F, sn = Math.sin(DRV.ph[k]) * F;
+      const F = mL * eL * w * w, c = CORE_MATH.cos(DRV.ph[k]) * F, sn = CORE_MATH.sin(DRV.ph[k]) * F;
       st.imbN = F;
       const fx = c * r[0] + sn * ux, fy = c * r[1] + sn * uy, fz = c * r[2] + sn * uz;
       let cnt = 0; for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) cnt++;
@@ -2143,7 +2143,7 @@ function makeSim(def, world) {
     if (R < 1e-6 || Math.abs(C) > R) return 0;
     const th = Math.asin(C / R) - Math.atan2(B, A);
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
-    const cs = Math.cos(th), sn = Math.sin(th);
+    const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
     for (let i = 0; i < n; i++) {
       const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
       p[i*3] = ax + dx * cs - dy * sn;
@@ -2182,10 +2182,10 @@ function makeSim(def, world) {
     // same number unless that sum is itself zero - then the whole formula runs, so the bits are the old ones; the attached
     // flow then needs no sine at all, where it took three a strip a substep)
     const Ca = (P.Cl0 + dCl0 + a3 * al) * (1 - s);
-    const Cl = s > 0 || Ca === 0 ? Ca + 1.1 * Math.sin(2 * al) * s : Ca;
+    const Cl = s > 0 || Ca === 0 ? Ca + 1.1 * CORE_MATH.sin(2 * al) * s : Ca;
     const CdAtt = P.Cd0 + dCd0 + sig * Cl * Cl / P.eAR;
     let Cd = CdAtt * (1 - s);
-    if (s > 0 || Cd === 0) { const sa = Math.sin(al); Cd += (P.Cd0 + dCd0 + 1.9 * sa * sa) * s; }
+    if (s > 0 || Cd === 0) { const sa = CORE_MATH.sin(al); Cd += (P.Cd0 + dCd0 + 1.9 * sa * sa) * s; }
     return [Cl, Cd];
   }
 
@@ -2318,7 +2318,7 @@ function makeSim(def, world) {
         const per = Ti[k] / Math.max(1, cnt[k]);
         const tl = TL ? (TL[k] || 0) : 0;
         if (tl) {
-          const cs = Math.cos(tl), sn = Math.sin(tl);
+          const cs = CORE_MATH.cos(tl), sn = CORE_MATH.sin(tl);
           f[e*3]   -= per * (cs * xAft[0] + sn * yUp[0]);
           f[e*3+1] -= per * (cs * xAft[1] + sn * yUp[1]);
           f[e*3+2] -= per * (cs * xAft[2] + sn * yUp[2]);
@@ -2580,7 +2580,7 @@ function makeSim(def, world) {
         // the body's incidence: the relative wind runs aft (u > 0 flying
         // forward) and from below (wn > 0 along up) with the nose up
         const alB = Math.atan2(wn, u);
-        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
+        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * CORE_MATH.sin(2 * alB) * 0.5;
         const L = hyp2(bx - ax, by - ay);
         if (L > 0.3) {
           const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
@@ -2851,7 +2851,7 @@ function makeSim(def, world) {
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
           const s = P_.twSteer * ctl.dr;   // measured: matches nose-left convention
-          const cs = Math.cos(s), sn_ = Math.sin(s);
+          const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
         }

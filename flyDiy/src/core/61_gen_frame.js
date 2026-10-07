@@ -107,7 +107,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (!ph || !(ph.E > 0) || !(hV > 0.2)) return;
     const d = 0.08 * Math.max(0.3, cRoot), Acap = 1e-4;
     const EI = ph.E * 2 * Acap * (0.5 * d) * (0.5 * d);
-    const kt = 3 * EI / Math.pow(hV, 3);
+    const kt = 3 * EI / CORE_MATH.pow(hV, 3);
     const nodesC = finNodes.concat(rootNodes).filter((q, i, a) => q != null && a.indexOf(q) === i);
     const part = finNodes.filter((q, i, a) => q != null && a.indexOf(q) === i && rootNodes.indexOf(q) < 0);
     // G1840 (DMG-D3 CLUSTERS): THE FIN'S ROOT SECTION, for the damage layer's root limits (30_solver, behind
@@ -204,7 +204,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (!(rodR > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
     const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
     const G = ph.E / 2.6;
-    const GJt = G * 2 * Math.PI * Math.pow(rodR, 3) * t;
+    const GJt = G * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * t;
     // the mid-boom bay: its section off the station profile, its length
     // off the bay count, its diagonals as the bay loop lays them (one a
     // side, two on the top, two on the bottom)
@@ -322,7 +322,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // tail's k — a stressed-skin stab is the stiffer one either way.
     const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec0;
     const kFollow = R.tailSectionK == null ? 1 : R.tailSectionK;
-    const tSec = tSec0 * Math.pow(tSecM / tSec0, 1 - kFollow);
+    const tSec = tSec0 * CORE_MATH.pow(tSecM / tSec0, 1 - kFollow);
     const row = (tbl, c, sh = tSec) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? sh * tbl.wing : undefined));
     // a gear member is either the SPRING (vis 'leg') or its bracing
     let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
@@ -671,7 +671,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // the SHAPE FAMILY is the profile of the aft taper: an exponent on the
     // station fraction, so width, floor and deck all narrow together but on a
     // straight, late (waisted) or early (pod-and-boom) curve. See GEN_SHAPES.
-    const t = SHP.taper === 1 ? t0 : Math.pow(t0, SHP.taper);
+    const t = SHP.taper === 1 ? t0 : CORE_MATH.pow(t0, SHP.taper);
     return { x, w: cab.halfW + (fu.tailW - cab.halfW) * t,
              yb: -0.02 + (fu.tailBot + 0.02) * t,
              yt: cab.h + (fu.tailTop - cab.h) * t };
@@ -754,13 +754,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // (the tail truss, the fittings): omega is resolved at the end of the
       // lattice, when the nodes weigh what they weigh.
       const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
-      const GJt = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rodR, 3) * tW;
+      const GJt = (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW;
       const L = Math.max(0.5, fu.tailArm - boxRear);
       // G350: torsion is the twist constraint's now (GJ, below) — the
       // cluster's own omega goes back to BENDING, the tube's 3 EI / L³ on
       // the twin boom's pair
-      const EIt = ph.E * Math.PI * Math.pow(rodR, 3) * tW;
-      omega = { k: 3 * EIt / Math.pow(L, 3), kRef: 29182, mRef: 61.6, wRef: 300 };
+      const EIt = ph.E * Math.PI * CORE_MATH.pow(rodR, 3) * tW;
+      omega = { k: 3 * EIt / CORE_MATH.pow(L, 3), kRef: 29182, mRef: 61.6, wRef: 300 };
       rodGJ = GJt;
     }
     // G1840 / G1842 (DMG-D3): the tube's section (the EI and GJ above, its radius and wall) and its mid-span station;
@@ -769,8 +769,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (ph && ph.E > 0 && rodR > 0 && rodRings.length >= 2) {
       const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
       const ring0 = rodRings[0], last = rodRings[rodRings.length - 1];
-      rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * Math.pow(rodR, 3) * tW,
-                 GJ: (ph.E / 2.6) * 2 * Math.PI * Math.pow(rodR, 3) * tW, r: rodR,
+      rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * CORE_MATH.pow(rodR, 3) * tW,
+                 GJ: (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW, r: rodR,
                  part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ax: [ring0[0], last[0]], lat: [ring0[0], ring0[1]],
                  station: dmgStation(rodRings, fu.postX), eta: 0.7 };
     }
@@ -1688,7 +1688,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
             const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
             const rm = 0.5 * (r0 + r1), a = kv * rm;
             const EIt = ph.E * Math.PI * tW * a * a * (a + 3 * rm) / 4;
-            const Kt = 3 * EIt / Math.pow(Math.max(0.5, len), 3);
+            const Kt = 3 * EIt / CORE_MATH.pow(Math.max(0.5, len), 3);
             let Mc = 0;
             for (const q of cl) Mc += nodes[q].m || 0;
             omega = 300 * Math.sqrt((Kt / 29182) * (61.6 / Math.max(1, Mc)));
@@ -1701,7 +1701,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           if (ph && ph.E > 0) {
             const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
             const rm = 0.5 * (r0 + r1) * Math.sqrt(kv);          // the oval's mean radius
-            gj = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rm, 3) * tW;
+            gj = (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rm, 3) * tW;
           } }
         // G1840 / G1842 (DMG-D3): the oval tube's section (its EI both ways and its GJ, the same oval and wall), its
         // root (the wing bay's spar nodes it is bolted to: the cluster's `rib`) and its mid-span station
@@ -2282,7 +2282,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // step keel — the layer draws the hull through the same rotation. The
     // tetra and the slab stay float-local (the pose is read off the nodes).
     const incR = ((FM && FM.inc != null) ? FM.inc : 0) * Math.PI / 180;
-    const cI = Math.cos(incR), sI = Math.sin(incR);
+    const cI = CORE_MATH.cos(incR), sI = CORE_MATH.sin(incR);
     const rig = (x, y) => [x * cI - y * sI, x * sI + y * cI];
     FLOATS = [];
     const trF = FM && FM.track != null ? 2 * FM.track : tr;
@@ -2901,7 +2901,7 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, Math.pow(W / ref(c), G.e[c])));
+  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = (O.furnK && O.furnK[genSystemsResolve(S).tier]) || 0;
@@ -2911,7 +2911,7 @@ function genDesignGross(S, a, cg) {
     let f = Mfix + furnOf(W) - W, df = -1 + (furnOf(W) > 0 ? fK * O.furnKgPerKg : 0);
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
-      const raw = Math.pow(W / ref(c), G.e[c]);
+      const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
       if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
@@ -2964,7 +2964,7 @@ function genFrame(S) {
   // aeroplane is not stiffer in proportion, and clamped so a foam trainer does
   // not end up with rubber tube nor a radial with an unbreakable one.
   const kScale = Math.min(4, Math.max(0.45,
-    Math.pow(cg[3] / (M.refMass || 390), 0.85)));
+    CORE_MATH.pow(cg[3] / (M.refMass || 390), 0.85)));
   const gy = S.gear.y;
   // main axle rake: forward of the CG by gearRake degrees off vertical. Too
   // little and it noses over on the brakes; too much and it will not fly the

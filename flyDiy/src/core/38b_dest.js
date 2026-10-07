@@ -62,7 +62,7 @@ function flightBase(world, id) {
 const FLIGHT_FIELD_R = 450;
 const FLIGHT_STAND_R = 25;
 function flightStripGeom(a, x, z) {
-  const ux = Math.cos(a.hdg || 0), uz = Math.sin(a.hdg || 0);
+  const ux = CORE_MATH.cos(a.hdg || 0), uz = CORE_MATH.sin(a.hdg || 0);
   const rx = x - a.x, rz = z - a.z;
   const along = rx * ux + rz * uz, cross = -rx * uz + rz * ux;
   const ea = Math.max(0, Math.abs(along) - (a.len || 0) / 2), ec = Math.max(0, Math.abs(cross) - (a.wid || 30) / 2);
