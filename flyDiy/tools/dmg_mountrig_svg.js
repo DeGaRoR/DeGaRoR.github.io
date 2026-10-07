@@ -39,10 +39,10 @@ for (const k of ['cub', 'jodel', 'metal', 'floats']) {
       o += `<circle cx="${sx(p[0]).toFixed(1)}" cy="${py(p).toFixed(1)}" r="${Math.max(2.5, Math.min(9, 1.6 * Math.sqrt(N[i].m)))}" fill="${isE(t) ? '#b4542a' : '#666'}" fill-opacity="0.55"/>`;
       if (py === sy || p[2] <= 0) o += `<text x="${(sx(p[0]) + 5).toFixed(1)}" y="${(py(p) - 5).toFixed(1)}" font-size="9" fill="#333">${t}</text>`; }
   }
-  const leg = Object.keys(COL).map((c, j) => `<rect x="${20 + j * 92}" y="${40 + H1 + 40 + H2 + 12}" width="12" height="4" fill="${COL[c]}"/><text x="${36 + j * 92}" y="${40 + H1 + 40 + H2 + 18}" font-size="10">${c === 'leg' ? 'nose leg' : c === 'frame' ? 'firewall' : c}</text>`).join('');
+  const leg = Object.keys(COL).map((c, j) => `<rect x="${20 + j * 90}" y="${40 + H1 + 40 + H2 + 12}" width="12" height="4" fill="${COL[c]}"/><text x="${36 + j * 90}" y="${40 + H1 + 40 + H2 + 18}" font-size="10">${c === 'leg' ? 'nose leg' : c === 'frame' ? 'firewall' : c}</text>`).join('');
   const len = bs.filter(b => kindOf(b, N) === 'bearer').map(b => b.L);
   const head = `<text x="20" y="14" font-size="12" font-weight="bold">${L.BUILDS[k].label} - the ${which === 'old' ? 'OLD rig (the base)' : 'NEW rig (DMG-MOUNTRIG)'}</text><text x="20" y="27" font-size="10">mount members ${len.length ? Math.min(...len).toFixed(2) + '-' + Math.max(...len).toFixed(2) + ' m' : '-'} (bearers); circle area ~ node mass</text>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${(W + 40).toFixed(0)}" height="${(40 + H1 + 40 + H2 + 30).toFixed(0)}" style="background:#fff;font-family:sans-serif">${head}${o}${leg}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(W + 40, 580).toFixed(0)}" height="${(40 + H1 + 40 + H2 + 30).toFixed(0)}" style="background:#fff;font-family:sans-serif">${head}${o}${leg}</svg>`;
   fs.writeFileSync(path.join(outDir, 'rig_' + k + '_' + which + '.svg'), svg);
   console.log(k, which, bs.length, 'members drawn');
 }

@@ -1,0 +1,1623 @@
+{
+ "cub": {
+  "key": "cub",
+  "rows": [
+   {
+    "lab": "taxi 1 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.073,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.162,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.256,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.369,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 1 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.037,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.105,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.186,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.287,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.406,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "nose-over 4 m/s",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 29,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.236,
+    "top": [
+     "S1BR-S2TR 14",
+     "S1BL-S2TL 13"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s centreline",
+    "broken": 176,
+    "brokenMount": 20,
+    "mountBroken": [
+     "MNTTL-CGE",
+     "MNTTR-CGE",
+     "MNTBL-CGE",
+     "MNTBR-CGE",
+     "MNTTL-ENGL",
+     "MNTBL-ENGL",
+     "MNTTR-ENGR",
+     "MNTBR-ENGR",
+     "MNTBR-S0TR",
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BL",
+     "MNTBL-S0BR",
+     "MNTBL-S0TL",
+     "MNTBR-S0BR",
+     "MNTBR-S0BL"
+    ],
+    "work": 18626,
+    "workMount": 2153,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.437,
+    "top": [
+     "AXLEL-S0BR 1181",
+     "AXLER-S0BL 1179",
+     "S2TL-S2TR 770",
+     "S3TL-S3TR 634",
+     "S2BL-S2BR 630",
+     "S3BR-S4BL 585"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s 2.5 m out",
+    "broken": 129,
+    "brokenMount": 18,
+    "mountBroken": [
+     "MNTTL-CGE",
+     "MNTTL-ENGL",
+     "MNTBL-CGE",
+     "MNTTR-ENGR",
+     "MNTBL-ENGL",
+     "MNTBR-ENGR",
+     "MNTBR-S0BR",
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BL",
+     "MNTBL-S0BR",
+     "MNTBL-S0TL",
+     "MNTBR-S0BL",
+     "MNTBR-S0TR"
+    ],
+    "work": 14034,
+    "workMount": 322,
+    "crashed": true,
+    "reason": "a wing member broke",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.299,
+    "top": [
+     "WF-WR 3199",
+     "WR-WF 2492",
+     "WF-WF 1512",
+     "WR-WR 687",
+     "S1BL-WF 374",
+     "MNTBR-S0BR 322"
+    ],
+    "finite": true
+   }
+  ],
+  "nodes": 97,
+  "beams": 404
+ },
+ "jodel": {
+  "key": "jodel",
+  "rows": [
+   {
+    "lab": "taxi 1 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.062,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.144,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.238,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 18,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.346,
+    "top": [
+     "VSNR-S0TL 7",
+     "VSNL-S0TR 7",
+     "TW-TPB 3",
+     "TW-TPT 1"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "taxi 1 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.03,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.092,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.167,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.274,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 24,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.375,
+    "top": [
+     "VSNR-S0TL 8",
+     "VSNL-S0TR 8",
+     "TW-TPB 5",
+     "TW-TPT 3"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "nose-over 4 m/s",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 294,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.217,
+    "top": [
+     "AXLER-S1BR 145",
+     "AXLEL-S1BL 145",
+     "VSNR-S0TL 2",
+     "VSNL-S0TR 2"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s centreline",
+    "broken": 194,
+    "brokenMount": 20,
+    "mountBroken": [
+     "MNTTL-CGE",
+     "MNTTR-CGE",
+     "MNTBL-CGE",
+     "MNTBR-CGE",
+     "MNTBL-ENGL",
+     "MNTBR-ENGR",
+     "MNTTL-ENGL",
+     "MNTTR-ENGR",
+     "MNTBL-S0TL",
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BL",
+     "MNTBL-S0BR",
+     "MNTBR-S0BR",
+     "MNTBR-S0BL",
+     "MNTBR-S0TR"
+    ],
+    "work": 22657,
+    "workMount": 2810,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.422,
+    "top": [
+     "S0BL-S0BR 2500",
+     "AXLEL-S0BR 1716",
+     "S0BR-S0TL 1621",
+     "S0BL-S0TR 1615",
+     "AXLER-S0BL 1614",
+     "S2TL-S2TR 1513"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s 2.5 m out",
+    "broken": 51,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 1904,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "a wing member broke",
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [
+     "AXLER-S1BR 208",
+     "WB-WB 207",
+     "WR-WF 181",
+     "WR-WB 142",
+     "WF-WR 137",
+     "WF-WR 130"
+    ],
+    "finite": true
+   }
+  ],
+  "nodes": 115,
+  "beams": 502
+ },
+ "metal": {
+  "key": "metal",
+  "rows": [
+   {
+    "lab": "taxi 1 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.123,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.26,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.438,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 351,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.465,
+    "top": [
+     "S0BL-S0BR 56",
+     "S0BR-S0TL 50",
+     "S0BL-S0TR 50",
+     "WR-WR 35",
+     "WR-WR 35",
+     "S0BL-S0TL 22"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "taxi 1 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.079,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.178,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.301,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.465,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0.3",
+    "broken": 1,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 627,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "a fus member broke",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.465,
+    "top": [
+     "S0BR-S0TL 89",
+     "S0BL-S0TR 89",
+     "S0BL-S0BR 80",
+     "WR-WR 55",
+     "WR-WR 54",
+     "S0BL-S0TL 43"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "nose-over 4 m/s",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 14,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0,
+    "top": [
+     "TW-S0BR 11",
+     "TW-S0BL 2"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s centreline",
+    "broken": 175,
+    "brokenMount": 22,
+    "mountBroken": [
+     "MNTBL-CGE",
+     "MNTBR-CGE",
+     "MNTTL-CGE",
+     "MNTTR-CGE",
+     "MNTBL-ENGL",
+     "MNTBR-ENGR",
+     "MNTTL-ENGL",
+     "MNTTR-ENGR",
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BL",
+     "MNTBL-S0BR",
+     "MNTBL-S0TL",
+     "MNTBR-S0BR",
+     "MNTBR-S0BL",
+     "MNTBR-S0TR",
+     "TW-MNTBR",
+     "TW-MNTBL"
+    ],
+    "work": 38857,
+    "workMount": 6913,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.465,
+    "top": [
+     "S0BL-S0BR 1487",
+     "S0BR-S0TL 1279",
+     "S0BL-S0TR 1257",
+     "S3TL-S3TR 1218",
+     "S2TL-S2TR 1214",
+     "MNTBL-ENGL 1164"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s 2.5 m out",
+    "broken": 95,
+    "brokenMount": 14,
+    "mountBroken": [
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BL",
+     "MNTBL-S0BR",
+     "MNTBL-S0TL",
+     "MNTBR-S0BR",
+     "MNTBR-S0BL",
+     "MNTBR-S0TR",
+     "TW-MNTBL",
+     "TW-MNTBR"
+    ],
+    "work": 17354,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "a wing member broke",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.206,
+    "top": [
+     "WF-WF 5339",
+     "S1BL-WF 2440",
+     "S1BL-WB 2437",
+     "WR-WF 1347",
+     "WF-WR 776",
+     "S1BR-S2TR 433"
+    ],
+    "finite": true
+   }
+  ],
+  "nodes": 107,
+  "beams": 452
+ },
+ "floats": {
+  "key": "floats",
+  "rows": [
+   {
+    "lab": "taxi 1 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.206,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 1 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.004,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.251,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "nose-over 4 m/s",
+    "broken": 157,
+    "brokenMount": 12,
+    "mountBroken": [
+     "MNTBL-S0BL",
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BR",
+     "MNTBL-S0TL",
+     "MNTBR-S0BR",
+     "MNTBR-S0BL",
+     "MNTBR-S0TR"
+    ],
+    "work": 19249,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "a gear member broke",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.465,
+    "top": [
+     "S1BL-S2TL 1734",
+     "S0BR-S1BL 1589",
+     "S0BL-S1BR 1535",
+     "S0BL-S1BL 1248",
+     "S0BR-S1BR 1156",
+     "S1BL-S2BL 1057"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s centreline",
+    "broken": 146,
+    "brokenMount": 18,
+    "mountBroken": [
+     "MNTTL-CGE",
+     "MNTTR-CGE",
+     "MNTBL-ENGL",
+     "MNTBR-ENGR",
+     "MNTBL-S0BR",
+     "MNTTL-S0TL",
+     "MNTTL-S0BL",
+     "MNTTL-S0TR",
+     "MNTTR-S0TR",
+     "MNTTR-S0BR",
+     "MNTTR-S0TL",
+     "MNTBL-S0BL",
+     "MNTBL-S0TL",
+     "MNTBR-S0BR",
+     "MNTBR-S0BL",
+     "MNTBR-S0TR",
+     "MNTBL-CGE",
+     "MNTBR-CGE"
+    ],
+    "work": 28560,
+    "workMount": 6459,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "running": [
+     false
+    ],
+    "seized": [
+     true
+    ],
+    "crush": 0.465,
+    "top": [
+     "FLD-FLD 2882",
+     "S0BR-S1BL 2271",
+     "VSNL-S0BR 1546",
+     "MNTBL-ENGL 1259",
+     "MNTBR-ENGR 1259",
+     "VSNL-VSNR 902"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s 2.5 m out",
+    "broken": 12,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 11696,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "an impact of 9 g",
+    "running": [
+     true
+    ],
+    "seized": [
+     false
+    ],
+    "crush": 0,
+    "top": [
+     "WF-WF 3533",
+     "S1BL-WB 2114",
+     "S1BL-WF 2082",
+     "WR-WR 1228",
+     "WR-WF 1039",
+     "WF-WR 509"
+    ],
+    "finite": true
+   }
+  ],
+  "nodes": 134,
+  "beams": 543
+ },
+ "twinFloats": {
+  "key": "twinFloats",
+  "rows": [
+   {
+    "lab": "taxi 1 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 1 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 2 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 3 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 4 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "taxi 5 m/s thr 0.3",
+    "broken": 0,
+    "brokenMount": 0,
+    "mountBroken": [],
+    "work": 0,
+    "workMount": 0,
+    "crashed": false,
+    "reason": null,
+    "running": [
+     true,
+     true
+    ],
+    "seized": [
+     false,
+     false
+    ],
+    "crush": 0,
+    "top": [],
+    "finite": true
+   },
+   {
+    "lab": "nose-over 4 m/s",
+    "broken": 181,
+    "brokenMount": 24,
+    "mountBroken": [
+     "ENGR-WR",
+     "ENGR-WF",
+     "ENGR-WF",
+     "ENGR-WR",
+     "MNTR-WF",
+     "MNTR-WF",
+     "MNTR-WR",
+     "MNTR-WR",
+     "CGE-WF",
+     "CGE-WF",
+     "CGE-WR",
+     "CGE-WR",
+     "ENGL-WR",
+     "ENGL-WF",
+     "ENGL-WF",
+     "ENGL-WR",
+     "MNTL-WF",
+     "MNTL-WF",
+     "MNTL-WR",
+     "MNTL-WR",
+     "CGE-WF",
+     "CGE-WF",
+     "CGE-WR",
+     "CGE-WR"
+    ],
+    "work": 4976,
+    "workMount": 248,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "running": [
+     false,
+     false
+    ],
+    "seized": [
+     true,
+     true
+    ],
+    "crush": 0.224,
+    "top": [
+     "S0TR-S1BR 326",
+     "S0TL-S1BL 323",
+     "HTL-S6BL 291",
+     "HTR-S6BR 251",
+     "WR-WF 154",
+     "WF-WF 146"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s centreline",
+    "broken": 194,
+    "brokenMount": 24,
+    "mountBroken": [
+     "ENGL-WR",
+     "ENGL-WF",
+     "ENGL-WF",
+     "ENGL-WR",
+     "MNTL-WF",
+     "MNTL-WF",
+     "MNTL-WR",
+     "MNTL-WR",
+     "CGE-WF",
+     "CGE-WF",
+     "CGE-WR",
+     "CGE-WR",
+     "ENGR-WR",
+     "ENGR-WF",
+     "ENGR-WF",
+     "ENGR-WR",
+     "MNTR-WF",
+     "MNTR-WF",
+     "MNTR-WR",
+     "MNTR-WR",
+     "CGE-WF",
+     "CGE-WF",
+     "CGE-WR",
+     "CGE-WR"
+    ],
+    "work": 43455,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "running": [
+     false,
+     false
+    ],
+    "seized": [
+     true,
+     true
+    ],
+    "crush": 0.064,
+    "top": [
+     "WF-WF 6000",
+     "WF-WR 1957",
+     "WF-WR 1946",
+     "WF-S1TR 1911",
+     "WF-S1TL 1779",
+     "S0TL-S0TR 1429"
+    ],
+    "finite": true
+   },
+   {
+    "lab": "30 m/s 2.5 m out",
+    "broken": 132,
+    "brokenMount": 24,
+    "mountBroken": [
+     "ENGL-WF",
+     "ENGL-WF",
+     "ENGL-WR",
+     "ENGL-WR",
+     "MNTL-WF",
+     "MNTL-WF",
+     "MNTL-WR",
+     "MNTL-WR",
+     "CGE-WF",
+     "CGE-WF",
+     "CGE-WR",
+     "CGE-WR",
+     "MNTR-WR",
+     "ENGR-WF",
+     "ENGR-WF",
+     "ENGR-WR",
+     "ENGR-WR",
+     "MNTR-WF",
+     "MNTR-WF",
+     "MNTR-WR",
+     "CGE-WF",
+     "CGE-WF",
+     "CGE-WR",
+     "CGE-WR"
+    ],
+    "work": 14310,
+    "workMount": 0,
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "running": [
+     false,
+     false
+    ],
+    "seized": [
+     true,
+     true
+    ],
+    "crush": 0.052,
+    "top": [
+     "WF-WF 3764",
+     "WF-WR 2307",
+     "WR-WR 2248",
+     "WR-WF 1394",
+     "S1BL-WF 398",
+     "S0BL-S1BL 368"
+    ],
+    "finite": true
+   }
+  ],
+  "nodes": 127,
+  "beams": 519
+ }
+}
