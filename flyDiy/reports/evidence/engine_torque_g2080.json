@@ -1,0 +1,3645 @@
+{
+ "when": "2026-10-06",
+ "cases": {
+  "cub:off": {
+   "id": "cub:off",
+   "key": "cub",
+   "variant": "off",
+   "label": "Cub",
+   "sense": [
+    1
+   ],
+   "I": 0.683,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.8
+    ],
+    "H": [
+     0
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 1177,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0,
+    "V": 10.3,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 334.9,
+    "rollMaxOffM": 0,
+    "liftoff": {
+     "offM": 0,
+     "hdgDeg": 0,
+     "along": 106.3,
+     "t": 11.9
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 11.9,
+      "V": 8.9,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 15.3,
+      "V": 17.7,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 17.5,
+      "V": 23.3,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 18.9,
+      "V": 24.5,
+      "dr": 0.035,
+      "drMin": -0.028,
+      "drMax": 0.067,
+      "da": 0.012,
+      "daMin": -0.159,
+      "daMax": 0.068,
+      "betaDeg": -0.14,
+      "bankDeg": -13.66,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 103.9,
+      "V": 31.5,
+      "dr": 0.005,
+      "drMin": -0.013,
+      "drMax": 0.044,
+      "da": 0.001,
+      "daMin": -0.038,
+      "daMax": 0.032,
+      "betaDeg": 0.02,
+      "bankDeg": -2.27,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 18.3,
+      "V": 28.6,
+      "dr": 0.035,
+      "drMin": -0.014,
+      "drMax": 0.083,
+      "da": 0.01,
+      "daMin": -0.04,
+      "daMax": 0.054,
+      "betaDeg": 0.04,
+      "bankDeg": -13.96,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 125,
+      "V": 21.2,
+      "dr": 0.005,
+      "drMin": -0.021,
+      "drMax": 0.135,
+      "da": 0.002,
+      "daMin": -0.061,
+      "daMax": 0.212,
+      "betaDeg": 0,
+      "bankDeg": -1.65,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 6.7,
+      "V": 19.6,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 17.4,
+      "V": 9.5,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "cub:on": {
+   "id": "cub:on",
+   "key": "cub",
+   "variant": "on",
+   "label": "Cub",
+   "sense": [
+    1
+   ],
+   "I": 0.683,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.8
+    ],
+    "H": [
+     151.1
+    ],
+    "swirl": [
+     18.92
+    ],
+    "wakeR": [
+     0.68
+    ],
+    "finSwirlDeg": 21.2,
+    "thrust": 1177,
+    "bankDeg": 0.12
+   },
+   "handsOff": {
+    "swingDeg": 20.66,
+    "V": 10.5,
+    "offM": -2.34
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 334,
+    "rollMaxOffM": 1.24,
+    "liftoff": {
+     "offM": -1.24,
+     "hdgDeg": 0.39,
+     "along": 104.9,
+     "t": 11.7
+    },
+    "gyroPeakYaw": -5.1,
+    "gyroPeakPitchRate": 0.033,
+    "tailUp": {
+     "yaw": 3.9,
+     "q": -0.026,
+     "V": 11.3
+    },
+    "phases": {
+     "ROLL": {
+      "s": 11.7,
+      "V": 9,
+      "dr": -0.122,
+      "drMin": -0.431,
+      "drMax": 0.014,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": -0.01,
+      "bankDeg": -0.1,
+      "tqRoll": 193.5,
+      "pfYaw": 5.2,
+      "gyroYaw": 0.7
+     },
+     "LIFTOFF": {
+      "s": 15,
+      "V": 17.7,
+      "dr": -0.154,
+      "drMin": -0.188,
+      "drMax": 0.004,
+      "da": 0.007,
+      "daMin": -0.039,
+      "daMax": 0.065,
+      "betaDeg": 1.04,
+      "bankDeg": 0.19,
+      "tqRoll": 201,
+      "pfYaw": 4.7,
+      "gyroYaw": -0.6
+     },
+     "CLIMB": {
+      "s": 17.3,
+      "V": 23.3,
+      "dr": -0.142,
+      "drMin": -0.164,
+      "drMax": 0,
+      "da": 0.004,
+      "daMin": 0,
+      "daMax": 0.007,
+      "betaDeg": -0.18,
+      "bankDeg": -0.05,
+      "tqRoll": 200.4,
+      "pfYaw": -2,
+      "gyroYaw": 0.2
+     },
+     "CROSSWIND": {
+      "s": 18.8,
+      "V": 24.5,
+      "dr": -0.094,
+      "drMin": -0.189,
+      "drMax": 0,
+      "da": 0.014,
+      "daMin": -0.158,
+      "daMax": 0.074,
+      "betaDeg": -0.2,
+      "bankDeg": -13.69,
+      "tqRoll": 194.5,
+      "pfYaw": -3.5,
+      "gyroYaw": -3.2
+     },
+     "DOWNWIND": {
+      "s": 103.7,
+      "V": 31.5,
+      "dr": -0.059,
+      "drMin": -0.081,
+      "drMax": 0,
+      "da": 0.003,
+      "daMin": -0.035,
+      "daMax": 0.033,
+      "betaDeg": -0.03,
+      "bankDeg": -2.3,
+      "tqRoll": 131.5,
+      "pfYaw": -11,
+      "gyroYaw": -0.6
+     },
+     "BASE": {
+      "s": 18.3,
+      "V": 28.6,
+      "dr": -0.022,
+      "drMin": -0.081,
+      "drMax": 0.049,
+      "da": 0.011,
+      "daMin": -0.042,
+      "daMax": 0.055,
+      "betaDeg": 0.07,
+      "bankDeg": -13.94,
+      "tqRoll": 102.1,
+      "pfYaw": -5.8,
+      "gyroYaw": -4
+     },
+     "FINAL": {
+      "s": 125,
+      "V": 21.2,
+      "dr": -0.056,
+      "drMin": -0.092,
+      "drMax": 0.075,
+      "da": 0.004,
+      "daMin": -0.059,
+      "daMax": 0.214,
+      "betaDeg": -0.01,
+      "bankDeg": -1.64,
+      "tqRoll": 66.4,
+      "pfYaw": 2.8,
+      "gyroYaw": -0.6
+     },
+     "FLARE": {
+      "s": 6.7,
+      "V": 19.6,
+      "dr": -0.051,
+      "drMin": -0.073,
+      "drMax": 0,
+      "da": 0.003,
+      "daMin": -0.005,
+      "daMax": 0.007,
+      "betaDeg": 0.11,
+      "bankDeg": -0.03,
+      "tqRoll": 53.3,
+      "pfYaw": 4.3,
+      "gyroYaw": -0.7
+     },
+     "ROLLOUT": {
+      "s": 17.4,
+      "V": 9.5,
+      "dr": -0.002,
+      "drMin": -0.162,
+      "drMax": 0.154,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0.003,
+      "betaDeg": -0.01,
+      "bankDeg": -0.03,
+      "tqRoll": 18.6,
+      "pfYaw": 1.3,
+      "gyroYaw": -0.3
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.05,
+      "tqRoll": 18.6,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "jodel:off": {
+   "id": "jodel:off",
+   "key": "jodel",
+   "variant": "off",
+   "label": "Jodel",
+   "sense": [
+    1
+   ],
+   "I": 0.564,
+   "D": 1.83,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.9
+    ],
+    "H": [
+     0
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 1007,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0,
+    "V": 9.2,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 360,
+    "rollMaxOffM": 0,
+    "liftoff": {
+     "offM": 0,
+     "hdgDeg": 0,
+     "along": 178.8,
+     "t": 16.3
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 16.2,
+      "V": 11,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 24.1,
+      "V": 21.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 22.5,
+      "V": 28.2,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 23.6,
+      "V": 26.7,
+      "dr": 0.025,
+      "drMin": -0.017,
+      "drMax": 0.047,
+      "da": 0.008,
+      "daMin": -0.125,
+      "daMax": 0.071,
+      "betaDeg": -0.1,
+      "bankDeg": -12.82,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 112.4,
+      "V": 35.4,
+      "dr": 0.003,
+      "drMin": -0.014,
+      "drMax": 0.031,
+      "da": 0.002,
+      "daMin": -0.031,
+      "daMax": 0.04,
+      "betaDeg": 0.02,
+      "bankDeg": -2.2,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 20.3,
+      "V": 32,
+      "dr": 0.025,
+      "drMin": -0.005,
+      "drMax": 0.062,
+      "da": 0.009,
+      "daMin": -0.046,
+      "daMax": 0.073,
+      "betaDeg": 0,
+      "bankDeg": -14.23,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 114.5,
+      "V": 24.9,
+      "dr": 0.005,
+      "drMin": -0.008,
+      "drMax": 0.09,
+      "da": 0.002,
+      "daMin": -0.063,
+      "daMax": 0.179,
+      "betaDeg": 0,
+      "bankDeg": -2.06,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 5.5,
+      "V": 22.8,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.01,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 20.8,
+      "V": 11.4,
+      "dr": 0,
+      "drMin": -0.004,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0.002,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "jodel:on": {
+   "id": "jodel:on",
+   "key": "jodel",
+   "variant": "on",
+   "label": "Jodel",
+   "sense": [
+    1
+   ],
+   "I": 0.564,
+   "D": 1.83,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.9
+    ],
+    "H": [
+     124.6
+    ],
+    "swirl": [
+     23.27
+    ],
+    "wakeR": [
+     0.65
+    ],
+    "finSwirlDeg": 25.7,
+    "thrust": 1007,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 1.33,
+    "V": 9.5,
+    "offM": -0.45
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 357.8,
+    "rollMaxOffM": 1.53,
+    "liftoff": {
+     "offM": -1.53,
+     "hdgDeg": 0.1,
+     "along": 176,
+     "t": 15.9
+    },
+    "gyroPeakYaw": -4.2,
+    "gyroPeakPitchRate": 0.033,
+    "tailUp": {
+     "yaw": 2.2,
+     "q": -0.017,
+     "V": 16.2
+    },
+    "phases": {
+     "ROLL": {
+      "s": 15.9,
+      "V": 11.1,
+      "dr": -0.092,
+      "drMin": -0.267,
+      "drMax": 0.018,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": -0.01,
+      "bankDeg": -0.03,
+      "tqRoll": 195.6,
+      "pfYaw": 8.7,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 23.9,
+      "V": 21.6,
+      "dr": -0.148,
+      "drMin": -0.192,
+      "drMax": 0.001,
+      "da": 0.02,
+      "daMin": -0.006,
+      "daMax": 0.126,
+      "betaDeg": 0.53,
+      "bankDeg": -0.19,
+      "tqRoll": 201,
+      "pfYaw": 15.6,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 21.8,
+      "V": 28.2,
+      "dr": -0.123,
+      "drMin": -0.137,
+      "drMax": 0,
+      "da": 0.005,
+      "daMin": -0.001,
+      "daMax": 0.014,
+      "betaDeg": -0.07,
+      "bankDeg": 0.14,
+      "tqRoll": 200.2,
+      "pfYaw": 12.7,
+      "gyroYaw": -0.1
+     },
+     "CROSSWIND": {
+      "s": 23.1,
+      "V": 26.9,
+      "dr": -0.104,
+      "drMin": -0.159,
+      "drMax": 0,
+      "da": 0.016,
+      "daMin": -0.122,
+      "daMax": 0.084,
+      "betaDeg": -0.08,
+      "bankDeg": -13.05,
+      "tqRoll": 195.8,
+      "pfYaw": 13.7,
+      "gyroYaw": -2.2
+     },
+     "DOWNWIND": {
+      "s": 112,
+      "V": 35.4,
+      "dr": -0.066,
+      "drMin": -0.096,
+      "drMax": 0,
+      "da": 0.003,
+      "daMin": -0.029,
+      "daMax": 0.04,
+      "betaDeg": -0.03,
+      "bankDeg": -2.27,
+      "tqRoll": 143,
+      "pfYaw": 6.7,
+      "gyroYaw": -0.4
+     },
+     "BASE": {
+      "s": 20.3,
+      "V": 32,
+      "dr": -0.039,
+      "drMin": -0.092,
+      "drMax": 0.023,
+      "da": 0.012,
+      "daMin": -0.077,
+      "daMax": 0.074,
+      "betaDeg": 0,
+      "bankDeg": -14.19,
+      "tqRoll": 110.4,
+      "pfYaw": 8,
+      "gyroYaw": -3
+     },
+     "FINAL": {
+      "s": 114.4,
+      "V": 24.9,
+      "dr": -0.061,
+      "drMin": -0.074,
+      "drMax": 0.041,
+      "da": 0.007,
+      "daMin": -0.075,
+      "daMax": 0.185,
+      "betaDeg": 0,
+      "bankDeg": -2.1,
+      "tqRoll": 74.3,
+      "pfYaw": 10.3,
+      "gyroYaw": -0.5
+     },
+     "FLARE": {
+      "s": 5.5,
+      "V": 22.8,
+      "dr": -0.026,
+      "drMin": -0.063,
+      "drMax": 0,
+      "da": -0.013,
+      "daMin": -0.035,
+      "daMax": 0.037,
+      "betaDeg": -0.79,
+      "bankDeg": 0.09,
+      "tqRoll": 30.8,
+      "pfYaw": 6.4,
+      "gyroYaw": -0.4
+     },
+     "ROLLOUT": {
+      "s": 20.8,
+      "V": 11.4,
+      "dr": -0.004,
+      "drMin": -0.203,
+      "drMax": 0.1,
+      "da": -0.001,
+      "daMin": -0.101,
+      "daMax": 0.038,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 18.6,
+      "pfYaw": 1.9,
+      "gyroYaw": -0.1
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": -0.001,
+      "drMin": -0.001,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.01,
+      "tqRoll": 18.6,
+      "pfYaw": 0.1,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "metal:on": {
+   "id": "metal:on",
+   "key": "metal",
+   "variant": "on",
+   "label": "metal Cessna",
+   "sense": [
+    1
+   ],
+   "I": 1.68,
+   "D": 2.06,
+   "static": {
+    "rpm": [
+     2365
+    ],
+    "Q": [
+     628
+    ],
+    "H": [
+     416.1
+    ],
+    "swirl": [
+     27.78
+    ],
+    "wakeR": [
+     0.75
+    ],
+    "finSwirlDeg": 25,
+    "thrust": 2911,
+    "bankDeg": -0.05
+   },
+   "handsOff": {
+    "swingDeg": 5.96,
+    "V": 19.2,
+    "offM": -4.63
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 270.1,
+    "rollMaxOffM": 1.72,
+    "liftoff": {
+     "offM": -1.72,
+     "hdgDeg": 4.1,
+     "along": 144.3,
+     "t": 10.5
+    },
+    "gyroPeakYaw": -68.4,
+    "gyroPeakPitchRate": 0.159,
+    "tailUp": {
+     "yaw": 6.1,
+     "q": -0.015,
+     "V": 1
+    },
+    "phases": {
+     "ROLL": {
+      "s": 10.5,
+      "V": 13.8,
+      "dr": -0.022,
+      "drMin": -0.109,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0.09,
+      "bankDeg": -0.07,
+      "tqRoll": 620.8,
+      "pfYaw": -0.6,
+      "gyroYaw": -5
+     },
+     "LIFTOFF": {
+      "s": 4.5,
+      "V": 29.4,
+      "dr": -0.086,
+      "drMin": -0.119,
+      "drMax": 0,
+      "da": 0.034,
+      "daMin": 0,
+      "daMax": 0.088,
+      "betaDeg": 2.53,
+      "bankDeg": 1.79,
+      "tqRoll": 648.4,
+      "pfYaw": 23.4,
+      "gyroYaw": -16.5
+     },
+     "CLIMB": {
+      "s": 14.2,
+      "V": 33.8,
+      "dr": -0.121,
+      "drMin": -0.137,
+      "drMax": 0,
+      "da": 0.009,
+      "daMin": 0,
+      "daMax": 0.017,
+      "betaDeg": -0.08,
+      "bankDeg": 0.47,
+      "tqRoll": 605.3,
+      "pfYaw": 12.5,
+      "gyroYaw": 1.5
+     },
+     "CROSSWIND": {
+      "s": 27.1,
+      "V": 37.8,
+      "dr": -0.08,
+      "drMin": -0.152,
+      "drMax": 0,
+      "da": 0.014,
+      "daMin": -0.117,
+      "daMax": 0.07,
+      "betaDeg": -0.13,
+      "bankDeg": -13.55,
+      "tqRoll": 478.4,
+      "pfYaw": 7.9,
+      "gyroYaw": -2.8
+     },
+     "DOWNWIND": {
+      "s": 58,
+      "V": 49.5,
+      "dr": -0.046,
+      "drMin": -0.063,
+      "drMax": 0,
+      "da": 0.006,
+      "daMin": -0.022,
+      "daMax": 0.031,
+      "betaDeg": -0.03,
+      "bankDeg": -6.87,
+      "tqRoll": 342.6,
+      "pfYaw": -9.8,
+      "gyroYaw": -3.2
+     },
+     "BASE": {
+      "s": 35.8,
+      "V": 40.5,
+      "dr": -0.029,
+      "drMin": -0.067,
+      "drMax": 0.034,
+      "da": 0.008,
+      "daMin": -0.044,
+      "daMax": 0.071,
+      "betaDeg": 0.01,
+      "bankDeg": -9.82,
+      "tqRoll": 210,
+      "pfYaw": 4.9,
+      "gyroYaw": -5
+     },
+     "FINAL": {
+      "s": 93.8,
+      "V": 25.4,
+      "dr": -0.073,
+      "drMin": -0.093,
+      "drMax": 0.048,
+      "da": 0.013,
+      "daMin": -0.051,
+      "daMax": 0.213,
+      "betaDeg": 0.03,
+      "bankDeg": -2.46,
+      "tqRoll": 213.2,
+      "pfYaw": 3.8,
+      "gyroYaw": -1.7
+     },
+     "FLARE": {
+      "s": 6.8,
+      "V": 23.1,
+      "dr": -0.074,
+      "drMin": -0.091,
+      "drMax": 0,
+      "da": 0.011,
+      "daMin": -0.005,
+      "daMax": 0.019,
+      "betaDeg": 0.06,
+      "bankDeg": -0.11,
+      "tqRoll": 180.5,
+      "pfYaw": 10.5,
+      "gyroYaw": -3.6
+     },
+     "ROLLOUT": {
+      "s": 19.5,
+      "V": 10.1,
+      "dr": 0,
+      "drMin": -0.092,
+      "drMax": 0.021,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0.019,
+      "betaDeg": -0.01,
+      "bankDeg": -0.02,
+      "tqRoll": 60.1,
+      "pfYaw": -0.5,
+      "gyroYaw": 0.2
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.02,
+      "tqRoll": 60.1,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "metal:off": {
+   "id": "metal:off",
+   "key": "metal",
+   "variant": "off",
+   "label": "metal Cessna",
+   "sense": [
+    1
+   ],
+   "I": 1.68,
+   "D": 2.06,
+   "static": {
+    "rpm": [
+     2365
+    ],
+    "Q": [
+     628
+    ],
+    "H": [
+     0
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2911,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0,
+    "V": 18.4,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 270.8,
+    "rollMaxOffM": 0,
+    "liftoff": {
+     "offM": 0,
+     "hdgDeg": 0,
+     "along": 147.1,
+     "t": 10.8
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 10.8,
+      "V": 13.7,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 4.5,
+      "V": 29.3,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 14.3,
+      "V": 33.9,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 27.1,
+      "V": 37.7,
+      "dr": 0.019,
+      "drMin": -0.017,
+      "drMax": 0.04,
+      "da": 0.006,
+      "daMin": -0.131,
+      "daMax": 0.058,
+      "betaDeg": -0.02,
+      "bankDeg": -13.37,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 58.1,
+      "V": 49.5,
+      "dr": 0.006,
+      "drMin": -0.01,
+      "drMax": 0.018,
+      "da": 0.003,
+      "daMin": -0.021,
+      "daMax": 0.028,
+      "betaDeg": 0.01,
+      "bankDeg": -6.82,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 35.8,
+      "V": 40.5,
+      "dr": 0.013,
+      "drMin": -0.009,
+      "drMax": 0.048,
+      "da": 0.004,
+      "daMin": -0.044,
+      "daMax": 0.072,
+      "betaDeg": 0,
+      "bankDeg": -9.81,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 93.8,
+      "V": 25.4,
+      "dr": 0.008,
+      "drMin": -0.005,
+      "drMax": 0.089,
+      "da": 0.003,
+      "daMin": -0.057,
+      "daMax": 0.208,
+      "betaDeg": 0,
+      "bankDeg": -2.48,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 6.9,
+      "V": 23,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.02,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 19.5,
+      "V": 10.1,
+      "dr": 0,
+      "drMin": -0.003,
+      "drMax": 0.002,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "floats:on": {
+   "id": "floats:on",
+   "key": "floats",
+   "variant": "on",
+   "label": "Cessna floats",
+   "sense": [
+    1
+   ],
+   "I": 1.68,
+   "D": 2.06,
+   "static": {
+    "rpm": [
+     2372
+    ],
+    "Q": [
+     648.9
+    ],
+    "H": [
+     417.4
+    ],
+    "swirl": [
+     23.57
+    ],
+    "wakeR": [
+     0.78
+    ],
+    "finSwirlDeg": 22.1,
+    "thrust": 2997,
+    "bankDeg": 2.18
+   },
+   "handsOff": {
+    "swingDeg": 76.29,
+    "V": 8.1,
+    "offM": -15.27
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 377.8,
+    "rollMaxOffM": 5.44,
+    "liftoff": {
+     "offM": -5.44,
+     "hdgDeg": 0.41,
+     "along": 412,
+     "t": 27.6
+    },
+    "gyroPeakYaw": -122.6,
+    "gyroPeakPitchRate": 0.291,
+    "tailUp": {
+     "yaw": 112.9,
+     "q": -0.267,
+     "V": 17.5
+    },
+    "phases": {
+     "ROLL": {
+      "s": 27.6,
+      "V": 14.9,
+      "dr": -0.179,
+      "drMin": -0.507,
+      "drMax": 0.07,
+      "da": 0.024,
+      "daMin": -0.009,
+      "daMax": 0.09,
+      "betaDeg": -0.29,
+      "bankDeg": -1.09,
+      "tqRoll": 638.2,
+      "pfYaw": 17.3,
+      "gyroYaw": -1.2
+     },
+     "LIFTOFF": {
+      "s": 8.9,
+      "V": 31.3,
+      "dr": -0.103,
+      "drMin": -0.146,
+      "drMax": 0.003,
+      "da": 0.022,
+      "daMin": 0,
+      "daMax": 0.077,
+      "betaDeg": 1.35,
+      "bankDeg": 0.54,
+      "tqRoll": 647.9,
+      "pfYaw": 31,
+      "gyroYaw": 3
+     },
+     "CLIMB": {
+      "s": 19.3,
+      "V": 39.7,
+      "dr": -0.109,
+      "drMin": -0.127,
+      "drMax": 0,
+      "da": 0.008,
+      "daMin": 0,
+      "daMax": 0.011,
+      "betaDeg": -0.15,
+      "bankDeg": -0.32,
+      "tqRoll": 602.8,
+      "pfYaw": 14.3,
+      "gyroYaw": -2.6
+     },
+     "CROSSWIND": {
+      "s": 35,
+      "V": 42,
+      "dr": -0.073,
+      "drMin": -0.097,
+      "drMax": 0,
+      "da": 0.01,
+      "daMin": -0.109,
+      "daMax": 0.038,
+      "betaDeg": -0.05,
+      "bankDeg": -12.76,
+      "tqRoll": 493.5,
+      "pfYaw": 14.9,
+      "gyroYaw": -4.4
+     },
+     "DOWNWIND": {
+      "s": 71,
+      "V": 56.8,
+      "dr": -0.052,
+      "drMin": -0.079,
+      "drMax": 0,
+      "da": 0.005,
+      "daMin": -0.005,
+      "daMax": 0.032,
+      "betaDeg": -0.03,
+      "bankDeg": -5.85,
+      "tqRoll": 447.1,
+      "pfYaw": -13.2,
+      "gyroYaw": -2.4
+     },
+     "BASE": {
+      "s": 41.5,
+      "V": 46.3,
+      "dr": -0.031,
+      "drMin": -0.068,
+      "drMax": 0.03,
+      "da": 0.006,
+      "daMin": -0.038,
+      "daMax": 0.065,
+      "betaDeg": 0,
+      "bankDeg": -9.68,
+      "tqRoll": 246.1,
+      "pfYaw": 6,
+      "gyroYaw": -4.9
+     },
+     "FINAL": {
+      "s": 105.5,
+      "V": 28.6,
+      "dr": -0.068,
+      "drMin": -0.093,
+      "drMax": 0.054,
+      "da": 0.01,
+      "daMin": -0.066,
+      "daMax": 0.202,
+      "betaDeg": 0.02,
+      "bankDeg": -2.41,
+      "tqRoll": 229.4,
+      "pfYaw": 3.3,
+      "gyroYaw": -1.7
+     },
+     "FLARE": {
+      "s": 3.7,
+      "V": 26.5,
+      "dr": -0.046,
+      "drMin": -0.077,
+      "drMax": 0,
+      "da": 0,
+      "daMin": -0.006,
+      "daMax": 0.01,
+      "betaDeg": -1.25,
+      "bankDeg": 0.2,
+      "tqRoll": 69.4,
+      "pfYaw": 4.3,
+      "gyroYaw": -1.9
+     },
+     "ROLLOUT": {
+      "s": 65.3,
+      "V": 2.9,
+      "dr": 0.012,
+      "drMin": -0.95,
+      "drMax": 0.121,
+      "da": 0.025,
+      "daMin": -0.3,
+      "daMax": 0.3,
+      "betaDeg": -0.18,
+      "bankDeg": -2.55,
+      "tqRoll": 60.1,
+      "pfYaw": 1,
+      "gyroYaw": -0.5
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0.056,
+      "drMin": 0,
+      "drMax": 0.056,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.14,
+      "tqRoll": 60.1,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "floats:off": {
+   "id": "floats:off",
+   "key": "floats",
+   "variant": "off",
+   "label": "Cessna floats",
+   "sense": [
+    1
+   ],
+   "I": 1.68,
+   "D": 2.06,
+   "static": {
+    "rpm": [
+     2372
+    ],
+    "Q": [
+     648.9
+    ],
+    "H": [
+     0
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2998,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0,
+    "V": 9.5,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 383,
+    "rollMaxOffM": 0,
+    "liftoff": {
+     "offM": 0,
+     "hdgDeg": 0,
+     "along": 435.3,
+     "t": 29.6
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 29.6,
+      "V": 14.7,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 9.1,
+      "V": 31.1,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 19.3,
+      "V": 39.7,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 35.3,
+      "V": 41.9,
+      "dr": 0.013,
+      "drMin": -0.016,
+      "drMax": 0.036,
+      "da": 0.003,
+      "daMin": -0.117,
+      "daMax": 0.044,
+      "betaDeg": -0.03,
+      "bankDeg": -12.77,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 71.5,
+      "V": 56.8,
+      "dr": 0.004,
+      "drMin": -0.01,
+      "drMax": 0.015,
+      "da": 0.002,
+      "daMin": -0.007,
+      "daMax": 0.03,
+      "betaDeg": 0.02,
+      "bankDeg": -5.73,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 41.5,
+      "V": 46.3,
+      "dr": 0.01,
+      "drMin": -0.013,
+      "drMax": 0.042,
+      "da": 0.003,
+      "daMin": -0.039,
+      "daMax": 0.068,
+      "betaDeg": 0,
+      "bankDeg": -9.67,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 105.6,
+      "V": 28.6,
+      "dr": 0.006,
+      "drMin": -0.004,
+      "drMax": 0.08,
+      "da": 0.002,
+      "daMin": -0.071,
+      "daMax": 0.197,
+      "betaDeg": 0,
+      "bankDeg": -2.42,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 3.7,
+      "V": 26.5,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 67.4,
+      "V": 3.3,
+      "dr": 0,
+      "drMin": -0.145,
+      "drMax": 0.132,
+      "da": 0,
+      "daMin": -0.023,
+      "daMax": 0.001,
+      "betaDeg": 0,
+      "bankDeg": 0.02,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "twinFloats:off": {
+   "id": "twinFloats:off",
+   "key": "twinFloats",
+   "variant": "off",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2299,
+     2299
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     0,
+     0
+    ],
+    "swirl": [
+     0,
+     0
+    ],
+    "wakeR": [
+     0,
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0.01,
+    "V": 23,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 291.9,
+    "rollMaxOffM": 0.03,
+    "liftoff": {
+     "offM": -0.03,
+     "hdgDeg": 0.02,
+     "along": 82.9,
+     "t": 7.6
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.6,
+      "V": 10.8,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.004,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.8,
+      "V": 24.4,
+      "dr": 0,
+      "drMin": -0.001,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": -0.003,
+      "daMax": 0.001,
+      "betaDeg": 0.01,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 10,
+      "V": 28.2,
+      "dr": 0,
+      "drMin": -0.001,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 19.7,
+      "V": 30.3,
+      "dr": -0.029,
+      "drMin": -0.058,
+      "drMax": 0.035,
+      "da": -0.026,
+      "daMin": -0.107,
+      "daMax": 0.218,
+      "betaDeg": 0.02,
+      "bankDeg": 12.55,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 71,
+      "V": 36.1,
+      "dr": 0.006,
+      "drMin": -0.011,
+      "drMax": 0.035,
+      "da": 0.003,
+      "daMin": -0.059,
+      "daMax": 0.049,
+      "betaDeg": -0.01,
+      "bankDeg": -4.13,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 23.3,
+      "V": 31.1,
+      "dr": 0.026,
+      "drMin": -0.01,
+      "drMax": 0.069,
+      "da": 0.01,
+      "daMin": -0.074,
+      "daMax": 0.102,
+      "betaDeg": 0.01,
+      "bankDeg": -11.86,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 105.3,
+      "V": 21.6,
+      "dr": 0.006,
+      "drMin": -0.007,
+      "drMax": 0.133,
+      "da": 0.005,
+      "daMin": -0.116,
+      "daMax": 0.3,
+      "betaDeg": 0,
+      "bankDeg": -2.09,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 4.1,
+      "V": 19.9,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 47,
+      "V": 2.9,
+      "dr": 0.001,
+      "drMin": -0.002,
+      "drMax": 0.005,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0.002,
+      "drMin": 0,
+      "drMax": 0.002,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "twinFloats:on": {
+   "id": "twinFloats:on",
+   "key": "twinFloats",
+   "variant": "on",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2300,
+     2300
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     109.7,
+     109.7
+    ],
+    "swirl": [
+     9.67,
+     9.67
+    ],
+    "wakeR": [
+     0.78,
+     0.78
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": -2.9
+   },
+   "handsOff": {
+    "swingDeg": 14.13,
+    "V": 22.6,
+    "offM": -11.09
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 291.7,
+    "rollMaxOffM": 2.12,
+    "liftoff": {
+     "offM": -2.12,
+     "hdgDeg": 0.28,
+     "along": 85.1,
+     "t": 7.7
+    },
+    "gyroPeakYaw": -68,
+    "gyroPeakPitchRate": 0.312,
+    "tailUp": {
+     "yaw": 67.5,
+     "q": -0.308,
+     "V": 9
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.7,
+      "V": 11,
+      "dr": -0.031,
+      "drMin": -0.14,
+      "drMax": 0.144,
+      "da": 0.039,
+      "daMin": 0,
+      "daMax": 0.093,
+      "betaDeg": -0.72,
+      "bankDeg": -1.59,
+      "tqRoll": 347.8,
+      "pfYaw": 4.1,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.4,
+      "V": 24.1,
+      "dr": 0,
+      "drMin": -0.045,
+      "drMax": 0.065,
+      "da": 0.032,
+      "daMin": -0.08,
+      "daMax": 0.08,
+      "betaDeg": -0.07,
+      "bankDeg": -0.28,
+      "tqRoll": 369.3,
+      "pfYaw": 11.8,
+      "gyroYaw": -14.9
+     },
+     "CLIMB": {
+      "s": 10.2,
+      "V": 28.2,
+      "dr": -0.003,
+      "drMin": -0.004,
+      "drMax": 0,
+      "da": 0.015,
+      "daMin": 0,
+      "daMax": 0.022,
+      "betaDeg": 0.03,
+      "bankDeg": 0.39,
+      "tqRoll": 343.4,
+      "pfYaw": 8.5,
+      "gyroYaw": 1.5
+     },
+     "CROSSWIND": {
+      "s": 19.7,
+      "V": 30.2,
+      "dr": -0.03,
+      "drMin": -0.061,
+      "drMax": 0.033,
+      "da": -0.016,
+      "daMin": -0.108,
+      "daMax": 0.229,
+      "betaDeg": 0.01,
+      "bankDeg": 12.46,
+      "tqRoll": 252.3,
+      "pfYaw": 10.5,
+      "gyroYaw": -2.4
+     },
+     "DOWNWIND": {
+      "s": 71.1,
+      "V": 36.1,
+      "dr": 0.005,
+      "drMin": -0.011,
+      "drMax": 0.035,
+      "da": 0.01,
+      "daMin": -0.054,
+      "daMax": 0.056,
+      "betaDeg": -0.01,
+      "bankDeg": -4.12,
+      "tqRoll": 220.8,
+      "pfYaw": 4.1,
+      "gyroYaw": -1.3
+     },
+     "BASE": {
+      "s": 23.3,
+      "V": 31.1,
+      "dr": 0.026,
+      "drMin": -0.01,
+      "drMax": 0.068,
+      "da": 0.016,
+      "daMin": -0.07,
+      "daMax": 0.106,
+      "betaDeg": 0.01,
+      "bankDeg": -11.85,
+      "tqRoll": 155.7,
+      "pfYaw": 8.4,
+      "gyroYaw": -4.5
+     },
+     "FINAL": {
+      "s": 105.3,
+      "V": 21.6,
+      "dr": 0.003,
+      "drMin": -0.01,
+      "drMax": 0.132,
+      "da": 0.012,
+      "daMin": -0.107,
+      "daMax": 0.3,
+      "betaDeg": 0,
+      "bankDeg": -2.07,
+      "tqRoll": 82.5,
+      "pfYaw": 13.3,
+      "gyroYaw": -0.9
+     },
+     "FLARE": {
+      "s": 4.1,
+      "V": 19.9,
+      "dr": -0.003,
+      "drMin": -0.004,
+      "drMax": 0,
+      "da": 0.003,
+      "daMin": 0,
+      "daMax": 0.007,
+      "betaDeg": -0.01,
+      "bankDeg": 0.05,
+      "tqRoll": 34.4,
+      "pfYaw": 8.6,
+      "gyroYaw": -0.4
+     },
+     "ROLLOUT": {
+      "s": 46.9,
+      "V": 2.9,
+      "dr": 0.024,
+      "drMin": -0.029,
+      "drMax": 0.079,
+      "da": 0,
+      "daMin": -0.002,
+      "daMax": 0.012,
+      "betaDeg": -0.01,
+      "bankDeg": -0.16,
+      "tqRoll": 34.2,
+      "pfYaw": 1.1,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0.08,
+      "drMin": 0,
+      "drMax": 0.08,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.15,
+      "tqRoll": 34.2,
+      "pfYaw": 0.1,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "cub:torque": {
+   "id": "cub:torque",
+   "key": "cub",
+   "variant": "torque",
+   "label": "Cub",
+   "sense": [
+    1
+   ],
+   "I": 0.683,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.8
+    ],
+    "H": [
+     151.1
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 1177,
+    "bankDeg": -0.5
+   },
+   "handsOff": {
+    "swingDeg": -0.05,
+    "V": 10.3,
+    "offM": 0.01
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 334.8,
+    "rollMaxOffM": 0.03,
+    "liftoff": {
+     "offM": -0.03,
+     "hdgDeg": 0,
+     "along": 106.3,
+     "t": 11.9
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 11.9,
+      "V": 8.9,
+      "dr": 0.003,
+      "drMin": -0.003,
+      "drMax": 0.027,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0.01,
+      "betaDeg": -0.06,
+      "bankDeg": -0.49,
+      "tqRoll": 193.7,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 15.3,
+      "V": 17.6,
+      "dr": -0.004,
+      "drMin": -0.008,
+      "drMax": 0,
+      "da": 0.016,
+      "daMin": 0,
+      "daMax": 0.045,
+      "betaDeg": 0.02,
+      "bankDeg": 0.09,
+      "tqRoll": 201,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 17.5,
+      "V": 23.3,
+      "dr": -0.004,
+      "drMin": -0.005,
+      "drMax": 0,
+      "da": 0.009,
+      "daMin": 0,
+      "daMax": 0.012,
+      "betaDeg": 0.01,
+      "bankDeg": -0.05,
+      "tqRoll": 200.4,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 18.9,
+      "V": 24.5,
+      "dr": 0.03,
+      "drMin": -0.063,
+      "drMax": 0.069,
+      "da": 0.02,
+      "daMin": -0.153,
+      "daMax": 0.074,
+      "betaDeg": -0.14,
+      "bankDeg": -13.64,
+      "tqRoll": 195,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 103.9,
+      "V": 31.5,
+      "dr": 0.001,
+      "drMin": -0.016,
+      "drMax": 0.04,
+      "da": 0.005,
+      "daMin": -0.034,
+      "daMax": 0.035,
+      "betaDeg": 0.02,
+      "bankDeg": -2.24,
+      "tqRoll": 131.9,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 18.3,
+      "V": 28.6,
+      "dr": 0.032,
+      "drMin": -0.018,
+      "drMax": 0.081,
+      "da": 0.013,
+      "daMin": -0.039,
+      "daMax": 0.057,
+      "betaDeg": 0.03,
+      "bankDeg": -13.93,
+      "tqRoll": 102.5,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 125,
+      "V": 21.2,
+      "dr": 0.003,
+      "drMin": -0.024,
+      "drMax": 0.132,
+      "da": 0.006,
+      "daMin": -0.057,
+      "daMax": 0.217,
+      "betaDeg": 0,
+      "bankDeg": -1.65,
+      "tqRoll": 66.5,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 6.7,
+      "V": 19.6,
+      "dr": -0.002,
+      "drMin": -0.002,
+      "drMax": 0,
+      "da": 0.003,
+      "daMin": 0,
+      "daMax": 0.005,
+      "betaDeg": -0.02,
+      "bankDeg": -0.01,
+      "tqRoll": 53.3,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 17.4,
+      "V": 9.5,
+      "dr": 0,
+      "drMin": -0.014,
+      "drMax": 0.032,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0.005,
+      "betaDeg": -0.01,
+      "bankDeg": -0.05,
+      "tqRoll": 18.6,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": -0.05,
+      "tqRoll": 18.6,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "cub:gyro": {
+   "id": "cub:gyro",
+   "key": "cub",
+   "variant": "gyro",
+   "label": "Cub",
+   "sense": [
+    1
+   ],
+   "I": 0.683,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.8
+    ],
+    "H": [
+     151.1
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 1177,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0,
+    "V": 10.3,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 334.9,
+    "rollMaxOffM": 0.1,
+    "liftoff": {
+     "offM": -0.1,
+     "hdgDeg": 0.04,
+     "along": 106.3,
+     "t": 11.9
+    },
+    "gyroPeakYaw": -5.4,
+    "gyroPeakPitchRate": 0.035,
+    "tailUp": {
+     "yaw": 3.6,
+     "q": -0.023,
+     "V": 11.2
+    },
+    "phases": {
+     "ROLL": {
+      "s": 11.9,
+      "V": 8.9,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.011,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0.7
+     },
+     "LIFTOFF": {
+      "s": 15.3,
+      "V": 17.7,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.002,
+      "da": 0,
+      "daMin": -0.002,
+      "daMax": 0.002,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -0.5
+     },
+     "CLIMB": {
+      "s": 17.5,
+      "V": 23.3,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": -0.001,
+      "daMax": 0.001,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0.2
+     },
+     "CROSSWIND": {
+      "s": 18.9,
+      "V": 24.5,
+      "dr": 0.035,
+      "drMin": -0.057,
+      "drMax": 0.074,
+      "da": 0.012,
+      "daMin": -0.16,
+      "daMax": 0.068,
+      "betaDeg": -0.14,
+      "bankDeg": -13.67,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -3.2
+     },
+     "DOWNWIND": {
+      "s": 103.9,
+      "V": 31.5,
+      "dr": 0.005,
+      "drMin": -0.012,
+      "drMax": 0.045,
+      "da": 0.001,
+      "daMin": -0.037,
+      "daMax": 0.031,
+      "betaDeg": 0.02,
+      "bankDeg": -2.28,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -0.6
+     },
+     "BASE": {
+      "s": 18.3,
+      "V": 28.6,
+      "dr": 0.035,
+      "drMin": -0.013,
+      "drMax": 0.083,
+      "da": 0.01,
+      "daMin": -0.04,
+      "daMax": 0.054,
+      "betaDeg": 0.03,
+      "bankDeg": -13.96,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -4
+     },
+     "FINAL": {
+      "s": 125,
+      "V": 21.2,
+      "dr": 0.006,
+      "drMin": -0.019,
+      "drMax": 0.134,
+      "da": 0.002,
+      "daMin": -0.062,
+      "daMax": 0.212,
+      "betaDeg": 0,
+      "bankDeg": -1.65,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -0.6
+     },
+     "FLARE": {
+      "s": 6.7,
+      "V": 19.6,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -0.7
+     },
+     "ROLLOUT": {
+      "s": 17.4,
+      "V": 9.5,
+      "dr": 0,
+      "drMin": -0.007,
+      "drMax": 0.006,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": -0.3
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "cub:pfactor": {
+   "id": "cub:pfactor",
+   "key": "cub",
+   "variant": "pfactor",
+   "label": "Cub",
+   "sense": [
+    1
+   ],
+   "I": 0.683,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.8
+    ],
+    "H": [
+     151.1
+    ],
+    "swirl": [
+     0
+    ],
+    "wakeR": [
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 1177,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0.01,
+    "V": 10.3,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 334.9,
+    "rollMaxOffM": 0.01,
+    "liftoff": {
+     "offM": -0.01,
+     "hdgDeg": 0,
+     "along": 106.3,
+     "t": 11.9
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 11.9,
+      "V": 8.9,
+      "dr": -0.001,
+      "drMin": -0.007,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 5.2,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 15.3,
+      "V": 17.7,
+      "dr": -0.001,
+      "drMin": -0.002,
+      "drMax": 0.002,
+      "da": 0,
+      "daMin": -0.004,
+      "daMax": 0.001,
+      "betaDeg": 0,
+      "bankDeg": 0.02,
+      "tqRoll": 0,
+      "pfYaw": 4.7,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 17.5,
+      "V": 23.3,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": -0.01,
+      "bankDeg": -0.01,
+      "tqRoll": 0,
+      "pfYaw": -2,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 18.9,
+      "V": 24.5,
+      "dr": 0.035,
+      "drMin": -0.057,
+      "drMax": 0.074,
+      "da": 0.011,
+      "daMin": -0.16,
+      "daMax": 0.067,
+      "betaDeg": -0.15,
+      "bankDeg": -13.67,
+      "tqRoll": 0,
+      "pfYaw": -3.4,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 103.9,
+      "V": 31.5,
+      "dr": 0.007,
+      "drMin": -0.011,
+      "drMax": 0.046,
+      "da": 0.001,
+      "daMin": -0.038,
+      "daMax": 0.031,
+      "betaDeg": 0.02,
+      "bankDeg": -2.3,
+      "tqRoll": 0,
+      "pfYaw": -11.1,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 18.3,
+      "V": 28.6,
+      "dr": 0.036,
+      "drMin": -0.013,
+      "drMax": 0.085,
+      "da": 0.01,
+      "daMin": -0.04,
+      "daMax": 0.054,
+      "betaDeg": 0.04,
+      "bankDeg": -13.96,
+      "tqRoll": 0,
+      "pfYaw": -5.8,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 125,
+      "V": 21.2,
+      "dr": 0.004,
+      "drMin": -0.021,
+      "drMax": 0.135,
+      "da": 0.002,
+      "daMin": -0.061,
+      "daMax": 0.212,
+      "betaDeg": 0,
+      "bankDeg": -1.64,
+      "tqRoll": 0,
+      "pfYaw": 2.8,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 6.7,
+      "V": 19.6,
+      "dr": -0.002,
+      "drMin": -0.002,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0.01,
+      "bankDeg": 0.01,
+      "tqRoll": 0,
+      "pfYaw": 4.3,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 17.4,
+      "V": 9.5,
+      "dr": 0,
+      "drMin": -0.008,
+      "drMax": 0.002,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 1.3,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "twinFloats:cut0": {
+   "id": "twinFloats:cut0",
+   "key": "twinFloats",
+   "variant": "cut0",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2300,
+     2300
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     109.7,
+     109.7
+    ],
+    "swirl": [
+     9.67,
+     9.67
+    ],
+    "wakeR": [
+     0.78,
+     0.78
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": -2.9
+   },
+   "handsOff": {
+    "swingDeg": 14.13,
+    "V": 22.6,
+    "offM": -11.09
+   },
+   "cut": {
+    "engine": "port",
+    "at": 15.2,
+    "n": 600,
+    "V": 24.8,
+    "dr": 0.224,
+    "drMin": 0,
+    "da": 0.012,
+    "betaDeg": -6.22,
+    "bankDeg": -6.98
+   },
+   "pilot": {
+    "outcome": null,
+    "t": 28.2,
+    "rollMaxOffM": 2.12,
+    "liftoff": {
+     "offM": -2.12,
+     "hdgDeg": 0.28,
+     "along": 85.1,
+     "t": 7.7
+    },
+    "gyroPeakYaw": -68,
+    "gyroPeakPitchRate": 0.312,
+    "tailUp": {
+     "yaw": 67.5,
+     "q": -0.308,
+     "V": 9
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.7,
+      "V": 11,
+      "dr": -0.031,
+      "drMin": -0.14,
+      "drMax": 0.144,
+      "da": 0.039,
+      "daMin": 0,
+      "daMax": 0.093,
+      "betaDeg": -0.72,
+      "bankDeg": -1.59,
+      "tqRoll": 347.8,
+      "pfYaw": 4.1,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.4,
+      "V": 24.1,
+      "dr": 0,
+      "drMin": -0.045,
+      "drMax": 0.065,
+      "da": 0.032,
+      "daMin": -0.08,
+      "daMax": 0.08,
+      "betaDeg": -0.07,
+      "bankDeg": -0.28,
+      "tqRoll": 369.3,
+      "pfYaw": 11.8,
+      "gyroYaw": -14.9
+     },
+     "CLIMB": {
+      "s": 15.7,
+      "V": 25.4,
+      "dr": 0.156,
+      "drMin": -0.004,
+      "drMax": 0.241,
+      "da": -0.014,
+      "daMin": -0.129,
+      "daMax": 0.022,
+      "betaDeg": -4.84,
+      "bankDeg": -4.35,
+      "tqRoll": 243.4,
+      "pfYaw": 10.6,
+      "gyroYaw": 1.2
+     },
+     "CROSSWIND": {
+      "s": 1.3,
+      "V": 24.6,
+      "dr": 0.173,
+      "drMin": 0,
+      "drMax": 0.234,
+      "da": 0.197,
+      "daMin": -0.002,
+      "daMax": 0.28,
+      "betaDeg": -5.58,
+      "bankDeg": -2.73,
+      "tqRoll": 200.3,
+      "pfYaw": 13.6,
+      "gyroYaw": 0.5
+     }
+    }
+   }
+  },
+  "twinFloats:cut1": {
+   "id": "twinFloats:cut1",
+   "key": "twinFloats",
+   "variant": "cut1",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2300,
+     2300
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     109.7,
+     109.7
+    ],
+    "swirl": [
+     9.67,
+     9.67
+    ],
+    "wakeR": [
+     0.78,
+     0.78
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": -2.9
+   },
+   "handsOff": {
+    "swingDeg": 14.13,
+    "V": 22.6,
+    "offM": -11.09
+   },
+   "cut": {
+    "engine": "starboard",
+    "at": 15.2,
+    "n": 600,
+    "V": 24.8,
+    "dr": -0.237,
+    "drMin": -0.25,
+    "da": 0.053,
+    "betaDeg": 6.34,
+    "bankDeg": 7.72
+   },
+   "pilot": {
+    "outcome": null,
+    "t": 28.2,
+    "rollMaxOffM": 2.12,
+    "liftoff": {
+     "offM": -2.12,
+     "hdgDeg": 0.28,
+     "along": 85.1,
+     "t": 7.7
+    },
+    "gyroPeakYaw": -68,
+    "gyroPeakPitchRate": 0.312,
+    "tailUp": {
+     "yaw": 67.5,
+     "q": -0.308,
+     "V": 9
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.7,
+      "V": 11,
+      "dr": -0.031,
+      "drMin": -0.14,
+      "drMax": 0.144,
+      "da": 0.039,
+      "daMin": 0,
+      "daMax": 0.093,
+      "betaDeg": -0.72,
+      "bankDeg": -1.59,
+      "tqRoll": 347.8,
+      "pfYaw": 4.1,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.4,
+      "V": 24.1,
+      "dr": 0,
+      "drMin": -0.045,
+      "drMax": 0.065,
+      "da": 0.032,
+      "daMin": -0.08,
+      "daMax": 0.08,
+      "betaDeg": -0.07,
+      "bankDeg": -0.28,
+      "tqRoll": 369.3,
+      "pfYaw": 11.8,
+      "gyroYaw": -14.9
+     },
+     "CLIMB": {
+      "s": 15.9,
+      "V": 25.4,
+      "dr": -0.162,
+      "drMin": -0.244,
+      "drMax": 0,
+      "da": 0.04,
+      "daMin": 0,
+      "daMax": 0.146,
+      "betaDeg": 4.87,
+      "bankDeg": 4.66,
+      "tqRoll": 243,
+      "pfYaw": 10.6,
+      "gyroYaw": 1.3
+     },
+     "CROSSWIND": {
+      "s": 1.1,
+      "V": 24.7,
+      "dr": -0.249,
+      "drMin": -0.25,
+      "drMax": 0,
+      "da": 0.176,
+      "daMin": 0,
+      "daMax": 0.262,
+      "betaDeg": 7.39,
+      "bankDeg": 10.71,
+      "tqRoll": 200.3,
+      "pfYaw": 14.4,
+      "gyroYaw": -0.4
+     }
+    }
+   }
+  },
+  "twinFloats:counter": {
+   "id": "twinFloats:counter",
+   "key": "twinFloats",
+   "variant": "counter",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    -1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2299,
+     2299
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     109.7,
+     109.7
+    ],
+    "swirl": [
+     9.67,
+     -9.67
+    ],
+    "wakeR": [
+     0.78,
+     0.78
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0.01,
+    "V": 23,
+    "offM": 0
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 291.9,
+    "rollMaxOffM": 0.03,
+    "liftoff": {
+     "offM": -0.03,
+     "hdgDeg": 0.02,
+     "along": 82.9,
+     "t": 7.6
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.6,
+      "V": 10.8,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.004,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.8,
+      "V": 24.4,
+      "dr": 0,
+      "drMin": -0.001,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": -0.002,
+      "daMax": 0.001,
+      "betaDeg": 0.01,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 10,
+      "V": 28.2,
+      "dr": 0,
+      "drMin": -0.001,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 19.7,
+      "V": 30.3,
+      "dr": -0.029,
+      "drMin": -0.058,
+      "drMax": 0.035,
+      "da": -0.026,
+      "daMin": -0.107,
+      "daMax": 0.218,
+      "betaDeg": 0.02,
+      "bankDeg": 12.55,
+      "tqRoll": 0,
+      "pfYaw": -0.3,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 71,
+      "V": 36.1,
+      "dr": 0.006,
+      "drMin": -0.011,
+      "drMax": 0.035,
+      "da": 0.003,
+      "daMin": -0.059,
+      "daMax": 0.049,
+      "betaDeg": -0.01,
+      "bankDeg": -4.13,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 23.3,
+      "V": 31.1,
+      "dr": 0.026,
+      "drMin": -0.01,
+      "drMax": 0.069,
+      "da": 0.01,
+      "daMin": -0.074,
+      "daMax": 0.102,
+      "betaDeg": 0.01,
+      "bankDeg": -11.85,
+      "tqRoll": 0,
+      "pfYaw": 0.1,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 105.3,
+      "V": 21.6,
+      "dr": 0.006,
+      "drMin": -0.007,
+      "drMax": 0.133,
+      "da": 0.005,
+      "daMin": -0.116,
+      "daMax": 0.3,
+      "betaDeg": 0,
+      "bankDeg": -2.09,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 4.2,
+      "V": 19.9,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 47,
+      "V": 2.9,
+      "dr": 0.001,
+      "drMin": -0.001,
+      "drMax": 0.005,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0.002,
+      "drMin": 0,
+      "drMax": 0.002,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "twinFloats:cut0off": {
+   "id": "twinFloats:cut0off",
+   "key": "twinFloats",
+   "variant": "cut0off",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2299,
+     2299
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     0,
+     0
+    ],
+    "swirl": [
+     0,
+     0
+    ],
+    "wakeR": [
+     0,
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0.01,
+    "V": 23,
+    "offM": 0
+   },
+   "cut": {
+    "engine": "port",
+    "at": 15.5,
+    "n": 600,
+    "V": 24.8,
+    "dr": 0.223,
+    "drMin": 0,
+    "da": 0.014,
+    "betaDeg": -5.88,
+    "bankDeg": -5.75
+   },
+   "pilot": {
+    "outcome": null,
+    "t": 28.5,
+    "rollMaxOffM": 0.03,
+    "liftoff": {
+     "offM": -0.03,
+     "hdgDeg": 0.02,
+     "along": 82.9,
+     "t": 7.6
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.6,
+      "V": 10.8,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.004,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.8,
+      "V": 24.4,
+      "dr": 0,
+      "drMin": -0.001,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": -0.003,
+      "daMax": 0.001,
+      "betaDeg": 0.01,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 15.1,
+      "V": 25.5,
+      "dr": 0.155,
+      "drMin": -0.001,
+      "drMax": 0.242,
+      "da": -0.028,
+      "daMin": -0.136,
+      "daMax": 0,
+      "betaDeg": -4.75,
+      "bankDeg": -4.36,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 1.9,
+      "V": 24.6,
+      "dr": 0.176,
+      "drMin": 0,
+      "drMax": 0.235,
+      "da": 0.191,
+      "daMin": -0.015,
+      "daMax": 0.277,
+      "betaDeg": -4.37,
+      "bankDeg": 1.56,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "twinFloats:cut1off": {
+   "id": "twinFloats:cut1off",
+   "key": "twinFloats",
+   "variant": "cut1off",
+   "label": "twin floatplane",
+   "sense": [
+    1,
+    1
+   ],
+   "I": 0.455,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2299,
+     2299
+    ],
+    "Q": [
+     184.7,
+     184.7
+    ],
+    "H": [
+     0,
+     0
+    ],
+    "swirl": [
+     0,
+     0
+    ],
+    "wakeR": [
+     0,
+     0
+    ],
+    "finSwirlDeg": null,
+    "thrust": 2382,
+    "bankDeg": 0
+   },
+   "handsOff": {
+    "swingDeg": 0.01,
+    "V": 23,
+    "offM": 0
+   },
+   "cut": {
+    "engine": "starboard",
+    "at": 15.5,
+    "n": 600,
+    "V": 24.8,
+    "dr": -0.237,
+    "drMin": -0.25,
+    "da": 0.046,
+    "betaDeg": 6.73,
+    "bankDeg": 8.59
+   },
+   "pilot": {
+    "outcome": null,
+    "t": 28.5,
+    "rollMaxOffM": 0.03,
+    "liftoff": {
+     "offM": -0.03,
+     "hdgDeg": 0.02,
+     "along": 82.9,
+     "t": 7.6
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 7.6,
+      "V": 10.8,
+      "dr": 0,
+      "drMin": -0.002,
+      "drMax": 0.004,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 3.8,
+      "V": 24.4,
+      "dr": 0,
+      "drMin": -0.001,
+      "drMax": 0.001,
+      "da": 0,
+      "daMin": -0.003,
+      "daMax": 0.001,
+      "betaDeg": 0.01,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 15.1,
+      "V": 25.5,
+      "dr": -0.155,
+      "drMin": -0.242,
+      "drMax": 0,
+      "da": 0.028,
+      "daMin": 0,
+      "daMax": 0.136,
+      "betaDeg": 4.75,
+      "bankDeg": 4.36,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 1.9,
+      "V": 24.7,
+      "dr": -0.249,
+      "drMin": -0.25,
+      "drMax": 0,
+      "da": 0.128,
+      "daMin": 0,
+      "daMax": 0.246,
+      "betaDeg": 8.83,
+      "bankDeg": 13.55,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  },
+  "cub:swirl": {
+   "id": "cub:swirl",
+   "key": "cub",
+   "variant": "swirl",
+   "label": "Cub",
+   "sense": [
+    1
+   ],
+   "I": 0.683,
+   "D": 1.91,
+   "static": {
+    "rpm": [
+     2112
+    ],
+    "Q": [
+     194.8
+    ],
+    "H": [
+     151.1
+    ],
+    "swirl": [
+     18.92
+    ],
+    "wakeR": [
+     0.68
+    ],
+    "finSwirlDeg": 21.2,
+    "thrust": 1177,
+    "bankDeg": 0.64
+   },
+   "handsOff": {
+    "swingDeg": 22.3,
+    "V": 10.5,
+    "offM": -2.51
+   },
+   "pilot": {
+    "outcome": "completed",
+    "t": 334.1,
+    "rollMaxOffM": 1.1,
+    "liftoff": {
+     "offM": -1.1,
+     "hdgDeg": 0.35,
+     "along": 105.1,
+     "t": 11.7
+    },
+    "gyroPeakYaw": 0,
+    "gyroPeakPitchRate": 0,
+    "tailUp": {
+     "yaw": 0,
+     "q": 0,
+     "V": 0
+    },
+    "phases": {
+     "ROLL": {
+      "s": 11.7,
+      "V": 9,
+      "dr": -0.125,
+      "drMin": -0.437,
+      "drMax": 0,
+      "da": -0.001,
+      "daMin": -0.017,
+      "daMax": 0,
+      "betaDeg": 0.05,
+      "bankDeg": 0.39,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "LIFTOFF": {
+      "s": 15,
+      "V": 17.6,
+      "dr": -0.149,
+      "drMin": -0.18,
+      "drMax": 0.008,
+      "da": -0.009,
+      "daMin": -0.051,
+      "daMax": 0.043,
+      "betaDeg": 1.02,
+      "bankDeg": 0.07,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CLIMB": {
+      "s": 17.3,
+      "V": 23.3,
+      "dr": -0.138,
+      "drMin": -0.159,
+      "drMax": 0,
+      "da": -0.006,
+      "daMin": -0.008,
+      "daMax": 0,
+      "betaDeg": -0.18,
+      "bankDeg": 0.02,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "CROSSWIND": {
+      "s": 18.9,
+      "V": 24.5,
+      "dr": -0.091,
+      "drMin": -0.157,
+      "drMax": 0,
+      "da": 0.006,
+      "daMin": -0.164,
+      "daMax": 0.066,
+      "betaDeg": -0.2,
+      "bankDeg": -13.69,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "DOWNWIND": {
+      "s": 103.7,
+      "V": 31.5,
+      "dr": -0.058,
+      "drMin": -0.078,
+      "drMax": 0,
+      "da": -0.001,
+      "daMin": -0.038,
+      "daMax": 0.029,
+      "betaDeg": -0.03,
+      "bankDeg": -2.29,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "BASE": {
+      "s": 18.3,
+      "V": 28.6,
+      "dr": -0.021,
+      "drMin": -0.08,
+      "drMax": 0.049,
+      "da": 0.008,
+      "daMin": -0.042,
+      "daMax": 0.052,
+      "betaDeg": 0.07,
+      "bankDeg": -13.94,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FINAL": {
+      "s": 125,
+      "V": 21.2,
+      "dr": -0.053,
+      "drMin": -0.09,
+      "drMax": 0.077,
+      "da": 0.001,
+      "daMin": -0.063,
+      "daMax": 0.209,
+      "betaDeg": -0.01,
+      "bankDeg": -1.65,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "FLARE": {
+      "s": 6.7,
+      "V": 19.6,
+      "dr": -0.048,
+      "drMin": -0.069,
+      "drMax": 0,
+      "da": 0,
+      "daMin": -0.007,
+      "daMax": 0.002,
+      "betaDeg": 0.12,
+      "bankDeg": -0.03,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "ROLLOUT": {
+      "s": 17.4,
+      "V": 9.5,
+      "dr": -0.002,
+      "drMin": -0.14,
+      "drMax": 0.138,
+      "da": 0,
+      "daMin": -0.002,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0.02,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     },
+     "STOPPED": {
+      "s": 0,
+      "V": 0.4,
+      "dr": 0,
+      "drMin": 0,
+      "drMax": 0,
+      "da": 0,
+      "daMin": 0,
+      "daMax": 0,
+      "betaDeg": 0,
+      "bankDeg": 0,
+      "tqRoll": 0,
+      "pfYaw": 0,
+      "gyroYaw": 0
+     }
+    }
+   }
+  }
+ }
+}

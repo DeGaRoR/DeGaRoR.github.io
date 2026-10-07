@@ -1803,6 +1803,7 @@ function makeSim(def, world) {
   }
 
   function reset(drop = 0) {
+    PFO.netF = 0; PFO.mErr = 0;
     if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
@@ -1947,6 +1948,199 @@ function makeSim(def, world) {
   const ENG_OF = def.refs.engineOf || def.refs.engine.map(() => 0);
   const ENG_CNT = (() => { const nE = def.params.nEngines || 1, c = new Array(nE).fill(0); for (const k of ENG_OF) if (k < nE) c[k]++; return c; })();
   const CW_I = [0, 0, 0, 0], CW_W = [0, 0, 0, 0];
+  // G2080 ENGINE-TORQUE: THE PROPELLER'S OWN MOMENTS. Until here a propeller was a force along the body axis at its
+  // mount nodes and a scalar wash; nothing knew which way it turned (futureDesigns/PROP-EFFECTS-2026-09-05.md). Four
+  // effects, each from the build's own numbers - the shaft law (00_registry genShaftRpm), the disc, the blades' mass,
+  // the hand (`engines[i].sense`, +1 clockwise from behind):
+  //   REACTION TORQUE  the engine's torque on the crankcase, Q = thrEff . powerK . P_rated / omega_rated (at the prop
+  //                    shaft, through the reduction): the airframe rolls against the prop, sense . Q about +xAft
+  //   GYROSCOPIC       the prop's angular momentum H = I_p . Omega . sense . forward, and the airframe pays H x omega_body
+  //                    whenever it turns (the tail-up's yaw, a pitch in a turn)
+  //   P-FACTOR         blade-element theory, a constant-pitch, constant-chord blade (beta . Omega r = p n along the span):
+  //                    an in-plane air velocity u_p at the disc loads the blade advancing into it, and the moment is
+  //                    M = sense . (K p n / 2 + T / (2 Omega)) . u_p  (a VECTOR along u_p: air from below, a right
+  //                    yaw-left for the Lycoming hand). K = N rho c a R^2 / 4 is calibrated on the model's own static
+  //                    point (K = T0 / (Omega0 (p n0 - v_i0)), p = V0 / n_rated the zero-thrust pitch of the synthesis), so
+  //                    no blade constant is invented; K p is weakly p-dependent (the static thrust carries it)
+  //   SWIRL            the slipstream carries the torque's angular momentum: a solid-body rotation omega_s = 2 Q_s /
+  //                    (rho V_w pi R_w^4) inside the contracted wake (R_w from momentum theory), added to the local air
+  //                    of every TAIL strip the wash reaches (st.wash), about the nearest engine's axis - the fin and the
+  //                    stab answer it through their own polars. NOT the wing: in a nacelle's wake the grid has three
+  //                    strips (wash 0.07 / 0.99 / 0.39 on the twin) that are not centred on the axis, so the swirl made
+  //                    a net LIFT there - a false roll couple at the nacelle's 1.65 m arm that leaned the same-hand twin
+  //                    RIGHT under its own left torque (GATE ENGTORQUE, measured). The wing's real de-swirl (it takes
+  //                    back part of the torque's roll) is the named cut that buys
+  // The three moments are PURE COUPLES (no net force) spread over the engine's mount nodes and their beam neighbours -
+  // f_i = (J^-1 M) x r_i, J = sum(|r|^2 I - r r^T), the least-norm set of forces that makes exactly M.
+  // PAR.propFx gates each (1 = on) for the A/B the gates and the evidence read; read once per sim.
+  const PFX = (typeof PAR !== 'undefined' && PAR.propFx) || {};
+  const FX_TQ = PFX.torque !== 0, FX_GY = PFX.gyro !== 0, FX_PF = PFX.pfactor !== 0, FX_SW = PFX.swirl !== 0;
+  const FX_ON = FX_TQ || FX_GY || FX_PF || FX_SW;
+  const ENG_DEF = P_.engines || [];
+  const SENSE = new Float64Array(Math.max(1, ENG_CNT.length));
+  for (let k = 0; k < SENSE.length; k++) SENSE[k] = (ENG_DEF[k] && ENG_DEF[k].sense === -1) ? -1 : 1;
+  // the prop's polar moment (62_gen_aero: k . m . R^2 from the blades' mass) - a def that states none spins nothing
+  const I_PROP = (PR && PR.I > 0) ? PR.I : 0;
+  // the rated torque at the prop shaft
+  const GEAR = (EN && EN.gear > 0) ? EN.gear : 1;
+  const OMEGA_R = 2 * Math.PI * ((EN && EN.rpm > 0 ? EN.rpm : 2300) / GEAR) / 60;
+  const Q_R = ((EN && EN.powerW > 0) ? EN.powerW : 0) / OMEGA_R;
+  // the P-factor's blade constant K . p at the datum air, off the static full-throttle point
+  const PF_KP = (() => {
+    if (!(PR && PR.Tstatic > 0 && PR.kV2 > 0) || typeof genShaftRpm !== 'function') return 0;
+    const n0 = genShaftRpm(EN, PR, 1, 0, 1, 1, true) / 60, nR = OMEGA_R / (2 * Math.PI);
+    const pitch = Math.sqrt(PR.Tstatic / PR.kV2) / nR;
+    const vi0 = 0.5 * Math.sqrt(2 * PR.Tstatic / (RHO * PROPA));
+    const den = 2 * Math.PI * n0 * Math.max(0.2 * pitch * n0, pitch * n0 - vi0);
+    return den > 0 ? PR.Tstatic * pitch / den : 0;
+  })();
+  // each engine's node set: its mount nodes and every node one beam away
+  const ENG_SET = (() => {
+    const sets = [], adj = new Map();
+    for (const b of def.beams) {
+      const a = b.a != null ? b.a : b[0], c = b.b != null ? b.b : b[1];
+      if (!adj.has(a)) adj.set(a, []); if (!adj.has(c)) adj.set(c, []);
+      adj.get(a).push(c); adj.get(c).push(a);
+    }
+    for (let k = 0; k < SENSE.length; k++) {
+      const s = new Set();
+      for (let j = 0; j < ENG_N.length; j++) if (((ENG_OF[j] | 0) < SENSE.length ? ENG_OF[j] | 0 : 0) === k) {
+        s.add(ENG_N[j]); for (const q of (adj.get(ENG_N[j]) || [])) s.add(q);
+      }
+      sets.push(Int32Array.from(s));
+    }
+    return sets;
+  })();
+  // per engine, refreshed by the thrust pass: the hub (mount centroid), the swirl rate, the wake radius, the sense
+  const SW_HUB = new Float64Array(SENSE.length * 3), SW_W = new Float64Array(SENSE.length), SW_R = new Float64Array(SENSE.length);
+  let swirlOn = false;
+  // the published moments, body components [along xAft, along yUp, along zRt] per engine (+yUp = nose LEFT,
+  // +xAft = left wing down, +zRt = nose up): `out.propFx`
+  const PFO = { Q: new Float64Array(SENSE.length), rpm: new Float64Array(SENSE.length), H: new Float64Array(SENSE.length),
+                tq: new Float64Array(SENSE.length * 3), gyro: new Float64Array(SENSE.length * 3), pf: new Float64Array(SENSE.length * 3),
+                swirl: SW_W, wakeR: SW_R, rate: [0, 0, 0], netF: 0, mErr: 0 };
+  out.propFx = PFO;
+  const _cm = [0, 0, 0], _wb = [0, 0, 0];
+  // the airframe's angular velocity off the axes' own reference nodes: w = x . xdot + (ydot . (x X y)) x
+  function bodyRate(o) {
+    const ax = def.refs.noseFrame, bx = def.refs.tailMid, ay = def.refs.upLo, by = def.refs.upHi;
+    let lx = 0, ly = 0, lz = 0, dx = 0, dy = 0, dz = 0;
+    for (const i of bx) { lx += p[i*3] / bx.length; ly += p[i*3+1] / bx.length; lz += p[i*3+2] / bx.length; dx += v[i*3] / bx.length; dy += v[i*3+1] / bx.length; dz += v[i*3+2] / bx.length; }
+    for (const i of ax) { lx -= p[i*3] / ax.length; ly -= p[i*3+1] / ax.length; lz -= p[i*3+2] / ax.length; dx -= v[i*3] / ax.length; dy -= v[i*3+1] / ax.length; dz -= v[i*3+2] / ax.length; }
+    let L = hyp3(lx, ly, lz) || 1, xd = dx*xAft[0]+dy*xAft[1]+dz*xAft[2];
+    const xdx = (dx - xd*xAft[0]) / L, xdy = (dy - xd*xAft[1]) / L, xdz = (dz - xd*xAft[2]) / L;
+    lx = ly = lz = dx = dy = dz = 0;
+    for (const i of by) { lx += p[i*3] / by.length; ly += p[i*3+1] / by.length; lz += p[i*3+2] / by.length; dx += v[i*3] / by.length; dy += v[i*3+1] / by.length; dz += v[i*3+2] / by.length; }
+    for (const i of ay) { lx -= p[i*3] / ay.length; ly -= p[i*3+1] / ay.length; lz -= p[i*3+2] / ay.length; dx -= v[i*3] / ay.length; dy -= v[i*3+1] / ay.length; dz -= v[i*3+2] / ay.length; }
+    L = hyp3(lx, ly, lz) || 1;
+    // x X y = -zRt (zRt = up x aft)
+    const wx = -(dx*zRt[0] + dy*zRt[1] + dz*zRt[2]) / L;
+    o[0] = xAft[1]*xdz - xAft[2]*xdy + wx * xAft[0];
+    o[1] = xAft[2]*xdx - xAft[0]*xdz + wx * xAft[1];
+    o[2] = xAft[0]*xdy - xAft[1]*xdx + wx * xAft[2];
+    return o;
+  }
+  // a pure couple M over the node set S: f_i = (J^-1 M) x r_i about the set's centroid
+  function applyCouple(S, Mx, My, Mz) {
+    const ns = S.length; if (ns < 3) return;
+    let cx = 0, cy = 0, cz = 0;
+    for (let j = 0; j < ns; j++) { const e = S[j] * 3; cx += p[e]; cy += p[e+1]; cz += p[e+2]; }
+    cx /= ns; cy /= ns; cz /= ns;
+    let a = 0, b = 0, c = 0, d = 0, e_ = 0, g = 0;   // J = [[a d e],[d b g],[e g c]]
+    for (let j = 0; j < ns; j++) {
+      const q = S[j] * 3, rx = p[q] - cx, ry = p[q+1] - cy, rz = p[q+2] - cz;
+      a += ry*ry + rz*rz; b += rx*rx + rz*rz; c += rx*rx + ry*ry; d -= rx*ry; e_ -= rx*rz; g -= ry*rz;
+    }
+    const A = b*c - g*g, B = e_*g - d*c, Cc = d*g - b*e_, det = a*A + d*B + e_*Cc;
+    if (!(Math.abs(det) > 1e-12)) return;
+    const D2 = a*c - e_*e_, E2 = d*e_ - a*g, F2 = a*b - d*d;
+    const wx = (A*Mx + B*My + Cc*Mz) / det, wy = (B*Mx + D2*My + E2*Mz) / det, wz = (Cc*Mx + E2*My + F2*Mz) / det;
+    let Fx = 0, Fy = 0, Fz = 0, mx = 0, my = 0, mz = 0;
+    for (let j = 0; j < ns; j++) {
+      const q = S[j] * 3, rx = p[q] - cx, ry = p[q+1] - cy, rz = p[q+2] - cz;
+      const fx = wy*rz - wz*ry, fy = wz*rx - wx*rz, fz = wx*ry - wy*rx;
+      f[q] += fx; f[q+1] += fy; f[q+2] += fz;
+      Fx += fx; Fy += fy; Fz += fz; mx += ry*fz - rz*fy; my += rz*fx - rx*fz; mz += rx*fy - ry*fx;
+    }
+    // what the set really received (GATE ENGTORQUE's COUPLES): its net force and its moment's miss, worst since reset
+    const Mm = hyp3(Mx, My, Mz) || 1;
+    PFO.netF = Math.max(PFO.netF, hyp3(Fx, Fy, Fz) / Mm); PFO.mErr = Math.max(PFO.mErr, hyp3(mx - Mx, my - My, mz - Mz) / Mm);
+  }
+  // the four effects, once per pass after the thrust: the couples onto each engine's nodes, the swirl's state for the
+  // strip loop below. Ti = each engine's thrust (N), Vf the axial airspeed, (wx,wy,wz) the air at the CG.
+  function propMoments(nE, Ti, Vf, rho, sig, wx, wy, wz, powerK) {
+    const nk = Math.min(nE, SENSE.length);
+    let wb = null;
+    if (FX_GY && I_PROP > 0) { wb = bodyRate(_wb); PFO.rate[0] = wb[0]; PFO.rate[1] = wb[1]; PFO.rate[2] = wb[2]; }
+    swirlOn = false;
+    for (let k = 0; k < nk; k++) {
+      const sn = SENSE[k], rp = PFO.rpm[k], Om = 2 * Math.PI * rp / 60, Q = PFO.Q[k], T = Ti[k];
+      const S = ENG_SET[k];
+      let Mx = 0, My = 0, Mz = 0;
+      // the hub and the disc's own velocity (the mount nodes of engine k)
+      let hx = 0, hy = 0, hz = 0, vx = 0, vy = 0, vz = 0, c = 0;
+      for (let j = 0; j < ENG_N.length; j++) if (((ENG_OF[j] | 0) < SENSE.length ? ENG_OF[j] | 0 : 0) === k) {
+        const e = ENG_N[j] * 3; hx += p[e]; hy += p[e+1]; hz += p[e+2]; vx += v[e]; vy += v[e+1]; vz += v[e+2]; c++;
+      }
+      if (c) { hx /= c; hy /= c; hz /= c; vx /= c; vy /= c; vz /= c; }
+      SW_HUB[k*3] = hx; SW_HUB[k*3+1] = hy; SW_HUB[k*3+2] = hz;
+      // REACTION TORQUE: sense . Q about +xAft
+      if (FX_TQ && Q) { Mx += sn * Q * xAft[0]; My += sn * Q * xAft[1]; Mz += sn * Q * xAft[2]; }
+      PFO.tq[k*3] = FX_TQ ? sn * Q : 0; PFO.tq[k*3+1] = 0; PFO.tq[k*3+2] = 0;
+      // GYROSCOPIC: H = I Om sense (-xAft); M = H x w
+      const H = I_PROP * Om; PFO.H[k] = H;
+      if (wb && H) {
+        const hX = -sn * H * xAft[0], hY = -sn * H * xAft[1], hZ = -sn * H * xAft[2];
+        const gx = hY * wb[2] - hZ * wb[1], gy = hZ * wb[0] - hX * wb[2], gz = hX * wb[1] - hY * wb[0];
+        Mx += gx; My += gy; Mz += gz;
+        PFO.gyro[k*3] = gx*xAft[0]+gy*xAft[1]+gz*xAft[2]; PFO.gyro[k*3+1] = gx*yUp[0]+gy*yUp[1]+gz*yUp[2]; PFO.gyro[k*3+2] = gx*zRt[0]+gy*zRt[1]+gz*zRt[2];
+      } else { PFO.gyro[k*3] = PFO.gyro[k*3+1] = PFO.gyro[k*3+2] = 0; }
+      // P-FACTOR: the in-plane air at the disc, M = sense (K p n / 2 + T / (2 Om)) u_p - a running engine only
+      if (FX_PF && Q > 0 && Om > 1) {
+        let ux = wx - vx, uy = wy - vy, uz = wz - vz;
+        const ua = ux*xAft[0] + uy*xAft[1] + uz*xAft[2];
+        ux -= ua * xAft[0]; uy -= ua * xAft[1]; uz -= ua * xAft[2];
+        const kf = sn * (PF_KP * sig * (rp / 60) * 0.5 + T / (2 * Om));
+        Mx += kf * ux; My += kf * uy; Mz += kf * uz;
+        PFO.pf[k*3] = kf*(ux*xAft[0]+uy*xAft[1]+uz*xAft[2]); PFO.pf[k*3+1] = kf*(ux*yUp[0]+uy*yUp[1]+uz*yUp[2]); PFO.pf[k*3+2] = kf*(ux*zRt[0]+uy*zRt[1]+uz*zRt[2]);
+      } else { PFO.pf[k*3] = PFO.pf[k*3+1] = PFO.pf[k*3+2] = 0; }
+      if (Mx || My || Mz) applyCouple(S, Mx, My, Mz);
+      // SWIRL: the torque that goes with the model's thrust (thrust is linear in the lever, the idle's torque makes
+      // none), its angular momentum carried by the contracted wake as a solid-body rotation
+      SW_W[k] = 0; SW_R[k] = 0;
+      if (FX_SW && T > 0 && Q_R > 0) {
+        const lev = Math.max(0, Math.min(1, ctl.thr * LEV(k)));
+        const Qs = lev * powerK * Q_R;
+        const wsh = Math.sqrt(Vf * Vf + 2 * T / (rho * PROPA)) - Vf;
+        const Vw = Math.max(1, Vf + wsh), Rw = (PR.D / 2) * Math.sqrt((Vf + 0.5 * wsh) / Math.max(1e-6, Vf + wsh));
+        if (Qs > 0 && Rw > 0.05) {
+          SW_W[k] = sn * 2 * Qs / (rho * Vw * Math.PI * Rw * Rw * Rw * Rw); SW_R[k] = Rw; swirlOn = true;
+        }
+      }
+    }
+  }
+  // the swirl's air at a strip in the wash (sx,sy,sz), into o: about the nearest engine's axis, solid-body inside the
+  // wake radius, faded to nothing over its last quarter beyond it
+  function swirlAt(sx, sy, sz, o) {
+    o[0] = o[1] = o[2] = 0;
+    let best = -1, bd = Infinity, bdx = 0, bdy = 0, bdz = 0;
+    for (let k = 0; k < SW_W.length; k++) {
+      if (!SW_W[k]) continue;
+      let dx = sx - SW_HUB[k*3], dy = sy - SW_HUB[k*3+1], dz = sz - SW_HUB[k*3+2];
+      const a = dx*xAft[0] + dy*xAft[1] + dz*xAft[2];
+      dx -= a * xAft[0]; dy -= a * xAft[1]; dz -= a * xAft[2];
+      const d = hyp3(dx, dy, dz);
+      if (d < bd) { bd = d; best = k; bdx = dx; bdy = dy; bdz = dz; }
+    }
+    if (best < 0) return o;
+    const Rw = SW_R[best], g = bd <= Rw ? 1 : Math.max(0, 1 - (bd - Rw) / (0.25 * Rw));
+    if (!g) return o;
+    // v = sense . w_s . (forward x d) = w_s . (d x xAft) (the sense is in SW_W)
+    const w = SW_W[best] * g;
+    o[0] = w * (bdy*xAft[2] - bdz*xAft[1]); o[1] = w * (bdz*xAft[0] - bdx*xAft[2]); o[2] = w * (bdx*xAft[1] - bdy*xAft[0]);
+    return o;
+  }
+  const _sw = [0, 0, 0];
   function aeroPass(probe) {
     bodyAxes();
     // mean velocity (mass-weighted), and the mean altitude in the same sweep
@@ -2052,6 +2246,8 @@ function makeSim(def, world) {
           const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
           const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
           out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
+          // G2080: the shaft's torque (the law's own Qe) and speed, per engine
+          if (i < PFO.Q.length) { PFO.rpm[i] = rp; PFO.Q[i] = run ? (IDLE_T + (1 - IDLE_T) * thrE) * PS.power * Q_R : 0; }
         }
       }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
@@ -2077,6 +2273,7 @@ function makeSim(def, world) {
           f[e*3+2] -= per * xAft[2];
         }
       }
+      if (FX_ON) propMoments(nE, Ti, Vfwd, rho, sig, wcx, wcy, wcz, PS.power);
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     const planeFy = out.planeFy = [];                // G185: each plane's lift
@@ -2179,6 +2376,8 @@ function makeSim(def, world) {
       // relative air velocity = air motion (wash + wind) - node motion
       const wsh = wash * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
+      // G2080: the slipstream's swirl, where the wash reaches
+      if (swirlOn && st.wash > 0 && !probe && st.kind !== 'wing') { swirlAt(spx, spy, spz, _sw); rx += _sw[0] * st.wash; ry += _sw[1] * st.wash; rz += _sw[2] * st.wash; }
       // G185.5: ...plus the induced velocity of the other plane and, on a
       // tail flying the vortex model, of the wing. The lift vector is built
       // on the LOCAL wind below, so a downwash tilts it aft and the mutual

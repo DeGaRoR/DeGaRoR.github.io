@@ -630,6 +630,9 @@ const GATES = [
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter
   { id: 'RPM', file: '_rpm_check.js', tier: 'core' },
+  // G2080 ENGINE-TORQUE: the propeller's reaction torque, gyroscopic couple, P-factor and swirl - each effect's sign
+  // off a physical response on the user's Cub (both hands mirrored), the couples force-free, the twin's hands
+  { id: 'ENGTORQUE', file: '_engtorque_check.js', tier: 'core', wall: 90 },
   // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
   // the ledger billing exactly its rows, the aerials reading the radios
   { id: 'PANEL', file: '_panel_check.js', tier: 'core' },

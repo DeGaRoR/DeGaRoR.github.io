@@ -1359,7 +1359,9 @@ function genParams(S, fr, strips) {
     // THE PROP IS THE AEROPLANE'S, not the powerplant's. The solver prefers this
     // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
     // sets it — so the fleet reads the registry exactly as before.
-    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
+    // G2080: + I, the disc's polar moment (the gyroscopic couple), from the blades' own mass
+    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2,
+            I: S.prop.mass > 0 ? GEN_PROP_IK * S.prop.mass * (S.prop.D / 2) * (S.prop.D / 2) : 0 },
     // THE PANEL ARC (session 1): what the burn drains and the fuel gauge
     // reads in. A liquid aeroplane's litres come out of the drained `mFuel`
     // through its fuel's density; a pack has a capacity and a state of
