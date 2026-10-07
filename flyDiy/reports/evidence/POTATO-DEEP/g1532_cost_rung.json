@@ -1,0 +1,65 @@
+{
+ "label": "g1532_rung",
+ "cpuThrottle": 3,
+ "gpux": 2,
+ "gpuxAt": "0",
+ "eval": {
+  "views": {
+   "stand_copy": {
+    "frames": 42,
+    "fps": 14.4,
+    "gpuMed": null,
+    "gpuMean": null,
+    "calls": 1001
+   },
+   "taxi_copy": {
+    "frames": 1167,
+    "fps": 15,
+    "gpuMed": null,
+    "gpuMean": null,
+    "calls": 1000
+   },
+   "taxi_old": {
+    "frames": 1245,
+    "fps": 15.1,
+    "gpuMed": null,
+    "gpuMean": null,
+    "calls": 1000
+   },
+   "air_copy": {
+    "frames": 177,
+    "fps": 11.9,
+    "gpuMed": null,
+    "gpuMean": null,
+    "calls": 954
+   },
+   "air_old": {
+    "frames": 164,
+    "fps": 10.9,
+    "gpuMed": null,
+    "gpuMean": null,
+    "calls": 960
+   }
+  },
+  "toggles": 74,
+  "cloud": {
+   "active": true,
+   "depthCopyMs": 0.3958255158867823,
+   "cloudGpuMs": 2.378407717592612,
+   "mode": "half"
+  },
+  "aa": {
+   "tier": "off",
+   "able": true,
+   "ss": 1,
+   "scale": 1,
+   "auto": false,
+   "dither": 1,
+   "samples": 0,
+   "maxSamples": 8,
+   "depth": "reversed float",
+   "buf": "1920x911"
+  },
+  "gfx": "current"
+ }
+}

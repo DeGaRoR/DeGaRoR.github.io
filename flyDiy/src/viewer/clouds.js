@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
@@ -889,6 +889,29 @@ var CLOUDS = (function () {
       S.columnK = 0.5 * (lo + hi); stats.calGpuMean = gpuMean; stats.calCpuMean = meanT(S.columnK);
     } catch (e) { /* a readback that fails leaves the default */ }
   }
+  // G1532 (POTATO-DEEP) THE COMPOSITE NEVER SAMPLES THE DEPTH IT IS DRAWN INTO. The composite quad draws INSIDE the scene
+  // pass into the target and reads the scene's depth. Multisampled, the pass renders into a renderbuffer and the depth
+  // texture only receives the resolve - legal. At ZERO samples (the AA row 'off' - 'current' since train 25 -, the laptop
+  // budget's MSAA cap 0, a software renderer) the depth texture IS the bound attachment: a feedback loop, every composite
+  // draw GL_INVALID_OPERATION (1282 on 15/15 draws, the box), no cloud on screen while the pass reports itself live.
+  // At zero samples the march and the composite read a COPY, blitted here before the scene pass - the previous frame's
+  // depth, which is what both read when multisampled too (the resolve is the end of the last frame's pass). The MSAA
+  // path never comes here. The copy: the target's depth format (a blit needs it), a 1-byte colour beside it.
+  let dcp = null;
+  try { const v = new URLSearchParams(location.search).get('clouddc'); if (v !== null) S.depthCopy = +v; } catch (e) {}
+  function depthFor(r, target) {
+    if (target.samples > 0 || !S.depthCopy) return target.depthTexture;   // S.depthCopy 0 (?clouddc=0): the old read, an A/B dial
+    const D = target.depthTexture, w = target.width, h = target.height;
+    if (!dcp || dcp.width !== w || dcp.height !== h || dcp.depthTexture.type !== D.type || dcp.depthTexture.format !== D.format) {
+      if (dcp) dcp.dispose();
+      const dt = new THREE.DepthTexture(w, h, D.type); dt.format = D.format; dt.minFilter = dt.magFilter = THREE.NearestFilter;
+      dcp = new THREE.WebGLRenderTarget(w, h, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, stencilBuffer: D.format === THREE.DepthStencilFormat, depthTexture: dt, generateMipmaps: false });
+      dcp.texture.name = dt.name = 'cloudDepthCopy';
+      r.initRenderTarget(dcp);
+    }
+    const q = tBegin('depthCopy'); r.copyTextureToTexture(D, dcp.depthTexture); tEnd(q);
+    return dcp.depthTexture;
+  }
   // draw(renderer, camera, target): the aa overlay - the march at its resolution, then the composite over the target
   function draw(r, camera, target) {
     if (compMesh) compMesh.visible = false;
@@ -909,7 +932,7 @@ var CLOUDS = (function () {
         if (rtPool.size >= 3) { const k0 = rtPool.keys().next().value; rtPool.get(k0).dispose(); rtPool.delete(k0); } rtPool.set(key, rt); }
       rtW = w; rtH = h; U.uCloudTex.value = rt.textures[0]; U.uKeyTex.value = rt.textures[1]; U.uTexel.value.set(1 / w, 1 / h);
     }
-    U.uDepth.value = target.depthTexture;
+    U.uDepth.value = depthFor(r, target);   // G1532: a copy at zero samples (never the attachment the composite draws into)
     U.uInvProj.value.copy(camera.projectionMatrixInverse);
     U.uCamMat.value.copy(camera.matrixWorld);
     U.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);

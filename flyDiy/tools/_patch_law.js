@@ -17,7 +17,7 @@ module.exports = function patchLaw(O, PG, heightAt) {
   const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   const PAV = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));
   const ext = lift(RP, '  const extentWorld = () =>', '\n');
-  const ac = lift(RP, '  function activeChunks(b) {', '  // THE PATCH IN BLOCKS');
+  const ac = lift(RP, '  function activeChunks(b', '  // THE PATCH IN BLOCKS');   // (G2063 added a 'skip' argument)
   const laws = lift(RP, '  const PATCH_TUCK = ', '  function buildPatch() {');
   // the vertex law as buildPatchSteps writes it: Y0 = groundB(x, z) - <drop> * r - PATCH_TUCK.tuck * (1 - r) * (1 - r)
   const m = /Y0\[v\] = groundB\(x, z\) - (.+?) \* r - PATCH_TUCK\.tuck \* \(1 - r\) \* \(1 - r\);/.exec(RP);

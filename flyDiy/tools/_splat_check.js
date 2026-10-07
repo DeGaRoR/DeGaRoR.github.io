@@ -214,20 +214,41 @@ function checkManifest(G, text, rootDir, quiet) {
 }
 
 // ---- 3. THE SHADER'S RULES, STATIC ---------------------------------------------
+// G2075: the splat's text for one program - the lean row's (SPLAT_ONE defined: one set a type, the vote in registers) or the full
+// programs' (the arrays); every other directive (the GS_* measuring strips) kept as written
+function oneVariant(text, on) {
+  const st = []; const keep = () => st.every(e => e.k !== 'one' || e.live);
+  return text.split('\n').filter(l => {
+    const t = l.trim();
+    if (/^#if(def|ndef)?\b/.test(t)) { const one = /^#ifdef\s+SPLAT_ONE\b/.test(t); st.push({ k: one ? 'one' : 'other', live: one ? on : true }); return !one && keep(); }
+    if (/^#else\b/.test(t)) { const e = st[st.length - 1]; if (e && e.k === 'one') { e.live = !on; return false; } return keep(); }
+    if (/^#endif\b/.test(t)) { const e = st.pop(); return !(e && e.k === 'one') && keep(); }
+    return keep();
+  }).join('\n');
+}
 function checkShader(G, splice, quiet) {
   const out = []; const say = (ok, line) => { out.push([ok, line]); return ok; };
-  const glsl = splice.glslCommon + splice.glslMap + splice.glslNormal + splice.glslRough;
+  const glslAll = splice.glslCommon + splice.glslMap + splice.glslNormal + splice.glslRough;
+  const glsl = oneVariant(glslAll, false);   // the full programs' text (the rules below hold for both; the lean one's own after)
   say(!/textureGrad\s*\(|textureLod\s*\(/.test(glsl), 'no textureGrad / textureLod anywhere in the splat (fxc internal error on a sampler2DArray)');
   say(/uniform highp sampler2DArray uSplat, uSplatN;/.test(glsl), 'the two arrays declared highp sampler2DArray');
   say((glsl.match(/texture\(uSplat,/g) || []).length >= 1 && (glsl.match(/texture\(uSplatN,/g) || []).length >= 1, 'the arrays read with implicit texture()');
-  say(/for \(int i = 0; i < uSNCode; i\+\+\)/.test(glsl) && /for \(int j = 0; j < uSNCand; j\+\+\)/.test(glsl), 'the code and candidate loops bound by uniforms (uSNCode, uSNCand)');
-  say(!/for \(int [ij] = 0; [ij] < \d+; [ij]\+\+\) \{\s*\n?\s*(int i = j \/ 2;\s*)?if \(w\[/.test(glsl), 'no constant-bound loop over the candidates');
+  // THE LEAN PROGRAM'S OWN TEXT (G2075: #ifdef SPLAT_ONE ... #else - the full programs keep the arrays, the lean one the registers)
+  const lean = oneVariant(glslAll, true);
+  say(/for \(int i = 0; i < uSNCode; i\+\+\)/.test(glsl) && /for \(int j = 0; j < uSNCand; j\+\+\)/.test(glsl), 'the full programs\' code and candidate loops bound by uniforms (uSNCode, uSNCand)');
+  say(/for \(int j = 0; j < uSNSlot; j\+\+\) \{[\s\S]{0,1500}?sMatPass\(/.test(lean), 'the lean program\'s candidate loop bound by a uniform (uSNSlot) - unrolled it inlines the material chain per iteration');
+  say(!/for \(int j = 0; j < \d+; j\+\+\) \{[^{}]*sMatPass\(/.test(glsl), 'no constant-bound loop over the candidates');
+  // THE VOTE IN REGISTERS (GROUND-COST G2075): a local array written at a computed index (w[code] += k, C[n] = ...) is an
+  // indexable temp under ANGLE/D3D - local memory: the slots measured 1.76 ms of the 6.57 the lean ground drew from 300 m (3080)
+  say(lean.length > 2000 && !/\bfloat\s+w\s*\[|\bvec4\s+(C|NN)\s*\[|\bfloat\s+(Wt|Rl)\s*\[/.test(lean), 'no local arrays in the lean program\'s vote or candidates (the slots and six registers)');
+  say(/if \(cc >= 128\) \{/.test(lean) && /int sCodeAt\(ivec2 cell, ivec2 gmax\)\{[\s\S]{0,160}& 127, 16\);/.test(glsl), 'the one-code cell votes with one tap (bit 7), every code read masks the bit');
   // FEW CALL SITES, NO NESTED LOOP (G568): HLSL inlines every call site - the old chain's 144 inlined fetches were
   // a 412 KB program and a 110-220 s COLD compile per ground program under ANGLE/D3D11; a loop holding the sets
   // inside the candidate loop compiled in 3 s but drew the ground 1.5-2x slower (even where it ran zero times)
-  { const n = fn => (glsl.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
+  for (const [nm, tx] of [['full', glsl], ['lean', lean]]) { const n = fn => (tx.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
     say(n('sMatPass') === 1 && n('sTriplet') === 1 && n('sSet') <= 3 && n('sTile') <= 3 && n('sFetch') <= 3,
-      `the sample chain inlined small: call sites sMatPass ${n('sMatPass')}, sTriplet ${n('sTriplet')}, sSet ${n('sSet')}, sTile ${n('sTile')}, sFetch ${n('sFetch')} (1, 1, <=3, <=3, <=3)`);
+      `the sample chain inlined small (${nm}): call sites sMatPass ${n('sMatPass')}, sTriplet ${n('sTriplet')}, sSet ${n('sSet')}, sTile ${n('sTile')}, sFetch ${n('sFetch')} (1, 1, <=3, <=3, <=3)`); }
+  { const n = fn => (glsl.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
     const body = f => { const i = glsl.indexOf(f); if (i < 0) return ''; let d = 0, k = glsl.indexOf('{', i); const k0 = k;
       for (; k < glsl.length; k++) { if (glsl[k] === '{') d++; else if (glsl[k] === '}' && --d === 0) break; } return glsl.slice(k0, k); };
     say(!/\bfor\s*\(/.test(['bool sMatPass(', 'Smp sTriplet(', 'Smp sSet(', 'Smp sTile(', 'Smp sFetch('].map(body).join('')), 'no loop inside the sample chain (nested in the candidate loop it costs the GPU)'); }
@@ -374,7 +395,8 @@ function checkShader(G, splice, quiet) {
       say(/uSPud2\.w > 0\.01\) m \*= clamp\(\(uSPud2\.w - gSSlope\)/.test(G.glsl + splice.glslCommon), 'the shader gates the pools by the ground slope (gSSlope)');
       say(/K\.pudFlat > 0\.01[\s\S]{0,400}?Math\.atan\(Math\.hypot\(gx, gz\)\)/.test(rw), 'render_world runs the SAME ramp on the CPU, so the tufts and the debris agree'); }
   }
-  say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNCand.value >= 1 && splice.uniforms.uSNCand.value <= 8, `uSNCode ${splice.uniforms.uSNCode.value}, uSNCand ${splice.uniforms.uSNCand.value} (C[8])`);
+  say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNCand.value >= 1 && splice.uniforms.uSNCand.value <= 8 && splice.uniforms.uSNSlot.value === 2 * splice.uniforms.uSNCode.value,
+      `uSNCode ${splice.uniforms.uSNCode.value}, uSNCand ${splice.uniforms.uSNCand.value} (C[8]), uSNSlot ${splice.uniforms.uSNSlot.value} (the lean program's codes x 2 passes: by code - a quad's neighbours sample a type in the same iteration)`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
   return out.every(x => x[0]);
 }
@@ -412,7 +434,7 @@ function checkMineral(quiet) {
   vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8'), ctx, { filename: 'splat_ground.js' });
   const gU = {};
   for (const k of ['uSMatA', 'uSMatS', 'uSMatM', 'uSMatF', 'uSMatFS', 'uSVary', 'uSLum', 'uSplat', 'uSplatN', 'uSDist', 'uSDist2',
-                   'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNCand', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
+                   'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNCand', 'uSNSlot', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
   const SP = ctx.SPLAT_GROUND.make(gU, W.island);
   // THE ARRAYS HOLD WHAT THE MAP CAN REACH (AS1, G908): the codes on Jolene's grid (sea -> 4, lake -> 3, the three
   // derived) name their near and far sets; the rest of the library is not fetched, drawn or uploaded
@@ -427,6 +449,16 @@ function checkMineral(quiet) {
     say(!lost.length && !extra.length && L.length < lib.length && L.every((k, i) => i === 0 || lib.indexOf(L[i - 1]) < lib.indexOf(k)),
         `the arrays hold the ${L.length} of ${lib.length} sets Jolene's codes name, in the library's order (not built: ${lib.filter(k => !L.includes(k)).join(', ')})` + (lost.length ? '; MISSING ' + lost.join(', ') : '') + (extra.length ? '; EXTRA ' + extra.join(', ') : ''));
   }
+  // THE ONE-CODE FLAG IS EXACT (GROUND-COST G2075): oneCode's two run passes against the 5 x 5 brute force (clamped at the
+  // edges, a lake as muskeg, over 16 as 16) on 200 000 random cells of Jolene's grid, and the share it flags
+  { const T = W.island.ttype, Gd = W.island.grid, w = Gd.w, h = Gd.h, F = ctx.SPLAT_GROUND.oneCode(T, w, h);
+    const mm = v => (v > 16 ? 16 : v === 1 ? 3 : v); let bad = 0, land = 0, landF = 0, seed = 12345;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
+    for (let q = 0; q < 200000; q++) { const x = Math.floor(rnd() * w), y = Math.floor(rnd() * h), c = mm(T[y * w + x]); let one = true;
+      for (let j = -2; j <= 2 && one; j++) for (let i = -2; i <= 2; i++) { const xx = Math.min(w - 1, Math.max(0, x + i)), yy = Math.min(h - 1, Math.max(0, y + j)); if (mm(T[yy * w + xx]) !== c) { one = false; break; } }
+      if (one !== F[y * w + x] >= 128 || (F[y * w + x] & 127) !== (T[y * w + x] & 127)) bad++;
+      if (T[y * w + x] >= 2) { land++; if (F[y * w + x] >= 128) landF++; } }
+    say(!bad && landF / land > 0.2, `the one-code flag matches the 5 x 5 brute force on 200000 of Jolene's cells (${bad} off), ${(100 * landF / land).toFixed(1)} % of land cells vote with one tap; the code under it untouched`); }
   const norm = (SP && SP.api) ? SP.api.norm() : {};
   say(Object.keys(norm).length > 8, `${Object.keys(norm).length} sets carry a gain from the imagery`);
   // THE LIST IS THE RULE: every surface here is rock, dirt, sand or snow and may
@@ -552,8 +584,9 @@ async function checkGPU() {
     const sp = spliceOf(G, splatSrc, G.RECIPE.library);
     const brk = (a, b) => { const s2 = Object.assign({}, sp); s2.glslCommon = sp.glslCommon.replace(a, b); return s2; };
     verdict(!checkShader(G, brk('o.c = texture(uSplat, vec3(uv, layer), uSFilt.x);', 'o.c = textureGrad(uSplat, vec3(uv, layer), dFdx(uv), dFdy(uv));'), true), 'a textureGrad on the array is caught');
-    verdict(!checkShader(G, brk('for (int j = 0; j < uSNCode * 2; j++) {', 'for (int j = 0; j < 34; j++) {'), true), 'a constant-bound candidate loop is caught');
-    verdict(!checkShader(G, brk('    Smp a = sSet(A.x, S.x, P, tw, ang);', '    Smp a = sSet(A.x, S.x, P, tw, ang); for (int q = 0; q < uSNCand; q++) a = sSet(A.x, S.x, P, tw, ang);'), true), 'a loop in the sample chain (and a 4th sSet call site) is caught');
+    verdict(!checkShader(G, brk('for (int j = 0; j < uSNSlot; j++) {', 'for (int j = 0; j < 34; j++) {'), true), 'a constant-bound candidate loop is caught');
+    verdict(!checkShader(G, brk('    Smp a = sSet(A.x, S.x, P, tw, ang);', '    Smp a = sSet(A.x, S.x, P, tw, ang); for (int q = 0; q < uSNSlot; q++) a = sSet(A.x, S.x, P, tw, ang);'), true), 'a loop in the sample chain (and a 4th sSet call site) is caught');
+    verdict(!checkShader(G, brk('    float ma = -10.0;\n    vec4 C0', '    float ma = -10.0; float w[17];\n    vec4 C0'), true), 'a local array back in the lean program\'s vote is caught (G2075)');
     verdict(!checkShader(G, brk('uniform highp sampler2DArray uSplat, uSplatN;', 'uniform sampler2DArray uSplat, uSplatN;'), true), 'an array without highp is caught');
     verdict(!checkShader(G, brk('Smp sFetch(float layer, vec2 uv, vec2 cs){', 'void sFetch2(float layer, out Smp o){ }\n  Smp sFetch(float layer, vec2 uv, vec2 cs){'), true), 'an `out` parameter on the chain is caught');
     verdict(!checkShader(G, brk('o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;', ''), true), 'the colour left undecoded is caught');
