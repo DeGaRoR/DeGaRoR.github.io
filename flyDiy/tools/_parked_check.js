@@ -49,13 +49,18 @@
 //      metal Cessna - the geometry's bytes and the atlas's (the copy's digest +
 //      the block's numbers) identical; PARKED.cleanCapture = false re-opens the
 //      leak and the row goes red (the negative control, every run)
+//  13  THE FLEET STOOD (G2225, fleet_stand.js), headless: the ledger's rows tied down
+//      outside on the cooked spots, by slot name, the flown one's spot left empty, a
+//      resident not drawn, a full field counted; the holders at the spots on the
+//      ground; kept / re-stood; one decode a key; potato's L3 alone (GQ9); the flag
+//      off stands nothing; source scans (no capture / bake; the parking step; the build)
 //  12p THE FLEET in the page: a save queues, the garage's idle path captures and
 //      bakes (a synthetic bake: no GPU here) and stores under the signature; with
 //      the world up (flying, the roll-out screen) nothing is captured or baked,
 //      a roll-out only decodes, a key with no bake stands nothing, back in the
 //      garage the queue drains; the world's doors hold no capture / bake call
 //
-// --pure (or PARKED_PURE=1): 1-10 and 12 only (seconds)
+// --pure (or PARKED_PURE=1): 1-10, 12 and 13 only (seconds)
 //
 // Usage: node tools/_parked_check.js          (prints GATE PARKED: PASS|FAIL)
 'use strict';
@@ -664,6 +669,97 @@ async function fleetHeadless() {
   PK.pending.length = 0; PK.fleet.lru.length = 0; PK.fleet.placed.length = 0;
 }
 
+// ---- 13 THE FLEET STOOD (G2225, FLEET-STAND: src/viewer/fleet_stand.js), headless --------------------------------------
+// the ledger's rows tied down outside, on the cooked spots (src/viewer/fleet_spots_pack.js) through PARKED.place: the
+// flag off stands nothing; the planner's order by slot name, the flown one's spot left EMPTY (no one else moves), a
+// hangar's resident not drawn, a row past the spots or on another world counted; the holders at the spot's x / z / ry on
+// the world's ground (the water's over a lake); the same set kept, another set re-stood with the old holders out of the
+// count; one decode a key in flight; on a light preset the L3 rung alone although the budget builds no parked bake (GQ9)
+async function fleetStood() {
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'fleet_spots_pack.js'), 'utf8'), W, { filename: 'fleet_spots_pack.js' });
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'fleet_stand.js'), 'utf8'), W, { filename: 'fleet_stand.js' });
+  const FS = W.FLEET_STAND, PACK = W.FLEET_SPOTS_PACK;
+  check(!!FS && !!PACK && PACK.island === 'jolene' && (PACK.aero.HOME || []).length >= 6, '13 the stand and the cooked spots load (HOME has room for six)', PACK ? Object.keys(PACK.aero).map(k => k + ' ' + PACK.aero[k].length).join(', ') : 'no pack');
+  const names = ['fleet-1-cub', 'fleet-2-jodel', 'fleet-3-c172', 'fleet-4-c172floats', 'fleet-5-twinfloats', 'fleet-6-metal'];
+  const doc = { fleet: {} }; for (const n of names) doc.fleet[n] = { hangar: null, aero: 'HOME', outSince: 0 };
+  doc.fleet['in-shed'] = { hangar: 'HOME', aero: 'HOME' };
+  doc.fleet['at-w3'] = { hangar: null, aero: 'w3' };
+  doc.fleet['at-tw'] = { hangar: null, aero: 'tw_ski' };          // no room there: counted, never a bad spot
+  const P = FS.plan(doc, null, PACK, 'jolene');
+  const H = PACK.aero.HOME;
+  check(P.stand.filter(p => p.aero === 'HOME').map(p => p.slot + '@' + p.spot).join() === names.map((n, i) => n + '@' + H[i][3]).join(),
+    "13 the plan: HOME's rows by slot name on HOME's spots in the planner's order (the painted stand first)", P.stand.map(p => p.slot + '@' + p.spot).join(' '));
+  check(!P.stand.some(p => p.slot === 'in-shed') && P.stand.some(p => p.slot === 'at-w3' && p.spot === PACK.aero.w3[0][3]), "13 ...a hangar's resident is not stood; a row out at w3 takes w3's first spot");
+  check(P.miss.length === 1 && P.miss[0].slot === 'at-tw' && /no spots at tw_ski/.test(P.miss[0].why), '13 ...a row at a field with no room stands nothing and is counted', JSON.stringify(P.miss));
+  const Pf = FS.plan(doc, 'fleet-1-cub', PACK, 'jolene');
+  check(!Pf.stand.some(p => p.slot === 'fleet-1-cub') && Pf.stand.filter(p => p.aero === 'HOME').every(p => p.spot === P.stand.find(q => q.slot === p.slot).spot),
+    '13 ...the flown airframe stands nothing and its spot stays empty: no other prop moves');
+  check(FS.plan(doc, null, PACK, 'jolene', 3).stand.map(p => p.slot).join() === P.stand.slice(0, 3).map(p => p.slot).join() && FS.plan(doc, null, PACK, null).stand.length === 0 && FS.plan(doc, null, PACK, 'other').miss.length === 8,
+    '13 ...?fleetn=3 stands the first three; another world (no pack for it) stands none');
+  // the flag off: nothing (the key the step had)
+  const world = { island: { id: 'jolene' }, terrainH: (x, z) => 30 + 0.001 * x, waterH: (x, z) => (x > 800 ? 40 : NaN) };
+  const scene = new THREE.Scene();
+  check(W.FLYDIY_FLEET !== true && FS.key(world, doc, null) === '', "13 FLYDIY_FLEET off: the parking step's key is what it was");
+  const r0 = await FS.stand({ THREE, scene, world, doc, flown: null });
+  check(r0 === null && scene.children.length === 0, '13 FLYDIY_FLEET off: nothing stood');
+  // the flag on, the bakes in a store: every row stood at its spot, decoded
+  W.FLYDIY_FLEET = true;
+  W.GARAGE_SPEC = { slotSpec: n => ({ cage: { boomLen: 4 + n.length / 10 }, meta: { name: n } }), slotImages: () => null, cageDefaults: () => null };
+  const st = memStore(); PK.fleet.store = st;
+  const all = Object.keys(doc.fleet);
+  for (const [i, nm] of all.entries()) {
+    const key = 'mine:' + nm, spec = PK.specOf(key), sig = PK.fleetSig(spec, null);
+    const rec = record(key, synthVis('tail')), stc = PK.stance(rec.vis);
+    const u8 = PK.cookEncode({ key, sig, build: 'b', stance: stc, hitbox: PK.hitboxOf(rec, stc), tris: 100 + i, data: synthBake(globalThis, i + 7) });
+    await st.put(key, { sig, n: u8.length, bytes: u8, when: 0 });
+  }
+  const d0 = PK.fleet.stats.decodes;
+  const P1 = await FS.stand({ THREE, scene, world, doc, flown: null, waitMs: 5000 });
+  const S = FS.state, g = S.grp;
+  check(!!g && g.parent === scene && S.holders.length === 7 && S.holders.every(h => h.children.length === 1 && h.children[0].isLOD),
+    '13 the flag on: every stood row a filled holder (decoded) in one group in the scene', S.holders.length + ' holders, ' + S.holders.filter(h => h.children.length).length + ' filled');
+  const ok = P1.stand.every((p, i) => { const h = S.holders[i]; const y = Math.max(world.terrainH(p.x, p.z), Number.isFinite(world.waterH(p.x, p.z)) ? world.waterH(p.x, p.z) : -1e9);
+    return h.userData.fleetSlot === p.slot && h.userData.parkedKey === 'mine:' + p.slot && near(h.position.x, p.x, 1e-9) && near(h.position.z, p.z, 1e-9) && near(h.position.y, y, 1e-9) && near(h.rotation.y, p.ry, 1e-9); });
+  check(ok, '13 ...each at its spot: x, z, the yaw, on the ground (the water where it is higher)');
+  check(PK.fleet.stats.decodes - d0 === 7, "13 ...ONE decode a key although two doors asked (place() and the stand's wait)", (PK.fleet.stats.decodes - d0) + ' decodes');
+  // the same set: kept
+  const st0 = S.stats.stands;
+  await FS.stand({ THREE, scene, world, doc, flown: null });
+  check(S.stats.stands === st0 && S.grp === g, '13 the same set at the next roll-out: kept (nothing re-stood)');
+  // another set (the Cub rolled out): re-stood; the old holders leave the count
+  const old = S.holders.slice();
+  await FS.stand({ THREE, scene, world, doc, flown: 'fleet-1-cub' });
+  check(S.grp !== g && !g.parent && old.every(h => !h.parent) && S.holders.length === 6 && !S.holders.some(h => h.userData.fleetSlot === 'fleet-1-cub'),
+    '13 another set (the Cub flown): re-stood without it, the old group and holders out of the scene');
+  scene.updateMatrixWorld(true);
+  const cam = new THREE.PerspectiveCamera(); cam.position.set(H[1][0], 32, H[1][1]); cam.updateMatrixWorld(true);
+  PK.fleet.rankAt = -1e9;
+  for (const h of S.holders) h.children[0].update(cam);
+  check(PK.fleet.placed.length === 6 && PK.fleet.placed.every(l => l.parent && l.parent.parent && l.parent.parent.parent === scene), '13 ...the count holds only the holders in the scene', PK.fleet.placed.length + ' placed');
+  // a light preset: the L3 rung alone, although the budget builds no parked bake (the GQ9 exception)
+  W.GFX = { get: () => ({ preset: 'potato', build: 'potato' }), budget: () => ({ parked: false }) };
+  FS.clear();
+  for (const k of Object.keys(PK.records)) if (PK.records[k] && PK.records[k].fleet) delete PK.records[k];   // decoded again: the ladder is the record's build
+  await FS.stand({ THREE, scene, world, doc, flown: null });
+  check(S.holders.length === 7 && S.holders.every(h => h.children[0] && h.children[0].levels.length === 2 && h.children[0].levels[0].distance === 0),
+    '13 potato: every prop stood on the L3 rung alone (GFX.budget().parked false does not stop the fleet: GQ9)', S.holders.map(h => h.children[0] ? h.children[0].levels.length : 0).join(','));
+  delete W.GFX; FS.clear();
+  check(scene.children.length === 0, '13 clear(): the group out of the scene');
+  // SOURCE: the stand captures and bakes nothing; app.js's parking step stands it and keys on it ('' off); the build packs it
+  const fsSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'fleet_stand.js'), 'utf8');
+  check(!/\b(capture|batchSteps|bakeData|bakeNow|fleetBake|fleetQueue|captureAll|enqueue)\s*\(/.test(fsSrc.replace(/^\s*\/\/.*$/gm, '')), '13 SOURCE: fleet_stand.js calls no capture, no bake, no queue');
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const park = (app.match(/\{ id: 'parking',[\s\S]*?\} \},/) || [''])[0];
+  check(/key: \(\) => WF \? 'at ' \+ anchorStr\(\) \+ fleetStandKey\(\) : null/.test(park) && /const fl = fleetStand\(\);/.test(park) && /if \(!FS_ON\(\)\) return '';/.test(app),
+    "13 SOURCE: the parking step keys on the fleet's set ('' with the flag off) and stands it");
+  const bsrc = fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8');
+  const iP = bsrc.indexOf("['src/viewer', 'parked.js']"), iS = bsrc.indexOf("['src/viewer', 'fleet_spots_pack.js'], ['src/viewer', 'fleet_stand.js']"), iR = bsrc.indexOf("['src/viewer', 'render_premises.js']");
+  check(iP > 0 && iS > iP && iR > iS, '13 SOURCE: the build packs the spots and the stand after parked.js');
+  W.FLYDIY_FLEET = false; PK.fleet.store = null; delete W.GARAGE_SPEC;
+  for (const k of Object.keys(PK.records)) if (PK.records[k] && PK.records[k].fleet) delete PK.records[k];
+  PK.pending.length = 0; PK.fleet.lru.length = 0; PK.fleet.placed.length = 0;
+}
+
 // ---- 11 / 12p THE PAGE IN NODE (G2220-G2224) ------------------------------------------------------------
 async function pageRows() {
   if (process.argv.includes('--pure') || process.env.PARKED_PURE) { console.log('  --   11 / 12p: the page in node skipped (--pure)'); return; }
@@ -795,6 +891,7 @@ farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || Str
   .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e))))
   .then(() => cookRungs().catch(e => check(false, '10 the cook threw', e && e.stack || String(e))))
   .then(() => fleetHeadless().catch(e => check(false, '12 the fleet threw', e && e.stack || String(e))))
+  .then(() => fleetStood().catch(e => check(false, '13 the fleet stood threw', e && e.stack || String(e))))
   .then(() => pageRows().catch(e => check(false, '11 / 12p the page threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

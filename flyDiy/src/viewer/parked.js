@@ -1863,7 +1863,7 @@ self.onmessage = function (e) {
   // fleet path is the agreed exception (GAME §4.3, §16 GQ9). ALL OF IT BEHIND FLYDIY_FLEET (default OFF; ?fleet=1 or
   // window.FLYDIY_FLEET = true): with it off nothing is queued, baked, stood or drawn differently.
   const FLEET_DRAW = { max: 6, l1: 30, light: ['potato', 'laptop', 'pocket'], lightMax: 4, resident: 8 };
-  const FLEET = { V: 1, queue: [], busy: false, timer: null, idleMs: 1500, worldMs: 5000, lru: [], placed: [], drawn: new Set(), rankAt: -1e9, why: {},
+  const FLEET = { V: 1, queue: [], busy: false, timer: null, idleMs: 1500, worldMs: 5000, lru: [], placed: [], drawn: new Set(), rankAt: -1e9, why: {}, loading: {},
                   stats: { queued: 0, captures: 0, bakes: 0, hits: 0, stored: 0, decodes: 0, worldRefused: 0, flightRefused: 0, evicted: 0, bakeInWorld: 0 },
                   store: null, bake: null };
   // ?parkclean=0: the capture as it was before G2220 (the leak re-opened) - FRAMECOST's A/B against the base holds the rest
@@ -1951,8 +1951,10 @@ self.onmessage = function (e) {
     if (!mayDecode()) { FLEET.stats.flightRefused++; return Promise.resolve(null); }
     const spec = specOf(key);
     if (!spec) { FLEET.why[key] = 'no slot'; return Promise.resolve(null); }
+    // G2225: one decode a key at a time - a second door (FLEET_STAND's wait, a second holder) shares the one in flight
+    if (FLEET.loading[key]) return FLEET.loading[key];
     const sig = fleetSig(spec, slotImages(key.slice(5)));
-    return store().get(key).then(v => {
+    const pr = FLEET.loading[key] = store().get(key).then(v => {
       if (!v || v.sig !== sig) { FLEET.why[key] = v ? 'stale' : 'not baked'; fleetQueue(key.slice(5)); return null; }
       return unsqueeze(v.bytes, v.n).then(u8 => {
         const t0 = performance.now(), d = cookDecode(u8);
@@ -1966,6 +1968,8 @@ self.onmessage = function (e) {
         return rec;
       });
     }).catch(e => { FLEET.why[key] = 'decode failed'; console.warn('parked: the fleet prop', key, 'did not decode:', e && e.message || e); return null; });
+    pr.then(() => { delete FLEET.loading[key]; });
+    return pr;
   }
   function fleetTouch(key) {
     const i = FLEET.lru.indexOf(key);

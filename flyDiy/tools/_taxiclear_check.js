@@ -248,6 +248,12 @@ for (const seed of [0, 1, 6, 12, 42]) {
   let n = 0;
   for (const r of SC.rows) { n++; if (!r.ok || SHOW) check(r.ok, '10 ' + r.id + ' ' + r.spot + ' [' + r.foot + '] ' + r.what, (r.d != null ? r.d.toFixed(2) + ' m' + (r.need != null ? ' of ' + r.need.toFixed(2) : '') : '') + (r.near ? ' (' + r.near + ')' : '')); }
   check(n > 500 && SC.rows.every(r => r.ok), '10 every spot x every archetype footprint that fits: in the field, flat, dry / afloat, clear; no overlap', n + ' rows, ' + SC.rows.filter(r => !r.ok).length + ' failing');
+  // G2225 (FLEET-STAND): the page stands the fleet on src/viewer/fleet_spots_pack.js - it must be THIS census, byte for byte
+  {
+    let src = ''; try { src = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'fleet_spots_pack.js'), 'utf8'); } catch (e) {}
+    const m = /window\.FLEET_SPOTS_PACK = (\{.*\});/.exec(src), fresh = JSON.stringify(L.spotPack(C, SC, 'jolene', 'town'));
+    check(!!m && m[1] === fresh, "10 the page's fleet pack (src/viewer/fleet_spots_pack.js) is this census", !m ? 'no pack' : m[1] === fresh ? 'fresh' : 'STALE - re-cook: node tools/fleet_spots.js --cook');
+  }
   // calibration: the spot rules see a fault - a box on HOME's stand (its routes start there), a box on the mill
   const a = WI.aerodromes.find(q => q.id === 'HOME'), s = C.siteOf('HOME'), inp = L.spotInputs(WI, IX, SC.pave);
   const st = s.stand, f0 = foots.c172, bx = { x: st.x, z: st.z, ry: 0, half: f0.half, fwd: f0.fwd, aft: f0.aft };
