@@ -10,7 +10,7 @@
 //        and queues the six, the garage's idle path bakes them (the real path: capture + bake + IndexedDB); waits for
 //        the store to hold all six under their signatures, prints each bake's time; then blanks the page (IndexedDB
 //        flushed) and quits. UNTIMED, but a browser on the GPU: under boxlock gpu.
-//   node tools/perf/fleet_b.js still <preset> <outDir> [build] [--timed]
+//   node tools/perf/fleet_b.js still <preset> <outDir> [build] [--timed] [--look <slot>]
 //        rolled out at HOME, the pilot taxiing, PAUSED 14 s in: THE SAME FRAME with the fleet's group shown and hidden -
 //        the GPU timer (FLIGHT_REC's per-frame column) over 60 frames each, 3 rounds ABAB (--timed: 5 rounds), draws
 //        and tris per frame; the still pair (CDP screenshots, the player's chase view and a wide view over the apron);
@@ -62,6 +62,7 @@ const PRESET = MODE === 'still' ? process.argv[3] : null;
 const OUT = MODE === 'still' ? path.resolve(process.argv[4] || 'fleet_b_still') : null;
 const BUILD = MODE === 'still' ? (process.argv[5] && !process.argv[5].startsWith('--') ? process.argv[5] : 'builds/cub_2026-09-20_corrected.json') : 'builds/cub_2026-09-20_corrected.json';
 const TIMED = process.argv.includes('--timed');
+const LOOK = (i => (i > 0 ? process.argv[i + 1] : null))(process.argv.indexOf('--look'));   // the close still's prop (a slot), when within reach
 const Q = 'fleet=1' + (PRESET ? '&gfx=' + PRESET : '');
 const drv = spawn(process.execPath, [path.join(ROOT, 'tools', 'live_driver.js'), REPO, BUILD, 'index.html', String(CPORT)],
   { env: Object.assign({}, process.env, { UDD, SPORT, DPORT, SIZE, PRE, Q }), stdio: ['ignore', 'pipe', 'pipe'] });
@@ -98,9 +99,13 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
   console.log('garage up in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s; ' + JSON.stringify(await run(STATE)));
   if (MODE === 'setup') {
     // THE BAKES: the boot's 'parking' step asked for six bakes that did not exist; the garage's idle path makes them
+    // the bakes' own cost in the garage: every main-thread task over 50 ms from now on (the capture is ONE task by design)
+    await run(`window.__fbLT = []; try { new PerformanceObserver(l => l.getEntries().forEach(e => window.__fbLT.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: 'longtask' }); } catch (e) {} window.__fbT0 = performance.now(); return 1;`);
     const tb = Date.now();
     await until(`(() => { const F = PARKED.fleet; return !F.busy && !F.queue.length && !F.timer && (F.stats.stored + F.stats.hits) >= 6; })()`, 600000, 'the six bakes');
     console.log('bakes drained in ' + ((Date.now() - tb) / 1000).toFixed(1) + ' s');
+    const lt = await run(`return (window.__fbLT || []).filter(t => t[0] >= window.__fbT0).sort((a, b) => b[1] - a[1]);`);
+    console.log('garage long tasks while baking: ' + lt.length + ', worst ' + (lt[0] ? lt[0][1] : 0) + ' ms; over 1 s: ' + lt.filter(t => t[1] > 1000).length + '; all: ' + JSON.stringify(lt.slice(0, 20)));
     // the store holds all six under the slots' signatures now
     const chk = await run(`const P = PARKED, out = {}; for (const n of ${JSON.stringify(FLEET.map(f => f[0]))}) { const k = 'mine:' + n, sp = P.specOf(k);
       const sig = P.fleetSig(sp, GARAGE_SPEC.slotImages(n)); const v = await new Promise(res => { const rq = indexedDB.open('flydiy.parked'); rq.onsuccess = () => { const d = rq.result;
@@ -125,12 +130,15 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
   // THE CLOSE STILL first, on the stand: the eye toward the nearest prop, 9 m off the live aeroplane (inside L1's 30 m)
   await pause(true); await hideUI(); await frames(20);
   const near = await run(`const s = FLIGHT_PROBE.sim(), cg = s.cgPos(); let best = null;
-    for (const h of FLEET_STAND.state.holders) { const e = h.matrixWorld.elements, d = Math.hypot(e[12] - cg[0], e[14] - cg[2]); if (!best || d < best.d) best = { slot: h.userData.fleetSlot, d, x: e[12], z: e[14] }; }
+    const want = ${JSON.stringify(LOOK)};
+    for (const h of FLEET_STAND.state.holders) { const e = h.matrixWorld.elements, d = Math.hypot(e[12] - cg[0], e[14] - cg[2]);
+      const pref = want && h.userData.fleetSlot === want && d < 28;
+      if (!best || pref || (!best.pref && d < best.d)) best = { slot: h.userData.fleetSlot, d, x: e[12], z: e[14], pref }; }
     if (!best) return null; best.az = Math.atan2(best.z - cg[2], best.x - cg[0]); return best;`);
   info.near = near;
   if (near) {
-    // the eye between the two, off to the side: the live aeroplane near the frame's centre, the prop beyond it
-    await run(`FLIGHT_PROBE.camSet(${near.az} + 2.4, 0.10, 11); return 1;`); await frames(30); await sleep(400);
+    // the eye on the far side of the live aeroplane from the prop, a little round: both in the frame, the prop inside L1's ring
+    await run(`FLIGHT_PROBE.camSet(${near.az} + 2.6, 0.10, 7); return 1;`);   // the eye 7 m out, 149 deg off the prop: ~28 m from a prop 22 m off (L1), ~24 deg off the axis await frames(30); await sleep(400);
     info.close = await run(CENSUS);
     info.shots.push({ f: 'close_l1_' + PRESET + '.png', census: info.close }); await shot(path.join(OUT, 'close_l1_' + PRESET + '.png'));
     console.log('close still: nearest prop ' + near.slot + ' at ' + near.d.toFixed(1) + ' m from the aeroplane; ' + JSON.stringify(info.close.filter(c => c.slot === near.slot)));
