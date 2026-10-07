@@ -18,7 +18,16 @@
 //                 sub carrying an item no door takes is no design's; the map's mark (✓ / ✗ for the hard no-no's:
 //                 gear vs surface, NO DOOR FITS; a build contract none; an unknown hold never a ✗); the stop record's
 //                 load IS the loaded items (the typed kilos the fallback) and a delivery missing an item is refused
-//   PURITY        76_freight.js: no DOM, storage, clock or random
+//   THE VIEW      (G2345 FREIGHT-LOAD, 77_freight_load.js) the loading view's pure half: it opens on the packer's
+//                 proposal; its report is freightReport's key for key; the drag's sweep (every item to a grid over
+//                 the hold, both orientations) - every allowed target stands (the packer's own checks restated) on
+//                 the stations' grid, every refusal says why; the refusals by name (the pilot, a passenger, an empty
+//                 seat still in, no door, the stack, the overhang, the drum, the low roof); the snap and the wall;
+//                 OUT OF RANGE ALLOWED and said (the CG aft, the MTOW); the seats out / in; Propose again = the
+//                 packer with the seats as they are; Accept's record (career.load), its survival through the
+//                 normaliser, freightAccepted (FREIGHT-STRAP's read), the stop's items, the record leaving once
+//                 delivered
+//   PURITY        76_freight.js, 77_freight_load.js: no DOM, storage, clock or random
 //
 //   node tools/_freight_check.js              the gate (warm: the cards from the OS temp dir, keyed by the content
 //                                             that measures; cold ~90 s - FLYDIY_FREIGHT_NOCACHE=1 measures afresh)
@@ -36,7 +45,7 @@ const EVID = process.argv.includes('--evidence');
 const FULL = process.argv.includes('--full');
 
 const SRC = {};
-for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_freight.js'])
+for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_freight.js', '77_freight_load.js'])
   SRC[f.slice(0, 2)] = fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8');
 const namesOf = s => [...s.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
 // the five files, evaluated FRESH over the core's globals (minus their own names): the selftest doctors exactly
@@ -48,7 +57,7 @@ function loadModel(mut) {
   const base = Object.assign({ console }, CORE);
   for (const n of names) delete base[n];
   const ctx = vm.createContext(base);
-  vm.runInContext(['72', '73', '74', '75', '76'].map(k => src[k]).join('\n') + '\n;this.__M = { ' + names.join(', ') + ' };', ctx, { filename: 'freight' });
+  vm.runInContext(['72', '73', '74', '75', '76', '77'].map(k => src[k]).join('\n') + '\n;this.__M = { ' + names.join(', ') + ' };', ctx, { filename: 'freight' });
   return Object.assign(ctx.__M, { __src: src });
 }
 
@@ -314,11 +323,168 @@ function run(mut) {
     ok(T && Array.isArray(T.items) && T.items.length && Math.abs(M.freightKg(T.items) - T.kg) < 1e-9, 'the tracked load names its items (what FREIGHT-LOAD packs)');
   }
 
+  // ==== THE LOADING VIEW'S PURE HALF (G2345 FREIGHT-LOAD, 77_freight_load.js) ===================================
+  // the hand on the packer's proposal: the snap, the refusals (only the physically impossible, each with its why),
+  // out of range ALLOWED, the seats, Propose again, the report = freightReport's, Accept's record, the stop, FREIGHT-STRAP's read
+  {
+    const P = M.FREIGHT_PACK;
+    // THE ORACLE: a placed row stands physically (the packer's own checks, restated)
+    const stands = (card, st, r) => {
+      const ob = M.freightObstacles(card, M.freightSeats(card, st));
+      const others = st.placed.filter(q => q.id !== r.id);
+      const sup = r.on ? others.find(q => q.id === r.on) : null;
+      const onOk = r.on ? (sup && sup.stack && Math.abs(r.at.y0 - sup.at.y1) < 1e-6 && r.at.x0 >= sup.at.x0 - 1e-9 && r.at.x1 <= sup.at.x1 + 1e-9 && r.at.z0 >= sup.at.z0 - 1e-9 && r.at.z1 <= sup.at.z1 + 1e-9)
+        : Math.abs(r.at.y0 - M.freightRestY(card, r.at.x0, r.at.x1)) < 1e-6;
+      return M.freightHoldFits(card, r.at) && onOk && !ob.some(q => M.frOverlap(r.at, q)) && !others.some(q => M.frOverlap(r.at, q.at)) && M.freightDoorAny(card, r).ok;
+    };
+    const onGrid = (H, x0) => Math.abs((x0 - H.x0) / P.step - Math.round((x0 - H.x0) / P.step)) < 1e-6;
+    const cases = [['cub', M.freightItems({ kg: 120 }, 'goods.parts'), 0], ['cub', M.freightItems({ kg: 60 }, 'goods.mail'), 0],
+                   ['jodel', M.freightItems({ kg: 40 }, 'goods.mail'), 0], ['c172', M.freightItems({ kg: 60 }, 'goods.mail'), 1],
+                   ['c172', M.freightItems({ kg: 120 }, 'goods.parts'), 0], ['c172f', M.freightItems({ kg: 90 }, 'goods.supplies'), 1]];
+    let sweepOk = 0, sweepNo = 0, sweepBad = [], whyless = 0;
+    for (const [k, items, pax] of cases) {
+      const card = K[k], tag = k + ' ' + items[0].id.replace(/\.\d+$/, '') + ' x' + items.length + (pax ? ' +' + pax : '');
+      const st = M.freightLoadNew(card, items, { pax });
+      const PK = M.freightPack(card, items, { pax, seatsOut: [] });
+      ok(J(st.placed) === J(PK.placed) && st.items.length === M.freightSplit(items).length, tag + ': the view opens on the packer\'s proposal');
+      const R = M.freightLoadReport(card, st), R0 = M.freightReport(card, st.placed, { pax, seatsOut: [] });
+      ok(Object.keys(R0).every(x => J(R[x]) === J(R0[x])), tag + ': the report is freightReport\'s, key for key');
+      ok(J(R.ashore) === J(PK.unplaced.map(u => u.id)), tag + ': what the packer left is on the ground (' + R.ashore.join(', ') + ')');
+      // every proposed item asked back to its own middle: the same box (the snap is the packer's grid)
+      for (const r of st.placed) {
+        if (st.placed.some(q => q.on === r.id)) continue;   // (one with another on top is refused: the stack, below)
+        const t = M.freightLoadTarget(card, st, r.id, { x: 0.5 * (r.at.x0 + r.at.x1), z: 0.5 * (r.at.z0 + r.at.z1) });
+        ok(t.ok && J(t.row.at) === J(r.at) && t.row.on === r.on, tag + ': ' + r.id + ' dropped where the packer put it stays there (' + (t.why || '') + ')');
+      }
+      // THE SWEEP: every item to every point of a grid over the hold - every yes stands, on the grid; every no says why
+      const H = card.hold;
+      for (const it of st.items) for (let x = H.x0 - 0.2; x <= H.x0 + H.n * H.dx + 0.2; x += 0.13) for (let z = -0.7; z <= 0.7; z += 0.11) for (const turn of [false, true]) {
+        const t = M.freightLoadTarget(card, st, it.id, { x, z, turn });
+        if (t.ok) {
+          sweepOk++;
+          const st2 = Object.assign({}, st, { placed: st.placed.filter(q => q.id !== it.id).concat([t.row]) });
+          if (!stands(card, st2, t.row) || !onGrid(H, t.row.at.x0) || Math.abs(t.row.kg - it.kg) > 1e-9) sweepBad.push(tag + ' ' + it.id + ' @' + x.toFixed(2) + ',' + z.toFixed(2));
+        } else { sweepNo++; if (!t.why) whyless++; }
+      }
+    }
+    ok(!sweepBad.length, 'the drag\'s sweep: every target it allows stands (in the hold, on the floor or wholly on a stackable item, clear of seats / occupants / items, through a door) on the stations\' grid' + (sweepBad.length ? ': ' + sweepBad.slice(0, 4).join('; ') : ''));
+    ok(sweepOk > 200 && sweepNo > 200 && !whyless, 'the sweep met both answers (' + sweepOk + ' allowed, ' + sweepNo + ' refused), every refusal says why');
+    say('THE LOADING VIEW (77_): the sweep - ' + sweepOk + ' targets allowed (each stands), ' + sweepNo + ' refused (each with its why)');
+    // THE REFUSALS, BY NAME
+    const c172 = K.c172, cub = K.cub, jodel = K.jodel;
+    const parcel = M.freightItem({ id: 'parcel', kind: 'box', kg: 8, dims: [0.3, 0.3, 0.3] });
+    let st = M.freightLoadNew(c172, M.freightItems({ kg: 60 }, 'goods.mail').concat([parcel]), { pax: 1 });
+    const m1 = st.placed.find(p => p.id === 'parcel');
+    const rP = M.freightLoadTarget(c172, st, m1.id, { x: c172.seats[0].back - 0.3, z: c172.seats[0].z });
+    ok(!rP.ok && /pilot/.test(rP.why), 'refused: into the pilot (' + rP.why + ')');
+    const rX = M.freightLoadTarget(c172, st, m1.id, { x: c172.seats[1].back - 0.3, z: c172.seats[1].z });
+    ok(!rX.ok && /passenger in seat 1/.test(rX.why), 'refused: into the passenger (' + rX.why + ')');
+    const s2 = c172.seats.find(s => s.i === 2);
+    const rS = M.freightLoadTarget(c172, st, m1.id, { x: s2.back - 0.25, z: s2.z });
+    ok(!rS.ok && /seat 2 is there/.test(rS.why), 'refused: onto an empty seat still in (' + rS.why + ')');
+    const out2 = M.freightLoadSeat(c172, st, 2, true);
+    ok(out2.ok && J(out2.st.seatsOut) === '[2]', 'an empty seat taken out');
+    const rS2 = M.freightLoadTarget(c172, out2.st, m1.id, { x: s2.back - 0.25, z: s2.z });
+    ok(rS2.ok && rS2.row.at.x1 > s2.back - 0.5, 'with the seat out, its space takes the item (' + (rS2.why || 'x ' + rS2.row.at.x0 + '-' + rS2.row.at.x1) + ')');
+    ok(!M.freightLoadSeat(c172, st, 0, true).ok && /pilot/.test(M.freightLoadSeat(c172, st, 0, true).why), 'the pilot\'s seat stays');
+    ok(!M.freightLoadSeat(c172, st, 1, true).ok && /passenger sits/.test(M.freightLoadSeat(c172, st, 1, true).why), 'a passenger\'s seat stays');
+    const moved = M.freightLoadMove(c172, out2.st, m1.id, { x: s2.back - 0.25, z: s2.z });
+    const back = M.freightLoadSeat(c172, moved.st, 2, false);
+    ok(moved.ok && !back.ok && back.why.includes(m1.id), 'a seat does not go back under an item (' + back.why + ')');
+    const away = M.freightLoadMove(c172, moved.st, m1.id, { x: 2.8, z: 0 });
+    ok(away.ok && M.freightLoadSeat(c172, away.st, 2, false).ok, '...and goes back once the item is moved');
+    // the door, the stack, the overhang, the drum
+    const big = M.freightItem({ id: 'big', kind: 'crate', kg: 50, dims: [1.4, 1.2, 1.1] });
+    const sB = M.freightLoadNew(c172, [big], { pax: 0 });
+    const rB = M.freightLoadTarget(c172, sB, 'big', { x: 1.5, z: 0 });
+    ok(!sB.placed.length && !rB.ok && /passes no door/.test(rB.why) && M.freightLoadAshore(c172, sB)[0].door === false, 'refused: an item no door takes stays on the ground (' + rB.why + ')');
+    const crate = M.freightItem({ id: 'crate', kind: 'crate', kg: 30, dims: [0.6, 0.5, 0.4] }), box = M.freightItem({ id: 'box', kind: 'box', kg: 10, dims: [0.4, 0.3, 0.3] });
+    const drum = M.freightItem({ id: 'drum', kind: 'drum', kg: 60, dims: [0.45, 0.45, 0.6] });
+    let sC = { v: 1, card: 'c172', pax: 0, seatsOut: [2, 3], items: [crate, box, drum], placed: [] };
+    sC = M.freightLoadMove(c172, sC, 'crate', { x: 1.3, z: 0 }).st;
+    const onTop = M.freightLoadMove(c172, sC, 'box', { x: 1.3, z: 0 });
+    ok(onTop.ok && onTop.row.on === 'crate' && Math.abs(onTop.row.at.y0 - sC.placed[0].at.y1) < 1e-9, 'a box dropped on a crate stands on it (on: ' + onTop.row.on + ')');
+    sC = onTop.st;
+    const pull = M.freightLoadMove(c172, sC, 'crate', { x: 2.7, z: 0 }), pullG = M.freightLoadUnload(c172, sC, 'crate');
+    ok(!pull.ok && /box is on it/.test(pull.why) && !pullG.ok, 'refused: the crate pulled from under the box (' + pull.why + ')');
+    const over = M.freightLoadMove(c172, M.freightLoadUnload(c172, sC, 'box').st, 'drum', { x: 1.3, z: 0 });
+    ok(over.ok && over.row.on === 'crate', 'the drum stands on the crate (the crate is stackable)' + (over.why ? ': ' + over.why : ''));
+    const low = M.freightLoadTarget(c172, Object.assign({}, sC, { placed: sC.placed.filter(p => p.id === 'crate').map(p => Object.assign({}, p, { at: Object.assign({}, p.at, { x0: 2.4, x1: 3.0 }) })) }), 'drum', { x: 2.7, z: 0 });
+    ok(!low.ok && /roof is too low|hold closes/.test(low.why), 'refused: the drum on a crate under the tail\'s low roof (' + low.why + ')');
+    const onDrum = M.freightLoadTarget(c172, over.st, 'box', { x: over.row.at.x0 + 0.2, z: (over.row.at.z0 + over.row.at.z1) / 2 });
+    ok(!onDrum.ok && /nothing goes on the drum/.test(onDrum.why), 'refused: a box on the drum (' + onDrum.why + ')');
+    const bigOn = M.freightItem({ id: 'tub', kind: 'box', kg: 10, dims: [0.9, 0.3, 0.6] });
+    const sO = Object.assign({}, sC, { items: sC.items.concat([bigOn]), placed: sC.placed.filter(p => p.id === 'crate') });
+    const rO = M.freightLoadTarget(c172, sO, 'tub', { x: 1.3, z: 0 });
+    ok(!rO.ok && /would not stand|overhangs/.test(rO.why), 'refused: a bigger item on a smaller one (' + rO.why + ')');
+    // the snap: a drop between stations lands on the grid; near a wall it slides off it
+    const sn = M.freightLoadTarget(c172, sC, 'box', { x: 2.533, z: 0.013 });
+    ok(sn.ok && onGrid(c172.hold, sn.row.at.x0) && Math.abs(sn.row.at.z0 / P.zStep - Math.round(sn.row.at.z0 / P.zStep)) < 1e-6, 'the snap: the fore end on the stations\' grid, across on the z step (x0 ' + (sn.row && sn.row.at.x0) + ')');
+    const wall = M.freightLoadTarget(c172, sC, 'box', { x: 2.533, z: 0.9 });
+    ok(wall.ok && M.freightHoldFits(c172, wall.row.at) && wall.row.at.z1 > 0.2, 'a drop at the wall slides off it into the hold (z ' + (wall.row && wall.row.at.z0 + '-' + wall.row.at.z1) + ')');
+    // OUT OF RANGE IS ALLOWED, AND SAID
+    let sJ = M.freightLoadNew(jodel, M.freightItems({ kg: 40 }, 'goods.tools'), { pax: 0 });
+    let aft = sJ;
+    for (const r of sJ.placed.slice()) { const m = M.freightLoadMove(jodel, aft, r.id, { x: 2.0, z: 0 }); if (m.ok) aft = m.st; }
+    const rJ = M.freightLoadReport(jodel, aft);
+    ok(aft !== sJ && !rJ.cg.ok && rJ.cg.side === 'aft' && rJ.why.some(w => /aft of the certified/.test(w)), 'the Jodel\'s tools moved aft: allowed, the CG reported aft of its range (' + rJ.cg.pct + ' %, ' + rJ.cg.pctRange.join('-') + ')');
+    const heavy = M.freightItems({ kg: 260 }, 'goods.parts');
+    const sH = M.freightLoadNew(c172, heavy, { pax: 3 });
+    const rH = M.freightLoadReport(c172, sH);
+    ok(sH.placed.length > 0 && !rH.mass.ok && rH.why.some(w => /over the MTOW/.test(w)), 'three passengers and 260 kg of crates: loaded, over the MTOW said (' + rH.mass.kg + ' of ' + rH.mass.mtow + ')');
+    // PROPOSE AGAIN: the packer's answer for the seats as they are
+    const pr = M.freightLoadPropose(c172, Object.assign({}, away.st, { seatsOut: [2, 3] }));
+    ok(J(pr.placed) === J(M.freightPack(c172, away.st.items, { pax: 1, seatsOut: [2, 3] }).placed) && J(pr.seatsOut) === '[2,3]', 'Propose again = freightPack with the seats as they are');
+    const prBad = M.freightLoadNew(c172, away.st.items, { pax: 1, seatsOut: [0, 1, 3] });
+    ok(J(prBad.seatsOut) === '[3]', 'only an empty seat can be out (the pilot\'s and the passenger\'s kept: ' + J(prBad.seatsOut) + ')');
+    // ACCEPT'S RECORD, THE STOP, FREIGHT-STRAP'S READ
+    let d = M.careerNew({ id: 'fl', seed: 'fl' });
+    const jid = d.career.contracts.offered.find(i => { const r = M.careerContract(d, i); return /^job:/.test(i) && r.stages[0].subs.some(s => s.load && s.load.items && s.load.items.length); });
+    d = M.careerAccept(d, jid).doc; d = M.careerTrack(d, jid).doc;
+    d.career.airframes.Ces = { design: 'c172' };
+    ok(M.freightLoadCard(d, 'Ces', null) === c172 && M.freightLoadCard(d, 'x', { log: { factory: { design: 'cub' } } }) === cub && M.freightLoadCard(d, 'x', null) === null, 'the card: the career\'s airframe row, a factory envelope, none for an unmeasured build');
+    const JB = M.freightLoadJob(d, 'Ces'), TL = M.careerTrackedLoad(d);
+    ok(J(JB.items) === J(TL.items) && JB.ctx.contract === jid && JB.ctx.sub === TL.sub && JB.ctx.slot === 'Ces' && !JB.rec, 'the view opens on the tracked contract\'s current stage\'s load (' + jid + ', ' + JB.items.length + ' items)');
+    const sv = M.freightLoadNew(c172, JB.items, { pax: JB.pax });
+    const before = J(d);
+    const A = M.freightLoadAccept(d, c172, sv, JB.ctx);
+    ok(A.ok && J(d) === before, 'Accept: a new document, the old one untouched');
+    const L = A.doc.career.load;
+    ok(L.slot === 'Ces' && L.design === 'c172' && L.contract === jid && L.items.length === sv.placed.length && L.items.every((p, i) => J(p.at) === J(sv.placed[i].at) && p.kg === sv.placed[i].kg)
+       && Math.abs(L.kg - M.freightKg(sv.placed)) < 1e-9, 'Accept\'s record: the airframe, the job\'s sub, every item aboard with its box and kilos');
+    const N = M.careerNormalise(JSON.parse(J(A.doc)));
+    ok(J(N.career.load) === J(L), 'the record survives the career\'s normaliser (a save / load)');
+    const FA = M.freightAccepted(A.doc);
+    ok(FA && FA.items.every(p => J(p.c) === J([0.5 * (p.at.x0 + p.at.x1), 0.5 * (p.at.y0 + p.at.y1), 0.5 * (p.at.z0 + p.at.z1)].map(v => Math.round(v * 1000) / 1000))) && Math.abs(FA.kg - L.kg) < 1e-9,
+       'freightAccepted (FREIGHT-STRAP\'s read): each item\'s centre and kilos in the card\'s frame');
+    ok(J(M.freightAccepted(M.freightLoadRecord(c172, sv, JB.ctx)).items) === J(FA.items) && M.freightAccepted(d) === null, 'freightAccepted reads the sandbox\'s record the same way; none accepted -> null');
+    const RT = M.freightLoadFromRecord(c172, L);
+    ok(J(RT.placed.map(p => [p.id, p.at, p.on])) === J(sv.placed.map(p => [p.id, p.at, p.on || null])) && RT.items.length === sv.items.length, 'reopened on the accepted record: the same placement');
+    ok(M.freightLoadJob(A.doc, 'Ces').rec === A.doc.career.load && !M.freightLoadJob(A.doc, 'Cub').rec, 'the view reopens on the accepted placement for the same airframe only');
+    const SI = M.freightStopItems(A.doc, 'Ces');
+    const stop = M.careerStopRecord({ how: 'stopped', aero: 'HOME', occupants: 1, cargoKg: 999, items: SI });
+    ok(SI && J(stop.load.items.map(i => i.id)) === J(L.items.map(i => i.id)) && Math.abs(stop.load.kg - L.kg) < 1e-9 && M.freightStopItems(A.doc, 'Cub') === null,
+       'the stop record\'s load IS the accepted items (not the typed 999 kg); another airframe\'s stop carries none');
+    ok(M.freightLoadSettle(A.doc) === A.doc, 'the accepted load stays aboard while its sub is open');
+    const dn = JSON.parse(J(A.doc)); dn.career.contracts.live[jid].subs[L.sub] = true;
+    ok(!M.freightLoadSettle(dn).career.load && dn.career.load, 'delivered (its sub done): the load leaves the record');
+    const ab = M.careerAbandon ? M.careerAbandon(A.doc, jid).doc : null;
+    ok(!ab || !M.freightLoadSettle(ab).career.load, 'its contract abandoned: the load leaves the record');
+    // an item left on the ground is named in the record and is not in the stop's load
+    const g1 = M.freightLoadUnload(c172, sv, sv.placed[0].id).st;
+    const A2 = M.freightLoadAccept(d, c172, g1, JB.ctx).doc;
+    ok(A2.career.load.ashore.length === 1 && A2.career.load.ashore[0].id === sv.placed[0].id && !M.freightStopItems(A2, 'Ces').some(i => i.id === sv.placed[0].id),
+       'an item left on the ground: named in the record, not in the stop\'s load');
+    say('  Accept: ' + jid + ' on the C172 - ' + L.items.length + ' items, ' + L.kg + ' kg, CG ' + L.cg.pct + ' % MAC' + (L.ok ? ' (within every limit)' : ' · ' + L.why.join('; ')));
+  }
+
   // ==== PURITY =================================================================================================
   {
-    const s = M.__src['76'].replace(/\/\/.*$/gm, '');
-    for (const w of ['window', 'document', 'localStorage', 'sessionStorage', 'indexedDB', 'THREE', 'Math.random', 'Date.now', 'new Date', 'performance', 'fetch('])
-      ok(!new RegExp('\\b' + w.replace(/[.(]/g, m => '\\' + m)).test(s), '76_: pure (no ' + w + ')');
+    for (const f of ['76', '77']) {
+      const s = M.__src[f].replace(/\/\/.*$/gm, '');
+      for (const w of ['window', 'document', 'localStorage', 'sessionStorage', 'indexedDB', 'THREE', 'Math.random', 'Date.now', 'new Date', 'performance', 'fetch('])
+        ok(!new RegExp('\\b' + w.replace(/[.(]/g, m => '\\' + m)).test(s), f + '_: pure (no ' + w + ')');
+    }
   }
   return { fails: fails.slice(), checks };
 }
@@ -377,6 +543,25 @@ const BREAKS = [
   ['the stop record ignores the items', { s75: sub("  const items = Array.isArray(o.items) && o.items.length && typeof freightItem === 'function' ? freightSplit(o.items) : null;", '  const items = null;') }],
   ['a delivery missing an item is paid', { s73: sub('    if (miss) return !miss.length && (aboard.pax || 0) >= (L.pax || 0);', '    if (miss) return (aboard.pax || 0) >= (L.pax || 0);') }],
   ['the model reaches for the clock', { s76: s => s + '\nfunction frNow() { return Date.now(); }\n' }],
+  // G2345 (FREIGHT-LOAD): the hand's rules
+  ['the hand walks through a seat', { s77: sub("  if (ob) return flNo(", "  if (false) return flNo(") }],
+  ['the hand walks through another item', { s77: sub("  if (hit) return flNo('the ' + hit.id + ' is there');", '') }],
+  ['the hand floats an item', { s77: sub('  let y0 = floorY, sup = null;', '  let y0 = floorY + 0.05, sup = null;') }],
+  ['the hand ignores the door', { s77: sub("  if (!door.ok) return flNo(", "  if (false) return flNo(") }],
+  ['the hand ignores the walls', { s77: sub("  z0 = flR3(Math.max(-zm, Math.min(z0, zm - lz)));", '') }],
+  ['an item pulled from under another', { s77: sub("  if (atop.length) return flNo(atop.map(p => p.id).join(', ') + ' is on it: move that first');", '') }],
+  ['an overhang stands', { s77: sub("    if (fp.x0 < sup.at.x0 - 1e-9 || fp.x1 > sup.at.x1 + 1e-9) return flNo(", "    if (false) return flNo(") }],
+  ['something goes on a drum', { s77: sub("    if (!sup.stack) return flNo(", "    if (false) return flNo(") }],
+  ['the snap leaves the stations', { s77: sub('  let x0 = H.x0 + Math.round((wx - lx / 2 - H.x0) / P.step) * P.step;', '  let x0 = wx - lx / 2;') }],
+  ['out of range is refused', { s77: sub("  const placed = st.placed.filter(p => p.id !== id).concat([t.row]);", "  const placed = st.placed.filter(p => p.id !== id).concat([t.row]);\n  if (!freightReport(card, placed, { pax: st.pax, seatsOut: st.seatsOut }).ok) return Object.assign({ st }, flNo('out of range'));") }],
+  ['the report is not freightReport\'s', { s77: sub("  const R = freightReport(card, st.placed, { pax: st.pax, seatsOut: st.seatsOut });", "  const R = freightReport(card, st.placed, { pax: 0, seatsOut: [] });") }],
+  ['a passenger\'s seat taken out', { s77: sub("    if (s.i <= st.pax) return { ok: false, why: 'a passenger sits in seat ' + s.i, st };", '') }],
+  ['a seat goes back under an item', { s77: sub("  if (hit) return { ok: false, why: 'the ' + hit.id + ' stands where seat ' + s.i + ' goes: move it first', st };", '') }],
+  ['Propose again keeps the hand\'s placement', { s77: sub('  return freightLoadNew(card, st.items, { pax: st.pax, seatsOut: st.seatsOut });', '  return st;') }],
+  ['Accept loses the boxes', { s77: sub('at: Object.assign({}, p.at), on: p.on || null, space: p.space || null', 'on: p.on || null, space: p.space || null') }],
+  ['the stop ignores the accepted load', { s77: sub("  if (!A || (slot != null && A.slot != null && A.slot !== String(slot))) return null;", '  return null;') }],
+  ['a delivered load stays aboard', { s77: sub("  if (open) return doc;", '  return doc;') }],
+  ['the hand reaches for the clock', { s77: s => s + '\nfunction flNow() { return Date.now(); }\n' }],
 ];
 let bad = 0;
 for (const [name, mut] of BREAKS) {
