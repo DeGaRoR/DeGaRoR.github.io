@@ -799,6 +799,34 @@ try {
     if (!/&gt; 10 m\/s|> 10 m\/s/.test(els['pqRows'].innerHTML))
       throw new Error('a limit above the cap does not print as "> cap"');
     console.log('bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap');
+    // G2273 (ACCEPT): PROVED IN FLIGHT - off the plaque until the build's logbook holds a valid leg; its rows when it
+    // does (the real accept_rec.js over a signed record the core measured off a steady 5-min leg); WITHDRAWN under
+    // another fingerprint (the bench's stickers' rule)
+    {
+      vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'accept_rec.js'), 'utf8'), sandbox, { filename: 'accept_rec.js' });
+      const W = sandbox.window, keepG = W.GARAGE_SPEC, keepFp = W.BENCH_FP;
+      const smp = [];
+      for (let i = 0; i <= 300; i++) smp.push({ t: 200 + i, alt: 300, tas: 35.25, gs: 35.25, vs: 0, bank: 0, E: 32.4 - 10.887 * i / 3600, kind: 'fuel', thr: 0.75, box: true });
+      const meas = sandbox.acceptLegMeasure(smp, { E0: 32.4, kind: 'fuel', kgL: 0.72, thr: 0.75, alt: 300 });
+      const rec = sandbox.acceptSign(meas, { fp: 'abcd1234', when: '2026-10-07', thr: 0.75, alt: 300, legMin: 5, load: { occupants: 1, payloadKg: 122, massKg: 476 } });
+      const LOG = { built: null, tests: [], flights: [], accept: [] };
+      W.GARAGE_SPEC = Object.assign({}, keepG || {}, { log: () => LOG });
+      W.BENCH_FP = () => 'abcd1234';
+      try {
+        B.plaque(true);
+        if (/proved in flight/i.test(els['pqRows'].innerHTML)) throw new Error('the proved-in-flight section is on the plaque with no leg flown');
+        LOG.accept.push(rec);
+        B.plaque(true);
+        const h = els['pqRows'].innerHTML;
+        if (!meas.valid || !/proved in flight/i.test(h) || !/126\.9 km\/h TAS|127 km\/h TAS/.test(h) || !/endurance flown/.test(h) || !/range flown/.test(h) || !/burn flown/.test(h))
+          throw new Error('the plaque did not print the acceptance leg: ' + (h.match(/proved in flight[\s\S]{0,300}/i) || [''])[0]);
+        W.BENCH_FP = () => 'ffff0000';
+        B.plaque(true);
+        if (!/withdrawn/.test(els['pqRows'].innerHTML) || /range flown/.test(els['pqRows'].innerHTML))
+          throw new Error('a leg flown on another build is not withdrawn from the plaque');
+      } finally { W.GARAGE_SPEC = keepG; W.BENCH_FP = keepFp; B.plaque(true); }
+      console.log('accept: the plaque has no proved-in-flight rows without a leg, prints the leg (127 km/h TAS, ' + meas.enduranceMin + ' min, ' + meas.rangeKm + ' km), and withdraws it under another fingerprint');
+    }
     // the live test, through the bench's own calls
     B.showPhysical(true);
     B.loadTest();

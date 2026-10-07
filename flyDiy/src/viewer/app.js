@@ -6226,6 +6226,7 @@
   function logFlight() {
     if (flightLogged || curKey !== 'gen') return;
     flightLogged = true;
+    if (window.ACCEPT_REC) window.ACCEPT_REC.flightEnd();   // G2273: a leg still flying is refused, and signed as such
     try {
       const G = window.GARAGE_SPEC;
       if (!G || !G.log) return;
@@ -6246,6 +6247,18 @@
         r.on = new Date().toISOString().slice(0, 10);
         // SKY chantier: the WORLD'S date-time at touchdown too (`on` is when you flew, `day` is when the aeroplane did)
         if (world.day) r.day = world.day.local;
+        // G2273 (ACCEPT): THE PROOF AT A STRIP - where it stopped (flightWhere: a strip, a lane, a stand, an apron; the
+        // stop only), who was aboard, and the build that flew (the bench's roll-out fingerprint): acceptVerdict reads
+        // a take-off from `from` and a landing at `at`, under this build's fingerprint
+        try {
+          const cg = sim.cgPos();
+          if (ap.phase === 'STOPPED' && typeof acceptStopAt === 'function') { const at = acceptStopAt(world, cg[0], cg[2]); if (at) r.at = at; }
+          const S = def && def.spec, L = def && def.parts && def.parts.ledger;
+          if (S && S.occupants != null) r.occ = S.occupants;
+          if (L) { let pk = 0; for (const k in L) if (L[k] && L[k].payload) pk += L[k].mass || 0; r.payloadKg = Math.round(pk * 10) / 10; }
+          const fpo = window.BENCH_FP_OUT ? window.BENCH_FP_OUT() : null;
+          if (fpo) r.fp = fpo;
+        } catch (e) {}
         return r;
       };
       if (t) {
@@ -6771,6 +6784,23 @@
       if (XW.failW != null)
         R('first rung failed', n1(XW.failW, 1) + ' m/s · ' + (XW.failWhy || '—'),
           XW.failWhy === 'off the edge line' ? 'warn' : XW.failWhy ? 'bad' : '');
+    }
+    // G2273 (ACCEPT): PROVED IN FLIGHT - the last valid acceptance leg in this build's logbook (accept_rec.js), beside
+    // the bench's sheets: the cruise the autopilot held, the flow it burned, and the endurance and range they make.
+    // Off-screen until a leg exists; WITHDRAWN when the fingerprint changed since (the bench's stickers' rule)
+    const acc = window.ACCEPT_REC ? window.ACCEPT_REC.plaqueLeg() : null;
+    if (acc) {
+      const A = acc.leg;
+      H('proved in flight');
+      if (acc.withdrawn) R('proved in flight', 'withdrawn — the build changed since the leg of ' + (A.when || '?'), 'warn');
+      else {
+        R('cruise flown', n1(A.tasKmh, 0) + ' km/h TAS · ' + n1(A.decl.thr * 100, 0) + ' % throttle · ' + n1(A.alt, 0) + ' m');
+        if (A.kind === 'battery') R('draw flown', n1(A.flow, 1) + ' kW');
+        else R('burn flown', n1(A.flow, 1) + ' kg/h' + (A.flowLh != null ? ' (' + n1(A.flowLh, 1) + ' L/h)' : ''));
+        R('endurance flown', n1(A.enduranceMin, 0) + ' min + ' + n1(A.reserveMin, 0) + ' reserve', A.enduranceMin < 30 ? 'bad' : '');
+        R('range flown', n1(A.rangeKm, 0) + ' km');
+        R('the leg', n1(A.decl.legMin, 0) + ' min · ' + (A.load && A.load.occupants != null ? A.load.occupants + ' aboard · ' : '') + (A.when || ''));
+      }
     }
     // G134: THE POWERPLANT SHEET — the thermo laws' first readout (the name
     // and horsepower stay in the footer, as ever). The duty is the heat the
@@ -9497,6 +9527,7 @@
       }
     }
     hudEnergy();
+    if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
     // number the PLAQUE actually declares. The stall is one — genShakedown
     // has measured `Vs` since G4 and the bench check quotes it. Vne and a

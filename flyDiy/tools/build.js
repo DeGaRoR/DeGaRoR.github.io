@@ -161,6 +161,11 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // ACCEPT (G2270): a build's acceptance - the static checks (no simulation:
+    // the phone may run them), the flown leg's measurement and procedure on the
+    // AP box, the signed record, acceptVerdict over a contract's criteria. Pure;
+    // reads 71_'s footprint and door, 38b_'s flightWhere. GATE ACCEPT.
+    '72_accept.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
@@ -447,6 +452,9 @@ const MANIFEST = {
     // plaque.js and stickers.js before bench.js (G208): the plaque's sheet
     // (explanations, bounds, hover cards) and the certification roundels;
     // bench.js and app.js read both through window.PLAQUE / window.STICKERS.
+    // accept_rec.js after bench.js (G2273, ACCEPT): the acceptance leg's page
+    // wrapper (window.ACCEPT_REC) - reads bench.js's BENCH_FP_OUT and the
+    // core's 72_accept.js; app.js ticks it beside the HUD and the plaque reads it.
     // bench_worker.js before bench.js (A9): the load rig's and the crosswind
     // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
     // worker next to tools/flight_core.js — so it must stay a file the page
@@ -463,7 +471,7 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
