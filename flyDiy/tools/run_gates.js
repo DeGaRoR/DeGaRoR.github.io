@@ -615,6 +615,12 @@ const GATES = [
   // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
   // logbook's stop at a strip, the page's wrapper and the worker's door, acceptVerdict per kind; --selftest 24 rules
   { id: 'ACCEPT', file: '_accept_check.js', tier: 'core', wall: 300 },
+  // THE BELLY POD (G2416, BELLY-POD, FREIGHT-2026-10-07.md §4): off = every validated build's def and shakedown to the
+  // base's bytes (tools/_pod_base.json); the part (its cargo space, door, ledger rows, shell); its ground / water
+  // clearance per attitude re-derived off its own shell; its drag (Raymer's build-up) in the axial row and its cost
+  // in cruise and climb; the bench's row (a strike refused with its number); the mounts under a real certificate;
+  // the CG full; the acceptance leg off / on / full (reports/evidence/POD/flights.json); --selftest 21 doctored rules
+  { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 60 },
   // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
   // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
   // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the

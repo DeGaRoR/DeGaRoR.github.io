@@ -143,6 +143,9 @@ const MANIFEST = {
     // 61_, which bills the mass of whatever ends up in these bays. It has to
     // sit between them for that reason and no other.
     '60c_gen_energy.js',
+    // THE BELLY POD (G2410): its shape, cargo space, drag, clearance and balance, pure; reads 60_'s GEN_MATERIALS /
+    // GEN_DRAG and 32_'s HYDRO; 61_ bills it, 62_ prices its drag, 64_ reports it, 66_ its mounts
+    '60d_gen_pod.js',
     '61_gen_frame.js',
     '62_gen_aero.js',
     '63_gen_wing.js',

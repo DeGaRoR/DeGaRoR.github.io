@@ -1307,6 +1307,17 @@ function genParams(S, fr, strips) {
   }
   cda.fusCdA[0] += braceDCdA + tailBraceDCdA;
   cda.drag.brace = braceDCdA + tailBraceDCdA;
+  // THE BELLY POD (G2410, 60d_gen_pod genPodCdA): its parasite area (Raymer's component build-up on its own wetted
+  // area, the interference of a store on the fuselage in it) on the axial row; its plan and side areas on the
+  // forward blob's cross-flow (it hangs under the cabin, where that blob sits); its volume joins the body's (Munk).
+  // Absent with no pod: not a key, not a term (GATE POD: the pod off is the bytes it was).
+  if (fr.parts.pod) {
+    const pd = genPodCdA(fr.parts.pod);
+    cda.fusCdA[0] += pd.cda;
+    cda.fusCdA[1] += pd.crossY; cda.fusCdA[2] += pd.crossZ;
+    cda.drag.pod = pd.cda;
+    cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
+  }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
