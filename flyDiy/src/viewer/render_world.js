@@ -397,7 +397,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // user's F8 look as baked): measured at the hand-over (HANDOVER G1975), it IS the match on the presets whose
   // trees cast no shadow (potato: impostor / geometry 1.05 front-lit) and 1.38x too bright where they do (gamer:
   // the geometry darkens under its own crown, the impostor does not) - 0.9 is gamer's match. Which one is the
-  // user's call (the far forest moves ~22 % with it).
+  // user's call (the far forest moves ~22 % with it). THE USER'S CALL (2026-10-07, "the best image is the fix", read by A0
+  // as the sheet's third column): where the world casts tree shadows, treeShadowed() below sets this to 0.9 AND puts the
+  // shade compensation x1.38 on both tiers' tint (trees.js SHADE) - the far forest stays where it was approved, the near
+  // trees are lifted to it; the presets without tree shadows keep 0.9 x 1.38 and no compensation.
   const uILit = { value: 0.9 * 1.38 };
   // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
   const uIFlat = { value: 1.30 }, uIFlatMean = { value: 0.05 };
@@ -408,11 +411,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // THE SHAPE: a twig is one texel of the 128-px tile, and the 3-tap union (solid 1) at the snag's cut 0.10 made every
   // one a square blob on a fat pole; solid 0 and a 0.4 floor on the cut leave the pole and dissolve the twigs, as the
   // geometry's sub-pixel twigs do at the hand-over. THE LEVEL: a bare snag barely shades itself, so its geometry's
-  // match is uILit 0.9 on every preset (the leafy one is 1.242 without tree shadows) - barkLit 0.725 = 0.9 / 1.242
-  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.725 };
+  // match is uILit 0.9 on every preset (the leafy one is 1.242 without tree shadows) - barkLit is that ABSOLUTE 0.9 (it
+  // replaces uILit on a bark sheet, so the shadowed presets' uILit 0.9 + shade x1.38 keep it matched too)
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9 };
   const uBarkW = { value: IMPK.barkWrap }, uBarkS = { value: IMPK.barkSSS }, uBarkF = { value: IMPK.barkFlat },
         uBarkSol = { value: IMPK.barkSolid }, uBarkCut = { value: IMPK.barkCut },   // and its alpha: the 3-tap union's share, a floor on its cut
-        uBarkL = { value: IMPK.barkLit };   // and its share of the tier gain uILit
+        uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -3897,7 +3901,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // most of its life) and straight-down at the centre.
             inst ? 'uIGain = vImpP.x; uICut = vImpP.y; uHue = vImpT.x; uSat = vImpT.y; uLight = vImpT.z;' : '',
             // a bark-only sheet takes its own share of the leaf terms and its own contrast (G1975)
-            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; _iLit = _bk ? uILit * uBarkL : uILit; }',
+            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; _iLit = _bk ? uBarkL : uILit; }',
             'vec3 dI = vImpDir;',
             'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
             'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
@@ -3944,7 +3948,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the tier gain, on all four terms - the multiscatter one rides on
             // the sky and not the albedo, and scaling the diffuse alone leaves
             // a floor that eats the dial (the bench's W0a.2)
-            // (G1975: _iLit - a bark-only sheet's is uILit x IMPK.barkLit, set with the sheet's other terms)
+            // (G1975: _iLit - a bark-only sheet's is IMPK.barkLit, set with the sheet's other terms)
             'reflectedLight.directDiffuse *= _iLit;\nreflectedLight.indirectDiffuse *= _iLit;\n' +
             'reflectedLight.directSpecular *= _iLit;\nreflectedLight.indirectSpecular *= _iLit;');
       };
@@ -4039,13 +4043,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // them all alike. So the size is the bench's rule now: `place.size` times
     // 1 + spread*(2w - 0.9), which at spread 0.2 is 0.82-1.22 - the bench's
     // committed spread - and nothing else. `T.s` stays the physics' number.
-    // G1975 (DEADWOOD-BRIGHT, PROPOSED - the user's call, OFF until they say): `mixDead` deals the snags by the MIX's own
+    // G1975 (DEADWOOD-BRIGHT; ON since the user's call 2026-10-07 - G1975.2): `mixDead` deals the snags by the MIX's own
     // `dead` share for the species where the tree stands (BIO.mixes[..].species[sp].dead, the bench's tuning) instead of
-    // the collection's `place.dead` - which the mixes never reach: pine_georgeous carries 0.53 on its collection and 0 /
-    // 0.03 in every mix that plants it, so half of it stands dead. Where a mix names no share, the collection's stays.
-    // ?mixdead=1 for the A/B; a replant (TREE_FILL / the woodland) takes a change
+    // the collection's `place.dead` - which the mixes never reached: pine_georgeous carries 0.53 on its collection and 0 /
+    // 0.03 in every mix that plants it, so half of it stood dead. Where a mix names no share, the collection's stays.
+    // Near HOME: 11.8 % of the trees dead -> 3.7 %. ?mixdead=0 for the old dealing (the A/B); a replant takes a change
     const TREE_MIX = { furnished: 1.0, spread: 0.2,
-                       mixDead: typeof location !== 'undefined' && /[?&]mixdead=1/.test(location.search || '') };
+                       mixDead: !(typeof location !== 'undefined' && /[?&]mixdead=0/.test(location.search || '')) };
     const sizeOf = (base, w) => (base || 1) * (1 + TREE_MIX.spread * (2 * w - 0.9));
     if (typeof window !== 'undefined') window.TREE_MIX = TREE_MIX;
     const SERIES = ['rungs', 'stand', 'snag'];        // index = series id
@@ -7086,6 +7090,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k });   // the tint carries the level to BOTH tiers; uILit is the impostor/geometry match and stays (G1975: it scaled with k too - the impostors took k^2)
     return ENV_ALB.k;
   };
+  // G1975: THE TREES UNDER THEIR OWN SHADOWS (gfx_settings' shadows apply calls it; see uILit). on = the world casts
+  // tree shadows (shadows 'full' / 'ultra'): the impostors' match 0.9 and the shade compensation x1.38 over both tiers
+  // SHADE_K: the near trees' lift on those presets - 1.38 = the sheet's third column (darker far + near x1.38); 1 = the
+  // second (darker far only). THE ONE NUMBER the user's answer sets (A0 relays it)
+  const SHADE_K = 1.38;
+  const TREE_SHADED = { on: false, lit: [0.9 * 1.38, 0.9], k: [1, SHADE_K] };
+  const treeShadowed = on => {
+    if (on === undefined) return TREE_SHADED.on;
+    TREE_SHADED.on = !!on; const i = TREE_SHADED.on ? 1 : 0;
+    uILit.value = TREE_SHADED.lit[i];
+    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.shadeK) TREE_LEAF.shadeK(TREE_SHADED.k[i]);
+    return TREE_SHADED.on;
+  };
   // waterDrawY(x, z): the y of the water surface DRAWN here - a lake's quad, else the sea plane (0, every tier:
   // G1563), else null. The physics' waterH is its own model (a procedural lake can sit 0.6 m
   // over the DEM lake the renderer draws); anything that must agree with the PICTURE reads this.
@@ -7103,7 +7120,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

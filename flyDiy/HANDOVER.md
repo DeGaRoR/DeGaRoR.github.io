@@ -80692,3 +80692,48 @@ RESULT (before = 13abb1d1, after = this commit; retro 1920x1080, 3080, ground ms
   reports/evidence/GROUND-COST/g2076_apron_current_*_before_after_x4.jpg).
   COLD LINKS: unchanged (retro 5.2 -> 5.0 s, current 11.1 -> 11.2 s). Gates: SPLAT, PREMISES, PAVEMENT, PROGRAMS, LAKEBED PASS.
   Runs: reports/evidence/GROUND-COST/runs/ap_*.json.
+
+   1.242 without tree shadows (below): `barkLit` 0.9, ABSOLUTE in place of uILit (G1975.1; it landed first as the ratio 0.725).
+  answer: as landed, 1.242 everywhere. ANSWERED 2026-10-07: column 3 - see G1975.1 below.
+**THE MIXES' SNAG SHARE (proposed OFF; ON by the user's call 2026-10-07 - G1975.2 below):** the game deals snags by the collection's
+
+### G1975.1 - THE TREES UNDER THEIR OWN SHADOWS: THE USER'S FAR-FOREST CALL (2026-10-07, DEADWOOD-BRIGHT for A0, for train 40)
+
+**The user's call** (shown `far_forest_sheet.png`, confirmed through A0 as COLUMN 3): where the world casts tree shadows,
+the far pictures at their 3D match and the near trees lifted to keep the far level - not the darker-only column 2.
+
+**What it does:** `WORLD.treeShadowed(on)` (render_world.js), called by gfx_settings' shadows apply with
+`sh.on && sh.world !== false` - true for shadows `full` / `ultra` (current, gamer, ultra), false for `off` / `near`
+(potato, laptop, retro). On: uILit 0.9 (the impostors' measured match under self-shadowed geometry) AND the shade
+compensation `SHADE_K` 1.38 on BOTH tiers' tint (trees.js `SHADE`, `TREE_LEAF.shadeK()`: the trees and the bushes, every
+kind riding on MASTER, not the grass; not the user's MASTER.light, not saved). Off: uILit 0.9 x 1.38 and k 1, i.e.
+exactly G1975. Bark-only sheets now take an ABSOLUTE lit `barkLit` 0.9 in place of uILit (was the ratio 0.725), so a snag
+keeps matching under either state. `SHADE_K` is the one number (render_world.js; 1 = column 2).
+
+**Verified (2026-10-07 05:40, gamer golden; `col3/`):** the page boots with treeShadowed true, uILit 0.9, shadeK 1.38
+(the gfx hook fires). At the hand-over (geometry RE-SHOT per variant, since the lift moves both tiers), impostor /
+geometry `core` front-lit, master -> col3: cedar 1.27 -> 1.05, larch 1.32 -> 1.11, spruce 1.72 -> 1.26, pine 1.23 ->
+1.19, larch snag 1.38 -> 1.13; into the sun and side-lit lower in both (pre-existing, G1975's side findings). The far
+forest, the trees' own pixels master -> col3: 300 m noon 0.166 -> 0.149, golden 0.078 -> 0.064; 1 km noon 0.177 ->
+0.161, golden 0.075 -> 0.062 (the tint carries the albedo terms back, not the sky-reflection terms uILit also scaled).
+`far_forest_col3_sheet.jpg`: the near trees round a larch snag (290 m, golden, front- and side-lit) and the four far
+frames, master | col3. NOT re-shot on screen: gamer noon and potato (the second half of the pass was lost to a job-number
+slip in the slot script) - potato's "unchanged" stands on the code path (shadows `off` -> treeShadowed(false) -> G1975's
+values), checked by the gfx hook's own condition, not by a still.
+
+**Gates (this code):** GFX, TREES, TREE, PROGRAMS PASS; FRAMECOST `--census cub` of this branch vs its base train 37b
+(068584d6) `--compare`: nothing moved - stand, taxi, boot, memory (`col3/framecost_census_*`). (A census against the
+newer origin/master 751e1122 shows only master's own boot gains since 37b, which this branch did not carry until the
+merge below.)
+
+### G1975.2 - THE MIXES' SNAG SHARE ON BY DEFAULT (2026-10-07, the user's call on `mixdead_sheet.jpg` / `mixdead_table.jpg`)
+
+`TREE_MIX.mixDead` defaults ON; `?mixdead=0` deals as before (the collection's `place.dead`). Measured on gamer within 3 km
+of HOME (`mixdead_{off,on}_0707.json`): dead trees 22 836 -> 7 116 (11.8 -> 3.7 % of the living species; pine_georgeous
+53 -> 0.3 %; birch / ash gain the mixes' 5 %; dead_conifer, a dead species, unaffected). THE COST: the near tier at the
+stand carries 0 .. +11 % triangles (672 k both on 2026-10-07, 679 k -> 755 k on 2026-10-06 - what the streamer had dealt
+at that moment: the living trees that replace snags carry 2-4x their triangles). FRAMECOST (2026-10-07 13:30, the cpu lock): one RED, `stand/tris.main` +1.2 % on both builds (the
+gate's tolerance 1 %) - of it +84 141 (+0.48 %) is this switch against the same code with ?mixdead=0 (census pair), the rest
+the baseline's earlier drift; admitted by name in `tools/_framecost_check.js` ALLOW (G1975.2, cub / cessna upTo), then PASS.
+Taxi unchanged (-480 tris), draws -2. TREES, TREEHIT PASS (positions unchanged - the switch picks the series only).
+
