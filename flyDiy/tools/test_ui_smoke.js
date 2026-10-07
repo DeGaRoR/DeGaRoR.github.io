@@ -96,6 +96,21 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (!/\nif \(CAREER_DEV\) window\.FLYDIY_CAREER = |  if \(CAREER_DEV\) window\.FLYDIY_CAREER = /.test(app)) throw new Error('app.js: window.FLYDIY_CAREER is not behind the flag');
   console.log('the career flag in app.js: ' + outside.length + ' calls into the career outside its page half, every one behind CAREER_DEV (?career=1 alone; flydiy.career.dev, the sandbox keeps flydiy.player)');
 }
+// G2260 (ECONOMY): THE WALLET ONLY IN A CAREER - in app.js every call into the economy outside its page half is guarded by
+// CAREER_DEV (the half defines the functions and window.FLYDIY_ECON, under the flag); garage.js's save asks the page
+// first, and the page's answer without the flag is '' (the sandbox saves exactly as before)
+{
+  const app = pick('function setAircraft', 'app'), gar = pick('function garageInit', 'garage');
+  const i0 = app.indexOf("G2260 (ECONOMY): THE CAREER WALLET'S PAGE HALF"), i1 = app.indexOf('window.FLYDIY_PLAYER = {', i0);
+  if (i0 < 0 || i1 < 0) throw new Error("app.js: the economy's page half is not where this gate reads it");
+  const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\becon[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
+  const loose = outside.filter(l => !/CAREER_DEV/.test(l));
+  if (loose.length) throw new Error('app.js calls the economy outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
+  if (!/  if \(CAREER_DEV\) window\.FLYDIY_ECON = /.test(app)) throw new Error('app.js: window.FLYDIY_ECON is not behind the flag');
+  if (!/canSave: \(name, isNew\) => \(CAREER_DEV \? econSaveWhy\(name, isNew\) : ''\)/.test(app)) throw new Error("app.js: the save's price door answers the sandbox");
+  if (!/if \(api\.canSave\) \{ const why = api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\); \}/.test(gar)) throw new Error('garage.js: the save does not ask the page first');
+  console.log('the wallet in app.js: ' + outside.length + ' calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)');
+}
 // THE MAP SCREEN'S ROWS (G2253, MAP-MENU; tools/_map_smoke.js): the sandbox shows no MAP entry without ?map=1, nothing of
 // the screen loads before the entry is pressed, the screen's tabs / rows / cards over the contracts fixture, NOHOVER and R1
 // on the new UI; --phone the phone's card and the sheet's gestures
@@ -497,6 +512,9 @@ try {
   // G2320 (CAREER-WIRE): the sandbox booted (no ?career=1): no career door, no career plate
   if (sandbox.window.FLYDIY_CAREER !== undefined || els.crPlate || els.crKg) throw new Error('the sandbox booted with the career (FLYDIY_CAREER / #crPlate) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_CAREER, no career plate');
+  // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
+  if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
+  console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
   if (PHONE) { phoneChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw

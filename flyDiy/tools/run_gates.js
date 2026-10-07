@@ -629,6 +629,8 @@ const GATES = [
   // in flight (the queue + the page's source); every arc unlock mapped; the kits existing props; the editor's save
   // restores the whole record. ~70 s. `--selftest`: 18 doctored rules, each red (~15 s)
   { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
+  // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
+  { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

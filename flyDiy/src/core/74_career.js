@@ -107,6 +107,8 @@ function careerContract(doc, id) {
     return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0 });
   }
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
+  // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
+  if (/^loan:/.test(id) && typeof econLoanJob === 'function') return econLoanJob(doc, id);
   return null;
 }
 function careerNeedsOk(doc, rec) {
@@ -134,6 +136,9 @@ function careerOfferIds(doc) {
     for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
     for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep })) if (!taken.has(j.id)) out.push(j.id);
   }
+  // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
+  const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
+  if (loan && !taken.has(loan)) out.unshift(loan);
   // follow-ups: the last of each delivered build contract's chain
   const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
   for (const id of builds) {
@@ -244,7 +249,7 @@ function contractOnStop(doc, contract, stop, hooks) {
 function careerComplete(d, rec, live, medal, events) {
   const c = d.career, C = c.contracts;
   const pay = contractPayTotal(rec, live.got, medal);
-  playerCharge(d, -pay, 'contract', rec.id);
+  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);   // G2260: the Trust's loan job writes a `loan` line
   const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 });
   P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +(P.rep + (rec.rep.gain || 0)).toFixed(3)));
   const prov = CONTRACT_PROVIDERS[rec.provider];

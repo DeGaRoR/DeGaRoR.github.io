@@ -172,6 +172,9 @@ const MANIFEST = {
     // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
     // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
     '76_stages.js',
+    // THE ECONOMY (G2260 ECONOMY, P5a): one price book (ratios of the ledger's Cub), the career wallet's rules,
+    // the Trust's loan job, the calibration as data and the reference career; pure, GATE ECON. §R G-COST, §12.
+    '76_economy.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172

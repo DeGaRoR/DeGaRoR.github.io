@@ -1,0 +1,20 @@
+  ok   the sandbox: no FLYDIY_ECON, no wallet line
+  ok   the sandbox: a new airframe, a kit, a size - the wallet (0) and the ledger (0 lines) exactly as before
+  ok   the sandbox: the airframe is in the fleet, the room grew - as always
+  ok   the sandbox: no career key
+  [sandbox]  the sandbox: the garage with no wallet line
+  ok   the career: flydiy.career.dev, the 60 000 grant
+  ok   the career: the wallet line in the garage (Wallet 60 000 ₵Repair)
+  [career_garage]  the career: the garage's wallet line
+  ok   the build on the stand priced: the ledger 31203 -> 25000 (wants tube)
+  ok   a new airframe saved: materialised, 24700 charged (an airframe line, the price on its row; the wallet 35300)
+  ok   saving over it again costs nothing
+  [career_bought]  the career: an airframe bought
+  ok   a kit fitted: paid 7500 (an upgrade line)
+  ok   the wallet short: a new airframe's save REFUSED (no slot written, nothing charged)
+  ok   the wallet short: a kit refused, the room unchanged
+  [career_refused]  the career: a purchase refused (the wallet line says why)
+  ok   below -20 000: the Trust's loan job first on the map (loan:field:1, pays 21000)
+  ok   the flight plate carries the wallet (CAREER-WIRE's #crPlate)
+  ok   no page error
+econ_page: PASS

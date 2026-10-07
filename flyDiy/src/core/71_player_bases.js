@@ -126,11 +126,10 @@ const BASE_OFFERS = {
   },
 };
 
-// The money, declared in one place (calibration is P5a's; these are the
-// defaults GAME-PREMISES §4 proposes, every one an open question there).
-// A stock Cub's ledger is ~30 000 (genShakedown on GEN_DEFAULT).
+// The money's rules (the PRICES are THE PRICE BOOK's since G2260 ECONOMY, P5a:
+// 76_economy.js ECON_BOOK - shells, kits, as ratios of the ledger's Cub).
 const PREM_RATES = {
-  clubPrice: 10000,      // SHELLS.club.price is 0 because it is the starter; a club bought elsewhere is not
+  // (G2260 ECONOMY: a shell's price is THE PRICE BOOK's - 76_economy.js econShellPrice - `clubPrice` went with it)
   // (G-COST, G2230: no rent - `rentPerHour` is gone with every per-hour charge; hangars are bought, never rented)
   resale: 0.5,           // an owned hangar released returns this share of what it cost
   rebuildCredit: 0.5,    // a shell swapped in place credits this share of the old shell's price
@@ -141,9 +140,8 @@ const PREM_RATES = {
   labourAway: 1.25,      // ...with no hangar of yours (a field's mechanic)
   ledgerMax: 200,
 };
-// what a kit costs to fit (the starter's kits came with it); nothing refunds a kit
-const KIT_PRICES = { park: 0, bench: 800, wood: 2500, metal: 3500, store: 300, handling: 600,
-                     office: 1500, comfort: 900, curio: 0, wip: 0 };
+// what a kit costs to fit (the starter's kits came with it); nothing refunds a kit: KIT_PRICES is THE PRICE
+// BOOK's (G2260 ECONOMY, 76_economy.js: the kits as ratios of the ledger's Cub)
 
 // THE THREE CONCEPTS, AS NUMBERS (GAME §R GQ4 / GQ7; G2230). The main hangar
 // is HOME's starter shed - the workshop, the only place an aeroplane is built
@@ -646,7 +644,7 @@ function playerBringHome(doc, name, opts) {
 function shellPrice(shell) {
   const S = (typeof SHELLS !== 'undefined') && SHELLS[shell];
   if (!S) return NaN;
-  return S.price || (shell === 'club' ? PREM_RATES.clubPrice : 0);
+  return econShellPrice(shell);           // G2260 (ECONOMY): THE PRICE BOOK (the ledger's Cub x the shell's ratio)
 }
 function plotPrice(aero, plotId, shell) {
   const P = BASE_OFFERS[aero] && BASE_OFFERS[aero].plots[plotId];

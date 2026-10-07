@@ -1148,6 +1148,10 @@ function garageInit(api) {
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
           repainted = !!(prev && prev.spec && JSON.stringify(prev.spec.finish || null) !== JSON.stringify(spec.finish || null)); } catch (e) {}
+    // G2260 (ECONOMY): in a career the first save of a NEW airframe is a purchase (materialised from the drawing board);
+    // the page may refuse it - the wallet short of the price - and then nothing is written. Optional (the sandbox's
+    // page answers '' always; the gates boot this file with no such door).
+    if (api.canSave) { const why = api.canSave(name, !lsGet(SLOT + name)); if (why) return void alert(why); }
     if (!lsSet(SLOT + name, envelope(name, spec, plaque, log)))
       return void alert('Could not save — browser storage is full or disabled.');
     slotName = name;

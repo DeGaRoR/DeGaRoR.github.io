@@ -468,6 +468,7 @@
   const CAREER_DEV = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })()
     && typeof careerNew === 'function';
   const PLAYER_KEY = CAREER_DEV ? careerKey('dev') : 'flydiy.player';
+  let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
   let player = null;
   function playerLoad() {
     if (player) return player;
@@ -493,7 +494,7 @@
     playerSave();
     return player;
   }
-  function playerSave() { if (player) prefSet(PLAYER_KEY, JSON.stringify(player)); }
+  function playerSave() { if (player) prefSet(PLAYER_KEY, JSON.stringify(player)); if (CAREER_DEV) econWalletSync(); }
   // the saved builds' names, read where garage.js keeps them (one key per named build)
   function playerSlotNames() {
     const out = [];
@@ -509,10 +510,12 @@
     try {
       const foots = {};
       if (info.saved && curKey === 'gen' && def && typeof playerFootOfDef === 'function') { const f = playerFootOfDef(def); if (f) foots[info.saved] = f; }
+      const isNew = !!(info.saved && !playerLoad().fleet[info.saved]);
       let d = playerFleetReconcile(playerLoad(), Array.isArray(names) ? names : playerSlotNames(), { foots }).doc;
       if (info.saved && d.fleet[info.saved]) {
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
+        if (CAREER_DEV && isNew) d = econMaterialiseNow(d, info.saved);   // G2260 (ECONOMY): a new airframe is paid for
       }
       player = d; playerSave();
     } catch (e) { console.warn('flyDiy: the fleet ledger could not follow the shelf -', e && e.message); }
@@ -1046,6 +1049,8 @@
     for (const k in L)
       if (d && typeof d[k] === 'number')
         next[k] = Math.max(L[k][0], Math.min(L[k][1], d[k]));
+    // G2260 (ECONOMY): in a career the work is paid (playerUpgrade: the extension by the m², the eave); refused: unchanged
+    if (CAREER_DEV && !econShedDoor({ dims: next })) return getHangar() ? hangar.dims : null;
     const shed = shedHome();
     shed.dims = next;
     playerSave();
@@ -1213,6 +1218,8 @@
     setShell: k => {
       if (typeof SHELLS === 'undefined' || !SHELLS[k] ||
           SHELLS[k].status !== 'live') return null;
+      // G2260 (ECONOMY): in a career a new shell is a rebuild, paid (playerUpgrade); refused: the shell stays
+      if (CAREER_DEV && shedHome().shell !== k && !econShedDoor({ shell: k })) return shedHome().shell;
       const shed = shedHome();
       if (shed.shell === k) return k;
       shed.shell = k;
@@ -1239,6 +1246,9 @@
     setKit: (k, on) => {
       if (typeof HANGAR_KITS === 'undefined' || !HANGAR_KITS[k] ||
           k === 'park') return null;
+      // G2260 (ECONOMY): in a career a kit fitted is paid (KIT_PRICES; a kit taken out refunds nothing); refused: unchanged
+      const want = new Set(shedHome().kits); if (on !== false) want.add(k); else want.delete(k);
+      if (CAREER_DEV && !econShedDoor({ kits: [...want] })) return shedHome().kits.slice();
       const shed = shedHome();
       const cur = new Set(shed.kits);
       if (on !== false) cur.add(k); else cur.delete(k);
@@ -6475,6 +6485,95 @@
     key: PLAYER_KEY, doc: () => JSON.parse(JSON.stringify(playerLoad())), record: careerRecord, act: careerAct,
     cargo: kg => { if (kg !== undefined) { crCargoKg = kg == null ? null : Math.max(0, Math.round(+kg || 0)); careerPlateSync(); } return careerCargo(); },
     overflew: () => crOver.slice(), last: () => (flLastEnd && flLastEnd.career) || null, sync: careerPlateSync,
+  };
+  // ---- G2260 (ECONOMY): THE CAREER WALLET'S PAGE HALF (every function below runs only under CAREER_DEV) -------------
+  // What a career pays for, at the door where it happens (76_economy.js, THE PRICE BOOK): the FIRST SAVE of a new
+  // airframe (materialised from the drawing board: the ledger x the main hangar's labour factor for what the design
+  // wants; garage.js asks first, so a wallet short of it refuses the save), the garage's SHELL / KIT / SIZE doors
+  // (playerUpgrade: the work's price; refused short of the cash, the room unchanged), and REPAIR (dm9: DMG-D5's bill,
+  // charged only on the explicit Repair - until D5 lands no airframe carries one). The credits are careerOnStop's paid
+  // lines (CAREER-WIRE's stop). The wallet line stands in the garage (#ecWallet) and on the flight plate (#crPlate's).
+  // The SANDBOX calls none of it: its doors write the shed as they always did, nothing is charged or recorded.
+  function ecFmt(v) { return Math.round(+v || 0).toLocaleString('en-GB').replace(/,/g, ' '); }
+  // the build on the stand, priced: its ledger (def.parts.ledger, genFrame's bill) x the main hangar's labour factor
+  function econBuildPrice() {
+    const led = def && def.parts && def.parts.ledger;
+    if (curKey !== 'gen' || !led) return null;
+    let wants = [];
+    try { const R = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved ? window.GARAGE_SPEC.resolved() : null;
+          wants = R && typeof hangarWants === 'function' ? hangarWants(R) : []; } catch (e) {}
+    const cost = econLedgerCost(led);
+    return { cost, wants, price: econAirframePrice(cost, playerLoad().sheds[PREM_MAIN], wants) };
+  }
+  // garage.js asks before it writes a slot: '' to go on, else why not (the save is not made)
+  function econSaveWhy(name, isNew) {
+    if (!CAREER_DEV || !isNew || playerLoad().fleet[name]) return '';
+    const B = econBuildPrice();
+    if (!B || econAfford(playerLoad(), B.price)) return '';
+    ecNote = 'not built: it costs ' + ecFmt(B.price);
+    econWalletSync();
+    return 'This airframe costs ' + ecFmt(B.price) + ' to build (the ledger ' + ecFmt(B.cost) + ' x the hangar\'s labour); the wallet holds ' + ecFmt(playerLoad().wallet) + '.';
+  }
+  // after the save (playerSlotsChanged): a NEW airframe is materialised, charged, its price on the career's airframe row
+  function econMaterialiseNow(d, name) {
+    const B = econBuildPrice();
+    if (!B) return d;
+    const r = econMaterialise(d, name, B.cost, B.wants, { price: B.price });
+    if (!r.ok) { console.warn('flyDiy (career): ' + name + ' was saved but not paid for - ' + r.why); return d; }
+    ecNote = 'built ' + name + ': ' + ecFmt(r.cost);
+    return r.doc;
+  }
+  // the garage's shell / kit / size doors: playerUpgrade on the main hangar -> true (paid, the document moved) | false
+  function econShedDoor(change) {
+    const r = econUpgrade(playerLoad(), PREM_MAIN, change, {});
+    if (!r.ok) { ecNote = r.why; console.warn('flyDiy (career): ' + r.why); econWalletSync(); return false; }
+    player = r.doc; ecNote = r.cost ? 'paid ' + ecFmt(r.cost) + (r.lines && r.lines.length ? ' (' + r.lines.map(l => l.what).join(', ') + ')' : '') : '';
+    playerSave();
+    return true;
+  }
+  // REPAIR (dm9): the airframe's bill (its fleet row's `damage`, DMG-D5's record), charged on this explicit press
+  function econRepairNow(slot) {
+    const n = slot || slotOnStand();
+    if (!n) return null;
+    let wants = [];
+    try { const R = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved ? window.GARAGE_SPEC.resolved() : null;
+          wants = R && typeof hangarWants === 'function' ? hangarWants(R) : []; } catch (e) {}
+    const r = econRepair(playerLoad(), n, { wants });
+    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ': ' + ecFmt(r.cost); playerSave(); }
+    else { ecNote = r.why; econWalletSync(); }
+    return r;
+  }
+  // THE WALLET LINE IN THE GARAGE (career only): the wallet, the last thing paid or refused, Repair when the airframe
+  // on the stand is damaged (the bill, x the labour where it stands)
+  function econWalletSync() {
+    try { econWalletDraw(); } catch (e) { console.warn('flyDiy (career): the wallet line -', e && e.message); }
+  }
+  function econWalletDraw() {
+    if (!CAREER_DEV || typeof document === 'undefined' || !document.getElementById) return;
+    const bar = $('edTopBar');
+    if (!bar) return;
+    if (!ecWalletEl) {
+      ecWalletEl = document.createElement('div');
+      ecWalletEl.id = 'ecWallet';
+      ecWalletEl.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12.5px;white-space:nowrap';
+      ecWalletEl.innerHTML = '<span id="ecSum"></span><span id="ecNote" style="opacity:.75"></span><button id="ecRepair" type="button" hidden>Repair</button>';
+      const f = $('edFleet');
+      bar.insertBefore(ecWalletEl, f && f.nextSibling ? f.nextSibling : null);
+      ecWalletEl.querySelector('#ecRepair').addEventListener('click', () => econRepairNow());
+    }
+    const d = player || playerLoad();
+    ecWalletEl.querySelector('#ecSum').textContent = 'Wallet ' + ecFmt(d.wallet) + ' ₵';
+    ecWalletEl.querySelector('#ecNote').textContent = ecNote ? '· ' + ecNote : '';
+    let n = null;
+    try { n = slotOnStand(); } catch (e) { /* the garage's slot reader is not up yet (the first load) */ }
+    const D = n && d.fleet[n] && d.fleet[n].damage;
+    const b = ecWalletEl.querySelector('#ecRepair');
+    b.hidden = !(D && D.damaged && !D.writeOff);
+    if (!b.hidden) b.textContent = 'Repair · ' + ecFmt(econRepairCost(D.bill, 1)) + ' ₵ before labour';
+  }
+  if (CAREER_DEV) window.FLYDIY_ECON = {
+    price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
+    wallet: () => playerLoad().wallet, note: () => ecNote, sync: econWalletSync,
   };
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
@@ -12372,6 +12471,8 @@
     // place badge of a row, "fly from there?" (the garage goes to that base when a hangar is held there; the roll-out
     // starts where the aeroplane stands either way), and "bring it home" (GQ5)
     slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
+    // G2260 (ECONOMY): a career's first save of a new airframe is a purchase - refused short of the cash (the sandbox: '')
+    canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
     place: n => window.FLYDIY_PLAYER.place(n),
     wear: n => window.FLYDIY_PLAYER.wear(n),
     flyFrom: n => {

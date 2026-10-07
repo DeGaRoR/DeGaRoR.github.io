@@ -263,11 +263,11 @@ function run(mut) {
   // ==== STORE / MOVE ===========================================================
   // a career game with a second base: Tamgas Hill's field shed (8.5 m: a 12 m door)
   let g = clone(Lr.doc);
-  g.mode = 'career'; g.wallet = 100000;
+  g.mode = 'career'; g.wallet = 1000000;   // G2260: the price book's hangars (a works ~170 000)
   const acq = R.playerAcquire(g, 'w3', 'w3', 'field', 'own');
   ok(acq.ok && acq.doc.sheds.w3.base === 'w3' && eq(acq.doc.sheds.w3.dims, { HW: 8.5, HD: 9, EAVE: 3.6 }),
      'Tamgas Hill\'s shed is held at its offered size');
-  ok(acq.ok && acq.doc.wallet === 100000 - R.plotPrice('w3', 'w3', 'field'), 'the career pays the plot\'s price (' + R.plotPrice('w3', 'w3', 'field') + ')');
+  ok(acq.ok && acq.doc.wallet === 1000000 - R.plotPrice('w3', 'w3', 'field'), 'the career pays the plot\'s price (' + R.plotPrice('w3', 'w3', 'field') + ')');
   g = acq.doc;
   for (const n of names3) g.fleet[n].foot = FOOT('cub');
   const inHome = R.playerResidents(g, 'HOME');
@@ -410,7 +410,7 @@ function run(mut) {
   // ==== THE CALLS (G2230 PREM-S2: the user's rulings of 6 Oct, GAME study §R) ======
   {
     const cub = FOOT('cub');
-    const career = d => { const x = clone(d); x.mode = 'career'; x.wallet = 200000; return x; };
+    const career = d => { const x = clone(d); x.mode = 'career'; x.wallet = 1000000; return x; };   // G2260: the price book's hangars (a works ~170 000)
     // GQ4: at most two side hangars - a third refused, with a reason; the main one is not a side
     let c = career(D);
     c = R.playerAcquire(c, 'w3', 'w3', 'field', 'own').doc;
