@@ -83759,3 +83759,120 @@ ultimate x 1.1: it breaks").**
   `gates_base_merged/`, `gates_diff.txt`, `flight_diff_engY.txt`.
 - The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage stays
   OFF by default (nothing here touches the switch).
+
+## G2044-G2046 DMG-SETTLE - THE PIECES THAT HOVERED: THE BOXES' THIRD CHORDS STAND OUTSIDE THE DRAWN SURFACE (PHYSICS), A DEBRIS BODY RESTED ON ITS BOX'S EMPTY CORNER, A SCRAP RODE A LOOSE NODE AT ITS LEVER; GATE DMGSETTLE (2026-10-06, DMG-SETTLE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-settle off origin/claude/dmg-d4b-wreck 18805ac; damage OFF by default)
+
+The user (2026-10-06): "breaking in pieces looks good, but the individual pieces tend to hover over the ground rather than
+falling and lying on the ground." Measured on the user's Cub, the Jodel and the metal Cessna, the 30 m/s trunk break-up
+(`_treecrash_lib.js` atTrunk, the centreline and 2.5 m out), flown 15 s (every detached piece still), damage ON, the flown
+cage snapshot built headless (`_dmg_wall_lib.js`) and ridden exactly as app.js brkCage rides it (DMG-WALL's inherited
+binding, the nodes' frames in the world). Four places asked; three gaps found, each fixed at its cause; the fourth (the
+terrain) measured and left with its owner.
+
+### Where the gap was (per piece, at rest; + over the ground, - under it)
+1. **PHYSICS - the pieces DO lie on their nodes; the nodes are not the surface.** Every detached piece's lowest node sits
+   on the solver's ground (-0.0 to -0.3 cm, on 3-13 contacts, still; none skipped, no floor / SUPPORT / trunk / crush pass
+   holding one up, no restitution or sleep in the solver). But three node rows of the generated frame are a MODELLING
+   depth, not the aeroplane's surface (60_gen_spec says so: "a modelling depth, said as one"): the cantilever box's lower
+   caps WB (`sparBoxDepth` 13 % of the chord under the spar caps; the Jodel's whole wing, the metal Cessna's outer panel),
+   the stab's third chord HB and the fin's side pair VX (`tailBoxDepth` 13 %). Ray-cast against the flown snapshot: the
+   Jodel's WB stand **14.5 cm (front spar) / 17.7 cm (rear) under its drawn wing** (NACA 2414's lower ordinate at the spar
+   is 5.0 % / 3.2 % of the 1.8 m chord; the box is 13 %), HB **9.1 cm under the stab** (box 10.8 cm, the plate 3.7 cm
+   thick), VX 4.4 cm beside the Cub's fin. A wing or a stab lying right way up rests on those nodes (r = 0), its drawn
+   covering held up by them: **the Jodel's wings +12.0 and +2.7 cm, its fin +10.4 cm** (`settle_jodel.svg`).
+2. **DRAWING - the riding is right; the scraps on a LOOSE node are not.** On a piece of 3+ nodes the covering rides its
+   nodes' frames exactly (the generated skin and the snapshot both reach 2-60 cm UNDER the ground on every Cub / metal piece
+   before the fix: nothing hovers there). A piece of 1-2 nodes (an engine node or a spar root left with every member broken)
+   has no turn: its islands rode it at their rest lever in the turn they had when it came loose - from **-40.6 cm to +4.2 cm**
+   (Jodel), the metal Cessna's dash face **+44.8 cm** (a 0.014 m2 scrap on the 199 kg engine CG node, 12 s probe).
+3. **D4b's DEBRIS - "on" was measured on the box, and the box is not the part.** GATE DMGWRECK's rest check ("its lowest
+   corner within 3 cm of the surface") is true by construction: the body's contact is its box's 8 corners, so a box at rest
+   always has a corner at 0.0 (every gate body read 0.0 cm, lying on a face). The box is the AABB of the drawn triangles, so
+   one drawn point does touch - but an L-shaped part (a wheel and its leg) or an engine with a vertical prop can stand on an
+   EMPTY corner of its box: with real-size stand-ins dropped 20 seeded times through release / step, **2-6 of 20 wheel+leg
+   drops and 6 of 20 engine+prop drops came to rest NOT held** (the centre outside the drawn points on the ground; under the
+   CG the drawn wheel stood up to 31.5 cm up). CONTACT_DAMP (4/s on the turn) and REST_W let a body tipping over an edge
+   fall asleep half-way.
+4. **TERRAIN - real, smaller, not DMG's.** `tools/dmg_settle_terrain.js` (G1540's stack, `ground_drawn.js`) over a wreck's
+   20 x 20 m footprint at 40 Jolene tree sites and 12 runway over-runs: the drawn ground UNDER the solver's by a median p5
+   of **3.2 cm**, 5-13 cm at a site's worst point (the fine tiles' 5 m lattice, G1380 / G1540's owed "1 m tier under the
+   aeroplane"), 0.4-0.7 m at three over-runs (mn_strip start, nv_strip end, tw_ski end: the premises patch's sink past a
+   pavement / a bank). A piece at rest there reads that much over the drawn ground. The gate's crash cases are a flat 300 m
+   world drawn at its height (0.0). OWED to the terrain's owner (A0): the 1 m tier, and the three over-run patches.
+
+### The fix (the cause each time; no visual nudge; damage OFF by default)
+- **G2044 (physics) - the ground meets the surface.** `61_gen_frame.js`: each box node carries its standoff outside its drawn
+  surface, `so` (m, only where > 0): WB `depth(z) + lo(x_spar) x chordAt(z)` (the plane's NACA through `genAfEval`, the
+  drawn chord - genWingInto lofts the section on the spar nodes' chord line); HB `tailBoxDepth x chordH(z) - stThick x
+  planeScale / 2`; VX `tailBoxDepth x chordV(u) / 2 - finThick x planeScale / 2` (the cage's own plates, `S.cage`, their
+  defaults 0.05 / 0.06; a sheet with stSolid / finSolid 0 has no half thickness). The generator's numbers against the
+  ray-cast: Jodel WB 14.4 / 17.7 (14.5 / 17.7), HB 9.0 (9.1), Cub VX 4.4 (4.4) cm. `30_solver.js` reset: `rC = r - so` -
+  the ground spring meets the node `so` lower, at the drawn surface; K, C and friction unchanged. Only these nodes: WB 20 /
+  12 on the Jodel / metal Cessna, HB 6-8 and VX 6 on every build. Flight never reaches the ground with them: **the Cub's FAR
+  23.473 hard landing, a 3.8 g pull and THE PILOT's circuit end on the same bits with and without `so`** (MD5 of p, v:
+  Cub e3f630ff / cd414d75 / c6ea4593, Jodel 7d0e3703 / 9441117a / 7787394f, metal Cessna 5b397fc9 / 132ad0b8 / d3bfc3e8 - each
+  the same both ways), and the step's code is the base's (a reset's constant:
+  0 ns a call).
+- **G2045 (D4b's debris) - a body rests on its drawing.** `wreck_debris.js`: `support(pos, n)` - the drawn vertex farthest
+  out along each of 282 directions (a cube's 26 and a 256-point Fibonacci sphere), welded on a 5 mm grid first (a 5k-place
+  part ~11 ms, once, at its release; 26 directions alone kept 10 points of a wheel and its leg and its tyre sank 10 cm
+  between them); `release` takes them as the body's contact points (`box.pts`; the 8 corners only without a drawing - the
+  gate's frame-sized candidates, so DMGWRECK's bodies are as before); the ground under a body is a plane (3 samples a
+  substep, whatever the points; exact on flat ground); and **a body sleeps only HELD** (`held`: its centre over the hull of
+  its points on the surface, 1 cm) - tipping over an edge it keeps tipping (LIFE still caps it). `app.js wreckRelease`
+  passes the part's own vertices' support points.
+- **G2046 (the scraps) - an island on a loose piece is debris.** `skin_break.js looseIslands(R, pc, nPc)`: a record's live
+  triangles on a piece of fewer than LOOSE_N (3) nodes; `app.js wreckScraps` (in wreckFrame, after D4b's own releases, at
+  each break event a record has taken): each loose piece's islands (a static bucket's ranges, as a cowl panel's) released
+  as ONE body (`kind: 'scrap'`, 2 kg a square metre, floats if fabric), hidden where drawn by wreckCollapse (the record keeps
+  them gone; a heal gives them back). The cowl's own release (D4b) still takes its panels first when it leaves.
+
+### Before / after, at rest (15 s; `reports/evidence/DMG-SETTLE/settle_<build>.json`, `.svg`; before = the bug as found)
+| build, case | piece | its lowest node | its covering (lowest live vertex) |
+|---|---|---|---|
+| Jodel, centreline | wing #33 (20 nodes, 46.7 kg) | -0.3 -> -0.3 cm | **+12.0 -> -2.7 cm** (any part -6.5: the hinge fittings) |
+| | wing #53 | -0.3 -> -0.3 | **+2.7 -> -12.9** (the pitot mast, 11 cm under the skin by design) |
+| | fin #93 (13 nodes) | -0.0 -> -0.0 | **+10.4 -> +1.7** (rests on its hinge-line nodes; the rudder is not in the headless snapshot) |
+| | ENGL / ENGR / CGE islands | -0.1 | -40.6 / **+4.2** / -21.4 -> scrap bodies at -1.3 / -0.0 / +0.0, held |
+| Jodel, 2.5 m out | fin #93 | -0.1 -> -0.0 | -19.6 -> +1.8 |
+| metal Cessna, centreline | stab #65 (20 nodes) | -0.0 -> -0.0 | -8.9 -> -6.9 |
+| | WR / WR / ENGL / ENGR / CGE islands | -0.1 | -23.8 / -25.2 / - -> scraps -0.6 / -0.6 / -0.1 / -0.2 / +0.0, held |
+| metal Cessna, 2.5 m out | wing #52 (12 nodes, 46.5 kg) | -0.3 -> -0.1 | -17.4 -> -0.6 |
+| Cub, centreline | ENGL / ENGR / CGE islands | -0.1 | -31.2 / -31.0 / -39.4 -> scraps -0.1 / -0.0 / +0.0, held |
+| Cub, 2.5 m out | wing root #44 (4 nodes) | -0.1 | -14.7 -> -14.7 (no box node: unchanged) |
+Debris stand-ins (`debris.svg`), held of 20: wheel+leg 18 / 19 / 20 -> 20 (Cub / Jodel / metal), engine+prop 14 -> 20 on all
+three, cowl / spinner / pane 20 -> 20; every after-drop's lowest drawn point within 1.0 cm of the ground.
+The metal Cessna's centreline broke 93 -> 99 members (its stab and wing box nodes now meet the ground lower in the tumble);
+the other cases the same counts.
+
+### GATE DMGSETTLE (`tools/_dmg_settle_check.js`, core, registered in run_gates.js; three builds in children, ~3 min)
+At rest after 15 s, both cases, every build: (1) every detached piece (3+ nodes) still (< 5 cm/s) and its lowest node's
+contact bottom (y - (r - so); a wheel less its tyre's static deflection, G661) within **X = +1 / -6 cm** of the ground
+(+1: a node in its spring sits at or under it, r = 0 off the wheels; -6: the spring's static sag with an 800 kg wreck on one
+10 kg node, 5.2 cm); (2) its covering's lowest live vertex within **Y = +2 / -25 cm** (+2: the tail plate 1.5 mm off its
+plane, the section's sampling, the sag; -25: a piece rests on its nodes and a covering wraps them up to a section's half depth
+- 2 x 12 % of the Cub's 1.6 m chord - plus the crumple); (3) no island left riding a loose piece, every scrap body at rest,
+held, its lowest drawn point within **2 cm**; (4) the stand-ins (each build's main wheel and its leg to the frame's gear
+nodes, the engine with its prop at a seeded blade angle, a cowl half-shell, the spinner, a pane), 20 drops each, all at rest,
+held, within 2 cm. `--selftest`: the bug as found (no `so`, no scrap release, the box's corners) must go red - it does: the
+Jodel's covering +12.0 cm, engine+prop 14/20 held, the islands +4.2 cm. (5) the terrain is reported, not gated (above).
+
+### Gates (cloud, node, this branch; generated files rebuilt, not committed)
+`node tools/run_gates.js --no-build --jobs=2 --only=...` (4 cores, two batches): **TREECRASH PASS (632 s), TREEHIT PASS,
+DMGMEMBERS, DMGCLUSTERS, DMGFPS, DMGINTEGRITY PASS; DMGCERT, DMGGEAR (1263 s), DMGCERTCOST, DMGWIND, DMGSKIN 116/116,
+DMGWRECK, DMGDRIVE, DMGWALL 105/105, DMGSETTLE (51 checks, 85 s) PASS - BATTERY: PASS.** DMGINST was RED ON THE BASE
+(18805ac): its static "no code writes 'broke-up'" scan counted D4b's G1868 READER (`outcome === 'broke-up'`, 88240ea, the
+crash card's timing) as a writer; the scan now drops a comparison (`=== / !== 'broke-up'`) - re-run alone: 33/33 PASS.
+`--selftest` (the bug as found): 7 drawn rows red - the Jodel's covering 12.0 / 2.7 / 10.4 cm
+over the ground, its islands at -40.6 / +4.2 / -21.4 cm, wheel+leg not held (Cub, Jodel), engine+prop not held (all three) -
+`GATE DMGSETTLE: PASS (selftest: the bug goes red as it should)`.
+Normal flight unchanged to the bit (above); damage OFF: the solver's only change is the box nodes' contact radius, so an
+intact aeroplane never meets it; app.js's wreckScraps runs inside wreckFrame, which returns at its first test while
+nothing is damaged (0 ns at rest, as D4b's).
+
+### Open
+- The terrain's 1 m tier under a wreck and the three over-run patches (item 4) - A0's.
+- The headless snapshot has no control surfaces, wheels or engine: the fin's +1.7 cm is measured without its rudder; the
+  page's wheels / engine ride their rigs (a wheel or an engine that comes off is D4b's debris, now on its drawing).
+- The coordinator's box stills: a Jodel at a trunk at 30 m/s (`?damage=1`), the wings and the fin lying on the ground; the
+  metal Cessna's dash face no longer over its engine node.

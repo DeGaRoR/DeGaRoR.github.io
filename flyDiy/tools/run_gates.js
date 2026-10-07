@@ -264,6 +264,12 @@ const GATES = [
   // roll-out; every drawn buffer of the flown model shadowed off the GL, GPU copy = CPU array; damage off: no extra upload).
   // The hybrid bake's folds are not made in node (no GPU bake): their heal upload is box-proved, not gated here
   { id: 'DMGUPLOAD', file: '_dmg_upload_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G2044-G2046 (DMG-SETTLE): a wreck's pieces lie ON the ground at rest (the user: "the pieces hover") - on the Cub, the
+  // Jodel and the metal Cessna's 30 m/s trunk break-ups, 15 s: every detached piece's lowest node within +1 / -6 cm of
+  // the ground (the boxes' third chords meet it at the drawn surface: 61_gen_frame `so`, 30_solver rC), its flown-snapshot
+  // covering within +2 / -25 cm, the islands on a loose node released as bodies, every debris body resting HELD on its
+  // drawn support points (stand-ins, 20 seeded drops each). --selftest: the bug as found goes red. Three builds at once
+  { id: 'DMGSETTLE', file: '_dmg_settle_check.js', tier: 'core', weight: 3, wall: 400 },
   // G1824-G1827 (DMG-DRIVE): the drivetrain against the real numbers (reports/evidence/DMG-DRIVE/real_numbers.json, every
   // row's source printed with its 'as recalled - A0 to open' flag): Lycoming SB 369's overspeed bands in the dives (V_NE and
   // 1.1 V_D at full throttle), the graded prop strike (SB 533: nose-overs, a brush, a trunk, the bow in the water, a tip lost

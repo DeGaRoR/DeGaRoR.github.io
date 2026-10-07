@@ -4568,6 +4568,7 @@
     if (!(OFF && OFF.strikes)) wreckStrikes(vel);
     const ids = OFF && OFF.release ? [] : WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
+    wreckScraps(D, vel);                                             // G2046
     // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
     WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
@@ -4758,6 +4759,7 @@
     const root = new THREE.Group(); root.matrixAutoUpdate = false; root.name = 'wreckDebris:' + c.kind;
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     let tris = 0;
+    const loc = [];                                        // (G2045: every vertex in the body's frame - its support points)
     const v3 = new THREE.Vector3(), n3 = new THREE.Vector3(), nm = new THREE.Matrix3();
     for (const [g, Mw, list, mat, cast] of src) {
       if (!g || !g.index || !g.attributes.position) continue;
@@ -4777,7 +4779,7 @@
         v3.set(P2[v*3], P2[v*3+1], P2[v*3+2]).applyMatrix4(Mw);
         const wx = v3.x - x[0], wy = v3.y - x[1], wz = v3.z - x[2];
         const lx = R[0]*wx + R[3]*wy + R[6]*wz, ly = R[1]*wx + R[4]*wy + R[7]*wz, lz = R[2]*wx + R[5]*wy + R[8]*wz;
-        P2[v*3] = lx; P2[v*3+1] = ly; P2[v*3+2] = lz;
+        P2[v*3] = lx; P2[v*3+1] = ly; P2[v*3+2] = lz; loc.push(lx, ly, lz);
         if (lx < lo[0]) lo[0] = lx; if (ly < lo[1]) lo[1] = ly; if (lz < lo[2]) lo[2] = lz; if (lx > hi[0]) hi[0] = lx; if (ly > hi[1]) hi[1] = ly; if (lz > hi[2]) hi[2] = lz;
         if (N2) { n3.set(N2[v*3], N2[v*3+1], N2[v*3+2]).applyMatrix3(nm);
           const qx = R[0]*n3.x + R[3]*n3.y + R[6]*n3.z, qy = R[1]*n3.x + R[4]*n3.y + R[7]*n3.z, qz = R[2]*n3.x + R[5]*n3.y + R[8]*n3.z, L = Math.hypot(qx, qy, qz) || 1;
@@ -4794,11 +4796,51 @@
     for (const m of c.meshes || []) wreckCollapse(m.geometry, Array.from({ length: (m.geometry.index.count / 3) | 0 }, (_, t) => t));
     if (!root.children.length || !(hi[0] > lo[0])) { c.gone = true; return null; }
     scene.add(root);
-    const Bd = WD.release(WK.W, c, { x, q: Array.from(F.q) }, { lo, hi }, c.mass, sim.p, vel, c.floats);
+    // (G2045: it rests on its drawing - the support points of its own vertices - not on its box's corners)
+    const Bd = WD.release(WK.W, c, { x, q: Array.from(F.q) }, { lo, hi, pts: WD.support(loc, loc.length / 3) }, c.mass, sim.p, vel, c.floats);
     Bd.obj = root; Bd.tris = tris;
     WK.ms.release = Math.max(WK.ms.release, performance.now() - t0);
     return Bd;
   }
+  // G2046 (DMG-SETTLE): THE ISLANDS ON A LOOSE PIECE (skin_break.js looseIslands says why) - a scrap of the snapshot riding
+  // a piece of fewer than three nodes hung at its rest lever, in a frozen turn (the metal Cessna's dash face 45 cm over
+  // the node lying on the ground). At each break event each record (a static bucket's: its ranges, as a cowl panel's) gives
+  // its live triangles on such pieces, and each piece's are released as ONE body (its drawing, its support points): it falls
+  // and lies on the ground. The record keeps them gone (wreckCollapse's marks); a heal gives them back
+  function wreckScraps(D, vel) {
+    if (!D.pc || !BRK.recs.length || !model.wreckBuild) return;
+    const B0 = model.wreckBuild, per = new Map();
+    for (const R of BRK.recs) {
+      if (!R.active || R.vB !== D.vB || (R.scrapW === WK.W && R.scrapVB === D.vB)) continue;
+      R.scrapW = WK.W; R.scrapVB = D.vB;
+      const m = R.secName ? B0.meshes0[R.secName] : null;
+      if (!m || !m.geometry || !m.geometry.index || m.geometry.index.array !== R.idx) continue;   // (a bucket's record only)
+      for (const [q, T] of SKIN_BREAK.looseIslands(R, D.pc, D.nPc)) {
+        let S = per.get(q); if (!S) per.set(q, S = { ranges: new Map(), fab: false });
+        S.ranges.set(R.secName, (S.ranges.get(R.secName) || []).concat(T)); S.fab = S.fab || !!R.fabric;
+      }
+    }
+    if (!per.size) return;
+    model.grp.updateMatrixWorld(true);
+    const Mw = model.grp.matrixWorld, v3 = new THREE.Vector3();
+    for (const [q, S] of per) {
+      const nodes = []; for (let i = 0; i < D.pc.length; i++) if (D.pc[i] === q) nodes.push(i);
+      if (!nodes.length) continue;
+      // its drawn centre now (the body's origin) and area (its mass: 2 kg a square metre, a covering's with its frame bits)
+      let cx = 0, cy = 0, cz = 0, cn = 0, area = 0; const a3 = new THREE.Vector3(), b3 = new THREE.Vector3();
+      for (const [key, T] of S.ranges) { const g = B0.meshes0[key].geometry, ix = g.index.array, pa = g.attributes.position.array;
+        for (const t of T) { const P3 = [0, 1, 2].map(e => { const v = ix[t*3+e]; return new THREE.Vector3(pa[v*3], pa[v*3+1], pa[v*3+2]).applyMatrix4(Mw); });
+          for (const w of P3) { cx += w.x; cy += w.y; cz += w.z; cn++; }
+          area += a3.subVectors(P3[1], P3[0]).cross(b3.subVectors(P3[2], P3[0])).length() / 2; } }
+      if (!cn) continue;
+      const F = WD_fitOf(nodes), R = F.R, w = [cx / cn - F.cl[0], cy / cn - F.cl[1], cz / cn - F.cl[2]];
+      const c = { id: WK.P.parts.length, kind: 'scrap', nodes, why: 'loose', L0: [], mass: Math.max(0.2, 2 * area), floats: S.fab, ranges: S.ranges,
+                  at: [F.cr[0] + R[0]*w[0] + R[3]*w[1] + R[6]*w[2], F.cr[1] + R[1]*w[0] + R[4]*w[1] + R[7]*w[2], F.cr[2] + R[2]*w[0] + R[5]*w[1] + R[8]*w[2]] };
+      WK.P.parts.push(c);
+      wreckRelease(c, vel);
+    }
+  }
+  const WD_fitOf = nodes => window.WRECK_DEBRIS.fit(nodes, WK.rest, sim.p);
   const q0posed = () => BRK.recs.length > 0;            // (a heal with skin records: they re-run their event next frame)
   function wreckCollapse(g, T) {
     const ix = g.index.array, saved = new (ix.constructor)(T.length * 3);

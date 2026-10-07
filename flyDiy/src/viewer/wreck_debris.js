@@ -179,11 +179,80 @@
     const hx = Math.max(0.01, (box.hi[0] - box.lo[0]) / 2), hy = Math.max(0.01, (box.hi[1] - box.lo[1]) / 2), hz = Math.max(0.01, (box.hi[2] - box.lo[2]) / 2);
     B.Ib = [B.m * (hy * hy + hz * hz) / 3, B.m * (hx * hx + hz * hz) / 3, B.m * (hx * hx + hy * hy) / 3];
     B.A = 4 * Math.max(hx * hy, hy * hz, hx * hz) * 0.7;
+    // G2045 (DMG-SETTLE): ITS CONTACT IS THE DRAWN PART'S OWN SHAPE - box.pts, its support points (support(): the drawn
+    // vertex farthest out along each of 26 directions) when the release has its triangles; the box's eight corners only
+    // without them (a part with no drawing: the gate's frame-sized candidates). On its box's corners a wheel and its leg
+    // (an L) came to rest on an EMPTY corner of the box: the drawn wheel 30 cm up, held by nothing drawn (6 of 20 seeded
+    // drops, tools/_dmg_settle_check.js)
     B.pts = [];
-    for (const X of [box.lo[0], box.hi[0]]) for (const Y of [box.lo[1], box.hi[1]]) for (const Z of [box.lo[2], box.hi[2]]) B.pts.push([X, Y, Z]);
+    if (box.pts && box.pts.length >= 4) for (const q of box.pts) B.pts.push([q[0], q[1], q[2]]);
+    else for (const X of [box.lo[0], box.hi[0]]) for (const Y of [box.lo[1], box.hi[1]]) for (const Z of [box.lo[2], box.hi[2]]) B.pts.push([X, Y, Z]);
     c.gone = true; c.body = B;
     W.bodies.push(B);
     return B;
+  }
+  // G2045: THE SUPPORT POINTS of a drawn part: pos (x, y, z a vertex, the body's own frame), n vertices -> the vertex
+  // farthest out along each of SUP_N directions (the 26 of a cube's faces, edges and corners and a 256-point Fibonacci
+  // sphere), each once: its convex hull, sampled (the 26 alone kept 10 points of a wheel and its leg, and the tyre's
+  // inner face sank 10 cm between them) - a part rests on what is drawn, a thin one on its few extremes
+  const DIRS = [];
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) if (a || b || c) { const l = Math.hypot(a, b, c); DIRS.push([a / l, b / l, c / l]); }
+  for (let i = 0; i < 256; i++) { const y = 1 - (2 * i + 1) / 256, r = Math.sqrt(1 - y * y), t = i * Math.PI * (3 - Math.sqrt(5)); DIRS.push([r * Math.cos(t), y, r * Math.sin(t)]); }
+  const SUP_N = DIRS.length;
+  const DX = new Float64Array(DIRS.length * 3); DIRS.forEach((d, i) => { DX[i * 3] = d[0]; DX[i * 3 + 1] = d[1]; DX[i * 3 + 2] = d[2]; });
+  function support(pos, n) {
+    // (the places first, welded on a 5 mm grid: the snapshot repeats each place by every triangle meeting there - a 30k
+    // vertex part was 61 ms over the directions, its ~5k places a few)
+    const seen = new Map(), U = [];
+    for (let v = 0; v < n; v++) { const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
+      if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z))) continue;
+      const key = (Math.round(x * 200) + 4096) * 67108864 + (Math.round(y * 200) + 4096) * 8192 + (Math.round(z * 200) + 4096);
+      if (!seen.has(key)) { seen.set(key, U.length); U.push(x, y, z); } }
+    const m = U.length / 3, nd = DIRS.length, best = new Float64Array(nd).fill(-Infinity), at = new Int32Array(nd).fill(-1);
+    for (let v = 0; v < m; v++) { const x = U[v * 3], y = U[v * 3 + 1], z = U[v * 3 + 2];
+      for (let d = 0, o = 0; d < nd; d++, o += 3) { const s = x * DX[o] + y * DX[o + 1] + z * DX[o + 2]; if (s > best[d]) { best[d] = s; at[d] = v; } } }
+    const out = [], took = new Set();
+    for (const v of at) if (v >= 0 && !took.has(v)) { took.add(v); out.push([U[v * 3], U[v * 3 + 1], U[v * 3 + 2]]); }
+    return out;
+  }
+  // the ground's plane under a body (G0: height at its centre, d/dx, d/dz - over GP_D either side)
+  const GP_D = 0.25, _gp = new Float64Array(3);
+  function groundPlane(B, env) {
+    const x = B.x[0], z = B.x[2], g = env.ground(x, z);
+    _gp[0] = g; _gp[1] = (env.ground(x + GP_D, z) - g) / GP_D; _gp[2] = (env.ground(x, z + GP_D) - g) / GP_D;
+    return _gp;
+  }
+  // G2045: IS A BODY HELD where it lies? Its centre (x, z) inside the hull of its points on the surface (within SUP_TOL),
+  // grown by SUP_IN: a part on one point or a line of them is balanced on nothing - it tips, it does not sleep there
+  const SUP_TOL = 0.01, SUP_IN = 0.01;
+  const _hp = [];
+  function held(B, R, env, hw) {
+    _hp.length = 0;
+    for (const pl of B.pts) {
+      const rx = R[0] * pl[0] + R[1] * pl[1] + R[2] * pl[2], ry = R[3] * pl[0] + R[4] * pl[1] + R[5] * pl[2], rz = R[6] * pl[0] + R[7] * pl[1] + R[8] * pl[2];
+      const px = B.x[0] + rx, pz = B.x[2] + rz;
+      let gh = _gp[0] + _gp[1] * rx + _gp[2] * rz; if (B.floats && hw != null && Number.isFinite(hw) && hw > gh) gh = hw;
+      if (B.x[1] + ry - gh < SUP_TOL) _hp.push([px, pz]);
+    }
+    return inHull2(_hp, B.x[0], B.x[2], SUP_IN);
+  }
+  // (x, z) within m of the convex hull of P (2-D, monotone chain)
+  function inHull2(P, x, z, m) {
+    if (!P.length) return false;
+    const S = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const H = [];
+    for (const q of S) { while (H.length >= 2 && cr(H[H.length - 2], H[H.length - 1], q) <= 0) H.pop(); H.push(q); }
+    for (let i = S.length - 2, t = H.length + 1; i >= 0; i--) { const q = S[i]; while (H.length >= t && cr(H[H.length - 2], H[H.length - 1], q) <= 0) H.pop(); H.push(q); }
+    if (H.length > 1) H.pop();
+    // inside, or within m of an edge (a point or a segment: its distance)
+    let inside = H.length >= 3;
+    for (let i = 0; i < H.length && inside; i++) { const a = H[i], b = H[(i + 1) % H.length]; if (cr(a, b, [x, z]) < 0) inside = false; }
+    if (inside) return true;
+    let d = Infinity;
+    for (let i = 0; i < H.length; i++) { const a = H[i], b = H[(i + 1) % H.length], ex = b[0] - a[0], ez = b[1] - a[1], L2 = ex * ex + ez * ez;
+      const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - a[0]) * ex + (z - a[1]) * ez) / L2)) : 0;
+      d = Math.min(d, Math.hypot(x - a[0] - t * ex, z - a[1] - t * ez)); }
+    return d <= m;
   }
   // the part's speed held to its set's own plus V_OVER (the turn's lever on a whipped set, not a launch)
   function capV(v, max) { const l = Math.hypot(v[0], v[1], v[2]); if (l > max) { v[0] *= max / l; v[1] *= max / l; v[2] *= max / l; } return v; }
@@ -242,10 +311,13 @@
     rotOf(B.q, R);
     let pen = 0; B.contact = false;
     const Iw = invI(B, R);
+    // (G2045: the ground under the body as a plane - its height at the centre and its slope, three samples a substep
+    // whatever the points; on flat ground exactly the ground, as the eight corners read it)
+    const G0 = groundPlane(B, env);
     for (const pl of B.pts) {
       const rx = R[0] * pl[0] + R[1] * pl[1] + R[2] * pl[2], ry = R[3] * pl[0] + R[4] * pl[1] + R[5] * pl[2], rz = R[6] * pl[0] + R[7] * pl[1] + R[8] * pl[2];
       const px = B.x[0] + rx, py = B.x[1] + ry, pz = B.x[2] + rz;
-      let gh = env.ground(px, pz);
+      let gh = G0[0] + G0[1] * rx + G0[2] * rz;
       if (B.floats && hw != null && Number.isFinite(hw) && hw > gh) gh = hw;
       const d = gh - py;
       if (!(d > 0)) continue;
@@ -305,7 +377,9 @@
     const lp = DT / 0.2;
     B.sv += (Math.hypot(B.v[0], B.v[1], B.v[2]) - B.sv) * lp; B.sw += (Math.hypot(B.w[0], B.w[1], B.w[2]) - B.sw) * lp;
     const slow = B.sv < REST_V && B.sw < REST_W;
-    B.tRest = (B.contact || (B.floats && wet)) && slow ? B.tRest + DT : 0;
+    // (G2045: on the ground it rests only HELD - its centre over what it lies on; a part slowed by the contact's damping
+    // while it tips over an edge slept there, standing on nothing)
+    B.tRest = slow && ((B.floats && wet) || (B.contact && held(B, R, env, hw))) ? B.tRest + DT : 0;
     // a part heavier than water, its top half a metre under the surface: SUNK - out of sight, at rest (it would only reach
     // the bed unseen)
     if (wet && !B.floats && hw - B.x[1] > SUNK + Math.max(B.hi[0] - B.lo[0], B.hi[1] - B.lo[1], B.hi[2] - B.lo[2]) / 2) B.sunk = true;
@@ -580,7 +654,7 @@
 
   const API = { G, DT, CRUSH, TORN, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
     WET_K, CUT0, CUT1, TWIST, isMetal, CURL_B, DRV_RANK, fromDrive,
-    rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, solidOf, strike, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
+    rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, solidOf, strike, support, held, inHull2, groundPlane, SUP_TOL, SUP_IN, SUP_N, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.WRECK_DEBRIS = API;

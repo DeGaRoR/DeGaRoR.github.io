@@ -141,6 +141,20 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   const NM = (x, y, z, tag, r = 0) =>
     [N(x, y, -Math.abs(z), tag + 'L', r), N(x, y, Math.abs(z), tag + 'R', r)];
+  // G2044 (DMG-SETTLE): A NODE OUTSIDE THE DRAWN SURFACE. The boxes' third chords - the wing's lower caps (WB, at
+  // GEN_RULES.sparBoxDepth x the chord under the spar caps), the stab's (HB) and the fin's side pair (VX, at tailBoxDepth) -
+  // stand at a MODELLING depth (13 % of the chord: a lattice is stiff out of its plane by its depth squared), deeper than
+  // the drawn section: the wing's NACA ordinate at the spar (genWingInto lofts it on the spar nodes' chord line), the
+  // tail's plate (the cage's stThick / finThick x planeScale, centred on the stab's and the fin's plane). Measured on the
+  // flown snapshot (ray-cast): the Jodel's WB 14.5 / 17.7 cm under its drawn wing, HB 9.1 cm under its stab; a wing or a
+  // stab that came off rested on them, drawn 10-12 cm over the ground (the user, 2026-10-06: "the pieces hover").
+  // `so` (m, only where > 0) is how far the node stands outside its surface: the solver's ground contact meets the
+  // surface, not the node (30_solver rC = r - so). Nothing else reads it; flight never touches the ground with these
+  const SO = (i, s) => { if (s > 1e-4) nodes[i].so = +s.toFixed(4); return i; };
+  const cgT = S.cage || {}, psT = +cgT.planeScale || 1;
+  const solidT = v => Math.round(v === undefined || v === null || v === '' ? 1 : +v) !== 0;
+  const stHalf = solidT(cgT.stSolid) ? 0.5 * (+cgT.stThick || 0.05) * psT : 0;     // _cage_stab.js finThicken's thick
+  const finHalf = solidT(cgT.finSolid) ? 0.5 * (+cgT.finThick || 0.06) * psT : 0;   // _cage_fin.js's
   // ext = the member is OUTSIDE the covering (struts, gear legs). It stays
   // visible when the aeroplane is covered; everything else disappears under
   // the fabric, which is what the Frame/Covered view modes key off.
@@ -1035,6 +1049,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     return w.tipC * Math.sqrt(Math.max(0, 1 - u * u));
   };
   const sparFront = R.sparFront, sparRear = R.sparRear;
+  // G2044: the drawn section's lower ordinate (chord fractions; genWingInto lofts this plane's NACA on the spar nodes)
+  const AFk = typeof genAfEval === 'function' ? genAfEval(w.naca) : null;
+  const loAt = xs => AFk ? AFk.lo(xs)[1] : 0;
   const sparSpacing = (sparRear - sparFront) * w.chord;
   const xF = w.xLE + sparFront * w.chord, xR = w.xLE + sparRear * w.chord;
   // THE SECTION WALK: both spars move together with the station's own
@@ -1293,13 +1310,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         const depth = z => R.sparBoxDepth * linC(z);
         const zAll = [zRoot, ...zs];
         const bs = iStrut + 1;              // cF/zAll index of the crank
-        const mkLower = (up, z, dx) =>
-          N(dx, nodes[up].p[1] - depth(z), s * z, 'WB');
+        // (G2044: its standoff under the drawn section - the NACA lower ordinate at the spar xs, on the drawn chord)
+        const mkLower = (up, z, dx, xs) =>
+          SO(N(dx, nodes[up].p[1] - depth(z), s * z, 'WB'), depth(z) + loAt(xs) * chordAt(z));
         cFB = []; cRB = [];
         for (let i = bs; i < zAll.length; i++) {
           const z = zAll[i];
-          cFB[i] = mkLower(cF[i], z, xFat(z));
-          cRB[i] = mkLower(cR[i], z, xRat(z));
+          cFB[i] = mkLower(cF[i], z, xFat(z), sparFront);
+          cRB[i] = mkLower(cR[i], z, xRat(z), sparRear);
           B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
           B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
           B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
@@ -1336,12 +1354,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // rule 1 says to remove geometrically rather than guard against.
       const depth = z => R.sparBoxDepth * linC(z);
       const zAll = [zRoot, ...zs];
-      const mkLower = (up, z, dx) => N(dx, nodes[up].p[1] - depth(z), s * z, 'WB');
+      const mkLower = (up, z, dx, xs) => SO(N(dx, nodes[up].p[1] - depth(z), s * z, 'WB'), depth(z) + loAt(xs) * chordAt(z));
       cFB = []; cRB = [];
       for (let i = 0; i < zAll.length; i++) {
         const z = zAll[i];
-        cFB.push(mkLower(cF[i], z, xFat(z)));
-        cRB.push(mkLower(cR[i], z, xRat(z)));
+        cFB.push(mkLower(cF[i], z, xFat(z), sparFront));
+        cRB.push(mkLower(cR[i], z, xRat(z), sparRear));
         // station cell: webs down from each cap, lower rib, and its diagonals
         B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
         B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
@@ -1882,11 +1900,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
     const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
     const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yR(0), 0, 'HR'),
-                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0) - 0.5 * (xRH(0) - xFH(0)) * tanI, 0, 'HB') };
+                 B: SO(N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0) - 0.5 * (xRH(0) - xFH(0)) * tanI, 0, 'HB'), dep * chordH(0) - stHalf) };
     for (const [sd, sg] of [['L', -1], ['R', 1]]) {
       HF[sd] = zsH.map((z, i) => i === 0 ? C0.F : N(xFH(z), yStab, sg * z, 'HF'));
       HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yR(z), sg * z, 'HR'));
-      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
+      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : SO(N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'), dep * chordH(z) - stHalf));
       // the station ON THE BOOM is a PYRAMID on the boom's tail triangle:
       // its three spar nodes and the tagged node each tie to T, I, O and to
       // the bay before (out of the triangle's plane) — the boom is the post
@@ -1939,8 +1957,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       for (let i = 0; i <= nV; i++) {
         const u = i / nV, y = crownY + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
         VF.push(N(xFV(u), y, sg * bx, 'VF')); VR.push(N(xRV(u), y, sg * bx, 'VR'));
-        VX.push(N(xm, y, sg * bx + 0.5 * dep * chordV(u), 'VX'));
-        VX2.push(N(xm, y, sg * bx - 0.5 * dep * chordV(u), 'VX'));
+        VX.push(SO(N(xm, y, sg * bx + 0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
+        VX2.push(SO(N(xm, y, sg * bx - 0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
       }
       const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
       for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {         // the root on the boom's tail
@@ -2038,7 +2056,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
     HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
-    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
+    HB[sd] = zsH.map(z => SO(N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'), dep * chordH(z) - stHalf));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
     for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
@@ -2111,7 +2129,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const u = i / nV, y = lastST.yt + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
     VF.push(N(xFV(u), y, 0, 'VF')); VR.push(N(xRV(u), y, 0, 'VR'));
     // the pair either side: the fin's own thickness, a diamond section
-    VX.push(N(xm, y, 0.5 * dep * chordV(u), 'VX')); VX2.push(N(xm, y, -0.5 * dep * chordV(u), 'VX'));
+    VX.push(SO(N(xm, y, 0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
+    VX2.push(SO(N(xm, y, -0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
   }
   for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {
     B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB

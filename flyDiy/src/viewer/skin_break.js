@@ -1206,8 +1206,31 @@
     R.removed += n; R.torn += n; R.islN = (R.islN || 0) + n;   // (islN: the census tells the confetti from the tear)
     return n;
   }
+  // G2046 (DMG-SETTLE): THE ISLANDS ON A LOOSE PIECE. A piece of fewer than LOOSE_N nodes (an orphan node, every member
+  // gone, or a pair) has no turn of its own: its vertices ride it at their rest lever in the turn they had when it came
+  // loose (nodeFrames keeps a debris node's last turn) - a scrap of covering hung half a metre over the node lying on the
+  // ground (the metal Cessna's dash face, 45 cm, a 30 m/s trunk). Such an island is debris, not skin: the page releases
+  // it as a body (app.js wreckScraps, WRECK_DEBRIS) and it falls and lies on the ground. R a record after its event,
+  // pc / nPc the pieces (sim_view's state) -> Map(piece -> its live triangles); empty while nothing is loose
+  const LOOSE_N = 3;
+  function looseIslands(R, pc, nPc) {
+    const out = new Map();
+    if (!R.active || !R.vp || !R.dead || !pc) return out;
+    const cnt = new Int32Array(Math.max(1, nPc || 0) + 1);
+    for (let i = 0; i < pc.length; i++) if (pc[i] >= 0 && pc[i] < cnt.length) cnt[pc[i]]++;
+    let any = false; for (let q = 1; q < cnt.length; q++) if (cnt[q] > 0 && cnt[q] < LOOSE_N) any = true;
+    if (!any) return out;
+    const i0 = R.idx0, vp = R.vp;
+    for (let t = 0; t < R.nt; t++) {
+      if (R.dead[t]) continue;
+      const q = vp[i0[t * 3]];
+      if (!(q > 0 && q < cnt.length && cnt[q] > 0 && cnt[q] < LOOSE_N)) continue;
+      let L = out.get(q); if (!L) out.set(q, L = []); L.push(t);
+    }
+    return out;
+  }
   const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,
-                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, tearPlaces, onNodes };
+                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, tearPlaces, onNodes, LOOSE_N, looseIslands };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();

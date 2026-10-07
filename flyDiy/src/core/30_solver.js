@@ -2126,7 +2126,11 @@ function makeSim(def, world) {
     // the weight the level stance gives it (the lever of the CG between the mains and the third wheel)
     // over its own ground stiffness. K, C and every force law are unchanged - the spring meets the
     // ground that much earlier, so at rest the wheel's rim is on the surface. Every other node: rC = r.
-    for (let i = 0; i < n; i++) rC[i] = r[i];
+    // G2044 (DMG-SETTLE): ...less its standoff outside the drawn surface (61_gen_frame's `so`: the boxes' third chords, a
+    // modelling depth under the wing's and the stab's drawn section, beside the fin's) - the ground meets the surface.
+    // A Jodel's wing that came off rested on its lower caps, its drawn covering 12 cm over the ground; flight never
+    // reaches the ground with these nodes, and the law (K, C, friction) is unchanged
+    for (let i = 0; i < n; i++) rC[i] = r[i] - (def.nodes[i].so || 0);
     {
       const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
       if (M.length) {
