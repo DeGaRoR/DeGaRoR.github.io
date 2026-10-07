@@ -1,0 +1,34 @@
+# GATE DMGINST on the BASE (origin/claude/dmg-d4b-wreck 8f12bbf, a clean worktree): the same FAIL - not this branch's. The flagged line, app.js 6342 'const wreckEnd = outcome === 'crashed' || outcome === 'broke-up';', is a READER the row's regex counts as a writer; it came with D4b's 88240ea (G1868)
+1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
+  ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
+  ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
+  FAIL  no code writes 'broke-up' but the structure's ending (DMG.brokeUp): src/viewer/app.js
+  ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
+  ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
+  ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
+2. G1801: the velocity guard (150 m/s off the CG)
+  ok    every k x 5 in flight (past the integrator's limit): tripped at frame 0 as 'speed' (node 61 at 989.87 m/s off the CG), every number finite, stats().bad; it never went NaN in 600 frames - the old watchdog would have flown it on (at rest the fastest node read 0.17 m/s)
+  ok    reset() clears it
+  ok    damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off runs the master path)
+  ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
+  ok    the whole aeroplane at 195.21 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.44 m/s off the CG
+  ok    the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
+        Cub: a flown 3.8 g pull: the fastest node 7.77 m/s off the CG
+        Cub: a 10 ft/s drop: the fastest node 3.15 m/s off the CG
+        Jodel: a flown 3.8 g pull: the fastest node 13.27 m/s off the CG
+        Jodel: a 10 ft/s drop: the fastest node 3.51 m/s off the CG
+        metal Cessna: a flown 3.8 g pull: the fastest node 10.31 m/s off the CG
+        metal Cessna: a 10 ft/s drop: the fastest node 1.13 m/s off the CG
+        Cessna floats: a flown 3.8 g pull: the fastest node 9.18 m/s off the CG
+        Cessna floats: a 10 ft/s drop: the fastest node 3.47 m/s off the CG
+        twin floatplane: a flown 3.8 g pull: the fastest node 8.37 m/s off the CG
+        twin floatplane: a 10 ft/s drop: the fastest node 3.10 m/s off the CG
+        the Cub: a circuit with the pilot: the fastest node 2.93 m/s off the CG
+        the Cub: 30 m/s into a trunk (crash): the fastest node 31.96 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 52.84 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 25.84 m/s off the CG
+        the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water: the fastest node 48.04 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 40.01 m/s off the CG
+  ok    the census: 16 runs, never tripped; the worst 52.84 m/s (the metal Cessna: 30 m/s into a trunk (crash)), under 3/4 of the guard
+3. G1802: the plastic work per beam
