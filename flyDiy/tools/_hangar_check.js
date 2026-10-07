@@ -278,6 +278,19 @@ function runCozy(union) {
     }
     if (RP.placed.length === 2) ok(!hit(RP.placed[0].rect, RP.placed[1].rect), T + 'residents clear of each other');
   }
+  // G2316 CLUB + 1: today's fully kitted club takes no resident beside a CENTRED stand (the free floor is in tandem),
+  // so the garage packs the stand WITH its resident and moves the room under the stand (app.js residentsSync0's third
+  // try). Held here: centred, nothing; packed together, both - the stand toward the door, the resident behind it.
+  {
+    const club = { shell: 'club', dims: Object.assign({}, CORE.SHELLS.club.dims), kits: CORE.HANGAR_KITS_DEFAULT.slice(), base: 'HOME', tenure: 'own' };
+    const jodel = { half: 4.4, fwd: 1.8, aft: 5.9 }, cub = { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 };
+    const C0 = CORE.hangarPark(club, [{ name: 'Cub', foot: cub }], { reg: CORE.PROP_REG, keep: [{ x0: -2.3, x1: 6.4, z0: -4.9, z1: 4.9 }] });
+    ok(C0.placed.length === 0, 'rule 8: the full club takes no resident beside a centred stand (' + C0.placed.length + ')');
+    const C1 = CORE.hangarPark(club, [{ name: ' stand', foot: jodel }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
+    const st = C1.placed.find(p => p.name === ' stand'), cb = C1.placed.find(p => p.name === 'Cub');
+    ok(!!st && !!cb, 'rule 8: the club holds the stand + 1 resident packed together (' + JSON.stringify(C1.unplaced) + ')');
+    if (st && cb) ok(st.x < cb.x, 'rule 8: ... the stand toward the door, the resident behind it (stand ' + st.x + ', resident ' + cb.x + ')');
+  }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;
   ok(H.shell === 'works' && H.layout === CORE.CAREER_MAIN.layout && !!LY[H.layout] && H.dims && H.dims.HW === W.HW && H.dims.HD === W.HD,

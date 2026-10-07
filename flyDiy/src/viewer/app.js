@@ -426,9 +426,10 @@
       // the near plane by a visible margin or it is not a clamp at all, so it
       // is derived from it and follows it if it ever changes.
       const d = hangar.dims, gy = hangar.group.position.y;
+      const gx = hangar.group.position.x, gz = hangar.group.position.z;   // G2316: a room moved under the stand (career residents; 0 otherwise)
       const m = camera.near + 0.25 + 0.06;      // near + clear air + half the sheet
-      x = Math.max(-(d.HD - m), Math.min(d.HD - m, x));
-      z = Math.max(-(d.HW - m), Math.min(d.HW - m, z));
+      x = Math.max(gx - (d.HD - m), Math.min(gx + d.HD - m, x));
+      z = Math.max(gz - (d.HW - m), Math.min(gz + d.HW - m, z));
       y = Math.max(gy + 0.12, Math.min(gy + d.EAVE - 0.5, y));   // G439 (A5): the eye may lie on the floor (the user: "the camera should be able to go down to the floor level")
     }
     camera.position.set(x, y, z);
@@ -1113,9 +1114,14 @@
     // there is one and the wireframe when there is not, and both span it.
     if (inRoom && hangar.placeMobile) {
       const bb = new THREE.Box3().setFromObject(craft);
+      // G2316: the career's residents first - their plan may move the ROOM under the stand (residentsSync0's third try);
+      // the mobile kit is placed in the room's frame (the scene's plus that offset: 0 in the sandbox, as ever)
+      residentsSync(bb);
+      const ox = (CAREER_DEV && RES && RES.dx) || 0, oz = (CAREER_DEV && RES && RES.dz) || 0;
+      if (CAREER_DEV) { hangar.group.position.x = -ox; hangar.group.position.z = -oz; }
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
-        hangar.placeMobile({ x0: bb.min.x, x1: bb.max.x,
-                             z0: bb.min.z, z1: bb.max.z });
+        hangar.placeMobile({ x0: bb.min.x + ox, x1: bb.max.x + ox,
+                             z0: bb.min.z + oz, z1: bb.max.z + oz });
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
@@ -1124,7 +1130,6 @@
       // comes back through here (apply -> enterGarage -> applyEnv), so this IS
       // the drag path, and it is four 256^2 draws
       if (hangar.bakeCraftShadow) hangar.bakeCraftShadow(renderer, hangarScene, craft);
-      residentsSync(bb);          // G2315: the career's residents, packed round the stand (nothing in the sandbox)
     }
     // a pref saved against an older, shorter mood list is clamped here, once
     // the room is standing and can say how many skies it actually has
@@ -1155,12 +1160,24 @@
     try { residentsSync0(); RES.err = null; }
     catch (e) { RES.err = String((e && e.message) || e); RES.fails = (RES.fails || 0) + 1; if (RES.fails < 40) residentsLater(); }
   }
+  // THE PLAN. Everything in the room's frame (hangarPark's: doors at -x); the stand's aeroplane stands at the SCENE's
+  // origin and the room normally does too. Three tries, the first that stands every resident wins (else the one that
+  // stands most):
+  //   1. KEPT: the plan as it is, when the stand's new box still clears it (a slider's drag never repacks: ~3 ms a pack
+  //      here, ~10 on the laptop) - and a SWAP's in-place (the aeroplane that left the stand takes the place of the one
+  //      that came onto it: no re-layout) when it fits there;
+  //   2. ROUND THE STAND: hangarPark with the stand's box as `keep` (the works: behind and beside it);
+  //   3. THE ROOM MOVES (GQ7's "the main hangar = the build bay + 2 parked" in a room too short for that beside a centred
+  //      stand - today's fully kitted club takes stand + 1 only in tandem): the stand packed WITH the residents, and the
+  //      room shifted under it (hangar.group / RES.group .position = minus the stand's packed place), so the aeroplane on
+  //      the stand stays where the editor, the cameras and the sim keep it. The sandbox never comes here (career only).
+  const resRect = (f, x, z, clr) => ({ x0: x - f.fwd - clr, x1: x + f.aft + clr, z0: z - f.half - clr, z1: z + f.half + clr });
+  const resHit = (a, b) => a.x0 < b.x1 - 1e-6 && a.x1 > b.x0 + 1e-6 && a.z0 < b.z1 - 1e-6 && a.z1 > b.z0 + 1e-6;
   function residentsSync0() {
     const bb = RES.bb;
     const t0 = performance.now();
     if (!RES.group) { RES.group = new THREE.Group(); RES.group.name = 'garageResidents'; }
     if (RES.group.parent !== hangarScene) hangarScene.add(RES.group);
-    RES.group.position.y = hangar ? hangar.group.position.y : 0;
     const d = playerLoad(), id = 'HOME', shed = d.sheds[id];
     if (!shed) return;
     const stand = slotOnStand();
@@ -1169,32 +1186,95 @@
     const max = Math.max(0, (S && isFinite(S.parked)) ? S.parked : 2);
     const names = playerResidents(d, id).filter(n => n !== stand).slice(0, max);
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
-    const keep = (bb && isFinite(bb.min.x) && bb.max.x > bb.min.x)
-      ? [{ x0: q(bb.min.x) - clr, x1: q(bb.max.x) + clr, z0: q(bb.min.z) - clr, z1: q(bb.max.z) + clr }] : [];
-    // THE DRAG PATH: what decides the plan but the stand's box (`base`), and the box. A box that moved and still clears
-    // every resident keeps the plan - the pack (~3 ms here, ~10 on the laptop) runs when the residents, the room, or a
-    // collision with the stand's new box ask for it, never per slider tick
+    const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
+    // the stand's box, scene frame, and as a footprint about its origin (the model's)
+    const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
+    const footOf = n => parkFoot(playerFootOf(d, n));
     const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
-    const clear = RES.base === base && RES.plan.length === names.length - RES.unplaced.length &&
-      keep.every(k => RES.plan.every(p => !p.rect || !(p.rect.x0 < k.x1 && p.rect.x1 > k.x0 && p.rect.z0 < k.z1 && p.rect.z1 > k.z0)));
-    const sig = base + JSON.stringify(keep);
-    if (sig !== RES.sig && !clear) {
-      RES.base = base; RES.packs = (RES.packs || 0) + 1;
-      const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: playerFootOf(d, n) })), { keep }) : { placed: [], unplaced: [] };
-      RES.plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z, rect: p.rect })); RES.unplaced = P.unplaced;
-      const want = new Set(RES.plan.map(p => 'mine:' + p.name));
+    const sig = base + JSON.stringify(sb);
+    if (sig !== RES.sig) {
+      const off = { x: RES.dx || 0, z: RES.dz || 0 };
+      const keepAt = o => sb ? [{ x0: sb.x0 + o.x - clr, x1: sb.x1 + o.x + clr, z0: sb.z0 + o.z - clr, z1: sb.z1 + o.z + clr }] : [];
+      const obs = () => (RES.obsSig === base ? RES.obs : (RES.obsSig = base, RES.obs = hangarObstacles(shed)));
+      const fits = (plan, o) => {
+        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name), p.x, p.z, clr));
+        const D = hangarDims(shed);
+        return rects.every((r, i) => r.x0 >= -D.HD - 1e-6 && r.x1 <= D.HD + 1e-6 && r.z0 >= -D.HW - 1e-6 && r.z1 <= D.HW + 1e-6 &&
+          !K.some(k => resHit(r, k)) && !O.some(b => resHit(r, b)) && rects.every((s, j) => j === i || !resHit(r, s)));
+      };
+      let plan = null, how = '', o = { x: 0, z: 0 }, unplaced = [];
+      // 1. kept, or swapped in place
+      const sw = RES.swap; RES.swap = null;
+      if (RES.base === base || (sw && RES.plan.some(p => p.name === sw.at))) {
+        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z }));
+        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z } : p).filter(p => names.includes(p.name));
+        const same = cand.length === names.length - RES.unplaced.length && cand.every(p => names.includes(p.name));
+        if (same && fits(cand, off)) { plan = cand; o = off; unplaced = RES.unplaced.filter(u => names.includes(u.name)); how = sw ? 'swapped in place' : 'kept'; }
+      }
+      // 2. round the stand, the room where it stands
+      if (!plan) {
+        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n) })), { keep: keepAt({ x: 0, z: 0 }) }) : { placed: [], unplaced: [] };
+        plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = { x: 0, z: 0 };
+        // 3. the room moves: the stand packed with them
+        if (unplaced.length && sb) {
+          const sf = { half: Math.max(-sb.z0, sb.z1), fwd: Math.max(0.3, -sb.x0), aft: Math.max(0.3, sb.x1) };
+          const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(names.map(n => ({ name: n, foot: footOf(n) }))), {});
+          const st = Q.placed.find(p => p.name === '\u0000stand');
+          const got = Q.placed.filter(p => p.name !== '\u0000stand');
+          if (st && got.length > plan.length) {
+            plan = got.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = Q.unplaced; how = 'the room moved';
+            o = { x: st.x, z: st.z };        // where the stand's origin stands in the room
+          }
+        }
+      }
+      RES.base = base; RES.sig = sig; RES.packs = (RES.packs || 0) + (how === 'kept' || how === 'swapped in place' ? 0 : 1);
+      RES.how = how; RES.plan = plan; RES.unplaced = unplaced; RES.dx = o.x; RES.dz = o.z;
+      const want = new Set(plan.map(p => 'mine:' + p.name));
       for (const [k, g] of RES.holders) if (!want.has(k)) { window.PARKED.residentDrop(g); RES.holders.delete(k); }
-      for (const p of RES.plan) {
+      for (const p of plan) {
         const k = 'mine:' + p.name;
         let g = RES.holders.get(k);
-        if (!g) { g = window.PARKED.resident(THREE, k, RES.rung); RES.holders.set(k, g); RES.group.add(g); }
+        if (!g) { g = window.PARKED.resident(THREE, k, RES.rung); g.userData.resident = p.name; RES.holders.set(k, g); RES.group.add(g); }
         g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI;            // nose to the door (-x), as the stand
       }
     }
-    RES.sig = sig;
+    // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
+    RES.group.position.set(-(RES.dx || 0), hangar ? hangar.group.position.y : 0, -(RES.dz || 0));
     for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
     residentsShow();
     RES.ms = performance.now() - t0;
+  }
+  // THE SWAP (the user, 7 Oct: "Could we keep good performance by including other planes as props, but allowing
+  // selection for example, so one can easily swap between its planes in the hangar?"): the resident's slot onto the stand
+  // through the garage's own slot load (GARAGE_SPEC.open: the fleet rack's door), and the aeroplane that stood there takes
+  // the resident's place (residentsSync0's swap in place: no re-layout when it fits there). A prop until then: nothing of
+  // it is editable. The build on the stand must be a saved one (an unsaved build would be lost: asked). Resolves with the
+  // timings: load (the slot load's own task), stood (until the aeroplane that left the stand stands as a resident), total.
+  function residentSwap(name, opt) {
+    const G = window.GARAGE_SPEC;
+    if (!CAREER_DEV || !RES || !G || !G.open || !RES.plan.some(p => p.name === name)) return Promise.resolve(null);
+    const out = slotOnStand();
+    if (!out && !(opt && opt.force) && typeof confirm === 'function' &&
+        !confirm('The build on the stand has not been saved, and loading “' + name + '” replaces it. Swap anyway?')) return Promise.resolve(null);
+    const t0 = performance.now();
+    RES.swap = out ? { at: name, in: out } : null;
+    G.open(name);
+    const tLoad = performance.now() - t0;
+    if (inGarage) applyEnv();                // the stand's new box and the residents, now (the load's own path may defer)
+    const res = { name, out, load: +tLoad.toFixed(1), how: null, stood: null, total: null };
+    return new Promise(done => {
+      const t1 = performance.now();
+      const look = () => {
+        const g = out ? RES.holders.get('mine:' + out) : null;
+        if (!out || (g && g.userData.filled) || performance.now() - t1 > 30000) {
+          res.how = RES.how; res.stood = +(performance.now() - t0).toFixed(1);
+          requestAnimationFrame(() => requestAnimationFrame(() => { res.total = +(performance.now() - t0).toFixed(1); RES.lastSwap = res; done(res); }));
+          return;
+        }
+        setTimeout(look, 16);
+      };
+      look();
+    });
   }
   // shown: the hand's choice while it holds (until the next view), else the view's default - on in the room view
   // (the garage's own framing, 3/4 front, refit), off in the close views (side, plan, nose, interior)
@@ -1209,6 +1289,7 @@
   const resHolder = n => RES.holders.get('mine:' + n) || { userData: {} };
   const residentsApi = () => CAREER_DEV ? {
     on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null, packs: RES.packs || 0,
+    how: RES.how || null, room: { dx: RES.dx || 0, dz: RES.dz || 0 }, lastSwap: RES.lastSwap || null,
     plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
     unplaced: RES.unplaced.slice(),
   } : null;
@@ -1374,6 +1455,7 @@
       return shed.layout || null;
     },
     residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
+    residentSwap: (n, o) => residentSwap(n, o),      // G2316: a resident onto the stand (timings back)
     setMobile: on => {
       mobileOn = on !== false;
       prefSet('flydiy.hangarMobile', mobileOn ? '1' : '0');
@@ -5501,11 +5583,71 @@
   // same ray at its box and takes the click only when it is NEARER than the aeroplane's hit; on pointer events only
   // (a declaration, hoisted: loop() asks it too)
   function bbProp() { return (inGarage && hangar && hangar.mobileProp) ? hangar.mobileProp('boombox') : null; }
+  // ---- G2316 GARAGE-RESIDENTS: THE OTHER AEROPLANES ANSWER A CLICK ----------------------------------------------------
+  // A resident is a prop - nothing of it is editable - but it can be CHOSEN: the pointer over one outlines it (a box, on
+  // the desktop) and turns the cursor; a click or a tap on one (nothing hover-only) opens a small card, "Work on <name>",
+  // which swaps it onto the stand (residentSwap). The aeroplane on the stand, when it is in FRONT of the resident, keeps
+  // the click (its parts are the editor's). Career only; the hover ray is thrown at most every HOVER_MS, at the residents'
+  // own L2 meshes (a few thousand triangles), never at the aeroplane.
+  const resRay = new THREE.Raycaster(), resNDC = new THREE.Vector2();
+  let resBox = null, resHoverName = null, resCard = null;
+  function residentAt(cx, cy, frontTest) {
+    if (!CAREER_DEV || !inGarage || !RES || !RES.group || !RES.group.visible || !RES.holders.size) return null;
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    resNDC.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    if (Math.abs(resNDC.x) > 1 || Math.abs(resNDC.y) > 1) return null;
+    resRay.setFromCamera(resNDC, camera);
+    let hits; try { hits = resRay.intersectObject(RES.group, true); } catch (e) { return null; }
+    const h = hits.find(x => x.object.visible);
+    if (!h) return null;
+    let g = h.object; while (g && !(g.userData && g.userData.resident)) g = g.parent;
+    if (!g || !g.userData.filled) return null;
+    if (frontTest) {
+      let a = null; try { a = resRay.intersectObject(craft, true).find(x => x.object.visible); } catch (e) {}
+      if (a && a.distance < h.distance) return null;
+    }
+    return { name: g.userData.resident, grp: g, distance: h.distance };
+  }
+  function residentHover(h) {
+    const n = h ? h.name : null;
+    if (n === resHoverName) return;
+    resHoverName = n;
+    if (resBox) { if (resBox.parent) resBox.parent.remove(resBox); resBox.geometry.dispose(); resBox.material.dispose(); resBox = null; }
+    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.name = 'residentHover'; hangarScene.add(resBox); }
+    canvas.style.cursor = h ? 'pointer' : '';
+    canvas.title = h ? 'Work on ' + h.name : '';
+  }
+  function residentCardClose() { if (resCard && resCard.parentNode) resCard.parentNode.removeChild(resCard); resCard = null; }
+  function residentCard(h, cx, cy) {
+    residentCardClose();
+    if (!document || !document.createElement) return;
+    const c = document.createElement('div');
+    c.className = 'resCard';
+    const W = window.innerWidth || 800, H = window.innerHeight || 600;
+    c.style.cssText = 'position:fixed;z-index:60;left:' + Math.max(8, Math.min(W - 230, cx + 12)) + 'px;top:' + Math.max(8, Math.min(H - 90, cy - 20)) + 'px;' +
+      'background:rgba(28,22,16,.94);color:#f3e7d3;border:1px solid #9a7440;border-radius:8px;padding:8px 10px;' +
+      'font:600 13px/1.3 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.55)';
+    const t = document.createElement('div'); t.style.marginBottom = '6px'; t.textContent = h.name + ' · parked here';
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'dfPill'; go.textContent = 'Work on ' + h.name;
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'dfPill'; x.textContent = '✕'; x.title = 'close';
+    x.style.marginLeft = '6px';
+    go.onclick = () => { residentCardClose(); residentHover(null); residentSwap(h.name); };
+    x.onclick = residentCardClose;
+    c.appendChild(t); c.appendChild(go); c.appendChild(x);
+    document.body.appendChild(c);
+    resCard = c;
+  }
   canvas.addEventListener('pointerup', e => {
     // G2101: a double tap on the phone re-centres the orbit, as the mouse's dblclick does (a tap is still a pick)
     if (TOUCH_UI && e.pointerType === 'touch' && downAt && edSit.visible && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 10) {
       const now = Date.now(); if (now - tapT < 320) { edPan.set(0, 0, 0); tapT = 0; } else tapT = now; }
-    if (downAt && edSit.visible && !SHOT.on && e.button === 0 &&
+    // G2316: a click or a tap on a parked resident (nearer than the aeroplane) opens its card, and goes no further
+    const resTap = !!(downAt && inGarage && !SHOT.on && e.button === 0 && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < (e.pointerType === 'touch' ? 10 : 4) && Date.now() - downAt.t < 500);
+    const resPick = resTap ? residentAt(e.clientX, e.clientY, true) : null;
+    if (resPick) residentCard(resPick, e.clientX, e.clientY);
+    else if (resTap) residentCardClose();
+    if (!resPick && downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500) {
       const hit = pickAt(e.clientX, e.clientY);
@@ -5532,6 +5674,11 @@
     // walks a hundred thousand triangles, so it is thrown at most every
     // HOVER_MS and never while a button is down — an orbit must not pay for a
     // tint it is about to throw away.
+    // G2316: the residents' hover (outline + cursor), on its own throttle, at their L2 meshes only
+    if (CAREER_DEV && !touches.size && !panD && !SHOT.on && e.pointerType === 'mouse' && RES && RES.holders && RES.holders.size) {
+      const now = Date.now();
+      if (now - (RES.hoverT || 0) > HOVER_MS) { RES.hoverT = now; residentHover(residentAt(e.clientX, e.clientY, false)); }
+    }
     if (!touches.size && !panD && edSit.visible && !SHOT.on &&
         typeof window.EDITOR_PICK === 'function') {
       const now = Date.now();
