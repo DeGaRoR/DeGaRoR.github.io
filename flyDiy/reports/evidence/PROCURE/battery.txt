@@ -1,0 +1,14 @@
+──────── summary ────────
+UISMOKE   PASS   265.1 s
+UISMOKE-PHONE PASS    86.9 s
+GFX       PASS     1.0 s
+SAVE      PASS     1.7 s
+PLAYER    PASS     0.8 s
+GAMEPREM  PASS     9.4 s
+CONTRACTS PASS    77.9 s
+PROCURE   PASS     7.2 s
+total            450.0 s
+wall             265.1 s  (jobs 4)
+
+BATTERY: PASS
+EXIT 0

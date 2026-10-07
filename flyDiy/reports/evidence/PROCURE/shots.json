@@ -1,0 +1,833 @@
+{
+ "what": "PROCURE stills (G2280)",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "fails": [],
+ "shots": [
+  {
+   "name": "sandbox",
+   "file": "procure_sandbox.jpg",
+   "note": "the sandbox (no flag): today's page - no market door, no MAP entry",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0",
+   "door": false,
+   "entry": false,
+   "open": false,
+   "slots": [],
+   "wallet": 0,
+   "ledger": [],
+   "voucher": null,
+   "marketRows": 0,
+   "usedRows": 0,
+   "usedMarks": 0,
+   "used": [],
+   "card": ""
+  },
+  {
+   "name": "market",
+   "file": "procure_market.jpg",
+   "note": "the Market tab: the four makers' models, then the used listings where they stand (their markers on the map)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [],
+   "wallet": 60000,
+   "ledger": [
+    "grant -60000"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": false
+   },
+   "marketRows": 4,
+   "usedRows": 4,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "tw_ski",
+     "price": 17200,
+     "model": "scout"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "Pick a contract Tap a row or a marker on the map: its card says where the load is, where it goes, both strips, the payload, the pay, and your fleet against it. NOTHING TRACKED 0 accepted · 20 on offer · 0 aeroplanes"
+  },
+  {
+   "name": "model_card",
+   "file": "procure_model_card.jpg",
+   "note": "a maker's model: its certificate, the options sheet, the price (the voucher pays a stock one), Buy",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [],
+   "wallet": 60000,
+   "ledger": [
+    "grant -60000"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": false
+   },
+   "marketRows": 4,
+   "usedRows": 4,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "tw_ski",
+     "price": 17200,
+     "model": "scout"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "◆ Bramble Light Aircraft · a maker's model Bramble Scout The two-seat bush hauler: slow, forgiving, at home on gravel. Fabric over steel tube, built for short fields and long days. Two seats, one behind the other. ITS CERTIFICATE Factory-certified: the validated build's bench numbers. Opening it in the full editor makes it \"modified\": the certificate is withdrawn and the change billed. seats 2 payload 90 kg empty 354 kg take-off run 156 m gear wheels cruise 113 km/h range 376 km tank 47.7 L span 10.7 m ledger 31 203 OPTIONS ENGINE 49 kW (65 hp), air-cooled 75 kW (100 hp), air-cooled +17 400 60 kW (80 hp), liquid-cooled +10 200 FUEL TANK standard tank long-range: wing-root tanks (+50 %) +1 000 GEAR wheels tundra tyres +100 PANEL AND RADIOS basic VFR, a radio minimal: day VFR, no radio −7 300 IFR panel and radios +10 200 FINISH factory colours signal red harbour blue forest green plain white REGISTRATION ITS NAME IN YOUR HANGAR Delivered to the main hangar at Jolene AFB 13/31. PRICE 0 the voucher pays this one (a stock Bramble Scout) the stock model 35 900 · the price book is a stand-in until the economy lands Buy · 0"
+  },
+  {
+   "name": "model_opts",
+   "file": "procure_model_opts.jpg",
+   "note": "the engine chosen: the certificate and the price follow (the voucher no longer applies)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [],
+   "wallet": 60000,
+   "ledger": [
+    "grant -60000"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": false
+   },
+   "marketRows": 4,
+   "usedRows": 4,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "tw_ski",
+     "price": 17200,
+     "model": "scout"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "◆ Bramble Light Aircraft · a maker's model Bramble Scout The two-seat bush hauler: slow, forgiving, at home on gravel. Fabric over steel tube, built for short fields and long days. Two seats, one behind the other. ITS CERTIFICATE Factory-certified: the validated build's bench numbers. Opening it in the full editor makes it \"modified\": the certificate is withdrawn and the change billed. seats 2 payload 90 kg empty 362 kg take-off run 100 m gear wheels cruise 130 km/h range 281 km tank 47.7 L span 10.7 m ledger 46 303 OPTIONS ENGINE 49 kW (65 hp), air-cooled 75 kW (100 hp), air-cooled +17 400 60 kW (80 hp), liquid-cooled +10 200 FUEL TANK standard tank long-range: wing-root tanks (+50 %) +1 000 GEAR wheels tundra tyres +100 PANEL AND RADIOS basic VFR, a radio minimal: day VFR, no radio −7 300 IFR panel and radios +10 200 FINISH factory colours signal red harbour blue forest green plain white REGISTRATION ITS NAME IN YOUR HANGAR Delivered to the main hangar at Jolene AFB 13/31. PRICE 53 300 the stock model 35 900 · engine 17 400 · the price book is a stand-in until the economy lands Buy · 53 300"
+  },
+  {
+   "name": "bought_voucher",
+   "file": "procure_bought_voucher.jpg",
+   "note": "the stock Scout bought with the voucher: in the main hangar, the airframe row factory-certified",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [
+    "Bramble Scout"
+   ],
+   "wallet": 60000,
+   "ledger": [
+    "grant -60000"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": true,
+    "slot": "Bramble Scout"
+   },
+   "marketRows": 4,
+   "usedRows": 4,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "tw_ski",
+     "price": 17200,
+     "model": "scout"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "◆ Bramble Light Aircraft · a maker's model Bramble Scout The two-seat bush hauler: slow, forgiving, at home on gravel. Fabric over steel tube, built for short fields and long days. Two seats, one behind the other. ITS CERTIFICATE Factory-certified: the validated build's bench numbers. Opening it in the full editor makes it \"modified\": the certificate is withdrawn and the change billed. seats 2 payload 90 kg empty 354 kg take-off run 156 m gear wheels cruise 113 km/h range 376 km tank 47.7 L span 10.7 m ledger 31 203 OPTIONS ENGINE 49 kW (65 hp), air-cooled 75 kW (100 hp), air-cooled +17 400 60 kW (80 hp), liquid-cooled +10 200 FUEL TANK standard tank long-range: wing-root tanks (+50 %) +1 000 GEAR wheels tundra tyres +100 PANEL AND RADIOS basic VFR, a radio minimal: day VFR, no radio −7 300 IFR panel and radios +10 200 FINISH factory colours signal red harbour blue forest green plain white REGISTRATION ITS NAME IN YOUR HANGAR Delivered to the main hangar at Jolene AFB 13/31. PRICE 35 900 the stock model 35 900 · the price book is a stand-in until the economy lands \"Bramble Scout\" is yours: in HOME · paid -60 000. It is on the Fleet tab. Buy · 35 900"
+  },
+  {
+   "name": "used_card",
+   "file": "procure_used_card.jpg",
+   "note": "a used listing (used:0:0, scout at tw_ski): where it stands, its history, its certificate, its price",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [
+    "Bramble Scout"
+   ],
+   "wallet": 60000,
+   "ledger": [
+    "grant -60000"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": true,
+    "slot": "Bramble Scout"
+   },
+   "marketRows": 4,
+   "usedRows": 4,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "tw_ski",
+     "price": 17200,
+     "model": "scout"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "⚑ used · Bramble Scout Bramble Scout, 950 hours \"Selling for a bigger one. Logbooks all there.\" IT STANDS AT Skyline Altiport 380 m grass · 696 m up ITS HISTORY 950 hours on the engine since its last overhaul a wing tip rebuilt after a hangar rash an older panel than the factory's 12 kg of extra equipment fitted over the years ITS CERTIFICATE The maker's, as the first owner chose it, the extra kilos counted. seats 2 payload 90 kg empty 358 kg take-off run 171 m gear wheels cruise 111 km/h range 555 km tank 71.5 L span 10.7 m ledger 25 734 PRICE 17 200 (29 700 new × 58 % for its condition) Bought where it stands: it becomes yours at Skyline Altiport. Fly it home, or bring it home (free). ITS NAME IN YOUR HANGAR Buy where it stands · 17 200"
+  },
+  {
+   "name": "bought_used",
+   "file": "procure_bought_used.jpg",
+   "note": "bought where it stands: an airframe stationed at tw_ski",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [
+    "Bramble Scout",
+    "Bramble Scout N647FX"
+   ],
+   "wallet": 42800,
+   "ledger": [
+    "grant -60000",
+    "buy 17200"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": true,
+    "slot": "Bramble Scout"
+   },
+   "marketRows": 4,
+   "usedRows": 3,
+   "usedMarks": 3,
+   "used": [
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "Sold This aeroplane is no longer for sale."
+  },
+  {
+   "name": "board",
+   "file": "procure_board.jpg",
+   "note": "the drawing board: the Scout filed as a design, the design built into an airframe (paid at the ledger)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [
+    "Bramble Scout",
+    "Bramble Scout (design)",
+    "Bramble Scout N647FX"
+   ],
+   "wallet": 11600,
+   "ledger": [
+    "grant -60000",
+    "buy 17200",
+    "build 31200"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": true,
+    "slot": "Bramble Scout"
+   },
+   "marketRows": 4,
+   "usedRows": 3,
+   "usedMarks": 3,
+   "used": [
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "Sold This aeroplane is no longer for sale."
+  },
+  {
+   "name": "garage_join",
+   "file": "procure_garage_join.jpg",
+   "note": "the Scout in the garage after the join; saved with no edit",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "door": true,
+   "entry": true,
+   "open": false,
+   "slots": [
+    "Bramble Scout",
+    "Bramble Scout (design)",
+    "Bramble Scout N647FX"
+   ],
+   "wallet": 11600,
+   "ledger": [
+    "grant -60000",
+    "buy 17200",
+    "build 31200"
+   ],
+   "voucher": {
+    "kind": "maker",
+    "model": "cub",
+    "used": true,
+    "slot": "Bramble Scout"
+   },
+   "marketRows": 0,
+   "usedRows": 0,
+   "usedMarks": 0,
+   "used": [
+    {
+     "id": "used:0:1",
+     "aero": "w2",
+     "price": 57000,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 19700,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "w2",
+     "price": 29400,
+     "model": "scout"
+    }
+   ],
+   "card": "",
+   "join": {
+    "slot": "Bramble Scout",
+    "factoryFp": "75f8c892",
+    "joinedFp": "3424d0ab",
+    "same": false,
+    "signed": true,
+    "rows": [
+     "cage",
+     "cabin",
+     "fuel",
+     "systems",
+     "controls",
+     "engines",
+     "wings",
+     "bracing",
+     "tail",
+     "gear",
+     "v",
+     "energy"
+    ],
+    "afterSave": {
+     "factory": true,
+     "modified": false
+    }
+   }
+  },
+  {
+   "name": "options_through_the_join",
+   "note": "every single-option variant bought, opened in the garage, saved with no edit",
+   "rows": [
+    {
+     "id": "scout",
+     "r": "engine",
+     "v": "o200",
+     "asked": "o200_eprops #1",
+     "built": "o200_eprops #1",
+     "kept": true,
+     "signed": true,
+     "settleMs": 51004,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "scout",
+     "r": "engine",
+     "v": "r912",
+     "asked": "rotax912_warp #7",
+     "built": "rotax912_warp #7",
+     "kept": true,
+     "signed": true,
+     "settleMs": 38909,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "scout",
+     "r": "tank",
+     "v": "long",
+     "asked": "wingRoot:22.5",
+     "built": "wingRoot:22.5",
+     "nose": [
+      45,
+      27
+     ],
+     "kept": true,
+     "signed": true,
+     "settleMs": 21792,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "scout",
+     "r": "gear",
+     "v": "tundra",
+     "asked": "taildragger r0.275",
+     "built": "taildragger r0.275",
+     "kept": true,
+     "signed": true,
+     "settleMs": 13896,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "scout",
+     "r": "avionics",
+     "v": "minimal",
+     "asked": "minimal",
+     "built": "minimal",
+     "kept": true,
+     "signed": true,
+     "settleMs": 2405,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "scout",
+     "r": "avionics",
+     "v": "ifr",
+     "asked": "ifr",
+     "built": "ifr",
+     "kept": true,
+     "signed": true,
+     "settleMs": 2483,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "pinson",
+     "r": "engine",
+     "v": "o200",
+     "asked": "o200_eprops #1",
+     "built": "o200_eprops #1",
+     "kept": true,
+     "signed": true,
+     "settleMs": 3098,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "pinson",
+     "r": "engine",
+     "v": "vw",
+     "asked": "vw2180_wood #4",
+     "built": "vw2180_wood #4",
+     "kept": true,
+     "signed": true,
+     "settleMs": 6357,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "pinson",
+     "r": "tank",
+     "v": "long",
+     "asked": "wingRoot:22.5",
+     "built": "wingRoot:22.5",
+     "nose": [
+      45,
+      45
+     ],
+     "kept": true,
+     "signed": true,
+     "settleMs": 2694,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "pinson",
+     "r": "avionics",
+     "v": "minimal",
+     "asked": "minimal",
+     "built": "minimal",
+     "kept": true,
+     "signed": true,
+     "settleMs": 2127,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "pinson",
+     "r": "avionics",
+     "v": "ifr",
+     "asked": "ifr",
+     "built": "ifr",
+     "kept": true,
+     "signed": true,
+     "settleMs": 2107,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "meridian",
+     "r": "gear",
+     "v": "floats",
+     "asked": "floats r0.185",
+     "built": "floats r0.185",
+     "kept": true,
+     "signed": true,
+     "settleMs": 20991,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "meridian",
+     "r": "engine",
+     "v": "o320",
+     "asked": "o320_mccauley #17",
+     "built": "o320_mccauley #17",
+     "kept": true,
+     "signed": true,
+     "settleMs": 2570,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "meridian",
+     "r": "engine",
+     "v": "io360",
+     "asked": "io360_mccauley #2",
+     "built": "io360_mccauley #2",
+     "kept": true,
+     "signed": true,
+     "settleMs": 6058,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "meridian",
+     "r": "tank",
+     "v": "long",
+     "asked": "wingRoot:14",
+     "built": "wingRoot:14",
+     "nose": [
+      28,
+      28
+     ],
+     "kept": true,
+     "signed": true,
+     "settleMs": 2708,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "meridian",
+     "r": "seats",
+     "v": "3",
+     "asked": "3",
+     "built": "3",
+     "kept": true,
+     "signed": true,
+     "settleMs": 2106,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "meridian",
+     "r": "avionics",
+     "v": "basic",
+     "asked": "basic",
+     "built": "basic",
+     "kept": true,
+     "signed": true,
+     "settleMs": 3401,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "tern",
+     "r": "engine",
+     "v": "r503",
+     "asked": "rotax503_wood+rotax503_wood #10",
+     "built": "rotax503_wood+rotax503_wood #10",
+     "kept": true,
+     "signed": true,
+     "settleMs": 6957,
+     "saveKeeps": true,
+     "moved": []
+    },
+    {
+     "id": "tern",
+     "r": "tank",
+     "v": "long",
+     "asked": "wingRoot:9.5",
+     "built": "wingRoot:9.5",
+     "nose": [
+      19,
+      19
+     ],
+     "kept": true,
+     "signed": true,
+     "settleMs": 3781,
+     "saveKeeps": true,
+     "moved": []
+    }
+   ]
+  },
+  {
+   "name": "phone_market",
+   "file": "procure_phone_market.jpg",
+   "note": "the phone: the Market in the sheet (48 px rows), the listings on the map",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&map=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [],
+   "wallet": 0,
+   "ledger": [],
+   "voucher": null,
+   "marketRows": 4,
+   "usedRows": 4,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "mn_strip",
+     "price": 15400,
+     "model": "pinson"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "SEA",
+     "price": 26600,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 80400,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "mk_sea",
+     "price": 62800,
+     "model": "meridian"
+    }
+   ],
+   "card": "THE MAKERS · VALIDATED DESIGNS ONLY ◆ Bramble Scout from 35 900 Bramble Light Aircraft · 2 seats · wheels · 113 km/h ◆ Vernier Pinson from 39 500 Ateliers Vernier · 2 seats · wheels · 127 km/h ◆ Northline Meridian from 107 900 Northline Aero · 4 seats · wheels · 177 km/h ◆ Driftwood Tern from 40 900 Driftwood Ultralights · 1 seat · floats · 130 km/h USED, WHERE THEY STAND ⚑ Vernier Pinson, 1650 hours 15 400 Jumbo Mine Street · 54 % of the catalogue · wheels ⚑ Driftwood Tern, 900 hours 26 600 Annette Dock · 64 % of the catalogue · floats ⚑ Northline Meridian, 450 hours 80 400 Metlakatla Seaplane Base · 73 % of the catalogue · floats ⚑ Northline Meridian, 1600 hours 62 800 Metlakatla Seaplane Base · 57 % of the catalogue · floats YOUR DRAWING BOARD In the sandbox every saved design is also an aeroplane (0 on the shelf): nothing to build or pay."
+  },
+  {
+   "name": "phone_card",
+   "file": "procure_phone_card.jpg",
+   "note": "the phone: a model's card, its options as 48 px chips, Take it (free in the sandbox)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&map=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [],
+   "wallet": 0,
+   "ledger": [],
+   "voucher": null,
+   "marketRows": 0,
+   "usedRows": 0,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "mn_strip",
+     "price": 15400,
+     "model": "pinson"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "SEA",
+     "price": 26600,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 80400,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "mk_sea",
+     "price": 62800,
+     "model": "meridian"
+    }
+   ],
+   "card": "‹ the list ◆ Ateliers Vernier · a maker's model Vernier Pinson Two seats side by side in a wooden fuselage; quicker than it looks. A wood shop that builds aeroplanes: light, quick and kind to its pilot. ITS CERTIFICATE Factory-certified: the validated build's bench numbers. Opening it in the full editor makes it \"modified\": the certificate is withdrawn and the change billed. seats 2 payload 90 kg empty 341 kg take-off run 205 m gear wheels cruise 127 km/h range 422 km tank 47.7 L span 8.3 m ledger 34 363 OPTIONS ENGINE 49 kW (65 hp), air-cooled 75 kW (100 hp), air-cooled +17 400 44 kW (59 hp), air-cooled −3 600 FUEL TANK standard tank long-range: wing-root tanks (+50 %) +1 000 PANEL AND RADIOS basic VFR, a radio minimal: day VFR, no radio −7 300 IFR panel and radios +10 200 FINISH factory colours signal red harbour blue forest green plain white REGISTRATION ITS NAME IN YOUR HANGAR Delivered to the main hangar at Jolene AFB 13/31. PRICE 39 500 the stock model 39 500 · the price book is a stand-in until the economy lands Take it · free in the sandbox"
+  },
+  {
+   "name": "phone_taken",
+   "file": "procure_phone_taken.jpg",
+   "note": "taken: free in the sandbox (a free ledger line), in the hangar, a slot of the shelf",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&map=1",
+   "door": true,
+   "entry": true,
+   "open": true,
+   "slots": [
+    "Vernier Pinson"
+   ],
+   "wallet": 0,
+   "ledger": [
+    "buy 39500 free"
+   ],
+   "voucher": null,
+   "marketRows": 0,
+   "usedRows": 0,
+   "usedMarks": 4,
+   "used": [
+    {
+     "id": "used:0:0",
+     "aero": "mn_strip",
+     "price": 15400,
+     "model": "pinson"
+    },
+    {
+     "id": "used:0:1",
+     "aero": "SEA",
+     "price": 26600,
+     "model": "tern"
+    },
+    {
+     "id": "used:0:2",
+     "aero": "mk_sea",
+     "price": 80400,
+     "model": "meridian"
+    },
+    {
+     "id": "used:0:3",
+     "aero": "mk_sea",
+     "price": 62800,
+     "model": "meridian"
+    }
+   ],
+   "card": "‹ the list ◆ Ateliers Vernier · a maker's model Vernier Pinson Two seats side by side in a wooden fuselage; quicker than it looks. A wood shop that builds aeroplanes: light, quick and kind to its pilot. ITS CERTIFICATE Factory-certified: the validated build's bench numbers. Opening it in the full editor makes it \"modified\": the certificate is withdrawn and the change billed. seats 2 payload 90 kg empty 341 kg take-off run 205 m gear wheels cruise 127 km/h range 422 km tank 47.7 L span 8.3 m ledger 34 363 OPTIONS ENGINE 49 kW (65 hp), air-cooled 75 kW (100 hp), air-cooled +17 400 44 kW (59 hp), air-cooled −3 600 FUEL TANK standard tank long-range: wing-root tanks (+50 %) +1 000 PANEL AND RADIOS basic VFR, a radio minimal: day VFR, no radio −7 300 IFR panel and radios +10 200 FINISH factory colours signal red harbour blue forest green plain white REGISTRATION ITS NAME IN YOUR HANGAR Delivered to the main hangar at Jolene AFB 13/31. PRICE 39 500 the stock model 39 500 · the price book is a stand-in until the economy lands \"Vernier Pinson\" is yours: in HOME · taken free (the sandbox). It is on the Fleet tab. Take it · free in the sandbox"
+  }
+ ]
+}

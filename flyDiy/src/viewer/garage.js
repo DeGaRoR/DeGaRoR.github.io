@@ -891,6 +891,15 @@ function garageInit(api) {
     // with the pq captured at entry, once the storm this function itself
     // caused is over. The bench decides what the stored certificate means;
     // this line only delivers it in the right order.
+    // G2280 (PROCURE): the slot as the garage has just built it - what a Save would write now (commit's merge of the
+    // join's export, computed without committing) - so a bought airframe's factory certificate is signed on THIS
+    // aeroplane (app.js procureLoaded); optional, the gates boot this file without it
+    try {
+      if (slotName && api.loaded) {
+        const J = join();
+        api.loaded(slotName, J && ed() ? merge(spec, JSON.parse(JSON.stringify(J.export()))) : JSON.parse(JSON.stringify(spec)));
+      }
+    } catch (e) {}
     if (typeof window.BENCH_RESTORE === 'function') window.BENCH_RESTORE(pq || null);
     renderLog();
   }

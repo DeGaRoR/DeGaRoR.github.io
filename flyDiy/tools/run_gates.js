@@ -631,6 +631,12 @@ const GATES = [
   { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
+  // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
+  // every option a real spec row that changes the spec and certifies as its base does (its effect re-measured), the
+  // factory certificate withdrawn by a modification (dm11's bill), the used market deterministic and flyable from where
+  // each listing stands, buying stations it there, the sandbox unchanged. ~2 s (~4.5 min cold: 33 shakedowns, cached
+  // in the OS temp dir by content)
+  { id: 'PROCURE', file: '_procure_check.js', tier: 'core', wall: 400 },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

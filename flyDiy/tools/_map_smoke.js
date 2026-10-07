@@ -74,9 +74,10 @@ module.exports = function mapSmoke(html, phone) {
   const st = { tab: 'all', sel: null, layers: { contracts: true, fleet: true, fields: true, plots: false }, phone };
   const tabs = MM.tabsHTML(M, st);
   need((tabs.match(/data-tab="/g) || []).length === 9 && /data-tab="fleet"/.test(tabs) && /data-tab="pilots"/.test(tabs) && /data-tab="market"/.test(tabs), 'the tabs: All + 5 providers + Fleet, Pilots, Market');
-  for (const t of ['pilots', 'market']) need(/coming/.test(MM.listHTML(M, Object.assign({}, st, { tab: t }))), t + ' is not a "coming" placeholder');
+  need(/coming/.test(MM.listHTML(M, Object.assign({}, st, { tab: 'pilots' }))), 'pilots is not a "coming" placeholder');
+  need(!/coming/.test(MM.listHTML(M, Object.assign({}, st, { tab: 'market' }))), 'the Market is still a "coming" placeholder (G2280 PROCURE fills it)');
   need((MM.listHTML(M, st).match(/class="mmRow[ "]/g) || []).length === all, 'the All list does not draw every row');
-  say('the rows: ' + M.providers.length + ' provider tabs + All (' + per.join(' + ') + ' = ' + all + '), Fleet (' + M.fleet.length + '), Pilots and Market "coming"');
+  say('the rows: ' + M.providers.length + ' provider tabs + All (' + per.join(' + ') + ' = ' + all + '), Fleet (' + M.fleet.length + '), Pilots "coming", the Market below');
   // the card: everything needed, remotely
   for (const c of M.contracts) {
     const h = MM.cardHTML(M, Object.assign({}, st, { sel: 'c:' + c.id }));
@@ -129,7 +130,7 @@ module.exports = function mapSmoke(html, phone) {
     need(!bad.length, what + ' carries hover-only information: ' + bad.join(', '));
   }
   const css = /const CSS = `([\s\S]*?)`;/.exec(menuSrc)[1];
-  for (const cls of ['mmTab', 'mmRow', 'mmBtn', 'mmBack', 'mmLink', 'mmHandle', 'mmClose']) {
+  for (const cls of ['mmTab', 'mmRow', 'mmBtn', 'mmBack', 'mmLink', 'mmHandle', 'mmClose', 'mmOpt', 'mmIn']) {
     const r = new RegExp('#mapScreen \\.' + cls + '\\{[^}]*?(?:min-height|height):(\\d+)px').exec(css);
     need(r && +r[1] >= 48, '.' + cls + ' is under 48 px (R1)');
   }
@@ -188,6 +189,43 @@ module.exports = function mapSmoke(html, phone) {
   for (const id of ['clients.01', 'clients.02', 'clients.03', 'clients.04']) doc2.career.contracts.done.push({ id, at: 0, pay: 0 });
   doc2.career.providers.clients.rep = 5;
   need(!C.careerMapRecord(doc2, null, {}).contracts.some(c => c.id === 'clients.05'), 'the aerobatic box (+6 g, past the certificate) reached the map');
+  // ---- G2280 (PROCURE): THE MARKET TAB - the makers' catalogues (validated builds only), then the used listings where
+  // they stand; a model's card states its certificate and its options sheet; a listing's card where it stands, its
+  // history and its price; Buy in the career, Take (free) in the sandbox; the listings on the map at their aerodrome ------
+  {
+    const KC = MM.marketAdapt(C, doc0), KS = MM.marketAdapt(C, C.playerDefault());
+    need(KC && KC.makers.length === 4 && KC.makers.every(m => m.models.length >= 1) && KC.mode === 'career' && KS.mode === 'sandbox', 'the market: four makers, a career and a sandbox');
+    const ids = [].concat(...KC.makers.map(m => m.models));
+    need(ids.every(id => Object.values(C.PROCURE_MODELS[id].designs).every(d => C.CONTRACT_DESIGNS[d] && C.CONTRACT_DESIGNS[d].build)), 'a catalogue model that is not a validated build');
+    need(KC.used.length >= 1 && KC.used.length <= 4 && KC.used.every(L => MR.aeros[L.aero]), 'the used listings: 1-4, each at an aerodrome of the map (' + KC.used.length + ')');
+    const MK = Object.assign({}, MR, { market: KC }), MS = Object.assign({}, MR, { market: KS });
+    const mst = Object.assign({}, st, { tab: 'market' });
+    const lh = MM.listHTML(MK, mst);
+    need((lh.match(/data-sel="m:/g) || []).length === ids.length && (lh.match(/data-sel="u:/g) || []).length === KC.used.length && lh.indexOf('data-sel="m:') < lh.indexOf('data-sel="u:'), 'the Market list: the makers\' models, then the used listings');
+    for (const id of ids) {
+      const h = MM.cardHTML(MK, Object.assign({}, mst, { sel: 'm:' + id }));
+      need(/Its certificate/.test(h) && /take-off run/.test(h) && /cruise/.test(h) && /data-opt="/.test(h) && /data-act="buy"[^>]*>Buy · /.test(h), id + ': the model card lacks its certificate, options or Buy');
+      need(!/\[(mk|mdl|opt|used)\./.test(h) && !/undefined|NaN/.test(h), id + ': an unresolved key on the model card');
+      need(/data-act="buy"[^>]*>Take it · free in the sandbox/.test(MM.cardHTML(MS, Object.assign({}, mst, { sel: 'm:' + id }))), id + ': the sandbox card does not Take it free');
+      need(!phone || /data-act="back"/.test(h), id + ': the phone card has no way back to the list');
+    }
+    for (const L of KC.used) {
+      const h = MM.cardHTML(MK, Object.assign({}, mst, { sel: 'u:' + L.id })), a = MR.aeros[L.aero];
+      need(h.includes(a.name.replace(/&/g, '&amp;')) && /it stands at/.test(h) && /Its history/.test(h) && /data-act="buy"[^>]*>Buy where it stands · /.test(h) && /bring it home \(free\)/.test(h), L.id + ': the listing card lacks where it stands, its history or Buy');
+      need(!/\[(mk|mdl|opt|used)\./.test(h) && !/undefined|NaN/.test(h), L.id + ': an unresolved key on the listing card');
+    }
+    const mkU = MM.markersOf(MK, mst).filter(m => m.kind === 'used');
+    need(mkU.length === KC.used.length && mkU.every(m => m.sel.startsWith('u:') && m.aero === KC.used.find(L => 'u:' + L.id === m.sel).aero), 'the listings\' markers stand at their aerodromes');
+    need(!MM.markersOf(MK, st).some(m => m.kind === 'used'), 'the listings\' markers show outside the Market');
+    // the drawing board: the career - a design waits to be built, an airframe can be filed as a design; the sandbox:
+    // every slot is both (nothing to build)
+    const docB = JSON.parse(JSON.stringify(doc0)); docB.fleet = { Mine: { aero: 'HOME' } }; docB.career.airframes = { Mine: { from: 'board' } };
+    const hb = MM.listHTML(Object.assign({}, MR, { market: MM.marketAdapt(C, docB, C.procureBoard(docB, ['Idea', 'Mine'])) }), mst);
+    need(/data-board="build" data-slot="Idea"/.test(hb) && /data-board="save" data-slot="Mine"/.test(hb), 'the drawing board: Build this design (a design), Save as design (an airframe)');
+    const hs = MM.listHTML(Object.assign({}, MR, { market: MM.marketAdapt(C, C.playerDefault(), C.procureBoard(C.playerDefault(), ['Idea'])) }), mst);
+    need(/every saved design is also an aeroplane/.test(hs) && !/data-board=/.test(hs), 'the sandbox\'s drawing board: every slot is both, nothing to build');
+    say('the Market: ' + ids.length + ' models of 4 makers (validated builds only; a certificate, an options sheet, Buy / Take free in the sandbox' + (phone ? ', a way back on the phone' : '') + '), ' + KC.used.length + ' used listings where they stand, each a marker at its aerodrome');
+  }
   say('the real fleet: the Cub\'s certificate against "' + carry.title + '" (' + fx.length + ' facts), a kit "not read yet"; clients.02\'s criteria against it; the aerobatic box held out');
   return lines;
 };

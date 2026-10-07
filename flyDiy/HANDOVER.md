@@ -82044,3 +82044,149 @@ DESIGNS x JOB CLASSES (contracts of the class each can physically do, of the gat
 - A jobs pays ~2.7x what CONTRACT-MODEL measured; MAP-MENU's fixture stills are unaffected (?mapsrc=fixture).
 
 READY for the GAME COORDINATOR: claude/economy-g2260 b4c9cfd (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2280-G2289 - PROCURE: THE MAKERS' CATALOGUES OVER THE VALIDATED BUILDS ONLY (FOUR FICTIONAL MAKERS, AN OPTIONS SHEET ON THE EDITOR'S OWN ROWS, PRICED, FACTORY-CERTIFIED, SIGNED ON THE AEROPLANE THE GARAGE BUILDS, "MODIFIED" WITH THE dm11 BILL), THE DRAWING BOARD, THE USED MARKET WHERE IT STANDS, THE MARKET TAB (DESKTOP + THE PHONE'S SHEET); GATE PROCURE (2026-10-07, PROCURE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/procure-g2280 off origin/claude/game-integration f4c47a5 (2c0c86d + CAREER-WIRE merged); G2287-G2289 unused)
+
+The brief: GAME-2026-10-06.md §R (binding: GQ2, G-DESIGN, GQ5, GQ12, GQ20), §5.1-§5.4, §15 row 9. No generated file committed
+(`node tools/build.js` before the gates). New files + small doors. **The price book is a stand-in**: no ECONOMY (G2260) branch
+existed at start (`git ls-remote`: none), so every price is asked of `econPrice(kind, item)` when that function exists and
+of the local stub `procureEconStub(kind, item)` (same signature) otherwise - asked at call time, so ECONOMY's function wins
+the moment it is in the bundle (gated both ways).
+
+**G2280 THE MAKERS** (`src/core/76_procure.js`, pure; MANIFEST.core after 75_, exports appended to 90_):
+- **Four fictional makers** (GQ20; working names for the narrative pack; every name / line held against
+  CONTRACT_CONFIG_WORDS - no brand, no configuration word): **Bramble Light Aircraft** (the Scout = the Cub build),
+  **Ateliers Vernier** (the Pinson = the Jodel build), **Northline Aero** (the Meridian = the metal C172, gear wheels | floats
+  = the floats C172 BUILD), **Driftwood Ultralights** (the Tern = the twin on floats). Text keys `mk.*`, `mdl.*`, `opt.*`,
+  `used.*` with draft English (`PROCURE_TEXT`, `procureText` falls back to CONTRACT_TEXT). The study's "Tamgas" / "Northstar" /
+  "Jodel-alike" were not used (a real place's name for a company, a common trade name, a word on the list).
+- **Validated builds only**: a model's every design is a CONTRACT_DESIGNS row (the five, re-derived from their files by GATE
+  CONTRACTS); `procureCatalogue()` filters on it again, so an unvalidated archetype never reaches a screen even if a row slips
+  into the data (the gate plants one: never listed, never buyable).
+- **THE OPTIONS SHEET, on the rows the editor's join reads back** (so a bought aeroplane is the same aeroplane once the garage
+  opens it - proved on the page, below): engine (within the maker's list: the panel's catalogue index `cage.engPreset` + the
+  registry row in `spec.engines` (CAGE_JOIN_ENGINES) + **the preset's own 78 dials** (`PROCURE_ENG_BASE` + per-engine deltas,
+  byte-equal to `_cage_eng.js applyEngPreset` - without them the panel's load audit turned the new engine "custom"); tank
+  (standard | **long range = a second tank in the wing roots**, GEN_BAYS.wingRoot, +50 % - never a bigger nose tank: the
+  energy layer caps a nose tank to what fits beside the pilot's knees, measured 67.5 L -> 29 L); seats (the Meridian: 4 | 3,
+  `cage.paxAbreast` 1 + the cabin's seat list); gear (wheels | floats = the other validated build; the Scout's tundra tyres
+  = `whProfile`/`whTread`/`s1R` + `gear.wheelR`; **no skis**: no validated build carries them); avionics (`systems.fit`:
+  minimal / basic / IFR, or the C172's own working panel); finish (five liveries, tints only, free); registration
+  (`meta.reg`). A customised model is an ordinary spec (`procureSpec`); the stock model IS the build file (gated).
+- **Each value's effect is MEASURED** (`eff`: genShakedown on the file with that one value, against the file) and re-derived by
+  the gate every run (cached by content; 33 shakedowns, ~4.5 min cold, ~3 s warm). The certificate of a customised model =
+  the design's numbers + the effects (masses, cost, speed, tank add; the take-off run and the range compound); exact for the
+  stock model or one option, the sum otherwise (held within 3-12 % of the measured all-options combination; the card says
+  "summed"). Prices: the stub = the ledger x 1.15 (the stock Scout 35 900, Pinson 39 500, Meridian 107 900 / 110 100 on
+  floats, Tern 40 900), each option its ledger delta x 1.15 (a credit when cheaper). Table: `procure_effects.txt`.
+- **Delivered** to the main hangar, or a side hangar of yours (a delivery fee: 400 + 25/km in the stub); **the voucher**
+  (GQ23) pays exactly one STOCK model of its design (the Scout); a customised one is paid.
+
+**G2281 THE FACTORY CERTIFICATE AND "MODIFIED"** (GQ2):
+- The airframe row `career.airframes[slot] = { from: maker|used|board, maker, model, design, opts, cert, fp, factory, modified,
+  anchored, price, ledger }`; CAREER-WIRE's `careerMapRecord` now reads the row's own `cert` (one door in 75_; a modified
+  airframe shows no factory certificate - its shakedown if this browser read it).
+- `procureFp` = the bench's rule (bench.js BENCH_COSMETIC / LOOK / state rows: paint, finish, meta never count) with
+  GEN_SPEC_V / PHYSICS_V folded in, **and the editor's readouts left out** (`fuel`: the energy layer re-derives the legacy
+  litres a frame after a load).
+- **Signed on the aeroplane the garage builds.** Measured on the page: the build files are not the join's fixpoint - opening
+  a bought Scout re-measures cage, cabin, wings, tail, gear, engines... and the heavier builds keep settling for seconds (the
+  C172's cabin box and seat stations, the twin's drawn engine stations, the floats' station). So the garage's load door
+  (garage.js, one guarded line before BENCH_RESTORE) hands app.js what a Save would write (commit's merge, not committed); the
+  signature stays PROVISIONAL, re-signed every 0.5 s, until 2 s unchanged / the player's first input / another aeroplane on
+  the stand / 20 s, then FINAL (`procureAnchor`, once). A Save inside the window signs.
+- After the final signature, a Save under another fingerprint is MODIFIED (`procureOnSave`, called from playerSlotsChanged,
+  career only): `factory` off, the certificate withdrawn (kept struck in `withdrawn`), **the change billed at build price
+  (dm11)**: every ledger line the edit rebuilt (mass or cost moved, or new) at its own build price, an `edit` ledger line.
+  A repaint (fingerprint unmoved) changes nothing.
+
+**G2282 THE DRAWING BOARD** (§5.4, G-DESIGN): `procureBoard(doc, slots)` - the career: designs = the flydiy.build.* slots,
+airframes = the `airframes` rows; **"Build this design"** (`procureBuildDesign`: the ledger's price through econPrice('build'),
+the airframe row, stationed in the main hangar); **"Save as design"** (`procureSaveDesign`: the spec filed under a new name,
+free, never overwriting). The sandbox: every slot is both, nothing to build (the board says so). On the Market tab
+("Your drawing board").
+
+**G2283 THE USED MARKET** (§5.3): `procureMarket(seed, done, sold)` - f(career seed, epoch = floor(completed / 3), index)
+through 73_'s contractRng (FNV-1a + mulberry32), 3 or 4 listings, at most 4, refreshed after 3 contracts; each a validated
+model with seeded variations: the first owner's engine / tank / gear; **hours and a past repair (words and price only - no
+wear system yet)**; **an older panel (a real `systems.fit` one tier down)** and **+0-15 kg carried (`cargo.kg`, aboard on every
+flight: the take-off mass and run grow; the listing's certificate counts them as empty mass)**; the paint, a registration, a
+seller line. **It stands at an aerodrome it can fly from** (CONTRACT-MODEL's contractCanDo on a take-off there with its own
+certificate - floats on water, the Scout at the altiport, nobody at East Point's 150 m). Price = catalogue x condition (0.4-0.8:
+the hours, a repair, an older panel, the kilos). The sandbox's market is the fixed seed 'sandbox'. `procureUsedById`
+regenerates a listing; sold ids ride `career.market.sold` (the sandbox: `doc.market.sold`).
+**Buying where it stands** (`procureBuyUsed`): an airframe stationed at the listing's aerodrome through playerArrive (in a
+hangar of yours there if one has room, else tied down - 'away' where you hold nothing), paid, gone from the market, to be
+flown home or brought home (free, GQ5 - gated).
+
+**G2284 THE MARKET TAB** (map_menu.js; lazy as the map is; behind ?map=1 / ?career=1, the sandbox page unchanged): the makers'
+models ("from" the stock price, seats / gear / cruise), then the used listings (where, price, % of the catalogue), then the
+drawing board; **the listings as markers at their aerodrome** (with the Market tab or a listing selected; a ⚑ badge beside
+the field's contract fan); the **model card**: the certificate facts (seats, payload, empty, take-off run, gear, cruise,
+range, tank, span, ledger), the options sheet as 48 px chips with each value's price, the registration and the name, the
+hangar to deliver to (when you hold a side hangar), the price lines (the voucher line, "a stand-in until the economy lands"),
+**Buy** (career) / **Take it · free in the sandbox**; the **listing card**: where it stands (the strip), its history, its
+certificate, catalogue x condition, "Buy where it stands" / Take. The phone: the same in the sheet, a way back, every target
+>= 48 px, nothing hover-only. Page doors: `window.FLYDIY_PROCURE` in app.js (only under ?map=1 / ?career=1): `buyModel`,
+`buyUsed`, `board`, `buildDesign`, `saveDesign`, `freeName` - the design's build file fetched once (CONTRACT_DESIGNS' path),
+the slot written as garage.js writes one (the envelope; `log.factory` carries the record), the document replaced, the lift
+re-run.
+
+**GATE PROCURE** (`tools/_procure_check.js`, registered core tier after CONTRACTS, wall 400): **PASS, 3151 checks** -
+validated only (+ the planted archetype filtered), the engine rows = the panel's index / the join's registry row / the
+preset's dials, every option writes its declared rows and moves the fingerprint, the tank is a second wing-root tank with the
+nose untouched, every `eff` = its measurement, every value certifies as its validated base does (the shakedown's circuit
+verdict unchanged, a positive climb - **note: the floats C172's FILE reads `flyableCircuit: false` at its 1207 m water run,
+G2240's "files, not the joined aeroplane"; the rule is relative**), the summed certificate within tolerance of the measured
+combination, the prices follow the ledger, cosmetics free and fingerprint-neutral; the certificate (the stock = the design's,
+the map states the row's, the provisional / final signature, a save inside the window signs, a repaint is no change, an edit
+withdraws and bills only the rebuilt lines, the map shows none once modified); the market (deterministic, call-order-free,
+seed-sensitive, refreshed after 3, 1-4 listings over 8 seeds x 10 epochs = every listing flyable from where it stands,
+condition in band, catalogue x condition, the variations real or words, regenerated by id, every model and both land and
+water listed); buying (stationed where it stood, 'away', paid, gone, not sold twice, brought home free, refusals return the
+same document, inside the main hangar at HOME, the voucher only for a stock Scout, a side hangar's delivery fee, no delivery
+to a hangar you do not hold, econPrice wins over the stub); the board and the sandbox (no procurement field in a sandbox
+document, its normaliser unchanged, Take = a free line and no career block, every slot both); text; purity.
+**`--selftest`: 31 of 31 doctored rules caught** (`procure_selftest.txt`).
+
+**THE OTHER GATES** (`run_gates --only=PROCURE,CONTRACTS,GAMEPREM,PLAYER,SAVE,UISMOKE,UISMOKE-PHONE,GFX` on the final
+sources): **BATTERY PASS** - UISMOKE PASS, UISMOKE-PHONE PASS, GFX PASS, SAVE PASS, PLAYER PASS, GAMEPREM PASS, CONTRACTS PASS (CAREER-WIRE's 75_ door included), PROCURE PASS (`battery.txt`, `uismoke_map_rows.txt`). Not run: the full tier. UISMOKE's map rows (`_map_smoke.js`): the Market is no longer "coming" - four makers (validated
+builds only), every model card (certificate, options, Buy; Take free in the sandbox; the phone's way back), every listing
+card (where it stands, its history, Buy where it stands), the listings' markers at their aerodromes and only with the Market,
+the drawing board (career: Build / Save as design; sandbox: every slot both); `.mmOpt` / `.mmIn` in R1's 48 px list.
+
+**THE PAGE** (`tools/procure_shot.js`, the real index.html on SwiftShader; `reports/evidence/PROCURE/` stills + shots.json):
+**all checks ok, 13 stills, no page error** - the sandbox (no flag): no FLYDIY_PROCURE, no MAP entry, no slot written;
+?career=1: the Market (4 models, 4 listings, a marker each); the Scout's card (certificate, options, "the voucher pays this
+one", Buy · 0) and an engine chosen (Buy · 53 300); the stock Scout bought with the voucher (slot written, factory row and
+fingerprint, the wallet still 60 000, in the main hangar); a used Scout at Skyline Altiport (where it stands, its history, 17 200)
+bought there (stationed at tw_ski, paid, gone from the market); the drawing board (the Scout filed as a design, the design built:
+31 200 paid, an airframe); **the bought Scout in the garage** (the join re-measured cage, cabin, wings, tail, gear, engines...;
+signed there; a no-edit Save keeps the factory certificate); **EVERY OPTION THROUGH THE JOIN** (all 19 single-option variants of
+the four models bought, opened in the garage, the option's rows read back off the garage's spec: all kept - the engines by
+registry row and panel index, the wing-root tanks, the tundra wheel radius, 3 seats, the panels, the floats - each signed once
+settled, each no-edit Save keeping the certificate; the Scout's nose tank re-planned 45 -> 27 L beside the wing tanks, see OPEN);
+the phone (?map=1, 390 x 844): the Market in the sheet, a model's card with a way back, Take it free (a free `buy` line, the
+wallet 0, no career block).
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: `tools/build.js` (76_procure.js after 75_), `90_node_exports.js` (appended), `tools/run_gates.js` (PROCURE
+  after CONTRACTS), `75_career_wire.js` (careerMapRecord's certOf: three lines), `app.js` (the FLYDIY_PROCURE block after
+  FLYDIY_PLAYER, the `loaded` bridge line, procureOnSave in playerSlotsChanged), `garage.js` (one guarded block in loadSpec),
+  `map_menu.js` (the Market), `_map_smoke.js` (the Market rows replace the "coming" one).
+- **ECONOMY (G2260)**: define `econPrice(kind, item)` with kinds `model` {model, design, cost}, `option` {model, row, value,
+  design, cost: the ledger delta}, `delivery` {to: main|side, km, hangar}, `build` {cost, slot}, `used` {catalogue,
+  condition, model, id}, `edit` {cost: the dm11 bill, slot}; the stub is what the stills show.
+- **The Cub's nose tank in the page is ~29 L, not the file's 45** (the energy layer caps it beside the pilot's knees a frame
+  after the load: `fuel.litres` 45 -> 29 on the stock Scout, and 45 -> 27 on the nose when the wing-root tanks go in). The
+  validated Cub's certificate (CONTRACT_DESIGNS: 47.7 L, 376 km) is the file's; the joined aeroplane carries less. Worth a
+  look by whoever owns the Cub study / the energy layer.
+- **The career's lift**: CAREER-WIRE lifts every saved slot into the dev career's fleet; under G-DESIGN an unpaid design is
+  not an airframe. `procureAirframeSlots(doc, slots)` is the list CAREER-START should hand playerFleetReconcile (not wired:
+  it would drop today's dev careers' lifted builds).
+- **Factory stickers on the bench**: the factory certificate lives in the airframe row (and the map / the card), not as
+  pre-awarded bench results in the envelope's plaque - the bench's own fingerprint moves through the join too (measured), so
+  awarded stickers would load withdrawn. The bench still runs its tests as on any build.
+- Found / derelict aeroplanes (GQ12), pilots, the price book: out of scope.
+
+READY for the GAME COORDINATOR: claude/procure-g2280 a7f02f6c (the code, gates and evidence; this section rides one docs-only commit on top)
