@@ -15,11 +15,16 @@
 //                 GARAGE    the shed (AUDIO.inGarage), with SILENCE GAPS of GAP_MIN_S..GAP_MAX_S between tracks
 //                           (silence is part of calm); the setting 'music in the garage' (OFF by default since 2026-10-04) - it also covers
 //                           the welcome.
-//                 CRUISE    in flight ONLY with 'music in flight' on (s6: off by default), and then only in a
-//                           cruise: off the ground, AGL >= CRUISE.enterAgl held CRUISE.dwellS, flaps up, not
-//                           descending low (the approach); left at once below CRUISE.exitAgl, flaps out, a
-//                           descent under CRUISE.approachAgl, or a wheel down (the parameter block: onGround,
-//                           agl, V, vs, flap).
+//                 CRUISE    IN FLIGHT - the world, out of the shed and past the loading screen - ONLY with 'music in
+//                           flight' on (s6: off by default), and then AT ONCE and ANYWHERE: on the stand, the taxi, the
+//                           circuit, the cruise (G1723, SND-MIX: the user's laptop test, "turning the music on in game
+//                           did not work" - the old rule waited for 200 m AGL held 20 s, flaps up, which on the ground,
+//                           in a circuit or at 3-4 fps reads as broken). The name stays 'cruise' (the catalogue's tag);
+//                           the context deals from EVERY track of the station, as the loading screens do (a station
+//                           with two 'cruise' tracks, or none, still plays itself). SHORT FINAL (FINAL: flaps out, below
+//                           FINAL.agl, sinking faster than FINAL.vs, not on the ground) dips the music FINAL.dB - never
+//                           to silence - released by the flaps up, a climb, FINAL.outAgl, or the wheels down.
+//                           The toggle answers on its own event (AUDIO 'settings'), not at the next frame.
 //                 PHOTO     the hook for the CELEBRATION photo mode: AUDIO_MUSIC.setPhoto(on) or
 //                           AUDIO.emit('photo', on). (A photo mode that sets FLYDIY_HELD silences ALL sound -
 //                           audio.js's pause - so it must not, if it wants its music.)
@@ -123,7 +128,11 @@ var AUDIO_MUSIC = (function () {
   const XFADE_S = 4, LEAD_S = 3, GAP_MIN_S = 30, GAP_MAX_S = 120, RETRY_S = 2, RESUME_S = 20, NOW_S = 6;
   const DUCK_K = Math.pow(10, -10 / 20), DUCK_HOLD_S = 6, DUCK_IN_TAU = 0.12, DUCK_OUT_TAU = 0.8;
   const LUFS_TARGET = -16, TRIM_MIN = 0.25, TRIM_MAX = 2;
-  const CRUISE = { enterAgl: 200, exitAgl: 120, dwellS: 20, minV: 15, flapMax: 0.05, approachVs: -2.5, approachAgl: 450 };
+  // G1723 the short final's dip: flaps past `flap`, under `agl` m, sinking faster than `vs` m/s, wheels up -> `dB`; out at
+  // `outAgl`, a climb faster than `upVs`, the flaps up or a wheel down; over `tau` s each way
+  const FINAL = { flap: 0.05, agl: 150, vs: -1.5, outAgl: 220, upVs: 1, dB: -4, tau: 1.5 };
+  const FINAL_K = Math.pow(10, FINAL.dB / 20);
+  const FADE_IN_S = 1.5;   // G1723: music from SILENCE comes in over 1.5 s (a crossfade between two tracks stays XFADE_S)
   const XF_N = 64;
   // THE STATIONS (key, the picker's label) - the keys are music_selection_v1.json's, in its order (GATE AUDIO holds it)
   const STATIONS = [['jazz', 'Jazz'], ['lofi', 'Lo-fi / Hip-hop'], ['dubambient', 'Dub / Ambient'], ['roots', 'Radio Jolene (local roots)'],
@@ -196,7 +205,10 @@ var AUDIO_MUSIC = (function () {
   // indices to choose from (a station's), else the whole catalogue
   function contextLists(cat, idx) {
     const ix = idx || cat.map((t, i) => i);
-    const L = CTX_NAMES.map(n => ix.filter(i => cat[i].contexts.indexOf(n) >= 0));
+    // the loading screens deal from EVERY track of the station (the user, 2026-10-05: "random songs for the loadings"),
+    // not only the ones tagged 'welcome'
+    // (G1723: and the flight - music in flight plays the station, whatever its tracks' tags)
+    const L = CTX_NAMES.map((n, c) => (c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(i => cat[i].contexts.indexOf(n) >= 0)));
     return L.map((l, c) => (l.length || FALLBACK[c] < 0 ? l : L[FALLBACK[c]].slice()));
   }
   const stationOf = t => (t && t.station) || ST_DEFAULT;
@@ -251,19 +263,20 @@ var AUDIO_MUSIC = (function () {
     return -1;
   }
 
-  // ---- PURE: the cruise and the context ---------------------------------------------------------------------
-  // st: Float64Array(2) [in cruise, seconds the entry conditions have held]; returns 1 in a cruise
-  function cruiseStep(st, onGround, agl, V, vs, flap, dt) {
-    const approach = flap > CRUISE.flapMax || (vs < CRUISE.approachVs && agl < CRUISE.approachAgl);
-    if (onGround > 0 || agl < CRUISE.exitAgl || approach || V < CRUISE.minV) { st[0] = 0; st[1] = 0; return 0; }
+  // ---- PURE: the short final and the context ------------------------------------------------------------------
+  // G1723: st: Float64Array(1) [on short final]; returns 1 while the music dips for it (no clock: it is a state, not a wait)
+  function finalStep(st, onGround, agl, vs, flap) {
+    if (onGround > 0 || flap <= FINAL.flap || agl > FINAL.outAgl || vs > FINAL.upVs) { st[0] = 0; return 0; }
     if (st[0] > 0) return 1;
-    if (agl >= CRUISE.enterAgl) { st[1] += dt; if (st[1] >= CRUISE.dwellS) st[0] = 1; } else st[1] = 0;
+    if (agl < FINAL.agl && vs < FINAL.vs) st[0] = 1;
     return st[0] > 0 ? 1 : 0;
   }
-  function contextOf(welcome, photo, garage, musicGarage, musicFlight, cruise) {
+  // (`flight` is 1 anywhere out of the shed and past the loading screen: G1723 - no dwell, no height, no flaps)
+  function contextOf(welcome, photo, garage, musicGarage, musicFlight, flight, musicLoading) {
     if (photo) return C_PHOTO;
-    if (welcome || garage) return musicGarage ? (welcome ? C_WELCOME : C_GARAGE) : C_NONE;
-    return musicFlight && cruise ? C_CRUISE : C_NONE;
+    if (welcome) return musicLoading ? C_WELCOME : C_NONE;   // a loading screen: its own switch (off by default)
+    if (garage) return musicGarage ? C_GARAGE : C_NONE;
+    return musicFlight && flight ? C_CRUISE : C_NONE;
   }
 
   // ---- THE PLAYER ---------------------------------------------------------------------------------------------
@@ -274,11 +287,11 @@ var AUDIO_MUSIC = (function () {
   // the player's slots: cur context, gap left, duck left, now-playing left, retry left, the active deck, photo; the
   // radio's: the bed (1, or BED_K under a talk), the talk's watchdog (s left; 0 = no talk), tracks since the last
   // break, a tune-in break owed
-  const PS = new Float64Array(12);
-  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6, S_BED = 7, S_TALK = 8, S_COUNT = 9, S_TUNE = 10, S_PANT = 11;
+  const PS = new Float64Array(13);
+  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6, S_BED = 7, S_TALK = 8, S_COUNT = 9, S_TUNE = 10, S_PANT = 11, S_FIN = 12;
   const REC = new Int16Array(2).fill(-1);   // the last two tracks started (the back-announce)
   PS[S_BED] = 1;
-  const CRUISE_ST = new Float64Array(2);
+  const FINAL_ST = new Float64Array(1);
   const RESUME_T = new Int16Array(4).fill(-1), RESUME_P = new Float64Array(4);
   let cat = [], urls = [], trims = new Float64Array(0), nows = [], lists = [[], [], [], []], bags = [], bad = new Uint8Array(0);
   // the radio: the station, its lists' fallbacks, every station's bags, the talk's settings, the voice, the rotation
@@ -444,11 +457,12 @@ var AUDIO_MUSIC = (function () {
     if (a >= 0 && c >= 0 && eligible(at, c)) return;   // the track plays on into the new context
     if (a >= 0) {
       const pos = DK[a * K_N + K_POS];
-      if (prev >= 0 && pos > 1 && pos < DK[a * K_N + K_DUR] - RESUME_S) { RESUME_T[prev] = at; RESUME_P[prev] = pos; }
+      // (a loading screen never resumes: each one deals a new song)
+      if (prev >= 0 && prev !== C_WELCOME && pos > 1 && pos < DK[a * K_N + K_DUR] - RESUME_S) { RESUME_T[prev] = at; RESUME_P[prev] = pos; }
       fadeOut(a, XFADE_S);
     }
     hideNow();
-    if (c >= 0 && !nextWithTalk(c)) startNext(c, a >= 0 ? XFADE_S : (gap(c) ? 0 : XFADE_S));
+    if (c >= 0 && !nextWithTalk(c)) startNext(c, a >= 0 ? XFADE_S : (gap(c) ? 0 : FADE_IN_S));
   }
 
   // ---- THE RADIO: the station, the talk ---------------------------------------------------------------------------
@@ -585,21 +599,32 @@ var AUDIO_MUSIC = (function () {
     if (!fresh) return;
     const p = duck.gain, t = ctx.currentTime;
     if (p.cancelScheduledValues) p.cancelScheduledValues(t);
-    p.setTargetAtTime(DUCK_K, t, DUCK_IN_TAU);
+    p.setTargetAtTime(DUCK_K * (PS[S_FIN] > 0 ? FINAL_K : 1), t, DUCK_IN_TAU);
   }
   function unDuck() {
     PS[S_DUCK] = 0;
     const p = duck.gain, t = ctx.currentTime;
     if (p.cancelScheduledValues) p.cancelScheduledValues(t);
-    p.setTargetAtTime(1, t, DUCK_OUT_TAU);
+    p.setTargetAtTime(PS[S_FIN] > 0 ? FINAL_K : 1, t, DUCK_OUT_TAU);
+  }
+  // G1723: the short final's dip moved (the duck's level x the dip, over FINAL.tau)
+  function finalDip(on) {
+    PS[S_FIN] = on;
+    if (!ctx || !duck) return;
+    const p = duck.gain, t = ctx.currentTime;
+    if (p.cancelScheduledValues) p.cancelScheduledValues(t);
+    p.setTargetAtTime((PS[S_DUCK] > 0 ? DUCK_K : 1) * (on ? FINAL_K : 1), t, FINAL.tau);
   }
 
   // ---- THE FRAME ---------------------------------------------------------------------------------------------
+  // the context the settings and the place ask for now (G1723: the frame's head, and the settings' own event)
+  const wantNow = au => (station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, au.inGarage, au.get('musicGarage'), au.get('musicFlight'), 1, au.get('musicLoading')));
   function update(P, dt, au) {
     if (!ctx) return;
     const s = P.s, I = P.I, garage = au.inGarage;
-    const cruise = garage ? (CRUISE_ST[0] = 0, CRUISE_ST[1] = 0, 0) : cruiseStep(CRUISE_ST, s[I.onGround], s[I.agl], s[I.V], s[I.vs], s[I.flap], dt);
-    const want = station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, garage, au.get('musicGarage'), au.get('musicFlight'), cruise);
+    const fin = garage || au.welcome ? (FINAL_ST[0] = 0) : finalStep(FINAL_ST, s[I.onGround], s[I.agl], s[I.vs], s[I.flap]);
+    if (fin !== PS[S_FIN]) finalDip(fin);
+    const want = wantNow(au);
     if (want !== PS[S_CUR]) switchTo(want);
     if (panner) { PS[S_PANT] -= dt; if (PS[S_PANT] <= 0) { PS[S_PANT] = PAN_EVERY_S; lean(au); } }   // G1714 (4 Hz)
     if (au.state === 'suspended') return;   // the timers wait with the sound
@@ -622,7 +647,7 @@ var AUDIO_MUSIC = (function () {
       } else if (a < 0) startNext(c, 0);   // nothing playing, no gap running (a failed start, a skip into silence)
       return;
     }
-    if (a < 0) { startNext(c, XFADE_S); return; }
+    if (a < 0) { startNext(c, FADE_IN_S); return; }   // (nothing plays: from silence, G1723)
     const o = a * K_N, rem = DK[o + K_DUR] - DK[o + K_POS], xf = Math.min(XFADE_S, DK[o + K_DUR] / 4);   // (a short track: a shorter fade)
     // G1703: a break owed starts earlier, over the outro (talkDue is asked only in the track's last seconds: no frame cost)
     const up = rem <= TALK_UP_S + LEAD_S && station === ST_TALK && talkDue() ? Math.min(TALK_UP_S, DK[o + K_DUR] / 3) : 0;
@@ -771,7 +796,7 @@ var AUDIO_MUSIC = (function () {
       decks.push({ el, src, gain, h, curve: new Float32Array(XF_N) });
       DK[k * K_N + K_STATE] = ST_IDLE; DK[k * K_N + K_TRACK] = -1; DK[k * K_N + K_STOP] = -1;
     }
-    PS[S_CUR] = C_NONE; PS[S_ACT] = -1; PS[S_GAP] = -1; PS[S_DUCK] = 0; PS[S_BED] = 1; PS[S_TALK] = 0;
+    PS[S_CUR] = C_NONE; PS[S_ACT] = -1; PS[S_GAP] = -1; PS[S_DUCK] = 0; PS[S_BED] = 1; PS[S_TALK] = 0; PS[S_FIN] = 0; FINAL_ST[0] = 0;
     // the radio's voice and keys: made here, on the gesture (nothing is spoken before one)
     // G1683: the talker plays a segment's recorded clips (AUDIO_VOICE) when they all exist, else speaks it; the clips
     // pass radioIn -> the duck -> the music bus, so the music's ducks, its volume and the context's suspend reach them
@@ -782,7 +807,10 @@ var AUDIO_MUSIC = (function () {
     if (station === ST_TALK) PS[S_TUNE] = 1;   // the first music of the page on the roots station opens with its ID
     if (RT && RT.cursor) CUR = RT.cursor(G);   // G1702: the broadcast continues where the last session left it
     loadScript();
-    offs = [au.onEvent('engine', onDuck), au.onEvent('stall', onDuck), au.onEvent('duck', onDuck),
+    // G1723: a music switch (music in flight, in the garage, while loading) answers on its own event - at 3-4 fps the next
+    // frame is 0.3 s away, and under a held render (a place change) there is none
+    offs = [au.onEvent('settings', d => { if (ctx && d && /^music/.test(d.k)) { const w = wantNow(au); if (w !== PS[S_CUR]) switchTo(w); } }),
+      au.onEvent('engine', onDuck), au.onEvent('stall', onDuck), au.onEvent('duck', onDuck),
       au.onEvent('photo', on => setPhoto(on)),
       au.onEvent('suspend', () => { cancelTalk(); for (let k = 0; k < 2; k++) if (DK[k * K_N + K_STATE] >= ST_PLAYING) { DK[k * K_N + K_PAUSED] = 1; try { decks[k].el.pause(); } catch (e) {} } }),
       au.onEvent('resume', () => { for (let k = 0; k < 2; k++) if (DK[k * K_N + K_PAUSED]) { DK[k * K_N + K_PAUSED] = 0; try { const r = decks[k].el.play(); if (r && r.catch) r.catch(() => {}); } catch (e) {} } })];
@@ -846,8 +874,8 @@ var AUDIO_MUSIC = (function () {
 
   setCatalogue(G.FLYDIY_MUSIC || []);
   const api = {
-    CTX_NAMES, CRUISE, XFADE_S, GAP_MIN_S, GAP_MAX_S, DUCK_K, DUCK_HOLD_S, LUFS_TARGET, SOUND_CREDITS, FILE_RE, LICENCE_RE,
-    validate, contextLists, creditRows, creditLine, cruiseStep, contextOf, makeBag, bagNext, trimOf,
+    CTX_NAMES, FINAL, FINAL_K, FADE_IN_S, XFADE_S, GAP_MIN_S, GAP_MAX_S, DUCK_K, DUCK_HOLD_S, LUFS_TARGET, SOUND_CREDITS, FILE_RE, LICENCE_RE,
+    validate, contextLists, creditRows, creditLine, finalStep, contextOf, makeBag, bagNext, trimOf,
     STATIONS, STATION_KEYS, ST_MIX, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, TALK_UP_S, stationLists, stationOf, stationLine,
     setStation, stepStation, get station() { return station; },
     setSourcePos, get pan() { return SRC[4]; }, PAN_K, PAN_NEAR, PAN_FAR, ST_MINE, MINE_RE, setUserTracks, titleOf, get hasMine() { return hasMine(); }, get mineCount() { return cat.length - baseN; }, get mineName() { return mineName; }, labelOf,
@@ -859,15 +887,40 @@ var AUDIO_MUSIC = (function () {
     get talking() { return PS[S_TALK] > 0; }, cancelTalk, get talker() { return speaker; }, get radioIn() { return radioIn; }, clipK, VOICE_LUFS,
     seed(n) { RNG[0] = (n >>> 0) || 1; }, setJoin(on) { JOIN_ON = on ? 1 : 0; }, get joinRange() { return [JOIN_MIN, JOIN_MAX]; }, setCatalogue, get catalogue() { return cat; },
     skip, setPhoto, openCredits, mountCreditLink, nowPlaying,
-    get context() { return PS[S_CUR] >= 0 ? CTX_NAMES[PS[S_CUR]] : 'none'; },
+    get context() { return PS[S_CUR] >= 0 ? CTX_NAMES[PS[S_CUR]] : 'none'; }, get finalDip() { return PS[S_FIN] > 0; },
     // the gate's window on the slots (read-only views)
     _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, _talkSt: () => CUR, _lastSegs: () => lastSegs, source: { connect, update, disconnect },
   };
+
+  // THE LOADING SCREENS' BUTTON (the user, 2026-10-05: "a piece of UI there to turn the music on and off. And off by
+  // default for now"): #bootMusic on BOOT's panel drives AUDIO's 'musicLoading' both ways. The press is itself the
+  // gesture that unlocks the sound; turning it on with the radio off brings back the start station. While a loading
+  // song plays, the button names it. With ?audio=0 (AUDIO a stub) the button stays hidden.
+  function mountBootMusic(AU) {
+    const D = G.document, b = D && D.getElementById && D.getElementById('bootMusic');
+    if (!b) return false;
+    const paint = () => {
+      const on = AU.get('musicLoading') === 1, np = on && PS[S_CUR] === C_WELCOME ? nowPlaying() : null;
+      if (b.classList) b.classList.toggle('on', on);
+      b.textContent = on ? (np ? '\u266A ' + np.title + ' \u2014 ' + np.artist : '\u266A music on') : '\u266A music off';
+      b.title = 'Music while loading: ' + (on ? 'on (press to turn it off)' : 'off (press to turn it on)');
+    };
+    b.hidden = false;   // shown: the sound is built
+    b.onclick = () => {
+      const on = AU.get('musicLoading') ? 0 : 1;
+      if (on && station === 'off') setStation(ST_START, true);
+      AU.set('musicLoading', on); paint();
+    };
+    AU.onEvent('settings', paint); AU.onEvent('music', paint); AU.onEvent('station', paint);
+    paint();
+    return true;
+  }
 
   mountCreditLink();
   const AU = G.AUDIO;
   if (AU && AU.enabled) {
     AU.addSource('music', api.source);
+    mountBootMusic(AU);
     if (AU.addRows) AU.addRows((body, kit, toggle) => {
       const np = nowPlaying();
       if (kit.note) kit.note(body, np ? 'Now playing: ' + nowLine(np) : (cat.length ? 'No music playing.' : 'No music ships yet.'));

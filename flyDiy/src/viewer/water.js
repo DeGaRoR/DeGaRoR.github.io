@@ -851,6 +851,10 @@ const WATER = (() => {
     setInteraction(F.out.texture, nx, nz, FIELD_M);
   }
   function fieldOn(on) { F.on = !!on; if (!F.on) { F.ready = false; setInteraction(null); } }
+  // warmList(THREE, renderer) (G584's list; G2090): the field's two programs for the roll-out's compile step - a
+  // landplane's first wet contact (WATER-LOOK) or a whale's ask would link them on that frame otherwise. The materials
+  // only (fieldInit makes the targets' objects; nothing is allocated on the GPU until the field first steps)
+  function warmList(THREE, renderer) { return fieldInit(THREE, renderer) ? [{ m: F.stepMat, to: 'rt' }, { m: F.deriveMat, to: 'rt' }] : []; }
   // fieldProbe(renderer, THREE, level): the state read back (a float buffer): max |h|, the centre row, the foam's mean
   function fieldProbe(renderer, THREE, level) {
     if (!F.ready2 || !renderer.readRenderTargetPixels) return null;
@@ -1233,7 +1237,7 @@ const WATER = (() => {
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, obliqueClip,
-    stamp, fieldStep, fieldOn, fieldProbe, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
+    stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
   return API;

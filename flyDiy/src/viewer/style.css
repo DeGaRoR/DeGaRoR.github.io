@@ -119,6 +119,10 @@
     transform-origin:0 50%; transform:scaleX(0); will-change:transform; }
   #bootPct { font-size:11px; letter-spacing:.04em; color:#c0b8ac; font-variant-numeric:tabular-nums;
     min-width:3.2em; }
+  #bootMusic { margin-top:10px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;
+    font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em; padding:6px 10px; border-radius:11px;
+    color:#d8d1c4; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14); }
+  #bootMusic.on { color:#1a1815; background:#e6a15a; border-color:#e6a15a; }
   #bootWhy { font-size:12px; line-height:1.45; color:#c0b8ac; min-height:1.45em; max-width:440px; }
   /* until boot.js speaks (the first ~100 ms, and a page whose scripts never
      ran): the old indeterminate slide */
@@ -136,6 +140,7 @@
   #bootRoute select { max-width:190px; padding:6px 8px; font:400 12px/1.2 'IBM Plex Sans', sans-serif; color:#f4efe6;
     background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.18); border-radius:7px; color-scheme:dark; }
   #bootRoute option:disabled { color:rgba(244,239,230,.38); }   /* G1375: a strip the gear may not use */
+  #bootRoute .routeBase { font:400 12px/1.2 'IBM Plex Sans', sans-serif; color:#f4efe6; opacity:.8; white-space:nowrap; }   /* G1945: the base, a line */
   /* the shaders' block (G567): the cold compile explained, with its own count */
   #bootShader { margin-top:6px; padding:12px 14px 11px; border-radius:8px;
     background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.12);

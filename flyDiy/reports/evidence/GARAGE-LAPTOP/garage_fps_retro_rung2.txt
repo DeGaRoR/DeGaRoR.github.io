@@ -1,0 +1,16 @@
+nav http://localhost:8581/flyDiy/index.html?gfx=retro
+garage up in 38.5 s
+IDENTITY at rest {"stat":{"bakes":2,"baked":1232,"live":3},"shadow":{"px":0,"max":0},"both":{"px":183,"max":184},"noise":{"px":0,"max":0},"glass":{"frames":288,"ok":283,"why":"","skipped":440,"drawn":328},"pixels":518400}
+IDENTITY a prop moved {"stat":{"bakes":2,"baked":1232,"live":3},"shadow":{"px":0,"max":0},"both":{"px":183,"max":184},"noise":{"px":0,"max":0},"glass":{"frames":291,"ok":285,"why":"","skipped":440,"drawn":328},"pixels":518400}
+IDENTITY a lamp moved {"stat":{"bakes":3,"baked":1231,"live":4},"shadow":{"px":0,"max":0},"both":{"px":183,"max":184},"noise":{"px":0,"max":0},"glass":{"frames":294,"ok":287,"why":"","skipped":440,"drawn":328},"pixels":518400}
+  calib N1 K1: work 19.8 ms, gpu 16.4 ms, dt 33.3
+  calib N4.5 K6: work 133.2 ms, gpu 111.55 ms, dt 133.4
+  calib N3 K6: work 75.8 ms, gpu 73.95 ms, dt 83.3
+(the rung: CPU 3x, GPU proxy 6x)
+  off    {"frames":127,"fps":12.6,"dt50":83.3,"dt90":83.5,"dt99":100.1,"slow":127,"work50":76.6,"render50":36.7,"shadow50":29,"gpu50":73.43,"gpu90":81.57,"calls":6424,"mtris":5.69,"cache":{"bakes":4,"lightBakes":1,"baked":1232,"live":3},"glass":{"why":"off","skipped":440,"drawn":328},"mode":"off"}
+  both   {"frames":218,"fps":21.6,"dt50":50,"dt90":50.1,"dt99":66.7,"slow":55,"work50":44.2,"render50":31.5,"shadow50":2.6,"gpu50":42.46,"gpu90":47.34,"calls":1205,"mtris":1.32,"cache":{"bakes":5,"lightBakes":2,"baked":1232,"live":3},"glass":{"why":"","skipped":440,"drawn":328},"mode":"both"}
+  shadow {"frames":191,"fps":18.9,"dt50":50,"dt90":66.7,"dt99":66.9,"slow":79,"work50":50.3,"render50":37.6,"shadow50":2.7,"gpu50":48.45,"gpu90":53.41,"calls":1645,"mtris":1.5,"cache":{"bakes":5,"lightBakes":3,"baked":1232,"live":3},"glass":{"why":"off","skipped":440,"drawn":328},"mode":"shadow"}
+  shadow {"frames":192,"fps":19.1,"dt50":50,"dt90":66.6,"dt99":66.7,"slow":82,"work50":50.4,"render50":37.4,"shadow50":2.7,"gpu50":48.95,"gpu90":53.47,"calls":1645,"mtris":1.5,"cache":{"bakes":5,"lightBakes":4,"baked":1232,"live":3},"glass":{"why":"off","skipped":440,"drawn":328},"mode":"shadow"}
+  both   {"frames":221,"fps":22,"dt50":50,"dt90":50.1,"dt99":50.2,"slow":48,"work50":43.8,"render50":31.3,"shadow50":2.6,"gpu50":41.8,"gpu90":46.9,"calls":1205,"mtris":1.32,"cache":{"bakes":5,"lightBakes":5,"baked":1232,"live":3},"glass":{"why":"","skipped":440,"drawn":328},"mode":"both"}
+  off    {"frames":129,"fps":12.7,"dt50":83.3,"dt90":83.4,"dt99":100,"slow":129,"work50":76,"render50":36.8,"shadow50":28.5,"gpu50":74.46,"gpu90":79.77,"calls":6424,"mtris":5.69,"cache":{"bakes":5,"lightBakes":5,"baked":1232,"live":3},"glass":{"why":"off","skipped":440,"drawn":328},"mode":"off"}
+GARAGE_FPS {"off":{"fps":12.65,"dt50":83.3,"dt90":83.45,"work50":76.3,"render50":36.75,"gpu50":73.94,"calls":6424,"mtris":5.69,"slow":128},"both":{"fps":21.8,"dt50":50,"dt90":50.1,"work50":44,"render50":31.4,"gpu50":42.13,"calls":1205,"mtris":1.32,"slow":51.5},"shadow":{"fps":19,"dt50":50,"dt90":66.65,"work50":50.35,"render50":37.5,"gpu50":48.7,"calls":1645,"mtris":1.5,"slow":80.5}}

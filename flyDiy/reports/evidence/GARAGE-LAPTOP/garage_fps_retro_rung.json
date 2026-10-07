@@ -1,0 +1,84 @@
+{
+ "url": "http://localhost:8581/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "build": "builds/jodel_2026-09-20_corrected.json",
+ "throttle": 0,
+ "gpux": 0,
+ "secs": 12,
+ "orbit": false,
+ "errs": [],
+ "load": 59.645,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "town": "nearby"
+ },
+ "identity": {
+  "rest": {
+   "stat": {
+    "bakes": 2,
+    "baked": 1232,
+    "live": 3
+   },
+   "shadow": {
+    "px": 0,
+    "max": 0
+   },
+   "both": {
+    "px": 180.8,
+    "max": 184
+   },
+   "noise": {
+    "px": 0,
+    "max": 0
+   },
+   "glass": {
+    "frames": 325,
+    "ok": 320,
+    "why": "",
+    "skipped": 440,
+    "drawn": 328
+   },
+   "pixels": 518400
+  },
+  "moved": "ERR SyntaxError: Identifier 'SC' has already been declared",
+  "lamp": "ERR SyntaxError: Identifier 'SC' has already been declared"
+ }
+}

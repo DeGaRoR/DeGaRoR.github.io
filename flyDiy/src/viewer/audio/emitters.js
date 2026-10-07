@@ -45,6 +45,9 @@
   const NV = M.NV, NL = M.NL, NS = M.NS, SOUNDS = M.SOUNDS;
   const PRESET_TIER = { potato: 'light', retro: 'mid' };
   const RELEASE_S = 60, RETRY_S = 15, POS_TAU = 0.05, GAIN_TAU = 0.4, MUFFLE_TAU = 0.08, C0 = 343;
+  // G1724: the panners' tau follows the frame when it is longer (audio.js tauS: a 3 fps laptop's pass glides, not steps);
+  // [1] slow: a frame at speed hands the constant (a double read from a slot and passed on is a heap box - space.js)
+  const PT = new Float64Array(2); PT[0] = POS_TAU;
   const CABIN = [Math.pow(10, -12 / 20), 900], OPEN = [Math.pow(10, -2 / 20), 9000], CLEAR = [1, 20000];
   const KEYS = []; for (let s = 0; s < NS; s++) if (SOUNDS[s][1]) KEYS.push(SOUNDS[s][1]);
   // the keys the emitters own in the 'emit' class (mech.creak stays the airframe's grain: shared, decoded once)
@@ -196,6 +199,7 @@
       last[o] = px; last[o + 1] = py; last[o + 2] = pz;
       if (pan.positionX) {
         if (snap) { pan.positionX.setValueAtTime(px, tNow); pan.positionY.setValueAtTime(py, tNow); pan.positionZ.setValueAtTime(pz, tNow); }
+        else if (PT[1] > 0) { pan.positionX.setTargetAtTime(px, tNow, PT[0]); pan.positionY.setTargetAtTime(py, tNow, PT[0]); pan.positionZ.setTargetAtTime(pz, tNow, PT[0]); }
         else { pan.positionX.setTargetAtTime(px, tNow, POS_TAU); pan.positionY.setTargetAtTime(py, tNow, POS_TAU); pan.positionZ.setTargetAtTime(pz, tNow, POS_TAU); }
       }
       else if (pan.setPosition) pan.setPosition(px, py, pz);
@@ -309,6 +313,7 @@
       offCabin = A.onEvent('cabin', onCabin);
     },
     update(P, dt, A) {
+      PT[0] = A && A.tauS && A.tauS[0] > POS_TAU ? A.tauS[0] : POS_TAU; PT[1] = PT[0] > POS_TAU ? 1 : 0;
       if (!ctx || !SM) return;
       let amb = W.AMBIENCE && W.AMBIENCE.state ? W.AMBIENCE.state : null;
       if (!amb) { if (!own) own = AM.ambienceState(); AM.ambienceStep(own, P, A.world, dt); amb = own; }

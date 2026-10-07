@@ -17,7 +17,7 @@ const pick = (marker, label) => {
   if (!b) { console.log(`missing ${label} block (no "${marker}")`); console.log('GATE UISMOKE: FAIL'); process.exit(1); }
   return b;
 };
-const coreBlock = pick('function makeAutopilot', 'core');
+const coreBlock = pick('function makePilot(', 'core');
 // Model and prop payloads are <script src> refs since the multi-file artifact
 // (2026-09-01), not inline blocks. The gate still tests the ARTIFACT: it first
 // asserts the artifact references every published payload, then executes
@@ -42,7 +42,12 @@ const worldBootBlock = pick('FLYDIY_WORLD_COMPOSE = function', 'world boot');   
 // once, so BOOT.run unrolls synchronously inside app.js's eval - and so
 // the teardown is asserted on the real object, not a shim.
 const bootBlock = pick('window.BOOT = B', 'boot');
-if (html.indexOf('window.BOOT = B') > html.indexOf('function makeAutopilot'))
+// G2104 (MOBILE-GARAGE 1): `--phone` - the same smoke on the phone profile (UISMOKE-PHONE in run_gates). profile.js runs
+// first, on ?profile=phone, ahead of the graphics menu and app.js, exactly as the page orders them; the boot must then
+// be the garage's alone, and the gate ends after the phone's own checks (the flight half has no world to fly in)
+const PHONE = process.argv.includes('--phone');
+const profileBlock = pick('W.PROFILE = {', 'profile');
+if (html.indexOf('window.BOOT = B') > html.indexOf('function makePilot('))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
 if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<canvas id="c">'))
   throw new Error('#boot must be the first thing in <body>, ahead of the canvas');
@@ -322,6 +327,54 @@ sandbox.window.ASSET_FETCH = url => {
 vm.createContext(sandbox);
 
 const frames = n => { for (let i = 0; i < n && rafCb; i++) { const cb = rafCb; rafCb = null; cb(); } };
+// ---- G2104: THE PHONE PROFILE'S OWN CHECKS (UISMOKE-PHONE) -------------------------------------------------------------
+// The boot above ran the garage alone; here: nothing of the world or the flight was made, the roll-out is refused, the
+// picture is the lightest preset, and phone.css is the phone's alone, selector by selector (the desktop's pixels cannot
+// move through it). phone.js needs a laid-out document (the knob reads the scale's box) - tools/phone_still.js --checks
+// drives it with real touch events in a real browser.
+function phoneChecks() {
+  const W = sandbox.window, G = sandbox.garageApi;
+  if (W.FLYDIY_SIMW) throw new Error('the phone garage made the sim worker');
+  const gp = W.GFX && W.GFX.get && W.GFX.get().preset;
+  if (gp !== 'laptop') throw new Error('the phone garage draws on ' + gp + ', expected laptop (profile.js preset)');
+  if (!G || !G.inGarage()) throw new Error('the phone garage is not in the garage after its boot');
+  // the shed's Roll out is the game's own #bGo (editor.js's #edRoll presses it), and the garage bridge's rollOut
+  if (typeof handlers['bGo'] !== 'function' || typeof G.rollOut !== 'function') throw new Error('#bGo / garageApi.rollOut are not wired');
+  handlers['bGo'](); frames(5); G.rollOut();
+  frames(10);
+  if (!G.inGarage()) throw new Error('Roll out left the phone garage (profile.js fly none: there is no world)');
+  if (W.FLYDIY_TRIPS && W.FLYDIY_TRIPS.some(t => t && t.kind === 'rollout')) throw new Error('a roll-out trip ran on the phone');
+  console.log('the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after ' + 10 + ' frames)');
+  // phone.css: every rule under html.phone, or a default that HIDES one of the phone's own elements
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'phone.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  if (!html.includes('html.phone #phTabs button.on')) throw new Error('index.html does not carry phone.css');
+  const OWN = /^(#phTabs|#phBubble(\.fine|\[hidden\])?|\.phKnob|\.phStep)$/;
+  const bad = [], seen = [];
+  // a selector list split at its top-level commas (the ones inside :is( ) belong to their selector)
+  const topCommas = t => { const out = []; let d = 0, b0 = 0;
+    for (let k = 0; k < t.length; k++) { const c = t[k]; if (c === '(') d++; else if (c === ')') d--; else if (c === ',' && !d) { out.push(t.slice(b0, k)); b0 = k + 1; } }
+    out.push(t.slice(b0)); return out.map(x => x.trim()).filter(Boolean); };
+  const walk = (src, inMedia) => {
+    let i = 0;
+    while (i < src.length) {
+      const o = src.indexOf('{', i); if (o < 0) break;
+      const sel = src.slice(i, o).trim();
+      let d = 1, j = o + 1; while (j < src.length && d) { if (src[j] === '{') d++; else if (src[j] === '}') d--; j++; }
+      const body = src.slice(o + 1, j - 1);
+      if (/^@media/.test(sel)) walk(body, true);
+      else for (const one of topCommas(sel)) {
+        seen.push(one);
+        const okHide = OWN.test(one) && /display\s*:\s*none/.test(body);
+        const okBubble = /^#phBubble/.test(one);   // the bubble exists only on the phone (phone.js makes it)
+        if (!(/^html\.phone(\b|[ .:#\[])/.test(one) || okHide || okBubble)) bad.push(one);
+      }
+      i = j;
+    }
+  };
+  walk(css, false);
+  if (bad.length) throw new Error('phone.css: rules that are not the phone\'s alone (they would reach the desktop): ' + bad.join(' | '));
+  console.log('phone.css: ' + seen.length + ' selectors, every one under html.phone (or hiding a phone-only element)');
+}
 (async () => {
 try {
   vm.runInContext(coreBlock, sandbox, { filename: 'core.js' });      // physics + codec
@@ -355,6 +408,12 @@ try {
     mount(b, H) { this.mountMeter(b, H); this.mountLog(b, H); },
     mountMeter(b, H) { H.row(b, 'fps meter'); H.pills(b, [{ label: 'off' }, { label: 'on' }], () => false, () => {}); },
     mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
+  // G2104: the profile, before the graphics menu (its preset) and app.js (its boot) - the desktop's on the plain run
+  sandbox.window.location = { search: PHONE ? '?profile=phone' : '' };
+  vm.runInContext(profileBlock, sandbox, { filename: 'profile.js' });
+  delete sandbox.window.location;
+  if ((sandbox.window.PROFILE && sandbox.window.PROFILE.name) !== (PHONE ? 'phone' : 'desktop'))
+    throw new Error('profile.js: the page is on ' + (sandbox.window.PROFILE && sandbox.window.PROFILE.name) + ', expected ' + (PHONE ? 'phone' : 'desktop'));
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'),
                   sandbox, { filename: 'gfx_settings.js' });
   // THE SOUND (G1600): audio_params.js and audio.js ride the RENDER block too - run from their own source, so the rail's
@@ -375,7 +434,9 @@ try {
     const steps = B.log.filter(e => e.k === 'step').map(e => e.id);
     // B9 (G1020): the sync in its three (snapshot, C4a's bake - a no-op without the module -, spec) and THE WORLD in the
     // one loading (the roll-out screen's steps, then the aeroplane's programs in its light, the world drawn once)
-    const want = ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'world', 'town', 'parking', 'trees', 'ring', 'settle', 'parked',
+    const want = PHONE   // G2100: the phone garage boots the garage alone (profile.js boot 'garage': the study's §1.2 table)
+      ? ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'snapshot', 'spec', 'restore', 'compile', 'firstFrame', 'recheck']
+      : ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'world', 'town', 'parking', 'trees', 'ring', 'settle', 'parked',
       'snapshot', 'bake', 'spec', 'restore', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft', 'recheck'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
     if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
     if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
@@ -383,6 +444,7 @@ try {
     if (!els['boot'].classList.contains('gone')) throw new Error('#boot did not get .gone');
     console.log('the loading screen: ' + steps.length + ' steps in order, lifted on frame ' + B.log.find(e => e.k === 'ready').t);
   }
+  if (PHONE) { phoneChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
   // attention - a gentle pulsing animation (prefers-reduced-motion: a static highlight instead). No pulse while
@@ -460,6 +522,42 @@ try {
     console.log(`honest readings: AGL ${a0.toFixed(2)} m standing, ${a1.toFixed(2)} m lifted 40 (the pilot's own datum read ` +
       `${apOld.dbg && apOld.dbg.agl != null ? apOld.dbg.agl.toFixed(2) : '-'}); IAS "${shown}" at ${raw.toFixed(1)} km/h; ` +
       `fly on: a new leg in place (${P.ap().phase}), not a reset`);
+  }
+  // ---- G1945 DEST-TO: ONE "TO" ----
+  // The user: "we could gradually drop the FROM-TO in favour of a simple 'To', which can be updated in flight or on the
+  // ground. The plane reacts like its autopilot's destination has been updated." The From picker is gone (#selFrom is
+  // never asked for); a To picked while the pilot taxis is the route at once (setDest 'kept': the same pilot, the
+  // aeroplane not moved); on a leg of the arrival it re-plans ('replan'); STOPPED, it is the next leg from where the
+  // aeroplane stands (the From derived: the field under it) - a new pilot, no reset.
+  {
+    const P = sandbox.window.FLIGHT_PROBE, R = sandbox.window.FLYDIY_ROUTE;
+    if (!R || typeof R.to !== 'function' || typeof R.where !== 'function') throw new Error('FLYDIY_ROUTE.to / .where are missing (G1945)');
+    if ('selFrom' in els) throw new Error('#selFrom was asked for: the From picker is retired (G1945)');
+    const W = P.world(), other = W.aerodromes.find(a => a.kind !== 'meadow' && a.kind !== 'water' && !a.water && a.id !== 'HOME');
+    if (!other) throw new Error('no second land strip in the smoke world');
+    const sim = P.sim(), ap0 = P.ap(), cg0 = sim.cgPos().slice();
+    if (ap0.phase === 'STOPPED') throw new Error('the pilot is STOPPED before the To test');
+    const how1 = R.to(other.id);
+    if (how1 !== 'kept' || P.ap() !== ap0 || !ap0.route.to || ap0.route.to.id !== other.id)
+      throw new Error(`a To picked while ${ap0.phase}: ${how1}, route.to ${ap0.route.to && ap0.route.to.id} (want kept, ${other.id}, the same pilot)`);
+    const ph0 = ap0.phase;
+    ap0.phase = 'ENROUTE';
+    const how2 = R.to('CIRCUIT');
+    ap0.phase = ph0;
+    if (how2 !== 'replan' || ap0.route.to.id !== ap0.route.from.id) throw new Error(`a To picked on a leg of the arrival: ${how2} (want replan, back to ${ap0.route.from.id})`);
+    const cg1 = sim.cgPos();
+    if (Math.hypot(cg1[0] - cg0[0], cg1[2] - cg0[2]) > 0.5) throw new Error('a To change moved the aeroplane (a reset, not a destination)');
+    ap0.phase = 'STOPPED';
+    const where = R.where();
+    const how3 = R.to(other.id);
+    const ap1 = P.ap(), cg2 = P.sim().cgPos();
+    if (how3 !== 'leg' || ap1 === ap0 || ap1.phase === 'STOPPED' || !ap1.route.from || ap1.route.from.id !== (where && where.id))
+      throw new Error(`STOPPED, a new To: ${how3}, from ${ap1.route.from && ap1.route.from.id} (want leg, a new pilot, the From derived: ${where && where.id})`);
+    if (Math.hypot(cg2[0] - cg0[0], cg2[2] - cg0[2]) > 0.5) throw new Error('the next leg moved the aeroplane (a reset, not a leg)');
+    if (R.get().from !== where.id || R.get().to !== other.id || R.get().base !== 'HOME') throw new Error('FLYDIY_ROUTE: ' + JSON.stringify(R.get()));
+    R.to('CIRCUIT');
+    frames(30);
+    console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
   }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
@@ -727,7 +825,7 @@ try {
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
-      audio: ['sound', 'master', 'aircraft', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js)
+      audio: ['sound', 'master', 'engine', 'airframe', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js); G1722: the engine apart, 'aircraft' is the airframe
       dev: ['physics', 'enter the test mode', 'the WORLD rail', 'flight log', 'save log', 'previous session', 'the F8 panel'],
     };
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)
@@ -1106,7 +1204,7 @@ try {
   console.log('GATE UISMOKE: PASS');
 } catch (e) {
   console.log(e.stack ? e.stack.split('\n').slice(0, 4).join('\n') : String(e));
-  console.log('GATE UISMOKE: FAIL');
+  console.log('GATE ' + (PHONE ? 'UISMOKE-PHONE' : 'UISMOKE') + ': FAIL');
   process.exit(1);
 }
 })();

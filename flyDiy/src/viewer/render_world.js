@@ -390,10 +390,29 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // same stand drawn as geometry and as impostors from 40 m under the alps
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
-  const uILit = { value: 0.9 * 1.38 };   // the user's F8 world look (2026-10-03): the environment albedo 1.38 baked into the impostors' lit term (0.9 the geometry match x 1.38); envAlbedo() reads 1 again from here
+  // G1975 (DEADWOOD-BRIGHT): THE MATCH, NEVER THE LEVEL. The level reaches the impostor through the tint
+  // (trees.js MASTER.light, carried per layer in IMPA.tbl row 1) exactly as it reaches the geometry, so no dial
+  // writes this any more: envAlbedo() and the world rail's lightness scaled it too (since G483), and every move of
+  // either reached the impostors twice (k^2 against the geometry's k). The value stays db226efa's 0.9 x 1.38 (the
+  // user's F8 look as baked): measured at the hand-over (HANDOVER G1975), it IS the match on the presets whose
+  // trees cast no shadow (potato: impostor / geometry 1.05 front-lit) and 1.38x too bright where they do (gamer:
+  // the geometry darkens under its own crown, the impostor does not) - 0.9 is gamer's match. Which one is the
+  // user's call (the far forest moves ~22 % with it).
+  const uILit = { value: 0.9 * 1.38 };
   // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
   const uIFlat = { value: 1.30 }, uIFlatMean = { value: 0.05 };
-  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10 };
+  // G1975: a BARK-ONLY sheet's own terms (impostorMat): the leaf wrap and translucency as a share of the leaves', its
+  // contrast. Measured at the hand-over (HANDOVER G1975): the translucency is the snag's pale glow into the sun (off);
+  // the wrap stands in for the rim light a round trunk catches and the baked normal loses - without it the backlit
+  // sheet goes navy-black where the geometry is brown (kept); contrast 1 = the texel as baked, as the bark geometry.
+  // THE SHAPE: a twig is one texel of the 128-px tile, and the 3-tap union (solid 1) at the snag's cut 0.10 made every
+  // one a square blob on a fat pole; solid 0 and a 0.4 floor on the cut leave the pole and dissolve the twigs, as the
+  // geometry's sub-pixel twigs do at the hand-over. THE LEVEL: a bare snag barely shades itself, so its geometry's
+  // match is uILit 0.9 on every preset (the leafy one is 1.242 without tree shadows) - barkLit 0.725 = 0.9 / 1.242
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.725 };
+  const uBarkW = { value: IMPK.barkWrap }, uBarkS = { value: IMPK.barkSSS }, uBarkF = { value: IMPK.barkFlat },
+        uBarkSol = { value: IMPK.barkSolid }, uBarkCut = { value: IMPK.barkCut },   // and its alpha: the 3-tap union's share, a floor on its cut
+        uBarkL = { value: IMPK.barkLit };   // and its share of the tier gain uILit
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
@@ -3381,7 +3400,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return true;
     };
     IMPA.take = () => (IMPA.grow(IMPA.used + 1) ? IMPA.used++ : -1);
-    // a layer's own numbers (row 0: cy, diam, gain, cut; row 1: the tint's hue, sat, light), from its series' material
+    // a layer's own numbers (row 0: cy, diam, gain, cut; row 1: the tint's hue, sat, light, and 1 for a bark-only
+    // sheet - G1975), from its series' material
     IMPA.set = (layer, cy, diam, gain, cut, tintU) => {
       if (!IMPA.tbl || !(layer >= 0)) return;
       const d = IMPA.tbl.image.data, o = layer * 4;
@@ -3389,6 +3409,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       IMPA.tintU[layer] = tintU || null;
       const o2 = (IMPA_MAX + layer) * 4;
       d[o2] = tintU ? tintU.uHue.value : 0; d[o2 + 1] = tintU ? tintU.uSat.value : 1; d[o2 + 2] = tintU ? tintU.uLight.value : 1;
+      d[o2 + 3] = tintU && tintU.bark ? 1 : 0;
       IMPA.tbl.needsUpdate = true;
     };
     // once a frame: the mips of what was baked since, and the tint dials (live, F8's) into the table
@@ -3687,12 +3708,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return d;
     }
     // the tint uniforms of the series' own material: the leaf part's where
-    // there is one, the bark's for the snag - shared by reference
+    // there is one, the bark's for the snag - shared by reference. `bark`: the
+    // series has NO leaf part (every snag series, dead_conifer, dead_deciduous) -
+    // its sheet is lit as the bark geometry is (G1975, impostorMat)
     const tintUniformsOf = parts => {
       const leaf = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5);
       const src = (leaf || parts[0] || {}).mat;
       const u = src && src.userData;
-      return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
+      return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, bark: !leaf } : null;
     };
     function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST)
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
@@ -3730,13 +3753,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           sh.uniforms.uHue = tintU ? tintU.uHue : { value: 0 };
           sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
           sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
+          sh.uniforms.uBark = { value: tintU && tintU.bark ? 1 : 0 };
         } else sh.uniforms.uImpTbl = IMPA.U.tbl;
         sh.uniforms.uImpC = IMPA.U.col; sh.uniforms.uImpN = IMPA.U.nrm;
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uILit = uILit;
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uTile = { value: IMP_TILE };
-        sh.uniforms.uLeaf = { value: 1 };
+        // G1975 (DEADWOOD-BRIGHT, the user: "one of the impostor dead tree renders really too bright, almost
+        // white"): the wrap, the translucency and uFlat are the SHEET'S now, not the leaves' for every impostor. A
+        // bark-only sheet (uBark, or row 1 .w of the layer table) drew with the leaf wrap and the translucency its
+        // own geometry never gets (trees.js: uLeaf 0 on bark) - a snag lit up against the sun - and with the
+        // conifer foliage's contrast pivot (below), which pushes every texel brighter than 0.05 further up: a
+        // bark sheet sits at 0.01-0.14. It takes IMPK.barkWrap / barkSSS of the leaves' terms and IMPK.barkFlat
+        // for its contrast (TREE_LOD.imp). Leafy sheets draw as before.
         // WASHED OUT ON THE LIT SIDE (2026-09-23, the user, over a Jolene shot: "washed out trees over
         // saturated terrain ... more bitty in terms of colours and shadows"). Measured on the card's OWN
         // pixels - a mask built by hiding the impostor meshes for one frame, the sim frozen so the frame is
@@ -3773,15 +3803,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // rather than by deleting albedo. TREE_LOD.imp({ flat, mean, vary }); mean 0.4 restores G538.
         // OWED: the pivot should be the SHEET'S OWN mean, computed at bake time per layer - 0.05 is one
         // measured conifer's, and a birch or a deciduous sheet will not share it.
-        sh.uniforms.uFlat = uIFlat; sh.uniforms.uFlatMean = uIFlatMean;
-        sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
-        sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
+        sh.uniforms.uFlatK = uIFlat; sh.uniforms.uFlatMean = uIFlatMean;   // uFlat, uWrap, uSSS themselves are set per fragment (G1975)
+        sh.uniforms.uWrapK = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
+        sh.uniforms.uSSSK = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
+        sh.uniforms.uBarkW = uBarkW; sh.uniforms.uBarkS = uBarkS; sh.uniforms.uBarkF = uBarkF; sh.uniforms.uBarkSol = uBarkSol; sh.uniforms.uBarkCut = uBarkCut; sh.uniforms.uBarkL = uBarkL;
+        sh.uniforms.uLeaf = { value: 1 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
             'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
-            (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec3 vImpT;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
+            (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
           // and read only position and scale out of the instance matrix. Scale
@@ -3791,7 +3823,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <project_vertex>', [
             // the layer: the instance's (merged) or the material's; its numbers from the table (merged)
             inst ? 'int impL = int(max(aLayer, 0.0) + 0.5); vec4 impP0 = texelFetch(uImpTbl, ivec2(impL, 0), 0), impP1 = texelFetch(uImpTbl, ivec2(impL, 1), 0);\n' +
-                   'uCy = impP0.x; uDiam = impP0.y; vImpP = impP0.zw; vImpT = impP1.xyz; vImpL = aLayer;' : 'vImpL = uLayer;',
+                   'uCy = impP0.x; uDiam = impP0.y; vImpP = impP0.zw; vImpT = impP1; vImpL = aLayer;' : 'vImpL = uLayer;',
             'vUvI = uv;',
             'vec3 iPos = instanceMatrix[3].xyz;',
             'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
@@ -3834,9 +3866,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uWind = (typeof window !== 'undefined' && window.TREE_WIND) ? window.TREE_WIND : { value: new THREE.Vector4(0, 0, 0, 0) };
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
-            (inst ? 'flat varying vec2 vImpP;\nflat varying vec3 vImpT;\nfloat uIGain, uICut, uHue, uSat, uLight;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight;\n') +
-            'uniform float uFlat, uFlatMean;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
+            (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nfloat uIGain, uICut, uHue, uSat, uLight;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark;\n') +
+            'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -3846,6 +3878,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // with the horizon ring on the square's edge (where a plane spends
             // most of its life) and straight-down at the centre.
             inst ? 'uIGain = vImpP.x; uICut = vImpP.y; uHue = vImpT.x; uSat = vImpT.y; uLight = vImpT.z;' : '',
+            // a bark-only sheet takes its own share of the leaf terms and its own contrast (G1975)
+            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; _iLit = _bk ? uILit * uBarkL : uILit; }',
             'vec3 dI = vImpDir;',
             'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
             'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
@@ -3867,7 +3901,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // impostor (the user saw it in the first forest shot)
             'texelColor.rgb = clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0);',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
-            'texelColor.a = clamp((mix(texelColor.a, aSol, uISolid) - uICut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
+            'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
@@ -3892,8 +3926,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the tier gain, on all four terms - the multiscatter one rides on
             // the sky and not the albedo, and scaling the diffuse alone leaves
             // a floor that eats the dial (the bench's W0a.2)
-            'reflectedLight.directDiffuse *= uILit;\nreflectedLight.indirectDiffuse *= uILit;\n' +
-            'reflectedLight.directSpecular *= uILit;\nreflectedLight.indirectSpecular *= uILit;');
+            // (G1975: _iLit - a bark-only sheet's is uILit x IMPK.barkLit, set with the sheet's other terms)
+            'reflectedLight.directDiffuse *= _iLit;\nreflectedLight.indirectDiffuse *= _iLit;\n' +
+            'reflectedLight.directSpecular *= _iLit;\nreflectedLight.indirectSpecular *= _iLit;');
       };
       return m;
     }
@@ -3938,17 +3973,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
       const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
     treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
-        for (const k of ['flat', 'mean', 'vary']) if (o[k] !== undefined) IMPK[k] = +o[k];
-        uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean; }
-      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary }; };
+        for (const k of ['flat', 'mean', 'vary', 'barkWrap', 'barkSSS', 'barkFlat', 'barkSolid', 'barkCut', 'barkLit']) if (o[k] !== undefined) IMPK[k] = +o[k];
+        uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean;
+        uBarkW.value = IMPK.barkWrap; uBarkS.value = IMPK.barkSSS; uBarkF.value = IMPK.barkFlat; uBarkSol.value = IMPK.barkSolid; uBarkCut.value = IMPK.barkCut; uBarkL.value = IMPK.barkLit; }
+      return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary,
+               barkWrap: IMPK.barkWrap, barkSSS: IMPK.barkSSS, barkFlat: IMPK.barkFlat, barkSolid: IMPK.barkSolid, barkCut: IMPK.barkCut, barkLit: IMPK.barkLit }; };
     treeLod.impVary = () => IMPK.vary;
     // WHERE A SPECIES STANDS (G1110, TREES-NEAR's evidence rig): the planted trees of the subjects whose key starts with
     // `key` (a collection name, e.g. 'spruce_tree.glb'), living (the specimen series) and rooted r0..r1 m from (x, z),
     // nearest first - [{ key, x, y, z, s }] (s: the instance's height scale), n at most. Reads the partition's records
-    // (the woodland's and every live fill chunk's), so it answers for what is planted now
-    treeLod.find = (key, x, z, r0, r1, n) => { const out = [];
+    // (the woodland's and every live fill chunk's), so it answers for what is planted now. G1975 (DEADWOOD-BRIGHT's
+    // rig): `ser` asks for another series (2: the snags), the specimen (0) by default
+    treeLod.find = (key, x, z, r0, r1, n, ser) => { const out = [];
       for (const rec of ladderChunks) { if (!rec.key || rec.key.indexOf(key) !== 0) continue;
-        for (let i = 0; i < rec.n; i++) { if (rec.ser[i] !== 0) continue;
+        for (let i = 0; i < rec.n; i++) { if (rec.ser[i] !== (ser || 0)) continue;
           const tx = rec.pos[i * 3], tz = rec.pos[i * 3 + 2], d = Math.hypot(tx - x, tz - z);
           if (d >= (r0 || 0) && d <= (r1 || 1e9)) out.push({ key: rec.key, x: tx, y: rec.pos[i * 3 + 1], z: tz, s: rec.mats[i * 16 + 5], d }); } }
       return out.sort((a, b) => a.d - b.d).slice(0, n || 20); };
@@ -3983,7 +4021,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // them all alike. So the size is the bench's rule now: `place.size` times
     // 1 + spread*(2w - 0.9), which at spread 0.2 is 0.82-1.22 - the bench's
     // committed spread - and nothing else. `T.s` stays the physics' number.
-    const TREE_MIX = { furnished: 1.0, spread: 0.2 };
+    // G1975 (DEADWOOD-BRIGHT, PROPOSED - the user's call, OFF until they say): `mixDead` deals the snags by the MIX's own
+    // `dead` share for the species where the tree stands (BIO.mixes[..].species[sp].dead, the bench's tuning) instead of
+    // the collection's `place.dead` - which the mixes never reach: pine_georgeous carries 0.53 on its collection and 0 /
+    // 0.03 in every mix that plants it, so half of it stands dead. Where a mix names no share, the collection's stays.
+    // ?mixdead=1 for the A/B; a replant (TREE_FILL / the woodland) takes a change
+    const TREE_MIX = { furnished: 1.0, spread: 0.2,
+                       mixDead: typeof location !== 'undefined' && /[?&]mixdead=1/.test(location.search || '') };
     const sizeOf = (base, w) => (base || 1) * (1 + TREE_MIX.spread * (2 * w - 0.9));
     if (typeof window !== 'undefined') window.TREE_MIX = TREE_MIX;
     const SERIES = ['rungs', 'stand', 'snag'];        // index = series id
@@ -4409,7 +4453,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (M && M.species) for (const [sp, o] of Object.entries(M.species)) {
         const subs = []; shapes.forEach((H, gi) => { if (H.key && H.key.split('|')[0] === sp) subs.push(gi); });
         const w = ((o && o.proportion !== undefined) ? o.proportion : 1) / Math.max(1, subs.length);
-        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi });
+        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1 });   // dead: the mix's snag share, -1 none (G1975)
       }
       byMix.set(mixName, P);
       return P;
@@ -4576,7 +4620,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const drawOf = T => {
       const r = hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3));
       const mix = biomeAt(T.x, T.z, hsh(Math.round(T.x * 2.1), Math.round(T.z * 4.3)));
-      if (mix) { const P = biomePool(mix, PROTO); if (P.length) return P[poolPick(P, r, T.x, T.z, T.h)].gi; }
+      if (mix) { const P = biomePool(mix, PROTO); if (P.length) { const E = P[poolPick(P, r, T.x, T.z, T.h)]; T.mixDead = E.dead; return E.gi; } }
       return poolPick(PROTO, r, T.x, T.z, T.h);
     };
     const groupOf = T => PROTO
@@ -4619,7 +4663,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         }
         const ser = new Uint8Array(n);
         const cnt = [0, 0, 0];
-        list.forEach((T, i) => { ser[i] = seriesOf(T.r, P.dead); cnt[ser[i]]++; });
+        list.forEach((T, i) => { ser[i] = seriesOf(T.r, TREE_MIX.mixDead && T.mixDead >= 0 ? T.mixDead : P.dead); cnt[ser[i]]++; });
         const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
                       buf: [], rungs: [], x: ox, z: oz, own: true, key: P.key };   // key: TREE_LOD.find's (G1110)
         const meshes = [], imps = [];
@@ -4931,6 +4975,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1436 (METLA-TAXI): the walk reads the ground in a scope of BUILD READS (20_world.js buildReads) - a tree's
       // placement, read once: where a read would bake a raster tile lazily (Metlakatla's uncooked cells, which the
       // 9 km ring crosses from HOME) it takes the analytic composer instead (the raster to 1 cm), never a 1-1.6 ms bake
+      // a tree's record in a walk: x, y, z, sp, the hash, the canopy, the mix's snag share (G1975)
+      const FILL_REC = 7;
       function walk(cx, cz, recs, g0, g1, part) {
         if (!world.buildReads) return walkRows(cx, cz, recs, g0, g1, part);
         world.buildReads(1);
@@ -4994,9 +5040,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
                                                              : (hsh(ix + 9, iz + 1) * 5) | 0;
           let gi;
-          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); gi = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)].gi : -1; if (gi < 0) continue; }
+          let md = -1;   // the mix's snag share for this species (G1975: -1 none, the collection's then)
+          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
           else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
-          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
+          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can, md);   // FILL_REC floats a tree
           if (PROBE) PROBE.push(x, z, forestHere(x, z) ? 1 : 0);
         }
       }
@@ -5025,14 +5072,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         // ONE IMPOSTOR MESH FOR THE CHUNK PART (PERF 2026-09-23 - see IMPA): every subject's every series,
         // each instance naming its layer; the rungs stay per series (the partition's)
-        let nTot = 0; for (const r of recs) nTot += r.length / 6;
+        let nTot = 0; for (const r of recs) nTot += r.length / FILL_REC;
         const MI = nTot ? impMerged(impQuadF, part === FILLP ? IMPM().fillThin : IMPM().fill, nTot) : null;
         const MIL = MI ? MI.geometry.attributes.aLayer.array : null;
         let J = 0, trI = 0;
         const BBI = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 0];
         for (let gi = 0; gi < recs.length; gi++) {
           const r = recs[gi];
-          const n = r.length / 6;
+          const n = r.length / FILL_REC;
           if (!n) continue;
           if (performance.now() > fillDeadline) { act += performance.now() - ts; yield; ts = performance.now(); }
           const SH = SHAPE.list[gi];
@@ -5042,7 +5089,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // sized to what they will hold and nothing empty is submitted
           const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
           for (let i = 0; i < n; i++) {
-            ser[i] = SH.series.length > 1 ? seriesOf(r[i * 6 + 4], SH.dead) : 0;
+            const md = r[i * FILL_REC + 6];
+            ser[i] = SH.series.length > 1 ? seriesOf(r[i * FILL_REC + 4], TREE_MIX.mixDead && md >= 0 ? md : SH.dead) : 0;
             cnt[ser[i]]++;
           }
           // one InstancedMesh per PART per series: a real tree is a bark part
@@ -5084,7 +5132,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const BB = SH.series.map(() => [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 0]);   // per series: the instances' local box + the largest scale
           for (let i = 0; i < n; i++) {
             if ((i & 255) === 255 && performance.now() > fillDeadline) { act += performance.now() - ts; yield; ts = performance.now(); }
-            const o = i * 6, sp = r[o + 3], w = r[o + 4], can = r[o + 5];
+            const o = i * FILL_REC, sp = r[o + 3], w = r[o + 4], can = r[o + 5];
             const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
             // THE MAP'S SIZE: on an island a tree is as tall as the canopy
@@ -7017,7 +7065,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;
     ENV_ALB.k = Math.max(0.05, +k);
     groundApi.set({ light: ENV_ALB.k });
-    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * 1.38 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
+    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k });   // the tint carries the level to BOTH tiers; uILit is the impostor/geometry match and stays (G1975: it scaled with k too - the impostors took k^2)
     return ENV_ALB.k;
   };
   // waterDrawY(x, z): the y of the water surface DRAWN here - a lake's quad, else the sea plane (0, every tier:

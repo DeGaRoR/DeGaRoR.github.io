@@ -1,0 +1,523 @@
+{
+ "note": "G2060 METLA-COOK evidence (tools/perf/metla_ab.js --warmup A --order A,B,B,A --builds cub --cpuprof taxi; metla_boot_steps.js; metla_keys.js --metla; _houseworker_check.js children town=0 then town=1 on one fake IndexedDB). Box RTX 3080, train 37b 068584d6 + this branch, 2026-10-06.",
+ "metla_ab": [
+  {
+   "side": "A",
+   "garage": 40.9,
+   "rollout": 11.9,
+   "firstFlight": 52.8,
+   "links": {
+    "n": 397,
+    "pending": 2,
+    "sumS": 195.3,
+    "worstS": 6.9,
+    "over5s": 1
+   },
+   "hwGarage": {
+    "built": 0,
+    "hits": 92
+   },
+   "taxi": {
+    "fps": 30,
+    "uneven30": 0.007,
+    "p99": 33.5,
+    "worst": 49.9,
+    "work": 16.41,
+    "calls": 1216
+   },
+   "pass": {
+    "fps": 30,
+    "uneven30": 0.02,
+    "p99": 33.5,
+    "worst": 50.1,
+    "taskWorst": 54,
+    "work": 16.65
+   }
+  },
+  {
+   "side": "B",
+   "garage": 52.1,
+   "rollout": 12.1,
+   "firstFlight": 64.2,
+   "links": {
+    "n": 404,
+    "pending": 2,
+    "sumS": 331.2,
+    "worstS": 6.8,
+    "over5s": 1
+   },
+   "hwGarage": {
+    "built": 0,
+    "hits": 92
+   },
+   "taxi": {
+    "fps": 30,
+    "uneven30": 0.002,
+    "p99": 33.5,
+    "worst": 50.1,
+    "work": 18.91,
+    "calls": 1370
+   },
+   "pass": {
+    "fps": 30,
+    "uneven30": 0.025,
+    "p99": 33.5,
+    "worst": 66.7,
+    "taskWorst": 70,
+    "work": 19.07
+   }
+  },
+  {
+   "side": "B",
+   "garage": 51.4,
+   "rollout": 12.2,
+   "firstFlight": 63.6,
+   "links": {
+    "n": 404,
+    "pending": 2,
+    "sumS": 311.5,
+    "worstS": 6.9,
+    "over5s": 1
+   },
+   "hwGarage": {
+    "built": 0,
+    "hits": 92
+   },
+   "taxi": {
+    "fps": 30,
+    "uneven30": 0,
+    "p99": 33.5,
+    "worst": 33.8,
+    "work": 18.99,
+    "calls": 1370
+   },
+   "pass": {
+    "fps": 30,
+    "uneven30": 0.027,
+    "p99": 33.6,
+    "worst": 50.1,
+    "taskWorst": 55,
+    "work": 19.14
+   }
+  },
+  {
+   "side": "A",
+   "garage": 41.6,
+   "rollout": 12.1,
+   "firstFlight": 53.7,
+   "links": {
+    "n": 398,
+    "pending": 2,
+    "sumS": 167.3,
+    "worstS": 6.8,
+    "over5s": 1
+   },
+   "hwGarage": {
+    "built": 0,
+    "hits": 92
+   },
+   "taxi": {
+    "fps": 30,
+    "uneven30": 0,
+    "p99": 33.5,
+    "worst": 33.6,
+    "work": 16.95,
+    "calls": 1220
+   },
+   "pass": {
+    "fps": 30,
+    "uneven30": 0.013,
+    "p99": 33.5,
+    "worst": 50,
+    "taskWorst": 53,
+    "work": 16.57
+   }
+  }
+ ],
+ "bootSteps": [
+  {
+   "side": "A",
+   "sec": 41.2,
+   "steps": {
+    "treeBins": 0.02,
+    "aircraft": 0.68,
+    "garage": 0.59,
+    "editor": 0.18,
+    "seed": 0.87,
+    "world": 6.83,
+    "town": 7.44,
+    "parking": 0.26,
+    "trees": 0.01,
+    "ring": 1.02,
+    "settle": 11.09,
+    "parked": 0.01,
+    "snapshot": 0.78,
+    "bake": 1.11,
+    "spec": 0.46,
+    "restore": 0.09,
+    "images": 0.13,
+    "upload": 1.48,
+    "worldCompile": 0.21,
+    "compile": 0.98,
+    "firstFrame": 0.98,
+    "frames": 3.5,
+    "craft": 0.42,
+    "recheck": 0.03
+   }
+  },
+  {
+   "side": "B",
+   "sec": 50.6,
+   "steps": {
+    "treeBins": 0.02,
+    "aircraft": 0.72,
+    "garage": 0.61,
+    "editor": 0.17,
+    "seed": 0.92,
+    "world": 12.3,
+    "town": 7.63,
+    "parking": 0.25,
+    "trees": 0.01,
+    "ring": 1.21,
+    "settle": 11.54,
+    "parked": 0,
+    "snapshot": 0.7,
+    "bake": 1.58,
+    "spec": 0.69,
+    "restore": 0.13,
+    "images": 0.26,
+    "upload": 2.14,
+    "worldCompile": 0.31,
+    "compile": 3.3,
+    "firstFrame": 0.44,
+    "frames": 2.12,
+    "craft": 0.35,
+    "recheck": 0.01
+   }
+  },
+  {
+   "side": "B",
+   "sec": 50.1,
+   "steps": {
+    "treeBins": 0.02,
+    "aircraft": 0.69,
+    "garage": 0.61,
+    "editor": 0.2,
+    "seed": 0.89,
+    "world": 12.29,
+    "town": 7.6,
+    "parking": 0.26,
+    "trees": 0.01,
+    "ring": 0.94,
+    "settle": 11.88,
+    "parked": 0.01,
+    "snapshot": 0.82,
+    "bake": 1.25,
+    "spec": 0.47,
+    "restore": 0.27,
+    "images": 0.19,
+    "upload": 1.7,
+    "worldCompile": 0.31,
+    "compile": 4.09,
+    "firstFrame": 0.33,
+    "frames": 1.64,
+    "craft": 0.42,
+    "recheck": 0.03
+   }
+  },
+  {
+   "side": "A",
+   "sec": 41.2,
+   "steps": {
+    "treeBins": 0.01,
+    "aircraft": 0.72,
+    "garage": 0.6,
+    "editor": 0.17,
+    "seed": 0.9,
+    "world": 6.83,
+    "town": 7.38,
+    "parking": 0.17,
+    "trees": 0.01,
+    "ring": 1.01,
+    "settle": 11.11,
+    "parked": 0.01,
+    "snapshot": 0.68,
+    "bake": 0.89,
+    "spec": 0.48,
+    "restore": 0.2,
+    "images": 0.15,
+    "upload": 1.5,
+    "worldCompile": 0.21,
+    "compile": 2.41,
+    "firstFrame": 0.99,
+    "frames": 2.27,
+    "craft": 0.37,
+    "recheck": 0.01
+   }
+  }
+ ],
+ "houseCache": {
+  "before": [
+   {
+    "side": "off",
+    "worker": {
+     "built": 92,
+     "hits": 0,
+     "genMs": 4867
+    },
+    "entries": 137
+   },
+   {
+    "side": "on",
+    "worker": {
+     "built": 8,
+     "hits": 84,
+     "genMs": 272
+    },
+    "entries": 137
+   }
+  ],
+  "after": [
+   {
+    "side": "off",
+    "worker": {
+     "built": 92,
+     "hits": 0,
+     "genMs": 4788
+    },
+    "entries": 137
+   },
+   {
+    "side": "on",
+    "worker": {
+     "built": 0,
+     "hits": 92,
+     "genMs": 0
+    },
+    "entries": 137
+   }
+  ]
+ },
+ "census": {
+  "off": 404,
+  "on": 428,
+  "townOnlySources": [
+   {
+    "mark": "garage:town",
+    "name": "Brunches_Mat",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "garage:town",
+    "name": "Bark_Mat",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "garage:snapshot",
+    "name": "",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "garage:snapshot",
+    "name": "",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "garage:snapshot",
+    "name": "",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "garage:snapshot",
+    "name": "",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "garage:snapshot",
+    "name": "",
+    "cam": [
+     0,
+     0
+    ],
+    "what": null
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     262,
+     743
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 4 at -3411,-8619 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0}"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     262,
+     743
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 4 at -3411,-8619 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0}"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     262,
+     743
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 4 at -3411,-8619 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0}"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile Mesh meshes 1 at -3326,-8684 mats MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 9 at -3285,-8649 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 9 at -3285,-8649 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 9 at -3285,-8649 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": null
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile Mesh meshes 1 at -3570,-9092 mats MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "matlib:arr",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile life:auto_hatch_red#0 meshes 1 at -3475,-8498 mats matlib:arr"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile propInst:compressor_l2#1 meshes 1 at -3663,-8614 mats MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile propInst:compressor_l2#1 meshes 1 at -3663,-8614 mats MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 10 at -3257,-8810 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 10 at -3257,-8810 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 10 at -3257,-8810 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial{house_tarr:plain:2:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 6 at -2938,-8587 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial"
+   },
+   {
+    "mark": "flight",
+    "name": "",
+    "cam": [
+     -3452,
+     -8522
+    ],
+    "what": "compile houses:near<houses:hlod<premises:houses<premises meshes 4 at -1525,-7924 mats MeshStandardMaterial{house_tarr:plain:0:0} ; MeshStandardMaterial{house_tarr:glass:0:0} ; MeshStandardMaterial"
+   }
+  ]
+ }
+}

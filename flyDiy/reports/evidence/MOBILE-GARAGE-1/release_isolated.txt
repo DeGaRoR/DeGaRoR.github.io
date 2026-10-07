@@ -1,0 +1,11 @@
+tools/perf/garage_release.js --build cub --reps 5 --only paxLen,roofY,dashLip,seatH,dashBack,rimRivet (the heaviest releases)
+both sides from scratch worktrees (master 068584d / the branch HEAD built there), alternating A B A B A B, the machine idle
+run  side     sum tick   sum rel  release per row (ms):    paxLen     roofY   dashLip     seatH  dashBack  rimRivet
+1    master        712      4999       1352      1022       604       719       639       662
+1    branch        731      4856       1112       961       730       830       642       581
+2    master        736      5037       1336      1093       633       702       621       652
+2    branch        758      4792       1223       990       639       587       631       721
+3    master        719      5008       1270      1120       649       633       636       700
+3    branch        704      4560       1111       897       647       768       615       522
+median sum of releases: master 5008, branch 4792 ms (branch/master 0.957); ticks 719 / 731 (1.016)
+previews and release paths identical in all six: True

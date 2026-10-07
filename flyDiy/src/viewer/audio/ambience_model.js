@@ -47,6 +47,7 @@ var AMBIENCE_MODEL = (function () {
   const AM_RATE = 0.35;            // the most a weight moves in a second
   const AM_FLOOR = 0.012;          // a bed under this gain (linear, level included) is silent: not fetched, released
   const AM_LUFS = -23;             // the beds' target loudness (prep_sfx.js)
+  const GARAGE_K = Math.pow(10, -12 / 20);   // the shed's beds, all of them (see THE GARAGE below)
   // THE BEDS: [key, the mix level dB, the catalogue's integrated LUFS (sfx_catalogue.json), group (0 outside, 1 room)]
   const BEDS = [
     ['amb.forest.day', -5, -25.4, 0], ['amb.forest.night', -6, -23, 0], ['amb.meadow', -8, -23, 0],
@@ -394,11 +395,13 @@ var AMBIENCE_MODEL = (function () {
     const alpine = Math.max(rv[R.alpE], rv[R.alpA]);
     const nightOpen = night * g * open * (1 - forest);
     if (f[F.garage] > 0) {
-      // THE GARAGE: the hangar's room tone, the roof's rain when it rains, a hint of the outside through the open door
-      T[B.hangar] = 1;
-      T[B.rainRoof] = sat(f[F.rain]);
-      T[B.forestDay] = 0.22 * day; T[B.forestNight] = 0.2 * night; T[B.meadow] = 0.15 * day;
-      T[B.windLight] = 0.15 * (1 - storm); T[B.windStorm] = 0.25 * storm;
+      // THE GARAGE: the hangar's room tone, the roof's rain when it rains, a hint of the outside through the open door -
+      // all of it FAINT (the user, 2026-10-05: "it should be really faint. That's a quiet environment, silent or calm
+      // music"): GARAGE_K = -12 dB on every bed of the shed, under the music by some 23 dB
+      T[B.hangar] = GARAGE_K;
+      T[B.rainRoof] = GARAGE_K * sat(f[F.rain]);
+      T[B.forestDay] = GARAGE_K * 0.22 * day; T[B.forestNight] = GARAGE_K * 0.2 * night; T[B.meadow] = GARAGE_K * 0.15 * day;
+      T[B.windLight] = GARAGE_K * 0.15 * (1 - storm); T[B.windStorm] = GARAGE_K * 0.25 * storm;
       return T;
     }
     if (f[F.under] > 0) { T[B.shoreRocks] = 1; return T; }       // under water: the rocks' bed, muffled by the source

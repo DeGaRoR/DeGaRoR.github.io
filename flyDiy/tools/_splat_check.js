@@ -129,7 +129,12 @@ function checkRecipe(G, splatSrc, quiet) {
   const named = []; for (let c = 0; c <= TOP; c++) named.push(c);
   say(named.every(c => typeof R.names[c] === 'string' && R.names[c]), `names: 0..${TOP} named`);
   const NC = splatSrc.match(/const NCODE = (\d+), NLIB = (\d+)/);
-  say(!!NC && +NC[1] > Math.max(...codes) && +NC[2] >= R.library.length, `the shader's constants hold them: NCODE ${NC && NC[1]} > ${Math.max(...codes)}, NLIB ${NC && NC[2]} >= ${R.library.length}`);
+  // (SHORES-2 G1962: a code may ride a free shader slot - the bank, 17, in the lake's slot 1, always emptied by the vote - so
+  // the per-code arrays need not grow: `const BANK = 17, BANK_SLOT = 1` in splat_ground.js; the slot must be one the vote empties)
+  const AL = splatSrc.match(/const BANK = (\d+), BANK_SLOT = (\d+);/), aliased = AL ? [+AL[1]] : [];
+  const top = Math.max(...codes.filter(c => !aliased.includes(c)));
+  say(!!NC && +NC[1] > top && +NC[2] >= R.library.length && (!AL || (+AL[2] === 1 && /w\[3\] \+= w\[1\]; w\[1\] = 0\.0;/.test(splatSrc))),
+      `the shader's constants hold them: NCODE ${NC && NC[1]} > ${top}${AL ? ' (code ' + AL[1] + ' rides slot ' + AL[2] + ' (the lake slot), emptied by the vote)' : ''}, NLIB ${NC && NC[2]} >= ${R.library.length}`);
   let bad = [];
   for (const c of codes) {
     const r = R.codes[c], w = m => bad.push(`${c} ${R.names[c]}: ${m}`);
@@ -414,6 +419,7 @@ function checkMineral(quiet) {
   if (SP && SP.api && SP.api.layers) {
     const L = SP.api.layers(), lib = ctx.SPLAT_TEX_SETS.map(q => q.key), T = W.island.ttype, seen = new Set();
     for (let k = 0; k < T.length; k++) seen.add(T[k]);
+    if (seen.has(0) || seen.has(1)) seen.add(17);   // (SHORES-2 G1955: a lake or the sea - the bank, derived from every type by the water)
     if (seen.has(0)) seen.add(4); if (seen.has(1)) seen.add(3); seen.delete(0); seen.delete(1);
     for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
     const need = new Set(); for (const c of seen) { const r = SP.api.code(c); if (r) for (const k of (r.tex || []).concat(r.far || [])) if (k) need.add(k); }
@@ -433,7 +439,7 @@ function checkMineral(quiet) {
   // forest colour is the canopy itself - normalising the floor to it paints the leaves on the
   // ground and then stands the drawn trees on top, counting the canopy twice. It ships brown
   // (0.126/0.083/0.026) and the gain made it green (0.019/0.030/0.009) and six times darker.
-  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir'];
+  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir', 'darkRock'];
   const MUST_KEEP_HUE = ['beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
   const moved = [];
   for (const k of ROCK_AS_SHIPPED) {

@@ -395,7 +395,14 @@ function cookPlaces(W, O, opt) {
   // the tallies of its rank: the page's way, which must give the same things)
   const TL = opt && opt.tallies ? win.PREMISES_BUILD.makeTallies(opt.tallies) : null;
   if (TL) P.BLD.useTallies(TL);
-  const todo = queue.slice(0, only); if (opt && opt.reverse) todo.reverse();
+  let todo = queue.slice(0, only);
+  // G2060 (METLA-COOK): THE BASE VARIANT'S ENTRIES FIRST. A variant that adds entries to the base's (the town: Metlakatla's
+  // 480 among Jolene's 215) cooks the base's entries first, in their own order, and its own after them - so every base
+  // entry has the same tallies (and so the same house, the same dressing, the same house-cache key) in both variants. In
+  // record order 131 of the 215 came after a Metlakatla entry: the town-on page generated HOME's houses anew (and a little
+  // differently), and the house worker's cache, filled by the town-off page, missed them all on the town's first visit
+  if (opt && opt.first) { const F = opt.first; todo = todo.filter(p => F.has(String(p.id))).concat(todo.filter(p => !F.has(String(p.id)))); }
+  if (opt && opt.reverse) todo.reverse();
   for (const p of todo) {
     const w = P.posOf(p), key = w ? P.cellKey(w[0], w[1]) : '*';
     const rec = p.rec || p, input = clean(rec);
@@ -445,7 +452,7 @@ function cookPlaces(W, O, opt) {
   const hash = crypto.createHash('sha256'); for (const c of out) hash.update(c.key + ':').update(c.buf);
   const tbuf = Buffer.from(JSON.stringify({ v: 1, list: tallies }), 'utf8');
   return { cells: out, things: n, failed, ms: Date.now() - t0, hash: hash.digest('hex').slice(0, 16), lots, page: pageHash(),
-           tallies: { buf: tbuf, n: tallies.length, hash: crypto.createHash('sha256').update(tbuf).digest('hex').slice(0, 16) } };
+           ids: new Set(tallies.map(t => String(t[0]))), tallies: { buf: tbuf, n: tallies.length, hash: crypto.createHash('sha256').update(tbuf).digest('hex').slice(0, 16) } };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -463,7 +470,8 @@ function cook(id, opt) {
     const { W, O, rec } = composeVariant(id, V, fixtureText);
     const tc = Date.now() - t0;
     const R = opt.noRaster ? { cells: [], tiles: 0, nodes: 0, raw: 0, bakeMs: 0, worst: 0, anchors: [] } : cookRaster(O, PG, EVERYWHERE.has(V.name) ? Object.assign({}, opt, { everywhere: true }) : opt);
-    const Pl = opt.places === false ? null : cookPlaces(W, O, opt);
+    const base = placeSets.length && placeSets[0].P ? placeSets[0].P.ids : null;   // G2060: the first variant's entries first
+    const Pl = opt.places === false ? null : cookPlaces(W, O, base ? Object.assign({}, opt, { first: base }) : opt);
     if (Pl) { for (const c of Pl.cells) c.gz = zlib.gzipSync(c.buf, { level: LEVEL }); Pl.tallies.gz = zlib.gzipSync(Pl.tallies.buf, { level: LEVEL }); }
     for (const c of R.cells) {
       const key = c.ci + ',' + c.cj + ',' + c.sig;

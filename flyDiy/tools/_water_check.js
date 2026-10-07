@@ -321,8 +321,13 @@ console.log('\n5. THE FIELD');
   // nothing - so the ask is checked to EXPIRE: a flag nobody clears would be a field that never
   // stops. GATE ANIMALS rule 9 holds the other end (who sets it, and that the premises host is
   // the only thing that does).
-  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force \|\| wAsk\)/.test(app),
-    'without hydro the field runs only when the dev panel forces it, or something ASKS for it');
+  // THE FOURTH (G2090, WATER-LOOK): a landplane's WET BODY in contact (its belly, a tyre, a wing tip: the solver's
+  // wetFx records) asks for it too, and that ask EXPIRES as well - 10 s past the last contact read, set only where a
+  // read found contacts
+  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force \|\| wAsk \|\| wWet\)/.test(app) &&
+    /const wWet = waterFx && waterFx\.wetUntil > performance\.now\(\)/.test(app) &&
+    /if \(!n\) \{[^\n]*return false; \}\n\s*W\.any = true; waterFx\.wetUntil = performance\.now\(\) \+ 10000;/.test(app),
+    'without hydro the field runs only when the dev panel forces it, something ASKS for it, or the wet body is in contact (each ask expires)');
   verdict(/const wAsk = window\.WATER && WATER\.field && WATER\.field\.ask && performance\.now\(\) - WATER\.field\.ask < 500/.test(app),
     'the ask EXPIRES (half a second) and is read off window.WATER (a bare WATER throws where the layer is absent - GATE UISMOKE caught exactly that)');
 }

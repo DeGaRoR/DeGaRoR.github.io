@@ -273,6 +273,11 @@ console.log('GATE GFX');
   ok(D(phone).screen === 'gate' && D(ipad).screen === 'gate', 'a phone and a tablet get the device gate');
   ok(D(desk('', { webgl2: false })).screen === 'gate' && /WebGL2/.test(D(desk('', { webgl2: false })).why), 'a browser without WebGL2 gets the device gate');
   ok(D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) }).screen === 'none', '"try anyway" is remembered (no gate the next time)');
+  // G2100 (MOBILE-GARAGE 1): "Build on this phone" is remembered too, as the phone profile - and only on a phone
+  { const phoneRec = { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'laptop', tried: true, profile: 'phone' }) };
+    const dp = D(phone, phoneRec), dd = D(desk('NVIDIA GeForce RTX 3080'), phoneRec), dt = D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) });
+    ok(dp.screen === 'none' && dp.profile === 'phone' && !dd.profile && dt.profile === undefined && D(desk('NVIDIA GeForce RTX 3080')).profile === undefined,
+       '"build on this phone" remembered: the phone profile again with no gate; a desktop, "try anyway" and a first visit never get it'); }
   // THE RIGS NEVER SEE EITHER SCREEN
   const rigs = [{ webdriver: true, userAgent: 'Mozilla/5.0 Chrome/140' }, { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/140.0' }];
   ok(rigs.every(n => D(desk('NVIDIA GeForce RTX 3080'), {}, '', n).screen === 'none' && D(phone, {}, '', n).screen === 'none' && D(desk('', { webgl2: false }), {}, '', n).screen === 'none'),
@@ -292,7 +297,7 @@ console.log('GATE GFX');
   ok(rows.includes('this computer') && !rows2.includes('this computer'), 'the menu carries "re-check my computer" (not on the loading screen)');
   // the page: the welcome's block right after boot.js's, ahead of the vendor; the island loader waits on it
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makeAutopilot'), iL = html.indexOf('return window.FLYDIY_WELCOME;');
+  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makePilot('), iL = html.indexOf('return window.FLYDIY_WELCOME;');
   ok(iB > 0 && iW > iB && iW < iV && iL > iW && iL < html.indexOf("fetch('src/core/world_packs.json')"),
      'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
 }

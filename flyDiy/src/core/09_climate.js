@@ -479,6 +479,7 @@ var CLIMATE = (function () {
       if (!st || st.key == null) return false;
       convNow();
       if (convKey !== st.key) return false;
+      if (!windSpec) return false;                       // the worker's wind not set yet (potato log 5 Oct: null.base) - it builds its own
       conv = st.c ? convBuild(env.day, st.c.zi, st.c.cover, st.c.sinEl, st.c.T, st.c.rho, windSpec.base) : null;
       return true;
     }

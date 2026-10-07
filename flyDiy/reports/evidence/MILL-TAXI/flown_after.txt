@@ -1,0 +1,2 @@
+aluminium C172 air true t 84 minWing 3.13 item mn_s_mine/clinic at (7256.1, -15353.9) in TAXI, t 12 s contacts 0 null trunks 0 crashed false phases TAXI>STOP>HOLD>ROLL>LIFTOFF
+the user's Cub air true t 103 minWing 2.98 item mn_s_mine/clinic at (7255.8, -15353.9) in TAXI, t 13 s contacts 0 null trunks 0 crashed false phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND

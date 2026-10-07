@@ -48,7 +48,7 @@
 // Starts its own static server (tools/_serve.js) on the repo root (with --fallback for a worktree's
 // gitignored data) unless --url is given.
 // THE ROUTE AND THE WATER (G790, W-CHECK): --from <aerodrome id> [--dest <id>|CIRCUIT] starts the flight where the
-// page's own pickers would (the `flydiy.route` pref that #edRoute / #bootRoute / #selFrom write; a warm profile keeps
+// page's own pickers would (the `flydiy.route` pref that #edRoute / #bootRoute / #selDest write - G1945: v2, the From a `spawn`; a warm profile keeps
 // prefs, so every run states it: HOME / CIRCUIT by default) - a float build is placed on the SEA lane by the game
 // itself whatever the pick (app.js applyRoute). On floats every frame also carries the pilot's phase, V, the wet
 // floats (wheelsOnGround: 3 displacing, 2 on the step), and a WATER PHASE label read in the page: to-afloat /
@@ -187,6 +187,22 @@ const CHROME_FLAGS = argv.reduce((a, x, i) => (x === '--chrome-flag' && argv[i +
 // with --progwatch each row also carries [first seen at ms, ms to ready] (else two nulls), then the object/material wearing it
 const UDD_OPT = opt('udd', null);
 const PROGSRC = flag('progsrc');
+// THE WEAK RUNG (G1998, HW-COVERAGE - the user's GTX 1660 Ti laptop drew the stand at 4 fps; the step-down, gfx_settings.js
+// GFX.hw, is proven here on the box):
+// --cpu-throttle N   the page's main thread N x slower (CDP Emulation.setCPUThrottlingRate - the renderer's thread only;
+//                    the GPU process and the workers run at the box's speed), from before the navigation
+// --gpux K           THE GPU K x SLOWER, IN PROPORTION TO WHAT IS DRAWN: every opaque draw (blending off) issued K times
+//                    as ONE call - drawElements / drawArrays become their instanced twin with K instances (a program
+//                    with no per-instance attribute draws the same triangles K times, at the same depth: the same
+//                    picture, K x the vertex and fragment work, no extra call on the CPU), an instanced draw issued K
+//                    times. Blended draws once (K x would change the picture). A preset that draws less pays K x less
+//                    with it - which is what a step-down must show. window.__GPUX changes it live (1: the box as it is)
+// --gpux-at S        the multiplier from S seconds after the reveal only (the load at the box's speed)
+// The step-down stands down on localhost (the rigs' host): pass --q hwstep=1 to let it act; the JSON keeps
+// `hwstep` (GFX.hw.state() at the end, the step's own reading) and the GPU timer's median per 5 s window (`gpuWin`)
+const CPU_THROTTLE = +opt('cpu-throttle', 0) || 0;
+const GPUX = +opt('gpux', 0) || 0;
+const GPUX_AT = opt('gpux-at', null);
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
@@ -207,7 +223,8 @@ function preScript() {
   // "taxi" a take-off roll there) and an aeroplane that never left the stand (DEPART, 150 s) - different frames to measure
   lines.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
-  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: FROM, dest: DEST })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
+  // G1945 DEST-TO: the pref is v2 { base, to } - a --from that is not the base rides as the rigs' `spawn` (no picker has it)
+  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
   if (PROBE) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
   if (VARIANT === 'nomet') {
     const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
@@ -229,6 +246,16 @@ function preScript() {
   // the recorder's early half: long tasks from the first byte (buffered), and the boot's own clock
   lines.push(`(function(){ if (window.__RP) return; var R = window.__RP = { t0: performance.now(), lt: [], ev: [], waterGpu: ${WATER_GPU ? 'true' : 'false'} };
     try { new PerformanceObserver(function(l){ l.getEntries().forEach(function(e){ R.lt.push([Math.round(e.startTime), Math.round(e.duration)]); }); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+  })();`);
+  if (GPUX > 1) lines.push(`(function(){ if (window.__GPUXH || typeof WebGL2RenderingContext === 'undefined') return; window.__GPUXH = 1; window.__GPUX = ${GPUX_AT != null ? 1 : GPUX};
+    var P = WebGL2RenderingContext.prototype, BL = 0x0BE2, en = P.enable, dis = P.disable, de = P.drawElements, da = P.drawArrays, dei = P.drawElementsInstanced, dai = P.drawArraysInstanced, dre = P.drawRangeElements;
+    P.enable = function (c) { if (c === BL) this.__bl = true; return en.call(this, c); };
+    P.disable = function (c) { if (c === BL) this.__bl = false; return dis.call(this, c); };
+    P.drawElements = function (m, c, t, o) { var k = window.__GPUX | 0; return k > 1 && !this.__bl ? dei.call(this, m, c, t, o, k) : de.call(this, m, c, t, o); };
+    P.drawRangeElements = function (m, a, b, c, t, o) { var k = window.__GPUX | 0; return k > 1 && !this.__bl ? dei.call(this, m, c, t, o, k) : dre.call(this, m, a, b, c, t, o); };
+    P.drawArrays = function (m, f, c) { var k = window.__GPUX | 0; return k > 1 && !this.__bl ? dai.call(this, m, f, c, k) : da.call(this, m, f, c); };
+    P.drawElementsInstanced = function (m, c, t, o, n) { var k = window.__GPUX | 0; if (k > 1 && !this.__bl) for (var i = 1; i < k; i++) dei.call(this, m, c, t, o, n); return dei.call(this, m, c, t, o, n); };
+    P.drawArraysInstanced = function (m, f, c, n) { var k = window.__GPUX | 0; if (k > 1 && !this.__bl) for (var i = 1; i < k; i++) dai.call(this, m, f, c, n); return dai.call(this, m, f, c, n); };
   })();`);
   if (PRE) lines.push(PRE);
   return lines.join('\n');
@@ -362,13 +389,14 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: preScript() });
   await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
   await cmd('Page.bringToFront');
+  if (CPU_THROTTLE > 1) { await cmd('Emulation.setCPUThrottlingRate', { rate: CPU_THROTTLE }); console.log('  (the main thread throttled ' + CPU_THROTTLE + 'x)'); }   // G1998
   // --profile-boot (G680): a CPU profile of the garage boot, from the navigation to "ready", saved as <label>_boot.cpuprofile
   const PROFILE_BOOT = flag('profile-boot');
   if (PROFILE_BOOT) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
   const tNav = Date.now();
   await cmd('Page.navigate', { url: URL });
   await sleep(2000);
-  const boot = await ev("(() => Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 30000)), new Promise(r => setTimeout(() => r('boot timeout'), 240000))]))()", 250000);
+  const boot = await ev("(() => Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 30000)), new Promise(r => setTimeout(() => r('boot timeout'), " + (240000 * Math.max(1, CPU_THROTTLE, GPUX_AT != null ? 1 : GPUX)) + "))]))()", 250000 * Math.max(1, CPU_THROTTLE, GPUX_AT != null ? 1 : GPUX));   // G1998: a throttled load is longer
   const tGarage = (Date.now() - tNav) / 1000;
   console.log('rollout_perf [' + LABEL + '] ' + URL);
   console.log('  garage ready: ' + boot + ' after ' + tGarage.toFixed(1) + ' s');
@@ -437,6 +465,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     console.log('  profile, self:\n' + top(self, 25) + '\n  profile, inclusive:\n' + top(incl, 40));
   }
   const revealAt = await ev('performance.now()');
+  if (GPUX > 1 && GPUX_AT != null) { setTimeout(() => { ev('window.__GPUX = ' + GPUX + ', 1').catch(() => {}); console.log('  (the GPU proxy on: ' + GPUX + 'x, ' + GPUX_AT + ' s after the reveal)'); }, 1000 * +GPUX_AT); }   // G1998
   const tReveal = (Date.now() - tRoll) / 1000;
   console.log('  roll-out screen: ' + bs + ' after ' + tReveal.toFixed(1) + ' s');
   // G1117: THE ROLL-OUT SHOT PLAYED OUT (B10/G1064/G1115) - `rollout` (tReveal) is measured exactly as before, and the
@@ -655,6 +684,19 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // the premises stream's own account (G591: its dials, the slow builds [id, ms])
   premStream = null; try { premStream = JSON.parse(await ev("JSON.stringify(window.WORLD && WORLD.premises && WORLD.premises.streamState ? Object.assign({}, WORLD.premises.streamState, { stats: WORLD.premises.stats }) : null)", 20000)); } catch (e) {}
   if (premStream && premStream.slow && premStream.slow.length) console.log('  premises slow builds: ' + premStream.slow.slice().sort((a, b) => b[1] - a[1]).slice(0, 12).map(x => x[0] + ' ' + x[1]).join(', '));
+  // G1998: THE STEP-DOWN'S WORD (gfx_settings.js GFX.hw) and the frame around it: the delivered fps of the 8 s before the step and
+  // of the 8 s from 3 s after its settings screen lifted (the recovery), the GPU timer per 5 s window over the flight
+  let hwstep = null, gpuWin = null;
+  // (each read on its own, with a throttled page's time: a 20 s read of the whole event list timed out under --cpu-throttle 4)
+  try { hwstep = JSON.parse(await ev("JSON.stringify(window.GFX && GFX.hw ? Object.assign(GFX.hw.state(), { gfxEnd: GFX.get().preset }) : null)", 90000)); } catch (e) { console.log('  (hwstep: ' + (e && e.message) + ')'); }
+  try {
+    gpuWin = JSON.parse(await ev("JSON.stringify((() => { const R = window.FLIGHT_REC && FLIGHT_REC.rec; if (!R) return null; const o = []; let w = null; for (let f = Math.max(0, R.frame - 60000); f < R.frame; f++) { const r = R.row(f); if (!r || !(r.dt === r.dt)) continue; const k = Math.floor((r.t - " + revealAt + ") / 5000); if (!w || w.k !== k) { if (w) o.push(w); w = { k, s: k * 5, n: 0, dt: 0, g: [], tris: 0 }; } w.n++; w.dt += r.dt; if (r.gpu === r.gpu) w.g.push(r.gpu); w.tris = r.tris; } if (w) o.push(w); return o.map(w => { const g = w.g.sort((a, b) => a - b); return [w.s, +(1000 * w.n / w.dt).toFixed(1), g.length ? +g[g.length >> 1].toFixed(1) : null, +(w.tris / 1e6).toFixed(2)]; }); })())", 90000));
+    if (hwstep && hwstep.last) {
+      const L = hwstep.last, rel = x => +((x - revealAt) / 1000).toFixed(1);
+      console.log('  HWSTEP ' + L.from + ' -> ' + L.to + ' in the ' + L.kind + ' at ' + (L.t != null ? rel(L.t) + ' s after the reveal' : L.at) + ' · measured ' + L.fps + ' fps, GPU ' + L.gpuMs + ' ms, JS ' + L.workMs + ' ms');
+    } else if (hwstep) console.log('  HWSTEP none · ' + JSON.stringify({ on: hwstep.on, why: hwstep.why, kind: hwstep.kind, reading: hwstep.reading, explicit: hwstep.explicit }));
+    if (gpuWin) console.log('  per 5 s after the reveal [s, fps, GPU ms, M tris]: ' + gpuWin.map(w => w.join('/')).join(' '));
+  } catch (e) { console.log('  (hwstep: ' + (e && e.message) + ')'); }
   // CLOSED, NOT KILLED (G591): Chrome writes its GPU program cache on the way out; the taskkill /F alone left the warm
   // profile's cache without the programs a run compiled, so every 'warm' run linked them again (the compile step 15 -> 40 s)
   // ...AND WAITED FOR (2026-09-27, A2-SHADOW-SKY's find): a fixed 2.5 s then `taskkill /T /F` of the whole tree still cut
@@ -736,7 +778,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
