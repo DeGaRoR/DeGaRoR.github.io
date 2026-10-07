@@ -77,12 +77,6 @@ const SPLAT_GROUND = (() => {
   // full: the inspection's text too (the recolour's magenta mask) - the ground's production / full line (render_world
   // groundFull, COLD-LINKS G1311); the mask's uniform stays declared either way
   const glslCommon = full => `
-  // SPLAT_REG (G2075): the vote and the candidates in registers - the lean program's (the host defines it with SPLAT_ONE); the
-  // measuring strips regs / avrc (the arrays' vote, the registers' candidates) / rvac (the registers' vote, the arrays' candidates)
-  // put it in a full program - the bisect of the +4.5 s cold link it cost there
-#if (defined(GS_REGS) || defined(GS_AVRC) || defined(GS_RVAC)) && !defined(SPLAT_REG)
-#define SPLAT_REG 1
-#endif
   uniform highp sampler2DArray uSplat, uSplatN;
   uniform float uSplatOn;
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
@@ -109,9 +103,9 @@ const SPLAT_GROUND = (() => {
   uniform float uSBankLip;   // SHORES-2 G1959: the sea's step crest - how far (m) the bank's rock spills over it, ragged (0 = off)
   uniform vec4 uSBank2;  // SHORES-2 G1956: the bank's blend - x the ramp's widening each side (deg), y the noise's swing (deg), z its cell (m), w the sea's wet band (m of height)
   uniform float uSBeachRot;
-  uniform int uSNCode, uSNCand, uSNSlot, uSVoteR;   // uSNCand: the full programs' candidates (C[8]); G2075's lean program: uSNSlot the
-                                                    // candidate loop's bound (the codes x 2 passes), uSVoteR the vote's half width (2: 5 x 5)
-  vec3 gSN = vec3(0.0); float gSRough = 0.9; float gSHexRot;   // (defined for a pixel that skips the splat: G2075's apron) float gSFarOn = 0.0, gSNrmOn = 1.0;   // (GROUND-COST's hexfar / nrmcut strips)
+  uniform int uSNCode, uSNSlot, uSVoteR;   // G2075: uSNSlot the candidate loop's bound (the codes x 2 passes), uSVoteR the vote's half width (2: 5 x 5)
+  vec3 gSN = vec3(0.0); float gSRough = 0.9; float gSHexRot;   // (defined for a pixel that skips the splat: G2075's apron)
+  float gSFarOn = 0.0, gSNrmOn = 1.0;   // (GROUND-COST's hexfar / nrmcut strips)
   ${G.glsl}
   struct Smp { vec4 c; vec4 n; };
   vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
@@ -394,9 +388,11 @@ const SPLAT_GROUND = (() => {
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
     gSSlope = slope;   // the pools read it in sMat (2026-09-23)
     if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
-#if defined(SPLAT_REG) && !defined(GS_AVRC)
-    // (G2075: THE LEAN PROGRAM'S VOTE - the full programs keep the arrays below: in a program with three sets a type the
-    // registers linked 4-5 s slower cold under ANGLE/D3D (cold_links_bench 2026-10-06, the reason not yet bisected) - lean only)
+    // (G2078, THE USER'S TRADE, 2026-10-07 ~18:15: the registers in EVERY ground program, the full ones too - the 'current' ground
+    // ~-20 % (stand / taxi / air ~1-1.8 ms on the 3080) for a SLOWER COLD LINK of the full programs, named: the island ring alone
+    // 6.45 -> 8.3 s (cold_links_bench, 14:40), ~+2-4 s of wall with the four ground programs linking in parallel on a first visit
+    // at current and up. Bisected: the registers' vote ~+0.9 s, their candidates ~+0.95 s, no single culprit. The lean program
+    // (SPLAT_ONE) links in 3.5 s, half the arrays' 6.5)
     // THE VOTE IN REGISTERS (GROUND-COST G2075): the 5 x 5 kernel's codes gathered into five (code, weight) slots - no array
     // written at a computed index (w[code] += k: an indexable temp, local memory on D3D), the cell read by texelFetch (no
     // filter, no derivative). A sea cell is its own sum (its dry share, below); a lake cell votes as muskeg at once (it did
@@ -494,82 +490,6 @@ const SPLAT_GROUND = (() => {
       if (mv > 0.0) { if (k0 < 0) { k0 = 1; v0 = mv; } else if (k1 < 0) { k1 = 1; v1 = mv; } else if (k2 < 0) { k2 = 1; v2 = mv; } else if (k3 < 0) { k3 = 1; v3 = mv; } else if (k4 < 0) { k4 = 1; v4 = mv; }
  }   // (all five full - 0.03 % of kernels: the share is dropped, the blend normalises by what it keeps)
     }
-#else
-    float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
-    vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
-    vec2 b = floor(g), f = g - b;
-    float R = max(uSSplit2.w, 0.3), wsum = 0.0;
-    ivec2 gmax = ivec2(uGGrid.zw / uGCell + 0.5) - 1;
-    for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
-      vec2 o = vec2(float(i), float(j));
-      float d = length(o - f) / R;
-      if (d >= 1.0) continue;
-      float k = (1.0 - d) * (1.0 - d);
-      w[sCodeAt(ivec2(b + o), gmax)] += k; wsum += k;
-    }
-    // THE BANK'S ZONE AND ITS NOISE (SHORES-2 G1956): within the bank's reach of a lake's line or of the coast. The noise
-    // (two octaves of the hook's value noise, -0.5..0.5) breaks every edge the shore draws - the slope's ramp, the wet line,
-    // the sea's sand under the water - so none of them is a ruler line along a row of the mesh or a height over the water
-    float bR = max(uSBank.x, 1.0);
-    float bankZ = step(0.5, uSBank.x) * max((1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)),
-                                            (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd));
-    float bn = 0.0;
-    // (SHORES G1503, below: the sea's dry share is taken out of the normaliser - no loop of its own)
-    float w0r = w[0], landF = (wsum - w0r) / max(wsum, 1e-4);
-    float dry = smoothstep(-0.8, 0.3, vWPi.y) * smoothstep(0.02, 0.3, landF);
-    float wnrm = max(wsum - w0r * dry, 1e-4);
-    for (int i = 0; i < uSNCode; i++) w[i] /= wnrm;
-    // THE SEA VOTES AS SAND UNDER THE WATER ONLY (SHORES G1503, the user 2026-10-04: the island's banks against the sea "blend
-    // with an unknown texture/color reminding the sand, but without material. Messy, everything needs to have a proper ground
-    // cover"). A sea cell voted as the beach (4) everywhere: the 5 x 5 kernel carried that sand up to ~30 m onto EVERY coast -
-    // under the forest, over the rock, on the coast's steep rise, where its pale rippled set stretched. Over the waterline the
-    // sea's share now goes to the land's own codes round the pixel (shingle stays shingle, rock rock, the forest floor runs
-    // down to the water, a beach is the beach code's own); under it the bed is the sand it was (G460.5: the shallows show it)
-    // (the land's codes were normalised over wsum less the sea's dry share above: they carry it; the rest is the bed's sand)
-    w[4] += w[0] * (1.0 - dry); w[0] = 0.0;
-    float lakeM = 0.0;
-    if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
-    // a LAKE cell votes as its shore (muskeg, a muddy margin): the ground under and round the water is ground;
-    // the bed paint and the surface quad do the water (a voteless cell fell back to the stack's pale blue - the
-    // stair-step band round every lake)
-    w[3] += w[1]; w[1] = 0.0;
-    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope);
-    float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
-    float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
-    w[12] = w[6] * sCliff; w[6] *= 1.0 - sCliff;
-    w[13] = w[8] * sOld;   w[8] *= 1.0 - sOld;
-    w[14] = w[7] * sDense; w[7] *= 1.0 - sDense;
-    // THE CARVED BANK IS ROCK WHERE IT IS STEEP (SHORES G1500, the user 2026-10-04: the lake banks "read as steep, stretched
-    // slopes"). LAKE-HOLES carves the bed and its bank into the DEM (28_island lakeBed): within the bank's reach of a lake's
-    // line a face the carve made steep wore the hill's own grass or forest floor, and the macro's 10 m imagery (the tint, the
-    // radar) was laid on it from above - stretched down the face. There, past the slope's lo..hi, every code that is not
-    // already mineral hands its weight to the rocky shore (11: the dark foreshore, its pale stones and tufted upper shore - the island's own
-    // shore material; the cliff's pale rock read as a quarry ring round a lake); the macro gives way on it below
-    // (a texture from above has nothing to say about a face). A bank the carve left gentle keeps its ground.
-    // (SHORES G1503: and the sea's own rise - the DEM climbs off a coast the shelf meets at -5 m; its steep first metres wore
-    // the sea's sand, then the forest floor laid from above)
-    // SHORES-2 (the user, 2026-10-05: "the transitions with the other ground materials are much too harsh ... it's like you simply
-    // apply a setting to a cell, with no management of transitions and blending"): THE BANK IS ITS OWN CODE (17: its own rock,
-    // the world rail's) and its WEIGHT IS A SOFT RAMP - the slope it reads is the SMOOTH one (the vertex normals, glslMap: the
-    // flat facet's had cut the rock along the mesh's triangles - the user's sea_rocky saw-teeth and sea_shingle's straight top),
-    // widened by bankSoft each side and swung by the noise (bankJit deg), so the rock thins into the cover over metres along a
-    // ragged line; the codes' own height blend (the candidates below) then lets the taller texel win inside that ramp
-    float gSBank = 0.0, gSBankM = 0.0;
-    if (bankZ > 0.0) {   // (a uniform-bound loop under a branch most pixels skip: it linked faster than the same handover
-                         // written out code by code - cold_links_bench, SHORES G1505)
-      vec2 q = (xz + vWPi.y * vec2(0.71, -0.59)) / max(uSBank2.z, 0.5);   // (the height in it: on a face a noise of xz alone runs in vertical streaks)
-      bn = gVnoise(q * 0.21 - 5.1) * 0.45 + gVnoise(q) * 0.35 + gVnoise(q * 2.71 + 17.3) * 0.2 - 0.5;   // (three octaves: a far bank's edge is ragged too)
-      float sj = slope + bn * uSBank2.y;
-      gSBank = bankZ * smoothstep(uSBank.y - uSBank2.x, uSBank.z + uSBank2.x, sj);
-      // THE CREST OF THE SEA'S STEP (G1959): the land keeps its own height to the coastline and the shelf drops to -5 m just
-      // past it (28_island seaFloor), so the face's top is the first row of land vertices - a long line at one height. The
-      // rock spills over it by up to bankLip m, ragged, where the ground stands over the water (a real step, not a flat beach)
-      gSBank = max(gSBank, step(0.01, uSBankLip) * step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, max(uSBankLip, 0.02), sd + bn * uSBankLip * 1.2))
-                           * smoothstep(0.3, 1.0, vWPi.y) * 0.95);   // (no branch of its own: a branch is link time, COLD-LINKS)
-      gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
-      for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12) { w[1] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }   // (the bank rides slot 1: BANK_SLOT)
-    }
-#endif
 #ifdef GS_NOCOAST
     float seaAng = uSBeachRot;
 #else
@@ -598,7 +518,6 @@ const SPLAT_GROUND = (() => {
     if (uSDist2.z > 0.5) { vec2 a = pow(vec2(length(nTri.xz), abs(nTri.y)), vec2(uSDist2.z)); vec2 h = nTri.xz * nTri.xz; h *= h;
       float f = h.y / max(h.x + h.y, 1e-8); tw = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6); }
 #endif
-#if defined(SPLAT_REG) && !defined(GS_RVAC)
     // THE CANDIDATES IN REGISTERS (GROUND-COST G2075): the loop runs the CODES, two passes each (sMatPass: near, far), the bound a
     // uniform (uSNSlot = 17 codes x 2) - a code's weight read off the slots by comparison (no array), the derived codes (6 -> 12
     // cliff, 8 -> 13 old growth, 7 -> 14 dense scrub) their parent's share. BY CODE, NOT BY SLOT: a texture's derivatives are taken
@@ -614,24 +533,16 @@ const SPLAT_GROUND = (() => {
     float W0 = -1.0, W1 = -1.0, W2 = -1.0, W3 = -1.0, W4 = -1.0, W5 = -1.0, R0 = 0.0, R1 = 0.0, R2 = 0.0, R3 = 0.0, R4 = 0.0, R5 = 0.0;
     gSPoolM = 0.0; gSPoolD = 1.0;
 #ifndef GS_NOPOOLS
-#ifdef GS_AVRC
-    { float w3 = w[3], w7 = w[7];
-#else
     { float w3 = (k0 == 3 ? v0 : 0.0) + (k1 == 3 ? v1 : 0.0) + (k2 == 3 ? v2 : 0.0) + (k3 == 3 ? v3 : 0.0) + (k4 == 3 ? v4 : 0.0);
       float w7 = ((k0 == 7 ? v0 : 0.0) + (k1 == 7 ? v1 : 0.0) + (k2 == 7 ? v2 : 0.0) + (k3 == 7 ? v3 : 0.0) + (k4 == 7 ? v4 : 0.0)) * (1.0 - sDense);
-#endif
       if (uSPud.y > 0.0 && (w3 >= 0.004 || w7 >= 0.004)) sPools(vWPi); }
 #endif
     for (int j = 0; j < uSNSlot; j++) {
       int code = j / 2;
       int pc = code == 12 ? 6 : (code == 13 ? 8 : (code == 14 ? 7 : code));   // the slot a derived code's weight comes from
       float spl = pc == 6 ? sCliff : (pc == 8 ? sOld : (pc == 7 ? sDense : 0.0));
-#ifdef GS_AVRC
-      float wt = w[code];
-#else
       float kv = (k0 == pc ? v0 : 0.0) + (k1 == pc ? v1 : 0.0) + (k2 == pc ? v2 : 0.0) + (k3 == pc ? v3 : 0.0) + (k4 == pc ? v4 : 0.0);
       float wt = kv * (code == pc ? 1.0 - spl : spl);
-#endif
       // the six heaviest types are kept (an empty register reads -1): a seventh replaces the lightest when it weighs more
 #ifdef GS_CAND4
       float wmin = min(min(W0, W1), min(W2, W3));
@@ -664,39 +575,6 @@ const SPLAT_GROUND = (() => {
     rel = tot > 1e-5 ? rel / tot : 1.0;
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
-#else
-#ifdef GS_RVAC
-    float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
-    for (int s5 = 0; s5 < 5; s5++) { int kc = s5 == 0 ? k0 : (s5 == 1 ? k1 : (s5 == 2 ? k2 : (s5 == 3 ? k3 : k4))); float kv = s5 == 0 ? v0 : (s5 == 1 ? v1 : (s5 == 2 ? v2 : (s5 == 3 ? v3 : v4)));
-      if (kc >= 0) { float spl = kc == 6 ? sCliff : (kc == 8 ? sOld : (kc == 7 ? sDense : 0.0)); w[kc] += kv * (1.0 - spl);
-        if (spl > 0.0) w[kc == 6 ? 12 : (kc == 8 ? 13 : 14)] += kv * spl; } }
-#endif
-    vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
-    // NO CONTINUE IN THIS LOOP (PERF 2026-09-23): ANGLE's D3D back end makes a gradient-free copy ('Lod0',
-    // SampleLevel 0) of every function that samples a texture when it is called inside a loop holding a break or
-    // a continue - the splat's every set was read at MIP 0 at every distance: shimmer, and a texture cache blown
-    // on every ground pixel past a few hundred metres. The same test as an if-block keeps the derivatives.
-    // two passes a terrain type (sMatPass: near, far), the bound still a uniform
-    gSPoolM = 0.0; gSPoolD = 1.0;
-    if (uSPud.y > 0.0 && (w[3] >= 0.004 || w[7] >= 0.004)) sPools(vWPi);   // the pools' mask (G1312: out of the loop)
-    for (int j = 0; j < uSNCode * 2; j++) {
-      int i = j / 2;
-      if (w[i] >= 0.004 && n < uSNCand && sMatPass(i, j - i * 2, vWPi, tw, seaAng, fw, slope)) {
-        Smp m = gSOut;
-        C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
-      }
-    }
-    ma -= uSSeam.x;
-    vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0, rel = 0.0;
-    for (int j = 0; j < uSNCand; j++) {
-      if (j >= n) break;
-      float bb = max(C[j].a + Wt[j] - ma, 0.0);
-      col += C[j].rgb * bb; nrm += NN[j] * bb; rel += Rl[j] * bb; tot += bb;
-    }
-    rel = tot > 1e-5 ? rel / tot : 1.0;
-    col = tot > 1e-5 ? col / tot : macro;
-    nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
-#endif
     // THE DETAIL'S CONTRAST BY DISTANCE (the world rail, 2026-09-24; the user: "how noisy detailed textures appear"):
     // the texel over its set's mean (rel) raised to a power - 1 as shipped, under 1 the texture's grain flattens toward
     // the set's own colour. Near and far values, faded between two distances: the pebbles keep their grain at the wheel
@@ -938,7 +816,7 @@ const SPLAT_GROUND = (() => {
     // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
     // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
     // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
-    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|regs|avrc|rvac|nohomog|nrmcut)$/;
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nohomog|nrmcut)$/;
     let strips = [];
     try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {
@@ -978,7 +856,7 @@ const SPLAT_GROUND = (() => {
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBank: { value: V4() }, uSBank2: { value: V4() }, uSBankLip: { value: 0 },
-      uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 }, uSNSlot: { value: NCODE * 2 }, uSVoteR: { value: 2 },
+      uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNSlot: { value: NCODE * 2 }, uSVoteR: { value: 2 },
     };
     let ready = false;
     const push = () => {

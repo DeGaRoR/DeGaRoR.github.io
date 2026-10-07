@@ -133,7 +133,7 @@ function checkRecipe(G, splatSrc, quiet) {
   // the per-code arrays need not grow: `const BANK = 17, BANK_SLOT = 1` in splat_ground.js; the slot must be one the vote empties)
   const AL = splatSrc.match(/const BANK = (\d+), BANK_SLOT = (\d+);/), aliased = AL ? [+AL[1]] : [];
   const top = Math.max(...codes.filter(c => !aliased.includes(c)));
-  say(!!NC && +NC[1] > top && +NC[2] >= R.library.length && (!AL || (+AL[2] === 1 && /w\[3\] \+= w\[1\]; w\[1\] = 0\.0;/.test(splatSrc))),
+  say(!!NC && +NC[1] > top && +NC[2] >= R.library.length && (!AL || (+AL[2] === 1 && /if \(c == 1\) c = 3;/.test(splatSrc))),
       `the shader's constants hold them: NCODE ${NC && NC[1]} > ${top}${AL ? ' (code ' + AL[1] + ' rides slot ' + AL[2] + ' (the lake slot), emptied by the vote)' : ''}, NLIB ${NC && NC[2]} >= ${R.library.length}`);
   let bad = [];
   for (const c of codes) {
@@ -243,12 +243,13 @@ function checkShader(G, splice, quiet) {
   say((glsl.match(/texture\(uSplat,/g) || []).length >= 1 && (glsl.match(/texture\(uSplatN,/g) || []).length >= 1, 'the arrays read with implicit texture()');
   // THE LEAN PROGRAM'S OWN TEXT (G2075: #ifdef SPLAT_ONE ... #else - the full programs keep the arrays, the lean one the registers)
   const lean = oneVariant(glslAll, true);
-  say(/for \(int i = 0; i < uSNCode; i\+\+\)/.test(glsl) && /for \(int j = 0; j < uSNCand; j\+\+\)/.test(glsl), 'the full programs\' code and candidate loops bound by uniforms (uSNCode, uSNCand)');
-  say(/for \(int j = 0; j < uSNSlot; j\+\+\) \{[\s\S]{0,1500}?sMatPass\(/.test(lean), 'the lean program\'s candidate loop bound by a uniform (uSNSlot) - unrolled it inlines the material chain per iteration');
+  // (G2078, the user's trade 2026-10-07: the registers in every ground program - the full ones' cold link +~2 s, named in HANDOVER)
+  for (const [nm, tx] of [['full', glsl], ['lean', lean]])
+    say(/for \(int j = 0; j < uSNSlot; j\+\+\) \{[\s\S]{0,1500}?sMatPass\(/.test(tx), `the ${nm} program's candidate loop bound by a uniform (uSNSlot) - unrolled it inlines the material chain per iteration`);
   say(!/for \(int j = 0; j < \d+; j\+\+\) \{[^{}]*sMatPass\(/.test(glsl), 'no constant-bound loop over the candidates');
   // THE VOTE IN REGISTERS (GROUND-COST G2075): a local array written at a computed index (w[code] += k, C[n] = ...) is an
   // indexable temp under ANGLE/D3D - local memory: the slots measured 1.76 ms of the 6.57 the lean ground drew from 300 m (3080)
-  say(lean.length > 2000 && !/\bfloat\s+w\s*\[|\bvec4\s+(C|NN)\s*\[|\bfloat\s+(Wt|Rl)\s*\[/.test(lean), 'no local arrays in the lean program\'s vote or candidates (the slots and six registers)');
+  say(lean.length > 2000 && !/\bfloat\s+w\s*\[|\bvec4\s+(C|NN)\s*\[|\bfloat\s+(Wt|Rl)\s*\[/.test(glslAll), 'no local arrays in the vote or the candidates, any program (the slots and six registers)');
   say(/if \(cc >= 128\) \{/.test(lean) && /int sCodeAt\(ivec2 cell, ivec2 gmax\)\{[\s\S]{0,160}& 127, 16\);/.test(glsl), 'the one-code cell votes with one tap (bit 7), every code read masks the bit');
   // FEW CALL SITES, NO NESTED LOOP (G568): HLSL inlines every call site - the old chain's 144 inlined fetches were
   // a 412 KB program and a 110-220 s COLD compile per ground program under ANGLE/D3D11; a loop holding the sets
@@ -403,8 +404,8 @@ function checkShader(G, splice, quiet) {
       say(/uSPud2\.w > 0\.01\) m \*= clamp\(\(uSPud2\.w - gSSlope\)/.test(G.glsl + splice.glslCommon), 'the shader gates the pools by the ground slope (gSSlope)');
       say(/K\.pudFlat > 0\.01[\s\S]{0,400}?Math\.atan\(Math\.hypot\(gx, gz\)\)/.test(rw), 'render_world runs the SAME ramp on the CPU, so the tufts and the debris agree'); }
   }
-  say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNCand.value >= 1 && splice.uniforms.uSNCand.value <= 8 && splice.uniforms.uSNSlot.value === 2 * splice.uniforms.uSNCode.value,
-      `uSNCode ${splice.uniforms.uSNCode.value}, uSNCand ${splice.uniforms.uSNCand.value} (C[8]), uSNSlot ${splice.uniforms.uSNSlot.value} (the lean program's codes x 2 passes: by code - a quad's neighbours sample a type in the same iteration)`);
+  say(splice.uniforms.uSNCode.value > 14 && splice.uniforms.uSNSlot.value === 2 * splice.uniforms.uSNCode.value,
+      `uSNCode ${splice.uniforms.uSNCode.value}, uSNSlot ${splice.uniforms.uSNSlot.value} (the codes x 2 passes: by code - a quad's neighbours sample a type in the same iteration)`);
   if (!quiet) for (const [ok, line] of out) verdict(ok, line);
   return out.every(x => x[0]);
 }
@@ -442,7 +443,7 @@ function checkMineral(quiet) {
   vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/splat_ground.js'), 'utf8'), ctx, { filename: 'splat_ground.js' });
   const gU = {};
   for (const k of ['uSMatA', 'uSMatS', 'uSMatM', 'uSMatF', 'uSMatFS', 'uSVary', 'uSLum', 'uSplat', 'uSplatN', 'uSDist', 'uSDist2',
-                   'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNCand', 'uSNSlot', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
+                   'uSSeam', 'uSHex', 'uSPud', 'uSSplit', 'uSSplit2', 'uSNrm', 'uSNCode', 'uSNSlot', 'uSNearN', 'uSFarN', 'uSplatOn', 'uSGrade', 'uSLib']) gU[k] = { value: new V4c() };
   const SP = ctx.SPLAT_GROUND.make(gU, W.island);
   // THE ARRAYS HOLD WHAT THE MAP CAN REACH (AS1, G908): the codes on Jolene's grid (sea -> 4, lake -> 3, the three
   // derived) name their near and far sets; the rest of the library is not fetched, drawn or uploaded
