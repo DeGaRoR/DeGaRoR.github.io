@@ -153,12 +153,20 @@
     return ray.rc;
   }
   function floorHit(rc) {
-    // the ray in the card's frame, met with the plane y = the hold's floor
+    // the ray in the card's frame, met with the hold's floor: the lowest floor first, then the floor at the station
+    // it lands on (twice - the floor rises fore and aft); the plain floor level beyond the hold's ends
     const o = rc.ray.origin.clone().applyMatrix4(Minv), d = rc.ray.direction.clone().transformDirection(Minv);
     if (Math.abs(d.y) < 1e-6) return null;
-    const t = (floorY - o.y) / d.y;
-    if (t < 0) return null;
-    return { x: o.x + d.x * t, z: o.z + d.z * t };
+    const Hd = card.hold;
+    let y = floorY, p = null;
+    for (let k = 0; k < 3; k++) {
+      const t = (y - o.y) / d.y;
+      if (t < 0) return p;
+      p = { x: o.x + d.x * t, z: o.z + d.z * t };
+      const i = Math.max(0, Math.min(Hd.n, Math.round((p.x - Hd.x0) / Hd.dx)));
+      y = Hd.y0 + Hd.floor[i] / 100;
+    }
+    return p;
   }
   function itemHit(rc) {
     const list = [];
@@ -376,8 +384,16 @@ html.phone body.fr-loading #c{position:fixed;left:0;top:0;width:100vw !important
     // the phone (portrait, the bar over the lower ~40 %): farther, lower (under the high wing), the hold lifted into the
     // upper half by aiming below it
     const dist = ph ? Math.max(6.5, len * 3.1) : Math.max(4.2, len * 1.8);
-    if (ph) c.y -= dist * Math.tan(((host.camera().fov || 46) * Math.PI) / 360) * 0.4;
-    host.look(c, Math.atan2(zw.z, zw.x) - 0.12, ph ? 0.1 : 0.32, dist);
+    let elev = 0.32;
+    if (ph) {
+      // the eye ~1.1 m over the floor (under a high wing, above the floor plane the pointer is met on), looking down
+      // past the hold so the hold sits in the upper part of the screen
+      const eyeY = new T.Vector3(0, floorY + 1.1, 0).applyMatrix4(M).y, holdY = c.y;
+      c.y -= dist * Math.tan(((host.camera().fov || 46) * Math.PI) / 360) * 0.45;
+      elev = Math.asin(Math.max(-0.9, Math.min(0.9, (eyeY - c.y) / dist)));
+      void holdY;
+    }
+    host.look(c, Math.atan2(zw.z, zw.x) - 0.12, elev, dist);
     host.ui(true);
     if (!bar) buildBar(); else if (!bar.parentNode) D.body.appendChild(bar);
     D.body.classList.add('fr-loading');

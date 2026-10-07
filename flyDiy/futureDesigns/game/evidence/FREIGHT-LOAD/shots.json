@@ -1,0 +1,618 @@
+{
+ "what": "FREIGHT-LOAD stills (G2345): a loaded page only (BOOT gone, #boot hidden, + 2 s)",
+ "renderer": "SwiftShader (headless Chromium)",
+ "fails": [],
+ "shots": [
+  {
+   "group": "sandbox",
+   "name": "sandbox",
+   "note": "no flag: no loading view",
+   "door": false,
+   "entry": false
+  },
+  {
+   "group": "career",
+   "name": "career_cub_tools",
+   "file": "freight_career_cub_tools.jpg",
+   "note": "the career: the tracked contract's load (35 kg of tools, the tool chests) proposed in the Cub",
+   "boot": "gone",
+   "open": true,
+   "card": "cub",
+   "placed": [
+    "tools.1 x 0.9-1.2 z -0.3 [cabin]",
+    "tools.2 x 1.2-1.55 z -0.3 [cabin]"
+   ],
+   "seatsOut": [],
+   "pax": 0,
+   "report": {
+    "kg": 501.195,
+    "mtow": 556.195,
+    "massOk": true,
+    "cg": 23.07,
+    "range": [
+     20.706,
+     37.412
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 0,
+     "limit": 10,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": []
+   },
+   "bar": "LOADING · Tools for Tamgas Hill Strip · Cub ✕ mass 501 / 556 kg CG 23.1 % MAC (21–37) floor 97 / 300 kg/m² baggage 0 / 10 kg 2 of 2 aboard, 35 kg SEAT 2 IN within every limit PROPOSE AGAIN ACCEPT",
+   "red": 0,
+   "check": {
+    "x": 1.5000000000000002,
+    "skin": {
+     "roof": 0.673,
+     "under": -0.5,
+     "side": 0.377
+    },
+    "hold": {
+     "floor": -0.28,
+     "top": 0.6,
+     "half": 0.34
+    }
+   }
+  },
+  {
+   "group": "career",
+   "name": "career_accepted",
+   "file": "freight_career_accepted.jpg",
+   "note": "Accept: the placement in the career's record (career.load), the plate's cargo is the items'",
+   "boot": "gone",
+   "open": true,
+   "card": "cub",
+   "placed": [
+    "tools.1 x 0.9-1.2 z -0.3 [cabin]",
+    "tools.2 x 1.2-1.55 z -0.3 [cabin]"
+   ],
+   "seatsOut": [],
+   "pax": 0,
+   "report": {
+    "kg": 501.195,
+    "mtow": 556.195,
+    "massOk": true,
+    "cg": 23.07,
+    "range": [
+     20.706,
+     37.412
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 0,
+     "limit": 10,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": []
+   },
+   "bar": "LOADING · Tools for Tamgas Hill Strip · Cub ✕ mass 501 / 556 kg CG 23.1 % MAC (21–37) floor 97 / 300 kg/m² baggage 0 / 10 kg 2 of 2 aboard, 35 kg SEAT 2 IN PROPOSE AGAIN ACCEPT accepted · 2 items, 35 kg in the career's record (Scout)",
+   "red": 0,
+   "check": {
+    "x": 1.5000000000000002,
+    "skin": {
+     "roof": 0.673,
+     "under": -0.5,
+     "side": 0.377
+    },
+    "hold": {
+     "floor": -0.28,
+     "top": 0.6,
+     "half": 0.34
+    }
+   },
+   "record": {
+    "load": {
+     "v": 1,
+     "slot": "Scout",
+     "design": "cub",
+     "contract": "job:field:0:0",
+     "stage": 0,
+     "sub": 0,
+     "pax": 0,
+     "seatsOut": [],
+     "items": [
+      {
+       "id": "tools.1",
+       "kind": "box",
+       "kg": 17.5,
+       "dims": [
+        0.6,
+        0.35,
+        0.3
+       ],
+       "at": {
+        "x0": 0.9,
+        "x1": 1.2,
+        "y0": -0.31,
+        "y1": 0.04,
+        "z0": -0.3,
+        "z1": 0.3
+       },
+       "on": null,
+       "space": "cabin"
+      },
+      {
+       "id": "tools.2",
+       "kind": "box",
+       "kg": 17.5,
+       "dims": [
+        0.6,
+        0.35,
+        0.3
+       ],
+       "at": {
+        "x0": 1.2,
+        "x1": 1.55,
+        "y0": -0.28,
+        "y1": 0.02,
+        "z0": -0.3,
+        "z1": 0.3
+       },
+       "on": null,
+       "space": "cabin"
+      }
+     ],
+     "ashore": [],
+     "kg": 35,
+     "mass": 501.195,
+     "cg": {
+      "x": 0.677,
+      "pct": 23.07
+     },
+     "ok": true,
+     "why": []
+    },
+    "cargo": 35,
+    "strap": [
+     {
+      "id": "tools.1",
+      "kg": 17.5,
+      "c": [
+       1.05,
+       -0.135,
+       0
+      ]
+     },
+     {
+      "id": "tools.2",
+      "kg": 17.5,
+      "c": [
+       1.375,
+       -0.13,
+       0
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "group": "phone",
+   "name": "phone",
+   "file": "freight_phone.jpg",
+   "note": "the phone: the same view - the C172, 60 kg of mail + a passenger; the bar at the foot, 48 px targets",
+   "boot": "gone",
+   "open": true,
+   "card": "c172",
+   "placed": [
+    "mail.1 x 1.85-2.25 z -0.325 [baggage]",
+    "mail.2 x 0.75-1.15 z -0.325 [cabin]",
+    "mail.3 x 2.25-2.65 z -0.325 [baggage]"
+   ],
+   "seatsOut": [],
+   "pax": 1,
+   "report": {
+    "kg": 903.41,
+    "mtow": 1043.41,
+    "massOk": true,
+    "cg": 30.353,
+    "range": [
+     27.976,
+     36.19
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 40,
+     "limit": 40,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · metal Cessna 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 903 / 1 043 kg CG 30.4 % MAC (28–36) floor 77 / 100 kg/m² baggage 40 / 40 kg 3 of 3 aboard, 60 kg · 1 passenger SEAT 3 IN SEAT 4 IN within every limit PROPOSE ACCEPT",
+   "red": 0,
+   "check": {
+    "x": 1.7,
+    "skin": {
+     "roof": 0.761,
+     "under": -0.585,
+     "side": 0.593
+    },
+    "hold": {
+     "floor": -0.39,
+     "top": 0.75,
+     "half": 0.56
+    }
+   }
+  },
+  {
+   "group": "phone",
+   "name": "phone_picked",
+   "file": "freight_phone_picked.jpg",
+   "note": "tap: mail.2 picked (amber), the bar says what it is and to tap where it goes",
+   "boot": "gone",
+   "open": true,
+   "card": "c172",
+   "placed": [
+    "mail.1 x 1.85-2.25 z -0.325 [baggage]",
+    "mail.2 x 0.75-1.15 z -0.325 [cabin]",
+    "mail.3 x 2.25-2.65 z -0.325 [baggage]"
+   ],
+   "seatsOut": [],
+   "pax": 1,
+   "report": {
+    "kg": 903.41,
+    "mtow": 1043.41,
+    "massOk": true,
+    "cg": 30.353,
+    "range": [
+     27.976,
+     36.19
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 40,
+     "limit": 40,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · metal Cessna 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 903 / 1 043 kg CG 30.4 % MAC (28–36) floor 77 / 100 kg/m² baggage 40 / 40 kg 3 of 3 aboard, 60 kg · 1 passenger SEAT 3 IN SEAT 4 IN mail.2 · 20 kg · 65 × 40 × 30 cm · on the cabin floor — tap where it goes PROPOSE TURN UNLOAD ACCEPT",
+   "red": 0,
+   "check": {
+    "x": 1.7,
+    "skin": {
+     "roof": 0.761,
+     "under": -0.585,
+     "side": 0.593
+    },
+    "hold": {
+     "floor": -0.39,
+     "top": 0.75,
+     "half": 0.56
+    }
+   }
+  },
+  {
+   "group": "phone",
+   "name": "phone_placed",
+   "file": "freight_phone_placed.jpg",
+   "note": "tap: the sack from the cabin floor placed at the back of the baggage bay",
+   "boot": "gone",
+   "open": true,
+   "card": "c172",
+   "placed": [
+    "mail.1 x 1.85-2.25 z -0.325 [baggage]",
+    "mail.3 x 2.25-2.65 z -0.325 [baggage]",
+    "mail.2 x 2.7-3.1 z -0.325 [baggage]"
+   ],
+   "seatsOut": [],
+   "pax": 1,
+   "report": {
+    "kg": 903.41,
+    "mtow": 1043.41,
+    "massOk": true,
+    "cg": 32.923,
+    "range": [
+     27.976,
+     36.19
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 60,
+     "limit": 40,
+     "ok": false
+    },
+    "ok": false,
+    "why": [
+     "60 kg in the baggage bay, the placard says 40"
+    ],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · metal Cessna 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 903 / 1 043 kg CG 32.9 % MAC (28–36) floor 77 / 100 kg/m² baggage 60 / 40 kg 3 of 3 aboard, 60 kg · 1 passenger SEAT 3 IN SEAT 4 IN mail.2 placed 60 kg in the baggage bay, the placard says 40 PROPOSE ACCEPT",
+   "red": 2,
+   "check": {
+    "x": 1.7,
+    "skin": {
+     "roof": 0.761,
+     "under": -0.585,
+     "side": 0.593
+    },
+    "hold": {
+     "floor": -0.39,
+     "top": 0.75,
+     "half": 0.56
+    }
+   }
+  },
+  {
+   "group": "desk",
+   "name": "cub_crates",
+   "file": "freight_cub_crates.jpg",
+   "note": "the Cub, 120 kg of crated parts: the packer's proposal - one crate aboard behind the pilot, the other on the ground (the seats in)",
+   "boot": "gone",
+   "open": true,
+   "card": "cub",
+   "placed": [
+    "parts.1 x 0.9-1.7 z -0.3 [cabin]"
+   ],
+   "seatsOut": [],
+   "pax": 0,
+   "report": {
+    "kg": 526.195,
+    "mtow": 556.195,
+    "massOk": true,
+    "cg": 25.153,
+    "range": [
+     20.706,
+     37.412
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 0,
+     "limit": 10,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": [
+     "parts.2"
+    ]
+   },
+   "bar": "LOADING · test load · Cub 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 526 / 556 kg CG 25.2 % MAC (21–37) floor 125 / 300 kg/m² baggage 0 / 10 kg 1 of 2 aboard, 60 kg · 1 on the ground (parts.2) SEAT 2 IN within every limit PROPOSE AGAIN ACCEPT",
+   "red": 1,
+   "check": {
+    "x": 1.5000000000000002,
+    "skin": {
+     "roof": 0.673,
+     "under": -0.5,
+     "side": 0.377
+    },
+    "hold": {
+     "floor": -0.28,
+     "top": 0.6,
+     "half": 0.34
+    }
+   }
+  },
+  {
+   "group": "desk",
+   "name": "cub_seat_out",
+   "file": "freight_cub_seat_out.jpg",
+   "note": "the empty rear seat taken out (the cage's chair hides), Propose again: both crates aboard, 30 kg over the MTOW - red, allowed",
+   "boot": "gone",
+   "open": true,
+   "card": "cub",
+   "placed": [
+    "parts.1 x 0.9-1.7 z -0.3 [cabin]",
+    "parts.2 x 1.7-2.5 z -0.25 [cabin]"
+   ],
+   "seatsOut": [
+    1
+   ],
+   "pax": 0,
+   "report": {
+    "kg": 586.195,
+    "mtow": 556.195,
+    "massOk": false,
+    "cg": 33.506,
+    "range": [
+     20.706,
+     37.412
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 0,
+     "limit": 10,
+     "ok": true
+    },
+    "ok": false,
+    "why": [
+     "30 kg over the MTOW (556.195 kg)"
+    ],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · Cub 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 586 / 556 kg CG 33.5 % MAC (21–37) floor 150 / 300 kg/m² baggage 0 / 10 kg 2 of 2 aboard, 120 kg SEAT 2 OUT the packer's answer 30 kg over the MTOW (556.195 kg) PROPOSE AGAIN ACCEPT",
+   "red": 2,
+   "check": {
+    "x": 1.5000000000000002,
+    "skin": {
+     "roof": 0.673,
+     "under": -0.5,
+     "side": 0.377
+    },
+    "hold": {
+     "floor": -0.28,
+     "top": 0.6,
+     "half": 0.34
+    }
+   }
+  },
+  {
+   "group": "desk",
+   "name": "c172_mail_pax",
+   "file": "freight_c172_mail_pax.jpg",
+   "note": "the C172, 60 kg of mail sacks + a passenger: the passenger's envelope (cyan) beside the pilot, the sacks behind",
+   "boot": "gone",
+   "open": true,
+   "card": "c172",
+   "placed": [
+    "mail.1 x 1.85-2.25 z -0.325 [baggage]",
+    "mail.2 x 0.75-1.15 z -0.325 [cabin]",
+    "mail.3 x 2.25-2.65 z -0.325 [baggage]"
+   ],
+   "seatsOut": [],
+   "pax": 1,
+   "report": {
+    "kg": 903.41,
+    "mtow": 1043.41,
+    "massOk": true,
+    "cg": 30.353,
+    "range": [
+     27.976,
+     36.19
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 40,
+     "limit": 40,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · metal Cessna 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 903 / 1 043 kg CG 30.4 % MAC (28–36) floor 77 / 100 kg/m² baggage 40 / 40 kg 3 of 3 aboard, 60 kg · 1 passenger SEAT 3 IN SEAT 4 IN within every limit PROPOSE AGAIN ACCEPT",
+   "red": 0,
+   "check": {
+    "x": 1.7,
+    "skin": {
+     "roof": 0.761,
+     "under": -0.585,
+     "side": 0.593
+    },
+    "hold": {
+     "floor": -0.39,
+     "top": 0.75,
+     "half": 0.56
+    }
+   }
+  },
+  {
+   "group": "desk",
+   "name": "c172_drag",
+   "file": "freight_c172_drag.jpg",
+   "note": "a sack dragged with the mouse into the baggage bay (snapped on the stations)",
+   "boot": "gone",
+   "open": true,
+   "card": "c172",
+   "placed": [
+    "mail.1 x 1.85-2.25 z -0.325 [baggage]",
+    "mail.2 x 0.75-1.15 z -0.325 [cabin]",
+    "mail.3 x 2.25-2.65 z -0.325 [baggage]"
+   ],
+   "seatsOut": [],
+   "pax": 1,
+   "report": {
+    "kg": 903.41,
+    "mtow": 1043.41,
+    "massOk": true,
+    "cg": 30.353,
+    "range": [
+     27.976,
+     36.19
+    ],
+    "cgOk": true,
+    "floorOk": true,
+    "bag": {
+     "kg": 40,
+     "limit": 40,
+     "ok": true
+    },
+    "ok": true,
+    "why": [],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · metal Cessna 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 903 / 1 043 kg CG 30.4 % MAC (28–36) floor 77 / 100 kg/m² baggage 40 / 40 kg 3 of 3 aboard, 60 kg · 1 passenger SEAT 3 IN SEAT 4 IN mail.1 overhangs the mail.3: it would not stand PROPOSE AGAIN ACCEPT",
+   "red": 1,
+   "check": {
+    "x": 1.7,
+    "skin": {
+     "roof": 0.761,
+     "under": -0.585,
+     "side": 0.593
+    },
+    "hold": {
+     "floor": -0.39,
+     "top": 0.75,
+     "half": 0.56
+    }
+   }
+  },
+  {
+   "group": "desk",
+   "name": "c172_red",
+   "file": "freight_c172_red.jpg",
+   "note": "the C172's rear seats out and its two crates pushed aft into the baggage bay: the CG aft of the certified range, the placard and the floor - red, and the placement stands",
+   "boot": "gone",
+   "open": true,
+   "card": "c172",
+   "placed": [
+    "parts.2 x 2.3-2.9 z -0.4 [baggage]",
+    "parts.1 x 1.7-2.3 z -0.4 [baggage]"
+   ],
+   "seatsOut": [
+    2,
+    3
+   ],
+   "pax": 0,
+   "report": {
+    "kg": 883.41,
+    "mtow": 1043.41,
+    "massOk": true,
+    "cg": 40.056,
+    "range": [
+     27.976,
+     36.19
+    ],
+    "cgOk": false,
+    "floorOk": false,
+    "bag": {
+     "kg": 120,
+     "limit": 40,
+     "ok": false
+    },
+    "ok": false,
+    "why": [
+     "the CG 40.056 % MAC is aft of the certified 27.976-36.19 %",
+     "parts.2: 125 kg/m2 on the baggage floor (100)",
+     "parts.1: 125 kg/m2 on the baggage floor (100)",
+     "120 kg in the baggage bay, the placard says 40"
+    ],
+    "ashore": []
+   },
+   "bar": "LOADING · test load · metal Cessna 120 kg of crated parts 60 kg of crated parts 60 kg of mail + a passenger 80 kg of tools 90 kg of supplies (sacks) 100 kg of ore samples a 165 kg fuel drum Cub Jodel metal Cessna Cessna floats ✕ mass 883 / 1 043 kg CG 40.1 % MAC (28–36) floor 125 / 100 kg/m² baggage 120 / 40 kg 2 of 2 aboard, 120 kg SEAT 2 IN SEAT 3 OUT SEAT 4 OUT parts.1 moved the CG 40.056 % MAC is aft of the certified 27.976-36.19 % · parts.2: 125 kg/m2 on the baggage floor (100) · parts.1: 125 kg/m2 on the baggage floor (100) · 120 kg in the baggage bay, the placard says 40 PROPOSE AGAIN A",
+   "red": 5,
+   "check": {
+    "x": 1.7,
+    "skin": {
+     "roof": 0.761,
+     "under": -0.585,
+     "side": 0.593
+    },
+    "hold": {
+     "floor": -0.39,
+     "top": 0.75,
+     "half": 0.56
+    }
+   }
+  }
+ ]
+}
