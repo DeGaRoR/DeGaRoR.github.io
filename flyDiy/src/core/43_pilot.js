@@ -689,11 +689,21 @@ function makePilot(sim, def, world, opts) {
         HUM.x[k] += -a * HUM.x[k] + sq * w;
         HUM.y[k] += (HUM.x[k] - HUM.y[k]) * b;
       }
-      // G2465 (PERSONA-2): THE FLARE IS THE PERSON'S STEADIEST MOMENT TOO (the delay and the gain are already the
-      // wheels' there, G2085) - the hand's wander halved: whole, the ham-fist's water flares met the surface at 2.5-3.3
-      // m/s off finals the stabilised-approach rule had passed (the Wipline C172, three seeds of four, one skip each)
-      const K = PRF.hamFist * 1.12 * (ap.phase === 'FLARE' ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
-      c.de += K * HUM.y[0]; c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
+      // G2465 (PERSONA-2): THE LANDING IS THE PERSON'S STEADIEST MOMENT TOO (the delay and the gain are already the
+      // wheels' there, G2085) - the hand's wander halved in the flare and the roll-out: whole, the ham-fist's water
+      // flares met the surface at 2.48, 2.91 and 3.32 m/s (the Wipline C172, three seeds of four, a skip on each; the
+      // 2.91 off a final the stabilised-approach rule had passed); halved in the flare: 0.72-1.55 on the four. The
+      // roll-out: below (G2466)
+      const K = PRF.hamFist * 1.12 * ((ap.phase === 'FLARE' || ap.phase === 'ROLLOUT') ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      // G2466 (PERSONA-2): A STICK HELD AGAINST ITS STOP IS NOT WANDERED - the taildragger's roll-out holds the stick
+      // full back (0.35, the stop) and the ham-fist's wander there worked the tailwheel's load: the Cub's roll-out swung
+      // to 28.9 deg at 0.3 Hz, the rudder on +-0.9 (GATE PILOTMATRIX's cub:HOME:calm:hamfist, baseline 2.8; the base tree
+      // 52.3). Measured (seed 1935, the roll-out's worst heading): no rudder hand on the wheels 33.1; the slew whole
+      // 32.9; no elevator hand on the wheels 6.5; THE STOP HOLDS THE STICK 7.5 (seed 1: 3.1); and the hand halved
+      // through the roll-out (G2465) the Cub 5.0 / 3.1, the Jodel 3.3, the C172 3.9
+      const deStop = (sim.hydro && onG > 0) ? (A.deWater ?? 0.70) : 0.35;
+      if (c.de < deStop - 1e-3) c.de += K * HUM.y[0];
+      c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
     }
     const drNow = c.dr;
     const N = Math.round(rx / Math.max(1e-3, dt));
