@@ -213,79 +213,83 @@ function runA() {
 // stand, of the fit-out and of each other.
 function runCozy(union) {
   const LY = CORE.HANGAR_LAYOUTS;
-  if (!ok(!!LY && !!LY.cozy, 'rule 8: HANGAR_LAYOUTS.cozy exists')) return;
-  const C = LY.cozy;
-  ok(C.shell === 'works', 'rule 8: cozy is the works\' layout');
-  for (const k of C.kits) {
-    ok(!!CORE.HANGAR_KITS[k], 'rule 8: cozy names a kit that exists: ' + k);
-    ok(!!C.rows[k], 'rule 8: cozy stands every kit it lists: ' + k);
-  }
-  for (const k of Object.keys(C.rows)) {
-    const R = C.rows[k];
-    for (const s of R.sites) ok(union.has(s.prop), 'rule 8: cozy ' + k + ' sites undeclared prop ' + s.prop);
-    for (const r of R.recipes) for (const q of r.props || [])
-      ok(union.has(q), 'rule 8: cozy ' + k + ' recipe ' + r.recipe + ' names undeclared prop ' + q);
-  }
+  if (!ok(!!LY && !!LY.cozy && !!LY.hearth, 'rule 8: HANGAR_LAYOUTS holds cozy and hearth')) return;
   const W = CORE.SHELLS.works.dims;
-  const total = C.kits.reduce((n, k) => n + C.rows[k].sites.length + C.rows[k].recipes.length, 0);
-  const r = CORE.hangarFit(W, C.kits, { reg: CORE.PROP_REG, shell: 'works', layout: 'cozy' });
-  ok(r.layout === 'cozy', 'rule 8: the works stands the cozy layout (layout ' + r.layout + ')');
-  ok(r.placed.length + r.recipes.length + r.unplaced.length === total,
-     'rule 8: cozy ' + (r.placed.length + r.recipes.length + r.unplaced.length) + ' outcomes for ' + total + ' rows');
-  ok(r.unplaced.length === 0, 'rule 8: the cozy works places EVERYTHING (' +
-     r.unplaced.map(u => u.kit + '/' + u.key + ':' + u.reason).join(', ') + ')');
-  // the floor, re-derived: every thing standing ON the floor (no `y`: not a
-  // rider, not on a wall, not the rug) as its oriented box
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
-  const boxes = [];
-  for (const p of r.placed) {
-    if (p.y > 0) continue;
-    const rec = CORE.PROP_REG.props[p.prop];
-    const f = orient(rec ? [rec.dim[0] / 2, rec.dim[2] / 2] : [0.4, 0.4], p.ry);
-    boxes.push({ k: p.kit + '/' + p.prop, x0: p.x - f[0], x1: p.x + f[0], z0: p.z - f[1], z1: p.z + f[1] });
-  }
-  for (const q of r.recipes) {
-    const f = orient(q.foot || [0.4, 0.4], q.ry);
-    boxes.push({ k: q.kit + '/' + q.recipe, x0: q.x - f[0], x1: q.x + f[0], z0: q.z - f[1], z1: q.z + f[1] });
-  }
   const hit = (a, b) => a.x0 < b.x1 - 1e-6 && a.x1 > b.x0 + 1e-6 && a.z0 < b.z1 - 1e-6 && a.z1 > b.z0 + 1e-6;
-  const clash = [];
-  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++)
-    if (hit(boxes[i], boxes[j])) clash.push(boxes[i].k + ' x ' + boxes[j].k);
-  ok(clash.length === 0, 'rule 8: no two cozy things share floor (' + clash.slice(0, 4).join('; ') + ')');
-  for (const b of boxes)
-    ok(Math.abs(b.x0) <= W.HD && Math.abs(b.x1) <= W.HD && Math.abs(b.z0) <= W.HW && Math.abs(b.z1) <= W.HW,
-       'rule 8: cozy ' + b.k + ' inside the walls');
-  // the club: the layout is not there
   const cl0 = CORE.hangarFit(CORE.SHELLS.club.dims, CORE.HANGAR_KITS_DEFAULT, { reg: CORE.PROP_REG, shell: 'club' });
-  const cl1 = CORE.hangarFit(CORE.SHELLS.club.dims, CORE.HANGAR_KITS_DEFAULT, { reg: CORE.PROP_REG, shell: 'club', layout: 'cozy' });
-  ok(cl1.layout === null && JSON.stringify([cl1.placed, cl1.recipes, cl1.unplaced]) === JSON.stringify([cl0.placed, cl0.recipes, cl0.unplaced]),
-     'rule 8: the club with layout cozy IS the club (the sandbox\'s room, position for position)');
+  for (const key of Object.keys(LY)) {
+    const C = LY[key], T = 'rule 8: ' + key + ' ';
+    ok(C.shell === 'works', T + "is the works' layout");
+    for (const k of C.kits) {
+      ok(!!CORE.HANGAR_KITS[k], T + 'names a kit that exists: ' + k);
+      ok(!!C.rows[k], T + 'stands every kit it lists: ' + k);
+    }
+    for (const k of Object.keys(C.rows)) {
+      const R = C.rows[k];
+      for (const q of R.sites) ok(union.has(q.prop), T + k + ' sites undeclared prop ' + q.prop);
+      for (const r of R.recipes) for (const q of r.props || [])
+        ok(union.has(q), T + k + ' recipe ' + r.recipe + ' names undeclared prop ' + q);
+    }
+    const total = C.kits.reduce((n, k) => n + C.rows[k].sites.length + C.rows[k].recipes.length, 0);
+    const r = CORE.hangarFit(W, C.kits, { reg: CORE.PROP_REG, shell: 'works', layout: key });
+    ok(r.layout === key, T + 'stands in the works (layout ' + r.layout + ')');
+    ok(r.placed.length + r.recipes.length + r.unplaced.length === total,
+       T + (r.placed.length + r.recipes.length + r.unplaced.length) + ' outcomes for ' + total + ' rows');
+    ok(r.unplaced.length === 0, T + 'places EVERYTHING (' + r.unplaced.map(u => u.kit + '/' + u.key + ':' + u.reason).join(', ') + ')');
+    // the floor, re-derived: everything standing ON the floor (no `y`: not a rider, a wall mount, the rug) as its box
+    const boxes = [];
+    for (const p of r.placed) {
+      if (p.y > 0) continue;
+      const rec = CORE.PROP_REG.props[p.prop];
+      const f = orient(rec ? [rec.dim[0] / 2, rec.dim[2] / 2] : [0.4, 0.4], p.ry);
+      boxes.push({ k: p.kit + '/' + p.prop, x0: p.x - f[0], x1: p.x + f[0], z0: p.z - f[1], z1: p.z + f[1] });
+    }
+    for (const q of r.recipes) {
+      const f = orient(q.foot || [0.4, 0.4], q.ry);
+      boxes.push({ k: q.kit + '/' + q.recipe, x0: q.x - f[0], x1: q.x + f[0], z0: q.z - f[1], z1: q.z + f[1] });
+    }
+    const clash = [];
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++)
+      if (hit(boxes[i], boxes[j])) clash.push(boxes[i].k + ' x ' + boxes[j].k);
+    ok(clash.length === 0, T + 'no two things share floor (' + clash.slice(0, 4).join('; ') + ')');
+    for (const b of boxes)
+      ok(Math.abs(b.x0) <= W.HD && Math.abs(b.x1) <= W.HD && Math.abs(b.z0) <= W.HW && Math.abs(b.z1) <= W.HW, T + b.k + ' inside the walls');
+    // the bay: nothing on the stand's floor (a wide build's span, the bay's own length)
+    const bay = { x0: -3, x1: 8, z0: -7.2, z1: 7.2 };
+    const inBay = boxes.filter(b => hit(b, bay)).map(b => b.k);
+    ok(inBay.length === 0, T + 'leaves the build bay clear (' + inBay.join(', ') + ')');
+    // the club: the layout is not there
+    const cl1 = CORE.hangarFit(CORE.SHELLS.club.dims, CORE.HANGAR_KITS_DEFAULT, { reg: CORE.PROP_REG, shell: 'club', layout: key });
+    ok(cl1.layout === null && JSON.stringify([cl1.placed, cl1.recipes, cl1.unplaced]) === JSON.stringify([cl0.placed, cl0.recipes, cl0.unplaced]),
+       T + "named in the club IS the club (the sandbox's room, position for position)");
+    // the residents round the stand: a Cub-sized stand, a Cub and a metal Cessna parked
+    const H = Object.assign({}, CORE.careerMainShed(), { layout: key });
+    const stand = { x0: -2.3, x1: 7.4, z0: -5.9, z1: 5.9 };
+    const RP = CORE.hangarPark(H, [{ name: 'Cub', foot: { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 } },
+                                   { name: 'Cessna', foot: { half: 5.6, fwd: 1.6, aft: 7.2, h: 2.7 } }], { reg: CORE.PROP_REG, keep: [stand] });
+    ok(RP.placed.length === 2, T + 'parks both residents beside the stand (' + JSON.stringify(RP.unplaced) + ')');
+    const obs = CORE.hangarObstacles(H, CORE.PROP_REG);
+    ok(obs.length >= boxes.length - 2, T + "is the residents' obstacles (" + obs.length + ' for ' + boxes.length + ')');
+    for (const p of RP.placed) {
+      ok(!hit(p.rect, stand), T + 'resident ' + p.name + ' clear of the stand');
+      const o = obs.find(b => hit(p.rect, b));
+      ok(!o, T + 'resident ' + p.name + ' clear of the fit-out' + (o ? ' (' + o.key + ')' : ''));
+    }
+    if (RP.placed.length === 2) ok(!hit(RP.placed[0].rect, RP.placed[1].rect), T + 'residents clear of each other');
+  }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;
-  ok(H.shell === 'works' && H.layout === 'cozy' && H.dims && H.dims.HW === W.HW && H.dims.HD === W.HD,
-     'rule 8: the career\'s main hangar is the cozy works (' + JSON.stringify(H) + ')');
+  ok(H.shell === 'works' && H.layout === CORE.CAREER_MAIN.layout && !!LY[H.layout] && H.dims && H.dims.HW === W.HW && H.dims.HD === W.HD,
+     "rule 8: the career's main hangar is the works in its layout (" + JSON.stringify(H) + ')');
   const P0 = CORE.playerDefault().sheds.HOME;
-  ok(P0.shell === 'club' && !P0.layout && !P0.dims, 'rule 8: the sandbox\'s default is still the club');
+  ok(P0.shell === 'club' && !P0.layout && !P0.dims, "rule 8: the sandbox's default is still the club");
   const old = CORE.playerDefault(); old.mode = 'career';
   const up = CORE.careerNormalise(JSON.parse(JSON.stringify(old)));
-  ok(up.sheds.HOME.layout === 'cozy' && up.sheds.HOME.shell === 'works', 'rule 8: an untouched career club becomes the cozy works');
+  ok(up.sheds.HOME.layout === CORE.CAREER_MAIN.layout && up.sheds.HOME.shell === 'works', "rule 8: an untouched career club becomes the career's works");
   ok(JSON.stringify(CORE.careerNormalise(JSON.parse(JSON.stringify(up)))) === JSON.stringify(up), 'rule 8: ... once (a fixpoint)');
   const touched = CORE.playerDefault(); touched.mode = 'career'; touched.sheds.HOME.dims = { HW: 14, HD: 11, EAVE: 6.5 };
-  ok(CORE.careerNormalise(touched).sheds.HOME.shell === 'club', 'rule 8: a touched career club is the player\'s, kept');
-  // the residents round the stand: a Cub-sized stand, a Cub and a metal Cessna parked
-  const stand = { x0: -2.3, x1: 7.4, z0: -5.9, z1: 5.9 };
-  const RP = CORE.hangarPark(H, [{ name: 'Cub', foot: { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 } },
-                                 { name: 'Cessna', foot: { half: 5.6, fwd: 1.6, aft: 7.2, h: 2.7 } }], { reg: CORE.PROP_REG, keep: [stand] });
-  ok(RP.placed.length === 2, 'rule 8: both residents park in the cozy works beside the stand (' + JSON.stringify(RP.unplaced) + ')');
-  const obs = CORE.hangarObstacles(H, CORE.PROP_REG);
-  ok(obs.length >= boxes.length - 2, 'rule 8: the residents\' obstacles are the cozy rows (' + obs.length + ' for ' + boxes.length + ')');
-  for (const p of RP.placed) {
-    ok(!hit(p.rect, stand), 'rule 8: resident ' + p.name + ' clear of the stand');
-    const o = obs.find(b => hit(p.rect, b));
-    ok(!o, 'rule 8: resident ' + p.name + ' clear of the fit-out' + (o ? ' (' + o.key + ')' : ''));
-  }
-  if (RP.placed.length === 2) ok(!hit(RP.placed[0].rect, RP.placed[1].rect), 'rule 8: the residents clear of each other');
+  ok(CORE.careerNormalise(touched).sheds.HOME.shell === 'club', "rule 8: a touched career club is the player's, kept");
 }
 
 // ---- BLOCK B: the shells BUILD -- a stubbed THREE, instrumented ------------
@@ -558,20 +562,23 @@ function runB(mutSrcH) {
   // layout's metres, each at its own height with its own inverse-square factor) at 2700 K; the club - with or without
   // the layout named - hangs the cross at 0.74 of the eave at 4000 K, no per-fitting factor (today's room)
   {
-    const LY = CORE.HANGAR_LAYOUTS && CORE.HANGAR_LAYOUTS.cozy;
+    for (const lk of Object.keys(CORE.HANGAR_LAYOUTS || {})) {
+    const LY = CORE.HANGAR_LAYOUTS[lk];
     let cz = null, cl = null, cl2 = null;
-    try { cz = api.genHangarBuild(T, CORE.SHELLS.works.dims, { shell: 'works', layout: 'cozy' }); } catch (e) { ok(false, 'rule 8: the cozy works builds (' + e.message + ')'); }
+    try { cz = api.genHangarBuild(T, CORE.SHELLS.works.dims, { shell: 'works', layout: lk }); } catch (e) { ok(false, 'rule 8: the ' + lk + ' works builds (' + e.message + ')'); }
     try { cl = api.genHangarBuild(T, CORE.SHELLS.club.dims, { shell: 'club' }); cl2 = api.genHangarBuild(T, CORE.SHELLS.club.dims, { shell: 'club', layout: 'cozy' }); } catch (e) { ok(false, 'rule 8: the club builds (' + e.message + ')'); }
     if (cz && cl && cl2 && LY) {
-      ok(cz.layout === 'cozy' && cl.layout === null && cl2.layout === null, 'rule 8: the room says its layout (cozy / none / none in the club)');
+      ok(cz.layout === lk && cl.layout === null && cl2.layout === null, 'rule 8: the room says its layout (' + lk + ' / none / none in the club)');
       const L = cz.lights.lamps, K = cl.lights.lamps;
       ok(L.length === 5 && K.length === 5, 'rule 8: five fittings either way (the shadow-map budget)');
       const at = L.map(l => [+(l.parent.position.x).toFixed(2), +(l.parent.position.z).toFixed(2), +(l.parent.position.y).toFixed(2)]);
       ok(JSON.stringify(at) === JSON.stringify(LY.light.lamps.map(([x, z, y]) => [x, z, y])), 'rule 8: the cozy fittings hang where the layout says ' + JSON.stringify(at));
       ok(L.every(l => l.userData.hk > 0) && K.every(l => l.userData.hk === undefined), 'rule 8: per-fitting hang factors in the cozy works only');
-      ok(cz.lampRig().kelvin === LY.light.kelvin && cl.lampRig().kelvin === 4000 && cl2.lampRig().kelvin === 4000, 'rule 8: the warm filament in the cozy works, 4000 K in the club');
+      ok(cz.lampRig().kelvin === LY.light.kelvin && cl.lampRig().kelvin === 4000 && cl2.lampRig().kelvin === 4000, 'rule 8: the warm filament in the ' + lk + ' works, 4000 K in the club');
+      ok(cz.lampRig().gain === (LY.light.gain || 1) && cl.lampRig().gain === 1 && cl2.lampRig().gain === 1, 'rule 8: the ' + lk + ' lamp gain ' + (LY.light.gain || 1) + ', the club 1');
       const kz = K.map(l => [l.parent.position.x, l.parent.position.z]), k2 = cl2.lights.lamps.map(l => [l.parent.position.x, l.parent.position.z]);
       ok(JSON.stringify(kz) === JSON.stringify(k2), 'rule 8: the club\'s cross unmoved by a layout it does not stand');
+    }
     }
   }
 
@@ -668,7 +675,9 @@ const BREAKS = [
   ['the cozy works drops a row',
    { pre: () => { CORE.HANGAR_LAYOUTS.cozy.rows.office.sites.push({ prop: 'desk_metal', at: 'shop', along: 1.6, out: 0.9, dry: 0 }); } }],
   ['the career forgets its cozy works',
-   { pre: () => { CORE.CAREER_MAIN.layout = 'nope'; }, post: () => { CORE.CAREER_MAIN.layout = 'cozy'; } }],
+   { pre: () => { CORE.CAREER_MAIN.layout = 'nope'; }, post: () => { CORE.CAREER_MAIN.layout = 'hearth'; } }],
+  ['the hearth parks its lounge on the stand',
+   { pre: () => { const r = CORE.HANGAR_LAYOUTS.hearth.rows.comfort.sites.find(q => q.prop === 'chair_lounge'); r.fx = 2 / 20; r.fz = 3 / 20; } }],
   ['the club hangs the cozy lamps',
    { srcH: s => s.replace('const LAYIT = (LAYOUT && LAYOUT.light) || null;', 'const LAYIT = (typeof hangarLayout === "function" && hangarLayout("cozy", "works") || {}).light || null;') }],
   ['a wall drawn with a negative box',

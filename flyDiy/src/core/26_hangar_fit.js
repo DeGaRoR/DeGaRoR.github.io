@@ -695,6 +695,139 @@ const HANGAR_LAYOUTS = {
     },
   },
 };
+// THE HEARTH (G2318: the GAME COORDINATOR's read of the cozy stills, 7 Oct: "the life is there ... but it does NOT read
+// cozy yet. It reads as a vast dark shed with distant warm pools" - the bar is the user's: the large room must feel AT
+// LEAST as warm as today's club in the garage's own framing). The same kits, the life brought to the STAND: a room
+// within the room. The garage's framing (az -2.5, 12 m: the eye at about (-7, -9.3) looking at the back-right corner)
+// sees the floor DIAGONALLY BEHIND the stand - so the lounge stands there, 8-12 m off the aeroplane, the stove turned to
+// the eye; the bench corner stands right of the nose with a two-tier rack line for its wall; the two residents park
+// behind and to the left (the back half, where hangarPark packs them: the backdrop of "the one I'm flying, the one I'm
+// keeping"); the woodshop and the office keep the door end, and the back wall is storage, in shadow on purpose. The
+// light: the bay's fitting lower and every lamp a quarter stronger, the fire further, and a floor under the room's
+// ambient at night (envFloor: the probe's level never below dusk's) - the same five shadow maps.
+const HANGAR_HEARTH_ROWS = {
+  bench: {
+    sites: [
+      { prop: 'workbench_wood', at: 'floor', fx: HC_F(-4.0), fz: HC_F(11.5), dry: Math.PI },
+      { prop: 'vice_bench', at: 'floor', fx: HC_F(-5.0), fz: HC_F(11.4), dry: Math.PI * 0.5, y: 0.96, on: 'workbench_wood' },
+      { prop: 'toolbox_open', at: 'floor', fx: HC_F(-3.2), fz: HC_F(11.5), dry: Math.PI - 0.35, y: 0.96, on: 'workbench_wood' },
+      { prop: 'toolchest_metal', at: 'floor', fx: HC_F(-6.6), fz: HC_F(11.6), dry: Math.PI + 0.12 },
+      { prop: 'toolchest_metal', at: 'floor', fx: HC_F(-1.6), fz: HC_F(11.7), dry: Math.PI - 0.10 },
+      { prop: 'stool_wood', at: 'floor', fx: HC_F(-4.8), fz: HC_F(10.0), dry: 0.6 },
+      { prop: 'stool_wood', at: 'floor', fx: HC_F(-3.0), fz: HC_F(9.9), dry: -0.4 },
+      // the racks on the shop wall still hold tools: the bench's wall is the rack line now
+      { prop: 'toolrack_wall', at: 'shop', along: HC_A(-4.0), out: 0.12, dry: Math.PI, y: 1.62 },
+      { prop: 'toolrack_wall', at: 'shop', along: HC_A(-10.0), out: 0.12, dry: Math.PI, y: 1.62 },
+    ],
+    recipes: [],
+  },
+  metal: {
+    sites: [
+      { prop: 'drillpress', at: 'floor', fx: HC_F(-9.0), fz: HC_F(13.2), dry: Math.PI + 0.10 },
+      { prop: 'weldingcart', at: 'floor', fx: HC_F(-10.3), fz: HC_F(12.8), dry: Math.PI - 0.20 },
+      { prop: 'compressor', at: 'floor', fx: HC_F(-11.6), fz: HC_F(13.4), dry: Math.PI },
+      { prop: 'drum_steel', at: 'floor', fx: HC_F(-12.6), fz: HC_F(12.4), dry: 0 },
+      { prop: 'drum_steel', at: 'floor', fx: HC_F(-12.5), fz: HC_F(13.4), dry: 0.5 },
+    ],
+    recipes: [
+      // the back wall's shelving, either side of its doors - storage, in the shadow beyond the residents
+      ...[7.2, 8.25, 9.3, 10.35, -7.2, -8.25, -9.3].map(z =>
+        ({ recipe: 'loadedRack', at: 'back', along: HC_B(z), out: 0.55, dry: -Math.PI / 2, foot: [0.5, 0.33],
+           props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })),
+    ],
+  },
+  store: {
+    sites: [
+      { prop: 'box_cardboard', at: 'floor', fx: HC_F(0.6), fz: HC_F(11.4), dry: 0.3, y: 1.28, on: 'cart_storage' },
+      { prop: 'jerrycan', at: 'floor', fx: HC_F(-7.6), fz: HC_F(10.6), dry: 0.8 },
+      { prop: 'bottle_lpg', at: 'shop', along: HC_A(-18.4), out: 0.60, dry: 0.5 },
+      { prop: 'bottle_propane', at: 'shop', along: HC_A(-18.9), out: 0.60, dry: 0.4 },
+      { prop: 'barrel_plastic', at: 'build', along: HC_A(-18.7), out: 0.70, dry: 0 },
+      { prop: 'bin_metal', at: 'build', along: HC_A(-17.6), out: 0.70, dry: 0.3 },
+      { prop: 'bin_metal', at: 'back', along: HC_B(-11.6), out: 0.60, dry: 0.3 },
+      { prop: 'bin_metal_rust', at: 'back', along: HC_B(-12.6), out: 0.60, dry: -0.5 },
+      { prop: 'jerrycan', at: 'back', along: HC_B(-13.4), out: 0.50, dry: 0.9 },
+    ],
+    recipes: [
+      { recipe: 'stockRack', at: 'build', along: HC_A(-2.4), out: 0.70, dry: -Math.PI / 2, foot: [0.46, 5.3], props: [] },
+      // THE BENCH'S WALL: a rack line two tiers high behind the bench, shelves to the stand
+      ...[-7, -6, -5, -4, -3, -2, -1].map(x =>
+        ({ recipe: 'tallRack', at: 'floor', fx: HC_F(x), fz: HC_F(13.0), dry: Math.PI, foot: [0.5, 0.33],
+           props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })),
+      // THE LOUNGE'S WALL: the same, behind the lounge
+      ...[5, 6, 7, 8, 9, 10, 11].map(x =>
+        ({ recipe: 'tallRack', at: 'floor', fx: HC_F(x), fz: HC_F(14.5), dry: Math.PI, foot: [0.5, 0.33],
+           props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })),
+    ],
+  },
+  handling: {
+    sites: [
+      { prop: 'cart_storage', at: 'floor', fx: HC_F(0.6), fz: HC_F(11.4), dry: Math.PI },
+      { prop: 'cart_tool_cab', at: 'floor', fx: HC_F(-8.6), fz: HC_F(11.4), dry: Math.PI - 0.08 },
+      { prop: 'handtruck', at: 'shop', along: HC_A(-17.5), out: 0.55, dry: Math.PI + 0.15 },
+      { prop: 'stepladder', at: 'floor', fx: HC_F(0.3), fz: HC_F(13.6), dry: Math.PI + 0.5 },
+      { prop: 'stepladder', at: 'floor', fx: HC_F(12.0), fz: HC_F(14.6), dry: Math.PI - 0.4 },
+    ],
+    recipes: [],
+  },
+  office: {
+    // the office at the door end of the shop side (the back half is the residents')
+    sites: [
+      { prop: 'desk_metal', at: 'shop', along: HC_A(-15.6), out: 0.90, dry: Math.PI },
+      { prop: 'lamp_desk', at: 'shop', along: HC_A(-16.3), out: 1.15, dry: Math.PI - 0.55, y: 0.78, on: 'desk_metal', light: 'desk' },
+      { prop: 'instrument_panel', at: 'shop', along: HC_A(-15.0), out: 1.05, dry: Math.PI + 0.35, y: 0.78, on: 'desk_metal' },
+      { prop: 'radio_bench', at: 'floor', fx: HC_F(-4.1), fz: HC_F(11.4), dry: Math.PI + 0.25, y: 0.96, on: 'workbench_wood' },
+      { prop: 'stool_wood', at: 'shop', along: HC_A(-15.2), out: 1.90, dry: 0.3 },
+      { prop: 'plan_wall', at: 'shop', along: HC_A(-13.2), out: 0.12, dry: Math.PI, y: 2.35 },
+    ],
+    recipes: [
+      { recipe: 'planTable', at: 'floor', fx: HC_F(-15.6), fz: HC_F(14.6), dry: 0.4, foot: [0.8, 0.55], props: [] },
+    ],
+  },
+  comfort: {
+    sites: [
+      { prop: 'rug_persian', at: 'floor', fx: HC_F(7.6), fz: HC_F(9.6), dry: 0.6, y: 0.004 },
+      // the chair by the fire, turned to the stand (and the eye)
+      { prop: 'chair_lounge', at: 'floor', fx: HC_F(8.6), fz: HC_F(10.4), dry: -2.5 },
+      { prop: 'stool_wood', at: 'floor', fx: HC_F(6.6), fz: HC_F(9.0), dry: 1.1 },
+      { prop: 'drum_steel', at: 'floor', fx: HC_F(9.9), fz: HC_F(9.2), dry: 0.2 },
+      { prop: 'barrel_plastic', at: 'floor', fx: HC_F(12.8), fz: HC_F(10.6), dry: 0.4 },
+      { prop: 'hosereel_wall', at: 'shop', along: HC_A(2.0), out: 0.14, dry: Math.PI, y: 2.20 },
+      { prop: 'stove_barrel', at: 'floor', fx: HC_F(-1.6), fz: HC_F(-16.2), dry: 0.3 },
+    ],
+    recipes: [
+      { recipe: 'stoveCorner', at: 'floor', fx: HC_F(11.0), fz: HC_F(12.0), dry: -2.5, foot: [0.85, 0.85], props: ['stove_masonry'] },
+    ],
+  },
+  curio: {
+    sites: [
+      { prop: 'table_wood', at: 'floor', fx: HC_F(6.2), fz: HC_F(12.0), dry: 0.3 },
+      { prop: 'crate_wood_a', at: 'floor', fx: HC_F(6.6), fz: HC_F(12.0), dry: -0.25, y: 0.68, on: 'table_wood' },
+      { prop: 'car_covered', at: 'floor', fx: HC_F(-16.9), fz: HC_F(-17.5), dry: Math.PI / 2 + 0.05 },
+    ],
+    recipes: [
+      { recipe: 'tyreStack', at: 'floor', fx: HC_F(-17.4), fz: HC_F(-15.4), dry: 0, foot: [0.4, 0.4], n: 4, props: ['tyre'] },
+      { recipe: 'tyreStack', at: 'floor', fx: HC_F(-16.4), fz: HC_F(-15.5), dry: 0, foot: [0.4, 0.4], n: 2, props: ['tyre'] },
+    ],
+  },
+};
+HANGAR_LAYOUTS.hearth = {
+  name: 'The works, a hearth at the stand', shell: 'works',
+  kits: HANGAR_LAYOUTS.cozy.kits.slice(),
+  light: {
+    kelvin: 2700, gain: 1.25, envFloor: 0.2,
+    stove: { cd: 26, dist: 12 },
+    lamps: [[1.0, 0, 6.0],                   // over the build bay, lower
+            [8.5, 10.5, 4.2],                // the lounge
+            [-4.0, 10.0, 4.2],               // the bench corner
+            [-9.5, -12.0, 4.8],              // the woodshop
+            [14.0, -3.0, 7.0]],              // the residents' half, high
+    pendants: [[6.2, 12.0, 3.0], [-8.6, 11.8, 3.6], [-15.6, 17.6, 3.4], [-13.0, -16.6, 4.2]],
+  },
+  // every kit the hearth does not move stands as in the cozy works (the woodshop, the work in progress)
+  rows: Object.assign({}, HANGAR_LAYOUTS.cozy.rows, HANGAR_HEARTH_ROWS),
+};
+
 // the layout that applies to a shell: the named one when its shell matches,
 // else none (a layout is one shell's arrangement - the kits' own rows stand
 // in any other)

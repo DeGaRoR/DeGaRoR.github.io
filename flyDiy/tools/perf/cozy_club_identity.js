@@ -42,14 +42,14 @@ const base = fs.readFileSync(path.resolve(opt('base', '')), 'utf8');
 const here = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8');
 const out = {};
 for (const [tag, opts] of [['interior', { shell: 'club' }], ['exterior', { shell: 'club', exterior: true }]]) {
-  const A = build(base, opts), B = build(here, opts), C = build(here, Object.assign({ layout: 'cozy' }, opts));
+  const A = build(base, opts), B = build(here, opts), C = build(here, Object.assign({ layout: 'cozy' }, opts)), H = build(here, Object.assign({ layout: 'hearth' }, opts));
   const diff = (X, Y) => { let n = 0, first = null; const m = Math.max(X.log.length, Y.log.length);
     for (let i = 0; i < m; i++) if (JSON.stringify(X.log[i]) !== JSON.stringify(Y.log[i])) { n++; if (!first) first = { i, base: X.log[i], here: Y.log[i] }; }
     return { entries: [X.log.length, Y.log.length], differ: n, first }; };
-  out[tag] = { base_vs_here: diff(A, B), base_vs_here_cozyNamed: diff(A, C), lamp: [A.lamp, B.lamp, C.lamp] };
-  console.log(tag + ': ' + A.log.length + ' entries; base vs this tree ' + out[tag].base_vs_here.differ + ' differ; vs this tree with layout cozy named ' + out[tag].base_vs_here_cozyNamed.differ + ' differ');
+  out[tag] = { base_vs_here: diff(A, B), base_vs_here_cozyNamed: diff(A, C), base_vs_here_hearthNamed: diff(A, H), lamp: [A.lamp, B.lamp, C.lamp, H.lamp] };
+  console.log(tag + ': ' + A.log.length + ' entries; base vs this tree ' + out[tag].base_vs_here.differ + ' differ; with layout cozy named ' + out[tag].base_vs_here_cozyNamed.differ + ', hearth named ' + out[tag].base_vs_here_hearthNamed.differ + ' differ');
 }
-const pass = Object.values(out).every(o => !o.base_vs_here.differ && !o.base_vs_here_cozyNamed.differ);
+const pass = Object.values(out).every(o => !o.base_vs_here.differ && !o.base_vs_here_cozyNamed.differ && !o.base_vs_here_hearthNamed.differ);
 console.log('CLUB IDENTITY: ' + (pass ? 'PASS' : 'FAIL'));
 if (opt('out', null)) fs.writeFileSync(opt('out'), JSON.stringify(out, null, 1));
 process.exit(pass ? 0 : 1);

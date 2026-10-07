@@ -16,7 +16,21 @@
    "differ": 0,
    "first": null
   },
+  "base_vs_here_hearthNamed": {
+   "entries": [
+    2298,
+    2298
+   ],
+   "differ": 0,
+   "first": null
+  },
   "lamp": [
+   {
+    "gain": 1,
+    "angle": 1.178097,
+    "kelvin": 4000,
+    "hex": 16764326
+   },
    {
     "gain": 1,
     "angle": 1.178097,
@@ -54,7 +68,16 @@
    "differ": 0,
    "first": null
   },
+  "base_vs_here_hearthNamed": {
+   "entries": [
+    913,
+    913
+   ],
+   "differ": 0,
+   "first": null
+  },
   "lamp": [
+   null,
    null,
    null,
    null

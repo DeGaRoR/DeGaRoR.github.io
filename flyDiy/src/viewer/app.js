@@ -1171,11 +1171,17 @@
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
     const keep = (bb && isFinite(bb.min.x) && bb.max.x > bb.min.x)
       ? [{ x0: q(bb.min.x) - clr, x1: q(bb.max.x) + clr, z0: q(bb.min.z) - clr, z1: q(bb.max.z) + clr }] : [];
-    const sig = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), keep, shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
-    if (sig !== RES.sig) {
-      RES.sig = sig;
+    // THE DRAG PATH: what decides the plan but the stand's box (`base`), and the box. A box that moved and still clears
+    // every resident keeps the plan - the pack (~3 ms here, ~10 on the laptop) runs when the residents, the room, or a
+    // collision with the stand's new box ask for it, never per slider tick
+    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
+    const clear = RES.base === base && RES.plan.length === names.length - RES.unplaced.length &&
+      keep.every(k => RES.plan.every(p => !p.rect || !(p.rect.x0 < k.x1 && p.rect.x1 > k.x0 && p.rect.z0 < k.z1 && p.rect.z1 > k.z0)));
+    const sig = base + JSON.stringify(keep);
+    if (sig !== RES.sig && !clear) {
+      RES.base = base; RES.packs = (RES.packs || 0) + 1;
       const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: playerFootOf(d, n) })), { keep }) : { placed: [], unplaced: [] };
-      RES.plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); RES.unplaced = P.unplaced;
+      RES.plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z, rect: p.rect })); RES.unplaced = P.unplaced;
       const want = new Set(RES.plan.map(p => 'mine:' + p.name));
       for (const [k, g] of RES.holders) if (!want.has(k)) { window.PARKED.residentDrop(g); RES.holders.delete(k); }
       for (const p of RES.plan) {
@@ -1185,6 +1191,7 @@
         g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI;            // nose to the door (-x), as the stand
       }
     }
+    RES.sig = sig;
     for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
     residentsShow();
     RES.ms = performance.now() - t0;
@@ -1201,8 +1208,8 @@
   }
   const resHolder = n => RES.holders.get('mine:' + n) || { userData: {} };
   const residentsApi = () => CAREER_DEV ? {
-    on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null,
-    plan: RES.plan.map(p => Object.assign({ filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 }, p)),
+    on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null, packs: RES.packs || 0,
+    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
     unplaced: RES.unplaced.slice(),
   } : null;
   function residentsSet(on) {
@@ -1351,6 +1358,21 @@
     mobileShown: () => mobileOn,
     // G2315: the career's residents (null in the sandbox) and the toggle, for the rigs and the console
     residents: () => residentsApi(), setResidents: on => residentsSet(on),
+    // G2318: THE LAYOUT of the career's main hangar (HANGAR_LAYOUTS of its shell: 'hearth', 'cozy'; null = the kits' own
+    // rows) - the user's pick between the looks; a rebuild, as a shell change is. The sandbox's club has no layouts.
+    layouts: () => (typeof HANGAR_LAYOUTS !== 'undefined') ? Object.keys(HANGAR_LAYOUTS).filter(k => HANGAR_LAYOUTS[k].shell === shedHome().shell) : [],
+    layout: () => shedHome().layout || null,
+    setLayout: k => {
+      if (!CAREER_DEV || typeof hangarLayout !== 'function') return null;
+      const shed = shedHome();
+      if (k && !hangarLayout(k, shed.shell)) return null;
+      if ((shed.layout || null) === (k || null)) return shed.layout || null;
+      if (k) shed.layout = k; else delete shed.layout;
+      playerSave();
+      disposeHangar();
+      if (inGarage) applyEnv(); else getHangar();
+      return shed.layout || null;
+    },
     residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
     setMobile: on => {
       mobileOn = on !== false;

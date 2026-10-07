@@ -52,7 +52,9 @@ function careerBlockDefault(o) {
 // probably, even though I find the medium one less intimidating and warmer. Main garage should be cozy"): the WORKS
 // shell at its own 40 x 40 m, every kit, stood in the `cozy` layout (26_hangar_fit HANGAR_LAYOUTS) - the bench corner,
 // the woodshop bay, the office, the lounge round the build bay. The sandbox keeps today's club (GQ29).
-const CAREER_MAIN = { shell: 'works', layout: 'cozy' };
+// G2318: the HEARTH (the cozy works with the life brought to the stand) is the default; 'cozy' (the rooms along the
+// walls) is kept beside it for the user's pick (GARAGE_ENV.setLayout in a career)
+const CAREER_MAIN = { shell: 'works', layout: 'hearth' };
 function careerMainShed() {
   const L = (typeof HANGAR_LAYOUTS !== 'undefined') ? HANGAR_LAYOUTS[CAREER_MAIN.layout] : null;
   const S = (typeof SHELLS !== 'undefined') ? SHELLS[CAREER_MAIN.shell] : null;

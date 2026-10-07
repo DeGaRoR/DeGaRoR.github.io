@@ -2996,7 +2996,7 @@ const lamps = [];
 // the shed's floor in five discs with dark between them. Inside setLampRig's
 // own [0.10, 1.30] clamp and inside the slider's 20..140 range, both checked.
 const LAMP_HK = Math.max(0.1, Math.min(1.6, (EAVE / 7.0) * (EAVE / 7.0)));   // G439: the hang height's inverse square, club = 1
-const LAMP = { gain: 1, angle: 1.178097, kelvin: LAYIT ? LAYIT.kelvin : 4000,
+const LAMP = { gain: (LAYIT && LAYIT.gain) || 1, angle: 1.178097, kelvin: LAYIT ? LAYIT.kelvin : 4000,
                rgb: new THREE.Color(0xffd9a0) };
 const kelvinRGB = (K, out) => {
   const t = Math.max(10, Math.min(400, K / 100));
@@ -3520,7 +3520,9 @@ const setMood = i => {
   // is the garage scene once app.js has hung the room in it; the build-time
   // setMood(0) runs before that and app.js re-applies the mood after.
   const sc = ROOT.parent;
-  if (sc) sc.environmentIntensity = muted.env ? 0 : m.env / 0.55;
+  // G2318: a layout may hold the room's ambient off the floor at night (envFloor: the hearth's lamp-lit workshop, not an
+  // empty warehouse) - never below the mood's own; the club has none (m.env as ever)
+  if (sc) sc.environmentIntensity = muted.env ? 0 : Math.max(m.env, (LAYIT && LAYIT.envFloor) || 0) / 0.55;
   return m;
 };
 

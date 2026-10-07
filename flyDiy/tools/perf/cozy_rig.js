@@ -16,7 +16,7 @@
 //     order ABBA over residents on / off when there are residents, else two windows.
 // Usage: node tools/perf/cozy_rig.js --out <json> [--q 'gfx=gamer&career=1'] [--residents] [--shots <dir>] [--label <tree>]
 //          [--hours afternoon,night] [--cams room,wide,side] [--secs 12] [--cpu-throttle N] [--gpux K] [--size 1920x1080]
-//          [--sport 8591] [--dport 9491] [--udd C:/gcozy] [--wait 300]
+//          [--layouts hearth,cozy] [--tlayouts hearth,cozy] [--sport 8591] [--dport 9491] [--udd C:/gcozy] [--wait 300]
 // A GPU RUN: take tools/perf/boxlock.sh take gpu COZY first, drop it after. Rigs have no --help.
 'use strict';
 const { spawn, execSync } = require('child_process');
@@ -123,7 +123,23 @@ const VIEWK = { room: 'q', wide: 'q', back: 'q', side: 's' };
   }
   const hasRes = !!(res.residents && res.residents.plan && res.residents.plan.some(p => p.filled));
   // a still: the UI hidden (SHOT_MODE), the label burned into the corner, the frame's draws and triangles
-  const label = (hour, cam, r) => [LABEL + ' ' + res.sha, preset, mode, hour, cam, r === null ? '' : ('residents ' + (r ? 'on' : 'off'))].filter(Boolean).join(' · ');
+  // THE LAYOUTS (--layouts hearth,cozy: the career's main hangar re-stood in each through GARAGE_ENV.setLayout, the same
+  // page, the same cameras); none named = the page as it stands (the sandbox's club, or the career's default)
+  const LAYS = /career=1/.test(Q) ? (opt('layouts', '') || '').split(',').filter(Boolean) : [];
+  const setLay = async lay => {
+    if (!lay) return;
+    const got = await run(`return GARAGE_ENV.setLayout ? GARAGE_ENV.setLayout(${JSON.stringify(lay)}) : 'no door';`);
+    console.log('layout ' + lay + ' -> ' + got);
+    await sleep(6000);
+    for (let i = 0; i < 10; i++) {
+      const R = await run('const R = GARAGE_ENV.residentsSync ? GARAGE_ENV.residentsSync() : null; return R ? R.plan : null;');
+      if (!hasRes || (R && R.length && R.every(p => p.filled))) { res.plans = res.plans || {}; res.plans[lay] = R; break; }
+      await sleep(1500);
+    }
+  };
+  const room = lay => lay || (/career=1/.test(Q) ? (res.room && res.room.layout) || 'career' : 'club');
+  // a still: the UI hidden (SHOT_MODE), the label burned into the corner, the frame's draws and triangles
+  const label = (lay, hour, cam, r) => [LABEL + ' ' + res.sha, preset, mode, 'layout ' + room(lay), hour, cam, r === null ? '' : ('residents ' + (r ? 'on' : 'off'))].filter(Boolean).join(' · ');
   const shoot = async (name, text) => {
     await run(`let d = document.getElementById('__cozyLbl'); if (!d) { d = document.createElement('div'); d.id = '__cozyLbl'; d.style.cssText = 'position:fixed;left:8px;top:8px;z-index:2147483647;font:600 15px/1.3 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.55);padding:4px 8px;border-radius:4px;pointer-events:none'; document.body.appendChild(d); } d.textContent = ${JSON.stringify(text)}; return 1;`);
     await sleep(400);
@@ -132,27 +148,28 @@ const VIEWK = { room: 'q', wide: 'q', back: 'q', side: 's' };
     res.stills.push({ name, text, info }); save();
     console.log('still ' + name + ' ' + JSON.stringify(info));
   };
-  await run('if (window.SHOT_MODE) SHOT_MODE.enter(); return 1;');
-  for (const hour of HOURS) {
-    await run(`if (window.DAY_CLOCK) DAY_CLOCK.preset(${JSON.stringify(hour)}); return 1;`);
-    await sleep(3500);
-    for (const cam of CAMS) {
-      await run(`const E = window.EDITOR_API || null; ${CAM[cam] || CAM.room} return 1;`);
-      for (const r of (hasRes ? [true, false] : [null])) {
-        if (r !== null) await run(`GARAGE_ENV.setResidents(${r}); return 1;`);
-        await sleep(1800);
-        await shoot([preset, /career=1/.test(Q) ? 'cozy' : 'club', hour, cam, r === null ? 'nores' : (r ? 'res' : 'nores')].join('_'), label(hour, cam, r));
+  if (HOURS.length && CAMS.length) {
+    await run('if (window.SHOT_MODE) SHOT_MODE.enter(); return 1;');
+    for (const lay of (LAYS.length ? LAYS : [null])) {
+      await run('if (window.SHOT_MODE) SHOT_MODE.exit(); return 1;'); await setLay(lay); await run('if (window.SHOT_MODE) SHOT_MODE.enter(); return 1;');
+      for (const hour of HOURS) {
+        await run(`if (window.DAY_CLOCK) DAY_CLOCK.preset(${JSON.stringify(hour)}); return 1;`);
+        await sleep(3500);
+        for (const cam of CAMS) {
+          await run(`${CAM[cam] || CAM.room} return 1;`);
+          for (const r of (hasRes ? [true, false] : [null])) {
+            if (r !== null) await run(`GARAGE_ENV.setResidents(${r}); return 1;`);
+            await sleep(1800);
+            await shoot([preset, room(lay), hour, cam, r === null ? 'nores' : (r ? 'res' : 'nores')].join('_'), label(lay, hour, cam, r));
+          }
+        }
       }
     }
+    if (hasRes) await run('GARAGE_ENV.setResidents(true); return 1;');
+    await run('if (window.SHOT_MODE) SHOT_MODE.exit(); const d = document.getElementById("__cozyLbl"); if (d) d.remove(); return 1;');
   }
-  if (hasRes) await run('GARAGE_ENV.setResidents(true); return 1;');
-  await run('if (window.SHOT_MODE) SHOT_MODE.exit(); const d = document.getElementById("__cozyLbl"); if (d) d.remove(); return 1;');
   if (SECS > 0) {
-    await run(`if (window.DAY_CLOCK) DAY_CLOCK.preset('afternoon'); ${CAM.room} return 1;`);
-    if (THROTTLE > 1) await cmd('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
-    if (GPUX > 1) await run('window.__GPUX = ' + GPUX + '; return 1;');
-    res.rung = { cpu: THROTTLE || 1, gpux: GPUX || 1 };
-    await sleep(4000);
+    const TL = /career=1/.test(Q) ? (opt('tlayouts', '') || '').split(',').filter(Boolean) : [];
     const WIN = secs => `const R = FLIGHT_REC.rec; const f0 = R.frame; await new Promise(r => setTimeout(r, ${secs * 1000})); const f1 = R.frame;
       const rows = []; for (let f = f0; f < f1; f++) { const o = R.row(f); if (o && o.dt === o.dt) rows.push(o); }
       const q = (k, p) => { const a = rows.map(o => o[k]).filter(x => x === x).sort((x, y) => x - y); return a.length ? +a[Math.min(a.length - 1, Math.floor(p * a.length))].toFixed(2) : null; };
@@ -161,13 +178,24 @@ const VIEWK = { room: 'q', wide: 'q', back: 'q', side: 's' };
         over50: +(rows.filter(o => o.dt > 50).length / Math.max(1, rows.length)).toFixed(3),
         work50: q('work', .5), render50: q('render', .5), shadow50: q('shadow', .5), gpu50: q('gpu', .5), gpu90: q('gpu', .9), calls: q('calls', .5), mtris: +(q('tris', .5) / 1e6).toFixed(3) };`;
     res.windows = [];
-    for (const r of (hasRes ? [true, false, false, true] : [null, null])) {
-      if (r !== null) await run(`GARAGE_ENV.setResidents(${r}); return 1;`);
-      await sleep(2500);
-      const w = await run(WIN(SECS)); w.residents = r; res.windows.push(w); save();
-      console.log('  window residents ' + r + ' ' + JSON.stringify(w));
+    for (const lay of (TL.length ? TL : [null])) {
+      // the layout swapped at the box's own speed, THEN the rung (a rebuild under a 3x throttle is minutes, and not the question)
+      if (THROTTLE > 1) await cmd('Emulation.setCPUThrottlingRate', { rate: 1 });
+      if (GPUX > 1) await run('window.__GPUX = 1; return 1;');
+      await setLay(lay);
+      await run(`if (window.DAY_CLOCK) DAY_CLOCK.preset('afternoon'); ${CAM.room} return 1;`);
+      if (THROTTLE > 1) await cmd('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+      if (GPUX > 1) await run('window.__GPUX = ' + GPUX + '; return 1;');
+      res.rung = { cpu: THROTTLE || 1, gpux: GPUX || 1 };
+      await sleep(5000);
+      for (const r of (hasRes ? [true, false, false, true] : [null, null])) {
+        if (r !== null) await run(`GARAGE_ENV.setResidents(${r}); return 1;`);
+        await sleep(2500);
+        const w = await run(WIN(SECS)); w.residents = r; w.layout = room(lay); res.windows.push(w); save();
+        console.log('  window ' + w.layout + ' residents ' + r + ' ' + JSON.stringify(w));
+      }
     }
-    const by = {}; for (const w of res.windows) (by[String(w.residents)] = by[String(w.residents)] || []).push(w);
+    const by = {}; for (const w of res.windows) (by[w.layout + '|' + String(w.residents)] = by[w.layout + '|' + String(w.residents)] || []).push(w);
     const avg = (a, k) => +(a.reduce((s, w) => s + (w[k] || 0), 0) / a.length).toFixed(2);
     res.summary = Object.fromEntries(Object.entries(by).map(([k, a]) => [k, { fps: avg(a, 'fps'), dt50: avg(a, 'dt50'), dt90: avg(a, 'dt90'), dt99: avg(a, 'dt99'), over50: avg(a, 'over50'), work50: avg(a, 'work50'), render50: avg(a, 'render50'), gpu50: avg(a, 'gpu50'), gpu90: avg(a, 'gpu90'), calls: avg(a, 'calls'), mtris: avg(a, 'mtris') }]));
     console.log('COZY_RIG ' + JSON.stringify(res.summary));
