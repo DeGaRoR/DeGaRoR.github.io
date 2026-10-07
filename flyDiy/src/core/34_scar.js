@@ -43,13 +43,35 @@
 //   SCAR.W   GAME - the contact's width by the member's ledger section (bm.sec): the fuselage's belly stringers 0.2 m,
 //            a wing's leading edge or bow 0.15, the cowl 0.3, a strut 0.06, the gear 0.08
 //
+// G2378-G2382 (DMG-SCAR2; the box stills of 7 Oct: the Jodel's wing strike drawn as a trail of identical round craters,
+// the wreck still standing in tall grass, the runway's nose-over with no scuff to see):
+//   THE JOIN (G2378). A part that slid or bounced along the ground is ONE furrow: the slides are chained in the order they
+//            began - a slide continues a chain one of whose slides ended at most joinT before it began: the same node on
+//            that time gap alone (a bounce: its hop is its own flight), another node only from a contact still moving
+//            (> vHand), ahead of it, landing within joinD + joinK x the hop of where that contact's speed would have
+//            carried it (a hop is ballistic: its ground speed hardly changes in the air). A chain is one gouge: its path the slides' paths end to end (the hops
+//            bridged), its width the contacting part's (SCAR.W, the widest of its nodes), its depth from the friction
+//            work the slides recorded over the length they slid. A CRATER is kept only for a BLOW of eBlow or more that
+//            STOPPED there (its contact went on less than stopK x the bowl's radius): a blow on the way is the furrow's
+//            (its work counted in the gouge's E). eBlow is the blow that digs past the sod: a bowl d = r_b / 3 deeper
+//            than the turf's root mat (sod 0.07 m) - E = pi qB (3 sod)^3 / 6 = 970 J.
+//   THE DIRECTION (G2379). A crater carries the heading its contact had when it struck (u): the decal throws its spoil
+//            down-range (the footprint's r includes it: rim x r_b x (1 + throw)).
+//   THE RESTING WRECK (G2380). Each seal adds the HULLS { k: 'h', p: [x, z, ...] (convex, anticlockwise), m }: every
+//            piece of the wreck as it lies (the nodes joined by members still whole: the airframe and every piece that
+//            came off), the convex hull of its nodes lower than hSweep over the ground, m the margin round it (mRest,
+//            and what a simplification to hullPts points cut off). The grass and the shrubs go under them (the cover
+//            ring's cull - scarIn tests them as the footprint); no decal (a cleared site, not a scar). A later seal
+//            replaces them (the wreck where it finally lies).
+//   HARD GROUND (G2381). A scuff, never a bowl or a furrow: d 0, at least wScuff wide (rubber and metal streaks, the
+//            decal's); a blow on paved or rock is a scuff patch along its heading.
 // The page (sim_host.js simDmgHop -> sim_view.js dmgS.scar; inline, app.js dmgNow) culls the grass in the footprint
 // (cover_ring.js scar), the shrubs and the debris in the footprint and the sweep, and lays the decal (ground_scar.js).
 // scarIn / scarBox are the one footprint test both use, and the gate's.
 // ============================================================
 const SCAR = {
   qB: 200e3, qP: 60e3, kP: 0.5, rim: 1.4, spoil: 1.0,
-  eArm: 250, eCrater: 300,
+  eArm: 250,
   impS: 0.15,                 // s: the blow is the approach's work over a contact's first 0.15 s
   gapS: 0.25,                 // s: a node off the ground longer than this starts a new slide (a bounce)
   quiet: 1.0,                 // s: an event whose contacts did no work this long is sealed
@@ -62,7 +84,26 @@ const SCAR = {
   blade: 0.12,                // m GAME: a blade's width at its tip (the prop strike's slot)
   maxPts: 24, maxPrims: 64, maxCraters: 16, maxSweeps: 4,
   W: { fuselage: 0.2, wings: 0.15, bracing: 0.06, tail: 0.1, gear: 0.08, engines: 0.3, vessel: 0.2 }, W0: 0.12,
+  // G2378 (DMG-SCAR2): the join (above). join false: every slide its own (the old record - GATE DMGSCAR's selftest)
+  join: true,
+  joinT: 0.5,                 // s GAME: a bounce's time in the air - a rebound of up to 2.5 m/s (2 vy / g)
+  joinD: 1.0,                 // m GAME: where a hop lands, round where its speed carried it ...
+  joinK: 0.3,                 //   ... + this share of the hop (the part turns in the air: its lowest point moves)
+  vHand: 1.0,                 // m/s GAME: a contact slower than this hands its furrow to no other node (a wreck settling)
+  sod: 0.07,                  // m AS RECALLED: a turf's root zone, 5-10 cm (eBlow below: the blow that digs past it)
+  stopK: 2,                   // GAME: a blow STOPPED when its contact went on less than stopK x its bowl's radius
+  throw: 0.3,                 // GAME: a crater's spoil thrown down-range, x its radius
+  // G2380: the resting wreck's hulls
+  mRest: 0.75,                // m GAME: the margin round a piece's hull (a tuft's lean and the eye's angle over it)
+  maxHulls: 24, hullPts: 16,
+  vRest: 0.5,                 // m/s GAME: the wreck is AT REST when no node moves faster (a loose wheel rolling on: not yet;
+                              //   a dangling member's jitter, 0.2-0.3 m/s, is rest)
+  restDt: 0.5, restMax: 10,   // s: after a seal, that read every restDt until the wreck rests (at most restMax): the hulls
+                              //    sealed again once, where the pieces finally lie
+  // G2381: a scuff on hard ground at least this wide (rubber and metal, streaks the decal draws)
+  wScuff: 0.4,                // m GAME
 };
+SCAR.eBlow = Math.round(Math.PI * SCAR.qB * Math.pow(3 * SCAR.sod, 3) / 6);   // 970 J: a bowl deeper than the sod
 // the ground's class under a point: 0 turf, 1 bare, 2 hard, -1 water (world.SURFACE: GRASS 0, ROCK 1, SCREE 2,
 // FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7)
 const SCAR_SURF = [0, 2, 1, 0, -1, 2, 1, 1];
@@ -80,7 +121,11 @@ function scarMake(def, nE) {
   for (const b of def.beams) { const x = SCAR.W[b.sec] || SCAR.W0; if (x > w[b.a]) w[b.a] = x; if (x > w[b.b]) w[b.b] = x; }
   for (let i = 0; i < n; i++) if (!(w[i] > 0)) w[i] = SCAR.W0;
   for (let i = n; i < ns; i++) w[i] = SCAR.W.engines;
-  return { n, ns, w, acc: new Float64Array(ns * 8), touched: new Int32Array(ns), nt: 0,
+  // (G2380: the members' ends and the nodes' radii - the wreck's pieces at a seal)
+  const nb = def.beams.length, ba = new Int32Array(nb), bb = new Int32Array(nb), nr = new Float64Array(n);
+  for (let b = 0; b < nb; b++) { ba[b] = def.beams[b].a; bb[b] = def.beams[b].b; }
+  for (let i = 0; i < n; i++) nr[i] = def.nodes[i].r || 0;
+  return { n, ns, w, ba, bb, nr, tPrev: -1, last: null, rest: null, acc: new Float64Array(ns * 8), touched: new Int32Array(ns), nt: 0,
            trk: new Array(ns).fill(null), segs: [], strikes: [], ev: { open: false, armed: false, E: 0, t0: 0, tLast: 0, sw: [], ww: [] }, overSealed: false,
            out: { v: 0, prims: [] }, hits: 0, frames: 0, ms: 0, seals: 0 };
 }
@@ -112,25 +157,34 @@ function scarStrike(R, k, x, z, ex, ez, b, Rp, t) {
 }
 function scarReset(R) {
   R.acc.fill(0); R.nt = 0; R.trk.fill(null); R.segs.length = 0; R.strikes.length = 0;
-  const E = R.ev; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0; R.overSealed = false;
+  const E = R.ev; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0; R.overSealed = false; R.rest = null; R.carry = null; R.carrySegs = null;
   if (R.out.prims.length || R.out.v) { R.out.v++; R.out.prims = []; }   // a new version, empty: the page lets its scar go
 }
-// once a frame, on a frame with a contact or an event open (30_solver step, after dmgOver)
-function scarFrame(R, p, m, world, t, D) {
+// once a frame, on a frame with a contact or an event open, or a sealed scar waiting for the wreck's rest (30_solver step,
+// after dmgOver)
+function scarFrame(R, p, m, world, t, D, v) {
+  if (R.nt === 0 && !R.ev.open) { if (R.rest !== null) scarRest(R, p, v, world, t, D); return; }
   R.frames++;
   const A = R.acc, n = R.n, E = R.ev;
   let fw = 0;
   const add = (T, x, z) => { T.L += Math.hypot(x - T.lx, z - T.lz); T.lx = x; T.lz = z;
     const k = T.pts.length; if (Math.hypot(x - T.pts[k - 2], z - T.pts[k - 1]) >= SCAR.step) T.pts.push(x, z); };
+  const dtF = R.tPrev >= 0 && t - R.tPrev > 0 && t - R.tPrev < 0.1 ? t - R.tPrev : 1 / 60; R.tPrev = t;
   for (let q = 0; q < R.nt; q++) {
     const i = R.touched[q], o = i * 8, Wn = A[o + 1], Wf = A[o + 2], Fm = A[o + 3], x0 = A[o + 4], z0 = A[o + 5], x1 = A[o + 6], z1 = A[o + 7];
     A[o] = 0; A[o + 1] = 0; A[o + 2] = 0; A[o + 3] = 0;
     let T = R.trk[i];
-    if (!T || t - T.t1 > SCAR.gapS) {
-      T = { i, w: R.w[i], pts: [x0, z0], lx: x0, lz: z0, L: 0, Wf: 0, Fm: 0, t0: t, t1: t, imp: 0 };
+    const fresh = !T || t - T.t1 > SCAR.gapS;
+    // (G2378) the contact's speed over the ground and its heading: from its last point (a frame or a skip before) to
+    // this frame's last touch - a fresh slide's from its first touch this frame (an underestimate: the join's tolerance)
+    const px = fresh ? x0 : T.lx, pz = fresh ? z0 : T.lz, dtt = fresh ? dtF : Math.max(dtF, t - T.t1);
+    if (fresh) {
+      T = { i, w: R.w[i], pts: [x0, z0], lx: x0, lz: z0, L: 0, Wf: 0, Fm: 0, t0: t, t1: t, imp: 0, v: 0, ux: 0, uz: 0, u0: null };
       R.segs.push(T); R.trk[i] = T;
     } else add(T, x0, z0);
     add(T, x1, z1);
+    { const ux = x1 - px, uz = z1 - pz, ul = Math.hypot(ux, uz);
+      if (ul > 1e-3) { T.v = ul / dtt; T.ux = ux / ul; T.uz = uz / ul; if (!T.u0) T.u0 = [T.ux, T.uz]; } }
     T.Wf += Wf; T.t1 = t; if (Fm > T.Fm) T.Fm = Fm;
     if (t - T.t0 <= SCAR.impS) T.imp += Wn;
     fw += Wn + Wf;
@@ -140,7 +194,7 @@ function scarFrame(R, p, m, world, t, D) {
   // does nothing - the event is sealed SCAR.quiet after the last frame that did more than SCAR.eQuiet
   if (fw > SCAR.eQuiet) { if (!E.open) { E.open = true; E.t0 = t; } E.tLast = t; }
   if (E.open) E.E += fw;
-  if (!E.open) return;
+  if (!E.open) { if (R.rest !== null) scarRest(R, p, v, world, t, D); return; }   // (a wreck at rest still touches)
   if (!E.armed && (D.breaks > 0 || D.crashed || E.E > SCAR.eArm)) E.armed = true;
   // the sweep: the CG's track while the wreck touches, a point a metre; the low nodes' reach across it
   if (t - E.tLast < 0.05) {
@@ -162,8 +216,13 @@ function scarFrame(R, p, m, world, t, D) {
   }
   if ((D.over && !R.overSealed) || t - E.tLast > SCAR.quiet) {
     if (D.over) R.overSealed = true;
-    if (E.armed) scarSeal(R, world);
-    R.trk.fill(null); R.segs.length = 0; R.strikes.length = 0; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0;
+    if (E.armed) { scarSeal(R, world, p, D, t); R.rest = { t0: t, tc: t }; }
+    // (G2378: a chain still moving at the seal - the D.over seal comes 4 s after the crash, a part may still slide - is
+    // CARRIED into the next event, its slides kept: the next seal replaces its prims with the whole chain's)
+    const keep = R.carrySegs || []; R.carrySegs = null;
+    R.trk.fill(null); R.segs.length = 0;
+    for (const T of keep) { R.segs.push(T); if (t - T.t1 <= SCAR.gapS) R.trk[T.i] = T; }
+    R.strikes.length = 0; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0;
   }
 }
 // ---- the event's primitives ----------------------------------------------------------------------------------------
@@ -203,20 +262,68 @@ function scarDry(world, P) {
   }
   return cur.length > best.length ? cur : best;
 }
-function scarSeal(R, world) {
+function scarSeal(R, world, p, D, t) {
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
-  try { scarSeal0(R, world); } finally { R.ms += clk.now() - t0; }   // the event's cost (GATE DMGSCAR reads it)
+  try { scarSeal0(R, world, p, D, t); } finally { R.ms += clk.now() - t0; }   // the event's cost (GATE DMGSCAR reads it)
 }
-function scarSeal0(R, world) {
-  const out = [];
-  // the gouges: one per slide, the longest first; a shorter one alongside merges into it (the strip widened to cover it)
-  const G = [];
-  for (const T of R.segs) {
-    if (T.L < SCAR.minL) continue;
-    if (T.pts.length < 4) T.pts.push(T.lx, T.lz);   // a short slide: its first point and its last
-    const Ff = T.Wf / Math.max(T.L, 1e-6), d = Math.min(SCAR.dMax, Math.max(SCAR.dMin, SCAR.kP * Ff / SCAR.qP / T.w));
-    G.push({ p: T.pts.slice(), w: Math.min(SCAR.wMax, T.w + 2 * SCAR.spoil * d), d, E: T.Wf, L: T.L });
+// G2378: the bowl a blow of E J digs (the soil's volume E / qB, a bowl of depth r_b / 3) and the turf it tears (r)
+const scarBowl = E => { const rb = Math.cbrt(6 * E / (Math.PI * SCAR.qB)); return { rb, r: Math.min(SCAR.rMax, Math.max(SCAR.rMin, SCAR.rim * rb)) }; };
+// G2378: THE JOIN - the slides chained (a slide continues the chain it follows: above); each chain { s: [slides], last }
+function scarChains(segs) {
+  const S = segs.slice().sort((a, b) => a.t0 - b.t0 || a.i - b.i), CH = [];
+  for (const T of S) {
+    let best = null, bd = Infinity;
+    // (any slide of a chain that ended within joinT is a tip it may continue from - not only its last: a chain handed to
+    // a neighbour still takes its own node back, landing a hop on; the same node's tip first, at equal fit)
+    if (SCAR.join) for (const ch of CH) for (let q = ch.s.length - 1; q >= 0; q--) {
+      const A = ch.s[q], gap = T.t0 - A.t1;
+      if (gap > SCAR.joinT) { if (T.t0 - ch.last.t1 > SCAR.joinT) break; continue; }
+      if (gap < 0) continue;
+      if (A.i !== T.i && !(A.v >= SCAR.vHand)) continue;                 // a settling contact hands over to no other node
+      const hop = (A.v || 0) * gap, qx = A.lx + A.ux * hop, qz = A.lz + A.uz * hop;
+      const e = Math.hypot(T.pts[0] - qx, T.pts[1] - qz) + (A.i === T.i ? 0 : 1e-6);
+      if (A.i !== T.i && (T.pts[0] - A.lx) * A.ux + (T.pts[1] - A.lz) * A.uz < -SCAR.joinD) continue;   // another node: ahead of it
+      // the same node: the time gap alone (its hop is its own flight - a contact braked by the ground leaves at a speed
+      // its slide does not show); another node: where the hop lands, round where its speed carried it
+      if ((A.i === T.i || e <= SCAR.joinD + SCAR.joinK * hop) && e < bd) { bd = e; best = ch; }
+    }
+    if (best) { best.s.push(T); if (T.t1 >= best.last.t1) best.last = T; } else CH.push({ s: [T], last: T });
   }
+  return CH;
+}
+function scarSeal0(R, world, p, D, t) {
+  const out = [], CH = scarChains(R.segs), hardW = w => Math.max(w, SCAR.wScuff), carry = new Set(), carrySegs = [];
+  const st = { slides: R.segs.length, chains: CH.length, joined: 0, blows: 0, stopped: 0, onWay: 0, gouges: 0 };
+  // each chain: its path (the slides end to end, the hops bridged), the length it SLID (the hops not counted), its work,
+  // its width (the widest contacting node's); a blow of eBlow or more that stopped is a crater, any other the furrow's
+  const G = [], C = [];
+  for (const ch of CH) {
+    const s = ch.s, P = [], live = t != null && t - ch.last.t1 <= SCAR.joinT;
+    if (live) for (const T of s) carrySegs.push(T);
+    let L = 0, Wf = 0, w = 0, Eon = 0, after = 0;
+    for (const T of s) { L += T.L; Wf += T.Wf; if (T.w > w) w = T.w; }
+    if (s.length > 1) st.joined += s.length;
+    // the length the chain went on after each slide began (the hops counted: the part went on)
+    const rest = new Float64Array(s.length);
+    for (let q = s.length - 1; q >= 0; q--) { rest[q] = after + s[q].L; after = rest[q] + (q ? Math.hypot(s[q].pts[0] - s[q - 1].lx, s[q].pts[1] - s[q - 1].lz) : 0); }
+    for (let q = 0; q < s.length; q++) {
+      const T = s[q];
+      for (let j = 0; j < T.pts.length; j += 2) P.push(T.pts[j], T.pts[j + 1]);
+      if (Math.hypot(T.lx - P[P.length - 2], T.lz - P[P.length - 1]) > 0.01) P.push(T.lx, T.lz);
+      if (T.imp >= SCAR.eBlow) {
+        st.blows++;
+        if (rest[q] <= SCAR.stopK * scarBowl(T.imp).r) { st.stopped++; C.push({ x: T.pts[0], z: T.pts[1], E: T.imp, u: T.u0, live }); continue; }
+        st.onWay++;
+      }
+      Eon += T.imp;
+    }
+    if (L < SCAR.minL) continue;
+    if (P.length < 4) continue;
+    const d = Math.min(SCAR.dMax, Math.max(SCAR.dMin, SCAR.kP * Wf / L / SCAR.qP / w));
+    G.push({ p: P, w: Math.min(SCAR.wMax, w + 2 * SCAR.spoil * d), d, E: Wf + Eon, L, n: s.length, live });
+  }
+  // parallel chains closer than their half-widths + merge are one strip (a belly between its longerons) - never a strip
+  // wider than it is long (G2378: two short scrapes side by side stay two, not a 2.5 m blot)
   G.sort((a, b) => b.L - a.L);
   const acc = [];
   for (const g of G) {
@@ -224,38 +331,40 @@ function scarSeal0(R, world) {
     for (const h of acc) {
       const lim = (h.w + g.w) / 2 + SCAR.merge; let inside = 0, dmx = 0;
       for (let j = 0; j < g.p.length; j += 2) { const dd = scarSegD(h.p, g.p[j], g.p[j + 1]); if (dd <= lim) { inside++; if (dd > dmx) dmx = dd; } }
-      if (inside >= 0.8 * g.p.length / 2) { into = h; far = dmx; break; }
+      if (inside >= 0.8 * g.p.length / 2 && 2 * dmx + g.w <= Math.max(h.w, h.L)) { into = h; far = dmx; break; }
     }
-    if (into) { into.w = Math.min(SCAR.wMax, Math.max(into.w, 2 * far + g.w)); into.d = Math.max(into.d, g.d); into.E += g.E; }
+    if (into) { into.w = Math.min(SCAR.wMax, Math.max(into.w, 2 * far + g.w)); into.d = Math.max(into.d, g.d); into.E += g.E; into.n += g.n; into.live = into.live || g.live; }
     else acc.push(g);
   }
   for (const g of acc) {
     const P = scarSimplify(scarDry(world, g.p), 0.08, SCAR.maxPts); if (P.length < 4) continue;
     const s = scarSurf(world, P[0], P[1]);
-    out.push({ k: 'g', p: P.map(scarR2), w: scarR2(g.w), d: s === 2 ? 0 : Math.round(g.d * 1000) / 1000, s, E: Math.round(g.E) });
+    // (hard ground: no spoil - the part's own width, at least wScuff)
+    out.push({ k: 'g', p: P.map(scarR2), w: scarR2(s === 2 ? hardW(g.w - 2 * SCAR.spoil * g.d) : g.w), d: s === 2 ? 0 : Math.round(g.d * 1000) / 1000, s, E: Math.round(g.E), n: g.n });
+    if (g.live) carry.add(out[out.length - 1]);
+    st.gouges++;
   }
-  // the craters: each slide's first blow over eCrater, at the point it struck; blows that overlap are one bowl
-  const C = [];
-  for (const T of R.segs) if (T.imp >= SCAR.eCrater) C.push({ x: T.pts[0], z: T.pts[1], E: T.imp });
+  // the craters: the blows that stopped; blows that overlap are one bowl (the heading the strongest's)
   C.sort((a, b) => b.E - a.E);
-  const rOf = E => { const rb = Math.cbrt(6 * E / (Math.PI * SCAR.qB)); return { rb, r: Math.min(SCAR.rMax, Math.max(SCAR.rMin, SCAR.rim * rb)) }; };
   const B = [];
   for (const c of C) {
     let into = null;
-    for (const b of B) if (Math.hypot(c.x - b.x, c.z - b.z) < rOf(b.E).r + rOf(c.E).r) { into = b; break; }
-    if (into) { const E = into.E + c.E; into.x = (into.x * into.E + c.x * c.E) / E; into.z = (into.z * into.E + c.z * c.E) / E; into.E = E; }
+    for (const b of B) if (Math.hypot(c.x - b.x, c.z - b.z) < scarBowl(b.E).r + scarBowl(c.E).r) { into = b; break; }
+    if (into) { const E = into.E + c.E; into.x = (into.x * into.E + c.x * c.E) / E; into.z = (into.z * into.E + c.z * c.E) / E; into.E = E; into.live = into.live || c.live; }
     else B.push(Object.assign({}, c));
   }
   for (const b of B.slice(0, SCAR.maxCraters)) {
     const s = scarSurf(world, b.x, b.z); if (s < 0) continue;
-    const { rb, r } = rOf(b.E);
-    out.push({ k: 'c', x: scarR2(b.x), z: scarR2(b.z), r: scarR2(s === 2 ? Math.min(r, 0.6) : r), d: s === 2 ? 0 : Math.round(rb / 3 * 1000) / 1000, s, E: Math.round(b.E) });
+    const { rb, r } = scarBowl(b.E), th = b.u ? 1 + SCAR.throw : 1;
+    const c = { k: 'c', x: scarR2(b.x), z: scarR2(b.z), r: scarR2(s === 2 ? Math.min(r, 0.6) : Math.min(SCAR.rMax, r * th)), d: s === 2 ? 0 : Math.round(rb / 3 * 1000) / 1000, s, E: Math.round(b.E) };
+    if (b.u) c.u = [Math.round(b.u[0] * 1000) / 1000, Math.round(b.u[1] * 1000) / 1000];
+    out.push(c); if (b.live) carry.add(c);
   }
   // the propellers' slots (scarStrike)
   for (const k of R.strikes) {
     const s = scarSurf(world, k.x, k.z); if (s < 0) continue;
-    const d = Math.min(SCAR.dMax, k.b), h = k.c / 2;
-    out.push({ k: 'g', p: [k.x - k.ex * h, k.z - k.ez * h, k.x + k.ex * h, k.z + k.ez * h].map(scarR2), w: scarR2(SCAR.blade + 2 * SCAR.spoil * d), d: s === 2 ? 0 : Math.round(d * 1000) / 1000, s, E: 0, ps: 1 });
+    const d = Math.min(SCAR.dMax, k.b), h = k.c / 2, w = SCAR.blade + 2 * SCAR.spoil * d;
+    out.push({ k: 'g', p: [k.x - k.ex * h, k.z - k.ez * h, k.x + k.ex * h, k.z + k.ez * h].map(scarR2), w: scarR2(s === 2 ? hardW(SCAR.blade) : w), d: s === 2 ? 0 : Math.round(d * 1000) / 1000, s, E: 0, ps: 1 });
   }
   // the sweep
   const E = R.ev;
@@ -269,20 +378,106 @@ function scarSeal0(R, world) {
       let w = 0; for (let j = Math.max(0, a - 1); j < Math.min(N, b + 1); j++) w = Math.max(w, W[j]); P2.push(P[a * 2], P[a * 2 + 1]); W2.push(w); } P = P2; W = W2; }
     if (P.length >= 4) out.push({ k: 's', p: P.map(scarR2), w: scarR2(Math.max(...W)), ws: W.map(scarR2) });
   }
-  // with the events before it, at most maxPrims: the sweeps, then the craters, then the gouges by their work
-  if (!out.length) return;                       // nothing new (an event of a wreck settling): the page's scar stands
-  const all = R.out.prims.concat(out), sw = all.filter(x => x.k === 's').slice(-SCAR.maxSweeps);
+  // G2380: the resting wreck - every piece's hull as it lies
+  const H = p && D ? scarHulls(R, p, world, D) : [];
+  R.last = st; st.hulls = H.length;
+  // with the events before it, at most maxPrims: the sweeps, the hulls (this seal's replace the last's), then the craters,
+  // then the gouges by their work. A seal with nothing new but hulls the old ones cover (a wreck settling) changes nothing
+  // (the prims of the chains the last seal carried go: this seal's chains hold them whole)
+  const C0 = R.carry; R.carry = carry; R.carrySegs = carrySegs;
+  const old = C0 ? R.out.prims.filter(x => !C0.has(x)) : R.out.prims, oldH = old.filter(x => x.k === 'h');
+  if (!out.length && (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; })))) return;
+  const all = old.filter(x => x.k !== 'h' || !H.length).concat(out, H), sw = all.filter(x => x.k === 's').slice(-SCAR.maxSweeps);
+  const hu = all.filter(x => x.k === 'h');
   const cr = all.filter(x => x.k === 'c').sort((a, b) => b.E - a.E).slice(0, SCAR.maxCraters);
-  const go = all.filter(x => x.k === 'g').sort((a, b) => b.E - a.E).slice(0, Math.max(0, SCAR.maxPrims - sw.length - cr.length));
-  R.out.prims = cr.concat(go, sw);
+  const go = all.filter(x => x.k === 'g').sort((a, b) => b.E - a.E).slice(0, Math.max(0, SCAR.maxPrims - sw.length - hu.length - cr.length));
+  R.out.prims = cr.concat(go, sw, hu);
   R.out.v++; R.seals++;
 }
-// ---- THE FOOTPRINT (the page's cull and the gate's): inside a crater's disc or a gouge's strip; `sweep` adds the sweeps
+// G2380: THE WRECK'S REST - after a seal, every restDt: when no node moves faster than vRest (or restMax went by), the
+// hulls sealed again where the pieces lie (a wheel that came off and rolled on, a wing that slid after the contacts went
+// quiet), once - a new version only if the old hulls do not already cover them. A crashed wreck's few seconds: the
+// physics' thread, n speeds twice a second; nothing on an intact flight (rest stays null) or with the layer off
+function scarRest(R, p, v, world, t, D) {
+  const Q = R.rest;
+  if (t - Q.tc < SCAR.restDt) return;
+  Q.tc = t;
+  let vm = 0; if (v) for (let i = 0; i < R.n; i++) { const s = v[i * 3] * v[i * 3] + v[i * 3 + 1] * v[i * 3 + 1] + v[i * 3 + 2] * v[i * 3 + 2]; if (s > vm) vm = s; }
+  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) return;
+  R.rest = null;
+  const H = scarHulls(R, p, world, D), old = R.out.prims, oldH = old.filter(x => x.k === 'h');
+  if (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; }))) return;
+  R.out.prims = old.filter(x => x.k !== 'h').concat(H);
+  R.out.v++; R.seals++; R.rests = (R.rests || 0) + 1;
+}
+// G2380: THE PIECES AS THEY LIE - the nodes joined by members still whole (union-find over the unbroken beams), each
+// piece's nodes lower than hSweep over the ground (dry), their convex hull (Andrew's monotone chain), simplified to at
+// most hullPts points - a point dropped widens the margin by its distance from the chord that replaced it, so the hull
+// with its margin still covers every node; the margin mRest + that (+ 1 cm for the rounding). The biggest pieces first.
+// The nodes are rounded to the cm BEFORE the hull (rounding a hull's corners after can fold a short edge inside out).
+function scarHulls(R, p, world, D) {
+  const n = R.n, par = new Int32Array(n);
+  for (let i = 0; i < n; i++) par[i] = i;
+  const find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  const brk = new Uint8Array(R.ba.length); if (D.broken) for (const bi of D.broken) brk[bi] = 1;
+  for (let b = 0; b < R.ba.length; b++) if (!brk[b]) { const a = find(R.ba[b]), c = find(R.bb[b]); if (a !== c) par[a] = c; }
+  const gH = world && typeof world.terrainH === 'function' ? world.terrainH : null, by = new Map();
+  for (let i = 0; i < n; i++) {
+    const x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2];
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+    if (gH && y - R.nr[i] - gH(x, z) > SCAR.hSweep) continue;
+    if (scarSurf(world, x, z) < 0) continue;
+    const r = find(i); let L = by.get(r); if (!L) by.set(r, L = []); L.push(scarR2(x), scarR2(z));   // (to the cm first: the hull is built on what is sent)
+  }
+  const pieces = [...by.values()].sort((a, b) => b.length - a.length).slice(0, SCAR.maxHulls), out = [];
+  for (const L of pieces) {
+    const { P, m } = scarHull(L);
+    out.push({ k: 'h', p: P, m: scarR2(SCAR.mRest + m + 0.01) });
+  }
+  return out;
+}
+// the convex hull of [x, z, ...] anticlockwise (x right, z the second axis), at most hullPts points: { P, m } - m the
+// farthest a dropped point lay outside what was kept
+function scarHull(L) {
+  const N = L.length / 2, id = [];
+  for (let j = 0; j < N; j++) id.push(j);
+  id.sort((a, b) => L[a * 2] - L[b * 2] || L[a * 2 + 1] - L[b * 2 + 1]);
+  const cr = (o, a, b) => (L[a * 2] - L[o * 2]) * (L[b * 2 + 1] - L[o * 2 + 1]) - (L[a * 2 + 1] - L[o * 2 + 1]) * (L[b * 2] - L[o * 2]);
+  const lo = [], up = [];
+  for (const j of id) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], j) <= 1e-9) lo.pop(); lo.push(j); }
+  for (let q = id.length - 1; q >= 0; q--) { const j = id[q]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], j) <= 1e-9) up.pop(); up.push(j); }
+  let h = N > 1 ? lo.slice(0, -1).concat(up.slice(0, -1)) : id.slice();
+  if (!h.length) h = [id[0]];
+  let P = []; for (const j of h) P.push(L[j * 2], L[j * 2 + 1]);
+  let m = 0;
+  while (P.length / 2 > SCAR.hullPts) {
+    const K = P.length / 2; let bi = -1, bd = Infinity;
+    for (let q = 0; q < K; q++) { const a = (q + K - 1) % K, b = (q + 1) % K;
+      const d = scarSegD([P[a * 2], P[a * 2 + 1], P[b * 2], P[b * 2 + 1]], P[q * 2], P[q * 2 + 1]); if (d < bd) { bd = d; bi = q; } }
+    P.splice(bi * 2, 2); if (bd > m) m = bd;
+  }
+  return { P, m };
+}
+// a hull with its margin: inside the polygon (anticlockwise: left of every edge) or within m of its edges
+function scarHullIn(c, x, z) {
+  const P = c.p, K = P.length / 2;
+  let inside = K >= 3, best = Infinity;
+  for (let q = 0; q < K; q++) {
+    const ax = P[q * 2], az = P[q * 2 + 1], b = (q + 1) % K, ex = P[b * 2] - ax, ez = P[b * 2 + 1] - az;
+    if (ex * (z - az) - ez * (x - ax) < -1e-9) inside = false;
+    const e2 = ex * ex + ez * ez; let u = e2 > 1e-12 ? ((x - ax) * ex + (z - az) * ez) / e2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
+    const d = Math.hypot(x - ax - u * ex, z - az - u * ez); if (d < best) best = d;
+  }
+  return inside || best <= c.m;
+}
+// ---- THE FOOTPRINT (the page's cull and the gate's): inside a crater's disc, a gouge's strip or a piece's hull (G2380);
+// `sweep` adds the sweeps
 function scarIn(prims, x, z, sweep) {
   for (let q = 0; q < prims.length; q++) {
     const c = prims[q];
     if (c.k === 'c') { const dx = x - c.x, dz = z - c.z; if (dx * dx + dz * dz <= c.r * c.r) return true; }
     else if (c.k === 'g') { if (scarSegD(c.p, x, z) <= c.w / 2) return true; }
+    else if (c.k === 'h') { if (scarHullIn(c, x, z)) return true; }        // G2380: the resting wreck's pieces
     else if (sweep && c.k === 's') { if (scarSweepIn(c, x, z)) return true; }
   }
   return false;
@@ -302,7 +497,7 @@ function scarBox(prims, sweep) {
   for (const c of prims) {
     if (c.k === 'c') { x0 = Math.min(x0, c.x - c.r); x1 = Math.max(x1, c.x + c.r); z0 = Math.min(z0, c.z - c.r); z1 = Math.max(z1, c.z + c.r); continue; }
     if (c.k === 's' && !sweep) continue;
-    for (let j = 0; j < c.p.length; j += 2) { const h = (c.ws ? c.ws[j / 2] : c.w) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
+    for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (c.ws ? c.ws[j / 2] : c.w) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
   }
   return x0 <= x1 ? [x0, z0, x1, z1] : null;
 }
