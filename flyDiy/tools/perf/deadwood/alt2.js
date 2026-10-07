@@ -11,7 +11,7 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
   const L0 = await ev('TREE_LEAF.master().light');
   const V = {
     master: { lit: 1.242, shade: 1,    imp: { barkWrap: 1, barkSSS: 1, barkFlat: 1.3, barkSolid: 1, barkCut: 0, barkLit: 1.242 } },
-    final:  { lit: 0.9,   shade: 1.38, imp: { barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9 } },
+    col3:   { lit: 0.9,   shade: 1.38, imp: { barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9 } },
   };
   // the densest stand within 2.5 km of HOME (imp_audit's TELEPORT rule)
   const st = JSON.parse(await ev(`(() => { const w = FLIGHT_PROBE.world(); const T = w.trees.filter(t => Math.hypot(t.x, t.z) < 2500); let best = null, bn = -1;
@@ -52,7 +52,7 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
         C.yaw = Math.atan2(d.x, -d.z); C.pitch = ${pitch} * Math.PI / 180; return 1; })()`);
       await FR(90); await sleep(12000); await ev('WORLD.treeSettled ? WORLD.treeSettled() : 1'); await FR(60); await sleep(2000);
       const imgs = {};
-      for (const [nm, v, hide] of Object.keys(V).map(k => [k, V[k], false]).concat([['none', V.final, true]])) {
+      for (const [nm, v, hide] of Object.keys(V).map(k => [k, V[k], false]).concat([['none', V.col3, true]])) {
         await ev(`(() => { WORLD.treeLod.lit.value = ${v.lit}; TREE_LOD.imp(${JSON.stringify(v.imp)}); TREE_LEAF.shadeK(${v.shade}); __DW.hide = ${hide}; return 1; })()`);
         await FR(40); await sleep(500);
         imgs[nm] = readPNG(await shot(path.join('raw', `${TAG}_${agl}m_${day}_${nm}`)));

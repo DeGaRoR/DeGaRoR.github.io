@@ -1,0 +1,19 @@
+GATE PROGRAMS
+  ok   1 the first frame links nothing the compile step did not (22 programs warmed)
+  ok   1 CONTROL: the old warm-up (RGBA packing, per side, no lights) leaves the shadow pass its own programs to link  (8 depth programs on the first frame)
+  ok   1 a point light's shadow (distance programs) is warmed too
+  ok   1 the warm-up's stand-ins leave the casters where they are (11 stand-ins; none of the casters' listeners fired)
+  ok   2 two boots key the same programs  (22 programs)
+  ok   2 two boots link the same sources  (22 links)
+  ok   2 no program key or source carries a uuid
+  ok   2 no customProgramCacheKey in src/viewer reads a uuid, an id, a clock or a counter
+  ok   3 the rock map's sprite bake and map link each program once  (4 links, 4 distinct)
+  ok   3 a recentre of the rock map re-links nothing  (0 links)
+  ok   3 a kept PMREMGenerator bakes again on no link; a new one after a dispose links again (three's rule the kept one avoids)  (2 / 0 / 2 links)
+  ok   3 bakeHangarEnv keeps its generators (envGen), none made or disposed per bake
+  ok   4 aa_resolve, post_fx and clouds publish warmList()
+  ok   4 the roll-out's compile step warms the depth variants in the lit scene and every listed pass
+  ok   4 the shed's boot compile warms its depth variants and the passes (compileDepthVariants(hangarScene))
+  ok   4 nothing else in src/viewer declares PROG_WARM
+  ok   4 shader_warm.js ships before app.js
+GATE PROGRAMS: PASS

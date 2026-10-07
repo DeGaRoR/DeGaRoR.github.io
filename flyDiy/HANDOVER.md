@@ -78118,7 +78118,7 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
    cut). The pole stays, the twigs dissolve - as the geometry's sub-pixel twigs do at the hand-over (`alpha_sweep/`: solid
    1/0 x cut 0/0.3/0.5; 0.5 is a hair cleaner, 0.4 keeps a far snag's pole a mip longer).
 4. THE LEVEL: a bare snag barely shades itself, so its geometry's match is uILit 0.9 on EVERY preset, where the leafy match is
-   1.242 without tree shadows (below): `barkLit 0.725` = 0.9 / 1.242, the bark sheets' share of uILit.
+   1.242 without tree shadows (below): `barkLit` 0.9, ABSOLUTE in place of uILit (G1975.1; it landed first as the ratio 0.725).
 
 **THE DOUBLE COUNT (A0's code read) - half a bug; the other half is the user's call.**
 - THE BUG, FIXED: `envAlbedo(k)` (G483 268cbdc3: `uILit = base x k x 0.9`; G485 d2158ad1: `0.9 x k`, its own comment saying
@@ -78137,7 +78137,7 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
   value keyed in gfx_settings' shadows apply. Their far forest drops ~22 % (the trees' own pixels: 300 m noon 0.172 ->
   0.135, 1 km golden 0.087 -> 0.067); the trees' lightness x1.38 restores only half (0.155) because uILit also scaled the
   sky-reflection terms the tint never touches - a full restore is ~x1.7 and the near trees 70 % brighter. Default if no
-  answer: as landed, 1.242 everywhere.
+  answer: as landed, 1.242 everywhere. ANSWERED 2026-10-07: column 3 - see G1975.1 below.
 
 **PROPOSED, OFF - THE MIXES' SNAG SHARE (the user's call, A0 recommends ON):** the game deals snags by the collection's
 `place.dead` and never reads the mixes' own `species[sp].dead`. pine_georgeous carries 0.53 on its collection (it came in
@@ -78171,3 +78171,33 @@ FRAMECOST gate PASS at 03:20 on the colour fix. TREECRASH / TREEHIT: no geometry
 - the bake frames on `parts[0]`'s bounding sphere only (bakeImpostorAtlasNow): DeciduousDead1_29 crops its trunk bottom.
 - the twigs proper (a higher-res or thin-branch-aware bake for bark sheets, or the snags' geometry kept further - a larch
   snag is 5 490 triangles in its one rung, conifer snags 3.5-6.9 k) are a separate chantier if the dissolve is not enough.
+
+
+### G1975.1 - THE TREES UNDER THEIR OWN SHADOWS: THE USER'S FAR-FOREST CALL (2026-10-07, DEADWOOD-BRIGHT for A0, for train 40)
+
+**The user's call** (shown `far_forest_sheet.png`, confirmed through A0 as COLUMN 3): where the world casts tree shadows,
+the far pictures at their 3D match and the near trees lifted to keep the far level - not the darker-only column 2.
+
+**What it does:** `WORLD.treeShadowed(on)` (render_world.js), called by gfx_settings' shadows apply with
+`sh.on && sh.world !== false` - true for shadows `full` / `ultra` (current, gamer, ultra), false for `off` / `near`
+(potato, laptop, retro). On: uILit 0.9 (the impostors' measured match under self-shadowed geometry) AND the shade
+compensation `SHADE_K` 1.38 on BOTH tiers' tint (trees.js `SHADE`, `TREE_LEAF.shadeK()`: the trees and the bushes, every
+kind riding on MASTER, not the grass; not the user's MASTER.light, not saved). Off: uILit 0.9 x 1.38 and k 1, i.e.
+exactly G1975. Bark-only sheets now take an ABSOLUTE lit `barkLit` 0.9 in place of uILit (was the ratio 0.725), so a snag
+keeps matching under either state. `SHADE_K` is the one number (render_world.js; 1 = column 2).
+
+**Verified (2026-10-07 05:40, gamer golden; `col3/`):** the page boots with treeShadowed true, uILit 0.9, shadeK 1.38
+(the gfx hook fires). At the hand-over (geometry RE-SHOT per variant, since the lift moves both tiers), impostor /
+geometry `core` front-lit, master -> col3: cedar 1.27 -> 1.05, larch 1.32 -> 1.11, spruce 1.72 -> 1.26, pine 1.23 ->
+1.19, larch snag 1.38 -> 1.13; into the sun and side-lit lower in both (pre-existing, G1975's side findings). The far
+forest, the trees' own pixels master -> col3: 300 m noon 0.166 -> 0.149, golden 0.078 -> 0.064; 1 km noon 0.177 ->
+0.161, golden 0.075 -> 0.062 (the tint carries the albedo terms back, not the sky-reflection terms uILit also scaled).
+`far_forest_col3_sheet.jpg`: the near trees round a larch snag (290 m, golden, front- and side-lit) and the four far
+frames, master | col3. NOT re-shot on screen: gamer noon and potato (the second half of the pass was lost to a job-number
+slip in the slot script) - potato's "unchanged" stands on the code path (shadows `off` -> treeShadowed(false) -> G1975's
+values), checked by the gfx hook's own condition, not by a still.
+
+**Gates (this code):** GFX, TREES, TREE, PROGRAMS PASS; FRAMECOST `--census cub` of this branch vs its base train 37b
+(068584d6) `--compare`: nothing moved - stand, taxi, boot, memory (`col3/framecost_census_*`). (A census against the
+newer origin/master 751e1122 shows only master's own boot gains since 37b, which this branch did not carry until the
+merge below.)

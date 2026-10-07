@@ -7070,7 +7070,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   };
   // G1975: THE TREES UNDER THEIR OWN SHADOWS (gfx_settings' shadows apply calls it; see uILit). on = the world casts
   // tree shadows (shadows 'full' / 'ultra'): the impostors' match 0.9 and the shade compensation x1.38 over both tiers
-  const TREE_SHADED = { on: false, lit: [0.9 * 1.38, 0.9], k: [1, 1.38] };
+  // SHADE_K: the near trees' lift on those presets - 1.38 = the sheet's third column (darker far + near x1.38); 1 = the
+  // second (darker far only). THE ONE NUMBER the user's answer sets (A0 relays it)
+  const SHADE_K = 1.38;
+  const TREE_SHADED = { on: false, lit: [0.9 * 1.38, 0.9], k: [1, SHADE_K] };
   const treeShadowed = on => {
     if (on === undefined) return TREE_SHADED.on;
     TREE_SHADED.on = !!on; const i = TREE_SHADED.on ? 1 : 0;
