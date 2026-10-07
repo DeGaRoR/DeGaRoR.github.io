@@ -8151,11 +8151,15 @@
   }
   const anchorStr = () => { const a = standAnchor(); return a ? Math.round(a[0]) + ',' + Math.round(a[2]) : 'none'; };
   // G2225 (FLEET-STAND): the fleet's set as the 'parking' step's key ('' with FLYDIY_FLEET off), and the stand itself
-  const FS_ON = () => !!(window.FLEET_STAND && FLEET_STAND.on());
-  const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(world, playerLoad(), slotOnStand()); } catch (e) { return '|fleet ?'; } };
+  // the game's context for the stand and the queue's bound: the drawn set is the roll-out's aerodrome's outside rows, the
+  // airframe on the stand left out, at most PARKED.fleetCap() (6; 4 on a light preset)
+  const fleetCtx = () => ({ world, doc: playerLoad(), flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
+                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6 });
+  const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
+  const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
   const fleetStand = () => {
     if (!FS_ON()) return null;
-    try { return FLEET_STAND.stand({ THREE, scene, world, doc: playerLoad(), flown: slotOnStand() }); }
+    try { return FLEET_STAND.stand(Object.assign({ THREE, scene }, fleetCtx())); }
     catch (e) { console.warn('fleet stand:', e && e.message || e); return null; }
   };
   // the point the world's steps grow round: the stand's anchor in the shed (the boot), the aeroplane once it stands

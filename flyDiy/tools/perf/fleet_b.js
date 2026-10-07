@@ -25,30 +25,8 @@ const ROOT = path.resolve(__dirname, '..', '..'), REPO = path.resolve(ROOT, '..'
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MODE = process.argv[2];
 
-// ---- THE FLEET: the six validated airframes (memory: the Cub, the Jodel, the C172, the C172 on floats, the twin on
-// floats, the metal Cessna), in slot-name order = the order they take HOME's spots
-const FLEET = [
-  ['fleet-1-cub', 'builds/cub_2026-09-20_corrected.json'],
-  ['fleet-2-jodel', 'builds/jodel_2026-09-20_corrected.json'],
-  ['fleet-3-c172', 'builds/cessna172_2026-09-20_corrected.json'],
-  ['fleet-4-c172floats', 'bugReports/cessnaFloatsWOrks.json'],
-  ['fleet-5-twinfloats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json', j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; }],
-  ['fleet-6-metal', 'bugReports/cessnaMetal (1).json'],
-];
-function preScript() {
-  const C = require(path.join(ROOT, 'tools', 'flight_core.js'));
-  const doc = C.playerNormalise(C.playerDefault());
-  const lines = ['// fleet_b.js pre: the six slots and the ledger (G2225)'];
-  for (const [name, file, patch] of FLEET) {
-    let j = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'));
-    if (patch) j = patch(j);
-    j.name = name;
-    lines.push('try{localStorage.setItem(' + JSON.stringify('flydiy.build.' + name) + ',' + JSON.stringify(JSON.stringify(j)) + ')}catch(e){}');
-    doc.fleet[name] = { hangar: null, aero: 'HOME', outSince: 0, wearOut: 0 };
-  }
-  lines.push('try{localStorage.setItem("flydiy.player",' + JSON.stringify(JSON.stringify(doc)) + ')}catch(e){}');
-  return lines.join('\n') + '\n';
-}
+// ---- THE FLEET: the six validated airframes, slots fleet-1..6 tied down outside at HOME (tools/perf/fleet_b_set.js)
+const SET = require('./fleet_b_set.js'), FLEET = SET.FLEET, preScript = SET.preScript;
 if (MODE === 'pre') { const out = path.resolve(process.argv[3] || 'fleet_b_pre.js'); fs.writeFileSync(out, preScript()); console.log('-> ' + out); process.exit(0); }
 if (MODE !== 'setup' && MODE !== 'still') { console.log('fleet_b.js: pre <out.js> | setup | still <preset> <outDir> [build] [--timed]'); process.exit(2); }
 
@@ -63,7 +41,7 @@ const OUT = MODE === 'still' ? path.resolve(process.argv[4] || 'fleet_b_still') 
 const BUILD = MODE === 'still' ? (process.argv[5] && !process.argv[5].startsWith('--') ? process.argv[5] : 'builds/cub_2026-09-20_corrected.json') : 'builds/cub_2026-09-20_corrected.json';
 const TIMED = process.argv.includes('--timed');
 const LOOK = (i => (i > 0 ? process.argv[i + 1] : null))(process.argv.indexOf('--look'));   // the close still's prop (a slot), when within reach
-const Q = 'fleet=1' + (PRESET ? '&gfx=' + PRESET : '');
+const Q = 'fleet=1&gfx=' + (PRESET || 'gamer');   // (the setup on gamer: the cap 6, all six baked)
 const drv = spawn(process.execPath, [path.join(ROOT, 'tools', 'live_driver.js'), REPO, BUILD, 'index.html', String(CPORT)],
   { env: Object.assign({}, process.env, { UDD, SPORT, DPORT, SIZE, PRE, Q }), stdio: ['ignore', 'pipe', 'pipe'] });
 let up = false;
@@ -114,6 +92,19 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
     console.log('store: ' + JSON.stringify(chk));
     console.log('boot log (fleet): ' + JSON.stringify(await run(`return (window.BOOT && BOOT.log || []).filter(e => /fleet|bake/.test(JSON.stringify(e))).slice(-20);`)));
     console.log('state: ' + JSON.stringify(await run(STATE)));
+    // THE BOUND (the game coordinator): a 40-build sandbox - 34 more saves through the garage's own door (the lift ties
+    // the ones past the hangar's slots down outside at HOME, after the six by name) - must queue no bake (the drawn set is
+    // the six), and the wait shows no capture; the extra slots are deleted after (the profile stays the six)
+    const B = await run(`const F = PARKED.fleet, S = F.stats, G = GARAGE_SPEC, q0 = S.queued, c0 = S.captures, n0 = S.notWanted, t0 = performance.now();
+      for (let i = 1; i <= 34; i++) G.save('zz-' + String(i).padStart(2, '0'));
+      const sv = performance.now() - t0;
+      await new Promise(r => setTimeout(r, 12000));
+      const d = FLYDIY_PLAYER.doc(), out = Object.keys(d.fleet).filter(n => !d.fleet[n].hangar && d.fleet[n].aero === 'HOME').length;
+      const r = { saves: 34, slots: Object.keys(d.fleet).length, outsideAtHome: out, queued: S.queued - q0, captures: S.captures - c0, notWanted: S.notWanted - n0, saveMs: Math.round(sv),
+        wants: Object.keys(d.fleet).filter(n => FLEET_STAND.wants('mine:' + n)) };
+      for (let i = 1; i <= 34; i++) localStorage.removeItem('flydiy.build.zz-' + String(i).padStart(2, '0'));
+      return r;`);
+    console.log('THE BOUND, a 40-build sandbox: ' + JSON.stringify(B));
     const bad = Object.values(chk).filter(v => !v || !v.ok).length;
     console.log('FLEET-B SETUP: ' + (bad ? 'INCOMPLETE (' + bad + ' of 6 not baked)' : 'six bakes stored'));
     await quit(); process.exit(bad ? 1 : 0);
