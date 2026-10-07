@@ -311,8 +311,11 @@ function pageChecks(prims0, yes, rep, extra, hard) {
     const flat = { terrainH: () => 0, waterH: () => -100, surface: () => 5 };
     for (const h of hard) {
       const sd = Object.assign({}, ctx.GROUND_SCAR.build(THREE, decal, h.prims, flat));   // (a copy: clear() zeroes the stat)
-      const Cl = decal.geometry.getAttribute('color');
-      const row = { label: h.label, tris: sd.tris, by: [], px: 0 };
+      const Cl = decal.geometry.getAttribute('color'), Ps = decal.geometry.getAttribute('position');
+      // over every pavement layer: the runway's opaque ribbon at terrainH + 0.04 (render_premises.js, renderOrder 5) and its
+      // paint (6), a pavement side's lift 0.06-0.08 (pavement.js) - every vertex over terrainH + 0.08, the mesh after 6
+      let yLow = Infinity; for (let i = 0; i < Ps.count; i++) yLow = Math.min(yLow, Ps.getY(i));
+      const row = { label: h.label, tris: sd.tris, by: [], px: 0, yLow: +yLow.toFixed(4), order: decal.renderOrder };
       const wMin = Math.min(...h.prims.filter(p => p.k === 'g').map(p => p.w));
       row.px = +(wMin / h.viewDist / (46 * Math.PI / 180) * 1080).toFixed(1);
       for (const [name, G] of GR) {
@@ -324,6 +327,7 @@ function pageChecks(prims0, yes, rep, extra, hard) {
       }
       scuff.push(row);
       ctx.GROUND_SCAR.clear(decal);
+      yes(sd.tris > 0 && row.yLow >= 0.08 - 1e-6 && row.order > 6, '2S ' + h.label + ': the scuff over the runway\'s layers - its lowest vertex terrainH + ' + row.yLow + ' m (the ribbon +0.04, a pavement side +0.08), drawn at renderOrder ' + row.order + ' (the ribbon 5, its paint 6)');
       yes(sd.tris > 0 && row.by.every(b => b.C != null && b.C >= 0.3) && row.px >= 10,
         '2S ' + h.label + ': the scuff reads from the chase camera - it darkens ' + row.by.map(b => b.name + ' ' + Math.round(100 * b.C) + ' %').join(', ') + ' (alpha-weighted; 30 % or more), ' + wMin + ' m wide = ' + row.px + ' px at ' + h.viewDist + ' m (10 or more)', sd.tris + ' triangles');
     }

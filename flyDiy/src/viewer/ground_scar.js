@@ -6,10 +6,11 @@
 // carried to the page on the damage hop - sim_host.js simDmgHop -> sim_view.js dmgS.scar; inline app.js dmgNow) is
 // drawn here as ONE mesh laid on the terrain: torn turf and dark soil in each crater (a disc, its rim ragged and turf-
 // tinted, its bowl darker by its depth), a strip of the same along each gouge (the furrow's floor dark down its middle,
-// the spoil turf-tinted at its edges), a scuff where the ground is hard (paved, rock: grey, half-strength, no bowl).
+// the spoil turf-tinted at its edges), a scuff where the ground is hard (paved, rock: G2381 dark streaks along the slide, no bowl).
 // Nothing for the sweep (its shrubs are the cover ring's: cover_ring.js scar) and nothing over the water (a ripple is
 // WATER-LOOK's). Every vertex stands on terrainH + `lift` (the ground under it: a vertex every ~0.3 m), drawn after the
-// pavement with a polygon offset, as the tyres' contact blobs (contact_shadow.js).
+// pavement with a polygon offset, as the tyres' contact blobs (contact_shadow.js). (G2381: on hard ground + liftHard, the
+// mesh at renderOrder 6.5 - over the runway's ribbon and its paint, which hid the scuff: S below.)
 // G2379-G2381 (DMG-SCAR2): the rims and the edges RAGGED by a smooth wobble seeded from the primitive (a crater's rim in
 // 3-5-9 lobes, a furrow's two edges each their own along its length); a crater's spoil thrown DOWN-RANGE (its heading u);
 // a furrow drawn in the order it was ploughed - faded in at its entry, the spoil pushed up in a ragged lip ahead of where
@@ -37,7 +38,11 @@
 var GROUND_SCAR = (() => {
   // (G2379-G2381: seg 22 -> 28 round a rim for its lobes; rag the edges' wobble; acrossHard the scuff's streak columns,
   // scuffA its strength - GAME, read in GATE DMGSCAR against the runway's own albedo from the chase camera)
-  const S = { lift: 0.03, step: 0.3, ring: 7, seg: 28, across: 6, rag: 0.25, acrossHard: 12, scuffA: 0.85 };
+  // G2381: liftHard - on hard ground the decal stands over every pavement layer: render_premises.js's runway ribbon is
+  // OPAQUE at terrainH + 0.04 (renderOrder 5, writing depth) with its paint over it (6), pavement.js lifts a strip's side
+  // 0.06-0.08 - under any of them the scuff was drawn and then hidden (the runway's nose-over, 7 Oct). The mesh draws at
+  // renderOrder 6.5: after the runway's paint, before the editor's lines (7+)
+  const S = { lift: 0.03, liftHard: 0.08, step: 0.3, ring: 7, seg: 28, across: 6, rag: 0.25, acrossHard: 12, scuffA: 0.85, order: 6.5 };
   const TEX_M = 1.6;                              // metres a tile of the soil
   const hsh = (x, z, s) => { let h = (x * 374761393 + z * 668265263 + s * 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   // tileable value noise on a period-P lattice
@@ -87,7 +92,7 @@ var GROUND_SCAR = (() => {
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     m.name = 'scar:decal';
     const mesh = new THREE.Mesh(empty(THREE), m);
-    mesh.name = 'scar:decal'; mesh.visible = false; mesh.renderOrder = 4; mesh.matrixAutoUpdate = false;
+    mesh.name = 'scar:decal'; mesh.visible = false; mesh.renderOrder = S.order; mesh.matrixAutoUpdate = false;
     mesh.castShadow = false; mesh.receiveShadow = true;
     mesh.userData.parked = mesh.geometry; mesh.userData.stat = { tris: 0, verts: 0, bytes: 0, ms: 0, prims: 0 };
     return mesh;
@@ -101,7 +106,9 @@ var GROUND_SCAR = (() => {
   // G2379: a smooth deterministic wobble in [-1, 1], seeded from the primitive - three sines of hashed phase: round a rim
   // (`per`: 3, 5 and 9 lobes, periodic in the angle) or along an edge (wavelengths 1.9, 1.1 and 0.75 m of the strip)
   const WA = [0.55, 0.3, 0.15], WP = [3, 5, 9], WL = [1.9, 1.1, 0.75];
-  const wob = (a, seed, per) => { let v = 0; for (let k = 0; k < 3; k++) v += WA[k] * Math.sin(a * (per ? WP[k] : 2 * Math.PI / WL[k]) + 2 * Math.PI * hsh(k, 7, seed)); return v; };
+  const PH = new Map();   // (a seed's three phases, hashed once a build)
+  const wob = (a, seed, per) => { let f = PH.get(seed); if (!f) PH.set(seed, f = [0, 1, 2].map(k => 2 * Math.PI * hsh(k, 7, seed)));
+    let v = 0; for (let k = 0; k < 3; k++) v += WA[k] * Math.sin(a * (per ? WP[k] : 2 * Math.PI / WL[k]) + f[k]); return v; };
   const seedOf = (x, z, k) => ((Math.round(x * 100) * 73856093) ^ (Math.round(z * 100) * 19349663) ^ (k * 83492791)) | 0;
   // a polyline resampled every S.step
   const resample = Q => {
@@ -115,17 +122,20 @@ var GROUND_SCAR = (() => {
   };
   function build(THREE, mesh, prims, world) {
     const t0 = (typeof performance !== 'undefined' ? performance : Date).now();
-    clear(mesh);
+    clear(mesh); PH.clear();
     const P = (prims || []).filter(p => p.k === 'c' || p.k === 'g');
     if (!P.length || !world || typeof world.terrainH !== 'function') return mesh.userData.stat;
     const pos = [], nrm = [], uv = [], col = [], idx = [];
-    const gH = world.terrainH;
-    const wet = (x, z) => typeof scarSurf === 'function' ? scarSurf(world, x, z) < 0 : false;
+    const gH = world.terrainH, wH = typeof world.waterH === 'function' ? world.waterH : null;
+    // (G2382: three reads of the ground a vertex, not six - the normal from forward differences over e, the water test
+    // (scarSurf's: the water above the ground - 5 cm) on the height already read)
+    let lift = S.lift;
     const vert = (x, z, c, a) => {
       const y = gH(x, z), e = 0.25;
-      const nx = gH(x - e, z) - gH(x + e, z), nz = gH(x, z - e) - gH(x, z + e), ny = 2 * e, l = Math.hypot(nx, ny, nz);
-      pos.push(x, y + S.lift, z); nrm.push(nx / l, ny / l, nz / l); uv.push(x / TEX_M, z / TEX_M);
-      col.push(c[0], c[1], c[2], wet(x, z) ? 0 : a);
+      const nx = y - gH(x + e, z), nz = y - gH(x, z + e), ny = e, l = Math.hypot(nx, ny, nz);
+      pos.push(x, y + lift, z); nrm.push(nx / l, ny / l, nz / l); uv.push(x / TEX_M, z / TEX_M);
+      const w = wH ? wH(x, z) : NaN;
+      col.push(c[0], c[1], c[2], Number.isFinite(w) && w > y - 0.05 ? 0 : a);
       return pos.length / 3 - 1;
     };
     // A STRIP along pts (resampled) of half-width h: the furrow (soft) or the scuff (hard). Every vertex within h of the
@@ -179,7 +189,7 @@ var GROUND_SCAR = (() => {
     };
     const THROW = typeof SCAR !== 'undefined' && SCAR.throw != null ? SCAR.throw : 0.3;
     for (const p of P) {
-      const hard = p.s === 2;
+      const hard = p.s === 2; lift = hard ? S.liftHard : S.lift;
       if (p.k === 'c' && hard) {
         // a blow on hard ground: a scuff patch along its heading (no bowl), 1.5 r long and 1.2 r wide (inside its disc)
         const ux = p.u ? p.u[0] : 1, uz = p.u ? p.u[1] : 0, a = 0.75 * p.r;

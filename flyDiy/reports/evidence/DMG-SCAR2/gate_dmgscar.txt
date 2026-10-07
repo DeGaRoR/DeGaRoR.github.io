@@ -1,0 +1,164 @@
+GATE DMGSCAR (527 s, 3 builds, the certificate stamped)
+the user's Cub:
+  ok    1 the layer off: no record, no scar, not one damage payload from the hop in a whole 30 m/s crash (the page's bytes)
+  ok    1 a circuit (completed): not one ground contact recorded, no scar
+  ok    1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  ok    1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  ok    2 a severe drop onto the wheels at 6 m/s: a crash (a gear member broke) - it scars (0 craters, 1 gouges incl. the prop's slot)
+  ok    3 a 3 m/s taxi into a trunk: the same bits with the record and without (b65d92b555b5)
+  ok    2 a nose-over at 4 m/s: the propeller's slot and the nose's crater (5 primitives)
+  ok    2 a nose-over at 4 m/s: 5 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a nose-over at 4 m/s: the same bits with the record and without (af5689ba166f)
+  ok    2 30 m/s into a trunk, the centreline: a scar (3 craters, 10 gouges, 1 sweep; 72.6 m2 torn, 418.9 m2 with the sweep)
+  ok    2 30 m/s into a trunk, the centreline: 33 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, the centreline: the same bits with the record and without (6b27edfdf8c4)
+  ok    2 30 m/s into a trunk, 2.5 m out: a scar (0 craters, 10 gouges, 1 sweep; 116.8 m2 torn, 256.8 m2 with the sweep)
+  ok    2 30 m/s into a trunk, 2.5 m out: 18 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, 2.5 m out: the same bits with the record and without (dd01fb5741e2)
+  ok    3 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): the same bits with the record and without (fc9880d79b52)
+  ok    2 a severe drop onto the wheels at 6 m/s: 5 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a severe drop onto the wheels at 6 m/s: the same bits with the record and without (8ca0cb1fd615)
+  ok    2 a 12 m/s taxi into a 35 cm stump, on the runway (paved): 4 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a 12 m/s taxi into a 35 cm stump, on the runway (paved): the same bits with the record and without (3d19dff9b0ad)
+  ok    4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 3 scar payload(s) (one a sealed event), 6103 B of scar in 56 damage payloads (75694 B in all)
+  ok    5 reset: the scar empty under a new version (v4), sent once, the page's scar empty
+  REPORT  a 3 m/s taxi into a trunk: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop stoppage
+  REPORT  a nose-over at 4 m/s: v2, 5 primitives (1 craters, 1 gouges incl. 1 prop slot, 1 sweep), 31.47 m2 (35.55 with the sweep), 352 B; 100 % of 2831 contact samples in it; record 210984 contacts, 477 frames, 2 seal(s), 2.299 ms sealing; crashed (a fus member broke); prop stoppage
+  REPORT  30 m/s into a trunk, the centreline: v3, 33 primitives (3 craters, 10 gouges, 1 sweep), 72.62 m2 (418.90 with the sweep), 2293 B; 100 % of 20733 contact samples in it; record 1471767 contacts, 623 frames, 3 seal(s), 2.678 ms sealing; crashed (broke up: the fuselage parted (TPB off the core)); prop stoppage
+  REPORT  30 m/s into a trunk, 2.5 m out: v3, 18 primitives (0 craters, 10 gouges incl. 1 prop slot, 1 sweep), 116.81 m2 (256.76 with the sweep), 2068 B; 100 % of 9800 contact samples in it; record 733839 contacts, 576 frames, 3 seal(s), 6.437 ms sealing; crashed (a wing member broke); prop stoppage
+  REPORT  a drop onto the wheels at 10 ft/s (FAR 23.473 cap): v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing
+  REPORT  a severe drop onto the wheels at 6 m/s: v2, 5 primitives (0 craters, 1 gouges incl. 1 prop slot, 0 sweep), 29.37 m2 (29.37 with the sweep), 299 B; 100 % of 1095 contact samples in it; record 79490 contacts, 293 frames, 2 seal(s), 1.24 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  a 12 m/s taxi into a 35 cm stump, on the runway (paved): v2, 4 primitives (0 craters, 2 gouges incl. 1 prop slot, 1 sweep), 16.79 m2 (173.20 with the sweep), 470 B; 100 % of 4315 contact samples in it; record 305468 contacts, 651 frames, 2 seal(s), 0.796 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  the step with the record / without, the 2.5 m crash (median of 3 alternated): 8.309 / 8.466 ms a frame
+  ok    2H a nose-over at 4 m/s: the wreck as it lies (2 piece(s), 13.0 m2 of hull) inside the grass's cull (31.5 m2, its 2 hull(s) with it) - 1276 points, none out
+  ok    2H 30 m/s into a trunk, the centreline: the wreck as it lies (19 piece(s), 9.5 m2 of hull) inside the grass's cull (72.6 m2, its 19 hull(s) with it) - 1043 points, none out
+  ok    2J 30 m/s into a trunk, the centreline: 2 skipping run(s) the reader saw (5, 4 touchdowns) - each 80 % or more in ONE gouge, at most one crater on it (100 %, 100 %)
+  ok    2H 30 m/s into a trunk, 2.5 m out: the wreck as it lies (7 piece(s), 15.3 m2 of hull) inside the grass's cull (116.8 m2, its 7 hull(s) with it) - 1604 points, none out
+  ok    2J 30 m/s into a trunk, 2.5 m out: 5 skipping run(s) the reader saw (3, 9, 3, 3, 4 touchdowns) - each 80 % or more in ONE gouge, at most one crater on it (100 %, 100 %, 100 %, 100 %, 100 %)
+  ok    2H a severe drop onto the wheels at 6 m/s: the wreck as it lies (4 piece(s), 10.5 m2 of hull) inside the grass's cull (29.4 m2, its 4 hull(s) with it) - 1107 points, none out
+  ok    2H a 12 m/s taxi into a 35 cm stump, on the runway (paved): the wreck as it lies (1 piece(s), 3.7 m2 of hull) inside the grass's cull (16.8 m2, its 1 hull(s) with it) - 402 points, none out
+  ok    2J a 12 m/s taxi into a 35 cm stump, on the runway (paved): 4 skipping run(s) the reader saw (5, 6, 7, 7 touchdowns) - each 80 % or more in ONE gouge, at most one crater on it (100 %, 100 %, 100 %, 100 %)
+  ok    2S a 12 m/s taxi into a 35 cm stump, on the runway (paved): a scuff - 2 strip(s), 0 patch(es), every one on hard ground with no bowl and no furrow (d 0), at least 0.4 m wide (0.4)
+  REPORT  a nose-over at 4 m/s: the join - 10 slides in 10 chains (0 joined), 1 blows over eBlow (1 stopped: craters; 0 on the way: the furrow's), 0 gouges, 2 hulls (the last seal); the wreck 2 piece(s), 13.0 m2 of hull
+  REPORT  30 m/s into a trunk, the centreline: the join - 86 slides in 59 chains (45 joined), 5 blows over eBlow (3 stopped: craters; 2 on the way: the furrow's), 10 gouges, 19 hulls (the last seal); the wreck 19 piece(s), 9.5 m2 of hull
+  REPORT  30 m/s into a trunk, 2.5 m out: the join - 45 slides in 23 chains (30 joined), 3 blows over eBlow (0 stopped: craters; 3 on the way: the furrow's), 7 gouges, 7 hulls (the last seal); the wreck 7 piece(s), 15.3 m2 of hull
+  REPORT  a severe drop onto the wheels at 6 m/s: the join - 6 slides in 4 chains (4 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 0 gouges, 4 hulls (the last seal); the wreck 4 piece(s), 10.5 m2 of hull
+  REPORT  a 12 m/s taxi into a 35 cm stump, on the runway (paved): the join - 35 slides in 10 chains (26 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 1 gouges, 1 hulls (the last seal); the wreck 1 piece(s), 3.7 m2 of hull
+the Jodel:
+  ok    1 the layer off: no record, no scar, not one damage payload from the hop in a whole 30 m/s crash (the page's bytes)
+  ok    1 a circuit (null): not one ground contact recorded, no scar
+  ok    1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  ok    1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  ok    1 a severe drop onto the wheels at 6 m/s: only the wheels touch - nothing recorded, no scar
+  ok    3 a 3 m/s taxi into a trunk: the same bits with the record and without (6d6cfa99b49b)
+  ok    2 a nose-over at 4 m/s: the propeller's slot and the nose's crater (3 primitives)
+  ok    2 a nose-over at 4 m/s: 3 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a nose-over at 4 m/s: the same bits with the record and without (3126e0cb0e7a)
+  ok    2 30 m/s into a trunk, the centreline: a scar (2 craters, 11 gouges, 1 sweep; 74.2 m2 torn, 220.9 m2 with the sweep)
+  ok    2 30 m/s into a trunk, the centreline: 30 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, the centreline: the same bits with the record and without (db065368080b)
+  ok    2 30 m/s into a trunk, 2.5 m out: a scar (1 craters, 13 gouges, 2 sweep; 108.5 m2 torn, 1938.2 m2 with the sweep)
+  ok    2 30 m/s into a trunk, 2.5 m out: 22 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, 2.5 m out: the same bits with the record and without (fec567a66a5a)
+  ok    3 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): the same bits with the record and without (504acefd9e7b)
+  ok    3 a severe drop onto the wheels at 6 m/s: the same bits with the record and without (d5baa866d1c6)
+  ok    2 a 12 m/s taxi into a 35 cm stump, on the runway (paved): 21 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a 12 m/s taxi into a 35 cm stump, on the runway (paved): the same bits with the record and without (bf7a7de779a2)
+  ok    4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 2 scar payload(s) (one a sealed event), 4804 B of scar in 47 damage payloads (51912 B in all)
+  ok    5 reset: the scar empty under a new version (v3), sent once, the page's scar empty
+  REPORT  a 3 m/s taxi into a trunk: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop stoppage
+  REPORT  a nose-over at 4 m/s: v1, 3 primitives (1 craters, 1 gouges incl. 1 prop slot, 0 sweep), 27.13 m2 (27.13 with the sweep), 239 B; 100 % of 499 contact samples in it; record 88697 contacts, 456 frames, 1 seal(s), 2.703 ms sealing; crashed (a fus member broke); prop stoppage
+  REPORT  30 m/s into a trunk, the centreline: v3, 30 primitives (2 craters, 11 gouges, 1 sweep), 74.15 m2 (220.91 with the sweep), 2245 B; 100 % of 16903 contact samples in it; record 1812932 contacts, 635 frames, 3 seal(s), 4.882 ms sealing; crashed (broke up: the fuselage parted (TPB off the core)); prop stoppage
+  REPORT  30 m/s into a trunk, 2.5 m out: v2, 22 primitives (1 craters, 13 gouges incl. 1 prop slot, 2 sweep), 108.52 m2 (1938.17 with the sweep), 2831 B; 100 % of 9227 contact samples in it; record 1104448 contacts, 635 frames, 2 seal(s), 3.38 ms sealing; crashed (a wing member broke); prop stoppage
+  REPORT  a drop onto the wheels at 10 ft/s (FAR 23.473 cap): v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing
+  REPORT  a severe drop onto the wheels at 6 m/s: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing
+  REPORT  a 12 m/s taxi into a 35 cm stump, on the runway (paved): v2, 21 primitives (0 craters, 14 gouges incl. 1 prop slot, 1 sweep), 41.74 m2 (95.21 with the sweep), 1817 B; 100 % of 11249 contact samples in it; record 1249519 contacts, 660 frames, 2 seal(s), 1.25 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  the step with the record / without, the 2.5 m crash (median of 3 alternated): 15.005 / 14.451 ms a frame
+  ok    2H a nose-over at 4 m/s: the wreck as it lies (2 piece(s), 8.0 m2 of hull) inside the grass's cull (27.1 m2, its 1 hull(s) with it) - 823 points, none out
+  ok    2H 30 m/s into a trunk, the centreline: the wreck as it lies (16 piece(s), 12.5 m2 of hull) inside the grass's cull (74.2 m2, its 16 hull(s) with it) - 1354 points, none out
+  ok    2H 30 m/s into a trunk, 2.5 m out: the wreck as it lies (6 piece(s), 17.5 m2 of hull) inside the grass's cull (108.5 m2, its 6 hull(s) with it) - 1851 points, none out
+  ok    2J 30 m/s into a trunk, 2.5 m out: 4 skipping run(s) the reader saw (3, 5, 4, 5 touchdowns) - each 80 % or more in ONE gouge, at most one crater on it (100 %, 100 %, 100 %, 100 %)
+  ok    2H a 12 m/s taxi into a 35 cm stump, on the runway (paved): the wreck as it lies (6 piece(s), 17.7 m2 of hull) inside the grass's cull (41.7 m2, its 6 hull(s) with it) - 1858 points, none out
+  ok    2S a 12 m/s taxi into a 35 cm stump, on the runway (paved): a scuff - 14 strip(s), 0 patch(es), every one on hard ground with no bowl and no furrow (d 0), at least 0.4 m wide (0.4)
+  REPORT  a nose-over at 4 m/s: the join - 2 slides in 1 chains (2 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 0 gouges, 2 hulls (the last seal); the wreck 2 piece(s), 8.0 m2 of hull
+  REPORT  30 m/s into a trunk, the centreline: the join - 55 slides in 28 chains (43 joined), 3 blows over eBlow (2 stopped: craters; 1 on the way: the furrow's), 8 gouges, 16 hulls (the last seal); the wreck 16 piece(s), 12.5 m2 of hull
+  REPORT  30 m/s into a trunk, 2.5 m out: the join - 60 slides in 37 chains (40 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 10 gouges, 6 hulls (the last seal); the wreck 6 piece(s), 17.5 m2 of hull
+  REPORT  a 12 m/s taxi into a 35 cm stump, on the runway (paved): the join - 58 slides in 39 chains (31 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 7 gouges, 6 hulls (the last seal); the wreck 6 piece(s), 17.7 m2 of hull
+the metal Cessna:
+  ok    1 the layer off: no record, no scar, not one damage payload from the hop in a whole 30 m/s crash (the page's bytes)
+  ok    1 a circuit (completed): not one ground contact recorded, no scar
+  ok    1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  ok    1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  ok    2 a severe drop onto the wheels at 6 m/s: a crash (a gear member broke) - it scars (1 craters, 1 gouges incl. the prop's slot)
+  ok    3 a 3 m/s taxi into a trunk: the same bits with the record and without (9f33b898e2e3)
+  ok    2 a nose-over at 4 m/s: the propeller's slot (2 primitives)
+  ok    2 a nose-over at 4 m/s: 2 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a nose-over at 4 m/s: the same bits with the record and without (5961b847ee22)
+  ok    2 30 m/s into a trunk, the centreline: a scar (8 craters, 12 gouges, 1 sweep; 105.2 m2 torn, 603.3 m2 with the sweep)
+  ok    2 30 m/s into a trunk, the centreline: 45 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, the centreline: the same bits with the record and without (004bd7897aa6)
+  ok    2 30 m/s into a trunk, 2.5 m out: a scar (0 craters, 9 gouges, 1 sweep; 194.5 m2 torn, 1239.1 m2 with the sweep)
+  ok    2 30 m/s into a trunk, 2.5 m out: 16 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, 2.5 m out: the same bits with the record and without (91973a74af2b)
+  ok    3 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): the same bits with the record and without (e7014170726e)
+  ok    2 a severe drop onto the wheels at 6 m/s: 4 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a severe drop onto the wheels at 6 m/s: the same bits with the record and without (aa511cba222d)
+  ok    2 a 12 m/s taxi into a 35 cm stump, on the runway (paved): 4 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a 12 m/s taxi into a 35 cm stump, on the runway (paved): the same bits with the record and without (1ad6978d47e9)
+  ok    4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 2 scar payload(s) (one a sealed event), 3638 B of scar in 25 damage payloads (20578 B in all)
+  ok    5 reset: the scar empty under a new version (v3), sent once, the page's scar empty
+  REPORT  a 3 m/s taxi into a trunk: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop stoppage
+  REPORT  a nose-over at 4 m/s: v2, 2 primitives (0 craters, 1 gouges incl. 1 prop slot, 0 sweep), 28.49 m2 (28.49 with the sweep), 177 B; record 0 contacts, 62 frames, 2 seal(s), 1.578 ms sealing; prop stoppage
+  REPORT  30 m/s into a trunk, the centreline: v4, 45 primitives (8 craters, 12 gouges, 1 sweep), 105.18 m2 (603.27 with the sweep), 3316 B; 100 % of 31434 contact samples in it; record 3346236 contacts, 638 frames, 4 seal(s), 5.728 ms sealing; crashed (broke up: the fuselage parted (TPB off the core)); prop stoppage
+  REPORT  30 m/s into a trunk, 2.5 m out: v2, 16 primitives (0 craters, 9 gouges incl. 1 prop slot, 1 sweep), 194.52 m2 (1239.13 with the sweep), 1802 B; 100 % of 5388 contact samples in it; record 628658 contacts, 636 frames, 2 seal(s), 4.907 ms sealing; crashed (a wing member broke); prop stoppage
+  REPORT  a drop onto the wheels at 10 ft/s (FAR 23.473 cap): v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop bent
+  REPORT  a severe drop onto the wheels at 6 m/s: v2, 4 primitives (1 craters, 1 gouges incl. 1 prop slot, 0 sweep), 16.45 m2 (16.45 with the sweep), 304 B; 100 % of 504 contact samples in it; record 58490 contacts, 298 frames, 2 seal(s), 0.643 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  a 12 m/s taxi into a 35 cm stump, on the runway (paved): v3, 4 primitives (0 craters, 1 gouges, 1 sweep), 19.46 m2 (291.68 with the sweep), 342 B; 100 % of 1230 contact samples in it; record 150879 contacts, 662 frames, 3 seal(s), 0.553 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  the step with the record / without, the 2.5 m crash (median of 3 alternated): 13.273 / 14.238 ms a frame
+  ok    2H a nose-over at 4 m/s: the wreck as it lies (1 piece(s), 14.5 m2 of hull) inside the grass's cull (28.5 m2, its 1 hull(s) with it) - 1472 points, none out
+  ok    2H 30 m/s into a trunk, the centreline: the wreck as it lies (25 piece(s), 14.3 m2 of hull) inside the grass's cull (105.2 m2, its 24 hull(s) with it) - 1525 points, none out
+  ok    2H 30 m/s into a trunk, 2.5 m out: the wreck as it lies (6 piece(s), 15.1 m2 of hull) inside the grass's cull (194.5 m2, its 6 hull(s) with it) - 1575 points, none out
+  ok    2J 30 m/s into a trunk, 2.5 m out: 9 skipping run(s) the reader saw (7, 4, 4, 4, 6, 4, 4, 5, 3 touchdowns) - each 80 % or more in ONE gouge, at most one crater on it (100 %, 100 %, 100 %, 100 %, 100 %, 100 %, 100 %, 100 %, 91 %)
+  ok    2H a severe drop onto the wheels at 6 m/s: the wreck as it lies (2 piece(s), 5.8 m2 of hull) inside the grass's cull (16.4 m2, its 2 hull(s) with it) - 598 points, none out
+  ok    2H a 12 m/s taxi into a 35 cm stump, on the runway (paved): the wreck as it lies (2 piece(s), 5.8 m2 of hull) inside the grass's cull (19.5 m2, its 2 hull(s) with it) - 588 points, none out
+  ok    2S a 12 m/s taxi into a 35 cm stump, on the runway (paved): a scuff - 1 strip(s), 0 patch(es), every one on hard ground with no bowl and no furrow (d 0), at least 0.4 m wide (1.22)
+  ok    2W the Cessna on floats nosed into the water at 35 m/s (crashed: a gear member broke, 105 breaks): 0 primitives - no decal, no cull
+  REPORT  a nose-over at 4 m/s: the join - 0 slides in 0 chains (0 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 0 gouges, 1 hulls (the last seal); the wreck 1 piece(s), 14.5 m2 of hull
+  REPORT  30 m/s into a trunk, the centreline: the join - 85 slides in 46 chains (56 joined), 5 blows over eBlow (2 stopped: craters; 3 on the way: the furrow's), 11 gouges, 24 hulls (the last seal); the wreck 25 piece(s), 14.3 m2 of hull
+  REPORT  30 m/s into a trunk, 2.5 m out: the join - 33 slides in 17 chains (24 joined), 0 blows over eBlow (0 stopped: craters; 0 on the way: the furrow's), 5 gouges, 6 hulls (the last seal); the wreck 6 piece(s), 15.1 m2 of hull
+  REPORT  a severe drop onto the wheels at 6 m/s: the join - 4 slides in 3 chains (2 joined), 1 blows over eBlow (1 stopped: craters; 0 on the way: the furrow's), 0 gouges, 2 hulls (the last seal); the wreck 2 piece(s), 5.8 m2 of hull
+  REPORT  a 12 m/s taxi into a 35 cm stump, on the runway (paved): the join - 4 slides in 4 chains (0 joined), 1 blows over eBlow (0 stopped: craters; 1 on the way: the furrow's), 1 gouges, 2 hulls (the last seal); the wreck 2 piece(s), 5.8 m2 of hull
+the page (the cover ring and the decal on the real three, a fake WebGL2):
+  ok    6 the grass cull is exactly the footprint: 102 tufts gone of 188736, 72 shrubs and 22 debris (the sweep too); none outside, none left inside, the rocks all kept (2 cells, 13.4 ms)
+  ok    6 cells planted after the event plant none in it: the same instances as the cull left
+  ok    7 no program links in a crash: the decal parked and compiled with the scene, the scar laid and drawn, the cull done - links 7 -> 7, program keys 7 -> 7 (the same)
+  ok    7 every decal vertex on the ground (terrainH + 0.03 m on a hilly ground, worst 0.001 mm) and inside the footprint
+  REPORT  the decal: 10 primitives -> 6888 triangles, 4088 vertices, 232.0 KB of buffers, built in 23.95 ms; the first frame after the event uploads 104 buffers / textures (the decal's and the rebuilt blocks'), the next 16 (a steady frame before the crash: 16)
+  ok    7 a frame after the event uploads nothing more than a frame before the crash (16: the batches' own) - the decal's buffers and the rebuilt blocks went once (88)
+  ok    5 reset restores: the decal's buffers freed and the mesh parked; the ring's cells under the scar planted again - the very instances before the crash (267072); no link
+  REPORT  the user's Cub, a nose-over at 4 m/s: culls 25 tufts, 8 shrubs, 2 debris (1 cells, 1.01 ms); the decal 412 triangles, 13.3 KB, 1.67 ms
+  REPORT  the user's Cub, 30 m/s into a trunk, the centreline: culls 56 tufts, 90 shrubs, 43 debris (4 cells, 5.86 ms); the decal 2544 triangles, 85.6 KB, 6.82 ms
+  REPORT  the user's Cub, 30 m/s into a trunk, 2.5 m out: culls 102 tufts, 72 shrubs, 22 debris (2 cells, 6.24 ms); the decal 6888 triangles, 232 KB, 19.74 ms
+  REPORT  the user's Cub, a severe drop onto the wheels at 6 m/s: culls 28 tufts, 2 shrubs, 1 debris (2 cells, 1.39 ms); the decal 48 triangles, 1.9 KB, 0.25 ms
+  REPORT  the user's Cub, a 12 m/s taxi into a 35 cm stump, on the runway (paved): culls 15 tufts, 36 shrubs, 16 debris (2 cells, 1.39 ms); the decal 720 triangles, 23.7 KB, 1.5 ms
+  REPORT  the Jodel, a nose-over at 4 m/s: culls 22 tufts, 2 shrubs, 2 debris (1 cells, 1.23 ms); the decal 412 triangles, 13.3 KB, 1.45 ms
+  REPORT  the Jodel, 30 m/s into a trunk, the centreline: culls 76 tufts, 54 shrubs, 30 debris (3 cells, 7.08 ms); the decal 3296 triangles, 111.6 KB, 7.15 ms
+  REPORT  the Jodel, 30 m/s into a trunk, 2.5 m out: culls 103 tufts, 448 shrubs, 230 debris (6 cells, 18.77 ms); the decal 7852 triangles, 264.3 KB, 18.28 ms
+  REPORT  the Jodel, a 12 m/s taxi into a 35 cm stump, on the runway (paved): culls 37 tufts, 16 shrubs, 6 debris (2 cells, 1.19 ms); the decal 1992 triangles, 70.8 KB, 3.94 ms
+  REPORT  the metal Cessna, a nose-over at 4 m/s: culls 23 tufts, 8 shrubs, 1 debris (1 cells, 1.06 ms); the decal 60 triangles, 2.3 KB, 0.31 ms
+  REPORT  the metal Cessna, 30 m/s into a trunk, the centreline: culls 112 tufts, 124 shrubs, 73 debris (4 cells, 5.16 ms); the decal 6704 triangles, 220.8 KB, 16.58 ms
+  REPORT  the metal Cessna, 30 m/s into a trunk, 2.5 m out: culls 181 tufts, 298 shrubs, 146 debris (5 cells, 25.41 ms); the decal 6948 triangles, 233.6 KB, 22.42 ms
+  REPORT  the metal Cessna, a severe drop onto the wheels at 6 m/s: culls 14 tufts, 2 shrubs, 2 debris (1 cells, 0.67 ms); the decal 424 triangles, 13.7 KB, 1.18 ms
+  REPORT  the metal Cessna, a 12 m/s taxi into a 35 cm stump, on the runway (paved): culls 18 tufts, 76 shrubs, 31 debris (3 cells, 1.86 ms); the decal 456 triangles, 14.9 KB, 1.04 ms
+  ok    2S the user's Cub, a 12 m/s taxi into a 35 cm stump, on the runway (paved): the scuff over the runway's layers - its lowest vertex terrainH + 0.08 m (the ribbon +0.04, a pavement side +0.08), drawn at renderOrder 6.5 (the ribbon 5, its paint 6)
+  ok    2S the user's Cub, a 12 m/s taxi into a 35 cm stump, on the runway (paved): the scuff reads from the chase camera - it darkens the runway (concreteA) 44 %, worn asphalt (asphaltW) 43 %, the apron (concreteD) 53 % (alpha-weighted; 30 % or more), 0.4 m wide = 35.9 px at 14.979999999999999 m (10 or more)
+  ok    2S the Jodel, a 12 m/s taxi into a 35 cm stump, on the runway (paved): the scuff over the runway's layers - its lowest vertex terrainH + 0.08 m (the ribbon +0.04, a pavement side +0.08), drawn at renderOrder 6.5 (the ribbon 5, its paint 6)
+  ok    2S the Jodel, a 12 m/s taxi into a 35 cm stump, on the runway (paved): the scuff reads from the chase camera - it darkens the runway (concreteA) 45 %, worn asphalt (asphaltW) 44 %, the apron (concreteD) 55 % (alpha-weighted; 30 % or more), 0.4 m wide = 46.3 px at 11.620000000000001 m (10 or more)
+  ok    2S the metal Cessna, a 12 m/s taxi into a 35 cm stump, on the runway (paved): the scuff over the runway's layers - its lowest vertex terrainH + 0.08 m (the ribbon +0.04, a pavement side +0.08), drawn at renderOrder 6.5 (the ribbon 5, its paint 6)
+  ok    2S the metal Cessna, a 12 m/s taxi into a 35 cm stump, on the runway (paved): the scuff reads from the chase camera - it darkens the runway (concreteA) 44 %, worn asphalt (asphaltW) 43 %, the apron (concreteD) 53 % (alpha-weighted; 30 % or more), 1.22 m wide = 106.6 px at 15.399999999999999 m (10 or more)
+  ok    2 water: a slide from dry ground into the water - its scar stops at the shore (3 primitives, none over the water)
+  ok    2J the join: a node skipping 8 times along the ground (blows of 600 J, under eBlow 970 J) is ONE gouge of 8 slides (1 gouge(s) of 8, 0.69 m wide, 0.272 m deep), no crater (0)
+  ok    2J the join: skipping with blows of 1.5 kJ on the way and a 3 kJ one that stops: one gouge (1) and ONE crater where it stopped (1, r 0.56 m at x 36.75)
+  ok    2J a 3 kJ blow that stops alone: a crater (1), no gouge (0)
+  104/104 checks
+GATE DMGSCAR: PASS

@@ -19,7 +19,7 @@ const BEFORE = opt('before', null);
 
 // ---- a child: one build, one case, one tree (its core and its decal) ----------------------------------------------
 if (argv[0] === '--child') {
-  const [, key, id, tree] = argv;
+  const [, key, id, tree, outFile] = argv;
   if (tree !== 'after') {   // the base's core in place of this tree's: the lib requires tools/flight_core.js
     const base = require(path.join(tree, 'tools', 'flight_core.js'));
     require.cache[require.resolve(path.join(__dirname, 'flight_core.js'))] = require.cache[require.resolve(path.join(tree, 'tools', 'flight_core.js'))];
@@ -47,11 +47,11 @@ if (argv[0] === '--child') {
     const a = I[t], b = I[t + 1], d = I[t + 2];
     const al = (Cl[a * 4 + 3] + Cl[b * 4 + 3] + Cl[d * 4 + 3]) / 3; if (!(al > 0.02)) continue;
     const col = [0, 1, 2].map(j => tm[j] * (Cl[a * 4 + j] + Cl[b * 4 + j] + Cl[d * 4 + j]) / 3);
-    tris.push([P[a * 3], P[a * 3 + 2], P[b * 3], P[b * 3 + 2], P[d * 3], P[d * 3 + 2]].map(v => +v.toFixed(3)), col.map(v => +v.toFixed(4)), +al.toFixed(3));
+    tris.push([[P[a * 3], P[a * 3 + 2], P[b * 3], P[b * 3 + 2], P[d * 3], P[d * 3 + 2]].map(v => +v.toFixed(3)), col.map(v => +v.toFixed(4)), +al.toFixed(3)]);
   }
-  console.log('RESULT ' + JSON.stringify({ key, id, label: c.label, hard: !!c.hard, elev: r.elev, prims: r.prims, crashed: r.crashed, reason: r.reason,
+  fs.writeFileSync(outFile, JSON.stringify({ key, id, label: c.label, hard: !!c.hard, elev: r.elev, prims: r.prims, crashed: r.crashed, reason: r.reason,
     contacts: r.contacts.filter((v, j) => j % 4 < 2).map(v => +v.toFixed(2)), rest: r.rest.pieces.map(pc => pc.hull.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)])),
-    last: r.sim.damageScar() ? r.sim.damageScar().last || null : null, tris }));
+    last: r.sim.damageScar() ? r.sim.damageScar().last || null : null, tris }));   // (a file: a big stdout is cut by exit)
   process.exit(0);
 }
 
@@ -114,8 +114,10 @@ function panel(r, title, ox, oy, box) {
   const res = {};
   let at = 0;
   const one = () => { if (at >= jobs.length) return Promise.resolve(); const j = jobs[at++];
-    return new Promise(done => { const c = cp.spawn(process.execPath, [__filename, '--child', j.key, j.id, j.tree], { stdio: ['ignore', 'pipe', 'inherit'] }); let so = '';
-      c.stdout.on('data', d => { so += d; }); c.on('close', () => { const l = so.split('\n').find(x => x.indexOf('RESULT ') === 0); res[j.key + ':' + j.id + ':' + (j.tree === 'after' ? 'after' : 'before')] = l ? JSON.parse(l.slice(7)) : null; console.log(j.key + ' ' + j.id + ' ' + (j.tree === 'after' ? 'after' : 'before') + (l ? '' : ' FAILED')); done(); }); }).then(one); };
+    const f = path.join(require('os').tmpdir(), 'dmg_scar2_' + process.pid + '_' + at + '.json');
+    return new Promise(done => { const c = cp.spawn(process.execPath, [__filename, '--child', j.key, j.id, j.tree, f], { stdio: ['ignore', 'ignore', 'inherit'] });
+      c.on('close', () => { let r = null; try { r = JSON.parse(fs.readFileSync(f, 'utf8')); fs.unlinkSync(f); } catch (e) {}
+        res[j.key + ':' + j.id + ':' + (j.tree === 'after' ? 'after' : 'before')] = r; console.log(j.key + ' ' + j.id + ' ' + (j.tree === 'after' ? 'after' : 'before') + (r ? '' : ' FAILED')); done(); }); }).then(one); };
   await Promise.all([one(), one(), one(), one()]);
   const J = [];
   for (const key of S.BUILDS) for (const id of S.STILLS) {
@@ -129,7 +131,11 @@ function panel(r, title, ox, oy, box) {
       for (const H of r.rest) for (const q of H) ext(q[0], q[1], 0.5);
       for (let j = 0; j < r.contacts.length; j += 2) ext(r.contacts[j], r.contacts[j + 1]); }
     const span = Math.max(6, x1 - x0, (z1 - z0) * (PW - 2 * PAD) / (PH - TOP - PAD)) * 1.06, box = [(x0 + x1) / 2, (z0 + z1) / 2, span];
-    const W = 2 * PW + 20, H = PH + 92;
+    // the zoom: a 14 m window on the densest part of the after decal (its triangles' centres on a 1 m grid, the 14 x 14 m
+    // window holding most)
+    let zb = null; { const cnt = new Map(); for (const [T] of A.tris) { const k = Math.floor((T[0] + T[2] + T[4]) / 3) + ':' + Math.floor((T[1] + T[3] + T[5]) / 3); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      let best = -1; for (const k of cnt.keys()) { const [gx, gz] = k.split(':').map(Number); let n = 0; for (let dx = -7; dx < 7; dx++) for (let dz = -7; dz < 7; dz++) n += cnt.get((gx + dx) + ':' + (gz + dz)) || 0; if (n > best) { best = n; zb = [gx + 0.5, gz + 0.5, 14]; } } }
+    const W = 2 * PW + 20, H = (zb ? 2 * PH + 10 : PH) + 92;
     const svg = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" font-family="sans-serif">`, `<rect width="${W}" height="${H}" fill="#fff"/>`,
       `<text x="10" y="20" font-size="14" font-weight="bold">${esc(LAB[key])} - ${esc(A.label)}: the scar from above, before (DMG-SCAR) and after (DMG-SCAR2)</text>`,
       `<text x="10" y="37" font-size="10.5" fill="#333">pale: the grass culled (the craters' discs, the gouges' strips, the resting wreck's hulls + margin); the decal as laid (its own triangles: the soil map x its colours at their alpha); dashed discs: craters; brown lines: gouges' paths (black: the prop's slot);</text>`,
@@ -137,6 +143,7 @@ function panel(r, title, ox, oy, box) {
     if (B) svg.push(panel(B, 'BEFORE - DMG-SCAR (4575e99f)', 0, 60, box));
     else svg.push(`<text x="20" y="200" font-size="12">(no base tree given: --before)</text>`);
     svg.push(panel(A, 'AFTER - DMG-SCAR2 (this tree)', PW + 20, 60, box));
+    if (zb) { if (B) svg.push(panel(B, 'BEFORE - the zoom (14 m)', 0, 70 + PH, zb)); svg.push(panel(A, 'AFTER - the zoom (14 m)', PW + 20, 70 + PH, zb)); }
     svg.push('</svg>');
     const f = path.join(OUT, key + '_' + id + '.svg'); fs.writeFileSync(f, svg.join('\n'));
     console.log('wrote ' + f + ' (' + (fs.statSync(f).size / 1024).toFixed(0) + ' KB)');

@@ -743,12 +743,12 @@ var COVER_RING = (() => {
     // budget) and the batched ones are deleted; a cell planted later skips them (push above). No shader, no uniform, no
     // program key moves: the fade's program draws fewer instances. `scar(null)` lets it go: the cells it touched are
     // dropped and plant again whole (the planting is hashed on the cell: the same cover as before the crash).
-    const SCR = { n: 0, prims: [], boxF: null, boxS: null };
+    const SCR = { n: 0, prims: [], boxF: null, boxS: null, bx: null };   // (bx: each primitive's box - scarBoxes, G2382)
     const inBox = (b, x, z) => !!b && x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3];
     // (scarIn is the core's, 34_scar.js: the one footprint the page and the gate test)
     function scarCut(kind, x, z) {
-      if (kind === 'cover') return inBox(SCR.boxF, x, z) && scarIn(SCR.prims, x, z, false);
-      if (kind === 'shrub' || kind === 'debris') return inBox(SCR.boxS, x, z) && scarIn(SCR.prims, x, z, true);
+      if (kind === 'cover') return inBox(SCR.boxF, x, z) && scarIn(SCR.prims, x, z, false, SCR.bx);
+      if (kind === 'shrub' || kind === 'debris') return inBox(SCR.boxS, x, z) && scarIn(SCR.prims, x, z, true, SCR.bx);
       return false;
     }
     const cellIn = (cell, b) => !!b && (cell.cx + 1) * S.cell >= b[0] && cell.cx * S.cell <= b[2] && (cell.cz + 1) * S.cell >= b[1] && cell.cz * S.cell <= b[3];
@@ -757,6 +757,7 @@ var COVER_RING = (() => {
       const was = SCR.boxS;
       SCR.prims = (prims && prims.length && typeof scarIn === 'function') ? prims.slice() : []; SCR.n = SCR.prims.length;
       SCR.boxF = SCR.n ? scarBox(SCR.prims, false) : null; SCR.boxS = SCR.n ? scarBox(SCR.prims, true) : null;
+      SCR.bx = SCR.n && typeof scarBoxes === 'function' ? scarBoxes(SCR.prims) : null;
       let cut = 0, cells0 = 0, dropped = 0;
       // the cells under the scar before: planted again whole (or under the new scar, by push)
       if (was) for (const [k, cell] of [...cells]) if (cellIn(cell, was)) { dropCell(k); dropped++; }

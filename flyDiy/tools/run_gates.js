@@ -273,8 +273,10 @@ const GATES = [
   // G2357-G2360 (DMG-SCAR): the ground's scar - nothing on an intact aircraft or with the layer off (the page's bytes); the
   // standard crashes scar the ground under their contacts (craters, gouges, the prop's slot, the sweep; at most 64), read
   // never pushed (the same bits), the hop through the worker = inline, reset restores; the grass cull exactly the footprint
-  // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once
-  { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 900 },
+  // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once.
+  // G2382 (DMG-SCAR2): + the join (a skipping slide one gouge, a crater only where a hard blow stopped), the resting wreck's
+  // hull inside the cull, the runway's scuff readable from the chase camera, the floats' water crash scarless
+  { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 950 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

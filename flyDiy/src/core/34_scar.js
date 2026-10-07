@@ -49,7 +49,8 @@
 //            began - a slide continues a chain one of whose slides ended at most joinT before it began: the same node on
 //            that time gap alone (a bounce: its hop is its own flight), another node only from a contact still moving
 //            (> vHand), ahead of it, landing within joinD + joinK x the hop of where that contact's speed would have
-//            carried it (a hop is ballistic: its ground speed hardly changes in the air). A chain is one gouge: its path the slides' paths end to end (the hops
+//            carried it (a hop is ballistic: its ground speed hardly changes in the air); any join on the line it left
+//            (across the heading at most the two contacts' half-widths + merge). A chain is one gouge: its path the slides' paths end to end (the hops
 //            bridged), its width the contacting part's (SCAR.W, the widest of its nodes), its depth from the friction
 //            work the slides recorded over the length they slid. A CRATER is kept only for a BLOW of eBlow or more that
 //            STOPPED there (its contact went on less than stopK x the bowl's radius): a blow on the way is the furrow's
@@ -283,6 +284,9 @@ function scarChains(segs) {
       const hop = (A.v || 0) * gap, qx = A.lx + A.ux * hop, qz = A.lz + A.uz * hop;
       const e = Math.hypot(T.pts[0] - qx, T.pts[1] - qz) + (A.i === T.i ? 0 : 1e-6);
       if (A.i !== T.i && (T.pts[0] - A.lx) * A.ux + (T.pts[1] - A.lz) * A.uz < -SCAR.joinD) continue;   // another node: ahead of it
+      // (any join: it lands on the line it left - across the heading no more than the two contacts' half-widths + merge; a
+      // part that comes down beside its track starts a furrow of its own, never a strip drawn across the gap)
+      if (Math.abs((T.pts[0] - A.lx) * A.uz - (T.pts[1] - A.lz) * A.ux) > (A.w + T.w) / 2 + SCAR.merge) continue;
       // the same node: the time gap alone (its hop is its own flight - a contact braked by the ground leaves at a speed
       // its slide does not show); another node: where the hop lands, round where its speed carried it
       if ((A.i === T.i || e <= SCAR.joinD + SCAR.joinK * hop) && e < bd) { bd = e; best = ch; }
@@ -472,8 +476,10 @@ function scarHullIn(c, x, z) {
 }
 // ---- THE FOOTPRINT (the page's cull and the gate's): inside a crater's disc, a gouge's strip or a piece's hull (G2380);
 // `sweep` adds the sweeps
-function scarIn(prims, x, z, sweep) {
+// (G2382: `B` - scarBoxes(prims), each primitive's own box, tested first: the page's cull tests thousands of instances)
+function scarIn(prims, x, z, sweep, B) {
   for (let q = 0; q < prims.length; q++) {
+    if (B && (x < B[q * 4] || z < B[q * 4 + 1] || x > B[q * 4 + 2] || z > B[q * 4 + 3])) continue;
     const c = prims[q];
     if (c.k === 'c') { const dx = x - c.x, dz = z - c.z; if (dx * dx + dz * dz <= c.r * c.r) return true; }
     else if (c.k === 'g') { if (scarSegD(c.p, x, z) <= c.w / 2) return true; }
@@ -488,8 +494,24 @@ function scarSweepIn(c, x, z) {
   if (!c.ws) return scarSegD(P, x, z) <= c.w / 2;
   if (P.length === 2) return Math.hypot(x - P[0], z - P[1]) <= c.ws[0] / 2;
   for (let j = 0; j + 3 < P.length; j += 2) { const h = Math.max(c.ws[j / 2], c.ws[j / 2 + 1]) / 2;
-    if (scarSegD([P[j], P[j + 1], P[j + 2], P[j + 3]], x, z) <= h) return true; }
+    const ax = P[j], az = P[j + 1], ex = P[j + 2] - ax, ez = P[j + 3] - az, e2 = ex * ex + ez * ez;   // (no array a leg)
+    let u = e2 > 1e-12 ? ((x - ax) * ex + (z - az) * ez) / e2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
+    if (Math.hypot(x - ax - u * ex, z - az - u * ez) <= h) return true; }
   return false;
+}
+// each primitive's own box [x0, z0, x1, z1, ...] (scarIn's B): a crater's disc, a strip's or a sweep's points +- its half
+// width, a hull's + its margin
+function scarBoxes(prims) {
+  const B = new Float64Array(prims.length * 4);
+  prims.forEach((c, q) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    if (c.k === 'c') { x0 = c.x - c.r; x1 = c.x + c.r; z0 = c.z - c.r; z1 = c.z + c.r; }
+    else for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (c.ws ? c.ws[j / 2] : c.w) / 2;
+      x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
+    if (c.k === 's' && c.ws) { let w = 0; for (const v of c.ws) w = Math.max(w, v / 2); x0 -= w; x1 += w; z0 -= w; z1 += w; }   // (a leg takes its wider end)
+    B[q * 4] = x0; B[q * 4 + 1] = z0; B[q * 4 + 2] = x1; B[q * 4 + 3] = z1;
+  });
+  return B;
 }
 // the footprint's box [x0, z0, x1, z1] (the sweeps with `sweep`), null for none
 function scarBox(prims, sweep) {
