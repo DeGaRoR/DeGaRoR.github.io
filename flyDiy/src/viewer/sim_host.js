@@ -447,6 +447,8 @@ function makeSimHost(CORE, init, keptWorld) {
     place();
     // G820 (C1c): the bench's test card (app.js startTestFlight: ap.setCard after the placement, before the start)
     if (init.pilot && init.pilot.card && H.ap.setCard) H.ap.setCard(init.pilot.card);
+    // G2120 ROUTE-DRAW: the route the page's pilot had armed when the flight was asked (sim_link.js begin)
+    if (init.pilot && init.pilot.route && H.ap.flyRoute) H.ap.flyRoute(init.pilot.route);
     H.started = false; H.epoch++; H.apGen = (H.apGen || 0) + 1;
     H.end = { air: false, wasAir: false, still: 0, over: false };
   }
@@ -569,6 +571,8 @@ function makeSimHost(CORE, init, keptWorld) {
         if (to && init.place) init.place = Object.assign({}, init.place, { to: c.to });
         break;
       }
+      // G2120 ROUTE-DRAW: a drawn route (app.js routeFly): the pilot's flyRoute, as the page's (null leaves it)
+      case 'route': if (ap.flyRoute) ap.flyRoute(c.route || null); break;
       case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
         H.end.over = !!c.on;
         if (c.on && c.outcome) { if (!ap.report) ap.report = { verdicts: [], outcome: c.outcome, landing: null }; else if (!ap.report.outcome) ap.report.outcome = c.outcome; }

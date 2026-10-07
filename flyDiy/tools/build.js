@@ -101,6 +101,9 @@ const MANIFEST = {
     // THE FLIGHT'S TO (G1945 DEST-TO): the bases, where the aeroplane is (the
     // derived From), the To a picker offers and the pref's migration; pure.
     '38b_dest.js',
+    // THE DRAWN ROUTE (G2120 ROUTE-DRAW): the record (control points + altitude), the safe default, the profile
+    // and its verdicts (terrain under the margin, a gradient past the aeroplane's limits), the legs; pure.
+    '38c_route.js',
     '39_ground_path.js',
     // THE SERVOS (G1570, review E4): the pilot's inner loops, one module and
     // one gain table (SERVO_GAINS); pure, read by 43_.
@@ -479,6 +482,9 @@ const MANIFEST = {
     // mapping panel over it, opened from both rails; DOM-lazy, built on the
     // first open, so its position only has to precede the two callers.
               'design_flow.js', 'balance.js', 'pattern_vis.js',
+    // route_draw.js before app.js (G2120 ROUTE-DRAW): the route drawn on the map - its gestures, its panel, its
+    // profile strip; DOM-lazy (built when the drawing opens), attached by app.js (window.ROUTE_DRAW)
+              'route_draw.js',
     // dev_panel.js (W0c.11): the developer's dials, DOM-lazy, over handles
     // the world publishes at runtime (TREE_*, WORLD_RIG, DEV_CAM) - it only
     // has to be in the page; F8 builds it.
