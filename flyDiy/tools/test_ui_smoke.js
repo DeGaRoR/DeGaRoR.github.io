@@ -111,6 +111,22 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (!/if \(api\.canSave\) \{ const why = api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\); \}/.test(gar)) throw new Error('garage.js: the save does not ask the page first');
   console.log('the wallet in app.js: ' + outside.length + ' calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)');
 }
+// G2345 (FREIGHT-LOAD): THE LOADING VIEW ONLY UNDER ITS FLAGS - its page half is FREIGHT_PAGE = (CAREER_DEV || FREIGHT_DEV),
+// FREIGHT_DEV ?freight=1 alone; its door, its entry's timer and the lazy view behind it; the stop record reads the
+// accepted load inside the career's half; the view itself is a lazy file (never in the page's static tags)
+{
+  const app = pick('function setAircraft', 'app');
+  if (!/const FREIGHT_DEV = \(\(\) => \{ try \{ return \/\[\?&\]freight=1\(&\|\$\)\/\.test\(window\.location\.search/.test(app)) throw new Error('app.js: FREIGHT_DEV is not ?freight=1 alone');
+  if (!/const FREIGHT_PAGE = \(CAREER_DEV \|\| FREIGHT_DEV\) && typeof freightLoadNew === 'function';/.test(app)) throw new Error('app.js: the loading view\'s page half is not behind its flags');
+  if (!/  if \(FREIGHT_PAGE\) window\.FLYDIY_FREIGHT = /.test(app) || !/  if \(FREIGHT_PAGE\) setInterval\(/.test(app)) throw new Error('app.js: window.FLYDIY_FREIGHT / the LOAD entry\'s timer are not behind the flags');
+  const i0 = app.indexOf("G2320 (CAREER-WIRE): THE DEV CAREER'S PAGE HALF"), i1 = app.indexOf('window.FLYDIY_PLAYER = {', i0);
+  const half = app.slice(i0, i1);
+  if (!/items: typeof freightStopItems === 'function' \? freightStopItems\(d, flSlot\) : null,/.test(half)) throw new Error("app.js: the stop record does not carry the accepted load's items");
+  if (!/res\.doc = freightLoadSettle\(res\.doc\)/.test(half)) throw new Error('app.js: a delivered load does not leave the record');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  if (/<script[^>]+src="[^"]*freight_load\.js/.test(html) || !/"freight_load":"src\/viewer\/freight_load\.js/.test(html)) throw new Error('index.html: the loading view is not a lazy file');
+  console.log('the loading view in app.js: behind ?career=1 / ?freight=1 (FREIGHT_PAGE), the door and the entry with it; the stop carries the accepted items; freight_load.js lazy');
+}
 // THE MAP SCREEN'S ROWS (G2253, MAP-MENU; tools/_map_smoke.js): the sandbox shows no MAP entry without ?map=1, nothing of
 // the screen loads before the entry is pressed, the screen's tabs / rows / cards over the contracts fixture, NOHOVER and R1
 // on the new UI; --phone the phone's card and the sheet's gestures
@@ -512,6 +528,9 @@ try {
   // G2320 (CAREER-WIRE): the sandbox booted (no ?career=1): no career door, no career plate
   if (sandbox.window.FLYDIY_CAREER !== undefined || els.crPlate || els.crKg) throw new Error('the sandbox booted with the career (FLYDIY_CAREER / #crPlate) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_CAREER, no career plate');
+  // G2345 (FREIGHT-LOAD): ...and no loading view: no FLYDIY_FREIGHT, no LOAD entry, the lazy view never fetched
+  if (sandbox.window.FLYDIY_FREIGHT !== undefined || sandbox.window.FREIGHT_LOAD !== undefined || els.frEntry || els.frLoad) throw new Error('the sandbox booted with the loading view (FLYDIY_FREIGHT / #frEntry) without ?career=1 or ?freight=1');
+  console.log('the sandbox without the flags: no FLYDIY_FREIGHT, no LOAD entry');
   // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
