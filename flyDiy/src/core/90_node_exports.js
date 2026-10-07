@@ -8,6 +8,9 @@ if (typeof module !== 'undefined')
 // way the build does and throws when its own `body-sha256` header differs. Node only; a core copied out of its tree is not
 // judged; FLYDIY_STALE_OK=1 loads one anyway. ~10 ms once a process.
 if (typeof module !== 'undefined' && typeof require === 'function' && typeof __filename === 'string') (function () {
-  const f = require('path').join(require('path').dirname(__filename), '_core_fresh.js');
+  // (train 40) only a core loaded from a FILE is judged: a worker that evals the core's text has no real __filename
+  // ('[worker eval]'), and require() of a bare relative name there throws
+  const P = require('path'); if (!P.isAbsolute(__filename) || !/\.js$/.test(__filename)) return;
+  const f = P.join(P.dirname(__filename), '_core_fresh.js');
   if (require('fs').existsSync(f)) require(f).assertFresh(__filename);
 })();
