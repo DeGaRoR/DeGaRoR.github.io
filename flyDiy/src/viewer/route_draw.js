@@ -296,7 +296,7 @@ const ROUTE_DRAW = (() => {
     const pf = perf();
     if (S.on && pf && typeof routeCaptureR === 'function') {
       g.strokeStyle = 'rgba(245,143,216,.25)'; g.lineWidth = 1 * mk;
-      P.forEach((p, i) => { const r = routeCaptureR(S.route, i, pf) * S.frame.k; if (r > 4 * mk) { g.beginPath(); g.arc(PX(p.x, p.z), PY(p.x, p.z), r, 0, 6.283); g.stroke(); } });
+      P.forEach((p, i) => { const r = routeCaptureR(S.route, i, pf, from) * S.frame.k; if (r > 4 * mk) { g.beginPath(); g.arc(PX(p.x, p.z), PY(p.x, p.z), r, 0, 6.283); g.stroke(); } });
     }
     P.forEach((p, i) => {
       const x = PX(p.x, p.z), y = PY(p.x, p.z);

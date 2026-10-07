@@ -120,9 +120,10 @@ function routePerf(sheet, A, bankLim) {
 }
 const routeSpeedOf = (pt, perf) => (pt && pt.V != null) ? Math.max(perf.Vmin, Math.min(perf.Vmax, pt.V)) : perf.V;
 // the capture radius of point i: the fly-by's own miss at that corner (R (1/cos(t/2) - 1), the turn of t rad at
-// the turn radius at the point's speed) plus 80 m, at least 150 m; the last point (no corner) 150 m
-function routeCaptureR(route, i, perf) {
-  const P = route.pts, p = P[i], a = P[i - 1], b = P[i + 1];
+// the turn radius at the point's speed) plus 80 m, at least 150 m; the last point (no corner) 150 m. WP1's corner is
+// the join's: `prev` ({ x, z }) is where its leg comes from (the field before the start, the join's start in flight)
+function routeCaptureR(route, i, perf, prev) {
+  const P = route.pts, p = P[i], a = P[i - 1] || (i === 0 ? prev : null), b = P[i + 1];
   if (!p || !a || !b) return 150;
   const u1 = Math.atan2(p.z - a.z, p.x - a.x), u2 = Math.atan2(b.z - p.z, b.x - p.x);
   const t = Math.abs(Math.atan2(Math.sin(u2 - u1), Math.cos(u2 - u1)));

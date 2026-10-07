@@ -23,7 +23,8 @@
 // B. THE FLIGHTS (fly:<build>): the same 5-point route over Jolene (170 / 350 / 300 / 220 / 170 m MSL - climbs, a
 //    descent over the sea, a descent back to the field), its profile CLEAN for that aeroplane at drawing time; armed on
 //    the ground, taken over at the climb-out; then, against the gate's own trace:
-//      every point captured inside its radius (routeCaptureR: the fly-by's own miss at that corner + 80 m, >= 150 m)
+//      every point captured inside its radius (routeCaptureR: the fly-by's own miss at that corner + 80 m, >= 150 m;
+//        WP1's corner the join's, from where the route was joined)
 //      the altitude at each point within +-15 m of the drawn one
 //      the vertical speed asked inside TECS's published limits every step, the one flown inside them (+0.5 m/s, 1 s mean;
 //        from 10 s after the climb-out's hand-over - its own climb arrives with it, logged)
@@ -44,7 +45,7 @@ const { ACT_LIMIT } = require(path.join(T, 'pilot_matrix.js'));
 const argv = process.argv.slice(2);
 const SHOW = argv.includes('--show'), SELF = argv.includes('--selftest');
 const ONLY = (() => { const i = argv.indexOf('--only'); return i >= 0 ? argv[i + 1].split(',') : null; })();
-const log = s => { if (SHOW) console.log('  ' + s); };
+const log = s => { if (SHOW || /^fly:/.test(s)) console.log('  ' + s); };   // (the flights' lines always: the evidence)
 const jolene = () => IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8') });
 
 // THE ROUTE: offsets from HOME's centre (m) and the altitude asked (m MSL)
@@ -185,6 +186,7 @@ function flight(key, end, check, doctor, persona) {
   const flown = doctor && doctor.flown ? doctor.flown(R) : R;
   const how = ap.flyRoute(flown);
   check(how === 'armed' && ap.drawn && ap.drawn.state === 'armed', tag + 'drawn on the ground, the route is armed', how);
+  // (WP1's corner is the join's: its radius is set when the route starts, from the join's own start - ap.legs[0].A)
   const capR = R.pts.map((_, i) => C.routeCaptureR(R, i, perf));
   const best = R.pts.map(() => ({ d: Infinity, dh: null, t: null }));
   const hB = R.pts.map(p => C.routeAltMSL(p, W));
@@ -198,7 +200,7 @@ function flight(key, end, check, doctor, persona) {
     if (ap.phase !== last) { phases.push(ap.phase); last = ap.phase; }
     const c = sim.cgPos(), v = sim.cgVel(), I = ap.intent;
     if (I.phase === 'ROUTE') {
-      if (startT == null) startT = ap.t;
+      if (startT == null) { startT = ap.t; const A0 = ap.legs[0].A; capR[0] = C.routeCaptureR(R, 0, perf, { x: A0[0], z: A0[1] }); }
       routeSteps++;
       da.step(sim.ctl.da || 0); dr.step(sim.ctl.dr || 0);
       const g = C.routeGroundAt(W, c[0], c[2], false); aglMin = Math.min(aglMin, c[1] - g);
