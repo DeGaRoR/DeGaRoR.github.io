@@ -445,9 +445,10 @@ function genOccJudge(sr, o) {
 const genOccQuiet = () => { const N = 16, z = new Float64Array(N), one = new Float64Array(N).fill(1); return { N, dt: GEN_OCC.dt, ax: z, ay: z, az: one, kx: z, kz: z, t0: 0 }; };
 // the close: every seat judged; the result the hop sends is { name, band } per seat - the criteria stay in `crit`
 function genOccClose(O, S, fd) {
+  const find = fd ? fd() : null;   // (the solver's pieces(): the union-find over the live members and clusters, its find)
   const seats = O.seats.map((o, k) => {
     let parted = false;
-    if (fd) { const r0 = fd(o.n8[0]); for (let c = 1; c < 8; c++) if (fd(o.n8[c]) !== r0) { parted = true; break; } }
+    if (find) { const r0 = find(o.n8[0]); for (let c = 1; c < 8; c++) if (find(o.n8[c]) !== r0) { parted = true; break; } }
     const sr = genOccSeries(O, S, k), sp = Number.isFinite(S.sp[k]) ? S.sp[k] : null, ce = Math.exp(S.ce[k]);
     const J = genOccJudge(sr || genOccQuiet(), { row: o.row, dynamic: O.dynamic, restraint: O.restraint, space: sp, cell: ce, parted });
     J.spaceAt = S.spAt[k]; J.cellAt = S.ceAt[k]; J.samples = sr ? sr.N : 0;
