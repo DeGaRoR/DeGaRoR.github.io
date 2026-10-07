@@ -1,0 +1,12 @@
+# The targeted battery on claude/dmg-scar2 (859ecf62 + run_gates' DMGSCAR row), one process and one log per gate:
+#   node tools/run_gates.js --only=<ID> --no-build --jobs=1 --verbose   (DMGSCAR: node tools/_dmg_scar_check.js, gate_dmgscar.txt)
+DMGSCAR   PASS 104/104  (15.6 min; selftest.txt: PASS both ways)
+DMGSKIN   PASS   174.2 s
+TREECRASH PASS   721.3 s
+DMGFPS    PASS   222.9 s
+UISMOKE   PASS   185.5 s
+BOOT      PASS     0.1 s
+BUILD     PASS     2.7 s
+DMGWRECK  - not on this branch (it lives on claude/dmg-integration 895857a6, the train-39 assembly, which does not hold DMG-SCAR yet):
+            run on a throwaway TEST-MERGE of claude/dmg-scar2 into 895857a6 (not pushed; one conflict: 90_node_exports, the union):
+            DMGWRECK  PASS   232.2 s

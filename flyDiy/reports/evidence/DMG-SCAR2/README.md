@@ -11,7 +11,8 @@ fed the new footprint. Node only; the coordinator shoots the box stills.
 | `cases.json` | The six cases' primitives, before and after; the join's counters (the last seal); the wreck's pieces. |
 | `gate_dmgscar.txt` / `.json` | GATE DMGSCAR's whole output (`node tools/_dmg_scar_check.js`) and its per-build results. |
 | `selftest.txt` | `node tools/_dmg_scar_check.js --selftest`: red with the record disabled, and red on the join's checks (2J) with the join disabled (`SCAR.join = false`). |
-| `program_census.txt` | `tools/program_census.js --linkless` on the page (node's static server), damage on and off, the base (4575e99f) and this branch: the programs a boot and a roll-out link. |
+| `program_census.txt` | The programs: `tools/program_census.js` on the page could not roll out on the cloud's SwiftShader (52 min at the shed, killed - the box's census is the coordinator's); the same count in node, `node tools/dmg_scar2_census.js --before <base flyDiy>` (the real three on the fake WebGL2, the base and this tree, damage off and on, the six scars laid and drawn); GATE DMGSCAR 7. |
+| `merge_t39.txt` | A throwaway TEST-MERGE of this branch into claude/dmg-integration 895857a6 (the train-39 assembly, not pushed): GATE DMGSCAR and DMGWRECK there. |
 | `battery.txt` | The targeted gates, one process and one log per gate. |
 | `off_bytes.txt` | Gates with damage off (the default): this branch's stdout against the base's. |
 
@@ -21,6 +22,7 @@ fed the new footprint. Node only; the coordinator shoots the box stills.
 |---|---|---|
 | `joinT` - a slide that touches down again within this is the same furrow | 0.5 s | **GAME** (a bounce's time in the air at a rebound of up to 2.5 m/s: 2 vy / g) |
 | `joinD`, `joinK` - where a hop lands round where its own speed carried it | 1.0 m + 0.3 x the hop | **GAME** |
+| `joinL` - a join lands on the line it left: across it at most the two contacts' half-widths + merge + this x the way along (the line: the slide's own if it slid 0.5 m, else the chain's) | 0.2 (~11 deg), 0.5 m | **GAME** |
 | `vHand` - a contact slower than this hands its furrow to no other node | 1.0 m/s | **GAME** |
 | `sod` - the turf's root zone | 0.07 m | AS RECALLED (turf root zone 5-10 cm) |
 | `eBlow` - the least blow that leaves a crater: a bowl (d = r_b / 3) deeper than the sod | 970 J = pi qB (3 sod)^3 / 6 | derived from `sod` and DMG-SCAR's `qB` (200 kPa, AS RECALLED) |

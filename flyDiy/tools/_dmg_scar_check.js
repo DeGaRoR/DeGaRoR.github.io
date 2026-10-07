@@ -101,8 +101,8 @@ if (argv[0] === '--build') {
         for (let x = x0; x <= x1; x += 0.1) for (let z = z0; z <= z1; z += 0.1) if (inPoly(H, x, z)) test(x, z); }
     }
     // 2J: the skipping runs the reader saw - per node, its touchdowns (frames in contact, a gap over 1.5 frames between),
-    // a run of them with gaps under joinT; a run of 3+ touchdowns over 2 m or more is a skipping slide; its coverage is
-    // along its path (samples 10 cm apart)
+    // a run of them with gaps under joinT, each landing on the run's line; a run of 3+ touchdowns over 2 m or more is a
+    // skipping slide; its coverage is along its path (samples 10 cm apart)
     const skips = []; { const by = new Map(); for (let j = 0; j < r.contacts.length; j += 4) { const i = r.contacts[j + 3]; if (!by.has(i)) by.set(i, []); by.get(i).push(r.contacts[j], r.contacts[j + 1], r.contacts[j + 2]); }
       for (const [i, A] of by) {
         let run = null, td = 0, tPrev = -1;
@@ -110,6 +110,11 @@ if (argv[0] === '--build') {
         for (let j = 0; j < A.length; j += 3) {
           const t = A[j + 2];
           if (tPrev >= 0 && t - tPrev > C.SCAR.joinT) { close(); run = null; }
+          // a touchdown off the line the run held (its first sample to its last, 0.5 m or more): the widest contacts'
+          // half-widths (0.3 m, SCAR.W's cowl) + merge + joinL x the way along - the core's rule, read from the samples
+          else if (run && run.length && t - tPrev > 1.5 / 60) { const k = run.length; let lx = run[k - 3] - run[0], lz = run[k - 2] - run[1]; const ll = Math.hypot(lx, lz);
+            if (ll >= 0.5) { lx /= ll; lz /= ll; const dx = A[j] - run[k - 3], dz = A[j + 1] - run[k - 2];
+              if (Math.abs(dx * lz - dz * lx) > C.SCAR.W.engines + C.SCAR.merge + C.SCAR.joinL * Math.abs(dx * lx + dz * lz)) { close(); run = null; } } }
           if (!run) { run = []; td = 0; }
           if (tPrev < 0 || t - tPrev > 1.5 / 60 || !run.length) td++;
           // (the run's PATH: a sample 10 cm or more from the last kept - a node lying still is one sample, not hundreds)
