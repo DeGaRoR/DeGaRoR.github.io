@@ -81018,3 +81018,127 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2324-G2329 - MAP-SIMPLE: THE MAP SCREEN REBUILT TO THE APPROVED MOCK - THE LIST IS THE WHOLE INTERFACE (TYPE COLOUR, TITLE, PAY, ✓ / ✗ ONLY ON SURFACE VS GEAR; ONE PARAGRAPH, ONE TRACK), THE CUSTOMER SELECT AND THE PLACE FILTER; THE USER'S AI MAP AS THE PICTURE (CONTENT-HASHED, IN THE PROJECTION'S FRAME); EVERY SITE, RUNWAY AND HOTSPOT DRAWN BY THE GAME; THE PHONE'S SHEET; NO AUTO-ZOOM; THE SANDBOX UNCHANGED (2026-10-07, MAP-SIMPLE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/map-simple-g2324 off origin/claude/game-integration 52fc8c7 (29adb22 + FREIGHT's docs), also pushed as claude/peaceful-pasteur-96om26)
+
+The brief: the approved mock `futureDesigns/game/map-mock/contracts_mock.html` and GAME-2026-10-06.md §R.2 (the user's steer
+of 7 Oct; supersedes §8.2-§8.3). Matched, not redesigned; the mock's "Bold bake / Your AI map" tabs and its note are the
+mock's and are not shipped (the AI map is the picture). MAP-MENU's lazy loading, its one adapter (`mapAdapt`) and
+CAREER-WIRE's `MAP_SOURCE` (careerMapRecord under ?career=1; ?mapsrc=fixture) are kept. No generated file committed
+(`node tools/build.js` before the gates). **Numbering**: CAREER-WIRE's section already used G2324 (its held-out contract);
+this block's steps keep the coordinator's G2324-G2329 - read "G2324" here as MAP-SIMPLE's.
+
+**G2324 THE PAINTING SHIPPED** - `tools/map_bake.js` ships `futureDesigns/game/map-mock/map_ai2.jpg` (the user's AI map,
+already rubber-sheeted onto the real coastline) as `media/map/jolene_art.<h8>.jpg` - its committed bytes, no re-encode,
+named by their hash; its JPEG frame must be the bake's (2167 x 2834) or the bake stops. The projection records it as
+`art { img, bytes, hash, w, h, edge: '#004279', src, credit }` beside two new lists read off the island record:
+`hotspots` (the 9 animal objects - the same the in-game minimap marks, app.js THE ANIMAL HOTSPOTS - with the animal
+registry's kind land / sea / air and label, read from each `src/animals/<key>_animal.js`) and `pois` (the sites mk_hall
+"Metlakatla", mn_s_mine "the mine", tw_s_summit "the lodge", mk_mw_cannery "the cannery", and the height field's summit
+"Tamgas Hill 1 100 m"). The bake PNG stays (MAPBAKE's runway rows) but the screen no longer fetches it. **CREDITS.md**:
+a section crediting the painting as the user's own AI-generated picture of the island, its modifications (upscale,
+rubber-sheet) and that its own runways are not used.
+
+**G2325 THE LIST** (`src/viewer/map_menu.js`, rewritten; pure half + DOM half as before):
+- **No right panel, no provider tabs, no layer buttons, no Fleet / Pilots / Market.** The aside: CONTRACTS + ✕, the types'
+  legend (Cargo #d99a3c, Passengers #4f9fd6, Survey #6cbf8a, Build #b58fd8 - the mock's), **Customer: a select** (All + the
+  five), the "At <place> ✕" row when a place is tapped, the list. The footer: Wallet, Tracking (the title and the stage's
+  places).
+- **A row**: the TYPE's dot (`typeOf`: build; survey if anything is flown over; passengers if anyone is aboard; else cargo),
+  the title (★ when tracked), the pay (`payOf`: contractPay's total on the real record), the mark.
+- **The mark** (`markOf`): ✓ / ✗ ONLY on surface vs gear, judged against the fleet - is there ONE aeroplane whose gear
+  (`allows`, 25_airfield.js stripAllows' rule) can use every strip the contract lands at or leaves from (a survey's site
+  is flown over, not landed at)? The fleet's gears are the certificates'; **a new career's empty fleet is judged by its
+  voucher's aeroplane** (CONTRACT_DESIGNS[voucher.model]: the maker Cub, wheels); with nothing to judge by, no mark.
+  Build contracts carry none. Payload, seats, runs never move a mark. The reasons: "The Cub your voucher buys cannot land
+  on water (Annette Dock, ...)", "Your planes are on floats: none can land at ...", "No one plane of yours lands on both
+  water and land (...)".
+- **A tap opens ONE paragraph**: "<customer>: <brief> Pays <n>." then the runways condensed (every stage's places in
+  order: "Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km"; a survey's site as
+  "over <name>") then the ✗'s reason; then ONE button, **Track** (accept + track in one gesture; tapping the tracked one
+  untracks it, it stays accepted - CAREER-WIRE's `careerAct` under ?career=1, `act` in the session's record otherwise).
+- **A place tapped** (its badge, its name or its runway) sets the place filter: exactly the contracts with a stop or a
+  site at it; the row's ✕ clears it.
+
+**G2326 THE MAP** - the painting on `art.edge` (#004279), no border. **Pan**: a left-button drag anywhere (a badge too);
+no native image drag (`draggable=false`, dragstart / selectstart stopped, user-select none); the capture is taken past
+4 px and the click that ends a drag is swallowed, so a click counts only if the pointer barely moved. **Zoom**: the
+wheel at the cursor, a pinch, + / − / fit; **bounds** (the picture never leaves a gap it could fill; smaller than the
+view, centred); 1x to 8x the fit (at least 3 screen px per picture px). **No auto-zoom**: opening a row or filtering a
+place never touches the view (`focus` is gone). The old-map dress: the mock's compass rose, a round scale bar, serif
+labels (IM Fell English is not vendored: Georgia / the system serif stands in).
+
+**G2327 THE SITES, DRAWN BY THE GAME** (`overlayOf`, pure: strings over a view; positions from the projection's
+aerodromes and the record's hotspots / sites, nothing typed):
+- **The places**: the aerodromes grouped by name ("Jolene AFB 13/31" + "Jolene AFB 02/20" = Jolene AFB), kind read off the
+  record (water -> seaplane base, the altiport flag -> altiport, concrete -> airfield, "Mine" -> mine, "Clearing" ->
+  clearing, else strip), the mock's six icons. A badge per place always, **sized to the zoom** (16-34 px over a 48 px
+  target), **ringed in the open / tracked contract's TYPE colour**; once its runway is drawn it steps off the runway's
+  side (away from the place's other runways); your planes stand under it.
+- **Levels of detail** (zr = scale / fit): names from 1.5 (or when lit / filtered); places of interest from 2.2; runway
+  facts beside the name from 3 ("13/31 2 325 × 45 m concrete · 02/20 1 835 × 45 m concrete"); **hotspots from 1.25 (the
+  second zoom step)** - green badges, blue at sea, the species' icon - their dashed zone ring and "n × label" from 2.6
+  (labels kept clear of each other: right, left, below).
+- **Runways at true scale** once longer than a badge (34 px): the cleared surround and the surface colour; **concrete**:
+  the centreline and the threshold bars; **gravel / grass**: edge markers; **water**: a buoyed lane (both edges every
+  ~250 m once they stand apart, the ends larger); **the designators at both ends** from the heading (x east, -z north)
+  once there is room - 13 / 31 and 02 / 20 at Jolene AFB, equal to the names' (UISMOKE holds it). The open / tracked
+  contract's places joined (dashed / dotted).
+
+**G2328 THE PHONE AND THE GATES** - the phone (`.mmPhone`): the map full screen, **the list a bottom sheet** (peek 38 %,
+open 78 %; the handle a 48 px tap or swipe), the fit and the bounds keep the island above the folded sheet; every target
+>= 48 px; nothing hover-only; the map touch-action none, the list pan-y, the handle none (R20). The sandbox: the entry
+rule in build.js untouched (?map=1 or the career mode only).
+- **MAPBAKE (adapted): PASS** - the bake's rows as before (deterministic bytes; every runway pixel in its footprint; its
+  budget; the projection) + THE PAINTING: the shipped bytes are the committed source's, named by their hash, **its frame
+  is the projection's exactly** (the JPEG's own 2167 x 2834 = w x h at 12 m/px from (-11000, -27000)), its budget (915 KB
+  <= 2 MB, 23.4 MB decoded), the edge colour, the hotspots = the record's 9 animal objects, the places = the record's
+  sites; media/map/ holds the three files. Selftest 5 of 5 red (+ a painting off the frame).
+- **UISMOKE / UISMOKE-PHONE: PASS** - `_map_smoke.js`'s map rows rewritten: the lazy names and the entry rule (unchanged:
+  no entry in the sandbox without the flags); NO right panel / tabs / Fleet-Pilots-Market; one row per contract (dot,
+  title, pay, mark), coloured by type never by customer; the customer select's rows sum to All; every paragraph (fixture
+  11, real record 20): who, what, the pay (= contractPay's on the real record), every stop by name with its strip, ONE
+  button Track, no per-plane table; the marks: parts ✗ (no one plane both water and land), guests ✓, the builds none;
+  payload / seats / runs never move a mark; an amphibian clears them; wheels-only ✗ water, floats-only ✗ land; the
+  voucher's Cub marks the real record's 3 water jobs ✗ and the rest ✓; no fleet and no voucher -> no mark; the place
+  filter (7 places, each exactly its contracts, "At <place> ✕"); Track one gesture, a second tap untracks; the map's
+  levels (badges at the fit, 9 hotspots and the names at 1.5x, rings + counts + places + facts at 3x, the badges growing),
+  Jolene AFB's runways close up with centreline, bars and 13/31, 02/20, the water lane buoyed, the gravel edge-marked,
+  every place a tap (badge, name, runway), the open contract ringed in its type colour; no auto-zoom (read off the
+  handlers); the gear rule = stripAllows; NOHOVER, R1 (every target class >= 48 px), R20, no image drag / selection, no
+  device test, the picture is pack.art; the real fleet's gears and planes where they stand; the aerobatic box held out.
+- **MEDIA: PASS** - it was RED on the base (52fc8c7: media/map/'s files "referenced by no manifest"); `map_pack.js` added
+  to its manifest list.
+- **CONTRACTS: PASS (2260 checks), GFX: PASS, BOOT: PASS** (unchanged).
+
+**G2329 THE STILLS** - `tools/map_menu_shot.js` (rewritten for this screen; `reports/evidence/MAP-SIMPLE/`, 10 stills +
+shots.json with the page's own answers). **Every still is of the LOADED page**: BOOT.state 'gone' and #boot hidden,
+checked before and after each capture (recorded per still in shots.json); a capture taken while loading would be
+discarded and retaken (none was). The real record (?career=1, a new dev career) unless noted:
+desk_sandbox (no flags: no MAP entry, nothing of the screen / pack / picture fetched), desk_fit, desk_mid (3x: names +
+facts, places of interest, hotspots with rings and counts), desk_close (Jolene AFB 9x: 13/31 and 02/20 drawn with
+their designators), desk_place (Annette Dock tapped: "At Annette Dock", 3 rows), desk_open ("Mail off the water": the
+paragraph, the ✗ "The Cub your voucher buys cannot land on water", ONE button; the view identical before and after),
+desk_tracked (Tracking ★ written to the career document, the places ringed in the cargo colour, the footer; a second
+tap untracks), desk_fixture (?map=1&mapsrc=fixture: ✓ and ✗ with a wheels + floats fleet, builds unmarked), phone_sheet
+(390 x 844 touch: the sheet folded), phone_open (the sheet open on a paragraph). Probed live: a drag from a badge pans
+and sets no filter; a drag pans by exactly the pointer's travel; no text selected; the wheel zooms; the picture is the
+content-hashed painting 2167 x 2834 on rgb(0, 66, 121) and the bake PNG is not fetched; every visible target >= 48 px,
+no title=; no page error.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: map_menu.js (rewritten; the CORE exports changed - cardHTML / tabsHTML / factsFor / critFor /
+  markersOf / routesOf are gone; `MAP_MENU` keeps open / close / isOpen / state / model / view / set, + zoomTo / fit for
+  the stills), map_bake.js (+ the painting, hotspots, pois, `projOf`), map_pack.js and media/map/ (regenerated: the
+  projection's hash changed), _mapbake_check.js, _map_smoke.js, _media_check.js (one line), map_menu_shot.js (rewritten),
+  career_wire_shot.js (one selector: `.mmStage img`), CREDITS.md. No run_gates row added; build.js untouched.
+- **The build contracts' criteria** (the old card's per-design table) have no place on this screen by the user's ruling;
+  the garage / the build flow is where they go (§R.2: "no other judgement").
+- **The serif face**: IM Fell English (the mock's, Google Fonts, OFL) is not vendored; the labels fall back to Georgia /
+  the system serif. Vendoring it (one woff2, like IBM Plex) is a small follow-up if the look wants it.
+- **The bake PNG** (jolene_map) is still baked, gated and shipped but not shown; it can be dropped when no tool reads it.
+- Hotspot labels keep clear of each other; place names do not yet avoid hotspot badges where they crowd (Tamgas Hill
+  Strip's elk / doe / bear at 3x).
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR: claude/map-simple-g2324 1ea221b (the code, gates and evidence; this section rides one docs-only commit on top)
