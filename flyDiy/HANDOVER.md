@@ -80427,3 +80427,193 @@ document beyond what DESTTO flies).
   DEST-TO's note); nothing new per frame (the ledger runs at a roll-out, a stop, a save; the wear macro at setAircraft).
 
 READY for the GAME COORDINATOR: claude/prem-s2-g2230 d9465f6 (the code and the evidence; this line rides one docs-only commit on top)
+
+## G2240-G2249 - CONTRACT-MODEL: THE CONTRACT RECORD (§7.3), FIVE PROVIDERS WITH THEIR JOB TABLES AND ARCS, THE SEEDED JOB GENERATOR, A STAGE'S ACCEPTANCE FROM A STOPPED, THE FOLLOW-UP BUILD CONTRACT (GQ26), THE CAREER DOCUMENT; GATE CONTRACTS (2026-10-07, CONTRACT-MODEL for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/contract-model-g2240 off origin/claude/game-integration 80d0bea6, also pushed as claude/zen-planck-6zji9c; G2249 unused)
+
+The brief: GAME-2026-10-06.md §R (binding), §6, §7, §11.2, §12 (as amended by G-COST), §13.2, §15 row 5; the narrative
+pack's Block 5. **Pure core, node-loadable** (no DOM, THREE, storage, clock or random - the gate scans for each). New
+files plus one entry each in `tools/build.js` MANIFEST.core, `90_node_exports.js` and `tools/run_gates.js`. No
+generated file committed (build before the gates: `node tools/build.js`). welcome.js, parked.js, app.js, the map's files:
+untouched. **No PLAYER_V step**: the `career` block rides along a v2 player document as any unknown field does (GATE
+PLAYER's and GAMEPREM's normaliser keep it whole - gated).
+
+**G2240 THE DATA** (`src/core/72_contract_data.js`):
+- **CONTRACT_PROVIDERS** (§R G-PROV: five) - each `{ id, name, desc (keys), fields (home fields), track, base (job pay
+  base), goods [ {id, kind kg|pax|bulk|none, range, word} ], jobs [ the job TABLE: {id, goods, w, title, brief, routes:
+  [[from,to]] | survey: [[from,at]]} ], arc [records], builds [standalone build contracts] }`:
+  `field` (the Field Trust; HOME, w3; arc field.01-05 -> field:1, field:2), `minedock` (Jumbo Mine & Dock Co.;
+  mn_strip, SEA, mk_sea; minedock.01-06 -> minedock:1-4, the headframe then the pier: §11.2's two projects on one
+  track; builds b1 mail off the water, b2 ore out of the street), `resort` (Skyline; tw_ski; resort.01-05 -> resort:1-3,
+  the electric build resort.04; b1 four guests, b2 any wind), `survey` (the Survey Office, HOME desk; survey.01-05 ->
+  survey:1-3, the East Point STOL build survey.04), `clients` (Private clients & the Club; clients.01-05 -> clients:1-2,
+  builds "push it out alone", the club trainer, the aerobatic box, a challenge with medals; b1 the ridiculous tank).
+  31 authored records; all five kinds used.
+- **CONTRACT_TEXT**: every word is a KEY with plain draft English beside it, `{ t, draft: true }` (providers, tracks'
+  stages, goods, load lines, job templates, arc and build titles / briefs / done / follow lines, criterion labels,
+  follow-up change lines, medals). Slots `{from} {to} {load} {at} {v} {k} {n}` filled at read time (`contractText`).
+- **CONTRACT_FIELDS**: Jolene's 8 runways (x, z, len, surface word, `alti`) - the gate holds it byte-equal to
+  `contractFieldsOf(island_jolene.json's runways)` (stripSurface's words; note tw_ski reads `grass` + altiport, not snow).
+- **CONTRACT_DESIGNS**: the five validated designs (Cub, Jodel, metal C172, C172 floats, the twin on floats - LB.VALIDATED's
+  five, their build files) as certificate numbers: gear, seats, baggage, solo full-fuel mass, empty, take-off distance
+  (genShakedown TORun), cruise, range, span, cost, tank, power. **The gate re-derives every number from the build file
+  each run (genShakedown, within 3 %)** - cached in the OS temp dir by content (core body hash + the files), so the gate
+  is ~1 s warm, ~20 s cold. Note: these are the FILES as written (genShakedown on buildGen), not the page's joined
+  aeroplane (G1985): the floats C172 reads 1207 m / 1018 kg here.
+- **CONTRACT_TRACKS**: field 2, minedock 4, resort 3, survey 3, clients 2 stages, each stage a text key (STAGES draws them).
+
+**G2241 THE RECORD** (`src/core/73_contracts.js`) - §7.3 exactly: `{ id, provider, kind: contract|job|challenge|build|
+survey, title, brief (keys), stages: [ {subs: [ {do: carry|fly|land|survey|deliver|accept, from?, to?, at?, load?:
+{kg, pax, bulk?}, when?: {before:'dusk'}, crit?: [ {k, op, v, at?} ], medals?} ]} ], pay: {base, perKm?, km?, total?,
+bonus?: [ {crit, by, pct} ]}, rep: {provider, gain}, unlock?: {stage:'<track>:<n>'}, needs?: {rep, after}, repeat?,
+followUp?: {prefer, add, changed: [ {k, how, from, to} ], n} }`. Stages in order, a stage's subs in any order.
+- `contractNormalise` (fills, carries verbatim, unknown fields ride along; a fixpoint) and `contractValidate` (-> reasons:
+  kinds, fields, text keys, loads, criteria only on builds and inside their bands, operators, `at` conditions per kind,
+  medals only on challenges, `when` only `before: 'dusk'` - GQ17 no deadlines, bonuses on real criteria, unlocks on a
+  real track within its max, needs.after ids, and (g1) no configuration word in a build's criteria or text).
+- **CONTRACT_CRIT_KINDS** (data, for ACCEPT and MAP): the 15 kinds, each `{ k, unit, when: static|flown, how:
+  spec|ledger|cert|bench|leg|strip, src (today's source per §6.2), op, band | values, at (the conditions it may carry),
+  follow (the follow-up's step) }`: static = seats, emptyKg, powertrain, tankL, batteryKWh, spanM, costMax, ultimateG
+  (cert); flown = xwindKt, hydro (bench), tasKmh (at a load), enduranceMin (at a load, `reserveMin`, optional `tasKmh`),
+  rangeKm (leg), takeoffAt / landAt (a strip id, at a load, optional `fuelMin`). `contractCritWords(c)` reads one as
+  words ("cruises at 200 km/h or more with 3 passengers").
+- **CONTRACT_CONFIG_WORDS**: the word list (wing positions, gear layouts, makers / engines / models incl. cub, jodel,
+  cessna, piper, rotax, lycoming, continental..., struts, canard, pusher...); whole words, any case
+  (`contractConfigWord`). "floats" / "water" are an operation (hydro), allowed (GQ26 names floats as a change).
+
+**G2242 WHAT A VALIDATED DESIGN CAN DO** (ruling az through physical gates, G-COST): `contractCanDo(design, subs)` /
+`contractDoers(subs)` from the certificate numbers only - the gear on both surfaces (`contractGearOk` = stripAllows,
+gated on every field x gear), the passengers against the seats beside the pilot, the load against the cabin ((seats-1) x
+80 kg + baggage), a bulk load against a cleared 4-seat cabin, the LOADED take-off distance (toM x (W/W0)^2 x the
+surface's factor: gravel 1.1, grass 1.15, snow 1.3) against the strip at BOTH ends, the leg against 75 % of the range.
+Measured outcome (`reports/evidence/CONTRACT-MODEL/contracts.txt`): the Cub takes one passenger into the mine street,
+the Jodel does not; the C172 takes two, not three; the C172 floats carries one off the water, not three; the twin flies
+fish-spotting surveys and carries nothing; East Point (150 m) is no validated design's - it appears only as an overflight
+and as the survey office's STOL build contract. **Job classes** (`CONTRACT_JOB_CLASSES`: water, short, altiport, group,
+heavy, bulk, survey): every class has a doer; no design does every class (wheels never water, floats never the strips,
+the Cub / Jodel / twin never heavy, group or bulk).
+
+**G2243 THE PAY** (§12.3 as amended by G-COST): `contractPay(rec)` reads the record and the fields, nothing else - job
+pay = provider base + 60/km x km x (1 + kg/150 + 0.5/pax + 0.5 bulk) + surface (short <= 400 m 400, water 300, snow
+350, altiport 500 per field touched) + 15 % for a condition; rounded to 10. Arcs and builds carry an authored base;
+`contractPayTotal` adds the bonuses (a criterion beaten by its margin: +pct; a challenge medal). Paid net into the
+wallet as a ledger line `contract` (negative amount = income); no running cost exists anywhere (gated: a career's
+ledger holds `grant` and `contract` only).
+
+**G2244 THE JOB GENERATOR** (`contractJob(seed, provider, epoch, i, {rep})`, `contractJobs(seed, provider, done)`): a job
+is f(career seed, provider, epoch = floor(completed / 3), index) - FNV-1a + mulberry32, nothing else; its id
+`job:<provider>:<epoch>:<i>` regenerates it (`contractJobById`). 3 jobs per provider per epoch; the offers refresh after
+3 completed contracts (CONTRACT_GEN.refreshEvery). A template draws a route from its table and a load from its goods
+(scaled by the provider's reputation, GQ28 - reputation sizes the work, never hides it); a draw no validated design can
+fly is shrunk (a passenger dropped, the kilos halved) or redrawn - **every generated job is flyable** (gated over 1 680
+samples, 5 040 jobs). An ACCEPTED job is snapshotted in `live[id].rec`, so a later reputation change never alters a job
+already taken. Conditions: 25 % carry "before dusk" (judged on `stopRecord.hour`, 19.5 h).
+
+**G2245 THE FOLLOW-UP** (GQ26 / GQ31): `contractFollowUp(build)` -> the same story with ONE criterion changed (the
+record's `followUp.prefer` first, then the kind order; a kind's `follow` step - +1 seat, +10 % cruise, -20 % tank, -10 %
+cost or empty mass, +15 min, +3 kt, +0.5 g...; else a criterion from `followUp.add` - floats, a cost cap, a range),
+paid +15 %, its `changed` list carried down the chain so a change is never repeated, at most 3 deep
+(CONTRACT_FOLLOW_MAX). Id `<build>+<n>`, regenerated by `contractFollowById`; `contractFollowLine` says what changed.
+The happy client's follow-up is offered as soon as the delivery completes.
+
+**G2246 A STAGE'S ACCEPTANCE FROM A FLIGHT'S END** - `contractOnStop(career, contract, stopRecord, hooks)` (in
+74_career.js) -> `{ ok, doc, why, events }`: the career advanced on a clone, or THE SAME document untouched with a
+reason. The stop record the page will hand over at DEST-TO's STOPPED (`app.js playerFlightEnd` is where it is made; not
+wired - a later session): `{ how, aero (flightWhere's id when flightCanDepart), wrecked?, slot?, gear?, load: {kg, pax,
+bulk?}, row: the logbook row {from, to, t}, overflew?: [ids], hour?, accept?: ACCEPT's recording }`. Per sub: carry =
+the stop at `to` with the load aboard and the load taken on at `from` (the row's `from`, or an earlier stop at `from`
+with the load: "picked", which also advances); land / fly = the stop at `to` (fly: from `from`; a challenge's medal by
+the row's `t`); survey = `at` overflown (or stopped at); **deliver / accept are never judged here**: `hooks.acceptVerdict
+(contract, sub, stop, career)` -> `{ok:true, got}` | `{ok:false, why}` | `{ok:null}` pending; **a missing hook =
+pending** (`events: [{k:'pending'}]`). A completed contract: paid (base / total + bonuses), the provider's reputation
+(GQ28, capped 5), its arc index, the stage unlock (`tracks[track] = max(.., n)`), `done` (the completed count the
+generator reads), out of accepted / tracked, the offers refreshed. `careerOnStop(career, stop, hooks)` meets every
+accepted contract with one stop (the tracked first) and says why for each that did not move.
+
+**G2247 THE CAREER DOCUMENT** (`src/core/74_career.js`, §13.2): `careerKey(id)` = `flydiy.career.<id>`;
+`careerNew({id, seed, name, started})` = `playerDefault()` in mode 'career' + `career: { id, seed, started, name, cv,
+voucher: {kind:'maker', model:'cub', used:false}, providers: {<id>: {rep, arc}}, contracts: {offered, accepted, tracked,
+done: [{id, at, pay, medal?}], live: {<id>: {stage, subs, picked, got, rec?}}}, tracks: {field, minedock, resort, survey,
+clients}, pilots: {}, roster: [], market: {used: [], seen: 0}, airframes: {} }` - the grant (GQ23: 60 000) written as a
+`grant` ledger line, the voucher unspent, every track 0, the first offers (every provider's first arc contract + 3 jobs
+each: every tab open from day one). `careerNormalise` (the player walk, then the block filled / carried; a fixpoint),
+`careerOffers` / `careerOfferIds` / `careerRefresh`, `careerAccept` (only what is on offer; the first accepted is
+tracked), `careerTrack`, `careerAbandon`, `careerContract(doc, id)` (authored by id, a job from its snapshot or its id,
+a follow-up from its chain - nothing else is stored). Every refusal hands back the same document.
+
+**G2248 THE IMPORTER** (the bonus): `contractImportPack(block5Json)` -> `{ ok, text, why }`: the pack's providers,
+contracts, builds (brief + followUp.brief) and jobs (matched to the provider's templates by load word, else in order)
+written over the keys as `draft: false`, on a COPY of the table; refused: an unknown provider / contract / build id, an
+airfield id not on the island, a configuration word in a build's text or criteria, a job slot other than {from} {to}
+{load} {at}.
+
+**GATE CONTRACTS** (`tools/_contracts_check.js`, registered core tier, ~1 s warm): **PASS, 2208 checks** - the record
+(kinds, the 15 crit kinds and their columns, five providers / tracks, 4-6 arc contracts each ending in the track's last
+unlock, needs chained, every record valid + JSON round-trip + normaliser fixpoint + unknown fields kept, the validator's
+own refusals), every text key resolves (authored, generated, labels, tracks, goods) and every slot fills, the world
+(CONTRACT_FIELDS = the record, the gear rule = stripAllows, the designs = their build files), the physical rows (every
+arc stage flyable; 15 named physical verdicts; 5 040 generated jobs all flyable, valid, worded; every class generated
+and doable; az: no design does every class - the table below), the pay (invariant to any airframe / design / gear /
+slot on the record or the stop; longer / heavier / water / altiport pay more), the generator (deterministic, any
+provider order or interleaving, any key order of the career, seed-sensitive, refresh after 3), acceptance (right field
++ load = paid / rep / done; wrong field, no load, a wreck, off-field, not loaded at the origin, after dusk, stage 2
+before 1, not accepted = the same document untouched with a reason; pick-up then delivery; any-order subs; the field:1
+unlock; survey by overflight; rep only to the provider that paid; a build: no hook = pending, a pending / refused
+verdict / wrong field untouched, approved = paid with its margin bonus and the follow-up offered; medals gold paid
+double / bronze / too slow), THE JOURNEY (every provider's whole arc in order on its own reputation - each contract
+offered in its turn, flown by synthesised stops, the track at its last stage, the wallet = grant + pay), the follow-ups
+(every build offers one; each changes exactly one criterion, never repeats, +15 %, validates, regenerates by id, its
+line worded), (g1) no configuration word, the career document (grant, ledger line, voucher, tracks, providers, key,
+fixpoints, the PLAYER normaliser keeps it, junk), the import, purity. **`--selftest`: 46 of 46 doctored rules caught**
+(`contracts_selftest.txt`): a missing field, a dangling key, a dropped / mis-flagged crit kind, an arc with no / the
+wrong unlock, the normaliser dropping fields, a deadline let through, the fields drifting, wheels on water, a design's
+numbers drifting, an unflyable arc stage, the generator skipping the physical check, the physical gates off, the cabin
+ignored, the pay reading the aeroplane, a running cost, a random generator, an order-dependent one, no refresh, a wrong
+field advancing, the load unchecked, a wreck delivering, a refusal leaving a mark, stages out of order, dusk ignored, a
+missing hook passing, an accepted job changing with reputation, an arc needing more reputation than it gives, no unlock,
+reputation not per provider, a challenge ignoring time, a follow-up changing two criteria / repeating / paying the
+same / not offered, a configuration in a brief, the word check off, the grant wrong / not in the ledger, no voucher,
+the career normaliser dropping `done`, accepting anything, the import letting a configuration in / writing the table
+handed in, storage in the model.
+
+```
+DESIGNS x JOB CLASSES (jobs of the class each can physically do, of the gate's sample)
+  cub   water 0 · short 484 · altiport 1188 · group 0 · heavy 0 · bulk 0 · survey 684
+  jodel water 0 · short 47 · altiport 1188 · group 0 · heavy 0 · bulk 0 · survey 684
+  c172  water 0 · short 618 · altiport 1560 · group 582 · heavy 605 · bulk 177 · survey 684
+  c172f water 1080 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 72 · survey 273
+  twinf water 273 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 0 · survey 273
+```
+
+**THE OTHER GATES** (`reports/evidence/CONTRACT-MODEL/`): **PLAYER PASS (37) + selftest PASS, GAMEPREM PASS (533) +
+selftest PASS** - unchanged; and every gate that reads the manifest / exports or bundle: `run_gates --only=CLIMATE,SAVE,
+DESIGN,BUILD,CONTRACTS,PLAYER,GAMEPREM`: **BATTERY PASS**; MEDIA PASS (index.html 3.83 MiB gzipped of the 4 MiB budget:
+the three files are ~100 KB of source in the core bundle), REF PASS, UPDATE PASS; the built core evaluates in a
+browser-like context (no `module`). Not run: the full tier (BOOTLIFT etc.: page boots; nothing here runs at boot but table
+literals and function definitions) and the page (nothing in the page calls the model yet).
+
+**FOR THE SIBLINGS**
+- **ACCEPT (G2270)**: implement `hooks.acceptVerdict(contract, sub, stopRecord, career)` -> `{ok, why, got: {<k>:
+  measured}}` per CONTRACT_CRIT_KINDS (k / unit / when / how / at); `got` feeds the margin bonuses
+  (`pay.bonus[].by` is a fraction of the criterion). `stopRecord.accept` is yours to fill (passed through untouched).
+  `sub.crit` holds every criterion of the delivery (static and flown together).
+- **MAP-MENU (G2250)**: `careerOffers(doc).offers` (records), `contractText(key, contractVars(rec))`,
+  `contractCritWords(c)`, `contractFollowLine(rec)`, `contractPay(rec)` (km, surface, total), `contractDoers(subs)` /
+  `contractCanDo(design, subs)` with its `why` ("the fleet against this job": the certificate's facts, never a
+  verdict on the pilot), `contractClasses(rec)`, CONTRACT_PROVIDERS[p].name for the tabs, CONTRACT_FIELDS for the
+  markers, `careerTrack` / `careerAccept`.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge**: `90_node_exports.js` (one long export line), `tools/build.js` (one manifest line after 71_), `tools/run_gates.js`
+  (one entry after GAMEPREM) - siblings may touch the same spots.
+- **The page wiring** (a later session): build the stop record in `playerFlightEnd` (the load aboard needs a source: the
+  cabin's occupants + a cargo field; `overflew` needs the track; `hour` from `world.day`), store the career under
+  `careerKey`, call `careerOnStop` after `playerArrive`.
+- **PLAYER_V 3** (§13.2's version) was not spent: nothing in the v2 shape changed. The study's §13.2 `wage` in pilots is
+  gone by G-COST (a sign-on fee is PILOTS').
+- **The validated designs' numbers are the build files'**, not the joined aeroplane's (G1985's LB path is not on this
+  branch); a re-measure through the join would move the floats C172 (lighter by ~67 kg) and loosen its water verdicts.
+- The take-off law (W^2) and the surface factors are first-order, deliberately conservative; ECONOMY (G2260) owns the
+  pay numbers (CONTRACT_PAY) and GATE ECON may take the job classes over.
+- The text is draft placeholder English; the narrative pack (user-run, GQ21) replaces it through `contractImportPack`.
+
+READY for the GAME COORDINATOR: claude/contract-model-g2240 5f50b83 (the code and the evidence; this section rides one docs-only commit on top)
