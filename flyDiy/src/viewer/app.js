@@ -6415,14 +6415,46 @@
     const last = player.ledger[player.ledger.length - 1] || {};
     return { ok: true, slot: r.slot, where: P ? P.text : '', price: Math.round(last.amt || 0), free: !!last.free };
   }
-  // the garage built a slot (garage.js loadSpec, the join settled): a factory airframe not yet signed on the aeroplane
-  // the garage builds is signed now, once (procureAnchor); career only
+  // THE FACTORY SIGNATURE ON THE GARAGE'S AEROPLANE (career only): the garage built a factory airframe never signed yet
+  // (garage.js loadSpec hands what a Save would write). The heavier builds keep settling for seconds after the load,
+  // so the signature stays PROVISIONAL - re-signed every half second off what a Save would write now (the join's export
+  // merged, nothing committed) - until two seconds unchanged, the player's first input, another aeroplane on the stand
+  // or 20 s; then it is FINAL (procureAnchor). A Save inside the window signs too (procureOnSave).
+  let prSign = null;
+  function procureSignStep(name, spec, final) {
+    const d = playerLoad();
+    const r = procureAnchor(d, name, spec, { provisional: !final });
+    if (r.doc !== d) { player = r.doc; playerSave(); }
+  }
   function procureLoaded(name, spec) {
     try {
-      const d = playerLoad();
-      if (!name || !d.career || !d.career.airframes || !d.career.airframes[name] || typeof procureAnchor !== 'function') return;
-      const r = procureAnchor(d, name, spec);
-      if (r.doc !== d) { player = r.doc; playerSave(); }
+      const d = playerLoad(), A = name && d.career && d.career.airframes && d.career.airframes[name];
+      if (!A || !A.factory || A.anchored || typeof procureAnchor !== 'function') return;
+      if (prSign) prSign.stop(false);
+      let last = procureFp(spec), lastSpec = spec, same = 0, timer = null, live = true;
+      const t0 = Date.now();
+      const onInput = () => stop(true);
+      const stop = fin => {
+        if (!live) return; live = false;
+        if (timer) clearTimeout(timer);
+        document.removeEventListener('input', onInput, true); document.removeEventListener('change', onInput, true);
+        prSign = null;
+        if (fin) { try { procureSignStep(name, lastSpec, true); } catch (e) {} }
+      };
+      const tick = () => {
+        timer = null;
+        if (!live) return;
+        if (slotOnStand() !== name) return stop(true);
+        let sp = null;
+        try { sp = window.GARAGE_SPEC.preview(JSON.parse(JSON.stringify(window.CAGE_JOIN.export()))); } catch (e) {}
+        if (sp) { const fp = procureFp(sp); same = fp === last ? same + 1 : 0; last = fp; lastSpec = sp; procureSignStep(name, sp, false); }
+        if (same >= 4 || Date.now() - t0 > 20000) return stop(true);
+        timer = setTimeout(tick, 500);
+      };
+      procureSignStep(name, spec, false);
+      document.addEventListener('input', onInput, true); document.addEventListener('change', onInput, true);
+      prSign = { stop };
+      timer = setTimeout(tick, 500);
     } catch (e) { console.warn('flyDiy (career): the factory signature -', e && e.message); }
   }
   if (PROCURE_PAGE) window.FLYDIY_PROCURE = {

@@ -260,6 +260,10 @@ function run(mut, extra) {
     const rec = M.careerMapRecord(d, null, {});
     const f = rec.fleet.find(x => x.slot === 'Scout 1');
     ok(f && f.cert && f.cert.toRunM === D.cub.toM, 'the map states the airframe\'s certificate');
+    // a save before the garage has signed it signs it (the aeroplane the garage built), never withdraws
+    const s0 = M.procureOnSave(d, 'Scout 1', b.envelope.spec, null);
+    ok(s0.ok && !s0.modified && s0.doc.career.airframes['Scout 1'].anchored && s0.doc.career.airframes['Scout 1'].factory, 'a save while the signature is open signs it');
+    d = s0.doc;
     // a repaint
     const sp = clone(b.envelope.spec); sp.finish = { sections: { body: { tint: 1 } } }; sp.meta.reg = 'N9ZZ';
     const r1 = M.procureOnSave(d, 'Scout 1', sp, null);
@@ -282,12 +286,19 @@ function run(mut, extra) {
     ok(r3.doc === r2.doc, 'the same edit saved again bills nothing');
     ok(M.procureOnSave(d, 'nope', se, Le).doc === d, 'a slot that is not an airframe: untouched');
     // signed on the aeroplane the garage builds: once, on the first build; a save of that aeroplane is not a change
-    const joined = clone(b.envelope.spec); joined.fuselage = Object.assign({}, joined.fuselage, { remeasured: 0.123 });   // a join's re-measure
-    const an = M.procureAnchor(d, 'Scout 1', joined), An = an.doc.career.airframes['Scout 1'];
-    ok(an.doc !== d && An.anchored && An.fp === M.procureFp(joined) && An.fpFile === A.fp && An.factory, 'the first garage build signs the factory certificate on that aeroplane');
-    ok(M.procureAnchor(an.doc, 'Scout 1', se).doc === an.doc, 'signed once: a later build changes nothing');
-    ok(M.procureOnSave(an.doc, 'Scout 1', joined, null).doc === an.doc, 'the garage\'s own aeroplane saved: not modified');
-    ok(M.procureOnSave(an.doc, 'Scout 1', se, Le).modified, 'an edit after the signature: modified');
+    {
+      const fresh = M.procureBuyModel(M.careerNew({ id: 't2', seed: 'dev' }), 'scout', {}, { slot: 'Scout 1', slotNames: [], fileSpec: FILE.cub, ledger: CORE.buildGen(CORE.genMigrateSpec(clone(FILE.cub.spec))).parts.ledger }).doc;
+      const F0 = fresh.career.airframes['Scout 1'];
+      const settling = clone(b.envelope.spec); settling.fuselage = Object.assign({}, settling.fuselage, { remeasured: 0.1 });   // the join, still settling
+      const joined = clone(b.envelope.spec); joined.fuselage = Object.assign({}, joined.fuselage, { remeasured: 0.123 });     // ...settled
+      const p1 = M.procureAnchor(fresh, 'Scout 1', settling, { provisional: true }), P1 = p1.doc.career.airframes['Scout 1'];
+      ok(P1.fp === M.procureFp(settling) && !P1.anchored && P1.fpFile === F0.fp, 'a provisional signature while the garage settles (still open)');
+      const an = M.procureAnchor(p1.doc, 'Scout 1', joined), An = an.doc.career.airframes['Scout 1'];
+      ok(An.anchored && An.fp === M.procureFp(joined) && An.fpFile === F0.fp && An.factory, 'the final signature: the factory certificate on the aeroplane the garage settled on');
+      ok(M.procureAnchor(an.doc, 'Scout 1', se).doc === an.doc && M.procureAnchor(an.doc, 'Scout 1', se, { provisional: true }).doc === an.doc, 'signed once: a later build changes nothing');
+      ok(M.procureOnSave(an.doc, 'Scout 1', joined, null).doc === an.doc, 'the garage\'s own aeroplane saved: not modified');
+      ok(M.procureOnSave(an.doc, 'Scout 1', se, Le).modified, 'an edit after the signature: modified');
+    }
   }
 
   // ---- THE MARKET ----
@@ -450,7 +461,9 @@ const BREAKS = [
   ['the certificate ignores the options', { s76: sub('    c.cost += e.cost || 0; c.emptyKg += e.emptyKg || 0;', '    if (false) c.cost += e.cost || 0; c.emptyKg += e.emptyKg || 0;') }],
   ['the fingerprint ignores the airframe', { s76: sub("  if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage))", "  delete c.cage; delete c.wings; delete c.engines; delete c.energy; delete c.systems; delete c.cabin; delete c.gear;\n  if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage))") }],
   ['the fingerprint counts the paint', { s76: sub("const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];", "const PROCURE_COSMETIC = ['paint'];") }],
-  ['the factory signature moves on every load', { s76: sub('if (!A || !A.factory || A.anchored) return', 'if (!A || !A.factory) return') }],
+  ['the factory signature moves on every load', { s76: sub("  if (!A || !A.factory || A.anchored) return { ok: true, doc, why: A ?", "  if (!A || !A.factory) return { ok: true, doc, why: A ?") }],
+  ['the provisional signature is final', { s76: sub('const fp = procureFp(spec), fin = !(opts && opts.provisional);', 'const fp = procureFp(spec), fin = true;') }],
+  ['a save before the signature withdraws it', { s76: sub("  if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\\'s aeroplane' });\n", '') }],
   ['a modified airframe keeps its certificate', { s76: sub('  R.factory = false; R.modified = true; R.fp = fp; R.cert = null;', '  R.fp = fp;') }],
   ['the edit is billed the whole aeroplane', { s76: sub('    if (!o || Math.abs(o[0] - n[0]) > 0.05 || Math.abs(o[1] - n[1]) > 1) lines.push({ k, cost: n[1] });', '    lines.push({ k, cost: n[1] });') }],
   ['the map states a withdrawn certificate', { s75: sub("    if (A && A.modified) return certs[n] ? careerDesignCert(certs[n], 'the saved build\\'s shakedown') : null;\n", '') }],

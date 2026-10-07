@@ -716,17 +716,21 @@ function procureBuyUsed(doc, listingId, o) {
 }
 
 // ---- SIGNED ON THE AEROPLANE THE GARAGE BUILDS --------------------------------------------------------------------
-// The validated build FILES are not the editor's fixpoint: the garage's join re-measures their rows on the first build
-// (measured on the page, G2280: the stock Scout's fingerprint moved on load with no edit). So the factory certificate is
-// signed ONCE more, on the first build of the airframe in the garage - the aeroplane the maker delivered, as this game
-// builds it - and every later save is held to that. Only a factory airframe never signed in the garage; a second load
-// changes nothing. -> { ok, doc, why }
-function procureAnchor(doc, slot, spec) {
+// The validated build FILES are not the editor's fixpoint: the garage's join re-measures their rows when it first
+// builds them, and on the heavier builds it keeps settling for a few seconds (measured on the page, G2280: the C172's
+// cabin box and seat stations, the twin's drawn engine stations and the floats' station move after the load door). So
+// the factory certificate is signed on the aeroplane AS THE GARAGE BUILDS IT: PROVISIONALLY while it settles (the page
+// re-signs until the build is stable or the player first touches an input), then FINAL, once. A final signature is
+// never moved again; every later save is held to it. opts.provisional -> the signature stays open. -> { ok, doc, why }
+function procureAnchor(doc, slot, spec, opts) {
   const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
-  if (!A || !A.factory || A.anchored) return { ok: true, doc, why: A ? 'signed already' : 'not an airframe of the career' };
-  const fp = procureFp(spec);
+  if (!A || !A.factory || A.anchored) return { ok: true, doc, why: A ? (A.anchored ? 'signed already' : 'not factory-certified') : 'not an airframe of the career' };
+  const fp = procureFp(spec), fin = !(opts && opts.provisional);
+  if (fp === A.fp && !fin) return { ok: true, doc, why: 'unchanged' };
   const d = prClone(doc), R = d.career.airframes[slot];
-  R.fpFile = R.fp; R.fp = fp; R.anchored = true;
+  if (!R.fpFile) R.fpFile = R.fp;
+  R.fp = fp;
+  if (fin) R.anchored = true;
   return { ok: true, doc: d, why: '' };
 }
 
@@ -739,6 +743,9 @@ function procureOnSave(doc, slot, spec, ledger) {
   const c = doc && doc.career, A = c && c.airframes && c.airframes[slot];
   if (!A) return { ok: true, doc, modified: false, bill: null, why: 'not an airframe of the career' };
   const fp = procureFp(spec);
+  // a save while the signature is still open (the garage settling, no input touched yet) is the aeroplane the garage
+  // built: it signs, it does not withdraw
+  if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
   if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
   const L1 = ledger ? procureLedgerOf(ledger) : null;
   const B = procureEditBill(A.ledger || null, L1 || A.ledger || null);

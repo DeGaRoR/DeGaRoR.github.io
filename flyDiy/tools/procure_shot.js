@@ -133,7 +133,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const join = await ev(pg, async n => {
       const G = window.GARAGE_SPEC; if (!G || !G.load) return { why: 'no garage' };
       G.load(n);
-      await new Promise(r => setTimeout(r, 6000));
+      const t1 = Date.now();
+      while (Date.now() - t1 < 90000 && !window.FLYDIY_CAREER.doc().career.airframes[n].anchored) await new Promise(r => setTimeout(r, 300));
       const env = JSON.parse(G.json()), doc = window.FLYDIY_CAREER.doc(), A = doc.career.airframes[n];
       const fpJ = procureFp(env.spec);
       const out = { slot: n, factoryFp: A.fpFile || A.fp, joinedFp: fpJ, same: fpJ === (A.fpFile || A.fp), signed: !!A.anchored };
@@ -176,7 +177,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         const saved = JSON.parse(localStorage.getItem('flydiy.build.' + slot)).spec;
         G.load(slot);
         const atLoad = G.preview(JSON.parse(JSON.stringify(window.CAGE_JOIN.export())));
-        await new Promise(res => setTimeout(res, 5000));
+        const t1 = Date.now();      // the signature turns final once the garage has settled (or 20 s)
+        while (Date.now() - t1 < 90000 && !window.FLYDIY_CAREER.doc().career.airframes[slot].anchored) await new Promise(res => setTimeout(res, 300));
+        const settleMs = Date.now() - t1;
         const got = G.get(), A0 = window.FLYDIY_CAREER.doc().career.airframes[slot];
         G.save(slot); await new Promise(res => setTimeout(res, 800));
         const A1 = window.FLYDIY_CAREER.doc().career.airframes[slot], after = JSON.parse(localStorage.getItem('flydiy.build.' + slot)).spec;
@@ -186,9 +189,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
           if (u && w && typeof u === 'object' && typeof w === 'object' && !Array.isArray(u)) { for (const k of new Set(Object.keys(u).concat(Object.keys(w)))) walk(u[k], w[k], p + '.' + k); }
           else moved.push(p + ': ' + JSON.stringify(u) + ' > ' + JSON.stringify(w)); };
         const saveKeeps = A1.factory && !A1.modified;
-        if (!saveKeeps) for (const k of Object.keys(after)) if (!['meta', 'finish', 'paint', 'fuel'].includes(k)) walk(atLoad[k], after[k], k);
+        if (!saveKeeps) for (const k of new Set(Object.keys(after).concat(Object.keys(atLoad)))) if (!['meta', 'finish', 'paint', 'fuel'].includes(k)) walk(atLoad[k], after[k], k);
         out.push({ id, r, v, asked: read(saved, r).replace(/ \(nose [^)]*\)/, ''), built: read(got, r).replace(/ \(nose [^)]*\)/, ''), nose: r === 'tank' ? [saved.energy.vessels[0].capacity, got.energy.vessels[0].capacity] : undefined,
-                   kept: read(saved, r).replace(/ \(nose [^)]*\)/, '') === read(got, r).replace(/ \(nose [^)]*\)/, ''), signed: !!A0.anchored, saveKeeps, moved });
+                   kept: read(saved, r).replace(/ \(nose [^)]*\)/, '') === read(got, r).replace(/ \(nose [^)]*\)/, ''), signed: !!A0.anchored, settleMs, saveKeeps, moved });
       }
       return out;
     });

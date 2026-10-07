@@ -429,7 +429,7 @@
     for (const mk of K.makers) for (const id of mk.models) {
       const S = K.P.procureSheet(id, {});
       h += '<button type="button" class="mmRow' + (st.sel === 'm:' + id ? ' on' : '') + '" data-sel="m:' + esc(id) + '"><span class="mmRowT"><i class="mmChip" style="background:' + esc(mk.colour) + '">◆</i><b>' + esc(S.name) + '</b>' +
-        '<em>from ' + fmt(S.price.total) + '</em></span><span class="mmRowS">' + esc(mk.name) + ' · ' + S.cert.seats + ' seats · ' + esc(S.cert.gear) + ' · ' + fmt(S.cert.cruiseKmh) + ' km/h' + '</span></button>';
+        '<em>from ' + fmt(S.price.total) + '</em></span><span class="mmRowS">' + esc(mk.name) + ' · ' + S.cert.seats + (S.cert.seats === 1 ? ' seat · ' : ' seats · ') + esc(S.cert.gear) + ' · ' + fmt(S.cert.cruiseKmh) + ' km/h' + '</span></button>';
     }
     h += '<div class="mmSect">Used, where they stand</div>';
     if (!K.used.length) h += '<div class="mmEmpty"><span>Nothing for sale right now: new listings come after three more contracts.</span></div>';
