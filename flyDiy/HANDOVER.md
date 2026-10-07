@@ -81057,7 +81057,9 @@ Open / for the coordinator:
   band better drawn by FREIGHT-STRAP), pitched tents, fabric camp chairs, an ambulance (or a livery on
   `auto_van_econoline`), a log cabin, the people (chars track). Each with size / look / budget / search words.
 - `pallet_one` is OVERSIZE as delivered (1.72 x 1.17 m vs a 1.2 x 0.8 EUR pallet): catalogued as `bulk`, belly-pod only.
-- **No KTX2 twins** for the loads (no `loads` family in ktx2_twins.js; basisu absent here). Add when a load is placed.
+- **OWED: the KTX2 twins** of the loads' maps (add a `loads` family to tools/ktx2_twins.js FAMILIES, then
+  `node tools/ktx2_twins.js --family loads` on a box with basisu; the coordinator's call, 7 Oct).
 - **No stills** (no GPU window asked; the props bench reads the hangar packs only).
 - **GATE MEDIA is red on the integration base, not from this branch**: `media/map/jolene_map.c620385a.png` and
   `jolene_proj.2f8c83c4.json` orphaned - MAP-MENU's `src/viewer/map_pack.js` is not in `_media_check.js`'s manifest list.
+  FIXED by the coordinator on game-integration 4912029e (_media_check.js reads map_pack.js); this branch rides train 43.
