@@ -13,6 +13,14 @@
 //                                    the plots, and the picture's name, size and hash
 //   src/viewer/map_pack.js           window.MAP_PACK = that projection - the MAP screen's lazy script (build.js
 //                                    MANIFEST.lazy 'map_pack'), so the page learns the hashed names without a fetch
+//   media/map/jolene_art.<h8>.jpg    (G2324, MAP-SIMPLE) THE PICTURE THE SCREEN SHOWS: the user's own AI-generated painting
+//                                    of the island (GAME-2026-10-06.md §R.2, ruled 7 Oct), rubber-sheeted onto the real
+//                                    coastline IN THIS FRAME (futureDesigns/game/map-mock/rubbersheet.py), shipped as its
+//                                    committed bytes (ART_SRC; no re-encode) and named by their hash. Its size must be the
+//                                    frame's (w x h) or the bake stops. The projection records it as `art`, beside the
+//                                    island record's wildlife hotspots (`hotspots`) and places of interest (`pois`) the
+//                                    screen draws over it - the game draws every site itself, never the painting's own
+//                                    runways (they drift ~0.5-0.8 km)
 //
 // DETERMINISTIC: the same island, record and code give the same bytes (no clock, no random; one zlib stream at a
 // fixed level, filter 0 on every row). GATE MAPBAKE (tools/_mapbake_check.js) re-bakes in memory and compares, then
@@ -40,7 +48,13 @@ const C = {
   hard: [72, 68, 66], grass: [118, 140, 92], plot: [176, 96, 52],
   ink: [40, 36, 34], paper: [250, 247, 240],
 };
-const ROAD_MIN_PX = 0.55, RWY_GROW_PX = 0.5;   // a road is at least ~1 px; a runway's rectangle grows half a pixel (a 12 m strip is still a line)
+const ROAD_MIN_PX = 0.55, RWY_GROW_PX = 0.5;
+// (G2324) THE PAINTING: its committed source (the approved mock's, the user's AI map) and the sea at its edge
+const ART_SRC = 'futureDesigns/game/map-mock/map_ai2.jpg', ART_EDGE = '#004279';
+// the places of interest the map names from the middle zoom (§R.2: Metlakatla, the mine, the lodge, the cannery,
+// Tamgas Hill): the island record's sites by id - their positions are the record's; the hill is the island's summit
+const POI_SITES = [['mk_hall', 'Metlakatla'], ['mn_s_mine', 'the mine'], ['tw_s_summit', 'the lodge'], ['mk_mw_cannery', 'the cannery']];
+const POI_SUMMIT = 'Tamgas Hill';   // a road is at least ~1 px; a runway's rectangle grows half a pixel (a 12 m strip is still a line)
 
 // ---- THE PALETTE (index -> rgb), built once, in a fixed order -------------------------------------------------------
 function palette() {
@@ -97,6 +111,29 @@ function decodePNG(buf) {
   const raw = zlib.inflateSync(Buffer.concat(id)), pix = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) { if (raw[y * (w + 1)] !== 0) throw new Error('row ' + y + ' is filtered'); raw.copy(Buffer.from(pix.buffer), y * w, y * (w + 1) + 1, (y + 1) * (w + 1)); }
   return { w, h, pix, pal };
+}
+
+// (G2324) a JPEG's frame size, from its SOF marker (the painting is shipped as committed: nothing decodes it here)
+function jpegSize(buf) {
+  if (buf[0] !== 0xff || buf[1] !== 0xd8) throw new Error('not a JPEG');
+  let o = 2;
+  while (o + 9 < buf.length) {
+    if (buf[o] !== 0xff) { o++; continue; }
+    const m = buf[o + 1], n = buf.readUInt16BE(o + 2);
+    if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: buf.readUInt16BE(o + 5), w: buf.readUInt16BE(o + 7), progressive: m === 0xc2 };
+    o += 2 + n;
+  }
+  throw new Error('no SOF marker');
+}
+// the animal registry's key -> { kind (land / sea / air), label }: read off each manifest's own fields
+// (src/animals/<key>_animal.js, the files animals_index.json lists - the same rows ANIMALS.reg serves the minimap)
+function animalRegistry() {
+  const dir = path.join(ROOT, 'src', 'animals'), out = {};
+  for (const f of JSON.parse(fs.readFileSync(path.join(dir, 'animals_index.json'), 'utf8'))) {
+    const t = fs.readFileSync(path.join(dir, f), 'utf8'), g = k => (new RegExp('"' + k + '":"([^"]*)"').exec(t) || [])[1];
+    if (g('key')) out[g('key')] = { kind: g('kind') || 'land', label: g('label') || g('key') };
+  }
+  return out;
 }
 
 // ---- THE ISLAND --------------------------------------------------------------------------------------------------
@@ -273,39 +310,61 @@ function bake() {
     text('N', nx - 5, ny + 4, SC, idx.ink);
   }
   const png = encodePNG(w, h, pix, P);
+  // (G2324) THE WILDLIFE HOTSPOTS: the record's animal objects (premises frame = world, asserted above), the same the
+  // in-game minimap marks (app.js THE ANIMAL HOTSPOTS, G498): one per hotspot, never one an animal
+  const REG = animalRegistry();
+  const hotspots = (rec.layers.objects || []).filter(o => o.kind === 'animal').map(o => {
+    const A = REG[o.key] || { kind: 'land', label: o.key };
+    return { id: o.id, key: o.key, x: o.x, z: o.z, n: o.n || 1, r: o.r || 0, kind: A.kind, label: A.label };
+  });
+  // THE PLACES OF INTEREST: the named sites, and the summit (the highest land pixel of the height field)
+  const siteAt = {}; for (const st of (rec.layers.sites || [])) siteAt[st.id] = st;
+  const pois = POI_SITES.map(([id, label]) => { const st = siteAt[id]; if (!st) throw new Error('map_bake: no site ' + id + ' in the island record'); return { id, label, x: st.at.x, z: st.at.z }; });
+  { let k = 0; for (let i = 1; i < H.length; i++) if (H[i] > H[k]) k = i; const i = k % w, j = (k - i) / w;
+    pois.push({ id: 'summit', label: POI_SUMMIT, x: Math.round(wx(i)), z: Math.round(wz(j)), elev: Math.round(H[k] / 10) * 10 }); }
+  // THE PAINTING: the committed bytes, in this frame exactly
+  const art = fs.readFileSync(path.join(ROOT, ART_SRC)), as = jpegSize(art);
+  if (as.w !== w || as.h !== h) throw new Error('map_bake: ' + ART_SRC + ' is ' + as.w + ' x ' + as.h + ', not the frame\'s ' + w + ' x ' + h);
   const proj = {
     v: 1, island: 'jolene', mpp: MPP, x0: X0, z0: Z0, x1: X1, z1: Z1, w, h,
     rule: 'px = (x - x0) / mpp, py = (z - z0) / mpp; north up (-z is north); the grid labels are km from the world origin (north positive)',
-    aerodromes: aeros, plots,
+    aerodromes: aeros, plots, hotspots, pois,
     look: { rwyGrowPx: RWY_GROW_PX, colours: { hard: idx.hard, grass: idx.grass, lane: idx.lane, plot: idx.plot } },
     credit: 'Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)',
   };
-  return { png, proj, pix, w, h, P, idx };
+  return { png, proj, pix, w, h, P, idx, art, artSize: as };
+}
+// the projection as written: the bake's, with the two pictures' names, sizes and hashes (write() and GATE MAPBAKE)
+function projOf(r, img, artImg) {
+  const { sha8 } = require('./_media_lib.js');
+  return Object.assign({}, r.proj, { img, imgBytes: r.png.length, imgHash: sha8(r.png),
+    art: { img: artImg, bytes: r.art.length, hash: sha8(r.art), w: r.artSize.w, h: r.artSize.h, edge: ART_EDGE, src: ART_SRC,
+           credit: 'the island painted by the user with an AI image generator, rubber-sheeted onto the real coastline (flyDiy/CREDITS.md)' } });
 }
 
 function write(r) {
-  const { writeMedia, pruneMedia, sha8 } = require('./_media_lib.js');
-  const img = writeMedia('map', 'jolene_map', 'png', r.png);
-  const proj = Object.assign({}, r.proj, { img, imgBytes: r.png.length, imgHash: sha8(r.png) });
+  const { writeMedia, pruneMedia } = require('./_media_lib.js');
+  const img = writeMedia('map', 'jolene_map', 'png', r.png), art = writeMedia('map', 'jolene_art', 'jpg', r.art);
+  const proj = projOf(r, img, art);
   const projBuf = Buffer.from(JSON.stringify(proj, null, 1) + '\n');
   const pj = writeMedia('map', 'jolene_proj', 'json', projBuf);
-  const gone = pruneMedia('map', [img, pj]);
+  const gone = pruneMedia('map', [img, art, pj]);
   const pack = Object.assign({ proj: pj }, proj);
   const js = '// GENERATED by tools/map_bake.js (G2250 MAP-MENU) - do not edit. The 2-D island map\'s projection and its picture\'s\n' +
     '// content-hashed name: the MAP screen\'s lazy script (build.js MANIFEST.lazy \'map_pack\'), loaded when the screen opens.\n' +
     'window.MAP_PACK = ' + JSON.stringify(pack) + ';\n';
   fs.writeFileSync(path.join(ROOT, 'src', 'viewer', 'map_pack.js'), js);
-  return { img, pj, gone, pack };
+  return { img, art, pj, gone, pack };
 }
 
-module.exports = { bake, encodePNG, decodePNG, MPP, RWY_GROW_PX };
+module.exports = { bake, projOf, encodePNG, decodePNG, jpegSize, MPP, RWY_GROW_PX, ART_SRC, ART_EDGE };
 
 if (require.main === module) {
   const t0 = Date.now();
   const r = bake();
   const kb = n => (n / 1024).toFixed(0) + ' KB';
-  console.log('map_bake: ' + r.w + ' x ' + r.h + ' px at ' + MPP + ' m/px, ' + r.P.length + ' colours, ' + kb(r.png.length) + ', ' + r.proj.aerodromes.length + ' runways, ' + r.proj.plots.length + ' plots, ' + (Date.now() - t0) + ' ms');
+  console.log('map_bake: ' + r.w + ' x ' + r.h + ' px at ' + MPP + ' m/px, ' + r.P.length + ' colours, ' + kb(r.png.length) + ', ' + r.proj.aerodromes.length + ' runways, ' + r.proj.plots.length + ' plots, ' + r.proj.hotspots.length + ' hotspots, ' + r.proj.pois.length + ' places; the painting ' + r.artSize.w + ' x ' + r.artSize.h + ', ' + kb(r.art.length) + '; ' + (Date.now() - t0) + ' ms');
   if (process.argv.includes('--report')) process.exit(0);
   const o = write(r);
-  console.log('wrote ' + o.img + ', ' + o.pj + ', src/viewer/map_pack.js' + (o.gone.length ? '; pruned ' + o.gone.join(', ') : ''));
+  console.log('wrote ' + o.img + ', ' + o.art + ', ' + o.pj + ', src/viewer/map_pack.js' + (o.gone.length ? '; pruned ' + o.gone.join(', ') : ''));
 }

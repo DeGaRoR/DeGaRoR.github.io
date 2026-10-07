@@ -4688,6 +4688,7 @@
   }
   // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
   function personaProfile() {
+    if (CAREER_DEV) return careerCrewProfile() || 'expert';   // G2440: the career's pick first ('me': the expert), behind the flag (GATE PILOTS)
     personaLoad();
     if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
     return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
@@ -4714,7 +4715,7 @@
     // memoised one (shakeOf), handed as a getter — a TDZ before the bench
     // block runs reads as "no shakedown yet", never as a throw
     // G2290 (PILOTS) over G2085 (PILOT-PERSONA): in the career, the hired pilot's profile; "I fly" and the sandbox, the persona keeper's pick
-    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: (CAREER_DEV ? careerCrewProfile() : undefined) || personaProfile(),
+    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
     if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
     return p;
@@ -11201,6 +11202,7 @@
   // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
   // the full model, tuned down to a person).
   function flPersona(body) {
+    if (CAREER_DEV) return;   // G2440: the career picks from its roster (the route row); the persona pills are the sandbox's (GATE PILOTS)
     const sel = $('selPersona');
     if (!sel || typeof PILOT_PROFILES === 'undefined') return;
     personaLoad();
@@ -13285,7 +13287,7 @@
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
-    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: (CAREER_DEV ? careerCrewLatched() : undefined) || personaProfile(), lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: CAREER_DEV ? careerCrewLatched() : personaProfile(), lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)

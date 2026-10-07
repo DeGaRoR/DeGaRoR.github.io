@@ -479,7 +479,7 @@ const BREAKS = [
   ['the sandbox is charged', { s76: sub("  playerCharge(D2, total, 'buy', slot);", "  if (!career) D2.wallet -= total; playerCharge(D2, total, 'buy', slot);") }],
   ['the voucher pays a customised one', { s76: sub('V.model === P.design && stock);', 'V.model === P.design);') }],
   ['econPrice is ignored', { s76: sub("  if (typeof econPrice === 'function') { const v = econPrice(kind, item); if (typeof v === 'number' && isFinite(v)) return v; }", '') }],
-  ['a maker name is a brand', { s76: sub("'mk.bramble.name':   PT_('Bramble Light Aircraft'),", "'mk.bramble.name':   PT_('Piper Light Aircraft'),") }],
+  ['a maker name is a brand', { s76: sub("'mk.bramble.name':   PRT_('Bramble Light Aircraft'),", "'mk.bramble.name':   PRT_('Piper Light Aircraft'),") }],
   ['the model reaches for storage', { s76: s => s + '\nfunction prLeak() { return localStorage; }\n' }],
 ];
 let bad = 0;

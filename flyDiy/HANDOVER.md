@@ -82615,3 +82615,287 @@ phone's sheet the same (R1 48 px, NOHOVER: no title=). The fixture (?map=1 alone
 - Portraits: out of scope (the user's AI run; `portrait: null`, the card draws the silhouette).
 
 READY for the GAME COORDINATOR: claude/pilots-g2290 6f028e8 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2324-G2329 - MAP-SIMPLE: THE MAP SCREEN REBUILT TO THE APPROVED MOCK - THE LIST IS THE WHOLE INTERFACE (TYPE COLOUR, TITLE, PAY, ✓ / ✗ ONLY ON SURFACE VS GEAR; ONE PARAGRAPH, ONE TRACK), THE CUSTOMER SELECT AND THE PLACE FILTER; THE USER'S AI MAP AS THE PICTURE (CONTENT-HASHED, IN THE PROJECTION'S FRAME); EVERY SITE, RUNWAY AND HOTSPOT DRAWN BY THE GAME; THE PHONE'S SHEET; NO AUTO-ZOOM; THE SANDBOX UNCHANGED (2026-10-07, MAP-SIMPLE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/map-simple-g2324 off origin/claude/game-integration 52fc8c7 (29adb22 + FREIGHT's docs), also pushed as claude/peaceful-pasteur-96om26)
+
+The brief: the approved mock `futureDesigns/game/map-mock/contracts_mock.html` and GAME-2026-10-06.md §R.2 (the user's steer
+of 7 Oct; supersedes §8.2-§8.3). Matched, not redesigned; the mock's "Bold bake / Your AI map" tabs and its note are the
+mock's and are not shipped (the AI map is the picture). MAP-MENU's lazy loading, its one adapter (`mapAdapt`) and
+CAREER-WIRE's `MAP_SOURCE` (careerMapRecord under ?career=1; ?mapsrc=fixture) are kept. No generated file committed
+(`node tools/build.js` before the gates). **Numbering**: CAREER-WIRE's section already used G2324 (its held-out contract);
+this block's steps keep the coordinator's G2324-G2329 - read "G2324" here as MAP-SIMPLE's.
+
+**G2324 THE PAINTING SHIPPED** - `tools/map_bake.js` ships `futureDesigns/game/map-mock/map_ai2.jpg` (the user's AI map,
+already rubber-sheeted onto the real coastline) as `media/map/jolene_art.<h8>.jpg` - its committed bytes, no re-encode,
+named by their hash; its JPEG frame must be the bake's (2167 x 2834) or the bake stops. The projection records it as
+`art { img, bytes, hash, w, h, edge: '#004279', src, credit }` beside two new lists read off the island record:
+`hotspots` (the 9 animal objects - the same the in-game minimap marks, app.js THE ANIMAL HOTSPOTS - with the animal
+registry's kind land / sea / air and label, read from each `src/animals/<key>_animal.js`) and `pois` (the sites mk_hall
+"Metlakatla", mn_s_mine "the mine", tw_s_summit "the lodge", mk_mw_cannery "the cannery", and the height field's summit
+"Tamgas Hill 1 100 m"). The bake PNG stays (MAPBAKE's runway rows) but the screen no longer fetches it. **CREDITS.md**:
+a section crediting the painting as the user's own AI-generated picture of the island, its modifications (upscale,
+rubber-sheet) and that its own runways are not used.
+
+**G2325 THE LIST** (`src/viewer/map_menu.js`, rewritten; pure half + DOM half as before):
+- **No right panel, no provider tabs, no layer buttons, no Fleet / Pilots / Market.** The aside: CONTRACTS + ✕, the types'
+  legend (Cargo #d99a3c, Passengers #4f9fd6, Survey #6cbf8a, Build #b58fd8 - the mock's), **Customer: a select** (All + the
+  five), the "At <place> ✕" row when a place is tapped, the list. The footer: Wallet, Tracking (the title and the stage's
+  places).
+- **A row**: the TYPE's dot (`typeOf`: build; survey if anything is flown over; passengers if anyone is aboard; else cargo),
+  the title (★ when tracked), the pay (`payOf`: contractPay's total on the real record), the mark.
+- **The mark** (`markOf`): ✓ / ✗ ONLY on surface vs gear, judged against the fleet - is there ONE aeroplane whose gear
+  (`allows`, 25_airfield.js stripAllows' rule) can use every strip the contract lands at or leaves from (a survey's site
+  is flown over, not landed at)? The fleet's gears are the certificates'; **a new career's empty fleet is judged by its
+  voucher's aeroplane** (CONTRACT_DESIGNS[voucher.model]: the maker Cub, wheels); with nothing to judge by, no mark.
+  Build contracts carry none. Payload, seats, runs never move a mark. The reasons: "The Cub your voucher buys cannot land
+  on water (Annette Dock, ...)", "Your planes are on floats: none can land at ...", "No one plane of yours lands on both
+  water and land (...)".
+- **A tap opens ONE paragraph**: "<customer>: <brief> Pays <n>." then the runways condensed (every stage's places in
+  order: "Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km"; a survey's site as
+  "over <name>") then the ✗'s reason; then ONE button, **Track** (accept + track in one gesture; tapping the tracked one
+  untracks it, it stays accepted - CAREER-WIRE's `careerAct` under ?career=1, `act` in the session's record otherwise).
+- **A place tapped** (its badge, its name or its runway) sets the place filter: exactly the contracts with a stop or a
+  site at it; the row's ✕ clears it.
+
+**G2326 THE MAP** - the painting on `art.edge` (#004279), no border. **Pan**: a left-button drag anywhere (a badge too);
+no native image drag (`draggable=false`, dragstart / selectstart stopped, user-select none); the capture is taken past
+4 px and the click that ends a drag is swallowed, so a click counts only if the pointer barely moved. **Zoom**: the
+wheel at the cursor, a pinch, + / − / fit; **bounds** (the picture never leaves a gap it could fill; smaller than the
+view, centred); 1x to 8x the fit (at least 3 screen px per picture px). **No auto-zoom**: opening a row or filtering a
+place never touches the view (`focus` is gone). The old-map dress: the mock's compass rose, a round scale bar, serif
+labels (IM Fell English is not vendored: Georgia / the system serif stands in).
+
+**G2327 THE SITES, DRAWN BY THE GAME** (`overlayOf`, pure: strings over a view; positions from the projection's
+aerodromes and the record's hotspots / sites, nothing typed):
+- **The places**: the aerodromes grouped by name ("Jolene AFB 13/31" + "Jolene AFB 02/20" = Jolene AFB), kind read off the
+  record (water -> seaplane base, the altiport flag -> altiport, concrete -> airfield, "Mine" -> mine, "Clearing" ->
+  clearing, else strip), the mock's six icons. A badge per place always, **sized to the zoom** (16-34 px over a 48 px
+  target), **ringed in the open / tracked contract's TYPE colour**; once its runway is drawn it steps off the runway's
+  side (away from the place's other runways); your planes stand under it.
+- **Levels of detail** (zr = scale / fit): names from 1.5 (or when lit / filtered); places of interest from 2.2; runway
+  facts beside the name from 3 ("13/31 2 325 × 45 m concrete · 02/20 1 835 × 45 m concrete"); **hotspots from 1.25 (the
+  second zoom step)** - green badges, blue at sea, the species' icon - their dashed zone ring and "n × label" from 2.6
+  (labels kept clear of each other: right, left, below).
+- **Runways at true scale** once longer than a badge (34 px): the cleared surround and the surface colour; **concrete**:
+  the centreline and the threshold bars; **gravel / grass**: edge markers; **water**: a buoyed lane (both edges every
+  ~250 m once they stand apart, the ends larger); **the designators at both ends** from the heading (x east, -z north)
+  once there is room - 13 / 31 and 02 / 20 at Jolene AFB, equal to the names' (UISMOKE holds it). The open / tracked
+  contract's places joined (dashed / dotted).
+
+**G2328 THE PHONE AND THE GATES** - the phone (`.mmPhone`): the map full screen, **the list a bottom sheet** (peek 38 %,
+open 78 %; the handle a 48 px tap or swipe), the fit and the bounds keep the island above the folded sheet; every target
+>= 48 px; nothing hover-only; the map touch-action none, the list pan-y, the handle none (R20). The sandbox: the entry
+rule in build.js untouched (?map=1 or the career mode only).
+- **MAPBAKE (adapted): PASS** - the bake's rows as before (deterministic bytes; every runway pixel in its footprint; its
+  budget; the projection) + THE PAINTING: the shipped bytes are the committed source's, named by their hash, **its frame
+  is the projection's exactly** (the JPEG's own 2167 x 2834 = w x h at 12 m/px from (-11000, -27000)), its budget (915 KB
+  <= 2 MB, 23.4 MB decoded), the edge colour, the hotspots = the record's 9 animal objects, the places = the record's
+  sites; media/map/ holds the three files. Selftest 5 of 5 red (+ a painting off the frame).
+- **UISMOKE / UISMOKE-PHONE: PASS** - `_map_smoke.js`'s map rows rewritten: the lazy names and the entry rule (unchanged:
+  no entry in the sandbox without the flags); NO right panel / tabs / Fleet-Pilots-Market; one row per contract (dot,
+  title, pay, mark), coloured by type never by customer; the customer select's rows sum to All; every paragraph (fixture
+  11, real record 20): who, what, the pay (= contractPay's on the real record), every stop by name with its strip, ONE
+  button Track, no per-plane table; the marks: parts ✗ (no one plane both water and land), guests ✓, the builds none;
+  payload / seats / runs never move a mark; an amphibian clears them; wheels-only ✗ water, floats-only ✗ land; the
+  voucher's Cub marks the real record's 3 water jobs ✗ and the rest ✓; no fleet and no voucher -> no mark; the place
+  filter (7 places, each exactly its contracts, "At <place> ✕"); Track one gesture, a second tap untracks; the map's
+  levels (badges at the fit, 9 hotspots and the names at 1.5x, rings + counts + places + facts at 3x, the badges growing),
+  Jolene AFB's runways close up with centreline, bars and 13/31, 02/20, the water lane buoyed, the gravel edge-marked,
+  every place a tap (badge, name, runway), the open contract ringed in its type colour; no auto-zoom (read off the
+  handlers); the gear rule = stripAllows; NOHOVER, R1 (every target class >= 48 px), R20, no image drag / selection, no
+  device test, the picture is pack.art; the real fleet's gears and planes where they stand; the aerobatic box held out.
+- **MEDIA: PASS** - it was RED on the base (52fc8c7: media/map/'s files "referenced by no manifest"); `map_pack.js` added
+  to its manifest list.
+- **CONTRACTS: PASS (2260 checks), GFX: PASS, BOOT: PASS** (unchanged).
+
+**G2329 THE STILLS** - `tools/map_menu_shot.js` (rewritten for this screen; `reports/evidence/MAP-SIMPLE/`, 10 stills +
+shots.json with the page's own answers). **Every still is of the LOADED page**: BOOT.state 'gone' and #boot hidden,
+checked before and after each capture (recorded per still in shots.json); a capture taken while loading would be
+discarded and retaken (none was). The real record (?career=1, a new dev career) unless noted:
+desk_sandbox (no flags: no MAP entry, nothing of the screen / pack / picture fetched), desk_fit, desk_mid (3x: names +
+facts, places of interest, hotspots with rings and counts), desk_close (Jolene AFB 9x: 13/31 and 02/20 drawn with
+their designators), desk_place (Annette Dock tapped: "At Annette Dock", 3 rows), desk_open ("Mail off the water": the
+paragraph, the ✗ "The Cub your voucher buys cannot land on water", ONE button; the view identical before and after),
+desk_tracked (Tracking ★ written to the career document, the places ringed in the cargo colour, the footer; a second
+tap untracks), desk_fixture (?map=1&mapsrc=fixture: ✓ and ✗ with a wheels + floats fleet, builds unmarked), phone_sheet
+(390 x 844 touch: the sheet folded), phone_open (the sheet open on a paragraph). Probed live: a drag from a badge pans
+and sets no filter; a drag pans by exactly the pointer's travel; no text selected; the wheel zooms; the picture is the
+content-hashed painting 2167 x 2834 on rgb(0, 66, 121) and the bake PNG is not fetched; every visible target >= 48 px,
+no title=; no page error.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: map_menu.js (rewritten; the CORE exports changed - cardHTML / tabsHTML / factsFor / critFor /
+  markersOf / routesOf are gone; `MAP_MENU` keeps open / close / isOpen / state / model / view / set, + zoomTo / fit for
+  the stills), map_bake.js (+ the painting, hotspots, pois, `projOf`), map_pack.js and media/map/ (regenerated: the
+  projection's hash changed), _mapbake_check.js, _map_smoke.js, _media_check.js (one line), map_menu_shot.js (rewritten),
+  career_wire_shot.js (one selector: `.mmStage img`), CREDITS.md. No run_gates row added; build.js untouched.
+- **The build contracts' criteria** (the old card's per-design table) have no place on this screen by the user's ruling;
+  the garage / the build flow is where they go (§R.2: "no other judgement").
+- **The serif face**: IM Fell English (the mock's, Google Fonts, OFL) is not vendored; the labels fall back to Georgia /
+  the system serif. Vendoring it (one woff2, like IBM Plex) is a small follow-up if the look wants it.
+- **The bake PNG** (jolene_map) is still baked, gated and shipped but not shown; it can be dropped when no tool reads it.
+- Hotspot labels keep clear of each other; place names do not yet avoid hotspot badges where they crowd (Tamgas Hill
+  Strip's elk / doe / bear at 3x).
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR: claude/map-simple-g2324 1ea221b (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2440-G2444 - MAP-MERGE: MAP-SIMPLE MERGED INTO THE INTEGRATION - THE CONTRACTS SCREEN EXACTLY MAP-SIMPLE'S; FLEET, PILOTS AND MARKET BEHIND A SMALL SWITCH AT THE TOP OF THE SAME LIST, EACH LIST THE CONTRACTS' WAY (A ROW, ONE NUMBER, ONE PARAGRAPH, AT MOST TWO BUTTONS), THEIR MARKERS ON THE MAP IN THE BADGE STYLE; TWO BASE BREAKS FIXED (THE CORE'S DUPLICATE `PT_`, GATE PILOTS' PERSONA DOOR) (2026-10-07, MAP-MERGE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/map-merge-g2440 off origin/claude/game-integration b747ae21)
+
+The brief: merge origin/claude/map-simple-g2324 (7b9ca76f, G2324-G2329 above) into the integration, by the user's rulings of
+7 Oct: the contracts screen EXACTLY MAP-SIMPLE's (every contracts hunk theirs); the coordinator's DEFAULT for the other
+three (no other pick was relayed): a small switch at the top of the same left list - Contracts · Fleet · Pilots · Market -
+each list in the contracts' style, PROCURE's options sheet and the used card's facts folded into the paragraph (the strict
+minimum: price, seats, payload, gear, range; the rest stays in the garage), each list's markers on the map with MAP-SIMPLE's
+badge style and zoom sizing, a marker's tap filtering the list as a place does; Buy spends the wallet under ?career=1
+(ECONOMY's rules, in 76_procure.js), the sandbox ?map=1 takes free. Resolved per hunk (never a whole-file side). No
+generated file committed (`node tools/build.js` before the gates).
+
+**G2440 THE MERGE, HUNK BY HUNK** - `git merge origin/claude/map-simple-g2324`: conflicts in HANDOVER.md, map_menu.js
+(12 hunks in diff3), _map_smoke.js (4); everything else auto-merged (map_bake.js, map_pack.js and media/map/ - the
+painting, the new projection; _mapbake_check.js, _media_check.js, career_wire_shot.js, map_menu_shot.js, CREDITS.md,
+reports/evidence/MAP-SIMPLE/).
+- **HANDOVER.md**: union (the integration's sections, then MAP-SIMPLE's).
+- **map_menu.js** (ours = the integration's old screen + PROCURE G2280's Market + PILOTS G2290's Pilots; theirs = MAP-SIMPLE):
+  - H1 `mapAdapt`'s return: **theirs** (voucher, places, placeOf, hotspots, pois) **+ ours' `pilots` line** (the roster's
+    cards, copied). Ours' `board` (raw.board, the old build card's criteria) dropped: no build criteria on this screen
+    (MAP-SIMPLE's own open item).
+  - H2 `listHTML`: **theirs** verbatim as `contractsListHTML`; ours' Pilots / Market / Fleet branches became the switch's
+    dispatcher `listHTML` -> `fleetListHTML` / `pilotsListHTML` / `marketListHTML` (rows in the contracts' style).
+  - H3 the old card (`endHTML`, the `cardHTML` router, `fleetCardHTML`, the sub / leg words): **theirs** (no card, no
+    right panel). Ours' m: / u: / p: routes became the opened row's paragraph: `modelCardHTML`, `usedCardHTML`,
+    `pilotCardHTML` keep their names and now return the paragraph + buttons.
+  - H4 `markersOf` (the layers, the fan, ours' pilot and used markers): **theirs** (`overlayOf`); ours' markers rebuilt as
+    `listMarkers` + overlayOf's step 7 (the place badge's style, `--ms` = 0.9 x the zoom-sized badge, side by side under
+    their place's badge, each a 48 px button carrying data-place + data-key).
+  - H5 THE MARKET block: **ours, reshaped** - `marketAdapt` unchanged, `certRows` unchanged (its payload off the shared
+    `payKg`), `marketMarkers` the same rows (+ `place`; shown with the Market list); the list as rows (the makers' models,
+    the used listings, the drawing board as rows with their one button each); the options sheet folded: the paragraph says
+    seats, payload, gear, range, cruise, the price (the voucher's line when it pays), and the GEAR is the one choice made
+    here (a select, priced: it decides where the aeroplane can land); engine / tank / panel / seats / finish, the
+    registration, the slot's name (now `FLYDIY_PROCURE.freeName`) and the delivery hangar (the main hangar) stay with the
+    garage. The used paragraph: the seller's line, where it stands (its strip), the facts, the price and its reckoning.
+  - H6 the CORE exports: **union** (+ LISTS, listOf, switchHTML, contractsListHTML, listCount, listMarkers, factsWord,
+    whereWord, fleetListHTML, fleetParaHTML, PAX_KG; every PROCURE / PILOTS export kept by name).
+  - H7 the CSS: **theirs** + a G2440 block (the switch, the icon rows, the action buttons, the note line, the gear select,
+    the list markers); ours' card / tab / chip / input CSS (mmPilot, mmFace, mmTraits, mmOpt, mmIn, mmBoard, mmMk.*) gone
+    with the cards.
+  - H8 the DOM's state: **theirs** (`const V`) + ours' `marketCore` / `lastRaw` / `boardNow`, + `liveDoc` / `reread` (the
+    record read again after Track, a hire, a purchase: the contracts' adapter, then the market's).
+  - H9 the listeners: **theirs** (the customer select's change) + a gear-select change; ours' `input` listener (the
+    registration / name inputs) dropped with the inputs.
+  - H10 `place()`: **theirs**.
+  - H11 `select()` / `track()`: **theirs'** `track()` (its one change: `reread`, so the market's model survives a Track);
+    ours' `select()` routing and its `focus` (auto-zoom) dropped.
+  - H12 `onClick`: **theirs** + the switch (`list`), a row of the other lists (`item`), a list's marker (`data-key`: the
+    place filter + the row opened), ours' pilot (`pilotAct`, the career's `FLYDIY_CAREER.pilots.act`), Buy / Take
+    (`marketBuy`) and the board (`boardAct`) handlers; none touches the view.
+  - Outside the conflicts: ours' PILOTS row / card helpers that git placed into MAP-SIMPLE's file (faceHTML, pilotRowHTML,
+    pilotActsHTML) rewritten in the row style; the header comment says the switch.
+- **_map_smoke.js**: the header (theirs + the switch's paragraph); the rows section (**theirs**, its "no Fleet / Pilots /
+  Market" row replaced by the switch's row: four buttons, the contracts first, none of the other lists in the contracts
+  list, no legend / customer on the others); R1's class list (**theirs + mmSwB, mmAct, mmOptSel**, + .mmLm 48 px; ours'
+  mmOpt / mmIn gone with the inputs); ours' PROCURE / PILOTS rows **rewritten for the row style** (the same facts proved)
+  + Fleet rows; no-auto-zoom extended to a row of any list, the switch and a marker.
+
+**G2441 THE SWITCH AND THE THREE LISTS** (`src/viewer/map_menu.js`):
+- **The switch**: Contracts · Fleet · Pilots · Market, four 48 px buttons at the top of the list's head (the h1 names the
+  list); the contracts' legend and customer select only with the contracts. The place filter ("At <place> ✕") carries
+  over between the lists; the footer (Wallet, Tracking) and the phone's sheet are the same; the handle counts the list's rows.
+- **A row** (every list): an icon on a disc (✈ the fleet; the initials for a pilot; ◆ in the maker's colour; ⚑ a used
+  listing; ✎ / ✈ the board), the title, ONE number (the payload; flights or the sign-on; the price), opened: ONE short
+  paragraph and at most two buttons. No right panel, no card wall, no table.
+- **Fleet**: "Tied down at Jolene AFB 13/31. 2 seats · 90 kg payload · on wheels · 376 km range · 113 km/h"; a build not
+  read yet says so; no button.
+- **Pilots** (G2290): "Your pilots" then "Looking for work"; the paragraph: the line, "Flies like: ...", the traits, where
+  they are (and the one-time sign-on); the buttons: Hire · fee; or Flies next (the boat home once they fly next and stand
+  away) + Fire - live only under ?career=1 (disabled in the preview, "Hiring and firing come with the career").
+- **Market** (G2280): the makers' models (validated builds only), the used aeroplanes where they stand, the drawing board;
+  Buy · price under ?career=1 (the wallet pays - 76_procure.js refuses past the wallet; the voucher pays a stock Scout),
+  Take it · free in the sandbox (?map=1); the purchase reads the record back and says "... is yours: ... It is on the Fleet list".
+- **The map**: the contracts list keeps MAP-SIMPLE's overlay exactly (the places, your planes under them, the open /
+  tracked contract ringed); the other lists draw their own markers instead (your aeroplanes at their bases, your pilots
+  where they are, the used listings where they stand), the places' badge style, sized to the zoom; the tracked contract's
+  ring and route stay. A marker's tap: the list filtered to its place, its row opened; the view never moves.
+
+**G2442 TWO BREAKS ON THE BASE, FIXED** (both red on origin/claude/game-integration b747ae21 before this merge):
+- **The core did not build**: `const PT_` is declared by 76_pilots.js AND 76_procure.js ("SYNTAX FAIL in core-concat:
+  Identifier 'PT_' has already been declared" - BUILD and every core gate red). 76_procure.js's renamed `PRT_` (44 uses;
+  GATE PROCURE's selftest mutation string updated to match, `tools/_procure_check.js`).
+- **GATE PILOTS: 3 FAIL** (app.js, from the train-43 PILOTS merge): the door into makePilot was written
+  `(CAREER_DEV ? careerCrewProfile() : undefined) || personaProfile()` - in the career "I fly" fell through to the
+  sandbox's persona instead of the expert - and the plate's persona pills showed in the career. Fixed to the form the gate
+  names: `personaProfile()` answers `careerCrewProfile() || 'expert'` first behind CAREER_DEV; makePilot gets
+  `personaProfile()`; the worker's `pilotProfile: CAREER_DEV ? careerCrewLatched() : personaProfile()`; `flPersona`
+  returns at once in the career (the career's roster row stands there).
+
+**G2443 THE GATES** (node, cloud; `node tools/run_gates.js --only=...`; MAPSMOKE is not a run_gates id - the map rows run
+inside UISMOKE / UISMOKE-PHONE through `tools/_map_smoke.js`):
+- **UISMOKE: PASS, UISMOKE-PHONE: PASS** - `_map_smoke.js` merged: every MAP-SIMPLE row as it was (the lazy entry rule,
+  the list, the customer select, the paragraphs on the fixture (11) and the real record (20), the marks, the place filter,
+  Track, the map's levels, the runways, no auto-zoom, the gear rule = stripAllows, NOHOVER / R1 / R20, the painting) + the
+  switch's rows: the switch (four buttons, the contracts first; the contracts list carries none of the others, the others
+  no legend / customer); every pure export PROCURE / PILOTS had still a function; **Fleet** (the real fleet: a row per
+  aeroplane, the paragraph "Tied down at Jolene AFB 13/31. 2 seats · 90 kg payload · on wheels · 376 km range · 113 km/h",
+  a kit "not read yet", the place filter, a marker per aeroplane at its base sized to the zoom 17 -> 31 px, none drawn by
+  the contracts list); **Pilots** (the real record: Kit hired, Rafe 4 000 and Sky 7 000 looking for work; one paragraph,
+  how they fly, every trait, Hire · fee / Fire, disabled in the preview; Kit a marker at HOME; the fixture "with the
+  career"); **Market** (four makers, validated builds only; 1-4 used listings at the map's aerodromes; a model's paragraph:
+  seats, payload, gear, range, ONE Buy (Take it, free in the sandbox), the gear its only choice; the voucher pays a stock
+  Scout; a listing's paragraph: where it stands, the facts, the price, Buy where it stands; the markers at their
+  aerodromes and only with the Market; a marker's place filters the Market; the drawing board's Build / Save rows; the
+  sandbox's board line); every opened row ONE paragraph, at most two buttons, no card / table / unresolved key; no
+  auto-zoom from a row of any list, the switch or a marker; R1 + .mmSwB / .mmAct / .mmOptSel / .mmLm >= 48 px.
+- **MAPBAKE: PASS** (MAP-SIMPLE's, unchanged by the merge: the painting's frame, the hotspots, the places; selftest red on
+  a painting off the frame).
+- **PROCURE: PASS** (3151 checks, 33 shakedowns) - after the `PRT_` rename (G2442; red on the base: the core did not build).
+- **PILOTS: PASS** (4482 checks) - after the app.js door fix (G2442; 3 FAIL on the base).
+- **CONTRACTS: PASS** (2260 checks). **ACCEPT: PASS** (189 checks, 0 failed). **BUILD: PASS**.
+- **MEDIA: FAIL - red on the base too, not this merge's**: its one failure is "index.html grew 0.44 MiB over HEAD against the
+  0.3 MiB one build may add" (+455.5 KB); every manifest / file row passes (3037 references, 3037 files; media/map/ the
+  painting, the bake PNG and the projection). See OPEN: the base + the PT_ fix builds a byte-identical index.html.
+
+**G2444 THE STILLS** - `tools/map_menu_shot.js` (MAP-SIMPLE's, + the switch; out: `futureDesigns/game/evidence/MAP-MERGE/`,
+14 stills + shots.json with the page's own answers). **Every still is of the LOADED page**: BOOT.state 'gone' and
+#boot hidden, plus 2 s, checked before and after each capture (recorded per still in shots.json).
+The stills (futureDesigns/game/evidence/MAP-MERGE/, `map_<size>_<name>.jpg`; desk 1600 x 900, the phone 390 x 844 touch):
+- MAP-SIMPLE's ten, retaken on the merged code (all checks as before): `desk_sandbox` (no flags: no MAP entry, nothing
+  fetched), `desk_fit` (the contracts list, 20 rows, ✓ / ✗, the painting on #004279, a badge per place), `desk_mid`,
+  `desk_close` (13/31, 02/20), `desk_place` ("At Annette Dock", 3 rows), `desk_open` (the paragraph, ONE button, the
+  view unmoved), `desk_tracked` (Tracking ★, written to the career; a second tap untracks), `desk_fixture` (?map=1
+  &mapsrc=fixture: ✓ and ✗), `phone_sheet` (the sheet folded), `phone_open` (the sheet open on a paragraph).
+- **`desk_market`** - the switch on Market: the makers' models, the used aeroplanes (⚑ on the map where they stand); the
+  Bramble Scout opened (2 seats · 90 kg payload · on wheels · 376 km range; the voucher pays; the gear select; Buy · 0).
+  Probed after it: Buy -> "... is yours: in HOME · the voucher paid" (the wallet 60 000 -> 60 000); a used Scout bought
+  where it stands -> "paid 17 200" (60 000 -> 42 800: the career's Buy spends the wallet).
+- **`desk_fleet`** - the Fleet: the two Scouts just bought, a ✈ marker each (HOME; Skyline Altiport, where the used one
+  stood); the second opened ("Away at Skyline Altiport. 2 seats · 90 kg payload · on wheels · 555 km range · 111 km/h").
+  Probed: a Fleet marker tapped -> "At Jolene AFB ✕", its row opened, the view unmoved.
+- **`desk_pilots`** - the Pilots: Kit (flies next, a marker at Jolene AFB), Rafe and Sky looking for work; Rafe opened (the
+  line, "Flies like: ...", the traits, Hire · 4 000). Probed: Hire -> hired, the sign-on paid (42 800 -> 38 800).
+- **`phone_market`** - the phone: the switch in the open sheet, the Market, a used Scout opened (where it stands, the
+  facts, Buy where it stands · 17 200).
+- Also probed (the fixture page, the sandbox ?map=1): the Market's model says "Take it · free in the sandbox"; taken ->
+  "taken free (the sandbox)", the wallet untouched. Every visible target >= 48 px on every still, no title=, no page error.
+
+**OPEN / FOR THE COORDINATOR**
+- **MEDIA is red on the base too** (not this merge's): "index.html grew 0.44 MiB over HEAD" compares the build against the
+  committed index.html, which predates the train's core (the core did not build on the branch, so the generated files were
+  not refreshed). The base + the PT_ fix builds a byte-identical index.html (12 459 023 B) to this branch's: map_menu.js is
+  lazy and adds nothing. It goes green once the integration's generated files are rebuilt and committed (not this
+  session's to commit).
+- **The freight record's `mark`** (G2340 freightMark: gear + door, on careerMapRecord's contracts) is not read by the
+  contracts screen: MAP-SIMPLE's `markOf` judges surface vs gear only, by the user's ruling (✓ / ✗ for the hard no-no's
+  only). Whether a load that cannot pass the door is such a no-no is the user's call.
+- **The options sheet**: only the gear is chosen on the map; a maker's other options (engine, tank, panel, seats, finish,
+  registration, a remote hangar) are no longer offered at purchase - "the rest stays in the garage", where an edit makes
+  the airframe "modified" (certificate withdrawn, the change billed: PROCURE's rule). If the user wants the factory options
+  at purchase, they need a garage door for them.
+- **Pilots' two-button cap**: a hired pilot who does not fly next and stands away shows Flies next + Fire; the boat home
+  appears once they fly next.
+- `tools/procure_shot.js`, `tools/pilots_shot.js` and parts of `career_wire_shot.js` still drive the OLD screen (.mmRight,
+  [data-tab]); they are still tools, not gates - superseded by map_menu_shot.js's switch stills.
+- MAP-SIMPLE's open items stand (the serif face not vendored, the bake PNG still shipped, place names vs crowded hotspots).
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR

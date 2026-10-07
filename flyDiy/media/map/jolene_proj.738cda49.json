@@ -232,6 +232,131 @@
    "derelict": false
   }
  ],
+ "hotspots": [
+  {
+   "id": "a1",
+   "key": "elk",
+   "x": 1180,
+   "z": -1080,
+   "n": 4,
+   "r": 120,
+   "kind": "land",
+   "label": "Roosevelt elk"
+  },
+  {
+   "id": "a2",
+   "key": "bear",
+   "x": -800,
+   "z": -2300,
+   "n": 1,
+   "r": 70,
+   "kind": "land",
+   "label": "Brown bear"
+  },
+  {
+   "id": "a3",
+   "key": "doe",
+   "x": 740,
+   "z": -2500,
+   "n": 5,
+   "r": 110,
+   "kind": "land",
+   "label": "Sitka doe"
+  },
+  {
+   "id": "a4",
+   "key": "orca",
+   "x": 0,
+   "z": -3750,
+   "n": 5,
+   "r": 300,
+   "kind": "sea",
+   "label": "Killer whale"
+  },
+  {
+   "id": "a5",
+   "key": "whale",
+   "x": -8600,
+   "z": 2400,
+   "n": 1,
+   "r": 450,
+   "kind": "sea",
+   "label": "Blue whale"
+  },
+  {
+   "id": "a6",
+   "key": "bird",
+   "x": 900,
+   "z": -2980,
+   "n": 7,
+   "r": 200,
+   "kind": "air",
+   "label": "Gull"
+  },
+  {
+   "id": "a7",
+   "key": "elk",
+   "x": -1300,
+   "z": -2350,
+   "n": 6,
+   "r": 150,
+   "kind": "land",
+   "label": "Roosevelt elk"
+  },
+  {
+   "id": "a8",
+   "key": "doe",
+   "x": -1420,
+   "z": -2520,
+   "n": 7,
+   "r": 130,
+   "kind": "land",
+   "label": "Sitka doe"
+  },
+  {
+   "id": "nv_o20",
+   "key": "bird",
+   "x": 10150,
+   "z": -11470,
+   "n": 5,
+   "r": 160,
+   "kind": "air",
+   "label": "Gull"
+  }
+ ],
+ "pois": [
+  {
+   "id": "mk_hall",
+   "label": "Metlakatla",
+   "x": -3462,
+   "z": -8724
+  },
+  {
+   "id": "mn_s_mine",
+   "label": "the mine",
+   "x": 7265.12,
+   "z": -15430.72
+  },
+  {
+   "id": "tw_s_summit",
+   "label": "the lodge",
+   "x": 277,
+   "z": -7868
+  },
+  {
+   "id": "mk_mw_cannery",
+   "label": "the cannery",
+   "x": -3081.5,
+   "z": -9059.6
+  },
+  {
+   "id": "summit",
+   "label": "Tamgas Hill",
+   "x": 9106,
+   "z": -5886,
+   "elev": 1100
+  }
+ ],
  "look": {
   "rwyGrowPx": 0.5,
   "colours": {
@@ -244,5 +369,15 @@
  "credit": "Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)",
  "img": "media/map/jolene_map.c620385a.png",
  "imgBytes": 711872,
- "imgHash": "c620385a"
+ "imgHash": "c620385a",
+ "art": {
+  "img": "media/map/jolene_art.1b6f317e.jpg",
+  "bytes": 936836,
+  "hash": "1b6f317e",
+  "w": 2167,
+  "h": 2834,
+  "edge": "#004279",
+  "src": "futureDesigns/game/map-mock/map_ai2.jpg",
+  "credit": "the island painted by the user with an AI image generator, rubber-sheeted onto the real coastline (flyDiy/CREDITS.md)"
+ }
 }
