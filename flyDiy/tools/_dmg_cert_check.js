@@ -190,8 +190,8 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2));
     if (r.ductileWing) yes(r.lim12.set > 0 && r.lim12.breaks === 0, 'to the limit x 1.2 (' + f2(1.2 * lim) + ' g): ' + r.lim12.set + ' members set (the largest ' + (100 * r.lim12.setMax).toFixed(2) + ' %), nothing broken - the first set is just past the limit');
     else { yes(r.lim12.breaks === 0, 'to the limit x 1.2 (' + f2(1.2 * lim) + ' g): ' + r.lim12.set + ' set, nothing broken'); rep('a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks'); }
     yes(r.ult.breaks === 0 && /HELD/.test(r.ult.verdict), 'to the ultimate (' + f2(ult) + ' g): ' + r.ult.verdict + ', ' + r.ult.set + ' set, nothing broken');
-    const bw = r.band && r.band.weakest;
-    if (bw && bw.cap > 1.1 * ult * 1.025) yes(r.ult11.breaks === 0, 'to the ultimate x 1.1 (' + f2(1.1 * ult) + ' g): it holds, as its certificate says - its weakest joint group on the bench (' + bw.key + ', governed by ' + bw.gov.join(' / ') + ') goes at ' + f2(bw.cap) + ' g (' + r.ult11.breaks + ' broken)');
+    const bw = r.band && r.band.destroy;   // (the group that broke to destruction - not the weakest of ALL groups: a wing's joints need not all be in one)
+    if (bw && bw.cap > 1.1 * ult * 1.025) yes(r.ult11.breaks === 0, 'to the ultimate x 1.1 (' + f2(1.1 * ult) + ' g): it holds, as its certificate says - the joint group that breaks on the bench (' + bw.key + ', governed by ' + bw.gov.join(' / ') + ') goes at ' + f2(bw.cap) + ' g (' + r.ult11.breaks + ' broken)');
     else yes(r.ult11.breaks > 0 && r.ult11.groups.length > 0 && r.ult11.fb && r.ult11.fb.seam, 'to the ultimate x 1.1 (' + f2(1.1 * ult) + ' g): it breaks (' + r.ult11.breaks + ' members), the first group ' + (r.ult11.groups[0] || 'none') + ', the first member a ' + (r.ult11.fb ? (r.ult11.fb.seam || 'plain ' + r.ult11.fb.cls + ' member') + ' (' + r.ult11.fb.tags + ', ' + r.ult11.fb.how + ')' : '-'));
     console.log('3. to destruction');
     const d = r.destroy;
