@@ -54,14 +54,14 @@ console.log('1. G1800: sim-diverged (the numbers) vs broke-up (the structure)');
     'the load test\'s NaN verdict is \'SIM DIVERGED\' (65_gen_loadtest.js); \'BROKE UP\' only on the damage layer\'s breaks (' + brokeUp + ')');
   yes(/why: 'sim-diverged'/.test(xw) && !/'broke-up'/.test(xw.replace(/\/\/.*$/gm, '')), 'the crosswind probe\'s NaN ending is \'sim-diverged\' (42_crosswind.js)');
   const writers = [];
-  for (const f of ['src/viewer/app.js', 'src/viewer/bench.js', 'src/viewer/sim_host.js', 'src/viewer/sim_link.js', 'src/core/41_test_pilot.js', 'src/core/42_crosswind.js', 'src/core/43_pilot.js', 'src/core/65_gen_loadtest.js',
+  for (const f of ['src/viewer/app.js', 'src/viewer/bench.js', 'src/viewer/sim_host.js', 'src/viewer/sim_link.js', 'src/core/42_crosswind.js', 'src/core/43_pilot.js', 'src/core/65_gen_loadtest.js',
                    'tools/_bench_check.js', 'tools/pilot_trace.js', 'tools/arch_fly.js', 'tools/_simworker_edges_check.js'])
     for (const ln of src(f).split('\n')) {
       const code = ln.replace(/\/\/.*$/, '');
       // G1898.3: the one writer allowed is the structure's ending (DMG-D1b's refs-core, read off DMG.brokeUp)
       if (/['"]broke-up['"]/.test(code) && !(f === 'src/viewer/app.js' && /endFlight\(up \? 'broke-up' : 'crashed'\)/.test(code))) writers.push(f);
     }
-  yes(writers.length === 0, 'no code writes \'broke-up\' but the structure\'s ending (DMG.brokeUp): ' + (writers.length ? writers.join(', ') : 'none of the 12 readers / writers'));
+  yes(writers.length === 0, 'no code writes \'broke-up\' but the structure\'s ending (DMG.brokeUp): ' + (writers.length ? writers.join(', ') : 'none of the 11 readers / writers'));
   // the rig: the Cub's load test, a NaN thrown in mid-ramp
   const def = L.defOf('cub'), spec = def.spec, sim = C.makeSim(def, null); sim.reset(0);
   const rig = C.makeLoadTest(sim, def, { material: spec.fuselage && spec.fuselage.material, wingMaterial: C.genSurfKey ? C.genSurfKey(spec, 'wing', 0) : undefined, surface: 'wing', limit: C.GEN_LOAD_LIMIT, ult: C.GEN_LOAD_ULT });

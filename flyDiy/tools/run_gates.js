@@ -159,9 +159,23 @@ const GATES = [
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'SKIN', file: 'test_skin.js', tier: 'core' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js', tier: 'core', wall: 220 },
+  // G2104 (MOBILE-GARAGE 1): THE SAME SMOKE ON THE PHONE PROFILE (?profile=phone): the garage-only boot's steps in order,
+  // no world, no sim worker, no roll-out, the lightest preset; phone.css scoped to html.phone selector by selector
+  { id: 'UISMOKE-PHONE', file: 'test_ui_smoke.js', argv: ['--phone'], tier: 'core', wall: 60 },
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
+  // G1995-G1997 (HW-COVERAGE, the user's GTX 1660 Ti laptop: a 128 s garage load, 3-4 fps for 15 min, NO REVEAL): on a virtual
+  // clock - the boot watchdog never lifts a chain that still lands steps (keys alone are not progress; 5x hard the last
+  // resort); the runtime step-down (gfx_settings.js GFX.hw: one rung under 15 fps in the shed / on the ground, once a state,
+  // never an explicit pick, never a rig / localhost / ?gfx=); the recorder's reveal with no roll-out screen. ~2 s
+  { id: 'HWCOV', file: '_hwcov_check.js', tier: 'core', wall: 5 },
+  // G1996 (HW-COVERAGE): A LOADING SCREEN LIFTED BEFORE ITS CHAIN ENDED, on the page in node (_page_node.js, ROUNDTRIP's harness):
+  // fly (lifted at 'compile', Fly at once: the roll-out lands, the world drawn, a reveal - RED on train 35: 0 frames), stay (the
+  // shed drawn while the lifted chain ends, then Fly: lands with no screen, a reveal - RED on train 36: no reveal), hard (hard
+  // = 1 ms: never lifted while steps land), diag (?diag=quick to its report, the graphics restored). Four page runs ONE AT A
+  // TIME (~4 GB each), ~2 min each and the diag ~6 min
+  { id: 'BOOTLIFT', file: '_bootlift_check.js', tier: 'full', timeout: 3600_000, weight: 2, wall: 720 },
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
@@ -326,6 +340,14 @@ const GATES = [
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 480 },
+  // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
+  // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
+  // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
+  { id: 'SHEDSHADOW', file: '_shedshadow_check.js', tier: 'core', wall: 150 },
+  // G2074 (GARAGE-LAPTOP): the garage room's shell merged by material (hangar.js mergeRoom, render_world mergeShell's rules)
+  // is the same room - the same oriented world-space triangles per material, casts and order as its sources swapped back
+  // live; >= 300 fewer draws; every dressable part still worn; the exterior and opts.merge false untouched
+  { id: 'ROOMMERGE', file: '_roommerge_check.js', tier: 'core', wall: 150 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a
@@ -544,7 +566,9 @@ const GATES = [
   // water terms against the fleet's envelope, the hump on three tows, the
   // touchdown's drag climbing over frames (~30 s)
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
-  { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  { id: 'WATER', file: '_water_check.js', tier: 'core' },
+  { id: 'WETFX', file: '_wetfx_check.js', tier: 'core' },   // G2090 WATER-LOOK: the wet body's contacts for the spray / wake / bubbles - write-only (the base's bits), the records, the worker's path   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  { id: 'WETFX-PAGE', file: '_wetfx_page_check.js', tier: 'full', weight: 2, wall: 300 },   // G2090: the page in node over a wheeled ditch - the pool hidden when dry, the splash / plough / field, warmed programs, no error
   // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
@@ -711,7 +735,7 @@ for (const g of selected) {
     const key = n > 1 ? `${g.id}/${i}` : g.id;
     const rec = wallTab[key] && wallTab[key][mode];
     jobList.push({ gate: g, key, shard: n > 1 ? { i, n } : null,
-                   argv: n > 1 ? [`--shard=${i}/${n}`] : [],
+                   argv: (n > 1 ? [`--shard=${i}/${n}`] : []).concat(g.argv || []),   // G2104: a row's own arguments (UISMOKE-PHONE)
                    weight: Math.min(jobs, g.weight || 1),
                    expect: rec != null ? rec : (g.wall || 5) / n });
   }

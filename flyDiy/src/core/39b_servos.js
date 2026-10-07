@@ -24,6 +24,9 @@
 // tail-down rudder stop rising with speed, the gains scaled by the mass), the
 // aileron into the wind on the ground (2026-09-08), the water branch (H4) and
 // the water's elevator top (G396.2). 40 and 41 run with them off.
+// G1940 (PILOT-ONE): 40 and 41 RETIRED - 43 is the one pilot and flies every
+// feature on; the flags stay as the seams a personality (G1943) or a gate
+// may switch, and the history above is why the module exists.
 //
 // THE GAINS ARE ONE TABLE (SERVO_GAINS). A per-aeroplane key in
 // def.params.ap (genTuneAP writes rollP, pitchD, ...) wins over the table, as
@@ -75,6 +78,9 @@ const SERVO_GAINS = {
   // trike crosswind's pursuit from 14.2 to 10.1 deg and the C172's climb-out from the mill clear of house3 again
   steerI: 1.0, steerIMax: 0.25,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
+  // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
+  // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
+  waterStepK: 1,
   gAilP: 2.0, gAilD: 1.0, gBankDb: 0.010, gRateDb: 0.02, gAilTaxi: 0.25, gAilRoll: 0.30,
   xwBank: 0.06, xwBankGround: 0.035,
   // taxi
@@ -89,18 +95,24 @@ const SERVO_GAINS = {
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
   decrabBank: 0.12, xwArm: 0.5,
+  // G1937: THE STEP-ATTITUDE HOLD (servoStepHold): de = stepDe0 + stepK (stepTrim - trim) - stepD trim-rate, trim in
+  // deg, from stepV (m/s) on the step - DAMP's GATE FLOATS script law, owned here as a technique the gates call
+  stepDe0: 0.2, stepK: 0.04, stepD: 0.01, stepTrim: 6, stepV: 9,
+  // G1949 (PILOT-ONE-2): THE PITCH LIMIT CYCLE (S.holdPitch): in the air, an elevator swing of oscAmp or more between
+  // two reversals at most oscHalf s apart scores one; the score decays over oscWin s; at oscN the pitch gains step
+  // down by oscStep (oscKMin at least) and the score restarts
+  oscAmp: 0.15, oscHalf: 0.35, oscWin: 2.0, oscN: 4, oscStep: 0.85, oscKMin: 0.45,
 };
 
 // ONE TABLE PER PILOT (A0, 2026-10-04: the Deform Coordinator's DMG-DAMP fixes the
 // solver's rigid-rotation damping, review D1, and re-tunes after this lands): a
 // pilot's gains are SERVO_GAINS overlaid with its own row here. Every row is
 // EMPTY today — G1570 unified the laws and fixed B3-B7 without re-tuning a gain;
-// a re-tune writes the keys it moves into the pilot's row (40 = classic, 41 =
-// test, 43 = pilot), and a per-aeroplane key in def.params.ap still wins.
+// a re-tune writes the keys it moves into the pilot's row, and a per-aeroplane
+// key in def.params.ap still wins. G1940: the classic (40) and test (41) rows
+// retired with their pilots - every gate flies 43 and its row.
 const SERVO_TUNE = {
-  classic: {},     // 40_autopilot.js — every structural gate's circuit (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH)
-  test: {},        // 41_test_pilot.js — the bench's test flight, GATE MASS
-  pilot: {},       // 43_pilot.js — the game's pilot, PILOT / TAKEOFF / PILOTACT / SOAR / PILOTMATRIX / ARCHETYPES
+  pilot: {},       // 43_pilot.js — THE pilot: every flying gate (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH, PILOT, TAKEOFF, ...)
 };
 
 function servoWrapPi(a) { return a - 2 * Math.PI * Math.round(a / (2 * Math.PI)); }
@@ -139,11 +151,12 @@ function makeServos(sim, def, opts) {
     beta: 0, V: 0, Vg: 0, vy: 0, onG: 0, accF: 0, vsSlow: 0, out: null,
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
-    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0,
+    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
     eTrim: 0, drTrim: 0, gI: 0, gIT: -1e9, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
+  let oscPrev = null, oscDir = 0, oscExt = 0, oscT = -1e9;   // G1949: the elevator's last value, its direction, its last extremum and when
   let tgtHP = null, tgtMovedT = -1e9, vPrev = null, pend = false;
   let holdActive = false, holdWas = false;
 
@@ -224,8 +237,35 @@ function makeServos(sim, def, opts) {
     // water again (a second skip). G396.2's own reading: this lift-off asks
     // ~0.5 of stick. The water's top holds through LIFTOFF
     const deTop = FT.deTop ? FT.deTop(S.onG) : G.deMax;
-    c.de = clamp(g('pitchP') * S.pitchK * (S.thCA - th) - g('pitchD') * S.pitchDK * S.q + S.Ith, G.deMin, deTop);
+    const plain = S.pitchK === 1 && S.pitchDK === 1, kO = plain ? S.oscK : 1;   // G1949 (below): the plain loop's only
+    c.de = clamp(g('pitchP') * S.pitchK * kO * (S.thCA - th) - g('pitchD') * S.pitchDK * kO * S.q + S.Ith, G.deMin, deTop);
     if (S.deFloor > 0 && S.deFloor > c.de) c.de = S.deFloor;
+    // G1949 (PILOT-ONE-2, the owed FLEX settle): A PILOT WHO FEELS THE NOSE PUMP RELAXES THE GRIP. On the 6061 tube +
+    // Dacron build (GEN_DEFAULT, aluTube) THE PILOT's cruise held the elevator in a slew-limited triangle, +-0.29 at
+    // ~2.3 Hz, the pitch -0.3 <-> +5.8 deg at 36 m/s and the floppy wing riding it (FLEX's cruise hold 1.20 % p2p,
+    // was 0.17 on the classic): its tuned gains (genTuneAP: P 2.2, D 0.99) close a loop round the airframe's own
+    // bending. Halving D alone halved it; D 0.5 with P 1.5 left it dead quiet (0.001 / 0.04 deg; scratch flail).
+    // So in the air the FAST swings between the elevator's reversals are counted (oscAmp in under oscHalf: the
+    // structure's cycle reverses every ~0.22 s; the club profile's 0.25 s reaction pumps at ~0.5 s and is a pilot's,
+    // not the airframe's - counted, it backed the club's gains off in GATE INPUT's held bank, 120 deg / 44 deg of
+    // pitch on re-engage), decaying over oscWin, and at
+    // oscN of them the pitch gains step down by oscStep - the airframe that does not pump never scores, and its
+    // flight is the old one to the bit (oscK stays exactly 1)
+    // ...ONLY IN THE PLAIN LOOP: the flare's and the rotation's firmer gains (pitchK / pitchDK set by the pilot) reverse
+    // fast by design - counted, the Stearman's hold-off was backed off and it arrived at 1.49 m/s for 0.95 (PILOTMATRIX)
+    if (S.onG === 0 && plain) {
+      if (oscPrev !== null) {
+        const d = c.de - oscPrev, sg = d > 0 ? 1 : d < 0 ? -1 : 0;
+        if (sg !== 0 && oscDir !== 0 && sg !== oscDir) {
+          if (Math.abs(oscPrev - oscExt) >= G.oscAmp && S.t - oscT <= G.oscHalf) S.oscScore += 1;
+          oscExt = oscPrev; oscT = S.t;
+        }
+        if (sg !== 0) oscDir = sg;
+      }
+      oscPrev = c.de;
+      S.oscScore -= S.oscScore * S.dt / G.oscWin;
+      if (S.oscScore >= G.oscN) { S.oscK = Math.max(G.oscKMin, S.oscK * G.oscStep); S.oscScore = 0; }
+    } else { oscPrev = null; oscDir = 0; S.oscScore = 0; }
   };
   S.holdVS = (VSc, thMax = 0.16) => {
     S.vsF += g('vsFilt') * (S.vy - S.vsF);
@@ -435,7 +475,8 @@ function makeServos(sim, def, opts) {
       tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
       drMax = tailUp ? G.drTailUp : G.drTailDown;
     }
-    const [kP, kD] = S.steerK(tailUp);
+    const [kP0, kD] = S.steerK(tailUp);
+    const kP = (onWater && tailUp) ? kP0 * g('waterStepK') : kP0;   // G1937: DAMP's water-step entry (1 = unchanged)
     // G2080: THE GROUND'S RUDDER TRIM - the heading error's integral (the propeller's swirl and P-factor are a standing
     // yaw on the roll; P-D alone held it with a standing error: the metal Cessna rotated 4.1 deg off its heading),
     // forgotten when the steer was not flown a step ago, and handed to the air's slip trim so the lift-off is bumpless
@@ -497,7 +538,7 @@ function makeServos(sim, def, opts) {
 
   // ---- the servo slew, on the axes the pilot owns ----------------------------------
   S.slew = (ownV = true, ownL = true) => {
-    const sl = A.slew * S.dt;
+    const sl = A.slew * (S.slewK || 1) * S.dt;   // G1943: a profile's smoothness (unset: 1, the expert)
     if (ownV) { S.aDe += clamp(c.de - S.aDe, -sl, sl); c.de = S.aDe; } else S.aDe = c.de;
     if (ownL) {
       S.aDa += clamp(c.da - S.aDa, -sl, sl); c.da = S.aDa;
@@ -507,6 +548,19 @@ function makeServos(sim, def, opts) {
   // end of the pilot's update: holdPitch re-latches when the previous step did not call it
   S.endStep = () => { holdWas = holdActive; holdActive = false; };
   return S;
+}
+
+// G1937 (PILOT-ONE): THE STEP-ATTITUDE HOLD, a technique - the elevator that holds a planing hull at its trim:
+// de = stepDe0 + stepK (trimTgt - trim) - stepD q (trim and its rate q in deg, deg/s), clamped to the water's stick
+// [-0.30, deWater]. The Deform Coordinator's GATE FLOATS script flies exactly this from 9 m/s; a gate calls it
+// (or SV.stepHold) instead of keeping its own copy. THE PILOT does not fly it today: measured on the float builds
+// (scratch water_exp, law 'hold', between the step and the pull, with G1937's throttle ramp) it changed nothing on
+// the v7 twin (lift-off 28.2 vs 28.1 m/s), lifted the ultralight off later (21.2 vs 20.9) and SKIPPED the Wipline
+// C172 once (2 lifts, a 26.7 deg/s pitch rate) where the neutral stick lifts it off once - with the solver's
+// rigid-rotation damper present. `A.stepHold` (true) or a personality turns it on in ROLL (43)
+function servoStepHold(trimDeg, qDeg, gains) {
+  const G = Object.assign({}, SERVO_GAINS, gains || {});
+  return Math.max(G.deMin, Math.min(G.deWater, G.stepDe0 + G.stepK * ((gains && gains.trimTgt != null ? gains.trimTgt : G.stepTrim) - trimDeg) - G.stepD * qDeg));
 }
 
 // the CG's rest height over the ground in the design pose (sim.reset seats the

@@ -23,7 +23,7 @@
   if (W.FLYDIY_DIAG) return;
   const Q = (W.location && W.location.search) || '';
   const QUICK = /[?&]diag=quick/.test(Q);
-  const T = { SETTLE_MS: 2500, WIN_MS: 5000, LOAD_MS: 15 * 60000, SCREEN_MS: 180000 };
+  const T = { SETTLE_MS: 2500, WIN_MS: 5000, BASE_MS: 3000, LOAD_MS: 15 * 60000, SCREEN_MS: 180000, DRIFT: 0.15, PLATEAU: 0.10, PLATEAU_MAX: 6, VOID: 0.4 };
   const D = W.FLYDIY_DIAG = { state: 'waiting for the game', variants: [], report: null, T };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const now = () => performance.now();
@@ -54,7 +54,7 @@
     const base = D.variants.find(v => v.id === 'base');
     const rows = D.variants.map(v => '<tr' + (D.report && D.report.worst && D.report.worst.id === v.id ? ' class="worst"' : '') + '><td>' + esc(v.label) + '</td><td>' + (v.fps != null ? v.fps.toFixed(1) : '-') +
       '</td><td>' + (v.gpuMs != null ? v.gpuMs.toFixed(1) : '-') + '</td><td>' + (v.workMs != null ? v.workMs.toFixed(1) : '-') + '</td><td>' + (v.draws != null ? v.draws : '-') +
-      '</td><td>' + (v.mtris != null ? v.mtris.toFixed(2) : '-') + '</td><td>' + (base && v !== base && v.gpuMs != null && base.gpuMs != null ? (base.gpuMs - v.gpuMs).toFixed(1) : '') + '</td></tr>').join('');
+      '</td><td>' + (v.mtris != null ? v.mtris.toFixed(2) : '-') + '</td><td>' + (v.after && v.after.gpuMs != null && v.gpuMs != null ? ((v.after.gpuMs - v.gpuMs) >= 0 ? '' : '') + (v.after.gpuMs - v.gpuMs).toFixed(1) : '') + (v.void ? ' void' : v.drift ? ' drift' : '') + '</td></tr>').join('');
     el.innerHTML = '<table><tr><th>variant</th><th>fps</th><th>GPU ms</th><th>JS ms</th><th>draws</th><th>M tris</th><th>saves</th></tr>' + rows + '</table>';
   }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -85,9 +85,11 @@
   const nameOf = r => (r.name || (r.isMesh || r.isInstancedMesh ? (r.type + ':' + ((r.material && (r.material.name || r.material.type)) || '')) : r.type)) || '?';
   const ownerOf = o => { const path = []; let p = o; while (p && p.parent) { path.unshift(p); p = p.parent; } return path.find(n => n.name) || path[0] || o; };
   const keyOf = o => nameOf(ownerOf(o)).replace(/[#_ :.-]?\d+$/, '');
+  const CEN_SCENES = new Set();
   async function census() {
     const R = W.FLIGHT_PROBE && W.FLIGHT_PROBE.renderer && W.FLIGHT_PROBE.renderer(); if (!R) return null;
     const byOwner = {}, byTarget = {}; let target = 'canvas';
+    CEN_SCENES.clear();   // (G1997b: the laptop's big owners - the shed's props, the parked aeroplanes - live outside WORLD.scene)
     const rbd = R.renderBufferDirect, srt = R.setRenderTarget;
     R.setRenderTarget = function (t) { target = t ? (t.width + 'x' + t.height + (t.samples ? ' s' + t.samples : '') + (t.isWebGLCubeRenderTarget ? ' cube' : '')) : 'canvas'; return srt.apply(this, arguments); };
     R.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
@@ -97,7 +99,7 @@
         let inst = object.isInstancedMesh ? object.count : (geometry.isInstancedBufferGeometry ? geometry.instanceCount : 1); if (!(inst >= 0) || inst === Infinity) inst = 1;
         const tris = object.isMesh && !material.wireframe ? n / 3 * inst : 0;
         const add = (M, k) => { const e = M[k] || (M[k] = { draws: 0, ktris: 0 }); e.draws++; e.ktris += tris / 1000; };
-        add(byOwner, keyOf(object)); add(byTarget, target);
+        add(byOwner, keyOf(object)); add(byTarget, target); if (scene && scene.isScene) CEN_SCENES.add(scene);
       } catch (e) {}
       return rbd.apply(this, arguments);
     };
@@ -131,6 +133,11 @@
     const v = Object.assign({ id, label }, m, err ? { err } : {});
     try { if (undo) await undo(); } catch (e) { v.err = (v.err ? v.err + '; ' : '') + 'undo: ' + (e && e.message); }
     await screensDone();
+    // G1997b THE BRACKET (the laptop's report, 6 Oct: the rows drifted 228 -> 68 ms mid-run - a card changing state, or the
+    // ground broken by a live switch back - and every delta after it was confounded): a short window of the picture AS IT IS
+    // after each row's undo; the row's delta is against the mean of the bases either side of it, and a row whose two bases
+    // differ by more than DRIFT is flagged (its delta is not trusted)
+    if (apply || undo) { hold(); await sleep(T.SETTLE_MS * 0.6); hold(); const R2 = REC(), g0 = R2 ? R2.frame : 0; await sleep(T.BASE_MS); v.after = readFrom(g0) || {}; }
     D.variants.push(v); table();
     return v;
   }
@@ -224,7 +231,11 @@
       gl.disable(gl.BLEND);
       // ~1 s of sustained load first: the clocks a game's own load would hold (a card stuck low under load still reads low)
       { const t0 = now(); while (now() - t0 < 1000) { draw(pALU, vaoQ, fb8, 4, T3); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px1); } }
-      const A = await test(n => () => draw(pALU, vaoQ, fb8, n, T3), 8);   // n x 1 M px x 512 iterations x 24 flops (an index: a compiler fuses some)
+      // (G1997b THE PLATEAU: the ALU test again until two runs agree within 10 %, 4 at most - a card ramping its clocks shows as a series)
+      let A = await test(n => () => draw(pALU, vaoQ, fb8, n, T3), 8);   // n x 1 M px x 512 iterations x 24 flops (an index: a compiler fuses some)
+      out.aluSeries = [A.ms];
+      for (let k = 0; k < 3; k++) { const B2 = await test(n => () => draw(pALU, vaoQ, fb8, n, T3), A.n); out.aluSeries.push(B2.ms); const ok = A.ms && B2.ms && Math.abs(B2.ms - A.ms) / A.ms < 0.1; A = B2; if (ok) break; }
+      out.aluSeries = out.aluSeries.map(r1);
       out.aluMs = r1(A.ms); out.aluN = A.n; out.alu = A.ms ? Math.round(A.n * N * N * ITER * 24 / (A.ms * 1e6)) : null;   // 'GFLOP/s'
       gl.bindTexture(gl.TEXTURE_2D, tex);
       const X2 = await test(n => () => draw(pTEX, vaoQ, fb8, n, T3), 4);
@@ -281,20 +292,32 @@
     say('counting the frame by owner…');
     const cen = await census();
     // the plan
-    const V = [{ id: 'base0', label: 'as it is (settling - not scored)' }, { id: 'base', label: 'as it is (' + (orig ? orig.preset : '?') + ')' }];
-    const rows = [['shadows', 'off'], ['glare', 'off'], ['cover', 'off'], ['mist', 'off'], ['ground', 'plain'], ['terrain', 6], ['scenery', 'low'],
+    // G1997b THE PLATEAU: base windows until two running agree within PLATEAU (a card's clocks settle under load; the
+    // laptop's first window read 95 ms, the next 228) - at most PLATEAU_MAX, the last one kept as the opening base
+    say('warming up to a steady frame…');
+    D.plateau = [];
+    for (let i = 0; i < T.PLATEAU_MAX; i++) {
+      hold(); const R0 = REC(), p0 = R0 ? R0.frame : 0; await sleep(T.BASE_MS); const m = readFrom(p0) || {};
+      const x = m.gpuMs != null ? m.gpuMs : m.medMs; D.plateau.push(r1(x));
+      const n = D.plateau.length; if (n >= 2 && D.plateau[n - 2] > 0 && Math.abs(x - D.plateau[n - 2]) / D.plateau[n - 2] <= T.PLATEAU) break;
+    }
+    const V = [{ id: 'base', label: 'as it is (' + (orig ? orig.preset : '?') + ')' }];
+    // (the rows that switch the GROUND live - ground plain, the presets below - go LAST, after base2: GROUND-COST's find, 6 Oct:
+    // switched back to lean live, the ground drew flat and nearly free, and every row after it measured a broken picture)
+    const rows = [['shadows', 'off'], ['glare', 'off'], ['cover', 'off'], ['mist', 'off'], ['terrain', 6], ['scenery', 'low'],
                   ['rails', 'off'], ['poles', 'off'], ['clouds', 'off'], ['water', 'simple'], ['mirror', 'off'], ['aa', 'off'], ['bloom', 'off'], ['eye', 'off'], ['scale', 0.5]];
     for (const [k, v] of rows) { const r = rowV(k, v); if (!r.skip()) V.push(r); }
     if (!QUICK) {
       V.push({ id: 'catcher=off', label: 'frame catcher off (its copy + query)', skip: () => !(W.POST_FX && W.POST_FX.catcher && W.POST_FX.catcher.on),
         apply: () => { W.POST_FX.catcher.on = false; }, undo: () => { W.POST_FX.catcher.on = true; } });
-      // the biggest owners of the frame's triangles and draws, each hidden (the census's keys; at most 8)
-      const WS = W.WORLD && W.WORLD.scene;
-      if (cen && WS) {
+      // the biggest owners of the frame's triangles and draws, each hidden (the census's keys; at most 8) - in every scene the
+      // census saw drawn (G1997b: the laptop's big owners were the shed's and the parked aeroplanes', not WORLD.scene's)
+      const WSS = CEN_SCENES.size ? [...CEN_SCENES] : (W.WORLD && W.WORLD.scene ? [W.WORLD.scene] : []);
+      if (cen && WSS.length) {
         const tot = Object.values(cen.byOwner).reduce((a, e) => ({ d: a.d + e.draws, t: a.t + e.ktris }), { d: 0, t: 0 });
         const big = Object.entries(cen.byOwner).filter(([k, e]) => e.ktris >= 0.03 * tot.t || e.draws >= 0.05 * tot.d).slice(0, 8).map(([k]) => k);
         for (const k of big) {
-          const set = new Set(); WS.traverse(o => { if ((o.isMesh || o.isLine || o.isPoints) && keyOf(o) === k) set.add(ownerOf(o)); }); const list = [...set];   // (the census's owner nodes)
+          const set = new Set(); for (const WS of WSS) WS.traverse(o => { if ((o.isMesh || o.isLine || o.isPoints) && keyOf(o) === k) set.add(ownerOf(o)); }); const list = [...set];   // (the census's owner nodes)
           if (!list.length) continue;
           let was = null;
           V.push({ id: 'hide:' + k, label: 'hidden: ' + k, apply: () => { was = list.map(o => o.visible); list.forEach(o => { o.visible = false; }); }, undo: () => { list.forEach((o, i) => { o.visible = was[i]; }); } });
@@ -304,19 +327,27 @@
       if (craft) V.push({ id: 'hide:craft', label: 'hidden: the aeroplane', apply: () => { craft.visible = false; }, undo: () => { craft.visible = true; } });
       V.push({ id: 'timer=off', label: 'GPU timer off (frame time only)', skip: () => !(W.FLIGHT_REC && W.FLIGHT_REC.gpuTimer && W.FLIGHT_REC.gpuTimer()),
         apply: () => W.FLIGHT_REC.gpuTimer(false), undo: () => W.FLIGHT_REC.gpuTimer(true) });
-      const ORDER = ['laptop', 'potato', 'retro', 'current', 'gamer', 'ultra'], i = orig ? ORDER.indexOf(orig.preset) : -1;
-      for (let j = i - 1; j >= 0 && j >= i - 2; j--) { const p = ORDER[j]; V.push({ id: 'preset=' + p, label: 'preset ' + p, apply: () => gfxSet('preset', p), undo: () => restoreGfx() }); }
     }
     V.push({ id: 'base2', label: 'as it is, again (drift)' });
+    // LAST: what switches the ground live (its bracket bases say whether the picture came back - VOID when it did not)
+    { const r = rowV('ground', 'plain'); if (!r.skip()) { r.live = true; V.push(r); } }
+    if (!QUICK) {
+      const ORDER = ['laptop', 'potato', 'retro', 'current', 'gamer', 'ultra'], i = orig ? ORDER.indexOf(orig.preset) : -1;
+      for (let j = i - 1; j >= 0 && j >= i - 2; j--) { const p = ORDER[j]; V.push({ id: 'preset=' + p, label: 'preset ' + p, live: true, apply: () => gfxSet('preset', p), undo: () => restoreGfx() }); }
+    }
     const plan = V.filter(v => !v.skip || !v.skip());
     D.plan = plan.length;
-    for (const v of plan) await measure(v.id, v.label, v.apply, v.undo);
-    restoreGfx();
+    // the card itself at the START too (G1997b: a card that changes state mid-run shows as two different calibrations)
     say('measuring the graphics card itself (the game paused, about 15 s)…');
+    let b0 = null; try { b0 = await benchMuted(); } catch (e) { b0 = { err: String(e && e.message) }; }
+    for (const v of plan) { await measure(v.id, v.label, v.apply, v.undo); if (v.live) D.variants[D.variants.length - 1].live = true; }
+    restoreGfx();
+    say('measuring the graphics card itself again (the game paused, about 15 s)…');
     let b = null; try { b = await benchMuted(); } catch (e) { b = { err: String(e && e.message) }; }
     if (G() && G().hw && G().hw.hold) G().hw.hold(false);
     D.report = report(cen, loadS);
-    D.report.bench = b;
+    D.report.bench = b; D.report.benchStart = b0;
+    if (b && b0 && b.alu && b0.alu) D.report.benchDrift = +(b.alu / b0.alu).toFixed(3);   // 1: the card was the same at both ends
     try { W.localStorage.setItem('flydiy.diag.last', JSON.stringify(D.report)); } catch (e) {}
     table(); say('done - ' + (D.report.worst ? 'the worst offender: ' + D.report.worst.label + ' (saves ' + D.report.worst.saves + ' ms of ' + D.report.worst.of + ')' : 'no single offender') + '. Download the report and send it.');
     button('download report (.json)', () => download('flydiy-diag-' + stamp() + '.json', JSON.stringify(D.report, null, 1), 'application/json'));
@@ -344,11 +375,26 @@
   function report(cen, loadS) {
     const base = D.variants.find(v => v.id === 'base') || {};
     const useGpu = base.gpuMs != null;
+    const val = m => (m ? (useGpu ? m.gpuMs : m.medMs) : null);
+    // THE BRACKET: each row against the mean of the base before it (the previous row's `after`, else the opening base) and its
+    // own `after`; DRIFT between the two -> not trusted; a LIVE row whose `after` fell by VOID or more -> the picture did not come
+    // back (the ground's live switch): void, and so is every row after it
+    let prev = val(base), voidFrom = null;
+    for (const v of D.variants) {
+      const a = val(v.after), x = val(v);
+      v.bracket = prev != null && a != null ? (prev + a) / 2 : prev;
+      v.delta = v.bracket != null && x != null ? v.bracket - x : null;
+      v.drift = prev != null && a != null && prev > 0 ? Math.abs(a - prev) / prev > T.DRIFT : false;
+      if (v.live && prev != null && a != null && a < (1 - T.VOID) * prev && voidFrom == null) voidFrom = v.id;
+      if (voidFrom != null) v.void = true;
+      if (a != null) prev = a;
+    }
+    const b2 = D.variants.find(v => v.id === 'base2');
+    const runDrift = b2 && val(base) && val(b2) ? +((val(b2) - val(base)) / val(base)).toFixed(3) : null;
     let worst = null;
     for (const v of D.variants) {
-      if (/^(base|base0|base2|timer=off|preset=)/.test(v.id)) continue;
-      const s = useGpu ? (v.gpuMs != null ? base.gpuMs - v.gpuMs : null) : (v.medMs != null && base.medMs != null ? base.medMs - v.medMs : null);
-      if (s != null && (!worst || s > worst.s)) worst = { s, v };
+      if (/^(base|base2|timer=off|preset=)/.test(v.id) || v.drift || v.void) continue;
+      if (v.delta != null && (!worst || v.delta > worst.s)) worst = { s: v.delta, v };
     }
     const BL = []; if (W.BOOT && W.BOOT.log) for (const e of W.BOOT.log) { if (e.k === 'show') break; if (e.k === 'step' && e.ms != null) BL.push({ id: e.id, ms: e.ms, at: e.t }); }   // the garage boot's (a lifted chain's tail included)
     const ua = W.navigator.userAgent, chrome = /Chrome\/([\d.]+)/.exec(ua);
@@ -362,8 +408,10 @@
       gl: glInfo(), gfx: orig, budget: W.GFX && W.GFX.budget ? W.GFX.budget() : null, hwstep: W.GFX && W.GFX.hw ? W.GFX.hw.state() : null,
       pace: W.FLYDIY_PACE && W.FLYDIY_PACE.state ? W.FLYDIY_PACE.state() : null,
       load: { seconds: r1(loadS), steps: BL }, census: cen,
-      variants: D.variants.map(v => ({ id: v.id, label: v.label, frames: v.frames, fps: r1(v.fps), medMs: r1(v.medMs), p90Ms: r1(v.p90Ms), gpuMs: r1(v.gpuMs), gpuN: v.gpuN, workMs: r1(v.workMs), draws: v.draws, mtris: v.mtris != null ? Math.round(v.mtris * 100) / 100 : null, err: v.err })),
-      worst: worst ? { id: worst.v.id, label: worst.v.label, saves: r1(worst.s), of: r1(useGpu ? base.gpuMs : base.medMs), by: useGpu ? 'GPU ms' : 'frame ms' } : null,
+      variants: D.variants.map(v => ({ id: v.id, label: v.label, frames: v.frames, fps: r1(v.fps), medMs: r1(v.medMs), p90Ms: r1(v.p90Ms), gpuMs: r1(v.gpuMs), gpuN: v.gpuN, workMs: r1(v.workMs), draws: v.draws, mtris: v.mtris != null ? Math.round(v.mtris * 100) / 100 : null, err: v.err,
+        after: v.after ? { gpuMs: r1(v.after.gpuMs), medMs: r1(v.after.medMs), frames: v.after.frames } : null, bracket: r1(v.bracket), delta: r1(v.delta), drift: !!v.drift, void: !!v.void, live: !!v.live })),
+      plateau: D.plateau || null, runDrift,
+      worst: worst ? { id: worst.v.id, label: worst.v.label, saves: r1(worst.s), of: r1(worst.v.bracket), by: useGpu ? 'GPU ms' : 'frame ms' } : null,
     };
   }
   function text(R) {
@@ -376,13 +424,18 @@
     L.push('load steps: ' + R.load.steps.map(s => s.id + ' ' + (s.ms / 1000).toFixed(1)).join(', '));
     if (R.census) L.push('the frame by owner (draws / k tris): ' + Object.entries(R.census.byOwner).slice(0, 12).map(([k, v]) => k + ' ' + v.draws + '/' + v.ktris).join(', '));
     L.push('');
-    L.push(['variant', 'fps', 'frame ms', 'GPU ms', 'JS ms', 'draws', 'M tris'].join('\t'));
-    for (const v of R.variants) L.push([v.label, v.fps, v.medMs, v.gpuMs, v.workMs, v.draws, v.mtris].join('\t') + (v.err ? '\t' + v.err : ''));
+    L.push('warm-up to a plateau (' + (useGpuR(R) ? 'GPU' : 'frame') + ' ms per 3 s window): ' + (R.plateau || []).join(', ') + (R.runDrift != null ? ' · as it is, start to end: ' + (R.runDrift >= 0 ? '+' : '') + Math.round(100 * R.runDrift) + ' %' : ''));
+    if (R.benchDrift != null) L.push('the card at the start and at the end: ALU x ' + R.benchDrift + (Math.abs(R.benchDrift - 1) > 0.25 ? ' - THE CARD CHANGED STATE DURING THE TEST' : ''));
+    L.push(['variant', 'fps', 'frame ms', 'GPU ms', 'JS ms', 'draws', 'M tris', 'as-is after', 'saves', 'flag'].join('\t'));
+    for (const v of R.variants) L.push([v.label, v.fps, v.medMs, v.gpuMs, v.workMs, v.draws, v.mtris, v.after ? (v.after.gpuMs != null ? v.after.gpuMs : v.after.medMs) : '', v.delta != null ? v.delta : '',
+      v.void ? 'VOID (the picture did not come back after a live switch)' : v.drift ? 'DRIFT (the bases either side differ > 15 %)' : ''].join('\t') + (v.err ? '\t' + v.err : ''));
     L.push('');
-    if (R.bench) L.push('THE CARD ITSELF: ' + benchWords(R.bench));
+    if (R.benchStart) L.push('THE CARD ITSELF, at the start: ' + benchWords(R.benchStart));
+    if (R.bench) L.push('THE CARD ITSELF' + (R.benchStart ? ', at the end' : '') + ': ' + benchWords(R.bench));
     L.push(R.worst ? 'WORST OFFENDER: ' + R.worst.label + ' - saves ' + R.worst.saves + ' of ' + R.worst.of + ' ' + R.worst.by : 'no single offender');
     return L.join('\n');
   }
+  const useGpuR = R => !!(R.variants && R.variants[0] && R.variants[0].gpuMs != null);
   function benchWords(b) {
     if (!b || b.err) return 'the calibration failed (' + (b && b.err) + ')';
     return 'ALU ' + b.alu + ' GFLOP/s, texture ' + b.tex + ' Gtexel/s, tiny triangles ' + b.tri + ' Mtri/s, blend fill ' + b.fill + ' Gpix/s' +

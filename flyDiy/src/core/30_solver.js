@@ -1331,7 +1331,12 @@ function makeSim(def, world) {
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
   // that the pilots never read or write: the player's levers over the
   // pilot's one throttle.
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null };
+  // G1938 (PILOT-ONE, the user's ruling 2026-10-05): `brakeD` is the DIFFERENTIAL brake, -1..1 - the toe brakes
+  // split: > 0 brakes the main on +z of the built pose harder and the other less, and yaws the aeroplane the way
+  // a positive rudder (dr > 0) does - measured, scratch pivot. A main's brake is clamp(brake + side x brakeD, 0, 1); brakeD 0 (every caller before
+  // this) is the symmetric brake to the bit. The pivot turn at the end of a one-way strip needs it: on the
+  // tailwheel's steering alone the user's Cub turns on a 9.4 m radius, and East Point is 12 m wide
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0 };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
@@ -1869,7 +1874,7 @@ function makeSim(def, world) {
     let minC = Infinity;
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
-    ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
+    ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
     ctl.eng = null;                                  // G194: every lever back to full
     // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
     // airframe AFTER reset — a strip at heading 0 is the built pose turned
@@ -2683,7 +2688,9 @@ function makeSim(def, world) {
         const su = world && world.surface
           ? (GROUND_SURF[world.surface(p[i3], p[i3+2])] || GROUND_DEF)
           : GROUND_DEF;
-        const muR = su[0] + (isMain ? ctl.brake * su[1] : 0);
+        // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
+        const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
+        const muR = su[0] + (isMain ? bkI * su[1] : 0);
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
         // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
         // was never physical rolling — and it turned out to be load-bearing
@@ -3095,6 +3102,9 @@ function makeSim(def, world) {
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
+           // G2090 (WATER-LOOK): the wet body's contacts for the page's spray / wake / bubbles (32_hydro.js wetFx; reading
+           // clears the slam peaks it hands over); null while no wet body was ever built
+           wetFx: dst => (WB && HYDRO.wetFx ? HYDRO.wetFx(WB, dst) : null),
            trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither

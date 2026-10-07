@@ -81,7 +81,8 @@ function pilots(o) {
     const home = W.aerodromes.find(a => a.id === 'HOME'), sea = W.aerodromes.find(a => a.id === 'SEA');
     const wetAll = W.aerodromes.filter(a => a.kind === 'water');
     for (const [gn, def] of [['cub', o.defCub], ['floats', o.defFloats], ['amphibian', o.defAmph]]) {
-      for (const [pn, mk] of [['pilot', (s, d, w) => C.makePilot(s, d, w, {})], ['classic', C.makeAutopilot], ['test', C.makeTestPilot]]) {
+      // G1940 (PILOT-ONE): ONE pilot - the classic and the test pilot retired (their two rows went with them)
+      for (const [pn, mk] of [['pilot', (s, d, w) => C.makePilot(s, d, w, {})]]) {
         const sim = C.makeSim(def, W), ap = mk(sim, def, W);
         const tag = wn + ' ' + gn + ' ' + pn + ': ';
         const says = () => ((ap.report && ap.report.verdicts) || []).some(v => v.code === 'wrong-surface');

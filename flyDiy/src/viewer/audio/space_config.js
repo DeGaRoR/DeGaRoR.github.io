@@ -46,6 +46,16 @@ var SPACE_CONFIG = (function () {
   const C0 = 343;   // m/s when the block has none
   // the octave centres the cabin's insulation is the mean over (the speech / engine-note band: MSFS's one number)
   const INSUL_F = [250, 500, 1000, 2000];
+  // G1721 (SND-MIX) THE PROP'S TONE IN THE CABIN, dB under the rest of the group. In a direct drive the blade passage of a
+  // two-blade prop IS the flat four's firing frequency (2 per rev), and the two voices are phase-locked by construction (one
+  // shaft) at an angle each session draws by chance (the crank's seeded start, the prop node's start a block or more apart).
+  // Summed in the cabin at like levels they cancel at bad angles: measured over 12 starting angles, full power and cruise,
+  // the Jodel and the Cub, -10 to -13 dB under the power sum at two of them, -2 to -5 at three (tools/audio/mix_render.js;
+  // reports/evidence/SND-MIX) - the laptop's "much too faint" engine can be a session's draw. A real cabin hears the two
+  // through different paths (the cowl, the windshield, the structure) that never null; this keeps the tonal 10 dB under the
+  // exhaust inside, which bounds the interference to +2.4 / -3.3 dB whatever the angle. Outside the directivity does it
+  // (the tonal's lobe is not where the exhaust's is). The broadband part is noise: it never cancels, it is not trimmed.
+  const CABIN_TONAL_DB = -10;
 
   // ---- THE CABIN BY CONSTRUCTION (ruling s5) --------------------------------------------------------------------
   // [insulation dB, high-shelf Hz, shelf dB, low-pass Hz, boom dB, boom Q, ambience duck dB]
@@ -420,7 +430,7 @@ var SPACE_CONFIG = (function () {
     return out;
   }
 
-  return { CABIN_CLASSES, MATERIAL_CLASS, INSUL_F, cabinClassOf, cabinTransfer, biquadCoefs, biquadDb, chainDb, meanDb,
+  return { CABIN_CLASSES, MATERIAL_CLASS, INSUL_F, CABIN_TONAL_DB, cabinClassOf, cabinTransfer, biquadCoefs, biquadDb, chainDb, meanDb,
            headsetCurve, headsetMeanDb, headsetK, dopplerFactor, airAbsorptionHz, directivity, dopplerAt, absorbAt, dirAt, ringAtSlot,
            DIR_EXHAUST, DIR_TONAL, DIR_BROAD, DIR_OMNI, TONAL_A, TONAL_FLOOR, RW, ringMake, ringPush, ringReset, ringAt,
            retardedSolve, XFADE_S, xfadeCurve, OCT, ALPHA, AIR_4M, SHELL_MAT, hangarAcoustics, hangarIR, measureRT60,

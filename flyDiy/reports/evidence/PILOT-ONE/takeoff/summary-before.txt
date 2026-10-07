@@ -1,0 +1,7 @@
+cub     wheels  Vs 16.0  VRot 16.2  Vr 16.2 (1.02 Vs, th 3.2)  Vlof 17.2 (1.08 Vs, th 4.2)  lifts 1 (first at 17.2)  touch-after 0  qMax -4.8 deg/s at 15.7  run 106 m  to-15m 216 m  trim 3.2..9.0   
+jodel   wheels  Vs 18.8  VRot 18.7  Vr 18.7 (1.00 Vs, th 7.2)  Vlof 20.8 (1.11 Vs, th 9.6)  lifts 1 (first at 20.8)  touch-after 0  qMax -6.4 deg/s at 16.6  run 178 m  to-15m 298 m  trim 7.2..15.5   
+c172    wheels  Vs 24.4  VRot 24.8  Vr 24.8 (1.02 Vs, th -0.5)  Vlof 27.4 (1.12 Vs, th 10.9)  lifts 1 (first at 27.4)  touch-after 0  qMax 7.7 deg/s at 26.9  run 261 m  to-15m 431 m  trim -0.8..13.7   
+c172f   water  Vs 26.1  VRot 26.5  Vr - (0.00 Vs, th -)  Vlof - (0.00 Vs, th -)  lifts 0 (first at -)  touch-after 0  qMax 1.0 deg/s at 5.0  run - m  to-15m - m  trim 4.6..6.1   
+wip     water  Vs 24.6  VRot 24.9  Vr 24.9 (1.02 Vs, th 0.9)  Vlof 27.7 (1.13 Vs, th 4.9)  lifts 1 (first at 27.7)  touch-after 0  qMax -9.7 deg/s at 16.8  run 344 m  to-15m 483 m  trim 0.9..13.2   
+ultraf  water  Vs 16.1  VRot 16.2  Vr 16.3 (1.01 Vs, th 0.1)  Vlof 20.9 (1.30 Vs, th 3.3)  lifts 1 (first at 20.9)  touch-after 0  qMax 14.6 deg/s at 6.7  run 83 m  to-15m 178 m  trim -2.9..12.9   
+twinf   water  Vs 18.4  VRot 18.7  Vr - (0.00 Vs, th -)  Vlof - (0.00 Vs, th -)  lifts 0 (first at -)  touch-after 0  qMax -91.1 deg/s at 5.1  run - m  to-15m - m  trim -65.9..23.3   

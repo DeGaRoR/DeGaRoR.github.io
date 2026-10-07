@@ -1,6 +1,6 @@
 // GATE STRESS — full-deflection abuse of the GARAGE BUILD at cruise (the
 // seven fiches flew it too until the fleet retired, 2026-09-05).
-const { buildGen, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+const { buildGen, makeSim, makePilot, makeWorld } = require('./flight_core.js');
 const world = makeWorld();
 function stress(name, build, tipTag, tipZ, midZ, flapLim) {
   const def = build();
@@ -8,11 +8,11 @@ function stress(name, build, tipTag, tipZ, midZ, flapLim) {
   sim.reset(0);
   const iM = def.nodes.findIndex(n => n.tag === tipTag && Math.abs(n.p[2] - midZ) < 0.1 && n.p[2] > 0);
   const iT = def.nodes.findIndex(n => n.tag === tipTag && Math.abs(n.p[2] - tipZ) < 0.1 && n.p[2] > 0);
-  const ap = makeAutopilot(sim, def);
-  // fly to cruise
+  // G1940 (PILOT-ONE): THE PILOT flies it to the cruise (its DOWNWIND: the classic's CRUISE retired with it)
+  const ap = makePilot(sim, def);
   let t = 0;
-  while (ap.phase !== 'CRUISE' && t < 120) { ap.update(1/60); sim.step(1/60); t += 1/60; }
-  if (ap.phase !== 'CRUISE') { console.log(`${name}: never reached cruise`); return false; }
+  while (ap.phase !== 'DOWNWIND' && t < 120) { ap.update(1/60); sim.step(1/60); t += 1/60; }
+  if (ap.phase !== 'DOWNWIND') { console.log(`${name}: never reached cruise`); return false; }
   let flapMin = 99, flapMax = -99, bad = false;
   const measure = () => {
     const [xB, yB, zB] = sim.axes();

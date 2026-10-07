@@ -61,6 +61,9 @@
       if (!ready) return;
       if (P.def !== def) build(P);
       const t = ctx.currentTime + (A.lagS ? A.lagS[0] : 0);   // SND-SPACE: heard when its sound arrives
+      // G1724: the frame's tau (audio.js tauS: 30 ms at 60 fps, up to 250 ms at 3-4 fps) - a lever that moves between frames
+      // 0.3 s apart glides into its next value instead of a 30 ms step each frame (the load is the combustion's strength)
+      const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;
       for (let k = 0; k < voices.length; k++) {
         const v = voices[k], i = v.i, o = k * 6;
         const running = (+P.running[i] || 0) > 0;
@@ -72,8 +75,8 @@
         const vals4 = (+P.s[P.I.starved] || 0) > 0 ? 1 : 0;
         const vals5 = running ? Math.max(0, 1 - runS[k] / 240) : 0;
         // schedule only what moved (a steady frame schedules nothing)
-        if (Math.abs(vals0 - last[o]) > 0.5) { v.params[0].setTargetAtTime(vals0, t, TAU); last[o] = vals0; }
-        if (Math.abs(vals1 - last[o + 1]) > 0.002) { v.params[1].setTargetAtTime(vals1, t, TAU); last[o + 1] = vals1; }
+        if (Math.abs(vals0 - last[o]) > 0.5) { v.params[0].setTargetAtTime(vals0, t, tau); last[o] = vals0; }
+        if (Math.abs(vals1 - last[o + 1]) > 0.002) { v.params[1].setTargetAtTime(vals1, t, tau); last[o + 1] = vals1; }
         if (vals2 !== last[o + 2]) { if (vals2 && last[o + 2] === 0) A.emit('engine', 'catch'); v.params[2].setValueAtTime(vals2, t); last[o + 2] = vals2; }   // G1672: the music ducks under a start
         if (vals3 !== last[o + 3]) { if (vals3) A.emit('engine', 'start'); v.params[3].setValueAtTime(vals3, t); last[o + 3] = vals3; }
         if (vals4 !== last[o + 4]) { v.params[4].setValueAtTime(vals4, t); last[o + 4] = vals4; }

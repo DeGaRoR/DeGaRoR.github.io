@@ -131,7 +131,7 @@
     // the throwaway context: a detached canvas (no listener of the page sees its loss), let go at once
     try {
       const c = W.document.createElement('canvas');
-      const gl = c.getContext('webgl2', { failIfMajorPerformanceCaveat: false });
+      const gl = c.getContext('webgl2', { failIfMajorPerformanceCaveat: false, powerPreference: 'high-performance' });   // (G1997b: the card the game will use)
       if (gl) {
         env.webgl2 = true;
         const ext = gl.getExtension('WEBGL_debug_renderer_info');
@@ -157,6 +157,8 @@
     if (isLocal(host) && !force('welcome', q) && !force('devgate', q)) { out.why = 'localhost (a rig or a dev server)'; return out; }
     if (/[?&]gfx=[a-z]/.test(q) && !force('welcome', q) && !force('devgate', q)) { out.why = '?gfx= chose the preset'; return out; }
     let rec = null; try { rec = JSON.parse(read(store, KEY) || 'null'); } catch (e) {}
+    // G2100 (MOBILE-GARAGE 1): "Build on this phone" is remembered too - the phone profile again, no gate
+    if (out.mobile && env.webgl2 && rec && rec.tried && rec.profile === 'phone' && !force('devgate', q)) { out.profile = 'phone'; out.why = 'the phone garage, chosen before'; return out; }
     if (force('devgate', q) || ((out.mobile || !env.webgl2) && !(rec && rec.tried))) {
       out.screen = 'gate'; out.why = !env.webgl2 ? 'no WebGL2' : out.mobile; return out;
     }
@@ -276,15 +278,22 @@
     try { play.focus(); } catch (e) {}
   });
   // THE DEVICE GATE: resolves 'potato' when the player tries anyway (it never resolves otherwise: nothing loads)
+  // G2100 (MOBILE-GARAGE 1): ...or 'phone' - "Build on this phone": the garage alone, laid out for a touch screen, on the
+  // lightest picture (profile.js 'phone'). Offered where WebGL2 is (a phone or tablet), the gate's primary button
   const showGate = (env, d) => new Promise(res => {
     const { card } = open();
     card.appendChild(el('h1', null, 'flyDiy is made for a computer, for now'));
     card.appendChild(el('p', null, !env.webgl2
       ? 'This browser has no WebGL2, which the game draws with. A recent Chrome, Edge or Firefox on a desktop or a laptop has it.'
-      : 'Phones and tablets do not have the memory the island needs yet: the browser closes the page before it has loaded. A lighter version for them is being built.'));
+      : 'Phones and tablets do not have the memory the island needs yet: the browser closes the page before it has loaded. The garage alone fits: build your aeroplane here, save it, and fly it on a computer.'));
     facts(card, env, d);
     card.appendChild(el('p', null, 'Open this page on a desktop or a laptop to fly.'));
     const foot = el('div', 'wfoot');
+    if (env.webgl2) {
+      const ph = el('button', 'wplay', 'Build on this phone'); ph.type = 'button';
+      ph.onclick = () => { W.document.getElementById('welcome').remove(); res('phone'); };
+      foot.appendChild(ph);
+    }
     const go = el('button', 'wlink', 'try anyway (experimental)'); go.type = 'button';
     go.onclick = () => { W.document.getElementById('welcome').remove(); res('potato'); };
     foot.appendChild(go);
@@ -333,10 +342,16 @@
   let d;
   try { const env = probe(); API.env = env; API.SOFT = isSoftware(env.gpu); d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
   catch (e) { return; }   // a welcome that cannot decide is no welcome: the game loads as it did
+  // G2100: the phone garage, remembered (no screen: the profile at once, before the island loader reads the world)
+  if (d.profile === 'phone' && W.PROFILE && W.PROFILE.name === 'desktop') W.PROFILE.set('phone', d.why);
   if (d.adopt) { let pr = 'menu'; try { pr = JSON.parse(W.localStorage.getItem('flydiy.gfx')).preset || pr; } catch (e) {} remember(W.localStorage, d, pr); }
   if (d.screen === 'none') return;
   const t0 = Date.now();
-  W.FLYDIY_WELCOME = (d.screen === 'gate' ? showGate(API.env, d).then(p => { remember(W.localStorage, d, p, { tried: true }); return p; })
+  W.FLYDIY_WELCOME = (d.screen === 'gate' ? showGate(API.env, d).then(p => {
+      // G2100: "Build on this phone" - the profile switched before the boot (the loader, the promote and app.js follow),
+      // the preset is the profile's (gfx_settings.js reads PROFILE.get('preset')), so the pick stays null
+      if (p === 'phone') { if (W.PROFILE) W.PROFILE.set('phone', 'the device gate: build on this phone'); remember(W.localStorage, d, 'laptop', { tried: true, profile: 'phone' }); return null; }
+      remember(W.localStorage, d, p, { tried: true }); return p; })
                                           : showWelcome(API.env, d).then(p => { remember(W.localStorage, d, p); return p; }))
     .then(p => {
       API.pick = p;

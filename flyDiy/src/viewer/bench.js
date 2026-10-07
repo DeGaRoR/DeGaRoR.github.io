@@ -450,6 +450,8 @@ const BENCH_FLIGHT_STEPS = {
   TAXI: 0, LINEUP: 1, ROLL: 1, LIFTOFF: 1, ABORT: 1, CLIMB: 2, DEPART: 3,
   ENROUTE: 3, CRUISE: 3, HOLD: 3, TURNBACK: 3, INBOUND: 4, APPROACH: 4,
   GOAROUND: 4, FLARE: 5, PUTDOWN: 5, ROLLOUT: 5, STOP: 5, STOPPED: 5,
+  // G1940 (PILOT-ONE): THE PILOT's own legs - the bench flies 43 only now
+  DOWNWIND: 3, BOX: 3, BASE: 4, FINAL: 4, GLIDE: 4,
 };
 function benchFlightStep(phase) {
   if (!phase) return 0;
@@ -656,9 +658,13 @@ function benchInit(api) {
   let trimUse = true;      // the advisor's trim accepted as the roll-out default
   let withdrawnNote = ''; // the header's line after a withdrawal
 
+  // G2100 (MOBILE-GARAGE 1): THE PROFILE'S TESTS OFF (profile.js 'bench': the phone garage has no world - no test flight,
+  // no crosswind, no water - and the live sandbag rig waits for the phone's heat to be measured); the desktop's is null
+  const benchOff = id => { const P = typeof window !== 'undefined' && window.PROFILE; const off = P && P.get ? P.get('benchOff') : null; return !!(off && off.indexOf(id) >= 0); };
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function') &&
-    (!t.when || t.when(api));                         // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
+    (!t.when || t.when(api)) &&                       // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
+    !benchOff(t.id);                                  // G2100: a test the profile subtracts (the phone: the world's and the flight's)
   // the row buttons are dead while a flight is out (the bench cannot run
   // two things, and the aeroplane is not on the stand)
   const busyNow = () => !!live || !!flown;

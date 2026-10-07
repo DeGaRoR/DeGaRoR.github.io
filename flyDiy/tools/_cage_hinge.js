@@ -788,9 +788,11 @@ PAGE.post = ctx => {
           // a surface's piano runs join into one continuous hinge
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
                         span * (1 - 2 * inset) / Math.max(1, ts.length));
+        // G2050: a fin's second face (f 1) is the same fitting's other legs,
+        // not a second hinge - its eyes and pin are the first face's
         else if (fam === 'bracket' && HG.bracketHinge)
-          HG.bracketHinge(bagsF.metal, bm.metal, F, S);   // A7: the metal surface's fitting, three a surface
-        else HG.strapHinge(bagsF.metal, bm.metal, F, S);
+          HG.bracketHinge(bagsF.metal, bm.metal, F, S, f > 0);   // A7: the metal surface's fitting, three a surface
+        else HG.strapHinge(bagsF.metal, bm.metal, F, S, f > 0);
       }
     }
 
