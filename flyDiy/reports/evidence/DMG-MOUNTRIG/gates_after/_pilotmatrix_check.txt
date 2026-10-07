@@ -6,3 +6,5 @@ PILOT MATRIX: 14 cells, 2 at a time (quick) on core_1791341387215.js
   ok c172:HOME:x2                completed 340.6 s · sink 1.2 · 1.07 Vs · aim 26 · swing 3.5
   X  stearman:HOME:x2            completed 326.8 s · sink 1.03 · 1.15 Vs · aim 10 · swing 1.8
   ok cub:HOME-A3:calm            completed 625 s · sink 0.63 · 1.15 Vs · aim 32 · swing 0
+  ok cub:HOME:calm:up4           completed 321.5 s · sink 0.39 · 1.21 Vs · aim 6 · swing 0
+  ok cub:HOME:calm:dn4           completed 317.2 s · sink 0.35 · 1.23 Vs · aim 8 · swing 0
