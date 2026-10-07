@@ -4403,6 +4403,11 @@
       // CADENCE - the frame the tear is due asks the places pass (that frame's positions); the read lands a frame or two
       // later and the tear runs on those - the same samples as the CPU's, applied when they arrive (it was a read-back a
       // frame OLD, asked from half the interval: an edge past the bound only between the reads was torn by one path only)
+      // (a record held again on a later flight keeps its clocks; sim.t starts again at 0 - a clock ahead of it is the last
+      // flight's: dropped, or the tear and the confetti waited for the new flight to pass the old crash's time)
+      if (R.tearT != null && R.tearT > sim.t) R.tearT = null;
+      if (R.tearAsk != null && R.tearAsk > sim.t) R.tearAsk = null;
+      if (R.islT != null && R.islT > sim.t) R.islT = null;
       const sinceT = sim.t - (R.tearT == null ? -1 : R.tearT);
       if (!onGpu) R.tearAsk = null;
       if (gain === 1) {
