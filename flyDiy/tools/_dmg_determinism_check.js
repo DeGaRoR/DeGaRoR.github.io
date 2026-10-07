@@ -206,9 +206,12 @@ async function mathUntouched(pg) {
     console.log('4. the page (headless Chromium) against node; the page\'s Math untouched');
     // (G2370) the sources: no `Math` binding in src/core (a top-level one in a classic script is the page's), none in the
     // built page, CORE_MATH declared once in the page and nowhere in src/ but 00_registry.js
-    { const bindRe = /\b(?:const|let|var|class)\s+Math\b|\bfunction\s+Math\s*\(|(?:^|[^.\w$])Math\s*=(?!=)/m;
-      const cdir = path.join(T, '..', 'src', 'core'), bad = fs.readdirSync(cdir).filter(x => x.endsWith('.js') && bindRe.test(fs.readFileSync(path.join(cdir, x), 'utf8')));
-      const page = fs.readFileSync(path.join(T, '..', 'index.html'), 'utf8'), pageBind = bindRe.test(page), decl = (page.match(/\b(?:const|let|var|class|function)\s+CORE_MATH\b/g) || []).length;
+    // (a match after \`//\` on its line is a comment's - the words "a top-level \`const Math\`" in 00_registry.js's own)
+    { const binds = text => { const re = /\b(?:const|let|var|class)\s+Math\b|\bfunction\s+Math\s*\(|(?:^|[^.\w$])Math\s*=(?!=)/gm; let m;
+        while ((m = re.exec(text))) { const ls = text.lastIndexOf('\n', m.index) + 1; if (text.slice(ls, m.index).indexOf('//') < 0) return true; } return false; };
+      if (!binds('const Math = Object.freeze({ abs: globalThis.Math.abs });') || binds('// a `const Math` shadow')) throw new Error('the Math-binding scan is broken');
+      const cdir = path.join(T, '..', 'src', 'core'), bad = fs.readdirSync(cdir).filter(x => x.endsWith('.js') && binds(fs.readFileSync(path.join(cdir, x), 'utf8')));
+      const page = fs.readFileSync(path.join(T, '..', 'index.html'), 'utf8'), pageBind = binds(page), decl = (page.match(/\b(?:const|let|var|class|function)\s+CORE_MATH\b/g) || []).length;
       const walk = d => [].concat(...fs.readdirSync(d, { withFileTypes: true }).map(e => e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.js') ? [path.join(d, e.name)] : []));
       const elsewhere = walk(path.join(T, '..', 'src')).filter(x => !/00_registry\.js$/.test(x) && /\b(?:const|let|var|class|function)\s+CORE_MATH\b/.test(fs.readFileSync(x, 'utf8')));
       yes(!bad.length && !pageBind && decl === 1 && !elsewhere.length, 'the sources: no `Math` binding in src/core (' + (bad.join(', ') || 'none') + ') nor in the built page (' + (pageBind ? 'ONE' : 'none') + '); CORE_MATH declared ' + decl + ' x in the page, elsewhere in src/ ' + (elsewhere.map(x => path.relative(path.join(T, '..'), x)).join(', ') || 'nowhere')); }
