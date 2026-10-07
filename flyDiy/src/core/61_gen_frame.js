@@ -818,9 +818,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // from the firewall to it, the engine bolted to the ring through rubber ISOLATORS (dynafocal: their axes meet at the
     // engine's CG), and the engine itself - its case from the rear face to the flange - one rigid body. So:
     //   - the ring: four nodes (MNT TL / TR / BL / BR, the isolator cups) at the engine's rear face, as wide as the flange
-    //     pair, as deep as it is wide inside the firewall; eight bearers to the firewall's corners (each cup to its side's
-    //     two, each lower cup to both lower ones) and the ring's two sides (the minimum that is not a mechanism, measured);
-    //     4130 tube at the type's section (GEN_RULES.mountTubeA);
+    //     pair, as deep as it is wide inside the firewall; twelve bearers to the firewall's corners, each cup on three (see
+    //     them below); 4130 tube at the type's section (GEN_RULES.mountTubeA);
     //   - the isolators: each cup to the CG node (its dynafocal axis) and to its side's flange node (the case is rigid
     //     between them): their own break section (an AN7 through-bolt, GEN_RULES.mountIsoA), no Euler (a rubber cup
     //     bottoms, it does not buckle), stamped by the certificate's own mount cases like any member;
@@ -831,8 +830,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // they always were (the same seven amounts, the same ledger) - their mass is the MOUNT's: a quarter on each cup, and
     // what is left on the flange pair and the firewall's corners split so the CG stays where it was, to the last bit
     // the arithmetic allows (x and y; z by symmetry). The engine's node carries the installed engine exactly (GATE
-    // ENGINE), the flange the blades. The inertia moves by what a ~4 kg mount's moving 0.4-0.8 m makes (HANDOVER
-    // G2361: 0.01-0.06 %). A build whose engine CG sits too close to the firewall for a mount (or with no measured CG)
+    // ENGINE), the flange the blades. The inertia moves by what a ~4-5 kg mount's moving 0.4-0.8 m makes (HANDOVER
+    // G2361: -0.02 to -0.14 %, pitch the most). A build whose engine CG sits too close to the firewall for a mount (or with no measured CG)
     // keeps the rig below, byte for byte.
     const xFw = ST[0].x, xCG = S.engCgAft != null ? S.engX + S.engCgAft : null;
     const gapCg = R.mountCgGap ?? 0.10, gapFw = R.mountFw ?? 0.10;
@@ -866,14 +865,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       for (const q of MRING) B(q, CG, 'fus', false, 'inner', true, ISO);
       B(RTL, EL, 'fus', false, 'inner', true, ISO); B(RBL, EL, 'fus', false, 'inner', true, ISO);
       B(RTR, ER, 'fus', false, 'inner', true, ISO); B(RBR, ER, 'fus', false, 'inner', true, ISO);
-      B(RTL, F[0].TL, 'fus', false, null, true, TUBE); B(RTL, F[0].BL, 'fus', false, null, true, TUBE);
-      B(RTR, F[0].TR, 'fus', false, null, true, TUBE); B(RTR, F[0].BR, 'fus', false, null, true, TUBE);
-      B(RBL, F[0].BL, 'fus', false, null, true, TUBE); B(RBL, F[0].BR, 'fus', false, null, true, TUBE);
-      B(RBR, F[0].BR, 'fus', false, null, true, TUBE); B(RBR, F[0].BL, 'fus', false, null, true, TUBE);
-      // (the ring's sides join two cups of ~1 kg: at the bearer's k they asked 81 substeps of the Cub's 74 - at half of it
-      // their frequency is the bearers', inside every build's step; measured)
-      const SIDE = Object.assign({ kx: 0.5 }, TUBE);
-      B(RTL, RBL, 'fus', false, null, true, SIDE); B(RTR, RBR, 'fus', false, null, true, SIDE);
+      // the bearers: each upper cup to its side's top and bottom corners and across to the other top; each lower cup to both
+      // bottom corners and up to its side's top - every cup on three, no two of them in one plane. (Measured on the stiffness
+      // matrix, firewall pinned: eight bearers - each cup on two - left the cups a near-mechanism, its softest mode 1/40 of the
+      // old rig's, and the engine swung 0.43 m aft and 0.36 m up on its mount in a 4 m/s taxi; the ring's own tubes between
+      // the cups add under 7 % once each cup stands on three, and are not built: their weight is the cups')
+      for (const [c, f] of [[RTL, F[0].TL], [RTL, F[0].BL], [RTL, F[0].TR], [RTR, F[0].TR], [RTR, F[0].BR], [RTR, F[0].TL],
+                            [RBL, F[0].BL], [RBL, F[0].BR], [RBL, F[0].TL], [RBR, F[0].BR], [RBR, F[0].BL], [RBR, F[0].TR]])
+        B(c, f, 'fus', false, null, true, TUBE);
       pt(CG, engDryM);
       pt(EL, 0.5 * S.prop.mass);
       pt(ER, 0.5 * S.prop.mass);
