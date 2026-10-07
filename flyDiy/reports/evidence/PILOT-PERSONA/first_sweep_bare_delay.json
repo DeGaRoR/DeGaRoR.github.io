@@ -1,0 +1,3147 @@
+{
+ "when": "2026-10-06T09:47:51.434Z",
+ "weather": "calm",
+ "results": [
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cub_2026-09-20_corrected.json",
+   "name": "piperCub",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "expert",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 334.9,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@11.9",
+    "CLIMB@27.2",
+    "CROSSWIND@44.6",
+    "DOWNWIND@63.6",
+    "BASE@167.6",
+    "FINAL@185.9",
+    "FLARE@310.8",
+    "ROLLOUT@317.5",
+    "STOPPED@334.9"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 106,
+    "Vlo": 17.2,
+    "lifts": 1,
+    "qMax": 3.1
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.35
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 2,
+     "settleT": 9,
+     "rollRev": 1.1
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 4,
+     "settleT": 8.5,
+     "rollRev": 0.2
+    },
+    {
+     "name": "BASE",
+     "overshoot": 7,
+     "settleT": 9.4,
+     "rollRev": 0.5
+    }
+   ],
+   "final": {
+    "captureT": 199.1,
+    "aboveRms": 0.7,
+    "vRms": 0.13,
+    "vErrMean": -0.01,
+    "thrMin": 0.24,
+    "thrMax": 0.35
+   },
+   "flare": {
+    "entryAgl": 5.11,
+    "entryVs": -1.1,
+    "t0": 310.8333333333333,
+    "dur": 6.7
+   },
+   "track": {
+    "xtRms": 1.5,
+    "n": 6049
+   },
+   "bounces": 0,
+   "pitchMax": 15,
+   "landing": {
+    "sink": 0.64,
+    "V": 18.7,
+    "VoverVs": 1.15,
+    "pastAim": 32,
+    "off": 0,
+    "run": 166,
+    "three": false,
+    "drift": 0
+   },
+   "activity": {
+    "takeoff": {
+     "s": 27,
+     "da": 0,
+     "dr": 0,
+     "de": 6
+    },
+    "climb": {
+     "s": 17,
+     "da": 0,
+     "dr": 0,
+     "de": 6
+    },
+    "legs": {
+     "s": 19,
+     "da": 4,
+     "dr": 4,
+     "de": 10
+    },
+    "downwind": {
+     "s": 104,
+     "da": 0.6,
+     "dr": 0.6,
+     "de": 0
+    },
+    "base": {
+     "s": 18,
+     "da": 2,
+     "dr": 4,
+     "de": 6
+    },
+    "final": {
+     "s": 125,
+     "da": 2.9,
+     "dr": 1.9,
+     "de": 1.9
+    },
+    "landing": {
+     "s": 24,
+     "da": 0,
+     "dr": 0,
+     "de": 6
+    }
+   },
+   "rollout": {
+    "maxE": 0,
+    "zeroX": 0,
+    "maxDr": 0,
+    "xtEnd": 0
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 83,
+   "build": "cub",
+   "prof": "expert",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cub_2026-09-20_corrected.json",
+   "name": "piperCub",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "club",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 342.7,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@12.1",
+    "CLIMB@27.7",
+    "CROSSWIND@46.7",
+    "DOWNWIND@68",
+    "BASE@173.1",
+    "FINAL@193.7",
+    "FLARE@319.4",
+    "ROLLOUT@324.1",
+    "STOPPED@342.7"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 108,
+    "Vlo": 17.2,
+    "lifts": 1,
+    "qMax": 11.3
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.15
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 8.6,
+     "rollRev": 4.7
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 7,
+     "settleT": 9,
+     "rollRev": 14.8
+    },
+    {
+     "name": "BASE",
+     "overshoot": 9,
+     "settleT": 10.4,
+     "rollRev": 16
+    }
+   ],
+   "final": {
+    "captureT": 207.6,
+    "aboveRms": 0.7,
+    "vRms": 0.18,
+    "vErrMean": 0.02,
+    "thrMin": 0.24,
+    "thrMax": 0.38
+   },
+   "flare": {
+    "entryAgl": 4.86,
+    "entryVs": -1.1,
+    "t0": 319.4,
+    "dur": 4.7
+   },
+   "track": {
+    "xtRms": 4.6,
+    "n": 6242
+   },
+   "bounces": 1,
+   "pitchMax": 15.5,
+   "landing": {
+    "sink": 1.31,
+    "V": 20,
+    "VoverVs": 1.23,
+    "pastAim": 0,
+    "off": -0.1,
+    "run": 190,
+    "three": false,
+    "drift": -0.03
+   },
+   "activity": {
+    "takeoff": {
+     "s": 28,
+     "da": 30,
+     "dr": 20,
+     "de": 50
+    },
+    "climb": {
+     "s": 19,
+     "da": 54,
+     "dr": 0,
+     "de": 58
+    },
+    "legs": {
+     "s": 21,
+     "da": 56,
+     "dr": 46,
+     "de": 62
+    },
+    "downwind": {
+     "s": 105,
+     "da": 90.8,
+     "dr": 88.5,
+     "de": 88.5
+    },
+    "base": {
+     "s": 21,
+     "da": 68,
+     "dr": 58,
+     "de": 58
+    },
+    "final": {
+     "s": 126,
+     "da": 61.6,
+     "dr": 16.2,
+     "de": 52
+    },
+    "landing": {
+     "s": 23,
+     "da": 12,
+     "dr": 56,
+     "de": 14
+    }
+   },
+   "rollout": {
+    "maxE": 0.8,
+    "zeroX": 0,
+    "maxDr": 0.08,
+    "xtEnd": 0
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 85,
+   "build": "cub",
+   "prof": "club",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cub_2026-09-20_corrected.json",
+   "name": "piperCub",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "student",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 368.4,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@12.1",
+    "CLIMB@29.1",
+    "CROSSWIND@52.3",
+    "DOWNWIND@80.1",
+    "BASE@191.8",
+    "FINAL@219.6",
+    "FLARE@346.9",
+    "ROLLOUT@351.3",
+    "STOPPED@368.4"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 108,
+    "Vlo": 17,
+    "lifts": 1,
+    "qMax": 20.2
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 1.76
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 10,
+     "settleT": 11.5,
+     "rollRev": 10.4
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 23,
+     "settleT": 12.9,
+     "rollRev": 9.3
+    },
+    {
+     "name": "BASE",
+     "overshoot": 3,
+     "settleT": 14.3,
+     "rollRev": 9
+    }
+   ],
+   "final": {
+    "captureT": 237.8,
+    "aboveRms": 0.8,
+    "vRms": 0.22,
+    "vErrMean": 0.03,
+    "thrMin": 0.25,
+    "thrMax": 0.47
+   },
+   "flare": {
+    "entryAgl": 4.1,
+    "entryVs": -0.28,
+    "t0": 346.93333333333334,
+    "dur": 4.4
+   },
+   "track": {
+    "xtRms": 8.5,
+    "n": 6635
+   },
+   "bounces": 1,
+   "pitchMax": 21.6,
+   "landing": {
+    "sink": 0.29,
+    "V": 19.7,
+    "VoverVs": 1.21,
+    "pastAim": 7,
+    "off": 1.8,
+    "run": 163,
+    "three": true,
+    "drift": 0.8
+   },
+   "activity": {
+    "takeoff": {
+     "s": 29,
+     "da": 70,
+     "dr": 68,
+     "de": 74
+    },
+    "climb": {
+     "s": 23,
+     "da": 46,
+     "dr": 44,
+     "de": 50
+    },
+    "legs": {
+     "s": 28,
+     "da": 60,
+     "dr": 62,
+     "de": 62
+    },
+    "downwind": {
+     "s": 112,
+     "da": 60.7,
+     "dr": 68.8,
+     "de": 66.1
+    },
+    "base": {
+     "s": 28,
+     "da": 54,
+     "dr": 54,
+     "de": 56
+    },
+    "final": {
+     "s": 127,
+     "da": 59.4,
+     "dr": 62.2,
+     "de": 72.1
+    },
+    "landing": {
+     "s": 21,
+     "da": 58,
+     "dr": 56,
+     "de": 64
+    }
+   },
+   "rollout": {
+    "maxE": 51,
+    "zeroX": 0,
+    "maxDr": 0.96,
+    "xtEnd": -5
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 89,
+   "build": "cub",
+   "prof": "student",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cub_2026-09-20_corrected.json",
+   "name": "piperCub",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "bush",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 380.7,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@12",
+    "CLIMB@27.3",
+    "CROSSWIND@45",
+    "DOWNWIND@62.8",
+    "BASE@186",
+    "FINAL@205.5",
+    "FLARE@362",
+    "ROLLOUT@367.8",
+    "STOPPED@380.7"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 107,
+    "Vlo": 17.2,
+    "lifts": 1,
+    "qMax": 3.5
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.32
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 8.9,
+     "rollRev": 1.1
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 4,
+     "settleT": 8,
+     "rollRev": 0.8
+    },
+    {
+     "name": "BASE",
+     "overshoot": 6,
+     "settleT": 8.1,
+     "rollRev": 1
+    }
+   ],
+   "final": {
+    "captureT": 226.8,
+    "aboveRms": 0.8,
+    "vRms": 0.22,
+    "vErrMean": 0.03,
+    "thrMin": 0.26,
+    "thrMax": 0.31
+   },
+   "flare": {
+    "entryAgl": 5.12,
+    "entryVs": -1.01,
+    "t0": 362.01666666666665,
+    "dur": 5.8
+   },
+   "track": {
+    "xtRms": 1.3,
+    "n": 7409
+   },
+   "bounces": 0,
+   "pitchMax": 14.9,
+   "landing": {
+    "sink": 0.69,
+    "V": 18.5,
+    "VoverVs": 1.13,
+    "pastAim": 8,
+    "off": -0.1,
+    "run": 122,
+    "three": false,
+    "drift": 0.01
+   },
+   "activity": {
+    "takeoff": {
+     "s": 27,
+     "da": 0,
+     "dr": 18,
+     "de": 30
+    },
+    "climb": {
+     "s": 18,
+     "da": 0,
+     "dr": 0,
+     "de": 84
+    },
+    "legs": {
+     "s": 18,
+     "da": 78,
+     "dr": 44,
+     "de": 80
+    },
+    "downwind": {
+     "s": 123,
+     "da": 61.8,
+     "dr": 10.2,
+     "de": 122.2
+    },
+    "base": {
+     "s": 19,
+     "da": 20,
+     "dr": 4,
+     "de": 20
+    },
+    "final": {
+     "s": 157,
+     "da": 3.8,
+     "dr": 2.7,
+     "de": 7.7
+    },
+    "landing": {
+     "s": 19,
+     "da": 0,
+     "dr": 12,
+     "de": 14
+    }
+   },
+   "rollout": {
+    "maxE": 0.5,
+    "zeroX": 0,
+    "maxDr": 0.07,
+    "xtEnd": 0
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 19.2,
+   "appr": {
+    "technique": "short",
+    "Vref": 19.2,
+    "Vbase": 19.2,
+    "gust": 0,
+    "aimIn": 66,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 93,
+   "build": "cub",
+   "prof": "bush",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cub_2026-09-20_corrected.json",
+   "name": "piperCub",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "hamfist",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 339.4,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@12.8",
+    "CLIMB@28.9",
+    "CROSSWIND@48.1",
+    "DOWNWIND@68.8",
+    "BASE@174.5",
+    "FINAL@192.9",
+    "FLARE@317.5",
+    "ROLLOUT@321.4",
+    "STOPPED@339.4"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 117,
+    "Vlo": 17.3,
+    "lifts": 1,
+    "qMax": 11.4
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.13
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 8.2,
+     "rollRev": 10.7
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 7,
+     "settleT": 8.1,
+     "rollRev": 21.6
+    },
+    {
+     "name": "BASE",
+     "overshoot": 14,
+     "settleT": 8.9,
+     "rollRev": 22.3
+    }
+   ],
+   "final": {
+    "captureT": 207.4,
+    "aboveRms": 0.7,
+    "vRms": 0.24,
+    "vErrMean": 0.04,
+    "thrMin": 0.22,
+    "thrMax": 0.39
+   },
+   "flare": {
+    "entryAgl": 5.1,
+    "entryVs": -1.43,
+    "t0": 317.5,
+    "dur": 3.9
+   },
+   "track": {
+    "xtRms": 3,
+    "n": 6208
+   },
+   "bounces": 1,
+   "pitchMax": 16.9,
+   "landing": {
+    "sink": 0.87,
+    "V": 20.2,
+    "VoverVs": 1.24,
+    "pastAim": -27,
+    "off": -0.6,
+    "run": 183,
+    "three": false,
+    "drift": 0.11
+   },
+   "activity": {
+    "takeoff": {
+     "s": 29,
+     "da": 372,
+     "dr": 396,
+     "de": 264
+    },
+    "climb": {
+     "s": 19,
+     "da": 190,
+     "dr": 254,
+     "de": 124
+    },
+    "legs": {
+     "s": 21,
+     "da": 206,
+     "dr": 294,
+     "de": 130
+    },
+    "downwind": {
+     "s": 106,
+     "da": 183.3,
+     "dr": 373.9,
+     "de": 206.5
+    },
+    "base": {
+     "s": 18,
+     "da": 96,
+     "dr": 242,
+     "de": 110
+    },
+    "final": {
+     "s": 125,
+     "da": 326.5,
+     "dr": 442.6,
+     "de": 335.2
+    },
+    "landing": {
+     "s": 22,
+     "da": 270,
+     "dr": 262,
+     "de": 326
+    }
+   },
+   "rollout": {
+    "maxE": 36.4,
+    "zeroX": 1,
+    "maxDr": 1.03,
+    "xtEnd": 4
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 83,
+   "build": "cub",
+   "prof": "hamfist",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/jodel_2026-09-20_corrected.json",
+   "name": "jodelD112",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "expert",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 360.3,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@16.2",
+    "CLIMB@40.4",
+    "CROSSWIND@62.9",
+    "DOWNWIND@86.3",
+    "BASE@198.9",
+    "FINAL@219.3",
+    "FLARE@334",
+    "ROLLOUT@339.5",
+    "STOPPED@360.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 178,
+    "Vlo": 20.8,
+    "lifts": 1,
+    "qMax": 5.7
+   },
+   "climb": {
+    "hTurn": 78,
+    "vsMean": 2.09
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 11.7,
+     "rollRev": 0.9
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 5,
+     "settleT": 9.5,
+     "rollRev": 0.2
+    },
+    {
+     "name": "BASE",
+     "overshoot": 12,
+     "settleT": 10.9,
+     "rollRev": 0.5
+    }
+   ],
+   "final": {
+    "captureT": 235.1,
+    "aboveRms": 0.6,
+    "vRms": 0.08,
+    "vErrMean": 0.01,
+    "thrMin": 0.28,
+    "thrMax": 0.37
+   },
+   "flare": {
+    "entryAgl": 6.14,
+    "entryVs": -1.36,
+    "t0": 333.95,
+    "dur": 5.5
+   },
+   "track": {
+    "xtRms": 2.3,
+    "n": 6501
+   },
+   "bounces": 0,
+   "pitchMax": 23.1,
+   "landing": {
+    "sink": 1.04,
+    "V": 21.5,
+    "VoverVs": 1.14,
+    "pastAim": 13,
+    "off": 0.2,
+    "run": 238,
+    "three": true,
+    "drift": 0
+   },
+   "activity": {
+    "takeoff": {
+     "s": 40,
+     "da": 0,
+     "dr": 0,
+     "de": 5.9
+    },
+    "climb": {
+     "s": 22,
+     "da": 0,
+     "dr": 0,
+     "de": 10
+    },
+    "legs": {
+     "s": 23,
+     "da": 6,
+     "dr": 6,
+     "de": 8
+    },
+    "downwind": {
+     "s": 113,
+     "da": 0.5,
+     "dr": 0,
+     "de": 0
+    },
+    "base": {
+     "s": 20,
+     "da": 2,
+     "dr": 4,
+     "de": 4
+    },
+    "final": {
+     "s": 115,
+     "da": 3.1,
+     "dr": 1,
+     "de": 2.1
+    },
+    "landing": {
+     "s": 26,
+     "da": 0,
+     "dr": 2,
+     "de": 16
+    }
+   },
+   "rollout": {
+    "maxE": 0.5,
+    "zeroX": 0,
+    "maxDr": 0.1,
+    "xtEnd": 0
+   },
+   "Vs": 18.9,
+   "VsLanding": 18.9,
+   "VAppr": 24.5,
+   "appr": {
+    "technique": "normal",
+    "Vref": 24.5,
+    "Vbase": 24.5,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 183,
+    "gs": 0.055,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 22.7,
+    "runNeed": 205,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 130,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 462,
+   "sheet": {
+    "Vs": 18.81,
+    "Vs0": 18.81,
+    "Vref": 24.45,
+    "Vrot": 18.7,
+    "Vx": 22.71,
+    "Vy": 26.1,
+    "Vbg": 27.68,
+    "Vms": 21.03,
+    "Vcruise": 35.3,
+    "climbMax": 2.56,
+    "sinkMin": 2.71,
+    "LDbest": 8.97,
+    "TORun": 205,
+    "LDGrun": 182.74,
+    "mass": 462.96
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 162,
+   "build": "jodel",
+   "prof": "expert",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/jodel_2026-09-20_corrected.json",
+   "name": "jodelD112",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "club",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 25.5,
+   "phases": [
+    "ROLL@0",
+    "ABORT@15.4",
+    "STOPPED@25.5"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "15.4s rejected-takeoff: will not reach Vr: 0.08 m/s^2 needs 762 m more, 920 m left"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 25,
+     "da": 0,
+     "dr": 26,
+     "de": 16
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 18.9,
+   "VsLanding": 18.9,
+   "VAppr": 24.5,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 22.7,
+    "runNeed": 205,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": null,
+   "mass": 463,
+   "sheet": {
+    "Vs": 18.81,
+    "Vs0": 18.81,
+    "Vref": 24.45,
+    "Vrot": 18.7,
+    "Vx": 22.71,
+    "Vy": 26.1,
+    "Vbg": 27.68,
+    "Vms": 21.03,
+    "Vcruise": 35.3,
+    "climbMax": 2.56,
+    "sinkMin": 2.71,
+    "LDbest": 8.97,
+    "TORun": 205,
+    "LDGrun": 182.74,
+    "mass": 462.96
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 20,
+   "build": "jodel",
+   "prof": "club",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/jodel_2026-09-20_corrected.json",
+   "name": "jodelD112",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "student",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 22.2,
+   "phases": [
+    "ROLL@0",
+    "ABORT@12.7",
+    "STOPPED@22.2"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "12.8s rejected-takeoff: will not reach Vr: 0.10 m/s^2 needs 772 m more, 962 m left"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 22,
+     "da": 64,
+     "dr": 62,
+     "de": 58
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 18.9,
+   "VsLanding": 18.9,
+   "VAppr": 24.5,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 22.7,
+    "runNeed": 205,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": null,
+   "mass": 463,
+   "sheet": {
+    "Vs": 18.81,
+    "Vs0": 18.81,
+    "Vref": 24.45,
+    "Vrot": 18.7,
+    "Vx": 22.71,
+    "Vy": 26.1,
+    "Vbg": 27.68,
+    "Vms": 21.03,
+    "Vcruise": 35.3,
+    "climbMax": 2.56,
+    "sinkMin": 2.71,
+    "LDbest": 8.97,
+    "TORun": 205,
+    "LDGrun": 182.74,
+    "mass": 462.96
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 19,
+   "build": "jodel",
+   "prof": "student",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/jodel_2026-09-20_corrected.json",
+   "name": "jodelD112",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "bush",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 410.1,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@20.4",
+    "CLIMB@46.1",
+    "CROSSWIND@72.3",
+    "DOWNWIND@94.4",
+    "BASE@231.7",
+    "FINAL@252.2",
+    "FLARE@394.4",
+    "ROLLOUT@399.5",
+    "STOPPED@410.1"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 249,
+    "Vlo": 20,
+    "lifts": 1,
+    "qMax": 6.4
+   },
+   "climb": {
+    "hTurn": 78,
+    "vsMean": 1.95
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 10.8,
+     "rollRev": 0.9
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 4,
+     "settleT": 8,
+     "rollRev": 0.4
+    },
+    {
+     "name": "BASE",
+     "overshoot": 10,
+     "settleT": 9.3,
+     "rollRev": 0.5
+    }
+   ],
+   "final": {
+    "captureT": 271.3,
+    "aboveRms": 0.6,
+    "vRms": 0.05,
+    "vErrMean": 0,
+    "thrMin": 0.3,
+    "thrMax": 0.48
+   },
+   "flare": {
+    "entryAgl": 6.14,
+    "entryVs": -1.26,
+    "t0": 394.43333333333334,
+    "dur": 5
+   },
+   "track": {
+    "xtRms": 1.8,
+    "n": 8155
+   },
+   "bounces": 1,
+   "pitchMax": 22.2,
+   "landing": {
+    "sink": 1.04,
+    "V": 21.6,
+    "VoverVs": 1.14,
+    "pastAim": -4,
+    "off": 0.1,
+    "run": 117,
+    "three": true,
+    "drift": 0
+   },
+   "activity": {
+    "takeoff": {
+     "s": 46,
+     "da": 5.2,
+     "dr": 22.1,
+     "de": 43
+    },
+    "climb": {
+     "s": 26,
+     "da": 0,
+     "dr": 0,
+     "de": 116
+    },
+    "legs": {
+     "s": 22,
+     "da": 36,
+     "dr": 22,
+     "de": 52
+    },
+    "downwind": {
+     "s": 137,
+     "da": 10.9,
+     "dr": 4.8,
+     "de": 106.2
+    },
+    "base": {
+     "s": 20,
+     "da": 32,
+     "dr": 8,
+     "de": 76
+    },
+    "final": {
+     "s": 142,
+     "da": 4.2,
+     "dr": 1.7,
+     "de": 5.9
+    },
+    "landing": {
+     "s": 16,
+     "da": 0,
+     "dr": 22,
+     "de": 18
+    }
+   },
+   "rollout": {
+    "maxE": 1.7,
+    "zeroX": 0,
+    "maxDr": 0.16,
+    "xtEnd": 0
+   },
+   "Vs": 18.9,
+   "VsLanding": 18.9,
+   "VAppr": 22.6,
+   "appr": {
+    "technique": "short",
+    "Vref": 22.6,
+    "Vbase": 22.6,
+    "gust": 0,
+    "aimIn": 66,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 183,
+    "gs": 0.055,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 22.7,
+    "runNeed": 205,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 130,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 462,
+   "sheet": {
+    "Vs": 18.81,
+    "Vs0": 18.81,
+    "Vref": 24.45,
+    "Vrot": 18.7,
+    "Vx": 22.71,
+    "Vy": 26.1,
+    "Vbg": 27.68,
+    "Vms": 21.03,
+    "Vcruise": 35.3,
+    "climbMax": 2.56,
+    "sinkMin": 2.71,
+    "LDbest": 8.97,
+    "TORun": 205,
+    "LDGrun": 182.74,
+    "mass": 462.96
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 197,
+   "build": "jodel",
+   "prof": "bush",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/jodel_2026-09-20_corrected.json",
+   "name": "jodelD112",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "hamfist",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 408.6,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@21",
+    "CLIMB@43.9",
+    "CROSSWIND@86",
+    "DOWNWIND@113.8",
+    "BASE@249.9",
+    "FINAL@269.9",
+    "FLARE@384.9",
+    "ROLLOUT@388.6",
+    "STOPPED@408.6"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 251,
+    "Vlo": 19.5,
+    "lifts": 1,
+    "qMax": 11.6
+   },
+   "climb": {
+    "hTurn": 78,
+    "vsMean": 1.34
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 10.3,
+     "rollRev": 5.7
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 4,
+     "settleT": 8.8,
+     "rollRev": 15
+    },
+    {
+     "name": "BASE",
+     "overshoot": 10,
+     "settleT": 10.7,
+     "rollRev": 14
+    }
+   ],
+   "final": {
+    "captureT": 286.9,
+    "aboveRms": 0.9,
+    "vRms": 0.27,
+    "vErrMean": -0.01,
+    "thrMin": 0.24,
+    "thrMax": 0.47
+   },
+   "flare": {
+    "entryAgl": 6.13,
+    "entryVs": -1.83,
+    "t0": 384.9,
+    "dur": 3.7
+   },
+   "track": {
+    "xtRms": 2,
+    "n": 8038
+   },
+   "bounces": 2,
+   "pitchMax": 25.4,
+   "landing": {
+    "sink": 1.19,
+    "V": 22.6,
+    "VoverVs": 1.2,
+    "pastAim": -17,
+    "off": -1.5,
+    "run": 233,
+    "three": false,
+    "drift": 0.18
+   },
+   "activity": {
+    "takeoff": {
+     "s": 44,
+     "da": 428,
+     "dr": 304.9,
+     "de": 376
+    },
+    "climb": {
+     "s": 42,
+     "da": 343.5,
+     "dr": 410.5,
+     "de": 192.4
+    },
+    "legs": {
+     "s": 28,
+     "da": 338,
+     "dr": 408,
+     "de": 160
+    },
+    "downwind": {
+     "s": 136,
+     "da": 267.2,
+     "dr": 428.1,
+     "de": 194.4
+    },
+    "base": {
+     "s": 20,
+     "da": 192,
+     "dr": 288,
+     "de": 132
+    },
+    "final": {
+     "s": 115,
+     "da": 363.5,
+     "dr": 407.8,
+     "de": 290.5
+    },
+    "landing": {
+     "s": 24,
+     "da": 374,
+     "dr": 248,
+     "de": 300
+    }
+   },
+   "rollout": {
+    "maxE": 23.9,
+    "zeroX": 1,
+    "maxDr": 0.98,
+    "xtEnd": -0.7
+   },
+   "Vs": 18.9,
+   "VsLanding": 18.9,
+   "VAppr": 24.5,
+   "appr": {
+    "technique": "normal",
+    "Vref": 24.5,
+    "Vbase": 24.5,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 183,
+    "gs": 0.055,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 22.7,
+    "runNeed": 205,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 130,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 462,
+   "sheet": {
+    "Vs": 18.81,
+    "Vs0": 18.81,
+    "Vref": 24.45,
+    "Vrot": 18.7,
+    "Vx": 22.71,
+    "Vy": 26.1,
+    "Vbg": 27.68,
+    "Vms": 21.03,
+    "Vcruise": 35.3,
+    "climbMax": 2.56,
+    "sinkMin": 2.71,
+    "LDbest": 8.97,
+    "TORun": 205,
+    "LDGrun": 182.74,
+    "mass": 462.96
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 198,
+   "build": "jodel",
+   "prof": "hamfist",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "expert",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 334.3,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@18.5",
+    "CLIMB@33.4",
+    "CROSSWIND@61.1",
+    "DOWNWIND@93.3",
+    "BASE@173",
+    "FINAL@209.1",
+    "FLARE@307.8",
+    "ROLLOUT@314.5",
+    "STOPPED@334.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 262,
+    "Vlo": 27.4,
+    "lifts": 1,
+    "qMax": 7.7
+   },
+   "climb": {
+    "hTurn": 105,
+    "vsMean": 2.95
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 2,
+     "settleT": 17,
+     "rollRev": 0.6
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 3,
+     "settleT": 15.9,
+     "rollRev": 0.1
+    },
+    {
+     "name": "BASE",
+     "overshoot": 16,
+     "settleT": 17.1,
+     "rollRev": 0.6
+    }
+   ],
+   "final": {
+    "captureT": 231.5,
+    "aboveRms": 0.9,
+    "vRms": 0.06,
+    "vErrMean": 0.03,
+    "thrMin": 0.35,
+    "thrMax": 0.46
+   },
+   "flare": {
+    "entryAgl": 10.44,
+    "entryVs": -2.24,
+    "t0": 307.75,
+    "dur": 6.7
+   },
+   "track": {
+    "xtRms": 2.7,
+    "n": 4911
+   },
+   "bounces": 0,
+   "pitchMax": 16.5,
+   "landing": {
+    "sink": 1.14,
+    "V": 22.5,
+    "VoverVs": 1.09,
+    "pastAim": 37,
+    "off": -0.2,
+    "run": 205,
+    "three": false,
+    "drift": 0.02
+   },
+   "activity": {
+    "takeoff": {
+     "s": 33,
+     "da": 0,
+     "dr": 0,
+     "de": 7.2
+    },
+    "climb": {
+     "s": 28,
+     "da": 0,
+     "dr": 0,
+     "de": 14
+    },
+    "legs": {
+     "s": 32,
+     "da": 3.7,
+     "dr": 3.7,
+     "de": 7.4
+    },
+    "downwind": {
+     "s": 80,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    },
+    "base": {
+     "s": 36,
+     "da": 3.3,
+     "dr": 3.3,
+     "de": 5
+    },
+    "final": {
+     "s": 99,
+     "da": 1.2,
+     "dr": 1.2,
+     "de": 4.9
+    },
+    "landing": {
+     "s": 27,
+     "da": 0,
+     "dr": 0,
+     "de": 16
+    }
+   },
+   "rollout": {
+    "maxE": 0.4,
+    "zeroX": 0,
+    "maxDr": 0.02,
+    "xtEnd": 0
+   },
+   "Vs": 25.1,
+   "VsLanding": 20.7,
+   "VAppr": 26.9,
+   "appr": {
+    "technique": "normal",
+    "Vref": 26.9,
+    "Vbase": 26.9,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 1,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 219,
+    "gs": 0.083,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 30.1,
+    "runNeed": 313,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 175,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 992,
+   "sheet": {
+    "Vs": 24.39,
+    "Vs0": 20.71,
+    "Vref": 26.92,
+    "Vrot": 24.8,
+    "Vx": 30.1,
+    "Vy": 34.6,
+    "Vbg": 36.69,
+    "Vms": 27.88,
+    "Vcruise": 51.2,
+    "climbMax": 3.84,
+    "sinkMin": 2.88,
+    "LDbest": 11.18,
+    "TORun": 313,
+    "LDGrun": 219.17,
+    "mass": 993.9
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 185,
+   "build": "c172",
+   "prof": "expert",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "club",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 393.9,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@18.5",
+    "CLIMB@41.6",
+    "CROSSWIND@82.1",
+    "DOWNWIND@124.3",
+    "BASE@230.2",
+    "FINAL@268.4",
+    "FLARE@368.4",
+    "ROLLOUT@373.2",
+    "STOPPED@393.9"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 262,
+    "Vlo": 27.4,
+    "lifts": 1,
+    "qMax": 28.4
+   },
+   "climb": {
+    "hTurn": 105,
+    "vsMean": 1.71
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 16.5,
+     "rollRev": 6.4
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 2,
+     "settleT": 17.2,
+     "rollRev": 3.3
+    },
+    {
+     "name": "BASE",
+     "overshoot": 4,
+     "settleT": 17.3,
+     "rollRev": 5.8
+    }
+   ],
+   "final": {
+    "captureT": 291.1,
+    "aboveRms": 0.6,
+    "vRms": 0.19,
+    "vErrMean": 0.12,
+    "thrMin": 0.35,
+    "thrMax": 0.47
+   },
+   "flare": {
+    "entryAgl": 9.9,
+    "entryVs": -2.27,
+    "t0": 368.3833333333333,
+    "dur": 4.8
+   },
+   "track": {
+    "xtRms": 0.7,
+    "n": 6854
+   },
+   "bounces": 1,
+   "pitchMax": 23.2,
+   "landing": {
+    "sink": 1.23,
+    "V": 23.7,
+    "VoverVs": 1.14,
+    "pastAim": 3,
+    "off": 0,
+    "run": 225,
+    "three": false,
+    "drift": 0.12
+   },
+   "activity": {
+    "takeoff": {
+     "s": 42,
+     "da": 30.3,
+     "dr": 28.8,
+     "de": 60.5
+    },
+    "climb": {
+     "s": 41,
+     "da": 0,
+     "dr": 0,
+     "de": 97.8
+    },
+    "legs": {
+     "s": 42,
+     "da": 74,
+     "dr": 69.8,
+     "de": 91.1
+    },
+    "downwind": {
+     "s": 106,
+     "da": 34,
+     "dr": 24.4,
+     "de": 95.7
+    },
+    "base": {
+     "s": 38,
+     "da": 69.1,
+     "dr": 50.3,
+     "de": 92.7
+    },
+    "final": {
+     "s": 100,
+     "da": 6,
+     "dr": 4.2,
+     "de": 60
+    },
+    "landing": {
+     "s": 26,
+     "da": 0,
+     "dr": 0,
+     "de": 16
+    }
+   },
+   "rollout": {
+    "maxE": 1.2,
+    "zeroX": 0,
+    "maxDr": 0.02,
+    "xtEnd": 0
+   },
+   "Vs": 25.1,
+   "VsLanding": 20.7,
+   "VAppr": 26.9,
+   "appr": {
+    "technique": "normal",
+    "Vref": 26.9,
+    "Vbase": 26.9,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 1,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 219,
+    "gs": 0.083,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 30.1,
+    "runNeed": 313,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 175,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 991,
+   "sheet": {
+    "Vs": 24.39,
+    "Vs0": 20.71,
+    "Vref": 26.92,
+    "Vrot": 24.8,
+    "Vx": 30.1,
+    "Vy": 34.6,
+    "Vbg": 36.69,
+    "Vms": 27.88,
+    "Vcruise": 51.2,
+    "climbMax": 3.84,
+    "sinkMin": 2.88,
+    "LDbest": 11.18,
+    "TORun": 313,
+    "LDGrun": 219.17,
+    "mass": 993.9
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 199,
+   "build": "c172",
+   "prof": "club",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "student",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "gave-up",
+   "phase": "FINAL",
+   "t": 420,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@18.3",
+    "CLIMB@41.5",
+    "CROSSWIND@104.8",
+    "DOWNWIND@152.4",
+    "BASE@287.4",
+    "FINAL@330.5"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "332.4s flap-limited: the elevator cannot hold flap 0.37 — landing on 0.25",
+    "332.7s flap-limited: the elevator cannot hold flap 0.31 — landing on 0.25"
+   ],
+   "takeoff": {
+    "run": 257,
+    "Vlo": 27.1,
+    "lifts": 1,
+    "qMax": 35
+   },
+   "climb": {
+    "hTurn": 105.1,
+    "vsMean": 1.2
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 9,
+     "settleT": 20.3,
+     "rollRev": 8
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 15,
+     "settleT": 21.6,
+     "rollRev": 11.3
+    },
+    {
+     "name": "BASE",
+     "overshoot": 31,
+     "settleT": 20.1,
+     "rollRev": 11.1
+    }
+   ],
+   "final": {
+    "captureT": 370.1,
+    "aboveRms": 3.4,
+    "vRms": 0.98,
+    "vErrMean": 0.96,
+    "thrMin": 0.14,
+    "thrMax": 0.21
+   },
+   "flare": null,
+   "track": {
+    "xtRms": 11.1,
+    "n": 8078
+   },
+   "bounces": 0,
+   "pitchMax": 27.2,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 41,
+     "da": 85.4,
+     "dr": 99.8,
+     "de": 81
+    },
+    "climb": {
+     "s": 63,
+     "da": 75.8,
+     "dr": 73.9,
+     "de": 73.9
+    },
+    "legs": {
+     "s": 48,
+     "da": 73,
+     "dr": 71.8,
+     "de": 73
+    },
+    "downwind": {
+     "s": 135,
+     "da": 73.8,
+     "dr": 76.5,
+     "de": 73.8
+    },
+    "base": {
+     "s": 43,
+     "da": 82.2,
+     "dr": 72.4,
+     "de": 72.4
+    },
+    "final": {
+     "s": 90,
+     "da": 72.4,
+     "dr": 81.8,
+     "de": 75.7
+    }
+   },
+   "rollout": null,
+   "Vs": 25.1,
+   "VsLanding": 20.7,
+   "VAppr": 26.9,
+   "appr": {
+    "technique": "normal",
+    "Vref": 26.9,
+    "Vbase": 26.9,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 1,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 219,
+    "gs": 0.083,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 30.1,
+    "runNeed": 313,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 175,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 990,
+   "sheet": {
+    "Vs": 24.39,
+    "Vs0": 20.71,
+    "Vref": 26.92,
+    "Vrot": 24.8,
+    "Vx": 30.1,
+    "Vy": 34.6,
+    "Vbg": 36.69,
+    "Vms": 27.88,
+    "Vcruise": 51.2,
+    "climbMax": 3.84,
+    "sinkMin": 2.88,
+    "LDbest": 11.18,
+    "TORun": 313,
+    "LDGrun": 219.17,
+    "mass": 993.9
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 189,
+   "build": "c172",
+   "prof": "student",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "bush",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 385.3,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@18.5",
+    "CLIMB@33.4",
+    "CROSSWIND@67.1",
+    "DOWNWIND@98.4",
+    "BASE@202.2",
+    "FINAL@245.4",
+    "FLARE@366.1",
+    "ROLLOUT@372.9",
+    "STOPPED@385.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 261,
+    "Vlo": 27.3,
+    "lifts": 1,
+    "qMax": 8.9
+   },
+   "climb": {
+    "hTurn": 105,
+    "vsMean": 2.43
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 15.9,
+     "rollRev": 0.6
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 3,
+     "settleT": 13.5,
+     "rollRev": 1.2
+    },
+    {
+     "name": "BASE",
+     "overshoot": 16,
+     "settleT": 14.1,
+     "rollRev": 0.7
+    }
+   ],
+   "final": {
+    "captureT": 274.8,
+    "aboveRms": 0.8,
+    "vRms": 0.18,
+    "vErrMean": 0.11,
+    "thrMin": 0.36,
+    "thrMax": 0.47
+   },
+   "flare": {
+    "entryAgl": 10.43,
+    "entryVs": -2.06,
+    "t0": 366.05,
+    "dur": 6.8
+   },
+   "track": {
+    "xtRms": 2.3,
+    "n": 7025
+   },
+   "bounces": 0,
+   "pitchMax": 18.1,
+   "landing": {
+    "sink": 1.14,
+    "V": 21.8,
+    "VoverVs": 1.05,
+    "pastAim": 33,
+    "off": 0.1,
+    "run": 126,
+    "three": false,
+    "drift": 0.1
+   },
+   "activity": {
+    "takeoff": {
+     "s": 33,
+     "da": 27,
+     "dr": 35.9,
+     "de": 34.1
+    },
+    "climb": {
+     "s": 34,
+     "da": 0,
+     "dr": 0,
+     "de": 135.4
+    },
+    "legs": {
+     "s": 31,
+     "da": 91.8,
+     "dr": 88,
+     "de": 130.1
+    },
+    "downwind": {
+     "s": 104,
+     "da": 23.7,
+     "dr": 21.4,
+     "de": 123.7
+    },
+    "base": {
+     "s": 43,
+     "da": 5.6,
+     "dr": 2.8,
+     "de": 33.3
+    },
+    "final": {
+     "s": 121,
+     "da": 2,
+     "dr": 1,
+     "de": 6
+    },
+    "landing": {
+     "s": 19,
+     "da": 0,
+     "dr": 0,
+     "de": 20
+    }
+   },
+   "rollout": {
+    "maxE": 0.7,
+    "zeroX": 0,
+    "maxDr": 0.01,
+    "xtEnd": 0
+   },
+   "Vs": 25.1,
+   "VsLanding": 20.7,
+   "VAppr": 24.9,
+   "appr": {
+    "technique": "short",
+    "Vref": 24.9,
+    "Vbase": 24.9,
+    "gust": 0,
+    "aimIn": 66,
+    "flap": 1,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 219,
+    "gs": 0.083,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 30.1,
+    "runNeed": 313,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 175,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 991,
+   "sheet": {
+    "Vs": 24.39,
+    "Vs0": 20.71,
+    "Vref": 26.92,
+    "Vrot": 24.8,
+    "Vx": 30.1,
+    "Vy": 34.6,
+    "Vbg": 36.69,
+    "Vms": 27.88,
+    "Vcruise": 51.2,
+    "climbMax": 3.84,
+    "sinkMin": 2.88,
+    "LDbest": 11.18,
+    "TORun": 313,
+    "LDGrun": 219.17,
+    "mass": 993.9
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 175,
+   "build": "c172",
+   "prof": "bush",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "hamfist",
+   "floats": false,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 384.9,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@18.6",
+    "CLIMB@42.8",
+    "CROSSWIND@82.7",
+    "DOWNWIND@119.4",
+    "BASE@227.8",
+    "FINAL@260.5",
+    "FLARE@359.2",
+    "ROLLOUT@364.8",
+    "STOPPED@384.9"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 263,
+    "Vlo": 27.3,
+    "lifts": 1,
+    "qMax": 25.1
+   },
+   "climb": {
+    "hTurn": 105,
+    "vsMean": 1.65
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 4,
+     "settleT": 17.7,
+     "rollRev": 6
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 4,
+     "settleT": 15.5,
+     "rollRev": 9
+    },
+    {
+     "name": "BASE",
+     "overshoot": 6,
+     "settleT": 14.9,
+     "rollRev": 11.6
+    }
+   ],
+   "final": {
+    "captureT": 283.2,
+    "aboveRms": 0.8,
+    "vRms": 0.24,
+    "vErrMean": 0.11,
+    "thrMin": 0.33,
+    "thrMax": 0.46
+   },
+   "flare": {
+    "entryAgl": 10.43,
+    "entryVs": -2.86,
+    "t0": 359.2,
+    "dur": 5.6
+   },
+   "track": {
+    "xtRms": 1.9,
+    "n": 6638
+   },
+   "bounces": 0,
+   "pitchMax": 23.2,
+   "landing": {
+    "sink": 1.14,
+    "V": 23.1,
+    "VoverVs": 1.12,
+    "pastAim": 11,
+    "off": -1.4,
+    "run": 216,
+    "three": false,
+    "drift": -0.89
+   },
+   "activity": {
+    "takeoff": {
+     "s": 43,
+     "da": 454.4,
+     "dr": 437.6,
+     "de": 295.9
+    },
+    "climb": {
+     "s": 40,
+     "da": 382,
+     "dr": 424.1,
+     "de": 246.6
+    },
+    "legs": {
+     "s": 37,
+     "da": 406.5,
+     "dr": 453.9,
+     "de": 200.8
+    },
+    "downwind": {
+     "s": 108,
+     "da": 369.4,
+     "dr": 439.8,
+     "de": 250.9
+    },
+    "base": {
+     "s": 33,
+     "da": 318.8,
+     "dr": 452.5,
+     "de": 269.3
+    },
+    "final": {
+     "s": 99,
+     "da": 412.8,
+     "dr": 437.2,
+     "de": 357.5
+    },
+    "landing": {
+     "s": 26,
+     "da": 346,
+     "dr": 328,
+     "de": 382
+    }
+   },
+   "rollout": {
+    "maxE": 6.1,
+    "zeroX": 0,
+    "maxDr": 0.2,
+    "xtEnd": 0.1
+   },
+   "Vs": 25.1,
+   "VsLanding": 20.7,
+   "VAppr": 26.9,
+   "appr": {
+    "technique": "normal",
+    "Vref": 26.9,
+    "Vbase": 26.9,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 1,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 219,
+    "gs": 0.083,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 30.1,
+    "runNeed": 313,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 175,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 991,
+   "sheet": {
+    "Vs": 24.39,
+    "Vs0": 20.71,
+    "Vref": 26.92,
+    "Vrot": 24.8,
+    "Vx": 30.1,
+    "Vy": 34.6,
+    "Vbg": 36.69,
+    "Vms": 27.88,
+    "Vcruise": 51.2,
+    "climbMax": 3.84,
+    "sinkMin": 2.88,
+    "LDbest": 11.18,
+    "TORun": 313,
+    "LDGrun": 219.17,
+    "mass": 993.9
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 162,
+   "build": "c172",
+   "prof": "hamfist",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "SEA",
+   "to": "SEA",
+   "style": "normal",
+   "profile": "expert",
+   "floats": true,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 98.3,
+   "phases": [
+    "ROLL@0",
+    "ABORT@40",
+    "STOPPED@98.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "40s rejected-takeoff: stuck on the hump at V=5.7 (-0.00 m/s^2 for 20 s) — the thrust cannot push the hull onto the step (lighter, more power, bigger floats)"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 98,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 26.8,
+   "VsLanding": 26.8,
+   "VAppr": 33.9,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 32.2,
+    "runNeed": 1597,
+    "len": 1500,
+    "surface": 4
+   },
+   "circuit": null,
+   "mass": 1135,
+   "sheet": {
+    "Vs": 26.06,
+    "Vs0": 26.06,
+    "Vref": 33.88,
+    "Vrot": 26.5,
+    "Vx": 32.19,
+    "Vy": 37,
+    "Vbg": 39.22,
+    "Vms": 29.8,
+    "Vcruise": 49.3,
+    "climbMax": 3.06,
+    "sinkMin": 3.08,
+    "LDbest": 11.17,
+    "TORun": 1597,
+    "LDGrun": 339.37,
+    "mass": 1135.47
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 80,
+   "build": "c172f",
+   "prof": "expert",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "SEA",
+   "to": "SEA",
+   "style": "normal",
+   "profile": "club",
+   "floats": true,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 98.3,
+   "phases": [
+    "ROLL@0",
+    "ABORT@40",
+    "STOPPED@98.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "40s rejected-takeoff: stuck on the hump at V=5.7 (-0.00 m/s^2 for 20 s) — the thrust cannot push the hull onto the step (lighter, more power, bigger floats)"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 98,
+     "da": 0,
+     "dr": 0,
+     "de": 1.2
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 26.8,
+   "VsLanding": 26.8,
+   "VAppr": 33.9,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 32.2,
+    "runNeed": 1597,
+    "len": 1500,
+    "surface": 4
+   },
+   "circuit": null,
+   "mass": 1135,
+   "sheet": {
+    "Vs": 26.06,
+    "Vs0": 26.06,
+    "Vref": 33.88,
+    "Vrot": 26.5,
+    "Vx": 32.19,
+    "Vy": 37,
+    "Vbg": 39.22,
+    "Vms": 29.8,
+    "Vcruise": 49.3,
+    "climbMax": 3.06,
+    "sinkMin": 3.08,
+    "LDbest": 11.17,
+    "TORun": 1597,
+    "LDGrun": 339.37,
+    "mass": 1135.47
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 80,
+   "build": "c172f",
+   "prof": "club",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "SEA",
+   "to": "SEA",
+   "style": "normal",
+   "profile": "student",
+   "floats": true,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 98.3,
+   "phases": [
+    "ROLL@0",
+    "ABORT@40",
+    "STOPPED@98.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "40s rejected-takeoff: stuck on the hump at V=5.7 (-0.00 m/s^2 for 20 s) — the thrust cannot push the hull onto the step (lighter, more power, bigger floats)"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 98,
+     "da": 87.9,
+     "dr": 102.5,
+     "de": 84.8
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 26.8,
+   "VsLanding": 26.8,
+   "VAppr": 33.9,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 32.2,
+    "runNeed": 1597,
+    "len": 1500,
+    "surface": 4
+   },
+   "circuit": null,
+   "mass": 1135,
+   "sheet": {
+    "Vs": 26.06,
+    "Vs0": 26.06,
+    "Vref": 33.88,
+    "Vrot": 26.5,
+    "Vx": 32.19,
+    "Vy": 37,
+    "Vbg": 39.22,
+    "Vms": 29.8,
+    "Vcruise": 49.3,
+    "climbMax": 3.06,
+    "sinkMin": 3.08,
+    "LDbest": 11.17,
+    "TORun": 1597,
+    "LDGrun": 339.37,
+    "mass": 1135.47
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 79,
+   "build": "c172f",
+   "prof": "student",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "SEA",
+   "to": "SEA",
+   "style": "normal",
+   "profile": "bush",
+   "floats": true,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 98.3,
+   "phases": [
+    "ROLL@0",
+    "ABORT@40",
+    "STOPPED@98.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "40s rejected-takeoff: stuck on the hump at V=5.7 (0.00 m/s^2 for 20 s) — the thrust cannot push the hull onto the step (lighter, more power, bigger floats)"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 98,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 26.8,
+   "VsLanding": 26.8,
+   "VAppr": 33.9,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 32.2,
+    "runNeed": 1597,
+    "len": 1500,
+    "surface": 4
+   },
+   "circuit": null,
+   "mass": 1135,
+   "sheet": {
+    "Vs": 26.06,
+    "Vs0": 26.06,
+    "Vref": 33.88,
+    "Vrot": 26.5,
+    "Vx": 32.19,
+    "Vy": 37,
+    "Vbg": 39.22,
+    "Vms": 29.8,
+    "Vcruise": 49.3,
+    "climbMax": 3.06,
+    "sinkMin": 3.08,
+    "LDbest": 11.17,
+    "TORun": 1597,
+    "LDGrun": 339.37,
+    "mass": 1135.47
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 80,
+   "build": "c172f",
+   "prof": "bush",
+   "wx": "calm"
+  },
+  {
+   "key": "/home/user/DeGaRoR.github.io/flyDiy/builds/cessna172_2026-09-20_corrected.json",
+   "name": "cessna172",
+   "from": "SEA",
+   "to": "SEA",
+   "style": "normal",
+   "profile": "hamfist",
+   "floats": true,
+   "tail": "file",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "rejected-takeoff",
+   "phase": "STOPPED",
+   "t": 98.3,
+   "phases": [
+    "ROLL@0",
+    "ABORT@40",
+    "STOPPED@98.3"
+   ],
+   "goArounds": 0,
+   "verdicts": [
+    "40s rejected-takeoff: stuck on the hump at V=5.8 (0.00 m/s^2 for 20 s) — the thrust cannot push the hull onto the step (lighter, more power, bigger floats)"
+   ],
+   "takeoff": null,
+   "climb": {
+    "hTurn": null,
+    "vsMean": null
+   },
+   "legs": [],
+   "final": null,
+   "flare": null,
+   "track": {
+    "xtRms": null,
+    "n": 0
+   },
+   "bounces": 0,
+   "pitchMax": -99,
+   "landing": null,
+   "activity": {
+    "takeoff": {
+     "s": 98,
+     "da": 399.9,
+     "dr": 371.2,
+     "de": 413.4
+    },
+    "landing": {
+     "s": 0,
+     "da": 0,
+     "dr": 0,
+     "de": 0
+    }
+   },
+   "rollout": null,
+   "Vs": 26.8,
+   "VsLanding": 26.8,
+   "VAppr": 33.9,
+   "appr": null,
+   "dep": {
+    "technique": "normal",
+    "Vx": 32.2,
+    "runNeed": 1597,
+    "len": 1500,
+    "surface": 4
+   },
+   "circuit": null,
+   "mass": 1135,
+   "sheet": {
+    "Vs": 26.06,
+    "Vs0": 26.06,
+    "Vref": 33.88,
+    "Vrot": 26.5,
+    "Vx": 32.19,
+    "Vy": 37,
+    "Vbg": 39.22,
+    "Vms": 29.8,
+    "Vcruise": 49.3,
+    "climbMax": 3.06,
+    "sinkMin": 3.08,
+    "LDbest": 11.17,
+    "TORun": 1597,
+    "LDGrun": 339.37,
+    "mass": 1135.47
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 80,
+   "build": "c172f",
+   "prof": "hamfist",
+   "wx": "calm"
+  }
+ ]
+}
