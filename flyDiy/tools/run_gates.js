@@ -650,6 +650,12 @@ const GATES = [
   // all placed within the CG range / floors / placard / MTOW; limits reported never refused; jobs carry items, the
   // map's mark (no door fits), the stop record's items; 23 doctored rules. ~20 s warm (~90 s cold: five meshes)
   { id: 'FREIGHT', file: '_freight_check.js', tier: 'core', wall: 300 },
+  // THE PILOTS YOU HIRE (G2290 PILOTS, GAME-2026-10-06.md §9, §R GQ13/GQ14/GQ30): the roster IS the narrative pack's
+  // Block 3 (parsed off the pack's table: bodies, knobs, traits, ceilings, the sign-on order); every body a shipped
+  // chars_table key (no download); every profile clamps through PILOT-PERSONA's path; refusals fire exactly; growth
+  // deterministic and capped; a pilot follows their aeroplane; hire / fire / the boat; the sandbox's doors inert;
+  // 36 doctored rules. ~2 s
+  { id: 'PILOTS', file: '_pilots_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

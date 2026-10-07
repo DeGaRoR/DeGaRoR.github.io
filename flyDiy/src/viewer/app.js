@@ -4713,7 +4713,8 @@
     // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
     // memoised one (shakeOf), handed as a getter — a TDZ before the bench
     // block runs reads as "no shakedown yet", never as a throw
-    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
+    // G2290 (PILOTS) over G2085 (PILOT-PERSONA): in the career, the hired pilot's profile; "I fly" and the sandbox, the persona keeper's pick
+    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: (CAREER_DEV ? careerCrewProfile() : undefined) || personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
     if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
     return p;
@@ -6335,6 +6336,7 @@
     flEnded = true;
     let out = { how, slot: flSlot, moved: null, where: null };
     try {
+      const fromAero = (typeof playerWhere === 'function' && playerLoad().fleet[flSlot]) ? playerWhere(playerLoad(), flSlot).aero : null;
       let d = playerClock(playerLoad(), Math.max(0, ap.t || 0)).doc;
       const cg = sim.cgPos(), W = typeof flightWhere === 'function' ? flightWhere(world, cg[0], cg[2], {}) : null;
       out.where = W ? { kind: W.kind, id: W.id } : null;
@@ -6348,6 +6350,14 @@
       }
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
+      // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
+      if (CAREER_DEV && d.career && typeof pilotsOnFlightEnd === 'function') {
+        const landed = how === 'stopped' && !!(W && flightCanDepart(W)) && !wrecked;
+        const S = def && def.spec, tw = !!(S && S.gear && S.gear.type === 'taildragger');
+        const pr = pilotsOnFlightEnd(d, { pilot: crFlyer || 'me', slot: flSlot, from: fromAero || fromId, to: landed ? W.aero.id : null,
+                                          landed, tw, t: ap.t || 0 });
+        if (pr.ok) { d = pr.doc; out.pilot = { who: crFlyer || 'me', row: pr.logged }; }
+      }
       player = d; playerSave();
       if (CAREER_DEV) careerPlateSync();
     } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
@@ -6642,6 +6652,101 @@
     price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
     wallet: () => playerLoad().wallet, note: () => ecNote, sync: econWalletSync,
   };
+  // ---- G2290 (PILOTS): WHO FLIES, IN THE CAREER (every function below runs only under CAREER_DEV) --------------------
+  // The flight's pilot is a HIRED pilot (76_pilots.js; GAME §9.2): the career's pick (career.pilotPick: a roster id, or
+  // 'me' = "I fly": by hand or the expert autopilot). Their profile (the pack's knobs + growth from their logbook) is
+  // what makePilot is handed, inline and in the worker; the crew's pilot seat wears their body (the cage's door,
+  // CAGE_CREW_PILOT). A pilot REFUSES a leg that breaks a trait (GQ30) or when they are not where the aeroplane is
+  // (GQ14; the free boat home when it is at HOME): the flight then goes with "I fly", and the route row says why - pick
+  // another pilot or fly it yourself. THE SANDBOX never reaches any of this: careerCrewProfile() is undefined without
+  // ?career=1, so makePilot is handed exactly what it was before.
+  var crFlyer = null;                                   // who flies the flight under way ('me' or a roster id); var: mkPilot may ask before this line runs
+  function careerCrewLeg() {
+    const at = rollFromId(), A = aeroById(at), B = aeroById(destId);
+    const leg = { from: at, to: destId, gear: (def && def.spec && typeof stripGear === 'function') ? stripGear(def.spec) : 'wheels' };
+    try { const w = windNow(); if (w) leg.windKt = Math.hypot(w[0], w[2]) * 1.943844; } catch (e) {}
+    try {
+      if (world && world.day && world.day.localSeconds != null && A && B) {
+        const km = Math.hypot((A.c ? A.c[0] : A.x) - (B.c ? B.c[0] : B.x), (A.c ? A.c[1] : A.z) - (B.c ? B.c[1] : B.z)) / 1000;
+        let v = 150; try { const S = shakeOf(); if (S && S.VCruise > 0) v = S.VCruise * 3.6; } catch (e) {}
+        leg.endHour = world.day.localSeconds / 3600 + (km / v) + 0.15;   // + the taxi and the circuit
+      }
+    } catch (e) {}
+    return leg;
+  }
+  // the pick, checked: -> { id, ok, why, boat }
+  function careerCrewCheck(id) {
+    const d = playerLoad();
+    id = id || pilotsPicked(d);
+    const r = pilotsCanFly(d, id, rollFromId(), careerCrewLeg());
+    return { id, ok: r.ok, why: r.why || '', boat: !!r.boat, kind: r.kind || null };
+  }
+  // what makePilot is handed (undefined: the expert, as before): the pick's profile when they will fly it. DECIDED when
+  // a pilot is made (mkPilot: the shed's, the roll-out's fullReset, a Fly on) and LATCHED with it - the worker's per-frame
+  // read (SIM_LINK's get) takes the latch, so a flight's pilot never changes under it (and its end logs who flew it)
+  var crProf;
+  function careerCrewProfile() {
+    if (!CAREER_DEV || typeof pilotsProfileOf !== 'function') return undefined;
+    try {
+      const c = careerCrewCheck();
+      crFlyer = (c.id !== 'me' && c.ok) ? c.id : 'me';
+      careerCrewBody();
+      return (crProf = crFlyer === 'me' ? undefined : pilotsProfileOf(playerLoad(), crFlyer));
+    } catch (e) { console.warn('flyDiy (career): the pilot -', e && e.message); crFlyer = 'me'; return (crProf = undefined); }
+  }
+  function careerCrewLatched() { return crFlyer ? crProf : careerCrewProfile(); }
+  // the crew's pilot seat wears the flying pilot's body (tools/chars_table.py key); "I fly" hands the seat back to the
+  // build's own pilotWho
+  function careerCrewBody() {
+    if (!CAREER_DEV) return;
+    const id = crFlyer || pilotsPicked(playerLoad());
+    const who = id && id !== 'me' && PILOTS_ROSTER[id] ? PILOTS_ROSTER[id].who : null;
+    try { if (window.CAGE_CREW_PILOT) window.CAGE_CREW_PILOT(who); } catch (e) {}
+  }
+  function careerCrewAct(what, id) {
+    let r = null;
+    const d = playerLoad();
+    if (what === 'hire') r = pilotsHire(d, id);
+    else if (what === 'fire') r = pilotsFire(d, id);
+    else if (what === 'pick') r = pilotsPick(d, id);
+    else if (what === 'boat') r = pilotsBoatHome(d, id);
+    if (r && r.ok) { player = r.doc; playerSave(); crFlyer = null; careerCrewBody(); try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {} }
+    else if (r) console.warn('flyDiy (career): ' + r.why);
+    return r ? { ok: r.ok, why: r.why } : { ok: false, why: 'no such action' };
+  }
+  // the route row's pilot (the shed's flight setup and the roll-out screen): the roster + "I fly", each option saying
+  // whether that pilot will fly this leg; under it the pick's refusal, and the boat home when it brings them
+  function careerCrewRow(host, where) {
+    if (!CAREER_DEV || !host || typeof pilotsHired !== 'function') return;
+    const d = playerLoad();
+    const lab = document.createElement('label'); lab.className = 'crewPick';
+    const sp = document.createElement('span'); sp.textContent = 'pilot'; lab.appendChild(sp);
+    const sel = document.createElement('select'); sel.title = 'Who flies it (your hired pilots, or you)'; sel.className = 'crew';
+    for (const id of pilotsHired(d).concat(['me'])) {
+      const o = document.createElement('option'); o.value = id;
+      const c = careerCrewCheck(id);
+      o.textContent = (id === 'me' ? pilotsText('pilot.me') : pilotsName(id)) + (c.ok ? '' : ' · won\'t');
+      o.title = c.ok ? (id === 'me' ? pilotsText('pilot.me.how') : pilotsFliesLike(pilotsFlatOf(d, id))) : c.why;
+      sel.appendChild(o);
+    }
+    sel.value = pilotsPicked(d);
+    sel.onchange = e => { careerCrewAct('pick', e.target.value); if (where === 'rollout' && rollHold && !inGarage) fullReset(); };
+    lab.appendChild(sel); host.appendChild(lab);
+    const c = careerCrewCheck();
+    if (!c.ok) {
+      const n = document.createElement('div'); n.className = 'crewWhy'; n.textContent = c.why + ' Pick another pilot, or fly it yourself.';
+      if (c.boat) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'crewBoat'; b.textContent = pilotsText('pilot.boat');
+        b.onclick = () => careerCrewAct('boat', c.id);
+        n.appendChild(b);
+      }
+      host.appendChild(n);
+    }
+  }
+  if (CAREER_DEV) window.FLYDIY_CAREER.pilots = {
+    act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
+    card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
+  };
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
@@ -6783,6 +6888,7 @@
         r.on = new Date().toISOString().slice(0, 10);
         // SKY chantier: the WORLD'S date-time at touchdown too (`on` is when you flew, `day` is when the aeroplane did)
         if (world.day) r.day = world.day.local;
+        if (CAREER_DEV) r.pilot = crFlyer || 'me';   // G2290 (PILOTS): who flew (a roster id, or 'me')
         // G2273 (ACCEPT): THE PROOF AT A STRIP - where it stopped (flightWhere: a strip, a lane, a stand, an apron; the
         // stop only), who was aboard, and the build that flew (the bench's roll-out fingerprint): acceptVerdict reads
         // a take-off from `from` and a landing at `at`, under this build's fingerprint
@@ -9902,23 +10008,27 @@
       sel.value = destId;
       sel.onchange = e => setTo(e.target.value);
       lab.appendChild(sel); host.appendChild(lab);
-      // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
-      // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
-      // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
-      // on a held roll-out screen the pilot on the stand is made again, as the base's pick does
-      const lp = document.createElement('label');
-      const sq = document.createElement('span'); sq.textContent = 'pilot'; lp.appendChild(sq);
-      const ps = document.createElement('select');
-      ps.title = 'Who flies it'; ps.className = 'persona';
-      const ks = $('selPersona');
-      if (ks) for (const o of ks.options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.textContent; e.title = o.title; ps.appendChild(e); }
-      personaLoad(); ps.value = personaChoice;
-      ps.onchange = e => {
-        personaChoice = e.target.value; personaSave();
-        if (where === 'rollout' && rollHold && !inGarage) fullReset();
-        if (FL.ready) flRender();
-      };
-      lp.appendChild(ps); host.appendChild(lp);
+      // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
+      if (CAREER_DEV) careerCrewRow(host, where);
+      else {
+        // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
+        // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
+        // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
+        // on a held roll-out screen the pilot on the stand is made again, as the base's pick does
+        const lp = document.createElement('label');
+        const sq = document.createElement('span'); sq.textContent = 'pilot'; lp.appendChild(sq);
+        const ps = document.createElement('select');
+        ps.title = 'Who flies it'; ps.className = 'persona';
+        const ks = $('selPersona');
+        if (ks) for (const o of ks.options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.textContent; e.title = o.title; ps.appendChild(e); }
+        personaLoad(); ps.value = personaChoice;
+        ps.onchange = e => {
+          personaChoice = e.target.value; personaSave();
+          if (where === 'rollout' && rollHold && !inGarage) fullReset();
+          if (FL.ready) flRender();
+        };
+        lp.appendChild(ps); host.appendChild(lp);
+      }
     };
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
@@ -13175,7 +13285,7 @@
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
-    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: personaProfile(), lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: (CAREER_DEV ? careerCrewLatched() : undefined) || personaProfile(), lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)

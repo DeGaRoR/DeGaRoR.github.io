@@ -1,0 +1,272 @@
+{
+ "what": "PILOTS stills (G2290)",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "fails": [],
+ "shots": [
+  {
+   "name": "sandbox",
+   "file": "sandbox.jpg",
+   "note": "the sandbox (no ?career=1): the route row as today, no pilot pick",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0",
+   "mode": "sandbox",
+   "door": false,
+   "pilotsDoor": false,
+   "crewBody": "(never set)",
+   "row": null,
+   "why": null,
+   "career": null,
+   "flyer": null,
+   "open": false,
+   "pilots": [],
+   "list": "",
+   "card": ""
+  },
+  {
+   "name": "career_route",
+   "file": "career_route.jpg",
+   "note": "?career=1: the route row's pilot - the roster and \"I fly\"",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "door": true,
+   "pilotsDoor": true,
+   "crewBody": "ch01",
+   "row": {
+    "value": "kit",
+    "options": [
+     "kit:Kit",
+     "me:I fly"
+    ]
+   },
+   "why": null,
+   "career": {
+    "wallet": 60000,
+    "roster": [
+     "kit"
+    ],
+    "pick": "kit",
+    "ledger": [
+     "grant -60000"
+    ],
+    "places": {
+     "kit": "HOME"
+    }
+   },
+   "flyer": "kit",
+   "open": false,
+   "pilots": [],
+   "list": "",
+   "card": ""
+  },
+  {
+   "name": "career_pilots",
+   "file": "career_pilots.jpg",
+   "note": "the Pilots tab: your pilots, then the ones looking for work",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "door": true,
+   "pilotsDoor": true,
+   "crewBody": "ch01",
+   "row": {
+    "value": "kit",
+    "options": [
+     "kit:Kit",
+     "me:I fly"
+    ]
+   },
+   "why": null,
+   "career": {
+    "wallet": 60000,
+    "roster": [
+     "kit"
+    ],
+    "pick": "kit",
+    "ledger": [
+     "grant -60000"
+    ],
+    "places": {
+     "kit": "HOME"
+    }
+   },
+   "flyer": "kit",
+   "open": true,
+   "pilots": [
+    "Kit",
+    "Rafe",
+    "Sky"
+   ],
+   "list": "Your pilots K Kit flies next Fixes engines, flies a little, came with you. flies like: a beat late, gentle hands; shallow turns, pulls 1.25 g at most mechanic cautious night-shy at Jolene AFB 13/31 Fire Looking for work R Rafe Loud, brave, rough on the stick. flies like: a beat late, snatchy hands, never still on the stick, over-rotates; steep turns, pulls 1.9 g at most fearless hard on airframes sign-on 4 000 · looking for work Hire · 4 000 S Sky Grew up landing on gravel bars. flies like: quick, steady hands; short fields, slips every final; steep turns, pulls 1.7 g at most short-field loves taildraggers refuses nothing sign-on 7 000 · looking for work Hire · 7 000 A one-time sign-on, no wages. Firing is free. A pilot is where their last aeroplane is.",
+   "card": "Pick a contract Tap a row or a marker on the map: its card says where the load is, where it goes, both strips, the payload, the pay, and your fleet against it. NOTHING TRACKED 0 accepted · 20 on offer · 0 aeroplanes"
+  },
+  {
+   "name": "career_hired",
+   "file": "career_hired.jpg",
+   "note": "Hire rafe: the sign-on charged, on the roster",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "door": true,
+   "pilotsDoor": true,
+   "crewBody": "ch01",
+   "row": {
+    "value": "kit",
+    "options": [
+     "kit:Kit",
+     "rafe:Rafe",
+     "me:I fly"
+    ]
+   },
+   "why": null,
+   "career": {
+    "wallet": 56000,
+    "roster": [
+     "kit",
+     "rafe"
+    ],
+    "pick": "kit",
+    "ledger": [
+     "grant -60000",
+     "signon 4000 rafe"
+    ],
+    "places": {
+     "kit": "HOME",
+     "rafe": "HOME"
+    }
+   },
+   "flyer": null,
+   "open": true,
+   "pilots": [
+    "Kit",
+    "Rafe",
+    "Remy",
+    "Sky"
+   ],
+   "list": "Your pilots K Kit flies next Fixes engines, flies a little, came with you. flies like: a beat late, gentle hands; shallow turns, pulls 1.25 g at most mechanic cautious night-shy at Jolene AFB 13/31 Fire R Rafe Loud, brave, rough on the stick. flies like: a beat late, snatchy hands, never still on the stick, over-rotates; steep turns, pulls 1.9 g at most fearless hard on airframes at Jolene AFB 13/31 Flies next Fire Looking for work R Remy A brand-new licence and no hours. flies like: slow to react, gentle hands, over-rotates, flares late; a normal approach everywhere; shallow turns, pulls 1.15 g at most eager sign-on 1 500 · looking for work Hire · 1 500 S Sky Grew up landing on gravel bars. flies like: quick, steady hands; short fields, slips every final; steep turns, pulls 1.7 g at most short-field loves taildraggers refuses nothing sign-on 7 000 · looking for work Hire · 7 000 A one-time sign-on, no wages. Firing is free. A pilot is where their last aeroplane is.",
+   "card": "Pick a contract Tap a row or a marker on the map: its card says where the load is, where it goes, both strips, the payload, the pay, and your fleet against it. NOTHING TRACKED 0 accepted · 20 on offer · 0 aeroplanes"
+  },
+  {
+   "name": "career_card",
+   "file": "career_card.jpg",
+   "note": "Kit's card: flies like, the traits (mechanic, cautious, night-shy), the record",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "door": true,
+   "pilotsDoor": true,
+   "crewBody": "ch01",
+   "row": {
+    "value": "kit",
+    "options": [
+     "kit:Kit",
+     "rafe:Rafe",
+     "me:I fly"
+    ]
+   },
+   "why": null,
+   "career": {
+    "wallet": 56000,
+    "roster": [
+     "kit",
+     "rafe"
+    ],
+    "pick": "kit",
+    "ledger": [
+     "grant -60000",
+     "signon 4000 rafe"
+    ],
+    "places": {
+     "kit": "HOME",
+     "rafe": "HOME"
+    }
+   },
+   "flyer": null,
+   "open": true,
+   "pilots": [
+    "Kit",
+    "Rafe",
+    "Remy",
+    "Sky"
+   ],
+   "list": "Your pilots K Kit flies next Fixes engines, flies a little, came with you. flies like: a beat late, gentle hands; shallow turns, pulls 1.25 g at most mechanic cautious night-shy at Jolene AFB 13/31 Fire R Rafe Loud, brave, rough on the stick. flies like: a beat late, snatchy hands, never still on the stick, over-rotates; steep turns, pulls 1.9 g at most fearless hard on airframes at Jolene AFB 13/31 Flies next Fire Looking for work R Remy A brand-new licence and no hours. flies like: slow to react, gentle hands, over-rotates, flares late; a normal approach everywhere; shallow turns, pulls 1.15 g at most eager sign-on 1 500 · looking for work Hire · 1 500 S Sky Grew up landing on gravel bars. flies like: quick, steady hands; short fields, slips every final; steep turns, pulls 1.7 g at most short-field loves taildraggers refuses nothing sign-on 7 000 · looking for work Hire · 7 000 A one-time sign-on, no wages. Firing is free. A pilot is where their last aeroplane is.",
+   "card": "K your pilot Kit Fixes engines, flies a little, came with you. [draft] The one who came with you. The text comes from the narrative run. [draft] I believed in this before you did. FLIES LIKE a beat late, gentle hands; shallow turns, pulls 1.25 g at most TRAITS mechanic field repairs: labour x0.9 cautious refuses strong wind night-shy refuses legs ending after dusk THE RECORD where at Jolene AFB 13/31 sign-on 0 flights 0 (0 landings counted) grown 0 % toward bush Fire"
+  },
+  {
+   "name": "career_flying",
+   "file": "career_flying.jpg",
+   "note": "rolled out: rafe flies it (the crew's seat wears their body)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "door": true,
+   "pilotsDoor": true,
+   "crewBody": "ch42",
+   "row": {
+    "value": "rafe",
+    "options": [
+     "kit:Kit",
+     "rafe:Rafe",
+     "me:I fly"
+    ]
+   },
+   "why": null,
+   "career": {
+    "wallet": 56000,
+    "roster": [
+     "kit",
+     "rafe"
+    ],
+    "pick": "rafe",
+    "ledger": [
+     "grant -60000",
+     "signon 4000 rafe"
+    ],
+    "places": {
+     "kit": "HOME",
+     "rafe": "HOME"
+    }
+   },
+   "flyer": "rafe",
+   "open": false,
+   "pilots": [],
+   "list": "",
+   "card": ""
+  },
+  {
+   "name": "phone_pilots",
+   "file": "phone_pilots.jpg",
+   "note": "the phone: the sheet on the Pilots tab",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "door": true,
+   "pilotsDoor": true,
+   "crewBody": "ch01",
+   "row": {
+    "value": "kit",
+    "options": [
+     "kit:Kit",
+     "me:I fly"
+    ]
+   },
+   "why": null,
+   "career": {
+    "wallet": 60000,
+    "roster": [
+     "kit"
+    ],
+    "pick": "kit",
+    "ledger": [
+     "grant -60000"
+    ],
+    "places": {
+     "kit": "HOME"
+    }
+   },
+   "flyer": "kit",
+   "open": true,
+   "pilots": [
+    "Kit",
+    "Rafe",
+    "Sky"
+   ],
+   "list": "Your pilots K Kit flies next Fixes engines, flies a little, came with you. flies like: a beat late, gentle hands; shallow turns, pulls 1.25 g at most mechanic cautious night-shy at Jolene AFB 13/31 Fire Looking for work R Rafe Loud, brave, rough on the stick. flies like: a beat late, snatchy hands, never still on the stick, over-rotates; steep turns, pulls 1.9 g at most fearless hard on airframes sign-on 4 000 · looking for work Hire · 4 000 S Sky Grew up landing on gravel bars. flies like: quick, steady hands; short fields, slips every final; steep turns, pulls 1.7 g at most short-field loves taildraggers refuses nothing sign-on 7 000 · looking for work Hire · 7 000 A one-time sign-on, no wages. Firing is free. A pilot is where their last aeroplane is.",
+   "card": ""
+  }
+ ]
+}

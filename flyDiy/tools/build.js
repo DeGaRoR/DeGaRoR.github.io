@@ -185,6 +185,9 @@ const MANIFEST = {
     // meshes (FREIGHT_CARDS, tools/_freight_site.js), the door rule, the packer with the plaque's CG range / MTOW /
     // floor limits, the map's hard no-no; pure, GATE FREIGHT. futureDesigns/game/FREIGHT-2026-10-07.md.
     '76_freight.js',
+    // THE PILOTS YOU HIRE (G2290 PILOTS): the four recruits (the pack's Block 3), hire / fire, refusals by trait,
+    // a pilot's place, skill growth from the logbook; pure, GATE PILOTS. GAME-2026-10-06.md §9, §R GQ13/GQ14/GQ30.
+    '76_pilots.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172

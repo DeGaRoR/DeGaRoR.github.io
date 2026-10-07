@@ -3156,6 +3156,14 @@ let group = null;
 const CHAR_WAIT = {};
 // several characters landing in one breath rebuild ONCE
 let charRebuildT = 0;
+// G2290 (PILOTS): the career's door onto the pilot's seat (see crewKey below): a change rebuilds the crew, a repeat is free
+window.CAGE_CREW_PILOT = key => {
+  key = key || null;
+  if ((window.FLYDIY_CREW_PILOT || null) === key) return false;
+  window.FLYDIY_CREW_PILOT = key;
+  charRebuild();
+  return true;
+};
 const charRebuild = () => {
   if (charRebuildT) clearTimeout(charRebuildT);
   else if (window.BOOT) window.BOOT.expect('crewBuild');   // the loading screen waits for the rebuild this arms
@@ -3423,7 +3431,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // whichever body wears it).
   const CH_LIST = window.CAGE_CHAR ? window.CAGE_CHAR.list() : [];
   const whoOf = v => Math.round(+v || 0);
-  const named = new Set([P.pilotWho, P.cabOcc ? P.copWho : 0].map(whoOf)
+  // G2290 (PILOTS): THE CAREER'S PILOT WEARS THEIR BODY - window.CAGE_CREW_PILOT(key) (app.js, ?career=1 only) seats
+  // that character (a chars_table key) in the pilot's seat in place of the spec's pilotWho; null hands the seat back.
+  // The sandbox never sets it, so its crew is the spec's, as before.
+  const crewKey = window.FLYDIY_CREW_PILOT || null;
+  const crewIdx = crewKey ? CH_LIST.findIndex(c => c && c.key === crewKey) : -1;
+  const pilotWho = crewIdx >= 0 ? crewIdx + 2 : P.pilotWho;
+  const named = new Set([pilotWho, P.cabOcc ? P.copWho : 0].map(whoOf)
     .filter(v => v >= 2).map(v => v - 2));
   const cycle = CH_LIST.map((c, i) => i).filter(i => !named.has(i));
   const S0 = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get();
@@ -3449,7 +3463,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   };
   // role: 'pilot' | 'cop' | 'pax' — the seat's own select, or the cycle
   const charFor = role => {
-    const v = role === 'pilot' ? whoOf(P.pilotWho)
+    const v = role === 'pilot' ? whoOf(pilotWho)
             : role === 'cop' ? whoOf(P.copWho) : 0;
     if (v === 1) return null;                          // the ATD, by name
     if (v >= 2) return charAt(v - 2);                  // one person, by name
