@@ -80892,10 +80892,166 @@ literals and function definitions) and the page (nothing in the page calls the m
 
 READY for the GAME COORDINATOR: claude/contract-model-g2240 5f50b83 (the code and the evidence; this section rides one docs-only commit on top)
 
-## G2310-G2314 - PREM-S3: THE PLOTS IN THE PREMISES RECORD (CONTRACT v1.33), EVERY HANGAR YOU HOLD STANDS IN THE WORLD, THE ROLL-OUT / ROLL-IN AT ANY BASE (2026-10-07, PREM-S3 for the GAME COORDINATOR, cloud - node only, no world stills; branch claude/prem-s3-g2310 off origin/claude/game-integration f4c47a5)
+## G2310-G2314 - PREM-S3: THE PLOTS IN THE PREMISES RECORD (CONTRACT v1.33), EVERY HANGAR YOU HOLD STANDS IN THE WORLD AT ITS PLOT (HELD ONLY, MAIN + 2, DRESSED), THE ROLL-OUT / ROLL-IN AT ANY BASE (THE ROOM IS `here`'s HANGAR) (2026-10-07, PREM-S3 for the GAME COORDINATOR, cloud - node only, no world stills; branch claude/prem-s3-g2310 off origin/claude/game-integration f4c47a5; G2314 unused)
 
-IN PROGRESS. **The premises contract number: v1.33** (`plots` on a runway). STAGES G2300 takes v1.32 (the next free); this
-branch takes the one after, as briefed - the coordinator reconciles.
+**The premises contract number: v1.33** (`plots` on a runway). STAGES G2300 takes v1.32 (the next free); this branch the one
+after, as briefed - the coordinator reconciles (futureDesigns/PREMISES-CONTRACT-2026-09-13.md §9 carries the v1.33 entry).
+No generated file committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json). parked.js untouched.
+**No world still**: the cloud cannot render the world; `tools/gameprem_world_shot.js` is written for A0's GPU box and NOT run.
+
+### G2310 - THE PLOTS IN THE PREMISES RECORD (contract v1.33)
+
+`src/core/27_premises.js`: a runway's `plots: [{ id, x, z, hdg, stand?, taxiOut?, taxiOut1?, slip? }]` (RUNWAY_DEF
+`plots: null`). **The record's `hangar` IS plot <runway id>**: `runwayPlots(r)` reads it verbatim (`main: true`), so
+nothing at Jolene moves - the site's `hangar` is still the record's `hangar` alone (a field with plots and no hangar gains
+none). `runwaySite` carries every plot into `site.plots` in the world frame (`ry = pi - hdg`, `y` and the stand's `elev`
+the composed ground; a stand's heading derived toward its first taxi point, as the field's) - **only when the record
+authors `plots`**: a field without them composes to the very site it did. A plot on a water field is a **slipway**: the
+shed on the shore, its `stand` afloat off the slip; a lane's site is its plots alone (`{ plots }`; null as before without).
+`issues()` refuses a plot without an id or a place, an id written twice (across runways too: a plot id is a hangar id), a
+way out without its stand, a malformed way. A plot adds no modifier: the ground is the same to the millimetre.
+
+**Jolene's plots** (`tools/prem_plots_author.py`, idempotent; the places SEARCHED, not guessed: every 4 m and 22.5 deg
+round the field, the footprint of the LARGEST shell the plot is offered with, on level ground, 3 m off every solid thing
+the game registers, 15 m off the strip, the field's routes the widest validated build's half-span + 3 m off, off the
+fleet's tie-down spots):
+
+| plot | where (premises frame = world on Jolene) | door hdg | footprint held | its way out |
+|---|---|---|---|---|
+| HOME | the club hangar (-190, 712), verbatim | 0 | the record's (G434) | the field's (unchanged) |
+| HOME.2 | (-118, 780): north of the apron, the works next door | -1.9635 | works 40 x 40 m, ground spread 0.22 m | own: stand (-130.2, 750.4), joins HOME's taxiOut |
+| w3 | (-749.07, -2345.14): west of the hut | -0.7854 | field 17 x 18 m, 0.27 m | own: stand (-735, -2359.35) -> (-715, -2385) -> the strip's last point |
+| mn_strip | (7273, -15181): the street's north end | -1.5708 | field 14 x 18 m, 0.05 m | **none: the street's authored pattern** (below) |
+| SEA | (760.5, -2851): a slipway on the bank | -1.1781 | club 30 x 25 m (on the shore) | stand afloat (783.9, -2907.9) |
+| mk_sea | (-4019, -8629.5): a slipway west of the town | -0.7854 | field 18 x 20 m (on the shore) | stand afloat (-3978.9, -8670) |
+| tw_ski | **no plot** | | | |
+
+- **tw_ski has none, measured**: the summit's flat top is the strip, the lodge, the pilot hut, the patrol hut and the wc;
+  every 18 x 20 m footprint off them within 260 m stands on 1 m of slope or more (no candidate; even a 14 x 18 shed: none;
+  a 12 x 14 fits at (330, -7880) but its 7 m door passes no wing). A plot there needs a pad cut into the ground, which every
+  player would see (GQ8). `playerOffers` now says `placed: false` for it (S4's screen can show "no plot"); BASE_OFFERS is
+  untouched. **Coordinator's call**: drop tw_ski from the offers, or let STAGES cut a pad.
+- **mn_strip has no way of its own**: a stand off the shed's door and its own taxiOut make sitePattern GENERATE the street's
+  pattern again, and that re-runs MILL-TAXI's faults (measured: out[1] 3.0 m off the mill, back[0] 3.8 m off the clinic, the
+  parked box 2 m off a prop - GATE TAXICLEAR 11's calibration holds it). The derelict shed's roll-out is cut to the street's
+  stand (MILL-TAXI's), 135 m down the street.
+- **The slipways stand on banks**: Jolene's shore is a bluff at both lanes (no dry footprint within 5 m of the water within
+  1.3 km of SEA's lane, none within 1 km of mk_sea's): the SEA shed's floor is 16.1 m above the water, mk_sea's 6.7 m, the
+  water 18-34 m in front of the door. No slip is drawn (no geometry in this slice); the stills will say how it reads.
+
+### G2311 - EVERY HANGAR YOU HOLD STANDS IN THE WORLD
+
+- `71_player_bases.js` (pure): `PREM_WORLD { maxSheds: 3, residentsR: 60 }`; `playerWorldSheds(doc)` - the held hangars
+  only (**GQ8**: a plot not held is not listed), main first then the two side hangars the cap keeps (**GQ4**: an older
+  document's legacy extra one works in the rules and is not drawn), each `{ id, base, shell, dims, kits, parts }`;
+  `premResidentsDrawn(doorOpen, camDist)` - an open door AND the camera within 60 m (GAME §4.4).
+- `render_world.js`: `standShed` now builds through `shedNodeAt(H, dims, dress)` (the same exterior build, merge, coarse
+  rung, LOD and ground - HOME's call passes no dress, so HOME's shed is the very build it was); **`setPlayerSheds(list)`**
+  stands each side hangar at its plot (`WORLD.setPlayerSheds` / `WORLD.playerSheds()`), never HOME, two at most, rebuilt
+  only when its key (place, dims, shell, dress) changes, taken down when no longer listed; `dressExterior` lays the shell's
+  skin (SHELLS[shell].skin, as the room's) under the player's parts on the exterior's own outside surfaces (walls' outer
+  skin / the timber cladding, the roof sheet, the doors, the stem) from the room's library - nothing when there is no dress.
+- `app.js`: `worldSideSheds()` joins playerWorldSheds with the site's plot (a hangar whose plot this world lacks - mk_sea
+  with the town off - stands nowhere); stood at `worldBuilt`, on `FLYDIY_PLAYER.onChange`, and when the room's shell / dims /
+  dress change (`worldShedsFollow`: HOME's shed as every slider did, a side hangar's rebuilt).
+- **Residents are never drawn in the world here**: the exterior's doors are shut, so premResidentsDrawn is never true; the
+  props are FLEET-PROPS' (behind FLYDIY_FLEET), which calls the rule when it draws an open door.
+- **HOME's world shed stays undressed** (as before this branch): dressing it would change today's sandbox for a works /
+  field HOME; one line (`standShed`'s third argument) when the coordinator wants it.
+- Like HOME's, a side shed is not a physics obstacle (no player building is); every plot is off every route (TAXICLEAR 11).
+
+### G2312 - THE BLEND AT ANY BASE
+
+- **The room is `here`'s hangar** (`shedHome()` = `sheds[here]`, HOME in the sandbox): its shell, dims, kits and dress; the
+  sliders, the kits and the dress write it. A new `here` builds the room again (`getHangar` / `roomFollow`: the base
+  select, "fly from there?", a document set), at ITS plot (`genHangarBuild(.., { site })` - hangar.js's one new line: the
+  room's outdoors is that field's, a lane draws no strip; `playerPlotSite`).
+- **The roll-out**: `playerRollHangar(doc, slot)` - the hangar its fleet row says it is in; a build with no row leaves from
+  `here`'s; tied down outside, none. The SHOT (rollanim) plays from the ROOM's door when the aeroplane rolls out of it (its
+  base is the room's and it is not in another hangar there) - the sandbox exactly as before; otherwise it is cut to its
+  stand (`away`, PREM-S2's rule). `applyRoute` plans on `playerPlotSite(site, hangar)`: a side hangar's plot as the site's
+  hangar (at its own dims: the stand authored for it is not walked), its own stand and way out (an authored pattern dropped
+  for the plot's); HOME (the field's own hangar), a plot with no way of its own (mn_strip) and an aeroplane tied down plan
+  on the field's site, untouched.
+- **The roll-in**: `playerFlightEnd` - a stop into a hangar of yours (`playerArrive` kind 'in') sets `here` to that hangar
+  (`playerGoTo`): the garage opens there, the room built for it at the shed door.
+- **Water**: a floatplane's roll-out still starts on the lane's spawn (H4: the pilot has no water taxi); the slipway's
+  stand is the record's for the fleet / the shot, not yet a spawn.
+- `window.FLYDIY_PREM_EYE(p, t)` (app.js, a developer's hook like DEVCAM): the free eye at p looking at t - the world shot's.
+
+### G2313 - THE GATES
+
+All on HEAD (a clean worktree, built; `reports/evidence/PREM-S3/`), run directly (`node tools/<gate>`); the box's 4 cores
+were shared by up to 7 gates at a time, so timing rows were re-run alone.
+- **GAMEPREM PASS** (580 checks, was 533) - THE WORLD (S3): every offered plot placed in the record but the one declared
+  unplaced (tw_ski), no plot the offers do not name, plot HOME the club hangar verbatim; GQ8 (the sandbox stands HOME alone,
+  the plots not held stand nothing), GQ4 (three at most; a legacy fourth not drawn), a side hangar at its shell / dims / dress;
+  the residents' rule; the roll-out hangar (in / tied down / unsaved); playerPlotSite (HOME's site the very object, w3's from
+  its door - its stand, its way, its dims, no pattern -, the mine's shed on the street's stand and pattern). **THE SANDBOX WORLD
+  WITH ONLY HOME HELD IS TODAY'S**: Jolene composed with and without the plots - the same aerodromes, the same ground (a
+  hash over a 250 m lattice of the whole island and a 4 m one round every field, to the millimetre), every site the same
+  but for its `plots` key (calibrated: the composes do differ, by the plots alone), HOME's hangar byte for byte; the page's
+  side-shed list for the sandbox is EMPTY and render_world.js setPlayerSheds (lifted, run) builds nothing - two held: two built,
+  each at its plot, shell, dress; HOME's shed standShed's own undressed build. THE PAGE (S3), source-scanned: the room is
+  `here`'s, a new `here` rebuilds it at its plot, the shot from the room's door, the roll-out on the plot, the roll-in into
+  the hangar playerArrive chose, the side sheds stood at worldBuilt. **`--selftest`: 51 of 51 caught** (S2's 39 and 12 new: an
+  unheld plot stands, a fourth legacy shed stands, a side hangar undressed, residents behind a shut door, the side hangar's
+  roll-out on the field's stand, a tied-down aeroplane rolled out of a door; the page: the room always HOME's, the shot only
+  from HOME's door, the roll-out ignoring its plot, the roll-in leaving the garage where it was, the sandbox building a shed for
+  HOME, the side hangars never stood).
+- **SITE PASS** (245, was 193) - THE PLOTS on Jolene composed (in a CHILD process: composing the island in-process wrote its
+  sites into the core's shared state and two of the analytic block's selftest breaks went unseen - measured against the base
+  tree, whose selftest catches all): the shed's frame (rotation.y = ry) round-trips, the door faces its heading; HOME's plot is
+  the club hangar byte for byte; on land the largest offered shell's footprint is IN ITS FIELD (fleetField) on LEVEL ground
+  (spread <= FLEET_SPOT.flatTol 0.6 m: HOME.2 0.22, w3 0.27, mn_strip 0.05) and dry, the door facing its own stand past the
+  door line; a slipway's shed on dry shore, its stand afloat in its lane's field. Calibrated inline (w3 down the slope, HOME.2
+  turned away, SEA's slip stand ashore: each seen). **`--selftest` PASS**: every break caught, the three plot breaks (a plot off
+  its field, HOME's plot not the hangar, a plot's frame drifting) included.
+- **TAXICLEAR PASS** - row 11: the 5 plots' footprints (largest offered shell) 3 m off every solid thing the census knows,
+  15 m off the strip, every validated build's routes half-span + 3 m off, off the fleet's tie-down spots; HOME.2's and w3's
+  own ways out censused as a stand's (pattern sound, the stand, the parked box, every route half + 3 m off every solid thing)
+  for the stock build, the 11 m C172 and the user's Cub. Calibrated: the mine's shed given a way of its own comes inside 4 m
+  of a building (MILL-TAXI's fault - why it has none); a plot moved onto Tamgas Hill's hut is seen. (The first run caught
+  mn_strip 2.79 m off a bin and mk_sea 3.00 m off a tree: both plots moved 1 m - the search had used a 1 m outline.)
+- **PREMISES PASS** - row 18 (v1.33): the hangar as plot <runway id> verbatim; no plots, no `plots` key; with plots the
+  field's hangar / stand / way byte-identical, each plot in the world frame (a moved frame) with its stand heading derived; a
+  lane's site its slipways alone; the envelope round trip; issues() refusing seven malformed records and a plot id on two
+  runways (each its own negative control). (A loaded run read four timing rows red - terrainH 593 ms vs 500, a solve 10.9 s
+  vs 8; alone: PASS.)
+- **DESTTO PASS** (`--only ltd:cub,ltd:floats --show`, and the full gate: all 7 cases PASS - ltd:cub, ltd:metal, ltd:floats, air:cub, ltd:jodel, ltd:twinFloats, air:metal) - **prem:cub@w3-out**: the Cub, IN
+  w3's side hangar, rolls out of THAT door: the plot's stand (-735.0, -2359.3), not walked, in front of the door; THE PILOT
+  taxis the plot's own way, lines up and takes off - `TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB`
+  in 93 s (the line-up took three tries: Tamgas Hill's known line-up case, DEST-TO's master_w3.txt; it got there), the wing
+  14.84 m off the nearest solid thing, no crash; calibrated (the field's stand is 58 m from the plot's). **prem:floats@mk_sea**:
+  the Cessna floats stops on mk_sea's lane after SEA -> mk_sea (1038 s); a slipway shed held there; `playerArrive` -> IN
+  mk_sea (door 13 x 3.9 m, the floats 11 x 3.4 m); the roll-in: the garage opens THERE (`here` mk_sea, the room the field shell
+  at 18 x 20 x 4.4), at its plot, the slip's stand afloat in mk_sea's water; the world stands HOME and the slipway shed;
+  calibrated (a shed with a 2.5 m door leaves the floats tied down outside).
+- **PREMCOOK**: the record moved (the plots), so the cook was stale on the two record hashes ONLY - every raster and place
+  cell matched byte for byte (premcook_before_recook.txt). Re-cooked (`premises_cook.js --island jolene`): only
+  `src/core/premises_packs.json`'s two `record` hashes and its date change, no media file -> **PASS**.
+- **FRAMECOST**: the five S3 source rows PASS (a side shed is HOME's build - merged, coarse rung, LOD -, two at most, rebuilt
+  only on a change, nothing in the frame loop, no resident drawn); the census is RED 24 - **identical, line for line, to the
+  base f4c47a5's** (framecost_base_f4c47a5.txt): every counter table equal, the same 24 rises = THE STALE PARKED COOK
+  (`parked_cook --check`: manifest 53f48231 on both trees). The sandbox's frame costs exactly what it did. A0's re-cook.
+- **UISMOKE, BOOT, ROUNDTRIP, PLAYER, SAVE, STAND, HANGAR: PASS.**
+- **MEDIA FAIL, not this branch's**: two orphans, `media/map/jolene_map.c620385a.png` and `jolene_proj.2f8c83c4.json`
+  (MAP-MENU's) - the base f4c47a5 fails identically.
+- Not run: the full tier, the strict per-train gate, PARKED / HITBOX (the parked cook's).
+
+### OPEN / FOR THE COORDINATOR
+- tw_ski's plot (above): drop it from the offers, or a pad (a terrain edit, STAGES').
+- The premises editor's handle per plot (the runway inspector's hangar handle, once per plot) is owed; the record's
+  round trip keeps `plots` (PREMISES 18).
+- The slipways' banks (no slip geometry); a floatplane's roll-out from a slipway shed spawns on the lane as before.
+- The camera keep-out (`worldShedBox`) is HOME's shed only.
+- `playerOffers.placed` is advisory (playerAcquire does not read the world).
+- A0 at landing: rebuild; the premises cook is fresh on this branch (a merge with STAGES' record edit re-cooks: `node tools/premises_cook.js --island jolene`); FRAMECOST / HITBOX may read the parked cook stale (any viewer edit moves the build
+  id - DEST-TO's note; the sandbox builds no side shed); run `node tools/gameprem_world_shot.js` on the box
+  (reports/evidence/PREM-S3/world/: each base's exterior vs interior, the roll-out at w3, the sandbox's HOME beside the base
+  build's).
+
+READY for the GAME COORDINATOR: claude/prem-s3-g2310 953f0198 (the code and the evidence; this line rides one docs-only commit on top)
 
 ## G2320-G2329 - CAREER-WIRE: THE MAP ON THE REAL RECORD (careerMapRecord), A DEV CAREER IN THE PAGE BEHIND ?career=1 (flydiy.career.dev; THE WELCOME'S CAREER ROW STILL "COMING", THE SANDBOX UNCHANGED WITHOUT THE FLAG), A FLIGHT'S STOP ADVANCES THE CAREER (careerOnStop WITH ACCEPT AS THE HOOK, THE EVENTS ON THE ARRIVAL CARD), "FLY THE ACCEPTANCE LEG", THE AEROBATIC CONTRACT HELD OUT (2026-10-07, CAREER-WIRE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/career-wire-g2320 off origin/claude/game-integration 2c0c86d, also pushed as claude/bold-babbage-eqs63i; G2325-G2329 unused)
 
