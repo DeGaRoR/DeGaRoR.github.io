@@ -603,6 +603,7 @@ function makePilot(sim, def, world, opts) {
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
   let stabT = 0, stabVf = null, stabSf = 0, stabIn = false;   // G2460: the stabilised approach's dwell, its filters, past the gate
+  let stabPk = 0, stabWhy = null;                              // G2460: this final's longest dwell and its reason (the tolerated, named)
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
@@ -636,7 +637,7 @@ function makePilot(sim, def, world, opts) {
   // ON THE WHEELS: THE FEET ARE QUICK - the delay 0.10 s at most and the gain whole (the ground steer is the tightest
   // loop the pilot flies): 0.15 s at full gain ground-looped the Jodel, and the eased gain at 0.15 s let the Cub's
   // roll-out swing 37-62 deg; 0.10 s whole: the Jodel's roll 2.5 deg, the Cub's roll-out 0.9 deg
-  const HUM_TG = 0.15, HUM_REF = 1.0, HUM_GCAP = 0.10;
+  const HUM_TG = 0.15, HUM_REF = 1.0, HUM_GCAP = 0.10, HUM_HOLD = 3.0;   // HUM_HOLD: G2463 (deDem, below)
   // THE FLARE IS THE PERSON'S QUICKEST MOMENT: a planned manoeuvre flown with full attention - their delay there is the
   // wheels' (0.10 s at most) and their gain whole (McRuer's easing is the error-correcting loop's). MEASURED over four
   // seeds (pilot_persona --seeds): eased in the flare the pull came out at a fraction (the Wipline C172's water landing
@@ -649,13 +650,16 @@ function makePilot(sim, def, world, opts) {
   // 'the elevator cannot hold it', G399.7's Vref raised 'the elevator cannot hold this speed') read the elevator to
   // find the AEROPLANE's authority. Under a person they read the person's HAND: the ham-fist's wander (0.05 rms) on
   // the Wipline C172's approach trim crossed 0.30 again and again, the flap came in 1.00 -> 0.25 in six steps and Vref
-  // was raised - a flapless final 6-7 m/s fast, four seeds of four, the touchdowns 3.0-4.6 m/s. A person is judged on
-  // the servo's demand (deDem: the command before the person's delay, gain and hand); the expert on the elevator, as before
-  let deDem = 0;
-  const deHeld = () => PRA ? deDem : SV.aDe;
+  // was raised - a flapless final 6-7 m/s fast, four seeds of four, the touchdowns 3.0-4.6 m/s. The servo's raw demand
+  // was no better (it answers the hand's pitch: the flap still came in on every seed). A person is judged on the
+  // demand's HELD part (deDem: the command before the person's delay, gain and hand, over HUM_HOLD - the trim the
+  // aeroplane asks, not the hand's swing; over HUM_REF's 1 s the ham-fist's flap still came in on one seed of four and
+  // the climb-out's speed was raised on three); the expert on the elevator, as before
+  let deDem = null, thShortH = 0;
+  const deHeld = () => PRA ? (deDem ?? SV.aDe) : SV.aDe;
   const humanise = (dt, onG) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
-    deDem = c.de;
+    deDem = deDem == null ? c.de : deDem + (c.de - deDem) * Math.min(1, dt / HUM_HOLD);
     // ON THE WHEELS THE DELAY IS SHORT (G1943: the student's 0.45 s inside the ground steer swerved the stock build 31
     // deg on the roll, a rejected take-off every time; G2085: 0.15 s still ground-looped the Jodel) - a person on the
     // roll watches the centreline and the feet are quick; in the air the delay is whole
@@ -685,9 +689,13 @@ function makePilot(sim, def, world, opts) {
         HUM.x[k] += -a * HUM.x[k] + sq * w;
         HUM.y[k] += (HUM.x[k] - HUM.y[k]) * b;
       }
-      const K = PRF.hamFist * 1.12;   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      // G2465 (PERSONA-2): THE FLARE IS THE PERSON'S STEADIEST MOMENT TOO (the delay and the gain are already the
+      // wheels' there, G2085) - the hand's wander halved: whole, the ham-fist's water flares met the surface at 2.5-3.3
+      // m/s off finals the stabilised-approach rule had passed (the Wipline C172, three seeds of four, one skip each)
+      const K = PRF.hamFist * 1.12 * (ap.phase === 'FLARE' ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
       c.de += K * HUM.y[0]; c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
     }
+    const drNow = c.dr;
     const N = Math.round(rx / Math.max(1e-3, dt));
     if (N > 0) {
       if (!HUM.buf || HUM.n !== N) { HUM.n = N; HUM.buf = new Float64Array(3 * (N + 1)); for (let k = 0; k <= N; k++) { HUM.buf[3 * k] = c.de; HUM.buf[3 * k + 1] = c.da; HUM.buf[3 * k + 2] = c.dr; } HUM.i = 0; }
@@ -696,6 +704,16 @@ function makePilot(sim, def, world, opts) {
       c.de = B[3 * r]; c.da = B[3 * r + 1]; c.dr = B[3 * r + 2];
       HUM.i = r;
     }
+    // G2464 (PERSONA-2): ON THE WHEELS THE FEET ARE NOT DELAYED - the rudder (and the steer it drives) is the one axis
+    // the delay line does not hold there. The wheels' 0.10 s (G2085) left the roll-out rudder dithering under every
+    // person (the club's landing group 60-70 reversals / min on the Cub, 110-120 on the Jodel at a 2.5 deg swing) and,
+    // with ENGINE-TORQUE's ground trim in the loop, the Cub's roll-out ground-looped on the base tree (the student 64
+    // deg off its heading and 11 m off the centreline, the ham-fist 52 deg). Measured (seed 1935, the landing group's
+    // rudder / the roll-out's worst heading): 0.05 s for every axis - the Cub club 44, the Jodel 114 (no better); the
+    // gain eased to 0.7 - the Cub's roll-out 40 deg; a pedal backlash of 0.015 - the Cub 24 deg; the feet undelayed -
+    // the Cub club 8 / 0.6 deg, the Jodel club 30 / 4.2 deg, the Cub student 16 / 1.5 deg, the Cub ham-fist 50 / 22 deg
+    // (from 52 deg). The stick keeps the person's delay on the wheels (the rotation, the hold-off's touch)
+    if (onG > 0) c.dr = drNow;
   };
   let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
   // P0.5 (PILOT-ROADMAP §6.3 rule 1): TECS's own state — the throttle and the
@@ -1612,7 +1630,15 @@ function makePilot(sim, def, world, opts) {
       // 0.24 of elevator, the throttle on its floor - and went around twice
       // for the terrain. The integrator on its clamp with the attitude short
       // of the command is the same "cannot hold this speed"
-      const eSat = (deHeld() > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
+      // G2463: under a person the attitude's shortfall is judged held too (HUM_HOLD) - the ham-fist's hand left the
+      // integrator on its clamp with the nose short for a moment in the Wipline C172's climb-out (74 s), the speed was
+      // raised there and stayed raised for the flight: every final 6-7 m/s fast
+      thShortH += (SV.thCA - th - thShortH) * Math.min(1, dt / HUM_HOLD);
+      // ...and only on the final (the approach this rule was written for: the Caravan-alike at idle): the servo winds up
+      // behind a person's eased grip at any speed, and the climb-out's 'cannot hold 34.6 m/s' (73-75 s, three seeds of
+      // four) raised every later speed of the flight
+      const eSat = (deHeld() > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
+                   && (!PRA || ap.phase === 'FINAL');
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
@@ -2956,7 +2982,7 @@ function makePilot(sim, def, world, opts) {
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
             slopeCaptured = false; finalT0 = ap.t; SV.thrC = A.thrAppr; deF = SV.aDe;
-            stabT = 0; stabVf = null; stabIn = false;   // G2460: a new final is judged afresh
+            stabT = 0; stabVf = null; stabIn = false; stabPk = 0; stabWhy = null;   // G2460: a new final is judged afresh
             finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
@@ -3182,6 +3208,7 @@ function makePilot(sim, def, world, opts) {
             }
             if (!why && FS && phaseT > 15 && c.flap < flapTgt - 0.15) why = 'not configured (flap ' + c.flap.toFixed(2) + ' for ' + flapTgt.toFixed(2) + ')';
             stabT = why ? stabT + dt : Math.max(0, stabT - 0.5 * dt);
+            if (why && stabT > stabPk) { stabPk = stabT; stabWhy = why + ' at ' + Math.round(hAim) + ' m'; }
             if (why && stabT > S.dwell * (PRA ? PRF.decisionK : 1)) {
               if (canGA) { R.ga++; goAround('unstabilised approach at ' + Math.round(hAim) + ' m: ' + why); break; }
               if (!R.committed) { R.committed = why + ' at ' + Math.round(hAim) + ' m'; if (!committed) committed = true; say('committed-unstable', 'unstabilised (' + why + ') but committed - landing it'); }
@@ -3196,6 +3223,9 @@ function makePilot(sim, def, world, opts) {
         const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
         if (hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V) {
           go('FLARE'); thFlare0 = th; flThr0 = c.thr; flWI = 0;
+          // G2460: A FINAL THE EXPERT WOULD HAVE FLOWN AGAIN, LANDED BY A PERSON WHO DECIDES LATE (decisionK > 1), IS SAID:
+          // its dwell past the expert's (PILOT_STAB.dwell) and the reason
+          if (ap.report.stab && stabPk > PILOT_STAB.dwell && !ap.report.stab.committed) ap.report.stab.tolerated = stabWhy + ' (' + stabPk.toFixed(1) + ' s)';
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
           // taildragger, thMax on a tricycle), its integrator and filter

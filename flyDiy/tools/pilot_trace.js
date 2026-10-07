@@ -398,7 +398,7 @@ if (require.main === module) {
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));
     if (out.activity) console.log('  control reversals /min (da dr de): ' + Object.entries(out.activity).map(([g, a]) => g + ' ' + a.da + ' ' + a.dr + ' ' + a.de).join(' · '));
     if (out.rollout) console.log('  rollout: max heading ' + out.rollout.maxE + ' deg, ' + out.rollout.zeroX + ' reversals, rudder ' + out.rollout.maxDr + ' · ' + out.rollout.xtEnd + ' m off at the stop');
-    if (out.stab) console.log('  stabilised approach: gate ' + out.stab.gateH + ' m, ' + out.stab.finals + ' final' + (out.stab.finals === 1 ? '' : 's') + ' judged, ' + out.stab.ga + ' go-around' + (out.stab.ga === 1 ? '' : 's') + (out.stab.committed ? ', COMMITTED UNSTABLE (' + out.stab.committed + ')' : '') + ' · worst / limit ' + Object.entries(out.stab.worst).map(([k, v]) => k + ' ' + v).join(' '));
+    if (out.stab) console.log('  stabilised approach: gate ' + out.stab.gateH + ' m, ' + out.stab.finals + ' final' + (out.stab.finals === 1 ? '' : 's') + ' judged, ' + out.stab.ga + ' go-around' + (out.stab.ga === 1 ? '' : 's') + (out.stab.committed ? ', COMMITTED UNSTABLE (' + out.stab.committed + ')' : '') + (out.stab.tolerated ? ', TOLERATED UNSTABLE (' + out.stab.tolerated + ')' : '') + ' · worst / limit ' + Object.entries(out.stab.worst).map(([k, v]) => k + ' ' + v).join(' '));
     for (const v of out.verdicts) console.log('  ! ' + v);
     console.log('  ' + out.outcome + ' at ' + out.t + ' s (' + out.wall + ' s wall)');
   }
