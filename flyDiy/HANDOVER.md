@@ -77194,3 +77194,203 @@ riding to the GPU (format agreed: R.K, wi / ww / w2, dead >= 2; the still-merged
   places turning differently over a lever. The coordinator's idea - each window assembly (frame, bead, pane) one rigid part
   on its frame's nodes - is the next step if the census shows it.
 - The 3 m/s taxi breaks fuselage members on the page and nothing in node (DMG-D4b's parity hunt).
+
+## G1818-G1819 DMG-SKINGPU: THE WRECK'S SKIN RIDDEN ON THE GPU - A TRANSFORM FEEDBACK INTO THE BUFFERS EVERYTHING ALREADY DRAWS (NO PROGRAM CHANGES); THE BREAK EVENT MADE INCREMENTAL; GATE DMGSKINGPU (2026-10-05/06, DMG-SKINGPU for the DEFORM COORDINATOR, local GPU; branch claude/dmg-skingpu off claude/dmg-d4b-wreck fc834041 = integration a7ad3fdf + D4b's G1868/G1869)
+
+The user saw single-digit FPS on impact. DMG-D4b measured why: once anything breaks, D4a's skin break re-posed the whole
+cage snapshot on the CPU every frame (the user's Cub: ~500k vertices, ~85k welded places; a Horn fit a node, every vertex
+through its K nodes' frames, its normal turned, ~12 MB of positions + normals sent up again: 25-29 ms a re-posed frame),
+each break event 42-50 ms, the first break's records ~95 ms. D4b landed quick cuts (G1869: a 3 mm rest threshold, the tear
+every 0.05 s, the records spread); this is the structural fix. Damage OFF, or nothing broken: nothing here runs.
+
+### G1818 - THE RIDING ON THE GPU (src/viewer/skin_gpu.js; skin_break.js packPlaces / rideMirror / tearPlaces; app.js brkGpu)
+- **Not a material variant (the brief's onBeforeCompile), and why**: a riding vertex is drawn by the folds (plain and
+  skinned), their near views on every live material, the band twins, the cabin's fold, and every depth pass three runs with
+  its own or an override material. A vertex-shader variant is a new program per material x pass, linked at the first break
+  (COLD-LINKS / SHADER-GUARD), and an override material would draw the vertices raw. Instead a **WebGL2 transform
+  feedback** computes each riding vertex's drawn position and normal and writes them **into the buffers the aeroplane is
+  drawn from**: every material, pass and program stays as it was (renderer.info.programs equal with and without, box). One
+  small program of its own (RIDE_VS, ~35 lines), linked off the main thread (KHR_parallel_shader_compile) at the first
+  break - **~107-148 ms on the box, ready before the first riding frame needs it** (the CPU rides until it is). Not warmed at
+  roll-out: a damage-ON flight that never breaks pays nothing.
+- **The drawers**: the position attribute a record is drawn from - the fold's (flown_bake.js exposes each fold mesh's member
+  views, `userData.flownMerge.views`, non-enumerable) or, unfolded (potato, ?fbake=0), the bucket's own. Every geometry
+  drawing it (the fold, its near views; the bucket) draws a THREE.GLBufferAttribute on the drawer's buffers while a wreck
+  rides; the members that do not ride (legs, floats, links) go up by range as their rigs write them; the heal puts the
+  attributes back (sent whole from the CPU arrays). A record whose own attribute nothing draws (DMG-WALL's still-merged
+  buckets, drawn through craftStill's copy) stays on the CPU riding. The Cub: 39 drawers, 100 records, all on the GPU.
+- **Sent at an event or a binding step, never a frame**: each riding vertex's PLACE (the weld's first vertex) and rest normal
+  (vertex attributes); each place's data (five RGBA32F textures): A = (e, sag), e = base - sum w' r its offset off its kept
+  nodes' blend in the rest frame, the drape's sag; W0/W1 + I0/I1 = **8 weight slots** (the coordinator's cap with DMG-WALL's
+  inherited bindings; the dominant first; past 8 the 7 heaviest kept, renormalised - R.pruned, 0 today).
+  **Per posed frame**: the nodes (2 texels a node: live place less the origin, its turn) and four uniforms; the feedback
+  draws merged by run (records side by side with one offset). pos = sum w l + q(e) + sag down, q the w-blend of the nodes'
+  turns on the dominant's hemisphere, drawn through the live oblique basis' inverse less the group offset; normal B^T (q n0) -
+  poseCage's world-frame riding (G1867) exactly. `?skingpu=0` / `window.FLYDIY_SKINGPU = false`: the CPU rides (the A/B;
+  a flip re-poses at once). `FLYDIY_SKINBREAK_STATS().gpu`, `FLYDIY_SKINGPU_CHECK()` (the box's readback).
+- **The tear without the CPU riding** (tearPlaces): the CPU never poses the skin now, so the tear (1.15 x rest + 1 cm, as
+  before) reads the places' world positions the same shader makes in its places mode (a uniform; no second program),
+  copied GPU-side out of the feedback buffer and read back behind a fence a frame later (asked from half the tear's interval,
+  so the read lands when the tear is due) - never waited on. Tried first and dropped: a CPU "hot member" filter (members
+  more than 5 % off their length) - it misses shear mechanisms (a bay with a broken diagonal parallelograms with no member
+  strained): edges 3.4 m past the bound in node.
+- **A lost context ends it cleanly**: `webglcontextlost` -> the CPU rides, the drawers go back. Box: WEBGL_lose_context 20
+  frames into the 2.5 m trunk crash - the GPU riding ended (ok false, drawers 0), the CPU posed all 28 frames until the
+  restore, no exception (box_lose.json).
+- **The trap that cost a context** (box, first run): Chrome lost the WHOLE WebGL context when the fenced readback mapped a
+  buffer still bound for transform feedback (`GL_INVALID_OPERATION: glMapBufferRange: Buffer is bound for transform
+  feedback`, then CONTEXT_LOST_WEBGL; Chrome then refused new contexts for the profile). Found with live_driver.js's new
+  `LOGCON=1` and `CHROME_FLAGS='--enable-logging --v=0'`. Fix: a GPU copy into a buffer never bound for feedback, read there.
+
+### THE CPU'S SHARE, CUT (the break events became the cost once the riding left)
+- **The event once a PLACE** (its copies take their place's piece / dominant / ride bytes): ~85k instead of ~500k on the
+  Cub; the binding's masks walk places and stop once a record is fully bound; broken pairs asked only between two
+  broken-member ends.
+- **THE INCREMENTAL EVENT**: a record none of whose nodes a new break touches (an end or a neighbour of a member broken
+  since its last event, or a node that changed piece) is skipped whole; a touched record re-prepares only the places on
+  touched nodes (and those it just bound), re-tests only their triangles, re-drapes only them. Exact: GATE DMGSKINGPU runs
+  every-event-full twins and compares byte for byte (every triangle's state and index, every place bound in both) at every
+  record-event. The only difference: a skipped record advances its pending binding through the frame's budget, not its event
+  (a place bound a frame or two later, riding its nearest node meanwhile).
+- The debris release syncs only the buckets it takes triangles from (it re-ran the whole CPU riding: a 25-40 ms release
+  frame); drawer layouts once a frame; the one-off records 40k vertices a frame (was 120k: 40 ms first-break frames), the
+  groups whose bounds hold a broken member's end first. Not prewarmed at roll-out: ~110 B a vertex, ~55 MB on the Cub, which
+  an intact damage-ON flight would hold.
+- **The rig rows skip what the wreck overwrites**: poseModel still posed every rig row (applyHinges + applySkinDeform,
+  the surfaces' turn + turnNormals, struts, anchored parts, legs, links) of groups whose record then rewrote every position
+  and normal (rideAll: every vertex on its nodes' frames from the record's own rest) - ~165 ms of applySkinDeform and ~55 ms
+  of turnNormals over a crash in the box's profile, all thrown away, on the GPU and the CPU paths alike. Skipped now for an
+  active whole-riding record with its rest normals, only while the page holds a break (dmgNow): the heal's frame poses
+  the rows again before brkCage lets the records go.
+- **getParameter**: the GL state saved and restored only around the calls that bind (frame, layout, drawer, release, the
+  readback) - wrapping poll and ready too was ~800 getParameter a frame (~5 ms, 1.7 s over a crash in the profile). r186's
+  `renderer.resetState()` is NOT usable for this: it resets reversed-Z (the pavement and the aeroplane vanished after the
+  first GPU frame) - every box timing before that fix was voided and re-measured.
+
+### THE WORKER PATH WAS DARK (found on the box, 2026-10-06 12:50; 07cb8754, cherry-picked into integration as 4300dc58)
+Under the physics worker (the default) the page's sim is sim_link's mirror, and `dmgState` was not mirrored: app.js dmgNow
+asked the page's own sim, which the worker never steps - no break ever reached the page; D4a's skin break, D4b's debris and
+this riding never ran there while the worker crashed (the page drew the aeroplane whole). sim_link attach now defines
+dmgState from the view's (saved and given back at detach). **GATE DMGPAGEW** (tools/_dmg_page_worker_check.js, the
+coordinator's page-level row, A0's rule: DMG rigs run the default mode) flies the PAGE in node (_page_node.js,
+dev.html?simw=1&damage=1, the real sim_host in a worker thread, the user's Cub): a trunk at 30 m/s placed through the
+worker; the worker breaks members AND the page's FLYDIY_DMG_STATE().br holds them, the skin break and the debris run on
+the page, the page's thread steps no solver. --selftest takes the mirror's dmgState away (the bug as it was): red.
+DMGPAGEW on the fixed branch: the page held 203 breaks from t = 1.33 s, 113 skin records, 557k vertices riding, 13 debris
+pieces; the worker's verdict 'broke up: the fuselage parted'; 115 s, ~3.8 GB.
+
+### THE WEIGHTLESS WALL PLACES (found on the box, 2026-10-06 20:45; fixed 1158a838) - THE MERGE'S OWN BUG
+WALL's wallSync reads the covering's kept weights (C.w2) at a covering triangle's corners. G1818 prepares a welded record
+ONCE A PLACE (its copies' w2 are never written - never read either, until WALL): a copy corner read zeros, and the glazing,
+the beads, the lining went WEIGHTLESS (every kept weight 0). The CPU's riding drew such a place at its rest coordinates in
+the WORLD (~500 m off: slivers across the runway), the GPU's unrotated about the CG (a giant dark sheet from a debris piece
+to the wreck in the nose-in still). The 20:45 readback: ~1.5 % of the riding vertices 500 m apart; the still pairs 0.5-5 %
+of the pixels apart (reports/evidence/DMG-SKINGPU/weightless_*.jpg). Fix: read at the place (C.rep); a wall place none of
+whose covering point's nodes it holds rides its first rigidly (never weightless); cutWall reads its places' weights too.
+Only this branch had both (integration and D4b carry WALL's wallSync without G1818's prep - checked by the coordinator).
+GATE DMGWALL now has the row (no weightless place, every place-frame of every case) and its --selftest.
+
+### G1819 - GATE DMGSKINGPU (tools/_dmg_skingpu_check.js; run_gates core, weight 3)
+The page's records (welded, riding whole in the world frame, the binding BRK budget a frame, the nodes' turns held to their
+pieces) on DMGSKIN's skin unwelded as the snapshot stores it (three vertices a triangle, flat normals), damage ON, the
+validated builds' crashes (the Cub's four with its certificate: trunk centre, trunk 2.5 m out, a 5 m/s taxi - at 3 m/s
+the node sim only seizes the prop - and the severe nose-in that puts it on its back; trunk + nose-in on the Jodel and the
+metal Cessna; the float nose-in on the floatplanes):
+1. the shader's mirror (rideMirror, RIDE_VS line for line, float32) on the textures packStale leaves = the CPU's exact
+   riding, **in the world** (the drawn frame is the oblique basis, near-singular on a broken-up wreck - its coordinates
+   magnified ~100x there): 0.1 mm, or 8 float32 steps of the drawn coordinate where the CPU path's own storage is that
+   coarse; normals 1 degree; vertices whose two kept turns are 180 degrees apart counted as ambiguous (either blend);
+2. the tear on read-back places a frame old vs the CPU's full tear: < 1 % missed, never more than two checks late;
+3. the incremental event = the full one, byte for byte (above);
+4. static: the GPU path only inside brkCage past the damage guard, its program linked only there; no material, define,
+   program key or onBeforeCompile touched; skin_gpu.js makes nothing at load; without WebGL2 the CPU rides; the shader text
+   carries the mirror's steps; poseModel's rig rows skip a group only while the page holds a break and its record rides it
+   whole; sim_link's mirror carries dmgState.
+Cub (the four crashes; node, measured before the WALL merge - the merged run is the BATTERY below): positions 0.98 mm worst (trunk centre, the drawn frame near-singular: drawn coordinates ~7400 m,
+the CPU's own storage 0.48 mm there), 0.013-0.038 mm elsewhere; normals <= 0.004 deg; tear 4986 / 4988, 3427 / 3432,
+3876 / 3874 torn (GPU path / full); incremental = full at 234 / 234 / 18 / 144 record-events, 35-41 % skipped whole.
+**The DMG gate set on the merged, fixed branch (bf95a63e, 2026-10-06 21:35, CPU lock): BATTERY PASS** - UISMOKE,
+DMGSKIN 116/116, DMGSKINGPU 57/57, DMGPAGEW (one page), DMGWRECK 131/131, DMGWALL 112/112 (with the new weightless row), BUILD,
+JOIN, SIMWORKER 35/35 (wall 425 s, 4 jobs). Negative-verified the same slot: DMGPAGEW --selftest (the mirror's dmgState taken
+off: the page held no break, no skin record - red) and DMGWALL --selftest (skin_break.js at c7f5dea1, before the weightless
+fix: 1,432,327 weightless place-frames on the Cub's nose-in - red).
+
+### THE BOX (gamer tier, the user's Cub, tools/dmg_skingpu_box.js under the GPU lock; reports/evidence/DMG-SKINGPU/)
+**Void and removed:** every GPU timing before 2026-10-06 06:00 (`renderer.resetState()` reset reversed-Z: the pavement and
+the aeroplane failed the depth test - the GPU frames were cheap because they drew less) and every still / readback before
+1158a838 (the weightless wall places, above). Kept as bug evidence only: `weightless_*.jpg`.
+
+**THE CORRECTNESS, on the fixed code (bf95a63e, 2026-10-07 02:55-03:05 TIMED):**
+- Readback (the GPU's drawn buffers against the CPU's exact riding of the same frame, every riding vertex, in the world):
+  inline, every 15th frame of the four crashes - **worst 0.045 mm, 0 vertices past 0.1 mm in 57.9M vertex-poses, normals
+  <= 0.00012 deg, 0 ambiguous, 0 NaN**; under the WORKER, the wreck held (the player's Pause) after the two flown crashes -
+  557,178 vertices each, **worst 0.039 / 0.045 mm, 0 past 0.1 mm, normals 0.00005 deg**.
+- Still pairs (the wreck at rest, one camera, the GPU riding with the rig rows' skip, then the BASE's way: the rig rows
+  posed and the CPU riding - `<case>_<cam>[_worker]_<gpu|cpu>.jpg`, the difference `*_diff.jpg` in red): **the aeroplane is
+  pixel-identical in every pair, inline and worker**; camera 2: 0-8 pixels; camera 1: 0.2-2.9 % - every one of them in the
+  swaying trees behind (the diff images).
+- renderer.info.programs equal with and without (392-394 both ways); the riding program linked in 79-107 ms off the main
+  thread at the first break (KHR_parallel_shader_compile).
+- The context lost mid-crash (box_lose.json / box4_lose.json): the GPU riding ends, the CPU rides every frame, no exception.
+
+**THE TIMINGS** (impact second = the second from the first break; ms; one Chrome per mode; the box's calm frames 18-21 ms):
+
+Inline (?simw=0, the solver stepped two steps a frame by the rig), the mean of the impact second, CPU riding -> GPU riding:
+
+| crash | 20:45 pass A (CPU first) | 20:45 pass B (GPU first) | 02:55 fixed code (GPU first) |
+|---|---|---|---|
+| trunk 30 m/s, centre | 81.5 -> 44.2 | 54.8 -> 38.7 | 57.2 -> 73.0 * |
+| trunk 30 m/s, 2.5 m out | 47.2 -> 24.4 | 45.9 -> 24.5 | 44.2 -> 32.4 |
+| taxi 3 m/s into a trunk | 44.1 -> 32.0 | 45.9 -> 16.5 | 44.3 -> 24.5 |
+| nose-in (onto its back) | 50.6 -> 34.9 | 49.8 -> 40.6 | 49.9 -> 37.5 |
+
+\* the session's first crash, straight after the boot: its CALM frames were 35.6 ms (the CPU run's 17.9) - the box was
+still busy with the boot; not comparable. The 20:45 timings stand (the weightless places cost nothing to draw differently);
+the stills of that slot do not.
+The wreck at rest (median, fixed code): CPU 40.6-43.2 -> GPU 19.3-34.0 (the CPU re-posed the creeping wreck whole).
+The first-break frame: 80-145 ms both ways (the break event, the records' first share and the first riding); a later
+break event: 18-26 ms of event, 53-88 ms frames (median) both ways - the events are now the cost.
+
+Under the physics WORKER (the default; the page's own loop flies the crash, 12 s): the crash's frames (median / p95)
+CPU -> GPU: trunk centre 50.2 / 71.5 -> 37.2 / 72.3, trunk 2.5 m 48.0 / 71.6 -> 26.4 / 66.0; the wreck at rest
+29.6 -> 30.7, 31.8 -> 25.7; the impact second's mean 79.4 -> 70.9 and 66.5 -> 67.2. **Under the worker the impact second
+is bound by the skin break's own CPU work: ~600 ms of it in both modes** (the trace's brk column; the GPU's share 47-56
+ms) - the breaks arrive spread over many snapshots (an event nearly every frame) where the inline rig's arrive in a few.
+
+**Acceptance against the brief:** damage off / nothing broken = the base (no record, no program, no frame cost: DMGSKINGPU's
+static rows, the calm frames equal both ways); the riding GPU = CPU within 0.1 mm and 1 degree (0.045 mm, 0.0001 deg);
+**the impact-second mean under ~25 ms is NOT met** except the taxi (16.5-24.5) and the 2.5 m trunk at 24.4-24.5 (pass A/B):
+the riding left the CPU, and the break events (inline) and the stream of events under the worker are what remains.
+The yellow Cub: yellow in every still pair (pageCensus not re-run by this session - D4b's / WALL's census is the gate).
+
+### Open
+- THE NEXT CUT, under the worker: the break events arrive almost every frame through the impact second (~20-35 ms each).
+  Coalescing them (one event per ~100 ms of sim time, the riding meanwhile on the last one) or the event off the main
+  thread; measure the split first (events vs record creation vs WALL's inherited binding, BRK_INH a frame) - the flown
+  trace has only the total.
+- The potato angle: no flown bake there, so each record is drawn alone - its own drawer (the same path; more, smaller
+  draws); the shader is a plain WebGL2 transform feedback (no extension but the parallel link, optional). Not measured on
+  potato hardware (the box is gamer tier).
+- DMG-WALL's follow-ups ride the same packing: G2010 the bent frame (a 6th place texture: slot, t, share; a per-frame
+  bent-member row; agreed), DMG-SCUFF's per-vertex damage attribute (written at events: a drawer attribute to carry).
+- Under the worker the page's sim's eng[].seized and v are its own (D4b's note): a non-DRIVE seizure and the debris'
+  release velocities do not come through there; D4b mirrored DRIVE's grade.
+
+### THE MERGE WITH DMG-WALL (b9377615, merged 2026-10-06 07:05 as 91965b15) - how D4b <-> WALL <-> SKINGPU were resolved
+WALL is based on integration a7ad3fdf without D4b's fc834041 work (G1864 islands / G1869 cuts / G1860 debris); this branch
+carries both. Resolved so that every side's behaviour is kept:
+- tools/_cage_join.js: the payload carries BOTH D4b's `debris` (cowl [tag, bucket, v0, v1]) and WALL's `layers`
+  ([layer, bucket, v0, v1, object]); the per-mesh tags computed side by side, the ranges pushed from one vertex count.
+- tools/run_gates.js: DMGSKINGPU + DMGWRECK (this side) and DMGWALL (WALL's), all kept.
+- app.js wreckBuild: `keyOf: keyOfMesh` (D4b) and `rigsAll` (WALL). The constants: D4b's WRECK_STILL / TEAR_EVERY /
+  REC_BUDGET / brkFast / BRK_ISLAND and WALL's BRK_INH. The heal: brkGpuFree() then WALL's real-heal (_pose / _poseNG
+  reset). brkRec: WALL's K argument. brkCageOn and the still return: D4b's recPending, WALL's brkWallStale, the GPU flip.
+  The groups: WALL's legs / links / wreckGone filter / brkInhReset, then brkRecOrder and D4b's REC_BUDGET; `bud = inhOn ?
+  0 : BRK_BIND`. The riding loop: the GPU / CPU split with D4b's throttled tear (tearPlaces on the GPU), D4b's islands,
+  WALL's brkPosMirror on the CPU path (a still-merged bucket rides there), WALL's wallFollow after the loop; WALL's
+  inherited-binding functions and brkWallCut after brkCage.
+- skin_break.js: the heal resets WALL's R.cut and this side's incremental state; the event's triangle test is the
+  incremental one (dead >= 2 stays gone: WALL's 3 / 4 / 5 too); over() takes WALL's R (tube 1.2 x + 3 mm, sheet 1.4 x +
+  2 cm), and tearPlaces mirrors it (and tear()'s noTear rule); the API is the union (WALL's + islands + the GPU exports).
+- The incremental event is FULL whenever a record's binding changed outside its last event (R.dv moved: WALL's
+  bindInherit / wallSync bump it), so WALL's "every record's event made again" after the inherited binding lands.
