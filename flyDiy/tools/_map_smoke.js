@@ -1,23 +1,28 @@
-// _map_smoke.js - THE MAP SCREEN'S ROWS IN GATE UISMOKE / UISMOKE-PHONE (G2253, MAP-MENU). Called by test_ui_smoke.js with
-// the built artifact's text; throws on the first broken rule, returns the lines it proved.
+// _map_smoke.js - THE MAP SCREEN'S ROWS IN GATE UISMOKE / UISMOKE-PHONE (G2253 MAP-MENU; G2328 MAP-SIMPLE, the screen
+// rebuilt to the approved mock, GAME-2026-10-06.md §R.2). Called by test_ui_smoke.js with the built artifact's text; throws
+// on the first broken rule, returns the lines it proved.
 //   THE SANDBOX STAYS TODAY'S GAME: the page's loader block, run in a vm, shows NO MAP entry without ?map=1 (nor with
 //     ?map=10, nor in the sandbox mode) and one with ?map=1 or FLYDIY_MODE 'career'; the entry appends nothing until it
 //     is pressed, then the pack and the screen, in that order (BOOT: nothing loaded before opening). The artifact
 //     carries the two as LAZY names only - no static tag, no inlined body.
-//   THE SCREEN'S ROWS: map_menu.js's pure core over the fixture and the baked projection - the five providers' tabs and
-//     All (their rows summing to All), Fleet / Pilots / Market (the last two "coming"), every contract's card stating both
-//     ends, both strips, the payload and the pay; the fleet against a job as facts that forbid nothing; a build card's
-//     criteria; track one, accept many; a selection's markers and route; the gear rule equal to 25_airfield.js's.
-//   NOHOVER (MOBILE-GARAGE R17/R18) for the new UI: no title=, no mouseenter / mouseover / pointerover, no :hover in
-//     map_menu.js or the entry. R1: every interactive class >= 48 px. --phone: the phone's card (no Fly), the sheet's
-//     gestures (R20: the map touch-action none, the sheet pan-y).
+//   THE SCREEN'S ROWS (MAP-SIMPLE): map_menu.js's pure core over the fixture, the real record and the baked projection -
+//     NO RIGHT PANEL and no Fleet / Pilots / Market on it; one row per contract (the TYPE's colour, the title, the pay,
+//     the mark); the customers a filter whose rows sum to All, never a colour; the paragraph (who + what + pay, the
+//     runways condensed, the ✗'s reason) and ONE button, Track (accept + track, a second tap untracks); ✓ / ✗ ONLY on
+//     the surface-vs-gear no-no's against the fleet (a build: none; payload, seats, runs never judged); the place filter
+//     (a place's rows are exactly the contracts involving it); the map's levels of detail (badges always, the hotspots
+//     from the second zoom step, their rings and counts closer, the runways at true scale with the designators their
+//     names carry); NO AUTO-ZOOM (opening a row never touches the view); the gear rule equal to 25_airfield.js's.
+//   NOHOVER (MOBILE-GARAGE R17/R18): no title=, no mouseenter / mouseover / pointerover, no :hover in map_menu.js or the
+//     entry. R1: every interactive class >= 48 px. R20: the map touch-action none, the list / sheet pan-y, the handle
+//     none. --phone: the bottom sheet's rules.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 
 module.exports = function mapSmoke(html, phone) {
   const lines = [];
-  const need = (c, what) => { if (!c) throw new Error('MAP-MENU: ' + what); };
+  const need = (c, what) => { if (!c) throw new Error('MAP: ' + what); };
   const say = s => lines.push(s);
   const menuSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'map_menu.js'), 'utf8');
   const packSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'map_pack.js'), 'utf8');
@@ -63,49 +68,114 @@ module.exports = function mapSmoke(html, phone) {
   const C = require('./flight_core.js');
   const MM = require(path.join(ROOT, 'src', 'viewer', 'map_menu.js'));
   const pack = JSON.parse(/window\.MAP_PACK = (\{[\s\S]*\});\s*$/.exec(packSrc)[1]);
+  const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const escH = t => String(t).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'contracts_sample.json'), 'utf8'));
   const M = MM.mapAdapt(raw, pack, null);
   need(M.providers.map(p => p.id).join() === 'trust,minedock,resort,survey,clients', 'the five providers (§R G-PROV: the mine and the dock merged): ' + M.providers.map(p => p.id).join());
   need(M.contracts.length === raw.contracts.length && M.contracts.length >= 10, 'the adapter dropped contracts');
-  for (const c of M.contracts) for (const s of c.stages) for (const u of s.subs) for (const id of [u.from, u.to].filter(Boolean))
+  for (const c of M.contracts) for (const st of c.stages) for (const u of st.subs) for (const id of [u.from, u.to].filter(Boolean))
     need(M.aeros[id], c.id + ' names an aerodrome the projection lacks: ' + id);
-  const all = MM.rowsOf(M, 'all').length, per = M.providers.map(p => MM.rowsOf(M, p.id).length);
-  need(all === M.contracts.length && per.reduce((a, b) => a + b, 0) === all && per.every(n => n >= 1), 'the tabs: All ' + all + ', per provider ' + per.join('/'));
-  const st = { tab: 'all', sel: null, layers: { contracts: true, fleet: true, fields: true, plots: false }, phone };
-  const tabs = MM.tabsHTML(M, st);
-  need((tabs.match(/data-tab="/g) || []).length === 9 && /data-tab="fleet"/.test(tabs) && /data-tab="pilots"/.test(tabs) && /data-tab="market"/.test(tabs), 'the tabs: All + 5 providers + Fleet, Pilots, Market');
-  for (const t of ['pilots', 'market']) need(/coming/.test(MM.listHTML(M, Object.assign({}, st, { tab: t }))), t + ' is not a "coming" placeholder');
-  need((MM.listHTML(M, st).match(/class="mmRow[ "]/g) || []).length === all, 'the All list does not draw every row');
-  say('the rows: ' + M.providers.length + ' provider tabs + All (' + per.join(' + ') + ' = ' + all + '), Fleet (' + M.fleet.length + '), Pilots and Market "coming"');
-  // the card: everything needed, remotely
-  for (const c of M.contracts) {
-    const h = MM.cardHTML(M, Object.assign({}, st, { sel: 'c:' + c.id }));
-    for (const u of MM.subsNow(M, c)) {
-      for (const id of [u.from, u.to].filter(Boolean)) {
-        const a = M.aeros[id];
-        need(h.includes(a.name.replace(/&/g, '&amp;')) && h.includes(String(a.len).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' m'), c.id + ': the card lacks ' + id + ' or its strip length');
-      }
-      if (u.load && u.load.kg) need(h.includes(u.load.kg + ' kg'), c.id + ': the card lacks the payload');
+  // NO RIGHT PANEL, NO ASSET TABS: the list is the whole interface
+  need(!/mmRight|cardHTML|tabsHTML|data-tab=|mmLayers/.test(menuSrc) && !MM.cardHTML && !MM.tabsHTML, 'the screen still carries a right panel, the provider tabs or the layer buttons');
+  need(!/Fleet|Pilots|Market/.test(MM.headHTML(M, { cust: 'all' }) + MM.listHTML(M, { cust: 'all' })), 'Fleet / Pilots / Market are still on this screen');
+  // the customer filter: a select, whose rows sum to All
+  const st = { cust: 'all', at: null, open: null, phone };
+  const all = MM.rowsOf(M, st).length, per = M.providers.map(p => MM.rowsOf(M, { cust: p.id }).length);
+  need(all === M.contracts.length && per.reduce((a, b) => a + b, 0) === all && per.every(n => n >= 1), 'the customer filter: All ' + all + ', per customer ' + per.join('/'));
+  const head = MM.headHTML(M, st);
+  need(/<select class="mmCust"/.test(head) && (head.match(/<option /g) || []).length === M.providers.length + 1, 'the customers are not a select (All + 5)');
+  // one row per contract: the type's dot, the title, the pay, the mark; the colours are the TYPES', never a customer's
+  const L = MM.listHTML(M, st);
+  need((L.match(/class="mmRow"/g) || []).length === all && (L.match(/class="mmDot"/g) || []).length === all && (L.match(/class="mmPay"/g) || []).length === all, 'the All list does not draw one row (dot, title, pay, mark) per contract');
+  const typeCols = MM.TYPES.map(t => t[2]), provCols = raw.providers.map(p => p.colour);
+  need((L.match(/background:(#[0-9a-f]{6})/gi) || []).every(m => typeCols.includes(m.slice(11))) && !provCols.some(c => L.includes(c)), 'a row is coloured by its customer, not its type');
+  const types = {}; for (const c of M.contracts) types[MM.typeOf(c)] = (types[MM.typeOf(c)] || 0) + 1;
+  need(MM.typeOf(M.contracts.find(c => c.id === 'clients.b.fast4')) === 'build' && MM.typeOf(M.contracts.find(c => c.id === 'resort.j.guests')) === 'pax' &&
+       MM.typeOf(M.contracts.find(c => c.id === 'survey.j.count')) === 'survey' && MM.typeOf(M.contracts.find(c => c.id === 'minedock.j.parts')) === 'cargo', 'the contract types (build / passengers / survey / cargo)');
+  say('the list is the whole interface (no right panel, no provider tabs, no Fleet / Pilots / Market): ' + all + ' rows (type dot, title, pay, mark), the customers a select (' + per.join(' + ') + ' = ' + all + '), coloured by type ' + JSON.stringify(types));
+  // the paragraph and its one button
+  const para = (MX, c) => MM.paraHTML(MX, c);
+  const checkPara = (MX, c, tag) => {
+    const h = para(MX, c), P = MM.payOf(MX, c);
+    need(h.includes(escH(MX.prov[c.provider].name)) && h.includes(escH(c.brief)) && h.includes('Pays ' + fmt(P.total) + '.'), tag + c.id + ': the paragraph lacks who, what or the pay');
+    for (const u of MM.subsAll(c)) for (const id of [u.from, u.to].filter(Boolean)) {
+      const a = MX.aeros[id], over = u.do === 'survey' && id === u.to;
+      need(h.includes(escH(a.name)) && (over || h.includes(escH(MM.stripWord(a)))), tag + c.id + ': the runways line lacks ' + id + (over ? '' : ' or its strip (' + MM.stripWord(a) + ')'));
     }
-    need(/ net/.test(h) && /data-act="accept"/.test(h) && /data-act="track"/.test(h), c.id + ': the card lacks the pay, Accept or Track');
-    need(!/data-act="(accept|track)"[^>]*disabled/.test(h) && !/disabled[^>]*data-act="(accept|track)"/.test(h), c.id + ': a mismatch disabled Accept or Track (the card never forbids)');
-    need(phone ? !/Fly it/.test(h) : /Fly it/.test(h), c.id + ': ' + (phone ? 'the phone card offers a flight' : 'the desktop card lacks Fly it'));
+    need((h.match(/<button /g) || []).length === 1 && /data-act="track"/.test(h) && !/Accept|disabled/.test(h), tag + c.id + ': not ONE button, Track');
+    need(!/payload|certified|seats|take-off|<ul|<table/i.test(h), tag + c.id + ': the paragraph carries a per-plane table or a judgement past the hard no-no\'s');
+    const K = MM.markOf(MX, c);
+    need(['✓', '✗', ''].includes(K.mark) && (K.mark === '✗') === /class="mmWhy"/.test(h) && (c.kind !== 'build' || K.mark === ''), tag + c.id + ': the mark (' + K.mark + ') or its reason');
+    return h;
+  };
+  for (const c of M.contracts) checkPara(M, c, '');
+  const ph = para(M, M.contracts.find(c => c.id === 'minedock.j.parts'));
+  need(ph.includes('Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km'), 'the runways condensed: ' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1]);
+  say('every paragraph (' + M.contracts.length + '): who + what + the pay, the runways condensed ("' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1] + '"), the ✗\'s reason, ONE button (Track); no per-plane table');
+  // ✓ / ✗ ONLY on the surface-vs-gear no-no's, against the fleet (wheels: Cub, Jodel, Voyager; floats: the C172)
+  const mk = (MX, id) => MM.markOf(MX, MX.contracts.find(c => c.id === id));
+  need(mk(M, 'minedock.j.parts').mark === '✗' && /water and land/.test(mk(M, 'minedock.j.parts').why) && mk(M, 'resort.j.guests').mark === '✓' && mk(M, 'trust.j.mail').mark === '✗' &&
+       mk(M, 'clients.b.fast4').mark === '' && mk(M, 'resort.b.electric').mark === '', 'the marks on the fixture: parts ✗ (no plane both water and land), guests ✓, mail ✗, the builds none');
+  const Mh = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null); for (const f of Mh.fleet) if (f.cert) Object.assign(f.cert, { payloadKg: 0, seats: 1, toRunM: 9999, ldgRunM: 9999 });
+  need(M.contracts.every(c => mk(Mh, c.id).mark === mk(M, c.id).mark), 'a mark moved with the payload, the seats or the runs (only the surface against the gear may judge)');
+  const Ma = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null); Ma.fleet[0].cert.gear = 'amphibian';
+  need(mk(Ma, 'minedock.j.parts').mark === '✓' && mk(Ma, 'trust.j.mail').mark === '✓', 'an amphibian in the fleet does not clear the water and land jobs');
+  const Mw = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null); for (const f of Mw.fleet) if (f.cert) f.cert.gear = 'wheels';
+  need(mk(Mw, 'trust.j.mail').mark === '✗' && /land on water/.test(mk(Mw, 'trust.j.mail').why) && mk(Mw, 'resort.j.guests').mark === '✓', 'a wheels-only fleet: the water job ✗ "cannot land on water"');
+  const Mf = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null); for (const f of Mf.fleet) if (f.cert) f.cert.gear = 'floats';
+  need(mk(Mf, 'resort.j.guests').mark === '✗' && /floats/.test(mk(Mf, 'resort.j.guests').why), 'a floats-only fleet: the land job ✗ (floats only)');
+  say('✓ / ✗ only on surface vs gear against the fleet: parts ✗ "' + mk(M, 'minedock.j.parts').why + '"; payload / seats / runs never move a mark; an amphibian clears them; wheels-only ✗ water, floats-only ✗ land; builds unmarked');
+  // the place filter: a place's rows are exactly the contracts involving it
+  for (const p of M.places) {
+    const got = MM.rowsOf(M, { cust: 'all', at: p.id }).map(c => c.id).sort(), want = M.contracts.filter(c => MM.subsAll(c).some(u => p.aeros.includes(u.from) || p.aeros.includes(u.to))).map(c => c.id).sort();
+    need(got.join() === want.join(), 'the place filter at ' + p.id + ': ' + got.join() + ' vs ' + want.join());
+    const A = MM.atHTML(M, { at: p.id });
+    need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
-  say('every card (' + M.contracts.length + '): both ends by name, both strips\' lengths, the payload, the pay, Accept and Track never disabled' + (phone ? ', no flight on the phone' : ''));
-  // the fleet against a job: facts
-  const parts = M.contracts.find(c => c.id === 'minedock.j.parts'), F = n => MM.factsFor(M, parts, M.fleet.find(f => f.slot === n)).map(x => (x.ok === true ? '+' : x.ok === false ? '-' : '?') + x.text);
-  const cub = F('Cub'), jod = F('Jodel'), flt = F('C172 floats');
-  need(cub.some(x => /^\+payload 120 kg: 148 kg spare/.test(x)) && cub.some(x => /^\+Jumbo Mine Street is 250 m gravel; certified take-off run 160 m/.test(x)) && cub.some(x => /^-Annette Dock: a water lane/.test(x)), 'the Cub\'s facts: ' + cub.join(' | '));
-  need(jod.some(x => /^-payload 120 kg: 26 kg over its 94 kg/.test(x)) && jod.some(x => /^-Jumbo Mine Street is 250 m gravel; certified take-off run 280 m/.test(x)), 'the Jodel\'s facts: ' + jod.join(' | '));
-  need(flt.some(x => /^-Jumbo Mine Street: floats land on water only/.test(x)) && flt.some(x => /^\+Annette Dock: water, on floats/.test(x)), 'the floats\' facts: ' + flt.join(' | '));
-  say('the fleet against "Parts to the dock": Cub ' + cub.length + ' facts, Jodel ' + jod.length + ', C172 floats ' + flt.length + ' (spare / over, take-off run vs the strip, floats for water)');
-  // the build card
-  const fast = M.contracts.find(c => c.id === 'clients.b.fast4'), crit = MM.critsOf(M, fast), D = MM.designsOf(M);
-  const v = (n, k) => MM.critFor(M, crit.find(x => x.k === k), D.find(d => d.name === n)).ok;
-  need(v('Voyager', 'seats') === true && v('Cub', 'seats') === false && v('Voyager', 'tas') === null && v('Voyager', 'land') === null && v('C172 floats', 'land') === false,
-    'the build criteria: seats from the spec, cruise and the strip need a flight, floats cannot land at the street');
-  need(/The criteria, against your designs/.test(MM.cardHTML(M, Object.assign({}, st, { sel: 'c:clients.b.fast4' }))), 'the build card lacks its criteria');
-  say('the build card: ' + crit.length + ' criteria x ' + D.length + ' designs (✓ / ✗ from the spec and the ledger, ◌ "needs a flight")');
+  need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { cust: 'all', at: 'nv_strip' })), 'the filter row without a place, or the empty place');
+  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport' &&
+       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport', 'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
+  say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
+  // Track: accept and track are one gesture, a second tap untracks
+  const M2 = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null);
+  MM.act(M2, 'resort.j.guests');
+  need(M2.career.tracked === 'resort.j.guests' && M2.career.accepted.includes('resort.j.guests'), 'Track did not accept and track in one gesture');
+  MM.act(M2, 'resort.j.guests');
+  need(M2.career.tracked === null && M2.career.accepted.includes('resort.j.guests'), 'a second Track did not untrack');
+  need(/★/.test(MM.listHTML(M, st).split('data-id="minedock.reopen"')[2].split('</button>')[0]), 'the tracked row lacks its ★');
+  say('Track: one gesture accepts and tracks, a second tap untracks; the tracked row starred');
+  // THE MAP's levels of detail, over the projection (fit 0.3 of a 900 px tall view)
+  const Mo = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null); Mo.career.tracked = null;   // nothing tracked: the names keyed on the zoom alone
+  const fit = 0.3, ov = (k, st2, at) => { const s = fit * k, c = at || { x: 2000, z: -8000 }; return MM.overlayOf(Mo, st2 || st, pack, { s, fit, tx: 800 - ((c.x - pack.x0) / pack.mpp) * s, ty: 450 - ((c.z - pack.z0) / pack.mpp) * s }); };
+  const o1 = ov(1), o2 = ov(1.5), o3 = ov(3), o8 = ov(8, st, { x: 140, z: 60 });
+  need(o1.n.badges === M.places.length && o1.n.hot === 0 && o1.n.pois === 0 && o1.n.names === 0, 'at the fit: a badge per place and nothing else named (' + JSON.stringify(o1.n) + ')');
+  need(o2.n.hot === pack.hotspots.length && o2.n.rings === 0 && o2.n.counts === 0 && o2.n.names === M.places.length, 'the second zoom step: every hotspot and the names, no rings or counts yet (' + JSON.stringify(o2.n) + ')');
+  need(o3.n.rings > 0 && o3.n.counts === pack.hotspots.length && o3.n.pois === pack.pois.length && o3.n.facts === M.places.length, 'closer: the hotspots\' rings and counts, the places of interest, the runway facts (' + JSON.stringify(o3.n) + ')');
+  need(o2.bs > o1.bs && o3.bs > o2.bs, 'the badges are not sized to the zoom (' + o1.bs + ' / ' + o2.bs + ' / ' + o3.bs + ' px)');
+  need((o3.html.match(/class="mmHot sea"/g) || []).length === pack.hotspots.filter(h => h.kind === 'sea').length && pack.hotspots.some(h => h.kind === 'sea'), 'the sea hotspots are not blue');
+  // close up at Jolene AFB: both runways at true scale with the designators their names carry
+  const HOMEp = M.places.find(p => p.id === 'HOME');
+  for (const id of HOMEp.aeros) {
+    const a = M.aeros[id], d = MM.designators(a).slice().sort().join('/'), named = /(\d{2}\/\d{2})$/.exec(a.name)[1];
+    need(d === named, a.id + '\'s designators ' + d + ' are not its name\'s ' + named);
+    const g = (new RegExp('<g class="mmRwy" data-place="HOME" data-rwy="' + id + '"[\\s\\S]*?</g>').exec(o8.svg) || [''])[0];
+    need(g && MM.designators(a).every(n => g.includes('>' + n + '</text>')) && (g.match(/<line /g) || []).length >= 9, id + ' is not drawn close up with its centreline, threshold bars and designators');
+  }
+  for (const a of Object.values(M.aeros)) if (/\d{2}\/\d{2}$/.test(a.name)) need(MM.designators(a).slice().sort().join('/') === /(\d{2}\/\d{2})$/.exec(a.name)[1], a.id + ' designators');
+  const wet = MM.overlayOf(M, st, pack, { s: 2.4, fit, tx: 800 - ((360 - pack.x0) / 12) * 2.4, ty: 450 - ((-3661 - pack.z0) / 12) * 2.4 });
+  need(/data-rwy="SEA"[\s\S]*?<circle[\s\S]*?<\/g>/.test(wet.svg) && (/data-rwy="SEA"[\s\S]*?<\/g>/.exec(wet.svg)[0].match(/<circle /g) || []).length >= 8, 'the water lane is not buoyed');
+  need(/data-rwy="w3"[\s\S]*?stroke-dasharray="2 7"/.test(MM.overlayOf(M, st, pack, { s: 2.4, fit, tx: 800 - ((-800 - pack.x0) / 12) * 2.4, ty: 450 - ((-2400 - pack.z0) / 12) * 2.4 }).svg), 'the gravel strip has no edge markers');
+  // every place is a tap: the badge, the name and the runway carry its id
+  need(M.places.every(p => o3.html.includes('class="mmPl') && o3.html.includes('data-place="' + p.id + '"')) && /<button type="button" class="mmNm" data-place=/.test(o3.html) && /<g class="mmRwy" data-place="HOME"/.test(o8.svg), 'a place (badge, name or runway) is not a tap target');
+  // the open / tracked contract's places ringed in its type's colour, named even at the fit; its route drawn
+  const lit = ov(1, { cust: 'all', at: null, open: 'minedock.j.parts' });
+  need(/data-place="mn_strip" [^>]*><i style="box-shadow:0 0 0 3px #d99a3c/.test(lit.html) && /data-place="SEA" [^>]*><i style="box-shadow:0 0 0 3px #d99a3c/.test(lit.html) && lit.n.routes >= 1 && lit.n.names >= 2, 'the open contract\'s places are not ringed in its type colour, named, and joined');
+  say('the map: a badge per place at the fit (' + o1.bs + ' px), names + ' + o2.n.hot + ' hotspots from the second step (' + o2.bs + ' px), rings + counts + places + runway facts closer (' + o3.bs + ' px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour');
+  // NO AUTO-ZOOM: opening a row (and a place filter) never touches the view
+  const rowLine = /if \(a === 'row'\)[^\n]*/.exec(menuSrc), atLine = /function filterAt\([^\n]*/.exec(menuSrc);
+  need(rowLine && atLine && !/zoom|fit\(|V\.|focus|place\(\)/.test(rowLine[0].replace(/renderList\(\)/, '')) && !/zoom|fit\(|V\.|focus/.test(atLine[0]) && !/function focus/.test(menuSrc), 'opening a row or filtering a place moves the map (no auto-zoom)');
+  say('no auto-zoom: opening a row or filtering a place leaves the view as it was');
   // the gear rule: equal to 25_airfield.js's on every strip of the record
   const rec = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8'));
   for (const r of rec.layers.runways) {
@@ -113,81 +183,62 @@ module.exports = function mapSmoke(html, phone) {
     for (const g of ['wheels', 'floats', 'amphibian', 'skis']) need(MM.allows(g, M.aeros[r.id]).ok === C.stripAllows(g, a).ok, 'the gear rule differs from stripAllows: ' + g + ' at ' + r.id);
   }
   say('the gear rule equals 25_airfield.js stripAllows on the 8 strips x 4 gears');
-  // track one, accept many; a selection's markers and route
-  const M2 = MM.mapAdapt(raw, pack, null);
-  MM.act(M2, 'resort.j.guests', 'track'); MM.act(M2, 'survey.j.count', 'accept'); MM.act(M2, 'minedock.j.parts', 'track');
-  need(M2.career.tracked === 'minedock.j.parts' && ['minedock.reopen', 'resort.j.guests', 'survey.j.count', 'minedock.j.parts'].every(id => M2.career.accepted.includes(id)), 'track one, accept many');
-  const sst = Object.assign({}, st, { sel: 'c:minedock.j.parts' }), mk = MM.markersOf(M2, sst), rt = MM.routesOf(M2, sst);
-  need(mk.filter(m => m.on).length >= 2 && mk.some(m => m.kind === 'dest' && m.aero === 'SEA') && rt.some(r => r.bold), 'a selection lights its markers and draws its route');
-  need(mk.filter(m => m.kind === 'contract').every(m => m.sel && m.sel.startsWith('c:')), 'a contract marker that selects no row');
-  say('track one, accept many; a selection lights ' + mk.filter(m => m.on).length + ' markers and draws ' + rt.filter(r => r.bold).length + ' route; every marker selects its row');
 
-  // ---- NOHOVER and R1 on the new UI's source ------------------------------------------------------------------------------
+  // ---- NOHOVER, R1, R20 on the new UI's source ------------------------------------------------------------------------------
   const entry = loader.slice(loader.indexOf('G2252'), loader.indexOf('mapEntry();'));
   for (const [what, src] of [['map_menu.js', menuSrc], ['the MAP entry', entry]]) {
     const bad = (src.match(/title=|\.title\s*=|mouseenter|mouseover|pointerover|:hover|onmouse/g) || []);
     need(!bad.length, what + ' carries hover-only information: ' + bad.join(', '));
   }
   const css = /const CSS = `([\s\S]*?)`;/.exec(menuSrc)[1];
-  for (const cls of ['mmTab', 'mmRow', 'mmBtn', 'mmBack', 'mmLink', 'mmHandle', 'mmClose']) {
+  for (const cls of ['mmRow', 'mmTrack', 'mmAtX', 'mmClose', 'mmCust', 'mmNm']) {
     const r = new RegExp('#mapScreen \\.' + cls + '\\{[^}]*?(?:min-height|height):(\\d+)px').exec(css);
     need(r && +r[1] >= 48, '.' + cls + ' is under 48 px (R1)');
   }
-  need(/\.mmMk\{[^}]*width:48px;height:48px/.test(css) && /\.mmCtl button,#mapScreen \.mmLay\{min-width:48px;height:48px/.test(css), 'the markers / map controls are under 48 px (R1)');
-  need(/\.mmMap\{[^}]*touch-action:none/.test(css) && /\.mmSheetBody\{[^}]*touch-action:pan-y/.test(css) && /\.mmList\{[^}]*touch-action:pan-y/.test(css), 'R20: the map and the sheet share a gesture');
+  need(/\.mmPl\{[^}]*width:48px;height:48px/.test(css) && /\.mmCtl button\{[^}]*min-width:48px;min-height:48px/.test(css) && /\.mmHandle\{[^}]*height:48px/.test(css), 'the place badges / map controls / the handle are under 48 px (R1)');
+  need(/\.mmMap\{[^}]*touch-action:none/.test(css) && /\.mmList\{[^}]*touch-action:pan-y/.test(css) && /\.mmHandle\{[^}]*touch-action:none/.test(css), 'R20: the map and the sheet share a gesture');
+  need(/\.mmMap\{[^}]*user-select:none/.test(css) && /dragstart/.test(menuSrc) && /selectstart/.test(menuSrc) && /draggable="false"/.test(menuSrc), 'the map lets the picture drag or the text select');
+  need(/mmPhone \.mmSide\{[^}]*position:absolute;left:0;right:0;bottom:0/.test(css) && /mmPhone \.mmSide\.open\{/.test(css), 'the phone: the list is not a bottom sheet');
   need(!/navigator\.userAgent|userAgentData|location\.hostname|pointer:\s*coarse|innerWidth\s*</.test(menuSrc), 'map_menu.js tests the device (only welcome.js and the profile table may)');
-  say('NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the sheet (pan-y) apart; no device test');
+  need(/map_art|art\.img|pack\.art/.test(menuSrc) && pack.art && /jolene_art\.[0-9a-f]{8}\.jpg$/.test(pack.art.img), 'the screen does not show the user\'s AI map (pack.art)');
+  say('NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the list / sheet (pan-y) apart; no image drag or text selection; ' + (phone ? 'the phone\'s bottom sheet; ' : '') + 'the picture is the user\'s AI map (' + pack.art.img + ')');
 
   // ---- G2320 (CAREER-WIRE): THE SAME ROWS ON THE REAL RECORD - a new career (careerNew: every provider's first arc + 3
-  // jobs) through 75_career_wire.js careerMapRecord, the adapter untouched but where the record differs from §7.3 -------
+  // jobs) through 75_career_wire.js careerMapRecord; the fleet still empty, so the marks judge the voucher's aeroplane ----
   need(/careerMapRecord\(careerNew\(/.test(menuSrc) && /FLYDIY_CAREER\.record\(\)/.test(menuSrc) && /mapsrc=fixture/.test(menuSrc), 'MAP_SOURCE is not the real record (FLYDIY_CAREER / a new career; ?mapsrc=fixture keeps the fixture)');
   const doc0 = C.careerNew({ id: 'dev', seed: 'dev' });
-  const RR = C.careerMapRecord(doc0, null, {}), MR = MM.mapAdapt(RR, pack, null);
+  const RR = C.careerMapRecord(doc0, null, {}), MR = MM.mapAdapt(RR, pack, null, C.CONTRACT_DESIGNS);
   need(MR.source === 'career' && MR.providers.map(p => p.id).join() === Object.keys(C.CONTRACT_PROVIDERS).join(), 'the real record: the five providers ' + MR.providers.map(p => p.id).join());
   need(MR.contracts.length === doc0.career.contracts.offered.length && MR.contracts.length === 5 * 4, 'the real record: a new career\'s 20 offers (' + MR.contracts.length + ')');
-  for (const c of MR.contracts) for (const st of c.stages) for (const u of st.subs) for (const id of [u.from, u.to].filter(Boolean)) need(MR.aeros[id], c.id + ' names an aerodrome the projection lacks: ' + id);
-  const allR = MM.rowsOf(MR, 'all').length, perR = MR.providers.map(p => MM.rowsOf(MR, p.id).length);
-  need(allR === MR.contracts.length && perR.reduce((a, b) => a + b, 0) === allR && perR.every(n => n === 4), 'the real tabs: All ' + allR + ', per provider ' + perR.join('/'));
-  need((MM.listHTML(MR, st).match(/class="mmRow[ "]/g) || []).length === allR, 'the real All list does not draw every row');
+  const allR = MM.rowsOf(MR, st).length, perR = MR.providers.map(p => MM.rowsOf(MR, { cust: p.id }).length);
+  need(allR === MR.contracts.length && perR.reduce((a, b) => a + b, 0) === allR && perR.every(n => n === 4), 'the real customers: All ' + allR + ', per customer ' + perR.join('/'));
+  need((MM.listHTML(MR, st).match(/class="mmRow"/g) || []).length === allR, 'the real All list does not draw every row');
   for (const c of MR.contracts) {
-    const h = MM.cardHTML(MR, Object.assign({}, st, { sel: 'c:' + c.id }));
-    for (const u of MM.subsNow(MR, c)) {
-      for (const id of [u.from, u.to].filter(Boolean)) {
-        const a = MR.aeros[id];
-        need(h.includes(a.name.replace(/&/g, '&amp;')) && h.includes(String(a.len).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' m'), c.id + ': the real card lacks ' + id + ' or its strip length');
-      }
-      if (u.load && u.load.kg) need(h.includes(u.load.kg + ' kg'), c.id + ': the real card lacks the payload');
-    }
-    const P = MM.payOf(MR, c), want = C.contractPay(C.careerContract(doc0, c.id)).total;
-    need(P.total === want && h.includes('<b>' + String(want).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + '</b> net'), c.id + ': the card\'s pay is not contractPay\'s (' + P.total + ' vs ' + want + ')');
-    need(!/\[(ct|job|prov|crit)\./.test(h) && !/\{(from|to|load|at)\}/.test(h), c.id + ': an unresolved text key or slot on the card');
-    need(/data-act="accept"/.test(h) && /data-act="track"/.test(h) && !/data-act="(accept|track)"[^>]*disabled/.test(h), c.id + ': the real card lacks Accept / Track, or disables one');
-    need(phone ? !/Fly it/.test(h) : /Fly it/.test(h), c.id + ': the real card\'s flight button on the ' + (phone ? 'phone' : 'desktop'));
+    const h = checkPara(MR, c, 'the real record: ');
+    const want = C.contractPay(C.careerContract(doc0, c.id)).total;
+    need(MM.payOf(MR, c).total === want && h.includes('Pays ' + fmt(want) + '.'), c.id + ': the paragraph\'s pay is not contractPay\'s (' + MM.payOf(MR, c).total + ' vs ' + want + ')');
+    need(!/\[(ct|job|prov|crit)\./.test(h) && !/\{(from|to|load|at)\}/.test(h), c.id + ': an unresolved text key or slot in the paragraph');
   }
-  const mkR = MM.markersOf(MR, st).filter(m => m.kind === 'contract');
-  need(mkR.length === MR.contracts.length && mkR.every(m => m.sel && m.sel.startsWith('c:')), 'the real record: every contract a marker that selects its row (' + mkR.length + ')');
-  say('the real record (a new career, careerNew + careerMapRecord): ' + MR.providers.length + ' provider tabs + All (' + perR.join(' + ') + ' = ' + allR + '); every card both ends, both strips, the payload, contractPay\'s pay, no unresolved key, Accept / Track; every contract a marker');
-  // the fleet on the real record: the career's own airframes (the voucher's maker Cub: CONTRACT_DESIGNS' certificate; one
-  // not read yet), and a build contract's criteria against them (the clients' first delivery, offered after clients.01)
+  need(MR.voucher && MR.voucher.gear === 'wheels', 'the new career\'s voucher aeroplane (the maker Cub, wheels) is not what the marks judge by');
+  const wetR = MR.contracts.filter(c => MM.subsAll(c).some(u => [u.from, u.do === 'survey' ? null : u.to].some(id => id && MR.aeros[id] && MR.aeros[id].surface.cls === 'water')));
+  need(wetR.length >= 2 && wetR.every(c => MM.markOf(MR, c).mark === '✗' && /cannot land on water/.test(MM.markOf(MR, c).why)) && MR.contracts.filter(c => !wetR.includes(c)).every(c => MM.markOf(MR, c).mark === '✓'),
+    'the real marks: the water jobs ✗ for the voucher\'s Cub, every other ✓');
+  const M0 = MM.mapAdapt(RR, pack, null, {});
+  need(M0.contracts.every(c => MM.markOf(M0, c).mark === ''), 'with no fleet and nothing to judge by, a mark was still drawn');
+  say('the real record (a new career, careerNew + careerMapRecord): ' + allR + ' rows (' + perR.join(' + ') + '), every paragraph contractPay\'s pay, both ends, no unresolved key, ONE Track; the voucher\'s Cub (wheels) marks ' + wetR.length + ' water jobs ✗, the rest ✓');
+  // the real fleet: the career's own airframes (the voucher's maker Cub: CONTRACT_DESIGNS' certificate; one not read yet)
   const doc1 = JSON.parse(JSON.stringify(doc0));
   doc1.fleet = { Cub: { aero: 'HOME' }, Kit: { aero: 'w3' } };
   doc1.career.airframes = { Cub: { design: 'cub' } };
-  doc1.career.contracts.done.push({ id: 'clients.01', at: 0, pay: 1500 });
-  const M1 = MM.mapAdapt(C.careerMapRecord(doc1, null, {}), pack, null);
-  const cubF = M1.fleet.find(f => f.slot === 'Cub'), kitF = M1.fleet.find(f => f.slot === 'Kit');
-  need(cubF && cubF.cert && cubF.cert.payloadKg === 90 && kitF && kitF.cert === null, 'the real fleet: the Cub\'s certificate (90 kg payload), the kit not read yet');
-  const carry = M1.contracts.find(c => c.kind === 'job' && MM.subsNow(M1, c).some(u => u.do === 'carry' && u.load && u.load.kg));
-  const fx = MM.factsFor(M1, carry, cubF), fk = MM.factsFor(M1, carry, kitF);
-  need(fx.some(x => /^payload \d+ kg: /.test(x.text)) && fk.length === 1 && fk[0].ok === null && /not read yet/.test(fk[0].text), 'the real fleet against ' + carry.id + ': ' + fx.map(x => x.text).join(' | '));
-  const b2 = M1.contracts.find(c => c.id === 'clients.02');
-  need(b2 && b2.kind === 'build', 'the clients\' first delivery (clients.02) is offered after clients.01');
-  const cr2 = MM.critsOf(M1, b2), cv = k => MM.critFor(M1, cr2.find(x => x.k === k), MM.designsOf(M1).find(d => d.name === 'Cub')).ok;
-  need(cv('seats') === true && cv('emptyKg') === false && cv('spanM') === false && cr2.every(x => x.words), 'the real build criteria against the Cub: seats ✓, empty mass ✗, span ✗ (worded by contractCritWords)');
+  const M1 = MM.mapAdapt(C.careerMapRecord(doc1, null, {}), pack, null, C.CONTRACT_DESIGNS);
+  need(M1.fleet.length === 2 && MM.fleetGears(M1).length === 1 && MM.fleetGears(M1)[0].gear === 'wheels', 'the real fleet\'s gears (the Cub\'s certificate; the kit not read yet, so not judged)');
+  const o1R = MM.overlayOf(M1, st, pack, { s: 0.3, fit: 0.3, tx: 0, ty: 0 });
+  need(o1R.n.planes === 2, 'your planes are not on the map where they stand (' + o1R.n.planes + ')');
   // the held-out contract never reaches the map
   const doc2 = JSON.parse(JSON.stringify(doc0));
   for (const id of ['clients.01', 'clients.02', 'clients.03', 'clients.04']) doc2.career.contracts.done.push({ id, at: 0, pay: 0 });
   doc2.career.providers.clients.rep = 5;
   need(!C.careerMapRecord(doc2, null, {}).contracts.some(c => c.id === 'clients.05'), 'the aerobatic box (+6 g, past the certificate) reached the map');
-  say('the real fleet: the Cub\'s certificate against "' + carry.title + '" (' + fx.length + ' facts), a kit "not read yet"; clients.02\'s criteria against it; the aerobatic box held out');
+  say('the real fleet: the Cub judged by its certificate\'s gear, a kit not read yet left out; both drawn where they stand; the aerobatic box held out');
   return lines;
 };

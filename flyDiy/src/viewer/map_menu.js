@@ -1,33 +1,38 @@
-// map_menu.js - THE MAP SCREEN (G2252-G2256, MAP-MENU; futureDesigns/GAME-2026-10-06.md §8.2 the layout, §8.3 the
-// detail card, §8.1 SnowRunner's lessons; §R binding: five providers, the mine and the dock merged; G-COST; GQ19 the
-// phone plans). One screen over the game: the contracts list tabbed by provider (All + 5) with three asset tabs (Fleet,
-// Pilots, Market), the 2-D island (tools/map_bake.js's picture, src/viewer/map_pack.js's projection) with pan, pinch
-// and zoom and four layers, and the detail card of the selection.
+// map_menu.js - THE MAP SCREEN (G2324-G2329, MAP-SIMPLE; was G2252-G2256 MAP-MENU). The approved mock is the spec:
+// futureDesigns/game/map-mock/contracts_mock.html, with GAME-2026-10-06.md §R.2 (the user's steer of 7 Oct, which
+// supersedes §8.2-§8.3). One screen over the game, reduced to the minimum:
 //
-// WHAT IT FIXES (§8.1's complaints):
-//   - everything needed, remotely: where the load is, where it goes, both strips' length and surface, the payload, the
-//     pay - on the card, never only in the world;
-//   - "your fleet against this job": each airframe's certificate against the job's numbers (payload spare, the
-//     certified take-off / landing run vs the strip, floats for water, seats) - STATED AS FACTS, NEVER FORBIDDING:
-//     no button is ever disabled by a mismatch (free choice and the spine);
-//   - track one, accept many: tapping a row highlights its markers and draws its route; tapping a marker selects its
-//     row (the cross-highlight is a tap, R17 - nothing is hover-only);
-//   - markers are provider-coloured badges with a kind glyph and a 48 px hit area, the busy screen kept to one job per
-//     surface (UI-MODEL: three greys, one accent, IBM Plex Sans).
+//   THE LIST IS THE WHOLE INTERFACE (no right panel). One row per contract: a dot in the contract TYPE's colour (cargo,
+//     passengers, survey, build), the title, the pay, and a mark - ✓ / ✗ ONLY for the hard no-no's, surface against
+//     gear (water vs wheels, land vs floats only), judged against the player's fleet; a build contract carries none.
+//     A tap opens ONE short paragraph (who + what + pay; the runways condensed, "Jumbo Mine Street 250 × 18 m gravel →
+//     Annette Dock 1 500 m water lane · 14 km"; the ✗'s reason) and ONE button, Track (accept and track are one gesture;
+//     a second tap untracks). The customers are a FILTER (a select), not colours; a place tapped on the map filters the
+//     list to the contracts involving it ("At <place> ✕"). Fleet / Pilots / Market are not on this screen.
+//   THE MAP is the user's own AI painting of the island (map_bake.js ships it as media/map/jolene_art.<h8>.jpg, in the
+//     projection's frame exactly), on its edge's sea colour, no border. Pan by a left-button drag anywhere (no image
+//     drag, no text selection; a click counts only if the pointer barely moved), zoom by the wheel at the cursor, a
+//     pinch, + / − / fit; kept in bounds; NO AUTO-ZOOM when a contract opens.
+//   THE GAME DRAWS EVERY SITE (the painting's own runways drift ~0.5-0.8 km): a badge per place (airfield, strip,
+//     seaplane base, mine, clearing, altiport) sized to the zoom and ringed in the open / tracked contract's type colour;
+//     mid zoom the names and the places of interest; closer the runway facts; close up every runway at true scale (the
+//     cleared surround and the surface; centreline and threshold bars on concrete, edge markers on gravel / grass, a
+//     buoyed lane on water; the designators at both ends) - all read from the projection's aerodromes and the island
+//     record, never typed here. The wildlife hotspots (the record's animal objects, as the in-game minimap marks them)
+//     are green badges (blue at sea) from the second zoom step, their zone ring and count closer in. A place (badge,
+//     name or runway) is a tap that filters the list.
 //
-// THE SANDBOX STAYS TODAY'S GAME. This file is LAZY (build.js MANIFEST.lazy 'map_menu', like diag.js): the page's
-// loader shows a MAP entry only with ?map=1 (a dev flag) or when FLYDIY_MODE === 'career' (not built yet), and fetches
-// this file, map_pack.js, the picture and the contracts only when the entry is pressed. Nothing of it exists before.
+// THE SANDBOX STAYS TODAY'S GAME. This file is LAZY (build.js MANIFEST.lazy 'map_menu'): the page shows a MAP entry only
+// with ?map=1 or in the career mode (?career=1), and fetches this file, map_pack.js, the painting and the contracts only
+// when it is pressed.
 //
-// THE PHONE (GQ19, MOBILE-GARAGE R1-R24): the same screen as a bottom sheet over the map (peek / open), tabs as chips,
-// every target >= 48 px, the map (touch-action none: one finger pans, two pinch) and the sheet (pan-y: it scrolls)
-// never share a gesture (R20). Plan only: accept, track, look. No flight from here.
+// THE PHONE (GQ19, MOBILE-GARAGE R1-R24): the same list as a bottom sheet over the map (peek / open), every target
+// >= 48 px, nothing hover-only, the map (touch-action none: one finger pans, two pinch) and the sheet (pan-y) never
+// sharing a gesture (R20).
 //
-// THE CONTRACTS ARE READ THROUGH ONE FUNCTION (mapAdapt), from ONE SOURCE LINE (MAP_SOURCE). G2320 (CAREER-WIRE): the
-// source is THE REAL RECORD - 75_career_wire.js careerMapRecord over the career document (?career=1: the page's dev
-// career, window.FLYDIY_CAREER; Accept / Track write it through careerAccept / careerTrack), else a NEW career's
-// offers in memory (nothing saved; Accept / Track live in the session's adapted record, as before). ?mapsrc=fixture
-// keeps tools/fixtures/contracts_sample.json (the stills).
+// THE CONTRACTS ARE READ THROUGH ONE FUNCTION (mapAdapt), from ONE SOURCE LINE (MAP_SOURCE): G2320 (CAREER-WIRE)'s real
+// record, 75_career_wire.js careerMapRecord over the career document (?career=1: window.FLYDIY_CAREER; Track writes it
+// through careerAct), else a NEW career's offers in memory; ?mapsrc=fixture keeps tools/fixtures/contracts_sample.json.
 //
 // Pure half (node: require('src/viewer/map_menu.js') -> the core; GATE UISMOKE runs it) and a DOM half (the page).
 (function () {
@@ -35,55 +40,80 @@
   const W = typeof window !== 'undefined' ? window : null;
 
   // ---- THE NUMBERS ------------------------------------------------------------------------------------------------
-  const PAX_KG = 80;                     // a passenger and a bag, the yardstick a payload fact uses (the cabin's station mass)
-  const KIND_WORD = { contract: 'contract', job: 'job', build: 'build', challenge: 'challenge', survey: 'survey' };
-  const KIND_GLYPH = { contract: '▸', job: '●', build: '◆', challenge: '◷', survey: '⌖' };
-  const DO_WORD = { carry: 'carry', fly: 'fly', land: 'land', deliver: 'deliver', survey: 'survey', accept: 'deliver for acceptance' };
-  const CRIT_WORD = { seats: 'seats', emptyKg: 'empty mass', power: 'powertrain', tankL: 'tank', spanM: 'span', cost: 'cost', tas: 'cruise', endurance: 'endurance', land: 'lands at',
-                      // (G2320) CONTRACT-MODEL's kinds (73_contracts.js CONTRACT_CRIT_KINDS)
-                      powertrain: 'powertrain', costMax: 'cost', batteryKWh: 'battery', ultimateG: 'ultimate load', xwindKt: 'crosswind', hydro: 'on water',
-                      tasKmh: 'cruise', enduranceMin: 'endurance', rangeKm: 'range', takeoffAt: 'takes off at', landAt: 'lands at' };
-  // what verifies each criterion (§6.2): the spec / the ledger / the certificate can tell now; the bench's test or the flight must be run
-  const CRIT_BY = { seats: 'spec', emptyKg: 'ledger', power: 'spec', tankL: 'spec', spanM: 'spec', cost: 'ledger', tas: 'flight', endurance: 'flight', land: 'flight',
-                    powertrain: 'spec', costMax: 'ledger', batteryKWh: 'spec', ultimateG: 'cert', xwindKt: 'bench', hydro: 'bench',
-                    tasKmh: 'flight', enduranceMin: 'flight', rangeKm: 'flight', takeoffAt: 'flight', landAt: 'flight' };
-  const CRIT_STRIP = { land: 1, landAt: 1, takeoffAt: 1 };
-  const TABS_ASSET = [['fleet', 'Fleet'], ['pilots', 'Pilots'], ['market', 'Market']];
-  const LAYERS = [['contracts', 'Contracts'], ['fleet', 'Fleet'], ['fields', 'Fields'], ['plots', 'Plots']];
+  // the contract TYPES and their colours (the mock's --cargo / --pax / --survey / --build)
+  const TYPES = [['cargo', 'Cargo', '#d99a3c'], ['pax', 'Passengers', '#4f9fd6'], ['survey', 'Survey', '#6cbf8a'], ['build', 'Build', '#b58fd8']];
+  const TYPE_COLOUR = {}; for (const t of TYPES) TYPE_COLOUR[t[0]] = t[2];
+  // THE LEVELS OF DETAIL, keyed on zr = scale / the fit's scale (1 = the whole island): the place names and the runway
+  // facts, the places of interest, the hotspots (from the second zoom step: one + press is 1.5) and their rings and
+  // counts; a runway is drawn at true scale once it is longer than a badge, its designators once there is room
+  const LOD = { names: 1.5, facts: 3, pois: 2.2, hot: 1.25, hotRing: 2.6, rwyPx: 34, desigPx: 120 };
+  const ZOOM_MAX = 8, ZOOM_ABS = 3;     // the deepest zoom: 8x the fit, and at least 3 screen px per picture px (4 m a px)
+  const ACC = '#e6a15a';
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const kmOf = (a, b) => (a && b) ? Math.hypot(a.x - b.x, a.z - b.z) / 1000 : 0;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // ---- THE PLACES: the projection's aerodromes grouped by name (a field's runways are one place: "Jolene AFB 13/31"
+  // and "Jolene AFB 02/20" are Jolene AFB); its kind read off the record (the surface, the altiport flag, the name) -----
+  const baseName = n => String(n || '').replace(/\s+\d{2}[LRC]?\/\d{2}[LRC]?$/, '');
+  function placeKind(as, name) {
+    if (as.some(a => a.surface.cls === 'water')) return 'seaplane';
+    if (as.some(a => a.altiport)) return 'altiport';
+    if (as.some(a => a.surface.key === 'concrete' || a.surface.key === 'asphalt')) return 'airfield';
+    if (/\bmine\b/i.test(name)) return 'mine';
+    if (/clearing/i.test(name)) return 'clearing';
+    return 'strip';
+  }
+  const KIND_WORD = { airfield: 'airfield', strip: 'strip', seaplane: 'seaplane base', mine: 'mine strip', clearing: 'clearing', altiport: 'altiport' };
+  function placesOf(pack) {
+    const by = {}, order = [];
+    for (const a of ((pack && pack.aerodromes) || [])) { const n = baseName(a.name); if (!by[n]) { by[n] = []; order.push(n); } by[n].push(a); }
+    return order.map(n => {
+      const as = by[n].slice().sort((p, q) => q.len - p.len), main = as[0];
+      return { id: main.id, name: n, kind: placeKind(as, n), aeros: as.map(a => a.id), x: main.x, z: main.z };
+    });
+  }
+  // a runway's two designators, from its heading (x east, -z north): [the -u end's, the +u end's] - the number painted
+  // at an end is the bearing you land on from it
+  function designators(a) {
+    const ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
+    const num = s => { const b = (Math.atan2(-s * ux, s * uz) * 180 / Math.PI + 360) % 360; return String(Math.round(b / 10) || 36).padStart(2, '0'); };
+    return [num(-1), num(1)];
+  }
+  // "250 × 18 m gravel", "1 500 m water lane", "380 × 18 m grass, 696 m up"
+  const stripWord = a => !a ? '' : (a.surface.cls === 'water' ? fmt(a.len) + ' m water lane' : fmt(a.len) + ' × ' + fmt(a.wid) + ' m ' + a.surface.word) + (a.elev > 150 ? ', ' + fmt(a.elev) + ' m up' : '');
 
   // ---- THE ADAPTER: the only reader of the record's shape ----------------------------------------------------------
-  // raw: { providers, contracts, career?, fleet?, board?, text? } (§7.3); pack: MAP_PACK (the aerodromes); live: the
-  // player's document (FLYDIY_PLAYER.doc(), 70_player.js v2) or null. -> the model every view below reads.
-  function mapAdapt(raw, pack, live) {
+  // raw: { providers, contracts, career?, fleet?, board?, text? } (§7.3; careerMapRecord's); pack: MAP_PACK; live: the
+  // player's document or null; designs: CONTRACT_DESIGNS (the voucher's aeroplane, when the fleet is still empty)
+  function mapAdapt(raw, pack, live, designs) {
     raw = raw || {};
     const aeros = {};
     for (const a of ((pack && pack.aerodromes) || [])) aeros[a.id] = a;
+    const places = placesOf(pack), placeOf = {};
+    for (const p of places) for (const id of p.aeros) placeOf[id] = p.id;
     const text = raw.text || {};
     const say = k => (k && text[k]) || k || '';
-    const providers = (raw.providers || []).map(p => ({ id: p.id, name: p.name, short: p.short || p.name, colour: p.colour || '#888', home: p.home || null, line: p.line || '' }));
+    const providers = (raw.providers || []).map(p => ({ id: p.id, name: p.name, short: p.short || p.name, home: p.home || null }));
     const prov = {}; for (const p of providers) prov[p.id] = p;
     const car = raw.career || {};
     const career = { accepted: (car.accepted || []).slice(), tracked: car.tracked || null, stage: Object.assign({}, car.stage || {}), wallet: car.wallet, clock: car.clock,
-                     live: JSON.parse(JSON.stringify(car.live || {})) };   // (G2320) the real record's progress inside a stage
-    // (G2320) where the real record differs from the fixture: a survey names the site it flies over as `at` (drawn as its `to`)
+                     voucher: car.voucher || null };
+    // (G2320) a survey names the site it flies over as `at` (drawn as its `to`, flagged as overflown)
     const subOf = u => { const o = Object.assign({}, u); if (o.do === 'survey' && o.at && !o.to) o.to = o.at; return o; };
-    const contracts = (raw.contracts || []).map(c => {
-      const stages = (c.stages || []).map(s => ({ subs: (s.subs || []).map(subOf) }));
-      return { id: c.id, provider: c.provider, kind: c.kind || 'job', title: say(c.title), brief: say(c.brief), stages, pay: c.pay || {}, rep: c.rep || null, repeat: c.repeat || false,
-               followLine: c.followLine || '' };
-    }).filter(c => prov[c.provider]);
-    // the fleet: the player's own airframes where they stand (the live document) when it has any, else the record's
-    let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert || null, live: false }));
+    const contracts = (raw.contracts || []).map(c => ({ id: c.id, provider: c.provider, kind: c.kind || 'job', title: say(c.title), brief: say(c.brief),
+      stages: (c.stages || []).map(s => ({ subs: (s.subs || []).map(subOf) })), pay: c.pay || {} })).filter(c => prov[c.provider]);
+    let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null }));
     if (live && live.fleet && Object.keys(live.fleet).length) {
       const certOf = {}; for (const f of fleet) certOf[f.slot] = f.cert;
-      fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null, live: true }));
+      fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null }));
     }
-    const board = (raw.board || []).map(d => ({ name: d.name, cert: d.cert || null }));
-    return { providers, prov, contracts, career, fleet, board, aeros, plots: (pack && pack.plots) || [], source: raw.source || 'fixture' };
+    const DES = designs || (typeof CONTRACT_DESIGNS !== 'undefined' ? CONTRACT_DESIGNS : null);   // eslint-disable-line no-undef
+    const v = career.voucher, vd = v && !v.used && DES && DES[v.model];
+    const voucher = vd ? { name: 'the ' + (vd.label || v.model) + ' your voucher buys', gear: vd.gear || (vd.cert && vd.cert.gear) || 'wheels' } : null;
+    return { providers, prov, contracts, career, fleet, voucher, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
   }
   // 71_player_bases.js playerWhere's three kinds, read off the v2 document (the same rule; that file is the core's)
   function whereOf(doc, n) {
@@ -97,33 +127,40 @@
   // ---- READING A CONTRACT -----------------------------------------------------------------------------------------
   const stageOf = (M, c) => Math.max(0, Math.min((c.stages.length || 1) - 1, M.career.stage[c.id] | 0));
   const subsNow = (M, c) => ((c.stages[stageOf(M, c)] || {}).subs) || [];
-  const loadKg = u => u.load ? (u.load.kg || 0) + (u.load.pax || 0) * PAX_KG : 0;
-  const loadWord = u => {
-    if (!u.load) return '';
-    const L = u.load, b = [];
-    if (L.kg) b.push(fmt(L.kg) + ' kg' + (L.bulk ? ' (bulk)' : ''));
-    if (L.pax) b.push(L.pax + (L.pax > 1 ? ' passengers' : ' passenger'));
-    return b.join(' · ');
-  };
-  const legKm = (M, u) => kmOf(M.aeros[u.from], M.aeros[u.to]);
+  const subsAll = c => c.stages.reduce((a, s) => a.concat(s.subs), []);
   const aeroName = (M, id) => (M.aeros[id] && M.aeros[id].name) || id || '';
-  const stripWord = a => a ? (a.surface.cls === 'water' ? fmt(a.len) + ' m water lane' : fmt(a.len) + ' m ' + a.surface.word) + (a.elev > 50 ? ' · ' + fmt(a.elev) + ' m up' : '') : '';
-  // where the work is drawn: the load's place (the first sub's from), else where it goes
-  const pinOf = (M, c) => { const u = subsNow(M, c)[0] || {}; return M.aeros[u.from] ? u.from : (M.aeros[u.to] ? u.to : null); };
-  // THE PAY: the record's own (G2320: CONTRACT-MODEL's contractPay - the job's base, 60 a km x km x the load's factor,
-  // the surfaces, a condition - carried as `total`); the fixture's base + perKm x the stage's km otherwise
+  // the contract's TYPE: build; survey (it flies over something); passengers (someone aboard); cargo (everything else)
+  function typeOf(c) {
+    if (c.kind === 'build') return 'build';
+    const S = subsAll(c);
+    if (c.kind === 'survey' || S.some(u => u.do === 'survey')) return 'survey';
+    if (S.some(u => u.load && u.load.pax)) return 'pax';
+    return 'cargo';
+  }
+  // THE PAY: the record's own (CONTRACT-MODEL's contractPay, `total`); the fixture's base + perKm x the stage's km
   function payOf(M, c) {
     const P = c.pay || {};
-    if (typeof P.total === 'number') return { base: P.base || 0, perKm: P.perKm || 0, km: P.km || 0, total: P.total, bonus: P.bonus || [], factor: P.factor || 0, surface: P.surface || 0, cond: P.cond || 0, model: true };
-    const km = subsNow(M, c).reduce((s, u) => s + legKm(M, u), 0);
-    const total = (P.base || 0) + (P.perKm || 0) * km;
-    return { base: P.base || 0, perKm: P.perKm || 0, km, total, bonus: P.bonus || [] };
+    if (typeof P.total === 'number') return { total: P.total, model: true };
+    const km = subsNow(M, c).reduce((s, u) => s + kmOf(M.aeros[u.from], M.aeros[u.to]), 0);
+    return { total: (P.base || 0) + (P.perKm || 0) * km, model: false };
   }
-  const payWord = P => !P.perKm ? '' : P.model
-    ? fmt(P.base) + ' + ' + P.perKm + ' a km × ' + P.km.toFixed(1) + ' km' + (P.factor ? ' × ' + (1 + P.factor).toFixed(2) + ' for the load' : '') + (P.surface ? ' + ' + fmt(P.surface) + ' for the strips' : '') + (P.cond ? ' + ' + fmt(P.cond) + ' for the condition' : '')
-    : fmt(P.base) + ' + ' + P.perKm + ' a km × ' + P.km.toFixed(1) + ' km';
-  const bonusWord = b => b.crit === 'medal' ? '+' + b.pct + ' % for a ' + b.by + ' medal'
-    : '+' + b.pct + ' % for ' + (CRIT_WORD[b.crit] || b.crit) + ' beaten by ' + (b.by < 1 ? Math.round(b.by * 100) : b.by) + ' %';
+  // the places a contract names, in order (every stage): [{ id, over }] - a survey's site is flown over, not landed at
+  function chainOf(c) {
+    const out = [];
+    const push = (id, over) => { if (!id) return; const L = out[out.length - 1]; if (L && L.id === id && L.over === over) return; out.push({ id, over }); };
+    for (const u of subsAll(c)) { push(u.from, false); push(u.to, u.do === 'survey'); }
+    return out;
+  }
+  const chainKm = (M, ch) => { let k = 0; for (let i = 1; i < ch.length; i++) k += kmOf(M.aeros[ch[i - 1].id], M.aeros[ch[i].id]); return k; };
+  // THE RUNWAYS CONDENSED: "Jumbo Mine Street 250 × 18 m gravel → Annette Dock 1 500 m water lane · 14 km"
+  function routeWord(M, c) {
+    const ch = chainOf(c), km = chainKm(M, ch);
+    return ch.map(p => p.over ? 'over ' + aeroName(M, p.id) : aeroName(M, p.id) + ' ' + stripWord(M.aeros[p.id])).join(' → ') +
+      (km ? ' · ' + (km < 10 ? km.toFixed(1).replace(/\.0$/, '') : fmt(km)) + ' km' : '');
+  }
+  // does a contract involve a place (any stage: from, to, or the site flown over)
+  const involves = (M, c, pid) => { const p = M.places.find(x => x.id === pid); return !!p && subsAll(c).some(u => p.aeros.includes(u.from) || p.aeros.includes(u.to)); };
+
   // the gear rule, on the surface the bake recorded (25_airfield.js stripAllows' rule; GATE UISMOKE holds the two equal)
   function allows(gear, a) {
     const cls = a && a.surface ? a.surface.cls : 'grass';
@@ -132,262 +169,213 @@
     if (gear === 'skis') return (cls === 'snow' || cls === 'grass') ? { ok: true, why: '' } : { ok: false, why: 'skis need snow or grass' };
     return cls === 'water' ? { ok: false, why: 'a water lane: wheels cannot land on it' } : { ok: true, why: '' };
   }
-
-  // ---- YOUR FLEET AGAINST THIS JOB (§8.3 point 2): facts, never a verdict on the pilot, never a refusal --------------
-  // -> [{ ok: true | false | null, text }] for one airframe against the contract's current stage
-  function factsFor(M, c, af) {
-    const out = [], C = af.cert;
-    if (!C) { out.push({ ok: null, text: 'certificate not read yet: open it in the garage' }); return out; }
-    for (const u of subsNow(M, c)) {
-      const kg = loadKg(u);
-      if (u.load && kg) {
-        const spare = (C.payloadKg || 0) - kg;
-        out.push({ ok: spare >= 0, text: 'payload ' + fmt(kg) + ' kg: ' + (spare >= 0 ? fmt(spare) + ' kg spare' : fmt(-spare) + ' kg over its ' + fmt(C.payloadKg) + ' kg') });
-      }
-      if (u.load && u.load.pax) {
-        const need = u.load.pax + 1;
-        out.push({ ok: (C.seats || 0) >= need, text: u.load.pax + ' aboard + the pilot: ' + need + ' of its ' + (C.seats || 0) + ' seats' });
-      }
-      const ends = [['from', u.from, 'toRunM', 'take-off'], ['to', u.to, 'ldgRunM', 'landing']];
-      for (const [, id, run, word] of ends) {
-        const a = M.aeros[id]; if (!a) continue;
-        const A = allows(C.gear || 'wheels', a);
-        if (!A.ok) { out.push({ ok: false, text: a.name + ': ' + A.why + ' (' + (C.gear || 'wheels') + ')' }); continue; }
-        if (a.surface.cls === 'water') { out.push({ ok: true, text: a.name + ': water, on ' + C.gear }); continue; }
-        if (C[run]) out.push({ ok: C[run] <= a.len, text: a.name + ' is ' + fmt(a.len) + ' m ' + a.surface.word + '; certified ' + word + ' run ' + fmt(C[run]) + ' m' });
-      }
-    }
-    const seen = new Set(); return out.filter(f => (seen.has(f.text) ? false : (seen.add(f.text), true)));
+  // the fleet's gears: each airframe whose certificate says; else, a new career's voucher aeroplane; else nothing
+  function fleetGears(M) {
+    const g = M.fleet.filter(f => f.cert && f.cert.gear).map(f => ({ name: f.name, gear: f.cert.gear }));
+    return g.length ? g : M.voucher ? [{ name: M.voucher.name, gear: M.voucher.gear }] : [];
   }
-  // the build contract (§8.3 point 3): each criterion against a design - true / false / null ("needs a flight")
-  function critFor(M, cr, d) {
-    const C = d.cert || {}, by = CRIT_BY[cr.k] || 'flight';
-    const cmp = (x, op, v) => op === '>=' ? x >= v : op === '<=' ? x <= v : (op === '=' || op === '==') ? x === v : false;
-    const k = cr.k;
-    if (by === 'bench') return { ok: null, by, text: 'needs a bench test' };
-    if (CRIT_STRIP[k]) {
-      const a = M.aeros[cr.v]; const A = a ? allows(C.gear || 'wheels', a) : { ok: true };
-      if (!A.ok) return { ok: false, by, text: A.why };
-      return { ok: null, by, text: a && a.surface.cls !== 'water' && C.toRunM ? 'take-off run ' + fmt(C.toRunM) + ' m vs ' + fmt(a.len) + ' m: needs a flight' : 'needs a flight' };
-    }
-    if (by === 'flight') {
-      const est = k === 'tas' ? C.tasKmh && (fmt(C.tasKmh) + ' km/h on the plaque') : k === 'endurance' ? C.enduranceMin && (fmt(C.enduranceMin) + ' min on the plaque') : '';
-      return { ok: null, by, text: (est ? est + ': ' : '') + 'needs a flight' };
-    }
-    const map = { seats: C.seats, emptyKg: C.emptyKg, power: C.power, tankL: C.tankL, spanM: C.spanM, cost: C.cost,
-                  powertrain: C.power, costMax: C.cost, batteryKWh: C.batteryKWh, ultimateG: C.ult };
-    const x = map[k];
-    if (x == null) return { ok: null, by, text: 'not on its certificate' };
-    const unit = { emptyKg: ' kg', tankL: ' L', spanM: ' m', cost: '', costMax: '', batteryKWh: ' kWh', ultimateG: ' g' }[k] || '';
-    return { ok: cmp(x, cr.op, cr.v), by, text: (typeof x === 'number' ? fmt(x) : x) + unit };
-  }
-  const critWord = (M, cr) => {
-    if (cr.words) return cr.words;   // (G2320) the real record's own words (contractCritWords)
-    const unit = { emptyKg: ' kg', tankL: ' L', spanM: ' m', tas: ' km/h', endurance: ' min', cost: '' }[cr.k] || '';
-    if (cr.k === 'land') return 'lands at ' + aeroName(M, cr.v) + ' (' + stripWord(M.aeros[cr.v]) + ')';
-    if (cr.k === 'power') return 'powertrain: ' + cr.v;
-    const op = cr.op === '>=' ? '≥ ' : cr.op === '<=' ? '≤ ' : '';
-    return (CRIT_WORD[cr.k] || cr.k) + ' ' + op + (typeof cr.v === 'number' ? fmt(cr.v) : cr.v) + unit + (cr.at ? ' (' + cr.at + ')' : '');
-  };
-  const critsOf = (M, c) => subsNow(M, c).reduce((a, u) => a.concat(u.crit || []), []);
-  const designsOf = M => M.fleet.map(f => ({ name: f.name, cert: f.cert, where: f.where })).concat(M.board.map(d => ({ name: d.name, cert: d.cert, where: null })));
-  // the row's fit mark: airframes with no ✗ / designs meeting every criterion that can be told now
-  function fitOf(M, c) {
-    if (c.kind === 'build') {
-      const crit = critsOf(M, c), D = designsOf(M);
-      const n = D.filter(d => crit.every(cr => critFor(M, cr, d).ok !== false)).length;
-      return { n, of: D.length, word: 'designs ' + n + '/' + D.length };
-    }
-    const n = M.fleet.filter(f => f.cert && factsFor(M, c, f).every(x => x.ok !== false)).length;
-    return { n, of: M.fleet.length, word: 'fleet ' + n + '/' + M.fleet.length };
+  // THE ONE CHECK MADE FOR THE PLAYER (§R.2): a hard no-no, surface against gear - is there one aeroplane of theirs that
+  // can use every strip the contract lands at or leaves from? -> { mark: '✓' | '✗' | '', why } ('' for a build
+  // contract, or a fleet with nothing to judge by). Nothing else is judged: the paragraph gives the runways, the player
+  // decides.
+  function markOf(M, c) {
+    if (c.kind === 'build') return { mark: '', why: '' };
+    const G = fleetGears(M); if (!G.length) return { mark: '', why: '' };
+    const ends = [];
+    for (const u of subsAll(c)) for (const id of (u.do === 'survey' ? [u.from] : [u.from, u.to])) if (id && M.aeros[id] && !ends.includes(id)) ends.push(id);
+    if (G.some(g => ends.every(id => allows(g.gear, M.aeros[id]).ok))) return { mark: '✓', why: '' };
+    const names = ids => ids.map(id => aeroName(M, id)).join(', ');
+    const wet = ends.filter(id => M.aeros[id].surface.cls === 'water'), dry = ends.filter(id => !wet.includes(id));
+    const can = ids => G.some(g => ids.every(id => allows(g.gear, M.aeros[id]).ok));
+    const yours = G.length === 1 && M.voucher && !M.fleet.length ? G[0].name : 'your planes';
+    let why;
+    if (wet.length && !can(wet)) why = (G.length === 1 && yours !== 'your planes' ? 'The ' + yours.replace(/^the /, '') + ' cannot' : 'None of your planes can') + ' land on water (' + names(wet) + ').';
+    else if (dry.length && !can(dry)) {
+      const bad = dry.filter(id => !G.some(g => allows(g.gear, M.aeros[id]).ok));
+      const r = allows(G[0].gear, M.aeros[bad[0] || dry[0]]).why;
+      why = (r === 'floats land on water only' ? 'Your planes are on floats: none can land at ' : 'None of your planes can use ') + names(bad.length ? bad : dry) + (r && r !== 'floats land on water only' ? ' (' + r + ')' : '') + '.';
+    } else why = 'No one plane of yours lands on both water and land (' + names(ends) + ').';
+    return { mark: '✗', why };
   }
 
   // ---- THE LIST --------------------------------------------------------------------------------------------------
-  function rowsOf(M, tab) {
+  // f: { cust: 'all' | provider id, at: place id | null }
+  function rowsOf(M, f) {
+    f = f || {};
     const order = {}; M.providers.forEach((p, i) => { order[p.id] = i; });
     const kindO = { contract: 0, build: 1, job: 2, survey: 3, challenge: 4 };
-    const L = M.contracts.filter(c => tab === 'all' || c.provider === tab);
+    const L = M.contracts.filter(c => (!f.cust || f.cust === 'all' || c.provider === f.cust) && (!f.at || involves(M, c, f.at)));
     const rank = c => (c.id === M.career.tracked ? 0 : M.career.accepted.includes(c.id) ? 1 : 2);
     return L.slice().sort((a, b) => rank(a) - rank(b) || order[a.provider] - order[b.provider] || (kindO[a.kind] || 9) - (kindO[b.kind] || 9) || (a.id < b.id ? -1 : 1));
   }
-  function rowWord(M, c) {
-    const b = [KIND_WORD[c.kind] || c.kind];
-    if (c.stages.length > 1) b.push('stage ' + (stageOf(M, c) + 1) + '/' + c.stages.length);
-    const u = subsNow(M, c);
-    const kg = u.reduce((s, x) => s + (x.load ? x.load.kg || 0 : 0), 0), pax = u.reduce((s, x) => s + (x.load ? x.load.pax || 0 : 0), 0);
-    if (kg) b.push(fmt(kg) + ' kg'); if (pax) b.push(pax + ' pax');
-    const km = u.reduce((s, x) => s + legKm(M, x), 0); if (km) b.push(km.toFixed(km < 10 ? 1 : 0) + ' km');
-    b.push(fitOf(M, c).word);
-    return b.join(' · ');
-  }
-  function whereWord(M, w) {
-    if (!w || w.kind === 'none') return 'nowhere yet';
-    if (w.kind === 'in') return 'in the ' + w.hangar + ' hangar' + (w.aero && w.aero !== w.hangar ? ' at ' + aeroName(M, w.aero) : '');
-    return (w.kind === 'out' ? 'tied down at ' : 'away at ') + aeroName(M, w.aero);
-  }
-
-  // ---- THE HTML (strings, so node can read every surface; the DOM half sets them and delegates the taps) -----------
-  function tabsHTML(M, st) {
-    const n = id => (id === 'all' ? M.contracts.length : M.contracts.filter(c => c.provider === id).length);
-    const t = [['all', 'All', null]].concat(M.providers.map(p => [p.id, p.short, p.colour]));
-    return '<div class="mmTabs" role="tablist" aria-label="contracts by provider">' +
-      t.map(([id, w, col]) => '<button type="button" role="tab" class="mmTab' + (st.tab === id ? ' on' : '') + '" data-tab="' + esc(id) + '" aria-selected="' + (st.tab === id) + '">' +
-        (col ? '<i class="mmDot" style="background:' + esc(col) + '"></i>' : '') + esc(w) + '<span class="mmN">' + n(id) + '</span></button>').join('') +
-      '</div><div class="mmTabs mmAssets" role="tablist" aria-label="your assets">' +
-      TABS_ASSET.map(([id, w]) => '<button type="button" role="tab" class="mmTab' + (st.tab === id ? ' on' : '') + '" data-tab="' + id + '" aria-selected="' + (st.tab === id) + '">' + w + '</button>').join('') + '</div>';
+  const placeName = (M, pid) => ((M.places.find(p => p.id === pid) || {}).name) || pid || '';
+  // the paragraph: who + what + pay; the runways condensed; the ✗'s reason - then the one button
+  function paraHTML(M, c) {
+    const p = M.prov[c.provider], P = payOf(M, c), K = markOf(M, c), tr = M.career.tracked === c.id;
+    return '<div class="mmBody"><p>' + esc(p.name) + ': ' + esc(c.brief) + ' Pays ' + fmt(P.total) + '.' +
+      '<span class="mmRw">' + esc(routeWord(M, c)) + '</span>' + (K.mark === '✗' ? '<span class="mmWhy">' + esc(K.why) + '</span>' : '') + '</p>' +
+      '<button type="button" class="mmTrack' + (tr ? ' on' : '') + '" data-act="track" data-id="' + esc(c.id) + '" aria-pressed="' + tr + '">' + (tr ? 'Tracking ★' : 'Track') + '</button></div>';
   }
   function listHTML(M, st) {
-    if (st.tab === 'pilots' || st.tab === 'market')
-      return '<div class="mmEmpty"><b>' + (st.tab === 'pilots' ? 'Pilots' : 'Market') + ': coming</b><span>' +
-        (st.tab === 'pilots' ? 'The four recruits (GQ13) and your hired pilots will be listed here.' : 'Used aeroplanes where they stand, and the makers\' catalogues, will be listed here.') + '</span></div>';
-    if (st.tab === 'fleet') {
-      if (!M.fleet.length) return '<div class="mmEmpty"><b>No aeroplanes yet</b><span>Save a build in the garage and it stands at its hangar.</span></div>';
-      return M.fleet.map(f => '<button type="button" class="mmRow' + (st.sel === 'f:' + f.slot ? ' on' : '') + '" data-sel="f:' + esc(f.slot) + '">' +
-        '<span class="mmRowT"><i class="mmGlyph">✈</i><b>' + esc(f.name) + '</b></span><span class="mmRowS">' + esc(whereWord(M, f.where)) +
-        (f.cert ? ' · ' + f.cert.seats + ' seats · ' + fmt(f.cert.payloadKg) + ' kg payload · ' + f.cert.gear : ' · certificate not read') + '</span></button>').join('');
-    }
-    const rows = rowsOf(M, st.tab);
-    if (!rows.length) return '<div class="mmEmpty"><b>No work on offer here yet</b><span>' + (M.contracts.length ? 'Another provider may have some: try All.' : 'The providers have not posted any contracts.') + '</span></div>';
+    const rows = rowsOf(M, st);
+    if (!rows.length) return '<p class="mmEmpty">' + (st.at ? 'No contract involves ' + esc(placeName(M, st.at)) + ' yet.' : M.contracts.length ? 'No contract from this customer yet.' : 'No work on offer yet.') + '</p>';
     return rows.map(c => {
-      const p = M.prov[c.provider], tr = M.career.tracked === c.id, ac = M.career.accepted.includes(c.id);
-      return '<button type="button" class="mmRow' + (st.sel === 'c:' + c.id ? ' on' : '') + (tr ? ' trk' : '') + '" data-sel="c:' + esc(c.id) + '">' +
-        '<span class="mmRowT"><i class="mmChip" style="background:' + esc(p.colour) + '">' + (KIND_GLYPH[c.kind] || '') + '</i><b>' + esc(c.title) + '</b>' +
-        (tr ? '<em class="mmTrk">★ tracked</em>' : ac ? '<em>✓ accepted</em>' : '') + '</span>' +
-        '<span class="mmRowS">' + esc(p.short) + ' · ' + esc(rowWord(M, c)) + '</span></button>';
+      const ty = typeOf(c), K = markOf(M, c), on = st.open === c.id, tr = M.career.tracked === c.id;
+      return '<div class="mmItem' + (on ? ' open' : '') + (tr ? ' trk' : '') + '" data-id="' + esc(c.id) + '">' +
+        '<button type="button" class="mmRow" data-act="row" data-id="' + esc(c.id) + '" aria-expanded="' + on + '">' +
+          '<i class="mmDot" style="background:' + TYPE_COLOUR[ty] + '" aria-label="' + esc(TYPES.find(t => t[0] === ty)[1]) + '"></i>' +
+          '<span class="mmT">' + esc(c.title) + (tr ? ' <em>★</em>' : '') + '</span><span class="mmPay">' + fmt(payOf(M, c).total) + '</span>' +
+          '<span class="mmMark ' + (K.mark === '✓' ? 'ok' : K.mark === '✗' ? 'no' : '') + '" aria-label="' + (K.mark === '✓' ? 'nothing rules your fleet out' : K.mark === '✗' ? 'a hard no-no for your fleet' : '') + '">' + K.mark + '</span>' +
+        '</button>' + (on ? paraHTML(M, c) : '') + '</div>';
     }).join('');
   }
-  const endHTML = (M, word, id) => {
-    const a = M.aeros[id];
-    return '<div class="mmEnd"><span class="mmK">' + word + '</span><b>' + esc(aeroName(M, id) || '—') + '</b><span>' + esc(stripWord(a)) + '</span></div>';
-  };
-  function cardHTML(M, st) {
-    const sel = st.sel || '';
-    if (sel.startsWith('f:')) return fleetCardHTML(M, st, M.fleet.find(f => 'f:' + f.slot === sel));
-    const c = M.contracts.find(x => 'c:' + x.id === sel);
-    if (!c) {
-      const tr = M.contracts.find(x => x.id === M.career.tracked);
-      return '<div class="mmCard mmIdle"><h2>Pick a contract</h2><p>Tap a row or a marker on the map: its card says where the load is, where it goes, both strips, the payload, the pay, and your fleet against it.</p>' +
-        (tr ? '<p class="mmK">Tracking</p><button type="button" class="mmRow" data-sel="c:' + esc(tr.id) + '"><span class="mmRowT"><b>' + esc(tr.title) + '</b></span><span class="mmRowS">' + esc(nextWord(M, tr)) + '</span></button>' : '<p class="mmK">Nothing tracked</p>') +
-        '<p class="mmFine">' + M.career.accepted.length + ' accepted · ' + M.contracts.length + ' on offer · ' + M.fleet.length + ' aeroplanes</p></div>';
-    }
-    const p = M.prov[c.provider], si = stageOf(M, c), tr = M.career.tracked === c.id, ac = M.career.accepted.includes(c.id);
-    let h = '<div class="mmCard">' + (st.phone ? '<button type="button" class="mmBack" data-act="back">‹ the list</button>' : '') +
-      '<div class="mmProv"><i class="mmChip" style="background:' + esc(p.colour) + '">' + (KIND_GLYPH[c.kind] || '') + '</i>' + esc(p.name) + ' · ' + esc(KIND_WORD[c.kind] || c.kind) + '</div>' +
-      '<h2>' + esc(c.title) + '</h2><p class="mmBrief">' + esc(c.brief) + '</p>' +
-      '<p class="mmFine">' + esc(p.line) + '</p>';
-    if (c.stages.length > 1)
-      h += '<ol class="mmStages">' + c.stages.map((s, i) => '<li class="' + (i < si ? 'done' : i === si ? 'now' : '') + '">' + esc(s.subs.map(u => subWord(M, u)).join(' · ')) + '</li>').join('') + '</ol>';
-    // 1. everything needed, remotely
-    h += '<h3>' + (c.stages.length > 1 ? 'Stage ' + (si + 1) + ' of ' + c.stages.length : 'The job') + '</h3>';
-    const LV = M.career.live[c.id] || null;
-    subsNow(M, c).forEach((u, j) => {
-      const sv = u.do === 'survey';
-      // (G2320) the real record's progress inside the stage: a sub done, a load taken on
-      const prog = LV && LV.stage === si ? (LV.subs[j] ? ' · ✓ done' : LV.picked[j] ? ' · loaded' : '') : '';
-      h += '<div class="mmLeg"><div class="mmDo">' + esc(DO_WORD[u.do] || u.do) + (loadWord(u) ? ' · ' + esc(loadWord(u)) : '') + (u.from && u.to ? ' · ' + legKm(M, u).toFixed(1) + ' km' : '') +
-        (u.when ? ' · ' + esc(u.when.before ? 'before ' + u.when.before : u.when.under ? 'under ' + Math.round(u.when.under / 60) + ' min' : '') : '') + esc(prog) + '</div>' +
-        (u.from ? endHTML(M, sv ? 'from' : 'the load is at', u.from) : '') + (u.to ? endHTML(M, sv ? 'over' : u.from ? 'it goes to' : 'at', u.to) : '') + '</div>';
-    });
-    const P = payOf(M, c);
-    h += '<h3>Pay</h3><p class="mmPay"><b>' + fmt(P.total) + '</b> net' + (P.perKm ? ' <span>(' + esc(payWord(P)) + ')</span>' : '') + '</p>' +
-      (P.bonus.length ? '<p class="mmFine">' + esc(P.bonus.map(bonusWord).join(' · ')) + '</p>' : '') +
-      (c.followLine ? '<p class="mmFine">' + esc(c.followLine) + '</p>' : '') +
-      (c.rep ? '<p class="mmFine">reputation +' + c.rep.gain + ' with ' + esc((M.prov[c.rep.provider] || p).name) + '</p>' : '');
-    // 2 / 3. the fleet, or the designs, against it
-    if (c.kind === 'build') {
-      const crit = critsOf(M, c), D = designsOf(M);
-      h += '<h3>The criteria, against your designs</h3><ul class="mmCrit">' + crit.map(cr => '<li>' + esc(critWord(M, cr)) + ' <span class="mmBy">' + (CRIT_BY[cr.k] === 'flight' ? 'flown' : CRIT_BY[cr.k] || 'flown') + '</span></li>').join('') + '</ul>';
-      h += D.map(d => '<div class="mmFit"><b>' + esc(d.name) + '</b><span>' + (d.where ? esc(whereWord(M, d.where)) : 'on the drawing board') + '</span><ul>' +
-        crit.map(cr => { const r = critFor(M, cr, d); return '<li class="' + (r.ok === true ? 'ok' : r.ok === false ? 'no' : 'fly') + '">' + (r.ok === true ? '✓ ' : r.ok === false ? '✗ ' : '◌ ') + esc((CRIT_WORD[cr.k] || cr.k) + ': ' + r.text) + '</li>'; }).join('') + '</ul></div>').join('');
-      h += '<div class="mmActs mmSub"><button type="button" class="mmBtn" disabled>New design in the garage · coming</button></div>';
-    } else {
-      h += '<h3>Your fleet against this job</h3>';
-      h += M.fleet.length ? M.fleet.map(f => { const F = factsFor(M, c, f); return '<div class="mmFit"><b>' + esc(f.name) + '</b><span>' + esc(whereWord(M, f.where)) + '</span><ul>' +
-        F.map(x => '<li class="' + (x.ok === true ? 'ok' : x.ok === false ? 'no' : 'fly') + '">' + (x.ok === true ? '✓ ' : x.ok === false ? '✗ ' : '◌ ') + esc(x.text) + '</li>').join('') + '</ul></div>'; }).join('')
-        : '<p class="mmFine">No aeroplanes yet.</p>';
-    }
-    h += '<p class="mmFine">Facts from each certificate against the job\'s numbers. Nothing here stops you flying it.</p>';
-    h += '<div class="mmActs"><button type="button" class="mmBtn' + (ac ? ' on' : '') + '" data-act="accept" aria-pressed="' + ac + '">' + (ac ? '✓ Accepted' : 'Accept') + '</button>' +
-      '<button type="button" class="mmBtn pri' + (tr ? ' on' : '') + '" data-act="track" aria-pressed="' + tr + '">' + (tr ? '★ Tracked' : 'Track') + '</button>' +
-      (st.phone ? '' : '<button type="button" class="mmBtn" disabled>Fly it · with the career</button>') + '</div></div>';
-    return h;
+  // the head: the types' legend, the customer filter, and the place filter's row
+  function headHTML(M, st) {
+    return '<div class="mmTypes" aria-label="contract types">' + TYPES.map(t => '<span><i class="mmDot" style="background:' + t[2] + '"></i>' + t[1] + '</span>').join('') + '</div>' +
+      '<label class="mmFilter">Customer <select class="mmCust" aria-label="customer"><option value="all"' + (st.cust === 'all' ? ' selected' : '') + '>All</option>' +
+      M.providers.map(p => '<option value="' + esc(p.id) + '"' + (st.cust === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></label>';
   }
-  function fleetCardHTML(M, st, f) {
-    if (!f) return cardHTML(M, Object.assign({}, st, { sel: null }));
-    const C = f.cert;
-    let h = '<div class="mmCard">' + (st.phone ? '<button type="button" class="mmBack" data-act="back">‹ the list</button>' : '') +
-      '<div class="mmProv"><i class="mmGlyph">✈</i>your aeroplane</div><h2>' + esc(f.name) + '</h2><p class="mmBrief">' + esc(whereWord(M, f.where)) + '</p>';
-    if (C) h += '<h3>Its certificate</h3><ul class="mmCert">' + [
-      ['seats', C.seats], ['payload', fmt(C.payloadKg) + ' kg'], ['empty', fmt(C.emptyKg) + ' kg'], ['take-off run', fmt(C.toRunM) + ' m'], ['landing run', fmt(C.ldgRunM) + ' m'],
-      ['gear', C.gear], ['powertrain', C.power], ['cruise', fmt(C.tasKmh) + ' km/h'], ['endurance', fmt(C.enduranceMin) + ' min'], ['span', C.spanM + ' m']]
-      .filter(r => r[1] != null && !/undefined|NaN/.test(String(r[1]))).map(r => '<li><span>' + r[0] + '</span><b>' + esc(r[1]) + '</b></li>').join('') + '</ul>';
-    else h += '<p class="mmFine">Certificate not read yet: open it in the garage.</p>';
-    const jobs = M.contracts.filter(c => c.kind !== 'build');
-    const ok = jobs.filter(c => C && factsFor(M, c, f).every(x => x.ok !== false));
-    h += '<h3>The work its certificate meets</h3><p class="mmFine">' + ok.length + ' of ' + jobs.length + ' jobs and contract stages, on the facts alone.</p><ul class="mmJobs">' +
-      jobs.map(c => '<li class="' + (ok.includes(c) ? 'ok' : 'no') + '"><button type="button" class="mmLink" data-sel="c:' + esc(c.id) + '">' + (ok.includes(c) ? '✓ ' : '✗ ') + esc(c.title) + '</button></li>').join('') + '</ul></div>';
-    return h;
-  }
-  function subWord(M, u) {
-    const L = loadWord(u);
-    return (DO_WORD[u.do] || u.do) + (L ? ' ' + L : '') + (u.from ? ' ' + aeroName(M, u.from) + ' →' : '') + (u.to ? ' ' + aeroName(M, u.to) : '');
-  }
-  const nextWord = (M, c) => 'next: ' + subsNow(M, c).map(u => subWord(M, u)).join(' · ');
+  const atHTML = (M, st) => st.at ? '<div class="mmAt"><span>At ' + esc(placeName(M, st.at)) + '</span><button type="button" class="mmAtX" data-act="atx" aria-label="show every place">✕</button></div>' : '';
   function statusHTML(M) {
-    const tr = M.contracts.find(x => x.id === M.career.tracked);
-    return '<span class="mmK">wallet</span><b>' + (M.career.wallet != null ? fmt(M.career.wallet) : '—') + '</b>' +
-      '<span class="mmK">career clock</span><b>' + (M.career.clock != null ? (M.career.clock / 3600).toFixed(1) + ' h flown' : '—') + '</b>' +
-      '<span class="mmK">tracked</span><b class="mmTrkLine">' + (tr ? '★ ' + esc(tr.title) + ' · ' + esc(nextWord(M, tr)) : 'nothing') + '</b>';
+    const tr = M.contracts.find(x => x.id === M.career.tracked), ch = tr ? chainOf({ stages: [{ subs: subsNow(M, tr) }] }) : [];   // the stage now
+    return '<span>Wallet <b>' + (M.career.wallet != null ? fmt(M.career.wallet) : '—') + '</b></span><span>Tracking <b>' +
+      (tr ? esc(tr.title) + (ch.length ? ': ' + esc(ch.map(p => (p.over ? 'over ' : '') + placeName(M, M.placeOf[p.id] || p.id)).join(' → ')) : '') : 'nothing yet') + '</b></span>';
   }
-  function layersHTML(st) {
-    return '<div class="mmLayers" role="group" aria-label="map layers">' + LAYERS.map(([k, w]) => '<button type="button" class="mmLay' + (st.layers[k] ? ' on' : '') + '" data-layer="' + k + '" aria-pressed="' + !!st.layers[k] + '">' + w + '</button>').join('') + '</div>';
-  }
-
-  // ---- THE MARKERS (pure: what stands where; the DOM half turns them into 48 px buttons on the map) ----------------
-  // -> [{ key, sel, kind, aero, x, z, label, sub, colour, glyph, on, dim, slot, of }]
-  function markersOf(M, st) {
-    const out = [], selC = (st.sel || '').startsWith('c:') ? M.contracts.find(c => 'c:' + c.id === st.sel) : null;
-    const selF = (st.sel || '').startsWith('f:') ? st.sel.slice(2) : null;
-    if (st.layers.contracts) for (const c of M.contracts) {
-      const at = pinOf(M, c); if (!at) continue; const a = M.aeros[at];
-      out.push({ key: 'c:' + c.id, sel: 'c:' + c.id, kind: 'contract', aero: at, x: a.x, z: a.z, label: c.title, colour: M.prov[c.provider].colour, glyph: KIND_GLYPH[c.kind] || '●',
-                 on: !!selC && selC.id === c.id, trk: M.career.tracked === c.id, dim: !!selC && selC.id !== c.id });
-    }
-    if (selC && st.layers.contracts) for (const u of subsNow(M, selC)) if (u.to && M.aeros[u.to] && u.to !== pinOf(M, selC)) {
-      const a = M.aeros[u.to];
-      if (!out.some(m => m.key === 'to:' + u.to)) out.push({ key: 'to:' + u.to, sel: 'c:' + selC.id, kind: 'dest', aero: u.to, x: a.x, z: a.z, label: 'to ' + a.name, colour: M.prov[selC.provider].colour, glyph: '◎', on: true });
-    }
-    if (st.layers.fleet) for (const f of M.fleet) {
-      const a = M.aeros[f.where && f.where.aero]; if (!a) continue;
-      out.push({ key: 'f:' + f.slot, sel: 'f:' + f.slot, kind: 'fleet', aero: a.id, x: a.x, z: a.z, label: f.name, glyph: '✈', on: selF === f.slot, dim: !!selF && selF !== f.slot });
-    }
-    if (st.layers.fields) for (const id of Object.keys(M.aeros)) { const a = M.aeros[id]; out.push({ key: 'a:' + id, sel: null, kind: 'field', aero: id, x: a.x, z: a.z, label: a.name, sub: stripWord(a), cls: a.surface.cls }); }
-    if (st.layers.plots) for (const p of M.plots) out.push({ key: 'p:' + p.id, sel: null, kind: 'plot', aero: p.aero, x: p.x, z: p.z, label: 'plot ' + p.id, sub: p.shells.join(' / ') + (p.derelict ? ' · derelict' : '') + (p.water ? ' · slipway' : '') });
-    // the fan: badges of one kind at one field stand side by side (contracts above the field, the fleet below)
-    const groups = {};
-    for (const m of out) if (m.kind === 'contract' || m.kind === 'fleet') (groups[m.kind + '@' + m.aero] = groups[m.kind + '@' + m.aero] || []).push(m);
-    for (const g of Object.values(groups)) g.forEach((m, i) => { m.slot = i; m.of = g.length; });
-    return out;
-  }
-  // the routes: the selected contract's legs (bold), the tracked one's (thin) -> [{ from, to, sel, tracked }] in world x/z
-  function routesOf(M, st) {
-    const out = [], add = (c, bold) => { for (const u of subsNow(M, c)) { const a = M.aeros[u.from], b = M.aeros[u.to]; if (a && b && a !== b) out.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, bold, colour: M.prov[c.provider].colour, id: c.id }); } };
-    const selC = (st.sel || '').startsWith('c:') ? M.contracts.find(c => 'c:' + c.id === st.sel) : null;
-    const tr = M.contracts.find(c => c.id === M.career.tracked);
-    if (tr && (!selC || selC.id !== tr.id)) add(tr, false);
-    if (selC) add(selC, true);
-    return out;
-  }
-  // track one, accept many
-  function act(M, id, what) {
-    const C = M.career, i = C.accepted.indexOf(id);
-    if (what === 'accept') { if (i >= 0) { C.accepted.splice(i, 1); if (C.tracked === id) C.tracked = null; } else C.accepted.push(id); }
-    if (what === 'track') { if (C.tracked === id) C.tracked = null; else { C.tracked = id; if (i < 0) C.accepted.push(id); } }
+  // Track: accept and track are one gesture; tapping the tracked one again untracks it (it stays accepted)
+  function act(M, id) {
+    const C = M.career;
+    if (C.tracked === id) C.tracked = null; else { C.tracked = id; if (!C.accepted.includes(id)) C.accepted.push(id); }
     return C;
   }
 
-  const CORE = { PAX_KG, mapAdapt, whereOf, rowsOf, rowWord, factsFor, critFor, critsOf, designsOf, fitOf, allows, payOf, payWord, pinOf, subsNow, stageOf, CRIT_BY,
-                 markersOf, routesOf, act, tabsHTML, listHTML, cardHTML, statusHTML, layersHTML, whereWord, LAYERS, TABS_ASSET };
+  // ---- THE MAP'S OVERLAY (pure: strings over a view; the DOM half sets them) ----------------------------------------
+  const ICON = {
+    airfield: '<path d="M12 3.5c.9 0 1.4.7 1.4 1.6v4.6l6.6 3.6v2l-6.6-1.9v3.9l2 1.5v1.6l-3.4-.9-3.4.9v-1.6l2-1.5v-3.9L4 15.3v-2l6.6-3.6V5.1c0-.9.5-1.6 1.4-1.6z"/>',
+    strip: '<path d="M10.2 3h3.6l1.2 18H9z"/><path d="M12 5v2M12 9v2M12 13v2M12 17v2" stroke="#e9dcc0" stroke-width="1.2"/>',
+    seaplane: '<path d="M12 4c.8 0 1.2.6 1.2 1.4v3.8l6 3v1.8l-6-1.6v3.2l1.7 1.2v1.3l-2.9-.8-2.9.8v-1.3l1.7-1.2v-3.2l-6 1.6v-1.8l6-3V5.4C10.8 4.6 11.2 4 12 4z"/><path d="M5 20.5c1.2-1 2.3-1 3.5 0s2.3 1 3.5 0 2.3-1 3.5 0 2.3 1 3.5 0" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+    mine: '<path d="M4.5 9.5c3.5-4 11.5-4 15 0-3.4-1.6-11.6-1.6-15 0z"/><path d="M11.2 8.2h1.6v12.3h-1.6z"/>',
+    clearing: '<path d="M12 3l5 7h-3l4 6h-5v4h-2v-4H6l4-6H7z"/>',
+    altiport: '<path d="M2.5 19.5l6.5-11 3.5 5.5 3-4 6 9.5z"/><path d="M8.6 9.3l1.4 2.3 1.2-1.5z" fill="#e9dcc0"/>',
+  };
+  const HOTICON = {
+    elk: '<path d="M7 4l1 3-2 1 1 1 2-1 1 3h4l1-3 2 1 1-1-2-1 1-3-2 2-1-1-1 2h-2l-1-2-1 1zM9 12h6l1 5-1 4h-1.5l-.5-3h-2l-.5 3H9l-1-4z"/>',
+    doe: '<path d="M9 5l2 3h2l2-3-1 4 1 2-1 1h-4l-1-1 1-2zM9 12h6l1 5-1 4h-1.5l-.5-3h-2l-.5 3H9l-1-4z"/>',
+    bear: '<circle cx="7.5" cy="7" r="2"/><circle cx="16.5" cy="7" r="2"/><path d="M12 6c4 0 6.5 3 6.5 6.5S16 19 12 19s-6.5-3-6.5-6.5S8 6 12 6z"/>',
+    orca: '<path d="M3 13c3-4 9-5 14-3l2-4 .5 5c1.5 1 2.5 2 2.5 3-4 2-12 3-19-1z"/>',
+    whale: '<path d="M3 12c2-3 8-4 13-2 2 .8 3 2 3 3.5 1-1 2-2.5 3-3-.3 2-1 3.5-2.5 4.5C17 18 8 18 3 12z"/>',
+    bird: '<path d="M2 10c4-1 7 0 10 3 3-3 6-4 10-3-4 1-7 3-10 7-3-4-6-6-10-7z"/>',
+  };
+  const SURF = { concrete: '#56524d', asphalt: '#4a4744', gravel: '#9a7650', grass: '#6f9a4a', snow: '#e8eef2', dirt: '#8a6a48' };
+  const n1 = v => v.toFixed(1);
+  // view: { s, tx, ty, fit, w, h } (screen px per picture px, the offset, the fit's scale, the viewport) -> { html, svg, n }
+  function overlayOf(M, st, pack, view) {
+    const s = view.s, zr = s / view.fit, mpp = pack.mpp, near = s / mpp;   // screen px per metre
+    const X = x => view.tx + ((x - pack.x0) / mpp) * s, Y = z => view.ty + ((z - pack.z0) / mpp) * s;
+    const bs = Math.round(clamp(10 + 9 * zr, 16, 34)), hs = Math.round(clamp(6 + 7 * zr, 14, 26));
+    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0 };
+    let html = '', svg = '';
+    // the open and the tracked contracts' places -> their type colour (the badge takes a ring)
+    const lit = [st.open, M.career.tracked].filter(Boolean).map(id => M.contracts.find(c => c.id === id)).filter(Boolean);
+    const ring = {};
+    for (const c of lit) for (const p of chainOf(c)) { const pid = M.placeOf[p.id]; if (pid && !ring[pid]) ring[pid] = TYPE_COLOUR[typeOf(c)]; }
+    // 1. the hotspots (from the second zoom step; the zone ring and the count closer in)
+    const boxes = [];   // the labels already placed (screen boxes), so the next keeps clear
+    if (zr >= LOD.hot) for (const h of M.hotspots) {
+      const x = X(h.x), y = Y(h.z), rr = h.r / mpp * s, sea = h.kind === 'sea';
+      if (zr >= LOD.hotRing && rr > 18) { html += '<span class="mmZone" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;width:' + n1(2 * rr) + 'px;height:' + n1(2 * rr) + 'px"></span>'; n.rings++; }
+      html += '<span class="mmHot' + (sea ? ' sea' : '') + '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;--hs:' + hs + 'px" role="img" aria-label="' + esc(h.n + ' ' + h.label) + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + (HOTICON[h.key] || HOTICON.doe) + '</svg></span>';
+      n.hot++;
+      if (zr >= LOD.hotRing) {   // the count beside the badge: right, else left, else below - whichever keeps clear of the others
+        const t = (h.n > 1 ? h.n + ' × ' : '') + h.label, w = t.length * 6.6, hh = 16;
+        const sides = [[x + hs / 2 + 4, y - hh / 2, ''], [x - hs / 2 - 4 - w, y - hh / 2, ' l'], [x - w / 2, y + hs / 2 + 2, ' b']];
+        const k = sides.find(([l, tp]) => !boxes.some(o => l < o[2] && l + w > o[0] && tp < o[3] && tp + hh > o[1])) || sides[0];
+        boxes.push([k[0], k[1], k[0] + w, k[1] + hh]);
+        html += '<span class="mmHotN' + k[2] + '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;--hs:' + hs + 'px">' + esc(t) + '</span>'; n.counts++;
+      }
+    }
+    // 2. the runways at true scale, once longer than a badge (the place's tap target too)
+    for (const a of Object.values(M.aeros)) {
+      const lpx = a.len * near, wpx = Math.max(a.wid * near, 2);
+      if (lpx < LOD.rwyPx) continue;
+      const cx = X(a.x), cy = Y(a.z), ux = Math.cos(a.hdg), uy = Math.sin(a.hdg);
+      const P = (p, q, L, Wd) => [cx + ux * p * L / 2 - uy * q * Wd / 2, cy + uy * p * L / 2 + ux * q * Wd / 2];
+      const poly = (L, Wd, at) => '<polygon points="' + [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([p, q]) => P(p, q, L, Wd).map(n1).join(',')).join(' ') + '" ' + at + '/>';
+      const line = (p1, q1, p2, q2, at, L, Wd) => { const A = P(p1, q1, L || lpx, Wd || wpx), B = P(p2, q2, L || lpx, Wd || wpx); return '<line x1="' + n1(A[0]) + '" y1="' + n1(A[1]) + '" x2="' + n1(B[0]) + '" y2="' + n1(B[1]) + '" ' + at + '/>'; };
+      let g = '';
+      if (a.surface.cls === 'water') {
+        g += poly(lpx, wpx, 'fill="rgba(233,220,192,.10)" stroke="none"');
+        g += line(-1, 0, 1, 0, 'stroke="#e9dcc0" stroke-width="2" stroke-dasharray="8 6" opacity=".9"');
+        // the buoys: down both edges of the lane (every ~250 m) once they stand apart, the ends' larger; far out, the
+        // two ends only, sized to the lane
+        const k = Math.max(1, Math.round(a.len / 250)), edge = lpx / k >= 18, rb = clamp(lpx / 40, 1.5, 4.5);
+        for (let i = 0; i <= k; i++) for (const q of (edge ? [-1, 1] : [0])) { const end = i === 0 || i === k; if (!edge && !end) continue;
+          const B = P(-1 + 2 * i / k, q, lpx, wpx);
+          g += '<circle cx="' + n1(B[0]) + '" cy="' + n1(B[1]) + '" r="' + n1(end ? rb : rb * 0.7) + '" fill="#d9653b" stroke="#fff" stroke-width="' + (end ? 1.5 : 1) + '"/>'; }
+      } else {
+        const key = a.surface.key;
+        g += poly(lpx + 14, wpx + 14, 'fill="' + (key === 'concrete' || key === 'asphalt' ? 'rgba(201,190,160,.75)' : 'rgba(150,170,100,.7)') + '" stroke="none"');
+        g += poly(lpx, Math.max(wpx, 4), 'fill="' + (SURF[key] || SURF.gravel) + '" stroke="#2a2622" stroke-width="1"');
+        if (key === 'concrete' || key === 'asphalt') {
+          g += line(-0.86, 0, 0.86, 0, 'stroke="#f4efe6" stroke-width="' + n1(Math.max(1, wpx * 0.06)) + '" stroke-dasharray="7 6"');
+          for (const p of [-1, 1]) for (const q of [-0.6, -0.3, 0.3, 0.6]) g += line(p * 0.985, q, p * 0.94, q, 'stroke="#f4efe6" stroke-width="' + n1(Math.max(1, wpx * 0.08)) + '"');
+        } else for (const q of [-1, 1]) g += line(-1, q * 1.05, 1, q * 1.05, 'stroke="#f4efe6" stroke-width="1.4" stroke-dasharray="2 7"');
+        if (lpx > LOD.desigPx) {
+          const D = designators(a);
+          [-1, 1].forEach((p, i) => { const Q = P(p, 0, lpx + 34, wpx);
+            g += '<text x="' + n1(Q[0]) + '" y="' + n1(Q[1] + 4) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#1c1a17" stroke="#f4efe6" stroke-width="3" paint-order="stroke" font-family="IBM Plex Sans,sans-serif">' + D[i] + '</text>'; });
+          n.desig += 2;
+        }
+      }
+      svg += '<g class="mmRwy" data-place="' + esc(M.placeOf[a.id]) + '" data-rwy="' + esc(a.id) + '" role="button" aria-label="' + esc(baseName(a.name) + ': show its contracts') + '">' + g + '</g>';
+      n.runways++;
+    }
+    // 3. the routes: the open contract's (dashed), the tracked one's (dotted)
+    for (const c of lit) {
+      const ch = chainOf(c).filter(p => M.aeros[p.id]);
+      for (let i = 1; i < ch.length; i++) {
+        const a = M.aeros[ch[i - 1].id], b = M.aeros[ch[i].id]; if (a === b) continue;
+        svg += '<line class="mmRoute" x1="' + n1(X(a.x)) + '" y1="' + n1(Y(a.z)) + '" x2="' + n1(X(b.x)) + '" y2="' + n1(Y(b.z)) + '" stroke="#3b2a1a" stroke-width="' + (c.id === st.open ? 2.5 : 2) + '" stroke-dasharray="' + (c.id === st.open ? '7 5' : '3 5') + '"/>';
+        n.routes++;
+      }
+    }
+    // 4. the places of interest (mid zoom)
+    // (a place of interest beside a site's badge - the lodge at the altiport, the town at its float - stands below it)
+    if (zr >= LOD.pois) for (const q of M.pois) {
+      let x = X(q.x), y = Y(q.z);
+      const near0 = M.places.find(p => Math.hypot(X(p.x) - x, Y(p.z) - y) < bs + 24);
+      if (near0) y = Math.max(y, Y(near0.z) + bs / 2 + 26);
+      html += '<span class="mmPoi" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px">' + esc(q.label + (q.elev ? ' ' + fmt(q.elev) + ' m' : '')) + '</span>'; n.pois++;
+    }
+    // 5. every place: a badge always (a tap filters the list); its name from mid zoom (or when lit / filtered), its runway
+    //    facts closer; once its runway is drawn the badge steps aside, off the runway's side
+    const at = {};   // each place's badge, where it stands on the screen (your planes stand under it)
+    for (const p of M.places) {
+      const main = M.aeros[p.id], drawn = main.len * near >= LOD.rwyPx;
+      let x = X(p.x), y = Y(p.z);
+      if (drawn) {   // off the runway's side - the side away from the place's other runways
+        const ux = Math.cos(main.hdg), uy = Math.sin(main.hdg), off = main.wid * near / 2 + 7 + bs / 2 + 4;
+        const side = p.aeros.slice(1).reduce((t, id) => t + (-uy * (M.aeros[id].x - main.x) + ux * (M.aeros[id].z - main.z)), 0) > 0 ? -1 : 1;
+        x += -uy * off * side; y += ux * off * side;
+      }
+      at[p.id] = [x, y];
+      const col = ring[p.id], on = st.at === p.id;
+      html += '<button type="button" class="mmPl' + (main.surface.cls === 'water' ? ' water' : '') + (on ? ' on' : '') + '" data-place="' + esc(p.id) + '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;--bs:' + bs + 'px" aria-label="' + esc(p.name + ', ' + KIND_WORD[p.kind] + ': show its contracts') + '" aria-pressed="' + on + '">' +
+        '<i' + (col ? ' style="box-shadow:0 0 0 3px ' + col + ',0 0 0 5px #1c1a17,0 1px 4px rgba(0,0,0,.5)"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[p.kind] + '</svg></i></button>';
+      n.badges++;
+      if (zr < LOD.names && !col && !on) continue;
+      const facts = zr >= LOD.facts ? p.aeros.map(id => { const a = M.aeros[id], d = p.aeros.length > 1 ? designators(a) : null; return (d ? d.join('/') + ' ' : '') + stripWord(a); }).join(' · ') : '';
+      html += '<button type="button" class="mmNm" data-place="' + esc(p.id) + '" style="left:' + n1(x + bs / 2 + 4) + 'px;top:' + n1(y) + 'px" aria-label="' + esc(p.name + ': show its contracts') + '"><span>' + esc(p.name) + (facts ? ' <small>' + esc(facts) + '</small>' : '') + '</span></button>';
+      n.names++; if (facts) n.facts++;
+    }
+    // 6. your planes, where they stand
+    const fan = {};
+    for (const f of M.fleet) { const a = M.aeros[f.where && f.where.aero], pid = a && M.placeOf[a.id]; if (!pid || !at[pid]) continue; const k = fan[pid] = (fan[pid] || 0) + 1;
+      html += '<span class="mmPlane" style="left:' + n1(at[pid][0] + (k - 1) * 24 - 12) + 'px;top:' + n1(at[pid][1] + bs / 2 + 14) + 'px" role="img" aria-label="' + esc('your ' + f.name + ', at ' + a.name) + '">✈</span>'; n.planes++; }
+    return { html, svg, n, zr, bs, hs };
+  }
+
+  const CORE = { TYPES, LOD, mapAdapt, whereOf, placesOf, designators, stripWord, typeOf, payOf, chainOf, routeWord, involves, allows, fleetGears, markOf,
+                 rowsOf, listHTML, paraHTML, headHTML, atHTML, statusHTML, act, overlayOf, subsNow, subsAll, ZOOM_MAX, ZOOM_ABS };
   if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
   if (!W || !W.document) return;
 
@@ -397,7 +385,7 @@
   const D = W.document;
   // THE ONE SOURCE LINE (G2320): the real record - the page's dev career (?career=1: FLYDIY_CAREER.record(), the
   // career document through careerMapRecord), else a NEW career's offers in memory (careerNew; nothing is saved);
-  // ?mapsrc=fixture (or a page without the career core) reads the fixture, as MAP-MENU's stills do
+  // ?mapsrc=fixture (or a page without the career core) reads the fixture
   const fixture = () => fetch((W.FLYDIY_MAP_SRC && W.FLYDIY_MAP_SRC.fixture) || 'tools/fixtures/contracts_sample.json').then(r => r.json());
   const MAP_SOURCE = () => /[?&]mapsrc=fixture(&|$)/.test((W.location && W.location.search) || '') ? fixture()
     : W.FLYDIY_CAREER && W.FLYDIY_CAREER.record ? Promise.resolve().then(() => W.FLYDIY_CAREER.record())
@@ -405,141 +393,118 @@
     : fixture();
 
   const CSS = `
-#mapScreen{--mm-bg:#1c1814;--mm-bg2:#26211c;--mm-line:rgba(255,238,214,.13);--mm-ink:#f3ece2;--mm-mid:#b9ac9c;--mm-dim:#857a6e;--mm-acc:#ffb257;--mm-ok:#63d3cc;--mm-no:#ff8a6e;
-  position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:var(--mm-bg);color:var(--mm-ink);font:400 14px/1.35 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;user-select:none;-webkit-user-select:none}
+#mapScreen{--mm-bg:#1c1a17;--mm-panel:#24211d;--mm-ink:#ece6dc;--mm-mid:#a59d8f;--mm-line:#3a352f;--mm-acc:${ACC};--mm-ok:#8cc79a;--mm-no:#e08a7a;--mm-paper:#e9dcc0;--mm-sepia:#3b2a1a;
+  --mm-old:'IM Fell English',Georgia,'Times New Roman',serif;
+  position:fixed;inset:0;z-index:2147483000;display:grid;grid-template-columns:370px 1fr;grid-template-rows:1fr auto;background:var(--mm-bg);color:var(--mm-ink);font:400 14px/1.5 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif}
 #mapScreen *{box-sizing:border-box}
 #mapScreen button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;border-radius:0;box-shadow:none;min-width:0;text-transform:none;letter-spacing:normal;backdrop-filter:none;-webkit-backdrop-filter:none;transition:none;transform:none;cursor:pointer;text-align:left}
-#mapScreen button:focus-visible{outline:2px solid var(--mm-acc);outline-offset:-2px}
-#mapScreen .mmTop{display:flex;align-items:center;gap:12px;height:56px;padding:0 8px 0 16px;border-bottom:1px solid var(--mm-line);flex:none}
-#mapScreen .mmTop h1{margin:0;font:600 13px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--mm-mid);flex:1}
-#mapScreen .mmTop h1 b{color:var(--mm-ink);font-weight:600}
-#mapScreen .mmClose{min-width:48px;height:48px;border-radius:8px;text-align:center;font-size:22px;color:var(--mm-mid)}
-#mapScreen .mmBody{flex:1;display:flex;min-height:0}
-#mapScreen .mmLeft{width:380px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--mm-line);min-height:0}
-#mapScreen .mmRight{width:360px;flex:none;border-left:1px solid var(--mm-line);overflow-y:auto;touch-action:pan-y}
-#mapScreen .mmTabs{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px 0}
-#mapScreen .mmAssets{padding-bottom:10px;border-bottom:1px solid var(--mm-line)}
-#mapScreen .mmTab{flex:none;min-height:48px;min-width:48px;padding:0 12px;border-radius:24px;border:1px solid var(--mm-line);display:inline-flex;align-items:center;gap:6px;color:var(--mm-mid);font-weight:500;white-space:nowrap}
-#mapScreen .mmTab.on{border-color:var(--mm-acc);color:var(--mm-acc)}
-#mapScreen .mmN{font-size:12px;color:var(--mm-dim)}
-#mapScreen .mmDot{width:9px;height:9px;border-radius:50%;display:inline-block}
-#mapScreen .mmList{flex:1;overflow-y:auto;padding:6px 0;touch-action:pan-y}
-#mapScreen .mmRow{display:flex;flex-direction:column;justify-content:center;gap:3px;width:100%;min-height:60px;padding:8px 14px;border-left:3px solid transparent}
-#mapScreen .mmRow.on{background:var(--mm-bg2);border-left-color:var(--mm-acc)}
-#mapScreen .mmRowT{display:flex;align-items:center;gap:8px}
-#mapScreen .mmRowT b{font-weight:500;flex:1}
-#mapScreen .mmRowT em{font-style:normal;font-size:12px;color:var(--mm-mid)}
-#mapScreen .mmRowT em.mmTrk{color:var(--mm-acc)}
-#mapScreen .mmRowS{font-size:12.5px;color:var(--mm-mid);padding-left:30px}
-#mapScreen .mmChip{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;color:#1c1814;flex:none}
-#mapScreen .mmGlyph{width:22px;text-align:center;font-style:normal;color:var(--mm-mid);flex:none}
-#mapScreen .mmEmpty{padding:28px 18px;display:flex;flex-direction:column;gap:6px;color:var(--mm-mid)}
-#mapScreen .mmEmpty b{color:var(--mm-ink);font-weight:500}
-#mapScreen .mmMap{flex:1;position:relative;overflow:hidden;background:#9db6c2;touch-action:none;cursor:grab}
-#mapScreen .mmPlane{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-#mapScreen .mmPlane img{display:block;image-rendering:auto;pointer-events:none}
-#mapScreen .mmSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-#mapScreen .mmMarks{position:absolute;inset:0;pointer-events:none}
-#mapScreen .mmMk{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:auto;display:flex;align-items:center;justify-content:center;text-align:center}
-#mapScreen .mmMk i{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;color:#1c1814;border:2px solid #1c1814;box-shadow:0 1px 3px rgba(0,0,0,.35)}
-#mapScreen .mmMk.fleet i{border-radius:7px;background:#f3ece2;color:#1c1814}
-#mapScreen .mmMk.dest i{background:#f3ece2 !important;color:#1c1814}
-#mapScreen .mmMk.on i{width:36px;height:36px;font-size:16px;border:3px solid var(--mm-acc)}
-#mapScreen .mmMk.trk i{border-color:var(--mm-acc)}
-#mapScreen .mmMk.dim{opacity:.45}
-#mapScreen .mmMk span{position:absolute;top:44px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11.5px;font-weight:500;color:#1c1814;background:rgba(250,247,240,.88);padding:1px 6px;border-radius:4px}
-#mapScreen .mmLbl{position:absolute;pointer-events:none;white-space:nowrap;font-size:11.5px;line-height:1.3;color:#1c1814;background:rgba(250,247,240,.84);padding:2px 6px;border-radius:4px}
-#mapScreen .mmLbl.end{background:#faf7f0;box-shadow:0 0 0 2px var(--mm-acc)}
-#mapScreen .mmLbl b{font-weight:600;display:block}
-#mapScreen .mmLbl.plot{background:rgba(176,96,52,.92);color:#fff}
-#mapScreen .mmLbl.water b::after{content:' ≈'}
-#mapScreen .mmCtl{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px}
-#mapScreen .mmCtl button,#mapScreen .mmLay{min-width:48px;height:48px;border-radius:8px;background:rgba(28,24,20,.86);color:var(--mm-ink);text-align:center;font-weight:500;padding:0 12px}
-#mapScreen .mmLayers{position:absolute;left:12px;top:12px;display:flex;gap:8px;flex-wrap:wrap;max-width:calc(100% - 24px)}
-#mapScreen .mmLay{color:var(--mm-mid);border:1px solid transparent}
-#mapScreen .mmLay.on{color:var(--mm-acc);border-color:var(--mm-acc)}
-#mapScreen .mmStatus{flex:none;display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;min-height:44px;padding:6px 16px;border-top:1px solid var(--mm-line);font-size:13px}
-#mapScreen .mmStatus b{font-weight:500;margin-right:14px}
-#mapScreen .mmK{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mm-dim)}
-#mapScreen .mmTrkLine{color:var(--mm-acc)}
-#mapScreen .mmCard{padding:14px 16px 24px}
-#mapScreen .mmCard h2{margin:6px 0 6px;font:600 19px/1.25 'IBM Plex Sans'}
-#mapScreen .mmCard h3{margin:18px 0 8px;font:600 11px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mm-mid)}
-#mapScreen .mmProv{display:flex;align-items:center;gap:8px;color:var(--mm-mid);font-size:13px}
-#mapScreen .mmBrief{margin:0 0 4px;color:var(--mm-ink)}
-#mapScreen .mmFine{margin:6px 0;color:var(--mm-mid);font-size:12.5px}
-#mapScreen .mmStages{margin:10px 0 0;padding-left:20px;color:var(--mm-dim);font-size:12.5px}
-#mapScreen .mmStages li.now{color:var(--mm-acc)}
-#mapScreen .mmStages li.done{text-decoration:line-through}
-#mapScreen .mmLeg{border:1px solid var(--mm-line);border-radius:8px;padding:10px 12px;margin:0 0 8px;display:flex;flex-direction:column;gap:8px}
-#mapScreen .mmDo{font-weight:500}
-#mapScreen .mmEnd{display:flex;flex-direction:column}
-#mapScreen .mmEnd b{font-weight:500}
-#mapScreen .mmEnd span:last-child{color:var(--mm-mid);font-size:12.5px}
-#mapScreen .mmPay{margin:0;font-size:15px}
-#mapScreen .mmPay b{font-size:20px;font-weight:600}
-#mapScreen .mmPay span{color:var(--mm-mid);font-size:12.5px}
-#mapScreen .mmFit{padding:8px 0;border-top:1px solid var(--mm-line)}
-#mapScreen .mmFit>b{font-weight:600;margin-right:8px}
-#mapScreen .mmFit>span{color:var(--mm-mid);font-size:12.5px}
-#mapScreen .mmFit ul,#mapScreen .mmCrit,#mapScreen .mmCert,#mapScreen .mmJobs{list-style:none;margin:4px 0 0;padding:0;font-size:13px}
-#mapScreen .mmFit li{padding:2px 0}
-#mapScreen li.ok{color:var(--mm-ok)} #mapScreen li.no{color:var(--mm-no)} #mapScreen li.fly{color:var(--mm-mid)}
-#mapScreen .mmCrit li{padding:3px 0}
-#mapScreen .mmBy{font-size:11px;color:var(--mm-dim);text-transform:uppercase;letter-spacing:.1em;margin-left:6px}
-#mapScreen .mmCert li{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--mm-line)}
-#mapScreen .mmCert span{color:var(--mm-mid)}
-#mapScreen .mmLink{min-height:48px;width:100%;color:inherit}
-#mapScreen .mmActs{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-#mapScreen .mmBtn{min-height:48px;padding:0 16px;border-radius:9px;border:1px solid var(--mm-line);background:var(--mm-bg2);font-weight:500;text-align:center}
-#mapScreen .mmBtn.pri{background:var(--mm-acc);color:#2c1a06;border-color:transparent}
-#mapScreen .mmBtn.on{border-color:var(--mm-acc);color:var(--mm-acc)}
-#mapScreen .mmBtn.pri.on{background:var(--mm-bg2)}
-#mapScreen .mmBtn:disabled{opacity:.5;cursor:default}
-#mapScreen .mmBack{min-height:48px;padding:0 12px 0 0;color:var(--mm-acc);font-weight:500}
-#mapScreen .mmIdle p{color:var(--mm-mid)}
+#mapScreen button:focus-visible,#mapScreen select:focus-visible{outline:2px solid var(--mm-acc);outline-offset:-2px}
+#mapScreen .mmSide{border-right:1px solid var(--mm-line);background:var(--mm-panel);display:flex;flex-direction:column;min-height:0}
+#mapScreen .mmHead{padding:6px 8px 10px 16px;display:grid;gap:8px;border-bottom:1px solid var(--mm-line)}
+#mapScreen .mmTitle{display:flex;align-items:center;justify-content:space-between}
+#mapScreen .mmTitle h1{margin:0;font:600 12px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mm-mid)}
+#mapScreen .mmClose{min-width:48px;height:48px;border-radius:8px;text-align:center;font-size:20px;color:var(--mm-mid)}
+#mapScreen .mmTypes{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--mm-mid)}
+#mapScreen .mmTypes span{display:inline-flex;align-items:center;gap:6px}
+#mapScreen .mmFilter{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mm-mid)}
+#mapScreen .mmCust{flex:1;max-width:240px;font:13px 'IBM Plex Sans',sans-serif;text-transform:none;letter-spacing:normal;color:var(--mm-ink);background:var(--mm-bg);border:1px solid var(--mm-line);border-radius:6px;padding:0 8px;min-height:48px}
+#mapScreen .mmDot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+#mapScreen .mmAt{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 16px;background:#2b2722;border-bottom:1px solid var(--mm-line);font-size:13px}
+#mapScreen .mmAtX{font-weight:600;font-size:15px;border:1px solid var(--mm-line);border-radius:6px;min-width:48px;min-height:48px;text-align:center}
+#mapScreen .mmList{overflow-y:auto;flex:1;touch-action:pan-y;overscroll-behavior:contain}
+#mapScreen .mmEmpty{margin:0;padding:16px;color:var(--mm-mid)}
+#mapScreen .mmItem{border-bottom:1px solid var(--mm-line)}
+#mapScreen .mmRow{width:100%;display:grid;grid-template-columns:10px 1fr auto 18px;gap:10px;align-items:center;padding:10px 16px;min-height:48px}
+#mapScreen .mmItem.open .mmRow{background:#2b2722}
+#mapScreen .mmT{font-weight:500;min-width:0}
+#mapScreen .mmT em{font-style:normal;color:var(--mm-acc)}
+#mapScreen .mmPay{font-variant-numeric:tabular-nums}
+#mapScreen .mmMark{text-align:center;font-weight:600}
+#mapScreen .ok{color:var(--mm-ok)} #mapScreen .no{color:var(--mm-no)}
+#mapScreen .mmBody{display:grid;gap:10px;padding:0 16px 14px 36px;background:#2b2722}
+#mapScreen .mmBody p{margin:0;max-width:42ch}
+#mapScreen .mmRw{display:block;margin-top:6px;font-size:13px;color:var(--mm-mid);font-variant-numeric:tabular-nums}
+#mapScreen .mmWhy{display:block;margin-top:6px;color:var(--mm-no)}
+#mapScreen .mmTrack{justify-self:start;font-weight:600;font-size:13px;color:#1c1a17;background:var(--mm-acc);border-radius:6px;padding:0 16px;min-height:48px;text-align:center}
+#mapScreen .mmTrack.on{background:transparent;color:var(--mm-acc);border:1px solid var(--mm-acc)}
+#mapScreen .mmMap{position:relative;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#mapScreen .mmMap.drag{cursor:grabbing}
+#mapScreen .mmMap img,#mapScreen .mmMap svg{-webkit-user-drag:none;user-select:none}
+#mapScreen .mmStage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+#mapScreen .mmStage img{display:block;pointer-events:none;filter:saturate(1.08) contrast(1.02)}
+#mapScreen .mmOv{position:absolute;inset:0;pointer-events:none}
+#mapScreen .mmOv>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#mapScreen .mmRwy{pointer-events:auto;cursor:pointer}
+#mapScreen .mmPl{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:auto;display:grid;place-items:center}
+#mapScreen .mmPl i{width:var(--bs,30px);height:var(--bs,30px);border-radius:50%;display:grid;place-items:center;background:var(--mm-paper);color:var(--mm-sepia);border:1.5px solid var(--mm-sepia);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+#mapScreen .mmPl.water i{color:#1d5f86}
+#mapScreen .mmPl.on i{box-shadow:0 0 0 3px var(--mm-acc),0 1px 3px rgba(0,0,0,.45) !important}
+#mapScreen .mmPl svg{width:66%;height:66%;fill:currentColor;display:block}
+#mapScreen .mmNm{position:absolute;min-height:48px;margin-top:-24px;display:flex;align-items:center;pointer-events:auto;white-space:nowrap}
+#mapScreen .mmNm span{font:13.5px/1.15 var(--mm-old);color:var(--mm-sepia);background:rgba(233,220,192,.88);padding:1px 5px;border-radius:3px}
+#mapScreen .mmNm small{font:italic 12px var(--mm-old);color:#5a4630}
+#mapScreen .mmPoi{position:absolute;transform:translate(-50%,-50%);font:italic 13px var(--mm-old);color:#2a2018;text-shadow:0 0 3px #f4efe6,0 0 3px #f4efe6;white-space:nowrap;pointer-events:none}
+#mapScreen .mmHot{position:absolute;transform:translate(-50%,-50%);width:var(--hs,22px);height:var(--hs,22px);border-radius:50%;display:grid;place-items:center;background:#e8f3df;color:#2d5a25;border:1.5px solid #2d5a25;box-shadow:0 1px 3px rgba(0,0,0,.45);pointer-events:none}
+#mapScreen .mmHot svg{width:70%;height:70%;fill:currentColor;display:block}
+#mapScreen .mmHot.sea{background:#dff0f7;color:#1d5f86;border-color:#1d5f86}
+#mapScreen .mmHotN{position:absolute;transform:translate(calc(var(--hs,22px) / 2 + 4px),-50%);font:italic 12.5px var(--mm-old);color:#e8f3df;text-shadow:0 0 3px #12301a,0 0 2px #12301a;white-space:nowrap;pointer-events:none}
+#mapScreen .mmHotN.l{transform:translate(calc(-100% - var(--hs,22px) / 2 - 4px),-50%)}
+#mapScreen .mmHotN.b{transform:translate(-50%,calc(var(--hs,22px) / 2 + 2px))}
+#mapScreen .mmZone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(232,243,223,.7);pointer-events:none}
+#mapScreen .mmPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:4px;background:var(--mm-paper);color:var(--mm-sepia);border:1px solid var(--mm-sepia);pointer-events:none}
+#mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
+#mapScreen .mmCtl button{font-weight:600;font-size:15px;color:var(--mm-ink);background:rgba(28,26,23,.9);border:1px solid var(--mm-line);border-radius:8px;min-width:48px;min-height:48px;text-align:center}
+#mapScreen .mmRose{position:absolute;right:18px;top:16px;width:64px;height:64px;pointer-events:none}
+#mapScreen .mmScale{position:absolute;left:16px;bottom:16px;font:14px var(--mm-old);color:var(--mm-sepia);background:rgba(233,220,192,.85);padding:2px 6px;border-radius:3px;pointer-events:none}
+#mapScreen .mmScale i{display:inline-block;height:6px;border:1.5px solid currentColor;border-top:0;vertical-align:middle;margin-right:6px}
+#mapScreen .mmFoot{grid-column:1/-1;border-top:1px solid var(--mm-line);background:var(--mm-panel);padding:9px 16px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--mm-mid)}
+#mapScreen .mmFoot b{color:var(--mm-ink);font-weight:500}
+#mapScreen .mmHandle{display:none}
 /* THE PHONE (GQ19): the map full, the list a bottom sheet over it; the map and the sheet never share a gesture (R20) */
-#mapScreen.mmPhone .mmTop{position:absolute;top:0;right:0;left:auto;height:auto;border:0;padding:8px;z-index:3}
-#mapScreen.mmPhone .mmTop h1{display:none}
-#mapScreen.mmPhone .mmClose{background:rgba(28,24,20,.86)}
-#mapScreen.mmPhone .mmBody{position:relative}
-#mapScreen.mmPhone .mmLeft{display:none}
-#mapScreen.mmPhone .mmRight{display:none}
-#mapScreen.mmPhone .mmStatus{display:none}
-#mapScreen.mmPhone .mmLayers{top:8px;left:8px;right:72px;flex-wrap:nowrap;overflow-x:auto;touch-action:pan-x;max-width:none;scrollbar-width:none}
-#mapScreen.mmPhone .mmCtl{bottom:auto;top:72px;right:8px}
-#mapScreen .mmSheet{display:none}
-#mapScreen.mmPhone .mmSheet{display:flex;flex-direction:column;position:absolute;left:0;right:0;bottom:0;height:184px;background:var(--mm-bg);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.35);z-index:4;transition:height .18s ease-out}
-#mapScreen.mmPhone .mmSheet.open{height:64%}
-#mapScreen .mmHandle{flex:none;height:48px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:none;text-align:center}
-#mapScreen .mmHandle i{width:44px;height:5px;border-radius:3px;background:var(--mm-dim)}
+#mapScreen.mmPhone{display:block}
+#mapScreen.mmPhone .mmMap{position:absolute;inset:0}
+#mapScreen.mmPhone .mmFoot{display:none}
+#mapScreen.mmPhone .mmRose{display:none}
+#mapScreen.mmPhone .mmScale{left:8px;top:8px;bottom:auto}
+#mapScreen.mmPhone .mmCtl{top:64px;bottom:auto;right:8px}
+#mapScreen.mmPhone .mmSide{position:absolute;left:0;right:0;bottom:0;height:38%;border:0;border-radius:16px 16px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.35);z-index:3}
+#mapScreen.mmPhone .mmSide.open{height:78%}
+#mapScreen.mmPhone .mmHandle{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:48px;width:100%;touch-action:none;text-align:center}
+#mapScreen .mmHandle i{width:44px;height:5px;border-radius:3px;background:var(--mm-mid)}
 #mapScreen .mmHandle span{font-size:11.5px;color:var(--mm-mid)}
-#mapScreen .mmSheetTabs{flex:none;display:flex;gap:8px;overflow-x:auto;padding:0 12px 8px;touch-action:pan-x;scrollbar-width:none}
-#mapScreen .mmSheetTabs .mmTabs{display:contents}
-#mapScreen .mmSheetBody{flex:1;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;border-top:1px solid var(--mm-line)}
-#mapScreen .mmSheetBody .mmCard{padding-top:4px}
+#mapScreen.mmPhone .mmHead{padding-top:0}
+#mapScreen.mmPhone .mmTitle{position:fixed;top:8px;right:8px;z-index:4}
+#mapScreen.mmPhone .mmTitle h1{display:none}
+#mapScreen.mmPhone .mmClose{background:rgba(28,26,23,.9);border:1px solid var(--mm-line)}
+#mapScreen.mmPhone .mmCust{max-width:none}
 `;
 
-  let root = null, M = null, pack = null, st = null, V = { s: 1, tx: 0, ty: 0, fit: 1 }, $ = {}, dragMoved = 0;
+  let root = null, M = null, pack = null, st = null, $ = {};
+  const V = { s: 1, tx: 0, ty: 0, fit: 1 };
   const isPhone = () => !!((D.documentElement.classList && D.documentElement.classList.contains('phone')) || (W.matchMedia && W.matchMedia('(max-width: 760px)').matches));
 
   function build() {
     if (!D.getElementById('mapScreenCss')) { const s = D.createElement('style'); s.id = 'mapScreenCss'; s.textContent = CSS; D.head.appendChild(s); }
     root = D.createElement('div'); root.id = 'mapScreen'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', 'the island map and the contracts');
     root.innerHTML =
-      '<div class="mmTop"><h1><b>The island</b> · contracts and your fleet</h1><button type="button" class="mmClose" data-act="close" aria-label="close the map">✕</button></div>' +
-      '<div class="mmBody">' +
-        '<div class="mmLeft"><div class="mmTabsHost"></div><div class="mmList"></div></div>' +
-        '<div class="mmMap"><div class="mmPlane"><img alt="the island" draggable="false"></div><svg class="mmSvg" xmlns="http://www.w3.org/2000/svg"></svg><div class="mmMarks"></div>' +
-          '<div class="mmLayersHost"></div><div class="mmCtl"><button type="button" data-act="zin" aria-label="zoom in">+</button><button type="button" data-act="zout" aria-label="zoom out">−</button><button type="button" data-act="fit" aria-label="the whole island">⤢</button></div></div>' +
-        '<div class="mmRight"></div>' +
-        '<div class="mmSheet"><button type="button" class="mmHandle" data-act="sheet" aria-label="the list: open or fold"><i></i><span></span></button><div class="mmSheetTabs"></div><div class="mmSheetBody"></div></div>' +
-      '</div><div class="mmStatus"></div>';
+      '<aside class="mmSide" aria-label="contracts"><button type="button" class="mmHandle" data-act="sheet" aria-label="the list: open or fold"><i></i><span></span></button>' +
+        '<div class="mmHead"><div class="mmTitle"><h1>Contracts</h1><button type="button" class="mmClose" data-act="close" aria-label="close the map">✕</button></div><div class="mmHeadIn"></div></div>' +
+        '<div class="mmAtHost"></div><div class="mmList"></div></aside>' +
+      '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"></div>' +
+        '<div class="mmOv"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="false"></svg><div class="mmOvH"></div></div>' +
+        '<svg class="mmRose" viewBox="-32 -32 64 64" aria-hidden="true"><circle r="27" fill="none" stroke="#3b2a1a" stroke-width="1"/><circle r="22" fill="none" stroke="#3b2a1a" stroke-width=".6"/>' +
+          '<path d="M0-30 L5-5 L0 0 L-5-5Z" fill="#3b2a1a"/><path d="M0 30 L5 5 L0 0 L-5 5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/>' +
+          '<path d="M30 0 L5 5 L0 0 L5-5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/><path d="M-30 0 L-5 5 L0 0 L-5-5Z" fill="#3b2a1a"/>' +
+          '<text y="-17" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="9" fill="#3b2a1a">N</text></svg>' +
+        '<div class="mmCtl"><button type="button" data-act="zin" aria-label="zoom in">+</button><button type="button" data-act="zout" aria-label="zoom out">−</button><button type="button" data-act="fit" aria-label="fit the island">⤢</button></div>' +
+        '<div class="mmScale"></div></main>' +
+      '<footer class="mmFoot"></footer>';
     D.body.appendChild(root);
-    for (const k of ['mmList', 'mmMap', 'mmPlane', 'mmSvg', 'mmMarks', 'mmRight', 'mmStatus', 'mmTabsHost', 'mmLayersHost', 'mmSheet', 'mmSheetTabs', 'mmSheetBody'])
+    for (const k of ['mmSide', 'mmHeadIn', 'mmAtHost', 'mmList', 'mmMap', 'mmStage', 'mmOvH', 'mmScale', 'mmFoot', 'mmHandle'])
       $[k] = root.querySelector('.' + k);
-    $.img = root.querySelector('.mmPlane img');
+    $.img = root.querySelector('.mmStage img'); $.svg = root.querySelector('.mmOv svg');
     root.addEventListener('click', onClick);
+    root.addEventListener('change', e => { if (e.target && e.target.classList.contains('mmCust')) { st.cust = e.target.value; renderList(); } });
     wireMap();
     wireSheet();
   }
@@ -547,154 +512,102 @@
   // ---- RENDER ----
   function render() {
     root.classList.toggle('mmPhone', st.phone);
-    if (st.phone) {
-      $.mmSheet.classList.toggle('open', st.sheet === 'open');
-      $.mmSheetTabs.innerHTML = tabsHTML(M, st);
-      $.mmSheetBody.innerHTML = st.detail && st.sel ? cardHTML(M, st) : listHTML(M, st);
-      root.querySelector('.mmHandle span').textContent = st.sheet === 'open' ? 'fold the list' : (st.detail && st.sel ? 'the card' : 'the list') + ' · open';
-    } else {
-      $.mmTabsHost.innerHTML = tabsHTML(M, st);
-      $.mmList.innerHTML = listHTML(M, st);
-      $.mmRight.innerHTML = cardHTML(M, st);
-      $.mmStatus.innerHTML = statusHTML(M);
-    }
-    $.mmLayersHost.innerHTML = layersHTML(st);
+    $.mmHeadIn.innerHTML = headHTML(M, st);
+    renderList();
+    $.mmFoot.innerHTML = statusHTML(M);
+  }
+  function renderList() {
+    $.mmSide.classList.toggle('open', st.sheet === 'open');
+    $.mmAtHost.innerHTML = atHTML(M, st);
+    $.mmList.innerHTML = listHTML(M, st);
+    const n = rowsOf(M, st).length, tr = M.contracts.find(x => x.id === M.career.tracked);
+    $.mmHandle.querySelector('span').textContent = n + ' contract' + (n === 1 ? '' : 's') + (tr ? ' · ★ ' + tr.title : '') + ' · ' + (st.sheet === 'open' ? 'fold' : 'open');
     place();
   }
-  const toScr = (x, z) => [V.tx + ((x - pack.x0) / pack.mpp) * V.s, V.ty + ((z - pack.z0) / pack.mpp) * V.s];
   function place() {
-    if (!pack) return;
-    $.mmPlane.style.transform = 'translate(' + V.tx + 'px,' + V.ty + 'px) scale(' + V.s + ')';
-    const mk = markersOf(M, st), near = V.s >= V.fit * 1.6;
-    // THE LABELS KEEP OUT OF EACH OTHER'S WAY: the badges stand first (obstacles), then the labels by priority - the
-    // selection's two ends, then the fields, then the plots - each at the first free side (right, left, below, above),
-    // else not drawn at this zoom (a zoom brings it back); a field's strip line shows near, or for the selection's ends
-    const MW = $.mmMap.clientWidth || 1e4, MH = $.mmMap.clientHeight || 1e4;   // a label that would leave the map counts as a collision
-    const boxes = [], hit = b => b[0] < 2 || b[2] > MW - 2 || b[1] < 2 || b[3] > MH - 2 || boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
-    const ends = new Set(); { const c = (st.sel || '').startsWith('c:') ? M.contracts.find(x => 'c:' + x.id === st.sel) : null; if (c) for (const u of subsNow(M, c)) { if (u.from) ends.add(u.from); if (u.to) ends.add(u.to); } }
-    let h = '';
-    const badges = mk.filter(m => m.kind !== 'field' && m.kind !== 'plot'), labels = mk.filter(m => m.kind === 'field' || m.kind === 'plot');
-    for (const m of badges) {
-      let [x, y] = toScr(m.x, m.z);
-      if (m.kind === 'contract') { x += (m.slot - (m.of - 1) / 2) * 34; y -= 30; }
-      if (m.kind === 'fleet') { x += (m.slot - (m.of - 1) / 2) * 34; y += 30; }
-      boxes.push([x - 16, y - 16, x + 16, y + 16]);
-      const named = m.on || (m.kind === 'fleet' && near);
-      if (named) boxes.push([x - m.label.length * 3.6 - 8, y + 20, x + m.label.length * 3.6 + 8, y + 40]);
-      h += '<button type="button" class="mmMk ' + m.kind + (m.on ? ' on' : '') + (m.trk ? ' trk' : '') + (m.dim ? ' dim' : '') + '" data-sel="' + esc(m.sel || '') + '" data-mk="' + esc(m.key) + '" aria-label="' + esc(m.label) +
-        '" style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px"><i' + (m.colour ? ' style="background:' + esc(m.colour) + '"' : '') + '>' + esc(m.glyph) + '</i>' +
-        (named ? '<span>' + esc(m.label) + '</span>' : '') + '</button>';
-    }
-    const pri = m => (ends.has(m.aero) && m.kind === 'field' ? 0 : m.kind === 'field' ? 1 : 2);
-    for (const m of labels.sort((a, b) => pri(a) - pri(b))) {
-      const [x, y] = toScr(m.x, m.z), sub = m.kind === 'plot' ? near : (near || ends.has(m.aero));
-      const w = Math.max(m.label.length, sub ? (m.sub || '').length : 0) * 6.4 + 14, hh = sub ? 34 : 19;
-      const at = [[x + 10, y - hh / 2], [x - 10 - w, y - hh / 2], [x - w / 2, y + 14], [x - w / 2, y - 14 - hh]];
-      let k = at.find(([l, t]) => !hit([l, t, l + w, t + hh]));
-      if (!k) { if (pri(m) > 0) continue; k = at[0]; }
-      boxes.push([k[0], k[1], k[0] + w, k[1] + hh]);
-      h += '<div class="mmLbl ' + (m.kind === 'plot' ? 'plot' : m.cls === 'water' ? 'water' : '') + (ends.has(m.aero) && m.kind === 'field' ? ' end' : '') + '" style="left:' + k[0].toFixed(1) + 'px;top:' + k[1].toFixed(1) + 'px"><b>' + esc(m.label) + '</b>' + (sub ? esc(m.sub || '') : '') + '</div>';
-    }
-    $.mmMarks.innerHTML = h;
-    // the routes: from the load (dot) to where it goes (arrow), the selection bold, the tracked thin and dashed
-    let s = '<defs><marker id="mmArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1c1814"/></marker></defs>';
-    for (const r of routesOf(M, st)) {
-      const [ax, ay] = toScr(r.ax, r.az), [bx, by] = toScr(r.bx, r.bz);
-      s += '<line x1="' + ax.toFixed(1) + '" y1="' + ay.toFixed(1) + '" x2="' + bx.toFixed(1) + '" y2="' + by.toFixed(1) + '" stroke="#1c1814" stroke-width="' + (r.bold ? 6 : 3) + '" stroke-linecap="round" opacity=".55"/>' +
-        '<line x1="' + ax.toFixed(1) + '" y1="' + ay.toFixed(1) + '" x2="' + bx.toFixed(1) + '" y2="' + by.toFixed(1) + '" stroke="' + esc(r.colour) + '" stroke-width="' + (r.bold ? 3.5 : 2) + '" stroke-linecap="round"' + (r.bold ? '' : ' stroke-dasharray="7 6"') + ' marker-end="url(#mmArr)"/>';
-    }
-    $.mmSvg.innerHTML = s;
+    if (!pack || !M) return;
+    clampView();
+    $.mmStage.style.transform = 'translate(' + V.tx + 'px,' + V.ty + 'px) scale(' + V.s + ')';
+    const r = view(), O = overlayOf(M, st, pack, { s: V.s, tx: V.tx, ty: V.ty, fit: V.fit, w: r.width, h: r.height });
+    $.mmOvH.innerHTML = O.html; $.svg.innerHTML = O.svg;
+    st.lastOverlay = O.n;
+    // a round scale bar
+    const m = 1000 * V.s / pack.mpp, km = [0.5, 1, 2, 5, 10].find(k => k * m >= 60) || 10;
+    $.mmScale.innerHTML = '<i style="width:' + Math.round(km * m) + 'px"></i>' + (km < 1 ? '500 m' : km + ' km');
   }
 
-  // ---- THE VIEW: fit, pan, zoom (one finger / the mouse pans, two fingers pinch, the wheel zooms at the cursor) ----
-  const clampS = s => Math.max(V.fit * 0.8, Math.min(4, s));
-  function fit() {
-    const r = $.mmMap.getBoundingClientRect(), sheet = st.phone ? 184 : 0, h = Math.max(100, r.height - sheet);
-    V.fit = Math.min(r.width / pack.w, h / pack.h);
-    V.s = V.fit; V.tx = (r.width - pack.w * V.s) / 2; V.ty = (h - pack.h * V.s) / 2;
-    place();
+  // ---- THE VIEW: fit, bounds, zoom at a point (no auto-zoom anywhere: only the player's gestures and buttons move it) ---
+  // the phone's map is the part above the folded sheet: the fit and the bounds keep the island out from under it
+  const view = () => { const r = $.mmMap.getBoundingClientRect(), b = st && st.phone ? Math.round(r.height * 0.38) : 0; return { left: r.left, top: r.top, width: r.width, height: r.height - b }; };
+  const sMax = () => Math.max(V.fit * ZOOM_MAX, ZOOM_ABS);
+  function clampView() {
+    const v = view(); V.s = clamp(V.s, V.fit, sMax());
+    const w = pack.w * V.s, h = pack.h * V.s;
+    V.tx = w <= v.width ? (v.width - w) / 2 : Math.min(0, Math.max(v.width - w, V.tx));
+    V.ty = h <= v.height ? (v.height - h) / 2 : Math.min(0, Math.max(v.height - h, V.ty));
   }
-  function zoomAt(cx, cy, k) { const s2 = clampS(V.s * k); V.tx = cx - (cx - V.tx) * s2 / V.s; V.ty = cy - (cy - V.ty) * s2 / V.s; V.s = s2; place(); }
-  function focus(x, z) {
-    const r = $.mmMap.getBoundingClientRect(), [sx, sy] = toScr(x, z), cy = st.phone ? (r.height - (st.sheet === 'open' ? r.height * 0.64 : 184)) / 2 : r.height / 2;
-    if (sx < 60 || sx > r.width - 60 || sy < 60 || sy > cy * 2 - 40) { V.tx += r.width / 2 - sx; V.ty += cy - sy; place(); }
-  }
+  function fit() { const v = view(); V.fit = Math.min(v.width / pack.w, v.height / pack.h) || 1; V.s = V.fit; V.tx = (v.width - pack.w * V.s) / 2; V.ty = (v.height - pack.h * V.s) / 2; place(); }
+  function zoomAt(k, cx, cy) { const s2 = clamp(V.s * k, V.fit, sMax()); V.tx = cx - (cx - V.tx) * s2 / V.s; V.ty = cy - (cy - V.ty) * s2 / V.s; V.s = s2; place(); }
+  // PAN BY A LEFT-BUTTON DRAG ANYWHERE (a badge included): no native image drag, no text selection; the capture is
+  // taken once it IS a drag (4 px), and the click that ends a drag is swallowed, so a click counts only if the pointer
+  // barely moved. Two fingers pinch; the wheel zooms at the cursor.
   function wireMap() {
-    const el = $.mmMap, P = new Map(); let drag = null, pinch = null;
-    const rel = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const el = $.mmMap, pts = new Map(); let last = null, pinch = null, down = null, moved = false;
+    el.addEventListener('dragstart', e => e.preventDefault());
+    el.addEventListener('selectstart', e => e.preventDefault());
+    el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
     el.addEventListener('pointerdown', e => {
-      if (e.target.closest && e.target.closest('.mmLayers,.mmCtl')) return;
-      P.set(e.pointerId, rel(e));
-      if (P.size === 1) { drag = { p: rel(e), tx: V.tx, ty: V.ty, moved: false, id: e.pointerId }; }
-      if (P.size === 2) { const [a, b] = [...P.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, s: V.s, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, tx: V.tx, ty: V.ty }; drag = null; }
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.target.closest && e.target.closest('.mmCtl')) return;
+      e.preventDefault();
+      if (!pts.size) { down = { x: e.clientX, y: e.clientY }; moved = false; }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = { x: e.clientX, y: e.clientY };
+      if (pts.size === 2) { const [p, q] = [...pts.values()]; pinch = { d: Math.hypot(p.x - q.x, p.y - q.y) || 1, s: V.s }; }
     });
     el.addEventListener('pointermove', e => {
-      if (!P.has(e.pointerId)) return;
-      P.set(e.pointerId, rel(e));
-      if (pinch && P.size >= 2) {
-        const [a, b] = [...P.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
-        const s2 = clampS(pinch.s * d / pinch.d);
-        V.tx = mx - (pinch.mx - pinch.tx) * s2 / pinch.s; V.ty = my - (pinch.my - pinch.ty) * s2 / pinch.s; V.s = s2; dragMoved = Date.now(); place(); return;
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const r = view();
+      if (pts.size >= 2 && pinch) {
+        const [p, q] = [...pts.values()], d = Math.hypot(p.x - q.x, p.y - q.y) || 1; moved = true;
+        zoomAt((pinch.s * d / pinch.d) / V.s, (p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top); return;
       }
-      if (drag) {
-        const [x, y] = rel(e), dx = x - drag.p[0], dy = y - drag.p[1];
-        // the capture is taken once it IS a drag (4 px), never on the press: a tap on a marker stays the marker's click
-        if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; try { el.setPointerCapture(e.pointerId); } catch (err) {} }
-        if (drag.moved) { V.tx = drag.tx + dx; V.ty = drag.ty + dy; dragMoved = Date.now(); place(); }
-      }
+      if (down && !moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) { moved = true; el.classList.add('drag'); try { el.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ } }
+      if (moved && last) { V.tx += e.clientX - last.x; V.ty += e.clientY - last.y; place(); }
+      last = { x: e.clientX, y: e.clientY };
     });
-    const up = e => { P.delete(e.pointerId); if (P.size < 2) pinch = null; if (P.size === 1) { const [id, p] = [...P.entries()][0]; drag = { p, tx: V.tx, ty: V.ty, moved: true, id }; } if (!P.size) drag = null; };
+    const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { el.classList.remove('drag'); last = null; down = null; } else { const p = [...pts.values()][0]; last = { x: p.x, y: p.y }; } };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
-    el.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = rel(e); zoomAt(x, y, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+    el.addEventListener('wheel', e => { e.preventDefault(); const r = view(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
   }
-  // the sheet's handle: a tap folds or opens it; a swipe on the handle does the same by its direction (never the map's)
+  // the sheet's handle (phone): a tap folds or opens it; a swipe on the handle does the same by its direction
   function wireSheet() {
-    const h = root.querySelector('.mmHandle'); let y0 = null;
-    h.addEventListener('pointerdown', e => { y0 = e.clientY; try { h.setPointerCapture(e.pointerId); } catch (err) {} });
-    h.addEventListener('pointerup', e => { if (y0 == null) return; const dy = e.clientY - y0; y0 = null; if (Math.abs(dy) > 24) { st.sheet = dy < 0 ? 'open' : 'peek'; h.dataset.swiped = '1'; render(); } });
+    const h = $.mmHandle; let y0 = null;
+    h.addEventListener('pointerdown', e => { y0 = e.clientY; try { h.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic pointer */ } });
+    h.addEventListener('pointerup', e => { if (y0 == null) return; const dy = e.clientY - y0; y0 = null; if (Math.abs(dy) > 24) { st.sheet = dy < 0 ? 'open' : 'peek'; h.dataset.swiped = '1'; renderList(); } });
   }
 
-  function select(sel, from) {
-    st.sel = sel;
-    if (sel && sel.startsWith('f:') && st.tab !== 'fleet' && from !== 'marker') st.tab = 'fleet';
-    if (sel && sel.startsWith('c:')) {
-      const c = M.contracts.find(x => 'c:' + x.id === sel);
-      if (c && st.tab !== 'all' && st.tab !== c.provider) st.tab = st.tab === 'fleet' && from === 'card' ? c.provider : 'all';
-      if (st.tab === 'pilots' || st.tab === 'market') st.tab = 'all';
-      const at = c && M.aeros[pinOf(M, c)]; if (at && from === 'row') focus(at.x, at.z);
-    }
-    if (sel && sel.startsWith('f:') && from === 'row') { const f = M.fleet.find(x => 'f:' + x.slot === sel), a = f && M.aeros[f.where.aero]; if (a) focus(a.x, a.z); }
-    if (st.phone) { st.detail = !!sel; if (sel && from === 'marker') st.sheet = 'open'; }
+  function track(id) {
+    // (G2320) the dev career: Track writes the career document (careerAct: accept + track, or untrack) and the screen
+    // reads the record back; elsewhere it lives in the session's adapted record
+    if (M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.act) {
+      const raw = W.FLYDIY_CAREER.act(id, 'track');
+      if (raw) { let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (err) { /* no player */ } M = mapAdapt(raw, pack, live); }
+    } else act(M, id);
     render();
-    // the row the marker named, brought into view (desktop: the list; the phone shows its card)
-    if (!st.phone && sel) { const r = $.mmList.querySelector('[data-sel="' + (W.CSS && W.CSS.escape ? W.CSS.escape(sel) : sel) + '"]'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'nearest' }); }
   }
+  function filterAt(pid) { st.at = st.at === pid ? null : pid; if (st.phone && st.at) st.sheet = 'open'; renderList(); }
   function onClick(e) {
-    const t = e.target.closest ? e.target.closest('button') : null; if (!t || !root.contains(t) || t.disabled) return;
-    if (t.classList.contains('mmMk') && Date.now() - dragMoved < 250) return;   // the end of a pan is not a tap
+    const t = e.target.closest ? e.target.closest('[data-act],[data-place]') : null; if (!t || !root.contains(t) || t.disabled) return;
     const a = t.dataset.act;
     if (a === 'close') return close();
-    if (a === 'zin' || a === 'zout') { const r = $.mmMap.getBoundingClientRect(); return zoomAt(r.width / 2, r.height / 2, a === 'zin' ? 1.5 : 1 / 1.5); }
+    if (a === 'zin' || a === 'zout') { const v = view(); return zoomAt(a === 'zin' ? 1.5 : 1 / 1.5, v.width / 2, v.height / 2); }
     if (a === 'fit') return fit();
-    if (a === 'sheet') { if (t.dataset.swiped) { delete t.dataset.swiped; return; } st.sheet = st.sheet === 'open' ? 'peek' : 'open'; return render(); }
-    if (a === 'back') { st.detail = false; return render(); }
-    if ((a === 'accept' || a === 'track') && (st.sel || '').startsWith('c:')) {
-      // (G2320) the dev career: Accept / Track write the career document (careerAccept / careerTrack), and the screen
-      // reads the record back; elsewhere they live in the session's adapted record, as before
-      if (M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.act) {
-        const raw = W.FLYDIY_CAREER.act(st.sel.slice(2), a);
-        if (raw) { let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (err) {} M = mapAdapt(raw, pack, live); }
-        return render();
-      }
-      act(M, st.sel.slice(2), a); return render();
-    }
-    if (t.dataset.tab) { st.tab = t.dataset.tab; if (st.phone) st.detail = false; return render(); }
-    if (t.dataset.layer) { st.layers[t.dataset.layer] = !st.layers[t.dataset.layer]; return render(); }
-    if (t.dataset.sel !== undefined) {
-      const s = t.dataset.sel || null; if (!s) return;
-      const from = t.classList.contains('mmMk') ? 'marker' : t.classList.contains('mmLink') ? 'card' : 'row';
-      return select(st.sel === s && from === 'row' && !st.phone ? null : s, from);
-    }
+    if (a === 'sheet') { if (t.dataset.swiped) { delete t.dataset.swiped; return; } st.sheet = st.sheet === 'open' ? 'peek' : 'open'; return renderList(); }
+    if (a === 'atx') { st.at = null; return renderList(); }
+    if (a === 'row') { st.open = st.open === t.dataset.id ? null : t.dataset.id; return renderList(); }   // NO AUTO-ZOOM: the view is untouched
+    if (a === 'track') return track(t.dataset.id);
+    if (t.dataset.place) return filterAt(t.dataset.place);
   }
   const onKey = e => { if (e.key === 'Escape' && root && root.parentNode) { e.stopPropagation(); close(); } };
   const onResize = () => { if (!root || !root.parentNode) return; const ph = isPhone(); if (ph !== st.phone) { st.phone = ph; render(); } fit(); };
@@ -705,12 +618,14 @@
     if (!pack) { console.warn('flyDiy: the map pack is not loaded'); return Promise.resolve(false); }
     if (!root) build();
     if (!root.parentNode) D.body.appendChild(root);
-    st = st || { tab: 'all', sel: null, layers: { contracts: true, fleet: true, fields: true, plots: false }, sheet: 'peek', detail: false };
+    st = st || { cust: 'all', at: null, open: null, sheet: 'peek' };
     st.phone = isPhone();
-    $.img.width = pack.w; $.img.height = pack.h;
-    if ($.img.getAttribute('src') !== pack.img) $.img.src = pack.img;
+    const art = pack.art || { img: pack.img, edge: '#9db6c2' };
+    $.mmMap.style.background = art.edge;
+    $.img.width = pack.w; $.img.height = pack.h; $.img.style.width = pack.w + 'px'; $.img.style.height = pack.h + 'px';
+    if ($.img.getAttribute('src') !== art.img) $.img.src = art.img;
     W.addEventListener('keydown', onKey, true); W.addEventListener('resize', onResize);
-    let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (e) {}
+    let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (e) { /* no player */ }
     const src = opts.source === 'empty' ? Promise.resolve({ providers: [], contracts: [], fleet: [] }) : MAP_SOURCE();
     return src.then(raw => {
       M = mapAdapt(raw, pack, opts.source === 'empty' ? null : live);
@@ -723,6 +638,8 @@
     W.removeEventListener('keydown', onKey, true); W.removeEventListener('resize', onResize);
     const b = D.getElementById('mapEntry'); if (b && b.focus) b.focus();
   }
-  W.MAP_MENU = Object.assign({ open, close, isOpen: () => !!(root && root.parentNode), state: () => st, model: () => M, select: s => select(s, 'row'),
-                               view: () => Object.assign({}, V), set: o => { Object.assign(st, o || {}); render(); } }, CORE);
+  W.MAP_MENU = Object.assign({ open, close, isOpen: () => !!(root && root.parentNode), state: () => st, model: () => M,
+                               view: () => Object.assign({}, V), set: o => { Object.assign(st, o || {}); render(); },
+                               zoomTo: (x, z, k) => { const v = view(); V.s = clamp(V.fit * k, V.fit, sMax()); V.tx = v.width / 2 - ((x - pack.x0) / pack.mpp) * V.s; V.ty = v.height / 2 - ((z - pack.z0) / pack.mpp) * V.s; place(); },
+                               fit: () => fit() }, CORE);
 })();
