@@ -80947,6 +80947,10 @@ THE STILLS (the same build, 'current', aa off, 400 m up, pitched 0.3): ?clouddc=
 (g1532_current_air_before_clouddc0.jpg | g1532_current_air_after_fix.jpg) - the same field the msaa still shows.
 THE OVERCAST REPEAT (A0, the user's day read cover 0.994): booked 22:50-23:00 GPU TIMED - the rung's taxi on ?cloud=0.9,st (the menu's
 'overcast'), the copy toggled in-load; an addendum row here.
+THE OVERCAST ROW (22:50-23:00 GPU TIMED, train 40 = bcf62797, build 4d16bbcb0e4a, the cook fresh; the rung --cpu-throttle 3 --gpux 2,
+?cloud=0.9,st, 180 s, the copy toggled in-load - 65 toggles): taxi 15.5 fps old (1261 frames) vs 15.6 copy (1200), calls 1017 / 1016;
+the march 4.56 ms on the overcast deck (it ran before the fix too); the blit's timer 0.05 ms (its running mean). No cost past noise on the
+user's kind of day either (g1532_cost_rung_overcast.json). The air not reached in 180 s on the rung.
 GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
 0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
 53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;
