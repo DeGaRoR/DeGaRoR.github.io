@@ -520,7 +520,7 @@ const MUTS = [
   ['the companion charged', sub('function pilotsSignOn(id) {\n  if (PILOTS_ROSTER[id] && PILOTS_ROSTER[id].companion) return 0;', 'function pilotsSignOn(id) {')],
   ['the price book ignored', sub("if (typeof econPrice === 'function')", 'if (false)')],
   ['the clamp bypassed', sub("if (typeof pilotProfileSpec === 'function') return Object.assign({ name: o.name, active: true }, pilotProfileSpec(pilotProfile(o)));", '')],
-  ['a text key dropped', sub("  'pilot.refuse.snow': PT_('{name} won\\'t land on snow.'),\n", '')],
+  ['a text key dropped', sub("  'pilot.refuse.snow': PLT_('{name} won\\'t land on snow.'),\n", '')],
   ['a clock read', sub('const plClone = o => JSON.parse(JSON.stringify(o));', 'const plClone = o => (Date.now(), JSON.parse(JSON.stringify(o)));')],
 ];
 
