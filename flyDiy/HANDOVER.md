@@ -80951,6 +80951,24 @@ THE OVERCAST ROW (22:50-23:00 GPU TIMED, train 40 = bcf62797, build 4d16bbcb0e4a
 ?cloud=0.9,st, 180 s, the copy toggled in-load - 65 toggles): taxi 15.5 fps old (1261 frames) vs 15.6 copy (1200), calls 1017 / 1016;
 the march 4.56 ms on the overcast deck (it ran before the fix too); the blit's timer 0.05 ms (its running mean). No cost past noise on the
 user's kind of day either (g1532_cost_rung_overcast.json). The air not reached in 180 s on the rung.
+THE USER'S 33.1 ms TAXI GPU (A0: real or the timer's artefact?) - the laptop's train 38 log (flydiy-flightlog-20261007T000432, the
+Jodel, 'current', never committed): REAL whole-frame GPU time, but OF FRAMES WITHOUT THE CLOUD PASS. A spoiled recorder query is
+discarded, never kept short (flight_recorder gpuEnd: spoiled -> back to the pool), and after any foreign TIME_ELAPSED the recorder opens
+none for 120 frames - so a timed frame is a whole frame with no cloud timer near it. The log's runs after the reveal (38.7 s): TIMED 2787
+frames 38.8-136.2 s (taxi GPU 33.1 ms mean over 2724), then FOREIGN on every one of 1689 frames from 137.0 s to the end. The user
+re-applied 'current' at 133.8 s (the settings screen 133.9-158.0 s). So:
+- BEFORE THE RE-APPLY THE CLOUD PASS DID NOT RUN AT ALL on the laptop (no cloud query in 95 s of taxi: no march, no composite) - "no
+  clouds from boot" has a SECOND cause besides G1532's composite: on that boot the pass never started. The box rigs never showed it
+  (?gfx=current / rollout_perf --gfx: the pass runs from the reveal, every frame foreign). The user's saved rows differ: own: true and
+  town 'nearby' (a laptop-budget value: the welcome's laptop pick before the driver update, then 'current'). The node repro to do: a
+  census booted with the user's exact saved graphics (potato_census --gfxpref / FRAMECOST with a pref seed) counting CLOUDS.draw and the
+  AA target at the stand BEFORE any re-apply. G1532 alone may not give that user clouds from boot.
+- the 33.1 ms is the cloudless frame's GPU (the march, ~0.8 ms there, and G1532's blit + composite are not in it).
+- THE RE-APPLY THROW is the same moment: 200 err events from 136.2 s (the recorder's cap, reached by 144.0 s) "Cannot read properties of
+  undefined (reading 'boundingSphere') @:5802" - line 5802 of index.html is the whole inlined three.min.js (no column logged): a drawable
+  without geometry reaching three's frustum test, right after the re-apply that also started the cloud pass (137.0 s).
+G1532b.1 (flight_recorder.js): an error event now carries the column and, for the first three, six stack lines - the next log names the
+thrower (GATE FLIGHTREC PASS).
 GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
 0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
 53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;

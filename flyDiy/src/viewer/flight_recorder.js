@@ -509,7 +509,10 @@
   } catch (e) {}
   if (W.addEventListener) {
     let errs = 0;
-    W.addEventListener('error', e => { if (++errs <= 200) ev('err', null, null, String((e && e.message) || 'error').slice(0, 200) + (e && e.filename ? ' @' + String(e.filename).split('/').pop() + ':' + e.lineno : '')); });
+    // G1532b.1 (POTATO-DEEP): the column and, for the first three, the stack - an inlined script's error is a line of index.html
+    // (5802 = the whole of three.min.js): without them the user's log could not name the thrower of a per-frame throw
+    W.addEventListener('error', e => { if (++errs <= 200) ev('err', null, null, String((e && e.message) || 'error').slice(0, 200) + (e && e.filename ? ' @' + String(e.filename).split('/').pop() + ':' + e.lineno + (e.colno ? ':' + e.colno : '') : '')
+      + (errs <= 3 && e && e.error && e.error.stack ? ' | ' + String(e.error.stack).split('\n').slice(1, 7).map(s => s.trim().replace(/https?:\/\/[^ )]*\//g, '')).join(' < ').slice(0, 600) : '')); });
     W.addEventListener('unhandledrejection', e => { if (++errs <= 200) ev('err', null, null, 'rejection: ' + String(e && e.reason && (e.reason.message || e.reason)).slice(0, 200)); });
     W.addEventListener('pagehide', () => { ev('pagehide', null, null, null); if (STORE) STORE.flush(true); });
   }
