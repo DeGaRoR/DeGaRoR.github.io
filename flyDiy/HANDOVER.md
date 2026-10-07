@@ -79858,7 +79858,7 @@ Next: re-baseline the accepted strict rows by name (the user: no standing reds).
 
 **WHAT IS LEFT of the ~4.6 s, and its levers** (not done):
 - The world step's +1.2 s: the two compositions (~0.5 + 0.6 s node after G2064; sowPlots' shoreDepth walk is the rest) and the kit host's build.
-- settle / bake / first light (+1-2 s): the far town's kit host (426 houses, 1.19 M vertices) built, uploaded and drawn in the garage's warm draws. Deferring the kit host like the patch is the next lever; it is the town's far look from HOME, so it is a look decision (build it at first light after the garage, or when the eye is within N km).
+- **THE NEXT LEVER, ~2 s: the far town's kit host** (426 houses, 1.19 M vertices), built, uploaded and drawn in the garage's warm draws (settle / bake / first light, +1-2 s). Deferring it like the patch is the next lever. It is the town's far look from HOME, so it is a look decision: build it at first light after the garage, or when the eye is within N km. PARKED (A0, 2026-10-07): the town stays OFF by default for now.
 - In flight over Metlakatla itself: the 15 link-in-flight programs of G2060 (house_tarr HLOD near groups with the craft lights).
 
 **RIGS** (tools/perf; read the headers, never --help):
