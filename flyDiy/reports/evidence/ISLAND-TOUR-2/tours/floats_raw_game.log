@@ -1,0 +1,6 @@
+island_tour: the float Cessna (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; SEA > mk_sea - the game's flight
+  ok   SEA > mk_sea           433 s | dep: turned 0 deg, roll 34.1 m in, lift-off 320.2 m | final 2285.8 m / 195.9 m, clear 29.2 m (ground) | td sink 2.36 m/s, 25.6 m/s, run 268 m, off 0.3 m | fuel 24.1 L
+    phases ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 31.0 m/s until clear
+TOUR DONE - 1 legs, fuel left 24.1 L, 372 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":null,"mass":1018.2,"fuel":28,"damage":true}

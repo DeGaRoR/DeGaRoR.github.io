@@ -897,3 +897,13 @@ after the freeze, against this document.
   (60 m, 150 m, no taper) stands as before, in 'today' only; present, it stands in every `rwytrees`
   variant, wins over `treeBox: false`, and the strip's derived box + 30 m then keeps only the plots and
   the settlements off (the trees are the clearance's).
+
+- **v1.32 (2026-10-05, ISLAND-TOUR G1966).** A **runway may carry `turn`** `[end 0, end 1]`, each `null` or
+  `{ r, side }`: a TURN PAD at that end - the U-turn's radius `r` (5-20 m) and the side of the strip its bulb
+  lies on (`side` +1 along n = (-sin hdg, cos hdg), -1 the other). The derived pattern (25_airfield.js
+  `sitePattern` / `turnPadNodes`) then turns round on it - down the centreline, out to the bulb's lane 2r off
+  it, across the end in a half circle of radius r, out lined up on the centreline to the hold r + 6 m in -
+  instead of the lane-and-U-turn (a long runway's: the hold 110 m in). The pad's GROUND is authored like an
+  apron (a `terrain` grade at the strip's profile and a `surface` of the strip's class, `tools/turn_pads.js`);
+  GATE TOUR holds the U-turn's wheel track on it. An authored `site.pattern` ignores it (it is the author's).
+  A runway's **`departure`** (0 | 1, G527.3) is now checked by `issues` like `approach`.

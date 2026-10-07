@@ -1,0 +1,7 @@
+### the user's Cub: HOME > w3 > tw_ski > mn_strip > nv_strip > w2 > HOME - NOT DONE, fuel left 41.5 L
+
+| leg | time | on the ground before the roll | roll from the end | lift-off | final (dist / height) | final's least clearance | touchdown (sink, speed, run, off centre) | fuel | faults |
+|---|---|---|---|---|---|---|---|---|---|
+| HOME > w3 | 559 s | 104.7 deg, 274.9 m off the centreline | 108.9 m | 103.8 m | 2613.4 m / 208.8 m | 16 m (ground, 42 m out) | 0.4 m/s, 19.4 m/s, 159 m, 0 m | 43.5 L (-1.5) | none |
+| w3 > tw_ski | 535 s | 405.8 deg (U-turn), 18.1 m off the centreline | 109 m | 129.3 m | 2835.3 m / 478.9 m | 14.5 m (ground, 40.9 m out) | -0.32 m/s, 17 m/s, 92 m, 0 m | 41.6 L (-2) | none; pilot: slope: stopped on a 9.8 % grade — rolling 200 m on to the level part |
+| tw_ski > mn_strip | 343 s | 147.8 deg, 19.4 m off the centreline | - | - | - | - | - | 41.5 L (-0) | prop-strike, obstacle; pilot: taxi-timeout: the route took 71 s — stopping where it is; replan: not lined up with a run ahead (358 m, 19.2 m off) — planning the departure again; taxi-timeout: the route took 88 s — stopping where it is; replan: not lined up with a run ahead (358 m, 19.2 m off) — planning the departure again; taxi-timeout: the route took 88 s — stopping where it is; replan: not lined up with a run ahead (358 m, 19.2 m off) — planning the departure again; taxi-timeout: the route took 88 s — stopping where it is; taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground |

@@ -1,0 +1,9 @@
+  the day: {"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":17.939233333333405,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}}
+tour_real_node: cub_2026-09-20_corrected.json (span 10.70 m), damage off, 324 obstacles + 0 trunks; HOME > mn_strip > tw_ski > w3 > HOME
+  the game's flight: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":17.939233333333405,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":460.4,"fuel":27,"damage":false}
+  ok   HOME > mn_strip        968 s | dep: turned 104.5 deg, roll 108.9 m in, lift-off 113.1 m | final 1627.3 m / 347.2 m, clear 7.5 m (ground) | td sink 1.5 m/s, 13.8 m/s, run 51 m, off -0.2 m | fuel 23.8 L
+  ok   mn_strip > tw_ski      879 s | dep: turned 198.3 deg (U-turn), roll 54.1 m in, lift-off 115.6 m | final 2099.3 m / 759.3 m, clear 17.2 m (ground) | td sink -0.7 m/s, 13.3 m/s, run 64 m, off 1.3 m | fuel 20.6 L
+  ok   tw_ski > w3            458 s | dep: turned 206.9 deg (U-turn), roll 27.9 m in, lift-off 62.1 m | final 1475.8 m / 139 m, clear 16.3 m (ground) | td sink 0.94 m/s, 13.8 m/s, run 60 m, off 0.1 m | fuel 19.5 L
+  ok   w3 > HOME              438 s | dep: turned 210.8 deg (U-turn), roll 31.7 m in, lift-off 93.8 m | final 1000.5 m / 131.7 m, clear 57.7 m (ground) | td sink 1.02 m/s, 14.1 m/s, run 93 m, off 0.6 m | fuel 18.2 L
+TOUR DONE - 4 legs, 2743 s sim, 1245 s wall
+-> /tmp/claude-0/-home-user-DeGaRoR-github-io/c4420ada-f0c6-57b2-ab25-5d56a07a16bc/scratchpad/tours/game_run2.json

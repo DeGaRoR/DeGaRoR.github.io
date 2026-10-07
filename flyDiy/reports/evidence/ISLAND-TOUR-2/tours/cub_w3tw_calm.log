@@ -1,0 +1,9 @@
+island_tour: the user's Cub (span 10.70 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 > tw_ski - the game's flight on a calm day
+  ok   HOME > w3              475 s | dep: turned 104.5 deg, roll 108.9 m in, lift-off 95.1 m | final 1477.8 m / 122.8 m, clear 14.7 m (ground) | td sink 0.72 m/s, 14.1 m/s, run 72 m, off 0 m | fuel 25.7 L
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts 
+  ok   w3 > tw_ski            532 s | dep: turned 210.7 deg (U-turn), roll 31.7 m in, lift-off 87.5 m | final 2152.1 m / 519.9 m, clear 14.7 m (ground) | td sink -0.2 m/s, 12.4 m/s, run 42 m, off 0 m | fuel 23.5 L
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts slope: stopped on a 10.2 % grade — rolling 240 m on to the level part
+TOUR DONE - 2 legs, fuel left 23.5 L, 434 s wall
+  the game: {"day":null,"shake":true,"stand":{"x":-154,"z":712},"mass":460.4,"fuel":27,"damage":true}

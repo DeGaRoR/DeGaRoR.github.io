@@ -1,0 +1,4 @@
+island_tour: the float Cessna (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; SEA > mk_sea > SEA
+  ok   SEA > mk_sea           394 s | dep: turned 0 deg, roll 35.3 m in, lift-off 485 m | final 2299.4 m / 196.1 m, clear 28.8 m (ground) | td sink 2.11 m/s, 25 m/s, run 215 m, off -0.1 m | fuel 23.9 L
+  ok   mk_sea > SEA           523 s | dep: turned 202.4 deg (U-turn), roll 148.8 m in, lift-off 475.7 m | final 2766.6 m / 144 m, clear 40.3 m (ground) | td sink 2.2 m/s, 24.9 m/s, run 214 m, off 0.1 m | fuel 18.3 L
+TOUR DONE - 2 legs, fuel left 18.3 L, 467 s wall

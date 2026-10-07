@@ -1,0 +1,6 @@
+island_tour: the aluminium C172 (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 > tw_ski > w2 > HOME
+  ok   HOME > w3              439 s | dep: turned 102.8 deg, roll 109.5 m in, lift-off 140.3 m | final 2185.9 m / 182.8 m, clear 12.9 m (ground) | td sink 0.74 m/s, 24.8 m/s, run 303 m, off 0.1 m | fuel 25 L
+  ok   w3 > tw_ski            344 s | dep: turned 173 deg (U-turn), roll 17.6 m in, lift-off 137.4 m | final 2396.2 m / 566 m, clear 15.8 m (ground) | td sink -0.5 m/s, 18.7 m/s, run 138 m, off 0 m | fuel 21.1 L
+  ok   tw_ski > w2            394 s | dep: turned 171.3 deg (U-turn), roll 16.9 m in, lift-off 152.1 m | final 1803.7 m / 152.5 m, clear 37.5 m (ground) | td sink 1.11 m/s, 21.7 m/s, run 197 m, off 0.1 m | fuel 18.4 L
+  FAIL w2 > HOME               10 s | dep: turned 0 deg, roll 620.9 m in, lift-off - | final -, clear - | td - | fuel 18.2 L | FAULTS abort (the take-off was rejected) | phases STOP>HOLD>ROLL>ABORT
+TOUR NOT DONE - 4 legs, fuel left 18.2 L, 661 s wall

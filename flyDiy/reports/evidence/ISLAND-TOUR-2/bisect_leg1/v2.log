@@ -1,0 +1,85 @@
+mass 460.38 fuel 26.99 shake true day frozen utc0 17.9
+{
+ "args": "--shake --out exp/v2.json",
+ "node": {
+  "phases": {
+   "TAXI": 0,
+   "STOP": 167.8,
+   "HOLD": 168.3,
+   "ROLL": 170.3,
+   "LIFTOFF": 181.3,
+   "CLIMB": 195.3,
+   "ENROUTE": 221.8,
+   "DOWNWIND": 739.5,
+   "BASE": 791.5,
+   "FINAL": 819.5,
+   "FLARE": 954,
+   "ROLLOUT": 959.3
+  },
+  "T": 967.5,
+  "enrVg": 32.6,
+  "enrAgl": 350.7,
+  "enrIas": 0
+ },
+ "page": {
+  "phases": {
+   "TAXI": 0,
+   "STOP": 165.4,
+   "HOLD": 165.9,
+   "ROLL": 167.9,
+   "LIFTOFF": 178.9,
+   "CLIMB": 193.2,
+   "ENROUTE": 221.1,
+   "DOWNWIND": 738.1,
+   "BASE": 790.9,
+   "FINAL": 819.1,
+   "FLARE": 955.9,
+   "ROLLOUT": 961.1,
+   "STOPPED": 970.1
+  },
+  "T": 975.2,
+  "enrVg": 32.6,
+  "enrAgl": 351.9,
+  "enrIas": 0
+ },
+ "dev": {
+  "p50": 6.7,
+  "p95": 36.8,
+  "max": 39.5
+ },
+ "landing": {
+  "run": 50,
+  "sink": 1.52,
+  "V": 13.7,
+  "offCentre": -0.2,
+  "pastAim": 10,
+  "k": 0,
+  "three": false,
+  "onStrip": true,
+  "tdIn": 25,
+  "stopLeft": 175
+ },
+ "pageLanding": {
+  "run": 50,
+  "sink": 1.56,
+  "V": 13.8,
+  "offCentre": -0.2,
+  "pastAim": 11,
+  "k": 0,
+  "three": false,
+  "onStrip": true,
+  "tdIn": 26,
+  "stopLeft": 174
+ },
+ "verdicts": [],
+ "wall": 464.219,
+ "sheet": {
+  "Vs0": 13.5,
+  "Vref": 17.5,
+  "LDbest": 9.448275548573196,
+  "sinkBg": 2.353352029301232,
+  "climbMax": 3.1262421803352374,
+  "src": "measured"
+ },
+ "mass": 458.053797276943
+}

@@ -1,0 +1,5 @@
+island_tour: the aluminium C172 (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 - the old rig
+  FAIL HOME > w3              507 s | dep: turned 102.7 deg, roll 109.7 m in, lift-off 157.4 m | final 3809.8 m / 192.8 m, clear 10.2 m (ground) | td sink 0.58 m/s, 33 m/s, run 584 m, off -0.5 m | fuel 24.4 L | FAULTS off-strip (the landing roll left w3's box) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 27.0 m/s until clear | vref-raised: the elevator cannot hold 28.8 m/s at this power — flying the approach faster | off-the-strip: touched 91 m in, stopped 154 m past the end of 520 m (0 m off the centreline)
+TOUR NOT DONE - 1 legs, fuel left 24.4 L, 353 s wall

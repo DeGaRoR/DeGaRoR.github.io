@@ -1,0 +1,6 @@
+island_tour: the aluminium C172 (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 > tw_ski > w2 > HOME - the game's flight
+  FAIL HOME > w3              525 s | dep: turned 102.7 deg, roll 109.8 m in, lift-off 175.6 m | final 3808.3 m / 194.6 m, clear 10.3 m (ground) | td sink 1.01 m/s, 31.1 m/s, run 510 m, off -0.1 m | fuel 24.3 L | FAULTS off-strip (the landing roll left w3's box) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 27.0 m/s until clear | vref-raised: the elevator cannot hold 28.9 m/s at this power — flying the approach faster | off-the-strip: touched 63 m in, stopped 53 m past the end of 520 m (0 m off the centreline)
+TOUR NOT DONE - 1 legs, fuel left 24.3 L, 550 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":887.2,"fuel":28,"damage":true}

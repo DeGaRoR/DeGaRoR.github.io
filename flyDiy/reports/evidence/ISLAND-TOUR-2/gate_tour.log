@@ -1,0 +1,41 @@
+=== TOUR ===
+--- shard 0/4 (564.1 s) ---
+the user's Cub: HOME > w3 > tw_ski > mn_strip > w2 > HOME - NOT DONE, 2 legs, fuel left 23.9 L (530 s)
+  FAIL 5 the user's Cub w3 > tw_ski: stopped at its To with no fault  (off-strip: the landing roll left tw_ski's box; ground-loop: the nose 30.7 deg off the landing roll on tw_ski at 13 m/s; crash: the damage ended the flight: a wing member broke; yield: 1409 member(s) yielded (first: {"beam":58,"cls":"fus","t":884.538963951591}); break: 24 member(s) broke; prop-strike: the propeller struck; dent: the airframe dented)
+  FAIL 5 the user's Cub w3 > tw_ski: the final's lowest node 3 m over the ground and the forest  (0.2 m (ground, 294.3 m out))
+  FAIL 5 the user's Cub: the tour is complete, back at HOME  (2 of 5 legs)
+GATE TOUR [shard 0/4]: FAIL (3)
+[stderr]
+SHARD 0/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 1/4 (571.1 s) ---
+the aluminium C172: HOME > w3 > tw_ski > w2 > HOME - NOT DONE, 1 legs, fuel left 24.3 L (561 s)
+  FAIL 5 the aluminium C172 HOME > w3: stopped at its To with no fault  (off-strip: the landing roll left w3's box)
+  FAIL 5 the aluminium C172: the tour is complete, back at HOME  (1 of 4 legs)
+GATE TOUR [shard 1/4]: FAIL (2)
+[stderr]
+SHARD 1/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 2/4 (271.9 s) ---
+the float Cessna: SEA > mk_sea > SEA - NOT DONE, 1 legs, fuel left 24.7 L (262 s)
+  FAIL 5 the float Cessna SEA > mk_sea: stopped at its To with no fault  (yield: 444 member(s) yielded (first: {"beam":120,"cls":"fus","t":277.17250000817955}); dent: the airframe dented)
+  FAIL 5 the float Cessna: the tour is complete, back at SEA  (1 of 2 legs)
+GATE TOUR [shard 2/4]: FAIL (2)
+[stderr]
+SHARD 2/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 3/4 (574.2 s) ---
+the user's Cub: HOME > nv_strip > mn_strip (565 s)
+  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): abort - rejected-takeoff: will not reach Vr: 1.49 m/s^2 needs 58 m more, 65 m left
+GATE TOUR [shard 3/4]: PASS
+[stderr]
+SHARD 3/4: 1 of 4 heavy jobs
+(exit code 0)
+
+──────── summary ────────
+TOUR      FAIL   574.2 s  [4 shards]
+total            574.2 s
+wall             574.2 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+exit 1

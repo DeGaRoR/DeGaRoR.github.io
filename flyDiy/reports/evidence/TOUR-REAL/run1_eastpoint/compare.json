@@ -1,0 +1,1391 @@
+{
+ "legs": [
+  {
+   "leg": 1,
+   "from": "HOME",
+   "fromNode": "HOME",
+   "to": "nv_strip",
+   "landedPage": "nv_strip",
+   "landedNode": "w3",
+   "page": {
+    "t": 923.1,
+    "faults": [],
+    "dep": {
+     "turned": 104.3,
+     "uturn": false,
+     "latMax": 269.7,
+     "uturnAt": {
+      "x": 221.44,
+      "z": 690.65,
+      "s": 702.4,
+      "c": 11.7,
+      "t": 77.4
+     },
+     "footprint": {
+      "s": [
+       651.9,
+       1134.6
+      ],
+      "c": [
+       -12.6,
+       37
+      ]
+     },
+     "roll": {
+      "x": 494.1,
+      "z": 912.3,
+      "s": 1053.6,
+      "c": 0.1,
+      "fromEnd": 108.9,
+      "t": 167.8
+     },
+     "lift": {
+      "x": 406.6,
+      "z": 837.4,
+      "dist": 115.2,
+      "t": 178.8
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 1732,
+      "agl": 564.4,
+      "t": 665.6
+     },
+     "minFinalAgl": 11.3,
+     "td": {
+      "x": 10019.2,
+      "z": -11619.6,
+      "s": 41.8,
+      "c": 0,
+      "pastThr": 33.2,
+      "Vg": 19.1,
+      "t": 910.6
+     },
+     "stop": {
+      "x": 10044.6,
+      "z": -11714.6,
+      "s": -56.5,
+      "c": 0,
+      "phase": "STOPPED"
+     },
+     "run": 98.3
+    },
+    "stopped": true,
+    "done": true,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 103,
+      "sink": 0.81,
+      "V": 15.1,
+      "offCentre": 0.1,
+      "pastAim": 19,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 29,
+      "stopLeft": 19
+     },
+     "verdicts": [
+      "go-around: high on the slope 537 m out (attempt 1)"
+     ]
+    },
+    "rigFaults": [],
+    "effRate": {
+     "mean": 2,
+     "min": 1.91,
+     "simOverWall": 2
+    }
+   },
+   "node": {
+    "t": 1656.5,
+    "faults": [],
+    "dep": {
+     "turned": 104.7,
+     "uturn": false,
+     "latMax": 274.7,
+     "uturnAt": {
+      "x": 220.86,
+      "z": 690.23,
+      "s": 701.7,
+      "c": 11.8,
+      "t": 79.8
+     },
+     "footprint": {
+      "s": [
+       651.7,
+       1134.6
+      ],
+      "c": [
+       -12.6,
+       37.2
+      ]
+     },
+     "roll": {
+      "x": 494.1,
+      "z": 912.3,
+      "s": 1053.6,
+      "c": 0.1,
+      "fromEnd": 108.9,
+      "t": 170.3
+     },
+     "lift": {
+      "x": 399.9,
+      "z": 831.6,
+      "dist": 124.1,
+      "t": 182
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 12176.6,
+      "agl": 610.4,
+      "t": 660.8
+     },
+     "minFinalAgl": 10.9,
+     "td": {
+      "x": -614.1,
+      "z": -2449.9,
+      "s": -192.5,
+      "c": 0.1,
+      "pastThr": 67.5,
+      "Vg": 17.9,
+      "t": 1640.3
+     },
+     "stop": {
+      "x": -747.2,
+      "z": -2414.1,
+      "s": -54.7,
+      "c": 0,
+      "phase": "ROLLOUT"
+     },
+     "run": 137.8
+    },
+    "stopped": false,
+    "done": false,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 138,
+      "sink": 0.5,
+      "V": 18.6,
+      "offCentre": 0.1,
+      "pastAim": 5,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 67,
+      "stopLeft": 315
+     },
+     "verdicts": [
+      "strip-short: 150 m of strip for a 135 m landing run — landing short-field, no margin",
+      "go-around: high on the slope 521 m out (attempt 1)",
+      "go-around: high on the slope 525 m out (attempt 2)",
+      "divert: twice round East Point Clearing — diverting to Tamgas Hill Strip (520 m, 13.8 km)"
+     ]
+    },
+    "libFaults": [
+     {
+      "k": "ground-loop",
+      "note": "the nose 59.9 deg off the landing roll at 17.9 m/s",
+      "t": 1640.2
+     },
+     {
+      "k": "off-strip",
+      "note": "the landing roll left nv_strip's box",
+      "t": 1640.2
+     },
+     {
+      "k": "diverted",
+      "note": "stopped at w3, not nv_strip",
+      "t": 1656.7
+     }
+    ]
+   },
+   "dev": {
+    "p50": 21.9,
+    "p95": 202,
+    "max": 460.4,
+    "backMax": 1854.6,
+    "runs": [
+     {
+      "t": [
+       226.6,
+       315.8
+      ],
+      "max": 63.1,
+      "phases": [
+       "INBOUND"
+      ],
+      "at": {
+       "x": -331.6,
+       "z": -217.6,
+       "agl": 167.7,
+       "where": "on HOME"
+      },
+      "nodeHere": {
+       "phase": "INBOUND",
+       "t": 246.3,
+       "agl": 164.2
+      }
+     },
+     {
+      "t": [
+       377.3,
+       653.3
+      ],
+      "max": 210.4,
+      "phases": [
+       "INBOUND"
+      ],
+      "at": {
+       "x": 9078.7,
+       "z": -9490.4,
+       "agl": 558.3,
+       "where": "2294 m from nv_strip"
+      },
+      "nodeHere": {
+       "phase": "INBOUND",
+       "t": 653.3,
+       "agl": 608.9
+      }
+     },
+     {
+      "t": [
+       655.1,
+       666.3
+      ],
+      "max": 143.9,
+      "phases": [
+       "INBOUND",
+       "FINAL"
+      ],
+      "at": {
+       "x": 9387.1,
+       "z": -9794.2,
+       "agl": 568.5,
+       "where": "1898.4 m from nv_strip"
+      },
+      "nodeHere": {
+       "phase": "FINAL",
+       "t": 670.3,
+       "agl": 623.5
+      }
+     },
+     {
+      "t": [
+       732.6,
+       759.3
+      ],
+      "max": 59.1,
+      "phases": [
+       "CROSSWIND",
+       "DOWNWIND"
+      ],
+      "at": {
+       "x": 9441.7,
+       "z": -11278.2,
+       "agl": 350.8,
+       "where": "626.4 m from nv_strip"
+      },
+      "nodeHere": {
+       "phase": "CROSSWIND",
+       "t": 748.8,
+       "agl": 497.1
+      }
+     },
+     {
+      "t": [
+       792.1,
+       794.1
+      ],
+      "max": 34.1,
+      "phases": [
+       "BASE"
+      ],
+      "at": {
+       "x": 8868.4,
+       "z": -10255.4,
+       "agl": 221.3,
+       "where": "1747.7 m from nv_strip"
+      },
+      "nodeHere": {
+       "phase": "DOWNWIND",
+       "t": 800.8,
+       "agl": 332.2
+      }
+     },
+     {
+      "t": [
+       795.8,
+       825.8
+      ],
+      "max": 347.4,
+      "phases": [
+       "BASE",
+       "FINAL"
+      ],
+      "at": {
+       "x": 9233.6,
+       "z": -10079.4,
+       "agl": 175.2,
+       "where": "1694.9 m from nv_strip"
+      },
+      "nodeHere": {
+       "phase": "INBOUND",
+       "t": 1012.8,
+       "agl": 467.9
+      }
+     },
+     {
+      "t": [
+       890.4,
+       923.1
+      ],
+      "max": 460.4,
+      "phases": [
+       "FINAL",
+       "FLARE",
+       "ROLLOUT",
+       "STOPPED"
+      ],
+      "at": {
+       "x": 10044.6,
+       "z": -11714.6,
+       "agl": 1,
+       "where": "on nv_strip"
+      },
+      "nodeHere": {
+       "phase": "CROSSWIND",
+       "t": 733,
+       "agl": 522.8
+      }
+     }
+    ]
+   },
+   "delta": {
+    "t": -733.4,
+    "roll": 0,
+    "lift": 8.9,
+    "td": 14041,
+    "stop": 14246.5,
+    "tdPast": -34.3
+   }
+  },
+  {
+   "leg": 2,
+   "from": "nv_strip",
+   "fromNode": "w3",
+   "to": "mn_strip",
+   "landedPage": "mn_strip",
+   "landedNode": "mn_strip",
+   "page": {
+    "t": 317,
+    "faults": [],
+    "dep": {
+     "turned": 722.5,
+     "uturn": true,
+     "latMax": 19,
+     "uturnAt": {
+      "x": 10055.27,
+      "z": -11745.52,
+      "s": -89.1,
+      "c": -2.3,
+      "t": 22.6
+     },
+     "footprint": {
+      "s": [
+       -79.7,
+       42.5
+      ],
+      "c": [
+       -19,
+       6.8
+      ]
+     },
+     "roll": {
+      "x": 10019.2,
+      "z": -11623.9,
+      "s": 37.7,
+      "c": 1.1,
+      "fromEnd": 37.3,
+      "t": 188.3
+     },
+     "lift": null
+    },
+    "arr": {
+     "final": null,
+     "minFinalAgl": null,
+     "td": null,
+     "stop": {
+      "x": 10051.1,
+      "z": -11738.9,
+      "s": -3920.7,
+      "c": 2469,
+      "phase": "STOPPED"
+     }
+    },
+    "stopped": true,
+    "done": false,
+    "pilot": {
+     "outcome": "rejected-takeoff",
+     "landing": null,
+     "verdicts": [
+      "pivot: a 197 deg turn tighter than the wheels steer (11.3 m) — turning on the spot",
+      "rejected-takeoff: will not reach Vr: 1.48 m/s^2 needs 59 m more, 65 m left"
+     ]
+    },
+    "rigFaults": [
+     {
+      "k": "abort",
+      "note": "the take-off was rejected at t 1124.8 (try 1)"
+     },
+     {
+      "k": "abort",
+      "note": "the take-off was rejected at t 1232.9 (try 2)"
+     }
+    ],
+    "effRate": {
+     "mean": 2,
+     "min": 1.94,
+     "simOverWall": 1.99
+    }
+   },
+   "node": {
+    "t": 797.3,
+    "faults": [],
+    "dep": {
+     "turned": 210.7,
+     "uturn": true,
+     "latMax": 17.8,
+     "uturnAt": {
+      "x": -1051.37,
+      "z": -2325.72,
+      "s": 262,
+      "c": -6.7,
+      "t": 64
+     },
+     "footprint": {
+      "s": [
+       -54.6,
+       262
+      ],
+      "c": [
+       -17.8,
+       5.1
+      ]
+     },
+     "roll": {
+      "x": -1020.3,
+      "z": -2340.1,
+      "s": 228.3,
+      "c": -0.8,
+      "fromEnd": 31.7,
+      "t": 83
+     },
+     "lift": {
+      "x": -918.4,
+      "z": -2368.3,
+      "dist": 105.8,
+      "t": 93.8
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 1980.4,
+      "agl": 379.5,
+      "t": 661.3
+     },
+     "minFinalAgl": 6.6,
+     "td": {
+      "x": 7242.1,
+      "z": -15517.1,
+      "s": 88.1,
+      "c": 0.1,
+      "pastThr": 36.9,
+      "Vg": 18.4,
+      "t": 784.5
+     },
+     "stop": {
+      "x": 7252.9,
+      "z": -15391.9,
+      "s": -37.6,
+      "c": 0,
+      "phase": "ROLLOUT"
+     },
+     "run": 125.7
+    },
+    "stopped": false,
+    "done": false,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 130,
+      "sink": 0.7,
+      "V": 19,
+      "offCentre": 0,
+      "pastAim": 18,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 33,
+      "stopLeft": 87
+     },
+     "verdicts": []
+    },
+    "libFaults": [
+     {
+      "k": "where",
+      "note": "flightLeg put the From at w3 (runway), not nv_strip",
+      "t": 0
+     },
+     {
+      "k": "ground-loop",
+      "note": "the nose 58.5 deg off the take-off run at 5 m/s",
+      "t": 85.5
+     },
+     {
+      "k": "off-strip",
+      "note": "the take-off roll left nv_strip's box",
+      "t": 85.5
+     }
+    ]
+   },
+   "dev": {
+    "p50": 4643.6,
+    "p95": 4677.8,
+    "max": 4680.6,
+    "backMax": 14455.3,
+    "runs": [
+     {
+      "t": [
+       0,
+       317
+      ],
+      "max": 4680.6,
+      "phases": [
+       "TAXI",
+       "STOP",
+       "HOLD",
+       "LINEUP",
+       "ROLL",
+       "ABORT",
+       "STOPPED"
+      ],
+      "at": {
+       "x": 10041.3,
+       "z": -11628.8,
+       "agl": 1.1,
+       "where": "on nv_strip"
+      },
+      "nodeHere": {
+       "phase": "ENROUTE",
+       "t": 544,
+       "agl": 252.7
+      }
+     }
+    ]
+   },
+   "delta": {
+    "t": -480.3,
+    "roll": 14424.3,
+    "lift": null,
+    "td": null,
+    "stop": 4601.6,
+    "tdPast": null
+   }
+  },
+  {
+   "leg": 3,
+   "from": "mn_strip",
+   "fromNode": "mn_strip",
+   "to": "tw_ski",
+   "landedPage": "tw_ski",
+   "landedNode": "tw_ski",
+   "page": null,
+   "node": {
+    "t": 960.8,
+    "faults": [
+     "off-strip (landing)",
+     "ground-loop (landing)"
+    ],
+    "dep": {
+     "turned": 198,
+     "uturn": true,
+     "latMax": 2.8,
+     "uturnAt": {
+      "x": 7258.69,
+      "z": -15337.53,
+      "s": -92.3,
+      "c": 1,
+      "t": 19.5
+     },
+     "footprint": {
+      "s": [
+       -92.3,
+       -37.7
+      ],
+      "c": [
+       -0.5,
+       2.8
+      ]
+     },
+     "roll": {
+      "x": 7255.4,
+      "z": -15358.7,
+      "s": -70.9,
+      "c": -0.5,
+      "fromEnd": 54.1,
+      "t": 36
+     },
+     "lift": {
+      "x": 7245,
+      "z": -15481.7,
+      "dist": 123.5,
+      "t": 48.3
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 3326.4,
+      "agl": 781.9,
+      "t": 756.3
+     },
+     "minFinalAgl": 14.8,
+     "td": {
+      "x": 192.7,
+      "z": -7594,
+      "s": -130.4,
+      "c": 1,
+      "pastThr": 59.6,
+      "Vg": 21.7,
+      "t": 887.3
+     },
+     "stop": {
+      "x": 330.9,
+      "z": -7835.5,
+      "s": 147.9,
+      "c": 0,
+      "phase": "ROLLOUT"
+     },
+     "run": 278.3
+    },
+    "stopped": false,
+    "done": false,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 93,
+      "sink": -0.62,
+      "V": 17.7,
+      "offCentre": 1,
+      "pastAim": 34,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 57,
+      "stopLeft": 230
+     },
+     "verdicts": [
+      "pivot: a 217 deg turn tighter than the wheels steer (11.3 m) — turning on the spot",
+      "committed-takeoff: past the point of stopping at V=12.7 with 132 m left — Vr in 37 m, continuing",
+      "slope: stopped on a 6.6 % grade — rolling 190 m on to the level part"
+     ]
+    },
+    "libFaults": [
+     {
+      "k": "off-strip",
+      "note": "the landing roll left tw_ski's box",
+      "t": 890.7
+     },
+     {
+      "k": "ground-loop",
+      "note": "the nose 30.1 deg off the landing roll at 9 m/s",
+      "t": 892.4
+     }
+    ]
+   },
+   "dev": null
+  },
+  {
+   "leg": 4,
+   "from": "tw_ski",
+   "fromNode": "tw_ski",
+   "to": "w3",
+   "landedPage": "w3",
+   "landedNode": "w3",
+   "page": null,
+   "node": {
+    "t": 529.5,
+    "faults": [],
+    "dep": {
+     "turned": 206.9,
+     "uturn": true,
+     "latMax": 17.2,
+     "uturnAt": {
+      "x": 357.31,
+      "z": -7869.77,
+      "s": 190.7,
+      "c": 5.7,
+      "t": 19
+     },
+     "footprint": {
+      "s": [
+       148.3,
+       190.7
+      ],
+      "c": [
+       -5.6,
+       17.2
+      ]
+     },
+     "roll": {
+      "x": 336.7,
+      "z": -7848.9,
+      "s": 162.3,
+      "c": -1.7,
+      "fromEnd": 27.7,
+      "t": 36.5
+     },
+     "lift": {
+      "x": 302.4,
+      "z": -7788.4,
+      "dist": 69.5,
+      "t": 46
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 2609.4,
+      "agl": 143.7,
+      "t": 343.5
+     },
+     "minFinalAgl": 12.1,
+     "td": {
+      "x": -615,
+      "z": -2449.6,
+      "s": -191.5,
+      "c": 0.1,
+      "pastThr": 68.5,
+      "Vg": 17.5,
+      "t": 513.5
+     },
+     "stop": {
+      "x": -742.8,
+      "z": -2415.3,
+      "s": -59.2,
+      "c": 0,
+      "phase": "ROLLOUT"
+     },
+     "run": 132.3
+    },
+    "stopped": false,
+    "done": true,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 136,
+      "sink": 0.49,
+      "V": 18.4,
+      "offCentre": 0.1,
+      "pastAim": 3,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 65,
+      "stopLeft": 319
+     },
+     "verdicts": [
+      "committed-takeoff: airborne with 271 m of strip left, past the point of stopping — continuing"
+     ]
+    },
+    "libFaults": []
+   },
+   "dev": null
+  },
+  {
+   "leg": 5,
+   "from": "w3",
+   "fromNode": "w3",
+   "to": "HOME",
+   "landedPage": "HOME",
+   "landedNode": "HOME",
+   "page": null,
+   "node": {
+    "t": 511,
+    "faults": [],
+    "dep": {
+     "turned": 210.7,
+     "uturn": true,
+     "latMax": 17.8,
+     "uturnAt": {
+      "x": -1051.34,
+      "z": -2325.76,
+      "s": 262,
+      "c": -6.7,
+      "t": 64.5
+     },
+     "footprint": {
+      "s": [
+       -59.1,
+       262
+      ],
+      "c": [
+       -17.8,
+       5.1
+      ]
+     },
+     "roll": {
+      "x": -1020.4,
+      "z": -2340.1,
+      "s": 228.4,
+      "c": -0.8,
+      "fromEnd": 31.6,
+      "t": 83.3
+     },
+     "lift": {
+      "x": -921,
+      "z": -2367.6,
+      "dist": 103.2,
+      "t": 94
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 2122.9,
+      "agl": 160.8,
+      "t": 360.8
+     },
+     "minFinalAgl": 32.5,
+     "td": {
+      "x": 170.8,
+      "z": 630.1,
+      "s": 624.4,
+      "c": -0.8,
+      "pastThr": 538.1,
+      "Vg": 19.9,
+      "t": 487.5
+     },
+     "stop": {
+      "x": 14.8,
+      "z": 495.5,
+      "s": 418.4,
+      "c": 0,
+      "phase": "ROLLOUT"
+     },
+     "run": 206
+    },
+    "stopped": false,
+    "done": true,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 207,
+      "sink": 0.53,
+      "V": 18.4,
+      "offCentre": 0.8,
+      "pastAim": 23,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 537,
+      "stopLeft": 1581
+     },
+     "verdicts": []
+    },
+    "libFaults": []
+   },
+   "dev": null
+  }
+ ],
+ "terrain": {
+  "n": 4978,
+  "max": 0,
+  "at": {
+   "x": 5562.4,
+   "z": -6026.4,
+   "page": 346.8,
+   "node": 346.8,
+   "phase": "INBOUND",
+   "leg": 1,
+   "where": "4964.5 m from SEA"
+  },
+  "over1": 0
+ },
+ "obstacles": {
+  "node": 324,
+  "page": 305,
+  "pageOnly": 202,
+  "pageOnlyNearTrack": 25,
+  "pageOnlyTags": {
+   "traffic": 9,
+   "house": 84,
+   "outbuilding": 12,
+   "car": 77,
+   "boat": 10,
+   "prop": 5,
+   "mast": 5
+  },
+  "pageOnlyNearList": [
+   {
+    "x": 515.6,
+    "z": -2567.3,
+    "tag": "traffic",
+    "r": null,
+    "where": "354.6 m from SEA"
+   },
+   {
+    "x": 466.7,
+    "z": -2232.3,
+    "tag": "traffic",
+    "r": null,
+    "where": "682.6 m from SEA"
+   },
+   {
+    "x": 471.9,
+    "z": -2502.7,
+    "tag": "outbuilding",
+    "r": null,
+    "where": "413.6 m from SEA"
+   },
+   {
+    "x": 474.2,
+    "z": -2529.7,
+    "tag": "house",
+    "r": null,
+    "where": "387 m from SEA"
+   },
+   {
+    "x": 470.9,
+    "z": -2525.8,
+    "tag": "car",
+    "r": null,
+    "where": "390.5 m from SEA"
+   },
+   {
+    "x": 502.7,
+    "z": -2535.5,
+    "tag": "outbuilding",
+    "r": null,
+    "where": "384.4 m from SEA"
+   },
+   {
+    "x": 515.5,
+    "z": -2582.2,
+    "tag": "house",
+    "r": null,
+    "where": "339.9 m from SEA"
+   },
+   {
+    "x": 522.5,
+    "z": -2554.2,
+    "tag": "house",
+    "r": null,
+    "where": "368.6 m from SEA"
+   },
+   {
+    "x": 506.2,
+    "z": -2550,
+    "tag": "car",
+    "r": null,
+    "where": "370.5 m from SEA"
+   },
+   {
+    "x": 523.7,
+    "z": -2580.7,
+    "tag": "car",
+    "r": null,
+    "where": "342.5 m from SEA"
+   },
+   {
+    "x": 497.2,
+    "z": -2549.6,
+    "tag": "house",
+    "r": null,
+    "where": "369.8 m from SEA"
+   },
+   {
+    "x": 458.4,
+    "z": -2552.8,
+    "tag": "car",
+    "r": null,
+    "where": "362.5 m from SEA"
+   },
+   {
+    "x": 539.2,
+    "z": -2587.4,
+    "tag": "house",
+    "r": null,
+    "where": "338.4 m from SEA"
+   },
+   {
+    "x": 545.4,
+    "z": -2587.5,
+    "tag": "car",
+    "r": null,
+    "where": "339.3 m from SEA"
+   },
+   {
+    "x": 814.7,
+    "z": -2774.7,
+    "tag": "house",
+    "r": null,
+    "where": "245.9 m from SEA"
+   },
+   {
+    "x": 799.1,
+    "z": -2794.3,
+    "tag": "house",
+    "r": null,
+    "where": "221.4 m from SEA"
+   },
+   {
+    "x": 795.7,
+    "z": -2815.6,
+    "tag": "outbuilding",
+    "r": null,
+    "where": "200.8 m from SEA"
+   },
+   {
+    "x": 804.6,
+    "z": -2795.7,
+    "tag": "car",
+    "r": null,
+    "where": "222.6 m from SEA"
+   },
+   {
+    "x": 863.8,
+    "z": -2792.8,
+    "tag": "house",
+    "r": null,
+    "where": "253.5 m from SEA"
+   },
+   {
+    "x": 869.3,
+    "z": -2792.4,
+    "tag": "car",
+    "r": null,
+    "where": "256.6 m from SEA"
+   },
+   {
+    "x": 903.3,
+    "z": -2813.3,
+    "tag": "car",
+    "r": null,
+    "where": "256.6 m from SEA"
+   },
+   {
+    "x": 904,
+    "z": -2821.1,
+    "tag": "house",
+    "r": null,
+    "where": "250.4 m from SEA"
+   },
+   {
+    "x": 1054.4,
+    "z": -2837.6,
+    "tag": "house",
+    "r": null,
+    "where": "326.8 m from SEA"
+   },
+   {
+    "x": 721.9,
+    "z": -2861.9,
+    "tag": "mast",
+    "r": null,
+    "where": "127 m from SEA"
+   },
+   {
+    "x": 251.7,
+    "z": -2737.9,
+    "tag": "car",
+    "r": null,
+    "where": "179.5 m from SEA"
+   }
+  ]
+ },
+ "page": {
+  "end": "the take-off rejected twice",
+  "rateLog": [],
+  "start": {
+   "route": {
+    "from": "HOME",
+    "dest": "nv_strip",
+    "to": "nv_strip",
+    "base": "HOME",
+    "spawn": null
+   },
+   "where": {
+    "kind": "stand",
+    "aero": {
+     "id": "HOME",
+     "name": "Jolene AFB 13/31",
+     "kind": "strip",
+     "x": -301,
+     "z": 221,
+     "hdg": 0.7156,
+     "len": 2325,
+     "wid": 45,
+     "surface": 5,
+     "look": "worn",
+     "elev": 31.683077650974106,
+     "tdz": [
+      135.78247155506182,
+      600.7007177268059
+     ],
+     "spawn": [
+      -154,
+      712
+     ],
+     "spawnElev": 30.6,
+     "flyIn": false,
+     "premises": true,
+     "band": 40,
+     "pav": {
+      "rubberK": 0,
+      "laneW": 6.1
+     },
+     "landHdg": null,
+     "altiport": false,
+     "treeBox": true,
+     "treeClear": null,
+     "takeoffHdg": null,
+     "turn": null,
+     "slope": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      "vasi",
+      "vasi"
+     ],
+     "circuit": null
+    },
+    "id": "HOME",
+    "d": 247.43318624355965,
+    "along": 432.71088910484235,
+    "cross": 269.93318624355965
+   },
+   "span": 10.7,
+   "dmgPage": false,
+   "substeps": 74,
+   "mass": 462,
+   "cg": [
+    -151.5,
+    31.6,
+    708.6
+   ],
+   "phase": "TAXI",
+   "apRoute": {
+    "from": {
+     "id": "HOME",
+     "name": "Jolene AFB 13/31",
+     "kind": "strip",
+     "x": -301,
+     "z": 221,
+     "hdg": 0.7156,
+     "len": 2325,
+     "wid": 45,
+     "surface": 5,
+     "look": "worn",
+     "elev": 31.683077650974106,
+     "tdz": [
+      135.78247155506182,
+      600.7007177268059
+     ],
+     "spawn": [
+      -154,
+      712
+     ],
+     "spawnElev": 30.6,
+     "flyIn": false,
+     "premises": true,
+     "band": 40,
+     "pav": {
+      "rubberK": 0,
+      "laneW": 6.1
+     },
+     "landHdg": null,
+     "altiport": false,
+     "treeBox": true,
+     "treeClear": null,
+     "takeoffHdg": null,
+     "turn": null,
+     "slope": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      "vasi",
+      "vasi"
+     ],
+     "circuit": null
+    },
+    "to": {
+     "id": "nv_strip",
+     "name": "East Point Clearing",
+     "kind": "strip",
+     "x": 10030,
+     "z": -11660,
+     "hdg": 1.8326,
+     "len": 150,
+     "wid": 12,
+     "surface": 6,
+     "look": "gravel",
+     "elev": 21.136829365271517,
+     "tdz": [
+      10020.941188543045,
+      -11626.192634900257
+     ],
+     "spawn": [
+      10063.83,
+      -11724.44
+     ],
+     "spawnElev": 21.14,
+     "flyIn": false,
+     "premises": true,
+     "band": 3,
+     "pav": {
+      "marks": "none",
+      "mossK": 0.8,
+      "wet": 0.35
+     },
+     "landHdg": 4.974192653589793,
+     "altiport": false,
+     "treeBox": false,
+     "treeClear": null,
+     "takeoffHdg": 1.8326,
+     "turn": [
+      {
+       "r": 9,
+       "side": -1
+      },
+      {
+       "r": 9,
+       "side": -1
+      }
+     ],
+     "slope": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      false,
+      false
+     ],
+     "circuit": null
+    }
+   },
+   "manual": false,
+   "simw": true,
+   "t": 2.433333333333358,
+   "timeOrigin": 1791270005101.5,
+   "weather": null,
+   "day": {
+    "cloudCover": 0.25,
+    "cloudSeed": 1,
+    "cloudType": "cuh",
+    "date": "2026-06-22",
+    "groundAlbedo": 0.15,
+    "ozone": 300,
+    "rate": 1,
+    "rh": 0.5,
+    "turbidity": 2.8,
+    "utc": 18.389266666666753,
+    "wind": {
+     "kts": 8,
+     "dirDeg": 250,
+     "gust": 0.15,
+     "refH": 10,
+     "breeze": 1
+    }
+   },
+   "woodSolid": false,
+   "obstacles": 249,
+   "treeHits": 59559
+  },
+  "env": {
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "gfx": {
+    "preset": "gamer",
+    "build": "gamer",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "far1",
+    "scale": 1,
+    "cover": "full",
+    "scenery": "full",
+    "drawDist": "vis",
+    "terrain": 1,
+    "aa": "msaa",
+    "density": 128,
+    "bands": "mid",
+    "shadows": "full",
+    "canopy": "on",
+    "rails": "on",
+    "poles": "on",
+    "glare": "on",
+    "sway": "on",
+    "mist": "land",
+    "clouds": "half",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "soft",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "build": "b8d949466587",
+   "route": {
+    "from": "HOME",
+    "dest": "nv_strip",
+    "to": "nv_strip",
+    "base": "HOME",
+    "spawn": null
+   },
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+   "webdriver": false
+  }
+ },
+ "node": {
+  "done": false,
+  "world": {
+   "weather": null,
+   "day": {
+    "cloudCover": 0.25,
+    "cloudSeed": 1,
+    "cloudType": "cuh",
+    "date": "2026-06-22",
+    "groundAlbedo": 0.15,
+    "ozone": 300,
+    "rate": 1,
+    "rh": 0.5,
+    "turbidity": 2.8,
+    "utc": 18.03936666666676,
+    "wind": {
+     "kts": 8,
+     "dirDeg": 250,
+     "gust": 0.15,
+     "refH": 10,
+     "breeze": 1
+    }
+   },
+   "woodSolid": true,
+   "obstacles": 324,
+   "trunks": 0
+  }
+ }
+}

@@ -237,11 +237,21 @@ if (process.argv.includes('--drawn')) {
     const ul = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]), ux = (P1[0] - P0[0]) / ul, uz = (P1[1] - P0[1]) / ul, at = k => [P0[0] + ux * k, P0[1] + uz * k];
     const past = at(-1.5), last = at(1), deep = at(6);
     ok(Math.hypot(P0[0] - mn.x, P0[1] - mn.z) < 0.5, 'mn_strip\'s stand is the start of mn_stand_lane', Math.hypot(P0[0] - mn.x, P0[1] - mn.z).toFixed(2) + ' m');
-    ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.02,
-      'G1542: 1.5 m past the dead end nothing is paved, nothing sunk, the drawn patch within 2 cm of the ground (it was a 0.4-0.6 m pit)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
-    const sL = PL.sinkOf(last[0], last[1]), sD = PL.sinkOf(deep[0], deep[1]);
-    ok(sL > 0.03 && sL <= 0.0701, '...1 m inside it the patch takes the edge\'s 7 cm, not the deep sink', (sL * 100).toFixed(1) + ' cm');
-    ok(sD > 0.5, '...6 m inside, the deep sink', sD.toFixed(2) + ' m');
+    // ISLAND-TOUR G1968: the mine's start / park area is an APRON now (mn_m_apron, the gravel look over the stand's pad):
+    // past the lane's dead end the ground is paved by design, the patch sunk under the pavement drawn over it - the pit
+    // G1542 cured was OPEN ground past the end. Without the apron the probe is G1542's own, unchanged
+    const apronM = (O.rec.layers.material || []).find(m => m.id === 'mn_m_apron');
+    if (apronM && C2.PREMISES_GEN.inPoly(apronM.poly, ...O.frame.toLocal(past[0], past[1]))) {
+      const q = O.pavedAt(past[0], past[1]);
+      ok(!!q && q.d > 0 && PL.sinkOf(past[0], past[1]) > 0.03, 'G1542 / G1968: past the dead end the mine\'s apron is paved and the patch sunk under it (the pavement drawn at the ground)',
+        q ? q.cls + ' ' + q.d.toFixed(1) + ' m in, the patch ' + (PL.sinkOf(past[0], past[1]) * 100).toFixed(0) + ' cm under' : 'not paved');
+    } else {
+      ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.02,
+        'G1542: 1.5 m past the dead end nothing is paved, nothing sunk, the drawn patch within 2 cm of the ground (it was a 0.4-0.6 m pit)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
+      const sL = PL.sinkOf(last[0], last[1]), sD = PL.sinkOf(deep[0], deep[1]);
+      ok(sL > 0.03 && sL <= 0.0701, '...1 m inside it the patch takes the edge\'s 7 cm, not the deep sink', (sL * 100).toFixed(1) + ' cm');
+      ok(sD > 0.5, '...6 m inside, the deep sink', sD.toFixed(2) + ' m');
+    }
   } else ok(false, 'mn_stand_lane and mn_strip\'s stand found');
   // the stock build at every stand: its tyres (node - r) on the drawn ground, and the physics contact on terrainH
   const def0 = C2.buildGen(JSON.parse(JSON.stringify(C2.GEN_DEFAULT)));
