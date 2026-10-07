@@ -1,0 +1,2 @@
+THE LOADING VIEW (77_): the sweep - 910 targets allowed (each stands), 8970 refused (each with its why)
+  Accept: job:minedock:0:0 on the C172 - 1 items, 60 kg, CG 33.589 % MAC · parts.1: 125 kg/m2 on the baggage floor (100); 60 kg in the baggage bay, the placard says 40

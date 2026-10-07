@@ -1,0 +1,14 @@
+──────── summary ────────
+UISMOKE   PASS   180.9 s
+UISMOKE-PHONE PASS    56.1 s
+MEDIA     FAIL     1.5 s
+BUILD     PASS     3.0 s
+SAVE      PASS     0.6 s
+ACCEPT    PASS   489.1 s
+CONTRACTS PASS     5.3 s
+FREIGHT   PASS    26.5 s
+total            763.0 s
+wall             489.1 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+  FAIL index.html grew 0.48 MiB over HEAD against the 0.3 MiB one build may add — something heavy moved inside the artifact
