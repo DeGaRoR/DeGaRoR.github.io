@@ -1,0 +1,1 @@
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store

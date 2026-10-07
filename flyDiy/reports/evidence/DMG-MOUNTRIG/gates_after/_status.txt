@@ -2,7 +2,6 @@ _engcustom_check exit 0 1 s
 _mount_check exit 0 63 s
 test_build exit 0 2 s
 _join_check exit 0 8 s
-_treecrash_check exit 0 1836 s
 _dmg_wind_check exit 1 2410 s
 _dmg_clusters_check exit 1 653 s
 _dmg_gear_check exit 1 2621 s
@@ -10,3 +9,7 @@ test_load exit 0 267 s
 _dmg_members_check exit 0 47 s
 _dmg_cert_check exit 1 357 s
 _dmg_nose_check exit 0 782 s
+_takeoff_check exit 0 469 s
+_floats_check exit 0 61 s
+_dmg_drive_check exit 1 1046 s
+_dmg_integrity_check exit 0 380 s
