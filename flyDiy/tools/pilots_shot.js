@@ -47,7 +47,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
                                     places: Object.fromEntries(Object.keys(car.career.pilots || {}).map(id => [id, car.career.pilots[id].aero + (car.career.pilots[id].plane ? '+' + car.career.pilots[id].plane : '')])) } : null,
       flyer: window.FLYDIY_CAREER && window.FLYDIY_CAREER.pilots ? window.FLYDIY_CAREER.pilots.flyer() : null,
       open: !!scr, pilots: scr ? [...scr.querySelectorAll('.mmPilot .mmRowT b')].map(b => b.textContent).filter(Boolean) : [],
-      list: scr ? ((scr.querySelector('.mmList') || scr.querySelector('.mmSheetBody') || {}).innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1400) : '',
+      list: scr ? ((scr.querySelector(scr.classList.contains('mmPhone') ? '.mmSheetBody' : '.mmList') || {}).innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1400) : '',
       card: scr ? ((scr.querySelector('.mmRight') || scr.querySelector('.mmSheetBody') || {}).innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1200) : '',
     };
   });
@@ -63,7 +63,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const garageUp = async (pg, career) => {
     for (let i = 0; i < 150; i++) {
       await sleep(2000); await keep(pg);
-      if (await ev(pg, c => { const h = document.getElementById('edRoute'); return !!(h && h.offsetParent && window.FLIGHT_PROBE && window.FLYDIY_PLAYER && (!c || h.querySelector('.crewPick'))) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone'); }, career)) return true;
+      if (await ev(pg, c => { const h = document.getElementById('edRoute'); return !!(h && h.offsetParent && window.FLIGHT_PROBE && window.FLYDIY_PLAYER && (!c || h.querySelector('.crewPick'))) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone' || BOOT.state === 'ready'); }, career)) return true;
     }
     return false;
   };
@@ -110,11 +110,25 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(800);
     st = await probe(pg);
     check(st.career.pick === hire && st.row && st.row.value === hire, 'Flies next: ' + hire + ' is the route row\'s pick (' + (st.row && st.row.value) + ')');
-    // the roll-out with the pick
+    // the roll-out with the pick: the shed's standing pilot remembered (the flight's is a new one: the roll-out's fullReset)
+    await ev(pg, () => { window.__ap0 = window.FLIGHT_PROBE ? FLIGHT_PROBE.ap() : null; return 1; });
     await tap(pg, '#edRoll');
-    const flying = await until(pg, () => !!(window.FLIGHT_PROBE && FLIGHT_PROBE.ap()) && !(document.getElementById('edActs') && document.getElementById('edActs').offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone'), 300000);
-    check(flying, 'rolled out');
-    await sleep(4000);
+    let bootShot = false, flying = false;
+    for (let i = 0; i < 200 && !flying; i++) {
+      await sleep(2000);
+      if (!bootShot && await ev(pg, () => { const h = document.getElementById('bootRoute'); return !!(h && !h.hidden && h.offsetParent && h.querySelector('.crewPick')); })) {
+        await sleep(1000);
+        const bh = await pg.$('#bootRoute');
+        if (bh) { await bh.screenshot({ path: path.join(OUT, 'career_rollout_row.jpg'), type: 'jpeg', quality: 85, timeout: 60000 }); bootShot = true;
+                  const v = await ev(pg, () => document.querySelector('#bootRoute .crewPick select').value);
+                  check(v === hire, 'the roll-out screen\'s route row: the pilot is ' + v); index.push({ name: 'career_rollout_row', file: 'career_rollout_row.jpg', note: 'the roll-out screen\'s route row: base, to, pilot' }); }
+      }
+      flying = await ev(pg, () => !!['flPlate', 'flLine'].some(id => document.getElementById(id) && document.getElementById(id).offsetParent) && !(document.getElementById('edActs') && document.getElementById('edActs').offsetParent)
+        && (!window.BOOT || !BOOT.state || BOOT.state === 'gone' || BOOT.state === 'ready') && window.FLIGHT_PROBE && FLIGHT_PROBE.ap() && FLIGHT_PROBE.ap() !== window.__ap0);
+    }
+    check(flying, 'rolled out (a new pilot made by the roll-out)');
+    await ev(pg, () => { const g = document.getElementById('bGo'); if (g && g.offsetParent && !/roll out/i.test(g.textContent)) g.click(); return 1; });
+    await sleep(8000);
     st = await shot(pg, 'career_flying', 'rolled out: ' + hire + ' flies it (the crew\'s seat wears their body)');
     check(st.flyer === hire || st.flyer === 'me', 'the flyer is decided at the roll-out (' + st.flyer + (st.flyer === 'me' ? ': refused - ' + (st.why || '') : '') + ')');
     check(st.flyer !== hire || st.crewBody !== '(never set)', 'the crew\'s body door was set for ' + hire + ' (' + st.crewBody + ')');
@@ -122,7 +136,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   }
   // ---- the phone ----------------------------------------------------------------------------------------------------------
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }), pg = await ctx.newPage();
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1.5 }), pg = await ctx.newPage();
     pg.on('pageerror', e => errs.push('[phone] ' + String(e.message || e).slice(0, 160)));
     await pg.goto(URL0 + '?audio=0&career=1', { waitUntil: 'domcontentloaded' });
     const up = await until(pg, () => !!window.FLYDIY_CAREER && !!document.getElementById('mapEntry'), 300000);
