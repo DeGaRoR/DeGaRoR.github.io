@@ -79783,9 +79783,9 @@ Next: re-baseline the accepted strict rows by name (the user: no standing reds).
 
 ## G2080 - ENGINE-TORQUE: THE PROPELLER'S REACTION TORQUE, GYROSCOPIC COUPLE, P-FACTOR AND SWIRL, FROM THE BUILD'S OWN NUMBERS; THE PILOT HOLDS THE RUDDER AGAINST THEM (2026-10-06/07, ENGINE-TORQUE for A0, cloud - node only; branch claude/engine-torque-g2080 off origin/master 068584d6 = train 37b, train 38 (751e1122) merged in; G2080-G2084)
 
-**STATUS: READY for A0 - with ONE RED, NAMED, A0's / the user's call: GATE SEAPLANE's crosswind case** (below: master passes it
-at 5.0 m/s alone - 4.6 / 4.8 / 5.2 / 5.4 m/s water-loop on master with no propeller effects at all). Every other gate of the
-brief PASS on the merged tree (the battery line at the end of this section).
+**STATUS: READY for A0.** On the train-38 merge (ba41333d) every gate of the brief PASSES - BATTERY PASS (the line at the end
+of this section), SEAPLANE included. SEAPLANE's crosswind case is a knife edge on MASTER (train 38: it passes at 5.0 m/s and at
+no other speed of the sweep) and is NAMED below: this branch passes 4 of the 5 speeds.
 
 **THE AUDIT (what the model did).** A propeller was ONE force along the body axis at its mount nodes (30_solver, `Tper` per
 engine over `refs.engine`, G194) and a scalar `wash` on the strips flagged in it. Nothing read the hand (`engines[i].sense`,
@@ -79877,17 +79877,21 @@ response, both hands mirrored within 25 % (torque leans the Cub -0.46 deg on its
 the gyro yaws it left after a nose-down kick; the P-factor yaws it left at 6 deg alpha); the couples force-free; the twin
 same-hand adds (369.5 N.m), leans left (-0.71 deg), swings; counter-rotating cancels all three.
 
-**GATE SEAPLANE - RED, AND WHY IT IS NOT THIS CHANTIER'S TO TUNE.** Its crosswind case (the twin on floats placed lined up on
-the SEA lane, 5 m/s straight across from the right, full power from rest) capsizes at 3 s ON: the torque heels it onto the
-downwind float while the bow ploughs (pitch -10 -> -42 deg; the aileron is already at its 0.30 stop into the wind from the
-first second, the water rudder at 0.95 by 2 s). Torque alone and P-factor alone each flip it; gyro or swirl alone do not.
-**tools/engine_torque_seasweep.js** (any core; 4.6 .. 5.4 m/s): MASTER (no propeller effects) passes ONLY at 5.0 - it
-water-loops at 4.6, 4.8, 5.2 and 5.4; this branch passes at 5.2 and fails the others. The case is a knife edge on master
-(its 27.1 deg against the bound 30 was luck of the wind speed), and the floatplane's displacement run (the 582s' thrust line
-0.55 m over the CG ploughing the bows - G970) is the floats track's. Tried and NOT kept: a throttle ramp (3 s passes, 2 and 5 s
-capsize), easing power on a growing swing (saves nothing at 5, aborts the OFF run), easing power on a growing heel (saves 5,
-aborts two others). PROPOSED: a FLOATS-XWIND chantier (the displacement run's pitch and the downwind float), and until then
-SEAPLANE's crosswind case read as the sweep's verdict, not one wind speed's - A0 / the user decide.
+**GATE SEAPLANE - A KNIFE EDGE ON MASTER, NAMED.** Its crosswind case (the twin on floats placed lined up on the SEA lane,
+5 m/s straight across from the right, full power from rest) is decided by luck of the wind speed. **tools/engine_torque_
+seasweep.js** (any core; 4.6 .. 5.4 m/s; pass = off the water inside 25 s, swing < 30 deg, < 30 m off):
+- TRAIN 38 MASTER (no propeller effects): 4.6 FAIL (capsized), 4.8 FAIL (capsized), **5.0 PASS**, 5.2 FAIL (84 deg), 5.4 FAIL
+  (36.9 deg) - **1 of 5**.
+- THIS BRANCH on train 38: 4.6 PASS (8.9 deg), 4.8 FAIL (capsized), **5.0 PASS (11.4 deg; the gate's run: PASS)**, 5.2 PASS
+  (18.7), 5.4 PASS (11.9) - **4 of 5**.
+- On train 37b the edge fell the other way (master 1 of 5 - 5.0 alone; this branch capsized at 5.0, 3 s in: the torque heels
+  the floatplane onto the downwind float while the bows plough, the aileron already at its 0.30 stop into the wind from the
+  first second; torque alone and P-factor alone each flipped it). PILOT-ONE-2's water laws in train 38 moved it.
+- The run's fragility is the floats track's (the 582s' thrust line 0.55 m over the CG ploughing the bows, G970; a water-loop
+  onto the downwind float), not this chantier's: tried on 37b and NOT kept - a throttle ramp (3 s passes, 2 and 5 s capsize),
+  easing power on a growing swing, easing power on a growing heel (each saves some speeds and loses others).
+- PROPOSED: a FLOATS-XWIND chantier (the displacement run's pitch and the downwind float), and GATE SEAPLANE's crosswind case
+  judged on the sweep rather than on one wind speed - A0 / the user decide.
 
 **FILES**: src/core/00_registry.js (PAR.propFx), 30_solver.js (propMoments, swirlAt, bodyRate, applyCouple, out.propFx),
 39b_servos.js (betaI/drTrimMax, steerI/steerIMax, taxiRudTau), 43_pilot.js (the water's torque side), 60_gen_spec.js
@@ -79901,9 +79905,12 @@ stability); a windmilling prop's torque and P-factor (zero when the engine is of
 counter-rotation in H; the fin offset / rudder tab real aeroplanes are rigged with (the pilot holds the cruise boot instead).
 DMGCERTCOST's stored reference recomputes on PHYSICS_V 5 (`--write-ref` refreshes it - A0's train run).
 
-**GATES** (targeted, `run_gates --no-build --only=... --jobs=4`; A0's train runs the full battery). On train 37b + this branch
-(5978f9bb): GEN (4 shards), PILOT (3), TAKEOFF, LINEUP, PILOTACT, TAXICLEAR, PILOTMATRIX, HOTHIGH, JOIN, RPM, ENGTORQUE PASS;
-SEAPLANE FAIL (the crosswind case above). Numbers that moved, named: TAXICLEAR's C172 from the mill 3.13 -> 1.85 m off house3
-(bound 1.5); PILOT trike-xwind pursuit 10.1 deg (bound 12); PILOTACT taxi 16 / 18.9 / 19.2 (master 14.6 / 16 / 16.3), take-off
-rudder stock 0 -> 14, c172 0 -> 7.5 a minute (bound 20). On the train-38 merge (ba41333d): the run is in progress - this line
-is replaced with its verdicts.
+**GATES** (targeted, `run_gates --no-build --only=... --jobs=4`; A0's train runs the full battery).
+- **On the train-38 merge (ba41333d): BATTERY PASS** - GEN (4 shards), PILOT (3), TAKEOFF, LINEUP, PILOTACT, TAXICLEAR,
+  PILOTMATRIX (the ratchet), SEAPLANE, HOTHIGH, UISMOKE, JOIN, RPM, ENGTORQUE (wall 50 min, 4 jobs).
+- On train 37b + this branch (5978f9bb): the same PASS but SEAPLANE (the knife edge above).
+- NUMBERS THAT MOVED, named: TAXICLEAR's C172 from the mill 3.13 -> 1.85 m off house3 (bound 1.5; THIN); PILOT trike-xwind
+  pursuit 10.1 deg (bound 12; 14.2 before steerI); PILOTACT taxi rudder stock / c172 / metal Cessna 16 / 18.9 / 19.2 a minute
+  (master 14.6 / 16 / 16.3; bound 20; THIN), take-off rudder stock 0 -> 14, c172 0 -> 7.5 (bound 20); SEAPLANE crosswind
+  swing 11.4 deg at 5.0 m/s (master's 23.9 in the sweep's measure); every calm circuit's rudder and aileron traces stop being
+  zero (the table above). GEN's SHAKEDOWN numbers do not move (probes; the stance with the engine stopped).
