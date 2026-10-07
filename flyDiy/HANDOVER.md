@@ -78200,6 +78200,12 @@ menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOB
 chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
 GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
 
+THE USER'S PICKS (7 Oct ~19:00, study §R.2): STORY = start with A (in the work), then B with at least an intro; PACE = a
+checkpoint after every train; the CONTRACT SCREEN reduced to the mock https://claude.ai/artifact/LJwDYuPmF3ExULPHxmhdM4
+(no right panel, collapsible rows, type colours, ✓/✗ only for hard no-no's, runways condensed, pan/zoom/bounds, no
+auto-zoom, colour kept + old-map dress; the raster map repaintable by the user's AI). Next chip (after the user OKs the
+mock): [CLOUD] MAP-SIMPLE G2324-G2329 rebuilding map_menu.js to it.
+
 STEERING HOLD (7 Oct ~18:30, A0 relaying the user: little to see, no story yet, fear of going too far before steering):
 the checkpoint page https://claude.ai/artifact/QjQYuYhf1RaoGmNezbvnNq (the honest state, what's visible today in play order,
 what trains 40 / 42 / 43 / 44 add, three story options + the pace). The notes are in futureDesigns/game/STORY-OPTIONS-2026-10-07.md.
