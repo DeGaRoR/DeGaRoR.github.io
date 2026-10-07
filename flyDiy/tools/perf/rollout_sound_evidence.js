@@ -105,7 +105,10 @@ const HOOK = `(() => {
     const keep = await centre('.dfClose'); if (keep) { await click(keep.x, keep.y); await sleep(1500); }
     // the build, through the editor's own door; then the shed settles
     await ev('GARAGE_SPEC.set(' + JSON.stringify(spec) + '), true');
-    await sleep(8000);
+    // READY TO ROLL, by the page's own test (A0's hint): window.FLYDIY_ROLLPLAN() is null while app.js rollAnimCan() is false
+    // (raBusy, no model yet, a rig, not the hangar) - right after a spec change it is; a fixed delay was a guess
+    if (!await until('!!(window.FLYDIY_ROLLPLAN && FLYDIY_ROLLPLAN())', 120000)) throw new Error('the shed never became ready to roll in 120 s after GARAGE_SPEC.set (FLYDIY_ROLLPLAN() stayed null: rollAnimCan false)');
+    await sleep(2000);   // the shed's lights and shadows settle on the new build
     // THE GESTURE: a real click on the render (the sound's unlock), then the page's mix tapped
     const v = await ev("(()=>{const e=document.getElementById('edView')||document.getElementById('c');const r=e.getBoundingClientRect();return {x:Math.round(r.left+r.width*0.5),y:Math.round(r.top+r.height*0.15)}})()");
     await click(v.x, v.y); await sleep(300);
