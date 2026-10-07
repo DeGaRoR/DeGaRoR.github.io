@@ -1,0 +1,42 @@
+# GATE DMGCERTCOST (node tools/_dmg_certcost_check.js) - exit 0, 62 s, 2026-10-07T01:14:28Z, branch claude/dmg-foldnode e5c13d9, build FLYDIY_BUILD='22321372b7c2'
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+Cub:
+  ok   1. 1809 frames stepped (budget 1809; the uncut certificate 2781)
+  ok   1. 7.0 s in node (ceiling 18 s; the uncut 6.4 s; the target ~5 s: 2.0 s over) - static 0.5, settle 0.9, drop 0.3, dropLevel 0.2, dropOne 0.2, drop473 0.2, taxiRough 2.8, ground 0.2, flown 0.5, flownElev 0.4, flownRud 0.2, flownElevF 0.5
+  ok   2. the envelope against the uncut (stored): equal to the bit
+Jodel:
+  ok   1. 1792 frames stepped (budget 1792; the uncut certificate 2764)
+  ok   1. 12.9 s in node (ceiling 32 s; the uncut 12.5 s; the target ~5 s: 7.9 s over) - static 1.2, settle 1.6, drop 0.5, dropLevel 0.4, dropOne 0.4, drop473 0.4, taxiRough 5.4, ground 0.2, flown 0.6, flownElev 0.8, flownRud 0.5, flownElevF 0.8
+  ok   2. the envelope against the uncut (stored): equal to the bit
+metal Cessna:
+  ok   1. 1797 frames stepped (budget 1797; the uncut certificate 2769)
+  ok   1. 10.7 s in node (ceiling 30 s; the uncut 10.9 s; the target ~5 s: 5.7 s over) - static 0.5, settle 1.3, drop 0.5, dropNoseUp 0.4, dropOne 0.4, drop473 0.3, taxiRough 4.7, ground 0.2, flown 0.6, flownElev 0.8, flownRud 0.4, flownElevF 0.7
+  ok   2. the envelope against the uncut (stored): equal to the bit
+Cessna floats:
+  ok   1. 1763 frames stepped (budget 1763; the uncut certificate 3023)
+  ok   1. 17.0 s in node (ceiling 42 s; the uncut 17.7 s; the target ~5 s: 12.0 s over) - static 1.0, settle 2.7, drop 1.3, bow 0.7, dropStep 1.0, dropOne 1.0, dropDriftR 1.0, dropDriftL 1.0, drop473 1.0, wWeave 3.3, ground 0.2, flown 0.7, flownElev 0.9, flownRud 0.4, flownElevF 0.9
+  ok   2. the envelope against the uncut (stored): equal to the bit
+twin floatplane:
+  ok   1. 1791 frames stepped (budget 1791; the uncut certificate 3051)
+  ok   1. 19.7 s in node (ceiling 48 s; the uncut 19.8 s; the target ~5 s: 14.7 s over) - static 1.2, settle 3.2, drop 1.4, bow 1.1, dropStep 1.0, dropOne 1.0, dropDriftR 1.1, dropDriftL 1.0, drop473 1.1, wWeave 3.7, ground 0.4, flown 1.1, flownElev 0.9, flownRud 0.5, flownElevF 0.9
+  ok   2. the envelope against the uncut (stored): equal to the bit
+3. the store (node, an in-memory IndexedDB):
+  ok   a miss reads null
+  ok   kept
+  ok   the second page load stamps from the store in 2.1 ms (< 50), the envelope to the bit
+  ok   a flipped value refused (checksum)
+  ok   another version refused
+  ok   another physics refused
+  ok   another member count refused
+  ok   a NaN refused
+  ok   another key refused
+  ok   the good record passes
+  ok   a corrupt record reads null and is deleted
+3. the store (headless Chromium, the bench worker):
+  ok   page 1: a miss, the worker computed it in 6.8 s and the page kept it
+  ok   the worker's certificate is node's (the same key; worst relative difference 2.1e-8, < 1e-6: the two V8s' last bits)
+  ok   page 2: read from the store and stamped in 3.4 ms (< 50), the same envelope
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: PASS
+# exit 0

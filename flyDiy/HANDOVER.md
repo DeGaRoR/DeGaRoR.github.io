@@ -78797,6 +78797,16 @@ so no fold existed for the gate to read. The flown model in node was the live me
   - **After: PASS** (Cub 366 buffers / Cessna 427, 0 stale; 44 fold buffers each, fresh and after; damage OFF: 0 heal
     marks, 0 stale).
   - **--selftest: PASS** (aswas red on the fold, 202 428; noowe red on the fold, 202 428).
-- The battery (`run_gates --only=` every DMG* row bar DMGUPLOAD, run on its own above, + TREECRASH, TREEHIT, UISMOKE,
-  BUILD, JOIN, LOAD, FLOWNBAKE): see gates_battery.txt and the line below.
+- **Every DMG* row** (`grep "id: 'DMG" tools/run_gates.js`), **TREECRASH, TREEHIT, UISMOKE, BUILD, JOIN, LOAD, and
+  FLOWNBAKE** (whose file I touched):
+  - All PASS (DMGMEMBERS, DMGCERT, DMGGEAR, DMGCERTCOST, DMGWIND, DMGCLUSTERS, DMGFPS, DMGINTEGRITY, DMGSKIN, DMGWRECK,
+    DMGDRIVE, DMGWALL, TREECRASH, TREEHIT, UISMOKE, BUILD, JOIN, LOAD, FLOWNBAKE), **except DMGINST**.
+  - DMGINST is 32/33, and fails the SAME way on the base (origin/claude/dmg-d4b-wreck in a clean worktree:
+    gates/DMGINST_base.txt). So it is not this branch's (I touch no app.js).
+  - Its row "no code writes 'broke-up' but the structure's ending" flags app.js 6342,
+    `const wreckEnd = outcome === 'crashed' || outcome === 'broke-up';` - a READER its regex counts as a writer. That line
+    came with D4b's 88240ea (G1868).
+  - The fix belongs to that row's owner: allow the reader, or match `endFlight(` writes only. Not widened here.
+  - Texts: gates/<ID>.txt, the table in gates_battery.txt. Each gate ran on its own (`node tools/<file>`, after
+    build.js exit 0): a `run_gates --only` battery buffers its output to the end and was lost with a container restart.
 - Node only; no Rigs of Rods / BeamNG code.
