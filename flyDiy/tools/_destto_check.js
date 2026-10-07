@@ -41,6 +41,11 @@
 //    reports/evidence/DEST-TO/master_w3.txt and the HANDOVER entry.)
 // G2320 (CAREER-WIRE), on ltd:cub's stop at w3: the dev career's stop record off the real flight (the field, the load, the
 //    aerodromes passed), careerOnStop delivering a carry job HOME -> w3 and moving an arc; the sandbox's document: nothing.
+// G2310 (PREM-S3), on ltd:cub's stop at w3 (prem:cub@w3-out): the Cub, now IN w3's side hangar, rolls out of THAT door -
+//    the plot's stand (the premises record's plot w3, contract v1.34: playerRollHangar -> playerPlotSite) - and THE PILOT
+//    taxis the plot's own way out, lines up and takes off, the wing 1.5 m off every solid thing; on ltd:floats' stop at
+//    mk_sea (prem:floats@mk_sea): a slipway shed held there, the floats go IN it (playerArrive), the garage opens THERE (the
+//    roll-in: playerGoTo, the room that shed at its plot, the slip's stand afloat), the world stands it.
 // C. A NEW TO IN THE AIR (air:<build>): lined up at HOME bound for w3; mid-way down the enroute leg the To becomes
 //    Jolene AFB 02/20 (w2), behind the aeroplane - setDest 'replan', the arrival planned again from here: the new path
 //    starts at the aeroplane, the bank never past the pilot's limit (+4 deg), the track never turning faster than
@@ -171,6 +176,7 @@ function landThenDepart(key, check, trace, doctor, lead) {
   log(tag + 'leg 2 ' + ph.join('>') + ' in ' + r2.t.toFixed(0) + ' s, ' + taxiM.toFixed(0) + ' m on the ground before the roll, stopped ' + w3.kind + ' ' + w3.id + '; fuel ' + f1 + ' -> ' + fuelKg(sim) + ' kg; members broken ' + dmg(sim).members);
   if (key === 'cub' && P.b === 'w3' && w3.id === 'w3') premW3(W, A, sim, def, check, r1.t + r2.t);
   if (key === 'cub' && P.b === 'w3' && w3.id === 'w3') careerW3(W, sim, def, check, r2.t, over2);
+  if (key === 'floats' && P.b === 'mk_sea' && w3.id === 'mk_sea') premMkSea(W, A, sim, def, check, r1.t + r2.t);
 }
 
 // ---- G2320 (CAREER-WIRE): THE SAME STOP ADVANCES THE DEV CAREER (?career=1) - AND, WITHOUT THE FLAG, NOTHING ------------
@@ -260,6 +266,97 @@ function premW3(W, A, sim, def, check, secs) {
   const Lg = C.flightLeg(W, 'wheels', c2[0], c2[2], 'HOME', {});
   check(Lg.depart && Lg.from && Lg.from.id === 'w3' && Lg.to && Lg.to.id === 'HOME', tag + 'the next flight is planned FROM w3 (the From derived), To HOME', (Lg.from && Lg.from.id) + ' -> ' + (Lg.to && Lg.to.id));
   log(tag + 'arrived in w3 after ' + secs.toFixed(0) + ' s (clock ' + r.doc.clock + ' s); reload -> rolls out at ' + from + ', placed ' + w2.kind + ' ' + w2.id + ' at (' + c2[0].toFixed(0) + ', ' + c2[2].toFixed(0) + '); foot ' + JSON.stringify(foot));
+  premRollW3(W, A, re, def, check);
+}
+
+// ---- G2310 (PREM-S3): THE ROLL-OUT FROM w3's SIDE HANGAR, FLOWN ---------------------------------------------------------
+// The Cub stands IN w3's side hangar (premW3's document, reloaded). The page's roll-out (app.js applyRoute): the hangar it
+// leaves (playerRollHangar), the site of that hangar's PLOT (playerPlotSite: the premises record's plot w3, contract
+// v1.33 - its stand off the shed's door and its own way to the strip), the stand at the hangar's own dims (not walked),
+// placed and seated there, and THE PILOT departs on that site: it taxis the plot's way, lines up and takes off - the wing
+// clear of every solid thing the census knows (tools/_taxiclear_lib.js), no crash.
+function premRollW3(W, A, doc, def, check) {
+  const tag = 'prem:cub@w3-out: ';
+  const rh = C.playerRollHangar(doc, 'Cub');
+  check(rh === 'w3', tag + 'the Cub rolls out of w3\'s side hangar', rh);
+  const a = A('w3'), st0 = C.siteOf('w3'), PS = C.playerPlotSite(st0, rh, doc.sheds[rh]);
+  if (!check(PS.own && PS.plot && PS.site.stand, tag + 'the plot w3 has its own stand and way out (the record\'s, v1.34)')) return;
+  const ground = (x, z) => W.terrainH(x, z);
+  const stand = C.standFor(PS.site, C.playerShedDims(doc, rh, PS.site), ground);
+  check(Math.abs(stand.x - PS.plot.stand.x) < 1e-9 && Math.abs(stand.z - PS.plot.stand.z) < 1e-9, tag + 'the stand is the plot\'s, off the shed\'s door (not walked: authored for this shed)', JSON.stringify(stand));
+  // calibration: the field's own site (PREM-S2's roll-out) puts it 58 m away on the strip's stand - the row above sees it
+  const fs0 = C.standFor(st0, C.playerShedDims(doc, rh, st0), ground);
+  check(Math.hypot(fs0.x - PS.plot.stand.x, fs0.z - PS.plot.stand.z) > 20, tag + 'calibration: the field\'s stand is not the plot\'s (a roll-out that ignored the plot would be seen)', Math.hypot(fs0.x - PS.plot.stand.x, fs0.z - PS.plot.stand.z).toFixed(1) + ' m');
+  const fx = Math.cos(PS.plot.hdg), fz = Math.sin(PS.plot.hdg);
+  check((stand.x - PS.plot.x) * fx + (stand.z - PS.plot.z) * fz > C.playerShedDims(doc, rh, PS.site).HD, tag + 'the stand is in front of the shed\'s door');
+  const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
+  C.placeAtStand(sim, a, stand); C.seatOnGround(sim, ground, def.refs);
+  for (let i = 0; i < 300; i++) sim.step(1 / 60);
+  if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+  const c0 = sim.cgPos(), w0 = C.flightWhere(W, c0[0], c0[2], {});
+  check(w0.id === 'w3' && C.flightCanDepart(w0), tag + 'placed at w3, a departure may be planned from there', w0.kind + ' ' + w0.id);
+  const TL = require(path.join(T, '_taxiclear_lib.js'));
+  const I = TL.index(TL.islandObstacles(C, 'jolene', 'town').concat(TL.treeTrunks(W)).concat(TL.registryObstacles(W)));
+  const ap = C.makePilot(sim, def, W, { style: 'normal' }); ap.setRoute(a, A('HOME')); ap.departFrom(a, A('HOME'), PS.site);
+  const half = def.params.gen.span / 2, phases = [];
+  let air = false, t = 0, minW = Infinity, at = '';
+  for (let k = 0; k < 60 * 300 && !air; k++) {
+    ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
+    if (phases[phases.length - 1] !== ap.phase) phases.push(ap.phase);
+    if (k % 6) continue;
+    const cg = sim.cgPos(), zR = sim.axes()[2], rl = Math.hypot(zR[0], zR[2]) || 1;
+    if (cg[1] - W.terrainH(cg[0], cg[2]) < 3) for (let f = -1; f <= 1.0001; f += 0.1) {
+      const n = I.nearest(cg[0] + zR[0] / rl * half * f, cg[2] + zR[2] / rl * half * f, 20);
+      if (n && n.d < minW) { minW = n.d; at = TL.fmtWhat(n.s) + ' in ' + ap.phase; }
+    }
+    air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
+    if (sim.damage && sim.damage().crashed) break;
+  }
+  const o = ap.report && ap.report.verdicts ? ap.report.verdicts.map(v => v.code).join(',') : '';
+  check(air && phases.includes('LIFTOFF'), tag + 'THE PILOT taxied the plot\'s way out, lined up and took off (30 m up)', 't ' + t.toFixed(0) + ' s, ' + phases.join('>') + (o ? ' | ' + o : ''));
+  check(!(sim.damage && sim.damage().crashed), tag + 'no crash', sim.damage ? (sim.damage().reason || '') : '');
+  check(minW >= 1.5, tag + 'on the ground the wing kept 1.5 m off every solid thing', (minW === Infinity ? 'nothing within 20 m' : minW.toFixed(2) + ' m, ' + at));
+  log(tag + 'from the plot\'s stand (' + stand.x.toFixed(1) + ', ' + stand.z.toFixed(1) + '): ' + phases.join('>') + ' in ' + t.toFixed(0) + ' s, the wing ' + (minW === Infinity ? '>20' : minW.toFixed(2)) + ' m off the nearest solid thing');
+}
+
+// ---- G2310 (PREM-S3): A ROLL-IN AT METLAKATLA (mk_sea) ------------------------------------------------------------------
+// The Cessna floats of ltd:floats has just flown SEA -> mk_sea and stopped on the lane. A slipway shed held at mk_sea (the
+// offered field shed, the record's plot on the shore - contract v1.34): the page's chain (app.js playerFlightEnd) puts it
+// IN mk_sea (the 13 m door passes its 11 m, the 3.9 m door its 3.4 m) and opens the garage THERE (playerGoTo: `here`
+// mk_sea); the room is that shed (its shell, its dims), built at its plot with no strip through the door (a lane), and
+// the world stands it at its plot - the only side hangar.
+function premMkSea(W, A, sim, def, check, secs) {
+  const tag = 'prem:floats@mk_sea: ';
+  const foot = C.playerFootOfDef(def);
+  let d = C.playerNormalise(C.playerMigrate(C.playerDefault()));
+  const acq = C.playerAcquire(d, 'mk_sea', 'mk_sea', 'field', 'own');
+  check(acq.ok, tag + 'a slipway shed held at Metlakatla (its offered field shed)', acq.why);
+  d = C.playerFleetReconcile(acq.doc, ['Floats'], { foots: { Floats: foot } }).doc;
+  const c = sim.cgPos(), Wh = C.flightWhere(W, c[0], c[2], {});
+  check(C.flightCanDepart(Wh) && Wh.id === 'mk_sea' && Wh.kind === 'water', tag + 'it stopped on the lane at mk_sea', Wh.kind + ' ' + Wh.id);
+  d = C.playerClock(d, secs).doc;
+  const r = C.playerArrive(d, 'Floats', Wh.aero.id, {});
+  check(r.ok && r.kind === 'in' && r.hangar === 'mk_sea', tag + 'in mk_sea: up the slip into the shed (door ' + C.hangarDoor(r.doc.sheds.mk_sea).w.toFixed(1) + ' x ' + C.hangarDoor(r.doc.sheds.mk_sea).h.toFixed(1) + ' m, the floats ' + (2 * foot.half).toFixed(1) + ' x ' + (foot.h || 0).toFixed(1) + ' m)', r.kind + ' ' + r.hangar + ' ' + (r.why || ''));
+  // calibration: the same stop with a shed too low for the floats (the field shell at a 3.0 m eave: a 2.5 m door) is tied
+  // down outside - the row above can see a shed the aeroplane does not pass
+  { const low = JSON.parse(JSON.stringify(d)); low.sheds.mk_sea.dims = { HW: 9, HD: 10, EAVE: 3.0 };
+    const rl = C.playerArrive(low, 'Floats', Wh.aero.id, {});
+    check(rl.ok && rl.kind === 'out' && !rl.hangar, tag + 'calibration: a shed whose door is lower than the floats leaves them tied down outside', rl.kind + ' ' + (rl.why || '')); }
+  if (!r.ok || r.kind !== 'in') return;
+  // the page's roll-in: the garage opens in the hangar playerArrive chose
+  const g = C.playerGoTo(r.doc, r.hangar);
+  check(g.ok && g.doc.here === 'mk_sea', tag + 'the roll-in returns into mk_sea: the garage opens there');
+  const room = g.doc.sheds[g.doc.here];
+  check(room.shell === 'field' && JSON.stringify(C.hangarDims(room)) === JSON.stringify(Object.assign({}, C.BASE_OFFERS.mk_sea.plots.mk_sea.dims.field)), tag + 'the room is that shed: the field shell at its offered dims', JSON.stringify(C.hangarDims(room)));
+  const st = C.siteOf('mk_sea'), PS = C.playerPlotSite(st, 'mk_sea', room);
+  check(!!PS.plot && PS.site.hangar.x === PS.plot.x && PS.site.hangar.z === PS.plot.z && !!PS.plot.stand, tag + 'the room stands at its plot (the record\'s slipway: the shed on the shore, its stand on the water)');
+  const sw = C.flightWhere(W, PS.plot.stand.x, PS.plot.stand.z, {});
+  check(sw.kind === 'water' && sw.id === 'mk_sea' && W.terrainH(PS.plot.stand.x, PS.plot.stand.z) < W.waterH(PS.plot.stand.x, PS.plot.stand.z) - 1,
+        tag + 'the slip\'s stand is afloat in mk_sea\'s water', sw.kind + ' ' + sw.id);
+  const ws = C.playerWorldSheds(g.doc);
+  check(ws.length === 2 && ws[1].id === 'mk_sea' && ws[1].shell === 'field', tag + 'the world stands it: HOME and the slipway shed', JSON.stringify(ws.map(x => x.id)));
+  check(C.playerRollHangar(g.doc, 'Floats') === 'mk_sea', tag + 'its next roll-out leaves from that shed');
+  log(tag + 'arrived in mk_sea after ' + secs.toFixed(0) + ' s; the garage opens there (' + JSON.stringify(C.hangarDims(room)) + '), the shed at (' + PS.plot.x + ', ' + PS.plot.z + ')');
 }
 
 // ---- C. a new To in the air ----------------------------------------------------------------------------------------------

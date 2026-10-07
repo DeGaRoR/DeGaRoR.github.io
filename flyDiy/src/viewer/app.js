@@ -532,7 +532,13 @@
     } catch (e) { console.warn('flyDiy: the fleet ledger could not follow the shelf -', e && e.message); }
     return player;
   }
-  const shedHome = () => playerLoad().sheds.HOME;
+  // G2310 (PREM-S3): THE ROOM IS THE HANGAR THE GARAGE IS OPEN IN - the player's `here` (playerGoTo; a stop into a hangar
+  // of yours opens the garage there): its shell, dims, kits and dress are the room's, the sliders and the kits write it.
+  // The sandbox holds HOME alone, so the room is HOME's exactly as before. `shedMain` is HOME's, the world's main shed.
+  const roomId = () => { const d = playerLoad(); return d && d.sheds && d.here && d.sheds[d.here] ? d.here : 'HOME'; };
+  const shedHome = () => playerLoad().sheds[roomId()];
+  const shedMain = () => playerLoad().sheds.HOME;
+  const roomBase = () => { const s = shedHome(); return s && typeof s.base === 'string' ? s.base : 'HOME'; };
 
   // THE WORLD'S SHED IS THE PLAYER'S SHED (HANGARS S1). The site declares
   // where it stands and what the class measures; the player's record carries
@@ -545,10 +551,35 @@
   // reader below guards `WF &&` (S3 moves it under the roll-out screen).
   let WF = null;
   let lampsPrepSet = false, drawGuard = null;   // G1340 (SHADER-GUARD: lampsPrep, the draw guard - set up by the compile helpers below)
-  const worldShed = () => Object.assign({ shell: shedHome().shell },
+  const worldShed = () => Object.assign({ shell: shedMain().shell },
     playerShedDims(playerLoad(), 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null));
+  // G2310 (PREM-S3, GAME §4.4): THE SIDE HANGARS YOU HOLD IN THE WORLD - each at its plot (the site's `plots`, premises
+  // contract v1.33), its shell, dims and dress (playerWorldSheds: the held ones only - GQ8 - main + two at most - GQ4).
+  // HOME's is worldShed above (standShed); a hangar whose plot this world lacks (Metlakatla with the town off) stands
+  // nowhere. render_world.js setPlayerSheds builds, keeps or takes down each by its key.
+  const worldSideSheds = () => {
+    const out = [];
+    try {
+      if (typeof playerWorldSheds !== 'function' || typeof siteOf !== 'function') return out;
+      for (const h of playerWorldSheds(playerLoad())) {
+        if (h.main) continue;
+        const st = siteOf(h.base), P = st && st.plots ? st.plots.find(q => q.id === h.id) : null;
+        if (!P) continue;
+        out.push({ id: h.id, x: P.x, z: P.z, ry: P.ry, y: P.y, dims: Object.assign({ shell: h.shell }, h.dims), dress: h.parts ? { parts: h.parts } : null });
+      }
+    } catch (e) {}
+    return out;
+  };
+  // the world follows the room's record: HOME's shed re-stood (as every slider did), a side hangar's re-built
+  function worldShedsFollow() {
+    if (!WF) return;
+    if (roomId() === 'HOME') { if (WF.setShedDims) WF.setShedDims(worldShed()); }
+    else if (WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds());
+  }
   function worldBuilt(wf) {
     WF = wf;
+    // G2310 (PREM-S3): the side hangars held stand at their plots from the world's first frame (none in the sandbox)
+    try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
@@ -944,7 +975,11 @@
     prefSet('flydiy.hangarEnvSrc', envSource);
     if (getHangar()) bakeHangarEnv();
   }
+  let hangarRoom = 'HOME';   // G2310: the hangar the room was built for (a `here` change builds the room again)
+  // ...at once when the garage is up (the base select, "fly from there?", a rig's document): the room built for `here`
+  function roomFollow() { try { if (inGarage && hangarRoom !== roomId()) { applyEnv(); garageCamera(); } } catch (e) {} }
   function getHangar() {
+    if (hangarTried && hangarRoom !== roomId()) { if (hangar) disposeHangar(); else hangarTried = false; }
     if (hangarTried) return hangar;
     hangarTried = true;
     if (typeof genHangarBuild !== 'function' ||
@@ -959,9 +994,18 @@
       // draws no strip, the way it draws no props without the library. The
       // KITS ride in the same way (HANGARS S2): the player's shed record says
       // what the room is equipped with, and the fit engine does the placing.
+      // G2310 (PREM-S3): a side hangar's room stands at ITS plot - the field through its door is its base's (a lane
+      // draws no strip), the slab in front of its own door (playerPlotSite); HOME's room is built as it always was
+      hangarRoom = roomId();
+      let roomHome = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0], roomSite;
+      if (hangarRoom !== 'HOME' && typeof playerPlotSite === 'function' && typeof siteOf === 'function') {
+        const b = roomBase(), A = world.aerodromes.find(a => a.id === b), ps = playerPlotSite(siteOf(b), hangarRoom, shed);
+        roomHome = A && A.kind !== 'water' && !A.water ? A : null;
+        roomSite = ps.plot ? ps.site : undefined;
+      }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
-        { home: world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0],
-          kits: shed.kits, shell: shed.shell });
+        { home: roomHome,
+          kits: shed.kits, shell: shed.shell, site: roomSite });
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
@@ -1069,10 +1113,8 @@
     if (inGarage) applyEnv();
     // the world's shed follows the same record, live — dragging the slider
     // resizes the building you will taxi past, not just the room you are in
-    if (WF && WF.setShedDims)
-      WF.setShedDims(Object.assign({ shell: shedHome().shell },
-        playerShedDims(player, 'HOME',
-          (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+    // (G2310: the room's - HOME's shed, or the side hangar the garage is open in)
+    worldShedsFollow();
     return getHangar() ? hangar.dims : null;
   }
 
@@ -1201,6 +1243,7 @@
     for (const p of hangar.parts) all[p.key] = hangar.partState(p.key);
     shedHome().parts = all;          // property, not a pref (HANGARS S1)
     playerSave();
+    if (roomId() !== 'HOME') worldShedsFollow();   // G2310: a side hangar wears its dress in the world
   };
   window.GARAGE_ENV = {
     // dev-only: reach the room's internals from the console
@@ -1239,10 +1282,7 @@
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
       if (inGarage) garageCamera();          // G439: a new room, the eye re-framed to its height
-      if (WF && WF.setShedDims)
-        WF.setShedDims(Object.assign({ shell: shedHome().shell },
-          playerShedDims(player, 'HOME',
-            (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+      worldShedsFollow();                    // G2310: the room's shed in the world (HOME's, or a side hangar's)
       return shed.shell;
     },
     // THE FIT-OUT (HANGARS S2): which kits stand in the room. A toggle is a
@@ -4379,11 +4419,19 @@
   };
   // ...and the shed that stand is walked out of: HOME's is the player's own room (the sliders); elsewhere the hangar
   // held there, if any, else the site's declared one
-  const shedDimsAt = (aeroId, st) => {
+  const shedDimsAt = (aeroId, st, hid) => {
     if (!st || typeof playerShedDims !== 'function') return null;
+    // G2310: the hangar the roll-out leaves from, when it is held at this field (its plot's stand is authored for it)
+    if (hid && hid !== 'HOME' && playerLoad().sheds[hid] && playerLoad().sheds[hid].base === aeroId) return playerShedDims(playerLoad(), hid, st);
     if (aeroId === 'HOME') return playerShedDims(playerLoad(), 'HOME', st);
     const ids = typeof playerHangarsAt === 'function' ? playerHangarsAt(playerLoad(), aeroId) : [];
     return playerShedDims(playerLoad(), ids[0] || '', st);
+  };
+  // G2310 (PREM-S3): the hangar the next roll-out leaves from (playerRollHangar: its fleet row's hangar; an unsaved build
+  // the garage's own; tied down outside, none) - null under a rig's spawn
+  const rollHangarId = () => {
+    if (spawnId) return null;
+    try { return typeof playerRollHangar === 'function' ? playerRollHangar(playerLoad(), slotOnStand()) : null; } catch (e) { return null; }
   };
   let fromId = spawnId || baseAeroId();
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
@@ -4485,7 +4533,12 @@
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();
-    const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
+    // G2310 (PREM-S3): THE ROLL-OUT LEAVES FROM ITS HANGAR'S DOOR - at a side hangar the site is the field's with that
+    // plot's shed and its own stand / way out (71_player_bases.js playerPlotSite); HOME (the field's own hangar), an
+    // aeroplane tied down outside and a field with no plot for it plan on the field's site, as before
+    const rh = rollHangarId();
+    const st0 = (typeof siteOf === 'function') ? siteOf(from.id) : null;
+    const st = (rh && st0 && typeof playerPlotSite === 'function') ? playerPlotSite(st0, rh, playerLoad().sheds[rh]).site : st0;
     // ...AND WHETHER IT DOES IS THE PLAYER'S (2026-09-04, the user: "the
     // planes are really a lot too slow when rolling out of the hangar ... an
     // option to just remove that"). The rail's `start` flyout writes this
@@ -4494,7 +4547,7 @@
     // on every applyRoute, so RESTART is what applies it.
     // THE STAND FOLLOWS THE DOOR (2026-09-20): the site's stand is authored for the declared shell; the
     // player's (the works is 7.5 m deeper) walks it out of the doorway - 25_airfield.js standFor
-    const shedD = shedDimsAt(from.id, st);   // PREM-S2: the shed at THIS field (HOME's is the player's room)
+    const shedD = shedDimsAt(from.id, st, rh);   // PREM-S2: the shed at THIS field (HOME's is the player's room); G2310: the hangar it leaves
     // G700: ...on ITS OWN GROUND - the walked stand reads the terrain under it (it fell back to the runway's elevation)
     const stGround = (world && typeof world.terrainH === 'function') ? ((x, z) => world.terrainH(x, z)) : null;
     const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
@@ -6289,6 +6342,9 @@
       if (how === 'stopped' && W && flightCanDepart(W) && !wrecked) {
         const r = playerArrive(d, flSlot, W.aero.id, {});
         if (r.ok) { d = r.doc; out.moved = { kind: r.kind, hangar: r.hangar || null, aero: W.aero.id }; }
+        // G2310 (PREM-S3): THE ROLL-IN RETURNS INTO THAT HANGAR - a stop into a hangar of yours opens the garage there
+        // (playerGoTo: `here`, the room built again for it at the shed door); tied down, the garage stays where it was
+        if (r.ok && r.kind === 'in' && r.hangar && r.hangar !== d.here && typeof playerGoTo === 'function') { const g = playerGoTo(d, r.hangar); if (g.ok) { d = g.doc; out.room = r.hangar; } }
       }
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
@@ -8307,7 +8363,10 @@
     if (!rollAnimCan()) { trip.anim = 'cannot'; next(); return; }
     // PREM-S2 (G2230): the shot rolls out of HOME's door - an aeroplane standing elsewhere (tied down at Tamgas Hill)
     // is cut to where it stands, under the roll-out screen (the world grown round its stand: standAnchor)
-    if (rollFromId() !== 'HOME') { trip.anim = 'away'; next(); return; }
+    // G2310 (PREM-S3): ...out of the ROOM's door at any base - the hangar the garage is open in (`here`), when the
+    // aeroplane rolls out of it (its fleet row is in it, or tied down at that field, or it has none); anything else
+    // (its row in another hangar, another field) is cut to its stand. The sandbox: HOME's door, exactly as before.
+    { const rh = rollHangarId(); if (rollFromId() !== roomBase() || (rh && rh !== roomId())) { trip.anim = 'away'; next(); return; } }
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     benchFp = true;
     let over = false, h = null;
@@ -9800,7 +9859,7 @@
           baseRows[where] = { kind: 'select', sel, options: held.map(x => x.h), labels: held.map(x => x.b.name + ' · ' + hangarWords(x.b, x.h, doc)) };
           sel.onchange = e => {
             const r = typeof playerGoTo === 'function' ? playerGoTo(playerLoad(), e.target.value) : null;
-            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; }
+            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; roomFollow(); }   // G2310: the room is that hangar's
             routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset();
           };
           lab.appendChild(sel);
@@ -9845,7 +9904,8 @@
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
     // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
-    window.FLYDIY_PLAYER.onChange = () => { try { routeBuild($('edRoute'), 'garage'); routeBuild($('bootRoute'), 'rollout'); routeSync(); } catch (e) {} };
+    window.FLYDIY_PLAYER.onChange = () => { try { routeBuild($('edRoute'), 'garage'); routeBuild($('bootRoute'), 'rollout'); routeSync(); } catch (e) {}
+      try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
@@ -12086,6 +12146,16 @@
   }, { passive: false, capture: true });
   if (typeof window !== 'undefined') window.HEAD_CAM = headCam;
   // ---- end HEADCAM ---------------------------------------------------------
+  // G2310 (PREM-S3): THE WORLD SHOT'S EYE (tools/gameprem_world_shot.js, on A0's GPU box - the cloud cannot draw the world):
+  // the free camera put at p = [x, y, z] looking at t, in the world only. A developer's hook, as DEVCAM is; no UI.
+  if (typeof window !== 'undefined') window.FLYDIY_PREM_EYE = (p, t) => {
+    if (inGarage || !FL.ready) return false;
+    flCamMode('free');
+    devCam.pos.set(p[0], p[1], p[2]);
+    const dx = t[0] - p[0], dy = t[1] - p[1], dz = t[2] - p[2];
+    devCam.yaw = Math.atan2(dx, -dz); devCam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    return true;
+  };
   let flHdg0 = 0, flYawRate = 0, flEyeLoc = null, flEyeSrc = null;
   const hyP = new THREE.Vector3(), hyV = new THREE.Vector2();   // the hybrid's point and drawing buffer (FLOWN_BAKE.nearT)
   function flCamMode(m) {

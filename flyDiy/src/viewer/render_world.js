@@ -301,6 +301,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
   let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
   let shellDial = () => null;         // G600: the shed's merge dial (airfield block)
+  let playerSheds = () => 0;          // G2310 PREM-S3: stand the side hangars held at their plots (airfield block)
+  let playerShedsNow = () => [];      // ...and which stand now
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
   // frame in worldUpdate. uCam drives the impostor view direction (so it wants
   // the CHASE CAMERA, not the CG); uCG drives the shadow-pass cull, because the
@@ -5834,28 +5836,35 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return out;
     }
     let shedNode = null;
+    // the old building comes down whole: nothing in the exterior is a
+    // shared prop geometry, and material.dispose() leaves the memoised
+    // sheet textures alone (a dispose never takes maps with it)
+    // (G2310: shared by HOME's shed and the side hangars' - the same teardown)
+    function dropShed(node) {
+      scene.remove(node);
+      const mats = new Set();
+      node.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
+          .forEach(m => mats.add(m));
+      });
+      mats.forEach(m => m.dispose());
+    }
     function standShed(dims) {
       if (!(typeof genHangarBuild === 'function' &&
             typeof genHangarSupported === 'function' &&
             genHangarSupported(THREE))) return;
-      const H = SITE.hangar;
-      if (shedNode) {
-        // the old building comes down whole: nothing in the exterior is a
-        // shared prop geometry, and material.dispose() leaves the memoised
-        // sheet textures alone (a dispose never takes maps with it)
-        scene.remove(shedNode);
-        const mats = new Set();
-        shedNode.traverse(o => {
-          if (o.geometry) o.geometry.dispose();
-          if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
-            .forEach(m => mats.add(m));
-        });
-        mats.forEach(m => m.dispose());
-        shedNode = null;
-      }
+      if (shedNode) { dropShed(shedNode); shedNode = null; }
+      shedNode = shedNodeAt(SITE.hangar, dims);
+    }
+    // G2310 (PREM-S3): ONE SHED AT ONE PLACE - HOME's at the site's hangar (above), a side hangar at its plot (below):
+    // the same exterior build, merge, coarse rung, LOD and ground; `dress` (a held hangar's shell skin + its parts,
+    // dressExterior) is laid on the exterior's own materials BEFORE the merge, and is nothing at all when absent
+    function shedNodeAt(H, dims, dress) {
       const shed = genHangarBuild(THREE,
         dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE },
         { exterior: true, shell: dims && dims.shell });
+      if (dress) dressExterior(shed.mats, dims && dims.shell, dress);
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
@@ -5964,9 +5973,70 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       node.position.set(H.x, H.y !== undefined ? H.y : 0, H.z);
       node.rotation.y = H.ry;
       scene.add(node);
-      shedNode = node;
+      return node;
     }
     standShed(shedDims);
+    // G2310 (PREM-S3, GAME §4.4): THE SIDE HANGARS YOU HOLD, each at its plot (the premises record's `plots`, contract
+    // v1.33), at THAT hangar's shell and dims, dressed: `list` = [{ id, x, z, ry, y, dims { HW, HD, EAVE, shell }, dress }]
+    // from app.js (71_player_bases.js playerWorldSheds joined with the site's plot). A plot not held is not in the list
+    // and stands NOTHING (GQ8); HOME's shed is standShed's, never in it; at most two (GQ4). A shed is rebuilt only when
+    // its key (place, dims, shell, dress) changes; one no longer listed comes down. Residents are never drawn here: the
+    // exterior's doors are shut (premResidentsDrawn: an open door AND the camera within 60 m - FLEET-PROPS' to draw).
+    const sideSheds = new Map();   // id -> { key, node }
+    function setPlayerSheds(list) {
+      if (!(typeof genHangarBuild === 'function' && typeof genHangarSupported === 'function' && genHangarSupported(THREE))) return 0;
+      const want = new Map();
+      for (const q of (list || []).slice(0, 2)) if (q && q.id && q.id !== 'HOME' && isFinite(+q.x) && isFinite(+q.z)) want.set(q.id, q);
+      for (const [id, e] of sideSheds) if (!want.has(id)) { dropShed(e.node); sideSheds.delete(id); }
+      for (const [id, q] of want) {
+        const key = JSON.stringify([q.x, q.z, q.ry, q.y, q.dims, q.dress || null]);
+        const had = sideSheds.get(id);
+        if (had && had.key === key) continue;
+        if (had) dropShed(had.node);
+        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || null);
+        node.name = 'shed:' + id; node.userData.premPlot = id;
+        sideSheds.set(id, { key, node });
+      }
+      return sideSheds.size;
+    }
+    playerSheds = setPlayerSheds;
+    playerShedsNow = () => Array.from(sideSheds.keys());
+    // the exterior's own materials wearing a held hangar's dress (GAME-PREMISES §5.2: "the timber shed at Tamgas Hill is
+    // visibly the timber shed you stand in there"): the shell's skin (SHELLS[shell].skin, as the room's) under the
+    // player's parts (hangar.js PARTS' keys and state: { set, tile, rough, nrm }), on the outside surfaces that part names
+    // - the walls' outer skin (the timber shed's cladding), the roof's outer sheet, the doors, the stem. A set the payload
+    // lacks, or 'baked', leaves that surface as built. Textures from the same library the room wears (HANGAR_WALL_SETS,
+    // SITE_TEX_SETS); a page without Image (node) dresses nothing.
+    function dressExterior(M, shell, dress) {
+      if (typeof Image === 'undefined' || !M) return 0;
+      const skin = (typeof SHELLS !== 'undefined' && SHELLS[shell] && SHELLS[shell].skin) || {};
+      const want = Object.assign({}, skin, dress && dress.parts ? dress.parts : {});
+      const LIB = Object.assign({}, (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
+      const timber = shell === 'field';
+      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? M.wall : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
+      const tex = (img, srgb, tile) => {
+        if (Array.isArray(img) || !img) return null;
+        const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / tile, 1 / tile);
+        if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+        if (img.complete && img.naturalWidth) t.needsUpdate = true; else if (img.addEventListener) img.addEventListener('load', () => { t.needsUpdate = true; }, { once: true });
+        return t;
+      };
+      let n = 0;
+      for (const k in want) {
+        const st = want[k], L = st && st.set && st.set !== 'baked' ? LIB[st.set] : null;
+        if (!L || !TARGET[k]) continue;
+        const tile = Math.max(0.25, Math.min(12, +st.tile > 0 ? +st.tile : (L.tile || 2)));
+        for (const m of TARGET[k]) {
+          if (!m) continue;
+          const map = tex(L.diff, true, tile); if (!map) continue;
+          m.map = map; m.normalMap = tex(L.nor, false, tile); m.roughnessMap = tex(L.rough, false, tile);
+          m.roughness = Math.min(2, +st.rough >= 0 ? +st.rough : 1);
+          if (m.normalScale) { const k2 = +st.nrm >= 0 ? +st.nrm : 1; m.normalScale.set(k2, k2); }
+          m.needsUpdate = true; n++;
+        }
+      }
+      return n;
+    }
     let shedDimsNow = shedDims;
     setShedDims = dims => { shedDimsNow = dims; standShed(dims); };
     shellDial = o => { Object.assign(SHELL, o || {}); standShed(shedDimsNow); let n = 0; if (shedNode) shedNode.traverse(m => { if (m.isMesh) n++; }); return Object.assign({ meshes: n }, SHELL); };
@@ -7198,6 +7268,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },
            setShedDims: d => setShedDims(d),
+           setPlayerSheds: list => playerSheds(list), playerSheds: () => playerShedsNow(),   // G2310 PREM-S3
            shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)

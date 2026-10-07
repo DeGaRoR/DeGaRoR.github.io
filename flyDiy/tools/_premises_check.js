@@ -1250,6 +1250,57 @@ if (SELFTEST) {
   check(!O.excludeAt(wx[0], wx[1], 'trees') && O.excludeAt(wx[0], wx[1], 'plots'), "17 a strip with its own clearance: the box + 30 m keeps the plots, its clearance the trees");
 }
 
+// 18 THE PLOTS (G2310 PREM-S3, contract v1.34): a runway's `plots` [{ id, x, z, hdg, stand?, taxiOut?, taxiOut1? }] -
+// the record's `hangar` read as plot <runway id> verbatim; a field without plots composes to the very site it did (no
+// `plots` key); with them the hangar is byte-identical and every plot rides into the site in the world frame (a stand's
+// heading derived toward its first taxi point, as the field's); the round trip keeps them; issues() refuses a malformed
+// one (each row below is its own negative control: the bad record MUST be refused). The shipped Jolene has none.
+{
+  const F = { toWorld: (x, z) => [x + 1000, z - 500], toLocal: (x, z) => [x - 1000, z + 500], yaw: 0 };   // a moved frame: the plots follow it
+  const base = { id: 'HOME', c: [0, 0], hdg: 0, len: 800, wid: 30, hangar: { x: 100, z: 60, hdg: -1.5708 }, stand: { x: 100, z: 40, hdg: null }, taxiOut: [[90, 30], [0, 0]] };
+  const P0 = PG.runwayPlots(base);
+  check(P0.length === 1 && P0[0].id === 'HOME' && P0[0].main && P0[0].x === 100 && P0[0].z === 60 && P0[0].hdg === -1.5708, '18 the hangar is plot <runway id>, verbatim', JSON.stringify(P0));
+  const s0 = PG.runwaySite(base, F);
+  check(!('plots' in s0), '18 a field without plots composes to the site it did (no plots key)', Object.keys(s0).join(','));
+  const withP = Object.assign({}, base, { plots: [{ id: 'HOME.2', x: 200, z: 60, hdg: 3.1416, stand: { x: 170, z: 60, hdg: null }, taxiOut: [[150, 30], [0, 0]] }, { id: 'HOME.3', x: -50, z: 80, hdg: 0 }] });
+  const s1 = PG.runwaySite(withP, F);
+  check(JSON.stringify(s1.hangar) === JSON.stringify(s0.hangar) && JSON.stringify(s1.stand) === JSON.stringify(s0.stand) && JSON.stringify(s1.taxiOut) === JSON.stringify(s0.taxiOut),
+    '18 with plots the field\'s hangar, stand and way out are byte-identical');
+  const q0 = s1.plots[0], q1 = s1.plots[1], q2 = s1.plots[2];
+  check(s1.plots.length === 3 && q0.main && q0.x === s1.hangar.x && q0.z === s1.hangar.z && q0.hdg === s1.hangar.hdg && q0.ry === s1.hangar.ry, '18 the site\'s plots: HOME first, the hangar itself');
+  check(q1.id === 'HOME.2' && q1.x === 1200 && q1.z === -440 && Math.abs(q1.ry - (Math.PI - 3.1416)) < 1e-4 && q1.stand.x === 1170 && Math.abs(q1.stand.hdg - Math.atan2(-30, -20)) < 1e-4 && q1.taxiOut[0][0] === 1150,
+    '18 a plot rides into the world frame with its stand (heading toward its first taxi point) and way out', JSON.stringify(q1));
+  check(q2.id === 'HOME.3' && !q2.stand && !q2.taxiOut, '18 a plot with no way of its own carries none (the field\'s serves)');
+  // a lane: its site is its plots alone
+  const lane = { id: 'SEA', c: [0, 0], hdg: 0, len: 1500, wid: 200, surface: PG.SURFACE.WATER, plots: [{ id: 'SEA', x: 0, z: 300, hdg: -1.5708, stand: { x: 0, z: 250, hdg: null } }] };
+  const sl = PG.runwaySite(lane, F);
+  check(sl && sl.plots && sl.plots.length === 1 && !sl.hangar && !sl.stand && Math.abs(sl.plots[0].stand.hdg - (-1.5708)) < 1e-4, '18 a lane\'s site is its slipway plots alone (the slip\'s stand faces where its door does)', JSON.stringify(sl));
+  // the round trip
+  const recP = PG.normalise({ layers: { runways: [withP] } });
+  const back = PG.unwrap(PG.envelope('t', recP)).rec;
+  check(JSON.stringify(back.layers.runways[0].plots) === JSON.stringify(withP.plots), '18 the envelope round trip keeps the plots byte for byte');
+  check(PG.issues(recP).filter(m => /plot/.test(m)).length === 0, '18 well-formed plots raise no issue', PG.issues(recP).filter(m => /plot/.test(m))[0]);
+  // the refusals (each its own negative control)
+  const bad = (what, mut) => { const r = JSON.parse(JSON.stringify(withP)); mut(r); const iss = PG.issues(PG.normalise({ layers: { runways: [r] } })).filter(m => /plot/.test(m)); check(iss.length > 0, '18 refused: ' + what, iss[0] || 'no issue'); };
+  bad('a plot without a place', r => { delete r.plots[0].x; });
+  bad('a plot without an id', r => { delete r.plots[1].id; });
+  bad('a plot named twice', r => { r.plots[1].id = 'HOME.2'; });
+  bad('a plot named as the hangar it duplicates', r => { r.plots[1].id = 'HOME'; });
+  bad('a way out with no stand', r => { delete r.plots[0].stand; });
+  bad('a way out that is not a list of points', r => { r.plots[0].taxiOut = [[1, 'x']]; });
+  bad('plots that are not a list', r => { r.plots = { id: 'x' }; });
+  {
+    const two = PG.normalise({ layers: { runways: [withP, Object.assign({}, base, { id: 'w3', c: [3000, 0], hangar: null, stand: null, taxiOut: null, plots: [{ id: 'HOME.2', x: 3000, z: 60 }] })] } });
+    check(PG.issues(two).some(m => /HOME\.2 is named twice/.test(m)), '18 refused: a plot id held by two runways (a plot id is a hangar id)');
+  }
+  // the shipped record: every plot well-formed
+  for (const fx of fixtures) {
+    const rec = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fx), 'utf8')).rec;
+    const n = rec.layers.runways.reduce((k, r) => k + (Array.isArray(r.plots) ? r.plots.length : 0), 0);
+    if (n) check(PG.issues(rec).filter(m => /plot/.test(m)).length === 0, '18 ' + path.basename(fx) + ': its ' + n + ' plots are well-formed');
+  }
+}
+
 // ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

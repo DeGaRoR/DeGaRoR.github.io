@@ -48,6 +48,15 @@
 //                 clock at each flight's end, the derived bases on the base
 //                 line, the fleet popup's place badge.
 //
+//   THE WORLD     (G2310 PREM-S3) the plots in the premises record (contract v1.34): every offered plot placed in
+//                 Jolene's record but the one declared unplaced (tw_ski: no free flat ground), no plot the offers do not
+//                 name, HOME's plot the club hangar verbatim; the world stands the held hangars only (GQ8), main + two
+//                 at most (GQ4), each at its own shell / dims / dress; residents behind an open door within 60 m only;
+//                 the roll-out leaves from the hangar the aeroplane is in (the plot's stand and way out; HOME's site
+//                 untouched); and THE SANDBOX WORLD WITH ONLY HOME HELD IS TODAY'S: Jolene composed with the plots and
+//                 without them gives the same aerodromes, the same ground and the same sites but for the `plots` key,
+//                 and the page's side-shed list for the sandbox is empty (nothing built: setPlayerSheds lifted from
+//                 render_world.js, HOME's shed still standShed's own undressed build). The page's doors, source-scanned.
 //   node tools/_gameprem_check.js            -> "GATE GAMEPREM: PASS|FAIL"
 //   node tools/_gameprem_check.js --show     also print the ROOM table
 //   node tools/_gameprem_check.js --selftest -> negative verification: the
@@ -83,7 +92,25 @@ const NAMES = ['PLAYER_V', 'PLAYER_MIGRATORS', 'playerMigrate', 'playerDefault',
   'playerGoTo', 'playerClock', 'playerLabourFactor',
   'PREM_MAIN', 'PREM_SIDE_MAX', 'PREM_SLOTS', 'PREM_WEAR', 'playerLedger', 'playerIsMain', 'playerSideIds', 'playerSlots',
   'playerFits', 'playerWearNow', 'playerWearReset', 'playerWearMacro', 'playerWearSpec', 'playerFootOfDef', 'playerPlace',
-  'playerBringHome', 'playerRollFrom', 'FLIGHT_BASES', 'flightBasesOf', 'flightBases', 'flightBase'];
+  'playerBringHome', 'playerRollFrom', 'FLIGHT_BASES', 'flightBasesOf', 'flightBases', 'flightBase',
+  'PREM_WORLD', 'playerWorldSheds', 'premResidentsDrawn', 'playerRollHangar', 'playerPlotSite'];
+const RW_JS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+// G2310 (PREM-S3): Jolene composed TWICE, once (the record as shipped, its plots) and once with every `plots` stripped (the
+// record as it was before the amendment) - outside run(), so the selftest's forty runs reuse them
+const WORLD3 = (() => {
+  const IN = require('./island_node.js');
+  const snap = rec => {
+    const W = IN.islandWorld('jolene', { premises: JSON.stringify(rec) });
+    const sites = {}; for (const a of W.aerodromes) { const st = CORE.siteOf(a.id); sites[a.id] = st ? JSON.parse(JSON.stringify(st)) : null; }
+    const aero = JSON.stringify(W.aerodromes.map(a => { const o = {}; for (const k in a) if (typeof a[k] !== 'function') o[k] = a[k]; return o; }));
+    let gh = 0; for (let x = -5000; x <= 10000; x += 250) for (let z = -16000; z <= 1400; z += 250) { const h = W.terrainH(x, z); gh = (Math.imul(gh, 31) + Math.round(h * 1000)) | 0; }
+    for (const a of W.aerodromes) for (let k = -60; k <= 60; k += 4) for (let j = -60; j <= 60; j += 4) { const h = W.terrainH(a.x + k, a.z + j); gh = (Math.imul(gh, 31) + Math.round(h * 1000)) | 0; }
+    return { W, sites, aero, gh };
+  };
+  const rec0 = JSON.parse(JSON.stringify(JOLENE)); for (const r of rec0.layers.runways) delete r.plots;
+  const before = snap(rec0), after = snap(JOLENE);   // `after` last: the registry (AIRFIELD_SITES) holds the shipped record's sites
+  return { before, after };
+})();
 // the two files, evaluated FRESH over the core's globals, so the selftest can
 // doctor exactly the rules under test and nothing else
 function loadRules(mut) {
@@ -93,7 +120,7 @@ function loadRules(mut) {
   if (mut && mut.src38b) c = mut.src38b(c);
   const ctx = vm.createContext(Object.assign({ console }, CORE));
   vm.runInContext(c + '\n' + a + '\n' + b + '\n;this.__R = { ' + NAMES.join(', ') + ' };', ctx, { filename: 'rules' });
-  return Object.assign(ctx.__R, { __src71: b,
+  return Object.assign(ctx.__R, { __src71: b, __rw: (mut && mut.rw) ? mut.rw(RW_JS) : RW_JS,
     __app: (mut && mut.app) ? mut.app(APP_JS) : APP_JS, __garage: (mut && mut.garage) ? mut.garage(GARAGE_JS) : GARAGE_JS });
 }
 
@@ -570,6 +597,91 @@ function run(mut) {
     ok(/api\.place\(/.test(rf) && /gfAway/.test(rf) && /fly from there\?/.test(rf), 'page: the fleet popup carries the place badge and greys an aeroplane elsewhere ("fly from there?")');
   }
 
+  // ==== THE WORLD (S3, G2310): the plots, the sheds the world stands, the roll-out at any base ==================
+  {
+    const UNPLACED = { tw_ski: 'the summit has no free flat ground for a field shed (PREM-S3 HANDOVER: measured, none within 260 m)' };
+    const recPlots = {};
+    for (const r of JOLENE.layers.runways) for (const p of CORE.PREMISES_GEN.runwayPlots(Object.assign({ hangar: null }, r))) recPlots[p.id] = Object.assign({ aero: r.id }, p);
+    for (const aero of Object.keys(R.BASE_OFFERS)) for (const id of Object.keys(R.BASE_OFFERS[aero].plots)) {
+      if (UNPLACED[id]) { ok(!recPlots[id], 'S3 ' + id + ' is declared unplaced and the record has no plot for it (' + UNPLACED[id] + ')'); continue; }
+      ok(!!recPlots[id] && recPlots[id].aero === aero, 'S3 the offered plot ' + id + ' has its place in the record, on ' + aero, recPlots[id] ? recPlots[id].aero : 'none');
+    }
+    for (const id of Object.keys(recPlots)) ok(Object.keys(R.BASE_OFFERS).some(a => R.BASE_OFFERS[a].plots[id]), 'S3 the record\'s plot ' + id + ' is one the offers name');
+    const hr = JOLENE.layers.runways.find(r => r.id === 'HOME');
+    ok(recPlots.HOME && recPlots.HOME.main && recPlots.HOME.x === hr.hangar.x && recPlots.HOME.z === hr.hangar.z && recPlots.HOME.hdg === (hr.hangar.hdg || 0),
+       'S3 plot HOME is the club hangar, verbatim (G434\'s record)');
+    // the world's sheds: GQ8, GQ4
+    const sb = R.playerNormalise(R.playerMigrate(R.playerDefault()));
+    const ws0 = R.playerWorldSheds(sb);
+    ok(ws0.length === 1 && ws0[0].id === 'HOME' && ws0[0].main, 'S3 GQ8: the sandbox stands HOME alone (no plot it does not hold)', J(ws0.map(x => x.id)));
+    let h3 = R.playerAcquire(sb, 'w3', 'w3', 'field', 'own').doc;
+    h3 = R.playerAcquire(h3, 'HOME', 'HOME.2', 'club', 'own').doc;
+    h3.sheds.w3.parts = { doorMain: { set: 'rawplank', tile: 2 } };
+    const ws3 = R.playerWorldSheds(h3);
+    ok(eq(ws3.map(x => x.id), ['HOME', 'w3', 'HOME.2']) || eq(ws3.map(x => x.id), ['HOME', 'HOME.2', 'w3']), 'S3 the held hangars stand, main first', J(ws3.map(x => x.id)));
+    const w3s = ws3.find(x => x.id === 'w3');
+    ok(w3s && w3s.shell === 'field' && eq(w3s.dims, R.hangarDims(h3.sheds.w3)) && w3s.parts && w3s.parts.doorMain.set === 'rawplank' && w3s.base === 'w3',
+       'S3 a side hangar stands at ITS shell, dims and dress', J(w3s));
+    ok(!ws3.some(x => x.id === 'SEA' || x.id === 'mk_sea' || x.id === 'mn_strip'), 'S3 GQ8: the plots not held stand nothing');
+    const leg = clone(h3); leg.sheds.SEA = { shell: 'field', kits: ['park'], base: 'SEA', tenure: 'own', since: 99, legacy: true };
+    const wsL = R.playerWorldSheds(R.playerNormalise(leg));
+    ok(wsL.length === 3 && !wsL.some(x => x.id === 'SEA'), 'S3 GQ4: at most three player hangars ever stand (an older document\'s extra one works, and is not drawn)', J(wsL.map(x => x.id)));
+    ok(R.premResidentsDrawn(true, 59.9) && !R.premResidentsDrawn(false, 5) && !R.premResidentsDrawn(true, 60.1) && R.PREM_WORLD.residentsR === 60,
+       'S3 residents are drawn only behind an open door with the camera within 60 m');
+    // where the roll-out leaves from
+    let f3 = R.playerFleetReconcile(h3, ['Cub', 'Jodel']).doc;
+    f3.fleet.Cub = Object.assign(f3.fleet.Cub, { hangar: 'w3', aero: 'w3' });
+    f3.fleet.Jodel = Object.assign(f3.fleet.Jodel, { hangar: null, aero: 'w3' });
+    ok(R.playerRollHangar(f3, 'Cub') === 'w3' && R.playerRollHangar(f3, 'Jodel') === null && R.playerRollHangar(f3, null) === 'HOME'
+       && R.playerRollHangar(R.playerGoTo(f3, 'w3').doc, null) === 'w3', 'S3 the roll-out leaves the hangar it is in (none when tied down; an unsaved build the garage\'s)');
+    const S = WORLD3.after.sites;
+    const pH = R.playerPlotSite(S.HOME, 'HOME', h3.sheds.HOME);
+    ok(pH.site === S.HOME && !pH.own, 'S3 a roll-out from HOME plans on HOME\'s own site, the very object');
+    const pW = R.playerPlotSite(S.w3, 'w3', h3.sheds.w3), P3 = S.w3.plots.find(q => q.id === 'w3');
+    ok(pW.own && pW.site.stand.x === P3.stand.x && pW.site.stand.z === P3.stand.z && eq(pW.site.taxiOut, P3.taxiOut) && pW.site.hangar.x === P3.x && pW.site.hangar.HD === R.hangarDims(h3.sheds.w3).HD && !pW.site.pattern,
+       'S3 a roll-out from w3\'s side hangar plans from its door: the plot\'s stand and way out, its own dims (no walk)', J(pW.site.stand));
+    const pM = R.playerPlotSite(S.mn_strip, 'mn_strip', { shell: 'field' });
+    ok(!pM.own && pM.site.stand === S.mn_strip.stand && !!pM.site.pattern && pM.site.hangar.x === 7273, 'S3 a plot with no way of its own (the mine\'s shed) rolls out on the field\'s stand and authored pattern');
+    // THE SANDBOX WORLD WITH ONLY HOME HELD IS TODAY'S
+    const B = WORLD3.before, A2 = WORLD3.after;
+    ok(B.aero === A2.aero, 'S3 identity: the aerodromes the world composes are the same with the plots in the record');
+    ok(B.gh === A2.gh, 'S3 identity: the ground is the same to the millimetre (a plot is a place, not a modifier)', B.gh + ' / ' + A2.gh);
+    const strip = o => { if (!o) return o; const c = clone(o); delete c.plots; return Object.keys(c).length ? c : null; };   // (a lane's site is its plots alone: none before)
+    for (const id of Object.keys(B.sites)) ok(eq(strip(A2.sites[id]), B.sites[id]), 'S3 identity: the site of ' + id + ' is the same but for its plots', J(B.sites[id]).slice(0, 80));
+    ok(eq(A2.sites.HOME.hangar, B.sites.HOME.hangar), 'S3 identity: HOME\'s hangar byte for byte');
+    ok(!eq(A2.sites.HOME, B.sites.HOME) && !!A2.sites.HOME.plots && !B.sites.HOME.plots, 'S3 identity, calibrated: the two composes DO differ - by the plots, and only by them (the rows above can see a difference)');
+    // the page's side sheds for the sandbox: nothing (app.js worldSideSheds, render_world.js setPlayerSheds - lifted, run)
+    const lift = (src, a, b) => { const i = src.indexOf(a), j = i < 0 ? -1 : src.indexOf(b, i); return i < 0 || j < 0 ? null : src.slice(i, j); };
+    const wssSrc = lift(R.__app, '  const worldSideSheds = () => {', '  // the world follows the room');
+    const spsSrc = lift(R.__rw, '    const sideSheds = new Map();', '    playerSheds = setPlayerSheds;');
+    ok(!!wssSrc && !!spsSrc, 'S3 the page\'s side-shed doors are where they were (app.js worldSideSheds, render_world.js setPlayerSheds)');
+    if (wssSrc && spsSrc) {
+      const built = [];
+      const ctx = vm.createContext({ playerWorldSheds: R.playerWorldSheds, siteOf: id => S[id] || null, THREE: {}, console, JSON, Map, Array, isFinite, Object,
+        genHangarBuild: () => null, genHangarSupported: () => true, dropShed: () => {}, shedNodeAt: (H, d, dr) => { built.push([H, d, dr]); return { name: '', userData: {} }; } });
+      const run3 = doc => { built.length = 0; ctx.__doc = doc; vm.runInContext('(function () { var playerLoad = () => __doc; var playerSheds, playerShedsNow;\n' + wssSrc + '\n' + spsSrc + '\nthis.__n = setPlayerSheds(worldSideSheds()); this.__list = worldSideSheds(); }).call(this);', ctx); return { n: ctx.__n, list: ctx.__list, built: built.slice() }; };
+      const r0 = run3(sb);
+      ok(r0.list.length === 0 && r0.n === 0 && r0.built.length === 0, 'S3 identity: the sandbox (HOME only) lists no side shed and the world builds none', J(r0.list));
+      const r3 = run3(h3);
+      ok(r3.built.length === 2 && r3.built.every(b => b[0] && isFinite(b[0].x)) && r3.list.find(q => q.id === 'w3').x === P3.x && r3.list.find(q => q.id === 'w3').dims.shell === 'field'
+         && r3.list.find(q => q.id === 'w3').dress.parts.doorMain.set === 'rawplank', 'S3 two side hangars held: two sheds built, each at its plot, at its shell, dressed', J(r3.list.map(q => q.id)));
+    }
+    ok(/function standShed\(dims\) \{[\s\S]{0,400}shedNode = shedNodeAt\(SITE\.hangar, dims\);/.test(R.__rw), 'S3 identity: HOME\'s shed is standShed\'s own build, undressed (no third argument)');
+    ok(/if \(dress\) dressExterior\(shed\.mats/.test(R.__rw), 'S3 a shed is dressed only when it is handed a dress');
+    // the page's doors (S3)
+    {
+      const strip2 = t => t.replace(/\/\/[^\n]*/g, '');
+      const A3 = strip2(R.__app);
+      const fnB = (src, name) => { const i = src.indexOf('function ' + name + '('); if (i < 0) return ''; const j = src.indexOf('\n  }\n', i); return src.slice(i, j < 0 ? i + 4000 : j); };
+      ok(/const shedHome = \(\) => playerLoad\(\)\.sheds\[roomId\(\)\];/.test(A3), 'S3 page: the room is the hangar the garage is open in (`here`)');
+      ok(/hangarRoom !== roomId\(\)/.test(fnB(A3, 'getHangar')) && /site: roomSite/.test(fnB(A3, 'getHangar')), 'S3 page: a new `here` builds the room again, at its plot');
+      ok(/rollFromId\(\) !== roomBase\(\) \|\| \(rh && rh !== roomId\(\)\)/.test(fnB(A3, 'rollAnim')), 'S3 page: the roll-out shot plays from the room\'s door at any base');
+      ok(/playerPlotSite\(st0, rh, playerLoad\(\)\.sheds\[rh\]\)\.site/.test(fnB(A3, 'applyRoute')) && /shedDimsAt\(from\.id, st, rh\)/.test(fnB(A3, 'applyRoute')), 'S3 page: the roll-out starts at its hangar\'s plot (stand, way out, dims)');
+      ok(/r\.kind === 'in' && r\.hangar && r\.hangar !== d\.here[\s\S]{0,80}playerGoTo\(d, r\.hangar\)/.test(fnB(A3, 'playerFlightEnd')), 'S3 page: the roll-in returns into the hangar playerArrive chose (the garage opens there)');
+      ok(/WF\.setPlayerSheds\(worldSideSheds\(\)\)/.test(fnB(A3, 'worldBuilt')), 'S3 page: the side hangars stand when the world is built');
+    }
+  }
+
   // ==== PURITY =====================================================================
   const code = R.__src71.replace(/\/\/[^\n]*/g, '');
   ok(!/\b(window|document|localStorage|THREE|prefSet|prefGet)\b/.test(code), 'the rules touch no DOM, storage or THREE');
@@ -638,6 +750,19 @@ const BREAKS = [
   ['the flight\'s end leaves the clock', { app: sub('let d = playerClock(playerLoad(), Math.max(0, ap.t || 0)).doc;', 'let d = playerLoad();') }],
   ['the page rolls out from the base, always', { app: sub('const [fid, did] = routeFitted(gearNow, rollFromId(), destId);', 'const [fid, did] = routeFitted(gearNow, spawnId || baseAeroId(), destId);') }],
   ['the fleet popup carries no place', { garage: sub('try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }', 'P = null;') }],
+  // G2310 (PREM-S3)
+  ['S3 GQ8: a plot not held stands a shed', { src71: sub('  if (S[PREM_MAIN]) one(PREM_MAIN, true);', '  if (S[PREM_MAIN]) one(PREM_MAIN, true);\n  for (const a in BASE_OFFERS) for (const id in BASE_OFFERS[a].plots) if (!S[id]) out.push({ id, base: a, shell: \'field\', dims: {}, main: false });') }],
+  ['S3 GQ4: an older document\'s fourth hangar stands', { src71: s => sub('return out.slice(0, PREM_WORLD.maxSheds);', 'return out;')(sub('playerSideIds(doc).slice(0, PREM_SIDE_MAX)', 'playerSideIds(doc)')(s)) }],
+  ['S3 a side hangar stands undressed', { src71: sub('parts: s.parts ? pbClone(s.parts) : null,', 'parts: null,') }],
+  ['S3 residents drawn behind a shut door', { src71: sub('return !!doorOpen && +camDist <= PREM_WORLD.residentsR;', 'return +camDist <= PREM_WORLD.residentsR;') }],
+  ['S3 the roll-out from a side hangar leaves on the field\'s stand', { src71: sub('  out.stand = Object.assign({}, P.stand);\n', '') }],
+  ['S3 a tied-down aeroplane rolls out of a door', { src71: sub("  if (W.kind !== 'none') return null;\n", '') }],
+  ['S3 page: the room is always HOME\'s', { app: sub('const shedHome = () => playerLoad().sheds[roomId()];', 'const shedHome = () => playerLoad().sheds.HOME;') }],
+  ['S3 page: the shot plays only from HOME\'s door', { app: sub('if (rollFromId() !== roomBase() || (rh && rh !== roomId()))', "if (rollFromId() !== 'HOME')") }],
+  ['S3 page: the roll-out ignores its hangar\'s plot', { app: sub('playerPlotSite(st0, rh, playerLoad().sheds[rh]).site : st0;', 'st0 : st0;') }],
+  ['S3 page: the roll-in leaves the garage where it was', { app: sub("if (r.ok && r.kind === 'in' && r.hangar && r.hangar !== d.here && typeof playerGoTo === 'function')", 'if (false)') }],
+  ['S3 page: the sandbox world builds a side shed for HOME', { rw: sub("if (q && q.id && q.id !== 'HOME' && isFinite(+q.x)", 'if (q && q.id && isFinite(+q.x)'), app: sub('        if (h.main) continue;\n', '') }],
+  ['S3 page: the side hangars never stand', { app: sub('    try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) { console.warn', '    try { } catch (e) { console.warn') }],
 ];
 let bad = 0;
 for (const [name, mut] of BREAKS) {

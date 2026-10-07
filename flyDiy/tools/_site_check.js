@@ -38,6 +38,17 @@
 //               and the windbreak and the straw bales both used to.
 //   THE SHED    the declared dims match hangar.js's own defaults, so the
 //               building in the world is the room you stand in.
+//   THE PLOTS   (G2310 PREM-S3, premises contract v1.34) every plot of
+//               Jolene's record, composed: the frame round-trips through
+//               the plot's own shed; plot HOME is the club hangar byte for
+//               byte; on land the footprint of the largest shell the plot is
+//               offered with stands IN ITS FIELD (fleetField: the strip's
+//               box and its apron reach) on LEVEL ground (the composed
+//               ground's spread under it within FLEET_SPOT.flatTol, 0.6 m)
+//               and the door faces the plot's stand; a slipway (water) has
+//               its shed on dry shore and its stand afloat in the lane's
+//               field. Calibrated inline (a plot moved onto the slope, its
+//               door turned away, its slip's stand ashore) and in --selftest.
 //
 // NEGATIVE-VERIFIED: --selftest breaks each rule in turn and requires the
 // matching check to fail. A gate that has never failed has never been tested.
@@ -450,7 +461,84 @@ function run(mut) {
 }
 
 // --------------------------------------------------------------------------
+// ---- G2310 (PREM-S3): THE PLOTS, on Jolene composed -------------------------------------------------------------
+// IN A CHILD PROCESS: composing the island writes its sites (and its world) into the core's shared state, and the
+// analytic blocks above read that state - two of their selftest breaks went unseen in one process. The child composes
+// Jolene, runs the plot rows (and their calibrations, or one selftest break), and prints its verdict as JSON.
+// the footprint of the largest shell a plot is offered with (BASE_OFFERS: the plot's dims per shell, else the shell's own)
+const plotFoot = id => { for (const a in CORE.BASE_OFFERS) { const P = CORE.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
+  for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || CORE.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD, water: !!P.water }; } return null; };
+const PLOT_MUTS = {
+  // the inline calibrations (every run): w3 moved 40 m down the slope, HOME.2 turned away from its stand, SEA's slip stand ashore
+  'cal: a plot on the slope': S => { const p = S.w3.plots.find(q => q.id === 'w3'); p.x += 40; p.z -= 30; },
+  'cal: a plot turned away from its stand': S => { const p = S.HOME.plots.find(q => q.id === 'HOME.2'); p.hdg += Math.PI; p.ry -= Math.PI; },
+  "cal: a slipway's stand ashore": S => { const p = S.SEA.plots.find(q => q.id === 'SEA'); p.stand.x = p.x; p.stand.z = p.z; },
+  // the --selftest breaks
+  'a plot moved off its field': S => { const p = S.mn_strip.plots[0]; p.x += 900; },
+  'HOME\'s plot is not the club hangar': S => { S.HOME.plots[0].x += 1; },
+  'a plot\'s frame drifts': S => { S.HOME.plots[1].ry += 0.3; },
+};
+function plotRun(W, sites0, mut) {
+  const fl = [], ck = { n: 0 };
+  const okp = (c, msg) => { ck.n++; if (!c) fl.push(msg); };
+  const sites = JSON.parse(JSON.stringify(sites0));
+  if (mut) mut(sites, W);
+  let n = 0;
+  for (const a of W.aerodromes) {
+    const st = sites[a.id]; if (!st || !st.plots) continue;
+    for (const p of st.plots) {
+      n++;
+      // the shed's own frame as the world stands it (render_world: position at the plot, rotation.y = ry; hangar.js draws
+      // the door at local -x): local -> world -> local round-trips, and the door faces the plot's heading
+      const c = Math.cos(p.ry), sn = Math.sin(p.ry);
+      const toW = (lx, lz) => [p.x + lx * c + lz * sn, p.z - lx * sn + lz * c], toL = (wx, wz) => { const dx = wx - p.x, dz = wz - p.z; return [dx * c - dz * sn, dx * sn + dz * c]; };
+      for (const [lx, lz] of [[0, 0], [-7, 3], [11, -4]]) { const w = toW(lx, lz), b = toL(w[0], w[1]); okp(Math.abs(b[0] - lx) < 1e-9 && Math.abs(b[1] - lz) < 1e-9, 'plot ' + p.id + ': the frame round-trips at (' + lx + ', ' + lz + ')'); }
+      { const w = toW(-1, 0), f = [w[0] - p.x, w[1] - p.z]; okp(Math.abs(f[0] - Math.cos(p.hdg)) < 1e-3 && Math.abs(f[1] - Math.sin(p.hdg)) < 1e-3, 'plot ' + p.id + ': the door (local -x) faces its heading under rotation.y = ry'); }
+      if (p.main) { okp(st.hangar && p.x === st.hangar.x && p.z === st.hangar.z && p.hdg === st.hangar.hdg && p.ry === st.hangar.ry && p.y === st.hangar.y, 'plot ' + p.id + ' is the club hangar byte for byte'); continue; }
+      const F = plotFoot(p.id);
+      okp(!!F, 'plot ' + p.id + ' is one the offers name'); if (!F) continue;
+      const fx = Math.cos(p.hdg), fz = Math.sin(p.hdg), nx = -fz, nz = fx, pts = [];
+      for (let u = -F.HD; u <= F.HD + 1e-9; u += F.HD / 4) for (let v = -F.HW; v <= F.HW + 1e-9; v += F.HW / 4) pts.push([p.x + fx * u + nx * v, p.z + fz * u + nz * v]);
+      const wl = (x, z) => (typeof W.waterH === 'function' ? W.waterH(x, z) : -Infinity);
+      if (F.water) {
+        okp(pts.every(q => W.terrainH(q[0], q[1]) > wl(q[0], q[1]) + 0.3), 'slipway ' + p.id + ': its shed stands on dry shore');
+        const sw = p.stand ? CORE.flightWhere(W, p.stand.x, p.stand.z, {}) : null;
+        okp(!!p.stand && sw.kind === 'water' && sw.id === a.id && W.terrainH(p.stand.x, p.stand.z) < wl(p.stand.x, p.stand.z) - 1, 'slipway ' + p.id + ': its stand is afloat in ' + a.id + "'s field" + (sw ? ' (' + sw.kind + ' ' + sw.id + ')' : ''));
+      } else {
+        const field = CORE.fleetField(a, st, []);
+        okp(pts.every(q => field(q[0], q[1])), 'plot ' + p.id + ': its footprint (' + (2 * F.HW) + ' x ' + (2 * F.HD) + ' m) is in its field');
+        const hs = pts.map(q => W.terrainH(q[0], q[1])), spread = Math.max(...hs) - Math.min(...hs);
+        okp(spread <= CORE.FLEET_SPOT.flatTol + 1e-9, 'plot ' + p.id + ': on level ground (' + spread.toFixed(2) + ' m under the footprint, ' + CORE.FLEET_SPOT.flatTol + ' at most)');
+        okp(pts.every(q => !(wl(q[0], q[1]) > W.terrainH(q[0], q[1]) - 0.2)), 'plot ' + p.id + ': dry');
+      }
+      const S = p.stand || st.stand;
+      okp(!!S && (S.x - p.x) * fx + (S.z - p.z) * fz > (p.stand ? F.HD : -Infinity), 'plot ' + p.id + ': the door faces ' + (p.stand ? 'its own stand, past the door line' : 'the field'));
+    }
+  }
+  okp(n >= 6, 'Jolene composes its plots (' + n + ')');
+  return { fails: fl, checks: ck.n };
+}
+if (process.argv.includes('--plots-child')) {
+  const IN = require('./island_node.js');
+  const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8') });
+  const sites = {}; for (const a of W.aerodromes) sites[a.id] = JSON.parse(JSON.stringify(CORE.siteOf(a.id) || null));
+  const which = process.argv[process.argv.indexOf('--plots-child') + 1];
+  const out = { base: plotRun(W, sites, null), cal: {} };
+  if (which && which !== '-') out.brk = plotRun(W, sites, PLOT_MUTS[which]);
+  else for (const k of Object.keys(PLOT_MUTS).filter(k => /^cal: /.test(k))) out.cal[k] = plotRun(W, sites, PLOT_MUTS[k]).fails.length;
+  process.stdout.write('\n@@PLOTS ' + JSON.stringify(out) + '\n');
+  process.exit(0);
+}
+const plotChild = which => {
+  const txt = require('child_process').execFileSync(process.execPath, [__filename, '--plots-child', which || '-'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  const line = txt.split('\n').find(l => l.indexOf('@@PLOTS ') === 0);
+  if (!line) throw new Error('the plots child printed no verdict');
+  return JSON.parse(line.slice(8));
+};
+const PLOTC = plotChild(null), PLOT0 = PLOTC.base;
+for (const k of Object.keys(PLOTC.cal)) { PLOT0.checks++; if (!(PLOTC.cal[k] > PLOT0.fails.length)) PLOT0.fails.push('calibration: ' + k.slice(5) + ' is not seen'); }
 const base = run(null);
+base.fails.push(...PLOT0.fails); base.checks += PLOT0.checks;
 if (!SELF) {
   for (const f of base.fails) console.log('  - ' + f);
   // the runner matches ^GATE SITE: PASS$ exactly, so the count goes above it
@@ -532,9 +620,11 @@ const BREAKS = [
     const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
     P.nodes.find(n => n.id === 'hold0').x = -900; S.pattern = P; } }],
 ];
+// G2310: the plots broken in the composed record's sites (the child's own mutations: PLOT_MUTS)
+for (const name of Object.keys(PLOT_MUTS).filter(k => !/^cal: /.test(k))) BREAKS.push([name, { plot: name }]);
 let bad = 0;
 for (const [name, mut] of BREAKS) {
-  const r = run(mut);
+  const r = mut.plot ? (q => ({ fails: base.fails.concat(q.brk.fails.length > q.base.fails.length ? ['the plots: ' + q.brk.fails[0]] : []) }))(plotChild(mut.plot)) : run(mut);
   const caught = r.fails.length > base.fails.length;
   console.log((caught ? '  caught  ' : '  MISSED  ') + name +
     (caught ? '  (' + (r.fails.length - base.fails.length) + ' new)' : ''));

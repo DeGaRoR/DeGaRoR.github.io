@@ -1,0 +1,18 @@
+  ok: BOOT defined, first picture on, a phase set: reading the scripts
+  ok: three steps in order, the throwing one logged and skipped, state landing
+  ok: required keys gate the lift, optional (trees) and never-expected (skin) do not; a failed landing balances; three quiet frames; the roll-out's first picture fetched at the lift
+boot: test - never landed: the forest 1/3
+  ok: second set shown and run; watchdogs armed (4 timers) without recursion (depth 4); fail() lists "the forest 1/3"
+  ok: img() dedupes a shared Image, a broken one lands as failed
+  ok: the shaders block: count and bar, warm/cold words, pending re-arms the watchdog, hidden on null and on hide
+  ok: 66 cards well-formed (now 6, island 10, game 10, fly 18, garage 22)
+  ok: the deck: NOW card first, prev/next wrap, a picture item crossfades and fetches the next one, the place kept (54 items)
+  ok: the bar never went back over 108 samples (a falling ring count, sub(), the landing), full at the lift
+  ok: the weights are the kept ms (4500 ms for the list), the words cold then warm
+  ok: a settings screen over the world wears the world's pictures and its own NOW card; the procedural world deals no island card
+boot: hard timeout
+  ok: a run the watchdog lifted finishes its chain quietly (one done(), still gone, not busy)
+boot: hard timeout
+  ok: a lifted screen's chain finishing under a newer one neither advances it nor speaks on it
+GATE BOOT: PASS
+exit 0

@@ -936,3 +936,22 @@ after the freeze, against this document.
     after the parts (a band set on a named entry or item, the kits and the clearances appended with `sg_` ids); the
     fixture stays output.
   - **GATE PREMISES 17a-17g** hold the mechanism on a record of its own (synth); GATE STAGES holds Jolene's.
+- **v1.34 (2026-10-07, PREM-S3 G2310; numbered v1.33 on its branch - the GAME COORDINATOR's integration put it after STAGES' v1.33).** A **runway
+  may carry `plots`**: `[{ id, x, z, hdg, stand?, taxiOut?, taxiOut1?, slip? }]` in the premises frame - where a
+  player's hangar MAY stand on this field. A plot id is the HANGAR id its holder gets (71_player_bases.js BASE_OFFERS
+  names them), so it is unique in the record (issues() refuses a second, across runways too). **The record's `hangar`
+  is the field's first plot, its id the runway's own**: `runwayPlots(r)` reads it as plot `<runway id>` verbatim
+  (`main: true`) - nothing at a field that had a hangar moves, and the site's `hangar` is still the record's `hangar`
+  alone (a field with plots and no hangar gains none). A plot's `stand` / `taxiOut` / `taxiOut1` are its OWN way out
+  (the roll-out from that hangar's door: the stand's heading derived toward its first taxi point, as the field's;
+  `taxiOut` needs its `stand`); absent, the field's stand and pattern serve. `runwaySite` carries every plot into the
+  site in the world frame as `site.plots` (`{ id, x, z, hdg, ry = pi - hdg, y, stand?, taxiOut?, main? }`, y and
+  the stand's `elev` the composed ground) - ONLY when the record authors `plots`, so a field without them composes to
+  the very site it did. **A plot on a WATER field is a slipway**: its shed on the shore, its `stand` on the water off
+  the slip (no way out: the lane is the field); a lane's site is then its plots alone (`{ plots }`; null as before
+  without them). **A plot is a place, not a building**: the world stands a shed on it only while the player holds it
+  (GAME §R GQ8; render_world.js setPlayerSheds), and a plot adds no modifier - the ground is the same to the
+  millimetre (GATE GAMEPREM's identity rows). Jolene's plots: tools/prem_plots_author.py (HOME.2, w3, mn_strip - no
+  way of its own: the street's authored pattern is MILL-TAXI's -, SEA, mk_sea; none for tw_ski: the summit has no free
+  flat ground). Held by GATE PREMISES 18, SITE (THE PLOTS), TAXICLEAR 11, GAMEPREM (THE WORLD). The editor's handle per
+  plot (the runway inspector's hangar handle, once per plot) is owed.
