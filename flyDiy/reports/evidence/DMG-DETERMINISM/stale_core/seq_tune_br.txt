@@ -1,0 +1,9 @@
+{"k":"cub","s":"t5","on":"off","hash":"62270a8809f9aff6","broken":0,"work":0,"ms":5724}
+{"k":"jodel","s":"t5","on":"off","hash":"09ca080740ccf3b1","broken":0,"work":0,"ms":7162}
+{"k":"metal","s":"t5","on":"off","hash":"717e9ab193d165e6","broken":0,"work":0,"ms":4838}
+{"k":"cub","s":"t5","on":"on","hash":"6cdbccd51bc7883b","broken":125,"work":27397.4,"ms":18500}
+{"k":"cub","s":"noseover","on":"on","hash":"1915aac44321782f","broken":7,"work":4165.8,"ms":6729}
+{"k":"jodel","s":"t5","on":"on","hash":"4702df076ce1bee8","broken":154,"work":32225.7,"ms":36591}
+{"k":"jodel","s":"noseover","on":"on","hash":"0dd60c91416233a8","broken":3,"work":1580.2,"ms":7927}
+{"k":"metal","s":"t5","on":"on","hash":"f0cb6d26c56ab4f4","broken":178,"work":65792.9,"ms":33412}
+{"k":"metal","s":"noseover","on":"on","hash":"eb473c642512f16a","broken":7,"work":3639.7,"ms":7773}
