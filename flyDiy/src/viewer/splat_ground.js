@@ -111,7 +111,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand, uSNSlot, uSVoteR;   // uSNCand: the full programs' candidates (C[8]); G2075's lean program: uSNSlot the
                                                     // candidate loop's bound (the codes x 2 passes), uSVoteR the vote's half width (2: 5 x 5)
-  vec3 gSN = vec3(0.0); float gSRough = 0.9; float gSHexRot;   // (defined for a pixel that skips the splat: G2075's apron) float gSFarOn = 0.0;   // (GROUND-COST's hexfar strip)
+  vec3 gSN = vec3(0.0); float gSRough = 0.9; float gSHexRot;   // (defined for a pixel that skips the splat: G2075's apron) float gSFarOn = 0.0, gSNrmOn = 1.0;   // (GROUND-COST's hexfar / nrmcut strips)
   ${G.glsl}
   struct Smp { vec4 c; vec4 n; };
   vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
@@ -153,8 +153,13 @@ const SPLAT_GROUND = (() => {
     o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;
 #endif
     // (above) the colour is sRGB bytes decoded here (an sRGB array texture is refused - GL 1281); the height in alpha is linear
-#ifdef GS_NONRM
+#if defined(GS_NONRM)
     vec4 nr = vec4(0.5, 0.5, 1.0, 0.9);
+#elif defined(GS_NRMCUT)
+    // (G2077's look option: past the normal's fade (nrmFadeTo) its relief is multiplied by 0 - the array is not read there, a matte
+    // stand-in for its roughness; the fade pulled in - the knob - is the trade the stills show)
+    vec4 nr = vec4(0.5, 0.5, 1.0, 0.85);
+    if (gSNrmOn > 0.5) nr = texture(uSplatN, vec3(uv, layer), uSFilt.x);
 #else
     vec4 nr = texture(uSplatN, vec3(uv, layer), uSFilt.x);
 #endif
@@ -577,6 +582,9 @@ const SPLAT_GROUND = (() => {
 #ifdef GS_HEXFAR
     gSFarOn = d > 300.0 ? 1.0 : 0.0;
 #endif
+#ifdef GS_NRMCUT
+    gSNrmOn = uSFilt.w > uSFilt.z && d >= uSFilt.w ? 0.0 : 1.0;
+#endif
     float fw = smoothstep(uSDist.x, uSDist.y, d);
     float mw = uSDist2.x * smoothstep(uSDist.z, uSDist.w, d);
     // THE TOP PLANE STAYS OFF A FACE (SHORES-2 G1957, the user: "a good cliff texture, ideally oriented with respect to the
@@ -930,7 +938,7 @@ const SPLAT_GROUND = (() => {
     // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
     // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
     // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
-    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|regs|avrc|rvac|nohomog)$/;
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|regs|avrc|rvac|nohomog|nrmcut)$/;
     let strips = [];
     try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {
