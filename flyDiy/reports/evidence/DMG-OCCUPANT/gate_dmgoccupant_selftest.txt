@@ -1,0 +1,12 @@
+DMGOCCUPANT selftest: each row must turn red on its fault
+  ok    a forbidden word on a card's text -> red
+  ok    a body part on the card's text -> red
+  ok    the five words alone are clean (the control: must NOT be red) -> clean
+  ok    an injury word in the card's code -> red
+  ok    a sixth band word -> red
+  ok    a criterion on the wire -> red
+  ok    a wrong DRI damping -> red
+  ok    an occupants' record under damage OFF -> red
+  ok    a recorder that moved the physics -> red
+  ok    a forbidden line on the page's crash card -> red (the page: 2 occupant lines for 1 occupants | the page: an occupant line that is not one of the five words: ["Pilot","spinal fracture"] | the page: an injury word on the crash card: ["spinal","fracture","fracture"] | the page: an injury word in the page's text: ["fracture"])
+GATE DMGOCCUPANT-SELFTEST: PASS

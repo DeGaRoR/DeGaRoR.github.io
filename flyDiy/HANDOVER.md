@@ -81666,4 +81666,15 @@ without the reports open.
   (no word for it: the bands are injury only).
 
 ### THE ACCEPTANCE
-(the gate set below, run on claude/dmg-occupant; texts in reports/evidence/DMG-OCCUPANT/)
+- **The gate set** (2026-10-07, the cloud box: 4 cores; claude/dmg-occupant 06c28ed9 - the code as it ships, the later
+  commits are doc and evidence only): every DMG row of run_gates (`grep "id: 'DMG" tools/run_gates.js`) + TREECRASH
+  UISMOKE BUILD JOIN SIMWORKER, `run_gates.js --only=... --jobs=4`: **23 / 23 PASS, BATTERY: PASS** (106 min) - DMGMEMBERS
+  DMGCERT DMGGEAR DMGCERTCOST DMGWIND DMGNOSE DMGCLUSTERS DMGINST DMGFPS DMGINTEGRITY DMGSKIN DMGUPLOAD DMGDRIVE DMGSKINGPU
+  DMGPAGEW DMGWRECK DMGWALL **DMGOCCUPANT** TREECRASH UISMOKE BUILD JOIN SIMWORKER. reports/evidence/DMG-OCCUPANT/gates_battery.txt.
+- **GATE DMGOCCUPANT** alone: PASS (gate_dmgoccupant.txt, dmgoccupant.json); **--selftest: PASS** - all ten faults red, the
+  control clean, the page's crash card with 'spinal fracture' appended red on four rows (gate_dmgoccupant_selftest.txt).
+- **The pictures**: pulse_<build>_<case>.svg (15: the three land builds x taxi / nose-over / 23.473 drop / both trunks) and
+  pulses.json - the same bands as the gate. Evidence only.
+- A first battery run was stopped and restarted after G2374's fix (the close's pieces() bug, found reading the code: the
+  'parted' row never fired; no band changed with it - every parted seat was already Fatal by its space or cell).
+- **Damage stays OFF by default**; with it off nothing here exists (DMGOCCUPANT's rows, DMGFPS, DMGWRECK's bits).
