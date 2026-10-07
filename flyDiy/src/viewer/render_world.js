@@ -1871,12 +1871,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nattribute float aPav; varying float vPav;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\n' +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
@@ -1972,7 +1972,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  }\n' +
             // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
             // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
-            (SP ? '  if (!gDeep) {\n' + SP.glslMap + '  }\n' : '') +
+            // GROUND-COST G2075: NOT UNDER THE APRON - where the premises patch is sunk under a pavement's opaque interior (aPav 1 on
+            // the whole triangle, render_premises) the pavement drawn over it covers it whole: the splat is not computed (the stand's
+            // ground was half apron - its splat shaded and painted over)
+            (SP ? '  if (!gDeep && vPav < 0.999) {\n' + SP.glslMap + '  }\n' : '') +
             // THE PLAIN GROUND'S GRAIN (G1521, POTATO-DEEP): no texture at all - two octaves of the hook's own value noise
             // over the stack's colour, each faded out where its cell is under ~2 pixels (the footprint, so it never fizzes):
             // the near ground reads as ground, not as the satellite's 30 m smear, for a handful of ALU and no sampler

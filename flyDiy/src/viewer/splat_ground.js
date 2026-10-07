@@ -105,7 +105,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand, uSNSlot, uSVoteR;   // uSNCand: the full programs' candidates (C[8]); G2075's lean program: uSNSlot the
                                                     // candidate loop's bound (the codes x 2 passes), uSVoteR the vote's half width (2: 5 x 5)
-  vec3 gSN; float gSRough; float gSHexRot; float gSFarOn = 0.0;   // (GROUND-COST's hexfar strip)
+  vec3 gSN = vec3(0.0); float gSRough = 0.9; float gSHexRot;   // (defined for a pixel that skips the splat: G2075's apron) float gSFarOn = 0.0;   // (GROUND-COST's hexfar strip)
   ${G.glsl}
   struct Smp { vec4 c; vec4 n; };
   vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){

@@ -762,12 +762,17 @@ function make(THREE, scene, world, rec0, opts) {
         // the geometry: the chunk grids at stride s, plus a skirt round each chunk
         const drop = PL.skirt[L], vPer = (m + 1) * (m + 1) + 4 * (m + 1);
         const nV = B.cs.length * vPer, pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), idx = [];
+        // GROUND-COST G2075: aPav - how far this vertex is sunk under a pavement's opaque interior, over the full sink (1: all of it -
+        // the pavement drawn over it is opaque there, the splat under it is never seen: the ground's shader skips it where a whole
+        // triangle is 1; render_world's island hook). Only where something is sunk (a premises with no pavement: no attribute)
+        const pavS = sinkOf && PAVs && PAVs.SINK ? PAVs.SINK.S * 0.98 : 0, pav = pavS && sunk ? new Float32Array(nV) : null;
         let v = 0;
         const put = (c, i, j, dy) => {   // a fine-grid vertex (i, j in fine units) of chunk c, dy down
           const [ci, cj] = list[c].split(',').map(Number), f = c * per + j * (n + 1) + i;
           pos[v * 3] = ci * PCH + i * RES - cx; pos[v * 3 + 1] = Y[f] - dy - lod.position.y; pos[v * 3 + 2] = cj * PCH + j * RES - cz;
           nrm[v * 3] = NRM[f * 3]; nrm[v * 3 + 1] = NRM[f * 3 + 1]; nrm[v * 3 + 2] = NRM[f * 3 + 2];
           uv[v * 2] = UV[f * 2]; uv[v * 2 + 1] = UV[f * 2 + 1];
+          if (pav) pav[v] = Math.min(1, Math.max(0, (Y0[f] - Y[f]) / pavS));
           return v++;
         };
         for (const c of B.cs) {
@@ -788,6 +793,7 @@ function make(THREE, scene, world, rec0, opts) {
         g.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, v * 3), 3));
         g.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
         g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, v * 2), 2));
+        if (pav) g.setAttribute('aPav', new THREE.BufferAttribute(pav.subarray(0, v), 1));
         g.setIndex(idx); g.computeBoundingSphere();
         if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(g, true);   // G1200 (G1230: uploaded as the build's slice ends): drawn only (a re-patch builds a new group)
         const mesh = new THREE.Mesh(g, matOwn(B.k));
