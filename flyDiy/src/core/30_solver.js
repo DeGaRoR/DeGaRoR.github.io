@@ -2514,12 +2514,13 @@ function makeSim(def, world) {
     // (GEN_RULES.bodyMunkK); a fiche without the record flies as before.
     if (P_.bodyMunk && P_.bodyMunk.vol > 0 && def.refs.fusDrag && def.refs.fusDragAft) {
       const A = def.refs.fusDrag, Bq = def.refs.fusDragAft;
-      let vx=0, vy=0, vz=0, ax=0, ay=0, bx=0, by=0;
-      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; }
-      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; }
-      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; bx/=Bq.length; by/=Bq.length;
+      let vx=0, vy=0, vz=0, ax=0, ay=0, az=0, bx=0, by=0, bz=0;
+      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; az+=p[i*3+2]; }
+      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; bz+=p[i*3+2]; }
+      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; az/=A.length; bx/=Bq.length; by/=Bq.length; bz/=Bq.length;
       let wx_ = 0, wy_ = 0, wz_ = 0;
-      if (world && world.wind) { const wv = world.wind(ax, ay, 0, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      // G2470: the fore ring's own air (it read the wind at z = 0 - the world's x axis, not the ring)
+      if (world && world.wind) { const wv = world.wind(ax, ay, az, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
       const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz;
       const u = rx*xAft[0]+ry*xAft[1]+rz*xAft[2], wn = rx*yUp[0]+ry*yUp[1]+rz*yUp[2];
       const Vr2 = u*u + wn*wn;
@@ -2528,7 +2529,16 @@ function makeSim(def, world) {
         // forward) and from below (wn > 0 along up) with the nose up
         const alB = Math.atan2(wn, u);
         const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
-        const L = hyp2(bx - ax, by - ay);
+        // G2470 (JODEL-PITCH): THE COUPLE'S ARM IS THE RINGS' SPACING ALONG THE BODY. Two forces +-F yUp on the rings make
+        // F . (the spacing along xAft) of pitch - so that is the arm M is divided by, and the pair is M on any heading.
+        // It read hyp2(bx - ax, by - ay): the spacing in the WORLD x-y plane, the body's length only while the aeroplane
+        // flies along x (G461 was measured there, HOME's runway). On any other heading the arm shrank by the cosine and
+        // the couple GREW by its inverse (x 1.41 at 45 deg), and within 9 deg of world +-z (the Jodel's rings 1.89 m
+        // apart; L < 0.3) it switched OFF: GATE ROUTE's Jodel on WP4's leg (heading ~ +z) flew 1890 N.m of nose-up couple
+        // for a true 300, the pilot held 0.12 of nose-down elevator against it, then it vanished in one step and the
+        // nose dropped at 9.6 deg/s - the porpoise (the same at 380 s, the couple coming back on). G970's world-z span
+        // was the same mistake in the induction's template
+        const L = Math.abs((bx - ax) * xAft[0] + (by - ay) * xAft[1] + (bz - az) * xAft[2]);
         if (L > 0.3) {
           const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
           for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
