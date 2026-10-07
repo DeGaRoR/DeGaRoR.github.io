@@ -27,7 +27,8 @@ const IN = require(path.join(T, 'island_node.js'));
 const C = require(path.join(T, 'flight_core.js'));
 const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8') });
 const O = W.premises.overlay, PG = C.PREMISES_GEN;
-const body = lift('  const extentWorld = () =>', '\n') + '\n' + lift('  let patch = null, patchKey', '  // THE ROADS (game)');
+const body = lift('  const extentWorld = () =>', '\n') + '\n' + lift('  let patch = null, patchKey', '  // THE ROADS (game)') +
+  (RP.indexOf('  const REFINE_NEAR = ') > 0 ? lift('  const REFINE_NEAR = ', '  const pavSeed = ') : '');   // (G2115: the refined pavements, sinkNear's)
 const added = [];
 const G = { ground: { add: m => added.push(m), remove: () => {} } };
 const run = new Function('THREE', 'O', 'PG', 'G', 'o', 'world',

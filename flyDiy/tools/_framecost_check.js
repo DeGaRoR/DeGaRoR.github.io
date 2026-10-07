@@ -71,6 +71,22 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G2115-G2119 (TERRAIN-MATCH, 2026-10-06): the 1 m contact tier under the aeroplane (ground_tier.js: one draw of the patch's
+  // material at the stand and the taxi pin - its maps bound, its uTier and the hook's uniforms), its per-frame read of the ground
+  // under the craft, and at the world step the pavement rows refined where the ground curves (pavement.js REFINE: heightAt at
+  // every tested midpoint) and the over-runs' patch chunks. Measured against a base with an equally stale parked cook (A0
+  // re-cooks at the train; the stale cook alone is the other 24 rows on any source branch). The patch's skirts between the
+  // chunks of a block went (bufferData -9.8 MB at the world step; tris down)
+  { key: 'stand/gl.bindTexture', build: '*', rise: 14, why: 'the contact tier: one draw of the patch material', g: 'G2118' },
+  { key: 'taxi/gl.bindTexture', build: '*', rise: 14, why: 'the contact tier: one draw of the patch material', g: 'G2118' },
+  { key: 'stand/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
+  { key: 'taxi/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
+  { key: 'stand/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  { key: 'taxi/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  { key: 'boot/garage:frames/world.terrainH', build: '*', rise: 10, why: 'the contact tier\'s per-frame read of the ground under the craft (its height over it)', g: 'G2118' },
+  { key: 'boot/garage:frames/bytes.uniforms', build: '*', rise: 30000, why: 'the contact tier\'s draw in the garage step\'s frames', g: 'G2118' },
+  { key: 'boot/garage:world/world.terrainH', build: '*', rise: 75000, why: 'the pavement rows refined where the ground curves (REFINE\'s tested midpoints) and the over-runs\' chunks', g: 'G2117' },
+  { key: 'boot/garage:world/world.grHeight', build: '*', rise: 240000, why: 'the same reads through the premises raster', g: 'G2117' },
   // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
   // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
   { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },

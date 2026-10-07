@@ -78087,3 +78087,176 @@ recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log
 Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
 BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
 For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
+
+## G2115 - TERRAIN-MATCH: THE DRAWN GROUND IS THE SOLVER'S WHERE WHEELS AND WRECKAGE TOUCH - THE NEAR LEVEL'S SINK UNDER THE PAVEMENT ONLY, THE OVER-RUNS ON THE PATCH, NO LIFT OVER ANOTHER PAVEMENT, THE ROWS WHERE THE GROUND CURVES, A 1 m CONTACT TIER UNDER THE AEROPLANE; GATE TERRAINMATCH (2026-10-06, TERRAIN-MATCH for A0, a CLOUD session: node only, no GPU; branch claude/terrain-match-g2115 off origin/master 068584d = train 37b, train 38 not live - merged with origin/claude/potato-deep-g1520 in a scratch tree and re-measured there; G2115-G2119)
+
+**READY** (source only; the train's "(built)" commit rebuilds; A0 re-cooks the parked packs - any source change stales them, below).
+
+### G2115 - THE MEASURE (tools/terrain_match.js, new; tools/dmg_settle_terrain.js ported from claude/dmg-settle 3e039e83)
+The DMG-SETTLE rig reproduced on master to the digit (the over-runs: nv_strip end -686.9 mm, tw_ski end -552.6, mn_strip start
+-419.7; the sites' median p5 -13.4 at 10 sites, -32.0 at 40). Its stack had no ground under the patch past the fine tiles' reach
+(|x| or |z| > 3 630 m: mn_strip, nv_strip, tw_ski) - terrain_match.js adds THE FAR TERRAIN (FARLOD's cut of the quadtree for an
+eye 10 m off, its patch triangles, the far tier's sink under the patch) and THE CONTACT TIER, samples every land strip's STAND
+(+-12 m), STRIP (past the lift), both OVER-RUNS (0-100 m past the end, the strip's width + 5 m), the declared LANES (taxiOut /
+taxiOut1, +-3 m), sets the user's Cub (builds/cub_2026-09-20_corrected.json), the Jodel and the metal Cessna on every stand, and
+names the CAUSE of every point over 10 mm. A pavement's own edge band (its side's fade, its lift over liftIn: G1001's 7 cm by law)
+is reported apart, and points where terrainH itself creases or steps inside the tier's cell (a cut's bank, a DEM seam, the coast:
+no drawn surface meets it on both sides) are counted apart. The causes found, each in the construction:
+1. THE PAVEMENT'S DEEP SINK IN VISIBLE TRIANGLES (render_premises buildPatchSteps): the 0.8 m sink rose from the opaque line, so a
+   2 m patch vertex 1-2 m inside a pavement was 0.2-0.6 m down and its triangles to the vertices outside sloped down into the
+   ground seen past the edge - 5-13 cm pockets along every pavement's edge, 0.1-0.4 m at mn_strip's stand and start over-run.
+   On train 38 (G1528) the coarse budget's sink x the block's error makes them deeper still on potato.
+2. THE PATCH'S BORDER IN THE OVER-RUNS - not the sink (nv_strip end, tw_ski end): the patch ended 70-100 m past the strip end;
+   in its last 28 m the border tucks 0.8 m under and the far terrain shows - the raw DEM, up to +1.0 m off the graded ground at
+   tw_ski (the far terrain is composed only where it is sunk).
+3. A PAVEMENT'S RIM LIFTED OVER ANOTHER'S INTERIOR: an apron's / a taxiway's / a road's 7 cm edge lift lay on the runway (HOME's
+   strip 859 points to +62 mm; HOME's lane 2 +54).
+4. A STRIP'S LIFT NOT PINNED ALONG IT: rowsAcross pins liftIn inside the sides; at the ends the 7 cm fell over the first 6 m row
+   (tw_ski's start +52 mm 1.5 m in).
+5. THE PAVEMENT'S OWN ROWS on curved ground (6 m / 3 m along, the polygons' 2 m grid): 13-51 mm at a few points.
+6. THE 2 m PATCH / 5 m FINE LATTICE on grass: the patch's open grass p95 13 mm, 6-12 cm on the over-runs' rough ground, 12.5 cm
+   at a cut's bank 12 m from mn_strip's stand; the fine tiles p95 ~150 mm at the trees.
+7. (found on the way) A GRASS ROAD draws only its tracks (pavement.js `gPavA *= worn`): between them the patch shows - 9 cm (the
+   7 cm pre-sink + the 2 cm drop) under the wheels. Jolene has one (r_strip, ending 40 m from w3's stand).
+
+### G2116 - THE PATCH (render_premises.js)
+- sinkNear: the NEAR level (2 m - under the aeroplane, the only level a wheel is seen on: the eye within 75 m of its block) sinks
+  a vertex only where its whole 1-ring is under the opaque interior - the deep sink from SINK0_IN = res[0] x sqrt2 (2.83 m) further
+  in (pavedAt's depth is a distance: the 1-ring's points stand >= d0). The coarse levels keep G660's sink from the line (Y; no
+  coarse level can pierce from afar). Only under a pavement that refines its rows (refinedPave: every strip, an aerodrome's roads
+  and opaque aprons): under the town's 3 m-row roads on rough ground a narrow road never reached the deep sink with the margin
+  and 227 points of Metlakatla's roads came within 5 mm of the patch (GATE CONTACT's ratchet) - those keep the line's sink.
+  The 7 cm pre-sink (G1001) is unchanged. Level 0 reads Y1, a third Float32 grid freed with the others at the build's end.
+- PATCH_OVERRUN { len 100, m 64 }: activeChunks marks each strip's width carried 100 m past each end with a 64 m margin (ring1 28
+  + the tier's half-diagonal 28.3): the border and the far terrain are nowhere in an over-run (+32 chunks on Jolene, 1 690 ->
+  1 722, at the three far strips).
+- NO SKIRT BETWEEN TWO CHUNKS OF ONE BLOCK: a block is one THREE.LOD, its chunks always at one level from one sampling - the
+  shared edge is one row of vertices and opens no crack; the skirt hung under the neighbour (its back seen from its own side) and
+  was never seen. Skirts stay on a block's edges (a neighbour block at another level) and the border. 13 % of a 2 m chunk's
+  triangles, 27 % at 4 m, 56 % at 8 m, 125 % at 16 m. tools/patch_census.js (new: the builder lifted, run on three in node) -
+  the patch drawn (every block at its distance's level), master -> this: gamer HOME stand 924 736 -> 821 232, taxi 939 328 ->
+  833 296; potato (patchTolPx 3) 462 272 -> 392 672 / 528 576 -> 454 960; train 38 (patchTolPx 6) 377 600 -> 319 824 /
+  395 520 -> 335 728 (over-run chunks included).
+- the tier's handles (R.tier: base, sink, layerY, kindAt, uv, mat) and its material copies (matOwn(k, true): the same program
+  key, own uniforms, polygonOffset -1/-1); the patch materials bind the host's uTier (opts.tierU).
+
+### G2117 - THE PAVEMENT (pavement.js, 27_premises.js, render_premises.js, render_world.js)
+- liftOver (pavedAt's new `skip`, its result's `id`): a pavement's lift is 1 off every other pavement and 0 from liftIn inside
+  one (the other's own law); the roads, the polygons and the game's strips pass it. HOME's strip worst 62 -> 26 mm (4 points: the
+  w2 end's rim, between rows), HOME lane 2 54 -> -6.
+- stripGeometry pins liftIn rows inside both ends (tw_ski's start +52 -> 0).
+- REFINE { tol 5 mm, min 0.75 m }: a builder's stations bisected where heightAt at a span's midpoint (or a quad's centre against
+  the drawn diagonal) strays more than tol inside the pavement - strips (u and v), an aerodrome's roads (along; roadV off), its
+  opaque aprons (x and z); never the analytic world (no sinkD0), never the town's or the harbour's, never a grass polygon. Every
+  pavement refined was +355 k triangles over Jolene for no wheel; as landed, within 3 km of HOME's stand 258 858 -> 306 816.
+- A GRASS ROAD's margin SINK.tl 1 cm: the patch drops 1 cm under it (no pre-sink, no 2 cm drop: patchDrop skips it) and the
+  road stands 1 cm over the ground past its lift - each within 1 cm of the wheels (it was the patch 9 cm under the tracks).
+
+### G2118 - THE CONTACT TIER (src/viewer/ground_tier.js, new; render_world.js)
+G1380's option (b). Round the aeroplane the ground is drawn off terrainH itself (the patch's near-level law: under a pavement its
+sink, under a lot its 2 cm): 0.5 m quads +-16 m on the patch (8 192 triangles), 1 m +-24 m on the fine tiles (4 608), centre
+snapped to 4 m (every patch and fine vertex is a tier vertex), the layers' own diagonal - so within 2 cells of its edge it IS the
+layer it replaces, refined (coplanar to the float, its normals the layer's interpolated, drawn over it by a polygon offset), and
+inside that the law, blended over 4 m. The layer under it: the ground hook's new uTier (a vertex test in every ground program:
+no discard, early-Z kept) pushes the patch's / the fine tiles' vertices more than a cell inside the square 3 m under - every
+triangle they are in lies inside it. Off for the ring and the far terrain (their own uniform, z 0); the patch's materials and the
+fine tiles take TIER_U.patch / .fine; the tier's own copies keep the hook's (off) and share their layer's program (no link).
+Modes: 'patch0/1' where the square lies ring1 + its half-diagonal deep in the patch (one material kind), 'fine' where no chunk is
+within 88 m and the fine disc is on; else none (the far terrain off the premises; a patch's border band). On while the CG is
+under 30 m AGL, under 15 m/s and the eye within 75 m (there the block under it is at its 2 m level); rebuilt in 2 ms slices when
+the snapped centre moves, the old one drawn until the new is whole, swapped with the uniforms in one frame; a live ground edit
+drops it. ~20 ms of laws a rebuild in node. FRAMECOST's page in node drew it at both views (`ground:tier`, one draw), no new page
+error. **Unseen on a GPU: the box's stills are the proof owed (below).**
+
+### G2119 - GATE TERRAINMATCH (tools/_terrainmatch_check.js, core, 92 checks: PASS) + the box's stills
+Sites on gamer and potato (p95 <= 5 mm, worst <= 30 off creases; ALLOW: nv_strip's meadow, mn_strip's start over-run), the
+construction's old faults absent from every site, the over-runs >= 56.3 m deep in the patch, the wheels within 11 mm, the laws
+by unit (sinkNear, liftOver, the end pins, REFINE, the grass road), the tier's geometry at two stands (band on the layer 0.0000 mm,
+core on the law), its hooks, build.js order, and THE BUDGET at FRAMECOST's two views (patch + pavement within 3 km + tier, against
+the train's own frozen numbers - patchTolPx 3 for 37b, 6 for 38, read off gfx_settings): potato stand 721 130 -> 707 680, taxi
+787 434 -> 769 968; gamer 1 183 594 -> 1 136 240 / 1 198 186 -> 1 148 304. On the train-38 merge: potato stand 636 458 ->
+634 832, taxi 654 378 -> 650 736 (tight: the refined pavement and the tier eat 56 of the 58 k the skirts give).
+
+THE NUMBERS (tools/terrain_match.js, gamer; potato reads the same on 37b and 38 - under the aeroplane every budget draws the patch's
+2 m level, and no site is on the far terrain any more). |drawn - terrainH| p95 / worst (mm), master (no tier) -> this (the tier
+under the aeroplane), and this off creases:
+| site | master | this | off creases |
+|---|---|---|---|
+| w2 strip | 0.3 / 58 | 0.2 / 4 | 0.2 / 4 |
+| w2 overrun end | 1.1 / -8 | 0.0 / 1 | 0.0 / 1 |
+| w2 overrun start | 4.8 / 53 | 1.2 / 26 | 1.2 / 26 |
+| HOME stand | 0.0 / 0 | 0.0 / 0 | 0.0 / 0 |
+| HOME strip | 0.1 / 62 | 0.1 / 26 | 0.1 / 26 |
+| HOME overrun end | 2.7 / 25 | 1.1 / 20 | 1.1 / 20 |
+| HOME overrun start | 5.0 / -106 | 2.0 / 12 | 2.0 / 12 |
+| HOME lane | 2.8 / -26 | 0.6 / 14 | 0.6 / 10 |
+| HOME lane 2 | 1.8 / 54 | 1.7 / -6 | 1.7 / -6 |
+| w3 stand | 3.5 / 56 | 0.0 / 14 | 0.0 / 14 |
+| w3 strip | 3.0 / 54 | 0.5 / 12 | 0.5 / 12 |
+| w3 overrun end | 5.5 / -26 | 0.1 / -5 | 0.1 / -5 |
+| w3 overrun start | 14.0 / 5252 | 0.4 / 4637 | 0.3 / 5 (the coast's 5 m step) |
+| w3 lane | 18.8 / 56 | 1.4 / 18 | 1.4 / 18 |
+| mn_strip stand | 16.3 / 125 | 0.0 / 3 | 0.0 / 3 |
+| mn_strip strip | 0.0 / 50 | 0.0 / 5 | 0.0 / 5 |
+| mn_strip overrun end | 21.8 / -63 | 2.0 / -14 | 1.9 / 10 |
+| mn_strip overrun start | 218.1 / 580 | 11.9 / -41 | 5.8 / -12 (the cut beside mn_main) |
+| mn_strip lane | 1.8 / 54 | 0.0 / 21 | 0.0 / 21 |
+| nv_strip stand | 16.1 / 60 | 13.2 / 44 | 12.7 / 44 (nv_meadow, below) |
+| nv_strip strip | 0.0 / -0 | 0.0 / -0 | 0.0 / -0 |
+| nv_strip overrun end | 97.2 / -214 | 8.5 / -60 | 5.0 / -36 |
+| nv_strip overrun start | 17.5 / -92 | 6.4 / 53 | 6.1 / 20 |
+| nv_strip lane | 9.6 / -21 | 9.6 / -21 | 9.5 / -18 |
+| tw_ski stand | 0.8 / 17 | 0.8 / 14 | 0.8 / 14 |
+| tw_ski strip | 2.6 / 51 | 2.2 / -5 | 2.2 / -5 |
+| tw_ski overrun end | 425.5 / 1005 | 2.2 / 23 | 2.0 / 14 |
+| tw_ski overrun start | 26.1 / -86 | 1.3 / -16 | 1.2 / -10 |
+| tw_ski lane | 2.2 / 22 | 2.2 / 6 | 2.2 / 6 |
+
+THE WHEELS (the drawn ground under each wheel - terrainH, settled 10 s): master's worst mn_strip Jodel -17.3 / -19.7, mn_strip
+Cub -10.1 / -13.9, nv_strip Cessna -10.5 -> this: every wheel of the three builds at the five stands within 0.2 mm on the tier and
+the pavements, except nv_strip's (its meadow: Cessna -10.5 / -5.3 / -5.2, Jodel -6.4, Cub -4.3) and mn_strip's Jodel tail -7.6
+(the tier carries the lane's dead-end 7 cm half a metre out).
+DMG-SETTLE's own metric (tools/dmg_settle_terrain.js, 40 trees + the 12 over-runs at +60 m): the sites' median p5 -32.0 mm ->
+-1.4; the worst under 543 -> 160 mm, over 427 -> 62 (--stack full on master vs --stack tier here). The over-runs at +60 m: every
+one p95 <= 0.4 mm; mn_strip start's worst -57 (the cut's creases), nv_strip's -72 / -48 (DEM seams).
+
+GATES (cloud, 4 cores, no GPU; generated files rebuilt by the runner, not committed): TERRAINMATCH PASS (92), CONTACT PASS (its
+"2 cm under a pavement" check taught the grass road's own margin), LOOKS PASS, PAVEMENT, PREMISES, PREMRASTER, PREMCOOK, SPLAT,
+STRIPSURF, STRIPGROUND (the analytic world's strips: "A2"), SITE, TAXICLEAR, LINEUP, STAND, GFX, PROGRAMS, WORLDRENDER, ASSETS,
+LAKEBED, FADES, SHADOWSKY, GROUNDLIB, MEDIA, ATMO, WATER, LIGHT: PASS. GROUND-LATTICE is CONTACT's section 5 (PASS).
+FRAMECOST: RED, 24 rows - THE PARKED COOK, not this branch: the cook signs the build id (tools/parked_cook.js "ANY source change ...
+leaves the cook stale"), the parked aeroplanes are captured live (stand parked meshes 2 -> 139, draws 914 -> 1 047). Measured on a
+master worktree with a one-comment edit (an equally stale cook): the same 24 rows red there. Against that control this branch
+moved only bindTexture +11, uniform1fv +4, uniform4f +4 at both views (the tier's draw), garage:frames terrainH 53 -> 60 (its read
+of the ground under the craft) and at the world step terrainH +61 k / grHeight +203 k (REFINE's tested midpoints, the over-run
+chunks); bufferData -9.8 MB (the skirts); draws and triangles inside the tolerance (the tier one draw) - admitted with ALLOW entries
+(G2117 / G2118). A0: re-cook the parked packs at the train, then `--update`. Strict perf rows otherwise unchanged.
+
+TRAIN 38 (POTATO-DEEP G1528-G1531): the merge conflicts in render_premises.js at two lines - keep BOTH (their `const SK = ...`
+before my `let Y = ..., Y1 = ...`; their `if (SK) SK[v] = sk;` in the sinkOf line, then my `if (Y1 !== Y) Y1[v] = ...` line).
+G1528's block sink x k touches Y (the coarse levels) only: level 0 draws Y1, so potato's near level loses its k-deep pockets with
+this branch. Re-measured on the merge (scratch tree): TERRAINMATCH's sites and wheels the same as 37b, the budget rows above.
+The other conflicts of that branch (gfx_settings.js, _framecost_check.js, _gfx_check.js, perf/potato_census.js, HANDOVER.md)
+are master's against it, not this branch's.
+
+THE STILLS - tools/terrain_still.js (new) for A0's box: `git show origin/master:flyDiy/index.html > flyDiy/index_before.html`,
+`node tools/build.js && node tools/terrain_still.js` - the four builds (Cub, Jodel, metal Cessna; the floats on SEA's water), at
+w3's stand, mn_strip's stand (the dead end, the cut), nv_strip end + 60 m, tw_ski end + 30 m, HOME's apron stand and the apron's
+edge on the runway, wheel height, noon, before | after, into reports/evidence/TERRAIN-MATCH (stills.json: the tier's mode,
+centre, builds per shot). LOOK FOR: the tyres on the grass at w3 / mn (no 1-4 cm gap, no step at the tier's square: it must not
+be visible at all); the over-runs' ground continuous (no 0.2-0.7 m trench); the apron's edge flush on the runway; nothing changed
+at HOME's apron. A black / missing ground means the hook's uTier text failed to compile on the box - that is the first thing to
+look at.
+
+OWED / LEFT (A0's call):
+- nv_meadow (a grass polygon - nv_strip's strip and stand) keeps its 2 m grid: p95 13 mm, worst 44 at its stand, the Cessna's
+  main -10.5; refining it is +27 k triangles at nv where potato would grow (GATE ALLOW).
+- the junction residuals (an end rim between rows: HOME strip 26 mm at 4 points, mn lane 21, w3 lane 18), an apron's edge lift
+  spread past liftIn on its 2 m grid (w2 / HOME over-run starts 20-26 mm) - 13 k more triangles each way would close them.
+- creases and steps of terrainH itself (cut banks, DEM seams, the coast at w3's start): no drawn surface meets them.
+- the tier stands nowhere in a patch's border band (~140 m round every premises patch) nor on the far terrain off the premises
+  (past 3 630 m with no patch: a meadow landing at mn / nv / tw's surroundings) - there a wreck by a tree still sees the border's
+  dip (to 160 mm) or the far terrain's leaves, up to 1.4 m off the solver's bilinear leaves on the mountains
+  (dmg_settle_terrain.js --stack tier --far: 24 007 trees in reach). A far-terrain tier needs its leaves' sizes in the shader.
+- tools/ground_surface.js and tools/ground_drawn.js build the pavements with the page's arguments; ground_surface.js does not
+  pass liftAt / refine (its counts are G1001's ratchet's, unchanged in meaning).

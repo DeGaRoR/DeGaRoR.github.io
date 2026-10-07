@@ -94,7 +94,7 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
 {
   // the near level's sink: from SINK0_IN (the 2 m cell's diagonal) further in than the coarse levels' - so every triangle of a
   // sunk vertex lies inside the opaque interior (pavedAt's depth is 1-Lipschitz)
-  ok(/const sink0In = \(\) => PL\.res\[0\] \* Math\.SQRT2;/.test(RP) && /sinkAt\(q\.d - sink0In\(\),/.test(RP), 'render_premises: the near level sinks from SINK0_IN = res[0] x sqrt2 further in (sinkNear)');
+  ok(/const sink0In = \(\) => PL\.res\[0\] \* Math\.SQRT2;/.test(RP) && /sinkAt\(q\.d - \(refinedPave\(q\.id\) \? sink0In\(\) : 0\),/.test(RP), 'render_premises: the near level sinks from SINK0_IN = res[0] x sqrt2 further in under a refined pavement (sinkNear; the town\'s roads keep the line)');
   ok(/const YL = L === 0 \? Y1 : Y;/.test(RP), '...the near level is drawn from Y1, the coarse levels from Y (G660\'s sink from the opaque line, unchanged)');
   // a 1-ring of the 2 m grid round a vertex whose depth is d0 + SINK0_IN reaches d0 at the least: the deep sink starts there
   const d0 = PAV.opaqueDepth('concrete', 20, null, 'strip'), D = PL.SINK0_IN;
@@ -179,12 +179,17 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
 {
   // train 37b's (068584d) own numbers at the two views: the patch drawn (tools/patch_census.js on its render_premises.js) and
   // the pavement within 3 km (tools/ground_drawn.js's meshes on its pavement.js)
-  const BASE = { potato: { 'HOME stand': 462272 + 258858, 'HOME taxi': 528576 + 258858 }, gamer: { 'HOME stand': 924736 + 258858, 'HOME taxi': 939328 + 258858 } };
+  // potato's patchTolPx read off gfx_settings.js BUDGETS: 3 on train 37b; 6 on train 38 (POTATO-DEEP G1528, measured on
+  // origin/claude/potato-deep-g1520's render_premises.js: 377 600 / 395 520) - the base the budget row of that train is held to
+  const GFXS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'gfx_settings.js'), 'utf8'), mP = /potato:\s*\{[^}]*patchTolPx: (\d+)/.exec(GFXS), POT = mP ? +mP[1] : 1;
+  const PATCH0 = { 3: { 'HOME stand': 462272, 'HOME taxi': 528576 }, 6: { 'HOME stand': 377600, 'HOME taxi': 395520 } }[POT];
+  ok(!!PATCH0, 'potato\'s patchTolPx (' + POT + ') has its train\'s frozen base here');
+  const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + 258858, 'HOME taxi': (PATCH0 || {})['HOME taxi'] + 258858 }, gamer: { 'HOME stand': 924736 + 258858, 'HOME taxi': 939328 + 258858 } };
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }
   const tier = 2 * Math.pow(Math.round(2 * GT.S.patch.half / GT.S.patch.step), 2);
-  for (const [preset, tol] of [['potato', 3], ['gamer', 1]]) {
+  for (const [preset, tol] of [['potato', POT], ['gamer', 1]]) {
     const jf = path.join(TMP, 'pc_' + tol + '.json');
     node([path.join(T, 'patch_census.js'), '--tolpx', String(tol), '--json', jf]);
     const P = JSON.parse(fs.readFileSync(jf, 'utf8'));

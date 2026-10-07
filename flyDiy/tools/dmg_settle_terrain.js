@@ -8,7 +8,7 @@
 //   FLYDIY_GROUND_RASTER=1 node tools/dmg_settle_terrain.js [--sites 40] [--json f] [--stack full|tier]
 //     (G2115, TERRAIN-MATCH, ported onto master) --stack full: tools/terrain_match.js's stack (the far terrain under the patch
 //     where the fine tiles do not reach: mn_strip, nv_strip, tw_ski); --stack tier: and the 1 m contact tier under the
-//     aeroplane (src/viewer/ground_tier.js) - the ground a wreck at that site is drawn on
+//     aeroplane (src/viewer/ground_tier.js) - the ground a wreck at that site is drawn on; --far: the trees past the fine tiles too
 'use strict';
 const path = require('path'), fs = require('fs');
 const argv = process.argv.slice(2), arg = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
@@ -19,7 +19,9 @@ const drawnAt = STACK === 'tier' ? TM.drawnUnder : STACK === 'full' ? TM.drawn :
 const W = GD.W, NS = +arg('--sites', 40);
 const sites = [];
 // the trees (the world's own records; those the drawn fine tiles reach)
-const T = (W.trees || []).filter(t => Number.isFinite(t.x) && Number.isFinite(t.z) && !Number.isNaN(drawnAt(t.x, t.z).y));
+// (the trees the original rig reached - the fine tiles' and the patch's; --far: and those on the far terrain past them, where
+// no contact tier stands: G2115's owed finding)
+const T = (W.trees || []).filter(t => Number.isFinite(t.x) && Number.isFinite(t.z) && !Number.isNaN((argv.includes('--far') ? drawnAt : GD.drawnAt)(t.x, t.z).y));
 let seed = 12345; const rnd = () => { seed = (seed * 1103515245 + 12345) >>> 0; return seed / 4294967296; };
 for (let i = 0; i < NS && T.length; i++) { const t = T[Math.floor(rnd() * T.length)]; sites.push({ id: 'tree@' + t.x.toFixed(0) + ',' + t.z.toFixed(0), x: t.x, z: t.z }); }
 for (const a of W.aerodromes) { if (!a.len || a.kind === 'water') continue;
