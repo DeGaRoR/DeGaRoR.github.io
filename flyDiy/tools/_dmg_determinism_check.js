@@ -27,7 +27,7 @@
 // --selftest: the gate goes red (a) with the op as it was - a stale core (the committed one, or a header doctored) loads
 // and flies (expected: refused), (b) with one coordinate nudged by 1 ulp in one tier's child (expected: a hash differs -
 // and the count moves: the chaos the ensemble (GATE TREECRASH's ensemble rows) is for)
-// Run: node tools/_dmg_determinism_check.js [--full] [--branch] [--json f] [--selftest]   (one final
+// Run: node tools/_dmg_determinism_check.js [--full] [--branch] [--json f] [--selftest] [--cache f]   (one final
 // `GATE DMGDETERMINISM: PASS|FAIL`; children DMGDET_JOBS at once, default 3)
 'use strict';
 const path = require('path'), fs = require('fs'), os = require('os');
@@ -78,9 +78,17 @@ function child(flags, args, env) {
     c.on('close', code => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { err: (se || so).slice(-600), code }); });
   });
 }
+// (--cache <file>: every child's result appended as a JSON line, keyed by the job; a re-run takes what is there - the full
+// matrix under the interpreter is hours, and a run cut short keeps its finished children)
+const CACHE = argv.includes('--cache') ? argv[argv.indexOf('--cache') + 1] : null, CACHED = new Map();
+const CORE_ID = require('./_core_fresh.js').fresh(path.join(T, 'flight_core.js')).header || 'unjudged';   // (a cached result is this core's only)
+if (CACHE && fs.existsSync(CACHE)) for (const l of fs.readFileSync(CACHE, 'utf8').split('\n')) if (l.trim()) { const r = JSON.parse(l); CACHED.set(r.key, r.res); }
 async function pool(jobs) {
   const R = new Array(jobs.length); let i = 0;
-  await Promise.all(Array.from({ length: Math.min(JOBS, jobs.length) }, async () => { while (i < jobs.length) { const j = i++; R[j] = Object.assign({ tier: jobs[j].tier, tag: jobs[j].tag }, await jobs[j].run()); } }));
+  await Promise.all(Array.from({ length: Math.min(JOBS, jobs.length) }, async () => { while (i < jobs.length) { const j = i++, key = jobs[j].key || null;
+    let res = key && CACHED.has(key) ? CACHED.get(key) : null;
+    if (!res) { res = await jobs[j].run(); if (CACHE && key && !res.err) fs.appendFileSync(CACHE, JSON.stringify({ key, res }) + '\n'); }
+    R[j] = Object.assign({ tier: jobs[j].tier, tag: jobs[j].tag }, res); } }));
   return R;
 }
 
@@ -126,7 +134,9 @@ function staleTree(dir, coreText) {
   // the certificates, once each, in their own child (the game's bench thread); and each under the interpreter
   const certDir = path.join(dir, 'certs'); fs.mkdirSync(certDir);
   const CT = FULL ? ['turbofan', 'ignition', 'maglevTf'] : ['turbofan', 'ignition'];
-  const certR = await pool([].concat(...LAND.map(k => CT.map(tier => ({ tier, tag: k, run: () => child(TIERS[tier], ['cert', k, tier === 'turbofan' ? certDir : '-']) })))));
+  const certR = await pool([].concat(...LAND.map(k => CT.map(tier => ({ tier, tag: k, key: CORE_ID + '|cert|' + tier + '|' + k, run: () => child(TIERS[tier], ['cert', k, tier === 'turbofan' ? certDir : '-']) })))));
+  // (the certificates' files: written by the TurboFan child - a cached run writes them again from a fresh child)
+  for (const k of LAND) if (!fs.existsSync(path.join(certDir, k + '.json'))) await child([], ['cert', k, certDir]);
   report.certs = certR;
   console.log('2. the tiers (' + (FULL ? 'every flag set on every case' : 'TurboFan, Maglev, --always-turbofan on every case; the interpreter, Sparkplug, --no-opt on the 30 m/s centrelines and the Jodel\'s flight') + ')');
   for (const k of LAND) {
@@ -140,7 +150,7 @@ function staleTree(dir, coreText) {
   const cases = [].concat(...LAND.map(k => ON.map(id => [k, id, 'on']).concat(OFF.map(id => [k, id, 'off']))));
   const env = { FLYDIY_CERT_DIR: certDir };
   const jobs = [];
-  for (const [k, id, dmg] of cases) for (const tier of tiers) if (FULL || !SLOW.has(tier) || slowCase(k, id, dmg)) jobs.push({ tier, tag: k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], env) });
+  for (const [k, id, dmg] of cases) for (const tier of tiers) if (FULL || !SLOW.has(tier) || slowCase(k, id, dmg)) jobs.push({ tier, tag: k + '/' + id + '/' + dmg, key: CORE_ID + '|base|' + tier + '|' + k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], env) });
   // the slow tiers first (the pool's tail is then the fast ones)
   const slow = t => (t === 'ignition' ? 0 : t === 'sparkplug' || t === 'noOpt' ? 1 : 2);
   jobs.sort((a, b) => slow(a.tier) - slow(b.tier));
@@ -157,7 +167,7 @@ function staleTree(dir, coreText) {
     console.log('3. G2048\'s untaken branch re-added (beamYield: `if (!(b.ecu > 0)) return;` after the kink)');
     const bf = branchCore(dir), bt = FULL ? ['turbofan', 'ignition', 'noOpt', 'maglevTf'] : ['turbofan', 'ignition', 'noOpt'];
     const bj = [];
-    for (const [k, id, dmg] of cases) for (const tier of bt) bj.push({ tier, tag: k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], Object.assign({ FLYDIY_CORE: bf }, env)) });
+    for (const [k, id, dmg] of cases) for (const tier of bt) bj.push({ tier, tag: k + '/' + id + '/' + dmg, key: CORE_ID + '|branch|' + tier + '|' + k + '/' + id + '/' + dmg, run: () => child(TIERS[tier], ['run', k, id, dmg], Object.assign({ FLYDIY_CORE: bf }, env)) });
     bj.sort((a, b) => slow(a.tier) - slow(b.tier));
     const B = await pool(bj);
     report.branch = B;
