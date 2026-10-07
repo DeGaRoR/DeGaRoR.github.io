@@ -858,7 +858,13 @@ function makeSim(def, world) {
         pts.forEach((q, j) => { I += q.A * rho[j] * rho[j]; });
         let L = Infinity; pts.forEach((q, j) => { if (rho[j] > 1e-6) L = Math.min(L, q.ty * sh * I / rho[j]); }); return L; };
       const yr = Math.min(...pts.map(q => q.y));
-      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1 / SQ3), yb: yr, yt: yr };
+      // G2369 (DMG-BUNDLE-GREEN): the twist about the keel at the members' AXIAL strength, as the bending - a float hangs on
+      // struts and spreaders whose ends are lugs (the gear bracket stamps them so: brittle at 1.5 F_l,t m), and a turn
+      // about its keel loads them along their own axes at their lever arms, not as bolts in a shear plane (the von Mises
+      // tu / sqrt 3 G1840 took). On the certificate's struts that shear factor left the root sqrt 3 under what they hold
+      // together: the twin's floats twisted off at 0.94 of it in the certificate's OWN float drop (3.05 m/s; a member there
+      // sits at most 1 / 1.5 m = 0.63), and in 23.727's 1.2 x reserve drop at 1.15 - both at once, the aeroplane on its hull
+      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1), yb: yr, yt: yr };
       addCut(ci, 'root', S.part, null, lim, { nodes: Int32Array.from(pts.map(q => q.i)), w: Float64Array.from(pts.map(q => q.A)) }, S, -1);
       return;
     }
