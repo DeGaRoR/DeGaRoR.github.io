@@ -158,3 +158,15 @@ GATE TAXICLEAR: PASS
   X  cub:HOME:calm:student       completed 352.6 s · sink 0.8 · 1.22 Vs · aim 8 · swing 68.9
   ok cub:HOME:calm:club          completed 339 s · sink 0.58 · 1.2 Vs · aim 19 · swing 1.1
   ok cub:HOME:calm:bush          completed 380.2 s · sink 0.69 · 1.13 Vs · aim 13 · swing 1.2
+
+== f7d7e3f (PHYSICS_V 6; no flight change) ==
+  FAIL 1. 1793 frames stepped (budget 1792; the uncut certificate 2765)
+  FAIL the phase strip knows all 24 pilot phases — not ROUTE, LOITER
+DMGCERTCOST FAIL   158.0 s
+SAVE      PASS     0.4 s
+BENCH     FAIL    75.0 s
+HEADING   PASS    43.7 s
+PANEL     PASS     1.4 s
+  FAIL 1. 1793 frames stepped (budget 1792; the uncut certificate 2765)
+  FAIL the phase strip knows all 24 pilot phases — not ROUTE, LOITER
+-- BENCH on the base 9546d2e (node tools/_bench_check.js): FAIL - the phase strip knows all 24 pilot phases — not ROUTE, LOITER

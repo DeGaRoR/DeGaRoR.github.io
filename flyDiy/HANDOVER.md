@@ -81240,3 +81240,127 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2470 - JODEL-PITCH: THE PORPOISE WAS THE MUNK BODY COUPLE'S ARM MEASURED IN THE WORLD'S X-Y PLANE (x 1/cos(heading), OFF WITHIN 9 DEG OF WORLD +-Z); NOW THE RINGS' SPACING ALONG THE BODY; GATE HEADING; THE WATER'S PULL LEADS THE NOSE (2026-10-07/08, JODEL-PITCH for the PILOT COORDINATOR, cloud - node only; branch claude/jodel-pitch-g2470 off origin/claude/pilot-integration 9546d2e = train 40 + ENGINE-TORQUE G2080 + ROUTE-DRAW G2120; block G2470-G2479, G2471-G2479 unused)
+
+**STATUS: READY, WITH TWO NAMED REDS THE FIX EXPOSES (A0 / the user decide) AND FOUR THE BASE ALREADY HAS.** GATE ROUTE is
+GREEN on the integration WITH ENGINE-TORQUE (the Jodel 0.61 -> 0.049 m/s; without ENGINE-TORQUE 0.502 -> 0.047). Source only
+(no generated file committed). The fix is one line of the solver's physics (+ the wind's z beside it); the user's words
+("it keeps diving and climbing") were the Munk couple switching on and off with the heading - on EVERY aeroplane, every flight
+off world x: the Jodel's circuit's peak pitch rate 18 -> 7 deg/s, the metal Cessna's final 7.7 -> 3.9 elevator reversals a
+minute. The floats' water take-offs had leaned on the fictitious couple; the Wipline's is fixed at its pilot-law source, the
+twin's is not reachable under GATE TAKEOFF's 1.6 Vs with honest physics (measured: no stick, pull or throttle does it). The
+metal Cessna's climb-out from the mill now reaches 30 m 0.4 s later and GATE TAXICLEAR's plan check sees house3's corner
+(-0.01 m of 1.5) - the drift under it is G2080's named residue. Details and proposals below.
+
+**THE MECHANISM** (traced on the integration's tree 9546d2e, node; reports/evidence/JODEL-PITCH/).
+GATE ROUTE case B, the Jodel (builds/jodel_2026-09-20_corrected.json, end 'hold'), WP4's leg (300 -> 220 m, heading ~ world +z):
+- the per-step trace: 384.0 -> 389.5 s the elevator walks -0.067 -> -0.124, the stab's lift +47 -> +241 N (~800 N.m nose-down
+  about the CG) - and q stays 0 +-0.2 deg/s, alpha 5.5 -> 5.2 deg. Then in 0.3 s q -9.6 deg/s, the stab -443 N, the elevator
+  +0.02 (the D term), vs -4.06 m/s; 4 s later +10 deg/s back.
+- THE MOMENT BUDGET (moment_budget.txt; the solver's own forces about the CG on the body's lateral axis, per substep): the aero
+  pass sums to ~0 the whole window. Split by stage, the strips' moment falls with the stab's (-66 -> -798) and the terms AFTER
+  the strip loop rise with it, +1077 -> +1775 N.m; split again, the two fuselage blobs are flat (-7, -110) and THE MUNK COUPLE
+  goes +1208 -> +1892 N.m - then 0, the step the nose drops. Its true value there (2 K vol q sin 2a / 2): ~300-330 N.m.
+- the line, 30_solver.js aeroPass (G461): `const L = hyp2(bx - ax, by - ay)` - the fore-to-aft ring spacing in the WORLD x-y
+  plane - and the couple applied as +-M / L on the two rings. Along world x that is the body (1.89 m on the Jodel); on a
+  heading psi it is ~1.89 |cos psi| (with the rings' vertical offset in it), so the pair the solver applied was M x 1.89 / L:
+  x1.41 at 45 deg, x5.6 at 80 deg, and within 9 deg of world +-z (L < 0.3) it was switched OFF. WP4's leg turns through that
+  band: the couple grew as the heading swung (the pilot walked the elevator nose-down against it - "no response"), vanished in
+  one step ("then all at once"), came back on the way out (380 s: nose-up). jodel_descent.png shows it whole: three switch-offs
+  (375, 378, 389-394 s), the elevator parked at -0.12 for 60 s holding ~1800 N.m of fictitious couple down WP4's leg.
+- the same mistake as G970's world-z span in the induction's template. The fore ring's wind was also sampled at z = 0.
+- RULED OUT, measured: the damage model OFF flies the window bit-identical (nothing yields); the fin's shape-matched cluster
+  (the Jodel's only one) projects 0.0 N.m; the deformation damper <= 4.1 N.m; the strip polar has no memory (no hysteresis is
+  possible) and the tail's moment followed its elevator linearly; TECS winding to its floor was the reaction, not the cause.
+  "Open loop the elevator is sharp" - it is; the couple had moved the trim. ENGINE-TORQUE moved only the timing (a few tenths
+  of a degree of heading history, so where the couple switched off): without it the same dip read 0.502 on this base.
+
+**THE FIX (G2470, 30_solver.js).** The arm is the rings' spacing ALONG THE BODY, |(b - a) . xAft|: two forces +-F yUp on the
+rings make F x that spacing of pitch, so the pair is exactly M on any heading. Along world x it was hyp2 = the same spacing with
+the rings' small vertical offset in it (0.1-0.7 % longer on the five builds) - the only change there. The fore ring's wind at
+its own z. GEN_RULES.bodyMunkK (0.75) stands: it was fitted on the neutral-point probes, which fly along the def's own x
+(172 NP 65 -> 59 %, Cub 44 -> 41, Jodel 36 -> 33). PHYSICS_V 5 -> 6 (60_gen_spec.js): the certificate's flown cases that turn off x move (the Jodel's steps a frame more;
+the stored certificates re-make on the bump, as G2080's did); the probes along the def's x do not.
+
+**GATE HEADING (new, core, ~45 s, tools/_heading_check.js; --selftest)** - THE AIR HAS NO PREFERRED HEADING: the five
+validated builds, damage off, no world, 1000 m up at cruise with 4 deg of alpha, 0.10 of nose-up elevator held, yawed to 0, 45,
+... 315 deg, 3 s; pitch, bank, alpha, vertical speed and the turn against heading 0. This tree: the worst spread 1.1e-6 deg
+(the floats' hulls; 2e-9 on the landplanes) for 14-42 deg of pitch flown. --selftest puts the old arm back in a copy of the core:
+all five caught, 2.7 - 11.8 deg of pitch spread in 3 s. The water was checked the same way by hand (scratch whdg.js: the twin
+at full power on the SEA lane rotated 0 / 45 / 90 deg - the same run to 0.08 deg of pitch, the sea's own waves): no world-frame
+term in the hydro.
+
+**THE WATER'S PULL LEADS THE NOSE (G2470, 43_pilot.js ROLL / LIFTOFF).** The SEA lane runs along world +z: there the old arm was
+the rings' VERTICAL offset (~2.9 sin(pitch) - 0.18 on the floats), ~0.3 m on the step - a ~10x couple growing with the pitch.
+The floatplanes' rotations leaned on it (takeoff_water.txt: the base with K 0 flies as this tree does). The Wipline C172 unstuck
+at 27.7 m/s, 0.1 under the 1.12 Vr where the water's full stick (deWater 0.70) arms, and never met it; honestly it reaches 1.12
+Vr wet, the floor took the elevator 0.29 -> 0.69 in 0.4 s and held it there until the floats let go: 20.1 deg/s (bound 12).
+The full stick was a FLOOR held whatever the nose did. Now the pull is full while the attitude, LED by its rate (0.5 s), is
+short of the lift-off attitude and eases to nothing over its last 0.05 rad - a seaplane pilot easing the back pressure as the
+nose comes up; the attitude servo holds it from there. A hull that never reaches the attitude keeps the full stick as before.
+
+**BEFORE / AFTER** (before = 9546d2e built, after = dbb3856 built; node; the numbers are the files').
+GATE ROUTE's flight (tools/jodel_pitch_probe.js; worst = the gate's own 1 s mean past TECS's limit, tolerance 0.5):
+| flight | worst m/s (steps) | peak q deg/s | q > 5 deg/s | elevator reversals /min | vs - asked rms m/s | elevator range |
+|---|---|---|---|---|---|---|
+| Jodel, ENGINE-TORQUE on | 0.610 (44) -> 0.049 (0) | 13.1 -> 7.9 (the climb-out) | 3.7 -> 0.6 s | 3.3 -> 0.4 | 0.476 -> 0.149 | -0.159..+0.053 -> -0.040..+0.041 |
+| Jodel, ENGINE-TORQUE off | 0.502 (5) -> 0.047 (0) | 14.3 -> 7.9 | 3.6 -> 0.6 | 3.3 -> 0.4 | 0.457 -> 0.149 | -0.166..+0.052 -> -0.040..+0.042 |
+| the user's Cub (home) | 0 -> 0 | 7.8 -> 7.7 | 0.6 -> 0.6 | 1.3 -> 1.3 | 0.167 -> 0.165 | -0.149..-0.026 -> -0.148..-0.030 |
+| metal Cessna (land) | 0 -> 0 | 10.5 -> 10.3 | 1.7 -> 1.4 | 4.3 -> 3.0 | 0.526 -> 0.487 | -0.109..+0.121 -> -0.108..+0.052 |
+(captures unchanged to the metre; the Cub's and the Cessna's ends as before: landed, stopped.)
+THE CIRCUITS (tools/pilot_trace.js <build>, HOME, calm; peak pitch rate in the air from the 0.1 s trace; elevator reversals per minute legs / base / final):
+| build | outcome, t | climb vs | final above rms | peak q | q > 5 | DOWNWIND elevator | reversals legs / base / final |
+|---|---|---|---|---|---|---|---|
+| Cub | completed 333.8 -> 333.9 s | 2.37 -> 2.37 | 0.7 -> 0.7 | 9.0 -> 9.0 | 1.9 -> 1.8 s | -0.080..-0.058 -> -0.079..-0.060 | 10/6/1.9 -> 10/6/1.9 |
+| Jodel | completed 357.7 -> 357.2 | 2.11 -> 2.11 | 0.6 -> 0.5 | 18.0 -> 7.0 | 2.7 -> 1.0 | -0.046..+0.009 -> +0.002..+0.017 | 8/4/2.1 -> 4/2/1.1 |
+| metal Cessna | completed 269.9 -> 270.0 | 5.21 -> 5.21 | 1.0 -> 0.9 | 14.0 -> 11.0 | 3.1 -> 3.1 | -0.011..+0.032 -> -0.011..+0.007 | 10/6.7/7.7 -> 6/5/3.9 |
+THE WATER (GATE TAKEOFF's technique, pilot_one_trace): wip 27.7 m/s 7.0 deg/s -> 28.4 (1.16 Vs) 10.2 PASS; ultraf 21.1 (1.31 Vs)
+-> 22.6 (1.41) PASS; twinf 28.3 (1.54) -> 30.1 (1.64) FAIL; c172f rejected-takeoff both.
+
+**GATES** (cloud, 4 cores, `run_gates --no-build --only=... --jobs=4` after a build; reports/evidence/JODEL-PITCH/gates.txt):
+- ON THE FINAL FLIGHT CODE dbb3856 (f7d7e3f adds PHYSICS_V 6 - a certificate key, no flight change): **ROUTE PASS** (3 shards, ENGINE-TORQUE in), **HEADING PASS** (new; --selftest PASS), PILOT
+  PASS (3), PILOTACT PASS, PLAN PASS, NAV PASS, LINEUP PASS, ENGTORQUE PASS, SEAPLANE PASS, GEN PASS (4), JOIN PASS, RPM PASS,
+  HOTHIGH PASS, FLEX PASS (3), DMGCERT PASS, DMGMEMBERS PASS, DMGCLUSTERS PASS, WIPLINE PASS, HYDRODYN PASS, WATER PASS; AERO
+  PASS (on 831afd1, the arm alone).
+- **TAKEOFF FAIL - NAMED (this fix exposes it):** twinf lifts off at 1.64 Vs (bound 1.6; the base's 1.54 was the fictitious
+  couple: the base with K 0 reads 1.66). The twin on its undersized floats with two 582s 0.55 m over the CG cannot unstick
+  sooner with honest physics - no stick top (0.6 / 0.7 / 0.9 -> 1.70 / 1.64 / 1.64; the tail saturates), pull speed (1.0 / 1.12 /
+  1.25 Vr -> 1.63 / 1.64 / 1.64) or throttle (0.9 / 0.75 / 0.6 -> 1.70 / 1.62 with a hop / 1.70) does it. PROPOSED: G2080's
+  FLOATS-XWIND chantier takes the twin's floats (the fixture's float sizing and thrust line, the same fragility SEAPLANE's
+  crosswind knife edge comes from); the bound stays.
+- **TAXICLEAR FAIL - NAMED (this fix exposes it):** the metal Cessna (the gate's "aluminium C172" = bugReports/cessnaMetal (1)
+  .json) from the mill: the wing's PLAN clearance to house3 until 30 m up -0.01 m (bound 1.5; base 1.85 - ENGINE-TORQUE's own
+  note: 3.13 -> 1.85, THIN). mill_takeoff_trace.txt, both trees: the roll is straight (heading within 0.2 deg) to 24 m/s; at the
+  rotation, the nosewheel unloading, the nose swings 2.9 deg right in 1.5 s while the rudder ramps -0.003 -> -0.17 (the trike's
+  steer gains are eased with speed for the NOSEWHEEL's authority - with it light, the rudder alone holds the swirl and P-factor
+  too softly); it leaves on a -2.9 deg track and LIFTOFF unwinds it over 4 s: 7 m right of the centreline at 30 m up, on both
+  trees. The base climbed out on the fictitious couple (this strip runs 5 deg off world z: a ~7x couple), nose higher and ~1 m/s
+  slower, and reached 30 m 20 m before house3's abeam; honestly it reaches it 29 m over the corner. Measured, not kept (each
+  pilot-wide, its own battery): steerI 2.0 (G2080's own alternative) 1.31 m; the taildragger's rudder-only gains once the
+  nosewheel is off 1.29 m (caught late, overshoots +2 / -6 deg); an aileron-trim integral 0.95 / 1.54 m; LIFTOFF's look-ahead
+  at 100 m 1.45 m. PROPOSED: the trike's rotation steer (the rudder's law as the nosewheel unloads) - ENGINE-TORQUE's owner
+  (G2080's "the metal Cessna rotated 4.1 deg off its heading" residue); or GATE TAXICLEAR judges a wing over a footprint by its
+  height (29 m over a house is not the user's "hits a building").
+- **PILOTMATRIX FAIL - THE BASE'S OWN:** "6 regressed against pilot_baseline.json; 5 known bad, 1 warn" - all six are two
+  PERSONA cells, cub:HOME:calm:student and :hamfist, rollout swing 68.9 / 51.3 deg (baseline 2.8). The base flies the same cells
+  64.4 / 52.3 deg (pilot_matrix --cells on 9546d2e; club 1.1 / bush 1.2 on both). Every other cell: no worse than the baseline.
+  For the persona owner (G2085 x G2080: the swirl's ground swing under a student's / ham-fist's feet).
+- **DMGCERTCOST FAIL - THE BASE'S OWN:** the Jodel's certificate steps 1793 frames against the 1792 budget, identically on
+  9546d2e (the budget is G1892's exact count; ENGINE-TORQUE's PHYSICS_V 5 moved it - A0's --write-ref / budget call). The Cessna
+  floats' 1762 (budget 1763) moved by a frame with this fix, inside.
+- **FLOATS FAIL - THE BASE'S OWN:** the landing's largest one-frame rise of the water's lift 0.882 W on 9546d2e (bound 0.35) ->
+  1.336 W here (the touch at 1.40 m/s instead of 1.33; every other FLOATS row PASS).
+- **BENCH FAIL - THE BASE'S OWN** (run for PHYSICS_V 6): "the phase strip knows all 24 pilot phases - not ROUTE, LOITER" - the
+  same on 9546d2e (ROUTE-DRAW's two new phases; its owner). PANEL, SAVE, HEADING PASS on f7d7e3f (PHYSICS_V 6).
+- NOT RUN: the whole --all battery and the strict perf gate (no GPU); TAKEOFF / LINEUP / SEAPLANE / PILOT ran on the final tree.
+
+**FILES**: src/core/30_solver.js (the arm, the wind's z), src/core/60_gen_spec.js (PHYSICS_V 6), src/core/43_pilot.js (WATER_LEAD / WATER_BAND, waterPull in ROLL and
+LIFTOFF), tools/_heading_check.js (new, GATE HEADING), tools/run_gates.js (its row), tools/jodel_pitch_probe.js (new, the
+evidence flight), tools/jodel_pitch_plot.js (new, the sheet), reports/evidence/JODEL-PITCH/.
+
+**OWED / FOR A0**: the two named reds' decisions (TAKEOFF twinf -> FLOATS-XWIND or the bound; TAXICLEAR mill -> the trike's
+rotation heading, G2080's owner); the four base reds' owners (PILOT-PERSONA's Cub cells, DMGCERTCOST's budget, FLOATS' landing
+rise, BENCH's phase strip); GATE ROUTE's persona pass (ROUTE-DRAW's own owed item) now flies on an honest couple; every number a gate prints off world
+x moved a little (the circuits' crosswind and base legs, the SEA lane, any strip not on x) - the batteries above are the
+measure; FRAMECOST / the parked cook read the build id (a core edit moves it - A0's re-cook at the train).

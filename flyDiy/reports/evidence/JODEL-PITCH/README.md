@@ -13,6 +13,7 @@ GATE HEADING, the water's lead law), built. Every flight is the real sim and THE
 | `route_{base,fix}_jodel*.csv` | the 0.1 s traces the sheets are drawn from (`tools/jodel_pitch_plot.js`) |
 | `circuit_{base,fix}_{cub,jodel,metal}.json`, `circuits_summary.txt` | `tools/pilot_trace.js <build> --quiet` HOME circuits of the user's Cub, the Jodel, the metal Cessna |
 | `moment_budget.txt`, `moment_budget_patch.js` | the pitching-moment budget that found it (before tree): the aero pass sums to ~0 while the stab's moment grows - the Munk pair grows with it |
+| `mill_takeoff_trace.txt` | the metal Cessna's take-off from the mill (GATE TAXICLEAR 9), both trees: the rotation's yaw, the cross-track at 30 m |
 | `takeoff_water.txt` | the floats on the SEA lane: why they moved, the Wipline's fix, the twin (named) |
 | `gates.txt` | every gate run, both batteries, and the base's own verdicts on the reds |
 
