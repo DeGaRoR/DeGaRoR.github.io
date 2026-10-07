@@ -97,7 +97,9 @@ async function pageCensus() {
     return () => { craftMeshes.forEach((c, i) => { c.visible = kv[i]; }); }; };
   // THE CLASS OF EVERY DRAWN VERTEX: each drawn geometry's vertices mapped back to the payload bucket they came from -
   // the bucket's own geometry, a still merge (its names in order), or a fold (the buckets' arrays are views into it)
-  const CLS = { outer: [1, 1, 1], liner: [1, 0, 1], struct: [0, 1, 1], fire: [1, 0.5, 0], sill: [0.5, 0, 1], cabin: [0, 0, 1], trim: [0, 1, 0], part: [0.5, 0.5, 0.5] };
+  const CLS = { outer: [1, 1, 1], liner: [1, 0, 1], struct: [0, 1, 1], fire: [1, 0.5, 0], sill: [0.5, 0, 1], cabin: [0, 0, 1], trim: [0, 1, 0], part: [0.5, 0.5, 0.5], cowl: [1, 1, 0] };
+  // (the cowl, the user's 'the cowl is also grey' 2026-10-07: its own class - the snapshot's 'cowl' layer ranges, by bucket)
+  const cowlR = new Map(); for (const r of (m.data && m.data.layers) || []) if (r[0] === 'cowl') { let L = cowlR.get(r[1]); if (!L) cowlR.set(r[1], L = []); L.push([r[2], r[3]]); }
   const keyOfMesh = new Map(); for (const k in B.meshes0) keyOfMesh.set(B.meshes0[k], k);
   const clsOfKey = k => { const mt = m.mats[k] || {}, sec = mt.sec, role = sec && A0 ? A0.AERO_ROLE[sec] : null;
     if (mt.fin === 'glass' || role === 'glass' || role === 'bead' || role === 'seal' || role === 'edge') return 'trim';
@@ -117,12 +119,15 @@ async function pageCensus() {
     const arr = pa.array, st = (pa.data && pa.data.stride) || 3;
     if (o.userData && o.userData.still) {
       let vo = 0; for (const nm of o.userData.still) { const g0 = B.meshes0[nm] && B.meshes0[nm].geometry, c = g0 ? g0.attributes.position.count : 0, cl = CLS[clsOfKey(nm)];
-        for (let v = vo; v < vo + c && v < n; v++) col.set(cl, v * 3); vo += c; }
-    } else for (const [a, cls] of origByBuf) {
+        for (let v = vo; v < vo + c && v < n; v++) col.set(cl, v * 3);
+        for (const [a0, a1] of cowlR.get(nm) || []) for (let v = vo + a0; v < vo + a1 && v < vo + c && v < n; v++) col.set(CLS.cowl, v * 3);
+        vo += c; }
+    } else for (const [a, cls, mesh0] of origByBuf) {
       if (a.buffer !== arr.buffer) continue;
       const off = Math.round((a.byteOffset - arr.byteOffset) / 4 / st), c = Math.floor(a.length / 3), cl = CLS[cls];
       if (off < 0 || off >= n) continue;
       for (let v = off; v < off + c && v < n; v++) col.set(cl, v * 3);
+      for (const [a0, a1] of cowlR.get(keyOfMesh.get(mesh0)) || []) for (let v = off + a0; v < off + a1 && v < off + c && v < n; v++) col.set(CLS.cowl, v * 3);
     }
     geo.setAttribute('dwCls', new THREE.BufferAttribute(col, 3)); added.push(geo);
   }
@@ -133,7 +138,7 @@ async function pageCensus() {
     mt = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, side: THREE.DoubleSide, fog: false });
     mt.onBeforeCompile = sh => {
       sh.vertexShader = 'attribute vec3 dwCls;\nvarying vec3 vDw;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDw = dwCls;');
-      sh.fragmentShader = 'varying vec3 vDw;\n' + sh.fragmentShader.replace(/}\s*$/, ' gl_FragColor = vec4((!gl_FrontFacing && vDw.r > 0.99 && vDw.g > 0.99 && vDw.b > 0.99) ? vec3(1.0, 0.0, 0.0) : vDw, 1.0);\n}');
+      sh.fragmentShader = 'varying vec3 vDw;\n' + sh.fragmentShader.replace(/}\s*$/, ' gl_FragColor = vec4((!gl_FrontFacing && vDw.r > 0.99 && vDw.g > 0.99 && vDw.b > 0.99) ? vec3(1.0, 0.0, 0.0) : (!gl_FrontFacing && vDw.r > 0.99 && vDw.g > 0.99 && vDw.b < 0.01) ? vec3(1.0, 0.5, 0.5) : vDw, 1.0);\n}');
     };
     mt.customProgramCacheKey = () => 'dwCls' + key;
     clsMats.set(key, mt); return mt; };
@@ -141,7 +146,7 @@ async function pageCensus() {
   const diffMask = only => { const W = flat(white, only), K = flat(black, only), M = new Uint8Array(W.length >> 2);
     for (let i = 0, j = 0; i < W.length; i += 4, j++) M[j] = (W[i] + W[i+1] + W[i+2]) - (K[i] + K[i+1] + K[i+2]) > 300 ? 1 : 0; return M; };
   const MA = diffMask(null), MN = diffMask(hideParts), MG = diffMask(glassOnly);
-  const C = flat(clsMat, hideParts);
+  const C = flat(clsMat, hideParts), CC = cowlR.size ? flat(clsMat) : null;   // (CC: the cowl's class frame, no part hidden)
   // the class frame as a picture (the aeroplane's pixels only, the rest dimmed)
   const pic = g.createImageData(cv.width, cv.height);
   for (let i = 0, j = 0; i < C.length; i += 4, j++) { const on = MA[j] && MN[j]; pic.data[i] = on ? C[i] : A[i] >> 2; pic.data[i+1] = on ? C[i+1] : A[i+1] >> 2; pic.data[i+2] = on ? C[i+2] : A[i+2] >> 2; pic.data[i+3] = 255; }
@@ -149,7 +154,7 @@ async function pageCensus() {
   for (const geo of added) geo.deleteAttribute('dwCls');
   white.dispose(); black.dispose(); for (const mt of clsMats.values()) mt.dispose();
   g.putImageData(pic, 0, 0); const clsJpg = cv.toDataURL('image/jpeg', 0.86).slice(23);
-  const names = Object.keys(CLS).concat(['back']), pal = Object.values(CLS).concat([[1, 0, 0]]);
+  const names = Object.keys(CLS).concat(['back', 'cowlBack']), pal = Object.values(CLS).concat([[1, 0, 0], [1, 0.5, 0.5]]);
   const near = (R, G, Bl) => { let b = 0, bd = Infinity; pal.forEach((p, k) => { const d = (p[0] * 255 - R) ** 2 + (p[1] * 255 - G) ** 2 + (p[2] * 255 - Bl) ** 2; if (d < bd) { bd = d; b = k; } }); return names[b]; };
   let craftPx = 0, yellow = 0, dark = 0, other = 0, grey = 0;
   const byAll = {}, byOther = {};
@@ -163,10 +168,22 @@ async function pageCensus() {
     if (h >= 30 && h <= 68 && S > 0.35) { if (V > 0.32) yellow++; else dark++; }
     else { other++; byOther[cl]++; if (S < 0.18) grey++; }
   }
+  // THE COWL'S OWN: its pixels (the cowl class, front or back face, no part hidden, glass not over it) - their yellow share
+  // (the leak rule: a crashed Cub stays yellow), the dark yellow (unlit, the 'lit from behind' look), the rest, and how
+  // many of them show the cowl's BACK face (its inside)
+  const cowl = { px: 0, yellow: 0, darkYellow: 0, other: 0, grey: 0, back: 0 };
+  if (CC) for (let i = 0, j = 0; i < A.length; i += 4, j++) {
+    if (!MA[j] || MG[j]) continue; const cl = near(CC[i], CC[i+1], CC[i+2]); if (cl !== 'cowl' && cl !== 'cowlBack') continue;
+    cowl.px++; if (cl === 'cowlBack') cowl.back++;
+    const R = A[i] / 255, G = A[i+1] / 255, Bl = A[i+2] / 255, mx = Math.max(R, G, Bl), mn = Math.min(R, G, Bl), S = mx > 0 ? (mx - mn) / mx : 0;
+    let h = 0; if (mx > mn) { h = mx === R ? 60 * (((G - Bl) / (mx - mn)) % 6) : mx === G ? 60 * ((Bl - R) / (mx - mn) + 2) : 60 * ((R - G) / (mx - mn) + 4); if (h < 0) h += 360; }
+    if (h >= 30 && h <= 68 && S > 0.35) { if (mx > 0.32) cowl.yellow++; else cowl.darkYellow++; } else { cowl.other++; if (S < 0.18) cowl.grey++; } }
+  const cowlPc = x => cowl.px ? +(100 * x / cowl.px).toFixed(1) : 0;
+  const cowlOut = { px: cowl.px, yellow: cowlPc(cowl.yellow), darkYellow: cowlPc(cowl.darkYellow), other: cowlPc(cowl.other), greyOrBlack: cowlPc(cowl.grey), backFace: cowlPc(cowl.back) };
   const pc = x => craftPx ? +(100 * x / craftPx).toFixed(2) : 0;
   const pcs = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v).map(([k, v]) => [k, pc(v)]));
   return { px: craftPx, yellow: pc(yellow), darkYellow: pc(dark), other: pc(other), greyOrBlack: pc(grey),
-           otherBy: pcs(byOther), allBy: pcs(byAll), clsJpg, w: cv.width, h: cv.height };
+           otherBy: pcs(byOther), allBy: pcs(byAll), cowl: cowlOut, clsJpg, w: cv.width, h: cv.height };
 }
 // the case staged and stepped (DMG-D4b's set-up on the home strip, no debris), two steps a frame until it is over
 async function pageStage(o) {
@@ -293,6 +310,9 @@ function pageTears() {
     const R = E.R, rg = lay.get(E.name); if (!rg || !R.dead) continue;
     const layer = new Array(R.nv).fill(''); for (const r of rg) for (let v = r[2]; v < r[3] && v < R.nv; v++) layer[v] = r[0];
     const ix = R.idx0 || R.idx, B = R.baseD, W = R.w, Kk = R.K, rest = K.rest, live = sim.p;
+    // (the torn-wing finding: a record holding wing covering - its G1864 islands' share of the removed, by name)
+    { let wn = 0; for (let t = 0; t < R.nt; t++) if (layer[ix[t * 3]] === 'wing' && E.cv[ix[t * 3]] === 2) wn++;
+      if (wn) { out.isl = out.isl || {}; out.isl[E.name] = { wingTris: wn, torn: R.torn || 0, islands: R.islN || 0 }; } }
     for (let t = 0; t < R.nt; t++) { const a = ix[t * 3]; if (layer[a] !== 'wing' || E.cv[a] !== 2) continue;
       const side = B[a * 3 + 2] >= 0 ? 'R' : 'L', d = R.dead[t];
       if (d) { out[side][d] = (out[side][d] || 0) + 1; continue; }
@@ -318,6 +338,22 @@ async function pageFlyW(o) {
   const sim = P.sim(), [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl;
   const c = sim.cgPos(), g = world.terrainH(c[0], c[2]);
   let yMin = Infinity; for (let i = 1; i < sim.p.length; i += 3) yMin = Math.min(yMin, sim.p[i]);
+  // (the torn-wing finding: every 40 ms, the wing's torn covering against the inherited binding's progress - the page binds
+  // BRK_INH places a frame, an unbound place riding its one nearest node meanwhile; outboard = covering past 0.8 m off the
+  // centreline at rest, the wing and the stabiliser tips)
+  const WW = [], wTri = new Map(), t00 = performance.now(); let last = '';
+  const wTick = () => { try { const m = P.model(), K = m && m.brk; const S = window.FLYDIY_DMG_STATE ? window.FLYDIY_DMG_STATE() : null, nb = S && S.br ? S.br.length : 0;
+    if (!K || !K.inhL) { const k = 'none|' + nb; if (k !== last) { last = k; WW.push([+((performance.now() - t00) / 1000).toFixed(2), 'noinh', nb]); } return; }
+    let wing = 0, out = 0, isl = 0;
+    for (const E of K.inhL) { const R = E.R; if (!R.dead) continue; isl += R.islN || 0;
+      let L = wTri.get(E); if (!L) { const lay = ((m.data && m.data.layers) || []).filter(r => r[1] === E.name && r[0] === 'wing'), ix = R.idx0 || R.idx, B = R.baseD, a = [], b = [];
+        for (let t = 0; t < R.nt; t++) { const v = ix[t * 3]; if (E.cv[v] !== 2) continue; if (lay.some(r => v >= r[2] && v < r[3])) a.push(t); if (B && Math.abs(B[v * 3 + 2]) > 0.8) b.push(t); }
+        wTri.set(E, L = [a, b]); }
+      for (const t of L[0]) if (R.dead[t] === 2) wing++;
+      for (const t of L[1]) if (R.dead[t] === 2) out++; }
+    const done = K.inhSt && K.inhSt.done ? 1 : 0, k = done + '|' + wing + '|' + out + '|' + isl + '|' + nb;
+    if (k !== last) { last = k; WW.push([+((performance.now() - t00) / 1000).toFixed(2), done, wing, out, isl, nb, K.inhSt ? K.inhSt.places || K.inhSt.n || null : null]); } } catch (e) { WW.push(['err', String(e && e.message || e).slice(0, 80)]); } };
+  const wIv = setInterval(wTick, 40);
   await P.place({ at: [c[0], g + (o.agl || 0) + (c[1] - yMin) + 0.05, c[2]], zeroV: true, dv: [o.V * fx, 0, o.V * fz] });
   const c2 = sim.cgPos(), tx = c2[0] + fx * o.D - fz * (o.off || 0), tz = c2[2] + fz * o.D + fx * (o.off || 0), gt = world.terrainH(tx, tz), R = o.r || 0.3, H = o.top || 10;
   world.treeHits.set('fill:wallworker', [tx, tz, gt, R, gt + H]);
@@ -339,7 +375,8 @@ async function pageFlyW(o) {
     if ((V.over || V.crashed) && !overAt) overAt = performance.now();
     if (overAt && performance.now() - overAt > 4000) break;
   }
-  return Object.assign({ worker: !!sim.dmgState, flightOver: P.over(), trunkKeys: [...world.treeHits.keys()].filter(k => /wall/.test(k)), trace },
+  clearInterval(wIv); wTick();
+  return Object.assign({ wingWatch: { cols: 's, inh done, wing-layer torn, outboard torn, islands, broken, inhSt', rows: WW.slice(0, 120) }, worker: !!sim.dmgState, flightOver: P.over(), trunkKeys: [...world.treeHits.keys()].filter(k => /wall/.test(k)), trace },
            verdict(), { skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null });
 }
 // THE AEROPLANE IN EVERY SCENE (GATE DMGWALLPATH's check, on the box): the stand's editor mount in the shed, the flown
@@ -362,6 +399,8 @@ function pageScenes() {
   for (const o of shared) roots.push(['SNAPSHOT-SHARED', o]);
   for (const [tag, root] of roots) root.traverse(o => {
     if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
+    // (the crew - Mixamo characters, 'char:' - are not the aeroplane: their skeletons sit off the mesh's bind by design)
+    { let q = o, ch = false; while (q && !ch) { if (/^char:/.test(q.name || '')) ch = true; q = q.parent; } if (ch) return; }
     // (G1858.2: a SKINNED mesh - the hybrid fold, a bone a part - is measured on its SKINNED positions: the raw attribute
     // of a part whose bone kept the wreck's matrix is clean while the drawing is not; and its bones off their bind by more
     // than 0.5 m are listed)
@@ -411,6 +450,25 @@ if (require.main === module) (async () => {
     let bs = ''; for (let i = 0; i < 300; i++) { bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     console.log('rolled out: ' + flying + ', boot ' + bs); await sleep(2000);
   }
+  // (--hook NAME: window[NAME] = true on the page, after the boot - a fault switch for an A/B; --bootonly: the page booted
+  // and rolled out for another rig - DMG-TUNE's dmg_wreck_stills.js replay - then this one leaves)
+  for (const hk of (opt('hook', '') || '').split(',').filter(Boolean)) console.log('hook ' + hk + ': ' + await post('/run', 'window[' + JSON.stringify(hk) + '] = true; return 1;'));
+  if (has('bootonly') && !has('cowl')) { console.log('boot only: done'); process.exit(0); }
+  // (--cowl [--tag T] [--cams az,el,d;...]: the cowl's census from fixed orbit cameras on the aeroplane as it stands - the
+  // intact one after the boot, or the wreck another rig left - each still + its class frame + the numbers; then leave)
+  if (has('cowl')) {
+    const tag = opt('tag', 'cowl'), cams = (opt('cams', '150,8,4.5;200,22,9;300,40,10')).split(';').map(x => x.split(',').map(Number)), res = [];
+    fs.mkdirSync(OUT, { recursive: true });
+    for (const [ci, c] of cams.entries()) { await run(pageView, c);
+      const cz = await run(pageCensus), f = path.join(OUT, 'cowl_' + tag + '_' + (ci + 1) + '.jpg');
+      if (cz && cz.clsJpg) { fs.writeFileSync(f.replace(/\.jpg$/, '_cls.jpg'), Buffer.from(cz.clsJpg, 'base64')); delete cz.clsJpg; }
+      const tmp = f + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
+      fs.writeFileSync(f, Buffer.from(await run(pageJpeg, png), 'base64'));
+      res.push({ cam: c, file: path.basename(f), cowl: cz && cz.cowl, yellow: cz && cz.yellow, other: cz && cz.other });
+      console.log('cowl ' + tag + ' cam' + (ci + 1) + ' ' + JSON.stringify(cz && cz.cowl) + ' (the craft: yellow ' + (cz && cz.yellow) + ' %, other ' + (cz && cz.other) + ' %)'); }
+    fs.writeFileSync(path.join(OUT, 'cowl_' + tag + '.json'), JSON.stringify(res, null, 1));
+    process.exit(0);
+  }
   R0.fresh = await run(pageHeal, 'fresh');
   console.log('fresh ' + JSON.stringify(R0.fresh));
   if (has('probe')) { const pr = await run(pageProbe); fs.writeFileSync(path.join(OUT, 'probe.json'), JSON.stringify(pr, null, 1)); console.log(JSON.stringify(pr).slice(0, 3000)); if (!opt('cases', null)) return; }
@@ -420,11 +478,14 @@ if (require.main === module) (async () => {
     const RW = { at: new Date().toISOString(), worker: true, cases: {} };
     const shootW = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
       const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
+    const dlW = () => { try { const t = fs.readFileSync(path.join(OUT, '..', 'DEADLINE'), 'utf8').trim().split(':').map(Number), d = new Date(); d.setHours(t[0], t[1], 0, 0); return d.getTime(); } catch (e) { return Infinity; } };
     for (const k of names) {
+      if (Date.now() > dlW()) { console.log('past the DEADLINE: ' + k + ' and the rest not run'); break; }
       const C = CASES[k], out = { label: C.label, shots: [] };
       out.fly = await run(pageFlyW, C.o);
       out.tears = await run(pageTears);
       console.log(k + ' worker ' + JSON.stringify(out.fly).slice(0, 500) + ' tears ' + JSON.stringify(out.tears));
+      if (out.fly && out.fly.wingWatch) console.log(k + ' wingWatch [' + out.fly.wingWatch.cols + '] ' + JSON.stringify(out.fly.wingWatch.rows));
       for (const [ci, c] of C.cams.entries()) { await run(pageView, c); const f = path.join(OUT, k + '_' + (ci + 1) + '_flown_default_mode.jpg');
         const cz = await run(pageCensus); if (cz && cz.clsJpg) { fs.writeFileSync(f.replace(/\.jpg$/, '_cls.jpg'), Buffer.from(cz.clsJpg, 'base64')); delete cz.clsJpg; }
         out.shots.push({ cam: c, file: await shootW(f), census: cz }); console.log('  worker cam' + (ci + 1) + ' other ' + cz.other + ' % ' + JSON.stringify(cz.otherBy)); }

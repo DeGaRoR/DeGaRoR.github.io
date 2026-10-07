@@ -2,7 +2,7 @@
 # G1858 (DMG-WALL): one box session of tools/dmg_wall_census.js - the GPU lock taken, a live_driver page up on the user's
 # Cub (?damage=1&simw=0 plus $Q2), the census run, the page closed, the lock dropped (whatever happens).
 #   bash tools/dmg_wall_run.sh <out-subdir> [census args...]
-ROOT=D:/Dev/dmgwall; LK=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
+ROOT=${ROOT:-D:/Dev/dmgwall}; LK=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
 SUB=$1; shift
 bash $LK take gpu DMG-WALL "yellow census, the user's Cub (~25 min)" || exit 1
 grep -q "^DMG-WALL " D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/GPU_BENCH.lock || exit 1

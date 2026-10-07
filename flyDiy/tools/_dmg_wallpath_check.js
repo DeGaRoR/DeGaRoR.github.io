@@ -67,6 +67,8 @@ function giantScenes(W) {
   for (const g of seen) { let sc = g; while (sc.parent) sc = sc.parent; if (g.parent) roots.push([g === cur ? 'flown' : 'OLD-MODEL-IN-A-SCENE', g]); }
   for (const [tag, root] of roots) root.traverse(o => {
     if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
+    // (the crew - Mixamo characters, 'char:' - are not the aeroplane: their skeletons sit off the mesh's bind by design)
+    { let q = o, ch = false; while (q && !ch) { if (/^char:/.test(q.name || '')) ch = true; q = q.parent; } if (ch) return; }
     // (G1858.2: a SKINNED mesh - the hybrid fold, a bone a part - is measured on its SKINNED positions: the raw attribute
     // of a part whose bone kept the wreck's matrix is clean while the drawing is not; and its bones off their bind by more
     // than 0.5 m are listed)
