@@ -80754,3 +80754,205 @@ flight (above), routed; no bound was loosened and no leg was dropped to make it 
 A0: land with or after ISLAND-TOUR, PILOT-ONE-2, JOIN-PARITY and TOUR-REAL. GATE TOUR needs JOIN-PARITY: it asks
 tools/_load_build.js directly. The C172's and the floats' reds are JOIN-PARITY's aeroplanes; their owners' call is
 whether TOUR is held to them now or carried as known reds.
+
+## G2450 - EAST-POINT-DEPART: A SHORT STRIP LEFT FROM ITS VERY END, THE NAMED WAY, THE GO / NO-GO WHERE THE STOP STILL FITS (OR THE WAIT AND THE DECLINE, SAID); A SHORT FIELD'S ARRIVAL THAT COMES DOWN BEFORE ITS FINAL; THE ALTIPORT'S FINAL NOT BEGUN FROM BELOW IT; EAST POINT IN THE LAND TOUR (2026-10-07, EAST-POINT-DEPART for the PILOT COORDINATOR, a CLOUD session: node only, no GPU; branch claude/east-point-depart-g2450 off origin/claude/pilot-integration 1c641985 + PILOT-PROFILE cf3fc61b + ISLAND-TOUR-2 4bf4bd37 merged; G2450-G2459)
+
+**READY for the Pilot Coordinator (2026-10-07), with GATE TOUR red where the base is red and on one new finding past
+the base's red (below, routed).** THE BAR: GATE TOUR shard 3 (HOME > East Point > Jumbo Mine) PASS with the departure
+and the first approach now GATED; East Point is in ORDERS.land; the Cub's altiport leg lands in the default breeze.
+Source and tools only; nothing generated committed (index.html, dev.html, sw.js, version.json, tools/flight_core.js,
+media/parked, parked_packs.json untouched). Last commit 'G2450 READY: ...'; the core as delivered is f7a27621.
+
+THE BRIEF (the Pilot Coordinator, from TOUR-REAL G2065 / ISLAND-TOUR-2 G1970.4). (1) East Point's departure: the
+user's Cub lands, pivots 197 deg, rolls from 37.3 m in, downwind (4.4 m/s), on gravel - 'rejected-takeoff: will not
+reach Vr: 1.48 m/s^2 needs 59 m more, 65 m left', twice; the abort stops 6.8 m past the far end. A real pilot
+back-taxies to the very end, takes off into wind (or waits / declines, said), and decides the go / no-go where the
+stop still fits. (2) A short strip's arrival carries INBOUND's height into FINAL (568 m agl 1.9 km out at East
+Point): the first approach always goes around (the user, 5 Oct: "start from farther away, use the full flaps, and
+aim for touching down at the beginning of the strip"). (3) G1970.4: the Cub's final from Tamgas Hill into the
+altiport in the default 8 kt breeze sinks to 0.2 m over the hillside 294 m out and ground-loops (calm: clean).
+THE BAR: GATE TOUR's shard 3 (HOME > East Point > Jumbo Mine) takes off from East Point and East Point is folded into
+ORDERS.land; the Cub's altiport leg lands in the default breeze. No regression; the Jodel and the metal Cessna
+checked at East Point.
+
+THE BRANCH. pilot-integration (train 38 + ENGINE-TORQUE G2080 + ROUTE-DRAW G2120) + PILOT-PROFILE (cf3fc61b, WIP:
+the take-off climb on speed, 44_vprofile.js, the rough perception - built on, not redone) + ISLAND-TOUR-2 (4bf4bd37:
+it brings ISLAND-TOUR's turn pads G1965, JOIN-PARITY's load door G1985 and tools/_load_build.js, TOUR-REAL's rig,
+_tour_lib gameDay / gameHost, GATE TOUR - none of which train 38 carried; GATE TOUR needs all of them). The merges'
+conflicts: 90_node_exports (the union: VPROFILE, ROUTE, turnPadNodes / turnOf / TURN_S0), 39b_servos / 43_pilot /
+app.js / test_ui_smoke (train 38 + ENGINE-TORQUE + ROUTE-DRAW + PILOT-PROFILE's side kept; ISLAND-TOUR's turn-pad
+hunk in 43 auto-merged), HANDOVER (both; the duplicate G1949 dropped). Generated files untouched (A0's to build).
+
+### G2450.1 - WHAT EAST POINT'S DEPARTURE REALLY WAS (the game's tree, it2_4bf4bd37, reproduced and traced)
+The wind along East Point's named departure (runway `departure: 1`, out over the sea) is -4.4 m/s - A HEADWIND
+(tools: the day's wind at the strip, 0-2000 s: -4.40..-4.48 m/s along, 0.03-0.16 across, both trees). The game's Cub
+rolled the OTHER way: the direction scorer refused the named way - 25_airfield siteRunwayModel's climb-out cone (from
+the far end, 31 m either side, the tallest tree within 20 m of each sample) read the trees beside the sea end as
+'climb-out needs 92.4 % climb' (-1000), worse than the one-way rule's -500, so the closed way won ('wind -5.5,
+tailwind, climb-out 10.6 %, one-way, taxi 185 m'). The Cub taxied 85 m up the strip, turned round (236 deg + two
+re-plans) and rolled from 37.7 m in TOWARD THE FOREST END, downwind - rejected, the abort past the end (trace
+trace_dep_it2: ground speed over airspeed the whole roll). On the base of this branch PILOT-PROFILE's tree
+perception refuses the forest way too (both -1000), so the named way won there by the headwind alone - by luck.
+
+### G2450.2 - THE DEPARTURE (43_pilot.js)
+- THE NAMED WAY OUT IS THE SURVEYED ONE (dirAt, mode 'takeoff'): a strip's authored departure (`takeoffHdg`) is not
+  refused by the crude cone (its reqClimb taken as met) - the author named it because its climb-out was surveyed
+  (GATE TOUR 1: nothing through the 1:15 surface). The wind on it is the roll's to judge. Strips with a named way out:
+  East Point, Tamgas Hill, Jumbo Mine.
+- THE ROLL ON TO THE END (planDeparture / LINEUP): on a strip under 300 m a taildragger facing the end its run starts
+  from rolls on along the centreline (walking pace, 1 m/s at the end) to the turn's spot - its half-span + 1.5 m (6 m at
+  least) from the end - and turns on the spot there (G1938's pivot), said: 'backtrack: rolling on to the end of the
+  strip (20 m from it) to turn round 7 m from it - the whole strip for the take-off'. A tricycle keeps its own set-up
+  (G1949). East Point: the roll from 7.0 m in (base 19.5, the game 37.3).
+- THE GO / NO-GO AT THE HOLD: the sheet's take-off run (0.85 x TORun - the rotation before the sheet's 2.5 m point,
+  runNeeded's and the roll's own arithmetic) put on the wind along the run, ((Vr - headwind) / Vr)^2, against the strip
+  ahead. Not fitting WITH A TAILWIND (> 0.5 m/s along the run; in calm air or into wind the roll's own call judges, as
+  before - the sheet's run is conservative against the sim: GATE LINEUP's East Point skip and GATE TAKEOFF's East Point
+  turn-around, calm, failed on it until it was narrowed): 'takeoff-wait: ... waiting for the wind' (60 s, read every step), then 'takeoff-declined: not
+  taking off from East Point Clearing: 142 m needed, 139 m of strip ahead, 1.3 m/s of tailwind on the only way out',
+  outcome 'declined', STOPPED (the player sees why; _tour_lib reads it as a fault 'declined'). Not on the water, not
+  off an altiport.
+- THE ROLL'S CALL OVER THE GROUND: the accelerate-stop (stopDist) and the metres to Vr were planned on the airspeed;
+  the wind along the run is added to every speed the call turns into metres (calm: unchanged to the bit). And THE LAST
+  POINT A STOP FITS IS A DECISION POINT: a short-field run within 0.6 s of losing its stop is judged there, on the
+  run's own average ground acceleration when the 2 s filter (7 s) has not settled - the call no longer comes after
+  the stop has gone (the game's abort 6.8 m past the end).
+- A STRIP SHORTER THAN THE LANDING RUN IS NO DESTINATION (departFrom, setDest): the sheet's LDGrun over the strip's
+  length - said ('strip-too-short: East Point Clearing has 150 m of strip for a 183 m landing run (and a 206 m
+  take-off) - not going there'), outcome 'declined' at the departure; in flight the new To is refused, the old kept.
+
+### G2450.3 - THE SHORT FIELD'S ARRIVAL (problem 2)
+Traced (trace_arr_before): INBOUND crosses a 667 m ridge 3.9 km before East Point (21 m) at 795 m; the profile then
+asks ~13 % down (44_vprofile's gDescMax) and the Cub at 26-32 m/s makes ~11 % - FINAL began 1693 m out at 593 m
+against a ~180 m slope height: 'go-around: high on the slope 536 m out', every time; the circuit after it landed.
+THE FIX (planFromHere): a straight-in is first planned with the INBOUND leg's own profile (vpPlanLeg - the one
+planner); when its end stands more than 30 m over the circuit height at the IAF the circuit is joined instead,
+said ('no-straight-in: the ground before East Point Clearing holds the straight-in 378 m over the circuit at the
+final's start - joining the circuit to come down'): the height comes off over the downwind and the base, the final
+starts from the base on its slope, the short field's long final, the landing flap and the aim 10 m in as before
+(G1936). East Point: the final from 1628 m at 117 m (before 1693 m / 569 m agl), landed first time, no go-around.
+
+### G2450.4 - THE ALTIPORT FROM TAMGAS HILL (problem 3) - NOT A SINK
+Traced (trace_dep_w3): from Tamgas Hill (122 m) to the altiport (695 m) the straight-in's INBOUND profile is
+CLIMB-limited; downwind in the westerly the Cub reached the IAF 2.3 km out at 438 m - 260 m UNDER the strip - and
+FINAL handed it to the FLARE there (agl from the aim's ground is negative): 60 s of 'flare' porpoising 10-21 m/s up
+the hillside, the final's clearance -9.2 m (forest), broken up on the strip. (Calm: the climb just made it.)
+THE FIX (CROSSWIND..INBOUND): the leg that hands over to the final (INBOUND, BASE) ending more than 60 m under its
+planned height is not ended: 'climb-hold: 368 m under the height the final to Skyline Altiport starts from - circling
+here, climbing, before the approach' - a climbing turn (the heading 50 deg ahead of the track) to within 20 m, then the
+arrival planned again from there. The altiport in the default breeze: landed, 13.4 m/s, 60 m, 0.7 m off, the final's
+clearance 16.9 m.
+
+### G2450.5 - WHAT FOLDING EAST POINT INTO THE LAND TOUR FOUND (three more, fixed)
+ORDERS.land is now HOME > Tamgas Hill > the altiport > Jumbo Mine > EAST POINT > 02/20 > HOME. Flying it found:
+- PILOT-PROFILE's level run in ground effect read as 'wont-climb' (LIFTOFF's put-down: not climbing, the strip
+  running out) - the Cub put back down 3 s off Tamgas Hill ('still at 9.6 m with 334 m left'), the land tour's second
+  leg, ON THE BASE. Stuck there now also asks the speed not building (accF <= 0.15).
+- East Point > 02/20: the climb-out ran up a slope rising 25 % (29 -> 671 m in 2.5 km) at its 10 % climb into the hill
+  (the reactive floor chasing it) - ENROUTE's escape (the fan, the climbing turn) was armed only in the leg's first
+  150 s. It now also opens whenever the next 1.5 km asks a climb the aeroplane cannot make, and stays open until it is
+  made. The Cub climbs to 887 m over the ridge.
+- The landing on 02/20 (the tour's own order too, without East Point - island_tour --order
+  HOME,w3,tw_ski,mn_strip,w2,HOME: 'ground-loop 30.1 deg at 8.7 m/s'): the Cub, 2.4 m/s behind it (below the scorer's
+  2.5 m/s tailwind threshold), swung +10 -> -22 -> +49 deg on the roll-out. ENGINE-TORQUE G2080's ground-steer heading
+  integral (the swirl / P-factor trim) lagged the loop at idle: the same replay with steerI = 0 rolled straight. It now
+  integrates under power only (thr > 0.3) and bleeds off (1 s) at idle; GATE ENGTORQUE PASS. The roll-out: 143 m, 0.1
+  m off.
+
+### G2450.6 - THE NUMBERS (node, the game's flight, damage ON; trees in the evidence README)
+Every row node, the game's flight (gameHost, the 8 kt / 250 deg day ticked, the load door's Cub 27 L), damage ON.
+`it2` = origin/claude/island-tour-2-g1975x 4bf4bd37 (the game's case, TOUR-REAL's page to 1.8 m); `base` = 57aeaf39
+(this branch's merged base, no G2450); `after` = 7bb649ab / f7a27621 (identical on these legs).
+
+| | it2 4bf4bd37 (the game) | base 57aeaf39 | after |
+|---|---|---|---|
+| East Point: the departure's way | the CLOSED way, downwind 4.4 m/s ('climb-out needs 92.4 %' on the named way) | the named way (both refused -1000; the headwind decided) | the named way, the cone not refusing it; 4.4 m/s headwind |
+| East Point: the roll from the end | 37.3 m (722 deg turned on the ground: an 85 m taxi up the strip, a 236 deg pivot, 2 re-plans) | 19.5 m (pivoted where it stopped) | 7.0 m ('backtrack' 20 m, the pivot 7 m from the end); it2 + the departure patch: 5.9 m |
+| East Point: the outcome | 'will not reach Vr: 1.49 m/s^2 needs 58 m more, 65 m left', the abort past the end | lift-off 53.7 m, committed at 13.3 m/s with 104 m left | lift-off 53.7 m (52.8-54.8 across runs), committed at 16.4-16.5 m/s with 92 m left; on to Jumbo Mine (13.9 m/s, 50 m) |
+| East Point, the wind turned to 070 (1.3 m/s behind) | - | - | 'takeoff-wait' 60 s, 'takeoff-declined: 142 m needed, 139 m of strip ahead' - no roll |
+| HOME > East Point: the final's start | 1697.8 m out / 561 m agl | 1693 m / 569 m agl (593 m MSL vs a ~180 m slope) | 1628 m / 117 m agl ('no-straight-in ... 378 m over the circuit') |
+| HOME > East Point: go-arounds / touchdown | 1 ('high on the slope 537 m out') / 14.9 m/s, run 101 m | 1 ('536 m out') / 15.2 m/s, 103 m | 0 / 15.4 m/s, 102 m, 0.1 m off |
+| Tamgas Hill > the altiport | (G1970.4) the final sinks to 0.2 m 294 m out, 62 m off, ground loop, a wing breaks | never flown: the Tamgas Hill lift-off put back down ('wont-climb ... 9.6 m with 334 m left'), aborted | 'climb-hold: 368 m under ...', the circuit, final from 2104 m, clearance 16.9 m, 13.4 m/s, 60 m, 0.7 m off |
+| (mid-session: the PUTDOWN fix only) | | | IAF 2.3 km out at 438 m MSL (260 m under the strip), FLARE there, clearance -9.2 m (forest), broken up |
+| East Point > 02/20 (the folded tour) | not flown | not flown | climbs to 887 m over the ridge (the late escape); before it: up a 25 % slope into the hill (671 m ground, 694 m aeroplane), broken up |
+| the 02/20 landing (2.4 m/s behind) | not reached | not reached | straight, 143 m, 0.1 m off; before the steer-integral change: +10 -> -22 -> +49 deg, ground loop 30.2-30.3 deg at 10-11.4 m/s |
+| THE LAND TOUR (GATE TOUR shard 0) | stops at Tamgas Hill > the altiport | stops at Tamgas Hill (2 of 5 legs) | 5 of 6 legs; stops at 02/20 > HOME: ground loop 30.1 deg at 10.3 m/s on 13/31 (5.0 m/s direct crosswind) |
+
+### G2450.7 - THE JODEL AND THE METAL CESSNA AT EAST POINT (they should decline it, and now do)
+Before the destination check (evidence jodel_ / c172_HOME_nv_before_decline.log, both damage ON):
+- THE JODEL (builds/jodel_2026-09-20_corrected.json): the sheet's landing run 183 m, take-off 206 m (0.85 x: 175 m)
+  for East Point's 150 m. Flown there: 'strip-short', the circuit joined (no-straight-in), DOWNWIND leg-timeout, two
+  go-arounds ('high on the slope -35 m out', 'fast on the short final: 35.7 m/s for 22.6' - vref-raised), BROKEN UP
+  on the second go-around (550 yields, 96 breaks).
+- THE METAL CESSNA (tools/fixtures/build_v10_cessnaMetal_2026-09-26.json): landing run 249 m, take-off 147 m. Two
+  go-arounds ('off the centreline by 63 m on short final'), diverted to Tamgas Hill and overran it (touched 57 m in
+  at 30.6 m/s, stopped 33 m past the end of 520 m - G1970.4's nose-heavy vref-raised family).
+After: both are declined at the departure, said with those numbers (after_7bb649ab_destination_check.log); the Cub
+goes; every other pairing tried (the Jodel / the C172 / the Cub to Jumbo Mine, Tamgas Hill, the altiport) unchanged.
+
+### G2450.8 - THE GATES (run_gates --no-build --jobs=4 after node tools/build.js; base = 57aeaf39, the merged base
+without G2450 - the same battery; the reds the base carries are named)
+| gate | base 57aeaf39 | after (7bb649ab; * = re-run on f7a27621) | |
+|---|---|---|---|
+| PILOT | PASS | PASS* | |
+| NAV | PASS | PASS | |
+| TAKEOFF | FAIL (1: technique c172 ABORT) | FAIL* (the same 1) | batch 1 had 2 more (East Point's turn-around: the hold's no-go in calm air) - fixed (the tailwind-only no-go) |
+| LINEUP | FAIL (3: jolene HOME cub - the V's right arm, stand to roll 315 s, the skip 137.78 m) | FAIL* (the same 3) | 7bb649ab had a 4th (East Point's skip waited at the hold) - fixed in f7a27621 |
+| PILOTACT | FAIL (5: c172:HOME:calm:stand rejected-takeoff) | FAIL (the same 5) | |
+| PILOTMATRIX | FAIL (4 regressed: c172:HOME:calm / x2 rejected-takeoff; 6 known bad, 2 warn) | FAIL (the same 4; 6 known bad, 2 warn) | no cell worse than tools/pilot_baseline.json beyond the base's 4 |
+| TAXICLEAR | PASS | PASS | |
+| PLAN | FAIL (2: stock / aluminium C172 vertical speed in the published limits, 1459 / 907 outside) | FAIL (the same 2, the same counts) | |
+| ROUTE | FAIL (fly:metal vertical speed, 12 s outside, 0.96 m/s) | FAIL (the same) | |
+| SEAPLANE | PASS | PASS | |
+| HOTHIGH | PASS | PASS | |
+| PROFILE | FAIL (5: cessnaMetal climb attitude 14.8 deg, metal 'gave-up' at Jumbo Mine, jodel no enroute profile x2, final 4 m over a tree) | FAIL (3: the metal's two + the final's 4 m) | 2 better |
+| DESTTO | FAIL (ltd:metal stopped on w3's apron) | FAIL (the same) | |
+| DMGINST | PASS | PASS | |
+| JOINPARITY | FAIL (6: node = page on the Cub, Jodel, Cessna floats, twin floatplane; 'no tool flies a validated build raw') | FAIL (the same 6) | the capture predates train 38's load chain (the gate says re-capture) |
+| SIMWORKER | PASS | PASS | |
+| ENGTORQUE | PASS | PASS (after the steer-integral change) | |
+| TOUR shard 0 (the Cub's land tour) | FAIL (3): Tamgas Hill > the altiport aborted (the PUTDOWN) | FAIL (2): 02/20 > HOME ground loop 30.1 deg at 10.3 m/s (6 of 6 legs flown, the last one's roll-out) | see G2450.5 / owed 1 |
+| TOUR shard 1 (the metal C172) | FAIL (2): HOME > Tamgas Hill off-strip | FAIL (2): the same | JOIN-PARITY's aeroplane (G1970.4, vref-raised) |
+| TOUR shard 2 (the float Cessna) | FAIL (2): SEA > Metlakatla 331 yields, dent, ground loop 30.6 deg | FAIL (2): 421 yields, dent (no ground loop) | JOIN-PARITY's aeroplane (G1970.4) |
+| TOUR shard 3 (HOME > East Point > Jumbo Mine) | PASS ('INFO ... TAKES OFF' - by the headwind's luck, printed, not gated) | PASS, GATED: the landing, the first approach (no go-around), the departure, the roll <= 15 m in | THE BAR |
+
+Every base red above is the base's own, to the line. The C172 rows (TAKEOFF / PILOTACT / PILOTMATRIX: the user's 1135 kg
+cessna172 rejecting its take-off off HOME, 'wont-climb') are PILOT-PROFILE's: on origin/claude/pilot-integration
+(1c641985, no PILOT-PROFILE) the same flight lifts off at 27.5 m/s after 253 m; with cf3fc61b it settles back on the
+wheels out of the level run and runs to 34.5 m/s - a guard that flew LIFTOFF's attitude law while on the wheels gave 3
+lifts and still the rejection (reverted; PILOT-PROFILE's to finish). The metal Cessna's PROFILE / ROUTE / DESTTO rows
+and PLAN's two are the base's too (identical counts).
+
+### FILES
+src/core/43_pilot.js (G2450.2-.5), src/core/39b_servos.js (the steer integral under power), tools/_tour_lib.js
+(ORDERS.land with East Point; a declined take-off ends a leg as the fault 'declined'), tools/_tour_check.js (6: the
+first approach and the departure gated), tools/ep_depart.js (NEW: one landing saved - makeSim snap - and the next
+departure replayed from it, --chain for a tour's own chained state, --winddir / --windkts, --apset, --trace),
+.gitignore (tools/.ep_*), reports/evidence/EAST-POINT-DEPART/.
+
+### OWED / ROUTED
+1. THE LAND TOUR'S LAST LANDING (GATE TOUR shard 0, the pilot track): 02/20 > HOME, 13/31 in 5.0 m/s of DIRECT
+   crosswind (02/20 next to it: 2.4 along, 0.8 across); the Cub touches down 7 deg crabbed (15 deg in the flare) and
+   weathercocks past full rudder (0.95) to 34 deg - the same with G2080's integral at idle, so not this change's. The
+   Cub's measured crosswind limit is >= 10 m/s (genCrosswindLimit), so it is technique: the decrab at the touchdown,
+   and a pilot would land on the field's into-wind runway (13/31 and 02/20 are two aerodrome records; picking within
+   a field is not modelled). The bound (30 deg) is not loosened.
+2. 02/20's INTO-WIND WAY IS REFUSED BY THE RUNWAY MODEL'S APPROACH CONE (25_airfield siteRunwayModel, reach 6 km): the
+   716 m summit 5.3 km out reads as 'approach needs 7.4 deg', so the Cub lands 02/20 downwind (2.4 m/s, under the
+   scorer's 2.5 m/s penalty). The same crude-cone family as East Point's climb-out (G2450.1), on landings across every
+   strip - not widened here: a cone that ends where a final can begin (Diaf), or a reach scaled to the approach, is the
+   runway model owner's call (PLAN / NAV / PILOTMATRIX move with it).
+3. PILOT-PROFILE (cf3fc61b, WIP): the user's C172 rejected off HOME (above) - TAKEOFF / PILOTACT / PILOTMATRIX red on
+   the base. Also: this branch's G2450.5 PUTDOWN fix is in their LIFTOFF block (two lines, levelRun) - fold it in.
+4. The hold's no-go uses the sheet's TORun (0.85 x, the roll's own arithmetic) - conservative against the sim (the Cub
+   lifts off ~104 m into East Point calm where 0.85 x 142 = 121 m); it acts on a TAILWIND only, so East Point's 1.3 m/s
+   case declines at 142 vs 139 m. If the user wants a tailwind departure attempted there, the sheet's run (a POH's
+   ground roll, without the 2.5 m air segment) is the better number - genTORunAt has sRoll, the sheet does not carry it.
+5. The game (GPU, A0 / TOUR-REAL's rig): re-fly East Point's departure in the page - this session is node only. The
+   page's direction scorer is the same code; the it2 tree with the departure hunks alone is the closest node proof
+   (evidence it2_4bf4bd37_plus_departure_patch_replay_nv_mn.log: roll from 5.9 m in, lift-off 54.8 m, Jumbo Mine).
+6. G1970.4's other reds stand, named: the metal C172's off-strip at Tamgas Hill and the float Cessna's yields - JOIN-
+   PARITY's aeroplanes (the nose-heavy family), not this brief's.
+7. ISLAND-TOUR-2 and its merges (ISLAND-TOUR's turn pads, JOIN-PARITY, TOUR-REAL) ride this branch: land it after them,
+   or take them with it. GATE JOINPARITY's capture (2026-10-06) predates train 38's load chain - re-capture (node
+   tools/join_parity_page.js) is A0's.

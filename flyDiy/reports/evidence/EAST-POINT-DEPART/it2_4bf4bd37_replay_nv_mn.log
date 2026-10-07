@@ -1,0 +1,4 @@
+  FAIL nv_strip > mn_strip    197 s | dep: turned 722.6 deg (U-turn), roll 37.3 m in, lift-off - | final -, clear - | td - | fuel 23.8 L | FAULTS abort (the take-off was rejected) | phases TAXI>STOP>HOLD>DEPART>TAXI>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>ABORT
+    phases TAXI>STOP>HOLD>DEPART>TAXI>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>ABORT
+    verdicts pivot: a 236 deg turn tighter than the wheels steer (11.3 m) — turning on the spot | replan: not lined up with a run ahead (104 m, 3.7 m off) — planning the departure again | replan: not lined up with a run ahead (101 m, 16.2 m off) — planning the departure again | rejected-takeoff: will not reach Vr: 1.49 m/s^2 needs 58 m more, 65 m left
+    dep {"turned":722.6,"uturn":true,"latMax":19,"rollS":37.3,"rollFromEnd":37.3,"toDist":null,"taxiT":189.8} (143 s wall)

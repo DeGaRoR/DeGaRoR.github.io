@@ -1,0 +1,282 @@
+=== PILOT ===
+--- shard 0/3 (355.8 s) ---
+  ok     box: NAV closes on the waypoint (2228 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+GATE PILOT: PASS
+--- shard 1/3 (311.3 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+--- shard 2/3 (338.0 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+=== NAV ===
+  ok     units: 100 m = 328.1 ft
+  ok     units: degrees wrap and difference
+GATE NAV: PASS
+=== TAKEOFF ===
+crosswind limit 3.5 m/s (band 12.5 m, roll 9.4 m at the limit; first failure 4 m/s, 17.17 m) in 26.0 s CPU, 26.2 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.3 (1.08 Vs)  lifts 1 (first at 17.3)  touch-after 0  qMax 3.8 deg/s  run 105 m  to 15 m 313 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.11 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -3.4 deg/s  run 176 m  to 15 m 484 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof - (0.00 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax -12.5 deg/s  run - m  to 15 m - m  ABORT wont-climb
+  wip    water  Vs 24.5 Vr 24.8 Vlof 27.7 (1.13 Vs)  lifts 1 (first at 27.7)  touch-after 0  qMax 7.0 deg/s  run 321 m  to 15 m 461 m
+  ultraf water  Vs 16.1 Vr 16.3 Vlof 21.1 (1.31 Vs)  lifts 1 (first at 21.1)  touch-after 0  qMax -9.0 deg/s  run 87 m  to 15 m 175 m
+  twinf  water  Vs 18.4 Vr 18.7 Vlof 28.3 (1.54 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 7.6 deg/s  run 182 m  to 15 m 309 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 1.3 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 26.3 s; max |cross| 3.1 m, past an end -5.1 m, off the surface 0.0 s; LIFTOFF (airborne); backtrack,pivot,committed-takeoff
+  FAIL technique c172: airborne — ABORT
+GATE TAKEOFF: FAIL
+(exit code 1)
+=== PILOTACT ===
+PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791405725434.js
+  X  c172:HOME:calm:stand        rejected-takeoff 90.6 s
+  ok stock:HOME:calm:stand       completed 379.5 s · sink 0.67 · 1.2 Vs · aim 49 · swing 0.5
+  ~  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:standcompleted 379.4 s · sink 1.66 · 1.39 Vs · aim -12 · swing 1.9
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  stock:HOME:calm:stand         completed          0       14 m    0.9/min    legs 10      0.8 m   0.17 m/s   0.67 m/s        1.2       49 m        0 m    0.5 deg          0 379.5
+ Xc172:HOME:calm:stand        *rejected-takeoff          0          —          —~takeoff 21.9          —          —          —          —          —          —          —          —  90.6
+ ~fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand  completed          0       18 m    0.7/min  taxi 16.2      0.9 m  ~2.79 m/s  ~1.66 m/s      ~1.39      -12 m      0.5 m    1.9 deg          0 379.4
+
+3 cells: 1 good, 1 warn, 1 bad
+wall 166 s
+  stock:HOME:calm:stand                                taxi 1.5/16  takeoff 2/14  climb 0/0  legs 10/8  downwind 0.6/0.6  base 2/2  final 3.8/1.4  landing 0/2
+  c172:HOME:calm:stand                                 taxi 0/18.9  takeoff 4.9/21.9  legs 0/0  landing 0/0
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/16.2  takeoff 2/6  climb 0/0  legs 6/8  downwind 0.7/0  base 3.7/1.9  final 1/2.4  landing 0/9.7
+  TOO BUSY c172:HOME:calm:stand: rejected-takeoff
+  TOO BUSY c172:HOME:calm:stand: flew no downwind
+  TOO BUSY c172:HOME:calm:stand: flew no base
+  TOO BUSY c172:HOME:calm:stand: flew no final
+  TOO BUSY c172:HOME:calm:stand: takeoff rudder 21.9 reversals/min > 20
+GATE PILOTACT: FAIL (5)
+(exit code 1)
+=== TAXICLEAR ===
+  aluminium C172  span 11.0 m from the mill: airborne at 35 s, the wing 3.19 m off the nearest footprint (item mn_s_mine/clinic at (7256.2, -15353.5) in TAXI, t 13 s), 0 contacts, 0 trunk hits
+  the user's Cub  span 10.7 m from the mill: airborne at 46 s, the wing 2.78 m off the nearest footprint (item mn_s_mine/clinic at (7255.6, -15353.8) in TAXI, t 14 s), 0 contacts, 0 trunk hits
+GATE TAXICLEAR: PASS
+=== TOUR ===
+--- shard 0/4 (2096.8 s) ---
+the user's Cub: HOME > w3 > tw_ski > mn_strip > nv_strip > w2 > HOME - NOT DONE, 6 legs, fuel left 14.7 L (2074 s)
+  FAIL 5 the user's Cub w2 > HOME: stopped at its To with no fault  (ground-loop: the nose 30.1 deg off the landing roll on HOME at 10.3 m/s)
+  FAIL 5 the user's Cub: the tour is complete, back at HOME  (6 of 6 legs)
+GATE TOUR [shard 0/4]: FAIL (2)
+[stderr]
+SHARD 0/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 1/4 (584.2 s) ---
+the aluminium C172: HOME > w3 > tw_ski > w2 > HOME - NOT DONE, 1 legs, fuel left 24.3 L (576 s)
+  FAIL 5 the aluminium C172 HOME > w3: stopped at its To with no fault  (off-strip: the landing roll left w3's box)
+  FAIL 5 the aluminium C172: the tour is complete, back at HOME  (1 of 4 legs)
+GATE TOUR [shard 1/4]: FAIL (2)
+[stderr]
+SHARD 1/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 2/4 (546.2 s) ---
+the float Cessna: SEA > mk_sea > SEA - NOT DONE, 1 legs, fuel left 23.6 L (539 s)
+  FAIL 5 the float Cessna SEA > mk_sea: stopped at its To with no fault  (yield: 421 member(s) yielded (first: {"beam":120,"cls":"fus","t":25.121527777706948}); dent: the airframe dented)
+  FAIL 5 the float Cessna: the tour is complete, back at SEA  (1 of 2 legs)
+GATE TOUR [shard 2/4]: FAIL (2)
+[stderr]
+SHARD 2/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 3/4 (766.3 s) ---
+the user's Cub: HOME > nv_strip > mn_strip (759 s)
+GATE TOUR [shard 3/4]: PASS
+[stderr]
+SHARD 3/4: 1 of 4 heavy jobs
+(exit code 0)
+=== PLAN ===
+FAIL 2 stock, HOME (analytic) asks its vertical speed inside the published limits  (1459 of 17592 outside)
+  stock, HOME (analytic)       legs CROSSWIND 125 m / DOWNWIND 125 m / BASE 125 m / FINAL 0 m · downwind 0.3 m off the plan · terrain lift 0 m
+  FAIL 2 aluminium C172, Jolene HOME asks its vertical speed inside the published limits  (907 of 17472 outside)
+  aluminium C172, Jolene HOME  legs CROSSWIND 187 m / DOWNWIND 187 m / BASE 187 m / FINAL 29 m · downwind 1.0 m off the plan · terrain lift 0 m
+GATE PLAN: FAIL (2)
+(exit code 1)
+=== LINEUP ===
+FAIL jolene nv_strip: the take-off roll begins inside 8 s of the skip (STOP|HOLD -> ROLL) - HOLD
+  FAIL jolene HOME cub: calm air leaves by the V's right arm for 31 (G772) - stand>tx0>tx1>tx2>tx3>tx4>c0>hold0 | wind 0.0, taxi 1664 m
+  FAIL jolene HOME cub: stand to roll inside 190 s (208 s up the left arm before G772) - 315 s
+  FAIL jolene HOME cub: the skip's roll begins where the taxi's did (inside HOLD's gate: < 3 m, < 6 deg) - 137.78 m, 3.66 deg
+GATE LINEUP: FAIL (4)
+(exit code 1)
+=== PROFILE ===
+GATE PROFILE - the climb on speed, the planned vertical profile, the rough perception of obstacles
+1 THE CLIMB (HOME, calm; from 3 m to the end of CLIMB)
+  PASS  1 jodel: never under 1.3 Vs in the flap flown - min 1.34 Vs (25.2 m/s, CLIMB 31 s), Vs 18.8, Vy 26.1
+  PASS  1 jodel: the attitude never over the type's cap - max 11.3 deg, cap 19
+  PASS  1 jodel: the settled climb attitude inside 2..14 deg - 10.3 deg at 29 m/s
+  PASS  1 cub: never under 1.3 Vs in the flap flown - min 1.38 Vs (20.9 m/s, CLIMB 21.2 s), Vs 15.7, Vy 22.1
+  PASS  1 cub: the attitude never over the type's cap - max 7.7 deg, cap 10.4
+  PASS  1 cub: the settled climb attitude inside 2..14 deg - 5.4 deg at 25.4 m/s
+  PASS  1 cessnaMetal: never under 1.3 Vs in the flap flown - min 1.55 Vs (34.3 m/s, CLIMB 27.2 s), Vs 22.2, Vy 31
+  PASS  1 cessnaMetal: the attitude never over the type's cap - max 16.6 deg, cap 20.3
+  FAIL  1 cessnaMetal: the settled climb attitude inside 2..14 deg - 14.8 deg at 35.6 m/s
+2 THE MOUNTAIN TRIP (Jolene, HOME -> Jumbo Mine, 17 km over the 631 m ridge)
+  PASS  2 cessnaMetal: a planned profile on the enroute leg - cruise 767 m, top of climb 3794 m, top of descent 13179 m of 17872 m, plan clears 88 m
+  PASS  2 cessnaMetal: altitude reversals in the cruise near zero - 1 in 400 s (0.15 / min); the reactive guard fired 0x
+  PASS  2 cessnaMetal: the terrain under the aeroplane >= the plan's clearance from the top of climb to the top of descent - 253 m (hClear 130)
+  PASS  2 cessnaMetal: ... and >= the arrival's 2 hSafe after it - 145 m (40)
+  FAIL  2 cessnaMetal: landed at Jumbo Mine - gave-up
+  PASS  2 jodel: a planned profile on the enroute leg - cruise 702 m, top of climb 8055 m, top of descent 12331 m of 17701 m, plan clears 74 m, climb-limited at 0 m
+  PASS  2 jodel: altitude reversals in the cruise near zero - 1 in 508 s (0.12 / min); the reactive guard fired 0x
+  PASS  2 jodel: the terrain under the aeroplane >= the plan's clearance from the top of climb to the top of descent - 194 m (hClear 130)
+  PASS  2 jodel: ... and >= the arrival's 2 hSafe after it - 169 m (40)
+3 AN APPROACH OVER TREES (Jolene 'map', East Point Clearing, the Cub's circuit to a stop)
+  PASS  3 the Cub flies East Point's circuit to a stop and touches no tree - STOPPED at 283 s, 0 contacts, nearest node to a cylinder 15.5 m; 0 go-arounds; vx-climb@33.5
+  FAIL  3 on final the lowest node >= 10 m over every tree top within 25 m of the track - 4 m (62 m before the threshold); the approach {"technique":"short","gs":0.105,"reqGs":0.97,"aimIn":10,"displaced":null}
+GATE PROFILE: FAIL (3) (961 s)
+(exit code 1)
+=== DESTTO ===
+--- shard 0/3 (501.9 s) ---
+  air:metal: ok (196 s) [shard 0/3]
+DESTTO: 0 failure(s), 502 s [shard 0/3]
+GATE DESTTO: PASS
+--- shard 1/3 (1106.4 s) ---
+ltd:metal: 1 failed (587 s) [shard 1/3]
+  ltd:jodel: ok (519 s) [shard 1/3]
+  FAIL ltd:metal: stopped on w3's strip - apron w3
+DESTTO: 1 failure(s), 1106 s [shard 1/3]
+GATE DESTTO: FAIL
+[stderr]
+SHARD 1/3: 2 of 7 heavy jobs
+(exit code 1)
+--- shard 2/3 (1154.2 s) ---
+  ltd:twinFloats: ok (542 s) [shard 2/3]
+DESTTO: 0 failure(s), 1154 s [shard 2/3]
+GATE DESTTO: PASS
+=== ROUTE ===
+--- shard 0/3 (238.2 s) ---
+  fly:cub: ok (226 s) [shard 0/3]
+ROUTE: 0 failure(s), 238 s [shard 0/3]
+GATE ROUTE: PASS
+--- shard 1/3 (343.6 s) ---
+fly:jodel: ok (343 s) [shard 1/3]
+ROUTE: 0 failure(s), 343 s [shard 1/3]
+GATE ROUTE: PASS
+--- shard 2/3 (348.3 s) ---
+fly:metal: 1 failed (348 s) [shard 2/3]
+  FAIL fly:metal: the vertical speed flown stays inside them (1 s mean, +-0.5 m/s) - 12 s outside, worst 0.96 m/s
+ROUTE: 1 failure(s), 348 s [shard 2/3]
+GATE ROUTE: FAIL
+[stderr]
+SHARD 2/3: 1 of 3 heavy jobs
+(exit code 1)
+=== DMGINST ===
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  33/33 checks
+GATE DMGINST: PASS
+=== JOINPARITY ===
+== 1. node's load path against the page's own spec (tools/fixtures/join_parity_page.json) ==
+PASS the page capture holds every validated build (cub, jodel, metal, floats, twinFloats)
+     (the load chain's files changed since the capture of 2026-10-06T00:04:56.343Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+FAIL Cub              node = page: n 93/93 nb 394/394 mass 460.459/460.387 kg, worst 8.52e-3 - FIRST: node 0 (S0BL).m 22.438260519089113 vs 22.438090631354918
+FAIL Jodel            node = page: n 111/111 nb 492/492 mass 463.713/463.890 kg, worst 1.60e-2 - FIRST: node 0 (S0BL).m 30.17004738166882 vs 30.170588480513867
+PASS metal Cessna     node = page: n 103/103 nb 442/442 mass 887.242/887.242 kg, worst 2.22e-16
+PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.20730 / page 1.20736, y -1.09042 / page -1.09042 (within 5 mm)
+FAIL Cessna floats    node = page: n 130/130 nb 533/533 mass 951.538/951.511 kg, worst 3.88e-2 - FIRST: node 0 (S0BL).m 48.153455861016184 vs 48.153428182831476
+FAIL twin floatplane  the float station (the page's CG handshake, declared): x 1.22065 / page 1.20638, y -0.45862 / page -0.46113 (within 5 mm)
+FAIL twin floatplane  node = page: n 127/127 nb 519/519 mass 486.333/489.276 kg, worst 2.97e-1 - FIRST: node 0 (S0BL).m 24.652206560247397 vs 24.65441585386519
+== 2. the file as written is NOT the game's aeroplane (the pre-G1985 loaders) ==
+PASS metal Cessna: the engine nodes as written at x -0.510 m, in the game at -1.162 (the join's engines[0].x = -1.1619)
+PASS Cub: the nose tank's nodes as written 0.924 m over the firewall's foot, in the game 0.000; 476.19 kg as written, 460.39 in the game (the tank 27 L)
+== 3. the chain is a pure function of its inputs ==
+PASS metal Cessna: two fresh computations and the cache agree to the byte
+PASS Cub: two fresh computations and the cache agree to the byte
+== 4. the game's spec saved and opened again (question 4) ==
+PASS Cub              save -> open: n 93/93 nb 394/394 mass 460.459/460.459 kg, worst 0.00e+0, engines[0].x -0.8920 carried
+PASS Jodel            save -> open: n 111/111 nb 492/492 mass 463.713/463.713 kg, worst 0.00e+0, engines[0].x -0.9855 carried
+PASS metal Cessna     save -> open: n 103/103 nb 442/442 mass 887.242/887.242 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS Cessna floats    save -> open: n 130/130 nb 533/533 mass 951.538/951.538 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS twin floatplane  save -> open: n 127/127 nb 519/519 mass 486.282/486.282 kg, worst 0.00e+0
+== 5. every loader of a validated build goes through tools/_load_build.js ==
+PASS tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna's spec to the byte (so it is held like it)
+FAIL no tool flies a validated build raw: _destto_check.js, _engtorque_check.js, _fin_check.js, _hinge_check.js, _profile_check.js, _rollsnd_check.js, _roommerge_check.js, _route_check.js, _shedshadow_check.js, _taxiclear_lib.js, _wetfx_page_check.js, ditch_osc.js, engine_torque_seasweep.js, float_shape_numbers.js, pilot_one_trace.js, tour_real.js, tour_real_node.js, water_look_shots.js
+PASS pilot_trace.js loads saved builds through tools/_load_build.js
+PASS _treecrash_lib.js loads saved builds through tools/_load_build.js
+GATE JOINPARITY: 6 FAIL
+(exit code 1)
+=== SIMWORKER ===
+
+35 checks, 0 failed, 86.1 s
+GATE SIMWORKER: PASS
+=== PILOTMATRIX ===
+PILOT MATRIX: 14 cells, 2 at a time (quick) on core_1791400857406.js
+  X  c172:HOME:calm              rejected-takeoff 51.9 s
+  ok cub:HOME:calm               completed 332.7 s · sink 0.65 · 1.15 Vs · aim 32 · swing 1.8
+  ok cub:HOME:x2                 completed 342.5 s · sink 0.82 · 1.13 Vs · aim 20 · swing 5.9
+  X  stearman:HOME:calm          completed 315.5 s · sink 0.86 · 1.15 Vs · aim 20 · swing 3.8
+  X  c172:HOME:x2                rejected-takeoff 50.4 s
+  ok cub:HOME-A3:calm            completed 616.6 s · sink 0.61 · 1.15 Vs · aim 33 · swing 1.9
+  ok cub:HOME:calm:up4           completed 319.3 s · sink 0.41 · 1.21 Vs · aim 5 · swing 0.7
+  X  stearman:HOME:x2            completed 322.9 s · sink 0.94 · 1.15 Vs · aim 9 · swing 5.9
+  ok cub:HOME:calm:dn4           completed 314 s · sink 0.37 · 1.23 Vs · aim 8 · swing 1.4
+  ~  cub:HOME:x4                 completed 347.7 s · sink 0.75 · 1.15 Vs · aim 26 · swing 10.9
+  ok cub:HOME-A5:calm            completed 685.9 s · sink 0.62 · 1.13 Vs · aim 12 · swing 3.8
+  ok cub:HOME:calm:sand          completed 334 s · sink 0.65 · 1.15 Vs · aim 32 · swing 1.7
+  X  stearman:HOME:x4            completed 325.4 s · sink 1.16 · 1.15 Vs · aim 13 · swing 12.9
+  X  c172:HOME:calm:rh           rejected-takeoff 51.9 s
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  cub:HOME:calm                 completed          0        5 m    1.1/min takeoff 14      0.7 m   0.14 m/s   0.65 m/s       1.15       32 m        0 m    1.8 deg          0 332.7   Δ sink 1.21->0.65, aim -7->32
+ Xc172:HOME:calm              *rejected-takeoff          0          —          —~takeoff 24.3          —          —          —          —          —          —          —          —  51.9
+ Xstearman:HOME:calm            completed          0       20 m    0.7/min*takeoff 102      0.7 m   0.11 m/s   0.86 m/s       1.15       20 m      0.5 m    3.8 deg          0 315.5   Δ swing 7->3.8
+  cub:HOME:x2                   completed          0        4 m      2/min    legs 10      0.7 m   0.16 m/s   0.82 m/s       1.13       20 m      0.2 m    5.9 deg          0 342.5   Δ sink 1.33->0.82, aim -19->20, swing 2.9->5.9
+ Xstearman:HOME:x2              completed          0        5 m    0.7/min*takeoff 98      0.6 m   0.11 m/s   0.94 m/s       1.15        9 m      1.1 m    5.9 deg          1 322.9   Δ sink 1.28->0.94
+ Xc172:HOME:x2                *rejected-takeoff          0          —          —takeoff 13.1          —          —          —          —          —          —          —          —  50.4
+  cub:HOME-A3:calm              completed          0        5 m    0.5/min takeoff 14      0.7 m   0.14 m/s   0.61 m/s       1.15       33 m        0 m    1.9 deg          0 616.6   Δ sink 1.49->0.61, aim -9->33
+  cub:HOME:calm:up4             completed          0        5 m    1.1/mintakeoff 18.5      0.7 m   0.14 m/s   0.41 m/s       1.21        5 m        0 m    0.7 deg          0 319.3   Δ sink 1.04->0.41
+  cub:HOME:calm:dn4             completed          0        5 m    0.5/min     legs 8      0.7 m   0.13 m/s   0.37 m/s       1.23        8 m        0 m    1.4 deg          0   314   Δ sink 1.76->0.37
+ ~cub:HOME:x4                   completed          0        4 m      1/min     legs 8      0.8 m   0.28 m/s   0.75 m/s       1.15       26 m      0.2 m  ~10.9 deg          0 347.7   (new)
+ Xstearman:HOME:x4              completed          0        5 m    1.6/min*takeoff 104      0.5 m   0.24 m/s   1.16 m/s       1.15       13 m      0.9 m  ~12.9 deg          0 325.4   (new)
+  cub:HOME-A5:calm              completed          0        5 m    0.9/min takeoff 14      0.7 m   0.13 m/s   0.62 m/s       1.13       12 m        0 m    3.8 deg          0 685.9   (new)
+  cub:HOME:calm:sand            completed          0        5 m    1.1/min takeoff 10      0.7 m   0.14 m/s   0.65 m/s       1.15       32 m        0 m    1.7 deg          0   334   (new)
+ Xc172:HOME:calm:rh           *rejected-takeoff          0          —          —~takeoff 24.3          —          —          —          —          —          —          —          —  51.9   (new)
+
+14 cells: 7 good, 1 warn, 6 bad
+wall 1112 s
+  REGRESSED c172:HOME:calm: verdict true -> false
+  REGRESSED c172:HOME:calm: outcome completed -> rejected-takeoff
+  REGRESSED c172:HOME:x2: verdict true -> false
+  REGRESSED c172:HOME:x2: outcome completed -> rejected-takeoff
+  ratchet: 4 regressed against pilot_baseline.json; 6 known bad, 1 warn
+GATE PILOTMATRIX: FAIL (4 regressed)
+(exit code 1)
+=== SEAPLANE ===
+PASS the track within 1.4 m (bound 10)
+
+GATE SEAPLANE: PASS
+=== ENGTORQUE ===
+PASS TWIN: the counter-rotating swing under a fifth of the same-hand swing - same -26.90 counter -0.00 deg
+17/17 checks
+GATE ENGTORQUE: PASS
+=== HOTHIGH ===
+GATE HH-GEN: PASS
+flown and computed at 35 C / 1008.00 hPa; 0 checks failed, 0 circuit(s) failed
+GATE HOTHIGH: PASS
+
+──────── summary ────────
+PILOT     PASS   355.8 s  [3 shards]
+NAV       PASS     0.1 s
+TAKEOFF   FAIL   420.4 s
+PILOTACT  FAIL   165.7 s
+TAXICLEAR PASS   172.5 s
+TOUR      FAIL  2096.8 s  [4 shards]
+PLAN      FAIL   483.5 s
+LINEUP    FAIL   315.1 s
+PROFILE   FAIL   960.6 s
+DESTTO    FAIL  1154.2 s  [3 shards]
+ROUTE     FAIL   348.3 s  [3 shards]
+DMGINST   PASS   211.0 s
+JOINPARITY FAIL   110.0 s
+SIMWORKER PASS    86.3 s
+PILOTMATRIX FAIL  1112.3 s
+SEAPLANE  PASS   269.2 s
+ENGTORQUE PASS    89.9 s
+HOTHIGH   PASS   200.7 s
+total           8552.4 s
+wall            5033.7 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
