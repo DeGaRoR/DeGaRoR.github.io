@@ -511,6 +511,17 @@
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
       }
+      // G2280 (PROCURE, GQ2): a maker's or a used airframe saved under another fingerprint is MODIFIED - the factory
+      // certificate withdrawn, the change billed at build price (dm11); a repaint changes nothing (career only)
+      if (CAREER_DEV && info.saved && d.career && d.career.airframes && d.career.airframes[info.saved] && typeof procureOnSave === 'function') {
+        let env = null; try { env = JSON.parse(prefGet('flydiy.build.' + info.saved, 'null')); } catch (e) {}
+        if (env && env.spec) {
+          let L = null; try { L = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(env.spec)))).parts.ledger; } catch (e) {}
+          const r = procureOnSave(d, info.saved, env.spec, L);
+          if (r.modified && r.bill) console.info('flyDiy (career): ' + info.saved + ' is modified - the factory certificate withdrawn, the change billed ' + r.bill.cost);
+          d = r.doc;
+        }
+      }
       player = d; playerSave();
     } catch (e) { console.warn('flyDiy: the fleet ledger could not follow the shelf -', e && e.message); }
     return player;
@@ -6376,6 +6387,79 @@
     bringHome: n => playerBringHomeNow(n), slotsChanged: (names, info) => playerSlotsChanged(names, info),
     onChange: null,
   };
+  // ---- G2280 (PROCURE): THE MARKET'S PAGE DOORS (76_procure.js is the model; map_menu.js the screen) ------------------
+  // Only with ?map=1 or ?career=1 (the map's own flags): without them nothing here exists and the sandbox is today's
+  // page. Buy (the career: paid) / Take (the sandbox: free) - the design's build file fetched once (CONTRACT_DESIGNS'
+  // path), the customised or used spec measured (buildGen's ledger: dm11's reference), the slot written as garage.js
+  // writes one (the envelope; its log carries the factory record), the document replaced, the shelf's lift re-run.
+  const PROCURE_PAGE = (() => { try { return /[?&](map|career)=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })()
+    && typeof procureBuyModel === 'function';
+  const prFiles = {};
+  function procureFile(design) {
+    if (!prFiles[design]) {
+      const D = CONTRACT_DESIGNS[design];
+      prFiles[design] = fetch(encodeURI(D.build)).then(r => { if (!r.ok) throw new Error('the build file ' + D.build + ' did not load (' + r.status + ')'); return r.json(); });
+      prFiles[design].catch(() => { delete prFiles[design]; });
+    }
+    return prFiles[design];
+  }
+  function procureLedger(spec) { try { return buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec)))).parts.ledger; } catch (e) { return null; } }
+  function procureCommit(r) {
+    if (!r || !r.ok) return { ok: false, why: (r && r.why) || 'refused' };
+    prefSet('flydiy.build.' + r.slot, JSON.stringify(r.envelope));
+    player = playerFleetReconcile(r.doc, playerSlotNames()).doc;
+    playerSave();
+    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    if (CAREER_DEV) { try { careerPlateSync(); } catch (e) {} }
+    const P = typeof playerPlace === 'function' ? playerPlace(player, r.slot, world) : null;
+    const last = player.ledger[player.ledger.length - 1] || {};
+    return { ok: true, slot: r.slot, where: P ? P.text : '', price: Math.round(last.amt || 0), free: !!last.free };
+  }
+  // the garage built a slot (garage.js loadSpec, the join settled): a factory airframe not yet signed on the aeroplane
+  // the garage builds is signed now, once (procureAnchor); career only
+  function procureLoaded(name, spec) {
+    try {
+      const d = playerLoad();
+      if (!name || !d.career || !d.career.airframes || !d.career.airframes[name] || typeof procureAnchor !== 'function') return;
+      const r = procureAnchor(d, name, spec);
+      if (r.doc !== d) { player = r.doc; playerSave(); }
+    } catch (e) { console.warn('flyDiy (career): the factory signature -', e && e.message); }
+  }
+  if (PROCURE_PAGE) window.FLYDIY_PROCURE = {
+    freeName: base => { const names = new Set(playerSlotNames().concat(Object.keys(playerLoad().fleet || {}))); let n = base, i = 2; while (names.has(n)) n = base + ' ' + i++; return n; },
+    buyModel: (model, opts, o) => {
+      const F = procureOpts(model, opts);
+      if (!F.ok) return Promise.resolve({ ok: false, why: F.why });
+      return procureFile(procureDesignOf(model, F.opts)).then(file => {
+        const spec = procureSpec(model, F.opts, file);
+        return procureCommit(procureBuyModel(playerLoad(), model, F.opts, { slot: o && o.slot, hangar: o && o.hangar, slotNames: playerSlotNames(), fileSpec: file, ledger: procureLedger(spec) }));
+      }, e => ({ ok: false, why: e.message }));
+    },
+    buyUsed: (id, o) => {
+      const L = procureMarketOf(playerLoad()).find(x => x.id === id);
+      if (!L) return Promise.resolve({ ok: false, why: 'sold, or the market has moved on' });
+      return procureFile(L.design).then(file => procureCommit(procureBuyUsed(playerLoad(), id, { slot: o && o.slot, slotNames: playerSlotNames(), fileSpec: file, ledger: procureLedger(procureUsedSpec(L, file)) })),
+        e => ({ ok: false, why: e.message }));
+    },
+    // the drawing board: the shelf as designs vs airframes; "Build this design" (the career pays the ledger); "Save as design"
+    board: () => procureBoard(playerLoad(), playerSlotNames()),
+    buildDesign: slot => {
+      let env = null; try { env = JSON.parse(prefGet('flydiy.build.' + slot, 'null')); } catch (e) {}
+      if (!env || !env.spec) return { ok: false, why: 'no design ' + slot };
+      const L = procureLedger(env.spec);
+      const cost = L ? Object.keys(L).reduce((t, k) => t + (+L[k].cost || 0), 0) : 0;
+      const r = procureBuildDesign(playerLoad(), slot, { cost, ledger: L ? procureLedgerOf(L) : null, fp: procureFp(env.spec) });
+      if (r.ok) { player = r.doc; playerSave(); }
+      return { ok: r.ok, why: r.why, price: r.price };
+    },
+    saveDesign: (slot, name) => {
+      let env = null; try { env = JSON.parse(prefGet('flydiy.build.' + slot, 'null')); } catch (e) {}
+      const r = procureSaveDesign(playerLoad(), slot, env && env.spec, name, playerSlotNames());
+      if (r.ok) prefSet('flydiy.build.' + r.name, JSON.stringify(r.envelope));
+      return { ok: r.ok, why: r.why, name: r.name };
+    },
+    files: design => procureFile(design),
+  };
   let flightLogged = false;
   function logFlight() {
     if (flightLogged || curKey !== 'gen') return;
@@ -12156,6 +12240,9 @@
     // place badge of a row, "fly from there?" (the garage goes to that base when a hangar is held there; the roll-out
     // starts where the aeroplane stands either way), and "bring it home" (GQ5)
     slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
+    // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
+    // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)
+    loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); },
     place: n => window.FLYDIY_PLAYER.place(n),
     wear: n => window.FLYDIY_PLAYER.wear(n),
     flyFrom: n => {

@@ -237,9 +237,9 @@
       TABS_ASSET.map(([id, w]) => '<button type="button" role="tab" class="mmTab' + (st.tab === id ? ' on' : '') + '" data-tab="' + id + '" aria-selected="' + (st.tab === id) + '">' + w + '</button>').join('') + '</div>';
   }
   function listHTML(M, st) {
-    if (st.tab === 'pilots' || st.tab === 'market')
-      return '<div class="mmEmpty"><b>' + (st.tab === 'pilots' ? 'Pilots' : 'Market') + ': coming</b><span>' +
-        (st.tab === 'pilots' ? 'The four recruits (GQ13) and your hired pilots will be listed here.' : 'Used aeroplanes where they stand, and the makers\' catalogues, will be listed here.') + '</span></div>';
+    if (st.tab === 'pilots')
+      return '<div class="mmEmpty"><b>Pilots: coming</b><span>The four recruits (GQ13) and your hired pilots will be listed here.</span></div>';
+    if (st.tab === 'market') return marketListHTML(M, st);     // G2280 (PROCURE)
     if (st.tab === 'fleet') {
       if (!M.fleet.length) return '<div class="mmEmpty"><b>No aeroplanes yet</b><span>Save a build in the garage and it stands at its hangar.</span></div>';
       return M.fleet.map(f => '<button type="button" class="mmRow' + (st.sel === 'f:' + f.slot ? ' on' : '') + '" data-sel="f:' + esc(f.slot) + '">' +
@@ -263,6 +263,8 @@
   function cardHTML(M, st) {
     const sel = st.sel || '';
     if (sel.startsWith('f:')) return fleetCardHTML(M, st, M.fleet.find(f => 'f:' + f.slot === sel));
+    if (sel.startsWith('m:') && MK(M)) return modelCardHTML(M, st, sel.slice(2));     // G2280 (PROCURE)
+    if (sel.startsWith('u:') && MK(M)) return usedCardHTML(M, st, sel.slice(2));
     const c = M.contracts.find(x => 'c:' + x.id === sel);
     if (!c) {
       const tr = M.contracts.find(x => x.id === M.career.tracked);
@@ -363,9 +365,10 @@
     }
     if (st.layers.fields) for (const id of Object.keys(M.aeros)) { const a = M.aeros[id]; out.push({ key: 'a:' + id, sel: null, kind: 'field', aero: id, x: a.x, z: a.z, label: a.name, sub: stripWord(a), cls: a.surface.cls }); }
     if (st.layers.plots) for (const p of M.plots) out.push({ key: 'p:' + p.id, sel: null, kind: 'plot', aero: p.aero, x: p.x, z: p.z, label: 'plot ' + p.id, sub: p.shells.join(' / ') + (p.derelict ? ' · derelict' : '') + (p.water ? ' · slipway' : '') });
-    // the fan: badges of one kind at one field stand side by side (contracts above the field, the fleet below)
+    for (const m of marketMarkers(M, st)) out.push(m);     // G2280 (PROCURE): the used listings where they stand
+    // the fan: badges of one kind at one field stand side by side (contracts above the field, the fleet below, a listing beside)
     const groups = {};
-    for (const m of out) if (m.kind === 'contract' || m.kind === 'fleet') (groups[m.kind + '@' + m.aero] = groups[m.kind + '@' + m.aero] || []).push(m);
+    for (const m of out) if (m.kind === 'contract' || m.kind === 'fleet' || m.kind === 'used') (groups[m.kind + '@' + m.aero] = groups[m.kind + '@' + m.aero] || []).push(m);
     for (const g of Object.values(groups)) g.forEach((m, i) => { m.slot = i; m.of = g.length; });
     return out;
   }
@@ -386,8 +389,128 @@
     return C;
   }
 
+  // ---- THE MARKET (G2280 PROCURE; GAME-2026-10-06.md §5.1-§5.3, §R GQ2) ----------------------------------------
+  // The makers' catalogues (76_procure.js: validated builds only, an options sheet each, factory-certified), then the
+  // used listings (seeded, at most four, each standing at an aerodrome it can fly from). `P` is the core's procurement
+  // namespace (the page: the window, whose globals the core bundle declares; node: flight_core.js), `doc` the player's
+  // document (the career's under ?career=1: Buy; the sandbox's under ?map=1: Take, free). Pure: strings, no DOM.
+  const USED_GLYPH = '⚑';
+  function marketAdapt(P, doc, board) {
+    if (!P || typeof P.procureCatalogue !== 'function') return null;
+    const career = !!(doc && doc.career);
+    const makers = P.procureCatalogue().map(m => { const K = P.PROCURE_MAKERS[m.maker];
+      return { id: m.maker, name: P.procureText(K.name), line: P.procureText(K.line), colour: K.colour, models: m.models.slice() }; });
+    const used = (doc ? P.procureMarketOf(doc) : []).map(L => Object.assign({}, L, { words: P.procureUsedWords(L), cert: P.procureUsedCert(L),
+      name: P.procureText(P.PROCURE_MODELS[L.model].name), colour: P.PROCURE_MAKERS[P.PROCURE_MODELS[L.model].maker].colour }));
+    const sheds = (doc && doc.sheds) || {};
+    const hangars = Object.keys(sheds).filter(id => sheds[id] && typeof sheds[id] === 'object').sort((a, b) => (a === 'HOME' ? -1 : b === 'HOME' ? 1 : a < b ? -1 : 1))
+      .map(id => ({ id, base: sheds[id].base, main: id === 'HOME' }));
+    return { P, mode: career ? 'career' : 'sandbox', makers, used, wallet: doc ? doc.wallet : null,
+             voucher: career ? Object.assign({}, doc.career.voucher) : null, hangars, econ: P.procureEconSource(),
+             board: board || null };
+  }
+  const MK = M => M.market;
+  const optsOf = (st, id) => (st.mopts && st.mopts[id]) || {};
+  const sheetOf = (M, st, id) => MK(M).P.procureSheet(id, optsOf(st, id));
+  const money = n => (n < 0 ? '−' : '') + fmt(Math.abs(n));
+  // a certificate (a CONTRACT_DESIGNS-shaped row) as the card's facts
+  function certRows(c) {
+    if (!c) return [];
+    const pay = Math.max(0, (c.seats || 1) - 1) * PAX_KG + (c.bagKg || 0);
+    return [['seats', c.seats], ['payload', fmt(pay) + ' kg'], ['empty', fmt(c.emptyKg) + ' kg'], ['take-off run', fmt(c.toM) + ' m'], ['gear', c.gear],
+            ['cruise', fmt(c.cruiseKmh) + ' km/h'], ['range', fmt(c.rangeKm) + ' km'], ['tank', (+c.tankL).toFixed(1) + ' L'], ['span', c.spanM + ' m'], ['ledger', fmt(c.cost)]];
+  }
+  const certHTML = c => '<ul class="mmCert">' + certRows(c).map(r => '<li><span>' + r[0] + '</span><b>' + esc(r[1]) + '</b></li>').join('') + '</ul>';
+  // the list: the makers' models (from the stock price), then the used listings where they stand
+  function marketListHTML(M, st) {
+    const K = MK(M);
+    if (!K) return '<div class="mmEmpty"><b>Market: not on this page</b><span>The makers and the used aeroplanes need the game\'s core.</span></div>';
+    let h = '<div class="mmSect">The makers · validated designs only</div>';
+    for (const mk of K.makers) for (const id of mk.models) {
+      const S = K.P.procureSheet(id, {});
+      h += '<button type="button" class="mmRow' + (st.sel === 'm:' + id ? ' on' : '') + '" data-sel="m:' + esc(id) + '"><span class="mmRowT"><i class="mmChip" style="background:' + esc(mk.colour) + '">◆</i><b>' + esc(S.name) + '</b>' +
+        '<em>from ' + fmt(S.price.total) + '</em></span><span class="mmRowS">' + esc(mk.name) + ' · ' + S.cert.seats + ' seats · ' + esc(S.cert.gear) + ' · ' + fmt(S.cert.cruiseKmh) + ' km/h' + '</span></button>';
+    }
+    h += '<div class="mmSect">Used, where they stand</div>';
+    if (!K.used.length) h += '<div class="mmEmpty"><span>Nothing for sale right now: new listings come after three more contracts.</span></div>';
+    for (const L of K.used)
+      h += '<button type="button" class="mmRow' + (st.sel === 'u:' + L.id ? ' on' : '') + '" data-sel="u:' + esc(L.id) + '"><span class="mmRowT"><i class="mmChip" style="background:' + esc(L.colour) + '">' + USED_GLYPH + '</i><b>' + esc(L.words.title) + '</b>' +
+        '<em>' + fmt(L.price) + '</em></span><span class="mmRowS">' + esc(aeroName(M, L.aero)) + ' · ' + Math.round(L.condition * 100) + ' % of the catalogue · ' + esc(L.cert.gear) + '</span></button>';
+    return h + boardHTML(K, st);
+  }
+  // THE DRAWING BOARD (§5.4, G-DESIGN): the saved builds as a library of designs (free, shared with the sandbox) and the
+  // career's airframes. A design: "Build this design" (the ledger's price); an airframe: "Save as design" (free)
+  function boardHTML(K, st) {
+    const B = K.board;
+    if (!B) return '';
+    let h = '<div class="mmSect">Your drawing board</div>';
+    if (B.mode === 'sandbox') return h + '<div class="mmEmpty"><span>In the sandbox every saved design is also an aeroplane (' + B.designs.length + ' on the shelf): nothing to build or pay.</span></div>';
+    if (!B.designs.length) return h + '<div class="mmEmpty"><span>No designs yet: save one in the garage, and it waits here until you build it.</span></div>';
+    for (const d of B.designs) {
+      const af = B.airframes.find(a => a.slot === d.name);
+      h += '<div class="mmBoard"><span class="mmRowT"><i class="mmGlyph">' + (d.airframe ? '✈' : '✎') + '</i><b>' + esc(d.name) + '</b><em>' +
+        (d.airframe ? (af && af.modified ? 'airframe · modified' : af && af.factory ? 'airframe · factory-certified' : 'airframe') : 'design') + '</em></span>' +
+        (d.airframe ? '<button type="button" class="mmOpt" data-board="save" data-slot="' + esc(d.name) + '">Save as design</button>'
+                    : '<button type="button" class="mmOpt" data-board="build" data-slot="' + esc(d.name) + '">Build this design</button>') + '</div>';
+    }
+    if (st && st.boardMsg) h += '<p class="mmMsg' + (st.boardOk ? ' ok' : '') + '">' + esc(st.boardMsg) + '</p>';
+    return h;
+  }
+  const buyWord = (K, price) => K.mode === 'career' ? 'Buy · ' + fmt(price) : 'Take it · free in the sandbox';
+  function modelCardHTML(M, st, id) {
+    const K = MK(M), S = sheetOf(M, st, id), mk = K.makers.find(m => m.id === S.maker);
+    let h = '<div class="mmCard">' + (st.phone ? '<button type="button" class="mmBack" data-act="back">‹ the list</button>' : '') +
+      '<div class="mmProv"><i class="mmChip" style="background:' + esc(mk.colour) + '">◆</i>' + esc(S.makerName) + ' · a maker\'s model</div>' +
+      '<h2>' + esc(S.name) + '</h2><p class="mmBrief">' + esc(S.line) + '</p><p class="mmFine">' + esc(mk.line) + '</p>';
+    h += '<h3>Its certificate</h3><p class="mmFine">Factory-certified: the validated build\'s bench numbers' + (S.cert.exact ? '' : ', with each option\'s measured effect added') + '. Opening it in the full editor makes it "modified": the certificate is withdrawn and the change billed.</p>' + certHTML(S.cert);
+    h += '<h3>Options</h3>';
+    for (const r of S.rows) {
+      h += '<div class="mmOptRow"><span class="mmK">' + esc(r.word) + '</span><div class="mmOpts">' + r.vals.map(v => '<button type="button" class="mmOpt' + (v.on ? ' on' : '') + '" data-opt="' + esc(id + ':' + r.row + ':' + v.val) + '" aria-pressed="' + v.on + '">' +
+        esc(v.word) + (v.price ? ' <i>' + (v.price > 0 ? '+' : '') + money(v.price) + '</i>' : '') + '</button>').join('') + '</div></div>';
+    }
+    const regV = optsOf(st, id).reg || '';
+    h += '<div class="mmOptRow"><span class="mmK">registration</span><input class="mmIn" data-in="reg" value="' + esc(regV) + '" placeholder="e.g. N123AB" autocomplete="off" spellcheck="false"></div>';
+    h += '<div class="mmOptRow"><span class="mmK">its name in your hangar</span><input class="mmIn" data-in="slot" value="' + esc(st.mname || '') + '" placeholder="' + esc(S.name) + '" autocomplete="off"></div>';
+    if (K.hangars.length > 1) h += '<div class="mmOptRow"><span class="mmK">delivered to</span><div class="mmOpts">' + K.hangars.map(g => '<button type="button" class="mmOpt' + ((st.mhangar || 'HOME') === g.id ? ' on' : '') + '" data-hangar="' + esc(g.id) + '">' +
+      esc(g.main ? 'the main hangar' : g.id + ' at ' + aeroName(M, g.base)) + (g.main ? '' : ' <i>+ delivery</i>') + '</button>').join('') + '</div></div>';
+    else h += '<p class="mmFine">Delivered to the main hangar at ' + esc(aeroName(M, 'HOME')) + '.</p>';
+    const stock = S.rows.every(r => r.cosmetic || r.vals.find(v => v.on).price === 0);
+    const vch = K.voucher && !K.voucher.used && K.voucher.model === S.design && stock;
+    h += '<h3>Price</h3><p class="mmPay"><b>' + fmt(vch ? 0 : S.price.total) + '</b>' + (vch ? ' <span>the voucher pays this one (a stock ' + esc(S.name) + ')</span>' : '') + '</p>' +
+      '<p class="mmFine">' + esc(S.price.lines.map(l => (l.row === 'model' ? 'the stock model ' : l.row + ' ') + money(l.price)).join(' · ')) + (K.econ === 'stub' ? ' · the price book is a stand-in until the economy lands' : '') + '</p>';
+    if (st.msg && st.msgFor === 'm:' + id) h += '<p class="mmMsg' + (st.msgOk ? ' ok' : '') + '">' + esc(st.msg) + '</p>';
+    h += '<div class="mmActs"><button type="button" class="mmBtn pri" data-act="buy">' + esc(buyWord(K, vch ? 0 : S.price.total)) + '</button></div></div>';
+    return h;
+  }
+  function usedCardHTML(M, st, id) {
+    const K = MK(M), L = K.used.find(x => x.id === id);
+    if (!L) return '<div class="mmCard"><h2>Sold</h2><p class="mmFine">This aeroplane is no longer for sale.</p></div>';
+    let h = '<div class="mmCard">' + (st.phone ? '<button type="button" class="mmBack" data-act="back">‹ the list</button>' : '') +
+      '<div class="mmProv"><i class="mmChip" style="background:' + esc(L.colour) + '">' + USED_GLYPH + '</i>used · ' + esc(L.name) + '</div>' +
+      '<h2>' + esc(L.words.title) + '</h2><p class="mmBrief">' + esc(L.words.seller) + '</p>';
+    h += '<div class="mmLeg">' + endHTML(M, 'it stands at', L.aero) + '</div>';
+    h += '<h3>Its history</h3><ul class="mmCrit">' + L.words.facts.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>';
+    h += '<h3>Its certificate</h3><p class="mmFine">The maker\'s, as the first owner chose it' + (L.kg ? ', the extra kilos counted' : '') + '.</p>' + certHTML(L.cert);
+    h += '<h3>Price</h3><p class="mmPay"><b>' + fmt(L.price) + '</b> <span>(' + fmt(L.catalogue) + ' new × ' + Math.round(L.condition * 100) + ' % for its condition)</span></p>';
+    h += '<p class="mmFine">Bought where it stands: it becomes yours at ' + esc(aeroName(M, L.aero)) + '. Fly it home, or bring it home (free).</p>';
+    h += '<div class="mmOptRow"><span class="mmK">its name in your hangar</span><input class="mmIn" data-in="slot" value="' + esc(st.mname || '') + '" placeholder="' + esc(L.name + ' ' + L.opts.reg) + '" autocomplete="off"></div>';
+    if (st.msg && st.msgFor === 'u:' + id) h += '<p class="mmMsg' + (st.msgOk ? ' ok' : '') + '">' + esc(st.msg) + '</p>';
+    h += '<div class="mmActs"><button type="button" class="mmBtn pri" data-act="buy">' + esc(K.mode === 'career' ? 'Buy where it stands · ' + fmt(L.price) : 'Take it where it stands · free in the sandbox') + '</button></div></div>';
+    return h;
+  }
+  // the listings on the map, at their aerodrome (shown with the Market tab or a listing selected)
+  function marketMarkers(M, st) {
+    const K = MK(M), out = [];
+    if (!K || !(st.tab === 'market' || /^[mu]:/.test(st.sel || ''))) return out;
+    const selU = (st.sel || '').startsWith('u:') ? st.sel.slice(2) : null;
+    for (const L of K.used) { const a = M.aeros[L.aero]; if (!a) continue;
+      out.push({ key: 'u:' + L.id, sel: 'u:' + L.id, kind: 'used', aero: L.aero, x: a.x, z: a.z, label: L.words.title, colour: L.colour, glyph: USED_GLYPH, on: selU === L.id, dim: !!selU && selU !== L.id }); }
+    return out;
+  }
+
   const CORE = { PAX_KG, mapAdapt, whereOf, rowsOf, rowWord, factsFor, critFor, critsOf, designsOf, fitOf, allows, payOf, payWord, pinOf, subsNow, stageOf, CRIT_BY,
-                 markersOf, routesOf, act, tabsHTML, listHTML, cardHTML, statusHTML, layersHTML, whereWord, LAYERS, TABS_ASSET };
+                 markersOf, routesOf, act, tabsHTML, listHTML, cardHTML, statusHTML, layersHTML, whereWord, LAYERS, TABS_ASSET,
+                 marketAdapt, marketListHTML, modelCardHTML, usedCardHTML, marketMarkers, certRows };
   if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
   if (!W || !W.document) return;
 
@@ -498,6 +621,21 @@
 #mapScreen .mmBtn:disabled{opacity:.5;cursor:default}
 #mapScreen .mmBack{min-height:48px;padding:0 12px 0 0;color:var(--mm-acc);font-weight:500}
 #mapScreen .mmIdle p{color:var(--mm-mid)}
+/* THE MARKET (G2280 PROCURE): the options are 48 px chips, the inputs 48 px; the listings' badges beside a field */
+#mapScreen .mmSect{padding:14px 14px 4px;font:600 11px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mm-dim)}
+#mapScreen .mmOptRow{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+#mapScreen .mmOpts{display:flex;flex-wrap:wrap;gap:8px}
+#mapScreen .mmOpt{min-height:48px;padding:0 12px;border-radius:9px;border:1px solid var(--mm-line);background:var(--mm-bg2);font-size:13px;text-align:center}
+#mapScreen .mmOpt.on{border-color:var(--mm-acc);color:var(--mm-acc)}
+#mapScreen .mmOpt i{font-style:normal;color:var(--mm-mid);font-size:12px}
+#mapScreen .mmIn{min-height:48px;padding:0 12px;border-radius:9px;border:1px solid var(--mm-line);background:var(--mm-bg2);color:var(--mm-ink);font:inherit;width:100%;user-select:text;-webkit-user-select:text}
+#mapScreen .mmMsg{margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--mm-bg2);color:var(--mm-no)}
+#mapScreen .mmMsg.ok{color:var(--mm-ok)}
+#mapScreen .mmMk.used i{border-radius:6px}
+#mapScreen .mmBoard{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px;min-height:60px}
+#mapScreen .mmBoard .mmRowT{flex:1;min-width:0}
+#mapScreen .mmBoard em{font-style:normal;font-size:12px;color:var(--mm-mid)}
+#mapScreen .mmList>.mmMsg,#mapScreen .mmSheetBody>.mmMsg{margin:8px 14px}
 /* THE PHONE (GQ19): the map full, the list a bottom sheet over it; the map and the sheet never share a gesture (R20) */
 #mapScreen.mmPhone .mmTop{position:absolute;top:0;right:0;left:auto;height:auto;border:0;padding:8px;z-index:3}
 #mapScreen.mmPhone .mmTop h1{display:none}
@@ -520,6 +658,15 @@
 #mapScreen .mmSheetBody .mmCard{padding-top:4px}
 `;
 
+  // G2280 (PROCURE): the core's procurement functions are the page's globals (the core bundle); the page's doors to
+  // the player's document and the slots are window.FLYDIY_PROCURE (app.js, only under ?map=1 / ?career=1)
+  // (an explicit namespace: the core's top-level `const`s are global LEXICAL bindings - visible to this script, never
+  // properties of the window)
+  const marketCore = () => (typeof procureCatalogue === 'function' && typeof PROCURE_MODELS !== 'undefined' ? {
+    procureCatalogue, procureText, procureSheet, procureMarketOf, procureUsedWords, procureUsedCert, procureEconSource,
+    PROCURE_MAKERS, PROCURE_MODELS } : null);
+  let lastRaw = null;
+  const boardNow = () => { try { return W.FLYDIY_PROCURE && W.FLYDIY_PROCURE.board ? W.FLYDIY_PROCURE.board() : null; } catch (e) { return null; } };
   let root = null, M = null, pack = null, st = null, V = { s: 1, tx: 0, ty: 0, fit: 1 }, $ = {}, dragMoved = 0;
   const isPhone = () => !!((D.documentElement.classList && D.documentElement.classList.contains('phone')) || (W.matchMedia && W.matchMedia('(max-width: 760px)').matches));
 
@@ -540,6 +687,7 @@
       $[k] = root.querySelector('.' + k);
     $.img = root.querySelector('.mmPlane img');
     root.addEventListener('click', onClick);
+    root.addEventListener('input', onInput);
     wireMap();
     wireSheet();
   }
@@ -578,6 +726,7 @@
       let [x, y] = toScr(m.x, m.z);
       if (m.kind === 'contract') { x += (m.slot - (m.of - 1) / 2) * 34; y -= 30; }
       if (m.kind === 'fleet') { x += (m.slot - (m.of - 1) / 2) * 34; y += 30; }
+      if (m.kind === 'used') { x += 40 + m.slot * 34; }
       boxes.push([x - 16, y - 16, x + 16, y + 16]);
       const named = m.on || (m.kind === 'fleet' && near);
       if (named) boxes.push([x - m.label.length * 3.6 - 8, y + 20, x + m.label.length * 3.6 + 8, y + 40]);
@@ -663,6 +812,11 @@
       if (st.tab === 'pilots' || st.tab === 'market') st.tab = 'all';
       const at = c && M.aeros[pinOf(M, c)]; if (at && from === 'row') focus(at.x, at.z);
     }
+    if (sel && /^[mu]:/.test(sel)) {     // G2280 (PROCURE): a model or a listing lives on the Market tab
+      st.tab = 'market'; st.msg = ''; st.mname = '';
+      const L = sel.startsWith('u:') && M.market ? M.market.used.find(x => 'u:' + x.id === sel) : null, a = L && M.aeros[L.aero];
+      if (a && from === 'row') focus(a.x, a.z);
+    }
     if (sel && sel.startsWith('f:') && from === 'row') { const f = M.fleet.find(x => 'f:' + x.slot === sel), a = f && M.aeros[f.where.aero]; if (a) focus(a.x, a.z); }
     if (st.phone) { st.detail = !!sel; if (sel && from === 'marker') st.sheet = 'open'; }
     render();
@@ -683,12 +837,17 @@
       // reads the record back; elsewhere they live in the session's adapted record, as before
       if (M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.act) {
         const raw = W.FLYDIY_CAREER.act(st.sel.slice(2), a);
-        if (raw) { let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (err) {} M = mapAdapt(raw, pack, live); }
+        if (raw) { let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (err) {} lastRaw = raw; M = mapAdapt(raw, pack, live); M.market = marketAdapt(marketCore(), live, boardNow()); }
         return render();
       }
       act(M, st.sel.slice(2), a); return render();
     }
     if (t.dataset.tab) { st.tab = t.dataset.tab; if (st.phone) st.detail = false; return render(); }
+    // G2280 (PROCURE): an option chosen, a hangar to deliver to, Buy / Take
+    if (t.dataset.opt) { const [id, row, val] = t.dataset.opt.split(':'); st.mopts = st.mopts || {}; st.mopts[id] = Object.assign({}, st.mopts[id] || {}, { [row]: val }); st.msg = ''; return render(); }
+    if (t.dataset.hangar) { st.mhangar = t.dataset.hangar; return render(); }
+    if (a === 'buy') return marketBuy();
+    if (t.dataset.board) return boardAct(t.dataset.board, t.dataset.slot);
     if (t.dataset.layer) { st.layers[t.dataset.layer] = !st.layers[t.dataset.layer]; return render(); }
     if (t.dataset.sel !== undefined) {
       const s = t.dataset.sel || null; if (!s) return;
@@ -696,6 +855,43 @@
       return select(st.sel === s && from === 'row' && !st.phone ? null : s, from);
     }
   }
+  // BUY (the career) / TAKE (the sandbox, free): the page's door writes the slot and the document; the screen reads both back
+  function marketBuy() {
+    const sel = st.sel || '', Pg = W.FLYDIY_PROCURE, K = M && M.market;
+    const say = (ok, msg) => { st.msg = msg; st.msgOk = ok; st.msgFor = sel; render(); };
+    if (!K) return;
+    if (!Pg) return say(false, 'Buying needs the game page: ?map=1 (the sandbox, free) or ?career=1 (the career).');
+    const id = sel.slice(2), isM = sel.startsWith('m:');
+    const L = isM ? null : K.used.find(x => x.id === id);
+    const base = (st.mname || '').trim() || (isM ? K.P.procureText(K.P.PROCURE_MODELS[id].name) : (L ? L.name + ' ' + L.opts.reg : 'used'));
+    const slot = (st.mname || '').trim() ? base : Pg.freeName(base);
+    const p = isM ? Pg.buyModel(id, optsOf(st, id), { slot, hangar: st.mhangar || 'HOME' }) : Pg.buyUsed(id, { slot });
+    return Promise.resolve(p).then(r => {
+      if (!r || !r.ok) return say(false, (r && r.why) || 'not bought');
+      let live = null; try { live = W.FLYDIY_PLAYER.doc(); } catch (e) {}
+      const raw = (M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.record) ? W.FLYDIY_CAREER.record() : lastRaw;
+      lastRaw = raw; M = mapAdapt(raw, pack, live); M.market = marketAdapt(marketCore(), live, boardNow());
+      st.mname = '';
+      say(true, '"' + r.slot + '" is yours: ' + (r.where || 'in your hangar') + (r.price ? ' · ' + (r.free ? 'taken free (the sandbox)' : 'paid ' + fmt(r.price)) : '') + '. It is on the Fleet tab.');
+    }, e => say(false, (e && e.message) || 'not bought'));
+  }
+  function boardAct(what, slot) {
+    const Pg = W.FLYDIY_PROCURE; if (!Pg || !slot) return;
+    let r;
+    if (what === 'build') r = Pg.buildDesign(slot);
+    else { let n = slot + ' (design)', i = 2; const names = new Set(((M.market.board || {}).designs || []).map(d => d.name)); while (names.has(n)) n = slot + ' (design ' + i++ + ')'; r = Pg.saveDesign(slot, n); }
+    let live = null; try { live = W.FLYDIY_PLAYER.doc(); } catch (e) {}
+    const raw = (M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.record) ? W.FLYDIY_CAREER.record() : lastRaw;
+    lastRaw = raw; M = mapAdapt(raw, pack, live); M.market = marketAdapt(marketCore(), live, boardNow());
+    st.boardMsg = r.ok ? (what === 'build' ? '"' + slot + '" built: an airframe in the main hangar' + (r.price ? ' (' + fmt(r.price) + ')' : '') : 'filed as the design "' + r.name + '"') : r.why;
+    st.boardOk = !!r.ok;
+    render();
+  }
+  const onInput = e => {
+    const t = e.target; if (!t || !t.dataset || !t.dataset.in) return;
+    if (t.dataset.in === 'slot') st.mname = t.value;
+    if (t.dataset.in === 'reg' && (st.sel || '').startsWith('m:')) { const id = st.sel.slice(2); st.mopts = st.mopts || {}; st.mopts[id] = Object.assign({}, st.mopts[id] || {}, { reg: t.value.toUpperCase() }); }
+  };
   const onKey = e => { if (e.key === 'Escape' && root && root.parentNode) { e.stopPropagation(); close(); } };
   const onResize = () => { if (!root || !root.parentNode) return; const ph = isPhone(); if (ph !== st.phone) { st.phone = ph; render(); } fit(); };
 
@@ -713,7 +909,10 @@
     let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (e) {}
     const src = opts.source === 'empty' ? Promise.resolve({ providers: [], contracts: [], fleet: [] }) : MAP_SOURCE();
     return src.then(raw => {
+      lastRaw = raw;
       M = mapAdapt(raw, pack, opts.source === 'empty' ? null : live);
+      try { M.market = marketAdapt(marketCore(), opts.source === 'empty' ? null : live, boardNow()); }      // G2280 (PROCURE)
+      catch (e) { console.warn('flyDiy: the market did not build -', e && e.message); M.market = null; }
       render(); fit();   // the layout first (the phone's has no columns), then the fit
       return new Promise(res => { if ($.img.complete && $.img.naturalWidth) res(true); else { $.img.onload = () => res(true); $.img.onerror = () => res(false); } });
     }, err => { console.warn('flyDiy: the contracts did not load -', err && err.message); M = mapAdapt({}, pack, null); render(); fit(); return false; });

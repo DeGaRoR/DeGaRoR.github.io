@@ -100,6 +100,10 @@ function careerMapRecord(doc, world, opts) {
   const af = c.airframes || {}, certs = opts.certs || {};
   const certOf = n => {
     const A = af[n];
+    // (G2280 PROCURE) a maker's or a used airframe carries its own certificate (the options' measured effects); a
+    // MODIFIED one has none (withdrawn): its facts are the saved build's shakedown, if this browser read it
+    if (A && A.modified) return certs[n] ? careerDesignCert(certs[n], 'the saved build\'s shakedown') : null;
+    if (A && A.cert && typeof A.cert === 'object') return careerDesignCert(A.cert, A.design || null);
     if (A && A.design && CONTRACT_DESIGNS[A.design]) return careerDesignCert(CONTRACT_DESIGNS[A.design], A.design);
     if (certs[n]) return careerDesignCert(certs[n], 'the saved build\'s shakedown');
     return null;
