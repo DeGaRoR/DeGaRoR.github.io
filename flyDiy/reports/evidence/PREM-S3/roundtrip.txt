@@ -1,0 +1,143 @@
+GATE ROUNDTRIP
+  ---- the trips, cub (the first boot)
+  ok   cub: the page booted and made its five trips
+  ok   the ONE LOADING ran the world's steps and the aeroplane's programs in its light  (ran world town parking trees ring settle snapshot bake spec images upload worldCompile frames craft)
+  ok   untouched, the loading screen lifted by itself (no hold, no wait)  (ready)
+  the world settled at the stand: {"n":946,"ms":1078,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":84,"queued":0,"busy":false,"budgetMs":4,"trees":453854,"gens":331}}
+  boot rows (the world's, now in the one loading):
+    world         links 14, gl.calls 122883, draws.total 10685, bytes.bufferData 378294980, world.terrainH 449390, three.updateMatrixWorld 75284
+    town          links 43, gl.calls 802, three.updateMatrixWorld 4927
+    parking       three.updateMatrixWorld 5608
+    trees         nothing
+    ring          world.terrainH 723947
+    settle        links 24, gl.calls 84980, draws.total 13776, bytes.bufferData 36365192, world.terrainH 8863434, three.updateMatrixWorld 58762
+    images        gl.calls 42, draws.total 2, world.terrainH 7, three.updateMatrixWorld 6
+    upload        gl.calls 3139
+    worldCompile  links 6, gl.calls 124, draws.total 2, world.terrainH 7, three.updateMatrixWorld 6
+    frames        links 1, gl.calls 111868, draws.total 6221, bytes.bufferData 361006036, world.terrainH 53, three.updateMatrixWorld 47894
+    craft         links 2, gl.calls 13244, draws.total 259, bytes.bufferData 13118688, three.updateMatrixWorld 55337
+    compile       links 5, gl.calls 44670, draws.total 6664, bytes.bufferData 1520192, three.updateMatrixWorld 15993
+    firstFrame    gl.calls 49558, draws.total 4738, bytes.bufferData 14955814, world.terrainH 3, three.updateMatrixWorld 2644
+  roll-out 1 (after the boot): ran [] skipped [snapshot bake spec craft world town parking trees ring settle images upload worldCompile frames] anim played, 705 frames; cost gl.calls 3375179, draws.total 399909, bytes.bufferData 28640, bytes.bufferSubData 1007979384, world.terrainH 3463, three.updateMatrixWorld 1946601
+  ok   roll-out 1 (after the boot): done
+  back 1: ran [shed board frames] skipped [] anim null, 3 frames; cost links 6, gl.calls 78823, draws.total 14738, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 19845
+      garage:shed           links 1, gl.calls 2124, draws.total 314, three.updateMatrixWorld 5311
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 6089
+      garage:frames         links 5, gl.calls 75697, draws.total 14184, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 8445
+  ok   back 1: done
+  roll-out 2 (a slider moved): ran [snapshot bake spec craft] skipped [world town parking trees ring settle images upload worldCompile frames] anim played, 706 frames; cost links 12, gl.calls 3455974, draws.total 413680, bytes.bufferData 205759484, bytes.bufferSubData 1005270240, world.terrainH 6568, three.updateMatrixWorld 2012754
+      the export against the build last committed: @235: 1.876,"glazing":"glass","glazingMat":"acrylic","h":1.304881818,"halfW":0.3719116556,"len":1.31356348,"noseGap":0.99029896,"occupied":[1,0],"  VS  1.876,"glazing":"glass","glazingMat":"acrylic","h":1.304881818,"halfW":0.371911666,"len":1.31356348,"noseGap":0.99029896,"occupied":[1,0],"p
+      bake re-keyed: @235: 1.876,"glazing":"glass","glazingMat":"acrylic","h":1.304881818,"halfW":0.3719116556,"len":1.31356348,"noseGap":0.99029896,"occupied":[1,0],"  VS  1.876,"glazing":"glass","glazingMat":"acrylic","h":1.304881818,"halfW":0.371911666,"len":1.31356348,"noseGap":0.99029896,"occupied":[1,0],"p
+      craft re-keyed: @1: m1|w|{"build":"gamer","pv":8,"ground":"far1","scale":1,"cover  VS  m2|w|{"build":"gamer","pv":8,"ground":"far1","scale":1,"cover
+      rollout:snapshot      three.updateMatrixWorld 1554
+      rollout:bake          links 6, gl.calls 36051, draws.total 1020, bytes.bufferData 145735848, three.updateMatrixWorld 1388
+      rollout:spec          gl.calls 2467, draws.total 240, world.terrainH 3105, three.updateMatrixWorld 7357
+      rollout:craft         links 6, gl.calls 3417456, draws.total 412420, bytes.bufferData 60023636, bytes.bufferSubData 1005270240, world.terrainH 3463, three.updateMatrixWorld 2001678
+  ok   roll-out 2 (a slider moved): done
+  back 2: ran [shed board frames] skipped [] anim null, 3 frames; cost links 1, gl.calls 75716, draws.total 14738, bytes.bufferData 768, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 19845
+      garage:shed           gl.calls 2004, draws.total 314, three.updateMatrixWorld 5311
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 6089
+      garage:frames         links 1, gl.calls 72710, draws.total 14184, bytes.bufferData 768, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 8445
+  ok   back 2: done
+  roll-out 3 (no change): ran [] skipped [snapshot bake spec craft world town parking trees ring settle images upload worldCompile frames] anim played, 705 frames; cost gl.calls 2974591, draws.total 289710, bytes.bufferSubData 1007979384, world.terrainH 3463, three.updateMatrixWorld 1946601
+  ok   roll-out 3 (no change): done
+  ok   roll-out 1 after the boot runs NO step and links nothing  (ran none, links 0)
+  ok   roll-out 3 with no change runs NO step and links nothing  (ran none, links 0)
+  ok   a slider of the editor was moved in the shed  (noseLen 0.48 -> 0.49)
+  ok   roll-out 2 (a slider moved) runs ONLY the aircraft's steps  (ran snapshot:key bake:key spec:key craft:key)
+  ok   roll-out 2 runs no world step  (none)
+  ok   roll-out 2 uploads no world texture and samples no ground en masse  (links 12, gl.calls 3455974, draws.total 413680, bytes.bufferData 205759484, bytes.bufferSubData 1005270240, world.terrainH 6568, three.updateMatrixWorld 2012754)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - after the boot  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 30 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, the slider moved in it  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, untouched  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  the first 40 frames after roll-out 1: gl.calls 518926, draws.total 56838, bytes.bufferData 2320020, bytes.bufferSubData 210759248, world.terrainH 14983, three.updateMatrixWorld 337195
+  the first 40 frames after roll-out 2: gl.calls 515249, draws.total 57005, bytes.bufferData 6720, bytes.bufferSubData 210836560, world.terrainH 1393, three.updateMatrixWorld 336694
+  the first 40 frames after roll-out 3: gl.calls 514065, draws.total 57018, bytes.bufferData 6720, bytes.bufferSubData 203331648, world.terrainH 1393, three.updateMatrixWorld 336780
+  ok   the first 40 frames of each flight link nothing (the one loading drew the world once, the craft compiled in its light)  (links 0 / 0 / 0)
+  ok   no background loading in flight: the first 40 frames after roll-outs 1 and 3 upload under 16 MB of buffers  (MB 2 / 0 / 0 (roll-out 2: the new aeroplane's own))
+  ok   the one loading let the world come to rest at the stand (the stream's near queue empty, the fill idle)  ({"n":946,"ms":1078,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":84,"queued":0,"busy":false,"budgetMs":4,"trees":453854,"gens":331}})
+  ok   the counters can see: in flight the world ticks  (worldUpdate 40, world updateMatrixWorld 324742 over 40 frames)
+  ok   trips: no script, timer or frame of the page threw
+  ok   the physics worker (the default candidate) flew every flight: placed, live, the world version held  ({"flights":3,"inline":0,"reason":null,"phase":"live","placeOk":true,"wvBad":0,"strays":0,"errors":[],"prewarmed":true,"worldMs":5974.304210999981,"readyWaitFrames":3})
+  ---- the trips, cessna (bugReports/cessnaMetal (1).json)
+  ok   cessna: the page booted and made its five trips
+  ok   the ONE LOADING ran the world's steps and the aeroplane's programs in its light  (ran world town parking trees ring settle snapshot bake spec images upload worldCompile frames craft)
+  ok   untouched, the loading screen lifted by itself (no hold, no wait)  (ready)
+  the world settled at the stand: {"n":946,"ms":1078,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":84,"queued":0,"busy":false,"budgetMs":4,"trees":453854,"gens":331}}
+  boot rows (the world's, now in the one loading):
+    world         links 14, gl.calls 121879, draws.total 10445, bytes.bufferData 378294980, world.terrainH 446285, three.updateMatrixWorld 92034
+    town          links 43, gl.calls 802, three.updateMatrixWorld 4927
+    parking       three.updateMatrixWorld 12121
+    trees         nothing
+    ring          world.terrainH 723947
+    settle        links 24, gl.calls 84980, draws.total 13776, bytes.bufferData 36365192, world.terrainH 8863434, three.updateMatrixWorld 59472
+    images        gl.calls 42, draws.total 2, world.terrainH 7, three.updateMatrixWorld 6
+    upload        gl.calls 3139
+    worldCompile  links 6, gl.calls 124, draws.total 2, world.terrainH 7, three.updateMatrixWorld 6
+    frames        links 1, gl.calls 112744, draws.total 6350, bytes.bufferData 368879332, world.terrainH 53, three.updateMatrixWorld 48560
+    craft         links 2, gl.calls 14187, draws.total 279, bytes.bufferData 19407480, three.updateMatrixWorld 56134
+    compile       links 5, gl.calls 44738, draws.total 6664, bytes.bufferData 1520192, three.updateMatrixWorld 19269
+    firstFrame    gl.calls 65622, draws.total 5839, bytes.bufferData 19636892, world.terrainH 3, three.updateMatrixWorld 3397
+  roll-out 1 (after the boot): ran [] skipped [snapshot bake spec craft world town parking trees ring settle images upload worldCompile frames] anim played, 715 frames; cost gl.calls 3601463, draws.total 432714, bytes.bufferData 28640, bytes.bufferSubData 766780312, world.terrainH 3476, three.updateMatrixWorld 2625334
+  ok   roll-out 1 (after the boot): done
+  back 1: ran [shed board frames] skipped [] anim null, 3 frames; cost links 6, gl.calls 100281, draws.total 18052, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 25560
+      garage:shed           links 1, gl.calls 2322, draws.total 325, three.updateMatrixWorld 6604
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 7739
+      garage:frames         links 5, gl.calls 96957, draws.total 17487, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 11217
+  ok   back 1: done
+  roll-out 2 (a slider moved): ran [snapshot bake spec craft] skipped [world town parking trees ring settle images upload worldCompile frames] anim played, 716 frames; cost links 12, gl.calls 3688344, draws.total 446577, bytes.bufferData 230551580, bytes.bufferSubData 762378880, world.terrainH 6591, three.updateMatrixWorld 2695756
+      the export against the build last committed: @212: ":"screen"},"glazedM2":1.976,"glazing":"glass","glazingMat":"acrylic","h":1.510368786,"halfW":0.5924075441,"len":0.894,"noseGap":0.9536,"occ  VS  ":"screen"},"glazedM2":1.976,"glazing":"glass","glazingMat":"acrylic","h":1.510373956,"halfW":0.5924161944,"len":0.894,"noseGap":0.9536,"occ
+      bake re-keyed: @212: ":"screen"},"glazedM2":1.976,"glazing":"glass","glazingMat":"acrylic","h":1.510368786,"halfW":0.5924075441,"len":0.894,"noseGap":0.9536,"occ  VS  ":"screen"},"glazedM2":1.976,"glazing":"glass","glazingMat":"acrylic","h":1.510373956,"halfW":0.5924161944,"len":0.894,"noseGap":0.9536,"occ
+      craft re-keyed: @1: m1|w|{"build":"gamer","pv":8,"ground":"far1","scale":1,"cover  VS  m2|w|{"build":"gamer","pv":8,"ground":"far1","scale":1,"cover
+      rollout:snapshot      three.updateMatrixWorld 2268
+      rollout:bake          links 6, gl.calls 38696, draws.total 1092, bytes.bufferData 156336672, three.updateMatrixWorld 1484
+      rollout:spec          gl.calls 2612, draws.total 240, world.terrainH 3115, three.updateMatrixWorld 9579
+      rollout:craft         links 6, gl.calls 3647036, draws.total 445245, bytes.bufferData 74214908, bytes.bufferSubData 762378880, world.terrainH 3476, three.updateMatrixWorld 2681291
+  ok   roll-out 2 (a slider moved): done
+  back 2: ran [shed board frames] skipped [] anim null, 3 frames; cost links 1, gl.calls 97185, draws.total 18052, bytes.bufferData 768, bytes.bufferSubData 1920, three.updateMatrixWorld 25560
+      garage:shed           gl.calls 2100, draws.total 325, three.updateMatrixWorld 6604
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 7739
+      garage:frames         links 1, gl.calls 94083, draws.total 17487, bytes.bufferData 768, bytes.bufferSubData 1920, three.updateMatrixWorld 11217
+  ok   back 2: done
+  roll-out 3 (no change): ran [] skipped [snapshot bake spec craft world town parking trees ring settle images upload worldCompile frames] anim played, 715 frames; cost gl.calls 3179540, draws.total 315703, bytes.bufferSubData 766780312, world.terrainH 3476, three.updateMatrixWorld 2625334
+  ok   roll-out 3 (no change): done
+  ok   roll-out 1 after the boot runs NO step and links nothing  (ran none, links 0)
+  ok   roll-out 3 with no change runs NO step and links nothing  (ran none, links 0)
+  ok   a slider of the editor was moved in the shed  (noseLen 0.45 -> 0.46)
+  ok   roll-out 2 (a slider moved) runs ONLY the aircraft's steps  (ran snapshot:key bake:key spec:key craft:key)
+  ok   roll-out 2 runs no world step  (none)
+  ok   roll-out 2 uploads no world texture and samples no ground en masse  (links 12, gl.calls 3688344, draws.total 446577, bytes.bufferData 230551580, bytes.bufferSubData 762378880, world.terrainH 6591, three.updateMatrixWorld 2695756)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - after the boot  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 30 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, the slider moved in it  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, untouched  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  the first 40 frames after roll-out 1: gl.calls 522762, draws.total 57500, bytes.bufferData 2115220, bytes.bufferSubData 161854432, world.terrainH 12589, three.updateMatrixWorld 359231
+  the first 40 frames after roll-out 2: gl.calls 519900, draws.total 57726, bytes.bufferData 6720, bytes.bufferSubData 161932576, world.terrainH 1396, three.updateMatrixWorld 358784
+  the first 40 frames after roll-out 3: gl.calls 518491, draws.total 57704, bytes.bufferData 6720, bytes.bufferSubData 155993408, world.terrainH 1393, three.updateMatrixWorld 358820
+  ok   the first 40 frames of each flight link nothing (the one loading drew the world once, the craft compiled in its light)  (links 0 / 0 / 0)
+  ok   no background loading in flight: the first 40 frames after roll-outs 1 and 3 upload under 16 MB of buffers  (MB 2 / 0 / 0 (roll-out 2: the new aeroplane's own))
+  ok   the one loading let the world come to rest at the stand (the stream's near queue empty, the fill idle)  ({"n":946,"ms":1078,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":84,"queued":0,"busy":false,"budgetMs":4,"trees":453854,"gens":331}})
+  ok   the counters can see: in flight the world ticks  (worldUpdate 40, world updateMatrixWorld 339178 over 40 frames)
+  ok   trips: no script, timer or frame of the page threw
+  ok   the physics worker (the default candidate) flew every flight: placed, live, the world version held  ({"flights":3,"inline":0,"reason":null,"phase":"live","placeOk":true,"wvBad":0,"strays":0,"errors":[],"prewarmed":true,"worldMs":4209.027965000016,"readyWaitFrames":3})
+  ok   setup: the page booted touched and lifted on Fly
+  ok   the setup screen mounts the rail's sections  (route start engines controls camera instruments map trace screen night weather gfx.perf gfx.light gfx.terrain gfx.water gfx.sky gfx.post gfx.town sound; 116 rows, 155 pills)
+  ok   ONE REGISTRY: every section, row and pill of the setup screen is the rail's  ({"sections":[],"rows":[],"pills":[]})
+  ok   every graphics option that does not reload is on the setup screen  (all)
+  ok   the options that reload the page are LEFT OUT of the setup screen (the rail keeps them)  (present none; missing from the rail none)
+  ok   the setup screen's sections: FLY route/start/engines/controls, VIEW, SKY & WORLD time/weather, GRAPHICS  ([{"k":"fly","secs":["route","start","engines","controls"]},{"k":"view","secs":["camera","instruments","map","trace","screen"]},{"k":"sky","secs":["night","weather"]},{"k":"graphics","secs":["graphics"]},{"k":"audio","secs":["sound"]}])
+  ok   a touch on the setup screen holds the auto-start  (before {"touched":false,"boot":"loading","fly":false,"pulse":false}, hold logged true)
+  ok   G1065 Fly pulses once the setup is touched (not before; still when the load is done and it waits)  (before {"touched":false,"boot":"loading","fly":false,"pulse":false}, after {"touched":true,"boot":"loading","fly":false,"pulse":true}, 60 frames on {"state":"waiting","fly":true,"pulse":true,"flyText":"Fly"})
+  ok   LIVE: a pick on the setup screen shows in the rail  ({"row":"anti-aliasing","picked":"off","was":"smooth","setupNow":"off","railNow":"off","gfx":"off"})
+  ok   LIVE: a switch flipped in the rail shows on the setup screen  ({"railNow":false,"setupBefore":true,"setupNow":false})
+  ok   touched: the load finishes and the screen WAITS, Fly lit (60 frames on)  ({"state":"waiting","fly":true,"pulse":true,"flyText":"Fly"})
+  ok   a graphics row picked while it waited is compiled BEFORE the lift  (shadows full -> off; the settle ran craft worldCompile frames shedCompile; links 130, gl.calls 113032, draws.total 6902, bytes.bufferData 2816, bytes.bufferSubData 13316280, world.terrainH 58, three.updateMatrixWorld 111266)
+  ok   after the lift, nothing links (30 frames)  (gl.calls 241083, draws.total 28050, bytes.bufferSubData 19200, world.terrainH 15, three.updateMatrixWorld 84450)
+  ok   the setup screen goes with the loading screen
+  ok   setup: no script, timer or frame of the page threw
+  wall 1377.1 s
+GATE ROUNDTRIP: PASS
+exit 0
