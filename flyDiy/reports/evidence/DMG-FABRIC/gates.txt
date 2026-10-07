@@ -1,0 +1,1580 @@
+tools/flight_core.js (2308.1 KB), index.html (11542.6 KB), dev.html (108.0 KB) — syntax OK, build 1c961529f309 (311 named inputs), 1435 ms
+=== TREEHIT ===
+1. the island's collidable woodland
+  ok   Jolene composes in node
+  ok   trees rooted over the analytic treeline (165 m) are collidable: 5432 of 24569
+  ok   every collidable tree stands on the tree map's TREE class (0 off it)
+  ok   HOME stands over 24 m (31.7 m): the case the old altitude gate missed
+2. the solver meets a trunk at any elevation
+  ok   the three runs finite and rolling (8.4 m/s at the most)
+  ok   with no tree the aeroplane rolls through the place (82.7 m)
+  ok   at 0 m the trunk stops it (the CG got to 58.3 m of 60)
+  ok   at 300 m the trunk stops it too (58.3 m of 60) - the altitude gate is gone
+  ok   with the woodland cylinders off (world.woodSolid false: the game page and its worker) the same tree is not met (82.7 m)
+3. the trunk rule, the bins, the worker's world
+  ok   a 15 m realistic fir (crown 0.28 H): r 0.3 m, the trunk to 10.05 m
+  ok   a 25 m maple (crown 0.45 H): r 0.5 m, the trunk splits at 12.5 m
+  ok   20 000 points (half beside a trunk) against the brute force: 0 differ; 3400 trunks in 2 sets, the island-wide set on 64 m cells
+  ok   a set dropped goes whole (400 left)
+  ok   the worker's world takes the page's tset / tdrop (3000 trunks, version 1)
+  ok   and its tclear
+  ok   the worker world takes wsolid (woodSolid false); a world no viewer stands on keeps its cylinders
+4. a flight into a forest-fill trunk
+  ok   the fill's rule, a 15 m fir: taxied at it, the trunk stops the aeroplane (the CG to 58.7 m of 60; 82.7 m with none)
+  ok   the fill's rule, a 15 m fir: across the span, 0.7 m -> 60, 1.5 m -> 60, 2.5 m -> 61, 3.5 m -> 63, 4.5 m -> 64 m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  ok   the fill's rule, a 15 m fir: flown at it (4 m AGL, 30 m/s): 4181 beam contacts, stopped by it (the CG to 39.0 m, the trunk at 40); with no trunk it flies on past at 32.1 m/s, nothing touched
+  19/19 checks
+GATE TREEHIT: PASS
+=== TREECRASH ===
+(1002 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+Cub:
+1. the table
+  ok    394 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 42 m/s to the limit (the wing's load 3.83 W; the CG then reading 3.00 g): nothing yields; the worst member 0.79 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.67 g, nothing yields; the worst member 0.70 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.93 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 335 s, 1.32 g at the most): nothing yields; the worst member 0.33 (gear, tension)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (3 members set, 0 of the nose broken, 727 J), no crash; the prop struck, the engine stopped; back 0.37 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (8228 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.32 s), 124 members broken (36 of the wing), 30.0 kJ of plastic work, 25.03 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 62 members broken (34 of the wing), 16.2 kJ of plastic work, 12.01 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (beba7bfd7e5d / beba7bfd7e5d)
+Jodel:
+1. the table
+  ok    492 members, every one with a section and a GEN_CRASH material (wood, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 49 m/s to the limit (the wing's load 4.23 W; the CG then reading 2.04 g): nothing yields; the worst member 0.56 (gear, tension)
+  ok    a drop at 2.17 m/s (7.12 ft/s, FAR 23.473): 1.86 g, nothing yields; the worst member 0.64 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.21 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (null, 340 s, 1.67 g at the most): nothing yields; the worst member 0.29 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (7 members set, 0 of the nose broken, 722 J), no crash; the prop struck, the engine stopped; back 0.25 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (19656 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (a fus member broke at 1.30 s), 157 members broken (76 of the wing), 31.3 kJ of plastic work, 32.41 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 109 members broken (82 of the wing), 6.9 kJ of plastic work, 6.87 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (eb1825301c2f / eb1825301c2f)
+metal Cessna:
+1. the table
+  ok    442 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 32 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.47 (wing, tension)
+  ok    a flown pull from 58 m/s to the limit (the wing's load 3.82 W; the CG then reading 2.72 g): nothing yields; the worst member 0.86 (wing, tension)
+  ok    a drop at 2.38 m/s (7.79 ft/s, FAR 23.473): 2.12 g, nothing yields; the worst member 0.69 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.43 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 271 s, 1.76 g at the most): nothing yields; the worst member 0.35 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (7 members set, 1 of the nose broken, 1012 J), no crash; the prop struck, the engine stopped; back 0.35 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (35764 contacts), 1 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (the airframe crushed (3.3 kJ of plastic work) at 1.30 s), 204 members broken (35 of the wing), 65.2 kJ of plastic work, 30.99 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 26 members broken (11 of the wing), 9.1 kJ of plastic work, 4.87 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (de5f08115528 / de5f08115528)
+Cessna floats:
+1. the table
+  ok    533 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 35 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.48 (wing, tension)
+  ok    a flown pull from 67 m/s to the limit (the wing's load 3.86 W; the CG then reading 2.89 g): nothing yields; the worst member 0.95 (wing, tension)
+  ok    a drop at 2.54 m/s (8.33 ft/s, FAR 23.473): 1.66 g, nothing yields; the worst member 0.47 (wing, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.75 g, nothing yields; the worst member 0.64 (wing, tension)
+  ok    a circuit with the pilot (null, 340 s, 2.22 g at the most): nothing yields; the worst member 0.35 (wing, tension)
+   (a floatplane: the trunk runs are the land builds')
+twin floatplane:
+1. the table
+  ok    519 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 43 m/s to the limit (the wing's load 3.94 W; the CG then reading 3.00 g): nothing yields; the worst member 0.65 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.49 g, nothing yields; the worst member 0.42 (gear, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.55 g, nothing yields; the worst member 0.62 (gear, tension)
+  ok    a circuit with the pilot (completed, 292 s, 1.73 g at the most): nothing yields; the worst member 0.23 (gear, tension)
+   (a floatplane: the trunk runs are the land builds')
+6. the water - Cub
+  ok    a 5 m/s level pancake: the worst member 2.42 (fus, compression); 20 set {"fus":10,"wing":10}, 0 broken, the slam 523 kPa, 2 hull slice(s) holed, 5.91 g, dented, no crash; the damage follows the beams' own loads
+  ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 3.26 (gear, tension); 33 set {"fus":13,"wing":18,"gear":2}, 14 broken, the slam 231 kPa, 1 hull slice(s) holed, 9.93 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+  ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 9.71 (fus, compression); 91 set {"fus":47,"wing":43,"tail":1}, 94 broken, the slam 287 kPa, 4 hull slice(s) holed, 10.60 g, CRASHED (broke up: the fuselage parted (S0TL off the core)) - must yield, break and crash; the damage follows the beams' own loads
+6. the water - twin floatplane
+  ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 0.83 (fus, compression); 0 set, 0 broken, 5.62 g, no damage; the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 14.30 (gear, tension); 126 set {"fus":59,"wing":36,"tail":31}, 136 broken, 26.32 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
+  50/50 checks
+GATE TREECRASH: PASS
+=== DMGMEMBERS ===
+(70 s, 5 builds)
+the reference: 0.7 m of 1" x 0.035" 4130 buckles at 0.73 of its crush force
+  ok    Euler on the reference tube: 0.73 (DEFORM-AND-BREAK §4.0: ~0.7)
+Cub:
+1. the seams (G1810)
+  ok    394 members, each with its seam and group: 10 opening:fus, 10 fitting:fus, 8 bond:wing, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 14 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    10 groups (eng:mount 10, wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, stab:attach 32, fin:attach 16, gearL:gear 4+1, gearR:gear 4+1, tw:gear 6); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (5 links)
+  ok    G1894 the release rule: one member kinked lets no group of several go; severed one by one (the weakest first) a group lets go at the member that takes the severed past 0.33 of its capacity - eng:mount 4/10, wing0R:root 3/8, wing0R:strut 2/6, wing0L:root 3/8, wing0L:strut 2/6, stab:attach 12/32, fin:attach 6/16, gearL:gear 2/4, gearR:gear 2/4, tw:gear 2/6
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus tubeFabric (tube)        131  L 0.10-1.72 m  0.13 / 0.65  capped 103
+        wing wood                     52  L 0.42-1.87 m  1.00 / 1.00  capped 0
+        wing tubeFabric               12  L 2.10-5.17 m  1.00 / 1.00  capped 0
+        tail tubeFabric              180  L 0.05-1.39 m  1.00 / 1.00  capped 0
+        gear tubeFabric               15  L 0.24-1.78 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines -, travel 0.0 %
+  ok    glue lines 0.61-0.76 (seeded), brittle
+  ok    openings 0.51-0.66 (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    28 spruce members: tension strength x 0.86-1.13, 11 break in 2 stages, 17 in 3
+  ok    on the bench to destruction 3 spruce members let go in 2/2/3 stages, crack to gone in 1.11-1.78 ms (median 1.56)
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 23.18 g; the first member broken at 28.22 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.26 g: wing0R:strut; 31 broken, groups wing0R:strut, wing0L:strut, wing0R:root
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 50 broken, groups eng:mount
+  ok      6. the kink floor: 24 kinked members, their ends at least 1.02 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member wing wood (no seam) (fold); the first group wing0L:strut; 19 broken, groups wing0L:strut
+  ok      6. the kink floor: 9 kinked members, their ends at least 1.01 of their crushed length apart at the end
+Jodel:
+1. the seams (G1810)
+  ok    492 members, each with its seam and group: 10 opening:fus, 14 bond:fus, 10 fitting:fus, 108 bond:wing, 20 fitting:wing, 44 fitting:tail, 43 bond:tail, 4 fitting:wire, 14 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    8 groups (eng:mount 10, wing0R:root 10+10, wing0L:root 10+10, stab:attach 32, fin:attach 16, gearL:gear 4+1, gearR:gear 4+1, tw:gear 6); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (11 links)
+  ok    G1894 the release rule: one member kinked lets no group of several go; severed one by one (the weakest first) a group lets go at the member that takes the severed past 0.33 of its capacity - eng:mount 4/10, wing0R:root 4/10, wing0L:root 4/10, stab:attach 12/32, fin:attach 6/16, gearL:gear 2/4, gearR:gear 2/4, tw:gear 2/6
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus wood                     109  L 0.15-1.51 m  1.00 / 1.00  capped 0
+        fus tubeFabric (tube)         22  L 0.32-1.31 m  0.22 / 0.38  capped 17
+        wing wood                    186  L 0.14-1.58 m  1.00 / 1.00  capped 0
+        tail wood                    156  L 0.03-1.36 m  1.00 / 1.00  capped 0
+        gear wood                     15  L 0.24-1.96 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines -, travel 0.0 %
+  ok    glue lines 0.60-0.80 (seeded), brittle
+  ok    openings 0.48-0.74 (Kt 1.5-2; spruce, its +-15 % on top)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    213 spruce members: tension strength x 0.85-1.15, 94 break in 2 stages, 119 in 3
+  ok    on the bench to destruction 6 spruce members let go in 2/2/3/2/2/3 stages, crack to gone in 0.72-1.89 ms (median 0.99)
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
+8. the break order (G1816)
+  ok    (no group let go: the wing parted at its root's own link, brittle) the bench to destruction: first yield at 11.83 g; the first member broken at 18.05 g: wing wood (no seam) (ragged) WB-WB; the first GROUP at - g: none; 17 broken, groups 
+  REPORT  the bench's first member is not a fitting or a seam: wing wood (no seam) (ragged) WB-WB at z -0.53 / 0.53 (a pair's own link: the carry-through) - brittle; the lattice's spar has one section root to tip (DMG-D2's per-member envelope)
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 52 broken, groups eng:mount, fin:attach
+  ok      6. the kink floor: 4 kinked members, their ends at least 1.10 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member tail wood fitting (root-bend); the first group fin:attach; 16 broken, groups fin:attach
+metal Cessna:
+1. the seams (G1810)
+  ok    442 members, each with its seam and group: 10 opening:fus, 32 rivet:fus, 10 fitting:fus, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 14 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    10 groups (eng:mount 10, wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, stab:attach 32, fin:attach 16, gearL:gear 4+1, gearR:gear 4+1, tw:gear 6); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (5 links)
+  ok    G1894 the release rule: one member kinked lets no group of several go; severed one by one (the weakest first) a group lets go at the member that takes the severed past 0.33 of its capacity - eng:mount 4/10, wing0R:root 3/8, wing0R:strut 2/6, wing0L:root 3/8, wing0L:strut 2/6, stab:attach 12/32, fin:attach 6/16, gearL:gear 2/4, gearR:gear 2/4, tw:gear 2/6
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus alloy                    109  L 0.18-1.92 m  1.00 / 1.00  capped 0
+        fus tubeFabric (tube)         22  L 0.15-1.57 m  0.16 / 0.59  capped 18
+        wing alloy                   136  L 0.15-2.60 m  1.00 / 1.00  capped 0
+        tail alloy                   156  L 0.06-1.34 m  1.00 / 1.00  capped 0
+        gear alloy                    15  L 0.74-2.54 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines 0.70-0.70, travel 2.0 %
+  ok    glue lines - (seeded), brittle
+  ok    openings 0.51-0.58 (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    0 spruce members: tension strength x -, 0 break in 2 stages, 0 in 3
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 14.20 g; the first member broken at 14.20 g: wing alloy fitting (tension) S1BR-WB; the first GROUP at 14.39 g: wing0R:strut; 12 broken, groups wing0R:strut, wing0L:strut
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 85 broken, groups eng:mount, fin:attach, wing0L:root, wing0R:root
+  ok      6. the kink floor: 9 kinked members, their ends at least 1.00 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member wing alloy fitting (fold); the first group wing0L:strut; 11 broken, groups wing0L:strut
+Cessna floats:
+1. the seams (G1810)
+  ok    533 members, each with its seam and group: 10 opening:fus, 32 rivet:fus, 10 fitting:fus, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 16 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    9 groups (eng:mount 10, wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, stab:attach 32, fin:attach 16, floatL:strut 8+4, floatR:strut 8+4); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (8 links)
+  ok    G1894 the release rule: one member kinked lets no group of several go; severed one by one (the weakest first) a group lets go at the member that takes the severed past 0.33 of its capacity - eng:mount 4/10, wing0R:root 3/8, wing0R:strut 2/6, wing0L:root 3/8, wing0L:strut 2/6, stab:attach 12/32, fin:attach 6/16, floatL:strut 3/8, floatR:strut 3/8
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus alloy                    109  L 0.18-1.92 m  1.00 / 1.00  capped 0
+        fus tubeFabric (tube)         22  L 0.15-1.57 m  0.16 / 0.59  capped 18
+        wing alloy                   136  L 0.15-2.61 m  1.00 / 1.00  capped 0
+        tail alloy                   156  L 0.06-1.34 m  1.00 / 1.00  capped 0
+        gear alloy                   106  L 0.26-2.89 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines 0.70-0.70, travel 2.0 %
+  ok    glue lines - (seeded), brittle
+  ok    openings 0.50-0.66 (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    0 spruce members: tension strength x -, 0 break in 2 stages, 0 in 3
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s (39 armed while it settled onto the water: the water's own arm, G1479)
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 11.30 g; the first member broken at 11.30 g: wing alloy fitting (tension) S1BR-WB; the first GROUP at 11.45 g: wing0R:strut; 12 broken, groups wing0R:strut, wing0L:strut
+twin floatplane:
+1. the seams (G1810)
+  ok    519 members, each with its seam and group: 8 bond:wing, 28 fitting:wing, 24 fitting:fus, 44 fitting:tail, 4 fitting:wire, 16 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    10 groups (wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, engL:mount 12, engR:mount 12, stab:attach 32, fin:attach 16, floatL:strut 8+4, floatR:strut 8+4); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (8 links)
+  ok    G1894 the release rule: one member kinked lets no group of several go; severed one by one (the weakest first) a group lets go at the member that takes the severed past 0.33 of its capacity - wing0R:root 3/8, wing0R:strut 2/6, wing0L:root 3/8, wing0L:strut 2/6, engL:mount 4/12, engR:mount 4/12, stab:attach 12/32, fin:attach 6/16, floatL:strut 3/8, floatR:strut 3/8
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus tubeFabric (tube)        146  L 0.07-1.72 m  0.13 / 0.62  capped 106
+        wing wood                     52  L 0.12-2.01 m  1.00 / 1.00  capped 0
+        wing tubeFabric               12  L 2.38-5.83 m  1.00 / 1.00  capped 0
+        tail tubeFabric              199  L 0.03-1.61 m  1.00 / 1.00  capped 0
+        gear tubeFabric              106  L 0.13-2.27 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines -, travel 0.0 %
+  ok    glue lines 0.64-0.77 (seeded), brittle
+  ok    openings - (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    28 spruce members: tension strength x 0.86-1.14, 14 break in 2 stages, 14 in 3
+  ok    on the bench to destruction 4 spruce members let go in 2/2/2/3 stages, crack to gone in 1.98-2.47 ms (median 2.47)
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s (43 armed while it settled onto the water: the water's own arm, G1479)
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 13.01 g; the first member broken at 28.03 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.07 g: wing0L:strut; 40 broken, groups wing0L:strut, wing0R:strut, engR:mount, engL:mount
+  84/84 checks
+GATE DMGMEMBERS: PASS
+=== DMGCERT ===
+(480 s, 5 builds)
+the rules: kappa 0.1, m 1.05, a joint at 1.5 F_l m x 1, a member at 1.5 F_l m x 1.15, the first set at 1.01 x F_l, the controls' cases x 2
+Cub:
+1. the certificate (45 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropLevel, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gTailObs, gTailSideR, gTailSideL, flown, flownElev, flownRud, flownElevF)
+  ok    379 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 46 on the certificate, 333 on the floor; compression: 90 / 285
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (16478 ms in node: flight cases 1429.73, bench 17.11, the dynamic ones 14316.11); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (49 members), the first group wing0R:strut, the first member a fitting (S1BR-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.01 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: fitting (wing S1BR-WF, tubeFabric, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.83 W, the CG reading 3.00 g): nothing yields; the worst member 0.79 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (6 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (12 members) built at half the section their certificate asks (x 0.06 and less), certified as built: the bench BROKE UP (first broken at 2.94 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 146 certified 4.5 kN (elevDownDuR) -> crushes at 8.2 kN (physics 36.5); member 147 certified 1.8 kN (flownElev) -> crushes at 3.7 kN (physics 36.5); member 148 certified 2.9 kN (elevDownD) -> crushes at 5.3 kN (physics 36.5); member 149 certified 2.2 kN (flownElevF) -> crushes at 4.0 kN (physics 36.5)
+Jodel:
+1. the certificate (45 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropLevel, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gTailObs, gTailSideR, gTailSideL, flown, flownElev, flownRud, flownElevF)
+  ok    477 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 65 on the certificate, 412 on the floor; compression: 129 / 344
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (28752 ms in node: flight cases 3100.02, bench 23.78, the dynamic ones 24911.24); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (89 members), the first group wing0L:root, the first member a bond (WB-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.05 g (wing0L:root, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: bond (wing WB-WF, wood, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.05 g (the left wing's root, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 4.23 W, the CG reading 2.04 g): nothing yields; the worst member 0.56 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (4 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the wing root (20 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 3.92 g, under its 5.70 g ultimate)
+  REPORT  the Jodel's first member broken on the bench to destruction: bond WB-WF (wood, tension); its first group wing0L:root
+metal Cessna:
+1. the certificate (46 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropNoseUp, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gNoseAft, gNoseFwd, gNoseSideR, gNoseSideL, flown, flownElev, flownRud, flownElevF)
+  ok    427 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 102 on the certificate, 325 on the floor; compression: 145 / 278
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (24734 ms in node: flight cases 1396.68, bench 15.60, the dynamic ones 22660.96); a second build of the same spec takes it from the cache in 0 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 16 members set (the largest 0.18 %), nothing broken - the first set is just past the limit
+  ok    to the ultimate (5.70 g): HELD, 32 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (40 members), the first group wing0L:strut, the first member a fitting (S1BR-WB, tension)
+3. to destruction
+  ok    BROKE AT 6.06 g (wing0L:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 3.85 g
+  ok    the first member broken: fitting (wing S1BR-WB, alloy, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.06 g (the left wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.82 W, the CG reading 2.72 g): nothing yields; the worst member 0.86 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (12 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 2.14 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 151 certified 14.6 kN (bench) -> crushes at 26.5 kN (physics 68.3); member 152 certified 19.2 kN (bench) -> crushes at 34.8 kN (physics 68.3); member 153 certified 3.0 kN (flownElev) -> crushes at 6.8 kN (physics 68.3); member 154 certified 2.6 kN (flownElevF) -> crushes at 6.8 kN (physics 68.3)
+Cessna floats:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, bow, dropStep, dropOne, dropDriftR, dropDriftL, drop473, wWeave, wStep, wUnsymR, wUnsymL, wOneL, wOneR, flown, flownElev, flownRud, flownElevF)
+  ok    427 members certified (the gear's 106 apart), every one with an envelope, none past its physics; tension: 148 on the certificate, 279 on the floor; compression: 205 / 218
+  ok    the gear's 106 members: its 20 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (38468 ms in node: flight cases 2608.12, bench 26.67, the dynamic ones 32923.36); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 17 members set (the largest 0.18 %), nothing broken - the first set is just past the limit
+  ok    to the ultimate (5.70 g): HELD, 35 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (34 members), the first group wing0R:strut, the first member a fitting (S1BR-WB, tension)
+3. to destruction
+  ok    BROKE AT 6.08 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 3.85 g
+  ok    the first member broken: fitting (wing S1BR-WB, alloy, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.08 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.86 W, the CG reading 2.89 g): nothing yields; the worst member 0.95 of its certified limit
+  ok    parked 10 s on the water and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (39 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (28 members) built at half the section their certificate asks (x 0.04 and less), certified as built: the bench BROKE UP (first broken at 2.04 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 151 certified 18.4 kN (bench) -> crushes at 33.3 kN (physics 70.3); member 152 certified 24.4 kN (bench) -> crushes at 44.2 kN (physics 70.3); member 153 certified 4.0 kN (flownElev) -> crushes at 7.2 kN (physics 70.3); member 154 certified 3.2 kN (flownElevF) -> crushes at 7.0 kN (physics 70.3)
+twin floatplane:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, bow, dropStep, dropOne, dropDriftR, dropDriftL, drop473, wWeave, wStep, wUnsymR, wUnsymL, wOneL, wOneR, flown, flownElev, flownRud, flownElevF)
+  ok    413 members certified (the gear's 106 apart), every one with an envelope, none past its physics; tension: 61 on the certificate, 352 on the floor; compression: 134 / 275
+  ok    the gear's 106 members: its 20 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (44740 ms in node: flight cases 2914.23, bench 22.10, the dynamic ones 39247.00); a second build of the same spec takes it from the cache in 0 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (23 members), the first group wing0L:strut, the first member a fitting (S1BR-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.03 g (wing0L:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: fitting (wing S1BR-WF, tubeFabric, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.03 g (the left wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.94 W, the CG reading 3.00 g): nothing yields; the worst member 0.65 of its certified limit
+  ok    parked 10 s on the water and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (43 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (28 members) built at half the section their certificate asks (x 0.01 and less), certified as built: the bench BROKE UP (first broken at 2.97 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 133 certified 5.8 kN (bow) -> crushes at 10.5 kN (physics 36.3); member 134 certified 3.2 kN (dropDriftR) -> crushes at 5.9 kN (physics 36.3); member 135 certified 12.6 kN (dropDriftR) -> crushes at 22.8 kN (physics 36.3); member 136 certified 3.6 kN (flownElevF) -> crushes at 6.5 kN (physics 36.3)
+  70/70 checks
+GATE DMGCERT: PASS
+=== DMGGEAR ===
+(1502 s, 5 builds; on the certificate, 66_gen_cert.js)
+Cub:
+1. the bracket (taildragger, bungee)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.04 of a member's length); limits 1.38-7.42 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.84-4.52 kN
+  ok    the drop at its FAR 23.473 limit sink (2.13 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.67 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear yields, nothing breaks, the airframe takes no set - set 1 gear / 0 airframe, broken 0 / 0, 2.09 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-TPT, kink) - set 0 gear / 7 airframe, broken 9 / 0, the first group tw:gear, 1.79 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.34 (gear AXLEL-AXLER, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.38 (gear AXLEL-AXLER, tension)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.30 (S1BR-S2TR), the gear 0.51 (AXLEL-S0TL)
+  ok    a taxi on grass at 8 m/s: 0.32 (gear AXLEL-AXLER, tension)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.32 (gear AXLEL-AXLER, tension)
+  ok    a taxi on the rough field at 12 m/s: 0.32 (gear AXLEL-AXLER, tension)
+  ok    the circuit (completed, 335 s, touchdown 0.65 m/s): 0.33 (gear AXLEL-AXLER, tension, ROLLOUT)
+  ok    a crosswind circuit (3.26 m/s across, 0.2 V_S0) (null, 340 s): 0.33 (gear AXLEL-S0BR, compression, ROLLOUT)
+3. §7.4's gear rows
+  --    REPORT the ground loop (15 m/s, swung 20 deg at 120 deg/s, the base's staging): groups none, the lowest wingtip -0.02 m (struck) - the wheels slide
+  ok    the ground loop (15 m/s, swung 30 deg at 180 deg/s): a main gear folds (gearL:gear), the low wing strikes (at 4.47 s); the groups in order gearL:gear; a wing member broke
+Jodel:
+1. the bracket (taildragger, oleo)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.1 of a member's length); limits 1.34-9.11 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.79-8.22 kN
+  ok    the drop at its FAR 23.473 limit sink (2.17 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.86 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds, just under its yield (1.18 F_l), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 2.45 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (AXLEL-AXLER, ragged) - set 8 gear / 0 airframe, broken 1 / 0, 2.24 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.34 (gear TW-TPB, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.46 (gear TW-TPB, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.17 m/s (the gear's own limit case): the airframe 0.31 (WB-S0TR), the gear 0.64 (TW-TPB)
+  ok    a taxi on grass at 8 m/s: 0.15 (gear AXLEL-S0TL, compression)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.39 (gear AXLER-S0BL, compression)
+  ok    a taxi on the rough field at 12 m/s: 0.44 (gear AXLER-S0BL, compression)
+  ok    the circuit (null, 340 s): 0.29 (gear AXLEL-S0BL, compression, ROLLOUT)
+  ok    a crosswind circuit (3.78 m/s across, 0.2 V_S0) (null, 340 s): 0.20 (wing WR-S2BL, compression, FINAL)
+3. §7.4's gear rows
+  --    REPORT the ground loop (15 m/s, swung 20 deg at 120 deg/s): groups none, the lowest wingtip 1.00 m - on flat grass the wheels slide (friction-limited side load)
+metal Cessna:
+1. the bracket (tricycle, spring)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.15 / 0.06 of a member's length); limits 2.57-19.77 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 3.41-11.26 kN
+  ok    the drop at its FAR 23.473 limit sink (2.38 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 2.12 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds, just under its yield (1.18 F_l), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 2.72 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-ENGR, kink) - set 2 gear / 45 airframe, broken 11 / 17, the first group tw:gear, 2.26 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.36 (gear AXLEL-S2BL, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.48 (gear AXLEL-S2BL, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.38 m/s (the gear's own limit case): the airframe 0.52 (WR-WR), the gear 0.70 (AXLEL-S2BL)
+  ok    a taxi on grass at 8 m/s: 0.17 (wing WF-WF, tension)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.60 (gear TW-S0BR, compression)
+  ok    a taxi on the rough field at 12 m/s: 0.53 (gear TW-S0BR, compression)
+  ok    the circuit (completed, 271 s, touchdown 1.13 m/s): 0.35 (gear AXLEL-S2BL, compression, ROLLOUT)
+  ok    a crosswind circuit (3.78 m/s across, 0.2 V_S0) (completed, 279 s, touchdown 1.20 m/s): 0.61 (gear AXLER-S1BL, tension, ROLLOUT)
+3. §7.4's gear rows
+  ok    the porpoise (nose-first at 25 m/s, 5 deg down, the bounces at 3 / 4 / 5 m/s): the nose gear collapses on bounce 3 (the reference: the third) - 1: whole; 2: whole; 3: tw:gear; the prop strikes; a gear member broke
+Cessna floats:
+1. the bracket (floats, spring)
+  ok    20 gear joints, every one stamped from its own envelope
+  ok    a float's struts and spreaders crush at the ultimate (no spring): 5.92-103.77 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 13.94-79.49 kN
+  ok    the drop at its FAR 23.473 limit sink (2.54 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.66 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds (a float installation has no spring), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 1.84 g
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.36 (wing WF-WR, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.40 (wing WF-WR, tension)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.54 m/s (the gear's own limit case): the airframe 0.66 (WF-WF), the gear 0.54 (FLD-S2BL)
+  ok    a taxi on the water at 4 m/s: 0.10 (wing WF-WF, tension)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.14 (wing WR-WR, tension)
+  ok    the circuit (null, 340 s): 0.35 (wing WR-WR, tension, ROLLOUT)
+  ok    a crosswind circuit (4.23 m/s across, 0.2 V_S0) (null, 340 s): 0.36 (gear FLD-FLD, compression, ROLLOUT)
+3. §7.4's gear rows
+  ok    the float nose-in at 90 km/h, 5 m/s, 20 deg (the WATER CASE): nothing breaks (0 set)
+  ok    the float dig-in at 150 km/h, 10 m/s, 60 deg: the floats' strut fittings fail in overload (floatR:strut, floatL:strut) - the first group floatR:strut (FLD-S2TR, tension); then floatL:strut, eng:mount, wing0L:root, wing0R:root, fin:attach, stab:attach, wing0R:strut; a gear member broke
+twin floatplane:
+1. the bracket (floats, spring)
+  ok    20 gear joints, every one stamped from its own envelope
+  ok    a float's struts and spreaders crush at the ultimate (no spring): 2.11-32.41 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 2.48-15.22 kN
+  ok    the drop at its FAR 23.473 limit sink (2.13 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.49 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds (a float installation has no spring), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 1.57 g
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.33 (fus MNTL-WF, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.39 (fus MNTL-WF, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.46 (MNTL-WF), the gear 0.40 (FLD-S2BR)
+  ok    a taxi on the water at 4 m/s: 0.19 (gear FLD-FLD, tension)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.19 (gear FLD-FLD, tension)
+  ok    the circuit (completed, 292 s, touchdown 1.63 m/s): 0.23 (gear FLD-FLD, tension, ROLLOUT)
+  ok    a crosswind circuit (3.28 m/s across, 0.2 V_S0) (completed, 294 s, touchdown 1.35 m/s): 0.40 (gear FLD-FLD, compression, ROLLOUT)
+3. §7.4's gear rows
+  ok    the float nose-in at 90 km/h, 5 m/s, 20 deg (the WATER CASE): nothing breaks (0 set)
+  ok    the float dig-in at 150 km/h, 10 m/s, 60 deg: the floats' strut fittings fail in overload (floatL:strut, floatR:strut) - the first group floatL:strut (WF-WF, ragged); then floatR:strut, wing0R:strut, wing0L:root, engR:mount, wing0R:root, engL:mount, wing0L:strut; broke up: the fuselage parted (TPB off the core)
+THE HEADROOM TABLE (the worst member over its certified yield; the 23.473 row: the airframe):
+  Cub             td 1.0 0.34 | td 1.5 0.38 | td 23.473 0.30 | taxi on grass at 8 m/s 0.32 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.32 | taxi on the rough field at 12 m/s 0.32 | circuit 0.33 | crosswind circuit 0.33
+  Jodel           td 1.0 0.34 | td 1.5 0.46 | td 23.473 0.31 | taxi on grass at 8 m/s 0.15 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.39 | taxi on the rough field at 12 m/s 0.44 | circuit 0.29 | crosswind circuit 0.20
+  metal Cessna    td 1.0 0.36 | td 1.5 0.48 | td 23.473 0.52 | taxi on grass at 8 m/s 0.17 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.60 | taxi on the rough field at 12 m/s 0.53 | circuit 0.35 | crosswind circuit 0.61
+  Cessna floats   td 1.0 0.36 | td 1.5 0.40 | td 23.473 0.66 | taxi on the water at 4 m/s 0.10 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.14 | circuit 0.35 | crosswind circuit 0.36
+  twin floatplane td 1.0 0.33 | td 1.5 0.39 | td 23.473 0.46 | taxi on the water at 4 m/s 0.19 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.19 | circuit 0.23 | crosswind circuit 0.40
+  72/72 checks
+GATE DMGGEAR: PASS
+=== DMGCERTCOST ===
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+Cub:
+  ok   1. 1809 frames stepped (budget 1809; the uncut certificate 2781)
+  ok   1. 15.4 s in node (ceiling 18 s; the uncut 6.4 s; the target ~5 s: 10.4 s over) - static 1.3, settle 1.9, drop 0.8, dropLevel 0.4, dropOne 0.4, drop473 0.4, taxiRough 6.2, ground 0.5, flown 1.1, flownElev 0.9, flownRud 0.5, flownElevF 0.8
+  ok   2. the envelope against the uncut (stored): equal to the bit
+Jodel:
+  ok   1. 1792 frames stepped (budget 1792; the uncut certificate 2764)
+  ok   1. 27.2 s in node (ceiling 32 s; the uncut 12.5 s; the target ~5 s: 22.2 s over) - static 2.9, settle 3.6, drop 1.3, dropLevel 0.8, dropOne 0.8, drop473 0.8, taxiRough 11.1, ground 0.4, flown 1.3, flownElev 1.6, flownRud 1.0, flownElevF 1.5
+  ok   2. the envelope against the uncut (stored): equal to the bit
+metal Cessna:
+  ok   1. 1797 frames stepped (budget 1797; the uncut certificate 2769)
+  ok   1. 22.8 s in node (ceiling 30 s; the uncut 10.9 s; the target ~5 s: 17.8 s over) - static 1.2, settle 2.7, drop 1.0, dropNoseUp 0.7, dropOne 0.8, drop473 0.7, taxiRough 10.1, ground 0.4, flown 1.5, flownElev 1.3, flownRud 0.8, flownElevF 1.5
+  ok   2. the envelope against the uncut (stored): equal to the bit
+Cessna floats:
+  ok   1. 1763 frames stepped (budget 1763; the uncut certificate 3023)
+  ok   1. 35.3 s in node (ceiling 42 s; the uncut 17.7 s; the target ~5 s: 30.3 s over) - static 2.6, settle 5.5, drop 2.8, bow 1.5, dropStep 2.0, dropOne 2.1, dropDriftR 1.9, dropDriftL 2.0, drop473 1.9, wWeave 6.6, ground 0.4, flown 1.5, flownElev 1.7, flownRud 1.0, flownElevF 1.7
+  ok   2. the envelope against the uncut (stored): equal to the bit
+twin floatplane:
+  ok   1. 1791 frames stepped (budget 1791; the uncut certificate 3051)
+  ok   1. 42.0 s in node (ceiling 48 s; the uncut 19.8 s; the target ~5 s: 37.0 s over) - static 2.8, settle 6.5, drop 3.2, bow 2.1, dropStep 2.3, dropOne 2.1, dropDriftR 2.3, dropDriftL 2.2, drop473 2.1, wWeave 8.1, ground 1.0, flown 2.2, flownElev 2.0, flownRud 1.2, flownElevF 1.9
+  ok   2. the envelope against the uncut (stored): equal to the bit
+3. the store (node, an in-memory IndexedDB):
+  ok   a miss reads null
+  ok   kept
+  ok   the second page load stamps from the store in 4.2 ms (< 50), the envelope to the bit
+  ok   a flipped value refused (checksum)
+  ok   another version refused
+  ok   another physics refused
+  ok   another member count refused
+  ok   a NaN refused
+  ok   another key refused
+  ok   the good record passes
+  ok   a corrupt record reads null and is deleted
+3. the store (headless Chromium, the bench worker):
+  ok   page 1: a miss, the worker computed it in 14.2 s and the page kept it
+  ok   the worker's certificate is node's (the same key; worst relative difference 2.1e-8, < 1e-6: the two V8s' last bits)
+  ok   page 2: read from the store and stamped in 4.3 ms (< 50), the same envelope
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: PASS
+=== DMGWIND ===
+(1329 s; on the certificate, damage on)
+1. THE PAGE'S STAGING: settled 2 s in the wind, 3 m/s, the throttle shut, a trunk 6 m ahead (49 winds a build)
+  the user's Cub:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.2   (calm: one run)
+         2.5 m/s   0/0.2  0/0.2  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.2
+           5 m/s   0/0.2  0/0.2  0/0.0  0/0.0  0/0.0  0/0.3  0/0.3  0/0.3  0/0.0  0/0.0  0/0.0  0/0.2
+         7.5 m/s   0/0.2  0/0.0  0/0.1  0/0.2  0/0.1  0/0.0  0/0.4  0/0.0  0/0.1  0/0.2  0/0.1  0/0.0
+          10 m/s   0/0.2  0/0.0  0/0.0  0/0.0  0/0.2  0/0.4  0/0.6  0/0.4  0/0.2  0/0.0  0/0.0  0/0.0
+  ok    the user's Cub: no mount member breaks in any wind to 5 m/s (25 of 49 runs gated, 49 met the trunk at 1.18-2.47 m/s; the mount's worst 0.93 of its limit)
+  --    REPORT the user's Cub at 7.5 and 10 m/s: 0 of 24 winds break the mount
+  --    REPORT the user's Cub: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  Jodel:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.6   (calm: one run)
+         2.5 m/s   0/0.6  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.6  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7
+           5 m/s   0/0.6  0/0.5  0/0.0  0/0.0  0/0.0  0/0.4  0/0.6  0/0.4  0/0.0  0/0.0  0/0.0  0/0.5
+         7.5 m/s   0/0.6  0/0.0  0/0.1  0/0.1  0/0.1  0/0.0  0/0.6  0/0.0  0/0.1  0/0.1  0/0.1  0/0.0
+          10 m/s   0/0.6  0/0.2  0/0.0  0/0.0  0/0.0  0/0.0  0/0.7  0/0.0  0/0.0  0/0.0  0/0.0  0/0.2
+  ok    Jodel: no mount member breaks in any wind to 10 m/s (49 of 49 runs gated, 49 met the trunk at 1.66-2.36 m/s; the mount's worst 0.94 of its limit)
+  --    REPORT Jodel: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  metal Cessna:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.8   (calm: one run)
+         2.5 m/s   0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8
+           5 m/s   0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8
+         7.5 m/s   0/0.7  0/0.8  0/0.8  0/0.9  0/0.9  0/0.8  0/0.8  0/0.8  0/0.9  0/0.9  0/0.8  0/0.8
+          10 m/s   0/0.7  0/0.8  0/0.9  0/0.9  0/0.9  0/0.9  0/0.8  0/0.9  0/0.9  0/0.9  0/0.9  0/0.8
+  ok    metal Cessna: no mount member breaks in any wind to 10 m/s (49 of 49 runs gated, 49 met the trunk at 2.07-2.22 m/s; the mount's worst 1.01 of its limit)
+  --    REPORT metal Cessna: other members broken (not the mount): 0/0 ENGL-ENGR fold; 2.5/0 ENGL-ENGR fold; 2.5/30 ENGL-ENGR fold; 2.5/60 ENGL-ENGR fold; 2.5/90 ENGL-ENGR fold; 2.5/120 ENGL-ENGR fold; 2.5/150 ENGL-ENGR fold; 2.5/180 ENGL-ENGR fold; 2.5/210 ENGL-ENGR fold; 2.5/240 ENGL-ENGR fold; 2.5/270 ENGL-ENGR fold; 2.5/300 ENGL-ENGR fold; 2.5/330 ENGL-ENGR fold; 5/0 ENGL-ENGR fold; 5/30 ENGL-ENGR fold; 5/60 ENGL-ENGR fold; 5/90 ENGL-ENGR fold; 5/120 ENGL-ENGR fold; 5/150 ENGL-ENGR fold; 5/180 ENGL-ENGR fold; 5/210 ENGL-ENGR fold; 5/240 ENGL-ENGR fold; 5/270 ENGL-ENGR fold; 5/300 ENGL-ENGR fold; 5/330 ENGL-ENGR fold; 7.5/0 ENGL-ENGR fold; 7.5/30 ENGL-ENGR fold; 7.5/60 ENGL-ENGR fold; 7.5/90 ENGL-ENGR fold; 7.5/120 ENGL-ENGR fold; 7.5/150 ENGL-ENGR fold; 7.5/180 ENGL-ENGR fold; 7.5/210 ENGL-ENGR fold; 7.5/240 ENGL-ENGR fold; 7.5/270 ENGL-ENGR fold; 7.5/300 ENGL-ENGR fold; 7.5/330 ENGL-ENGR fold; 10/0 ENGL-ENGR fold; 10/150 ENGL-ENGR fold; 10/180 ENGL-ENGR fold; 10/210 ENGL-ENGR fold
+  --    REPORT metal Cessna: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+2. THE PAGE'S OWN WIND on the Cub (5.48 m/s from 112 deg off the nose; the gust field 1 m over the CG at t = 2 s: -1.91, -0.11, 5.06)
+  ok    steady, started at 3 m/s (met the trunk at 2.22): mount 0, broken 0, 0 J, the mount's worst 0.87
+  ok    gust 0.5, started at 3 m/s (met the trunk at 2.21): mount 0, broken 0, 0 J, the mount's worst 0.86
+  ok    gust 1, started at 3 m/s (met the trunk at 2.21): mount 0, broken 0, 0 J, the mount's worst 0.84
+  ok    steady, started at 3.6 m/s (met the trunk at 2.98): mount 0, broken 0, 140 J, the mount's worst 1.02
+  ok    gust 0.5, started at 3.6 m/s (met the trunk at 2.98): mount 0, broken 0, 136 J, the mount's worst 1.02
+  ok    gust 1, started at 3.6 m/s (met the trunk at 2.97): mount 0, broken 0, 64 J, the mount's worst 1.01
+3. THE FLOATPLANES on the water, 10 s at 3 m/s in the wind
+  ok    Cessna floats: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    twin floatplane: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    the per-substep reader (sim.onSubstep, damagePush) changes nothing: e8dbf16c1627 / e8dbf16c1627 (13500 substeps read)
+REPORT: THE PAGE'S IMPACT SPEED (started at 3.6 m/s: the trunk met at ~3 m/s, as on the page)
+  --    REPORT the user's Cub: 0 of 49 winds break the mount (met at 2.17-3.14 m/s)
+  --    REPORT Jodel: 0 of 49 winds break the mount (met at 2.54-3.07 m/s)
+  --    REPORT metal Cessna: 0 of 49 winds break the mount (met at 2.86-2.98 m/s)
+  --    REPORT the Cub, no wind, started at 3 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  12/12 checks
+GATE DMGWIND: PASS
+=== DMGCLUSTERS ===
+(845 s, 6 builds)
+Cub:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.70 / 20.32 / 11.73 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.08 kN.m, the statics 0.08 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.040 (FIN root, bend; 0.06 of first yield)
+  ok    load test 5.7 g, the stab: 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    flown pull (TREECRASH's, from 42 m/s): 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s): 0.011 (FIN root, bend; 0.02 of first yield)
+  ok    drop at 10 ft/s: 0.015 (FIN root, bend; 0.02 of first yield)
+  ok    a circuit with the pilot: 0.008 (FIN root, bend; 0.01 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.47 s (6.70 kN.m bending, -8.55 torque; limits 6.70 / 20.32 / 11.73), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.19 m off; clusters now FIN:13
+Jodel:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 0.76 / 3.02 / 1.74 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.04 kN.m, the statics 0.04 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.733 (FIN root, bend; 0.84 of first yield)
+  ok    load test 5.7 g, the stab: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 49 m/s): 0.232 (FIN root, bend; 0.27 of first yield)
+  ok    drop at FAR 23.473 (7.1 ft/s): 0.144 (FIN root, bend; 0.17 of first yield)
+  ok    drop at 10 ft/s: 0.184 (FIN root, bend; 0.21 of first yield)
+  ok    a circuit with the pilot: 0.080 (FIN root, bend; 0.09 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.011)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 1.63 s (0.76 kN.m bending, -0.10 torque; limits 0.76 / 3.02 / 1.74), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 1.16 m off; clusters now FIN:13
+metal Cessna:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.54 / 24.15 / 13.94 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.13 kN.m, the statics 0.13 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.126 (FIN root, bend; 0.20 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 58 m/s): 0.015 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (7.8 ft/s): 0.006 (FIN root, bend; 0.01 of first yield)
+  ok    drop at 10 ft/s: 0.007 (FIN root, bend; 0.01 of first yield)
+  ok    a circuit with the pilot: 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.38 s (6.55 kN.m bending, -7.87 torque; limits 6.54 / 24.15 / 13.94), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.16 m off; clusters now FIN:13
+Cessna floats:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    3 clusters, each with its root cut: FIN root 6.54 / 24.15 / 13.94 (fin:attach); FLTL root 2640.63 / 2728.27 / 157.88 (floatL:strut); FLTR root 2640.63 / 2728.27 / 157.88 (floatR:strut)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.14 kN.m, the statics 0.14 (13 nodes)
+  ok    FLTL root: read 1.31 kN.m, the statics 1.29 (15 nodes)
+  ok    FLTR root: read 1.31 kN.m, the statics 1.29 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.164 (FIN root, bend; 0.26 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 67 m/s): 0.013 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (8.3 ft/s), onto the water: 0.021 (FIN root, bend; 0.03 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.027 (FIN root, bend; 0.04 of first yield)
+  ok    the 5 m/s level pancake on the water: 0.082 (FIN root, bend; 0.13 of first yield)
+  ok    a circuit with the pilot (on the water): 0.021 (FLTL root, twist; 0.03 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.006)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.40 s (6.55 kN.m bending, -7.93 torque; limits 6.54 / 24.15 / 13.94), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.17 m off; clusters now FIN:13, FLTL:15, FLTR:15
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.75 s (220.99 kN.m bending, -40.66 torque; limits 2640.63 / 2728.27 / 157.88), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 14.11 m off; clusters now FIN:17, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.75 s (220.99 kN.m bending, 40.66 torque; limits 2640.63 / 2728.27 / 157.88), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 14.11 m off; clusters now FIN:17, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): the worst cut 0.057 (FIN root, bend); the floats' roots FLTL 0.01 bend / 0.02 twist, FLTR 0.01 bend / 0.02 twist; damage on: no cluster parts; groups - - finite
+  REPORT  the float nose-in (90 km/h, 5 m/s, 20 deg): the float fittings held (§7.4)
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 0.370 (FIN root, bend); the floats' roots FLTL 0.06 bend / 0.15 twist, FLTR 0.06 bend / 0.15 twist; damage on: no cluster parts; groups eng:mount@0.163 stab:attach@0.284; CRASHED (a fus member broke) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin floatplane:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: ROD root 10.31 / 10.31 / 9.35 (its bay); ROD station 7.22 / 7.22 / 6.55 (its bay); FIN root 6.02 / 32.34 / 18.67 (fin:attach); FLTL root 633.27 / 664.94 / 45.51 (floatL:strut); FLTR root 633.27 / 664.94 / 45.51 (floatR:strut)
+  ok    ROD: its mid-span station at bay 2 (at 0.7 of the tube), the twist limits per bay 9.35 / 9.35 / 6.55 / 9.35
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    ROD root: read 3.99 kN.m, the statics 3.98 (61 nodes)
+  ok    ROD station: read 1.99 kN.m, the statics 2.00 (53 nodes)
+  ok    FIN root: read 0.08 kN.m, the statics 0.08 (17 nodes)
+  ok    FLTL root: read 0.25 kN.m, the statics 0.24 (15 nodes)
+  ok    FLTR root: read 0.25 kN.m, the statics 0.24 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (ROD twist bay, twist)
+  ok    load test 5.7 g, the fin: 0.147 (FIN root, bend; 0.21 of first yield)
+  ok    load test 5.7 g, the stab: 0.000 (ROD station, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 43 m/s): 0.771 (ROD root, bend; 1.43 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s), onto the water: 0.310 (ROD root, bend; 0.58 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.502 (ROD root, bend; 0.93 of first yield)
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): 0.928 (ROD root, bend; 1.72 of first yield)
+  ok    a circuit with the pilot (on the water): 0.324 (ROD root, bend; 0.60 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.106)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 1.80 s (6.02 kN.m bending, -0.68 torque; limits 6.02 / 32.34 / 18.67), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 1.21 m off; clusters now ROD:22, FIN:17, FLTL:15, FLTR:15
+  ok    the ROD loaded down at its tail (n g on the tube and the tail, ramped): ROD root by bend at 1.45 s (10.31 kN.m bending, 0.63 torque; limits 10.31 / 10.31 / 9.35), 10 members broken (its bay, 0 others), the part rigid to 4.0 mm and 0.99 m off; clusters now ROD:18, FIN:21, FLTL:15, FLTR:15
+  ok    the ROD levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): ROD station by bend at 3.93 s (7.22 kN.m bending, 0.45 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.4 mm and 1.03 m off; clusters now ROD:12, FIN:21, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the ROD twisted (a torque on its last ring, ramped): ROD station by twist at 2.13 s (1.10 kN.m bending, -6.55 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.7 mm and 1.07 m off; clusters now ROD:12, FIN:21, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.93 s (29.93 kN.m bending, -22.07 torque; limits 633.27 / 664.94 / 45.51), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 1.93 m off; clusters now ROD:22, FIN:21, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.93 s (29.93 kN.m bending, 22.07 torque; limits 633.27 / 664.94 / 45.51), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 1.93 m off; clusters now ROD:22, FIN:21, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): the worst cut 0.928 (ROD root, bend); the floats' roots FLTL 0.02 bend / 0.04 twist, FLTR 0.02 bend / 0.04 twist; damage on: no cluster parts; groups -
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 10.825 (ROD root, bend); the floats' roots FLTL 0.16 bend / 0.29 twist, FLTR 0.15 bend / 0.27 twist; damage on: ROD root by bend at 0.07 s; groups engL:mount@0.212 engR:mount@0.213; CRASHED (broke up: the fuselage parted (TPB off the core)) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin boom (FIXTURE, report only):
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: BML root 25.10 / 20.45 / 20.23 (boomL:attach); BML station 17.57 / 14.31 / 14.16 (its bay); BMR root 25.10 / 20.45 / 20.23 (boomR:attach); BMR station 17.57 / 14.31 / 14.16 (its bay); FINR root 4.87 / 36.00 / 20.79 (finR:attach); FINL root 4.87 / 36.00 / 20.79 (finL:attach)
+  ok    BML: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+  ok    BMR: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+4. the parts come off cleanly (the FIXTURE: reported)
+  REPORT  (clean) the FINR pulled sideways (n g on the fin, ramped): FINR root by bend at 1.60 s (4.88 kN.m bending, 1.07 torque; limits 4.87 / 36.00 / 20.79), 12 members broken (finR:attach, 0 others), the part rigid to 0.1 mm and 0.27 m off; clusters now BML:17, BMR:17, FINR:13, FINL:17
+  REPORT  (clean) the FINL pulled sideways (n g on the fin, ramped): FINL root by bend at 1.60 s (4.88 kN.m bending, 1.07 torque; limits 4.87 / 36.00 / 20.79), 12 members broken (finL:attach, 0 others), the part rigid to 0.1 mm and 0.27 m off; clusters now BML:17, BMR:17, FINR:17, FINL:13
+  REPORT  (clean) the BML loaded down at its tail (n g on the tube and the tail, ramped): BML root by bend at 4.15 s (24.92 kN.m bending, -0.04 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomL:attach, 0 others), the part rigid to 0.5 mm and 0.25 m off; clusters now BML:9, BMR:17, FINR:17, FINL:17
+  REPORT  (clean) the BMR loaded down at its tail (n g on the tube and the tail, ramped): BMR root by bend at 4.15 s (24.92 kN.m bending, 0.04 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomR:attach, 0 others), the part rigid to 0.5 mm and 0.25 m off; clusters now BML:17, BMR:9, FINR:17, FINL:17
+  REPORT  (clean) the BML levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BML station by bend at 3.33 s (17.57 kN.m bending, 0.00 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.2 mm and 0.34 m off; clusters now BML:14, BMR:17, FINR:17, FINL:16, BML/aft:3
+  REPORT  (clean) the BMR levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BMR station by bend at 3.33 s (17.57 kN.m bending, -0.00 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.2 mm and 0.34 m off; clusters now BML:17, BMR:14, FINR:16, FINL:17, BMR/aft:3
+  83/83 checks
+GATE DMGCLUSTERS: PASS
+=== DMGINST ===
+1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
+  ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
+  ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 12 readers / writers
+  ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
+  ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
+  ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
+2. G1801: the velocity guard (150 m/s off the CG)
+  ok    every k x 5 in flight (past the integrator's limit): tripped at frame 0 as 'speed' (node 61 at 989.87 m/s off the CG), every number finite, stats().bad; it never went NaN in 600 frames - the old watchdog would have flown it on (at rest the fastest node read 0.17 m/s)
+  ok    reset() clears it
+  ok    damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off runs the master path)
+  ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
+  ok    the whole aeroplane at 195.21 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.44 m/s off the CG
+  ok    the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
+        Cub: a flown 3.8 g pull: the fastest node 7.77 m/s off the CG
+        Cub: a 10 ft/s drop: the fastest node 3.15 m/s off the CG
+        Jodel: a flown 3.8 g pull: the fastest node 13.27 m/s off the CG
+        Jodel: a 10 ft/s drop: the fastest node 3.51 m/s off the CG
+        metal Cessna: a flown 3.8 g pull: the fastest node 10.31 m/s off the CG
+        metal Cessna: a 10 ft/s drop: the fastest node 1.13 m/s off the CG
+        Cessna floats: a flown 3.8 g pull: the fastest node 9.18 m/s off the CG
+        Cessna floats: a 10 ft/s drop: the fastest node 3.47 m/s off the CG
+        twin floatplane: a flown 3.8 g pull: the fastest node 8.37 m/s off the CG
+        twin floatplane: a 10 ft/s drop: the fastest node 3.10 m/s off the CG
+        the Cub: a circuit with the pilot: the fastest node 2.93 m/s off the CG
+        the Cub: 30 m/s into a trunk (crash): the fastest node 31.44 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 35.70 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 29.89 m/s off the CG
+        the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water: the fastest node 51.50 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 37.60 m/s off the CG
+  ok    the census: 16 runs, never tripped; the worst 51.50 m/s (the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water), under 3/4 of the guard
+3. G1802: the plastic work per beam
+  ok    DMG.wB: a Float64Array, one per beam (394), on sim.damage()
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (47153.959 J against 47153.959 J)
+  ok    79 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 21.7 kJ, wings 11.1 kJ, engines 8.0 kJ, vessel 4.9 kJ, tail 0.8 kJ, gear 0.7 kJ
+  ok    the metal Cessna's: 118715.113 J against 118715.113 J
+  ok    reset() after a crash zeroes every beam's work
+4. G1803: every beam carries its ledger section
+  ok    Cub: 394 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 13, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Jodel: 492 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 13, wing > wings 68, wing > bracing 118, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    metal Cessna: 442 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 13, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Cessna floats: 533 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 13, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 106, fus > vessel 9
+  ok    twin floatplane: 519 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, wing > wings 52, wing > bracing 12, fus > engines 28, tail > tail 199, wire > tail 4, gear > gear 106, fus > vessel 9
+5. G1804: the damage view's colours (src/viewer/dmg_overlay.js)
+  ok    calm: |F| / limit up to 0.25 draws the frame's neutral [0.34,0.49,0.69]
+  ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
+  ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
+  ok    the precedence: broken > set > stress > calm
+  ok    the Cub's 30 m/s crash drawn: {"calm":313,"stress":0,"set":31,"broken":50} - every broken member red, every set member orange / cyan
+  ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
+  ok    the layer off (params.damage false): all 2380 members of the five builds calm
+  ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression
+  ok    app.js: the view is off unless ?dmgview=1 or the overlays pill; off, sync() is the strain colouring; dmg_overlay.js is in the page (build.js) before app.js
+        the legend:
+          calm   |F| / limit <= 0.25    rgb 0.340 0.490 0.690  #577db0
+          stress |F| / limit = 0.625    rgb 0.670 0.635 0.405  #aba267
+          stress |F| / limit >= 1       rgb 1.000 0.780 0.120  #ffc71f
+          set    stretched 0.01 %       rgb 0.737 0.556 0.419  #bc8e6b
+          set    stretched >= 3 %       rgb 1.000 0.600 0.240  #ff993d
+          set    crushed 0.01 %         rgb 0.322 0.706 0.822  #52b4d2
+          set    crushed >= 3 %         rgb 0.310 0.850 0.910  #4fd9e8
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  33/33 checks
+GATE DMGINST: PASS
+=== DMGFPS ===
+(287 s, 9 cases, damage on)
+  ok    the PACE block lifted out of app.js: page 30 fps, cap 30 2; page 30 fps, cap 30, 2x 4; page 10 fps, cap 30 4; page 10 fps, cap 30, 2x 8; page 5 fps, cap 30 4; page 5 fps, cap 30, 2x 8; page 2 fps, cap 30 2; page 2 fps, cap 30, 2x 4; page 30 fps, cap 60 2; page 30 fps, cap 60, 2x 4; page 10 fps, cap 60 4; page 10 fps, cap 60, 2x 8; page 5 fps, cap 60 4; page 5 fps, cap 60, 2x 8; page 2 fps, cap 60 1; page 2 fps, cap 60, 2x 2
+the Cub into a trunk at 30 m/s, the centreline:
+  the 60 fps run: 160 of 300 steps (over: the page ends it); CRASHED (the airframe crushed (5.7 kJ of plastic work) at 1.32 s), 79 members set, 49 broken, 47052.3 J; the fastest node 31.44 m/s off the CG (74 s)
+  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk dd33901d4f01, here dd33901d4f01)
+  ok    at 60 fps it crashes and the flight is over
+  ok    the velocity guard never trips (the fastest node 31.44 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 180 (its first read at or after 160); bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 168 (its first read at or after 160); bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 162 (its first read at or after 160); bitwise the 60 fps run there, the same verdict (47135.5 J, 50 broken, 8413 yields; past the 60 fps end +83.185 J, +1 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 160 (its first read at or after 160); bitwise the 60 fps run there, the same verdict (47052.3 J, 49 broken, 8363 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 160 (its first read at or after 160); bitwise the 60 fps run there, the same verdict (47052.3 J, 49 broken, 8363 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 160 (its first read at or after 160); bitwise the 60 fps run there, the same verdict (47052.3 J, 49 broken, 8363 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 180 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 168 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 162 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47135.5 J, 50 broken, 8413 yields; past the 60 fps end +83.185 J, +1 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 160 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47052.3 J, 49 broken, 8363 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 180 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 168 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 164 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47142.9 J, 50 broken, 8444 yields; past the 60 fps end +90.656 J, +1 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 160 (its first read at or after 160), the snapshot flagged at 160; bitwise the 60 fps run there, the same verdict (47052.3 J, 49 broken, 8363 yields; past the 60 fps end +0.000 J, +0 broken)
+the metal Cessna into a trunk at 30 m/s, the centreline:
+  the 60 fps run: 108 of 300 steps (over: the page ends it); CRASHED (the airframe crushed (3.3 kJ of plastic work) at 1.30 s), 109 members set, 84 broken, 114641.7 J; the fastest node 35.70 m/s off the CG (85 s)
+  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk dc7736d947cb, here dc7736d947cb)
+  ok    at 60 fps it crashes and the flight is over
+  ok    the velocity guard never trips (the fastest node 35.70 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 108); bitwise the 60 fps run there, the same verdict (115189.6 J, 84 broken, 12565 yields; past the 60 fps end +547.836 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 108 (its first read at or after 108); bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 108 (its first read at or after 108); bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 108 (its first read at or after 108); bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 108 (its first read at or after 108); bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 112 (its first read at or after 108); bitwise the 60 fps run there, the same verdict (114819.2 J, 84 broken, 11484 yields; past the 60 fps end +177.457 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 120 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (115189.6 J, 84 broken, 12565 yields; past the 60 fps end +547.836 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 108 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 108 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 108 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 120 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (115189.6 J, 84 broken, 12565 yields; past the 60 fps end +547.836 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 108 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 108 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 108 (its first read at or after 108), the snapshot flagged at 108; bitwise the 60 fps run there, the same verdict (114641.7 J, 84 broken, 11004 yields; past the 60 fps end +0.000 J, +0 broken)
+the Cub into a trunk at 30 m/s, the wing 2.5 m out:
+  the 60 fps run: 286 of 360 steps (over: the page ends it); CRASHED (a wing member broke at 1.37 s), 39 members set, 19 broken, 14853.6 J; the fastest node 29.89 m/s off the CG (92 s)
+  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk f7d80997e028, here f7d80997e028)
+  ok    at 60 fps it crashes and the flight is over
+  ok    the velocity guard never trips (the fastest node 29.89 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 300 (its first read at or after 286); bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 288 (its first read at or after 286); bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 288 (its first read at or after 286); bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 286 (its first read at or after 286); bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 288 (its first read at or after 286); bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 288 (its first read at or after 286); bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 300 (its first read at or after 286), the snapshot flagged at 286; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 288 (its first read at or after 286), the snapshot flagged at 286; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 288 (its first read at or after 286), the snapshot flagged at 286; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 286 (its first read at or after 286), the snapshot flagged at 286; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 300 (its first read at or after 286), the snapshot flagged at 288; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 288 (its first read at or after 286), the snapshot flagged at 288; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 288 (its first read at or after 286), the snapshot flagged at 288; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 288 (its first read at or after 286), the snapshot flagged at 288; bitwise the 60 fps run there, the same verdict (14853.6 J, 19 broken, 5495 yields; past the 60 fps end +0.000 J, +0 broken)
+the Cub dropped at FAR 23.473's limit sink:
+  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 2.93 m/s off the CG (71 s)
+  ok    at 60 fps nothing yields (0 yields, 0 J, nothing broken, no crash)
+  ok    the velocity guard never trips (the fastest node 2.93 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+the metal Cessna dropped at FAR 23.473's limit sink:
+  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 0.78 m/s off the CG (90 s)
+  ok    at 60 fps nothing yields (0 yields, 0 J, nothing broken, no crash)
+  ok    the velocity guard never trips (the fastest node 0.78 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+the Cessna on floats dropped onto the water at FAR 23.473's limit sink:
+  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 2.86 m/s off the CG (145 s)
+  ok    at 60 fps nothing yields (0 yields, 0 J, nothing broken, no crash)
+  ok    the velocity guard never trips (the fastest node 2.86 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+the Cub's 5 m/s level pancake on the water:
+  the 60 fps run: 240 of 240 steps; no crash, 7 members set, 0 broken, 198.7 J; the fastest node 8.54 m/s off the CG (71 s)
+  ok    the velocity guard never trips (the fastest node 8.54 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (198.7 J, 0 broken, 422 yields; past the 60 fps end +0.000 J, +0 broken)
+the Cessna on floats' 5 m/s level pancake on the water:
+  the 60 fps run: 240 of 240 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 3.98 m/s off the CG (113 s)
+  ok    the velocity guard never trips (the fastest node 3.98 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+the twin's float nose-in (90 km/h, 5 m/s, 20 deg):
+  the 60 fps run: 240 of 240 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 15.79 m/s off the CG (131 s)
+  ok    the velocity guard never trips (the fastest node 15.79 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  145/145 checks
+GATE DMGFPS: PASS
+=== DMGINTEGRITY ===
+(76 s, 5 builds + the V-tail Cub)
+Cub:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 15 frames with a new break, no live strip on two pieces; 50 broken, 0 strips dropped (the old rule: 6), 0 split; CRASHED (the airframe crushed (5.7 kJ of plastic work))
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 11 frames with a new break, no live strip on two pieces; 19 broken, 2 strips dropped (the old rule: 2), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 4 frames with a new break, no live strip on two pieces; 17 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 394 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.32 (HELD), a flown pull to 3.99 g 1.32, FAR 23.473's drop 1.32
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters none; with them none (17 broken, CRASHED, finite)
+  REPORT  (this build's engine did not pass the firewall in this case without the limiters either: 24 broken)
+4. the cost
+  REPORT  a break event (10 members, the union-find over 394 beams / 93 nodes, 28 strips): 25.6 us
+Jodel:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 8 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 1/1, wing0L:root 1/1, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 5 frames with a new break, no live strip on two pieces; 52 broken, 0 strips dropped (the old rule: 1), 0 split; CRASHED (a fus member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 1 frames with a new break, no live strip on two pieces; 16 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a tail member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 2 frames with a new break, no live strip on two pieces; 26 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 492 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.40 (HELD), a flown pull to 4.69 g 1.40, FAR 23.473's drop 1.39
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters none; with them none (26 broken, CRASHED, finite)
+  REPORT  (this build's engine did not pass the firewall in this case without the limiters either: 31 broken)
+4. the cost
+  REPORT  a break event (10 members, the union-find over 492 beams / 111 nodes, 28 strips): 48.6 us
+metal Cessna:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 14 frames with a new break, no live strip on two pieces; 85 broken, 0 strips dropped (the old rule: 2), 0 split; CRASHED (the airframe crushed (3.3 kJ of plastic work))
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 4 frames with a new break, no live strip on two pieces; 11 broken, 2 strips dropped (the old rule: 4), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 7 frames with a new break, no live strip on two pieces; 34 broken, 0 strips dropped (the old rule: 1), 0 split; CRASHED (the airframe crushed (3.0 kJ of plastic work))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 442 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.07 (HELD), a flown pull to 5.25 g 1.07, FAR 23.473's drop 1.07
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters ENGR 0.32 m into bay 0, ENGL 0.31 m into bay 0; with them none (34 broken, CRASHED, finite)
+  REPORT  the probe elsewhere, with them (not a limiter's: a detached part or a folded panel, §8.2): fin:VF 0.24 m bay 4 off @3.63; fin:VX 0.23 m bay 4 off @3.70; fin:VX 0.18 m bay 5 off @3.27; fin:FIN 0.15 m bay 4 off @3.98; fin:VR 0.13 m bay 4 off @3.75; fin:VX 0.13 m bay 4 off @3.72
+4. the cost
+  REPORT  a break event (10 members, the union-find over 442 beams / 103 nodes, 28 strips): 41.2 us
+Cessna floats:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 27 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 160 of the 160 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 9 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/0, wing0R:strut 0/0, wing0L:root 0/0, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 8 frames with a new break, no live strip on two pieces; 44 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 533 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.07 (HELD), a flown pull to 5.23 g 1.07, FAR 23.473's drop 1.07
+4. the cost
+  REPORT  a break event (10 members, the union-find over 533 beams / 130 nodes, 27 strips): 55.2 us
+twin floatplane:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 29 strips live, none on two pieces
+  ok    82 members a strip holds, each broken alone (no group): 168 of the 168 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, engL:mount 0/0, engR:mount 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (28 / 28 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 5 frames with a new break, no live strip on two pieces; 36 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    0 limiters (none: no nose engine) with the layer on, none off; the build's own 519 members either way (the limiters are no members)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 519 beams / 127 nodes, 29 strips): 35.1 us
+The V-tail Cub (its tail strips read the body axes: the SPLIT path):
+  ok    stab:attach + tw:gear broken: 2 tail strips split onto the core (they kept 75 %, 75 % of their weight; renormalised to 1.000, 1.000), 2 dropped (50 %, 50 % on the core: under 70 %); none on two pieces
+Broke up (the flight over at once): twin floatplane, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.14 s (TPB)
+  54/54 checks
+GATE DMGINTEGRITY: PASS
+=== DMGSKIN ===
+(168 s, 5 builds, damage on; TEAR 0.15)
+Cub:
+  the skin measured: 9 groups (genWing's and every member's tube), 11416 vertices, 21132 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (5.7 kJ of plastic work)), 50 broken, 15 frames with a new break, the skin checked on 222 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 25 payloads over 300 snapshots, 29690 bytes (1188 a payload), 3.765 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.533,"mesh":"pitot","cage":false,"tri":0}); the worst stretch of an edge of 2 cm or more 1.6494
+  ok    every skin position finite
+    the cost (node): the first break's binding 185.2 ms generated (whole), 39.2 ms cage (nearest nodes; 11416 vertices); 135 events, 3.68 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 4812, cage 6046; torn (stretched past TEAR): generated 3825, cage 5059; vertices on detached pieces up to 144; the drape's deepest sag 12.1 cm; the nodes' frames 0.412 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (702 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 19 broken, 11 frames with a new break, the skin checked on 219 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 19 payloads over 300 snapshots, 9261 bytes (487 a payload), 2.356 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.05,"mesh":"skin","cage":true,"tri":3987}); the worst stretch of an edge of 2 cm or more 1.5233; HELD by cover ties on 215 frames, up to 1472 held triangles, their worst edge stretch 1.750
+  ok    every skin position finite
+    the cost (node): the first break's binding 32.4 ms generated (whole), 14.2 ms cage (nearest nodes; 11416 vertices); 99 events, 1.94 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1588, cage 3052; torn (stretched past TEAR): generated 1168, cage 2632; vertices on detached pieces up to 1072; the drape's deepest sag 17.9 cm; the nodes' frames 0.314 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (729 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 17 broken, 4 frames with a new break, the skin checked on 238 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 13 payloads over 240 snapshots, 5779 bytes (445 a payload), 1.174 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.08 mm from it ({"t":0.15,"mesh":"members","cage":true,"tri":677}); the worst stretch of an edge of 2 cm or more 1.3790
+  ok    every skin position finite
+    the cost (node): the first break's binding 18.0 ms generated (whole), 6.0 ms cage (nearest nodes; 11416 vertices); 36 events, 1.22 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 272, cage 444; torn (stretched past TEAR): generated 0, cage 172; vertices on detached pieces up to 144; the drape's deepest sag 0.0 cm; the nodes' frames 0.191 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (18 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.734 us a snapshot
+Jodel:
+  the skin measured: 8 groups (genWing's and every member's tube), 12148 vertices, 22174 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 52 broken, 5 frames with a new break, the skin checked on 223 frames; pieces up to 5
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 7 payloads over 300 snapshots, 5661 bytes (809 a payload), 1.753 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.07 mm from it ({"t":1.383,"mesh":"flapR","cage":false,"tri":171}); the worst stretch of an edge of 2 cm or more 1.4513
+  ok    every skin position finite
+    the cost (node): the first break's binding 117.3 ms generated (whole), 31.8 ms cage (nearest nodes; 12148 vertices); 40 events, 8.68 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1181, cage 2350; torn (stretched past TEAR): generated 187, cage 1356; vertices on detached pieces up to 1170; the drape's deepest sag 6.3 cm; the nodes' frames 0.368 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (616 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a tail member broke), 16 broken, 1 frames with a new break, the skin checked on 217 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 3 payloads over 300 snapshots, 597 bytes (199 a payload), 0.435 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.09 mm from it ({"t":1.467,"mesh":"members","cage":true,"tri":11744}); the worst stretch of an edge of 2 cm or more 1.4279
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.5 ms generated (whole), 6.9 ms cage (nearest nodes; 12148 vertices); 8 events, 3.74 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 258, cage 572; torn (stretched past TEAR): generated 2, cage 316; vertices on detached pieces up to 1026; the drape's deepest sag 0.0 cm; the nodes' frames 0.290 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (664 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 26 broken, 2 frames with a new break, the skin checked on 238 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 2 payloads over 240 snapshots, 973 bytes (487 a payload), 2.5 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.06 mm from it ({"t":0.117,"mesh":"skin","cage":false,"tri":39}); the worst stretch of an edge of 2 cm or more 1.5285
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.0 ms generated (whole), 6.0 ms cage (nearest nodes; 12148 vertices); 16 events, 1.51 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 464, cage 842; torn (stretched past TEAR): generated 48, cage 426; vertices on detached pieces up to 1170; the drape's deepest sag 0.0 cm; the nodes' frames 0.204 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (16 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (1920 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.586 us a snapshot
+metal Cessna:
+  the skin measured: 9 groups (genWing's and every member's tube), 11524 vertices, 21156 triangles; the wing not fabric
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (3.3 kJ of plastic work)), 85 broken, 14 frames with a new break, the skin checked on 223 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 23 payloads over 300 snapshots, 34087 bytes (1482 a payload), 8.052 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.383,"mesh":"skin","cage":false,"tri":740}); the worst stretch of an edge of 2 cm or more 1.6456
+  ok    every skin position finite
+    the cost (node): the first break's binding 187.3 ms generated (whole), 41.9 ms cage (nearest nodes; 11524 vertices); 126 events, 3.16 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 8377, cage 7108; torn (stretched past TEAR): generated 6793, cage 5733; vertices on detached pieces up to 1080; the drape's deepest sag 0.0 cm; the nodes' frames 0.566 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (693 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 11 broken, 4 frames with a new break, the skin checked on 221 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 10 payloads over 300 snapshots, 2370 bytes (237 a payload), 1.64 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.933,"mesh":"skin","cage":false,"tri":2817}); the worst stretch of an edge of 2 cm or more 1.5367; HELD by cover ties on 2 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+    the cost (node): the first break's binding 22.1 ms generated (whole), 9.4 ms cage (nearest nodes; 11524 vertices); 45 events, 1.41 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1026, cage 992; torn (stretched past TEAR): generated 536, cage 502; vertices on detached pieces up to 1915; the drape's deepest sag 0.0 cm; the nodes' frames 0.271 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (711 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (the airframe crushed (3.0 kJ of plastic work)), 34 broken, 7 frames with a new break, the skin checked on 236 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 15 payloads over 240 snapshots, 7458 bytes (497 a payload), 1.775 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":3.083,"mesh":"members","cage":false,"tri":14248}); the worst stretch of an edge of 2 cm or more 1.6195
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.1 ms generated (whole), 5.9 ms cage (nearest nodes; 11524 vertices); 63 events, 1.20 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 800, cage 2280; torn (stretched past TEAR): generated 256, cage 1874; vertices on detached pieces up to 1080; the drape's deepest sag 0.0 cm; the nodes' frames 0.220 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.738 us a snapshot
+Cessna floats:
+  the skin measured: 10 groups (genWing's and every member's tube), 13128 vertices, 24036 triangles; the wing not fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 44 broken, 8 frames with a new break, the skin checked on 231 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 18 payloads over 240 snapshots, 12254 bytes (681 a payload), 3.296 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.07 mm from it ({"t":0.217,"mesh":"flapL","cage":false,"tri":76}); the worst stretch of an edge of 2 cm or more 1.5625
+  ok    every skin position finite
+    the cost (node): the first break's binding 103.5 ms generated (whole), 29.2 ms cage (nearest nodes; 13128 vertices); 80 events, 2.91 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1082, cage 2682; torn (stretched past TEAR): generated 314, cage 2219; vertices on detached pieces up to 1602; the drape's deepest sag 0.0 cm; the nodes' frames 0.396 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (90 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.415 us a snapshot
+twin floatplane:
+  the skin measured: 9 groups (genWing's and every member's tube), 11998 vertices, 21796 triangles; the wing fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 36 broken, 5 frames with a new break, the skin checked on 236 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 9 payloads over 240 snapshots, 5354 bytes (595 a payload), 1.66 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":0.217,"mesh":"members","cage":false,"tri":3867}); the worst stretch of an edge of 2 cm or more 1.6360
+  ok    every skin position finite
+    the cost (node): the first break's binding 89.4 ms generated (whole), 19.9 ms cage (nearest nodes; 11998 vertices); 45 events, 3.35 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5174, cage 5684; torn (stretched past TEAR): generated 4368, cage 4880; vertices on detached pieces up to 5284; the drape's deepest sag 8.9 cm; the nodes' frames 0.353 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.413 us a snapshot
+  ok    app.js: the skin's break path (13 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+=== DMGDRIVE ===
+1. THE BANDS AND THE TIERS (the laws, 33_drive.js)
+  ok    the engine 8.0 % over its maximum for 30 s reaches 'logged' (want 'logged'; dose 0.00) - SB 369: up to 10 % - no action, a logbook entry [as recalled - A0 to open]
+  ok    the engine 15.0 % over its maximum for 2 s reaches 'inspect' (want 'inspect'; dose 0.00) - SB 369: 10-20 % - the prop off, the flange's run-out, the valve train [as recalled - A0 to open]
+  ok    the engine 15.0 % over its maximum for 0.5 s reaches 'none' (want 'none'; dose 0.00) - the 1 s filter (a frame's tick is not an overspeed: nothing logged, the peak kept) [GAME - no source]
+  ok    the engine 25.0 % over its maximum for 1.5 s reaches 'overhaul' (want 'overhaul'; dose 0.00) - SB 369: past 20 % - the engine overhauled [as recalled - A0 to open]
+  ok    the engine 35.0 % over its maximum for 2 s reaches 'overhaul' (want 'overhaul'; dose 0.20) - the failure dose 0.20 < 0.25 [GAME - no source]
+  ok    the engine 35.0 % over its maximum for 3 s reaches 'failed' (want 'failed'; dose 0.30) - the failure dose 0.30 >= 0.25: a thrown rod / valve [GAME - no source]
+  ok    the engine 50.0 % over its maximum for 1.05 s reaches 'failed' (want 'failed'; dose 0.26) - 50 % over for 1 s [GAME - no source]
+  (Lycoming Service Bulletin No. 369 family (engine inspection after overspeed; current letter not recalled))
+  ok    23.361(c): 4 cylinders -> limit torque = mean x 2 [as recalled - A0 to open]
+  ok    23.361(c): 3 cylinders -> limit torque = mean x 3 [as recalled - A0 to open]
+  ok    23.361(c): 2 cylinders -> limit torque = mean x 4 [as recalled - A0 to open]
+  ok    23.361(c): 6 cylinders -> limit torque = mean x 1.33 [as recalled - A0 to open]
+  ok    23.361(c): 9 cylinders -> limit torque = mean x 1.33 [as recalled - A0 to open]
+  ok    23.361(c): a turboprop -> limit torque = mean x 1.25 [as recalled - A0 to open]
+  ok    a strike 2 % into the disc (soft, tip 200 m/s, the blade's 120): brush - tips dressed on the ground (no separation on a soft brush) [GAME - no source]
+  ok    a strike 10 % into the disc (soft, tip 80 m/s, the blade's 120): bent - a bite of 10 % into the ground at idle: bent [GAME - no source]
+  ok    a strike 30 % into the disc (soft, tip 80 m/s, the blade's 120): stoppage - 30 %: the prop stopped (SB 533's sudden stoppage) [GAME - no source]
+  ok    a strike 10 % into the disc (rigid, tip 80 m/s, the blade's 120): stoppage - a trunk 10 % into the disc stops it [GAME - no source]
+  ok    a strike 20 % into the disc (water, tip 80 m/s, the blade's 120): bent - the water gives: bent at 20 % [GAME - no source]
+  ok    a strike 3 % into the disc (rigid, tip 211 m/s, the blade's 120): separation - a wood tip grazing a trunk at full power breaks off [GAME - no source]
+  ok    a strike 3 % into the disc (rigid, tip 150 m/s, the blade's 200): brush - an alloy tip at 150 m/s only dents [GAME - no source]
+  ok    a strike 10 % into the disc (soft, tip 211 m/s, the blade's 120): separation - wood into the ground at full power: a blade breaks [GAME - no source]
+  ok    a strike 5 % into the disc (water, tip 150 m/s, the blade's 120): bent - carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed) [GAME - no source]
+(1115 s, 5 builds; damage on, on the certificate)
+Cub:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (52.11 m/s, throttle 1.00): 2580 rpm against 2300 (12.2 %), tip Mach 0.79 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (63.69 m/s, throttle 1.00): 2797 rpm against 2300 (21.6 %), tip Mach 0.86 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (52.11 m/s, throttle 0.65): 2300 rpm against 2300 (0.0 %), tip Mach 0.71 -> 'logged' (inside SB 369's no-action band: 1.97 s logged) - no exceedance
+  ok    VNE idle (52.11 m/s, throttle 0.00): 1653 rpm against 2300 (-28.2 %), tip Mach 0.52 -> 'none' - no exceedance
+  ok    VNE off (52.11 m/s, throttle 0.00): 1526 rpm against 2300 (-33.6 %), tip Mach 0.49 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.17 R, tip 111 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.15 R, tip 111 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.16 R, tip 112 m/s), the engine stopped, a teardown owed
+  ok    a brush (2 cm of soil past the turf's 5 cm): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s: 'separation' (tip 128 m/s: the blades broke off), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2116 rpm, tip 212 m/s): a blade breaks off and the prop turns on short of it - 30.76 kN of imbalance (m e w^2) - the mount lets go 0.03 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (644 rpm, tip 64 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 402.73 N m (mean 201.37 x 1 through the reduction x 2, 4 cylinders); the prop's I 1.14 kg m2 at 240.86 rad/s; the drive cases govern gyro371c 1, gyro371a 1, gyro371d 1, gyro371b 1 of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.23 of its yield, CGE-S0BR) and lets go at 4.37 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.09 of its yield, ENGL-S0BR) and lets go at 10.58 x it (ENGL-S0BR: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.09 of its yield, ENGR-S0BL) and lets go at 10.58 x it (ENGR-S0BL: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.36 of its yield, CGE-S0BL) and lets go at 2.77 x it (CGE-S0BL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.36 of its yield, CGE-S0BR) and lets go at 2.77 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.20 of its yield, ENGR-S0BR) and lets go at 4.94 x it (ENGR-S0BR: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.20 of its yield, ENGL-S0BL) and lets go at 4.94 x it (ENGL-S0BL: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 0.95, pitch 2.00 rad/s (2.00 x 23.371's) - the mount at 0.23 of its certified yield (CGE-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (completed, 335 s; the take-off at full power): no strike, no exceedance - the engine's peak 2284 rpm, the disc's least clearance 0.11 m
+  ok    a 3.87 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.11 m
+  ok    (and the classic: FULL brakes from 12 m/s stand the taildragger on its nose - 'stoppage' (bite 0.15 R), the engine stopped, a teardown owed)
+Jodel:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (60.35 m/s, throttle 1.00): 2580 rpm against 2300 (12.2 %), tip Mach 0.77 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (73.76 m/s, throttle 1.00): 2790 rpm against 2300 (21.3 %), tip Mach 0.83 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (60.35 m/s, throttle 0.65): 2299 rpm against 2300 (-0.0 %), tip Mach 0.69 -> 'none' - no exceedance
+  ok    VNE idle (60.35 m/s, throttle 0.00): 1652 rpm against 2300 (-28.2 %), tip Mach 0.51 -> 'none' - no exceedance
+  ok    VNE off (60.35 m/s, throttle 0.00): 1526 rpm against 2300 (-33.7 %), tip Mach 0.48 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.03 s in, the strike 0.05 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.17 R, tip 106 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.15 R, tip 106 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.15 R, tip 107 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a brush (2 cm of soil past the turf's 5 cm): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s: 'separation' (tip 122 m/s: the blades broke off), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2116 rpm, tip 203 m/s): a blade breaks off and the prop turns on short of it - 26.47 kN of imbalance (m e w^2) - the mount lets go 0.07 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (644 rpm, tip 62 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 402.73 N m (mean 201.37 x 1 through the reduction x 2, 4 cylinders); the prop's I 0.94 kg m2 at 240.86 rad/s; the drive cases govern gyro371c 1, gyro371a 1, gyro371d 1, gyro371b 1 of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.19 of its yield, CGE-S0BR) and lets go at 5.29 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.08 of its yield, ENGL-S0BR) and lets go at 12.39 x it (ENGL-S0BR: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.08 of its yield, ENGR-S0BL) and lets go at 12.39 x it (ENGR-S0BL: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.27 of its yield, CGE-S0BL) and lets go at 3.68 x it (CGE-S0BL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.27 of its yield, CGE-S0BR) and lets go at 3.68 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.22 of its yield, ENGR-S0BL) and lets go at 4.58 x it (ENGR-S0BL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.22 of its yield, ENGL-S0BR) and lets go at 4.58 x it (ENGL-S0BR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.25, pitch 2.54 rad/s (2.54 x 23.371's) - the mount at 0.32 of its certified yield (CGE-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2285 rpm, the disc's least clearance 0.24 m
+  ok    a 4.42 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.24 m
+  ok    (and the classic: FULL brakes from 12 m/s stand the taildragger on its nose - 'stoppage' (bite 0.17 R), the engine stopped, a teardown owed)
+metal Cessna:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (71.51 m/s, throttle 1.00): 2845 rpm against 2575 (10.5 %), tip Mach 0.95 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (87.40 m/s, throttle 1.00): 3072 rpm against 2575 (19.3 %), tip Mach 1.03 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    VNE cruise (71.51 m/s, throttle 0.47): 2348 rpm against 2575 (-8.8 %), tip Mach 0.79 -> 'none' - no exceedance
+  ok    VNE idle (71.51 m/s, throttle 0.00): 1788 rpm against 2575 (-30.6 %), tip Mach 0.62 -> 'none' - no exceedance
+  ok    VNE off (71.51 m/s, throttle 0.00): 1640 rpm against 2575 (-36.3 %), tip Mach 0.58 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did) - 'bent' (bite 0.04 R, tip 134 m/s), the engine running, a teardown owed
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.16 R, tip 134 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.19 R, tip 134 m/s), the engine stopped, a teardown owed
+  ok    a brush (2 cm of soil past the turf's 5 cm): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s: 'stoppage' (tip 154 m/s), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2369 rpm, tip 256 m/s): a blade breaks off and the prop turns on short of it - 87.87 kN of imbalance (m e w^2) - the mount lets go 0.02 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (721 rpm, tip 78 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 863.15 N m (mean 648.98 x 1 through the reduction x 1.33, 6 cylinders); the prop's I 2.80 kg m2 at 269.65 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.24 of its yield, CGE-S0BR) and lets go at 4.13 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.08 of its yield, CGE-S0TR) and lets go at 12.00 x it (CGE-S0TR: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.08 of its yield, CGE-S0TL) and lets go at 12.00 x it (CGE-S0TL: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.35 of its yield, CGE-S0BL) and lets go at 2.86 x it (CGE-S0BL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.35 of its yield, CGE-S0BR) and lets go at 2.86 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.15 of its yield, ENGL-S0TL) and lets go at 6.58 x it (ENGL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.15 of its yield, ENGR-S0TR) and lets go at 6.58 x it (ENGR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.03, pitch 2.16 rad/s (2.16 x 23.371's) - the mount at 0.38 of its certified yield (CGE-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (completed, 271 s; the take-off at full power): no strike, no exceedance - the engine's peak 2503 rpm, the disc's least clearance -0.04 m
+  ok    a 4.99 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance -0.04 m
+Cessna floats:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (82.30 m/s, throttle 1.00): 2994 rpm against 2575 (16.3 %), tip Mach 1.00 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (100.59 m/s, throttle 1.00): 3271 rpm against 2575 (27.0 %), tip Mach 1.10 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (82.30 m/s, throttle 0.62): 2668 rpm against 2575 (3.6 %), tip Mach 0.90 -> 'logged' (inside SB 369's no-action band: 10.38 s logged) - no exceedance
+  ok    VNE idle (82.30 m/s, throttle 0.00): 2010 rpm against 2575 (-21.9 %), tip Mach 0.70 -> 'none' - no exceedance
+  ok    VNE off (82.30 m/s, throttle 0.00): 1880 rpm against 2575 (-27.0 %), tip Mach 0.66 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc clears the water by 0.27 m - no strike, the engine running
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  ok    a trunk grazing the tips (3 cm) at full power (2369 rpm, tip 256 m/s): a blade breaks off and the prop turns on short of it - 87.88 kN of imbalance (m e w^2) - the mount lets go 0.02 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (721 rpm, tip 78 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 863.15 N m (mean 648.98 x 1 through the reduction x 1.33, 6 cylinders); the prop's I 2.80 kg m2 at 269.65 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.12 of its yield, CGE-S0BR) and lets go at 8.24 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.05 of its yield, ENGL-S0BR) and lets go at 20.28 x it (ENGL-S0BR: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.05 of its yield, ENGR-S0BL) and lets go at 20.28 x it (ENGR-S0BL: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.18 of its yield, CGE-S0BL) and lets go at 5.71 x it (CGE-S0BL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.18 of its yield, CGE-S0BR) and lets go at 5.71 x it (CGE-S0BR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.16 of its yield, ENGL-S0TL) and lets go at 6.25 x it (ENGL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.16 of its yield, ENGR-S0TR) and lets go at 6.25 x it (ENGR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.63, pitch 1.91 rad/s (1.91 x 23.371's) - the mount at 0.20 of its certified yield (CGE-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2654 rpm (logged 6.72 s), the disc's least clearance 0.17 m
+  ok    a 5.10 g pull at full power: no strike, no exceedance
+twin floatplane:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (52.29 m/s, throttle 1.00): 7327 rpm against 6800 (7.8 %), tip Mach 0.86 -> 'logged' [as recalled - A0 to open]
+  ok    1.1 VD full (63.91 m/s, throttle 1.00): 7961 rpm against 6800 (17.1 %), tip Mach 0.93 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    VNE cruise (52.29 m/s, throttle 0.55): 6294 rpm against 6800 (-7.4 %), tip Mach 0.74 -> 'none' - no exceedance
+  ok    VNE idle (52.29 m/s, throttle 0.00): 4728 rpm against 6800 (-30.5 %), tip Mach 0.57 -> 'none' - no exceedance
+  ok    VNE off (52.29 m/s, throttle 0.00): 4375 rpm against 6800 (-35.7 %), tip Mach 0.53 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc strikes the WATER (the base: no strike on water at all) - 'stoppage', the engine stopped
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  ok    a trunk grazing the tips (3 cm) at full power (2283 rpm, tip 228 m/s): a blade breaks off and the prop turns on short of it - 23.85 kN of imbalance (m e w^2) - the mount lets go 0.07 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (695 rpm, tip 69 m/s): 'brush', the engine runs, the mount holds
+  ok    4. the gearbox (Rotax 582 (B / C / E gearbox) and 912 Maintenance Manuals [as recalled - A0 to open]): a stoppage at full power shears the drive - the engine runs away unloaded (9860 rpm, 45.0 %) and throws a rod 1.27 s later [GAME - no source]
+  ok    4. a stoppage at idle: the engine stops ('stoppage'), the gearbox marked for its inspection (Rotax's manual after a strike) [as recalled - A0 to open]
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 739.03 N m (mean 70.52 x 2.62 through the reduction x 4, 2 cylinders); the prop's I 0.76 kg m2 at 259.80 rad/s; the drive cases govern gyro371c 2, gyro371d 3 of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.33 of its yield, ENGL-WR) and lets go at 3.04 x it (ENGL-WR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.08 of its yield, CGE-WR) and lets go at 12.07 x it (CGE-WR: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.08 of its yield, CGE-WR) and lets go at 12.07 x it (CGE-WR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.22 of its yield, ENGL-WF) and lets go at 4.51 x it (ENGL-WF: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.22 of its yield, ENGR-WF) and lets go at 4.51 x it (ENGR-WF: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.40 of its yield, CGE-WR) and lets go at 2.47 x it (CGE-WR: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.40 of its yield, CGE-WR) and lets go at 2.47 x it (CGE-WR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 0.80, pitch 2.54 rad/s (2.54 x 23.371's) - the mount at 0.55 of its certified yield (CGE-WF; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (completed, 292 s; the take-off at full power): no strike, no exceedance - the engine's peak 6428 rpm, the disc's least clearance 0.76 m
+  ok    a 4.73 g pull at full power: no strike, no exceedance
+  --    the teardown's internal damage (seeded, 15 %): AOPA, 2007 (the DEFORM doc §10.2's line: only 10-20 % of the engines torn down after a strike show internal damage) 10-20 % - a ratio for the bill, never a gate
+  133/133 checks
+GATE DMGDRIVE: PASS
+=== DMGWALL ===
+cub
+  trunk-0: 124 broken, 15 pieces; leak base 31.89 % (worst 0.6459 m) -> 7.375 % (worst 0.1658 m, past 5 cm 34); rigid past 1 % base 446529 -> 0; torn w/o damage base 0 -> 0, w/o strain 1981 -> 1434; bind 683 ms, over 8 552/50003
+  FAIL  cub trunk-0: the wall out past 1 mm 7.375 % <= 2 % (the base 31.89 %)
+  FAIL  cub trunk-0: past 1 cm 20993 of 1077717 (<= 0.1 %)
+  ok    cub trunk-0: past 5 cm 34 of 1077717
+  ok    cub trunk-0: no compact part triangle past 1 % (2381172 triangle-frames)
+  ok    cub trunk-0: every drawn position finite
+  ok    cub trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1933350 triangle-frames)
+  ok    cub trunk-0: places past 8 slots 552 <= 2 %
+  trunk-2.5: 62 broken, 4 pieces; leak base 12.33 % (worst 1.3003 m) -> 1.273 % (worst 0.1343 m, past 5 cm 96); rigid past 1 % base 545790 -> 0; torn w/o damage base 92 -> 62, w/o strain 1268 -> 615; bind 580 ms, over 8 552/50003
+  ok    cub trunk-2.5: the wall out past 1 mm 1.273 % <= 2 % (the base 12.33 %)
+  FAIL  cub trunk-2.5: past 1 cm 2451 of 1738215 (<= 0.1 %)
+  ok    cub trunk-2.5: past 5 cm 96 of 1738215
+  ok    cub trunk-2.5: no compact part triangle past 1 % (2348994 triangle-frames)
+  ok    cub trunk-2.5: every drawn position finite
+  ok    cub trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 2031110 triangle-frames)
+  ok    cub trunk-2.5: places past 8 slots 552 <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 7 broken, 1 pieces; leak base 0.63 % (worst 0.0135 m) -> 0.073 % (worst 0.004 m, past 5 cm 0); rigid past 1 % base 409954 -> 0; torn w/o damage base 344 -> 156, w/o strain 732 -> 325; bind 517 ms, over 8 552/50003
+  ok    cub noseover: the wall out past 1 mm 0.073 % <= 2 % (the base 0.63 %)
+  ok    cub noseover: past 1 cm 0 of 2923298 (<= 0.1 %)
+  ok    cub noseover: past 5 cm 0 of 2923298
+  ok    cub noseover: no compact part triangle past 1 % (3207074 triangle-frames)
+  ok    cub noseover: every drawn position finite
+  ok    cub noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.195, 2894852 triangle-frames)
+  ok    cub noseover: places past 8 slots 552 <= 2 %
+  nosein: 65 broken, 7 pieces; leak base 20.48 % (worst 0.9424 m) -> 0.722 % (worst 0.0286 m, past 5 cm 0); rigid past 1 % base 782756 -> 0; torn w/o damage base 6 -> 22, w/o strain 2814 -> 1545; bind 419 ms, over 8 552/50003
+  ok    cub nosein: the wall out past 1 mm 0.722 % <= 2 % (the base 20.48 %)
+  ok    cub nosein: past 1 cm 186 of 1758967 (<= 0.1 %)
+  ok    cub nosein: past 5 cm 0 of 1758967
+  ok    cub nosein: no compact part triangle past 1 % (2552788 triangle-frames)
+  ok    cub nosein: every drawn position finite
+  ok    cub nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 2195062 triangle-frames)
+  ok    cub nosein: places past 8 slots 552 <= 2 %
+
+jodel
+  trunk-0: 157 broken, 12 pieces; leak base 10.30 % (worst 1.0492 m) -> 1.345 % (worst 0.0779 m, past 5 cm 335); rigid past 1 % base 363221 -> 0; torn w/o damage base 45 -> 0, w/o strain 1161 -> 584; bind 649 ms, over 8 382/46406
+  ok    jodel trunk-0: the wall out past 1 mm 1.345 % <= 2 % (the base 10.30 %)
+  FAIL  jodel trunk-0: past 1 cm 2011 of 1214812 (<= 0.1 %)
+  FAIL  jodel trunk-0: past 5 cm 335 of 1214812
+  ok    jodel trunk-0: no compact part triangle past 1 % (2375842 triangle-frames)
+  ok    jodel trunk-0: every drawn position finite
+  ok    jodel trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 980709 triangle-frames)
+  ok    jodel trunk-0: places past 8 slots 382 <= 2 %
+  trunk-2.5: 109 broken, 7 pieces; leak base 0.19 % (worst 0.1626 m) -> 0.001 % (worst 0.007 m, past 5 cm 0); rigid past 1 % base 529857 -> 0; torn w/o damage base 53 -> 0, w/o strain 1215 -> 245; bind 504 ms, over 8 382/46406
+  ok    jodel trunk-2.5: the wall out past 1 mm 0.001 % <= 2 % (the base 0.19 %)
+  ok    jodel trunk-2.5: past 1 cm 0 of 1649242 (<= 0.1 %)
+  ok    jodel trunk-2.5: past 5 cm 0 of 1649242
+  ok    jodel trunk-2.5: no compact part triangle past 1 % (2354534 triangle-frames)
+  ok    jodel trunk-2.5: every drawn position finite
+  ok    jodel trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 1290100 triangle-frames)
+  ok    jodel trunk-2.5: places past 8 slots 382 <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 3 broken, 1 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 62131 -> 0; torn w/o damage base 0 -> 0, w/o strain 0 -> 0; bind 556 ms, over 8 382/46406
+  ok    jodel noseover: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    jodel noseover: past 1 cm 0 of 2272550 (<= 0.1 %)
+  ok    jodel noseover: past 5 cm 0 of 2272550
+  ok    jodel noseover: no compact part triangle past 1 % (3206854 triangle-frames)
+  ok    jodel noseover: every drawn position finite
+  ok    jodel noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.198, 1884260 triangle-frames)
+  ok    jodel noseover: places past 8 slots 382 <= 2 %
+  nosein: 167 broken, 11 pieces; leak base 0.11 % (worst 6.1723 m) -> 0.004 % (worst 0.0351 m, past 5 cm 0); rigid past 1 % base 401645 -> 0; torn w/o damage base 50 -> 0, w/o strain 1098 -> 401; bind 527 ms, over 8 382/46406
+  ok    jodel nosein: the wall out past 1 mm 0.004 % <= 2 % (the base 0.11 %)
+  ok    jodel nosein: past 1 cm 7 of 1735737 (<= 0.1 %)
+  ok    jodel nosein: past 5 cm 0 of 1735737
+  ok    jodel nosein: no compact part triangle past 1 % (2546306 triangle-frames)
+  ok    jodel nosein: every drawn position finite
+  ok    jodel nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 1355639 triangle-frames)
+  ok    jodel nosein: places past 8 slots 382 <= 2 %
+
+metal
+  trunk-0: 204 broken, 20 pieces; leak base 0.68 % (worst 10.7868 m) -> 1.236 % (worst 0.4227 m, past 5 cm 297); rigid past 1 % base 139419 -> 0; torn w/o damage base 0 -> 0, w/o strain 3153 -> 1928; bind 1210 ms, over 8 280/66004
+  ok    metal trunk-0: the wall out past 1 mm 1.236 % <= 2 % (the base 0.68 %)
+  FAIL  metal trunk-0: past 1 cm 7542 of 2828445 (<= 0.1 %)
+  FAIL  metal trunk-0: past 5 cm 297 of 2828445
+  ok    metal trunk-0: no compact part triangle past 1 % (2060966 triangle-frames)
+  ok    metal trunk-0: every drawn position finite
+  ok    metal trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal trunk-0: places past 8 slots 280 <= 2 %
+  trunk-2.5: 26 broken, 5 pieces; leak base 0.73 % (worst 0.1249 m) -> 0.072 % (worst 0.0122 m, past 5 cm 0); rigid past 1 % base 88248 -> 0; torn w/o damage base 123 -> 0, w/o strain 637 -> 43; bind 936 ms, over 8 280/66004
+  ok    metal trunk-2.5: the wall out past 1 mm 0.072 % <= 2 % (the base 0.73 %)
+  ok    metal trunk-2.5: past 1 cm 12 of 4450802 (<= 0.1 %)
+  ok    metal trunk-2.5: past 5 cm 0 of 4450802
+  ok    metal trunk-2.5: no compact part triangle past 1 % (2042482 triangle-frames)
+  ok    metal trunk-2.5: every drawn position finite
+  ok    metal trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal trunk-2.5: places past 8 slots 280 <= 2 %
+  taxi: 1 broken, 1 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 214381 -> 0; torn w/o damage base 0 -> 0, w/o strain 0 -> 0; bind 944 ms, over 8 280/66004
+  ok    metal taxi: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    metal taxi: past 1 cm 0 of 5041500 (<= 0.1 %)
+  ok    metal taxi: past 5 cm 0 of 5041500
+  ok    metal taxi: no compact part triangle past 1 % (2310500 triangle-frames)
+  ok    metal taxi: every drawn position finite
+  ok    metal taxi: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal taxi: places past 8 slots 280 <= 2 %
+  noseover: 7 broken, 2 pieces; leak base 0.00 % (worst 0.0057 m) -> 0.008 % (worst 0.002 m, past 5 cm 0); rigid past 1 % base 187039 -> 0; torn w/o damage base 60 -> 0, w/o strain 109 -> 0; bind 960 ms, over 8 280/66004
+  ok    metal noseover: the wall out past 1 mm 0.008 % <= 2 % (the base 0.00 %)
+  ok    metal noseover: past 1 cm 0 of 6150630 (<= 0.1 %)
+  ok    metal noseover: past 5 cm 0 of 6150630
+  ok    metal noseover: no compact part triangle past 1 % (2818810 triangle-frames)
+  ok    metal noseover: every drawn position finite
+  ok    metal noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal noseover: places past 8 slots 280 <= 2 %
+  nosein: 132 broken, 10 pieces; leak base 1.01 % (worst 34.1019 m) -> 0.484 % (worst 0.1423 m, past 5 cm 404); rigid past 1 % base 260780 -> 0; torn w/o damage base 0 -> 0, w/o strain 2455 -> 368; bind 796 ms, over 8 280/66004
+  ok    metal nosein: the wall out past 1 mm 0.484 % <= 2 % (the base 1.01 %)
+  FAIL  metal nosein: past 1 cm 6297 of 3928546 (<= 0.1 %)
+  FAIL  metal nosein: past 5 cm 404 of 3928546
+  ok    metal nosein: no compact part triangle past 1 % (2199596 triangle-frames)
+  ok    metal nosein: every drawn position finite
+  ok    metal nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal nosein: places past 8 slots 280 <= 2 %
+
+floats
+  nosein-water: 153 broken, 8 pieces; leak base 0.68 % (worst 2.5037 m) -> 1.116 % (worst 0.0784 m, past 5 cm 78); rigid past 1 % base 294001 -> 0; torn w/o damage base 0 -> 0, w/o strain 4870 -> 1474; bind 972 ms, over 8 879/64394
+  ok    floats nosein-water: the wall out past 1 mm 1.116 % <= 2 % (the base 0.68 %)
+  ok    floats nosein-water: past 1 cm 1765 of 2795218 (<= 0.1 %)
+  ok    floats nosein-water: past 5 cm 78 of 2795218
+  ok    floats nosein-water: no compact part triangle past 1 % (2144144 triangle-frames)
+  ok    floats nosein-water: every drawn position finite
+  ok    floats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    floats nosein-water: places past 8 slots 879 <= 2 %
+
+twinFloats
+  nosein-water: 136 broken, 9 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 332261 -> 0; torn w/o damage base 0 -> 0, w/o strain 1538 -> 816; bind 201 ms, over 8 0/22776
+  ok    twinFloats nosein-water: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    twinFloats nosein-water: past 1 cm 0 of 0 (<= 0.1 %)
+  ok    twinFloats nosein-water: past 5 cm 0 of 0
+  ok    twinFloats nosein-water: no compact part triangle past 1 % (749868 triangle-frames)
+  ok    twinFloats nosein-water: every drawn position finite
+  ok    twinFloats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 501543 triangle-frames)
+  ok    twinFloats nosein-water: places past 8 slots 0 <= 2 %
+
+105 checks, 9 failed, 345 s
+GATE DMGWALL: FAIL
+(exit code 1)
+=== DMGFABRIC ===
+(135 s)
+1. the panels
+  ok    cub: 41 covered panels, 50.39 m2, all fabric ({"fabric":41})
+  ok    jodel: 41 covered panels, 45.42 m2, all fabric ({"fabric":41})
+  ok    metal: 41 covered panels, 64.4 m2, all sheet ({"sheet":41})
+  ok    floats: 40 covered panels, 60.36 m2, all sheet ({"sheet":40})
+  ok    twinFloats: 17 covered panels, 42.16 m2, all fabric ({"fabric":17})
+2. none when intact
+  ok    cub: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    jodel: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    metal: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    floats: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    twinFloats: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+3. the ties in a crash (the certificate stamped)
+  cub trunk25: 4 ties made (fabric), 0 torn (0 at birth), first 0.0804 s after contact, the tears at []; held / pieces at 0.5 / 1 / 2 / 4 s: 1/2 1/2 2/4 2/4; the covering took 0.49 kJ
+  ok    cub trunk25: the covering is tied across the parting (4 ties)
+  ok    cub trunk25: no tie before the first break
+  ok    cub trunk25: tension only - never a push, nothing while slack (20563 substeps with ties)
+  ok    cub trunk25: a live tie never past its strain at break (the worst live 5.38 %)
+  ok    cub trunk25: every torn tie tore by strain, past eu over its slack length (the least 0.00 %)
+  ok    cub trunk25: a pair is tied once, ever
+  ok    cub trunk25: the covering HOLDS the struck wing - fewer held pieces than pieces on every frame a tie is live (275 / 275 frames)
+  ok    cub trunk25: read every 1 / 2 / 6 / 30 fixed steps (60 / 30 / 10 / 2 fps) - the same ties, torn at the same instants, the same bits (56544e62a07f 56544e62a07f 56544e62a07f 56544e62a07f)
+  cub trunk0: 19 ties made (fabric), 14 torn (2 at birth), first 0.0429 s after contact, the tears at [0.0438,0.044,0.044,0.044,0.046,0.0462,0.0462,0.0464,0.0464,0.0669,0.0671,0.0867]; held / pieces at 0.5 / 1 / 2 / 4 s: 10/13 10/13 12/15 12/15; the covering took 8.43 kJ
+  ok    cub trunk0: the covering is tied across the parting (19 ties)
+  ok    cub trunk0: no tie before the first break
+  ok    cub trunk0: tension only - never a push, nothing while slack (20957 substeps with ties)
+  ok    cub trunk0: a live tie never past its strain at break (the worst live 14.96 %)
+  ok    cub trunk0: every torn tie tore by strain, past eu over its slack length (the least 15.01 %)
+  ok    cub trunk0: a pair is tied once, ever
+  jodel trunk25: 7 ties made (fabric), 4 torn (3 at birth), first 0.0885 s after contact, the tears at [0.0885,0.1104,0.1121,0.1138]; held / pieces at 0.5 / 1 / 2 / 4 s: 2/4 3/5 5/7 5/7; the covering took 2.96 kJ
+  ok    jodel trunk25: the covering is tied across the parting (7 ties)
+  ok    jodel trunk25: no tie before the first break
+  ok    jodel trunk25: tension only - never a push, nothing while slack (33083 substeps with ties)
+  ok    jodel trunk25: a live tie never past its strain at break (the worst live 14.95 %)
+  ok    jodel trunk25: every torn tie tore by strain, past eu over its slack length (the least 15.07 %)
+  ok    jodel trunk25: a pair is tied once, ever
+  metal trunk0: 31 ties made (sheet 31), 24 torn (19 at birth), first 0.0314 s after contact, the tears at [0.0463,0.0463,0.0463,0.0463,0.0463,0.0471,0.0471,0.0471,0.0599,0.0614,0.0635,0.0828]; held / pieces at 0.5 / 1 / 2 / 4 s: 15/16 15/16 15/16 15/16; the covering took 9.73 kJ
+  ok    metal trunk0: the covering is tied across the parting (31 ties)
+  ok    metal trunk0: no tie before the first break
+  ok    metal trunk0: tension only - never a push, nothing while slack (33734 substeps with ties)
+  ok    metal trunk0: a live tie never past its strain at break (the worst live 14.98 %)
+  ok    metal trunk0: every torn tie tore by strain, past eu over its slack length (the least 15.03 %)
+  ok    metal trunk0: a pair is tied once, ever
+4-5. the base's bytes
+  ok    cub t25: damage OFF - the base's bits (6acfbf6ae0ed), no tie store
+  ok    cub t25: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (ae222ba0cb38)
+    cub t25, damage ON: 2 ties made - the run is its own (e45cb7943859, the base ae222ba0cb38)
+  ok    cub t0: damage OFF - the base's bits (f97faec72e38), no tie store
+  ok    cub t0: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (fb541e6b5e3b)
+  ok    cub t0: damage ON, no covered panel parted - the base's bits (fb541e6b5e3b)
+  ok    metal t25: damage OFF - the base's bits (a0cfaca6dcd8), no tie store
+  ok    metal t25: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (7f63a2d9daf1)
+    metal t25, damage ON: 2 ties made - the run is its own (c71d2803b4e2, the base 7f63a2d9daf1)
+  ok    metal t0: damage OFF - the base's bits (b5cc29e840c8), no tie store
+  ok    metal t0: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (a6e31576d4d3)
+  ok    metal t0: damage ON, no covered panel parted - the base's bits (a6e31576d4d3)
+6. the drawing agrees (the hop)
+  ok    no tie key in a payload before a tie is made (59 payloads)
+  ok    the live and the torn ties reach the page's state on every payload once made (57 payloads, 0 off)
+  ok    a tear is a payload of its own (3)
+  49/49 checks
+GATE DMGFABRIC: PASS
+
+──────── summary ────────
+TREEHIT   PASS    81.3 s
+TREECRASH PASS  1001.8 s
+DMGMEMBERS PASS    70.0 s
+DMGCERT   PASS   480.1 s
+DMGGEAR   PASS  1502.3 s
+DMGCERTCOST PASS   118.7 s
+DMGWIND   PASS  1329.0 s
+DMGCLUSTERS PASS   844.8 s
+DMGINST   PASS   307.5 s
+DMGFPS    PASS   287.4 s
+DMGINTEGRITY PASS    76.4 s
+DMGSKIN   PASS   167.7 s
+DMGDRIVE  PASS  1114.8 s
+DMGWALL   FAIL   344.8 s
+DMGFABRIC PASS   135.4 s
+total           7862.0 s
+wall            7662.0 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.

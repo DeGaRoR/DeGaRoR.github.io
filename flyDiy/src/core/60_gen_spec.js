@@ -377,6 +377,35 @@ const GEN_DAMAGE_DEFAULT = false;
 //   - a cluster's root cut (DMG-D3: the section's moment or torque, the joint judged whole) and a gate's hook
 //     (sim.damageBreak: "this joint let go") release it whole, as before.
 const GEN_DMG_GROUP = { rel: 1 / 3 };
+// G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
+// once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
+// a MEMBRANE: tension only, no compression, no bending; slack until stretched past the length the covering has between
+// those two nodes; it tears at its strain at break, by strain (never by a rate or a frame), one tie - one bay's worth
+// of covering - at a time. Sources (AS RECALLED unless marked; A0 opens them before a number becomes a gate):
+//   fabric  AC 43.13-1B Table 2-1: grade A cotton 80 lb/in new (14.0 kN/m), airworthy down to 70 % of new (56 lb/in,
+//           9.8 kN/m: the replace-at); a polyester system's STC fabric is at or over it - Ceconite 102 108 lb/in (Aircraft
+//           Spruce's catalogue page for P/N 09-00900, a search summary; the Ceconite / Poly-Fiber procedure manuals not
+//           opened). Elongation at break 15-20 % (polyester; GEN_CRASH.fabric.etu = 0.15, the drawing's TEAR): the
+//           lower is taken. Taken: 80 lb/in at 15 % - the floor every STC fabric meets, new; the replace-at and the
+//           Ceconite 102 are the sensitivity rows (HANDOVER G2042). A wood aeroplane's ply (the Jodel) is covered in the
+//           same doped fabric (the user's "fabric over ply"); the ply itself is the frame's members (glue lines).
+//           The tie is linear to its strength at its strain at break (its modulus = strength / strain: 93 kN/m per unit
+//           strain), and the doped cloth TAKES the energy: it unloads ru = 10 x stiffer than it loaded (the crimp and the
+//           dope do not come back - a declared ratio, as TREE-CRASH's TK_RU), so a held piece swinging on its covering
+//           loses 9/10 of each swing's stretch energy. slack: the covering is longer than the chord between two frame
+//           nodes by the sag it draws between them (skin_break DRAPE_K 0.06 of the span: (8/3) 0.06^2 = 0.96 %).
+//   sheet   2024-T3: Ftu 64 ksi (441 MPa, MIL-HDBK-5J Table 3.2.3.0(b) - GEN_CRASH.alloy's own source), elongation 15 %
+//           (ibid.). A riveted panel whose rivet line has let go holds by TEARING: the ligament a tear runs through is
+//           about one rivet pitch (AC 43.13-1B ch. 4: pitch 6-8 D, 1/8 in rivets on a light single's skin: ~25 mm), so a
+//           panel's tie flows at Ftu t x 25 mm (the tear-out) and tears through at the sheet's 15 %. Gauges (a 172's
+//           structural repair manual, as recalled): the fuselage 0.025 in, the wing 0.020 in, the tail 0.016 in.
+//           Elastic at E t w_tear / L to the tear-out, then flat - the sheet's plastic tearing - to the 15 %.
+//   carbon  no tie: the laminate is the structure (its members), brittle; nothing spans it once it has broken.
+const GEN_COVER = {
+  fabric: { tuN: 80 * 4.44822 / 0.0254, eu: 0.15, ru: 10, slack: (8 / 3) * 0.06 * 0.06, zeta: 0.05 },
+  sheet:  { ftu: 441e6, eu: 0.15, wTear: 0.025, t: { fuselage: 0.025 * 0.0254, wings: 0.020 * 0.0254, tail: 0.016 * 0.0254 }, slack: 0, zeta: 0.05 },
+  on: true,                  // (GATE DMGFABRIC --selftest: false - no tie is made)
+};
 const GEN_CRASH = {
   tubeFabric: { ty: 460e6, tu: 460e6 * 95 / 75, etu: 0.08, cy: 460e6, ecu: 0.03, thf: 1.2 },
   wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },

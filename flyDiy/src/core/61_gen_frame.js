@@ -615,8 +615,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // planform estimate, so a bigger cabin or a longer boom is painted too.
   let coverA = 0;
   const coverSeen = {}, coverIds = [], coverAt = {};   // coverAt: m2 per node (G457)
+  // G2040 (DMG-FABRIC): ...AND EACH PANEL AS BUILT - its area, its corners and what covers it (the billing row: its
+  // material and whether it is cloth) - for the solver's cover ties (parts.dmg.cover): the covering that still spans a
+  // bay once the frame under it has parted. Metadata: nothing reads it unless the damage layer is on
+  const coverPan = [];
   const cover = (area, ids) => {
     coverA += area;
+    coverPan.push({ A: area, ids: ids.slice(), mat: MB && MB.phys ? genPhysKey(MB.phys) : null, cloth: !!(MB && MB.coverGauged === false), sec: SEC });
     for (const i of ids) { if (!coverSeen[i]) { coverSeen[i] = 1; coverIds.push(i); }
                            coverAt[i] = (coverAt[i] || 0) + area / ids.length; }
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
@@ -2978,7 +2983,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues,
     // G1821 (DMG-D1b): every node's part (the body's 'body'), for the refs-core's gate (the body frame's refs on the body)
-    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp, iso: dmgIso, lump: dmgLump };
+    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp, iso: dmgIso, lump: dmgLump,
+    // G2040 (DMG-FABRIC): the covered panels (cover() above), for the solver's cover ties
+    cover: coverPan };
   return { nodes, beams, refs, parts, clusters };
 }
 

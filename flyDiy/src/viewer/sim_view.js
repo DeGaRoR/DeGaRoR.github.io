@@ -56,7 +56,24 @@ function simViewDefSig(def) {
 //   pc       each node's piece (0 = the core: the piece the body's refs are on), null while one piece
 //   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
 function simViewDmgState(n, nb) {
-  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0' };
+  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0',
+           tied: null, torn: null, pcH: null, nPcH: 1 };   // G2040 (DMG-FABRIC): the cover ties - null until one is made
+}
+// G2040 (DMG-FABRIC): the live cover ties' pairs (tied, a Set of a * n + b, a < b), the torn ones' (torn), and the HELD
+// pieces (pcH: the pieces joined by the live ties - what the covering still holds together; 0 the core's), from a payload
+function simViewDmgTies(D, P) {
+  const n = D.n, key = (a, b) => Math.min(a, b) * n + Math.max(a, b);
+  if (!P.ty) { D.tied = null; D.torn = null; D.pcH = D.pc; D.nPcH = D.nPc; return; }
+  D.tied = new Set(); D.torn = new Set();
+  for (let j = 0; j + 1 < P.ty.length; j += 2) D.tied.add(key(P.ty[j], P.ty[j + 1]));
+  for (let j = 0; j + 1 < (P.tt || []).length; j += 2) D.torn.add(key(P.tt[j], P.tt[j + 1]));
+  if (!D.pc) { D.pcH = null; D.nPcH = 1; return; }
+  const U = new Int32Array(D.nPc); for (let k = 0; k < U.length; k++) U[k] = k;
+  const f = k => { while (U[k] !== k) { U[k] = U[U[k]]; k = U[k]; } return k; };
+  for (let j = 0; j + 1 < P.ty.length; j += 2) { const x = f(D.pc[P.ty[j]]), y = f(D.pc[P.ty[j + 1]]); if (x !== y) { if (x < y) U[y] = x; else U[x] = y; } }
+  const lab = new Int32Array(D.nPc).fill(-1); let m = 0; lab[f(0)] = m++;
+  for (let k = 0; k < D.nPc; k++) { const r = f(k); if (lab[r] < 0) lab[r] = m++; }
+  D.pcH = m > 1 ? Int32Array.from(D.pc, k => lab[f(k)]) : null; D.nPcH = m;
 }
 function simViewDmgApply(D, P) {
   if (!P) return D;
@@ -66,6 +83,7 @@ function simViewDmgApply(D, P) {
     D.pc = P.pc ? Int32Array.from(P.pc) : null;
     let k = 0; if (D.pc) for (let i = 0; i < D.pc.length; i++) if (D.pc[i] > k) k = D.pc[i];
     D.nPc = k + 1; D.vB++; D.sB = P.sB;
+    simViewDmgTies(D, P);                           // G2040
   }
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;

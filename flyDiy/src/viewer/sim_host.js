@@ -246,7 +246,8 @@ const SIM_DMG_SET_MIN = 1e-4;
 function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents];
+  // (G2040: a cover tie torn is a break event of the covering - its count joins the signature once one has been made)
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents];
 }
 // the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
 function simDmgPieces(sim, coreNode) {
@@ -259,6 +260,15 @@ function simDmgPieces(sim, coreNode) {
   const core = f(coreNode >= 0 && coreNode < n ? coreNode : 0), lab = new Int32Array(n), id = new Map([[core, 0]]);
   for (let i = 0; i < n; i++) { const r = f(i); let k = id.get(r); if (k === undefined) { k = id.size; id.set(r, k); } lab[i] = k; }
   return id.size > 1 ? lab : null;
+}
+// G2040-G2043 (DMG-FABRIC): THE COVER TIES - the covering the physics still holds across a parting (30_solver.js tieEvent):
+//   ty   the LIVE ties' node pairs, flat [a, b, a, b, ...] - the skin keeps its covering over them (stretched, whole)
+//   tt   the TORN ties' pairs - the skin tears its covering there (where the physics tore it, not at its own stretch)
+// Only once a tie has been made (D.tieN): before, no key at all
+function simDmgTies(sim) {
+  const T = sim.coverTies(), ty = [], tt = [];
+  for (let q = 0; q < T.n; q++) (T.torn[q] >= 0 ? tt : ty).push(T.a[q], T.b[q]);
+  return { ty, tt };
 }
 function simDmgSets(sim) {
   const st = [];
@@ -279,6 +289,7 @@ function simDmgHop(sim, hop, coreNode, win) {
     hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
     out = { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) };
+    if (D.tieN) { const TY = simDmgTies(sim); out.ty = TY.ty; out.tt = TY.tt; }   // G2040 (DMG-FABRIC)
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
     hop.sS = sg[1]; hop.t = sim.t;
     out = { sS: sg[1], st: simDmgSets(sim) };

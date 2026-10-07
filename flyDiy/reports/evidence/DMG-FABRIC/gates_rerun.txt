@@ -1,0 +1,373 @@
+tools/flight_core.js (2308.1 KB), index.html (11544.0 KB), dev.html (108.0 KB) — syntax OK, build 2e54b7f86460 (311 named inputs), 1492 ms
+=== DMGSKIN ===
+(161 s, 5 builds, damage on; TEAR 0.15)
+Cub:
+  the skin measured: 9 groups (genWing's and every member's tube), 11416 vertices, 21132 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (5.7 kJ of plastic work)), 50 broken, 15 frames with a new break, the skin checked on 222 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 25 payloads over 300 snapshots, 29690 bytes (1188 a payload), 6.235 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.533,"mesh":"pitot","cage":false,"tri":0}); the worst stretch of an edge of 2 cm or more 1.6494
+  ok    every skin position finite
+    the cost (node): the first break's binding 150.1 ms generated (whole), 35.3 ms cage (nearest nodes; 11416 vertices); 135 events, 2.71 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 4812, cage 6046; torn (stretched past TEAR): generated 3825, cage 5059; vertices on detached pieces up to 144; the drape's deepest sag 12.1 cm; the nodes' frames 0.341 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (702 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 19 broken, 11 frames with a new break, the skin checked on 219 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 19 payloads over 300 snapshots, 9261 bytes (487 a payload), 2.534 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.05,"mesh":"skin","cage":true,"tri":3987}); the worst stretch of an edge of 2 cm or more 1.5233; HELD by cover ties on 215 frames, up to 1472 held triangles, their worst edge stretch 1.750
+  ok    every skin position finite
+    the cost (node): the first break's binding 17.7 ms generated (whole), 6.7 ms cage (nearest nodes; 11416 vertices); 99 events, 1.97 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1588, cage 3052; torn (stretched past TEAR): generated 1168, cage 2632; vertices on detached pieces up to 1072; the drape's deepest sag 17.9 cm; the nodes' frames 0.246 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (729 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 17 broken, 4 frames with a new break, the skin checked on 238 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 13 payloads over 240 snapshots, 5779 bytes (445 a payload), 1.576 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.08 mm from it ({"t":0.15,"mesh":"members","cage":true,"tri":677}); the worst stretch of an edge of 2 cm or more 1.3790
+  ok    every skin position finite
+    the cost (node): the first break's binding 17.5 ms generated (whole), 6.1 ms cage (nearest nodes; 11416 vertices); 36 events, 1.24 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 272, cage 444; torn (stretched past TEAR): generated 0, cage 172; vertices on detached pieces up to 144; the drape's deepest sag 0.0 cm; the nodes' frames 0.180 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (18 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.600 us a snapshot
+Jodel:
+  the skin measured: 8 groups (genWing's and every member's tube), 12148 vertices, 22174 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 52 broken, 5 frames with a new break, the skin checked on 223 frames; pieces up to 5
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 7 payloads over 300 snapshots, 5661 bytes (809 a payload), 1.77 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.07 mm from it ({"t":1.383,"mesh":"flapR","cage":false,"tri":171}); the worst stretch of an edge of 2 cm or more 1.4513
+  ok    every skin position finite
+    the cost (node): the first break's binding 225.0 ms generated (whole), 68.7 ms cage (nearest nodes; 12148 vertices); 40 events, 7.20 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1181, cage 2350; torn (stretched past TEAR): generated 187, cage 1356; vertices on detached pieces up to 1170; the drape's deepest sag 6.3 cm; the nodes' frames 0.451 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (616 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a tail member broke), 16 broken, 1 frames with a new break, the skin checked on 217 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 3 payloads over 300 snapshots, 597 bytes (199 a payload), 0.625 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.09 mm from it ({"t":1.467,"mesh":"members","cage":true,"tri":11744}); the worst stretch of an edge of 2 cm or more 1.4279
+  ok    every skin position finite
+    the cost (node): the first break's binding 21.0 ms generated (whole), 9.4 ms cage (nearest nodes; 12148 vertices); 8 events, 2.49 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 258, cage 572; torn (stretched past TEAR): generated 2, cage 316; vertices on detached pieces up to 1026; the drape's deepest sag 0.0 cm; the nodes' frames 0.301 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (664 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 26 broken, 2 frames with a new break, the skin checked on 238 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 2 payloads over 240 snapshots, 973 bytes (487 a payload), 0.541 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.06 mm from it ({"t":0.117,"mesh":"skin","cage":false,"tri":39}); the worst stretch of an edge of 2 cm or more 1.5285
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.2 ms generated (whole), 6.4 ms cage (nearest nodes; 12148 vertices); 16 events, 1.56 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 464, cage 842; torn (stretched past TEAR): generated 48, cage 426; vertices on detached pieces up to 1170; the drape's deepest sag 0.0 cm; the nodes' frames 0.192 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (16 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (1920 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.566 us a snapshot
+metal Cessna:
+  the skin measured: 9 groups (genWing's and every member's tube), 11524 vertices, 21156 triangles; the wing not fabric
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (3.3 kJ of plastic work)), 85 broken, 14 frames with a new break, the skin checked on 223 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 23 payloads over 300 snapshots, 34087 bytes (1482 a payload), 3.598 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.383,"mesh":"skin","cage":false,"tri":740}); the worst stretch of an edge of 2 cm or more 1.6456
+  ok    every skin position finite
+    the cost (node): the first break's binding 217.8 ms generated (whole), 47.9 ms cage (nearest nodes; 11524 vertices); 126 events, 2.23 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 8377, cage 7108; torn (stretched past TEAR): generated 6793, cage 5733; vertices on detached pieces up to 1080; the drape's deepest sag 0.0 cm; the nodes' frames 0.434 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (693 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 11 broken, 4 frames with a new break, the skin checked on 221 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 10 payloads over 300 snapshots, 2370 bytes (237 a payload), 1.246 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.933,"mesh":"skin","cage":false,"tri":2817}); the worst stretch of an edge of 2 cm or more 1.5367; HELD by cover ties on 2 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.1 ms generated (whole), 6.6 ms cage (nearest nodes; 11524 vertices); 45 events, 1.32 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1026, cage 992; torn (stretched past TEAR): generated 536, cage 502; vertices on detached pieces up to 1915; the drape's deepest sag 0.0 cm; the nodes' frames 0.287 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (711 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (the airframe crushed (3.0 kJ of plastic work)), 34 broken, 7 frames with a new break, the skin checked on 236 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 15 payloads over 240 snapshots, 7458 bytes (497 a payload), 1.505 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":3.083,"mesh":"members","cage":false,"tri":14248}); the worst stretch of an edge of 2 cm or more 1.6195
+  ok    every skin position finite
+    the cost (node): the first break's binding 20.8 ms generated (whole), 9.1 ms cage (nearest nodes; 11524 vertices); 63 events, 1.08 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 800, cage 2280; torn (stretched past TEAR): generated 256, cage 1874; vertices on detached pieces up to 1080; the drape's deepest sag 0.0 cm; the nodes' frames 0.201 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.361 us a snapshot
+Cessna floats:
+  the skin measured: 10 groups (genWing's and every member's tube), 13128 vertices, 24036 triangles; the wing not fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 44 broken, 8 frames with a new break, the skin checked on 231 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 18 payloads over 240 snapshots, 12254 bytes (681 a payload), 3.252 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.07 mm from it ({"t":0.217,"mesh":"flapL","cage":false,"tri":76}); the worst stretch of an edge of 2 cm or more 1.5625
+  ok    every skin position finite
+    the cost (node): the first break's binding 119.5 ms generated (whole), 30.7 ms cage (nearest nodes; 13128 vertices); 80 events, 2.42 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1082, cage 2682; torn (stretched past TEAR): generated 314, cage 2219; vertices on detached pieces up to 1602; the drape's deepest sag 0.0 cm; the nodes' frames 0.376 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (90 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.762 us a snapshot
+twin floatplane:
+  the skin measured: 9 groups (genWing's and every member's tube), 11998 vertices, 21796 triangles; the wing fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 36 broken, 5 frames with a new break, the skin checked on 236 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 9 payloads over 240 snapshots, 5354 bytes (595 a payload), 1.555 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":0.217,"mesh":"members","cage":false,"tri":3867}); the worst stretch of an edge of 2 cm or more 1.6360
+  ok    every skin position finite
+    the cost (node): the first break's binding 85.4 ms generated (whole), 22.4 ms cage (nearest nodes; 11998 vertices); 45 events, 2.95 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5174, cage 5684; torn (stretched past TEAR): generated 4368, cage 4880; vertices on detached pieces up to 5284; the drape's deepest sag 8.9 cm; the nodes' frames 0.348 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.464 us a snapshot
+  ok    app.js: the skin's break path (13 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+=== DMGWALL ===
+cub
+  trunk-0: 124 broken, 15 pieces; leak base 31.89 % (worst 0.6459 m) -> 1.583 % (worst 0.0051 m, past 5 cm 0); rigid past 1 % base 446529 -> 0; torn w/o damage base 0 -> 0, w/o strain 1981 -> 1434; bind 605 ms, over 8 552/50003
+  ok    cub trunk-0: the wall out past 1 mm 1.583 % <= 2 % (the base 31.89 %)
+  ok    cub trunk-0: past 1 cm 0 of 1084319 (<= 0.1 %)
+  ok    cub trunk-0: past 5 cm 0 of 1084319
+  ok    cub trunk-0: no compact part triangle past 1 % (2381172 triangle-frames)
+  ok    cub trunk-0: every drawn position finite
+  ok    cub trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1933350 triangle-frames)
+  ok    cub trunk-0: places past 8 slots 552 <= 2 %
+  trunk-2.5: 62 broken, 4 pieces; leak base 12.33 % (worst 1.3003 m) -> 0.831 % (worst 0.0111 m, past 5 cm 0); rigid past 1 % base 545790 -> 0; torn w/o damage base 92 -> 62, w/o strain 1268 -> 615; bind 515 ms, over 8 552/50003
+  ok    cub trunk-2.5: the wall out past 1 mm 0.831 % <= 2 % (the base 12.33 %)
+  ok    cub trunk-2.5: past 1 cm 52 of 1738633 (<= 0.1 %)
+  ok    cub trunk-2.5: past 5 cm 0 of 1738633
+  ok    cub trunk-2.5: no compact part triangle past 1 % (2348994 triangle-frames)
+  ok    cub trunk-2.5: every drawn position finite
+  ok    cub trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 2031110 triangle-frames)
+  ok    cub trunk-2.5: places past 8 slots 552 <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 7 broken, 1 pieces; leak base 0.63 % (worst 0.0135 m) -> 0.073 % (worst 0.004 m, past 5 cm 0); rigid past 1 % base 409954 -> 0; torn w/o damage base 344 -> 156, w/o strain 732 -> 325; bind 457 ms, over 8 552/50003
+  ok    cub noseover: the wall out past 1 mm 0.073 % <= 2 % (the base 0.63 %)
+  ok    cub noseover: past 1 cm 0 of 2923298 (<= 0.1 %)
+  ok    cub noseover: past 5 cm 0 of 2923298
+  ok    cub noseover: no compact part triangle past 1 % (3207074 triangle-frames)
+  ok    cub noseover: every drawn position finite
+  ok    cub noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.195, 2894852 triangle-frames)
+  ok    cub noseover: places past 8 slots 552 <= 2 %
+  nosein: 65 broken, 7 pieces; leak base 20.48 % (worst 0.9424 m) -> 0.564 % (worst 0.0177 m, past 5 cm 0); rigid past 1 % base 782756 -> 0; torn w/o damage base 6 -> 22, w/o strain 2814 -> 1545; bind 428 ms, over 8 552/50003
+  ok    cub nosein: the wall out past 1 mm 0.564 % <= 2 % (the base 20.48 %)
+  ok    cub nosein: past 1 cm 3 of 1759395 (<= 0.1 %)
+  ok    cub nosein: past 5 cm 0 of 1759395
+  ok    cub nosein: no compact part triangle past 1 % (2552788 triangle-frames)
+  ok    cub nosein: every drawn position finite
+  ok    cub nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 2195062 triangle-frames)
+  ok    cub nosein: places past 8 slots 552 <= 2 %
+
+jodel
+  trunk-0: 157 broken, 12 pieces; leak base 10.30 % (worst 1.0492 m) -> 1.345 % (worst 0.0779 m, past 5 cm 335); rigid past 1 % base 363217 -> 0; torn w/o damage base 45 -> 0, w/o strain 1161 -> 584; bind 684 ms, over 8 382/46406
+  ok    jodel trunk-0: the wall out past 1 mm 1.345 % <= 2 % (the base 10.30 %)
+  FAIL  jodel trunk-0: past 1 cm 2011 of 1214812 (<= 0.1 %)
+  FAIL  jodel trunk-0: past 5 cm 335 of 1214812
+  ok    jodel trunk-0: no compact part triangle past 1 % (2375842 triangle-frames)
+  ok    jodel trunk-0: every drawn position finite
+  ok    jodel trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 980709 triangle-frames)
+  ok    jodel trunk-0: places past 8 slots 382 <= 2 %
+  trunk-2.5: 109 broken, 7 pieces; leak base 0.19 % (worst 0.1626 m) -> 0.001 % (worst 0.007 m, past 5 cm 0); rigid past 1 % base 529982 -> 0; torn w/o damage base 53 -> 0, w/o strain 1215 -> 245; bind 494 ms, over 8 382/46406
+  ok    jodel trunk-2.5: the wall out past 1 mm 0.001 % <= 2 % (the base 0.19 %)
+  ok    jodel trunk-2.5: past 1 cm 0 of 1649242 (<= 0.1 %)
+  ok    jodel trunk-2.5: past 5 cm 0 of 1649242
+  ok    jodel trunk-2.5: no compact part triangle past 1 % (2354534 triangle-frames)
+  ok    jodel trunk-2.5: every drawn position finite
+  ok    jodel trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 1290100 triangle-frames)
+  ok    jodel trunk-2.5: places past 8 slots 382 <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 3 broken, 1 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 62131 -> 0; torn w/o damage base 0 -> 0, w/o strain 0 -> 0; bind 567 ms, over 8 382/46406
+  ok    jodel noseover: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    jodel noseover: past 1 cm 0 of 2272550 (<= 0.1 %)
+  ok    jodel noseover: past 5 cm 0 of 2272550
+  ok    jodel noseover: no compact part triangle past 1 % (3206854 triangle-frames)
+  ok    jodel noseover: every drawn position finite
+  ok    jodel noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.198, 1884260 triangle-frames)
+  ok    jodel noseover: places past 8 slots 382 <= 2 %
+  nosein: 167 broken, 11 pieces; leak base 0.11 % (worst 6.1723 m) -> 0.004 % (worst 0.0104 m, past 5 cm 0); rigid past 1 % base 401645 -> 0; torn w/o damage base 50 -> 0, w/o strain 1098 -> 401; bind 512 ms, over 8 382/46406
+  ok    jodel nosein: the wall out past 1 mm 0.004 % <= 2 % (the base 0.11 %)
+  ok    jodel nosein: past 1 cm 6 of 1735504 (<= 0.1 %)
+  ok    jodel nosein: past 5 cm 0 of 1735504
+  ok    jodel nosein: no compact part triangle past 1 % (2546306 triangle-frames)
+  ok    jodel nosein: every drawn position finite
+  ok    jodel nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 1355639 triangle-frames)
+  ok    jodel nosein: places past 8 slots 382 <= 2 %
+
+metal
+  trunk-0: 204 broken, 20 pieces; leak base 0.68 % (worst 10.7868 m) -> 0.615 % (worst 0.4227 m, past 5 cm 145); rigid past 1 % base 139419 -> 0; torn w/o damage base 0 -> 0, w/o strain 3153 -> 1928; bind 1148 ms, over 8 280/66004
+  ok    metal trunk-0: the wall out past 1 mm 0.615 % <= 2 % (the base 0.68 %)
+  ok    metal trunk-0: past 1 cm 749 of 2827022 (<= 0.1 %)
+  ok    metal trunk-0: past 5 cm 145 of 2827022
+  ok    metal trunk-0: no compact part triangle past 1 % (2060966 triangle-frames)
+  ok    metal trunk-0: every drawn position finite
+  ok    metal trunk-0: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal trunk-0: places past 8 slots 280 <= 2 %
+  trunk-2.5: 26 broken, 5 pieces; leak base 0.73 % (worst 0.1249 m) -> 0.072 % (worst 0.0122 m, past 5 cm 0); rigid past 1 % base 88248 -> 0; torn w/o damage base 123 -> 0, w/o strain 637 -> 43; bind 964 ms, over 8 280/66004
+  ok    metal trunk-2.5: the wall out past 1 mm 0.072 % <= 2 % (the base 0.73 %)
+  ok    metal trunk-2.5: past 1 cm 12 of 4450802 (<= 0.1 %)
+  ok    metal trunk-2.5: past 5 cm 0 of 4450802
+  ok    metal trunk-2.5: no compact part triangle past 1 % (2042482 triangle-frames)
+  ok    metal trunk-2.5: every drawn position finite
+  ok    metal trunk-2.5: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal trunk-2.5: places past 8 slots 280 <= 2 %
+  taxi: 1 broken, 1 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 214381 -> 0; torn w/o damage base 0 -> 0, w/o strain 0 -> 0; bind 859 ms, over 8 280/66004
+  ok    metal taxi: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    metal taxi: past 1 cm 0 of 5041500 (<= 0.1 %)
+  ok    metal taxi: past 5 cm 0 of 5041500
+  ok    metal taxi: no compact part triangle past 1 % (2310500 triangle-frames)
+  ok    metal taxi: every drawn position finite
+  ok    metal taxi: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal taxi: places past 8 slots 280 <= 2 %
+  noseover: 7 broken, 2 pieces; leak base 0.00 % (worst 0.0057 m) -> 0.008 % (worst 0.002 m, past 5 cm 0); rigid past 1 % base 187039 -> 0; torn w/o damage base 60 -> 0, w/o strain 109 -> 0; bind 877 ms, over 8 280/66004
+  ok    metal noseover: the wall out past 1 mm 0.008 % <= 2 % (the base 0.00 %)
+  ok    metal noseover: past 1 cm 0 of 6150630 (<= 0.1 %)
+  ok    metal noseover: past 5 cm 0 of 6150630
+  ok    metal noseover: no compact part triangle past 1 % (2818810 triangle-frames)
+  ok    metal noseover: every drawn position finite
+  ok    metal noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal noseover: places past 8 slots 280 <= 2 %
+  nosein: 132 broken, 10 pieces; leak base 1.01 % (worst 34.1019 m) -> 0.269 % (worst 0.0944 m, past 5 cm 78); rigid past 1 % base 260780 -> 0; torn w/o damage base 0 -> 0, w/o strain 2455 -> 361; bind 913 ms, over 8 280/66004
+  ok    metal nosein: the wall out past 1 mm 0.269 % <= 2 % (the base 1.01 %)
+  ok    metal nosein: past 1 cm 347 of 3928875 (<= 0.1 %)
+  ok    metal nosein: past 5 cm 78 of 3928875
+  ok    metal nosein: no compact part triangle past 1 % (2199596 triangle-frames)
+  ok    metal nosein: every drawn position finite
+  ok    metal nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    metal nosein: places past 8 slots 280 <= 2 %
+
+floats
+  nosein-water: 153 broken, 8 pieces; leak base 0.68 % (worst 2.5037 m) -> 1.116 % (worst 0.0784 m, past 5 cm 78); rigid past 1 % base 294001 -> 0; torn w/o damage base 0 -> 0, w/o strain 4870 -> 1474; bind 1139 ms, over 8 879/64394
+  ok    floats nosein-water: the wall out past 1 mm 1.116 % <= 2 % (the base 0.68 %)
+  ok    floats nosein-water: past 1 cm 1765 of 2795218 (<= 0.1 %)
+  ok    floats nosein-water: past 5 cm 78 of 2795218
+  ok    floats nosein-water: no compact part triangle past 1 % (2144144 triangle-frames)
+  ok    floats nosein-water: every drawn position finite
+  ok    floats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    floats nosein-water: places past 8 slots 879 <= 2 %
+
+twinFloats
+  nosein-water: 136 broken, 9 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 337003 -> 0; torn w/o damage base 0 -> 0, w/o strain 1538 -> 816; bind 188 ms, over 8 0/22776
+  ok    twinFloats nosein-water: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    twinFloats nosein-water: past 1 cm 0 of 0 (<= 0.1 %)
+  ok    twinFloats nosein-water: past 5 cm 0 of 0
+  ok    twinFloats nosein-water: no compact part triangle past 1 % (749868 triangle-frames)
+  ok    twinFloats nosein-water: every drawn position finite
+  ok    twinFloats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 501543 triangle-frames)
+  ok    twinFloats nosein-water: places past 8 slots 0 <= 2 %
+
+105 checks, 2 failed, 342 s
+GATE DMGWALL: FAIL
+(exit code 1)
+=== DMGFABRIC ===
+(130 s)
+1. the panels
+  ok    cub: 41 covered panels, 50.39 m2, all fabric ({"fabric":41})
+  ok    jodel: 41 covered panels, 45.42 m2, all fabric ({"fabric":41})
+  ok    metal: 41 covered panels, 64.4 m2, all sheet ({"sheet":41})
+  ok    floats: 40 covered panels, 60.36 m2, all sheet ({"sheet":40})
+  ok    twinFloats: 17 covered panels, 42.16 m2, all fabric ({"fabric":17})
+2. none when intact
+  ok    cub: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    jodel: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    metal: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    floats: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    twinFloats: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+3. the ties in a crash (the certificate stamped)
+  cub trunk25: 4 ties made (fabric), 0 torn (0 at birth), first 0.0804 s after contact, the tears at []; held / pieces at 0.5 / 1 / 2 / 4 s: 1/2 1/2 2/4 2/4; the covering took 0.49 kJ
+  ok    cub trunk25: the covering is tied across the parting (4 ties)
+  ok    cub trunk25: no tie before the first break
+  ok    cub trunk25: tension only - never a push, nothing while slack (20563 substeps with ties)
+  ok    cub trunk25: a live tie never past its strain at break (the worst live 5.38 %)
+  ok    cub trunk25: every torn tie tore by strain, past eu over its slack length (the least 0.00 %)
+  ok    cub trunk25: a pair is tied once, ever
+  ok    cub trunk25: the covering HOLDS the struck wing - fewer held pieces than pieces on every frame a tie is live (275 / 275 frames)
+  ok    cub trunk25: read every 1 / 2 / 6 / 30 fixed steps (60 / 30 / 10 / 2 fps) - the same ties, torn at the same instants, the same bits (56544e62a07f 56544e62a07f 56544e62a07f 56544e62a07f)
+  cub trunk0: 19 ties made (fabric), 14 torn (2 at birth), first 0.0429 s after contact, the tears at [0.0438,0.044,0.044,0.044,0.046,0.0462,0.0462,0.0464,0.0464,0.0669,0.0671,0.0867]; held / pieces at 0.5 / 1 / 2 / 4 s: 10/13 10/13 12/15 12/15; the covering took 8.43 kJ
+  ok    cub trunk0: the covering is tied across the parting (19 ties)
+  ok    cub trunk0: no tie before the first break
+  ok    cub trunk0: tension only - never a push, nothing while slack (20957 substeps with ties)
+  ok    cub trunk0: a live tie never past its strain at break (the worst live 14.96 %)
+  ok    cub trunk0: every torn tie tore by strain, past eu over its slack length (the least 15.01 %)
+  ok    cub trunk0: a pair is tied once, ever
+  jodel trunk25: 7 ties made (fabric), 4 torn (3 at birth), first 0.0885 s after contact, the tears at [0.0885,0.1104,0.1121,0.1138]; held / pieces at 0.5 / 1 / 2 / 4 s: 2/4 3/5 5/7 5/7; the covering took 2.96 kJ
+  ok    jodel trunk25: the covering is tied across the parting (7 ties)
+  ok    jodel trunk25: no tie before the first break
+  ok    jodel trunk25: tension only - never a push, nothing while slack (33083 substeps with ties)
+  ok    jodel trunk25: a live tie never past its strain at break (the worst live 14.95 %)
+  ok    jodel trunk25: every torn tie tore by strain, past eu over its slack length (the least 15.07 %)
+  ok    jodel trunk25: a pair is tied once, ever
+  metal trunk0: 31 ties made (sheet 31), 24 torn (19 at birth), first 0.0314 s after contact, the tears at [0.0463,0.0463,0.0463,0.0463,0.0463,0.0471,0.0471,0.0471,0.0599,0.0614,0.0635,0.0828]; held / pieces at 0.5 / 1 / 2 / 4 s: 15/16 15/16 15/16 15/16; the covering took 9.73 kJ
+  ok    metal trunk0: the covering is tied across the parting (31 ties)
+  ok    metal trunk0: no tie before the first break
+  ok    metal trunk0: tension only - never a push, nothing while slack (33734 substeps with ties)
+  ok    metal trunk0: a live tie never past its strain at break (the worst live 14.98 %)
+  ok    metal trunk0: every torn tie tore by strain, past eu over its slack length (the least 15.03 %)
+  ok    metal trunk0: a pair is tied once, ever
+4-5. the base's bytes
+  ok    cub t25: damage OFF - the base's bits (6acfbf6ae0ed), no tie store
+  ok    cub t25: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (ae222ba0cb38)
+    cub t25, damage ON: 2 ties made - the run is its own (e45cb7943859, the base ae222ba0cb38)
+  ok    cub t0: damage OFF - the base's bits (f97faec72e38), no tie store
+  ok    cub t0: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (fb541e6b5e3b)
+  ok    cub t0: damage ON, no covered panel parted - the base's bits (fb541e6b5e3b)
+  ok    metal t25: damage OFF - the base's bits (a0cfaca6dcd8), no tie store
+  ok    metal t25: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (7f63a2d9daf1)
+    metal t25, damage ON: 2 ties made - the run is its own (c71d2803b4e2, the base 7f63a2d9daf1)
+  ok    metal t0: damage OFF - the base's bits (b5cc29e840c8), no tie store
+  ok    metal t0: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (a6e31576d4d3)
+  ok    metal t0: damage ON, no covered panel parted - the base's bits (a6e31576d4d3)
+6. the drawing agrees (the hop)
+  ok    no tie key in a payload before a tie is made (59 payloads)
+  ok    the live and the torn ties reach the page's state on every payload once made (57 payloads, 0 off)
+  ok    a tear is a payload of its own (3)
+  49/49 checks
+GATE DMGFABRIC: PASS
+
+──────── summary ────────
+DMGSKIN   PASS   161.3 s
+DMGWALL   FAIL   341.6 s
+DMGFABRIC PASS   130.4 s
+total            633.3 s
+wall             633.3 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.

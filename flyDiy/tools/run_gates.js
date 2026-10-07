@@ -319,6 +319,11 @@ const GATES = [
   // lane, 0-5 m/s across in 0.5 steps: every run reaches CLIMB, no nose-over (pitch at every float contact >= -20 deg),
   // the run's swing and lane under 30; the technique never arms on a wheeled take-off. 24 runs in children, ~2.5 min
   { id: 'DMGFLOATTO', file: '_dmgfloatto_check.js', tier: 'full', weight: 4, wall: 300 },
+  // G2040-G2043 (DMG-FABRIC): the covering holds the wreck until it tears - the covered panels per build, no cover tie on an
+  // intact aeroplane (parked, the drop, a pull), in the crashes (the certificate stamped) every tie tension only, never past
+  // its strain at break, torn by strain; the Cub's struck wing held; the page's batching changes no bit; damage off and the
+  // ties off = the base's bytes; the hop carries the ties. --selftest: red with the ties disabled. Three children at once
+  { id: 'DMGFABRIC', file: '_dmg_fabric_check.js', tier: 'core', weight: 3, wall: 600 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
