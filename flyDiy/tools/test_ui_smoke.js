@@ -70,6 +70,11 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
     throw new Error('the welcome block: a rig on localhost / ?mode=sandbox must skip every screen as the sandbox (' + rig.FLYDIY_MODE + ', ' + pages.FLYDIY_MODE + ')');
   console.log("the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held");
 }
+// THE MAP SCREEN'S ROWS (G2253, MAP-MENU; tools/_map_smoke.js): the sandbox shows no MAP entry without ?map=1, nothing of
+// the screen loads before the entry is pressed, the screen's tabs / rows / cards over the contracts fixture, NOHOVER and R1
+// on the new UI; --phone the phone's card and the sheet's gestures
+try { for (const l of require('./_map_smoke.js')(html, PHONE)) console.log('map: ' + l); }
+catch (e) { console.log(e && e.message || String(e)); console.log('GATE ' + (PHONE ? 'UISMOKE-PHONE' : 'UISMOKE') + ': FAIL'); process.exit(1); }
 
 // ---- THE PANELS ARE PLACEABLE AND THEIR CONTROLS STILL PRESS (2026-09-04) --
 // Chrome 148 retargets pointerup and the click after it to whatever element
