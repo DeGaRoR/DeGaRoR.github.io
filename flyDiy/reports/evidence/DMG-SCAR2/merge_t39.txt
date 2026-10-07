@@ -1,9 +1,9 @@
 # A throwaway TEST-MERGE (never pushed) of claude/dmg-scar2 into claude/dmg-integration 895857a6 (the train-39 assembly: TUNE, DRIVE2,
 # D4b's wreck, SKINGPU; DMG-SCAR not in it yet). One conflict: src/core/90_node_exports.js - the union (train 39's GEN_DMG_GROUP / GEN_CERT_FLOOR
 # + the scar's exports); HANDOVER theirs. Built; the gates run there, one process each:
-## GATE DMGWRECK (node tools/run_gates.js --only=DMGWRECK --no-build --jobs=1):
+## GATE DMGWRECK (node tools/run_gates.js --only=DMGWRECK --no-build --jobs=1), the final code:
 GATE DMGWRECK: PASS
-DMGWRECK  PASS   232.2 s
+DMGWRECK  PASS   236.6 s
 ## GATE DMGSCAR (node tools/_dmg_scar_check.js), the final code - the first run on the merge (an earlier commit) was 102/104: two 2J reds on the
 ##   Jodel (a finished chain merged into a live one lost at the next seal; a node's own chain losing to a neighbour's) - both fixed in
 ##   34_scar.js, then this run:

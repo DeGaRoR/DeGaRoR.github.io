@@ -80698,3 +80698,197 @@ onFrame.
 6. DMGWALL's metal nose-in is red on the base (above) - D4b / WALL's to look at.
 7. Jodel circuit outcome reads null in this gate's circuit (the record's 0 contacts is what is checked) - the same lib call DMGINST
    and TREECRASH use; not looked at further.
+
+## G2378-G2382 DMG-SCAR2 - THE SCAR READS AS WHAT HAPPENED: A SLIDE OR A BOUNCE IS ONE FURROW (A CRATER ONLY WHERE A HARD BLOW STOPPED), THE GRASS CLEARED UNDER THE WRECK AS IT LIES, RAGGED RIMS WITH THE SPOIL THROWN DOWN-RANGE, A RUNWAY SCUFF THAT IS DRAWN AND READS; GATE DMGSCAR EXTENDED (2026-10-07, DMG-SCAR2 for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-scar2 off origin/claude/dmg-scar 4575e99f; G2378-G2382 used; target train 43)
+
+READY for the box stills. Damage stays OFF by default (GEN_DAMAGE_DEFAULT untouched; `?damage=1`). **Damage off: nothing exists**
+(no record - null; no hop key; the page makes no decal mesh and never calls the cull: as DMG-SCAR). **Damage on, the solver's bits
+are the base's**: the record reads the contacts, never pushes them (GATE DMGSCAR 3: every case with the record and without,
+the same hash; and 4575e99f's core against this one on the stump case: bf7a7de779a2 both).
+
+What the coordinator's stills showed (7 Oct, 16:25-16:47) and what each was:
+1. **The trail of identical round craters** (the Jodel's wing strike): every slide of a node began with its own BLOW, and every
+   blow over 300 J was a crater at rMin (0.21 m: the "identical" discs); a skipping node made a slide per touchdown (a gap over
+   0.25 s), each too short for a furrow (< 0.3 m) - so only its craters showed. -> **G2378, the join.**
+2. **The wreck still in tall grass**: the cull was exactly the contacts' footprint (strips 0.1-0.5 m wide), not the wreck. ->
+   **G2380, the resting wreck's hulls.**
+3. **No scuff on the runway**: not a strength problem - **the decal was drawn and then hidden**: the runway's ribbon
+   (render_premises.js 1203-1234) is OPAQUE at terrainH + 0.04 m with polygon offset -1 and writes depth (renderOrder 5), its
+   paint over it (transparent, renderOrder 6); the decal stood at terrainH + 0.03 (renderOrder 4, no depth write) - under the
+   ribbon by 1 cm and painted over by the paint. -> **G2381: on hard ground the decal at terrainH + 0.08 (over the ribbon and a
+   pavement side's 0.06-0.08 lift, pavement.js) and the mesh at renderOrder 6.5**, plus the streaks. (The tyres' contact blobs,
+   contact_shadow.js, are at renderOrder 4 + 3 cm too: on a runway they are probably hidden the same way - not touched, Open 2.)
+
+### G2378 - THE JOIN (src/core/34_scar.js scarChains / scarSeal0)
+- The slides (one per node per run of contact, split at 0.25 s off the ground - as DMG-SCAR) are CHAINED in the order they
+  began: a slide continues a chain one of whose slides (any of them, not only its last: a chain handed to a neighbour still takes
+  its own node back) ended at most **joinT 0.5 s** before it began (inclusive: a frame's times) -
+  - **the same node**: on that time gap alone (a bounce; its hop is its own flight - a contact braked by the ground leaves at a
+    speed its slide does not show: the Cub's node 40 slid at 0.4 m/s and came down 2 m on); its own chain always wins over a
+    neighbour's that fits its landing better;
+  - **another node** (a part turning, its lowest point moving to another node): only from a contact still moving (> vHand
+    1 m/s), ahead of it, landing within joinD 1.0 m + joinK 0.3 x the hop of where that contact's speed (frame to frame, kept
+    per slide) would have carried it;
+  - **any join on the line it left**: across that line at most the two contacts' half-widths + merge 0.4 m + **joinL 0.2** x the
+    way along (~11 deg: the heading's error and the part's turn in the air) - a part that comes down beside its track starts a
+    furrow of its own (the first evidence pass drew a strip diagonally across from one track to the parallel one, the "X";
+    the train-39 merge's Jodel node 67 came down 2.8 m beside its 13 m skid after 0.43 s: a new furrow). The line is the slide's
+    own if it slid 0.5 m, else the chain's from its start to that slide's end (a touch of a frame has no heading to trust:
+    one was 31 deg off), else none.
+  Justification of 0.5 s: a bounce's time in the air at a rebound of up to 2.5 m/s (2 vy / g = 0.51 s) - the crashes' skips the
+  gate's reader sees have gaps of 0.08-0.47 s; a longer one (the metal Cessna's 0.95 s, 20 m hop at 23 m/s) is a new furrow.
+- **A chain is ONE gouge**: its path the slides' paths end to end (the hops bridged), its width the contacting part's
+  (SCAR.W of the widest node in it - the member table, GAME as DMG-SCAR) + the spoil, its depth from the friction work the slides
+  recorded over the length they SLID (the hops not counted): d = kP x (sum Wf / sum L) / qP / w - DMG-SCAR's law on the chain.
+  A chain under minL 0.3 m of sliding is no furrow. Parallel chains merge as before (a belly between its longerons), never into a
+  strip wider than it is long (two short scrapes side by side stay two, not a 2.5 m blot: the Jodel's stump had two).
+- **A crater only for a BLOW of eBlow or more that STOPPED**: the approach's work over a slide's first 0.15 s (DMG-SCAR's) >=
+  **eBlow 970 J** = the blow that digs a bowl deeper than the sod (d = r_b / 3 >= sod 0.07 m; V = pi r_b^3 / 6 = E / qB ->
+  E = pi qB (3 sod)^3 / 6, qB 200 kPa as DMG-SCAR), and its contact went on less than **stopK 2 x its bowl's radius** after it
+  (the chain's own length from that slide on, hops counted). A blow on the way (over eBlow or not) is the furrow's: its work
+  goes into the gouge's E. (Was: every slide's first blow over 300 J.)
+- **Carried across a seal**: the D.over seal comes 4 s after the crash while a part may still slide; a chain still live at a seal
+  (its last touch within joinT) keeps its slides into the next event and the next seal REPLACES its prims with the whole chain's
+  (the Jodel's node 92: one 17 m furrow, was two). Carried by MERGE GROUP: a finished chain whose strip or bowl was merged into a
+  live one's is carried with it (else the replacement lost it - the train-39 merge's Jodel lost node 68's furrow that way).
+  The gouge carries `n` (the slides it joins).
+- Selftest switch: `SCAR.join = false` (every slide its own chain).
+
+### G2379 - RAGGED RIMS AND EDGES, THE SPOIL THROWN DOWN-RANGE (src/viewer/ground_scar.js)
+- A deterministic wobble seeded from the primitive (its position hashed): three sines of hashed phase, amplitudes 0.55 / 0.3 /
+  0.15 - round a crater's rim in 3, 5 and 9 lobes (periodic), along a strip's edge at wavelengths 1.9, 1.1 and 0.75 m, each edge
+  its own (0.75-1 x the half-width: `rag` 0.25). The phases hashed once a primitive.
+- **A crater carries `u`, the heading its contact struck on** (the slide's first heading): the rim's outline r0 (0.84 + 0.16 x
+  wobble) round the bowl, and down-range (cos^2 of the angle off u) the spoil thrown up to r0 x throw 0.3 further, turf and clods;
+  the primitive's r includes it (rim x r_b x 1.3) so the footprint and the cull hold it.
+- **A furrow drawn in the order it was ploughed**: faded in at its entry (over half its width), and at the end where it stopped a
+  lip of spoil pushed ahead - two rows, the heap turf-tinted and its ragged front, each column pushed forward h sqrt(1 - u^2) x
+  (0.55-1): inside the capsule's end disc (the footprint). A prop slot fades at both ends.
+- **No texture fetch added, no new program**: the same mesh, material (MATLIB 'glass'), map (the generated soil) - only the
+  vertices and their colours (GATE DMGSCAR 7: links 7 -> 7, program keys 7 -> 7 with the scar laid and drawn and the cull done;
+  the program census below).
+- Cost: three ground reads a vertex (was six: a forward-difference normal, the water test on the height already read); the
+  decal builds in 0.3-25 ms once (the gate's cold builds on the real three; warm on a stub 0.01-2.9 ms against the base decal's
+  0.01-3.3 ms on its own scars).
+
+### G2380 - THE CLEARED SITE (34_scar.js scarHulls / scarRest; cover_ring.js scar as before)
+- Each seal adds the **hulls** `{ k: 'h', p: [x, z, ...] (convex, anticlockwise), m }`: every PIECE of the wreck as it lies (a
+  union-find over the members not broken - the airframe and every piece that came off), the convex hull of its nodes whose bottom
+  is within hSweep 1.2 m of the ground (DMG-SCAR's shrub height), rounded to the cm BEFORE the hull (rounding a hull's corners
+  after folded a short edge inside out - the gate caught it), at most hullPts 16 points (a dropped point widens the margin by its
+  distance from the new chord: the hull + margin still covers every node), **margin mRest 0.75 m**, at most maxHulls 24 pieces
+  (the biggest first). Over water none. A later seal replaces them.
+- **The wreck's rest**: after a seal, every restDt 0.5 s, the largest node speed; under vRest 0.5 m/s (or restMax 10 s after the
+  seal) the hulls are sealed ONCE more where the pieces lie, a new version only if the old hulls do not cover them (a wheel that came
+  off and rolled on: the Cub's centreline had two). Cost: n speeds twice a second for at most 10 s after a crash's seal, in the
+  physics' thread; nothing on an intact flight or with the layer off (rest stays null).
+- The cull (cover_ring.js `scar`, unchanged in kind): scarIn tests the hulls as the footprint - **the grass (kind 'cover')
+  goes under the resting wreck and every debris piece**, the shrubs and the debris under the hulls and the sweep. Once at the event,
+  on the CPU. **scarBoxes**: each primitive's box, computed once an event and tested first (the hulls spread the footprint's box
+  over the whole wreck field: the Jodel's 2.5 m cull went 27 -> 152 ms before it, 19 ms with it; the test 4.4 -> 1.6 us at worst,
+  the answers identical on 1.8 M random points).
+- No decal for a hull (a cleared site: the ground's own texture shows).
+
+### G2381 - HARD GROUND: A SCUFF THAT IS DRAWN AND READS (34_scar.js, ground_scar.js)
+- Still no bowl and no furrow on paved / rock (s 2: d 0). A scuff is the part's own width (no spoil), at least **wScuff 0.4 m**.
+- Drawn as STREAKS: 12 columns across, each its own strength (hashed: 1 or 0.3), wobbling along the slide, dark (SCUFF 0.18 /
+  0.18 / 0.19 x the soil map: ~0.016 linear), alpha 0.85, both ends faded. A blow on hard ground is a streaked patch 1.5 r x
+  1.2 r along its heading.
+- **Lifted over the runway's layers** (above): liftHard 0.08 m, renderOrder 6.5.
+- **Read from the chase camera** (GATE DMGSCAR 2S, the page): the decal's colour (the soil map's mean, linear, x each vertex's
+  colour) at its alpha over the runway's own albedo (ground_tex.js's measured means): it darkens the WWII runway's concrete
+  44 %, worn asphalt 42-43 %, the apron's dirty concrete 52-53 % (alpha-weighted over the vertices that show); its width at the
+  build's viewDist (11.6-15.4 m) through the 46 deg lens at 1080 px: 36-137 px.
+
+### G2382 - GATE DMGSCAR EXTENDED (tools/_dmg_scar_check.js; cases tools/_dmg_scar_lib.js) - PASS 104/104
+New checks (the old 1-7 all kept):
+- **2J the join**: synthetic - a node skipping 8 times at 15 m/s, 0.35 s apart, blows of 600 J: ONE gouge of 8 slides, no crater;
+  with blows of 1.5 kJ on the way and a 3 kJ one that stops: one gouge and ONE crater where it stopped; a lone 3 kJ blow that
+  stops: a crater, no gouge. Real - every SKIPPING run the gate's own reader saw (a node touching down 3+ times, gaps under joinT,
+  each landing on the run's line - the core's rule with the widest contact, read from the samples; over 2 m; its path sampled
+  10 cm apart) lies 80 % or more in ONE gouge with at most one crater on it: 23 runs on the 30 m/s
+  crashes and the stumps, 98-100 % (on the train-39 test-merge 30 runs, all in one gouge).
+- **2H the resting wreck**: at the run's end every piece (the gate's own union-find, gift-wrapped hulls - not the core's code), its
+  corners and a 10 cm grid inside, all inside the grass's cull: 400-1860 points a crash, none out, on every scarred case of the three
+  builds.
+- **2S hard ground**: the runway stump on every build - every primitive hard, d 0, at least 0.4 m; over the runway's layers and
+  after them in order; it reads (above).
+- **2W water**: the Cessna on floats nosed into the water at 35 m/s, sinking 6 m/s, 30 deg down (crashed: 105 breaks): 0
+  primitives - no decal, no cull.
+- The 30 m/s crashes and the stump run 12 s (were 8): the wreck comes to rest in the run (its rest's hulls sealed).
+- **`--selftest`**: the gate with the record off - red on the scar checks (1, 2, 4, 5); and the gate with the join off
+  (`--join-off`, SCAR.join false) - red on the join's checks: the synthetic skid becomes 8 gouges of 1 slide (and 8 craters,
+  the polka dots, in the hard-blow version), the Cub's centreline skipping run falls to 67 % in one gouge: **SELFTEST PASS**
+  (reports/evidence/DMG-SCAR2/selftest.txt).
+- REPORTs: per case the join's counters (the last seal: slides, chains, joined, blows over eBlow stopped / on the way, gouges,
+  hulls), the wreck's pieces and hull area, the cull, the decal.
+
+### THE SIX CASES OF THE STILLS (reports/evidence/DMG-SCAR2/<build>_{fly25,stump}.svg: before / after, whole and a 14 m zoom)
+| build | case | BEFORE (DMG-SCAR): craters / gouges (+ slot) | AFTER: craters / gouges (+ slot) / hulls | decal tris before -> after |
+|---|---|---|---|---|
+| Cub | 30 m/s trunk 2.5 m out | 8 / 10 + 1 | 0 / 11 + 1 / 7 | 7114 -> 7764 |
+| Cub | 12 m/s stump, runway | 1 / 4 + 1 (a scuff hidden under the ribbon) | 0 / 1 + 1 / 1 | 674 -> 712 |
+| Jodel | 30 m/s trunk 2.5 m out | 5 / 14 + 1 | 1 (the wing's 1 kJ blow that stopped) / 11 + 1 / 6 | 4738 -> 6532 |
+| Jodel | 12 m/s stump, runway (it flips) | 3 / 8 + 1 | 0 / 13 + 1 / 6 | 1096 -> 2169 |
+| metal Cessna | 30 m/s trunk 2.5 m out | 6 / 11 + 1 | 0 / 9 + 1 / 6 | 6576 -> 10780 |
+| metal Cessna | 12 m/s stump, runway | 1 / 1 | 0 / 1 / 2 | 500 -> 452 |
+The stump: TREE-CRASH's taxi rig (atTrunk, D 8 m, V 12 m/s) into a trunk 0.35 m high of the standard trunk's 0.3 m radius, the
+ground PAVED everywhere (a new lib hook: atTrunk `surface`). With a 0.15 m radius the metal Cessna's gear broke and nothing else
+touched (no scar at all) - the 0.3 m stump noses all three over.
+The metal Cessna's centreline crash keeps 8 craters (blows over 970 J that stopped: pieces coming down and staying); not a trail.
+
+### MEASURE (GATE DMGSCAR's REPORTs, the final run; the page on the gate's ring, the fake GL; cold, once at the event)
+- The cull: 0.6-18 ms (DMG-SCAR: 0.2-27); the decal: 0.3-25 ms (DMG-SCAR: 0.3-26); together at worst 42 ms (the metal Cessna's
+  2.5 m: 17 + 25; DMG-SCAR's worst 46: its centreline 20 + 26). Per frame after: nothing (gate 7: a frame after the event uploads
+  what a frame before the crash did, 16). The decal's build on equal footing (warm, a stub three, each tree's own scars): base
+  0.01-3.3 ms, this tree 0.01-2.9 ms.
+- The decal: up to 10 800 triangles / 362 KB (DMG-SCAR up to 7136 / 236 KB): one transparent draw while in view - longer joined
+  strips, the rims' 28 segments, the scuffs' 12 columns. The box's GPU time for it is the coordinator's to read.
+- The hop: 177-3491 B a sealed version (the hulls added: DMG-SCAR 78-2061).
+- **The seal, in the physics (the worker's thread by default), once an event**: in isolation, warm, a whole crash's seals - the
+  Cub's 2.5 m 3.3 ms over 3 seals, the Jodel's centreline 2.7 over 3, the metal's centreline 4.3 over 4; the base's 2.3 / 1.3 /
+  0.8 over 2-3 (about 1 ms a seal against 0.5: the chains, the hulls' union-find). In the gate's runs (cold, two gates side by
+  side) 0.8-14.6 ms a crash. The first version merged the chains on their raw paths (16 ms a crash): simplified before the merge.
+- The record's step, the 2.5 m crash, with / without (median of 3 alternated, two gates side by side): Cub 15.32 / 14.03, Jodel
+  16.15 / 15.89, metal 13.72 / 14.46 ms a frame - noise both ways (the record per substep is DMG-SCAR's, unchanged).
+- The rest re-seal: n speeds twice a second for at most 10 s after a crash's seal (physics thread) - nothing otherwise.
+
+### PROGRAM CENSUS (reports/evidence/DMG-SCAR2/program_census.txt)
+- **tools/program_census.js could not run here**: on the cloud's SwiftShader the page reached the shed at 132 s and the roll-out
+  never lifted (killed after 52 min) - as the brief says, the cloud cannot render the world. **The box census (damage on / off,
+  before / after) is the coordinator's to shoot.**
+- The same count in node on the scar's own objects (tools/dmg_scar2_census.js, new: the real three r186 over the fake WebGL2, a
+  lit / shadowed / fogged scene with a ground): base 4575e99f and this tree, damage OFF - 1 link, 1 key, the same; damage ON - 2
+  links, 2 keys at the roll-out (the decal's, parked and linked with the scene), the six cases' scars laid and drawn in turn
+  (the base's 20 844 triangles, this tree's 26 488) -> still 2 / 2, the same keys in both trees. GATE DMGSCAR 7: links 7 -> 7.
+- Nothing in the decal's material or object state changed; renderOrder (4 -> 6.5) and the vertex lift are not in a program key.
+
+### THE BATTERY (reports/evidence/DMG-SCAR2/battery.txt; one process and one log per gate, the final code 431d74d8)
+- **DMGSCAR 104/104 PASS** (+ selftest PASS), **DMGSKIN, DMGFPS, TREECRASH, UISMOKE, BOOT, BUILD: PASS**.
+- **DMGWRECK is not on this branch** (it lives on claude/dmg-integration 895857a6, the train-39 assembly, which does not hold
+  DMG-SCAR yet). Run on a throwaway TEST-MERGE of this branch into 895857a6 (never pushed; one conflict - 90_node_exports.js, the
+  union of train 39's GEN_DMG_GROUP / GEN_CERT_FLOOR and the scar's exports): **DMGWRECK PASS, and GATE DMGSCAR 104/104 there**
+  (merge_t39.txt). That merge's first DMGSCAR run (an earlier commit) found the two join bugs above (102/104) - fixed.
+- **Damage off, byte for byte**: UISMOKE / BUILD / BOOT run as files on the base worktree (4575e99f) and here - every stdout line
+  identical (off_bytes.txt). The page with damage off makes no decal mesh and never calls the cull (as DMG-SCAR).
+- Not run: the full tier, GATE PROGRAMS / FRAMECOST (the page with damage off reads nothing new), the box.
+
+### Every number with no source (GAME)
+joinT 0.5 s, joinD 1.0 m, joinK 0.3, joinL 0.2, the 0.5 m a line needs, vHand 1.0 m/s, stopK 2, throw 0.3, mRest 0.75 m, maxHulls 24, hullPts 16, vRest 0.5 m/s,
+restDt 0.5 s, restMax 10 s, wScuff 0.4 m; the decal's seg 28, rag 0.25, acrossHard 12, scuffA 0.85, SCUFF 0.18/0.18/0.19, the
+streaks' 1 / 0.3, the wobble's amplitudes 0.55/0.3/0.15, lobes 3/5/9 and wavelengths 1.9/1.1/0.75 m, the lip's 0.55-1, liftHard
+0.08 m (from pavement.js's 0.06-0.08 and the ribbon's 0.04 - measured in the source, the choice GAME), renderOrder 6.5; the gate's
+thresholds - 80 % in one gouge, 2 m and 3 touchdowns for a skipping run, 30 % darkening, 10 px, the 10 cm grid; the stump's 0.3 m
+radius (TREE-CRASH's standard trunk) and 0.35 m height (the coordinator's). AS RECALLED: sod 0.07 m (a turf's root zone, 5-10 cm)
+-> eBlow 970 J. Measured, not chosen: the runway albedos (ground_tex.js means), viewDist (the game's), the lens 46 deg (app.js).
+All of DMG-SCAR's numbers stand (qB, qP, kP, rim, spoil, eArm, the width table, blade, hSweep).
+
+### Open (the coordinator / A0)
+1. **The box stills**: ?damage=1, the Jodel's 30 m/s wing strike and a runway nose-over; window.FLYDIY_SCAR as before. Look at: the
+   furrows' continuity over the skips; the cleared site round the wreck from the chase camera (mRest 0.75 m - a tuft's lean; it may
+   want more for tall reeds); the runway scuff (it should now be ON the runway, not under it); the ragged rims / the spoil lip.
+2. **The tyres' contact blobs** (contact_shadow.js: renderOrder 4, a few cm up) are probably hidden on runways the same way the
+   scuff was - not touched here (not this task's file); one line if wanted: their order over 6 and their lift over 0.04.
+3. A hull's margin is the same on every side; a wreck on its back over long grass may want a wider margin in its lee.
+4. The metal Cessna's centreline: 8 stopped craters - pieces coming down; if the stills read them as dots, stopK or eBlow is the dial.
+5. Not kept per site (as DMG-SCAR); the trees untouched (as DMG-SCAR); DMGWALL's base red (as DMG-SCAR).
