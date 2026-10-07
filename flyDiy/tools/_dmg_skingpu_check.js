@@ -37,6 +37,24 @@ const SV = require(path.join(ROOT, 'src', 'viewer', 'sim_view.js'));
 const TOL_P = 1e-4, TOL_N = 1;                          // m, degrees (the coordinator's bound for READY)
 const BRK_BIND = 1500;                                  // places a frame (the page's 4000 is for ~85k places; the measured skin is ~20k)
 const TEAR_FRAMES = 3;                                  // the page's TEAR_EVERY 0.05 s at 60 Hz
+// (train 39, the coordinator's ruling: ONE GPU SAMPLING PERIOD - a tear check every TEAR_FRAMES frames on a read-back one
+// frame old - is the longest a live edge may stand past the bound on the GPU path, and a miss must be such a transient)
+const PERIOD_G = TEAR_FRAMES + 1;
+function overRun(R, run, maxRun) {
+  const i0 = R.idx0 || R.idx, dead = R.dead, base = R.baseD, pos = R.w, k1 = 1 + SB.TEAR, ab = SB.TEAR_ABS; let mx = 0;
+  for (let t = 0; t < R.nt; t++) {
+    if (dead && dead[t]) { run[t] = 0; continue; }
+    let o = false;
+    for (let e = 0; e < 3 && !o; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
+      const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
+      const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
+      if (!(l <= k1 * r + ab)) o = true; }
+    run[t] = o ? run[t] + 1 : 0;
+    if (maxRun && run[t] > maxRun[t]) maxRun[t] = run[t];
+    if (run[t] > mx) mx = run[t];
+  }
+  return mx;
+}
 const MIRROR_EVERY = 6;
 const SEVERE = { V: 50, sink: 10, pitch: 60, secs: 4 }, WATER_SEVERE = { V: 150 / 3.6, sink: 10, pitch: 60, secs: 4 };
 const ALL = ['cub', 'jodel', 'metal', 'floats', 'twinFloats'];
@@ -178,7 +196,9 @@ if (argv[0] === '--build') {
           const t0 = process.hrtime.bigint(); SB.poseCage(R, restD, sim.p, R.baseD, r.C.P, NF, down, null, X); S.ms.pose += ms(t0);
           if (tearDue(R)) { R.tearF = s; const t1 = process.hrtime.bigint(); SB.tear(R, R.baseD, R.w); S.ms.tear += ms(t1); S.checksC++; }
           const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessC) S.excessC = ws.ex;
-          for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.C.firstTorn[t] < 0) r.C.firstTorn[t] = s; }
+          for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.C.firstTorn[t] < 0) r.C.firstTorn[t] = s;
+          if (!r.C.run) r.C.run = new Uint16Array(nt);
+          S.runC = Math.max(S.runC || 0, overRun(R, r.C.run, null)); }
         // THE GPU'S: the stale places packed as skin_gpu.js packs them; a places pass read back the frame after it ran
         const R = r.G.R; if (!R.active) continue;
         { const t0 = process.hrtime.bigint(); const [r0, r1] = SG.packStale(r.Dm, SB, restD, () => R.baseD); if (r1 > r0) S.ms.pack += ms(t0); }
@@ -247,6 +267,8 @@ if (argv[0] === '--build') {
         }
         const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessG) S.excessG = ws.ex;
         for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.G.firstTorn[t] < 0) r.G.firstTorn[t] = s;
+        if (!r.G.run) { r.G.run = new Uint16Array(nt); r.G.maxRun = new Uint16Array(nt); }
+        S.runG = Math.max(S.runG || 0, overRun(R, r.G.run, r.G.maxRun));
         // ...the places pass, at the frame's end (skin_gpu.js frame): every place's world position, the shader's places mode
         if (r.wantW && !r.pend) {
           SB.packNodes(NF, sim.p, n, cg, ND);
@@ -260,7 +282,8 @@ if (argv[0] === '--build') {
       for (let t = 0; t < r.m.g.nt; t++) {
         const fc = r.C.firstTorn[t], fg = r.G.firstTorn[t];
         if (fc >= 0) S.tornC++; if (fg >= 0) S.tornG++;
-        if (fc >= 0 && fg < 0) { if (r.G.R.dead[t] === 0) { S.missed++; S.missedAt = S.missedAt || []; if (S.missedAt.length < 6) S.missedAt.push({ mesh: r.m.nm, t, frame: fc }); } else S.goneOther++; }   // (a miss: still drawn on the GPU path; gone by an event instead - removed on two pieces - is not one)
+        if (fc >= 0 && fg < 0) { if (r.G.R.dead[t] === 0) { S.missed++; const mr = r.G.maxRun ? r.G.maxRun[t] : 0; S.missRun = Math.max(S.missRun || 0, mr);
+          S.missedAt = S.missedAt || []; if (S.missedAt.length < 6) S.missedAt.push({ mesh: r.m.nm, t, frame: fc, overFramesGpu: mr }); } else S.goneOther++; }   // (a miss: still drawn on the GPU path; gone by an event instead - removed on two pieces - is not one)
         else if (fc >= 0 && fg > fc) { S.late++; S.lateMax = Math.max(S.lateMax, fg - fc); }
         else if (fg >= 0 && (fc < 0 || fg < fc)) S.early++;
       }
@@ -314,10 +337,14 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       // (train 39: both tears are SAMPLED - the CPU's every TEAR_FRAMES on the frame's positions, the GPU's from half that on
       // the read-back a frame old: an edge past the bound only between the GPU's samples is torn by one and not the other.
       // A miss is held to 5 % of the CPU's tears (and 3 at least); tearPlaces = tear() on the same positions by construction)
-      yes(S.missed <= Math.max(3, 0.05 * S.tornC) && S.lateMax <= 2 * TEAR_FRAMES + 2,
+      // ...and (the coordinator's conditions for 39) every miss a transient: on the GPU path its edges stood past the bound
+      // no longer than one GPU sampling period; no live edge past the bound longer than that period on either path; a tear
+      // the GPU path makes later than the CPU's, within it
+      yes(S.missed <= Math.max(3, 0.05 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G,
         'the tear on the read-back places: ' + S.tornG + ' torn (the CPU\'s full tear ' + S.tornC + '): ' + S.missed + ' it tore that this still draws (' + S.goneOther + ' more gone here by an event instead), ' + S.late + ' later (up to '
         + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)'
-        + (S.missedAt ? '; misses (sampled between the read-backs) ' + JSON.stringify(S.missedAt) : ''));
+        + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'
+        + (S.missedAt ? '; misses (transients between the read-backs, past the bound at most ' + (S.missRun || 0) + ' frames on the GPU path) ' + JSON.stringify(S.missedAt) : ''));
       const f = (x, k) => (x / Math.max(1, k)).toFixed(2);
       console.log('    the cost (node): a check - the full tear ' + f(S.ms.tear, S.checksC) + ' ms (' + S.checksC + '), on the read-back places ' + f(S.ms.tearPl, S.checks) + ' ms (' + S.checks + '); packing the stale places '
         + S.ms.pack.toFixed(1) + ' ms in all; the CPU riding (what the GPU now does) ' + f(S.ms.pose, S.frames) + ' ms a frame; the nodes\' frames ' + f(S.ms.nodes, S.frames) + ' ms a frame; the events ' + S.ms.event.toFixed(1) + ' ms in all');
