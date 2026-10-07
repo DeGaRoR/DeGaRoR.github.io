@@ -221,7 +221,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
     check(F.minWing >= 1.5, '9 ' + B.name + ' wing kept 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
-    console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + '), ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
+    console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
   }
 }
 

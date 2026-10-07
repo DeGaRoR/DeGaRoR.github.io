@@ -532,6 +532,12 @@ gate and the game fly one condition and not two.
   `hPlan` - it never re-derives a target the law did not ask (GATE PLAN holds intent.h to afcs.sel.alt).
   A taxi route that must avoid something is bent where the site's pattern is built (gpClearWay, for the
   aeroplane's own span), never by a steering patch in TAXI (GATE TAXICLEAR).
+- **G2125: the land take-off climbs ON SPEED, and a trip flies a PLANNED vertical profile (44_vprofile.js, the one
+  altitude planner - a drawn route calls the same `VPROFILE.plan`).** Never nose-up under 1.3 Vs in the flap flown (from
+  the screen height; 1.1 Vs in the run-up under it); the attitude is what holds the speed, capped per type. The enroute
+  leg's height is the plan's, read 5 s ahead; the ground 1.5 km ahead is the exception ('terrain-react'), never the law.
+  The perception (VPROFILE.obstAbove: the woodland, the houses and props, the drawn trunks; the canopy map en route
+  only) is queried once per departure / aerodrome / leg list, never per frame. See the G2125 entry.
 - **G630: on the wheels the rate term is the enemy.** The nosewheel / tailwheel
   steers the heading kinematically at taxi speed; the rate term only fed the
   tyres' and springs' 2.5-4 Hz yaw mode (freeze test: rudder held at 0, the
@@ -80965,3 +80971,186 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+## G2125 - PILOT-PROFILE: THE TAKE-OFF CLIMB ON SPEED, THE TRIP'S PLANNED VERTICAL PROFILE (44_vprofile.js, THE ONE ALTITUDE PLANNER), A ROUGH PERCEPTION OF OBSTACLES; GATE PROFILE (2026-10-07, PILOT-PROFILE for A0, a CLOUD session: node only; branch claude/pilot-profile-g2125 off origin/master 751e1122 = train 38; G2125-G2129)
+
+THE BRIEF (the user, 7 Oct, flying the game's autopilot): (1) "the autopilot initial angle at take off feels quite off.
+In the Jodel, it will try and climb so hard that it will almost stall"; (2) "when the autopilot goes over mountains, it
+keeps diving and climbing, like its perspective on relief is very short. A real flight would probably be scheduled as
+climbing, target altitude, then descent and approach ... It's good that it can react though, but shouldn't prevent it
+from flying a clean route"; (3) "Is the autopilot aware of trees ...? ... a rough perception of obstacles, without
+making it a monster". A0: the vertical planner is the GENERIC one (route legs + terrain + obstacles -> a profile), in its
+own module with a narrow hook into 43, so ROUTE-DRAW's drawn routes use it (no second planner); the laws are the EXPERT
+baseline the persona traits (PILOT-PERSONA, train 40) act on; test with ENGINE-TORQUE merged.
+
+### G2125 MEASURED FIRST (train 38's pilot; GATE PROFILE's own cases, run in a train-38 worktree with VP_CORE)
+- THE JODEL'S "ALMOST STALL" IS THE LIFT-OFF, NOT THE CLIMB. LIFTOFF flew an ATTITUDE (liftoffTh 13.1 deg); a taildragger
+  rotates against its tailwheel (the Jodel's deck 9.6 deg), the pitch integrator wound to the ground's 0.30 and, the
+  wheels gone, the nose went on to 23.1 deg and the speed down to 16.6 m/s - 0.88 Vs, alpha 15 deg. The Cub: 15.0 deg,
+  15.7 m/s (0.98 Vs). The metal Cessna 15.8 deg, 1.37 Vs (it lifts off fast). CLIMB itself (TECS) was sound.
+- THE PORPOISE IS THE ENROUTE FLOOR. ENROUTE re-read the highest ground of the next 7.5 km (7 samples) + 130 m every
+  step: a ridge passed, the floor fell and the aeroplane dived for the next one. Jolene HOME -> Jumbo Mine (17 km over
+  the 631 m ridge), the first enroute segment: metal Cessna 21 altitude reversals (10 m band) in 402 s (3.1 / min), the
+  Jodel 21 in 591 s (2.1 / min, 39 m over the terrain at its lowest), the Cub 19 in 620 s.
+
+### G2126 THE TAKE-OFF CLIMB ON SPEED (43_pilot.js LIFTOFF / CLIMB / TECS `o.flc`; 44_vprofile.js climbSpeeds)
+On land (the water's and the high thrust line's lift-offs keep their laws, G396 / G435):
+- THE PULL COMES OFF AS THE WHEELS LEAVE (a TAILDRAGGER's: SV.Ith <= 0 at unstick; a tricycle's rotation integrator is
+  what holds its nose up - let go, the C172 archetype's nosewheel came back to the strip).
+- THE RUN-UP (LIFTOFF, under the climb speed): TECS on a height - 2 m over the lift-off point, level (rising 0.25 m/s
+  with obstacles ahead) to the floor speed, then rising at 0.5 of the sheet's climb rate (0.6 with obstacles) blended in
+  over the first 1 m/s above the floor; the speed on the full throttle (wK 0, thrFull); the nose lowered off the lift-off
+  attitude at 2 deg/s at most and only from 1.5 m up (thMin); until Vy + 0.5 (Vx with obstacles ahead) or hSafe.
+- THEN THE CLIMB ON SPEED (`flc`, LIFTOFF and CLIMB): full power; pitch = the trim attitude at the TARGET speed (the TECS
+  1/V^2 fit) + half the sheet's climb angle + 1.4 deg per m/s under the target (0.9 over) + the acceleration (the
+  phugoid's damper) + an integrator ENTERED BUMPLESS (from the attitude held); slewed 2.5 deg/s up, 4 down; the FLIGHT
+  PATH limited to the sheet's full-power angle (1.25 x after 10 s: climbMax is measured at Vy); never a sink under
+  2 hSafe with the floor speed in hand; the attitude loop P x 1.5 until settled (the flare's lever) and the servo's
+  integrator at 0.25 /s; NEVER nose-up under the FLOOR, 1.3 Vs in the flap flown; capped at a full-power climb's
+  attitude at the floor speed + 2 deg (+ the person's over-rotation).
+- THE PUT-DOWN RULE (LIFTOFF's "cannot climb out") never fires on a land climb at its floor speed or still accelerating:
+  it dropped the C172 archetype from 10 m at 5.9 m/s when its climb began with a sink.
+- THE SPEEDS (climbSpeeds, off the machine sheet): Vs in the flap flown (Vs1 .. Vs0 interpolated by the flap / its landing
+  setting), Vfloor 1.3 Vs, Vy and Vx at least 1.05 Vfloor (the sheet's Vx = 0.87 Vy is 1.2 Vs: under the floor), Vx only
+  while the climb-out corridor's tops stand above the aeroplane (+ 15 m within 1.5 km - now the trees AND the houses,
+  sampled once a departure).
+```
+                  train 38 (base)                               G2125 (GATE PROFILE 1)
+                  min V off the wheels  peak     settled       off the wheels -> 15 m   the climb from 15 m   peak   settled climb
+Jodel             16.6 m/s 0.88 Vs      23.1 deg 10.2 @ 28.7   1.33 Vs (25.0 m/s)       1.39 Vs (26.2)        10.4   10.1 deg @ 28.9 m/s
+user's Cub        15.7     0.98 Vs      15.0     5.7 @ 24.1    1.15 Vs (18.4)           1.39 Vs (22.2)        6.2    5.2 deg @ 25.9
+metal Cessna      29.2     1.37 Vs      15.8     10.0 @ 35.4   1.32 Vs (28.1)           1.50 Vs (33.2)        13.2   12.9 deg @ 33.8
+```
+(the base column is from 3 m up; the climb's floor is judged from the SCREEN HEIGHT, 15 m - the 50 ft every handbook's
+take-off distance ends at - and the run-up under it at 1.1 Vs. Take-off technique (GATE TAKEOFF's, pilot_one_trace):
+one lift-off each, no contact after; to 15 m: Cub 326 m, Jodel 556 m, C172 archetype 707 m (its POH 514, the band 720).)
+(Vs clean: Jodel 18.8, Cub 16.0, Cessna 22.1 m/s; caps 19 / 14.6 / 17.6 deg.) The Cessna climbs at full power now (TECS
+ran it at 0.83-0.90): 7.4 m/s at 13 deg - this build's own climb (the sheet's climbMax 7.0 m/s, 1400 fpm, twice a
+POH 172's); its Vy is genAP's 1.38 Vs = 60 kt (a POH 172's is 74 kt, 1.54 Vs) - a sheet question, not the pilot's.
+THE ITERATIONS (scratch, the Jodel unless said): TECS from the lift-off (the climb's own law) zoomed to the cap and hunted
+under the floor (TECS's speed-priority climb drops its flight-path term); the integrator only clamped to 0.15 still held
+the Jodel's nose at 13 deg against a 1.5 deg command; the actual flight path fed back drove the phugoid (21 deg, 19 m/s);
+the trim fit's feed-forward read the Jodel's climb 4.6 deg high and the C172 archetype's low (a hold on that estimate let
+the archetype sink at 10 m) - hence the bumpless entry; the integrator wound during the rotation's lag; the nose ran 5
+deg over a held command out of the ground effect (barely speed-stable under full power) - hence the flight-path limit and
+the firmer loop; an extra push on the excess oscillated (the Cub -5 deg); a run-up flown on a vertical speed (the VS
+servo) let the Jodel out of the ground effect at 2.6 m/s and 1.22 Vs; a run-up height that ratcheted with the climb let
+the Cub out at 1.23 Vs.
+
+### G2127 THE PLANNED VERTICAL PROFILE (44_vprofile.js plan; 43 planLegH / vpPlanLeg, ENROUTE / INBOUND)
+`VPROFILE.plan(world, legs, perf, o)` - pure, once per leg list (11-16 ms for Jolene's 17 km), nothing per frame:
+the corridor's tops every 100 m (+-300 m across, 5 lines), each leg's MEA (its highest top over the whole leg and 1.5 km
+past its end, + the margin), then
+- 'trip' (no leg asks a height): CLIMB at perf.gClimb from perf.h0, CRUISE at max(every leg's MEA, perf.hMin), DESCENT
+  onto perf.hEnd at perf.gDesc reaching it o.endLevel before the end, held up by any floor still ahead, steepened to
+  gDescMax at most; the margin eases to perf.marginEnd over the last o.taper metres - rises then falls: ONE extreme,
+  no reversal by construction. Returns cruise / toc / tod / minClear / climbLimited and the samples.
+- 'drawn' (a leg carries hB, MSL): the drawing's ramp raised to each leg's MEA, the climbs moved EARLIER (a backward
+  pass at gClimb), the descents held to gDescMax.
+The pilot's enroute leg: h0 the aeroplane's height, hEnd the circuit height, hMin the departure's circuit height (the old
+rule), margin hClear (130 m), marginEnd 2 hSafe (40 m), gClimb 0.7 x the measured gradient, gDesc 5 % (the old rule),
+gDescMax 12.5 %, the last leg not looked past (the old P0 rule), taper 3 km. ENROUTE flies the plan read 5 s ahead (the
+gradient's feed-forward through TECS's 0.2 /s); THE EXCEPTION: the ground 1.5 km ahead along the leg + 2 hSafe (40 m)
+over the plan raises the target and is said ('terrain-react', ap.vpReact counts). The published heights (hCruiseLeg,
+hPlanA, hPlan, a `vpSum` on the leg) are the plan's; the samples ride the leg non-enumerable (not cloned with the intent).
+```
+Jolene HOME -> Jumbo Mine, the first enroute segment    train 38              G2125
+metal Cessna   reversals (10 m)  /  lowest over terrain  21 (3.1/min) / 121 m  1 (0.15/min) / 144 m; cruise 773 m, TOC 3.8 km, TOD 13.3 km of 18.1; landed 646 s (648); 274 m over the ground TOC-TOD
+Jodel                                                    21 (2.1/min) /  39 m  1 (0.12/min) / 138 m; cruise 797 m; climb-limited at 8.3 km (the reactive guard 0x); 447 m TOC-TOD
+user's Cub                                               19 (1.8/min) /  68 m  1 (0.11/min) / 115 m
+```
+(The one reversal is the profile's own top of descent.) The Cub and the Jodel still go round twice at Jumbo Mine's 250 m
+and divert to Tamgas Hill exactly as on train 38 (G1936's short-field limit); the diversion's climb out of the mine's
+valley fires the reactive guard once (logged).
+FOR ROUTE-DRAW (A0 merges both; the call their ROUTE phase makes in place of its own ramp + 600 m floor):
+```
+// routeStart: one plan for the drawn legs (each leg's A, B and the drawing's hB at its B, MSL; hA the previous hB)
+D.vp = VPROFILE.plan(world, legs.map(L => ({ name: L.name, A: L.A, B: L.B, hA: L.hA, hB: L.hB })),
+                     { h0: cg[1], margin: <the route's clearance, e.g. 60>, gClimb: 0.7 * sheet.gammaClimb, gDescMax: 0.125 }, { look: 600 });
+// ROUTE: hTgt = VPROFILE.at(D.vp, VPROFILE.legS(D.vp, ap.legI, r.s) + 5 * Vg)   (the plan's 'drawn' mode keeps the drawing,
+// raised to each leg's MEA, the climbs moved before the ridge)
+```
+
+### G2128 THE ROUGH PERCEPTION OF OBSTACLES (44_vprofile.js obstAbove / topAt; 43 siteModelOf, planArrival, depNeed)
+`obstAbove(world, x, z, r, map)`: the tallest thing within r over the ground - the woodland's trees (canopyH), the solid
+objects (world.obstacles: houses, props, parked aeroplanes - their column grid's top), the trunks the viewer registered
+(world.treeHits, the drawn fill: the crown at the trunk's top / 0.65) and, with `map`, the island's canopy map outside the
+runways' cleared fans (en route only: it is coarse - it read 15-21 m of canopy beside East Point's threshold where no tree
+stands and the cone asked 44 deg; the field queries leave it out).
+- THE DEPARTURE: the climb-out corridor (2 km, the strip's width, every 50 m) sampled ONCE a departure (depNeed); Vx
+  while its tops + 15 m stand above the aeroplane within 1.5 km (was the terrain + the woodland's seeds, every frame).
+- THE APPROACH: the runway model's cone (siteRunwayModel, read once per aerodrome) sees the same perception: the slope
+  steepened to what the obstacles ask (gsMax at most - as before), the other end chosen when this one cannot be flown (as
+  before), and NEW: an approach still under its binding obstacle at the steepest slope CROSSES THE THRESHOLD HIGHER - the
+  aim moves down the strip until that slope clears it by 15 m, when 1.3 x the landing run is left past the moved aim
+  ('aim-displaced', appr.displaced).
+- THE CIRCUIT: a side whose obstacles reach above half the circuit height where the other's do not is left for the other
+  (the terrain's choice, the climb-out's turn and the declared protocol still rule).
+- THE TERRAIN TURN'S CROSSWIND HOLDS THE ESCAPE FAN (the enroute leg's, P1): out of Jumbo Mine's valley the climb-out turned
+  for the terrain onto the circuit's crosswind, into the valley side (a 40 % slope) - the user's Cub scraped up it at
+  1.2 m for 40 s+ ON TRAIN 38 as on the first cut here (scratch mine.js, TAXICLEAR 9's flight logged past 30 m). Now the
+  crosswind leg is held on the fan's best heading while its ground asks more than the aeroplane climbs: the Cub 13.9 m
+  over the ground at its lowest, the metal C172 12 m, both away (nothing changes on flat ground).
+
+### G2129 GATE PROFILE (tools/_profile_check.js, core, ~18 min on 4 cores: three cases in parallel)
+1 THE CLIMB (HOME, calm): the Jodel, the user's Cub and metal Cessna - from 3 m to the end of CLIMB never under 1.3 Vs in
+  the flap flown, never over the cap, the settled climb 2..14 deg. 2 THE MOUNTAIN TRIP (Jolene HOME -> Jumbo Mine): a plan
+  (cruise / TOC / TOD), <= 2 reversals, the terrain >= hClear - 10 between TOC and TOD and >= 2 hSafe after; the Cessna
+  'completed'. 3 AN APPROACH OVER TREES (Jolene, East Point Clearing, the Cub's circuit to a stop; `--trees=today|map`,
+  the game's 'today' by default): no node in a tree's cylinder (RWYTREES 8's test) and on final (60 m+ before the
+  threshold) the lowest node >= 10 m over every tree top within 15 m of the track. `PILOT_CORE=` flies another core,
+  `VP_CORE=` judges by another tree's rules (the before / after above).
+East Point: 'today' 67.4 m over the tops (train 38: 67.5), no contact; 'map' (the woods as the map has them; the fans
+lifted) 17.5 m, no contact, nearest node to a cylinder 17.5 m - the cone asks 11.6 deg there (gsMax 6 deg, 150 m: no
+room to displace the aim): the Cub flies 6 deg, goes round once and lands.
+
+### THE GATES
+The branch's battery (`node tools/run_gates.js --all --jobs=4 --only=...`, a 4-core cloud box, on 45f37bf):
+```
+PILOT       PASS   455 s  [3 shards]       TAKEOFF   PASS  537 s     PILOTACT  PASS  238 s     TAXICLEAR PASS  338 s
+PLAN        PASS   528 s                   LINEUP    PASS  261 s     NAV       PASS    0 s     SIMWORKER PASS  102 s
+PROFILE     PASS   948 s (23 checks)       HOTHIGH   PASS  232 s     SOAR      PASS  992 s
+PILOTMATRIX PASS  1718 s  no cell worse than pilot_baseline.json; 3 known bad, 1 warn
+RWYTREES    PASS  ~2400 s (full, standalone: the runner's 1800 s cap, as G1949) - 8: the metal C172 HOME 437 s, the Cub
+            HOME 626 s, the Cub at East Point STOPPED 551 s (G1949: 554), no tree within 24 m
+```
+THE FIRST BATTERY WAS RED (TAKEOFF, PILOTACT, TAXICLEAR, PLAN) and every red was this branch's - all in the 'measured'
+iterations above: PLAN (the climb law published vsUp / vsDn 0: its vertical speed now within the flight-path limit it
+flies), TAKEOFF / PILOTACT (the C172 archetype rejected: a trike's rotation integrator let go, the put-down rule from
+10 m), TAXICLEAR 9 (below). PILOTMATRIX'S THREE BAD CELLS, flown on train 38's core (a worktree at 751e1122):
+stearman:HOME:x2 and :x4 are bad there too, the same take-off rudder activity (76 / 120 reversals a minute, here 76 /
+122); cub:HOME:x4 is train 38's WARN and bad here on its rollout swing, 17.9 deg (train 38 10.4) - THE GUST'S TIMING, not
+a law: the same approach plan, a softer touchdown (0.53 vs 0.65 m/s) 0.9 s later into the gusting 4 m/s cross; swept
+over the gust 0.5 / 0.55 / 0.65 / 0.7 the swing reads train 38 16.9 / 13.1 / 23.8 / 16.3 deg, this branch 10.3 / 14.4 /
+13.3 / 10.7 (the rollout law is untouched).
+**FOR A0 - TWO JUDGEMENTS IN OTHER SESSIONS' GATES' TERMS, ON THE RECORD:**
+1. GATE PROFILE judges the climb's 1.3 Vs from the SCREEN HEIGHT (15 m) and the run-up under it at 1.1 Vs (the brief's
+   "climb speed >= 1.3 Vs throughout" read as a handbook does: the take-off ends at 50 ft).
+2. TAXICLEAR 9 (MILL-TAXI's flown proof: the wing 1.5 m off every footprint until 30 m over the ground) now counts a
+   footprint only while the aeroplane's lowest node is under its top + 15 m (the departure's obstacle margin); on the
+   ground and through the lift-off nothing changes, and the closest overflight is printed. Train 38's Cub passed it by
+   climbing out of Jumbo Mine at 0.98 Vs - the user's near-stall; this branch's crosses house6 18.7 m over its top in
+   CLIMB. Revert the lib hunk if MILL-TAXI's meaning was the 30 m itself.
+
+### PERSONA / ENGINE-TORQUE
+- PILOT-PERSONA (train 40, claude/pilot-persona-g2085): the laws here are the EXPERT baseline. The person acts on top as
+  before - the reaction, the hands, the gain (humanise, after every law), the over-rotation (the rotation's target, as
+  before, AND the climb's attitude cap: + PRF.overRotate), the bank / comfort g (the circuit, untouched), the flare
+  height (untouched). No pitch is hard-coded: the climb's attitude is what holds the speed. OWED ON THE REBASE: INPUT's
+  club slot and PILOTMATRIX's per-profile row on train 40 (the rebase is A0's tonight - see below).
+- ENGINE-TORQUE (train 42, claude/engine-torque-g2080 cb7f0eef) MERGED LOCALLY (a clean merge, scratch worktree, never
+  pushed): PILOT, TAKEOFF, PILOTACT, TAXICLEAR, ENGTORQUE PASS; PROFILE 22 of 24 - the climb (all three, the same numbers
+  to 0.02 Vs), the Cessna's trip, East Point PASS; the JODEL'S Jolene trip has no enroute leg because THE JODEL REJECTS
+  ITS TAKE-OFF FROM JOLENE HOME ON ENGINE-TORQUE ALONE (a worktree of cb7f0eef, this branch not in it: 'will not reach
+  Vr: 0.16 m/s^2 needs 502 m more, 715 m left' at 16.8 s; train 38 takes off). FOR THE ENGINE-TORQUE SESSION / A0 before
+  train 42: `node tools/pilot_trace.js ../builds/jodel_2026-09-20_corrected.json --world jolene --to mn_strip --max 300`.
+
+OWED / FINDINGS (not this branch's): (a) genAP's Vy = 1.38 Vs is a C172's 60 kt where its POH says 74 (1.54 Vs) - the
+sheet's Vy is not measured; (b) the metal Cessna's climbMax (7 m/s) puts its climb at 13 deg; (c) Jumbo Mine stays
+out of the Cub's and the Jodel's reach (G1936); (d) the drawn route's ROUTE phase still flies its own ramp until
+ROUTE-DRAW makes the call above; (e) the island's canopy map is used en route only; a field query that wants the forest
+should read the drawn fill (world.treeHits) the page registers.
+
+READY: claude/pilot-profile-g2125 (source + tools only; every generated file is master's). Built and gated
+on train 38 (751e1122): train 40 had not landed by 19:20 UTC - the rebase onto it (PILOT-PERSONA's 43 changes: the
+knobs, the person's gain - no hunk of this branch's touches them) and INPUT / PILOTMATRIX / PROFILE on it follow when it
+lands (a check-in is set); A0 may take the branch as is if the train lands first.

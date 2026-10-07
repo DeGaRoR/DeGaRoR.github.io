@@ -347,7 +347,7 @@ function flyOut(C, W, I, def, a, s, opt) {
   let contacts = 0, cWhat = null;
   for (let i = 0; i < 600; i++) { sim.step(1 / 60); if (i % 60 === 0) { const q = nodesInside(C, W, sim); contacts += q.k; if (q.k) cWhat = q.what + ' parked'; } }
   const ap = C.makePilot(sim, def, W, { style: 'normal' }); ap.setRoute(a, a); ap.departFrom(a, a, s);
-  let t = 0, minW = Infinity, at = null, air = false, phases = [], track = [];
+  let t = 0, minW = Infinity, at = null, air = false, phases = [], track = [], overMin = Infinity, overAt = null;
   const tMax = o.tMax || 360;
   for (let k = 0; k < 60 * tMax && !air; k++) {
     ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
@@ -355,15 +355,24 @@ function flyOut(C, W, I, def, a, s, opt) {
     if (k % every) continue;
     const cg = sim.cgPos(), zR = sim.axes()[2], rl = Math.hypot(zR[0], zR[2]) || 1;
     if (k % 30 === 0) track.push([+cg[0].toFixed(2), +cg[2].toFixed(2), ap.phase]);
+    // G2125 (PILOT-PROFILE): A FOOTPRINT FLOWN OVER WITH 15 m UNDER THE LOWEST NODE IS CLEARED, NOT GRAZED - the departure's
+    // own obstacle margin (43 depNeed). On the ground and through the lift-off nothing changes (every node is under any
+    // top + 15 m); airborne, the plan clearance of a footprint counts only while the aeroplane is that low over it, and
+    // the closest such overflight is reported (overMin). The climb on speed (never under 1.3 Vs) crosses Jumbo Mine's
+    // houses ~20 m over their tops where train 38's, at 0.98 Vs, was past 30 m over the ground
+    let lowY = Infinity; for (let i = 0; i < sim.n; i++) lowY = Math.min(lowY, sim.p[i * 3 + 1]);
     for (let f = -1; f <= 1.0001; f += 0.1) {
       const x = cg[0] + zR[0] / rl * half * f, z = cg[2] + zR[2] / rl * half * f, n = I.nearest(x, z, 20);
-      if (n && n.d < minW) { minW = n.d; at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + ap.phase + ', t ' + t.toFixed(0) + ' s'; }
+      if (!n) continue;
+      const over = lowY - ((n.s.y0 || 0) + (n.s.top || 0));
+      if (over > 15) { if (n.d < 1.5 && over < overMin) { overMin = over; overAt = fmtWhat(n.s) + ' in ' + ap.phase; } continue; }
+      if (n.d < minW) { minW = n.d; at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + ap.phase + ', t ' + t.toFixed(0) + ' s'; }
     }
     const q = nodesInside(C, W, sim); if (q.k) { contacts += q.k; cWhat = q.what + ' in ' + ap.phase; }
     air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
   }
   const D = sim.damage ? sim.damage() : null;
-  return { air, t, phases, minWing: minW, at, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half };
+  return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half };
 }
 const fmtWhat = s => (s ? s.tag + ' ' + s.id : 'nothing');
 
