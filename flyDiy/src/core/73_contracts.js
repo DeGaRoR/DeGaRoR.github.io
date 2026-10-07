@@ -113,6 +113,9 @@ const CONTRACT_FIT = {
 //   payload factor = kg / kgUnit + pax x paxF (+ bulkF for a bulk load)
 //   surface bonus per distinct field the job touches: short (a strip <= shortM), water, snow, altiport
 //   conditions: a `when` adds condPct of the rest
+//   (G2430 CONTRACT-ROUTES) PER LEG: each stage pays its own km x (1 + its own load's factor), and a job with more
+//   than one destination (contractDests) adds chainPct % of the legs' pay per destination beyond the first. A
+//   one-leg job pays exactly what it did. The positioning flight to the first stop is the player's, never paid.
 // Arcs and build contracts carry an authored base; a follow-up pays followPct more (GQ31).
 // G2260 (ECONOMY owns these numbers: the calibration, 76_economy.js ECON_BANDS, GATE ECON):
 //   baseF   the provider's job base (CONTRACT_PROVIDERS[p].base, its relative weight) x this
@@ -122,6 +125,7 @@ const CONTRACT_PAY = {
   perKm: 160, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
   surf: { short: 1100, water: 800, snow: 950, altiport: 1350 }, shortM: 400,
   condPct: 15, round: 10,
+  chainPct: 10,
   followPct: 15,
   baseF: 2.7, story: 2.6,
 };
@@ -208,6 +212,8 @@ function contractLoadWords(load, goodsWord, text) {
 function contractKeys(rec) {
   const ks = [rec.title, rec.brief];
   if (rec.goods) ks.push(rec.goods);
+  if (rec.shape && CONTRACT_THEN[rec.shape]) ks.push(CONTRACT_THEN[rec.shape]);
+  for (const st of rec.stages || []) for (const s of st.subs || []) if (s.goods) ks.push(s.goods);
   if (rec.kind === 'build') ks.push(contractFollowKey(rec));
   const ch = rec.followUp && rec.followUp.changed && rec.followUp.changed[rec.followUp.changed.length - 1];
   if (ch) ks.push('follow.' + ch.how);
@@ -321,6 +327,7 @@ function contractValidate(rec, opts) {
       if (!CONTRACT_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
       for (const f of ['from', 'to', 'at']) if (s[f] != null && !F[s[f]]) why.push(at + ': no field ' + s[f]);
       if ((s.do === 'carry' || s.do === 'fly') && (!s.to || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
+      if (s.goods != null && !contractTextOk(s.goods, T)) why.push(at + ': goods key ' + s.goods + ' does not resolve');
       if ((s.do === 'land' || s.do === 'deliver') && !s.to) why.push(at + ': ' + s.do + ' needs to');
       if (s.do === 'survey' && (!s.at || !s.from)) why.push(at + ': survey needs at and from');
       if (s.do === 'carry') {
@@ -494,17 +501,21 @@ function contractClasses(rec, fields) {
 function contractPay(rec, fields) {
   const F = fields || CONTRACT_FIELDS, P = CONTRACT_PAY;
   const prov = CONTRACT_PROVIDERS[rec.provider];
-  const subs = contractSubsOf(rec);
-  let km = 0, kg = 0, pax = 0, bulk = false, cond = false;
+  let km = 0, factor = 0, legs = 0, cond = false;
   const touched = {};
-  for (const s of subs) {
-    if (s.do === 'carry' || (s.do === 'fly' && s.from)) km += contractKm(s.from, s.to, F);
-    if (s.do === 'survey') km += 2 * contractKm(s.from, s.at, F);
-    for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
-    if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
-    if (s.when) cond = true;
+  // (G2430) each stage is a leg: its km x (1 + its own load's factor)
+  for (const st of rec.stages || []) {
+    let skm = 0, kg = 0, pax = 0, bulk = false;
+    for (const s of st.subs || []) {
+      if (s.do === 'carry' || (s.do === 'fly' && s.from)) skm += contractKm(s.from, s.to, F);
+      if (s.do === 'survey') skm += 2 * contractKm(s.from, s.at, F);
+      for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
+      if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
+      if (s.when) cond = true;
+    }
+    const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
+    km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
   }
-  const factor = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
   let surface = 0;
   for (const id of Object.keys(touched)) {
     const f = F[id];
@@ -516,19 +527,163 @@ function contractPay(rec, fields) {
   }
   const base = rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec);
   const perKm = rec.kind === 'job' ? P.perKm : 0;
-  const rest = base + perKm * km * (1 + factor) + (rec.kind === 'job' ? surface : 0);
+  const legPay = perKm * legs;
+  const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
+  const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
   const condAdd = cond ? rest * P.condPct / 100 : 0;
   let total = Math.round((rest + condAdd) / P.round) * P.round;
   // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
   if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
-           cond: Math.round(condAdd), total };
+           chain: Math.round(chain), cond: Math.round(condAdd), total };
+}
+
+// ---- THE ROUTES (G2430 CONTRACT-ROUTES, §R.3: two destinations or more, not everything from Jolene AFB) ----------
+// THE ISLAND'S JOB FIELDS: every provider's `fields`, in provider order, each once - 72_'s one table to edit (a new
+// site named there joins the jobs; one named in no provider's list joins none)
+function contractSites(fields) {
+  const F = fields || CONTRACT_FIELDS, out = [];
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) for (const f of CONTRACT_PROVIDERS[p].fields || []) if (F[f] && !out.includes(f)) out.push(f);
+  return out;
+}
+// a template's pool -> [field id]: 'own' (the provider's fields), 'away' (the job fields not its own), 'all', [ids]
+function ctPool(P, pool, F) {
+  if (Array.isArray(pool)) return pool.filter(f => F[f]);
+  const own = (P.fields || []).filter(f => F[f]);
+  if (pool === 'own') return own;
+  const sites = contractSites(F);
+  return pool === 'away' ? sites.filter(f => !own.includes(f)) : sites;
+}
+// THE STOPS a record sends the aeroplane to, in order -> [{ at, what: pick|depart|drop|over|land, stage }]. A stage's
+// pickups (its departure) come first, then its drops / overflights / landings as written (a stage's subs are in any
+// order: this is one order that does them); the same field twice in a row is ONE stop (the chain's hinge: the load
+// dropped at B and the next one taken on at B). The positioning flight to the first stop is not a stop: the job
+// starts where its first load waits.
+function contractStops(rec) {
+  const out = [], rank = { pick: 0, depart: 0, land: 1, over: 2, drop: 2 };
+  const put = (at, what, stage) => {
+    if (!at) return;
+    const last = out[out.length - 1];
+    if (last && last.at === at) { if (rank[what] > rank[last.what]) last.what = what; return; }
+    out.push({ at, what, stage });
+  };
+  ((rec && rec.stages) || []).forEach((st, i) => {
+    const subs = st.subs || [], seen = [];
+    for (const s of subs) {
+      const f = (s.do === 'carry' || s.do === 'survey' || s.do === 'fly') ? s.from : null;
+      if (f && !seen.includes(f)) { seen.push(f); put(f, s.do === 'carry' ? 'pick' : 'depart', i); }
+    }
+    for (const s of subs) {
+      if (s.do === 'carry') put(s.to, 'drop', i);
+      else if (s.do === 'survey') put(s.at, 'over', i);
+      else if (s.do === 'fly' || s.do === 'land' || s.do === 'deliver') put(s.to, 'land', i);
+    }
+  });
+  return out;
+}
+// THE DESTINATIONS: the stops after the first, a plain landing back where the job began not counted (a survey's
+// "and back to the dock" is the way home; a backhaul's load delivered there IS a destination)
+function contractDests(rec) {
+  const S = contractStops(rec);
+  return S.slice(1).filter(x => !(x.what === 'land' && x.at === S[0].at)).length;
+}
+const CONTRACT_SHAPES = { carry: ['p2p', 'back', 'onward', 'milk'], survey: ['loop', 'pair', 'transit'] };
+// a shape's {then} text key (the brief's next leg; p2p has none)
+const CONTRACT_THEN = { back: 'job.then.back', onward: 'job.then.onward', milk: 'job.then.milk',
+                        loop: 'job.then.loop', pair: 'job.then.pair', transit: 'job.then.transit' };
+// a route of a shape -> its stages' subs. A carry route is [A, B] (p2p), [A, B, A] (back) or [A, B, C]; L1 / L2 the
+// two legs' loads (L2: the second leg's, null on a one-leg job); g2 the second leg's goods word when it differs
+function ctCarryStages(shape, r, L1, L2, g2) {
+  const leg = (from, to, load, goods) => Object.assign({ do: 'carry', from, to, load }, goods ? { goods } : {});
+  if (shape === 'p2p') return [[leg(r[0], r[1], L1)]];
+  return [[leg(r[0], r[1], L1)], [leg(r[1], r[2], L2, g2)]];
+}
+// a survey route: loop [A, X], pair [A, X, Y] (over both, back to A), transit [A, X, B] (over X, land at B)
+function ctSurveyStages(shape, r) {
+  if (shape === 'pair') return [[{ do: 'survey', from: r[0], at: r[1] }, { do: 'survey', from: r[0], at: r[2] }], [{ do: 'land', to: r[0] }]];
+  return [[{ do: 'survey', from: r[0], at: r[1] }], [{ do: 'land', to: shape === 'transit' ? r[2] : r[0] }]];
+}
+const ctGoods = (P, id) => P.goods.find(g => g.id === id) || { kind: 'none' };
+const ctFloor = G => ({ kg: G.kind === 'kg' || G.kind === 'bulk' ? G.kg[0] : 0, pax: G.kind === 'pax' ? G.pax[0] : 0 });
+// THE ROUTES a template may draw in a shape: every route of the shape among its pools, no leg from a field to
+// itself, no stop twice in a row, that ONE validated design flies end to end at the goods' floor (the ✗ rule: never
+// a wheels / water mix no single aeroplane can do). In pool order (deterministic); memoised per fields table.
+const ctRouteMemo = new WeakMap();
+function ctRoutes(P, tpl, shape, F) {
+  let m = ctRouteMemo.get(F);
+  if (!m) ctRouteMemo.set(F, m = new Map());
+  const key = P.id + '|' + tpl.id + '|' + shape;
+  if (m.has(key)) return m.get(key);
+  const raw = [];
+  let subsOf;
+  if (tpl.survey) {
+    const S = tpl.survey, A = ctPool(P, S.from || 'own', F), X = ctPool(P, S.at || 'all', F), B = ctPool(P, S.to || 'own', F);
+    for (const a of A) X.forEach((x, xi) => {
+      if (x === a) return;
+      if (shape === 'loop') raw.push([a, x]);
+      else if (shape === 'pair') { for (const y of X.slice(xi + 1)) if (y !== a) raw.push([a, x, y]); }
+      else if (shape === 'transit') { for (const b of B) if (b !== a && b !== x) raw.push([a, x, b]); }
+    });
+    subsOf = r => [].concat(...ctSurveyStages(shape, r));
+  } else {
+    const A = ctPool(P, tpl.from || 'own', F), B = ctPool(P, tpl.to || 'all', F), C = ctPool(P, tpl.on || 'all', F);
+    for (const a of A) for (const b of B) {
+      if (a === b) continue;
+      if (shape === 'p2p') raw.push([a, b]);
+      else if (shape === 'back') raw.push([a, b, a]);
+      else for (const c of C) if (c !== a && c !== b) raw.push([a, b, c]);
+    }
+    const G = ctGoods(P, tpl.goods), G2 = tpl.back ? ctGoods(P, tpl.back) : G;
+    subsOf = r => [].concat(...ctCarryStages(shape, r, ctFloor(G), ctFloor(shape === 'milk' ? G : G2)));
+  }
+  const out = raw.filter(r => contractDoers(subsOf(r), F).length > 0);
+  m.set(key, out);
+  return out;
+}
+// a load drawn from goods G (the reputation's share of its range); its items (FREIGHT: the goods gain dims). `tag`
+// prefixes the item ids of a second, separate load (a backhaul of the same goods is other crates, not the same ones)
+function ctLoadOf(rng, G, frac) {
+  const L = { kg: 0, pax: 0 };
+  if (G.kind === 'pax') L.pax = ctDraw(rng, G.pax[0], G.pax[1], frac, 1);
+  else if (G.kind === 'kg' || G.kind === 'bulk') L.kg = ctDraw(rng, G.kg[0], G.kg[1], frac, 5);
+  if (G.kind === 'bulk') L.bulk = G.id;
+  return L;
+}
+function ctItemsOf(L, G, tag) {
+  if (L.kg > 0 && typeof freightItems === 'function') {
+    L.items = freightItems(L, G.word);
+    if (tag) L.items = L.items.map(it => Object.assign(it, { id: tag + it.id }));
+  } else delete L.items;
+  return L;
+}
+// a load shrunk one step toward the goods' floor (a passenger dropped, else the kilos halved); false at the floor
+function ctShrink(L, G) {
+  if (L.pax > (G.pax ? G.pax[0] : 0)) { L.pax--; return true; }
+  const lo = G.kg ? G.kg[0] : 0;
+  if (L.kg > lo) { L.kg = Math.max(lo, Math.round(L.kg / 2 / 5) * 5); return true; }
+  return false;
+}
+// THE MILK RUN'S SECOND LEG: part of the first leg's load goes on (the later half of its items, or all but one of its
+// passengers); null when the load does not split (one item, one passenger)
+function ctMilkPart(L1) {
+  if (L1.pax >= 2) return { kg: 0, pax: L1.pax - 1 };
+  if (Array.isArray(L1.items) && L1.items.length >= 2) {
+    const items = ctClone(L1.items.slice(Math.ceil(L1.items.length / 2)));
+    const L = { kg: freightKg(items), pax: 0, items };
+    if (L1.bulk) L.bulk = L1.bulk;
+    return L;
+  }
+  return null;
 }
 
 // ---- THE JOB GENERATOR (seeded, deterministic, order-independent) ------------------------------------------
 // A job is f(seed, provider, epoch, index) and NOTHING else (the provider's reputation scales its load: a
 // value of the career that changes only when the completed count does). Its id says so: job:<prov>:<epoch>:<i>,
 // so a job is regenerated from its id (contractJobById) — no job is stored until it is accepted.
+// (G2430) A draw: the template (its weight), the condition, the SHAPE (its weight, among the shapes the template
+// has a flyable route in), the ROUTE (uniform among ctRoutes), then the loads, leg by leg; shrunk until one
+// validated design flies the whole chain, else redrawn. The record says its shape (`shape`); a second leg of other
+// goods names them (`sub.goods`).
 function contractEpoch(done) { return Math.floor(Math.max(0, done || 0) / CONTRACT_GEN.refreshEvery); }
 function ctPick(rng, list, w) {
   if (!w) return list[Math.floor(rng() * list.length) % list.length];
@@ -553,35 +708,46 @@ function contractJob(seed, providerId, epoch, i, opts) {
   for (let t = 0; t < CONTRACT_GEN.tries; t++) {
     const rng = contractRng(seed + '|' + id + '|' + t);
     const tpl = ctPick(rng, P.jobs, x => x.w || 1);
-    const G = P.goods.find(g => g.id === tpl.goods) || { kind: 'none' };
+    const G = ctGoods(P, tpl.goods);
     const cond = rng() < CONTRACT_GEN.condP;
-    let subs;
-    if (tpl.survey) {
-      const [from, at] = ctPick(rng, tpl.survey);
-      subs = [[{ do: 'survey', from, at }], [{ do: 'land', to: from }]];
-    } else {
-      const [from, to] = ctPick(rng, tpl.routes);
-      const load = { kg: 0, pax: 0 };
-      if (G.kind === 'pax') load.pax = ctDraw(rng, G.pax[0], G.pax[1], frac, 1);
-      else if (G.kind === 'kg' || G.kind === 'bulk') load.kg = ctDraw(rng, G.kg[0], G.kg[1], frac, 5);
-      if (G.kind === 'bulk') load.bulk = G.id;
-      // (G2340 FREIGHT) THE GOODS GAIN DIMS: the load is its items (FREIGHT_GOODS), re-made at every shrink
-      const withItems = () => { if (load.kg > 0 && typeof freightItems === 'function') load.items = freightItems(load, G.word); else delete load.items; };
-      withItems();
-      subs = [[{ do: 'carry', from, to, load }]];
-      // shrink until a validated design can fly it: a passenger dropped, the kilos halved (never below the
-      // goods' floor) — the job keeps its route and its kind
-      for (let k = 0; k < 6 && !contractDoers(subs[0], F).length; k++) {
-        if (load.pax > (G.pax ? G.pax[0] : 0)) load.pax--;
-        else if (load.kg > 0) load.kg = Math.max(G.kg ? G.kg[0] : 0, Math.round(load.kg / 2 / 5) * 5);
-        withItems();
-        if (load.pax === 0 && load.kg === (G.kg ? G.kg[0] : 0) && !contractDoers(subs[0], F).length) break;
+    const W = tpl.shapes || { p2p: 1 };
+    const shapes = Object.keys(W).filter(k => W[k] > 0 && ctRoutes(P, tpl, k, F).length);
+    if (!shapes.length) continue;
+    let shape = ctPick(rng, shapes, k => W[k]);
+    const route = ctPick(rng, ctRoutes(P, tpl, shape, F));
+    let subs, g2 = null;
+    if (tpl.survey) subs = ctSurveyStages(shape, route);
+    else {
+      const G2 = shape === 'milk' ? G : (tpl.back ? ctGoods(P, tpl.back) : G);
+      if (G2 !== G) g2 = G2.word;
+      const L1 = ctItemsOf(ctLoadOf(rng, G, frac), G);
+      const L2 = shape === 'back' || shape === 'onward' ? ctItemsOf(ctLoadOf(rng, G2, frac), G2, 'leg2.') : null;
+      // (G2340 FREIGHT) THE GOODS GAIN DIMS: each leg's load is its items, re-made at every shrink
+      const build = () => {
+        let second = L2;
+        if (shape === 'milk' || (shape === 'onward' && !L2)) {
+          second = ctMilkPart(L1);
+          // a load that does not split rides on as a fresh one of the same goods, picked up at B
+          if (!second) { shape = 'onward'; second = ctItemsOf(ctFloor(G), G, 'leg2.'); }
+          else shape = 'milk';
+        }
+        return ctCarryStages(shape, route, L1, second, g2);
+      };
+      subs = build();
+      // shrink until a validated design can fly the chain: a passenger dropped, the kilos halved (never below the
+      // goods' floor) - the job keeps its route and its kind
+      for (let k = 0; k < 6 && !contractDoers([].concat(...subs), F).length; k++) {
+        const a = ctShrink(L1, G), b = L2 ? ctShrink(L2, G2) : false;
+        if (!a && !b) break;
+        ctItemsOf(L1, G);
+        if (L2) ctItemsOf(L2, G2, 'leg2.');
+        subs = build();
       }
     }
     if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
     if (!contractDoers([].concat(...subs), F).length) continue;
     const rec = contractNormalise({
-      id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id,
+      id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id, shape,
       stages: subs.map(s => ({ subs: s })),
       pay: { base: 0 }, rep: { provider: providerId, gain: 0.1 }, repeat: { every: CONTRACT_GEN.refreshEvery },
       seed: String(seed), epoch, i,
@@ -604,12 +770,24 @@ function contractJobById(seed, id, opts) {
   const m = /^job:(\w+):(\d+):(\d+)$/.exec(id || '');
   return m ? contractJob(seed, m[1], +m[2], +m[3], opts) : null;
 }
-// the vars a record's text fills ({from} {to} {at} {load})
+// the vars a record's text fills: {from} {to} {at} {load} of its first leg, and (G2430) {then}: the next leg as words
+// (job.then.<shape> with THAT leg's {from} {to} {load} {at}; empty on a one-leg job or an authored record)
 function contractVars(rec, fields, text) {
   const F = fields || CONTRACT_FIELDS, subs = contractSubsOf(rec);
   const s = subs.find(x => x.do === 'carry') || subs.find(x => x.do === 'survey') || subs[0] || {};
   const nm = id => (F[id] ? F[id].name : id);
-  return { from: nm(s.from), to: nm(s.to), at: nm(s.at), load: contractLoadWords(s.load, rec.goods, text) };
+  const words = u => contractLoadWords(u.load, u.goods || rec.goods, text);
+  const v = { from: nm(s.from), to: nm(s.to), at: nm(s.at), load: words(s), then: '' };
+  const key = rec && rec.shape && CONTRACT_THEN[rec.shape];
+  if (key) {
+    const st = rec.stages || [];
+    let n = null;
+    if (rec.shape === 'pair') { const u = (st[0] && st[0].subs[1]) || {}; n = { from: nm(u.from), to: '', at: nm(u.at), load: '' }; }
+    else if (rec.shape === 'loop' || rec.shape === 'transit') { const u = (st[1] && st[1].subs[0]) || {}; n = { from: nm(s.from), to: nm(u.to), at: nm(s.at), load: '' }; }
+    else { const u = (st[1] && st[1].subs[0]) || null; if (u) n = { from: nm(u.from), to: nm(u.to), at: '', load: words(u) }; }
+    if (n) v.then = contractText(key, n, text);
+  }
+  return v;
 }
 
 // ---- THE FOLLOW-UP BUILD CONTRACT (GQ26, GQ31) --------------------------------------------------------------
@@ -778,7 +956,7 @@ function contractPayTotal(rec, got, medal) {
 // ---- THE NARRATIVE PACK'S IMPORT (Block 5's JSON shape; a bonus) -------------------------------------------
 // -> { ok, text: a new text table (the old keys kept, the pack's words over them, draft: false), why: [] }.
 // Every airfield id must exist, every contract / build id must be ours, no build text names a configuration,
-// and a job title's slots are {from} {to} {load} only. Pure: the table handed in is not changed.
+// and a job title's slots are {from} {to} {load} {at} {then} only. Pure: the table handed in is not changed.
 function contractImportPack(pack, text) {
   const T = ctClone(text || CONTRACT_TEXT), why = [];
   const ids = contractAuthored();
@@ -809,7 +987,7 @@ function contractImportPack(pack, text) {
     const Pr = CONTRACT_PROVIDERS[j.provider];
     if (!Pr) { why.push('no provider ' + j.provider + ' for a job'); continue; }
     const slots = (String(j.title || '') + ' ' + String(j.brief || '')).match(/\{(\w+)\}/g) || [];
-    const bad = slots.filter(s => !['{from}', '{to}', '{load}', '{at}'].includes(s));
+    const bad = slots.filter(s => !['{from}', '{to}', '{load}', '{at}', '{then}'].includes(s));
     if (bad.length) { why.push(j.provider + ' job: unknown slot ' + bad.join(' ')); continue; }
     // the pack's jobs are matched to the provider's templates in order, by the load's word where it names one
     const n = seen[j.provider] = (seen[j.provider] || 0);

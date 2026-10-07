@@ -82615,3 +82615,130 @@ phone's sheet the same (R1 48 px, NOHOVER: no title=). The fixture (?map=1 alone
 - Portraits: out of scope (the user's AI run; `portrait: null`, the card draws the silhouette).
 
 READY for the GAME COORDINATOR: claude/pilots-g2290 6f028e8 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2430-G2434 - CONTRACT-ROUTES: JOBS GO SOMEWHERE - CHAINS OF TWO DESTINATIONS OR MORE (BACKHAUL, ONWARD, MILK RUN; SURVEYS OVER TWO SITES OR ENDING ELSEWHERE), FROM ANY FIELD (25 % FROM JOLENE AFB, WAS 44 %), EACH CHAIN ONE VALIDATED DESIGN'S END TO END; THE ROUTES FROM POOLS + SHAPES (A NEW SITE JOINS BY DATA ALONE); PAY PER LEG + A 10 % CHAIN BONUS; FOUR ARCS RE-ROUTED; ECON'S BANDS RE-DERIVED (THE PACE IN LEGS UNMOVED); GATE CONTRACTS' ROUTES ROWS (2026-10-07, CONTRACT-ROUTES for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/contract-routes-g2430 off origin/claude/game-integration 78b8433 (b747ae2 + the §R.3 docs commit); G2434 unused)
+
+The brief: the user, 7 Oct - *"most missions should probably involve 2 destinations, or more. Take this from there to
+there. And maybe take that back to there. Not everything should start from Jolene AFB."* (GAME-2026-10-06.md §R.3).
+Pure core + data + gates: `72_contract_data.js` (the job tables, text keys, four arcs), `73_contracts.js` (the
+generator, the stops, the pay, the {then} text), `76_economy.js` (the bands only), `90_node_exports.js` (five names
+appended); gates `_contracts_check.js`, `_econ_check.js` (the band row), `run_gates.js` (a comment). **map_menu.js, app.js,
+74_ / 75_ untouched**; no PLAYER_V step; no generated file committed.
+
+**G2430 THE JOB SHAPES** (`73_ contractJob`, deterministic as before: `contractRng(seed|id|try)`, the same seed the same
+jobs, a job regenerated from its id). A template no longer lists route pairs; it names POOLS and SHAPES:
+- **pools** - `from` (A, where the load waits), `to` (B), `on` (C): `'own'` (the provider's `fields`), `'away'` (the
+  island's job fields not its own), `'all'`, or a list. A survey template's `survey: { from, at, to }`.
+- **shapes** (weights per template) - `p2p` A -> B; `back` A -> B, then goods `back` B -> A ("maybe take that back");
+  `onward` A -> B, then goods `back` picked up at B -> C; `milk` A -> B -> C, part of the load left at B (the later half of
+  its items, or all passengers but one), the rest on - a load that does not split rides on as an `onward` with a fresh load
+  of the same goods. Surveys: `loop` (over X, back to A), `pair` (over X and Y, back to A), `transit` (over X, land at B).
+- **the draw** - the template, the condition, the shape (among those with a flyable route), the route (uniform among
+  `ctRoutes`), the loads leg by leg (the reputation's share as before), shrunk until ONE validated design flies the
+  whole chain, else redrawn. `ctRoutes` lists every route of a shape among the pools, no leg to where it stands, no stop
+  twice in a row, flyable end to end by one design at the goods' floor (`contractDoers` over ALL the subs: never a
+  wheels / water mix - the ✗ rule stays the only hard no-no); in pool order, memoised per fields table.
+- **the record** - one stage per leg (the CAREER-WIRE / MAP-SIMPLE chain machinery as it was), `shape` on the record, a
+  second leg of other goods names them (`sub.goods`, validated, in `contractKeys`), each leg its OWN items (FREIGHT: a
+  backhaul's / onward load's item ids prefixed `leg2.`; a milk run's second leg the same ids as the part of the first).
+- **the words** - every job brief ends in `{then}`: the next leg, `job.then.<shape>` filled with THAT leg's {from} {to}
+  {load} {at} (`contractVars`); empty on a one-leg job. E.g. *"65 kg of parts from Tamgas Hill Strip up to Jumbo Mine
+  Street. Then 20 kg of ore samples back to Tamgas Hill Strip."*, *"Fly over East Point Clearing for the count, then land
+  at Annette Dock."* The pack import accepts `{then}` as a slot.
+- **the stops** - `contractStops(rec)` -> `[{ at, what: pick|depart|drop|over|land, stage }]` (a stage's pickups first,
+  the hinge - dropped at B, loaded at B - one stop); `contractDests(rec)` = the stops after the first, a plain landing back
+  where the job began not counted (a survey's way home). **For the coordinator / MAP**: the paragraph's route line can read
+  `contractStops` and prefix the positioning flight from where the aeroplane stands (`playerWhere`) - NOT paid, not built
+  here (no UI touched).
+
+| provider | jobs (sample) | 2+ destinations before -> after | first stop at Jolene AFB before -> after |
+|---|---|---|---|
+| field (the Trust) | 1008 | 0 % -> 76 % | 55 % -> 39 % |
+| minedock | 1008 | 0 % -> 61 % | 30 % -> 11 % |
+| resort | 1008 | 0 % -> 65 % | 29 % -> 16 % |
+| survey | 1008 | 0 % -> 70 % | 59 % -> 33 % |
+| clients | 1008 | 0 % -> 69 % | 46 % -> 26 % |
+| **all** | 5040 | **0 % -> 68 %** (target >= 60) | **44 % -> 25 %** (target <= 30) |
+
+(The sample is GATE CONTRACTS' own: 28 seeds x 5 providers x 4 epochs x 3 reputations x 3 jobs. "Jolene AFB" = HOME or
+w2. Shapes drawn: back 35 %, p2p 25 %, onward 14 %, pair 8 %, milk 7 %, loop 7 %, transit 4 %; 1.56 flown legs a job.)
+The Trust stays the most AFB-bound (it IS the AFB's landlord: own fields HOME and Tamgas Hill); its mail now runs from any
+field.
+
+**G2431 THE ONE TABLE TO EDIT (new sites)** - THE ISLAND'S JOB FIELDS are every provider's `fields`, in provider order
+(`contractSites`). A site the user adds with the editor (the lake cabins, FREIGHT §4b) joins the jobs by data alone:
+1. its runway row in `CONTRACT_FIELDS` (GATE CONTRACTS holds that table byte-equal to the island record through
+   `contractFieldsOf` - so it is the record's row, re-read);
+2. its id in the `fields` of each provider that works there (the cabins: `clients` and `survey`; `field` for its mail).
+Nothing else: the pools `'own' / 'away' / 'all'` pick it up, `ctRoutes` keeps only the chains a validated design flies (a
+lake lane joins the water network, a beach strip the wheels one). Gated: a doctored `lake_a` named in two providers'
+fields appears in their jobs, every one valid and flyable. The AFB's second runway (w2) and East Point (no validated design
+lands there) are in no provider's list; East Point stays a survey's overflight site. Provider fields changed: survey
+`HOME` -> `HOME, w3, mk_sea, SEA` (its field team on the hill, its water stations); clients + `mk_sea` (a town).
+
+**G2432 THE PAY** (`contractPay`, still the job's and never the aeroplane's - G-COST) - **per leg**: each stage's km x
+(1 + ITS load's factor), summed; **the chain bonus** `CONTRACT_PAY.chainPct` = 10 % of the legs' pay per destination
+beyond the first; returned as `pay.chain`. A one-leg job pays exactly what it did (same formula, chain 0). The positioning
+flight to the first stop is never paid. Mean job pay over the sample 4 122 -> 6 960; per flown leg 4 122 -> 4 463 (+8 %: the
+bonus and the longer legs to the far fields).
+
+**G2433 ECON (re-run, the bands RE-DERIVED, said here)** - the reference career picks the best-paying job, so with chains a
+contract is ~1.7 legs where it was ~1.35, and the milestones came EARLIER IN CONTRACTS: hangar2 at 21-22 (band 25-35) and
+the full arc at 18-19 (band 20-40) - red. Measured in LEGS FLOWN the pace DID NOT MOVE (scratch replay of
+`econReference`, 8 seeds): the first hangar at 12 legs before and after, the C172 at 27-31 -> 30-31, the arc at 28-32 ->
+31-32, the second hangar at 35-38 -> 36-38. So the brief's bands (G2260) are scaled by the measured contracts-per-leg
+ratio, 0.78, the first hangar unchanged (bought inside the arc-only opening, 8 contracts both ways): **hangar1 6-10,
+airframe 15-25 -> 12-20, hangar2 25-35 -> 20-27, arc 20-40 -> 16-31** (`ECON_BANDS`, the comment carries the evidence;
+GATE ECON's literal row moved with it). The reference careers now: hangar1 8, airframe 17-18, arc 18-19, hangar2 21-22 -
+inside, at the same relative places as before. No price in ECON_BOOK touched.
+
+**G2434 THE AUTHORED ARCS** (every id, unlock, and text key's meaning kept; drafts):
+
+| id | before | after | why |
+|---|---|---|---|
+| minedock.03 "The pump" | HOME -> mine (pump), mine -> HOME (samples) | HOME -> mine, mine -> **Tamgas Hill** (samples "for the boat") | the samples go out by the dock; a 3-stop chain |
+| resort.02 "A kitchen uphill" | HOME -> altiport | **Tamgas Hill** -> altiport ("came in on the boat") | not from the AFB |
+| survey.05 "The weather mast" | HOME -> Tamgas Hill (100 kg) | + Tamgas Hill -> HOME (20 kg, "the old instruments back to the office") | a backhaul |
+| clients.01 "A ride for the doctor" | HOME -> Tamgas Hill | + Tamgas Hill -> **Skyline** ("an evening call at the lodge") | a second stop |
+
+The other arcs already start away from HOME or tell a HOME story (the Trust's field, the first look at the mine road):
+kept. The flown arc contracts: HOME-first 12 -> 11 of 20, 2+ destinations 6 -> 8. Each re-routed stage is flyable (the
+gate's physical rows), and every journey still completes. Text: `ct.minedock.03.brief`, `ct.resort.02.brief`,
+`ct.survey.05.brief`, `ct.clients.01.brief` extended; new keys `job.then.back|onward|milk|loop|pair|transit`.
+
+**INTERPLAY** -
+- FREIGHT-MODEL: each leg's load has its items (`freightItems` per leg); the validator's items-sum rule holds per sub;
+  GATE FREIGHT's generated-jobs packing runs over the chains (every sub's load on every doer design).
+- CAREER-WIRE's stop record: **a node row flies a 3-stop job** (A -> B -> C, B away from HOME) through
+  `careerStopRecord` -> `careerOnStop`: loaded at A after an unpaid positioning flight, C before B refused, dropped at B
+  (stage 1 done, the card's `stage` line), `careerTrackedLoad` now the second leg's (with its items), the second load taken
+  on at B and delivered at C: done, paid `pay.total`; the second load never taken on at B refused. No code change was needed
+  in 74_ / 75_ (stages + `picked` / `row.from` already did it).
+- ACCEPT: untouched (build contracts are not generated); its gate re-run.
+- The page: app.js's plate line already prints "stage n / N"; MAP-SIMPLE's row prints the chain. Nothing in the UI changed.
+
+**GATE CONTRACTS** (+ THE ROUTES, `--show` prints the table above): >= 60 % 2+ destinations, <= 30 % AFB-first, every
+provider with jobs starting elsewhere, every shape drawn, every chain ONE design's, no water / field mix, no leg to where it
+stands and no stop twice in a row, a second load its own items, a milk run's second leg a part of the first, the brief's
+{then} (none on a one-leg job), the pay per leg + the bonus (and a one-leg job none), the stops' rule, the new site by data,
+the 3-stop flight; the job table's rows now hold pools / shapes / backhaul goods and a flyable route per shape; the two
+acceptance rows that assumed every job finishes in one stop now pick a one-leg job. **--selftest 64 doctored rules, 64
+caught**: 12 new (one leg only, every job from HOME, a chain no one design flies, a leg to itself, a backhaul of the first
+leg's crates, a milk run on a fresh load, the brief without the next leg, no chain bonus, the heaviest load on every km, a
+new site not joining, the second load taken on anywhere, ...). **Two selftest holes closed**: a vanished anchor used to throw
+and count as "caught" - it now counts MISSED; that exposed two stale anchors - `the load is not checked` (FREIGHT had
+rewritten `loadOk`) and `the word check is off` (its 72_ text anchor was applied to 73_) - both re-anchored, both caught.
+
+**Gates** (`run_gates.js --only=CONTRACTS,ECON,ACCEPT,PROCURE,BUILD,FREIGHT,STAGES,PILOTS`, on a scratch build - see
+BLOCKER): **CONTRACTS PASS** (2364 checks) + selftest 64/64; **ECON PASS** (148) + selftest 33/33; **ACCEPT PASS**,
+**PROCURE PASS**, **BUILD PASS**, **FREIGHT PASS** (the chains packed), **STAGES PASS**; **PILOTS FAIL - pre-existing, not
+this branch**: the same three app.js source-scan rows (the inline pilot / worker's career door ternary, the persona keeper,
+the plate's persona pills) fail identically on the untouched base tree (git archive of 78b8433, same scratch build) - the
+train-43 PILOTS x PILOT-PERSONA union in app.js. There is no CAREER gate id in run_gates.js (CAREER-WIRE's rows live in
+GATE CONTRACTS, where the 3-stop row went).
+
+**BLOCKER FOR THE COORDINATOR (not this branch's, not fixed here)**: the integration tip (b747ae2 / 78b8433) does NOT
+BUILD - `src/core/76_pilots.js:99` and `src/core/76_procure.js:70` both declare `const PT_` (train 43's PILOTS + PROCURE
+union), so `node tools/build.js` stops at SYNTAX FAIL and every gate refuses the stale core. One rename fixes it (e.g.
+76_pilots.js `PT_` -> `PIL_`, and the one selftest anchor `_pilots_check.js:523`); it is outside this lane, so this branch
+leaves it. Every gate above ran on a scratch copy built with that rename applied there only.
