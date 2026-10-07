@@ -78200,6 +78200,12 @@ menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOB
 chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
 GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
 
+STEERING HOLD (7 Oct ~18:30, A0 relaying the user: little to see, no story yet, fear of going too far before steering):
+the checkpoint page https://claude.ai/artifact/QjQYuYhf1RaoGmNezbvnNq (the honest state, what's visible today in play order,
+what trains 40 / 42 / 43 / 44 add, three story options + the pace). The notes are in futureDesigns/game/STORY-OPTIONS-2026-10-07.md.
+NO NEW GAME CHIPS until the user picks; the running train-43 wave finishes. After train 42 lands: a real guided walkthrough
+of ?career=1 shot on the GPU (a box window to ask A0).
+
 UPDATE 7 Oct ~11:40: CAREER-WIRE (670ce84) READY and merged (fast-forward), so game-integration 5810951a is the train-42 candidate:
 the map reads the real contract record, a dev career runs behind ?career=1 (the welcome's career row still 'coming'), a
 flight's stop advances the career through ACCEPT's verdict, 'Fly the acceptance leg' works, and the aerobatic contract
