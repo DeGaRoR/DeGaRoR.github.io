@@ -83,7 +83,9 @@
       fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null, live: true }));
     }
     const board = (raw.board || []).map(d => ({ name: d.name, cert: d.cert || null }));
-    return { providers, prov, contracts, career, fleet, board, aeros, plots: (pack && pack.plots) || [], source: raw.source || 'fixture' };
+    // G2290 (PILOTS): the roster's cards as the record states them (76_pilots.js pilotsCard), copied
+    const pilots = (raw.pilots || []).map(p => JSON.parse(JSON.stringify(p)));
+    return { providers, prov, contracts, career, fleet, board, pilots, aeros, plots: (pack && pack.plots) || [], source: raw.source || 'fixture' };
   }
   // 71_player_bases.js playerWhere's three kinds, read off the v2 document (the same rule; that file is the core's)
   function whereOf(doc, n) {
@@ -236,7 +238,55 @@
       '</div><div class="mmTabs mmAssets" role="tablist" aria-label="your assets">' +
       TABS_ASSET.map(([id, w]) => '<button type="button" role="tab" class="mmTab' + (st.tab === id ? ' on' : '') + '" data-tab="' + id + '" aria-selected="' + (st.tab === id) + '">' + w + '</button>').join('') + '</div>';
   }
+  // ---- G2290 (PILOTS): THE PILOTS TAB - your pilots, then the 2-3 looking for work (refreshed with the market) --------
+  // A card: the portrait (a silhouette with the initials until the user's AI run), the name and the line, "flies like"
+  // (the profile in plain words), the traits as chips, the fee, where they are; Hire / Fire, who flies next, the boat
+  // home. Every word comes off the record (pilotsCard); nothing here decides - the career does (FLYDIY_CAREER.pilots).
+  const faceHTML = p => '<i class="mmFace" aria-hidden="true">' + (p.portrait ? '<img alt="" src="' + esc(p.portrait) + '">' :
+    '<svg viewBox="0 0 48 48"><circle cx="24" cy="18" r="9"/><path d="M7 47c1-11 8-17 17-17s16 6 17 17z"/></svg><b>' + esc(p.initials) + '</b>') + '</i>';
+  const pilotWhere = (M, p) => p.hired ? (p.at ? 'at ' + (p.atName || aeroName(M, p.at)) + (p.plane ? ' · with ' + p.plane : '') : '') : 'looking for work';
+  function pilotRowHTML(M, st, p) {
+    return '<div class="mmPilot' + (st.sel === 'p:' + p.id ? ' on' : '') + '">' +
+      '<button type="button" class="mmRow mmPRow" data-sel="p:' + esc(p.id) + '">' + faceHTML(p) +
+      '<span class="mmRowT"><b>' + esc(p.name) + '</b>' + (p.picked ? '<em class="mmTrk">flies next</em>' : p.companion && p.hired ? '<em>with you from the start</em>' : '') + '</span>' +
+      '<span class="mmRowS">' + esc(p.tagline) + '</span>' +
+      '<span class="mmRowS mmFlies">flies like: ' + esc(p.fliesLike) + '</span>' +
+      '<span class="mmTraits">' + p.traits.map(t => '<i class="mmTrait">' + esc(t.label) + '</i>').join('') + '</span>' +
+      '<span class="mmRowS">' + (p.hired ? esc(pilotWhere(M, p)) : 'sign-on <b>' + fmt(p.signOn) + '</b> · ' + esc(pilotWhere(M, p))) + '</span></button>' +
+      pilotActsHTML(M, st, p) + '</div>';
+  }
+  function pilotActsHTML(M, st, p) {
+    const live = M.source === 'career' && W && W.FLYDIY_CAREER && W.FLYDIY_CAREER.pilots;
+    const btn = (what, word, pri) => '<button type="button" class="mmBtn' + (pri ? ' pri' : '') + '" data-act="pilot" data-pa="' + what + '" data-pid="' + esc(p.id) + '"' + (live ? '' : ' disabled') + '>' + word + '</button>';
+    let h = '<div class="mmActs mmPActs">';
+    if (!p.hired) h += btn('hire', 'Hire · ' + fmt(p.signOn), true);
+    else {
+      if (!p.picked) h += btn('pick', 'Flies next');
+      if (p.at && p.at !== 'HOME') h += btn('boat', 'Takes the boat home');
+      h += btn('fire', 'Fire');
+    }
+    return h + (live ? '' : '<span class="mmFine">with the career</span>') + '</div>';
+  }
+  function pilotsListHTML(M, st) {
+    const hired = M.pilots.filter(p => p.hired), want = M.pilots.filter(p => !p.hired);
+    return '<h3 class="mmSec">Your pilots</h3>' + (hired.length ? hired.map(p => pilotRowHTML(M, st, p)).join('') : '<div class="mmEmpty"><span>Nobody on the roster: you fly yourself.</span></div>') +
+      '<h3 class="mmSec">Looking for work</h3>' + (want.length ? want.map(p => pilotRowHTML(M, st, p)).join('') : '<div class="mmEmpty"><span>Nobody else is looking right now: the market moves as you finish contracts.</span></div>') +
+      '<p class="mmFine mmSec">A one-time sign-on, no wages. Firing is free. A pilot is where their last aeroplane is.</p>';
+  }
+  function pilotCardHTML(M, st, p) {
+    if (!p) return cardHTML(M, Object.assign({}, st, { sel: null }));
+    let h = '<div class="mmCard">' + (st.phone ? '<button type="button" class="mmBack" data-act="back">‹ the list</button>' : '') +
+      '<div class="mmProv">' + faceHTML(p) + (p.hired ? 'your pilot' : 'looking for work') + '</div><h2>' + esc(p.name) + '</h2><p class="mmBrief">' + esc(p.tagline) + '</p>' +
+      '<p>' + esc(p.bio) + '</p><p class="mmFine">' + esc(p.pitch) + '</p>' +
+      '<h3>Flies like</h3><p>' + esc(p.fliesLike) + '</p>' +
+      '<h3>Traits</h3><ul class="mmCert">' + p.traits.map(t => '<li><span>' + esc(t.label) + '</span><b>' + esc(t.how) + '</b></li>').join('') + '</ul>' +
+      '<h3>The record</h3><ul class="mmCert"><li><span>where</span><b>' + esc(pilotWhere(M, p)) + '</b></li><li><span>sign-on</span><b>' + fmt(p.signOn) + '</b></li>' +
+      '<li><span>flights</span><b>' + p.flights + ' (' + p.landings + ' landings counted)</b></li>' +
+      (p.ceiling ? '<li><span>grown</span><b>' + p.grown + ' % toward ' + esc(p.ceiling) + '</b></li>' : '') + '</ul>';
+    return h + pilotActsHTML(M, st, p) + '</div>';
+  }
   function listHTML(M, st) {
+    if (st.tab === 'pilots' && M.pilots && M.pilots.length) return pilotsListHTML(M, st);
     if (st.tab === 'pilots' || st.tab === 'market')
       return '<div class="mmEmpty"><b>' + (st.tab === 'pilots' ? 'Pilots' : 'Market') + ': coming</b><span>' +
         (st.tab === 'pilots' ? 'The four recruits (GQ13) and your hired pilots will be listed here.' : 'Used aeroplanes where they stand, and the makers\' catalogues, will be listed here.') + '</span></div>';
@@ -263,6 +313,7 @@
   function cardHTML(M, st) {
     const sel = st.sel || '';
     if (sel.startsWith('f:')) return fleetCardHTML(M, st, M.fleet.find(f => 'f:' + f.slot === sel));
+    if (sel.startsWith('p:')) return pilotCardHTML(M, st, (M.pilots || []).find(p => 'p:' + p.id === sel));
     const c = M.contracts.find(x => 'c:' + x.id === sel);
     if (!c) {
       const tr = M.contracts.find(x => x.id === M.career.tracked);
@@ -361,11 +412,17 @@
       const a = M.aeros[f.where && f.where.aero]; if (!a) continue;
       out.push({ key: 'f:' + f.slot, sel: 'f:' + f.slot, kind: 'fleet', aero: a.id, x: a.x, z: a.z, label: f.name, glyph: '✈', on: selF === f.slot, dim: !!selF && selF !== f.slot });
     }
+    // G2290 (PILOTS): your pilots where they are (the fleet layer: your assets), a badge with the initials
+    const selP = (st.sel || '').startsWith('p:') ? st.sel.slice(2) : null;
+    if (st.layers.fleet) for (const p of (M.pilots || [])) {
+      const a = p.hired && M.aeros[p.at]; if (!a) continue;
+      out.push({ key: 'p:' + p.id, sel: 'p:' + p.id, kind: 'pilot', aero: a.id, x: a.x, z: a.z, label: p.name, glyph: p.initials, on: selP === p.id, dim: !!selP && selP !== p.id });
+    }
     if (st.layers.fields) for (const id of Object.keys(M.aeros)) { const a = M.aeros[id]; out.push({ key: 'a:' + id, sel: null, kind: 'field', aero: id, x: a.x, z: a.z, label: a.name, sub: stripWord(a), cls: a.surface.cls }); }
     if (st.layers.plots) for (const p of M.plots) out.push({ key: 'p:' + p.id, sel: null, kind: 'plot', aero: p.aero, x: p.x, z: p.z, label: 'plot ' + p.id, sub: p.shells.join(' / ') + (p.derelict ? ' · derelict' : '') + (p.water ? ' · slipway' : '') });
     // the fan: badges of one kind at one field stand side by side (contracts above the field, the fleet below)
     const groups = {};
-    for (const m of out) if (m.kind === 'contract' || m.kind === 'fleet') (groups[m.kind + '@' + m.aero] = groups[m.kind + '@' + m.aero] || []).push(m);
+    for (const m of out) if (m.kind === 'contract' || m.kind === 'fleet' || m.kind === 'pilot') (groups[m.kind + '@' + m.aero] = groups[m.kind + '@' + m.aero] || []).push(m);
     for (const g of Object.values(groups)) g.forEach((m, i) => { m.slot = i; m.of = g.length; });
     return out;
   }
@@ -387,7 +444,7 @@
   }
 
   const CORE = { PAX_KG, mapAdapt, whereOf, rowsOf, rowWord, factsFor, critFor, critsOf, designsOf, fitOf, allows, payOf, payWord, pinOf, subsNow, stageOf, CRIT_BY,
-                 markersOf, routesOf, act, tabsHTML, listHTML, cardHTML, statusHTML, layersHTML, whereWord, LAYERS, TABS_ASSET };
+                 markersOf, routesOf, act, tabsHTML, listHTML, cardHTML, statusHTML, layersHTML, whereWord, LAYERS, TABS_ASSET, pilotsListHTML, pilotCardHTML };
   if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
   if (!W || !W.document) return;
 
@@ -443,6 +500,21 @@
 #mapScreen .mmMk{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:auto;display:flex;align-items:center;justify-content:center;text-align:center}
 #mapScreen .mmMk i{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;color:#1c1814;border:2px solid #1c1814;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 #mapScreen .mmMk.fleet i{border-radius:7px;background:#f3ece2;color:#1c1814}
+#mapScreen .mmMk.pilot i{border-radius:50%;background:#8fb5d6;color:#1c1814;font-size:11px;font-weight:600}
+#mapScreen .mmPilot{border-bottom:1px solid var(--mm-line)}
+#mapScreen .mmPilot.on{background:var(--mm-bg2)}
+#mapScreen .mmPRow{position:relative;padding-left:76px;min-height:96px}
+#mapScreen .mmFace{position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:var(--mm-bg2);border:1px solid var(--mm-line);overflow:hidden;flex:none;font-style:normal}
+#mapScreen .mmPRow .mmFace{position:absolute;left:14px;top:12px}
+#mapScreen .mmProv .mmFace{width:40px;height:40px;margin-right:8px}
+#mapScreen .mmFace svg{position:absolute;inset:0;width:100%;height:100%;fill:var(--mm-dim);opacity:.55}
+#mapScreen .mmFace b{position:relative;font:600 15px/1 'IBM Plex Sans';color:var(--mm-ink)}
+#mapScreen .mmFace img{width:100%;height:100%;object-fit:cover}
+#mapScreen .mmTraits{display:flex;flex-wrap:wrap;gap:6px}
+#mapScreen .mmTrait{font-style:normal;font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid var(--mm-line);color:var(--mm-mid)}
+#mapScreen .mmFlies{color:var(--mm-ink)}
+#mapScreen .mmPActs{padding:0 14px 12px 76px;flex-wrap:wrap}
+#mapScreen .mmSec{padding:0 14px}
 #mapScreen .mmMk.dest i{background:#f3ece2 !important;color:#1c1814}
 #mapScreen .mmMk.on i{width:36px;height:36px;font-size:16px;border:3px solid var(--mm-acc)}
 #mapScreen .mmMk.trk i{border-color:var(--mm-acc)}
@@ -578,8 +650,9 @@
       let [x, y] = toScr(m.x, m.z);
       if (m.kind === 'contract') { x += (m.slot - (m.of - 1) / 2) * 34; y -= 30; }
       if (m.kind === 'fleet') { x += (m.slot - (m.of - 1) / 2) * 34; y += 30; }
+      if (m.kind === 'pilot') { x -= 40 + m.slot * 34; }   // G2290: the pilots stand to the field's left
       boxes.push([x - 16, y - 16, x + 16, y + 16]);
-      const named = m.on || (m.kind === 'fleet' && near);
+      const named = m.on || ((m.kind === 'fleet' || m.kind === 'pilot') && near);
       if (named) boxes.push([x - m.label.length * 3.6 - 8, y + 20, x + m.label.length * 3.6 + 8, y + 40]);
       h += '<button type="button" class="mmMk ' + m.kind + (m.on ? ' on' : '') + (m.trk ? ' trk' : '') + (m.dim ? ' dim' : '') + '" data-sel="' + esc(m.sel || '') + '" data-mk="' + esc(m.key) + '" aria-label="' + esc(m.label) +
         '" style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px"><i' + (m.colour ? ' style="background:' + esc(m.colour) + '"' : '') + '>' + esc(m.glyph) + '</i>' +
@@ -657,6 +730,7 @@
   function select(sel, from) {
     st.sel = sel;
     if (sel && sel.startsWith('f:') && st.tab !== 'fleet' && from !== 'marker') st.tab = 'fleet';
+    if (sel && sel.startsWith('p:') && st.tab !== 'pilots' && from !== 'marker') st.tab = 'pilots';
     if (sel && sel.startsWith('c:')) {
       const c = M.contracts.find(x => 'c:' + x.id === sel);
       if (c && st.tab !== 'all' && st.tab !== c.provider) st.tab = st.tab === 'fleet' && from === 'card' ? c.provider : 'all';
@@ -687,6 +761,17 @@
         return render();
       }
       act(M, st.sel.slice(2), a); return render();
+    }
+    // G2290 (PILOTS): Hire / Fire / Flies next / the boat home - the career decides (FLYDIY_CAREER.pilots.act), the
+    // screen reads the record back
+    if (a === 'pilot') {
+      const P = M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.pilots;
+      if (!P) return;
+      const r = P.act(t.dataset.pa, t.dataset.pid);
+      if (r && !r.ok) console.warn('flyDiy (career): ' + r.why);
+      let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (err) {}
+      M = mapAdapt(W.FLYDIY_CAREER.record(), pack, live);
+      return render();
     }
     if (t.dataset.tab) { st.tab = t.dataset.tab; if (st.phone) st.detail = false; return render(); }
     if (t.dataset.layer) { st.layers[t.dataset.layer] = !st.layers[t.dataset.layer]; return render(); }

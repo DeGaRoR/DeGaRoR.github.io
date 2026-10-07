@@ -115,6 +115,9 @@ function careerMapRecord(doc, world, opts) {
     career: { accepted: C.accepted.slice(), tracked: C.tracked || null, stage, live, wallet: doc.wallet, clock: doc.clock || 0,
               done: C.done.length, voucher: cwClone(c.voucher || null) },
     fleet, board,
+    // G2290 (PILOTS): the Pilots tab - the hired pilots and the 2-3 looking for work (76_pilots.js pilotsCard: text
+    // resolved, the place by the fleet ledger)
+    pilots: typeof pilotsCard === 'function' ? PILOTS_ORDER.map(id => pilotsCard(doc, id, world)).filter(p => p && (p.hired || p.onOffer)) : [],
   };
 }
 

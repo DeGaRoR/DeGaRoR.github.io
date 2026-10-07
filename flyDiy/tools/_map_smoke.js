@@ -5,7 +5,8 @@
 //     is pressed, then the pack and the screen, in that order (BOOT: nothing loaded before opening). The artifact
 //     carries the two as LAZY names only - no static tag, no inlined body.
 //   THE SCREEN'S ROWS: map_menu.js's pure core over the fixture and the baked projection - the five providers' tabs and
-//     All (their rows summing to All), Fleet / Pilots / Market (the last two "coming"), every contract's card stating both
+//     All (their rows summing to All), Fleet / Pilots / Market (the last two "coming" on the fixture; G2290: the real
+//     record's Pilots tab lists the roster), every contract's card stating both
 //     ends, both strips, the payload and the pay; the fleet against a job as facts that forbid nothing; a build card's
 //     criteria; track one, accept many; a selection's markers and route; the gear rule equal to 25_airfield.js's.
 //   NOHOVER (MOBILE-GARAGE R17/R18) for the new UI: no title=, no mouseenter / mouseover / pointerover, no :hover in
@@ -189,5 +190,24 @@ module.exports = function mapSmoke(html, phone) {
   doc2.career.providers.clients.rep = 5;
   need(!C.careerMapRecord(doc2, null, {}).contracts.some(c => c.id === 'clients.05'), 'the aerobatic box (+6 g, past the certificate) reached the map');
   say('the real fleet: the Cub\'s certificate against "' + carry.title + '" (' + fx.length + ' facts), a kit "not read yet"; clients.02\'s criteria against it; the aerobatic box held out');
+  // ---- G2290 (PILOTS): THE PILOTS TAB on the real record - the companion hired, 2-3 looking for work; a card each with the
+  // portrait placeholder, "flies like", the traits, the fee, the place; Hire / Fire 48 px buttons (the live career's only:
+  // disabled in the preview); pilots as markers; the fixture (the sandbox's ?map=1) keeps "coming" ---------------------------
+  const pst = Object.assign({}, st, { tab: 'pilots' });
+  const PL = MR.pilots || [], ph = MM.listHTML(MR, pst);
+  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'kit' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots tab: kit hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
+  need(!/coming/.test(ph) && (ph.match(/class="mmPilot/g) || []).length === PL.length && (ph.match(/class="mmFace"/g) || []).length === PL.length, 'the Pilots tab draws a card per pilot (no "coming")');
+  for (const p of PL) {
+    need(ph.includes('data-sel="p:' + p.id + '"') && ph.includes(p.fliesLike.replace(/&/g, '&amp;').replace(/'/g, '&#39;')) && p.traits.every(t => ph.includes('<i class="mmTrait">' + t.label)), p.id + ': the card lacks its row, "flies like" or a trait chip');
+    need(p.hired ? /data-pa="fire"/.test(ph) : ph.includes('data-pa="hire" data-pid="' + p.id + '"'), p.id + ': the card lacks ' + (p.hired ? 'Fire' : 'Hire'));
+    const card = MM.cardHTML(MR, Object.assign({}, pst, { sel: 'p:' + p.id }));
+    need(card.includes('<h2>' + p.name + '</h2>') && /Flies like/.test(card) && /Traits/.test(card) && !/\[pilot\./.test(card), p.id + ': the detail card');
+    need(phone ? /data-act="back"/.test(card) : true, p.id + ': the phone\'s card has no way back');
+  }
+  need(/data-act="pilot"[^>]*disabled/.test(ph), 'the preview (no live career) lets Hire / Fire act');
+  need(MM.markersOf(MR, pst).some(m => m.kind === 'pilot' && m.sel === 'p:kit' && m.aero === 'HOME'), 'the hired pilot is not a marker at HOME');
+  need(/coming/.test(MM.listHTML(M, pst)), 'the fixture\'s Pilots tab (the sandbox ?map=1) is no longer "coming"');
+  need(/#mapScreen \.mmPRow\{[^}]*min-height:(\d+)px/.test(css) && +/#mapScreen \.mmPRow\{[^}]*min-height:(\d+)px/.exec(css)[1] >= 48, '.mmPRow is under 48 px (R1)');
+  say('the Pilots tab (real record): ' + PL.map(p => p.name + (p.hired ? ' (hired)' : ' (' + p.signOn + ')')).join(', ') + '; a card each (face, flies like, traits, the fee, the place), Hire / Fire, a marker; the fixture\'s still "coming"');
   return lines;
 };

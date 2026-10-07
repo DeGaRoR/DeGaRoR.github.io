@@ -169,6 +169,9 @@ const MANIFEST = {
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
     '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
+    // THE PILOTS YOU HIRE (G2290 PILOTS): the four recruits (the pack's Block 3), hire / fire, refusals by trait,
+    // a pilot's place, skill growth from the logbook; pure, GATE PILOTS. GAME-2026-10-06.md §9, §R GQ13/GQ14/GQ30.
+    '76_pilots.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172

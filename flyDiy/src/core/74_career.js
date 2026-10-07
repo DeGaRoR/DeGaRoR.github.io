@@ -57,6 +57,8 @@ function careerNew(o) {
   d.mode = 'career';
   d.career = careerBlockDefault(o);
   playerCharge(d, -CAREER_GRANT, 'grant', null);
+  // G2290 (PILOTS): the companion arrives with the career (76_pilots.js; §9.2 "the first pilot comes with the opening")
+  if (typeof pilotsCompanion === 'function') pilotsCompanion(d);
   return careerRefresh(d);
 }
 
@@ -88,6 +90,8 @@ function careerNormalise(r) {
   for (const k of ['pilots', 'airframes']) if (!c[k] || typeof c[k] !== 'object' || Array.isArray(c[k])) c[k] = {};
   if (!Array.isArray(c.roster)) c.roster = [];
   if (!c.market || typeof c.market !== 'object') c.market = def.market;
+  // G2290 (PILOTS): the roster's rows (76_pilots.js pilotsBlock: unknown ids dropped, a hired pilot always has a row)
+  if (typeof pilotsBlock === 'function') pilotsBlock(d);
   return d;
 }
 

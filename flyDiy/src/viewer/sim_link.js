@@ -315,7 +315,7 @@ const SIM_LINK = (() => {
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
-                  pilot: { kind: S.pilotChoice || 'auto', shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null,
+                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null,
                   damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
       cardNext = null;
