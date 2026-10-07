@@ -21,6 +21,16 @@
 //                                    island record's wildlife hotspots (`hotspots`) and places of interest (`pois`) the
 //                                    screen draws over it - the game draws every site itself, never the painting's own
 //                                    runways (they drift ~0.5-0.8 km)
+//   (G2435, MAP-INFRA) the projection's `infra`: the game's infrastructure the screen draws over the painting, read off
+//                                    the island record through the premises core's compose (the page's town variant:
+//                                    every place) - `roads` (the 76, smoothed as compose smooths them, simplified by
+//                                    Douglas-Peucker at INFRA_DP's three tolerances), `zones` (residential, commercial,
+//                                    industrial, harbour, park; forest / clear skipped), `houses` (every plot compose
+//                                    sows: the town kit's and the village's), `sites` (every site item's footprint: the
+//                                    mill, the cannery, the hall, the stations, the piers ...), `links` (the tramway
+//                                    cable, its two stations) and `labels` (the village, the town, the mill, the cannery,
+//                                    the tram). Positions are the record's only, as INTEGER picture px (the projection's
+//                                    rule, rounded), polylines as SVG-ready "x,y x,y" strings (small, gzip-friendly)
 //
 // DETERMINISTIC: the same island, record and code give the same bytes (no clock, no random; one zlib stream at a
 // fixed level, filter 0 on every row). GATE MAPBAKE (tools/_mapbake_check.js) re-bakes in memory and compares, then
@@ -55,6 +65,13 @@ const ART_SRC = 'futureDesigns/game/map-mock/map_ai2.jpg', ART_EDGE = '#004279';
 // Tamgas Hill): the island record's sites by id - their positions are the record's; the hill is the island's summit
 const POI_SITES = [['mk_hall', 'Metlakatla'], ['mn_s_mine', 'the mine'], ['tw_s_summit', 'the lodge'], ['mk_mw_cannery', 'the cannery']];
 const POI_SUMMIT = 'Tamgas Hill';   // a road is at least ~1 px; a runway's rectangle grows half a pixel (a 12 m strip is still a line)
+// (G2435) THE INFRASTRUCTURE: Douglas-Peucker tolerances (picture px) of the roads' three zoom bands (far, mid, close);
+// a main road (drawn from the fit) is one at least MAIN_W m wide or one the record names; the zone kinds drawn; the
+// labels - [kind, the record's id, the word, the style, the place of interest it stands for (drawn once)]
+const INFRA_DP = [3, 1, 0.25], MAIN_W = 5.5, INFRA_ZONES = ['residential', 'commercial', 'industrial', 'harbour', 'park'];
+const INFRA_LABELS = [['zone', 'z_village', 'the village', 'village', null], ['site', 'mk_hall', 'Metlakatla', 'town', 'mk_hall'],
+  ['item', 'mn_s_mine/mill', 'the mill', 'work', null], ['item', 'mk_mw_cannery/mk_mw_cannery_b0', 'the cannery', 'work', 'mk_mw_cannery'],
+  ['link', 'tw_l_tram', 'Skyline Tramway', 'tram', null]];
 
 // ---- THE PALETTE (index -> rgb), built once, in a fixed order -------------------------------------------------------
 function palette() {
@@ -175,6 +192,88 @@ function plotsOf(Cx, W, land) {
     }
   }
   return out;
+}
+
+// ---- (G2435) THE INFRASTRUCTURE ------------------------------------------------------------------------------------
+// Douglas-Peucker on integer points (keeps the ends; every dropped point within tol of the kept chord)
+function simplify(P, tol) {
+  if (P.length < 3) return P.slice();
+  const keep = new Uint8Array(P.length); keep[0] = keep[P.length - 1] = 1;
+  const st = [[0, P.length - 1]];
+  while (st.length) {
+    const [a, b] = st.pop(); let k = -1, dm = tol;
+    const ax = P[a][0], ay = P[a][1], dx = P[b][0] - ax, dy = P[b][1] - ay, L = dx * dx + dy * dy;
+    for (let i = a + 1; i < b; i++) {
+      let t = L ? ((P[i][0] - ax) * dx + (P[i][1] - ay) * dy) / L : 0; t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(P[i][0] - ax - t * dx, P[i][1] - ay - t * dy);
+      if (d > dm) { dm = d; k = i; }
+    }
+    if (k > 0) { keep[k] = 1; st.push([a, k], [k, b]); }
+  }
+  return P.filter((q, i) => keep[i]);
+}
+// the composition the page makes with the town on (tools/premises_cook.js: the generators on a THREE stub, the catalogue,
+// the record's every place) - the plots it sows, the site items it stands, the cable it solves, in the world frame
+function composeTown() {
+  const PC = require('./premises_cook.js');
+  const v = PC.VARIANTS.find(x => x.name === 'town');
+  if (!v || v.drop.length) throw new Error('map_bake: premises_cook has no town variant composing every place');
+  return PC.composeVariant('jolene', v);
+}
+// rec: the island record; O: compose's overlay; toPx: the projection (float px) -> the infra block, integers in px
+function infraOf(rec, O, toPx) {
+  const ip = (x, z) => toPx(x, z).map(Math.round);
+  const str = P => P.map(q => q[0] + ',' + q[1]).join(' ');
+  const dedupe = P => P.filter((q, i) => !i || q[0] !== P[i - 1][0] || q[1] !== P[i - 1][1]);
+  const deg = a => ((Math.round(a * 180 / Math.PI) % 180) + 180) % 180;
+  // the roads: compose's line (the record's points, `smooth` applied once, as every reader sees it); the class the record's
+  const byId = {}; for (const r of O.roads) byId[r.id] = r;
+  const roads = rec.layers.roads.map(r => {
+    const c = byId[r.id]; if (!c) throw new Error('map_bake: compose has no road ' + r.id);
+    const P = dedupe(c.pts.map(q => ip(q[0], q[1])));
+    const cls = r.cls === 'track' || r.cls === 'path' ? 'track' : r.cls === 'gravel' ? 'gravel' : 'paved';
+    const o = { id: r.id, cls, look: r.look || null, w: +r.w || 0, main: (+r.w || 0) >= MAIN_W || !!r.name, p: INFRA_DP.map(t => str(simplify(P, t))) };
+    if (r.name) o.name = r.name;
+    return o;
+  });
+  // the zones the town is made of (forest and clear zones are trees and clearings, not settlement)
+  const zones = rec.layers.zones.filter(z => INFRA_ZONES.includes(z.kind) && z.poly && z.poly.length >= 3)
+    .map(z => ({ id: z.id, kind: z.kind, p: str(dedupe(z.poly.map(q => ip(q[0], q[1])))) }));
+  // the houses: every plot compose sows (the town kit's and the village's) - its centre, its frontage's bearing, its kind
+  const KIND = { residential: 0, commercial: 1, harbour: 2, industrial: 3, park: 4 };
+  const houses = O.records.plots.map(p => {
+    let cx = 0, cz = 0; for (const q of p.poly) { cx += q[0]; cz += q[1]; } cx /= p.poly.length; cz /= p.poly.length;
+    const c = ip(cx, cz);
+    return c[0] + ',' + c[1] + ',' + deg(Math.atan2(p.tg[1], p.tg[0])) + ',' + (KIND[p.kind] || 0);
+  }).join(' ');
+  // the site items: each footprint as its centre (px), its two sides (m) and the long side's bearing (deg)
+  const sites = O.records.items.filter(it => it.foot && it.foot.length >= 3).map(it => {
+    const F = it.foot, n = F.length;
+    let cx = 0, cz = 0; for (const q of F) { cx += q[0]; cz += q[1]; } cx /= n; cz /= n;
+    const e0 = [F[1][0] - F[0][0], F[1][1] - F[0][1]], e1 = [F[2][0] - F[1][0], F[2][1] - F[1][1]];
+    const l0 = Math.hypot(e0[0], e0[1]), l1 = Math.hypot(e1[0], e1[1]), long = l0 >= l1 ? e0 : e1;
+    const c = ip(cx, cz);
+    return { id: it.id, key: it.key, r: c[0] + ',' + c[1] + ',' + Math.max(1, Math.round(Math.max(l0, l1))) + ',' + Math.max(1, Math.round(Math.min(l0, l1))) + ',' + deg(Math.atan2(long[1], long[0])) };
+  });
+  // the links: the cable's centreline (the mean of its track ropes' ends) and its two stations
+  const links = (O.records.links || []).filter(L => L.ok && L.geom && L.link).map(L => {
+    const tr = L.geom.ropes.filter(r => r.kind === 'track'); if (!tr.length) throw new Error('map_bake: link ' + L.link.id + ' has no track rope');
+    const m = k => [tr.reduce((s, r) => s + r[k][0], 0) / tr.length, tr.reduce((s, r) => s + r[k][2], 0) / tr.length];
+    const a = m('a'), b = m('b');
+    return { id: L.link.id, kind: L.link.kind, from: L.link.from.site, to: L.link.to.site, lines: new Set(tr.map(r => r.line)).size, len: Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])),
+             p: str([ip(a[0], a[1]), ip(b[0], b[1])]), st: str([ip(L.A.x, L.A.z), ip(L.B.x, L.B.z)]) };
+  });
+  // the labels: where the record puts each (a zone's centroid, a site's anchor, an item's footprint, a cable's middle)
+  const labels = INFRA_LABELS.map(([kind, id, label, style, poi]) => {
+    let x, z;
+    if (kind === 'zone') { const zn = rec.layers.zones.find(q => q.id === id); if (!zn) throw new Error('map_bake: no zone ' + id); [x, z] = zn.poly.reduce((s, q) => [s[0] + q[0] / zn.poly.length, s[1] + q[1] / zn.poly.length], [0, 0]); }
+    else if (kind === 'site') { const st = rec.layers.sites.find(q => q.id === id); if (!st) throw new Error('map_bake: no site ' + id); x = st.at.x; z = st.at.z; }
+    else if (kind === 'item') { const it = O.records.items.find(q => q.id === id); if (!it || !it.foot) throw new Error('map_bake: no item ' + id); [x, z] = it.foot.reduce((s, q) => [s[0] + q[0] / it.foot.length, s[1] + q[1] / it.foot.length], [0, 0]); }
+    else { const L = links.find(q => q.id === id); if (!L) throw new Error('map_bake: no link ' + id); const e = L.p.split(' ').map(q => q.split(',').map(Number)); const c = [(e[0][0] + e[1][0]) / 2, (e[0][1] + e[1][1]) / 2]; return { id, label, style, poi, x: Math.round(c[0]), y: Math.round(c[1]) }; }
+    const c = ip(x, z);
+    return { id, label, style, poi, x: c[0], y: c[1] };
+  });
+  return { unit: 'px (integers: the projection\'s rule, rounded)', dp: INFRA_DP, mainW: MAIN_W, roads, zones, houses, sites, links, labels };
 }
 
 function bake() {
@@ -325,14 +424,18 @@ function bake() {
   // THE PAINTING: the committed bytes, in this frame exactly
   const art = fs.readFileSync(path.join(ROOT, ART_SRC)), as = jpegSize(art);
   if (as.w !== w || as.h !== h) throw new Error('map_bake: ' + ART_SRC + ' is ' + as.w + ' x ' + as.h + ', not the frame\'s ' + w + ' x ' + h);
+  // (G2435) THE INFRASTRUCTURE, off the record through compose (the town on: every place)
+  const town = composeTown();
+  if (JSON.stringify(town.rec.layers.roads) !== JSON.stringify(rec.layers.roads)) throw new Error('map_bake: the composed record is not the fixture');
+  const infra = infraOf(rec, town.O, toPx);
   const proj = {
     v: 1, island: 'jolene', mpp: MPP, x0: X0, z0: Z0, x1: X1, z1: Z1, w, h,
     rule: 'px = (x - x0) / mpp, py = (z - z0) / mpp; north up (-z is north); the grid labels are km from the world origin (north positive)',
-    aerodromes: aeros, plots, hotspots, pois,
+    aerodromes: aeros, plots, hotspots, pois, infra,
     look: { rwyGrowPx: RWY_GROW_PX, colours: { hard: idx.hard, grass: idx.grass, lane: idx.lane, plot: idx.plot } },
     credit: 'Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)',
   };
-  return { png, proj, pix, w, h, P, idx, art, artSize: as };
+  return { png, proj, pix, w, h, P, idx, art, artSize: as, town };
 }
 // the projection as written: the bake's, with the two pictures' names, sizes and hashes (write() and GATE MAPBAKE)
 function projOf(r, img, artImg) {
@@ -357,13 +460,13 @@ function write(r) {
   return { img, art, pj, gone, pack };
 }
 
-module.exports = { bake, projOf, encodePNG, decodePNG, jpegSize, MPP, RWY_GROW_PX, ART_SRC, ART_EDGE };
+module.exports = { bake, projOf, simplify, INFRA_DP, INFRA_ZONES, MAIN_W, encodePNG, decodePNG, jpegSize, MPP, RWY_GROW_PX, ART_SRC, ART_EDGE };
 
 if (require.main === module) {
   const t0 = Date.now();
   const r = bake();
   const kb = n => (n / 1024).toFixed(0) + ' KB';
-  console.log('map_bake: ' + r.w + ' x ' + r.h + ' px at ' + MPP + ' m/px, ' + r.P.length + ' colours, ' + kb(r.png.length) + ', ' + r.proj.aerodromes.length + ' runways, ' + r.proj.plots.length + ' plots, ' + r.proj.hotspots.length + ' hotspots, ' + r.proj.pois.length + ' places; the painting ' + r.artSize.w + ' x ' + r.artSize.h + ', ' + kb(r.art.length) + '; ' + (Date.now() - t0) + ' ms');
+  console.log('map_bake: ' + r.w + ' x ' + r.h + ' px at ' + MPP + ' m/px, ' + r.P.length + ' colours, ' + kb(r.png.length) + ', ' + r.proj.aerodromes.length + ' runways, ' + r.proj.plots.length + ' plots, ' + r.proj.hotspots.length + ' hotspots, ' + r.proj.pois.length + ' places; the infra ' + r.proj.infra.roads.length + ' roads, ' + r.proj.infra.zones.length + ' zones, ' + r.proj.infra.houses.split(' ').length + ' houses, ' + r.proj.infra.sites.length + ' site items, ' + r.proj.infra.links.length + ' link, ' + r.proj.infra.labels.length + ' labels: ' + (Buffer.byteLength(JSON.stringify(r.proj.infra)) / 1024).toFixed(1) + ' KB (' + (zlib.gzipSync(JSON.stringify(r.proj.infra), { level: 9 }).length / 1024).toFixed(1) + ' KB gzipped); the painting ' + r.artSize.w + ' x ' + r.artSize.h + ', ' + kb(r.art.length) + '; ' + (Date.now() - t0) + ' ms');
   if (process.argv.includes('--report')) process.exit(0);
   const o = write(r);
   console.log('wrote ' + o.img + ', ' + o.art + ', ' + o.pj + ', src/viewer/map_pack.js' + (o.gone.length ? '; pruned ' + o.gone.join(', ') : ''));
