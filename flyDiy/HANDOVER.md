@@ -85978,3 +85978,32 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G1860-G1869 DMG-D4b, ADDENDUM (2026-10-07): THE TRAIN-39 TAXI ROW; DMGUPLOAD'S HARD CUB STAGING FOR TRAIN 41 (branch claude/dmg-d4b-t41 off the train-39 assembly 82cf6ed8)
+
+### GATE DMGWRECK on DRIVE2's physics (ed0a83b8, merged in train 39 82cf6ed8)
+- DMG-DRIVE2 (ab53b8e4) grades a prop strike at the hub's band. At 3 m/s with the throttle shut, the spinner crushes on
+  the trunk first and no blade strikes it. The old row ("the 3 m/s taxi into a trunk strikes the prop") went red on all
+  three aeroplanes.
+- Now: the taxi crushes the nose / spinner on the trunk (DRIVE's nose element: crush > 0, crushOn 'trunk'; Cub 13.4 cm,
+  Jodel 11.8, Cessna 19.9). The taxi draws a strike only as DRIVE grades one (none: the prop drawn whole). The prop
+  strike on a trunk is asserted on trunk-0 (30 m/s), drawn on all three. Every case prints DRIVE's nose crush.
+  DMGWRECK 160/160; evidence reports/evidence/DMG-D4b/t39-taxi-row/.
+
+### DMGUPLOAD's hard Cub (train 41; tools/_dmg_upload_check.js)
+- On the train-39 physics (DRIVE2, WALL, TUNE), the gate's Cub crash (4 m up, 30 m/s, a 0.3 m trunk 40 m ahead) broke
+  only 12 members (210 before). The folds' heal was still tested, but on a small crash.
+- The staging is a parameter (--V --agl --tr --D; the mild one stays the default, unchanged). `--probe=1` runs the
+  crash only.
+- A sweep on 82cf6ed8 (reports/evidence/DMG-D4b/t41-sweep/; each staging ran twice, both runs the same) picked
+  **STAGES.hard = 30 m/s, 1 m up, a 0.5 m trunk: 114 broken, 12 bodies**. 30:2:0.5 broke 99, 50:2:0.5 broke 129. At
+  40 m/s the Cub broke 0-1 members (it most likely misses the trunk squarely: not a monotone dial).
+- The gate now runs Cub (mild), metal Cessna, **Cub (hard)**, then damage OFF. The hard row also fails if the wreck
+  breaks fewer than 80 members ("it tests the mild case again").
+- The full gate (2026-10-07 22:10-22:19, A0's CPU window, node): **GATE DMGUPLOAD PASS**. Cub mild 12 broken; metal 156;
+  **Cub hard 114 broken, 12 bodies, 0 stale of 366 drawn buffers (the folds' 44 included)**; damage OFF: the heal marking 0
+  times, 0 stale. Evidence: reports/evidence/DMG-D4b/t41-sweep/DMGUPLOAD_full_2210.txt.
+- **Open question**: why does the Cub at 40 m/s from 2 m (and 4 m) break only 0-1 members against a trunk the 30 and
+  50 m/s stagings break up on? The likely answer is that the staging misses the trunk squarely: the Cub lifts at 40 m/s
+  with the throttle shut. Not checked: a trace of the strike's lateral offset and the nose height at the trunk would
+  answer it.

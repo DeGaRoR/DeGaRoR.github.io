@@ -18,3 +18,7 @@ the throttle shut, 5 s. Each staging ran twice.
   The gate's row requires 80+, which leaves a margin for V8's tiering (crash counts move between runs; see DMG JIT chaos).
 - **Not a monotone dial**: at 40 m/s the Cub breaks 0-1 members from 2 m or 4 m up. It most likely does not meet the
   trunk squarely at that speed (it lifts). Not chased here; the 30 m/s staging is the one the gate uses.
+
+## The full gate on it, 2026-10-07 22:10-22:19 (A0's CPU window): GATE DMGUPLOAD PASS (`DMGUPLOAD_full_2210.txt`)
+Cub mild: 12 broken, 0 stale of 366. Metal Cessna: 156 broken, 0 stale of 427. **Cub hard: 114 broken, 12 bodies, 0 stale
+of 366, the folds' 44 buffers included.** Damage OFF: the heal marking fired 0 times, 0 stale.
