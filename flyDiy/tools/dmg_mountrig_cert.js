@@ -25,7 +25,7 @@ for (const k of keys) {
     const fit = !!b.seam, uT = 1.5 * K.m * ft * (fit ? K.uFit : K.uMember), uC = 1.5 * K.m * fc * K.uMember;
     const onT = !caseM && b.cls !== 'gear' && uT <= K.kappa * fuP, onC = !caseM && b.cls !== 'gear' && !b.tens && uC <= K.kappa * fcP;
     if (onT || onC) floors++;
-    console.log('  ' + (ta + '-' + tb).padEnd(13) + ' ' + b.cls.padEnd(4) + ' ' + (caseM ? 'case (physics)' : b.iso ? 'isolator' : b.cls === 'gear' ? 'nose leg' : 'bearer').padEnd(14)
+    console.log('  ' + (ta + '-' + tb).padEnd(13) + ' ' + b.cls.padEnd(4) + ' ' + (caseM ? 'case (physics)' : (def.parts.dmg.iso || []).includes(bi) ? 'isolator' : b.cls === 'gear' ? 'nose leg' : 'bearer').padEnd(14)
       + ' Ft' + kN(ft) + ' ' + String(cert.names[cert.byT[bi]] || '-').padEnd(12) + ' Fc' + kN(fc) + ' ' + String(cert.names[cert.byC[bi]] || '-').padEnd(12)
       + ' floor t/c' + kN(K.kappa * fuP) + kN(K.kappa * fcP) + (onT ? '  FLOOR(t)' : '') + (onC ? '  FLOOR(c)' : ''));
   });

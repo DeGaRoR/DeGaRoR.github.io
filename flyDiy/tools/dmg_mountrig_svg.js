@@ -9,10 +9,10 @@ const path = require('path'), fs = require('fs');
 const L = require('./_treecrash_lib.js');
 const [outDir, which] = [process.argv[2] || '.', process.argv[3] || 'new'];
 const isE = t => /^(ENG|CGE|MNT)/.test(t);
-const kindOf = (b, N) => {
+const kindOf = (b, N, d) => {
   const ta = N[b.a].tag, tb = N[b.b].tag, cup = t => /^MNT[TB][LR]$/.test(t);
   if (b.cls === 'gear') return 'leg';
-  if (b.iso) return 'iso';
+  if (d && d.parts.dmg.iso.indexOf(d.beams.indexOf(b)) >= 0) return 'iso';
   if (/^(ENG|CGE)/.test(ta) && /^(ENG|CGE)/.test(tb)) return 'case';
   if (cup(ta) && cup(tb)) return 'ring';
   if (isE(ta) || isE(tb)) return 'bearer';
@@ -34,13 +34,13 @@ for (const k of ['cub', 'jodel', 'metal', 'floats']) {
   const line = (a, b, c, w, py) => `<line x1="${sx(a[0]).toFixed(1)}" y1="${py(a).toFixed(1)}" x2="${sx(b[0]).toFixed(1)}" y2="${py(b).toFixed(1)}" stroke="${c}" stroke-width="${w}"/>`;
   for (const [py, title, ty] of [[p => sy(p[1]), 'side (x forward to the left, y up)', 30], [p => pz(p[2]), 'plan (z across)', 40 + H1 + 30]]) {
     o += `<text x="20" y="${ty + 10}" font-size="11" fill="#222">${title}</text>`;
-    for (const b of bs) { const kd = kindOf(b, N); o += line(N[b.a].p, N[b.b].p, COL[kd], kd === 'frame' ? 1 : 2.2, py); }
+    for (const b of bs) { const kd = kindOf(b, N, d); o += line(N[b.a].p, N[b.b].p, COL[kd], kd === 'frame' ? 1 : 2.2, py); }
     for (const i of ids) { const p = N[i].p, t = N[i].tag;
       o += `<circle cx="${sx(p[0]).toFixed(1)}" cy="${py(p).toFixed(1)}" r="${Math.max(2.5, Math.min(9, 1.6 * Math.sqrt(N[i].m)))}" fill="${isE(t) ? '#b4542a' : '#666'}" fill-opacity="0.55"/>`;
       if (py === sy || p[2] <= 0) o += `<text x="${(sx(p[0]) + 5).toFixed(1)}" y="${(py(p) - 5).toFixed(1)}" font-size="9" fill="#333">${t}</text>`; }
   }
   const leg = Object.keys(COL).map((c, j) => `<rect x="${20 + j * 90}" y="${40 + H1 + 40 + H2 + 12}" width="12" height="4" fill="${COL[c]}"/><text x="${36 + j * 90}" y="${40 + H1 + 40 + H2 + 18}" font-size="10">${c === 'leg' ? 'nose leg' : c === 'frame' ? 'firewall' : c}</text>`).join('');
-  const len = bs.filter(b => kindOf(b, N) === 'bearer').map(b => b.L);
+  const len = bs.filter(b => kindOf(b, N, d) === 'bearer').map(b => b.L);
   const head = `<text x="20" y="14" font-size="12" font-weight="bold">${L.BUILDS[k].label} - the ${which === 'old' ? 'OLD rig (the base)' : 'NEW rig (DMG-MOUNTRIG)'}</text><text x="20" y="27" font-size="10">mount members ${len.length ? Math.min(...len).toFixed(2) + '-' + Math.max(...len).toFixed(2) + ' m' : '-'} (bearers); circle area ~ node mass</text>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(W + 40, 580).toFixed(0)}" height="${(40 + H1 + 40 + H2 + 30).toFixed(0)}" style="background:#fff;font-family:sans-serif">${head}${o}${leg}</svg>`;
   fs.writeFileSync(path.join(outDir, 'rig_' + k + '_' + which + '.svg'), svg);

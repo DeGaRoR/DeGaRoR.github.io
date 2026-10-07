@@ -1050,10 +1050,11 @@ function genCertCombine(def, cases, opt) {
   return { Ft, Fc, byT, byC, names };
 }
 // the nose mount's kinds (G2363): [its tubes (a member with an end on a ring cup, MNT TL / TR / BL / BR, that is no
-// isolator), its isolators (b.iso)] - none on a build without a ring
+// isolator), its isolators (parts.dmg.iso)] - none on a build without a ring
 function genCertMountKinds(def) {
-  const N = def.nodes, cup = i => /^MNT[TB][LR]$/.test(N[i].tag || ''), tube = [], iso = [];
-  def.beams.forEach((b, bi) => { if (b.iso) iso.push(bi); else if (b.cls !== 'gear' && (cup(b.a) || cup(b.b))) tube.push(bi); });
+  const N = def.nodes, cup = i => /^MNT[TB][LR]$/.test(N[i].tag || ''), tube = [];
+  const iso = ((def.parts && def.parts.dmg && def.parts.dmg.iso) || []).slice(), isI = new Set(iso);
+  def.beams.forEach((b, bi) => { if (!isI.has(bi) && b.cls !== 'gear' && (cup(b.a) || cup(b.b))) tube.push(bi); });
   return [tube, iso].filter(G => G.length > 1);
 }
 // the engine mount's mirror pairs [i, j] (G2014): members with an end on an ENG / CGE / MNT node whose mirror (each end's

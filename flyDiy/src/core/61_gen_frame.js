@@ -228,7 +228,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // bolt), so it is a `fitting` and belongs to the group of the part that comes off ("the child": the gear off the
   // body, the engine off its mount, the wing off the cabin). Read only by the damage layer (30_solver.js, behind
   // params.damage); zero cost to anything else. dmgGroups (returned) is the group table.
-  const dmgGroups = [], dmgGrpKey = {}, dmgSib = [];
+  const dmgGroups = [], dmgGrpKey = {}, dmgSib = [], dmgIso = [];   // dmgIso: G2361, the nose mount's isolators
   const dmgRootZ = [];                                   // per plane: the wing roots' |z| (a root node is a root fitting's)
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
@@ -435,8 +435,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // G2361 (DMG-MOUNTRIG): a member whose section is its own and not its class row's (the nose mount's bearer, its
       // isolators, the engine's case: GEN_RULES.mountTubeA / mountIsoA / mountCaseA) - weightless ones, so only the
       // damage layer reads it; `iso` an isolator (no Euler: a rubber cup bottoms, it does not buckle)
+      // (an isolator is listed in parts.dmg.iso, not flagged on the member: a field on 8 members of ~450 gives the solver's
+      // hottest loop two shapes of beam - measured, the Cub's step with the damage layer on 2.5 -> 5 ms a frame)
       if (opt && opt.A > 0) bm.A = opt.A;
-      if (opt && opt.iso) bm.iso = true;
+      if (opt && opt.iso) dmgIso.push(beams.length);
     }
     // G1810 / G1815 (DMG-D1a): the seam and the break group (see dmgPart above). Every member carries both fields (one
     // shape for the solver's beam loop); a member that is no joint reads null / -1
@@ -2949,7 +2951,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues,
     // G1821 (DMG-D1b): every node's part (the body's 'body'), for the refs-core's gate (the body frame's refs on the body)
-    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp };
+    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp, iso: dmgIso };
   return { nodes, beams, refs, parts, clusters };
 }
 

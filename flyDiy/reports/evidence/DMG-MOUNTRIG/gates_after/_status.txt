@@ -23,3 +23,6 @@ _seaplane_check exit 0 599 s
 _pilotmatrix_check exit 0 1570 s
 _dmg_instruments_check exit 0 282 s
 _dmgdamp_check exit 0 343 s
+_dmghull_check exit 0 835 s
+_dmg_wall_check exit 1 932 s
+_dmgplough_check exit 0 308 s
