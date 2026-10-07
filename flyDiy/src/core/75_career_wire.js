@@ -13,7 +13,8 @@
 //     providers: [ { id, name, short, colour, home, line, rep, track } ],
 //     contracts: [ the accepted (in order) then the offers: { id, provider, kind, title, brief (RESOLVED words),
 //                  stages: [ { subs: [ {do, from?, to?, at?, load?, when?, crit?: [ {k, op, v, at?, words} ]} ] } ],
-//                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes } ],
+//                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes,
+//                  mark: { ok, gear: {ok, why}, door: {ok, why, items} } | null (G2340: the ✓ / ✗, freightMark) } ],
 //     career: { accepted, tracked, stage: {id: n}, live: {id: {stage, subs, picked}}, wallet, clock, done, voucher },
 //     fleet: [ { slot, name, where: playerWhere, cert | null } ],    the player document's own airframes
 //     board: [ { name, cert } ] }                                     (opts.board: designs not materialised)
@@ -75,8 +76,16 @@ function careerMapContract(doc, id, F) {
   if (rec.kind === 'build') out.followLine = contractFollowLine(rec);
   return out;
 }
+// (G2340 FREIGHT) THE MARK (§R.2: ✓ / ✗ only for the hard no-no's - surface vs gear, and NO DOOR FITS: an item that
+// passes no door of any of the player's planes; a build contract carries none). The fleet's designs: the career's
+// airframe rows (CONTRACT_DESIGNS + their FREIGHT_CARDS), opts.certs' shakedown rows (no card: their doors are not
+// known, so they never make a ✗), opts.cards[slot] (a card the page measured) -> freightMark's { ok, gear, door }
+function careerMapMark(doc, id, fleet, F) {
+  const rec = careerContract(doc, id);
+  return rec && typeof freightMark === 'function' ? freightMark(rec, fleet, F) : null;
+}
 // careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
-// opts: { certs: {slot: design row}, board: [{name, design}], fields }.
+// opts: { certs: {slot: design row}, board: [{name, design}], fields, cards: {slot: freight card} }.
 function careerMapRecord(doc, world, opts) {
   opts = opts || {};
   const F = opts.fields || CONTRACT_FIELDS;
@@ -108,6 +117,14 @@ function careerMapRecord(doc, world, opts) {
     const W = typeof playerWhere === 'function' ? playerWhere(doc, n) : { kind: 'none', aero: null, hangar: null };
     return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n) };
   });
+  // the designs the mark reads, per airframe: the career's design row (its card), else the shakedown's row
+  const cards = opts.cards || {};
+  const markFleet = Object.keys(doc.fleet || {}).sort().map(n => {
+    const A = af[n];
+    const design = (A && A.design && CONTRACT_DESIGNS[A.design]) || certs[n] || null;
+    return { slot: n, design, card: cards[n] || (A && A.design && typeof freightCardOf === 'function' ? freightCardOf(CONTRACT_DESIGNS[A.design]) : null) };
+  });
+  for (const c of contracts) c.mark = careerMapMark(doc, c.id, markFleet, F);
   const board = (opts.board || []).map(b => ({ name: b.name, cert: careerDesignCert(b.design, b.name) }));
   return {
     what: 'flydiy-career-map', v: CAREER_MAP_V, source: 'career',
@@ -130,17 +147,22 @@ function careerOverflewAdd(world, x, z, set) {
   return out;
 }
 // THE STOP RECORD (74_career.js contractOnStop's): o = { how, aero (flightWhere's id when flightCanDepart, else null),
-// wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, row: {from, to, t}, overflew, hour }
-// -> { how, aero, wrecked, slot, gear, load: {kg, pax}, row, overflew, hour }. Only a STOP delivers: an ending that
-// is not 'stopped' carries no aerodrome.
+// wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, items, row: {from, to, t}, overflew,
+// hour } -> { how, aero, wrecked, slot, gear, load: {kg, pax, items?}, row, overflew, hour }. Only a STOP delivers:
+// an ending that is not 'stopped' carries no aerodrome. (G2340 FREIGHT) THE LOAD IS THE LOADED ITEMS: with items
+// aboard (FREIGHT-LOAD's accepted packing), `load.items` is them and `load.kg` their sum; with none, the typed
+// cargo kg stands (the fallback).
 function careerStopRecord(o) {
   o = o || {};
   const occ = Math.max(0, Math.round(+o.occupants || 0));
+  const items = Array.isArray(o.items) && o.items.length && typeof freightItem === 'function' ? freightSplit(o.items) : null;
+  const load = items ? { kg: freightKg(items), pax: Math.max(0, occ - 1), items }
+                     : { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) };
   return {
     how: o.how || 'stopped',
     aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,
     wrecked: !!o.wrecked, slot: o.slot || null, gear: o.gear || null,
-    load: { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) },
+    load,
     row: { from: (o.row && o.row.from) || null, to: (o.row && o.row.to) || null, t: Math.max(0, Math.round(+(o.row && o.row.t) || 0)) },
     overflew: Array.isArray(o.overflew) ? o.overflew.slice() : [],
     hour: (typeof o.hour === 'number' && isFinite(o.hour)) ? Math.round(o.hour * 100) / 100 : null,
@@ -154,7 +176,11 @@ function careerTrackedLoad(doc) {
   const st = rec && rec.stages[L.stage];
   if (!st) return null;
   const j = st.subs.findIndex((s, i) => !L.subs[i] && s.load);
-  return j < 0 ? null : { kg: st.subs[j].load.kg || 0, pax: st.subs[j].load.pax || 0, sub: j };
+  if (j < 0) return null;
+  const out = { kg: st.subs[j].load.kg || 0, pax: st.subs[j].load.pax || 0, sub: j };
+  // (G2340 FREIGHT) the items the job's load is (what FREIGHT-LOAD packs and the stop record carries)
+  if (typeof freightSubItems === 'function') { const it = freightSubItems(st.subs[j], rec); if (it.length) out.items = it; }
+  return out;
 }
 // the tracked build contract's criteria that need the acceptance LEG (a cruise flown: tasKmh, enduranceMin,
 // rangeKm) -> [crit] (empty when nothing tracked, not a build, or none flown)
