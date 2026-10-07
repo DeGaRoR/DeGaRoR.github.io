@@ -99,6 +99,11 @@
    "accepted": 12,
    "ratcheted": 65,
    "note": "by name: only the user-accepted cap/hybrid rows take the new value; better rows ratchet down; rows within slack keep the old value; the three load rows (garage->world first, warm first flight, round trip 2) are NOT accepted and stay red until fixed"
+  },
+  "rebaselined40": {
+   "train": 40,
+   "date": "2026-10-07",
+   "accepted": 7
   }
  },
  "rows": [
@@ -393,7 +398,7 @@
    "id": "rollout|cub chase|flight",
    "part": "rollout",
    "what": "cub chase flight",
-   "value": 43.107,
+   "value": 44.504,
    "runs": 2,
    "rule": {
     "up": false,
@@ -401,6 +406,13 @@
     "abs": 3,
     "unit": "s",
     "info": false
+   },
+   "accepted": {
+    "was": 43.107,
+    "by": "user",
+    "why": "the roll-out engine start, 2.1 s (the user, 7 Oct)",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
@@ -701,7 +713,7 @@
    "id": "rollout|cub cockpit|flight",
    "part": "rollout",
    "what": "cub cockpit flight",
-   "value": 41.384,
+   "value": 44.6975,
    "runs": 2,
    "rule": {
     "up": false,
@@ -709,6 +721,13 @@
     "abs": 3,
     "unit": "s",
     "info": false
+   },
+   "accepted": {
+    "was": 41.384,
+    "by": "user",
+    "why": "the roll-out engine start, 2.1 s (the user, 7 Oct)",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
@@ -1016,7 +1035,7 @@
    "id": "rollout|metal chase|flight",
    "part": "rollout",
    "what": "metal chase flight",
-   "value": 42.551,
+   "value": 44.7955,
    "runs": 2,
    "rule": {
     "up": false,
@@ -1024,6 +1043,13 @@
     "abs": 3,
     "unit": "s",
     "info": false
+   },
+   "accepted": {
+    "was": 42.551,
+    "by": "user",
+    "why": "the roll-out engine start, 2.1 s (the user, 7 Oct)",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
@@ -1317,7 +1343,7 @@
    "id": "rollout|metal cockpit|flight",
    "part": "rollout",
    "what": "metal cockpit flight",
-   "value": 42.4655,
+   "value": 44.554,
    "runs": 2,
    "rule": {
     "up": false,
@@ -1325,6 +1351,13 @@
     "abs": 3,
     "unit": "s",
     "info": false
+   },
+   "accepted": {
+    "was": 42.4655,
+    "by": "user",
+    "why": "the roll-out engine start, 2.1 s (the user, 7 Oct)",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
@@ -1896,22 +1929,36 @@
    "id": "bench|cub garage -> world (first) @HOME|sec",
    "part": "bench",
    "what": "cub garage -> world (first) @HOME",
-   "value": 8.98,
+   "value": 11.27,
    "rule": {
     "rel": 0.15,
     "abs": 1.5,
     "unit": "s"
+   },
+   "accepted": {
+    "was": 8.98,
+    "by": "user",
+    "why": "the roll-out engine start, 2.1 s (the user tightened it from 2.9, 7 Oct)",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
    "id": "bench|cub garage -> world (first) @HOME|taskWorst",
    "part": "bench",
    "what": "cub garage -> world (first) @HOME worst task",
-   "value": 119,
+   "value": 331,
    "rule": {
     "rel": 0.15,
     "abs": 150,
     "unit": "ms"
+   },
+   "accepted": {
+    "was": 119,
+    "by": "user",
+    "why": "one ~60 ms longer frame on the warm first trip, source in train 40 not yet named; accepted by the user to land train 40 (7 Oct), bisect owed",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
@@ -1951,11 +1998,18 @@
    "id": "bench|cub round trip 2: garage -> world|sec",
    "part": "bench",
    "what": "cub round trip 2: garage -> world",
-   "value": 8.86,
+   "value": 10.96,
    "rule": {
     "rel": 0.15,
     "abs": 1.5,
     "unit": "s"
+   },
+   "accepted": {
+    "was": 8.86,
+    "by": "user",
+    "why": "the roll-out engine start, 2.1 s (the user, 7 Oct)",
+    "train": 40,
+    "date": "2026-10-07"
    }
   },
   {
