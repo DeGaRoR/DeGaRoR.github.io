@@ -2379,10 +2379,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                          m0.userData.panelSet ||
                                                          m0.userData.propMat))
                                                        ? [] : null });
-        const dv0 = G3.pos.length / 3;
+        const lv0 = G3.pos.length / 3;
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
-        if (dbrTag && !part) debris.push([dbrTag, key, dv0, G3.pos.length / 3]);
-        if (!part) layers.push([layTag, key, dv0, G3.pos.length / 3, layId]);
+        if (dbrTag && !part) debris.push([dbrTag, key, lv0, G3.pos.length / 3]);
+        if (!part) layers.push([layTag, key, lv0, G3.pos.length / 3, layId]);
       }
     });
     // (THE RESTORE USED TO BE HERE, AND THAT WAS THE BUG WITH TEETH. It runs

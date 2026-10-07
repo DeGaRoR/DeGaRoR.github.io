@@ -96,10 +96,10 @@ function candidates(def) {
     // the cowl: about the engine, half the prop's disc across; a nose engine's runs back to the firewall ring
     const nose = Math.abs(at[2]) < 0.3;
     const cAt = nose ? cen(ids.concat(R.noseFrame)) : at;
-    out.push({ kind: 'cowl', unit: u, at: cAt, box: { lo: [-0.45, -0.32, -0.32], hi: [0.45, 0.32, 0.32] }, mass: 7, floats: false });
+    out.push({ kind: 'cowl', unit: u, at: cAt, crushAt: WD.TORN, box: { lo: [-0.45, -0.32, -0.32], hi: [0.45, 0.32, 0.32] }, mass: 7, floats: false });
     // the engine unit (block, prop and spinner on it): leaves only loose; the spinner alone only crushed
     out.push({ kind: 'eng', unit: u, at, nodes: ids.slice(), rule: 'loose', box: { lo: [-0.4, -0.3, -0.3], hi: [0.4, 0.3, 0.3] }, mass: 90, floats: false });
-    out.push({ kind: 'spinner', unit: u, at, rule: 'crush', box: { lo: [-0.14, -0.12, -0.12], hi: [0.14, 0.12, 0.12] }, mass: 1, floats: true });
+    out.push({ kind: 'spinner', unit: u, at, rule: 'crush', crushAt: WD.TORN, box: { lo: [-0.14, -0.12, -0.12], hi: [0.14, 0.12, 0.12] }, mass: 1, floats: true });
   }
   const axles = [].concat(R.mains || [], R.tw != null && R.tw >= 0 ? [R.tw] : []);
   if (!(def.parts && def.parts.floats && def.parts.floats.length))
@@ -124,27 +124,36 @@ function runCase(k, c, damage, opt) {
   const eye = [0, 0, 0]; for (const i of eyeBay.n) for (let j = 0; j < 3; j++) eye[j] += rest[i*3+j] / 8;
   let hTop = 0, hBot = 0; for (const i of eyeBay.n.slice(2, 4)) hTop += rest[i*3+1] / 2; for (const i of eyeBay.n.slice(0, 2)) hBot += rest[i*3+1] / 2; eye[1] += 0.2 * (hTop - hBot);
   const CAB = WD.cabin(def, eye);
-  const rel = [], strikes = [], prevRpm = [], seized = sim.eng.map(e => !!e.seized);
+  const rel = [], strikes = [], prevRpm = [], seized = sim.eng.map(e => e.seized ? 3 : 0);
   let payloads = 0;
   const stepEvery = Math.round(60 / (opt.fps || 60));
   let accDt = 0;
   const onFrame = (f) => {
     const PL = SH.simDmgHop(sim, hop, core, 0);
     if (PL) { SV.simViewDmgApply(st, PL); payloads++; }
-    // the strikes (a seized engine, once): its rpm the frame before, the hub's speed, the aeroplane's mass
+    // (G1862.1: the live cabin bays of the core are solid to the bodies - the page's rule, app.js wreckFrame)
+    IN.env.solid = W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, BY.filter(B => B.n.every(i => !st.pc || st.pc[i] === 0)), sim.v) : null;
+    // the strikes (a seized engine, once; or DMG-DRIVE's grade as it rises - G1861.5, the page's rule): its rpm the frame
+    // before, the hub's speed, the aeroplane's mass
+    const DV = (sim.damage() || {}).drive || null;
     sim.eng.forEach((e, ki) => {
-      if (e.seized && !seized[ki]) {
-        seized[ki] = true;
+      const dv = DV && DV[ki] && WD.DRV_RANK[DV[ki].strike] ? DV[ki] : null, rank = dv ? WD.DRV_RANK[dv.strike] : (e.seized ? 3 : 0);
+      if (rank > (seized[ki] || 0)) {
+        seized[ki] = rank;
         const E = def.refs.engine.filter((i, j) => ((def.refs.engineOf || [])[j] | 0) === ki);
         let vx = 0, vy = 0, vz = 0; for (const i of E) { vx += sim.v[i*3]; vy += sim.v[i*3+1]; vz += sim.v[i*3+2]; }
-        const D = sim.damage(), info = { rpm: prevRpm[ki] || 0, V: Math.hypot(vx, vy, vz) / Math.max(1, E.length), M: sim.totalM, D: CD.D, nb: 2, what: D.propAt ? D.propAt.what : 'ground', eng: ki, t: sim.t };
-        const S = WD.strike(info), S2 = WD.strike(info);
-        const s = { t: sim.t, eng: ki, info, E: S.E, Espin: S.Espin, Ehit: S.Ehit, pBreak: S.pBreak, breaks: S.breaks, lost: S.lost, curl: S.curl, dent: S.dent, same: JSON.stringify(S) === JSON.stringify(S2) };
-        if (S.breaks) {
+        const D = sim.damage(), wet = c.kind === 'water';
+        const info = { rpm: prevRpm[ki] || 0, V: Math.hypot(vx, vy, vz) / Math.max(1, E.length), M: sim.totalM, D: CD.D, nb: 2, what: wet ? 'water' : (D.propAt ? D.propAt.what : 'ground'), eng: ki, t: sim.t,
+          material: (def.spec && def.spec.prop && def.spec.prop.material) || 'wood', wet };
+        const S0 = WD.strike(info), S = dv ? WD.fromDrive(dv, info) : S0, S2 = dv ? WD.fromDrive(dv, info) : WD.strike(info);
+        const s = { t: sim.t, eng: ki, info, drive: dv ? dv.strike : null, E: S0.E, Espin: S0.Espin, Ehit: S0.Ehit, metal: S.metal, breaks: S.breaks, cut: S.cut, curl: S.curl, dent: S.dent, same: JSON.stringify(S) === JSON.stringify(S2) };
+        if (S.breaks) for (let b = 0; b < 2; b++) {
+          if (!(S.cut[b] < 1) && dv) continue;                // (DRIVE's grade: only the blades it breaks)
           if (accDt) { WD.step(W, accDt, IN.env); accDt = 0; }
           // the lost blade: a body off the engine's nodes, at half the radius out along the strike's seeded direction
           const at = [0, 0, 0]; for (const i of E) for (let j = 0; j < 3; j++) at[j] += rest[i*3+j] / E.length;
-          const az = S.dentAz; at[1] += Math.cos(az) * CD.D / 4; at[2] += Math.sin(az) * CD.D / 4;
+          // (each blade's outer piece, past its cut: half-way out on its own side)
+          const az = S.dentAz + b * Math.PI, rr = (S.cut[b] + 1) / 2 * CD.D / 2; at[1] += Math.cos(az) * rr; at[2] += Math.sin(az) * rr;
           const cb = { id: P.parts.length, kind: 'blade', nodes: E.slice(), at, why: 'strike' }; P.parts.push(Object.assign(cb, { L0: [] }));
           const F = WD.fit(cb.nodes, rest, sim.p), Rm = F.R, d = [at[0] - F.cr[0], at[1] - F.cr[1], at[2] - F.cr[2]];
           const x = [F.cl[0] + Rm[0]*d[0] + Rm[1]*d[1] + Rm[2]*d[2], F.cl[1] + Rm[3]*d[0] + Rm[4]*d[1] + Rm[5]*d[2], F.cl[2] + Rm[6]*d[0] + Rm[7]*d[1] + Rm[8]*d[2]];
@@ -211,7 +220,7 @@ function propUnit() {
   const BF = WD.bladeFrame(base, nv, axis);
   const S = WD.strike({ rpm: 1100, V: 3, M: 500, D: 1.9, nb: BF.nb, what: 'trunk', eng: 0 });
   const curl = [0.6, 0.9];
-  WD.curlBlades(base, out, nv, axis, BF, curl, 0.08);
+  WD.curlBlades(base, out, nv, axis, BF, curl, 0.08, 1);
   // each blade's length kept (hub to tip, along its polyline), its tip aft (-x), the inner third untouched
   const len = (P, sg) => { let L = 0; const ids = []; for (let v = 0; v < nv; v++) if (Math.sign(base[v*3+1]) === sg && base[v*3+2] < 0) ids.push(v);
     for (let j = 1; j < ids.length; j++) { const a = ids[j-1] * 3, b = ids[j] * 3; L += Math.hypot(P[a] - P[b], P[a+1] - P[b+1], P[a+2] - P[b+2]); } return L; };
@@ -224,7 +233,9 @@ function propUnit() {
   let inFace = 0, inBack = 0;
   for (let v = 0; v < snv; v++) { const y = sb[v*3+1], z = sb[v*3+2], r0 = Math.hypot(y, z), r1 = Math.hypot(so[v*3+1], so[v*3+2]); if (r0 < 1e-6) continue;
     const az = Math.atan2(z, y); if (Math.cos(az) > 0.9) inFace = Math.max(inFace, r0 - r1); if (Math.cos(az) < 0) inBack = Math.max(inBack, Math.abs(r0 - r1)); }
-  return { nb: BF.nb, R: BF.R, lens: [len(base, 1), len(out, 1), len(base, -1), len(out, -1)], tipAft, innerMoved, inFace, inBack, strike: S };
+  const Sw = WD.strike({ rpm: 700, V: 3, M: 480, D: 1.9, nb: 2, what: 'trunk', eng: 0, material: 'wood' }), Sm = WD.strike({ rpm: 700, V: 3, M: 880, D: 2.06, nb: 2, what: 'trunk', eng: 0, material: 'alu' });
+  const Sww = WD.strike({ rpm: 700, V: 3, M: 900, D: 2, nb: 2, what: 'water', eng: 0, material: 'wood', wet: true }), Smw = WD.strike({ rpm: 700, V: 3, M: 900, D: 2.06, nb: 2, what: 'water', eng: 0, material: 'alu', wet: true });
+  return { nb: BF.nb, R: BF.R, lens: [len(base, 1), len(out, 1), len(base, -1), len(out, -1)], tipAft, innerMoved, inFace, inBack, strike: S, Sw, Sm, Sww, Smw };
 }
 
 if (argv[0] === '--build') {
@@ -266,7 +277,7 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
       const S = c.on;
       console.log('  ' + c.label + ': ' + (S.crashed ? 'CRASHED (' + S.reason + ')' : 'no crash') + ', ' + S.broken + ' broken, ' + S.payloads + ' damage payloads');
       console.log('    released: ' + (S.rel.length ? S.rel.map(x => x.kind + ' (' + x.why + (x.crush != null && x.why === 'crushed' ? ' ' + (x.crush * 100).toFixed(0) + ' cm' : '') + ', t ' + x.t + ' s)').join(', ') : 'nothing') + '; ' + S.stillN + ' parts stay on');
-      for (const s of S.strikes) console.log('    prop strike (engine ' + s.eng + ', ' + s.info.what + ', t ' + f2(s.t) + ' s): ' + Math.round(s.info.rpm) + ' rpm, the hub at ' + f2(s.info.V) + ' m/s - E ' + (s.E / 1000).toFixed(1) + ' kJ (spin ' + (s.Espin / 1000).toFixed(1) + ', impact ' + (s.Ehit / 1000).toFixed(1) + '), p(break) ' + f2(s.pBreak) + ': ' + (s.breaks ? 'blade ' + s.lost + ' BROKE OFF' : 'the blades curl') + ' (curl ' + s.curl.map(f2).join(' / ') + ' rad), the spinner dented ' + (s.dent * 100).toFixed(1) + ' cm');
+      for (const s of S.strikes) console.log('    prop strike (engine ' + s.eng + ', ' + s.info.what + ', a ' + s.info.material + ' prop, t ' + f2(s.t) + ' s): ' + Math.round(s.info.rpm) + ' rpm, the hub at ' + f2(s.info.V) + ' m/s - E ' + (s.E / 1000).toFixed(1) + ' kJ (spin ' + (s.Espin / 1000).toFixed(1) + ', impact ' + (s.Ehit / 1000).toFixed(1) + '): ' + (s.breaks ? 'EVERY BLADE SNAPS (at ' + s.cut.map(c => Math.round(c * 100) + ' %').join(' / ') + ' of the radius; the stubs stay)' : s.metal ? 'the blades bend aft and against the rotation (' + s.curl.map(f2).join(' / ') + ' rad)' : 'the prop stops whole (a wooden one in the water, slow)') + ', the spinner dented ' + (s.dent * 100).toFixed(1) + ' cm');
       yes(!S.bad, 'the crash flown finite with the wreck layer reading it');
       yes(S.hash === c.bare.hash, 'the wreck layer only reads: the crash ends on the same bits with it and without it (' + S.hash + ')');
       for (const b of S.bodies) console.log('    body ' + b.kind + ' (' + b.why + '): ' + (b.sunk ? 'SUNK (out of sight)' : b.asleep ? 'at rest' : 'MOVING') + ' after ' + b.age + ' s, ' + f2(b.from) + ' m from the wreck' + (b.sunk ? '' : ', its lowest corner ' + (b.clear * 100).toFixed(1) + ' cm over ' + (b.wet ? 'the water' : 'the ground')) + ', ' + (b.deep > -2 ? 'the deepest corner ' + (b.deep * 100).toFixed(1) + ' cm in cabin bay ' + b.bay : 'no cabin bay near'));
@@ -280,8 +291,12 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
         yes(lo.rel.length === S.rel.length && lo.bodies.every(b => b.asleep) && dmax < 0.05, 'the frame rate does not move the debris: stepped at 12 frames a second, the same ' + lo.rel.length + ' releases at rest within ' + (dmax * 100).toFixed(1) + ' cm of the 60 fps rest');
       }
       for (const s of S.strikes) yes(s.same, 'the strike is seeded: the same strike, the same answer (engine ' + s.eng + ')');
-      if (c.id === 'taxi') yes(S.strikes.length > 0 && S.strikes.every(s => !s.breaks), 'the 3 m/s taxi into a trunk: the prop strikes and its blades curl, none breaks');
-      if (/^trunk-0|^nosein-ground/.test(c.id)) yes(S.strikes.some(s => s.breaks), 'the ' + c.label + ': a blade breaks off');
+      // G1861.2: the build's prop material decides - wood (and carbon) snaps, aluminium bends
+      for (const s of S.strikes) if (!s.drive) yes(s.metal ? (!s.breaks && s.curl.every(x => x > 0)) : (s.breaks || s.info.wet), 'the ' + s.info.material + ' prop ' + (s.metal ? 'bends, none breaks' : s.breaks ? 'snaps on every blade' : 'stops whole in the water') + ' (' + c.id + ')');
+        else console.log('    DMG-DRIVE graded the strike "' + s.drive + '" (engine ' + s.eng + '): curl ' + s.curl.map(f2).join(' / ') + ', cut ' + s.cut.map(f2).join(' / '));
+      if (c.id === 'taxi') yes(S.strikes.length > 0, 'the 3 m/s taxi into a trunk strikes the prop');
+      // G1860.1: dented sheet stays on its fasteners - a cowl panel or a spinner leaves crushed only past TORN
+      yes(S.rel.every(x => !((x.kind === 'cowl' || x.kind === 'spinner') && x.why === 'crushed') || x.crush > WD.TORN), 'a cowl / spinner leaves only loose, off or torn past ' + (WD.TORN * 100) + ' cm (' + c.id + ')');
       if (S.eye) console.log('    the cockpit (eye in bay ' + S.eyeBay + ', ' + (S.eyeD0 * 100).toFixed(0) + ' cm clear at rest): ' + (S.eye.crushed ? 'CRUSHED - ' + S.eye.why + ': the chase view' : 'clear (' + (S.eye.depth * 100).toFixed(0) + ' cm, the bay at ' + (S.eye.vol * 100).toFixed(0) + ' % of its volume)'));
       yes(c.off.rel.length === 0 && c.off.payloads === 0 && c.off.bodies.length === 0 && c.off.hash === c.offBare.hash, 'damage OFF: no payload, nothing released, no body (' + c.off.strikes.length + ' strikes the solver itself does not make), the same bits as without the layer');
     }
@@ -296,6 +311,38 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
     yes(Math.abs(U.lens[0] - U.lens[1]) < 2e-3 && Math.abs(U.lens[2] - U.lens[3]) < 2e-3, 'the curl keeps each blade\'s length (' + U.lens.map(x => x.toFixed(3)).join(' / ') + ' m)');
     yes(U.tipAft.every(a => a > 0.05) && U.innerMoved < 1e-9, 'the tips curl aft (' + U.tipAft.map(x => (x * 100).toFixed(1)).join(' / ') + ' cm), the blades\' inner ' + WD.CURL_S0 * 100 + ' % untouched');
     yes(U.inFace > 0.01 && U.inBack < 1e-9, 'the spinner dented on the strike\'s side only (' + (U.inFace * 100).toFixed(1) + ' cm in; ' + (U.inBack * 100).toFixed(2) + ' cm behind)');
+    yes(U.Sw.breaks && U.Sw.cut.every(c => c >= WD.CUT0 && c <= WD.CUT0 + WD.CUT1) && U.Sw.curl.every(c => c === 0), 'a wooden prop snaps on every blade at 25-45 % of its radius (' + U.Sw.cut.map(c => Math.round(c * 100)).join(' / ') + ' %)');
+    yes(!U.Sm.breaks && U.Sm.curl.every(c => c > 0), 'an aluminium prop bends, none breaks (' + U.Sm.curl.map(f2).join(' / ') + ' rad)');
+    yes(!U.Sww.breaks && !U.Smw.breaks && U.Smw.curl.every(c => c > 0) && Math.max(...U.Smw.curl) < WD.WET_K * (WD.CURL0 + WD.CURL1) * 1.2 + 1e-9, 'in the water a slow wooden prop stops whole, an aluminium one bends less (' + U.Smw.curl.map(f2).join(' / ') + ' rad)');
+  }
+  // G1861.5: DMG-DRIVE's grade drawn (WD.fromDrive) - each tier as the shared fields say, seeded by the strike
+  {
+    const at = (surf, biteR, tip) => ({ t: 3.25, what: 'trunk', surf, bite: biteR, biteR, tip, rpm: 2100 });
+    const F = (st, mat, a, lost) => WD.fromDrive({ strike: st, strikeAt: a, bladeLost: lost || 0 }, { nb: 2, material: mat, eng: 0 });
+    const br = F('brush', 'wood', at('soft', 0.03, 80)), bA = F('bent', 'alu', at('soft', 0.06, 80)), bB = F('bent', 'alu', at('soft', 0.14, 80));
+    const sW = F('stoppage', 'wood', at('rigid', 0.3, 90)), sWs = F('stoppage', 'wood', at('rigid', 0.3, 150)), sM = F('stoppage', 'alu', at('rigid', 0.3, 150));
+    const pM = F('separation', 'alu', at('rigid', 0.3, 230), 0.35), pW = F('separation', 'wood', at('rigid', 0.3, 100), 0.35);
+    console.log('DMG-DRIVE\'s grade drawn (G1861.5):');
+    yes(WD.fromDrive({ strike: null }, { nb: 2 }) === null, 'no strike graded: nothing drawn from DRIVE');
+    yes(!br.breaks && br.curl.every(c => c > 0 && c < 0.1) && br.dent === 0, 'brush: the tips scuffed (' + br.curl.map(f2).join(' / ') + ' rad), nothing lost, the spinner whole');
+    yes(!bA.breaks && !bB.breaks && Math.max(...bA.curl) < Math.min(...bB.curl) * 1.5 && bA.k < bB.k && bA.dent === 0, 'bent: curled back by the bite (biteR 0.06 -> k ' + f2(bA.k) + ', 0.14 -> k ' + f2(bB.k) + ')');
+    yes(!sW.breaks && sW.curl.every(c => c === 0) && sWs.breaks && sWs.cut.every(c => c >= 0.85 && c < 1) && sM.curl.every(c => c > WD.CURL0) && !sM.breaks && sM.dent > 0,
+      'stoppage: a wooden prop stops whole below the separation tip speed, its tips splinter above it (' + sWs.cut.map(c => Math.round(c * 100)).join(' / ') + ' %); an aluminium one fully curled; the spinner dented');
+    yes(pM.cut.filter(c => c < 1).length === 1 && Math.abs(Math.min(...pM.cut) - 0.65) < 1e-9 && pW.cut.filter(c => c < 1).length === 1, 'separation: ONE blade short by bladeLost (cut at ' + Math.round(Math.min(...pM.cut) * 100) + ' % of R), its piece a body');
+    const again = F('separation', 'alu', at('rigid', 0.3, 230), 0.35);
+    yes(JSON.stringify(again) === JSON.stringify(pM), 'seeded by the strike: the same grade at the same moment, the same picture');
+  }
+  // UNDER THE PHYSICS WORKER (the default): the page's sim is sim_link's mirror, never stepped - the breaks (dmgState) and
+  // DMG-DRIVE's grade (drv) reach the page only if the mirror carries them (2026-10-06: neither did; no break reached the page)
+  {
+    const L = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_link.js'), 'utf8'), A = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    const saved = /for \(const k of \[[^\]]*'dmgState'[^\]]*'drv'[^\]]*'vView'[^\]]*'engView'[^\]]*\]\) saved\[k\] = own\(k\)/.test(L);
+    yes(saved && /def\('dmgState', \{[^}]*V\.dmgState\(\)/.test(L) && /def\('drv', \{ get: \(\) => V\.drv/.test(L) && /'drv' in sim\) return sim\.drv/.test(A),
+      'under the physics worker the page\'s sim mirrors the breaks (dmgState) and DMG-DRIVE\'s grade (drv), saved and restored at detach; the prop reads the mirror first');
+    // (...and the worker's node velocities and engines: a released part leaves with its nodes' velocity, a seized prop stops)
+    yes(/def\('vView', \{ get: \(\) => V\.v/.test(L) && /def\('engView', \{ get: \(\) => V\.eng/.test(L) && /'engView' in sim && sim\.engView/.test(A) && /'vView' in sim \? sim\.vView/.test(A)
+      && !/const vel = sim\.v &&/.test(A) && /const E0 = wreckEng\(\), se0 = E0 && E0\[ei\]/.test(A),
+      'under the physics worker the wreck reads the worker\'s node velocities (vView) and engines (engView): released parts fly off, a seized prop stops');
   }
   // app.js: the wreck path behind the damage state
   {

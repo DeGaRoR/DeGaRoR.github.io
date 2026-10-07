@@ -656,36 +656,6 @@
     R.torn += n; R.removed += n;
     return n;
   }
-  // ---- G1864 (DMG-D4b): THE CONFETTI. The tear leaves islands - a few triangles of covering riding a loose node, metres
-  // from the wreck - that read as paper scraps on the box. A piece of live skin (triangles joined by their places, rep)
-  // that TOUCHES the tear or the break (shares a place with a removed triangle) and has fewer than `min` triangles goes
-  // with it (dead 2, for good); a small piece the wreck never touched (a fitting, a bolt head) is not asked. Returns the
-  // triangles removed. Page-only (app.js brkCage, after a tear, at most every 0.25 s)
-  function islands(R, min) {
-    if (!R.dead || !R.idx0) return 0;
-    const i0 = R.idx0, nt = R.nt, dead = R.dead, rp = R.rep, nv = R.nv, idx = R.idx;
-    const P = new Int32Array(nv); for (let v = 0; v < nv; v++) P[v] = v;
-    const f = x => { while (P[x] !== x) { P[x] = P[P[x]]; x = P[x]; } return x; };
-    const at = v => rp ? rp[v] : v;
-    const cut = new Uint8Array(nv);
-    for (let t = 0; t < nt; t++) {
-      const a = at(i0[t * 3]), b = at(i0[t * 3 + 1]), c = at(i0[t * 3 + 2]);
-      if (dead[t]) { cut[a] = cut[b] = cut[c] = 1; continue; }
-      let x = f(a), y = f(b); if (x !== y) P[x] = y;
-      x = f(b); y = f(c); if (x !== y) P[x] = y;
-    }
-    const size = new Int32Array(nv), touched = new Uint8Array(nv);
-    for (let t = 0; t < nt; t++) { if (dead[t]) continue; const a = at(i0[t * 3]), r = f(a); size[r]++;
-      if (cut[a] || cut[at(i0[t * 3 + 1])] || cut[at(i0[t * 3 + 2])]) touched[r] = 1; }
-    let n = 0;
-    for (let t = 0; t < nt; t++) {
-      if (dead[t]) continue;
-      const r = f(at(i0[t * 3]));
-      if (touched[r] && size[r] < min) { dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; }
-    }
-    R.removed += n; R.torn += n;
-    return n;
-  }
   // ---- G1818 (DMG-SKINGPU): THE RIDING ON THE GPU - the data, the shader's mirror, the tear without the CPU riding ----
   // The page rides a broken aeroplane's cage on the GPU (skin_gpu.js: a transform feedback over the buffers the folds
   // draw). A vertex is drawn from its PLACE (the weld's first vertex, rep): packed at an event or a binding step, never
@@ -1191,6 +1161,36 @@
       for (let q = 0; q < 3; q++) { const v = i0[t * 3 + q], r = on[v * 2]; if (r < 0) continue; const C = cov[r].R;
         if (C.dead && C.dead[on[v * 2 + 1]]) { dead[t] = 4; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; break; } } }
     R.removed += n; R.followed = (R.followed || 0) + n;
+    return n;
+  }
+  // ---- G1864 (DMG-D4b): THE CONFETTI. The tear leaves islands - a few triangles of covering riding a loose node, metres
+  // from the wreck - that read as paper scraps on the box. A piece of live skin (triangles joined by their places, rep)
+  // that TOUCHES the tear or the break (shares a place with a removed triangle) and has fewer than `min` triangles goes
+  // with it (dead 2, for good); a small piece the wreck never touched (a fitting, a bolt head) is not asked. Returns the
+  // triangles removed. Page-only (app.js brkCage, after a tear, at most every 0.25 s)
+  function islands(R, min) {
+    if (!R.dead || !R.idx0) return 0;
+    const i0 = R.idx0, nt = R.nt, dead = R.dead, rp = R.rep, nv = R.nv, idx = R.idx;
+    const P = new Int32Array(nv); for (let v = 0; v < nv; v++) P[v] = v;
+    const f = x => { while (P[x] !== x) { P[x] = P[P[x]]; x = P[x]; } return x; };
+    const at = v => rp ? rp[v] : v;
+    const cut = new Uint8Array(nv);
+    for (let t = 0; t < nt; t++) {
+      const a = at(i0[t * 3]), b = at(i0[t * 3 + 1]), c = at(i0[t * 3 + 2]);
+      if (dead[t]) { cut[a] = cut[b] = cut[c] = 1; continue; }
+      let x = f(a), y = f(b); if (x !== y) P[x] = y;
+      x = f(b); y = f(c); if (x !== y) P[x] = y;
+    }
+    const size = new Int32Array(nv), touched = new Uint8Array(nv);
+    for (let t = 0; t < nt; t++) { if (dead[t]) continue; const a = at(i0[t * 3]), r = f(a); size[r]++;
+      if (cut[a] || cut[at(i0[t * 3 + 1])] || cut[at(i0[t * 3 + 2])]) touched[r] = 1; }
+    let n = 0;
+    for (let t = 0; t < nt; t++) {
+      if (dead[t]) continue;
+      const r = f(at(i0[t * 3]));
+      if (touched[r] && size[r] < min) { dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; }
+    }
+    R.removed += n; R.torn += n; R.islN = (R.islN || 0) + n;   // (islN: the census tells the confetti from the tear)
     return n;
   }
   const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,

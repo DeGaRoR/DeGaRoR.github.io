@@ -1,0 +1,30 @@
+
+03:45:06
+a2419fe3 GATE DMGINST: a reader of 'broke-up' (D4b's G1868 outcome compare) is not a writer - red on the base 18805ac too
+boxlock: CPU battery taken by DMG-D4b
+syntax ok
+BUILD: GATE BUILD: PASS == exit 0, 1 s
+CLIP: GATE CLIP: PASS == exit 0, 10 s
+DMGCERT: GATE DMGCERT: PASS == exit 0, 166 s
+DMGCERTCOST: GATE DMGCERTCOST: PASS == exit 0, 37 s
+DMGCLUSTERS: GATE DMGCLUSTERS: PASS == exit 0, 289 s
+DMGDRIVE: GATE DMGDRIVE: PASS == exit 0, 445 s
+DMGFPS: GATE DMGFPS: PASS == exit 0, 98 s
+DMGGEAR: GATE DMGGEAR: PASS == exit 0, 578 s
+DMGINST: GATE DMGINST: PASS == exit 0, 109 s
+DMGINTEGRITY: GATE DMGINTEGRITY: PASS == exit 0, 27 s
+DMGMEMBERS: GATE DMGMEMBERS: PASS == exit 0, 25 s
+DMGSKIN: GATE DMGSKIN: PASS == exit 0, 54 s
+DMGUPLOAD: GATE DMGUPLOAD: PASS == exit 0, 558 s
+DMGWALL: GATE DMGWALL: PASS == exit 0, 115 s
+DMGWIND: GATE DMGWIND: PASS == exit 0, 508 s
+DMGWRECK: GATE DMGWRECK: PASS == exit 0, 97 s
+JOIN: GATE JOIN: PASS == exit 0, 2 s
+SIMWORKER: GATE SIMWORKER: PASS == exit 0, 44 s
+TREECRASH: GATE TREECRASH: PASS == exit 0, 399 s
+TREEHIT: GATE TREEHIT: PASS == exit 0, 164 s
+UISMOKE: GATE UISMOKE: PASS == exit 0, 103 s
+boxlock: CPU battery released by DMG-D4b
+04:01:17
+
+[exited with code 0]

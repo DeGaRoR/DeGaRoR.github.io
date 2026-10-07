@@ -1139,10 +1139,22 @@
       };
       mesh.raycast = castOver(members);
       mesh.userData.flownMerge.parts = bones;
+      // (DMG-D4b, the stand's ghost: a HEAL writes a wreck's CPU arrays back - the fold owes them; marked stale it uploads
+      // whole on its next drawn frame, once - an event, never a frame's cost)
+      mesh.userData.flownMerge.dirty = () => { stale = true; };
       // EVERY FRAME, before three reads the buffers (the scene's matrix pass precedes each render's projection)
       const upd = mesh.updateMatrixWorld;
       const ranges = [];
       let stale = false;
+      // G2352 (DMG-FOLDNODE): A WHOLE UPLOAD STAYS OWED UNTIL THREE MAKES IT. Three uploads an attribute only where it DRAWS
+      // it, and then whole only if no update range is set (r186 WebGLAttributes updateBuffer); the whole upload asked for
+      // below (the heal's stale mark, a fold shown again, > 32 ranges) was lost when the fold was not drawn that frame (out
+      // of the shot, culled) and a rig's write added a range the next: three then sent the range alone and the rest of the
+      // buffer stayed as the GPU last held it - the stand's ghost on a fold a rig writes every frame, D4b's mark on or off
+      // (GATE DMGUPLOAD with the fake bake: the Cub's fuselage fold, 202 428 floats). Owed, no range is added (the whole
+      // covers it); three's upload callback pays the debt. window.FLYDIY_FOLD_NOOWE = true: as before (the A/B, the selftest)
+      let oweP = false, oweN = false;
+      aP.onUploadCallback = () => { oweP = false; }; aN.onUploadCallback = () => { oweN = false; };
       mesh.updateMatrixWorld = function (force) {
         ranges.length = 0;
         let nd = 0;
@@ -1163,9 +1175,10 @@
           else if (stale || aP.updateRanges.length > 32 || aN.updateRanges.length > 32) {
             stale = false;
             aP.clearUpdateRanges(); aN.clearUpdateRanges(); aP.needsUpdate = true; aN.needsUpdate = true;
+            if (!W.FLYDIY_FOLD_NOOWE) oweP = oweN = true;
           } else for (const r of ranges) {
-            if (r.p) { aP.addUpdateRange(r.s, r.e - r.s); aP.needsUpdate = true; }
-            if (r.nn) { aN.addUpdateRange(r.s, r.e - r.s); aN.needsUpdate = true; }
+            if (r.p) { if (!oweP) aP.addUpdateRange(r.s, r.e - r.s); aP.needsUpdate = true; }
+            if (r.nn) { if (!oweN) aN.addUpdateRange(r.s, r.e - r.s); aN.needsUpdate = true; }
           }
         }
         if (boneMat) boneMat();
@@ -1296,6 +1309,37 @@
     return out;
   }
 
+  // ---- G2350 (DMG-FOLDNODE): THE FAKE BAKE - TEST ONLY --------------------------------------------------------------------
+  // window.FLYDIY_TEST_FAKE_BAKE === true (set by tools/_page_node.js opts.fakeBake before the page's scripts run; nothing
+  // in the game sets it). The node page draws on a recording GL: there no bake is made (the read-back is zeros, so the
+  // atlas bows out at 0 % written; the unwrap and the mips are seconds of CPU), so no fold ever existed for a node gate to
+  // read - GATE DMGUPLOAD could not see the stand's ghost (DMG-D4b). The fake SKIPS the GL passes, PARKED.unwrap, the
+  // gutters, the mips, the cache and the budget: a 1x1 zero atlas a map (the same materialOf, the same material class)
+  // and a zero atlas uv per vertex. Everything after is the game's own - remember / attach, forPayload, buildModel's
+  // baked geometries, mergeModel's folds and the members' views into them, the range-upload bookkeeping, the hybrid's
+  // live / bake switching (nearT reads the stats' cm: estimated here from the set's area at the real atlas's size and
+  // a 0.6 fill, so the band sits where the real one does, within the packing's spread).
+  const FAKE = () => W.FLYDIY_TEST_FAKE_BAKE === true;
+  function fakeSet(THREE, vis, j) {
+    const { set, list, key, S } = j, A = W.AEROSKIN, seen = new Set();
+    let area = 0, nvt = 0, nt = 0, cc = 0;
+    for (const e of list) {
+      const P = restOf(e.g), I = e.g.idx, n = e.g.pos.length / 3;
+      for (let c = 0; c + 2 < I.length; c += 3) {
+        const a = I[c] * 3, b = I[c + 1] * 3, d = I[c + 2] * 3;
+        const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[d] - P[a], vy = P[d + 1] - P[a + 1], vz = P[d + 2] - P[a + 2];
+        area += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+      }
+      e.uv = new Uint16Array(n * 2); nvt += n; nt += I.length / 3;
+      if (!seen.has(e.k)) { seen.add(e.k); const src = A.aeroMaterial(THREE, aeroArgs(THREE, vis.mats[e.k] || {})); if (src && src.clearcoat > 0) cc++; }   // (bakeAtlas's rule)
+    }
+    const s = Math.sqrt(0.6 * S * S / Math.max(area, 1e-6)), z = () => [{ data: new Uint8Array(4), width: 1, height: 1 }];
+    const mat = materialOf(THREE, { S: 1, cc: cc > 0, levels: [z(), z(), z()] }, set);
+    const stats = { hit: 'fake', fake: true, S: 1, bytes: 12, groups: list.length, verts: nvt, tris: nt, split: 0, cm: +(100 / s).toFixed(2), cc: cc > 0 };
+    remember(set, key, mat, stats, list);
+    return { mat, stats };
+  }
+
   // ---- ONE ATLAS: the cache, else the bake ----------------------------------------------------------------------------
   // j: { set, list, key, S }. Resolves { mat, stats } (null: this set flies live). The page's own tasks: the cache read
   // (async), the unzip (a stream), the charts' uv per vertex, the compile (awaited, parallel), a pass a task, the upload.
@@ -1308,6 +1352,7 @@
       list.forEach((e, i) => { e.uv = M.uvs[i]; });
       return { mat: M.mat, stats: Object.assign({}, M.stats, { hit: 'memory' }) };
     }
+    if (FAKE()) return fakeSet(THREE, vis, j);   // (G2350: test only, above)
     // THE CACHE
     phase('baking your aeroplane: the cache', 0.05);
     let t0 = performance.now();
@@ -1382,11 +1427,12 @@
     const T0 = performance.now();
     const THREE = W.THREE, vis = opt && opt.payload, spec = opt && opt.spec;
     const phase = (l, f) => { if (opt && opt.phase) try { opt.phase(l, f); } catch (e) {} };
-    if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || !W.PARKED || !W.PARKED.unwrap) return null;
+    const fake = FAKE();   // (G2350: the test's fake bake needs neither the unwrap, the budget nor the renderer)
+    if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || (!fake && (!W.PARKED || !W.PARKED.unwrap))) return null;
     // G1523 (POTATO-DEEP): a build budget without the bake (potato) - the live shader flies, nothing baked nor held
-    if (W.GFX && typeof W.GFX.budget === 'function' && W.GFX.budget().flownBake === false) { log('the budget makes no bake (' + W.GFX.budget().preset + ')'); return null; }
-    const R = renderer();
-    if (!R) return null;
+    if (!fake && W.GFX && typeof W.GFX.budget === 'function' && W.GFX.budget().flownBake === false) { log('the budget makes no bake (' + W.GFX.budget().preset + ')'); return null; }
+    const R = fake ? null : renderer();
+    if (!R && !fake) return null;
     const sets = bakedSets(vis), jobs = [];
     for (const set of SETS) {
       const names = new Set(); for (const [k, s2] of sets) if (s2 === set) names.add(k);
@@ -1425,7 +1471,11 @@
     return done(statsOf(per));
   }
 
-  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, rest, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
+  // (DMG-D4b: every fold under a model group, or every fold made, marked stale - the heal's upload; see mergeModel's dirty)
+  function dirtyAll(grp) { let n = 0, bytes = 0; const seen = new Set(); const mark = o => { const F = o && o.userData && o.userData.flownMerge; if (!F || !F.dirty || seen.has(o)) return; seen.add(o); F.dirty(); n++;
+      const A = o.geometry && o.geometry.attributes; if (A) for (const k of ['position', 'normal']) if (A[k] && A[k].array) bytes += A[k].array.byteLength; };
+    if (grp && grp.traverse) grp.traverse(mark); for (const F of FOLDS) for (const m of (F && F.meshes) || []) mark(m); return { folds: n, bytes }; }
+  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, rest, nearT, liveTwin, bandOf, FB_FADE, dirtyAll, folds: () => FOLDS.slice(),
                    warmPairs: () => FB.noWarm ? [] : FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS, graze: FB_U.uFbGraze, sunRough: FB_U.uFbSun,   // G1350: graze.value 1 = the old relief at a low sun; G1358: sunRough.value 0 = the old glint

@@ -1,0 +1,29 @@
+the loading screen: 24 steps in order, lifted on frame 0
+the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring
+manual controls: a key flew it, the AP took it back in TAXI
+honest readings: AGL 0.00 m standing, 40.00 m lifted 40 (the pilot's own datum read -0.05); IAS "13" at 12.9 km/h; fly on: a new leg in place (TAXI), not a reset
+one To: taxiing kept, on a leg replan, stopped leg from apron HOME (the From derived), the aeroplane never moved
+load test: HELD — limit 0.59% ultimate 0.88% of semispan
+bench check: FLIES A CIRCUIT — 459 kg, climb 3.38 m/s, take-off 214 m
+bench density altitude: DA 1614 m — 326 m take-off, 2.52 m/s climb on 83% power, service ceiling 5286 m
+bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap
+bench wing loading: HELD — limit 0.59% ultimate 0.88% of semispan
+roll out reads the certificate, and is never locked
+mode: workshop in the garage
+editor panel bridge wired; width reaches the inset
+garage -> roll out -> TAXI, mode: flight
+skip to line-up: 120 m from the taxi to the hold, pilot in HOLD, the button stands down
+rail fly: route / start / patterns / engines / controls - 12 rows, 4 pills
+rail view: camera / instruments / map / trace / screen - 22 rows, 12 pills
+rail sky: night / weather / clouds / ground - 6 rows, 2 pills
+rail graphics: gfx.perf / gfx.light / gfx.terrain / gfx.water / gfx.sky / gfx.post / gfx.town - 33 rows, 106 pills
+rail audio: sound - 13 rows, 0 pills
+rail dev (behind the dev toggle): scenery / world / log / overlays - 4 rows, 3 pills (the covering hidden with #bSkin: no model on the stand here)
+graphics: 36 rows and 112 pills flat, every one reached through the rail (7 folds + the map, the meter, the log)
+the test mode: entered from DEV, the solver held 60 frames, its way out offered, left
+the shed rail: 8 items (camera display night explode controls graphics audio legend), the clouds a fold of night, the graphics in folds
+the seam holds: 22 flight ids, 20 workshop ids, 17 retired
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce1002 _ce1011 _ce1015 _ce1019 _ce1027 _ce1030 _ce1039 _ce1043 _ce1047 _ce105 _ce1055 _ce1058 _ce1062 _ce1071 _ce1075 _ce1079 _ce1087 _ce1090 _ce1094 _ce1103 _ce1111 _ce1112 _ce1115 _ce1124 _ce1132 _ce1135 _ce1139 _ce1148 _ce1152 _ce1156 _ce116 _ce1164 _ce1167 _ce1176 _ce1180 _ce120 _ce124 _ce130 _ce135 _ce136 _ce138 _ce139 _ce140 _ce143 _ce147 _ce151 _ce155 _ce159 _ce163 _ce167 _ce173 _ce178 _ce184 _ce191 _ce192 _ce193 _ce194 _ce195 _ce196 _ce201 _ce202 _ce203 _ce204 _ce208 _ce209 _ce210 _ce211 _ce212 _ce213 _ce217 _ce218 _ce219 _ce220 _ce224 _ce225 _ce228 _ce232 _ce236 _ce240 _ce244 _ce248 _ce255 _ce265 _ce276 _ce282 _ce286 _ce292 _ce296 _ce300 _ce304 _ce308 _ce31 _ce316 _ce322 _ce325 _ce332 _ce333 _ce338 _ce341 _ce346 _ce347 _ce349 _ce350 _ce351 _ce354 _ce358 _ce362 _ce366 _ce372 _ce379 _ce383 _ce387 _ce391 _ce395 _ce399 _ce403 _ce407 _ce411 _ce415 _ce419 _ce425 _ce429 _ce433 _ce436 _ce442 _ce445 _ce446 _ce447 _ce450 _ce460 _ce461 _ce465 _ce468 _ce47 _ce473 _ce495 _ce501 _ce509 _ce510 _ce513 _ce520 _ce521 _ce522 _ce523 _ce524 _ce525 _ce530 _ce531 _ce532 _ce533 _ce537 _ce538 _ce539 _ce540 _ce541 _ce542 _ce546 _ce547 _ce548 _ce549 _ce553 _ce554 _ce557 _ce564 _ce565 _ce566 _ce567 _ce571 _ce572 _ce576 _ce577 _ce58 _ce581 _ce582 _ce583 _ce584 _ce585 _ce586 _ce59 _ce590 _ce591 _ce592 _ce593 _ce594 _ce595 _ce599 _ce60 _ce600 _ce604 _ce605 _ce607 _ce61 _ce614 _ce615 _ce616 _ce617 _ce62 _ce621 _ce622 _ce623 _ce624 _ce628 _ce629 _ce63 _ce630 _ce631 _ce635 _ce636 _ce637 _ce638 _ce64 _ce642 _ce643 _ce647 _ce648 _ce649 _ce65 _ce651 _ce658 _ce659 _ce663 _ce664 _ce666 _ce67 _ce673 _ce674 _ce675 _ce679 _ce680 _ce681 _ce682 _ce686 _ce687 _ce689 _ce696 _ce697 _ce698 _ce70 _ce702 _ce703 _ce704 _ce705 _ce709 _ce710 _ce711 _ce715 _ce716 _ce720 _ce721 _ce725 _ce726 _ce728 _ce73 _ce735 _ce736 _ce740 _ce741 _ce742 _ce746 _ce747 _ce751 _ce752 _ce755 _ce76 _ce761 _ce766 _ce770 _ce774 _ce778 _ce782 _ce786 _ce79 _ce790 _ce794 _ce798 _ce802 _ce806 _ce810 _ce813 _ce82 _ce821 _ce824 _ce833 _ce841 _ce842 _ce845 _ce85 _ce854 _ce859 _ce863 _ce869 _ce873 _ce878 _ce879 _ce88 _ce881 _ce882 _ce883 _ce886 _ce890 _ce894 _ce898 _ce902 _ce906 _ce91 _ce910 _ce914 _ce925 _ce929 _ce933 _ce94 _ce941 _ce947 _ce950 _ce954 _ce959 _ce97 _ce981 _ce987 _ce991 _ce999 bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+== exit 0, 103 s

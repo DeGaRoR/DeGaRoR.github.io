@@ -1,0 +1,492 @@
+{
+ "at": "2026-10-05T21:07:35.996Z",
+ "cases": {
+  "taxi": {
+   "label": "a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)",
+   "shots": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_after.jpg",
+     "census": {
+      "px": 114468,
+      "craftAll": 135587,
+      "yellow": 0.4,
+      "darkYellow": 0,
+      "other": 99.6,
+      "greyOrBlack": 80.9,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_2_after.jpg",
+     "census": {
+      "px": 139744,
+      "craftAll": 147780,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 100,
+      "greyOrBlack": 68.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_3_after.jpg",
+     "census": {
+      "px": 61516,
+      "craftAll": 84025,
+      "yellow": 0.1,
+      "darkYellow": 0,
+      "other": 99.9,
+      "greyOrBlack": 56.9,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_4_after.jpg",
+     "census": {
+      "px": 151964,
+      "craftAll": 193491,
+      "yellow": 0,
+      "darkYellow": 0.3,
+      "other": 99.7,
+      "greyOrBlack": 56.2,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_skin.jpg",
+     "census": {
+      "px": 114467,
+      "craftAll": 135676,
+      "yellow": 0.3,
+      "darkYellow": 0,
+      "other": 99.7,
+      "greyOrBlack": 80.8,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_2_skin.jpg",
+     "census": {
+      "px": 139744,
+      "craftAll": 147780,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 100,
+      "greyOrBlack": 66.8,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_3_skin.jpg",
+     "census": {
+      "px": 61519,
+      "craftAll": 84325,
+      "yellow": 0.3,
+      "darkYellow": 0,
+      "other": 99.7,
+      "greyOrBlack": 56.6,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_4_skin.jpg",
+     "census": {
+      "px": 151964,
+      "craftAll": 193473,
+      "yellow": 0.1,
+      "darkYellow": 0.2,
+      "other": 99.7,
+      "greyOrBlack": 55.8,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_before.jpg",
+     "census": {
+      "px": 113432,
+      "craftAll": 135434,
+      "yellow": 1.7,
+      "darkYellow": 0,
+      "other": 98.3,
+      "greyOrBlack": 83.6,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_2_before.jpg",
+     "census": {
+      "px": 144676,
+      "craftAll": 152664,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 100,
+      "greyOrBlack": 71,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_3_before.jpg",
+     "census": {
+      "px": 61144,
+      "craftAll": 85126,
+      "yellow": 0.3,
+      "darkYellow": 0,
+      "other": 99.7,
+      "greyOrBlack": 57.4,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_4_before.jpg",
+     "census": {
+      "px": 151433,
+      "craftAll": 193418,
+      "yellow": 0,
+      "darkYellow": 0.2,
+      "other": 99.7,
+      "greyOrBlack": 56.1,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "census": {
+      "px": 139541,
+      "craftAll": 183845,
+      "yellow": 0.6,
+      "darkYellow": 0,
+      "other": 99.4,
+      "greyOrBlack": 81.2,
+      "w": 800,
+      "h": 450
+     },
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_intact.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "census": {
+      "px": 125162,
+      "craftAll": 137858,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 100,
+      "greyOrBlack": 70.4,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "census": {
+      "px": 72543,
+      "craftAll": 161394,
+      "yellow": 0.2,
+      "darkYellow": 0,
+      "other": 99.8,
+      "greyOrBlack": 55.8,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "census": {
+      "px": 154555,
+      "craftAll": 229216,
+      "yellow": 0.1,
+      "darkYellow": 0.3,
+      "other": 99.7,
+      "greyOrBlack": 57.7,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 240,
+    "crashed": true,
+    "over": true,
+    "reason": "a wing member broke",
+    "broken": 1,
+    "brokeUp": false,
+    "frameMed": 30.9,
+    "frameP95": 70,
+    "frameMax": 100.2,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "cowl",
+       "gone": false,
+       "why": null,
+       "crush": 0.001
+      },
+      {
+       "kind": "cowl",
+       "gone": false,
+       "why": null,
+       "crush": 0.001
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      }
+     ],
+     "bodies": [],
+     "strikes": [
+      {
+       "eng": 0,
+       "drive": null,
+       "what": "trunk",
+       "material": "alu",
+       "metal": true,
+       "rpm": 744,
+       "V": 2.79,
+       "E": 11662,
+       "breaks": false,
+       "cut": [
+        0,
+        0
+       ],
+       "curl": [
+        0.38,
+        0.42
+       ],
+       "dent": 0.018,
+       "nb": 2,
+       "R": 1.033
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.112
+     },
+     "ms": {
+      "plan": 6.200000047683716,
+      "release": 0,
+      "frame": 0.3999999761581421
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 104,
+     "ms": {
+      "records": 34.39999985694885,
+      "event": 15.099999785423279,
+      "frames": 0.8999999761581421,
+      "pose": 35.200000047683716,
+      "recordsT": 113.19999980926514,
+      "eventT": 42.10000002384186,
+      "poseT": 1490.5000007152557,
+      "frameMax": 67.69999992847443,
+      "n": 56,
+      "last": 19.100000023841858,
+      "lastRec": 0,
+      "lastEv": 0,
+      "lastFrames": 0.10000002384185791,
+      "lastPose": 19,
+      "lastT": 6.033333333327728
+     },
+     "removed": 121,
+     "torn": 0,
+     "tris": 216928,
+     "riding": 650784
+    }
+   },
+   "clip": {
+    "skinTris": 85101,
+    "furnitureOutside": {
+     "sampled": 45234,
+     "past3cm": 323,
+     "share": 0.0071,
+     "worst": 0.306
+    },
+    "debrisInside": {
+     "sampled": 0,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  }
+ },
+ "standClip": {
+  "skinTris": 85152,
+  "furnitureOutside": {
+   "sampled": 45234,
+   "past3cm": 375,
+   "share": 0.0083,
+   "worst": 0.306
+  },
+  "debrisInside": {
+   "sampled": 0,
+   "past3cm": 0,
+   "share": 0,
+   "worst": 0
+  }
+ }
+}

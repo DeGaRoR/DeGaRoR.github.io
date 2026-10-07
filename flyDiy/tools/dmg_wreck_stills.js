@@ -35,7 +35,7 @@ const post = (route, body) => new Promise((res, rej) => {
 });
 const get = route => new Promise((res, rej) => http.get({ host: '127.0.0.1', port: CMD, path: route }, s => { let b = ''; s.on('data', d => b += d); s.on('end', () => res(b)); }).on('error', rej));
 // (the page's helpers travel with every call: pageRunOn is pageStage's second half)
-const run = async (fn, arg) => { const b = await post('/run', pageRunOn.toString() + ';\nreturn await (' + fn.toString() + ')(' + JSON.stringify(arg == null ? null : arg) + ');'); try { return JSON.parse(b); } catch (e) { return b; } };
+const run = async (fn, arg) => { const b = await post('/run', pageRunOn.toString() + ';\n' + pageStageW.toString() + ';\nreturn await (' + fn.toString() + ')(' + JSON.stringify(arg == null ? null : arg) + ');'); try { return JSON.parse(b); } catch (e) { return b; } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const CASES = {
@@ -44,7 +44,9 @@ const CASES = {
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
   'cockpit':   { label: 'the severe nose-in from the cockpit view (the camera rule)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 900 }, cams: [], cockpit: true },
-  'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: the blades curl)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6]] },
+  // the nose-over (the user; DMG-WALL's census staging): the Cub rolling at 12 m/s into a 35 cm stump that takes the wheels
+  'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10]] },
+  'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6], ['nose', 10, 4.2], ['noseL', 6, 3.0]] },
 };
 
 // ---- in the page ----
@@ -54,7 +56,10 @@ function pageView([az, el, dist]) {
   s.textContent = '#ui,#hud,.hud,#pfd,#mm,#topbar,.plate,#phase,#card,.card,#flLine,#bootFly{visibility:hidden!important}';
   document.head.appendChild(s);
   if (FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');   // (the chase writes its own pose: camSet is the orbit's)
-  FLIGHT_PROBE.camSet(az * Math.PI / 180, el * Math.PI / 180, dist);
+  // (az 'nose': a front-quarter close on the prop, from the aeroplane's own heading - the orbit is centred on the CG)
+  // ('noseL': the other front quarter, closer - the bent blades' close-up)
+  if (az === 'nose' || az === 'noseL') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'nose' ? 0.6 : -0.6), el * Math.PI / 180, dist); }
+  else FLIGHT_PROBE.camSet(az * Math.PI / 180, el * Math.PI / 180, dist);
   return new Promise(r => setTimeout(() => r(1), 900));
 }
 // a JPEG of what the screen shows, made in the page from the CDP's PNG (no image library in node)
@@ -134,14 +139,87 @@ async function pageCensus() {
   return { px: craftPx, craftAll: all, yellow: pc(yellow), darkYellow: pc(dark), other: pc(other), greyOrBlack: pc(grey), w: cv.width, h: cv.height };
 }
 // the case staged and stepped (the gates' set-up on the home strip), two steps a frame until the wreck and its debris rest
+// UNDER THE PHYSICS WORKER (the DEFAULT, A0's rule 2026-10-06): the worker flies its own copy, placed from the route and
+// the stand, and the page's sim is a mirror - a rig may not touch p / v or step it (G1096). So the crash is staged on
+// the flight that runs: the conditions calm (the worker reads its own wind: #selCond 'calm'), the hands on with the
+// throttle shut, the aeroplane MOVED (FLIGHT_PROBE.place: a translation, the stand's own heading kept) onto the runway
+// and settled, then pushed along its heading; the trunk is a tree hit (world.treeHits, which sim_link forwards to the
+// worker). The run is the game's own, in real time, until the verdict and the debris rest; then the flight is paused for
+// the stills. Trunk cases only: a pitched nose-in needs the aeroplane turned, which a placement cannot do.
+async function pageStageW(o) {
+  const P = FLIGHT_PROBE, world = P.world(), wait = ms => new Promise(r => setTimeout(r, ms));
+  const SW = window.FLYDIY_SIMW, live = () => !!(SW && SW.state().phase === 'live' && SW.state().flight && SW.state().flight.live);
+  if (o.kind !== 'trunk') return { err: 'worker: a ' + o.kind + ' case needs the aeroplane turned (only trunk cases under the worker)' };
+  // (DMG-DRIVE2's find: a case staged on the last case's wreck - its flight 'over' - ran 0.8 s on the same broken members:
+  // a fresh flight first - the card's own `Fly again` (fullReset) - and none staged on a sim still over)
+  if (P.over() || (P.damage() && (P.damage().crashed || P.damage().over))) {
+    if (!P.over()) P.endFlight('crashed');
+    const g = document.getElementById('bGo'); if (g) g.click();
+    for (let i = 0; i < 80 && (P.over() || (P.damage() && P.damage().crashed)); i++) await wait(250);
+    if (P.over() || (P.damage() && P.damage().crashed)) return { err: 'worker: the wreck of the last case is still flying (the reset did not take) - not staged on it' };
+  }
+  window.FLYDIY_WRECK = !window.__d4bWreckOff; window.FLYDIY_SKINBREAK = true;
+  const cond = document.getElementById('selCond');
+  if (cond && [...cond.options].some(x => x.value === 'calm') && cond.value !== 'calm') { cond.value = 'calm'; cond.onchange({ target: cond }); }
+  // the flight running, hands on, the throttle shut, the brakes off
+  if (!P.over() && P.sim().t > 0.5 && P.damage() && P.damage().crashed) { /* a previous crash: the caller resets */ }
+  P.sim().ctl.thr = 0; P.sim().ctl.brake = 0; P.setManual(true); P.sim().ctl.thr = 0;
+  const go = document.getElementById('bGo'); if (go && go.offsetParent && !/roll out/i.test(go.textContent)) go.click();
+  const pz = document.getElementById('bPause'); if (pz && /run/i.test(pz.textContent)) pz.click();
+  for (let i = 0; i < 40 && !live(); i++) await wait(250);
+  if (!live()) return { err: 'worker: no live worker flight (' + JSON.stringify(SW ? SW.state().phase : null) + ')' };
+  P.sim().ctl.thr = 0; P.sim().ctl.brake = 0;
+  // where: the home strip's centre, the aeroplane's own heading (the nose: -xA), the trunk on the strip, the start D back
+  const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
+  const [xA] = P.sim().axes(), hl = Math.hypot(xA[0], xA[2]) || 1, fx = -xA[0] / hl, fz = -xA[2] / hl;
+  const c0 = P.sim().cgPos(), hCg = c0[1] - world.terrainH(c0[0], c0[2]);
+  const tx = strip.x - fz * (o.off || 0), tz = strip.z + fx * (o.off || 0), sx = strip.x - fx * o.D, sz = strip.z - fz * o.D;
+  const gS = world.terrainH(sx, sz), gT = world.terrainH(tx, tz);
+  if (world.treeHits.drop) world.treeHits.drop('fill:wreckstill');
+  const scene = P.craft().parent;
+  if (window.__d4bTrunk) { scene.remove(window.__d4bTrunk); window.__d4bTrunk = null; }
+  await P.place({ at: [sx, gS + hCg + 0.05 + (o.agl || 0), sz], zeroV: true });
+  if (!o.agl) await wait(1500);                                  // (on its wheels: settled)
+  if (o.placeOnly) { P.sim().ctl.thr = 0; const pz2 = document.getElementById('bPause'); if (pz2 && /pause/i.test(pz2.textContent)) pz2.click(); await wait(600); return { placed: true, worker: true }; }
+  const TR = o.r || 0.3, TH = o.top || 10;
+  world.treeHits.set('fill:wreckstill', [tx, tz, gT, TR, gT + TH]);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(TR, TR * 1.17, TH, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
+  m.position.set(tx, gT + TH / 2, tz); m.castShadow = true; scene.add(m); window.__d4bTrunk = m;
+  window.__d4bO = o;
+  const t0 = performance.now(), simT0 = P.sim().t;
+  await P.place({ by: [0, 0, 0], zeroV: true, dv: [o.V * fx, 0, o.V * fz] });
+  // the game's own run, real time: until the verdict and the debris at rest (2 s still), or 25 s
+  let rest = 0, ms = [], tl = performance.now();
+  while (performance.now() - t0 < 25000) {
+    await new Promise(r => requestAnimationFrame(() => r())); const tn = performance.now(); ms.push(tn - tl); tl = tn;
+    P.sim().ctl.thr = 0;
+    const W = window.FLYDIY_WRECK_STATS(), D = P.damage();
+    const settled = D && D.crashed && W.bodies.every(b => b.asleep) && P.sim().t - simT0 > 4;
+    rest = settled ? rest + ms[ms.length - 1] : 0;
+    if (rest > 2000) break;
+  }
+  const pz3 = document.getElementById('bPause'); if (pz3 && /pause/i.test(pz3.textContent)) pz3.click();   // (held for the stills)
+  await wait(500);
+  const D = P.damage() || {}, DS = P.sim().dmgState ? P.sim().dmgState() : null, q = ms.slice().sort((a, b) => a - b);
+  return { worker: true, crashed: !!D.crashed, over: !!D.over, reason: D.reason || null, broken: (D.broken || []).length, brokeUp: !!D.brokeUp,
+           pageBr: DS && DS.br ? DS.br.length : null, simT: +(P.sim().t - simT0).toFixed(2), wall: Math.round(performance.now() - t0),
+           frameMed: q.length ? +q[q.length >> 1].toFixed(1) : null, frameMax: q.length ? +q[q.length - 1].toFixed(1) : null,
+           wreck: window.FLYDIY_WRECK_STATS(), skin: window.FLYDIY_SKINBREAK_STATS() };
+}
 async function pageStage(o) {
+  // (the DEFAULT mode is the physics worker: a page with a live worker flight is staged there)
+  if (window.FLYDIY_SIMW && !/[?&]simw=0(&|$)/.test(location.search || '') && !(FLIGHT_PROBE.sim().dmgState == null && FLYDIY_SIMW.state().dead)) return pageStageW(o);
   if (o.run) return pageRunOn(o);
   const P = FLIGHT_PROBE, sim = P.sim(), world = P.world();
   if (sim.dmgState) return { err: 'worker: open with ?simw=0' };
   if (!window.__d4bStep) window.__d4bStep = sim.step;
   const step = window.__d4bStep;
   sim.step = () => {};
-  window.FLYDIY_WRECK = true; window.FLYDIY_SKINBREAK = true;
+  window.FLYDIY_WRECK = !window.__d4bWreckOff; window.FLYDIY_SKINBREAK = true;
+  // THE WIND OFF while staged (the solver reads world.wind every step, a gust field at sim.t: the same staging at another t
+  // was another crash - 2.43 vs 3.11 kJ on the metal Cessna's taxi); back at the run's end (pageRunOn)
+  if (!('__d4bWind' in window)) window.__d4bWind = world.wind;
+  world.wind = null;
   const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
   sim.reset(0); placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
@@ -157,9 +235,11 @@ async function pageStage(o) {
     else for (let i = 0; i < n; i++) p[i*3+1] += ground - yMin + o.agl;
     for (let i = 0; i < n; i++) { v[i*3] = o.V * fx; v[i*3+2] = o.V * fz; if (o.agl) v[i*3+1] = 0; }
     const c = sim.cgPos(), tx = c[0] + fx * o.D - fz * o.off, tz = c[2] + fz * o.D + fx * o.off;
-    world.treeHits.set('fill:wreckstill', [tx, tz, ground, 0.3, ground + 10]);
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 10, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
-    m.position.set(tx, ground + 5, tz); m.castShadow = true; scene.add(m); window.__d4bTrunk = m;
+    // (o.r, o.top: a stump - the nose-over's, DMG-WALL's census staging: 0.25 m across, 0.35 m tall)
+    const TR = o.r || 0.3, TH = o.top || 10;
+    world.treeHits.set('fill:wreckstill', [tx, tz, ground, TR, ground + TH]);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(TR, TR * 1.17, TH, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
+    m.position.set(tx, ground + TH / 2, tz); m.castShadow = true; scene.add(m); window.__d4bTrunk = m;
   } else {
     const [xA, , zR] = sim.axes(), cg = sim.cgPos(), th = -o.pitch * Math.PI / 180, k = zR, cs = Math.cos(th), sn = Math.sin(th);
     for (let i = 0; i < n; i++) {
@@ -171,7 +251,10 @@ async function pageStage(o) {
     const hl = Math.hypot(xA[0], xA[2]);
     for (let i = 0; i < n; i++) { p[i*3+1] += ground + 0.3 - y2; v[i*3] = -o.V * xA[0] / hl; v[i*3+1] = -o.sink; v[i*3+2] = -o.V * xA[2] / hl; }
   }
-  sim.ctl.thr = o.thr || 0;
+  // (DMG-DRIVE2's find: the page's own loop writes the controls every frame from the input - input.js write(): ctl.thr =
+  // S.throttle.out - so a throttle set once ran at 0.62 between the steps: hands on, as the worker path, and the controls
+  // zeroed before every step pair in pageRunOn)
+  P.setManual(true); sim.ctl.thr = o.thr || 0; sim.ctl.brake = 0;
   window.__d4bO = o;
   // (the placement held: the page draws it still for the intact census, then pageRunOn steps it)
   if (o.placeOnly) { const raf0 = () => new Promise(r => requestAnimationFrame(() => r())); for (let f = 0; f < 6; f++) await raf0(); return { placed: true }; }
@@ -182,8 +265,9 @@ async function pageRunOn(o) {
   const raf = () => new Promise(r => requestAnimationFrame(() => r()));
   const ms = [], trace = [];
   const FRr = window.FLIGHT_REC && window.FLIGHT_REC.rec, C = FRr ? FRr.COLS : null, col = k => C ? C.indexOf(k) : -1;
-  let s = 0, settled = 0, t1 = performance.now();
+  let s = 0, settled = 0, t1 = performance.now(); window.__d4bMountT = null;
   for (; s < (o.steps || 1200); s += 2) {
+    sim.ctl.thr = (window.__d4bO && window.__d4bO.thr) || 0;
     const p0 = performance.now(); step(1 / 60); step(1 / 60); const phys = performance.now() - p0;
     await raf();
     const t2 = performance.now(); ms.push(t2 - t1); t1 = t2;
@@ -196,12 +280,49 @@ async function pageRunOn(o) {
       brk: SB2.lastT === sim.t ? +(SB2.last || 0).toFixed(2) : 0, brkRec: SB2.lastT === sim.t ? +(SB2.lastRec || 0).toFixed(2) : 0, brkEv: SB2.lastT === sim.t ? +(SB2.lastEv || 0).toFixed(2) : 0,
       brkPose: SB2.lastT === sim.t ? +(SB2.lastPose || 0).toFixed(2) : 0, wreck: +(WM.frame || 0).toFixed(2), broken: sim.damage().broken.length });
     const W = window.FLYDIY_WRECK_STATS(), D = sim.damage();
+    // (the first engine-mount member to break and when - the coordinator: the mount first, or the strike?)
+    if (window.__d4bMountT == null && D.broken.length) { const df = P.def(); for (const bi of D.broken) { const b = sim.beams[bi], ta = df.nodes[b.a].tag || '', tb = df.nodes[b.b].tag || '', ea = /^(ENG|CGE)/.test(ta), eb = /^(ENG|CGE)/.test(tb); if (ea !== eb) { window.__d4bMountT = { t: +sim.t.toFixed(3), member: ta + '-' + tb }; break; } } }
     if ((D.over || (!D.crashed && s > 400)) && W.bodies.every(b => b.asleep)) { if (++settled > 40) break; }
   }
+  if ('__d4bWind' in window) { P.world().wind = window.__d4bWind; delete window.__d4bWind; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
-    frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
+    mountFirst: window.__d4bMountT, frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
     wreck: window.FLYDIY_WRECK_STATS(), skin: window.FLYDIY_SKINBREAK_STATS() };
+}
+// THE TEAR CENSUS (the user's review: "why are the wings lacerated like this?"): the members broken (names), the plastic
+// work, the impact's energy; and per wing side (the triangle's rest centroid z in the frame's own coordinates) the
+// covering triangles gone, by the rule that took them - skin_break's dead codes: 1 spanned two pieces / crossed a broken
+// member (the event), 2 the stretch tear (a fabric record's own; WALL's tube or sheet bound on a tube / sheet record;
+// the confetti islands counted apart), 3 the wall cut, 4 gone with its covering, 5 taken by a debris body
+function pageTears() {
+  const P = FLIGHT_PROBE, sim = P.sim(), def = P.def(), m = P.model(), tg = i => def.nodes[i].tag || i;
+  // (under the worker the page's own sim is never stepped: the breaks are the mirror's dmgState, the work the worker's verdict)
+  const DS = sim.dmgState ? sim.dmgState() : null, V0 = P.damage() || {}, D0 = sim.damage ? sim.damage() : {};
+  const D = DS ? { broken: DS.br || [], work: V0.work != null ? V0.work : NaN, reason: V0.reason || null } : D0;
+  const o = window.__d4bO || {}, M = sim.totalM || 0, V = o.V || 0, sink = o.sink || 0;
+  const out = { broken: D.broken.length, members: D.broken.map(i => tg(sim.beams[i].a) + '-' + tg(sim.beams[i].b)), workJ: Math.round(D.work || 0),
+                energyJ: Math.round(0.5 * M * (V * V + sink * sink)), reason: D.reason, wings: {}, other: {} };
+  const recs = window.FLYDIY_SKINBREAK_RECS ? FLYDIY_SKINBREAK_RECS() : [];
+  const NAME = { 1: 'pieces/broken member', 3: 'wall cut', 4: 'with its covering', 5: 'debris' };
+  for (const R of recs) {
+    if (!R.dead || !R.idx0 || !R.baseD) continue;
+    const mt = m.mats && R.secName ? m.mats[R.secName] : null, sec = (mt && mt.sec) || R.secName || '?';
+    const wing = /wing|ail|flap|tip/i.test(sec);
+    const rule2 = R.tubeTear ? 'tube tear (WALL)' : R.sheetTear ? 'sheet tear (WALL)' : 'stretch tear';
+    for (let t = 0; t < R.nt; t++) {
+      const c = R.dead[t];
+      let z = 0; for (let k = 0; k < 3; k++) z += R.baseD[R.idx0[t * 3 + k] * 3 + 2] / 3;
+      const side = z >= 0 ? 'z+' : 'z-', key = wing ? side : sec;
+      const B = wing ? (out.wings[key] = out.wings[key] || { tris: 0, gone: 0, by: {} }) : (out.other[key] = out.other[key] || { tris: 0, gone: 0, by: {} });
+      B.tris++;
+      if (!c) continue;
+      B.gone++; const why = c === 2 ? rule2 : (NAME[c] || 'code ' + c); B.by[why] = (B.by[why] || 0) + 1;
+      if (wing) { B.secs = B.secs || {}; B.secs[sec] = (B.secs[sec] || 0) + 1; }   // (which sections the 'wing' count is made of)
+    }
+    if (R.islN && wing) { let z = 0; for (let v = 0; v < Math.min(R.nv, 50); v++) z += R.baseD[v * 3 + 2]; const B = out.wings[z >= 0 ? 'z+' : 'z-']; if (B) B.islands = (B.islands || 0) + R.islN; }
+  }
+  return out;
 }
 // THE DRAWN CLIP's dump: every drawn triangle of the aeroplane in the world, by class (base64 Float32 x 9 a triangle)
 function pageDump() {
@@ -255,7 +376,7 @@ function clipOf(dump) {
   return { skinTris: skin.length / 9, furnitureOutside: stat(dump.furniture, true, 1), debrisInside: stat(dump.debris, false, 3) };
 }
 
-module.exports = { run, post, get, CASES, pageStage, pageView, pageCensus };
+module.exports = { run, post, get, CASES, pageStage, pageView, pageCensus, pageTears };
 if (require.main === module) (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const names = opt('cases', Object.keys(CASES).join(',')).split(',');
@@ -275,6 +396,17 @@ if (require.main === module) (async () => {
     if (C.cockpit) { out.camAfter = await post('/run', 'return FLIGHT_PROBE.camModeNow();'); out.eye = out.stage.wreck && { cut: out.stage.wreck.eyeCut, eye: out.stage.wreck.eye, cab: out.stage.wreck.cab };
       await post('/run', "FLIGHT_PROBE.camMode('chase'); return 1;"); }
     console.log(k, JSON.stringify(out.stage).slice(0, 600));
+    // (the user's review: does the cowl come off - each cowl panel and the spinner, its reason and its distortion)
+    if (out.stage && out.stage.wreck) console.log('  ' + k + ' cowl: ' + out.stage.wreck.parts.filter(p => p.kind === 'cowl' || p.kind === 'spinner' || p.kind === 'eng')
+      .map(p => p.kind + ' ' + (p.gone ? 'OFF (' + p.why + (p.crush != null ? ', ' + Math.round(p.crush * 100) + ' cm' : '') + ')' : 'on' + (p.crush != null ? ' (' + Math.round(p.crush * 100) + ' cm)' : ''))).join(', '));
+    if (out.stage && out.stage.wreck) console.log('  ' + k + ' strikes: ' + (out.stage.wreck.strikes || []).map(x => 'engine ' + x.eng + ' at t ' + x.t + ' ' + (x.drive ? 'DRIVE ' + x.drive + (x.biteR != null ? ' biteR ' + (+x.biteR).toFixed(3) : '') + (x.surf ? ' ' + x.surf : '') : 'own strike') + ' ' + x.material + ' curl ' + x.curl.join('/') + ' cut ' + x.cut.join('/')).join('; '));
+    if (out.stage) console.log('  ' + k + ' mount first: ' + JSON.stringify(out.stage.mountFirst || null));
+    // (the user's review: the tear census - which members, how much work, which rule took each wing's covering)
+    try { out.tears = await run(pageTears);
+      const W = out.tears.wings, f = b => b ? b.gone + '/' + b.tris + ' gone (' + Object.entries(b.by).map(([r, n]) => r + ' ' + n).join(', ') + (b.islands ? '; islands ' + b.islands : '') + (b.secs ? '; by section ' + JSON.stringify(b.secs) : '') + ')' : 'n/a';
+      console.log('  ' + k + ' tears: ' + out.tears.broken + ' members broken, work ' + out.tears.workJ + ' J of ' + out.tears.energyJ + ' J; wing z+ ' + f(W['z+']) + '; wing z- ' + f(W['z-']));
+      console.log('  ' + k + ' members: ' + out.tears.members.join(' '));
+    } catch (e) { console.log('  ' + k + ' tears: ' + (e && e.message)); }
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
     // would re-release them from the wreck at rest)

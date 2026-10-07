@@ -3129,7 +3129,7 @@
     // (a map over objects that exist anyway; no frame reads it until a break)
     // (G1858, DMG-WALL: meshes0 - each bucket's own mesh by its payload key, before the fold and the still merge rename
     // them: what the wall's records read their section from; parentOf - each mesh's parent as built, as DMG-D4b keeps it)
-    const wreckBuild = { geoOf: new Map(), parentOf: new Map(), meshes0: Object.assign({}, meshes), keyOf: keyOfMesh, rigsAll: null };
+    const wreckBuild = { geoOf: new Map(), parentOf: new Map(), meshes0: Object.assign({}, meshes), keyOf: keyOfMesh, rigsAll: null };   // (keyOf: G1860, DMG-D4b's debris)
     grp.traverse(o => { if (!o.isMesh || !o.geometry) return; wreckBuild.parentOf.set(o, o.parent);
       if (o.geometry.attributes.position) wreckBuild.geoOf.set(o.geometry.attributes.position, o.geometry); });
     let fold = null, foldIn = null, foldEye = null;
@@ -3450,7 +3450,7 @@
         const ei = ud.engIdx || 0;
         // G1861 (DMG-D4b): A SEIZED PROP STOPS IN THE FRAME IT SEIZED (TREE-CRASH's eng.seized: a ground or trunk strike).
         // The rate it had is kept for the strike's energy (wreckStrikes), the disc goes, the blades stand where they were
-        const se0 = sim.eng && sim.eng[ei];
+        const E0 = wreckEng(), se0 = E0 && E0[ei];
         if (se0 && se0.seized) {
           if (ud.seizeRate == null) { ud.seizeRate = ud.spinRate || 0; if (ud.disc) ud.disc.update(0, ud.spinAxis ? (ud.spinAng || 0) : p.rotation.x, 1, frameDt()); }
           ud.spinRate = 0; poseRigid(p); continue;
@@ -3976,6 +3976,8 @@
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
   try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
+  // (DMG-D4b, the user's review: the records themselves, read-only, for the tear census - which wing, which rule)
+  window.FLYDIY_SKINBREAK_RECS = () => BRK.recs;
   window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length, ms: Object.assign({}, BRK.ms),
     removed: BRK.recs.reduce((a, R) => a + (R.removed || 0), 0), torn: BRK.recs.reduce((a, R) => a + (R.torn || 0), 0),
     tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? (R.rideAll && R.active ? R.nv : R.ride.reduce((x, y) => x + y, 0)) : 0), 0),   // (G1818: a whole-riding record is its count - the sum over ~500k bytes was ~1.4 ms a call, every frame of the rigs)
@@ -3986,6 +3988,7 @@
   function brkRestore() {
     brkGpuFree();
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
+    brkHealUpload(BRK.model);
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     BRK.recs.length = 0; BRK.model = null;
@@ -3993,6 +3996,13 @@
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
   // same payload group - their index attributes wrap the same array)
   // (G1864: the normals a riding vertex turned, back as built)
+  // DMG-D4b (the stand's ghost after crash -> the shed -> roll-out: every CPU array healed, the drawing stale until a forced
+  // re-upload): A HEAL OWES THE HYBRID BAKE'S FOLDS THEIR UPLOAD - a fold uploads its members' views by range on a version
+  // it sees change, and the heal's writes did not all reach it; marked stale, each uploads whole on its next drawn frame,
+  // once (flown_bake.js dirtyAll). An event's cost. window.FLYDIY_HEAL_NOMARK = true: off (the A/B, the gate's selftest)
+  function brkHealUpload(mdl) { if (window.FLYDIY_HEAL_NOMARK || !window.FLOWN_BAKE || !FLOWN_BAKE.dirtyAll) return;
+    const r = FLOWN_BAKE.dirtyAll((mdl || model) && (mdl || model).grp), H = window.FLYDIY_HEAL_UPLOAD || (window.FLYDIY_HEAL_UPLOAD = { n: 0, last: null });
+    H.n++; H.last = r; }
   function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
     if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
   // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
@@ -4021,7 +4031,7 @@
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
       brkGpuFree();
-      if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+      if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); } brkHealUpload(model);
         model._pose = null; model._poseNG = null; }   // (G1858.1: a real heal only - re-posed from the rest, the rigs a pose writes)
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
@@ -4307,6 +4317,7 @@
         for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
           bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
+        R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
         R.baseD = bD; R.w = new Float64Array(nv * 3);
         // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
         // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
@@ -4500,9 +4511,11 @@
   function wreckState() {
     if (!window.WRECK_DEBRIS || window.FLYDIY_WRECK === false || !model || model.gen || !model.wreckBuild || !sim || !def) { if (WK.model) wreckHeal(); return null; }
     if (WK.model && WK.model !== model) wreckHeal();
-    let seized = false; const E = sim.eng;
+    let seized = false; const E = wreckEng();
     if (E) for (let k = 0; k < E.length; k++) if (E[k] && E[k].seized) { seized = true; break; }
     const D = dmgNow();
+    // (G1861.5: a strike DRIVE graded - a brush or a bend - marks the prop without a seizure or a break)
+    if (!seized) { const DV = wreckDrive(); if (DV) for (const x of DV) if (x && x.strike) { seized = true; break; } }
     if (!seized && !(D && (D.br.length || D.sS !== '0:0'))) { if (WK.model) wreckHeal(); return null; }
     return D || { v: 0, vB: 0, br: [], broken: null, pc: null, set: null, sS: '0:0' };
   }
@@ -4513,10 +4526,14 @@
     if (WK.model !== model) wreckPlan();
     const ts = sim.t, dtS = WK.t == null ? 0 : Math.max(0, Math.min(0.25, ts - WK.t));
     WK.t = ts;
-    const vel = sim.v && sim.v.length === sim.n * 3 ? sim.v : null;
-    wreckStrikes(vel);
-    const ids = WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
+    const vel = wreckVel();
+    // (the bisect's switches: window.FLYDIY_WRECK_OFF = { strikes, release, ride, eye } - a debug A/B, off by default)
+    const OFF = window.FLYDIY_WRECK_OFF || null;
+    if (!(OFF && OFF.strikes)) wreckStrikes(vel);
+    const ids = OFF && OFF.release ? [] : WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
+    // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
+    WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
     for (const B of WK.W.bodies) if (B.obj) {
       const R = WD.rotOf(B.q, wreckR);
@@ -4524,12 +4541,62 @@
       B.obj.matrixWorldNeedsUpdate = true;
       if (B.sunk && B.obj.visible) B.obj.visible = false;
     }
-    wreckEye(D);
+    if (!(OFF && OFF.ride)) wreckRide(D);
+    if (!(OFF && OFF.eye)) wreckEye(D);
     // G1868: the orbit the cockpit rule cut to turns slowly round the wreck (WRECK_DRIFT rad/s) until the player takes it
     if (WK.drift) { if (cam.mode === 'orbit') azT += WRECK_DRIFT * frameDt(); else WK.drift = false; }
     WK.ms.frame = performance.now() - t0;
   }
   const wreckR = new Float64Array(9);
+  // G1861.1 (the user: "the propeller floats in the air near the nose, close to upright, after the engine piece has moved"):
+  // THE ENGINE UNIT RIDES ITS NODES' FRAME. poseModel carries the block and the prop by their nodes' MEAN only (a
+  // translation: right while the airframe is whole); once the wreck is drawn, each unit still on the aeroplane is placed
+  // by its engine nodes' rigid fit instead - world = fit(rest -> live) x the rest pose x its own local turn (the prop's spin,
+  // as poseRigid set it) - so a nose folded down or an engine torn round on its mount carries its block and its prop with
+  // it. A unit gone as debris is the body's. Restored at the heal (matrixAutoUpdate back).
+  // G1861.4: THE FIT'S SET is the engine nodes AND every node still joined to them by an unbroken member (the CG node, the
+  // mount's ring corners while the mount holds, a nose leg built on the engine nodes): a nose engine's rig has two nodes
+  // (ENGL, ENGR) and a two-node fit has no turn - the block was drawn in the frame's own axes, turned off the aeroplane's
+  // heading and out through its cowl (the box, the metal Cessna's 3 m/s taxi, nothing broken). The set follows the
+  // breaks: a broken mount leaves the engine on what still holds it.
+  const wreckM = new THREE.Matrix4(), wreckM2 = new THREE.Matrix4(), wreckG0 = new THREE.Matrix4(), wreckGi = new THREE.Matrix4();
+  function wreckRideSet(e, D) {
+    const vB = D ? D.vB : 0, k = e.rideSet;
+    if (k && k.vB === vB) return k.ids;
+    const T = WK.T, br = D && D.broken, set = new Set(e.idxs);
+    for (const i of e.idxs) for (const bi of T.adj[i] || []) { if (br && br[bi]) continue; const b = T.beams[bi]; set.add(b.a === i ? b.b : b.a); }
+    const ids = [...set];
+    e.rideSet = { vB, ids };
+    return ids;
+  }
+  function wreckRide(D) {
+    if (!model.engRigs || !WK.rest) return;
+    if (!WK.g0) { const B0 = (model.brk && model.brk.B0) || null, toDef = wreckToDef(), o0 = toDef([0, 0, 0]), ex = toDef([1, 0, 0]), ey = toDef([0, 1, 0]), ez = toDef([0, 0, 1]);
+      WK.g0 = new THREE.Matrix4().set(ex[0] - o0[0], ey[0] - o0[0], ez[0] - o0[0], o0[0], ex[1] - o0[1], ey[1] - o0[1], ez[1] - o0[1], o0[1], ex[2] - o0[2], ey[2] - o0[2], ez[2] - o0[2], o0[2], 0, 0, 0, 1); }
+    model.grp.updateMatrixWorld(true);
+    wreckGi.copy(model.grp.matrixWorld).invert();
+    for (const e of model.engRigs) {
+      const o = e.obj; if (!o || !o.matrix) continue;
+      const F = window.WRECK_DEBRIS.fit(wreckRideSet(e, D), WK.rest, sim.p), R = F.R;
+      // the fit as a 4x4: x -> R (x - cr) + cl - the turn the set's, the place the engine nodes' own (on its nodes, exactly)
+      let crx = 0, cry = 0, crz = 0, clx = 0, cly = 0, clz = 0;
+      for (const i of e.idxs) { crx += WK.rest[i*3]; cry += WK.rest[i*3+1]; crz += WK.rest[i*3+2]; clx += sim.p[i*3]; cly += sim.p[i*3+1]; clz += sim.p[i*3+2]; }
+      const ni = e.idxs.length; crx /= ni; cry /= ni; crz /= ni; clx /= ni; cly /= ni; clz /= ni;
+      const tx = clx - (R[0]*crx + R[1]*cry + R[2]*crz), ty = cly - (R[3]*crx + R[4]*cry + R[5]*crz), tz = clz - (R[6]*crx + R[7]*cry + R[8]*crz);
+      wreckM.set(R[0], R[1], R[2], tx, R[3], R[4], R[5], ty, R[6], R[7], R[8], tz, 0, 0, 0, 1);
+      // its local turn (the prop's spin as poseRigid wrote it, else none) at its rest place (the pivot)
+      // (its local turn: what poseRigid wrote this frame - the prop's spin - or, where nothing rewrote the matrix since this
+      // wrote it (the block; a paused flight), the turn kept from before)
+      if (o.matrixAutoUpdate) { if (!WK.autoOf) WK.autoOf = new Set(); WK.autoOf.add(o); o.matrixAutoUpdate = false; o.matrix.identity(); }
+      const keep = WK.ride || (WK.ride = new Map()), k0 = keep.get(o);
+      if (!k0 || !o.matrix.equals(k0.out)) { const L = (k0 && k0.L) || new THREE.Matrix4(); L.copy(o.matrix); keep.set(o, { L, out: (k0 && k0.out) || new THREE.Matrix4() }); }
+      const K2 = keep.get(o);
+      wreckM2.copy(K2.L).setPosition(e.pivot[0], e.pivot[1], e.pivot[2]);
+      o.matrix.copy(wreckGi).multiply(wreckM).multiply(WK.g0).multiply(wreckM2);
+      K2.out.copy(o.matrix);
+      o.matrixWorldNeedsUpdate = true;
+    }
+  }
   const WRECK_DRIFT = 0.14;                                // G1868: ~8 degrees a second
   // the visual frame (the model group's) to the frame's own (design) coordinates, at rest: og + B (v + off + oRest)
   function wreckToDef() {
@@ -4565,7 +4632,7 @@
     WK.model = model; WK.W = WD.watcher(); WK.T = (model.brk && model.brk.def === def) ? model.brk.T : SKIN_BREAK.topo(def.beams, N.length);
     WK.rest = new Float64Array(N.length * 3); N.forEach((nd, i) => { WK.rest[i*3] = nd.p[0]; WK.rest[i*3+1] = nd.p[1]; WK.rest[i*3+2] = nd.p[2]; });
     WK.rigs = { engRigs: model.engRigs, props: model.props, wheelParts: model.wheelParts, stretchRigs: model.stretchRigs, castorRig: model.castorRig };
-    WK.seen = (sim.eng || []).map(() => false); WK.strikes = []; WK.eyeCut = null; WK.eye = null; WK.eyeT = -1;
+    WK.seen = (sim.eng || []).map(() => 0); WK.posOf = null; WK.bladeGone = null; WK.strikes = []; WK.eyeCut = null; WK.eye = null; WK.eyeT = -1;
     WK.env = { ground: (x, z) => world.terrainH(x, z),
                water: typeof world.waterH === 'function' ? (x, z) => { const h = world.waterH(x, z, sim.t); return Number.isFinite(h) && h > world.terrainH(x, z) ? h : null; } : null };
     const cen = ids => { const c = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) c[j] += N[i].p[j] / ids.length; return c; };
@@ -4579,7 +4646,7 @@
       cands.push({ kind: 'eng', unit, nodes: u.idxs.slice(), rule: 'loose', at, objs: [u.eng && u.eng.obj, u.prop && u.prop.obj].filter(Boolean), mass: 90 });
       if (u.prop) {
         const sp = wreckMeshesOf(u.prop.obj).filter(m => { const k = B.keyOf.get(m); return k && model.mats[k] && model.mats[k].spin === 2; });
-        if (sp.length) cands.push({ kind: 'spinner', unit, nodes: u.idxs.slice(), rule: 'crush', at, meshes: sp, mass: 1, floats: true });
+        if (sp.length) cands.push({ kind: 'spinner', unit, nodes: u.idxs.slice(), rule: 'crush', crushAt: WD.TORN, at, meshes: sp, mass: 1, floats: true });
       }
     }
     // the cowl (the join's ranges of the static merge, G1860): two panels each unit - over and under its thrust line
@@ -4600,7 +4667,7 @@
       }
       for (const P2 of panels.values()) {
         const at = toDef([P2.c[0] / P2.n, P2.c[1] / P2.n, P2.c[2] / P2.n]);
-        cands.push({ kind: 'cowl', unit: P2.u ? EO[E.indexOf(P2.u.idxs[0])] | 0 : 0, at, ranges: P2.tris, mass: 4, floats: false });
+        cands.push({ kind: 'cowl', unit: P2.u ? EO[E.indexOf(P2.u.idxs[0])] | 0 : 0, at, ranges: P2.tris, crushAt: WD.TORN, mass: 4, floats: false });
       }
     }
     // the wheels: each on its axle node, with its leg (the stretch rigs on that node) and, for the tail wheel, its castor
@@ -4701,16 +4768,19 @@
     const ix = g.index.array, saved = new (ix.constructor)(T.length * 3);
     T.forEach((t, j) => { saved[j*3] = ix[t*3]; saved[j*3+1] = ix[t*3+1]; saved[j*3+2] = ix[t*3+2]; ix[t*3+1] = ix[t*3+2] = ix[t*3]; });
     const marks = [];
-    // a skin_break record on the same index keeps them gone through its next event (dead 2: gone for good) - the marks
+    // a skin_break record on the same index keeps them gone through its next event (dead 5: the debris took them; any
+    // dead >= 2 stays gone - DMG-WALL's convention) - the marks
     // kept, so a heal gives them back to it
-    for (const R of BRK.recs) if (R.idx === ix && R.dead && R.idx0) { const was = T.map(t => R.dead[t]); for (const t of T) R.dead[t] = 2; marks.push([R, was]); }
+    for (const R of BRK.recs) if (R.idx === ix && R.dead && R.idx0) { const was = T.map(t => R.dead[t]); for (const t of T) R.dead[t] = 5; marks.push([R, was]); }
     WK.idx.push({ g, T, saved, marks });
     g.index.needsUpdate = true; idxMirror(g);
   }
   function wreckHide(o) {
     if (WK.hid.some(h => h.o === o)) return;
-    WK.hid.push({ o, auto: o.matrixAutoUpdate, vis: o.visible });
-    const out = a => a ? a.filter(r => r.obj !== o && !(r.mesh && model.wreckBuild.parentOf.get(r.mesh) === o)) : a;
+    WK.hid.push({ o, auto: o.matrixAutoUpdate, vis: o.visible, m: o.matrix.clone() });   // (the matrix itself kept: a hand-posed part's is not re-composed)
+    const mine = r => r.obj === o || !!(r.mesh && model.wreckBuild.parentOf.get(r.mesh) === o);
+    for (const r of model.stretchRigs || []) if (mine(r)) r.wreckGone = true;   // DMG-WALL's binding skips a leg the debris took
+    const out = a => a ? a.filter(r => !mine(r)) : a;
     model.engRigs = out(model.engRigs); model.props = model.props.filter(p => p !== o); model.wheelParts = out(model.wheelParts);
     model.stretchRigs = out(model.stretchRigs);
     if (model.castorRig && model.castorRig.obj === o) model.castorRig = null;
@@ -4718,11 +4788,22 @@
   }
   // THE PROP STRIKE, drawn: each newly seized engine's prop - its blades curled, one broken off (a body) or none, its
   // spinner dented - from the rate it turned at (the prop loop's seizeRate) and the hub's speed
+  // G1861.5: DMG-DRIVE's per-engine state (sim.damage().drive inline; the worker's meta.drv once its link carries it -
+  // sim.drv), or null on a solver without DRIVE
+  // (under the physics worker the page's own sim is never stepped - its damage().drive is an untouched array: the mirror's
+  // drv, the worker's, is the one; inline there is no drv on the sim)
+  // (the same under the worker for the node velocities and the engines: the mirror's vView / engView, the worker's own)
+  function wreckEng() { return (sim && 'engView' in sim && sim.engView) || (sim && sim.eng) || null; }
+  function wreckVel() { const v = sim && 'vView' in sim ? sim.vView : (sim && sim.v); return v && sim && v.length === sim.n * 3 ? v : null; }
+  function wreckDrive() { if (sim && 'drv' in sim) return sim.drv || null; const D2 = sim && sim.damage ? sim.damage() : null; return (D2 && D2.drive) || null; }
   function wreckStrikes(vel) {
-    const WD = window.WRECK_DEBRIS, E = sim.eng || [];
+    const WD = window.WRECK_DEBRIS, E = wreckEng() || [], DV = wreckDrive();
     for (let k = 0; k < E.length; k++) {
-      if (!E[k] || !E[k].seized || WK.seen[k]) continue;
-      WK.seen[k] = true;
+      // the grade to draw: DRIVE's (G1861.5), else TREE-CRASH's seizure (G1861's own strike); drawn again only when it rises
+      const dv = DV && DV[k] && WD.DRV_RANK[DV[k].strike] ? DV[k] : null;
+      const rank = dv ? WD.DRV_RANK[dv.strike] : (E[k] && E[k].seized ? 3 : 0);
+      if (!rank || rank <= (WK.seen[k] || 0)) continue;
+      WK.seen[k] = rank;
       const prop = (WK.rigs.props || []).find(p => p.userData && (p.userData.engIdx || 0) === k && p.userData.spinAxis);
       const rig = prop && (WK.rigs.engRigs || []).find(e => e.obj === prop);
       if (!prop || !rig || model.props.indexOf(prop) < 0) continue;   // (its engine already gone as a body: it went whole)
@@ -4730,48 +4811,64 @@
       const n = Math.max(1, rig.idxs.length), D = sim.damage ? sim.damage() : null;
       const B0 = model.wreckBuild, ms = wreckMeshesOf(prop), spin = m => { const kk = B0.keyOf.get(m); return kk && model.mats[kk] ? model.mats[kk].spin || 0 : 0; };
       const blades = ms.filter(m => spin(m) !== 2), cones = ms.filter(m => spin(m) === 2);
+      // each part's vertices as built (kept at its first draw: a higher grade is drawn again from them, not over the last)
+      const baseOf = pa => { const P0 = WK.posOf || (WK.posOf = new Map()); let b = P0.get(pa); if (!b) { b = Float32Array.from(pa.array); P0.set(pa, b); WK.pos.push({ pa, base: b }); } return b; };
       // the prop's own frame, the TRUE frame (the stored vertices are B^-1-mapped - model.poseK - and the shaft axis is true)
       const K = model.poseK, ax = prop.userData.spinAxis;
       const toT = a => { const o = new Float64Array(a.length); for (let i = 0; i < a.length; i += 3) { const x = a[i], y = a[i+1]; o[i] = K ? K[0]*x + K[1]*y : x; o[i+1] = K ? K[2]*x + K[3]*y : y; o[i+2] = a[i+2]; } return o; };
       const fromT = a => { if (!K) return a; const det = K[0]*K[3] - K[1]*K[2]; for (let i = 0; i < a.length; i += 3) { const x = a[i], y = a[i+1]; a[i] = (K[3]*x - K[1]*y) / det; a[i+1] = (-K[2]*x + K[0]*y) / det; } return a; };
-      const tb = blades.map(m => toT(m.geometry.attributes.position.array));
+      const tb = blades.map(m => toT(baseOf(m.geometry.attributes.position)));
       const cat = new Float64Array(tb.reduce((s2, a) => s2 + a.length, 0)); { let o2 = 0; for (const a of tb) { cat.set(a, o2); o2 += a.length; } }
       const BF = WD.bladeFrame(cat, cat.length / 3, ax);
       if (!BF) continue;
-      const rpm = (prop.userData.seizeRate || 0) * 60 / (2 * Math.PI);
-      const S = WD.strike({ rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: D && D.propAt ? D.propAt.what : 'ground', eng: k });
-      WK.strikes.push({ eng: k, what: S.what, rpm: Math.round(rpm), V: +(Math.hypot(vx, vy, vz) / n).toFixed(2), E: Math.round(S.E), pBreak: +S.pBreak.toFixed(2), breaks: S.breaks, lost: S.lost,
-                        curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3) });
+      const rpm = dv && dv.strikeAt && dv.strikeAt.rpm != null ? dv.strikeAt.rpm : (prop.userData.seizeRate || 0) * 60 / (2 * Math.PI);
+      // (G1861.2: the build's material; a strike in the water - the hub over water deeper than the ground)
+      let hx = 0, hy = 0, hz = 0; for (const i of rig.idxs) { hx += sim.p[i*3] / n; hy += sim.p[i*3+1] / n; hz += sim.p[i*3+2] / n; }
+      const wh = WK.env.water ? WK.env.water(hx, hz) : null, wet = wh != null && hy < wh + 1.5;
+      const material = (def.spec && def.spec.prop && def.spec.prop.material) || 'wood';
+      const sense = ((def.params && def.params.engines || [])[k] || {}).sense || 1;
+      const info = { rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: wet ? 'water' : (D && D.propAt ? D.propAt.what : 'ground'), eng: k, material, wet };
+      const S0 = WD.strike(info), S = dv ? WD.fromDrive(dv, info) : S0;
+      WK.strikes.push({ eng: k, t: +sim.t.toFixed(3), drive: dv ? dv.strike : null, what: S.what, material, metal: S.metal, rpm: Math.round(rpm), V: +info.V.toFixed(2), E: Math.round(S0.E), breaks: S.breaks,
+                        cut: S.cut.map(c => +c.toFixed(2)), curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3),
+                        ...(dv && dv.strikeAt ? { biteR: dv.strikeAt.biteR, surf: dv.strikeAt.surf, tip: dv.strikeAt.tip, bladeLost: dv.bladeLost } : {}) });
       // the spinner's radius (its farthest vertex from the shaft): the curl never reaches into the hub
       let hubR = 0.04;
-      for (const m of cones) { const p = toT(m.geometry.attributes.position.array); for (let i = 0; i < p.length; i += 3) { const a = WD.azOf(p[i], p[i+1], p[i+2], ax, BF.u0); if (a.r > hubR) hubR = a.r; } }
-      const lostT = new Map();
+      for (const m of cones) { const p = toT(baseOf(m.geometry.attributes.position)); for (let i = 0; i < p.length; i += 3) { const a = WD.azOf(p[i], p[i+1], p[i+2], ax, BF.u0); if (a.r > hubR) hubR = a.r; } }
+      const lostT = new Map(), gone = WK.bladeGone || (WK.bladeGone = new Set());
       blades.forEach((m, bi) => {
-        const pa = m.geometry.attributes.position, base = Float32Array.from(pa.array), t = tb[bi], out = new Float64Array(base.length);
-        WK.pos.push({ pa, base });
-        WD.curlBlades(t, out, base.length / 3, ax, BF, S.curl, hubR);
+        const pa = m.geometry.attributes.position, base = baseOf(pa), t = tb[bi], out = new Float64Array(base.length);
+        WD.curlBlades(t, out, base.length / 3, ax, BF, S.curl, hubR, sense);
         pa.array.set(fromT(out)); pa.needsUpdate = true;
         if (S.breaks) {
-          const ix = m.geometry.index.array, nt = (m.geometry.index.count / 3) | 0, L2 = [];
-          for (let q = 0; q < nt; q++) { let on = true; for (let e = 0; e < 3 && on; e++) { const v = ix[q*3+e], a = WD.azOf(t[v*3], t[v*3+1], t[v*3+2], ax, BF.u0);
-            if (a.r <= hubR || WD.bladeOf(a.az, BF.nb) !== S.lost) on = false; } if (on) L2.push(q); }
-          if (L2.length) lostT.set(m, L2);
+          // (G1861.2: each blade's piece past its cut - by the triangle's centroid, so the break is one clean line; a blade
+          // already broken off at a lower grade is not broken again)
+          const ix = m.geometry.index.array, nt = (m.geometry.index.count / 3) | 0;
+          for (let q = 0; q < nt; q++) {
+            let cx2 = 0, cy2 = 0, cz2 = 0; for (let e = 0; e < 3; e++) { const v = ix[q*3+e]; cx2 += t[v*3] / 3; cy2 += t[v*3+1] / 3; cz2 += t[v*3+2] / 3; }
+            const a = WD.azOf(cx2, cy2, cz2, ax, BF.u0), b2 = WD.bladeOf(a.az, BF.nb);
+            if (S.cut[b2] >= 1 || gone.has(k + ':' + b2) || a.r <= Math.max(hubR, S.cut[b2] * BF.R)) continue;
+            let per = lostT.get(b2); if (!per) lostT.set(b2, per = new Map());
+            let L2 = per.get(m); if (!L2) per.set(m, L2 = []); L2.push(q);
+          }
         }
       });
-      for (const m of cones) {
-        const pa = m.geometry.attributes.position, base = Float32Array.from(pa.array), out = new Float64Array(base.length);
-        WK.pos.push({ pa, base });
+      for (const b2 of lostT.keys()) gone.add(k + ':' + b2);
+      if (S.dent > 0) for (const m of cones) {
+        const pa = m.geometry.attributes.position, base = baseOf(pa), out = new Float64Array(base.length);
         WD.dentSpinner(toT(base), out, base.length / 3, ax, BF, S.dent, S.dentAz);
         pa.array.set(fromT(out)); pa.needsUpdate = true;
       }
-      if (lostT.size) {
-        // the lost blade: a body off the engine's nodes, its rest centre its own vertices (now) through the set's fit, inverted
+      // each broken blade's piece: a body off the engine's nodes, its rest centre its own vertices (now) through the set's
+      // fit, inverted
+      for (const [, per] of lostT) {
         model.grp.updateMatrixWorld(true);
         let cx = 0, cy = 0, cz = 0, cn = 0; const v3 = new THREE.Vector3();
-        for (const [m, L2] of lostT) { const Mw = wreckWorldOf(m), ix = m.geometry.index.array, pa = m.geometry.attributes.position.array;
+        for (const [m, L2] of per) { const Mw = wreckWorldOf(m), ix = m.geometry.index.array, pa = m.geometry.attributes.position.array;
           for (const q of L2) for (let e = 0; e < 3; e++) { const v = ix[q*3+e]; v3.set(pa[v*3], pa[v*3+1], pa[v*3+2]).applyMatrix4(Mw); cx += v3.x; cy += v3.y; cz += v3.z; cn++; } }
+        if (!cn) continue;
         const F = WD.fit(rig.idxs, WK.rest, sim.p), R = F.R, w = [cx / cn - F.cl[0], cy / cn - F.cl[1], cz / cn - F.cl[2]];
-        const c = { id: WK.P.parts.length, kind: 'blade', nodes: rig.idxs.slice(), why: 'strike', L0: [], mass: 3, floats: true, ranges: lostT,
+        const c = { id: WK.P.parts.length, kind: 'blade', nodes: rig.idxs.slice(), why: 'strike', L0: [], mass: 2, floats: true, ranges: per,
                     at: [F.cr[0] + R[0]*w[0] + R[3]*w[1] + R[6]*w[2], F.cr[1] + R[1]*w[0] + R[4]*w[1] + R[7]*w[2], F.cr[2] + R[2]*w[0] + R[5]*w[1] + R[8]*w[2]] };
         WK.P.parts.push(c);
         wreckRelease(c, vel);
@@ -4791,9 +4888,11 @@
   // A HEAL: the bodies gone, every part as built (its rigs, its matrix, its triangles, its prop's shape)
   function wreckHeal() {
     if (WK.W) for (const B of WK.W.bodies) if (B.obj) { scene.remove(B.obj); B.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); B.obj = null; }
-    for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); h.o.matrixWorldNeedsUpdate = true; }
+    for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); else if (h.m) h.o.matrix.copy(h.m); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
+      for (const r of mdl.stretchRigs || []) r.wreckGone = false;
+      for (const e of mdl.engRigs || []) e.rideSet = null;
       mdl._poseNG = null; mdl._pose = null; }
     for (let j = WK.idx.length - 1; j >= 0; j--) { const q = WK.idx[j], ix = q.g.index.array;
       q.T.forEach((t, k) => { ix[t*3] = q.saved[k*3]; ix[t*3+1] = q.saved[k*3+1]; ix[t*3+2] = q.saved[k*3+2]; }); q.g.index.needsUpdate = true; idxMirror(q.g);
@@ -4801,6 +4900,10 @@
     if (q0posed()) BRK.posed = false;
     for (let j = WK.pos.length - 1; j >= 0; j--) { const q = WK.pos[j]; q.pa.array.set(q.base); q.pa.needsUpdate = true; }
     if (mdl) for (const p of mdl.props || []) if (p.userData) p.userData.seizeRate = null;
+    if (WK.autoOf) { for (const o of WK.autoOf) { o.matrixAutoUpdate = true; o.updateMatrix(); } WK.autoOf = null; }
+    brkHealUpload(mdl);   // (the debris' triangles, the props' curl and the spinner's dent written back: the folds owe them)
+    WK.g0 = null; WK.ride = null;
+    WK.posOf = null; WK.bladeGone = null; WK.bays = null;
     WK.hid = []; WK.idx = []; WK.pos = []; WK.model = null; WK.P = null; WK.W = null; WK.t = null; WK.rigs = null; WK.cab = null;
   }
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
@@ -8205,6 +8308,25 @@
   // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
   // G1715 (SND-ROLLOUT): `handover` - the stand follows (the roll-out: its reset runs the engines, so the shot leaves them
   // idling in sim.out across the cut); the solo shot goes back to the shed and puts every engine field back
+  // DMG-D4b (the user's 'giant sheets after a crash'; the box, 2026-10-07: a roll-out with no crash shows the Cub whole in
+  // the shot, one after a crash shows the WRECK): THE ROLL-OUT SHOT PLAYS BEFORE THE STAND'S RESET (the trip: the aircraft,
+  // the animation, then the stand), so it posed the crashed flight's sim - under the worker the mirror of its last
+  // snapshot, its breaks and its pieces - and the wreck rolled out of the hangar. A sim that holds a crash (breaks on the
+  // page, crashed, over) is reset before the shot and the wreck's drawing healed (the skin break's records, the debris):
+  // the shot then poses the aeroplane as built, and the stand's own reset follows as before. Untouched otherwise.
+  // window.FLYDIY_ROLL_NORESET = true: off (GATE DMGUPLOAD's selftest)
+  function rollWreckReset() {
+    try {
+      if (window.FLYDIY_ROLL_NORESET || !sim) return false;
+      const D0 = dmgNow(), dm = sim.damage ? sim.damage() : null;
+      if (!((D0 && (D0.br.length || D0.sS !== '0:0')) || (dm && (dm.crashed || dm.over)))) return false;
+      sim.reset(0);
+      if (WK.model) wreckHeal();
+      if (BRK.recs.length) brkRestore();
+      window.FLYDIY_ROLL_RESETS = (window.FLYDIY_ROLL_RESETS || 0) + 1;
+      return true;
+    } catch (e) { console.warn('roll-out shot: the wreck reset', e && e.message); return false; }
+  }
   function rollAnimPlay(done, handover) {
     raBusy = true;
     // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
@@ -8213,6 +8335,7 @@
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     const cage = showCage; showCage = false; applySkinVis();
     rollShotUi(true);
+    rollWreckReset();   // DMG-D4b: the shot poses an aeroplane, never the last crash's wreck
     let h = null;
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,

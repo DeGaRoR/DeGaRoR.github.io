@@ -81039,3 +81039,376 @@ carries both. Resolved so that every side's behaviour is kept:
   2 cm), and tearPlaces mirrors it (and tear()'s noTear rule); the API is the union (WALL's + islands + the GPU exports).
 - The incremental event is FULL whenever a record's binding changed outside its last event (R.dv moved: WALL's
   bindInherit / wallSync bump it), so WALL's "every record's event made again" after the inherited binding lands.
+## G2350-G2352 DMG-FOLDNODE - THE HYBRID BAKE'S FOLDS IN THE NODE PAGE (A TEST-ONLY FAKE BAKE); GATE DMGUPLOAD ON THEM; G2352 THE GHOST'S REAL CAUSE: A FOLD'S WHOLE UPLOAD LOST TO A RANGE (2026-10-07, DMG-FOLDNODE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-foldnode off origin/claude/dmg-d4b-wreck 8f12bbf, which carries D4b's 98f2b905; damage stays OFF by default)
+
+**Why.** DMG-D4b found the stand's ghost on the box (crash -> the shed -> roll-out: a stretched Cub on the stand, every CPU
+array healed) and fixed it with the heal's fold marking (98f2b905: mergeModel's dirty(), FLOWN_BAKE.dirtyAll after every
+heal write, window.FLYDIY_HEAL_NOMARK = true the A/B). GATE DMGUPLOAD stayed green without the fix: the node page makes
+NO FLOWN BAKE (the recording GL's read-back is zeros, so bakeSet bows out at 0 % of the atlas written; forPayload null),
+so no fold existed for the gate to read. The flown model in node was the live meshes and the still merges.
+
+### G2350 - THE FAKE BAKE (src/viewer/flown_bake.js fakeSet; tools/_page_node.js opts.fakeBake)
+- **The flag.** `window.FLYDIY_TEST_FAKE_BAKE === true`, set ONLY by `_page_node.js` `opts.fakeBake` before the page's
+  scripts run. No URL dial, nothing in src/ sets it (grep: the two lines in flown_bake.js that read it, the one in
+  _page_node.js that sets it).
+- **What it skips.** In `step()`: the PARKED.unwrap requirement, the GFX budget's `flownBake: false` and the renderer.
+  In `bakeSet()`, after the memory (round-trip) check: the cache read, the unwrap (worker or page), uvsOf's splits, the
+  GL passes (bakeAtlas), the gutters, the mips, the cache write.
+- **What it makes.** Per set (ext, in): a zero atlas uv per vertex (`e.uv`, Uint16, the real one's shape); the material
+  from the SAME `materialOf` on 1x1 zero maps (the map, normal and ORM chain: one level each). The clear coat is decided
+  by bakeAtlas's own rule (any of the set's AEROSKIN source materials with clearcoat > 0), so the material class is the
+  real one's. The stats carry `hit: 'fake', fake: true`, and `cm` is estimated from the set's rest-pose area at the real
+  atlas's size and a 0.6 fill: Cub 0.54, Cessna 0.59 cm a texel against the real Cessna's 0.79 (G870). nearT reads that
+  `cm`, so the hybrid band sits near the real one. `remember()` then holds it like a real bake, so the round trip after
+  the shed is the game's MEMS memory hit.
+- **What it shares (everything after).** attach / BAKED, forPayload, buildModel's baked geometries (mkGeo's uv1),
+  mergeModel's folds, the members' VIEWS into the fold's arrays, G1170's live views on the fold's own buffers, the
+  range-upload bookkeeping, the heal's dirty marks, idxMirror, the park / unpark, the hybrid's fade and band, rest().
+  Measured in the gate: Cub ext 107 meshes -> 3 folds (33 bones), in 63 -> 4 (20 bones), 126 live views; Cessna
+  111 -> 3, 71 -> 4, 136 views; hyT 0 at the gate's chase (the bake drawn, the views parked).
+
+### G2351 - GATE DMGUPLOAD ON THE FOLDS (tools/_dmg_upload_check.js)
+- The page now runs with `opts.fakeBake` (`--fakebake=0` gives the gate as D4b left it).
+- New rows: the bake was the fake (FB.last.hit 'fake'), the hybrid is on, folds were made, and drawn fold buffers were
+  checked both fresh and after the path (44 of them on each build).
+- The stale row names the class (fold / mesh / still).
+- R.bake now reads FLOWN_BAKE's state instead of calling forPayload, which resets the folds' list.
+- `--fault=nomark|noowe|aswas` runs the gate itself with a fix taken out (the A/B).
+- **--selftest** takes two faults, each of which must go red ON A FOLD with the fold rows holding:
+  - `aswas`: FLYDIY_HEAL_NOMARK and FLYDIY_FOLD_NOOWE, i.e. the code as it was before D4b;
+  - `noowe`: D4b's mark on, G2352 off.
+
+### G2352 - WHAT THE FOLDS SHOWED: D4b'S MARK ALONE DID NOT CLEAR THE GHOST IN NODE; THE OWED WHOLE UPLOAD WAS LOST (flown_bake.js mergeModel)
+- **With the folds in the page, D4b's fix ON, the gate went RED on both builds:**
+  - one stale fold buffer, the plain (still) fold `flownBaked`'s position (the fuselage's: its version moves EVERY frame,
+    so a rig writes it);
+  - Cub 202 428 of 585 378 floats stale from float 382 950; Cessna 328 626 of 700 938.
+  - With FLYDIY_HEAL_NOMARK (D4b's fix off): the SAME 202 428 floats. In this path, D4b's mark changed nothing.
+- **The trace** (a per-frame probe; GPU copy = CPU copy, version, ranges, drawn count):
+  - in the shed (frame 1028) the heal's dirtyAll marks the 7 folds, which are hidden and stay owed;
+  - at the roll-out's frame (1061) six come back fresh;
+  - the fuselage fold's version moved TWICE in that one frame, the whole upload asked and then a rig's range, before it
+    was drawn - and it stays stale every frame after.
+- **The cause** (three r186 WebGLAttributes: an attribute uploads only where it is DRAWN, and whole only if no update
+  range is set at that moment):
+  - mergeModel asked for the whole upload (`clearUpdateRanges` + `needsUpdate`) and forgot it;
+  - before the fold was drawn, the next pass's rig write added a range;
+  - three sent the range alone, and the rest of the buffer stayed as the GPU held it at the crash.
+  - A fold no rig writes every frame survives (nothing replaces its pending whole) - which is why only the fuselage fold
+    showed it.
+- **The fix.**
+  - Each fold's position / normal carries an `owe` flag, set where the whole upload is asked (the heal's stale mark, a
+    fold shown again after writes, > 32 ranges).
+  - While owed, a write adds no range; it only bumps the version, and the pending whole covers it.
+  - Three's `onUploadCallback` (called after any upload of the attribute) clears the flag.
+  - The cost: a boolean a frame, nothing uploaded that was not before (damage OFF: the same 17 067 uploads / 18 841
+    bufferSubData as without G2352).
+  - `window.FLYDIY_FOLD_NOOWE = true` restores the old behaviour (the A/B and the selftest's fault).
+- **D4b's mark is kept.** It is an event's cost and covers a heal write that bumps no version.
+  - On this path every heal write does bump a member's version while the model is hidden in the shed, so the fold owes
+    itself the whole upload anyway.
+  - With G2352 in, `--fault=nomark` alone is GREEN (evidence: gate_dmgupload_selftest_intermediate.txt). That is why the
+    selftest's "bug as it was" turns both off.
+- **FOR THE BOX:** I believe this is the ghost D4b saw (a forced re-upload of every attribute cleared it, as it clears
+  this), but it is not box-verified. Worth one look on the box with ?damage=1: crash, the shed, roll out, the stand, and
+  FLYDIY_FOLD_NOOWE = true for the A/B.
+- **GATE FLOWNBAKE 8** gains a G2352 row: a write while the whole upload is owed adds no range; after the upload callback,
+  a write flags its range again. It is red with FLYDIY_FOLD_NOOWE (checked with a temporary copy) and green without.
+
+### The game unchanged (bar G2352)
+- **The fake is unreachable without the test flag.** reports/evidence/DMG-FOLDNODE/unreachable.js boots the node page as
+  every gate does, without opts.fakeBake:
+  - damage OFF and damage ON: the flag unset, FB.last null, 0 folds (the path node always took);
+  - with the flag: hit 'fake', 7 folds;
+  - verdict: PASS.
+- **The page's bytes** (index.html, the normal boot; it loads src/viewer/flown_bake.js by URL): the build before against
+  the build after differ only in the build id and flown_bake.js's `?v=` hash (evidence: index_html_diff.txt).
+  flown_bake.js's own diff is the gated fake (the FAKE() test in step() and bakeSet(), fakeSet) and G2352 (the owe flag:
+  a game change, deliberate, above).
+- tools/_page_node.js gains one opt. No other src/ file is touched.
+
+### Gates (evidence: reports/evidence/DMG-FOLDNODE/)
+- **DMGUPLOAD.**
+  - Before (D4b's gate): PASS with no fold (Cub: 1148 buffers, classes still / mesh, forPayload false).
+  - Its selftest without folds (--fakebake=0): FAIL, i.e. the mark off is not seen.
+  - With the folds and D4b's fix only: FAIL on both builds (the fuselage fold).
+  - **After: PASS** (Cub 366 buffers / Cessna 427, 0 stale; 44 fold buffers each, fresh and after; damage OFF: 0 heal
+    marks, 0 stale).
+  - **--selftest: PASS** (aswas red on the fold, 202 428; noowe red on the fold, 202 428).
+- **Every DMG* row** (`grep "id: 'DMG" tools/run_gates.js`), **TREECRASH, TREEHIT, UISMOKE, BUILD, JOIN, LOAD, and
+  FLOWNBAKE** (whose file I touched):
+  - All PASS (DMGMEMBERS, DMGCERT, DMGGEAR, DMGCERTCOST, DMGWIND, DMGCLUSTERS, DMGFPS, DMGINTEGRITY, DMGSKIN, DMGWRECK,
+    DMGDRIVE, DMGWALL, TREECRASH, TREEHIT, UISMOKE, BUILD, JOIN, LOAD, FLOWNBAKE), **except DMGINST**.
+  - DMGINST is 32/33, and fails the SAME way on the base (origin/claude/dmg-d4b-wreck in a clean worktree:
+    gates/DMGINST_base.txt). So it is not this branch's (I touch no app.js).
+  - Its row "no code writes 'broke-up' but the structure's ending" flags app.js 6342,
+    `const wreckEnd = outcome === 'crashed' || outcome === 'broke-up';` - a READER its regex counts as a writer. That line
+    came with D4b's 88240ea (G1868).
+  - The fix belongs to that row's owner: allow the reader, or match `endFlight(` writes only. Not widened here.
+  - Texts: gates/<ID>.txt, the table in gates_battery.txt. Each gate ran on its own (`node tools/<file>`, after
+    build.js exit 0): a `run_gates --only` battery buffers its output to the end and was lost with a container restart.
+- Node only; no Rigs of Rods / BeamNG code.
+
+## G1860-G1869 DMG-D4b WRECK DRAWN - THE NON-MEMBER PARTS LEAVE AS DEBRIS, THE PROP STRIKE DRAWN, THE CLIP ON THE WRECK, THE COCKPIT RULE, THE LOOK ON THE BOX, GATE DMGWRECK; THE CRASH WATCHED (G1868); THE IMPACT'S FRAME RATE (G1869) (2026-10-05, DMG-D4b for the DEFORM COORDINATOR, local GPU; branch claude/dmg-d4b-wreck off claude/dmg-integration bd0b9d0b + the D4a fix 089b2a2a / G1867.1 6e193ec5 (merged into integration, train 35), then claude/dmg-integration a7ad3fdf merged in)
+
+DEFORM-AND-BREAK §5.3, §8.2-§8.5, §11.1-§11.4. The D4a fix (G1866-G1867: the skin break had not reached the default game's drawing - the
+hybrid bake's fold - and rode in a sheared frame) is its own entry above. Damage OFF: nothing here runs and nothing moves (gates below).
+
+### G1860 - DEBRIS FOR THE NON-MEMBER PARTS (src/viewer/wreck_debris.js, pure; app.js wreckFrame; tools/_cage_join.js)
+- **Candidates**, each a drawn part and its CARRYING NODE SET (`carry`): the engine unit (block, prop and spinner on it) on its engine
+  nodes; the spinner alone on them; the cowl in two panels (over / under the thrust line) on the engine's nodes + the 4 frame nodes
+  nearest it (a nose engine's: the firewall ring); each wheel on its axle node, WITH its leg (the stretch rigs on that node), the
+  tail wheel with its castor, the spat inside the wheel group; each pane (the glass buckets' connected pieces) on the 6 cabin nodes
+  nearest it; a broken blade (G1861).
+- **A part LEAVES** (`watch`, asked only when the damage state moved) when its set is BROKEN OFF (most of it on a piece that is not the
+  core: DMG-D1b's pieces), LOOSE (most of it TREE-CRASH's debris nodes: every member gone) or CRUSHED (two of its nodes 6 cm off their
+  rest distance - ~30x a hard landing's elastic flex, never read with nothing yielded). Per kind: the engine unit leaves only LOOSE (on
+  a piece of its own it still rides its nodes, prop and all); the spinner only CRUSHED; the rest any of the three.
+- **G1860.1 - A DENTED COWL STAYS ON** (the coordinator's ruling): a cowl panel and the spinner read TORN (25 cm) instead of CRUSH -
+  dented sheet stays on its fasteners and rides its nodes dented (DMG-WALL's binding); glazing keeps 6 cm (glass breaks). The page's 3
+  m/s metal-Cessna taxi had thrown both cowl halves off and bared an engine whose mount was whole. The hand-off with DMG-WALL: a leg the
+  debris take is flagged `wreckGone` on its stretchRigs entry (WALL's groups loop skips it); the triangles the debris take are dead 5 in
+  skin_break's record (any dead >= 2 stays gone through an event).
+- **A DEBRIS BODY**: its pose the rigid fit of its set (Horn, skin_break.js polar), its velocity the set's (mean + turn, held to 12 rad/s
+  and the set's speed + 6 m/s: loose nodes whip), a seeded kick away from the frame (0.7-1.7 m/s: the latches letting go, "the cowl
+  opens and gets ejected") and tumble. Gravity, quadratic drag (implicit: in water the rate is ~1000/s), the ground (terrainH) and the
+  water (a light part - a tyre, a wooden blade, the spinner - floats and rides the surface; a heavy one sinks and is SUNK, out of
+  sight, half a metre under); contact on its box's 8 corners, impulses with Coulomb friction (no bounce under 0.6 m/s, contact damping),
+  at a fixed 1/240 s whatever the frame rate; asleep when its low-passed speeds rest 0.4 s (forced at 20 s). It stays until the reset.
+- **Drawn**: NEW meshes made at the release from the part's own triangles as drawn that frame (every attribute, the same material - live
+  or baked), posed by the body in the world. The part is hidden where it is drawn: a part on a node out of the rigs' loops and its
+  matrix collapsed (the fold's bone reads it); a static bucket's triangles (the cowl's: the join now records them, `snapshot.debris`
+  = [tag, bucket, v0, v1], metadata only) collapsed in its index and every merged copy (idxMirror, G1866), and marked gone for good in
+  skin_break's record on that index. A heal (a reset, a new flight, another model, `?wreck=0`) puts every part back as built.
+- `window.FLYDIY_WRECK_STATS()`: the parts (gone, why, crush), the bodies (kind, why, asleep, sunk, place, triangles), the strikes, the
+  cockpit rule's word, the costs. `?wreck=0` / `window.FLYDIY_WRECK = false`: the A/B.
+
+### G1861 - THE PROP STRIKE DRAWN (G1861.1-.5: the user's playtest - the engine and prop riding the engine, wood snaps / metal bends)
+- On TREE-CRASH's `eng.seized` (a trunk in the disc, the nose ring on the ground) the prop **stops in the frame it seized** (poseModel's
+  prop loop holds it; its disc goes), its rate kept for the strike.
+- **The energy**: 1/2 I w^2 (nb blades of ~3 kg (D/1.88)^2.5 as rods, at the rate it turned) + 1/2 M v^2 (the aeroplane at the hub's
+  speed); it sets how far a metal blade bends and the spinner's dent (1.5-6 cm on the strike's side, toward its nose). Seeded by the
+  strike itself: the same strike, the same answer.
+- **G1861.2 - THE BUILD'S PROP MATERIAL** (spec.prop.material; the user: "broken wood props and bent metal props, that adds a lot"):
+  - **WOOD** (and carbon, the boutique woods): EVERY blade snaps at a seeded 25-45 % of its radius - the stub stays on the hub, the outer
+    piece leaves as a debris body (a wooden piece floats). The user's Cub and the Jodel.
+  - **ALUMINIUM**: no blade breaks; each bends past 35 % of its radius, aft AND against the rotation (the engine's hand), 0.35-0.9 rad at
+    the tip by the energy (+-20 % a blade), its curvature growing to the tip and integrated along the blade, so a bent blade keeps its
+    length (0.8500 -> 0.8499 m on the gate's synthetic prop). The Cessnas.
+  - **In the water** (the hub within 1.5 m of the surface over water): a metal blade bends x0.4; a wooden one snaps only past 150 kJ (a
+    slow one just stops). Done in the TRUE frame (the snapshot stores the prop B^-1-mapped; its shaft is true); the blade count read off
+    the drawn vertices (an azimuth histogram, smoothed over 25 deg).
+- **G1861.1 - THE ENGINE UNIT RIDES ITS NODES' FRAME** (the user: "the propeller floats in the air near the nose, close to upright, after
+  the engine piece has moved"): poseModel carries the block and the prop by their nodes' MEAN only (a translation); once the wreck is
+  drawn each unit still on the aeroplane is placed by its engine nodes' rigid fit (world = fit x the rest pose x its own turn - the prop's
+  spin), so a nose folded down carries its block and prop with it. Verified on the box: the drawn engine on its nodes' centroid.
+- **G1861.3 - RETRACTED (the coordinator: "the drawing follows the physics")**: a 'mount' release (an engine 25 cm off its frame
+  nodes leaves as a body) was tried for the metal Cessna's engine "hanging at nose height" and taken out (d2ef93af). The members read in
+  node: where it fired (the 30 m/s centreline, the nose-ins) every mount tube had BROKEN in the solver (ENGL-S0TL 0.812 -> 2.135 m) and
+  the engine stood on the nose-gear leg, which the Cessna builds on the ENGINE nodes (TW-ENGL/ENGR, whole) - a real piece, engine + nose
+  leg + wheel; and on the page's 3 m/s taxi the mount was WHOLE (the engine nodes 1.17 m from the nose ring, 1.16 m at rest): the engine
+  stood where it belongs, bared because the cowl had been thrown off (G1860.1 below). The drawn nose leg riding the engine piece is
+  DMG-WALL's (G1859: each leg one binding on its root + axle nodes); this session owns only when a part goes loose.
+- **G1861.4 - THE ENGINE'S RIDE FITS WHAT HOLDS IT**: a nose engine's rig has two nodes (ENGL, ENGR) and a two-node rigid fit has no
+  turn - G1861.1 drew the block in the frame's own axes, turned off the heading and out through the front of an intact cowl (the box,
+  the metal Cessna's 3 m/s taxi, nothing broken: engine_ride_bug_before_g1861_4.jpg). The fit's set is now the engine nodes and every
+  node still joined to them by an unbroken member (the CG node, the mount's ring while it holds, a nose leg built on the engine nodes),
+  re-read when a member breaks; the block sits on its engine nodes' own centroid.
+- **G1861.5 - THE PROP DRAWS DMG-DRIVE'S VERDICT** (the coordinator: "one physics, one picture"; WRECK_DEBRIS.fromDrive): when the
+  solver grades the strike (33_drive.js, sim.damage().drive[k]; sim.drv under the worker once its link carries meta.drv): brush = the
+  tips scuffed (0.06 rad); bent = curled back by the bite, k = (biteR - 0.04) / (the surface's stop - 0.04); stoppage = stopped, a
+  metal prop fully curled, a wooden one whole unless its tip reached DRIVE's separation speed (then the tips splinter at 85-95 % of R);
+  separation = ONE blade short by bladeLost, its piece a body. Redrawn from the prop as built when the grade rises; the spinner dented
+  only at a stoppage or a separation; seeded by the strike's time. Without DRIVE (read behind a guard until train 38 merges it) G1861's
+  own strike stays.
+- Measured in GATE DMGWRECK: the 3 m/s taxi into a trunk 4.9-17 kJ, the 30 m/s centreline 167-421 kJ, the severe nose-ins 534-817 kJ.
+  Evidence: prop_wood_cub_taxi.jpg (both blades snapped, a piece on the ground), prop_wood_cub_trunk0.jpg, prop_metal_cessna_taxi*.jpg.
+
+### G1862 - THE CLIP ON THE WRECK (§8.5)
+- **In node (GATE DMGWRECK)**: every body's corners against the live cabin bays of the core (DMG-D1b's probe, 5 cm): none.
+- **On the box, the drawn geometry** (tools/dmg_wreck_stills.js pageDump -> _mesh_query.js signed distance on the drawn exterior skin,
+  oriented; only through a skin FACE - a seat beside a torn-open hole is in the open, not through a wall): the cabin's FURNITURE (seats,
+  panel and hands, controls, the crew) outside the skin and the DEBRIS inside it, past 3 cm, at each case's end:
+  | | furniture through a skin face (share of its vertices, worst) | debris inside the skin |
+  |---|---|---|
+  | intact, at the stand | 1.2-1.6 %, 27 cm (the baseline: the seat frames and the panel's back against an open cabin's own covering) | none |
+  | the trunk on the centreline | 0.04 %, 5.6 cm | none |
+  | the trunk 2.5 m out | 0.07 %, 3.8 cm | none (34k corners sampled) |
+  | the severe nose-in | 0.2 %, 6.6 cm | none |
+  | the 3 m/s taxi | 0.3 %, 25 cm | none |
+  **Open (the coordinator's ruling: for DMG-WALL / D4b to close):** the furniture's few points through the wall are rigid parts on the
+  body frame against a skin that rides its nodes; the intact baseline itself reads 1.2-1.6 % (the measure's own floor on an open cabin).
+- The inside-wall layers against the covering are DMG-D4c's (G1855-G1857), not measured here.
+- No SUPPORT limiter or §8.2 point-against-tube collision added: on the box no drawn part was found inside another past the bound that
+  a debris release did not already take (the cowl, the panes, the engine unit); D1b's wing-root-into-the-cabin case stays a physics
+  pass-through (its skin rides its nodes, so it is drawn where the physics has it).
+
+### G1863 - THE COCKPIT CAMERA RULE
+- **The chase view**, once, when in the cockpit view the cabin round the eye is crushed: the eye (the crew's, flyEyeAt's own point, into
+  the frame's coordinates) rides its bay's rigid fit and is read against the bay's live walls, roof and floor (its two ring faces are
+  open onto the next bays): CRUSHED when the eye stands within 10 cm of one, when the bay has lost a quarter of its volume, or when its
+  nodes are on two pieces. Why the chase and not "the nearest clear point": an eye pulled inside a crushed cabin still looks at the
+  inside of the crush from a hand's breadth (and the inside layers, D4c's), and §8.5 asks for the outside view. The player may go back
+  in; it is not taken again until the next wreck. Read every 0.1 s, only in the cockpit view, only once damaged.
+  On the box it fired in the Cub's severe nose-in ("the cabin parted": the eye's bay on two pieces); in GATE DMGWRECK's node cases the
+  eye's bay stays clear on every build (81-116 % of its volume, 28-47 cm) - those cases crush the nose and wings, not the cabin. G1868
+  makes the cut a slow orbit round the wreck.
+
+### G1864 - THE LOOK, ON THE BOX (tools/dmg_wreck_stills.js; reports/evidence/DMG-D4b/, README.md captions every image)
+- **The D4a fix** (G1866-G1867.1, its own entry above; train 35): D4a's skin break had not reached the default game's drawing (the hybrid
+  bake's fold), and once it did it tore in a sheared frame (110k of 167k triangles); now it rides in the world frame, whole, welded.
+- **The stills** (the user's Cub, the HOME runway; after / skin-only / before / intact from the same cameras): the 30 m/s trunk on the
+  centreline (it breaks up), 2.5 m out, the severe nose-in, the 3 m/s taxi. Before = the giant stretched sheets; after = the wreck in
+  pieces, the cowl halves, panes, engine and wheels lying off as bodies, the taxi's wings whole.
+- **The tear's share** (D4a's open point): with the world-frame riding it takes 24 % of the snapshot's triangles in a 30 m/s trunk
+  crash that does not break up (39k of 167k; was 66 % in the sheared frame); in a break-up it strips most of the fuselage covering (the
+  truss stands bare, the pilot in it) - honest to the 15 % fabric rule, but the user may want more crumpled fabric left (open).
+- **The confetti**: torn islands under 40 triangles that touch the tear go with it (skin_break.js islands; untouched small fittings stay).
+- **The first break's binding** (D4a's open hitch): 95 ms in one frame on the box - now made 120k vertices a frame (G1869) and the full
+  binding 4000 places a frame (G1867): no single frame over ~1 ms for it.
+- **The drape** on fabric: in the stills a slack panel sags where its member broke; most of the covering in the 30 m/s cases is torn, not
+  draped (the tear above).
+- **THE YELLOW-CUB CENSUS** (the user's leak test, census.json; `pageCensus`): the aeroplane's own pixels by flat masks (white minus
+  black, the depth kept), the glazing / struts / wheels / prop / engine out, the share not yellow. The 3 m/s taxi wreck 7-35 % (camera 2
+  / 1); the 30 m/s trunk 2.5 m out 46-59 % after, 46-58 % D4a's skin alone, 53-61 % before; the intact Cub 12-67 % by the view (the
+  stripe, the letters, the underside). After = skin-only within a point: the debris add no leak; the non-yellow in a 30 m/s wreck is the
+  torn covering showing the truss and the grey inside shells - DMG-WALL's (the census is its yardstick).
+
+### G1865 - GATE DMGWRECK (tools/_dmg_wreck_check.js; run_gates core, weight 3) - 157/157 (on d4426cf9, the merged code)
+The five validated builds, TREECRASH / DMGINTEGRITY / DMGSKIN's cases (trunk 30 m/s centreline and 2.5 m out, the 3 m/s taxi into a
+trunk, the severe ground nose-in; the floatplanes' severe float nose-in and the ordinary float nose-in), the damage state read as the page
+reads it inline (the hop): which parts leave and why; every body finite, at rest (or sunk) ON the ground / the water within 3 cm; the
+frame rate does not move the debris (12 fps batching: the same rest); the strike by the prop's material (wood snaps every blade, aluminium bends; softer in
+the water), seeded; the curl keeps the blade's length, the dent only on the strike's side; a cowl / spinner leaves crushed only past TORN; the clip against the live cabin; the cockpit rule's verdict; **damage OFF: no
+payload, no release, no body, and the crash's bits with the layer reading = without it (FNV of p and v)**; nothing broken (a FAR 23.473
+drop): nothing. reports/evidence/DMG-D4b/gate_dmgwreck.txt, dmgwreck.json.
+
+### G1861.6 / G1862.1 - THE LAST GATE ROWS (2026-10-06, after the merge with train 37b + DRIVE + WINDBREAK + WALL)
+- **G1861.6 - the curl's frame is the blade's centre line**: G1861.2's twist made the bend's direction depend on each
+  vertex's own radial, which a chord offset tilts - a bent blade's length drifted (0.846 / 0.856 m for 0.850); now
+  every line along the blade keeps its length (0.8499 both ways, both hands).
+- **G1862.1 - the cabin is solid to the debris**: a Jodel's canopy pane settled 13 cm into its own cabin. The live cabin
+  bays of the core (every node on it) are solids (WRECK_DEBRIS.solidOf): a corner inside is pushed out through the
+  nearest wall (side, roof, floor - the ring faces are open onto the next bays), its velocity into the wall taken by an
+  impulse, friction along it, eased 1 cm a substep - and only while the cabin is still (its nodes under 1 m/s): mid-crash
+  the bays sweep metres a frame and a wall refreshed once a frame made the rest depend on the frame rate.
+
+### UNDER THE PHYSICS WORKER (the default mode; A0's rule 2026-10-06: every rig runs it unless it says why not)
+- The page's sim under the worker is sim_link's mirror, never stepped: no break reached the page (DMG-SKINGPU's dmgState
+  mirror, cherry-picked) and DMG-DRIVE's grade did not either - sim_link's attach now mirrors `drv` (G1861.5), and under
+  their own names the worker's node velocities `vView` (flights run withV) and engines `engView`: a released part leaves
+  with its nodes' velocity, a seized prop stops (app.js wreckVel / wreckEng; the page's own v / eng untouched for the
+  rest of the page). GATE DMGWRECK rows hold the mirror's shape.
+- The rigs stage under the worker (dmg_wreck_stills.js pageStageW: the conditions calm, hands on, the throttle shut,
+  FLIGHT_PROBE.place moves the aeroplane onto the runway along its own heading and pushes it into a forwarded tree hit;
+  the game's own real-time run, paused for the stills). Trunk cases only - a placement cannot turn the aeroplane, so the
+  60-degree nose-in stays inline (`?simw=0`, stated).
+
+### THE GIANT SHEETS AFTER A CRASH (the user's report; 2026-10-06) - A FOLD'S STALE GPU BUFFER; FIXED WITH DMG-FOLDNODE G2352
+- **The symptom**: after a 30 m/s break-up, the shed and a roll-out (with the same departure or another), the roll-out shot
+  and the stand drew a stretched ghost of the wreck. It happened under the physics worker (the default) on the box, every time.
+  A no-crash control (the same path, no crash) was clean, and WALL's shed shot was clean.
+- **The hunt** (tools/dmg_wreck_paths.js, its censuses): every CPU array of the aeroplane was healed. The model's triangles
+  in the world: 0 past 2 m. The aeroplane snapshot: pristine (with and without DMG-WALL's copy on the first break). The
+  skinned positions were clean, the model's frame unsheared, and no new mesh appeared except hangar props. The GPU held
+  something the CPU did not.
+- **The cause** (found by DMG-FOLDNODE, G2350-G2352, in node with a fake bake): the hybrid bake's fuselage still fold.
+  flown_bake.js mergeModel; its position is flownBaked's, and a rig writes it every frame. mergeModel asked for a whole
+  upload (clearUpdateRanges + needsUpdate). Before the fold was drawn, a rig write added an update range. three r186
+  uploads an attribute whole only when no range is set at draw time, so it sent only that range, and the rest stayed as
+  the crash left it (Cub: 202,428 of 585,378 floats stale).
+- **What D4b got wrong on the way** (each reported when found):
+  (1) My heal marking (98f2b905: every heal marks the folds stale -> a whole upload; `FLYDIY_HEAL_NOMARK`) is right in
+  intent. It does NOT fix this fold alone: the same range replaces the whole upload. FOLDNODE's gate is red with the mark
+  on, the same as with it off.
+  (2) A "roll-out shot posed the crash" reading led to a reset before the shot (c89b8549, `FLYDIY_ROLL_NORESET`). It did
+  not clear the ghost on the box (03:14). The shot is only where the stale fold is first drawn. The reset stays as a guard:
+  the shot no longer opens on a crashed sim.
+- **The fix**: G2352 (DMG-FOLDNODE, flown_bake.js, merged here c33960d6). An `owe` flag: while a fold owes its whole
+  upload, writes add no range; onUploadCallback clears it (`FLYDIY_FOLD_NOOWE = true` restores the old behaviour).
+  Together with D4b's heal mark: on every heal the folds owe a whole upload, and they get it. An event's cost:
+  7 folds; 19.3 MB (Cub), 17.7 MB (Jodel), 23.9 MB (Cessna) uploaded once. The landing frame is 32-35 ms against a
+  24-29 ms median: one frame, +3-7 ms, once per heal, on the box.
+- **The proof** (the box, 2026-10-07 03:28-03:35, flown, default mode, evidence/DMG-D4b/ab-0328/), the user's path each
+  time (a 30 m/s crash -> the shed -> Roll out -> the stand):
+  - All fixes on: the Cub, the Jodel and the metal Cessna stand whole.
+  - All off (NOOWE + NOMARK + ROLL_NORESET, the Cub): the view is black but for the lamps' bloom, from the shed on. A
+    forced re-upload of every attribute does not clear it, which matches FOLDNODE's mechanism (the whole upload is lost
+    to a range).
+  - Not split: FOLDNODE's (C) (the mark on, NOOWE on) was not run. The black frame read as "inside the stale sheets" is
+    an inference, from earlier no-fix shots of this camera.
+- **GATE DMGUPLOAD** (tools/_dmg_upload_check.js, run_gates core; D4b's gate, the folds added by FOLDNODE): the page in
+  node under the worker, crash -> the shed -> roll-out. The real three renders into the recording WebGL2, wrapped
+  (tools/_page_node.js opts.glWrap) to shadow every buffer it uploads. Every drawn attribute and index of the flown model,
+  folds included (FOLDNODE's test-only fake bake), must have GPU copy = CPU array. Damage OFF: the heal's marking never
+  fires. Selftest: "aswas" (both fixes off) and "noowe" (G2352 off) must each go red on a fold. It PASSED on FOLDNODE's
+  branch (its evidence gate_dmgupload_selftest_after.txt, 17 min). It was not re-run on the merge, which keeps it unchanged.
+  The merge also keeps D4b's roll-out shot shape row and its 'noreset' fault. The ghost was GPU-only, so that row
+  (a CPU-side check) cannot see it; it guards the shot's sim reset.
+
+### A MERGE FAULT, FOUND AND FIXED (2026-10-06 d4426cf9)
+- Re-adding G1864's islands to skin_break.js on the merge with integration d3d5e24e also re-added stale copies of
+  over() / worstStretch(); the later declarations won and replaced DMG-WALL's tube / sheet tear bounds - GATE DMGWALL's
+  tube row went red on every build. Every still shot from 08:00 to the fix carries it (their READMEs say so).
+
+### THE PAGE AGAINST NODE (the coordinator's D0 check; tools/dmg_taxi_parity.js; evidence taxi_parity_metal.json / _cub.json)
+- The page's 3 m/s taxi into a trunk did ~3x node's plastic work on the metal Cessna and broke its engine mount (the Cub's too); node
+  broke nothing. Logged step by step on the page (the certificate, the controls, the wind, the ground, the CG, the hits, the damage),
+  four ways, and its start state flown in node:
+  - not the certificate (stamped before the run every time), not the controls (all 0), not the stepping (nothing moved the sim
+    between the rig's steps);
+  - THE WIND: a gust field read at sim.t - the same staging at another t was another crash (the metal Cessna 2.43 vs 3.11 kJ; the
+    Cub's whole engine mount broken with it, nothing without). Wind off: bit-identical twice. The stills rig now stages wind off.
+  - THE DEFS DIFFER: the page's metal Cessna hangs its engine 65 cm further forward than node's buildGen of the same file (G445.1's
+    join measures the drawn flange into spec.engines[0].x; 'bugReports/cessnaMetal (1).json' and the floats' file lack it); the Cub's
+    nose tank vessel nodes sit at the bottom of the firewall on the page, at the top in node, and the page's Cub is 13.9 kg lighter.
+    Every node gate flies the Cessnas' nose 65 cm aft of the game's. Handed to A0's JOIN-PARITY (G1985-G1989: one join path, GATE
+    JOINPARITY).
+
+### G1868 - THE CRASH WATCHED (the user: "I want to SEE the crash")
+- The solver's `over` no longer ends the flight: the flight runs on until the debris rest (6 s at most), holds the wreck 3 s, then ends;
+  a crash's card is small (300 px, the lower-left corner) and folds on its title; the cockpit rule cuts to a slow orbit (8 deg/s).
+  tools/dmg_crash_flown.js flies a crash by the page itself to its card. Box verification: the DEFORM COORDINATOR's (with the throttle /
+  pilot freeze during the watch if needed).
+
+### G1869 - THE IMPACT'S FRAME RATE (the user: "probably in the single digits, if even")
+- **Measured** (tools/dmg_crash_trace.js: every frame split - the physics, the recorder's scene / render / shader slots, the skin
+  break's records / events / riding, the debris): over the impact second the skin break was the biggest share, then the render (~10-12
+  ms a frame), then the physics (~7 ms a frame, 2 steps in contact); the debris small (a release up to ~28 ms once); no shader links.
+- **Cut** (?wreckfast=0 restores them): a wreck re-posed only past 3 mm of node travel (a lying wreck jittered past 0.3 mm for ever: the
+  whole snapshot re-posed every other frame at rest), the tear checked every 0.05 s, the skin records made 120k vertices a frame.
+- **Before -> after** (the box, 1600x900, inline; fps_trace.svg): worst frame 263 -> 104 / 145 -> 138 / 116 -> 96 ms (trunk centreline /
+  2.5 m out / nose-in); the impact second's mean 91 -> 58.5 / 55 -> 43.5 / 64.5 -> 51.6 ms; at rest 25.8 -> 22.9 / 52.7 -> 41.8 / 24.4 ->
+  21.4 ms (the 2.5 m out wreck keeps a wing moving past 3 mm: its riding runs on, ~15 ms a frame).
+- **What is left, and the structural fix**: the riding (15-28 ms a frame while the wreck moves) and the break events (30-60 ms on an
+  event frame) - the riding as GPU skinning (DMG-SKINGPU, G1818-G1819: the nodes' frames uploaded, the vertex shader poses) removes
+  both the CPU cost and the 12 MB a frame re-upload; the events could be spread over frames like the binding. Under the worker the page
+  side is the same code (the physics is off the main thread; the hop's cost is DMGSKIN's 0.5-10 ms a crash). The potato (2-30 fps): the
+  riding's 15-28 ms is a small share at 2 fps and a large one at 30.
+
+### THE ACCEPTANCE
+- **The READY gate set** (2026-10-07 03:45-04:01, under the CPU lock in A0's window; claude/dmg-d4b-wreck a2419fe3 = D4b +
+  DMG-FOLDNODE b03a5462 merged + DMG-SETTLE's DMGINST scan fix 34ff2453 cherry-picked). Every DMG row of run_gates + TREECRASH
+  TREEHIT UISMOKE BUILD JOIN SIMWORKER CLIP, each its own process, 4 at a time: **21 / 21 PASS** - DMGMEMBERS DMGCERT DMGGEAR
+  DMGCERTCOST DMGWIND DMGCLUSTERS DMGINST DMGFPS DMGINTEGRITY DMGSKIN DMGWRECK (157/157) DMGUPLOAD DMGDRIVE DMGWALL TREECRASH
+  TREEHIT UISMOKE BUILD JOIN SIMWORKER CLIP. Texts: reports/evidence/DMG-D4b/gates-0345/.
+- **DMGUPLOAD** there: Cub and metal Cessna, crash (210 / 201 broken) -> the shed -> roll-out, 366 / 427 drawn buffers, the
+  7 folds' 44 buffers included, 0 stale. The roll-out shot rigid within 0 m both before and after the crash. **Damage OFF**:
+  the heal's marking fired 0 times, 0 stale.
+- **The shot reset (c89b8549) is a guard that is not proven to do anything.** In node it never fired ("the shot's wreck
+  resets 0": the crash is already healed when the shot starts). On the box it did not clear the ghost: G2352 did. It does
+  nothing when the sim holds no crash. **The coordinator's call: keep it, or drop it** (app.js rollWreckReset + its
+  rollAnimPlay call; its gate row stays valid either way).
+- **The acceptance rows** (DMGWRECK, every case): damage OFF = no payload, nothing released, no body, the same bits as
+  without the layer. Damage ON with nothing broken (a FAR 23.473 drop, 0 yields) = no payload, no release, no strike:
+  nothing drawn differently. The frame cost with damage off: DMGFPS here, and the train's strict gate.
+- No separate train_gate light pass (A0's ruling): the work lands in train 39, the damage train, whose full strict gate and
+  battery cover damage-off bits and frame cost.
+
+### Open questions (the coordinator / A0 / the user)
+- **The tear takes most of a fuselage's covering in a 30 m/s trunk impact** (the frame folds round the trunk, fabric past 15 % tears):
+  honest to the rule, but a real wreck keeps more crumpled fabric on the frame. A compression crumple, or a softer TEAR for fabric, is the
+  user's call on the stills.
+- Debris do not meet the trunks, the wreck or each other (the ground and the water only).
+- The release is quantised to the page's frame (the damage state reaches the page a frame at a time); the bodies' own motion is
+  frame-rate independent.

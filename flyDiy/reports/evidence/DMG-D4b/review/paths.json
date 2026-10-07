@@ -1,0 +1,150 @@
+{
+ "at": "2026-10-06T01:08:12.891Z",
+ "paths": {
+  "retry": {
+   "path": "retry",
+   "crash": {
+    "broken": 150,
+    "reason": "broke up: the fuselage parted (S0BR off the core)"
+   },
+   "wreck": {
+    "active": true,
+    "bodies": 10,
+    "gone": [
+     "eng:loose",
+     "spinner:crushed",
+     "cowl:crushed",
+     "cowl:crushed",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed",
+     "blade:strike",
+     "blade:strike"
+    ],
+    "debris": 10,
+    "parts": 1,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 100,
+    "broken": 150,
+    "t": 22.77,
+    "garage": false
+   },
+   "act": "ok",
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 3.98,
+    "garage": false
+   },
+   "ok": true,
+   "shot": "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\paths\\path_retry_after.png"
+  },
+  "garage": {
+   "path": "garage",
+   "crash": {
+    "broken": 167,
+    "reason": "broke up: the fuselage parted (S0BR off the core)"
+   },
+   "wreck": {
+    "active": true,
+    "bodies": 12,
+    "gone": [
+     "eng:loose",
+     "spinner:crushed",
+     "cowl:off",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:off",
+     "pane:crushed",
+     "pane:off",
+     "pane:off",
+     "pane:crushed",
+     "blade:strike",
+     "blade:strike"
+    ],
+    "debris": 12,
+    "parts": 1,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 100,
+    "broken": 167,
+    "t": 24.9,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "ok": true,
+   "shot": "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\paths\\path_garage_after.png"
+  },
+  "place": {
+   "path": "place",
+   "crash": {
+    "broken": 0,
+    "reason": null
+   },
+   "wreck": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 5.6,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "from": "w2",
+   "set": "w2",
+   "rollOut": "edRoll",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "ok": true,
+   "shot": "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\paths\\path_place_after.png"
+  }
+ }
+}
