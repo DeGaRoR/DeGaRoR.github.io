@@ -29,7 +29,8 @@
 //      a later classic script's `Math` is the page's own object and every one of its functions the builtin it held
 //      before the core (Math.sin, Math.pow ... ===), CORE_MATH the core's one name; and in the sources: nothing in src/core
 //      binds `Math`, nothing in the built page does, one declaration of CORE_MATH in it (red when the core shadows or
-//      patches the global Math - the selftest's two doctored cores)
+//      patches the global Math - the selftest's two doctored cores); and THE CENSUS (tools/_core_math_sites.js): every
+//      sin / cos / general pow in src/core on CORE_MATH - a Math.sin left there (a merge brings them) is red
 // --selftest: the gate goes red (a) with the op as it was - a stale core (the committed one, or a header doctored) loads
 // and flies (expected: refused), (b) with one coordinate nudged by 1e-9 m in one child (expected: a hash differs -
 // and whether the count moves - GATE TREECRASH's ensemble rows read the distribution)
@@ -215,6 +216,15 @@ async function mathUntouched(pg) {
       const walk = d => [].concat(...fs.readdirSync(d, { withFileTypes: true }).map(e => e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.js') ? [path.join(d, e.name)] : []));
       const elsewhere = walk(path.join(T, '..', 'src')).filter(x => !/00_registry\.js$/.test(x) && /\b(?:const|let|var|class|function)\s+CORE_MATH\b/.test(fs.readFileSync(x, 'utf8')));
       yes(!bad.length && !pageBind && decl === 1 && !elsewhere.length, 'the sources: no `Math` binding in src/core (' + (bad.join(', ') || 'none') + ') nor in the built page (' + (pageBind ? 'ONE' : 'none') + '); CORE_MATH declared ' + decl + ' x in the page, elsewhere in src/ ' + (elsewhere.map(x => path.relative(path.join(T, '..'), x)).join(', ') || 'nowhere')); }
+    // (G2370) every sin / cos / general pow in src/core on CORE_MATH (tools/_core_math_sites.js: the census; kept the
+    // builtin only pow(x, 2 | 0.5) and the ground field's GLSL text) - a STRAY is a site whose result is state computed by
+    // the engine's own builtin: a merge brings them (dmg-integration f7b5afb4 into this branch: 9); `--apply` rewrites them
+    { const MS = require('./_core_math_sites.js'), cs = MS.census();
+      const probe = MS.scanText('x.js', 'function f(a) { return Math.sin(a) + Math.pow(a, 2) + CORE_MATH.cos(a); }');
+      if (!(probe.length === 3 && probe[0].core && probe[0].via === 'Math' && !probe[1].core && probe[2].via === 'CORE_MATH')) throw new Error('the census scan is broken');
+      report.census = { core: cs.core.length, kept: cs.kept.length, stray: cs.stray.map(x => x.f + ':' + x.line + ' ' + x.fn + ' ' + x.op) };
+      yes(!cs.stray.length, 'the census: ' + cs.core.length + ' sin / cos / pow sites in src/core on CORE_MATH, ' + cs.kept.length + ' kept the builtin (pow(x, 2 | 0.5), the GLSL text), '
+        + (cs.stray.length ? cs.stray.length + ' STRAY on the builtin: ' + cs.stray.map(x => x.f + ':' + x.line + ' ' + x.fn + ' ' + x.op).join(', ') + ' (node tools/_core_math_sites.js --apply)' : 'none stray')); }
     const P = require('./_dmg_parity_run.js'), C = require('./flight_core.js'), crypto = require('crypto'), L = require('./_treecrash_lib.js');
     const sha = r => crypto.createHash('sha1').update(Buffer.from(r.p.buffer)).update(Buffer.from(r.v.buffer)).digest('hex').slice(0, 16);
     const specOf = k => { const j = JSON.parse(fs.readFileSync(path.join(T, '..', L.BUILDS[k].build), 'utf8')); return j.spec || j; };
