@@ -79902,7 +79902,12 @@ hold), published as `ap.intent.route`.
   builds/cub_2026-09-20_corrected.json index.html 8572` then `node tools/perf/route_draw_stills.js 8572
   reports/evidence/ROUTE-DRAW/box` (hold boxlock.sh's gpu lock).
 
-**GATES** (cloud, 4 cores, node 22): GATES_FILL
+**GATES** (cloud, 4 cores, on the final tree, `run_gates --only=... --no-build` after a build): **ROUTE PASS** (3 shards,
+421 s wall; `--selftest` PASS), **PILOT PASS** (3 shards, 591 s), **PILOTMATRIX PASS** (1242 s: "no cell worse than
+pilot_baseline.json; 2 known bad, 1 warn" - the baseline's own), **PILOTACT PASS** (187 s), **PLAN PASS** (390 s), **NAV**,
+**SIMWORKER** (82 s), **UISMOKE** (the fly rail now builds route / drawn / start / ...), **UISMOKE-PHONE**, **SAVE** - all
+PASS. NOT run: the whole `--all` battery and the strict perf gate (no GPU here) - by construction nothing runs a frame
+without a drawn route (above); A0's train battery is the delivery verdict.
 
 **FILES**: src/core/38c_route.js (new), src/core/43_pilot.js, src/core/90_node_exports.js, src/viewer/route_draw.js (new),
 src/viewer/app.js, src/viewer/flight.css, src/viewer/sim_link.js, src/viewer/sim_host.js, tools/build.js (MANIFEST),
