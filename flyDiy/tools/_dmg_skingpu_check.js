@@ -242,8 +242,15 @@ if (argv[0] === '--build') {
                 const i = ((a < 4 ? T.PI0 : T.PI1)[t4 + (a & 3)] | 0) * 4, sg = (Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 0 ? -w : w;
                 qx += sg * Q[i]; qy += sg * Q[i + 1]; qz += sg * Q[i + 2]; qw += sg * Q[i + 3]; }
               const Lq = Math.hypot(qx, qy, qz, qw), eN = Math.hypot(T.PA[t4], T.PA[t4 + 1], T.PA[t4 + 2]);
+              let sw = 0; for (let a = 0; a < 8; a++) sw += (a < 4 ? T.PW0 : T.PW1)[t4 + (a & 3)];
+              var _sw = sw, _cgN = Math.hypot(cg[0], cg[1], cg[2]);
               cond = 16 * Math.pow(2, -24) * (eN + 1) / Math.max(Lq, 1e-9);
-              if (d > TOL_P && d > 8 * ulp && d > S.dPover) { S.dPover = d; S.dPoverAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, v, L: +Lq.toFixed(5), e: +eN.toFixed(3), bound: +cond.toExponential(2) }; } }
+              // (...and THE REFERENCE'S OWN ERROR: the kept weights are stored float32 (R.w2, both paths), their sum 1 +- ~1e-7;
+              // the CPU riding blends ABSOLUTE world positions, so its result moves by (sum - 1) x the world position - 0.115 mm
+              // at the twin's 1.29 km from the world origin (measured: d = |sum - 1| |cg| to 4 digits) - where the GPU's blend,
+              // relative to the CG, moves by (sum - 1) x metres. The reference is the one off there, not the GPU)
+              cond += 2 * Math.abs(sw - 1) * (Math.hypot(cg[0], cg[1], cg[2]) + 10);
+              if (d > TOL_P && d > 8 * ulp && d > S.dPover) { S.dPover = d; S.dPoverAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, v, L: +Lq.toFixed(5), e: +eN.toFixed(3), bound: +cond.toExponential(2), sumW1: +(_sw - 1).toExponential(3), cg: +_cgN.toFixed(1), sumWxCg: +(Math.abs(_sw - 1) * _cgN).toExponential(3) }; } }
             if (d > TOL_P && d > 8 * ulp) S.over++;
             if (d > TOL_P && d > 8 * ulp && d > cond) S.overCond++;
             if (d > 5e-4 && d > 8 * ulp) S.overCap++;
