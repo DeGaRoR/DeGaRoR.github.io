@@ -1,0 +1,160 @@
+G2470 - THE GATES (cloud, 4 cores, node; run_gates --no-build --only=... --jobs=4 after node tools/build.js)
+
+== battery 2 on the FINAL code tree dbb3856 (30_solver arm + GATE HEADING + the water's lead law) ==
+  FAIL technique twinf: the lift-off at 1.0-1.6 Vs — 1.64
+  FAIL 9 aluminium C172 wing kept 1.5 m off every footprint  (-0.01 m, item mn_s_mine/house3 at (7276.9, -15195.5) in CLIMB, t 84 s)
+PASS an aft-cabin tank (hull slice 2) in a 5 m/s pancake: its slice slammed to 552 kPa (the tank's breach 400) - holed 2 of 2, flooding 12 %, 12 %
+PASS the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)
+PASS two floats, two rigid clusters of 15 nodes (five stations, G451)
+PASS the step keels are the mains' refs, no third wheel
+PASS the pair displaces 1.79 x the gross (bound 1.5; the rule is 1.8)
+PASS the sea at (0, 1600): level 0, bed -44.5 m
+PASS the settle stays finite
+PASS the water carries the weight: L/W 1.001 (bound +-3 %)
+PASS draft at the step 0.291 m (bound 0.15-0.40)
+PASS trim 3.75 deg nose-up at rest (bound 0.5-10)
+PASS level in roll: 0.20 deg at rest, 0.31 max
+PASS the frame's max strain 0.0025 (bound 0.06)
+PASS the take-off stays finite
+PASS a hump of R/W 0.262 at 13.8 m/s (bound 0.10-0.45, under 14 m/s)
+PASS on the step: R/W 0.288 at most (at 16.8 m/s; bound 0.35), the trim between 0.2 and 7.8 deg (bound -1..12)
+PASS the steps ventilate before lift-off (1.00)
+PASS airborne inside 30 s (10.2 s)
+PASS roll under 5 deg through the run (3.03)
+PASS the landing stays finite
+PASS the touch at 1.40 m/s down (bound 0.35-1.6)
+PASS the water's lift climbs over 9 frames to its first peak (bound 3)
+FAIL no frame adds more than 1.336 W (bound 0.35)
+PASS the touchdown peaks at 1.832 W (bound 2)
+PASS an idle taxi 20 s after the touch: 0.4 m/s (bound 5)
+PASS level in roll (0.12 deg)
+PASS the track within 1.0 m (bound 10)
+PASS TWIN: the counter-rotating swing under a fifth of the same-hand swing - same -25.92 counter -0.00 deg
+GEN       PASS   567.6 s  [4 shards]
+PILOT     PASS   290.2 s  [3 shards]
+NAV       PASS     0.1 s
+TAKEOFF   FAIL   353.3 s
+PILOTACT  PASS   155.7 s
+TAXICLEAR FAIL   237.1 s
+PLAN      PASS   340.1 s
+LINEUP    PASS   177.3 s
+ROUTE     PASS   290.7 s  [3 shards]
+DMGMEMBERS PASS    45.4 s
+DMGCERT   PASS   319.7 s
+DMGCLUSTERS PASS   569.5 s
+JOIN      PASS     7.0 s
+HYDRODYN  PASS   142.3 s
+WATER     PASS     6.8 s
+FLOATS    FAIL    58.2 s
+WIPLINE   PASS    10.4 s
+SEAPLANE  PASS   220.8 s
+RPM       PASS    18.3 s
+ENGTORQUE PASS    80.5 s
+HEADING   PASS    44.6 s
+HOTHIGH   PASS   171.0 s
+FLEX      PASS   258.7 s  [3 shards]
+  FAIL technique twinf: the lift-off at 1.0-1.6 Vs — 1.64
+  FAIL 9 aluminium C172 wing kept 1.5 m off every footprint  (-0.01 m, item mn_s_mine/house3 at (7276.9, -15195.5) in CLIMB, t 84 s)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.3 (1.08 Vs)  lifts 1 (first at 17.3)  touch-after 0  qMax -4.7 deg/s  run 105 m  to 15 m 213 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.11 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -6.4 deg/s  run 176 m  to 15 m 294 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof 27.5 (1.13 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax 7.9 deg/s  run 253 m  to 15 m 419 m
+  wip    water  Vs 24.5 Vr 24.8 Vlof 28.4 (1.16 Vs)  lifts 1 (first at 28.4)  touch-after 0  qMax 10.2 deg/s  run 347 m  to 15 m 489 m
+  ultraf water  Vs 16.1 Vr 16.3 Vlof 22.6 (1.41 Vs)  lifts 1 (first at 22.6)  touch-after 0  qMax 9.0 deg/s  run 100 m  to 15 m 184 m
+  twinf  water  Vs 18.4 Vr 18.8 Vlof 30.1 (1.64 Vs)  lifts 1 (first at 30.1)  touch-after 0  qMax 7.5 deg/s  run 229 m  to 15 m 359 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 1.3 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+  aluminium C172  span 11.0 m from the mill: airborne at 84 s, the wing -0.01 m off the nearest footprint (item mn_s_mine/house3 at (7276.9, -15195.5) in CLIMB, t 84 s), 0 contacts, 0 trunk hits
+  the user's Cub  span 10.7 m from the mill: airborne at 81 s, the wing 2.74 m off the nearest footprint (item mn_s_mine/clinic at (7255.5, -15354.1) in TAXI, t 13 s), 0 contacts, 0 trunk hits
+   touch at 14.17 s, sinking 1.40 m/s; the water's lift frame by frame: 0.01 0.25 0.63 0.74 0.86 0.88 0.97 1.00 1.00 0.95 ... first peak 0.997 W after 9 frames; largest one-frame change 1.336 W; peak 1.832 W; 20 s on: V 0.4 m/s
+PASS the touch at 1.40 m/s down (bound 0.35-1.6)
+FAIL no frame adds more than 1.336 W (bound 0.35)
+
+== PILOTMATRIX on dbb3856 (the ratchet against tools/pilot_baseline.json) ==
+  ok cub:HOME:calm               completed 333.9 s · sink 0.65 · 1.15 Vs · aim 32 · swing 1.8
+  ok c172:HOME:calm              completed 332.4 s · sink 1.14 · 1.09 Vs · aim 37 · swing 1.7
+  ok cub:HOME:x2                 completed 343.6 s · sink 0.82 · 1.13 Vs · aim 20 · swing 5.3
+  X  stearman:HOME:calm          completed 317.8 s · sink 0.86 · 1.15 Vs · aim 20 · swing 4
+  ok c172:HOME:x2                completed 339 s · sink 1.21 · 1.07 Vs · aim 27 · swing 0.7
+  X  stearman:HOME:x2            completed 326.1 s · sink 0.95 · 1.15 Vs · aim 9 · swing 5
+  ok cub:HOME-A3:calm            completed 624.8 s · sink 0.61 · 1.15 Vs · aim 33 · swing 1.9
+  ok cub:HOME:calm:up4           completed 324.4 s · sink 0.41 · 1.21 Vs · aim 5 · swing 0.7
+  ok cub:HOME:calm:dn4           completed 317.2 s · sink 0.37 · 1.23 Vs · aim 8 · swing 1.3
+  ~  cub:HOME:x4                 completed 347.5 s · sink 0.74 · 1.15 Vs · aim 24 · swing 8.9
+  ok cub:HOME-A5:calm            completed 710.8 s · sink 0.75 · 1.13 Vs · aim 21 · swing 0.5
+  ok cub:HOME:calm:sand          completed 333.5 s · sink 0.65 · 1.15 Vs · aim 32 · swing 1.7
+  X  stearman:HOME:x4            completed 327.9 s · sink 1.35 · 1.13 Vs · aim 8 · swing 10.7
+  ok cub:HOME:calm:club          completed 339 s · sink 0.58 · 1.2 Vs · aim 19 · swing 1.1
+  ok c172:HOME:calm:rh           completed 335 s · sink 1.14 · 1.09 Vs · aim 37 · swing 1.7
+  X  cub:HOME:calm:student       completed 352.6 s · sink 0.8 · 1.22 Vs · aim 8 · swing 68.9
+  ok cub:HOME:calm:bush          completed 380.2 s · sink 0.69 · 1.13 Vs · aim 13 · swing 1.2
+  X  cub:HOME:calm:hamfist       completed 334.5 s · sink 1.01 · 1.25 Vs · aim -24 · swing 51.3
+18 cells: 12 good, 1 warn, 5 bad
+  REGRESSED cub:HOME:calm:student: verdict true -> false
+  REGRESSED cub:HOME:calm:student: swing 2.8 deg -> 68.9 deg
+  REGRESSED cub:HOME:calm:student: swing 2.8 -> 68.9
+  REGRESSED cub:HOME:calm:hamfist: verdict warn -> false
+  REGRESSED cub:HOME:calm:hamfist: swing 2.8 deg -> 51.3 deg
+  REGRESSED cub:HOME:calm:hamfist: swing 2.8 -> 51.3
+  ratchet: 6 regressed against pilot_baseline.json; 5 known bad, 1 warn
+GATE PILOTMATRIX: FAIL (6 regressed)
+
+== battery 1 on 831afd1 (the arm only, before the water law) ==
+  FAIL technique wip: the pitch rate bounded (12 deg/s) from the roll to 2 hSafe — 20.1
+  FAIL technique twinf: the lift-off at 1.0-1.6 Vs — 1.64
+  FAIL 9 aluminium C172 wing kept 1.5 m off every footprint  (-0.01 m, item mn_s_mine/house3 at (7276.9, -15195.5) in CLIMB, t 84 s)
+  FAIL 1. 1793 frames stepped (budget 1792; the uncut certificate 2765)
+PASS the track within 1.0 m (bound 10)
+PASS TWIN: the counter-rotating swing under a fifth of the same-hand swing - same -25.92 counter -0.00 deg
+GEN       PASS   583.5 s  [4 shards]
+PILOT     PASS   307.9 s  [3 shards]
+NAV       PASS     0.2 s
+TAKEOFF   FAIL   374.7 s
+PILOTACT  PASS   162.1 s
+TAXICLEAR FAIL   236.6 s
+PLAN      PASS   362.0 s
+LINEUP    PASS   174.2 s
+ROUTE     PASS   307.3 s  [3 shards]
+DMGMEMBERS PASS    47.4 s
+DMGCERT   PASS   329.6 s
+DMGCERTCOST FAIL   163.7 s
+DMGCLUSTERS PASS   621.6 s
+JOIN      PASS     6.8 s
+SEAPLANE  PASS   279.6 s
+RPM       PASS    18.0 s
+ENGTORQUE PASS    81.8 s
+AERO      PASS     6.5 s
+HOTHIGH   PASS   173.1 s
+FLEX      PASS   275.4 s  [3 shards]
+  FAIL technique wip: the pitch rate bounded (12 deg/s) from the roll to 2 hSafe — 20.1
+  FAIL technique twinf: the lift-off at 1.0-1.6 Vs — 1.64
+  FAIL 9 aluminium C172 wing kept 1.5 m off every footprint  (-0.01 m, item mn_s_mine/house3 at (7276.9, -15195.5) in CLIMB, t 84 s)
+  FAIL 1. 1793 frames stepped (budget 1792; the uncut certificate 2765)
+
+== THE BASE (origin/claude/pilot-integration 9546d2e, built), the reds checked ==
+-- DMGCERTCOST (node tools/_dmg_certcost_check.js):
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+  ok   1. 1809 frames stepped (budget 1809; the uncut certificate 2781)
+  FAIL 1. 1793 frames stepped (budget 1792; the uncut certificate 2765)
+  ok   1. 1797 frames stepped (budget 1797; the uncut certificate 2769)
+  ok   1. 1762 frames stepped (budget 1763; the uncut certificate 3022)
+  ok   1. 1791 frames stepped (budget 1791; the uncut certificate 3051)
+GATE DMGCERTCOST: FAIL
+-- FLOATS (node tools/_floats_check.js):
+   touch at 14.25 s, sinking 1.33 m/s; the water's lift frame by frame: 0.15 0.46 0.73 0.82 0.87 0.88 0.96 0.95 0.96 0.96 ... first peak 0.959 W after 7 frames; largest one-frame change 0.882 W; peak 1.897 W; 20 s on: V -0.5 m/s
+PASS the touch at 1.33 m/s down (bound 0.35-1.6)
+FAIL no frame adds more than 0.882 W (bound 0.35)
+GATE FLOATS: FAIL (1)
+-- TAXICLEAR (node tools/_taxiclear_check.js):
+  aluminium C172  span 11.0 m from the mill: airborne at 84 s, the wing 1.85 m off the nearest footprint (item mn_s_mine/house3 at (7277.1, -15198.2) in LIFTOFF, t 84 s), 0 contacts, 0 trunk hits
+  the user's Cub  span 10.7 m from the mill: airborne at 81 s, the wing 2.74 m off the nearest footprint (item mn_s_mine/clinic at (7255.5, -15354.1) in TAXI, t 13 s), 0 contacts, 0 trunk hits
+GATE TAXICLEAR: PASS
+-- TAKEOFF (node tools/_takeoff_check.js): PASS - wip 27.7 (1.13 Vs) qMax 7.0; ultraf 21.1 (1.31) -9.0; twinf 28.3 (1.54) 7.6
+-- PILOTMATRIX, the regressed cells (pilot_matrix.js --cells cub:HOME:calm:{student,hamfist,club,bush}):
+  X  cub:HOME:calm:hamfist       completed 334.4 s · sink 0.96 · 1.26 Vs · aim -26 · swing 52.3
+  X  cub:HOME:calm:student       completed 352.7 s · sink 0.75 · 1.22 Vs · aim 9 · swing 64.4
+  ok cub:HOME:calm:club          completed 338.8 s · sink 0.59 · 1.2 Vs · aim 17 · swing 1.1
+  ok cub:HOME:calm:bush          completed 380.2 s · sink 0.69 · 1.13 Vs · aim 13 · swing 1.2
+   and on dbb3856:
+  X  cub:HOME:calm:hamfist       completed 334.5 s · sink 1.01 · 1.25 Vs · aim -24 · swing 51.3
+  X  cub:HOME:calm:student       completed 352.6 s · sink 0.8 · 1.22 Vs · aim 8 · swing 68.9
+  ok cub:HOME:calm:club          completed 339 s · sink 0.58 · 1.2 Vs · aim 19 · swing 1.1
+  ok cub:HOME:calm:bush          completed 380.2 s · sink 0.69 · 1.13 Vs · aim 13 · swing 1.2
