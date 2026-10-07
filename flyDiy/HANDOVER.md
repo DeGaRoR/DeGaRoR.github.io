@@ -79827,6 +79827,13 @@ is tonight's). Retro, 1920x1080, warm profile, fresh parked cook (--check same),
   the obstacles - the next lever). Run 1's garage 54.8 s is the first Chrome after the cook (an outlier, not explained); compare the garage on runs 2-4 only.
   (An unlocked rollout_perf boot of mine ran 16:07-16:08 by mistake; all four loads had ended at 16:05:27 - no overlap.)
 
-GATES (17:20-17:50 CPU, wt-town): PROPHIT, OBSTACLE, HITBOX, TAXICLEAR, FRAMECOST, PREMCOOK, HOUSEWORKER, SIMWORKER, UISMOKE,
-BUILT, MEDIA - results in the commit that marks this READY.
+GATES (7 Oct 17:20-17:45 CPU, wt-town on a0af0da27 + the flag check): PROPHIT, OBSTACLE, HITBOX, TAXICLEAR, PREMCOOK,
+HOUSEWORKER, SIMWORKER, UISMOKE, BUILT, MEDIA PASS. FRAMECOST RED (24 rows: stand draws.main 914 -> 1046, shadow 169.5 ->
+259.5, uniform4fv 741 -> 2762, ... on both builds; garage:landing bufferData 0 -> 768) - THE BRANCH'S STALE PARKED COOK, NOT
+THE FIX: run_gates builds, the build id moves (53f482316b37 -> 1424a8d2cc58), `parked_cook --check` says STALE (every parked
+key captured live: their draws, shadows and uniforms). Same built tree, at rest (FRAMECOST_SETTLE=600 --census cub), A
+(?prophit=0) and B read 1046 / 965 both - 0 of 39 stand counters differ, 0 of 40 taxi. The assembly's re-cook clears it (as
+WHEEL-AO's A/B against a master stale alike). No ALLOW added. (A trap met on the way: FRAMECOST run alone after the slot's
+restore loads the train's OLD built core - no columnPoints, the fix's hitAdd throws into its catch - so a standalone A/B on a
+source branch needs `node tools/build.js` first.)
 NEXT: the throttled A/B/B/A tonight; then the settle step (8.6 s) and the taxi hitch on the slow-CPU rung.
