@@ -80427,3 +80427,128 @@ document beyond what DESTTO flies).
   DEST-TO's note); nothing new per frame (the ledger runs at a roll-out, a stop, a save; the wear macro at setAircraft).
 
 READY for the GAME COORDINATOR: claude/prem-s2-g2230 d9465f6 (the code and the evidence; this line rides one docs-only commit on top)
+
+## G2270-G2279 - ACCEPT: THE STATIC CHECKS (NO SIMULATION, THE PHONE'S), THE FLOWN ACCEPTANCE LEG ON THE AP BOX (TAS CALM-AIR, THE FLOW, ENDURANCE = USABLE / FLOW - RESERVE, RANGE = TAS x ENDURANCE), SIGNED INTO THE BUILD'S LOGBOOK, "PROVED IN FLIGHT" ON THE PLAQUE, acceptVerdict(crit[], evidence) (2026-10-07, ACCEPT for the GAME COORDINATOR, cloud - node + the page in node, no GPU; branch claude/accept-g2270 off origin/claude/game-integration 80d0bea; G2275-G2279 unused)
+
+The brief: GAME-2026-10-06.md §R (G-ACCEPT, GQ19), §6.2 (the spec), §6.3 (the bonus). No generated file committed.
+CONTRACT-MODEL (G2240) works in parallel: this branch implements against §6.2 / §7.3's crit `{ k, op, v, at? }` and
+exposes `acceptVerdict(crit[], evidence)` as the hook; `CONTRACT_CRIT_KINDS` is not in this tree - GATE ACCEPT checks
+it against `ACCEPT_KINDS` the moment it lands.
+
+**G2270 THE CORE** (`src/core/72_accept.js`, pure; MANIFEST after 71_, exports appended to 90_):
+- `ACCEPT_RULES` (stated, carried in every record): leg 5 min, declared throttle 0.75, HOME/ground + 300 m, settle quiet
+  30 s (cap 150 s), sample 1 s, bands alt ±10 m / TAS ±3 % of the leg mean / bank ≤ 5°, reserve 15 min, usable 1.0,
+  bonus +10 % per criterion beaten by 10 % (§6.3), door clearance 0.3 m a side (PARK_DOOR_CLR).
+- `ACCEPT_KINDS` (15): static `seats emptyKg powertrain tankL batteryKWh spanM costMax ultimateG xwindKt hydro`; flown
+  `tasKmh enduranceMin rangeKm takeoffAt landAt`; each with its default op.
+- **THE STATIC CHECKS** `acceptStatic(crit, ev)` -> `{ k, ok, value, need, source }`, over `acceptEvidence(def, extra)`:
+  the ledger (empty = every non-payload row: nobody aboard, no fuel; cost), the resolved spec (`seats` = the capacity
+  drawn, `occupants`, `fuel.litres`, `energy.kWh`), the engine family (`electric | piston | turbine`), the measured
+  plan (`playerFootOfDef`: span = 2 x half; `at: { door: m }` or `at: { shed }` -> `hangarDoorWhy`, the door rule
+  itself), the certificate already computed (`def.cert` / `extra.cert`: `{ limit, ult }`), the bench's awarded rows
+  (`extra.bench` = `BENCH_STATE().results`: xwind's `limit` m/s -> kt, an older row read off its verdict, a withdrawn
+  row nothing; hydro ok). **No simulation**: GATE ACCEPT scans the three bodies for any solver call and times them
+  (0.4 ms a pass for every kind on six builds). Missing evidence = `value null` (a test to run), never a pass.
+- **THE LEG** `makeAcceptLeg` / `acceptLegStart(sim, ap, def, o)`: on the AP box (43_pilot `ap.engage`): HDG as it
+  is, ALT at the declared height on FULL, then SET the declared throttle, settle (|vs| < 0.15, the TAS drift < 0.5 %
+  over 30 s), RECORD N minutes, hand back (`ap.disengage(resume)`). The recorder (`makeAcceptRecorder`) samples the
+  pilot's own instruments: its TAS is |v_cg - the sim's wind| (calm-air), the energy off `sim.fuel` (kg, or soc x kWh).
+  `acceptLegMeasure(samples, o)`: TAS / GS means, the flow by least squares of the energy against time (kg/h | kW; L/h
+  off the medium's density), `grossMin = usable / flow`, `enduranceMin = gross - reserve`, `rangeKm = TAS x
+  enduranceMin`; VALID only if every sample stayed in the bands, the box stayed on, no starvation, the throttle held,
+  the leg long enough - else `why[]`. The leg publishes its state on the pilot as `ap.accept` (a new object per stage),
+  `record` = the signed record when done or aborted. **THE HAND-BACK GIVES THE PILOT ITS BUDGET BACK** (what it had
+  left + 1.6 x the way back / VCruise + 120 s): measured without it, the user's Cub, 10 km out after its leg, landed at
+  HOME as `gave-up` - the page would have ended that flight in the air.
+- `acceptSign(measure, meta)` / `acceptSigned(rec)`: FNV-1a over the canonical record (bench.js's hash family); the
+  record carries `fp` (the build's bench fingerprint), `when`, `from`, `decl {thr, alt, legMin}`, `load {occupants,
+  payloadKg, massKg}`, the rules. An edited record no longer verifies and is not counted.
+- `acceptVerdict(crit[], evidence)` -> `{ rows[{ k, op, v, at, status: ok | fail | needs-flight | needs-test, value,
+  need, margin, marginPct, beat, source }], ok, needsFlight[], needsTest[], beaten, bonusPct }`. Flown kinds read the
+  LAST valid signed leg under the live fingerprint (`evidence.fp`; another = withdrawn) at the criterion's load
+  (`at: { occupants, payloadKg }`); `reserveMin` on a criterion overrides the stated reserve. `takeoffAt` = a logbook
+  row from that aerodrome that arrived; `landAt` = a row STOPPED there (`at`, flightWhere) with a touchdown and no
+  failed outcome - both under the fingerprint and the load. `acceptPlaqueLeg(legs, fp)` for the plaque;
+  `acceptStopAt(world, x, z)` (flightWhere + flightCanDepart) for the logbook row.
+
+**G2271-G2273 THE PAGE** (thin):
+- `src/viewer/accept_rec.js` (MANIFEST after bench.js) -> `window.ACCEPT_REC { start, abort, frame, flightEnd, state,
+  legs, plaqueLeg, evidence, verdict }`. `start({ legMin, thr, altAGL })` refuses on the ground / before the pilot's
+  first reading, under the hand, twice; the leg runs WHERE THE PILOT RUNS: the page's own sim inline (`?simw=0`), else
+  the physics thread through **sim_link.js `accept()` -> sim_host.js `'accept'`** (the same `acceptLegStart`, ticked
+  before the pilot's update in `H.step`; `'accept'` a rare pilot field so the state reaches the page's view only on a
+  change; a new leg or the hand aborts it). When a record appears it is **signed into the build's logbook**:
+  `GARAGE_SPEC.log().accept[]` (beside `flights`; the envelope carries it untouched) + a logbook note.
+- `app.js`: `ACCEPT_REC.frame()` beside the HUD's energy cell; `logFlight` calls `flightEnd()` and the row now carries
+  **`at`** (where it stopped: flightWhere, the stop only), **`occ`**, **`payloadKg`**, **`fp`** (the roll-out
+  fingerprint); drawPlaque's **PROVED IN FLIGHT** section after "in a crosswind": cruise flown (TAS · throttle ·
+  height), burn / draw flown, endurance flown (+ reserve), range flown, the leg (min · aboard · day); off-screen until
+  a leg exists; **withdrawn** (one warn row) when the live fingerprint is not the leg's. Rows explained in plaque.js.
+- `bench.js`: `window.BENCH_FP_OUT` (the roll-out fingerprint the leg and the row are signed with) and `BENCH_FP` (the
+  live one); the xwind row now carries `limit` / `capped` (m/s).
+- **No UI door to start a leg** (out of scope: MAP-MENU / the delivery flow call `ACCEPT_REC.start()`); a rig or the
+  console can.
+
+**G2274 GATE ACCEPT** (`tools/_accept_check.js` + `tools/_accept_fly.js`, core tier, ~5.5 min wall: nine flights in 4
+processes, run once; `--reuse` reads `reports/evidence/ACCEPT/flights.json`): **PASS, 188 checks; `--selftest` 24 of
+24 caught** (`reports/evidence/ACCEPT/{gate,selftest,gate_runner}.txt`).
+- THE LEGS (analytic world, calm, lined up at HOME, the circuit's own take-off; the box from the end of CLIMB; 5 min
+  at 75 % throttle, HOME + 300 m; all valid, in band to 0.1 m / 0.5 %, 301 samples, signed, published):
+
+  | build | flown TAS | shakedown VCruise (2.2 Vs clamp) | flow | endurance flown gross / shakedown rule | range flown (net) / shakedown |
+  |---|---|---|---|---|---|
+  | the user's Cub (A-65, 1 aboard) | 126.9 km/h | 113.0 (129.2) | 10.89 kg/h, 15.1 L/h | 178.6 / 199 min | 346 / 376 km |
+  | Jodel (A-65, 1 aboard) | 137.4 | 127.1 (149.7) | 10.89 kg/h | 178.6 / 199 min | 375 / 422 km |
+  | Cessna 172 (builds/cessna172_..._corrected, 2 aboard) | 195.5 | 184.3 (198.4) | 26.57 kg/h, 36.9 L/h | 344.7 / 385 min | 1074 / 1183 km |
+  | metal Cessna (master_bench's validated, 2 aboard) | **217.9** | **177.5 (177.4) CLAMPED** | 39.28 kg/h, 54.6 L/h | 30.8 / 34 min | 57 / 102 km |
+
+  The metal Cessna is the clean fast design the brief expected: its VCruise is solved ON the clamp and the flown leg
+  is 23 % faster. Every flown TAS beats the solved VCruise (75 % > the solve's 65 % of thrust). The flown endurance is
+  10 % under the shakedown's full-throttle / 0.67 rule on all four. (The metal Cessna's own small tank: 30.8 min.)
+- DETERMINISTIC: the Cub twice (and a third time through the runner): the same record to the signature (06777d9c),
+  the same samples, the same landing row. A DOWNBURST (-5 m/s, 10 s, 2 min in): refused on both bands (height
+  -12.4 m, speed -29 %), signed as refused. A 7.2 m/s WIND: TAS 126.9 (calm 126.9), groundspeed 147.7, the same flow.
+  The Cub flies HOME after its leg and stops: row from HOME, at HOME, sink 0.63 m/s, run 163 m, 1 aboard, its fp.
+  The stored legs are re-measured by the core under test (the selftest's doctored rules meet the real flights).
+- STATIC on six builds (+ the user's 2 kWh electric trainer, the Cessna floats): empty and cost = the plaque's
+  genShakedown, empty + payload = the mass flown, span = the measured plan (≈ the aero span), seats / tank / pack /
+  powertrain the spec's; the Cub 2 seats (1 aboard), 45 L, piston, 10.8 m, 353.8 kg; the door at 11.3 m refused, 11.4
+  passes; a REAL certificate of the Cub (genCertify): limit 3.8, ultimate 5.7; the bench's xwind row (built by
+  bench.js) 6.2 m/s = 12.1 kt.
+- THE VERDICT: a sample criterion per kind (ok / fail / needs-flight / needs-test), the margin and the bonus, a stated
+  margin, a criterion's own reserve, a load not flown, another fingerprint (withdrawn), a tampered record, a refused
+  leg, a row not stopped on the strip, a rejected take-off, an unknown kind; §6.3's examples (the team of four on the
+  C172: 4 seats ok, 200 km/h with 4 aboard and the strip still to fly; "under 300 kg" refused; "an hour on 20 L":
+  the hour flown, the tank refused; "electric"; "the aerobatic box" refused at 5.7; "cheap and forgiving").
+- THE PAGE: accept_rec.js on a stub window over the Cub's real sim (refusals, start, one signature into log.accept,
+  the note, the plaque row and its withdrawal, the contract door) and sim_host's `'accept'` in node (climb > settle >
+  record > done, its record reaching the snapshot); a saved-and-loaded logbook still verifies; the source doors.
+- `--selftest` (24): the bands (height, speed), the groundspeed for the TAS, the reserve, the range's endurance, the
+  fingerprint, the load, the signature, the empty mass with the payload, a static check that simulates, the bonus,
+  a refused leg counted, the crosswind in m/s, the door's clearance, a landing without a stop, a take-off from
+  anywhere, the plaque's withdrawal, and seven page doors (the frame hook, the row's stop, the plaque section, an
+  unexplained row, BENCH_FP_OUT, the worker's door, the logbook push).
+
+**OTHER GATES** (`reports/evidence/ACCEPT/gates_touched.txt`, `uismoke.txt`): BUILD, SAVE (the envelope still a fixed
+point), BENCH (every plaque row explained), SIMWORKER, POSEBACK, PLAYER, GAMEPREM: PASS. **UISMOKE: PASS**, with a new
+block: no proved-in-flight rows without a leg; the real accept_rec.js over a signed leg prints 127 km/h TAS, 163.6 min,
+346 km; another fingerprint -> withdrawn. Not run: the full tier, FRAMECOST / HITBOX (any viewer edit moves the build
+id: the parked cook reads stale until A0's re-cook - DEST-TO's note), SIMWORKER-PAGE / -EDGES / -PLACE (full tier; the
+worker change is one command and one tick, inert until the command is sent).
+
+**OPEN / FOR THE COORDINATOR**
+- **The structural certificate is the normal category only** (66_gen_cert: limit 3.8, ultimate 5.7 for every
+  certified build): a §6.3 "+6 g aerobatic" criterion is unwinnable until the certificate takes a category (an
+  aerobatic card at 6 / 9 g). `ultimateG` reads `cert.ult`; it will follow.
+- Merge points: `90_node_exports.js` (the accept exports appended), `build.js` (72_accept.js after 71_;
+  accept_rec.js after bench.js), `run_gates.js` (ACCEPT after GAMEPREM). CONTRACT-MODEL's kind names: reconcile with
+  `ACCEPT_KINDS` (GATE ACCEPT asserts every `CONTRACT_CRIT_KINDS` entry is answered once it exists). `at`: a string
+  is an aerodrome id; an object `{ aero, occupants, payloadKg, door, shed }`.
+- Seats is a CAPACITY check; "4 occupied at their stations" is enforced on the flown criteria by `at.occupants` (the
+  leg's own load). The usable tank is the fuel as loaded at departure (`sim.fuel.kg0`).
+- The phone (GQ19): every static kind runs off a def with no sim; `ultimateG` needs a certificate already computed
+  (on the phone: `needs-test` unless the cache has it); xwind / hydro need the bench's rows.
+- Nothing starts a leg from the UI yet (MAP-MENU / the delivery flow: `ACCEPT_REC.start()`); the leg's numbers are
+  this build's only (the fingerprint), the sandbox's plaque shows them once one is flown.
+
+READY for the GAME COORDINATOR: claude/accept-g2270 9ef705a (the code and the evidence; this section rides one docs-only commit on top)
