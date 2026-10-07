@@ -114,12 +114,19 @@ const CONTRACT_FIT = {
 //   surface bonus per distinct field the job touches: short (a strip <= shortM), water, snow, altiport
 //   conditions: a `when` adds condPct of the rest
 // Arcs and build contracts carry an authored base; a follow-up pays followPct more (GQ31).
+// G2260 (ECONOMY owns these numbers: the calibration, 76_economy.js ECON_BANDS, GATE ECON):
+//   baseF   the provider's job base (CONTRACT_PROVIDERS[p].base, its relative weight) x this
+//   story   an authored contract / survey / challenge's base x this (a build contract's base is priced against
+//           the airframe it asks for and is paid as written)
 const CONTRACT_PAY = {
-  perKm: 60, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
-  surf: { short: 400, water: 300, snow: 350, altiport: 500 }, shortM: 400,
+  perKm: 160, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
+  surf: { short: 1100, water: 800, snow: 950, altiport: 1350 }, shortM: 400,
   condPct: 15, round: 10,
   followPct: 15,
+  baseF: 2.7, story: 2.6,
 };
+// an authored record's base as paid (the story factor on everything but a build contract)
+const contractStoryBase = rec => ((rec.pay && rec.pay.base) || 0) * (rec.kind === 'build' ? 1 : CONTRACT_PAY.story);
 
 // ---- THE GENERATOR (seeded: the career seed + the completed count) ---------------------------------------
 //   refreshEvery  the offers refresh after this many completed contracts (the epoch = floor(done / it))
@@ -486,11 +493,13 @@ function contractPay(rec, fields) {
     if (f.surf === 'snow') surface += P.surf.snow;
     if (f.alti) surface += P.surf.altiport;
   }
-  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) : ((rec.pay && rec.pay.base) || 0);
+  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec);
   const perKm = rec.kind === 'job' ? P.perKm : 0;
   const rest = base + perKm * km * (1 + factor) + (rec.kind === 'job' ? surface : 0);
   const condAdd = cond ? rest * P.condPct / 100 : 0;
-  const total = Math.round((rest + condAdd) / P.round) * P.round;
+  let total = Math.round((rest + condAdd) / P.round) * P.round;
+  // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
+  if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
            cond: Math.round(condAdd), total };
 }
@@ -718,7 +727,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
 // the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
 function contractPayTotal(rec, got, medal) {
   const P = rec.pay || {};
-  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : (P.base || 0);
+  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : Math.round(contractStoryBase(rec));
   const crit = contractCrit(rec);
   let pct = 0;
   for (const b of P.bonus || []) {

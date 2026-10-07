@@ -1,0 +1,38 @@
+{
+ "index": [
+  {
+   "name": "sandbox",
+   "note": "the sandbox: the garage with no wallet line",
+   "wallet": null,
+   "ledger": 0,
+   "wallet0": 0,
+   "wallet1": 0
+  },
+  {
+   "name": "career_garage",
+   "note": "the career: the garage's wallet line",
+   "wallet": "Wallet 60 000 ₵Repair"
+  },
+  {
+   "name": "reprice",
+   "note": "the stand settled: 25000 -> 24700"
+  },
+  {
+   "name": "career_bought",
+   "note": "the career: an airframe bought",
+   "wallet": 35300
+  },
+  {
+   "name": "career_dialog",
+   "note": "This airframe costs 24 700 to build (the ledger 30 817 x the hangar's labour); the wallet holds 500."
+  },
+  {
+   "name": "career_refused",
+   "note": "the career: a purchase refused (the wallet line says why)",
+   "wallet": "Wallet 500 ₵· the wallet holds 500, the work costs 5000Repair",
+   "note2": "the wallet holds 500, the work costs 5000"
+  }
+ ],
+ "fails": [],
+ "errs": []
+}

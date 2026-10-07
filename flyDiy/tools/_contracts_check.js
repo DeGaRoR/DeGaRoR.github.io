@@ -473,7 +473,7 @@ function run(mut) {
     refused(M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'w3', t: 200 } })), b, d, 'the challenge from the wrong field');
     const g = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 280 } }));
     ok(g.ok && g.doc.career.contracts.done.find(x => x.id === 'clients.03').medal === 'gold'
-       && g.doc.career.contracts.done.find(x => x.id === 'clients.03').pay === A['clients.03'].pay.base * 2, 'gold, paid double');
+       && g.doc.career.contracts.done.find(x => x.id === 'clients.03').pay === Math.round(M.contractStoryBase(A['clients.03'])) * 2, 'gold, paid double');   // G2260: the story factor (ECONOMY's CONTRACT_PAY.story)
     const s = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 500 } }));
     ok(s.ok && s.doc.career.contracts.done.find(x => x.id === 'clients.03').medal === 'bronze' && s.doc.career.tracks.clients === 1, 'bronze, the club house unlocked');
   }
@@ -710,7 +710,7 @@ const BREAKS = [
   ['the cabin is ignored', { s73: sub("    if (kg > ctCapKg(D)) return no(", '    if (false) return no(') }],
   // the pay
   ['the pay reads the aeroplane', { s73: sub('  const factor = kg / P.kgUnit', '  const factor = (rec.airframe ? 0.5 : 0) + kg / P.kgUnit') }],
-  ['a running cost is charged', { s74: sub("  playerCharge(d, -pay, 'contract', rec.id);", "  playerCharge(d, -pay, 'contract', rec.id);\n  playerCharge(d, 40, 'fuel', rec.id);") }],
+  ['a running cost is charged', { s74: sub("  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);", "  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);\n  playerCharge(d, 40, 'fuel', rec.id);") }],
   // the generator
   ['the generator is random', { s73: sub('  let a = contractHash(key);', '  let a = contractHash(key) ^ Math.floor(Math.random() * 1e9);') }],
   ['the generator depends on call order', { s73: s => sub("  const id = 'job:' + providerId + ':' + epoch + ':' + i;\n", "  const id = 'job:' + providerId + ':' + epoch + ':' + i; ctCalls++;\n")(sub('function contractJob(seed, providerId, epoch, i, opts) {', 'let ctCalls = 0;\nfunction contractJob(seed, providerId, epoch, i, opts) {')(sub("const rng = contractRng(seed + '|' + id + '|' + t);", "const rng = contractRng(seed + '|' + id + '|' + t + '|' + (ctCalls % 3));")(s))) }],
