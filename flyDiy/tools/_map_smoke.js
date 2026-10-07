@@ -60,6 +60,7 @@ module.exports = function mapSmoke(html, phone) {
   say('the MAP entry: none in the sandbox (no flag, ?map=10, ?scenery=1); one with ?map=1 or in the career mode; nothing of the screen fetched before the press, then the pack and the screen');
 
   // ---- the core over the fixture and the projection -------------------------------------------------------------------
+  const C = require('./flight_core.js');
   const MM = require(path.join(ROOT, 'src', 'viewer', 'map_menu.js'));
   const pack = JSON.parse(/window\.MAP_PACK = (\{[\s\S]*\});\s*$/.exec(packSrc)[1]);
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'contracts_sample.json'), 'utf8'));
@@ -106,7 +107,7 @@ module.exports = function mapSmoke(html, phone) {
   need(/The criteria, against your designs/.test(MM.cardHTML(M, Object.assign({}, st, { sel: 'c:clients.b.fast4' }))), 'the build card lacks its criteria');
   say('the build card: ' + crit.length + ' criteria x ' + D.length + ' designs (✓ / ✗ from the spec and the ledger, ◌ "needs a flight")');
   // the gear rule: equal to 25_airfield.js's on every strip of the record
-  const C = require('./flight_core.js'), rec = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8'));
+  const rec = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8'));
   for (const r of rec.layers.runways) {
     const a = { id: r.id, kind: +r.surface === 4 ? 'water' : 'strip', surface: r.surface, look: r.look };
     for (const g of ['wheels', 'floats', 'amphibian', 'skis']) need(MM.allows(g, M.aeros[r.id]).ok === C.stripAllows(g, a).ok, 'the gear rule differs from stripAllows: ' + g + ' at ' + r.id);
@@ -136,5 +137,57 @@ module.exports = function mapSmoke(html, phone) {
   need(/\.mmMap\{[^}]*touch-action:none/.test(css) && /\.mmSheetBody\{[^}]*touch-action:pan-y/.test(css) && /\.mmList\{[^}]*touch-action:pan-y/.test(css), 'R20: the map and the sheet share a gesture');
   need(!/navigator\.userAgent|userAgentData|location\.hostname|pointer:\s*coarse|innerWidth\s*</.test(menuSrc), 'map_menu.js tests the device (only welcome.js and the profile table may)');
   say('NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the sheet (pan-y) apart; no device test');
+
+  // ---- G2320 (CAREER-WIRE): THE SAME ROWS ON THE REAL RECORD - a new career (careerNew: every provider's first arc + 3
+  // jobs) through 75_career_wire.js careerMapRecord, the adapter untouched but where the record differs from §7.3 -------
+  need(/careerMapRecord\(careerNew\(/.test(menuSrc) && /FLYDIY_CAREER\.record\(\)/.test(menuSrc) && /mapsrc=fixture/.test(menuSrc), 'MAP_SOURCE is not the real record (FLYDIY_CAREER / a new career; ?mapsrc=fixture keeps the fixture)');
+  const doc0 = C.careerNew({ id: 'dev', seed: 'dev' });
+  const RR = C.careerMapRecord(doc0, null, {}), MR = MM.mapAdapt(RR, pack, null);
+  need(MR.source === 'career' && MR.providers.map(p => p.id).join() === Object.keys(C.CONTRACT_PROVIDERS).join(), 'the real record: the five providers ' + MR.providers.map(p => p.id).join());
+  need(MR.contracts.length === doc0.career.contracts.offered.length && MR.contracts.length === 5 * 4, 'the real record: a new career\'s 20 offers (' + MR.contracts.length + ')');
+  for (const c of MR.contracts) for (const st of c.stages) for (const u of st.subs) for (const id of [u.from, u.to].filter(Boolean)) need(MR.aeros[id], c.id + ' names an aerodrome the projection lacks: ' + id);
+  const allR = MM.rowsOf(MR, 'all').length, perR = MR.providers.map(p => MM.rowsOf(MR, p.id).length);
+  need(allR === MR.contracts.length && perR.reduce((a, b) => a + b, 0) === allR && perR.every(n => n === 4), 'the real tabs: All ' + allR + ', per provider ' + perR.join('/'));
+  need((MM.listHTML(MR, st).match(/class="mmRow[ "]/g) || []).length === allR, 'the real All list does not draw every row');
+  for (const c of MR.contracts) {
+    const h = MM.cardHTML(MR, Object.assign({}, st, { sel: 'c:' + c.id }));
+    for (const u of MM.subsNow(MR, c)) {
+      for (const id of [u.from, u.to].filter(Boolean)) {
+        const a = MR.aeros[id];
+        need(h.includes(a.name.replace(/&/g, '&amp;')) && h.includes(String(a.len).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' m'), c.id + ': the real card lacks ' + id + ' or its strip length');
+      }
+      if (u.load && u.load.kg) need(h.includes(u.load.kg + ' kg'), c.id + ': the real card lacks the payload');
+    }
+    const P = MM.payOf(MR, c), want = C.contractPay(C.careerContract(doc0, c.id)).total;
+    need(P.total === want && h.includes('<b>' + String(want).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + '</b> net'), c.id + ': the card\'s pay is not contractPay\'s (' + P.total + ' vs ' + want + ')');
+    need(!/\[(ct|job|prov|crit)\./.test(h) && !/\{(from|to|load|at)\}/.test(h), c.id + ': an unresolved text key or slot on the card');
+    need(/data-act="accept"/.test(h) && /data-act="track"/.test(h) && !/data-act="(accept|track)"[^>]*disabled/.test(h), c.id + ': the real card lacks Accept / Track, or disables one');
+    need(phone ? !/Fly it/.test(h) : /Fly it/.test(h), c.id + ': the real card\'s flight button on the ' + (phone ? 'phone' : 'desktop'));
+  }
+  const mkR = MM.markersOf(MR, st).filter(m => m.kind === 'contract');
+  need(mkR.length === MR.contracts.length && mkR.every(m => m.sel && m.sel.startsWith('c:')), 'the real record: every contract a marker that selects its row (' + mkR.length + ')');
+  say('the real record (a new career, careerNew + careerMapRecord): ' + MR.providers.length + ' provider tabs + All (' + perR.join(' + ') + ' = ' + allR + '); every card both ends, both strips, the payload, contractPay\'s pay, no unresolved key, Accept / Track; every contract a marker');
+  // the fleet on the real record: the career's own airframes (the voucher's maker Cub: CONTRACT_DESIGNS' certificate; one
+  // not read yet), and a build contract's criteria against them (the clients' first delivery, offered after clients.01)
+  const doc1 = JSON.parse(JSON.stringify(doc0));
+  doc1.fleet = { Cub: { aero: 'HOME' }, Kit: { aero: 'w3' } };
+  doc1.career.airframes = { Cub: { design: 'cub' } };
+  doc1.career.contracts.done.push({ id: 'clients.01', at: 0, pay: 1500 });
+  const M1 = MM.mapAdapt(C.careerMapRecord(doc1, null, {}), pack, null);
+  const cubF = M1.fleet.find(f => f.slot === 'Cub'), kitF = M1.fleet.find(f => f.slot === 'Kit');
+  need(cubF && cubF.cert && cubF.cert.payloadKg === 90 && kitF && kitF.cert === null, 'the real fleet: the Cub\'s certificate (90 kg payload), the kit not read yet');
+  const carry = M1.contracts.find(c => c.kind === 'job' && MM.subsNow(M1, c).some(u => u.do === 'carry' && u.load && u.load.kg));
+  const fx = MM.factsFor(M1, carry, cubF), fk = MM.factsFor(M1, carry, kitF);
+  need(fx.some(x => /^payload \d+ kg: /.test(x.text)) && fk.length === 1 && fk[0].ok === null && /not read yet/.test(fk[0].text), 'the real fleet against ' + carry.id + ': ' + fx.map(x => x.text).join(' | '));
+  const b2 = M1.contracts.find(c => c.id === 'clients.02');
+  need(b2 && b2.kind === 'build', 'the clients\' first delivery (clients.02) is offered after clients.01');
+  const cr2 = MM.critsOf(M1, b2), cv = k => MM.critFor(M1, cr2.find(x => x.k === k), MM.designsOf(M1).find(d => d.name === 'Cub')).ok;
+  need(cv('seats') === true && cv('emptyKg') === false && cv('spanM') === false && cr2.every(x => x.words), 'the real build criteria against the Cub: seats ✓, empty mass ✗, span ✗ (worded by contractCritWords)');
+  // the held-out contract never reaches the map
+  const doc2 = JSON.parse(JSON.stringify(doc0));
+  for (const id of ['clients.01', 'clients.02', 'clients.03', 'clients.04']) doc2.career.contracts.done.push({ id, at: 0, pay: 0 });
+  doc2.career.providers.clients.rep = 5;
+  need(!C.careerMapRecord(doc2, null, {}).contracts.some(c => c.id === 'clients.05'), 'the aerobatic box (+6 g, past the certificate) reached the map');
+  say('the real fleet: the Cub\'s certificate against "' + carry.title + '" (' + fx.length + ' facts), a kit "not read yet"; clients.02\'s criteria against it; the aerobatic box held out');
   return lines;
 };

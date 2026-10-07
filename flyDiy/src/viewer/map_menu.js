@@ -23,9 +23,11 @@
 // every target >= 48 px, the map (touch-action none: one finger pans, two pinch) and the sheet (pan-y: it scrolls)
 // never share a gesture (R20). Plan only: accept, track, look. No flight from here.
 //
-// THE CONTRACTS ARE READ THROUGH ONE FUNCTION (mapAdapt), from ONE SOURCE LINE (MAP_SOURCE): today the fixture
-// tools/fixtures/contracts_sample.json in §7.3's shape; CONTRACT-MODEL (G2240) swaps its module in on that line.
-// Accepting and tracking live in the session's adapted record (the career's document is CONTRACT-MODEL's / §13).
+// THE CONTRACTS ARE READ THROUGH ONE FUNCTION (mapAdapt), from ONE SOURCE LINE (MAP_SOURCE). G2320 (CAREER-WIRE): the
+// source is THE REAL RECORD - 75_career_wire.js careerMapRecord over the career document (?career=1: the page's dev
+// career, window.FLYDIY_CAREER; Accept / Track write it through careerAccept / careerTrack), else a NEW career's
+// offers in memory (nothing saved; Accept / Track live in the session's adapted record, as before). ?mapsrc=fixture
+// keeps tools/fixtures/contracts_sample.json (the stills).
 //
 // Pure half (node: require('src/viewer/map_menu.js') -> the core; GATE UISMOKE runs it) and a DOM half (the page).
 (function () {
@@ -37,9 +39,15 @@
   const KIND_WORD = { contract: 'contract', job: 'job', build: 'build', challenge: 'challenge', survey: 'survey' };
   const KIND_GLYPH = { contract: '▸', job: '●', build: '◆', challenge: '◷', survey: '⌖' };
   const DO_WORD = { carry: 'carry', fly: 'fly', land: 'land', deliver: 'deliver', survey: 'survey', accept: 'deliver for acceptance' };
-  const CRIT_WORD = { seats: 'seats', emptyKg: 'empty mass', power: 'powertrain', tankL: 'tank', spanM: 'span', cost: 'cost', tas: 'cruise', endurance: 'endurance', land: 'lands at' };
-  // what verifies each criterion (§6.2): the spec / the ledger can tell now; the flight must be flown
-  const CRIT_BY = { seats: 'spec', emptyKg: 'ledger', power: 'spec', tankL: 'spec', spanM: 'spec', cost: 'ledger', tas: 'flight', endurance: 'flight', land: 'flight' };
+  const CRIT_WORD = { seats: 'seats', emptyKg: 'empty mass', power: 'powertrain', tankL: 'tank', spanM: 'span', cost: 'cost', tas: 'cruise', endurance: 'endurance', land: 'lands at',
+                      // (G2320) CONTRACT-MODEL's kinds (73_contracts.js CONTRACT_CRIT_KINDS)
+                      powertrain: 'powertrain', costMax: 'cost', batteryKWh: 'battery', ultimateG: 'ultimate load', xwindKt: 'crosswind', hydro: 'on water',
+                      tasKmh: 'cruise', enduranceMin: 'endurance', rangeKm: 'range', takeoffAt: 'takes off at', landAt: 'lands at' };
+  // what verifies each criterion (§6.2): the spec / the ledger / the certificate can tell now; the bench's test or the flight must be run
+  const CRIT_BY = { seats: 'spec', emptyKg: 'ledger', power: 'spec', tankL: 'spec', spanM: 'spec', cost: 'ledger', tas: 'flight', endurance: 'flight', land: 'flight',
+                    powertrain: 'spec', costMax: 'ledger', batteryKWh: 'spec', ultimateG: 'cert', xwindKt: 'bench', hydro: 'bench',
+                    tasKmh: 'flight', enduranceMin: 'flight', rangeKm: 'flight', takeoffAt: 'flight', landAt: 'flight' };
+  const CRIT_STRIP = { land: 1, landAt: 1, takeoffAt: 1 };
   const TABS_ASSET = [['fleet', 'Fleet'], ['pilots', 'Pilots'], ['market', 'Market']];
   const LAYERS = [['contracts', 'Contracts'], ['fleet', 'Fleet'], ['fields', 'Fields'], ['plots', 'Plots']];
 
@@ -59,10 +67,14 @@
     const providers = (raw.providers || []).map(p => ({ id: p.id, name: p.name, short: p.short || p.name, colour: p.colour || '#888', home: p.home || null, line: p.line || '' }));
     const prov = {}; for (const p of providers) prov[p.id] = p;
     const car = raw.career || {};
-    const career = { accepted: (car.accepted || []).slice(), tracked: car.tracked || null, stage: Object.assign({}, car.stage || {}), wallet: car.wallet, clock: car.clock };
+    const career = { accepted: (car.accepted || []).slice(), tracked: car.tracked || null, stage: Object.assign({}, car.stage || {}), wallet: car.wallet, clock: car.clock,
+                     live: JSON.parse(JSON.stringify(car.live || {})) };   // (G2320) the real record's progress inside a stage
+    // (G2320) where the real record differs from the fixture: a survey names the site it flies over as `at` (drawn as its `to`)
+    const subOf = u => { const o = Object.assign({}, u); if (o.do === 'survey' && o.at && !o.to) o.to = o.at; return o; };
     const contracts = (raw.contracts || []).map(c => {
-      const stages = (c.stages || []).map(s => ({ subs: (s.subs || []).map(u => Object.assign({}, u)) }));
-      return { id: c.id, provider: c.provider, kind: c.kind || 'job', title: say(c.title), brief: say(c.brief), stages, pay: c.pay || {}, rep: c.rep || null, repeat: c.repeat || false };
+      const stages = (c.stages || []).map(s => ({ subs: (s.subs || []).map(subOf) }));
+      return { id: c.id, provider: c.provider, kind: c.kind || 'job', title: say(c.title), brief: say(c.brief), stages, pay: c.pay || {}, rep: c.rep || null, repeat: c.repeat || false,
+               followLine: c.followLine || '' };
     }).filter(c => prov[c.provider]);
     // the fleet: the player's own airframes where they stand (the live document) when it has any, else the record's
     let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert || null, live: false }));
@@ -71,7 +83,7 @@
       fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null, live: true }));
     }
     const board = (raw.board || []).map(d => ({ name: d.name, cert: d.cert || null }));
-    return { providers, prov, contracts, career, fleet, board, aeros, plots: (pack && pack.plots) || [] };
+    return { providers, prov, contracts, career, fleet, board, aeros, plots: (pack && pack.plots) || [], source: raw.source || 'fixture' };
   }
   // 71_player_bases.js playerWhere's three kinds, read off the v2 document (the same rule; that file is the core's)
   function whereOf(doc, n) {
@@ -98,11 +110,20 @@
   const stripWord = a => a ? (a.surface.cls === 'water' ? fmt(a.len) + ' m water lane' : fmt(a.len) + ' m ' + a.surface.word) + (a.elev > 50 ? ' · ' + fmt(a.elev) + ' m up' : '') : '';
   // where the work is drawn: the load's place (the first sub's from), else where it goes
   const pinOf = (M, c) => { const u = subsNow(M, c)[0] || {}; return M.aeros[u.from] ? u.from : (M.aeros[u.to] ? u.to : null); };
+  // THE PAY: the record's own (G2320: CONTRACT-MODEL's contractPay - the job's base, 60 a km x km x the load's factor,
+  // the surfaces, a condition - carried as `total`); the fixture's base + perKm x the stage's km otherwise
   function payOf(M, c) {
+    const P = c.pay || {};
+    if (typeof P.total === 'number') return { base: P.base || 0, perKm: P.perKm || 0, km: P.km || 0, total: P.total, bonus: P.bonus || [], factor: P.factor || 0, surface: P.surface || 0, cond: P.cond || 0, model: true };
     const km = subsNow(M, c).reduce((s, u) => s + legKm(M, u), 0);
-    const P = c.pay || {}, total = (P.base || 0) + (P.perKm || 0) * km;
+    const total = (P.base || 0) + (P.perKm || 0) * km;
     return { base: P.base || 0, perKm: P.perKm || 0, km, total, bonus: P.bonus || [] };
   }
+  const payWord = P => !P.perKm ? '' : P.model
+    ? fmt(P.base) + ' + ' + P.perKm + ' a km × ' + P.km.toFixed(1) + ' km' + (P.factor ? ' × ' + (1 + P.factor).toFixed(2) + ' for the load' : '') + (P.surface ? ' + ' + fmt(P.surface) + ' for the strips' : '') + (P.cond ? ' + ' + fmt(P.cond) + ' for the condition' : '')
+    : fmt(P.base) + ' + ' + P.perKm + ' a km × ' + P.km.toFixed(1) + ' km';
+  const bonusWord = b => b.crit === 'medal' ? '+' + b.pct + ' % for a ' + b.by + ' medal'
+    : '+' + b.pct + ' % for ' + (CRIT_WORD[b.crit] || b.crit) + ' beaten by ' + (b.by < 1 ? Math.round(b.by * 100) : b.by) + ' %';
   // the gear rule, on the surface the bake recorded (25_airfield.js stripAllows' rule; GATE UISMOKE holds the two equal)
   function allows(gear, a) {
     const cls = a && a.surface ? a.surface.cls : 'grass';
@@ -141,9 +162,10 @@
   // the build contract (§8.3 point 3): each criterion against a design - true / false / null ("needs a flight")
   function critFor(M, cr, d) {
     const C = d.cert || {}, by = CRIT_BY[cr.k] || 'flight';
-    const cmp = (x, op, v) => op === '>=' ? x >= v : op === '<=' ? x <= v : op === '=' ? x === v : false;
+    const cmp = (x, op, v) => op === '>=' ? x >= v : op === '<=' ? x <= v : (op === '=' || op === '==') ? x === v : false;
     const k = cr.k;
-    if (k === 'land') {
+    if (by === 'bench') return { ok: null, by, text: 'needs a bench test' };
+    if (CRIT_STRIP[k]) {
       const a = M.aeros[cr.v]; const A = a ? allows(C.gear || 'wheels', a) : { ok: true };
       if (!A.ok) return { ok: false, by, text: A.why };
       return { ok: null, by, text: a && a.surface.cls !== 'water' && C.toRunM ? 'take-off run ' + fmt(C.toRunM) + ' m vs ' + fmt(a.len) + ' m: needs a flight' : 'needs a flight' };
@@ -152,13 +174,15 @@
       const est = k === 'tas' ? C.tasKmh && (fmt(C.tasKmh) + ' km/h on the plaque') : k === 'endurance' ? C.enduranceMin && (fmt(C.enduranceMin) + ' min on the plaque') : '';
       return { ok: null, by, text: (est ? est + ': ' : '') + 'needs a flight' };
     }
-    const map = { seats: C.seats, emptyKg: C.emptyKg, power: C.power, tankL: C.tankL, spanM: C.spanM, cost: C.cost };
+    const map = { seats: C.seats, emptyKg: C.emptyKg, power: C.power, tankL: C.tankL, spanM: C.spanM, cost: C.cost,
+                  powertrain: C.power, costMax: C.cost, batteryKWh: C.batteryKWh, ultimateG: C.ult };
     const x = map[k];
     if (x == null) return { ok: null, by, text: 'not on its certificate' };
-    const unit = { emptyKg: ' kg', tankL: ' L', spanM: ' m', cost: '' }[k] || '';
+    const unit = { emptyKg: ' kg', tankL: ' L', spanM: ' m', cost: '', costMax: '', batteryKWh: ' kWh', ultimateG: ' g' }[k] || '';
     return { ok: cmp(x, cr.op, cr.v), by, text: (typeof x === 'number' ? fmt(x) : x) + unit };
   }
   const critWord = (M, cr) => {
+    if (cr.words) return cr.words;   // (G2320) the real record's own words (contractCritWords)
     const unit = { emptyKg: ' kg', tankL: ' L', spanM: ' m', tas: ' km/h', endurance: ' min', cost: '' }[cr.k] || '';
     if (cr.k === 'land') return 'lands at ' + aeroName(M, cr.v) + ' (' + stripWord(M.aeros[cr.v]) + ')';
     if (cr.k === 'power') return 'powertrain: ' + cr.v;
@@ -255,14 +279,19 @@
       h += '<ol class="mmStages">' + c.stages.map((s, i) => '<li class="' + (i < si ? 'done' : i === si ? 'now' : '') + '">' + esc(s.subs.map(u => subWord(M, u)).join(' · ')) + '</li>').join('') + '</ol>';
     // 1. everything needed, remotely
     h += '<h3>' + (c.stages.length > 1 ? 'Stage ' + (si + 1) + ' of ' + c.stages.length : 'The job') + '</h3>';
-    for (const u of subsNow(M, c)) {
+    const LV = M.career.live[c.id] || null;
+    subsNow(M, c).forEach((u, j) => {
+      const sv = u.do === 'survey';
+      // (G2320) the real record's progress inside the stage: a sub done, a load taken on
+      const prog = LV && LV.stage === si ? (LV.subs[j] ? ' · ✓ done' : LV.picked[j] ? ' · loaded' : '') : '';
       h += '<div class="mmLeg"><div class="mmDo">' + esc(DO_WORD[u.do] || u.do) + (loadWord(u) ? ' · ' + esc(loadWord(u)) : '') + (u.from && u.to ? ' · ' + legKm(M, u).toFixed(1) + ' km' : '') +
-        (u.when ? ' · ' + esc(u.when.before ? 'before ' + u.when.before : u.when.under ? 'under ' + Math.round(u.when.under / 60) + ' min' : '') : '') + '</div>' +
-        (u.from ? endHTML(M, 'the load is at', u.from) : '') + endHTML(M, u.from ? 'it goes to' : 'at', u.to) + '</div>';
-    }
+        (u.when ? ' · ' + esc(u.when.before ? 'before ' + u.when.before : u.when.under ? 'under ' + Math.round(u.when.under / 60) + ' min' : '') : '') + esc(prog) + '</div>' +
+        (u.from ? endHTML(M, sv ? 'from' : 'the load is at', u.from) : '') + (u.to ? endHTML(M, sv ? 'over' : u.from ? 'it goes to' : 'at', u.to) : '') + '</div>';
+    });
     const P = payOf(M, c);
-    h += '<h3>Pay</h3><p class="mmPay"><b>' + fmt(P.total) + '</b> net' + (P.perKm ? ' <span>(' + fmt(P.base) + ' + ' + P.perKm + ' a km × ' + P.km.toFixed(1) + ' km)</span>' : '') + '</p>' +
-      (P.bonus.length ? '<p class="mmFine">' + P.bonus.map(b => '+' + b.pct + ' % for ' + (CRIT_WORD[b.crit] || b.crit) + ' beaten by ' + b.by + ' %').join(' · ') + '</p>' : '') +
+    h += '<h3>Pay</h3><p class="mmPay"><b>' + fmt(P.total) + '</b> net' + (P.perKm ? ' <span>(' + esc(payWord(P)) + ')</span>' : '') + '</p>' +
+      (P.bonus.length ? '<p class="mmFine">' + esc(P.bonus.map(bonusWord).join(' · ')) + '</p>' : '') +
+      (c.followLine ? '<p class="mmFine">' + esc(c.followLine) + '</p>' : '') +
       (c.rep ? '<p class="mmFine">reputation +' + c.rep.gain + ' with ' + esc((M.prov[c.rep.provider] || p).name) + '</p>' : '');
     // 2 / 3. the fleet, or the designs, against it
     if (c.kind === 'build') {
@@ -357,7 +386,7 @@
     return C;
   }
 
-  const CORE = { PAX_KG, mapAdapt, whereOf, rowsOf, rowWord, factsFor, critFor, critsOf, designsOf, fitOf, allows, payOf, pinOf, subsNow, stageOf,
+  const CORE = { PAX_KG, mapAdapt, whereOf, rowsOf, rowWord, factsFor, critFor, critsOf, designsOf, fitOf, allows, payOf, payWord, pinOf, subsNow, stageOf, CRIT_BY,
                  markersOf, routesOf, act, tabsHTML, listHTML, cardHTML, statusHTML, layersHTML, whereWord, LAYERS, TABS_ASSET };
   if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
   if (!W || !W.document) return;
@@ -366,8 +395,14 @@
   // THE DOM HALF
   // =================================================================================================================
   const D = W.document;
-  // THE ONE SOURCE LINE (CONTRACT-MODEL swaps its module in here: () => Promise.resolve(CONTRACT_MODEL.record()))
-  const MAP_SOURCE = () => fetch((W.FLYDIY_MAP_SRC && W.FLYDIY_MAP_SRC.fixture) || 'tools/fixtures/contracts_sample.json').then(r => r.json());
+  // THE ONE SOURCE LINE (G2320): the real record - the page's dev career (?career=1: FLYDIY_CAREER.record(), the
+  // career document through careerMapRecord), else a NEW career's offers in memory (careerNew; nothing is saved);
+  // ?mapsrc=fixture (or a page without the career core) reads the fixture, as MAP-MENU's stills do
+  const fixture = () => fetch((W.FLYDIY_MAP_SRC && W.FLYDIY_MAP_SRC.fixture) || 'tools/fixtures/contracts_sample.json').then(r => r.json());
+  const MAP_SOURCE = () => /[?&]mapsrc=fixture(&|$)/.test((W.location && W.location.search) || '') ? fixture()
+    : W.FLYDIY_CAREER && W.FLYDIY_CAREER.record ? Promise.resolve().then(() => W.FLYDIY_CAREER.record())
+    : (typeof careerMapRecord === 'function' && typeof careerNew === 'function') ? Promise.resolve().then(() => careerMapRecord(careerNew({ id: 'preview', seed: 'dev' }), null, {}))
+    : fixture();
 
   const CSS = `
 #mapScreen{--mm-bg:#1c1814;--mm-bg2:#26211c;--mm-line:rgba(255,238,214,.13);--mm-ink:#f3ece2;--mm-mid:#b9ac9c;--mm-dim:#857a6e;--mm-acc:#ffb257;--mm-ok:#63d3cc;--mm-no:#ff8a6e;
@@ -643,7 +678,16 @@
     if (a === 'fit') return fit();
     if (a === 'sheet') { if (t.dataset.swiped) { delete t.dataset.swiped; return; } st.sheet = st.sheet === 'open' ? 'peek' : 'open'; return render(); }
     if (a === 'back') { st.detail = false; return render(); }
-    if ((a === 'accept' || a === 'track') && (st.sel || '').startsWith('c:')) { act(M, st.sel.slice(2), a); return render(); }
+    if ((a === 'accept' || a === 'track') && (st.sel || '').startsWith('c:')) {
+      // (G2320) the dev career: Accept / Track write the career document (careerAccept / careerTrack), and the screen
+      // reads the record back; elsewhere they live in the session's adapted record, as before
+      if (M.source === 'career' && W.FLYDIY_CAREER && W.FLYDIY_CAREER.act) {
+        const raw = W.FLYDIY_CAREER.act(st.sel.slice(2), a);
+        if (raw) { let live = null; try { live = W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.doc ? W.FLYDIY_PLAYER.doc() : null; } catch (err) {} M = mapAdapt(raw, pack, live); }
+        return render();
+      }
+      act(M, st.sel.slice(2), a); return render();
+    }
     if (t.dataset.tab) { st.tab = t.dataset.tab; if (st.phone) st.detail = false; return render(); }
     if (t.dataset.layer) { st.layers[t.dataset.layer] = !st.layers[t.dataset.layer]; return render(); }
     if (t.dataset.sel !== undefined) {

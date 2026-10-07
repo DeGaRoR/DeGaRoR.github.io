@@ -374,6 +374,9 @@ const CONTRACT_TEXT = {
   'prov.survey.desc': CT_('Two desks and a lot of coast. Counts, samples, and new places to land.'),
   'prov.clients.name': CT_('Private clients & the Club'),
   'prov.clients.desc': CT_('People who want an aeroplane nobody sells, and a club that likes a challenge.'),
+  // (G2320 CAREER-WIRE) the providers' short names (the MAP's tabs)
+  'prov.field.short': CT_('Trust'), 'prov.minedock.short': CT_('Mine & Dock'), 'prov.resort.short': CT_('Resort'),
+  'prov.survey.short': CT_('Survey'), 'prov.clients.short': CT_('Clients'),
   // the tracks' stages (what goes up; STAGES draws them)
   'trk.field.1': CT_('The second hangar\'s shell, under repair'),
   'trk.field.2': CT_('The second hangar restored and the old tower lit'),
@@ -500,4 +503,8 @@ const CONTRACT_TEXT = {
   'follow.more': CT_('{k}: more than before'), 'follow.less': CT_('{k}: less than before'), 'follow.add': CT_('and now: {k}'),
   // medals
   'medal.gold': CT_('gold'), 'medal.silver': CT_('silver'), 'medal.bronze': CT_('bronze'),
+  // (G2320 CAREER-WIRE) a flight's stop, as the arrival card says it ({t} the contract, {n} a number or a reason, {at} a field)
+  'ev.picked': CT_('{t}: loaded at {at}'), 'ev.sub': CT_('{t}: done at stage {n}'), 'ev.stage': CT_('{t}: stage {n} done'),
+  'ev.done': CT_('{t}: complete, paid {n}'), 'ev.unlock': CT_('built: {n}'), 'ev.follow': CT_('the client asks again: {t}'),
+  'ev.pending': CT_('{t}: acceptance pending - {n}'), 'ev.none': CT_('{t}: {n}'), 'ev.wallet': CT_('wallet {n}'),
 };

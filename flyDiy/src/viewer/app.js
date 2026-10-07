@@ -456,19 +456,28 @@
   // still read them) but this build's write path is the document alone. View
   // state — hangarMobile, hangarEnvSrc, garageMood, groundShadow — stays a
   // pref: view state never flies, and view state is not property (G106).
-  const PLAYER_KEY = 'flydiy.player';
+  // G2320 (CAREER-WIRE): THE DEV CAREER, behind ?career=1 ALONE (welcome.js reads the same flag: FLYDIY_MODE
+  // 'career'; the menu's New career row stays "coming"). With it, the page's player document IS the career document
+  // (74_career.js, §13.2: a player document in mode 'career' with its `career` block) under flydiy.career.dev - created
+  // by careerNew (a fixed seed) on the first load, the saved builds lifted into ITS fleet as the sandbox lifts them -
+  // and the sandbox's flydiy.player is not read or written. WITHOUT the flag nothing below the CAREER_DEV guards runs:
+  // no career key is written and the sandbox is today's page (GATE UISMOKE / DESTTO hold both).
+  const CAREER_DEV = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })()
+    && typeof careerNew === 'function';
+  const PLAYER_KEY = CAREER_DEV ? careerKey('dev') : 'flydiy.player';
   let player = null;
   function playerLoad() {
     if (player) return player;
     let doc = null;
     try { doc = JSON.parse(prefGet(PLAYER_KEY, 'null')); } catch (e) {}
-    if (!doc) {                              // the one-time lift
+    if (!doc && CAREER_DEV) doc = careerNew({ id: 'dev', seed: 'dev', name: 'the dev career', started: new Date().toISOString().slice(0, 10) });
+    else if (!doc) {                         // the one-time lift
       let dims = null, parts = null;
       try { dims = JSON.parse(prefGet('flydiy.hangarDims', 'null')); } catch (e) {}
       try { parts = JSON.parse(prefGet('flydiy.hangarParts', 'null')); } catch (e) {}
       doc = playerLift(dims, parts);
     }
-    player = playerNormalise(playerMigrate(doc));
+    player = CAREER_DEV ? careerNormalise(doc) : playerNormalise(playerMigrate(doc));
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
@@ -6126,6 +6135,10 @@
     // because it is the one flight number with a declared envelope behind it
     // (the load test's +3.8 g limit).
     row('peak strain', (tel.hi.str || 0).toFixed(2) + ' %', 'warn');
+    // G2320 (CAREER-WIRE): THE CAREER'S EVENTS (the dev career) - a load taken on, a stage done, paid, a building
+    // unlocked, the follow-up, a delivery pending - and the wallet line
+    const CE = CAREER_DEV && flLastEnd && flLastEnd.career;
+    if (CE) for (const l of CE.lines) row(l.k === 'wallet' ? 'wallet' : 'career', String(l.text).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]), l.ok === false ? 'warn' : '');
     const cd = rep && rep.card;
     if (cd && (cd.alt != null || cd.V != null)) {
       const f = (a, v) => [a != null ? Math.round(a) + ' m' : null,
@@ -6177,6 +6190,7 @@
   let flSlot = null, flEnded = false, flLastEnd = null;
   function playerFlightStart() {
     flSlot = slotOnStand(); flEnded = false; flLastEnd = null;
+    if (CAREER_DEV) careerFlightStart();
     if (!flSlot) return;
     try {
       const f = (def && typeof playerFootOfDef === 'function') ? playerFootOfDef(def) : null;
@@ -6196,7 +6210,10 @@
         const r = playerArrive(d, flSlot, W.aero.id, {});
         if (r.ok) { d = r.doc; out.moved = { kind: r.kind, hangar: r.hangar || null, aero: W.aero.id }; }
       }
+      // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
+      if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       player = d; playerSave();
+      if (CAREER_DEV) careerPlateSync();
     } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
     flLastEnd = out;
     return out;
@@ -6211,6 +6228,143 @@
       return r;
     } catch (e) { return null; }
   }
+  // ---- G2320 (CAREER-WIRE): THE DEV CAREER'S PAGE HALF (every function below runs only under CAREER_DEV) --------------
+  // A FLIGHT'S STOP ADVANCES THE CAREER. The stop record (75_career_wire.js careerStopRecord, CONTRACT-MODEL's shape):
+  // how, the aerodrome (flightWhere's, when a departure could be planned from there), wrecked, the slot, the gear,
+  // the load aboard (the cabin's occupants beyond the pilot + the plate's cargo kg - the tracked contract's declared
+  // load unless typed), the logbook row (from, to, t), the aerodromes passed within their field radius during the
+  // flight, the world's hour. ACCEPT's acceptVerdict (ACCEPT_REC.verdict over the build that flew) is the hook a
+  // delivery's criteria are judged by. The result is saved with the player's document; its events go on the
+  // arrival card with the wallet line.
+  let crOver = [], crCargoKg = null, crPlateEl = null;
+  function careerFlightStart() { crOver = []; careerPlateSync(); }
+  function careerFrame(cg) {
+    if (!started || inGarage || !cg) return;
+    try { careerOverflewAdd(world, cg[0], cg[2], crOver); } catch (e) {}
+    if (crPlateEl && !crPlateEl.hidden) careerLegSync();
+  }
+  const careerCargo = () => {
+    if (crCargoKg != null) return crCargoKg;
+    const L = careerTrackedLoad(playerLoad());
+    return L ? L.kg : 0;
+  };
+  function careerStopApply(d, how, W, wrecked) {
+    const S = def && def.spec;
+    const stop = careerStopRecord({
+      how, aero: W && flightCanDepart(W) ? W.aero.id : null, wrecked, slot: flSlot,
+      gear: (S && typeof stripGear === 'function') ? stripGear(S) : null,
+      occupants: S && S.occupants != null ? S.occupants : 1, cargoKg: careerCargo(),
+      row: { from: fromId, to: destId, t: ap ? ap.t : 0 }, overflew: crOver,
+      hour: world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null,
+    });
+    const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
+    const res = careerOnStop(d, stop, { acceptVerdict: hook });
+    const lines = careerEventLines(res, d, res.doc);
+    crCargoKg = null;     // the next leg's cargo is the tracked contract's again unless typed
+    return { stop, ok: res.ok, why: res.why, events: res.events || [], untouched: res.untouched || {}, lines, doc: res.doc };
+  }
+  // the certificate facts of the career's airframes the map can state without running anything: a saved build whose
+  // shakedown this browser already holds (shakeFetch's memo / store, by the spec's hash; the build on the stand by its
+  // own) - else nothing, and the map says "certificate not read yet"
+  function careerCerts() {
+    const out = {};
+    for (const n of Object.keys(playerLoad().fleet || {})) {
+      try {
+        let s = null, spec = null;
+        if (n === slotOnStand() && curKey === 'gen' && def && shakeKnown()) { s = shakeOf(); spec = def.spec; }
+        else {
+          const env = JSON.parse(prefGet('flydiy.build.' + n, 'null'));
+          spec = env && env.spec;
+          const key = spec ? shakeHash(JSON.stringify(spec)) : null;
+          s = key ? (shakeMem.get(key) || ((shakeStore() || { entries: {} }).entries[key]) || null) : null;
+        }
+        const D = s ? careerDesignOfShake(s, spec, n) : null;
+        if (D) out[n] = D;
+      } catch (e) {}
+    }
+    return out;
+  }
+  const careerRecord = () => careerMapRecord(playerLoad(), world, { certs: careerCerts() });
+  // the map's Accept / Track: careerAccept / careerTrack on the document (Track on a contract not yet accepted accepts
+  // it first; Track on the tracked one untracks; Accept on an accepted one keeps it - abandoning is not this button's)
+  function careerAct(id, what) {
+    let d = playerLoad();
+    const C = d.career.contracts;
+    let r = null;
+    if (what === 'accept') r = C.accepted.includes(id) ? null : careerAccept(d, id);
+    else if (C.tracked === id) r = careerTrack(d, null);
+    else {
+      if (!C.accepted.includes(id)) { const a = careerAccept(d, id); if (!a.ok) return careerRecord(); d = a.doc; }
+      r = careerTrack(d, id);
+    }
+    if (r && r.ok) { player = r.doc; playerSave(); careerPlateSync(); }
+    else if (r && !r.ok) console.warn('flyDiy (career): ' + r.why);
+    return careerRecord();
+  }
+  // THE CAREER LINE ON THE FLIGHT PLATE (dev): the tracked contract's next step, the cargo aboard (kg, a dev input:
+  // the tracked contract's declared load unless typed), and - for a tracked BUILD contract whose criteria need the
+  // flown leg - "Fly the acceptance leg" (ACCEPT_REC.start: in the air, the autopilot flying; the signed leg is what
+  // acceptVerdict reads at the delivery's stop)
+  function careerPlateSync() {
+    if (!CAREER_DEV || typeof document === 'undefined' || !document.getElementById) return;
+    const host = $('flBrief');
+    if (!host) return;
+    if (!crPlateEl) {
+      crPlateEl = document.createElement('div');
+      crPlateEl.id = 'crPlate'; crPlateEl.className = 'flPlate';
+      crPlateEl.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:8px 12px;margin-top:6px;font-size:12.5px;max-width:520px';
+      crPlateEl.innerHTML = '<div id="crHead"><b>Career</b> <span id="crTrk"></span></div>' +
+        '<label id="crCargo">cargo aboard <input id="crKg" type="number" min="0" step="5" inputmode="numeric"> kg</label>' +
+        '<button id="crLeg" type="button" hidden>Fly the acceptance leg</button><span id="crLegWhy"></span>';
+      const ref = $('flNotice');
+      host.insertBefore(crPlateEl, ref || null);
+      const kg = crPlateEl.querySelector('#crKg');
+      kg.addEventListener('change', () => { const v = parseFloat(kg.value); crCargoKg = isFinite(v) && v >= 0 ? Math.round(v) : null; careerPlateSync(); });
+      crPlateEl.querySelector('#crLeg').addEventListener('click', careerLegStart);
+    }
+    const d = playerLoad(), C = d.career.contracts;
+    const rec = C.tracked ? careerContract(d, C.tracked) : null;
+    let t = 'nothing tracked: open the MAP';
+    if (rec) {
+      const L = C.live[C.tracked] || { stage: 0, subs: [] }, st = rec.stages[L.stage] || { subs: [] };
+      const nm = id => (CONTRACT_FIELDS[id] ? CONTRACT_FIELDS[id].name : id);
+      const next = st.subs.map((u, j) => L.subs[j] ? null : (u.do + (u.from ? ' ' + nm(u.from) + ' →' : '') + (u.to || u.at ? ' ' + nm(u.to || u.at) : ''))).filter(Boolean).join(' · ');
+      t = '★ ' + contractText(rec.title, contractVars(rec)) + (rec.stages.length > 1 ? ' · stage ' + (L.stage + 1) + '/' + rec.stages.length : '') + (next ? ' · ' + next : '');
+    }
+    crPlateEl.querySelector('#crTrk').textContent = t + ' · wallet ' + Math.round(d.wallet).toLocaleString('en-GB').replace(/,/g, ' ');
+    const kg = crPlateEl.querySelector('#crKg');
+    if (document.activeElement !== kg) kg.value = String(careerCargo());
+    careerLegSync();
+  }
+  function careerLegSync() {
+    if (!crPlateEl) return;
+    const crit = careerLegCrit(playerLoad()), b = crPlateEl.querySelector('#crLeg');
+    const show = crit.length > 0 && started && !inGarage;
+    b.hidden = !show;
+    if (!show) { crPlateEl.querySelector('#crLegWhy').textContent = ''; return; }
+    const at = crit.find(c => c.at && (c.at.pax || c.at.kg));
+    const lbl = 'Fly the acceptance leg' + (at ? ' (' + (at.at.pax ? at.at.pax + ' aboard beside the pilot' : '') + (at.at.pax && at.at.kg ? ', ' : '') + (at.at.kg ? at.at.kg + ' kg' : '') + ')' : '');
+    if (b.textContent !== lbl) b.textContent = lbl;
+    const A = window.ACCEPT_REC ? window.ACCEPT_REC.state() : null;
+    b.disabled = !!(A && A.where);
+    const w = A && A.where ? 'leg: ' + (A.stage || '') : (A && A.why) || '';
+    const el = crPlateEl.querySelector('#crLegWhy');
+    if (el.textContent !== w) el.textContent = w;
+  }
+  function careerLegStart() {
+    if (!window.ACCEPT_REC) return;
+    const crit = careerLegCrit(playerLoad()), at = (crit.find(c => c.at) || {}).at || null;
+    // the criterion's load: the leg is judged at what is aboard (the leg's record carries it); it is stated here
+    const r = window.ACCEPT_REC.start({ load: at ? { pax: at.pax || 0, kg: at.kg || 0 } : null });
+    if (!r.ok) console.warn('flyDiy (career): the acceptance leg did not start - ' + r.why);
+    careerLegSync();
+  }
+  if (CAREER_DEV) { try { careerPlateSync(); } catch (e) { console.warn('flyDiy (career): the plate -', e && e.message); } }
+  if (CAREER_DEV) window.FLYDIY_CAREER = {
+    key: PLAYER_KEY, doc: () => JSON.parse(JSON.stringify(playerLoad())), record: careerRecord, act: careerAct,
+    cargo: kg => { if (kg !== undefined) { crCargoKg = kg == null ? null : Math.max(0, Math.round(+kg || 0)); careerPlateSync(); } return careerCargo(); },
+    overflew: () => crOver.slice(), last: () => (flLastEnd && flLastEnd.career) || null, sync: careerPlateSync,
+  };
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
@@ -9528,6 +9682,7 @@
     }
     hudEnergy();
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
+    if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
     // number the PLAQUE actually declares. The stall is one — genShakedown
     // has measured `Vs` since G4 and the bench check quotes it. Vne and a

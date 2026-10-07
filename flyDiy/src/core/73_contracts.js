@@ -369,6 +369,17 @@ function contractCrit(rec) {
   return out;
 }
 
+// ---- WHAT THE CERTIFICATE CAN SAY (G2320, §R's follow-up to ACCEPT) ------------------------------------------
+// The structural certificate is the NORMAL category only (65_gen_loadtest.js: +3.8 g limit, 5.7 g ultimate for every
+// certified build): a criterion asking a stronger ultimate (the aerobatic box, "+6 g") is unwinnable until the
+// certificate takes a category. Such a contract is HELD OUT: never offered (74_career.js careerOfferIds), so never
+// accepted. It stays in the data, ready for the day the certificate can answer it.
+const contractCertUlt = () => (typeof GEN_LOAD_ULT === 'number' ? GEN_LOAD_ULT : 5.7);
+function contractCertifiable(rec) {
+  const ult = contractCertUlt();
+  return !contractCrit(rec).some(c => c.k === 'ultimateG' && typeof c.v === 'number' && c.v > ult + 1e-9);
+}
+
 // ---- THE AUTHORED CONTRACTS (the arcs and the standalone builds, normalised, by id) -------------------------
 function contractAuthored() {
   const out = {};

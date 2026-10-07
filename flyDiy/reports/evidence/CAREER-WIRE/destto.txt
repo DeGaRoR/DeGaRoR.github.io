@@ -1,0 +1,52 @@
+[run_gates] 0/3 jobs done · running DESTTO/2 30 s, DESTTO/1 30 s, DESTTO/0 30 s
+[run_gates] 0/3 jobs done · running DESTTO/2 60 s, DESTTO/1 60 s, DESTTO/0 60 s
+[run_gates] 0/3 jobs done · running DESTTO/2 90 s, DESTTO/1 90 s, DESTTO/0 90 s
+[run_gates] 0/3 jobs done · running DESTTO/2 120 s, DESTTO/1 120 s, DESTTO/0 120 s
+[run_gates] 0/3 jobs done · running DESTTO/2 150 s, DESTTO/1 150 s, DESTTO/0 150 s
+[run_gates] 0/3 jobs done · running DESTTO/2 180 s, DESTTO/1 180 s, DESTTO/0 180 s
+[run_gates] 0/3 jobs done · running DESTTO/2 210 s, DESTTO/1 210 s, DESTTO/0 210 s
+[run_gates] 0/3 jobs done · running DESTTO/2 240 s, DESTTO/1 240 s, DESTTO/0 240 s
+[run_gates] 0/3 jobs done · running DESTTO/2 270 s, DESTTO/1 270 s, DESTTO/0 270 s
+[run_gates] 0/3 jobs done · running DESTTO/2 300 s, DESTTO/1 300 s, DESTTO/0 300 s
+[run_gates] 0/3 jobs done · running DESTTO/2 330 s, DESTTO/1 330 s, DESTTO/0 330 s
+[run_gates] 0/3 jobs done · running DESTTO/2 360 s, DESTTO/1 360 s, DESTTO/0 360 s
+[run_gates] 0/3 jobs done · running DESTTO/2 390 s, DESTTO/1 390 s, DESTTO/0 390 s
+[run_gates] 0/3 jobs done · running DESTTO/2 420 s, DESTTO/1 420 s, DESTTO/0 420 s
+[run_gates] 0/3 jobs done · running DESTTO/2 450 s, DESTTO/1 450 s, DESTTO/0 450 s
+[run_gates] 0/3 jobs done · running DESTTO/2 481 s, DESTTO/1 480 s, DESTTO/0 480 s
+[run_gates] 0/3 jobs done · running DESTTO/2 511 s, DESTTO/1 511 s, DESTTO/0 511 s
+[run_gates] 1/3 jobs done · running DESTTO/2 541 s, DESTTO/1 541 s
+[run_gates] 1/3 jobs done · running DESTTO/2 571 s, DESTTO/1 571 s
+[run_gates] 1/3 jobs done · running DESTTO/2 601 s, DESTTO/1 601 s
+[run_gates] 1/3 jobs done · running DESTTO/2 631 s, DESTTO/1 631 s
+[run_gates] 1/3 jobs done · running DESTTO/2 661 s, DESTTO/1 661 s
+[run_gates] 1/3 jobs done · running DESTTO/2 691 s, DESTTO/1 691 s
+[run_gates] 1/3 jobs done · running DESTTO/2 721 s, DESTTO/1 721 s
+[run_gates] 1/3 jobs done · running DESTTO/2 751 s, DESTTO/1 751 s
+[run_gates] 1/3 jobs done · running DESTTO/2 781 s, DESTTO/1 781 s
+[run_gates] 2/3 jobs done · running DESTTO/2 811 s
+[run_gates] 2/3 jobs done · running DESTTO/2 841 s
+[run_gates] 2/3 jobs done · running DESTTO/2 871 s
+[run_gates] 2/3 jobs done · running DESTTO/2 901 s
+[run_gates] 2/3 jobs done · running DESTTO/2 931 s
+[run_gates] 2/3 jobs done · running DESTTO/2 961 s
+=== DESTTO ===
+--- shard 0/3 (533.6 s) ---
+  air:metal: ok (150 s) [shard 0/3]
+DESTTO: 0 failure(s), 533 s [shard 0/3]
+GATE DESTTO: PASS
+--- shard 1/3 (793.3 s) ---
+  ltd:jodel: ok (321 s) [shard 1/3]
+DESTTO: 0 failure(s), 793 s [shard 1/3]
+GATE DESTTO: PASS
+--- shard 2/3 (969.0 s) ---
+  ltd:twinFloats: ok (373 s) [shard 2/3]
+DESTTO: 0 failure(s), 969 s [shard 2/3]
+GATE DESTTO: PASS
+
+──────── summary ────────
+DESTTO    PASS   969.0 s  [3 shards]
+total            969.0 s
+wall             969.0 s  (jobs 3)
+
+BATTERY: PASS

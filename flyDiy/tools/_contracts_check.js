@@ -43,7 +43,12 @@
 //                  player normaliser keeps the block; refusals change nothing.
 //   THE IMPORT     a Block-5 pack imports over the keys; bad ids / config
 //                  words / unknown slots refused; the table handed in kept.
-//   PURITY         72_/73_/74_ touch no DOM, storage, THREE, clock or random.
+//   HELD OUT       (G2320) a contract asking an ultimate past the normal category's 5.7 g (the aerobatic box) is
+//                  never offered, never accepted; the clients' journey ends before it.
+//   THE WIRE       (G2320) 75_career_wire.js: the map's record off a career (providers, offers, resolved text,
+//                  contractPay, progress, the fleet's certificates), the stop record, ACCEPT as the hook, the
+//                  arrival card's lines, the overflight radius.
+//   PURITY         72_/73_/74_/75_ touch no DOM, storage, THREE, clock or random.
 //
 //   node tools/_contracts_check.js             -> "GATE CONTRACTS: PASS|FAIL"
 //   node tools/_contracts_check.js --show      also print the designs x classes table
@@ -58,7 +63,7 @@ const SELF = process.argv.includes('--selftest');
 const SHOW = process.argv.includes('--show');
 
 const SRC = {};
-for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js'])
+for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js'])
   SRC[f.slice(0, 2)] = fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8');
 const JOLENE = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
 const RUNWAYS = JOLENE.layers.runways;
@@ -74,7 +79,7 @@ function loadModel(mut) {
   const base = Object.assign({ console }, CORE);
   for (const n of names) delete base[n];
   const ctx = vm.createContext(base);
-  vm.runInContext(src['72'] + '\n' + src['73'] + '\n' + src['74'] + '\n;this.__M = { ' + names.join(', ') + ' };', ctx, { filename: 'contracts' });
+  vm.runInContext(src['72'] + '\n' + src['73'] + '\n' + src['74'] + '\n' + src['75'] + '\n;this.__M = { ' + names.join(', ') + ' };', ctx, { filename: 'contracts' });
   return Object.assign(ctx.__M, { __src: src });
 }
 
@@ -505,15 +510,22 @@ function run(mut) {
     };
     for (const p of Object.keys(PROV)) {
       let d = M.careerNew({ seed: 'journey-' + p }), good = true;
-      for (const r of PROV[p].arc) {
+      // (G2320) an arc contract the certificate cannot answer is HELD OUT: the journey ends before it, never offered
+      const held = PROV[p].arc.findIndex(r => !M.contractCertifiable(A[r.id]));
+      const flown = held < 0 ? PROV[p].arc : PROV[p].arc.slice(0, held);
+      for (const r of flown) {
         if (!d.career.contracts.offered.includes(r.id)) { good = ok(false, p + ' journey: ' + r.id + ' offered in its turn'); break; }
         d = accept(d, r.id);
         const rec = A[r.id];
         rec.stages.forEach(st => st.subs.forEach(sub => { for (const x of stopsFor(sub)) { const q = M.contractOnStop(d, r.id, x, hooks); if (q.ok) d = q.doc; } }));
         if (!d.career.contracts.done.some(x => x.id === r.id)) { good = ok(false, p + ' journey: ' + r.id + ' completes'); break; }
       }
+      if (good && held >= 0) {
+        const H = PROV[p].arc[held].id, lastUnlock = Math.max(0, ...flown.filter(r => A[r.id].unlock).map(r => +A[r.id].unlock.stage.split(':')[1]));
+        ok(!M.careerOfferIds(d).includes(H) && !M.careerAccept(d, H).ok, p + ' journey: ' + H + ' (beyond the normal-category certificate) is held out - never offered, never accepted');
+        ok(d.career.tracks[p] === lastUnlock && d.career.providers[p].arc === flown.length, p + ' journey: the arc up to the held-out contract, the track at its last unlock (' + lastUnlock + ')');
+      } else if (good) ok(d.career.tracks[p] === M.CONTRACT_TRACKS[p].max && d.career.providers[p].arc === PROV[p].arc.length, p + ' journey: the whole arc, the track built to its last stage');
       if (good) {
-        ok(d.career.tracks[p] === M.CONTRACT_TRACKS[p].max && d.career.providers[p].arc === PROV[p].arc.length, p + ' journey: the whole arc, the track built to its last stage');
         ok(d.wallet === 60000 + d.career.contracts.done.reduce((a, x) => a + x.pay, 0) && d.ledger.every(l => ['grant', 'contract'].includes(l.k)), p + ' journey: the wallet is the grant + the pay, nothing else charged');
       }
     }
@@ -556,6 +568,82 @@ function run(mut) {
     for (const s of words) ok(!M.contractConfigWord(s), id + ': names no configuration (' + M.contractConfigWord(s) + ')');
   }
   ok(M.contractConfigWord('I want a High-Wing with a Rotax') !== '' && M.contractConfigWord('four of us, fast') === '', 'the word check reads whole words, any case');
+
+  // ==== THE HELD-OUT CONTRACT (G2320, §R's follow-up to ACCEPT) ================
+  {
+    const ult = M.contractCertUlt();
+    ok(ult === 5.7, 'the certificate\'s ultimate is the normal category\'s 5.7 g (65_ GEN_LOAD_ULT)', ult);
+    const out = ids.filter(i => !M.contractCertifiable(A[i]));
+    ok(out.length >= 1 && out.every(i => M.contractCrit(A[i]).some(c => c.k === 'ultimateG' && c.v > ult)), 'held out: exactly the contracts asking an ultimate past ' + ult + ' g (' + out.join(', ') + ')');
+    const at = v => ({ id: 'x', stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [{ k: 'ultimateG', op: '>=', v }] }] }] });
+    ok(M.contractCertifiable(at(5.7)) && !M.contractCertifiable(at(5.8)) && M.contractCertifiable({ stages: [] }), 'certifiable: an ultimate of 5.7 g yes, 5.8 g no, no criterion yes');
+    // every offer a career can reach is certifiable: the clients' arc driven to the aerobatic box's turn
+    const d = M.careerNew({ seed: 'held' });
+    for (const id of ['clients.01', 'clients.02', 'clients.03', 'clients.04']) d.career.contracts.done.push({ id, at: 0, pay: 0 });
+    d.career.providers.clients.rep = 5;
+    const offers = M.careerOfferIds(d);
+    ok(offers.every(i => { const r = M.careerContract(d, i); return r && M.contractCertifiable(r); }) && !offers.includes('clients.05'), 'no offer asks past the certificate: clients.05 never offered (its needs met)');
+    ok(!M.careerAccept(d, 'clients.05').ok && M.careerAccept(d, 'clients.05').doc === d, 'clients.05 cannot be accepted (the same document back)');
+  }
+
+  // ==== THE WIRE (G2320 CAREER-WIRE: 75_career_wire.js) ========================
+  {
+    const d = M.careerNew({ id: 'dev', seed: 'dev' });
+    const R = M.careerMapRecord(d, null, {});
+    ok(R.providers.map(p => p.id).join() === Object.keys(PROV).join() && R.providers.every(p => p.name && !/^\[/.test(p.name) && p.short && !/^\[/.test(p.short) && /^#/.test(p.colour)),
+       'the map record: the five providers, named, short-named, coloured');
+    ok(R.contracts.length === d.career.contracts.offered.length && R.contracts.map(c => c.id).join() === d.career.contracts.offered.join(), 'the map record: a new career\'s offers (' + R.contracts.length + ': every provider\'s first arc contract + 3 jobs)');
+    ok(R.contracts.every(c => c.title && c.brief && !/\[|\{/.test(c.title + c.brief)), 'the map record: every title and brief resolved (contractText, slots filled)');
+    ok(R.contracts.every(c => c.pay.total === M.contractPay(M.careerContract(d, c.id)).total), 'the map record: the pay is contractPay\'s');
+    ok(R.career.wallet === 60000 && R.career.accepted.length === 0 && R.career.tracked === null && R.fleet.length === 0, 'the map record: the wallet, nothing accepted, no fleet yet');
+    // accept, track, and a carry job's progress read back
+    const job = d.career.contracts.offered.find(i => { const r = M.careerContract(d, i); return /^job:field:/.test(i) && r.stages[0].subs[0].do === 'carry'; });
+    const e = accept(d, job);
+    const R2 = M.careerMapRecord(e, null, {});
+    ok(R2.career.accepted[0] === job && R2.career.tracked === job && R2.contracts[0].id === job && R2.career.live[job].stage === 0, 'the map record: an accepted (tracked) job first, its progress');
+    ok(!R2.contracts.slice(1).some(c => c.id === job), 'the map record: an accepted contract is not also an offer');
+    // the fleet: the career's airframe row names a validated design -> its certificate; a shakedown reading -> its own; else none
+    const f = clone(e);
+    f.fleet = { Cub: { aero: 'HOME' }, Mine: { aero: 'HOME' }, Odd: { aero: 'w3' } };
+    f.career.airframes = { Cub: { design: 'cub' } };
+    const R3 = M.careerMapRecord(f, null, { certs: { Mine: M.CONTRACT_DESIGNS.c172 } });
+    const fc = n => R3.fleet.find(x => x.slot === n);
+    ok(fc('Cub').cert && fc('Cub').cert.seats === 2 && fc('Cub').cert.payloadKg === 90 && fc('Cub').cert.toRunM === M.CONTRACT_DESIGNS.cub.toM && fc('Cub').cert.ult === 5.7
+       && fc('Mine').cert && fc('Mine').cert.seats === 4 && fc('Odd').cert === null, 'the fleet\'s certificates: a design\'s, a shakedown\'s, none ("not read yet")');
+    ok(fc('Odd').where.aero === 'w3', 'the fleet: where it stands (playerWhere)');
+    // the stop record
+    const S = M.careerStopRecord({ how: 'stopped', aero: 'w3', occupants: 2, cargoKg: 34.6, row: { from: 'HOME', to: 'w3', t: 412.4 }, overflew: ['HOME', 'w3'], hour: 11.257 });
+    ok(S.aero === 'w3' && S.load.kg === 35 && S.load.pax === 1 && S.row.t === 412 && S.hour === 11.26 && S.overflew.join() === 'HOME,w3' && !S.wrecked, 'the stop record: the field, the load (occupants beyond the pilot + the cargo), the row, the hour');
+    ok(M.careerStopRecord({ how: 'over', aero: 'w3' }).aero === null, 'the stop record: an ending that is not a stop delivers nowhere');
+    // the stop advances the job; the event lines say so, with the wallet
+    const L = M.careerTrackedLoad(e), sub = M.careerContract(e, job).stages[0].subs[0];
+    ok(L && L.kg === sub.load.kg && L.pax === sub.load.pax, 'the tracked load: the plate\'s default cargo is the contract\'s');
+    const st = M.careerStopRecord({ how: 'stopped', aero: sub.to, occupants: 1 + (sub.load.pax || 0), cargoKg: L.kg, row: { from: sub.from, to: sub.to, t: 600 }, hour: 12 });
+    const res = M.careerOnStop(e, st, {});
+    const lines = M.careerEventLines(res, e, res.doc);
+    ok(res.ok && res.doc.career.contracts.done.some(x => x.id === job) && lines.some(l => l.k === 'done' && /paid/.test(l.text)) && lines.some(l => l.k === 'wallet' && /\+/.test(l.text)), 'a stop delivers the tracked job: done, paid, the card\'s lines (' + lines.map(l => l.text).join(' / ') + ')');
+    const no = M.careerOnStop(e, Object.assign({}, st, { aero: 'mk_sea' }), {});
+    ok(!no.ok && M.careerEventLines(no, e, no.doc).some(l => l.k === 'none'), 'a stop that moves nothing says why on the card');
+    // ACCEPT as the hook
+    const crit = [{ k: 'seats', op: '>=', v: 1 }, { k: 'tasKmh', op: '>=', v: 150 }];
+    const H = M.careerAcceptHook(c => ({ ok: false, rows: c.map(x => ({ k: x.k, ok: x.k === 'seats', value: x.k === 'seats' ? 2 : null, status: x.k === 'seats' ? 'ok' : 'needs-flight', source: 'no leg' })) }));
+    ok(H(null, { crit }, {}).ok === null, 'the hook: a criterion still to fly is pending');
+    const H2 = M.careerAcceptHook(c => ({ ok: true, rows: c.map(x => ({ k: x.k, ok: true, value: 170, status: 'ok' })) }));
+    ok(H2(null, { crit }, {}).ok === true && H2(null, { crit }, {}).got.tasKmh === 170, 'the hook: every criterion met -> approved, the measured values for the bonus');
+    const H3 = M.careerAcceptHook(c => ({ ok: false, rows: c.map(x => ({ k: x.k, ok: false, value: 120, status: 'fail', need: '>= 150' })) }));
+    ok(H3(null, { crit }, {}).ok === false && /tasKmh/.test(H3(null, { crit }, {}).why), 'the hook: a criterion failed -> refused, why');
+    ok(M.careerAcceptHook(null)(null, { crit }, {}).ok === null, 'the hook: no evidence on the page -> pending');
+    // the leg's criteria for the plate
+    let b = M.careerNew({ seed: 'leg' });
+    b.career.providers.clients.rep = 5;
+    b = accept(b, 'clients.b1');
+    ok(M.careerLegCrit(b).map(c => c.k).join() === 'enduranceMin', 'the plate: a tracked build contract\'s flown criteria (Fly the acceptance leg)');
+    ok(M.careerLegCrit(e).length === 0, 'the plate: a job asks no leg');
+    // the overflight: the field radius from the strip's rectangle
+    const Wf = { aerodromes: [{ id: 'A', x: 0, z: 0, len: 600, wid: 30, hdg: 0 }, { id: 'B', x: 5000, z: 0, len: 600, wid: 30, hdg: 0 }] };
+    const ov = M.careerOverflewAdd(Wf, 300 + 449, 0, []);
+    ok(ov.join() === 'A' && M.careerOverflewAdd(Wf, 300 + 451, 0, []).length === 0 && M.careerOverflewAdd(Wf, 5000, 100, ov).join() === 'A,B', 'the overflight: within the field radius of the strip, each once, in order');
+  }
 
   // ==== THE IMPORT (Block 5) =================================================
   {
@@ -645,7 +733,16 @@ const BREAKS = [
       "    for (const st of n.stages) for (const s of st.subs) for (const c of s.crit || []) if (c.k === pick.k) c.v = pick.to; else if (typeof c.v === 'number') c.v = c.v + 1;") }],
   ['a follow-up repeats a change', { s73: sub('if (!c || !K || !K.follow || done.has(k)) continue;', 'if (!c || !K || !K.follow) continue;') }],
   ['a follow-up pays the same', { s73: sub('  followPct: 15,', '  followPct: 0,') }],
-  ['no follow-up is offered', { s74: sub('    if (f && !taken.has(f.id)) out.push(f.id);', '') }],
+  ['no follow-up is offered', { s74: sub('    if (f && !taken.has(f.id) && contractCertifiable(f)) out.push(f.id);', '') }],
+  // (G2320) the held-out contract and the wire
+  ['the aerobatic contract is offered', { s74: sub('careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])', 'careerNeedsOk(doc, A[next.id])') }],
+  ['the certificate reads a stronger ultimate', { s73: sub("const contractCertUlt = () => (typeof GEN_LOAD_ULT === 'number' ? GEN_LOAD_ULT : 5.7);", 'const contractCertUlt = () => 9;') }],
+  ['the map record shows no accepted contract', { s75: sub('const contracts = C.accepted.concat(offered)', 'const contracts = offered') }],
+  ["the map record's pay is not contractPay's", { s75: sub('const pay = Object.assign(contractPay(rec, F), ', 'const pay = Object.assign({ total: (rec.pay && rec.pay.base) || 0 }, ') }],
+  ['the stop counts the pilot as a passenger', { s75: sub('pax: Math.max(0, occ - 1)', 'pax: occ') }],
+  ['a stop that is not one delivers', { s75: sub("aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,", 'aero: o.aero || null,') }],
+  ['the hook approves a pending verdict', { s75: sub('    return { ok: null, why: todo.map(', '    return { ok: true, got, why: todo.map(') }],
+  ['the overflight ignores the field radius', { s75: sub('if (flightStripGeom(a, x, z).d <= FLIGHT_FIELD_R) out.push(a.id);', 'out.push(a.id);') }],
   // (g1)
   ['a build criterion names a configuration', { s72: sub("'ct.clients.04.brief': CT_('A trainer for the club, cheap and forgiving.')", "'ct.clients.04.brief': CT_('A tricycle trainer for the club, cheap and forgiving.')") }],
   ['the word check is off', { s73: s => sub("  for (const w of CONTRACT_CONFIG_WORDS) if (t.includes(' ' + w + ' ')) return w;", '')(sub("'ct.clients.04.brief': CT_('A trainer", "'ct.clients.04.brief': CT_('A Rotax trainer")(s)) }],

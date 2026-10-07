@@ -15,6 +15,7 @@
 //   phone_open         ...a contract tapped: the sheet open on its card (accept, track, look; no flight)
 //   phone_list         ...the sheet open on the list
 //
+//   (G2320: the map now reads the real record; these stills keep the fixture with ?mapsrc=fixture)
 //   node tools/_serve.js 8125 &   node tools/map_menu_shot.js [--out reports/evidence/MAP-MENU] [--port 8125]
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -90,7 +91,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } }), pg = watch(await ctx.newPage());
     pg.on('pageerror', e => errs.push('[desk] ' + String(e.message || e).slice(0, 160)));
-    await pg.goto(URL0 + '?audio=0&map=1', { waitUntil: 'domcontentloaded' });
+    await pg.goto(URL0 + '?audio=0&map=1&mapsrc=fixture', { waitUntil: 'domcontentloaded' });
     await until(pg, () => !!document.getElementById('mapEntry'), 180000);
     await sleep(800);
     let st = await shot(pg, 'desk', 'entry', '?map=1: the MAP entry (top centre); nothing of the screen loaded yet');
@@ -135,7 +136,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     // the empty source
     const ctx2 = await browser.newContext({ viewport: { width: 1600, height: 900 } }), p2 = watch(await ctx2.newPage());
     p2.on('pageerror', e => errs.push('[empty] ' + String(e.message || e).slice(0, 160)));
-    await p2.goto(URL0 + '?audio=0&map=1', { waitUntil: 'domcontentloaded' });
+    await p2.goto(URL0 + '?audio=0&map=1&mapsrc=fixture', { waitUntil: 'domcontentloaded' });
     await until(p2, () => !!document.getElementById('mapEntry'), 180000);
     await ev(p2, () => window.FLYDIY_LAZY(['map_pack', 'map_menu']).then(() => window.MAP_MENU.open({ source: 'empty' })));
     await until(p2, () => !!document.getElementById('mapScreen'), 30000);
@@ -147,7 +148,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }), pg = watch(await ctx.newPage());
     pg.on('pageerror', e => errs.push('[phone] ' + String(e.message || e).slice(0, 160)));
-    await pg.goto(URL0 + '?audio=0&map=1&profile=phone', { waitUntil: 'domcontentloaded' });
+    await pg.goto(URL0 + '?audio=0&map=1&mapsrc=fixture&profile=phone', { waitUntil: 'domcontentloaded' });
     await until(pg, () => !!document.getElementById('mapEntry'), 180000);
     await tapSel(pg, '#mapEntry');
     await until(pg, () => !!document.getElementById('mapScreen') && window.MAP_MENU.model() && document.querySelector('#mapScreen .mmPlane img').complete, 60000);
