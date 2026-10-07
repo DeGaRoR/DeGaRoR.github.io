@@ -161,6 +161,9 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
+    // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
+    '72_contract_data.js', '73_contracts.js', '74_career.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172

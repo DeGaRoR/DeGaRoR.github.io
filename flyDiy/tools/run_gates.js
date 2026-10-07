@@ -607,6 +607,11 @@ const GATES = [
   // order-free), the fleet lift refuses nothing, moving is flying, every
   // refusal leaves the document as it came; 16 doctored rules. ~2 s
   { id: 'GAMEPREM', file: '_gameprem_check.js', tier: 'core' },
+  // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
+  // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
+  // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
+  // five designs' shakedown, cached in the OS temp dir by content)
+  { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR
