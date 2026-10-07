@@ -122,6 +122,10 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
+  // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
+  // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
+  { id: 'PROFILE', file: '_profile_check.js', tier: 'core', weight: 3, wall: 600 },
   // G1945 DEST-TO: ONE "TO" - the From derived (the field under the aeroplane), never a reset. On Jolene, the validated
   // builds, the damage ON: land at HOME, pick another field, the next leg taxis from the landing stop, takes off and
   // lands there (Cub, Jodel, metal Cessna; the floats and the twin on floats lane to lane); a To changed mid-way down
