@@ -81018,3 +81018,143 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2340-G2344 - FREIGHT-MODEL: A LOAD IS ITEMS WITH DIMS (BULK SPLIT INTO BAGS), THE HOLDS / DOORS / SEATS / PLAQUE MEASURED OFF THE VALIDATED BUILDS' OWN MESHES (FREIGHT_CARDS), THE DOOR RULE, THE PACKER WITHIN THE CERTIFIED CG RANGE / MTOW / FLOOR LIMITS (REPORTED, NEVER REFUSED), JOBS CARRY ITEMS AND STAY FLYABLE WITH VOLUME, THE MAP'S MARK ("NO DOOR FITS"), THE STOP RECORD'S ITEMS; GATE FREIGHT (2026-10-07, FREIGHT-MODEL for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/freight-model-g2340 off origin/claude/game-integration fe45b9a)
+
+The brief: futureDesigns/game/FREIGHT-2026-10-07.md §1, §2, §4 (RULED); GAME-2026-10-06.md §R / §R.2; G2240 CONTRACT-MODEL
+(the goods, careerOnStop's stop record load). **Pure core, node-loadable** (`src/core/76_freight.js`, MANIFEST.core after 75_,
+its exports appended to 90_); the mesh side is a tool (`tools/_freight_site.js`) built only on what the fuel path already
+measures with. No generated file committed (`node tools/build.js` before the gates). app.js, map_menu.js, welcome.js:
+untouched. No PLAYER_V step.
+
+**G2340 THE ITEMS** - `{ id, kind: crate|box|bag|drum|long|bulk|stretcher, kg, dims [L, W, H] m, rigid, stack }`
+(`FREIGHT_KINDS`: rigid, stack, `upright` - a full drum is never tipped, `flat` - a stretcher stays flat, `split`, `squeeze` -
+a soft bag gives 15 % through a door). **CONTRACT-MODEL's goods gain dims** (`FREIGHT_GOODS`, keyed by the goods word):
+parts = crates 0.8 x 0.6 x 0.5 <= 60 kg (the study's example: 120 kg of crated parts = 2 crates of 60), mail sacks 0.65 x 0.40 x
+0.30 <= 20, tool chests 0.60 x 0.35 x 0.30 <= 25, ore / water samples boxes, drill rods 1.5 m bundles <= 30, survey gear and a
+client's kit bags, the canoe = a FOLDING canoe in 25 kg packs (a rigid canoe is an external load: BELLY-POD), supplies =
+**bulk, split into 25 kg sacks (ruled)** (`freightSplit`, `FREIGHT_BAG`). `freightItems(load, goods)`: ceil(kg / unit) items
+of equal mass, the rest on the last - the kilos exactly, the same items every time; passengers are seats, not items. A load
+with no goods word (an authored arc's "40 kg") reads as 20 kg boxes (`FREIGHT_GENERIC`). The medevac stretcher
+`FREIGHT_STRETCHER` 2.0 x 0.6 x 0.5 m, 95 kg (§4b, listed, not built).
+
+**G2341 THE CARGO SPACES AND THE DOORS, MEASURED** - `tools/_freight_site.js` (node; `--write` rewrites the table between
+76_'s FREIGHT_CARDS-BEGIN / END marks) reads each validated build's own mesh through `_scene_headless.js`, with nothing new:
+- **the HOLD** = `_bay_site.js`'s inset sections (GEN_BAY_WALL off along the edge normals), the floor on the field's lv 1
+  rail (the floorboards), station by station every 0.10 m with the clear half-width per 0.05 m cell (centimetre integers),
+  from the front row's seat pan aft to **GEN_BAYS.aftCabin's own end** (genBayResolve, reused) or where the section closes
+  below 0.30 m. Spaces (`freightSpaces`): **the cabin floor behind the crew** (to the cabin's aft ring, `cabRear`) and **the
+  baggage bay** aft of it, each with its stated floor limit (`FREIGHT_FLOOR`: cabin 300, baggage 100 kg/m2; the baggage
+  bay also the plaque's baggage kg as its placard) and its station.
+- **the SEATS** = the join's measured stations (`cabin.seatsX`, back = x + 0.20 as _cage_join's SEAT_CG_FWD), rows by x,
+  abreast seats splitting the width; an empty seat is its pan + back (geometry the packer works around), an occupied one an
+  occupant's envelope; **the player chooses to take a seat out** (`seatsOut`, ruled; only an empty seat).
+- **the DOORS** = `_cage_gen.js cageDoorEdges`' outlines (each door each side), mapped to the game frame with the join's own
+  rule (x = zFw - z x FS, zFw the `wsFront` ring, G49): the clear rectangles (Pareto set, 2 cm handling clearance a side)
+  and the hold's station at the door. GEN_ACCESS's baggage door joins when the aeroplane has one (a bay > 0.25 m; none of the
+  five does).
+- **the PLAQUE** = genShakedown: MTOW = designGross; the base loading = the solo / full-fuel corner re-fed with
+  cabin.baggage = 0 (the allowance IS the freight); **the CERTIFIED CG RANGE** = the plaque's four corners, each with and
+  without its baggage allowance (so a flight with an empty back is inside the range it was certified over); the % MAC
+  datum solved off the corners.
+
+| design | hold (x aft of the windscreen base) | doors (each side) | MTOW / base | CG range |
+|---|---|---|---|---|
+| cub | 0.3-2.7 m (cabin to 2.30) | 0.03-0.99 m; 0.92 m wide at the sill, 1.04 m tall where 0.53 wide | 556 / 466 kg | 20.7-37.4 % |
+| jodel | 0.2-2.1 m (to 1.46) | 0.04-0.85 m; 0.77 wide, 0.84 tall at 0.51 | 543 / 453 | 25.4-29.4 % |
+| c172 | 0.2-3.1 m (to 1.85) | 0.04-0.95 m; 0.87 wide, 1.04 tall at 0.51 | 1043 / 763 | 28.0-36.2 % |
+| c172f | as the c172 | as the c172 | 1179 / 898 | 33.3-39.3 % |
+| twinf | none (nothing behind the pilot; the door is off) | none | 472 / 475 (!) | 30.9-32.5 % |
+
+**G2342 THE FIT AND THE PACKER** (`76_freight.js`, deterministic: no clock, no random, fixed candidate orders, ties to the
+first):
+- **the door** (`freightDoorPass` / `freightDoorAny` / `freightNoDoor`): an item passes a door if, held at some axis (phi
+  from the door's plane, psi round it) and roll, its slice in the door's plane fits one of the door's clear rectangles AND,
+  wholly inside at that attitude, its depth across the hold and its height fit the hold's section at the door (the
+  swing-in; straight in is the square case). An upright item goes in straight with its H vertical. Memoised by what decides
+  it (the openings, the station, the dims).
+- **the hold** (`freightHoldFits`, `freightRestY`): a box stands inside the clear section at every station it spans, on
+  the highest floor under it.
+- **the packer** (`freightPack(card, items, {pax, seatsOut, limits, doors})`): first fit, biggest then heaviest first; per
+  orientation the kind allows: on the floor before stacked (wholly on a stackable item), LOW (its middle's height), NEAR THE
+  CG (at the CG while the CG is in the certified range, else where it brings it back to the nearer limit), near the
+  middle; clear of the seats, the occupants and the other items, through a door. A first pass keeps the floors and the
+  baggage placard; if nothing does, it places anyway. -> `{ ok, placed: [{id, kind, kg, dims, at: {x0..z1}, on, door, how,
+  space}], unplaced: [{id, why}], report }`.
+- **the report** (`freightReport(card, placed, opts)`, also for a placement the player made - FREIGHT-LOAD's): the mass vs
+  the MTOW, the CG (x, % MAC, its side) vs the certified range, each floor-standing item's kg/m2 (with its stack) vs its
+  space, the baggage placard, the seats - margins and `why` lines. **A placement out of range is reported, never forbidden.**
+- **what a design can carry** (`freightFits`): a LEGAL loading exists - every item through a door, all packed with the
+  passengers seated, the proposal within every limit - seats in, else with the empty seats out (`seatsOut` says which);
+  `room` tells "no room" from "only out of limits".
+
+**G2343 THE GAME** -
+- **jobs carry items** (73_ `contractJob`: `load.items = freightItems(load, goods)`, re-made at every shrink);
+  `contractNormalise` normalises them, `contractValidate` holds known kinds, three dims and the items = the load's kilos.
+- **"every job is flyable" now includes the volume**: `contractSubFit` asks `freightFits` on the design's card when the load
+  has items (authored arc loads keep the kilo rule). GATE CONTRACTS' table moved by the volume alone: Cub short 484 -> 503,
+  altiport 1188 -> 1183; Jodel altiport 1188 -> 1079 (its 25.4-29.4 % range takes little behind the seats); C172 heavy 605
+  -> 586; every class still has a doer, none does every class.
+- **THE HARD NO-NO** (`freightMark(rec, fleet)`; 75_ `careerMapRecord` puts `mark` on every contract, `careerMapMark`):
+  `{ ok, gear: {ok, why}, door: {ok, why, items} }` - gear: some airframe uses both ends (water vs wheels, land vs floats-only),
+  door: one airframe that takes the gear takes every item through its doors, else **"no door fits: <items>"**; a build
+  contract carries none (§R.2); a fleet with no certificate, or a hold not measured (a shakedown-only airframe; `opts.cards`
+  for a card the page measured), never makes a ✗. map_menu.js is untouched (MAP-SIMPLE rebuilds it): read `contract.mark`.
+- **the stop record's load IS THE LOADED ITEMS** (75_ `careerStopRecord({ ..., items })` -> `load: { kg = their sum, pax,
+  items }` (bulk aboard as its bags); with none, the typed cargo kg - the fallback, unchanged). 73_ `contractSubOnStop`: with
+  items aboard, every item of the job's load must be aboard by id ("not aboard: tools.1"); without, the kilos as before.
+  `careerTrackedLoad` names the tracked job's items (what FREIGHT-LOAD packs).
+
+**THE STRETCHER (the geometry says - REPORTED)**: the 2.0 x 0.6 x 0.5 m stretcher fits **no validated design**. The Cub: no
+room behind the pilot and no door (its door takes a 0.6 x 0.5 section up to 0.90 m long). The C172 (and floats): **its hold
+HAS the room** with the seats out (x 0.75-2.75 m, flat on the floor) **but no door lets it in** - the 0.87 m door into a 1.06 m
+cabin swings in a 0.6 x 0.5 section up to 1.00 m long. So the medevac (§4b) needs a cargo door (a design's own, or a garage
+part) or a folding / scoop stretcher <= ~1 m packed - the user's call, below.
+
+**GATES** (built locally; `reports/evidence/FREIGHT-MODEL/`):
+- **GATE FREIGHT (new, `tools/_freight_check.js`, registered core tier after CONTRACTS): PASS, 1453 checks** - every
+  validated build's card re-measured off its mesh = FREIGHT_CARDS byte for byte (cached by the content that measures: the
+  core minus the game layer, the cage / bay / fit / scene tools, the build files; ~90 s cold, ~18 s warm) and the Cub
+  measured twice afresh every run, equal (`--full`: all five); the items (the crates example, every goods word's dims, the
+  kilos exact, bulk -> sacks); the doors (an oversize box refused on every design; the crate refused through the same doors
+  halved; monotone; a drum not tipped through a low door, stowed upright; the stretcher table above); the packer
+  (deterministic, order-free, inside, clear of seats / occupants / items, on the floor or wholly on a stackable item,
+  through a door, the report's mass and CG = the moments; near the CG); **the generated jobs: 120 jobs, 66 loads, 138
+  proposals by their doer designs - every one all placed with the CG in the plaque's range, the floors and the placard
+  held, under the MTOW**; reported never refused (a 200 kg drum over the floor limit, the Jodel's 70 kg of tools aft of its
+  range, three passengers + mail over the MTOW, a player's placement aft); the game (a stretcher job is no design's and the
+  C172 says why; the crates are the C172's; the mark: ✗ "no door fits", ✓, ✗ gear vs water, ✓ floats, none on a build,
+  none without a fleet, never ✗ from an unmeasured hold; the map record carries it); the stop record (items, the kilo
+  fallback, bulk as bags; a delivery with every item done, missing one refused and named, no items -> kilos; the tracked
+  load's items); purity. **`--selftest`: 23 of 23 doctored rules caught** (`freight_selftest.txt`).
+- **CONTRACTS: PASS (2260) + selftest PASS (every break caught)**; **ACCEPT --reuse: PASS (189)**; **GAMEPREM PASS (533) +
+  selftest**, **PLAYER PASS (37) + selftest**, **SAVE PASS**; run_gates `--only=FREIGHT,CONTRACTS,PLAYER,GAMEPREM,SAVE,MEDIA,
+  REF,UPDATE`: all PASS but **MEDIA, which is red on the base too** (fe45b9a built the same way: the two orphans
+  media/map/jolene_map.c620385a.png + jolene_proj.2f8c83c4.json, MAP-MENU's, and the base already +269.5 KB over the
+  committed index.html of the 307 KB one build may add); this branch adds **+48.8 KB** (76_ is 44.8 KB of source, 10.6 KB of
+  it the five cards), which tips the "over HEAD" row only against the stale committed index.html - after the coordinator's
+  next committed build it is 49 KB of 307.
+- Not run: the full tier, UISMOKE (nothing in the page calls the model yet; the map record gains one field).
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: `tools/build.js` (76_freight.js after 75_), `90_node_exports.js` (appended), `tools/run_gates.js` (one
+  row after CONTRACTS), 73_ (normaliser / validator / contractSubFit / contractJob / contractSubOnStop: each a marked block),
+  75_ (careerStopRecord, careerTrackedLoad, careerMapMark + one line in careerMapRecord).
+- **FOR THE USER**: (1) the medevac stretcher fits no validated design's door (above): a cargo door, or a folding stretcher?
+  (2) the Jodel's certified range (25.4-29.4 %) is narrow, so it carries little behind its seats legally (its altiport jobs
+  1188 -> 1079) - as measured, not a rule; (3) the twin's design gross (471.7 kg) is below its own solo full-fuel mass (475.4)
+  on the patched floats file - pre-existing, the plaque's; reported on its card.
+- **FREIGHT-LOAD (G2345)**: `freightPack` is the proposal (opts.seatsOut is the player's seat config), `freightReport` the
+  live CG / limits for moved items, `freightHoldFits` / `freightDoorAny` the drag's legality, `card.hold` the cut-away's
+  geometry (stations x cells), `freightSpaces`, `freightObstacles`. Accept -> hand the placed items to `careerStopRecord`'s
+  `items` at the stop (app.js playerFlightEnd: today it passes `cargoKg`).
+- **FREIGHT-STRAP (G2400)**: the placed boxes' centres and kilos are the point masses; the frame bills the baggage
+  allowance at its own station today - the packer's base removes it (the card's base), so the sim should too when items
+  are aboard.
+- **A player's own build has no card** (only the five validated designs are measured): `_freight_site.js` measures any
+  spec headless; the garage can run it on save (or the page with the sheet in hand) and pass `opts.cards[slot]` to the map.
+  Until then such an airframe never makes a door ✗ and is no job's doer by volume.
+- The door rule is a fixed-attitude swing-in (a box is not pivoted while half in); a long thin item that a real loader
+  would thread diagonally may read tight. The rule errs on the side of "it does not go".
+
+READY for the GAME COORDINATOR: claude/freight-model-g2340 0ff43ed (the code, gates and evidence; this section rides one docs-only commit on top)
