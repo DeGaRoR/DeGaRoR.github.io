@@ -456,8 +456,8 @@ function run(mut) {
     ok(box.r === undefined, 'the sandbox: careerCrewProfile() is undefined - makePilot is handed the profile it was (the expert / the persona\'s)'); }
   // the door into makePilot (inline and the worker's): before PILOT-PERSONA the flag's own ternary; with it, the persona
   // keeper's personaProfile() answering the career first (the career's pick; 'me' the expert), the sandbox the persona's
-  const viaTernary = /makePilot\(sim, def, world, \{[^}]*profile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP) && /pilotProfile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP);
-  const viaPersona = /makePilot\(sim, def, world, \{[^}]*profile: personaProfile\(\)/.test(APP) && /pilotProfile: personaProfile\(\)/.test(APP)
+  const viaTernary = /makePilot\(sim, def, world, \{[^}]*profile: CAREER_DEV \? careerCrewProfile\(\) : undefined/.test(APP) && /pilotProfile: CAREER_DEV \? careerCrewLatched\(\) : undefined/.test(APP);
+  const viaPersona = /makePilot\(sim, def, world, \{[^}]*profile: personaProfile\(\)/.test(APP) && /pilotProfile: CAREER_DEV \? careerCrewLatched\(\) : personaProfile\(\)/.test(APP)
     && /function personaProfile\(\) \{\s*if \(CAREER_DEV\) return careerCrewProfile\(\) \|\| 'expert';/.test(APP);
   ok(viaTernary || viaPersona, 'the inline pilot and the worker\'s read the career\'s door, behind the flag (' + (viaPersona ? 'through personaProfile' : 'the ternary') + ')');
   for (const call of ['careerCrewRow(host, where);', 'pilotsOnFlightEnd(d, {', 'r.pilot = crFlyer']) {

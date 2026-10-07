@@ -512,6 +512,7 @@
 #mapScreen .mmFace img{width:100%;height:100%;object-fit:cover}
 #mapScreen .mmTraits{display:flex;flex-wrap:wrap;gap:6px}
 #mapScreen .mmTrait{font-style:normal;font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid var(--mm-line);color:var(--mm-mid)}
+#mapScreen .mmPRow .mmRowS{padding-left:0}
 #mapScreen .mmFlies{color:var(--mm-ink)}
 #mapScreen .mmPActs{padding:0 14px 12px 76px;flex-wrap:wrap}
 #mapScreen .mmSec{padding:0 14px}

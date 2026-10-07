@@ -6404,16 +6404,20 @@
     const r = pilotsCanFly(d, id, rollFromId(), careerCrewLeg());
     return { id, ok: r.ok, why: r.why || '', boat: !!r.boat, kind: r.kind || null };
   }
-  // what makePilot is handed (undefined: the expert, as before): the pick's profile when they will fly it
+  // what makePilot is handed (undefined: the expert, as before): the pick's profile when they will fly it. DECIDED when
+  // a pilot is made (mkPilot: the shed's, the roll-out's fullReset, a Fly on) and LATCHED with it - the worker's per-frame
+  // read (SIM_LINK's get) takes the latch, so a flight's pilot never changes under it (and its end logs who flew it)
+  var crProf;
   function careerCrewProfile() {
     if (!CAREER_DEV || typeof pilotsProfileOf !== 'function') return undefined;
     try {
       const c = careerCrewCheck();
       crFlyer = (c.id !== 'me' && c.ok) ? c.id : 'me';
       careerCrewBody();
-      return crFlyer === 'me' ? undefined : pilotsProfileOf(playerLoad(), crFlyer);
-    } catch (e) { console.warn('flyDiy (career): the pilot -', e && e.message); crFlyer = 'me'; return undefined; }
+      return (crProf = crFlyer === 'me' ? undefined : pilotsProfileOf(playerLoad(), crFlyer));
+    } catch (e) { console.warn('flyDiy (career): the pilot -', e && e.message); crFlyer = 'me'; return (crProf = undefined); }
   }
+  function careerCrewLatched() { return crFlyer ? crProf : careerCrewProfile(); }
   // the crew's pilot seat wears the flying pilot's body (tools/chars_table.py key); "I fly" hands the seat back to the
   // build's own pilotWho
   function careerCrewBody() {
@@ -12749,7 +12753,7 @@
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
-    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: CAREER_DEV ? careerCrewProfile() : undefined, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: CAREER_DEV ? careerCrewLatched() : undefined, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
