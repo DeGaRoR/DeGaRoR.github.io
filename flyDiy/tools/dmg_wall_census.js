@@ -38,7 +38,7 @@ const CASES = {
   'trunk-0':   { label: 'a trunk at 30 m/s, the centreline', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [[200, 22, 14], [300, 45, 20], [120, 12, 7]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26], [140, 15, 7]] },
   'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6]] },
-  'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10]] },
+  'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10], [180, 72, 11]] },
 };
 
 // ---- in the page ----
@@ -222,7 +222,14 @@ async function pageRunOn(o) {
   for (let f = 0; f < 40; f++) await raf();
   if ('__dwWind0' in window) { P.world().wind = window.__dwWind0; delete window.__dwWind0; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
-  return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
+  // (the coordinator: which members broke, the first break, the peaks over their limits; the attitude at rest - on its
+  // back = the body's up axis pointing down)
+  const df = P.def(), tg = i => (df.nodes[i] && df.nodes[i].tag) || String(i);
+  const nm = bi => { const b = sim.beams[bi]; return b ? tg(b.a) + '-' + tg(b.b) + ' ' + b.cls + '/' + (b.sec || '') : String(bi); };
+  let peaks = null; try { const PK = sim.damagePeak && sim.damagePeak(); if (PK) { const L2 = []; for (let i = 0; i < PK.t.length; i++) L2.push([i, Math.max(PK.t[i], PK.c[i])]);
+    peaks = L2.sort((a, b) => b[1] - a[1]).slice(0, 6).map(([i, r]) => nm(i) + ' ' + r.toFixed(2)); } } catch (e) {}
+  const detail = { upY: +sim.axes()[1][1].toFixed(2), brokenNames: D.broken.slice(0, 20).map(nm), firstBreak: D.firstBreak, at: D.at, gPeak: D.gPeak, peaks };
+  return { detail, steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
     frameMed: +q[q.length >> 1].toFixed(1), frameMax: +q[q.length - 1].toFixed(1),
     skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null };
 }
@@ -252,14 +259,126 @@ function pageHeal(mode) {
   const H = {}; let i = 0;
   for (const [mesh, par] of B.parentOf) { const g = mesh.geometry, pa = g && g.attributes.position; if (!pa) continue;
     const name = keyOf.get(mesh) || ((par && par.name) || 'part') + '#' + (i++);
-    H[name] = { idx: g.index ? fnv(g.index.array) : 0, pos: statics.has(pa) ? fnv(pa.array) : 0, ext: ext(pa.array) }; }
-  if (mode === 'fresh') { window.__dwFresh = H; return { n: Object.keys(H).length }; }
+    // (the giant sheets: its triangles with an edge past 2 m, drawn now - DMG-D4b's measure)
+    let gi = 0; if (mode !== 'fresh') { const ix = g.index ? g.index.array : null, A = pa.array, nt = ix ? g.index.count / 3 : A.length / 9;
+      for (let t = 0; t < nt; t++) { const a = ix ? ix[t*3] : t*3, b = ix ? ix[t*3+1] : t*3+1, c = ix ? ix[t*3+2] : t*3+2; if (a === b && b === c) continue;
+        const e = (i, j) => Math.hypot(A[i*3] - A[j*3], A[i*3+1] - A[j*3+1], A[i*3+2] - A[j*3+2]); if (Math.max(e(a, b), e(b, c), e(a, c)) > 2) gi++; } }
+    H[name] = { idx: g.index ? fnv(g.index.array) : 0, pos: statics.has(pa) ? fnv(pa.array) : 0, ext: ext(pa.array), giant: gi,
+                mat: mesh.material && mesh.material.color ? '#' + mesh.material.color.getHexString() : '', kind: statics.has(pa) ? 'static' : (keyOf.get(mesh) ? 'posed' : 'part') }; }
+  // (the SNAPSHOT itself - window.CAGE_VISUAL's groups and parts, positions and index: never written by a wreck, G1858.2)
+  let sh = 2166136261 >>> 0; const D0 = m.data || {};
+  const snapArrs = []; for (const G of [D0.groups].concat((D0.parts || []).map(p => p.groups))) if (G) for (const k of Object.keys(G).sort()) for (const f of ['pos', 'idx']) if (G[k] && G[k][f] && G[k][f].buffer) snapArrs.push(G[k][f]);
+  for (const a of snapArrs) sh = (Math.imul(sh ^ fnv(a), 16777619)) >>> 0;
+  if (mode === 'fresh') { window.__dwFresh = H; window.__dwFreshSnap = sh; return { n: Object.keys(H).length, snap: sh }; }
+  const snapSame = window.__dwFreshSnap === sh;
   const F = window.__dwFresh || {}, bad = [], grown = [];
   for (const k in H) { const f = F[k]; if (!f) continue;
     if (f.idx !== H[k].idx || f.pos !== H[k].pos) bad.push(k + (f.idx !== H[k].idx ? ' idx' : '') + (f.pos !== H[k].pos ? ' pos' : ''));
     if (f.ext > 0.02 && H[k].ext > 1.3 * f.ext) grown.push([k, +(H[k].ext / f.ext).toFixed(2), +f.ext.toFixed(2)]); }
   grown.sort((a, b) => b[1] - a[1]);
-  return { n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
+  const giant = Object.entries(H).filter(([, h]) => h.giant).map(([k, h]) => k + ' ' + h.kind + ' ' + h.mat + ' x' + h.giant);
+  return { snapSame, giant: giant.slice(0, 12), nGiant: giant.length, n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
+}
+// THE TEARS, BY WING AND BY REASON (the coordinator, the user's review of a nose-over that combed both wings into strips):
+// every removed triangle of the WING layer's covering, left and right (the design frame's z), by its dead code - 1 the event
+// (two pieces / across a broken member), 2 the stretch tear, 3 G1858's cut, 4 gone with its covering, 5 DMG-D4b's debris -
+// and the live ones posed STALE: a vertex whose distance to its dominant node moved by more than 0.3 m against the rest
+// (a fragment not riding its piece). The inherited records only (K.inhL; the old binding's records carry no layers)
+function pageTears() {
+  const m = FLIGHT_PROBE.model(), K = m.brk, sim = FLIGHT_PROBE.sim();
+  if (!K || !K.inhL) return { none: true };
+  const lay = new Map(); for (const r of (m.data && m.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
+  const out = { L: { live: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, stale: 0 }, R: { live: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, stale: 0 }, staleAt: [] };
+  for (const E of K.inhL) {
+    const R = E.R, rg = lay.get(E.name); if (!rg || !R.dead) continue;
+    const layer = new Array(R.nv).fill(''); for (const r of rg) for (let v = r[2]; v < r[3] && v < R.nv; v++) layer[v] = r[0];
+    const ix = R.idx0 || R.idx, B = R.baseD, W = R.w, Kk = R.K, rest = K.rest, live = sim.p;
+    for (let t = 0; t < R.nt; t++) { const a = ix[t * 3]; if (layer[a] !== 'wing' || E.cv[a] !== 2) continue;
+      const side = B[a * 3 + 2] >= 0 ? 'R' : 'L', d = R.dead[t];
+      if (d) { out[side][d] = (out[side][d] || 0) + 1; continue; }
+      out[side].live++;
+      let st = false;
+      for (let q = 0; q < 3 && !st; q++) { const v = ix[t * 3 + q], dn = R.dom ? R.dom[v] : R.wi[v * Kk];
+        const r0 = Math.hypot(B[v*3] - rest[dn*3], B[v*3+1] - rest[dn*3+1], B[v*3+2] - rest[dn*3+2]);
+        const l0 = Math.hypot(W[v*3] - live[dn*3], W[v*3+1] - live[dn*3+1], W[v*3+2] - live[dn*3+2]);
+        if (Math.abs(l0 - r0) > 0.3) { st = true; if (out.staleAt.length < 8) out.staleAt.push({ name: E.name, t, v, dom: dn, rest: +r0.toFixed(2), live: +l0.toFixed(2) }); } }
+      if (st) out[side].stale++; }
+  }
+  return out;
+}
+// UNDER THE PHYSICS WORKER (A0's rule: the default mode): the page's own loop flies the crash - the flight started, the
+// hand on the controls, the aeroplane placed with its speed (FLIGHT_PROBE.place: the worker's sim, never the view's
+// arrays), the trunk / stump in world.treeHits (it reaches the worker, G1330) - then watched until the solver's 'over'
+// (or the time cap) and its debris at rest. Not a replay: one crash, the drawing as the game draws it
+async function pageFlyW(o) {
+  const P = FLIGHT_PROBE, world = P.world();
+  const go = document.getElementById('bGo'); if (go && !P.over() && go.offsetParent) go.click();
+  await new Promise(r => setTimeout(r, 2500));
+  P.setManual(true);
+  const sim = P.sim(), [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl;
+  const c = sim.cgPos(), g = world.terrainH(c[0], c[2]);
+  let yMin = Infinity; for (let i = 1; i < sim.p.length; i += 3) yMin = Math.min(yMin, sim.p[i]);
+  await P.place({ at: [c[0], g + (o.agl || 0) + (c[1] - yMin) + 0.05, c[2]], zeroV: true, dv: [o.V * fx, 0, o.V * fz] });
+  const c2 = sim.cgPos(), tx = c2[0] + fx * o.D - fz * (o.off || 0), tz = c2[2] + fz * o.D + fx * (o.off || 0), gt = world.terrainH(tx, tz), R = o.r || 0.3, H = o.top || 10;
+  world.treeHits.set('fill:wallworker', [tx, tz, gt, R, gt + H]);
+  const scene = P.craft().parent;
+  if (window.__dwTrunkW) scene.remove(window.__dwTrunkW);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R + 0.05, H, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
+  m.position.set(tx, gt + H / 2, tz); m.castShadow = true; scene.add(m); window.__dwTrunkW = m;
+  try { sim.ctl.thr = 0; } catch (e) {}
+  // (the verdict the PAGE holds - FLIGHT_PROBE.damage(), the worker's mirrored - and the broken list the drawing reads -
+  // FLYDIY_DMG_STATE(): under the worker the view's own sim.damage() may not carry them; a trace of the CG and its speed,
+  // so a crash that never happened says why)
+  const verdict = () => { const D = (P.damage && P.damage()) || (sim.damage ? sim.damage() : null) || {}, S = window.FLYDIY_DMG_STATE ? window.FLYDIY_DMG_STATE() : null;
+    return { crashed: !!D.crashed, over: !!D.over, reason: D.reason || null, broken: S && S.br ? S.br.length : (D.broken ? D.broken.length : null) }; };
+  const trace = [], t0 = performance.now(); let overAt = 0;
+  while (performance.now() - t0 < (o.secs || 14) * 1000) {
+    await new Promise(r => setTimeout(r, 250));
+    const V = verdict(), cg = sim.cgPos(); let vx = 0, vz = 0; for (let i = 0; i < sim.n; i++) { vx += sim.v[i * 3]; vz += sim.v[i * 3 + 2]; }
+    if (trace.length < 60) trace.push([+((performance.now() - t0) / 1000).toFixed(1), +Math.hypot(cg[0] - tx, cg[2] - tz).toFixed(2), +(Math.hypot(vx, vz) / sim.n).toFixed(2), V.broken, V.over ? 1 : 0]);
+    if ((V.over || V.crashed) && !overAt) overAt = performance.now();
+    if (overAt && performance.now() - overAt > 4000) break;
+  }
+  return Object.assign({ worker: !!sim.dmgState, flightOver: P.over(), trunkKeys: [...world.treeHits.keys()].filter(k => /wall/.test(k)), trace },
+           verdict(), { skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null });
+}
+// THE AEROPLANE IN EVERY SCENE (GATE DMGWALLPATH's check, on the box): the stand's editor mount in the shed, the flown
+// model, any older flown model still in a scene; per mesh (scene : name < parent >) its triangles with an edge past 2 m
+// and its material colour
+function pageScenes() {
+  const FP = FLIGHT_PROBE, out = {}, seen = window.__wpGrps || (window.__wpGrps = new Set());
+  try { const m = FP.model(); if (m && m.grp) seen.add(m.grp); } catch (e) {}
+  const roots = [];
+  try { const mt = window.CAGE_JOIN && CAGE_JOIN.mount && CAGE_JOIN.mount(); if (mt) roots.push(['stand', mt]); } catch (e) {}
+  let cur = null; try { cur = FP.model() && FP.model().grp; } catch (e) {}
+  for (const g of seen) if (g.parent) roots.push([g === cur ? 'flown' : 'OLD-MODEL-IN-A-SCENE', g]);
+  // (and every mesh in the shed's or the world's scene whose positions SHARE A BUFFER with the snapshot - a parked copy,
+  // the stand, a bake built from it: the coordinator's candidates)
+  const snapBufs = new Set(), D0 = (FP.model() && FP.model().data) || window.CAGE_VISUAL || {};
+  for (const G of [D0.groups].concat((D0.parts || []).map(p => p.groups))) if (G) for (const k in G) for (const f of ['pos', 'idx']) if (G[k] && G[k][f] && G[k][f].buffer) snapBufs.add(G[k][f].buffer);
+  const shared = new Set();
+  for (const sc of [(() => { try { return FP.hangarScene(); } catch (e) { return null; } })(), (() => { try { return FP.craft().parent; } catch (e) { return null; } })()]) if (sc) sc.traverse(o => {
+    if (o.isMesh && o.geometry && o.geometry.attributes.position && o.geometry.attributes.position.array && snapBufs.has(o.geometry.attributes.position.array.buffer)) shared.add(o); });
+  for (const o of shared) roots.push(['SNAPSHOT-SHARED', o]);
+  for (const [tag, root] of roots) root.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
+    // (G1858.2: a SKINNED mesh - the hybrid fold, a bone a part - is measured on its SKINNED positions: the raw attribute
+    // of a part whose bone kept the wreck's matrix is clean while the drawing is not; and its bones off their bind by more
+    // than 0.5 m are listed)
+    const g = o.geometry, ix = g.index ? g.index.array : null; let A = g.attributes.position.array; let n = 0;
+    if (o.isSkinnedMesh && o.skeleton && (o.applyBoneTransform || o.boneTransform)) { try {
+      o.skeleton.update(); const T3 = THREE, v = new T3.Vector3(), cnt = g.attributes.position.count, S = new Float32Array(cnt * 3), f = o.applyBoneTransform ? 'applyBoneTransform' : 'boneTransform';
+      for (let i = 0; i < cnt; i++) { v.fromBufferAttribute(g.attributes.position, i); o[f](i, v); S[i*3] = v.x; S[i*3+1] = v.y; S[i*3+2] = v.z; }
+      A = S;
+      const Mi = new T3.Matrix4().copy(o.matrixWorld).invert(), M = new T3.Matrix4(), p = new T3.Vector3(), off = [];
+      o.skeleton.bones.forEach((b, i) => { M.multiplyMatrices(Mi, b.matrixWorld).multiply(o.skeleton.boneInverses[i]); p.setFromMatrixPosition(M); const d = p.length(); if (d > 0.5) off.push((b.name || 'bone' + i) + ' ' + d.toFixed(2)); });
+      if (off.length) { const kb = 'BONES-OFF-BIND:' + (o.name || 'mesh') + ' ' + off.slice(0, 6).join(', '); out[kb] = off.length; }
+    } catch (e) { out['SKIN-ERR:' + (o.name || 'mesh') + ' ' + String(e && e.message || e).slice(0, 80)] = 1; } }
+    const nt = ix ? g.index.count / 3 : A.length / 9;
+    for (let t = 0; t < nt; t++) { const a = ix ? ix[t*3] : t*3, b = ix ? ix[t*3+1] : t*3+1, c = ix ? ix[t*3+2] : t*3+2; if (a === b && b === c) continue;
+      const e = (i, j) => Math.hypot(A[i*3] - A[j*3], A[i*3+1] - A[j*3+1], A[i*3+2] - A[j*3+2]); if (Math.max(e(a, b), e(b, c), e(a, c)) > 2) n++; }
+    if (n) { const col = o.material && o.material.color ? '#' + o.material.color.getHexString() : ''; const k = tag + ':' + (o.name || 'mesh') + '<' + ((o.parent && o.parent.name) || '') + '>' + col; out[k] = (out[k] || 0) + n; } });
+  return out;
 }
 // THE BOOT: the page up, the build kept, rolled out, the roll-out screen gone
 async function pageBootStep(k) {
@@ -296,6 +415,48 @@ if (require.main === module) (async () => {
   console.log('fresh ' + JSON.stringify(R0.fresh));
   if (has('probe')) { const pr = await run(pageProbe); fs.writeFileSync(path.join(OUT, 'probe.json'), JSON.stringify(pr, null, 1)); console.log(JSON.stringify(pr).slice(0, 3000)); if (!opt('cases', null)) return; }
   const names = opt('cases', Object.keys(CASES).join(',')).split(','), modes = opt('modes', 'after').split(',');
+  if (has('worker')) {                                    // (the default mode: one crash a case, flown by the page)
+    // (each sheet captioned 'flown, default mode' - A0)
+    const RW = { at: new Date().toISOString(), worker: true, cases: {} };
+    const shootW = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
+      const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
+    for (const k of names) {
+      const C = CASES[k], out = { label: C.label, shots: [] };
+      out.fly = await run(pageFlyW, C.o);
+      out.tears = await run(pageTears);
+      console.log(k + ' worker ' + JSON.stringify(out.fly).slice(0, 500) + ' tears ' + JSON.stringify(out.tears));
+      for (const [ci, c] of C.cams.entries()) { await run(pageView, c); const f = path.join(OUT, k + '_' + (ci + 1) + '_flown_default_mode.jpg');
+        const cz = await run(pageCensus); if (cz && cz.clsJpg) { fs.writeFileSync(f.replace(/\.jpg$/, '_cls.jpg'), Buffer.from(cz.clsJpg, 'base64')); delete cz.clsJpg; }
+        out.shots.push({ cam: c, file: await shootW(f), census: cz }); console.log('  worker cam' + (ci + 1) + ' other ' + cz.other + ' % ' + JSON.stringify(cz.otherBy)); }
+      RW.cases[k] = out;
+      // (the next case from a fresh aeroplane: back to the hangar and out again - the heal checked on the way)
+      await post('/eval', "(() => { const b = document.getElementById('bHangar2'); if (!b) return 'no button'; b.click(); return 'ok'; })()");
+      await sleep(6000);
+      out.shedScenes = await run(pageScenes);
+      console.log(k + ' in the shed after the crash: aeroplane meshes past 2 m ' + JSON.stringify(out.shedScenes));
+      { const tmp = path.join(OUT, k + '_shed_stand_flown_default_mode.png'); await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
+        fs.writeFileSync(tmp.replace(/\.png$/, '.jpg'), Buffer.from(await run(pageJpeg, png), 'base64')); }
+      for (let a = 0; a < 6; a++) { await run(pageBootStep, 'go'); await sleep(5000); if (await run(pageBootStep, 'flying')) break; }
+      for (let i = 0; i < 60; i++) { const bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
+      await sleep(2000);
+      out.healNext = await run(pageHeal, 'check'); console.log(k + ' after the shed + roll-out: heal ' + JSON.stringify(out.healNext));
+      out.rollScenes = await run(pageScenes); console.log(k + ' after the roll-out: aeroplane meshes past 2 m ' + JSON.stringify(out.rollScenes));
+      const ok = out.healNext && out.healNext.snapSame && out.healNext.healed && out.healNext.nGiant === 0;
+      console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + k + ': crash -> the shed -> roll-out: the snapshot unwritten ' + (out.healNext && out.healNext.snapSame) + ', healed ' + (out.healNext && out.healNext.healed) + ', triangles past 2 m ' + (out.healNext && out.healNext.nGiant));
+      RW.fails = (RW.fails || 0) + (ok ? 0 : 1);
+      fs.writeFileSync(path.join(OUT, 'census_worker.json'), JSON.stringify(RW, null, 1));
+    }
+    const wl = ['# DMG-WALL - ' + path.basename(OUT) + ' - FLOWN, DEFAULT MODE', '', '**Flown, default mode** (the physics worker): the page\'s own loop flies each crash once (placed with its speed, the trunk / stump in world.treeHits). tools/dmg_wall_census.js --worker.', ''];
+    for (const [k, c] of Object.entries(RW.cases)) {
+      wl.push('## ' + k + ' - ' + c.label + ' (flown, default mode)', '', 'verdict: ' + JSON.stringify({ crashed: c.fly.crashed, over: c.fly.over, reason: c.fly.reason, broken: c.fly.broken }) + '; heal after, through the hangar: ' + (c.healNext && c.healNext.healed), '');
+      for (const sh of c.shots) wl.push('- `' + sh.file + '` (+ `_cls`) - camera ' + JSON.stringify(sh.cam) + ': not yellow ' + sh.census.other + ' % (by layer: ' + Object.entries(sh.census.otherBy || {}).map(([a, b]) => a + ' ' + b).join(', ') + ')');
+      wl.push('');
+    }
+    fs.writeFileSync(path.join(OUT, 'README.md'), wl.join('\n'));
+    console.log('GATE WALLPATH: ' + (RW.fails ? 'FAIL' : 'PASS') + ' (crash -> the shed -> roll-out, flown, default mode)');
+    console.log('WALL_CENSUS done ' + OUT);
+    return;
+  }
   const R = Object.assign(R0, { at: new Date().toISOString(), modes, cases: {} });
   const shoot = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
     const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
@@ -313,13 +474,15 @@ if (require.main === module) (async () => {
     // ONE crash (flown under the inherited binding), then each mode REPLAYS its recorded node path: the same wreck
     await post('/run', 'window.FLYDIY_WALLBIND = true; window.FLYDIY_SKINWALL = true; return 1;');
     out.crash = await run(pageStage, Object.assign({}, C.o));
-    console.log(k + ' crash', JSON.stringify(out.crash).slice(0, 600));
+    console.log(k + ' crash', JSON.stringify(out.crash.detail), JSON.stringify(out.crash).slice(0, 300));
     if (out.crash && out.crash.err) { R.cases[k] = out; continue; }
     for (const mode of modes) {
       // before: the old binding, no cut (the drawing until G1858); g1858: the old binding and the lining cut; after: inherited
       await post('/run', 'window.FLYDIY_WALLBIND = ' + (mode === 'after') + '; window.FLYDIY_SKINWALL = ' + (mode !== 'before') + '; return 1;');
       const st = out.stage[mode] = await run(pageReplay);
       st.stretch = await run(pageHeal, 'check');
+      st.tears = await run(pageTears);
+      console.log('  ' + mode + ' tears ' + JSON.stringify(st.tears));
       console.log(k + ' ' + mode, JSON.stringify(st).slice(0, 900));
       await sleep(1500);
       for (const [ci, c] of C.cams.entries()) {
@@ -352,7 +515,7 @@ if (require.main === module) (async () => {
   fs.writeFileSync(path.join(OUT, 'census.json'), JSON.stringify(R, null, 1));
   // the README: a line a picture (the evidence board reads it)
   const cap = c => 'not yellow ' + c.other + ' % of the Cub\'s pixels' + (c.otherBy ? ' (by layer: ' + Object.entries(c.otherBy).map(([k, v]) => k + ' ' + v).join(', ') + ')' : '');
-  const lines = ['# DMG-WALL census - ' + path.basename(OUT), '', 'The user\'s Cub, `?damage=1&simw=0`, tools/dmg_wall_census.js. Modes: **before** = the drawing until G1858 (each place on its own nearest nodes), ' +
+  const lines = ['# DMG-WALL census - ' + path.basename(OUT) + ' - STAGED INLINE', '', '**Staged inline** (`?simw=0`: the crash stepped and replayed in the page - a replay needs the page\'s own sim). The user\'s Cub, `?damage=1&simw=0`, tools/dmg_wall_census.js. Modes: **before** = the drawing until G1858 (each place on its own nearest nodes), ' +
     '**g1858** = + the lining cut at the damage, **after** = the binding inherited (G1855-G1859). Each `_cls.jpg` is the same frame drawn by layer: covering white, its back face RED, ' +
     'lining MAGENTA, frame tubes / bulkheads CYAN, fireproof ORANGE, sill / door pads PURPLE, dash / cabin BLUE, beads / glazing GREEN, parts GREY.', ''];
   for (const [k, c] of Object.entries(R.cases)) {

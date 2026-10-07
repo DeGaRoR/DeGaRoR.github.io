@@ -80763,3 +80763,54 @@ MD5 of (p, v) at the end and the numbers. Bit-identical is impossible where the 
 - Merged: claude/dmg-nose (011daf60), its whole delivery (reports/evidence/DMG-NOSE/, tools/_dmg_nose_check.js, ...).
 - The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage
   stays OFF by default.
+## G1858.2-G1858.3 / G1859.5 DMG-WALL FOLLOW-UP FOR TRAIN 39 - THE SNAPSHOT NEVER WRITTEN, THE LINING CUT WHERE A BAY CRUSHED (2026-10-06/07, DMG-WALL for the DEFORM COORDINATOR; branch claude/dmg-wall-cowl off claude/dmg-integration 4300dc58)
+
+On top of the train-38 READY b9377615 (merged in d3d5e24e):
+- **G1858.2 - copy on the first break** (app.js brkDetach): the flown model's geometries WRAP the cage snapshot's own
+  arrays (mkGeo: positions, index, normals - and the parts' groups likewise), so a wreck's riding and its removed triangles
+  were written into window.CAGE_VISUAL itself. Before each wreck record is made, the snapshot group owning its arrays takes
+  COPIES (positions from the rig's AS-BUILT array: an ordinary flight already writes its pose - the flex, the hinges, the
+  parts - into the shared arrays, measured 32 of the Cub's between the garage and the air, so a copy of the live array
+  froze that pose), and the flown model keeps riding the arrays every view of it shares. An intact aeroplane pays nothing.
+  NOT the giant-sheets bug (below): DMG-D4b's box run shows the sheets survive it; it is kept because it is right (the
+  snapshot no longer written by a wreck; 33 shared meshes fewer).
+- **G1858.3 - the lining cut where a bay crushed** (skin_break.js hotNodes(crush) / cutWall(R, hot, cv); app.js brkWallCut
+  mode 'inh'): the inherited wall rides its covering point at its depth and cannot come out unless the covering folds
+  tighter than that depth - which a bay that crushes and holds together does: DMG-TUNE's Jodel at 30 m/s (2.22 % past
+  1 mm, worst 7.6 cm) and NOSE's metal Cessna nose-in (2.75 %) turned GATE DMGWALL red. The wall's own triangles bound to a
+  node of a member set past SET_CRUSH (2 %) are cut (dead 3) at the events and the new sets, never per frame. GATE DMGWALL
+  98/98 on D:/Dev/dmgwall-tune (this branch + the TUNE trial e7df17d5 on 9500f197) and on D:/Dev/dmgwall-int (this branch +
+  plain 9500f197) - reports/evidence/DMG-WALL/gate_dmgwall_on_tune_trial.txt / gate_dmgwall_on_9500f197.txt.
+- **G1859.5 - incomplete, harmless**: a cowl panel's one binding blends the engine mount's members too. Still one rigid
+  binding (DMGWALL's no-stretch row holds), but the mount's members tie it half to the firewall's S0 nodes, which stay on
+  the core when the mount breaks: in the 3 m/s taxi the engine block lies by the wheel while the cowl stays on the nose.
+  G1859.6 (the cowl on the engine's OWN members, ENGL-ENGR / CGE-ENGL / CGE-ENGR) was written and REVERTED (a82f3d9c) -
+  train 40 work, it needs a GPU taxi re-shoot.
+- **The rigs**: tools/dmg_wall_census.js --worker (the default mode, A0's rule: the page flies the crash under the physics
+  worker; the shed -> roll-out heal; every scene's aeroplane meshes past 2 m incl. the stand, an old model left in a scene,
+  meshes sharing a buffer with the snapshot; skinned meshes on their skinned positions and their bones off their bind) and
+  the crash's detail (the broken members by node tags, the first break, the attitude); tools/_dmg_wallpath_check.js
+  (DMGWALLPATH, the node page under the worker: the 30 m/s crash -> the shed -> roll-out both ways) - NOT REGISTERED: its
+  selftest does not go red (the node page makes no flown bake, so it cannot see the bug below).
+
+**The giant sheets after crash -> the shed -> roll-out** (the user; DMG-D4b found it): a STALE GPU BUFFER - every CPU array
+healed, the hybrid fold's range never re-uploaded after a heal write. In node (DMG-D4b's GATE DMGUPLOAD, the page's GL
+wrapped with a byte shadow) this branch's heal writes are clean - brkNrm, brkPosMirror, the index mirror: 1148 drawn
+buffers, GPU = CPU. Fix: DMG-D4b 98f2b905 (folds marked stale at every heal); box A/B at 03:28 pending.
+
+**Findings for the next sessions (measured on the page, the user's Cub, staged inline, the wind off):**
+- the 3 m/s taxi into a trunk (r 0.30 m, h 10 m, 6 m ahead on the centreline, throttle shut) breaks 13 members on the page
+  - ALL the engine mount (ENGL-ENGR, CGE-ENGL, CGE-ENGR, ENGL / ENGR / CGE to S0TL / S0TR / S0BL / S0BR; first break t 3.28 s,
+  'fold', gPeak 2.93 g) - NONE touch the tank (VSNL / VSNR); in node the same staging breaks NOTHING (tools: scratchpad taxi_strike.js on dmgwall-int, the same staging, cert off and on: the prop STRIKES at t 3.18 s in node too - 0.10 s before the page's first break - and not one member breaks in node in 6 s; the strike moment agrees, the mount's breaking does not: the parity hunt starts at the strike's load on the mount);
+- the nose-over staging (12 m/s into a 35 cm stump) puts the Cub on its back in NODE (up axis -0.92, 50 broken) but leaves it
+  UPRIGHT on the page (up axis 0.97: the axle, the S4-S6 bottom bays and the tail broken) - with the taxi, the second
+  node / page difference for the parity hunt;
+- an ordinary flight writes its pose into the cage snapshot's shared arrays (32 of the Cub's) - pre-existing, not a wreck;
+  whether it ever shows (a rest or a save carrying the flexed / hinged pose) is not measured yet.
+
+**The DMG gate set on D:/Dev/dmgwall-int (claude/dmg-wall-cowl a82f3d9c + 9500f197, merge 67108b6c), 2026-10-07 05:00-05:43
+under CPU_BATTERY_WALL, the DMG rows read from the tree's own run_gates.js: ALL GREEN** - DMGCERT 72/72, DMGCERTCOST 12/12,
+DMGCLUSTERS 33/33, DMGDRIVE PASS, DMGFPS 54/54, DMGGEAR PASS, DMGINST 145/145, DMGINTEGRITY 116/116, DMGMEMBERS 70/70,
+DMGNOSE 83/83, DMGSKIN 131/131, DMGWALL 98/98, DMGWIND 41/41, TREECRASH 80/80, TREEHIT 50/50, UISMOKE 29/29, BUILD, JOIN
+(BATTERY: PASS, 2882 s of jobs, 2534 s wall) - reports/evidence/DMG-WALL/gates_night_dmgwall_int.txt.
+

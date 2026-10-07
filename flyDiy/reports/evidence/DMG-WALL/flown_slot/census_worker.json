@@ -1,0 +1,414 @@
+{
+ "at": "2026-10-06T19:27:01.213Z",
+ "worker": true,
+ "cases": {
+  "trunk-0": {
+   "label": "a trunk at 30 m/s, the centreline",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "file": "trunk-0_1_flown_default_mode.jpg",
+     "census": {
+      "px": 15293,
+      "yellow": 68.4,
+      "darkYellow": 2.46,
+      "other": 29.14,
+      "greyOrBlack": 9.41,
+      "otherBy": {
+       "outer": 18.52,
+       "liner": 0.04,
+       "struct": 1.09,
+       "fire": 0.17,
+       "sill": 0.15,
+       "cabin": 2.24,
+       "part": 4.73,
+       "back": 2.2
+      },
+      "allBy": {
+       "outer": 68.99,
+       "liner": 0.05,
+       "struct": 1.77,
+       "fire": 0.8,
+       "sill": 0.45,
+       "cabin": 2.73,
+       "part": 18.43,
+       "back": 6.77
+      },
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "file": "trunk-0_2_flown_default_mode.jpg",
+     "census": {
+      "px": 8298,
+      "yellow": 67.63,
+      "darkYellow": 0.9,
+      "other": 31.47,
+      "greyOrBlack": 16.05,
+      "otherBy": {
+       "outer": 21.73,
+       "liner": 0.01,
+       "struct": 0.33,
+       "fire": 0.28,
+       "sill": 0.1,
+       "cabin": 1.53,
+       "part": 4.5,
+       "back": 3
+      },
+      "allBy": {
+       "outer": 73.85,
+       "liner": 0.01,
+       "struct": 0.46,
+       "fire": 0.99,
+       "sill": 0.22,
+       "cabin": 1.64,
+       "part": 17.59,
+       "back": 5.24
+      },
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      7
+     ],
+     "file": "trunk-0_3_flown_default_mode.jpg",
+     "census": {
+      "px": 53203,
+      "yellow": 68.86,
+      "darkYellow": 2.36,
+      "other": 28.78,
+      "greyOrBlack": 10.71,
+      "otherBy": {
+       "outer": 9.37,
+       "liner": 0.07,
+       "struct": 2.29,
+       "fire": 0.12,
+       "sill": 0.22,
+       "cabin": 7.25,
+       "trim": 0,
+       "part": 6.37,
+       "back": 3.1
+      },
+      "allBy": {
+       "outer": 42.66,
+       "liner": 0.08,
+       "struct": 2.87,
+       "fire": 0.55,
+       "sill": 0.56,
+       "cabin": 8.1,
+       "trim": 0,
+       "part": 29.42,
+       "back": 15.75
+      },
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "fly": {
+    "worker": true,
+    "flightOver": true,
+    "trunkKeys": [
+     "fill:wallworker"
+    ],
+    "trace": [
+     [
+      0.3,
+      33.12,
+      29.46,
+      0,
+      0
+     ],
+     [
+      0.5,
+      25.35,
+      28.86,
+      0,
+      0
+     ],
+     [
+      0.8,
+      17.75,
+      28.19,
+      0,
+      0
+     ],
+     [
+      1,
+      11.29,
+      27.46,
+      0,
+      0
+     ],
+     [
+      1.3,
+      4.21,
+      26.02,
+      0,
+      0
+     ],
+     [
+      1.8,
+      3.42,
+      15.59,
+      122,
+      1
+     ],
+     [
+      2.1,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      2.4,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      2.7,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      3,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      3.3,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      3.6,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      3.9,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      4.2,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      4.5,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      4.8,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      5.1,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      5.4,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      5.7,
+      3.42,
+      15.59,
+      129,
+      1
+     ],
+     [
+      6,
+      3.42,
+      15.59,
+      129,
+      1
+     ]
+    ],
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "broken": 129,
+    "skin": {
+     "on": true,
+     "recs": 126,
+     "ms": {
+      "records": 102.69999980926514,
+      "event": 60.800000071525574,
+      "frames": 1.5,
+      "pose": 37.89999997615814,
+      "recordsT": 104.59999978542328,
+      "eventT": 172.59999978542328,
+      "poseT": 2611.300000309944,
+      "frameMax": 214.30000007152557,
+      "n": 95,
+      "inh": 29.800000071525574,
+      "inhT": 237.49999964237213
+     },
+     "removed": 24368,
+     "torn": 5091,
+     "tris": 202022,
+     "riding": 606066
+    },
+    "wall": {
+     "on": false,
+     "inh": true,
+     "recs": 3,
+     "tris": 11112,
+     "cut": 6658,
+     "followed": 291,
+     "bind": {
+      "places": 85171,
+      "tube": 7245,
+      "tubeFar": 1431,
+      "cover": 41261,
+      "wall": 13301,
+      "wallFar": 17,
+      "rigid": 21916,
+      "parts": 73,
+      "bigParts": 8,
+      "keep": 142920,
+      "over8": 554,
+      "done": true,
+      "tubeLoose": 48,
+      "tubePieces": 21,
+      "tubeJoint": 88
+     }
+    }
+   },
+   "tears": {
+    "L": {
+     "1": 40,
+     "2": 91,
+     "3": 0,
+     "4": 0,
+     "5": 0,
+     "live": 5071,
+     "stale": 0
+    },
+    "R": {
+     "1": 65,
+     "2": 98,
+     "3": 0,
+     "4": 0,
+     "5": 0,
+     "live": 4927,
+     "stale": 0
+    },
+    "staleAt": []
+   },
+   "shedScenes": {
+    "stand:mesh<>": 64,
+    "BONES-OFF-BIND:char:ch22:Ch22_Body mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 27.95, mixamorig2:Spine2 27.72, mixamorig2:Neck 4.04, mixamorig2:Head 15.02": 65,
+    "stand:char:ch22:Ch22_Body<Ch22_Body>#ffffff": 1417,
+    "BONES-OFF-BIND:char:ch22:Ch22_Eyelashes mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 27.95, mixamorig2:Spine2 27.72, mixamorig2:Neck 4.04, mixamorig2:Head 15.02": 65,
+    "BONES-OFF-BIND:char:ch22:Ch22_Hair mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 27.95, mixamorig2:Spine2 27.72, mixamorig2:Neck 4.04, mixamorig2:Head 15.02": 65,
+    "stand:char:ch22:Ch22_Hair<Ch22_Hair>#ffffff": 2678,
+    "BONES-OFF-BIND:char:ch22:Ch22_Pants mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 27.95, mixamorig2:Spine2 27.72, mixamorig2:Neck 4.04, mixamorig2:Head 15.02": 65,
+    "stand:char:ch22:Ch22_Pants<Ch22_Pants>#ffffff": 4793,
+    "BONES-OFF-BIND:char:ch22:Ch22_Shirt mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 27.95, mixamorig2:Spine2 27.72, mixamorig2:Neck 4.04, mixamorig2:Head 15.02": 65,
+    "stand:char:ch22:Ch22_Shirt<Ch22_Shirt>#ffffff": 509,
+    "BONES-OFF-BIND:char:ch22:Ch22_Sneakers mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 27.95, mixamorig2:Spine2 27.72, mixamorig2:Neck 4.04, mixamorig2:Head 15.02": 65,
+    "stand:char:ch22:Ch22_Sneakers<Ch22_Sneakers>#ffffff": 651,
+    "BONES-OFF-BIND:flownBaked bone0 2.58, bone1 2.58, bone2 2.58, bone3 2.58, bone4 1.27, bone5 1.29": 23,
+    "BONES-OFF-BIND:flownBaked bone0 2.58, bone1 0.57, bone2 2.58, bone3 2.58, bone4 2.58, bone5 2.58": 10,
+    "BONES-OFF-BIND:flownBakedIn bone0 4.51, bone1 4.90, bone2 4.90, bone3 4.35, bone4 4.55, bone5 4.65": 19,
+    "BONES-OFF-BIND:flownBakedIn bone0 4.51": 1,
+    "BONES-OFF-BIND:char:ch22:Ch22_Body mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 27.41, mixamorig2:Spine2 27.19, mixamorig2:Neck 1.84, mixamorig2:Head 11.46": 65,
+    "flown:char:ch22:Ch22_Body<Ch22_Body>#ffffff": 1038,
+    "BONES-OFF-BIND:char:ch22:Ch22_Eyelashes mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 27.41, mixamorig2:Spine2 27.19, mixamorig2:Neck 1.84, mixamorig2:Head 11.46": 65,
+    "BONES-OFF-BIND:char:ch22:Ch22_Hair mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 27.41, mixamorig2:Spine2 27.19, mixamorig2:Neck 1.84, mixamorig2:Head 11.46": 65,
+    "flown:char:ch22:Ch22_Hair<Ch22_Hair>#ffffff": 2605,
+    "BONES-OFF-BIND:char:ch22:Ch22_Pants mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 27.41, mixamorig2:Spine2 27.19, mixamorig2:Neck 1.84, mixamorig2:Head 11.46": 65,
+    "flown:char:ch22:Ch22_Pants<Ch22_Pants>#ffffff": 4539,
+    "BONES-OFF-BIND:char:ch22:Ch22_Shirt mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 27.41, mixamorig2:Spine2 27.19, mixamorig2:Neck 1.84, mixamorig2:Head 11.46": 65,
+    "flown:char:ch22:Ch22_Shirt<Ch22_Shirt>#ffffff": 472,
+    "BONES-OFF-BIND:char:ch22:Ch22_Sneakers mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 27.41, mixamorig2:Spine2 27.19, mixamorig2:Neck 1.84, mixamorig2:Head 11.46": 65,
+    "flown:char:ch22:Ch22_Sneakers<Ch22_Sneakers>#ffffff": 631
+   },
+   "healNext": {
+    "snapSame": false,
+    "giant": [],
+    "nGiant": 0,
+    "n": 236,
+    "healed": true,
+    "bad": [],
+    "nBad": 0,
+    "grown": [],
+    "nGrown": 0
+   },
+   "rollScenes": {
+    "stand:mesh<>": 64,
+    "BONES-OFF-BIND:char:ch22:Ch22_Body mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 28.85, mixamorig2:Spine2 29.12, mixamorig2:Neck 2.41, mixamorig2:Head 12.35": 65,
+    "stand:char:ch22:Ch22_Body<Ch22_Body>#ffffff": 1417,
+    "BONES-OFF-BIND:char:ch22:Ch22_Eyelashes mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 28.85, mixamorig2:Spine2 29.12, mixamorig2:Neck 2.41, mixamorig2:Head 12.35": 65,
+    "BONES-OFF-BIND:char:ch22:Ch22_Hair mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 28.85, mixamorig2:Spine2 29.12, mixamorig2:Neck 2.41, mixamorig2:Head 12.35": 65,
+    "stand:char:ch22:Ch22_Hair<Ch22_Hair>#ffffff": 2678,
+    "BONES-OFF-BIND:char:ch22:Ch22_Pants mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 28.85, mixamorig2:Spine2 29.12, mixamorig2:Neck 2.41, mixamorig2:Head 12.35": 65,
+    "stand:char:ch22:Ch22_Pants<Ch22_Pants>#ffffff": 4793,
+    "BONES-OFF-BIND:char:ch22:Ch22_Shirt mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 28.85, mixamorig2:Spine2 29.12, mixamorig2:Neck 2.41, mixamorig2:Head 12.35": 65,
+    "stand:char:ch22:Ch22_Shirt<Ch22_Shirt>#ffffff": 507,
+    "BONES-OFF-BIND:char:ch22:Ch22_Sneakers mixamorig2:Hips 32.18, mixamorig2:Spine 28.42, mixamorig2:Spine1 28.85, mixamorig2:Spine2 29.12, mixamorig2:Neck 2.41, mixamorig2:Head 12.35": 65,
+    "stand:char:ch22:Ch22_Sneakers<Ch22_Sneakers>#ffffff": 651,
+    "BONES-OFF-BIND:flownBaked bone0 724.78, bone1 724.78, bone2 724.78, bone3 724.78, bone4 724.73, bone5 726.01": 23,
+    "BONES-OFF-BIND:flownBaked bone0 724.78, bone1 725.36, bone2 724.78, bone3 724.78, bone4 724.78, bone5 724.78": 10,
+    "BONES-OFF-BIND:flownBakedIn bone0 724.38, bone1 724.39, bone2 724.20, bone3 724.08, bone4 724.63, bone5 724.43": 19,
+    "BONES-OFF-BIND:flownBakedIn bone0 724.38": 1,
+    "BONES-OFF-BIND:char:ch22:Ch22_Body mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 28.29, mixamorig2:Spine2 28.56, mixamorig2:Neck 0.91, mixamorig2:Head 8.95": 65,
+    "flown:char:ch22:Ch22_Body<Ch22_Body>#ffffff": 1050,
+    "BONES-OFF-BIND:char:ch22:Ch22_Eyelashes mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 28.29, mixamorig2:Spine2 28.56, mixamorig2:Neck 0.91, mixamorig2:Head 8.95": 65,
+    "BONES-OFF-BIND:char:ch22:Ch22_Hair mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 28.29, mixamorig2:Spine2 28.56, mixamorig2:Neck 0.91, mixamorig2:Head 8.95": 65,
+    "flown:char:ch22:Ch22_Hair<Ch22_Hair>#ffffff": 2605,
+    "BONES-OFF-BIND:char:ch22:Ch22_Pants mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 28.29, mixamorig2:Spine2 28.56, mixamorig2:Neck 0.91, mixamorig2:Head 8.95": 65,
+    "flown:char:ch22:Ch22_Pants<Ch22_Pants>#ffffff": 4538,
+    "BONES-OFF-BIND:char:ch22:Ch22_Shirt mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 28.29, mixamorig2:Spine2 28.56, mixamorig2:Neck 0.91, mixamorig2:Head 8.95": 65,
+    "flown:char:ch22:Ch22_Shirt<Ch22_Shirt>#ffffff": 482,
+    "BONES-OFF-BIND:char:ch22:Ch22_Sneakers mixamorig2:Hips 31.62, mixamorig2:Spine 27.87, mixamorig2:Spine1 28.29, mixamorig2:Spine2 28.56, mixamorig2:Neck 0.91, mixamorig2:Head 8.95": 65,
+    "flown:char:ch22:Ch22_Sneakers<Ch22_Sneakers>#ffffff": 634
+   }
+  }
+ },
+ "fails": 1
+}

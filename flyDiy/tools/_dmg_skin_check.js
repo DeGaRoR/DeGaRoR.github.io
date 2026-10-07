@@ -221,7 +221,20 @@ if (argv[0] === '--build') {
         S.detachedSkin = Math.max(S.detachedSkin, dv);
       }
     }
-    // the sets at the end, past the window (the host's last send)
+    // the sets at the end, past the window (the host's last send). A wreck still settling may yield in its last frames
+    // (the metal Cessna's 2.5 m trunk after DMG-WINDBREAK: a member's set moving until ~0.1 s before the run's end):
+    // step on until the inline sets have held still for a whole window (8 frames > SIM_DMG_SET_S), at most 4 s, then
+    // flush the host's last send as before - the claim is 'equal once the window has passed', not 'equal at an
+    // arbitrary end frame'
+    { let still = 0, prev = stI.set.slice();
+      for (let j = 0; j < 240 && still < 8; j++) {
+        simW.step(1 / 60); simI.step(1 / 60);
+        const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
+        const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB)));
+        const same = stI.set.length === prev.length && stI.set.every((x, i) => x === prev[i]);
+        still = same ? still + 1 : 0; prev = stI.set.slice();
+      }
+      S.settleSteps = still; }
     for (let j = 0; j < 7; j++) { simW.step(1 / 60); simI.step(1 / 60); const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI); const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); }
     S.setsEnd = stI.set.every((x, i) => x === stW.set[i]);
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }

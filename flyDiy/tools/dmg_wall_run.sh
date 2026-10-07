@@ -10,7 +10,7 @@ DRV=
 cleanup() { [ -n "$DRV" ] && kill $DRV 2>/dev/null; sleep 2; powershell -NoProfile -Command "Get-CimInstance Win32_Process | ? { \$_.CommandLine -like '*user-data-dir=C:/dmgwall*' -or \$_.CommandLine -like '*_serve.js 8691*' } | % { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }"; grep -q "^DMG-WALL " D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/GPU_BENCH.lock && bash $LK drop gpu DMG-WALL; }
 trap cleanup EXIT
 cd $ROOT/flyDiy
-SPORT=8691 DPORT=9591 UDD=C:/dmgwall Q="damage=1&simw=0${Q2}" node tools/live_driver.js $ROOT builds/cub_2026-09-20_corrected.json dev.html 8692 > $ROOT/flyDiy/reports/evidence/DMG-WALL/driver_$SUB.log 2>&1 &
+SPORT=8691 DPORT=9591 UDD=C:/dmgwall Q="damage=1${SIMW-&simw=0}${Q2}" node tools/live_driver.js $ROOT builds/cub_2026-09-20_corrected.json dev.html 8692 > $ROOT/flyDiy/reports/evidence/DMG-WALL/driver_$SUB.log 2>&1 &
 DRV=$!
 sleep 8
 node tools/dmg_wall_census.js --cmd 8692 --boot --out reports/evidence/DMG-WALL/$SUB "$@"
