@@ -492,7 +492,9 @@ function makeWorld(seed, opts) {
     const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
     PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, opts && opts.rwyTrees ? { rwyTrees: opts.rwyTrees } : {}, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
-    PMrec = rec;
+    // (v1.33, G2300 STAGES: a record carrying stages is composed AS IT STANDS - the sandbox's view unless the caller
+    // names the career's tracks - and that view is the record the renderer and the house worker read)
+    PMrec = PM.stage ? PM.rec : rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
     // code into the island's own ttype grid, which the ground's packed texture, the
     // tree walk and the cover ring all read - one array, one writer. The previous

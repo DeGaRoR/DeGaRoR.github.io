@@ -3225,6 +3225,68 @@
     "what": [
      "trees"
     ]
+   },
+   {
+    "id": "sg_x_mill",
+    "poly": [
+     [
+      7177.46,
+      -15358.75
+     ],
+     [
+      7172.0,
+      -15421.21
+     ],
+     [
+      7324.01,
+      -15434.52
+     ],
+     [
+      7329.48,
+      -15372.06
+     ]
+    ],
+    "what": [
+     "trees"
+    ],
+    "stage": {
+     "track": "minedock",
+     "show": [
+      0,
+      1
+     ]
+    }
+   },
+   {
+    "id": "sg_x_lodge",
+    "poly": [
+     [
+      277,
+      -7841
+     ],
+     [
+      293,
+      -7841
+     ],
+     [
+      293,
+      -7827
+     ],
+     [
+      277,
+      -7827
+     ]
+    ],
+    "what": [
+     "trees"
+    ],
+    "stage": {
+     "track": "resort",
+     "show": [
+      0,
+      1
+     ]
+    }
    }
   ],
   "roads": [
@@ -7148,7 +7210,24 @@
      "antennas": 0
     },
     "treeBox": false,
-    "departure": 1
+    "departure": 1,
+    "stage": {
+     "track": "survey",
+     "show": [
+      0,
+      null
+     ],
+     "vary": [
+      {
+       "show": [
+        0,
+        0
+       ],
+       "sock": false,
+       "ties": false
+      }
+     ]
+    }
    },
    {
     "id": "tw_ski",
@@ -7211,7 +7290,45 @@
      257,
      -7707.46
     ],
-    "hdg": -1.0472
+    "hdg": -1.0472,
+    "stage": {
+     "track": "resort",
+     "show": [
+      0,
+      null
+     ],
+     "vary": [
+      {
+       "show": [
+        0,
+        2
+       ],
+       "len": 320,
+       "c": [
+        272.0,
+        -7733.44
+       ],
+       "profile": [
+        [
+         0,
+         -9.8
+        ],
+        [
+         0.4656,
+         4.94
+        ],
+        [
+         0.7862,
+         12.6
+        ],
+        [
+         1,
+         13.3
+        ]
+       ]
+      }
+     ]
+    }
    }
   ],
   "zones": [
@@ -7240,7 +7357,14 @@
       -2740.0
      ]
     ],
-    "density": 1
+    "density": 1,
+    "stage": {
+     "track": "minedock",
+     "show": [
+      4,
+      null
+     ]
+    }
    },
    {
     "id": "z_village",
@@ -8749,7 +8873,14 @@
       "yaw": 3.1416,
       "P": {},
       "onRoad": false,
-      "bottomOnRoad": false
+      "bottomOnRoad": false,
+      "stage": {
+       "track": "field",
+       "show": [
+        2,
+        null
+       ]
+      }
      },
      {
       "id": "clubhouse",
@@ -8759,7 +8890,14 @@
       "yaw": 3.1416,
       "P": {},
       "onRoad": false,
-      "bottomOnRoad": false
+      "bottomOnRoad": false,
+      "stage": {
+       "track": "clients",
+       "show": [
+        1,
+        null
+       ]
+      }
      },
      {
       "id": "fuel",
@@ -10612,6 +10750,13 @@
       "yaw": 0,
       "P": {
        "topDist": 63.5
+      },
+      "stage": {
+       "track": "minedock",
+       "show": [
+        2,
+        null
+       ]
       }
      },
      {
@@ -10646,6 +10791,13 @@
       "yaw": 0.4,
       "P": {
        "lot": false
+      },
+      "stage": {
+       "track": "minedock",
+       "show": [
+        2,
+        null
+       ]
       }
      },
      {
@@ -11053,6 +11205,13 @@
       "P": {
        "lot": false,
        "name": "Summit Lodge"
+      },
+      "stage": {
+       "track": "resort",
+       "show": [
+        2,
+        null
+       ]
       }
      },
      {
@@ -12203,7 +12362,14 @@
     "x": -180.4,
     "z": 646.6,
     "yaw": 0.35,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_club_chair1",
@@ -12212,7 +12378,14 @@
     "x": -178.6,
     "z": 645.2,
     "yaw": 2.1,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_club_chair2",
@@ -12221,7 +12394,14 @@
     "x": -178.8,
     "z": 648.2,
     "yaw": -1.2,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_club_man1",
@@ -12230,7 +12410,14 @@
     "x": -179.6,
     "z": 644.4,
     "yaw": 2.371,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_club_man2",
@@ -12239,7 +12426,14 @@
     "x": -181.2,
     "z": 648.8,
     "yaw": -2.4,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_club_planter",
@@ -12248,7 +12442,14 @@
     "x": -183.2,
     "z": 644.0,
     "yaw": 0.0,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_club_stool",
@@ -12257,7 +12458,14 @@
     "x": -180.0,
     "z": 649.6,
     "yaw": 0.5,
-    "on": "ground"
+    "on": "ground",
+    "stage": {
+     "track": "clients",
+     "show": [
+      1,
+      null
+     ]
+    }
    },
    {
     "id": "af_car1",
@@ -13143,6 +13351,91 @@
     "x": 286,
     "z": -7820,
     "yaw": 0
+   },
+   {
+    "id": "sg_k_hangar",
+    "kind": "kit",
+    "kit": "build",
+    "x": -193.0,
+    "z": 672.0,
+    "yaw": 4.7124,
+    "w": 26,
+    "d": 34,
+    "stage": {
+     "track": "field",
+     "show": [
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "sg_k_club",
+    "kind": "kit",
+    "kit": "build",
+    "x": -184.0,
+    "z": 642.0,
+    "yaw": 4.7124,
+    "w": 15,
+    "d": 10,
+    "stage": {
+     "track": "clients",
+     "show": [
+      0,
+      0
+     ]
+    }
+   },
+   {
+    "id": "sg_k_mill",
+    "kind": "kit",
+    "kit": "build",
+    "x": 7295.84,
+    "z": -15400.93,
+    "yaw": 1.6581,
+    "w": 40,
+    "d": 30,
+    "stage": {
+     "track": "minedock",
+     "show": [
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "sg_k_dock",
+    "kind": "kit",
+    "kit": "shore",
+    "x": 1066.0,
+    "z": -2828.0,
+    "yaw": 0,
+    "w": 44,
+    "d": 36,
+    "stage": {
+     "track": "minedock",
+     "show": [
+      3,
+      3
+     ]
+    }
+   },
+   {
+    "id": "sg_k_lodge",
+    "kind": "kit",
+    "kit": "build",
+    "x": 285.0,
+    "z": -7834.0,
+    "yaw": 0,
+    "w": 12,
+    "d": 10,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      1
+     ]
+    }
    }
   ]
  },

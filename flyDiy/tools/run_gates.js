@@ -623,6 +623,12 @@ const GATES = [
   // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
   // five designs' shakedown, cached in the OS temp dir by content)
   { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
+  // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
+  // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
+  // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never
+  // in flight (the queue + the page's source); every arc unlock mapped; the kits existing props; the editor's save
+  // restores the whole record. ~70 s. `--selftest`: 18 doctored rules, each red (~15 s)
+  { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

@@ -1,0 +1,20 @@
+GATE STAGES --selftest
+  red  1 an entry added without a stage stands in the sandbox: the hash moves
+  red  1 a band closed at the max is refused (the sandbox and the max would differ)
+  red  1 a vary through the max is refused
+  red  1 a runway vary of a field a stage may not change is refused
+  red  1 a varied strip under 150 m is refused
+  red  1 a kit that is not data is refused
+  red  1 a link to a staged item without a stage is refused
+  red  4 a host that applies a stage in flight is caught
+  red  4 a recompose called from the flight frame is caught
+  red  4 the stop's unlock applied at once (not queued) is caught
+  red  4 a load that composes the whole record is caught
+  red  5 an arc unlock with no reveal entry is caught
+  red  5 a reveal that claims a building the record lacks is caught
+  red  5 a band edge no reveal says is caught
+  red  6 a kit prop that does not exist (a scaffold to download) is caught
+  red  6 a frame no generator makes is caught
+  red  3 a construction kit moved onto HOME's stand is caught by the census
+  red  7 a save that loses the cut stages is caught
+GATE STAGES --selftest: 18 / 18 rules red - PASS

@@ -81779,3 +81779,113 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2300-G2309 - STAGES: THE PREMISES AMENDMENT v1.33 `stage` (ANY ENTRY, ANY SITE ITEM, A RUNWAY'S LENGTH / SURFACE / WINDSOCK / TIE-DOWNS), THE COMPOSITION AT THE CAREER'S TRACKS (NO CAREER = TODAY'S ISLAND BYTE FOR BYTE: THE COOK'S HASH), NEVER IN FLIGHT (QUEUED TO THE NEXT ROLL-OUT), THE CONSTRUCTION KITS AS DATA OF EXISTING PROPS, JOLENE'S FIRST PROJECTS, THE REVEAL'S DATA + HOOK; GATE STAGES (2026-10-07, STAGES for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU, no world still; branch claude/stages-g2300 off origin/claude/game-integration f4c47a5; G2306-G2309 unused)
+
+The brief: GAME-2026-10-06.md §R (GQ18: existing props + up to 2 new CC0; G-PROV: one track `minedock`) and §11;
+PREMISES-CONTRACT (the record, the composition order, GATE PREMISES); CONTRACT-MODEL's CONTRACT_TRACKS and its arcs'
+unlocks; the trip lessons (HYBRID-TRIPS / LOC-SWITCH: the world never moves under a flying aeroplane).
+
+**THE AMENDMENT NUMBER: v1.33.** On claude/game-integration the last is v1.31; **v1.32 is already taken** by ISLAND-TOUR
+G1966 (`runway.turn`, on its unmerged branches claude/island-tour-g1965 / island-tour-2-g1975x / wizardly-maxwell-89dri5),
+so STAGES skips it. PREM-S3 G2310 takes the next (v1.34). Written early (commit 1 of this branch) for the coordinator.
+
+**G2300 THE AMENDMENT** (27_premises.js; contract §9 v1.33, GATE PREMISES rule 17): any entry of any layer and any
+site ITEM may carry `stage: { track, show: [lo, hi|null], vary?: [{ show, ...changes }] }`; stands while
+`tracks[track]` is in the band. `vary`: a runway's `len c wid surface look profile` and `sock:false` / `ties:false`
+(render_world's windsock, 25_airfield fleetSpots), an item's / object's `P`. A construction KIT is an object
+`{ kind:'kit', kit, x, z, yaw, w, d }` (must carry a stage) that expands into existing props + a partial frame + its tree
+clearance. A ZONE below its band still sows (its land reserved: the village beside the harbour keeps every plot at every
+stage - gated) and builds nothing. `stageView(rec, tracks)` / `stageRestore(edited, view)` / `stageIssues(rec, maxes)`
+(the sandbox's law: a band through a track's max is open, so the max IS the sandbox); `issues()` checks every stage's
+shape. `compose(rec, world, { tracks })` reads the stages (no tracks = the sandbox); world.premises.set passes them.
+
+**G2301 THE COMPOSITION.** **No career = every track at max = today's island, byte for byte**: Jolene composed with no
+career hashes to the island cook's recorded `record` (premises_packs.json, cooked from today's fixture before any stage
+existed) for BOTH variants (default e3298a791a11acf0, town 8b3f4244991ff2dd) - so PREMCOOK holds with no re-cook, and
+every track at max composes the same record, aerodromes and ground. The page: world_boot.js composes the staged
+record at load (the sandbox's view; `?career=1` the dev career document's tracks - careerKey('dev'), a first load all 0;
+`?stages=t:n,...` over them for a still) and hands THAT text to makeWorld, the physics worker and the house worker.
+**Never in flight**: 76_stages.js `stageHost` - careerStopApply's unlock event is noted as 'flight' (queued; the world
+the aeroplane stands in is the one it flew in); app.js's new `'stages'` trip step (part 'world', before 'town', absent in
+the sandbox) recomposes at the next roll-out through the world editor's own path (render_premises setRecord + rebuild ->
+world.premises.set -> sim_link's worker recompose + hwCompose), refreshes the ground over the extent, repaints the strips.
+A roll-in queues for the roll-out (in the garage the world is not drawn). The editor's save restores the whole record
+(stageRestore, then the town switch's restorePlaces). Measured in headless Chromium (the page boots, no world render):
+the sandbox stands no kit and has no host; `?career=1` composes every track at 0 (18 entries cut, the club's site
+standing); `?stages=field:1,minedock:3,resort:1` stands the hangar, club, dock and lodge kits (132 objects); no page
+error. Evidence: reports/evidence/STAGES/.
+
+**G2302 THE THREE LOOKS** (absent -> construction -> finished). Kits are DATA (27_premises.js STAGE_KITS): `plot` (the
+old fence round the plot, a gate gap), `build` (fence + pallets, cement, a cinder pallet, crates a/b/c, drums, a plastic
+barrel, two work trestles, a step ladder, a hand truck + THE PARTIAL FRAME: the shed generator's lean-to with a third of
+its boards missing (`missing 0.35`, open front), sized to the plot - an existing generator's preset), `shore` (fence,
+timbers, drums, trestles). Every prop is an existing one (props_table.py / pier_table.py, with a registry box): **no
+download, 0 of GQ18's 2 new CC0 props used.** CANDIDATES for the user's OK if the look wants more (not downloaded): a
+scaffold tower section and a small mobile/tower crane (CC0, Poly Haven / Kenney / Quaternius have both kinds).
+
+**G2303 JOLENE'S FIRST PROJECTS** (tools/jolene_stages.json, applied by `jolene_author.py apply_stages()` after the parts;
+the fixture is output - this cloud could not re-run the whole author: tools/jolene_parts/metlakatla.py reads a local
+`D:/Dev/.../bench/jolene/dem.json`, so the same function was applied to today's fixture, which Python round-trips byte
+for byte). Every finished state is a building that stands today, so the sandbox is unchanged:
+
+| track | 0 | construction | finished | gameplay |
+|---|---|---|---|---|
+| field (2) | the plot empty | field:1 the hangar kit (26 x 34 m) | field:2 the club's long hangar (s_club/hangar_long = "the second WWII hangar") | the HOME.2 side (PREM-S3's plot) |
+| minedock (4) | mill and ore shed absent, trees off the plot | minedock:1 the mill kit | minedock:2 the Kennecott mill (= the headframe) + the storage shed (= the ore shed) | ore jobs |
+| | | minedock:3 the shore kit at the village harbour | minedock:4 the harbour zone (z_harbour: the cannery shed = the cold store, its sheds) | the dock |
+| resort (3) | the lodge's plot empty | resort:1 the lodge kit | resort:2 the Summit Lodge (tw_s_summit/lodge) | bigger guest jobs |
+| | the altiport **320 m** (cut from the bottom: the top end, the stand and the way out where they were; the profile the top 320 m of today's) | | resort:3 **380 m** (today's) | at +80 kg the Jodel needs 324 m: it flies to the lodge solo until resort:3; the Cub takes 160 kg only at 380 |
+| survey (3) | East Point: no windsock, no tie-down spots | | survey:1 the windsock and the tie-downs (today's) | a parking node |
+| clients (2) | the club house kit (its terrace props staged with it) | | clients:1 the flying club's house | the club |
+
+MILL-TAXI's rules hold at every stage (GATE STAGES 3: the census with today's solids + the kits' boxes).
+
+**G2304 THE REVEAL** (data + hook): `STAGE_REVEALS` maps every arc unlock to its aerodrome and its caption (the
+track's own `trk.*` text); `stageReveal(rec, frame, unlock)` reads the camera target off the record (the centre of what
+changes at it) + STAGE_SHOT's eye (70 m, 0.32 rad, az 0.8); the 'stages' step leaves them, and flRevealStart (the
+roll-out's first frame) opens on the new building with its caption, the reveal's own ease bringing the eye back to the
+aeroplane (window.FLYDIY_STAGE_REVEAL keeps the record). **The shot itself is A0's GPU still: `tools/stages_shot.js`
+(NOT RUN here)** lists 33 stills (11 unlocks x before / after / sandbox from one eye) and `--run --base <page>` takes them
+through cloud_shot.js, one boot per stage value.
+
+**G2305 GATES** (node tools/build.js first):
+- **STAGES** (new, core, ~70 s): 1 the sandbox = the cook's hash (both variants), the max = the sandbox (record,
+  aerodromes, ground), the law; 2 all 15 stage values (every track at 0, each value of each track below its max) compose
+  valid, no new issue, every kit object resolves, the village's 74 plots unmoved, the altiport 320 / 380 with its top end
+  fixed, East Point bare below survey:1, every pattern sound; 3 TAXICLEAR's census at every value (1 800 rows, kits
+  included); 4 never in flight (the host + the page's source); 5 the mapping (14 unlocks: 11 with a building, survey:2,
+  survey:3, clients:2 said and none drawn); 6 the kits existing props; 7 the editor's save restores the whole record.
+  **`--selftest`: 18 / 18 doctored rules red** (an unstaged addition moves the hash, a band closed at the max, a vary
+  through it, a forbidden runway field, a short strip, an unknown kit, a link to a staged item, a host applying in flight,
+  a recompose from the flight frame, an unlock applied at once, a whole-record load, a missing reveal, a false world
+  claim, an unannounced band edge, a prop to download, a frame no generator makes, a kit on HOME's stand, a lossy save).
+- **PREMISES** PASS (+ rule 17a-17g, + 2 selftest negatives), and the GATE TABLE below.
+
+THE GATE TABLE (`node tools/run_gates.js --no-build --jobs=5 --only=...` on build 2aa86b5f4fd9; after the last app.js touch (the save wrapper reads the stage view at each save) PREMISES, STAGES, BOOT, GFX re-run PASS on 3ffe73e459fa; reports/evidence/STAGES/
+gates.txt): **PREMISES, SITE, STAND, TAXICLEAR, STAGES, GFX, BOOT, CONTRACTS, PREMCOOK (the cook fresh: no re-cook needed),
+HOUSEWORKER, PREMRASTER, GAMEPREM, UISMOKE, SIMWORKER, PLAYER - all PASS (BATTERY: PASS).** STAGES --selftest 18/18
+(stages_selftest.txt); PREMISES --selftest PASS. NOT run inside the 5 h bound: the full `--all` delivery battery (the
+slow sweeps are untouched by this diff: no solver, pilot or garage file moved) - the coordinator's integration runs it.
+`tools/stages_shot.js` was not used for stills (its list mode was invoked once by mistake while checking the file; no
+browser, no picture).
+
+**For the coordinator / the user (decisions taken, reversible):**
+- **"The old tower relit" is not authored.** Jolene has no tower today, and a building that stands at a track's max
+  stands in the sandbox (the max IS the sandbox) - so it needs the user's OK as a sandbox change. Ready when wanted:
+  TOWER_GEN's 'WWII tower' (derelict) at HOME as a `vary: [{ show: [0, 1], P: { derelict: 1, beacon: 0 } }]` on an object
+  that stands from field:0 - one line in tools/jolene_stages.json + a rev bump + a re-cook.
+- **survey:2 (East Point a station), survey:3 (the weather mast), clients:2 (the museum hangar)**: same reason (nothing
+  of them stands today) - their reveals are caption-only (`world: false`, gated as such).
+- **The record's `rev` is NOT bumped** - on purpose: a bump moves the composed record's hash and needs a re-cook, and the
+  sandbox is byte-identical without it. Consequence: a browser holding a saved WIP (the WORLD rail's) of Jolene shadows
+  the stages in its career. The coordinator bumps `rev` with the next re-cook.
+- **CONTRACT_FIELDS are the sandbox's** (tw_ski 380 m): a generated resort job is sized for 380 m; below resort:3 the
+  strip is 320. Stage-aware fields (from the composed aerodromes) belong to CAREER-START; the first guest (1 pax) is
+  flyable at 320 by the Cub and the C172.
+- **The roll-out recompose is unmeasured** (no GPU): a whole premises rebuild under the loading screen, only on the
+  roll-out after a stage advanced; the house worker's cache keys move only for the changed entries. A0's box: FRAMECOST
+  is untouched (the sandbox never runs the step).
+- PREM-S3's plots (HOME.2 etc.) are its own; the hangar_long plot and HOME.2 should be reconciled by the coordinator.
+
+READY for the GAME COORDINATOR: claude/stages-g2300 b6535eb8

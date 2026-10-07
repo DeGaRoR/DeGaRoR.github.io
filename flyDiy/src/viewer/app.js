@@ -93,8 +93,11 @@
         onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { const ls = localStorage;   // G590: the places the town switch cut go back into every save
-          return !TOWN.cut ? ls : { getItem: k => ls.getItem(k), removeItem: k => ls.removeItem(k), key: i => ls.key(i), get length() { return ls.length; },
-            setItem: (k, v) => { if (k === WIP_KEY || k.startsWith('flydiy.premises.slot.')) try { const U = PREMISES_GEN.unwrap(v); v = PREMISES_GEN.envelope(U.name, PREMISES_GEN.restorePlaces(U.rec, TOWN.cut), U.plaque, U.log); } catch (e) {} ls.setItem(k, v); } };
+          // G2300 (STAGES): ...and so do the stages this page's composition cut or changed (stageRestore: the whole record back)
+          // (read at each save: a roll-out may have composed another stage since the editor mounted)
+          const SVnow = () => (WB.STAGE && WB.STAGE.view && WB.STAGE.view.staged ? WB.STAGE.view : null);
+          return !TOWN.cut && !SVnow() ? ls : { getItem: k => ls.getItem(k), removeItem: k => ls.removeItem(k), key: i => ls.key(i), get length() { return ls.length; },
+            setItem: (k, v) => { if (k === WIP_KEY || k.startsWith('flydiy.premises.slot.')) try { const U = PREMISES_GEN.unwrap(v), SV = SVnow(); if (SV) U.rec = PREMISES_GEN.stageRestore(U.rec, SV); v = PREMISES_GEN.envelope(U.name, TOWN.cut ? PREMISES_GEN.restorePlaces(U.rec, TOWN.cut) : U.rec, U.plaque, U.log); } catch (e) {} ls.setItem(k, v); } };
         } catch (e) { return null; } })(), wipKey: WIP_KEY,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
@@ -6284,6 +6287,55 @@
       return r;
     } catch (e) { return null; }
   }
+  // ---- G2300 (STAGES): THE BUILDINGS THE MISSIONS PUT UP - composed at the load (world_boot.js) and at a ROLL-OUT, never
+  // in flight (76_stages.js stageHost: a change noted in 'flight' waits, queued). The roll-out's 'stages' trip step
+  // recomposes the world on the WHOLE record's view at the new tracks through the world editor's own path - the
+  // renderer's setRecord + rebuild (world.premises.set: the physics worker follows through sim_link, the house worker
+  // through hwCompose), the ground refreshed over the extent, the strips repainted - and leaves the reveal (the camera
+  // target and the caption of each new stage, stageReveal) for the roll-out's first frame (flRevealStart). The sandbox
+  // has no host: every track at its max, composed once at load, never again. (A roll-in queues for the next roll-out:
+  // in the garage the world is not drawn, and recomposing it there would rebuild what nobody sees.)
+  const STAGE_Q = (CAREER_DEV && typeof stageHost === 'function' && WB.STAGE && WB.STAGE.view) ? stageHost({ tracks: WB.STAGE.tracks }) : null;
+  let stageRevealNext = [];
+  function stageNote(doc) { if (STAGE_Q && typeof stageTracksOf === 'function') try { STAGE_Q.note(stageTracksOf(doc), 'flight'); } catch (e) { console.warn('stages:', e && e.message); } }
+  const stageWantKey = () => (STAGE_Q ? stageKey(STAGE_Q.pending || STAGE_Q.composed) : '');
+  function stageCompose(phase) {
+    if (!STAGE_Q) return null;
+    const r = STAGE_Q.at(phase);
+    if (!r.apply) return null;
+    const S = WB.STAGE, whole = S.view.whole, V = PREMISES_GEN.stageView(whole, r.apply);
+    S.view = V; S.tracks = r.apply; S.key = stageKey(r.apply);
+    WB.premisesPlaced = PREMISES_GEN.envelope(S.name || null, V.rec, S.plaque || null, S.log || null);   // what a restarted physics worker composes
+    const R = window.WORLD && window.WORLD.premises, done = () => {
+      const o = world.premises.overlay;
+      if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
+        window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); }
+      if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips();
+      stageRevealNext = r.reveals.filter(u => u.world).map(u => stageReveal(whole, o && o.frame, u.unlock)).filter(Boolean);
+    };
+    if (R && R.setRecord) { R.setRecord(V.rec); if (R.rebuildSteps) return Promise.resolve(runGen(R.rebuildSteps(), 'stages', 'the new buildings')).then(done); R.rebuild(null); }
+    else world.premises.set(V.rec);
+    done();
+    return null;
+  }
+  // the reveal the roll-out's first frame plays: the eye about the new building (A0's GPU still frames it - tools/stages_shot.js)
+  function stageRevealTake(at) {
+    if (!stageRevealNext.length) return null;
+    const i = Math.max(0, stageRevealNext.findIndex(q => q.at === at));
+    return stageRevealNext.splice(i, 1)[0];
+  }
+  // the reveal's caption: the stage's own words (CONTRACT_TEXT trk.*), on screen for the shot's time
+  function stageCaption(R) {
+    try {
+      if (!R || !R.caption || typeof contractText !== 'function' || typeof document === 'undefined') return;
+      const el = document.createElement('div');
+      el.className = 'stageCaption'; el.textContent = contractText(R.caption);
+      el.style.cssText = 'position:fixed;left:50%;bottom:14%;transform:translateX(-50%);padding:8px 16px;border-radius:6px;background:rgba(14,18,24,.72);color:#f2efe6;font:600 16px/1.3 system-ui,sans-serif;pointer-events:none;z-index:40';
+      document.body.appendChild(el);
+      setTimeout(() => { try { el.remove(); } catch (e) {} }, R.ms || 4500);
+    } catch (e) {}
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_STAGES = { host: () => STAGE_Q, compose: stageCompose, reveals: () => stageRevealNext.slice(), take: stageRevealTake };
   // ---- G2320 (CAREER-WIRE): THE DEV CAREER'S PAGE HALF (every function below runs only under CAREER_DEV) --------------
   // A FLIGHT'S STOP ADVANCES THE CAREER. The stop record (75_career_wire.js careerStopRecord, CONTRACT-MODEL's shape):
   // how, the aerodrome (flightWhere's, when a departure could be planned from there), wrecked, the slot, the gear,
@@ -6316,6 +6368,9 @@
     const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
     const res = careerOnStop(d, stop, { acceptVerdict: hook });
     const lines = careerEventLines(res, d, res.doc);
+    // G2300 (STAGES): an unlock's new building is QUEUED - the world the aeroplane stands in is the one it flew in, and a
+    // stage is physics (a strip's length, the ground under a building): the next roll-out composes it (stageCompose)
+    if (res.ok && (res.events || []).some(e => e && e.unlock)) stageNote(res.doc);
     crCargoKg = null;     // the next leg's cargo is the tracked contract's again unless typed
     return { stop, ok: res.ok, why: res.why, events: res.events || [], untouched: res.untouched || {}, lines, doc: res.doc };
   }
@@ -8543,9 +8598,13 @@
     // ---- THE WORLD: built once (the boot), then only what a new stand or new graphics need
     { id: 'world', part: 'world', label: 'laying out the world', w: 20, key: () => WF ? 'built' : null,
       fn: () => { if (PK_ASYNC()) window.PARKED.async = true; return buildWorldSliced(); } },   // G680: a slice a task
+    // G2300 (STAGES): a stage the career advanced since the last composition - the world recomposed under the loading
+    // screen (stageCompose), never in flight; absent in the sandbox (no host), and a no-op while nothing is queued
+    { id: 'stages', part: 'world', label: 'the new buildings', w: 4, key: () => (WF ? 'stages ' + stageWantKey() : null), deps: ['world'],
+      when: () => !!STAGE_Q, fn: () => stageCompose('rollout') },
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
-    { id: 'town', part: 'world', label: 'building the field', w: 8, key: () => WF ? 'at ' + anchorStr() : null, deps: ['world'], fn: () => {
+    { id: 'town', part: 'world', label: 'building the field', w: 8, key: () => WF ? 'at ' + anchorStr() : null, deps: ['world', 'stages'], fn: () => {
       // G999 (A5-LOAD): THE WORLD'S PROGRAMS START LINKING NOW. The link is the driver's, on its own threads
       // (KHR_parallel_shader_compile) - and it waited for the 'compile' step, 20-30 s later, while this step built the
       // town on the main thread: the near ring's splat program alone links ~13 s on EVERY run (Chrome never keeps its
@@ -11926,6 +11985,18 @@
     az = tgt + s * 0.45; el = 0.16; dist = D * 1.7;
     flHdg0 = hdg; flYawRate = 0;       // no phantom yaw-rate lead on frame one
     flReveal = FL_REVEAL_FRAMES;
+    // G2300 (STAGES): A NEW BUILDING'S REVEAL - the roll-out after a stage advanced opens on it (its camera target, its
+    // caption) and the reveal's own ease brings the eye back to the aeroplane. Data + hook: the shot is A0's GPU still
+    if (STAGE_Q && stageRevealNext.length) {
+      const R = stageRevealTake(typeof fromId === 'string' ? fromId : null);
+      if (R) {
+        const y = world.terrainH(R.x, R.z) + 6;
+        az = R.az; el = R.el; dist = R.dist; target.set(R.x, y, R.z); placeCamera();
+        stageCaption(R);
+        window.FLYDIY_STAGE_REVEAL = R;   // the shot's record (tools/stages_shot.js reads it)
+        return;
+      }
+    }
     // G1119 (ROLLOUT-REAL, found on its world roll): THE EYE IS PLACED NOW, not on the next frame. The frame runs the world's
     // update BEFORE it places the camera, so the first flight frame's update read the camera the shed left - the garage's
     // coordinates, ~700 m from the stand: the cover ring (cover_ring.js, cells round the EYE) dropped every cell and planted
