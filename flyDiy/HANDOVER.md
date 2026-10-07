@@ -80892,6 +80892,11 @@ literals and function definitions) and the page (nothing in the page calls the m
 
 READY for the GAME COORDINATOR: claude/contract-model-g2240 5f50b83 (the code and the evidence; this section rides one docs-only commit on top)
 
+## G2310-G2314 - PREM-S3: THE PLOTS IN THE PREMISES RECORD (CONTRACT v1.33), EVERY HANGAR YOU HOLD STANDS IN THE WORLD, THE ROLL-OUT / ROLL-IN AT ANY BASE (2026-10-07, PREM-S3 for the GAME COORDINATOR, cloud - node only, no world stills; branch claude/prem-s3-g2310 off origin/claude/game-integration f4c47a5)
+
+IN PROGRESS. **The premises contract number: v1.33** (`plots` on a runway). STAGES G2300 takes v1.32 (the next free); this
+branch takes the one after, as briefed - the coordinator reconciles.
+
 ## G2320-G2329 - CAREER-WIRE: THE MAP ON THE REAL RECORD (careerMapRecord), A DEV CAREER IN THE PAGE BEHIND ?career=1 (flydiy.career.dev; THE WELCOME'S CAREER ROW STILL "COMING", THE SANDBOX UNCHANGED WITHOUT THE FLAG), A FLIGHT'S STOP ADVANCES THE CAREER (careerOnStop WITH ACCEPT AS THE HOOK, THE EVENTS ON THE ARRIVAL CARD), "FLY THE ACCEPTANCE LEG", THE AEROBATIC CONTRACT HELD OUT (2026-10-07, CAREER-WIRE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/career-wire-g2320 off origin/claude/game-integration 2c0c86d, also pushed as claude/bold-babbage-eqs63i; G2325-G2329 unused)
 
 The brief: GAME-2026-10-06.md §R (binding), §15.0; the "OPEN / FOR THE COORDINATOR" lists of G2240 CONTRACT-MODEL, G2270
