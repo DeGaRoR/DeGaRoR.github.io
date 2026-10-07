@@ -80552,7 +80552,7 @@ looked up** - A0 to check them against a mount drawing.
 - **The nose leg** (G2362): a tricycle's two upper braces go from the nosewheel to the mount's lower cups, near-vertical
   above the leg (the 172's nose strut to its mount's lower ring), no longer 44 deg forward to the flange.
 - **No ring-side tubes**, measured on the stiffness matrix with the firewall pinned
-  (`scratchpad eig.js`, numbers in the commit 8e09f061):
+  (`reports/evidence/DMG-MOUNTRIG/scripts/mount_stiffness.js`, `mount_stiffness.txt`; the metal Cessna's geometry):
   - with each cup on THREE bearers the ring's own tubes add under 7 %, and are not built;
   - the first cut (8 bearers, each cup on two, plus the ring's sides) was a near-mechanism: its softest mode 1/40 of
     the old rig's. In a 4 m/s taxi the engine swung 0.43 m aft and 0.36 m up on its mount, the aeroplane pitched 7 deg
@@ -80584,7 +80584,7 @@ looked up** - A0 to check them against a mount drawing.
   | preset:garage | -0.023 % | -0.016 % | -0.025 % |
 
 - I tried a moment-exact redistribution (the second moments too): it needs the cabin's frames S1-S3 to trade 1-10 kg
-  each, so it is not done (`scratchpad solve2.js`).
+  each, so it is not done (`scripts/moment_exact_try.js`).
 
 ### FLIGHT IS UNCHANGED (G2364; `tools/dmg_mountrig_flight.js`, `flight_diff.txt`)
 Damage off (the game's default). Each build parked 10 s, a FAR 23.473 landing and a whole circuit with the pilot; the

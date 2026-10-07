@@ -6,3 +6,5 @@ _treecrash_check exit 0 1836 s
 _dmg_wind_check exit 1 2410 s
 _dmg_clusters_check exit 1 653 s
 _dmg_gear_check exit 1 2621 s
+test_load exit 0 267 s
+_dmg_members_check exit 0 47 s
