@@ -2689,7 +2689,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         farSinkOn = true; let n = 0; const gone = new Set();
         for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); gone.add(f); n++; } }
         if (!n) return 0;
-        // G2063: only the quadrants that drew a dropped patch are stale - the others rebuild from the same cached patches,
+        // G2063: the dropped patches the quadrants still draw are made again FIRST, a patch a step (each is its N^2 composed
+        // heights; inside the forced re-cut below they were one ~100 ms step in flight) - patchOf is the same function on
+        // the same state, so the quadrant built from them after is the one it would have built itself
+        const warm = new Map(); for (const Q of FARLOD.quads.values()) for (const nd of (Q.want || [])) if (gone.has(nd.fid)) warm.set(nd.fid, nd);
+        for (const nd of warm.values()) if (!FARLOD.cache.has(nd.fid)) { patchOf(nd); yield 'far terrain patch'; }
+        // ...and only the quadrants that drew a dropped patch are stale - the others rebuild from the same cached patches,
         // the same mesh (a town's sink 9 km out re-cut every quadrant: 66 ms frames in flight)
         for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) Q.sig = '';
         FARLOD.update(true, 1);
