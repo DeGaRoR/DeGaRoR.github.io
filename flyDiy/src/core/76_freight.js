@@ -139,21 +139,27 @@ function freightRestY(card, x0, x1) {
   if (!st) return null;
   return Math.max(...st.map(i => frFloorAt(H, i)));
 }
+// the clear half-width a box over [x0, x1] x [y0, y1] may reach at every station it spans (m), or -1 when it cannot
+// stand there at all (off the hold's ends, below a floor, above the roof)
+function frZMax(card, x0, x1, y0, y1) {
+  const H = card && card.hold;
+  if (!H) return -1;
+  const a = Math.floor((x0 - H.x0) / H.dx + 1e-9), b = Math.ceil((x1 - H.x0) / H.dx - 1e-9);
+  if (a < 0 || b > H.n) return -1;
+  const j0 = Math.floor((y0 - H.y0) / H.dy + 1e-6), j1 = Math.ceil((y1 - H.y0) / H.dy - 1e-6) - 1;
+  if (j0 < 0 || j1 >= H.ny) return -1;
+  let m = Infinity;
+  for (let i = a; i <= b; i++) {
+    if (y0 < H.y0 + H.floor[i] / 100 - 1e-6) return -1;
+    const row = H.half[i];
+    for (let j = j0; j <= j1; j++) if (row[j] < m) m = row[j];
+  }
+  return m / 100;
+}
 // does a box { x0, x1, y0, y1, z0, z1 } stand inside the hold's clear section at every station it spans?
 function freightHoldFits(card, b) {
-  const H = card && card.hold;
-  if (!H) return false;
-  const st = frStations(H, b.x0, b.x1);
-  if (!st) return false;
-  const zz = Math.max(Math.abs(b.z0), Math.abs(b.z1)) * 100 - 1e-6;
-  const j0 = Math.floor((b.y0 - H.y0) / H.dy + 1e-6), j1 = Math.ceil((b.y1 - H.y0) / H.dy - 1e-6) - 1;
-  if (j0 < 0 || j1 >= H.ny) return false;
-  for (const i of st) {
-    if (b.y0 < frFloorAt(H, i) - 1e-6) return false;
-    const row = H.half[i];
-    for (let j = j0; j <= j1; j++) if (!(row[j] >= zz)) return false;
-  }
-  return true;
+  const zm = frZMax(card, b.x0, b.x1, b.y0, b.y1);
+  return zm >= 0 && Math.max(Math.abs(b.z0), Math.abs(b.z1)) <= zm + 1e-8;
 }
 // the clear width of the hold at station i over a band of height h above its floor (m)
 function frRoomW(H, i, h) {
@@ -178,7 +184,8 @@ function freightDoorPass(card, door, item) {
   const H = card && card.hold;
   if (!door || !H || !door.rects || !door.rects.length) return { ok: false, why: 'no door' };
   const it = freightItem(item), K = FREIGHT_KINDS[it.kind];
-  const key = (card.id || '') + '|' + door.id + '|' + it.dims.join(',') + '|' + (K.upright ? 'u' : '');
+  // keyed by what decides it (the openings, the hold at the door, the dims): a pair of mirrored doors asks once
+  const key = (card.id || '') + '|' + JSON.stringify(door.rects) + '|' + door.st + '|' + it.dims.join(',') + '|' + (K.upright ? 'u' : '') + (K.squeeze || '');
   if (frDoorMemo.has(key)) return frDoorMemo.get(key);
   const st = door.st == null ? 0 : door.st;
   const hMax = (() => { let h = 0; for (let k = 1; k <= H.ny; k++) if (frRoomW(H, st, k * H.dy) > 0) h = k * H.dy; return h; })();
@@ -206,16 +213,15 @@ function freightDoorPass(card, door, item) {
         const e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
         for (let rho = 0; rho < 180; rho += G.rho) {
           const cr = Math.cos(rho * rad), sr = Math.sin(rho * rad);
-          const a2 = [0, 1, 2].map(k => cr * e1[k] + sr * e2[k]);
-          const a3 = [0, 1, 2].map(k => -sr * e1[k] + cr * e2[k]);
+          const a2x = cr * e1[0] + sr * e2[0], a2y = cr * e1[1] + sr * e2[1], a2z = cr * e1[2] + sr * e2[2];
+          const a3x = -sr * e1[0] + cr * e2[0], a3y = -sr * e1[1] + cr * e2[1], a3z = -sr * e1[2] + cr * e2[2];
           // the slice in the door's plane: v = a - (a_z / u_z) u, its (x, y)
-          const v2 = [a2[0] - a2[2] / sp * u[0], a2[1] - a2[2] / sp * u[1]];
-          const v3 = [a3[0] - a3[2] / sp * u[0], a3[1] - a3[2] / sp * u[1]];
-          const X = w * Math.abs(v2[0]) + d * Math.abs(v3[0]), Y = w * Math.abs(v2[1]) + d * Math.abs(v3[1]);
+          const X = w * Math.abs(a2x - a2z / sp * u[0]) + d * Math.abs(a3x - a3z / sp * u[0]);
+          const Y = w * Math.abs(a2y - a2z / sp * u[1]) + d * Math.abs(a3y - a3z / sp * u[1]);
           if (!holeOk(X, Y)) continue;
           // wholly inside at this attitude: its depth across the hold and its height
-          const Zx = L * Math.abs(u[2]) + w * Math.abs(a2[2]) + d * Math.abs(a3[2]);
-          const Yx = L * Math.abs(u[1]) + w * Math.abs(a2[1]) + d * Math.abs(a3[1]);
+          const Zx = L * Math.abs(u[2]) + w * Math.abs(a2z) + d * Math.abs(a3z);
+          const Yx = L * Math.abs(u[1]) + w * Math.abs(a2y) + d * Math.abs(a3y);
           if (Yx > hMax + 1e-9 || Zx > frRoomW(H, st, Yx) + 1e-9) continue;
           res = { ok: true, how: (phi === 90 && rho % 90 === 0) ? 'straight' : 'swung', axis: ia };
           break search;
@@ -335,7 +341,8 @@ function frOrients(it) {
 }
 const frOverlap = (p, q) => p.x0 < q.x1 - 1e-6 && q.x0 < p.x1 - 1e-6 && p.y0 < q.y1 - 1e-6 && q.y0 < p.y1 - 1e-6 && p.z0 < q.z1 - 1e-6 && q.z0 < p.z1 - 1e-6;
 // freightPack(card, items, opts) -> { ok, placed, unplaced, report, how }
-//   opts: { pax (passengers beside the pilot), seatsOut ([seat i] the player took out), limits: false (geometry only) }
+//   opts: { pax (passengers beside the pilot), seatsOut ([seat i] the player took out), limits: false (geometry only),
+//           doors: false (the room alone, no door asked: a report's "would it fit inside") }
 // ok = every item placed (the geometry); report.ok = and within every limit. An item no door takes, or no room
 // holds, is `unplaced` with why; a limit not met is in report.why. Nothing is refused.
 function freightPack(card, itemsIn, opts) {
@@ -359,8 +366,13 @@ function freightPack(card, itemsIn, opts) {
   // range; when it is out, where it brings the CG back to the nearer limit
   const xHi = frHoldX1(H);
   const placed = [];
+  // the strict pass's running sums: the load on each floor-standing item (itself and its stack), the baggage bay's
+  const baseLoad = {}, baseOf = id => { let p = placed.find(q => q.id === id); while (p && p.on) p = placed.find(q => q.id === p.on); return p ? p.id : id; };
+  const bagS = spaces.find(q => q.id === 'baggage');
+  let bagKg = 0;
   for (const it of order) {
-    const door = freightDoorAny(card, it);
+    // (opts.doors === false: the room alone - "would it fit if it could get in", a report's question)
+    const door = o.doors === false ? { ok: true, door: null, how: null } : freightDoorAny(card, it);
     if (!door.ok) { res.unplaced.push({ id: it.id, why: door.why || 'passes no door' }); continue; }
     const cgNow = mx / kg, cgWant = Math.min(Mm.cg[1], Math.max(Mm.cg[0], cgNow));
     const xt = ((kg + it.kg) * cgWant - mx) / Math.max(1e-9, it.kg);
@@ -373,7 +385,7 @@ function freightPack(card, itemsIn, opts) {
         xs.sort((a, b) => Math.abs(a + lx / 2 - xt) - Math.abs(b + lx / 2 - xt) || a - b);
         // z candidates: the middle outward, at the z step
         const zs = [];
-        for (let k = 0; k * P.zStep <= 1.2; k++) { zs.push(-lz / 2 + k * P.zStep); if (k) zs.push(-lz / 2 - k * P.zStep); }
+        for (let k = 0; k * P.zStep <= 1.2; k++) { zs.push(frR3(-lz / 2 + k * P.zStep)); if (k) zs.push(frR3(-lz / 2 - k * P.zStep)); }
         let floorHit = false, stackHit = false;
         for (const x0 of xs) {
           if (floorHit) break;                       // a farther x can only score worse
@@ -385,18 +397,27 @@ function freightPack(card, itemsIn, opts) {
           if (!stackHit) for (const p of placed) if (p.stack && p.at.x0 <= x0 + 1e-9 && p.at.x1 >= x1 - 1e-9) ys.push({ y: p.at.y1, on: p.id, sup: p, level: 1 });
           for (const { y, on, sup, level } of ys) {
             if (level && stackHit) continue;
-            for (const z0r of zs) {
-              const z0 = frR3(z0r);
-              const b = { x0, x1: frR3(x1), y0: y, y1: y + ly, z0, z1: frR3(z0 + lz) };
-              if (sup && (b.z0 < sup.at.z0 - 1e-9 || b.z1 > sup.at.z1 + 1e-9)) continue;   // wholly on its support
-              if (!freightHoldFits(card, b)) continue;
+            const zm = frZMax(card, x0, x1, y, y + ly);
+            if (zm < lz / 2 - 1e-8) continue;          // not even the middle is wide enough here
+            for (const z0 of zs) {
+              const z1 = z0 + lz;
+              if (Math.max(-z0, z1) > zm + 1e-8) continue;   // the hold's walls (freightHoldFits, at this x and y)
+              if (sup && (z0 < sup.at.z0 - 1e-9 || z1 > sup.at.z1 + 1e-9)) continue;   // wholly on its support
+              const b = { x0, x1: frR3(x1), y0: y, y1: y + ly, z0, z1: frR3(z1) };
               if (obst.some(q => frOverlap(b, q)) || placed.some(q => frOverlap(b, q.at))) continue;
               const cand = { id: it.id, kind: it.kind, kg: it.kg, dims: it.dims, stack: it.stack && FREIGHT_KINDS[it.kind].stack,
                              at: { x0: frR3(b.x0), x1: frR3(b.x1), y0: frR3(b.y0), y1: frR3(b.y1), z0: frR3(b.z0), z1: frR3(b.z1) },
                              on, door: door.door, how: door.how };
               if (strict) {
-                const rep = freightReport(card, placed.concat([cand]), Object.assign({}, o, { pax: 0 }));
-                if (!rep.floorOk || !rep.baggage.ok) continue;
+                // the floor under it (or under the item at the bottom of its stack) and the baggage placard, kept
+                // incrementally: the same numbers freightReport states
+                const baseId = on ? baseOf(on) : it.id;
+                const bp = on ? placed.find(q => q.id === baseId) : cand;
+                const A = (bp.at.x1 - bp.at.x0) * (bp.at.z1 - bp.at.z0);
+                const S = spaces.find(q => q.id === frSpaceOf(spaces, 0.5 * (bp.at.x0 + bp.at.x1)));
+                if (S && ((baseLoad[baseId] || 0) + it.kg) / A > S.kgM2 + 1e-9) continue;
+                const inBag = frSpaceOf(spaces, 0.5 * (b.x0 + b.x1)) === 'baggage';
+                if (inBag && bagS && bagKg + it.kg > (bagS.maxKg || 0) + 1e-9) continue;
               }
               // the score: on the floor before stacked, LOW (its middle's height, to the cell), near the target
               // station, near the middle - compared in that order, a tie keeping the first candidate
@@ -415,6 +436,9 @@ function freightPack(card, itemsIn, opts) {
     if (!best) { res.unplaced.push({ id: it.id, why: it.id + ' (' + it.dims.join(' x ') + ' m) finds no room in the hold' }); continue; }
     best.cand.space = frSpaceOf(spaces, 0.5 * (best.cand.at.x0 + best.cand.at.x1));
     placed.push(best.cand);
+    const bId = best.cand.on ? baseOf(best.cand.on) : it.id;
+    baseLoad[bId] = (baseLoad[bId] || 0) + it.kg;
+    if (best.cand.space === 'baggage') bagKg += it.kg;
     kg += it.kg; mx += it.kg * 0.5 * (best.cand.at.x0 + best.cand.at.x1);
   }
   res.placed = placed;
@@ -424,29 +448,33 @@ function freightPack(card, itemsIn, opts) {
 }
 
 // ---- WHAT A DESIGN CAN CARRY (the contracts' physical gate gains the volume) --------------------------------------
-// freightFits(card, items, {pax}) -> { ok, seatsOut, why }: every item passes a door and the whole load packs with
-// the passengers seated — the seats in, else with the empty seats taken out (the player's call, ruled). Geometry
-// only (the limits are the report's, never a refusal). Memoised by the load's dims and the passengers: the kilos
-// play no part in a fit.
+// freightFits(card, items, {pax}) -> { ok, seatsOut, why, room }: the load has a LEGAL loading on this design -
+// every item through a door, the whole load packed with the passengers seated, and the packer's proposal within
+// every limit (the MTOW, the certified CG range, the floors, the baggage placard) - with the seats in, else with
+// the empty seats taken out (the player's call, ruled). `room` says whether it fits at all (the geometry), so a
+// caller can tell "no room" from "only out of limits". Memoised by the load and the passengers.
 const frFitMemo = new Map();
 function freightFits(card, items, opts) {
   const pax = Math.max(0, (opts && opts.pax) | 0);
   const its = freightSplit(items);
-  if (!its.length) return { ok: true, seatsOut: [], why: '' };
-  if (!card || !card.hold) return { ok: false, seatsOut: [], why: 'no hold' };
-  const key = (card.id || JSON.stringify(card.mass)) + '|' + pax + '|' + its.map(i => i.kind + ':' + i.dims.join(',')).sort().join(';');
+  if (!its.length) return { ok: true, seatsOut: [], why: '', room: true };
+  if (!card || !card.hold) return { ok: false, seatsOut: [], why: 'no hold', room: false };
+  const key = (card.id || JSON.stringify(card.mass)) + '|' + pax + '|' + its.map(i => i.id + ':' + i.kind + ':' + i.kg + ':' + i.dims.join(',')).sort().join(';');
   if (frFitMemo.has(key)) return frFitMemo.get(key);
   let r;
   const nd = its.filter(it => !freightDoorAny(card, it).ok);
-  if (nd.length) r = { ok: false, seatsOut: [], why: nd.map(i => i.id).join(', ') + ' (' + nd[0].dims.join(' x ') + ' m) passes no door' };
+  if (nd.length) r = { ok: false, seatsOut: [], why: nd.map(i => i.id).join(', ') + ' (' + nd[0].dims.join(' x ') + ' m) passes no door', room: false };
   else {
-    const a = freightPack(card, its, { pax, limits: false });
-    if (a.ok) r = { ok: true, seatsOut: [], why: '' };
-    else {
-      const empty = (card.seats || []).filter(s => s.i > pax).map(s => s.i);
-      const b = empty.length ? freightPack(card, its, { pax, seatsOut: empty, limits: false }) : a;
-      r = b.ok ? { ok: true, seatsOut: empty, why: '' } : { ok: false, seatsOut: empty, why: b.unplaced.map(u => u.why).join('; ') };
+    const empty = (card.seats || []).filter(s => s.i > pax).map(s => s.i);
+    const tries = empty.length ? [[], empty] : [[]];
+    let room = false, why = '';
+    for (const out of tries) {
+      const a = freightPack(card, its, { pax, seatsOut: out });
+      if (a.ok) room = true;
+      if (a.ok && a.report.ok) { r = { ok: true, seatsOut: out, why: '', room: true }; break; }
+      why = a.ok ? 'loaded only out of limits: ' + a.report.why.join('; ') : a.unplaced.map(u => u.why).join('; ');
     }
+    if (!r) r = { ok: false, seatsOut: empty, why, room };
   }
   frFitMemo.set(key, r);
   return r;

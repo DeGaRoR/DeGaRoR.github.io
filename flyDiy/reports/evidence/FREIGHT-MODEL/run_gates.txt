@@ -1,0 +1,92 @@
+tools/flight_core.js (2478.5 KB), index.html (11868.1 KB), dev.html (110.7 KB) — syntax OK, build cdbb99ac944f (326 named inputs), 1282 ms
+=== UPDATE ===
+67 checks ok
+GATE UPDATE: PASS
+=== MEDIA ===
+media/audio/music: 57 files, 126.73 MB
+  media/audio/sfx: 70 files, 10.76 MB
+  media/audio/voice: 353 files, 12.15 MB
+  media/blueprints/chinook2s.cec14f3e.png: 1 files, 0.20 MB
+  media/geo/airframe: 2 files, 0.65 MB
+  media/geo/animal_lod: 10 files, 0.12 MB
+  media/geo/animals: 12 files, 1.36 MB
+  media/geo/cabin: 1 files, 0.33 MB
+  media/geo/chars: 8 files, 6.68 MB
+  media/geo/models: 13 files, 9.74 MB
+  media/geo/panelhw: 9 files, 0.22 MB
+  media/geo/pier: 93 files, 29.09 MB
+  media/geo/pier_lod: 184 files, 6.31 MB
+  media/geo/props: 46 files, 6.74 MB
+  media/geo/props_lod: 76 files, 2.54 MB
+  media/geo/totems: 18 files, 1.51 MB
+  media/geo/trees: 39 files, 7.67 MB
+  media/map/jolene_map.c620385a.png: 1 files, 0.68 MB
+  media/map/jolene_proj.2f8c83c4.json: 1 files, 0.00 MB
+  media/parked/arch_c172.6f899fa5.gz.bin: 1 files, 3.63 MB
+  media/parked/arch_cub.bfd192f5.gz.bin: 1 files, 3.71 MB
+  media/parked/arch_jodel.421da47e.gz.bin: 1 files, 3.38 MB
+  media/tex/animals: 20 files, 1.76 MB
+  media/tex/cabin: 2 files, 0.20 MB
+  media/tex/chars: 34 files, 15.38 MB
+  media/tex/floor: 3 files, 0.79 MB
+  media/tex/flowers: 7 files, 2.08 MB
+  media/tex/ground: 391 files, 145.87 MB
+  media/tex/house: 99 files, 10.67 MB
+  media/tex/ktx2: 468 files, 76.99 MB
+  media/tex/models: 25 files, 2.58 MB
+  media/tex/panel: 1 files, 1.31 MB
+  media/tex/panelhw: 3 files, 0.08 MB
+  media/tex/pier: 243 files, 17.58 MB
+  media/tex/props: 204 files, 12.35 MB
+  media/tex/shots: 19 files, 3.29 MB
+  media/tex/signs: 16 files, 5.33 MB
+  media/tex/skin: 9 files, 0.87 MB
+  media/tex/sky: 2 files, 5.98 MB
+  media/tex/totems: 6 files, 1.91 MB
+  media/tex/trees: 157 files, 37.23 MB
+  media/tex/vessel: 9 files, 0.67 MB
+  media/tex/walls: 23 files, 6.28 MB
+  media/tex/wood: 4 files, 0.15 MB
+  media/townkit/townkit_2e8c3968b3e6.bin: 1 files, 4.72 MB
+  media/townkit/townkit_jolene_22597412d564.bin: 1 files, 0.02 MB
+  media/world/jolene: 209 files, 66.21 MB
+  2951 references from 77 manifests, 2953 files in media/ · index.html 11.61 MiB, 3.87 MiB gzipped (budget 4), +318.3 KB over HEAD (budget 307.2 KB), data: 118 KB (budget 400)
+  FAIL orphan: media/map/jolene_map.c620385a.png is referenced by no manifest — a baker's prune is broken, or the file was dropped in by hand
+  FAIL orphan: media/map/jolene_proj.2f8c83c4.json is referenced by no manifest — a baker's prune is broken, or the file was dropped in by hand
+  FAIL index.html grew 0.31 MiB over HEAD against the 0.3 MiB one build may add — something heavy moved inside the artifact
+GATE MEDIA: FAIL
+(exit code 1)
+=== SAVE ===
+  ok     PREM-S2: save as - both slots handed over
+  20 targeted rows, 937 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
+=== REF ===
+  pa28: 42 groups, 81561 verts, 89152 tris · span 10.546 m · length 7.154 m · height 2.726 m (measured, not checked) · minY -1.3983
+  13 presets, 12 with geometry, 7 spec doors held shut
+GATE REF: PASS
+=== PLAYER ===
+37 checks
+GATE PLAYER: PASS
+=== GAMEPREM ===
+533 checks
+GATE GAMEPREM: PASS
+=== CONTRACTS ===
+2260 checks
+GATE CONTRACTS: PASS
+=== FREIGHT ===
+1453 checks (cards from the measurement cache)
+GATE FREIGHT: PASS
+
+──────── summary ────────
+UPDATE    PASS     0.2 s
+MEDIA     FAIL     1.6 s
+SAVE      PASS     0.4 s
+REF       PASS     2.8 s
+PLAYER    PASS     0.1 s
+GAMEPREM  PASS     3.5 s
+CONTRACTS PASS     3.3 s
+FREIGHT   PASS    18.0 s
+total             29.9 s
+wall              18.0 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

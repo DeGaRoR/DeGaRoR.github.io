@@ -1,0 +1,97 @@
+  THE LEGS (5 min, 75 % throttle, HOME + 300 m; TAS calm-air)        TAS km/h  VCruise (clamp)    flow           endurance flown / shakedown   range
+    cub                                                                   126.9   113 (129.2)        10.887 kg/h 15.12 L/h 178.6 min / 199 min   346 km (shakedown 376)
+    jodel                                                                 137.4   127.1 (149.7)      10.887 kg/h 15.12 L/h 178.6 min / 199 min   374.8 km (shakedown 422)
+    c172                                                                  195.5   184.3 (198.4)      26.569 kg/h 36.9 L/h  344.7 min / 385 min   1074.4 km (shakedown 1183)
+    metal                                                                 217.9   177.5 (177.4 CLAMPED)39.282 kg/h 54.56 L/h 30.8 min / 34 min     57.4 km (shakedown 102)
+  (the flights: 322 s wall on 4 processes; reports/evidence/ACCEPT/flights.json)
+  189 checks, 0 failed
+GATE ACCEPT: PASS
+533 checks
+GATE GAMEPREM: PASS
+  caught  the walk drops the shed's dress  (1 new)
+  caught  the normaliser forgets the fleet  (1 new)
+  caught  the migrated save starts costing  (1 new)
+  caught  the door is ignored  (1 new)
+  caught  parked aeroplanes overlap  (33 new)
+  caught  the fit-out is ignored  (18 new)
+  caught  the door formula drifts from hangar.js  (11 new)
+  caught  the lift refuses the overflow  (1 new)
+  caught  storing ignores the room  (1 new)
+  caught  arriving ignores the room  (1 new)
+  caught  coming home forgets its own hangar  (2 new)
+  caught  a full hangar can be released  (2 new)
+  caught  an upgrade evicts  (3 new)
+  caught  the sandbox pays  (1 new)
+  caught  a refusal leaves a mark  (16 new)
+  caught  the rules reach for storage  (1 new)
+  caught  GQ4: a third side hangar is bought  (4 new)
+  caught  GQ4: an older document's extra hangar is dropped, not kept  (2 new)
+  caught  GQ4: the main hangar can be released  (2 new)
+  caught  G-COST: a hangar is rented  (1 new)
+  caught  G-COST: rent accrues per flown hour  (1 new)
+  caught  GQ5: recovery charges the road again  (1 new)
+  caught  GQ5: a free recovery leaves no ledger line  (3 new)
+  caught  GQ5: bring it home forgets the hangar it left  (1 new)
+  caught  GQ5: bring it home ignores the room  (2 new)
+  caught  GQ7: the slots are ignored (geometry only)  (9 new)
+  caught  GQ7: a side club holds one  (4 new)
+  caught  GQ7: the wear never freezes inside  (1 new)
+  caught  GQ7: the wear never reaches the macros  (2 new)
+  caught  GQ7: Repair / Paint leaves the wear  (1 new)
+  caught  gp1: the bases are not derived from the hangars held  (1 new)
+  caught  the roll-out always from the base  (1 new)
+  caught  the page forgets the lift at load  (1 new)
+  caught  a save does not tell the fleet ledger  (1 new)
+  caught  a delete does not tell the fleet ledger  (1 new)
+  caught  a stop on an aerodrome moves nothing  (1 new)
+  caught  the flight's end leaves the clock  (1 new)
+  caught  the page rolls out from the base, always  (1 new)
+  caught  the fleet popup carries no place  (1 new)
+GATE GAMEPREM selftest: PASS
+37 checks
+GATE PLAYER: PASS
+  caught  a vintage doctored to an alien shape  (2 new)
+  caught  the shelf swept empty  (1 new)
+  caught  app.js quietly writes the old dims pref again  (1 new)
+  caught  app.js quietly writes the old parts pref again  (1 new)
+  caught  the estate swallows the mobile-kit view pref  (1 new)
+  caught  the load path skips the walk  (1 new)
+GATE PLAYER selftest: PASS
+  ok     every edited row really differs from the default aeroplane
+  ok     every edited row is a real parameter
+  ok     enough rows to be a real integrity test (20)
+  ok     the whole panel is under test (937 rows of 940)
+  ok     the save wrote a slot
+  ok     the SAVED FILE carries every edited row
+  ok     the WIP AUTOSAVE carries every edited row
+  ok     the EXPORTED FILE carries every edited row
+  ok     edit -> save -> load returns every edited row to the editor
+  ok     GARAGE_SPEC.json() reports the aeroplane on the stand, not the last one
+  ok     the SAVED FILE describes all 937 moved rows
+  ok     save -> load returns all 937 rows to the editor
+  ok     a row put BACK to its default is back in the SAVED FILE too
+  ok     save -> load of the aeroplane put home returns the DEFAULT for every row
+  ok     the file of an aeroplane put home IS the default aeroplane
+  ok     a side-by-side aeroplane with a central cowl opening saves as one (file says seatLayout 1, cw_apMode 1)
+  ok     the file describes ONE aeroplane — its derived half agrees with its own cage
+  ok     the file just saved describes ONE aeroplane — its derived half agrees with its own cage
+  ok     the autosave describes ONE aeroplane — its derived half agrees with its own cage
+  ok     save -> load -> save is a FIXED POINT over the whole spec
+  ok     the PLAQUE survives the round trip
+  ok     the LOGBOOK survives the round trip
+  ok     the registration, role and class survive the round trip
+  ok     the PAINT survives the round trip
+  ok     the per-section FINISH survives the round trip
+  ok     the fuel, cargo and systems survive the round trip
+  ok     the VESSELS survive the round trip (bay, capacity, station)
+  ok     the vessel SHAPE and the tank’s finish, hue and tint survive it too
+  ok     it asks the editor before writing the build down: const saveAs = name =>
+  ok     it asks the editor before writing the build down: function exportFile()
+  ok     it asks the editor before writing the build down: json: ()
+  ok     PREM-S2: a save tells the fleet ledger the slots, the slot written, and no repaint (a new slot)
+  ok     PREM-S2: the build envelope carries nothing of the fleet ledger
+  ok     PREM-S2: saved again unchanged - no repaint
+  ok     PREM-S2: saved with a new finish - a repaint (the wear resets)
+  ok     PREM-S2: save as - both slots handed over
+  20 targeted rows, 937 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
