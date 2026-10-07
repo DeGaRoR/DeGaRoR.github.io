@@ -81462,3 +81462,32 @@ under CPU_BATTERY_WALL, the DMG rows read from the tree's own run_gates.js: ALL 
 DMGCLUSTERS 33/33, DMGDRIVE PASS, DMGFPS 54/54, DMGGEAR PASS, DMGINST 145/145, DMGINTEGRITY 116/116, DMGMEMBERS 70/70,
 DMGNOSE 83/83, DMGSKIN 131/131, DMGWALL 98/98, DMGWIND 41/41, TREECRASH 80/80, TREEHIT 50/50, UISMOKE 29/29, BUILD, JOIN
 (BATTERY: PASS, 2882 s of jobs, 2534 s wall) - reports/evidence/DMG-WALL/gates_night_dmgwall_int.txt.
+
+## G1860-G1869 DMG-D4b, ADDENDUM (2026-10-07): THE TRAIN-39 TAXI ROW; DMGUPLOAD'S HARD CUB STAGING FOR TRAIN 41 (branch claude/dmg-d4b-t41 off the train-39 assembly 82cf6ed8)
+
+### GATE DMGWRECK on DRIVE2's physics (ed0a83b8, merged in train 39 82cf6ed8)
+- DMG-DRIVE2 (ab53b8e4) grades a prop strike at the hub's band. At 3 m/s with the throttle shut, the spinner crushes on
+  the trunk first and no blade strikes it. The old row ("the 3 m/s taxi into a trunk strikes the prop") went red on all
+  three aeroplanes.
+- Now: the taxi crushes the nose / spinner on the trunk (DRIVE's nose element: crush > 0, crushOn 'trunk'; Cub 13.4 cm,
+  Jodel 11.8, Cessna 19.9). The taxi draws a strike only as DRIVE grades one (none: the prop drawn whole). The prop
+  strike on a trunk is asserted on trunk-0 (30 m/s), drawn on all three. Every case prints DRIVE's nose crush.
+  DMGWRECK 160/160; evidence reports/evidence/DMG-D4b/t39-taxi-row/.
+
+### DMGUPLOAD's hard Cub (train 41; tools/_dmg_upload_check.js)
+- On the train-39 physics (DRIVE2, WALL, TUNE), the gate's Cub crash (4 m up, 30 m/s, a 0.3 m trunk 40 m ahead) broke
+  only 12 members (210 before). The folds' heal was still tested, but on a small crash.
+- The staging is a parameter (--V --agl --tr --D; the mild one stays the default, unchanged). `--probe=1` runs the
+  crash only.
+- A sweep on 82cf6ed8 (reports/evidence/DMG-D4b/t41-sweep/; each staging ran twice, both runs the same) picked
+  **STAGES.hard = 30 m/s, 1 m up, a 0.5 m trunk: 114 broken, 12 bodies**. 30:2:0.5 broke 99, 50:2:0.5 broke 129. At
+  40 m/s the Cub broke 0-1 members (it most likely misses the trunk squarely: not a monotone dial).
+- The gate now runs Cub (mild), metal Cessna, **Cub (hard)**, then damage OFF. The hard row also fails if the wreck
+  breaks fewer than 80 members ("it tests the mild case again").
+- The full gate (2026-10-07 22:10-22:19, A0's CPU window, node): **GATE DMGUPLOAD PASS**. Cub mild 12 broken; metal 156;
+  **Cub hard 114 broken, 12 bodies, 0 stale of 366 drawn buffers (the folds' 44 included)**; damage OFF: the heal marking 0
+  times, 0 stale. Evidence: reports/evidence/DMG-D4b/t41-sweep/DMGUPLOAD_full_2210.txt.
+- **Open question**: why does the Cub at 40 m/s from 2 m (and 4 m) break only 0-1 members against a trunk the 30 and
+  50 m/s stagings break up on? The likely answer is that the staging misses the trunk squarely: the Cub lifts at 40 m/s
+  with the throttle shut. Not checked: a trace of the strike's lateral offset and the nose height at the trunk would
+  answer it.
