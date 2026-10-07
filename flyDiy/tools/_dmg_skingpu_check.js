@@ -202,7 +202,7 @@ if (argv[0] === '--build') {
         // THE GPU'S: the stale places packed as skin_gpu.js packs them; a places pass read back the frame after it ran
         const R = r.G.R; if (!R.active) continue;
         { const t0 = process.hrtime.bigint(); const [r0, r1] = SG.packStale(r.Dm, SB, restD, () => R.baseD); if (r1 > r0) S.ms.pack += ms(t0); }
-        if (r.pend) { r.Wp = r.pend; r.pend = null; r.wSeq = (r.wSeq | 0) + 1; }            // (skin_gpu.js poll: last frame's pass)
+        if (r.pend) { r.Wp = r.pend; r.wTag = r.pendTag; r.pend = null; r.wSeq = (r.wSeq | 0) + 1; }   // (skin_gpu.js poll: last frame's pass, its tag)
         // what the GPU draws this frame, exactly (poseCage on this record): the shader's mirror against it; the bound
         const PT = new Float64Array(R.nv * 3), NT = Float32Array.from(r.G.N);   // (exact: the CPU path stores it as float32)
         X.w = R.w; X.n = NT; X.nB = R.nB;
@@ -264,14 +264,12 @@ if (argv[0] === '--build') {
             S.verts++;
           }
         }
-        // THE TEAR as the page tears the GPU's record: asked from half the interval on; due - read-back places newer than its
-        // last check (a frame old), else asked for again
+        // THE TEAR as the page tears the GPU's record (train 41: at the CPU's cadence): the frame it is due asks the places
+        // pass (this frame's positions, at its end); the read lands the next frame and the tear runs on those positions
         const fresh = () => r.wSeq && r.wSeq !== r.wUsed;
-        if ((R.tearF == null || s - R.tearF >= TEAR_FRAMES / 2) && !fresh()) r.wantW = true;
-        if (tearDue(R)) {
-          if (fresh()) { r.wUsed = r.wSeq; R.tearF = s; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD); S.ms.tearPl += ms(t0); S.checks++; }
-          else r.wantW = true;
-        }
+        if (R.tearAsk != null) {
+          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD); S.ms.tearPl += ms(t0); S.checks++; }
+        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; }
         const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessG) S.excessG = ws.ex;
         for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.G.firstTorn[t] < 0) r.G.firstTorn[t] = s;
         if (!r.G.run) { r.G.run = new Uint16Array(nt); r.G.maxRun = new Uint16Array(nt); }
@@ -281,7 +279,7 @@ if (argv[0] === '--build') {
           SB.packNodes(NF, sim.p, n, cg, ND);
           const np = R.pl.length, Wp = new Float32Array(np * 3), UW = { world: true, down };
           for (let j = 0; j < np; j++) SB.rideMirror(r.Dm.cpu, ND, j, 0, 0, 0, UW, Wp, null, j * 3, Math.fround);
-          r.pend = Wp; r.wantW = false;
+          r.pend = Wp; r.pendTag = s; r.wantW = false;
         }
       }
     }
@@ -347,7 +345,8 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       // ...and (the coordinator's conditions for 39) every miss a transient: on the GPU path its edges stood past the bound
       // no longer than one GPU sampling period; no live edge past the bound longer than that period on either path; a tear
       // the GPU path makes later than the CPU's, within it
-      yes(S.missed <= Math.max(3, 0.05 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G,
+      // (train 41: the GPU path samples the CPU's frames - the misses back to the 1 % / 3 of the CPU tear's own phase)
+      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G,
         'the tear on the read-back places: ' + S.tornG + ' torn (the CPU\'s full tear ' + S.tornC + '): ' + S.missed + ' it tore that this still draws (' + S.goneOther + ' more gone here by an event instead), ' + S.late + ' later (up to '
         + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)'
         + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'

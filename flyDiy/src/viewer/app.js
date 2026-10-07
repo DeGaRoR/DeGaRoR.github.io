@@ -4170,12 +4170,14 @@
         return e;
       },
       // the tear's world positions: fresh ones (read back since this record last tore) or null - and then asked for
-      places(e) { const Dr = e.D; if (Dr.wSeq && Dr.wSeq !== e.wUsed) { e.wUsed = Dr.wSeq; return Dr; } Dr.wantW = true; return null; },
-      ask(e) { const Dr = e.D; if (!(Dr.wSeq && Dr.wSeq !== e.wUsed)) Dr.wantW = true; },
+      // the tear's samples (train 41): sample(e) asks a places pass this frame; places(e, since) - a read of a pass made at
+      // or after `since` (sim time) not yet used by this entry, or null
+      places(e, since) { const Dr = e.D; if (Dr.wSeq && Dr.wSeq !== e.wUsed && Dr.wTag >= since) { e.wUsed = Dr.wSeq; return Dr; } return null; },
+      sample(e) { e.D.wantW = true; },
       poll() { for (const Dr of GS.drawers.values()) SKIN_GPU.poll(Dr); },
       frame(X) {
         for (const Dr of GS.drawers.values()) if (Dr.join) { SKIN_GPU.layout(Dr, Dr.recs.concat(Dr.join)); Dr.join = null; }
-        return SKIN_GPU.frame({ SB: SKIN_BREAK, rest: K.rest, n: def.nodes.length, NF: K.NF, live: sim.p, cg: X.cg, Mi: X.Mi, B: X.B, down: K.down,
+        return SKIN_GPU.frame({ SB: SKIN_BREAK, rest: K.rest, n: def.nodes.length, NF: K.NF, live: sim.p, cg: X.cg, Mi: X.Mi, B: X.B, down: K.down, tag: sim.t,
           drawers: [...GS.drawers.values()], pxOf: e => e.px, base: e => e.R.baseD, renderer });
       },
     };
@@ -4399,14 +4401,26 @@
         SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       }
       // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges;
-      // G1818: on the GPU's riding, on its places' world positions read back a frame later - skin_break.js tearPlaces)
-      // (the places pass is asked from half the interval on, so its read - a frame later - is there when the tear is due)
+      // G1818: on the GPU's riding, on its places' world positions - skin_break.js tearPlaces. Train 41: AT THE CPU'S
+      // CADENCE - the frame the tear is due asks the places pass (that frame's positions); the read lands a frame or two
+      // later and the tear runs on those - the same samples as the CPU's, applied when they arrive (it was a read-back a
+      // frame OLD, asked from half the interval: an edge past the bound only between the reads was torn by one path only)
+      // (a record held again on a later flight keeps its clocks; sim.t starts again at 0 - a clock ahead of it is the last
+      // flight's: dropped, or the tear and the confetti waited for the new flight to pass the old crash's time)
+      if (R.tearT != null && R.tearT > sim.t) R.tearT = null;
+      if (R.tearAsk != null && R.tearAsk > sim.t) R.tearAsk = null;
+      if (R.islT != null && R.islT > sim.t) R.islT = null;
       const sinceT = sim.t - (R.tearT == null ? -1 : R.tearT);
-      if (onGpu && gain === 1 && sinceT >= 0.5 * TEAR_EVERY) GP.ask(ge);
-      if (gain === 1 && !(brkFast() && sinceT < TEAR_EVERY)) {
-        const Wd = onGpu ? GP.places(ge) : null;
-        if (!onGpu || Wd) { R.tearT = sim.t;
-          if (onGpu ? SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD) : SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } } }
+      if (!onGpu) R.tearAsk = null;
+      if (gain === 1) {
+        if (onGpu && R.tearAsk != null) {
+          const Wd = GP.places(ge, R.tearAsk);
+          if (Wd) { R.tearT = Wd.wTag; R.tearAsk = null;
+            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD)) { brkIdx(R); R.tornNew = true; } }
+        } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
+          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; }
+          else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
+        } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
       if (R.tornNew && !(sim.t - (R.islT || -1) < 0.25)) { R.islT = sim.t; R.tornNew = false; if (SB.islands(R, BRK_ISLAND)) brkIdx(R); }
       if (!onGpu) { pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true; brkPosMirror(R, pa.array, R.nAttr ? R.nAttr.array : null); }

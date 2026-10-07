@@ -293,7 +293,7 @@
         gl.bindBuffer(gl.COPY_READ_BUFFER, D.wBuf); gl.bindBuffer(gl.COPY_WRITE_BUFFER, D.rBuf);
         gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, 0, 0, D.np * 12);
         gl.bindBuffer(gl.COPY_READ_BUFFER, null); gl.bindBuffer(gl.COPY_WRITE_BUFFER, null);
-        D.pend = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t: performance.now() };
+        D.pend = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t: performance.now(), tag: F.tag };   // (tag: the frame sampled - G1818 t41)
         if (chk) chk('places copied');
       }
     }
@@ -315,7 +315,7 @@
     if (st !== gl.SIGNALED) return false;
     gl.deleteSync(P.sync); D.pend = null;
     gl.bindBuffer(gl.COPY_READ_BUFFER, D.rBuf); gl.getBufferSubData(gl.COPY_READ_BUFFER, 0, D.Wp, 0, D.np * 3); gl.bindBuffer(gl.COPY_READ_BUFFER, null);
-    D.wSeq++; G.stats.wReads = (G.stats.wReads || 0) + 1; G.stats.wLagMs = Math.max(G.stats.wLagMs || 0, performance.now() - P.t);
+    D.wSeq++; D.wTag = P.tag; G.stats.wReads = (G.stats.wReads || 0) + 1; G.stats.wLagMs = Math.max(G.stats.wLagMs || 0, performance.now() - P.t);
     return true;
   }
   // THREE'S GL STATE KEPT: every binding this module touches is read before and put back after (the program, the vertex
