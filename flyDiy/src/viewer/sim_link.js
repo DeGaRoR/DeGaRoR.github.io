@@ -64,7 +64,7 @@ const SIM_LINK = (() => {
   'use strict';
   const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea'];
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
-  const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report'];
+  const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
 
   const isPlain = o => o !== null && typeof o === 'object' && !Array.isArray(o) && !ArrayBuffer.isView(o);
@@ -319,6 +319,9 @@ const SIM_LINK = (() => {
                   damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
       cardNext = null;
+      // G2120 ROUTE-DRAW: a route drawn before this flight was asked of the worker (armed on the page's pilot) is the worker
+      // pilot's too, from its first step
+      if (S.ap && S.ap.drawn && S.ap.drawn.state === 'armed' && S.ap.drawn.route) m.pilot.route = JSON.parse(JSON.stringify(S.ap.drawn.route));
       // G820 (C1c): ONE SIM PER BUILD, as the page's: the worker keeps the sim it flew last when the page flies the same
       // sim object again (a reset, the skip, the shed's round trip), and a sim it makes anew takes the page's sim.out
       // (a reset does not clear it; the pilot's first update reads it when the flight starts `started`)
@@ -433,6 +436,8 @@ const SIM_LINK = (() => {
       { const C0 = typeof sim.cert === 'function' ? sim.cert() : null; if (C0 && C0.Ft) V.send({ cmd: 'cert', Ft: C0.Ft, Fc: C0.Fc, k: 0 }); }
       if (destNext && destNext.ap === F.ap) V.send({ cmd: 'dest', to: destNext.to, k: 0 });   // G1945: a To picked before the worker took the flight
       destNext = null;
+      if (routeNext && routeNext.ap === F.ap) V.send({ cmd: 'route', route: routeNext.route, k: 0 });   // G2120: a route drawn while it was being taken
+      routeNext = null;
       // the convection the page's climate holds (its cache's exact inputs: the page's day met that key before the worker lived)
       if (world.climate && world.climate.convState) V.send({ cmd: 'conv', s: world.climate.convState(), k: 0 });
       windFrame = [];
@@ -586,7 +591,16 @@ const SIM_LINK = (() => {
     // G1945 DEST-TO: A NEW TO (app.js setTo -> the page pilot's ap.setDest): the worker's pilot is handed the same
     // destination at the same step boundary - no new pilot, no reset (43_pilot.js setDest decides: kept, re-planned
     // from here, or queued for the next leg). A flight not live yet takes it as its first command (k 0, attach)
-    let destNext = null;
+    let destNext = null, routeNext = null;
+    // G2120 ROUTE-DRAW: A DRAWN ROUTE (app.js routeFly -> the page pilot's ap.flyRoute): the worker's pilot is handed the
+    // same record at the same step boundary (43_pilot.js flyRoute decides: armed, now, queued; null leaves it)
+    function route(rec) {
+      const F = flight; if (!F || F.inline) return;
+      const r = rec ? JSON.parse(JSON.stringify(rec)) : null;
+      if (!F.live) { routeNext = { ap: F.ap, route: r }; return; }
+      const c = { cmd: 'route', route: r }; stamp(c); F.view.send(c);
+      st.routes = (st.routes || 0) + 1;
+    }
     function dest(to) {
       const F = flight; if (!F || F.inline) return;
       if (!F.live) { destNext = { ap: F.ap, to }; return; }
@@ -621,7 +635,7 @@ const SIM_LINK = (() => {
       return P;
     }
     const api = {
-      frame, idle, warm, shed, prewarm, leg, dest, perf, card, place,
+      frame, idle, warm, shed, prewarm, leg, dest, route, perf, card, place,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
                                            view: flight && flight.view ? flight.view.state() : null,
                                            ring: flight && flight.view && flight.view.delay ? flight.view.delay() : null }),   // G1100: the view's ring and delay

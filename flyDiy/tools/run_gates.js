@@ -128,6 +128,12 @@ const GATES = [
   // the enroute leg re-plans from here inside the turn law and arrives (Cub, metal Cessna); the base, the picker's
   // surface rule and the pref's migration (no flight). Seven real flights, dealt over three shards
   { id: 'DESTTO', file: '_destto_check.js', tier: 'core', shards: 3, wall: 1500 },
+  // G2120 ROUTE-DRAW: THE DRAWN ROUTE IS THE ONE FLOWN - the record and its profile (the hill red, the steep point
+  // flagged, the climb-out no conflict; no flight), then the user's Cub, the Jodel and the metal Cessna lined up at
+  // Jolene HOME fly one 5-point route with its altitude changes: every point inside its capture radius and +-15 m of
+  // its altitude, the vertical speed inside TECS's limits, no terrain conflict, PILOTACT's reversal limit, the plan
+  // published; then the end as drawn (home / hold / the nearest strip). Three flights over three shards; --selftest
+  { id: 'ROUTE', file: '_route_check.js', tier: 'core', shards: 3, wall: 340 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },

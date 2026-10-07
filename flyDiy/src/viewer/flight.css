@@ -606,6 +606,40 @@ body.rollShot #flActs { display:none !important; }
 
 #mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
 
+/* ---- G2120 ROUTE-DRAW: THE DRAWING. The map in its draw mode (route_draw.js): the canvas takes every gesture
+   (a point, a drag, a pinch - no page scroll under a finger), and the route's panel hangs under it in the same
+   plate, as wide as the map. ---- */
+#ui #mmp.draw { cursor:default; }
+#ui #mmp.draw #mm { cursor:crosshair; touch-action:none; }
+#rtp { width:min(74vmin, 520px); margin-top:6px; max-height:calc(100vh - min(74vmin, 520px) - 120px); overflow-y:auto; display:flex; flex-direction:column; gap:5px;
+  font:400 11px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-ink, #f4efe6); cursor:default; }
+#rtp[hidden] { display:none; }
+#rtp .rtHead { display:flex; align-items:center; gap:8px; }
+#rtp .rtHead b { font:600 10px/1 'IBM Plex Mono', monospace; letter-spacing:.08em; color:#f58fd8; }
+#rtp .rtName { flex:1; min-width:0; }
+#rtp input, #rtp select { background:rgba(0,0,0,.32); color:inherit; border:1px solid var(--ed-border, rgba(255,248,236,.14));
+  border-radius:4px; padding:2px 5px; font:inherit; min-width:0; }
+#rtp .rtRow { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+#rtp .rtK { color:var(--ed-faint, #97907f); }
+#rtp .rtSel { flex:1; }
+#rtp .rtEnd, #rtp .rtRef { flex:none; }
+#rtp .rtBtn { background:var(--ed-btn-bg, rgba(255,255,255,.06)); color:inherit; border:1px solid var(--ed-btn-bd, rgba(255,255,255,.18));
+  border-radius:4px; padding:3px 8px; font:500 11px/1 'IBM Plex Sans', sans-serif; cursor:pointer; }
+#rtp .rtBtn.on { border-color:#f58fd8; color:#ffd0f0; }
+#rtp .rtBtn.go { background:#f58fd8; color:#221f1b; border-color:#f58fd8; font-weight:600; letter-spacing:.04em; }
+#rtp .rtX, #rtp .rtDel { padding:2px 6px; }
+#rtp .rtList { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+#rtp .rtPt { display:flex; align-items:center; gap:5px; padding:2px 4px; border-radius:4px; border:1px solid transparent; }
+#rtp .rtPt b { font:600 10px/1 'IBM Plex Mono', monospace; width:30px; color:#f58fd8; }
+#rtp .rtPt.sel { border-color:rgba(245,143,216,.5); background:rgba(245,143,216,.08); }
+#rtp .rtPt.bad b, #rtp .rtWarn { color:#ff8b7c; }
+#rtp .rtAlt { width:62px; } #rtp .rtSpd { width:52px; }
+#rtp .rtU { color:var(--ed-faint, #97907f); flex:1; }
+#rtp .rtProf { width:100%; height:auto; border-radius:4px; display:block; }
+#rtp .rtStat { font:400 10px/1.35 'IBM Plex Mono', monospace; color:var(--ed-dim, #c0b8ac); }
+#rtp .rtMsg { color:var(--ed-dim, #c0b8ac); flex:1; }
+#rtp .rtNote { color:var(--ed-faint, #97907f); font-size:10px; }
+
 /* ---- THE TRACE. Furniture, not chrome: it is at the bottom of the stack
    (see above), it is LIGHTER than the plates that carry a decision — half
    weight, a hairline border, no shadow — and it is the one panel the player
@@ -804,6 +838,7 @@ body.rollShot #flActs { display:none !important; }
   #mmp { right:12px; }
   #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
     height:min(82vmin, calc(100vw - 40px)); }
+  #rtp { width:min(82vmin, calc(100vw - 40px)); max-height:calc(100vh - min(82vmin, calc(100vw - 40px)) - 110px); }
   #arrCard { width:calc(100% - 24px); padding:16px 16px 14px; }
   #arrRows { grid-template-columns:1fr; }
 }

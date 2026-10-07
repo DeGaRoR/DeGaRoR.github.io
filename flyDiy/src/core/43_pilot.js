@@ -125,6 +125,7 @@ const PILOT_PHASES = {
   FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], GLIDE: ['GLIDE', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
   ROLLOUT: ['ROLLOUT', 'ROLLOUT'], STOPPED: ['STOPPED', 'STOPPED'],
   BOX: ['AP BOX', 'CRUISE'],
+  ROUTE: ['ROUTE', 'ENROUTE'], LOITER: ['HOLDING', 'ENROUTE'],   // G2120 ROUTE-DRAW: the drawn route, its hold at the end
 };
 const PILOT_UNITS = {
   kt: v => v * 1.943844, fpm: v => v * 196.8504, ft: h => h * 3.28084, kmh: v => v * 3.6,
@@ -344,7 +345,7 @@ function makePilot(sim, def, world, opts) {
     // path L1 follows (null on the ground and in the climb-out). The map, the HUD's plan line and
     // the 3-D legs read THIS - nothing re-derives the plan.
     intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
-              vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null },
+              vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null, route: null },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
@@ -441,7 +442,7 @@ function makePilot(sim, def, world, opts) {
   ap.nextTo = null;
   let replanReq = false, replanning = false;
   const DEST_KEPT = ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD', 'ROLL', 'ABORT', 'LIFTOFF', 'PUTDOWN', 'CLIMB', 'GOAROUND', 'BOX'];
-  const DEST_REPLAN = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND', 'FINAL'];
+  const DEST_REPLAN = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND', 'FINAL', 'ROUTE', 'LOITER'];   // G2120: off the drawn route too
   ap.setDest = (to) => {
     if (!to || !ap.route) return 'none';
     const from = ap.route.from;
@@ -457,6 +458,44 @@ function makePilot(sim, def, world, opts) {
     if (DEST_REPLAN.includes(ph)) { replanReq = true; return 'replan'; }
     if (ph === 'GOAROUND') replanReq = true;   // the go-around climbs out first; its first leg is then re-planned the cross-country way
     return 'kept';
+  };
+
+  // G2120 ROUTE-DRAW: THE DRAWN ROUTE (38c_route.js), flown - the user: "can we now draw a trajectory (control points
+  // + altitude) for the autopilots?". ap.flyRoute(record) takes a route record and returns where it stands:
+  //   'armed'   on the ground, in the take-off or the climb-out, the box: the climb-out hands over to the ROUTE phase
+  //             at the circuit's crosswind height instead of planning the arrival
+  //   'now'     on a leg of the arrival, on a route, in its hold: the route begins at the next step, from here
+  //   'queued'  the landing committed or done: armed for whoever departs next (the page chains it)
+  //   'none'    no point to fly; ap.flyRoute(null) leaves a route being flown (the arrival planned from here)
+  // ap.drawn is the state, published as ap.intent.route: { route, legs, state: armed | flying | hold | done | left, i,
+  // cap[i] (the closest pass at each point: d m, dh m over the asked altitude, t s), hold, perf }. The ROUTE phase flies
+  // its legs as the circuit's are flown (filleted at the turn radius - the fly-by - and followed by L1) and the
+  // altitude as the profile has it (the gradient from point to point, read 5 s ahead: TECS's height gain is 0.2 /s,
+  // so the lead IS the gradient's feed-forward), clamped by TECS's own limits; the end is the record's: 'hold'
+  // (LOITER: an orbit through the last point at its altitude), 'home' (the field the flight left, the arrival and its
+  // circuit planned from there), 'land' (the nearest strip this gear lands on with room)
+  ap.drawn = null;
+  let routeGo = false, routeFloorSaid = false, routePerfV = null;
+  ap.routePerf = () => routePerfV || (routePerfV = (typeof routePerf === 'function' ? routePerf(sheetOf(), A, bankLim) : null));
+  ap.flyRoute = (record) => {
+    const ph = ap.phase;
+    if (record == null) {
+      const D = ap.drawn;
+      if (!D) return 'none';
+      if (D.state === 'flying' || D.state === 'hold') { D.state = 'left'; replanReq = true; say('route-left', 'off the drawn route - planning the arrival from here'); return 'left'; }
+      ap.drawn = null; routeGo = false; return 'none';
+    }
+    const R = typeof routeNormalise === 'function' ? routeNormalise(record) : null;
+    if (!R || !R.pts.length) return 'none';
+    const legs = routeLegs(R, world);
+    ap.drawn = { route: R, legs, state: 'armed', i: 0, n: legs.length, cap: legs.map(() => ({ d: Infinity, dh: null, t: null })), hold: null,
+                 perf: ap.routePerf(), name: R.name, end: R.end };
+    let len = 0; for (let k = 1; k < R.pts.length; k++) len += Math.hypot(R.pts[k].x - R.pts[k - 1].x, R.pts[k].z - R.pts[k - 1].z);
+    ap.budget = Math.max(ap.budget, ap.t + 900 + 2 * len / Math.max(15, ap.VCruise || A.VCruise || 30));
+    say('route', 'the drawn route ' + R.name + ': ' + R.pts.length + ' point' + (R.pts.length > 1 ? 's' : '') + ', then ' + R.end);
+    if (DEST_REPLAN.includes(ph) && !ap.box.on) { routeGo = true; return 'now'; }
+    if (DEST_KEPT.includes(ph)) return 'armed';
+    return 'queued';
   };
 
   // ---- the servos' state lives in SV (39b_servos.js, G1570) -------------------
@@ -943,6 +982,7 @@ function makePilot(sim, def, world, opts) {
     let prev = null;
     for (const L of legs) {
       if (!L.A || !L.B) continue;
+      if (L.drawn) { prev = L.hPlan; continue; }   // G2120: a drawn leg's heights are the drawing's (routeStart)
       const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9, ux = dx / len, uz = dz / len;
       L.gB = hasT ? Math.round(groundH(L.B[0], L.B[1])) : ap.altRef;
       if (L.name === 'FINAL') {
@@ -983,7 +1023,7 @@ function makePilot(sim, def, world, opts) {
     const bC = Math.min(bankLim, A.bankClimb ?? 0.35);
     const nodes = [], ids = [];
     const add = (x, z, r) => { const id = 'p' + nodes.length; nodes.push({ id, x, z, kind: 'air', r }); ids.push(id); };
-    const speedOf = L => L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
+    const speedOf = L => typeof L.V === 'number' ? L.V : L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;   // G2120: a drawn leg's own speed
     // P0.8: the fillet is followed over the GROUND (L1 on the ground track),
     // so it is planned at the ground speed a turn can reach — the airspeed
     // plus the wind (the beaver / twin in 2 m/s across crossed the crosswind
@@ -1763,6 +1803,74 @@ function makePilot(sim, def, world, opts) {
       ap.holdDir = climbDir;
       return ap.legs[0].name;
     };
+    // G2120 ROUTE-DRAW: THE DRAWN ROUTE BEGINS HERE - its first leg two turn radii ahead on the track, the path from
+    // the aeroplane (planFromHere's own join: the turn onto the route is a corner the path fillets), every leg's
+    // altitude the drawing's (hA at its start - the aeroplane's own for the first -, hB at the point)
+    const routeStart = () => {
+      const D = ap.drawn;
+      D.state = 'flying'; D.i = 0; D.hold = null; routeFloorSaid = false;
+      const legs = D.legs.map(L => Object.assign({}, L));
+      const tl0 = Math.hypot(vcg[0], vcg[2]);
+      const Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
+      const ahead = tl0 > 3 ? [cg[0] + vcg[0] / tl0 * Rc2, cg[2] + vcg[2] / tl0 * Rc2] : [cg[0], cg[2]];
+      // a first point inside the join (nearer than the point ahead) is joined straight from the aeroplane
+      const B0 = legs[0].B;
+      legs[0].A = Math.hypot(B0[0] - cg[0], B0[1] - cg[2]) > 1.5 * Rc2 ? ahead : [cg[0], cg[2]];
+      for (let k = 0; k < legs.length; k++) {
+        const L = legs[k];
+        L.hA = k ? legs[k - 1].hB : cg[1];
+        L.hPlan = Math.round(L.hB); L.hPlanA = Math.round(L.hA);
+      }
+      ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null;
+      pathFrom = tl0 > 3 ? [cg[0], cg[2]] : null;
+      const tl = Math.hypot(vcg[0], vcg[2]);
+      if (tl > 3) ap.holdDir = [vcg[0] / tl, 0, vcg[2] / tl];
+      committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
+      say('route-start', 'flying the drawn route ' + D.name + ' from here: ' + legs.map(L => L.name + ' ' + L.hPlan + ' m').join(', '));
+      return 'ROUTE';
+    };
+    // ...AND ENDS AS ITS RECORD SAYS
+    const routeEnd = () => {
+      const D = ap.drawn, Lz = ap.legs[ap.legs.length - 1];
+      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : ' - to the nearest strip'));
+      const tl = Math.hypot(vcg[0], vcg[2]) || 1, ux = vcg[0] / tl, uz = vcg[2] / tl;
+      if (D.end === 'hold') {
+        // the orbit through the last point, tangent to the track there (no reversal), turning the way the route's last
+        // corner turned (+1: the world angle increasing)
+        const Rh = Math.max(300, 1.4 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim)));
+        const Ly = ap.legs[ap.legs.length - 2];
+        const g1 = Ly ? legGeom(Ly) : null, g2 = legGeom(Lz);
+        const sg = (g1 && g1.ux * g2.uz - g1.uz * g2.ux < 0) ? -1 : 1;
+        const cx = Lz.B[0] - sg * Rh * uz, cz = Lz.B[1] + sg * Rh * ux;
+        D.hold = { x: cx, z: cz, R: Rh, h: Lz.hB, sg, name: Lz.name };
+        D.state = 'hold'; airPath = null;
+        return 'LOITER';
+      }
+      D.state = 'done';
+      let to = ap.route && ap.route.from;
+      if (D.end === 'land' && world && world.aerodromes) {
+        const need = Math.max(350, 1.4 * ((sheetOf() && sheetOf().LDGrun) || 0));
+        let best = null, bd = Infinity;
+        for (const a of world.aerodromes) {
+          if (a.kind === 'meadow' || !(a.len >= need)) continue;
+          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
+          const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (dd < bd) { bd = dd; best = a; }
+        }
+        if (best) to = best;
+      }
+      if (!to) to = ap.route.to;
+      ap.route = { from: ap.route.from, to };
+      ap.xc = true; airPath = null;
+      ap.budget = Math.max(ap.budget, ap.t + routeBudget({ x: cg[0], z: cg[2] }, to));
+      say('route-arrival', 'arriving at ' + (to.name || to.id));
+      replanning = true;
+      let first;
+      try { first = planFromHere(); } finally { replanning = false; }
+      ap.holdDir = [ux, 0, uz];
+      committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
+      return first;
+    };
     // the far end of the strip along the take-off direction, from the record
     const runwayLeft = () => {
       const from = ap.route.from;
@@ -1864,14 +1972,18 @@ function makePilot(sim, def, world, opts) {
     }
     // G1945 DEST-TO: a To changed on a leg of the arrival is re-planned here, from the aeroplane's own
     // position and track (ap.setDest); the box flies on until it hands back (CLIMB plans then)
+    // G2120: a route drawn in the air begins from here (ap.flyRoute 'now'), the To's re-plan below then leaves it
+    if (routeGo && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase) && ap.drawn && !replanReq) { routeGo = false; go(routeStart()); }
     if (replanReq && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase)) {
-      replanReq = false; replanning = true;
+      replanReq = false; replanning = true; routeGo = false;
+      if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) ap.drawn.state = 'left';
       try { go(planFromHere()); } finally { replanning = false; }
       const tl = Math.hypot(vcg[0], vcg[2]);
       if (tl > 3) ap.holdDir = [vcg[0] / tl, 0, vcg[2] / tl];   // the escape fan is about the track flown, not a climb-out
       committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
+    const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
     if (ap.phase !== 'FINAL') slipK = 0;   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G1938 (PILOT-ONE, the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should allow
@@ -2545,7 +2657,8 @@ function makePilot(sim, def, world, opts) {
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
-        const hTurn = ap.xc ? ap.hCruise - 8
+        const routeArmed = !!(ap.drawn && ap.drawn.state === 'armed');   // G2120: the drawn route takes over at the crosswind turn's height
+        const hTurn = (ap.xc && !routeArmed) ? ap.hCruise - 8
                     : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         pubH = ap.refAlt + hTurn; pubN = ap.xc ? 'CRUISE HEIGHT' : 'CROSSWIND TURN'; pubX = null; pubZ = null;
         const stalled = phaseT > 60 && vsSlow < 0.15, marginal = phaseT > 75 && vsSlow < 0.4;
@@ -2572,7 +2685,7 @@ function makePilot(sim, def, world, opts) {
         const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA();
         if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
         if (agl >= hTurn || stalled || marginal || terrainTurn) {
-          const first = planFromHere();
+          const first = routeArmed ? routeStart() : planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
           if (!climbMode) { SV.thrC = A.thrCruise; SV.thcI = 0.04; }
         }
@@ -2698,6 +2811,74 @@ function makePilot(sim, def, world, opts) {
             go('FINAL');
           } else go(N.name);
         }
+        break;
+      }
+
+      case 'ROUTE': {
+        // G2120 ROUTE-DRAW: THE DRAWN ROUTE (routeStart above). Laterally the legs as the circuit's are flown: the
+        // path filleted at each corner's turn radius (the fly-by), L1 on it, a leg passed at navLeg's anticipation;
+        // vertically the profile - hA to hB along the leg, read 5 s ahead (into the next leg past the corner)
+        // - with a floor of last resort (the ground 600 m ahead + 30 m: a drawn profile under it was flagged red when
+        // it was drawn, and is said once if it is ever flown into)
+        const D = ap.drawn, L = ap.legs && ap.legs[ap.legI];
+        if (!D || D.state !== 'flying' || !L || !L.A || !L.drawn) { go(planFromHere()); break; }
+        const next = ap.legs[ap.legI + 1] || null;
+        const r = navLeg(L, lookC, next);
+        if (!airPath) { airPath = buildAirPath(ap.legs, pathFrom); airPathI = 0; pathFrom = null; }
+        const lead = 5 * Math.max(o_.Vg ?? Vg, 10);
+        const ramp = (Lg, s, len) => Lg.hA + (Lg.hB - Lg.hA) * clamp(s / Math.max(1, len), 0, 1);
+        let hTgt = ramp(L, r.s + lead, r.len);
+        if (next && r.s + lead > r.len) hTgt = ramp(next, r.s + lead - r.len, legGeom(next).len);
+        const g = legGeom(L);
+        const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 600) + 30;
+        if (floor > hTgt) { hTgt = floor; if (!routeFloorSaid) { routeFloorSaid = true; say('route-terrain', 'the drawn profile is under the ground ahead on ' + L.name + ' - flying ' + Math.round(floor) + ' m'); } }
+        const PF = ap.routePerf();
+        const Vleg = L.V != null ? clamp(L.V, PF ? PF.Vmin : 0, PF ? PF.Vmax : 200) : ap.VCruise;
+        altMode(hTgt, Vleg, bankLim, airPath ? 'PATH' : 'NAV');
+        flapTgt = 0;
+        pubH = hTgt; pubN = L.name; pubX = L.B[0]; pubZ = L.B[1];
+        // the captures: the closest pass at this point and the last (a fly-by passes it after the switch)
+        for (let k = Math.max(0, ap.legI - 1); k <= ap.legI; k++) {
+          const Lk = ap.legs[k], dk = Math.hypot(Lk.B[0] - cg[0], Lk.B[1] - cg[2]);
+          if (dk < D.cap[k].d) { D.cap[k].d = dk; D.cap[k].dh = cg[1] - Lk.hB; D.cap[k].t = ap.t; }
+        }
+        D.i = ap.legI;
+        ap.budget = Math.max(ap.budget, ap.t + 400);
+        const tLeg = r.len / Math.max(8, Vleg * 0.8) + 60;
+        setStatus('flying the drawn route: ' + L.name + ' of ' + ap.legs.length, [
+          cond('to the point', Math.round(r.rem), 0, r.done, 'm'),
+          cond('height', Math.round(cg[1]), Math.round(L.hB), Math.abs(L.hB - cg[1]) < 15, 'm'),
+          cond('off track', Math.round(Math.abs(r.xt)), 50, Math.abs(r.xt) < 50, 'm')]);
+        if (r.done || phaseT > 2.5 * tLeg) {
+          if (!r.done) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s - moving on');
+          ap.legI++;
+          if (ap.legI >= ap.legs.length) { ap.legI = ap.legs.length - 1; go(routeEnd()); }
+          else go('ROUTE');
+        }
+        break;
+      }
+
+      case 'LOITER': {
+        // G2120: THE HOLD at the drawn route's end - an orbit through its last point at its altitude, the heading the
+        // circle's tangent with the radial error turned in (45 deg at most), until a new To or route moves it
+        const D = ap.drawn, Hd = D && D.hold;
+        if (!Hd) { go(planFromHere()); break; }
+        // (the tangent read 2 s ahead round the circle: the heading law lags a target that turns V/R all the time)
+        const rr = Math.hypot(cg[0] - Hd.x, cg[2] - Hd.z) || 1e-9;
+        const phA = Math.atan2(cg[2] - Hd.z, cg[0] - Hd.x) + Hd.sg * 2 * Math.max(Vg, 8) / Hd.R;
+        const rx = Math.cos(phA), rz = Math.sin(phA);
+        const kR = clamp(3 * (rr - Hd.R) / Hd.R, -1, 1);
+        const dx = -rz * Hd.sg - kR * rx, dz = rx * Hd.sg - kR * rz;
+        altMode(Hd.h, Math.min(ap.VCruise, Math.max(VTurn, ap.VClimb || 0)), bankLim, 'HDG');
+        SEL.hdg = Math.atan2(dz, dx);
+        flapTgt = 0;
+        pubH = Hd.h; pubN = 'HOLD ' + Hd.name; pubX = Hd.x; pubZ = Hd.z;
+        const Lz = ap.legs && ap.legs[ap.legs.length - 1];
+        if (Lz && D.cap[Lz.i]) { const dk = Math.hypot(Lz.B[0] - cg[0], Lz.B[1] - cg[2]); if (dk < D.cap[Lz.i].d) { D.cap[Lz.i].d = dk; D.cap[Lz.i].dh = cg[1] - Lz.hB; D.cap[Lz.i].t = ap.t; } }
+        ap.budget = Math.max(ap.budget, ap.t + 300);
+        setStatus('holding over ' + Hd.name + ' at the route\'s end', [
+          cond('height', Math.round(cg[1]), Math.round(Hd.h), Math.abs(Hd.h - cg[1]) < 15, 'm'),
+          cond('off the circle', Math.round(Math.abs(rr - Hd.R)), 60, Math.abs(rr - Hd.R) < 60, 'm')]);
         break;
       }
 
@@ -3056,7 +3237,7 @@ function makePilot(sim, def, world, opts) {
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
     // G710: THE PLAN, published (see ap.intent above)
     const IN_ = ap.intent, TD = AF.vert === 'TECS' ? tecsDbg : null;
-    IN_.phase = phRun; IN_.legs = ap.legs; IN_.legI = legRun;
+    IN_.phase = phRun; IN_.legs = phRun === 'ROUTE' ? legsRun : ap.legs; IN_.legI = legRun;
     IN_.to = pubN; IN_.x = pubX; IN_.z = pubZ;
     IN_.h = pubH; IN_.hField = pubH != null ? pubH - ap.altRef : null;
     IN_.hGround = (pubH != null && pubX != null && world && typeof world.terrainH === 'function') ? pubH - groundH(pubX, pubZ) : IN_.hField;
@@ -3065,6 +3246,7 @@ function makePilot(sim, def, world, opts) {
     IN_.climbMax = tClimbMax; IN_.sinkIdle = tSinkIdle;
     IN_.path = (onG === 0 && ap.legs) ? airPath : null; IN_.pathI = airPathI;
     IN_.taxi = ap.path || null;
+    IN_.route = ap.drawn;   // G2120: the drawn route's state (the record, the legs, the active point, the captures, the hold)
   };
   return ap;
 }
