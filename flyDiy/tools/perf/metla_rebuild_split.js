@@ -64,7 +64,11 @@ async function child(side, out) {
     for (const k of Object.keys(inv)) for (const q of Object.keys(inv[k])) if (q !== 'v' && q !== 't') inv[k][q] = +(+inv[k][q]).toFixed(1);
   parts.sort();
   const by = {}; for (const q of parts) { const k = q.split(':')[0]; by[k] = (by[k] || 0) + 1; }
-  return { inv, n: parts.length, by, all: crypto.createHash('sha256').update(parts.join(',')).digest('hex').slice(0, 16), parts }; };
+  // the far tier's patch cache by node (fid -> its positions' hash): two cuts made at different eyes share most nodes, and
+  // a node's patch is the same bytes whatever cut asked for it when the ground under it is the same
+  const FL = W.WORLD.farLod, farFid = {};
+  if (FL && FL.cache) for (const [f, Pc] of FL.cache) farFid[f] = crypto.createHash('sha256').update(Buffer.from(Pc.pos.buffer, Pc.pos.byteOffset, Pc.pos.byteLength)).digest('hex').slice(0, 12);
+  return { farFid, inv, n: parts.length, by, all: crypto.createHash('sha256').update(parts.join(',')).digest('hex').slice(0, 16), parts }; };
   const digest = digestNow();
   // G2063: THE TOWN'S GEOMETRY LATER, run to its end (WORLD.townGeoFinish) - its time, the geometry after it (a tree that
   // defers must end on the digest a tree that builds the town at boot starts with), and the programs a compile of the
