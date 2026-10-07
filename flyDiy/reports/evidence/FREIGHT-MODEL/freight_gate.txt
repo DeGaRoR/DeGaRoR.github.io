@@ -1,0 +1,19 @@
+THE CARDS (measured off each validated build's mesh; x metres aft of the windscreen-base ring)
+  cub   hold 0.3-2.7 m (cabin to 2.304, baggage aft) · doors pilot:M 0.031-0.989 m, widest 0.916 x 0.1, tallest 0.534 x 1.04; pilot:P 0.031-0.989 m, widest 0.916 x 0.1, tallest 0.534 x 1.04 · MTOW 556.195 kg, base 466.195 kg, CG range 20.7-37.4 % MAC
+  jodel hold 0.2-2.1 m (cabin to 1.457, baggage aft) · doors pilot:M 0.035-0.851 m, widest 0.77 x 0.1, tallest 0.512 x 0.84; pilot:P 0.035-0.851 m, widest 0.77 x 0.1, tallest 0.512 x 0.84 · MTOW 542.955 kg, base 452.955 kg, CG range 25.4-29.4 % MAC
+  c172  hold 0.2-3.1 m (cabin to 1.848, baggage aft) · doors pilot:M 0.035-0.949 m, widest 0.869 x 0.1, tallest 0.508 x 1.04; pilot:P 0.035-0.949 m, widest 0.869 x 0.1, tallest 0.508 x 1.04 · MTOW 1043.41 kg, base 763.41 kg, CG range 28.0-36.2 % MAC
+  c172f hold 0.2-3.1 m (cabin to 1.848, baggage aft) · doors pilot:M 0.035-0.949 m, widest 0.869 x 0.1, tallest 0.508 x 1.04; pilot:P 0.035-0.949 m, widest 0.869 x 0.1, tallest 0.508 x 1.04 · MTOW 1178.699 kg, base 898.186 kg, CG range 33.3-39.3 % MAC
+  twinf no hold (nothing behind the pilot) · doors none · MTOW 471.728 kg, base 475.416 kg, CG range 30.9-32.5 % MAC
+THE STRETCHER (2.0 x 0.6 x 0.5 m, 95 kg): the room inside (every seat but the pilot's out, no door asked) and the doors
+  cub   room no · through a door no · the longest 0.6 x 0.5 m item a door takes: 0.90 m
+  jodel room no · through a door no · the longest 0.6 x 0.5 m item a door takes: 0.80 m
+  c172  room yes · through a door no · the longest 0.6 x 0.5 m item a door takes: 1.00 m
+  c172f room yes · through a door no · the longest 0.6 x 0.5 m item a door takes: 1.00 m
+  twinf room no · through a door no · the longest 0.6 x 0.5 m item a door takes: none
+THE GENERATED JOBS: 120 jobs (seeds f1, f2), 66 loads, 138 proposals by their doer designs - every one all placed, in range, within the floors / the placard / the MTOW
+  cub packs tools.1 tools.2 tools.3 tools.4 (seats 1 out): tools.1 x 0.9-1.2 y -0.31 z -0.3 [cabin, straight through pilot:M]; tools.2 x 1.2-1.55 y -0.28 z -0.3 [cabin, straight through pilot:M]; tools.3 x 1.55-1.9 y -0.25 z -0.3 [cabin, straight through pilot:M]; tools.4 x 1.9-2.2 y -0.23 z -0.3 [cabin, straight through pilot:M] -> CG 28.572 % MAC (20.706-37.412), 546.195 kg of 556.195
+  jodel packs mail.1 mail.2: mail.1 x 0.75-1.15 y -0.24 z -0.325 [cabin, straight through pilot:M]; mail.2 x 1.15-1.55 y -0.21 z -0.325 [cabin, straight through pilot:M] -> CG 28.995 % MAC (25.419-29.366), 492.955 kg of 542.955
+  c172 packs parts.1 parts.2 (seats 1, 2, 3 out): parts.1 x 0.75-1.35 y -0.37 z -0.4 [cabin, straight through pilot:M]; parts.2 x 1.35-1.95 y -0.38 z -0.4 [cabin, straight through pilot:M] -> CG 32.375 % MAC (27.976-36.19), 883.41 kg of 1043.41
+  c172f packs parts.1 parts.2 (seats 1, 2, 3 out): parts.1 x 0.75-1.35 y -0.37 z -0.4 [cabin, straight through pilot:M]; parts.2 x 1.35-1.95 y -0.38 z -0.4 [cabin, straight through pilot:M] -> CG 36.518 % MAC (33.333-39.345), 1018.186 kg of 1178.699
+1453 checks (cards from the measurement cache)
+GATE FREIGHT: PASS

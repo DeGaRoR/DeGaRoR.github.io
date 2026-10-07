@@ -1,0 +1,8 @@
+DESIGNS x JOB CLASSES (jobs of the class each can physically do, of the sample):
+  cub   water 0 · short 503 · altiport 1183 · group 0 · heavy 0 · bulk 0 · survey 684
+  jodel water 0 · short 47 · altiport 1079 · group 0 · heavy 0 · bulk 0 · survey 684
+  c172  water 0 · short 618 · altiport 1560 · group 582 · heavy 586 · bulk 177 · survey 684
+  c172f water 1080 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 72 · survey 273
+  twinf water 273 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 0 · survey 273
+2260 checks
+GATE CONTRACTS: PASS

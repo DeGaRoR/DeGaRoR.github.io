@@ -637,6 +637,13 @@ const GATES = [
   // each listing stands, buying stations it there, the sandbox unchanged. ~2 s (~4.5 min cold: 33 shakedowns, cached
   // in the OS temp dir by content)
   { id: 'PROCURE', file: '_procure_check.js', tier: 'core', wall: 400 },
+  // FREIGHT (G2340 FREIGHT-MODEL, futureDesigns/game/FREIGHT-2026-10-07.md): every validated build's hold, doors,
+  // seats and plaque re-measured off its mesh = FREIGHT_CARDS (one build twice: deterministic); items with dims,
+  // bulk split into bags; the door rule (a door too small refused; the 2.0 m stretcher as the geometry says); the
+  // packer deterministic, order-free, inside, clear, supported, its CG = the moments; the generated jobs' proposals
+  // all placed within the CG range / floors / placard / MTOW; limits reported never refused; jobs carry items, the
+  // map's mark (no door fits), the stop record's items; 23 doctored rules. ~20 s warm (~90 s cold: five meshes)
+  { id: 'FREIGHT', file: '_freight_check.js', tier: 'core', wall: 300 },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

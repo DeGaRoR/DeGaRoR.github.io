@@ -250,6 +250,11 @@ function contractNormalise(r) {
         u.load.kg = Math.max(0, +u.load.kg || 0);
         u.load.pax = Math.max(0, Math.round(+u.load.pax || 0));
         if (u.load.bulk == null) delete u.load.bulk;
+        // (G2340 FREIGHT) a load's items ride along, each normalised (76_freight.js freightItem)
+        if (u.load.items != null) {
+          if (Array.isArray(u.load.items) && typeof freightItem === 'function') u.load.items = u.load.items.map(freightItem);
+          else if (!Array.isArray(u.load.items)) delete u.load.items;
+        }
       }
       if (u.crit != null && !Array.isArray(u.crit)) u.crit = [];
       return u;
@@ -321,6 +326,16 @@ function contractValidate(rec, opts) {
       if (s.do === 'carry') {
         const L = s.load;
         if (!L || !(L.kg >= 0) || !(L.pax >= 0) || !(L.kg > 0 || L.pax > 0)) why.push(at + ': carry needs a load (kg or pax)');
+        // (G2340 FREIGHT) items, when the load has them: known kinds, three dims, and they ARE the load's kilos
+        if (L && L.items != null) {
+          if (!Array.isArray(L.items)) why.push(at + ': load.items is not a list');
+          else {
+            if (L.items.some(it => !it || !(typeof FREIGHT_KINDS === 'undefined' || FREIGHT_KINDS[it.kind]) || !Array.isArray(it.dims) || it.dims.length !== 3 || !it.dims.every(v => v > 0)))
+              why.push(at + ': an item with an unknown kind or no dims');
+            const sum = L.items.reduce((a, it) => a + (+(it && it.kg) || 0), 0);
+            if (Math.abs(sum - (L.kg || 0)) > 0.01) why.push(at + ': the items weigh ' + sum + ' kg, the load is ' + L.kg + ' kg');
+          }
+        }
       }
       if (s.crit != null) {
         if (r.kind !== 'build') why.push(at + ': criteria on a ' + r.kind + ' (build contracts only)');
@@ -425,6 +440,12 @@ function contractSubFit(D, s, fields) {
     if ((L.pax || 0) > D.seats - 1) return no((L.pax || 0) + ' passengers, ' + (D.seats - 1) + ' seats beside the pilot');
     if (kg > ctCapKg(D)) return no(kg + ' kg aboard, the cabin takes ' + ctCapKg(D) + ' kg');
     if (L.bulk && D.seats < CONTRACT_FIT.bulkSeats) return no('a bulk load needs a cabin of ' + CONTRACT_FIT.bulkSeats + ' seats cleared');
+    // (G2340 FREIGHT) THE VOLUME: a load's items pass a door of this design and pack in its hold with the
+    // passengers seated (the empty seats out if need be: the player's call) - the card measured off its mesh
+    if (Array.isArray(L.items) && L.items.length && typeof freightFits === 'function') {
+      const card = freightCardOf(D);
+      if (card) { const v = freightFits(card, L.items, { pax: L.pax || 0 }); if (!v.ok) return no(v.why); }
+    }
     ends.push(s.from, s.to); km = contractKm(s.from, s.to, F);
   } else if (s.do === 'fly') { if (s.from) ends.push(s.from); ends.push(s.to); km = s.from ? contractKm(s.from, s.to, F) : 0; }
   else if (s.do === 'land') { ends.push(s.to); }
@@ -544,12 +565,16 @@ function contractJob(seed, providerId, epoch, i, opts) {
       if (G.kind === 'pax') load.pax = ctDraw(rng, G.pax[0], G.pax[1], frac, 1);
       else if (G.kind === 'kg' || G.kind === 'bulk') load.kg = ctDraw(rng, G.kg[0], G.kg[1], frac, 5);
       if (G.kind === 'bulk') load.bulk = G.id;
+      // (G2340 FREIGHT) THE GOODS GAIN DIMS: the load is its items (FREIGHT_GOODS), re-made at every shrink
+      const withItems = () => { if (load.kg > 0 && typeof freightItems === 'function') load.items = freightItems(load, G.word); else delete load.items; };
+      withItems();
       subs = [[{ do: 'carry', from, to, load }]];
       // shrink until a validated design can fly it: a passenger dropped, the kilos halved (never below the
       // goods' floor) — the job keeps its route and its kind
       for (let k = 0; k < 6 && !contractDoers(subs[0], F).length; k++) {
         if (load.pax > (G.pax ? G.pax[0] : 0)) load.pax--;
         else if (load.kg > 0) load.kg = Math.max(G.kg ? G.kg[0] : 0, Math.round(load.kg / 2 / 5) * 5);
+        withItems();
         if (load.pax === 0 && load.kg === (G.kg ? G.kg[0] : 0) && !contractDoers(subs[0], F).length) break;
       }
     }
@@ -657,7 +682,8 @@ function contractCritDiff(a, b) {
 // THE STOP RECORD (what the page hands over at DEST-TO's STOPPED; app.js playerFlightEnd is where it is made):
 //   { how: 'stopped', aero: '<aerodrome id>' | null (flightWhere's id when flightCanDepart),
 //     wrecked?: bool, slot?: '<fleet slot>', gear?: 'wheels'|'floats',
-//     load: { kg, pax, bulk? }            what is aboard at the stop (cargo kg beside the pilot, passengers)
+//     load: { kg, pax, bulk?, items? }    what is aboard at the stop (cargo kg beside the pilot, passengers; the
+//                                         loaded items when there are any - G2340 FREIGHT: then they are the load)
 //     row: { from, to, t, ... }           the logbook row (logFlight): `from` the leg's departure, `t` seconds
 //     overflew?: [aerodrome id]           the sites the flight passed over (a survey's evidence)
 //     hour?: number                       the world's local hour at the stop (a `when` is judged on it)
@@ -670,9 +696,18 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   const at = stop.aero, row = stop.row || {}, aboard = stop.load || {};
   const F = CONTRACT_FIELDS;
   const nm = id => (F[id] ? F[id].name : id || 'nowhere');
-  const loadOk = L => (aboard.kg || 0) >= (L.kg || 0) && (aboard.pax || 0) >= (L.pax || 0) && (!L.bulk || aboard.bulk === L.bulk);
-  const loadWhy = L => 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
-    + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : '');
+  // (G2340 FREIGHT) THE LOAD ABOARD IS THE LOADED ITEMS when the stop carries them: every item of the job's load
+  // (by id) is aboard; with no items loaded, the typed kilos stand in (the fallback, as before)
+  const itemsMissing = L => (Array.isArray(L.items) && L.items.length && Array.isArray(aboard.items))
+    ? L.items.filter(it => !aboard.items.some(a => a && a.id === it.id)).map(it => it.id) : null;
+  const loadOk = L => {
+    const miss = itemsMissing(L);
+    if (miss) return !miss.length && (aboard.pax || 0) >= (L.pax || 0);
+    return (aboard.kg || 0) >= (L.kg || 0) && (aboard.pax || 0) >= (L.pax || 0) && (!L.bulk || aboard.bulk === L.bulk);
+  };
+  const loadWhy = L => { const miss = itemsMissing(L); return miss && miss.length ? 'not aboard: ' + miss.join(', ') + ' (' + aboard.items.length + ' items loaded)'
+    : 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
+    + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : ''); };
   const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
     ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
   if (sub.do === 'carry') {

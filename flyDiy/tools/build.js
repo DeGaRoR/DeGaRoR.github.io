@@ -178,6 +178,10 @@ const MANIFEST = {
     // PROCUREMENT (G2280 PROCURE): the makers' catalogues over the validated builds, the options sheet, the drawing
     // board, the used market; pure, GATE PROCURE. GAME-2026-10-06.md §5, §R GQ2.
     '76_procure.js',
+    // FREIGHT (G2340 FREIGHT-MODEL): items with dims, the holds and doors measured off the validated builds'
+    // meshes (FREIGHT_CARDS, tools/_freight_site.js), the door rule, the packer with the plaque's CG range / MTOW /
+    // floor limits, the map's hard no-no; pure, GATE FREIGHT. futureDesigns/game/FREIGHT-2026-10-07.md.
+    '76_freight.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
