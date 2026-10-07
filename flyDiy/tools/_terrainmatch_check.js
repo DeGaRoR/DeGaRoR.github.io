@@ -196,7 +196,7 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
     for (const v of P.views) {
       if (!BASE[preset][v.id]) continue;
       const now = v.tris + pav[v.id] + tier;
-      ok(now <= BASE[preset][v.id], `${preset} (patchTolPx ${tol}) ${v.id}: the patch + the pavement within 3 km + the tier no more than train 37b's`, `${BASE[preset][v.id]} -> ${now} (patch ${v.tris}, pavement ${pav[v.id]}, tier ${tier})`);
+      ok(now <= BASE[preset][v.id], `${preset} (patchTolPx ${tol}) ${v.id}: the patch + the pavement within 3 km + the tier no more than its train's base (37b at patchTolPx 3, 38 at 6)`, `${BASE[preset][v.id]} -> ${now} (patch ${v.tris}, pavement ${pav[v.id]}, tier ${tier})`);
     }
   }
   ok(/if \(nc !== undefined && KIND\[nc\] === KIND\[c\] && blockOf\(nc\) === blockOf\(c\)\) continue;/.test(RP), 'render_premises: no skirt on an edge two chunks of one block share (one LOD: one row of vertices)');
