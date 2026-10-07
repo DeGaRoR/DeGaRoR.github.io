@@ -1,0 +1,110 @@
+{
+ "runs": [
+  {
+   "issued": 2,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring",
+     "ms": 10716,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 168001,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer",
+     "ms": 8848,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 146494,
+     "hlslVs": 11135
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin",
+     "ms": 8053,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 139597,
+     "hlslVs": 10887
+    },
+    {
+     "name": "island-fine",
+     "ms": 10483,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 167883,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "tools/perf/gcost/t6_before_current_base_progs.json",
+   "wallS": 10.7,
+   "udd": "C:\\clb7_current_0"
+  },
+  {
+   "issued": 2,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring",
+     "ms": 15221,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 183633,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer",
+     "ms": 11817,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 162126,
+     "hlslVs": 11135
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin",
+     "ms": 10740,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 155229,
+     "hlslVs": 10887
+    },
+    {
+     "name": "island-fine",
+     "ms": 14681,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 183515,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "tools/perf/gcost/t7_current_prod_progs.json",
+   "wallS": 15.2,
+   "udd": "C:\\clb7_current_1"
+  }
+ ]
+}

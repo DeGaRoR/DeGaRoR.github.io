@@ -18,6 +18,16 @@
 // - THE RIGS NEVER SEE ANY OF IT (gfx_settings.js's RIG: navigator.webdriver or HeadlessChrome; ?welcome=1 /
 //   ?devgate=1 force a screen for a rig that wants to look at one).
 //
+// - THE MODE MENU (G2210, WELCOME-MODES; futureDesigns/GAME-2026-10-06.md §14, the user 6 Oct: "a welcome screen, the
+//   current game under a sandbox option"). Continue (only when a career exists: none yet, so never shown), New career
+//   (shown, disabled, "coming"), Sandbox (today's game, exactly), Garage only (disabled until MOBILE-GARAGE M1 gives
+//   the boot a world-free path), Settings (the graphics card above). At EVERY load on a real host, before the island is
+//   fetched or a script promoted; a first run (or a new card) takes the graphics card first, then the menu.
+//   ?mode=sandbox|career|garage picks the mode and skips the menu (a mode not built yet boots the sandbox, said in the
+//   console); the rigs and localhost skip it as they skip the card (implicitly the sandbox); ?welcome=1 / ?devgate=1
+//   force it there. THE CHOSEN MODE IS ONE PAGE GLOBAL, window.FLYDIY_MODE ('sandbox' | 'career' | 'garage'; null while
+//   the menu is up), written here alone. The sandbox reads nothing of it: it is today's page.
+//
 // The pick reaches the graphics menu as WELCOME.pick: gfx_settings.js takes it the way it takes ?gfx= (the preset's
 // options, saved), so a later choice in the menu still wins. GATE GFX tests the pure half (gpuClass, memClass, mobile,
 // decide) in a vm with stubbed navigators.
@@ -201,6 +211,32 @@
 #welcome .wbuild { margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08); color:#7d766a; font-size:11px; letter-spacing:.04em; }
 #welcome p { margin:8px 0; color:#d8d1c4; }
 #welcome button { transition:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
+/* G2210 THE MODE MENU: IBM Plex Sans, three greys (ink, mid, dim) and the one accent; every row a 56 px target, 8 px
+   apart (MOBILE-GARAGE R1/R3), and what a row would say on hover is written on it (R17: nothing hover-only) */
+#welcome { --w-ink:#f4efe6; --w-mid:#a59d8f; --w-dim:#7d766a; --w-acc:#e6a15a; }
+#welcome .wcard.wmenu { width:min(440px, 100%); }
+#welcome .wmodes { display:flex; flex-direction:column; gap:8px; margin:14px 0 4px; }
+#welcome .wmode { display:grid; grid-template-columns:28px 1fr auto; align-items:center; column-gap:12px; min-height:56px; width:100%;
+  padding:9px 14px; border-radius:8px; text-align:left; cursor:pointer; color:var(--w-ink); background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.12); font:500 15px/1.25 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing:normal; text-transform:none; }   /* the page's buttons are small capitals (style.css): a menu row is a sentence */
+#welcome .wmode:hover:not([disabled]) { background:rgba(255,255,255,.08); }
+#welcome .wmode:active { transform:none; }
+#welcome .wmode .wico { font-size:17px; line-height:1; text-align:center; color:var(--w-mid); }
+#welcome .wmode small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--w-mid); }
+#welcome .wmode .wtag { font:600 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--w-dim);
+  border:1px solid currentColor; border-radius:10px; padding:4px 8px; }
+#welcome .wmode.wgo { border-color:var(--w-acc); background:rgba(230,161,90,.10); }
+#welcome .wmode.wgo .wico { color:var(--w-acc); }
+#welcome .wmode:focus-visible { outline:2px solid var(--w-acc); outline-offset:2px; }
+#welcome .wmode[disabled] { cursor:default; color:var(--w-dim); background:transparent; border-style:dashed; border-color:rgba(255,255,255,.10); }
+#welcome .wmode[disabled] .wico, #welcome .wmode[disabled] small { color:var(--w-dim); }
+#welcome .wmenu .wnote { color:var(--w-dim); }
+/* the graphics card's own targets on a touch screen (R1/R3); a mouse sees the card as it was */
+@media (pointer: coarse) {
+  #welcome .wpills { gap:8px; } #welcome .pill { min-height:48px; padding:0 14px; }
+  #welcome .wplay { min-height:48px; } #welcome .wlink { min-height:48px; padding:0 4px; }
+}
 `;
   const el = (tag, cls, text) => { const e = W.document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const sheet = () => {
@@ -244,9 +280,9 @@
   // THE WELCOME: resolves with the preset the player plays on
   const showWelcome = (env, d, opt) => new Promise(res => {
     const { o, card } = open();
-    card.appendChild(el('h1', null, opt && opt.recheck ? 'Your computer, checked again' : 'Welcome'));
+    card.appendChild(el('h1', null, opt && opt.recheck ? 'Your computer, checked again' : opt && opt.back ? 'Settings' : 'Welcome'));
     facts(card, env, d);
-    let pick = d.suggest;
+    let pick = opt && opt.start && ORDER.indexOf(opt.start) >= 0 ? opt.start : d.suggest;
     const sug = el('div', 'wsug');
     const sugT = el('div'); sug.appendChild(sugT);
     const sugW = el('small'); sug.appendChild(sugW);
@@ -257,7 +293,8 @@
       sugT.appendChild(el('b', null, LABEL[pick]));
       sugW.textContent = pick === d.suggest ? 'the lower of the graphics card (' + LABEL[d.gpu.cls] + ') and the memory (' + (d.mem.cls === 'gamer' ? 'no cap' : LABEL[d.mem.cls]) + ') - ' + WHY[pick] : WHY[pick];
       for (const b of pills.children) b.classList.toggle('on', b.dataset.p === pick);
-      play.textContent = 'Play on ' + LABEL[pick];
+      // G2210: the card that leads to the menu (a first run, or the menu's Settings) uses the preset; the last screen plays
+      play.textContent = (opt && (opt.next || opt.back) ? 'Use ' : 'Play on ') + LABEL[pick];
     };
     for (const p of ORDER) {
       const b = el('button', 'pill', LABEL[p]); b.type = 'button'; b.dataset.p = p; b.title = WHY[p];
@@ -270,6 +307,8 @@
     const other = el('button', 'wlink', 'choose another'); other.type = 'button';
     other.onclick = () => { pills.hidden = !pills.hidden; };
     foot.appendChild(play); foot.appendChild(other);
+    // G2210: the menu's Settings can be left as it was (resolves null: nothing chosen)
+    if (opt && opt.back) { const back = el('button', 'wlink', 'back'); back.type = 'button'; back.onclick = () => { o.remove(); res(null); }; foot.appendChild(back); }
     card.appendChild(foot);
     card.appendChild(el('div', 'wnote', 'Asked once for this graphics card. Every option can be changed later in GRAPHICS, where "re-check my computer" asks again.'));
     stampFoot(card);
@@ -301,6 +340,72 @@
     stampFoot(card);
   });
 
+  // ---- THE MODES (G2210, WELCOME-MODES; GAME-2026-10-06 §14) ---------------------------------------------------------
+  // READY: what a mode needs before it can be offered. The career: CAREER-START (§15 row 13). Garage only: the boot's
+  // world-free path (MOBILE-GARAGE M1; today the garage-only boot exists only as the rig's ten source transforms of app.js,
+  // tools/perf/mobile_garage_node.js), so it is shown, disabled, and ?mode=garage boots the sandbox
+  const MODES = ['sandbox', 'career', 'garage'];
+  const READY = { sandbox: true, career: false, garage: false };
+  // the saved career a "Continue" would resume: none exists until CAREER-START writes one, so Continue is never shown
+  const career = () => null;
+  // (query, navigator, host) -> { mode: a MODES entry, or null for the menu; why; asked: what ?mode= said }. Pure, GATE GFX
+  const decideMode = (q, nav, host) => {
+    const m = /[?&]mode=([a-z]+)/.exec(q || ''), asked = m ? m[1] : null;
+    if (asked && MODES.indexOf(asked) >= 0) return READY[asked] ? { mode: asked, why: '?mode=' + asked, asked }
+      : { mode: 'sandbox', why: '?mode=' + asked + ' is not built yet: the sandbox', asked };
+    if (force('welcome', q) || force('devgate', q)) return { mode: null, why: 'forced (?welcome=1 / ?devgate=1)', asked };
+    if (isRig(nav)) return { mode: 'sandbox', why: 'a rig (implicitly the sandbox)', asked };
+    if (isLocal(host)) return { mode: 'sandbox', why: 'localhost (a rig or a dev server; implicitly the sandbox)', asked };
+    return { mode: null, why: 'the menu, at every load', asked };
+  };
+  // the preset the page will load on, for the Settings row: the link's ?gfx=, the pick made on this screen, the saved one
+  const presetNow = (store, q, pick) => {
+    const g = /[?&]gfx=([a-z]+)/.exec(q || '');
+    if (g && LABEL[g[1]]) return g[1];
+    if (pick) return pick;
+    try { const v = JSON.parse(read(store, 'flydiy.gfx') || 'null'); if (v && v.preset) return v.preset; } catch (e) {}
+    try { const r = JSON.parse(read(store, KEY) || 'null'); if (r && LABEL[r.preset]) return r.preset; } catch (e) {}   // the card's, before a load saved it
+    return '';
+  };
+  // THE MENU: resolves with the mode chosen. Settings opens the graphics card in place and comes back here
+  const showMenu = (env, d, store) => new Promise(res => {
+    const { o, card } = open();
+    card.classList.add('wmenu');
+    const list = el('div', 'wmodes'); list.setAttribute('role', 'menu');
+    const row = (k, ico, label, sub, tag, on) => {
+      const b = el('button', 'wmode'); b.type = 'button'; b.dataset.mode = k; b.setAttribute('role', 'menuitem');
+      b.appendChild(el('span', 'wico', ico));
+      const t = el('span', null, label); if (sub) t.appendChild(el('small', null, sub)); b.appendChild(t);
+      b.appendChild(tag ? el('span', 'wtag', tag) : el('span'));
+      if (on) b.onclick = on; else { b.disabled = true; b.setAttribute('aria-disabled', 'true'); }
+      list.appendChild(b);
+      return b;
+    };
+    const done = m => { o.remove(); res(m); };
+    const c = career();
+    if (c) row('continue', '▶', 'Continue', 'Career “' + (c.name || '') + '”', '', () => done('career'));
+    row('career', '✚', 'New career', 'contracts, money, your own fleet', 'coming', READY.career ? () => done('career') : null);
+    const go = row('sandbox', '◇', 'Sandbox', 'everything free: the garage, the island, every aeroplane', '', () => done('sandbox'));
+    go.classList.add('wgo');
+    row('garage', '✎', 'Garage only', READY.garage ? 'build without loading the island' : 'build without loading the island: not built yet', READY.garage ? '' : 'coming',
+      READY.garage ? () => done('garage') : null);
+    const pre = presetNow(store, search(), API.pick);
+    row('settings', '⚙', 'Settings', 'graphics: ' + (LABEL[pre] || pre || 'not chosen yet'), '', () => {
+      o.remove();
+      const saved = presetNow(store, '', null);
+      showWelcome(env, d, { back: true, start: API.pick || (LABEL[saved] ? saved : d.suggest) }).then(p => {
+        // a preset chosen here is taken like the first run's (gfx_settings.js reads WELCOME.pick); the same preset as the
+        // saved one is no choice, so a custom mix made in GRAPHICS is kept
+        if (p && (p !== saved || API.pick)) { API.pick = p; remember(store, d, p); }
+        showMenu(env, d, store).then(res);
+      });
+    });
+    card.appendChild(list);
+    card.appendChild(el('div', 'wnote', 'Shown at every start. The sandbox is the game as it has always been.'));
+    stampFoot(card);
+    try { go.focus(); } catch (e) {}
+  });
+
   // ---- THE LOST CONTEXT -----------------------------------------------------------------------------------------
   const lostMsg = () => {
     if (W.document.getElementById('welcome')) return;
@@ -323,6 +428,7 @@
   const nav = W.navigator || {};
   const API = W.WELCOME = {
     ORDER, LABEL, KEY, cleanGpu, gpuClass, isSoftware, memClass, mobileWhy, decide, isRig, probe,
+    MODES, READY, decideMode, mode: null,   // G2210: mode = decideMode's answer for this load
     RIG: isRig(nav), SOFT: false, pick: null, decision: null, env: null,   // SOFT (G1460): the probe's card is a software renderer
     // the graphics menu's "re-check my computer": the welcome again, in place; resolves with the preset picked
     recheck: () => {
@@ -338,25 +444,40 @@
       const o = W.document.getElementById('welcome'); if (o && /stopped drawing/.test(o.textContent)) o.remove();
     }, true);
   }
-  if (!W.document || !W.document.createElement) return;
+  // G2210: THE MODE, decided before anything else can fail: a rig, localhost and ?mode= know it now, the menu later
+  const host = W.location && W.location.hostname;
+  let md;
+  try { md = API.mode = decideMode(search(), nav, host); } catch (e) { md = API.mode = { mode: 'sandbox', why: 'the decision failed' }; }
+  W.FLYDIY_MODE = md.mode;
+  if (md.asked && MODES.indexOf(md.asked) >= 0 && md.mode !== md.asked) { try { console.warn('flyDiy: ?mode=' + md.asked + ' is not built yet - the sandbox boots'); } catch (e) {} }
+  if (!W.document || !W.document.createElement) { if (!W.FLYDIY_MODE) W.FLYDIY_MODE = 'sandbox'; return; }
   let d;
-  try { const env = probe(); API.env = env; API.SOFT = isSoftware(env.gpu); d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
-  catch (e) { return; }   // a welcome that cannot decide is no welcome: the game loads as it did
+  try { const env = probe(); API.env = env; API.SOFT = isSoftware(env.gpu); d = API.decision = decide(env, W.localStorage, search(), nav, host); }
+  catch (e) { if (!W.FLYDIY_MODE) W.FLYDIY_MODE = 'sandbox'; return; }   // a welcome that cannot decide is no welcome: the game loads as it did
   // G2100: the phone garage, remembered (no screen: the profile at once, before the island loader reads the world)
   if (d.profile === 'phone' && W.PROFILE && W.PROFILE.name === 'desktop') W.PROFILE.set('phone', d.why);
   if (d.adopt) { let pr = 'menu'; try { pr = JSON.parse(W.localStorage.getItem('flydiy.gfx')).preset || pr; } catch (e) {} remember(W.localStorage, d, pr); }
-  if (d.screen === 'none') return;
+  if (d.screen === 'none' && md.mode) return;   // today's skip, byte for byte: nothing shown, nothing held
   const t0 = Date.now();
-  W.FLYDIY_WELCOME = (d.screen === 'gate' ? showGate(API.env, d).then(p => {
+  // the graphics card (or the device gate) first, as today; then the menu unless the mode is known
+  const first = d.screen === 'gate' ? showGate(API.env, d).then(p => {
       // G2100: "Build on this phone" - the profile switched before the boot (the loader, the promote and app.js follow),
       // the preset is the profile's (gfx_settings.js reads PROFILE.get('preset')), so the pick stays null
       if (p === 'phone') { if (W.PROFILE) W.PROFILE.set('phone', 'the device gate: build on this phone'); remember(W.localStorage, d, 'laptop', { tried: true, profile: 'phone' }); return null; }
       remember(W.localStorage, d, p, { tried: true }); return p; })
-                                          : showWelcome(API.env, d).then(p => { remember(W.localStorage, d, p); return p; }))
+    : d.screen === 'welcome' ? showWelcome(API.env, d, md.mode ? null : { next: 'menu' }).then(p => { remember(W.localStorage, d, p); return p; })
+    : Promise.resolve(null);
+  W.FLYDIY_WELCOME = first
     .then(p => {
-      API.pick = p;
+      if (p) API.pick = p;
+      // G2203 (game integration): MOBILE-GARAGE 1's phone profile is the garage-only mode - no menu on the phone
+      if (!md.mode && W.PROFILE && W.PROFILE.name === 'phone') return 'garage';
+      return md.mode ? md.mode : showMenu(API.env, d, W.localStorage);
+    })
+    .then(m => {
+      W.FLYDIY_MODE = m;
       // the loading screen's clock did not run while the player read (boot.js: the scripts' share is measured from T0)
       try { if (W.BOOT && W.BOOT.shift) W.BOOT.shift(Date.now() - t0); } catch (e) {}
-      return p;
+      return API.pick;
     });
 })();

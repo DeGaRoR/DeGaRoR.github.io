@@ -1,0 +1,26 @@
+ROOM (how many of each fit, empty):
+  cub      club/bare 6 · club/full 2 · works/bare 15 · works/full 7 · field/bare 0 · field/full 0
+  jodel    club/bare 9 · club/full 3 · works/bare 20 · works/full 12 · field/bare 2 · field/full 0
+  c172     club/bare 4 · club/full 2 · works/bare 12 · works/full 6 · field/bare 0 · field/full 0
+  caravan  club/bare 4 · club/full 1 · works/bare 8 · works/full 3 · field/bare 0 · field/full 0
+  twinBush club/bare 2 · club/full 1 · works/bare 8 · works/full 4 · field/bare 0 · field/full 0
+458 checks
+GATE GAMEPREM: PASS
+
+  caught  the walk drops the shed's dress  (1 new)
+  caught  the normaliser forgets the fleet  (1 new)
+  caught  the migrated save starts costing  (1 new)
+  caught  the door is ignored  (1 new)
+  caught  parked aeroplanes overlap  (37 new)
+  caught  the fit-out is ignored  (18 new)
+  caught  the door formula drifts from hangar.js  (11 new)
+  caught  the lift refuses the overflow  (1 new)
+  caught  storing ignores the room  (2 new)
+  caught  arriving ignores the room  (3 new)
+  caught  coming home forgets its own hangar  (2 new)
+  caught  a full hangar can be released  (2 new)
+  caught  an upgrade evicts  (3 new)
+  caught  the sandbox pays  (2 new)
+  caught  a refusal leaves a mark  (11 new)
+  caught  the rules reach for storage  (1 new)
+GATE GAMEPREM selftest: PASS

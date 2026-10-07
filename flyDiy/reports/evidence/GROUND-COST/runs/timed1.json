@@ -1,0 +1,1073 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=retro",
+ "preset": "retro",
+ "day": "",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 60,
+ "at": "2026-10-06T11:52:23.318Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (400 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 9.15,
+   "fps": 108.88,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.57,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "slots",
+   "strip": [
+    "slots"
+   ],
+   "knobs": {},
+   "how": "rekeyed (419 ms to flow)",
+   "splat": "R slots",
+   "frameGpuMs": 7.33,
+   "fps": 132.8,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 4.81,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "same1",
+   "strip": [
+    "same1"
+   ],
+   "knobs": {},
+   "how": "rekeyed (601 ms to flow)",
+   "splat": "R same1",
+   "frameGpuMs": 9.14,
+   "fps": 100.57,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.78,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "lazycoast",
+   "strip": [
+    "lazycoast"
+   ],
+   "knobs": {},
+   "how": "rekeyed (635 ms to flow)",
+   "splat": "R lazycoast",
+   "frameGpuMs": 9.19,
+   "fps": 100.26,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.57,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "one",
+   "strip": [
+    "one"
+   ],
+   "knobs": {},
+   "how": "rekeyed (680 ms to flow)",
+   "splat": "R one",
+   "frameGpuMs": 9.15,
+   "fps": 106.81,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.54,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "fastsrgb",
+   "strip": [
+    "fastsrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (407 ms to flow)",
+   "splat": "R fastsrgb",
+   "frameGpuMs": 9.12,
+   "fps": 106.78,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.66,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "hex1n",
+   "strip": [
+    "hex1n"
+   ],
+   "knobs": {},
+   "how": "rekeyed (568 ms to flow)",
+   "splat": "R hex1n",
+   "frameGpuMs": 10.01,
+   "fps": 102.97,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.32,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (647 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 8.43,
+   "fps": 115.96,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 5.82,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "notri",
+   "strip": [
+    "notri"
+   ],
+   "knobs": {},
+   "how": "rekeyed (654 ms to flow)",
+   "splat": "R notri",
+   "frameGpuMs": 8.97,
+   "fps": 109.64,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.45,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "norecol",
+   "strip": [
+    "norecol"
+   ],
+   "knobs": {},
+   "how": "rekeyed (657 ms to flow)",
+   "splat": "R norecol",
+   "frameGpuMs": 10.17,
+   "fps": 104.63,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.56,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nosrgb",
+   "strip": [
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (709 ms to flow)",
+   "splat": "R nosrgb",
+   "frameGpuMs": 9.11,
+   "fps": 99.65,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 7.37,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "nonrm",
+   "strip": [
+    "nonrm"
+   ],
+   "knobs": {},
+   "how": "rekeyed (379 ms to flow)",
+   "splat": "R nonrm",
+   "frameGpuMs": 7.84,
+   "fps": 124.89,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 5.26,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "noibl",
+   "strip": [
+    "noibl"
+   ],
+   "knobs": {},
+   "how": "rekeyed (377 ms to flow)",
+   "splat": "R noibl",
+   "frameGpuMs": 9.09,
+   "fps": 103.7,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.57,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "vote4",
+   "strip": [
+    "vote4"
+   ],
+   "knobs": {},
+   "how": "rekeyed (414 ms to flow)",
+   "splat": "R vote4",
+   "frameGpuMs": 7.72,
+   "fps": 124.94,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 5.08,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "lean1",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one"
+   ],
+   "knobs": {},
+   "how": "rekeyed (393 ms to flow)",
+   "splat": "R lazycoast+one+same1+slots",
+   "frameGpuMs": 7.65,
+   "fps": 116.08,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 5.09,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "lean2",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one",
+    "fastsrgb",
+    "hex1n"
+   ],
+   "knobs": {},
+   "how": "rekeyed (441 ms to flow)",
+   "splat": "R fastsrgb+hex1n+lazycoast+one+same1+slots",
+   "frameGpuMs": 7.53,
+   "fps": 111.88,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 4.66,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "cheap",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one",
+    "nohex",
+    "notri",
+    "norecol",
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (434 ms to flow)",
+   "splat": "R lazycoast+nohex+norecol+nosrgb+notri+one+same1+slots",
+   "frameGpuMs": 7.27,
+   "fps": 113.73,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 3.54,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "flat",
+   "strip": [
+    "flat"
+   ],
+   "knobs": {},
+   "how": "rekeyed (279 ms to flow)",
+   "splat": "R flat",
+   "frameGpuMs": 5.56,
+   "fps": 115.54,
+   "draws": 494,
+   "mtris": 4.96,
+   "groundMs": 0.84,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (391 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 9.33,
+   "fps": 98.45,
+   "draws": 493,
+   "mtris": 4.96,
+   "groundMs": 6.65,
+   "groundN": 55,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (626 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 10.26,
+   "fps": 69.96,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.78,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "slots",
+   "strip": [
+    "slots"
+   ],
+   "knobs": {},
+   "how": "rekeyed (501 ms to flow)",
+   "splat": "R slots",
+   "frameGpuMs": 11.51,
+   "fps": 58.57,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.63,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "same1",
+   "strip": [
+    "same1"
+   ],
+   "knobs": {},
+   "how": "rekeyed (498 ms to flow)",
+   "splat": "R same1",
+   "frameGpuMs": 10.39,
+   "fps": 69.14,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.82,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "lazycoast",
+   "strip": [
+    "lazycoast"
+   ],
+   "knobs": {},
+   "how": "rekeyed (557 ms to flow)",
+   "splat": "R lazycoast",
+   "frameGpuMs": 10.28,
+   "fps": 75.61,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.8,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "one",
+   "strip": [
+    "one"
+   ],
+   "knobs": {},
+   "how": "rekeyed (558 ms to flow)",
+   "splat": "R one",
+   "frameGpuMs": 10.26,
+   "fps": 65.21,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.27,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "fastsrgb",
+   "strip": [
+    "fastsrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (647 ms to flow)",
+   "splat": "R fastsrgb",
+   "frameGpuMs": 10.07,
+   "fps": 68.43,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.29,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "hex1n",
+   "strip": [
+    "hex1n"
+   ],
+   "knobs": {},
+   "how": "rekeyed (651 ms to flow)",
+   "splat": "R hex1n",
+   "frameGpuMs": 10.26,
+   "fps": 65.31,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.35,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (591 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 9.16,
+   "fps": 78.63,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.76,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "notri",
+   "strip": [
+    "notri"
+   ],
+   "knobs": {},
+   "how": "rekeyed (485 ms to flow)",
+   "splat": "R notri",
+   "frameGpuMs": 9.65,
+   "fps": 73.77,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.22,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "norecol",
+   "strip": [
+    "norecol"
+   ],
+   "knobs": {},
+   "how": "rekeyed (585 ms to flow)",
+   "splat": "R norecol",
+   "frameGpuMs": 10.57,
+   "fps": 63.25,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.58,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "nosrgb",
+   "strip": [
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (482 ms to flow)",
+   "splat": "R nosrgb",
+   "frameGpuMs": 9.73,
+   "fps": 81.13,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.42,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "nonrm",
+   "strip": [
+    "nonrm"
+   ],
+   "knobs": {},
+   "how": "rekeyed (578 ms to flow)",
+   "splat": "R nonrm",
+   "frameGpuMs": 9.09,
+   "fps": 72.43,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.57,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "noibl",
+   "strip": [
+    "noibl"
+   ],
+   "knobs": {},
+   "how": "rekeyed (533 ms to flow)",
+   "splat": "R noibl",
+   "frameGpuMs": 10.11,
+   "fps": 78.24,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.75,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "vote4",
+   "strip": [
+    "vote4"
+   ],
+   "knobs": {},
+   "how": "rekeyed (542 ms to flow)",
+   "splat": "R vote4",
+   "frameGpuMs": 9.25,
+   "fps": 72.39,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.71,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "lean1",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one"
+   ],
+   "knobs": {},
+   "how": "rekeyed (649 ms to flow)",
+   "splat": "R lazycoast+one+same1+slots",
+   "frameGpuMs": 12.22,
+   "fps": 53.93,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.49,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "lean2",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one",
+    "fastsrgb",
+    "hex1n"
+   ],
+   "knobs": {},
+   "how": "rekeyed (489 ms to flow)",
+   "splat": "R fastsrgb+hex1n+lazycoast+one+same1+slots",
+   "frameGpuMs": 9.38,
+   "fps": 66.53,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 2.31,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "cheap",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one",
+    "nohex",
+    "notri",
+    "norecol",
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (486 ms to flow)",
+   "splat": "R lazycoast+nohex+norecol+nosrgb+notri+one+same1+slots",
+   "frameGpuMs": 8.64,
+   "fps": 68.84,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 1.91,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "flat",
+   "strip": [
+    "flat"
+   ],
+   "knobs": {},
+   "how": "rekeyed (495 ms to flow)",
+   "splat": "R flat",
+   "frameGpuMs": 8.34,
+   "fps": 74.74,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 0.67,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (576 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 10.04,
+   "fps": 81.71,
+   "draws": 1103,
+   "mtris": 10.75,
+   "groundMs": 3.83,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (549 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 10.39,
+   "fps": 88.3,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 6.1,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "slots",
+   "strip": [
+    "slots"
+   ],
+   "knobs": {},
+   "how": "rekeyed (473 ms to flow)",
+   "splat": "R slots",
+   "frameGpuMs": 9.29,
+   "fps": 93.57,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 4.26,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "same1",
+   "strip": [
+    "same1"
+   ],
+   "knobs": {},
+   "how": "rekeyed (500 ms to flow)",
+   "splat": "R same1",
+   "frameGpuMs": 10.14,
+   "fps": 94.05,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 6.23,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "lazycoast",
+   "strip": [
+    "lazycoast"
+   ],
+   "knobs": {},
+   "how": "rekeyed (437 ms to flow)",
+   "splat": "R lazycoast",
+   "frameGpuMs": 9.94,
+   "fps": 96.04,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 6.23,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "one",
+   "strip": [
+    "one"
+   ],
+   "knobs": {},
+   "how": "rekeyed (477 ms to flow)",
+   "splat": "R one",
+   "frameGpuMs": 10.13,
+   "fps": 89.72,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 5.38,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "fastsrgb",
+   "strip": [
+    "fastsrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (538 ms to flow)",
+   "splat": "R fastsrgb",
+   "frameGpuMs": 9.75,
+   "fps": 93.28,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 5.36,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "hex1n",
+   "strip": [
+    "hex1n"
+   ],
+   "knobs": {},
+   "how": "rekeyed (528 ms to flow)",
+   "splat": "R hex1n",
+   "frameGpuMs": 10.31,
+   "fps": 86.06,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 5.47,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "nohex",
+   "strip": [
+    "nohex"
+   ],
+   "knobs": {},
+   "how": "rekeyed (388 ms to flow)",
+   "splat": "R nohex",
+   "frameGpuMs": 9.49,
+   "fps": 93.49,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 4.55,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "notri",
+   "strip": [
+    "notri"
+   ],
+   "knobs": {},
+   "how": "rekeyed (448 ms to flow)",
+   "splat": "R notri",
+   "frameGpuMs": 9.99,
+   "fps": 85.68,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 4.99,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "norecol",
+   "strip": [
+    "norecol"
+   ],
+   "knobs": {},
+   "how": "rekeyed (446 ms to flow)",
+   "splat": "R norecol",
+   "frameGpuMs": 9.81,
+   "fps": 93.78,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 5.63,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "nosrgb",
+   "strip": [
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (479 ms to flow)",
+   "splat": "R nosrgb",
+   "frameGpuMs": 10.03,
+   "fps": 83.44,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 5.87,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "nonrm",
+   "strip": [
+    "nonrm"
+   ],
+   "knobs": {},
+   "how": "rekeyed (498 ms to flow)",
+   "splat": "R nonrm",
+   "frameGpuMs": 9.26,
+   "fps": 94.89,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 4.25,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "noibl",
+   "strip": [
+    "noibl"
+   ],
+   "knobs": {},
+   "how": "rekeyed (532 ms to flow)",
+   "splat": "R noibl",
+   "frameGpuMs": 10.17,
+   "fps": 90.36,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 6.15,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "vote4",
+   "strip": [
+    "vote4"
+   ],
+   "knobs": {},
+   "how": "rekeyed (433 ms to flow)",
+   "splat": "R vote4",
+   "frameGpuMs": 9.39,
+   "fps": 89.43,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 4.35,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "lean1",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one"
+   ],
+   "knobs": {},
+   "how": "rekeyed (545 ms to flow)",
+   "splat": "R lazycoast+one+same1+slots",
+   "frameGpuMs": 9.1,
+   "fps": 95.83,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 4.31,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "lean2",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one",
+    "fastsrgb",
+    "hex1n"
+   ],
+   "knobs": {},
+   "how": "rekeyed (578 ms to flow)",
+   "splat": "R fastsrgb+hex1n+lazycoast+one+same1+slots",
+   "frameGpuMs": 8.75,
+   "fps": 99.85,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 3.67,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "cheap",
+   "strip": [
+    "slots",
+    "same1",
+    "lazycoast",
+    "one",
+    "nohex",
+    "notri",
+    "norecol",
+    "nosrgb"
+   ],
+   "knobs": {},
+   "how": "rekeyed (395 ms to flow)",
+   "splat": "R lazycoast+nohex+norecol+nosrgb+notri+one+same1+slots",
+   "frameGpuMs": 7.94,
+   "fps": 88.51,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 2.84,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "flat",
+   "strip": [
+    "flat"
+   ],
+   "knobs": {},
+   "how": "rekeyed (481 ms to flow)",
+   "splat": "R flat",
+   "frameGpuMs": 8.74,
+   "fps": 71.07,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 0.78,
+   "groundN": 55,
+   "gdraws": 167
+  },
+  {
+   "rep": 0,
+   "view": "stand",
+   "variant": "base2",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (569 ms to flow)",
+   "splat": "R ",
+   "frameGpuMs": 11.81,
+   "fps": 73.61,
+   "draws": 870,
+   "mtris": 9.65,
+   "groundMs": 5.25,
+   "groundN": 55,
+   "gdraws": 167
+  }
+ ],
+ "errs": []
+}

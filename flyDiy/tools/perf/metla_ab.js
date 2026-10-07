@@ -35,6 +35,7 @@ const USER_GFX = { preset: 'custom', pv: 6, fps: 'auto', ground: 'full', scale: 
   bands: 'mid', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', glare: 'on', sway: 'on', mist: 'land', clouds: 'full', water: 'full', mirror: 'live', lighting: 'sunset',
   tone: 'cineon', exposure: 1, colour: 'managed', bloom: 'soft', look: 'off', lens: 'off', rays: 'on', ao: 'off', eye: 'on', compositing: 'linear', town: 'nearby' };
 const GFX = opt('gfx', null) === 'user' ? USER_GFX : opt('gfx', null) ? JSON.parse(fs.readFileSync(opt('gfx'), 'utf8')) : null;
+const APPROACH = { sec: +opt('approach', 0), x: +String(opt('approach-at', '-2900,-8400')).split(',')[0], z: +String(opt('approach-at', '-2900,-8400')).split(',')[1], from: +opt('approach-from', 8000) };
 const FRAMES = argv.includes('--frames') || !!PROF, TOGGLE = opt('toggle', null) ? fs.readFileSync(opt('toggle'), 'utf8') : null;
 let FD = null; try { FD = require('../frame_dist.js'); } catch (e) {}
 // every recorder row in [t0, t1], columnar
@@ -118,9 +119,20 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C');
     const ph = await b.ev(MB.A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(3000);
     row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph;
+    // G2063 (TOWN-GEO): --approach <sec> [--approach-at x,z] [--approach-from m]: the aeroplane put `from` metres (8000) from a
+    // point (Metlakatla's middle) at 300 m over it, flying at it - the town's deferred patch and roads build on the way in
+    if (APPROACH.sec > 0) {
+      const ap = await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), tx = ${APPROACH.x}, tz = ${APPROACH.z}, d = ${APPROACH.from}, hx = (tx - ${home ? home.x : 0}), hz = (tz - ${home ? home.z : 0}), l = Math.hypot(hx, hz) || 1;
+        const x = tx - hx / l * d, z = tz - hz / l * d, h = W.terrainH ? W.terrainH(x, z) : 0;
+        await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 300, z], zeroV: true, dv: [hx / l * 45, 0, hz / l * 45] }); FLIGHT_PROBE.setManual(true); FLIGHT_PROBE.setManual(false);
+        const P = WORLD.premises; return JSON.stringify({ at: [Math.round(x), Math.round(z)], pending: P && P.geoPending ? P.geoPending() : null, dist: P && P.geoDist ? Math.round(P.geoDist(x, z)) : null }); })()`, 20000).catch(e => 'error ' + e.message);
+      await sleep(2000);
+      row.approach = await scene('approach', APPROACH.sec, PROF && 'approach'.includes(PROF)); row.approach.placed = ap;
+      row.approach.geo = JSON.parse(await b.ev("JSON.stringify((() => { const P = WORLD.premises; return P ? { pending: P.geoPending ? P.geoPending() : null, townGeo: P.stats.townGeo || null } : null; })())").catch(() => 'null'));
+    }
     row.check = JSON.parse(await b.ev(CHECK, 20000).catch(() => 'null'));
     row.exceptions = b.exc.slice(e0);
-    for (const s of [row.taxi, row.pass]) { const x = s.st || {};
+    for (const s of [row.taxi, row.pass, row.approach].filter(Boolean)) { const x = s.st || {};
       log(s.scene.padEnd(5) + ' ' + x.fps + ' fps, uneven ' + (100 * x.uneven).toFixed(0) + ' %, p99 ' + x.p99 + ', worst ' + x.worst + ' ms, >100 ' + x.over100 + ', worst task ' + x.taskWorst
         + (s.rec && s.rec.long.length ? '  LONG ' + s.rec.long.map(f => f.dt + '(' + Object.entries(f.slots).map(([k, v]) => k + ' ' + v).join(',') + ')').join(' ') : ''));
       if (s.raster) log('  raster ' + JSON.stringify(s.raster));
@@ -128,6 +140,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       if (s.halves) for (const [k, h] of Object.entries(s.halves)) log('  frames ' + k + ': ' + h.line + '\n      ' + h.slotLine);
       if (s.perFrame) { const P = s.perFrame; log('  per frame (cal ' + P.cal + '): ' + P.classes.map(c => c.k + ' ' + c.n + ' fr, ' + c.ms + ' ms busy/fr').join(', '));
         log('    long-even ms/fr: ' + P.diff.slice(0, 14).map(h => h[0] + ' ' + h[1]).join(' | ')); } }
+    if (row.approach) log('approach placed ' + row.approach.placed + ' -> ' + JSON.stringify(row.approach.geo));
     log('check ' + JSON.stringify(row.check) + ' exceptions ' + row.exceptions.length + (row.exceptions.length ? ': ' + row.exceptions.slice(0, 3).join(' || ') : ''));
     R.rows.push(row); fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
   }
@@ -141,7 +154,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass'))].join(' ')); }
   // G1435: per row, the frames' read (each half when toggled): the cap's share, the unevenness at 30 alone, the ladder
   if (FRAMES) { console.log('\nrow | scene half | uneven (all) | uneven@30 | caps | ladder (x16.7 ms) | p99 | even-frame / long-frame work, gpu, calls');
-    R.rows.forEach((r, i) => { for (const s of [r.taxi, r.pass]) for (const [k, h] of Object.entries(s.halves || {})) {
+    R.rows.forEach((r, i) => { for (const s of [r.taxi, r.pass, r.approach].filter(Boolean)) for (const [k, h] of Object.entries(s.halves || {})) {
       const B2 = h.by || {}; console.log([i + ':' + r.side, r.build, s.scene, k, s.st ? s.st.uneven : '-', h.uneven30, JSON.stringify(h.caps), JSON.stringify(h.ladder), h.dist ? h.dist.p99 : '-',
         (B2.even ? B2.even.work + '/' + B2.even.gpu + '/' + B2.even.calls : '-') + ' | ' + (B2.long ? B2.long.n + 'fr ' + B2.long.work + '/' + B2.long.gpu + '/' + B2.long.calls : '-')].join(' ')); } }); }
   console.log('\n  -> ' + OUT);

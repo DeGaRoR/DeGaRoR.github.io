@@ -146,22 +146,70 @@ const PILOT_UNITS = {
 //              slip      true: the forward slip on ANY final high on energy at idle (the expert: short ones only)
 //              stepHold  true: the step-attitude hold on the water (39b servoStepHold)
 const PILOT_PROFILES = {
-  expert:  { name: 'expert', active: false },
-  club:    { name: 'club pilot', active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
-  student: { name: 'student', active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
-  bush:    { name: 'bush pilot', active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
-  hamfist: { name: 'ham-fist', active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02 } },
+  expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
+             active: false },
+  club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
+             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
+  student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
+             active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+  bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
+             active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
+  hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02 } },
 };
+// G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
+// `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
+// document (or a link) can never hand the pilot a NaN or a 5 s reaction. `kind`: 'range' (lo..hi, step) | 'pick' (opts)
+// | 'bool'. `show`/`read`: the menu's unit (degrees for the over-rotation). The ranges are the design's §2 envelope widened
+// to where the battery still lands a validated aeroplane (HANDOVER G2085: the sweep).
+const PILOT_PROFILE_KNOBS = [
+  { sec: 'skill', k: 'reaction', label: 'reaction', unit: 's', kind: 'range', lo: 0, hi: 0.6, step: 0.05, d: 0, desc: 'the delay between seeing and moving the stick' },
+  { sec: 'skill', k: 'smooth', label: 'hands', unit: '×', kind: 'range', lo: 0.5, hi: 2, step: 0.05, d: 1, desc: 'the stick\'s speed: under 1 smooth and slow, over 1 snatchy' },
+  { sec: 'skill', k: 'hamFist', label: 'unsteadiness', unit: '', kind: 'range', lo: 0, hi: 0.08, step: 0.005, d: 0, desc: 'the stick\'s wander, rms (a steady hand is 0)' },
+  { sec: 'skill', k: 'gain', label: 'grip', unit: '×', kind: 'range', lo: 0.3, hi: 1.5, step: 0.05, d: null, nullLabel: 'auto', desc: 'how hard the pilot answers an error (auto: eased to suit the reaction; over 1 over-controls)' },
+  { sec: 'quirks', k: 'overRotate', label: 'over-rotation', unit: '°', kind: 'range', lo: 0, hi: 0.07, step: 0.0035, d: 0, toUi: r => r * 180 / Math.PI, desc: 'degrees of extra nose-up at the rotation' },
+  { sec: 'quirks', k: 'flareK', label: 'flare height', unit: '×', kind: 'range', lo: 0.6, hi: 1.3, step: 0.05, d: 1, desc: 'under 1 a late flare, over 1 an early one' },
+  { sec: 'limits', k: 'bankK', label: 'bank', unit: '×', kind: 'range', lo: 0.5, hi: 1.3, step: 0.05, d: 1, desc: 'the circuit\'s bank against the expert\'s' },
+  { sec: 'limits', k: 'comfortG', label: 'comfort g', unit: 'g', kind: 'range', lo: 1.05, hi: 2, step: 0.05, d: null, desc: 'the load factor the pilot will pull in a turn (off: the bank limit alone)' },
+  { sec: 'technique', k: 'field', label: 'field technique', kind: 'pick', opts: [null, 'normal', 'short'], d: null, desc: 'the approach flown everywhere (own: the strip decides)' },
+  { sec: 'technique', k: 'slip', label: 'slips', kind: 'bool', d: false, desc: 'the forward slip on any final high at idle' },
+  { sec: 'technique', k: 'stepHold', label: 'step hold', kind: 'bool', d: false, desc: 'holds the step attitude on the water' },
+];
 function pilotProfile(p) {
   const base = PILOT_PROFILES.expert;
   if (!p) return base;
   const P = typeof p === 'string' ? (PILOT_PROFILES[p] || base) : Object.assign({ name: 'custom', active: true }, p);
   const g = (sec, k, d) => (P[sec] && P[sec][k] != null) ? P[sec][k] : d;
-  return { name: P.name, active: !!P.active,
-           reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0),
+  const R = { name: P.name, active: !!P.active,
+           reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
            overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
            field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false) };
+  // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
+  // profile is the table's own and passes as written (the expert's bypass is untouched)
+  if (typeof p !== 'string') {
+    for (const K of PILOT_PROFILE_KNOBS) {
+      const v = R[K.k];
+      if (K.kind === 'range') {
+        if (K.d === null && (v === null || v === undefined || v === false)) { R[K.k] = null; continue; }
+        const x = +v;
+        R[K.k] = Number.isFinite(x) ? Math.max(K.lo, Math.min(K.hi, x)) : K.d;
+      } else if (K.kind === 'pick') R[K.k] = K.opts.indexOf(v) >= 0 ? v : K.d;
+    }
+  }
+  return R;
+}
+// G2085: the custom person as the menu and the player document hold it ({ skill, quirks, limits, technique }, only the
+// knobs that differ from the expert's) - from a resolved profile (pilotProfile's shape) or a named one
+function pilotProfileSpec(p) {
+  const R = typeof p === 'string' || !p || p.reaction === undefined ? pilotProfile(p) : p;
+  const o = {};
+  for (const K of PILOT_PROFILE_KNOBS) {
+    const v = R[K.k];
+    if (v === K.d || (K.d === null && v == null) || (K.d === false && !v)) continue;
+    (o[K.sec] || (o[K.sec] = {}))[K.k] = v;
+  }
+  return o;
 }
 
 function makePilot(sim, def, world, opts) {
@@ -548,23 +596,59 @@ function makePilot(sim, def, world, opts) {
   // G1943: THE HUMAN IN THE LOOP (a profile's skill; the expert never enters it) - the reaction's delay line on the
   // stick and pedals, the ham-fist's disturbance (an Ornstein-Uhlenbeck sequence, 0.3 s, from a fixed seed: every
   // flight of a profile is the same flight, the gates stay deterministic)
-  const HUM = PRA ? { n: 0, buf: null, i: 0, x: [0, 0, 0], seed: 1935 } : null;
+  // (G2085: opts.seed - the same person on another day: the hand's sequence from another seed; 1935 when unset)
+  const HUM = PRA ? { n: 0, buf: null, i: 0, x: [0, 0, 0], y: [0, 0, 0], ref: null, seed: Number.isFinite(opts.seed) ? opts.seed | 0 : 1935 } : null;
   if (PRA) SV.slewK = PRF.smooth;
+  ap.profile = PRF.name;   // G2085: who flies (the page's evidence, the gates): the profile's name, 'expert' for none
   const humRand = () => { HUM.seed = (HUM.seed + 0x6D2B79F5) | 0; let t = HUM.seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  // G2085 (PILOT-PERSONA): THE PERSON'S GAIN (McRuer's crossover model: a human in a loop sets their own gain so the
+  // loop stays stable with their delay - a slow pilot is a LOOSE pilot, not an oscillating one). MEASURED FIRST: the
+  // bare delay line drove the Jodel into a ground loop at 0.15 s (the heading +-25 deg, every club / student take-off
+  // rejected) and the Cub's ailerons into a 1.5 Hz limit cycle on the club's downwind (90 reversals / min, the expert
+  // 0.6). The person's command is the servo's HELD part (its 1 s average: the trim, the steady bank) plus `gain` x the
+  // rest, delayed: steady tracking is the servo's, the quick corrections are the person's. `gain` null: from the delay,
+  // 1 / (1 + reaction / 0.15 s) (the Cub club's pitch scan, 0.25 s: 0.5 cycled at 59 / min, 0.4 at 8, 0.3 at 3); a
+  // number: the person's own (> 1 over-controls - the design's §4.3).
+  // ON THE WHEELS: THE FEET ARE QUICK - the delay 0.10 s at most and the gain whole (the ground steer is the tightest
+  // loop the pilot flies): 0.15 s at full gain ground-looped the Jodel, and the eased gain at 0.15 s let the Cub's
+  // roll-out swing 37-62 deg; 0.10 s whole: the Jodel's roll 2.5 deg, the Cub's roll-out 0.9 deg
+  const HUM_TG = 0.15, HUM_REF = 1.0, HUM_GCAP = 0.10;
+  // THE FLARE IS THE PERSON'S QUICKEST MOMENT: a planned manoeuvre flown with full attention - their delay there is the
+  // wheels' (0.10 s at most) and their gain whole (McRuer's easing is the error-correcting loop's). MEASURED over four
+  // seeds (pilot_persona --seeds): eased in the flare the pull came out at a fraction (the Wipline C172's water landing
+  // 2.99 m/s club / 3.42 student); whole at the full delay it cycled (the C172 ham-fist -5 -> +9 -> -8 deg pitch in
+  // the flare, 3.69 m/s; the students 2.5-4.4 m/s on three aeroplanes); half the delay eased to 1 / (1 + rx / 0.4)
+  // left the Jodel student's balloon-and-drop (2.6-2.9); the wheels' delay whole: the Jodel student 0.93-1.24, the
+  // ham-fists 1.09-1.99 on every seed. The person still flares LATE (flareK) with their own hands (smooth, hamFist)
+  const humGain = (rx, onG) => (onG > 0 || ap.phase === 'FLARE') ? 1 : PRF.gain != null ? PRF.gain : 1 / (1 + rx / HUM_TG);
   const humanise = (dt, onG) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
-    if (PRF.hamFist > 0) {
-      const a = Math.min(1, dt / 0.3), sq = Math.sqrt(2 * a);
-      for (let k = 0; k < 3; k++) {
-        const g = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * Math.cos(2 * Math.PI * humRand());
-        HUM.x[k] += -a * HUM.x[k] + sq * g;
-      }
-      c.de += PRF.hamFist * HUM.x[0]; c.da += PRF.hamFist * HUM.x[1]; c.dr += PRF.hamFist * HUM.x[2];
+    // ON THE WHEELS THE DELAY IS SHORT (G1943: the student's 0.45 s inside the ground steer swerved the stock build 31
+    // deg on the roll, a rejected take-off every time; G2085: 0.15 s still ground-looped the Jodel) - a person on the
+    // roll watches the centreline and the feet are quick; in the air the delay is whole
+    const rx = (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
+    const g = humGain(rx, onG);
+    if (g !== 1) {
+      const a = Math.min(1, dt / HUM_REF);
+      if (!HUM.ref) HUM.ref = [c.de, c.da, c.dr];
+      const R = HUM.ref;
+      R[0] += (c.de - R[0]) * a; R[1] += (c.da - R[1]) * a; R[2] += (c.dr - R[2]) * a;
+      c.de = R[0] + g * (c.de - R[0]); c.da = R[1] + g * (c.da - R[1]); c.dr = R[2] + g * (c.dr - R[2]);
     }
-    // ON THE WHEELS THE DELAY IS 0.15 s AT MOST: the ground steer is the tightest loop the pilot flies, and the
-    // student's 0.45 s inside it swerved the stock build 31 deg on the roll (0.10 m/s^2, a rejected take-off every
-    // time) - a person on the roll watches the centreline and the feet are quick; in the air the delay is whole
-    const N = Math.round((onG > 0 ? Math.min(PRF.reaction, 0.15) : PRF.reaction) / Math.max(1e-3, dt));
+    if (PRF.hamFist > 0) {
+      // G2085: A HAND, NOT A BUZZ - the disturbance band-limited the way an arm is: an Ornstein-Uhlenbeck wander (0.5 s)
+      // through the hand's own lag (0.12 s), rms-normalised; the first cut (0.3 s, unfiltered) read 400+ reversals /
+      // min on the ham-fist - a vibration, not a coarse hand
+      const a = Math.min(1, dt / 0.5), sq = Math.sqrt(2 * a), b = Math.min(1, dt / 0.12);
+      for (let k = 0; k < 3; k++) {
+        const w = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * Math.cos(2 * Math.PI * humRand());
+        HUM.x[k] += -a * HUM.x[k] + sq * w;
+        HUM.y[k] += (HUM.x[k] - HUM.y[k]) * b;
+      }
+      const K = PRF.hamFist * 1.12;   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      c.de += K * HUM.y[0]; c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
+    }
+    const N = Math.round(rx / Math.max(1e-3, dt));
     if (N > 0) {
       if (!HUM.buf || HUM.n !== N) { HUM.n = N; HUM.buf = new Float64Array(3 * (N + 1)); for (let k = 0; k <= N; k++) { HUM.buf[3 * k] = c.de; HUM.buf[3 * k + 1] = c.da; HUM.buf[3 * k + 2] = c.dr; } HUM.i = 0; }
       const B = HUM.buf, w = HUM.i, r = (w + 1) % (N + 1);

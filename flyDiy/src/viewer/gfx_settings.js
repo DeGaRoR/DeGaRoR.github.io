@@ -463,6 +463,8 @@
       // frame, and keyed every lit program with the old light set (the first frame after it relinked them all)
       if (W.SHADOW_NEAR && W.SHADOW_NEAR.apply) W.SHADOW_NEAR.apply();
       rig.set({ shadowMap: sh.map, farShadow: sh.on && sh.far, worldShadow: sh.world !== false });
+      // G1975: the trees under their own shadows - the impostors' match and the near trees' lift (render_world treeShadowed)
+      if (world.treeShadowed) world.treeShadowed(!!sh.on && sh.world !== false);
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }

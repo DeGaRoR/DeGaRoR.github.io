@@ -2,6 +2,10 @@
 ## Shell · fit-out · capability, and the seed of a hangar per airfield
 ### (2026-08-31, from the user's design session)
 
+CONTINUED BY `GAME-PREMISES-2026-10-06.md` (G2095): a hangar per plot at bases, the fleet standing in them,
+capacity as geometry, the money; §11 Q1 (the container: `player`, v2), Q3 (one hangar per plot) and Q4 (the wallet,
+sandbox / career) are answered there by default, pending the user.
+
 STATUS: S1+S2+S3 LANDED 2026-08-31 (HANDOVER G126): the player document
 (`flydiy.player`, src/core/70_player.js, GATE PLAYER), the kit fit-out and
 placement engine (src/core/26_hangar_fit.js, GATE HANGAR), `club` + `works`

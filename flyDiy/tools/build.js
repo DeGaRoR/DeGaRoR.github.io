@@ -159,6 +159,11 @@ const MANIFEST = {
     // not the aeroplane costs no spec version). References 26_'s default kit
     // list, so it sits after it; app.js owns the localStorage glue.
     '70_player.js',
+    // THE GAME PREMISES (G2095): bases, hangars held, where every aeroplane
+    // stands, and the rules (capacity, storing, moving by flying, holding).
+    // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
+    // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
+    '71_player_bases.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172

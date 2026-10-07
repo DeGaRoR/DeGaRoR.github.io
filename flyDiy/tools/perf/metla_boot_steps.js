@@ -25,7 +25,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const log = JSON.parse(await b.ev('JSON.stringify(window.BOOT ? BOOT.log : [])', 20000));
     const lk = await b.links(0, 1e12);
     const steps = {}; for (let i = 0; i < log.length; i++) if (log[i].k === 'step') { const nx = log.slice(i + 1).find(e => e.k === 'step' || e.k === 'landing' || e.k === 'ready' || e.k === 'gone' || e.k === 'waiting'); steps[log[i].id] = (steps[log[i].id] || 0) + ((nx ? nx.t : log[i].t) - log[i].t); }
-    rows.push({ side, sec: l.sec, links: lk, steps });
+    // G2063: when each step began and what landed (BOOT.log 'landed': props, crew, the world's pieces) - the shed's compile
+    // step waits for props / crew to settle (app.js bootStep 'compile', 8 s at most)
+    const at = {}; for (const e of log) if (e.k === 'step') at[e.id] = e.t;
+    const landed = log.filter(e => e.k === 'landed').map(e => [e.t, e.key]);
+    rows.push({ side, sec: l.sec, links: lk, steps, at, landed });
+    const cs = at.compile; if (cs != null) console.log('   compile began ' + cs + ' ms; landed around it: ' + landed.filter(x => x[0] > cs - 3000).slice(0, 12).map(x => x[1] + '@' + (x[0] - cs)).join(' '));
     console.log(side + ' ' + l.sec + ' s, links ' + lk.n + ' worst ' + lk.worstS + ' s | ' + Object.entries(steps).filter(([, v]) => v > 300).map(([k, v]) => k + ' ' + (v / 1000).toFixed(1)).join(', '));
     await b.close();
   }

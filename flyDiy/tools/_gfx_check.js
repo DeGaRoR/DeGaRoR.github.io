@@ -423,5 +423,141 @@ console.log('GATE GFX');
      "the world's TOWN and the loader's raster variant both read the cap (world_boot.js GFX.townAll, build.js potato / laptop -> 'default')");
 }
 
-console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
-process.exit(fails ? 1 : 0);
+// 11. G2213 (WELCOME-MODES, GAME-2026-10-06 §14): THE MODE MENU. welcome.js's decideMode (pure), then the whole script in a
+//     vm over a small DOM (the screens it builds, pressed like a player): the menu on a real host at every load, after the
+//     graphics card on a first run; ?mode=sandbox on a forced welcome = today's path (the card alone, the pick, no menu);
+//     the localhost skip and the rigs unchanged (nothing shown, nothing held); FLYDIY_MODE written by welcome.js alone;
+//     no new device test anywhere else.
+const modes = async () => {
+  const wsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'welcome.js'), 'utf8');
+  const ww = { navigator: {} }; ww.window = ww;
+  vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
+  const WL = ww.WELCOME, nav = { userAgent: 'Mozilla/5.0 Chrome/141' }, rig = { userAgent: 'Mozilla/5.0 HeadlessChrome/141' };
+  const M = (q, host, n) => WL.decideMode(q, n || nav, host);
+  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && !WL.READY.career && !WL.READY.garage,
+     'three modes; the sandbox ready, the career and garage-only not yet (CAREER-START; MOBILE-GARAGE M1)');
+  ok(M('', 'degaror.github.io').mode === null && M('?gfx=potato', 'degaror.github.io').mode === null, 'a real host: the menu at every load (?gfx= picks the preset, not the mode)');
+  ok(M('?mode=sandbox', 'degaror.github.io').mode === 'sandbox' && M('?a=1&mode=sandbox', 'degaror.github.io').mode === 'sandbox', '?mode=sandbox skips it');
+  ok(['career', 'garage'].every(k => { const r = M('?mode=' + k, 'degaror.github.io'); return r.mode === 'sandbox' && r.asked === k; }),
+     '?mode=career / ?mode=garage, not built yet: the sandbox, the ask kept for the console');
+  ok(M('?mode=bogus', 'degaror.github.io').mode === null && M('?mode=bogus', 'localhost').mode === 'sandbox', 'an unknown ?mode= is no mode');
+  ok(M('', 'localhost').mode === 'sandbox' && M('', '127.0.0.1').mode === 'sandbox' && M('', '[::1]').mode === 'sandbox', 'localhost skips it: implicitly the sandbox');
+  ok(M('', 'degaror.github.io', rig).mode === 'sandbox' && M('', 'degaror.github.io', { webdriver: true }).mode === 'sandbox', 'the rigs skip it anywhere: implicitly the sandbox');
+  ok(M('?welcome=1', 'localhost').mode === null && M('?devgate=1', 'localhost', rig).mode === null && M('?welcome=1&mode=sandbox', 'localhost').mode === 'sandbox',
+     '?welcome=1 / ?devgate=1 force the menu there; with ?mode=sandbox the mode wins');
+
+  // ---- the whole script over a small DOM -------------------------------------------------------------------------
+  const page = (q, host, store, n, gpu) => {
+    const byId = {};
+    const node = tag => {
+      const e = { tagName: tag, children: [], parentNode: null, style: {}, dataset: {}, attrs: {}, className: '', _t: '', onclick: null, disabled: false, type: '',
+        classList: { add: c => { if (!e.className.split(' ').includes(c)) e.className = (e.className + ' ' + c).trim(); }, toggle() {}, contains: c => e.className.split(' ').includes(c) },
+        appendChild(c) { c.parentNode = e; e.children.push(c); if (c.id) byId[c.id] = c; return c; },
+        remove() { if (e.parentNode) e.parentNode.children.splice(e.parentNode.children.indexOf(e), 1); e.parentNode = null; if (e.id && byId[e.id] === e) delete byId[e.id]; },
+        setAttribute(k, v) { e.attrs[k] = String(v); }, getAttribute(k) { return k in e.attrs ? e.attrs[k] : null; },
+        getElementsByTagName: () => [], focus() {},
+        getContext: () => ({ getExtension: x => (x === 'WEBGL_debug_renderer_info' ? { UNMASKED_RENDERER_WEBGL: 1 } : x === 'WEBGL_lose_context' ? { loseContext() {} } : null),
+                             getParameter: () => gpu || 'NVIDIA GeForce RTX 3080' }),
+        get textContent() { return e._t + e.children.map(c => c.textContent).join(''); }, set textContent(v) { e._t = String(v); e.children = []; } };
+      return e;
+    };
+    const head = node('head'), body = node('body');
+    const all = () => { const out = [], walk = x => { out.push(x); x.children.forEach(walk); }; walk(body); return out; };
+    const st = store || {};
+    const w = { navigator: n || nav, location: { search: q, hostname: host }, screen: { width: 1920, height: 1080 }, devicePixelRatio: 1,
+      localStorage: { getItem: k => (k in st ? st[k] : null), setItem: (k, v) => { st[k] = String(v); }, removeItem: k => { delete st[k]; } },
+      document: { createElement: node, createTextNode: t => ({ textContent: String(t), children: [], className: '', dataset: {}, getAttribute: () => null }), getElementById: id => byId[id] || null, head, body },
+      addEventListener() {}, console: { warn: m => (w.warned = w.warned || []).push(m), log() {} } };
+    w.window = w;
+    vm.runInNewContext(wsrc, Object.assign({ window: w, Promise, Date, JSON, URL }, w));
+    w.$ = sel => all().filter(sel);
+    w.mode = k => all().find(x => x.className.split(' ').includes('wmode') && x.dataset.mode === k);
+    w.screen = () => (byId.welcome ? (all().some(x => x.className.split(' ').includes('wmenu')) ? 'menu' : 'card') : 'none');
+    w.press = cls => { const b = all().find(x => x.className.split(' ').includes(cls) && x.onclick); b.onclick(); };
+    w.store = st;
+    return w;
+  };
+  const tick = () => new Promise(r => setImmediate(r));
+  const pg = async (...a) => { const w = page(...a); await tick(); return w; };   // the menu opens a microtask after the card's promise
+  const PAGES = 'degaror.github.io', seen = { 'flydiy.welcome': JSON.stringify({ gpu: 'NVIDIA GeForce RTX 3080', preset: 'gamer' }) };
+
+  // localhost and the rigs: today's skip, byte for byte - nothing built, nothing held, the sandbox
+  for (const [q, host, n, what] of [['', 'localhost', nav, 'localhost'], ['', '127.0.0.1', nav, '127.0.0.1'], ['', PAGES, rig, 'a rig on Pages'], ['?mode=sandbox', PAGES, nav, '?mode=sandbox on Pages (card seen)']]) {
+    const w = await pg(q, host, Object.assign({}, seen), n);
+    ok(w.FLYDIY_MODE === 'sandbox' && !w.FLYDIY_WELCOME && w.screen() === 'none', what + ': no screen, FLYDIY_WELCOME unset (the loader does not wait), FLYDIY_MODE sandbox');
+  }
+  // a real host, a returning player: the menu, held
+  { const w = await pg('', PAGES, Object.assign({}, seen));
+    ok(w.screen() === 'menu' && w.FLYDIY_MODE === null && !!w.FLYDIY_WELCOME, 'Pages, a returning player: the menu first, the load held, the mode not chosen');
+    const rows = w.$(x => x.className.split(' ').includes('wmode'));
+    ok(!w.mode('continue') && w.mode('career').disabled && /coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
+       w.mode('garage').disabled && !w.mode('settings').disabled && /graphics: gamer/.test(w.mode('settings').textContent),
+       'the rows: no Continue (no career), New career disabled "coming", Sandbox, Garage only disabled, Settings naming the preset');
+    ok(rows.every(b => b.getAttribute('title') === null), 'no row says anything in title= (R17: nothing hover-only)');
+    let got = 'unresolved'; w.FLYDIY_WELCOME.then(p => { got = p; });
+    w.mode('sandbox').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'sandbox' && w.screen() === 'none' && got === null && !w.WELCOME.pick, 'Sandbox: the menu gone, FLYDIY_MODE sandbox, no preset forced (the saved one stands)');
+  }
+  // a first visit: the card, then the menu; the card's pick is today's
+  { const w = await pg('', PAGES, {});
+    ok(w.screen() === 'card' && /^Use /.test(w.$(x => x.className === 'wplay')[0].textContent), 'a first visit: the graphics card first ("Use <preset>": the menu follows)');
+    w.press('wplay'); await tick(); await tick();
+    ok(w.screen() === 'menu' && w.WELCOME.pick === 'gamer' && JSON.parse(w.store['flydiy.welcome']).preset === 'gamer', '...then the menu, the pick taken and remembered');
+    w.mode('sandbox').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'sandbox' && w.WELCOME.pick === 'gamer', '...Sandbox: the pick reaches the graphics menu as on the first run today');
+  }
+  // the menu's Settings: the card in place, back, or a new preset taken
+  { const w = await pg('', PAGES, Object.assign({ 'flydiy.gfx': JSON.stringify({ preset: 'retro' }) }, seen));
+    w.mode('settings').onclick();
+    ok(w.screen() === 'card' && w.$(x => x.className === 'wplay')[0].textContent === 'Use ' + WL.LABEL.retro, "Settings: the card, opened on the saved preset");
+    w.$(x => x.className === 'wlink' && x.textContent === 'back')[0].onclick(); await tick(); await tick();
+    ok(w.screen() === 'menu' && !w.WELCOME.pick, '...back: the menu, nothing chosen (a custom mix in GRAPHICS is kept)');
+    w.mode('settings').onclick(); w.$(x => x.className === 'pill' && x.dataset.p === 'potato')[0].onclick(); w.press('wplay'); await tick(); await tick();
+    ok(w.screen() === 'menu' && w.WELCOME.pick === 'potato' && /graphics: potato/.test(w.mode('settings').textContent), '...a preset chosen there is the pick, the row says it');
+  }
+  // ?mode=sandbox on a FORCED welcome (localhost ?welcome=1): today's path - the card alone, "Play on", the pick, no menu
+  { const w = await pg('?welcome=1&mode=sandbox', 'localhost', Object.assign({}, seen));
+    ok(w.FLYDIY_MODE === 'sandbox' && w.screen() === 'card' && /^Play on /.test(w.$(x => x.className === 'wplay')[0].textContent), '?welcome=1&mode=sandbox: the card as today ("Play on <preset>"), the mode known');
+    let got = null; w.FLYDIY_WELCOME.then(p => { got = p; });
+    w.press('wplay'); await tick(); await tick();
+    ok(w.screen() === 'none' && got === 'gamer' && w.WELCOME.pick === 'gamer' && w.FLYDIY_MODE === 'sandbox', '...Play: no menu, FLYDIY_WELCOME resolves with the pick (today\'s boot path)');
+  }
+  { const w = await pg('?welcome=1', 'localhost', Object.assign({}, seen));
+    w.press('wplay'); await tick(); await tick();
+    ok(w.screen() === 'menu', '?welcome=1 alone on localhost: the card, then the menu (the forced screen, whole)'); }
+  { const w = await pg('?mode=garage', PAGES, Object.assign({}, seen));
+    ok(w.FLYDIY_MODE === 'sandbox' && !w.FLYDIY_WELCOME && (w.warned || []).some(m => /mode=garage/.test(m)), '?mode=garage: the sandbox at once, said in the console'); }
+  // a phone: the device gate, then the menu
+  { const w = await pg('', PAGES, {}, { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile', userAgentData: { mobile: true } }, 'Adreno (TM) 740');
+    ok(w.screen() === 'card' && /made for a computer/.test(w.$(x => x.tagName === 'h1')[0].textContent), 'a phone: the device gate first');
+    w.$(x => x.className === 'wlink' && /try anyway/.test(x.textContent))[0].onclick(); await tick(); await tick();
+    ok(w.screen() === 'menu' && w.WELCOME.pick === 'potato', '..."try anyway": potato, then the menu'); }
+  // the CSS: every row a 48 px target or more, three greys and one accent, IBM Plex Sans
+  const css = (/const CSS = `([\s\S]*?)`;/.exec(wsrc) || [])[1] || '';
+  const mh = /#welcome \.wmode \{[^}]*min-height:(\d+)px/.exec(css);
+  ok(mh && +mh[1] >= 48 && /#welcome \.wmodes \{[^}]*gap:(\d+)px/.exec(css)[1] >= 8, 'the rows: min-height ' + (mh && mh[1]) + ' px, 8 px apart (MOBILE-GARAGE R1/R3)');
+  ok(/--w-ink:[^;]+; --w-mid:[^;]+; --w-dim:[^;]+; --w-acc:[^;]+;/.test(css) && /\.wmode \{[^}]*'IBM Plex Sans'/.test(css), 'the menu: three greys and one accent, IBM Plex Sans');
+  // ONE GLOBAL, ONE WRITER; NO NEW DEVICE TESTS (MOBILE-GARAGE §6: code asks the mode or the profile, never the device)
+  const SRC = path.join(__dirname, '..', 'src');
+  const files = []; const walk = d => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (/\.js$/.test(f)) files.push(p); } };
+  walk(SRC); files.push(path.join(__dirname, 'build.js'));
+  const writes = files.filter(f => /FLYDIY_MODE\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'));   // G2203: posix separators (Windows printed srciewer\...)
+  ok(writes.join() === 'src/viewer/welcome.js', 'FLYDIY_MODE is written by welcome.js alone (' + writes.join(', ') + ')');
+  // the device tests outside welcome.js, as they stood on 6 Oct: the three rig tests (app.js PACE, update_now.js, gfx_settings.js:
+  // the same G528 test) and the two records that only report the browser (flight_recorder.js, diag.js). A new one fails here
+  // G2203 (game integration over train 38): gfx_settings.js 2 = the G528 rig test + HW-COVERAGE's localhost skip of the runtime
+  // step-down (G1995, train 38: offWhy's host test, landed after WELCOME-MODES' base)
+  const KNOWN = { 'src/viewer/app.js': 1, 'src/viewer/update_now.js': 1, 'src/viewer/gfx_settings.js': 2, 'src/viewer/flight_recorder.js': 1, 'src/viewer/diag.js': 2 };
+  const DEV = /navigator\.userAgent|userAgentData|location\.hostname|location\.host\b|pointer:\s*coarse|innerWidth\s*</g;
+  const extra = [];
+  for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;
+    const n = (fs.readFileSync(f, 'utf8').replace(/\.uX \{[^}]*\}/g, '').match(DEV) || []).length;
+    const allow = r === 'src/viewer/update_now.js' ? 2 : (KNOWN[r] || 0);   // update_now.js: its rig test + its pill's coarse-pointer CSS
+    if (n > allow) extra.push(r + ' ' + n + ' > ' + allow); }
+  ok(!extra.length, 'no device test outside welcome.js beyond the six of 6 Oct (rigs, records, the pill\'s CSS)' + (extra.length ? ': ' + extra.join('; ') : ''));
+};
+
+modes().catch(e => { console.log('  FAIL the mode menu threw: ' + (e && e.stack || e)); fails++; }).then(() => {
+  console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
+  process.exit(fails ? 1 : 0);
+});
