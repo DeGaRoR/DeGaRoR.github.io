@@ -91,6 +91,8 @@ function staleOf(W, S) {
 // ============================================================ THE CHILD: one build, one page
 async function child() {
   const out = arg('out'), fault = arg('fault', ''), SECS = +arg('secs', 5), key = arg('build', 'cub'), dmg = arg('damage', '1') !== '0';
+  // (the staging: the mild one by default - 4 m up, 30 m/s, a 0.3 m trunk 40 m ahead; STAGES.hard the breaking-up one)
+  const SV = +arg('V', 30), SAGL = +arg('agl', 4), STR = +arg('tr', 0.3), SD = +arg('D', 40), PROBE = arg('probe', '0') === '1';
   const { openPage } = require('./_page_node.js');
   const R = { key, fault, damage: dmg, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
@@ -131,14 +133,15 @@ async function child() {
   const FP = W.FLIGHT_PROBE; W.FLYDIY_SKINBREAK = true; W.FLYDIY_WRECK = true; FP.setManual(true);
   { const sim = FP.sim(), world = FP.world(), [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl;
     const c = sim.cgPos(), g = world.terrainH(c[0], c[2]); let yMin = Infinity; for (let i = 1; i < sim.p.length; i += 3) yMin = Math.min(yMin, sim.p[i]);
-    let placed = false; FP.place({ at: [c[0], g + 4 + (c[1] - yMin), c[2]], zeroV: true, dv: [30 * fx, 0, 30 * fz] }).then(() => { placed = true; });
+    let placed = false; FP.place({ at: [c[0], g + SAGL + (c[1] - yMin), c[2]], zeroV: true, dv: [SV * fx, 0, SV * fz] }).then(() => { placed = true; });
     await P.until(() => placed, 60000);
-    const c2 = sim.cgPos(), tx = c2[0] + fx * 40, tz = c2[2] + fz * 40, gt = world.terrainH(tx, tz);
-    world.treeHits.set('fill:upload', [tx, tz, gt, 0.3, gt + 10]); sim.ctl.thr = 0;
+    const c2 = sim.cgPos(), tx = c2[0] + fx * SD, tz = c2[2] + fz * SD, gt = world.terrainH(tx, tz);
+    world.treeHits.set('fill:upload', [tx, tz, gt, STR, gt + 10]); sim.ctl.thr = 0;
     const tA = sim.t; let br = 0;
     for (let f = 0; f < SECS * 60 + 600 && sim.t - tA < SECS; f++) { await P.frames(1); const DS = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; br = Math.max(br, DS && DS.br ? DS.br.length : 0); }
     world.treeHits.drop ? world.treeHits.drop('fill:upload') : world.treeHits.delete && world.treeHits.delete('fill:upload');
-    R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null }; }
+    R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null, stage: { V: SV, agl: SAGL, tr: STR, D: SD } }; }
+  if (PROBE) { fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }   // (--probe=1: the crash only - the staging sweep)
   // ---- the shed, then Roll out, then frames rendered
   await rollIn();
   R.shot1 = {}; R.live1 = await rollOut(R.shot1); R.shot1.worst = +R.shot1.worst.toFixed(3); R.rollResets = W.FLYDIY_ROLL_RESETS || 0;
@@ -158,9 +161,13 @@ async function child() {
 }
 
 // ============================================================ THE PARENT
-function runChild(key, fault, secs, damage) {
-  const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + '.json');
+// the crash stagings: the mild one (the child's defaults) and the breaking-up one (chosen by a --probe sweep on train 39 + TUNE,
+// 2026-10-07, reports/evidence/DMG-D4b/t41-sweep: 30 m/s 1 m up into a 0.5 m trunk breaks 114; at 40 m/s the Cub breaks 0-1 - not a monotone dial)
+const STAGES = { hard: { id: 'hard', V: 30, agl: 1, tr: 0.5, D: 40 } }, HARD_MIN = 80;   // (the sweep on 82cf6ed8: 114 broken, 12 bodies, both runs; the mild 12)
+function runChild(key, fault, secs, damage, stage) {
+  const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + (stage ? '_' + stage.id : '') + '.json');
   const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs, '--fakebake=' + arg('fakebake', '1')]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
+  if (stage) for (const k of ['V', 'agl', 'tr', 'D']) if (stage[k] != null) a.push('--' + k + '=' + stage[k]);
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
   if (r.status !== 0 || !fs.existsSync(out)) return { key, failed: 'child exit ' + r.status + (r.signal ? ' ' + r.signal : '') };
   const R = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return R;
@@ -221,6 +228,14 @@ function parent() {
   const pf = arg('fault', '');   // (G2350: --fault=nomark|noowe|aswas on the gate's own runs - a fix's A/B; the gate's verdict then reads it)
   if (pf) say('  (fault ' + pf + ')');
   for (const k of keys) fails = fails.concat(judge(runChild(k, pf, secs), say));
+  // (train 41: the mild staging above kept; on the train-39 physics - DRIVE2, WALL, TUNE - it broke the Cub only a little
+  // (12 members). A breaking-up Cub is staged too, so the folds' heal is tested on a real wreck)
+  if (keys.includes('cub') && arg('hard', '1') !== '0') {
+    say('  cub, THE HARD STAGING (' + JSON.stringify(STAGES.hard) + '): the wreck must break up (' + HARD_MIN + '+ members)');
+    const R = runChild('cub', pf, secs, undefined, STAGES.hard), f = judge(R, say), br = R.crash ? R.crash.br : 0;
+    if (!(br >= HARD_MIN)) f.push('cub (hard): the hard staging broke ' + br + ' members, not a break-up (' + HARD_MIN + '+): it tests the mild case again');
+    fails = fails.concat(f);
+  }
   fails = fails.concat(judge(runChild(keys[0], '', secs, false), say));   // (damage OFF: one build)
   for (const x of fails) say('  FAIL  ' + x);
   console.log('GATE DMGUPLOAD: ' + (fails.length ? 'FAIL' : 'PASS'));
