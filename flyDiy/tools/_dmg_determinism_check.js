@@ -25,8 +25,8 @@
 //      against the library's hash here) on this core, the certificate handed in, against node's hashes; and the Math.*
 //      the solver calls (sin, cos, atan, atan2, asin, sqrt, hypot, pow, exp, log) on 200 000 inputs each, bit for bit
 // --selftest: the gate goes red (a) with the op as it was - a stale core (the committed one, or a header doctored) loads
-// and flies (expected: refused), (b) with one coordinate nudged by 1 ulp in one tier's child (expected: a hash differs -
-// and the count moves: the chaos the ensemble (GATE TREECRASH's ensemble rows) is for)
+// and flies (expected: refused), (b) with one coordinate nudged by 1e-9 m in one child (expected: a hash differs -
+// and whether the count moves - GATE TREECRASH's ensemble rows read the distribution)
 // Run: node tools/_dmg_determinism_check.js [--full] [--branch] [--json f] [--selftest] [--cache f]   (one final
 // `GATE DMGDETERMINISM: PASS|FAIL`; children DMGDET_JOBS at once, default 3)
 'use strict';
@@ -59,8 +59,9 @@ if (argv[0] === '--child') {
     out = { kind, k, hash: H(c.Ft) + H(c.Fc).slice(0, 8) };
   } else {
     const o = Object.assign({}, L.STANDARD[id].o, dmg === 'off' ? { elastic: true, cert: false } : { cert: true });
-    // the selftest's nudge: one coordinate 1 ulp up as the run starts (Float64Array: the next double)
-    if (process.env.FLYDIY_DET_NUDGE === '1') o.onStart = sim => { const f = new Float64Array([sim.p[0]]), u = new BigInt64Array(f.buffer); u[0] += 1n; sim.p[0] = f[0]; };
+    // (one ulp on one coordinate is rounded away within a few substeps - measured, the run's bits unchanged - so the
+    // selftest's nudge is 1e-9 m on node 0's x, the ensemble's smallest scale)
+    if (process.env.FLYDIY_DET_NUDGE === '1') o.onStart = sim => { sim.p[0] += 1e-9; };
     const r = L.atTrunk(k, o);
     out = { kind, k, id, dmg, hash: L.stateHash(r.sim), broken: r.dmg.broken.length, work: +r.dmg.work.toFixed(1), crashed: r.dmg.crashed, finite: r.finite };
   }
@@ -285,7 +286,7 @@ function staleTree(dir, coreText) {
     const [a, b] = await pool([{ tier: 'turbofan', tag: 'jodel/trunk0', run: () => child([], ['run', 'jodel', 'trunk0', 'on'], env) },
       { tier: 'turbofan+nudge', tag: 'jodel/trunk0', run: () => child([], ['run', 'jodel', 'trunk0', 'on'], Object.assign({ FLYDIY_DET_NUDGE: '1' }, env)) }]);
     const redB = a.hash && b.hash && a.hash !== b.hash;
-    console.log('  ' + (redB ? 'red ' : 'MISS') + '  the Jodel\'s 30 m/s centreline, one coordinate 1 ulp up: ' + a.hash + ' (' + a.broken + ' broken, ' + a.work + ' J) vs ' + b.hash + ' (' + b.broken + ', ' + b.work + ' J)');
+    console.log('  ' + (redB ? 'red ' : 'MISS') + '  the Jodel\'s 30 m/s centreline, node 0 1e-9 m along x: ' + a.hash + ' (' + a.broken + ' broken, ' + a.work + ' J) vs ' + b.hash + ' (' + b.broken + ', ' + b.work + ' J)');
     report.selftest = { stale: { ok: st.ok, header: st.header, now: st.now, committed: !!committed }, nudge: [a, b] };
     yes(redA && redB && selfPageRed !== false, 'the selftest: every doctored case red' + (selfPageRed === null ? ' (the page\'s not run: no Chromium)' : ''));
   }
