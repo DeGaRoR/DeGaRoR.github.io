@@ -604,6 +604,7 @@ function makeSimHost(CORE, init, keptWorld) {
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
       manualEnding(dt);
     } else ap.update(dt);
+    if (H.crashed()) sim.ctl.thr = 0;     // G2105: the crash ending closes the throttle (app.js script(), the inline path's)
     sim.step(dt);
     if (!noDay) H.dayTick(dt);
     H.steps++;

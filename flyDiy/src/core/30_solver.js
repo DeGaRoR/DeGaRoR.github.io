@@ -1327,6 +1327,40 @@ function makeSim(def, world) {
     e.seized = true; e.running = false; e.crank = 0;
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
   }
+  // G2105 (WATER-DAMP): THE PROP IN THE WATER. The prop strike existed only on the ground (noseGnd, the trunk): a ditched
+  // aeroplane whose disc went under kept its full thrust if the power was left on (729 N at 0.6 throttle on the user's
+  // Cub, measured by WATER-LOOK) - the "engine still running" the user saw rock the wreck. Water is 800 times the air: a
+  // blade that meets it at any power is a sudden stoppage (Lycoming SB 533: a strike includes water, engine running or
+  // not), so once a frame, on a frame the water can reach (the wet body armed, or the floats wet), each engine's DISC'S
+  // LOWEST POINT - its thrust nodes' centre, R down in the disc's plane (DMG-DRIVE's own geometry, G1826) - is asked
+  // against the water there: under it, the engine STOPS (running off, the starter's crank cut) and stays stopped while
+  // the disc is in the water (`drown`: a key, a swing or the pilot's checklist cannot start it - setEngine's canRun);
+  // WITH THE DAMAGE LAYER ON it is a prop strike as the ground's (seized for good, DMG.propAt 'water'); OFF, a stall:
+  // nothing breaks and the key can start it again once the disc is clear. out.propWet: the engines' mask, written only
+  // on an armed frame (a dry flight's `out` never carries it). One waterH sample per engine per armed frame.
+  function propWater() {
+    if (!world || typeof world.waterH !== 'function' || !(wetArm || (HY && HY.wet > 0))) {
+      for (let k = 0; k < eng.length; k++) if (eng[k].drown) eng[k].drown = false;
+      return;
+    }
+    bodyAxes();
+    const ay = -xAft[1], dl = Math.max(0.2, Math.sqrt(Math.max(0, 1 - ay * ay)));
+    const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl, Rp = PR.D / 2;
+    let mask = 0;
+    for (let k = 0; k < eng.length; k++) {
+      const e = eng[k];
+      let cx = 0, cy = 0, cz = 0, c = 0;
+      for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
+      if (!c) { e.drown = false; continue; }
+      const lx = cx / c + Rp * dx, ly = cy / c + Rp * dy, lz = cz / c + Rp * dz, w = world.waterH(lx, lz, simT);
+      e.drown = w > -1e8 && w > ly;
+      if (!e.drown) continue;
+      mask |= 1 << k;
+      if (DMG_ON) propStrike(k, 'water');
+      e.running = false; e.crank = 0;
+    }
+    out.propWet = mask;
+  }
   // G194: `eng` is null (every engine running, full lever — bit-identical to
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
   // that the pilots never read or write: the player's levers over the
@@ -1427,7 +1461,7 @@ function makeSim(def, world) {
   // cranking timer. `setEngine` below is the ONE writer; the pilots write the
   // same thing the cockpit key writes.
   const eng = [];
-  for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0, seized: false });   // seized: a prop strike (G1470)
+  for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0, seized: false, drown: false });   // seized: a prop strike (G1470); drown: the disc in the water (G2105)
   // the burn: the thermo sheet's rated figure (kg/h of fuel, or kW of pack
   // draw), scaled by the effective throttle and the altitude power ratio
   const THERMO = (typeof genEngineThermo === 'function') ? genEngineThermo(EN) : null;
@@ -1479,7 +1513,7 @@ function makeSim(def, world) {
   out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0; out.beta = 0;
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
   function resetPanel() {
-    for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; e.seized = false; }
+    for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; e.seized = false; e.drown = false; }
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
     fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
@@ -1499,7 +1533,7 @@ function makeSim(def, world) {
       e.key = ['off', 'l', 'r', 'both', 'start'].includes(patch.key) ? patch.key : 'both';
       if (e.key === 'off') { e.running = false; e.crank = 0; }
     }
-    const canRun = e.key !== 'off' && !e.seized && (fuel.kind === 'battery' ? fuel.soc > 0 : fuel.frac > 0);
+    const canRun = e.key !== 'off' && !e.seized && !e.drown && (fuel.kind === 'battery' ? fuel.soc > 0 : fuel.frac > 0);
     if (patch.running !== undefined) e.running = !!patch.running && canRun;
     if (patch.swing && canRun) e.running = true;
     if (patch.start && canRun && !e.running) {
@@ -2706,6 +2740,7 @@ function makeSim(def, world) {
     obstFrame();
     trunkFrame(dtFrame);
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
+    propWater();                                    // G2105: the disc in the water stops its engine
     armFrame();
     postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:

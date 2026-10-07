@@ -5884,6 +5884,10 @@
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
       manualEnding(dt);
     } else ap.update(dt);
+    // G2105 (WATER-DAMP): THE CRASH ENDING CLOSES THE THROTTLE - the wreck lies as it came to rest, its power off, whoever
+    // flies on after the card (a resume): the user's ditched Cub rocked on under the lever left where it was. The worker's
+    // step does the same (sim_host.js H.step), so the two paths fly the same wreck
+    if (sim.damage && sim.damage().over) sim.ctl.thr = 0;
     scriptView(dt);
   }
   // G815 (C1b): THE SCRIPT'S UI HALF - the pattern, the trace, the rail, the watchdogs, the card. Inline it runs
