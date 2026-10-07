@@ -80498,3 +80498,119 @@ tools/dmg_nose_evidence.js (the pictures).
    case (the trunk sideways at the hub) would certify them; not in this brief.
 5. The stack is crushed in its order whichever way it is met (a corner meets the bowl's side first in life; the energies are of a size).
 6. GATE DMGWIND's offset part flies the Cub whatever key it is given (harmless: it is only called with 'cub').
+
+## G2361-G2364 DMG-MOUNTRIG: THE NOSE ENGINE ON A REAL MOUNT - A RING OF FOUR CUPS AT THE ENGINE'S REAR FACE 0.4 m AHEAD OF THE FIREWALL, TWELVE BEARERS, EIGHT ISOLATORS, THE CASE RIGID; THE NOSE LEG BRACED TO THE MOUNT'S LOWER CUPS; MASS AND CG KEPT, FLIGHT UNCHANGED TO 1e-3; THE MOUNT DOES NO PLASTIC WORK IN ANY TAXI (2026-10-07, DMG-MOUNTRIG for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-mountrig off origin/claude/dmg-recal 30b4ec8e; G2361-G2364 all used)
+
+**STATUS: see "THE GATES" below - TREECRASH green, DMGWIND / DMGGEAR / DMGCLUSTERS still red on rows that are NOT the nose
+rig (the twin's floats and boom, the metal Cessna's propeller in the ground, a floatplane's 3 m/s touchdown), said plainly.**
+Source and tools only; nothing generated is committed. Damage stays OFF by default (nothing here touches the switch).
+
+### WHAT I MERGED FIRST: DMG-NOSE
+The crushable nose (G2013-G2015, GEN_NOSE / genNoseSpec / nosePass) was on claude/dmg-integration, not on this bundle.
+I merged **claude/dmg-nose (011daf60) itself**: two commits, the branch the integration merge took (9500f197).
+- Conflicts: 90_node_exports (the bundle's export list, plus DMG-NOSE's GEN_NOSE, genNose*, genCertMirror; the
+  integration's makeAutopilot / makeTestPilot left out, they are gone from this bundle) and HANDOVER (both kept).
+- Commit 305129ca. This merge alone turned **TREECRASH green** on the base: the metal Cessna's 3 m/s taxi is a 26 cm
+  crush and 0 J, no crash. It is the "before" of every number below.
+
+### THE OLD RIG (61_gen_frame's nose block, unchanged since the flange became `engX`)
+On the metal Cessna and the Cessna on floats; the Cub and the Jodel are the same shape at their own stations.
+- Nodes: the flange pair ENGL / ENGR at the drawn flange (x -1.162, the prop's blades on them) and CGE, the 199 kg
+  installed engine, at -0.832.
+- Members: 7 bearers from the flange pair to the firewall corners S0 (mass-billed 4130, 1.29-1.54 m) and 6 weightless
+  locators from CGE to the flange pair and the four corners (1.12-1.16 m). 13 members, all at the class section
+  7.39e-5 m2. The nose leg's two "wires" go from the nosewheel 44 deg forward to the flange (1.25 m).
+- Side views: `reports/evidence/DMG-MOUNTRIG/rig_<build>_old.svg`.
+
+### THE NEW RIG (G2361-G2362, src/core/61_gen_frame.js; numbers in GEN_RULES, src/core/60_gen_spec.js)
+A nose engine with a measured CG (S.engCgAft, every validated build) now sits on a mount. Sources are **as recalled, not
+looked up** - A0 to check them against a mount drawing.
+- **The ring at the engine's rear face** (GEN_RULES.mountRing 0.40 m ahead of the firewall).
+  - A light-aircraft mount is ~0.4 m deep: the 172's dynafocal mount for its O-320 / O-300, the PA-18's conical mount
+    for its O-200 / A-65 class, a Jodel's for its O-200 / C90.
+  - The engine's rear face is ~0.75 m behind the flange (O-320 ~29.5 in long, O-200 ~28.5, A-65 ~31).
+  - On all four nose builds the ring lands at x -0.40, 0.29-0.43 m aft of the engine's CG (mountCgGap 0.10 keeps it aft
+    of the CG, mountFw 0.10 ahead of the firewall).
+  - Four nodes, the isolator cups MNTTL / MNTTR / MNTBL / MNTBR, as wide as the flange pair and as deep as wide inside
+    the firewall.
+  - A build whose engine CG sits too close to the firewall for both gaps (or has no measured CG) keeps the old rig,
+    byte for byte. An archetype gets the same rule (`preset:garage` does: 4 cups).
+- **Twelve bearers**, 4130 at the type's section (GEN_RULES.mountTubeA):
+  - 1.000 x 0.049 in (94.5 mm2) over 120 kg installed (the 172's), 0.875 x 0.035 (59.6 mm2) under it (the Cub's, the
+    Jodel's);
+  - each upper cup to its side's top and bottom corners and across to the other top; each lower cup to both bottom
+    corners and up to its side's top;
+  - 0.50-1.03 m on the metal Cessna (the old ones 1.12-1.54).
+- **Eight isolators**: each cup to the CG node (its dynafocal axis) and to its side's flange node (the case is rigid
+  between them).
+  - Their own break section: the AN7 through-bolt's shank, 97.0 mm2 (GEN_RULES.mountIsoA).
+  - No Euler (`b.iso`: a rubber cup bottoms, it does not buckle) and no set: an isolator holds, then tears
+    (30_solver dmgMember).
+- **The engine's case**: the flange pair and CGE, three members at the crankcase's steel-equivalent section
+  (GEN_RULES.mountCaseA 4e-3 m2). They are rigid in the damage sense (elastic, never set) and keep their physics
+  (30_solver CERT_ENG, as before).
+- **The nose leg** (G2362): a tricycle's two upper braces go from the nosewheel to the mount's lower cups, near-vertical
+  above the leg (the 172's nose strut to its mount's lower ring), no longer 44 deg forward to the flange.
+- **No ring-side tubes**, measured on the stiffness matrix with the firewall pinned
+  (`scratchpad eig.js`, numbers in the commit 8e09f061):
+  - with each cup on THREE bearers the ring's own tubes add under 7 %, and are not built;
+  - the first cut (8 bearers, each cup on two, plus the ring's sides) was a near-mechanism: its softest mode 1/40 of
+    the old rig's. In a 4 m/s taxi the engine swung 0.43 m aft and 0.36 m up on its mount, the aeroplane pitched 7 deg
+    tail-up and a wing root tore. The twelve-bearer mount reads 2-2.6x the old rig's compliance (aft at the flange,
+    down and sideways at the CG): an engine on rubber, about 11 Hz vertical against the old 15.
+- 23 members against 13, 4 nodes more.
+- Side views: `rig_<build>_new.svg`.
+
+### THE AEROPLANE DOES NOT CHANGE (G2361; `tools/dmg_mountrig_props.js`, `props_diff.txt`)
+- **Every new member is weightless.** The old rig's seven bearer tubes are billed as they were: the same seven amounts,
+  the same ledger mass and price, to the bit. Their mass (3.7-4.8 kg) is the mount's: a quarter on each cup. The flange
+  pair and the firewall's top and bottom corner pairs give up exactly what keeps the CG where it was (closed form,
+  x and y; z by symmetry).
+- The nose leg's moved wires are billed at their old length on their old ends (B()'s new `opt.ghost`: a member billed,
+  not built), so the nosewheel's mass does not move either.
+- CGE keeps the installed engine exactly (GATE ENGINE PASS) and the flange keeps the blades.
+- **Mass**: equal to 2e-13 kg. **CG**: equal to 2e-16 m. **Substeps**: unchanged on every build.
+  - The cups would have asked 81 of the Cub's 74 through a member between two of them. There is none: each cup only
+    meets ~10-200 kg nodes.
+- **Inertia** moves by what a ~4-5 kg mount moved 0.4-0.8 m aft makes:
+
+  | build | Ixx (roll) | Iyy (yaw) | Izz (pitch) |
+  |---|---|---|---|
+  | Cub | -0.042 % | -0.050 % | -0.102 % |
+  | Jodel | -0.058 % | -0.110 % | -0.139 % |
+  | metal Cessna | -0.053 % | -0.061 % | -0.099 % |
+  | Cessna on floats | -0.049 % | -0.055 % | -0.081 % |
+  | twin | = | = | = |
+  | preset:garage | -0.023 % | -0.016 % | -0.025 % |
+
+- I tried a moment-exact redistribution (the second moments too): it needs the cabin's frames S1-S3 to trade 1-10 kg
+  each, so it is not done (`scratchpad solve2.js`).
+
+### FLIGHT IS UNCHANGED (G2364; `tools/dmg_mountrig_flight.js`, `flight_diff.txt`)
+Damage off (the game's default). Each build parked 10 s, a FAR 23.473 landing and a whole circuit with the pilot; the
+MD5 of (p, v) at the end and the numbers. Bit-identical is impossible where the rig changed (new nodes and members).
+- **The twin: bit-identical** (no nose engine).
+- **The others' deltas**:
+
+  | build | parked: CG height / pitch | 23.473 landing g | circuit |
+  |---|---|---|---|
+  | Cub | -0.17 mm / +0.0001 deg | +0.0002 | 321.45 s both, nz +0.0001 |
+  | Jodel | -0.22 mm / +0.0004 deg | +0.001 | nz -0.002 |
+  | metal Cessna | -0.28 mm / -0.001 deg | +0.006 | nz 2.209 -> 2.177 |
+  | Cessna on floats | -0.76 mm / +0.013 deg | +0.002 | nz +0.0008 |
+
+- Outcome and phase count are the same everywhere. (The Jodel's, the metal Cessna's and the floats' circuits run to the
+  tool's 340 s cap before and after: TREECRASH's own circuit.)
+- GATE PILOTMATRIX / TAKEOFF / SEAPLANE: see the gates.
+
+### THE CERTIFICATE (G2363, src/core/66_gen_cert.js; GEN_CERT_V 5 -> 6)
+- **The rig is re-stamped from the certificate's own cases**: 23.561's mount cases, the nose's 9 g at the hub and at
+  either corner, the drive's 23.361 / .363 / .371, the landings.
+- **"A mount is welded from one tube and hung on one kind of isolator"** (genCertCombine, after DMG-NOSE's mirror rule;
+  genCertMountKinds): every tube of a nose mount takes its kind's largest envelope, every isolator likewise, tension
+  and compression apart. It only ever raises a limit.
+  - Measured without it: the Cub's lower cross bearers were certified by the gyroscopic case alone, 2.0 kN in tension,
+    on their floor (kappa x physics, 4.0 kN). A 2 m/s taxi into a trunk pulled them to 5.3 kN and the mount's fittings
+    let go. The lower isolators to the CG sat at 0.97 of theirs.
+- With the rule no rig member sits on its floor: `tools/dmg_mountrig_cert.js`, `cert_rig.txt`.
+- GEN_CERT_V 6: a certificate stored by the page (bench_worker's IndexedDB) for a v5 rig is stale.
