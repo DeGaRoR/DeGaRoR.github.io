@@ -80894,3 +80894,65 @@ WHEEL-AO's A/B against a master stale alike). No ALLOW added. (A trap met on the
 restore loads the train's OLD built core - no columnPoints, the fix's hitAdd throws into its catch - so a standalone A/B on a
 source branch needs `node tools/build.js` first.)
 NEXT: the throttled A/B/B/A tonight; then the settle step (8.6 s) and the taxi hitch on the slow-CPU rung.
+
+## G1532 POTATO-DEEP: 'CURRENT' DREW NO CLOUD SINCE TRAIN 25 - AT ZERO SAMPLES THE COMPOSITE SAMPLED THE DEPTH IT WAS DRAWN INTO (2026-10-07, POTATO-DEEP for A0, train 40)
+
+THE REPORT (the user's laptop, train 38, after its driver update): no clouds from boot on 'current', Standard day. The laptop's console
+(relayed by A0): aa { tier off, able true, samples 0, buf 1141x911 }, the target there; clouds { 'half', ready, active, gpuMs 0.79, cover
+0.994 }. The layer was computed every frame and never reached the screen.
+THE BOX, train 38, 'current', Standard day (cover 0.443), the free camera 400 m up: an EMPTY SKY at aa 'off'; the AA row switched to msaa
+live in the same page: the field is there (g1532_t38_current_air_aaoff_noclouds.jpg | _msaa_clouds.jpg). The cloud pass reports itself
+live either way (15 march calls, 15 composite draws per 30 frames). gl.getError() cleared before the composite quad and read after it:
+aa off (samples 0) 1282 GL_INVALID_OPERATION on 15/15 draws, msaa (samples 8) 0/15 (g1532_t38_cloud_composite_glerr.json).
+THE CAUSE: the composite quad draws INSIDE the scene pass into the resolve target, and samples uDepth = target.depthTexture (clouds.js
+COMP_FRAG). Multisampled, the pass renders into a renderbuffer and the depth texture only receives the resolve - legal. At ZERO samples the
+depth texture IS the bound depth attachment: a feedback loop, WebGL drops every composite draw, no exception, nothing on screen. G1250
+QUICK-BYTES had seen it ("'off' drew the target at ZERO samples once the clouds asked for it") and made msaa4 current's default; train 25
+(8bd66762) kept 4x an option only (+138 MiB), so 'current' (aa off + clouds half) drew no cloud from train 25 to train 38 ON EVERY MACHINE
+- the laptop's driver was not the cause. Also any AA 'off' + clouds on, the laptop budget's MSAA cap 0 (G1524), a software renderer.
+gamer (msaa) and ultra (full) were never affected; laptop / potato / retro have clouds off.
+THE FIX (clouds.js only): depthFor(r, target) - the target's depth texture when multisampled (the MSAA path byte-identical), at zero samples
+a COPY blitted before the march (three r186's copyTextureToTexture on depth textures: the target's depth format, a 1-byte R8 colour beside
+it, ~16 MB at 1080p), timed by the cloud GPU timer (stats.depthCopyMs). Both the march and the composite read the previous frame's depth,
+as they already did multisampled (the resolve is the end of the last frame's pass). S.depthCopy (1; ?clouddc=0 = the old read) is an A/B
+dial. The water mirror's capture (2 samples) is on the MSAA path - unchanged.
+THE GUARD (it should never come back silently): tools/_fake_gl.js's recorder gained a FEEDBACK TRACKER - the draw framebuffer's attached
+textures against the textures the current program's samplers read (uniform1i / 1iv, GL's default unit 0); rec.feedbacks / rec.feedback.
+The recorder's counts are unchanged. GATE FRAMECOST: 0 feedback draws per census. GATE CLOUD 9: the source rule (depthFor, never the
+attachment directly), the tracker's self-test on real three (own depth at 0 samples 3/3, at 4 samples 0, a copy 0), and EVERY SHIPPED
+PRESET WITH CLOUDS ON (read from gfx_settings.js: current, gamer, ultra) through the page's census (tools/perf/probe_cloud_feedback.js):
+the layer live, the composite drawn, no feedback draw (~95-110 s each).
+THE NODE REPRO (FRAMECOST census, cub, 'current', the layer baked after 40 frames): train 38 6 composite draws, 6 feedback (the composite's
+uDepth; 25 over the run); the fix 6 draws, 0 feedback (g1532_node_probe_before_t38.txt | _after.txt).
+THE COST ON 'current' (17:00 GPU TIMED, the Jodel, Standard day cover 0.443, 1920x911, rollout_perf 240 s; S.depthCopy TOGGLED EVERY
+5 s IN THE SAME LOAD - 63/74 toggles, the first 0.7 s after each dropped; stand/taxi/air from the recorder's agl/spd):
+                 stand        taxi (fps, frames)          air (fps, frames)        the blit (cloud GPU timer)
+  box  old       30.2 (84)    29.8 (2314)                 30.0 (488)
+  box  copy      -            30.0 (2451)                 30.0 (388)               depthCopyMs 0.39
+  rung old       -            15.1 (1245)                 10.9 (164)
+  rung copy      14.4 (42)    15.0 (1167)                 11.9 (177)               depthCopyMs 0.40
+  (the rung: --cpu-throttle 3 --gpux 2 --gpux-at 0; draw calls equal both sides, 1045-1047 taxi on the box, 1000 on the rung)
+- THE BLIT: 0.39 ms of GPU on the box (0.40 under gpux 2: the blit is not an opaque draw, gpux does not multiply it). THE COMPOSITE (a
+  fullscreen quad) is not timed on its own; the frame says no fps change past noise on either rung (box at the 30 cap; rung taxi 15.1 vs
+  15.0). The cloud march itself (0.97 ms box, 2.38 rung) ran BEFORE the fix too - the fix adds only the blit and the composite.
+- MEMORY: the copy at 1920x911 = a DEPTH32F_STENCIL8 depth (8 B/px, 14.0 MB) + an R8 colour (1.7 MB) = ~15.7 MB (computed, not read);
+  the user's laptop canvas 1141x911: ~9.4 MB. Against the 138 MiB a 4x MSAA default would have cost (train 25's reason).
+- THE CALIBRATION A0 ASKED FOR DID NOT HAPPEN: the recorder's per-frame GPU time is NaN on every frame where the clouds are live - the
+  cloud pass's own TIME_ELAPSED queries (always on: bind, pass, shadow - and now depthCopy) end the recorder's frame query early
+  (flight_recorder foreignBegin: "the frame's GPU time is not measured"). That was already so before the fix (the march's queries), so the
+  fix costs the recorder no coverage; but the box's taxi GPU could not be read, K fell back to 2, and at 15 fps taxi the rung is a HEAVIER
+  machine than the user's laptop (30 at the cap). Where the user's 33.1 ms taxi GPU came from on train 38 (clouds live there too) is OPEN.
+  A fix for the next calibration: the cloud timer off while the recorder times (a dial), or the recorder's GPU from the AA pass's timer.
+THE STILLS (the same build, 'current', aa off, 400 m up, pitched 0.3): ?clouddc=0 an empty sky | the default: the field
+(g1532_current_air_before_clouddc0.jpg | g1532_current_air_after_fix.jpg) - the same field the msaa still shows.
+THE OVERCAST REPEAT (A0, the user's day read cover 0.994): booked 22:50-23:00 GPU TIMED - the rung's taxi on ?cloud=0.9,st (the menu's
+'overcast'), the copy toggled in-load; an addendum row here.
+GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
+0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
+53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;
+gamer is 8 samples, depthFor hands the attachment as before), the both-stale A/B pending. Train 40's pass re-cooks on its final build and
+runs FRAMECOST and CLOUD (all three presets) in the full battery (A0's ruling).
+ALSO TODAY (A0's asks, train 38): the laptop's re-apply throw ('boundingSphere' of undefined after re-applying 'current') NOT reproduced
+on the box (Jodel, Cub: 0 errors, 0 frustum throwers, 0 drawables without geometry before and after) - waits for the laptop's stack. The
+metal Cessna (tools/fixtures/build_v10_cessnaMetal_2026-09-26.json) at the stand: the propeller disc clear of the ground
+(g1532_t38_cessnaMetal_prop_front/_side/_34.jpg; Deform: the 2.3 cm is train 41's JOIN-PARITY geometry).

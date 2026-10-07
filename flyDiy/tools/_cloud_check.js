@@ -299,6 +299,55 @@ console.log('8. the drift is wrapped to the span before it is uploaded (G1050: t
     'the wrap\'s premise: the noise periods divide the span, the shadow tile wraps (fract)');
 }
 
+console.log('9. the composite never samples the depth it draws into (G1532: \'current\' drew no cloud from train 25 to 38)');
+// The composite quad draws INSIDE the scene pass into the resolve target and reads the scene's depth. At zero samples (the AA
+// row 'off', the laptop budget's MSAA cap 0, a software renderer) that depth texture IS the bound attachment: a feedback loop,
+// GL_INVALID_OPERATION on every composite draw (the box: 1282 on 15/15), no cloud on screen while the pass reports itself live.
+{ const cj = src('viewer/clouds.js');
+  // 9a. the rule in the source: the march and the composite take depthFor(), which hands the attachment only when multisampled
+  yes(/U\.uDepth\.value = depthFor\(r, target\);/.test(cj) && !/U\.uDepth\.value = target\.depthTexture/.test(cj), 'clouds.js: the clouds\' depth is depthFor(r, target), never the target\'s depth texture directly');
+  yes(/function depthFor\(r, target\) \{\s*if \(target\.samples > 0 \|\| !S\.depthCopy\) return target\.depthTexture;/.test(cj) && /r\.copyTextureToTexture\(D, dcp\.depthTexture\)/.test(cj) && /driftWrap: 1, depthCopy: 1,/.test(cj),
+    'depthFor: the attachment only when multisampled (the resolve is what is read - the MSAA path unchanged); at zero samples a blitted copy (S.depthCopy 1 by default; 0 = the old read, an A/B dial)');
+  // 9b. the guard's own proof: the fake GL's feedback tracker on real three - a samples-0 target sampled by the quad drawn into it counts,
+  // a multisampled one and a copy do not (FRAMECOST holds the same count at 0 over every census)
+  { const vm = require('vm'), FG = require('./_fake_gl.js'), rec = FG.makeRecorder(), { gl, WebGL2RenderingContext, canvas } = FG.makeGL({ rec });
+    const ctx = { console, performance, setTimeout, clearTimeout, WebGL2RenderingContext, navigator: { userAgent: 'node' } }; ctx.globalThis = ctx; ctx.window = ctx; ctx.self = ctx;
+    vm.createContext(ctx); vm.runInContext(FG.THREE_SRC, ctx); const T = ctx.THREE; canvas.getContext = () => gl;
+    const r = new T.WebGLRenderer({ context: gl, canvas, reversedDepthBuffer: true });
+    const dtex = () => { const d = new T.DepthTexture(64, 64, T.FloatType); d.format = T.DepthStencilFormat; return d; };
+    const mk = samples => { const rt = new T.WebGLRenderTarget(64, 64, { type: T.HalfFloatType, depthBuffer: true, stencilBuffer: true, depthTexture: dtex(), samples }); rt.resolveDepthBuffer = true; return rt; };
+    const scene = new T.Scene(), cam = new T.PerspectiveCamera();
+    const mat = new T.ShaderMaterial({ uniforms: { uDepth: { value: null } }, vertexShader: 'void main(){gl_Position=vec4(position,1.);}', fragmentShader: 'uniform sampler2D uDepth; void main(){gl_FragColor=texture2D(uDepth,vec2(.5));}' });
+    const q = new T.Mesh(new T.PlaneGeometry(2, 2), mat); q.frustumCulled = false; scene.add(q);
+    const n = {};
+    for (const [tag, samples, copy] of [['own0', 0, false], ['own4', 4, false], ['copy0', 0, true]]) {
+      const rt = mk(samples); let tex = rt.depthTexture;
+      if (copy) { const c = new T.WebGLRenderTarget(64, 64, { format: T.RedFormat, depthBuffer: true, stencilBuffer: true, depthTexture: dtex() }); r.initRenderTarget(c);
+        r.setRenderTarget(rt); r.render(scene, cam); r.copyTextureToTexture(rt.depthTexture, c.depthTexture); tex = c.depthTexture; }
+      mat.uniforms.uDepth.value = tex; const f0 = rec.feedbacks;
+      for (let i = 0; i < 3; i++) { r.setRenderTarget(rt); r.render(scene, cam); }
+      n[tag] = rec.feedbacks - f0; }
+    r.setRenderTarget(null);
+    yes(n.own0 === 3 && n.own4 === 0 && n.copy0 === 0, 'the feedback tracker: own depth at 0 samples 3/3 draws, at 4 samples 0, a blitted copy 0 (' + JSON.stringify(n) + ')'); }
+  // 9c. EVERY SHIPPED PRESET WITH CLOUDS DRAWS ITS CLOUDS: the page's census (FRAMECOST's, the probe tools/perf/probe_cloud_feedback.js) at
+  // each preset whose clouds row is not 'off' - the layer live, the composite drawn, no feedback draw anywhere in the frames
+  const gs = src('viewer/gfx_settings.js'), presets = [];
+  { const block = /const PRESETS = \{([\s\S]*?)\n  \};/.exec(gs); const body = block ? block[1] : '';
+    const re = /^\s{4}(\w+):\s+Object\.assign\(\{([^\n]*)/gm; let m;
+    while ((m = re.exec(body))) { const c = /clouds: '(\w+)'/.exec(m[2]); if (c && c[1] !== 'off') presets.push(m[1]); } }
+  yes(presets.length >= 2 && presets.includes('gamer'), 'the shipped presets with clouds on, read from gfx_settings.js: ' + presets.join(', '));
+  if (process.env.CLOUD_CENSUS === '0') console.log('  skip the per-preset census (CLOUD_CENSUS=0)');
+  else for (const pr of presets) {
+    const t0 = Date.now(), cp = require('child_process').spawnSync(process.execPath, ['--max-old-space-size=4096', path.join(__dirname, '_framecost_check.js'), '--census', 'cub'],
+      { cwd: path.join(__dirname, '..'), encoding: 'utf8', timeout: 600000, env: Object.assign({}, process.env, { PROBE_EXIT: '1', FRAMECOST_PROBE: path.join(__dirname, 'perf', 'probe_cloud_feedback.js'), FRAMECOST_GFX: JSON.stringify({ preset: pr }) }) });
+    const line = ((cp.stderr || '') + (cp.stdout || '')).split('\n').find(l => l.startsWith('PROBE {'));
+    let R = null; try { R = line && JSON.parse(line.slice(6)); } catch (e) {}
+    const good = !!R && R.preset === pr && R.active === true && R.compositeDraws > 0 && R.feedbackAll === 0;
+    yes(good, pr + ': the clouds live, the composite drawn, no feedback draw (samples ' + (R && R.samples) + ', composite ' + (R && R.compositeDraws) + ' draws, feedbacks ' + (R && R.feedbackAll) + ', ' + Math.round((Date.now() - t0) / 1000) + ' s)'
+      + (good ? '' : ' - ' + (R ? JSON.stringify(R) : 'no PROBE line (exit ' + cp.status + ') ' + String(cp.stderr || '').slice(-300))));
+  }
+}
+
 console.log(`${checks} checks, ${fails} failed`);
 console.log(`GATE CLOUD: ${fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'}`);
 process.exit(fails ? 1 : 0);
