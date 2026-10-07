@@ -1,0 +1,107 @@
+{
+  "what": "flydiy-contracts-fixture",
+  "v": 1,
+  "note": "G2251 (MAP-MENU): a FIXTURE in GAME-2026-10-06 §7.3's shape, for the MAP screen to be built against while CONTRACT-MODEL (G2240) writes the real record and its providers. Five providers (§R G-PROV: the mine and the dock merged). Titles and briefs are TEXT KEYS (no prose in code); `text` resolves them here as placeholders until the narrative pack lands. `career` is the per-career state a player document would carry (accepted, tracked, the stage each arc is at). `fleet` is where each airframe stands (71_player_bases.js playerWhere's kinds) with the certificate's facts the detail card states; `board` holds designs not yet materialised. Read ONLY through map_menu.js MAP_ADAPT (one function): swapping in CONTRACT-MODEL's module is one line there.",
+  "providers": [
+    { "id": "trust", "name": "The Field Trust", "short": "Trust", "home": "HOME", "colour": "#d9a441", "line": "your landlord at the old Army field" },
+    { "id": "minedock", "name": "Mine & Dock", "short": "Mine & Dock", "home": "mn_strip", "colour": "#c2603e", "line": "the mine ships its ore through the dock" },
+    { "id": "resort", "name": "Skyline Resort", "short": "Resort", "home": "tw_ski", "colour": "#5f9fd0", "line": "guests, sightseeing, and the snow strip" },
+    { "id": "survey", "name": "The Survey Office", "short": "Survey", "home": "HOME", "colour": "#79a86a", "line": "surveys, counts, weather and the coast" },
+    { "id": "clients", "name": "Private clients & the Club", "short": "Clients", "home": null, "colour": "#a98bc4", "line": "build contracts and challenges" }
+  ],
+  "contracts": [
+    { "id": "minedock.reopen", "provider": "minedock", "kind": "contract", "title": "c.minedock.reopen.title", "brief": "c.minedock.reopen.brief",
+      "stages": [
+        { "subs": [ { "do": "survey", "to": "mn_strip" } ] },
+        { "subs": [ { "do": "carry", "from": "HOME", "to": "mn_strip", "load": { "kg": 0, "pax": 2 } } ] },
+        { "subs": [ { "do": "carry", "from": "SEA", "to": "mn_strip", "load": { "kg": 120, "pax": 0 } },
+                    { "do": "carry", "from": "HOME", "to": "mn_strip", "load": { "kg": 60, "pax": 0 } } ] },
+        { "subs": [ { "do": "fly", "from": "mn_strip", "to": "HOME", "load": { "kg": 0, "pax": 3 } } ] }
+      ],
+      "pay": { "base": 9000, "perKm": 40 }, "rep": { "provider": "minedock", "gain": 3 }, "unlock": { "stage": "minedock:1" } },
+    { "id": "minedock.j.parts", "provider": "minedock", "kind": "job", "title": "c.minedock.parts.title", "brief": "c.minedock.parts.brief",
+      "stages": [ { "subs": [ { "do": "carry", "from": "mn_strip", "to": "SEA", "load": { "kg": 120, "pax": 0 } } ] } ],
+      "pay": { "base": 1400, "perKm": 25 }, "rep": { "provider": "minedock", "gain": 1 }, "repeat": { "every": 3 } },
+    { "id": "minedock.j.ore", "provider": "minedock", "kind": "job", "title": "c.minedock.ore.title", "brief": "c.minedock.ore.brief",
+      "stages": [ { "subs": [ { "do": "carry", "from": "mn_strip", "to": "HOME", "load": { "kg": 60, "pax": 0, "bulk": true } } ] } ],
+      "pay": { "base": 900, "perKm": 20 }, "rep": { "provider": "minedock", "gain": 1 }, "repeat": { "every": 2 } },
+    { "id": "trust.restore", "provider": "trust", "kind": "contract", "title": "c.trust.restore.title", "brief": "c.trust.restore.brief",
+      "stages": [
+        { "subs": [ { "do": "carry", "from": "w3", "to": "HOME", "load": { "kg": 90, "pax": 0 } } ] },
+        { "subs": [ { "do": "fly", "from": "HOME", "to": "w2" } ] },
+        { "subs": [ { "do": "carry", "from": "mk_sea", "to": "HOME", "load": { "kg": 200, "pax": 0 } } ] }
+      ],
+      "pay": { "base": 4000 }, "rep": { "provider": "trust", "gain": 3 }, "unlock": { "stage": "trust:1" } },
+    { "id": "trust.j.mail", "provider": "trust", "kind": "job", "title": "c.trust.mail.title", "brief": "c.trust.mail.brief",
+      "stages": [ { "subs": [ { "do": "carry", "from": "HOME", "to": "mk_sea", "load": { "kg": 40, "pax": 0 } } ] } ],
+      "pay": { "base": 600, "perKm": 18 }, "rep": { "provider": "trust", "gain": 1 }, "repeat": { "every": 1 } },
+    { "id": "resort.j.guests", "provider": "resort", "kind": "job", "title": "c.resort.guests.title", "brief": "c.resort.guests.brief",
+      "stages": [ { "subs": [ { "do": "carry", "from": "HOME", "to": "tw_ski", "load": { "kg": 30, "pax": 2 }, "when": { "before": "dusk" } } ] } ],
+      "pay": { "base": 1800, "perKm": 30 }, "rep": { "provider": "resort", "gain": 1 }, "repeat": { "every": 2 } },
+    { "id": "resort.b.electric", "provider": "resort", "kind": "build", "title": "c.resort.electric.title", "brief": "c.resort.electric.brief",
+      "stages": [ { "subs": [ { "do": "accept", "to": "tw_ski", "crit": [
+        { "k": "power", "op": "=", "v": "electric" },
+        { "k": "seats", "op": ">=", "v": 2 },
+        { "k": "endurance", "op": ">=", "v": 30, "at": "2 aboard, + reserve" },
+        { "k": "land", "op": "at", "v": "tw_ski" } ] } ] } ],
+      "pay": { "base": 52000, "bonus": [ { "crit": "endurance", "by": 10, "pct": 10 } ] }, "rep": { "provider": "resort", "gain": 4 } },
+    { "id": "survey.j.count", "provider": "survey", "kind": "survey", "title": "c.survey.count.title", "brief": "c.survey.count.brief",
+      "stages": [ { "subs": [ { "do": "survey", "from": "HOME", "to": "nv_strip", "load": { "kg": 0, "pax": 1 } } ] } ],
+      "pay": { "base": 1200, "perKm": 22 }, "rep": { "provider": "survey", "gain": 1 }, "repeat": { "every": 2 } },
+    { "id": "survey.j.weather", "provider": "survey", "kind": "job", "title": "c.survey.weather.title", "brief": "c.survey.weather.brief",
+      "stages": [ { "subs": [ { "do": "carry", "from": "HOME", "to": "w3", "load": { "kg": 75, "pax": 0 } } ] } ],
+      "pay": { "base": 700, "perKm": 20 }, "rep": { "provider": "survey", "gain": 1 }, "repeat": { "every": 1 } },
+    { "id": "clients.b.fast4", "provider": "clients", "kind": "build", "title": "c.clients.fast4.title", "brief": "c.clients.fast4.brief",
+      "stages": [ { "subs": [ { "do": "accept", "to": "mn_strip", "crit": [
+        { "k": "seats", "op": ">=", "v": 4 },
+        { "k": "tas", "op": ">=", "v": 200, "at": "4 aboard" },
+        { "k": "land", "op": "at", "v": "mn_strip" } ] } ] } ],
+      "pay": { "base": 68000, "bonus": [ { "crit": "tas", "by": 10, "pct": 10 } ] }, "rep": { "provider": "clients", "gain": 4 } },
+    { "id": "clients.c.skyline", "provider": "clients", "kind": "challenge", "title": "c.clients.skyline.title", "brief": "c.clients.skyline.brief",
+      "stages": [ { "subs": [ { "do": "fly", "from": "tw_ski", "to": "HOME", "when": { "under": 540 } } ] } ],
+      "pay": { "base": 800 }, "rep": { "provider": "clients", "gain": 1 }, "repeat": { "every": 1 } }
+  ],
+  "career": {
+    "accepted": [ "minedock.reopen", "trust.j.mail", "clients.b.fast4" ],
+    "tracked": "minedock.reopen",
+    "stage": { "minedock.reopen": 1, "trust.restore": 0 },
+    "wallet": 60000, "clock": 0
+  },
+  "fleet": [
+    { "slot": "Cub", "name": "Cub", "where": { "kind": "in", "hangar": "HOME", "aero": "HOME" },
+      "cert": { "seats": 2, "emptyKg": 322, "payloadKg": 268, "toRunM": 160, "ldgRunM": 140, "gear": "wheels", "power": "piston", "tasKmh": 140, "enduranceMin": 210, "tankL": 68, "spanM": 10.7, "cost": 30200 } },
+    { "slot": "Jodel", "name": "Jodel", "where": { "kind": "away", "hangar": null, "aero": "w3" },
+      "cert": { "seats": 2, "emptyKg": 420, "payloadKg": 94, "toRunM": 280, "ldgRunM": 230, "gear": "wheels", "power": "piston", "tasKmh": 185, "enduranceMin": 240, "tankL": 110, "spanM": 8.7, "cost": 38900 } },
+    { "slot": "C172 floats", "name": "C172 floats", "where": { "kind": "away", "hangar": null, "aero": "SEA" },
+      "cert": { "seats": 4, "emptyKg": 830, "payloadKg": 310, "toRunM": 420, "ldgRunM": 300, "gear": "floats", "power": "piston", "tasKmh": 175, "enduranceMin": 300, "tankL": 200, "spanM": 11.0, "cost": 61500 } },
+    { "slot": "Voyager", "name": "Voyager", "where": { "kind": "out", "hangar": null, "aero": "HOME" },
+      "cert": { "seats": 4, "emptyKg": 760, "payloadKg": 380, "toRunM": 310, "ldgRunM": 270, "gear": "wheels", "power": "piston", "tasKmh": 212, "enduranceMin": 270, "tankL": 180, "spanM": 10.4, "cost": 64800 } }
+  ],
+  "board": [
+    { "name": "Quiet One (design)", "cert": { "seats": 2, "emptyKg": 455, "payloadKg": 180, "toRunM": 240, "ldgRunM": 210, "gear": "wheels", "power": "electric", "tasKmh": 150, "enduranceMin": 42, "spanM": 12.6, "cost": 47000 } }
+  ],
+  "text": {
+    "c.minedock.reopen.title": "Reopen the mine",
+    "c.minedock.reopen.brief": "Survey the street, fly the engineers in, bring the pump and its parts, then the crew home.",
+    "c.minedock.parts.title": "Parts to the dock",
+    "c.minedock.parts.brief": "Crated parts off the mine street, down to the cannery dock.",
+    "c.minedock.ore.title": "Ore samples to the lab",
+    "c.minedock.ore.brief": "Sample bags from the street to the field's lab shed. Bulky, not heavy.",
+    "c.trust.restore.title": "Restore the old field",
+    "c.trust.restore.brief": "Tools from the hill strip, a walk of the cross runway, then timber off the seaplane float.",
+    "c.trust.mail.title": "The week's mail",
+    "c.trust.mail.brief": "The mail sack to the Metlakatla float.",
+    "c.resort.guests.title": "Two guests for the lodge",
+    "c.resort.guests.brief": "A couple and their bags, up to the altiport before dusk.",
+    "c.resort.electric.title": "Electric: the guests hate the noise",
+    "c.resort.electric.brief": "An electric aeroplane for two that lands at the altiport and stays up half an hour.",
+    "c.survey.count.title": "Deer count at East Point",
+    "c.survey.count.brief": "A counter aboard, low passes over the clearing, land at East Point.",
+    "c.survey.weather.title": "The hill's weather station",
+    "c.survey.weather.brief": "A new sensor head for the Tamgas Hill mast.",
+    "c.clients.fast4.title": "A fast plane for four",
+    "c.clients.fast4.brief": "The mine's engineer: get my team of four to the mine, fast.",
+    "c.clients.skyline.title": "Skyline to Home under 9 minutes",
+    "c.clients.skyline.brief": "Any aeroplane. Brakes off at the altiport, stopped at Home."
+  }
+}
