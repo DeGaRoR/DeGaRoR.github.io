@@ -81918,3 +81918,72 @@ sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impost
 Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
 Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
 Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).
+
+## G2550 GRASS-STUDY - TEN TIMES THE GRASS FOR LESS THAN TODAY'S COST: THE SAME CARDS IN 3-CARD TUFTS A THIRD THE HEIGHT, THE COLOUR OF THE GROUND AS DRAWN, THE DISTANCE BY SCREEN SIZE, CUT VS WILD FROM THE PREMISES (2026-10-07, GRASS-STUDY for A0, a CLOUD session - code reading + node measurements + web research, nothing rendered; branch claude/grass-study-g2550 off train 40 = bcf6279; G2550-G2559, G2551-G2559 unused)
+
+THE DOCUMENT: futureDesigns/GRASS-STUDY-2026-10.md (the game references with links, our numbers, the parameter table per
+preset with each dial's editor panel, the cost model per preset and view, the box plan GRASS-DENSE G2560-G2579). Scripts
+(node only, `node --check` clean): tools/perf/grass_study/ (reed_geo, reed_alpha.py, reed_cards, tufts, cost_model, final,
+planted). No src/ file touched.
+
+TODAY, MEASURED FROM THE CODE (cover_ring.js, trees.js, trees_pack.json, 27_premises.js, gfx_settings.js):
+- grass_reed 0.48 / m2 x the ring's density (full 2 / lean 1) = 0.96 / 0.48 planted, x the blotch (amount 0.6, 18 m; mean keep
+  0.55) = 0.53 / 0.26 PATCHES per m2. A patch is one of 3 (16 / 36 / 81 cards, 236 / 517 / 1157 tris, mean 637), 1.5-2.9 m wide,
+  1.08-1.17 m to its top at the shipped 0.012 x 0.75 (grassland 0.6). A card = a curved strip of ~14.4 tris, 0.63 m wide, top
+  ~0.76 m; the mask keeps ~12 % of its area. Height spread +-8 % (coverSpread 0.08): one length in every biome.
+- THE COLOUR: instanceColor = the SET MEANS (sRGB-encoded, G551) at the nearest 4 m node x lift 0.29. The splat draws the sets
+  graded, normalised to the imagery and blended toward the 10 m macro's colour AND brightness near the eye (macroNear /
+  macroLum) - so the tuft and the ground under it are two different sums: the colour half of the "jungle".
+- THE FADE: 3-D distance, full to 50 m, (1-t)^2 to 220 m (lean 120), x (1 - smoothstep(60, 150, AGL)); G670's shrink band
+  (not a dither - the brief's word), the 0.8 s grow, G671's pre-grow under 260 m. The triage's "60 m / 40 %": aglFull 60, and a
+  grass TRACK / road keeps 40 % at its centre (k x 0.6); a grass STRIP's surface keeps 0 % since G665.
+- CUT VS WILD: the airfield zone plants the biome's 1.1 m wild reed to the runway's 6 m fade (the DCS users' complaint); plot
+  lawns plant grass_dry (FINDING: the reed-only ruling says grass_dry is planted nowhere - the user's to confirm).
+- COST: ?diag on the box (retro, the stand): the cover ring = 3.02 M tris / 38 draws (cover=off 6.05 -> 3.02 M), GPU delta in
+  the 3080's noise; the laptop's never measured. Model (calibrated on that point): gamer's grass ~12.2 M tris at the stand,
+  12 M still at 30 m AGL. ~70 % of it is instances the fade has already collapsed (the vertex stage runs on them; 128 m blocks).
+
+THE REFERENCES (search-verified snippets; GDC Vault / Unity / Epic / Guerrilla / ED / three.js forum refused by the proxy):
+DCS (Clutter/Grass = density, 1500 m max in 1.2, users ask for mown infields), MSFS (Grass and Bushes; density grows as you
+approach; masks by surface; 2024 draws grass in blocks), X-Plane 12 (forests density + internal cap; the 3Dgrass plugin's
+dials: distance, density, fade, height scaling, pavement margins), IL-2 (grass_distance ~300 m ultra), Ghost of Tsushima
+(GPU blades, Voronoi clumps set height, "short grass much denser", 15/7-vertex LOD; 1 M / 83 k rendered / 2.5 ms PS4 from an
+unattributed deck), HZD (density-based, deterministic placement), Far Cry 5 (humidity in the grass), Unreal (instances per
+10 m2, cull distances + PerInstanceFadeAmount, per-quality density, MinimumScreenSize, RVT for terrain colour), Unity (detail
+distance / density, healthy-dry colours, terrain normals). Defaults from memory are marked (guess) in the document.
+
+THE PROPOSAL (the MODEL kept: the same cards, UVs, mask, material, tint and shading; only distribution and parameters):
+1. THE TUFT: the 3 patches cut at load into 45 tufts of 3 neighbouring cards (42.4 tris each, a subset of the patch's index
+   buffer), 3 variants a draw.
+2. x10 CARDS PER m2 NEAR THE EYE: ~234 cards / m2 (78 tufts) at ~0.30 m meadow (today ~23 at 0.6-1.1 m): the same opaque blade
+   area per m2, ten times the pieces, a third the height. Blotch 0.6 -> 0.3; a 4 m clump field on the length.
+3. LENGTH BY GROUND TYPE (h, lognormal sigma, density): meadow 0.30, muskeg 0.40 (+30 % by pools), forest floor 0.20 x0.35,
+   lush/border 0.40, village 0.18, verge mown 2 m then wild 0.45, tracks mown 0.10 (ruts bare), the airfield zone 'mown' 0.12,
+   a 15 m mow band round strips / taxiways, plot lawns 0.10-0.15 cut (reed tufts if the user agrees), the strip surface none
+   (G665) or mown 0.06 - a pill.
+4. COLOUR: SPLAT_GROUND.api.meanAt(x, z), a CPU mirror of the drawn ground minus the texture's detail (grade, normGains, the
+   macro by macroNear / macroLum), read bilinearly on the lattice; groundMatch fitted IN THE GAME per set (tuft / ground ROI
+   ratio -> ~1); rootBlend (default 0 = identity, the user's) and farFlat 0.5.
+5. DISTANCE BY THE PIXEL RULE (vFOV 46 -> f 1272 px at 1080): a 0.30 m tuft is 4 px at 95 m, 12 px at 32 m. Reach (3-D) U/G/C/R
+   120 / 90 / 70 / 50 m, full to 25 / 15 / 10 / 8 m, taper 1, aglFull ~0.3 x reach, aglOff = reach (the 3-D fade decides; the
+   field emerges by density over the last ~60 m of descent). sizeFade: _fd over the instance's own scale, so a lawn fades at a
+   third of a meadow's distance and a verge's at 1.5x.
+6. THE MACHINERY (no look change): count truncation (a block's instances sorted by aRand, mesh.count = n x keep(dmin) x 1.25:
+   -30 % gamer / -16 % retro on TODAY's grass alone); the grass on 16 m cells / 32 m blocks; TIERED planting (a cell keeps the
+   prefix of its fixed candidate stream that its nearest keep needs: 280 k held on gamer instead of 1.2 M).
+
+THE BUDGET (model; the stand): gamer 12.2 M tris / 14.5 M card px / 19 draws -> 6.9 M (-44 %) / 9.2 M (-37 %) / 36; retro
+3.02 M / 4.8 M / 12 -> 2.4 M (-21 %) / 2.9 M (-40 %) / 17; at 30 m AGL gamer -78 % / -99 %. GPU within today's cost at EVERY view
+of every preset. NAMED EXTRAS: draws +5 (retro) / +17 (gamer) -> a FRAMECOST re-baseline by name (~0.1 / ~0.4 ms CPU, guess);
+memory +5 / +19 MB; planting CPU inside the existing 4 ms budget (taxi ~0.5 ms a frame) - watched on the taxi p99 rows.
+Laptop ms: an ESTIMATE of a 0.2-1 ms saving at retro; the user's ?diag=quick 'cover off' row before/after is the number.
+
+FOR A0 / THE BOX (GRASS-DENSE G2560-G2579, the document's §6): G2560 a game-side grass rig (tools/perf/grass_cost.js on
+ground_cost.js's pattern) + stills + strict gate + the laptop's ?diag; G2561 the truncation (GATE COVER pixel-identical);
+G2562 the colour mirror + groundMatch; G2563 the tuft layer (the big step, stills at every view, FRAMECOST named); G2564
+sizeFade + the preset column; G2565 cut vs wild (coverAt `cut`, the 'mown' zone kind, mowBand, tracks, verges, the strip
+pill); G2566 the editor (VEGETATION > 'the grass field', the grass_reed card's height / spread, the premises rows, the gfx
+column); G2567 rootBlend / farFlat; G2568 the review. Stills S1-S8 (stand, taxi, final at 10/30/60/150 m AGL, a lot, a grass
+strip, muskeg, forest floor, shore), noon + golden, after the overlay + 2 s, validated craft only (Cub, Jodel, metal
+Cessna, Cessna floats, twin floats). Four questions for the user (the document's §4.6): the lawn's species, the strip's
+surface, root blend on/off, the x10 itself (a dial x2-x15).
