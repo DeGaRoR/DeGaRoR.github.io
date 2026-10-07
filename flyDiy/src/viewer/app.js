@@ -6744,9 +6744,14 @@
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   let flDestPend = () => false;   // G1945 DEST-TO: a To picked in the flare / roll-out - chained at STOPPED
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
+  // (DMG, the user 2026-10-07: 'the game awards the successful first flight for a Cub crashing hard'): how the flight ENDED -
+  // a touchdown followed by a crash is no arrival; logFlight / flightArrived read it (damage OFF never ends a flight this way)
+  let flEnd = null;
+  const flWrecked = () => flEnd === 'crashed' || flEnd === 'broke-up' || flEnd === 'sim-diverged';
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
     flightOver = true;
+    flEnd = outcome;
     if (!ap.report) ap.report = { verdicts: [], outcome, landing: null };
     else if (!ap.report.outcome) ap.report.outcome = outcome;
     running = false;
@@ -7011,7 +7016,7 @@
     try {
       const G = window.GARAGE_SPEC;
       if (!G || !G.log) return;
-      const t = ap.tdInfo;
+      const t = flWrecked() ? null : ap.tdInfo;   // a crash after a touchdown is no arrival
       // G152: WHEN, AND FOR HOW LONG. The row carried where it went and how it
       // touched down, and no TIME at all — so a logbook could count flights and
       // could never accrue anything. Hours are the number an aeroplane earns:
@@ -7092,7 +7097,7 @@
   const tfIfRun = () => (tfFor === def ? tfVal : null);
   function flightArrived() {
     const rep = ap && ap.report ? ap.report : { verdicts: [], outcome: null, landing: null };
-    const t = ap ? ap.tdInfo : null;
+    const t = ap && !flWrecked() ? ap.tdInfo : null;   // a crash is no arrival: no flight certificate, no award card over the wreck
     const outcome = t ? 'arrived' : (rep.outcome || 'stopped');
     if (curKey === 'gen') {
       tfFor = def; tfVal = { report: JSON.parse(JSON.stringify(rep)), t: Math.max(0, Math.round(ap.t)), arrived: !!t };
@@ -9483,7 +9488,7 @@
     testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
-    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; crashWatch = null;
+    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null;
     $('arrCard').hidden = true; arrivalShown = false;
     // THE TRACE IS A SUMMONED PANEL NOW, and a summoned panel is the player's:
     // fullReset used to close it, which is why the one number a flight
