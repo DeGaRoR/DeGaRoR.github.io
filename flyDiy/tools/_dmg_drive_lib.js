@@ -200,7 +200,12 @@ function tipStrike(key, o) {
   const ax = sim.axes(), fx = -ax[0][0], fz = -ax[0][2], fl = Math.hypot(fx, fz), ux = fx / fl, uz = fz / fl, R = (def.params.prop || {}).D / 2, rt = 0.15;
   const lat = Math.max(0, R + rt - o.bite), fw = o.fwd == null ? 0.3 : o.fwd;
   // to the aeroplane's left of the hub (away from the cabin on the twin's left engine: -z is its side)
-  const sd = hz < -0.3 ? -1 : (hz > 0.3 ? 1 : -1), lx = -uz * sd, lz = ux * sd;
+  // G2367 (DMG-BUNDLE-GREEN): the side is the hub's own, ACROSS THE HEADING from the CG - the world z's sign times a
+  // perpendicular that turns with the heading put the twin's trunk INBOARD on the game's strip (z -0.58, the hub's
+  // -1.65): into the pod's side, which then shoved the left nacelle 1 cm into its disc and an idle brush (0.031 R)
+  // read as a stoppage (0.040 R). A nose engine (on the centreline) keeps the aeroplane's left as before
+  const pxv = -uz, pzv = ux, cg = sim.cgPos(), off = (hx - cg[0]) * pxv + (hz - cg[2]) * pzv;
+  const sd = off < -0.3 ? -1 : (off > 0.3 ? 1 : -1), lx = pxv * sd, lz = pzv * sd;
   TH.set('fill:test', [hx + ux * fw + lx * lat, hz + uz * fw + lz * lat, elev - 0.5, rt, elev + 10]);
   const t0 = sim.t, before = sim.out.rpm.slice();
   let mountAt = null, imbMax = 0, failAt = null, peakEng = 0;

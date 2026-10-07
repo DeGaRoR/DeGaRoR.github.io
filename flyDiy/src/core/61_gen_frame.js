@@ -229,6 +229,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // body, the engine off its mount, the wing off the cabin). Read only by the damage layer (30_solver.js, behind
   // params.damage); zero cost to anything else. dmgGroups (returned) is the group table.
   const dmgGroups = [], dmgGrpKey = {}, dmgSib = [], dmgIso = [];   // dmgIso: G2361, the nose mount's isolators
+  const dmgLump = [];               // G2367: a wing nacelle's fans over its bay (parts.dmg.lump: lumped stand-ins, no Euler)
   const dmgRootZ = [];                                   // per plane: the wing roots' |z| (a root node is a root fitting's)
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
@@ -439,6 +440,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // hottest loop two shapes of beam - measured, the Cub's step with the damage layer on 2.5 -> 5 ms a frame)
       if (opt && opt.A > 0) bm.A = opt.A;
       if (opt && opt.iso) dmgIso.push(beams.length);
+      if (opt && opt.lump) dmgLump.push(beams.length);
     }
     // G1810 / G1815 (DMG-D1a): the seam and the break group (see dmgPart above). Every member carries both fields (one
     // shape for the solver's beam loop); a member that is no joint reads null / -1
@@ -1536,10 +1538,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                   [NR, 'R', feet && feet[1]]]) {
           const W = wf[o];
           const ring = [W.F[b], W.F[b + 1], W.R[b], W.R[b + 1]];
-          for (const q of ring) BM(n, q);
+          // G2367 (DMG-BUNDLE-GREEN): the fans to the bay's four spar nodes are the nacelle's structure LUMPED onto the
+          // spar box (they reach the bay's far end: 1.15-1.71 m on the twin, where a real nacelle bolts a short mount
+          // to its spar fittings) - not a thin tube of the class's section: no Euler (30_solver dmgMember, as the
+          // strut fan's hidden members). Measured: the twin's ENGL-WR (1.71 m) buckled at 4.52 kN, 1.47 x 23.361's limit
+          // torque, against its certified 8.69 kN. The post keeps its tube
+          const LUMP = { lump: true };
+          for (const q of ring) B(n, q, 'fus', false, null, true, LUMP);
           if (ft != null) {
             BM(n, ft);                                   // the post
-            for (const q of ring) BM(ft, q, 'inner');
+            for (const q of ring) B(ft, q, 'fus', false, 'inner', true, LUMP);
             // a box's own cap can sit where the foot does (an engine drawn
             // exactly on a station, on the spar) — a zero-length member is
             // strain = Infinity, so that one leg is simply not built
@@ -2951,7 +2959,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues,
     // G1821 (DMG-D1b): every node's part (the body's 'body'), for the refs-core's gate (the body frame's refs on the body)
-    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp, iso: dmgIso };
+    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp, iso: dmgIso, lump: dmgLump };
   return { nodes, beams, refs, parts, clusters };
 }
 

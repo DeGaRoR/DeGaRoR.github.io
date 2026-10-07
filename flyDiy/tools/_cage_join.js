@@ -302,9 +302,16 @@ function cageJoinSpec(P, M, T) {
         // a 172's is. Measured: 144 kg weighed 0.67 m aft of the drawn
         // engine, the CG 7 % MAC aft of the aeroplane on the screen. The
         // flange the layer drew (M.engUnits, kind 'nose') rides out as `x`
-        // like every other mount's; y stays the spec's thrustline rule (the
-        // cowl and the nose gear read engY).
-        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x) ? { x: EU[0].x } : {}),
+        // like every other mount's.
+        // G2365 (DMG-BUNDLE-GREEN): AND ITS HEIGHT. y stayed the spec's
+        // thrustline rule (0.36 of the cabin's height): on the user's metal
+        // Cessna that hung the flown hub 0.28 m under the drawn one, the
+        // disc 2.4 cm INTO the ground at rest where the drawn disc clears
+        // it by 0.26 m (a 172's ~10 in) - every taxi a prop strike. The
+        // flange's y rides out with its x (the cowl, the mount and the nose
+        // leg read engY, now the drawn thrustline).
+        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x)
+          ? Object.assign({ x: EU[0].x }, isFinite(EU[0].y) ? { y: EU[0].y } : {}) : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the

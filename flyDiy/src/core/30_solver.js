@@ -560,10 +560,13 @@ function makeSim(def, world) {
   // G2361 (DMG-MOUNTRIG): the nose mount's isolators (61_gen_frame parts.dmg.iso)
   const ISO = new Uint8Array(nb);
   if (def.parts && def.parts.dmg && def.parts.dmg.iso) for (const bi of def.parts.dmg.iso) if (bi >= 0 && bi < nb) ISO[bi] = 1;
+  // G2367 (DMG-BUNDLE-GREEN): a wing nacelle's fans over its bay (61_gen_frame parts.dmg.lump): lumped stand-ins, no Euler
+  const LUMP = new Uint8Array(nb);
+  if (def.parts && def.parts.dmg && def.parts.dmg.lump) for (const bi of def.parts.dmg.lump) if (bi >= 0 && bi < nb) LUMP[bi] = 1;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
     const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
-    if (tube && !b.tens && !ISO[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle)
+    if (tube && !b.tens && !ISO[bi] && !LUMP[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle; G2367: nor a lumped fan)
       const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
       if (fe < b.fc0) b.fc0 = fe;
     }

@@ -247,8 +247,15 @@ function child(k) {
   console.log('3. the store (node, an in-memory IndexedDB):');
   for (const [line, ok] of await storeNode(C, cert, def)) check(ok, line);
   if (!argv.includes('--no-browser')) {
-    let j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', L.BUILDS.cub.build), 'utf8'));
-    const spec = C.genMigrateSpec ? C.genMigrateSpec(j.spec || j) : (j.spec || j);
+    // G2365 (DMG-BUNDLE-GREEN): the worker is handed THE GAME'S Cub (tools/_load_build.js, the spec L.defOf builds and
+    // the node certificate above is of), not the file as written - that one is another aeroplane (the pre-G1985 Cub:
+    // its tank, its engine station), and its certificate read 2.3 (relative) off node's: the two sides compared two
+    // aeroplanes, not two V8s. (FLYDIY_RAW_BUILDS=1: the file as written on both sides, as L.defOf.)
+    let spec;
+    if (process.env.FLYDIY_RAW_BUILDS === '1') {
+      const j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', L.BUILDS.cub.build), 'utf8'));
+      spec = C.genMigrateSpec ? C.genMigrateSpec(j.spec || j) : (j.spec || j);
+    } else spec = require('./_load_build.js').loadValidated('cub').spec;
     const rows = await storeBrowser(C, cert, spec);
     if (!rows) console.log('3. REPORT: no Playwright / Chromium here - the round trip in a browser not run (a cloud session runs it)');
     else { console.log('3. the store (headless Chromium, the bench worker):'); for (const [line, ok] of rows) check(ok, line); }

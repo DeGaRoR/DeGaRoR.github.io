@@ -5183,6 +5183,15 @@ function resolveSpec(spec) {
     const e0 = S.engines[0];
     if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0)
       S.engX = e0.x + pl.engineDx;
+    // G2365 (DMG-BUNDLE-GREEN): ...AND A MEASURED THRUSTLINE OUTRANKS ITS
+    // RULE. The join writes the drawn flange's height too (metres over the
+    // cabin keel). Measured: the rule hung the user's metal Cessna's hub
+    // 0.28 m under the drawn one and its 2.06 m disc 2.4 cm into the ground
+    // at rest (the drawing clears it by 0.26 m); the Cub's 0.13 m low, the
+    // Jodel's 0.05 m high. A bake with no drawn engine keeps the rule.
+    if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0
+        && typeof e0.y === 'number' && isFinite(e0.y))
+      S.engY = e0.y + pl.engineDy;
   }
 
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
