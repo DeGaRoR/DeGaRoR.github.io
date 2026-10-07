@@ -78200,6 +78200,20 @@ menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOB
 chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
 GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
 
+TRAIN 42 CARGO (7 Oct ~09:55): claude/game-integration 1e06bef0 = the train-40 freeze 67ee2ca4 + MAP-MENU (65cc378) + ACCEPT
+(9ef705a) + CONTRACT-MODEL (5f50b83), all READY. Merges: HANDOVER union; build.js / run_gates.js / 90_node_exports
+union (72_accept.js, then 72_contract_data.js, 73_contracts.js, 74_career.js). On the merged tree: GAMEPREM, PLAYER, GFX,
+MAPBAKE, CONTRACTS, ACCEPT (--reuse: the recorded flights, with CONTRACT_CRIT_KINDS against ACCEPT_KINDS) PASS. The touched-gate
+pass with a CPU slot is still to come (UISMOKE, UISMOKE-PHONE, SAVE, BENCH, SIMWORKER, BOOT, the ACCEPT flights).
+FOLLOW-UPS before train 42:
+(1) MAP-MENU still reads the sample fixture: swap MAP_SOURCE to CONTRACT-MODEL's record (one line) and point mapAdapt at the
+career document.
+(2) The page wiring (a session): the stop record in playerFlightEnd -> careerOnStop; ACCEPT_REC.start() from the delivery
+flow; the career stored under careerKey.
+(3) An aerobatic build contract (+6 g) can't be won: 66_gen_cert certifies the normal category only (3.8 / 5.7 g). Asked
+Deform about a category; until then the game holds that contract out of the offers.
+(4) The validated designs' numbers in CONTRACT_DESIGNS are the build files', not the joined aeroplane's (G1985).
+
 TRAIN 40 HAND-OFF (7 Oct ~04:35): **FROZEN claude/game-integration 826b7d27** = train 38 + S1 + WELCOME-MODES + FLEET-PROPS A (behind
 FLYDIY_FLEET, off) + PREM-S2. The touched gates ran in A0's CPU slot (04:15-04:26, boxlock cpu GAME, on 0e496c90 = 826b7d27 minus the
 GFX fix; jobs 4): DESTTO 3/3 PASS (220 / 361 / 432 s), UISMOKE PASS, UISMOKE-PHONE PASS, BOOT PASS, ROUNDTRIP PASS, SAVE PASS, PARKED
