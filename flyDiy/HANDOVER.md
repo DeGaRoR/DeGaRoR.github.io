@@ -81462,3 +81462,208 @@ under CPU_BATTERY_WALL, the DMG rows read from the tree's own run_gates.js: ALL 
 DMGCLUSTERS 33/33, DMGDRIVE PASS, DMGFPS 54/54, DMGGEAR PASS, DMGINST 145/145, DMGINTEGRITY 116/116, DMGMEMBERS 70/70,
 DMGNOSE 83/83, DMGSKIN 131/131, DMGWALL 98/98, DMGWIND 41/41, TREECRASH 80/80, TREEHIT 50/50, UISMOKE 29/29, BUILD, JOIN
 (BATTERY: PASS, 2882 s of jobs, 2534 s wall) - reports/evidence/DMG-WALL/gates_night_dmgwall_int.txt.
+
+## G2373-G2377 DMG-OCCUPANT - THE OCCUPANTS IN A CRASH: ONE OF FIVE WORDS PER SEAT ON THE CRASH'S CARD; THE CRITERIA (DRI, EIBAND, FAR 23.562, THE RESTRAINT, THE SURVIVABLE VOLUME) STAY IN THE GATE (2026-10-07, DMG-OCCUPANT for the DEFORM COORDINATOR, cloud, node only (+ the page in node for the card); branch claude/dmg-occupant off claude/dmg-integration 895857a6 (train 39's damage tip); target train 43; damage stays OFF by default)
+
+**The user's rulings (7 Oct), followed exactly.** "Let's stay vague ... let's not get into the detail, it's sad and
+frightening." Per occupant ONE of FIVE labels and nothing more: **Unharmed / Light injuries / Heavy injuries / Life
+threatening / Fatal injuries**. No injury names, no body parts, no per-organ numbers, no plots anywhere in the game. The
+criteria below stay in the solver's state, in GATE DMGOCCUPANT's output, in reports/evidence/DMG-OCCUPANT/ and here.
+**Damage OFF: none of this exists** - no record, no buffer, no payload, no line on any card (rows below).
+
+### G2373 - THE SEATS AND THE RECORD (src/core/34_occupant.js, new, pure; 30_solver.js glue; tools/build.js manifest)
+- **The seats** (genOccSpec, once at makeSim, only with the layer on): every FILLED seat of the spec (cabin.occupied,
+  else the first pilots + pax; seat 0 always), at its station (cabin.seatsX, the join's measurement - metres aft of the
+  firewall; without it the ring its row bills onto, 61_gen_frame SEAT_ROWS), between two cabin pillars (the S<i> rings:
+  the bay i..i+1 that holds the station). Two seats at one station sit abreast: the first on the left, the second on the
+  right. **The names are the game's own**: 'Pilot' (seat 0), 'Co-pilot' (the cockpit's other seat - the crew page's
+  'co-pilot seated' row), 'Passenger' (numbered 'Passenger 1', '2'... when more than one).
+- **The load path**: the seat's velocity is the four FLOOR nodes the frame bills the 80 kg occupant onto (61_gen_frame
+  billAt: the station split between its two rings by lever arm), a side seat leaning 3:1 onto its own wall's nodes. Its
+  frame is the bay's own: forward = ring i+1 -> ring i, up = floor -> roof (orthogonalised), lateral = their cross.
+- **The record** (genOccArm / genOccSub / genOccFrame): it records only on an ARMED frame (30_solver armFrame: a trunk or an
+  obstacle in reach, a scrape, a member past half its yield, any yield) - an intact aeroplane flying clear is never armed
+  (measured: 0 armed frames in 30 s of level flight on all three land builds). Per substep the floor nodes' weighted
+  velocity is summed into a ~1 ms bin (a box-car before the difference); a full bin is a sample (the bin's mean velocity,
+  its mid time, the bay's forward and up vectors) in a **bounded ring buffer: 4.5 s** (Float32, 9 floats a seat a sample,
+  allocated on the first armed frame - 324 kB for two seats). An event is KEPT when a member breaks, the solver's contact g
+  (gF, filtered 50 ms) passes **4 g** (GAME: over a firm landing's 2-3), or the solver calls a crash; its pre-trigger
+  history is the last 0.5 s of the armed run (a gap in the arming drops it). It CLOSES: a crash once the solver's 'over'
+  is set AND 0.5 s quiet (a break-up is 'over' at its first parting while the pulse runs on), or 3 s after its trigger
+  (the card waits WATCH_HOLD = 3 s after 'over', app.js G1868); an event that is no crash after 1 s with no break and
+  the contact under 2 g; a full buffer. After a crash's close nothing records until the reset; a non-crash event's
+  result is merged with a later one's (the worst band per seat).
+- **The space** (genOccSpaceOf, once a frame while an event runs): the occupant's chest point = the seat on the floor
+  (the same four nodes, the same weights) + its as-built height along the floor's normal (45 % of the bay's height,
+  GAME) - the occupant sits on the seat, so a cabin sheared into a parallelogram moves the walls and roof round the
+  occupant, not the occupant with the roof (the first cut rode the bay's eight corners trilinearly and read the Cub's
+  2.5 m-out shear as the firewall at 12 cm). Measured: (1) its clearance to the bay's walls - the floor, the roof, the two
+  sides and the ring ahead (the panel / the firewall) - **as QUADS, not planes** (a firewall swung aside by a nose torn
+  off has a plane through the cabin and no structure there), over the same clearance as built; (2) the nearest node of any
+  OTHER structure now 5 cm inside the bay (an engine, a ring ahead, a wing root - outside the bay as built) over the
+  smallest as-built clearance; (3) **the cell**: the bay's worst edge against its length as built (x or /: crushed or
+  torn open alike) - a cabin torn apart round the seat keeps no space whatever the clearance reads (the Cub's 30 m/s
+  centreline: the firewall ring flew 9 m off, the clearance read 'more room'). Each held over 3 frames (an elastic
+  flicker of one frame is not a crush). At the close: the bay's corners on two pieces (the solver's own pieces()) =
+  **the cabin parted at the seat**.
+- **The restraint**: spec.cabin.restraint ('harness' | 'lap') when a build says so. **No build carries one** (the cage's
+  belt option was drawn-only and was removed 2026-09-20, `seatBelt` read and ignored), so the validated builds are judged
+  with **a lap belt + shoulder harness (the default, `restraintDefault: true` on every result)**. The seat type is
+  spec.outfit.seats (GEN_SEATS): 'energy' = dynamically tested (FAR 23.562), the rest statically (23.561). All three
+  validated builds carry 'sling'.
+- **The solver** (30_solver.js): `OCC = DMG_ON && GEN_OCC.on !== false ? genOccSpec(def) : null`; per frame after
+  armFrame `occRec = OCC !== null && genOccArm(...)`; a recorded frame takes the substep loop's second branch (the
+  instruments' one) and calls genOccSub after each substep; after dmgFrame / dmgOver genOccFrame; reset() and unsnap()
+  clear it; `sim.occupants()` (null off) the gates' reader; **DMG.occ** the result. **It only reads**: the same crash with
+  the recorder on and off (GEN_OCC.on, a gate's A/B) ends on the same bits (FNV of p, v) on all six builds.
+
+### G2374 - THE CRITERIA AND THE BAND TABLE (genOccJudge; GEN_OCC holds every number)
+Sources AS RECALLED - none was opened in this session; GAME where no source fits:
+- **DRI** (Dynamic Response Index, spinal): the seat's spinal specific force (the accelerometer's reading, 1 g at rest)
+  through a single-degree spring-mass, wn = 52.9 rad/s, zeta = 0.224 (Stech & Payne 1969, AMRL-TR-66-157; MIL-S-9479; the
+  z axis of Brinkley's AGARD model, AGARD-CP-472, 1990); DRI = wn^2 dmax / g (RK4 on the 1 ms grid). Brinkley's levels:
+  15.2 low risk (~0.5 % spinal injury), 18.0 moderate (~5 %), 22.8 high (~50 %).
+- **Eiband** (Eiband 1959, NASA Memo 5-19-59E): the tolerance to a uniform pulse vs its duration, restrained occupant;
+  the voluntary (uninjured) limit and the moderate-injury limit (above it Eiband's severe-injury region). The longitudinal
+  curve is the eyeballs-out one (the lower) used both ways; the lateral its own. The plateau of a duration w = the highest
+  level held for w (max over t of the min over [t, t+w]) of the CFC 60 signal (SAE J211's channel class: the 2-pole
+  Butterworth forwards then backwards), w = 0.01 / 0.02 / 0.04 / 0.1 / 0.2 / 0.4 / 1.0 s. The curves' points (g,
+  approximate, read off the figure as recalled): longitudinal voluntary 40 / 35 / 32 / 25 / 22 / 18 / 15, moderate 60 / 55 /
+  50 / 45 / 40 / 32 / 25; lateral voluntary 20 / 18 / 15 / 11 / 10 / 9 / 8, moderate 32 / 29 / 25 / 20 / 18 / 15 / 12.
+  A lap belt alone lowers the longitudinal curves x 0.6 (GAME: the jack-knife; no build uses it).
+- **FAR 23.562** (the emergency-landing dynamic seat tests, as recalled): longitudinal 26 g first row / 21 g other rows
+  with a 42 ft/s (12.8 m/s) velocity change; the combined vertical 19 / 15 g at 31 ft/s (9.45 m/s) - what a certified
+  seat is shown to make survivable. A pulse past BOTH its peak (CFC 60) AND its velocity change (the largest change of the
+  axis' kinematic integral within 0.3 s) is past the reference.
+- **The survivable volume** (NTSB / the Army's Aircraft Crash Survival Design Guide, USAAVSCOM TR 89-D-22, as recalled:
+  "survivable" = loads within tolerance AND the occupiable volume kept): the space and the cell above.
+- **The restraint failure**: the longitudinal load held 20 ms (the Eiband plateau at 0.02 s) against its strength: FAR
+  23.561's 9 g forward ultimate x the seat / belt attachments' 1.33 fitting factor (23.625 / 23.785, as recalled) x a GAME
+  margin 1.5 = **18 g** for a statically certified
+  seat; a dynamically tested one 26 g x 1.5 = 39 g (GAME).
+
+**THE BAND TABLE (the worst row wins; 0 Unharmed, 1 Light injuries, 2 Heavy injuries, 3 Life threatening, 4 Fatal injuries):**
+
+| criterion | Unharmed | Light injuries | Heavy injuries | Life threatening | Fatal injuries |
+|---|---|---|---|---|---|
+| DRI (spinal) | < 15.2 | 15.2 - 18.0 | 18.0 - 22.8 | 22.8 - 30 | >= 30 (GAME) |
+| Eiband, longitudinal and lateral (each) | under the voluntary curve | past it, <= 0.8 x the moderate-injury curve | 0.8 - 1.0 x it | 1.0 - 1.5 x it (the severe region) | > 1.5 x it (GAME) |
+| FAR 23.562's pulse (peak AND dV past the test) | - | - | at least this | | |
+| the restraint failed (> 18 g held 20 ms; 39 g a dynamic seat) | - | - | at least this | | |
+| the space kept (clearance / as built) | >= 0.85 | 0.70 - 0.85 | 0.50 - 0.70 | 0.30 - 0.50 | < 0.30 (GAME splits) |
+| the cell's worst edge (x or / its built length) | < 1.10 | 1.10 - 1.20 | 1.20 - 1.35 | 1.35 - 1.60 | >= 1.60 (GAME) |
+| the cabin parted at the seat | - | - | - | - | this (GAME) |
+
+The splits past the sources' own levels (DRI's 30, Eiband's x 0.8 and x 1.5, the space and cell bands, parted = Fatal)
+are GAME numbers, declared; nothing was tuned to a taste - the table was written before the results below and not moved.
+
+### G2375 - UNDER THE PHYSICS WORKER, AND THE CARD (sim_host.js, sim_view.js, sim_link.js, app.js)
+- **The worker** steps the solver, so the record, the criteria and the bands are made there. **The hop**
+  (sim_host.js simOccHop): at each snapshot one compare of the result's version; **a payload once, at the close** - the
+  wire genOccWire: `[{ name, band }]` per seat and nothing else (the criteria never cross); `null` once after a reset. A
+  sim with no record (the layer off, no cabin) has no hop at all (simOccHop returns null; the meta never asks).
+  sim_view.js keeps `view.occ` (set only when a payload came); sim_link.js mirrors it as `sim.occView`.
+- **The page** (app.js): `occNow()` - the worker's occView, or the inline solver's genOccWire(damage().occ) - read only on
+  the crash path (the crash watch, G1868) and at the card. **The crash card** (showArrival, `wreckEnd`): after 'outcome',
+  ONE line per occupant in the card's own row grammar: the seat's name and the band's words. occLines() keeps only a name
+  matching `^(Pilot|Co-pilot|Passenger( N)?)$` and an integer band 0..4, mapped through GEN_OCC.bands (exactly the five).
+  Nothing else. `FLIGHT_PROBE.occ()` hands the rigs the same list.
+- **Measured on the page** (GATE DMGOCCUPANT's page row: dev.html?simw=1&damage=1, the user's Cub, under the physics
+  worker, a trunk at 30 m/s): the bands reached the page 3.73 s after the placement (the close), the card at 10.37 s (the
+  crash watched to its end); the card's rows `outcome: broke up | Pilot: Fatal injuries | flight time | distance | peak
+  strain` - the scan clean on the card and on the page's whole text (72 276 characters).
+
+### G2376 - GATE DMGOCCUPANT (tools/_dmg_occupant_check.js; run_gates core, weight 4) - PASS (5 min here; 6 builds + a page)
+- **The bands by case** on the Cub, the Jodel, the metal Cessna, the Cessna on floats and the twin on floats (water
+  cases), and the Cub with its rear seat filled ('Passenger'); the certificate on. Rows: the taxi and FAR 23.473's drop
+  read Unharmed for every occupant; the 30 m/s centreline reads severe (Heavy or worse) on every land build; every seat
+  aboard has a band, every band one of the five, every name one the game says; no event left open at a case's end.
+  A case with no record (the game's trigger never fired) is flown again with the trigger at 1.5 g (a test setting) so the
+  criteria behind its 'Unharmed' are printed too.
+- **Nothing without the layer**: damage OFF - `sim.occupants()` null, no `occ` on damage(), no payload; the recorder on and
+  off (GEN_OCC.on) the same bits; the same crash twice the same bands and criteria to the bit; 30 s of intact level
+  flight with the layer ON - no buffer, no event, no payload.
+- **The wire**: one payload per closed event, `{ name, band }` only, equal to the result; a reset sends null once.
+- **The display**: GEN_OCC.bands exactly the five; the card's code (showArrival, occLines, drawArrNotes) has no injury word
+  among its 64 string literals; the page's crash card (above) has exactly one line per occupant with one of the five
+  words; the scan - STRONG words (fracture, spinal, injur*, fatal*, death, blood, trauma, DRI, Eiband... with the five
+  allowed phrases taken out first) over the card and the page's whole text, plus the body's parts (head, neck, chest,
+  arm, leg...) over the occupants' own lines (elsewhere a 'leg' is a flight's leg) - red if anything is found.
+- **The numerics** against closed forms: a 10 g step's DRI 14.856 (closed form 10 (1 + e^(-zeta pi / sqrt(1 - zeta^2))) =
+  14.857); a uniform 30 g, 0.1 s pulse's Eiband ratios 1.200 / 0.667 at 0.1 s exactly; FAR 23.562's own triangle just
+  under the test is not past it, 15 % / 10 % over is.
+- **--selftest** (negative verification): a forbidden word on a card's text, a body part there, an injury word injected
+  into occLines' source, a sixth band word, a criterion on the wire, a wrong DRI damping, an occupants' record under damage
+  OFF, a recorder that moved the bits - each must turn its row red (the five words alone must not); and on the page a
+  line 'spinal fracture' appended to the real crash card must turn the page's scan red.
+
+### G2377 - THE RESULTS (gate output, reports/evidence/DMG-OCCUPANT/gate_dmgoccupant.txt; numbers allowed here)
+
+| build | 3 m/s taxi | nose-over (12 m/s, 35 cm stump) | FAR 23.473 drop | 1.5 x 23.473 | 30 m/s trunk, centreline | 30 m/s trunk, 2.5 m out |
+|---|---|---|---|---|---|---|
+| the user's Cub (pilot) | Unharmed | Unharmed | Unharmed | Unharmed | **Fatal injuries** | Heavy injuries |
+| the Jodel (pilot) | Unharmed | Unharmed | Unharmed | Unharmed | **Fatal injuries** | Unharmed |
+| the metal Cessna (pilot, co-pilot) | Unharmed, Unharmed | Unharmed, Unharmed | Unharmed | Unharmed, Unharmed | **Fatal, Fatal** | Unharmed, Unharmed |
+| the Cub, rear seat filled (pilot, passenger) | Unharmed | - | Unharmed | - | **Fatal, Fatal** | Unharmed, Unharmed |
+
+| floatplane | 23.473 drop on the water | float nose-in (90 km/h, 5 m/s, 20 deg) | severe nose-in (150 km/h, 10 m/s, 60 deg) |
+|---|---|---|---|
+| the Cessna on floats (pilot, co-pilot) | Unharmed | Unharmed | **Fatal, Fatal** |
+| the twin on floats (pilot) | Unharmed | Unharmed | **Fatal injuries** |
+
+**What sets them** (the worst row; the pilot's numbers):
+- **The taxi and the 23.473 drop** never trigger at the game's 4 g (contact 2.1-3.6 g); flown again at 1.5 g: DRI 1.4-2.0
+  (the taxi), 3.7-7.5 (the drop); Eiband x <= 0.09 of the voluntary curve; the space and the cell untouched. **1.5 x the
+  drop** triggers on the Jodel and the Cessna (4.6-5.0 g) and reads Unharmed: DRI 6.5-10.5, z 4.8-7.8 g.
+- **The nose-over** crashes (a gear member breaks) and records: DRI 3.3-5.7, x peaks 7.6-15.4 g, Eiband <= 0.16 of
+  voluntary - Unharmed.
+- **The 30 m/s centreline**: the Cub breaks up round the pilot (the S0-S1 bay's longerons torn 19x, PARTED, the clearance
+  gone; DRI 23.8, x 248 g / z 171 g CFC 60 peaks - 88 members break in one frame and the floor nodes stop ~15 m/s in 6 ms);
+  the Jodel keeps its cabin (space 0.96, cell 1.20) but the pulse alone is past Eiband's severe region (x 2.44 voluntary /
+  1.63 moderate) and the restraint's 18 g (75 g held 20 ms); the metal Cessna both (DRI 52.5, Eiband x 1.51 of moderate,
+  the restraint 20.7 g, the cell 5.4x, PARTED). Every one also past FAR 23.562's pulse.
+- **The 30 m/s trunk 2.5 m out**: the wing takes the trunk and the aeroplane slews round it - x 13-21 g peaks, dV x 4.5-10
+  m/s within 0.3 s, Eiband <= 0.69 of voluntary. The Cub alone reads Heavy, by its cell (the cabin's diagonals break and
+  the bay shears: a top longeron 1.24 x its length); the same Cub with a passenger aboard (80 kg more
+  on the floor) shears less (cell 1.01-1.06) and reads Unharmed for both. A sensitive case: said, not tuned.
+- **The floats' severe nose-in** (150 km/h, 60 deg into the water): the cabin crushes to nothing (space 0.00, cell 3.4-4.1x),
+  Eiband x 1.0-1.4 of the moderate curve, DRI 16-20.
+
+**Against NTSB's findings (AS RECALLED - nothing opened; A0 to check):** the NTSB's General Aviation Crashworthiness
+Project (Safety Studies SS-85/01, -/02, -/04, 1985) called a light-aircraft accident survivable when the cabin kept its
+occupiable volume and the loads stayed within human tolerance (the two families of rows above), and named the upper-torso
+restraint as the largest single improvement; the crash-injury literature it built on (Hasbrook's Cornell / AvCIR studies
+of the 1950s) treats a head-on stop against a large tree at 50-60 kt (26-31 m/s) as generally non-survivable in a light
+aeroplane - it stops within the engine's crush (30^2 / (2 x 1 m) ~ 46 g average), the cabin is entered, or both. The model
+agrees at both ends: every 30 m/s head-on into a 60 cm trunk reads Fatal (by the cell / the space where the cabin is
+entered, by the pulse where it is not - the Jodel), and the low-energy cases (a taxi bump, a nose-over, a hard landing at
+and past 23.473) read Unharmed. A wing strike at the same speed that turns the aeroplane round the tree (a longer, lower-g
+stop) reads Unharmed or Heavy; whether that matches the record of wing-first tree strikes is not something I can say
+without the reports open.
+
+### THE COST
+- **Damage OFF**: nothing allocated, nothing recorded; the solver's per-frame `OCC !== null` and the loop's `!occRec`; the
+  host's hop is null (no call); the view one `!== undefined` per snapshot.
+- **Damage ON, intact**: never armed in flight - nothing recorded (GATE DMGOCCUPANT: 30 s level, no buffer).
+- **Damage ON, armed** (a trunk in reach, a yield): the 3 m/s taxi into a trunk, the frames recorded 453-458 of 480 -
+  the Cub 2.9-3.3 ms a frame either way (inside the noise), the metal Cessna 8.4-8.9 -> 8.9-9.4 ms (+0.5 ms, 6 %: 120
+  substeps x 2 seats through the instruments' loop). The close: ~2 ms a seat warm, ~20 ms cold, once a crash, in the
+  worker.
+
+### OPEN (the coordinator / the user)
+- **The criteria's sources were not opened** (Eiband's figure, Brinkley's table, 23.561 / .562 / .625's numbers, NTSB
+  SS-85/xx): every one is AS RECALLED; the Eiband points especially are read off a remembered figure. A0 / the coordinator
+  to open them and correct GEN_OCC where they differ (the table above is the place).
+- **The node-level spikes**: the seat's floor nodes carry the occupant's 80 kg, so when 88 members break in one frame
+  they stop in ~6 ms (x 248 g at CFC 60); the DRI and the 23.562 peak read that. It is the sim's own motion, not a
+  numerical artefact (the pulse integrates to the velocity the seat lost), but a seat's cushion and a harness's stretch
+  would spread it - a seat-stroke model (an 'energy' seat's 26 g stroke) is the next step if the bands read too severe.
+  In the cases measured the cell / the space set the same band anyway.
+- **The Cub's 2.5 m-out Heavy** hangs on its cabin's shear (a sensitive case, above).
+- **No harness field in the spec**: if the game wants the restraint to matter (a lap belt in a Cub, an energy seat), a
+  `cabin.restraint` row in the crew part (and GEN_SEATS' 'energy' already exists) - the model reads both today.
+- The water's 23.473 drop and the float nose-in never trigger; the drowning / egress side of a water crash is not modelled
+  (no word for it: the bands are injury only).
+
+### THE ACCEPTANCE
+(the gate set below, run on claude/dmg-occupant; texts in reports/evidence/DMG-OCCUPANT/)
