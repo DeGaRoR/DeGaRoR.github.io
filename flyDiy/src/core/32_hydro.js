@@ -657,7 +657,7 @@ function ploughWave(F, W, water, t, U, o) {
   const Lwl = Math.max(0.1 * P.L, xa - xe);
   const Fn = U / Math.sqrt(G * Lwl);
   o.Fn = Fn; o.Lwl = Lwl; o.xe = xe;
-  const env = Fn <= P.waveFn0 ? 1 : Fn >= P.waveFn1 ? 0 : 0.5 * (1 + Math.cos(Math.PI * (Fn - P.waveFn0) / (P.waveFn1 - P.waveFn0)));
+  const env = Fn <= P.waveFn0 ? 1 : Fn >= P.waveFn1 ? 0 : 0.5 * (1 + CORE_MATH.cos(Math.PI * (Fn - P.waveFn0) / (P.waveFn1 - P.waveFn0)));
   o.env = env;
   if (env <= 0) return 0;
   // the waterline entrance: half a beam aft of the entry, the waterline's half-width on the V-bottom
@@ -736,7 +736,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     let h = water.h(W[i][0], W[i][2], t);
     // (0) the plough wave: its crest at the keel's wet entry (and up the stem ahead of it), cos(k s) aft; behind a
     // ventilated step the forebody's wake (below) is the trough, so the wave yields to it there by (1 - vent)
-    if (wvA !== 0) h += wvA * (x <= wvX ? 1 : Math.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
+    if (wvA !== 0) h += wvA * (x <= wvX ? 1 : CORE_MATH.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
     if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
