@@ -79856,6 +79856,16 @@ Next: re-baseline the accepted strict rows by name (the user: no standing reds).
 - The shed's 'compile' +2.2 s of the 19:25 run did not come back. Its last prop lands 15-16 s before it begins, so nothing there waits on fetches.
 - cessna_links: the town's first visit makes exactly 7 new programs, each under 1 s cold; a warm visit makes none.
 
+**G2063 CONFIRMATION RUN** (2026-10-07 15:25-15:34, TIMED, train 38 + 3905ea66, lc_build pinned, a fresh profile; metla_ab --warmup A --order A,B --approach 40, then B again with --cpuprof approach):
+- garage: off 42.3 s, town on (first visit) 48.5 s.
+- taxi: 0 % / 0 %.
+- pass: uneven 3 % / 3 %.
+- approach, town off: worst 50 ms.
+- approach, town on: worst 100 ms (no frame over 100 ms), uneven@30 3 %. ONE ~78-97 ms frame remains.
+- The 43e04d4a patch warming did NOT remove it. The CPU profile of the approach names it: the long frames' extra over the even ones is PAV.mergeSteps / mergePavSteps (the town's roads merged in one step), and computeBoundingSphere / setFromBufferAttribute over the large merged and far-quadrant geometries (buildQuad).
+- It happens once per flight toward the town, at ~7 km.
+- **Follow-up (not done):** slice PAV.mergeSteps per merged group, with the bounding spheres from the parts' spheres (pavement.js), or leave the town's roads unmerged (+~60 draws near the town). A0's call: take TOWN-GEO with this one frame, or hold the in-flight part.
+
 **WHAT IS LEFT of the ~4.6 s, and its levers** (not done):
 - The world step's +1.2 s: the two compositions (~0.5 + 0.6 s node after G2064; sowPlots' shoreDepth walk is the rest) and the kit host's build.
 - **THE NEXT LEVER, ~2 s: the far town's kit host** (426 houses, 1.19 M vertices), built, uploaded and drawn in the garage's warm draws (settle / bake / first light, +1-2 s). Deferring it like the patch is the next lever. It is the town's far look from HOME, so it is a look decision: build it at first light after the garage, or when the eye is within N km. PARKED (A0, 2026-10-07): the town stays OFF by default for now.
