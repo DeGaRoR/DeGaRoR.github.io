@@ -81006,3 +81006,159 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2290-G2299 - PILOTS: THE FOUR RECRUITS ON THE EXISTING BODIES (THE PACK'S BLOCK 3, GATED AGAINST THE PACK'S OWN TABLE), HIRE / FIRE / A ONE-TIME SIGN-ON, WHO FLIES IN THE CAREER (THE ROSTER PICK INTO makePilot, INLINE AND IN THE WORKER; THE CREW'S SEAT WEARS THE BODY), REFUSALS BY TRAIT, PILOTS ARE PHYSICAL (THE FREE BOAT HOME), SKILL GROWTH FROM THE LOGBOOK, THE PILOTS TAB; GATE PILOTS (2026-10-07, PILOTS for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/pilots-g2290 off origin/claude/game-integration f4c47a5, also pushed as claude/intelligent-volta-qwgy91; the post-train-40 wiring proved on claude/pilots-g2290-persona-trial; G2297-G2299 unused)
+
+The brief: GAME-2026-10-06.md §R (binding: GQ13, G-COST, GQ14, GQ30) and §9; NARRATIVE-PROMPT-PACK Block 3 (the data);
+PILOT-PERSONALITY §4.9 (growth); chars_table.py. No generated file committed (`node tools/build.js` before the gates).
+**PILOT-PERSONA is not in game-integration and train 40 was not on origin/master inside this session's bound**, so the
+roster is written against its shape (`git show origin/claude/pilot-persona-g2085:flyDiy/src/core/43_pilot.js`) and runs on
+today's core too (PILOT-ONE's `pilotProfile` reads the same sections); the merge it will take is DONE ONCE on a trial
+branch (below) so the merge of origin/master is mechanical.
+
+**G2290 THE ROSTER** - `src/core/76_pilots.js` (new, pure, MANIFEST.core after 75_, exports appended to 90_):
+- `PILOTS_ROSTER`, in the pack's order: **kit** (ch01, THE COMPANION; club + reaction .25, smooth .8, bankK .85, comfortG
+  1.25, style cautious; mechanic, cautious, night-shy; grows steadily, ceiling bush), **rafe** (ch42; hamfist + hamFist .04,
+  comfortG 1.9, bankK 1.25; fearless, hard on airframes), **remy** (remy; student + reaction .40, overRotate .03, flareK
+  .85; eager; grows fast, ceiling expert), **sky** (ch22; bush + reaction .12, smooth 1.0, slip, field short, bankK 1.2,
+  comfortG 1.7; short-field, loves taildraggers, refuses nothing). Each row `{ id, who, profile: { base, knobs }, style,
+  traits, grow, portrait: null }`; the text is KEYS (`pilot.<id>.name / tagline / bio / pitch`, the eight barks, the
+  refusals, the trait chips: `PILOTS_TEXT`, draft until the user's AI run; `pilotsImportPack` takes Block 5's "pilots").
+- **What the pack leaves unsaid is a row field, `pack`, listed here**: rafe's / remy's / sky's style (normal); rafe
+  grows to nothing (no ceiling: the rough hands stay); sky grows steadily to the expert on tailwheel landings only (the
+  loves-taildraggers hook). **ch20 (the test pilot) and ch02 (kept) are `PILOTS_RESERVED`, never recruits.**
+- **The profile**: `pilotsProfile(flat)` -> the object makePilot is handed `{ name, active, skill, quirks, limits,
+  technique }`; with PILOT-PERSONA in the core it goes through `pilotProfileSpec(pilotProfile(o))` (CLAMPED to
+  PILOT_PROFILE_KNOBS), before it the same object (the gate proves it is the same values either way).
+- **The traits are hooks** (`PILOTS_TRAITS`): mechanic (field repair labour x0.9), cautious (refuses wind > 18 kt),
+  night-shy (refuses a leg ending at/after dusk, CONTRACT_DUSK_H 19.5 h), fearless (keeps the weather), hard on airframes
+  (repair bills x1.1), eager (the cheapest sign-on; remy's fast growth is his `grow`), short-field (fixes field short +
+  slips: growth never moves them), loves taildraggers (grows on tailwheel types), refuses nothing (keeps every refusal);
+  and the hooks no recruit carries yet (short-strip nerves < 300 m, paved-only, no water - floats or a lane -, no snow -
+  skis or the altiport), each gated on a test row.
+
+**G2291 HIRING** (career, ?career=1): `careerNew` brings the companion (74_ door: `pilotsCompanion`; no fee, no ledger
+line; flies next); `careerNormalise` fills the roster (`pilotsBlock`: unknown ids and duplicates dropped; an older dev
+career with no roster = "I fly"). `pilotsOffers`: **2-3 of the unhired at a time, seeded by the career's seed and the
+job market's epoch (contractEpoch: refreshed with the market)**. `pilotsHire`: on offer, affordable -> the roster, the
+**one-time sign-on** charged (`playerCharge(..., 'signon', id)`); **`pilotsSignOn` = ECONOMY's `econPrice('signon', id)`
+when it exists, else the stub `PILOTS_SIGNON_STUB` (kit 0, remy 1 500, rafe 4 000, sky 7 000 - the pack's order)**.
+`pilotsFire`: free; the logbook stays with the row (a re-hire has their hours). Every refusal hands back the same
+document, untouched.
+
+**G2292 WHO FLIES** (app.js, everything under CAREER_DEV - one block in the career's page half + guarded lines):
+- the route row (the shed's and the roll-out screen's) gains **pilot**: the roster + "I fly", an option marked "won't"
+  with its reason when it refuses this leg; under it the pick's refusal ("Pick another pilot, or fly it yourself") and,
+  when it brings them, **"takes the boat home"**.
+- `careerCrewProfile()` -> makePilot's `profile` (inline: `profile: CAREER_DEV ? careerCrewProfile() : undefined`; the
+  worker: SIM_LINK's get `pilotProfile: CAREER_DEV ? careerCrewLatched() : undefined`, sim_link.js / sim_host.js carry
+  PILOT-PERSONA's own two lines byte-identical). **Decided when a pilot is made and latched** (the worker reads the latch
+  every frame; a flight's pilot never changes under it). A refused pick flies as "I fly" (the expert; take the stick).
+- **the crew's seat wears the flyer's body**: `window.CAGE_CREW_PILOT(key)` (_cage_crew.js: the pilot seat's character in
+  place of the spec's pilotWho; null hands it back; a change rebuilds the crew), called by the career only.
+- **the logbook records who flew**: the build's logbook row gets `pilot` (a roster id or 'me'); the career's own logbook
+  (`career.pilots[id].log`) gets the row at the flight's end (playerFlightEnd, after the fleet ledger moved the aeroplane).
+- **The sandbox keeps today's select**: no flag, `careerCrewProfile()` is never asked (makePilot is handed `undefined`, as
+  before), no row, no door; with PILOT-PERSONA in the tree its persona select is its own (the trial below).
+
+**G2293 PILOTS ARE PHYSICAL** (GQ14): `pilotsPlace` = the fleet ledger's place of the aeroplane the pilot is WITH
+(`plane`; so "bring it home" brings them too), else where they were left (`aero`). `pilotsOnFlightEnd`: the flyer goes
+with the aeroplane; anyone who was with it stays where it departed from; an unsaved build leaves the flyer at the stop.
+`pilotsCanFly(doc, id, at, leg)`: the refusals, then the place - away from the aeroplane = refused; when the aeroplane is
+at HOME the boat brings them (`pilotsBoatHome`: free, to HOME only, between flights). "I fly" is never refused.
+
+**G2294 SKILL GROWTH** (§9.4): deterministic from the logbook - `f = min(1, landings / PILOTS_GROW[rate])` (fast 30,
+steady 60), a numeric knob moves start -> ceiling by f only when the ceiling is nearer the expert (a ceiling on the far
+side of the expert stops at the expert's: kit's hands go .8 -> 1.0, never to the bush's 1.1), a technique flips at f =
+1/2, a trait's knobs never move, rounded to 1e-4. Remy flies as the expert at 30 landings; kit as the bush (reaction
+.15, short field, slips, 1.6 g) at 60; rafe never changes; sky counts tailwheel landings only. Only landings count (a
+stop on an aerodrome, whole).
+
+**G2295 THE PILOTS TAB** (map_menu.js): `careerMapRecord` carries `pilots` (75_ door: `pilotsCard` per hired / offered
+pilot - text resolved, the place by the ledger); the tab lists **your pilots, then the ones looking for work**: a card each
+with the portrait placeholder (a silhouette with the initials; `portrait` when the AI run lands), the tagline, **"flies
+like"** (the profile in plain words, `pilotsFliesLike`; the pack's own line once imported), the traits as chips, the fee,
+where they are; **Hire / Fire / Flies next / Takes the boat home** (48 px, the live career's only - the preview's are
+disabled "with the career"); the detail card (bio, pitch, the traits with what each does, flights, landings, % grown
+toward the ceiling); **pilots as markers** (the fleet layer: a round badge with the initials, left of the field); the
+phone's sheet the same (R1 48 px, NOHOVER: no title=). The fixture (?map=1 alone) keeps "coming".
+
+**G2296 GATE PILOTS** (`tools/_pilots_check.js`, run_gates row PILOTS, core tier, ~2 s) - see the results below.
+
+**THE TRIAL: PILOT-PERSONA MERGED OVER THIS BRANCH** (`claude/pilots-g2290-persona-trial`, not for landing as-is): what
+`git merge origin/master` (train 40) will need, done once and gated:
+- 43_pilot.js: PILOT-PERSONA's side in its 3 hunks (a superset); 70_player.js: the v2 normaliser lines, then the pilot
+  line (4eac0cfe's recipe); 90_node_exports.js: ours + playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec (makeAutopilot
+  / makeTestPilot stay removed); test_ui_smoke.js: ours (UISMOKE-PHONE); the PILOT-PERSONALITY doc: theirs; HANDOVER ours
+  + the G2085 section; sim_link / sim_host: no conflict.
+- app.js (3 hunks): makePilot `profile: personaProfile()`; **`personaProfile()` answers the career first** (`if
+  (CAREER_DEV) return careerCrewProfile() || 'expert';`); the worker `pilotProfile: CAREER_DEV ? careerCrewLatched() :
+  personaProfile()`; the route row **`if (CAREER_DEV) careerCrewRow(host, where); else { PILOT-PERSONA's persona row,
+  untouched }`**; `flPersona` (the plate's persona pills) returns under CAREER_DEV; the plate's pilot line names the
+  career's flyer. GATE PILOTS reads both shapes and, with the persona in the tree, holds the persona keeper / row /
+  pills to the sandbox.
+
+**GATES** (on f4c47a5 + this branch, built locally):
+- **PILOTS (new, core tier): PASS, 4478 checks, ~0.3 s; `--selftest` 36 of 36 caught.** THE PACK: Block 3 parsed off the
+  pack's own table by its columns (ID / BODY / SEED / PROFILE / TRAITS): 4 pilots in order, bodies, the COMPANION marker,
+  the base profile, all 16 knob values, the style, every one of the 12 trait phrases mapped to its hook and its number
+  (x0.9 labour, x1.1 bill, the ceilings, the cheapest / priciest sign-on), the roster's traits EXACTLY the pack's, what
+  the pack leaves unsaid listed in `pack`, portraits null, ch20 / ch02 reserved. THE BODIES: every `who` a chars_table.py
+  key with its manifest and chars_index.json entry (no download), distinct, GQ13's assignment. THE CLAMP (PILOT-PERSONA's
+  path read from git `origin/claude/pilot-persona-g2085` - origin/master has no knobs yet; the core's own once train 40
+  lands; a snapshot as the last resort): 4 pilots x 12 growth points in range, a fixpoint, the same values today and
+  after train 40, a wild person clamped. REFUSALS: the 4 recruits x 12 legs (only kit refuses: wind > 18 kt, a leg ending
+  at 19.5 h - each at its boundary), the 6 hooks each on its own leg alone (the altiport is grass: snow AND unpaved),
+  refuses-nothing / fearless / the order, an unknown fact, "I fly". THE CAREER: careerNew's companion (no fee, the grant
+  alone in the ledger), the normaliser's fixpoint / drops / an older career = "I fly", 2-3 offers deterministic per epoch
+  and refreshed (4 sets over 8 epochs), seed-sensitive, hire (the ledger's sign-on line, at HOME), 5 refusals untouched,
+  econPrice honoured (and the companion still 0), fire free, a fired pilot does not fly; THE PLACE (the Cub HOME -> w3 by
+  kit; "bring it home" brings kit; you fly it on to the mine: kit stays at w3; away = refused, the boat when it is at
+  HOME, free; a flight that did not land); the repair factors (field labour x0.9 out of a hangar only; rafe's x1.1; and
+  rafe taking the Cub leaves kit behind); GROWTH (deterministic, never away from the expert, never back, within the
+  ceiling, capped at 30 / 60, remy = the expert at 30, kit = the bush at 60, rafe never, sky on tailwheels only and its
+  trait knobs fixed, only landings, a ceiling further from the expert drags nothing back, a shuffled logbook replays).
+  THE TEXT (57 draft keys; the import). THE SANDBOX (careerCrewProfile run in a vm without the flag: undefined; the
+  door into makePilot in either shape - the flag's ternary today, personaProfile answering the career first after train
+  40; the row / the logbook / the flight's end / the crew body under CAREER_DEV; with PILOT-PERSONA in the tree its
+  PERSONA_ORDER, its row in the sandbox's `else`, its plate pills the sandbox's only). PURITY.
+- **PILOT: PASS** (3 shards, 664 s; the expert untouched - 43_pilot.js is not changed by this branch).
+- **PLAYER: PASS (37)**, **GAMEPREM: PASS (533)**, **CONTRACTS: PASS (2260;** the career document now carries the
+  companion - every CONTRACTS row holds), **GFX: PASS**.
+- **UISMOKE: PASS (234 s) / UISMOKE-PHONE: PASS (58 s)** - `_map_smoke.js` gains THE PILOTS TAB on the real record (a new
+  career: Kit hired + 2 looking for work, a card each with the face, "flies like", every trait chip, Hire / Fire, the
+  detail card, the phone's way back, the preview's buttons disabled, the hired pilot a marker at HOME, the fixture's tab
+  still "coming", .mmPRow >= 48 px); NOHOVER (no title= in map_menu.js) and the career-flag source guard (every call into
+  the career outside its page half behind CAREER_DEV) hold with the new lines.
+- **THE PAGE** (`tools/pilots_shot.js`, the real index.html on SwiftShader; `reports/evidence/PILOTS/`, 7 stills +
+  shots.json, all checks ok, no page error): the sandbox - no career door, no pilot row, the crew's body door never set;
+  ?career=1 - the route row `pilot: Kit | I fly`, Kit flies next; the MAP's Pilots tab (Kit; Rafe 4 000, Sky 7 000
+  looking for work); Hire Rafe -> the wallet 56 000, the ledger's `signon 4000 rafe`; Kit's card (flies like, mechanic /
+  cautious / night-shy, growing toward bush); Flies next Rafe -> the route row's pick; ROLL OUT -> a new pilot made, the
+  flyer rafe, the crew's seat ch42 (the still: the Cub taxiing out under the career plate); the phone's sheet on the
+  Pilots tab, every target >= 48 px.
+- **The trial branch** (`claude/pilots-g2290-persona-trial`, PILOT-PERSONA in the tree): PILOTS PASS (the clamp from the
+  core itself), PLAYER, GAMEPREM, CONTRACTS, GFX PASS; UISMOKE (239 s) / UISMOKE-PHONE (52 s) PASS (the career-flag guard holds with personaProfile's career line). Trial tip e21ed68.
+- Not run: PILOTMATRIX (the full tier: the note below), the rest of the full tier.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: tools/build.js (76_pilots.js after 75_), 90_node_exports.js (appended), 74_career.js (two doors),
+  75_career_wire.js (one door), app.js (one block in the career's page half + 6 guarded lines), map_menu.js, _cage_crew.js
+  (the seat door), sim_link.js / sim_host.js (PILOT-PERSONA's own lines), run_gates.js (PILOTS), _map_smoke.js.
+- **After train 40**: `git merge origin/master` into claude/pilots-g2290 and resolve exactly as the trial did (or merge
+  the trial branch: its merge commit IS that resolution against edb17aa3); then GATE PILOTS reads the core's clamp.
+- **ECONOMY**: `econPrice('signon', id)` is read when defined; the stub stands until then (the companion is 0 either way).
+- **DMG's bill**: `pilotsRepairK(doc, slot)` -> `{ labour, bill }` (the mechanic's field labour x0.9 when the aeroplane is
+  not in a hangar of yours; rafe's bill x1.1) is pure and gated, but **no page code builds a repair bill yet** - DMG-D5's
+  bill multiplies its labour lines by playerLabourFactor; it should multiply by this too.
+- **The career's logbook only sees saved airframes' flights** (PREM-S2's `flSlot` rule in playerFlightEnd); an unsaved
+  build's flight is not logged (pilotsOnFlightEnd handles it - no slot - when the page calls it).
+- **The weather refusal reads the surface wind at the decision** (climate.surfaceWind at the roll-out), the dusk refusal
+  the leg's end hour estimated from the leg's km at the shakedown's cruise + 0.15 h; an unknown fact refuses nothing.
+- **The barks** are text keys only: the Sound Coordinator's radio voices are not wired.
+- **PILOTMATRIX** (the full tier) was not run: the four roster profiles are not cells of its per-profile row yet - they
+  sit inside PILOT-PERSONA's knob envelope (GATE PILOTS proves it), the envelope PILOT-PERSONA's sweep flew; a PILOTMATRIX
+  row per roster pilot is the box's to add.
+- Portraits: out of scope (the user's AI run; `portrait: null`, the card draws the silhouette).
+
+READY for the GAME COORDINATOR: claude/pilots-g2290 6f028e8 (the code, gates and evidence; this section rides one docs-only commit on top)
