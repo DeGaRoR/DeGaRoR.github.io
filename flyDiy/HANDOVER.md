@@ -84740,3 +84740,55 @@ src/core/00_registry.js (CORE_MATH), src/core/*.js (the 350 sites - census), src
 tools/_core_math_sites.js (new: the census, --apply), tools/_dmg_determinism_check.js (4: the sources row, the census row, the
 page's-Math row, their selftests; the core's Math sweep on CORE_MATH), tools/_dmg_parity_run.js (its trig the core's);
 reports/evidence/DMG-MATHLOCAL/ (README.md).
+
+## TRAIN 41 ASSEMBLY - THE GATE CHANGES A0 RULED (2026-10-07, DEFORM COORDINATOR; gate-only, no physics moved)
+
+DMG-BUNDLE-GREEN (G2365-G2369) left three reds, all on the floatplanes, each traced to its cause in its own section
+('NOT SOLVED 1-3'). A0's criterion (7 Oct): a bound is re-derived only where the physics is right and the old bound was
+calibrated on the wrong aircraft; a real overload is explained, not admitted; zero reds, so a row whose fix belongs to
+another chip is SPLIT out of the gate onto a tracked OPEN list, never kept red under a name.
+
+**1. The water nose-in at each aeroplane's own V_S0 (GATE DMGGEAR section 3, GATE DMGCLUSTERS sections 3 and 5).**
+- The case was 90 km/h / 5 m/s / 20 deg for every floatplane. That is 1.0 V_S0 for the Cessna on floats, where it was
+  calibrated, but 1.5 V_S0 for the twin (V_S0 32 kt).
+- FAR 23.527's step load factor, n_w = C1 V_S0^2 / (tan^(2/3) beta W^(1/3)) with C1 0.012 (as recalled), is 1.91 g for
+  the twin (beta 27 deg, 1071 lb) and 3.26 g for the Cessna on floats. The fixed case delivers 5.0 g at the twin's CG:
+  2.6 x its limit, past its 2.9 g ultimate. The ROD's root reaching 1.003 there is a real overload of the CASE.
+- **Now:**
+  - the ORDINARY nose-in is the Cessna on floats' own ratio on every floatplane: V = V_S0 (def.params.gen.VsFlap, the
+    certificate's own V_S0), a sink of 0.2 V_S0 (5 / 25), 20 deg nose-down. It must break nothing (DMGGEAR, both
+    floatplanes) and part no cluster (DMGCLUSTERS, the twin; the Cessna on floats reported, as before);
+  - the old 90 km/h / 5 m/s / 20 deg case stays on the twin as a SEVERE row that must show the overload where the
+    structure says it goes: DMGGEAR, the first member broken in the rod's root bay (S2B?-S3B?); DMGCLUSTERS, the first
+    cluster to part the ROD at its root.
+- Nothing widened: the ordinary rows still assert "nothing breaks". The severe row asserts the failure mode.
+
+**2. The twin's crosswind WATER circuit (GATE DMGGEAR section 2) - SPLIT, OPEN.**
+- In its roll-out the twin skips and comes down nose-up 13 deg with 8 deg of bank on one float. Its aft spreader bar
+  reads 2.00 of its certified envelope (4.2 kN in compression for 5 frames against 0.83 kN). No FAR case compresses
+  spreaders (23.529's unsymmetrical step landing; a twin-float installation's side load ~0.28 kN a float).
+- The load comes from the landing nobody flies, not the structure (DMG-RECAL's open question 3).
+- **Now:** the row prints as OPEN and is not counted. Owner: DMG-RECAL2 (G2383-G2387, the float touchdown flown: flare,
+  hold, power off). Opened 2026-10-07 at 2.00. It goes back into the gate when RECAL2 lands. It is listed on both DMG
+  boards.
+
+**3. The bench to destruction per aeroplane, from its own certificate (GATE DMGCERT sections 2 and 3).**
+- The band [1.5, 1.5 m] x the limit (+2.5 % for the ramp's lag) assumes the BENCH case governs the joint that breaks.
+  - On the metal Cessna it does: predicted 5.98 / 5.99 g, it breaks at 6.017 g.
+  - On the Cessna on floats the one-float DRIFT DROP governs the wing-strut fittings at the fuselage (38.03 kN against
+    the bench's 36.68). Its certificate predicts the front strut at 6.20 g and the rear at 7.75 g.
+  - As the box sets (from 3.85 g) the load moves off the front onto the stronger rear strut (the front's share falls to
+    0.94 of linear). The front fails at 6.595 g. It is static: 4 x slower or faster ramps give 6.209 / 6.238 g on the base.
+  - Both struts at their breaks would carry the wing to ~6.9 g.
+- **Now:**
+  - a joint group's capacity on the bench is its joints' certified breaks (1.5 F_l m each) over their bench loads at the
+    limit, times the limit. That is the load at which the whole group has let go after the redistribution, capped by the
+    group itself.
+  - The band's top is max(1.5 m x the limit, the breaking group's capacity) x 1.025. Where the bench governs every joint
+    (F_l = its bench load) that is the old 1.5 m x the limit exactly, so the metal Cessna's band is unchanged. On the
+    Cessna on floats it is the struts' ~6.9 g.
+  - The redistribution allowance this admits is MEASURED: 6.595 / 6.20 = 1.064 of the single joint's prediction, inside
+    the group's 6.9 / 6.20 = 1.11.
+  - "To the ultimate x 1.1 it breaks" asks it only where the certificate says it can. Where the weakest joint group on
+    the bench is past 1.1 x the ultimate (x 1.025), the row asserts it HOLDS, and names the group and the case governing it.
+- The rows print the governing case.

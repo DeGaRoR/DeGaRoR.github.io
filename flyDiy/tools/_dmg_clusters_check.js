@@ -140,7 +140,10 @@ if (MAIN && argv[0] === '--build') {
     run('drop at FAR 23.473 (' + (L.far473(k) / 0.3048).toFixed(1) + ' ft/s)' + (/floats/i.test(k) ? ', onto the water' : ''), () => L.hardLanding(k, { probe: true, sink: L.far473(k) }));
     run('drop at 10 ft/s' + (/floats/i.test(k) ? ', onto the water' : ''), () => L.hardLanding(k, { probe: true, sink: 0.3048 * 10 }));
     if (k === 'floats') run('the 5 m/s level pancake on the water', () => L.waterCase(k, { probe: true, V: 0.3, sink: 5, pitch: 0, secs: 4 }));
-    if (k === 'twinFloats') run('the float nose-in (90 km/h, 5 m/s, 20 deg)', () => L.waterCase(k, { probe: true, V: 90 / 3.6, sink: 5, pitch: 20, secs: 4 }));
+    // (train 41, A0 7 Oct: the ordinary nose-in at the aeroplane's own V_S0 - V_S0, a sink of 0.2 V_S0, 20 deg: the Cessna on
+    // floats' 90 km/h / 5 m/s ratio; the fixed 90 km/h was 1.5 V_S0 and 2.6 x FAR 23.527's load on the twin - section 5)
+    const vso = g.VsFlap || g.Vs;
+    if (k === 'twinFloats') run('the float nose-in at its own V_S0 (' + (3.6 * vso).toFixed(0) + ' km/h, ' + (0.2 * vso).toFixed(1) + ' m/s, 20 deg)', () => L.waterCase(k, { probe: true, V: vso, sink: 0.2 * vso, pitch: 20, secs: 4 }));
     if (!argv.includes('--quick')) run('a circuit with the pilot' + (/floats/i.test(k) ? ' (on the water)' : ''), () => L.circuit(k, { probe: true }));
     // parked 10 s, damage on: nothing parts, no cut arms once settled
     {
@@ -224,10 +227,14 @@ if (MAIN && argv[0] === '--build') {
   }
   out.pulls = pulls;
   // 5. the water (both floatplanes): the ordinary and the severe nose-in, damage on
-  if (/floats/i.test(k)) out.water = [['the float nose-in (90 km/h, 5 m/s, 20 deg)', { V: 90 / 3.6, sink: 5, pitch: 20 }], ['SEVERE: 150 km/h, 10 m/s, 60 deg nose-in', { V: 150 / 3.6, sink: 10, pitch: 60, severe: true }]].map(([lab, o]) => {
+  // (train 41, A0 7 Oct: the ordinary nose-in at the aeroplane's own V_S0, V_S0 / 0.2 V_S0 / 20 deg; on the twin the old 90 km/h
+  // case stays as a SEVERE row whose boom root must go first - 2.6 x its FAR 23.527 water load, past its ultimate)
+  const gv = def.params.gen, vs0 = gv.VsFlap || gv.Vs;
+  if (/floats/i.test(k)) out.water = [['the float nose-in at its own V_S0 (' + (3.6 * vs0).toFixed(0) + ' km/h, ' + (0.2 * vs0).toFixed(1) + ' m/s, 20 deg)', { V: vs0, sink: 0.2 * vs0, pitch: 20 }], ['SEVERE: 150 km/h, 10 m/s, 60 deg nose-in', { V: 150 / 3.6, sink: 10, pitch: 60, severe: true }]]
+    .concat(k === 'twinFloats' ? [['SEVERE for the twin: 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 load)', { V: 90 / 3.6, sink: 5, pitch: 20, severe: true, boom: true }]] : []).map(([lab, o]) => {
     const pk = (L.waterCase(k, Object.assign({ secs: 4, probe: true }, o)), clPeak(L.lastRun.sim));
     const r = L.waterCase(k, Object.assign({ secs: 4 }, o)), D = L.lastRun.sim.damage();
-    return { lab, severe: !!o.severe, pk, cl: D.cl.map(c => ({ tag: c.tag, cut: c.cut, why: c.why, t: c.t, grp: c.grp })), groups: D.groups.map(G => G.key + '@' + G.t.toFixed(3)),
+    return { lab, severe: !!o.severe, boom: !!o.boom, pk, cl: D.cl.map(c => ({ tag: c.tag, cut: c.cut, why: c.why, t: c.t, grp: c.grp })), groups: D.groups.map(G => G.key + '@' + G.t.toFixed(3)),
              crashed: D.crashed, reason: D.reason, breaks: D.breaks, finite: r.finite };
   });
   console.log('RESULT ' + JSON.stringify(out));
@@ -290,6 +297,7 @@ if (MAIN) (async () => {
         const msg = w.lab + ': the worst cut ' + f3(worst(w.pk).r) + ' (' + worst(w.pk).tag + ' ' + worst(w.pk).kind + ', ' + worst(w.pk).mode + '); the floats\' roots ' + flt + '; damage on: '
           + (w.cl.length ? w.cl.map(c => c.tag + ' ' + c.cut + ' by ' + c.why + ' at ' + f2(c.t) + ' s').join(', ') : 'no cluster parts') + '; groups ' + (w.groups.join(' ') || '-') + (w.crashed ? '; CRASHED (' + w.reason + ')' : '');
         if (!w.severe && k === 'twinFloats') yes(w.finite && w.cl.length === 0 && worst(w.pk).r < 1, msg);
+        else if (w.boom) yes(w.finite && w.cl.length > 0 && w.cl[0].tag === 'ROD' && w.cl[0].cut === 'root', msg + ' - the boom (ROD) parts first, at its root');
         else { yes(w.finite, msg + ' - finite'); rep(w.lab + ': the float fittings ' + (w.cl.some(c => /^FLT/.test(c.tag)) || w.groups.some(g => /^float/.test(g)) ? 'LET GO' : 'held') + ' (§7.4)'); }
       }
     }
