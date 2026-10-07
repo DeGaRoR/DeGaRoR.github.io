@@ -80882,3 +80882,118 @@ literals and function definitions) and the page (nothing in the page calls the m
 - The text is draft placeholder English; the narrative pack (user-run, GQ21) replaces it through `contractImportPack`.
 
 READY for the GAME COORDINATOR: claude/contract-model-g2240 5f50b83 (the code and the evidence; this section rides one docs-only commit on top)
+
+## G2320-G2329 - CAREER-WIRE: THE MAP ON THE REAL RECORD (careerMapRecord), A DEV CAREER IN THE PAGE BEHIND ?career=1 (flydiy.career.dev; THE WELCOME'S CAREER ROW STILL "COMING", THE SANDBOX UNCHANGED WITHOUT THE FLAG), A FLIGHT'S STOP ADVANCES THE CAREER (careerOnStop WITH ACCEPT AS THE HOOK, THE EVENTS ON THE ARRIVAL CARD), "FLY THE ACCEPTANCE LEG", THE AEROBATIC CONTRACT HELD OUT (2026-10-07, CAREER-WIRE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/career-wire-g2320 off origin/claude/game-integration 2c0c86d, also pushed as claude/bold-babbage-eqs63i; G2325-G2329 unused)
+
+The brief: GAME-2026-10-06.md §R (binding), §15.0; the "OPEN / FOR THE COORDINATOR" lists of G2240 CONTRACT-MODEL, G2270
+ACCEPT and G2250 MAP-MENU. No generated file committed (`node tools/build.js` before the gates). All five steps landed.
+
+**G2320 THE MAP ON THE REAL RECORD** - `src/core/75_career_wire.js` (new, pure, MANIFEST.core after 74_, exports appended to
+90_): `careerMapRecord(careerDoc, world, opts)` builds the fixture's shape (§7.3) off CONTRACT-MODEL's data: the five
+providers (name / desc text keys, a short name - new keys `prov.<id>.short` - and a UI colour, the reputation and track);
+the ACCEPTED contracts first, then `careerOfferIds`' offers, each through `careerContract` with title / brief RESOLVED
+(`contractText` + `contractVars`), every criterion carrying its `contractCritWords`, the pay = `contractPay(rec)` (+ the
+record's bonuses), the classes, a build's follow-up line; `career: { accepted, tracked, stage, live (subs done / loads
+taken on inside the stage), wallet, clock, done, voucher }`; the fleet from the player document (`playerWhere`) with
+the certificate facts from the career's own airframe row (`career.airframes[slot].design` -> CONTRACT_DESIGNS: the
+voucher's maker Cub, PROCURE's purchases), else the page's reading of the saved build's shakedown (`opts.certs`:
+`careerDesignOfShake`, measured the way GATE CONTRACTS measures the five designs), else null = "certificate not read
+yet". `map_menu.js`: **MAP_SOURCE** is the real record - `FLYDIY_CAREER.record()` under ?career=1, else a NEW career's
+offers in memory (`careerNew`, nothing saved); **`?mapsrc=fixture`** keeps the fixture (map_menu_shot.js now passes it,
+so MAP-MENU's stills reproduce). **mapAdapt touched only where the real record differs**: a survey's `at` drawn as its
+`to`; `career.live` (the card marks a sub "✓ done" / "loaded"); `source`. **payOf** (the one pay function) returns the
+record's `contractPay` total when the record carries one (the card words it: base + 60 a km x km x the load's factor +
+the strips + the condition; the bonus as a fraction or a medal), the fixture's base + perKm x km otherwise. critFor /
+the criterion tables know CONTRACT_CRIT_KINDS' 15 names (powertrain, costMax, ultimateG -> the certificate's 5.7,
+xwindKt / hydro "needs a bench test", tasKmh / enduranceMin / rangeKm / takeoffAt / landAt "needs a flight", `==`).
+
+**G2321 THE DEV CAREER IN THE PAGE** - `?career=1` ALONE:
+- `welcome.js decideMode`: `?career=1` -> mode 'career' (any host, the rigs too; `?career=10`, `?career=0`, `?mode=career`
+  -> the sandbox). `READY.career` stays false: **the menu's New career row is still "coming"**.
+- `app.js`: `CAREER_DEV` (the same flag, read once); `PLAYER_KEY = CAREER_DEV ? careerKey('dev') : 'flydiy.player'` - the
+  page's player document IS the career document (§13.2: a player document in mode 'career' with its `career` block),
+  created by `careerNew({ id: 'dev', seed: 'dev' })` on the first load (the 60 000 grant in the ledger, the voucher, 20
+  offers), normalised by `careerNormalise`, the saved builds lifted into ITS fleet as the sandbox lifts them; the
+  sandbox's flydiy.player is neither read nor written. FLYDIY_MODE 'career' shows the MAP entry (MAP-MENU's rule).
+- `window.FLYDIY_CAREER { key, doc, record, act, cargo, overflew, last, sync }` (only under the flag). **The map's Accept /
+  Track write the document**: `careerAccept` / `careerTrack` (Track on an offer accepts it first; Track on the tracked one
+  untracks; Accept on an accepted one keeps it - abandoning is not that button's), then the screen re-reads the record.
+- **Without the flag no career code runs**: every call into the career's page half outside it is behind `CAREER_DEV`
+  (UISMOKE reads app.js for it), no FLYDIY_CAREER, no career plate, no career key (the browser run below).
+
+**G2322 A FLIGHT'S STOP ADVANCES THE CAREER** - `playerFlightEnd` (PREM-S2's), after `playerArrive`, under the flag:
+`careerStopRecord({ how, aero (flightWhere's id when flightCanDepart), wrecked, slot, gear (stripGear), occupants,
+cargoKg, row: { from: fromId, to: destId, t: ap.t }, overflew, hour: world.day.localSeconds / 3600 })` -> CONTRACT-MODEL's
+`{ how, aero, wrecked, slot, gear, load: { kg, pax }, row, overflew, hour }`; **load** = the cabin's occupants beyond the
+pilot + the cargo kg (a dev input on the flight plate's new career line, `#crPlate`, defaulting to the TRACKED contract's
+declared load - `careerTrackedLoad`); **overflew** = the aerodromes passed within their field radius (38b_
+`FLIGHT_FIELD_R` 450 m from the strip's rectangle) during the flight (`careerOverflewAdd`, every frame beside
+ACCEPT_REC.frame, reset at the roll-out). Then `careerOnStop(career, stop, { acceptVerdict: careerAcceptHook(crit =>
+ACCEPT_REC.verdict(crit)) })` - ACCEPT's verdict mapped to the hook: every criterion met -> `{ ok: true, got }` (the
+margins feed the bonus), one failed -> refused with why, a flight / test still to do -> pending. The result is saved;
+**the arrival card shows its events** (`careerEventLines`: loaded at X, stage n done, complete and paid, built: <track
+stage>, the client asks again, acceptance pending - why, or why nothing moved) **and the wallet line**; the ledger's
+`contract` line is careerComplete's (kept). Only a saved airframe's flight reaches it (PREM-S2's `flSlot` rule).
+
+**G2323 THE DELIVERY'S ACCEPTANCE LEG** - for a TRACKED build contract whose criteria need the flown leg (tasKmh,
+enduranceMin, rangeKm: `careerLegCrit`), the plate's career line offers **"Fly the acceptance leg (n aboard beside the
+pilot)"** in flight -> `ACCEPT_REC.start({ load })` (the criterion's load stated; the leg records what is aboard); its
+state / refusal ("in the air first", "the hand is flying") beside it. The signed leg is what acceptVerdict reads at the
+delivery's stop.
+
+**G2324 THE AEROBATIC CONTRACT IS HELD OUT** (§R's follow-up; the certificate is the normal category, 5.7 g ultimate):
+73_ `contractCertUlt()` (65_ GEN_LOAD_ULT) and `contractCertifiable(rec)`; 74_ `careerOfferIds` never offers an arc
+contract, a standalone build or a follow-up asking an `ultimateG` above it - today **clients.05** (+6 g). So it is never
+accepted either; the clients' arc stops at clients.04 (the track at clients:1) until the certificate takes a category.
+
+**GATES** (on 2c0c86d + this branch, built locally; `reports/evidence/CAREER-WIRE/`):
+- **CONTRACTS: PASS, 2260 checks** (was 2208); **selftest 54 of 54 caught** (was 46): + THE HELD-OUT CONTRACT (the
+  ultimate is 5.7; exactly the contracts past it held out; 5.7 yes / 5.8 no; clients.05 never offered with its needs met,
+  never accepted) and the JOURNEY (clients' arc up to the held-out contract, its track at its last unlock); + THE WIRE (the
+  map record: providers, the 20 offers, resolved text, contractPay's pay, an accepted job first and not also an offer,
+  the fleet's certificates - a design's, a shakedown's, none -, the stop record, the tracked load, a stop delivering a
+  job with the card's lines, a stop moving nothing says why, the hook's three answers, the leg's criteria, the
+  overflight radius); 75_ under the purity scan. Selftest's new breaks: the aerobatic contract offered, a stronger
+  ultimate read, no accepted contract on the map, a pay that is not contractPay's, the pilot counted as a passenger, a
+  non-stop delivering, the hook approving a pending verdict, the overflight ignoring the radius.
+- **UISMOKE / UISMOKE-PHONE: PASS**, + THE MAP ON THE REAL RECORD (`_map_smoke.js`: MAP_SOURCE is the real record; a new
+  career's 20 offers - 5 tabs x 4 + All; every card both ends, both strips' lengths, the payload, contractPay's pay, no
+  unresolved key or slot, Accept / Track never disabled, the phone without a flight; every contract a marker; the
+  career's Cub with CONTRACT_DESIGNS' certificate against a job, a kit "not read yet"; clients.02's criteria against
+  the Cub - seats ✓, empty mass ✗, span ✗ - worded by contractCritWords; the aerobatic box never on the map), + THE
+  CAREER FLAG (welcome: ?career=1 -> 'career' on a rig, localhost and a real host with no screen; ?career=10 / 0 and
+  ?mode=career -> the sandbox; READY.career false), the source guard (7 calls into the career outside its page half,
+  every one behind CAREER_DEV; the keys), and **the sandbox booted without the flag: no FLYDIY_CAREER, no career plate**.
+  The fixture's rows are unchanged.
+- **DESTTO: PASS** (3 shards), + `career:cub@w3` on ltd:cub's REAL flight (HOME -> Tamgas Hill, stopped on w3): the dev
+  career (seed dev) tracks job:field:0:0 (35 kg of tools HOME -> w3) beside field.01; the stop record off the flight (at
+  w3, whole, 35 kg - the tracked job's declared load -, the aerodromes passed in order: w2, HOME, SEA, w3); careerOnStop
+  delivers the job (done, paid 450, the wallet +450, the ledger's contract line), moves field.01 to its stage 2 (now
+  tracked), the card's lines; saved and reloaded unchanged; **the sandbox's document meets the same stop: nothing**; the
+  page reaches careerOnStop only under ?career=1.
+- **ACCEPT (--reuse): PASS (189 checks)**, PLAYER, GAMEPREM, SAVE, GFX, BOOT: PASS (unchanged).
+- THE PAGE (`tools/career_wire_shot.js`, the real index.html, SwiftShader; stills + shots.json): the sandbox - FLYDIY_MODE
+  sandbox, no FLYDIY_CAREER / plate / MAP entry, no career key; ?career=1 - FLYDIY_MODE career, flydiy.career.dev =
+  careerNew (the grant line, the Cub voucher, 20 offers), flydiy.player untouched, the MAP on the real record (All 20 |
+  Trust 4 | Mine & Dock 4 | Resort 4 | Survey 4 | Clients 4), a carry job's card (both ends, the payload, 450 net), Track
+  -> the document accepted + tracked and the plate's cargo = the job's 35 kg; a reload keeps it; no page error.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: `tools/build.js` (75_career_wire.js after 74_), `90_node_exports.js` (the exports appended),
+  `72_contract_data.js` (text keys `prov.<id>.short`, `ev.*`), `73_` / `74_` (the held-out rule; GATE CONTRACTS'
+  selftest anchor on careerOfferIds' follow-up line updated), app.js (one block after playerBringHomeNow + four guarded
+  lines), welcome.js (one line in decideMode), map_menu.js, the gates' files. No run_gates row added.
+- **The dev career's fleet is the saved builds** (PREM-S2's lift): there is no procurement yet, so the voucher is
+  unspent and `career.airframes` empty - every airframe's certificate is "not read yet" unless this browser holds its
+  shakedown (a build on the stand, or one whose shakedown sits in flydiy.shake by the saved spec's hash). PROCURE writes
+  `career.airframes[slot].design` and the card then states CONTRACT_DESIGNS' numbers.
+- **?map=1 without ?career=1** (MAP-MENU's dev flag) now shows a NEW career's offers built in memory when MAP is pressed
+  (careerNew + careerMapRecord; nothing stored, Accept / Track in the session's record as before). The plain sandbox never
+  reaches it (no MAP entry). If the coordinator wants ?map=1 to stay on the fixture, it is one branch in MAP_SOURCE.
+- **ACCEPT's `at.kg`**: acceptLoadOf reads `at.pax` / `at.occupants` / `at.payloadKg`, not CONTRACT-MODEL's `at.kg` - a
+  build criterion's kilos are not yet held against a leg's payload (no authored build criterion carries kg > 0 today).
+- **clients.05 held out** leaves the clients' track at stage 1 (the club's second building never built) until the
+  certificate takes a category (an aerobatic card): then contractCertUlt reads it and the contract returns by itself.
+- Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
+
+READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
