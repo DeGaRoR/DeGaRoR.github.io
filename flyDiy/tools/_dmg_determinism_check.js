@@ -252,7 +252,9 @@ function staleTree(dir, coreText) {
       if (SELF) {
         const pg2 = await br.newPage();
         await pg2.setContent('<!doctype html><meta charset="utf-8"><title>parity, builtins</title>');
-        const raw = fs.readFileSync(path.join(T, 'flight_core.js'), 'utf8').replace('o.sin = fsin; o.cos = fcos; o.pow = fpow; return o;', 'return o;');
+        const src0 = fs.readFileSync(path.join(T, 'flight_core.js'), 'utf8');
+        const raw = src0.replace('cos: fcos,', 'cos: globalThis.Math.cos,').replace('pow: fpow,', 'pow: globalThis.Math.pow,').replace('sin: fsin,', 'sin: globalThis.Math.sin,');
+        if (raw.length !== src0.length + 3 * 'globalThis.Math.'.length - 3) throw new Error('the selftest could not put the builtins back (00_registry.js\'s Math literal changed?)');
         await pg2.addScriptTag({ content: raw }); await pg2.addScriptTag({ path: path.join(T, '_dmg_parity_run.js') });
         const k = 'jodel', id = 'trunk0';
         const r = await pg2.evaluate(([spec, cert, id]) => {

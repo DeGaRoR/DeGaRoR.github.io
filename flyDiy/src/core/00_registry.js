@@ -22,8 +22,18 @@
 // the validated hashes before / after), and a page computes node's numbers. In node the shadow is the module's own;
 // in a page it is the scripts' shared global scope, so the viewer's Math.sin / cos / pow are these too. Cost: sin / cos ~the builtin's in the polar's range,
 // ~+20 ns past pi/4 x 2^19 (the long reduction), pow ~+60 ns (GATE DMGDETERMINISM's evidence: the step before / after).
-const Math = Object.freeze(Object.assign(Object.create(null), (() => { const M = globalThis.Math, o = {};
-  for (const k of Object.getOwnPropertyNames(M)) o[k] = M[k]; o.sin = fsin; o.cos = fcos; o.pow = fpow; return o; })()));
+// (AN OBJECT LITERAL, every name written out: a fast-mode object whose frozen fields TurboFan folds to the builtins and
+// inlines - Math.abs / max / sqrt in the beam loop stay one instruction. Built by Object.create(null) + assign it was a
+// dictionary-mode object: 10 x slower a call, the step +35 % - measured, G2355)
+const Math = Object.freeze({ abs: globalThis.Math.abs, acos: globalThis.Math.acos, acosh: globalThis.Math.acosh, asin: globalThis.Math.asin,
+  asinh: globalThis.Math.asinh, atan: globalThis.Math.atan, atanh: globalThis.Math.atanh, atan2: globalThis.Math.atan2, ceil: globalThis.Math.ceil,
+  cbrt: globalThis.Math.cbrt, expm1: globalThis.Math.expm1, clz32: globalThis.Math.clz32, cos: fcos, cosh: globalThis.Math.cosh,
+  exp: globalThis.Math.exp, floor: globalThis.Math.floor, fround: globalThis.Math.fround, hypot: globalThis.Math.hypot, imul: globalThis.Math.imul,
+  log: globalThis.Math.log, log1p: globalThis.Math.log1p, log2: globalThis.Math.log2, log10: globalThis.Math.log10, max: globalThis.Math.max,
+  min: globalThis.Math.min, pow: fpow, random: globalThis.Math.random, round: globalThis.Math.round, sign: globalThis.Math.sign, sin: fsin,
+  sinh: globalThis.Math.sinh, sqrt: globalThis.Math.sqrt, tan: globalThis.Math.tan, tanh: globalThis.Math.tanh, trunc: globalThis.Math.trunc,
+  E: globalThis.Math.E, LN10: globalThis.Math.LN10, LN2: globalThis.Math.LN2, LOG10E: globalThis.Math.LOG10E, LOG2E: globalThis.Math.LOG2E,
+  PI: globalThis.Math.PI, SQRT1_2: globalThis.Math.SQRT1_2, SQRT2: globalThis.Math.SQRT2 });
 const _fdF = new Float64Array(1), _fdU = new Int32Array(_fdF.buffer);
 const _fdLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1, _FD_HI = _fdLE ? 1 : 0, _FD_LO = _fdLE ? 0 : 1;
 const _fdHi = x => { _fdF[0] = x; return _fdU[_FD_HI]; };
@@ -135,33 +145,35 @@ function _fdRem(x, y) {
   return n;
 }
 const _FD_S1 = -1.66666666666666324348e-01, _FD_S2 = 8.33333333332248946124e-03, _FD_S3 = -1.98412698298579493134e-04, _FD_S4 = 2.75573137070700676789e-06, _FD_S5 = -2.50507602534068634195e-08, _FD_S6 = 1.58969099521155010221e-10;
+// (the high-word tests of the common paths as comparisons of |x| against the doubles they bound - the same branches,
+// no store and load through the typed array: |x| < 2^-27 is hi < 0x3e400000, < _FD_HI_PIO4 is hi <= 0x3fe921fb, ...)
+const _FD_2M27 = 7.450580596923828e-9, _FD_HI_PIO4 = 0.7853984832763672, _FD_HI_03 = 0.2999999523162842, _FD_HI_078 = 0.7812504768371582;
 function _fdKSin(x, y, iy) {
-  const ix = _fdHi(x) & 0x7fffffff;
-  if (ix < 0x3e400000) { if ((x | 0) === 0) return x; }
+  if (Math.abs(x) < _FD_2M27) return x;
   const z = x * x, v = z * x, r = _FD_S2 + z * (_FD_S3 + z * (_FD_S4 + z * (_FD_S5 + z * _FD_S6)));
   if (iy === 0) return x + v * (_FD_S1 + z * r);
   return x - ((z * (0.5 * y - v * r) - y) - v * _FD_S1);
 }
 const _FD_C1 = 4.16666666666666019037e-02, _FD_C2 = -1.38888888888741095749e-03, _FD_C3 = 2.48015872894767294178e-05, _FD_C4 = -2.75573143513906633035e-07, _FD_C5 = 2.08757232129817482790e-09, _FD_C6 = -1.13596475577881948265e-11;
 function _fdKCos(x, y) {
-  const ix = _fdHi(x) & 0x7fffffff;
-  if (ix < 0x3e400000) { if ((x | 0) === 0) return 1; }
+  const ax = Math.abs(x);
+  if (ax < _FD_2M27) return 1;
   const z = x * x, r = z * (_FD_C1 + z * (_FD_C2 + z * (_FD_C3 + z * (_FD_C4 + z * (_FD_C5 + z * _FD_C6)))));
-  if (ix < 0x3FD33333) return 1 - (0.5 * z - (z * r - x * y));
-  const qx = ix > 0x3fe90000 ? 0.28125 : _fdWords(ix - 0x00200000, 0), hz = 0.5 * z - qx, a = 1 - qx;
+  if (ax < _FD_HI_03) return 1 - (0.5 * z - (z * r - x * y));
+  const qx = ax >= _FD_HI_078 ? 0.28125 : _fdWords((_fdHi(x) & 0x7fffffff) - 0x00200000, 0), hz = 0.5 * z - qx, a = 1 - qx;
   return a - (hz - (z * r - x * y));
 }
 function fsin(x) {
-  const ix = _fdHi(x) & 0x7fffffff;
-  if (ix <= 0x3fe921fb) return _fdKSin(x, 0, 0);
-  if (ix >= 0x7ff00000) return x - x;
+  const ax = Math.abs(x);
+  if (ax < _FD_HI_PIO4) return _fdKSin(x, 0, 0);
+  if (!(ax < Infinity)) return x - x;
   const n = _fdRem(x, _fdKy), y0 = _fdKy[0], y1 = _fdKy[1];
   switch (n & 3) { case 0: return _fdKSin(y0, y1, 1); case 1: return _fdKCos(y0, y1); case 2: return -_fdKSin(y0, y1, 1); default: return -_fdKCos(y0, y1); }
 }
 function fcos(x) {
-  const ix = _fdHi(x) & 0x7fffffff;
-  if (ix <= 0x3fe921fb) return _fdKCos(x, 0);
-  if (ix >= 0x7ff00000) return x - x;
+  const ax = Math.abs(x);
+  if (ax < _FD_HI_PIO4) return _fdKCos(x, 0);
+  if (!(ax < Infinity)) return x - x;
   const n = _fdRem(x, _fdKy), y0 = _fdKy[0], y1 = _fdKy[1];
   switch (n & 3) { case 0: return _fdKCos(y0, y1); case 1: return -_fdKSin(y0, y1, 1); case 2: return -_fdKCos(y0, y1); default: return _fdKSin(y0, y1, 1); }
 }

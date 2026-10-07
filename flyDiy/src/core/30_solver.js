@@ -2180,7 +2180,10 @@ function makeSim(def, world) {
     if (sig < 1) a3 = 1 / (1 / P.a3d - (1 - sig) / P.eAR);
     const Cl = (P.Cl0 + dCl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
     const CdAtt = P.Cd0 + dCd0 + sig * Cl * Cl / P.eAR;
-    const Cd = CdAtt * (1 - s) + (P.Cd0 + dCd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
+    // (G2355: the stalled drag's sin(al) once, and only past the stall's start - with s = 0 its term adds +0 to a drag that
+    // is never zero, so the attached flow's Cd is the same number without two sines a strip a substep)
+    let Cd = CdAtt * (1 - s);
+    if (s > 0) { const sa = Math.sin(al); Cd += (P.Cd0 + dCd0 + 1.9 * sa * sa) * s; }
     return [Cl, Cd];
   }
 
