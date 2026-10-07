@@ -53,7 +53,26 @@ const until = async (cond, ms, what) => { const t0 = Date.now(); while (Date.now
 const frames = n => run(`await new Promise(r => { let k = ${n}; const f = () => (--k > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }); return 1;`);
 const held = () => run('return !!window.FLYDIY_HELD;');
 const pause = async on => { if ((await held()) !== on) { await run(`document.getElementById('bPause').click(); return 1;`); await frames(4); } };
-const shot = async f => { await fetch('http://127.0.0.1:' + CPORT + '/shot?f=' + encodeURIComponent(f)); return f; };
+// A STILL IS EVIDENCE ONLY ONCE THE PAGE IS LOADED (the user, via the game coordinator: "you keep screenshotting loading
+// screens"): the boot overlay gone - BOOT.state 'gone', #boot carrying .gone AND hidden (boot.js hides it 700 ms after) -
+// read off the page's state, not off what is visible (hideUI hides the overlay too). Asserted before every still, then
+// 2 s, then again; asserted after the shot too. A shot that meets the overlay is discarded (never saved) and retried.
+const LOADED = `const b = document.getElementById('boot'); return !!(window.BOOT && BOOT.state === 'gone' && b && b.classList.contains('gone') && b.hidden);`;
+const shot = async f => {
+  for (let i = 0; i < 5; i++) {
+    if ((await run(LOADED)) === true) {
+      await sleep(2000); await frames(4);
+      if ((await run(LOADED)) === true) {
+        await fetch('http://127.0.0.1:' + CPORT + '/shot?f=' + encodeURIComponent(f));
+        if ((await run(LOADED)) === true) return f;
+        try { fs.unlinkSync(f); } catch (e) {}
+      }
+    }
+    console.log('  still discarded (the page was not loaded): ' + path.basename(f) + ' - retry ' + (i + 1));
+    await sleep(3000);
+  }
+  throw new Error('the page never stayed loaded for ' + path.basename(f) + ': no still saved');
+};
 const hideUI = () => run(`const c = document.getElementById('c'); document.querySelectorAll('body *').forEach(e => { if (e !== c && !e.contains(c) && e.tagName !== 'CANVAS') e.style.visibility = 'hidden'; }); return 1;`);
 // what the page says it is: the build id, the fleet's state, the bakes, the stand
 const STATE = `const P = window.PARKED, F = P && P.fleet, S = window.FLEET_STAND && FLEET_STAND.state, G = window.GFX && GFX.get();
@@ -148,6 +167,10 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
       const med = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
       return { on: ${on}, n: g.length, gpu: med(g) != null ? +med(g).toFixed(3) : null, gpuMean: g.length ? +(g.reduce((a, b) => a + b, 0) / g.length).toFixed(3) : null, calls: med(c), tris: med(t) };`);
   };
+  // the timing too only on a LOADED page (the overlay gone): waited for, else the run says so
+  for (let i = 0; i < 30 && (await run(LOADED)) !== true; i++) await sleep(1000);
+  info.loadedAtTiming = (await run(LOADED)) === true;
+  if (!info.loadedAtTiming) throw new Error('the page is not loaded (the boot overlay): no timing taken');
   for (const view of ['chase', 'apron']) {
     if (view === 'apron') {
       // the wide view: the eye up and back over the apron, toward the props' centre
