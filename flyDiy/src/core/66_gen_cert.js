@@ -436,11 +436,11 @@ function genCertProbeSim(def) {
 }
 function genCertAeroLoads(def, sim, o) {
   const n = def.nodes.length, { M, c } = genCertMass(def), W = M * 9.81, V = o.V;
-  const vel = a => [-V * Math.cos(a), -V * Math.sin(a), 0];
+  const vel = a => [-V * CORE_MATH.cos(a), -V * CORE_MATH.sin(a), 0];
   const thr = o.thr == null ? 1 : o.thr;
   sim.ctl.de = o.de || 0; sim.ctl.da = o.da || 0; sim.ctl.dr = o.dr || 0; sim.ctl.flap = o.flap || 0; sim.ctl.thr = thr;
   const pr = a => sim.probe(vel(a), true);
-  const Fn = (a) => { const r = pr(a); return -r.Fx * Math.sin(a) + r.Fy * Math.cos(a); };
+  const Fn = (a) => { const r = pr(a); return -r.Fx * CORE_MATH.sin(a) + r.Fy * CORE_MATH.cos(a); };
   // alpha for the load factor at this elevator (secant; the polar is smooth below the stall)
   const solveA = (target) => {
     let a0 = 0, a1 = 0.05, f0 = Fn(a0) - target, f1 = Fn(a1) - target;
@@ -568,7 +568,7 @@ function genCertDrop(def, sink, world, o, settled, frames) {
   if (o) {
     const [xA, , zR] = sim.axes(), c0 = sim.cgPos();
     let y0 = Infinity; for (let i = 0; i < n; i++) y0 = Math.min(y0, sim.p[i * 3 + 1] - def.nodes[i].r);
-    const turn = (k, th) => { const cs = Math.cos(th), sn = Math.sin(th);
+    const turn = (k, th) => { const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
       for (let i = 0; i < n; i++) {
         const d = [sim.p[i*3] - c0[0], sim.p[i*3+1] - c0[1], sim.p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
         const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
@@ -606,7 +606,7 @@ function genCertBow(def, world) {
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, world); sim.reset(0); placeAtAerodrome(sim, sea);
   const n = sim.n, p = sim.p, v = sim.v, ax = sim.axes(), xA = ax[0], k = ax[2], c0 = sim.cgPos();
-  const th = -20 * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
+  const th = -20 * Math.PI / 180, cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
   for (let i = 0; i < n; i++) {
     const d = [p[i*3] - c0[0], p[i*3+1] - c0[1], p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
     const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
@@ -676,7 +676,7 @@ function genCertGroundLoads(def, nTD) {
     // condition read for a twin-float installation: the step load on one float, the other clear)
     const g = (def.params && def.params.gen) || {}, Vso = (g.VsFlap || g.Vs || 25) / 0.5144, Wlb = W / 4.4482;
     const beta = ((FL[0].P && FL[0].P.beta) || 22) * Math.PI / 180, tb = Math.tan(beta);
-    const nw = Math.max(G.nwMin, G.C1 * Vso * Vso / (Math.pow(tb, 2 / 3) * Math.pow(Wlb, 1 / 3)));
+    const nw = Math.max(G.nwMin, G.C1 * Vso * Vso / (CORE_MATH.pow(tb, 2 / 3) * CORE_MATH.pow(Wlb, 1 / 3)));
     const st = f => [f.K[2], f.DL[2], f.DR[2]];
     const lift = F => { const wl = genCertDist(def, ['wing'], null); if (wl) for (let i = 0; i < n; i++) F[i * 3 + 1] += G.lift * W * wl[i]; };
     const onFloat = (F, f, up, side) => { for (const i of st(f)) add(F, i, 0, up / 3, side / 3); };
@@ -727,7 +727,7 @@ function genCertGroundLoads(def, nTD) {
 // sim under the probe. A world of its own (the ground, no water, no trees: makeWorld is seconds; this is nothing)
 function genCertTaxi(def) {
   const R = GEN_CERT.rough, k1 = 2 * Math.PI / R.lam, k2 = 2 * Math.PI / (0.43 * R.lam);
-  const W = { terrainH: (x, z) => R.A * Math.sin(k1 * x + 0.7) * Math.cos(0.8 * k1 * z) + 0.5 * R.A * Math.sin(k2 * (0.6 * x + 0.8 * z)),
+  const W = { terrainH: (x, z) => R.A * CORE_MATH.sin(k1 * x + 0.7) * CORE_MATH.cos(0.8 * k1 * z) + 0.5 * R.A * CORE_MATH.sin(k2 * (0.6 * x + 0.8 * z)),
               waterH: () => -1e9, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, W); sim.reset(0);
@@ -809,7 +809,7 @@ function genCertSink(def) {
   const g = def.params && def.params.gen;
   if (!g || !(g.W > 0) || !(g.Sw > 0)) return 3.05;
   const WS = (g.W / 4.4482) / (g.Sw * 10.7639);
-  return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
+  return Math.min(10, Math.max(7, 4.4 * CORE_MATH.pow(WS, 0.25))) * 0.3048;
 }
 
 // genCertify(def, opt) -> the certificate: per member the tension and compression envelopes at limit (N), and per
@@ -858,7 +858,7 @@ function* genCertifySteps(def, opt) {
     let Iz = 0; const { c } = genCertMass(def);
     for (const nd of def.nodes) { const dx = nd.p[0] - c[0], dy = nd.p[1] - c[1]; Iz += nd.m * (dx * dx + dy * dy); }
     for (const [nm, base] of [['pullAq', 'pullA'], ['pullDq', 'pullD']]) {
-      const V = aero[base].V, a0 = aero[base].alpha, vel = [-V * Math.cos(a0), -V * Math.sin(a0), 0];
+      const V = aero[base].V, a0 = aero[base].alpha, vel = [-V * CORE_MATH.cos(a0), -V * CORE_MATH.sin(a0), 0];
       const Mreq = Iz * 39 * L * (L - 1.5) / (V / 0.5144);
       const pm = de => { PS.ctl.de = de; PS.ctl.thr = 1; return PS.probe(vel, true).pitchUp - Mreq; };
       let d0 = aero[base].de, d1 = Math.min(1, d0 + 0.2), m0 = pm(d0), m1 = pm(d1);

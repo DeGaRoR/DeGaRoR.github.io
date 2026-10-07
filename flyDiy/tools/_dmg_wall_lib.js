@@ -47,6 +47,7 @@ function snapshotOf(file, opts) {
   const t0 = Date.now();
   const SH = require(path.join(T, '_scene_headless.js'));
   const BJ = require(path.join(T, '_bake_joined.js'));
+  require('./_core_fresh.js').assertFresh(path.join(T, 'flight_core.js'));   // G2353: never a stale generated core
   const C = require(path.join(T, 'flight_core.js'));
   let j = JSON.parse(fs.readFileSync(path.isAbsolute(file) ? file : path.join(T, '..', file), 'utf8'));
   if (opts.patch) j = opts.patch(j);

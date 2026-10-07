@@ -205,7 +205,7 @@ const GATES = [
   // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once.
   // G1833 (DMG-D2a): flown on THE CERTIFICATE's limits (the game's, with the layer on): the load test clean to its limit and
   // held at its ultimate, the pull read to the limit; `--physics` flies D1a's physics limits as before
-  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 900 },
+  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 1300 },   // (G2354: + the 30 m/s ensembles)
   // G1810-G1817 (DMG-D1a MEMBERS): the seams and the break groups (closed sets, in the generator and in the solver), Euler on
   // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
   // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
@@ -292,7 +292,7 @@ const GATES = [
   // G1855-G1859 (DMG-WALL): one wall, no stretch - the flown snapshot's lining / beads / glazing stay on their covering
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
-  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
+  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 1200 },   // (G2354: the 30 m/s rows' ensembles)
   // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
   // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
   // damper as the control reproduces exp(-0.5 t), and a plucked wingtip still rings down as before; ~3.5 min
@@ -334,6 +334,12 @@ const GATES = [
   // never pushed (the same bits), the hop through the worker = inline, reset restores; the grass cull exactly the footprint
   // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once
   { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G2353-G2356 (DMG-DETERMINISM): the same crash is the same bits everywhere - node refuses a stale generated core (the
+  // "JIT" 154 / 204 was train 37's committed core); the standard crashes (taxi, nose-over, the 30 m/s trunks; damage OFF the
+  // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
+  // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
+  // Three children at once
+  { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

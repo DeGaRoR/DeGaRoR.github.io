@@ -21,13 +21,13 @@ function genThinAirfoil(m, p) {
   const NS = 400;
   let i0 = 0, i1 = 0, i2 = 0;
   for (let i = 0; i < NS; i++) {
-    const th = (i + 0.5) * Math.PI / NS, x = 0.5 * (1 - Math.cos(th));
+    const th = (i + 0.5) * Math.PI / NS, x = 0.5 * (1 - CORE_MATH.cos(th));
     const dz = x <= p ? (2 * m / (p * p)) * (p - x)
                       : (2 * m / ((1 - p) * (1 - p))) * (p - x);
     const dth = Math.PI / NS;
-    i0 += dz * (1 - Math.cos(th)) * dth;
-    i1 += dz * Math.cos(th) * dth;
-    i2 += dz * Math.cos(2 * th) * dth;
+    i0 += dz * (1 - CORE_MATH.cos(th)) * dth;
+    i1 += dz * CORE_MATH.cos(th) * dth;
+    i2 += dz * CORE_MATH.cos(2 * th) * dth;
   }
   const aL0 = i0 / Math.PI;                       // negative for positive camber
   const A1 = (2 / Math.PI) * i1, A2 = (2 / Math.PI) * i2;
@@ -42,7 +42,7 @@ const GEN_KVISC = 0.845;
 // Oswald efficiency, Raymer's straight-wing estimate, times a bracing penalty
 // (a strut and its fairing spoil the span loading near the attach).
 function genOswald(AR, strut, tipE) {
-  const e = 1.78 * (1 - 0.045 * Math.pow(AR, 0.68)) - 0.64;
+  const e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
   // the tip treatment multiplies span efficiency BEFORE the cap: a winglet on
   // an already-efficient wing cannot conjure e past the Raymer ceiling
   return Math.min(0.95, Math.max(0.55, e * (strut ? 0.90 : 1.0) * (tipE || 1)));
@@ -57,7 +57,7 @@ function genPolar(naca, AR, strut, matCd0, clmaxK, sweepDeg, tipE) {
   // both go with cos(sweep). It depends on |sweep| — forward sweep costs
   // exactly as much as aft, which is the honest reason forward sweep is not a
   // free way to move the CG.
-  const cosL = Math.cos((sweepDeg || 0) * Math.PI / 180);
+  const cosL = CORE_MATH.cos((sweepDeg || 0) * Math.PI / 180);
   const a0 = 2 * Math.PI * GEN_KVISC * (1 + 0.77 * t) * cosL;
   const eAR = Math.PI * genOswald(AR, strut, tipE) * AR;
   const a3d = 1 / (1 / a0 + 1 / eAR);
@@ -228,7 +228,7 @@ function genStrips(S, fr) {
     // horizontal projection) — the cant is in the strip's normal, so the
     // solver resolves pitch and yaw from the geometry rather than from a pair
     // of book-keeping areas that could disagree with it.
-    const cV = Math.cos(S.tail.vG), sV = Math.sin(S.tail.vG);
+    const cV = CORE_MATH.cos(S.tail.vG), sV = CORE_MATH.sin(S.tail.vG);
     for (const [H, side] of [[P.HTL, -1], [P.HTR, 1]]) {
       strips.push({ kind: 'vtail', side, cosV: cV, sinV: sV,
         area: 0.565 * S.tail.Svt / 2, chord: hc,
@@ -1075,7 +1075,7 @@ function genNetEig(nodes, beams, val, dry) {
     dA[q] = b.a; dB[q] = b.b; D[q * 3] = dx / L; D[q * 3 + 1] = dy / L; D[q * 3 + 2] = dz / L; V[q] = val(b);
   }
   let x = new Float64Array(n * 3), y = new Float64Array(n * 3), lam = 0;
-  for (let i = 0; i < x.length; i++) x[i] = Math.sin(i * 1.7 + 0.3);
+  for (let i = 0; i < x.length; i++) x[i] = CORE_MATH.sin(i * 1.7 + 0.3);
   for (let it = 0; it < 600; it++) {
     y.fill(0);
     for (let q = 0; q < B; q++) {

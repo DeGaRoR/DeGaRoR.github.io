@@ -174,8 +174,8 @@ function genAirfoil(naca) {
   const yt = x => 5*t*(0.2969*Math.sqrt(x) - 0.1260*x - 0.3516*x*x + 0.2843*x*x*x - 0.1015*x*x*x*x);
   const up = [], lo = [];
   for (let i = 0; i <= GEN_AF; i++) {
-    const x = 0.5 * (1 - Math.cos(Math.PI * i / GEN_AF));
-    const th = Math.atan(dyc(x)), s = Math.sin(th), c = Math.cos(th), T = yt(x);
+    const x = 0.5 * (1 - CORE_MATH.cos(Math.PI * i / GEN_AF));
+    const th = Math.atan(dyc(x)), s = CORE_MATH.sin(th), c = CORE_MATH.cos(th), T = yt(x);
     up.push([x - T*s, yc(x) + T*c]);
     lo.push([x + T*s, yc(x) - T*c]);
   }
@@ -202,7 +202,7 @@ function genAfEval(naca) {
                        + 0.2843*x*x*x - 0.1015*x*x*x*x);
   const at = (x, sgn) => {
     const th = Math.atan(dyc(x)), T = yt(x);
-    return [x - sgn * T * Math.sin(th), yc(x) + sgn * T * Math.cos(th)];
+    return [x - sgn * T * CORE_MATH.sin(th), yc(x) + sgn * T * CORE_MATH.cos(th)];
   };
   return { up: x => at(x, 1), lo: x => at(x, -1) };
 }
@@ -212,7 +212,7 @@ function genAfEval(naca) {
 // edge (lower-b back to upper-b) both close for free.
 function genAfSeg(naca, a, b, n) {
   const E = genAfEval(naca);
-  const xs = i => a + (b - a) * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const xs = i => a + (b - a) * 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n));
   const pts = [];
   for (let i = n; i >= 0; i--) pts.push(E.up(xs(i)));
   for (let i = 0; i <= n; i++) pts.push(E.lo(xs(i)));
@@ -330,13 +330,13 @@ function genArcFwd(c, rr, p0, p1, n) {
   // ...and if the OTHER way round runs further forward, take that instead.
   // The nose's two ends are exactly opposite about the hinge point, so the
   // two candidates are both half turns and only this test separates them.
-  const midX = dd => Math.cos(a0 + dd * 0.5);
+  const midX = dd => CORE_MATH.cos(a0 + dd * 0.5);
   const alt = d >= 0 ? d - 2 * Math.PI : d + 2 * Math.PI;
   if (midX(alt) < midX(d)) d = alt;
   const out = [];
   for (let i = 1; i < n; i++) {
     const a = a0 + d * i / n;
-    out.push([c[0] + Math.cos(a) * rr, c[1] + Math.sin(a) * rr]);
+    out.push([c[0] + CORE_MATH.cos(a) * rr, c[1] + CORE_MATH.sin(a) * rr]);
   }
   return out;
 }
@@ -353,7 +353,7 @@ function genAfSegNose(naca, h, n, arcN, gapC, curbC) {
   // G244: the surface ends on a CURB, not on a point
   const teN = Math.max(1, (GEN_EDGE ? GEN_EDGE.faces : 3) | 0);
   const xTe = curbC > 0 ? genAfTeCut(naca, curbC) : 1;
-  const xs = i => h + (xTe - h) * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const xs = i => h + (xTe - h) * 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n));
   const up = [], lo = [];
   for (let i = n; i >= 0; i--) up.push(E.up(xs(i)));
   for (let i = 0; i <= n; i++) lo.push(E.lo(xs(i)));
@@ -382,7 +382,7 @@ function genAfSegCove(naca, h, n, arcN, gapC, curbC) {
                             for (let i = 1; i < k; i++) pts.push([q[0], q[1]]); };
   if (!(h < 1 - 1e-9)) {
     const xTe = curbC > 0 ? genAfTeCut(naca, curbC) : 1;
-    const xs = i => xTe * 0.5 * (1 - Math.cos(Math.PI * i / n));
+    const xs = i => xTe * 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n));
     const pts = [];
     for (let i = n; i >= 0; i--) pts.push(E.up(xs(i)));
     for (let i = 0; i <= n; i++) pts.push(E.lo(xs(i)));
@@ -396,8 +396,8 @@ function genAfSegCove(naca, h, n, arcN, gapC, curbC) {
     pad(pts, teN); pad(pts, arcN);
     return pts;
   }
-  const xsU = i => H.xUp * 0.5 * (1 - Math.cos(Math.PI * i / n));
-  const xsL = i => H.xLo * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const xsU = i => H.xUp * 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n));
+  const xsL = i => H.xLo * 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n));
   const pts = [];
   for (let i = n; i >= 0; i--) pts.push(E.up(xsU(i)));
   for (let i = 0; i <= n; i++) pts.push(E.lo(xsL(i)));
@@ -434,7 +434,7 @@ function genRing(theta, halfW, halfD, crownT, crownS) {
   // the proud-former scale is blended by the SAME smoothstep genSuper uses on
   // the exponent — with max(0, cy) the two disagreed at the waterline, which is
   // precisely where a step in the section reads worst
-  const s = Math.max(0, Math.cos(theta));
+  const s = Math.max(0, CORE_MATH.cos(theta));
   const k = genCrownScale(crownS + (crownT - crownS) * s * s * (3 - 2 * s));
   return genSuper(theta, halfW * k, halfD * k,
                   genCrownToN(crownT), genCrownToN(crownS));
@@ -458,7 +458,7 @@ function genTubeInto(M, A, C, r, seg, infl, B) {
     const row = [];
     for (let h = 0; h <= seg; h++) {
       const a = 2 * Math.PI * (h % seg) / seg;
-      const off = genV3.add(genV3.mul(e1, r * Math.cos(a)), genV3.mul(e2, r * Math.sin(a)));
+      const off = genV3.add(genV3.mul(e1, r * CORE_MATH.cos(a)), genV3.mul(e2, r * CORE_MATH.sin(a)));
       row.push(M.v(B(genV3.add(base, off)), h / seg, s, IN(s)));
     }
     return row;
@@ -505,7 +505,7 @@ function genRevolveInto(M, c, axis, R, halfW, sect, seg, infl, B) {
     for (let h = 0; h <= seg; h++) {
       const a = 2 * Math.PI * (h % seg) / seg;
       row.push(M.v(B(genV3.add(base,
-        genV3.add(genV3.mul(e1, rr * Math.cos(a)), genV3.mul(e2, rr * Math.sin(a))))),
+        genV3.add(genV3.mul(e1, rr * CORE_MATH.cos(a)), genV3.mul(e2, rr * CORE_MATH.sin(a))))),
         h / seg, v, infl));
     }
     return { row };
@@ -555,7 +555,7 @@ function genBladeInto(M, A, C, w0, t0, w1, t1, infl, B) {
 function genBungeeSect(turns) {
   const pts = [], n = turns * 4;
   for (let i = 0; i <= n; i++)
-    pts.push([0.80 + 0.20 * Math.cos(2 * Math.PI * turns * (i / n) - Math.PI),
+    pts.push([0.80 + 0.20 * CORE_MATH.cos(2 * Math.PI * turns * (i / n) - Math.PI),
               -1 + 2 * (i / n)]);
   return pts;
 }
@@ -628,8 +628,8 @@ function genBeamInto(M, b, N, B) {
     const off = h => lift
       ? genV3.add(genV3.mul(e1, (GEN_STRUT_SECT[h][0] - 0.40) * cw),
                   genV3.mul(e2, GEN_STRUT_SECT[h][1] * cw))
-      : genV3.add(genV3.mul(e1, r * Math.cos(2 * Math.PI * h / SEG)),
-                  genV3.mul(e2, r * Math.sin(2 * Math.PI * h / SEG)));
+      : genV3.add(genV3.mul(e1, r * CORE_MATH.cos(2 * Math.PI * h / SEG)),
+                  genV3.mul(e2, r * CORE_MATH.sin(2 * Math.PI * h / SEG)));
     const ring = [];
     for (let s = 0; s < 2; s++) {
       const nd = s ? b.b : b.a, base = s ? C : A, row = [];
@@ -892,7 +892,7 @@ function genWingInto(def, out) {
     // THE BOW, stepped in angle (see G4.3): all curvature, no control surface
     if (W.tipR > 1e-6) {
       const nA = Math.max(2, TIP.arc | 0), thMax = (Math.PI/2) * 0.965;
-      for (let i = 1; i <= nA; i++) zs2.push(W.tipZ + W.tipR * Math.sin(thMax * i / nA));
+      for (let i = 1; i <= nA; i++) zs2.push(W.tipZ + W.tipR * CORE_MATH.sin(thMax * i / nA));
     }
     // ---- fixed skin: cut at the hinge wherever a surface lives ----
     const flip = side < 0;
@@ -950,8 +950,8 @@ function genWingInto(def, out) {
       if (up[1] < 0) up = genV3.mul(up, -1);
       const c0 = f.chord, Hh = TIP.fin * c0;
       const R = 0.30 * c0, PHI = 75 * Math.PI / 180, LAM = 0.35, SW = Math.tan(35 * Math.PI / 180);
-      const hArc = R * (1 - Math.cos(PHI));
-      const L = Math.max(0.05 * c0, (Hh - hArc) / Math.sin(PHI));
+      const hArc = R * (1 - CORE_MATH.cos(PHI));
+      const L = Math.max(0.05 * c0, (Hh - hArc) / CORE_MATH.sin(PHI));
       const sArc = R * PHI, sTot = sArc + L, NW = 8;
       const pts = genAfSegCove(W.naca, 1, NAF, ARCN, gapAt(zW), curbAt(zW));
       // the wall at the aileron's outboard end (the winglet is full chord)
@@ -960,13 +960,13 @@ function genWingInto(def, out) {
       for (let i = 1; i <= NW; i++) {
         const s = sTot * i / NW;
         let phi, dy, dz;
-        if (s <= sArc) { phi = s / R; dy = R * (1 - Math.cos(phi)); dz = R * Math.sin(phi); }
-        else { phi = PHI; dy = hArc + (s - sArc) * Math.sin(PHI); dz = R * Math.sin(PHI) + (s - sArc) * Math.cos(PHI); }
+        if (s <= sArc) { phi = s / R; dy = R * (1 - CORE_MATH.cos(phi)); dz = R * CORE_MATH.sin(phi); }
+        else { phi = PHI; dy = hArc + (s - sArc) * CORE_MATH.sin(PHI); dz = R * CORE_MATH.sin(PHI) + (s - sArc) * CORE_MATH.cos(PHI); }
         const cT = c0 * (1 - (1 - LAM) * (s / sTot));
         // the section's frame on the path: the LE swept aft, the thickness
         // axis rolled by the cant toward the inboard side
         const pF = genV3.add(genV3.add(f.pF, genV3.mul(ch, SW * dy)), [0, dy, side * dz]);
-        const th = genV3.add(genV3.mul(up, Math.cos(phi)), [0, 0, -side * Math.sin(phi)]);
+        const th = genV3.add(genV3.mul(up, CORE_MATH.cos(phi)), [0, 0, -side * CORE_MATH.sin(phi)]);
         const row = pts.map(([xc, yc]) => {
           const p = genV3.add(genV3.add(pF, genV3.mul(ch, (xc - sparF) * cT)), genV3.mul(th, yc * cT));
           const k = kOf(xc), infl = [];
@@ -1164,7 +1164,7 @@ function genWingInto(def, out) {
         const SEG = tube ? 12 : 4;
         const off = h => {
           if (tube) { const t = 2 * Math.PI * h / SEG;
-            return genV3.add(genV3.mul(ch, half * Math.cos(t)), genV3.mul(nr, half * Math.sin(t))); }
+            return genV3.add(genV3.mul(ch, half * CORE_MATH.cos(t)), genV3.mul(nr, half * CORE_MATH.sin(t))); }
           const sx = [1, 1, -1, -1][h], sy = [1, -1, -1, 1][h];
           return genV3.add(genV3.mul(ch, sx * half / 3), genV3.mul(nr, sy * half));
         };

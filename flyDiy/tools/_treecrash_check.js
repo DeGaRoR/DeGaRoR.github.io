@@ -29,7 +29,17 @@
 //      break. The water reaches the beams through the nodes as the ground does: in every case the damage model yields
 //      exactly when the probe's peak passes 1 (the same beam-load path), finite; a holed hull slice is skin damage
 //
-// Run: node tools/_treecrash_check.js   (one final `GATE TREECRASH: PASS|FAIL`; the builds in parallel child processes)
+//   7. G2354 (DMG-DETERMINISM): THE 30 M/S CRASH AS AN ENSEMBLE. One 30 m/s run is one draw of a wreck that depends on its
+//      start (a millimetre on every node moves the Jodel's centreline over 135-196 members broken, the metal Cessna's
+//      single 215 sits in its tail: _treecrash_lib's ENSEMBLE note), so its counts are read as a distribution: on the Cub, the Jodel and the metal Cessna, the trunk on the centreline and 2.5 m out (DMG-TUNE's
+//      standard crashes, the certificate stamped), ENS members (member 0 the run as it was, the others every node's start
+//      nudged by up to 1 mm, seeded) - every member crashed, a wing member broken, finite, no energy from nowhere; and the
+//      distribution of the members broken, the pieces, the member work, the engine mount off and the cowl off against the
+//      stored reference (tools/fixtures/treecrash_ensemble_ref.json): a REGRESSION only when it MOVES - a two-sided
+//      Mann-Whitney rank test at p < 0.01 (_treecrash_lib rankTest). A deliberate change of the physics moves it: rewrite
+//      the reference (--write-ref) and say so in the HANDOVER.
+// Run: node tools/_treecrash_check.js [--ens N] [--write-ref]   (one final `GATE TREECRASH: PASS|FAIL`; the builds in
+// parallel child processes)
 'use strict';
 const path = require('path');
 const argv = process.argv.slice(2);
@@ -157,6 +167,30 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
         + (d.crashed ? 'CRASHED (' + d.reason + ')' : d.dented ? 'dented, no crash' : 'no damage');
       yes(w.finite && same && (!w.severe || (d.members > 0 && d.breaks > 0 && d.crashed)), what + (w.severe ? ' - must yield, break and crash' : '') + '; the damage follows the beams\' own loads');
     }
+  }
+  // 7. the 30 m/s ensemble (G2354)
+  {
+    const ia = argv.indexOf('--ens'), N = ia >= 0 ? +argv[ia + 1] : 16, WRITE = argv.includes('--write-ref');
+    const refF = path.join(__dirname, 'fixtures', 'treecrash_ensemble_ref.json'), fs = require('fs'), os = require('os');
+    const ref = fs.existsSync(refF) ? JSON.parse(fs.readFileSync(refF, 'utf8')) : null, out = { n: N, amp: L.ENS_AMP, rows: {} };
+    const certDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tcens-')), te = Date.now();
+    console.log('7. the 30 m/s crash as an ensemble of ' + N + ' (the start nudged by up to ' + L.ENS_AMP + ' m; a regression = the distribution moves, Mann-Whitney p < ' + L.ENS_P + ')');
+    for (const k of ['cub', 'jodel', 'metal']) for (const id of ['trunk0', 'trunk25']) {
+      let E; try { E = await L.ensemble(k, id, { n: N, jobs: 3, certDir }); } catch (e) { yes(false, k + ' ' + id + ': the ensemble ran - ' + e.message); continue; }
+      const tag = k + '/' + id, M = E.members;
+      out.rows[tag] = { stats: E.stats, members: M.map(m => ({ seed: m.seed, hash: m.hash, broken: m.broken, pieces: m.pieces, work: +m.work.toFixed(1), mountOff: m.mountOff, cowlOff: m.cowlOff })) };
+      const desc = L.ENS_FIELDS.map(f => f + ' ' + L.ensLine(E, f)).join(', ');
+      yes(M.every(m => m.finite && m.crashed && m.wing > 0 && m.keMax <= m.ke0 * 1.001), L.BUILDS[k].label + ', ' + L.STANDARD[id].label + ': every member crashed, a wing member broken, finite, the energy bounded - ' + desc + ' (kJ for the work)');
+      const R0 = ref && ref.rows && ref.rows[tag];
+      if (!R0 || WRITE) { console.log('        (no reference' + (WRITE ? ': --write-ref' : '') + ')'); if (!WRITE) yes(false, tag + ': a stored reference distribution'); continue; }
+      const cmp = L.ensCompare({ members: R0.members }, { members: out.rows[tag].members });   // (both as stored: the work to 0.1 J)
+      const moved = L.ENS_FIELDS.filter(f => cmp[f].moved);
+      yes(!moved.length, tag + ' against the reference: ' + L.ENS_FIELDS.map(f => f + ' ' + (cmp[f].moved ? 'MOVED ' : '') + 'p ' + cmp[f].p.toFixed(3)).join(', ') +
+        (moved.length ? ' - ' + moved.map(f => f + ' median ' + cmp[f].a.median + ' -> ' + cmp[f].b.median + ' (pooled p10-p90 spread ' + cmp[f].pooled.toFixed(1) + ')').join('; ') : ''));
+    }
+    try { fs.rmSync(certDir, { recursive: true, force: true }); } catch (e) { /* stays */ }
+    console.log('        (the ensembles: ' + ((Date.now() - te) / 1000).toFixed(0) + ' s)');
+    if (WRITE) { fs.writeFileSync(refF, JSON.stringify(out)); console.log('        the reference written: ' + path.relative(path.join(__dirname, '..'), refF)); }
   }
   console.log('  ' + (checks - fails) + '/' + checks + ' checks');
   console.log('GATE TREECRASH: ' + (fails ? 'FAIL' : 'PASS'));

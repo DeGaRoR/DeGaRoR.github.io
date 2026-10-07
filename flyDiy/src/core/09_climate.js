@@ -102,7 +102,7 @@ var CLIMATE = (function () {
   // x east, z south (north = -z). From north it blows toward +z; from west toward +x.
   function bearingToBase(spd, dirDeg, convDeg) {
     const th = ((dirDeg || 0) - (convDeg || 0)) * D2R;
-    return [0 - Math.sin(th) * spd, 0, Math.cos(th) * spd];   // 0 - x: never a -0
+    return [0 - CORE_MATH.sin(th) * spd, 0, CORE_MATH.cos(th) * spd];   // 0 - x: never a -0
   }
   // FNV-1a over a Float32Array's bits (the gate's raster fingerprint)
   function fnv(arr) {
@@ -254,7 +254,7 @@ var CLIMATE = (function () {
       const agl = y - terrainH(x, z);
       // a power law has no zero: floor the height rather than pretend it does.
       const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
-      return Math.pow(h / refH, alpha);
+      return CORE_MATH.pow(h / refH, alpha);
     }
     function windLegacy(x, y, z, t) {
       if (!windSpec) return W0;
@@ -266,7 +266,7 @@ var CLIMATE = (function () {
       // circuit height
       const gk = g * k;
       if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
-        const s = Math.sin(om * t + kx * x + kz * z + ph);
+        const s = CORE_MATH.sin(om * t + kx * x + kz * z + ph);
         WV[0] += gk * 0.30 * ax * s;
         WV[1] += gk * 0.18 * ay * s;
         WV[2] += gk * 0.30 * az * s;
@@ -277,7 +277,7 @@ var CLIMATE = (function () {
     function addGust(x, y, z, t, ga, out) {
       if (!(ga > 0)) return;
       for (const [om, kx, kz, ph, ax, ay, az] of GC) {
-        const s = Math.sin(om * t + kx * x + kz * z + ph);
+        const s = CORE_MATH.sin(om * t + kx * x + kz * z + ph);
         out[0] += ga * 0.30 * ax * s;
         out[1] += ga * 0.18 * ay * s;
         out[2] += ga * 0.30 * az * s;
@@ -316,7 +316,7 @@ var CLIMATE = (function () {
       const st = stormOf();
       let gust = spec.gust || 0;
       if (st) {
-        const ph = st.veer * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+        const ph = st.veer * D2R, c = CORE_MATH.cos(ph), sn = CORE_MATH.sin(ph);
         const bx = base[0] * c - base[2] * sn, bz = base[2] * c + base[0] * sn;
         base = [bx * st.windK, base[1] * st.windK, bz * st.windK];
         gust = Math.min(1.5, gust * st.gustK + 0.25 * (st.gustK - 1));
@@ -346,7 +346,7 @@ var CLIMATE = (function () {
     //           breeze and the thermals; 0 in K0)
     //   TI      the turbulence intensity the gusts ride (K1 the lee rotor; 1 in K0)
     // and the wind at a point is  k * col + rest,  the gust amplitude  gust * k * TI.
-    const shearOf = (agl, refH, alpha) => refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / refH, alpha) : 1;
+    const shearOf = (agl, refH, alpha) => refH ? CORE_MATH.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / refH, alpha) : 1;
     const RL = new Float32Array(NCH);
     // gl = [gx, gz]: the LOCAL slope at the point (terrainH central differences at +-GD), the third band
     function smooth(x, y, z, t, agl, gl, out) {
@@ -355,7 +355,7 @@ var CLIMATE = (function () {
       if (rich.aloftK !== 1 || rich.veerDeg !== 0) {
         const s = smoothstep(WIND_TOP_H, rich.gradH, agl);
         if (s > 0) {
-          const m = 1 + (rich.aloftK - 1) * s, ph = rich.veerDeg * s * D2R, c = Math.cos(ph), sn = Math.sin(ph);
+          const m = 1 + (rich.aloftK - 1) * s, ph = rich.veerDeg * s * D2R, c = CORE_MATH.cos(ph), sn = CORE_MATH.sin(ph);
           const vx = ux * c - uz * sn, vz = uz * c + ux * sn;   // a veer: clockwise seen from above
           ux = vx * m; uz = vz * m;
         }
@@ -455,7 +455,7 @@ var CLIMATE = (function () {
       if (!day || !windSpec) return null;
       const zi = mixTop();
       const cover = day.cloudCoverEff != null ? day.cloudCoverEff : day.cloudCover;
-      const sinEl = Math.sin(Math.max(0, day.sunElLag != null ? day.sunElLag : day.sunEl) * D2R);
+      const sinEl = CORE_MATH.sin(Math.max(0, day.sunElLag != null ? day.sunElLag : day.sunEl) * D2R);
       const b = windSpec.base;
       const k = Math.round(zi) + ':' + Math.round(cover * 1000) + ':' + Math.round(sinEl * 1e4)
               + ':' + day.cloudSeed + ':' + (day.cloudTypeEff || day.cloudType)
@@ -494,7 +494,7 @@ var CLIMATE = (function () {
       // frame whose speed varied with the sample point would not be a frame.
       // That one wind is the boundary layer's mean - the declared base lifted
       // to half the layer's depth by the same power law the column shears on.
-      const kBL = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
+      const kBL = windSpec.refH ? CORE_MATH.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
       return { zi, cover, sinEl, T, rho, beam, wstarOf,
                spacing: Math.max(400, TH_SPACE * zi),
                ux: b[0] * kBL, uz: b[2] * kBL, bx: b[0], bz: b[2],
@@ -558,9 +558,9 @@ var CLIMATE = (function () {
       const zi = C.zi;
       if (agl <= 0 || agl >= zi) return 0;
       const zr = agl / zi;
-      const wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+      const wbar = CORE_MATH.pow(zr, 1 / 3) * (1 - 1.1 * zr);
       if (wbar <= 0) return 0;
-      const r2 = Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * zi);
+      const r2 = Math.max(20, TH_R2K * CORE_MATH.pow(zr, 1 / 3) * (1 - 0.25 * zr) * zi);
       const sp = C.spacing;
       const dx0 = C.ux * utc, dz0 = C.uz * utc;                      // the lattice, carried downwind
       // THE TILT IS THE SHEAR'S, NOT THE WIND'S. The column rides in the moving
@@ -570,7 +570,7 @@ var CLIMATE = (function () {
       // took agl/w* seconds to get here and spent them in air moving (U(z)-U_bl)
       // relative to the column. Using the whole wind instead put a 2 km lean on
       // a 900 m column - measured, and wrong by the width of the lattice.
-      const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / windSpec.refH, windSpec.alpha) : 1;
+      const kz = windSpec.refH ? CORE_MATH.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / windSpec.refH, windSpec.alpha) : 1;
       const shx = C.bx * kz - C.ux, shz = C.bz * kz - C.uz;
       const lag = Math.min(900, agl / C.wRef);
       const tx = x - shx * lag, tz = z - shz * lag;
@@ -861,14 +861,14 @@ var CLIMATE = (function () {
         // the peak at mid-layer, which is the number a pilot would quote, and the
         // axis THERE - the column leans with the shear, so where you circle is not
         // over where it was born (`x0, z0` is the source on the ground)
-        const zr = 0.5, wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+        const zr = 0.5, wbar = CORE_MATH.pow(zr, 1 / 3) * (1 - 1.1 * zr);
         const mid = 0.5 * C.zi;
-        const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, mid)) / windSpec.refH, windSpec.alpha) : 1;
+        const kz = windSpec.refH ? CORE_MATH.pow(Math.min(WIND_TOP_H, Math.max(0.2, mid)) / windSpec.refH, windSpec.alpha) : 1;
         const lag = Math.min(900, mid / C.wRef);
         out.push({ i, j, x: c.x + (C.bx * kz - C.ux) * lag, z: c.z + (C.bz * kz - C.uz) * lag,
                    x0: c.x, z0: c.z, ground: g, zi: C.zi, top: g + C.zi, mid: g + mid, k: c.k, wstar,
                    wpk: TH_CORE * wbar * wstar * c.k,
-                   r2: Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * C.zi) });
+                   r2: Math.max(20, TH_R2K * CORE_MATH.pow(zr, 1 / 3) * (1 - 0.25 * zr) * C.zi) });
       }
       out.sort((a, b) => (b.wpk - a.wpk) || (a.x - b.x) || (a.z - b.z));
       return out;

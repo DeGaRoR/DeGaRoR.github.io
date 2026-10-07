@@ -105,7 +105,7 @@ function genDriveSpec(def) {
   const rated = E.rpm > 0 ? E.rpm : 2300, gear = E.gear > 0 ? E.gear : 1;
   const cyl = row.cyl || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
   const D = PR.D > 0 ? PR.D : 1.8, R = D / 2;
-  const mass = SP.mass > 0 ? SP.mass : (2 * 2.4 * Math.pow(D / 1.88, 2.5));
+  const mass = SP.mass > 0 ? SP.mass : (2 * 2.4 * CORE_MATH.pow(D / 1.88, 2.5));
   const blades = SP.blades > 0 ? SP.blades : 2, mat = SP.material || 'wood';
   const omegaR = 2 * Math.PI * (rated / gear) / 60;
   const Q = (E.powerW || 0) / (2 * Math.PI * rated / 60);       // the engine's mean torque at rated (N m, crank)
@@ -230,7 +230,7 @@ const GEN_NOSE = {
                                                 // worst winds: 0.2-0.4 hold, 0 and 0.5 each lose one - HANDOVER G2013)
 };
 // Alexander's mean crush load of a shell of diameter D
-function genNoseShell(S, D) { return GEN_NOSE.alex * S.s0 * Math.pow(S.t, 1.5) * Math.sqrt(Math.max(0, D)); }
+function genNoseShell(S, D) { return GEN_NOSE.alex * S.s0 * CORE_MATH.pow(S.t, 1.5) * Math.sqrt(Math.max(0, D)); }
 // THE NOSE OF A DEF: per tractor engine its body (node indices and mass shares), its thrust nodes, the spinner's reach
 // ahead of the hub (Ls), the bowl's radius (Rn) and the stack. null when the def has no engine nodes
 function genNoseSpec(def) {

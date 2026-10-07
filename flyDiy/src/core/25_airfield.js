@@ -160,7 +160,7 @@ function siteToWorld(px, pz, H) {
 // the take-off run STARTS from (hdg points down the run), which for HOME is the
 // +x end — the one the hangar stands beside.
 function siteRunway(home) {
-  const dx = Math.cos(home.hdg), dz = Math.sin(home.hdg);
+  const dx = CORE_MATH.cos(home.hdg), dz = CORE_MATH.sin(home.hdg);
   const hl = home.len / 2, hw = home.wid / 2;
   // the threshold bars, and a quarter of the distance between them
   const R0x = home.x - dx * (hl - 5), R0z = home.z - dz * (hl - 5);
@@ -242,7 +242,7 @@ function runwayLightSite(x, z, a, strips, paved, clear) {
   let near = null;
   for (const b of strips) {
     if (b === a || (a && b.id != null && b.id === a.id)) continue;
-    const cb = Math.cos(b.hdg), sb = Math.sin(b.hdg), dx = x - b.x, dz = z - b.z;
+    const cb = CORE_MATH.cos(b.hdg), sb = CORE_MATH.sin(b.hdg), dx = x - b.x, dz = z - b.z;
     const s = Math.abs(dx * cb + dz * sb) - b.len / 2, w = Math.abs(-dx * sb + dz * cb) - b.wid / 2;
     if (s <= 0 && w <= 0) return { on: true, why: 'strip ' + b.id };
     if (!near && s <= m && w <= m) near = { on: false, why: 'strip ' + b.id };
@@ -256,7 +256,7 @@ function runwayLightSite(x, z, a, strips, paved, clear) {
 }
 function runwayLightPoints(a, aerodromes, paved) {
   const L = RWY_LIGHTS, strips = runwayLightStrips(aerodromes);
-  const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
+  const ca = CORE_MATH.cos(a.hdg), sa = CORE_MATH.sin(a.hdg);
   const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];   // the sea lane's frame (G396.2)
   const half = a.len / 2, hw = a.wid / 2, out = { edge: [], thr: [], inset: [], cut: [] };
   const put = (list, p) => {
@@ -361,7 +361,7 @@ function siteRunwayModel(aero, world, opts) {
     let reqClimb = Infinity, climbObst = null, climbTurn = 0;
     const dTurn = 300;
     for (const turn of [0, -1, 1]) {
-      const a = turn * 0.5236, ca = Math.cos(a), sa = Math.sin(a);
+      const a = turn * 0.5236, ca = CORE_MATH.cos(a), sa = CORE_MATH.sin(a);
       const ut = [u[0] * ca - u[1] * sa, u[0] * sa + u[1] * ca];   // the track, turned
       const P0 = [far.x + u[0] * dTurn, far.z + u[1] * dTurn];     // where the turn begins
       let req = 0, ob = null;
@@ -539,7 +539,7 @@ function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
   if (!h || !dims || !(dims.HD > h.HD)) return st;
-  const dx = -Math.cos(h.ry), dz = Math.sin(h.ry);
+  const dx = -CORE_MATH.cos(h.ry), dz = CORE_MATH.sin(h.ry);
   let d = dims.HD - h.HD;
   if (site.apron) {   // stay 2 m inside the apron's far edge along the walk
     const ap = site.apron, EDGE = 2;
@@ -621,7 +621,7 @@ function parkedFoot(p) {
 // the signed distance from (x, z) to a parked record's footprint (negative inside), and the way out of it
 function gpParkedDist(p, x, z) {
   const f = p.foot || (p.foot = parkedFoot(p));
-  const c = Math.cos(p.ry || 0), s = Math.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
+  const c = CORE_MATH.cos(p.ry || 0), s = CORE_MATH.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
   const ox = dx * c - dz * s, oz = dx * s + dz * c;          // along the nose, along the right wing
   const ex = Math.max(-f.aft - ox, ox - f.fwd, 0), ez = Math.max(Math.abs(oz) - f.half, 0);
   if (ex || ez) return Math.hypot(ex, ez);
@@ -629,7 +629,7 @@ function gpParkedDist(p, x, z) {
 }
 function gpParkedOut(p, x, z) {
   const f = p.foot || (p.foot = parkedFoot(p));
-  const c = Math.cos(p.ry || 0), s = Math.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
+  const c = CORE_MATH.cos(p.ry || 0), s = CORE_MATH.sin(p.ry || 0), dx = x - p.x, dz = z - p.z;
   const ox = dx * c - dz * s, oz = dx * s + dz * c;
   // the nearest point of the box (inside: the nearest face), then the local offset back to the world
   let qx = Math.max(-f.aft, Math.min(f.fwd, ox)), qz = Math.max(-f.half, Math.min(f.half, oz));
@@ -883,7 +883,7 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     if (!nd) { out.push('hold ' + h + ' is not a node'); continue; }
     const c = Math.abs((nd.x - R.cx) * R.nx + (nd.z - R.cz) * R.nz);
     if (c > 0.01) out.push('hold ' + h + ' is ' + c.toFixed(2) + ' m off the centreline');
-    const ux = Math.cos(nd.hdg), uz = Math.sin(nd.hdg);
+    const ux = CORE_MATH.cos(nd.hdg), uz = CORE_MATH.sin(nd.hdg);
     if (Math.abs(Math.abs(ux * R.dx + uz * R.dz) - 1) > 1e-6)
       out.push('hold ' + h + ' is not lined up with the strip');
     const along = (nd.x - R.end0.x) * R.dx + (nd.z - R.end0.z) * R.dz;

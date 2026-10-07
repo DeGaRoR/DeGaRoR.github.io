@@ -239,10 +239,10 @@ const GROUND_FIELDS = (() => {
     const w = w0 + W.amp * (vnoise(u0 * W.cells + W.off[2], w0 * W.cells + W.off[3]) - 0.5);
     let n = 0;
     for (const [N, k, rot, du, dw] of P.oct) {
-      const c = Math.cos(rot), sn = Math.sin(rot);
+      const c = CORE_MATH.cos(rot), sn = CORE_MATH.sin(rot);
       n += k * vnoise((c * u - sn * w) * N + du, (sn * u + c * w) * N + dw);
     }
-    const bc = Math.cos(B.rot), bs = Math.sin(B.rot);
+    const bc = CORE_MATH.cos(B.rot), bs = CORE_MATH.sin(B.rot);
     const d = vnoise((bc * u - bs * w) * B.cells + B.off[0], (bs * u + bc * w) * B.cells + B.off[1]);
     const thr = P.thr0 - P.thrWet * wet + B.k * (0.5 - d);   // dry ground asks a taller hump
     return smooth(clamp01((n - (thr - e)) / (2 * e)));
@@ -269,7 +269,7 @@ const GROUND_FIELDS = (() => {
   // shade field's hue swing is applied with this on both sides
   function hueTurn(rgb, a) {
     if (!a) return rgb.slice();
-    const k = 0.57735027, ca = Math.cos(a), sa = Math.sin(a);
+    const k = 0.57735027, ca = CORE_MATH.cos(a), sa = CORE_MATH.sin(a);
     const [r, g, b] = rgb, d = k * (r + g + b) * (1 - ca);
     // cross(k, c) = k * (b - g, r - b, g - r)
     return [r * ca + k * (b - g) * sa + k * d, g * ca + k * (r - b) * sa + k * d, b * ca + k * (g - r) * sa + k * d];

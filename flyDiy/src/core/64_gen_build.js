@@ -18,12 +18,12 @@
 function genProbeAt(sim, V, a) {
   const [xA, yU] = sim.axes();
   const vel = [0, 0, 0];
-  for (let k = 0; k < 3; k++) vel[k] = -V * (Math.cos(a) * xA[k] + Math.sin(a) * yU[k]);
+  for (let k = 0; k < 3; k++) vel[k] = -V * (CORE_MATH.cos(a) * xA[k] + CORE_MATH.sin(a) * yU[k]);
   const r = sim.probe(vel);
   r.tailEps = sim.out.tailEps || 0;          // G185.5: the measured downwash
   // forward unit vector: drag is the aero force opposing it
-  r.drag = -(r.Fx * -Math.cos(a) * xA[0] + r.Fy * -Math.cos(a) * xA[1] + r.Fz * -Math.cos(a) * xA[2])
-           - (r.Fx * -Math.sin(a) * yU[0] + r.Fy * -Math.sin(a) * yU[1] + r.Fz * -Math.sin(a) * yU[2]);
+  r.drag = -(r.Fx * -CORE_MATH.cos(a) * xA[0] + r.Fy * -CORE_MATH.cos(a) * xA[1] + r.Fz * -CORE_MATH.cos(a) * xA[2])
+           - (r.Fx * -CORE_MATH.sin(a) * yU[0] + r.Fy * -CORE_MATH.sin(a) * yU[1] + r.Fz * -CORE_MATH.sin(a) * yU[2]);
   return r;
 }
 
@@ -39,7 +39,7 @@ function genProbeAt(sim, V, a) {
 function genYawStiff(sim, def, V) {
   const bet = 0.06;
   const yaw = b => sim.probe(
-    [-V * Math.cos(b), 0, -V * Math.sin(b)]).yawLeft;
+    [-V * CORE_MATH.cos(b), 0, -V * CORE_MATH.sin(b)]).yawLeft;
   const dN = (yaw(bet) - yaw(-bet)) / (2 * bet);
   const g = def.params.gen || {};
   // G185: the span itself when the build states it; the AR back-derivation
@@ -69,8 +69,8 @@ function genClMax(def, flap) {
   // the grid is identical and nothing below the stall can out-lift the peak.
   for (let a = -2; a <= 22; a += 0.25) {
     const al = a * Math.PI / 180;
-    const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
-    const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);
+    const r = sim.probe([-V * CORE_MATH.cos(al), -V * CORE_MATH.sin(al), 0]);
+    const L = -r.Fx * CORE_MATH.sin(al) + r.Fy * CORE_MATH.cos(al);
     // RHO, not the live density: every number on this sheet is quoted at the
     // datum, which is what makes them comparable between two builds and what
     // makes the speeds equivalent airspeeds (G72).

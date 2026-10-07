@@ -281,7 +281,7 @@ function makeWorld(seed, opts) {
   // Jolene's 02/20 the moment the blend gave the island rivers
   const pmStrips = (opts && opts.premises && typeof PREMISES_GEN !== 'undefined')
     ? (((PREMISES_GEN.unwrap(opts.premises).rec || {}).layers || {}).runways || []).filter(r => r.c && r.len > 0)
-        .map(r => ({ x: r.c[0], z: r.c[1], ca: Math.cos(r.hdg || 0), sa: Math.sin(r.hdg || 0), hl: r.len / 2 + 150, hw: (r.wid || 30) / 2 + 150 }))
+        .map(r => ({ x: r.c[0], z: r.c[1], ca: CORE_MATH.cos(r.hdg || 0), sa: CORE_MATH.sin(r.hdg || 0), hl: r.len / 2 + 150, hw: (r.wid || 30) / 2 + 150 }))
     : [];
   function domes(x, z) {
     let s = DOME * (1 - padRamp(x, z));
@@ -443,7 +443,7 @@ function makeWorld(seed, opts) {
       // REVIEW 2026-10-04 (B16): the L1 reject |dx|+|dz| > len/2 + wid/2 + 40 dropped in-box points of a ROTATED strip
       // (the outer ~29 % of each end at 45 deg: A2, A4 grew grass on their ends); the circumscribed circle bounds every heading
       const dx = x - a.x, dz = z - a.z, rr = a.len / 2 + a.wid / 2 + 40; if (dx * dx + dz * dz > rr * rr) continue;
-      const c = Math.cos(a.hdg), s = Math.sin(a.hdg), u = dx * c + dz * s, v = -dx * s + dz * c;
+      const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = dx * c + dz * s, v = -dx * s + dz * c;
       const du = Math.abs(u) - a.len / 2, dv = Math.abs(v) - a.wid / 2;
       const out = Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0);
       const aCls = a.surface === SURFACE.PAVED ? 'asphalt' : a.surface === SURFACE.GRAVEL ? 'gravel' : 'grass';
@@ -451,7 +451,7 @@ function makeWorld(seed, opts) {
       if (out > band + COV_FADE + 6) continue;
       let k = out <= band ? 1 : Math.max(0, 1 - (out - band) / COV_FADE);
       if (aCls === 'grass') k *= 0.6;                       // a grass strip is the world's grass, mown: thinned, not bare
-      const bump = out <= band ? 0 : Math.sin(Math.PI * Math.min(1, (out - band) / (COV_FADE + 6))) * 0.7;
+      const bump = out <= band ? 0 : CORE_MATH.sin(Math.PI * Math.min(1, (out - band) / (COV_FADE + 6))) * 0.7;
       if (k > kill) kill = k; boost = Math.max(boost, bump); if (!cls || out <= 0) cls = aCls;
     }
     // the roads: the settlement bake's nearest road and its class - a 'road' is 5 m of gravel, a
@@ -462,7 +462,7 @@ function makeWorld(seed, opts) {
       if (out <= COV_BAND + COV_FADE + 6) {
         let k = out <= COV_BAND ? 1 : Math.max(0, 1 - (out - COV_BAND) / COV_FADE);
         if (track) k *= 0.6;
-        const bump = out <= COV_BAND ? 0 : Math.sin(Math.PI * Math.min(1, (out - COV_BAND) / (COV_FADE + 6))) * 0.7;
+        const bump = out <= COV_BAND ? 0 : CORE_MATH.sin(Math.PI * Math.min(1, (out - COV_BAND) / (COV_FADE + 6))) * 0.7;
         if (k > kill) kill = k; boost = Math.max(boost, bump); if (out <= 0) cls = track ? 'grass' : 'gravel';
       }
     }
@@ -611,7 +611,7 @@ function makeWorld(seed, opts) {
         // (G614: past the box's corner radius no rotation can bring the point inside it - no trig; the same answer)
         const ex = x - a.x, ez = z - a.z, hl = a.len / 2 + 20, hw = a.wid / 2 + 6;
         if (ex * ex + ez * ez > (hl * hl + hw * hw) * (1 + 1e-9)) continue;
-        const c = Math.cos(a.hdg), s = Math.sin(a.hdg);
+        const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg);
         const u = (x - a.x) * c + (z - a.z) * s,
               v = -(x - a.x) * s + (z - a.z) * c;
         if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6)
@@ -647,7 +647,7 @@ function makeWorld(seed, opts) {
   const aeroBoxes = () => aeroTreeBox || (aeroTreeBox = aerodromes.filter(a => a.treeClear || a.treeBox !== false).map(a => {
     const cl = a.treeClear || null;
     return (typeof a.hdg === 'number' && a.wid)
-      ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), rl: a.len / 2, hl: a.len / 2 + (cl ? cl.beyond : 150), hw: a.wid / 2 + (cl ? cl.side : 60), tp: cl ? cl.taper : 0, strip: true, own: !!cl, bushes: !!(cl && cl.bushes) }
+      ? { x: a.x, z: a.z, cx: CORE_MATH.cos(a.hdg), sz: CORE_MATH.sin(a.hdg), rl: a.len / 2, hl: a.len / 2 + (cl ? cl.beyond : 150), hw: a.wid / 2 + (cl ? cl.side : 60), tp: cl ? cl.taper : 0, strip: true, own: !!cl, bushes: !!(cl && cl.bushes) }
       : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2, own: false, bushes: false };
   }));
   const inAeroBox = (e, x, z) => {
@@ -797,7 +797,7 @@ function makeWorld(seed, opts) {
     // two octaves — the wind's own swell and a shorter cross chop.
     if (t == null || h !== 0 || !SEA.A) return h;
     let y = 0;
-    for (const w of SEA.W) if (w.felt !== false) y += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
+    for (const w of SEA.W) if (w.felt !== false) y += w.A * CORE_MATH.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
     return y;
   }
   // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
@@ -862,14 +862,14 @@ function makeWorld(seed, opts) {
       // the spread NARROWS toward the peak (Hasselmann): a long wind-sea component runs with the wind
       // (+-12 deg at L/1.4), the short chop spreads wide (+-55 deg at L/7) - from altitude the sea is
       // lines with groups, not a weave; up close the chop is short-crested
-      for (let i = 0; i < nW; i++) { const u = nW === 1 ? 0 : i / (nW - 1), f = 1.4 * Math.pow(5, u); const th = (rnd() - 0.5) * (24 + 86 * u) * D2R;
-        ws.push({ l: L / f * (0.94 + 0.12 * rnd()), w: (L / f / L) * Math.pow(Math.cos(th), 2), d: dir + th, ph: rnd() * 2 * Math.PI }); }
+      for (let i = 0; i < nW; i++) { const u = nW === 1 ? 0 : i / (nW - 1), f = 1.4 * CORE_MATH.pow(5, u); const th = (rnd() - 0.5) * (24 + 86 * u) * D2R;
+        ws.push({ l: L / f * (0.94 + 0.12 * rnd()), w: (L / f / L) * Math.pow(CORE_MATH.cos(th), 2), d: dir + th, ph: rnd() * 2 * Math.PI }); }
       const cW = 0.4 * A / Math.sqrt(ws.reduce((q, t) => q + t.w * t.w, 0));
       for (const t of ws) rows.push([cW * t.w, t.l, t.d, t.ph]);
     }
     for (const [a, l, d, ph] of rows) {
       const k = 2 * Math.PI / l;
-      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
+      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: CORE_MATH.cos(d), dz: CORE_MATH.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
     }
     // ---- WHAT THE DRAW ACTUALLY WAS (CLIMATE K4) --------------------------
     // Every row above is A, L and dir times something the seed drew: the
@@ -910,7 +910,7 @@ function makeWorld(seed, opts) {
     for (let i = 0; i < DRAW.rows.length; i++) {
       const r = DRAW.rows[i], w = SEA.W[i];
       const l = r.ratio * L, d = dir + r.dth, k = 2 * Math.PI / l, om = Math.sqrt(9.81 * k);
-      const dx = Math.cos(d), dz = Math.sin(d);
+      const dx = CORE_MATH.cos(d), dz = CORE_MATH.sin(d);
       // THE PHASE IS ANCHORED AT THE AEROPLANE, not at the world's origin.
       // Holding only the TIME term leaves the SPACE term free, and the space
       // term is k times a distance: at four kilometres out, a wavelength moving

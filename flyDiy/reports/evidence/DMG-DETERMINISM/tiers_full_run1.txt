@@ -1,0 +1,74 @@
+1. the core is fresh; a stale core is refused
+  ok    tools/flight_core.js is the core src/core builds (body-sha256 c0371223d4be27ca)
+  ok    a core whose header is not its sources' hash is refused (STALE CORE)
+2. the tiers (every flag set on every case)
+  ok    cub: the certificate under turbofan 96a20800d4b1baa837c2474b, ignition 96a20800d4b1baa837c2474b, maglevTf 96a20800d4b1baa837c2474b
+  ok    jodel: the certificate under turbofan 2e562846f1bbed27aef97d84, ignition 2e562846f1bbed27aef97d84, maglevTf 2e562846f1bbed27aef97d84
+  ok    metal: the certificate under turbofan 0a75ca5c1498d82bc3fe328d, ignition 0a75ca5c1498d82bc3fe328d, maglevTf 0a75ca5c1498d82bc3fe328d
+  ok    cub/taxi/on: 0 broken, 0 J, one hash 18b9c7a9e8cdd9cc under 7 tier sets
+  ok    cub/noseover/on: 46 broken, 3252.7 J, one hash 8a9b14e081ea34d8 under 7 tier sets
+  ok    cub/trunk0/on: 171 broken, 18720.5 J, one hash 70e9c0641baf145f under 7 tier sets
+  ok    cub/trunk25/on: 109 broken, 13416.8 J, one hash f76c330a0daea513 under 7 tier sets
+  ok    cub/trunk0/off: 0 broken, 0 J, one hash 2e0c8285a6411676 under 7 tier sets
+  ok    cub/flight/off: 0 broken, 0 J, one hash cd2ec9bd851f7864 under 7 tier sets
+  ok    jodel/taxi/on: 0 broken, 0 J, one hash 7b64a25f6d12932c under 7 tier sets
+  ok    jodel/noseover/on: 97 broken, 2811.7 J, one hash 613c4daff0f454ed under 7 tier sets
+  ok    jodel/trunk0/on: 124 broken, 21119.2 J, one hash 450e36435e130623 under 7 tier sets
+  ok    jodel/trunk25/on: 101 broken, 3014.5 J, one hash dc371f3b9bae57c9 under 7 tier sets
+  ok    jodel/trunk0/off: 0 broken, 0 J, one hash b57461dd0edccec4 under 7 tier sets
+  ok    jodel/flight/off: 0 broken, 0 J, one hash 60c72711470b5acd under 7 tier sets
+  ok    metal/taxi/on: 0 broken, 0 J, one hash d54f2ae5fd59450a under 7 tier sets
+  ok    metal/noseover/on: 7 broken, 2973.8 J, one hash 638963224563a2e2 under 7 tier sets
+  ok    metal/trunk0/on: 215 broken, 36843.9 J, one hash 685f5922e53c6ccb under 7 tier sets
+  ok    metal/trunk25/on: 39 broken, 10233.2 J, one hash a173e06e8aba1904 under 7 tier sets
+  ok    metal/trunk0/off: 0 broken, 0 J, one hash e8c9a7a14da2a696 under 7 tier sets
+  ok    metal/flight/off: 0 broken, 0 J, one hash 0deca7701700c1aa under 7 tier sets
+3. G2048's untaken branch re-added (beamYield: `if (!(b.ecu > 0)) return;` after the kink)
+  ok    cub/taxi/on with the branch: ignition 18b9c7a9e8cdd9cc, noOpt 18b9c7a9e8cdd9cc, turbofan 18b9c7a9e8cdd9cc, maglevTf 18b9c7a9e8cdd9cc (without: 18b9c7a9e8cdd9cc)
+  ok    cub/noseover/on with the branch: ignition 8a9b14e081ea34d8, noOpt 8a9b14e081ea34d8, turbofan 8a9b14e081ea34d8, maglevTf 8a9b14e081ea34d8 (without: 8a9b14e081ea34d8)
+  ok    cub/trunk0/on with the branch: ignition 70e9c0641baf145f, noOpt 70e9c0641baf145f, turbofan 70e9c0641baf145f, maglevTf 70e9c0641baf145f (without: 70e9c0641baf145f)
+  ok    cub/trunk25/on with the branch: ignition f76c330a0daea513, noOpt f76c330a0daea513, turbofan f76c330a0daea513, maglevTf f76c330a0daea513 (without: f76c330a0daea513)
+  ok    cub/trunk0/off with the branch: ignition 2e0c8285a6411676, noOpt 2e0c8285a6411676, turbofan 2e0c8285a6411676, maglevTf 2e0c8285a6411676 (without: 2e0c8285a6411676)
+  ok    cub/flight/off with the branch: ignition cd2ec9bd851f7864, noOpt cd2ec9bd851f7864, turbofan cd2ec9bd851f7864, maglevTf cd2ec9bd851f7864 (without: cd2ec9bd851f7864)
+  ok    jodel/taxi/on with the branch: ignition 7b64a25f6d12932c, noOpt 7b64a25f6d12932c, turbofan 7b64a25f6d12932c, maglevTf 7b64a25f6d12932c (without: 7b64a25f6d12932c)
+  ok    jodel/noseover/on with the branch: ignition 613c4daff0f454ed, noOpt 613c4daff0f454ed, turbofan 613c4daff0f454ed, maglevTf 613c4daff0f454ed (without: 613c4daff0f454ed)
+  ok    jodel/trunk0/on with the branch: ignition 450e36435e130623, noOpt 450e36435e130623, turbofan 450e36435e130623, maglevTf 450e36435e130623 (without: 450e36435e130623)
+  ok    jodel/trunk25/on with the branch: ignition dc371f3b9bae57c9, noOpt dc371f3b9bae57c9, turbofan dc371f3b9bae57c9, maglevTf dc371f3b9bae57c9 (without: dc371f3b9bae57c9)
+  ok    jodel/trunk0/off with the branch: ignition b57461dd0edccec4, noOpt b57461dd0edccec4, turbofan b57461dd0edccec4, maglevTf b57461dd0edccec4 (without: b57461dd0edccec4)
+  ok    jodel/flight/off with the branch: ignition 60c72711470b5acd, noOpt 60c72711470b5acd, turbofan 60c72711470b5acd, maglevTf 60c72711470b5acd (without: 60c72711470b5acd)
+  ok    metal/taxi/on with the branch: ignition d54f2ae5fd59450a, noOpt d54f2ae5fd59450a, turbofan d54f2ae5fd59450a, maglevTf d54f2ae5fd59450a (without: d54f2ae5fd59450a)
+  ok    metal/noseover/on with the branch: ignition 638963224563a2e2, noOpt 638963224563a2e2, turbofan 638963224563a2e2, maglevTf 638963224563a2e2 (without: 638963224563a2e2)
+  ok    metal/trunk0/on with the branch: ignition 685f5922e53c6ccb, noOpt 685f5922e53c6ccb, turbofan 685f5922e53c6ccb, maglevTf 685f5922e53c6ccb (without: 685f5922e53c6ccb)
+  ok    metal/trunk25/on with the branch: ignition a173e06e8aba1904, noOpt a173e06e8aba1904, turbofan a173e06e8aba1904, maglevTf a173e06e8aba1904 (without: a173e06e8aba1904)
+  ok    metal/trunk0/off with the branch: ignition e8c9a7a14da2a696, noOpt e8c9a7a14da2a696, turbofan e8c9a7a14da2a696, maglevTf e8c9a7a14da2a696 (without: e8c9a7a14da2a696)
+  ok    metal/flight/off with the branch: ignition 0deca7701700c1aa, noOpt 0deca7701700c1aa, turbofan 0deca7701700c1aa, maglevTf 0deca7701700c1aa (without: 0deca7701700c1aa)
+4. the page (headless Chromium) against node
+  ok    the parity script in node: the Jodel's centreline 450e36435e130623 = the library's 450e36435e130623
+  ok    cub/taxi/on: Chromium 141.0.7390.37 18b9c7a9e8cdd9cc (0 broken, 0.0 J) - node 18b9c7a9e8cdd9cc (0)
+  ok    cub/noseover/on: Chromium 141.0.7390.37 8a9b14e081ea34d8 (46 broken, 3252.7 J) - node 8a9b14e081ea34d8 (46)
+  ok    cub/trunk0/on: Chromium 141.0.7390.37 70e9c0641baf145f (171 broken, 18720.5 J) - node 70e9c0641baf145f (171)
+  ok    cub/trunk25/on: Chromium 141.0.7390.37 f76c330a0daea513 (109 broken, 13416.8 J) - node f76c330a0daea513 (109)
+  ok    cub/trunk0/off: Chromium 141.0.7390.37 2e0c8285a6411676 (0 broken, 0.0 J) - node 2e0c8285a6411676 (0)
+  ok    cub/flight/off: Chromium 141.0.7390.37 cd2ec9bd851f7864 (0 broken, 0.0 J) - node cd2ec9bd851f7864 (0)
+  ok    jodel/taxi/on: Chromium 141.0.7390.37 7b64a25f6d12932c (0 broken, 0.0 J) - node 7b64a25f6d12932c (0)
+  ok    jodel/noseover/on: Chromium 141.0.7390.37 613c4daff0f454ed (97 broken, 2811.7 J) - node 613c4daff0f454ed (97)
+  ok    jodel/trunk0/on: Chromium 141.0.7390.37 450e36435e130623 (124 broken, 21119.2 J) - node 450e36435e130623 (124)
+  ok    jodel/trunk25/on: Chromium 141.0.7390.37 dc371f3b9bae57c9 (101 broken, 3014.5 J) - node dc371f3b9bae57c9 (101)
+  ok    jodel/trunk0/off: Chromium 141.0.7390.37 b57461dd0edccec4 (0 broken, 0.0 J) - node b57461dd0edccec4 (0)
+  ok    jodel/flight/off: Chromium 141.0.7390.37 60c72711470b5acd (0 broken, 0.0 J) - node 60c72711470b5acd (0)
+  ok    metal/taxi/on: Chromium 141.0.7390.37 d54f2ae5fd59450a (0 broken, 0.0 J) - node d54f2ae5fd59450a (0)
+  ok    metal/noseover/on: Chromium 141.0.7390.37 638963224563a2e2 (7 broken, 2973.8 J) - node 638963224563a2e2 (7)
+  ok    metal/trunk0/on: Chromium 141.0.7390.37 685f5922e53c6ccb (215 broken, 36843.9 J) - node 685f5922e53c6ccb (215)
+  ok    metal/trunk25/on: Chromium 141.0.7390.37 a173e06e8aba1904 (39 broken, 10233.2 J) - node a173e06e8aba1904 (39)
+  ok    metal/trunk0/off: Chromium 141.0.7390.37 e8c9a7a14da2a696 (0 broken, 0.0 J) - node e8c9a7a14da2a696 (0)
+  ok    metal/flight/off: Chromium 141.0.7390.37 0deca7701700c1aa (0 broken, 0.0 J) - node 0deca7701700c1aa (0)
+  REPORT  the BUILTINS, Chromium 141.0.7390.37 against node 12.4.254.21-node.33 (200 000 arguments each): sin 3331, cos 3273, tan 0, atan 0, atan2 0, asin 0, acos 0, sqrt 0, hypot 0, pow 12807, exp 0, log 0, cbrt 0, tanh 0 differ
+  ok    THE CORE'S Math in the page against node's builtins: sin 0, cos 0, tan 0, atan 0, atan2 0, asin 0, acos 0, sqrt 0, hypot 0, pow 0, exp 0, log 0, cbrt 0, tanh 0 differ
+  ok    the core's fsin / fcos / fpow against node's Math.sin / cos / pow: 0 of 300000 arguments (+ the specials) differ
+  red   SELFTEST the page with the builtin sin / cos / pow (the core as it was): the Jodel's centreline 28ab6d84adbee4fc (124 broken, 21119.2 J) against node's 450e36435e130623
+SELFTEST (each must go red)
+  red   the committed core (git HEAD): fresh() refuses it (1a458c96bd0b92b9 vs c0371223d4be27ca)
+  MISS  the Jodel's 30 m/s centreline, one coordinate 1 ulp up: 450e36435e130623 (124 broken, 21119.2 J) vs 450e36435e130623 (124, 21119.2 J)
+  FAIL  the selftest: every doctored case red
+  62/63 checks, 2268 s
+GATE DMGDETERMINISM: FAIL
