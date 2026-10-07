@@ -123,6 +123,7 @@ const MANIFEST = {
     // profiles on it (G1943), never forks.
     '43_pilot.js',
     '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
+    '44_vprofile.js',          // G2125 PILOT-PROFILE: the one altitude planner (the trip's climb / cruise / descent, a drawn route's profile) + the climb speeds + the rough obstacle perception
     '50_model_codec.js',
     '51_prop_codec.js',
     '52_char_codec.js',
