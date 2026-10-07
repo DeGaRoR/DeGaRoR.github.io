@@ -82742,3 +82742,5 @@ BUILD - `src/core/76_pilots.js:99` and `src/core/76_procure.js:70` both declare 
 union), so `node tools/build.js` stops at SYNTAX FAIL and every gate refuses the stale core. One rename fixes it (e.g.
 76_pilots.js `PT_` -> `PIL_`, and the one selftest anchor `_pilots_check.js:523`); it is outside this lane, so this branch
 leaves it. Every gate above ran on a scratch copy built with that rename applied there only.
+
+READY for the GAME COORDINATOR: claude/contract-routes-g2430 f4f85949 (the code, gates and HANDOVER; this line rides one docs-only commit on top). Merge note: the BLOCKER above (the `PT_` clash) must be fixed on integration before any gate can run there.
