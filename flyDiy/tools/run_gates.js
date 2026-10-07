@@ -324,6 +324,11 @@ const GATES = [
   // its strain at break, torn by strain; the Cub's struck wing held; the page's batching changes no bit; damage off and the
   // ties off = the base's bytes; the hop carries the ties. --selftest: red with the ties disabled. Three children at once
   { id: 'DMGFABRIC', file: '_dmg_fabric_check.js', tier: 'core', weight: 3, wall: 600 },
+  // G2047-G2049 (DMG-COMPOSITE): the composite build (builds/composite_jodel_2026-10-07.json: the Jodel in E-glass) certifies
+  // (BROKE AT in the band, no set) and flies a circuit; it breaks brittle - no laminate member set in DMG-TUNE's standard
+  // crashes, pieces off at 30 m/s, the shell cracked (never past 5 % + 1 cm) on more than one piece; damage OFF on the
+  // base's bytes for the Cub, the Jodel and the metal Cessna. Three children at once. Carries --selftest
+  { id: 'DMGCOMPOSITE', file: '_dmg_composite_check.js', tier: 'core', weight: 3, wall: 600 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

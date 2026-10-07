@@ -342,8 +342,8 @@ window.CAGE_PAGE = {
         // they were unreachable here — and the piper-cub preset sets
         // intOn 0, which then could not be undone (user 2026-08-19).
         ['intOn',     'interior',        0, 1, 1],
-        ['intCons',   'construction',    0, 4, 1, ['composite', 'steel tube',
-                                                  'plywood', 'aluminium', 'aluminium tube']],
+        ['intCons',   'construction',    0, 5, 1, ['composite', 'steel tube',
+                                                  'plywood', 'aluminium', 'aluminium tube', 'glassfibre']],   // G2047
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],

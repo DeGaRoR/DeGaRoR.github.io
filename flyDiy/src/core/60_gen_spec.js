@@ -304,7 +304,42 @@ const GEN_MATERIALS = {
     price: 30,                          // bolted tube and sewn sail: the cheapest way to fly
     cd0: 0.0022, clmaxK: 1.00,
   },
+  // G2047 (DMG-COMPOSITE, the user 2026-10-06: "something made out of glassfiber/carbon"): E-GLASS / EPOXY - the
+  // homebuilt's and the glider's structure (wet layup or prepreg; quasi-isotropic woven skins over foam, UD
+  // rovings in the spar caps). Derived from the carbon row it shares a construction with (moulded sandwich, the
+  // same moulds and hours), by the material alone - AS RECALLED, not opened here (A0 opens the sources):
+  //   phys    E 20 GPa: a QI / woven E-glass laminate (7781 satin / BID +-45 + UNI, Vf 0.40-0.50) 17-22 GPa
+  //           (MIL-HDBK-17-2 / CMH-17 Vol 2 woven E-glass/epoxy; Hexcel 7781 / Gurit SE 84 datasheets) against a
+  //           carbon QI's 45-55 - the UD 135 GPa of the carbon row is a FIBRE-DIRECTION number, kept for GATE FLEX;
+  //           rho 1900 (glass 2540 at Vf 0.45 in epoxy 1150-1200); sigY the governing allowable IN COMPRESSION,
+  //           as the row defines it: 0.6 x the laminate's tension (GEN_CRASH.glass), 180 MPa.
+  //   lin     x1.3 the carbon row's: a glass structure of the same stiffness needs more laminate (a glass glider
+  //           against its carbon successor ~ +20-30 % in wing structure: ASW 19 / ASW 24, LS4 / LS8 class
+  //           figures as recalled) - the gauge then follows the design gross as every row's does.
+  //   cover   x1.25 the carbon row's sandwich: the same cloth / foam / cloth, glass plies heavier for the
+  //           same job (a Rutan VariEze / Long-EZ glass-foam shell ~2.5-3.5 kg/m2 finished, as recalled).
+  //   k, c    the carbon row's per class x0.5 on the fuselage and the wing (E x A: 20 / 50 GPa on 1.3 x the
+  //           carbon section, 0.4-0.5 - a glass airframe is the floppy one: a glass glider's tip deflects
+  //           visibly where a carbon one does not), the damping by root(k m) to hold zeta as the alloy row's
+  //           note asks (x0.81); the GEAR's row is the carbon row's, its c by root(m): the leg is the gear's.
+  //   refMass / refGross: the carbon row's (the same size of composite two-seater the k/c ride from).
+  //   price   below carbon's: the cloth is a tenth the price per kilo, the moulds and the hours are the same.
+  glass: {
+    name: 'glass + epoxy',
+    phys: { E: 20e9, rho: 1900, sigY: 180e6 },
+    lin:   { fus: 0.50, wing: 0.57, gear: 1.10 },
+    cover: 3.00,
+    k:     { fus: 6.05e5, wing: 1.80e6, gear: 1.55e5 },
+    c:     { fus: 222,   wing: 725,   gear: 2128 },
+    refMass: 420,
+    refGross: 600, coverGauged: true,
+    cdWet: 0.0045,                      // moulded, gelcoated: as smooth as the carbon
+    price: 110,
+    cd0: 0.0004, clmaxK: 1.05,
+  },
 };
+// G2047 (DMG-COMPOSITE): a moulded composite (carbon or glass): no laced rings, no screwed panels, bonded joints
+function genComposite(m) { return m === 'carbon' || m === 'glass'; }
 
 // ===========================================================================
 // GEN_CRASH (G1470, TREE-CRASH) — WHERE A MEMBER STOPS SPRINGING BACK, AND WHERE IT BREAKS
@@ -341,7 +376,33 @@ const GEN_MATERIALS = {
 //                          uniform ~10 %. A riveted skin-stringer field folds in compression early: 3 %.
 //   6061-T6 tube           MIL-HDBK-5J Table 3.6.2.0(b): Ftu 42 / Fty 35 ksi (x1.20), elongation 10 %,
 //                          uniform ~6 %.
-//   carbon / epoxy UD      no yield (GEN_MATERIALS.carbon): linear to failure, ~1.1 % strain; ty = tu, 0.
+//   carbon / epoxy         no yield (GEN_MATERIALS.carbon): linear to failure; ty = tu, etu 0. G2047 (DMG-COMPOSITE):
+//                          the LAMINATE's, not the UD fibre's - the 1500 MPa this row carried is a 0-degree UD coupon
+//                          (T300 / AS4 UD 1.4-2.1 GPa); a lattice member stands for a skin (QI or +-45 woven) with its
+//                          caps, and a QI carbon/epoxy laminate breaks at 0.5-0.65 GPa in tension (MIL-HDBK-17-2 /
+//                          CMH-17 Vol 2, AS4/3501-6 and T300 fabric [0/45/90/-45]s, AS RECALLED): 600 MPa. Compression
+//                          ~0.6 x tension (CMH-17's QI and open-hole figures; compression after impact lower still): 360.
+//   E-glass / epoxy        G2047: a QI / woven E-glass laminate 250-350 MPa in tension (MIL-HDBK-17-2 7781/epoxy
+//                          warp ~400 on its axes, ~half at 45 deg; Rutan's BID / UNI wet layup class, AS RECALLED):
+//                          300 MPa; compression 0.6 x: 180. Interlaminar (short-beam) shear 40-60 MPa (carbon 70-90):
+//                          the delamination - where the plies part, at a bond, round a fitting.
+//   COMPOSITES BREAK BRITTLE (both rows, G2047; 30_solver.js dmgMember / beamKink / beamYield):
+//     - no plastic set either way: tension breaks at its strength (etu 0); compression past cy is crushed through
+//       at once (ecu 0: broken, its kink floor still pushes - the crushed shell is still in the way);
+//     - a seeded SCATTER (scat, +-): a laminate's strength CoV is 5-10 % (CMH-17's B-basis spreads; a hand
+//       layup the wide end), applied to the plain members as spruce's 15 % is;
+//     - its FITTINGS (a metal fitting potted or bolted into the laminate) break in the laminate round the bolt at
+//       fitE of the laminate (Hart-Smith, NASA CR-144899 / CR-3271, 1976-80: a bolted composite joint's efficiency
+//       seldom over 0.5 of the unnotched laminate; a metal one 0.7-0.9), not the steel's 1.15;
+//     - its GLUE LINES (bond: a rib, a box web, the moulded shell's halves at the centreline, the cabin-to-
+//       tailcone joint) at 0.6-0.8 of the member (D1a's bond row, the seeded scatter);
+//     - BENT SIDEWAYS (a trunk at a point along it) a laminate member does not fold and hang on: it cracks at
+//       its fracture moment (thf 0), or sooner where its SANDWICH lets go first - the core in shear: a panel
+//       strip of the member's own section (two skins of tS, b = A / 2 tS wide) over a foam core cC deep carries
+//       a transverse load P = 2 tauC b cC (the core's shear on both sides of the load) before the skin parts from
+//       the core: PVC foam H60-H80 0.8-1.2 MPa in shear (Divinycell / Airex datasheets), 3/8 in (9.5 mm) cores
+//       and 2-3 plies a skin (Rutan's VariEze / Long-EZ, the Glasair's, AS RECALLED) - the delamination of a
+//       sandwich, broken 'core'.
 //   fabric covering        NOT A MEMBER (cover is mass only, 60_gen_spec), so nothing reads this row: AC
 //                          43.13-1B Table 2-1, grade A cotton 80 lb/in new (14 kN/m), a polyester system
 //                          (Ceconite, Poly-Fiber STCs) at or over it, ~15-20 % elongation. A fabric wing's
@@ -353,7 +414,7 @@ const GEN_MATERIALS = {
 //        about its weak axis and 6.5 about its strong one). A welded or riveted tube folds flat and still hangs on
 //        (Jones, Structural Impact, ch. 3: a tube's hinge runs to large rotations before it tears): 1.2 rad steel,
 //        0.8 the aluminiums (lower elongation). Spruce breaks in bending at about span / 25 of deflection (Wood
-//        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon: 0.05.
+//        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon, glass: 0 (G2047: a laminate cracks, above).
 const GEN_CRASH_TUBE_DT = 30;
 // G1898 (DEFORM COORDINATOR): THE DAMAGE LAYER'S DEFAULT - ONE CONSTANT. A build's params.damage (true / false) wins;
 // else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
@@ -411,7 +472,10 @@ const GEN_CRASH = {
   wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },
   alloy:      { ty: 345e6, tu: 345e6 * 64 / 47, etu: 0.10, cy: 345e6, ecu: 0.03, thf: 0.8 },
   aluTube:    { ty: 276e6, tu: 276e6 * 42 / 35, etu: 0.06, cy: 276e6, ecu: 0.03, thf: 0.8 },
-  carbon:     { ty: 1500e6, tu: 1500e6,         etu: 0,    cy: 1500e6, ecu: 0,   thf: 0.05 },
+  carbon:     { ty: 600e6, tu: 600e6,           etu: 0,    cy: 360e6, ecu: 0,    thf: 0,
+                scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0006 },
+  glass:      { ty: 300e6, tu: 300e6,           etu: 0,    cy: 180e6, ecu: 0,    thf: 0,
+                scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0008 },
   fabric:     { cover: true, tuN_m: 14e3, etu: 0.15 },   // reported only (above)
 };
 // the GEN_MATERIALS key a phys row is (surface rows share their structure's phys object)
@@ -505,6 +569,10 @@ const GEN_SURF_MATERIALS = {
             tail: { cover: 0.70, section: 0.10 } }),
   carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
             tail: { cover: 0.70, section: 0.10 } }),
+  // G2047 (DMG-COMPOSITE): the glass glider's wing - the carbon row's moulded wing in glass, its cover x1.25 as
+  // the fuselage rows' (GEN_MATERIALS.glass)
+  glass:  Object.assign({}, GEN_MATERIALS.glass,  { shop: 'composite', cover: 2.0,
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -517,9 +585,9 @@ const GEN_SURF_MATERIALS = {
 // stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
 // mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
 const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
-                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
+                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
 const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
-                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
+                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
 // the tokens a saved spec may still carry from before G213, read as what
 // they always meant on a flying surface: a "wood" wing was fabric over
 // wood, a "tubeFabric" wing was fabric over tube
@@ -706,6 +774,8 @@ GEN_BUILD_GRAMMAR.aluTube   = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
 GEN_BUILD_GRAMMAR.aluFabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
+// G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
+GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
 
 
 // ===========================================================================
@@ -923,7 +993,7 @@ const GEN_ACCESS = {
     // the boom keel is straight and empty.
     // ...AND NONE AT ALL ON A ROD (G189): a bare tube has no fabric to lace
     // a ring into and nothing inside it to inspect — the cables run outside.
-    need: R => (R.material === 'carbon' || R.rod) ? 0 : (R.booms ? 2 : 1),
+    need: R => (genComposite(R.material) || R.rod) ? 0 : (R.booms ? 2 : 1),
     // G278: on twin booms, one a boom on the outboard flank, where the cable
     // runs to the fin and the elevator are reached
     on: R => R.booms ? 'boom' : 'body',
@@ -936,7 +1006,7 @@ const GEN_ACCESS = {
   inspBelly: {
     name: 'Belly inspection panel',
     serves: 'the control runs and the seat-belt anchorages under the floor',
-    need: R => R.material === 'carbon' ? 0 : 1,
+    need: R => genComposite(R.material) ? 0 : 1,
     at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
     snap: 'bay', side: 'centre',
     form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
@@ -945,7 +1015,7 @@ const GEN_ACCESS = {
   inspAileron: {
     name: 'Aileron bellcrank cover',
     serves: 'the aileron bellcrank and its cable ends',
-    need: R => (R.wing && R.material !== 'carbon') ? 2 : 0,
+    need: R => (R.wing && !genComposite(R.material)) ? 2 : 0,
     on: 'wing',
     // AFT OF THE REAR SPAR (lv > 1) and UNDERNEATH, because that is where a
     // bellcrank is and where you reach it from. lv runs past 1 to the trailing
@@ -972,7 +1042,7 @@ const GEN_ACCESS = {
   inspAileron2: {
     name: 'Second aileron bellcrank cover',
     serves: 'the second plane\'s aileron bellcrank',
-    need: R => (R.wing2 && R.ail2 && R.material !== 'carbon') ? 2 : 0,
+    need: R => (R.wing2 && R.ail2 && !genComposite(R.material)) ? 2 : 0,
     on: 'wing2',
     at: R => ({ sL: R.semispan2 * 0.66, lv: 1.25 }),
     snap: 'bay', side: 'lower',
@@ -1603,7 +1673,7 @@ const GEN_HINGE_KIT = {
 // answer and is still there as the builder's explicit choice (hgFamily 2).
 function genHingeFamily(surfMat) {
   const m = String(surfMat || 'fabric');
-  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'bracket' : 'strap';
+  return (m === 'alloy' || genComposite(m) || m === 'composite') ? 'bracket' : 'strap';
 }
 
 // HOW MANY, from the span it has to hold: one bay every pitchMax, never
@@ -1676,7 +1746,7 @@ const GEN_SEATS = {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
-  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6 },
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4 },
   glassKgM2: 3.6,
   // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
   // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
@@ -2525,7 +2595,7 @@ const GEN_RULES = {
   // (G461: [0.3, 0.4] -> [0.2, 0.3]; the stock alloy and carbon variants
   // read the same substeps at 0.2 as at 0.7, the 172's cone 36 -> 33 kg
   // against a 172R's ~28)
-  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3] },
+  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3], glass: [0.2, 0.3] },
   // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
   // mount, the baffles, the oil, the hoses and the engine controls
   // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
@@ -2975,7 +3045,7 @@ const GEN_MIGRATORS = {
     if (!c || typeof c !== 'object') return r;
     if (c.intCons == null) {
       const m = r.fuselage && r.fuselage.material;
-      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4 }[m];
+      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4, glass: 5 }[m];
       if (c.intCons == null) c.intCons = 1;
     }
     return r;
@@ -4072,9 +4142,9 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
-  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
-  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
   'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
   'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },

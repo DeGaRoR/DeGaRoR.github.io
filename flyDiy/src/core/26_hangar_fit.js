@@ -663,7 +663,7 @@ function hangarWants(S) {
     if (m === 'wood') want.add('wood');
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy') want.add('metal');
-    else if (m === 'carbon') want.add('composite');
+    else if (m === 'carbon' || m === 'glass') want.add('composite');   // G2047: glass is moulded in the same shop
     else if (m === 'aluTube' || m === 'aluFabric') want.add('tube');   // G466: bolted tube wants the tube shop
     // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
     // fabric over tube the tube shop

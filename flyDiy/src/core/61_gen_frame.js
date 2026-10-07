@@ -292,14 +292,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // (its longerons are the splices) - riveted on an alloy monocoque, bonded on a composite or a ply one; a welded
       // or bolted truss (4130, 6061 tube) has neither
       const iJ = ST.findIndex(s => Math.abs(s.x - boxRearJ) < 1e-6);
-      if (iJ > 0 && lo === iJ && (hi === iJ || hi === iJ + 1)) return (mat === 'alloy') ? 'rivet' : (mat === 'carbon' || mat === 'wood') ? 'bond' : null;
+      if (iJ > 0 && lo === iJ && (hi === iJ || hi === iJ + 1)) return (mat === 'alloy') ? 'rivet' : (genComposite(mat) || mat === 'wood') ? 'bond' : null;
+      // G2047 (DMG-COMPOSITE): A MOULDED SHELL IS TWO HALVES BONDED AT THE CENTRELINE (the mould's parting line, GEN_BUILD_GRAMMAR
+      // partingAtWaist's other half: a glass glider's or a Glasair / Long-EZ kit's fuselage, left and right shells joined
+      // with a glass tape at the crown and the keel, AS RECALLED): a member of one ring from the left side to the right
+      // crosses that glue line
+      if (genComposite(mat) && lo === hi && ra.sd !== rb.sd) return 'bond';
       // ...and the monocoque's frame-to-skin lines aft of the joint: the tailcone's skin panels (the bay diagonals)
       if (mat === 'alloy' && iJ > 0 && lo > iJ && hi === lo + 1 && !(ra.tb === rb.tb && ra.sd === rb.sd)) return 'rivet';
       return null;
     }
     // GLUE LINES: a wood or composite surface's ribs (the members of one station: the rib gussets, the root rib) and
     // its box webs (the ply or the laminate bonded to the spar caps - opt.web)
-    if ((mat === 'wood' || mat === 'carbon') && (cls === 'wing' || cls === 'tail')) {
+    if ((mat === 'wood' || genComposite(mat)) && (cls === 'wing' || cls === 'tail')) {
       if (opt && opt.web) return 'bond';
       const k = pa.base === 'fin' ? 1 : 2;
       if (Math.abs(P[a][k] - P[b][k]) < 1e-6) return 'bond';

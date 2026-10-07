@@ -1,0 +1,10 @@
+{
+ "base": "claude/dmg-tune 849058d8 (built in a worktree, tools/build.js)",
+ "case": "the 30 m/s trunk on the centreline, 4 m AGL, throttle shut, 5 s, damage OFF (_treecrash_lib atTrunk, elastic)",
+ "hash": "sha1 of sim.p then sim.v as float64, first 16 hex",
+ "hashes": {
+  "cub": "62270a8809f9aff6",
+  "jodel": "09ca080740ccf3b1",
+  "metal": "717e9ab193d165e6"
+ }
+}

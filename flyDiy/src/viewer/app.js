@@ -4072,13 +4072,15 @@
     if (owner.brkR) { if (BRK.recs.indexOf(owner.brkR) < 0) BRK.recs.push(owner.brkR); return owner.brkR; }
     if (!cage) Object.assign(g, SKIN_BREAK.bindNearest(base, g.nv, rest, def.nodes.length));
     // (G1867: the cage's records welded - its vertices bound, evented and posed once a place - and riding whole: see brkCage)
-    const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage });
+    const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage, shell: !fabric && brkComposite() });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
     R.geo = geo; R.geos = [geo]; owner.brkR = R; BRK.recs.push(R);
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
   }
+  // G2047 (DMG-COMPOSITE): a moulded aeroplane (carbon or glass) - its skins crack, they never stretch (skin_break shellTear)
+  const brkComposite = () => { const m = def && def.spec && def.spec.material; return m === 'carbon' || m === 'glass'; };
   const brkFabricWing = () => { try { return /fabric|steel|aluFabric/.test(genSurfKey(def.spec, 'wing', 0)); } catch (e) { return false; } };
   // THE GENERATED SKIN (model.gen): poseSkinGen's `brk`
   function brkGen(gain) {
@@ -4470,6 +4472,7 @@
         const has = c => cv.indexOf(c) >= 0, fabric = R.fabric;
         R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
         R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
+        R.shellTear = R.sheetTear && brkComposite();   // (G2047: a composite covering cracks at 5 % + 1 cm)
         R.inhRec = true; E.name = own.name || kind || ''; L.push(E);   // (the name: the rigs' tear accounting)
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;

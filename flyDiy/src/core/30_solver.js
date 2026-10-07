@@ -692,6 +692,20 @@ function makeSim(def, world) {
   // G2367 (DMG-BUNDLE-GREEN): a wing nacelle's fans over its bay (61_gen_frame parts.dmg.lump): lumped stand-ins, no Euler
   const LUMP = new Uint8Array(nb);
   if (def.parts && def.parts.dmg && def.parts.dmg.lump) for (const bi of def.parts.dmg.lump) if (bi >= 0 && bi < nb) LUMP[bi] = 1;
+  // G2047 (DMG-COMPOSITE, GEN_CRASH carbon / glass): A LAMINATE BREAKS BRITTLE. Stamped here, nothing new per substep:
+  //   - its plain members at a seeded scatter (R.scat, +-: a laminate's strength CoV - CMH-17's B-basis spread), both
+  //     ways (CMP marks them: the certificate keeps the scatter upward only, as spruce's);
+  //   - its fittings in the laminate round the bolt, at R.fitE of it (Hart-Smith's bolted composite joint);
+  //   - bent sideways it cracks at its FRACTURE moment (the thin tube's elastic section, A D / 4: no plastic hinge), or
+  //     where its sandwich lets go first - the core in shear, PCORE[bi] = 2 tauC b cC (b = A / 2 tS, the strip of two
+  //     skins the member stands for): the transverse load the trunk contact holds it to (beamKink: broken 'core');
+  //   - no set: crushed past cy it is broken at once (ecu 0: noteSet still counts the crush's step, on a member already
+  //     broken - no laminate member is ever SET and whole), bent past its moment it is cracked (thf 0: beamKink returns
+  //     before noteSet). beamYield's own code is left as it was: an untaken branch added there (a return after the kink)
+  //     moved the Jodel's 30 m/s trunk 154 -> 204 broken under V8's optimiser (--no-opt: 154 either way) - HANDOVER G2048.
+  // Null on a build with no laminate member: every other build's bits are the old ones.
+  const CMP = DMG_ON && beams.some(b => b.A > 0 && b.mat && GEN_CRASH[b.mat] && GEN_CRASH[b.mat].scat > 0) ? new Uint8Array(nb) : null;
+  const PCORE = CMP ? new Float64Array(nb).fill(Infinity) : null;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
     const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
@@ -701,13 +715,19 @@ function makeSim(def, world) {
     }
     const fu = R.tu * b.A;
     if (ISO[bi]) { b.fy0 = b.fu; b.etu = 0; }       // G2361: an isolator takes no set - it holds, then tears (its own break)
-    if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu; b.etu = 0; }
+    if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu * (R.fitE > 0 ? R.fitE : 1); b.etu = 0; }   // (G2047: a laminate's joint efficiency)
     else if (b.seam === 'rivet') { b.fu = 0.7 * fu; b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
     else if (b.seam === 'bond') { b.fy0 = b.fu = (0.6 + 0.2 * dmgRnd(bi, 1)) * fu; b.etu = 0; }
     else if (b.seam === 'opening') { b.fu = fu / (1.5 + 0.5 * dmgRnd(bi, 2)); b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
     if (b.mat === 'wood' && b.seam !== 'fitting' && b.seam !== 'bond' && !(b.etu > 0)) {
       b.fy0 *= 1 + 0.15 * (2 * dmgRnd(bi, 3) - 1); b.fu = b.fy0;
       b.rgN = dmgRnd(bi, 4) < 0.5 ? 2 : 3;
+    }
+    if (CMP && R.scat > 0 && b.cls !== 'gear') {
+      const Dt = Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI);
+      if (!b.seam) { const sc = 1 + R.scat * (2 * dmgRnd(bi, 5) - 1); b.fy0 *= sc; b.fu = b.fy0; b.fc0 *= sc; CMP[bi] = 1; }
+      b.mp = b.fu * Dt / 4;                          // the fracture moment: the elastic section, no hinge
+      if (R.tauC > 0 && R.tS > 0) PCORE[bi] = R.tauC * R.cC * b.A / R.tS;
     }
   }
   // G1815 (§4.4): THE BREAK GROUPS (61_gen_frame's table): a member that breaks its group (type 0: bm.grp) takes every
@@ -804,7 +824,7 @@ function makeSim(def, world) {
       kap = CERT_WING[bi] ? kapW : kapB;
       KAP[bi] = kap;
       const brittle = fit || !(b.etu > 0);
-      const scat = b.rgN && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
+      const scat = (b.rgN || (CMP && CMP[bi])) && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
       b.fu = cap(1.5 * m * Ft * (fit ? K.uFit : K.uMember) * scat, fuP);
       b.fy0 = brittle ? b.fu : Math.min(cap(Ft * K.yTol, fyP), b.fu);
       if (!brittle && !(b.fu > b.fy0)) b.fu = b.fy0 * (1 + 1e-6);
@@ -1320,6 +1340,10 @@ function makeSim(def, world) {
   // or folds on (beamYield) at that force, and the frame round it moves as far as that lets it
   function beamKink(bi, dk, Pc) {
     const b = beams[bi];
+    // G2047: a laminate does not fold and hang on - past its moment (or its core's shear) it has cracked, no set
+    // (no work booked: a laminate's fracture energy is its crack's area x G_c, 0.2-2 kJ/m2 (CMH-17's mode I / II, as
+    // recalled) - joules on a member, where Pc x the trunk's way in would book the whole intrusion as absorbed)
+    if (!(b.thf > 0)) { DMG.dents++; beamBreak(bi, PCORE && Pc >= PCORE[bi] ? 'core' : 'fold'); return; }
     dmgW(bi, Pc * (dk - b.dk)); b.dk = dk;
     b.ks = Math.max(b.ks, dk * dk / (2 * b.Lr * b.kt));
     kinkCaps(bi);
@@ -3061,7 +3085,9 @@ function makeSim(def, world) {
         // tubes "bent" at their ends, lost their chord (M_p / dk), the engine pivoted on the far side's fittings and pulled
         // them out. Now only the across share bends it (sA = the sine between the push and the member)
         if (b.mp < Infinity && !(b.dOn && !bent)) {
-          const t1 = t < 0.1 ? 0.1 : t > 0.9 ? 0.9 : t, tau = t1 * (1 - t1), Pc = b.mp / (b.Lr * tau), F = fa + fb;
+          const t1 = t < 0.1 ? 0.1 : t > 0.9 ? 0.9 : t, tau = t1 * (1 - t1), F = fa + fb;
+          let Pc = b.mp / (b.Lr * tau);
+          if (PCORE !== null && PCORE[_pr[q * 2]] < Pc) Pc = PCORE[_pr[q * 2]];   // G2047: the sandwich's core in shear
           let sA = 1;
           if (!bent && (t === 0 || t === 1)) {
             const ex = p[ib] - p[ia], ey = p[ib+1] - p[ia+1], ez = p[ib+2] - p[ia+2], e3 = Math.sqrt(ex*ex + ey*ey + ez*ez) || 1e-9;
