@@ -81287,6 +81287,32 @@ src/viewer/app.js, src/viewer/flight.css, src/viewer/sim_link.js, src/viewer/sim
 tools/_route_check.js (new), tools/run_gates.js, tools/pilot_trace.js, tools/route_draw_shot.js (new),
 tools/perf/route_draw_stills.js (new), reports/evidence/ROUTE-DRAW/.
 
+**A0'S NOTE OF 7 OCT (other pilot work landing around this) - WHERE IT STANDS (cloud, 10:00-11:30 UTC)**
+- **PILOT-PERSONA (train 40)**: the route's laws are the expert's baseline the traits act on. ROUTE and LOITER fly
+  through TECS (altitude targets, never a pitch) and the lateral laws at `bankLim` - which already carries the profile's
+  bankK and comfortG; the fly-by fillets, the hold's radius, routePerf (the plan limits, the capture radius) are all
+  computed from that same `bankLim`; reaction / hands / unsteadiness act on the servo outputs (G2085's humanise layer),
+  under every phase. No pitch is set by the route. NOT YET TESTED WITH PERSONA: claude/pilot-persona-g2085 sits on train
+  37b (25 behind master) and conflicts with train 38 in 8 files that are not this branch's - A0's train-40 merge
+  resolves them; after the rebase GATE ROUTE gains a persona pass (club / student / ham-fist on the same route).
+- **ENGINE-TORQUE (train 42)**, merged locally (scratch: this branch + cb7f0eef, clean merge): GATE ROUTE Cub PASS,
+  metal Cessna PASS, **Jodel FAIL on one check** - the 1 s mean vertical speed past TECS's descent limit by 0.61 m/s
+  (the tolerance is 0.5) for 0.7 s on WP4's descent (300 -> 220 m). TRACED (scratch tecstrace / ctltrace / deprobe): NOT
+  the torque and NOT the route's law - THE JODEL'S PITCH STICK-SLIP, on this branch WITHOUT torque too (there the same
+  dip peaks at -4.06 m/s, inside by 0.08): on a gentle sustained descent TECS's pitch demand winds to its floor (-4.2 deg)
+  while the aeroplane holds +1.7 deg for 8 s and the elevator walks -0.047 -> -0.122 with no pitch response, then the nose
+  drops at -5 deg/s (-4 m/s), and 4 s later snaps up at +10 deg/s - a ~16 s porpoise (the same at 380 s, nose-up). Open
+  loop from the same state the elevator is sharp (held 0.04 nose-down of the trim: -7.8 deg in 1 s), so the closed loop's
+  "no response, then all at once" is the airframe / its servo, not the demand. Torque only moves the timing over the
+  tolerance. The gate is NOT loosened; queued as its own investigation (the Jodel's pitch, servo and solver owners).
+  (The check's text read "44 s outside": it counted STEPS - now "0.7 s (44 steps)".)
+- **44_vprofile.js (PILOT-PROFILE)**: not on any branch yet (origin searched 7 Oct 10:00 UTC). The route's vertical model
+  today is ONE linear gradient point to point, in two readers of the same rule: 38c_route.js routeProfile (the plan, the
+  strip, the verdicts) and 43_pilot.js case 'ROUTE' (the live target, the same gradient read 5 s ahead). When
+  44_vprofile lands both become calls to it - no second planner kept; its API is the open question to PILOT-PROFILE.
+- **THE REBASE**: onto origin/master after train 40 lands (~21:00 UTC), then GATE ROUTE (+ persona), PILOT, PLAN,
+  PILOTACT, UISMOKE again, and once more with ENGINE-TORQUE merged locally.
+
 **KNOWN / NEXT**: the roll-out screen's own picker (#bootRoute) does not list the drawn route - FLY > drawn route does
 (the setup screen's rail too); the route's join from the field is the climb-out's straight line in the profile (the climb
 itself is on the runway heading to the crosswind height); a drawn speed is IAS and the fly-by radius is planned at it

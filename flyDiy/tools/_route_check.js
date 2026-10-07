@@ -223,7 +223,7 @@ function flight(key, end, check, doctor) {
     log(tag + 'WP' + (i + 1) + ' ' + b.d.toFixed(0) + ' m of ' + capR[i].toFixed(0) + ', ' + (b.dh == null ? '-' : (b.dh >= 0 ? '+' : '') + b.dh.toFixed(1)) + ' m');
   }
   check(vsAskBad === 0, tag + 'the vertical speed asked stays inside the published limits', vsAskBad + ' of ' + routeSteps + ' steps outside');
-  check(vsFlyBad === 0, tag + 'the vertical speed flown stays inside them (1 s mean, +-0.5 m/s)', vsFlyBad + ' s outside, worst ' + vsWorst.toFixed(2) + ' m/s');
+  check(vsFlyBad === 0, tag + 'the vertical speed flown stays inside them (1 s mean, +-0.5 m/s)', (vsFlyBad / 60).toFixed(1) + ' s outside (' + vsFlyBad + ' steps), worst ' + vsWorst.toFixed(2) + ' m/s past');
   check(aglMin >= 40 && !verdicts.some(q => q.code === 'route-terrain'), tag + 'no terrain conflict on the route (>= 40 m over the ground, no floor flown)', 'min ' + aglMin.toFixed(0) + ' m over the ground');
   const mins = Math.max(0.5, routeSteps / 3600), rA = da.n / mins, rR = dr.n / mins;
   check(Math.max(rA, rR) <= ACT_LIMIT.legs, tag + 'the hands: reversals on the route under PILOTACT\'s ' + ACT_LIMIT.legs + '/min', 'da ' + rA.toFixed(1) + ' dr ' + rR.toFixed(1) + ' /min over ' + (routeSteps / 60).toFixed(0) + ' s');
