@@ -674,6 +674,9 @@ function makePilot(sim, def, world, opts) {
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  // G2500 (CESSNA-VREF): the speed the elevator was found to hold kept past a go-around (ap.vHeld), re-seeded on the
+  // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
+  let heldSeed = false, heldJudged = null;
   // G975: the landing flap the ELEVATOR can hold (FINAL, below) - a cap that only comes down, kept for the flight
   let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
@@ -1685,6 +1688,9 @@ function makePilot(sim, def, world, opts) {
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
+      // G2500 (CESSNA-VREF): THE SPEED THE ELEVATOR HOLDS IS THIS AEROPLANE'S, NOT THIS FINAL'S - kept for the flight (a
+      // go-around zeroes tVAdapt; the next final starts at it, stabilised from its first metre) and on the record
+      if (tVAdapt > 0.5 && ap.phase === 'FINAL') { ap.vHeld = Math.max(ap.vHeld || 0, (o.ias || A.VAppr) + tVAdapt); if (ap.appr) ap.appr.Vheld = Math.round(ap.vHeld * 10) / 10; }
       const Vc = Math.max((o.ias || A.VAppr) + tVAdapt, 1.05 * tVs0);
       // the demands
       const vsUp = o.vsUp ?? tClimbMax, vsDn = o.vsDn ?? -Math.max(3.0, 1.5 * tSinkIdle);
@@ -1952,10 +1958,72 @@ function makePilot(sim, def, world, opts) {
       return Math.max(base, floor);
     };
     const legSpeed = (L) => L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : ap.VCruise;
+    // G2500 (CESSNA-VREF): THE STRIP LEFT AHEAD of the aeroplane along the landing frame (the roll-out's own)
+    const rollLeft = () => { const t_ = ap.route.to; return (t_.x + F.ux * t_.len / 2 - cg[0]) * F.ux + (t_.z + F.uz * t_.len / 2 - cg[2]) * F.uz; };
+    // G2500 (CESSNA-VREF): THE LANDING THE AEROPLANE CAN MAKE. When the elevator cannot hold Vref (vref-raised: the load
+    // door's metal Cessna, its engine at the drawn station, lands flapless and needs 0.41 of elevator at 28.9 m/s - the
+    // servo stops at 0.35) the approach is flown at the speed it CAN hold, and the flare cannot bleed it either (the stop
+    // from its first second): the touchdown is at that speed, not the sheet's 1.15 Vs0, and the technique was planned
+    // on the sheet's run (249 m for 520: 'normal', the brakes at 22 m/s). Judged on the final, before the flare, on the
+    // pilot's own stop law (the strip's surface, its grade along the landing, the brakes at brakeMax) from that speed,
+    // with 3 s of float past the aim (the flare on the stop floated 0-80 m): room for it past the normal aim with 15 %
+    // to spare -> nothing changes; else SHORT-FIELD (the aim at the short mark while 300 m remain to move it, the brakes
+    // from the touch - G1936's technique); and if the short-field stop does not fit either, THE STRIP IS REFUSED: said
+    // with the numbers, flown round and diverted to the nearest strip this gear lands on that has the room (else
+    // committed, said). Only an approach whose reference was raised is judged: every other aeroplane flies as before.
+    // -> true when the final ended here (a go-around)
+    const judgeHeld = (dAim) => {
+      const to = ap.route.to;
+      if (!to || to.surface === 4 || sim.hydro || !world || typeof world.terrainH !== 'function') return false;
+      const Vtd = ap.VAppr * ST.VapprK + tVAdapt;
+      const sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2, sThr0 = sEnd - to.len;
+      const stopOn = (a, grade) => {
+        const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[a.surface]) || [CRR, MU_BRAKE, 0.8];
+        const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
+        return Vtd * Vtd / (2 * Math.max(0.5, aS)) + Vtd * 1.0;
+      };
+      const pT = wp(F, sThr0, 0), pE = wp(F, sEnd, 0);
+      const grade = (groundH(pE[0], pE[1]) - groundH(pT[0], pT[1])) / Math.max(1, to.len);   // + uphill along the landing
+      const need = stopOn(to, grade), needS = (A.stopShortK ?? 0.84) * need, fl = 3 * Vtd;
+      const r0 = v => Math.round(v);
+      if (ap.appr) ap.appr.held = { Vtd: Math.round(Vtd * 10) / 10, need: r0(need), needShort: r0(needS), room: r0(sEnd - ap.xAim - fl), grade: Math.round(grade * 1000) / 1000 };
+      const room0 = sEnd - ap.xAim - fl;
+      if (!ap.shortFld && room0 < 1.15 * need) {
+        ap.shortFld = true;
+        if (ap.appr) { ap.appr.technique = 'short'; ap.appr.heldShort = true; }
+        const aimS = sThr0 + Math.max(10, 0.06 * to.len);
+        if (dAim > 300 && aimS < ap.xAim) { ap.xAim = aimS; if (ap.appr) ap.appr.aimIn = r0(aimS - sThr0); }
+        say('held-speed-short-field', 'the elevator holds ' + Vtd.toFixed(1) + ' m/s on this final: the stop from it needs ' + r0(need) + ' m, ' +
+            r0(room0) + ' m of ' + (to.name || to.id) + ' are left past the aim and the float - landing short-field (aim ' + r0(ap.xAim - sThr0) + ' m in, the brakes from the touch)');
+      }
+      heldJudged = ap.shortFld ? 'short' : 'normal';
+      const room = sEnd - ap.xAim - fl;
+      if (heldJudged === 'short' && room < needS && dAim > 0) {
+        heldJudged = 'refused';
+        say('strip-too-short', (to.name || to.id) + ': the elevator holds ' + Vtd.toFixed(1) + ' m/s, the short-field stop from it needs ' + r0(needS) +
+            ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
+        // the nearest strip this gear lands on with the room (its own surface, its grade unknown: level) - else committed, said
+        let best = null, bd = Infinity;
+        for (const a of (world.aerodromes || [])) {
+          if (a === to || a.surface === 4 || !(a.len > 0)) continue;
+          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
+          if (a.len - Math.max(60, 0.12 * a.len) - fl < 1.15 * stopOn(a, 0)) continue;
+          const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (dd < bd) { bd = dd; best = a; }
+        }
+        if (!best) { committed = true; say('committed-landing', 'no strip in reach has the room - landing ' + (to.name || to.id) + ' short-field'); return false; }
+        goAround('the strip is too short for ' + Vtd.toFixed(1) + ' m/s');
+        say('divert', 'diverting to ' + (best.name || best.id) + ' (' + r0(best.len) + ' m, ' + (bd / 1000).toFixed(1) + ' km): ' + (to.name || to.id) + ' is too short for the speed this aeroplane holds');
+        ap.route = { from: ap.route.to, to: best }; ap.xc = true; ap.gaN = 0; committed = false; ap.diverting = true;
+        ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap.route.from, best));
+        return true;
+      }
+      return false;
+    };
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
+      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null;
       SV.thrC = A.thrCruise; thLift0 = th;
       // G1936: TWICE ROUND A SHORT FIELD IS A DIVERSION, NOT A COMMITTED THIRD TRY. The go-around count is capped
       // at two and the third arrival is committed - into the trees past East Point's end on the user's Cub (touched
@@ -3247,6 +3315,9 @@ function makePilot(sim, def, world, opts) {
         // up at idle — the elevator on its stop, 3 m/s below a 2.2 deg
         // slope, two terrain go-arounds; GATE ARCHETYPES)
         const iasF = ap.VAppr * ST.VapprK;
+        // G2500 (CESSNA-VREF): a final after a go-around starts at the speed the elevator was found to hold (ap.vHeld) -
+        // the last final raised it there half a metre a second at a time, on the stop, unstabilised the whole way
+        if (heldSeed) { heldSeed = false; if (ap.vHeld > iasF) tVAdapt = Math.min(ap.vHeld - iasF, 0.25 * iasF); }
         // G1936 (PILOT-ONE): THE FORWARD SLIP. A short field's slope is the obstacles' (East Point's trees ask 6 deg)
         // and a clean aeroplane cannot fly it at 1.2 Vs0 at idle: the user's Cub (no flap) came down it with the
         // throttle closed, 4 m over the slope and 2.5 m/s fast, and arrived at the flare at 25 m/s = 1.56 Vs.
@@ -3273,7 +3344,12 @@ function makePilot(sim, def, world, opts) {
         // slope by more than the capture window the target is the SLOPE itself, descended onto at
         // half again the slope's own rate; the latched level is for the aeroplane the slope rises
         // to meet (the branch above)
-        else if (above > 4) engage(latF, 'TECS', 'TECS', { alt: hGS, vs: null, gs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs), spdPri: ap.shortFld });
+        // G2500 (CESSNA-VREF): ...ON THE SLOPE'S OWN LAW (gs), not an altitude target sliding down it. TECS's height law
+        // (0.2 x the error) chased the moving hGS with no feed-forward and settled Vg x gs / 0.2 above it - 6.2 m on the
+        // metal Cessna (31 m/s on 0.046), outside the 4 m capture: never captured, the whole final 6 m high, the flare
+        // begun at the aim and the touch 80 m past it (pilot-42's Tamgas Hill: 100 m past the end, train 40 52 m). The
+        // slope law carries the slope's sink and closes the height on top, inside the same steeper vsDn
+        else if (above > 4) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs), spdPri: ap.shortFld });
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
@@ -3304,6 +3380,7 @@ function makePilot(sim, def, world, opts) {
         // flare's does); a go-around closes it again. An aeroplane that trims inside 0.15 flies as before
         SV.IthMaxT = A.rotateIMax ?? 0.30;
         const canGA = (ap.gaN || 0) < 2 && !committed;
+        if (tVAdapt > 0.5 && heldJudged !== 'refused' && judgeHeld(d)) break;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
           cond('above slope', Math.round(above), ST.gaHigh, above < ST.gaHigh, 'm'),
@@ -3330,7 +3407,8 @@ function makePilot(sim, def, world, opts) {
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G1936: A SHORT FINAL IS STABILIZED OR FLOWN AGAIN - 5 m/s over Vref under 20 m is a float the strip has no
         // room for (the Cub's 25 m/s at the flare touched 213 m into 150 m)
-        if (ap.shortFld && canGA && d > 0 && aglG < 20 && V > iasF + 5) { goAround('fast on the short final: ' + V.toFixed(1) + ' m/s for ' + iasF.toFixed(1)); break; }
+        // (G2500: against the speed the elevator holds - a raised reference is the approach's, not a fast one)
+        if (ap.shortFld && canGA && d > 0 && aglG < 20 && V > iasF + tVAdapt + 5) { goAround('fast on the short final: ' + V.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)); break; }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
         // GTRAM: onto an altiport's slope the height is over the SLOPE'S LINE through the aim, and the
@@ -3493,8 +3571,11 @@ function makePilot(sim, def, world, opts) {
           if (tailRising) brakeRamp = Math.max(0, brakeRamp - 3.0 * dt);
           else if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + 2 * A.brakeRampRate * dt, brakeShort);
         }
-        else if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
+        else if (Vg < A.VBrakeOn || (trike && onG >= 3 && (V < (A.VDerotate ?? 20) || rollLeft() < 1.3 * stopDist(Vg))))
           brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
+        // (G2500, CESSNA-VREF: ...OR AS SOON AS THE STRIP LEFT IS NOT 1.3 x THE STOP. The load door's metal Cessna touched
+        // Tamgas Hill at 31 m/s and rolled 300 m of its 520 unbraked waiting for VDerotate (22 m/s); on a long runway
+        // nothing changes)
         // G381.1: THROUGH A SKIP THE PILOT KEEPS FLYING IT. A bounce in a
         // crosswind put the wheels back in the air for a second, the ground
         // law's rudder let the nose weathercock 10 deg while nothing steered,

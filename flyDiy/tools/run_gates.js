@@ -115,6 +115,16 @@ const GATES = [
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
   { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
+  // G1965-G1974 ISLAND-TOUR: the strips (the approach census against the forest the fill plants, the turn pads, the
+  // mine's apron; ~1 min, shard 0) and THE TOUR - the user's Cub, the aluminium C172 and the float Cessna round every
+  // location they may use, damage ON, landing, turning round on the pad, taking off, back at HOME (one tour a shard,
+  // ~10-20 min each)
+  // G1970 ISLAND-TOUR-2: the game's flight (the worker's host, the game's day, the load door's aeroplane), East Point a fourth job
+  // (G2500: brought onto pilot-42 with the tools only - tools/_load_build.js asked directly by _tour_lib defOf)
+  { id: 'TOUR', file: '_tour_check.js', tier: 'full', shards: 4, timeout: 3600_000, wall: 1500 },
+  // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
+  // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
+  { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },
