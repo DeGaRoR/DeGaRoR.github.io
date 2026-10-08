@@ -340,7 +340,8 @@ const GATES = [
   // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
   // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
   // Three children at once
-  { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
+  // TRAIN 41 TRIM: off with CORE_MATH's fdlibm (back with it)
+  // { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

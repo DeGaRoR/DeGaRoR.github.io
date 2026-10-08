@@ -305,7 +305,8 @@ const CORE_MATH = (() => {
     else z = _fdWithHi(z, j);
     return s * z;
   }
-  return Object.freeze({ sin: fsin, cos: fcos, pow: fpow });
+  // TRAIN 41 TRIM (A0, 8 Oct): the builtins until the user rules on the +1.17 % step (fsin / fcos / fpow kept, unused)
+  return Object.freeze({ sin: Math.sin, cos: Math.cos, pow: Math.pow });
 })();
 
 // THE REFERENCE DENSITY, and it is a datum rather than "the density". Every
