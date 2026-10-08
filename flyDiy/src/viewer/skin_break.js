@@ -68,6 +68,9 @@
   // (...and a vertex REACHES the other side through a weight past REACH: a sliver of a weight - a few thousandths, the
   // binding's own regularisation - bridged a windshield triangle across a parting, drawn 19 cm through its lining)
   const REACH = 0.05;
+  // (train 41: a covering record's incremental event - FABRIC's ties read across pieces - local / skipped as any (true), or
+  // made whole at every event (false: the reference, by construction))
+  const OPT = { localCov: true };
   const HELD = (() => { const F = typeof GEN_COVER !== 'undefined' && GEN_COVER.fabric ? GEN_COVER.fabric : { eu: 0.15, slack: (8 / 3) * 0.06 * 0.06 };
     return (1 + F.eu) * (1 + F.slack) * (1 + 0.15); })();
   const SHELL_TEAR = 0.05;    // G2047: a composite shell's crack (above)
@@ -312,7 +315,7 @@
     // (prepV's keep), which tied pairs hold or tore (brokenPairs). Their nodes are touched too: a tie made, torn or whose
     // ends changed piece since the record's last event; no record of the last ties - the event is made whole)
     const covNow = !!(D.tied && D.pc && (R.fabric || R.sheetTear || R.cover));
-    const tieT = covNow && R.evTied ? tiesTouched(R, D) : null, tieUnknown = covNow && !R.evTied;
+    const tieT = covNow && R.evTied ? tiesTouched(R, D) : null, tieUnknown = covNow && (!R.evTied || !OPT.localCov);
     if (R.active && R.evPc && R.nodeMask && D.br.length >= R.evBr && D.br.length && !R.fullNext && dvIn === R.evDv && !tieUnknown) {
       const M = R.nodeMask, pc = D.pc, n = M.length; let touched = false;
       if (tieT) for (let j = 0; j < tieT.length && !touched; j++) if (M[tieT[j]]) touched = true;
@@ -1358,7 +1361,7 @@
     return out;
   }
   const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,
-                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, slotNode, slotTurns, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS, HELD, REACH };
+                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, slotNode, slotTurns, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS, HELD, REACH, OPT };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();
