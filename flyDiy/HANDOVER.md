@@ -78192,6 +78192,15 @@ select) - cloud, G2096; S3 needs A0's box for the world evidence; S4 waits on Q2
 BOARDS (7 Oct, A0's format = the Deform pair): PROGRESS https://claude.ai/artifact/EaZJAscAZCDLXG87XXa568 (db: sessions / trains /
 meta board, log, calls; owner writes) - EVIDENCE https://claude.ai/artifact/J8ZJx9yFxc36g2KY29X9pr (images published with the page;
 tree + mode + renderer per sheet; refresh at every commit that adds images).
+8 OCT 17:20: integration df8eb904 = + CONTRACT-ROUTES G2430, MAP-MERGE G2440, MAP-INFRA G2435 (READY since 7 Oct ~23:30, missed by a
+UTC string filter - see the memory). Pre-pass 15:00 12/12 PASS; on df8eb904 MAPBAKE CONTRACTS STAGES ECON PROCURE FREIGHT PILOTS
+UISMOKE UISMOKE-PHONE PASS, MEDIA red on the step. THE USER (decision 6, via A0): train 43's size 'Have a sanity check, then accept. It's
+a major feature, expected to take some space.' Sanity check clean (no double inlining, no data that should be fetched bar the load
+prop manifests 40 KB, no dead map code - map_menu / map_pack / freight_load are lazy); step +324.3 KB over the train-42 build ->
+MEDIA re-baselined by name 'train 43: the career features, user-accepted 8 Oct'. CAREER-LAZY welcome, no longer required.
+Issued: MAP-STYLE G2445. WORKS-COZY: hearth + 2 misses 30 on the laptop rung (21 / 27 fps vs the club 24.6 / 29.5); club + 1 re-shot
+tonight 23:25-23:40 with hearth-light.
+
 8 OCT 05:30: train-42 cargo claude/game-train42 789af6c0 smoke PASS (UISMOKE SAVE PLAYER GAMEPREM, 05:10-05:12). Integration
 e42cc563 = + FREIGHT-LOAD G2345 (READY; it fixed the integration's build break: PROCURE and PILOTS both declared `const PT_`,
 PILOTS' renamed PLT_) + PILOTS over PILOT-PERSONA redone in PILOTS' own planned shape (personaProfile() answers the career
