@@ -1,0 +1,68 @@
+  -- the clearance, per build and attitude (the default pod: 2.0 x 0.56 x 0.28 m) --
+  cub    level, tail up 0.0 deg: 0.378 m | three-point, at rest 11.2 deg: 0.152 m | mains 0.062 -> fits
+  jodel  level, tail up 0.0 deg: 0.498 m | three-point, at rest 13.1 deg: 0.187 m | mains 0.211 -> fits
+  c172   level, at rest 0.0 deg: 0.225 m | rotated to the tail strike 11.3 deg: 0.172 m | mains 0.212 -> fits
+  floats at rest on the water 0.0 deg: 0.447 m -> fits
+  twinf  at rest on the water 0.0 deg: 0.296 m -> fits
+  metal  level, at rest 0.0 deg: 0.225 m | rotated to the tail strike 11.8 deg: 0.209 m | mains 0.312 -> fits
+  -- the drag and its cost (measured on each aeroplane's own probe) --
+  cub    CdA 0.0299 m2 (5.1 % of the body) · cruise 113.0 -> 111.7 km/h (-1.12 %) · climb -0.045 m/s · VCruise (clamped) 113.0 -> 111.6 · range 376 -> 371 km
+  jodel  CdA 0.0264 m2 (6.5 % of the body) · cruise 125.3 -> 121.8 km/h (-2.79 %) · climb -0.064 m/s · VCruise (clamped) 127.1 -> 121.7 · range 422 -> 404 km
+  c172   CdA 0.0244 m2 (6.5 % of the body) · cruise 183.7 -> 180.2 km/h (-1.93 %) · climb -0.064 m/s · VCruise (clamped) 184.3 -> 180.4 · range 1183 -> 1157 km
+  floats CdA 0.0244 m2 (5.2 % of the body) · cruise 207.6 -> 204.5 km/h (-1.49 %) · climb -0.068 m/s · VCruise (clamped) 204.1 -> 204.5 · range 117 -> 117 km
+  twinf  CdA 0.0242 m2 (2.5 % of the body) · cruise 139.1 -> 138.0 km/h (-0.77 %) · climb -0.037 m/s · VCruise (clamped) 129.6 -> 131.4 · range 110 -> 112 km
+  metal  CdA 0.0244 m2 (5.2 % of the body) · cruise 206.1 -> 203.2 km/h (-1.40 %) · climb -0.051 m/s · VCruise (clamped) 177.5 -> 178.6 · range 102 -> 102 km
+  cub    full 73 kg: CG 23.3 -> 26.5 % MAC, margin 0.171 -> 0.139, the corners' range 23.3-37.8 % (inside), -7 kg against the design gross · bench: POD FITS
+  jodel  full 73 kg: CG 27.6 -> 32.6 % MAC, margin 0.033 -> -0.017, -7 kg against the design gross · bench: POD REFUSED — full, its static margin is -0.02
+  c172   full 73 kg: CG 35.4 -> 37.1 % MAC, margin 0.216 -> 0.199, -87 kg against the design gross · bench: POD FITS
+  floats full 73 kg: CG 33.4 -> 34.1 % MAC, margin 0.175 -> 0.168, -88 kg against the design gross · bench: POD FITS
+  twinf  full 72 kg: CG 31.1 -> 32.1 % MAC, margin 0.144 -> 0.134, 76 kg against the design gross · bench: POD FITS
+  metal  full 73 kg: CG 28.9 -> 30.0 % MAC, margin 0.142 -> 0.131, -87 kg against the design gross · bench: POD FITS
+  the Cub, pod full (73 kg), certified in 14.0 s: the fittings carry 38.3 kg / 38.3 kg / 3.4 kg / 3.4 kg; pod limit share of the node's certified envelope 10 % / 10 % / 2 % / 2 %
+  -- the acceptance leg (5 min, 75 % throttle, HOME + 300 m, calm) --
+  cub    TAS 126.9 / 124.5 / 121.6 km/h · flow 10.89 / 10.89 / 10.89 · range 346 / 339 / 331 km (off / on / full)
+  jodel  TAS 137.4 / 133.3 / 124.8 km/h · flow 10.89 / 10.89 / 10.89 · range 375 / 363 / 340 km (off / on / full)
+  c172   TAS 195.5 / 191.6 / 188.8 km/h · flow 26.57 / 26.57 / 26.57 · range 1074 / 1053 / 1038 km (off / on / full)
+  -- BELLY-POD-2: the volume the editor sets, mapped by the core (genPodFromVolume) --
+  cub    60 L @0 2.181x0.363x0.182 | 250 L @0 3.213x0.535x0.268 | 60 L @0.5 1.71x0.428x0.214 | 250 L @0.5 2.564x0.641x0.321 | 60 L @1 1.075x0.538x0.269 | 250 L @1 1.812x0.906x0.453
+  jodel  60 L @0 2.25x0.375x0.188 | 250 L @0 3.303x0.551x0.275 | 60 L @0.5 1.732x0.433x0.217 | 250 L @0.5 2.625x0.656x0.328 | 60 L @1 1.076x0.538x0.269 | 250 L @1 1.682x0.841x0.421
+  c172   60 L @0 2.311x0.385x0.193 | 250 L @0 3.507x0.585x0.292 | 60 L @0.5 1.743x0.436x0.218 | 250 L @0.5 2.7x0.675x0.338 | 60 L @1 1.075x0.537x0.269 | 250 L @1 1.686x0.843x0.422
+  floats 60 L @0 2.311x0.385x0.193 | 250 L @0 3.507x0.585x0.292 | 60 L @0.5 1.743x0.436x0.218 | 250 L @0.5 2.7x0.675x0.338 | 60 L @1 1.078x0.539x0.27 | 250 L @1 1.686x0.843x0.422
+  twinf  60 L @0 2.319x0.387x0.193 | 250 L @0 3.75x0.625x0.313 | 60 L @0.5 1.748x0.437x0.219 | 250 L @0.5 2.988x0.747x0.373 | 60 L @1 1.078x0.539x0.27 | 250 L @1 2.087x1.043x0.522
+  metal  60 L @0 2.311x0.385x0.193 | 250 L @0 3.507x0.585x0.292 | 60 L @0.5 1.743x0.436x0.218 | 250 L @0.5 2.7x0.675x0.338 | 60 L @1 1.078x0.539x0.27 | 250 L @1 1.686x0.843x0.422
+  -- the flown pod (61_gen_frame G2678): its nodes, its mass, its members, the step --
+  the drawn pod: cub 0 draws · cub 2 draws, 768 tris · c172 2 draws, 768 tris · floats 2 draws, 768 tris (9051 ms headless)
+  (the flights: 643 s wall on 4 processes; reports/evidence/POD/flights.json)
+  selftest caught  the pod billed with it off (3 checks red)
+  selftest caught  an empty section opened with no pod (10 checks red)
+  selftest caught  no interference (Q 1.0) (3 checks red)
+  selftest caught  the drag never reaches the aeroplane (3 checks red)
+  selftest caught  the cross-flow forgotten (3 checks red)
+  selftest caught  the three-point attitude level (4 checks red)
+  selftest caught  the ground at the wheel centre (12 checks red)
+  selftest caught  the water at the keel (2 checks red)
+  selftest caught  the tail strike never reached (2 checks red)
+  selftest caught  the freight billed as empty weight (4 checks red)
+  selftest caught  the freight on the shell's station (6 checks red)
+  selftest caught  the rated load off the floor limit (3 checks red)
+  selftest caught  the mounts' lever reversed (3 checks red)
+  selftest caught  the mounts at the ultimate for the limit (3 checks red)
+  selftest caught  the CG full walking the wrong way (6 checks red)
+  selftest caught  the door off the floor (3 checks red)
+  selftest caught  the cruise cost off the clamped VCruise (3 checks red)
+  selftest caught  the bench passes a strike (1 checks red)
+  selftest caught  the bench refuses without the number (1 checks red)
+  selftest caught  a plaque row unexplained (1 checks red)
+  selftest caught  the bridge without its door (1 checks red)
+  selftest caught  the volume mapping ignores the shape (8 checks red)
+  selftest caught  the volume mapping past the clamp (3 checks red)
+  selftest caught  the readout's red only at a strike (1 checks red)
+  selftest caught  the readout's margin red never (1 checks red)
+  selftest caught  the pod's nodes at the keel (7 checks red)
+  selftest caught  the pod's mass left on the rings (11 checks red)
+  selftest caught  the hangers undamped to the step (a substep paid) (3 checks red)
+  selftest caught  the pod a wheel (4 checks red)
+  selftest caught  procure blind to the pod (threw)
+  selftest: 30 of 30 caught
+  391 checks, 0 failed (816 s)
+GATE POD: PASS
