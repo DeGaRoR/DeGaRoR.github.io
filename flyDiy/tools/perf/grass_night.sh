@@ -27,7 +27,7 @@ CVIEWS=stand,taxi,app10,app30,app60,forest
 until_t 0140
 if clean; then
   bash $B take gpu GRASS "stills before/after (untimed)" >> $LOG 2>&1
-  cd $W
+  cd $W && node tools/build.js >> $LOG 2>&1   # (the AFTER page is this tree's sources, built)
   for P in gamer retro; do
     run 02:14 node tools/perf/grass_cost.js --root $BEFORE --out $E/stills/before_$P --preset $P --views $VIEWS --udd C:/grc_before_$P && log "before $P done"
     run 02:14 node tools/perf/grass_cost.js --out $E/stills/after_$P --preset $P --views $VIEWS --udd C:/grc_after_$P && log "after $P done"
