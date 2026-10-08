@@ -6364,6 +6364,7 @@
       player = d; playerSave();
       if (CAREER_DEV) careerPlateSync();
       // G2400 (FREIGHT-STRAP): the delivered items leave, the next stage's arrive placed (the sim and the drawing follow)
+      { const FA = fsAboard(); if (FA) out.load = { items: FA.items, flags: FA.flags }; }   // (before the stop changes what is aboard)
       if (CAREER_DEV) out.freight = fsStop();
     } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
     flLastEnd = out;
@@ -7081,7 +7082,7 @@
   // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
   // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
   const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
-                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null };
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
   const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
   const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
   function fsAccepted() {
@@ -7100,7 +7101,26 @@
     const list = R ? R.adds : null, key = list ? JSON.stringify(list) : '';
     if (key !== FST.applied) { sim.setFreight(list); FST.applied = key; }
     FST.R = R; FST.A = got ? got.A : null;
+    // THE LIMITS SAID (never refused): over the plaque's MTOW, the CG out of the certified range - on the brief before
+    // take-off (fsWarnSync) and on the logbook row (fsAboard)
+    FST.flags = R && got && typeof freightStrapFlags === 'function' ? freightStrapFlags(got.A, got.card) : [];
     return R;
+  }
+  // the brief's warn line: in the flight's plate (#flBrief, before the notice), in warn ink, while a flagged load is aboard
+  function fsWarnSync() {
+    if (typeof document === 'undefined' || !document.getElementById) return;
+    const want = !inGarage && FST.applied && FST.flags.length ? 'Load: ' + FST.flags.map(f => f.say).join(' · ') + ' - it flies as loaded' : '';
+    if (!FST.warnEl && want) {
+      const host = $('flBrief');
+      if (!host) return;
+      const el = FST.warnEl = document.createElement('div');
+      el.id = 'fsWarn'; el.className = 'flPlate'; el.setAttribute('role', 'status');
+      el.style.cssText = "padding:6px 12px;margin-top:6px;font:500 12.5px/1.35 'IBM Plex Sans',sans-serif;color:#ffb257;border-color:rgba(255,178,87,.7);max-width:520px";
+      host.insertBefore(el, $('flNotice') || null);
+    }
+    if (!FST.warnEl) return;
+    FST.warnEl.hidden = !want;
+    if (FST.warnEl.textContent !== want) FST.warnEl.textContent = want;
   }
   // THE RIGS' LOAD (?freight=1&strapload=<test>[:<design>], the sandbox only): the hold named (the validated design's
   // card; the stand's build is not replaced), the test load as the packer proposes it, accepted - no view, no click, so
@@ -7144,7 +7164,7 @@
   function fsAboard() {
     const R = FST.R;
     if (!R || !FST.applied) return null;
-    return { occ: R.seats.filter(s => s.job).length, dm: R.dm, items: R.items.length };
+    return { occ: R.seats.filter(s => s.job).length, dm: R.dm, items: R.items.length, flags: FST.flags.map(f => f.k + (f.side ? ':' + f.side : '')) };
   }
   // card -> the cage sheet (the loading view's T; zFw the join's wsFront ring, kept per build)
   function fsT() {
@@ -7238,6 +7258,7 @@
       }
     }
     fsPeople();
+    fsWarnSync();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
   // the stills' cut-away (a rig's hand): the loading view's own cut and eye (freight_load.js open: one clipping plane
@@ -7306,7 +7327,8 @@
           if (S && S.occupants != null) r.occ = S.occupants;
           if (L) { let pk = 0; for (const k in L) if (L[k] && L[k].payload) pk += L[k].mass || 0; r.payloadKg = Math.round(pk * 10) / 10; }
           // G2400 (FREIGHT-STRAP): the strapped load flew too - who sat (the job's seats) and its kilos on the build's payload
-          { const FA = fsAboard(); if (FA) { r.occ = FA.occ; r.payloadKg = Math.round(((r.payloadKg || 0) + FA.dm) * 10) / 10; } }
+          { const FA = fsAboard(); if (FA) { r.occ = FA.occ; r.payloadKg = Math.round(((r.payloadKg || 0) + FA.dm) * 10) / 10;
+                                             r.load = { items: FA.items, kg: Math.round(FA.dm * 10) / 10, flags: FA.flags }; } }
           const fpo = window.BENCH_FP_OUT ? window.BENCH_FP_OUT() : null;
           if (fpo) r.fp = fpo;
         } catch (e) {}

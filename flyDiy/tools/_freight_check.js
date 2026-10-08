@@ -106,7 +106,7 @@ for (const k of (FULL ? Object.keys(DS0) : ['cub'])) AGAIN[k] = SITE.freightMeas
 const STRAP_DEFS = (() => {
   const spec = k => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, DS0[k].build), 'utf8')); return CORE.genMigrateSpec(JSON.parse(JSON.stringify(j.spec || j))); };
   const mk = (k, patch) => { const s = spec(k); if (patch) patch(s); return CORE.buildGen(s); };
-  return { cub: mk('cub'), c172: mk('c172'),
+  return { cub: mk('cub'), c172: mk('c172'), jodel: mk('jodel'),
            cubPax: mk('cub', s => { s.cabin.occupied = [1, 1]; }), cubNoBag: mk('cub', s => { s.cabin.baggage = 0; }),
            c172Solo: mk('c172', s => { s.cabin.occupied = [1, 0, 0, 0]; }) };
 })();
@@ -594,10 +594,21 @@ function run(mut) {
       ok(G.count.stacks === SK.length && G.count.bands === 2 * SK.length && G.count.buckles === SK.length && G.count.anchors === 4 * SK.length && G.count.boxes === A.items.length,
          nm + ': ' + SK.length + ' stack(s): two straps, a buckle and four anchors each');
       const inside = (q, b) => q[0] > b.x0 + 1e-6 && q[0] < b.x1 - 1e-6 && q[1] > b.y0 + 1e-6 && q[1] < b.y1 - 1e-6 && q[2] > b.z0 + 1e-6 && q[2] < b.z1 - 1e-6;
-      const through = [G.straps, G.metal].some(g => { for (let v = 0; v < g.pos.length; v += 3) { const q = [g.pos[v], g.pos[v + 1], g.pos[v + 2]]; if (A.items.some(p2 => inside(q, p2.at))) return true; } return false; });
-      ok(!through, nm + ': no strap, buckle or anchor inside a box');
+      // each stack's own straps against its own boxes (a strap between two stacks packed hard together is reported)
+      let through = 0, touch = 0;
+      for (const S2 of SK) {
+        const own = A.items.filter(p2 => S2.ids.includes(p2.id)), oth = A.items.filter(p2 => !S2.ids.includes(p2.id));
+        const G2 = M.freightStrapMesh(own, card, () => true);
+        for (const g of [G2.straps, G2.metal]) for (let v = 0; v < g.pos.length; v += 3) {
+          const q = [g.pos[v], g.pos[v + 1], g.pos[v + 2]];
+          if (own.some(p2 => inside(q, p2.at))) through++;
+          if (oth.some(p2 => inside(q, p2.at))) touch++;
+        }
+      }
+      ok(!through, nm + ': no strap, buckle or anchor inside the load it ties' + (touch ? ' (' + touch + ' strap vertices meet a neighbouring stack packed against it)' : ''));
       const H = card.hold, x1H = H.x0 + H.n * H.dx;
-      const feetOk = SK.every(S2 => M.freightStrapBands(S2, card).anchors.every(a => { const fy = M.freightRestY(card, a.c[0] - 0.01, a.c[0] + 0.01); return a.c[0] >= H.x0 - 0.1 && a.c[0] <= x1H + 0.1 && fy != null && Math.abs(a.c[1] - a.h[1] - fy) < 1e-9; }));
+      const feetOk = SK.every(S2 => M.freightStrapBands(S2, card).anchors.every(a => { const xa = Math.max(H.x0, Math.min(x1H, a.c[0])), fy = M.freightRestY(card, xa - 0.01, xa + 0.01);
+        return a.c[0] >= H.x0 - 0.1 && a.c[0] <= x1H + 0.1 && fy != null && Math.abs(a.c[1] - a.h[1] - fy) < 0.015; }));
       ok(feetOk, nm + ': every foot anchored on the hold\'s floor, within its length');
       const idxOk = [G.straps, G.metal].concat(Object.values(G.boxes)).every(g => g.idx.length % 3 === 0 && g.idx.every(i => i < g.pos.length / 3) && g.nrm.length === g.pos.length);
       ok(idxOk, nm + ': the drawing\'s arrays (triangles, normals) whole');
@@ -620,6 +631,26 @@ function run(mut) {
           ok(q.fuel.frac < 1 && near(q.m[fi], want2, 1e-12), 'the burn keeps a load on a tank\'s node (' + (q.m[fi]).toFixed(4) + ' kg = dry + fuel x ' + q.fuel.frac.toFixed(5) + ' + 5)');
         }
       }
+    }
+    // THE LIMITS SAID, NEVER REFUSED (the user, FREIGHT §2: "shown red but allowed"): over the MTOW and the CG out of the
+    // certified range each carry their flag (the brief's warn line, the logbook row) - and the masses go aboard all the same
+    {
+      const sH = M.freightLoadNew(K.c172, M.freightItems({ kg: 260 }, 'goods.parts'), { pax: 3 });
+      const AH = M.freightAccepted(M.freightLoadRecord(K.c172, sH, { slot: 'S' })), fH = M.freightStrapFlags(AH, K.c172);
+      ok(fH.some(f => f.k === 'mtow' && f.kg === Math.ceil(AH.mass - K.c172.mass.mtow) && /over MTOW by \d+ kg/.test(f.say)) && !!M.freightStrapAdds(D.c172, AH, { card: K.c172 }),
+         'over the MTOW (the C172, three passengers + 260 kg of crates): flagged "' + (fH.find(f => f.k === 'mtow') || {}).say + '" - and it still goes aboard');
+      let sJ = M.freightLoadNew(K.jodel, M.freightItems({ kg: 40 }, 'goods.tools'), { pax: 0 });
+      for (const r of sJ.placed.slice()) { const m = M.freightLoadMove(K.jodel, sJ, r.id, { x: 2.0, z: 0 }); if (m.ok) sJ = m.st; }
+      const AJ = M.freightAccepted(M.freightLoadRecord(K.jodel, sJ, { slot: 'S' })), fJ = M.freightStrapFlags(AJ, K.jodel);
+      ok(fJ.some(f => f.k === 'cg' && f.side === 'aft') && !fJ.some(f => f.k === 'mtow') && !!M.freightStrapAdds(D.jodel, AJ, { card: K.jodel }),
+         'the CG aft of the certified range (the Jodel\'s tools moved aft): flagged "' + (fJ.find(f => f.k === 'cg') || {}).say + '" - and it still goes aboard');
+      const sOk = M.freightLoadNew(K.c172, M.freightItems({ kg: 60 }, 'goods.mail'), { pax: 1 });
+      const AOk = M.freightAccepted(M.freightLoadRecord(K.c172, sOk, { slot: 'S' }));
+      ok(M.freightStrapFlags(AOk, K.c172).length === 0 && AOk.ok, 'within every limit (the C172\'s mail + a passenger): no flag');
+      const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+      ok(/FST\.flags = R && got && typeof freightStrapFlags === 'function' \? freightStrapFlags\(got\.A, got\.card\) : \[\];/.test(appSrc) && /function fsWarnSync\(\)/.test(appSrc)
+         && /r\.load = \{ items: FA\.items, kg: Math\.round\(FA\.dm \* 10\) \/ 10, flags: FA\.flags \};/.test(appSrc),
+         'the page says the flags on the brief before take-off (fsWarnSync) and writes them on the logbook row (r.load.flags)');
     }
     // NOTHING ACCEPTED: no masses, no drawing
     ok(M.freightStrapAdds(D.cub, null) === null && M.freightStrapAdds(D.cub, M.freightAccepted({ career: {} })) === null, 'nothing accepted: no masses (the sim is never asked)');
@@ -768,11 +799,13 @@ const BREAKS = [
   ['the seat rule is not the frame\'s', { s78: sub('  const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));', '  const wa = 0.5;') }],
   ['the baggage allowance stays aboard', { s78: sub('  const bag = items.length && def.spec.baggage > 0 ? def.spec.baggage : 0;', '  const bag = 0;') }],
   ['a strap through the load', { s78: sub('  const topX = b.y1 + g, topZ', '  const topX = b.y1 - 0.05, topZ') }],
-  ['an anchor off the floor', { s78: sub('  const plate = (x, y, z) => ({ c: [x, y + C.anchor[1] / 2, z]', '  const plate = (x, y, z) => ({ c: [x, y + 0.04 + C.anchor[1] / 2, z]') }],
+  ['an anchor off the floor', { s78: sub('  const ha = C.anchor[0] / 2, hb = C.anchor[2] / 2, hy = C.anchor[1] / 2;', '  const ha = C.anchor[0] / 2, hb = C.anchor[2] / 2, hy = C.anchor[1] / 2 + 0.04;') }],
   ['the next stage arrives unplaced', { s78: sub("  if (!J.items.length) return { doc, rec: null, how: 'none', why: J.why };", "  return { doc, rec: null, how: 'none', why: J.why };") }],
   ['the player\'s placement proposed over', { s78: sub("  if (J.rec) return { doc, rec: J.rec, how: 'kept', why: '' };", '') }],
   ['another airframe\'s load flown', { s78: sub('  if (slot != null && A.slot != null && A.slot !== String(slot)) return null;', '') }],
-  ['the strap reaches for the clock', { s78: s => s + '\nfunction fsNow() { return Date.now(); }\n' }],
+  ['an over-MTOW load flies silently', { s78: sub('  if (acc.mass > K.mtow + 1e-6) {', '  if (false) {') }],
+  ['a CG out of range flies silently', { s78: sub('    if (side) out.push(', '    if (false) out.push(') }],
+  ['the strap reaches for the clock',{ s78: s => s + '\nfunction fsNow() { return Date.now(); }\n' }],
   ['a reset drops the load', { core: sub('m[i] = FRX ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;', 'm[i] = nd.m; r[i] = nd.r;') }],
   ['a load taken off leaves a trace', { core: sub('      m[i] = b !== 0 ? Math.max(0.5, base + b) : base;', '      m[i] = m[i] - a + b;') }],
   ['the burn drops the load', { core: sub('FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2', 'DRY0[k] + FUEL0[k] * f2') }],

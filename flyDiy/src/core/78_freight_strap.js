@@ -219,6 +219,26 @@ function freightStrapAdds(def, acc, o) {
   return { v: FREIGHT_STRAP_V, adds, items, seats, baggageOff: bag, kg: items.reduce((a, it) => a + it.kg, 0), dm, mom };
 }
 
+// ---- THE LIMITS SAID, NEVER REFUSED ----------------------------------------------------------------------------------
+// The user (FREIGHT §2): out of range is "shown red but allowed (the aeroplane flies what you loaded, and you find
+// out)". So a load over the plaque's MTOW or with its CG outside the certified range is never flown SILENTLY: these
+// flags go on the flight's brief before take-off and on the logbook row - and the masses go aboard all the same.
+// acc: freightAccepted's (its record's mass and CG are freightReport's, the plaque's frame); card: its hold's card
+// -> [{ k: 'mtow', kg, say } | { k: 'cg', side: 'aft' | 'fwd', pct, say }]
+function freightStrapFlags(acc, card) {
+  const K = card && card.mass;
+  if (!acc || !K || !(K.mtow > 0)) return [];
+  const out = [];
+  if (acc.mass > K.mtow + 1e-6) { const kg = Math.ceil(acc.mass - K.mtow); out.push({ k: 'mtow', kg, say: 'over MTOW by ' + kg + ' kg' }); }
+  const x = acc.cg && acc.cg.x, pct = v => (v - K.mac[0]) / K.mac[1] * 100;
+  if (typeof x === 'number' && isFinite(x) && Array.isArray(K.cg)) {
+    const side = x > K.cg[1] + 1e-6 ? 'aft' : x < K.cg[0] - 1e-6 ? 'fwd' : null;   // (freightReport's tolerances)
+    if (side) out.push({ k: 'cg', side, pct: Math.round(pct(x) * 10) / 10,
+                         say: 'CG ' + (side === 'aft' ? 'aft' : 'forward') + ' of the certified range (' + pct(x).toFixed(1) + ' % MAC, certified ' + pct(K.cg[0]).toFixed(1) + '-' + pct(K.cg[1]).toFixed(1) + ')' });
+  }
+  return out;
+}
+
 // ---- THE ACCEPTED LOAD FOR THIS AEROPLANE -------------------------------------------------------------------------
 // the record that rides THIS airframe (77_ freightAccepted + the slot, as freightStopItems; + the design the hold was
 // measured on, when the stand's is known) -> freightAccepted's object, or null
@@ -261,16 +281,22 @@ function freightStrapBands(stack, card) {
     return y == null ? stack.floorY : y;
   };
   const xm = 0.5 * (b.x0 + b.x1), zm = 0.5 * (b.z0 + b.z1);
-  const fx0 = floorAt(b.x0 - C.foot - 0.01, b.x0 - C.foot + 0.01), fx1 = floorAt(b.x1 + C.foot - 0.01, b.x1 + C.foot + 0.01);
+  // the lengthwise feet stay on the hold's measured floor (a stack at the hold's end ties down nearer its face)
+  const H = card && card.hold, hx0 = H ? H.x0 : -Infinity, hx1 = H ? H.x0 + H.n * H.dx : Infinity;
+  const ax0 = Math.min(b.x0 - g, Math.max(hx0, b.x0 - C.foot)), ax1 = Math.max(b.x1 + g, Math.min(hx1, b.x1 + C.foot));
+  const fx0 = floorAt(ax0 - 0.01, ax0 + 0.01), fx1 = floorAt(ax1 - 0.01, ax1 + 0.01);
   const fz = floorAt(xm - 0.01, xm + 0.01);
   const topX = b.y1 + g, topZ = b.y1 + g + C.t + 0.001;     // the cross strap rides over the lengthwise one
-  const X = { along: 'x', at: zm, pts: [[b.x0 - C.foot, fx0 + C.rise], [b.x0 - g, topX], [b.x1 + g, topX], [b.x1 + C.foot, fx1 + C.rise]] };
+  const X = { along: 'x', at: zm, pts: [[ax0, fx0 + C.rise], [b.x0 - g, topX], [b.x1 + g, topX], [ax1, fx1 + C.rise]] };
   const Z = { along: 'z', at: xm, pts: [[b.z0 - C.foot, fz + C.rise], [b.z0 - g, topZ], [b.z1 + g, topZ], [b.z1 + C.foot, fz + C.rise]] };
   // the buckle: on the cross strap's +z side, halfway down, standing off it by its own depth
   const p2 = Z.pts[2], p3 = Z.pts[3];
   const bk = { c: [xm, 0.5 * (p2[1] + p3[1]), 0.5 * (p2[0] + p3[0]) + C.t + C.buckle[2] / 2], h: [C.buckle[0] / 2, C.buckle[1] / 2, C.buckle[2] / 2] };
-  const plate = (x, y, z) => ({ c: [x, y + C.anchor[1] / 2, z], h: [C.anchor[0] / 2, C.anchor[1] / 2, C.anchor[2] / 2] });
-  const anchors = [plate(X.pts[0][0], fx0, zm), plate(X.pts[3][0], fx1, zm), plate(xm, fz, Z.pts[0][0]), plate(xm, fz, Z.pts[3][0])];
+  // an anchor plate on the floor OUTWARD of its foot (its inner edge at the foot: never under the load), the long side
+  // along the strap
+  const ha = C.anchor[0] / 2, hb = C.anchor[2] / 2, hy = C.anchor[1] / 2;
+  const anchors = [{ c: [ax0 - ha, fx0 + hy, zm], h: [ha, hy, hb] }, { c: [ax1 + ha, fx1 + hy, zm], h: [ha, hy, hb] },
+                   { c: [xm, fz + hy, Z.pts[0][0] - ha], h: [hb, hy, ha] }, { c: [xm, fz + hy, Z.pts[3][0] + ha], h: [hb, hy, ha] }];
   return { bands: [X, Z], buckle: bk, anchors };
 }
 
