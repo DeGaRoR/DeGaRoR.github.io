@@ -3203,6 +3203,7 @@
     relive(foldEye, k => FBK.has(k) && !FBK.inner(k), 'eye');
     // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
     for (const F of [fold, foldIn, foldEye]) if (F && F.park) F.park();
+    wreckBuild.folds = [fold, foldIn, foldEye].filter(F => F && F.live);   // (DMG-D4b: the hybrid's folds - GATE DMGUPLOAD reads their members' visibility)
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
     // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
@@ -4043,8 +4044,8 @@
   // break: before a record is made, the snapshot's group that owns its arrays takes COPIES of them (position, index,
   // normal), and the flown model keeps riding the arrays every view of it already shares. An intact aeroplane pays
   // nothing; a crash pays one copy of the arrays it rides. brkRestore still puts the flown model itself back at a reset
-  function brkDetach(pa, geo, base0) {
-    const data = model && model.data; if (!data || !pa || !pa.array) return;
+  function brkDetach(pa, geo, base0, only) {
+    const data = model && model.data; if (!data || (!only && (!pa || !pa.array))) return;
     if (window.FLYDIY_WALL_NODETACH) return;            // (GATE DMGWALLPATH --selftest only: the bug as it was)
     let M = BRK.snapOf;
     if (!M || BRK.snapData !== data) {                  // (the snapshot's arrays by identity, made at the first break)
@@ -4052,8 +4053,8 @@
       const add = G => { if (!G) return; for (const k in G) { const g = G[k]; if (!g) continue; for (const f of ['pos', 'idx', 'nrm']) if (g[f] && g[f].buffer) M.set(g[f], [g, f]); } };
       add(data.groups); for (const pt of data.parts || []) add(pt.groups);
     }
-    const arrs = [pa.array, geo && geo.index ? geo.index.array : null, geo && geo.attributes.normal ? geo.attributes.normal.array : null];
-    for (const a of arrs) { const hit = a && M.get(a); if (!hit) continue;
+    const arrs = [pa ? pa.array : null, geo && geo.index ? geo.index.array : null, geo && geo.attributes.normal ? geo.attributes.normal.array : null];
+    for (const a of arrs) { const hit = a && M.get(a); if (!hit || (only && !only.includes(hit[1]))) continue;
       // (the positions from the rig's AS-BUILT array, not the live one: an ordinary flight already writes its pose into
       // the shared positions - the wing's flex, the hinges, measured 32 of the Cub's arrays between the garage and the
       // air - and a copy of the live array froze that pose into the snapshot)
@@ -4938,7 +4939,13 @@
   }
   const WD_fitOf = nodes => window.WRECK_DEBRIS.fit(nodes, WK.rest, sim.p);
   const q0posed = () => BRK.recs.length > 0;            // (a heal with skin records: they re-run their event next frame)
+  // DMG-D4b (the carried cowl, 2026-10-08: WALL's replay - a cowl knocked off, then Fly again, and the next aeroplane had
+  // none): A DEBRIS PART'S TRIANGLES ARE NEVER WRITTEN INTO THE SNAPSHOT. The bucket's index is the cage snapshot's own
+  // array until the first skin record detaches it (G1858.2) - and that copy is of the index AS IT IS, so a cowl that left
+  // first was copied into the snapshot as a hole for good. The wreck detaches the index first (G1858.2's own rule, the
+  // index alone). window.FLYDIY_WRECK_NODETACH = true: as it was (the gate's selftest)
   function wreckCollapse(g, T) {
+    if (!window.FLYDIY_WRECK_NODETACH) brkDetach(null, g, null, ['idx']);
     const ix = g.index.array, saved = new (ix.constructor)(T.length * 3);
     T.forEach((t, j) => { saved[j*3] = ix[t*3]; saved[j*3+1] = ix[t*3+1]; saved[j*3+2] = ix[t*3+2]; ix[t*3+1] = ix[t*3+2] = ix[t*3]; });
     const marks = [];

@@ -1,0 +1,33 @@
+{
+ "crash": {
+  "br": 105,
+  "wreck": 26,
+  "stage": {
+   "V": 30,
+   "agl": 1,
+   "tr": 0.5,
+   "D": 40
+  }
+ },
+ "idxCrash": [
+  "model mesh: 0 -> 50152",
+  "model flownBakedIn: 0 -> 20548",
+  "model flownBaked: 0 -> 19740",
+  "snap cff9c00falcladU1: 0 -> 5914",
+  "snap c452700: 0 -> 7210",
+  "snap c020203frubberKU1: 0 -> 136",
+  "snap c272c32fsteelTubeKU1: 0 -> 946",
+  "snap part62:p1c925220fplyKU1D: 0 -> 780"
+ ],
+ "idxRetry": [
+  "snap cff9c00falcladU1: 0 -> 5914",
+  "snap c452700: 0 -> 7210",
+  "snap c020203frubberKU1: 0 -> 136",
+  "snap c272c32fsteelTubeKU1: 0 -> 946"
+ ],
+ "vis0": [],
+ "visRetry": [],
+ "wreck": {
+  "active": false
+ }
+}
