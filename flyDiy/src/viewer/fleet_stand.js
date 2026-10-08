@@ -79,6 +79,12 @@
     if (!c) return true;
     return planOf(Object.assign({}, c, { flown: null })).stand.some(p => p.key === k);   // the airframe on the stand is baked too (a prop once another is loaded)
   }
+  // STATIC (FRAMECOST_FLEET, 8 Oct: +90 updateMatrix a frame for six still props): every object of the fleet's group has its
+  // matrices made once and its matrixAutoUpdate off - at the stand and once the decodes land (three r186 still WALKS the
+  // group each frame - matrixWorldAutoUpdate does not stop the walk - but nothing is recomputed). A later fill (an evicted
+  // key decoded again) brings its own LOD with the default on: parked.js build updates its holder's matrices, the next
+  // stand freezes it again.
+  function freeze(g) { if (!g) return; g.updateMatrixWorld(true); g.traverse(o => { o.matrixAutoUpdate = false; }); }
   function clear() {
     // the holders leave their group first: a decode landing later fills nothing (parked.js fillPending) and the
     // count forgets their levels (fleetDrawn keeps a level whose holder still hangs in the scene)
@@ -98,9 +104,6 @@
     ST.key = k; ST.stats.stands++;
     const g = ST.grp = new c.THREE.Group();
     g.name = 'fleetStand';
-    // STATIC: the scene's per-frame walk skips the fleet (FRAMECOST_FLEET, 8 Oct: +91 matrix updates a frame for six still
-    // props); its world matrices are made here and once the decodes land (a later fill: parked.js build updates its holder)
-    g.matrixAutoUpdate = false; g.matrixWorldAutoUpdate = false;
     c.scene.add(g);
     for (const p of P.stand) {
       let y = c.world.terrainH(p.x, p.z);
@@ -111,14 +114,14 @@
       ST.holders.push(h);
       ST.stats.placed++;
     }
-    g.updateMatrixWorld(true);
+    freeze(g);
     return loads(P, c.waitMs);
   }
   function loads(P, waitMs) {
     const t0 = performance.now();
     const L = P.stand.map(p => (W.PARKED.fleetLoad ? W.PARKED.fleetLoad(p.key) : Promise.resolve(null)));
     const cap = new Promise(res => setTimeout(res, waitMs || 10000));
-    return Promise.race([Promise.all(L), cap]).then(() => { ST.stats.waitMs = Math.round(performance.now() - t0); if (ST.grp) ST.grp.updateMatrixWorld(true); return P; });
+    return Promise.race([Promise.all(L), cap]).then(() => { ST.stats.waitMs = Math.round(performance.now() - t0); freeze(ST.grp); return P; });
   }
   W.FLEET_STAND = { on, rows, plan, key, wants, stand, clear, state: ST,
                     // app.js hands the game's context (the world, the player's document, the airframe on the stand, the

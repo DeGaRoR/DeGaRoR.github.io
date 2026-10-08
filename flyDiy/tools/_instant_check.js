@@ -20,7 +20,7 @@
 // told to it as well: the node page's window listeners sit apart from the elements') and HELD STILL 4 s past its ticks (past the queue's 3 s idle window: a pointer down is still a drag). RED
 // when a capture starts between a row's pointerdown and its pointerup, or when no capture ran in the idle time after
 // the rows (the queue never drains); the rows' own same-scene verdict holds as without the flag.
-// Usage: node --max-old-space-size=4096 tools/_instant_check.js [--builds cub,metal,jodel,cessna,floats] [--only k1,k2] [--fleet]
+// Usage: node --max-old-space-size=4096 tools/_instant_check.js [--builds cub,metal,jodel,cessna,floats] [--only k1,k2] [--fleet | --fleet-baked]
 // Exit 1 on any difference. No --help.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto');
@@ -36,7 +36,8 @@ const log = s => console.log('  ' + s);
 // --settle: the page's ms after the release (the floats' CG handshake - the balance's answer, a rebuild when the CG
 // moved 2 cm - closes over a few seconds of the page's clock; a drag compared before it closes compares two moments)
 const SETTLE = +opt('settle', 1500);
-const FLEETQ = argv.includes('--fleet');   // G2225
+const BAKED = argv.includes('--fleet-baked');   // G2225: --fleet with every bake already made (tools/_fleet_synth.js): no capture runs - isolates the drag's own path
+const FLEETQ = argv.includes('--fleet') || BAKED;   // G2225
 
 const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), 'utf8').match(/const FP = `([\s\S]*?)`;\n/)[1];
 
@@ -48,7 +49,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     if (FLEETQ) Object.assign(storage, require('./perf/fleet_b_set.js').storage());
     // --fleet: an empty store (every key unbaked: the garage's idle path captures), the GPU bake a stub
     const fhooks = FLEETQ ? { afterScript(name, Pg) { if (name === 'src/viewer/parked.js' && Pg.win.PARKED) { const Wp = Pg.win, m = new Map();
-      Wp.PARKED.fleet.store = { get: k => Wp.Promise.resolve(m.has(k) ? m.get(k) : null), put: (k, v) => { m.set(k, v); return Wp.Promise.resolve(); } };
+      Wp.PARKED.fleet.store = BAKED ? require('./_fleet_synth.js').fleetStore(Wp) : { get: k => Wp.Promise.resolve(m.has(k) ? m.get(k) : null), put: (k, v) => { m.set(k, v); return Wp.Promise.resolve(); } };
       Wp.PARKED.fleet.bake = async () => null; } } } : undefined;
     const P = await openPage(Object.assign({ quiet: true, storage }, FLEETQ ? { query: 'fleet=1', hooks: fhooks } : {}));
     const W = P.win, D = W.document, run = c => vm.runInContext(c, P.ctx);
@@ -118,7 +119,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     if (FL) {   // after the rows: no input - the queue's idle window opens and a capture runs
       const c1 = FL.stats.captures; FL.framed = true;
       await P.until(() => FL.stats.captures > c1 || (!FL.queue.length && !FL.busy), 60000);
-      const ok = FL.stats.captures >= 1 && !dragCaps;
+      const ok = (BAKED ? FL.stats.captures === 0 : FL.stats.captures >= 1) && !dragCaps;
       if (!ok) bad++;
       log('fleet: ' + (ok ? 'ok' : 'RED') + ' - captures ' + FL.stats.captures + ' (during drags ' + dragCaps + '), input waits ' + FL.stats.inputWaits + ', not wanted ' + FL.stats.notWanted + ', queue left ' + FL.queue.length);
     }
