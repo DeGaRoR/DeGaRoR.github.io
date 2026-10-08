@@ -81930,8 +81930,9 @@ where it's possible to see something, so VFR at night, even though super dangero
    1.12 since 3 Oct. Live on train 40: noon 1.12 (the schedule 0.92), 15:00 1.12 (1.04), 17:00 1.12 (1.34), sunset
    1.12 (2.79), the full-moon night 1.12 (32 911: +15 stops). The night's whole adaptation never arrived; the day ran
    +0.28 stop bright at noon and dim through the dusk. Fix: `!(abs <= step)`. ITS OWN COMMIT (42a140f76), because it
-   moves the day back to the schedule - noon_stand mean code 131 -> 120 - and the user rules: (A) the schedule as
-   designed (noon 0.92, the alps anchor) or (B) keep the 1.12 day (EV_BASE 0.92 -> 1.12, the whole curve +0.28 stop).
+   moves the day back to the schedule - noon_stand mean code 131 -> 120. **THE USER RULED (8 Oct, on
+   sheet_day_dusk_g2601.jpg, via A0): "yeah, that's better, keep that" - option A, the schedule as designed (noon 0.92,
+   the alps anchor).** Option B (EV_BASE 1.12, the whole curve +0.28 stop) was not taken and has no stills.
 2. **G2600 - THE MOON LIT FROM THE WRONG SIDE OF THE EARTH.** dayApply wrote SUN (the key's placement, the shadow maps,
    the impostors' depth) from day.sun at every hour, held 2 deg over the horizon. Below -1.2 deg the key is the MOON
    (sky_light's hysteresis) - so the moonlight came from the sun's bearing under the horizon, grazing at 2 deg: a level
