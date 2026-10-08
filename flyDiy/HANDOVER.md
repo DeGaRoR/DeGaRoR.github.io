@@ -81742,3 +81742,38 @@ THIS COMMIT (train 42, no player-visible change): src/viewer/splat_ground.js - t
 again (train 40's apron commit had put gSFarOn behind a comment on the same line: production never reads them, ?gstrip=hexfar did not
 compile) and the strip nrmcut; tools/perf/ground_cost.js --eval '<js>' | @file (a page expression printed once the flight is held);
 the runs under reports/evidence/GROUND-COST/runs/ (f_*, fr*_*, s21_nrm_*, link_bisect/). GROUND-COST (G2075-G2079) is closed.
+## G2065 - METLA-MERGE: THE PAVEMENT MERGE IN SLICES, THE SAME MESHES AND SPHERES TO THE BIT; THE TOWN'S ~97 ms APPROACH FRAME GONE (2026-10-07/08, METLA-COOK for A0, local GPU; branch claude/metla-merge-g2065 on train 40 bcf62797, for train 42; G2066-G2069 unused)
+
+**READY for A0.** One commit, 2846a4f7.
+- src/viewer/pavement.js: inlined in index.html, so FLYDIY_BUILD moves and the parked cook is re-cooked at the train build.
+- tools/perf/metla_rebuild_split.js: the probe digests each mesh's bounding sphere too.
+- Generated files are not committed.
+
+**WHY.** The town's deferred build (G2063) left one ~80-97 ms frame on the way to Metlakatla, once per flight at ~7 km. The approach's CPU profile named it: PAV.mergeSteps (the town's roads merged into one group in one generator step) and computeBoundingSphere over the merged geometry.
+
+**WHAT.** mergeSteps now yields after each part, both when it measures the parts' boxes and when it copies them into the merged group. The merged group's bounding sphere is computed THREE's own way, in 65 536-vertex steps:
+- Box3.expandByPoint: Math.min / Math.max per axis over every position
+- the centre: (min + max) * 0.5
+- the largest Vector3.distanceToSquared to the centre
+- its root
+
+These are the same operations in the same order, so the same sphere to the bit, and the merged groups' culling (draw counts) cannot move. merge() (the synchronous form) drives the same generator.
+
+**PROOF (node, the page's boot; METLA_KEEPGEO; 7 Oct 16:52-16:58 under the CPU lock).**
+- Every mesh AND its bounding sphere hashed, old pavement.js (f422c111) against new:
+  - town OFF, all 268 meshes incl. the far tier: SAME
+  - town ON, every merge built at boot (?towngeo=0): SAME
+- The town's deferred build, its steps by label: the merge's largest step is 84 -> 33 ms node (boxes 5, copy 4, sphere 3 ms).
+
+**THE BOX** (8 Oct 14:38-14:44, TIMED; the Cub, gamer, lc_build pinned, a fresh profile; metla_ab --warmup A --order A,B --approach 40):
+
+| | town off | town on |
+|---|---|---|
+| garage | 42.3 s | 47.6 s |
+| taxi | 30 fps, 0 % | 30 fps, 0 % |
+| pass, uneven | 2 % | 3 % |
+| approach, worst frame | 66.7 ms | 83.5 ms |
+
+- No frame over 100 ms on either side.
+- On the town-on approach the premises step is gone (it was 97 ms on 7 Oct, same rig).
+- The worst frame (83.5 ms) shows 11 ms of render CPU (a GPU or upload frame); its neighbour shows world 34 + prem 31 ms.

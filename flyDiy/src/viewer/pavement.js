@@ -1785,6 +1785,7 @@ float pvTread(float u, float x, float w, float seed) {
         if (ex > margin) margin = ex; if (ez > margin) margin = ez;
       }
       p.box = [x0, z0, x1, z1];
+      yield 'pavement:boxes';   // (G2065: a part a step - the town's roads, merged in flight, were one ~90 ms step)
     }
     margin += 0.5;
     const cellKey = (x, z) => (Math.floor(x / C) + 32768) * 65536 + (Math.floor(z / C) + 32768);
@@ -1874,10 +1875,28 @@ float pvTread(float u, float x, float w, float seed) {
         vo += e.verts.length; io += e.idx.length;
         order = Math.min(order, e.p.order);
         const P = G.userData.pavRow; if (P && !owned.has(P)) { owned.add(P); rows.push(P); }
+        yield 'pavement:copy';   // (G2065: a part a step)
       }
       for (const k of names) { const A = list[0].g.attributes[k]; g.setAttribute(k, new THREE.BufferAttribute(arrays[k], A.itemSize, A.normalized)); }
       g.setIndex(new THREE.BufferAttribute(index, 1));
-      g.computeBoundingSphere();
+      // G2065: THE BOUNDING SPHERE IN SLICES, THREE'S OWN (BufferGeometry.computeBoundingSphere): the box of every position
+      // (Box3.expandByPoint: Math.min / Math.max per axis), its centre ((min + max) * 0.5), the largest squared distance
+      // to it (Vector3.distanceToSquared), its root - the same operations in the same order, so the same sphere to the
+      // bit (the merged groups' culling unchanged); 65 536 vertices a step
+      { const Pa = arrays.position, nv = Pa ? Pa.length / 3 : 0, STEP = 65536;
+        if (!Pa || !nv) g.computeBoundingSphere();
+        else {
+          let mnx = Infinity, mny = Infinity, mnz = Infinity, mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+          for (let v0 = 0; v0 < nv; v0 += STEP) { for (let v = v0, ve = Math.min(nv, v0 + STEP); v < ve; v++) { const x = Pa[v * 3], y = Pa[v * 3 + 1], z = Pa[v * 3 + 2];
+              mnx = Math.min(mnx, x); mny = Math.min(mny, y); mnz = Math.min(mnz, z); mxx = Math.max(mxx, x); mxy = Math.max(mxy, y); mxz = Math.max(mxz, z); }
+            yield 'pavement:sphere'; }
+          const cx = (mnx + mxx) * 0.5, cy = (mny + mxy) * 0.5, cz = (mnz + mxz) * 0.5;
+          let r2 = 0;
+          for (let v0 = 0; v0 < nv; v0 += STEP) { for (let v = v0, ve = Math.min(nv, v0 + STEP); v < ve; v++) { const dx = cx - Pa[v * 3], dy = cy - Pa[v * 3 + 1], dz = cz - Pa[v * 3 + 2];
+              r2 = Math.max(r2, dx * dx + dy * dy + dz * dz); }
+            yield 'pavement:sphere'; }
+          g.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy, cz), Math.sqrt(r2));
+        } }
       g.userData.pavRows = rows;
       g.userData.pav = { kind: 'merged', parts: new Set(cl.map(e => e.p.i)).size, verts: nV, tris: nI / 3 };
       out.push({ geo: g, order, parts: g.userData.pav.parts });

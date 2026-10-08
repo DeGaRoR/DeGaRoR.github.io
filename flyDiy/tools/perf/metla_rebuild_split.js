@@ -55,6 +55,7 @@ async function child(side, out) {
     o.updateMatrixWorld(true); H.update(Buffer.from(new Float64Array(o.matrixWorld.elements).buffer));
     for (const k of Object.keys(g.attributes).sort()) { const a = g.attributes[k].array; H.update(k); H.update(Buffer.from(a.buffer, a.byteOffset, a.byteLength)); }
     if (g.index) { const a = g.index.array; H.update(Buffer.from(a.buffer, a.byteOffset, a.byteLength)); }
+    if (g.boundingSphere) H.update(Buffer.from(new Float64Array([g.boundingSphere.center.x, g.boundingSphere.center.y, g.boundingSphere.center.z, g.boundingSphere.radius]).buffer));   // (G2065: the sphere the culling reads)
     parts.push((far ? 'far' : o.name.split(':')[0]) + ':' + H.digest('hex').slice(0, 16));
     // an invariant of the class that merging cannot move: vertices, triangles and the world positions' sums (a mesh
     // merged with others keeps its vertices, wherever they are batched)
