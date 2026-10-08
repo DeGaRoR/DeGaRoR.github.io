@@ -32,6 +32,9 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // --variants '[{"eye":0},{"eye":1.5}]': each NIGHT view shot once per set of light_rig NIGHT dials (pages that have them;
 // the day views once, with the first set) - the file name carries the set (e.g. _eye1.5)
 const VARIANTS = JSON.parse(opt('variants', '[null]'));
+// --crossing (G2620): instead of the views, the evening's sun stepped through the pre-exposure's switch (-6.0 .. -7.0 deg in
+// 0.05 steps, three frames a step, a still a step over the sea toward the sun) - the switch frame and its neighbours compared
+const CROSS = argv.includes('--crossing');
 const vtag = o => (o ? '_' + Object.keys(o).map(k => k + o[k]).join('_') : '');
 const REPO = path.resolve(__dirname, '..', '..');
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'].find(p => fs.existsSync(p));
@@ -68,6 +71,13 @@ const VIEWS = [
   { name: 'new_over',      day: Object.assign({}, NEW_, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
   { name: 'overcast_stand', day: Object.assign({}, FULL, OVERCAST_P), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 25 },
   { name: 'overcast_over', day: Object.assign({}, FULL, OVERCAST_P), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
+  // G2620 (PRE-EXPOSURE): every light kind lit - the premises' lamps and panes and the runway lights from the stand, the
+  // aeroplane's nav / beacon / landing lights forced on (the cockpit's own switches), the panel at night from the cockpit
+  { name: 'lit_apron',     day: Object.assign({}, FULL, CLEAR), at: 'stand', aim: 'lamps', el: 0.12, dist: 22, settle: 10 },
+  { name: 'lights_on',     day: Object.assign({}, NEW_, CLEAR), at: 'stand', aim: 'runway', el: 0.18, dist: 14, settle: 6,
+    js: "(typeof CK !== 'undefined' && CK.sw) && ['sw_nav', 'sw_beacon', 'sw_land', 'sw_taxi'].forEach(k => { if (k in CK.sw) { CK.sw[k] = 1; if (CK.handSw) CK.handSw[k] = true; } })" },
+  { name: 'cockpit_night', day: Object.assign({}, NEW_, CLEAR), at: 'over', aim: 'runway', el: 0.05, dist: 30, settle: 6, cam: 'cockpit',
+    js: "(typeof CK !== 'undefined' && CK.sw) && ['sw_instr', 'sw_flood', 'sw_nav'].forEach(k => { if (k in CK.sw) { CK.sw[k] = 1; if (CK.handSw) CK.handSw[k] = true; } })" },
 ].filter(v => !ONLY.length || ONLY.includes(v.name));
 
 // ---- in the page ----
@@ -106,6 +116,9 @@ const SETUP = V => `(async () => {
   if (${JSON.stringify(V.at)} === 'stand') { const st = window.__moonStand, cg = s.cgPos(); if (Math.hypot(st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]) > 0.5) await FLIGHT_PROBE.place({ by: [st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]], zeroV: true }); agl = null; look = [dx, dz]; }
   else if (${JSON.stringify(V.at)} === 'over') { agl = 300; look = [sea[0], sea[1]]; }
   else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
+  if (aim === 'lamps') { const L = window.WORLD && WORLD.premises && WORLD.premises.lamps, pub = (L && L.pub || []).filter(e => e.wp), cg = s.cgPos();
+    if (pub.length) { pub.sort((a, b) => Math.hypot(a.wp[0] - cg[0], a.wp[2] - cg[2]) - Math.hypot(b.wp[0] - cg[0], b.wp[2] - cg[2]));
+      const q = pub.slice(0, 6), mx = q.reduce((a, e) => a + e.wp[0], 0) / q.length - cg[0], mz = q.reduce((a, e) => a + e.wp[2], 0) / q.length - cg[2], l = Math.hypot(mx, mz) || 1; look = [mx / l, mz / l]; } }
   if (aim === 'sun') { const sv = DAY_CLOCK.day().sun, h = Math.hypot(sv[0], sv[2]) || 1; look = [sv[0] / h, sv[2] / h]; }
   if (aim === 'moon' || aim === 'awayMoon') { const mv = DAY_CLOCK.day().moon, h = Math.hypot(mv[0], mv[2]) || 1, k = aim === 'moon' ? 1 : -1; look = [mv[0] / h * k, mv[2] / h * k]; }
   if (aim === 'runway' && ${JSON.stringify(V.at)} === 'stand') { const cg = s.cgPos(); look = [cx - cg[0] + dx * len * 0.3, cz - cg[2] + dz * len * 0.3]; const l = Math.hypot(look[0], look[1]) || 1; look = [look[0] / l, look[1] / l]; }
@@ -125,6 +138,7 @@ const REPORT = `(() => {
     moonPhase: +d.moonPhase.toFixed(3), moonEl: +d.moonEl.toFixed(1), sunEl: +d.sunEl.toFixed(1), cover: d.cloudCoverEff,
     night: W.LIGHT_RIG && W.LIGHT_RIG.nightU ? Array.from(W.LIGHT_RIG.nightU.uNightEye.value.toArray ? W.LIGHT_RIG.nightU.uNightEye.value.toArray() : W.LIGHT_RIG.nightU.uNightEye.value).map(v => +v.toFixed(3)) : null,
     linear: W.FLYDIY_AA && W.FLYDIY_AA.linear ? W.FLYDIY_AA.linear() : null,
+    pre: W.LIGHT_RIG && W.LIGHT_RIG.preState ? W.LIGHT_RIG.preState() : null,   // G2620
     // the exposure's chain: the schedule's, the declared base, the ease, the eye, the rig row
     exSched: W.LIGHT_RIG ? +W.LIGHT_RIG.exposureFor(d.sunEl).toExponential(3) : null, exBase: W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : null, eyeK: W.GFX && W.GFX.eye ? W.GFX.eye() : null,
     ease: W.LIGHT_EASE ? { on: W.LIGHT_EASE.on, init: W.LIGHT_EASE.init, ex: W.LIGHT_EASE.ex, tEx: W.LIGHT_EASE.tEx, setEx: W.LIGHT_EASE.setEx, applies: W.LIGHT_EASE.applies, writes: W.LIGHT_EASE.writes } : null,
@@ -211,18 +225,46 @@ async function runPage(page) {
     const tag = path.basename(page, '.html') + (Q ? '_' + Q.replace(/\W+/g, '') : '');
     fs.mkdirSync(OUT, { recursive: true });
     const hasNight = await ev('!!(window.LIGHT_RIG && window.LIGHT_RIG.setNight)');
+    if (CROSS) {
+      await ev(SETUP({ name: 'cross', day: Object.assign({ date: '2026-09-26', utc: 3600 }, CLEAR), at: 'over', aim: 'sun', el: 0.05, dist: 30 }));
+      await ev(FRAMES(90)); await sleep(8000);
+      let prev = null;
+      for (let k = 0, e = -6.0; e >= -7.0001; k++, e -= 0.05) {
+        const info = JSON.parse(await ev(`(() => { const d = DAY_CLOCK.day(), u = d.utcFor(${e.toFixed(3)}, false); if (u != null) DAY_CLOCK.set({ utc: u });
+          const W = window; return JSON.stringify({ el: +DAY_CLOCK.day().sunEl.toFixed(3), pre: W.LIGHT_RIG && W.LIGHT_RIG.preState ? W.LIGHT_RIG.preState() : null,
+            exR: +FLIGHT_PROBE.renderer().toneMappingExposure.toExponential(4), base: W.GFX && W.GFX.exposureBase ? +W.GFX.exposureBase().toExponential(4) : null }); })()`));
+        await ev(FRAMES(3));
+        const shot = await cmd('Page.captureScreenshot', { format: 'png' });
+        const file = path.join(OUT, 'cross_' + String(k).padStart(2, '0') + '_' + tag + '.png');
+        fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
+        const st = stats(file), d = prev ? +(st.meanCode - prev.meanCode).toFixed(2) : 0;
+        rows.push({ view: 'cross', k, page: tag, info, still: st, dMean: d, file: path.relative(path.join(__dirname, '..'), file).replace(/\\/g, '/') });
+        console.log('cross ' + String(k).padStart(2) + ' el ' + info.el + ' P ' + (info.pre ? info.pre.P + ' (switches ' + info.pre.switches + ')' : '-') + ' ex ' + info.exR + ' base ' + info.base + ' mean code ' + st.meanCode + ' d ' + d);
+        prev = st;
+      }
+      const sw = rows.findIndex((r, i) => i > 0 && r.info.pre && rows[i - 1].info.pre && r.info.pre.P !== rows[i - 1].info.pre.P);
+      if (sw > 0) { const ds = rows.map(r => Math.abs(r.dMean)), near = ds.filter((_, i) => i !== sw && Math.abs(i - sw) <= 4);
+        console.log('SWITCH at step ' + sw + ' (el ' + rows[sw].info.el + '): |d mean| ' + ds[sw] + ' vs the 8 steps round it ' + JSON.stringify(near) + ' (max ' + Math.max(...near) + ')'); }
+      else console.log('no switch seen (a page without the pre-exposure, or the sun did not cross)');
+      try { await cmd('Browser.close'); } catch (e) {}
+      return rows;
+    }
     for (const V of VIEWS) for (const [vi, VAR] of VARIANTS.entries()) {
       if (vi > 0 && (/^(noon|dusk|sunset)/.test(V.name) || !hasNight)) continue;
       if (hasNight) await ev('(LIGHT_RIG.setNight(Object.assign(LIGHT_RIG.nightDefaults(), ' + JSON.stringify(VAR || {}) + ')), window.WORLD && WORLD.relight && WORLD.relight(), 1)');
       const vt = hasNight && !/^(noon|dusk|sunset)/.test(V.name) ? vtag(VAR) : '';
       const plan = await ev(SETUP(V));
+      if (V.cam) await ev("(FLIGHT_PROBE.camMode(" + JSON.stringify(V.cam) + "), 1)");
       await ev(FRAMES(90)); await sleep((V.settle || 8) * 1000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
-      await ev(SETUP(V));                          // again: the aeroplane and the orbit where they were asked (a fit or a probe moved nothing, but be sure)
+      if (!V.cam) await ev(SETUP(V));              // again: the aeroplane and the orbit where they were asked (a fit or a probe moved nothing, but be sure)
       await ev(FRAMES(120)); await sleep(1500);
+      // the rig pauses the sim, so the cockpit's glow never runs on its own (G436.5): lit now, at this frame's P
+      await ev("((typeof CK !== 'undefined' && CK.glow) && CK.glow(0), 1)"); await ev(FRAMES(4));
       const png1 = await cmd('Page.captureScreenshot', { format: 'png' });
       const file = path.join(OUT, V.name + '_' + tag + vt + '.png');
       fs.writeFileSync(file, Buffer.from(png1.result.data, 'base64'));
       const page = JSON.parse(await ev(REPORT)), st = stats(file);
+      if (V.cam) await ev("(FLIGHT_PROBE.camMode('chase'), 1)");
       const row = { view: V.name, page: tag, dials: hasNight ? VAR : null, plan, still: st, light: page, file: path.relative(path.join(__dirname, '..'), file).replace(/\\/g, '/') };
       rows.push(row);
       console.log((V.name + vt).padEnd(30) + ' ' + tag.padEnd(22) + ' meanY ' + st.meanY.toFixed(4) + ' code ' + st.meanCode.toFixed(0) + ' sky ' + st.skyCode.toFixed(0) + ' gnd ' + st.groundCode.toFixed(0)
