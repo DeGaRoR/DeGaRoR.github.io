@@ -6979,6 +6979,7 @@
   // worker's under the physics worker, sim_link) decides with the ending: any primary member broken or any part parted
   // is no arrival, and the card says why. A set within the envelope, a prop strike alone, a dent: still an arrival.
   // Damage off: never damaged (no break), the rule as it was
+  const flDmgOn = () => !!(def && typeof genDamageOn === 'function' && genDamageOn(def));   // (the damage layer: ?damage=1)
   const flStructural = () => { try { const D = sim && sim.damage ? sim.damage() : null; return (D && D.structural) || null; } catch (e) { return null; } };
   function flArrival(td) {
     const S = flStructural(), damaged = !!(S && S.damaged);
@@ -7166,7 +7167,8 @@
     if (!el) return;
     const rep = ap.report || null, td = ap.tdInfo;
     const outcome = rep ? (rep.outcome || 'stopped') : (td ? 'completed' : 'stopped');
-    const good = outcome === 'completed';
+    const dmgWhy = flArrival().damaged;                    // DMG-D4b (train 41): a damaged aeroplane is no arrival
+    const good = outcome === 'completed' && !dmgWhy;
     // WHERE, not WHAT (the flight rebaseline). The title said ARRIVED or the
     // outcome shouted in caps; it now names the PLACE, which is the sentence
     // a player reads at the end of a flight, and the outcome is the tag beside
@@ -7180,7 +7182,9 @@
     el.classList.toggle('bad', !good);
     // G1868: A CRASH'S CARD IS SMALL AND OUT OF THE WAY - the corner, not the middle of the wreck; its title folds it to one
     // line (the player keeps looking), the screen's verbs (Fly on / The shed) as ever
-    const wreckEnd = outcome === 'crashed' || outcome === 'broke-up';
+    // DMG-D4b (train 41; the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash"): every
+    // ending a wreck may follow - a crash, a break-up, a diverged sim, a damaged aeroplane, a crash verdict - takes the corner
+    const wreckEnd = outcome === 'crashed' || outcome === 'broke-up' || (flDmgOn() && (outcome === 'sim-diverged' || !!dmgWhy || !!(flDmg && flDmg.crashed)));
     el.classList.toggle('wreck', wreckEnd); el.classList.remove('min');
     // PREM-S2 (G2230, gp4 / GQ5): a crash, a give-up or a stop out in a field moved nothing - the airframe stands where it
     // departed from; "bring it home" is offered (free, instant: the hangar it last left, else the main hangar)
@@ -7200,6 +7204,7 @@
     const t1 = telBase + (ap.t || 0);
     const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
     row('outcome', outcome.replace(/-/g, ' '));
+    if (dmgWhy) row('certificate', 'Not certified - the aeroplane was damaged: ' + dmgWhy, 'warn');   // (DMG-D4b: the plain why)
     row('flight time', (mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s'
                            : ss + ' s'));
     row('distance', tel.km.toFixed(1) + ' km');
@@ -7413,6 +7418,7 @@
       try {
         window.BENCH_FLIGHT_LOGGED({
           report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual, damaged: A.damaged,
+          wreck: !t && flDmgOn() && (flWrecked() || !!A.damaged || !!(flDmg && flDmg.crashed)),   // (DMG-D4b: its card off the middle)
           landing: rep.landing || null,
           td: t ? { sink: t.sink, V: t.V, z: t.z } : null,
           armed: armed ? { fp: armed.fp, when: armed.when } : null,

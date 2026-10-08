@@ -269,7 +269,7 @@ const BENCH_TESTS = [
         verdict: ok ? (f.manual ? 'ARRIVED, BY HAND' : eventful ? 'FLEW THE CIRCUIT, WITH NOTES' : 'FLEW THE CIRCUIT')
                     : dmg ? 'NOT CERTIFIED'
                     : String(f.outcome || rep.outcome || 'no arrival').toUpperCase().replace(/-/g, ' '),
-        damaged: dmg,
+        damaged: dmg, wreck: !ok && !!f.wreck,
         ok,
         note: (L ? 'landing run ' + benchNum(L.run, 0) + ' m · touchdown '
                  + benchNum(L.sink, 2) + ' m/s · ' + benchNum(L.pastAim, 0) + ' m past the aim'
@@ -1359,7 +1359,7 @@ function benchInit(api) {
     if (!U || !r) { done(); return; }
     const M = (window.STICKERS && window.STICKERS.META && window.STICKERS.META[t.id]) || null;
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    U.aw.className = r.ok ? '' : 'no';
+    U.aw.className = r.ok ? '' : r.wreck ? 'no wreck' : 'no';   // (DMG-D4b: a wreck's card in the corner, bench.css)
     U.aw.innerHTML =
       '<div class="bAk">' + (r.ok ? 'certificate awarded' : 'not awarded') + '</div>' +
       '<div class="bAn">' + esc(t.name) + '</div>' +
