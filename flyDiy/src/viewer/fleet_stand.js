@@ -98,6 +98,9 @@
     ST.key = k; ST.stats.stands++;
     const g = ST.grp = new c.THREE.Group();
     g.name = 'fleetStand';
+    // STATIC: the scene's per-frame walk skips the fleet (FRAMECOST_FLEET, 8 Oct: +91 matrix updates a frame for six still
+    // props); its world matrices are made here and once the decodes land (a later fill: parked.js build updates its holder)
+    g.matrixAutoUpdate = false; g.matrixWorldAutoUpdate = false;
     c.scene.add(g);
     for (const p of P.stand) {
       let y = c.world.terrainH(p.x, p.z);
@@ -108,13 +111,14 @@
       ST.holders.push(h);
       ST.stats.placed++;
     }
+    g.updateMatrixWorld(true);
     return loads(P, c.waitMs);
   }
   function loads(P, waitMs) {
     const t0 = performance.now();
     const L = P.stand.map(p => (W.PARKED.fleetLoad ? W.PARKED.fleetLoad(p.key) : Promise.resolve(null)));
     const cap = new Promise(res => setTimeout(res, waitMs || 10000));
-    return Promise.race([Promise.all(L), cap]).then(() => { ST.stats.waitMs = Math.round(performance.now() - t0); return P; });
+    return Promise.race([Promise.all(L), cap]).then(() => { ST.stats.waitMs = Math.round(performance.now() - t0); if (ST.grp) ST.grp.updateMatrixWorld(true); return P; });
   }
   W.FLEET_STAND = { on, rows, plan, key, wants, stand, clear, state: ST,
                     // app.js hands the game's context (the world, the player's document, the airframe on the stand, the

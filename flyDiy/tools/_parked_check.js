@@ -756,6 +756,8 @@ async function fleetStood() {
   const ok = P1.stand.every((p, i) => { const h = S.holders[i]; const y = Math.max(world.terrainH(p.x, p.z), Number.isFinite(world.waterH(p.x, p.z)) ? world.waterH(p.x, p.z) : -1e9);
     return h.userData.fleetSlot === p.slot && h.userData.parkedKey === 'mine:' + p.slot && near(h.position.x, p.x, 1e-9) && near(h.position.z, p.z, 1e-9) && near(h.position.y, y, 1e-9) && near(h.rotation.y, p.ry, 1e-9); });
   check(ok, '13 ...each at its spot: x, z, the yaw, on the ground (the water where it is higher)');
+  check(g.matrixWorldAutoUpdate === false && g.matrixAutoUpdate === false && S.holders.every(h => { const e = h.matrixWorld.elements; return near(e[12], h.position.x, 1e-6) && near(e[14], h.position.z, 1e-6); }),
+    '13 ...STATIC: the fleet group off the scene\'s per-frame walk, its world matrices made (the holders at their spots)');
   check(PK.fleet.stats.decodes - d0 === 7, "13 ...ONE decode a key although two doors asked (place() and the stand's wait)", (PK.fleet.stats.decodes - d0) + ' decodes');
   // the same set: kept
   const st0 = S.stats.stands;

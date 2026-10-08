@@ -16,8 +16,8 @@
 // G2225 (FLEET-PROPS B) --fleet: THE FLEET'S BAKES NEVER SLOW A SLIDER. The six validated airframes saved and tied down
 // outside at HOME (tools/perf/fleet_b_set.js), ?fleet=1, an empty fleet store: the boot's roll-out screen asks for six
 // bakes the garage's idle path makes (the real capture through the editor; the GPU bake itself a stub - no GPU here).
-// Each row's drag is dispatched as a browser does it (pointer and input events BUBBLE, so the page's window listeners
-// hear them) and HELD STILL 4 s past its ticks (past the queue's 3 s idle window: a pointer down is still a drag). RED
+// Each row's drag is dispatched as a browser does it (pointer and input events bubble, and the window hears each one -
+// told to it as well: the node page's window listeners sit apart from the elements') and HELD STILL 4 s past its ticks (past the queue's 3 s idle window: a pointer down is still a drag). RED
 // when a capture starts between a row's pointerdown and its pointerup, or when no capture ran in the idle time after
 // the rows (the queue never drains); the rows' own same-scene verdict holds as without the flag.
 // Usage: node --max-old-space-size=4096 tools/_instant_check.js [--builds cub,metal,jodel,cessna,floats] [--only k1,k2] [--fleet]
@@ -75,12 +75,15 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       U.dragSettleMs = 1e9;
       if (FL) FL.framed = true;                                   // the browser drew frames between two rows
       const cap0 = FL ? FL.stats.captures : 0;
-      el.dispatchEvent(new PE('pointerdown', EVO));
-      for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input', EVO)); await P.until(() => false, 30); }
+      // (--fleet: the node page keeps window's listeners apart from the elements' - _page_node.js WL - so a bubbling event
+      // never reaches them; a browser's window sees every one of these in its capture phase: the drag is told to it too)
+      const winToo = t => { if (FLEETQ) W.dispatchEvent(new PE(t)); };
+      el.dispatchEvent(new PE('pointerdown', EVO)); winToo('pointerdown');
+      for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input', EVO)); winToo('input'); await P.until(() => false, 30); }
       if (FL) await P.until(() => false, 4000);                   // --fleet: the slider HELD STILL past the queue's idle window
       const capD = FL ? FL.stats.captures - cap0 : 0;
       U.dragSettleMs = 350;
-      el.dispatchEvent(new Ev('change', EVO)); W.dispatchEvent(new PE('pointerup', EVO));
+      el.dispatchEvent(new Ev('change', EVO)); winToo('change'); W.dispatchEvent(new PE('pointerup', EVO));
       if (capD) { dragCaps += capD; bad++; log(k.padEnd(12) + ' FLEET: ' + capD + ' capture(s) started DURING the drag'); }
       const relN = U.release ? U.release.n - rl0 : 0, relW = U.release ? U.release.whole - rw0 : 0;
       const relTxt = !U.release ? '' : relN ? '  release: partial [' + ((U.release.last && U.release.last.why) || '') + '; floor ' + ((U.release.last && U.release.last.floor) || '') + ']'

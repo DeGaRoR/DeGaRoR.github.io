@@ -1945,6 +1945,9 @@ self.onmessage = function (e) {
     const G = W.GARAGE_SPEC;
     const dec = await decodeImages(raw), mine = await decodeImages(G && G.images ? G.images() : null);
     if (!garageIdle() || !canCapture()) { FLEET.stats.worldRefused++; FLEET.queue.unshift(key); return null; }
+    // G2225 (INSTANT --fleet, 8 Oct 04:05): the idle window is looked at AGAIN here - the awaits above (the store, the
+    // pages) let a drag start after fleetStep's look, and a capture under a held slider spoils its preview: back in the queue
+    if (FLEET.down || performance.now() - FLEET.inputAt < FLEET.idleMs) { FLEET.stats.inputWaits++; FLEET.queue.unshift(key); return null; }
     // THE CAPTURE, one task: the record is kept only as the bytes (REC keeps what it held)
     const keep = REC[key]; delete REC[key];
     let rec = null;
