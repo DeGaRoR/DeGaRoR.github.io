@@ -86007,3 +86007,33 @@ Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard kille
   50 m/s stagings break up on? The likely answer is that the staging misses the trunk squarely: the Cub lifts at 40 m/s
   with the throttle shut. Not checked: a trace of the strike's lateral offset and the nose height at the trunk would
   answer it.
+
+## G2510 - PILOT-STUDENT-T41: THE STUDENT A LITTLE QUICKER, BECAUSE THE AEROPLANE NO LONGER DAMPS ITSELF ARTIFICIALLY (2026-10-08 03:20-03:41, the PILOT COORDINATOR for A0 / Deform, local box, node; branch claude/pilot-student-t41 off claude/dmg-t41-final db2518d01)
+
+IN PLAIN WORDS (the student is the user's design): the student pilot now reacts in 0.35 s instead of 0.45 s. Everything
+else about the student is as designed - slower than the club pilot (0.25 s), gentle turns (bank 0.7), over-rotates on
+take-off, flares late (0.8), loose hands, a normal approach everywhere. Their grip on an error follows (auto: 0.25 -> 0.30).
+
+WHY: train 41's PILOTMATRIX went red on cub:HOME:calm:student (off 0.5 -> 9.4 m, swing 2.8 -> 58.5 deg: a ground loop).
+The bisect (D:/Dev/pilot_runs/bisect41/): master ok; 41 red; 41 with every pilot-side file put back to master's, or the
+page's Math for CORE_MATH, or SETTLE reverted: bit-identical red; 41 with master's 30_solver.js: ok; 41 with only the
+solver's own instrument `defDampMean` (the pre-G1885 damper): 8 of 8 seeds completed and the cell ok; TYRE's
+`tyreCoulomb` alone: still bad. DMG-DAMP G1885 made the deformation damper honest - it no longer damps the aeroplane's
+rigid rotation - and the student's 0.45 s loop had been leaning on that artificial damping. DAMP stays (honest physics;
+Deform: every crash and water case is calibrated on it); the person is re-tuned.
+
+THE STUDENT'S BAND (tools/pilot_persona.js --only cub --profiles student --seeds 1935,1..7; Cub, HOME, calm):
+```
+tree / reaction            completed  final speed rms  slope rms  rotation q    reversals worst|final
+master bcf62797  0.45 s    8 of 8     0.14-0.17        0.6-0.8    3.9-5.4       32-37 | 27-33
+41-final         0.45 s    3 of 8     0.26-0.40        0.9-1.4    4.2-5.6       19-22 | 18-21 (5 gave up)
+41-final         0.40 s    8 of 8     0.20-0.27        0.7-0.9    4.1-5.6       21-24 | 19-23
+41-final         grip 0.3  7 of 8     0.28-0.36        0.9-1.2    4.1-5.6       (1 gave up)
+41-final         0.35 s    8 of 8     0.14-0.18        0.6-0.8    4.1-5.5       25-40 | 22-32   <- kept
+```
+GATES on this commit (db2518d01 + the line): PILOT PASS (3 shards), PILOTMATRIX PASS ("no cell worse than
+pilot_baseline.json; 2 known bad, 2 warn"); the cells: cub:HOME:calm:student ok (sink 0.95, swing 4.6), cub:HOME:calm
+ok, cub:HOME:calm:hamfist warn (swing 6.3 - unchanged by this commit; it was 2.8 on master: DAMP's, a ham-fist's, named).
+The expert never enters the person's loop: bit-identical by construction. OWED: the other aeroplanes' student bands on
+41 (the Jodel, the C172, the Wipline) - pilot_persona's full sweep; PERSONA-2 (claude/persona-2-g2460) must take this
+reaction when it rebases.

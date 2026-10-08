@@ -144,13 +144,19 @@ const PILOT_UNITS = {
 //   technique  field     null (the pilot's choice) | 'short' | 'normal' - the approach technique forced
 //              slip      true: the forward slip on ANY final high on energy at idle (the expert: short ones only)
 //              stepHold  true: the step-attitude hold on the water (39b servoStepHold)
+// G2510 (train 41, the PILOT COORDINATOR): THE STUDENT'S REACTION 0.45 -> 0.35 s. DMG-DAMP G1885 made the deformation
+// damper honest (it no longer damps the rigid rotation); the student's delayed loop had leaned on that artificial damping:
+// on the Cub at HOME, calm, 8 seeds, 5 of 8 flights gave up after go-arounds, the final's speed rms 0.26-0.40 m/s (master
+// 0.14-0.17), seed 1935 ground-looped on the roll-out. At 0.35 s (the auto grip 0.25 -> 0.30): 8 of 8 completed, rms
+// 0.14-0.18; 0.40 s left it 0.20-0.27, a grip of 0.3 at 0.45 s still gave up once. Still slower than the club (0.25 s),
+// the same over-rotation, late flare, gentle turns and loose hands.
 const PILOT_PROFILES = {
   expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
              active: false },
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
              active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
              active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
