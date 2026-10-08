@@ -295,7 +295,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
   let seaPlaneY = 0;      // the drawn sea plane's y: 0, the level the floats ride, on every tier (G1563, REVIEW B25)
-  let coverRing = null, fillPoolAt = null, standCards = null;   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
+  let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -5366,8 +5366,24 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // per piece, and have no use for the drawn colour - that is the tufts' business
           const coverAt = (x, z, pave) => { const c = world.coverAt ? world.coverAt(x, z, pave) : null; if (!c) return null; if (!pave) c.col = (c.cls && PAV) ? PAV.groundColor(c.cls, PM_RECIPE()) : null; return c; };
           const PM_RECIPE = () => (world.premises && world.premises.rec && world.premises.rec.pavement) || null;
+          // THE GRASS FIELD (GRASS-DENSE G2563): the grass is a ring of its own - small cells, tufts, its own reach and fade - and
+          // the first ring leaves the reed to it while it is on (owned). Its colour is the ground's as drawn (the splat's meanAt)
+          const GF0 = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
+          const groundMeanAt = (x, z, code) => { if (!SPL || !SPL.api.meanAt) return null; const d = 3;
+            const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+            return SPL.api.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt, coverAt });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+          // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
+          // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
+          const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
+          const okField = (x, z) => { if (okAt(x, z)) return true;
+            const L = PGN && PGN.grassSides ? PGN.grassSides() : null; if (!L || L.law !== 'sides' || !L.hard) return false;
+            const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
+            const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
+            const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
+          grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, groundMeanAt });
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
@@ -5394,7 +5410,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
         treeSettled = null;
-        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); }))
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); }))
           .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
         return true;
       };
@@ -5406,6 +5422,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
           biomes: () => BIO,
           cover: () => coverRing,
+          // G2563: the grass field (cover_ring.js, layer 'grass'). field(on) switches it: off gives the reed back to the cover ring
+          // (today's patches - the A/B), and both replant
+          grass: () => grassField,
+          field: on => { if (!grassField) return false; if (on !== undefined && !!on !== !!grassField.get().on) { grassField.set({ on: !!on }); grassField.replant(); if (coverRing) coverRing.replant(); } return !!grassField.get().on; },
           stands: () => standCards,   // the far forest's handle: get/set/stat/root
           // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
           // code and its name, the derived code (cliff / old forest / dense scrub by slope and
@@ -5424,13 +5444,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
-          vegChanged: () => { if (!BIO) return false; vegSync(); if (vegSigNow === vegPlanted) return false; vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); reachRefresh(); return true; },
+          vegChanged: () => { if (!BIO) return false; vegSync(); if (vegSigNow === vegPlanted) return false; vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -6807,6 +6827,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     lodUpdate(cg);
     if (FRw) FRw.push(FRw.S.cover);
     if (coverRing) coverRing.update();
+    if (grassField) grassField.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update(cg);
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)

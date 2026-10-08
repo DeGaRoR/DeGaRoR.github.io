@@ -404,6 +404,16 @@
   // over uFadeGrow s from its birth (aBorn, the ring's per-instance time; a mesh without one reads 0, i.e. born
   // long ago): the late cell at the eye's feet rises instead of appearing. Vertex work only - no blend, no sort.
   const U_FADE_BAND = { value: 0.25 }, U_FADE_NOW = { value: 0 }, U_FADE_GROW = { value: 0.8 };
+  // THE DISTANCE BY SCREEN SIZE (GRASS-DENSE G2564, the study's sizeFade): the fade reads the distance over the instance's own
+  // size against a reference (its scale, instanceMatrix[1]'s length, over uFadeHRef) - a lawn tuft a third a meadow's height fades
+  // at a third of the distance, a verge's at 1.5x: per-ground-type distances fall out of the heights. uFadeSize 0 = the distance
+  // alone (every material but the grass field's, whose set carries its own). Vertex work only.
+  const U_FADE_SIZE = { value: 0 }, U_FADE_HREF = { value: 1 };
+  // A FADE SET (GRASS-DENSE G2563): the uniforms a faded material reads. The ring's materials share the global one; the grass
+  // field (cover_ring.js, its own ring of small cells) hands its material a set of its own - its own near / reach / taper /
+  // height term and size fade - through fadeHook(mat, set). The grow's clock and band stay shared.
+  const FADE_GLOBAL = { near: U_FADE_NEAR, reach: U_FADE_REACH, taper: U_FADE_TAPER, agl: U_FADE_AGL, size: U_FADE_SIZE, href: U_FADE_HREF };
+  const fadeSet = () => ({ near: { value: 1e9 }, reach: { value: 2e9 }, taper: { value: 0.5 }, agl: { value: 1 }, size: { value: 0 }, href: { value: 1 } });
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
@@ -413,6 +423,9 @@
     '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
     '#endif',
     'float _fd = distance(_fp, cameraPosition);',
+    '#ifdef USE_INSTANCING',
+    'if (uFadeSize > 0.0) _fd /= mix(1.0, clamp(length(instanceMatrix[1].xyz) / uFadeHRef, 0.05, 1.5), uFadeSize);',   // (a tall one reaches 1.5 x at most: the ring plants that far)
+    '#endif',
     'float _ft = clamp((_fd - uFadeNear) / max(1.0, uFadeReach - uFadeNear), 0.0, 1.0);',
     'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
     'float _fg = clamp((_fk * (1.0 + uFadeBand) - aRand) / max(1e-3, uFadeBand), 0.0, 1.0);',
@@ -488,8 +501,10 @@
   // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
   // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
   const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
-  const fadeInject = sh => {
-    sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
+  const fadeInject = (sh, set) => {
+    const F = set || FADE_GLOBAL;
+    sh.uniforms.uFadeNear = F.near; sh.uniforms.uFadeReach = F.reach; sh.uniforms.uFadeTaper = F.taper; sh.uniforms.uFadeAgl = F.agl;
+    sh.uniforms.uFadeSize = F.size; sh.uniforms.uFadeHRef = F.href;
     sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
@@ -501,7 +516,7 @@
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
-    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow, uFadeSize, uFadeHRef;');
     vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
     vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
@@ -516,10 +531,12 @@
   }
   // fadeHook(mat): a material of the ring's - a hooked leaf material takes it at its own
   // compile (userData.fade), any other gets a hook of its own here
-  function fadeHook(mat) {
+  function fadeHook(mat, set) {
     mat.userData.fade = true;
+    // (the material's own set: the same program, its own uniforms; a material handed from one ring to the other recompiles)
+    if ((mat.userData.fadeSet || null) !== (set || null)) { if (mat.userData.fadeSet !== undefined) mat.needsUpdate = true; mat.userData.fadeSet = set || null; }
     mat.customProgramCacheKey = () => 'fade' + (mat.userData.uLeaf ? '-leaf' : '');
-    if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh); }; }
+    if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh, mat.userData.fadeSet); }; }
     return mat;
   }
   // THE TINT IS A DRAW-TIME TERM ON BOTH TIERS (W0c.20). The impostor sheet
@@ -577,7 +594,7 @@
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
-      if (mat.userData.fade) fadeInject(sh);
+      if (mat.userData.fade) fadeInject(sh, mat.userData.fadeSet);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
       // dense stand on the supersampled tier is the most fragments the frame
@@ -620,8 +637,11 @@
     // what the loader holds (bytes): the decoded rungs and the coverage mip chains
     memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
-    fade: (near, reach, taper, agl) => { if (near !== undefined) U_FADE_NEAR.value = near; if (reach !== undefined) U_FADE_REACH.value = reach;
-      if (taper !== undefined) U_FADE_TAPER.value = taper; if (agl !== undefined) U_FADE_AGL.value = agl; return [U_FADE_NEAR.value, U_FADE_REACH.value, U_FADE_TAPER.value, U_FADE_AGL.value]; },
+    fade: (near, reach, taper, agl, set) => { const F = set || FADE_GLOBAL; if (near !== undefined) F.near.value = near; if (reach !== undefined) F.reach.value = reach;
+      if (taper !== undefined) F.taper.value = taper; if (agl !== undefined) F.agl.value = agl; return [F.near.value, F.reach.value, F.taper.value, F.agl.value]; },
+    // G2563 / G2564: a fade set of a material's own (fadeHook's second argument), and the size fade on a set (0 = off: distance alone)
+    fadeSet, fadeOwn: (mat, set) => { if (mat && mat.userData.fade && (mat.userData.fadeSet || null) !== (set || null)) { mat.userData.fadeSet = set || null; mat.needsUpdate = true; } },
+    fadeSize: (k, href, set) => { const F = set || FADE_GLOBAL; if (k != null) F.size.value = k; if (href != null) F.href.value = href; return [F.size.value, F.href.value]; },
     // G670: the grow's clock (s; the ring's aBorn are on it), its band and its time; null leaves a term as it is
     grow: (now, band, secs) => { if (now != null) U_FADE_NOW.value = now; if (band != null) U_FADE_BAND.value = band; if (secs != null) U_FADE_GROW.value = secs;
       return [U_FADE_NOW.value, U_FADE_BAND.value, U_FADE_GROW.value]; },

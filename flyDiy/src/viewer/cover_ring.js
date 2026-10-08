@@ -132,10 +132,87 @@ var COVER_RING = (() => {
     }
     return best; };
 
+  // ---- THE GRASS FIELD'S TABLES (GRASS-DENSE G2563; GRASS-STUDY §4.4) ---------------------------------------------------
+  // the species the field plants (the reed, the one grass of every biome since G551) and, per MIX, the tuft's length: `h` its
+  // median top (m), `sigma` the lognormal spread, `dens` a factor on the field's tufts a square metre (1 = the meadow), and the
+  // clump field's cell / amplitude (neighbours share a length). A mix row of the reed may carry its own h / sigma / dens (the
+  // biome's grass card, TYPES > biome) - the row wins. A mix not named is the meadow's.
+  const FIELD_SPECIES = ['grass_reed'];
+  const SIZE_MAX = 1.5;   // the size fade's ceiling: a tuft taller than the reference reaches at most 1.5 x the reach (trees.js FADE_VS, the same clamp)
+  const FIELD_TYPES = {
+    grassland:     { h: 0.30, sigma: 0.35, dens: 1.0 },                      // heath (2): the meadow, the reference
+    muskeg:        { h: 0.40, sigma: 0.30, dens: 0.8, clumpM: 1.5, clumpAmp: 0.4 },   // muskeg (3) and scrub (7): sedge-like tussocks
+    conifer_scrub: { h: 0.35, sigma: 0.35, dens: 0.9 },                      // dense scrub (14)
+    conifer:       { h: 0.20, sigma: 0.30, dens: 0.35 },                     // the forest floor: short, sparse, shaded (13)
+    conifer_young: { h: 0.20, sigma: 0.30, dens: 0.35 },                     // forest (8)
+    conifer_steep: { h: 0.20, sigma: 0.30, dens: 0.35 },                     // rock / cliff (6, 12)
+    deciduous:     { h: 0.25, sigma: 0.35, dens: 0.5 },
+    borders:       { h: 0.40, sigma: 0.40, dens: 1.1 },                      // lush (15): the field edge
+    village:       { h: 0.18, sigma: 0.25, dens: 0.6 },                      // built (10)
+    city_trees:    { h: 0.15, sigma: 0.25, dens: 0.5 },                      // the town's wood (16)
+  };
+  const FIELD_MEADOW = FIELD_TYPES.grassland;
+  // THE TUFT (GRASS-STUDY §4.2): the shipped patch's CARDS (its connected strips, by the index buffer) grouped K nearest to
+  // nearest, each group one small geometry - the patch's own vertices, normals, uvs and AO, the group moved as a whole so its
+  // foot is at the origin (a card is not bent, cut or redrawn). Of all the tufts the `keep` closest to the median one (its top,
+  // its triangles) are the variants a draw holds, as the three patches were. -> [{ geo, top (units), tris }]
+  function tuftsOf(THREE, geos, K, keep) {
+    const all = [];
+    for (const geo of geos) {
+      const P = geo.attributes.position, I = geo.index; if (!P || !I) continue;
+      const nv = P.count, idx = I.array, nt = idx.length / 3;
+      const par = Int32Array.from({ length: nv }, (_, i) => i), f = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+      const u = (a, b) => { a = f(a); b = f(b); if (a !== b) par[a] = b; };
+      for (let t = 0; t < nt; t++) { u(idx[t * 3], idx[t * 3 + 1]); u(idx[t * 3], idx[t * 3 + 2]); }
+      const comp = new Map();
+      for (let t = 0; t < nt; t++) { const r = f(idx[t * 3]); let c = comp.get(r); if (!c) comp.set(r, c = { tris: [], vs: new Set() }); c.tris.push(t); for (let k = 0; k < 3; k++) c.vs.add(idx[t * 3 + k]); }
+      const cards = [...comp.values()].map(c => { let sx = 0, sz = 0; for (const i of c.vs) { sx += P.getX(i); sz += P.getZ(i); } return Object.assign(c, { x: sx / c.vs.size, z: sz / c.vs.size }); });
+      cards.sort((a, b) => (b.x * b.x + b.z * b.z) - (a.x * a.x + a.z * a.z));   // outermost first (the study's greedy groups)
+      const used = new Set();
+      for (const a of cards) { if (used.has(a)) continue; used.add(a);
+        const near = cards.filter(b => !used.has(b)).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z)).slice(0, K - 1);
+        near.forEach(b => used.add(b));
+        all.push({ geo, cards: [a, ...near] }); }
+    }
+    for (const t of all) { let sx = 0, sz = 0, n = 0, top = 0, tris = 0;
+      for (const c of t.cards) { for (const i of c.vs) { sx += t.geo.attributes.position.getX(i); sz += t.geo.attributes.position.getZ(i); n++; top = Math.max(top, t.geo.attributes.position.getY(i)); } tris += c.tris.length; }
+      t.cx = sx / n; t.cz = sz / n; t.top = top; t.tris = tris; }
+    const med = k => { const a = all.map(t => t[k]).sort((x, y) => x - y); return a[a.length >> 1] || 1; };
+    const mTop = med('top'), mTris = med('tris');
+    const pick = all.slice().sort((a, b) => (Math.abs(a.top - mTop) / mTop + Math.abs(a.tris - mTris) / mTris) - (Math.abs(b.top - mTop) / mTop + Math.abs(b.tris - mTris) / mTris)).slice(0, keep);
+    return pick.map(t => {
+      const src = t.geo, map = new Map(), out = new THREE.BufferGeometry(), ix = [];
+      for (const c of t.cards) for (const tri of c.tris) for (let k = 0; k < 3; k++) { const v = src.index.array[tri * 3 + k]; if (!map.has(v)) map.set(v, map.size); ix.push(map.get(v)); }
+      const order = [...map.keys()];
+      for (const name in src.attributes) {   // the raw stored values, the same type (a normalised byte stays one)
+        const A = src.attributes[name], sz = A.itemSize, IL = A.isInterleavedBufferAttribute, raw = IL ? A.data.array : A.array, st = IL ? A.data.stride : sz, o0 = IL ? A.offset : 0;
+        const arr = new raw.constructor(order.length * sz);
+        order.forEach((v, j) => { for (let q = 0; q < sz; q++) arr[j * sz + q] = raw[v * st + o0 + q]; });
+        if (name === 'position') for (let j = 0; j < order.length; j++) { arr[j * 3] -= t.cx; arr[j * 3 + 2] -= t.cz; }   // the tuft's foot to the origin, whole
+        out.setAttribute(name, new THREE.BufferAttribute(arr, sz, A.normalized)); }
+      out.setIndex(ix); out.computeBoundingSphere();
+      return { geo: out, top: t.top, tris: t.tris };
+    });
+  }
+
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
-                aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    // THE GRASS FIELD (GRASS-DENSE G2563, futureDesigns/GRASS-STUDY-2026-10.md §4): ctx.layer 'grass' makes a SECOND ring of
+    // this file that plants the grass alone - the same cards cut into tufts of `cards` (protosOf: tuftsOf), on 16 m cells
+    // drawn by 2 x 2 blocks, ten times the cards a square metre a third the height, the length by the ground (FIELD_TYPES),
+    // cut beside and on the runways (the premises' coverAt `cut` / `surf`), in the ground's drawn colour (ctx.groundMeanAt),
+    // to its own reach by its own fade set (trees.js fadeSet, with the size fade), and planted by TIERS (a cell keeps the
+    // prefix of its candidate stream its nearest distance can show). The first ring then leaves the grass to it (ctx.owned).
+    const FIELD = ctx.layer === 'grass';
+    const FSET = FIELD && LEAF.fadeSet ? LEAF.fadeSet() : null;
+    const S = FIELD
+      ? { on: true, cell: 16, reach: 90, near: 15, taper: 1, aglFull: 27, aglOff: 90, density: 1, shrubs: 0, rocks: 0, budgetMs: 3, maxCells: 1400, blockBudget: 4, debrisKinds: 4, castMinH: 99, batch: false,
+          aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
+          tufts: 90, cards: 3, sizeFade: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
+          colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
+      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
+          aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
+    if (FIELD) try { if (/[?&]grassfield=0/.test(location.search)) S.on = false; } catch (e) {}   // ?grassfield=0: today's grass (the first ring's patches) - the A/B
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
     // G603 (A1-STAND): a cell's key is a NUMBER - update() asked the map for ~290 cells a frame by a fresh 'cx,cz'
@@ -148,7 +225,9 @@ var COVER_RING = (() => {
 
     // ---- the prototypes: every species of the kinds the ring plants, built once ------
     // (debris - the logs, sticks and stumps of vegetation/branches - is the rock machinery on its own density: F.debris)
-    const speciesOf = () => (pack ? pack.collections : []).filter(c => ['cover', 'shrub', 'rock', 'debris'].includes(c.kind));
+    // (the field plants FIELD_SPECIES alone; the first ring every cover kind but what the field holds while it is on - ctx.owned)
+    const speciesOf = () => (pack ? pack.collections : []).filter(c => FIELD ? FIELD_SPECIES.includes(c.name)
+      : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)));
     const rockish = c => c.kind === 'rock' || c.kind === 'debris';
     const measureMean = mat => {   // the map's mean lightness (HSL l of the sRGB mean over the kept texels) - the bench's measureMats
       const img = mat.map && mat.map.image; if (!img || !img.width) return;
@@ -156,10 +235,15 @@ var COVER_RING = (() => {
         const c = measureMean.cnv || (measureMean.cnv = document.createElement('canvas')); c.width = c.height = 64;
         const g = c.getContext('2d', { willReadFrequently: true }); g.clearRect(0, 0, 64, 64); g.drawImage(img, 0, 0, 64, 64);
         const d = g.getImageData(0, 0, 64, 64).data; let R = 0, G = 0, B = 0, n = 0;
-        for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) continue; R += d[i]; G += d[i + 1]; B += d[i + 2]; n++; }
+        const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        let lr = 0, lg = 0, lb = 0;
+        for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) continue; R += d[i]; G += d[i + 1]; B += d[i + 2]; lr += lin(d[i]); lg += lin(d[i + 1]); lb += lin(d[i + 2]); n++; }
         if (!n) return;
         const mx = Math.max(R, G, B) / n / 255, mn = Math.min(R, G, B) / n / 255;
         mat.userData.uFlatMean.value = (mx + mn) / 2;
+        const had = !!mat.userData.texMean;
+        mat.userData.texMean = [lr / n, lg / n, lb / n];   // G2562: the kept texels' mean, linear (the field's colour is the ground's over it)
+        if (FIELD && !had && cells.size) api.replant();
       } catch (e) {}
     };
     function flowerCards(H, aspect, seed) {
@@ -232,7 +316,7 @@ var COVER_RING = (() => {
               }
               LEAF.fadeHook(mat); if (place.cut > 0) mat.customProgramCacheKey = () => 'fade-rockcut';
             } else {
-              LEAF.fadeHook(mat);
+              LEAF.fadeHook(mat, FIELD ? FSET : null);   // (the field's own fade set: its reach, its size fade)
               // NO NORMAL OVERRIDE ON A COVER - the bench has none (tools/_trees.html builds a
               // cover's material from the pack's own and never touches its normal), and the
               // game's `upHook` (G484's UP_VS) was worse than a divergence: it forces the OBJECT
@@ -267,6 +351,13 @@ var COVER_RING = (() => {
           const h = (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)) * (place.size || 1);
           P.push({ key: e.key, w: 1 / subs.length, kind: c.kind, h, h0: (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)), parts, size: place.size || 1,
                    r0: e.sub.bb ? Math.max(e.sub.bb[3] - e.sub.bb[0], e.sub.bb[5] - e.sub.bb[2]) / 2 : 1 });   // half its footprint: a slab's tilt is read over its own extent
+        }
+        // THE FIELD'S TUFTS: the patches' cards in groups of S.cards, the three median ones the variants (tuftsOf above); one
+        // material (the patches share the reed's), h0 the tuft's own top in the model's units (the height a scale is asked for)
+        if (FIELD && c.kind === 'cover' && P.length && P[0].parts.length) {
+          const mat = P[0].parts[0].mat, T = tuftsOf(THREE, P.map(p => p.parts[0].geo), Math.max(1, S.cards | 0), 3);
+          P.length = 0;
+          T.forEach((t, i) => P.push({ key: c.name + '|tuft' + i, w: 1 / T.length, kind: 'cover', h: t.top, h0: t.top, parts: [{ geo: t.geo, mat }], size: 1, r0: 1, tris: t.tris }));
         }
       }
       if (P.length) protos.set(c.name, P);   // G908: an empty set is not kept - its bins may come later (a grown tree catalogue)
@@ -318,21 +409,51 @@ var COVER_RING = (() => {
       const N = Math.round(C / SG) + 1, mix = new Array(N * N), code = new Int16Array(N * N), ok = new Uint8Array(N * N), col = new Float32Array(N * N * 3);
       const bush = new Uint8Array(N * N);   // G1385: inside a strip's own clearance that keeps the bushes out
       const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N), cls = new Uint8Array(N * N);
+      const cut = new Float32Array(N * N), surf = new Uint8Array(N * N);   // G2565: the premises' cut grass (the 'sides' law)
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
         code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
-        if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0;
+        if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0; cut[k] = cv.cut || 0; surf[k] = cv.surf ? 1 : 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
           // a plot is the biome's ground with a lawn on it: the tuft stands, the mix does not
           if (kind[k] && !mix[k]) mix[k] = 'lawn'; if (kind[k] && !ok[k] && ctx.okAt(x, z)) ok[k] = 1; }
-        const c = (cv && cv.col) ? cv.col : (cd >= 0 ? colAt(x, z, cd) : null) || imageryAt(x, z);
+        // THE FIELD'S COLOUR IS THE GROUND AS DRAWN (G2562): the splat's mean at the point (splat_ground meanAt, through
+        // ctx.groundMeanAt) - except ON a grass pavement, which draws its own (cv.col: the class's set as graded)
+        let c;
+        if (FIELD && S.colour && ctx.groundMeanAt) c = (cv && cv.col && (cv.surf || (cv.cls === 'grass' && cv.kill > 0.5))) ? cv.col : (cd >= 0 ? ctx.groundMeanAt(x, z, cd) : null) || imageryAt(x, z);
+        else c = (cv && cv.col) ? cv.col : (cd >= 0 ? colAt(x, z, cd) : null) || imageryAt(x, z);
         if (c) { col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; } else { col[k * 3] = 0.3; col[k * 3 + 1] = 0.3; col[k * 3 + 2] = 0.15; }
       }
       const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
-      let bmax = 0, lawn = 0; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; }
-      return { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn, bush };
+      let bmax = 0, lawn = 0, paved = false; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; if (kill[k] > 0 || cut[k] > 0 || boost[k] > 0 || kind[k]) paved = true; }
+      const G = { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn, bush, cut, surf };
+      if (FIELD) {
+        // the colour between the nodes (bilinear: the imagery is 10 m, the nodes 4 m - a tuft's root on its own colour)
+        G.colB = (x, z) => { const fx = Math.min(N - 1.001, Math.max(0, (x - x0) / SG)), fz = Math.min(N - 1.001, Math.max(0, (z - z0) / SG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+          const o = [0, 0, 0]; for (const [di, dj, w] of [[0, 0, (1 - tx) * (1 - tz)], [1, 0, tx * (1 - tz)], [0, 1, (1 - tx) * tz], [1, 1, tx * tz]]) { const k = (j + dj) * N + i + di; o[0] += col[k * 3] * w; o[1] += col[k * 3 + 1] * w; o[2] += col[k * 3 + 2] * w; }
+          return o; };
+        // THE GROUND'S HEIGHT ON A 2 m LATTICE (bilinear): a tuft a terrainH was the planting's cost at ten times the count
+        const HG = 2, NH = Math.round(C / HG) + 1, hg = new Float32Array(NH * NH);
+        for (let j = 0; j < NH; j++) for (let i = 0; i < NH; i++) hg[j * NH + i] = world.terrainH(x0 + i * HG, z0 + j * HG);
+        G.hAt = (x, z) => { const fx = Math.min(NH - 1.001, Math.max(0, (x - x0) / HG)), fz = Math.min(NH - 1.001, Math.max(0, (z - z0) / HG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, k = j * NH + i;
+          return (hg[k] * (1 - tx) + hg[k + 1] * tx) * (1 - tz) + (hg[k + NH] * (1 - tx) + hg[k + NH + 1] * tx) * tz; };
+        // A CELL BY A PAVEMENT ASKS THE PREMISES EVERY METRE (the 4 m node is 2.8 m from the tuft it decides, and the drawn side
+        // is 1.8 m): kill, cut, surf, boost, kind and the land test on a 1 m lattice, the tuft reads the nearest
+        if (paved && ctx.coverAt) {
+          const NF = C + 1, F = { NF, kill: new Float32Array(NF * NF), cut: new Float32Array(NF * NF), surf: new Uint8Array(NF * NF), boost: new Float32Array(NF * NF), kind: new Uint8Array(NF * NF), ok: new Uint8Array(NF * NF) };
+          for (let j = 0; j < NF; j++) for (let i = 0; i < NF; i++) {
+            const x = x0 + i, z = z0 + j, k = j * NF + i, cd = code[at(x, z)];
+            let cv = null; try { cv = ctx.coverAt(x, z); } catch (e) { cv = null; }
+            if (cv) { F.kill[k] = cv.kill || 0; F.cut[k] = cv.cut || 0; F.surf[k] = cv.surf ? 1 : 0; F.boost[k] = cv.boost || 0; F.kind[k] = KIND[cv.kind] || 0; }
+            F.ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) || (cv && cv.surf) ? 1 : 0;
+          }
+          F.at = (x, z) => Math.round(z - z0) * NF + Math.round(x - x0);
+          G.fine = F;
+        }
+      }
+      return G;
     }
 
     // ---- THE ROCKS OF ONE CELL (2026-09-22, the rock map) --------------------------------
@@ -498,8 +619,110 @@ var COVER_RING = (() => {
       return bm.addInstance(bm.userData.geoIds.get(geo));
     }
 
+    // ---- THE FIELD'S CELL (G2563) ---------------------------------------------------------------------------------------
+    // the fade's keep at a distance (FADE_VS, before the height term): the planting's tiers and the draw's truncation read it
+    const keepD = d => { const t = Math.max(0, Math.min(1, (d - S.near) / Math.max(1, S.reach - S.near))); return Math.pow(1 - t, 1 + 2 * S.taper); };
+    const bandNow = () => (LEAF.grow ? LEAF.grow(null, null, null)[1] : 0.25);
+    // the tinted texel's mean on the CPU (trees.js TINT_GLSL on the kept texels' mean): the field's colour is the ground's OVER it,
+    // so a tuft's albedo lands on the ground's own (x `match`, the level the box fits)
+    const tintMean = mat => {
+      const U = mat.userData, c = U.texMean; if (!c || !U.uLight) return [0.4, 0.4, 0.4];
+      const a = -(U.uHue ? U.uHue.value : 0) * 6.2831853, co = Math.cos(a), si = Math.sin(a);
+      const c0 = [0.299 + 0.701 * co + 0.168 * si, 0.587 - 0.587 * co + 0.330 * si, 0.114 - 0.114 * co - 0.497 * si];
+      const c1 = [0.299 - 0.299 * co - 0.328 * si, 0.587 + 0.413 * co + 0.035 * si, 0.114 - 0.114 * co + 0.292 * si];
+      const c2 = [0.299 - 0.300 * co + 1.250 * si, 0.587 - 0.588 * co - 1.050 * si, 0.114 + 0.886 * co - 0.203 * si];
+      const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2], rot = [dot(c, c0), dot(c, c1), dot(c, c2)], y = 0.2126 * rot[0] + 0.7152 * rot[1] + 0.0722 * rot[2];
+      const sat = U.uSat ? U.uSat.value : 1, fl = U.uFlat ? U.uFlat.value : 1, fm = U.uFlatMean ? U.uFlatMean.value : 0.4, L = U.uLight.value;
+      return rot.map(v => Math.max(0.02, Math.min(1, (fm + ((y + (v - y) * sat) - fm) * fl) * L)));
+    };
+    let fieldH0 = 1;   // the variants' mean top (model units): the size fade's reference is S.hRef over it
+    // one 16 m cell of the field, planted for an eye no nearer than dTier (0: the whole stream). The candidate stream is the
+    // cell's own (hashed on it) and draws the same eight numbers for every candidate whatever is kept, so a tier is a PREFIX of
+    // the next: a candidate stands at dTier when its fade threshold (aRand, its own rand) is under what its own size can show
+    // from there (x the shrink band) - nearer, the cell is planted again and only adds (G2563 tiers).
+    function buildField(cx, cz, dTier, born) {
+      const t0 = performance.now();
+      const C = S.cell, x0 = cx * C, z0 = cz * C;
+      const R = rng((hsh(cx, cz) * 4294967295) >>> 0);
+      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz, dTier, born, field: true };
+      cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
+      const c = speciesOf()[0], P = c ? protosOf(c) : [];
+      if (!P.length || !BIO) { STAT.lastMs = performance.now() - t0; return cell; }
+      for (const p of P) for (const q of p.parts) if (LEAF.fadeOwn) LEAF.fadeOwn(q.mat, FSET);
+      fieldH0 = P.reduce((a, p) => a + p.h0, 0) / P.length;
+      const G = subGrid(x0, z0, C);
+      const types = new Map(), typeOf = mix => {
+        if (types.has(mix)) return types.get(mix);
+        const M = mix ? BIO.mixOf(mix) : null, row = M && M.species && M.species[c.name];
+        let T = null;
+        if (row) { const F = M.forest || {}, D = FIELD_TYPES[mix] || FIELD_MEADOW, pick = (k, d) => (row[k] !== undefined ? row[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
+          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * (F.cover === undefined ? 1 : F.cover), clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
+        types.set(mix, T); return T; };
+      let dmax = 0; for (let k = 0; k < G.N * G.N; k++) { const T = typeOf(G.mix[k]); if (T && T.dens > dmax) dmax = T.dens; }
+      const cutMax = Math.max(1, S.cutDens, S.stripDens);
+      const env = S.tufts * dmax * cutMax * (1 + G.bmax);   // the candidates' density: every keep below is a share of it
+      if (env <= 0) { STAT.lastMs = performance.now() - t0; return cell; }
+      const n = Math.round(env * C * C), band = bandNow(), tierOn = S.tier && dTier > 0, blotchM = 18;
+      const items = new Map(), mats = new Map();
+      const F = G.fine;
+      // (the tier's bound for ANY tuft of the cell - the tallest the size fade lets reach farthest: a rand over it is out at once)
+      const tierMax = tierOn ? keepD(dTier / Math.max(1, 1 + (SIZE_MAX - 1) * S.sizeFade)) * (1 + band) * 1.05 : 2;
+      for (let i = 0; i < n; i++) {
+        const x = x0 + R() * C, z = z0 + R() * C, rand = R(), rA = R(), rV = R(), rY = R(), rH1 = R(), rH2 = R(), rJ = R();
+        if (rand >= tierMax) continue;
+        const gk = G.at(x, z), T = typeOf(G.mix[gk]); if (!T) continue;
+        const fk = F ? F.at(x, z) : -1;
+        const kill = fk >= 0 ? F.kill[fk] : G.kill[gk], kind = fk >= 0 ? F.kind[fk] : G.kind[gk], ok = fk >= 0 ? F.ok[fk] : G.ok[gk];
+        if (!ok || kill >= 1 || kind === 1 || kind === 3) continue;   // a plot's lawn is the first ring's (grass_dry); 'none' plants nothing
+        const cut = fk >= 0 ? F.cut[fk] : G.cut[gk], surf = fk >= 0 ? F.surf[fk] : G.surf[gk], boost = fk >= 0 ? F.boost[fk] : G.boost[gk];
+        // THE DENSITY: the type's, more where it is cut; the blotch's holes (fewer than the first ring's, none in the cut);
+        // the pavement's kill and the verge's boost - one draw against the share of the envelope
+        let keep = T.dens * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) / (dmax * cutMax);
+        if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
+        keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
+        if (rA >= keep) continue;
+        // THE LENGTH (GRASS-STUDY §4.4): the type's median x a lognormal x the clump field (wild); cut: its own length, uniform
+        let nz = Math.sqrt(-2 * Math.log(Math.max(1e-9, rH1))) * Math.cos(6.2831853 * rH2); nz = Math.max(-2.5, Math.min(2.5, nz));
+        const clump = 1 + T.clumpAmp * (vnoise(x, z, T.clumpM, 977) - 0.5) * 2;
+        const hw = T.h * S.hK * Math.exp(T.sigma * S.sigmaK * nz) * clump, hc = (surf ? S.stripH : S.cutH) * Math.exp(S.cutSigma * nz);
+        const h = hw + (hc - hw) * cut;
+        // THE TIER: what this tuft's own size can show from dTier (the size fade: a short one fades nearer) - its scale over the
+        // reference exactly as FADE_VS reads it (h / its variant's top, over hRef / the variants' mean top). Every test is the
+        // candidate's own fixed numbers, so the tuft kept from dTier is kept from any nearer one: the tiers nest
+        const p = draw(P, rV);
+        if (tierOn && rand >= keepD(dTier / Math.max(0.05, 1 + (Math.min(SIZE_MAX, Math.max(0.05, (h / p.h0) / (S.hRef / fieldH0))) - 1) * S.sizeFade)) * (1 + band) * 1.05) continue;
+        const mat = p.parts[0].mat;
+        let col;
+        if (S.colour && ctx.groundMeanAt) {
+          let M = mats.get(mat); if (!M) mats.set(mat, M = tintMean(mat));
+          const g = G.colB(x, z), j = (1 + (rJ * 2 - 1) * S.vary) * S.match;
+          col = [Math.min(3, g[0] / M[0] * j), Math.min(3, g[1] / M[1] * j), Math.min(3, g[2] / M[2] * j)];
+        } else {   // the sets' means x lift (G551), the A/B
+          const place = c.place || {}, l = place.lift === undefined ? 1 : place.lift, k3 = gk * 3, j = 1 + (rJ * 2 - 1) * S.vary;
+          col = lifted([G.col[k3], G.col[k3 + 1], G.col[k3 + 2]], l).map(v => v * j);
+        }
+        let it = items.get(p); if (!it) { it = { p, xs: [], col: [], rand: [] }; items.set(p, it); }
+        it.xs.push(x, G.hAt(x, z), z, h / p.h0, rY * 6.2831853, 0, 0); it.col.push(col[0], col[1], col[2]); it.rand.push(rand);
+      }
+      let yLo = Infinity, yHi = -Infinity;
+      for (const it of items.values()) {
+        const k = it.xs.length / 7, mm = new Float32Array(k * 16); let smax = 0;
+        // the matrix written out (a turn about up and one scale: Matrix4.compose's own result, without its quaternion round trip)
+        for (let i = 0; i < k; i++) { const o = i * 7, s = it.xs[o + 3], a = it.xs[o + 4], co = Math.cos(a) * s, si = Math.sin(a) * s, e = i * 16;
+          mm[e] = co; mm[e + 2] = -si; mm[e + 5] = s; mm[e + 8] = si; mm[e + 10] = co; mm[e + 12] = it.xs[o]; mm[e + 13] = it.xs[o + 1]; mm[e + 14] = it.xs[o + 2]; mm[e + 15] = 1;
+          if (s > smax) smax = s; if (it.xs[o + 1] < yLo) yLo = it.xs[o + 1]; if (it.xs[o + 1] > yHi) yHi = it.xs[o + 1]; }
+        for (const part of it.p.parts) cell.parts.set(part, { n: k, mats: mm, col: new Float32Array(it.col), rand: new Float32Array(it.rand), cast: false, kind: 'cover', cell, smax });
+        cell.n += k; cell.by[c.name] = (cell.by[c.name] || 0) + k; STAT.by[c.name] = (STAT.by[c.name] || 0) + k;
+      }
+      if (!isFinite(yLo)) { yLo = yHi = G.hAt(x0 + C / 2, z0 + C / 2); }
+      cell.box = [x0, yLo - 1, z0, x0 + C, yHi + 2, z0 + C];
+      STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
+      return cell;
+    }
+
     // ---- one cell -------------------------------------------------------------------
-    function buildCell(cx, cz) {
+    function buildCell(cx, cz, dTier, born) {
+      if (FIELD) return buildField(cx, cz, dTier || 0, born);
       const t0 = performance.now();
       STAT.building = cx + ',' + cz;
       const C = S.cell, x0 = cx * C, z0 = cz * C;
@@ -543,6 +766,7 @@ var COVER_RING = (() => {
         const row = M.species && M.species[c.name]; if (!row) continue;
         const place = c.place || {};
         const P = protosOf(c); if (!P.length) continue;
+        if (c.kind === 'cover' && LEAF.fadeOwn) for (const p of P) for (const q of p.parts) LEAF.fadeOwn(q.mat, null);   // (the reed back from the field: the shared fade)
         const sSeed = hashStr(c.name);
         const isRock = rockish(c), isShrub = c.kind === 'shrub';
         if (isRock) {   // the rocks and the debris: their own stream, shared with the rock map (placeRocks above)
@@ -578,6 +802,7 @@ var COVER_RING = (() => {
           // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
           // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
           if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
+          if (G.cut[gk] > 0.05) continue;   // G2565: the mown ground by a runway ('sides' law) grows the field's cut grass, no flower, no bush
           if (G.bmax > 0 || G.kill[gk] > 0) { const keep = (1 - G.kill[gk]) * (1 + G.boost[gk]) / (1 + G.bmax); if (keep < 1 && R() > keep) continue; }   // a rejection sampler: n was drawn at (1 + bmax) x
           const p = draw(P, r2);
           const y = world.terrainH(x, z);
@@ -651,7 +876,7 @@ var COVER_RING = (() => {
     // `blockBudget` a frame; until then the block draws what it held). Culling is the block's own
     // sphere (the frustum) and the fade's reach (below); the instances and the shader are the
     // cells' own, so the picture is the same.
-    const B = 4, blocks = new Map();
+    const B = FIELD ? 2 : 4, blocks = new Map();   // (the field's: 2 x 2 of its 16 m cells - the near band must not submit 128 m)
     const now = () => performance.now() / 1000;   // the grow's clock (trees.js uFadeNow / aBorn)
     // THE BATCHES GROW ON THE CPU (G670): a BatchedMesh instance has a matrix and a colour and no attribute of its own
     // (the fade's threshold already rides the colour's alpha), so a near cell's rocks, debris and shrubs are scaled
@@ -712,8 +937,30 @@ var COVER_RING = (() => {
         const m = new THREE.InstancedMesh(part.geo, part.mat, 0);
         m.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(n * 16), 16); m.count = n;
         const hasCol = list.some(d => d.col), col = hasCol ? new Float32Array(n * 3).fill(1) : null, rand = new Float32Array(n), born = new Float32Array(n);
-        let o = 0;
-        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); born.fill(d.cell.born, o, o + d.n); o += d.n; }
+        let o = 0, smax = 0;
+        for (const d of list) { m.instanceMatrix.array.set(d.mats, o * 16); if (d.col) col.set(d.col, o * 3); rand.set(d.rand, o); born.fill(d.cell.born, o, o + d.n); o += d.n; if (d.smax > smax) smax = d.smax; }
+        // THE COUNT TRUNCATION (GRASS-DENSE G2561; GRASS-STUDY §4.3.1): an instance is drawn while the fade's keep x (1 + band)
+        // is over its aRand, so the block's instances are put in order of aRand (a counting sort into BINS) and each frame
+        // submits only the prefix the block's NEAREST point can show (update: mesh.count) - the ones left out are those the
+        // vertex shader would have thrown off screen anyway, so the picture is the same to the pixel and the vertex work is
+        // not paid for the ~70 % the fade has already collapsed. The matrices, colours, births move with their aRand (the
+        // sway's phase is the instance's own aRand, never re-derived).
+        let bins = null;
+        // (not a mesh that CASTS - the batch: false A/B's rocks and shrubs: three's depth pass has no fade, so a collapsed instance
+        // still casts, and leaving it out would move a shadow; the tufts never cast)
+        if (S.trunc && !list[0].cast && part.mat.userData && part.mat.userData.fade) {
+          const NB = 32, cnt = new Uint32Array(NB + 1);
+          for (let i = 0; i < n; i++) cnt[Math.min(NB - 1, (rand[i] * NB) | 0) + 1]++;
+          for (let b2 = 1; b2 <= NB; b2++) cnt[b2] += cnt[b2 - 1];
+          bins = Uint32Array.from(cnt);   // bins[b] = the instances with aRand under b / NB
+          const pos = Uint32Array.from(cnt), M0 = m.instanceMatrix.array, M1 = new Float32Array(n * 16), C1 = col ? new Float32Array(n * 3) : null, R1 = new Float32Array(n), B1 = new Float32Array(n);
+          for (let i = 0; i < n; i++) { const b2 = Math.min(NB - 1, (rand[i] * NB) | 0), j = pos[b2]++;
+            for (let q = 0; q < 16; q++) M1[j * 16 + q] = M0[i * 16 + q];
+            if (C1) { C1[j * 3] = col[i * 3]; C1[j * 3 + 1] = col[i * 3 + 1]; C1[j * 3 + 2] = col[i * 3 + 2]; }
+            R1[j] = rand[i]; B1[j] = born[i]; }
+          m.instanceMatrix.array.set(M1); if (C1) col.set(C1); rand.set(R1); born.set(B1);
+        }
+        m.userData.bins = bins; m.userData.n = n; m.userData.smax = smax;
         if (col) m.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
         // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
         const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
@@ -736,12 +983,13 @@ var COVER_RING = (() => {
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
-      if (!S.on || !pack || !BIO) { if (root.visible) root.visible = false; return; }
+      if (!S.on || S.off || !pack || !BIO) { if (root.visible) root.visible = false; return; }   // (S.off: the GRAPHICS row's 'off' - the field's own `on` is the A/B)
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
       const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
       const t = now();
-      LEAF.fade(S.near, S.reach, S.taper, aglK);
+      LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
+      if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET);
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
@@ -756,8 +1004,9 @@ var COVER_RING = (() => {
       // descent the ring is there when the height term opens; over aglPre it is dropped, as before.
       const hidden = aglK <= 0.001; STAT.hidden = hidden;
       if (hidden && agl > S.aglPre) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
-      const C = S.cell, R2 = (S.reach + C) * (S.reach + C), Rdrop = (S.reach + 2 * C) * (S.reach + 2 * C);
-      const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((S.reach + C) / C);
+      const C = S.cell, reachP = S.reach * (FIELD && S.sizeFade > 0 ? SIZE_MAX : 1);   // (the field plants as far as its tallest tuft shows)
+      const R2 = (reachP + C) * (reachP + C), Rdrop = (reachP + 2 * C) * (reachP + 2 * C);
+      const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((reachP + C) / C);
       // THE LEAD (G671): what the aeroplane is flying toward is planted first - the queue is ordered by the distance
       // to where the eye will be in S.lead s (at most 60 % of the reach ahead), still only the cells within the reach
       let lx = EYE.vx * S.lead, lz = EYE.vz * S.lead; { const l = Math.hypot(lx, lz), m = 0.6 * S.reach; if (l > m) { lx *= m / l; lz *= m / l; } }
@@ -771,7 +1020,23 @@ var COVER_RING = (() => {
       }
       queue.sort((a, b) => a[0] - b[0]);
       const t0 = performance.now(), budget = hidden ? S.preBudgetMs : S.budgetMs;
-      while (queue.length && performance.now() - t0 < budget && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
+      // THE FIELD'S TIERS (G2563): a cell is planted for the nearest the eye now is to it (3-D: across the ground to its square,
+      // and the height), less 40 % - the eye may come that much closer before the cell needs its next slice; within `near`
+      // the whole stream. Nearer than that, it is planted again (the prefix and the next slice; its birth kept, so nothing
+      // that stood grows again), nearest first, on the same budget after the new cells.
+      const ey = camera.position.y;
+      const nearOf = cell => { const dx = Math.max(0, Math.abs((cell.cx + 0.5) * C - ex) - C / 2), dz = Math.max(0, Math.abs((cell.cz + 0.5) * C - ez) - C / 2);
+        return Math.hypot(dx, dz, Math.max(0, ey - (cell.box ? cell.box[4] : gy))); };
+      const tierFor = d => (!FIELD || !S.tier || d <= S.near * 0.5) ? 0 : d * 0.6;
+      while (queue.length && performance.now() - t0 < budget && cells.size < S.maxCells) { const [, cx, cz] = queue.shift();
+        const dx = Math.max(0, Math.abs((cx + 0.5) * C - ex) - C / 2), dz = Math.max(0, Math.abs((cz + 0.5) * C - ez) - C / 2);
+        buildCell(cx, cz, FIELD ? tierFor(Math.hypot(dx, dz, Math.max(0, ey - world.terrainH((cx + 0.5) * C, (cz + 0.5) * C) - 4))) : 0); }   // (the cell's own ground, a hill's tufts are nearer than the AGL)
+      if (FIELD && S.tier && performance.now() - t0 < budget) {
+        const up = [];
+        for (const cell of cells.values()) if (cell.dTier > 0) { const d = nearOf(cell); if (d < cell.dTier) up.push([d, cell]); }
+        up.sort((a, b) => a[0] - b[0]); STAT.tierUp = up.length;
+        for (const [d, cell] of up) { if (performance.now() - t0 >= budget) break; const born = cell.born; dropCell(cellKey(cell.cx, cell.cz)); buildCell(cell.cx, cell.cz, tierFor(d), born); }
+      }
       STAT.plantMs = performance.now() - t0;
       for (const [k, cell] of cells) { const mx = (cell.cx + 0.5) * C - ex, mz = (cell.cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
       // A CELL PAST THE REACH DRAWS NOTHING (PERF 2026-09-23): the fade collapses every instance whose
@@ -784,10 +1049,21 @@ var COVER_RING = (() => {
         const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
         if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
         STAT.dirty = Math.max(0, dirty.length - S.blockBudget);   // G1119: the blocks still to rebuild after this frame (0: the ring is idle)
-        let shown = 0, draws = 0;
-        for (const b of blocks.values()) { const v = !!b.box && dist2(b) < R2r; if (b.group.visible !== v) b.group.visible = v; if (v) { shown++; draws += b.meshes.length; }
+        let shown = 0, draws = 0, sub = 0, all = 0;
+        const band = bandNow(), href = S.hRef / Math.max(1e-6, fieldH0), sizeK = FIELD ? S.sizeFade : 0;
+        for (const b of blocks.values()) { const d2 = b.box ? dist2(b) : 0, v = !!b.box && d2 < R2r * (sizeK > 0 ? SIZE_MAX * SIZE_MAX : 1); if (b.group.visible !== v) b.group.visible = v;
+          if (v) { shown++;
+            // THE TRUNCATION (G2561, buildBlock): the prefix the block's nearest point can show - its largest instance's size
+            // fade taken, so no instance that would draw is left out; a block that shows none is not drawn at all
+            const d = Math.sqrt(d2);
+            for (const m of b.meshes) { const N0 = m.userData.n;
+              if (S.trunc && m.userData.bins) { const ratio = sizeK > 0 ? Math.max(0.05, 1 + (Math.min(SIZE_MAX, Math.max(0.05, m.userData.smax / href)) - 1) * sizeK) : 1;
+                const th = keepD(d / ratio) * aglK * (1 + band), NB = m.userData.bins.length - 1, cnt = th >= 1 ? N0 : m.userData.bins[Math.min(NB, Math.ceil(th * NB))];
+                if (m.count !== cnt) m.count = cnt; const vis = cnt > 0; if (m.visible !== vis) m.visible = vis; }
+              else if (m.count !== N0) { m.count = N0; m.visible = true; }
+              if (m.visible) { draws++; sub += m.count; } all += N0; } }
           if (b.instCells && b.instVis !== v) { for (const cell of b.instCells) for (let k = 0; k < cell.inst.length; k += 2) batchVis(cell.inst[k], cell.inst[k + 1], v); b.instVis = v; } }
-        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws + batches.size; STAT.batches = batches.size; }
+        STAT.shown = shown; STAT.blocks = blocks.size; STAT.draws = draws + batches.size; STAT.batches = batches.size; STAT.submitted = sub; STAT.inBlocks = all; }
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
@@ -795,8 +1071,15 @@ var COVER_RING = (() => {
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks, batch: S.batch, castMinH: S.castMinH }; Object.assign(S, o || {});
-        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks || S.batch !== was.batch || S.castMinH !== was.castMinH) api.replant(); return api.get(); },
+      set: o => { const was = Object.assign({}, S); Object.assign(S, o || {});
+        if (FIELD && S.cards !== was.cards) protos.clear();   // the tufts are cut again
+        // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
+        const PLANT = FIELD ? ['cell', 'cards', 'tufts', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
+                            : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'trunc'];
+        if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
+      species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
+      fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them
+      field: FIELD,
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       rockPlan,                                                           // the rock map's read (above)
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
@@ -810,6 +1093,6 @@ var COVER_RING = (() => {
     };
     return api;
   }
-  return { make };
+  return { make, FIELD_TYPES, FIELD_SPECIES };   // (the field's table: the biome card's defaults, world_rail)
 })();
 if (typeof window !== 'undefined') window.COVER_RING = COVER_RING;

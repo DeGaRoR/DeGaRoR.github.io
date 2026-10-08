@@ -1026,6 +1026,61 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
     push();
+    // ---- THE GROUND'S COLOUR AS DRAWN, ON THE CPU (GRASS-DENSE G2562; GRASS-STUDY §4.5.1, agreed with GROUND-LOOK G2610) ------
+    // meanAt(x, z, code, slopeDeg) -> linear rgb: what sSplat draws at a point of terrain code `code` NEAR THE EYE, less the
+    // texture's own detail (each texel over its set's mean, rel, taken as 1): the code's near sets - one at the lean blend
+    // (uSNearN 1: tex[0] alone), the A | B pair by the fields' mask otherwise (28b mixK on this recipe's live mix row) - each
+    // GRADED as push() hands uSGrade (the hand gain x the imagery's normalisation x albedoNorm, the saturation about luma, the
+    // set's hue turn, the forest floor's grass pull at its mean texel), turned and lit by the code's vary (28b shade), then
+    // pulled toward the 10 m imagery (bilinear, x macroExp) by macroNear / macroLum as sSplat does (less on a steep face). The
+    // tufts stand on it (cover_ring.js, the grass field), so the field takes the ground's colour, not a set's catalogue mean.
+    // Not mirrored (named): the third near set, the wet margins and banks, the derived codes' blend across their split (the
+    // caller passes the derived code), the far sets (the field ends within ~120 m, inside the detail fade).
+    const gradeCache = new Map();
+    let gradeSig = '';
+    const gradedMean = k => {
+      const sig = JSON.stringify(R.grade) + '|' + (R.knobs.albedoNorm === undefined ? 1 : R.knobs.albedoNorm);
+      if (sig !== gradeSig) { gradeCache.clear(); gradeSig = sig; }
+      let c = gradeCache.get(k); if (c) return c;
+      const mn = (SPLAT_TEX_SETS.find(s => s.key === k) || {}).mean || [0.15, 0.15, 0.08];
+      const g = R.grade[k] || {}, col = new THREE.Color(g.gain || '#ffffff'), nm = (R.norm && R.norm[k]) || [1, 1, 1];
+      const kA = R.knobs.albedoNorm === undefined ? 1 : R.knobs.albedoNorm, gn = [col.r * (1 + (nm[0] - 1) * kA), col.g * (1 + (nm[1] - 1) * kA), col.b * (1 + (nm[2] - 1) * kA)];
+      c = [mn[0] * gn[0], mn[1] * gn[1], mn[2] * gn[2]];
+      const lum = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+      const sat = g.sat === undefined ? 1 : +g.sat, l = lum(c); c = [l + (c[0] - l) * sat, l + (c[1] - l) * sat, l + (c[2] - l) * sat];
+      if (g.grass > 0) {   // the forest floor's pull at the mean texel (l = uSLum: dark = 1 - smoothstep(0.55, 1.25, 1))
+        const gc = U.uSGrassC.value, gl = Math.max(lum([gc.x, gc.y, gc.z]), 1e-4), lm = lum(c), t = 0.45 / 0.7, dark = 1 - t * t * (3 - 2 * t);
+        const w = dark * +g.grass; c = [c[0] + (gc.x / gl * lm - c[0]) * w, c[1] + (gc.y / gl * lm - c[1]) * w, c[2] + (gc.z / gl * lm - c[2]) * w];
+      }
+      if (g.hue) c = G.hueTurn(c, g.hue * Math.PI / 180);
+      gradeCache.set(k, c); return c;
+    };
+    const imageryAt = (x, z) => {   // the island's albedo, linear, bilinear between its cells' centres
+      const M = isla && isla.grid && isla.grid.meta, A = isla && isla.albedo; if (!M || !A) return null;
+      const fx = (x - M.x0) / M.cell - 0.5, fz = (z - M.z0) / M.cell - 0.5, i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+      const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const out = [0, 0, 0]; let wsum = 0;
+      for (const [di, dj, w] of [[0, 0, (1 - tx) * (1 - tz)], [1, 0, tx * (1 - tz)], [0, 1, (1 - tx) * tz], [1, 1, tx * tz]]) {
+        const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= M.w || jj >= M.h || w <= 0) continue;
+        const k = jj * M.w + ii; out[0] += lin(A[k * 3]) * w; out[1] += lin(A[k * 3 + 1]) * w; out[2] += lin(A[k * 3 + 2]) * w; wsum += w; }
+      return wsum > 0 ? [out[0] / wsum, out[1] / wsum, out[2] / wsum] : null;
+    };
+    function meanAt(x, z, code, slopeDeg) {
+      const m = R.codes[code]; if (!m || !m.tex || !m.tex[0]) return null;
+      const lean = U.uSNearN.value < 1.5 || !m.tex[1];
+      let c = gradedMean(m.tex[0]);
+      if (!lean) { const b = gradedMean(m.tex[1]), k = G.mixK(x, z, Math.round(m.mix[0] * 6), 0.52 - m.mix[2], m.mix[1] * 2);
+        c = [c[0] + (b[0] - c[0]) * k, c[1] + (b[1] - c[1]) * k, c[2] + (b[2] - c[2]) * k]; }
+      const v = m.vary || [0, 0, 20];
+      if (v[0] || v[1]) { const sh = G.shade(x, z, v[2]); c = G.hueTurn(c, sh.hue * v[0] * Math.PI / 180); const kv = 1 + sh.value * v[1]; c = [c[0] * kv, c[1] * kv, c[2] * kv]; }
+      const K = R.knobs, near = K.macroNear || 0;
+      if (near > 0) { const im = imageryAt(x, z);
+        if (im) { const e = K.macroExp === undefined ? 1 : K.macroExp, mac = [im[0] * e, im[1] * e, im[2] * e], L = q => 0.2126 * q[0] + 0.7152 * q[1] + 0.0722 * q[2];
+          const lum = K.macroLum === undefined ? 0 : K.macroLum, f = (L(c) / Math.max(L(mac), 1e-3)) * (1 - lum) + lum;
+          const s = slopeDeg > 30 ? Math.min(1, (slopeDeg - 30) / 18) : 0, wN = near * (1 - 0.7 * s * s * (3 - 2 * s));
+          c = [c[0] + (mac[0] * f - c[0]) * wN, c[1] + (mac[1] * f - c[1]) * wN, c[2] + (mac[2] * f - c[2]) * wN]; } }
+      return c;
+    }
     const ensure = () => { if (asked) return; asked = true;
       buildArrays(setsFor(new Set(LIB)), U, R, (a, n) => { if (a && !building) { U.uSplat.value = a; U.uSplatN.value = n; } else if (a) { a.dispose(); n.dispose(); return; } ready = true; push(); }); };
     if (!plain) ensure();   // G1521: a plain ground fetches no set (potato: ~22 MB of KTX2 arrays never downloaded, transcoded or held)
@@ -1040,6 +1095,7 @@ const SPLAT_GROUND = (() => {
       knobs: () => Object.assign({}, R.knobs),
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
+      meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       // the sets a type blends and where its near sets give way to the far one (GRAPHICS 'ground blend', PERF 2026-09-23):
       // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
