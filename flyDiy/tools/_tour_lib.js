@@ -160,6 +160,8 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     // ---- the ends
     const Dm = sim.damage ? sim.damage() : null;
     if (Dm && Dm.over) { fault('crash', 'the damage ended the flight: ' + (Dm.reason || '?')); break; }
+    // G2450: a take-off the pilot DECLINED (43: the go / no-go at the hold) ends the leg where it stands - not a stop at the To
+    if (ph === 'STOPPED' && ap.report && ap.report.outcome === 'declined') { fault('declined', (ap.report.verdicts.find(v => v.code === 'takeoff-declined') || {}).note || 'the take-off was declined'); break; }
     if (ph === 'STOPPED' && ap.route && ap.route.to === b && L.t > 20) { stopAt = [cg[0], cg[2]]; break; }
     if (ph === 'STOPPED' && ap.route && ap.route.to !== b && L.t > 60 && onG) { fault('diverted', 'stopped at ' + (ap.route.to && ap.route.to.id) + ', not ' + b.id); break; }
     if (ph === 'ABORT') { fault('abort', 'the take-off was rejected'); break; }
@@ -299,8 +301,12 @@ const BUILDS = {
 // --order nv_strip,nv_strip), and PILOT-ONE measured its three-point roll alone at 143-152 m: the strip at its length
 // fits no validated land build (HANDOVER G1965-G1974 says what would). The Cessna leaves out Jumbo Mine as well (G531:
 // its take-off reserve asks 313 m of the 250). The floats: Annette Dock, Metlakatla, Annette Dock.
+// G2450 (EAST-POINT-DEPART): EAST POINT IS IN THE LAND TOUR - after Jumbo Mine (4.7 km SE of it), then 15 km home to 02/20.
+// The user's Cub lands there (the circuit joined when the straight-in over the 667 m ridge 3.9 km out cannot get down) and
+// leaves it from its very end the named way, into the default westerly; the Jodel (183 m landing run) and the metal
+// Cessna (249 m) decline it before they go (43: a strip shorter than the sheet's landing run is no destination)
 const ORDERS = {
-  land: 'HOME,w3,tw_ski,mn_strip,w2,HOME',
+  land: 'HOME,w3,tw_ski,mn_strip,nv_strip,w2,HOME',
   c172: 'HOME,w3,tw_ski,w2,HOME',
   water: 'SEA,mk_sea,SEA',
 };
