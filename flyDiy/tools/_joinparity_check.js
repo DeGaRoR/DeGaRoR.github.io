@@ -195,7 +195,14 @@ const DOORS = {
   spec: ['_cage_page5', '_cage_stab', '_livery_check'],
   // a JOIN UNDER TEST (the fixpoint of the join's own merge; the drawn ground against the flown): tools/_bake_joined.js
   join: ['_specfix_check', 'ground_drawn', 'ground_gap'],
+  // THE LEGACY LIST (train 41, the user 8 Oct: 'let's not have different ways to build things, it's unmaintainable'):
+  // the tools that predate JOIN-PARITY and read a validated file raw. Named, SHRINK-ONLY (owner Deform): at most these 19,
+  // and an entry that no longer reads a validated file raw (moved to tools/_load_build.js, or gone) must be struck off.
+  legacy: ['_dmg_composite_lib', '_dmg_heal_check', '_dmg_page_worker_check', '_dmg_settle_check', '_dmg_strut_probe',
+    '_dmg_upload_check', '_dmg_wreck_check', '_fin_check', '_hinge_check', '_parked_check', '_roommerge_check', '_shedshadow_check',
+    '_wetfx_page_check', 'ditch_osc', 'dmg_skingpu_box', 'dmg_wreck_stills', 'pilot_persona', 'prem_s2_page', 'water_look_shots'],
 };
+const LEGACY_MAX = 19;
 const declared = new Map();
 for (const [door, list] of Object.entries(DOORS)) for (const f of list) declared.set(f, door);
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -215,6 +222,8 @@ for (const f of files) {
   if (door === 'viaTreecrash' && !/_treecrash_lib/.test(src)) { rogue.push(f + ' (declared via _treecrash_lib, does not load it)'); continue; }
   if (!door) rogue.push(f);
 }
+{ const stale = DOORS.legacy.filter(n => { const p = path.join(T, n + '.js'); if (!fs.existsSync(p)) return true; const src = fs.readFileSync(p, 'utf8'); return !RX.test(src) || /_load_build/.test(src); });
+  ok(DOORS.legacy.length <= LEGACY_MAX && !stale.length, 'the legacy list only shrinks: ' + DOORS.legacy.length + ' of at most ' + LEGACY_MAX + (stale.length ? '; strike off (no longer raw, or gone): ' + stale.join(', ') : ', every one still raw (owner Deform)')); }
 ok(!rogue.length, 'no tool flies a validated build raw' + (rogue.length ? ': ' + rogue.join(', ') : ' (' + Object.values(DOORS).flat().length + ' declared doors)'));
 for (const via of ['pilot_trace.js', '_treecrash_lib.js'])
   ok(/_load_build/.test(fs.readFileSync(path.join(T, via), 'utf8')), via + ' loads saved builds through tools/_load_build.js');

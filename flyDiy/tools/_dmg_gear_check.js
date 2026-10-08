@@ -17,7 +17,7 @@
 //   3. §7.4's GEAR ROWS (damage on, the certificate): the ground loop (the Cub, the Jodel: rolling at 15 m/s, swung
 //      20 deg off its track at 120 deg/s, the Cub 30 deg at 180 deg/s since G1896 - a main gear group lets go, the low
 //      wing strikes); the porpoise (the metal
-//      Cessna: nose-first touchdowns at 25 m/s, 5 deg nose-down, the bounces growing 3 / 4 / 5 m/s - the nose gear
+//      Cessna: nose-first touchdowns at 25 m/s, 5 deg nose-down, the bounces growing 3 / 4 / 5 / 6 m/s - the nose gear
 //      collapses, the bounce it collapsed on printed); the float dig-in (the Cessna on floats, the twin: the 90 km/h /
 //      5 m/s / 20 deg nose-in breaks nothing; in TREECRASH's severe nose-in (150 km/h / 10 m/s / 60 deg) the floats'
 //      strut fittings fail in overload - the order printed)
@@ -58,7 +58,7 @@ if (argv[0] === '--part') {
     // for the Jodel) and is REPORTED; the harder swing folds the gear by its own side load
     if (k === 'cub' || k === 'jodel') out.loop = G.groundLoop(k, k === 'cub' ? { V: 15, yaw: 30, rate: 180, secs: 4 } : { V: 15, yaw: 20, rate: 120, secs: 4 });
     if (k === 'cub') out.loop20 = G.groundLoop(k, { V: 15, yaw: 20, rate: 120, secs: 4 });
-    if (k === 'metal') out.porp = G.porpoise(k, { V: 25, pitch: 5, sinks: [3, 4, 5] });
+    if (k === 'metal') out.porp = G.porpoise(k, { V: 25, pitch: 5, sinks: [3, 4, 5, 6] });   // a 4th bounce at 6 m/s (the user, 8 Oct, by name: the nose engine at its drawn height, G2365, collapses it on the 4th, not the 3rd)
     // (train 41, A0 7 Oct: THE ORDINARY NOSE-IN AT THE AEROPLANE'S OWN V_S0. The water case was 90 km/h / 5 m/s / 20 deg for
     // every floatplane - 1.0 V_S0 for the Cessna on floats, where it was calibrated, but 1.5 V_S0 for the twin (V_S0 32 kt):
     // 5.0 g at its CG, 2.6 x its FAR 23.527 water load (1.91 g), past its 2.9 g ultimate. The ordinary case is now the
@@ -149,7 +149,7 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
     if (RW.loop && k === 'cub') { const g = RW.loop, mains = g.groups.filter(x => /^gear[LR]:/.test(x));
       yes(g.finite && mains.length > 0 && g.tipStrike != null, 'the ground loop (' + g.V + ' m/s, swung ' + g.yaw + ' deg at ' + g.rate + ' deg/s): a main gear folds (' + (mains.join(', ') || 'none') + '), the low wing strikes (' + (g.tipStrike != null ? 'at ' + f2(g.tipStrike) + ' s' : 'no: ' + f2(g.tipMin) + ' m') + '); the groups in order ' + g.groups.join(' > ') + (g.reason ? '; ' + g.reason : '')); }
     if (RW.porp) { const g = RW.porp;
-      yes(g.finite && g.collapsed != null, 'the porpoise (nose-first at ' + g.V + ' m/s, ' + g.pitch + ' deg down, the bounces at ' + g.sinks.join(' / ') + ' m/s): the nose gear collapses on bounce ' + g.collapsed + ' (the reference: the third) - ' + g.bounces.map(b => b.bounce + ': ' + (b.groups.join('+') || 'whole')).join('; ') + (g.propStrike ? '; the prop strikes' : '') + (g.reason ? '; ' + g.reason : '')); }
+      yes(g.finite && g.collapsed != null, 'the porpoise (nose-first at ' + g.V + ' m/s, ' + g.pitch + ' deg down, the bounces at ' + g.sinks.join(' / ') + ' m/s): the nose gear collapses on bounce ' + g.collapsed + ' (the reference: the fourth since the drawn engine height of G2365 - accepted by name by the user, 8 Oct; was the third) - ' + g.bounces.map(b => b.bounce + ': ' + (b.groups.join('+') || 'whole')).join('; ') + (g.propStrike ? '; the prop strikes' : '') + (g.reason ? '; ' + g.reason : '')); }
     if (RW.dig) { const [a, b, c] = RW.dig;
       yes(a.finite && a.breaks === 0, 'the float nose-in at its own V_S0, ' + a.V + ' km/h, ' + a.sink + ' m/s (0.2 V_S0), ' + a.pitch + ' deg (the WATER CASE): nothing breaks (' + a.set + ' set)');
       if (c) yes(c.finite && c.breaks > 0 && !!c.firstBreak && /^S2B[LR]-S3B[LR]$/.test(c.firstBreak.tags), 'SEVERE for the twin: the 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 water load, past its ultimate): the boom root goes, first at its root bay (' + (c.firstBreak ? c.firstBreak.tags + ' ' + c.firstBreak.how + ' at ' + f2(c.firstBreak.t) + ' s' : 'nothing broke') + ', ' + c.breaks + ' broken)');

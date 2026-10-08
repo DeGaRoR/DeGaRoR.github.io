@@ -355,8 +355,14 @@ if (SELF) {
   process.exit(ok ? 0 : 1);
 }
 const t0 = Date.now();
-const fail = battery(null);
+// THE OPEN LIST (train 41, the user's ruling 8 Oct): a row split out of the gate until its owner lands - printed, never
+// counted; a throw stays red. ltd:metal: the game's own metal Cessna lands ~350 m long on w3's short strip and cannot line
+// up for leg 2 (the same with G2365 undone: not train 41's change) - owner the Pilot Coordinator, CESSNA-VREF G2500.
+const OPEN_ROWS = { 'ltd:metal: ': 'owner the Pilot Coordinator (CESSNA-VREF G2500), opened 2026-10-08' };
+const all = battery(null), isOpen = f => Object.keys(OPEN_ROWS).some(p => f.startsWith(p));
+const fail = all.filter(f => !isOpen(f)), open = all.filter(isOpen);
 for (const f of fail) console.log('  FAIL ' + f);
+if (open.length) { console.log('OPEN (split out of the gate until their owner lands; not counted):'); for (const f of open) console.log('  OPEN ' + f + ' [' + OPEN_ROWS[Object.keys(OPEN_ROWS).find(p => f.startsWith(p))] + ']'); }
 console.log('DESTTO: ' + fail.length + ' failure(s), ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s' + SH.tag);
 console.log('GATE DESTTO: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);
