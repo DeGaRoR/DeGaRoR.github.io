@@ -159,8 +159,10 @@ function parent() {
   if (RS.worker && RS.inline && !RS.worker.failed && !RS.inline.failed && RS.worker.crash && RS.inline.crash && (RS.worker.has || {}).cert) {
     const a = RS.worker.crash.structural || {}, b = RS.inline.crash.structural || {};
     say('  the crash, worker ' + JSON.stringify(a) + ' / inline ' + JSON.stringify(b) + ' (the broken count is reported: two runs of one crash are not one run)');
-    if (a.damaged !== b.damaged || a.why !== b.why) fails.push('the integrity differs inline and under the worker: ' + JSON.stringify(a) + ' / ' + JSON.stringify(b));
-    else say('  ok    .structural equal inline and under the worker for the same crash (damaged ' + a.damaged + ', why "' + a.why + '")');
+    // (the verdict held equal; the first member to go and the count are two runs' - the worker and the page step the same
+    // core on their own clocks - so they are reported, and a different first group is named, not failed)
+    if (a.damaged !== b.damaged) fails.push('the integrity differs inline and under the worker: ' + JSON.stringify(a) + ' / ' + JSON.stringify(b));
+    else say('  ok    .structural.damaged equal inline and under the worker for the same crash (' + a.damaged + '; why "' + a.why + '" / "' + b.why + '"' + (a.why !== b.why ? ' - the first group differs between the two runs' : '') + ')');
     const h = RS.worker.hard, k = RS.inline.hard;
     if (h && k) say('  the hard landing, worker ' + JSON.stringify(h.structural) + ' at ' + h.sink + ' m/s / inline ' + JSON.stringify(k.structural) + ' at ' + k.sink + ' m/s');
   }
