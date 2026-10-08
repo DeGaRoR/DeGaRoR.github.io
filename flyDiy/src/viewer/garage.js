@@ -1322,6 +1322,8 @@ function garageInit(api) {
       json: () => { commit();
                     return envelope(slotName || 'build', spec, plaque, log); },
       list: slotNames,
+      // G2316 (GARAGE-RESIDENTS' swap): a saved build onto the stand - the fleet rack's own door (loadSlot)
+      open: n => loadSlot(n),
       stock: () => STOCK.map(s => s.name),
       // G411: A BUILD AS A SPEC, WITHOUT OPENING IT. The parked aeroplanes
       // (src/viewer/parked.js) stand a stock design or one of your own beside

@@ -1,0 +1,567 @@
+{
+ "url": "http://localhost:8591/flyDiy/index.html?gfx=gamer&career=1",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=gamer&career=1",
+ "label": "works-cozy",
+ "sha": "7560d3bc3",
+ "mode": "career",
+ "preset": "gamer",
+ "errs": [],
+ "stills": [
+  {
+   "name": "gamer_hearth_afternoon_room_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · room · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_afternoon_room_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · room · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_afternoon_wide_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · wide · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_afternoon_wide_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · wide · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_afternoon_side_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · side · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_afternoon_side_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · side · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_night_room_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · night · room · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_night_room_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · night · room · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_night_wide_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · night · wide · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_night_wide_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · night · wide · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_night_side_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · night · side · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_night_side_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · night · side · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_swap_before",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · room · residents on · BEFORE the swap: Jodel on the stand",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_hearth_swap_after",
+   "text": "works-cozy 7560d3bc3 · gamer · career · works (hearth) + 2 residents · afternoon · room · residents on · AFTER \"Work on Cub\": Cub on the stand, Jodel parked",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_afternoon_room_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · room · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_afternoon_room_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · room · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_afternoon_wide_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · wide · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_afternoon_wide_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · wide · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_afternoon_side_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · side · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_afternoon_side_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · side · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_night_room_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · night · room · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_night_room_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · night · room · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_night_wide_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · night · wide · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_night_wide_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · night · wide · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_night_side_res",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · night · side · residents on",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_night_side_nores",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · night · side · residents off",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_swap_before",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · room · residents on · BEFORE the swap: Jodel on the stand",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "gamer_club1_swap_after",
+   "text": "works-cozy 7560d3bc3 · gamer · career · club + 1 resident · afternoon · room · residents on · AFTER \"Work on Cub\": Cub on the stand, Jodel parked",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  }
+ ],
+ "discarded": [],
+ "scenes": {
+  "hearth": {
+   "room": {
+    "shell": "works",
+    "layout": "hearth",
+    "dims": {
+     "HW": 20,
+     "HD": 20,
+     "EAVE": 9.5,
+     "RIDGE": 12.1
+    },
+    "unplaced": 0,
+    "lamps": {
+     "gain": 1.25,
+     "angle": 1.178097,
+     "kelvin": 2700,
+     "hex": 16765854
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "residents": {
+    "plan": [
+     {
+      "name": "Cessna",
+      "x": 12.9,
+      "z": 0,
+      "filled": true,
+      "tris": 24376
+     },
+     {
+      "name": "Cub",
+      "x": 11.911,
+      "z": -13,
+      "filled": true,
+      "tris": 20908
+     }
+    ],
+    "unplaced": [],
+    "err": null,
+    "how": "kept",
+    "room": {
+     "dx": 0,
+     "dz": 0
+    },
+    "ms": 0.1,
+    "packs": 1,
+    "stats": {
+     "queued": 6,
+     "captures": 3,
+     "bakes": 3,
+     "hits": 3,
+     "stored": 3,
+     "decodes": 2,
+     "worldRefused": 0,
+     "flightRefused": 0,
+     "evicted": 0,
+     "bakeInWorld": 0
+    },
+    "queue": 0,
+    "busy": false,
+    "why": {
+     "mine:Cessna": "not baked",
+     "mine:Cub": "not baked"
+    }
+   }
+  },
+  "club1": {
+   "room": {
+    "shell": "club",
+    "layout": null,
+    "dims": {
+     "HW": 15,
+     "HD": 12.5,
+     "EAVE": 7,
+     "RIDGE": 9.6
+    },
+    "unplaced": 0,
+    "lamps": {
+     "gain": 1,
+     "angle": 1.178097,
+     "kelvin": 4000,
+     "hex": 16771283
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "residents": {
+    "plan": [],
+    "unplaced": [
+     {
+      "name": "Cessna",
+      "why": "no floor left beside the fit-out"
+     },
+     {
+      "name": "Cub",
+      "why": "no floor left beside the fit-out"
+     }
+    ],
+    "err": null,
+    "how": "round the stand",
+    "room": {
+     "dx": 0,
+     "dz": 0
+    },
+    "ms": 0.1,
+    "packs": 2,
+    "stats": {
+     "queued": 6,
+     "captures": 3,
+     "bakes": 3,
+     "hits": 3,
+     "stored": 3,
+     "decodes": 3,
+     "worldRefused": 0,
+     "flightRefused": 0,
+     "evicted": 0,
+     "bakeInWorld": 0
+    },
+    "queue": 0,
+    "busy": false,
+    "why": {
+     "mine:Cessna": "not baked",
+     "mine:Cub": "not baked"
+    }
+   }
+  }
+ },
+ "swaps": [
+  {
+   "tag": "hearth stills",
+   "to": "Cub",
+   "name": "Cub",
+   "out": "Jodel",
+   "load": 2077.8,
+   "how": "kept",
+   "stood": 2626.6,
+   "total": 2643.4,
+   "plan": [
+    {
+     "name": "Cessna",
+     "x": 12.9,
+     "z": 0,
+     "filled": true,
+     "tris": 24376
+    },
+    {
+     "name": "Jodel",
+     "x": 11.911,
+     "z": -13,
+     "filled": true,
+     "tris": 18640
+    }
+   ],
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "hearth stills back",
+   "to": "Jodel",
+   "name": "Jodel",
+   "out": "Cub",
+   "load": 942.5,
+   "how": "kept",
+   "stood": 946.3,
+   "total": 1246.4,
+   "plan": [
+    {
+     "name": "Cessna",
+     "x": 12.9,
+     "z": 0,
+     "filled": true,
+     "tris": 24376
+    },
+    {
+     "name": "Cub",
+     "x": 11.911,
+     "z": -13,
+     "filled": true,
+     "tris": 20908
+    }
+   ],
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "club1 stills",
+   "to": "Cub",
+   "err": "null",
+   "plan": [],
+   "how": "round the stand",
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "club1 stills back",
+   "to": "Jodel",
+   "err": "null",
+   "plan": [],
+   "how": "round the stand",
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  }
+ ],
+ "windows": [],
+ "load": 74.767,
+ "gfx": {
+  "preset": "gamer",
+  "build": "gamer",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "far1",
+  "scale": 1,
+  "cover": "full",
+  "scenery": "full",
+  "drawDist": "vis",
+  "terrain": 1,
+  "aa": "msaa",
+  "density": 128,
+  "bands": "mid",
+  "shadows": "full",
+  "canopy": "on",
+  "rails": "on",
+  "poles": "on",
+  "glare": "on",
+  "sway": "on",
+  "mist": "land",
+  "clouds": "half",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "soft",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "own": false,
+  "hw": null,
+  "town": "nearby"
+ },
+ "stand": "Jodel",
+ "room": {
+  "shell": "works",
+  "layout": "hearth",
+  "dims": {
+   "HW": 20,
+   "HD": 20,
+   "EAVE": 9.5,
+   "RIDGE": 12.1
+  },
+  "unplaced": 0,
+  "lamps": {
+   "gain": 1.25,
+   "angle": 1.178097,
+   "kelvin": 2700,
+   "hex": 16765854
+  },
+  "at": [
+   0,
+   0
+  ]
+ },
+ "fleetWait": {
+  "plan": [
+   {
+    "name": "Cessna",
+    "x": 12.9,
+    "z": 0,
+    "filled": true,
+    "tris": 24376
+   },
+   {
+    "name": "Cub",
+    "x": 11.911,
+    "z": -13,
+    "filled": true,
+    "tris": 20908
+   }
+  ],
+  "unplaced": [],
+  "err": null,
+  "how": "kept",
+  "room": {
+   "dx": 0,
+   "dz": 0
+  },
+  "ms": 0.1,
+  "packs": 1,
+  "stats": {
+   "queued": 6,
+   "captures": 3,
+   "bakes": 3,
+   "hits": 3,
+   "stored": 3,
+   "decodes": 2,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0
+  },
+  "queue": 0,
+  "busy": false,
+  "why": {
+   "mine:Cessna": "not baked",
+   "mine:Cub": "not baked"
+  }
+ },
+ "errsN": 0,
+ "wall": 509.534
+}

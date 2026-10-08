@@ -1,0 +1,116 @@
+{
+ "url": "http://localhost:8591/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "label": "works-cozy",
+ "sha": "7560d3bc3",
+ "mode": "sandbox",
+ "preset": "retro",
+ "errs": [],
+ "stills": [
+  {
+   "name": "retro_club_afternoon_room_nores",
+   "text": "works-cozy 7560d3bc3 · retro · sandbox · today's club · afternoon · room",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "retro_club_afternoon_wide_nores",
+   "text": "works-cozy 7560d3bc3 · retro · sandbox · today's club · afternoon · wide",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "retro_club_night_room_nores",
+   "text": "works-cozy 7560d3bc3 · retro · sandbox · today's club · night · room",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "retro_club_night_wide_nores",
+   "text": "works-cozy 7560d3bc3 · retro · sandbox · today's club · night · wide",
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  }
+ ],
+ "discarded": [],
+ "scenes": {},
+ "swaps": [],
+ "windows": [],
+ "load": 61.937,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "own": false,
+  "hw": null,
+  "town": "nearby"
+ },
+ "stand": "Jodel",
+ "room": {
+  "shell": "club",
+  "layout": null,
+  "dims": {
+   "HW": 15,
+   "HD": 12.5,
+   "EAVE": 7,
+   "RIDGE": 9.6
+  },
+  "unplaced": 0,
+  "lamps": {
+   "gain": 1,
+   "angle": 1.178097,
+   "kelvin": 4000,
+   "hex": 16771283
+  },
+  "at": [
+   0,
+   0
+  ]
+ },
+ "errsN": 0,
+ "wall": 80.718
+}

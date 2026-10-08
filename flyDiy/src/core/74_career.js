@@ -48,6 +48,28 @@ function careerBlockDefault(o) {
   };
 }
 
+// THE CAREER'S MAIN HANGAR (G2315 WORKS-COZY; GAME-2026-10-06 §R GQ22: "it should be updated to the largest hangar
+// probably, even though I find the medium one less intimidating and warmer. Main garage should be cozy"): the WORKS
+// shell at its own 40 x 40 m, every kit, stood in the `cozy` layout (26_hangar_fit HANGAR_LAYOUTS) - the bench corner,
+// the woodshop bay, the office, the lounge round the build bay. The sandbox keeps today's club (GQ29).
+// G2318: the HEARTH (the cozy works with the life brought to the stand) is the default; 'cozy' (the rooms along the
+// walls) is kept beside it for the user's pick (GARAGE_ENV.setLayout in a career)
+const CAREER_MAIN = { shell: 'works', layout: 'hearth' };
+function careerMainShed() {
+  const L = (typeof HANGAR_LAYOUTS !== 'undefined') ? HANGAR_LAYOUTS[CAREER_MAIN.layout] : null;
+  const S = (typeof SHELLS !== 'undefined') ? SHELLS[CAREER_MAIN.shell] : null;
+  if (!L || !S) return null;                                   // a core without the hangar tables: the default stands
+  return { shell: CAREER_MAIN.shell, dims: Object.assign({}, S.dims), kits: L.kits.slice(), layout: CAREER_MAIN.layout,
+           base: 'HOME', tenure: 'own' };
+}
+// a main hangar nobody has touched yet: the player default's club (no dims, no dress, the default kits, no layout) -
+// what every career made before G2315 holds; careerNormalise hands it the career's main hangar, once
+function careerMainUntouched(h) {
+  if (!h || typeof h !== 'object' || h.shell !== 'club' || h.layout || h.dims || h.parts) return false;
+  const def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
+  return !!def && Array.isArray(h.kits) && h.kits.join() === def.join();
+}
+
 // A NEW CAREER (GQ23): a fresh player document in career mode — the main hangar at HOME, an empty fleet —
 // the grant written into the ledger as income (so the history says where the money came from), the voucher
 // unspent, every track at 0, and the first offers.
@@ -55,6 +77,8 @@ function careerNew(o) {
   o = o || {};
   const d = playerDefault();
   d.mode = 'career';
+  const main = careerMainShed();
+  if (main) d.sheds.HOME = main;
   d.career = careerBlockDefault(o);
   playerCharge(d, -CAREER_GRANT, 'grant', null);
   // G2290 (PILOTS): the companion arrives with the career (76_pilots.js; §9.2 "the first pilot comes with the opening")
@@ -67,6 +91,9 @@ function careerNew(o) {
 function careerNormalise(r) {
   const d = playerNormalise(playerMigrate(r && typeof r === 'object' ? r : null));
   d.mode = 'career';
+  // G2315: a career made before the cozy works holds the player default's untouched club - it becomes the career's
+  // main hangar (the base, the tenure and anything else on the record kept); a touched one is the player's, kept
+  if (careerMainUntouched(d.sheds.HOME)) { const m = careerMainShed(); if (m) d.sheds.HOME = Object.assign({}, d.sheds.HOME, m, { base: d.sheds.HOME.base, tenure: d.sheds.HOME.tenure }); }
   const def = careerBlockDefault();
   const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
   for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];
