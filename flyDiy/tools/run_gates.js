@@ -166,8 +166,10 @@ const GATES = [
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
   // G2251 (MAP-MENU): THE 2-D ISLAND MAP (tools/map_bake.js) - the committed picture and projection re-bake byte for byte,
-  // every runway's pixels inside its footprint in the projection (and every footprint drawn), the 2 MB / 4096 px budget; ~12 s
-  { id: 'MAPBAKE', file: '_mapbake_check.js', argv: ['--selftest'], tier: 'core', wall: 20 },
+  // every runway's pixels inside its footprint in the projection (and every footprint drawn), the 2 MB / 4096 px budget;
+  // G2435 (MAP-INFRA): + the infrastructure (roads, zones, houses, site footprints, the tramway) against the record, which
+  // composes the town (premises_cook's headless compose, ~20 s); ~35 s
+  { id: 'MAPBAKE', file: '_mapbake_check.js', argv: ['--selftest'], tier: 'core', wall: 40 },
   // G1995-G1997 (HW-COVERAGE, the user's GTX 1660 Ti laptop: a 128 s garage load, 3-4 fps for 15 min, NO REVEAL): on a virtual
   // clock - the boot watchdog never lifts a chain that still lands steps (keys alone are not progress; 5x hard the last
   // resort); the runtime step-down (gfx_settings.js GFX.hw: one rung under 15 fps in the shed / on the ground, once a state,

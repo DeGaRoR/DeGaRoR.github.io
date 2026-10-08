@@ -20,6 +20,11 @@
 //     where they stand, the drawing board; Buy in the career, Take free in the sandbox) and G2290 PILOTS' roster (Hire /
 //     Flies next / Fire, live only in the career); each list's markers on the map in the badge style, sized to the zoom,
 //     a tap filtering the list to its place; the place filter across the lists; no auto-zoom from a row or a marker.
+//   THE INFRASTRUCTURE (G2435, MAP-INFRA): infraOf over the projection's `infra` by zoom band - the main roads, the
+//     settlements and the tramway from the fit, every road from the middle zoom, the houses and site footprints closer;
+//     the roads' simplification band by zoom; the labels (village, town, mill, cannery, tram) from the middle zoom, clear
+//     of the badges, the town and the cannery named once; NOTHING of it takes a pointer (no tap target in its markup,
+//     pointer-events none on its layer and labels); a pan moves its group, only a zoom step redraws it.
 //   NOHOVER (MOBILE-GARAGE R17/R18): no title=, no mouseenter / mouseover / pointerover, no :hover in map_menu.js or the
 //     entry. R1: every interactive class >= 48 px. R20: the map touch-action none, the list / sheet pan-y, the handle
 //     none. --phone: the bottom sheet's rules.
@@ -162,7 +167,7 @@ module.exports = function mapSmoke(html, phone) {
   const o1 = ov(1), o2 = ov(1.5), o3 = ov(3), o8 = ov(8, st, { x: 140, z: 60 });
   need(o1.n.badges === M.places.length && o1.n.hot === 0 && o1.n.pois === 0 && o1.n.names === 0, 'at the fit: a badge per place and nothing else named (' + JSON.stringify(o1.n) + ')');
   need(o2.n.hot === pack.hotspots.length && o2.n.rings === 0 && o2.n.counts === 0 && o2.n.names === M.places.length, 'the second zoom step: every hotspot and the names, no rings or counts yet (' + JSON.stringify(o2.n) + ')');
-  need(o3.n.rings > 0 && o3.n.counts === pack.hotspots.length && o3.n.pois === pack.pois.length && o3.n.facts === M.places.length, 'closer: the hotspots\' rings and counts, the places of interest, the runway facts (' + JSON.stringify(o3.n) + ')');
+  need(o3.n.rings > 0 && o3.n.counts === pack.hotspots.length && o3.n.pois === pack.pois.length - pack.infra.labels.filter(l => l.poi).length && o3.n.labels > 0 && o3.n.facts === M.places.length, 'closer: the hotspots\' rings and counts, the places of interest (the town and the cannery by their labels, G2435), the runway facts (' + JSON.stringify(o3.n) + ')');
   need(o2.bs > o1.bs && o3.bs > o2.bs, 'the badges are not sized to the zoom (' + o1.bs + ' / ' + o2.bs + ' / ' + o3.bs + ' px)');
   need((o3.html.match(/class="mmHot sea"/g) || []).length === pack.hotspots.filter(h => h.kind === 'sea').length && pack.hotspots.some(h => h.kind === 'sea'), 'the sea hotspots are not blue');
   // close up at Jolene AFB: both runways at true scale with the designators their names carry
@@ -183,6 +188,31 @@ module.exports = function mapSmoke(html, phone) {
   const lit = ov(1, { cust: 'all', at: null, open: 'minedock.j.parts' });
   need(/data-place="mn_strip" [^>]*><i style="box-shadow:0 0 0 3px #d99a3c/.test(lit.html) && /data-place="SEA" [^>]*><i style="box-shadow:0 0 0 3px #d99a3c/.test(lit.html) && lit.n.routes >= 1 && lit.n.names >= 2, 'the open contract\'s places are not ringed in its type colour, named, and joined');
   say('the map: a badge per place at the fit (' + o1.bs + ' px), names + ' + o2.n.hot + ' hotspots from the second step (' + o2.bs + ' px), rings + counts + places + runway facts closer (' + o3.bs + ' px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour');
+  // (G2435) THE INFRASTRUCTURE by zoom band, over the projection's infra
+  const IF = pack.infra, inf = k => MM.infraOf(pack, { s: fit * k, fit });
+  need(IF && IF.roads.length === 76 && IF.zones.length >= 10 && IF.links.length === 1, 'the projection carries no infra (roads, zones, the tram)');
+  const mainN = IF.roads.filter(r => r.main).length, nH = IF.houses.split(' ').length;
+  const i1 = inf(1), i2 = inf(2), i3 = inf(3), i8 = inf(8);
+  need(i1.n.zones === IF.zones.length && i1.n.roads === mainN && i1.n.main === mainN && i1.n.links === 1 && i1.n.stations === 2 && !i1.n.houses && !i1.n.sites && i1.n.band === 0,
+    'at the fit: the settlements, the main roads only and the tramway (' + JSON.stringify(i1.n) + ')');
+  need(i2.n.roads === IF.roads.length && i2.n.tracks > 0 && !i2.n.houses && !i2.n.sites && i2.n.band === 1, 'from the middle zoom: every road, no buildings yet (' + JSON.stringify(i2.n) + ')');
+  need(i3.n.houses === nH && i3.n.sites === IF.sites.length, 'closer: every house and site footprint (' + JSON.stringify(i3.n) + ')');
+  need(i8.n.band === 2 && i8.svg.length > i3.svg.length * 0.8, 'close up: the finest band');
+  for (const [k, F] of [[1, i1], [2, i2], [3, i3], [8, i8]]) need(!/data-place|data-act|role=|onclick|tabindex|<a |pointer-events="(auto|all|visible)/.test(F.svg), 'the infrastructure at ' + k + 'x carries a tap target');
+  need(/<polygon class="mmInfZ residential" [^>]*fill="url\(#mmHz-residential\)"/.test(i1.svg) && /stroke-dasharray/.test(i2.svg.split('class="mmInfR"')[1] || '') && /class="mmInfL"/.test(i1.svg), 'the settlements hatched, the tracks dashed, the cable drawn');
+  const lo = k => ov(k, st, { x: -2500, z: -8300 });
+  const l15 = lo(1.5), l2 = lo(2), l3 = lo(3);
+  need(l15.n.labels === 0 && l2.n.labels + l2.n.held === IF.labels.length && l2.n.labels > 0 && l3.n.labels >= 3, 'the labels from the middle zoom (1.5x ' + l15.n.labels + ', 2x ' + l2.n.labels + ' + ' + l2.n.held + ' held, 3x ' + l3.n.labels + ')');
+  need(/class="mmLbl town"[^>]*>Metlakatla</.test(l3.html) && !/class="mmPoi"[^>]*>(Metlakatla|the cannery)</.test(l3.html), 'the town and the cannery are not named once, by their labels');
+  const boxOf = (h, cls, w, hh) => [...h.matchAll(new RegExp('class="' + cls + (/"$/.test(cls) ? '' : '[^"]*"') + '[^>]*style="left:([-\\d.]+)px;top:([-\\d.]+)px[^"]*"[^>]*>([^<]*)<', 'g'))].map(m => ({ x: +m[1], y: +m[2], t: m[3], w: w(m[3]), h: hh }));
+  for (const L of [l2, l3]) {
+    const lb = boxOf(L.html, 'mmLbl', t => t.length * 7, 14), bd = boxOf(L.html, 'mmPl(?: water)?"', () => L.bs, L.bs).concat(boxOf(L.html, 'mmPlane', () => 24, 20));
+    need(!lb.some(a => bd.some(b => Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2)), 'a label sits on a place badge or a plane');
+  }
+  const cssI = /const CSS = `([\s\S]*?)`;/.exec(menuSrc)[1];
+  need(/\.mmInfra\{[^}]*pointer-events:none/.test(cssI) && /\.mmInfra \*\{pointer-events:none\}/.test(cssI) && /\.mmLbl\{[^}]*pointer-events:none/.test(cssI), 'the infrastructure layer or its labels take a pointer');
+  need(/class="mmInfra"[^']*aria-hidden="true"/.test(menuSrc) && /infKey/.test(menuSrc) && /\$\.inf\.setAttribute\('transform'/.test(menuSrc), 'the infrastructure is not one group a pan moves (aria-hidden, redrawn per zoom step)');
+  say('the infrastructure: at the fit ' + i1.n.zones + ' settlements, ' + i1.n.roads + ' main roads, the tramway (' + i1.n.stations + ' stations); from 2x all ' + i2.n.roads + ' roads (' + i2.n.tracks + ' tracks dashed); from 3x ' + i3.n.houses + ' houses + ' + i3.n.sites + ' site footprints; the bands 0 / 1 / 2 by zoom; the labels from the middle zoom clear of the badges (the town and the cannery named once); nothing of it a tap target, pointer-events none');
   // NO AUTO-ZOOM: opening a row (and a place filter) never touches the view
   const rowLine = /if \(a === 'row'\)[^\n]*/.exec(menuSrc), atLine = /function filterAt\([^\n]*/.exec(menuSrc);
   need(rowLine && atLine && !/zoom|fit\(|V\.|focus|place\(\)/.test(rowLine[0].replace(/renderList\(\)/, '')) && !/zoom|fit\(|V\.|focus/.test(atLine[0]) && !/function focus/.test(menuSrc), 'opening a row or filtering a place moves the map (no auto-zoom)');

@@ -28,6 +28,13 @@
 //     record, never typed here. The wildlife hotspots (the record's animal objects, as the in-game minimap marks them)
 //     are green badges (blue at sea) from the second zoom step, their zone ring and count closer in. A place (badge,
 //     name or runway) is a tap that filters the list.
+//   THE INFRASTRUCTURE (G2435, MAP-INFRA; the user, 7 Oct: "represent the game infrastructure in there, like the roads,
+//     village, and so on"): the projection's `infra` (map_bake.js: the island record through compose) drawn in ink over
+//     the painting and under the sites - the settlements as warm tinted areas (harbour, industry, parks their own tint),
+//     the roads as cased lines (a light core over a darker edge; the main ones bold ochre, tracks dashed), the tramway as
+//     a cable with its ticks and two stations, closer in every house and site footprint; the village, the town, the mill,
+//     the cannery and the tram named from the middle zoom, kept clear of the badges. Partly transparent so the painting
+//     keeps its life; nothing of it takes a pointer (infraOf, pure; the levels in LOD.infra*).
 //
 // THE SANDBOX STAYS TODAY'S GAME. This file is LAZY (build.js MANIFEST.lazy 'map_menu'): the page shows a MAP entry only
 // with ?map=1 or in the career mode (?career=1), and fetches this file, map_pack.js, the painting and the contracts only
@@ -53,7 +60,10 @@
   // THE LEVELS OF DETAIL, keyed on zr = scale / the fit's scale (1 = the whole island): the place names and the runway
   // facts, the places of interest, the hotspots (from the second zoom step: one + press is 1.5) and their rings and
   // counts; a runway is drawn at true scale once it is longer than a badge, its designators once there is room
-  const LOD = { names: 1.5, facts: 3, pois: 2.2, hot: 1.25, hotRing: 2.6, rwyPx: 34, desigPx: 120 };
+  const LOD = { names: 1.5, facts: 3, pois: 2.2, hot: 1.25, hotRing: 2.6, rwyPx: 34, desigPx: 120,
+    // (G2435) the infrastructure: the main roads, the settlements and the tram from the fit; every road and the labels
+    // from the middle zoom; the houses and the site footprints closer in; the roads' simplification band by zoom
+    infra: 1, infraAll: 1.8, infraLbl: 1.8, infraBldg: 2.6, infraBand: [1.8, 4] };
   const ZOOM_MAX = 8, ZOOM_ABS = 3;     // the deepest zoom: 8x the fit, and at least 3 screen px per picture px (4 m a px)
   const ACC = '#e6a15a';
 
@@ -492,7 +502,7 @@
     const s = view.s, zr = s / view.fit, mpp = pack.mpp, near = s / mpp;   // screen px per metre
     const X = x => view.tx + ((x - pack.x0) / mpp) * s, Y = z => view.ty + ((z - pack.z0) / mpp) * s;
     const bs = Math.round(clamp(10 + 9 * zr, 16, 34)), hs = Math.round(clamp(6 + 7 * zr, 14, 26));
-    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0 };
+    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0 };   // marks (G2440), labels / held (G2435)
     const contractsOn = listOf(st) === 'contracts';   // (G2440) the other lists keep the tracked contract, not an open one
     let html = '', svg = '';
     // the open and the tracked contracts' places -> their type colour (the badge takes a ring)
@@ -561,11 +571,16 @@
     }
     // 4. the places of interest (mid zoom)
     // (a place of interest beside a site's badge - the lodge at the altiport, the town at its float - stands below it)
+    // (G2435: a place of interest the infrastructure names - the town, the cannery - is named once, by its label below)
+    const lbls = (pack.infra && pack.infra.labels) || [], claimed = lbls.map(l => l.poi).filter(Boolean);
     if (zr >= LOD.pois) for (const q of M.pois) {
+      if (zr >= LOD.infraLbl && claimed.includes(q.id)) continue;
       let x = X(q.x), y = Y(q.z);
       const near0 = M.places.find(p => Math.hypot(X(p.x) - x, Y(p.z) - y) < bs + 24);
       if (near0) y = Math.max(y, Y(near0.z) + bs / 2 + 26);
-      html += '<span class="mmPoi" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px">' + esc(q.label + (q.elev ? ' ' + fmt(q.elev) + ' m' : '')) + '</span>'; n.pois++;
+      const t = q.label + (q.elev ? ' ' + fmt(q.elev) + ' m' : ''), w = t.length * 6.8;
+      boxes.push([x - w / 2, y - 9, x + w / 2, y + 9]);
+      html += '<span class="mmPoi" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px">' + esc(t) + '</span>'; n.pois++;
     }
     // 5. every place: a badge always (a tap filters the list); its name from mid zoom (or when lit / filtered), its runway
     //    facts closer; once its runway is drawn the badge steps aside, off the runway's side
@@ -591,7 +606,8 @@
     // 6. your planes, where they stand (the contracts list); the other lists draw their own markers instead (7.)
     const fan = {};
     if (contractsOn) for (const f of M.fleet) { const a = M.aeros[f.where && f.where.aero], pid = a && M.placeOf[a.id]; if (!pid || !at[pid]) continue; const k = fan[pid] = (fan[pid] || 0) + 1;
-      html += '<span class="mmPlane" style="left:' + n1(at[pid][0] + (k - 1) * 24 - 12) + 'px;top:' + n1(at[pid][1] + bs / 2 + 14) + 'px" role="img" aria-label="' + esc('your ' + f.name + ', at ' + a.name) + '">✈</span>'; n.planes++; }
+      const px = at[pid][0] + (k - 1) * 24 - 12, py = at[pid][1] + bs / 2 + 14; boxes.push([px - 13, py - 11, px + 13, py + 11]);
+      html += '<span class="mmPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc('your ' + f.name + ', at ' + a.name) + '">✈</span>'; n.planes++; }
     // 7. (G2440) THE LIST'S MARKERS - the places' badge style, sized to the zoom, under their place's badge side by side;
     //    a tap filters the list to that place and opens the row
     if (!contractsOn) {
@@ -604,10 +620,120 @@
         n.marks++;
       });
     }
+    // 8. (G2435) the infrastructure's names - the village, the town, the mill, the cannery, the tram - from the middle zoom,
+    //    each kept clear of the badges, the names, your planes and the labels already placed: on its spot, else below, above, right or
+    //    left of it; with no clear spot it waits for a closer zoom (n.held)
+    if (zr >= LOD.infraLbl) {
+      for (const p of M.places) { const q = at[p.id]; if (!q) continue; boxes.push([q[0] - bs / 2 - 2, q[1] - bs / 2 - 2, q[0] + bs / 2 + 2, q[1] + bs / 2 + 2]);
+        if (zr >= LOD.names || ring[p.id] || st.at === p.id) { const w = p.name.length * 7.4 + 10; boxes.push([q[0] + bs / 2 + 4, q[1] - 11, q[0] + bs / 2 + 4 + w, q[1] + 11]); } }
+      const SZ = { town: [11.5, 22], village: [7.6, 18], work: [7, 16], tram: [7, 16] };
+      for (const l of lbls) {
+        const x0 = view.tx + l.x * s, y0 = view.ty + l.y * s, sz = SZ[l.style] || SZ.work, w = l.label.length * sz[0] + 8, hh = sz[1];
+        const spots = l.style === 'tram' ? [[0, -hh / 2 - 6], [0, hh / 2 + 6], [w / 2 + 14, 0], [-w / 2 - 14, 0]]   // the cable stays readable
+          : [[0, 0], [0, hh + 4], [0, -hh - 4], [w / 2 + 10, 0], [-w / 2 - 10, 0], [0, 2 * hh + 8], [0, -2 * hh - 8], [w / 2 + 10, hh + 4], [-w / 2 - 10, hh + 4], [w / 2 + 10, -hh - 4], [-w / 2 - 10, -hh - 4]];
+        const k = spots.find(([dx, dy]) => { const L = x0 + dx - w / 2, T = y0 + dy - hh / 2; return !boxes.some(o => L < o[2] && L + w > o[0] && T < o[3] && T + hh > o[1]); });
+        if (!k) { n.held++; continue; }
+        const x = x0 + k[0], y = y0 + k[1];
+        boxes.push([x - w / 2, y - hh / 2, x + w / 2, y + hh / 2]);
+        html += '<span class="mmLbl ' + esc(l.style) + '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px">' + esc(l.label) + '</span>'; n.labels++;
+      }
+    }
     return { html, svg, n, zr, bs, hs };
   }
 
-  const CORE = { TYPES, LOD, mapAdapt, whereOf, placesOf, designators, stripWord, typeOf, payOf, chainOf, routeWord, involves, allows, fleetGears, markOf,
+
+  // ---- (G2435) THE INFRASTRUCTURE (pure: the inner SVG of a group the DOM half places at translate(tx, ty) scale(s), so
+  // it is in PICTURE px; a pan only moves the group, a zoom step rebuilds it). Widths are screen px divided by s. -------
+  const INK = { zone: { residential: ['#ffc46b', '#b23a16', 0.42], commercial: ['#ff9a5c', '#9c2410', 0.46], harbour: ['#5cc3f0', '#0f4f70', 0.36],
+                        industrial: ['#c7a2e8', '#4a2c6a', 0.4], park: ['#9be06a', '#2c6a1c', 0.4] },
+                road: { main: ['#ffcf5a', '#4a280e'], paved: ['#fff4d8', '#5a3418'], gravel: ['#f3d29a', '#73502a'], track: ['#4a280e'] },
+                house: ['#b8432a', '#922c1e', '#6a3a1e', '#5d4a72', '#3f7a2a'], bldg: '#7a2616', deck: '#e2bf7e', rock: '#8e877c', field: '#79c055',
+                cable: '#24170c', paper: '#fff3da' };
+  const HOUSE_M = [[11, 8], [15, 11], [13, 9], [18, 12], [12, 9]];   // a house's block (m) by its plot's kind: residential, commercial, harbour, industrial, park
+  const pts = str => str.split(' ').map(q => q.split(',').map(Number));
+  const n2 = v => String(Math.round(v * 100) / 100);
+  // a rotated rectangle (centre, sides, degrees) as a path's subpath
+  function rectPath(cx, cy, L, Wd, deg) {
+    const a = deg * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), hl = L / 2, hw = Wd / 2;
+    const P = [[hl, hw], [hl, -hw], [-hl, -hw], [-hl, hw]].map(([p, q]) => n2(cx + ux * p - uy * q) + ' ' + n2(cy + uy * p + ux * q));
+    return 'M' + P.join('L') + 'Z';
+  }
+  function infraOf(pack, view) {
+    const I = pack && pack.infra, n = { zones: 0, roads: 0, main: 0, tracks: 0, houses: 0, sites: 0, links: 0, stations: 0, band: -1 };
+    if (!I) return { svg: '', n };
+    const s = view.s, zr = s / view.fit, u = 1 / s, mpp = pack.mpp;
+    if (zr < LOD.infra) return { svg: '', n };
+    let svg = '';
+    // 1. the settlements and their kin: a tint, an inked edge (the village, the town warm; harbour, industry, parks their own)
+    //    - a light wash of the kind's colour under a hand-drawn hatch of its ink (the old maps' built-up areas)
+    let defs = '';
+    for (const kind of Object.keys(INK.zone)) {
+      const k = INK.zone[kind], g = 6 * u;
+      defs += '<pattern id="mmHz-' + kind + '" patternUnits="userSpaceOnUse" width="' + n2(g) + '" height="' + n2(g) + '" patternTransform="rotate(' + (kind === 'harbour' ? -45 : 45) + ')">' +
+        '<rect width="' + n2(g) + '" height="' + n2(g) + '" fill="' + k[0] + '" fill-opacity="' + k[2] + '"/><line x1="0" y1="0" x2="0" y2="' + n2(g) + '" stroke="' + k[1] + '" stroke-opacity=".5" stroke-width="' + n2(1.1 * u) + '"/></pattern>';
+    }
+    svg += '<defs>' + defs + '</defs>';
+    for (const z of I.zones) {
+      const k = INK.zone[z.kind]; if (!k) continue;
+      svg += '<polygon class="mmInfZ ' + z.kind + '" points="' + z.p + '" fill="url(#mmHz-' + z.kind + ')" stroke="' + k[1] + '" stroke-opacity=".8" stroke-width="' + n2(1.4 * u) + '" stroke-dasharray="' + n2(6 * u) + ' ' + n2(3 * u) + '" stroke-linejoin="round"/>';
+      n.zones++;
+    }
+    // 2. the roads: a cased line - the darker edge, then the light core over it - wide by class and zoom (and never
+    //    thinner than the road itself once close); tracks a dashed ink line. The tracks first, the main roads on top.
+    const band = zr < LOD.infraBand[0] ? 0 : zr < LOD.infraBand[1] ? 1 : 2; n.band = band;
+    const rank = r => r.cls === 'track' ? 0 : r.cls === 'gravel' ? 1 : r.main ? 3 : 2;
+    const roads = I.roads.filter(r => zr >= LOD.infraAll || r.main).sort((a, b) => rank(a) - rank(b));
+    // the core's screen width: the main roads bold (ochre), the minor ones a thread that never fills a town's blocks
+    const coreOf = r => r.main ? clamp(1.5 + 0.35 * zr, 2, 4.4) : clamp(0.7 + 0.2 * zr, 1, 2.2), edgeOf = r => clamp(0.4 + 0.1 * zr, 0.6, 1.1) * (r.main ? 1.2 : 1);
+    let edges = '', cores = '';
+    for (const r of roads) {
+      const P = r.p[band], tru = r.w / mpp * s;
+      if (r.cls === 'track') {
+        const w = Math.max(clamp(1 + 0.15 * zr, 1.2, 2), tru);
+        edges += '<polyline points="' + P + '" stroke="' + INK.road.track[0] + '" stroke-width="' + n2(w * u) + '" stroke-dasharray="' + n2(5 * u) + ' ' + n2(3.5 * u) + '"/>';
+        n.tracks++; n.roads++; continue;
+      }
+      const k = r.main && r.cls === 'paved' ? INK.road.main : INK.road[r.cls] || INK.road.paved;
+      const core = Math.max(coreOf(r), tru), edge = core + 2 * edgeOf(r);
+      edges += '<polyline points="' + P + '" stroke="' + k[1] + '" stroke-width="' + n2(edge * u) + '"/>';
+      cores += '<polyline points="' + P + '" stroke="' + k[0] + '" stroke-width="' + n2(core * u) + '"/>';
+      n.roads++; if (r.main) n.main++;
+    }
+    svg += '<g class="mmInfR" fill="none" stroke-linecap="round" stroke-linejoin="round">' + edges + cores + '</g>';
+    // 3. closer in: every house (a block on its plot, along its frontage; never under ~2.5 screen px) and every site's
+    //    footprint (buildings in ink, decks and floats in plank, breakwaters in stone, the ball park in grass)
+    if (zr >= LOD.infraBldg) {
+      const hp = ['', '', '', '', ''], minPx = 4.2 * u;
+      for (const h of I.houses ? I.houses.split(' ') : []) {
+        const [x, y, a, k] = h.split(',').map(Number), m = HOUSE_M[k] || HOUSE_M[0];
+        const L = Math.max(m[0] / mpp, minPx), Wd = Math.max(m[1] / mpp, minPx * 0.75);
+        hp[k] += rectPath(x, y, L, Wd, a); n.houses++;
+      }
+      hp.forEach((d, k) => { if (d) svg += '<path class="mmInfH" d="' + d + '" fill="' + INK.house[k] + '" stroke="#3a1206" stroke-width="' + n2(0.7 * u) + '" stroke-linejoin="round"/>'; });
+      const sp = { bldg: '', deck: '', rock: '', field: '' };
+      for (const it of I.sites) {
+        const [x, y, L, Wd, a] = it.r.split(',').map(Number);
+        const cls = /^marine\/breakwater/.test(it.key) ? 'rock' : /^marine\//.test(it.key) ? 'deck' : /^sport\//.test(it.key) ? 'field' : 'bldg';
+        sp[cls] += rectPath(x, y, Math.max(L / mpp, 3 * u), Math.max(Wd / mpp, 2 * u), a); n.sites++;
+      }
+      for (const c of ['field', 'deck', 'rock', 'bldg']) if (sp[c]) svg += '<path class="mmInfS ' + c + '" d="' + sp[c] + '" fill="' + INK[c] + '" stroke="' + (c === 'bldg' ? INK.paper : '#4a280e') + '" stroke-width="' + n2((c === 'bldg' ? 0.8 : 0.6) * u) + '" stroke-linejoin="round"/>';
+    }
+    // 4. the tramway: the cable in ink with its ticks across it (the old maps' aerial ropeway), its two stations
+    for (const L of I.links || []) {
+      const [A, B] = pts(L.p), S = pts(L.st), dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      let d = 'M' + A[0] + ' ' + A[1] + 'L' + B[0] + ' ' + B[1];
+      const step = 14 * u, k = Math.max(1, Math.floor(len / step)), t = 4 * u;
+      for (let i = 1; i < k; i++) { const cx = A[0] + dx * i / k, cy = A[1] + dy * i / k; d += 'M' + n2(cx - uy * t) + ' ' + n2(cy + ux * t) + 'L' + n2(cx + uy * t) + ' ' + n2(cy - ux * t); }
+      svg += '<path class="mmInfL" d="' + d + '" fill="none" stroke="' + INK.paper + '" stroke-width="' + n2(3.6 * u) + '" stroke-linecap="round" opacity=".7"/>' +
+             '<path class="mmInfL" d="' + d + '" fill="none" stroke="' + INK.cable + '" stroke-width="' + n2(1.6 * u) + '" stroke-linecap="round"/>';
+      const q = clamp(3 + 1.5 * zr, 6, 12) * u;
+      for (const p of S) { svg += '<rect class="mmInfSt" x="' + n2(p[0] - q / 2) + '" y="' + n2(p[1] - q / 2) + '" width="' + n2(q) + '" height="' + n2(q) + '" fill="' + INK.cable + '" stroke="' + INK.paper + '" stroke-width="' + n2(1.2 * u) + '"/>'; n.stations++; }
+      n.links++;
+    }
+    return { svg, n };
+  }
+
+  const CORE = { TYPES, LOD, infraOf, mapAdapt, whereOf, placesOf, designators, stripWord, typeOf, payOf, chainOf, routeWord, involves, allows, fleetGears, markOf,
                  rowsOf, listHTML, paraHTML, headHTML, atHTML, statusHTML, act, overlayOf, subsNow, subsAll, ZOOM_MAX, ZOOM_ABS,
                  // G2440 (MAP-MERGE): the switch and the other three lists; G2280 (PROCURE) and G2290 (PILOTS)'s pure exports kept
                  LISTS, PAX_KG, listOf, switchHTML, contractsListHTML, listCount, listMarkers, factsWord, whereWord, fleetListHTML, fleetParaHTML,
@@ -680,6 +806,12 @@
 #mapScreen .mmNm span{font:13.5px/1.15 var(--mm-old);color:var(--mm-sepia);background:rgba(233,220,192,.88);padding:1px 5px;border-radius:3px}
 #mapScreen .mmNm small{font:italic 12px var(--mm-old);color:#5a4630}
 #mapScreen .mmPoi{position:absolute;transform:translate(-50%,-50%);font:italic 13px var(--mm-old);color:#2a2018;text-shadow:0 0 3px #f4efe6,0 0 3px #f4efe6;white-space:nowrap;pointer-events:none}
+#mapScreen .mmInfra{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#mapScreen .mmInfra *{pointer-events:none}
+#mapScreen .mmLbl{position:absolute;transform:translate(-50%,-50%);font:italic 13.5px var(--mm-old);color:#2a1a0c;text-shadow:0 0 3px #fff3da,0 0 3px #fff3da,0 0 1px #fff3da;white-space:nowrap;pointer-events:none}
+#mapScreen .mmLbl.town{font:600 18px var(--mm-old);font-style:normal;font-variant:small-caps;letter-spacing:.14em;color:#4a1c0c}
+#mapScreen .mmLbl.village{font:italic 600 15px var(--mm-old);color:#5a2410}
+#mapScreen .mmLbl.tram{color:#24170c}
 #mapScreen .mmHot{position:absolute;transform:translate(-50%,-50%);width:var(--hs,22px);height:var(--hs,22px);border-radius:50%;display:grid;place-items:center;background:#e8f3df;color:#2d5a25;border:1.5px solid #2d5a25;box-shadow:0 1px 3px rgba(0,0,0,.45);pointer-events:none}
 #mapScreen .mmHot svg{width:70%;height:70%;fill:currentColor;display:block}
 #mapScreen .mmHot.sea{background:#dff0f7;color:#1d5f86;border-color:#1d5f86}
@@ -736,7 +868,7 @@
 #mapScreen.mmPhone .mmCust{max-width:none}
 `;
 
-  let root = null, M = null, pack = null, st = null, $ = {};
+  let root = null, M = null, pack = null, st = null, $ = {}, infKey = '';
   const V = { s: 1, tx: 0, ty: 0, fit: 1 };
   // G2280 (PROCURE): the core's procurement functions are the page's globals (the core bundle); the page's doors to
   // the player's document and the slots are window.FLYDIY_PROCURE (app.js, only under ?map=1 / ?career=1)
@@ -765,6 +897,7 @@
         '<div class="mmHead"><div class="mmTitle"><h1>Contracts</h1><button type="button" class="mmClose" data-act="close" aria-label="close the map">✕</button></div><div class="mmHeadIn"></div></div>' +
         '<div class="mmAtHost"></div><div class="mmList"></div></aside>' +
       '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"></div>' +
+        '<svg class="mmInfra" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g></g></svg>' +
         '<div class="mmOv"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="false"></svg><div class="mmOvH"></div></div>' +
         '<svg class="mmRose" viewBox="-32 -32 64 64" aria-hidden="true"><circle r="27" fill="none" stroke="#3b2a1a" stroke-width="1"/><circle r="22" fill="none" stroke="#3b2a1a" stroke-width=".6"/>' +
           '<path d="M0-30 L5-5 L0 0 L-5-5Z" fill="#3b2a1a"/><path d="M0 30 L5 5 L0 0 L-5 5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/>' +
@@ -777,7 +910,7 @@
     for (const k of ['mmSide', 'mmHeadIn', 'mmAtHost', 'mmList', 'mmMap', 'mmStage', 'mmOvH', 'mmScale', 'mmFoot', 'mmHandle'])
       $[k] = root.querySelector('.' + k);
     $.mmH1 = root.querySelector('.mmTitle h1');
-    $.img = root.querySelector('.mmStage img'); $.svg = root.querySelector('.mmOv svg');
+    $.img = root.querySelector('.mmStage img'); $.svg = root.querySelector('.mmOv svg'); $.inf = root.querySelector('.mmInfra g');   // G2435
     root.addEventListener('click', onClick);
     root.addEventListener('change', e => { if (e.target && e.target.classList.contains('mmCust')) { st.cust = e.target.value; renderList(); } });
     root.addEventListener('change', e => {   // G2280 (PROCURE): the gear chosen for a maker's model (its one option here)
@@ -811,6 +944,10 @@
     const r = view(), O = overlayOf(M, st, pack, { s: V.s, tx: V.tx, ty: V.ty, fit: V.fit, w: r.width, h: r.height });
     $.mmOvH.innerHTML = O.html; $.svg.innerHTML = O.svg;
     st.lastOverlay = O.n;
+    // (G2435) the infrastructure: a pan moves its group; a zoom step (~5 %) redraws it at that zoom's widths and detail
+    $.inf.setAttribute('transform', 'translate(' + V.tx + ' ' + V.ty + ') scale(' + V.s + ')');
+    const key = Math.round(Math.log(V.s / V.fit) * 20) + '|' + V.fit.toFixed(4);
+    if (key !== infKey) { infKey = key; const F = infraOf(pack, { s: V.s, fit: V.fit }); $.inf.innerHTML = F.svg; st.lastInfra = F.n; }
     // a round scale bar
     const m = 1000 * V.s / pack.mpp, km = [0.5, 1, 2, 5, 10].find(k => k * m >= 60) || 10;
     $.mmScale.innerHTML = '<i style="width:' + Math.round(km * m) + 'px"></i>' + (km < 1 ? '500 m' : km + ' km');

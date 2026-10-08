@@ -83192,3 +83192,101 @@ The stills (futureDesigns/game/evidence/MAP-MERGE/, `map_<size>_<name>.jpg`; des
 - Not run: the full tier.
 
 READY for the GAME COORDINATOR
+
+## G2435-G2439 - MAP-INFRA: THE ISLAND'S INFRASTRUCTURE ON THE MAP - THE ROADS (CASED, BY CLASS AND ZOOM; TRACKS DASHED), THE VILLAGE AND METLAKATLA AS WARM HATCHED AREAS (HARBOUR, INDUSTRY, PARKS THEIR OWN), EVERY HOUSE AND SITE FOOTPRINT CLOSER IN, THE SKYLINE TRAMWAY WITH ITS TICKS AND STATIONS, THE LABELS FROM THE MIDDLE ZOOM - ALL OFF THE ISLAND RECORD THROUGH COMPOSE, OVER THE USER'S PAINTING, NOTHING CLICKABLE (2026-10-07, MAP-INFRA for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/map-infra-g2435 off origin/claude/map-simple-g2324 7b9ca76f - claude/map-merge-g2440 did not exist; also pushed as claude/wonderful-knuth-dz2j5p)
+
+The user (7 Oct): "you also may want to represent the game infrastructure in there, like the roads, village, and so on".
+The rulings kept: the painting stays the picture; the game draws what must be accurate on top; bold, hand-drawn old-map
+feel (never pastel, never Google-Maps); no border; strokes / icons sized with the zoom; an LMB drag never drags an element.
+**map_menu.js edits stay INSIDE THE MAP HALF** (overlayOf, a new pure `infraOf`, the overlay's CSS, place()/build()'s map
+lines) - the list half (MAP-MERGE G2440's) is untouched. No generated file committed.
+
+**G2435 THE BAKE** (`tools/map_bake.js` -> the projection's new `infra` block, content-hashed with it: jolene_proj.3d4035a7.json):
+the island record composed by the premises core exactly as the page does with the town on (`premises_cook.js`
+composeVariant 'town': the generators on a THREE stub, the catalogue, every place) - so the plots, site items and the
+cable are compose's own, in the world frame (the record's anchor is asserted to be the origin). Positions are INTEGER
+picture px (the projection's rule, rounded); polylines are SVG-ready "x,y x,y" strings.
+- `roads` (76 = the record's, its order): compose's line (the record's points with `smooth` applied, as every reader sees
+  it), Douglas-Peucker at **3 / 1 / 0.25 px** (far / mid / close bands); class paved / gravel / track from the record's
+  `cls`; `main` = width >= 5.5 m or a named road (25: the Metlakatla arterials, the airfield and village roads, the mine's
+  Main Street, the tramway road, the taxiways).
+- `zones` (15): residential (the village z_village + 7 of Metlakatla's), commercial, industrial (2), harbour (2), park (2);
+  forest / clear skipped.
+- `houses` (459): every plot compose sows (the town kit's and the village's) as "x,y,deg,kind" - its centre, its
+  frontage's bearing, its zone kind.
+- `sites` (117): every site item's footprint (centre px, sides m, bearing) - the mill, the cannery and its warehouses, the
+  hall, the churches, the stations, the piers, floats, wharves, breakwaters, the ball park.
+- `links` (1): the tramway - the cable's centreline (the mean of compose's track ropes' ends), its two stations (compose's
+  items), 1 783 m, 2 lines. **The record has no towers** (one span): the map draws the old maps' aerial-ropeway ticks
+  along the cable, not pylons.
+- `labels` (5): the village (z_village's centroid), Metlakatla (mk_hall - stands for the poi), the mill (its footprint),
+  the cannery (its building - stands for the poi), Skyline Tramway (the cable's middle). The words are typed (like POI_SITES);
+  the positions are the record's.
+- **Size: 31.0 KB raw, 7.5 KB gzipped** (the projection 46.7 KB; map_pack.js 36 KB). The bake now takes ~27 s (the
+  compose ~20 s of it).
+
+**G2436 THE DRAW** (`src/viewer/map_menu.js`, the map half):
+- One `<svg class="mmInfra">` between the painting and the overlay, **aria-hidden, pointer-events none on it and every
+  child**; its `<g>` carries translate(tx, ty) scale(s), so **a pan only moves the group** and the content (pure
+  `infraOf(pack, view)`, in picture px, widths = screen px / s) is **redrawn only per zoom step** (~5 %).
+- Levels (zr = scale / fit, `LOD.infra*`): **from 1** the settlements, the main roads, the tramway; **from 1.8** every road
+  (band 1; band 2 from 4) and the labels; **from 2.6** every house and site footprint.
+- The look: the settlements a light wash of their colour under a **hand-drawn hatch** of their ink with a dashed inked
+  edge (residential warm orange / brick, commercial red-orange, harbour blue, industry violet, parks green); roads **cased**
+  (a dark edge, a light core over it): main roads bold ochre (#ffcf5a on #4a280e), minor paved cream, gravel tan, tracks a
+  dashed ink line; minor street cores kept thin (1-2.2 px) so a town's blocks stay readable; never thinner than the road's
+  true width close up. Houses brick blocks (11 x 8 m, never under ~4 px) inked at the edge; site buildings dark red with a
+  paper edge, decks / piers / floats in plank, breakwaters in stone, the ball park in grass. The cable ink on a paper halo
+  with ticks every ~14 px, the stations ink squares.
+- **Opacity judged on stills at 3 zooms**: the washes at 0.36-0.46 under a 0.5-alpha hatch keep the painting's forest and
+  shore readable through the town; the lines are opaque (they must read).
+- **The labels** (overlayOf step 7, serif, the mock's .poi style; the town in spaced small caps): placed on their spot,
+  else below / above / right / left / further, **never on a badge, a place name, your planes or another label**; with no
+  clear spot a label waits for a closer zoom (n.held). Metlakatla and the cannery are named once (the pois they stand for
+  are skipped while the labels show). Your planes now reserve their spot too.
+
+**G2437 THE GATES** (`node tools/run_gates.js --only=MAPBAKE,MEDIA,UISMOKE,UISMOKE-PHONE,BUILD`): **BATTERY: PASS** -
+UISMOKE 221 s, UISMOKE-PHONE 52 s, MAPBAKE 34 s, MEDIA 1 s, BUILD 2 s.
+- **MAPBAKE** (+ THE INFRASTRUCTURE rows; run_gates wall hint 20 -> 40): every road of the record (76, in order; class,
+  width, main flag); every road point - the record's, smoothed as compose smooths it - **within 1 px of the formula on the
+  finest band (worst 0.68 px)**, each coarser band within its tolerance + the rounding (2.93 <= 3.71, 1.37 <= 1.71); the 15
+  zones vertex for vertex (worst 0.71 px); a house per compose plot (459, worst 0.69 px from the plot's centre); every
+  footprint (117, worst 0.70 px); the tram's cable ends and stations (worst 0.52 px); the labels; the budget (<= 48 KB raw,
+  <= 16 KB gz); **deterministic** (the committed infra is the re-bake's field for field, and the projection byte for byte).
+  Selftest 10 of 10 red (+ a road nudged 2 px, a road dropped, a zone vertex moved 3 px, a house dropped, the tram's top
+  station 2 px off).
+- **UISMOKE / UISMOKE-PHONE** (`_map_smoke.js`): infraOf by band - at the fit 15 settlements, the 25 main roads only, the
+  tramway (2 stations), no buildings, band 0; from 2x all 76 roads with the 3 tracks dashed, band 1; from 3x the 459 houses
+  and 117 footprints; close up band 2; **no tap target in its markup at any zoom** (no data-place / data-act / role /
+  tabindex / pointer-events auto), pointer-events none in the CSS (the layer, its children, the labels), the group moved
+  per pan and redrawn per zoom step; the labels from the middle zoom (none at 1.5x), clear of every badge and plane, the
+  town and the cannery named once. The MAP-SIMPLE row "closer: ... places of interest" now counts the pois less the two the
+  labels stand for.
+- **MEDIA, BUILD**: pass (media/map/ still three files: the projection renamed by its new hash).
+
+**G2439 THE STILLS** (`tools/map_infra_shot.js` -> `futureDesigns/game/evidence/MAP-INFRA/`, 5 stills + shots.json with
+the page's own answers). **Every still is of the LOADED page**: BOOT 'gone', #boot hidden, + 2 s, checked before and after
+each capture. ?career=1 (a new dev career): desk_island (the fit: the town and the village tinted, the main roads, the
+tramway), desk_village (Jolene AFB and the village at 3x: every road, the tracks, the houses, "the village"),
+desk_metlakatla (8x: the street grid cased, the arterials ochre, the houses, the cannery, piers and breakwaters, the harbour
+hatched blue, "Metlakatla" and "the cannery" once), desk_tramway (5x: the cable and its ticks, both stations, the access
+road, the altiport, the lodge), phone_infra (390 x 844 touch, 3x over Metlakatla and the tram above the folded sheet; the tram's label waits for a closer zoom there - the altiport's badge holds its spot).
+Probed live: the layer's computed pointer-events none on every child; **a left-button drag that starts on a drawn road
+pans by exactly the pointer's travel** (elementFromPoint there is the map, never the drawing), no filter set, no text
+selected; no page error.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: map_menu.js (map half only: the header note, `LOD` + infra keys, the poi skip and boxes in overlayOf,
+  the planes' boxes, step 7 the labels, the new `infraOf` + `INK` / `HOUSE_M` / `rectPath`, `CORE.infraOf`, the CSS lines
+  `.mmInfra` / `.mmLbl`, build()'s `<svg class="mmInfra">` and `$.inf`, place()'s 4 lines, `infKey`); map_bake.js (+
+  INFRA_* constants, simplify / composeTown / infraOf, `infra` in the projection, `town` in bake()'s result, the log line);
+  map_pack.js and media/map/ (regenerate with `node tools/map_bake.js` after merging - the projection's hash moved);
+  _mapbake_check.js; _map_smoke.js; run_gates.js (MAPBAKE's wall hint and comment only); new map_infra_shot.js.
+- **The bake depends on premises_cook's headless compose** (the generators on a stub): a change to the town kit, a
+  generator's footprint or the record moves `infra` and so the projection's hash - MAPBAKE goes red until re-baked (by design).
+- The mine is small at the deepest zoom (the site is ~200 m: ~40 px at 8x); its mill and works are drawn but tight. A
+  deeper zoom (ZOOM_MAX) would help there and in Metlakatla; not changed (MAP-SIMPLE's ruling).
+- The village's houses are drawn as blocks on their plots' centres (not the generated house's exact spot; < 1 px at 12 m/px).
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR: claude/map-infra-g2435 638738b (the code, gates and stills; this section rides one docs-only commit on top)
