@@ -915,6 +915,7 @@ async function pageRows() {
     setHolds(null);
     await P.until(() => S.stored >= 2 && !F.busy && !F.queue.length, 300000);
     check(S.captures === c0 + 1 && st.m.has('mine:fleetB'), '12p back in the garage the queue drains (fleetB baked there)', 'captures ' + S.captures + ', stored ' + S.stored);
+    check(gC.children.length === 0, '12p ...and the bake\'s LIVE capture filled no waiting world holder (G2225: only a decoded bake stands)', gC.children.length + ' children');
     // a second save of an unchanged aeroplane is a hit, not a bake
     G.save('fleetB');
     await P.until(() => !F.busy && !F.queue.length && !F.timer, 60000);

@@ -85,7 +85,8 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
     const lv = lod ? lod.levels.findIndex(l => l.object.visible) : -1;
     out.push({ slot: h.userData.fleetSlot, filled: !!lod, level: lv, ladder: lod ? lod.levels.map(l => Math.round(l.distance)) : null,
       d: cam ? +Math.hypot(e[12] - cam.position.x, e[13] - cam.position.y, e[14] - cam.position.z).toFixed(1) : null,
-      tris: lod ? Math.round(PARKED.trisOf(h)) : 0 }); }
+      tris: lod ? Math.round(PARKED.trisOf(h)) : 0, inView: (() => { if (!lod || !cam || lv < 0) return false; const T = window.THREE, F = new T.Frustum(); cam.updateMatrixWorld(); F.setFromProjectionMatrix(new T.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+        let hit = false; lod.levels[lv].object.traverse(o => { if (!hit && o.isMesh && o.geometry) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const sp = o.geometry.boundingSphere.clone().applyMatrix4(o.matrixWorld); if (F.intersectsSphere(sp)) hit = true; } }); return hit; })() }); }
   return out;`;
 
 (async () => {
@@ -153,11 +154,11 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
     info.shots.push({ f: 'close_l1_' + PRESET + '.png', census: info.close }); await shot(path.join(OUT, 'close_l1_' + PRESET + '.png'));
     console.log('close still: nearest prop ' + near.slot + ' at ' + near.d.toFixed(1) + ' m from the aeroplane; ' + JSON.stringify(info.close.filter(c => c.slot === near.slot)));
   }
-  // THE TAXI: the pilot's circuit, paused 14 s in
-  await pause(false);
-  await run(`try { FLIGHT_PROBE.camMode('chase'); } catch (e) {} const b = document.getElementById('bGo'); b.click(); return 1;`);
-  await sleep(14000);
-  await pause(true); await hideUI(); await frames(30); await sleep(500);
+  // THE A/B, two views (the dry run's lesson, 8 Oct 03:45: 14 s into the taxi the chase eye looks AHEAD and every prop is
+  // behind it - an A/B there measures nothing; and camSet in the chase mode does not move the eye: the orbit first):
+  //   apron  ON THE STAND, the orbit eye behind the aeroplane looking over it at the fleet's centre - all six in the frame:
+  //          THE WORST CASE (the acceptance's number)
+  //   taxi   the pilot's taxi, paused 14 s in, the player's chase view as it is (the fleet mostly behind: the usual case)
   const N = 60, rounds = TIMED ? 5 : 3;
   const measure = async on => {
     await run(`FLEET_STAND.state.grp.visible = ${on}; return 1;`);
@@ -165,39 +166,46 @@ const CENSUS = `const S = FLEET_STAND.state, cam = FLIGHT_PROBE.camera ? FLIGHT_
     return run(`const R = FLIGHT_REC.rec, f0 = R.frame; await new Promise(r => { let k = ${N}; const f = () => (--k > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); });
       const g = [], c = [], t = []; for (let f = f0; f < R.frame; f++) { const r = R.row(f); if (r.gpu === r.gpu) g.push(r.gpu); c.push(r.calls); t.push(r.tris); }
       const med = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
-      return { on: ${on}, n: g.length, gpu: med(g) != null ? +med(g).toFixed(3) : null, gpuMean: g.length ? +(g.reduce((a, b) => a + b, 0) / g.length).toFixed(3) : null, calls: med(c), tris: med(t) };`);
+      const ri = FLIGHT_PROBE.renderer().info.render;
+      return { on: ${on}, n: g.length, gpu: med(g) != null ? +med(g).toFixed(3) : null, gpuMean: g.length ? +(g.reduce((a, b) => a + b, 0) / g.length).toFixed(3) : null, calls: med(c), tris: med(t), infoCalls: ri.calls, infoTris: ri.triangles };`);
   };
-  // the timing too only on a LOADED page (the overlay gone): waited for, else the run says so
-  for (let i = 0; i < 30 && (await run(LOADED)) !== true; i++) await sleep(1000);
-  info.loadedAtTiming = (await run(LOADED)) === true;
-  if (!info.loadedAtTiming) throw new Error('the page is not loaded (the boot overlay): no timing taken');
-  for (const view of ['chase', 'apron']) {
-    if (view === 'apron') {
-      // the wide view: the eye up and back over the apron, toward the props' centre
-      await run(`const s = FLIGHT_PROBE.sim(), cg = s.cgPos(); let x = 0, z = 0, n = 0; for (const h of FLEET_STAND.state.holders) { const e = h.matrixWorld.elements; x += e[12]; z += e[14]; n++; }
-        const az = n ? Math.atan2(z / n - cg[2], x / n - cg[0]) : 0; FLIGHT_PROBE.camSet(az + Math.PI, 0.32, 40); return 1;`);
-      await frames(30);
-    }
+  const abView = async view => {
+    // the timing only on a LOADED page (the overlay gone): waited for, else the run says so
+    for (let i = 0; i < 30 && (await run(LOADED)) !== true; i++) await sleep(1000);
+    if ((await run(LOADED)) !== true) throw new Error('the page is not loaded (the boot overlay): no timing taken');
     for (let r = 0; r < rounds; r++) for (const on of r % 2 ? [false, true] : [true, false]) { const m = await measure(on); m.view = view; m.round = r; info.rounds.push(m); }
     // the still pair: the same held frame, the fleet shown then hidden
     for (const on of [true, false]) {
       await run(`FLEET_STAND.state.grp.visible = ${on}; return 1;`); await frames(12); await sleep(300);
-      const f = 'taxi_' + view + '_' + PRESET + '_' + (on ? 'fleet6' : 'fleet0') + '.png';
+      const f = view + '_' + PRESET + '_' + (on ? 'fleet6' : 'fleet0') + '.png';
       await shot(path.join(OUT, f)); info.shots.push({ f, on, view });
     }
     await run(`FLEET_STAND.state.grp.visible = true; return 1;`); await frames(12);
     info['census_' + view] = await run(CENSUS);
-  }
+  };
+  // apron: on the stand (still paused from the close still)
+  await run(`FLIGHT_PROBE.camMode('orbit'); const s = FLIGHT_PROBE.sim(), cg = s.cgPos(); let x = 0, z = 0, n = 0; for (const h of FLEET_STAND.state.holders) { const e = h.matrixWorld.elements; x += e[12]; z += e[14]; n++; }
+    const az = n ? Math.atan2(z / n - cg[2], x / n - cg[0]) : 0; FLIGHT_PROBE.camSet(az + Math.PI, 0.22, 16); return 1;`);
+  await frames(30); await sleep(500);
+  info.apronCam = await run(`return FLIGHT_PROBE.camGet();`);
+  await abView('apron');
+  // taxi: the pilot's circuit, paused 14 s in, the chase view
+  await pause(false);
+  await run(`try { FLIGHT_PROBE.camMode('chase'); } catch (e) {} const b = document.getElementById('bGo'); b.click(); return 1;`);
+  await sleep(14000);
+  await pause(true); await hideUI(); await frames(30); await sleep(500);
+  await abView('taxi');
   // the numbers: per view, the median of the rounds' medians, shown - hidden
   const med = a => { const s = a.filter(v => v != null).sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
   info.summary = {};
-  for (const view of ['chase', 'apron']) {
+  for (const view of ['apron', 'taxi']) {
     const R = info.rounds.filter(m => m.view === view);
     const on = R.filter(m => m.on), off = R.filter(m => !m.on);
     info.summary[view] = { gpuOn: med(on.map(m => m.gpu)), gpuOff: med(off.map(m => m.gpu)), dGpu: +(med(on.map(m => m.gpu)) - med(off.map(m => m.gpu))).toFixed(3),
       callsOn: med(on.map(m => m.calls)), callsOff: med(off.map(m => m.calls)), trisOn: med(on.map(m => m.tris)), trisOff: med(off.map(m => m.tris)),
+      infoCallsOn: med(on.map(m => m.infoCalls)), infoCallsOff: med(off.map(m => m.infoCalls)), inView: (info['census_' + view] || []).filter(c => c.inView).length,
       drawn: (info['census_' + view] || []).filter(c => c.level >= 0).length, levels: (info['census_' + view] || []).map(c => c.slot.replace('fleet-', '') + ':L' + (c.level >= 0 ? c.level : '-')).join(' ') };
-    console.log(view + ': GPU ' + info.summary[view].gpuOn + ' ms with the fleet, ' + info.summary[view].gpuOff + ' without (' + (info.summary[view].dGpu >= 0 ? '+' : '') + info.summary[view].dGpu + ' ms); calls ' + info.summary[view].callsOff + ' -> ' + info.summary[view].callsOn + '; tris ' + info.summary[view].trisOff + ' -> ' + info.summary[view].trisOn + '; drawn ' + info.summary[view].drawn + ' [' + info.summary[view].levels + ']');
+    console.log(view + ': GPU ' + info.summary[view].gpuOn + ' ms with the fleet, ' + info.summary[view].gpuOff + ' without (' + (info.summary[view].dGpu >= 0 ? '+' : '') + info.summary[view].dGpu + ' ms); calls ' + info.summary[view].callsOff + ' -> ' + info.summary[view].callsOn + '; tris ' + info.summary[view].trisOff + ' -> ' + info.summary[view].trisOn + '; info calls ' + info.summary[view].infoCallsOff + ' -> ' + info.summary[view].infoCallsOn + '; drawn ' + info.summary[view].drawn + ', in view ' + info.summary[view].inView + ' [' + info.summary[view].levels + ']');
   }
   info.stateEnd = await run(STATE);
   const jf = path.join(OUT, 'still_' + PRESET + '.json');

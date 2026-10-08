@@ -391,7 +391,9 @@
           REC[key] = rec; n++;
           log(key, 'captured:', tris, 'tris,', Object.keys(vis.mats).length, 'buckets, in', rec.t, 'ms');
           bootRec({ key, how: 'capture', ms: rec.t, why: COOK.why[key] || (cookable(key) ? 'no cook' : 'yours') });
-          fillPending(key);
+          // G2225: a FLEET bake's capture fills no holder - a world holder waiting for that key stands only the decoded bake
+          // (FLEET-PROPS B's dry run, 8 Oct: the garage's bake stood its LIVE capture in the world's empty spots)
+          if (!(opt && opt.fleet)) fillPending(key);
         }
         yield key;                             // the next aeroplane, or the player's restore, in a task of its own
       }
@@ -1948,7 +1950,7 @@ self.onmessage = function (e) {
     let rec = null;
     try {
       flush();
-      const g = batchSteps([key], { [key]: spec }, { images: { [key]: { raw, dec } }, mine });
+      const g = batchSteps([key], { [key]: spec }, { images: { [key]: { raw, dec } }, mine, fleet: true });
       while (!g.next().done);
       rec = REC[key] || null;
     } finally { if (keep) REC[key] = keep; else delete REC[key]; }
