@@ -86235,8 +86235,22 @@ the strike, the aeroplane pivoting round the pole.
       (`buildGen(genMigrateSpec(spec))`); the library flies `loadValidated`, the game's join chain (G1985).
     - On the base core, damage OFF, the parity script gives `d31881c3...` against the library's `585c3629...`: exactly
       the pair in the failing log. The page agrees with the parity script in node, so it is the def, not the engine.
-- **Second batch (the other core DMG gates, DMGFPS alone, TREECRASH and DMGPOLES again after the rewrite):**
-  BATCH2_RESULTS
+- **Second batch** (the other core DMG gates, then DMGFPS, TREECRASH and DMGPOLES one at a time):
+  - **PASS:** DMGWALL, DMGNOSE, DMGUPLOAD (the hard Cub still >= 80 broken), DMGSCAR, DMGINTEGRITY, DMGSKIN, DMGWRECK,
+    DMGINST, DMGCERTCOST, DMGTYRE, DMGDAMP, DMGPAGEW, DMGFPS (145/145).
+  - **TREECRASH** on the rewritten reference: **62/62 PASS**.
+  - **DMGPOLES:** **117/117 PASS** (145 s). **--selftest PASS:** the doctored checks red 8/8; the core without G2391 red
+    on cut, inboard, pieces, kept and asym in 11 of 12 rows.
+  - **DMGMEMBERS, DMGDRIVE, DMGGEAR, DMGSKINGPU: FAIL, and all four fail on the untouched base too** (run in its
+    worktree):
+    - **DMGMEMBERS**: the same bench row, no trunk.
+    - **DMGDRIVE**: every row identical, including the failing "trunk grazing the tips" row.
+    - **DMGGEAR**: every row identical, the porpoise row.
+    - **DMGSKINGPU**: the same rows, its first case to the millimetre. Its second case's numbers differ, because that crash
+      differs.
+  - Every verdict, and the base's FAIL counts beside ours: reports/evidence/DMG-POLES/gates_summary.txt.
+  - The gate's run and selftest: gate_dmgpoles.txt, gate_dmgpoles_selftest.txt.
+  - **Not run:** DMGDETERMINISM in full on the base. Its parity reds are shown pre-existing by the hash pair above.
 
 ### Numbers with no source (GAME)
 - **The staging:**

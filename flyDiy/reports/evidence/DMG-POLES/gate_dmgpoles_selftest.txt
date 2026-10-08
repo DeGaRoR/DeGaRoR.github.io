@@ -1,0 +1,3 @@
+selftest: the real run clean; doctored red: 8 / 8; the core without G2391 (the bug as found): red on cut, inboard, pieces, kept, asym in 11 / 12 rows - caught
+(selftest, 256 s)
+GATE DMGPOLES: PASS

@@ -1,0 +1,132 @@
+DMGPOLES - two poles narrower than the span (wood r 0.13 m, steel r 0.06 m, 9 m tall), 10 m ahead, the throttle shut, damage on, the certificate stamped
+  ok    [cut] cub/wood/taxi/0.85 R: the pole at 4.55 m in the bay 3.69-5.35 m; spars broken 3.69-5.35 m
+  ok    [pieces] cub/wood/taxi/0.85 R: 1 piece(s) off (7.9 kg, 5.35-5.35 m)
+  ok    [kept] cub/wood/taxi/0.85 R: the wing kept to 3.69 m (the bay's inner rib 3.69 m)
+  ok    [inboard] cub/wood/taxi/0.85 R: inboard of the cut nothing
+  ok    [cut] cub/wood/taxi/0.85 L: the pole at 4.55 m in the bay 3.69-5.35 m; spars broken 3.69-5.35 m
+  ok    [pieces] cub/wood/taxi/0.85 L: 1 piece(s) off (7.9 kg, 5.35-5.35 m)
+  ok    [kept] cub/wood/taxi/0.85 L: the wing kept to 3.69 m (the bay's inner rib 3.69 m)
+  ok    [inboard] cub/wood/taxi/0.85 L: inboard of the cut nothing
+  ok    [sane] cub/wood/taxi/0.85: finite true, fault none, energy x1.0000, fastest node 9.6 m/s
+  ok    [cut] cub/wood/air/0.65 R: the pole at 3.48 m in the bay 2.03-3.69 m; spars broken 2.03-3.69 m
+  ok    [pieces] cub/wood/air/0.65 R: 1 piece(s) off (20.4 kg, 3.69-5.35 m)
+  ok    [kept] cub/wood/air/0.65 R: the wing kept to 2.03 m (the bay's inner rib 2.03 m)
+  ok    [inboard] cub/wood/air/0.65 R: inboard of the cut fan 0.0-2.0 joint [strut], fan 0.0-2.0 joint [strut]
+  ok    [cut] cub/wood/air/0.65 L: the pole at 3.48 m in the bay 2.03-3.69 m; spars broken 2.03-3.69 m
+  ok    [pieces] cub/wood/air/0.65 L: 1 piece(s) off (20.4 kg, 3.69-5.35 m)
+  ok    [kept] cub/wood/air/0.65 L: the wing kept to 2.03 m (the bay's inner rib 2.03 m)
+  ok    [inboard] cub/wood/air/0.65 L: inboard of the cut fan 0.0-2.0 joint [strut], fan 0.0-2.0 joint [strut]
+  ok    [sane] cub/wood/air/0.65: finite true, fault none, energy x1.0000, fastest node 44.5 m/s
+  ok    [cut] cub/steel/lof/0.45 R: the pole at 2.41 m in the bay 2.03-3.69 m; spars broken 2.03-3.69 m
+  ok    [pieces] cub/steel/lof/0.45 R: 1 piece(s) off (20.4 kg, 3.69-5.35 m)
+  ok    [kept] cub/steel/lof/0.45 R: the wing kept to 2.03 m (the bay's inner rib 2.03 m)
+  ok    [inboard] cub/steel/lof/0.45 R: inboard of the cut fan 0.0-2.0 joint [strut], fan 0.0-2.0 joint [strut]
+  ok    [cut] cub/steel/lof/0.45 L: the pole at 2.41 m in the bay 2.03-3.69 m; spars broken 2.03-3.69 m
+  ok    [pieces] cub/steel/lof/0.45 L: 1 piece(s) off (20.4 kg, 3.69-5.35 m)
+  ok    [kept] cub/steel/lof/0.45 L: the wing kept to 2.03 m (the bay's inner rib 2.03 m)
+  ok    [inboard] cub/steel/lof/0.45 L: inboard of the cut fan 0.0-2.0 joint [strut], fan 0.0-2.0 joint [strut]
+  ok    [sane] cub/steel/lof/0.45: finite true, fault none, energy x1.0000, fastest node 22.8 m/s
+  ok    [cut] cub/wood/lof/0.65/0.5 R: the pole at 2.98 m in the bay 2.03-3.69 m; spars broken 2.03-3.69 m
+  ok    [pieces] cub/wood/lof/0.65/0.5 R: 1 piece(s) off (20.4 kg, 3.69-5.35 m)
+  ok    [kept] cub/wood/lof/0.65/0.5 R: the wing kept to 2.03 m (the bay's inner rib 2.03 m)
+  ok    [inboard] cub/wood/lof/0.65/0.5 R: inboard of the cut fan 0.0-2.0 joint [strut], fan 0.0-2.0 joint [strut]
+  ok    [cut] cub/wood/lof/0.65/0.5 L: the pole at 3.98 m in the bay 3.69-5.35 m; spars broken 3.69-5.35 m
+  ok    [pieces] cub/wood/lof/0.65/0.5 L: 1 piece(s) off (7.9 kg, 5.35-5.35 m)
+  ok    [kept] cub/wood/lof/0.65/0.5 L: the wing kept to 3.69 m (the bay's inner rib 3.69 m)
+  ok    [inboard] cub/wood/lof/0.65/0.5 L: inboard of the cut nothing
+  ok    [sane] cub/wood/lof/0.65/0.5: finite true, fault none, energy x1.0000, fastest node 21.5 m/s
+  ok    [asym] cub/wood/lof/0.65/0.5: the right wing (its pole 2.98 m out) lost 20.4 kg, the left (3.98 m) 7.9 kg
+  ok    [cut] jodel/wood/taxi/0.85 R: the pole at 3.53 m in the bay 2.94-4.15 m; spars broken 2.94-4.15 m
+  ok    [pieces] jodel/wood/taxi/0.85 R: 1 piece(s) off (6.8 kg, 4.15-4.15 m)
+  ok    [kept] jodel/wood/taxi/0.85 R: the wing kept to 2.94 m (the bay's inner rib 2.94 m)
+  ok    [inboard] jodel/wood/taxi/0.85 R: inboard of the cut nothing
+  ok    [cut] jodel/wood/taxi/0.85 L: the pole at 3.53 m in the bay 2.94-4.15 m; spars broken 2.94-4.15 m
+  ok    [pieces] jodel/wood/taxi/0.85 L: 1 piece(s) off (6.8 kg, 4.15-4.15 m)
+  ok    [kept] jodel/wood/taxi/0.85 L: the wing kept to 2.94 m (the bay's inner rib 2.94 m)
+  ok    [inboard] jodel/wood/taxi/0.85 L: inboard of the cut nothing
+  ok    [sane] jodel/wood/taxi/0.85: finite true, fault none, energy x1.0000, fastest node 14.2 m/s
+  ok    [cut] jodel/wood/air/0.65 R: the pole at 2.70 m in the bay 2.52-2.94 m; spars broken 2.52-2.94 m
+  ok    [pieces] jodel/wood/air/0.65 R: 1 piece(s) off (14.9 kg, 2.94-4.15 m)
+  ok    [kept] jodel/wood/air/0.65 R: the wing kept to 2.52 m (the bay's inner rib 2.52 m)
+  ok    [inboard] jodel/wood/air/0.65 R: inboard of the cut diag 0.5-1.7 pulled [drag], rib 0.5-0.5 pulled [drag]
+  ok    [cut] jodel/wood/air/0.65 L: the pole at 2.70 m in the bay 2.52-2.94 m; spars broken 2.52-2.94 m
+  ok    [pieces] jodel/wood/air/0.65 L: 1 piece(s) off (14.9 kg, 2.94-4.15 m)
+  ok    [kept] jodel/wood/air/0.65 L: the wing kept to 2.52 m (the bay's inner rib 2.52 m)
+  ok    [inboard] jodel/wood/air/0.65 L: inboard of the cut diag 0.5-1.7 pulled [drag], rib 0.5-0.5 pulled [drag]
+  ok    [sane] jodel/wood/air/0.65: finite true, fault none, energy x1.0000, fastest node 41.5 m/s
+  ok    [cut] jodel/steel/lof/0.45 R: the pole at 1.87 m in the bay 1.74-2.52 m; spars broken 1.74-2.52 m
+  ok    [pieces] jodel/steel/lof/0.45 R: 1 piece(s) off (22.5 kg, 2.52-4.15 m)
+  ok    [kept] jodel/steel/lof/0.45 R: the wing kept to 1.74 m (the bay's inner rib 1.74 m)
+  ok    [inboard] jodel/steel/lof/0.45 R: inboard of the cut nothing
+  ok    [cut] jodel/steel/lof/0.45 L: the pole at 1.87 m in the bay 1.74-2.52 m; spars broken 1.74-2.52 m
+  ok    [pieces] jodel/steel/lof/0.45 L: 0 piece(s) off
+  ok    [kept] jodel/steel/lof/0.45 L: the wing kept to 4.15 m (the bay's inner rib 1.74 m)
+  ok    [inboard] jodel/steel/lof/0.45 L: inboard of the cut nothing
+  ok    [sane] jodel/steel/lof/0.45: finite true, fault none, energy x1.0000, fastest node 20.1 m/s
+  ok    [cut] jodel/wood/lof/0.65/0.5 R: the pole at 2.20 m in the bay 1.74-2.52 m; spars broken 1.74-2.52 m
+  ok    [pieces] jodel/wood/lof/0.65/0.5 R: 1 piece(s) off (22.5 kg, 2.52-4.15 m)
+  ok    [kept] jodel/wood/lof/0.65/0.5 R: the wing kept to 1.74 m (the bay's inner rib 1.74 m)
+  ok    [inboard] jodel/wood/lof/0.65/0.5 R: inboard of the cut nothing
+  ok    [cut] jodel/wood/lof/0.65/0.5 L: the pole at 3.20 m in the bay 2.94-4.15 m; spars broken 2.94-4.15 m
+  ok    [pieces] jodel/wood/lof/0.65/0.5 L: 1 piece(s) off (6.8 kg, 4.15-4.15 m)
+  ok    [kept] jodel/wood/lof/0.65/0.5 L: the wing kept to 2.94 m (the bay's inner rib 2.94 m)
+  ok    [inboard] jodel/wood/lof/0.65/0.5 L: inboard of the cut diag 1.7-2.5 pulled [drag]
+  ok    [sane] jodel/wood/lof/0.65/0.5: finite true, fault none, energy x1.0000, fastest node 21.2 m/s
+  ok    [asym] jodel/wood/lof/0.65/0.5: the right wing (its pole 2.20 m out) lost 22.5 kg, the left (3.20 m) 6.8 kg
+  ok    [cut] metal/wood/taxi/0.85 R: the pole at 4.67 m in the bay 3.84-5.50 m; spars broken 3.84-5.50 m
+  ok    [pieces] metal/wood/taxi/0.85 R: 1 piece(s) off (11.9 kg, 5.50-5.50 m)
+  ok    [kept] metal/wood/taxi/0.85 R: the wing kept to 3.84 m (the bay's inner rib 3.84 m)
+  ok    [inboard] metal/wood/taxi/0.85 R: inboard of the cut nothing
+  ok    [cut] metal/wood/taxi/0.85 L: the pole at 4.67 m in the bay 3.84-5.50 m; spars broken 3.84-5.50 m
+  ok    [pieces] metal/wood/taxi/0.85 L: 1 piece(s) off (11.9 kg, 5.50-5.50 m)
+  ok    [kept] metal/wood/taxi/0.85 L: the wing kept to 3.84 m (the bay's inner rib 3.84 m)
+  ok    [inboard] metal/wood/taxi/0.85 L: inboard of the cut nothing
+  ok    [sane] metal/wood/taxi/0.85: finite true, fault none, energy x1.0000, fastest node 10.2 m/s
+  ok    [cut] metal/wood/air/0.65 R: the pole at 3.58 m in the bay 2.61-3.84 m; spars broken 2.61-3.84 m
+  ok    [pieces] metal/wood/air/0.65 R: 1 piece(s) off (31.6 kg, 3.84-5.50 m)
+  ok    [kept] metal/wood/air/0.65 R: the wing kept to 2.61 m (the bay's inner rib 2.61 m)
+  ok    [inboard] metal/wood/air/0.65 R: inboard of the cut nothing
+  ok    [cut] metal/wood/air/0.65 L: the pole at 3.58 m in the bay 2.61-3.84 m; spars broken 2.61-3.84 m
+  ok    [pieces] metal/wood/air/0.65 L: 1 piece(s) off (31.6 kg, 3.84-5.50 m)
+  ok    [kept] metal/wood/air/0.65 L: the wing kept to 2.61 m (the bay's inner rib 2.61 m)
+  ok    [inboard] metal/wood/air/0.65 L: inboard of the cut nothing
+  ok    [sane] metal/wood/air/0.65: finite true, fault none, energy x1.0000, fastest node 43.1 m/s
+  ok    [cut] metal/steel/lof/0.45 R: the pole at 2.48 m in the bay 2.18-2.61 m; spars broken 2.18-2.61 m
+  ok    [pieces] metal/steel/lof/0.45 R: 1 piece(s) off (46.6 kg, 2.61-5.50 m)
+  ok    [kept] metal/steel/lof/0.45 R: the wing kept to 2.18 m (the bay's inner rib 2.18 m)
+  ok    [inboard] metal/steel/lof/0.45 R: inboard of the cut fan 0.0-2.2 joint [strut], fan 0.0-2.2 joint [strut]
+  ok    [cut] metal/steel/lof/0.45 L: the pole at 2.48 m in the bay 2.18-2.61 m; spars broken 2.18-2.61 m
+  ok    [pieces] metal/steel/lof/0.45 L: 1 piece(s) off (46.6 kg, 2.61-5.50 m)
+  ok    [kept] metal/steel/lof/0.45 L: the wing kept to 2.18 m (the bay's inner rib 2.18 m)
+  ok    [inboard] metal/steel/lof/0.45 L: inboard of the cut fan 0.0-2.2 joint [strut], fan 0.0-2.2 joint [strut]
+  ok    [sane] metal/steel/lof/0.45: finite true, fault none, energy x1.0000, fastest node 23.6 m/s
+  ok    [cut] metal/wood/lof/0.65/0.5 R: the pole at 3.08 m in the bay 2.61-3.84 m; spars broken 2.61-3.84 m
+  ok    [pieces] metal/wood/lof/0.65/0.5 R: 1 piece(s) off (31.6 kg, 3.84-5.50 m)
+  ok    [kept] metal/wood/lof/0.65/0.5 R: the wing kept to 2.61 m (the bay's inner rib 2.61 m)
+  ok    [inboard] metal/wood/lof/0.65/0.5 R: inboard of the cut nothing
+  ok    [cut] metal/wood/lof/0.65/0.5 L: the pole at 4.08 m in the bay 3.84-5.50 m; spars broken 3.84-5.50 m
+  ok    [pieces] metal/wood/lof/0.65/0.5 L: 1 piece(s) off (11.9 kg, 5.50-5.50 m)
+  ok    [kept] metal/wood/lof/0.65/0.5 L: the wing kept to 3.84 m (the bay's inner rib 3.84 m)
+  ok    [inboard] metal/wood/lof/0.65/0.5 L: inboard of the cut nothing
+  ok    [sane] metal/wood/lof/0.65/0.5: finite true, fault none, energy x1.0000, fastest node 29.3 m/s
+  ok    [asym] metal/wood/lof/0.65/0.5: the right wing (its pole 3.08 m out) lost 31.6 kg, the left (4.08 m) 11.9 kg
+  ok    [offBytes] cub damage OFF through the poles: 976cd4a813ff4060 vs the base 976cd4a813ff4060
+  ok    [intact] cub intact, damage ON, certified, no pole: b862960e4e3e93ca vs the base b862960e4e3e93ca
+  ok    [offBytes] jodel damage OFF through the poles: 3c770ebfe8f5e346 vs the base 3c770ebfe8f5e346
+  ok    [intact] jodel intact, damage ON, certified, no pole: 45e062e27d651012 vs the base 45e062e27d651012
+  ok    [offBytes] metal damage OFF through the poles: 873fc1773643a5e1 vs the base 873fc1773643a5e1
+  ok    [intact] metal intact, damage ON, certified, no pole: f1e5ef4feff77015 vs the base f1e5ef4feff77015
+  REPORT  cub/wood/taxi/0.85 (8.0 m/s): contact 3.30-3.62 s; after: yaw -0 deg, roll 0 deg, ran on to 36 m at 4.2 m/s, 12 broken in all (0 gear); root load peak R 1.2 / L 1.2 kN
+  REPORT  cub/wood/air/0.65 (35.0 m/s): contact 0.28-0.33 s; after: yaw -17 deg, roll -14 deg, ran on to 100 m at 0.3 m/s, 49 broken in all (9 gear); root load peak R 12.6 / L 11.2 kN
+  REPORT  cub/steel/lof/0.45 (15.9 m/s): contact 2.63-2.77 s; after: yaw -0 deg, roll -0 deg, ran on to 74 m at 9.3 m/s, 20 broken in all (0 gear); root load peak R 3.4 / L 3.4 kN
+  REPORT  cub/wood/lof/0.65/0.5 (15.9 m/s): contact 2.63-2.78 s; after: yaw 12 deg, roll 2 deg, ran on to 76 m at 10.2 m/s, 16 broken in all (0 gear); root load peak R 3.4 / L 3.4 kN
+  REPORT  jodel/wood/taxi/0.85 (8.0 m/s): contact 3.27-3.43 s; after: yaw -0 deg, roll -0 deg, ran on to 33 m at 3.5 m/s, 24 broken in all (0 gear); root load peak R 4.1 / L 4.1 kN
+  REPORT  jodel/wood/air/0.65 (35.0 m/s): contact 0.28-0.32 s; after: yaw -76 deg, roll -46 deg, ran on to 147 m at 5.2 m/s, 58 broken in all (9 gear); root load peak R 9.8 / L 18.8 kN
+  REPORT  jodel/steel/lof/0.45 (18.7 m/s): contact 2.53-2.60 s; after: yaw 20 deg, roll -1 deg, ran on to 77 m at 9.9 m/s, 23 broken in all (0 gear); root load peak R 18.3 / L 12.6 kN
+  REPORT  jodel/wood/lof/0.65/0.5 (18.7 m/s): contact 2.53-2.58 s; after: yaw 10 deg, roll 1 deg, ran on to 89 m at 11.9 m/s, 25 broken in all (0 gear); root load peak R 6.6 / L 5.6 kN
+  REPORT  metal/wood/taxi/0.85 (8.0 m/s): contact 3.30-3.50 s; after: yaw -0 deg, roll 0 deg, ran on to 37 m at 4.6 m/s, 24 broken in all (0 gear); root load peak R 5.9 / L 5.9 kN
+  REPORT  metal/wood/air/0.65 (35.0 m/s): contact 0.30-0.33 s; after: yaw -0 deg, roll 0 deg, ran on to 177 m at 25.2 m/s, 24 broken in all (0 gear); root load peak R 18.7 / L 18.7 kN
+  REPORT  metal/steel/lof/0.45 (22.2 m/s): contact 2.45-2.52 s; after: yaw 0 deg, roll -0 deg, ran on to 114 m at 16.3 m/s, 20 broken in all (0 gear); root load peak R 5.0 / L 5.0 kN
+  REPORT  metal/wood/lof/0.65/0.5 (22.2 m/s): contact 2.45-2.52 s; after: yaw 30 deg, roll -1 deg, ran on to 113 m at 16.6 m/s, 24 broken in all (0 gear); root load peak R 7.4 / L 5.6 kN
+117/117 checks, 145 s
+GATE DMGPOLES: PASS
