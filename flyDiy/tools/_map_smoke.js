@@ -25,6 +25,12 @@
 //     the roads' simplification band by zoom; the labels (village, town, mill, cannery, tram) from the middle zoom, clear
 //     of the badges, the town and the cannery named once; NOTHING of it takes a pointer (no tap target in its markup,
 //     pointer-events none on its layer and labels); a pan moves its group, only a zoom step redraws it.
+//   ONE LOOK (G2445, MAP-STYLE, §R.3): the garage's - the screen reads the `--ed-*` tokens declared ONCE in editor.css's
+//     workshop block (`:is(#wsUI, #edView, #mapScreen)`), restates none and keeps no `--mm-*` palette; IBM Plex Sans upright
+//     everywhere in map_menu.js (no serif face, no italic, no IM Fell / Georgia; every `font:` and `font-family` Plex);
+//     the verbs, the selects, the switch and the zoom on the garage's control rules (.verb.pri / .verb, the rows' select,
+//     the segmented control, the plate). What stays the map's (the TYPE colours, the edge, the badges' icons, INK) is
+//     not CSS palette.
 //   NOHOVER (MOBILE-GARAGE R17/R18): no title=, no mouseenter / mouseover / pointerover, no :hover in map_menu.js or the
 //     entry. R1: every interactive class >= 48 px. R20: the map touch-action none, the list / sheet pan-y, the handle
 //     none. --phone: the bottom sheet's rules.
@@ -240,6 +246,35 @@ module.exports = function mapSmoke(html, phone) {
     need(r && +r[1] >= 48, '.' + cls + ' is under 48 px (R1)');
   }
   need(/\.mmPl\{[^}]*width:48px;height:48px/.test(css) && /\.mmLm\{[^}]*width:48px;height:48px/.test(css) && /\.mmCtl button\{[^}]*min-width:48px;min-height:48px/.test(css) && /\.mmHandle\{[^}]*height:48px/.test(css), 'the place badges / the lists\' markers / map controls / the handle are under 48 px (R1)');
+  // ONE LOOK (G2445 MAP-STYLE): the garage's tokens, its controls, IBM Plex Sans upright
+  {
+    const edCss = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+    const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink', 'acc-soft', 'hair', 'border', 'btn-bg', 'btn-bd', 'track', 'off', 'warn', 'bad'];
+    const blk = /:is\(#wsUI, #edView, #mapScreen\) \{([^}]*)\}/.exec(edCss);
+    need(blk && TOK.every(t => new RegExp('--ed-' + t + ':').test(blk[1])), 'editor.css\'s workshop token block does not declare the --ed-* tokens on #mapScreen');
+    const code = menuSrc.replace(/\/\*[\s\S]*?\*\//g, '');
+    const old = code.match(/(?<!sans-)serif|italic|oblique|IM Fell|Georgia|Times New Roman/gi) || [];
+    need(!old.length, 'map_menu.js still names a serif face or an italic: ' + [...new Set(old)].join(', '));
+    need(!/--mm-/.test(css), 'map_menu.js\'s CSS keeps a --mm-* palette');
+    need(!/--ed-[a-z-]+\s*:/.test(css), 'map_menu.js\'s CSS restates an --ed-* token (a second copy of the values)');
+    const used = new Set((css.match(/var\(--ed-([a-z-]+)\)/g) || []).map(v => v.slice(9, -1)));
+    const want = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink', 'acc-soft', 'hair', 'border', 'btn-bg', 'btn-bd', 'track', 'bad'];
+    need(want.every(t => used.has(t)), 'the screen does not read the garage\'s tokens: missing ' + want.filter(t => !used.has(t)).join(', '));
+    const fonts = (css.match(/font(?:-family)?:[^;}]*/g) || []).filter(f => !/^font:inherit$/.test(f) && !/^font-family:inherit$/.test(f));
+    need(fonts.every(f => /'IBM Plex Sans'/.test(f)), 'a font in the screen\'s CSS is not IBM Plex Sans: ' + fonts.filter(f => !/'IBM Plex Sans'/.test(f)).join(' | '));
+    need((menuSrc.match(/font-family="[^"]*"/g) || []).every(f => /^font-family="IBM Plex Sans/.test(f)), 'an SVG label on the map is not IBM Plex Sans');
+    need(/#mapScreen\{[^}]*font:400 14px\/1\.5 'IBM Plex Sans'[^}]*font-style:normal/.test(css) && /#mapScreen em,#mapScreen i,#mapScreen small\{font-style:normal\}/.test(css), 'the screen is not Plex upright at its root (em / i / small upright)');
+    const rule = sel => (new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{([^}]*)\\}').exec(css) || [])[1] || '';
+    for (const sel of ['#mapScreen .mmTrack', '#mapScreen .mmAct']) need(/background:var\(--ed-acc\)/.test(rule(sel)) && /color:var\(--ed-acc-ink\)/.test(rule(sel)), sel + ' is not the garage\'s primary verb (.verb.pri: the accent)');
+    for (const sel of ['#mapScreen .mmTrack.on', '#mapScreen .mmAct.sec', '#mapScreen .mmCust', '#mapScreen .mmOptSel', '#mapScreen .mmClose', '#mapScreen .mmAtX'])
+      need(/background:var\(--ed-btn-bg\)/.test(rule(sel)) && /var\(--ed-btn-bd\)/.test(rule(sel)), sel + ' is not on --ed-btn-bg / --ed-btn-bd (the garage\'s .verb / row select)');
+    need(/background:var\(--ed-track\)/.test(rule('#mapScreen .mmSw')) && /background:var\(--ed-acc\)/.test(rule('#mapScreen .mmSwB.on')) && /color:var\(--ed-faint\)/.test(rule('#mapScreen .mmSwB')), 'the switch is not the garage\'s segmented control');
+    need(/background:var\(--ed-plate\)/.test(rule('#mapScreen .mmCtl button')) && /background:var\(--ed-plate\)/.test(rule('#mapScreen .mmScale')), 'the zoom / the scale bar are not the garage\'s plate');
+    for (const sel of ['#mapScreen .mmLbl', '#mapScreen .mmPoi', '#mapScreen .mmHotN']) need(/text-shadow:[^;]*var\(--ed-/.test(rule(sel)), sel + ': the halo is not in the garage\'s inks');
+    const px = sel => +((/font:\d+ ([\d.]+)px/.exec(rule(sel)) || [])[1] || 0), wt = sel => +((/font:(\d+) /.exec(rule(sel)) || [])[1] || 0);
+    need(px('#mapScreen .mmLbl.town') > px('#mapScreen .mmLbl.village') && px('#mapScreen .mmLbl.village') > px('#mapScreen .mmLbl') && wt('#mapScreen .mmLbl.town') > wt('#mapScreen .mmLbl.village') && wt('#mapScreen .mmLbl.village') > wt('#mapScreen .mmLbl'), 'the labels\' hierarchy is not by size and weight (town > village > a works)');
+    say('ONE LOOK: the screen reads editor.css\'s ' + TOK.length + ' --ed-* tokens (' + used.size + ' used, none restated, no --mm-* left); IBM Plex Sans upright everywhere (' + fonts.length + ' font rules, no serif face / italic / IM Fell / Georgia); the verbs .verb.pri / .verb, the selects the rows\', the switch the segmented control, the zoom and scale the plate; the labels by size and weight (town ' + wt('#mapScreen .mmLbl.town') + ' ' + px('#mapScreen .mmLbl.town') + ' px > village ' + px('#mapScreen .mmLbl.village') + ' > works ' + px('#mapScreen .mmLbl') + ')');
+  }
   need(/\.mmMap\{[^}]*touch-action:none/.test(css) && /\.mmList\{[^}]*touch-action:pan-y/.test(css) && /\.mmHandle\{[^}]*touch-action:none/.test(css), 'R20: the map and the sheet share a gesture');
   need(/\.mmMap\{[^}]*user-select:none/.test(css) && /dragstart/.test(menuSrc) && /selectstart/.test(menuSrc) && /draggable="false"/.test(menuSrc), 'the map lets the picture drag or the text select');
   need(/mmPhone \.mmSide\{[^}]*position:absolute;left:0;right:0;bottom:0/.test(css) && /mmPhone \.mmSide\.open\{/.test(css), 'the phone: the list is not a bottom sheet');
