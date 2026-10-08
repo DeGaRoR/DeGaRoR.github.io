@@ -10,6 +10,8 @@
 //   1 the garage idles 120 frames; the hidden model's skin uploads stop (bufferSubData-free frames) with the skip
 //   2 craftInShed shows it for a call (a world compile's way): the same skin as the reference's at that moment
 //   3 rolled out: the same skin on the stand, frame for frame (10 frames)
+//   NEGATIVE CONTROL: a third page with the skip but WITHOUT the catch-up (window.FLYDIY_POSE_NOCATCHUP) must be caught by
+//     test 2's comparison (a stale skin shown for a call) - the gate can see a real divergence
 // Usage: node tools/_posehidden_check.js [--build cub] (it re-runs itself with a 6 GB heap). Exit 1 on any FAIL. No --help.
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -25,13 +27,15 @@ if (require('v8').getHeapStatistics().heap_size_limit < 5e9 && !process.env.POSE
 let fails = 0;
 const ok = (c, msg, detail) => { if (!c) fails++; console.log((c ? '  PASS ' : '  FAIL ') + msg + (detail ? '  [' + detail + ']' : '')); };
 
-async function run(reference) {
+async function run(reference, noCatchUp) {
   const { openPage } = require('./_page_node.js');
   const hooks = { afterScript(name, P) { if (/gfx_settings\.js/.test(name) && P.win.GFX) P.win.GFX.set('preset', 'retro');
-    if (reference && name === 'src/viewer/app.js') P.win.FLYDIY_POSE_HIDDEN = true; } };
+    if (reference && name === 'src/viewer/app.js') P.win.FLYDIY_POSE_HIDDEN = true;
+    if (noCatchUp && name === 'src/viewer/app.js') P.win.FLYDIY_POSE_NOCATCHUP = true; } };
   const P = await openPage({ quiet: true, hooks, query: 'gfx=retro', storage: { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[BK] || BK), 'utf8') } });
   const W = P.win;
   if (reference) W.FLYDIY_POSE_HIDDEN = true;
+  if (noCatchUp) W.FLYDIY_POSE_NOCATCHUP = true;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 900000);
   const FP = W.FLIGHT_PROBE;
   // the skin: a hash of every position / normal array under model.grp, in traversal order
@@ -60,9 +64,16 @@ async function run(reference) {
 (async () => {
   const ref = await run(true);
   const got = await run(false);
+  // THE NEGATIVE CONTROL: the skip WITHOUT the catch-up (FLYDIY_POSE_NOCATCHUP) - the hidden model shown for a call with a
+  // stale skin - must be caught by the same comparison, or this gate could not see a real divergence
+  const neg = await run(false, true);
   console.log('  (reference: the hidden model posed every frame; the game: skipped)');
   ok(got.hidden && ref.hidden, '1 the flown model stands hidden behind the cage in the garage', 'hidden ' + got.hidden + ' / ' + ref.hidden);
   ok(got.sub <= ref.sub, '1 the idle garage uploads no more than before (buffer bytes over 120 frames)', (ref.sub / 1048576).toFixed(2) + ' MB -> ' + (got.sub / 1048576).toFixed(2) + ' MB');
+  const near = (A, B) => { let dp = 0, dn = 0, shape = A.length === B.length;
+    if (shape) for (let i = 0; i < A.length; i++) { const [k, a] = A[i], b = B[i][1]; if (a.length !== b.length) { shape = false; break; }
+      for (let j = 0; j < a.length; j++) { const d = Math.abs(a[j] - b[j]); if (k === 'position') { if (d > dp) dp = d; } else if (d > dn) dn = d; } }
+    return { shape, dp, dn, ok: shape && dp <= 1e-3 && dn <= 0.01 }; };
   // 2: the reference posed every frame carries the pose's HYSTERESIS (turnNormals re-normalises when its turn moved > 0.002,
   // the skin re-poses past 0.3 mm / 1e-4 of a control since the pose last APPLIED): it lags a little; the catch-up pose is
   // the current one. So the same arrays within those thresholds: positions to 1 mm, normals to 0.01
@@ -74,6 +85,9 @@ async function run(reference) {
   const same = got.after.every((h, i) => h === ref.after[i]);
   ok(same, '3 rolled out: the same skin on the stand, frame for frame (10 frames)', same ? got.after[0] : got.after.map((h, i) => h === ref.after[i] ? '=' : 'X').join(''));
   ok(got.errors === ref.errors, '  no new page errors', got.errors + ' vs ' + ref.errors);
+  if (neg.shownSkin !== null && ref.shownSkin !== null) { const n = near(neg.shownSkin, ref.shownSkin);
+    ok(!n.ok, 'NEGATIVE CONTROL: without the catch-up pose the shown skin diverges and the comparison catches it', 'max position diff ' + n.dp.toExponential(2) + ' m, normal ' + n.dn.toExponential(2)); }
+  else ok(false, 'NEGATIVE CONTROL: the shown-for-a-call door exists');
   console.log(fails ? 'GATE POSEHIDDEN: ' + fails + ' FAIL' : 'GATE POSEHIDDEN: PASS');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e && e.stack || e); process.exit(1); });

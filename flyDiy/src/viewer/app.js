@@ -8217,7 +8217,7 @@
     if (home !== gs) gs.add(craft);
     if (g) g.visible = true;
     if (edSit) edSit.visible = false;
-    if (g && !vis) poseModel(true);   // G2111: shown for this call - its skin posed as a drawn frame would have it
+    if (g && !vis && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true);   // G2111: shown for this call - its skin posed as a drawn frame would have it (FLYDIY_POSE_NOCATCHUP: GATE POSEHIDDEN's negative control only)
     try { return fn(); }
     finally { if (g) g.visible = vis; if (edSit) edSit.visible = cage; if (home !== gs) { if (home) home.add(craft); else gs.remove(craft); } }
   }
@@ -8234,7 +8234,7 @@
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
-      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1]) poseModel(true); } }   // (G2111: posed, shown)
+      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown)
     let once = false;
     const back = () => { if (once) return; once = true;
       if (--craftAway !== 0) return;
