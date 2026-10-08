@@ -1,0 +1,164 @@
+{
+ "url": "http://localhost:8591/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "label": "tree",
+ "sha": "2f54fe5ef",
+ "mode": "sandbox",
+ "preset": "retro",
+ "errs": [],
+ "stills": [],
+ "discarded": [],
+ "scenes": {},
+ "swaps": [
+  {
+   "to": "Cub",
+   "load": 6373.3,
+   "total": 7407.9,
+   "tag": "slot load club rung 1"
+  },
+  {
+   "to": "Jodel",
+   "load": 2987.1,
+   "total": 3649.2,
+   "tag": "slot load club rung 1"
+  },
+  {
+   "to": "Cub",
+   "load": 4764.5,
+   "total": 6107.7,
+   "tag": "slot load club rung 2"
+  },
+  {
+   "to": "Jodel",
+   "load": 2833.4,
+   "total": 3408,
+   "tag": "slot load club rung 2"
+  }
+ ],
+ "windows": [
+  {
+   "frames": 292,
+   "fps": 24.2,
+   "dt50": 33.5,
+   "dt90": 50.1,
+   "dt99": 50.2,
+   "slow": 42,
+   "over50": 0.144,
+   "work50": 39.6,
+   "render50": 26.4,
+   "shadow50": 2.9,
+   "gpu50": 20.71,
+   "gpu90": 23.41,
+   "calls": 725,
+   "mtris": 1.023,
+   "residents": null,
+   "scene": "club"
+  },
+  {
+   "frames": 298,
+   "fps": 24.7,
+   "dt50": 33.4,
+   "dt90": 50.1,
+   "dt99": 50.1,
+   "slow": 44,
+   "over50": 0.148,
+   "work50": 38.7,
+   "render50": 26,
+   "shadow50": 2.8,
+   "gpu50": 20.38,
+   "gpu90": 23.27,
+   "calls": 725,
+   "mtris": 1.023,
+   "residents": null,
+   "scene": "club"
+  }
+ ],
+ "load": 64.594,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "own": false,
+  "hw": null,
+  "town": "nearby"
+ },
+ "stand": "Jodel",
+ "room": {
+  "shell": "club",
+  "layout": null,
+  "dims": {
+   "HW": 15,
+   "HD": 12.5,
+   "EAVE": 7,
+   "RIDGE": 9.6
+  },
+  "unplaced": 0,
+  "lamps": {
+   "gain": 1,
+   "angle": 1.178097,
+   "kelvin": 4000,
+   "hex": 16771283
+  },
+  "at": [
+   0,
+   0
+  ]
+ },
+ "rung": {
+  "cpu": 3,
+  "gpux": 6
+ },
+ "summary": {
+  "club|null": {
+   "fps": 24.45,
+   "dt50": 33.45,
+   "dt90": 50.1,
+   "dt99": 50.15,
+   "over50": 0.15,
+   "work50": 39.15,
+   "render50": 26.2,
+   "gpu50": 20.55,
+   "gpu90": 23.34,
+   "calls": 725,
+   "mtris": 1.02
+  }
+ },
+ "errsN": 0,
+ "wall": 126.515
+}

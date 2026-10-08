@@ -81006,3 +81006,96 @@ accepted either; the clients' arc stops at clients.04 (the track at clients:1) u
 - Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
 
 READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+
+## G2315-G2319 - WORKS-COZY + GARAGE-RESIDENTS: THE CAREER'S MAIN HANGAR IS THE WORKS STOOD AS A HEARTH (A LAYOUT OF THE SAME KITS), ITS PARKED AIRFRAMES STAND BESIDE THE STAND AS L2 PROPS YOU CAN SWAP ONTO IT, THE CLUB TAKES ONE BY MOVING THE ROOM UNDER THE STAND; THE SANDBOX'S CLUB UNCHANGED, PROVEN (2026-10-07/08, WORKS-COZY for the GAME COORDINATOR, local GPU; branch claude/works-cozy-g2315 off origin/claude/game-integration f4c47a59)
+
+The brief: GAME-2026-10-06 §R GQ22 ("Main garage should be cozy"), GQ7 (build bay + 2 parked, L2, not selectable, a
+"show the other aeroplanes" toggle), GQ29 (the sandbox keeps today's club). Mid-session the user widened it (7 Oct, via
+the GAME COORDINATOR): "worth it only if we display other planes in it ... allowing selection ... so one can easily swap
+between its planes in the hangar? If that's not an option, the default hangar keeps looking better" - so the residents
+became swappable and the club + 1 fallback was built and timed. Career only throughout: without ?career=1 nothing here runs.
+
+**G2315 LAYOUTS** (`src/core/26_hangar_fit.js` HANGAR_LAYOUTS, hangarLayout, hangarRows; exported): a layout stands the
+SAME kits otherwise in ONE shell (the kits still say what is in the room - claims, verbs, ring rows - the layout where it
+stands); in any other shell it is not there. Authored in the works' own metres. Three, all `works`:
+- `cozy` - the rooms along the walls (bench corner, woodshop bay, office, lounge, a two-tier rack line). The 7 Oct
+  shake-down read "a vast dark shed with distant warm pools" (the GAME COORDINATOR) - kept for the record.
+- `hearth` - the life brought to the stand: the garage's default eye (az -2.5, el 0.22, 14 m) looks at the back-right
+  corner, so the lounge (stove turned to the eye, rug, chair facing the stand, table, its own rack wall) stands 8-12 m
+  diagonally behind the stand, the bench corner right of the nose, the residents behind and back-left, the woodshop and
+  office at the door end, the back wall storage in shadow. Light: every lamp x1.25 (gain), the bay's fitting lower,
+  zone lamps at 4.2 m, the fire 26 cd to 12 m, a night floor on the room's ambient (envFloor 0.2), 2700 K - the same 5
+  shadow maps, no new light. CAREER_MAIN.layout (the default today).
+- `hearthLight` (G2319) - the hearth with its heaviest furniture cut, named: the two two-tier rack lines (14 tallRacks) ->
+  3 single loaded racks each; the back wall's 7 loaded racks out; the long stock rack out.
+- hangar.js: `opts.layout` -> its rows (hangarFit), its light (LAYIT: the lamps' places and heights with a per-fitting
+  inverse-square `hk`, the filament, the gain, the stove, the low decorative pendants - shades and bulbs, no light, on the
+  lamps' switch, envFloor), `tallRack` recipe. Every LAYOUT/LAYIT branch is skipped in the club.
+- `hangarPark` opts.keep (floor already taken: the stand's box); hangarObstacles reads the shed's layout; hangarFit's
+  recipe rows carry their foot.
+- careerNew / careerNormalise (`74_career.js` CAREER_MAIN, careerMainShed): a new career's HOME is the works at its dims in
+  CAREER_MAIN.layout; a career made before (the player default's UNTOUCHED club) is upgraded once (a fixpoint); a touched
+  club is the player's, kept. GARAGE_ENV.setLayout / layouts / layout (career).
+
+**G2316 THE RESIDENTS** (`app.js` residentsSync / residentsSync0, `parked.js` resident / residentFill / residentDrop):
+- WHO: HOME's residents in the fleet ledger, the stand's slot out, at most playerSlots().parked (2). (playerSlots returns
+  { bay, parked, total } - the 7 Oct shake-down's empty plan was `object - 1`.) WHAT: PARKED.resident - ONE baked rung
+  (L2, fixed: no ladder, never L1) of the airframe's own fleet record, decode only (fleetLoad), never a capture; unbaked
+  -> queued for FLEET-PROPS A's idle bake and filled when it lands; an eviction empties it, the garage refills. The
+  career turns FLYDIY_FLEET on (bake on save). Their own group in the garage scene (disposeHangar frees the room's
+  geometry, a resident's is the record's). parked.js is a WORLD script: the garage's first rooms stand before it - the
+  sync retries (and reports RES.err).
+- WHERE (three tries, the first that stands every resident): (1) KEPT - the plan as it is while the stand's new box clears
+  it (a slider never repacks: a pack is ~3 ms here, ~10 on the laptop), and a swap's in-place; (2) ROUND THE STAND -
+  hangarPark with the stand's box as keep (the works: Cessna (12.9, 0), Cub (11.9, -13)); (3) THE ROOM MOVES - today's
+  fully kitted club has NO floor beside a centred stand (its free floor is in tandem): the stand is packed WITH the
+  residents (the stand always in: every resident, then one at a time - the 8 Oct 16:05 run found the size-ordered pack
+  leaving the stand out), and hangar.group / RES.group are offset so the aeroplane stays where the editor, cameras and sim
+  keep it (club: dx -4.3 m, the stand toward the door, the Cessna behind). The camera's room clamp and the mobile kit
+  follow the offset; rollanim already read it. Never in the sandbox.
+- THE TOGGLE: "show the other aeroplanes" in the camera flyout (editor.js), default on in the room views (the garage's
+  framing, 3/4 front, refit), off in the close ones (side, plan, nose, interior); the box is the hand's until the next view.
+- THE SWAP (G2317): desktop hover = a box outline + pointer cursor (residents' L2 meshes only, every HOVER_MS); a click or
+  a tap (nothing hover-only) -> a card "Work on <name>" -> residentSwap: the slot through the fleet rack's door
+  (GARAGE_SPEC.open = garage.js loadSlot), the outgoing aeroplane takes the resident's place without a re-layout when it
+  fits ("how": kept, seen in every swap). An unsaved build on the stand: asked first (a load would lose it). The
+  aeroplane on the stand keeps the click when it is in front. Not selectable otherwise (the editor picks through edSitP).
+
+**THE SANDBOX'S CLUB, BYTE FOR BYTE** (tools/perf/cozy_club_identity.js): hangar.js of the base (f4c47a59) and of this
+tree build the club (interior + exterior) under GATE HANGAR's stubbed THREE, instrumented (every constructor and its
+arguments, every object's place/turn/scale, every light's colour/intensity/distance/angle/shadow): 0 of 3 211 entries
+differ, also with `cozy` and `hearth` NAMED in the club; NEGATIVE CONTROL (the base at 4100 K): 10 differ, caught.
+
+**THE TIMINGS** (tools/perf/cozy_rig.js; the laptop rung = CDP CPU x3 + HW-COVERAGE's GPU proxy x6, 1920x1080, the
+garage's default camera, 12 s windows, residents ABBA on/off; reports/evidence/WORKS-COZY/timed_*.json, w2325_*.json):
+
+| retro preset (fps / draws) | 8 Oct 16:05 | 8 Oct 23:25 (same page, same rung) |
+|---|---|---|
+| today's club (sandbox) | 24.6 / 725 | 24.5 / 725 |
+| club + 1 resident (career) | (no resident: the stand-out bug) | 24.9 on / 26.4 off / 759 |
+| hearthLight + 2 | - | 25.5 on / 25.1 off / 739 |
+| hearth + 2 | 21.0 / 904 | 21.7 / 918 |
+
+laptop preset (16:05): today's club 29.5 fps (678 draws), hearth + 2 27.0 (861). THE RESIDENTS ARE ~FREE: +1 draw and
++24 k triangles each (18.6-24.4 k at L2), fps/GPU within noise; the hearth's cost was the ROOM (the rack lines),
+which hearthLight removes. THE SWAP = A SLOT LOAD: on the rung 3.9-6.3 s (+ <= 1.4 s the first time, the outgoing
+decode) vs today's slot load of the same slots 2.8-6.4 s; at box speed 0.9-2.6 s. Nothing reaches 30 on the retro rung,
+today's club included (the rung's own ceiling, GARAGE-LAPTOP's).
+
+**THE LOOK** (stills: reports/evidence/WORKS-COZY/stills/ 58, stills2325/ 20, shakedown/; every still on a LOADED page -
+the boot overlay gone + 2 s, re-checked after the capture: 0 discarded; every residents-on still checked to have its
+resident's centre in the frame: 0 failed): the user picks between hearth + 2 / hearthLight + 2 / club + 1 / today's
+club. Known flaw: club + 1's moved room puts the door-end wall in the right edge of the default view.
+
+**GATES** (this tree): HANGAR PASS 1 476 (rule 8 over every layout: places all, no shared floor, the bay clear, the club
+unchanged when named, the residents clear; club + 1 and why; the career's main hangar) + --selftest 14/14 caught;
+GAMEPREM PASS; CONTRACTS PASS; and in A0's CPU window 8 Oct 21:05 (2f54fe5e): DESTTO PASS (3 shards, 431 s), UISMOKE PASS,
+PARKED PASS, GFX PASS, VIEW PASS (gates_2105.log). Not run: the strict train gate's garage_lag rows (8771 was taken at
+16:26; nothing of this runs in the sandbox it measures).
+
+**FOR THE INTEGRATOR**: no generated file committed; parked.js changed (the cook re-cooks with the train); the default
+layout is `hearth` - the user's pick may make it `hearthLight` (CAREER_MAIN.layout, one word) or keep the club
+(careerMainShed). Evidence ~21 MB of jpg/json under reports/evidence/WORKS-COZY/.
+
+READY for the GAME COORDINATOR: claude/works-cozy-g2315 2f54fe5e (the code and gates; this section and the 23:25 evidence ride one docs commit on top)
