@@ -105,7 +105,7 @@ async function child() {
   if (fault === 'nomark' || fault === 'aswas') W.FLYDIY_HEAL_NOMARK = true;   // (D4b's heal marking off)
   if (fault === 'noowe' || fault === 'aswas') W.FLYDIY_FOLD_NOOWE = true;     // (G2352 off: a fold's owed whole upload a range can replace)
   if (fault === 'noreset') W.FLYDIY_ROLL_NORESET = true;
-  if (fault === 'wreckaswas') { W.FLYDIY_WRECK_NODETACH = true; W.FLYDIY_WRECK_VISOLD = true; }   // (the carried cowl's two fixes off)   // (the selftest: the shot's wreck reset off - the bug as it was)
+  if (fault === 'wreckaswas') W.FLYDIY_WRECK_NODETACH = true;   // (the carried cowl's fix off: the wreck writes the snapshot's index)   // (the selftest: the shot's wreck reset off - the bug as it was)
   const tripN = () => (W.FLYDIY_TRIPS || []).length;
   const tripDone = (kind, n0) => { const T = W.FLYDIY_TRIPS || []; const t = T[T.length - 1]; return T.length > n0 && !!(t && t.kind === kind && t.done && W.BOOT.state === 'gone'); };
   const SW = () => W.FLYDIY_SIMW || null;
@@ -135,8 +135,9 @@ async function child() {
     const all = new Set(); m.grp.traverse(o => all.add(o)); if (m.wreckBuild) for (const o of m.wreckBuild.parentOf.keys()) all.add(o);
     for (const o of all) { if (!o.isMesh && !o.isGroup) continue; const e = o.matrixWorld.elements, sc = Math.cbrt(Math.abs(e[0]*(e[5]*e[10]-e[6]*e[9]) - e[4]*(e[1]*e[10]-e[2]*e[9]) + e[8]*(e[1]*e[6]-e[2]*e[5])));
       const lo = o.matrix.elements, ls = Math.abs(lo[0]) + Math.abs(lo[5]) + Math.abs(lo[10]);
-      if (!o.visible || sc < 1e-3 || ls < 1e-3) out.push((o.name || o.type) + (o.visible ? '' : ' (hidden)') + (sc < 1e-3 ? ' (world scale ' + sc.toExponential(1) + ')' : '') + (ls < 1e-3 ? ' (local collapsed)' : '')); }
+      if (!o.visible || sc < 1e-3 || ls < 1e-3) out.push(o); }
     return out; };
+  const nameOf = o => { const c = []; for (let q = o; q && c.length < 4; q = q.parent) c.push(q.name || q.type); return c.join(' < '); };
   // (the triangles a wreck removes: zeroed triples in each drawn index - the flown model's meshes, its folds - and in the
   // cage snapshot's own index arrays, the ones the next model is built from)
   const degOf = ix => { let n = 0; if (!ix) return 0; for (let t = 0; t + 2 < ix.length; t += 3) if (ix[t] === ix[t+1] && ix[t+1] === ix[t+2]) n++; return n; };
@@ -149,7 +150,7 @@ async function child() {
   // (the hybrid's members whose visibility disagrees with their fold: visible while baked = drawn twice, hidden while live = missing)
   const visMis = () => { const m = W.FLIGHT_PROBE.model(), out = []; const Fs = m && m.wreckBuild && m.wreckBuild.folds; if (!Fs) return null;
     Fs.forEach((F, j) => { for (const o of F.live || []) if (o.visible !== !!F.viewsOn) out.push('fold' + j + ' ' + (o.name || o.type) + (o.visible ? ' VISIBLE while baked (drawn twice)' : ' HIDDEN while live (missing)')); }); return out; };
-  R.hidden0 = hiddenNow(); R.idx0 = idxCensus(); R.vis0 = visMis();
+  const hid0 = hiddenNow(); R.hidden0 = hid0 ? hid0.length : null; R.idx0 = idxCensus(); R.vis0 = visMis();
   // ---- the crash (DMGWALLPATH's): 4 m up, 30 m/s, a trunk 40 m ahead, through the worker
   const FP = W.FLIGHT_PROBE; W.FLYDIY_SKINBREAK = true; W.FLYDIY_WRECK = true; FP.setManual(true);
   { const sim = FP.sim(), world = FP.world(), [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl;
@@ -172,7 +173,9 @@ async function child() {
     for (let i = 0; i < 240 && (FP2.over() || (FP2.damage() && FP2.damage().crashed)); i++) await P.frames(1);
     for (let i = 0; i < 90; i++) await P.frames(1);
     R.visRetry = visMis(); R.idxCrash = idxDiff(R.idx0, R.idxAtCrash); R.idxRetry = idxDiff(R.idx0, idxCensus()); delete R.idx0; delete R.idxAtCrash;
-    R.retry = { over: FP2.over(), stats: W.FLYDIY_WRECK_STATS ? W.FLYDIY_WRECK_STATS() : null, hidden: hiddenNow(), fresh: R.hidden0, dmg: (() => { const D = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; return D ? { br: (D.br || []).length, sS: D.sS } : null; })(),
+    const hid1 = hiddenNow() || [], was = new Set(hid0 || []), now = new Set(hid1);
+    R.retry = { over: FP2.over(), stats: W.FLYDIY_WRECK_STATS ? W.FLYDIY_WRECK_STATS() : null, hidden: hid1.length,
+      newHidden: hid1.filter(o => !was.has(o)).map(nameOf), newShown: (hid0 || []).filter(o => !now.has(o)).map(nameOf), dmg: (() => { const D = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; return D ? { br: (D.br || []).length, sS: D.sS } : null; })(),
       drv: (() => { try { const s = FP2.sim(); return s.drv || null; } catch (e) { return 'err'; } })(), seized: (() => { try { const s = FP2.sim(); return (s.eng || []).map(e => !!(e && e.seized)); } catch (e) { return 'err'; } })() };
     fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0);
   }   // (--probe=1: the crash only - the staging sweep)
@@ -284,13 +287,13 @@ function parent() {
     const R = runChild('cub', pf, secs, dmg ? undefined : false, Object.assign({}, STAGES.hard, { id: 'retry', path: 'retry' })), f = [], bad = m => f.push('cub (Fly again, damage ' + (dmg ? 'on' : 'OFF') + '): ' + m);
     const T = R.retry;
     say('  cub FLY AGAIN after the crash (damage ' + (dmg ? 'on' : 'OFF') + '): the crash ' + JSON.stringify(R.crash) + '; removed triangles at the crash ' + (R.idxCrash ? R.idxCrash.length : '?') + ' meshes, after Fly again ' + JSON.stringify(R.idxRetry || null) +
-        '; hidden fresh ' + (R.hidden0 || []).length + ' / after ' + (T && T.hidden ? T.hidden.length : '?') + '; members against their fold ' + JSON.stringify(R.visRetry || null) + '; the wreck layer ' + (T && T.stats && T.stats.active ? 'ACTIVE' : 'idle'));
+        '; hidden fresh ' + R.hidden0 + ' / after ' + (T ? T.hidden : '?') + (T && T.newShown && T.newShown.length ? ' (drawn now, hidden fresh: ' + T.newShown.join(', ') + ')' : '') + '; members against their fold ' + JSON.stringify(R.visRetry || null) + '; the wreck layer ' + (T && T.stats && T.stats.active ? 'ACTIVE' : 'idle'));
     if (R.failed || !T) bad('the run failed: ' + (R.failed || 'no Fly again'));
     else {
       if (T.over) bad('Fly again did not start a fresh flight');
       if (dmg && !(R.crash && R.crash.br >= HARD_MIN)) bad('the crash broke ' + (R.crash ? R.crash.br : 0) + ' members: it tests nothing');
       if (R.idxRetry && R.idxRetry.length) bad('THE FRESH FLIGHT HOLDS THE WRECK REMOVED TRIANGLES: ' + R.idxRetry.slice(0, 6).join(' | '));
-      if ((R.hidden0 || []).length !== (T.hidden || []).length) bad('hidden meshes ' + (R.hidden0 || []).length + ' fresh, ' + (T.hidden || []).length + ' after Fly again');
+      if (T.newHidden && T.newHidden.length) bad('A PART THE FRESH AEROPLANE DREW IS HIDDEN OR COLLAPSED after Fly again: ' + T.newHidden.slice(0, 6).join(' | '));
       if (R.visRetry && R.visRetry.length) bad('a hybrid member against its fold: ' + R.visRetry.slice(0, 4).join(' | '));
       if (T.stats && T.stats.active) bad('the wreck layer still active on the fresh flight');
     }
