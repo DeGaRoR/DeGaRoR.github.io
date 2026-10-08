@@ -828,6 +828,31 @@ HANGAR_LAYOUTS.hearth = {
   rows: Object.assign({}, HANGAR_LAYOUTS.cozy.rows, HANGAR_HEARTH_ROWS),
 };
 
+// THE HEARTH, LIGHT (G2319: the 8 Oct timing - the hearth + 2 residents at 21.0 fps against today's club's 24.6 on the
+// laptop's retro rung, the residents themselves ~free: the ROOM costs, ~175 draws more). The same hearth with its heaviest
+// furniture cut, every cut named: (1) the two two-tier rack lines (14 tallRacks: 28 racks and their shelf stock) become
+// three single loaded racks each, at the line's middle; (2) the back wall's seven loaded racks go (storage in the shadow
+// behind the residents - the dark reads the same); (3) the long stock rack by the woodshop goes (its tube and spruce are
+// ~60 drawn meshes). The light, the lounge, the bench corner, the woodshop, the office and the residents' floor stay.
+const HANGAR_HEARTH_LIGHT_STORE = {
+  sites: HANGAR_HEARTH_ROWS.store.sites,
+  recipes: [-5, -4, -3].map(x =>
+    ({ recipe: 'loadedRack', at: 'floor', fx: HC_F(x), fz: HC_F(13.0), dry: Math.PI, foot: [0.5, 0.33],
+       props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })).concat(
+    [7, 8, 9].map(x =>
+    ({ recipe: 'loadedRack', at: 'floor', fx: HC_F(x), fz: HC_F(14.5), dry: Math.PI, foot: [0.5, 0.33],
+       props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] }))),
+};
+HANGAR_LAYOUTS.hearthLight = {
+  name: 'The works, a hearth at the stand (light)', shell: 'works',
+  kits: HANGAR_LAYOUTS.hearth.kits.slice(),
+  light: HANGAR_LAYOUTS.hearth.light,
+  rows: Object.assign({}, HANGAR_LAYOUTS.hearth.rows, {
+    store: HANGAR_HEARTH_LIGHT_STORE,
+    metal: { sites: HANGAR_HEARTH_ROWS.metal.sites, recipes: [] },
+  }),
+};
+
 // the layout that applies to a shell: the named one when its shell matches,
 // else none (a layout is one shell's arrangement - the kits' own rows stand
 // in any other)

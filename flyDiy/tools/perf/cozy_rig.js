@@ -25,7 +25,7 @@
 //     stand and back, twice: the slot load's own task, until the aeroplane that left stands as a resident, to the second
 //     frame after) against TODAY'S SLOT LOAD (the sandbox: GARAGE_SPEC.open of the same slots, to the second frame after).
 // Usage: node tools/perf/cozy_rig.js --out <json> [--q 'gfx=gamer&career=1'] [--fleet] [--scenes hearth,club1] [--swap]
-//          [--shots <dir>] [--label <tree>] [--hours afternoon,night] [--cams room,wide,side] [--secs 12]
+//          [--tscenes club1,hearthLight] [--shots <dir>] [--label <tree>] [--hours afternoon,night] [--cams room,wide,side] [--secs 12]
 //          [--cpu-throttle N] [--gpux K] [--size 1920x1080] [--sport 8591] [--dport 9491] [--udd C:/gcozy] [--wait 300]
 // A GPU RUN: take tools/perf/boxlock.sh take gpu COZY first, drop it after. Rigs have no --help.
 'use strict';
@@ -42,6 +42,7 @@ const CAREER = /career=1/.test(Q);
 const SHOTS = opt('shots', null), LABEL = opt('label', 'tree');
 const HOURS = list('hours', 'afternoon,night'), CAMS = list('cams', 'room,wide,side');
 const SCENES = CAREER ? list('scenes', 'hearth') : ['club'];
+const TSCENES = CAREER ? list('tscenes', SCENES.join(',')) : ['club'];   // the timed scenes (default: the stills')
 const SECS = +opt('secs', 0) || 0, THROTTLE = +opt('cpu-throttle', 0) || 0, GPUX = +opt('gpux', 0) || 0;
 const SPORT = +opt('sport', 8591), DPORT = +opt('dport', 9491), UDD = opt('udd', 'C:/gcozy'), WAITS = +opt('wait', 300);
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -156,12 +157,27 @@ const LOADED = `(() => { if (!window.BOOT || BOOT.state !== 'gone') return false
   };
   // a still: the UI hidden (SHOT_MODE), the label burned into the corner, the frame's draws and triangles - only on a
   // loaded page, before AND after the capture (a shot that saw a loading screen is discarded and retaken)
-  const shoot = async (name, text) => {
+  // THE RESIDENT IS THERE (the GAME COORDINATOR, 8 Oct: "CHECK EACH STILL SHOWS THE RESIDENT actually there"): the
+  // filled residents of the garage's group, visible, their centre inside the camera's frame
+  const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('garageResidents'); if (!g || !g.visible) return { filled: 0, inFrame: 0 };
+    const cam = FLIGHT_PROBE.camera(); cam.updateMatrixWorld(); let filled = 0, inFrame = 0; const v = new THREE.Vector3(), b = new THREE.Box3();
+    for (const c of g.children) { if (!c.userData || !c.userData.filled || !c.visible) continue; filled++; b.setFromObject(c); b.getCenter(v); v.project(cam);
+      if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1 && v.z < 1) inFrame++; }
+    return { filled, inFrame }; })()`;
+  const shoot = async (name, text, needRes) => {
     await run(`let d = document.getElementById('__cozyLbl'); if (!d) { d = document.createElement('div'); d.id = '__cozyLbl'; d.style.cssText = 'position:fixed;left:8px;top:8px;z-index:2147483647;font:600 15px/1.3 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.55);padding:4px 8px;border-radius:4px;pointer-events:none'; document.body.appendChild(d); } d.textContent = ${JSON.stringify(text)}; return 1;`);
     for (let k = 0; k < 3; k++) {
       try { await until(LOADED, 30000, 'a loaded page'); } catch (e) { res.discarded.push({ name, why: 'never loaded' }); continue; }
       await sleep(2000);
-      const info = await run('const R = FLIGHT_PROBE.renderer(); return { calls: R.info.render.calls, tris: R.info.render.triangles };');
+      const info = await run('const R = FLIGHT_PROBE.renderer(); return { calls: R.info.render.calls, tris: R.info.render.triangles, res: ' + RESIN + ' };');
+      if (needRes && !(info && info.res && info.res.inFrame > 0)) {
+        // a residents-on still with no resident in it is a FAILED run, never a pick: kept under FAILED_ for the record
+        const r0 = SHOTS ? await cmd('Page.captureScreenshot', { format: 'jpeg', quality: 70 }) : null;
+        if (r0) { fs.mkdirSync(SHOTS, { recursive: true }); fs.writeFileSync(path.join(SHOTS, 'FAILED_' + name + '.jpg'), Buffer.from(r0.result.data, 'base64')); }
+        res.failed = res.failed || []; res.failed.push({ name, info }); save();
+        console.log('  FAILED (no resident in the frame) ' + name + ' ' + JSON.stringify(info));
+        return false;
+      }
       const r = SHOTS ? await cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }) : null;
       if ((await run('return ' + LOADED + ';')) !== true) { res.discarded.push({ name, why: 'a loading screen in the shot' }); console.log('  DISCARDED ' + name); continue; }
       if (r) { fs.mkdirSync(SHOTS, { recursive: true }); fs.writeFileSync(path.join(SHOTS, name + '.jpg'), Buffer.from(r.result.data, 'base64')); }
@@ -193,7 +209,7 @@ const LOADED = `(() => { if (!window.BOOT || BOOT.state !== 'gone') return false
           for (const r of (CAREER ? [true, false] : [null])) {
             if (r !== null) await run(`GARAGE_ENV.setResidents(${r}); return 1;`);
             await sleep(800);
-            await shoot([preset, s, hour, cam, r === null ? 'nores' : (r ? 'res' : 'nores')].join('_'), label(s, hour, cam, r));
+            await shoot([preset, s, hour, cam, r === null ? 'nores' : (r ? 'res' : 'nores')].join('_'), label(s, hour, cam, r), r === true && cam !== 'side');
           }
         }
       }
@@ -202,14 +218,16 @@ const LOADED = `(() => { if (!window.BOOT || BOOT.state !== 'gone') return false
       if (CAREER && flag('swap')) {
         await run(`if (window.DAY_CLOCK) DAY_CLOCK.preset('afternoon'); ${CAM.room} return 1;`);
         await sleep(3500);
-        await shoot([preset, s, 'swap', 'before'].join('_'), label(s, 'afternoon', 'room', true) + ' · BEFORE the swap: ' + STAND + ' on the stand');
+        await shoot([preset, s, 'swap', 'before'].join('_'), label(s, 'afternoon', 'room', true) + ' · BEFORE the swap: ' + STAND + ' on the stand', true);
         await run('if (window.SHOT_MODE) SHOT_MODE.exit(); return 1;');
-        await swapOnce(SWAPIN, s + ' stills');
+        const pick = await run('const R = GARAGE_ENV.residents(); return R && R.plan.length ? R.plan[0].name : null;');
+        if (!pick || String(pick).startsWith('ERR')) { console.log('  no resident to swap in ' + s); }
+        else await swapOnce(pick, s + ' stills');
         await run(`if (window.SHOT_MODE) SHOT_MODE.enter(); ${CAM.room} return 1;`);
         await sleep(2500);
-        await shoot([preset, s, 'swap', 'after'].join('_'), label(s, 'afternoon', 'room', true) + ' · AFTER "Work on ' + SWAPIN + '": ' + SWAPIN + ' on the stand, ' + STAND + ' parked');
+        await shoot([preset, s, 'swap', 'after'].join('_'), label(s, 'afternoon', 'room', true) + ' · AFTER "Work on ' + pick + '": ' + pick + ' on the stand, ' + STAND + ' parked', true);
         await run('if (window.SHOT_MODE) SHOT_MODE.exit(); return 1;');
-        await swapOnce(STAND, s + ' stills back');
+        if (pick && !String(pick).startsWith('ERR')) await swapOnce(STAND, s + ' stills back');
         await run('if (window.SHOT_MODE) SHOT_MODE.enter(); return 1;');
       }
       await run('if (window.SHOT_MODE) SHOT_MODE.exit(); const d = document.getElementById("__cozyLbl"); if (d) d.remove(); return 1;');
@@ -229,7 +247,7 @@ const LOADED = `(() => { if (!window.BOOT || BOOT.state !== 'gone') return false
       if (GPUX > 1) await run('window.__GPUX = ' + (on ? GPUX : 1) + '; return 1;');
     };
     res.rung = { cpu: THROTTLE || 1, gpux: GPUX || 1 };
-    for (const s of SCENES) {
+    for (const s of TSCENES) {
       await rung(false);                       // a scene is re-stood at the box's own speed: the rebuild is not the question
       await scene(s);
       await run(`if (window.DAY_CLOCK) DAY_CLOCK.preset('afternoon'); ${CAM.room} return 1;`);
@@ -244,7 +262,11 @@ const LOADED = `(() => { if (!window.BOOT || BOOT.state !== 'gone') return false
       // THE SWAP'S LATENCY on the rung (career), or TODAY'S SLOT LOAD (the sandbox: the same slots through the same door)
       if (flag('fleet')) {
         for (let k = 0; k < 2; k++) {
-          if (CAREER) { await swapOnce(SWAPIN, s + ' rung ' + (k + 1)); await sleep(1500); await swapOnce(STAND, s + ' rung back ' + (k + 1)); await sleep(1500); }
+          if (CAREER) {
+            const pick = await run('const R = GARAGE_ENV.residents(); return R && R.plan.length ? R.plan[0].name : null;');
+            if (!pick || String(pick).startsWith('ERR')) { console.log('  no resident to swap in ' + s); break; }
+            await swapOnce(pick, s + ' rung ' + (k + 1)); await sleep(1500); await swapOnce(STAND, s + ' rung back ' + (k + 1)); await sleep(1500);
+          }
           else for (const n of [SWAPIN, STAND]) {
             const r = await run(`const t0 = performance.now(); GARAGE_SPEC.open(${JSON.stringify(n)}); const load = performance.now() - t0;
               await new Promise(q => requestAnimationFrame(() => requestAnimationFrame(q))); return { to: ${JSON.stringify(n)}, load: +load.toFixed(1), total: +(performance.now() - t0).toFixed(1) };`);
