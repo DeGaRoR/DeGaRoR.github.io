@@ -82014,6 +82014,8 @@ PASS (00:50-00:55, A0's window; all node, none boots Chrome).
   flyable night** (the coast, the lakes, the strips, the ridges and the horizon; mean code 42-56 at the stand and over
   the sea, the sky 67-79); +2 is a dusk (67-85). DEFAULTS SET: night eye +1, night colour 0.9, moonlight blue 0.6
   (0.85 vs 0.95 is hardly to be told apart; a lamp-lit aeroplane keeps its colour either way - it is bright).
+  THE USER (8 Oct, via A0): "full moon defaults look good enough for now" - the defaults stand; no more dial tuning.
+  The pre-exposure proposal is parked until the user asks.
 - sheet_moon_overcast_half_new.jpg: the moon overhead (a disc, a faint corona, the faint stars washed out near it);
   overcast (the panel's deck still broken - the CLOUD note); the half moon at +1: the horizon and a glint on the sea
   only (code 4); the new moon: black under the stars (code 2), as asked.
