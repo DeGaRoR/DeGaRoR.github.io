@@ -128,6 +128,26 @@ const INSTRUMENT = `(() => {
   await ev("(()=>{ GFX.set('fps', 'off'); return GFX.get().fps; })()");
   console.log('  held: ' + await ev("document.getElementById('bPause').textContent") + ' · FLYDIY_HELD ' + await ev('!!window.FLYDIY_HELD'));
   await ev("(async()=>{const FP=FLIGHT_PROBE; if (FP.camModeNow && FP.camModeNow()!=='orbit') FP.camMode('orbit'); await new Promise(r=>setTimeout(r,500)); FP.camSettle(); return 1;})()");
+  // --place forest[:agl]: the aeroplane set down (agl m over the ground, default 2) at the densest stand of trees within 2.5 km
+  // (frame_perf.js's own finder), held there - the forest floor's views (GROUND-LOOK G2610). Absolute (FLIGHT_PROBE.place 'at'),
+  // then held again: a relative move under the physics worker read a stale CG and buried the eye (6 Oct)
+  if (opt('place', null)) {
+    const [pk, pa] = opt('place').split(':'); const AGL = isFinite(+pa) ? +pa : 2;
+    if (pk === 'forest') console.log('  placed: ' + await ev(`(async () => {
+      const w = FLIGHT_PROBE.world(); const T = (w.trees || []).filter(t => Math.hypot(t.x, t.z) < 2500);
+      let best = null, bn = -1;
+      for (let i = 0; i < T.length; i += 7) { const a = T[i]; let n = 0; for (const b of T) if (Math.abs(b.x - a.x) < 120 && Math.abs(b.z - a.z) < 120) n++; if (n > bn) { bn = n; best = a; } }
+      if (!best) return 'no trees';
+      // a clearing inside the stand: the nearest point 6-12 m from the chosen tree with no trunk within 4 m
+      let at = [best.x + 8, best.z];
+      for (let r = 6; r <= 14; r += 2) { let found = false; for (let k = 0; k < 12 && !found; k++) { const x = best.x + r * Math.cos(k * 0.5236), z = best.z + r * Math.sin(k * 0.5236);
+        if (!T.some(t => Math.hypot(t.x - x, t.z - z) < 4)) { at = [x, z]; found = true; } } if (found) break; }
+      const y = w.terrainH(at[0], at[1]) + ${AGL};
+      await FLIGHT_PROBE.place({ at: [at[0], y, at[1]], zeroV: true });
+      return JSON.stringify({ at: [at[0] | 0, y | 0, at[1] | 0], neighbours: bn }); })()`));
+    await sleep(2500);
+    for (let i = 0; i < 20; i++) { const t = String(await ev(pause)).trim().toLowerCase(); if (t && t !== 'pause' && t !== '?') break; await sleep(500); }
+  }
   const cam0 = await ev('FLIGHT_PROBE.cam()');
   const cg0 = await ev('FLIGHT_PROBE.sim().cgPos()');
   console.log('  cam ' + JSON.stringify(cam0) + ' cg ' + cg0.map(v => v | 0));
@@ -144,6 +164,10 @@ const INSTRUMENT = `(() => {
     field3: { cam: [cam0.azT - Math.PI / 2, 0.12, 30] },
     low: { cam: [cam0.azT + Math.PI, 0.30, 140] },   // ~40 m up, the near field and the forest's edge
     grass: { cam: [cam0.azT + Math.PI + 0.35, 0.035, 260] },   // ~9 m up, 260 m out past the apron: the grass at taxi height
+    // GROUND-LOOK (with --place forest): the forest floor at 10 / 40 / 150 m, a crash-site close-up, the seams at 400 m and 1.2 km
+    f10: { cam: [cam0.azT, 0.35, 10] }, f40: { cam: [cam0.azT, 0.30, 40] }, f150: { cam: [cam0.azT, 0.25, 150] },
+    crash: { cam: [cam0.azT + 0.8, 0.65, 4] },
+    s400: { cam: [cam0.azT, 0.20, 400] }, s1200: { cam: [cam0.azT, 0.12, 1200] },
   };
   const place = async v => { await ev(pause); const c = VIEW[v].cam; await ev('FLIGHT_PROBE.camSet(' + c.join(',') + ')'); };
   const apply = async V => {
