@@ -79411,7 +79411,7 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
    cut). The pole stays, the twigs dissolve - as the geometry's sub-pixel twigs do at the hand-over (`alpha_sweep/`: solid
    1/0 x cut 0/0.3/0.5; 0.5 is a hair cleaner, 0.4 keeps a far snag's pole a mip longer).
 4. THE LEVEL: a bare snag barely shades itself, so its geometry's match is uILit 0.9 on EVERY preset, where the leafy match is
-   1.242 without tree shadows (below): `barkLit 0.725` = 0.9 / 1.242, the bark sheets' share of uILit.
+   1.242 without tree shadows (below): `barkLit` 0.9, ABSOLUTE in place of uILit (G1975.1; it landed first as the ratio 0.725).
 
 **THE DOUBLE COUNT (A0's code read) - half a bug; the other half is the user's call.**
 - THE BUG, FIXED: `envAlbedo(k)` (G483 268cbdc3: `uILit = base x k x 0.9`; G485 d2158ad1: `0.9 x k`, its own comment saying
@@ -79430,9 +79430,9 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
   value keyed in gfx_settings' shadows apply. Their far forest drops ~22 % (the trees' own pixels: 300 m noon 0.172 ->
   0.135, 1 km golden 0.087 -> 0.067); the trees' lightness x1.38 restores only half (0.155) because uILit also scaled the
   sky-reflection terms the tint never touches - a full restore is ~x1.7 and the near trees 70 % brighter. Default if no
-  answer: as landed, 1.242 everywhere.
+  answer: as landed, 1.242 everywhere. ANSWERED 2026-10-07: column 3 - see G1975.1 below.
 
-**PROPOSED, OFF - THE MIXES' SNAG SHARE (the user's call, A0 recommends ON):** the game deals snags by the collection's
+**THE MIXES' SNAG SHARE (proposed OFF; ON by the user's call 2026-10-07 - G1975.2 below):** the game deals snags by the collection's
 `place.dead` and never reads the mixes' own `species[sp].dead`. pine_georgeous carries 0.53 on its collection (it came in
 with G454 BIOMES 203a58d0, unexplained - a pack-level share, not a design) and 0 / 0.03 / 0.03 in every mix that plants it.
 `TREE_MIX.mixDead` / `?mixdead=1` deals each tree's series by the mix's share for that species where it stands (the
@@ -79464,6 +79464,47 @@ FRAMECOST gate PASS at 03:20 on the colour fix. TREECRASH / TREEHIT: no geometry
 - the bake frames on `parts[0]`'s bounding sphere only (bakeImpostorAtlasNow): DeciduousDead1_29 crops its trunk bottom.
 - the twigs proper (a higher-res or thin-branch-aware bake for bark sheets, or the snags' geometry kept further - a larch
   snag is 5 490 triangles in its one rung, conifer snags 3.5-6.9 k) are a separate chantier if the dissolve is not enough.
+
+
+### G1975.1 - THE TREES UNDER THEIR OWN SHADOWS: THE USER'S FAR-FOREST CALL (2026-10-07, DEADWOOD-BRIGHT for A0, for train 40)
+
+**The user's call** (shown `far_forest_sheet.png`, confirmed through A0 as COLUMN 3): where the world casts tree shadows,
+the far pictures at their 3D match and the near trees lifted to keep the far level - not the darker-only column 2.
+
+**What it does:** `WORLD.treeShadowed(on)` (render_world.js), called by gfx_settings' shadows apply with
+`sh.on && sh.world !== false` - true for shadows `full` / `ultra` (current, gamer, ultra), false for `off` / `near`
+(potato, laptop, retro). On: uILit 0.9 (the impostors' measured match under self-shadowed geometry) AND the shade
+compensation `SHADE_K` 1.38 on BOTH tiers' tint (trees.js `SHADE`, `TREE_LEAF.shadeK()`: the trees and the bushes, every
+kind riding on MASTER, not the grass; not the user's MASTER.light, not saved). Off: uILit 0.9 x 1.38 and k 1, i.e.
+exactly G1975. Bark-only sheets now take an ABSOLUTE lit `barkLit` 0.9 in place of uILit (was the ratio 0.725), so a snag
+keeps matching under either state. `SHADE_K` is the one number (render_world.js; 1 = column 2).
+
+**Verified (2026-10-07 05:40, gamer golden; `col3/`):** the page boots with treeShadowed true, uILit 0.9, shadeK 1.38
+(the gfx hook fires). At the hand-over (geometry RE-SHOT per variant, since the lift moves both tiers), impostor /
+geometry `core` front-lit, master -> col3: cedar 1.27 -> 1.05, larch 1.32 -> 1.11, spruce 1.72 -> 1.26, pine 1.23 ->
+1.19, larch snag 1.38 -> 1.13; into the sun and side-lit lower in both (pre-existing, G1975's side findings). The far
+forest, the trees' own pixels master -> col3: 300 m noon 0.166 -> 0.149, golden 0.078 -> 0.064; 1 km noon 0.177 ->
+0.161, golden 0.075 -> 0.062 (the tint carries the albedo terms back, not the sky-reflection terms uILit also scaled).
+`far_forest_col3_sheet.jpg`: the near trees round a larch snag (290 m, golden, front- and side-lit) and the four far
+frames, master | col3. NOT re-shot on screen: gamer noon and potato (the second half of the pass was lost to a job-number
+slip in the slot script) - potato's "unchanged" stands on the code path (shadows `off` -> treeShadowed(false) -> G1975's
+values), checked by the gfx hook's own condition, not by a still.
+
+**Gates (this code):** GFX, TREES, TREE, PROGRAMS PASS; FRAMECOST `--census cub` of this branch vs its base train 37b
+(068584d6) `--compare`: nothing moved - stand, taxi, boot, memory (`col3/framecost_census_*`). (A census against the
+newer origin/master 751e1122 shows only master's own boot gains since 37b, which this branch did not carry until the
+merge below.)
+
+### G1975.2 - THE MIXES' SNAG SHARE ON BY DEFAULT (2026-10-07, the user's call on `mixdead_sheet.jpg` / `mixdead_table.jpg`)
+
+`TREE_MIX.mixDead` defaults ON; `?mixdead=0` deals as before (the collection's `place.dead`). Measured on gamer within 3 km
+of HOME (`mixdead_{off,on}_0707.json`): dead trees 22 836 -> 7 116 (11.8 -> 3.7 % of the living species; pine_georgeous
+53 -> 0.3 %; birch / ash gain the mixes' 5 %; dead_conifer, a dead species, unaffected). THE COST: the near tier at the
+stand carries 0 .. +11 % triangles (672 k both on 2026-10-07, 679 k -> 755 k on 2026-10-06 - what the streamer had dealt
+at that moment: the living trees that replace snags carry 2-4x their triangles). FRAMECOST (2026-10-07 13:30, the cpu lock): one RED, `stand/tris.main` +1.2 % on both builds (the
+gate's tolerance 1 %) - of it +84 141 (+0.48 %) is this switch against the same code with ?mixdead=0 (census pair), the rest
+the baseline's earlier drift; admitted by name in `tools/_framecost_check.js` ALLOW (G1975.2, cub / cessna upTo), then PASS.
+Taxi unchanged (-480 tris), draws -2. TREES, TREEHIT PASS (positions unchanged - the switch picks the series only).
 
   the taxi), the delivered fps under 15 in TWO 8 s readings running (after 5 s in the state; G1997b: one slow window - a clock
   ramp - is not a class) -> the preset one rung down (ultra > gamer > current >
@@ -81817,3 +81858,57 @@ per call - throttling it is a light-smoothness risk to measure first.
 A TIMED rung row is owed (A0's slot when one is free): the expected gain is ~1 of the rung's ~12 ms of loop JS.
 
 READY for A0 (train 42): claude/garage-loop-g2111 on bcf62797 (sources + tools; generated files untouched).
+
+## G2590-G2591 - IMPOSTOR-MATCH: THE TRUNK TAKES THE BARK'S TINT; EACH SHEET'S LEVEL MEASURED AGAINST ITS 3D TREE (2026-10-08, DEADWOOD-BRIGHT for A0, local GPU; branch claude/deadwood-bright-g1975 on top of G1975.2; G2592-G2599 unused)
+
+**The user** (on the G1975.1 stills: 3D | picture today | 3D col 3 | picture col 3): "1 and 3 look good, 2 and 4 look bad",
+"same for all images", then narrowed: "the foliage, as well as the trunk are too bright for the impostors, still ... just
+minor corrections, and look at these bright trunks". So: two corrections, no rework; the snag method (G1975) kept; column 3
+(G1975.1) untouched.
+
+**G2590 - THE BRIGHT TRUNK, the cause in the construction.** The bake leaves the tint out ("AO in, tint out") and the draw
+put ONE tint over the whole sheet - the LEAF part's (`tintUniformsOf`): every trunk texel of a leafy picture wore the
+leaf's light, hue, saturation and the foliage contrast 1.30, where the 3D bark is hue 0, sat 1, contrast 1 at its own
+light (trees.js retint). Leaf vs bark light: cedar 0.59 / 0.34, realistic fir 1.30 / 0.64, spruce 0.54 / 0.42,
+pine_georgeous 1.22 / 1.00 (larch 0.68 / 0.84: its bark is the lighter, but it wore the leaf's hue / sat 0.48).
+THE FIX (render_world.js): the normal pass writes the part's KIND into the normal sheet's alpha (1 a leaf part, 0 the
+bark - `normalMatFor` uLeafF); both sheets are un-premultiplied by the ALBEDO's coverage (the same mask: the uv carries no
+map transform, decodeTreePart bakes uvMin / uvScl in); the texel's leaf fraction (smoothstep 0.3-0.8: a trunk is 2-3 texels
+of a tile, so a mip-filtered trunk pixel reads 0.6-0.8 leaf - the plain blend darkened the trunk 7-16 % of the 40-50 % the
+tints differ by) mixes the leaf's tint with the bark's own light (IMPA.tbl row 2 .x, live from the bark part's uLight).
+Measured on the trunk pixels, today -> fixed: cedar 0.81 / 0.83, spruce 0.83 / 0.85, pine 0.78 (gamer / potato); larch
+1.06 (its bark is lighter than its leaf). `TREE_LOD.imp({ trunk: 0 })` restores the picture as before (the A/B).
+
+**G2591 - THE LEVEL, per baked sheet** (IMPA.tbl row 2 .y; the one-layer materials' `uLayerK`): a factor on the tier gain
+(`_iLit`), `IMP_LEVEL` in render_world.js = the geometric mean of four runs' 1 / core (gamer + potato x golden + noon, the
+front-lit view at the hand-over after the trunk fix, each clamped 0.7-1: darkening only). Cedar 0.946, larch 0.925, spruce
+0.887, pine 0.908; snags: cedar 0.822, larch 0.87, pine 0.915, spruce 0.891; dead_conifer 0.862 / 0.897.
+`TREE_LOD.impLevel('key|series', k)` moves one live (null: back to the default). Core front-lit today -> fixed (gamer /
+potato): cedar 1.06 -> 0.92 / 0.99 -> 0.99, spruce 1.26 -> 1.19 / 1.03 -> 1.02, pine 1.17 -> 1.13 / 1.01 -> 1.00,
+larch snag 1.13 -> 1.02 / 1.14 -> 1.05, spruce snag 1.19 -> 0.88 / 1.03 -> 1.01. Into the sun and side-lit the pictures
+stay darker than the 3D (pre-existing, G1975's side findings).
+
+**Evidence (reports/evidence/DEADWOOD-BRIGHT/impostor_match/):** `impostor_match_sheet.jpg` (3D | today | fixed, the four
+species + their snags + dead_conifer, gamer and potato, golden, front-lit at the hand-over; the 1 km frame today | fixed;
+two picks left out - their frame missed the tree), the strips and `*_imp.json` of every run (today / trunk fix / fixed
+cores), `levels.json`. CAVEAT: a cloud's shadow drifted between the measuring round and the 'fixed' round (the larch
+strip's ground and background darken with it): the levels come from round 1 (3D, today and the trunk fix shot back to
+back); the round-2 cores carry that drift (larch rungs on gamer 1.11 -> 0.55 is the cloud, not the level 0.925).
+
+**THE USER'S RULING (2026-10-08, through A0): "Keep the trees as they are in the last update, I'll check in game, no
+further modifications, keep the latest delivered version."** adcbb4db rides train 42 as delivered; the see-through-trunk
+follow-up below is CANCELLED (kept here as the record of what was seen, not as owed work).
+
+**What was left (CANCELLED by the ruling above):** the trunk still SHOWS through the crown on some pictures (larch,
+spruce) where the 3D crown hides it - the bake's foliage coverage: it cuts the leaf map at its mip-averaged alpha at the
+128-px tile, where the screen keeps partial coverage through the sharpen (EDGE_GLSL). A bake-side fix (sample the leaf
+alpha sharper in the bake, or supersample the bake 2x) - a bake-time change, not done here.
+
+**Gates:** GFX, TREES, PROGRAMS PASS and the page booted clean in node (`--census cub`: nothing thrown, the page's error
+list the same 53 'sheet EMPTY' lines as master's - the fake GL draws nothing) at 09:17, before the levels and the sharpened
+leaf fraction went in. FRAMECOST census pair + PROGRAMS on
+the final code (16:40-16:44, unlocked by A0's booking beside PILOT's GPU run): PROGRAMS PASS; `--census cub` this branch vs
+its merge base (origin/master 751e1122) moved three counters at the stand, none at taxi or boot: `bytes.texSubImage2D`
++2 048 (the table's third row, 128 x 16 B, where the table was already re-uploaded), `gl.uniform1f` 327 -> 317 (down),
+`tris.shadow` +42 911 (+2 %: G1975.2's living trees in place of snags cast more); against the ratchet's baseline all three
+sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impostor_match/framecost_census_{base,branch}.txt`.

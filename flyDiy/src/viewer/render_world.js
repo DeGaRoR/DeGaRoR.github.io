@@ -3308,7 +3308,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let m = NRM_CACHE.get(src);
       if (!m) {
         m = TSL_ON ? normalMatTSL() : new THREE.ShaderMaterial({
-          uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 } },
+          uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 }, uLeafF: { value: 1 } },
           vertexShader: [
             'varying vec3 vWN;', 'varying vec2 vUvN;',
             'void main() {',
@@ -3317,13 +3317,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
             '}'].join('\n'),
           fragmentShader: [
-            'uniform sampler2D map;', 'uniform float uCut, uHasMap;',
+            'uniform sampler2D map;', 'uniform float uCut, uHasMap, uLeafF;',
             'varying vec3 vWN;', 'varying vec2 vUvN;',
             'void main() {',
             '  if (uHasMap > 0.5 && texture2D(map, vUvN).a < uCut) discard;',
             '  vec3 n = normalize(vWN);',
             '  if (!gl_FrontFacing) n = -n;',
-            '  gl_FragColor = vec4(n * 0.5 + 0.5, 1.0);',
+            // G2590: the alpha is the part's KIND - 1 a leaf, 0 the bark - so the draw can give the trunk its own tint
+            // (the mask is the albedo pass's own, and the draw un-premultiplies both sheets by the albedo's coverage)
+            '  gl_FragColor = vec4(n * 0.5 + 0.5, uLeafF);',
             '}'].join('\n'),
         });
         NRM_CACHE.set(src, m);
@@ -3334,6 +3336,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       m.uniforms.map.value = src.map || null;
       m.uniforms.uCut.value = cut || 0.5;
       m.uniforms.uHasMap.value = (src.map && src.map.image && cut > 0) ? 1 : 0;
+      // G2590: the part's kind (trees.js hookLeaf's uLeaf; a cone or any other material counts as foliage, as before)
+      if (m.uniforms.uLeafF) m.uniforms.uLeafF.value = (src.userData && src.userData.uLeaf && !(src.userData.uLeaf.value > 0.5)) ? 0 : 1;
       if (m.userData && m.userData.nrmTSL) {   // the node variant cuts through the material's own map + alphaTest
         m.map = (src.map && src.map.image && cut > 0) ? src.map : null;
         m.alphaTest = m.map ? (cut || 0.5) : 0;
@@ -3422,7 +3426,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       IMPA.col = col; IMPA.nrm = nrm; IMPA.cap = cap;
       IMPA.U.col.value = col; IMPA.U.nrm.value = nrm;
       if (!IMPA.tbl) {
-        IMPA.tbl = new THREE.DataTexture(new Float32Array(IMPA_MAX * 2 * 4), IMPA_MAX, 2, THREE.RGBAFormat, THREE.FloatType);
+        IMPA.tbl = new THREE.DataTexture(new Float32Array(IMPA_MAX * 3 * 4), IMPA_MAX, 3, THREE.RGBAFormat, THREE.FloatType);
         IMPA.tbl.minFilter = IMPA.tbl.magFilter = THREE.NearestFilter; IMPA.tbl.generateMipmaps = false; IMPA.tbl.needsUpdate = true;
         IMPA.U.tbl.value = IMPA.tbl;
       }
@@ -3430,8 +3434,29 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     IMPA.take = () => (IMPA.grow(IMPA.used + 1) ? IMPA.used++ : -1);
     // a layer's own numbers (row 0: cy, diam, gain, cut; row 1: the tint's hue, sat, light, and 1 for a bark-only
-    // sheet - G1975), from its series' material
-    IMPA.set = (layer, cy, diam, gain, cut, tintU) => {
+    // sheet - G1975; row 2: the BARK's light and the sheet's level - G2590), from its series' material
+    // G2591 (IMPOSTOR-MATCH): THE SHEET'S LEVEL - a factor on the tier gain per baked sheet ('key|series'), measured
+    // against its own 3D tree at the hand-over (HANDOVER G2590); 1 where unmeasured. TREE_LOD.impLevel(key, k) moves it live
+    // measured 2026-10-08 13:44-13:56 (gamer + potato x golden + noon, front-lit at the hand-over, after the trunk's own
+    // tint; the geometric mean of the four runs' 1 / core, each clamped 0.7-1 - tools/perf/deadwood/match4.js, agg.js)
+    const IMP_LEVEL = {
+      'cedar_tree.glb|Cedar_LOD0|rungs': 0.946,
+      'cedar_tree.glb|Cedar_LOD0|snag': 0.822,
+      'dead_conifer|Coniferous Dead Tree 2_14|rungs': 0.897,
+      'dead_conifer|Coniferous Dead Tree_13|rungs': 0.862,
+      'larch_tree.glb|Larch_LOD0|rungs': 0.925,
+      'larch_tree.glb|Larch_LOD0|snag': 0.87,
+      'pine_georgeous.glb|Pine01_LOD0|rungs': 0.908,
+      'pine_georgeous.glb|Pine01_LOD0|snag': 0.915,
+      'spruce_tree.glb|Spruce_LOD0|rungs': 0.887,
+      'spruce_tree.glb|Spruce_LOD0|snag': 0.891 };
+    IMPA.levelKey = []; IMPA.levelLive = {};
+    const impLevelOf = key => (key && IMPA.levelLive[key] !== undefined) ? IMPA.levelLive[key] : (key && IMP_LEVEL[key] !== undefined ? IMP_LEVEL[key] : 1);
+    const IMP_LEVEL_U = new Map();   // the one-layer materials' uniform per sheet key (the merged meshes read row 2)
+    const impLevelU = key => { if (!key) return { value: 1 }; let u = IMP_LEVEL_U.get(key); if (!u) IMP_LEVEL_U.set(key, u = { value: impLevelOf(key) }); return u; };
+    // G2590: the bark's own tint on a leafy sheet's trunk texels (impostorMat); 0 = the leaf's over the whole sheet (before)
+    const uTrunkOn = { value: 1 };
+    IMPA.set = (layer, cy, diam, gain, cut, tintU, key) => {
       if (!IMPA.tbl || !(layer >= 0)) return;
       const d = IMPA.tbl.image.data, o = layer * 4;
       d[o] = cy; d[o + 1] = diam; d[o + 2] = gain; d[o + 3] = cut;
@@ -3439,6 +3464,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const o2 = (IMPA_MAX + layer) * 4;
       d[o2] = tintU ? tintU.uHue.value : 0; d[o2 + 1] = tintU ? tintU.uSat.value : 1; d[o2 + 2] = tintU ? tintU.uLight.value : 1;
       d[o2 + 3] = tintU && tintU.bark ? 1 : 0;
+      if (key) IMPA.levelKey[layer] = key;
+      const o3 = (2 * IMPA_MAX + layer) * 4;
+      d[o3] = tintU ? (tintU.uLightB || tintU.uLight).value : 1; d[o3 + 1] = impLevelOf(IMPA.levelKey[layer]);
       IMPA.tbl.needsUpdate = true;
     };
     // once a frame: the mips of what was baked since, and the tint dials (live, F8's) into the table
@@ -3455,7 +3483,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (!IMPA.tbl) return;
       const d = IMPA.tbl.image.data; let ch = false;
       for (let l = 0; l < IMPA.used; l++) { const t = IMPA.tintU[l]; if (!t) continue; const o = (IMPA_MAX + l) * 4;
-        if (d[o] !== t.uHue.value || d[o + 1] !== t.uSat.value || d[o + 2] !== t.uLight.value) { d[o] = t.uHue.value; d[o + 1] = t.uSat.value; d[o + 2] = t.uLight.value; ch = true; } }
+        if (d[o] !== t.uHue.value || d[o + 1] !== t.uSat.value || d[o + 2] !== t.uLight.value) { d[o] = t.uHue.value; d[o + 1] = t.uSat.value; d[o + 2] = t.uLight.value; ch = true; }
+        const o3 = (2 * IMPA_MAX + l) * 4, lb = (t.uLightB || t.uLight).value, lk = impLevelOf(IMPA.levelKey[l]);   // G2590 / G2591: row 2
+        if (d[o3] !== lb || d[o3 + 1] !== lk) { d[o3] = lb; d[o3 + 1] = lk; ch = true; } }
       if (ch) IMPA.tbl.needsUpdate = true;
     };
     function bakeImpostorAtlasNow(src, tag) {
@@ -3744,7 +3774,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const leaf = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5);
       const src = (leaf || parts[0] || {}).mat;
       const u = src && src.userData;
-      return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, bark: !leaf } : null;
+      // G2590: and the BARK part's light - a leafy sheet's trunk texels take it, not the leaf's (impostorMat)
+      const bk = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
+      return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, bark: !leaf, uLightB: (bk ? bk.mat.userData.uLight : u.uLight) } : null;
     };
     function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST)
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
@@ -3761,7 +3793,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const m = new THREE.MeshStandardMaterial({
         alphaTest: 0.01, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       (m.userData = m.userData || {}).atlas = atlas;
-      if (!inst && atlas && atlas.layer >= 0) IMPA.set(atlas.layer, atlas.cy, atlas.diam, gain || 6, IMP_CUT[si || 0], tintU);   // the layer's own numbers, for the merged meshes
+      if (!inst && atlas && atlas.layer >= 0) IMPA.set(atlas.layer, atlas.cy, atlas.diam, gain || 6, IMP_CUT[si || 0], tintU, atlas.key ? atlas.key + '|' + atlas.series : null);   // the layer's own numbers, for the merged meshes
       if (inst ? !IMPA.col : !atlas.tex) { if (!inst && atlas.refused) m.visible = false; return m; }   // headless: no GL, no atlas, no shader; a refused bake draws nothing
       m.customProgramCacheKey = () => 'imp:' + (inst ? 'inst' : 'one');   // two texts, two programs (three keys the cache on the hook's source)
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
@@ -3783,10 +3815,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
           sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
           sh.uniforms.uBark = { value: tintU && tintU.bark ? 1 : 0 };
+          sh.uniforms.uLightB = tintU ? (tintU.uLightB || tintU.uLight) : { value: 1 };   // G2590: the bark's light (live)
+          sh.uniforms.uLayerK = impLevelU(atlas.key ? atlas.key + '|' + atlas.series : null);   // G2591: the sheet's level
         } else sh.uniforms.uImpTbl = IMPA.U.tbl;
         sh.uniforms.uImpC = IMPA.U.col; sh.uniforms.uImpN = IMPA.U.nrm;
         sh.uniforms.uG = { value: IMP_G };
-        sh.uniforms.uILit = uILit;
+        sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uTile = { value: IMP_TILE };
         // G1975 (DEADWOOD-BRIGHT, the user: "one of the impostor dead tree renders really too bright, almost
@@ -3842,7 +3876,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
-            (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
+            (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
           // and read only position and scale out of the instance matrix. Scale
@@ -3851,8 +3885,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // by the scale, lay the quad out there, then scale the offsets back.
           .replace('#include <project_vertex>', [
             // the layer: the instance's (merged) or the material's; its numbers from the table (merged)
-            inst ? 'int impL = int(max(aLayer, 0.0) + 0.5); vec4 impP0 = texelFetch(uImpTbl, ivec2(impL, 0), 0), impP1 = texelFetch(uImpTbl, ivec2(impL, 1), 0);\n' +
-                   'uCy = impP0.x; uDiam = impP0.y; vImpP = impP0.zw; vImpT = impP1; vImpL = aLayer;' : 'vImpL = uLayer;',
+            inst ? 'int impL = int(max(aLayer, 0.0) + 0.5); vec4 impP0 = texelFetch(uImpTbl, ivec2(impL, 0), 0), impP1 = texelFetch(uImpTbl, ivec2(impL, 1), 0), impP2 = texelFetch(uImpTbl, ivec2(impL, 2), 0);\n' +
+                   'uCy = impP0.x; uDiam = impP0.y; vImpP = impP0.zw; vImpT = impP1; vImpB = impP2.xy; vImpL = aLayer;' : 'vImpL = uLayer;',
             'vUvI = uv;',
             'vec3 iPos = instanceMatrix[3].xyz;',
             'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
@@ -3896,7 +3930,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
-            (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nfloat uIGain, uICut, uHue, uSat, uLight;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark;\n') +
+            (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uIGain, uICut, uHue, uSat, uLight, uLightB, uLayerK;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark, uLightB, uLayerK;\n') +
+            'uniform float uTrunkOn;\n' +
             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
@@ -3906,9 +3941,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // regular grid of tiles is a near-uniform spread of view directions
             // with the horizon ring on the square's edge (where a plane spends
             // most of its life) and straight-down at the centre.
-            inst ? 'uIGain = vImpP.x; uICut = vImpP.y; uHue = vImpT.x; uSat = vImpT.y; uLight = vImpT.z;' : '',
+            inst ? 'uIGain = vImpP.x; uICut = vImpP.y; uHue = vImpT.x; uSat = vImpT.y; uLight = vImpT.z; uLightB = vImpB.x; uLayerK = vImpB.y;' : '',
             // a bark-only sheet takes its own share of the leaf terms and its own contrast (G1975)
-            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; _iLit = _bk ? uBarkL : uILit; }',
+            '{ bool _bk = ' + (inst ? 'vImpT.w' : 'uBark') + ' > 0.5; uWrap = _bk ? uWrapK * uBarkW : uWrapK; uSSS = _bk ? uSSSK * uBarkS : uSSSK; uFlat = _bk ? uBarkF : uFlatK; _iSol = _bk ? uBarkSol : uISolid; _iCut = _bk ? max(uICut, uBarkCut) : uICut; _iLit = (_bk ? uBarkL : uILit) * uLayerK; }',
             'vec3 dI = vImpDir;',
             'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
             'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
@@ -3925,6 +3960,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
             'vec4 t0 = texture(uImpC, vec3(uvA, vImpL)), t1 = texture(uImpC, vec3(uvB, vImpL)), t2 = texture(uImpC, vec3(uvC, vImpL));',
             'vec4 texelColor = t0 * wB.x + t1 * wB.y + t2 * wB.z;',
+            // G2590: the sheet's COVERAGE (the albedo's own alpha, before the curve below) un-premultiplies both sheets; the
+            // normal sheet's alpha is the LEAF fraction of the texel (1 a leaf part, 0 the bark - bakeImpostorAtlasNow)
+            'float _cov = texelColor.a;',
+            'vec4 n0 = texture(uImpN, vec3(uvA, vImpL)), n1 = texture(uImpN, vec3(uvB, vImpL)), n2 = texture(uImpN, vec3(uvC, vImpL));',
+            // (sharpened: the trunk is 2-3 texels of a tile, so once mip-filtered a trunk pixel reads 0.6-0.8 leaf - measured, the
+            // linear blend darkened the trunk 7-16 % of the 40-50 % the tints differ by; mostly bark takes the bark's)
+            'float _lf = mix(1.0, smoothstep(0.3, 0.8, clamp(dot(wB, vec3(n0.a, n1.a, n2.a)) / max(_cov, 1e-4), 0.0, 1.0)), uTrunkOn);',
             // NO HAND DECODE ANY MORE (W0.5a): the sheet is an sRGB8 target on r186 and
             // the sampler decodes it in hardware; impSRGB on top of that darkened every
             // impostor (the user saw it in the first forest shot)
@@ -3936,11 +3978,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
             '  if (_n < 1.0 - _fi) discard; }',
             'diffuseColor *= texelColor;',
+            'vec3 _raw = diffuseColor.rgb;',
             // the collection's tint, the same words as the leaf's, at the draw
             (LEAF && LEAF.tintGlsl) ? LEAF.tintGlsl : '',
-            // the other half of the G-buffer, un-premultiplied by ITS alpha
-            'vec4 n0 = texture(uImpN, vec3(uvA, vImpL)), n1 = texture(uImpN, vec3(uvB, vImpL)), n2 = texture(uImpN, vec3(uvC, vImpL));',
-            'float nW = dot(wB, vec3(n0.a, n1.a, n2.a));',
+            // G2590 (IMPOSTOR-MATCH, the user: "the trunk too bright"): THE BARK TAKES THE BARK'S TINT. The bake leaves the
+            // tint out and the draw put the LEAF's over the whole sheet - its light (cedar 0.59 against its bark's 0.34,
+            // the realistic fir 1.30 against 0.64), its hue and saturation and the foliage contrast - on the trunk too. The
+            // bark geometry is hue 0, sat 1, contrast 1 at its own light (trees.js retint): so is its texel here
+            'diffuseColor.rgb = mix(clamp(_raw * uLightB, 0.0, 1.0), diffuseColor.rgb, _lf);',
+            // the other half of the G-buffer, un-premultiplied by the albedo's coverage (G2590; sampled above)
+            'float nW = _cov;',   // (G2590: the normal's alpha is the leaf fraction now; the mask is the albedo's)
             'vec3 nBake = (n0.rgb * wB.x + n1.rgb * wB.y + n2.rgb * wB.z) / max(nW, 1e-4) * 2.0 - 1.0;',
             'if (dot(nBake, nBake) < 1e-4) nBake = dI;',
             'vec3 nImpV = normalize((viewMatrix * vec4(normalize(nBake), 0.0)).xyz);',
@@ -4002,12 +4049,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
       const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
     treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
+        if (o.trunk !== undefined) uTrunkOn.value = +o.trunk ? 1 : 0;   // G2590
         for (const k of ['flat', 'mean', 'vary', 'barkWrap', 'barkSSS', 'barkFlat', 'barkSolid', 'barkCut', 'barkLit']) if (o[k] !== undefined) IMPK[k] = +o[k];
         uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean;
         uBarkW.value = IMPK.barkWrap; uBarkS.value = IMPK.barkSSS; uBarkF.value = IMPK.barkFlat; uBarkSol.value = IMPK.barkSolid; uBarkCut.value = IMPK.barkCut; uBarkL.value = IMPK.barkLit; }
       return { gain: uIGainK.value, solid: uISolid.value, flat: IMPK.flat, mean: IMPK.mean, vary: IMPK.vary,
-               barkWrap: IMPK.barkWrap, barkSSS: IMPK.barkSSS, barkFlat: IMPK.barkFlat, barkSolid: IMPK.barkSolid, barkCut: IMPK.barkCut, barkLit: IMPK.barkLit }; };
+               barkWrap: IMPK.barkWrap, barkSSS: IMPK.barkSSS, barkFlat: IMPK.barkFlat, barkSolid: IMPK.barkSolid, barkCut: IMPK.barkCut, barkLit: IMPK.barkLit, trunk: uTrunkOn.value }; };
     treeLod.impVary = () => IMPK.vary;
+    // G2591: a baked sheet's level ('key|series', e.g. 'larch_tree.glb|Larch_LOD0|rungs'): k sets it live, null drops the
+    // live value back to the measured default (IMP_LEVEL); no k reads it. The sheets: WORLD.treeAtlases() names them
+    treeLod.impLevel = (key, k) => { if (k !== undefined) { if (k === null) delete IMPA.levelLive[key]; else IMPA.levelLive[key] = +k;
+        const u = IMP_LEVEL_U.get(key); if (u) u.value = impLevelOf(key); }
+      return impLevelOf(key); };
     // WHERE A SPECIES STANDS (G1110, TREES-NEAR's evidence rig): the planted trees of the subjects whose key starts with
     // `key` (a collection name, e.g. 'spruce_tree.glb'), living (the specimen series) and rooted r0..r1 m from (x, z),
     // nearest first - [{ key, x, y, z, s }] (s: the instance's height scale), n at most. Reads the partition's records
