@@ -1992,7 +1992,8 @@ function makePilot(sim, def, world, opts) {
         ap.shortFld = true;
         if (ap.appr) { ap.appr.technique = 'short'; ap.appr.heldShort = true; }
         const aimS = sThr0 + Math.max(10, 0.06 * to.len);
-        if (dAim > 300 && aimS < ap.xAim) { ap.xAim = aimS; if (ap.appr) ap.appr.aimIn = r0(aimS - sThr0); }
+        // (never before an aim G2125 displaced down the strip for an obstacle - that aim is the approach's clearance)
+        if (dAim > 300 && aimS < ap.xAim && !(ap.appr && ap.appr.displaced)) { ap.xAim = aimS; if (ap.appr) ap.appr.aimIn = r0(aimS - sThr0); }
         say('held-speed-short-field', 'the elevator holds ' + Vtd.toFixed(1) + ' m/s on this final: the stop from it needs ' + r0(need) + ' m, ' +
             r0(room0) + ' m of ' + (to.name || to.id) + ' are left past the aim and the float - landing short-field (aim ' + r0(ap.xAim - sThr0) + ' m in, the brakes from the touch)');
       }
