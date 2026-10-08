@@ -81546,3 +81546,149 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2105 - WATER-DAMP: A DITCHED AEROPLANE SETTLES IN A FEW CYCLES - THE WAVES A HEAVING HULL RADIATES, AND THE HELD 360 Hz FORCE THAT FED A LIMIT CYCLE (THE CAP ON THE BUOYANCY, THE LAST COMPUTE'S AIR SHARE, THE HELD POSE); A PROP THAT MEETS THE WATER STOPS; THE CRASH ENDING CLOSES THE THROTTLE; GATE WATERDAMP (2026-10-06, WATER-DAMP for A0, cloud, node only; branch claude/water-damp-g2105 off origin/master 068584d = train 37b - train 38 not landed; G2106-G2109 unused)
+
+THE USER (6 Oct, damage tests on the water): "the plane keeps oscillating for a while, sending large waves. That might be
+realistic, but the oscillation seems a little long, like if the engine was still running, or there was a source of force,
+or an oscillation not damped enough." (The waves were the effects layer - WATER-LOOK G2093.) WATER-LOOK's rig
+(tools/ditch_osc.js on claude/water-look-g2090 c94383a4) is not on the remote: this entry's tools/ditch_osc.js is a new rig
+of the same name and entry (GEAR-WATER's ditch: 0.3 m over the SEA lane, 22 m/s, sinking 1 m/s, throttle closed).
+
+MEASURED ON MASTER (the rig, 60 s; heave = the mass centre over the water; "osc" = each window's p-p with its straight line
+taken out, so flooding's slow sink is not counted as rocking; settle = from when every 1 s window stays under 1 cm):
+- the user's Cub: a heave LIMIT CYCLE at 0.6 s, 2.5-2.7 cm p-p from 15 s to 60 s, never decaying; never settled;
+- the Jodel: the same at ~0.75 s, 5-6 cm p-p to 60 s; never settled;
+- the metal Cessna: decays (12 s to 1 cm; damping ratio ~0.05), no limit cycle in this entry (WATER-LOOK read +-1.7 cm at
+  4 s on its own run - not reproduced here);
+- the floats: settle (Cessna floats 7 s, twin 15 s to 1 cm) - the float pass, untouched below;
+- a prop under the water at 0.6 throttle: 729 N to the end (WATER-LOOK's number, reproduced).
+
+G2105 THE DIAGNOSIS (tools/ditch_osc.js, A/B on 32_hydro.js's new WB_OPT switches; scratch variants of the core with one
+term removed). The held rate WAS the limit cycle - three ways, each measured:
+1. THE CAP ON THE BUOYANCY. wetCompute's slamCap ("a node's force against its own velocity stops it at most, over the held
+   interval") was applied to the node's WHOLE wet force, buoyancy included. A node sinking slowly at V had its lift cut to
+   m V / dtH; a rising one kept all of it - more push up than down, every cycle: work into the bob. (The floats' cap bounds
+   the slam alone.) Removed alone: the Cub's cycle 2.6 -> 1.9 cm.
+2. THE LAST COMPUTE'S AIR SHARE. The flooding's air factor k = air (wetS - f) / wetS used the LAST compute's wetS (the code
+   said so): the lift moved with the heave one compute late - a negative damper ~ K (f / wetS) x 2.8 ms. With the flooding
+   frozen (every tau 1e9) master's own ditch DECAYS - the flooding was a necessary ingredient.
+3. THE HELD POSE. A position-dependent force held (every - 1) / 2 substeps on average (every = 13 on the user's Cub at 75
+   substeps) is a spring with a delay: a negative damper k tau, ~10^2 N s/m on the floating Cub - small, but the only LINEAR
+   damping the wet body had, so the quadratic terms (Newtonian, slam: zero at small amplitude) could only hold it to a cycle.
+   Proof the three are all of it: radiation OFF, the three fixed, the held compute tracks the force computed every substep
+   (hydroEvery 1) - the Cub's 10 s windows 1966 / 34.6 / 5.5 / 27.4 / 3.8 / 0.7 / 0.4 / 0.3 mm held against
+   1970 / 33.8 / 5.5 / 27.3 / 4.0 / 0.7 / 0.5 / 0.3 every substep; the Jodel 2686 / 58.4 / 22.2 / 11.9 / 21.4 / 27.6 / 41.6 /
+   5.5 against 2682 / 58.9 / 22.6 / 12.4 / 22.2 / 27.4 / 41.9 / 5.1. Master held: the Cub 1971 / 45.5 / 25.4 / 47.4 / 21.5 /
+   20.8 / 20.2 / 22.6 (the Jodel's 20-27 s and 60-70 s bumps are the flooding's slow attitude shifts, in both).
+   And with every 1 the old law already decays - the rate, not the step: the page and the worker both step 1/60 (sim_host.js
+   SIM_HOST_DT), so "at 1/60 and at the worker's step" is one run (GATE WATERDAMP asserts the constant).
+
+G2106 THE FIXES TO THE HELD FORCE (32_hydro.js wetCompute / wetSolverPass / wetLive):
+- the cap bounds the DYNAMIC force only (fh less the buoyancy's own share, WB.fb: slices, slabs, tanks, the tyres' displacement);
+- the slices' and slabs' air share from THIS compute's submerged share (two passes: the samples, then the lift; WBS.xs/ws/dv
+  scratch) - the lift is rho g air (vW - f vT), its rate with the level air x the waterplane;
+- the compute hands each node its buoyancy's GRADIENT (kY: every sample's d(lift)/dy - the smooth ramp differentiated - lumped
+  by the sample's own trilinear / bilinear weights, exact for a rigid motion; the tanks' and the tyres' (waterline chord x
+  width) too) and the height it was taken at (y0); the held substeps apply F - kY (y - y0): the force of the pose they
+  are at, to first order. The compute's own substep is the force it always was.
+- WITH ALL FOUR SWITCHES OFF (WB_OPT rad / grad / cap / now = 0) THE WET BODY IS MASTER'S TO THE BIT (FNV of p after 12 s of
+  the Cub's and the Jodel's ditch, the prop check aside - see G2108).
+
+G2107 THE WAVES A HEAVING HULL RADIATES (32_hydro.js WB_RAD, wbRad, wetLive). A real floating body is damped LINEARLY by the
+waves its motion sends away; every face term here was quadratic. The 2D strip law: B33' = rho g^2 A^2 / omega^3 (Newman,
+Marine Hydrodynamics s6.18; A the radiated wave over the heave amplitude), whose curve (Ursell 1949 the semicircle, Vugts 1968
+the rectangle) reads b = B33' / (rho B^2 sqrt(g / B)) ~ 0.5 at Omega = omega sqrt(B / g) = 1, rising as Omega below, falling
+as Omega^-3 above - THE CURVE THE FLOATS' (3c) kRad WAS READ FROM (its 0.02 at a lone float's Omega ~3.4), here EVALUATED:
+- per unit WATERPLANE area a pressure b(Omega) rho sqrt(g B) Vy against each node's vertical velocity (the floats' form), the
+  waterplane each sample's d(wet volume)/d(level), B the strip's own beam (a hull slice's width - its four cross members' mean,
+  S8.B; a wing slab's chord, SB.B);
+- omega the floating body's own heave frequency, rho g A_wp / (M + A33): A_wp the samples' waterplane x the air they hold (the
+  buoyancy's stiffness), A33 each strip's 2D added mass rho pi B^2 / 8 per length (a flat strip on the surface: the
+  high-frequency free-surface limit). The last compute's (WB.om), so one pass;
+- THE SIM CARRIES NO ADDED MASS (the floats' H0 cut, kept): it bobs at sqrt(K / M) where the real body bobs at sqrt(K / (M +
+  A33)). MEASURED, the settled aeroplane kicked 0.3 m/s up (flooding frozen), radiation off: the Cub's period 0.6 s against
+  the law's 2.2 s (A33 6.0 t: a wing on the water is a big plate), the metal Cessna's 1.2 against 1.9. The real body's damper
+  on the sim's faster bob over-damped it (the Cub came to rest in one overshoot), so the coefficient is scaled by
+  sqrt(M / (M + A33)) (WB.zK: 0.27 Cub, 0.32 Jodel, 0.63 metal): the DAMPING RATIO - the cycles it rocks - is the real body's,
+  on the sim's own period;
+- vertical only (heave, pitch and roll all come from it: it acts where the waterplane is); applied EVERY SUBSTEP against the
+  node's velocity then (a per-node coefficient cY, never held), bounded at c dt / m <= 0.5; calm water (the water's own
+  velocity not subtracted, as the wet body's other terms); no radiation on the tanks (inside a slice / slab, or a 45 L nose
+  tank's 0.1 m2 - stated cuts). The curve's level INFERRED to a factor ~2 (stated in the code).
+- THE KICK (0.3 m/s up on the settled aeroplane; the extrema after it, mm off the rest height):
+  - Cub: master's law 27.6 / -24.5 / 23.3 / -22.7 ... (zeta ~0.02); G2105 18.8 / -5.5 / 2.3 / -1.3 / -0.2 (zeta ~0.3);
+  - Jodel: 37.4 / -36.5 / 34.4 / -34.0 ... (zeta ~0.01); G2105 24.2 / -5.3 / 2.9 / -0.7;
+  - metal Cessna: 61.7 / -28.1 / 36.9 / -32.5 / 27.3 ... ; G2105 44.3 / -10.0 / 6.9 / -4.5 / 0.6 / -2.2.
+- THE FLOATS' CROSS-CHECK (not changed - "floats unchanged to the digit"): their kRad 0.02 was read at a lone float's Omega 3.4;
+  a seaplane on its floats bobs at 0.82 s (the Cessna floats) - Omega ~1.9 for a 0.57 m beam, where the same curve reads ~0.08:
+  the floats are under-damped by their own law too (they decay at zeta ~0.02: 7 s to 1 cm, the twin 15 s). For A0: the
+  floats' kRad from the curve at their own frequency would be the same session's fix on the float pass (it moves every float
+  gate's numbers).
+
+G2108 THE PROP IN THE WATER (30_solver.js propWater, called once a frame after wetArmFrame; eng[k].drown; setEngine's canRun).
+- On a frame the water can reach (the wet body armed, or the floats wet), each engine's DISC'S LOWEST POINT (its thrust nodes'
+  centre, R down in the disc's plane - DMG-DRIVE G1826's own geometry) against the water there: under it, the engine STOPS
+  (running off, the crank cut) and stays stopped while the disc is under (drown: a key, a swing or the pilot's DEPART checklist
+  cannot start it). DAMAGE ON: a prop strike as the ground's (propStrike(k, 'water'): seized, DMG.propAt.what 'water'); DAMAGE
+  OFF: a stall - nothing breaks, the key can start it once the disc is clear. out.propWet (the engines' mask) only on an armed
+  frame. Cost: one waterH a engine an armed frame.
+- Measured: the user's Cub ditched at 0.6 throttle: the disc under at 0.38 s, thrust 0 after it (master 683 / 724 / 729 N to
+  the end); damage on: {"eng":0,"what":"water","t":0.383}. A ditch with the throttle closed moves too (the idle engine stops:
+  HYDRODYN's numbers below).
+- DMG-DRIVE (claude/dmg-drive 499c20d, not on master): its driveFrame grades the same disc against the water (surf 'water').
+  When it lands, A0: keep propWater's damage-OFF stall and its `drown` hold; with DRV on let driveFrame's graded strike stand in
+  for propWater's propStrike(k, 'water') (one call site; the geometry is already the same).
+
+G2109 THE CRASH ENDING CLOSES THE THROTTLE: app.js script() (the inline path) and sim_host.js H.step (the worker's) set
+ctl.thr = 0 once sim.damage().over, after the pilot or the hand wrote it - the wreck lies with its power off whoever flies
+on after the card (a resume). Damage OFF has no crash ending (G1898): there the prop's stall is what stops the engine.
+
+GATE WATERDAMP (NEW, tools/_waterdamp_check.js, core, ~60-80 s on 3 threads):
+1 the user's Cub and the metal Cessna ditched, 30 s: under 1 cm p-p from 7 s / 6 s (bound 10 s), and every 1 s window after
+  it under 1 cm (the most after 10 s 2.0 / 7.8 mm) - no limit cycle;
+2 the control: master's law (WB_OPT all 0) never settles by 30 s (24.7 mm every second at 20-30 s);
+3 the held rate, radiation off: the fixes' held compute against every substep within 2 mm (34.6 / 5.5 against 33.8 / 5.5
+  mm at 10-20 / 20-30 s); master's held 25.4 mm at 20-30 s;
+4 the prop: damage off a stall (no thrust after, the starter cannot catch with the disc under, nothing seized), damage on a
+  'water' strike; dry on its strip the engine runs (729 N), `out` never carries propWet;
+5 the floats: no wet body, 8 s on the water at a quarter throttle, the disc never wet, every engine running;
+6 the ending: sim_host's step closes the throttle once the crash is over (0.6 -> 0); app.js script() carries the same line.
+
+EVERY NUMBER THAT MOVES:
+- THE DITCH (tools/ditch_osc.js, 60 s; settle to 1 cm, 1 s windows; reports/evidence/WATER-DAMP/runs):
+  | build | settle to 1 cm | 15-20 s osc | 25-30 s osc | 55-60 s osc |
+  |---|---|---|---|---|
+  | the user's Cub | never -> 6.5 s | 25.1 -> 0.5 mm | 26.6 -> 0.1 mm | 20.6 -> 0.0 mm |
+  | Jodel | never -> 4.0 s | 76.3 -> 9.1 mm (flooding's pitch drift) | 54.4 -> 4.2 mm | 55.1 -> 13.7 mm (the nose sinking: smooth) |
+  | metal Cessna | 12.0 -> 5.5 s | 9.2 -> 0.4 mm | 0.9 -> 8.3 mm (its 10 deg flooding list, at 5-10 s on master, at 20-25 s now) | 0.1 -> 0.0 mm |
+  | Cessna floats, twin floats | 7.0 s, 15.0 s - byte-identical CSVs | | | |
+  The 5-10 s window: the Cub's pitch swing 18.8 -> 8.3 deg, the Jodel's 20.3 -> 9.3, the metal's 6.5 -> 6.3. Where they float
+  at 60 s is unchanged (Cub CG 0.63 -> 0.64 m under, pitch -39.9; Jodel -72.5 -> -71.2 deg; metal +0.01 m, -25.7 deg, 10.4 roll).
+- GATE HYDRODYN (master -> this branch, every other line identical): the stock taildragger at 80 km/h under 10 km/h in 0.95
+  -> 0.98 s, nose-over 83 -> 89 deg; the fabric build floods 5.5 -> 5.6 % at 10 s (7.5 % at 20 s both); covered CG 0.51 ->
+  0.48 m under (bare frame 0.80 both); the tanks: empty 0.657 -> 0.656, full 0.671 -> 0.669 m under (1.3 cm both); the fabric
+  wing flooded 4.0 -> 3.8 % at 20 s; the aft-cabin tank's pancake 552 -> 551 kPa, holed 2 of 2 both, flooding 12 -> 27 % at 3 s
+  (not traced: the holed tank floods toward its wet share, and that share differs in the first 3 s of a pancake whose
+  slices' lift the cap no longer clips - INFERRED). The S1 cost line (the floats' water / dry ratio 1.26 -> 1.30 x) is the shared
+  machine's timing, not this change (the float pass is untouched: bound 2.5).
+- GATE FLOATS, SEAPLANE, WATER, SOAR: NOTHING MOVES - each gate's whole output on this branch is byte-identical to master's
+  (run directly on a worktree of 068584d and on this branch, `diff`: 0 lines) - the floats' calm take-offs, circuit, crosswind
+  run, taxi and landing to the digit; SOAR's control on the lake too.
+
+GATES (node tools/run_gates.js --only=HYDRODYN,WATER,FLOATS,SEAPLANE,SOAR,WATERDAMP --jobs=3, this branch): all PASS,
+BATTERY: PASS (wall 887 s). TANKSFLOAT is GATE HYDRODYN's G1385 section (no gate of its own): PASS, numbers above.
+Plus, for the other files touched (30_solver.js's engines, sim_host.js, app.js): --only=SIMWORKER,PANEL,POSEBACK all PASS
+(257 s); --only=TREECRASH,UISMOKE,DMGINST all PASS (994 s). The full battery is A0's.
+EVIDENCE: reports/evidence/WATER-DAMP/ - ditch_heave.svg / .png (the Cub, the Jodel, the metal Cessna: master against G2105,
+0-30 s and zoomed from 8 s), runs/ (the rig's tables and every frame's CSV, 60 s, all five builds; the floats' CSVs
+byte-identical), README.
+TOOLS: tools/ditch_osc.js (the rig: --builds, --secs, --V, --entry ditch|settle, --thr, --damage, --every, --rad/--grad/--cap/
+--now the switches, --core another checkout's flight_core.js, --csv, --json); tools/ditch_osc_plot.js (the sheet).
+OWED / FOR A0: (1) the floats' kRad by the same curve at their own frequency (G2107's cross-check - every float gate moves:
+its own session); (2) DMG-DRIVE's merge (G2108's note); (3) the wing slab's waterplane is the slab's thickness ramp, so an
+inclined wing reads more waterplane than its real cut line (the buoyancy's own representation, kept; the radiation and A33
+inherit it); (4) the added mass's INERTIA is still not modelled (the sim bobs at sqrt(K / M)): the rocking's cycles are the
+real body's, its period shorter.
+READY for A0 (2026-10-06): branch claude/water-damp-g2105 - 32_hydro.js, 30_solver.js, app.js, sim_host.js, the rig, the
+sheet, GATE WATERDAMP (registered core), this entry; generated files not committed (build.js makes them).
