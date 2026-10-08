@@ -83,6 +83,11 @@ const GATES = [
   { id: 'BOOMBOX', file: 'audio/_boombox_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
+  // SIM-CLOCK G2650-G2659 (GAME-2026-10-06 §R.3): the one clock acted on - the tick never bumps the version (the re-bakes'
+  // trigger), midnight moves the date, a wait lands on the solved hour (the next day's when passed), the next full moon,
+  // dayMoonAt against 06_solar, the career's day forward-only and round-tripping (v1 -> v2), every `when` window
+  // validated and judged, day_clock.js's ONE jump door counted; --selftest breaks each rule in its own source
+  { id: 'CLOCK', file: '_clock_check.js', tier: 'core', wall: 30 },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
   { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },

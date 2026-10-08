@@ -37,6 +37,10 @@ const MANIFEST = {
     // day object the world carries; before the world, which makes the day.
     '06_solar.js',
     '07_day.js',
+    // THE SIM CLOCK'S PURE HALF (G2650 SIM-CLOCK): arithmetic on the one day - the
+    // presets' solver, a wait's landing, the next full moon, the moon at an hour.
+    // No state (never a second clock); after the day it reads, before the world.
+    '07b_clock.js',
     '08_cloud_field.js',
     // THE CLIMATE (K0, 2026-09-22): the one wind field w(x,y,z,t) - the G72
     // legacy column moved in verbatim, the rich terms, the relief raster;

@@ -836,7 +836,7 @@ const BREAKS = [
   ['an arc ends with no stage unlock', { s72: sub("unlock: { stage: 'resort:3' },", '') }],
   ['an arc unlocks another provider\'s track', { s72: sub("unlock: { stage: 'survey:1' },", "unlock: { stage: 'field:1' },") }],
   ['the normaliser drops unknown fields', { s73: sub('  const o = (r && typeof r === \'object\') ? ctClone(r) : {};', '  const o = (r && typeof r === \'object\') ? (({ future, ...x }) => ctClone(x))(r) : {};') }],
-  ['the validator lets a deadline through', { s73: sub("if (s.when != null && !(s.when && s.when.before === 'dusk'))", 'if (false)') }],
+  ['the validator lets a deadline through', { s73: sub("if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }", '') }],
   // the world
   ['CONTRACT_FIELDS drifts from the record', { s72: sub("len: 380,  surf: 'grass', alti: true", "len: 420,  surf: 'grass', alti: true") }],
   ['wheels may land on water', { s73: sub('  return !ctWet(f);\n}', '  return true;\n}') }],
@@ -871,7 +871,7 @@ const BREAKS = [
   ['a wreck delivers', { s74: sub("  if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');", '') }],
   ['a refused stop leaves a mark', { s74: sub("    const out = crNo(doc, r.why);", "    doc.career.contracts.live[id] = Object.assign({}, doc.career.contracts.live[id], { tried: 1 });\n    const out = crNo(doc, r.why);") }],
   ['stages are not in order', { s74: sub('  const st = rec.stages[L.stage];', '  const st = { subs: [].concat(...rec.stages.map(x => x.subs)) };') }],
-  ['dusk is ignored', { s73: sub("typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)", "typeof stop.hour === 'number' && stop.hour >= 99)") }],
+  ['dusk is ignored', { s73: sub("if (w.before === 'dusk') return h >= dusk ? 'after dusk' + at : '';", "if (w.before === 'dusk') return h >= 99 ? 'after dusk' + at : '';") }],
   ['a missing hook passes the build', { s73: sub("if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };", "if (!H) return { st: 'done', why: '' };") }],
   ['an accepted job changes when the reputation moves', { s74: sub("  if (rec.kind === 'job') D.live[id].rec = rec;", '') }],
   ['an arc needs more reputation than it gives', { s72: sub("needs: { rep: 2, after: ['resort.04'] } }", "needs: { rep: 4, after: ['resort.04'] } }") }],

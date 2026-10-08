@@ -495,6 +495,38 @@
     return player;
   }
   function playerSave() { if (player) prefSet(PLAYER_KEY, JSON.stringify(player)); if (CAREER_DEV) econWalletSync(); }
+  // ---- G2650 SIM-CLOCK: THE CLOCK AS GAME STATE -------------------------------------------------------------------
+  // The career's instant is its document's (74_career.js career.day): DAY_CLOCK takes it from there at boot and hands
+  // it back on every save (its 30 s save, the page's hide, a jump), forward only (careerDaySet; the day is written in
+  // place, the document object unchanged under its readers). The sandbox keeps flydiy.day.v3, untouched.
+  // A WAIT is on the ground only: in the garage, or on the roll-out screen's stand (never in flight).
+  if (typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.waitGuard)
+    DAY_CLOCK.waitGuard(() => { try { if (inGarage || rollHold) return true; } catch (e) {} return 'wait on the ground: in the hangar or on the stand'; });
+  // the route rows' clock lines (clockRowBuild, the route's block): the local hour and date, kept to the minute
+  const clockRows = [];
+  const clockProbe = r => (r && typeof dayProbe === 'function' && world && world.day ? dayProbe(world.day, r.abs) : null);
+  const clockHhmm = r => { const p = clockProbe(r); return p ? p.local.split(' ')[1].slice(0, 5) : ''; };
+  const clockDateOf = r => { const p = clockProbe(r); return p ? p.localDate : ''; };
+  const CLOCK_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function clockLine() {
+    const d = world && world.day; if (!d) return '';
+    const s = d.local.split(' '), dt = d.localDate.split('-');
+    const m = typeof dayMoonAt === 'function' && !d.sunUp ? dayMoonAt(d, null, null) : null;
+    return s[1].slice(0, 5) + ' · ' + (+dt[2]) + ' ' + CLOCK_MON[+dt[1] - 1] + (m ? ' · ' + (m.up ? m.phase + ' moon' : 'no moon') : '');
+  }
+  function clockRowsSync(force) {
+    if (!clockRows.length) return;
+    const t = clockLine();
+    for (const r of clockRows) if (force || r.last !== t) { r.v.textContent = t; r.last = t; }
+  }
+  // the rows and the line, for GATE UISMOKE (and a console)
+  window.FLYDIY_CLOCK = { rows: () => clockRows.map(r => ({ where: r.where, text: r.v.textContent, sel: r.sel, opts: r.opts() })), line: () => clockLine() };
+  if (CAREER_DEV && typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.career && typeof careerDaySet === 'function') {
+    DAY_CLOCK.career({
+      get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
+      put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day; playerSave(); } },
+    });
+  }
   // the saved builds' names, read where garage.js keeps them (one key per named build)
   function playerSlotNames() {
     const out = [];
@@ -6359,6 +6391,8 @@
                                           landed, tw, t: ap.t || 0 });
         if (pr.ok) { d = pr.doc; out.pilot = { who: crFlyer || 'me', row: pr.logged }; }
       }
+      // G2650 (SIM-CLOCK): the career's clock is SAVED at the flight's end (the next session starts where this one stopped)
+      if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = r.doc; }
       player = d; playerSave();
       if (CAREER_DEV) careerPlateSync();
     } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
@@ -10203,6 +10237,11 @@
       sel.value = destId;
       sel.onchange = e => setTo(e.target.value);
       lab.appendChild(sel); host.appendChild(lab);
+      // G2650 (SIM-CLOCK): THE CLOCK, and WAIT IT OUT - the hour the flight will start at, and a select of the next named
+      // hours (the presets' solver on the day's own almanac) and the clock's whole hours; a pick is ONE jump
+      // (DAY_CLOCK.wait), forward, the next day's when the hour has passed. Read-only otherwise: the career's clock is
+      // its document's, the sandbox sets its own in the day panel ("set the clock").
+      clockRowBuild(host, where);
       // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
       if (CAREER_DEV) careerCrewRow(host, where);
       else {
@@ -10225,6 +10264,46 @@
         lp.appendChild(ps); host.appendChild(lp);
       }
     };
+    // G2650 (SIM-CLOCK): the route row's clock line + its wait select (routeBuild calls this per host)
+    function clockRowBuild(host, where) {
+      const CK = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day && DAY_CLOCK.day() && DAY_CLOCK.wait ? DAY_CLOCK : null;
+      for (let i = clockRows.length - 1; i >= 0; i--) if (clockRows[i].host === host) clockRows.splice(i, 1);
+      if (!CK) return;
+      const lab = document.createElement('label');
+      const sp = document.createElement('span'); sp.textContent = 'clock'; lab.appendChild(sp);
+      const v = document.createElement('b'); v.className = 'routeBase routeClock';
+      v.title = CK.isCareer() ? 'The career\'s clock: it runs with flown time, and moves on by waiting' : 'The sim clock (set it in the day panel)';
+      lab.appendChild(v);
+      const sel = document.createElement('select'); sel.className = 'routeWait';
+      sel.title = 'Wait it out on the ground: the clock jumps to the next such hour (tomorrow\'s when it has passed)';
+      let nOpt = 0;
+      const fill = () => {
+        sel.innerHTML = ''; nOpt = 0;
+        const head = document.createElement('option'); head.value = ''; head.textContent = 'wait until…'; sel.appendChild(head);
+        const today = CK.day().localDate;
+        const opt = (val, words) => {
+          const r = CK.waitPreview(val), o = document.createElement('option'); o.value = typeof val === 'number' ? 'h' + val : val;
+          o.textContent = words + (r ? ' · ' + clockHhmm(r) + (clockDateOf(r) !== today ? ' (next day)' : '') : '');
+          sel.appendChild(o); nOpt++;
+        };
+        for (const p of (window.DAY_UI ? window.DAY_UI.PRESETS : CK.PRESETS.map(k => ({ k, label: k })))) opt(p.k, p.label);
+        for (let h = 0; h < 24; h++) opt(h, String(h).padStart(2, '0') + ':00');
+        sel.value = '';
+      };
+      fill();
+      sel.addEventListener('pointerenter', fill); sel.addEventListener('focus', fill);
+      sel.onchange = e => {
+        const k = e.target.value; if (!k) return;
+        const r = CK.wait(/^h\d+$/.test(k) ? +k.slice(1) : k);
+        sel.value = '';
+        if (r && !r.ok) { sel.title = r.why; return; }
+        clockRowsSync(true);
+        if (typeof flRefreshDay === 'function') try { flRefreshDay(); } catch (er) {}
+      };
+      lab.appendChild(sel); host.appendChild(lab);
+      clockRows.push({ host, where, v, sel, last: '', opts: () => nOpt });
+      clockRowsSync(true);
+    }
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
     // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
@@ -13507,6 +13586,7 @@
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
     if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
+    if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
