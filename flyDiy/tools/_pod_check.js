@@ -330,6 +330,8 @@ function runChecks2(C, D, X, quiet) {
         last = o.depth; row.push(L + ' L @' + t + ' ' + o.len + 'x' + o.width + 'x' + o.depth);
       }
     }
+    const long = C.genPodFromVolume(S, ST, U.litres[1], 0);
+    ok(long.len === K.len[1] && ['len', 'width', 'depth'].every(q => long[q] <= K[q][1] + 1e-12), k + ': ' + U.litres[1] + ' L long and shallow: the length stops AT the clamp (' + long.len + ' m), the depth takes the rest (' + long.depth + ' m)');
     const big = C.genPodFromVolume(S, ST, U.litres[1], 1);
     ok(!big.reached && big.depth === K.depth[1], k + ': ' + U.litres[1] + ' L short and deep stops at the clamp (' + n(big.litres, 0) + ' L the most this shape holds here)');
     rep(k.padEnd(7) + row.join(' | '));
@@ -353,6 +355,15 @@ function runChecks2(C, D, X, quiet) {
        k + ': ' + (RO.red.length ? 'RED - ' + RO.red.join('; ') : 'no red') + (RO.amber.length ? ' (amber: ' + RO.amber.join('; ') + ')' : ''));
     const R3 = C.genPodReadout(d.def3, d.sh3);
     ok(R3.red.some(t => /strikes|under 0\.08/.test(t)) === (d.sh3.pod.clearance.worst.clear < 0.08), k + ' with a 0.60 m pod: ' + (R3.red.length ? 'RED - ' + R3.red[0] : 'no red'));
+  }
+  // THE RED RULES THEMSELVES, on a sheet whose numbers are set at each bound (the first build's own sheet, its rows moved)
+  {
+    const k0 = keys[0], d = D[k0], sh = JSON.parse(JSON.stringify(d.sh1)), rows = sh.pod.clearance.rows;
+    const red = (clr, sm) => { rows.forEach(r => { r.clear = clr; }); sh.pod.balance.staticMargin = sm; return C.genPodReadout(d.def1, sh); };
+    const a = red(0.05, 0.10), b = red(0.09, 0.10), c = red(0.09, -0.01), e = red(0.09, 0.03), f = red(-0.01, 0.10);
+    ok(a.red.some(t => /0\.05 m clear, under 0\.08 m/.test(t)) && b.red.length === 0 && c.red.some(t => /static margin is -0\.01 \(unstable\)/.test(t))
+       && e.red.length === 0 && e.amber.some(t => /only 0\.03/.test(t)) && f.red.some(t => /strikes .*\(-0\.01 m\)/.test(t)),
+       'the red rules: 0.05 m clear -> red "under 0.08 m"; 0.09 m -> none; margin full -0.01 -> red "unstable"; 0.03 -> amber; -0.01 m -> red "strikes"');
   }
   // ---- H3 THE FLOWN POD: four scraping nodes at its lowest points, its mass on them, no substep paid ----
   rep('-- the flown pod (61_gen_frame G2678): its nodes, its mass, its members, the step --');

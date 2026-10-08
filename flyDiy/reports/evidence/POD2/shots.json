@@ -1,0 +1,97 @@
+{
+ "what": "BELLY-POD-2 editor stills (G2675): a loaded page only (BOOT gone, #boot hidden, + 2 s)",
+ "renderer": "SwiftShader (headless Chromium)",
+ "fails": [],
+ "errors": [],
+ "shots": [
+  {
+   "build": "cub",
+   "file": "pod_editor_cub.jpg",
+   "note": "the user's Cub: a 160 L pod fitted",
+   "hasPodKey": true,
+   "pod": {
+    "on": 1,
+    "len": 2.109,
+    "width": 0.591,
+    "depth": 0.295
+   },
+   "panel": "fitted | VOLUME | hold volume | 160 L | shape | 0.61 | nose fairing | 22 % | tail fairing | 30 % | POSITION | fore / aft | auto 0.15 m | door | left side | right side | DIMENSIONS | length | 2.11 m | width | 0.59 m | depth | 0.29 m | WHAT IT DOES | hold | 160 L · floor 0.56 m² (81 kg rated) | weight · price | +11.0 kg empty · 3,210 cr | drag | 0.034 m² · cruise −1.4 km/h · range −3 km | CG empty | +11 mm (25.5 % MAC) | CG full | +63 mm with 81 kg · margin 0.11 | level, tail up | 0.36 m | three-point, at rest | 0.12 m (11.2°)",
+   "red": [],
+   "redRows": 0,
+   "mesh": true,
+   "tris": 768,
+   "measuring": false,
+   "boot": "gone"
+  },
+  {
+   "build": "c172",
+   "file": "pod_editor_c172.jpg",
+   "note": "the Cessna 172: a 160 L pod fitted",
+   "hasPodKey": true,
+   "pod": {
+    "on": 1,
+    "len": 2.177,
+    "width": 0.61,
+    "depth": 0.305
+   },
+   "panel": "fitted | VOLUME | hold volume | 160 L | shape | 0.61 | nose fairing | 22 % | tail fairing | 30 % | POSITION | fore / aft | auto 0.15 m | door | left side | right side | DIMENSIONS | length | 2.18 m | width | 0.61 m | depth | 0.30 m | WHAT IT DOES | hold | 160 L · floor 0.60 m² (87 kg rated) | weight · price | +11.1 kg empty · 3,183 cr | drag | 0.029 m² · cruise −4.2 km/h · range −27 km | CG empty | +5 mm (35.5 % MAC) | CG full | +37 mm with 87 kg · margin 0.18 | level, at rest | 0.20 m | rotated to the tail strike | 0.12 m (11.3°)",
+   "red": [],
+   "redRows": 0,
+   "mesh": true,
+   "tris": 768,
+   "measuring": false,
+   "boot": "gone"
+  },
+  {
+   "build": "floats",
+   "file": "pod_editor_floats.jpg",
+   "note": "the Cessna on floats: a 220 L pod, clear of the water",
+   "hasPodKey": true,
+   "pod": {
+    "on": 1,
+    "len": 2.405,
+    "width": 0.673,
+    "depth": 0.337
+   },
+   "panel": "fitted | VOLUME | hold volume | 220 L | shape | 0.61 | nose fairing | 22 % | tail fairing | 30 % | POSITION | fore / aft | auto 0.15 m | door | left side | right side | DIMENSIONS | length | 2.40 m | width | 0.67 m | depth | 0.34 m | WHAT IT DOES | hold | 220 L · floor 0.73 m² (107 kg rated) | weight · price | +12.7 kg empty · 3,557 cr | drag | 0.035 m² · cruise −4.2 km/h · range −2 km | CG empty | +8 mm (20.3 % MAC) | CG full | +58 mm with 107 kg · margin 0.26 | at rest on the water | 0.42 m",
+   "red": [],
+   "redRows": 0,
+   "mesh": true,
+   "tris": 768,
+   "measuring": false,
+   "boot": "gone"
+  },
+  {
+   "build": "jodel",
+   "file": "pod_editor_jodel.jpg",
+   "note": "the Jodel: the default pod - refused in red (full, the static margin negative)",
+   "hasPodKey": true,
+   "pod": {
+    "on": 1
+   },
+   "panel": "fitted | VOLUME | hold volume | 125 L | shape | 0.61 | nose fairing | 22 % | tail fairing | 30 % | POSITION | fore / aft | auto 0.15 m | door | left side | right side | DIMENSIONS | length | 2.00 m | width | 0.56 m | depth | 0.28 m | WHAT IT DOES | hold | 125 L · floor 0.50 m² (73 kg rated) | weight · price | +10.1 kg empty · 2,970 cr | drag | 0.026 m² · cruise −3.5 km/h · range −12 km | CG empty | +14 mm (27.0 % MAC) | CG full | +85 mm with 73 kg · margin -0.01 | level, tail up | 0.50 m | three-point, at rest | 0.19 m (13.1°) | ✕ full, its static margin is -0.01 (unstable)",
+   "red": [
+    "✕ full, its static margin is -0.01 (unstable)"
+   ],
+   "redRows": 1,
+   "mesh": true,
+   "tris": 768,
+   "measuring": false,
+   "boot": "gone"
+  },
+  {
+   "build": "cub",
+   "file": null,
+   "note": "unticked: the key removed",
+   "hasPodKey": false,
+   "pod": null,
+   "panel": "fitted | No belly pod. Fit one to carry freight under the fuselage; it costs drag, ground clearance and the CG.",
+   "red": [],
+   "redRows": 0,
+   "mesh": false,
+   "tris": 0,
+   "measuring": false,
+   "boot": "gone"
+  }
+ ]
+}
