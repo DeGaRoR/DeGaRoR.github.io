@@ -1778,7 +1778,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1251 B IN TWO CHANNELS (QUICK-BYTES): only (ndvi, terrain type) were ever read - .r and .g, which an RG8
       // texture returns unchanged - so B is RG8: 2 bytes a texel, not 4 (23.14 MiB on the 3095x3920 grid). A row is
       // 2 x 3095 = 6190 bytes, not a multiple of 4: the unpack alignment is 1 or every row after the first shears
-      const pk2 = (r, g) => { const make = () => { const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
+      const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
+        const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
       const tintRGBA = () => rgbTexels(ISLA.tint);
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
@@ -1797,7 +1798,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       Object.assign(gU, {
         uGTint: { value: tintTex },
         uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype) },
+        // (G2075, GROUND-COST: bit 7 of the type = the splat's vote window is one code - splat_ground oneCode; the GPU copy only)
+        // (a plain ground at the build skips it: no vote reads the bit, and a cell without it is only the full vote - correct either way)
+        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype ? () => (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND.oneCode && !(typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain')
+          ? SPLAT_GROUND.oneCode(ISLA.ttype, G.w, G.h) : ISLA.ttype) : null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
@@ -1828,7 +1832,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1521 (POTATO-DEEP): the GRAPHICS row's 'plain' ground at the build (potato) - the programs carry no splat and the
       // sets are never fetched until a step asks for them (gfx_settings.js apply: sp.plain(false))
       const GPLAIN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain';
-      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0 }) : null;
+      // G2075 (GROUND-COST): ...and the LEAN program at the build (retro: one set a type compiled in) - the row's own key from the first compile
+      const GLEAN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'lean';
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0, lean: GLEAN0 }) : null;
       // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
       // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
@@ -1850,10 +1856,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G1521: ...and the PLAIN ground (the 'ground' row's cheapest step): the splat's text out of every ground program
       const groundPlain = () => !!(SPL && SPL.api.plain());
       let groundPlainNow = groundPlain();
-      groundSync = () => { const f = groundFull(), p = groundPlain(); if (f === groundFullNow && p === groundPlainNow) return; groundFullNow = f; groundPlainNow = p; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
+      // GROUND-COST G2075: the measuring strips (splat_ground api.strip) key the programs apart too ('' = none, production)
+      const groundStrip = () => (SPL && SPL.api.stripKey ? SPL.api.stripKey() : '') + (SPL && SPL.api.lean && SPL.api.lean() && !SPL.api.plain() ? ':lean' : '');   // (+ G2075's lean program)
+      let groundStripNow = groundStrip();
+      groundSync = () => { const f = groundFull(), p = groundPlain(), st = groundStrip(); if (f === groundFullNow && p === groundPlainNow && st === groundStripNow) return; groundFullNow = f; groundPlainNow = p; groundStripNow = st; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
-      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '');
+      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '') + groundStrip();
       const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
         // G1521: the splat in this program, or not (the plain ground: none of its text, its arrays or its uniforms)
@@ -1864,13 +1873,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nattribute float aPav; varying float vPav;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\n' +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
@@ -1880,7 +1890,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'float gVnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
             '  return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' +
             (full ?   // the inspection's own helpers (groundFull, G1311)
-            'float gTT(vec2 uv){ vec2 gn = uGGrid.zw / uGCell; return texture2D(uGPackB, (floor(uv * gn) + 0.5) / gn).g; }\n' +
+            'float gTT(vec2 uv){ vec2 gn = uGGrid.zw / uGCell; return mod(floor(texture2D(uGPackB, (floor(uv * gn) + 0.5) / gn).g * 255.0 + 0.5), 128.0) / 255.0; }\n' +   // (G2075: bit 7 is the vote's one-code flag)
             // the class colours, DISTINCT (G405): tree, shrub, grass, crop, built, bare, snow, water, wetland, moss
             'vec3 gClassRow(int i){ if (i == 0) return vec3(0.02,0.45,0.05); if (i == 1) return vec3(0.75,0.55,0.05); if (i == 2) return vec3(0.65,0.95,0.20);\n' +
             '  if (i == 3) return vec3(0.95,0.30,0.75); if (i == 4) return vec3(0.35,0.35,0.35); if (i == 5) return vec3(0.02,0.10,0.95);\n' +
@@ -1966,7 +1976,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  }\n' +
             // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
             // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
-            (SP ? '  if (!gDeep) {\n' + SP.glslMap + '  }\n' : '') +
+            // GROUND-COST G2075: NOT UNDER THE APRON - where the premises patch is sunk under a pavement's opaque interior (aPav 1 on
+            // the whole triangle, render_premises) the pavement drawn over it covers it whole: the splat is not computed (the stand's
+            // ground was half apron - its splat shaded and painted over)
+            (SP ? '  if (!gDeep && vPav < 0.999) {\n' + SP.glslMap + '  }\n' : '') +
             // THE PLAIN GROUND'S GRAIN (G1521, POTATO-DEEP): no texture at all - two octaves of the hook's own value noise
             // over the stack's colour, each faded out where its cell is under ~2 pixels (the footprint, so it never fizzes):
             // the near ground reads as ground, not as the satellite's 30 m smear, for a handful of ALU and no sampler
@@ -2047,6 +2060,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (SC && SC.lights_physical_pars_fragment) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>',
           SC.lights_physical_pars_fragment.replace('reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;',
                                                    'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'));
+        if (GSD) {   // GROUND-COST G2075: the strips the host owns - the IBL's radiance, the stack - then the defines on top
+          if (/GS_NOIBL/.test(GSD)) sh.fragmentShader = sh.fragmentShader.replace(/vec3 iblRadiance = getIBLRadiance\([^;]*;/, 'vec3 iblRadiance = vec3(0.0);');
+          if (/GS_NOSTACK/.test(GSD)) sh.fragmentShader = sh.fragmentShader.replace('  for (int i = 0; i < 5; i++) {\n    if (i < uLStart', '  t = tint;\n  for (int i = 0; i < 0; i++) {\n    if (i < uLStart');
+          sh.fragmentShader = GSD + sh.fragmentShader;
+        }
       };
       islandGroundHook = islandGroundHookFor(-1, true);        // the near ring (the rock map: 13 units)
       islandGroundHook0 = islandGroundHookFor(0, false);       // the twin (the premises patch: 15, no room)
@@ -2690,10 +2708,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       FARLOD.resink = bb => { const g = FARLOD.resinkSteps(bb); let r; while (!(r = g.next()).done); return r.value; };
       // G995 (A5-LOAD): the same, a quadrant a step - the roll-out's world build runs it in slices ('premises ground')
       FARLOD.resinkSteps = function* (bb) {
-        farSinkOn = true; let n = 0;
-        for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); n++; } }
+        farSinkOn = true; let n = 0; const gone = new Set();
+        for (const [f, P] of FARLOD.cache) { const [ox, oz, s] = P.box; if (ox < bb.x1 + 40 && ox + s > bb.x0 - 40 && oz < bb.z1 + 40 && oz + s > bb.z0 - 40) { FARLOD.cache.delete(f); gone.add(f); n++; } }
         if (!n) return 0;
-        for (const Q of FARLOD.quads.values()) Q.sig = '';
+        // G2063: the dropped patches the quadrants still draw are made again FIRST, a patch a step (each is its N^2 composed
+        // heights; inside the forced re-cut below they were one ~100 ms step in flight) - patchOf is the same function on
+        // the same state, so the quadrant built from them after is the one it would have built itself
+        const warm = new Map(); for (const Q of FARLOD.quads.values()) for (const nd of (Q.want || [])) if (gone.has(nd.fid)) warm.set(nd.fid, nd);
+        for (const nd of warm.values()) if (!FARLOD.cache.has(nd.fid)) { patchOf(nd); yield 'far terrain patch'; }
+        // ...and only the quadrants that drew a dropped patch are stale - the others rebuild from the same cached patches,
+        // the same mesh (a town's sink 9 km out re-cut every quadrant: 66 ms frames in flight)
+        for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) Q.sig = '';
         FARLOD.update(true, 1);
         while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain sink'; FARLOD.update(false, 1); }
         return n;
@@ -6326,6 +6351,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         eye: () => camera.position,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
         renderer: premRenderer, camera: premCamera,
+        // G2063 (TOWN-GEO): with the town on, its patch and roads wait (render_premises GEO) until the eye nears it - geoTick
+        defer: townGeoDefer(), geoReach: geoQ('reach'),
       });
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
@@ -6677,17 +6704,58 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
   function* refreshGroundSteps(bb) {
+    let moved = 0;   // G2063: no ring vertex under the box (the town 9 km out) - no ring to rebuild, the far tier alone
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
       for (let i = 0; i < pa.count; i++) {
         if (i && !(i & 8191)) yield 'ground under the premises';
         const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++;
       }
-      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
+      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); moved += n; }
     }
-    if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
-    if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
+    if (moved || !groundGeos.length) {
+      if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
+      if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
+    }
     if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
+  }
+  // G2063 (TOWN-GEO): THE TOWN'S PATCH AND ROADS, AS THE EYE NEARS IT. With the town on, the boot builds the premises' ground
+  // and roads as the town-off page does (Metlakatla is 9 km from HOME: its patch and roads were ~3.5 s of the garage
+  // load); once the eye comes within GEO_REACH of the town's box, render_premises' geoLaterSteps adds them a few ms a
+  // frame (a chunk, a level, a road a slice) and the ground is sunk under the new chunks (refreshGroundSteps). ?towngeo=0:
+  // the town built at boot, as before (the A/B's base). WORLD.townGeoFinish(): the rest at once (rigs, gates).
+  // (read when asked: the world's build calls townGeoDefer before this part of the file has run - a const here would be in its dead zone)
+  function geoQ(k) { const q = (typeof location !== 'undefined' && location.search) || ''; if (k === 'on') return !/[?&]towngeo=0/.test(q); return +((/[?&]towngeoreach=([0-9.]+)/.exec(q) || [])[1]) || 7000; }
+  function townGeoDefer() {
+    const T = typeof window !== 'undefined' ? window.FLYDIY_TOWN : null;
+    if (!geoQ('on') || !T || !T.all || !(T.off && T.off.length)) return null;
+    const pre = T.off.slice();
+    return id => pre.some(p => id.startsWith(p));
+  }
+  var geoGen = null, geoRefresh = null, GEO_REACH = 0;
+  const GEO_MS = 3;
+  // one slice's worth (or everything, `all`): the town's build, then the ground under it; true when nothing is left
+  function geoStep(ms, all) {
+    if (!premisesR) return true;
+    const t0 = performance.now();
+    while (all || performance.now() - t0 < ms) {
+      if (geoRefresh) { if (geoRefresh.next().done) { geoRefresh = null; if (premisesR.geoPending && premisesR.geoPending()) continue; return true; } continue; }
+      if (!geoGen) { if (!(premisesR.geoPending && premisesR.geoPending())) return true; geoGen = premisesR.geoLaterSteps(); }
+      const r = geoGen.next();
+      if (r.done) { geoGen = null; if (r.value) geoRefresh = refreshGroundSteps(r.value); else if (!(premisesR.geoPending && premisesR.geoPending())) return true; }
+    }
+    return false;
+  }
+  function geoTick(cg) {
+    if (!premisesR || !(geoGen || geoRefresh || (premisesR.geoPending && premisesR.geoPending()))) return;
+    if (!GEO_REACH) GEO_REACH = geoQ('reach');
+    const dEye = premisesR.geoPending && premisesR.geoPending() ? premisesR.geoDist(camera.position.x, camera.position.z) : Infinity;
+    if (!geoGen && !geoRefresh && !(dEye < GEO_REACH)) return;
+    const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+    if (FRw) FRw.push(FRw.S.prem);
+    // (the eye ARRIVED near it - a location switch, a placement: the rest at once, under the trip's screen when there is one)
+    try { geoStep(GEO_MS, dEye < 2500); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
+    finally { if (FRw) FRw.pop(); }
   }
   let premTramLast = 0, premStreamTick = 0;
   function worldUpdate(cg) {
@@ -6702,6 +6770,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (typeof window !== 'undefined' && window.PREMISES_HOST_OPEN) premisesR.step(1); else if (premisesR.stream) { if (cg) premisesR.stream(cg[0], cg[2]); } else if (++premStreamTick % 3 === 0) premisesR.step(1);
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
+    if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
@@ -7155,7 +7224,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

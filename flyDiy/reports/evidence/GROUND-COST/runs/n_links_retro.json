@@ -1,0 +1,110 @@
+{
+ "runs": [
+  {
+   "issued": 2,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring",
+     "ms": 10926,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 171229,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer",
+     "ms": 9081,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 150084,
+     "hlslVs": 11135
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin",
+     "ms": 8213,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 143187,
+     "hlslVs": 10887
+    },
+    {
+     "name": "island-fine",
+     "ms": 11104,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 171111,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "tools/perf/gcost/n_before_retro_base_progs.json",
+   "wallS": 11.1,
+   "udd": "C:\\clbn_retro_0"
+  },
+  {
+   "issued": 2,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring:lean",
+     "ms": 5043,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 179075,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer:lean",
+     "ms": 4275,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 157930,
+     "hlslVs": 11135
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin:lean",
+     "ms": 3968,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 151033,
+     "hlslVs": 10887
+    },
+    {
+     "name": "island-fine:lean",
+     "ms": 4862,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 178957,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "tools/perf/gcost/n_after_retro_prod_progs.json",
+   "wallS": 5.1,
+   "udd": "C:\\clbn_retro_1"
+  }
+ ]
+}

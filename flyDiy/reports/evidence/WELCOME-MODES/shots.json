@@ -1,0 +1,267 @@
+{
+ "page": "index.html",
+ "fails": [],
+ "shots": [
+  {
+   "size": "desktop",
+   "name": "first_card",
+   "file": "modes_desktop_first_card.jpg",
+   "note": "a first visit on a real host: the graphics card first",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0",
+   "mode": null,
+   "held": true,
+   "screen": "card",
+   "h1": "Welcome",
+   "play": "Use potato",
+   "rows": [],
+   "boot": true,
+   "webdriver": false,
+   "why": "the menu, at every load",
+   "island": false,
+   "promoted": false
+  },
+  {
+   "size": "desktop",
+   "name": "first_menu",
+   "file": "modes_desktop_first_menu.jpg",
+   "note": "...then the menu",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0",
+   "mode": null,
+   "held": true,
+   "screen": "menu",
+   "h1": null,
+   "play": null,
+   "rows": [
+    {
+     "mode": "career",
+     "disabled": true,
+     "text": "✚New careercontracts, money, your own fleetcoming",
+     "w": 390,
+     "h": 57,
+     "title": null
+    },
+    {
+     "mode": "sandbox",
+     "disabled": false,
+     "text": "◇Sandboxeverything free: the garage, the island, every aeroplane",
+     "w": 390,
+     "h": 57,
+     "title": null
+    },
+    {
+     "mode": "garage",
+     "disabled": true,
+     "text": "✎Garage onlybuild without loading the island: not built yetcoming",
+     "w": 390,
+     "h": 57,
+     "title": null
+    },
+    {
+     "mode": "settings",
+     "disabled": false,
+     "text": "⚙Settingsgraphics: potato",
+     "w": 390,
+     "h": 57,
+     "title": null
+    }
+   ],
+   "boot": true,
+   "webdriver": false,
+   "why": "the menu, at every load",
+   "island": false,
+   "promoted": false
+  },
+  {
+   "size": "desktop",
+   "name": "menu",
+   "file": "modes_desktop_menu.jpg",
+   "note": "a second visit: the menu at once (the card remembered for this graphics card)",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0",
+   "mode": null,
+   "held": true,
+   "screen": "menu",
+   "h1": null,
+   "play": null,
+   "rows": [
+    {
+     "mode": "career",
+     "disabled": true,
+     "text": "✚New careercontracts, money, your own fleetcoming",
+     "w": 390,
+     "h": 57,
+     "title": null
+    },
+    {
+     "mode": "sandbox",
+     "disabled": false,
+     "text": "◇Sandboxeverything free: the garage, the island, every aeroplane",
+     "w": 390,
+     "h": 57,
+     "title": null
+    },
+    {
+     "mode": "garage",
+     "disabled": true,
+     "text": "✎Garage onlybuild without loading the island: not built yetcoming",
+     "w": 390,
+     "h": 57,
+     "title": null
+    },
+    {
+     "mode": "settings",
+     "disabled": false,
+     "text": "⚙Settingsgraphics: potato",
+     "w": 390,
+     "h": 57,
+     "title": null
+    }
+   ],
+   "boot": true,
+   "webdriver": false,
+   "why": "the menu, at every load",
+   "island": false,
+   "promoted": false
+  },
+  {
+   "size": "desktop",
+   "name": "settings",
+   "file": "modes_desktop_settings.jpg",
+   "note": "the menu's Settings: the graphics card, with back",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0",
+   "mode": null,
+   "held": true,
+   "screen": "card",
+   "h1": "Settings",
+   "play": "Use potato",
+   "rows": [],
+   "boot": true,
+   "webdriver": false,
+   "why": "the menu, at every load",
+   "island": false,
+   "promoted": false
+  },
+  {
+   "size": "desktop",
+   "name": "sandbox_go",
+   "file": "modes_desktop_sandbox_go.jpg",
+   "note": "Sandbox pressed: the menu gone, the island fetched, the loading screen",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0",
+   "mode": "sandbox",
+   "held": true,
+   "screen": "none",
+   "h1": null,
+   "play": null,
+   "rows": [],
+   "boot": true,
+   "webdriver": false,
+   "why": "the menu, at every load",
+   "island": true,
+   "promoted": true
+  },
+  {
+   "size": "desktop",
+   "name": "mode_sandbox",
+   "file": "modes_desktop_mode_sandbox.jpg",
+   "note": "?mode=sandbox: no screen, the loading screen at once",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0&mode=sandbox",
+   "mode": "sandbox",
+   "held": false,
+   "screen": "none",
+   "h1": null,
+   "play": null,
+   "rows": [],
+   "boot": true,
+   "webdriver": false,
+   "why": "?mode=sandbox",
+   "island": true,
+   "promoted": true
+  },
+  {
+   "size": "desktop",
+   "name": "mode_garage",
+   "file": "modes_desktop_mode_garage.jpg",
+   "note": "?mode=garage: not built yet, so the sandbox (said in the console)",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0&mode=garage",
+   "mode": "sandbox",
+   "held": false,
+   "screen": "none",
+   "h1": null,
+   "play": null,
+   "rows": [],
+   "boot": true,
+   "webdriver": false,
+   "why": "?mode=garage is not built yet: the sandbox",
+   "island": true,
+   "promoted": true
+  },
+  {
+   "size": "rig",
+   "name": "localhost",
+   "file": "modes_rig_localhost.jpg",
+   "note": "localhost, the rig browser: no screen, implicitly the sandbox",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0",
+   "mode": "sandbox",
+   "held": false,
+   "screen": "none",
+   "h1": null,
+   "play": null,
+   "rows": [],
+   "boot": true,
+   "webdriver": true,
+   "why": "a rig (implicitly the sandbox)",
+   "island": true,
+   "promoted": true
+  },
+  {
+   "size": "phone",
+   "name": "menu",
+   "file": "modes_phone_menu.jpg",
+   "note": "a phone: the device gate's \"try anyway\", then the menu",
+   "url": "http://flydiy.test:8125/flyDiy/index.html?audio=0",
+   "mode": null,
+   "held": true,
+   "screen": "menu",
+   "h1": null,
+   "play": null,
+   "rows": [
+    {
+     "mode": "career",
+     "disabled": true,
+     "text": "✚New careercontracts, money, your own fleetcoming",
+     "w": 308,
+     "h": 73,
+     "title": null
+    },
+    {
+     "mode": "sandbox",
+     "disabled": false,
+     "text": "◇Sandboxeverything free: the garage, the island, every aeroplane",
+     "w": 308,
+     "h": 73,
+     "title": null
+    },
+    {
+     "mode": "garage",
+     "disabled": true,
+     "text": "✎Garage onlybuild without loading the island: not built yetcoming",
+     "w": 308,
+     "h": 73,
+     "title": null
+    },
+    {
+     "mode": "settings",
+     "disabled": false,
+     "text": "⚙Settingsgraphics: potato",
+     "w": 308,
+     "h": 57,
+     "title": null
+    }
+   ],
+   "boot": true,
+   "webdriver": false,
+   "why": "the menu, at every load",
+   "island": false,
+   "promoted": false
+  }
+ ]
+}

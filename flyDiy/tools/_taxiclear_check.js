@@ -44,6 +44,9 @@
 //     by the air taxi office) reads as the faults the user flew into - the mill inside 2 m of the way out's centreline
 //   9 FLOWN: the Cub and the C172 by THE PILOT from the mill's stand to 30 m up, the obstacles IN the world: no node
 //     inside an obstacle, no trunk hit, no crash, the wing's plan clearance to every footprint >= 1.5 m
+//  10 THE FLEET'S TIE-DOWN SPOTS (G2223): every Jolene runway's spots (25_airfield.js fleetSpots) for every archetype
+//     footprint that fits: in the field, flat, dry / afloat, 3 m off solids, every validated build's routes half + 3 m off,
+//     no overlap; deterministic; HOME's painted stands first; a calibration (a box on the stand, on the mill: faults)
 // ~3-5 min (the island world, the cook read twice, four taxis).
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -220,6 +223,42 @@ for (const seed of [0, 1, 6, 12, 42]) {
     check(F.minWing >= 1.5, '9 ' + B.name + ' wing kept 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + '), ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
   }
+}
+
+// 10 THE FLEET'S TIE-DOWN SPOTS (G2223, FLEET-PROPS A): every Jolene runway's ordered spots (25_airfield.js fleetSpots:
+// the painted stands first, then the apron ring), held by spotCensus to the census's rules, independently of the planner:
+// for every spot and every archetype footprint that fits it - inside the field, flat, dry (afloat on the water fields),
+// 3 m off every solid thing, every validated build's routes its half-span + 3 m off - and no two spots overlapping; the
+// list the same on a second call; HOME's first spots its painted stands; a CALIBRATION: the stand's own box and a box
+// on the mill read as faults
+{
+  const foots = {}; for (const k in C.GP_PARKED_FOOT) { const f = C.GP_PARKED_FOOT[k]; foots[k] = { half: f[0], fwd: f[1], aft: f[2] }; }
+  foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
+  const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
+  check(WI.aerodromes.length === 8 && SC.per.length === 8, '10 Jolene\'s eight runways', SC.per.map(p => p.id).join(' '));
+  for (const p of SC.per) {
+    // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
+    const refused = Object.values(p.why).reduce((a, b) => a + b, 0);
+    check(p.n >= 1 || refused >= 20, '10 ' + p.id + (p.n ? ' has tie-down spots' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
+    check(p.same, '10 ' + p.id + ' spots are deterministic (the same list on a second call)');
+  }
+  check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the eight runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
+  const home = SC.per.find(p => p.id === 'HOME');
+  check(!!home && home.n >= 8 && /^s+a/.test(home.kinds) && home.spots[0].id.indexOf('stand:af_m_park:') === 0, '10 HOME: its painted stands (af_m_park) first, then the apron round the stand', home ? home.n + ' ' + home.kinds + ' ' + home.spots.slice(0, 3).map(q => q.id).join(' ') : 'none');
+  let n = 0;
+  for (const r of SC.rows) { n++; if (!r.ok || SHOW) check(r.ok, '10 ' + r.id + ' ' + r.spot + ' [' + r.foot + '] ' + r.what, (r.d != null ? r.d.toFixed(2) + ' m' + (r.need != null ? ' of ' + r.need.toFixed(2) : '') : '') + (r.near ? ' (' + r.near + ')' : '')); }
+  check(n > 500 && SC.rows.every(r => r.ok), '10 every spot x every archetype footprint that fits: in the field, flat, dry / afloat, clear; no overlap', n + ' rows, ' + SC.rows.filter(r => !r.ok).length + ' failing');
+  // calibration: the spot rules see a fault - a box on HOME's stand (its routes start there), a box on the mill
+  const a = WI.aerodromes.find(q => q.id === 'HOME'), s = C.siteOf('HOME'), inp = L.spotInputs(WI, IX, SC.pave);
+  const st = s.stand, f0 = foots.c172, bx = { x: st.x, z: st.z, ry: 0, half: f0.half, fwd: f0.fwd, aft: f0.aft };
+  const P = C.sitePattern(a, s, { half: 5.5 }), pts = L.routesOf(C, P).reduce((l, r) => l.concat(r.pts), []);
+  const wr = pts.reduce((m, q) => Math.min(m, C.fleetSpotDist(bx, q.x, q.z)), Infinity);
+  check(wr < 8.5, '10 calibration: a box on HOME\'s stand reads inside its routes\' 8.5 m', wr.toFixed(2) + ' m');
+  const mill = SH.find(q => /mill$/.test(q.id));
+  const bm = mill ? { x: mill.x, z: mill.z, ry: 0, half: f0.half, fwd: f0.fwd, aft: f0.aft } : null;
+  const wm = bm ? C.fleetSpotPts(bm, 0.25, true).reduce((m, q) => Math.min(m, inp.solid(q[0], q[1], 30)), Infinity) : null;
+  check(bm && wm < 3, '10 calibration: a box on the mill reads inside 3 m of a solid thing', bm ? wm.toFixed(2) + ' m' : 'no mill');
+  console.log('  10 the fleet\'s spots: ' + SC.per.map(p => p.id + ' ' + p.n + ' (' + p.kinds + ')').join(', ') + '; ' + n + ' rows in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 }
 
 console.log('GATE TAXICLEAR: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));

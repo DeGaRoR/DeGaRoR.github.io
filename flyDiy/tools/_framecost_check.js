@@ -481,6 +481,8 @@ async function census(build) {
   const health = { metlakatla, premises: !!(wd.premises && wd.premises.rec), townCut: (W.FLYDIY_TOWN && W.FLYDIY_TOWN.n) || 0, raster: !!(wd.premises && wd.premises.overlay && wd.premises.overlay.raster && wd.premises.overlay.raster.on),
     world: W.FLYDIY_WORLD, depth: W.FLYDIY_DEPTH, gfx: W.GFX && W.GFX.get ? (g => ({ preset: g.preset, shadows: g.shadows }))(W.GFX.get()) : null,
     thrown: P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 5),
+    // G1532: draws that sample a texture attached to their own framebuffer (the fake GL's feedback tracker) - the GPU refuses them
+    feedbacks: P.rec.feedbacks || 0, feedback: (P.rec.feedback || []).slice(0, 4),
     // (C3c, G864) Metlakatla with the town on (FRAMECOST_QUERY=town=1): the premises' own count and the town kit's state
     premisesStats: (R => (R && R.stats ? { houses: R.stats.houses, objects: R.stats.objects, queued: R.stats.queued, houseTris: R.stats.houseTris, lights: R.stats.lights, obstacles: R.stats.obstacles } : null))(W.WORLD && W.WORLD.premises),
     kitTown: (R => (R && R.kitTownStats ? R.kitTownStats() : null))(W.WORLD && W.WORLD.premises) };
@@ -1026,6 +1028,8 @@ async function main() {
     ok(RL && RL.n >= 4 && RL.heldAfterRollout === 0 && RL.classWeights === false && RL.rederived === RL.n && RL.heldAfterRestore === RL.n && RL.heldAfterReupload === 0,
        r.build + ': the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)', JSON.stringify(RL));
     ok(!(H.thrown || []).length, r.build + ': no script, timer or frame of the page threw', (H.thrown || []).join(' | ') || undefined);
+    ok(H.feedbacks === 0, r.build + ': no draw samples a texture attached to the framebuffer it draws into (a feedback loop: GL_INVALID_OPERATION, nothing drawn - G1532)',
+       H.feedbacks === undefined ? 'no count' : H.feedbacks + ' feedback draws, first ' + JSON.stringify(H.feedback));
     CEN.builds[r.build] = r;
   }
   const base = fs.existsSync(BASE_FILE) ? JSON.parse(fs.readFileSync(BASE_FILE, 'utf8')) : null;

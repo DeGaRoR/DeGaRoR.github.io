@@ -1588,7 +1588,9 @@ float pvTread(float u, float x, float w, float seed) {
       const code = PT.code;
       M.onBeforeCompile = sh => {
         inner(sh);
-        const a = sh.fragmentShader.indexOf('return min(int(texture2D(uGPackB');
+        // (G2075: the vote reads sCodeAt by texelFetch, and a one-code cell skips it - that path pinned off too)
+        sh.fragmentShader = sh.fragmentShader.replace('if (cc >= 128) {', 'if (false) {');
+        const a = sh.fragmentShader.indexOf('return min(int(texelFetch(uGPackB');
         if (a < 0) console.error('PAVTEST t4: the splat type read was not found - NOT forced');
         else { const b = sh.fragmentShader.indexOf(';', a); sh.fragmentShader = sh.fragmentShader.slice(0, a) + 'return ' + code + ';   /* PAVTEST t4 */' + sh.fragmentShader.slice(b + 1); }
         sh.fragmentShader = sh.fragmentShader.replace('if (uMatOn > 0.5) {', 'if (false) {');

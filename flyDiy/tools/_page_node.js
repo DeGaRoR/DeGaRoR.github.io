@@ -40,6 +40,7 @@
 //   await P.until(fn, maxMs)   run the page's clock until fn() is true (or maxMs of virtual time)
 //   await P.frames(n)          run n animation frames
 //   P.errors                   the page's uncaught errors and console.error lines
+//   opts.c2d = 'digest'        (G2220) the 2D canvases keep a digest of what they hold (tools/_c2d_digest.js)
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
 const { makeGL, makeRecorder, THREE_SRC } = require('./_fake_gl.js');
@@ -365,7 +366,8 @@ async function openPage(opts) {
   };
   let GLClass = null;
   const makeCanvasContext = (cv, kind, attrs) => {
-    if (kind === '2d') return make2D(cv);
+    // G2220: opts.c2d 'digest' - a 2D context that keeps what each canvas holds (tools/_c2d_digest.js; GATE PARKED 11's atlas)
+    if (kind === '2d') return opts.c2d === 'digest' ? require('./_c2d_digest.js').make(cv, io) : make2D(cv);
     if (kind === 'webgl2' || kind === 'webgl' || kind === 'experimental-webgl') {
       if (kind !== 'webgl2') return null;
       const G = makeGL({ rec, links: glLinks, canvas: cv, WebGL2RenderingContext: GLClass, extraExts: opts.gpuFormats === 'none' ? [] : DESKTOP_TC });
