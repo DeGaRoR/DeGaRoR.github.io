@@ -83299,3 +83299,72 @@ selected; no page error.
 - Not run: the full tier.
 
 READY for the GAME COORDINATOR: claude/map-infra-g2435 638738b (the code, gates and stills; this section rides one docs-only commit on top)
+
+## G2225-G2229 - FLEET-PROPS B: THE FLEET STOOD ON THE APRONS (FLEET-STAND, the missing consumer), THE BAKE QUEUE BOUNDED, AND THE PERF PROOF AT 0 / 3 / 6 PROPS ON GAMER / RETRO / POTATO - TAXI AND CRUISE WITHIN NOISE; THE FLAG STAYS OFF UNTIL TRAIN 43 (2026-10-07/08, FLEET-PROPS B for the GAME COORDINATOR, LOCAL-GPU; branch claude/fleet-props-b-g2225 off origin/claude/game-integration f4c47a59)
+
+THE GAP FOUND FIRST: nothing in the page stood fleet props (25_airfield.js fleetSpots had no caller; FLEET-PROPS A left
+"where" to the ledger, PREM-S2 kept the rows). The coordinator OK'd building it here.
+
+**G2225 FLEET-STAND** (`src/viewer/fleet_stand.js`, `src/viewer/fleet_spots_pack.js`, app.js 'parking' step):
+- WHO: the outside rows (hangar null) at the ROLL-OUT'S AERODROME, by slot name, at most `PARKED.fleetCap()` (6; 4 on a
+  light preset) - THE DRAWN SET; the airframe on the stand counts in the cap and stands nothing, its spot left EMPTY
+  (rolling one out never moves the others). Every other row is `held` (counted, never stood, never baked); a field with
+  no room `miss`. Residents inside a hangar: not drawn (closed sheds; PREM-S3 / WORKS-COZY own the insides).
+- WHERE: the spots are COOKED (`tools/fleet_spots.js --cook`, off the taxi census's solid things, which the page does
+  not hold); GATE TAXICLEAR 10 goes red when the pack is not a fresh census. HOME 12 spots, w2 / w3 / SEA / mk_sea 12,
+  nv_strip 5, mn_strip / tw_ski 0.
+- HOW: `PARKED.place('mine:<slot>')` - decoded bakes only (an unbaked one leaves its spot empty and is queued); the light
+  presets stand them although `GFX.budget().parked` is false (GQ9). The group is STATIC (every object's matrixAutoUpdate
+  off once made: three r186 still walks it, `updateMatrixWorld` +91 visits, but `updateMatrix` +90 a frame is gone).
+- The 'parking' step's key carries the set ('' with the flag off: the step's key and work are byte-identical - FRAMECOST
+  base f4c47a59 vs branch, flag off: NOTHING MOVED in any frame or boot step).
+
+**THE BAKE QUEUE BOUNDED** (parked.js; the coordinator's rule): only the drawn set is baked (`FLEET_STAND.wants`); one
+bake per idle window - 3 s with no pointer / key / wheel / input event, 3 s since the last bake, NO POINTER HELD DOWN, a
+rendered frame between - and the window is LOOKED AT AGAIN just before the capture (the store / pages awaits let a drag
+start after the step's look: INSTANT --fleet caught a capture under a held slider, 396 objects off); a key that left the
+set is dropped; a save queues only its own slot. MEASURED: 34 more saves in a 40-build sandbox queued 0 bakes.
+Also fixed on the way: a fleet bake's LIVE capture no longer fills a waiting world holder (it stood unbaked props at the
+parked ladder); the bake's SIGNATURE no longer follows the build on the stand (fleetSig used the garage's live
+cageDefaults: a Jodel on the stand made 5 of 6 bakes 'stale' - now benchFingerprint over every cage row).
+
+**THE PROOF** (box RTX 3080, 2216x1023, the user's Cub flown, six slots outside at HOME; `reports/evidence/FLEET-PROPS-B/`,
+README labels every file; numbers.json in timed/ and cruise/):
+| | retro | gamer | potato |
+|---|---|---|---|
+| taxi GPU, off / 3 / 6 props (rollout_perf, 90 s, 33942ca5) | 13.01 / 13.05 / 13.03 ms | timer n/a | 7.41 / 7.14 / 7.30 ms |
+| taxi fps delivered / p99 | 30 / 33.5 all | 29.8 / 33.5 all | 30 / 33.5 all |
+| taxi loop / render, off -> 6 | 10.7 -> 11.0 / 7.3 -> 7.6 (slack 0.8 / 0.6) | equal | equal |
+| cruise over HOME GPU, off -> 6 (lined-up starts, 65fb2f75) | 12.98 -> 12.93 ms | fps / p99 / render equal | 9.65 -> 9.71 ms |
+| same-frame still, all six in view (apron) | +0.27 ms, +6 draws | +12 draws | +0.25 ms, 4 at L3 |
+| same-frame still, taxi view (props behind) | -0.10 ms | +0 draws | +0.21 ms (its noise) |
+- Roll-out screen: duration and worst task unchanged (retro 3.35 vs 3.36 s; 199 -> 185 ms); one extra 68 ms task in one
+  retro run (gamer's flag-off run had a 59 ms one: noise). Boot: the first world frame +0.2 s (the props' atlases) and the
+  stand's 0.25-0.35 s decode wait under the boot screen; potato's worst boot task 788 -> 1 552 ms in the morning did NOT
+  repeat at night (off 1 608, 6 props 1 133): unconfirmed, read as noise.
+- ACCEPTANCE: within the strict gate's noise of 0 props YES; <= +0.3 ms GPU at taxi on retro YES (+0.02; the worst case
+  +0.27); no new long task in the roll-out YES (within noise, single runs); potato the L3 path only, <= 4 YES.
+
+**THE COSTS THE USER SHOULD SEE** (for the flip, train 43):
+- THE GARAGE BAKE IS A VISIBLE FREEZE: each capture one task, worst 1.7 s / 1.2 s on this box. It starts once the garage
+  has had 3 s without input - typically right after a save, when the player leans back - so YES, it is seen in normal use;
+  never during a drag. Once per save of a drawn airframe whose look changed, and up to six after the update. Lever (not
+  here): slice the capture under a held render, as the roll-out screen does.
+- KNOWN ISSUE: after a fleet bake, the FIRST slider drag ends with the shared footwell / weather uniforms (uFootA, uWxA)
+  ~13 cm off the long way, until a whole rebuild (INSTANT --fleet: wgSpan; --fleet-baked, no capture, PASS; plain
+  INSTANT PASS). The capture's restore leaves them stale for the kept sheet. Lever: re-publish them after the bake.
+  Flag off: never happens.
+
+GATES (this branch): PARKED PASS (full at 04:00 on 230405a6; --pure 171 checks on 6fa3edc4: 13 = the stand, the drawn set,
+the bound, the input / held-pointer waits, the static group, the signature; 12p = the live capture fills no holder),
+TAXICLEAR PASS (+ the pack row), UISMOKE + UISMOKE-PHONE PASS, BUILD PASS, BUILT PASS, INSTANT PASS (plain and
+--fleet-baked), INSTANT --fleet: the race fixed (0 captures in drags), the first-row issue above. New variants for the
+flip's pass: `INSTANT --fleet` / `--fleet-baked`, `FRAMECOST_FLEET=1` (tools/_fleet_synth.js). The rig:
+tools/perf/fleet_b.js (pre / setup / still), fleet_b_eval.js, fleet_b_set.js, fleet_b_table.js; live_driver env PRE / SIZE.
+
+THE FLIP (FLYDIY_FLEET default ON, GQ9) is NOT in this branch: A0 held it for train 43 (the cruise row was owed; it is in
+now, clean). It is a one-line default in parked.js fleetOn plus three gate rows (PARKED 12 / 12p / 13 turn it off for
+their 'off' rows); prepared, applied cleanly in a throwaway tree (PARKED --pure PASS). Before flipping: decide the garage
+freeze (above) and the first-drag issue.
+
+READY for the GAME COORDINATOR: claude/fleet-props-b-g2225 6fa3edc4 (FLEET-STAND, flag OFF; this section rides one docs-only commit on top)

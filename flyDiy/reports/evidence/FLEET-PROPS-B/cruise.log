@@ -1,0 +1,17 @@
+22:22:18 built: tools/flight_core.js (2429.8 KB), index.html (11821.0 KB), dev.html (110.8 KB) — syntax OK, build fcedfbbb03b6 (327 named inputs), 3307 ms
+boxlock: GPU taken by FLEETB
+22:22:20 box: GPU_BENCH.lock: FLEETB 22:22 FLEET-PROPS B cruise until 22:42  ; tree 65fb2f751
+22:22:20 RUN  cr_retro_off (cut at 1180s)
+22:25:16 END  cr_retro_off rc 0: "air":{"n":1256,"gpuN":1254,"gpu":12.978,"gpuP90":13.946,"calls":739,"tris":7674154}
+22:25:16 RUN  cr_retro_6 (cut at 1004s)
+22:28:09 END  cr_retro_6 rc 0: "air":{"n":1263,"gpuN":1261,"gpu":12.93,"gpuP90":13.816,"calls":738,"tris":7661021}
+22:28:09 RUN  cr_gamer_off (cut at 831s)
+22:30:50 END  cr_gamer_off rc 0: "air":{"n":1250,"gpuN":0,"gpu":null,"gpuP90":null,"calls":625,"tris":25022952}
+22:30:51 RUN  cr_gamer_6 (cut at 669s)
+22:33:31 END  cr_gamer_6 rc 0: "air":{"n":1256,"gpuN":0,"gpu":null,"gpuP90":null,"calls":579,"tris":25030304}
+22:33:31 RUN  cr_potato_off (cut at 509s)
+22:35:54 END  cr_potato_off rc 0: "air":{"n":1258,"gpuN":1257,"gpu":9.654,"gpuP90":12.333,"calls":479,"tris":2567091}
+22:35:54 RUN  cr_potato_6 (cut at 366s)
+22:38:16 END  cr_potato_6 rc 0: "air":{"n":1260,"gpuN":1259,"gpu":9.712,"gpuP90":12.486,"calls":479,"tris":2565633}
+22:38:16 cruise over at 22:38:16
+boxlock: GPU released by FLEETB

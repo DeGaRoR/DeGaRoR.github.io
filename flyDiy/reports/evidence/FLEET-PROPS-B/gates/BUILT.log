@@ -1,0 +1,7 @@
+  fresh build eae2dcb8237d (327 named inputs) in C:\Users\denis\AppData\Local\Temp\flydiy-built-kzUL7o
+  the working tree's outputs = the fresh build (5 files)
+  HEAD 230405a668's committed index.html, dev.html, sw.js, tools/flight_core.js, version.json differ from the fresh build
+  the outputs were last committed in d05252a9e "train 38 (built): flight_core.js, index.html, dev.html, sw.js, version.json built from b0aa7067"
+  build inputs moved since d05252a9e: 27 committed (flyDiy/src/core/25_airfield.js, flyDiy/src/core/38b_dest.js, flyDiy/src/core/70_player.js, flyDiy/src/core/71_player_bases.js, ...)
+  a source commit: the outputs lag until the train's (built) commit (BUILT_STRICT=1 makes this red)
+GATE BUILT: PASS

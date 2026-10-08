@@ -41,6 +41,11 @@
 //   node tools/_framecost_check.js --compare a.json b.json   which counts differ between two censuses (the bisect's)
 //   FRAMECOST_QUERY='raster=1'  a URL query for the page (hold a default equal across commits in a bisect)
 //   FRAMECOST_METLAKATLA=1  a view in the middle of Metlakatla (with FRAMECOST_QUERY=town=1; the kit's A/B: &townkit=0), C3c
+//   FRAMECOST_FLEET=1   (G2225, FLEET-PROPS B) THE FLEET STOOD: the six validated airframes saved and tied down outside at
+//                       HOME (tools/perf/fleet_b_set.js), ?fleet=1, their bakes from tools/_fleet_synth.js (no GPU here: a box
+//                       soup as each rung - a real bake's draws, uploads and programs, its own triangles); the census
+//                       gains `fleet` (stood, decoded, each prop's level per view). A census of an option, never the
+//                       gate's verdict: compare it with the plain census (--compare a.json b.json) to NAME the fleet's cost
 //   FRAMECOST_RASTER_TRACE=f    every premises raster read to f (tools/_rastercache_bench.js --trace, G735)
 // READING THE COUNTS. They are the page's work on THIS harness: exact and repeatable, not a browser's. What the page
 // budgets in milliseconds (the forest fill, the premises stream, the prewarms) runs on the virtual clock, where
@@ -327,13 +332,16 @@ async function census(build) {
   const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, hb0: 0, hb1: 0, ht0: 0, ht1: 0, hms0: 0, hms1: 0, pick: null };
   const storage = {};
   if (BUILDS[build]) storage['flydiy.wip'] = fs.readFileSync(path.join(ROOT, BUILDS[build]), 'utf8');
+  const FLEETQ = !!process.env.FRAMECOST_FLEET;   // G2225: the six tied down outside at HOME, the flag on
+  if (FLEETQ) Object.assign(storage, require('./perf/fleet_b_set.js').storage());
   let mainCam = null;
   const hooks = pageHooks(C, () => mainCam);
   const t0 = Date.now();
   // FRAMECOST_WORKERS=1 (G830): the page's house worker on (the harness's Worker shim and a fake IndexedDB in a fresh
   // directory - a cold cache), as the browser runs it; without it the page takes its no-Worker path, the inline build
   const wk = process.env.FRAMECOST_WORKERS ? { workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(require('os').tmpdir(), 'fc-idb-')), workerWaitMs: 900000 } : {};
-  const P = await openPage(Object.assign({ quiet: true, storage, hooks, query: process.env.FRAMECOST_QUERY || '' }, wk));
+  const Q0 = process.env.FRAMECOST_QUERY || '';
+  const P = await openPage(Object.assign({ quiet: true, storage, hooks, query: FLEETQ ? (Q0 ? Q0 + '&' : '') + 'fleet=1' : Q0 }, wk));
   const W = P.win;
   const snap = bootMark.snap;
   // the boot's LANDING (every step ran; the frames until the overlay lifts) is its own row, not the last step's
@@ -514,7 +522,12 @@ async function census(build) {
     }
     return r;
   })();
-  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, craft, detail, settled, boot: bootMark.rows, selftest, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  // G2225: the fleet as it stood (FRAMECOST_FLEET=1 only - the plain census carries no such field)
+  const fleet = FLEETQ ? (() => { const S = W.FLEET_STAND && W.FLEET_STAND.state, F = W.PARKED && W.PARKED.fleet;
+    return { on: !!(W.PARKED && W.PARKED.fleetOn()), stood: S ? S.holders.length : 0, filled: S ? S.holders.filter(h => h.children.length).length : 0, held: S && S.plan ? S.plan.held.length : null,
+      miss: S && S.plan ? S.plan.miss.length : null, decodes: F ? F.stats.decodes : 0, captures: F ? F.stats.captures : 0, queued: F ? F.stats.queued : 0, store: W.__fcFleetStore ? { gets: W.__fcFleetStore.gets, made: W.__fcFleetStore.made } : null,
+      levels: S ? S.holders.map(h => { const l = h.children[0]; return h.userData.fleetSlot + ':' + (l ? l.levels.findIndex(v => v.object.visible) : 'empty'); }) : [] }; })() : undefined;
+  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, craft, detail, settled, boot: bootMark.rows, selftest, fleet, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // the page's hooks for a census (B9: shared with GATE ROUNDTRIP): the three counters, the boot's step marks, the
@@ -534,6 +547,8 @@ function pageHooks(C, getCam) {
       // C4b (G875): THE FLOWN BAKE ENGAGES HERE AS IT DOES IN THE GAME. The recording GL draws nothing, so the bake's
       // read-back is all zeros and the step bows out (0 % of the atlas written: the live shader flies) - the census
       // then measured an aeroplane no player sees. During the step only, its read-back returns a written mid-grey texel.
+      // G2225 (FRAMECOST_FLEET=1): the fleet's bakes from the synthetic store (no GPU, no IndexedDB in node)
+      if (name === 'src/viewer/parked.js' && W.PARKED && process.env.FRAMECOST_FLEET) W.PARKED.fleet.store = W.__fcFleetStore = require('./_fleet_synth.js').fleetStore(W);
       if (name === 'src/viewer/flown_bake.js' && W.FLOWN_BAKE) { const FBk = W.FLOWN_BAKE, st = FBk.step;
         FBk.step = async function () { C.fbFill = true; try { return await st.apply(this, arguments); } finally { C.fbFill = false; } }; }
     },

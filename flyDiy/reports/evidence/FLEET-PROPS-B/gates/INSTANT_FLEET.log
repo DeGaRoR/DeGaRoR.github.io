@@ -1,0 +1,26 @@
+  == cub  boot spec 1e341ccd1e0596e5  chain ok, 16 layers
+  fleet: on true, stood 6, queued 6, captures so far 2, queue mine:fleet-3-c172 mine:fleet-4-c172floats mine:fleet-5-twinfloats mine:fleet-6-metal
+  wgSpan       FLEET: 1 capture(s) started DURING the drag
+  wgSpan       previews 4/4 (deformed 0)  objects 775/775  DIFFER 396  (noise 3)  release: none
+     @1 short: Mesh #  # true # 0 # 0,0,0.68,0,0.13218,0.66703,0, ..@1364: 0,0,0],[0,0,0,0]]},uDecN:{value:2},uFootA:{value:[0.427,-2.161,0.002,-0.412]},uFootB:{value:[0.78,0.05,0.15,0.9]},uGain:{value:[3,1.15,8.5]},uGainW:{value:[4.3,2.2,15]},uHole:{valu
+     long:  Mesh #  # true # 0 # 0,0,0.68,0,0.13218,0.66703,0, ..@1364: 0,0,0],[0,0,0,0]]},uDecN:{value:2},uFootA:{value:[0.427,-2.157,-0.127,-0.541]},uFootB:{value:[0.78,0.05,0.15,0.9]},uGain:{value:[3,1.15,8.5]},uGainW:{value:[4.3,2.2,15]},uHole:{val
+     @2 short: Mesh #  # true # -1 # 0,0,0.68,0,0.13218,0.66703,0 ..@1305: |uTint=c6c95af|uWear=[0.15,0.15,0,0]|uWearK=1|uWxA=[[0,-3.1958,0.1621,0.8],[0,0,0,0],[0,0,0,0],[0,0,0,0]]|uWxAd=[[0.965,-3.1277,1.5708,1],[0,0,0,0],[0,0,0,0],[0,0,0,0]]|uWxB=[1,1,0
+     long:  Mesh #  # true # -1 # 0,0,0.68,0,0.13218,0.66703,0 ..@1305: |uTint=c6c95af|uWear=[0.15,0.15,0,0]|uWearK=1|uWxA=[[0,-3.19005,-0.02921,0.8],[0,0,0,0],[0,0,0,0],[0,0,0,0]]|uWxAd=[[0.965,-3.1219,1.5708,1],[0,0,0,0],[0,0,0,0],[0,0,0,0]]|uWxB=[1,
+     @5 short: Mesh #  # true # 0 # 0,0,1,0,0.19438,0.98093,0,0,- ..@1012: 0,0,0],[0,0,0,0]]},uDecN:{value:2},uFootA:{value:[0.427,-2.161,0.002,-0.412]},uFootB:{value:[0.78,0.05,0.15,0.9]},uGain:{value:[3,1.15,8.5]},uGainW:{value:[4.3,2.2,15]},uHole:{valu
+     long:  Mesh #  # true # 0 # 0,0,1,0,0.19438,0.98093,0,0,- ..@1012: 0,0,0],[0,0,0,0]]},uDecN:{value:2},uFootA:{value:[0.427,-2.157,-0.127,-0.541]},uFootB:{value:[0.78,0.05,0.15,0.9]},uGain:{value:[3,1.15,8.5]},uGainW:{value:[4.3,2.2,15]},uHole:{val
+  wgChord      previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always); floor cut again]
+  stSpan       previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always); floor cut again]
+  s1X          previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always); floor cut again]
+  seatH        previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: whole (the crew moved in the drag)
+  paxLen       previews 4/4 (deformed 4)  objects 775/775  same  (noise 3)  release: whole (a deformed drag)
+  halfW        previews 4/4 (deformed 4)  objects 799/799  same  (noise 3)  release: whole (a deformed drag)
+  roofY        previews 4/4 (deformed 4)  objects 775/775  same  (noise 3)  release: whole (a deformed drag)
+  noseDroop    previews 4/4 (deformed 4)  objects 775/775  same  (noise 3)  release: whole (a deformed drag)
+  rimW         previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always); floor kept]
+  dashDepth    previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always); floor kept]
+  frCabTopW    (no visible slider)
+  dashBack     previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always); floor cut again]
+  shoulderT    previews 4/4 (deformed 0)  objects 775/775  same  (noise 3)  release: partial [crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always); floor kept]
+  fleet: RED - captures 3 (during drags 1), input waits 0, not wanted 0, queue left 3
+  3 row(s) differ
+GATE INSTANT: FAIL (3 row(s) differ)

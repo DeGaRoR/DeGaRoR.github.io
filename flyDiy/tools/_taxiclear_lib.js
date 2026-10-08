@@ -423,4 +423,19 @@ function spotCensus(C, W, I, builds, foots, opt) {
   return { per, rows, pave };
 }
 
-module.exports = { paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat };
+// THE PAGE'S PACK (G2225, FLEET-STAND): the census's spots as the page stands the fleet on them (src/viewer/fleet_spots_pack.js,
+// written by tools/fleet_spots.js --cook; GATE TAXICLEAR 10 holds it to a fresh census) - per aerodrome, in the planner's
+// order, [x, z, ry] to the millimetre and the spot's id; the rules (FLEET_SPOT) and the cooked places the census read
+function spotPack(C, SC, island, variant) {
+  const r3 = v => Math.round(v * 1000) / 1000;
+  const aero = {};
+  for (const p of SC.per) aero[p.id] = p.spots.map(s => [r3(s.x), r3(s.z), r3(s.ry), s.id]);
+  let places = null;
+  try {
+    const pk = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'core', 'premises_packs.json'), 'utf8')).islands.find(i => i.id === island);
+    const V = pk && (pk.variants || []).find(v => v.name === variant);
+    places = V ? { record: V.record, hash: V.places && V.places.hash } : null;
+  } catch (e) { places = null; }
+  return { v: 1, island, variant, rules: JSON.stringify(C.FLEET_SPOT), places, aero };
+}
+module.exports = { spotPack, paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat };

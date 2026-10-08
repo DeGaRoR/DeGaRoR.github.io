@@ -1,0 +1,36 @@
+  cub stand (a -> b, what moved)
+    stand/draws.shadow                                259.5      262.5  RED
+    stand/three.updateMatrixWorld                      8359       8450  RED
+  cub taxi (a -> b, what moved)
+    taxi/draws.shadow                                   148        151  RED
+    taxi/gl.uniformMatrix3fv                            316        320  RED
+    taxi/three.updateMatrixWorld                       8740       8831  RED
+  cub boot (a -> b, what moved)
+    boot/garage:craft/three.updateMatrixWorld         55337      55974  RED
+    boot/garage:frames/gl.calls                      112593     114061  RED
+    boot/garage:frames/three.updateMatrixWorld        47894      48440  RED
+    boot/garage:parking/three.updateMatrixWorld        1526       1624  RED
+    boot/garage:parking/world.grHeight                    0          6  RED
+    boot/garage:parking/world.terrainH                    0          6  RED
+    boot/garage:upload/gl.calls                        3139       3337  RED
+  cub KTX2 (a -> b): {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":92,"ktx2Bytes":22417271,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null} -> {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":92,"ktx2Bytes":22417271,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null}; loader {"files":485,"bytes":84280202,"failed":0,"fallbacks":0,"target":36492,"off":null,"workers":4,"skipped":0}; worker messages 974
+  cub texture upload MiB by step (a -> b): garage:upload 523.6 -> 523.6, total 1183.5 -> 1183.6
+  cub crew at the stand (a -> b): 1 character(s) (ch22), 2 materials (2 on the budget set), 4 textures (4 KTX2, 0 images, 0 pending): 5.3 MiB on the GPU (ch22 5.3)  ->  1 character(s) (ch22), 2 materials (2 on the budget set), 4 textures (4 KTX2, 0 images, 0 pending): 5.3 MiB on the GPU (ch22 5.3)
+  cub memory after rollout (MiB, a -> b): heapUsed 1078.7 -> 1083.4, arrayBuffers 2327.9 -> 2328, external 2394.9 -> 2395, rss 3586.6 -> 3583.8
+  cub memory after end (MiB, a -> b): heapUsed 818.3 -> 824.6, arrayBuffers 2263.1 -> 2263.2, external 2330.1 -> 2330.2, rss 3944.2 -> 3919.6
+  cub the aeroplane at stand (a -> b)
+    craft.stand/draws.main                               74         74  
+    craft.stand/draws.other                               0          0  
+    craft.stand/draws.shadow                              0          0  
+    craft.stand/materials                                57         57  
+    craft.stand/meshes                                   91         91  
+    craft.stand/programs                                 13         13  
+    craft.stand/skinnedDraws                             10         10  
+  cub the aeroplane at taxi (a -> b)
+    craft.taxi/draws.main                                74         74  
+    craft.taxi/draws.other                                0          0  
+    craft.taxi/draws.shadow                               0          0  
+    craft.taxi/materials                                 57         57  
+    craft.taxi/meshes                                    91         91  
+    craft.taxi/programs                                  13         13  
+    craft.taxi/skinnedDraws                              10         10  

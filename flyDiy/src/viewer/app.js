@@ -8855,6 +8855,18 @@
     } catch (e) { return null; }
   }
   const anchorStr = () => { const a = standAnchor(); return a ? Math.round(a[0]) + ',' + Math.round(a[2]) : 'none'; };
+  // G2225 (FLEET-STAND): the fleet's set as the 'parking' step's key ('' with FLYDIY_FLEET off), and the stand itself
+  // the game's context for the stand and the queue's bound: the drawn set is the roll-out's aerodrome's outside rows, the
+  // airframe on the stand left out, at most PARKED.fleetCap() (6; 4 on a light preset)
+  const fleetCtx = () => ({ world, doc: playerLoad(), flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
+                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6 });
+  const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
+  const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
+  const fleetStand = () => {
+    if (!FS_ON()) return null;
+    try { return FLEET_STAND.stand(Object.assign({ THREE, scene }, fleetCtx())); }
+    catch (e) { console.warn('fleet stand:', e && e.message || e); return null; }
+  };
   // the point the world's steps grow round: the stand's anchor in the shed (the boot), the aeroplane once it stands
   const tripCg = () => inGarage ? (standAnchor() || [0, 0, 0]) : sim.cgPos();
   // G831: the point the town step builds from, for the premises' house worker to start on it at the world step's rebuild
@@ -9224,10 +9236,15 @@
     } },
     // G680: the parked aeroplanes the town placed, captured a step a task; the door closes behind them (a capture in
     // flight is on the spot again, as before - the screen is gone)
-    { id: 'parking', part: 'world', label: 'parking the other aeroplanes', w: 6, key: () => WF ? 'at ' + anchorStr() : null, deps: ['world', 'town'], fn: () => {
+    // G2225 (FLEET-STAND, fleet_stand.js): with FLYDIY_FLEET the player's own airframes tied down outside stand on their
+    // aerodromes' spots here too (decoded from the garage's bakes, the flown one left out); the key then carries the set,
+    // so a roll-out of another airframe from the same stand stands the fleet again. The flag off: '' (the key as it was)
+    { id: 'parking', part: 'world', label: 'parking the other aeroplanes', w: 6, key: () => WF ? 'at ' + anchorStr() + fleetStandKey() : null, deps: ['world', 'town'], fn: () => {
+      const fl = fleetStand();
       const PK = PK_ASYNC() ? window.PARKED : null;
-      if (!PK || !PK.whenIdle) return;
-      return PK.whenIdle((d, n) => { if (n) BOOT.phase('parking', 'parking the other aeroplanes ' + d + ' / ' + n, d / n); }).then(() => { PK.async = false; });
+      if (!PK || !PK.whenIdle) return fl || undefined;
+      const idle = PK.whenIdle((d, n) => { if (n) BOOT.phase('parking', 'parking the other aeroplanes ' + d + ' / ' + n, d / n); }).then(() => { PK.async = false; });
+      return fl ? Promise.all([fl, idle]) : idle;
     } },
     // the payload: wait for it (15 s at most - a failed fetch leaves cones)
     { id: 'trees', part: 'world', label: 'the tree models', w: 4, key: () => WF ? 'settled' : null, deps: ['world'], fn: () => {
