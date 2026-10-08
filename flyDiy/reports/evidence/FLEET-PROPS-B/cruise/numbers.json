@@ -1,0 +1,399 @@
+{
+ "tree": "65fb2f75",
+ "made": "2026-10-08T20:38:45.502Z",
+ "runs": {
+  "retro_off": {
+   "label": "fbc_retro_off",
+   "tree": "65fb2f75",
+   "build": "fcedfbbb03b6",
+   "preset": "retro",
+   "props": 0,
+   "flag": false,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 60.282,
+   "tReveal": 3.362,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "loopJS": 12.5,
+    "render": 8.5,
+    "renderP90": 9.5,
+    "frames": 70
+   },
+   "stand": {
+    "fps": 29.7,
+    "p99": 50,
+    "max": 67,
+    "render": 7.2
+   },
+   "gpuTaxi": {
+    "med": 13.127,
+    "p90": 13.582,
+    "calls": 1001,
+    "tris": 7113125,
+    "n": 347
+   },
+   "gpuAir": {
+    "med": 12.978,
+    "p90": 13.946,
+    "n": 1254
+   },
+   "rollout": {
+    "tasks": 2,
+    "sumMs": 250,
+    "worstMs": 184,
+    "list": [
+     [
+      63876,
+      184
+     ],
+     [
+      64062,
+      66
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 169,
+    "sumMs": 34340,
+    "worstMs": 6497
+   },
+   "fleet": {
+    "stood": 0,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 0,
+    "decodes": 0,
+    "captures": 0,
+    "levels": ""
+   }
+  },
+  "retro_6": {
+   "label": "fbc_retro_6",
+   "tree": "65fb2f75",
+   "build": "fcedfbbb03b6",
+   "preset": "retro",
+   "props": 6,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 55.671,
+   "tReveal": 3.089,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "loopJS": 12.6,
+    "render": 8.7,
+    "renderP90": 9.4,
+    "frames": 70
+   },
+   "stand": {
+    "fps": 25,
+    "p99": 83.4,
+    "max": 1817,
+    "render": 7
+   },
+   "gpuTaxi": {
+    "med": 13.138,
+    "p90": 13.644,
+    "calls": 1007,
+    "tris": 7108304,
+    "n": 347
+   },
+   "gpuAir": {
+    "med": 12.93,
+    "p90": 13.816,
+    "n": 1261
+   },
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 1255,
+    "worstMs": 1255,
+    "list": [
+     [
+      58063,
+      1255
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 162,
+    "sumMs": 37041,
+    "worstMs": 7316
+   },
+   "fleet": {
+    "stood": 6,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 115,
+    "decodes": 1,
+    "captures": 5,
+    "levels": "1-cub:2 2-jodel:2 3-c172:2 4-c172floats:2 5-twinfloats:2 6-metal:2"
+   }
+  },
+  "gamer_off": {
+   "label": "fbc_gamer_off",
+   "tree": "65fb2f75",
+   "build": "fcedfbbb03b6",
+   "preset": "gamer",
+   "props": 0,
+   "flag": false,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 47.447,
+   "tReveal": 3.432,
+   "taxi": {
+    "fps": 30,
+    "p99": 50,
+    "max": 50,
+    "loopJS": 14.8,
+    "render": 10.8,
+    "renderP90": 13.5,
+    "frames": 71
+   },
+   "stand": {
+    "fps": 28.4,
+    "p99": 50,
+    "max": 550,
+    "render": 5.5
+   },
+   "gpuTaxi": {
+    "med": null,
+    "p90": null,
+    "calls": 888,
+    "tris": 21795928,
+    "n": 0
+   },
+   "gpuAir": {
+    "med": null,
+    "p90": null,
+    "n": 0
+   },
+   "rollout": {
+    "tasks": 2,
+    "sumMs": 315,
+    "worstMs": 259,
+    "list": [
+     [
+      51047,
+      259
+     ],
+     [
+      51307,
+      56
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 164,
+    "sumMs": 23699,
+    "worstMs": 3614
+   },
+   "fleet": {
+    "stood": 0,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 0,
+    "decodes": 0,
+    "captures": 0,
+    "levels": ""
+   }
+  },
+  "gamer_6": {
+   "label": "fbc_gamer_6",
+   "tree": "65fb2f75",
+   "build": "fcedfbbb03b6",
+   "preset": "gamer",
+   "props": 6,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 45.347,
+   "tReveal": 3.42,
+   "taxi": {
+    "fps": 30,
+    "p99": 50,
+    "max": 50,
+    "loopJS": 15.3,
+    "render": 10.9,
+    "renderP90": 13.3,
+    "frames": 70
+   },
+   "stand": {
+    "fps": 28.3,
+    "p99": 50,
+    "max": 550,
+    "render": 5.4
+   },
+   "gpuTaxi": {
+    "med": null,
+    "p90": null,
+    "calls": 896,
+    "tris": 21824720,
+    "n": 0
+   },
+   "gpuAir": {
+    "med": null,
+    "p90": null,
+    "n": 0
+   },
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 257,
+    "worstMs": 257,
+    "list": [
+     [
+      48939,
+      257
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 148,
+    "sumMs": 22450,
+    "worstMs": 3660
+   },
+   "fleet": {
+    "stood": 6,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 349,
+    "decodes": 6,
+    "captures": 0,
+    "levels": "1-cub:2 2-jodel:2 3-c172:2 4-c172floats:2 5-twinfloats:2 6-metal:2"
+   }
+  },
+  "potato_off": {
+   "label": "fbc_potato_off",
+   "tree": "65fb2f75",
+   "build": "fcedfbbb03b6",
+   "preset": "potato",
+   "props": 0,
+   "flag": false,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 29.019,
+   "tReveal": 3.289,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "loopJS": 9,
+    "render": 5.7,
+    "renderP90": 6.3,
+    "frames": 70
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.6,
+    "max": 34,
+    "render": 4.7
+   },
+   "gpuTaxi": {
+    "med": 8.131,
+    "p90": 13.446,
+    "calls": 669,
+    "tris": 3437523,
+    "n": 347
+   },
+   "gpuAir": {
+    "med": 9.654,
+    "p90": 12.333,
+    "n": 1257
+   },
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 151,
+    "worstMs": 151,
+    "list": [
+     [
+      32605,
+      151
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 67,
+    "sumMs": 13673,
+    "worstMs": 1608
+   },
+   "fleet": {
+    "stood": 0,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 0,
+    "decodes": 0,
+    "captures": 0,
+    "levels": ""
+   }
+  },
+  "potato_6": {
+   "label": "fbc_potato_6",
+   "tree": "65fb2f75",
+   "build": "fcedfbbb03b6",
+   "preset": "potato",
+   "props": 6,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 28.518,
+   "tReveal": 3.282,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "loopJS": 9.4,
+    "render": 5.8,
+    "renderP90": 6.9,
+    "frames": 71
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "render": 4.7
+   },
+   "gpuTaxi": {
+    "med": 8.322,
+    "p90": 13.224,
+    "calls": 673,
+    "tris": 3453516,
+    "n": 347
+   },
+   "gpuAir": {
+    "med": 9.712,
+    "p90": 12.486,
+    "n": 1259
+   },
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 149,
+    "worstMs": 149,
+    "list": [
+     [
+      32113,
+      149
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 84,
+    "sumMs": 14162,
+    "worstMs": 1133
+   },
+   "fleet": {
+    "stood": 4,
+    "held": 2,
+    "miss": 0,
+    "waitMs": 369,
+    "decodes": 4,
+    "captures": 0,
+    "levels": "1-cub:0 2-jodel:0 3-c172:0 4-c172floats:0"
+   }
+  }
+ },
+ "stills": {}
+}

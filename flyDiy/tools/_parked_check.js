@@ -759,6 +759,9 @@ async function fleetStood() {
   { let auto = 0, n = 0; g.traverse(o => { n++; if (o.matrixAutoUpdate) auto++; });
     check(auto === 0 && n > 7 && S.holders.every(h => { const e = h.matrixWorld.elements; return near(e[12], h.position.x, 1e-6) && near(e[14], h.position.z, 1e-6); }),
       '13 ...STATIC: every object of the fleet group frozen (matrixAutoUpdate off), its world matrices made (the holders at their spots)', auto + ' of ' + n + ' still auto'); }
+  { const sp0 = PK.specOf('mine:fleet-1-cub'), g0 = W.GARAGE_SPEC.cageDefaults, s0 = PK.fleetSig(sp0, null);
+    W.GARAGE_SPEC.cageDefaults = () => ({ boomLen: 9.9, wingSpan: 1 }); const s1 = PK.fleetSig(sp0, null); W.GARAGE_SPEC.cageDefaults = g0;
+    check(s0 === s1, "13 the bake's signature is the slot's alone: the garage's live cage defaults (the build on the stand) do not move it"); }
   check(PK.fleet.stats.decodes - d0 === 7, "13 ...ONE decode a key although two doors asked (place() and the stand's wait)", (PK.fleet.stats.decodes - d0) + ' decodes');
   // the same set: kept
   const st0 = S.stats.stands;

@@ -1879,8 +1879,10 @@ self.onmessage = function (e) {
   const slotImages = name => { try { const G = W.GARAGE_SPEC; return G && G.slotImages ? G.slotImages(name) : null; } catch (e) { return null; } };
   function fleetSig(spec, images) {
     if (!spec) return null;
-    let D = null; try { D = W.GARAGE_SPEC && W.GARAGE_SPEC.cageDefaults ? W.GARAGE_SPEC.cageDefaults() : null; } catch (e) { D = null; }
-    const fp = (typeof benchFingerprint === 'function') ? benchFingerprint(spec, D) : 'h' + hash(JSON.stringify(spec));
+    // G2225: the fingerprint over EVERY cage row (benchFingerprint's null defaults), never against the garage's live
+    // cageDefaults - those follow the build on the stand, and every switch of build re-baked the fleet (FLEET-PROPS B's
+    // evening runs: 5 of 6 bakes 'stale' after a Jodel stood in the garage, a 1-2 s garage capture each)
+    const fp = (typeof benchFingerprint === 'function') ? benchFingerprint(spec, null) : 'h' + hash(JSON.stringify(spec));
     const canon = (typeof benchCanon === 'function') ? benchCanon : JSON.stringify;
     const LK = (typeof BENCH_LOOK !== 'undefined') ? BENCH_LOOK : { energy: [], vessel: [], systems: [] };
     const pick = (o, ks) => { const r = {}; if (o && typeof o === 'object') for (const k of ks || []) if (o[k] !== undefined) r[k] = o[k]; return r; };
