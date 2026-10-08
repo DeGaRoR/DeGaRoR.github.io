@@ -86037,3 +86037,71 @@ ok, cub:HOME:calm:hamfist warn (swing 6.3 - unchanged by this commit; it was 2.8
 The expert never enters the person's loop: bit-identical by construction. OWED: the other aeroplanes' student bands on
 41 (the Jodel, the C172, the Wipline) - pilot_persona's full sweep; PERSONA-2 (claude/persona-2-g2460) must take this
 reaction when it rebases.
+
+## G1859.8 DMG-WALL FOR TRAIN 41 - A WRECK'S TEARS NEVER REACH THE NEXT FLIGHT (the 'torn wing on an intact wing') (2026-10-07/08, DMG-WALL for the DEFORM COORDINATOR; branch claude/dmg-wall-t41 on claude/dmg-t41-final 686d9d73b)
+
+**The finding** (the Deform Coordinator, from DMG-TUNE's stills, ev/TUNE-BA/cub_noseover_1_after.jpg): the Cub's nose-over broke
+gear and tail members only, yet the wing's upper covering was drawn torn in rectangles, bay by bay. **The cause: the previous
+case's tears.** The stills rig (dmg_wreck_stills.js) ran trunk-2.5 (a wing strike: 5051 torn) and then the nose-over on ONE
+page; its record said TORN 8165 on 8 page breaks = the strike's 5051 carried + the nose-over's own. The skin's records stay
+on their groups (own.brkR) and are held again at the next crash; only the reset's heal (skin_break.js event with no break:
+R.dead = null) clears their tears, and app.js brkState healed only the records HELD then (BRK.recs). The rig's 'before' shot
+switches the skin off (FLYDIY_SKINBREAK = false -> brkRestore: BRK.recs emptied), back on, and 'Fly again' with no brkCage
+frame between: nothing held, nothing healed, and the nose-over's event kept every dead >= 2 triangle ('torn earlier: stays
+gone') - the strike's torn bays drawn on a fresh, intact wing.
+- **G1859.8** (app.js brkState / brkRec): every record the model ever made (K.allRecs) is healed at a heal, not only the held
+  ones - once a reset (K.recLive, set when a record is made or held again), after brkGpuFree and before ONE brkHealUpload (DMG-
+  D4b's order: the drawers freed, the CPU arrays written, every fold re-uploaded). An event's cost; damage off never sets
+  K.recLive (the drawing unchanged). A record holding only FABRIC's held covering (R.held, G2040) is healed too.
+- **GATE DMGHEAL** (tools/_dmg_heal_check.js, REGISTERED core): the page in node, default mode (simw=1), the user's Cub - the
+  wing strike, the skin off (its records let go), Fly again with it off, the skin back on: no record may hold a torn triangle
+  on the fresh flight. Box (04:35, node page, on 037519846 + these commits): PASS - the strike tore 13195 in 19 records, the
+  fresh flight 0 (126 let-go records healed); **SELFTEST RED** (window.FLYDIY_HEAL_HELDONLY, the heal as it was): 10529 torn
+  in 8 records on the fresh flight.
+- **Does a GAME path let records go before a heal?** Four callers of brkRestore: the skin switch (?skinbreak=0 / the window
+  flag - rigs; ?skinbreak=0 is off from boot), a new flown model (the old records go with it), ?wallbind flipped (rigs), and
+  **DMG-D4b's rollWreckReset** (the roll-out shot after a crash: sim.reset + brkRestore) - the one game path. DMGHEAL's path B
+  ran it (the wing strike -> the shed -> Roll out): the flown model IS the same object (sameModel true), but the roll-out shot's
+  reset did not fire (FLYDIY_ROLL_RESETS 0: the hangar trip had already healed with the records held) and no stale tear was
+  left even under the old heal. **Not reproduced: it is NOT claimed that the user saw it.** G1859.8 covers that path either way.
+- **The box** (07:00 GPU, the stills rig replayed exactly - trunk-2.5 THEN the nose-over on one page, default mode, on this
+  branch): NOT DISCRIMINATING, said plainly. 07:00-07:09, two fresh pages, the
+  heal as it was (FLYDIY_HEAL_HELDONLY) vs G1859.8: on this base the 30 m/s trunk-2.5 tore NO wing covering in either run
+  (wing z+ 0/224, z- 0/224; FABRIC holds the covering now), so there was nothing to carry - both runs' nose-overs show the same
+  4/224 'wing' triangles (pillarTail, at the broken tail) and a clean wing. The replay neither confirms nor contradicts
+  G1859.8; its proof is DMGHEAL's (deterministic: green, and red with the heal as it was).
+  **Found on the way, for DMG-D4b:** the SAME carry-over in the WRECK's parts - the trunk-2.5 case knocked both cowl panels
+  'off', and the nose-over case's INTACT shot (the fresh aeroplane before its crash) and its wreck are drawn with NO cowl (the
+  engine bare), in both runs, while the rig's own record of the nose-over says both cowl panels on (gone false, crush 0.001):
+  the wreck's detached parts are not given back at the next case (tune_replay_*/noseover_1_intact.jpg, noseover_1_after.jpg).
+  The cowl census (dmg_wall_census.js --cowl, the cowl class from the snapshot's 'cowl' layer): the intact cowl 70-74 % yellow,
+  2-4 % back faces (cam 1, ~1700 px) - the cowl's material is right; on the wreck the cowl class keeps ~50 px (the drawn cowl
+  is D4b's wreck part, outside the skin's classes) - the census cannot judge the wreck's cowl; that is D4b's to look at.
+
+**My first lead was wrong, and is shelved (G1859.7, not in 41):** the page builds the inherited binding BRK_INH places a frame
+and meanwhile every place rides its one nearest node - a tear during that window would part along the ribs. Measured: on the
+page the window is ~0.4 s (11649 places), not ~2 s; the node rig with the page's stepped binding (1500 a frame, 30 and 60 fps)
+tore NO wing covering, with or without a tear wait; the page's own nose-over (895857a6, default mode) tore none. The tear wait
+(no tear before the binding is done, R.wSkip on the GPU's read) is kept as a patch, not shipped.
+
+**Carried over (not proven by 07:30, train 41 takes only what is proven):**
+- **The staircase lift struts** (wing_t39/noseover_3_flown_default_mode.jpg: straight intact and in the taxi, stair-stepped
+  after the page nose-over's axle break). Lead: the inherited binding bound 1 tube piece whole and 42 place by place
+  (inhSt tubeLoose 42 / tubePieces 1, the node page's nose-over) - a drawn tube off its member's line rides each place's
+  nearest member. The strut probe (tools/_dmg_strut_probe.js) found no strut record among the inherited ones (model.strutRigs'
+  records are not in K.inhL as such) - the probe needs the drawn struts' own records next.
+- **The dark cowl** (the user: 'the cowl is also grey, that looks like the inside of the cowl'). On the node page the
+  inherited binding made NO rigid part (rigid 0, parts 0) and no cowl-layer record, and the skin's normals held (stube /
+  scloth: 0 flips): the cowl is not drawn through the skin break's riding - it points at DMG-D4b's wreck cowl (the panels as
+  wreck parts, their crush). The census now has the cowl's own class (the snapshot's 'cowl' layer ranges; its back faces their
+  own colour) and its yellow / dark-yellow / back-face shares (tools/dmg_wall_census.js --cowl); the 07:00 replay's intact
+  and wreck cowl numbers are in the evidence.
+
+**Seen on the way, reported:** GATE DMGSKINGPU red on the frozen 037519846 (46/57, the mirror metres off) - KNOWN (FABRIC x
+G1818), fixed on claude/dmg-skingpu-t41; not this branch's.
+
+**The rigs:** tools/_dmg_wing_tear.js (node: every removed covering triangle by cause - tear / island - its frame's strain, the
+nodes it rides; --stepped / --gate), tools/_dmg_strut_probe.js (the node page's nose-over: the tube records' members, the
+kink, the normals by record:layer), tools/dmg_wall_census.js (the cowl class and census, --cowl / --bootonly / --hook a,b, the
+wing watch every 40 ms, the islands' share, the crew out of the scene census). Evidence: reports/evidence/DMG-WALL/
+{wing_tear, wing_t39, t41_0435, tune_replay_heldonly, tune_replay_fix}.
