@@ -80971,7 +80971,7 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
-## G2125 - PILOT-PROFILE: THE TAKE-OFF CLIMB ON SPEED, THE TRIP'S PLANNED VERTICAL PROFILE (44_vprofile.js, THE ONE ALTITUDE PLANNER), A ROUGH PERCEPTION OF OBSTACLES; GATE PROFILE (2026-10-07, PILOT-PROFILE for A0, a CLOUD session: node only; branch claude/pilot-profile-g2125 off origin/master 751e1122 = train 38; G2125-G2129)
+## G2125 - PILOT-PROFILE: THE TAKE-OFF CLIMB ON SPEED, THE TRIP'S PLANNED VERTICAL PROFILE (44_vprofile.js, THE ONE ALTITUDE PLANNER), A ROUGH PERCEPTION OF OBSTACLES; GATE PROFILE (2026-10-07, PILOT-PROFILE for A0, a CLOUD session: node only; branch claude/pilot-profile-g2125, built on train 38 (751e1122), rebased onto train 40 (bcf6279) as one net change; G2125-G2129)
 
 THE BRIEF (the user, 7 Oct, flying the game's autopilot): (1) "the autopilot initial angle at take off feels quite off.
 In the Jodel, it will try and climb so hard that it will almost stall"; (2) "when the autopilot goes over mountains, it
@@ -81150,10 +81150,17 @@ out of the Cub's and the Jodel's reach (G1936); (d) the drawn route's ROUTE phas
 ROUTE-DRAW makes the call above; (e) the island's canopy map is used en route only; a field query that wants the forest
 should read the drawn fill (world.treeHits) the page registers.
 
-READY: claude/pilot-profile-g2125 (source + tools only; every generated file is master's). Built and gated
-on train 38 (751e1122): train 40 had not landed by 19:20 UTC - the rebase onto it (PILOT-PERSONA's 43 changes: the
-knobs, the person's gain - no hunk of this branch's touches them) and INPUT / PILOTMATRIX / PROFILE on it follow when it
-lands (a check-in is set); A0 may take the branch as is if the train lands first.
+ON TRAIN 40 (the branch as delivered: one net change over bcf6279, PILOT-PERSONA in it; 43_pilot.js applied clean, the
+exports train 40's line + VPROFILE): `node tools/run_gates.js --all --jobs=4 --only=INPUT,PLAYER,PROFILE,PILOT,PILOTACT,
+TAKEOFF,PLAN,TAXICLEAR,LINEUP,NAV,SIMWORKER,HOTHIGH,SOAR,PILOTMATRIX` - every gate PASS (INPUT 140 s with the club
+slot, PLAYER, PILOTMATRIX 1859 s: no cell worse than pilot_baseline.json, 3 known bad, 2 warn); RWYTREES (standalone,
+full) PASS - 8 the same to the second (437 / 626 / 551 s); GATE PROFILE PASS, its numbers identical to train 38's above.
+The persona's per-profile matrix row and INPUT's club slot fly on the new climb unchanged in verdict.
+
+READY: claude/pilot-profile-g2125 @ the commit carrying this line (source + tools only; every generated file is
+master's). A0: the two cross-gate judgements above (GATE PROFILE's screen height; TAXICLEAR 9's overflown footprints),
+and ENGINE-TORQUE's Jodel take-off at Jolene HOME before train 42.
+
 ## G2120 - ROUTE-DRAW: A ROUTE DRAWN ON THE MAP - CONTROL POINTS AND THEIR ALTITUDES (MSL OR AGL, A SAFE DEFAULT), A SPEED, THE PROFILE STRIP WITH THE GROUND UNDER IT (RED UNDER THE MARGIN, A POINT THE AEROPLANE CANNOT MAKE FLAGGED AS IT IS DRAWN); THE PILOT FLIES IT (FLY-BY LEGS, THE GRADIENT PROFILE INSIDE TECS'S LIMITS) AND ENDS IT AS DRAWN (HOLD / HOME / THE NEAREST STRIP); GATE ROUTE (2026-10-07, ROUTE-DRAW for A0, cloud - node + SwiftShader, no GPU; branch claude/route-draw-g2120 off origin/master 751e1122 = train 38; block G2120-G2124)
 
 **READY for A0.** Source only (no generated file committed: build.js regenerates index.html / dev.html / sw.js /
