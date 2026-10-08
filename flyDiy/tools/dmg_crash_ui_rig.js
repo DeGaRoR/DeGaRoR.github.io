@@ -45,8 +45,9 @@ const MEASURE = `
     if (r.left < x1 && r.right > x0 && r.top < y1 && r.bottom > y0) bad.push(box);
   }
   const FP = FLIGHT_PROBE, S = FP.structural ? FP.structural() : null, WS = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : null;
+  const crew = []; for (const p of (FP.model() && FP.model().people) || []) if (p.inst) for (const m of p.inst.meshes) crew.push(!!m.visible);
   return JSON.stringify({ view: [W, H], bound: [Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1)], over: FP.over(), damage: FP.damage(), structural: S,
-    crewOff: WS ? WS.crewOff : null, arrCard: (() => { const e = document.getElementById('arrCard'); return e ? { hidden: e.hidden, cls: e.className } : null; })(),
+    crewOff: WS ? WS.crewOff : null, brokeUp: !!(FP.damage() && FP.damage().brokeUp), crew, arrCard: (() => { const e = document.getElementById('arrCard'); return e ? { hidden: e.hidden, cls: e.className } : null; })(),
     award: (() => { const e = document.getElementById('bAward'); return e ? { hidden: e.hidden, cls: e.className } : null; })(), visible: all.length, inCentre: bad, all });`;
 
 (async () => {
@@ -60,6 +61,15 @@ const MEASURE = `
   const M = await run(MEASURE);
   await get('/shot?f=' + encodeURIComponent(path.join(OUT, 'crash_ui_' + TAG + '.png')));
   fs.writeFileSync(path.join(OUT, 'crash_ui_' + TAG + '.json'), JSON.stringify(Object.assign({ tag: TAG, over }, M), null, 1));
+  // the crew: none drawn after the break-up; Fly again (the card's own button) gives them back
+  const crew0 = await run("const o = []; for (const p of (FLIGHT_PROBE.model() && FLIGHT_PROBE.model().people) || []) if (p.inst) for (const m of p.inst.meshes) o.push(!!m.visible); return JSON.stringify(o);");
+  await run("document.getElementById('bGo').click(); return 1;");
+  await sleep(4000);
+  const crew1 = await run("const o = []; for (const p of (FLIGHT_PROBE.model() && FLIGHT_PROBE.model().people) || []) if (p.inst) for (const m of p.inst.meshes) o.push(!!m.visible); return JSON.stringify({ crew: o, over: FLIGHT_PROBE.over(), structural: FLIGHT_PROBE.structural ? FLIGHT_PROBE.structural() : null });");
+  const crewCut = M && (M.brokeUp || M.crewOff), crewHidden = M && M.crew && M.crew.length && M.crew.every(v => !v), crewBack = crew1 && crew1.crew && crew1.crew.length && crew1.crew.every(v => v);
+  console.log('CREW ' + TAG + ': after the crash ' + JSON.stringify(M && M.crew) + ' (broke up ' + (M && M.brokeUp) + ', crew hidden ' + (M && M.crewOff) + '); after Fly again ' + JSON.stringify(crew1) + ' (before the click ' + JSON.stringify(crew0) + ')');
+  console.log('CREW ' + TAG + ': ' + (!crewCut ? 'NOT EXERCISED (no break-up, no cabin crushed)' : crewHidden && crewBack ? 'PASS' : 'FAIL'));
+  fs.writeFileSync(path.join(OUT, 'crash_crew_' + TAG + '.json'), JSON.stringify({ crash: M && M.crew, brokeUp: M && M.brokeUp, crewOff: M && M.crewOff, retry: crew1 }, null, 1));
   const ok = over && M && M.inCentre && M.inCentre.length === 0;
   console.log('CRASHUI ' + TAG + ': the flight ended ' + over + '; view ' + (M && M.view) + ', the central bound ' + (M && JSON.stringify(M.bound)) + '; ' + (M ? M.visible : '?') + ' visible elements, in the centre: ' + JSON.stringify(M && M.inCentre));
   console.log('  card ' + JSON.stringify(M && M.arrCard) + ', award ' + JSON.stringify(M && M.award) + ', structural ' + JSON.stringify(M && M.structural) + ', crew hidden ' + (M && M.crewOff));

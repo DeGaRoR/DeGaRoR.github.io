@@ -109,7 +109,9 @@ function judge(R, say) {
   const S = x => JSON.stringify(x);
   say('  ' + tag + ': the clean landing ' + S(R.clean) + '\n  ' + tag + ': the hard landing ' + S(R.hard) + '\n  ' + tag + ': the crash ' + S(Object.assign({}, R.crash, { card: R.crash.card ? { hidden: R.crash.card.hidden, cls: R.crash.card.cls } : null })) + '\n  ' + tag + ': Fly again ' + S(R.retry));
   const n0 = (R.crew0 || []).length;
-  if (!n0) bad('no crew mesh on the fresh aeroplane: the crew rows test nothing');
+  // (the node page may not instance the crew - its characters load from media; then the crew rows are the box rig's,
+  // tools/dmg_crash_ui_rig.js, worker and inline - said here, not hidden)
+  if (!n0) { say('  --    ' + tag + ': no crew mesh instanced in the node page: the crew rows are those of tools/dmg_crash_ui_rig.js on the box'); if (R.has) R.has.crew = false; }
   const H = R.has || {};
   if (!H.cert) say('  --    ' + tag + ': the certificate rows skipped (no sim.damage().structural on this tree: fix 2 not in)');
   if (!H.crew) say('  --    ' + tag + ': the crew rows skipped (no crew state in the wreck: fix 1 not in)');
