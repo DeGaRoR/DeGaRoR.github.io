@@ -2597,6 +2597,10 @@ function applySpec(spec, what, steps) {
   if (window.CAGE_ENERGY && window.CAGE_ENERGY.fromSpec)
     try { window.CAGE_ENERGY.fromSpec(spec && spec.energy); }
     catch (e) { console.error('energy from spec:', e); }
+  // THE BELLY POD COMES WITH THE AEROPLANE (G2675): a spec with no pod has none
+  if (window.CAGE_POD && window.CAGE_POD.fromSpec)
+    try { window.CAGE_POD.fromSpec(spec); }
+    catch (e) { console.error('pod from spec:', e); }
   // THE FIT COMES WITH THE AEROPLANE too (the panel arc, session 2)
   if (window.CAGE_PANEL && window.CAGE_PANEL.fromSpec)
     try { window.CAGE_PANEL.fromSpec(spec && spec.systems); }

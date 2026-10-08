@@ -531,6 +531,13 @@ const CAGE_PARTS = [
         a2.concat(['acc_' + k + '_sL', 'acc_' + k + '_lv']), []), EXPERT],
     ] },
 
+  // THE BELLY POD (G2675, BELLY-POD-2; the user: "it should be a configurable volume from the garage editor"). A
+  // PANEL part like the tanks: its rows write the GAME's spec (spec.pod), not the cage's, so it claims no parameter;
+  // it claims its own paint section (the mesh _cage_pod.js draws, worn in the body's colour) and its layer's click.
+  // No `when`: every aeroplane can take one, and the switch lives in the panel (the way back never leaves the tree).
+  { key: 'pod', name: 'Belly pod', parent: 'fuselage', layer: 'pod',
+    panel: 'CAGE_POD', sections: ['pod'] },
+
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
     layer: 'cage',
     sections: ['bulkhead', 'firewall', 'fireProof', 'fireSeal', 'tube',
