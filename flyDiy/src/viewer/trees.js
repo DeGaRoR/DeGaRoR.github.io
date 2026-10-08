@@ -291,9 +291,11 @@
   //   ?impao=E    the bake's AO exponent (A: 2 = uAoBake x 0.5; B: 4 = the 3D tree's indirect weighting)
   //   ?impaoD=1   a FINER AO, recomputed at load over each rung (aoFine below: tree_prep.bake_ao's method on a 64^3
   //               grid, 14 directions x 16 steps in place of 26^3, 6 x 8) - both tiers wear it (D)
+  //   ?impss=2    a SUPERSAMPLED bake: each tile drawn at 2x and box-downsampled into the same sheet (render_world) (S)
+  //   ?impcov=1   COVERAGE-PRESERVING alpha mips: per sheet and mip level, the cut that keeps level 0's coverage (render_world) (c)
   const IMPTEST = (() => { try { const q = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
-    return { ao: q.has('impao') ? +q.get('impao') : null, aoD: q.get('impaoD') === '1' }; }
-    catch (e) { return { ao: null, aoD: false }; } })();
+    return { ao: q.has('impao') ? +q.get('impao') : null, aoD: q.get('impaoD') === '1', ss: Math.max(1, Math.min(4, +q.get('impss') || 1)) | 0, cov: q.get('impcov') === '1' }; }
+    catch (e) { return { ao: null, aoD: false, ss: 1, cov: false }; } })();
   const U_BAKEAOE = { value: IMPTEST.ao > 0 ? IMPTEST.ao : LEAF.ao * 0.5 };
 
   // the two leaf terms alone, shared with the impostor material, which lights

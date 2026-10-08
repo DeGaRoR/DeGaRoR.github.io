@@ -3381,6 +3381,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
+    let BAKE_SS = null;                    // (the impostor lighting test's S: the supersampled pair + its downsample)
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
     // of its own wearing it: 1 400 impostor draws at the Jolene stand, 2 100 at 300 m over the field -
@@ -3426,7 +3427,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       IMPA.col = col; IMPA.nrm = nrm; IMPA.cap = cap;
       IMPA.U.col.value = col; IMPA.U.nrm.value = nrm;
       if (!IMPA.tbl) {
-        IMPA.tbl = new THREE.DataTexture(new Float32Array(IMPA_MAX * 3 * 4), IMPA_MAX, 3, THREE.RGBAFormat, THREE.FloatType);
+        IMPA.tbl = new THREE.DataTexture(new Float32Array(IMPA_MAX * 5 * 4), IMPA_MAX, 5, THREE.RGBAFormat, THREE.FloatType);   // (rows 3-4: the test's coverage cuts)
         IMPA.tbl.minFilter = IMPA.tbl.magFilter = THREE.NearestFilter; IMPA.tbl.generateMipmaps = false; IMPA.tbl.needsUpdate = true;
         IMPA.U.tbl.value = IMPA.tbl;
       }
@@ -3527,6 +3528,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         BAKE_RT.rt.texture.colorSpace = THREE.SRGBColorSpace;
       }
       const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      // THE IMPOSTOR LIGHTING TEST'S S (test branch only, ?impss=2): the tiles drawn at SS x into a pair of their own and
+      // box-downsampled into the shared pair (one bilinear tap at the centre of each SS x SS block for SS 2; the albedo
+      // target is sRGB, so the mean is taken in linear) - a TRUE fractional coverage in place of the 0 / 1 mask
+      const SS = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.test && TREE_LEAF.test.ss > 1) ? 2 : 1;   // (2 only: the one-tap mean)
+      if (SS > 1 && !BAKE_SS) {
+        const mk = srgb => { const t = new THREE.WebGLRenderTarget(N * SS, N * SS, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, generateMipmaps: false });
+          if (srgb) t.texture.colorSpace = THREE.SRGBColorSpace; return t; };
+        const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: { src: { value: null } },
+          vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+          // SS 2: one bilinear tap at the centre of each output texel IS the mean of its 2 x 2 source block
+          fragmentShader: 'uniform sampler2D src; varying vec2 vUv; void main() { gl_FragColor = texture2D(src, vUv); }',
+          depthTest: false, depthWrite: false }));
+        const scq = new THREE.Scene(); scq.add(q);
+        BAKE_SS = { rt: mk(true), rtN: mk(false), q, scq, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+      }
+      const downsample = (hi, lo) => {   // hi (N*SS) -> lo (N): the mean of each SS x SS block
+        BAKE_SS.q.material.uniforms.src.value = hi.texture;
+        renderer.setRenderTarget(lo); renderer.setScissorTest(false); renderer.setViewport(0, 0, N, N); renderer.render(BAKE_SS.scq, BAKE_SS.cam);
+      };
       const sheetOf = (srgb) => {     // the sheet's own texture: allocated empty, filled by the blit
         const t = new THREE.DataTexture(null, N, N, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -3567,7 +3587,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // are the same point on the same tree, which is what lets the draw light
       // one with the other. Clear to transparent BLACK and unpremultiply at
       // sample time, so the mip chain is the correct one.
-      const drawAll = target => {
+      const drawAll = (target, T = IMP_TILE) => {
         renderer.setRenderTarget(target);
         renderer.autoClear = false;
         renderer.setClearColor(0x000000, 0);
@@ -3580,8 +3600,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           cam.position.copy(ctr).addScaledVector(d, bs.r * 4);
           cam.lookAt(ctr);
           cam.updateProjectionMatrix();
-          renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
-          renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          renderer.setViewport(i * T, j * T, T, T);
+          renderer.setScissor(i * T, j * T, T, T);
           renderer.clearDepth();
           renderer.render(sc, cam);
         }
@@ -3590,7 +3610,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const BAKE = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.bake) || { value: 0 };
       uNoBand.value = 1;                     // the bake sees every rung whole
       BAKE.value = 1;                        // pass 1: albedo + coverage
-      drawAll(rt);
+      if (SS > 1) { drawAll(BAKE_SS.rt, IMP_TILE * SS); downsample(BAKE_SS.rt, rt); } else drawAll(rt);
       BAKE.value = 0;
       // THE SHEET IS READ BACK BEFORE IT IS TRUSTED (B1, 2026-09-20). Every
       // fault of this bake has presented as "the impostor is wrong" with
@@ -3613,7 +3633,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       else if (typeof renderer.readRenderTargetPixels === 'function') shout(sheetCheck(rt, N));   // the headless stub (GATE WORLDRENDER) has no readback
       const swap = [];                       // pass 2: the tree's own normals
       for (const mm of meshes) { swap.push([mm, mm.material]); mm.material = normalMatFor(mm.material); }
-      drawAll(rtN);
+      if (SS > 1) { drawAll(BAKE_SS.rtN, IMP_TILE * SS); downsample(BAKE_SS.rtN, rtN); } else drawAll(rtN);
       for (const [mm, m] of swap) mm.material = m;
       uNoBand.value = 0;
       renderer.toneMapping = pTM;
@@ -3633,6 +3653,32 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       renderer.copyTextureToTexture(rtN.texture, IMPA.nrm, null, at0);
       IMPA.dirtyMips = true;
       atlas.layer = layer; atlas.tex = IMPA.col; atlas.nrm = IMPA.nrm;
+      // THE IMPOSTOR LIGHTING TEST'S c (?impcov=1, test branch only): COVERAGE-PRESERVING mips, as cuts. The arrays are
+      // box-mipped and the coverage at the cut drifts down the chain (measured: trees x1.1-1.5 by level 5, snags x3.6-5.9,
+      // thin pines to 0). The sheet's level 0 read back once (rt still holds it), its alpha box-mipped on the CPU as the
+      // GPU does, and per level the alpha t_L whose coverage equals level 0's at the cut: rows 3-4 of the table carry
+      // t_1..t_5, and the draw picks its cut by its own mip level (impostorMat). 0 = not computed (the cut as before)
+      if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.test && TREE_LEAF.test.cov && IMPA.tbl) {
+        const px = new Uint8Array(N * N * 4); renderer.readRenderTargetPixels(rt, 0, 0, N, N, px);
+        const leafy = parts && parts.some(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5);
+        const base = ({ rungs: 0.40, stand: 0.15, snag: 0.10 })[(tag && tag.series) || 'rungs'] || 0.40, cut = leafy ? base : Math.max(base, IMPK.barkCut);
+        let a = new Float32Array(N * N); for (let i = 0; i < N * N; i++) a[i] = px[i * 4 + 3] / 255;
+        let n0 = 0; for (let i = 0; i < a.length; i++) if (a[i] >= cut) n0++;
+        const cov0 = n0 / a.length, cuts = [];
+        let w = N;
+        for (let L = 1; L <= 5; L++) {
+          const w2 = w >> 1, b = new Float32Array(w2 * w2);
+          for (let y = 0; y < w2; y++) for (let x = 0; x < w2; x++) { const o = 2 * y * w + 2 * x; b[y * w2 + x] = (a[o] + a[o + 1] + a[o + w] + a[o + w + 1]) * 0.25; }
+          a = b; w = w2;
+          const H = new Uint32Array(256); for (let i = 0; i < a.length; i++) H[Math.min(255, Math.round(a[i] * 255))]++;
+          let acc = 0, t = 255; const need = cov0 * a.length;
+          while (t > 1 && acc + H[t] < need) { acc += H[t]; t--; }
+          cuts.push(cov0 > 0 ? Math.max(0.02, t / 255) : cut);
+        }
+        const d = IMPA.tbl.image.data, o3 = (3 * IMPA_MAX + layer) * 4, o4 = (4 * IMPA_MAX + layer) * 4;
+        d[o3] = cuts[0]; d[o3 + 1] = cuts[1]; d[o3 + 2] = cuts[2]; d[o3 + 3] = cuts[3]; d[o4] = cuts[4]; IMPA.tbl.needsUpdate = true;
+        atlas.covCuts = [cut].concat(cuts.map(x => +x.toFixed(3))); atlas.cov0 = +cov0.toFixed(4);
+      }
       // readable by the inspector and the audit: the layer copied back into the shared
       // target and read (readRenderTargetPixels needs a framebuffer; the array has none)
       atlas.N = N;
@@ -3778,6 +3824,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const bk = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, bark: !leaf, uLightB: (bk ? bk.mat.userData.uLight : u.uLight) } : null;
     };
+    // THE IMPOSTOR LIGHTING TEST'S c, at the draw (only emitted under ?impcov=1): the fragment's own mip level from its
+    // footprint on the sheet, and the cut that level keeps level 0's coverage at (table rows 3-4; 0 = the cut as before)
+    const COV_GLSL = [
+      '{ float _fp = max(length(dFdx(qv)), length(dFdy(qv))) * uG * uTile;',
+      '  float _lod = clamp(log2(max(_fp, 1e-6)), 0.0, 5.0);',
+      '  int _L = int(vImpL + 0.5); vec4 _c3 = texelFetch(uImpTbl, ivec2(_L, 3), 0); float _c5 = texelFetch(uImpTbl, ivec2(_L, 4), 0).x;',
+      '  if (_c3.x > 0.0) { float _cl[6]; _cl[0] = _iCut; _cl[1] = _c3.x; _cl[2] = _c3.y; _cl[3] = _c3.z; _cl[4] = _c3.w; _cl[5] = _c5;',
+      '    int _i0 = int(floor(_lod)); int _i1 = min(_i0 + 1, 5); _iCut = mix(_cl[_i0], _cl[_i1], fract(_lod)); } }'].join(' ');
     function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST)
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
@@ -3819,6 +3873,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           sh.uniforms.uLayerK = impLevelU(atlas.key ? atlas.key + '|' + atlas.series : null);   // G2591: the sheet's level
         } else sh.uniforms.uImpTbl = IMPA.U.tbl;
         sh.uniforms.uImpC = IMPA.U.col; sh.uniforms.uImpN = IMPA.U.nrm;
+        if (LEAF && LEAF.test && LEAF.test.cov) sh.uniforms.uImpTbl = IMPA.U.tbl;   // (the test's c reads rows 3-4 in the fragment)
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
@@ -3935,7 +3990,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
-            'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
+            'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }' +
+            ((LEAF && LEAF.test && LEAF.test.cov) ? ' uniform highp sampler2D uImpTbl;' : ''))
           .replace('#include <map_fragment>', [
             // hemi-octahedral fold: the upper hemisphere onto [-1,1]^2, so a
             // regular grid of tiles is a near-uniform spread of view directions
@@ -3972,6 +4028,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // impostor (the user saw it in the first forest shot)
             'texelColor.rgb = clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0);',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
+            (LEAF && LEAF.test && LEAF.test.cov) ? COV_GLSL : '',
             'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
