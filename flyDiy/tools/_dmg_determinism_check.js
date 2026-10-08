@@ -227,7 +227,11 @@ async function mathUntouched(pg) {
         + (cs.stray.length ? cs.stray.length + ' STRAY on the builtin: ' + cs.stray.map(x => x.f + ':' + x.line + ' ' + x.fn + ' ' + x.op).join(', ') + ' (node tools/_core_math_sites.js --apply)' : 'none stray')); }
     const P = require('./_dmg_parity_run.js'), C = require('./flight_core.js'), crypto = require('crypto'), L = require('./_treecrash_lib.js');
     const sha = r => crypto.createHash('sha1').update(Buffer.from(r.p.buffer)).update(Buffer.from(r.v.buffer)).digest('hex').slice(0, 16);
-    const specOf = k => { const j = JSON.parse(fs.readFileSync(path.join(T, '..', L.BUILDS[k].build), 'utf8')); return j.spec || j; };
+    // (train 41: the library flies the spec the GAME flies - _treecrash_lib defOf = JOIN-PARITY's _load_build.js loadValidated -
+    // so the parity run is handed that same spec; FLYDIY_RAW_BUILDS=1 or no loader: the file as written, as before)
+    const LB = (() => { try { return require('./_load_build.js'); } catch (e) { return null; } })();
+    const specOf = k => { if (LB && process.env.FLYDIY_RAW_BUILDS !== '1') return LB.loadValidated(k).spec;
+      const j = JSON.parse(fs.readFileSync(path.join(T, '..', L.BUILDS[k].build), 'utf8')); return j.spec || j; };
     const certJ = k => JSON.parse(fs.readFileSync(path.join(certDir, k + '.json'), 'utf8'));
     // (the parity script flies the library's bits: one case checked here, in node)
     { const r = P.run(C, specOf('jodel'), certJ('jodel'), 'trunk0', 0), lib = R.find(x => x.tag === 'jodel/trunk0/on' && x.tier === 'turbofan');

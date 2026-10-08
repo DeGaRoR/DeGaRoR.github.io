@@ -129,6 +129,7 @@ function pageChecks(prims0, yes, rep, extra) {
   const { THREE, renderer: Rr, ctx } = B;
   const UP = ['bufferData', 'bufferSubData', 'texImage2D', 'texSubImage2D', 'texStorage2D', 'compressedTexImage2D'];
   const uploads = () => UP.reduce((a, k) => a + (rec.calls[k] || 0), 0);
+  B.load(path.join('src', 'core', '00_registry.js'));   // (train 41: CORE_MATH - 34_scar's top-level constants read it, as the core loads it first)
   B.load(path.join('src', 'core', '34_scar.js'));
   B.load(path.join('src', 'viewer', 'trees.js'));
   B.load(path.join('src', 'viewer', 'ground_scar.js'));
