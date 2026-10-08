@@ -286,6 +286,16 @@
   // exponent: the geometry splits its occlusion between ambient (full) and
   // sun (0.35) and one albedo cannot, so it takes the middle.
   const U_BAKEALB = { value: 0 };
+  // ===== THE IMPOSTOR LIGHTING TEST (2026-10-09, TEST BRANCH ONLY - claude/imp-toplit-test; the delivered default is A) =====
+  // the user: "they lack relief because of the lack of ambient occlusion". Two switches (C, a top-down term, dropped by the user), read once at boot:
+  //   ?impao=E    the bake's AO exponent (A: 2 = uAoBake x 0.5; B: 4 = the 3D tree's indirect weighting)
+  //   ?impaoD=1   a FINER AO, recomputed at load over each rung (aoFine below: tree_prep.bake_ao's method on a 64^3
+  //               grid, 14 directions x 16 steps in place of 26^3, 6 x 8) - both tiers wear it (D)
+  const IMPTEST = (() => { try { const q = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
+    return { ao: q.has('impao') ? +q.get('impao') : null, aoD: q.get('impaoD') === '1' }; }
+    catch (e) { return { ao: null, aoD: false }; } })();
+  const U_BAKEAOE = { value: IMPTEST.ao > 0 ? IMPTEST.ao : LEAF.ao * 0.5 };
+
   // the two leaf terms alone, shared with the impostor material, which lights
   // its sheet through the same words
   const LEAF_TERMS = [
@@ -317,7 +327,7 @@
     // is there in full. Written at the map's own alpha the sheet capped at
     // 0.53 and the draw's own cutoff threw half the tree away.
     '  diffuseColor.a = 1.0;',
-    '  reflectedLight.directDiffuse = diffuseColor.rgb * pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.5);',
+    '  reflectedLight.directDiffuse = diffuseColor.rgb * pow(clamp(vAoV, 0.0, 1.0), uBakeAoE);',
     '  reflectedLight.indirectDiffuse = vec3(0.0);',
     '  reflectedLight.directSpecular = vec3(0.0);',
     '  reflectedLight.indirectSpecular = vec3(0.0);',
@@ -563,6 +573,7 @@
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uWrap = U_WRAP; sh.uniforms.uSSS = U_SSS;
       sh.uniforms.uSSSP = U_SSSP; sh.uniforms.uAoBake = U_AO;
+      sh.uniforms.uBakeAoE = U_BAKEAOE;   // (the impostor lighting test)
       sh.uniforms.uBakeAlb = U_BAKEALB;
       sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
       sh.uniforms.uLight = mat.userData.uLight;
@@ -587,6 +598,7 @@
       // chunk that reads it, is the material's own choice.
       sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
         'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
+        'uniform float uBakeAoE;\n' +
         'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
@@ -638,6 +650,7 @@
       return Object.assign({}, c.tint);
     },
     bake: U_BAKEALB,
+    test: IMPTEST,   // (the impostor lighting test's switches, as booted)
     get: () => Object.assign({}, LEAF),
     set: o => { for (const k of ['wrap', 'sss', 'sssp', 'ao']) if (o[k] !== undefined) LEAF[k] = +o[k];
       U_WRAP.value = LEAF.wrap; U_SSS.value = LEAF.sss; U_SSSP.value = LEAF.sssp; U_AO.value = LEAF.ao;
@@ -658,6 +671,42 @@
     retint: mat => { if (mat && mat.userData && mat.userData.uLeaf) retint(mat); },
     sharp: v => { if (v !== undefined) U_SHARP.value = +v; return U_SHARP.value; },
   };
+
+  // THE IMPOSTOR LIGHTING TEST'S D (test branch only): tools/tree_prep.py bake_ao, the same method on a finer field -
+  // every triangle's centroid dropped into an N^3 occupancy grid (normalised by a quarter of its peak), each vertex
+  // marching DIRS through it, nearer counting for more; top-weighted as the prep's; the bark darkened toward its foot
+  // (trunk_dark 0.55); the floor 0.18. N 64 (was 26), 14 directions x 16 steps (was 6 x 8). Writes the parts' aoV.
+  function aoFine(parts, bb) {
+    const N = 64, x0 = bb[0], y0 = bb[1], z0 = bb[2], sx = bb[3] - x0, sy = bb[4] - y0, sz = bb[5] - z0;
+    const diag = Math.max(0.5, Math.hypot(sx, sy, sz)), pad = diag * 0.02;
+    const gx0 = x0 - pad, gy0 = y0 - pad, gz0 = z0 - pad;
+    const cw = Math.max(1e-4, (sx + 2 * pad) / N), ch = Math.max(1e-4, (sy + 2 * pad) / N), cd = Math.max(1e-4, (sz + 2 * pad) / N);
+    const occ = new Float32Array(N * N * N);
+    const cell = (px, py, pz) => { const i = Math.floor((px - gx0) / cw), j = Math.floor((py - gy0) / ch), k = Math.floor((pz - gz0) / cd);
+      return (i < 0 || j < 0 || k < 0 || i >= N || j >= N || k >= N) ? -1 : (k * N + j) * N + i; };
+    for (const P of parts) { const pos = P.geo.attributes.position.array, idx = P.geo.index ? P.geo.index.array : null, nt = idx ? idx.length : pos.length / 3;
+      for (let t = 0; t + 2 < nt; t += 3) { let cx = 0, cy = 0, cz = 0;
+        for (let e = 0; e < 3; e++) { const v = (idx ? idx[t + e] : t + e) * 3; cx += pos[v]; cy += pos[v + 1]; cz += pos[v + 2]; }
+        const c = cell(cx / 3, cy / 3, cz / 3); if (c >= 0) occ[c] += 1; } }
+    let peak = 0; for (let i = 0; i < occ.length; i++) if (occ[i] > peak) peak = occ[i];
+    const nrm = 1 / Math.max(1, peak * 0.25); for (let i = 0; i < occ.length; i++) occ[i] = Math.min(1, occ[i] * nrm);
+    const D = [[0, 1, 0, 1.6]], s2 = Math.SQRT1_2;
+    for (let a = 0; a < 8; a++) { const t = a * Math.PI / 4; D.push([Math.cos(t) * s2, s2, Math.sin(t) * s2, 1]); }   // 45 degrees up
+    for (let a = 0; a < 4; a++) { const t = a * Math.PI / 2 + Math.PI / 4; D.push([Math.cos(t), 0, Math.sin(t), 0.6]); }   // the horizon
+    D.push([0, -1, 0, 0.5]);
+    const wtot = D.reduce((a, d) => a + d[3], 0), STEPS = 16, reach = diag * 0.33;
+    for (const P of parts) {
+      const pos = P.geo.attributes.position.array, nv = pos.length / 3, ao = P.geo.attributes.aoV, out = ao.array, bark = !P.cutout;
+      for (let i = 0; i < nv; i++) { const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2]; let s = 0;
+        for (const d of D) { let hit = 0;
+          for (let st = 1; st <= STEPS; st++) { const f = st / STEPS, r = f * reach, c = cell(px + d[0] * r, py + d[1] * r, pz + d[2] * r); if (c < 0) break; hit += occ[c] * (1 - f); }
+          s += d[3] * Math.min(1, hit / (STEPS * 0.35)); }
+        let v = Math.max(0.18, 1 - 0.95 * (s / wtot));
+        if (bark) { const f = (py - y0) / Math.max(1e-3, sy); v *= 1 - 0.55 * Math.pow(Math.max(0, 1 - f), 1.6); }
+        out[i] = Math.max(0, Math.min(1, v)) * (out.BYTES_PER_ELEMENT === 1 ? 255 : 1); }
+      ao.needsUpdate = true;
+    }
+  }
 
   // Build one subject's rung, ONCE. Later calls hand out the same buffers:
   // a forest of six hundred firs uploads one fir.
@@ -712,6 +761,7 @@
       if (!mat.userData.uLeaf) { hookLeaf(mat, !!cutout, T, cut, found.col.kind || 'tree'); mat.name = d.mat; }
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }
+    if (IMPTEST.aoD && parts.length) aoFine(parts, found.sub.bb);   // (the impostor lighting test's D)
     built = { parts: parts, bb: found.sub.bb, h: found.sub.h,
               tris: rung.tris, col: found.col, sub: found.sub, series: ser, lod: rung.lod,
               // the stand series is drawn STRETCHED - a dial, not geometry; see

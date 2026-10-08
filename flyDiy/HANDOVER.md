@@ -81061,3 +81061,56 @@ its merge base (origin/master 751e1122) moved three counters at the stand, none 
 +2 048 (the table's third row, 128 x 16 B, where the table was already re-uploaded), `gl.uniform1f` 327 -> 317 (down),
 `tris.shadow` +42 911 (+2 %: G1975.2's living trees in place of snags cast more); against the ratchet's baseline all three
 sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impostor_match/framecost_census_{base,branch}.txt`.
+
+
+## G2592 - IMPOSTOR-LOOK: THE BAKE'S LIGHTING, THE AO TEST (A / B / D) AND WHAT ELSE IS FREE AT THE DRAW (2026-10-08/09, DEADWOOD-BRIGHT for A0; TEST BRANCH claude/imp-toplit-test - nothing shipped, the delivered trees stay as G2590 left them until the user has checked them in game)
+
+**How the bake is lit: it is not.** The albedo pass (trees.js, the uBakeAlb branch of LEAF_GLSL) writes albedo x AO^2 with
+every light term zeroed, tone mapping off (render_world.js bakeImpostorAtlasNow); the normal pass writes the GEOMETRIC
+world normal (render_world.js normalMatFor). The light is live at the draw: MeshStandard with the baked normal, the
+world's sun + hemisphere + environment, the leaf wrap 0.80 and translucency 1.12, uILit. Impostors CAST shadows but do
+not RECEIVE them (impMerged: castShadow only); the 3D trees receive them. The AO is per vertex, OFFLINE
+(tools/tree_prep.py bake_ao: a 26^3 occupancy grid, 6 marches - up 1.6, four 45-degree-up diagonals 1, down 0.5 - 8 steps;
+the bark darkened toward its foot) - top-weighted already, but coarse. The softbox look: the 3D tree splits that AO
+(indirect x ao^4, sun x ao^1.4) AND wears the shadow map; the picture wears ao^2 on everything and no shadow, and the wrap
+lights past the terminator over a tile-averaged normal.
+
+**The test (the user: "they lack relief because of the lack of ambient occlusion", then "forget C"):** boot switches,
+read once (trees.js IMPTEST), the default untouched:
+- A today; B `?impao=4` (the bake's AO exponent 2 -> 4, the 3D tree's indirect weighting);
+- D `?impaoD=1&impao=4`: a FINER AO - tree_prep.bake_ao's method on a 64^3 grid, 14 directions (up 1.6, eight 45-degree-up
+  1, four horizon 0.6, down 0.5) x 16 steps (trees.js aoFine), recomputed at load over each rung for the TEST only; both
+  tiers wear it (one source). To ship D it moves into tree_prep.py (offline): no boot or bake cost, the pack the same
+  size (one uint8 a vertex), but every media/geo/trees/*.gz.bin re-hashed (players re-download the 7.8 MB once).
+  Measured: aoFine over the whole payload (123 rungs, 464 963 vertices) is 0.95 s in node (2.0 us a vertex) - the prep in
+  Python ~50-100x that, ~1-2 min for the AO on top of the prep's glb parsing (assets/treesRaw, 1.9 GB) - to be timed.
+- C (a top-down self-shadow pass) was coded and then DROPPED on the user's call.
+
+**What else would help the pictures and cost nothing at the draw (assessed, not built):**
+- (a) The leaf / bark NORMAL MAPS in the normal sheet: NO. The 3D trees wear no normal maps (trees.js treeBuild's material
+  params: the map only), so baking them would make the pictures diverge from the trees they stand in for - relief the
+  geometry lacks, a pop at the hand-over. Frame 0, VRAM 0, bake + a texture sample.
+- (b) A SUPERSAMPLED bake (each tile rendered at 2x, box-downsampled into the same 128 px tile): frame 0, the sheets' VRAM
+  0 (same 1 024 sheet); a transient 2 048 bake pair during the bake (~67 MB, freed after); bake fill x4 (the bake task is
+  ~1-1.5 s of the roll-out today: expect +0.5-1.5 s). Gain: the leaf cards and twigs keep a TRUE fractional coverage
+  instead of a 0 / 1 mask cut on a mip-eroded alpha - fewer holes (the trunk seen through the crown), cleaner silhouettes,
+  the draw's gain re-sharpens the edge. The cheapest real gain on the list.
+- (c) COVERAGE-PRESERVING alpha mips: NOT done today - the arrays are box-mipped (gl.generateMipmap) and the chain DRIFTS:
+  measured (tools/perf/imp_audit.json, coverage at the series' cut, level 5 / level 0): full trees x1.13-1.46, stand
+  crowns x1.7-2.8, snags x3.6-5.9 (the far blobs), and the thin pine_georgeous collapses to 0 by level 4-5 (it vanishes).
+  A preserving chain (each level's alpha scaled so its coverage at the cut equals level 0's): frame 0, VRAM 0, bake + a
+  reduction per level (~6 levels x ~53 sheets, ms). Gain: a stand keeps its density with distance - the snags stop
+  fattening at 300 m+, the thin pines stop vanishing.
+- (d) MORE VIEWS: 8 x 8 -> 12 x 12 at the same 128 px tile = a 1 536 sheet: VRAM x2.25 (~0.6 -> ~1.3 GB), bake x2.25; gain
+  small (less blending between neighbouring views on a turn); or 12 x 12 inside 1 024 = 85 px tiles, worse. Not advised.
+- (e) Free at the draw: the AO split as the geometry's (indirect ao^4, sun ao^1.4) if the sheet carried the AO as its own
+  channel (B / D bake it into the albedo instead); a per-instance HUE jitter beside today's lightness vary (the instance
+  colour is there); the alpha gain / solid dials (TREE_LOD.imp).
+
+**256 px tiles on ultra (and gamer?):** a sheet is 1 024^2 x 4 B x 2 arrays x 4/3 (mips) = 11.2 MB at 128; 44.7 MB at 256.
+With ~53 sheets: ~0.59 GB -> ~2.4 GB of VRAM (potato's G1523 cut 128 -> 64 took it to ~0.15 GB); bake fill x4 and a 2 048
+bake pair; no disk cache (the bake is per boot, in memory). LOOK AT THE HAND-OVER: on gamer at 130 m a 15 m tree is
+~110 px tall at 1080p against ~95 px of its 128 tile - already ~1:1, so 256 shows little at 1080p; at 1440p the tile is
+magnified ~1.3x, at 4K ~2x, where 256 would show. Advice: if at all, ultra at 1440p and above, and only the `rungs` and
+`stand` series (the snags are thin: 128 holds them) - ~2/3 of the sheets, ~1.6 GB; (b) buys most of the edge quality at
+128 for no VRAM. Never laptop / potato (whose own hand-over at 30 m is the most magnified of all: a 64 px tile at ~6x).
