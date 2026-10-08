@@ -86205,3 +86205,51 @@ for the stills.
   DMGWRECK 155/155 PASS, DMGUPLOAD PASS (Cub mild 13 broken, metal 175, Cub hard 105, all 0 stale; Fly again damage on
   and OFF: every part back, nothing hidden or removed; the rolled-out models clean; damage OFF heal marking 0),
   DMGHEAL PASS, DMGWALL PASS.
+
+## G1860-G1869 DMG-D4b, ADDENDUM 3 (2026-10-08/09, train 41): HIDE THE BODIES; NO CERTIFICATE ON A DAMAGED AEROPLANE; NO CARD IN THE MIDDLE AFTER A CRASH (branch claude/dmg-d4b-crewcert off claude/dmg-t41-final 344f5cf19; three commits: 1/3 and 2/3 independent, 3/3 on 2/3)
+
+### 1/3 HIDE THE BODIES (the user: "hide the bodies, it's not the game for that. Let's destroy machines, not people. And rebuild them.")
+- app.js wreckCrew: whenever a figure could leave the cabin, the crew's meshes (model.people[].inst.meshes) are hidden.
+  That is the wreck broken up (the core's brokeUp; the worker's crash verdict under the physics worker) or the cabin
+  round the eye crushed (G1863's own WRECK_DEBRIS.crushed, now read in every view at 10 Hz, not only the cockpit's).
+  Given back at the heal (Fly again, the shed): the visibility each had. The crash card's words unchanged.
+  `window.FLYDIY_CREW_SHOW = true`: as it was. FLYDIY_WRECK_STATS: crewOff, crewHidden.
+
+### 2/3 NO CERTIFICATE ON A DAMAGED AEROPLANE (the user: "it hilariously certifies a crashed plane... that rule really has to account for aircraft integrity")
+- **sim.damage().structural = { damaged, broken, separated, why }** - ONE field the certificate and the career (GAME:
+  contractOnStop, ACCEPT) read. 30_solver: a non-enumerable getter on the damage object (its copies and hashes
+  unchanged).
+  - damaged = a primary member broken (the nose crushed round a trunk is a dent, G1470's noseB) or a part parted (a
+    cluster cut, G1840). A set within the envelope, a prop strike alone, a dent: not damaged.
+  - broken: the primary members broken. separated: the parted parts' tags. why: the first, in plain words ("the
+    landing gear broke").
+- **Under the physics worker** the page's own core is never stepped (its damage() holds no break). sim_host publishes
+  meta.struct (only once damaged); sim_view keeps view.struct; sim_link defines `structural` on the page's own damage
+  object while attached, and restores it at detach. So `sim.damage().structural` reads the same in both modes.
+- app.js flArrival(td): the ending (flWrecked) and the integrity decide an arrival. logFlight and flightArrived read it.
+  A landing that broke a leg arrived at STOPPED before any crash verdict ended the flight, and used to certify.
+  FLIGHT_PROBE.structural() and .arrival(td). bench: 'NOT CERTIFIED', "Not certified - the aeroplane was damaged:
+  <why>.". Damage off: never damaged, the rule as it was.
+
+### 3/3 NO CARD IN THE MIDDLE AFTER A CRASH (the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash.")
+- With damage on, every ending a wreck may follow (a crash, a break-up, a diverged sim, a damaged aeroplane, a crash
+  verdict) takes the corner: the arrival card lower left (G1868's .wreck); a not-certified award lower right
+  (bench.css #bAward.wreck). Both are capped at min(300px, 22vw), clear of the central 50 % down to a 1024 px view. The
+  arrival card carries the "Not certified" row. Damage off: the cards where they were.
+
+### The gates
+- **CPU, 2026-10-09 00:20-00:42** (A0's window, cpu D4B; reports/evidence/DMG-D4b/crew-cert-centre/*.txt): **all PASS** -
+  DMGCRASHUI (worker + inline + damage off), DMGUPLOAD, DMGWRECK, DMGHEAL, SIMWORKER, UISMOKE, WETFX, DMGINTEGRITY, JOIN,
+  JOINPARITY, BUILD. DMGCRASHUI, worker and inline:
+  - a clean landing {damaged: false}, arrives;
+  - a 6 m/s hard landing: "the landing gear broke" (8 broken), no arrival, the card names it;
+  - the crash: damaged "a wing broke" (95 / 89 broken), no arrival, no award;
+  - the crew: 6 meshes hidden after the break-up, back after Fly again;
+  - damage off: whole, the crew untouched.
+- **GPU, 01:05-01:08** (real Chrome, tools/dmg_crash_ui_rig.js; crash_ui_*.png / .json, crash_crew_*.json), worker and
+  inline, 1600 x 900: after the crash's card + 2 s, 71 visible elements, **none in the central bound [400, 225] -
+  [1200, 675]**. The card is in the corner ('bad wreck') with the "Not certified - the aeroplane was damaged: the
+  fuselage broke" row; no award; the crew hidden after the break-up and all back after the card's Fly again. Both stills
+  looked at: the wreck alone in the middle.
+- JOINPARITY: GATE DMGCRASHUI is on the 'page' door (the page loads the build itself); the rig names no build file.
+- Seen, not touched: the top bar reads "BROKE UP: BROKE UP: THE FUSELA..." (the outcome said twice) on the worker still.

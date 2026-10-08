@@ -1,0 +1,31 @@
+the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held
+the loading screen: 24 steps in order, lifted on frame 0
+the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring
+manual controls: a key flew it, the AP took it back in TAXI
+honest readings: AGL 0.00 m standing, 40.00 m lifted 40 (the pilot's own datum read -0.05); IAS "13" at 13.0 km/h; fly on: a new leg in place (TAXI), not a reset
+one To: taxiing kept, on a leg replan, stopped leg from apron HOME (the From derived), the aeroplane never moved
+PREM-S2: the sandbox's base line "Home base · the WWII hangar"; two hangars -> a select (HOME, A0), picking moves the garage; the popup: in HOME / out at A0 (greyed) / away -> brought home (in HOME); "fly from there?" moved the garage to A0
+load test: HELD — limit 0.59% ultimate 0.88% of semispan
+bench check: FLIES A CIRCUIT — 459 kg, climb 3.38 m/s, take-off 214 m
+bench density altitude: DA 1614 m — 326 m take-off, 2.52 m/s climb on 83% power, service ceiling 5286 m
+bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap
+bench wing loading: HELD — limit 0.59% ultimate 0.88% of semispan
+roll out reads the certificate, and is never locked
+mode: workshop in the garage
+editor panel bridge wired; width reaches the inset
+garage -> roll out -> TAXI, mode: flight
+skip to line-up: 120 m from the taxi to the hold, pilot in HOLD, the button stands down
+rail fly: route / start / patterns / engines / controls - 26 rows, 19 pills
+rail view: camera / instruments / map / trace / screen - 22 rows, 12 pills
+rail sky: night / weather / clouds / ground - 6 rows, 2 pills
+rail graphics: gfx.perf / gfx.light / gfx.terrain / gfx.water / gfx.sky / gfx.post / gfx.town - 33 rows, 106 pills
+rail audio: sound - 14 rows, 0 pills
+rail dev (behind the dev toggle): scenery / world / log / overlays - 4 rows, 3 pills (the covering hidden with #bSkin: no model on the stand here)
+graphics: 36 rows and 112 pills flat, every one reached through the rail (7 folds + the map, the meter, the log)
+the test mode: entered from DEV, the solver held 60 frames, its way out offered, left
+the shed rail: 8 items (camera display night explode controls graphics audio legend), the clouds a fold of night, the graphics in folds
+the seam holds: 22 flight ids, 20 workshop ids, 17 retired
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce100 _ce1001 _ce1002 _ce1003 _ce1007 _ce1008 _ce1012 _ce1013 _ce1016 _ce1022 _ce1027 _ce103 _ce1031 _ce1035 _ce1039 _ce1043 _ce1047 _ce1051 _ce1055 _ce1059 _ce106 _ce1063 _ce1067 _ce1071 _ce1075 _ce1078 _ce1086 _ce1089 _ce109 _ce1098 _ce1106 _ce1107 _ce1110 _ce1119 _ce1124 _ce1128 _ce1134 _ce1138 _ce1143 _ce1144 _ce1146 _ce1147 _ce1148 _ce1151 _ce1155 _ce1159 _ce1163 _ce1167 _ce117 _ce1171 _ce1175 _ce1179 _ce1190 _ce1194 _ce1198 _ce1206 _ce1212 _ce1215 _ce1219 _ce1224 _ce1246 _ce1252 _ce1256 _ce1264 _ce1267 _ce1276 _ce128 _ce1280 _ce1284 _ce1292 _ce1295 _ce1304 _ce1308 _ce1312 _ce132 _ce1320 _ce1323 _ce1327 _ce1336 _ce1340 _ce1344 _ce1352 _ce1355 _ce1359 _ce136 _ce1368 _ce1376 _ce1377 _ce1380 _ce1389 _ce1397 _ce1400 _ce1404 _ce1413 _ce1417 _ce142 _ce1421 _ce1429 _ce1432 _ce1441 _ce1445 _ce147 _ce148 _ce150 _ce151 _ce152 _ce155 _ce159 _ce163 _ce167 _ce171 _ce175 _ce179 _ce185 _ce190 _ce196 _ce203 _ce204 _ce205 _ce206 _ce207 _ce208 _ce213 _ce214 _ce215 _ce216 _ce220 _ce221 _ce222 _ce223 _ce224 _ce225 _ce229 _ce230 _ce231 _ce232 _ce236 _ce237 _ce240 _ce244 _ce248 _ce252 _ce256 _ce260 _ce267 _ce272 _ce277 _ce290 _ce293 _ce298 _ce311 _ce314 _ce319 _ce332 _ce335 _ce340 _ce353 _ce356 _ce361 _ce37 _ce374 _ce377 _ce382 _ce395 _ce401 _ce414 _ce420 _ce433 _ce441 _ce452 _ce458 _ce462 _ce468 _ce472 _ce476 _ce480 _ce484 _ce492 _ce498 _ce50 _ce501 _ce508 _ce509 _ce513 _ce514 _ce515 _ce516 _ce517 _ce518 _ce538 _ce543 _ce544 _ce545 _ce546 _ce547 _ce550 _ce554 _ce558 _ce56 _ce562 _ce566 _ce570 _ce574 _ce578 _ce583 _ce584 _ce585 _ce588 _ce592 _ce599 _ce602 _ce607 _ce608 _ce610 _ce611 _ce612 _ce615 _ce619 _ce623 _ce627 _ce633 _ce640 _ce644 _ce648 _ce652 _ce656 _ce660 _ce664 _ce668 _ce672 _ce676 _ce680 _ce686 _ce69 _ce690 _ce694 _ce697 _ce70 _ce703 _ce706 _ce707 _ce708 _ce71 _ce711 _ce72 _ce721 _ce722 _ce726 _ce729 _ce73 _ce734 _ce74 _ce75 _ce756 _ce76 _ce762 _ce77 _ce770 _ce771 _ce774 _ce781 _ce782 _ce783 _ce784 _ce785 _ce786 _ce79 _ce791 _ce792 _ce793 _ce794 _ce798 _ce799 _ce800 _ce801 _ce802 _ce803 _ce807 _ce808 _ce809 _ce810 _ce814 _ce815 _ce818 _ce82 _ce825 _ce826 _ce827 _ce828 _ce832 _ce833 _ce837 _ce838 _ce842 _ce843 _ce844 _ce845 _ce846 _ce847 _ce85 _ce851 _ce852 _ce853 _ce854 _ce855 _ce856 _ce860 _ce861 _ce865 _ce866 _ce868 _ce875 _ce876 _ce877 _ce878 _ce88 _ce882 _ce883 _ce884 _ce885 _ce889 _ce890 _ce891 _ce892 _ce896 _ce897 _ce898 _ce899 _ce903 _ce904 _ce908 _ce909 _ce91 _ce910 _ce912 _ce919 _ce920 _ce924 _ce925 _ce927 _ce934 _ce935 _ce936 _ce94 _ce940 _ce941 _ce942 _ce943 _ce947 _ce948 _ce950 _ce957 _ce958 _ce959 _ce963 _ce964 _ce965 _ce966 _ce97 _ce970 _ce971 _ce972 _ce976 _ce977 _ce981 _ce982 _ce986 _ce987 _ce989 _ce996 _ce997 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+== exit 0 109 s

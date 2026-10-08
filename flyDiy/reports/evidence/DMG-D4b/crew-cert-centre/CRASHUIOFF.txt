@@ -1,0 +1,11 @@
+GATE DMGCRASHUI - a crash shows the wreck, not the crew, and awards nothing (dev.html, the user's Cub; worker and inline)
+  worker (damage OFF): the clean landing {"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"arrival":{"arrived":true,"damaged":null,"structural":{"damaged":false,"broken":0,"separated":[],"why":null}}}
+  worker (damage OFF): the hard landing null
+  worker (damage OFF): the crash {"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"arrival":{"arrived":true,"damaged":null,"structural":{"damaged":false,"broken":0,"separated":[],"why":null}},"brokeUp":false,"eyeCut":null,"crewOff":false,"crew":[true,true,true,true,true,true],"wreck":false,"over":false,"card":{"hidden":true,"cls":"bad"},"award":null,"crewEnd":[true,true,true,true,true,true]}
+  worker (damage OFF): Fly again {"crew":[true,true,true,true,true,true],"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"wreck":false}
+  ok    worker (damage OFF): the clean landing: { damaged: false }
+  ok    worker (damage OFF): the clean landing arrives (certified as before)
+  ok    worker (damage OFF): damage OFF: the crash reads { damaged: false }
+  ok    worker (damage OFF): damage OFF: the crew untouched
+GATE DMGCRASHUI: PASS
+== exit 0 234 s

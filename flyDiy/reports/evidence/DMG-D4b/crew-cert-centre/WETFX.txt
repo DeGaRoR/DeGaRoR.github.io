@@ -1,0 +1,28 @@
+== 1. reading the contacts changes nothing ==
+  ok   80 km/h ditch: 6 s stepped with wetFx read every frame - node positions FNV-identical to the run without (360 frames)
+  ok   5 m/s pancake: 3 s stepped with wetFx read every frame - node positions FNV-identical to the run without (180 frames)
+
+== 2. dry is nothing ==
+  ok   the stock Cub 2 s on HOME's stand: no wet body built, wetFx hands null
+
+== 3. the 80 km/h ditch: the records ==
+  ok   the ditch reaches the water at frame 11 (0.20 s); up to 18 groups in contact
+  ok   the first slam is a hull slice's (group 0, 245 kPa, its wet faces looking down n.y -0.93); 171 slam reads in all, peak 245 kPa
+  ok   every slam peak handed once (a second read at once hands 0)
+  ok   the tyres plough: the largest tyre drag 5536 N
+  ok   the tyres' contact records sit at the water level (largest offset 0.000 m)
+
+== 4. a fabric Cub left in the water: the fill rises ==
+  ok   the hull slices' mean fill 33.6 % at 10 s -> 60.7 % at 60 s (3 slices in contact): the air goes
+  ok   the record's fill is the slice's own (6 of 6)
+
+== 5. the worker's path: trimmed, carried, handed once ==
+  ok   sim_host.js carries simHostWet
+  ok   a wet sim's snapshot: 18 records, 329 numbers (trimmed)
+  ok   a dry sim's snapshot carries nothing
+  ok   sim_view.js: an unread peak (group 3, 9 kPa) carried onto the newer snapshot's same group over its 2 kPa; the others untouched
+  ok   sim_view.js take() uses it (source)
+  ok   sim_link.js hands the worker's records as sim.wetFx and restores the inline one at detach (source)
+
+GATE WETFX: PASS
+== exit 0 20 s
