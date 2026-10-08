@@ -79867,4 +79867,8 @@ alpha sharper in the bake, or supersample the bake 2x) - a bake-time change, not
 **Gates:** GFX, TREES, PROGRAMS PASS and the page booted clean in node (`--census cub`: nothing thrown, the page's error
 list the same 53 'sheet EMPTY' lines as master's - the fake GL draws nothing) at 09:17, before the levels and the sharpened
 leaf fraction went in. FRAMECOST census pair + PROGRAMS on
-the final code: CENSUS_PENDING.
+the final code (16:40-16:44, unlocked by A0's booking beside PILOT's GPU run): PROGRAMS PASS; `--census cub` this branch vs
+its merge base (origin/master 751e1122) moved three counters at the stand, none at taxi or boot: `bytes.texSubImage2D`
++2 048 (the table's third row, 128 x 16 B, where the table was already re-uploaded), `gl.uniform1f` 327 -> 317 (down),
+`tris.shadow` +42 911 (+2 %: G1975.2's living trees in place of snags cast more); against the ratchet's baseline all three
+sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impostor_match/framecost_census_{base,branch}.txt`.
