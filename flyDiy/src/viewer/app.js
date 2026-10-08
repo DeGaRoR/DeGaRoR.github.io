@@ -3381,7 +3381,7 @@
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
-  function poseModel() {
+  function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
@@ -3503,7 +3503,17 @@
       }
     // once per frame: it is stateful - and on the frame's own dt (G613; G586's clock): at 30 fps a fixed
     // 1/60 moved the control surfaces at half their speed. A rig and the old clock read 1/60, as before.
-    const link = model.link.step(sim.ctl, frameDt());
+    // (G2111: a catch-up pose - craftInShed / craftInWorld showing the hidden model - reuses this frame's linkage: the step
+    // is stateful and runs once a frame)
+    const link = catchUp && model._lastLink ? model._lastLink : model.link.step(sim.ctl, frameDt());
+    model._lastLink = link;
+    // G2111 (GARAGE-LAPTOP): NOT DRAWN, NOT DEFORMED. In the shed the editor's cage stands and the flown model hides behind it
+    // (applyStand: model.grp.visible false), yet the control check's sweep moved its controls every frame and the skin was
+    // re-deformed and re-uploaded every frame for nobody (the idle garage's profile, node: poseModel 2.0 ms a frame -
+    // applySkinDeform 0.72, turnNormals 0.38). Hidden, it is not deformed: the pose cache (model._pose) still holds the last
+    // pose APPLIED, so the first frame it shows again applies the current one; whoever shows it for a call (craftInShed,
+    // craftInWorld) poses it first (catchUp). Its frame, the projector's root and the props above still run every frame.
+    if (inGarage && showCage && model.grp && model.grp.visible === false && !window.FLYDIY_POSE_HIDDEN) return;   // (the garage, the cage standing: never in flight; FLYDIY_POSE_HIDDEN = true poses it anyway - the gate's reference)
     if (model.gen) {
       // ONLY mode 1 exaggerates. This used to read SKIN_GAINS[min(skinMode,1)],
       // which handed mode 2 a gain of 4 as well — so the GARAGE's Bare frame,
@@ -8200,11 +8210,14 @@
   // the shed as the roll-out shot draws it, for one synchronous call: the craft in the shed (a world compile may hold it
   // in the world scene - it goes back there), model.grp shown (its nav / landing / taxi lights: three counts only the
   // lights it can see), the editor's cage down; everything as it was before the call returns
+  // (G2111: GATE POSEHIDDEN's door - the craft shown in the shed for one call, as a world compile shows it)
+  if (typeof window !== 'undefined') window.FLYDIY_CRAFT_IN_SHED = fn => craftInShed(garageScene(), fn);
   function craftInShed(gs, fn) {
     const home = craft.parent, g = model && model.grp, vis = g ? g.visible : null, cage = edSit ? edSit.visible : null;
     if (home !== gs) gs.add(craft);
     if (g) g.visible = true;
     if (edSit) edSit.visible = false;
+    if (g && !vis) poseModel(true);   // G2111: shown for this call - its skin posed as a drawn frame would have it
     try { return fn(); }
     finally { if (g) g.visible = vis; if (edSit) edSit.visible = cage; if (home !== gs) { if (home) home.add(craft); else gs.remove(craft); } }
   }
@@ -8221,7 +8234,7 @@
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
-      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) model.grp.visible = true; }
+      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1]) poseModel(true); } }   // (G2111: posed, shown)
     let once = false;
     const back = () => { if (once) return; once = true;
       if (--craftAway !== 0) return;

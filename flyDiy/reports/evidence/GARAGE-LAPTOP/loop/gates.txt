@@ -1,0 +1,62 @@
+[run_gates] 0/3 jobs done · running INSTANT 30 s, POSEHIDDEN 30 s, SHEDSHADOW 29 s
+[run_gates] 0/3 jobs done · running INSTANT 60 s, POSEHIDDEN 60 s, SHEDSHADOW 60 s
+[run_gates] 0/3 jobs done · running INSTANT 90 s, POSEHIDDEN 90 s, SHEDSHADOW 90 s
+[run_gates] 1/3 jobs done · running INSTANT 120 s, POSEHIDDEN 120 s
+[run_gates] 1/3 jobs done · running INSTANT 150 s, POSEHIDDEN 150 s
+[run_gates] 1/3 jobs done · running INSTANT 180 s, POSEHIDDEN 180 s
+[run_gates] 2/3 jobs done · running INSTANT 210 s
+[run_gates] 2/3 jobs done · running INSTANT 240 s
+[run_gates] 2/3 jobs done · running INSTANT 270 s
+[run_gates] 2/3 jobs done · running INSTANT 300 s
+[run_gates] 2/3 jobs done · running INSTANT 330 s
+[run_gates] 2/3 jobs done · running INSTANT 360 s
+[run_gates] 2/3 jobs done · running INSTANT 390 s
+[run_gates] 2/3 jobs done · running INSTANT 420 s
+[run_gates] 2/3 jobs done · running INSTANT 450 s
+[run_gates] 2/3 jobs done · running INSTANT 480 s
+[run_gates] 2/3 jobs done · running INSTANT 510 s
+[run_gates] 2/3 jobs done · running INSTANT 540 s
+[run_gates] 2/3 jobs done · running INSTANT 570 s
+[run_gates] 2/3 jobs done · running INSTANT 600 s
+[run_gates] 2/3 jobs done · running INSTANT 630 s
+[run_gates] 2/3 jobs done · running INSTANT 660 s
+[run_gates] 2/3 jobs done · running INSTANT 690 s
+[run_gates] 2/3 jobs done · running INSTANT 720 s
+[run_gates] 2/3 jobs done · running INSTANT 750 s
+[run_gates] 2/3 jobs done · running INSTANT 780 s
+[run_gates] 2/3 jobs done · running INSTANT 810 s
+[run_gates] 2/3 jobs done · running INSTANT 840 s
+[run_gates] 2/3 jobs done · running INSTANT 870 s
+[run_gates] 2/3 jobs done · running INSTANT 900 s
+[run_gates] 2/3 jobs done · running INSTANT 930 s
+[run_gates] 2/3 jobs done · running INSTANT 960 s
+[run_gates] 2/3 jobs done · running INSTANT 990 s
+[run_gates] 2/3 jobs done · running INSTANT 1020 s
+[run_gates] 2/3 jobs done · running INSTANT 1050 s
+[run_gates] 2/3 jobs done · running INSTANT 1080 s
+=== INSTANT ===
+  shoulderT    previews 4/4 (deformed 0)  objects 1134/1134  same  (noise 3)  release: partial [crew(sheet) panel(always) cowl(sheet) cowlAft(always) eng(fed) wing(sheet) brace(fed) gear(sheet) float(fed) fin(fed) stab(fed) access(fed) light(fed) energy(fed) hinge(fed) ext(always); floor kept]
+  every drag ended on the plain build's aeroplane
+GATE INSTANT: PASS
+=== SHEDSHADOW ===
+  PASS 9 the eye on a pane: the full transmission pass  [why "eye in a pane's box: Mesh"]
+  PASS 8 retro's shed frame: the cache draws under 40 % of the full pass  [861 vs 4560 draws (19 %)]
+GATE SHEDSHADOW: PASS
+=== POSEHIDDEN ===
+(reference: the hidden model posed every frame; the game: skipped)
+  PASS 1 the flown model stands hidden behind the cage in the garage  [hidden true / true]
+  PASS 1 the idle garage uploads no more skin than before (bufferSubData over 120 frames)  [240 -> 240]
+  FAIL 2 shown for a call: the same skin as the reference  [2e710a21e2cfc27e (490 arrays) vs b5b4202f5c12bfdd (490 arrays)]
+  PASS 3 rolled out: the same skin on the stand, frame for frame (10 frames)  [0b646f3b9727bca1 (490 arrays)]
+  PASS   no new page errors  [0 vs 0]
+GATE POSEHIDDEN: 1 FAIL
+(exit code 1)
+
+──────── summary ────────
+INSTANT   PASS  1094.0 s
+SHEDSHADOW PASS   111.5 s
+POSEHIDDEN FAIL   203.3 s
+total           1408.8 s
+wall            1094.0 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.

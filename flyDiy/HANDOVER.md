@@ -80965,3 +80965,44 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2111 - GARAGE-LAPTOP 4: THE GARAGE'S IDLE LOOP DEFORMED THE HIDDEN FLOWN AEROPLANE EVERY FRAME - NOT ANY MORE; THE SHADOW CACHE'S OWN CHECKS CHEAPER (2026-10-07/08, GARAGE-LAPTOP for A0, local GPU; branch claude/garage-loop-g2111 on train 40 = bcf62797)
+
+WHY: on the fitted laptop rung the garage's loop still spent ~12 ms of JS outside the render (the box: ~4 ms) with nobody
+touching anything. **The profile** (`tools/perf/garage_idle_prof.js`, new: the page in node, the garage idle, a V8 CPU
+profile over 150 frames - self ms a frame by file / function, the loop's callees inclusive; the Jodel on retro): loop 18.6
+ms a frame in node, render 13.2; outside it SHED_SHADOW.pre 2.34 (G2071's own bookkeeping), **poseModel 2.04**
+(applySkinDeform 0.72, turnNormals 0.38), shedDayTick 0.63 (atmo's sky radiance).
+
+**poseModel** (app.js): in the shed the editor's cage stands and the FLOWN model hides behind it (applyStand:
+model.grp.visible false) - yet the control check's sweep moved its controls every frame, so its skin was re-deformed and
+its normals re-turned every frame for nobody. Now, in the garage with the cage standing and model.grp hidden, it returns
+right after the linkage's step (the step is stateful and still runs once a frame; its frame, the projector's root and the
+props run above it). The pose cache (model._pose) keeps the last pose APPLIED, so the first frame it shows again applies the
+current one. craftInShed / craftInWorld - the two helpers that show it for one synchronous call (a world compile, a warm
+draw) - pose it first (poseModel(true): the frame's linkage reused, no second step). Never in flight.
+window.FLYDIY_POSE_HIDDEN = true restores the every-frame pose (the gate's reference); window.FLYDIY_CRAFT_IN_SHED is the
+gate's door to craftInShed.
+
+**The shadow cache's checks** (shed_shadow.js): live() read where the signature is taken (its inputs - customDepthMaterial,
+onBeforeShadow, isBatchedMesh - joined the signature as reference compares); the glass verdict cached per object while its
+pose, its geometry and the panes' faces (a version, bumped when the faces move) hold - a 16-float compare instead of eight
+posed corners for ~900 objects a frame.
+
+**GATE POSEHIDDEN** (`tools/_posehidden_check.js`, core, ~3.5 min): the page in node is deterministic (a seeded
+Math.random, a virtual clock) - two pages, the same build (the Cub), the same 120 idle frames and roll-out, one with the skip
+(the game), one posing the hidden model every frame (the reference): the model hidden behind the cage in both; no more
+buffer bytes uploaded while idle; shown for a call (craftInShed) the same skin within the pose's own thresholds -
+positions IDENTICAL, normals within 1.87e-3 (the reference's turnNormals hysteresis: it re-normalises only past 0.002 of
+a turn since the last applied, so it lags; the catch-up is exact - a warm draw under the loading screen either way);
+rolled out, the same skin bit for bit, frame for frame (10 frames). PASS (8 Oct 15:54).
+
+GATES (8 Oct, A0's window 15:32-15:58, run unlocked by A0's word beside WORKS-COZY's untimed stills): POSEHIDDEN PASS,
+SHEDSHADOW PASS, **INSTANT PASS** (the garage's parameter response: no regression).
+THE PROFILE AFTER (same window, beside the GPU stills - INDICATIVE): app.js self 1.38 -> 0.13 ms a frame (poseModel gone
+from the idle loop); shed_shadow.js about the same (walk 0.50, same 0.45, the glass verdict 0.23 -> 0.15) - its walk and
+signature compares are the floor of an exact per-frame check. shedDayTick (0.6 ms) left as it is: SKY_LIGHT eases the light
+per call - throttling it is a light-smoothness risk to measure first.
+A TIMED rung row is owed (A0's slot when one is free): the expected gain is ~1 of the rung's ~12 ms of loop JS.
+
+READY for A0 (train 42): claude/garage-loop-g2111 on bcf62797 (sources + tools; generated files untouched).
