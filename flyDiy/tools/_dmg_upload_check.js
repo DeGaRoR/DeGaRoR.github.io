@@ -104,7 +104,8 @@ async function child() {
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark' || fault === 'aswas') W.FLYDIY_HEAL_NOMARK = true;   // (D4b's heal marking off)
   if (fault === 'noowe' || fault === 'aswas') W.FLYDIY_FOLD_NOOWE = true;     // (G2352 off: a fold's owed whole upload a range can replace)
-  if (fault === 'noreset') W.FLYDIY_ROLL_NORESET = true;   // (the selftest: the shot's wreck reset off - the bug as it was)
+  if (fault === 'noreset') W.FLYDIY_ROLL_NORESET = true;
+  if (fault === 'wreckaswas') { W.FLYDIY_WRECK_NODETACH = true; W.FLYDIY_WRECK_VISOLD = true; }   // (the carried cowl's two fixes off)   // (the selftest: the shot's wreck reset off - the bug as it was)
   const tripN = () => (W.FLYDIY_TRIPS || []).length;
   const tripDone = (kind, n0) => { const T = W.FLYDIY_TRIPS || []; const t = T[T.length - 1]; return T.length > n0 && !!(t && t.kind === kind && t.done && W.BOOT.state === 'gone'); };
   const SW = () => W.FLYDIY_SIMW || null;
@@ -129,6 +130,26 @@ async function child() {
   for (let i = 0; i < 10; i++) await P.frames(1);
   R.fresh = staleOf(W, S);
   if (!R.live0) { R.errors = P.errors.slice(0, 20); fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }
+  // (the wreck's leftovers: a model mesh hidden or collapsed - its world scale near 0 - against the fresh aeroplane's)
+  const hiddenNow = () => { const m = W.FLIGHT_PROBE.model(), out = []; if (!m || !m.grp) return null; m.grp.updateMatrixWorld(true);
+    const all = new Set(); m.grp.traverse(o => all.add(o)); if (m.wreckBuild) for (const o of m.wreckBuild.parentOf.keys()) all.add(o);
+    for (const o of all) { if (!o.isMesh && !o.isGroup) continue; const e = o.matrixWorld.elements, sc = Math.cbrt(Math.abs(e[0]*(e[5]*e[10]-e[6]*e[9]) - e[4]*(e[1]*e[10]-e[2]*e[9]) + e[8]*(e[1]*e[6]-e[2]*e[5])));
+      const lo = o.matrix.elements, ls = Math.abs(lo[0]) + Math.abs(lo[5]) + Math.abs(lo[10]);
+      if (!o.visible || sc < 1e-3 || ls < 1e-3) out.push((o.name || o.type) + (o.visible ? '' : ' (hidden)') + (sc < 1e-3 ? ' (world scale ' + sc.toExponential(1) + ')' : '') + (ls < 1e-3 ? ' (local collapsed)' : '')); }
+    return out; };
+  // (the triangles a wreck removes: zeroed triples in each drawn index - the flown model's meshes, its folds - and in the
+  // cage snapshot's own index arrays, the ones the next model is built from)
+  const degOf = ix => { let n = 0; if (!ix) return 0; for (let t = 0; t + 2 < ix.length; t += 3) if (ix[t] === ix[t+1] && ix[t+1] === ix[t+2]) n++; return n; };
+  const idxCensus = () => { const m = W.FLIGHT_PROBE.model(), out = { model: {}, snap: {} }; if (!m || !m.grp) return null;
+    const all = new Set(); m.grp.traverse(o => all.add(o)); if (m.wreckBuild) for (const o of m.wreckBuild.parentOf.keys()) all.add(o);
+    for (const o of all) { if (!o.isMesh || !o.geometry || !o.geometry.index) continue; const k = o.name || 'mesh'; out.model[k] = (out.model[k] || 0) + degOf(o.geometry.index.array); }   // (by name, summed: a rebuilt model's order differs)
+    const d = m.data; if (d) { const add = (G, pre) => { if (!G) return; for (const k in G) { const g = G[k]; if (g && g.idx) out.snap[pre + k] = degOf(g.idx); } }; add(d.groups, ''); (d.parts || []).forEach((pt, j) => add(pt.groups, 'part' + j + ':')); }
+    return out; };
+  const idxDiff = (A, B) => { const d = []; if (!A || !B) return ['no census']; for (const sec of ['model', 'snap']) for (const k of new Set([...Object.keys(A[sec]), ...Object.keys(B[sec])])) if ((A[sec][k] || 0) !== (B[sec][k] || 0)) d.push(sec + ' ' + k + ': ' + (A[sec][k] || 0) + ' -> ' + (B[sec][k] || 0)); return d; };
+  // (the hybrid's members whose visibility disagrees with their fold: visible while baked = drawn twice, hidden while live = missing)
+  const visMis = () => { const m = W.FLIGHT_PROBE.model(), out = []; const Fs = m && m.wreckBuild && m.wreckBuild.folds; if (!Fs) return null;
+    Fs.forEach((F, j) => { for (const o of F.live || []) if (o.visible !== !!F.viewsOn) out.push('fold' + j + ' ' + (o.name || o.type) + (o.visible ? ' VISIBLE while baked (drawn twice)' : ' HIDDEN while live (missing)')); }); return out; };
+  R.hidden0 = hiddenNow(); R.idx0 = idxCensus(); R.vis0 = visMis();
   // ---- the crash (DMGWALLPATH's): 4 m up, 30 m/s, a trunk 40 m ahead, through the worker
   const FP = W.FLIGHT_PROBE; W.FLYDIY_SKINBREAK = true; W.FLYDIY_WRECK = true; FP.setManual(true);
   { const sim = FP.sim(), world = FP.world(), [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl;
@@ -141,11 +162,26 @@ async function child() {
     for (let f = 0; f < SECS * 60 + 600 && sim.t - tA < SECS; f++) { await P.frames(1); const DS = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; br = Math.max(br, DS && DS.br ? DS.br.length : 0); }
     world.treeHits.drop ? world.treeHits.drop('fill:upload') : world.treeHits.delete && world.treeHits.delete('fill:upload');
     R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null, stage: { V: SV, agl: SAGL, tr: STR, D: SD } }; }
-  if (PROBE) { fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }   // (--probe=1: the crash only - the staging sweep)
+  if (PROBE) { fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }
+  if (arg('path', '') === 'retry') {   // (the card's Fly again after the crash: the game's own reset, no shed)
+    R.idxAtCrash = idxCensus();
+    const FP2 = W.FLIGHT_PROBE;
+    if (!FP2.over()) FP2.endFlight('crashed');
+    for (let i = 0; i < 10; i++) await P.frames(1);
+    W.document.getElementById('bGo').click();
+    for (let i = 0; i < 240 && (FP2.over() || (FP2.damage() && FP2.damage().crashed)); i++) await P.frames(1);
+    for (let i = 0; i < 90; i++) await P.frames(1);
+    R.visRetry = visMis(); R.idxCrash = idxDiff(R.idx0, R.idxAtCrash); R.idxRetry = idxDiff(R.idx0, idxCensus()); delete R.idx0; delete R.idxAtCrash;
+    R.retry = { over: FP2.over(), stats: W.FLYDIY_WRECK_STATS ? W.FLYDIY_WRECK_STATS() : null, hidden: hiddenNow(), fresh: R.hidden0, dmg: (() => { const D = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; return D ? { br: (D.br || []).length, sS: D.sS } : null; })(),
+      drv: (() => { try { const s = FP2.sim(); return s.drv || null; } catch (e) { return 'err'; } })(), seized: (() => { try { const s = FP2.sim(); return (s.eng || []).map(e => !!(e && e.seized)); } catch (e) { return 'err'; } })() };
+    fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0);
+  }   // (--probe=1: the crash only - the staging sweep)
   // ---- the shed, then Roll out, then frames rendered
   await rollIn();
+  R.idxAtShed = idxDiff(R.idx0, idxCensus());
   R.shot1 = {}; R.live1 = await rollOut(R.shot1); R.shot1.worst = +R.shot1.worst.toFixed(3); R.rollResets = W.FLYDIY_ROLL_RESETS || 0;
   for (let i = 0; i < 20; i++) await P.frames(1);
+  R.idxRollout = idxDiff(R.idx0, idxCensus()); delete R.idx0; R.visRollout = visMis();   // (the rolled-out model against the fresh one: nothing removed)
   R.after = staleOf(W, S);
   // (G2350: read, never forPayload - that call resets the folds' list)
   try { const FB = W.FLOWN_BAKE, L = FB && FB.FB.last, F = FB && FB.folds ? FB.folds() : [];
@@ -167,7 +203,7 @@ const STAGES = { hard: { id: 'hard', V: 30, agl: 1, tr: 0.5, D: 40 } }, HARD_MIN
 function runChild(key, fault, secs, damage, stage) {
   const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + (stage ? '_' + stage.id : '') + '.json');
   const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs, '--fakebake=' + arg('fakebake', '1')]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
-  if (stage) for (const k of ['V', 'agl', 'tr', 'D']) if (stage[k] != null) a.push('--' + k + '=' + stage[k]);
+  if (stage) for (const k of ['V', 'agl', 'tr', 'D', 'path']) if (stage[k] != null) a.push('--' + k + '=' + stage[k]);
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
   if (r.status !== 0 || !fs.existsSync(out)) return { key, failed: 'child exit ' + r.status + (r.signal ? ' ' + r.signal : '') };
   const R = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return R;
@@ -197,6 +233,10 @@ function judge(R, say) {
     if (!B.hybrid || !(B.foldMeshes > 0)) bad('no hybrid fold was made (' + JSON.stringify(B) + ')');
     if (!(fk(R.fresh) > 0) || !(fk(R.after) > 0)) bad('no drawn fold buffer checked (fresh ' + fk(R.fresh) + ', after ' + fk(R.after) + ')');
   }
+  // (2026-10-08, the carried cowl: the rolled-out model against the fresh one - no triangle a wreck removed, in the drawn
+  // meshes or in the cage snapshot the model is built from; no hybrid member's visibility against its fold's)
+  if (R.idxRollout && R.idxRollout.length) bad('THE ROLLED-OUT MODEL HOLDS THE WRECK REMOVED TRIANGLES: ' + R.idxRollout.slice(0, 6).join(' | '));
+  if (R.visRollout && R.visRollout.length) bad('after the roll-out a hybrid member disagrees with its fold: ' + R.visRollout.slice(0, 4).join(' | '));
   if (st(R.after).length) bad('STALE GPU BUFFERS after crash -> the shed -> roll-out (the CPU written without the upload): ' + st(R.after).slice(0, 6).map(s => s.cls + ':' + s.mesh + '.' + s.attr + ' ' + (s.elements || s.why)).join(', '));
   if ((R.errors || []).length || (R.workerErrors || []).length) bad('errors: page ' + JSON.stringify(R.errors).slice(0, 300) + ', worker ' + JSON.stringify(R.workerErrors).slice(0, 200));
   return f;
@@ -237,6 +277,26 @@ function parent() {
     fails = fails.concat(f);
   }
   fails = fails.concat(judge(runChild(keys[0], '', secs, false), say));   // (damage OFF: one build)
+  // (2026-10-08, the carried cowl - WALL's replay: a cowl knocked off, the card's Fly again, and the fresh aeroplane drew no
+  // cowl): THE GAME'S RESET. Crash (the hard staging), Fly again (#bGo, fullReset), 90 frames: nothing removed, nothing
+  // hidden that the fresh aeroplane drew, no hybrid member against its fold, the wreck layer idle - damage on AND off
+  if (keys.includes('cub') && arg('retry', '1') !== '0') for (const dmg of [true, false]) {
+    const R = runChild('cub', pf, secs, dmg ? undefined : false, Object.assign({}, STAGES.hard, { id: 'retry', path: 'retry' })), f = [], bad = m => f.push('cub (Fly again, damage ' + (dmg ? 'on' : 'OFF') + '): ' + m);
+    const T = R.retry;
+    say('  cub FLY AGAIN after the crash (damage ' + (dmg ? 'on' : 'OFF') + '): the crash ' + JSON.stringify(R.crash) + '; removed triangles at the crash ' + (R.idxCrash ? R.idxCrash.length : '?') + ' meshes, after Fly again ' + JSON.stringify(R.idxRetry || null) +
+        '; hidden fresh ' + (R.hidden0 || []).length + ' / after ' + (T && T.hidden ? T.hidden.length : '?') + '; members against their fold ' + JSON.stringify(R.visRetry || null) + '; the wreck layer ' + (T && T.stats && T.stats.active ? 'ACTIVE' : 'idle'));
+    if (R.failed || !T) bad('the run failed: ' + (R.failed || 'no Fly again'));
+    else {
+      if (T.over) bad('Fly again did not start a fresh flight');
+      if (dmg && !(R.crash && R.crash.br >= HARD_MIN)) bad('the crash broke ' + (R.crash ? R.crash.br : 0) + ' members: it tests nothing');
+      if (R.idxRetry && R.idxRetry.length) bad('THE FRESH FLIGHT HOLDS THE WRECK REMOVED TRIANGLES: ' + R.idxRetry.slice(0, 6).join(' | '));
+      if ((R.hidden0 || []).length !== (T.hidden || []).length) bad('hidden meshes ' + (R.hidden0 || []).length + ' fresh, ' + (T.hidden || []).length + ' after Fly again');
+      if (R.visRetry && R.visRetry.length) bad('a hybrid member against its fold: ' + R.visRetry.slice(0, 4).join(' | '));
+      if (T.stats && T.stats.active) bad('the wreck layer still active on the fresh flight');
+    }
+    for (const x of f) say('  ' + x); if (!f.length) say('  ok    cub Fly again (damage ' + (dmg ? 'on' : 'OFF') + '): every part back, nothing hidden or removed');
+    fails = fails.concat(f);
+  }
   for (const x of fails) say('  FAIL  ' + x);
   console.log('GATE DMGUPLOAD: ' + (fails.length ? 'FAIL' : 'PASS'));
   process.exit(fails.length ? 1 : 0);
