@@ -432,8 +432,8 @@ function planAt(C, W, I, def, a, b, pose, opt) {
     }
   }
   if (turn) {
-    const L = TP.first ? TP.first.pts[TP.first.pts.length - 1] : { x: pose.x, z: pose.z };
     const cg = sim.cgPos();
+    const L = TP.first ? TP.first.pts[TP.first.pts.length - 1] : { x: cg[0], z: cg[2] };   // (the turn is about the CG, not the frame's origin)
     let reach = 0; for (let i = 0; i < sim.n; i++) reach = Math.max(reach, Math.hypot(sim.p[i * 3] - cg[0], sim.p[i * 3 + 2] - cg[2]));
     const need = reach + ((def.params.twSteer || 0.5) < 0 ? 4.5 : 2.6);
     const n = I.nearest(L.x, L.z, need + 30), d = n ? n.d : Infinity;

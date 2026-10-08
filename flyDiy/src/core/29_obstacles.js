@@ -493,9 +493,9 @@ const OBSTACLES = (() => {
 
   // G2490 (ALTIPORT-TAXI): THE PLAN DISTANCE from (px, pz) to a placed shape's footprint (metres; <= 0 on it) - every
   // column counts whatever its height (GATE TAXICLEAR's rule: a wing rides over a crate, a propeller and a wheel do not).
-  // Inside the grid its own distance field (the 3-4 chamfer, within a few % of the true distance), the gap to the grid
-  // added outside it (the grid's border cells are free: the field there already reads the way to the footprint); a
-  // parked aeroplane's pieces by their plan boxes. The ground planner's question (43_pilot.js), never the solver's
+  // Far off (25 m), the grid's own distance field (the 3-4 chamfer, a cell or so out) + the gap to the grid; nearer, exact:
+  // the occupied cells' squares within that estimate (the census's own measure, tools/_taxiclear_lib gridShape); a parked
+  // aeroplane's pieces by their plan boxes. 0 on the footprint. The ground planner's question (43_pilot.js), never the solver's
   function planDist(rec, px, pz) {
     const S = rec.shape;
     const dx = px - rec.x, dz = pz - rec.z;
@@ -505,10 +505,23 @@ const OBSTACLES = (() => {
       for (const pc of S.pieces) { const b = pc.bb, ex = Math.max(b[0] - lx, lx - b[3], 0), ez = Math.max(b[2] - lz, lz - b[5], 0); m = Math.min(m, Math.hypot(ex, ez)); }
       return m;
     }
-    const x1 = S.ox + S.nx * S.cell, z1 = S.oz + S.nz * S.cell;
+    const x1 = S.ox + S.nx * S.cell, z1 = S.oz + S.nz * S.cell, cs = S.cell;
     const cx = Math.min(Math.max(lx, S.ox), x1 - 1e-6), cz = Math.min(Math.max(lz, S.oz), z1 - 1e-6);
-    const i = Math.floor((cx - S.ox) / S.cell), j = Math.floor((cz - S.oz) / S.cell);
-    return S.d[j * S.nx + i] + Math.hypot(lx - cx, lz - cz);
+    const i = Math.floor((cx - S.ox) / cs), j = Math.floor((cz - S.oz) / cs);
+    const est = S.d[j * S.nx + i] + Math.hypot(lx - cx, lz - cz);
+    if (est > 25) return est;
+    // near a footprint, exact: the occupied cells (squares) within the field's estimate + 2 cells of the point
+    const r = Math.max(0, est) + 2 * cs;
+    const i0 = Math.max(0, Math.floor((lx - r - S.ox) / cs)), i1 = Math.min(S.nx - 1, Math.floor((lx + r - S.ox) / cs));
+    const j0 = Math.max(0, Math.floor((lz - r - S.oz) / cs)), j1 = Math.min(S.nz - 1, Math.floor((lz + r - S.oz) / cs));
+    let m = Infinity;
+    for (let jj = j0; jj <= j1; jj++) for (let ii = i0; ii <= i1; ii++) {
+      const k = jj * S.nx + ii; if (!(S.hi[k] >= S.lo[k])) continue;
+      const ax = S.ox + ii * cs, az = S.oz + jj * cs, ex = Math.max(ax - lx, lx - ax - cs, 0), ez = Math.max(az - lz, lz - az - cs, 0);
+      if (!ex && !ez) return 0;
+      const d = ex * ex + ez * ez; if (d < m) m = d;
+    }
+    return isFinite(m) ? Math.sqrt(m) : est;
   }
 
   // ---- the registry ---------------------------------------------------------------------------
