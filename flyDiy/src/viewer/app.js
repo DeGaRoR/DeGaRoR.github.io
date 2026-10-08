@@ -1217,13 +1217,21 @@
         plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = { x: 0, z: 0 };
         // 3. the room moves: the stand packed with them
         if (unplaced.length && sb) {
+          // the stand MUST stand (the packer orders by size: two residents in today's club left the stand out - the 8 Oct
+          // slot's club + 1, empty), so: every resident with it, then one at a time - the first set (in the residents'
+          // order) that stands the stand and the most of them
           const sf = { half: Math.max(-sb.z0, sb.z1), fwd: Math.max(0.3, -sb.x0), aft: Math.max(0.3, sb.x1) };
-          const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(names.map(n => ({ name: n, foot: footOf(n) }))), {});
-          const st = Q.placed.find(p => p.name === '\u0000stand');
-          const got = Q.placed.filter(p => p.name !== '\u0000stand');
-          if (st && got.length > plan.length) {
-            plan = got.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = Q.unplaced; how = 'the room moved';
-            o = { x: st.x, z: st.z };        // where the stand's origin stands in the room
+          const sets = [names].concat(names.length > 1 ? names.map(n => [n]) : []);
+          for (const set of sets) {
+            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n) }))), {});
+            const st = Q.placed.find(p => p.name === '\u0000stand');
+            const got = Q.placed.filter(p => p.name !== '\u0000stand');
+            if (st && got.length > plan.length) {
+              plan = got.map(p => ({ name: p.name, x: p.x, z: p.z })); how = 'the room moved';
+              unplaced = names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' }));
+              o = { x: st.x, z: st.z };        // where the stand's origin stands in the room
+            }
+            if (plan.length === names.length) break;
           }
         }
       }

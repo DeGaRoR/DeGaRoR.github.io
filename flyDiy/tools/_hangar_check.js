@@ -290,6 +290,11 @@ function runCozy(union) {
     const st = C1.placed.find(p => p.name === ' stand'), cb = C1.placed.find(p => p.name === 'Cub');
     ok(!!st && !!cb, 'rule 8: the club holds the stand + 1 resident packed together (' + JSON.stringify(C1.unplaced) + ')');
     if (st && cb) ok(st.x < cb.x, 'rule 8: ... the stand toward the door, the resident behind it (stand ' + st.x + ', resident ' + cb.x + ')');
+    // ...and with TWO residents the size-ordered pack leaves the STAND out (the 8 Oct slot's empty club + 1): the garage
+    // must drop to one resident (app.js: every resident, then one at a time, the stand always in)
+    const ces = { half: 6.0, fwd: 1.6, aft: 6.6 };
+    const C2 = CORE.hangarPark(club, [{ name: ' stand', foot: jodel }, { name: 'Cessna', foot: ces }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
+    ok(!C2.placed.some(p => p.name === ' stand'), 'rule 8: two residents in the full club leave no floor for the stand (why the garage drops to one)');
   }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;
