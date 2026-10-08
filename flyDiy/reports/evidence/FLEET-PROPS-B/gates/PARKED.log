@@ -1,0 +1,10 @@
+parked: no worker, decimating inline: URL is not defined
+parked: no worker, decimating inline: URL is not defined
+parked: no worker, decimating inline: URL is not defined
+parked: no worker, decimating inline: URL is not defined
+  the cook: 3 keys, cooked on build 53f482316b37 - STALE for this build (eae2dcb8237d): the page captures live until tools/parked_cook.js runs
+  11 mine:parkC172: 313848 tris under the Cub, 313848 under the metal Cessna; geometry 21224683f99f2360 / 21224683f99f2360, atlas adf692e82d98f67a / adf692e82d98f67a (10 s)
+  11 arch:c172: 314822 tris under the Cub, 314822 under the metal Cessna; geometry f6a72c81457e973a / f6a72c81457e973a, atlas bc8a9730b811dfd6 / bc8a9730b811dfd6 (8 s)
+  11 NEGATIVE CONTROL (the leak re-opened): mine:parkC172 323566 tris under the Cub, 314032 under the metal Cessna; geometry 4ecdeaf6ec0c3767 / b053e3b2b3a13653, atlas c623e8b6b078cb58 / dadae18b4e2d92c4
+  193 checks
+GATE PARKED: PASS

@@ -1,0 +1,27 @@
+boxlock: CPU battery taken by FLEETB
+04:00:09 tree 230405a66 (+ working changes: 1), base f4c47a59d
+04:00:10 build: tools/flight_core.js (2429.8 KB), index.html (11821.0 KB), dev.html (110.8 KB) — syntax OK, build eae2dcb8237d (327 named inputs), 586 ms
+04:00:11 RUN fc_base_cub
+04:00:11 RUN fc_here_cub
+04:00:11 RUN PARKED
+04:02:14 END fc_base_cub: {"build":"cub","health":{"metlakatla":null,"premises":true,"townCut":231,"raster":true,"world":"jolene","depth":"reverse
+04:02:14 END fc_here_cub: {"build":"cub","health":{"metlakatla":null,"premises":true,"townCut":231,"raster":true,"world":"jolene","depth":"reverse
+04:03:23 END PARKED rc 0: GATE PARKED: PASS|
+04:03:23 FRAMECOST base vs branch (flag off):     craft.taxi/materials                                 57         57  |    craft.taxi/meshes                                    91         91  |    craft.taxi/programs                                  13         13  |    craft.taxi/skinnedDraws                              10         10  |
+04:03:23 RUN fc_here_fleet_cub
+04:03:23 RUN INSTANT_FLEET
+04:03:23 RUN UISMOKE
+04:03:23 RUN TAXICLEAR
+04:05:04 END UISMOKE rc 0: map: the real fleet: the Cub's certificate against "Tools for Tamgas Hill Strip" (2 facts), a kit "not read yet"; clients.02's criteria against it; the aerobatic box held out|GATE UISMOKE: PASS|
+04:05:05 END TAXICLEAR rc 0: GATE TAXICLEAR: PASS|
+04:05:22 END fc_here_fleet_cub: {"build":"cub","health":{"metlakatla":null,"premises":true,"townCut":231,"raster":true,"world":"jolene","depth":"reverse
+04:10:56 END INSTANT_FLEET rc 1:   fleet: on true, stood 6, queued 6, captures so far 2, queue mine:fleet-3-c172 mine:fleet-4-c172floats mine:fleet-5-twinfloats mine:fleet-6-metal|  fleet: RED - captures 3 (during drags 1), input waits 0, not wanted 0, queue left 3|GATE INSTANT: FAIL (3 row(s
+04:10:56 FRAMECOST flag off vs the six stood (FRAMECOST_FLEET):     craft.taxi/materials                                 57         57  |    craft.taxi/meshes                                    91         91  |    craft.taxi/programs                                  13         13  |    craft.taxi/skinnedDraws                              10         10  |
+04:10:56 RUN BUILD
+04:10:58 END BUILD rc 0: GATE BUILD: PASS|
+04:10:58 RUN BUILT
+04:10:59 END BUILT rc 0: GATE BUILT: PASS|
+04:10:59 RUN UISMOKE-PHONE
+04:11:22 END UISMOKE-PHONE rc 0: map: the real fleet: the Cub's certificate against "Tools for Tamgas Hill Strip" (2 facts), a kit "not read yet"; clients.02's criteria against it; the aerobatic box held out|GATE UISMOKE-PHONE: PASS|
+04:11:22 gates over at 04:11:22
+boxlock: CPU battery released by FLEETB
