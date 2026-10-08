@@ -80499,6 +80499,228 @@ tools/dmg_nose_evidence.js (the pictures).
    case (the trunk sideways at the hub) would certify them; not in this brief.
 5. The stack is crushed in its order whichever way it is met (a corner meets the bowl's side first in life; the energies are of a size).
 6. GATE DMGWIND's offset part flies the Cub whatever key it is given (harmless: it is only called with 'cub').
+## G2095 - GAME-PREMISES: THE NEXT BIG RELEASE DESIGNED (BASES, HANGARS FROM THE THREE PRESETS, WHERE EVERY AEROPLANE STANDS, THE MONEY, THE WORLD BLEND, THE SCREEN, FOUR SESSIONS) AND ITS FIRST SLICE LANDED (PLAYER_V 2, THE RULES, GATE GAMEPREM) (2026-10-06, GAME-PREMISES for A0, cloud - node + headless Chromium for UI stills, no GPU; branch claude/game-premises-g2095 off origin/master 068584d = train 37b; G2096-G2099 unused, proposed for S2-S4)
+
+**READY for A0.** Nothing on screen changes; no viewer file is touched; no generated file is committed (flight_core.js,
+index.html, dev.html, sw.js, version.json are A0's at the train).
+
+The user's roadmap (1-2 Oct): after the release trains, the next big release is "the game premises": hangar management,
+unique hangars blending in and out of the world, the three garage interior presets (field / club / works) as the spec.
+
+**THE DESIGN** - `futureDesigns/GAME-PREMISES-2026-10-06.md`: what the player owns (a BASE = an aerodrome where a hangar is
+held, derived; a HANGAR = one of the three presets with its own dims / kits / dress at a PLOT, own or rent; plots per
+aerodrome in `BASE_OFFERS`: HOME x2, Tamgas Hill, Skyline, the mine's derelict shed, Annette Dock and Metlakatla as
+slipways); capacity as geometry (the door + a floor packer beside the fit-out: a bare club parks 6 Cubs, today's full
+club 2, a works 15, a field shed at its own size none - its 9 m door); upgrades (extend, kits, rebuild; never evicting);
+where the aeroplanes are (one slot = one airframe; in / tied down out / away; MOVING IS FLYING: a stop on an aerodrome
+moves it, anything else moves nothing and recovery charges the road); the money loop (sandbox records, career charges;
+own or rent per flown hour - time runs in flight, ruling ax; dm9-dm12 kept, plus a labour factor the fit-out earns: the
+reason to buy a kit); the blend (the world already stands the garage's own shell at HOME, G434 - each held hangar at its
+plot, premises contract v1.x `plots[]`, the roll-out / roll-in at any base, the fleet as parked statics); the PREMISES
+screen; the save (v2) and its migration; the phasing S1-S4 with gates; 20 open questions, each with its default.
+
+**THE SLICE (S1):**
+- `src/core/70_player.js`: `PLAYER_V` 2. `PLAYER_MIGRATORS[1]` (its first real entry): each shed gains `base` = its key
+  (in v1 the key was the aerodrome). The normaliser fills `tenure` (own), `mode` (sandbox), `here` (HOME), `clock` (0),
+  `fleet` ({}), `ledger` ([]); unknown sheds / fields ride along as before. `playerDefault` is the v2 default.
+- `src/core/71_player_bases.js` (NEW, MANIFEST.core after 70_, exported): `BASE_OFFERS`, `PREM_RATES`, `KIT_PRICES`;
+  the room (`hangarDims`, `hangarDoor` = hangar.js's DOOR_W / DOOR_H, `hangarObstacles` from hangarFit's placed props,
+  `hangarPark` - first fit biggest first, back wall forward, centre-out and wall-across with the better kept, a 0.5 m
+  grid plus every flush position; `hangarRoomFor`); the document (`playerWhere`, `playerBaseIds`, `playerHangarsAt`,
+  `playerResidents`, `playerOffers`); `playerFleetReconcile` (the lift of the flydiy.build.* slots - pure, the page hands
+  the names; refuses nothing); `playerStore` / `playerWheelOut` / `playerArrive` / `playerRecover`; `playerAcquire` /
+  `playerRelease` / `playerUpgrade` (+Cost); `playerGoTo`, `playerClock`, `playerLabourFactor`, `playerCharge`. Every
+  rule returns `{ ok, doc, why }` on a clone; a refusal hands back the very document, untouched. Pure (no DOM, storage,
+  THREE).
+- `tools/fixtures/player_v2_2026-10-06.json` (NEW vintage: two bases, a rented shed, aeroplanes in / out / away, ledger).
+- **GATE GAMEPREM** (`tools/_gameprem_check.js`, core, ~2 s, 458 checks; `--show` the room table; `--selftest`):
+  THE SAVE (both vintages; a v1 shed byte-identical after the walk, and what it composes to - the world's shed dims,
+  the verbs; v2 a fixpoint; junk, unknown sheds, the future), THE ROOM (the door source-scanned against hangar.js at
+  every preset's defaults and lims corners; the packer's contract on 3 presets x 3 fit-outs x 2 sizes x 2 fleets: placed
+  or reported, no overlap, no wall, nothing on the fit-out, order-free; the fit-out costs floor; today's room takes every
+  archetype; a lone aeroplane on the centre line), THE LIFT (forty builds keep forty aeroplanes; idempotent; a deleted
+  slot leaves), STORE / MOVE (a whole journey to Tamgas Hill and back, two hangars at HOME), HOLDING (acquire / rent /
+  dues / release / upgrade, the plot factor, every refusal untouched), THE OFFERS (every offered aerodrome a runway of
+  Jolene's record, slipways on water, every plot's shed as bought takes an aeroplane that can use the field), PURITY.
+  Negative-verified: 16 rules doctored in their own sources, each caught (`reports/evidence/GAME-PREMISES/gameprem_gate.txt`).
+- The UI stills: `futureDesigns/game-premises/premises.html` + `premises_home.png` / `premises_w3.png` - the PREMISES screen
+  mock-up, every number computed by the rules over the v2 vintage (`tools/gameprem_shot.js` writes `premises_data.js` and
+  shoots; a static page, no WebGL).
+- `tools/gameprem_page.js` (evidence): the page in node (FRAMECOST's harness) booted with a v1 player save / the pre-S1
+  prefs / nothing, then read back.
+- Pointers: ROADMAP (top), HANGARS.md (its §11 Q1 / Q3 / Q4 answered by default there), `tools/run_gates.js` (the row).
+
+**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 109 min wall on the 4-core cloud box): 161 rows, 154 PASS -
+GAMEPREM (new), PLAYER, SAVE, ROUNDTRIP, HANGAR, SITE, DESTTO, UISMOKE, PREMISES, PREMCOOK, STAND, BUILD among them - and
+seven FAIL, none this branch's (`reports/evidence/GAME-PREMISES/core_battery_summary.txt`):
+- FRAMECOST: THE STALE PARKED COOK, to the unit DEST-TO's control (cub stand draws.main 914 -> 1046, draws.shadow 169.5 ->
+  259.5, uniform4f 6 -> 222): any build-id move stales it; this branch draws nothing new. A0's re-cook clears it.
+- INSTANT: the runner's 1800 s cap (19 of 26 rows done, every one `same`). Run directly, master 068584d and this branch side
+  by side: both PASS, 2598 s / 2753 s (`instant_control.txt`) - the box, not the branch.
+- BIPLANE (build-time ratio 3.30x vs 3x), DMGCERTCOST (32.6 s vs a 32 s ceiling), BIOME (surface perf), SETTLE (bake
+  budget): wall-clock under the 4 jobs; alone (`--only=... --jobs=1`): all four PASS.
+- BUILT: the working tree's outputs predated the plot-factor fix (built at the battery's start); rebuilt: PASS (non-strict:
+  the outputs lag the source until the train's (built) commit, as for every source branch).
+The full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) was not run: nothing they fly reads the player document.
+
+**OLD SAVES IN THE PAGE ITSELF** (`tools/gameprem_page.js`, the page in node booted to the stand; `page_boot.txt`): a v1
+save (the club at 18 x 14 x 8, two dressed parts, named) boots to a stored v2 document with every shed field identical, the
+wallet identical, and the garage builds the saved 18 x 14 x 8 room; the pre-S1 prefs (16 x 13 x 7.5 + a dressed floor) are
+lifted into the room as before; a fresh profile stands in the club at 15 x 12.5. 0 page errors in each (53 GL-less impostor
+bake notes per boot, as in every node page - GATE ROUNDTRIP's filter).
+
+**OPEN QUESTIONS FOR A0 TO RELAY** (GAME-PREMISES §10; the slice and the plan take the DEFAULT until answered):
+1. Is a saved build ONE AIRFRAME that stands somewhere, or a design you can build copies of? - default: one slot = one airframe.
+2. When does money become real? - default: sandbox for everyone (every migrated save too) until contracts (P5b) give an income; then a career switch, opt-in, with a starting grant (~60 000).
+3. Rent, given time only runs in flight? - default: per flown hour, 1 % of the hangar's price, settled at each flight's end.
+4. The price scale (hangars 4 800-15 000 against a ~30 000 Cub)? - default: keep the shells' prices x a plot factor; calibrate in P5a.
+5. Hangars per field? - default: as many as the field's plots (HOME 2, the others 1).
+6. Where can an aeroplane be edited? - default: at any base you hold, any aeroplane standing there (in or tied down); away: fly only.
+7. Switching the garage between your bases? - default: free and instant.
+8. Moving without flying (ferry, truck)? - default: no, except recovery after a crash / field landing.
+9. Parking realism (wings over benches, staggering, blocked aeroplanes)? - default: plan rectangles, full-height fit-out, the crew shuffles.
+10. Tie-downs outside? - default: unlimited and free everywhere; weather wear and away fees come with wear.
+11. A crash or field landing? - default: back where it departed from by road (200 + 25 / km in career), damaged and grounded (dm10).
+12. Does the fit-out change repair cost? - default: labour x 0.8 with every wanted verb, x 1.0 short of one, x 1.25 away.
+13. Seaplane bases with the three presets only? - default: yes, a field or club shed on a slipway; a boathouse later.
+14. The opening: HOME's full club owned, or the derelict WWII field (GAME-LAYER bg)? - default: today's club, owned.
+15. In career, do the shed sheet's shell / kits / size cost money? - default: yes via playerUpgrade; the dress stays free.
+16. Selling back? - default: half an owned hangar's price; kits nothing; only empty, never the last.
+17. The screen's name? - default: PREMISES, on the rail.
+18. Can the wallet go negative? - default: only by rent / recovery; purchases need the cash.
+19. What does the world show on a plot you do not hold? - default: the offer's preset, shut and dark, with a sign.
+20. A fleet cap? - default: none but the slots and the hangars' room.
+
+**A0 AT LANDING.** Rebuild; re-cook the parked aeroplanes if FRAMECOST / HITBOX read a stale cook (a core edit moves the
+build id - DEST-TO's note); nothing per frame (the rules run on no frame; the page does not call them yet). The first boot
+of this build stores a v2 `flydiy.player` (app.js already runs the walk and writes back); an older cached build reading
+it passes it through (`v >= PLAYER_V`) and keeps every field. NEXT: S2 (the page holds it: the lift at load / save /
+delete, `foot` measured, FLIGHT_BASES from the held hangars, the roll-out from `here`, playerArrive on STOPPED, the base
+select) - cloud, G2096; S3 needs A0's box for the world evidence; S4 waits on Q2-Q4 and Q15.
+
+## G2200 - GAME COORDINATOR (2026-10-06, a LOCAL sub-coordinator under A0, like Deform / Sound; integration branch claude/game-integration off origin/master 068584d6; G-block G2200-G2399)
+
+BOARDS (7 Oct, A0's format = the Deform pair): PROGRESS https://claude.ai/artifact/EaZJAscAZCDLXG87XXa568 (db: sessions / trains /
+meta board, log, calls; owner writes) - EVIDENCE https://claude.ai/artifact/J8ZJx9yFxc36g2KY29X9pr (images published with the page;
+tree + mode + renderer per sheet; refresh at every commit that adds images).
+INTEGRATION (7 Oct ~00:40): claude/game-integration 40b07967 = train 38 (751e1122) + GAME-PREMISES S1 d45a41f2 + WELCOME-MODES
+0d3bfb43 + FLEET-PROPS A 90d5869d + PREM-S2 cbc6153e (welcome.js over MOBILE-GARAGE 1 by hand: the phone profile boots garage-only,
+no menu). **BEHAVIOUR CHANGE ON MOBILE-GARAGE 1's PATH (landed in train 38):** with WELCOME-MODES merged, a device on the
+phone profile (W.PROFILE.name === 'phone': the device gate's "Build on this phone", or a remembered phone profile) gets NO mode
+menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOBILE-GARAGE 1's phone path did. A phone that
+chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
+GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
+
+THE USER'S PICKS (7 Oct ~19:00, study §R.2): STORY = start with A (in the work), then B with at least an intro; PACE = a
+checkpoint after every train; the CONTRACT SCREEN reduced to the mock https://claude.ai/artifact/LJwDYuPmF3ExULPHxmhdM4
+(no right panel, collapsible rows, type colours, ✓/✗ only for hard no-no's, runways condensed, pan/zoom/bounds, no
+auto-zoom, colour kept + old-map dress; the raster map repaintable by the user's AI). Next chip (after the user OKs the
+mock): [CLOUD] MAP-SIMPLE G2324-G2329 rebuilding map_menu.js to it.
+
+STEERING HOLD (7 Oct ~18:30, A0 relaying the user: little to see, no story yet, fear of going too far before steering):
+the checkpoint page https://claude.ai/artifact/QjQYuYhf1RaoGmNezbvnNq (the honest state, what's visible today in play order,
+what trains 40 / 42 / 43 / 44 add, three story options + the pace). The notes are in futureDesigns/game/STORY-OPTIONS-2026-10-07.md.
+NO NEW GAME CHIPS until the user picks; the running train-43 wave finishes. After train 42 lands: a real guided walkthrough
+of ?career=1 shot on the GPU (a box window to ask A0).
+
+UPDATE 7 Oct ~11:40: CAREER-WIRE (670ce84) READY and merged (fast-forward), so game-integration 5810951a is the train-42 candidate:
+the map reads the real contract record, a dev career runs behind ?career=1 (the welcome's career row still 'coming'), a
+flight's stop advances the career through ACCEPT's verdict, 'Fly the acceptance leg' works, and the aerobatic contract
+(clients.05) is held out. Train-42 follow-ups (1)-(3) below are DONE. Open: ACCEPT reads at.pax / occupants / payloadKg,
+not CONTRACT-MODEL's at.kg (no authored criterion carries kg today). Map routes could later reuse A0's ROUTE-DRAW
+(route_draw.js, G2120). The touched-gate pass is 21:35-22:05 tonight (armed).
+Train 43 chips issued (A0's OK): [CLOUD] ECONOMY G2260, PROCURE G2280, PILOTS G2290, STAGES G2300, PREM-S3 G2310;
+[LOCAL-GPU] FLEET-PROPS B G2225 (8 Oct 06:00-06:55), WORKS-COZY G2315 (8 Oct 15:00-16:35).
+
+TRAIN 42 CARGO (7 Oct ~09:55): claude/game-integration 1e06bef0 = the train-40 freeze 67ee2ca4 + MAP-MENU (65cc378) + ACCEPT
+(9ef705a) + CONTRACT-MODEL (5f50b83), all READY. Merges: HANDOVER union; build.js / run_gates.js / 90_node_exports
+union (72_accept.js, then 72_contract_data.js, 73_contracts.js, 74_career.js). On the merged tree: GAMEPREM, PLAYER, GFX,
+MAPBAKE, CONTRACTS, ACCEPT (--reuse: the recorded flights, with CONTRACT_CRIT_KINDS against ACCEPT_KINDS) PASS. The touched-gate
+pass with a CPU slot is still to come (UISMOKE, UISMOKE-PHONE, SAVE, BENCH, SIMWORKER, BOOT, the ACCEPT flights).
+FOLLOW-UPS before train 42:
+(1) MAP-MENU still reads the sample fixture: swap MAP_SOURCE to CONTRACT-MODEL's record (one line) and point mapAdapt at the
+career document.
+(2) The page wiring (a session): the stop record in playerFlightEnd -> careerOnStop; ACCEPT_REC.start() from the delivery
+flow; the career stored under careerKey.
+(3) An aerobatic build contract (+6 g) can't be won: 66_gen_cert certifies the normal category only (3.8 / 5.7 g). Asked
+Deform about a category; until then the game holds that contract out of the offers.
+(4) The validated designs' numbers in CONTRACT_DESIGNS are the build files', not the joined aeroplane's (G1985).
+
+TRAIN 40 HAND-OFF (7 Oct ~04:35): **FROZEN claude/game-integration 826b7d27** = train 38 + S1 + WELCOME-MODES + FLEET-PROPS A (behind
+FLYDIY_FLEET, off) + PREM-S2. The touched gates ran in A0's CPU slot (04:15-04:26, boxlock cpu GAME, on 0e496c90 = 826b7d27 minus the
+GFX fix; jobs 4): DESTTO 3/3 PASS (220 / 361 / 432 s), UISMOKE PASS, UISMOKE-PHONE PASS, BOOT PASS, ROUNDTRIP PASS, SAVE PASS, PARKED
+PASS (the full gate: the leak row and its negative control), GFX FAIL -> fixed in 826b7d27 and PASS. The fix is to the gate, not the
+code. WELCOME-MODES' two new GFX rows compared path.relative() output with forward-slash strings, so on Windows (the box) both rows
+failed. Separately, its ratchet was cut against 068584d6 and missed HW-COVERAGE's localhost skip in gfx_settings.js (train 38): that
+row would also fail on Linux once merged. Not run here: the strict per-train gate, FRAMECOST (the stale parked cook: A0's re-cook),
+the full battery.
+
+STATUS (kept current, 6 Oct ~21:00): **THE USER HAS RULED** (the review page, relayed by A0). Study §R records the
+calls and their consequences:
+- **Defaults kept everywhere except:**
+  - GQ5: "bring it home" is free in both modes;
+  - GQ26: one delivery per build contract, then a follow-up with one criterion changed;
+  - G-PROV: five providers, the mine and the dock merged;
+  - G-COST: no running costs; contracts pay net; hangars are bought only; a pilot costs a one-time sign-on fee;
+    ruling az now comes from physical gates.
+- **The notes:**
+  - GQ7: faster visual wear outside; slots are the main hangar's build bay + 2, and a side hangar 1 (2 for a club);
+    residents show as L2 props in the garage, hidden in close views.
+  - GQ13: 4 recruits on ch01 / ch42 / remy / ch22, no download; ch20 is the test pilot and ch02 is kept.
+  - GQ19: the phone runs the no-simulation bench and certificate items.
+  - GQ22: the career's main hangar is the works preset made cozy (LOCAL-GPU WORKS-COZY). The sandbox keeps the club
+    (GQ29).
+- The prompt pack has been updated (5 providers, 4 pilots, follow-ups).
+- **Chips:**
+  - issued: [CLOUD] WELCOME-MODES G2210, [CLOUD] FLEET-PROPS A G2220;
+  - next: [CLOUD] PREM-S2 G2230, whose step 0 makes GAME-PREMISES S1 READY with the calls' amendments for **train
+    40**.
+
+DELIVERABLES
+1. `futureDesigns/GAME-2026-10-06.md`: the final study. It covers:
+   - the loop and the three concepts (main hangar, at most 2 side hangars, stations on any runway, "bring it home");
+   - the fleet as props at their last base (parked.js `mine:` keys, bake on save, the G809 #2 capture-leak fix first,
+     ≤ 6 drawn, L3-only on the light presets, the LOCAL-GPU proof);
+   - procurement (makers over validated builds only, scratch, used aeroplanes standing where they are for sale);
+   - build contracts as performance user stories, verified by the certificate where it can tell and by a flown
+     ACCEPTANCE leg where it cannot (VCruise is clamped to 1.55-2.2 Vs);
+   - six providers as tabs; the SnowRunner-style MAP (researched and cited, §8.4);
+   - pilots (a person wrapped around a PILOT-PERSONA profile, a Mixamo body, a portrait);
+   - the narrative, with GQ20 (the real Metlakatla community: fictional people and organisations only);
+   - construction stages in the premises record, the economy, the save (PLAYER_V 3, `flydiy.career.<id>`, designs vs
+     airframes);
+   - the welcome menu with `?mode=`, the phasing (14 rows), GQ1-GQ28 with defaults, and rulings g1-g11.
+2. `futureDesigns/game/GAME-REVIEW-2026-10-06.html`: the review page for the user's session. It has 31 decision cards
+   with the default preselected, notes, and "Copy my calls" (localStorage only, no capability). **A0 publishes it**
+   as an artifact and relays the user's pasted calls.
+3. `futureDesigns/game/NARRATIVE-PROMPT-PACK-2026-10-06.md`: the external-AI pack. **PREPARED, NOT RUN.** It contains:
+   - the bible + hard constraints, the 6 providers' voices, the arcs / jobs / build briefs / challenges;
+   - 16 recruitable pilots with their fixed profile knobs and traits, a portrait style line + one prompt each, and the
+     Mixamo body map (6 existing, 10 `NEW:` needing the user's OK for downloads);
+   - the import JSON shapes.
+
+  The user chooses the AI and runs it (GQ21).
+
+ABSORBED
+- GAME-PREMISES (claude/game-premises-g2095 3d201d62): its model is kept and capped to the user's 3 concepts. Q5, Q8
+  and Q14 are superseded (GQ4, §3.4, GQ22). **Not READY**: there is no HANDOVER section, and its core battery shows
+  BIPLANE, DMGCERTCOST, FRAMECOST, INSTANT, BIOME, SETTLE and BUILT red without a write-up. Its S2-S4 numbers
+  G2096-G2099 are retired in favour of G2230-G2239 / G2310-G2339.
+- PILOT-PERSONA (claude/pilot-persona-g2085 73655e24): **not READY**. There is no G2085 section, `pilot_baseline.json`
+  is not updated, and it carries PILOT-ONE-2. It conflicts with GAME-PREMISES on `70_player.js` and
+  `90_node_exports.js`; the resolution is in study §13.3.
+- DEST-TO: landed (train 37). `flightWhere` / `flightLeg` / `setDest` are the hooks for `playerArrive`, the map's
+  route and "Fly it".
+
+SUB-BLOCKS
+- G2200-G2209 coordinator (G2200 study, G2201 pack, G2202 review page).
+- WELCOME-MODES G2210-19; FLEET-PROPS A G2220-24 / B G2225-29; PREM-S2 G2230-39; CONTRACT-MODEL G2240-49; MAP-MENU
+  G2250-59; ECONOMY G2260-69; ACCEPT G2270-79; PROCURE G2280-89; PILOTS G2290-99; STAGES G2300-09; PREM-S3 G2310-19;
+  PREM-S4 + CAREER-START G2320-39; OBSERVATORY G2340-49. (G2350-G2399 are DMG's, A0 7 Oct; the game block is G2200-G2349 + the reserve G2400-G2449.)
+
+FOR THE NEXT GAME COORDINATOR: read study §15-§17 and the user's pasted calls (via A0); slice into chips (cloud
+first, titles [CLOUD]/[LOCAL]/[LOCAL-GPU]); integrate on claude/game-integration; hand A0 frozen SHAs per train.
+
 
 ## G1985 - JOIN-PARITY: NODE FLIES THE GAME'S AEROPLANE - ONE LOAD PATH (tools/_load_build.js, the page's own code in the page's order), GATE JOINPARITY EXACT ON THE FIVE VALIDATED BUILDS, THE PAGE'S LOAD DOOR MADE DETERMINISTIC (2026-10-05/06, JOIN-PARITY for A0, cloud: node, plus headless Chromium + SwiftShader to capture the real page's answer; branch claude/join-parity-g1985 off origin/master e9e14880 = train 35; G1985-G1988 used, G1989 unused)
 
@@ -81600,7 +81822,7 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
    cut). The pole stays, the twigs dissolve - as the geometry's sub-pixel twigs do at the hand-over (`alpha_sweep/`: solid
    1/0 x cut 0/0.3/0.5; 0.5 is a hair cleaner, 0.4 keeps a far snag's pole a mip longer).
 4. THE LEVEL: a bare snag barely shades itself, so its geometry's match is uILit 0.9 on EVERY preset, where the leafy match is
-   1.242 without tree shadows (below): `barkLit 0.725` = 0.9 / 1.242, the bark sheets' share of uILit.
+   1.242 without tree shadows (below): `barkLit` 0.9, ABSOLUTE in place of uILit (G1975.1; it landed first as the ratio 0.725).
 
 **THE DOUBLE COUNT (A0's code read) - half a bug; the other half is the user's call.**
 - THE BUG, FIXED: `envAlbedo(k)` (G483 268cbdc3: `uILit = base x k x 0.9`; G485 d2158ad1: `0.9 x k`, its own comment saying
@@ -81619,9 +81841,9 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
   value keyed in gfx_settings' shadows apply. Their far forest drops ~22 % (the trees' own pixels: 300 m noon 0.172 ->
   0.135, 1 km golden 0.087 -> 0.067); the trees' lightness x1.38 restores only half (0.155) because uILit also scaled the
   sky-reflection terms the tint never touches - a full restore is ~x1.7 and the near trees 70 % brighter. Default if no
-  answer: as landed, 1.242 everywhere.
+  answer: as landed, 1.242 everywhere. ANSWERED 2026-10-07: column 3 - see G1975.1 below.
 
-**PROPOSED, OFF - THE MIXES' SNAG SHARE (the user's call, A0 recommends ON):** the game deals snags by the collection's
+**THE MIXES' SNAG SHARE (proposed OFF; ON by the user's call 2026-10-07 - G1975.2 below):** the game deals snags by the collection's
 `place.dead` and never reads the mixes' own `species[sp].dead`. pine_georgeous carries 0.53 on its collection (it came in
 with G454 BIOMES 203a58d0, unexplained - a pack-level share, not a design) and 0 / 0.03 / 0.03 in every mix that plants it.
 `TREE_MIX.mixDead` / `?mixdead=1` deals each tree's series by the mix's share for that species where it stands (the
@@ -81653,6 +81875,47 @@ FRAMECOST gate PASS at 03:20 on the colour fix. TREECRASH / TREEHIT: no geometry
 - the bake frames on `parts[0]`'s bounding sphere only (bakeImpostorAtlasNow): DeciduousDead1_29 crops its trunk bottom.
 - the twigs proper (a higher-res or thin-branch-aware bake for bark sheets, or the snags' geometry kept further - a larch
   snag is 5 490 triangles in its one rung, conifer snags 3.5-6.9 k) are a separate chantier if the dissolve is not enough.
+
+
+### G1975.1 - THE TREES UNDER THEIR OWN SHADOWS: THE USER'S FAR-FOREST CALL (2026-10-07, DEADWOOD-BRIGHT for A0, for train 40)
+
+**The user's call** (shown `far_forest_sheet.png`, confirmed through A0 as COLUMN 3): where the world casts tree shadows,
+the far pictures at their 3D match and the near trees lifted to keep the far level - not the darker-only column 2.
+
+**What it does:** `WORLD.treeShadowed(on)` (render_world.js), called by gfx_settings' shadows apply with
+`sh.on && sh.world !== false` - true for shadows `full` / `ultra` (current, gamer, ultra), false for `off` / `near`
+(potato, laptop, retro). On: uILit 0.9 (the impostors' measured match under self-shadowed geometry) AND the shade
+compensation `SHADE_K` 1.38 on BOTH tiers' tint (trees.js `SHADE`, `TREE_LEAF.shadeK()`: the trees and the bushes, every
+kind riding on MASTER, not the grass; not the user's MASTER.light, not saved). Off: uILit 0.9 x 1.38 and k 1, i.e.
+exactly G1975. Bark-only sheets now take an ABSOLUTE lit `barkLit` 0.9 in place of uILit (was the ratio 0.725), so a snag
+keeps matching under either state. `SHADE_K` is the one number (render_world.js; 1 = column 2).
+
+**Verified (2026-10-07 05:40, gamer golden; `col3/`):** the page boots with treeShadowed true, uILit 0.9, shadeK 1.38
+(the gfx hook fires). At the hand-over (geometry RE-SHOT per variant, since the lift moves both tiers), impostor /
+geometry `core` front-lit, master -> col3: cedar 1.27 -> 1.05, larch 1.32 -> 1.11, spruce 1.72 -> 1.26, pine 1.23 ->
+1.19, larch snag 1.38 -> 1.13; into the sun and side-lit lower in both (pre-existing, G1975's side findings). The far
+forest, the trees' own pixels master -> col3: 300 m noon 0.166 -> 0.149, golden 0.078 -> 0.064; 1 km noon 0.177 ->
+0.161, golden 0.075 -> 0.062 (the tint carries the albedo terms back, not the sky-reflection terms uILit also scaled).
+`far_forest_col3_sheet.jpg`: the near trees round a larch snag (290 m, golden, front- and side-lit) and the four far
+frames, master | col3. NOT re-shot on screen: gamer noon and potato (the second half of the pass was lost to a job-number
+slip in the slot script) - potato's "unchanged" stands on the code path (shadows `off` -> treeShadowed(false) -> G1975's
+values), checked by the gfx hook's own condition, not by a still.
+
+**Gates (this code):** GFX, TREES, TREE, PROGRAMS PASS; FRAMECOST `--census cub` of this branch vs its base train 37b
+(068584d6) `--compare`: nothing moved - stand, taxi, boot, memory (`col3/framecost_census_*`). (A census against the
+newer origin/master 751e1122 shows only master's own boot gains since 37b, which this branch did not carry until the
+merge below.)
+
+### G1975.2 - THE MIXES' SNAG SHARE ON BY DEFAULT (2026-10-07, the user's call on `mixdead_sheet.jpg` / `mixdead_table.jpg`)
+
+`TREE_MIX.mixDead` defaults ON; `?mixdead=0` deals as before (the collection's `place.dead`). Measured on gamer within 3 km
+of HOME (`mixdead_{off,on}_0707.json`): dead trees 22 836 -> 7 116 (11.8 -> 3.7 % of the living species; pine_georgeous
+53 -> 0.3 %; birch / ash gain the mixes' 5 %; dead_conifer, a dead species, unaffected). THE COST: the near tier at the
+stand carries 0 .. +11 % triangles (672 k both on 2026-10-07, 679 k -> 755 k on 2026-10-06 - what the streamer had dealt
+at that moment: the living trees that replace snags carry 2-4x their triangles). FRAMECOST (2026-10-07 13:30, the cpu lock): one RED, `stand/tris.main` +1.2 % on both builds (the
+gate's tolerance 1 %) - of it +84 141 (+0.48 %) is this switch against the same code with ?mixdead=0 (census pair), the rest
+the baseline's earlier drift; admitted by name in `tools/_framecost_check.js` ALLOW (G1975.2, cub / cessna upTo), then PASS.
+Taxi unchanged (-480 tris), draws -2. TREES, TREEHIT PASS (positions unchanged - the switch picks the series only).
 
   the taxi), the delivered fps under 15 in TWO 8 s readings running (after 5 s in the state; G1997b: one slow window - a clock
   ramp - is not a class) -> the preset one rung down (ultra > gamer > current >
@@ -84794,194 +85057,6 @@ another chip is SPLIT out of the gate onto a tracked OPEN list, never kept red u
 - The rows print the governing case.
 
 
-## G2095 - GAME-PREMISES: THE NEXT BIG RELEASE DESIGNED (BASES, HANGARS FROM THE THREE PRESETS, WHERE EVERY AEROPLANE STANDS, THE MONEY, THE WORLD BLEND, THE SCREEN, FOUR SESSIONS) AND ITS FIRST SLICE LANDED (PLAYER_V 2, THE RULES, GATE GAMEPREM) (2026-10-06, GAME-PREMISES for A0, cloud - node + headless Chromium for UI stills, no GPU; branch claude/game-premises-g2095 off origin/master 068584d = train 37b; G2096-G2099 unused, proposed for S2-S4)
-
-**READY for A0.** Nothing on screen changes; no viewer file is touched; no generated file is committed (flight_core.js,
-index.html, dev.html, sw.js, version.json are A0's at the train).
-
-The user's roadmap (1-2 Oct): after the release trains, the next big release is "the game premises": hangar management,
-unique hangars blending in and out of the world, the three garage interior presets (field / club / works) as the spec.
-
-**THE DESIGN** - `futureDesigns/GAME-PREMISES-2026-10-06.md`: what the player owns (a BASE = an aerodrome where a hangar is
-held, derived; a HANGAR = one of the three presets with its own dims / kits / dress at a PLOT, own or rent; plots per
-aerodrome in `BASE_OFFERS`: HOME x2, Tamgas Hill, Skyline, the mine's derelict shed, Annette Dock and Metlakatla as
-slipways); capacity as geometry (the door + a floor packer beside the fit-out: a bare club parks 6 Cubs, today's full
-club 2, a works 15, a field shed at its own size none - its 9 m door); upgrades (extend, kits, rebuild; never evicting);
-where the aeroplanes are (one slot = one airframe; in / tied down out / away; MOVING IS FLYING: a stop on an aerodrome
-moves it, anything else moves nothing and recovery charges the road); the money loop (sandbox records, career charges;
-own or rent per flown hour - time runs in flight, ruling ax; dm9-dm12 kept, plus a labour factor the fit-out earns: the
-reason to buy a kit); the blend (the world already stands the garage's own shell at HOME, G434 - each held hangar at its
-plot, premises contract v1.x `plots[]`, the roll-out / roll-in at any base, the fleet as parked statics); the PREMISES
-screen; the save (v2) and its migration; the phasing S1-S4 with gates; 20 open questions, each with its default.
-
-**THE SLICE (S1):**
-- `src/core/70_player.js`: `PLAYER_V` 2. `PLAYER_MIGRATORS[1]` (its first real entry): each shed gains `base` = its key
-  (in v1 the key was the aerodrome). The normaliser fills `tenure` (own), `mode` (sandbox), `here` (HOME), `clock` (0),
-  `fleet` ({}), `ledger` ([]); unknown sheds / fields ride along as before. `playerDefault` is the v2 default.
-- `src/core/71_player_bases.js` (NEW, MANIFEST.core after 70_, exported): `BASE_OFFERS`, `PREM_RATES`, `KIT_PRICES`;
-  the room (`hangarDims`, `hangarDoor` = hangar.js's DOOR_W / DOOR_H, `hangarObstacles` from hangarFit's placed props,
-  `hangarPark` - first fit biggest first, back wall forward, centre-out and wall-across with the better kept, a 0.5 m
-  grid plus every flush position; `hangarRoomFor`); the document (`playerWhere`, `playerBaseIds`, `playerHangarsAt`,
-  `playerResidents`, `playerOffers`); `playerFleetReconcile` (the lift of the flydiy.build.* slots - pure, the page hands
-  the names; refuses nothing); `playerStore` / `playerWheelOut` / `playerArrive` / `playerRecover`; `playerAcquire` /
-  `playerRelease` / `playerUpgrade` (+Cost); `playerGoTo`, `playerClock`, `playerLabourFactor`, `playerCharge`. Every
-  rule returns `{ ok, doc, why }` on a clone; a refusal hands back the very document, untouched. Pure (no DOM, storage,
-  THREE).
-- `tools/fixtures/player_v2_2026-10-06.json` (NEW vintage: two bases, a rented shed, aeroplanes in / out / away, ledger).
-- **GATE GAMEPREM** (`tools/_gameprem_check.js`, core, ~2 s, 458 checks; `--show` the room table; `--selftest`):
-  THE SAVE (both vintages; a v1 shed byte-identical after the walk, and what it composes to - the world's shed dims,
-  the verbs; v2 a fixpoint; junk, unknown sheds, the future), THE ROOM (the door source-scanned against hangar.js at
-  every preset's defaults and lims corners; the packer's contract on 3 presets x 3 fit-outs x 2 sizes x 2 fleets: placed
-  or reported, no overlap, no wall, nothing on the fit-out, order-free; the fit-out costs floor; today's room takes every
-  archetype; a lone aeroplane on the centre line), THE LIFT (forty builds keep forty aeroplanes; idempotent; a deleted
-  slot leaves), STORE / MOVE (a whole journey to Tamgas Hill and back, two hangars at HOME), HOLDING (acquire / rent /
-  dues / release / upgrade, the plot factor, every refusal untouched), THE OFFERS (every offered aerodrome a runway of
-  Jolene's record, slipways on water, every plot's shed as bought takes an aeroplane that can use the field), PURITY.
-  Negative-verified: 16 rules doctored in their own sources, each caught (`reports/evidence/GAME-PREMISES/gameprem_gate.txt`).
-- The UI stills: `futureDesigns/game-premises/premises.html` + `premises_home.png` / `premises_w3.png` - the PREMISES screen
-  mock-up, every number computed by the rules over the v2 vintage (`tools/gameprem_shot.js` writes `premises_data.js` and
-  shoots; a static page, no WebGL).
-- `tools/gameprem_page.js` (evidence): the page in node (FRAMECOST's harness) booted with a v1 player save / the pre-S1
-  prefs / nothing, then read back.
-- Pointers: ROADMAP (top), HANGARS.md (its §11 Q1 / Q3 / Q4 answered by default there), `tools/run_gates.js` (the row).
-
-**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 109 min wall on the 4-core cloud box): 161 rows, 154 PASS -
-GAMEPREM (new), PLAYER, SAVE, ROUNDTRIP, HANGAR, SITE, DESTTO, UISMOKE, PREMISES, PREMCOOK, STAND, BUILD among them - and
-seven FAIL, none this branch's (`reports/evidence/GAME-PREMISES/core_battery_summary.txt`):
-- FRAMECOST: THE STALE PARKED COOK, to the unit DEST-TO's control (cub stand draws.main 914 -> 1046, draws.shadow 169.5 ->
-  259.5, uniform4f 6 -> 222): any build-id move stales it; this branch draws nothing new. A0's re-cook clears it.
-- INSTANT: the runner's 1800 s cap (19 of 26 rows done, every one `same`). Run directly, master 068584d and this branch side
-  by side: both PASS, 2598 s / 2753 s (`instant_control.txt`) - the box, not the branch.
-- BIPLANE (build-time ratio 3.30x vs 3x), DMGCERTCOST (32.6 s vs a 32 s ceiling), BIOME (surface perf), SETTLE (bake
-  budget): wall-clock under the 4 jobs; alone (`--only=... --jobs=1`): all four PASS.
-- BUILT: the working tree's outputs predated the plot-factor fix (built at the battery's start); rebuilt: PASS (non-strict:
-  the outputs lag the source until the train's (built) commit, as for every source branch).
-The full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) was not run: nothing they fly reads the player document.
-
-**OLD SAVES IN THE PAGE ITSELF** (`tools/gameprem_page.js`, the page in node booted to the stand; `page_boot.txt`): a v1
-save (the club at 18 x 14 x 8, two dressed parts, named) boots to a stored v2 document with every shed field identical, the
-wallet identical, and the garage builds the saved 18 x 14 x 8 room; the pre-S1 prefs (16 x 13 x 7.5 + a dressed floor) are
-lifted into the room as before; a fresh profile stands in the club at 15 x 12.5. 0 page errors in each (53 GL-less impostor
-bake notes per boot, as in every node page - GATE ROUNDTRIP's filter).
-
-**OPEN QUESTIONS FOR A0 TO RELAY** (GAME-PREMISES §10; the slice and the plan take the DEFAULT until answered):
-1. Is a saved build ONE AIRFRAME that stands somewhere, or a design you can build copies of? - default: one slot = one airframe.
-2. When does money become real? - default: sandbox for everyone (every migrated save too) until contracts (P5b) give an income; then a career switch, opt-in, with a starting grant (~60 000).
-3. Rent, given time only runs in flight? - default: per flown hour, 1 % of the hangar's price, settled at each flight's end.
-4. The price scale (hangars 4 800-15 000 against a ~30 000 Cub)? - default: keep the shells' prices x a plot factor; calibrate in P5a.
-5. Hangars per field? - default: as many as the field's plots (HOME 2, the others 1).
-6. Where can an aeroplane be edited? - default: at any base you hold, any aeroplane standing there (in or tied down); away: fly only.
-7. Switching the garage between your bases? - default: free and instant.
-8. Moving without flying (ferry, truck)? - default: no, except recovery after a crash / field landing.
-9. Parking realism (wings over benches, staggering, blocked aeroplanes)? - default: plan rectangles, full-height fit-out, the crew shuffles.
-10. Tie-downs outside? - default: unlimited and free everywhere; weather wear and away fees come with wear.
-11. A crash or field landing? - default: back where it departed from by road (200 + 25 / km in career), damaged and grounded (dm10).
-12. Does the fit-out change repair cost? - default: labour x 0.8 with every wanted verb, x 1.0 short of one, x 1.25 away.
-13. Seaplane bases with the three presets only? - default: yes, a field or club shed on a slipway; a boathouse later.
-14. The opening: HOME's full club owned, or the derelict WWII field (GAME-LAYER bg)? - default: today's club, owned.
-15. In career, do the shed sheet's shell / kits / size cost money? - default: yes via playerUpgrade; the dress stays free.
-16. Selling back? - default: half an owned hangar's price; kits nothing; only empty, never the last.
-17. The screen's name? - default: PREMISES, on the rail.
-18. Can the wallet go negative? - default: only by rent / recovery; purchases need the cash.
-19. What does the world show on a plot you do not hold? - default: the offer's preset, shut and dark, with a sign.
-20. A fleet cap? - default: none but the slots and the hangars' room.
-
-**A0 AT LANDING.** Rebuild; re-cook the parked aeroplanes if FRAMECOST / HITBOX read a stale cook (a core edit moves the
-build id - DEST-TO's note); nothing per frame (the rules run on no frame; the page does not call them yet). The first boot
-of this build stores a v2 `flydiy.player` (app.js already runs the walk and writes back); an older cached build reading
-it passes it through (`v >= PLAYER_V`) and keeps every field. NEXT: S2 (the page holds it: the lift at load / save /
-delete, `foot` measured, FLIGHT_BASES from the held hangars, the roll-out from `here`, playerArrive on STOPPED, the base
-select) - cloud, G2096; S3 needs A0's box for the world evidence; S4 waits on Q2-Q4 and Q15.
-
-## G2200 - GAME COORDINATOR (2026-10-06, a LOCAL sub-coordinator under A0, like Deform / Sound; integration branch claude/game-integration off origin/master 068584d6; G-block G2200-G2399)
-
-BOARDS (7 Oct, A0's format = the Deform pair): PROGRESS https://claude.ai/artifact/EaZJAscAZCDLXG87XXa568 (db: sessions / trains /
-meta board, log, calls; owner writes) - EVIDENCE https://claude.ai/artifact/J8ZJx9yFxc36g2KY29X9pr (images published with the page;
-tree + mode + renderer per sheet; refresh at every commit that adds images).
-INTEGRATION (7 Oct ~00:40): claude/game-integration 40b07967 = train 38 (751e1122) + GAME-PREMISES S1 d45a41f2 + WELCOME-MODES
-0d3bfb43 + FLEET-PROPS A 90d5869d + PREM-S2 cbc6153e (welcome.js over MOBILE-GARAGE 1 by hand: the phone profile boots garage-only,
-no menu). **BEHAVIOUR CHANGE ON MOBILE-GARAGE 1's PATH (landed in train 38):** with WELCOME-MODES merged, a device on the
-phone profile (W.PROFILE.name === 'phone': the device gate's "Build on this phone", or a remembered phone profile) gets NO mode
-menu; welcome.js sets FLYDIY_MODE = 'garage' and the boot goes on exactly as MOBILE-GARAGE 1's phone path did. A phone that
-chose "try anyway" (desktop profile) gets the menu. The code: welcome.js, the then() before showMenu (one line, G2203).
-GAMEPREM / PLAYER / PARKED --pure PASS; the touched-gate pass waits for a CPU slot from A0. Proposed for train 40.
-
-TRAIN 40 HAND-OFF (7 Oct ~04:35): **FROZEN claude/game-integration 826b7d27** = train 38 + S1 + WELCOME-MODES + FLEET-PROPS A (behind
-FLYDIY_FLEET, off) + PREM-S2. The touched gates ran in A0's CPU slot (04:15-04:26, boxlock cpu GAME, on 0e496c90 = 826b7d27 minus the
-GFX fix; jobs 4): DESTTO 3/3 PASS (220 / 361 / 432 s), UISMOKE PASS, UISMOKE-PHONE PASS, BOOT PASS, ROUNDTRIP PASS, SAVE PASS, PARKED
-PASS (the full gate: the leak row and its negative control), GFX FAIL -> fixed in 826b7d27 and PASS. The fix is to the gate, not the
-code. WELCOME-MODES' two new GFX rows compared path.relative() output with forward-slash strings, so on Windows (the box) both rows
-failed. Separately, its ratchet was cut against 068584d6 and missed HW-COVERAGE's localhost skip in gfx_settings.js (train 38): that
-row would also fail on Linux once merged. Not run here: the strict per-train gate, FRAMECOST (the stale parked cook: A0's re-cook),
-the full battery.
-
-STATUS (kept current, 6 Oct ~21:00): **THE USER HAS RULED** (the review page, relayed by A0). Study §R records the
-calls and their consequences:
-- **Defaults kept everywhere except:**
-  - GQ5: "bring it home" is free in both modes;
-  - GQ26: one delivery per build contract, then a follow-up with one criterion changed;
-  - G-PROV: five providers, the mine and the dock merged;
-  - G-COST: no running costs; contracts pay net; hangars are bought only; a pilot costs a one-time sign-on fee;
-    ruling az now comes from physical gates.
-- **The notes:**
-  - GQ7: faster visual wear outside; slots are the main hangar's build bay + 2, and a side hangar 1 (2 for a club);
-    residents show as L2 props in the garage, hidden in close views.
-  - GQ13: 4 recruits on ch01 / ch42 / remy / ch22, no download; ch20 is the test pilot and ch02 is kept.
-  - GQ19: the phone runs the no-simulation bench and certificate items.
-  - GQ22: the career's main hangar is the works preset made cozy (LOCAL-GPU WORKS-COZY). The sandbox keeps the club
-    (GQ29).
-- The prompt pack has been updated (5 providers, 4 pilots, follow-ups).
-- **Chips:**
-  - issued: [CLOUD] WELCOME-MODES G2210, [CLOUD] FLEET-PROPS A G2220;
-  - next: [CLOUD] PREM-S2 G2230, whose step 0 makes GAME-PREMISES S1 READY with the calls' amendments for **train
-    40**.
-
-DELIVERABLES
-1. `futureDesigns/GAME-2026-10-06.md`: the final study. It covers:
-   - the loop and the three concepts (main hangar, at most 2 side hangars, stations on any runway, "bring it home");
-   - the fleet as props at their last base (parked.js `mine:` keys, bake on save, the G809 #2 capture-leak fix first,
-     ≤ 6 drawn, L3-only on the light presets, the LOCAL-GPU proof);
-   - procurement (makers over validated builds only, scratch, used aeroplanes standing where they are for sale);
-   - build contracts as performance user stories, verified by the certificate where it can tell and by a flown
-     ACCEPTANCE leg where it cannot (VCruise is clamped to 1.55-2.2 Vs);
-   - six providers as tabs; the SnowRunner-style MAP (researched and cited, §8.4);
-   - pilots (a person wrapped around a PILOT-PERSONA profile, a Mixamo body, a portrait);
-   - the narrative, with GQ20 (the real Metlakatla community: fictional people and organisations only);
-   - construction stages in the premises record, the economy, the save (PLAYER_V 3, `flydiy.career.<id>`, designs vs
-     airframes);
-   - the welcome menu with `?mode=`, the phasing (14 rows), GQ1-GQ28 with defaults, and rulings g1-g11.
-2. `futureDesigns/game/GAME-REVIEW-2026-10-06.html`: the review page for the user's session. It has 31 decision cards
-   with the default preselected, notes, and "Copy my calls" (localStorage only, no capability). **A0 publishes it**
-   as an artifact and relays the user's pasted calls.
-3. `futureDesigns/game/NARRATIVE-PROMPT-PACK-2026-10-06.md`: the external-AI pack. **PREPARED, NOT RUN.** It contains:
-   - the bible + hard constraints, the 6 providers' voices, the arcs / jobs / build briefs / challenges;
-   - 16 recruitable pilots with their fixed profile knobs and traits, a portrait style line + one prompt each, and the
-     Mixamo body map (6 existing, 10 `NEW:` needing the user's OK for downloads);
-   - the import JSON shapes.
-
-  The user chooses the AI and runs it (GQ21).
-
-ABSORBED
-- GAME-PREMISES (claude/game-premises-g2095 3d201d62): its model is kept and capped to the user's 3 concepts. Q5, Q8
-  and Q14 are superseded (GQ4, §3.4, GQ22). **Not READY**: there is no HANDOVER section, and its core battery shows
-  BIPLANE, DMGCERTCOST, FRAMECOST, INSTANT, BIOME, SETTLE and BUILT red without a write-up. Its S2-S4 numbers
-  G2096-G2099 are retired in favour of G2230-G2239 / G2310-G2339.
-- PILOT-PERSONA (claude/pilot-persona-g2085 73655e24): **not READY**. There is no G2085 section, `pilot_baseline.json`
-  is not updated, and it carries PILOT-ONE-2. It conflicts with GAME-PREMISES on `70_player.js` and
-  `90_node_exports.js`; the resolution is in study §13.3.
-- DEST-TO: landed (train 37). `flightWhere` / `flightLeg` / `setDest` are the hooks for `playerArrive`, the map's
-  route and "Fly it".
-
-SUB-BLOCKS
-- G2200-G2209 coordinator (G2200 study, G2201 pack, G2202 review page).
-- WELCOME-MODES G2210-19; FLEET-PROPS A G2220-24 / B G2225-29; PREM-S2 G2230-39; CONTRACT-MODEL G2240-49; MAP-MENU
-  G2250-59; ECONOMY G2260-69; ACCEPT G2270-79; PROCURE G2280-89; PILOTS G2290-99; STAGES G2300-09; PREM-S3 G2310-19;
-  PREM-S4 + CAREER-START G2320-39; OBSERVATORY G2340-49. (G2350-G2399 are DMG's, A0 7 Oct; the game block is G2200-G2349 + the reserve G2400-G2449.)
-
-FOR THE NEXT GAME COORDINATOR: read study §15-§17 and the user's pasted calls (via A0); slice into chips (cloud
-first, titles [CLOUD]/[LOCAL]/[LOCAL-GPU]); integrate on claude/game-integration; hand A0 frozen SHAs per train.
-
-
 ## G2210-G2219 - WELCOME-MODES: THE MODE MENU ON THE WELCOME SCREEN (CONTINUE HIDDEN, NEW CAREER "COMING", SANDBOX = TODAY'S GAME, GARAGE ONLY "COMING", SETTINGS = THE GRAPHICS CARD); ?mode=; window.FLYDIY_MODE; THE RIGS AND LOCALHOST UNCHANGED (2026-10-06, WELCOME-MODES for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/welcome-modes-g2210 off origin/claude/game-integration 3a1249a = origin/master 068584d6 + the game study docs; G2215-G2219 unused)
 
 THE ASK (the user, 6 Oct: "We'll also need a welcome screen, the current game under a sandbox option"; GAME-2026-10-06 §14,
@@ -85450,6 +85525,553 @@ document beyond what DESTTO flies).
   DEST-TO's note); nothing new per frame (the ledger runs at a roll-out, a stop, a save; the wear macro at setAircraft).
 
 READY for the GAME COORDINATOR: claude/prem-s2-g2230 d9465f6 (the code and the evidence; this line rides one docs-only commit on top)
+
+## G2250-G2259 - MAP-MENU: THE 2-D ISLAND MAP (BAKED, GATED), THE MAP SCREEN (PROVIDER TABS, FLEET / PILOTS / MARKET, PAN-PINCH-ZOOM, FOUR LAYERS, THE DETAIL CARD WITH "YOUR FLEET AGAINST THIS JOB"), THE PHONE'S SHEET - LAZY, BEHIND ?map=1; THE SANDBOX UNCHANGED (2026-10-07, MAP-MENU for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/map-menu-g2250 off origin/claude/game-integration 80d0bea; G2257-G2259 unused)
+
+**WHAT LANDED** (study GAME-2026-10-06 §8.2 / §8.3 / §8.1, under §R: five providers, G-COST, GQ19):
+- **G2250 THE MAP BAKE** - `tools/map_bake.js` (node; `--report` writes nothing). From the island data: the shore (the
+  coast grid's waterline, two depth bands), a height tint (12 bands) under a NW hillshade, the forest (WorldCover's
+  tree class), the lakes, the premises record's 76 roads (paved / gravel / track), **the 8 runways at true scale and
+  heading** (the record's rectangle, grown half a pixel so a 12 m strip is still a line; the water lanes lighter), the
+  7 hangar plots (BASE_OFFERS: the site's hangar, else its stand, else the shore beside the lane - their real place is
+  the premises record's, GAME-PREMISES session 3), a 1 km grid (5 km bold) labelled in km from the world origin, a
+  5 km scale bar and a north mark. One indexed PNG (135 colours, filter 0, one zlib stream at level 9: deterministic):
+  `media/map/jolene_map.c620385a.png`, **695 KB, 2167 x 2834 px at 12 m/px** (23 MB decoded; phone-safe), and the
+  projection `media/map/jolene_proj.2f8c83c4.json` (`px = (x - x0) / mpp, py = (z - z0) / mpp`, north up; the 8
+  aerodromes with surface / length / elevation; the plots). `src/viewer/map_pack.js` (generated by the bake, committed
+  like world_packs.json) is `window.MAP_PACK` = that projection with the hashed names - the screen's lazy script, so the
+  page learns the names without a fetch; media/ stays cache-first.
+- **G2251 GATE MAPBAKE** (new, core, ~15 s; `tools/_mapbake_check.js --selftest`): the bake re-run in memory equals the
+  committed picture and projection byte for byte, and map_pack.js is that projection; decoded from the committed PNG,
+  **no runway-coloured pixel outside every footprint and no pixel inside a footprint undrawn** (0 stray of 6 361, 0
+  holes), each strip's pixel count against its true area; the picture <= 2 MB, the projection <= 64 KB, each side
+  <= 4096 px, media/map/ holding exactly the two files. Selftest: a runway moved 60 m, turned 5 deg, a byte flipped, an
+  over-budget size - each red.
+- **G2252 THE MAP SCREEN** - `src/viewer/map_menu.js` (lazy, like diag.js): left the contracts list with provider tabs
+  (All + Trust, Mine & Dock, Resort, Survey, Clients: counts on each) and the asset tabs Fleet (every airframe where it
+  stands), Pilots and Market ("coming"); centre the baked map with pan (mouse / one finger), pinch, wheel-zoom at the
+  cursor, + / - / fit buttons, and four layers (contracts, your fleet, fields' surfaces, plots); right the detail card;
+  a bottom bar (wallet, career clock, the tracked contract's next stage). Each row: the provider's chip with a kind glyph,
+  the title, tracked / accepted, the kind, stage n/m, payload, km, and a **fit mark** ("fleet 1/4", "designs 1/5").
+  Markers are provider-coloured badges with a 48 px hit area, fanned when several share a field (contracts above, the
+  fleet below); labels avoid each other and the map's edge (right / left / below / above, else hidden until a zoom);
+  a field's strip line shows when zoomed in or when it is an end of the selection.
+  **Track one, accept many**: a row selects -> its markers light, its route is drawn (the tracked one's stays thin and
+  dashed), the map centres on it; **a marker tapped selects its row** (scrolled into view). Track accepts; tracking
+  another keeps every accepted one. Accept / track live in the session's adapted record (the career document is
+  CONTRACT-MODEL's / §13); "Fly it" (desktop) and "New design in the garage" (build) are disabled "coming" chips.
+- **THE DETAIL CARD** (§8.3): **everything needed, remotely** - per sub of the current stage: what (carry / survey /
+  deliver), the load (kg, passengers, bulk), km, **where the load is** and **where it goes**, each with its strip
+  (length + surface, "water lane", elevation when > 50 m); the pay computed net (base + per km x km), bonuses,
+  reputation; the arc's stages (done / now / next). **Your fleet against this job**: per airframe, where it stands
+  (playerWhere's kinds: in the X hangar / tied down at / away at) and its certificate's facts against the job - payload
+  spare or over ("payload 120 kg: 148 kg spare", "26 kg over its 94 kg"), seats against the passengers + the pilot, the
+  **certified take-off run vs the departure strip** and the landing run vs the arrival strip, floats / wheels against a
+  water lane (25_airfield.js stripAllows' rule on the baked surface; UISMOKE holds the two equal on 8 strips x 4 gears) -
+  ✓ / ✗ as facts, **never forbidding** (Accept and Track are never disabled; the card says so). **A build contract**:
+  each criterion with how it is verified (spec / ledger / flown) and ✓ / ✗ / ◌ "needs a flight" (with the plaque's
+  number) against every design - the fleet's and the drawing board's. **A fleet airframe**: its certificate, and the
+  work it meets on the facts alone (each row opens that contract).
+- **THE ONE ADAPTER**: `mapAdapt(raw, pack, live)` is the only reader of the record's shape, and `MAP_SOURCE` (one line,
+  map_menu.js "THE ONE SOURCE LINE") fetches the fixture. **CONTRACT-MODEL swaps its module in on that line**
+  (`() => Promise.resolve(CONTRACT_MODEL.record())`); if its record differs from §7.3, mapAdapt is the one function to
+  touch. The fixture `tools/fixtures/contracts_sample.json` (§7.3's shape): 5 providers, 11 contracts (2 arcs with
+  stages - Reopen the mine 4 stages at 2, Restore the old field 3 - 6 jobs / surveys, a challenge, **two build contracts
+  with crit**: a fast plane for four, the resort's electric), the career state (accepted, tracked, stage, wallet), a
+  4-airframe fleet with certificate facts (Cub in HOME, Jodel away at Tamgas Hill, C172 floats away at Annette Dock,
+  Voyager tied down at HOME), one drawing-board design, and a `text` table resolving the title / brief keys. The live
+  fleet: when the page's FLYDIY_PLAYER document has airframes, the fleet is theirs (where from the document; the
+  certificate facts only for a slot the record knows, else "certificate not read yet: open it in the garage").
+- **G2253 THE SANDBOX STAYS TODAY'S GAME** - build.js: `map_pack.js` and `map_menu.js` are MANIFEST.lazy names (no
+  static tag, nothing inlined); the page's lazy loader shows a **MAP** button (top centre, 48 px) only with **?map=1**
+  or when **FLYDIY_MODE === 'career'** (not built, so in practice ?map=1); off, it touches nothing. Pressing it loads the
+  pack and the screen, which then fetch the picture and the contracts (`window.FLYDIY_MAP_SRC.fixture`, content-
+  versioned like a script). Escape or ✕ closes. The clock-stop ("timeless") and the welcome's Continue -> MAP are the
+  career flow's (not here).
+- **G2254 THE PHONE** (GQ19, R1-R24): the same screen as a bottom sheet over the map (folded 184 px: the handle, the
+  tabs as chips, the first row; open 64 %), the layers as chips over the map, ✕ and + / - / fit at the right. A marker
+  tapped opens the sheet on its card ("‹ the list" back). **Plan only: Accept, Track, look - no Fly button.** R1: every
+  visible target >= 48 px (measured on the page in every state); R17/R18: nothing in title= or hover; R20: the map
+  `touch-action: none` (one finger pans, two pinch), the sheet body `pan-y`, the handle `none` (tap or swipe it), the
+  chip rows `pan-x` - separate elements, never one gesture. The phone layout keys on the profile (html.phone) or the
+  screen's own width (a media query) - no device test (GATE GFX's rule).
+
+**GATES** (on 80d0bea + this branch, built locally):
+- **MAPBAKE** (new): PASS (selftest: 4 of 4 red).
+- **UISMOKE**: PASS, + the map's rows (`tools/_map_smoke.js`, called from test_ui_smoke.js): the screen and its pack
+  are lazy names only; the loader in a vm - **no MAP entry without the flag** (no flag, ?map=10, ?scenery=1, sandbox
+  mode), one with ?map=1 or in the career mode, **nothing of the screen fetched before the press**, then the pack and
+  the screen in order; the 5 provider tabs + All (2+3+2+2+2 = 11), Fleet, Pilots / Market "coming"; every one of the 11
+  cards states both ends by name with their strips' lengths, the payload and the pay, Accept / Track never disabled;
+  the Cub / Jodel / floats facts on "Parts to the dock"; the build criteria (spec vs flown); the gear rule = stripAllows;
+  track one accept many; a selection's markers and route; **NOHOVER** (no title= / .title = / mouseenter / mouseover /
+  pointerover / :hover in map_menu.js or the entry), R1 (every interactive class >= 48 px), R20, no device test.
+- **UISMOKE-PHONE**: PASS, + the same rows on the phone (its cards carry no flight).
+- **BOOT**: PASS (unchanged; "nothing loaded before opening" is proved by UISMOKE's loader rows and by the stills'
+  request log below).
+- **GFX**: **FAIL on the base too, not this branch's**: "no device test outside welcome.js beyond the six of 6 Oct:
+  src/viewer/gfx_settings.js 2 > 1" - gfx_settings.js:706 reads `location.hostname`, unchanged here from 80d0bea (it
+  came with an earlier merge). This branch adds no device test (GFX's own scan names only that file; the map's smoke
+  checks map_menu.js too). For the coordinator: raise KNOWN['src/viewer/gfx_settings.js'] to 2 with a word, or move
+  that host test into welcome.js.
+
+**THE STILLS** (`tools/map_menu_shot.js`, the real index.html served by _serve.js, SwiftShader; `reports/evidence/MAP-MENU/`,
+`shots.json` = one note per still + the page's own answers: loaded, rows, markers, routes, small targets, title=, the
+card's text): sandbox_no_entry, entry, desk_tab_{all, trust, minedock, resort, survey, clients, fleet, pilots, market},
+desk_selected (Parts to the dock: route, both ends, the fleet's ✓ / ✗), desk_marker (a marker tapped -> its row),
+desk_build (a fast plane for four: criteria x designs), desk_fleet_layer (the fleet + the plots, the Jodel's card),
+desk_empty (an empty source), phone_collapsed, phone_open (the sheet on the card), phone_list. **31 checks, all ok, 0 page errors**: the sandbox has no entry and
+fetched nothing of the map (the browser's request log: no map_menu / map_pack / picture / contracts); ?map=1 shows the
+entry and still fetches nothing until it is pressed; every visible target >= 48 px and no title= in every state, desk
+and phone; the cards' facts; Accept / Track never disabled; track one accept many; a marker selects its row; the phone
+sheet's touch-action split; the phone card offers no flight.
+
+**OPEN / FOR THE COORDINATOR**
+- **build.js** (yours to resolve): two MANIFEST.lazy names, `MAP_FIXTURE` (content-versioned), and the MAP entry block
+  in LAZY_LOADER after the ?diag line. run_gates.js: one row (MAPBAKE) after BOOT. test_ui_smoke.js: one call after the
+  welcome block. 90_node_exports.js untouched (map_menu.js exports its own core to node).
+- **CONTRACT-MODEL**: the swap is MAP_SOURCE's line; their record's stage progress / accepted / tracked should come
+  from the career document (mapAdapt reads `career.{accepted, tracked, stage, wallet, clock}`). Pay is shown as
+  base + perKm x the stage's km - if their pay formula differs, `payOf` is the one function.
+- **ACCEPT**: the build card's ◌ rows ("needs a flight") are where a flown acceptance result would turn ✓ / ✗.
+- The certificate facts for the live fleet: the fixture carries them per slot; the real ones (payload, TORun, landing
+  run, gear) should come from each saved build's plaque cache - the card already says "not read yet" for a slot with
+  none.
+- Re-bake when the island, the premises record's roads / runways, or BASE_OFFERS change: `node tools/map_bake.js`
+  (it prunes media/map/); MAPBAKE goes red until then.
+- The rail entry is a fixed top-centre button for now; the study's rail MAP (beside GARAGE and FLY) is the career UI's.
+
+READY for the GAME COORDINATOR: claude/map-menu-g2250 65cc378 (the code, tools and evidence; this HANDOVER section is the one docs-only commit on top)
+
+## G2270-G2279 - ACCEPT: THE STATIC CHECKS (NO SIMULATION, THE PHONE'S), THE FLOWN ACCEPTANCE LEG ON THE AP BOX (TAS CALM-AIR, THE FLOW, ENDURANCE = USABLE / FLOW - RESERVE, RANGE = TAS x ENDURANCE), SIGNED INTO THE BUILD'S LOGBOOK, "PROVED IN FLIGHT" ON THE PLAQUE, acceptVerdict(crit[], evidence) (2026-10-07, ACCEPT for the GAME COORDINATOR, cloud - node + the page in node, no GPU; branch claude/accept-g2270 off origin/claude/game-integration 80d0bea; G2275-G2279 unused)
+
+The brief: GAME-2026-10-06.md §R (G-ACCEPT, GQ19), §6.2 (the spec), §6.3 (the bonus). No generated file committed.
+CONTRACT-MODEL (G2240) works in parallel: this branch implements against §6.2 / §7.3's crit `{ k, op, v, at? }` and
+exposes `acceptVerdict(crit[], evidence)` as the hook; `CONTRACT_CRIT_KINDS` is not in this tree - GATE ACCEPT checks
+it against `ACCEPT_KINDS` the moment it lands.
+
+**G2270 THE CORE** (`src/core/72_accept.js`, pure; MANIFEST after 71_, exports appended to 90_):
+- `ACCEPT_RULES` (stated, carried in every record): leg 5 min, declared throttle 0.75, HOME/ground + 300 m, settle quiet
+  30 s (cap 150 s), sample 1 s, bands alt ±10 m / TAS ±3 % of the leg mean / bank ≤ 5°, reserve 15 min, usable 1.0,
+  bonus +10 % per criterion beaten by 10 % (§6.3), door clearance 0.3 m a side (PARK_DOOR_CLR).
+- `ACCEPT_KINDS` (15): static `seats emptyKg powertrain tankL batteryKWh spanM costMax ultimateG xwindKt hydro`; flown
+  `tasKmh enduranceMin rangeKm takeoffAt landAt`; each with its default op.
+- **THE STATIC CHECKS** `acceptStatic(crit, ev)` -> `{ k, ok, value, need, source }`, over `acceptEvidence(def, extra)`:
+  the ledger (empty = every non-payload row: nobody aboard, no fuel; cost), the resolved spec (`seats` = the capacity
+  drawn, `occupants`, `fuel.litres`, `energy.kWh`), the engine family (`electric | piston | turbine`), the measured
+  plan (`playerFootOfDef`: span = 2 x half; `at: { door: m }` or `at: { shed }` -> `hangarDoorWhy`, the door rule
+  itself), the certificate already computed (`def.cert` / `extra.cert`: `{ limit, ult }`), the bench's awarded rows
+  (`extra.bench` = `BENCH_STATE().results`: xwind's `limit` m/s -> kt, an older row read off its verdict, a withdrawn
+  row nothing; hydro ok). **No simulation**: GATE ACCEPT scans the three bodies for any solver call and times them
+  (0.4 ms a pass for every kind on six builds). Missing evidence = `value null` (a test to run), never a pass.
+- **THE LEG** `makeAcceptLeg` / `acceptLegStart(sim, ap, def, o)`: on the AP box (43_pilot `ap.engage`): HDG as it
+  is, ALT at the declared height on FULL, then SET the declared throttle, settle (|vs| < 0.15, the TAS drift < 0.5 %
+  over 30 s), RECORD N minutes, hand back (`ap.disengage(resume)`). The recorder (`makeAcceptRecorder`) samples the
+  pilot's own instruments: its TAS is |v_cg - the sim's wind| (calm-air), the energy off `sim.fuel` (kg, or soc x kWh).
+  `acceptLegMeasure(samples, o)`: TAS / GS means, the flow by least squares of the energy against time (kg/h | kW; L/h
+  off the medium's density), `grossMin = usable / flow`, `enduranceMin = gross - reserve`, `rangeKm = TAS x
+  enduranceMin`; VALID only if every sample stayed in the bands, the box stayed on, no starvation, the throttle held,
+  the leg long enough - else `why[]`. The leg publishes its state on the pilot as `ap.accept` (a new object per stage),
+  `record` = the signed record when done or aborted. **THE HAND-BACK GIVES THE PILOT ITS BUDGET BACK** (what it had
+  left + 1.6 x the way back / VCruise + 120 s): measured without it, the user's Cub, 10 km out after its leg, landed at
+  HOME as `gave-up` - the page would have ended that flight in the air.
+- `acceptSign(measure, meta)` / `acceptSigned(rec)`: FNV-1a over the canonical record (bench.js's hash family); the
+  record carries `fp` (the build's bench fingerprint), `when`, `from`, `decl {thr, alt, legMin}`, `load {occupants,
+  payloadKg, massKg}`, the rules. An edited record no longer verifies and is not counted.
+- `acceptVerdict(crit[], evidence)` -> `{ rows[{ k, op, v, at, status: ok | fail | needs-flight | needs-test, value,
+  need, margin, marginPct, beat, source }], ok, needsFlight[], needsTest[], beaten, bonusPct }`. Flown kinds read the
+  LAST valid signed leg under the live fingerprint (`evidence.fp`; another = withdrawn) at the criterion's load
+  (`at: { occupants, payloadKg }`); `reserveMin` on a criterion overrides the stated reserve. `takeoffAt` = a logbook
+  row from that aerodrome that arrived; `landAt` = a row STOPPED there (`at`, flightWhere) with a touchdown and no
+  failed outcome - both under the fingerprint and the load. `acceptPlaqueLeg(legs, fp)` for the plaque;
+  `acceptStopAt(world, x, z)` (flightWhere + flightCanDepart) for the logbook row.
+
+**G2271-G2273 THE PAGE** (thin):
+- `src/viewer/accept_rec.js` (MANIFEST after bench.js) -> `window.ACCEPT_REC { start, abort, frame, flightEnd, state,
+  legs, plaqueLeg, evidence, verdict }`. `start({ legMin, thr, altAGL })` refuses on the ground / before the pilot's
+  first reading, under the hand, twice; the leg runs WHERE THE PILOT RUNS: the page's own sim inline (`?simw=0`), else
+  the physics thread through **sim_link.js `accept()` -> sim_host.js `'accept'`** (the same `acceptLegStart`, ticked
+  before the pilot's update in `H.step`; `'accept'` a rare pilot field so the state reaches the page's view only on a
+  change; a new leg or the hand aborts it). When a record appears it is **signed into the build's logbook**:
+  `GARAGE_SPEC.log().accept[]` (beside `flights`; the envelope carries it untouched) + a logbook note.
+- `app.js`: `ACCEPT_REC.frame()` beside the HUD's energy cell; `logFlight` calls `flightEnd()` and the row now carries
+  **`at`** (where it stopped: flightWhere, the stop only), **`occ`**, **`payloadKg`**, **`fp`** (the roll-out
+  fingerprint); drawPlaque's **PROVED IN FLIGHT** section after "in a crosswind": cruise flown (TAS · throttle ·
+  height), burn / draw flown, endurance flown (+ reserve), range flown, the leg (min · aboard · day); off-screen until
+  a leg exists; **withdrawn** (one warn row) when the live fingerprint is not the leg's. Rows explained in plaque.js.
+- `bench.js`: `window.BENCH_FP_OUT` (the roll-out fingerprint the leg and the row are signed with) and `BENCH_FP` (the
+  live one); the xwind row now carries `limit` / `capped` (m/s).
+- **No UI door to start a leg** (out of scope: MAP-MENU / the delivery flow call `ACCEPT_REC.start()`); a rig or the
+  console can.
+
+**G2274 GATE ACCEPT** (`tools/_accept_check.js` + `tools/_accept_fly.js`, core tier, ~5.5 min wall: nine flights in 4
+processes, run once; `--reuse` reads `reports/evidence/ACCEPT/flights.json`): **PASS, 188 checks; `--selftest` 24 of
+24 caught** (`reports/evidence/ACCEPT/{gate,selftest,gate_runner}.txt`).
+- THE LEGS (analytic world, calm, lined up at HOME, the circuit's own take-off; the box from the end of CLIMB; 5 min
+  at 75 % throttle, HOME + 300 m; all valid, in band to 0.1 m / 0.5 %, 301 samples, signed, published):
+
+  | build | flown TAS | shakedown VCruise (2.2 Vs clamp) | flow | endurance flown gross / shakedown rule | range flown (net) / shakedown |
+  |---|---|---|---|---|---|
+  | the user's Cub (A-65, 1 aboard) | 126.9 km/h | 113.0 (129.2) | 10.89 kg/h, 15.1 L/h | 178.6 / 199 min | 346 / 376 km |
+  | Jodel (A-65, 1 aboard) | 137.4 | 127.1 (149.7) | 10.89 kg/h | 178.6 / 199 min | 375 / 422 km |
+  | Cessna 172 (builds/cessna172_..._corrected, 2 aboard) | 195.5 | 184.3 (198.4) | 26.57 kg/h, 36.9 L/h | 344.7 / 385 min | 1074 / 1183 km |
+  | metal Cessna (master_bench's validated, 2 aboard) | **217.9** | **177.5 (177.4) CLAMPED** | 39.28 kg/h, 54.6 L/h | 30.8 / 34 min | 57 / 102 km |
+
+  The metal Cessna is the clean fast design the brief expected: its VCruise is solved ON the clamp and the flown leg
+  is 23 % faster. Every flown TAS beats the solved VCruise (75 % > the solve's 65 % of thrust). The flown endurance is
+  10 % under the shakedown's full-throttle / 0.67 rule on all four. (The metal Cessna's own small tank: 30.8 min.)
+- DETERMINISTIC: the Cub twice (and a third time through the runner): the same record to the signature (06777d9c),
+  the same samples, the same landing row. A DOWNBURST (-5 m/s, 10 s, 2 min in): refused on both bands (height
+  -12.4 m, speed -29 %), signed as refused. A 7.2 m/s WIND: TAS 126.9 (calm 126.9), groundspeed 147.7, the same flow.
+  The Cub flies HOME after its leg and stops: row from HOME, at HOME, sink 0.63 m/s, run 163 m, 1 aboard, its fp.
+  The stored legs are re-measured by the core under test (the selftest's doctored rules meet the real flights).
+- STATIC on six builds (+ the user's 2 kWh electric trainer, the Cessna floats): empty and cost = the plaque's
+  genShakedown, empty + payload = the mass flown, span = the measured plan (≈ the aero span), seats / tank / pack /
+  powertrain the spec's; the Cub 2 seats (1 aboard), 45 L, piston, 10.8 m, 353.8 kg; the door at 11.3 m refused, 11.4
+  passes; a REAL certificate of the Cub (genCertify): limit 3.8, ultimate 5.7; the bench's xwind row (built by
+  bench.js) 6.2 m/s = 12.1 kt.
+- THE VERDICT: a sample criterion per kind (ok / fail / needs-flight / needs-test), the margin and the bonus, a stated
+  margin, a criterion's own reserve, a load not flown, another fingerprint (withdrawn), a tampered record, a refused
+  leg, a row not stopped on the strip, a rejected take-off, an unknown kind; §6.3's examples (the team of four on the
+  C172: 4 seats ok, 200 km/h with 4 aboard and the strip still to fly; "under 300 kg" refused; "an hour on 20 L":
+  the hour flown, the tank refused; "electric"; "the aerobatic box" refused at 5.7; "cheap and forgiving").
+- THE PAGE: accept_rec.js on a stub window over the Cub's real sim (refusals, start, one signature into log.accept,
+  the note, the plaque row and its withdrawal, the contract door) and sim_host's `'accept'` in node (climb > settle >
+  record > done, its record reaching the snapshot); a saved-and-loaded logbook still verifies; the source doors.
+- `--selftest` (24): the bands (height, speed), the groundspeed for the TAS, the reserve, the range's endurance, the
+  fingerprint, the load, the signature, the empty mass with the payload, a static check that simulates, the bonus,
+  a refused leg counted, the crosswind in m/s, the door's clearance, a landing without a stop, a take-off from
+  anywhere, the plaque's withdrawal, and seven page doors (the frame hook, the row's stop, the plaque section, an
+  unexplained row, BENCH_FP_OUT, the worker's door, the logbook push).
+
+**OTHER GATES** (`reports/evidence/ACCEPT/gates_touched.txt`, `uismoke.txt`): BUILD, SAVE (the envelope still a fixed
+point), BENCH (every plaque row explained), SIMWORKER, POSEBACK, PLAYER, GAMEPREM: PASS. **UISMOKE: PASS**, with a new
+block: no proved-in-flight rows without a leg; the real accept_rec.js over a signed leg prints 127 km/h TAS, 163.6 min,
+346 km; another fingerprint -> withdrawn. Not run: the full tier, FRAMECOST / HITBOX (any viewer edit moves the build
+id: the parked cook reads stale until A0's re-cook - DEST-TO's note), SIMWORKER-PAGE / -EDGES / -PLACE (full tier; the
+worker change is one command and one tick, inert until the command is sent).
+
+**OPEN / FOR THE COORDINATOR**
+- **The structural certificate is the normal category only** (66_gen_cert: limit 3.8, ultimate 5.7 for every
+  certified build): a §6.3 "+6 g aerobatic" criterion is unwinnable until the certificate takes a category (an
+  aerobatic card at 6 / 9 g). `ultimateG` reads `cert.ult`; it will follow.
+- Merge points: `90_node_exports.js` (the accept exports appended), `build.js` (72_accept.js after 71_;
+  accept_rec.js after bench.js), `run_gates.js` (ACCEPT after GAMEPREM). CONTRACT-MODEL's kind names: reconcile with
+  `ACCEPT_KINDS` (GATE ACCEPT asserts every `CONTRACT_CRIT_KINDS` entry is answered once it exists). `at`: a string
+  is an aerodrome id; an object `{ aero, occupants, payloadKg, door, shed }`.
+- Seats is a CAPACITY check; "4 occupied at their stations" is enforced on the flown criteria by `at.occupants` (the
+  leg's own load). The usable tank is the fuel as loaded at departure (`sim.fuel.kg0`).
+- The phone (GQ19): every static kind runs off a def with no sim; `ultimateG` needs a certificate already computed
+  (on the phone: `needs-test` unless the cache has it); xwind / hydro need the bench's rows.
+- Nothing starts a leg from the UI yet (MAP-MENU / the delivery flow: `ACCEPT_REC.start()`); the leg's numbers are
+  this build's only (the fingerprint), the sandbox's plaque shows them once one is flown.
+
+READY for the GAME COORDINATOR: claude/accept-g2270 9ef705a (the code and the evidence; this section rides one docs-only commit on top)
+
+## G2240-G2249 - CONTRACT-MODEL: THE CONTRACT RECORD (§7.3), FIVE PROVIDERS WITH THEIR JOB TABLES AND ARCS, THE SEEDED JOB GENERATOR, A STAGE'S ACCEPTANCE FROM A STOPPED, THE FOLLOW-UP BUILD CONTRACT (GQ26), THE CAREER DOCUMENT; GATE CONTRACTS (2026-10-07, CONTRACT-MODEL for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/contract-model-g2240 off origin/claude/game-integration 80d0bea6, also pushed as claude/zen-planck-6zji9c; G2249 unused)
+
+The brief: GAME-2026-10-06.md §R (binding), §6, §7, §11.2, §12 (as amended by G-COST), §13.2, §15 row 5; the narrative
+pack's Block 5. **Pure core, node-loadable** (no DOM, THREE, storage, clock or random - the gate scans for each). New
+files plus one entry each in `tools/build.js` MANIFEST.core, `90_node_exports.js` and `tools/run_gates.js`. No
+generated file committed (build before the gates: `node tools/build.js`). welcome.js, parked.js, app.js, the map's files:
+untouched. **No PLAYER_V step**: the `career` block rides along a v2 player document as any unknown field does (GATE
+PLAYER's and GAMEPREM's normaliser keep it whole - gated).
+
+**G2240 THE DATA** (`src/core/72_contract_data.js`):
+- **CONTRACT_PROVIDERS** (§R G-PROV: five) - each `{ id, name, desc (keys), fields (home fields), track, base (job pay
+  base), goods [ {id, kind kg|pax|bulk|none, range, word} ], jobs [ the job TABLE: {id, goods, w, title, brief, routes:
+  [[from,to]] | survey: [[from,at]]} ], arc [records], builds [standalone build contracts] }`:
+  `field` (the Field Trust; HOME, w3; arc field.01-05 -> field:1, field:2), `minedock` (Jumbo Mine & Dock Co.;
+  mn_strip, SEA, mk_sea; minedock.01-06 -> minedock:1-4, the headframe then the pier: §11.2's two projects on one
+  track; builds b1 mail off the water, b2 ore out of the street), `resort` (Skyline; tw_ski; resort.01-05 -> resort:1-3,
+  the electric build resort.04; b1 four guests, b2 any wind), `survey` (the Survey Office, HOME desk; survey.01-05 ->
+  survey:1-3, the East Point STOL build survey.04), `clients` (Private clients & the Club; clients.01-05 -> clients:1-2,
+  builds "push it out alone", the club trainer, the aerobatic box, a challenge with medals; b1 the ridiculous tank).
+  31 authored records; all five kinds used.
+- **CONTRACT_TEXT**: every word is a KEY with plain draft English beside it, `{ t, draft: true }` (providers, tracks'
+  stages, goods, load lines, job templates, arc and build titles / briefs / done / follow lines, criterion labels,
+  follow-up change lines, medals). Slots `{from} {to} {load} {at} {v} {k} {n}` filled at read time (`contractText`).
+- **CONTRACT_FIELDS**: Jolene's 8 runways (x, z, len, surface word, `alti`) - the gate holds it byte-equal to
+  `contractFieldsOf(island_jolene.json's runways)` (stripSurface's words; note tw_ski reads `grass` + altiport, not snow).
+- **CONTRACT_DESIGNS**: the five validated designs (Cub, Jodel, metal C172, C172 floats, the twin on floats - LB.VALIDATED's
+  five, their build files) as certificate numbers: gear, seats, baggage, solo full-fuel mass, empty, take-off distance
+  (genShakedown TORun), cruise, range, span, cost, tank, power. **The gate re-derives every number from the build file
+  each run (genShakedown, within 3 %)** - cached in the OS temp dir by content (core body hash + the files), so the gate
+  is ~1 s warm, ~20 s cold. Note: these are the FILES as written (genShakedown on buildGen), not the page's joined
+  aeroplane (G1985): the floats C172 reads 1207 m / 1018 kg here.
+- **CONTRACT_TRACKS**: field 2, minedock 4, resort 3, survey 3, clients 2 stages, each stage a text key (STAGES draws them).
+
+**G2241 THE RECORD** (`src/core/73_contracts.js`) - §7.3 exactly: `{ id, provider, kind: contract|job|challenge|build|
+survey, title, brief (keys), stages: [ {subs: [ {do: carry|fly|land|survey|deliver|accept, from?, to?, at?, load?:
+{kg, pax, bulk?}, when?: {before:'dusk'}, crit?: [ {k, op, v, at?} ], medals?} ]} ], pay: {base, perKm?, km?, total?,
+bonus?: [ {crit, by, pct} ]}, rep: {provider, gain}, unlock?: {stage:'<track>:<n>'}, needs?: {rep, after}, repeat?,
+followUp?: {prefer, add, changed: [ {k, how, from, to} ], n} }`. Stages in order, a stage's subs in any order.
+- `contractNormalise` (fills, carries verbatim, unknown fields ride along; a fixpoint) and `contractValidate` (-> reasons:
+  kinds, fields, text keys, loads, criteria only on builds and inside their bands, operators, `at` conditions per kind,
+  medals only on challenges, `when` only `before: 'dusk'` - GQ17 no deadlines, bonuses on real criteria, unlocks on a
+  real track within its max, needs.after ids, and (g1) no configuration word in a build's criteria or text).
+- **CONTRACT_CRIT_KINDS** (data, for ACCEPT and MAP): the 15 kinds, each `{ k, unit, when: static|flown, how:
+  spec|ledger|cert|bench|leg|strip, src (today's source per §6.2), op, band | values, at (the conditions it may carry),
+  follow (the follow-up's step) }`: static = seats, emptyKg, powertrain, tankL, batteryKWh, spanM, costMax, ultimateG
+  (cert); flown = xwindKt, hydro (bench), tasKmh (at a load), enduranceMin (at a load, `reserveMin`, optional `tasKmh`),
+  rangeKm (leg), takeoffAt / landAt (a strip id, at a load, optional `fuelMin`). `contractCritWords(c)` reads one as
+  words ("cruises at 200 km/h or more with 3 passengers").
+- **CONTRACT_CONFIG_WORDS**: the word list (wing positions, gear layouts, makers / engines / models incl. cub, jodel,
+  cessna, piper, rotax, lycoming, continental..., struts, canard, pusher...); whole words, any case
+  (`contractConfigWord`). "floats" / "water" are an operation (hydro), allowed (GQ26 names floats as a change).
+
+**G2242 WHAT A VALIDATED DESIGN CAN DO** (ruling az through physical gates, G-COST): `contractCanDo(design, subs)` /
+`contractDoers(subs)` from the certificate numbers only - the gear on both surfaces (`contractGearOk` = stripAllows,
+gated on every field x gear), the passengers against the seats beside the pilot, the load against the cabin ((seats-1) x
+80 kg + baggage), a bulk load against a cleared 4-seat cabin, the LOADED take-off distance (toM x (W/W0)^2 x the
+surface's factor: gravel 1.1, grass 1.15, snow 1.3) against the strip at BOTH ends, the leg against 75 % of the range.
+Measured outcome (`reports/evidence/CONTRACT-MODEL/contracts.txt`): the Cub takes one passenger into the mine street,
+the Jodel does not; the C172 takes two, not three; the C172 floats carries one off the water, not three; the twin flies
+fish-spotting surveys and carries nothing; East Point (150 m) is no validated design's - it appears only as an overflight
+and as the survey office's STOL build contract. **Job classes** (`CONTRACT_JOB_CLASSES`: water, short, altiport, group,
+heavy, bulk, survey): every class has a doer; no design does every class (wheels never water, floats never the strips,
+the Cub / Jodel / twin never heavy, group or bulk).
+
+**G2243 THE PAY** (§12.3 as amended by G-COST): `contractPay(rec)` reads the record and the fields, nothing else - job
+pay = provider base + 60/km x km x (1 + kg/150 + 0.5/pax + 0.5 bulk) + surface (short <= 400 m 400, water 300, snow
+350, altiport 500 per field touched) + 15 % for a condition; rounded to 10. Arcs and builds carry an authored base;
+`contractPayTotal` adds the bonuses (a criterion beaten by its margin: +pct; a challenge medal). Paid net into the
+wallet as a ledger line `contract` (negative amount = income); no running cost exists anywhere (gated: a career's
+ledger holds `grant` and `contract` only).
+
+**G2244 THE JOB GENERATOR** (`contractJob(seed, provider, epoch, i, {rep})`, `contractJobs(seed, provider, done)`): a job
+is f(career seed, provider, epoch = floor(completed / 3), index) - FNV-1a + mulberry32, nothing else; its id
+`job:<provider>:<epoch>:<i>` regenerates it (`contractJobById`). 3 jobs per provider per epoch; the offers refresh after
+3 completed contracts (CONTRACT_GEN.refreshEvery). A template draws a route from its table and a load from its goods
+(scaled by the provider's reputation, GQ28 - reputation sizes the work, never hides it); a draw no validated design can
+fly is shrunk (a passenger dropped, the kilos halved) or redrawn - **every generated job is flyable** (gated over 1 680
+samples, 5 040 jobs). An ACCEPTED job is snapshotted in `live[id].rec`, so a later reputation change never alters a job
+already taken. Conditions: 25 % carry "before dusk" (judged on `stopRecord.hour`, 19.5 h).
+
+**G2245 THE FOLLOW-UP** (GQ26 / GQ31): `contractFollowUp(build)` -> the same story with ONE criterion changed (the
+record's `followUp.prefer` first, then the kind order; a kind's `follow` step - +1 seat, +10 % cruise, -20 % tank, -10 %
+cost or empty mass, +15 min, +3 kt, +0.5 g...; else a criterion from `followUp.add` - floats, a cost cap, a range),
+paid +15 %, its `changed` list carried down the chain so a change is never repeated, at most 3 deep
+(CONTRACT_FOLLOW_MAX). Id `<build>+<n>`, regenerated by `contractFollowById`; `contractFollowLine` says what changed.
+The happy client's follow-up is offered as soon as the delivery completes.
+
+**G2246 A STAGE'S ACCEPTANCE FROM A FLIGHT'S END** - `contractOnStop(career, contract, stopRecord, hooks)` (in
+74_career.js) -> `{ ok, doc, why, events }`: the career advanced on a clone, or THE SAME document untouched with a
+reason. The stop record the page will hand over at DEST-TO's STOPPED (`app.js playerFlightEnd` is where it is made; not
+wired - a later session): `{ how, aero (flightWhere's id when flightCanDepart), wrecked?, slot?, gear?, load: {kg, pax,
+bulk?}, row: the logbook row {from, to, t}, overflew?: [ids], hour?, accept?: ACCEPT's recording }`. Per sub: carry =
+the stop at `to` with the load aboard and the load taken on at `from` (the row's `from`, or an earlier stop at `from`
+with the load: "picked", which also advances); land / fly = the stop at `to` (fly: from `from`; a challenge's medal by
+the row's `t`); survey = `at` overflown (or stopped at); **deliver / accept are never judged here**: `hooks.acceptVerdict
+(contract, sub, stop, career)` -> `{ok:true, got}` | `{ok:false, why}` | `{ok:null}` pending; **a missing hook =
+pending** (`events: [{k:'pending'}]`). A completed contract: paid (base / total + bonuses), the provider's reputation
+(GQ28, capped 5), its arc index, the stage unlock (`tracks[track] = max(.., n)`), `done` (the completed count the
+generator reads), out of accepted / tracked, the offers refreshed. `careerOnStop(career, stop, hooks)` meets every
+accepted contract with one stop (the tracked first) and says why for each that did not move.
+
+**G2247 THE CAREER DOCUMENT** (`src/core/74_career.js`, §13.2): `careerKey(id)` = `flydiy.career.<id>`;
+`careerNew({id, seed, name, started})` = `playerDefault()` in mode 'career' + `career: { id, seed, started, name, cv,
+voucher: {kind:'maker', model:'cub', used:false}, providers: {<id>: {rep, arc}}, contracts: {offered, accepted, tracked,
+done: [{id, at, pay, medal?}], live: {<id>: {stage, subs, picked, got, rec?}}}, tracks: {field, minedock, resort, survey,
+clients}, pilots: {}, roster: [], market: {used: [], seen: 0}, airframes: {} }` - the grant (GQ23: 60 000) written as a
+`grant` ledger line, the voucher unspent, every track 0, the first offers (every provider's first arc contract + 3 jobs
+each: every tab open from day one). `careerNormalise` (the player walk, then the block filled / carried; a fixpoint),
+`careerOffers` / `careerOfferIds` / `careerRefresh`, `careerAccept` (only what is on offer; the first accepted is
+tracked), `careerTrack`, `careerAbandon`, `careerContract(doc, id)` (authored by id, a job from its snapshot or its id,
+a follow-up from its chain - nothing else is stored). Every refusal hands back the same document.
+
+**G2248 THE IMPORTER** (the bonus): `contractImportPack(block5Json)` -> `{ ok, text, why }`: the pack's providers,
+contracts, builds (brief + followUp.brief) and jobs (matched to the provider's templates by load word, else in order)
+written over the keys as `draft: false`, on a COPY of the table; refused: an unknown provider / contract / build id, an
+airfield id not on the island, a configuration word in a build's text or criteria, a job slot other than {from} {to}
+{load} {at}.
+
+**GATE CONTRACTS** (`tools/_contracts_check.js`, registered core tier, ~1 s warm): **PASS, 2208 checks** - the record
+(kinds, the 15 crit kinds and their columns, five providers / tracks, 4-6 arc contracts each ending in the track's last
+unlock, needs chained, every record valid + JSON round-trip + normaliser fixpoint + unknown fields kept, the validator's
+own refusals), every text key resolves (authored, generated, labels, tracks, goods) and every slot fills, the world
+(CONTRACT_FIELDS = the record, the gear rule = stripAllows, the designs = their build files), the physical rows (every
+arc stage flyable; 15 named physical verdicts; 5 040 generated jobs all flyable, valid, worded; every class generated
+and doable; az: no design does every class - the table below), the pay (invariant to any airframe / design / gear /
+slot on the record or the stop; longer / heavier / water / altiport pay more), the generator (deterministic, any
+provider order or interleaving, any key order of the career, seed-sensitive, refresh after 3), acceptance (right field
++ load = paid / rep / done; wrong field, no load, a wreck, off-field, not loaded at the origin, after dusk, stage 2
+before 1, not accepted = the same document untouched with a reason; pick-up then delivery; any-order subs; the field:1
+unlock; survey by overflight; rep only to the provider that paid; a build: no hook = pending, a pending / refused
+verdict / wrong field untouched, approved = paid with its margin bonus and the follow-up offered; medals gold paid
+double / bronze / too slow), THE JOURNEY (every provider's whole arc in order on its own reputation - each contract
+offered in its turn, flown by synthesised stops, the track at its last stage, the wallet = grant + pay), the follow-ups
+(every build offers one; each changes exactly one criterion, never repeats, +15 %, validates, regenerates by id, its
+line worded), (g1) no configuration word, the career document (grant, ledger line, voucher, tracks, providers, key,
+fixpoints, the PLAYER normaliser keeps it, junk), the import, purity. **`--selftest`: 46 of 46 doctored rules caught**
+(`contracts_selftest.txt`): a missing field, a dangling key, a dropped / mis-flagged crit kind, an arc with no / the
+wrong unlock, the normaliser dropping fields, a deadline let through, the fields drifting, wheels on water, a design's
+numbers drifting, an unflyable arc stage, the generator skipping the physical check, the physical gates off, the cabin
+ignored, the pay reading the aeroplane, a running cost, a random generator, an order-dependent one, no refresh, a wrong
+field advancing, the load unchecked, a wreck delivering, a refusal leaving a mark, stages out of order, dusk ignored, a
+missing hook passing, an accepted job changing with reputation, an arc needing more reputation than it gives, no unlock,
+reputation not per provider, a challenge ignoring time, a follow-up changing two criteria / repeating / paying the
+same / not offered, a configuration in a brief, the word check off, the grant wrong / not in the ledger, no voucher,
+the career normaliser dropping `done`, accepting anything, the import letting a configuration in / writing the table
+handed in, storage in the model.
+
+```
+DESIGNS x JOB CLASSES (jobs of the class each can physically do, of the gate's sample)
+  cub   water 0 · short 484 · altiport 1188 · group 0 · heavy 0 · bulk 0 · survey 684
+  jodel water 0 · short 47 · altiport 1188 · group 0 · heavy 0 · bulk 0 · survey 684
+  c172  water 0 · short 618 · altiport 1560 · group 582 · heavy 605 · bulk 177 · survey 684
+  c172f water 1080 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 72 · survey 273
+  twinf water 273 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 0 · survey 273
+```
+
+**THE OTHER GATES** (`reports/evidence/CONTRACT-MODEL/`): **PLAYER PASS (37) + selftest PASS, GAMEPREM PASS (533) +
+selftest PASS** - unchanged; and every gate that reads the manifest / exports or bundle: `run_gates --only=CLIMATE,SAVE,
+DESIGN,BUILD,CONTRACTS,PLAYER,GAMEPREM`: **BATTERY PASS**; MEDIA PASS (index.html 3.83 MiB gzipped of the 4 MiB budget:
+the three files are ~100 KB of source in the core bundle), REF PASS, UPDATE PASS; the built core evaluates in a
+browser-like context (no `module`). Not run: the full tier (BOOTLIFT etc.: page boots; nothing here runs at boot but table
+literals and function definitions) and the page (nothing in the page calls the model yet).
+
+**FOR THE SIBLINGS**
+- **ACCEPT (G2270)**: implement `hooks.acceptVerdict(contract, sub, stopRecord, career)` -> `{ok, why, got: {<k>:
+  measured}}` per CONTRACT_CRIT_KINDS (k / unit / when / how / at); `got` feeds the margin bonuses
+  (`pay.bonus[].by` is a fraction of the criterion). `stopRecord.accept` is yours to fill (passed through untouched).
+  `sub.crit` holds every criterion of the delivery (static and flown together).
+- **MAP-MENU (G2250)**: `careerOffers(doc).offers` (records), `contractText(key, contractVars(rec))`,
+  `contractCritWords(c)`, `contractFollowLine(rec)`, `contractPay(rec)` (km, surface, total), `contractDoers(subs)` /
+  `contractCanDo(design, subs)` with its `why` ("the fleet against this job": the certificate's facts, never a
+  verdict on the pilot), `contractClasses(rec)`, CONTRACT_PROVIDERS[p].name for the tabs, CONTRACT_FIELDS for the
+  markers, `careerTrack` / `careerAccept`.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge**: `90_node_exports.js` (one long export line), `tools/build.js` (one manifest line after 71_), `tools/run_gates.js`
+  (one entry after GAMEPREM) - siblings may touch the same spots.
+- **The page wiring** (a later session): build the stop record in `playerFlightEnd` (the load aboard needs a source: the
+  cabin's occupants + a cargo field; `overflew` needs the track; `hour` from `world.day`), store the career under
+  `careerKey`, call `careerOnStop` after `playerArrive`.
+- **PLAYER_V 3** (§13.2's version) was not spent: nothing in the v2 shape changed. The study's §13.2 `wage` in pilots is
+  gone by G-COST (a sign-on fee is PILOTS').
+- **The validated designs' numbers are the build files'**, not the joined aeroplane's (G1985's LB path is not on this
+  branch); a re-measure through the join would move the floats C172 (lighter by ~67 kg) and loosen its water verdicts.
+- The take-off law (W^2) and the surface factors are first-order, deliberately conservative; ECONOMY (G2260) owns the
+  pay numbers (CONTRACT_PAY) and GATE ECON may take the job classes over.
+- The text is draft placeholder English; the narrative pack (user-run, GQ21) replaces it through `contractImportPack`.
+
+READY for the GAME COORDINATOR: claude/contract-model-g2240 5f50b83 (the code and the evidence; this section rides one docs-only commit on top)
+
+## G2320-G2329 - CAREER-WIRE: THE MAP ON THE REAL RECORD (careerMapRecord), A DEV CAREER IN THE PAGE BEHIND ?career=1 (flydiy.career.dev; THE WELCOME'S CAREER ROW STILL "COMING", THE SANDBOX UNCHANGED WITHOUT THE FLAG), A FLIGHT'S STOP ADVANCES THE CAREER (careerOnStop WITH ACCEPT AS THE HOOK, THE EVENTS ON THE ARRIVAL CARD), "FLY THE ACCEPTANCE LEG", THE AEROBATIC CONTRACT HELD OUT (2026-10-07, CAREER-WIRE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/career-wire-g2320 off origin/claude/game-integration 2c0c86d, also pushed as claude/bold-babbage-eqs63i; G2325-G2329 unused)
+
+The brief: GAME-2026-10-06.md §R (binding), §15.0; the "OPEN / FOR THE COORDINATOR" lists of G2240 CONTRACT-MODEL, G2270
+ACCEPT and G2250 MAP-MENU. No generated file committed (`node tools/build.js` before the gates). All five steps landed.
+
+**G2320 THE MAP ON THE REAL RECORD** - `src/core/75_career_wire.js` (new, pure, MANIFEST.core after 74_, exports appended to
+90_): `careerMapRecord(careerDoc, world, opts)` builds the fixture's shape (§7.3) off CONTRACT-MODEL's data: the five
+providers (name / desc text keys, a short name - new keys `prov.<id>.short` - and a UI colour, the reputation and track);
+the ACCEPTED contracts first, then `careerOfferIds`' offers, each through `careerContract` with title / brief RESOLVED
+(`contractText` + `contractVars`), every criterion carrying its `contractCritWords`, the pay = `contractPay(rec)` (+ the
+record's bonuses), the classes, a build's follow-up line; `career: { accepted, tracked, stage, live (subs done / loads
+taken on inside the stage), wallet, clock, done, voucher }`; the fleet from the player document (`playerWhere`) with
+the certificate facts from the career's own airframe row (`career.airframes[slot].design` -> CONTRACT_DESIGNS: the
+voucher's maker Cub, PROCURE's purchases), else the page's reading of the saved build's shakedown (`opts.certs`:
+`careerDesignOfShake`, measured the way GATE CONTRACTS measures the five designs), else null = "certificate not read
+yet". `map_menu.js`: **MAP_SOURCE** is the real record - `FLYDIY_CAREER.record()` under ?career=1, else a NEW career's
+offers in memory (`careerNew`, nothing saved); **`?mapsrc=fixture`** keeps the fixture (map_menu_shot.js now passes it,
+so MAP-MENU's stills reproduce). **mapAdapt touched only where the real record differs**: a survey's `at` drawn as its
+`to`; `career.live` (the card marks a sub "✓ done" / "loaded"); `source`. **payOf** (the one pay function) returns the
+record's `contractPay` total when the record carries one (the card words it: base + 60 a km x km x the load's factor +
+the strips + the condition; the bonus as a fraction or a medal), the fixture's base + perKm x km otherwise. critFor /
+the criterion tables know CONTRACT_CRIT_KINDS' 15 names (powertrain, costMax, ultimateG -> the certificate's 5.7,
+xwindKt / hydro "needs a bench test", tasKmh / enduranceMin / rangeKm / takeoffAt / landAt "needs a flight", `==`).
+
+**G2321 THE DEV CAREER IN THE PAGE** - `?career=1` ALONE:
+- `welcome.js decideMode`: `?career=1` -> mode 'career' (any host, the rigs too; `?career=10`, `?career=0`, `?mode=career`
+  -> the sandbox). `READY.career` stays false: **the menu's New career row is still "coming"**.
+- `app.js`: `CAREER_DEV` (the same flag, read once); `PLAYER_KEY = CAREER_DEV ? careerKey('dev') : 'flydiy.player'` - the
+  page's player document IS the career document (§13.2: a player document in mode 'career' with its `career` block),
+  created by `careerNew({ id: 'dev', seed: 'dev' })` on the first load (the 60 000 grant in the ledger, the voucher, 20
+  offers), normalised by `careerNormalise`, the saved builds lifted into ITS fleet as the sandbox lifts them; the
+  sandbox's flydiy.player is neither read nor written. FLYDIY_MODE 'career' shows the MAP entry (MAP-MENU's rule).
+- `window.FLYDIY_CAREER { key, doc, record, act, cargo, overflew, last, sync }` (only under the flag). **The map's Accept /
+  Track write the document**: `careerAccept` / `careerTrack` (Track on an offer accepts it first; Track on the tracked one
+  untracks; Accept on an accepted one keeps it - abandoning is not that button's), then the screen re-reads the record.
+- **Without the flag no career code runs**: every call into the career's page half outside it is behind `CAREER_DEV`
+  (UISMOKE reads app.js for it), no FLYDIY_CAREER, no career plate, no career key (the browser run below).
+
+**G2322 A FLIGHT'S STOP ADVANCES THE CAREER** - `playerFlightEnd` (PREM-S2's), after `playerArrive`, under the flag:
+`careerStopRecord({ how, aero (flightWhere's id when flightCanDepart), wrecked, slot, gear (stripGear), occupants,
+cargoKg, row: { from: fromId, to: destId, t: ap.t }, overflew, hour: world.day.localSeconds / 3600 })` -> CONTRACT-MODEL's
+`{ how, aero, wrecked, slot, gear, load: { kg, pax }, row, overflew, hour }`; **load** = the cabin's occupants beyond the
+pilot + the cargo kg (a dev input on the flight plate's new career line, `#crPlate`, defaulting to the TRACKED contract's
+declared load - `careerTrackedLoad`); **overflew** = the aerodromes passed within their field radius (38b_
+`FLIGHT_FIELD_R` 450 m from the strip's rectangle) during the flight (`careerOverflewAdd`, every frame beside
+ACCEPT_REC.frame, reset at the roll-out). Then `careerOnStop(career, stop, { acceptVerdict: careerAcceptHook(crit =>
+ACCEPT_REC.verdict(crit)) })` - ACCEPT's verdict mapped to the hook: every criterion met -> `{ ok: true, got }` (the
+margins feed the bonus), one failed -> refused with why, a flight / test still to do -> pending. The result is saved;
+**the arrival card shows its events** (`careerEventLines`: loaded at X, stage n done, complete and paid, built: <track
+stage>, the client asks again, acceptance pending - why, or why nothing moved) **and the wallet line**; the ledger's
+`contract` line is careerComplete's (kept). Only a saved airframe's flight reaches it (PREM-S2's `flSlot` rule).
+
+**G2323 THE DELIVERY'S ACCEPTANCE LEG** - for a TRACKED build contract whose criteria need the flown leg (tasKmh,
+enduranceMin, rangeKm: `careerLegCrit`), the plate's career line offers **"Fly the acceptance leg (n aboard beside the
+pilot)"** in flight -> `ACCEPT_REC.start({ load })` (the criterion's load stated; the leg records what is aboard); its
+state / refusal ("in the air first", "the hand is flying") beside it. The signed leg is what acceptVerdict reads at the
+delivery's stop.
+
+**G2324 THE AEROBATIC CONTRACT IS HELD OUT** (§R's follow-up; the certificate is the normal category, 5.7 g ultimate):
+73_ `contractCertUlt()` (65_ GEN_LOAD_ULT) and `contractCertifiable(rec)`; 74_ `careerOfferIds` never offers an arc
+contract, a standalone build or a follow-up asking an `ultimateG` above it - today **clients.05** (+6 g). So it is never
+accepted either; the clients' arc stops at clients.04 (the track at clients:1) until the certificate takes a category.
+
+**GATES** (on 2c0c86d + this branch, built locally; `reports/evidence/CAREER-WIRE/`):
+- **CONTRACTS: PASS, 2260 checks** (was 2208); **selftest 54 of 54 caught** (was 46): + THE HELD-OUT CONTRACT (the
+  ultimate is 5.7; exactly the contracts past it held out; 5.7 yes / 5.8 no; clients.05 never offered with its needs met,
+  never accepted) and the JOURNEY (clients' arc up to the held-out contract, its track at its last unlock); + THE WIRE (the
+  map record: providers, the 20 offers, resolved text, contractPay's pay, an accepted job first and not also an offer,
+  the fleet's certificates - a design's, a shakedown's, none -, the stop record, the tracked load, a stop delivering a
+  job with the card's lines, a stop moving nothing says why, the hook's three answers, the leg's criteria, the
+  overflight radius); 75_ under the purity scan. Selftest's new breaks: the aerobatic contract offered, a stronger
+  ultimate read, no accepted contract on the map, a pay that is not contractPay's, the pilot counted as a passenger, a
+  non-stop delivering, the hook approving a pending verdict, the overflight ignoring the radius.
+- **UISMOKE / UISMOKE-PHONE: PASS**, + THE MAP ON THE REAL RECORD (`_map_smoke.js`: MAP_SOURCE is the real record; a new
+  career's 20 offers - 5 tabs x 4 + All; every card both ends, both strips' lengths, the payload, contractPay's pay, no
+  unresolved key or slot, Accept / Track never disabled, the phone without a flight; every contract a marker; the
+  career's Cub with CONTRACT_DESIGNS' certificate against a job, a kit "not read yet"; clients.02's criteria against
+  the Cub - seats ✓, empty mass ✗, span ✗ - worded by contractCritWords; the aerobatic box never on the map), + THE
+  CAREER FLAG (welcome: ?career=1 -> 'career' on a rig, localhost and a real host with no screen; ?career=10 / 0 and
+  ?mode=career -> the sandbox; READY.career false), the source guard (7 calls into the career outside its page half,
+  every one behind CAREER_DEV; the keys), and **the sandbox booted without the flag: no FLYDIY_CAREER, no career plate**.
+  The fixture's rows are unchanged.
+- **DESTTO: PASS** (3 shards), + `career:cub@w3` on ltd:cub's REAL flight (HOME -> Tamgas Hill, stopped on w3): the dev
+  career (seed dev) tracks job:field:0:0 (35 kg of tools HOME -> w3) beside field.01; the stop record off the flight (at
+  w3, whole, 35 kg - the tracked job's declared load -, the aerodromes passed in order: w2, HOME, SEA, w3); careerOnStop
+  delivers the job (done, paid 450, the wallet +450, the ledger's contract line), moves field.01 to its stage 2 (now
+  tracked), the card's lines; saved and reloaded unchanged; **the sandbox's document meets the same stop: nothing**; the
+  page reaches careerOnStop only under ?career=1.
+- **ACCEPT (--reuse): PASS (189 checks)**, PLAYER, GAMEPREM, SAVE, GFX, BOOT: PASS (unchanged).
+- THE PAGE (`tools/career_wire_shot.js`, the real index.html, SwiftShader; stills + shots.json): the sandbox - FLYDIY_MODE
+  sandbox, no FLYDIY_CAREER / plate / MAP entry, no career key; ?career=1 - FLYDIY_MODE career, flydiy.career.dev =
+  careerNew (the grant line, the Cub voucher, 20 offers), flydiy.player untouched, the MAP on the real record (All 20 |
+  Trust 4 | Mine & Dock 4 | Resort 4 | Survey 4 | Clients 4), a carry job's card (both ends, the payload, 450 net), Track
+  -> the document accepted + tracked and the plate's cargo = the job's 35 kg; a reload keeps it; no page error.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: `tools/build.js` (75_career_wire.js after 74_), `90_node_exports.js` (the exports appended),
+  `72_contract_data.js` (text keys `prov.<id>.short`, `ev.*`), `73_` / `74_` (the held-out rule; GATE CONTRACTS'
+  selftest anchor on careerOfferIds' follow-up line updated), app.js (one block after playerBringHomeNow + four guarded
+  lines), welcome.js (one line in decideMode), map_menu.js, the gates' files. No run_gates row added.
+- **The dev career's fleet is the saved builds** (PREM-S2's lift): there is no procurement yet, so the voucher is
+  unspent and `career.airframes` empty - every airframe's certificate is "not read yet" unless this browser holds its
+  shakedown (a build on the stand, or one whose shakedown sits in flydiy.shake by the saved spec's hash). PROCURE writes
+  `career.airframes[slot].design` and the card then states CONTRACT_DESIGNS' numbers.
+- **?map=1 without ?career=1** (MAP-MENU's dev flag) now shows a NEW career's offers built in memory when MAP is pressed
+  (careerNew + careerMapRecord; nothing stored, Accept / Track in the session's record as before). The plain sandbox never
+  reaches it (no MAP entry). If the coordinator wants ?map=1 to stay on the fixture, it is one branch in MAP_SOURCE.
+- **ACCEPT's `at.kg`**: acceptLoadOf reads `at.pax` / `at.occupants` / `at.payloadKg`, not CONTRACT-MODEL's `at.kg` - a
+  build criterion's kilos are not yet held against a leg's payload (no authored build criterion carries kg > 0 today).
+- **clients.05 held out** leaves the clients' track at stage 1 (the club's second building never built) until the
+  certificate takes a category (an aerobatic card): then contractCertUlt reads it and the contract returns by itself.
+- Not run: the full tier; the stills of MAP-MENU (map_menu_shot.js now needs `?mapsrc=fixture`, passed).
+
+READY for the GAME COORDINATOR: claude/career-wire-g2320 670ce84 (the code, gates and evidence; this section rides one docs-only commit on top)
 
 
 ## G2085 - PILOT-PERSONA: WHO FLIES IT - THE PERSONALITY ROW, THE CUSTOM PILOT'S KNOBS, THE PLAYER'S PILOT; A HUMAN THAT STAYS IN ITS LOOP (McRUER'S GAIN), EVERY PERSON ON THE FOUR VALIDATED AEROPLANES (2026-10-06, PILOT-PERSONA for A0, a CLOUD session: node + SwiftShader; branch claude/pilot-persona-g2085 = origin/master 068584d (train 37b) + claude/pilot-one-2-g1949 merged - TRAIN 38 HAD NOT LANDED: A0 re-bases it onto train 38, the merge is PILOT-ONE-2's own commits)
@@ -85960,6 +86582,38 @@ THE STILLS (the same build, 'current', aa off, 400 m up, pitched 0.3): ?clouddc=
 (g1532_current_air_before_clouddc0.jpg | g1532_current_air_after_fix.jpg) - the same field the msaa still shows.
 THE OVERCAST REPEAT (A0, the user's day read cover 0.994): booked 22:50-23:00 GPU TIMED - the rung's taxi on ?cloud=0.9,st (the menu's
 'overcast'), the copy toggled in-load; an addendum row here.
+THE OVERCAST ROW (22:50-23:00 GPU TIMED, train 40 = bcf62797, build 4d16bbcb0e4a, the cook fresh; the rung --cpu-throttle 3 --gpux 2,
+?cloud=0.9,st, 180 s, the copy toggled in-load - 65 toggles): taxi 15.5 fps old (1261 frames) vs 15.6 copy (1200), calls 1017 / 1016;
+the march 4.56 ms on the overcast deck (it ran before the fix too); the blit's timer 0.05 ms (its running mean). No cost past noise on the
+user's kind of day either (g1532_cost_rung_overcast.json). The air not reached in 180 s on the rung.
+THE USER'S 33.1 ms TAXI GPU (A0: real or the timer's artefact?) - the laptop's train 38 log (flydiy-flightlog-20261007T000432, the
+Jodel, 'current', never committed): REAL whole-frame GPU time, but OF FRAMES WITHOUT THE CLOUD PASS. A spoiled recorder query is
+discarded, never kept short (flight_recorder gpuEnd: spoiled -> back to the pool), and after any foreign TIME_ELAPSED the recorder opens
+none for 120 frames - so a timed frame is a whole frame with no cloud timer near it. The log's runs after the reveal (38.7 s): TIMED 2787
+frames 38.8-136.2 s (taxi GPU 33.1 ms mean over 2724), then FOREIGN on every one of 1689 frames from 137.0 s to the end. The user
+re-applied 'current' at 133.8 s (the settings screen 133.9-158.0 s). So:
+- BEFORE THE RE-APPLY THE CLOUD PASS DID NOT RUN AT ALL on the laptop (no cloud query in 95 s of taxi: no march, no composite) - "no
+  clouds from boot" has a SECOND cause besides G1532's composite: on that boot the pass never started. The box rigs never showed it
+  (?gfx=current / rollout_perf --gfx: the pass runs from the reveal, every frame foreign). The user's saved rows differ: own: true and
+  town 'nearby' (a laptop-budget value: the welcome's laptop pick before the driver update, then 'current'). The node repro to do: a
+  census booted with the user's exact saved graphics (potato_census --gfxpref / FRAMECOST with a pref seed) counting CLOUDS.draw and the
+  AA target at the stand BEFORE any re-apply. G1532 alone may not give that user clouds from boot.
+- the 33.1 ms is the cloudless frame's GPU (the march, ~0.8 ms there, and G1532's blit + composite are not in it).
+- THE RE-APPLY THROW is the same moment: 200 err events from 136.2 s (the recorder's cap, reached by 144.0 s) "Cannot read properties of
+  undefined (reading 'boundingSphere') @:5802" - line 5802 of index.html is the whole inlined three.min.js (no column logged): a drawable
+  without geometry reaching three's frustum test, right after the re-apply that also started the cloud pass (137.0 s).
+G1532b.1 (flight_recorder.js): an error event now carries the column and, for the first three, six stack lines - the next log names the
+thrower (GATE FLIGHTREC PASS).
+THE SAVED-STATE BOOT ON THE BOX (8 Oct, A0's slots; train 40 page, the cook fresh): 04:30 run (A) VOID - potato_census added ?gfx=potato
+by default over the seeded pref (fixed b7c40066: --gfxpref boots without ?gfx=); (B) ?gfx=current: the cloud pass from boot, 30
+CLOUDS.draw + 30 composite draws per 60 frames at the stand and in the air, target 1920x911 s0. 05:52 run (A) again, GUARDED (the eval
+measures nothing unless the URL has no gfx= and GFX.get() is the seeded state): url '', own true, town 'nearby', current, clouds half,
+aa off - THE CLOUD PASS RUNS FROM BOOT (30 + 30 per 60 frames, active, baked, cover 0.443, target 1920x911 s0). NOT REPRODUCED: the
+laptop's boot differed in something its log does not carry - the saved WEATHER (a day saved with cover 0 keeps the pass inactive: no
+march, no query), or the machine. So the recorder now says it: an event 'sky' at the reveal and 10 s later (the cloud pass's mode / ready
+/ active / baked / sky cover, the day's cloudCover / type / upper decks, the resolve target), printed by analyze_log as a SKY line
+(flight_recorder.js + analyze_log.js; GATE FLIGHTREC PASS). The user's next log answers both open questions (the SKY lines, the
+boundingSphere thrower's column and stack) without a console capture. No apply-order fix: none was shown to be needed.
 GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
 0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
 53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;
@@ -86253,3 +86907,301 @@ for the stills.
   looked at: the wreck alone in the middle.
 - JOINPARITY: GATE DMGCRASHUI is on the 'page' door (the page loads the build itself); the rig names no build file.
 - Seen, not touched: the top bar reads "BROKE UP: BROKE UP: THE FUSELA..." (the outcome said twice) on the worker still.
+## G2105 - WATER-DAMP: A DITCHED AEROPLANE SETTLES IN A FEW CYCLES - THE WAVES A HEAVING HULL RADIATES, AND THE HELD 360 Hz FORCE THAT FED A LIMIT CYCLE (THE CAP ON THE BUOYANCY, THE LAST COMPUTE'S AIR SHARE, THE HELD POSE); A PROP THAT MEETS THE WATER STOPS; THE CRASH ENDING CLOSES THE THROTTLE; GATE WATERDAMP (2026-10-06, WATER-DAMP for A0, cloud, node only; branch claude/water-damp-g2105 off origin/master 068584d = train 37b - train 38 not landed; G2106-G2109 unused)
+
+THE USER (6 Oct, damage tests on the water): "the plane keeps oscillating for a while, sending large waves. That might be
+realistic, but the oscillation seems a little long, like if the engine was still running, or there was a source of force,
+or an oscillation not damped enough." (The waves were the effects layer - WATER-LOOK G2093.) WATER-LOOK's rig
+(tools/ditch_osc.js on claude/water-look-g2090 c94383a4) is not on the remote: this entry's tools/ditch_osc.js is a new rig
+of the same name and entry (GEAR-WATER's ditch: 0.3 m over the SEA lane, 22 m/s, sinking 1 m/s, throttle closed).
+
+MEASURED ON MASTER (the rig, 60 s; heave = the mass centre over the water; "osc" = each window's p-p with its straight line
+taken out, so flooding's slow sink is not counted as rocking; settle = from when every 1 s window stays under 1 cm):
+- the user's Cub: a heave LIMIT CYCLE at 0.6 s, 2.5-2.7 cm p-p from 15 s to 60 s, never decaying; never settled;
+- the Jodel: the same at ~0.75 s, 5-6 cm p-p to 60 s; never settled;
+- the metal Cessna: decays (12 s to 1 cm; damping ratio ~0.05), no limit cycle in this entry (WATER-LOOK read +-1.7 cm at
+  4 s on its own run - not reproduced here);
+- the floats: settle (Cessna floats 7 s, twin 15 s to 1 cm) - the float pass, untouched below;
+- a prop under the water at 0.6 throttle: 729 N to the end (WATER-LOOK's number, reproduced).
+
+G2105 THE DIAGNOSIS (tools/ditch_osc.js, A/B on 32_hydro.js's new WB_OPT switches; scratch variants of the core with one
+term removed). The held rate WAS the limit cycle - three ways, each measured:
+1. THE CAP ON THE BUOYANCY. wetCompute's slamCap ("a node's force against its own velocity stops it at most, over the held
+   interval") was applied to the node's WHOLE wet force, buoyancy included. A node sinking slowly at V had its lift cut to
+   m V / dtH; a rising one kept all of it - more push up than down, every cycle: work into the bob. (The floats' cap bounds
+   the slam alone.) Removed alone: the Cub's cycle 2.6 -> 1.9 cm.
+2. THE LAST COMPUTE'S AIR SHARE. The flooding's air factor k = air (wetS - f) / wetS used the LAST compute's wetS (the code
+   said so): the lift moved with the heave one compute late - a negative damper ~ K (f / wetS) x 2.8 ms. With the flooding
+   frozen (every tau 1e9) master's own ditch DECAYS - the flooding was a necessary ingredient.
+3. THE HELD POSE. A position-dependent force held (every - 1) / 2 substeps on average (every = 13 on the user's Cub at 75
+   substeps) is a spring with a delay: a negative damper k tau, ~10^2 N s/m on the floating Cub - small, but the only LINEAR
+   damping the wet body had, so the quadratic terms (Newtonian, slam: zero at small amplitude) could only hold it to a cycle.
+   Proof the three are all of it: radiation OFF, the three fixed, the held compute tracks the force computed every substep
+   (hydroEvery 1) - the Cub's 10 s windows 1966 / 34.6 / 5.5 / 27.4 / 3.8 / 0.7 / 0.4 / 0.3 mm held against
+   1970 / 33.8 / 5.5 / 27.3 / 4.0 / 0.7 / 0.5 / 0.3 every substep; the Jodel 2686 / 58.4 / 22.2 / 11.9 / 21.4 / 27.6 / 41.6 /
+   5.5 against 2682 / 58.9 / 22.6 / 12.4 / 22.2 / 27.4 / 41.9 / 5.1. Master held: the Cub 1971 / 45.5 / 25.4 / 47.4 / 21.5 /
+   20.8 / 20.2 / 22.6 (the Jodel's 20-27 s and 60-70 s bumps are the flooding's slow attitude shifts, in both).
+   And with every 1 the old law already decays - the rate, not the step: the page and the worker both step 1/60 (sim_host.js
+   SIM_HOST_DT), so "at 1/60 and at the worker's step" is one run (GATE WATERDAMP asserts the constant).
+
+G2106 THE FIXES TO THE HELD FORCE (32_hydro.js wetCompute / wetSolverPass / wetLive):
+- the cap bounds the DYNAMIC force only (fh less the buoyancy's own share, WB.fb: slices, slabs, tanks, the tyres' displacement);
+- the slices' and slabs' air share from THIS compute's submerged share (two passes: the samples, then the lift; WBS.xs/ws/dv
+  scratch) - the lift is rho g air (vW - f vT), its rate with the level air x the waterplane;
+- the compute hands each node its buoyancy's GRADIENT (kY: every sample's d(lift)/dy - the smooth ramp differentiated - lumped
+  by the sample's own trilinear / bilinear weights, exact for a rigid motion; the tanks' and the tyres' (waterline chord x
+  width) too) and the height it was taken at (y0); the held substeps apply F - kY (y - y0): the force of the pose they
+  are at, to first order. The compute's own substep is the force it always was.
+- WITH ALL FOUR SWITCHES OFF (WB_OPT rad / grad / cap / now = 0) THE WET BODY IS MASTER'S TO THE BIT (FNV of p after 12 s of
+  the Cub's and the Jodel's ditch, the prop check aside - see G2108).
+
+G2107 THE WAVES A HEAVING HULL RADIATES (32_hydro.js WB_RAD, wbRad, wetLive). A real floating body is damped LINEARLY by the
+waves its motion sends away; every face term here was quadratic. The 2D strip law: B33' = rho g^2 A^2 / omega^3 (Newman,
+Marine Hydrodynamics s6.18; A the radiated wave over the heave amplitude), whose curve (Ursell 1949 the semicircle, Vugts 1968
+the rectangle) reads b = B33' / (rho B^2 sqrt(g / B)) ~ 0.5 at Omega = omega sqrt(B / g) = 1, rising as Omega below, falling
+as Omega^-3 above - THE CURVE THE FLOATS' (3c) kRad WAS READ FROM (its 0.02 at a lone float's Omega ~3.4), here EVALUATED:
+- per unit WATERPLANE area a pressure b(Omega) rho sqrt(g B) Vy against each node's vertical velocity (the floats' form), the
+  waterplane each sample's d(wet volume)/d(level), B the strip's own beam (a hull slice's width - its four cross members' mean,
+  S8.B; a wing slab's chord, SB.B);
+- omega the floating body's own heave frequency, rho g A_wp / (M + A33): A_wp the samples' waterplane x the air they hold (the
+  buoyancy's stiffness), A33 each strip's 2D added mass rho pi B^2 / 8 per length (a flat strip on the surface: the
+  high-frequency free-surface limit). The last compute's (WB.om), so one pass;
+- THE SIM CARRIES NO ADDED MASS (the floats' H0 cut, kept): it bobs at sqrt(K / M) where the real body bobs at sqrt(K / (M +
+  A33)). MEASURED, the settled aeroplane kicked 0.3 m/s up (flooding frozen), radiation off: the Cub's period 0.6 s against
+  the law's 2.2 s (A33 6.0 t: a wing on the water is a big plate), the metal Cessna's 1.2 against 1.9. The real body's damper
+  on the sim's faster bob over-damped it (the Cub came to rest in one overshoot), so the coefficient is scaled by
+  sqrt(M / (M + A33)) (WB.zK: 0.27 Cub, 0.32 Jodel, 0.63 metal): the DAMPING RATIO - the cycles it rocks - is the real body's,
+  on the sim's own period;
+- vertical only (heave, pitch and roll all come from it: it acts where the waterplane is); applied EVERY SUBSTEP against the
+  node's velocity then (a per-node coefficient cY, never held), bounded at c dt / m <= 0.5; calm water (the water's own
+  velocity not subtracted, as the wet body's other terms); no radiation on the tanks (inside a slice / slab, or a 45 L nose
+  tank's 0.1 m2 - stated cuts). The curve's level INFERRED to a factor ~2 (stated in the code).
+- THE KICK (0.3 m/s up on the settled aeroplane; the extrema after it, mm off the rest height):
+  - Cub: master's law 27.6 / -24.5 / 23.3 / -22.7 ... (zeta ~0.02); G2105 18.8 / -5.5 / 2.3 / -1.3 / -0.2 (zeta ~0.3);
+  - Jodel: 37.4 / -36.5 / 34.4 / -34.0 ... (zeta ~0.01); G2105 24.2 / -5.3 / 2.9 / -0.7;
+  - metal Cessna: 61.7 / -28.1 / 36.9 / -32.5 / 27.3 ... ; G2105 44.3 / -10.0 / 6.9 / -4.5 / 0.6 / -2.2.
+- THE FLOATS' CROSS-CHECK (not changed - "floats unchanged to the digit"): their kRad 0.02 was read at a lone float's Omega 3.4;
+  a seaplane on its floats bobs at 0.82 s (the Cessna floats) - Omega ~1.9 for a 0.57 m beam, where the same curve reads ~0.08:
+  the floats are under-damped by their own law too (they decay at zeta ~0.02: 7 s to 1 cm, the twin 15 s). For A0: the
+  floats' kRad from the curve at their own frequency would be the same session's fix on the float pass (it moves every float
+  gate's numbers).
+
+G2108 THE PROP IN THE WATER (30_solver.js propWater, called once a frame after wetArmFrame; eng[k].drown; setEngine's canRun).
+- On a frame the water can reach (the wet body armed, or the floats wet), each engine's DISC'S LOWEST POINT (its thrust nodes'
+  centre, R down in the disc's plane - DMG-DRIVE G1826's own geometry) against the water there: under it, the engine STOPS
+  (running off, the crank cut) and stays stopped while the disc is under (drown: a key, a swing or the pilot's DEPART checklist
+  cannot start it). DAMAGE ON: a prop strike as the ground's (propStrike(k, 'water'): seized, DMG.propAt.what 'water'); DAMAGE
+  OFF: a stall - nothing breaks, the key can start it once the disc is clear. out.propWet (the engines' mask) only on an armed
+  frame. Cost: one waterH a engine an armed frame.
+- Measured: the user's Cub ditched at 0.6 throttle: the disc under at 0.38 s, thrust 0 after it (master 683 / 724 / 729 N to
+  the end); damage on: {"eng":0,"what":"water","t":0.383}. A ditch with the throttle closed moves too (the idle engine stops:
+  HYDRODYN's numbers below).
+- DMG-DRIVE (claude/dmg-drive 499c20d, not on master): its driveFrame grades the same disc against the water (surf 'water').
+  When it lands, A0: keep propWater's damage-OFF stall and its `drown` hold; with DRV on let driveFrame's graded strike stand in
+  for propWater's propStrike(k, 'water') (one call site; the geometry is already the same).
+
+G2109 THE CRASH ENDING CLOSES THE THROTTLE: app.js script() (the inline path) and sim_host.js H.step (the worker's) set
+ctl.thr = 0 once sim.damage().over, after the pilot or the hand wrote it - the wreck lies with its power off whoever flies
+on after the card (a resume). Damage OFF has no crash ending (G1898): there the prop's stall is what stops the engine.
+
+GATE WATERDAMP (NEW, tools/_waterdamp_check.js, core, ~60-80 s on 3 threads):
+1 the user's Cub and the metal Cessna ditched, 30 s: under 1 cm p-p from 7 s / 6 s (bound 10 s), and every 1 s window after
+  it under 1 cm (the most after 10 s 2.0 / 7.8 mm) - no limit cycle;
+2 the control: master's law (WB_OPT all 0) never settles by 30 s (24.7 mm every second at 20-30 s);
+3 the held rate, radiation off: the fixes' held compute against every substep within 2 mm (34.6 / 5.5 against 33.8 / 5.5
+  mm at 10-20 / 20-30 s); master's held 25.4 mm at 20-30 s;
+4 the prop: damage off a stall (no thrust after, the starter cannot catch with the disc under, nothing seized), damage on a
+  'water' strike; dry on its strip the engine runs (729 N), `out` never carries propWet;
+5 the floats: no wet body, 8 s on the water at a quarter throttle, the disc never wet, every engine running;
+6 the ending: sim_host's step closes the throttle once the crash is over (0.6 -> 0); app.js script() carries the same line.
+
+EVERY NUMBER THAT MOVES:
+- THE DITCH (tools/ditch_osc.js, 60 s; settle to 1 cm, 1 s windows; reports/evidence/WATER-DAMP/runs):
+  | build | settle to 1 cm | 15-20 s osc | 25-30 s osc | 55-60 s osc |
+  |---|---|---|---|---|
+  | the user's Cub | never -> 6.5 s | 25.1 -> 0.5 mm | 26.6 -> 0.1 mm | 20.6 -> 0.0 mm |
+  | Jodel | never -> 4.0 s | 76.3 -> 9.1 mm (flooding's pitch drift) | 54.4 -> 4.2 mm | 55.1 -> 13.7 mm (the nose sinking: smooth) |
+  | metal Cessna | 12.0 -> 5.5 s | 9.2 -> 0.4 mm | 0.9 -> 8.3 mm (its 10 deg flooding list, at 5-10 s on master, at 20-25 s now) | 0.1 -> 0.0 mm |
+  | Cessna floats, twin floats | 7.0 s, 15.0 s - byte-identical CSVs | | | |
+  The 5-10 s window: the Cub's pitch swing 18.8 -> 8.3 deg, the Jodel's 20.3 -> 9.3, the metal's 6.5 -> 6.3. Where they float
+  at 60 s is unchanged (Cub CG 0.63 -> 0.64 m under, pitch -39.9; Jodel -72.5 -> -71.2 deg; metal +0.01 m, -25.7 deg, 10.4 roll).
+- GATE HYDRODYN (master -> this branch, every other line identical): the stock taildragger at 80 km/h under 10 km/h in 0.95
+  -> 0.98 s, nose-over 83 -> 89 deg; the fabric build floods 5.5 -> 5.6 % at 10 s (7.5 % at 20 s both); covered CG 0.51 ->
+  0.48 m under (bare frame 0.80 both); the tanks: empty 0.657 -> 0.656, full 0.671 -> 0.669 m under (1.3 cm both); the fabric
+  wing flooded 4.0 -> 3.8 % at 20 s; the aft-cabin tank's pancake 552 -> 551 kPa, holed 2 of 2 both, flooding 12 -> 27 % at 3 s
+  (not traced: the holed tank floods toward its wet share, and that share differs in the first 3 s of a pancake whose
+  slices' lift the cap no longer clips - INFERRED). The S1 cost line (the floats' water / dry ratio 1.26 -> 1.30 x) is the shared
+  machine's timing, not this change (the float pass is untouched: bound 2.5).
+- GATE FLOATS, SEAPLANE, WATER, SOAR: NOTHING MOVES - each gate's whole output on this branch is byte-identical to master's
+  (run directly on a worktree of 068584d and on this branch, `diff`: 0 lines) - the floats' calm take-offs, circuit, crosswind
+  run, taxi and landing to the digit; SOAR's control on the lake too.
+
+GATES (node tools/run_gates.js --only=HYDRODYN,WATER,FLOATS,SEAPLANE,SOAR,WATERDAMP --jobs=3, this branch): all PASS,
+BATTERY: PASS (wall 887 s). TANKSFLOAT is GATE HYDRODYN's G1385 section (no gate of its own): PASS, numbers above.
+Plus, for the other files touched (30_solver.js's engines, sim_host.js, app.js): --only=SIMWORKER,PANEL,POSEBACK all PASS
+(257 s); --only=TREECRASH,UISMOKE,DMGINST all PASS (994 s). The full battery is A0's.
+EVIDENCE: reports/evidence/WATER-DAMP/ - ditch_heave.svg / .png (the Cub, the Jodel, the metal Cessna: master against G2105,
+0-30 s and zoomed from 8 s), runs/ (the rig's tables and every frame's CSV, 60 s, all five builds; the floats' CSVs
+byte-identical), README.
+TOOLS: tools/ditch_osc.js (the rig: --builds, --secs, --V, --entry ditch|settle, --thr, --damage, --every, --rad/--grad/--cap/
+--now the switches, --core another checkout's flight_core.js, --csv, --json); tools/ditch_osc_plot.js (the sheet).
+OWED / FOR A0: (1) the floats' kRad by the same curve at their own frequency (G2107's cross-check - every float gate moves:
+its own session); (2) DMG-DRIVE's merge (G2108's note); (3) the wing slab's waterplane is the slab's thickness ramp, so an
+inclined wing reads more waterplane than its real cut line (the buoyancy's own representation, kept; the radiation and A33
+inherit it); (4) the added mass's INERTIA is still not modelled (the sim bobs at sqrt(K / M)): the rocking's cycles are the
+real body's, its period shorter.
+READY for A0 (2026-10-06): branch claude/water-damp-g2105 - 32_hydro.js, 30_solver.js, app.js, sim_host.js, the rig, the
+sheet, GATE WATERDAMP (registered core), this entry; generated files not committed (build.js makes them).
+## G2077-G2078 - GROUND-COST LEVERS 1 AND 3: WITHDRAWN, MEASURED NEGATIVE (2026-10-08, GROUND-COST for A0, local GPU; measured on claude/ground-cost-g2076 over train 40 bcf62797 - for the record; this commit claude/ground-cost-tools rides train 42 with the measuring strips restored)
+LEVER 1 (the registers in every ground program, the full ones too - the user accepted ~+2 s of current's first-visit link for ~-20 %
+of its ground, 7 Oct ~18:15): ON TRAIN 40 IT DOES NOT PAY. Before = live train 40, after = this branch (05:20-05:40, the box quiet,
+three before/after rounds, the trees' sway off), current, ground ms: stand 5.15 -> 5.69 (+11 %), taxi 3.28 -> 3.66 (+12 %), 40 m
+6.31 -> 6.10, grass 4.30 -> 4.16, air 7.45 -> ~7.2; the cold link 11.1 -> 15.3 s wall (+4.2 s). The -14..-23 % of 6 Oct was against
+train 37b - before SHORES-2's bank / triplanar (train 38) and the apron skip (train 40, which already took the dearest pixels). The
+link's bisect (the ring alone, cold, two rounds, reports/evidence/GROUND-COST/runs/link_bisect/): arrays 6.45 s, the registers' vote
+alone 7.35, their candidates alone 7.4, both 8.3, both with 4 candidates 7.6, both without the one-code path 8.0, the lean program 3.45
+- no single culprit. Withdrawn; the full programs keep the arrays (train 40 as landed).
+LEVER 3 (the normal array, a look call): cutting its fetch past the normal's fade pulled in to 800 / 400 m saves ~nothing (air 5.22 ->
+5.13 / 4.95, 40 m / grass / taxi +-0.1, noon and golden: runs/s21_nrm_*.json) - the normals' cost is inside 400 m. Nothing put to the
+user. The strip nrmcut stays a measuring tool.
+LEVER 2 at retro (the apron skip, landed in 40): no gain there - the ground under the apron is already cheap at lean (the one-code
+cells: one tap; one set a type), so skipping it saves little; at current (25 taps, three sets) it was -16 %.
+THIS COMMIT (train 42, no player-visible change): src/viewer/splat_ground.js - the hexfar / nrmcut measuring strips' flags declared
+again (train 40's apron commit had put gSFarOn behind a comment on the same line: production never reads them, ?gstrip=hexfar did not
+compile) and the strip nrmcut; tools/perf/ground_cost.js --eval '<js>' | @file (a page expression printed once the flight is held);
+the runs under reports/evidence/GROUND-COST/runs/ (f_*, fr*_*, s21_nrm_*, link_bisect/). GROUND-COST (G2075-G2079) is closed.
+## G2065 - METLA-MERGE: THE PAVEMENT MERGE IN SLICES, THE SAME MESHES AND SPHERES TO THE BIT; THE TOWN'S ~97 ms APPROACH FRAME GONE (2026-10-07/08, METLA-COOK for A0, local GPU; branch claude/metla-merge-g2065 on train 40 bcf62797, for train 42; G2066-G2069 unused)
+
+**READY for A0.** One commit, 2846a4f7.
+- src/viewer/pavement.js: inlined in index.html, so FLYDIY_BUILD moves and the parked cook is re-cooked at the train build.
+- tools/perf/metla_rebuild_split.js: the probe digests each mesh's bounding sphere too.
+- Generated files are not committed.
+
+**WHY.** The town's deferred build (G2063) left one ~80-97 ms frame on the way to Metlakatla, once per flight at ~7 km. The approach's CPU profile named it: PAV.mergeSteps (the town's roads merged into one group in one generator step) and computeBoundingSphere over the merged geometry.
+
+**WHAT.** mergeSteps now yields after each part, both when it measures the parts' boxes and when it copies them into the merged group. The merged group's bounding sphere is computed THREE's own way, in 65 536-vertex steps:
+- Box3.expandByPoint: Math.min / Math.max per axis over every position
+- the centre: (min + max) * 0.5
+- the largest Vector3.distanceToSquared to the centre
+- its root
+
+These are the same operations in the same order, so the same sphere to the bit, and the merged groups' culling (draw counts) cannot move. merge() (the synchronous form) drives the same generator.
+
+**PROOF (node, the page's boot; METLA_KEEPGEO; 7 Oct 16:52-16:58 under the CPU lock).**
+- Every mesh AND its bounding sphere hashed, old pavement.js (f422c111) against new:
+  - town OFF, all 268 meshes incl. the far tier: SAME
+  - town ON, every merge built at boot (?towngeo=0): SAME
+- The town's deferred build, its steps by label: the merge's largest step is 84 -> 33 ms node (boxes 5, copy 4, sphere 3 ms).
+
+**THE BOX** (8 Oct 14:38-14:44, TIMED; the Cub, gamer, lc_build pinned, a fresh profile; metla_ab --warmup A --order A,B --approach 40):
+
+| | town off | town on |
+|---|---|---|
+| garage | 42.3 s | 47.6 s |
+| taxi | 30 fps, 0 % | 30 fps, 0 % |
+| pass, uneven | 2 % | 3 % |
+| approach, worst frame | 66.7 ms | 83.5 ms |
+
+- No frame over 100 ms on either side.
+- On the town-on approach the premises step is gone (it was 97 ms on 7 Oct, same rig).
+- The worst frame (83.5 ms) shows 11 ms of render CPU (a GPU or upload frame); its neighbour shows world 34 + prem 31 ms.
+## G2111 - GARAGE-LAPTOP 4: THE GARAGE'S IDLE LOOP DEFORMED THE HIDDEN FLOWN AEROPLANE EVERY FRAME - NOT ANY MORE; THE SHADOW CACHE'S OWN CHECKS CHEAPER (2026-10-07/08, GARAGE-LAPTOP for A0, local GPU; branch claude/garage-loop-g2111 on train 40 = bcf62797)
+
+WHY: on the fitted laptop rung the garage's loop still spent ~12 ms of JS outside the render (the box: ~4 ms) with nobody
+touching anything. **The profile** (`tools/perf/garage_idle_prof.js`, new: the page in node, the garage idle, a V8 CPU
+profile over 150 frames - self ms a frame by file / function, the loop's callees inclusive; the Jodel on retro): loop 18.6
+ms a frame in node, render 13.2; outside it SHED_SHADOW.pre 2.34 (G2071's own bookkeeping), **poseModel 2.04**
+(applySkinDeform 0.72, turnNormals 0.38), shedDayTick 0.63 (atmo's sky radiance).
+
+**poseModel** (app.js): in the shed the editor's cage stands and the FLOWN model hides behind it (applyStand:
+model.grp.visible false) - yet the control check's sweep moved its controls every frame, so its skin was re-deformed and
+its normals re-turned every frame for nobody. Now, in the garage with the cage standing and model.grp hidden, it returns
+right after the linkage's step (the step is stateful and still runs once a frame; its frame, the projector's root and the
+props run above it). The pose cache (model._pose) keeps the last pose APPLIED, so the first frame it shows again applies the
+current one. craftInShed / craftInWorld - the two helpers that show it for one synchronous call (a world compile, a warm
+draw) - pose it first (poseModel(true): the frame's linkage reused, no second step). Never in flight.
+window.FLYDIY_POSE_HIDDEN = true restores the every-frame pose (the gate's reference); window.FLYDIY_CRAFT_IN_SHED is the
+gate's door to craftInShed.
+
+**The shadow cache's checks** (shed_shadow.js): live() read where the signature is taken (its inputs - customDepthMaterial,
+onBeforeShadow, isBatchedMesh - joined the signature as reference compares); the glass verdict cached per object while its
+pose, its geometry and the panes' faces (a version, bumped when the faces move) hold - a 16-float compare instead of eight
+posed corners for ~900 objects a frame.
+
+**GATE POSEHIDDEN** (`tools/_posehidden_check.js`, core, ~3.5 min): the page in node is deterministic (a seeded
+Math.random, a virtual clock) - two pages, the same build (the Cub), the same 120 idle frames and roll-out, one with the skip
+(the game), one posing the hidden model every frame (the reference): the model hidden behind the cage in both; no more
+buffer bytes uploaded while idle; shown for a call (craftInShed) the same skin within the pose's own thresholds -
+positions IDENTICAL, normals within 1.87e-3 (the reference's turnNormals hysteresis: it re-normalises only past 0.002 of
+a turn since the last applied, so it lags; the catch-up is exact - a warm draw under the loading screen either way);
+rolled out, the same skin bit for bit, frame for frame (10 frames). PASS (8 Oct 15:54).
+
+GATES (8 Oct, A0's window 15:32-15:58, run unlocked by A0's word beside WORKS-COZY's untimed stills): POSEHIDDEN PASS,
+SHEDSHADOW PASS, **INSTANT PASS** (the garage's parameter response: no regression).
+THE PROFILE AFTER (same window, beside the GPU stills - INDICATIVE): app.js self 1.38 -> 0.13 ms a frame (poseModel gone
+from the idle loop); shed_shadow.js about the same (walk 0.50, same 0.45, the glass verdict 0.23 -> 0.15) - its walk and
+signature compares are the floor of an exact per-frame check. shedDayTick (0.6 ms) left as it is: SKY_LIGHT eases the light
+per call - throttling it is a light-smoothness risk to measure first.
+A TIMED rung row is owed (A0's slot when one is free): the expected gain is ~1 of the rung's ~12 ms of loop JS.
+
+READY for A0 (train 42): claude/garage-loop-g2111 on bcf62797 (sources + tools; generated files untouched).
+
+## G2590-G2591 - IMPOSTOR-MATCH: THE TRUNK TAKES THE BARK'S TINT; EACH SHEET'S LEVEL MEASURED AGAINST ITS 3D TREE (2026-10-08, DEADWOOD-BRIGHT for A0, local GPU; branch claude/deadwood-bright-g1975 on top of G1975.2; G2592-G2599 unused)
+
+**The user** (on the G1975.1 stills: 3D | picture today | 3D col 3 | picture col 3): "1 and 3 look good, 2 and 4 look bad",
+"same for all images", then narrowed: "the foliage, as well as the trunk are too bright for the impostors, still ... just
+minor corrections, and look at these bright trunks". So: two corrections, no rework; the snag method (G1975) kept; column 3
+(G1975.1) untouched.
+
+**G2590 - THE BRIGHT TRUNK, the cause in the construction.** The bake leaves the tint out ("AO in, tint out") and the draw
+put ONE tint over the whole sheet - the LEAF part's (`tintUniformsOf`): every trunk texel of a leafy picture wore the
+leaf's light, hue, saturation and the foliage contrast 1.30, where the 3D bark is hue 0, sat 1, contrast 1 at its own
+light (trees.js retint). Leaf vs bark light: cedar 0.59 / 0.34, realistic fir 1.30 / 0.64, spruce 0.54 / 0.42,
+pine_georgeous 1.22 / 1.00 (larch 0.68 / 0.84: its bark is the lighter, but it wore the leaf's hue / sat 0.48).
+THE FIX (render_world.js): the normal pass writes the part's KIND into the normal sheet's alpha (1 a leaf part, 0 the
+bark - `normalMatFor` uLeafF); both sheets are un-premultiplied by the ALBEDO's coverage (the same mask: the uv carries no
+map transform, decodeTreePart bakes uvMin / uvScl in); the texel's leaf fraction (smoothstep 0.3-0.8: a trunk is 2-3 texels
+of a tile, so a mip-filtered trunk pixel reads 0.6-0.8 leaf - the plain blend darkened the trunk 7-16 % of the 40-50 % the
+tints differ by) mixes the leaf's tint with the bark's own light (IMPA.tbl row 2 .x, live from the bark part's uLight).
+Measured on the trunk pixels, today -> fixed: cedar 0.81 / 0.83, spruce 0.83 / 0.85, pine 0.78 (gamer / potato); larch
+1.06 (its bark is lighter than its leaf). `TREE_LOD.imp({ trunk: 0 })` restores the picture as before (the A/B).
+
+**G2591 - THE LEVEL, per baked sheet** (IMPA.tbl row 2 .y; the one-layer materials' `uLayerK`): a factor on the tier gain
+(`_iLit`), `IMP_LEVEL` in render_world.js = the geometric mean of four runs' 1 / core (gamer + potato x golden + noon, the
+front-lit view at the hand-over after the trunk fix, each clamped 0.7-1: darkening only). Cedar 0.946, larch 0.925, spruce
+0.887, pine 0.908; snags: cedar 0.822, larch 0.87, pine 0.915, spruce 0.891; dead_conifer 0.862 / 0.897.
+`TREE_LOD.impLevel('key|series', k)` moves one live (null: back to the default). Core front-lit today -> fixed (gamer /
+potato): cedar 1.06 -> 0.92 / 0.99 -> 0.99, spruce 1.26 -> 1.19 / 1.03 -> 1.02, pine 1.17 -> 1.13 / 1.01 -> 1.00,
+larch snag 1.13 -> 1.02 / 1.14 -> 1.05, spruce snag 1.19 -> 0.88 / 1.03 -> 1.01. Into the sun and side-lit the pictures
+stay darker than the 3D (pre-existing, G1975's side findings).
+
+**Evidence (reports/evidence/DEADWOOD-BRIGHT/impostor_match/):** `impostor_match_sheet.jpg` (3D | today | fixed, the four
+species + their snags + dead_conifer, gamer and potato, golden, front-lit at the hand-over; the 1 km frame today | fixed;
+two picks left out - their frame missed the tree), the strips and `*_imp.json` of every run (today / trunk fix / fixed
+cores), `levels.json`. CAVEAT: a cloud's shadow drifted between the measuring round and the 'fixed' round (the larch
+strip's ground and background darken with it): the levels come from round 1 (3D, today and the trunk fix shot back to
+back); the round-2 cores carry that drift (larch rungs on gamer 1.11 -> 0.55 is the cloud, not the level 0.925).
+
+**THE USER'S RULING (2026-10-08, through A0): "Keep the trees as they are in the last update, I'll check in game, no
+further modifications, keep the latest delivered version."** adcbb4db rides train 42 as delivered; the see-through-trunk
+follow-up below is CANCELLED (kept here as the record of what was seen, not as owed work).
+
+**What was left (CANCELLED by the ruling above):** the trunk still SHOWS through the crown on some pictures (larch,
+spruce) where the 3D crown hides it - the bake's foliage coverage: it cuts the leaf map at its mip-averaged alpha at the
+128-px tile, where the screen keeps partial coverage through the sharpen (EDGE_GLSL). A bake-side fix (sample the leaf
+alpha sharper in the bake, or supersample the bake 2x) - a bake-time change, not done here.
+
+**Gates:** GFX, TREES, PROGRAMS PASS and the page booted clean in node (`--census cub`: nothing thrown, the page's error
+list the same 53 'sheet EMPTY' lines as master's - the fake GL draws nothing) at 09:17, before the levels and the sharpened
+leaf fraction went in. FRAMECOST census pair + PROGRAMS on
+the final code (16:40-16:44, unlocked by A0's booking beside PILOT's GPU run): PROGRAMS PASS; `--census cub` this branch vs
+its merge base (origin/master 751e1122) moved three counters at the stand, none at taxi or boot: `bytes.texSubImage2D`
++2 048 (the table's third row, 128 x 16 B, where the table was already re-uploaded), `gl.uniform1f` 327 -> 317 (down),
+`tris.shadow` +42 911 (+2 %: G1975.2's living trees in place of snags cast more); against the ratchet's baseline all three
+sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impostor_match/framecost_census_{base,branch}.txt`.
+
+## TRAIN 42 LANDED (A0, 8 Oct ~20:40)
+
+Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
+Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
+Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).

@@ -1,0 +1,179 @@
+{
+ "tag": "I_p_noon",
+ "day": "noon",
+ "hand": 30,
+ "levels": {
+  "cedar_tree.glb|Cedar_LOD0|snag": 0.927,
+  "cedar_tree.glb|Cedar_LOD0|rungs": 1,
+  "larch_tree.glb|Larch_LOD0|snag": 0.822,
+  "larch_tree.glb|Larch_LOD0|rungs": 1,
+  "spruce_tree.glb|Spruce_LOD0|snag": 0.82,
+  "spruce_tree.glb|Spruce_LOD0|rungs": 0.911,
+  "pine_georgeous.glb|Pine01_LOD0|snag": 1,
+  "pine_georgeous.glb|Pine01_LOD0|rungs": 0.916,
+  "dead_conifer|Coniferous Dead Tree_13|rungs": 0.789,
+  "dead_conifer|Coniferous Dead Tree 2_14|rungs": 0.892
+ },
+ "rows": [
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|snag",
+   "side": "away",
+   "sc": 0,
+   "today": 1.095,
+   "trunk": 1.079,
+   "fixed": 1.064
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|snag",
+   "side": "side",
+   "sc": 0,
+   "today": 0.889,
+   "trunk": 0.881,
+   "fixed": 0.891
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|rungs",
+   "side": "away",
+   "sc": 0,
+   "today": 0.926,
+   "trunk": 0.92,
+   "fixed": 0.944
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|rungs",
+   "side": "side",
+   "sc": 0,
+   "today": 0.769,
+   "trunk": 0.77,
+   "fixed": 0.774
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|snag",
+   "side": "away",
+   "sc": 0.6,
+   "today": 1.241,
+   "trunk": 1.216,
+   "fixed": 1.106
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|snag",
+   "side": "side",
+   "sc": 0.18,
+   "today": 1.061,
+   "trunk": 1.035,
+   "fixed": 0.941
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|rungs",
+   "side": "away",
+   "sc": 0,
+   "today": 0.896,
+   "trunk": 0.899,
+   "fixed": 0.895
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|rungs",
+   "side": "side",
+   "sc": 0,
+   "today": 1.064,
+   "trunk": 1.067,
+   "fixed": 1.092
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|snag",
+   "side": "away",
+   "sc": 0,
+   "today": 1.233,
+   "trunk": 1.22,
+   "fixed": 1.19
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|snag",
+   "side": "side",
+   "sc": 0,
+   "today": 1.053,
+   "trunk": 1.045,
+   "fixed": 1.023
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|rungs",
+   "side": "away",
+   "sc": 0,
+   "today": 1.111,
+   "trunk": 1.098,
+   "fixed": 1.021
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|rungs",
+   "side": "side",
+   "sc": 0,
+   "today": 0.956,
+   "trunk": 0.94,
+   "fixed": 0.856
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|snag",
+   "side": "away",
+   "sc": 0,
+   "today": 0.896,
+   "trunk": 0.889,
+   "fixed": 0.855
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|snag",
+   "side": "side",
+   "sc": 0,
+   "today": 0.806,
+   "trunk": 0.801,
+   "fixed": 0.765
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|rungs",
+   "side": "away",
+   "sc": 0,
+   "today": 1.118,
+   "trunk": 1.092,
+   "fixed": 1.057
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|rungs",
+   "side": "side",
+   "sc": 0,
+   "today": 1.016,
+   "trunk": 1.011,
+   "fixed": 1
+  },
+  {
+   "key": "dead_conifer|Coniferous Dead Tree_13|rungs",
+   "side": "away",
+   "sc": 0,
+   "today": 1.269,
+   "trunk": 1.268,
+   "fixed": 1.203
+  },
+  {
+   "key": "dead_conifer|Coniferous Dead Tree_13|rungs",
+   "side": "side",
+   "sc": 0,
+   "today": 2.23,
+   "trunk": 1.893,
+   "fixed": 1.674
+  },
+  {
+   "key": "dead_conifer|Coniferous Dead Tree 2_14|rungs",
+   "side": "away",
+   "sc": 0,
+   "today": 1.132,
+   "trunk": 1.121,
+   "fixed": 1.061
+  },
+  {
+   "key": "dead_conifer|Coniferous Dead Tree 2_14|rungs",
+   "side": "side",
+   "sc": 0,
+   "today": 1.146,
+   "trunk": 1.131,
+   "fixed": 1.1
+  }
+ ]
+}

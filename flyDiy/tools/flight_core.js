@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 715084ed592c5dab
+// body-sha256: 66dca1a4368472f6
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -12650,6 +12650,40 @@ function makeSim(def, world) {
     e.seized = true; e.running = false; e.crank = 0;
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
   }
+  // G2105 (WATER-DAMP): THE PROP IN THE WATER. The prop strike existed only on the ground (noseGnd, the trunk): a ditched
+  // aeroplane whose disc went under kept its full thrust if the power was left on (729 N at 0.6 throttle on the user's
+  // Cub, measured by WATER-LOOK) - the "engine still running" the user saw rock the wreck. Water is 800 times the air: a
+  // blade that meets it at any power is a sudden stoppage (Lycoming SB 533: a strike includes water, engine running or
+  // not), so once a frame, on a frame the water can reach (the wet body armed, or the floats wet), each engine's DISC'S
+  // LOWEST POINT - its thrust nodes' centre, R down in the disc's plane (DMG-DRIVE's own geometry, G1826) - is asked
+  // against the water there: under it, the engine STOPS (running off, the starter's crank cut) and stays stopped while
+  // the disc is in the water (`drown`: a key, a swing or the pilot's checklist cannot start it - setEngine's canRun);
+  // WITH THE DAMAGE LAYER ON it is a prop strike as the ground's (seized for good, DMG.propAt 'water'); OFF, a stall:
+  // nothing breaks and the key can start it again once the disc is clear. out.propWet: the engines' mask, written only
+  // on an armed frame (a dry flight's `out` never carries it). One waterH sample per engine per armed frame.
+  function propWater() {
+    if (!world || typeof world.waterH !== 'function' || !(wetArm || (HY && HY.wet > 0))) {
+      for (let k = 0; k < eng.length; k++) if (eng[k].drown) eng[k].drown = false;
+      return;
+    }
+    bodyAxes();
+    const ay = -xAft[1], dl = Math.max(0.2, Math.sqrt(Math.max(0, 1 - ay * ay)));
+    const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl, Rp = PR.D / 2;
+    let mask = 0;
+    for (let k = 0; k < eng.length; k++) {
+      const e = eng[k];
+      let cx = 0, cy = 0, cz = 0, c = 0;
+      for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
+      if (!c) { e.drown = false; continue; }
+      const lx = cx / c + Rp * dx, ly = cy / c + Rp * dy, lz = cz / c + Rp * dz, w = world.waterH(lx, lz, simT);
+      e.drown = w > -1e8 && w > ly;
+      if (!e.drown) continue;
+      mask |= 1 << k;
+      if (DMG_ON) propStrike(k, 'water');
+      e.running = false; e.crank = 0;
+    }
+    out.propWet = mask;
+  }
   // G194: `eng` is null (every engine running, full lever — bit-identical to
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
   // that the pilots never read or write: the player's levers over the
@@ -12750,7 +12784,7 @@ function makeSim(def, world) {
   // cranking timer. `setEngine` below is the ONE writer; the pilots write the
   // same thing the cockpit key writes.
   const eng = [];
-  for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0, seized: false });   // seized: a prop strike (G1470)
+  for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0, seized: false, drown: false });   // seized: a prop strike (G1470); drown: the disc in the water (G2105)
   // the burn: the thermo sheet's rated figure (kg/h of fuel, or kW of pack
   // draw), scaled by the effective throttle and the altitude power ratio
   const THERMO = (typeof genEngineThermo === 'function') ? genEngineThermo(EN) : null;
@@ -12802,7 +12836,7 @@ function makeSim(def, world) {
   out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0; out.beta = 0;
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
   function resetPanel() {
-    for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; e.seized = false; }
+    for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; e.seized = false; e.drown = false; }
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
     fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
@@ -12822,7 +12856,7 @@ function makeSim(def, world) {
       e.key = ['off', 'l', 'r', 'both', 'start'].includes(patch.key) ? patch.key : 'both';
       if (e.key === 'off') { e.running = false; e.crank = 0; }
     }
-    const canRun = e.key !== 'off' && !e.seized && (fuel.kind === 'battery' ? fuel.soc > 0 : fuel.frac > 0);
+    const canRun = e.key !== 'off' && !e.seized && !e.drown && (fuel.kind === 'battery' ? fuel.soc > 0 : fuel.frac > 0);
     if (patch.running !== undefined) e.running = !!patch.running && canRun;
     if (patch.swing && canRun) e.running = true;
     if (patch.start && canRun && !e.running) {
@@ -14029,6 +14063,7 @@ function makeSim(def, world) {
     obstFrame();
     trunkFrame(dtFrame);
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
+    propWater();                                    // G2105: the disc in the water stops its engine
     armFrame();
     postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
@@ -15976,6 +16011,46 @@ const WB_WING_TC = 0.12;        // the wing slab's thickness over chord (no per-
 // before - the tank's share just no longer floods. Breach pressures INFERRED (a welded tank behind the skin outlasts
 // the skin; a bladder or a moulded tank less so). The vent's slow leak is not modelled (a stated cut).
 const WB_TANK_BREACH = { alu: 400e3, bladder: 300e3, moulded: 300e3, wet: 400e3 };
+// G2105 WATER-DAMP (the user, 6 Oct: "the plane keeps oscillating for a while ... like if the engine was still running,
+// or there was a source of force, or an oscillation not damped enough"). Measured (tools/ditch_osc.js): the Cub ditched
+// at 22 m/s rocked on in a heave limit cycle that never decayed (2.5 cm p-p at 0.6 s from 15 s to the end), the Jodel 5
+// cm; the metal Cessna decayed at a damping ratio ~0.05. TWO causes, two fixes:
+// (1) THE WAVES A HEAVING HULL MAKES. Every face term above is quadratic (Newtonian, the slam) and vanishes at a small
+//     amplitude; a real floating body is damped LINEARLY by the waves its motion radiates. The 2D strip law (Ursell 1949
+//     for the semicircle, Vugts 1968 for the rectangle; Newman, Marine Hydrodynamics s6.18: B33' = rho g^2 A^2 / omega^3,
+//     A the radiated wave's amplitude over the heave's) reads b = B33' / (rho B^2 sqrt(g / B)) ~ 0.5 near
+//     Omega = omega sqrt(B / g) = 1, rising as Omega below (the low-frequency body radiates little) and falling as
+//     Omega^-3 above - the curve the floats' (3c) kRad was read from (its 0.02 at the lone float's Omega ~3.4). Here the
+//     same curve is EVALUATED, not fitted: per unit WATERPLANE area a pressure b(Omega) rho sqrt(g B) Vy against the
+//     vertical velocity (B33' / B; the floats' form exactly), B the strip's own beam (a hull slice's width, a wing slab's
+//     chord), omega the floating body's own heave frequency from its waterplane and its added mass - omega^2 =
+//     rho g A_wp / (M + A33), A_wp each sample's d(wet volume)/d(level) times the air it holds (the buoyancy's own
+//     stiffness), A33 each strip's 2D added mass rho pi B^2 / 8 per length (a flat strip on the surface - the
+//     high-frequency free-surface limit, half the plate's double-body value). THE SIM CARRIES NO ADDED MASS (its inertia
+//     is the aeroplane's alone - the floats' H0 cut, kept): it bobs at sqrt(K / M) where the real body bobs at
+//     sqrt(K / (M + A33)) - measured on the settled, kicked Cub 0.6 s against the law's 2.2 s, the metal Cessna 1.2 against
+//     1.9. The real body's damper on the sim's faster bob would over-damp it (the Cub came to rest in one overshoot), so
+//     the coefficient is scaled by sqrt(M / (M + A33)) (WB.zK): the DAMPING RATIO - the cycles a ditched aeroplane rocks
+//     before it settles - is the real body's, on the sim's own period. Heave, pitch and roll all come from it: the
+//     pressure acts where the waterplane is. Vertical only (sway / surge radiation of a surface-piercing body is small at
+//     these frequencies - a stated cut); the water's own velocity is not subtracted (calm water: the wet body's other
+//     terms do the same); the tanks carry no radiation (their volume sits inside a slice or a slab, or at the nose where
+//     45 L is 0.1 m2 of waterplane - a stated cut). LINEAR, so it is applied EVERY SUBSTEP against the node's velocity
+//     then (a per-node coefficient the compute lumps from its samples' trilinear weights - exact for a rigid motion),
+//     never held, and bounded at half the node's own critical rate (c dt / m <= 0.5). The curve's level INFERRED to a
+//     factor ~2 (the 2D curves differ with the section's shape), stated.
+// (2) THE HELD FORCE'S LAG. The wet body is computed at HYDRO_HZ and held between computes (`every` substeps: 13 on the
+//     user's Cub at 75 substeps). A held POSITION-dependent force is the force of a pose (every - 1) / 2 substeps old on
+//     average - a spring with a delay tau is a spring plus a NEGATIVE damper k tau: on the floating Cub ~10^2 N s/m,
+//     small, but the only linear damping it had, so it fed the motion until the quadratic terms took it back - the limit
+//     cycle (every 1: the same ditch decays, measured). The fix: the compute hands each node its buoyancy's own gradient
+//     (dF/dy of every sample, lumped by the same weights: the slices', slabs' and tanks' smooth ramps differentiated, a
+//     tyre's waterline chord - measured: without the tyres' the Cub's cycle was 1.9 cm, not gone) and
+//     the held substeps apply the force of the pose they are at, F + dF/dy (y - y0), to first order. The compute's own
+//     substep is the force it always was.
+const WB_RAD = 0.5;                 // the 2D heave damping curve's level at Omega = 1 (see above; INFERRED to a factor ~2)
+const WB_OPT = { rad: 1, grad: 1, cap: 1, now: 1 };   // G2105's fixes, each switchable for an A/B (tools/ditch_osc.js); 1 in the game
+const wbRad = Om => Om <= 1 ? WB_RAD * Om : WB_RAD / (Om * Om * Om);
 // the 27 sample points of a slice (the cell midpoints of a 3 x 3 x 3 grid on the unit cube) and their trilinear weights
 const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
   const u = (i + 0.5) / 3, v = (j + 0.5) / 3, w = (k + 0.5) / 3;
@@ -16063,7 +16138,10 @@ function wetBuild(def, p, v, m, fuel) {
   // (a hull face) the slice it closes - the slam's breach floods that slice
   let curSl = -1;
   const T = (a, b, c, two, kA) => tris.push({ n: [a, b, c], two: !!two, kA: kA || 1, sl: two ? -1 : curSl });
-  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, air0: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0, pk: 0 });
+  // (G2105: B, the slice's beam - its four cross members' mean, the radiation's strip width)
+  const wid = (i, j) => { const a = P0(i), b = P0(j); return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); };
+  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, air0: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0, pk: 0,
+                                 B: 0.25 * (wid(n8[0], n8[1]) + wid(n8[2], n8[3]) + wid(n8[4], n8[5]) + wid(n8[6], n8[7])) });
   if (!open && Array.isArray(F) && F.length >= 2 && F.every(s => s && [s.BL, s.BR, s.TL, s.TR].every(i => i != null && def.nodes[i]))) {
     const h0 = tris.length;
     for (let k = 0; k + 1 < F.length; k++) {
@@ -16113,7 +16191,7 @@ function wetBuild(def, p, v, m, fuel) {
       let wk = 'fabric';
       try { if (typeof genSurfKey === 'function') wk = genSurfKey(spec, 'wing', st.plane || 0); } catch (e) {}
       const WM = WB_WING[wk] || WB_WING.fabric, th = WB_WING_TC * st.chord;
-      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0, g });
+      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0, g, B: st.chord });
     }
   }
   const tanks = wetTanks(def, spec, F, slices, slabs, MAT);
@@ -16132,8 +16210,13 @@ function wetBuild(def, p, v, m, fuel) {
   const axPair = M.length >= 2 ? [M[0], M[M.length - 1]] : (Array.isArray(F) && F.length ? [F[0].BL, F[0].BR] : null);
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
+  let Mt = 0; for (let i = 0; i < m.length; i++) Mt += m[i];
   return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
            fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0,
+           // G2105: per node, the buoyancy's gradient (N/m) and the height it was taken at, the radiation's coefficient
+           // (N s/m), the buoyancy's own share of fh (N, up: the cap leaves it alone); the body's heave frequency (rad/s,
+           // the last compute's), its mass, its waterplane (m2) and A33 (kg)
+           kY: new Float64Array(p.length / 3), y0: new Float64Array(p.length / 3), cY: new Float64Array(p.length / 3), fb: new Float64Array(p.length / 3), om: 0, zK: 1, M: Mt, Awp: 0, A33: 0,
            def, torn: false, every0: every,   // G1898.9: the rest the tear reads; the hold restored at reset
            gK: Uint8Array.from(gK), gN, gW, gV, G: new Float64Array(gK.length * WFX) };   // G2090: the FX groups' accumulators
 }
@@ -16186,13 +16269,24 @@ function wetReset(WB) {
   for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; s.dead = false; }
   for (const t of WB.tris) t.dead = false;   // G1898.5
   WB.torn = false; WB.every = WB.every0;     // G1898.9
-  WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
+  WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0; WB.om = 0; WB.zK = 1; WB.Awp = 0; WB.A33 = 0;   // (G2105)
   if (WB.G) WB.G.fill(0);                    // G2090
 }
+// G2105: the per-substep terms - the radiation against the velocity now, the held buoyancy carried to the pose now
+function wetLive(WB, f, dt, held) {
+  const p = WB.p, v = WB.v, m = WB.m, kY = WB.kY, y0 = WB.y0, cY = WB.cY, rad = WB_OPT.rad, grad = held && WB_OPT.grad;
+  for (const i of WB.nodes) {
+    const i3 = i * 3 + 1;
+    let fy = 0;
+    if (grad && kY[i]) fy -= kY[i] * (p[i3] - y0[i]);
+    if (rad && cY[i]) fy -= Math.min(cY[i], 0.5 * m[i] / dt) * v[i3];
+    f[i3] += fy;
+  }
+}
 function wetSolverPass(WB, world, f, simT, dt) {
-  if (WB.every > 1 && WB.tick++ % WB.every) { if (WB.wet) { const fh = WB.fh; for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } } return WB.wet; }
-  const fh = WB.fh, p = WB.p;
-  for (const i of WB.nodes) { const i3 = i * 3; fh[i3] = fh[i3 + 1] = fh[i3 + 2] = 0; }
+  if (WB.every > 1 && WB.tick++ % WB.every) { if (WB.wet) { const fh = WB.fh; for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } wetLive(WB, f, dt, true); } return WB.wet; }
+  const fh = WB.fh, p = WB.p, kY = WB.kY, cY = WB.cY, y0 = WB.y0;
+  for (const i of WB.nodes) { const i3 = i * 3; fh[i3] = fh[i3 + 1] = fh[i3 + 2] = 0; kY[i] = cY[i] = WB.fb[i] = 0; y0[i] = p[i3 + 1]; }
   WB.wet = 0; WB.drag = 0; WB.buoy = 0;
   if (!world || typeof world.waterH !== 'function') return 0;
   const i0 = WB.nodes[0] * 3;
@@ -16208,7 +16302,7 @@ function wetSolverPass(WB, world, f, simT, dt) {
     ax[0] = p[b] - p[a]; ax[1] = p[b + 1] - p[a + 1]; ax[2] = p[b + 2] - p[a + 2]; nrm(ax); }
   const wet = wetCompute(WB, fh, dt * WB.every);
   WB.wet = wet;
-  if (wet) for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; }
+  if (wet) { for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } wetLive(WB, f, dt, false); }
   return wet;
 }
 // ---- G2090 WATER-LOOK: THE WET BODY'S CONTACTS, FOR THE PAGE ---------------------------------------------------------
@@ -16256,13 +16350,17 @@ function wetFx(WB, dst) {
   return dst;
 }
 const WBS = { P: [v3(), v3(), v3()], D: [0, 0, 0], poly: [], n: v3(), u: v3(), Fv: v3(), c: v3(), l: [0, 0, 0],
-              e1: v3(), e2: v3(), q: v3(), X: [] };
+              e1: v3(), e2: v3(), q: v3(), X: [], xs: new Float64Array(27), ws: new Float64Array(27), dv: new Float64Array(27) };
 function wetCompute(WB, fh, dtH) {
   const p = WB.p, v = WB.v, m = WB.m, H = WB.h, rho = WB.rho, S = WBS;
   let wet = 0, dragX = 0, buoy = 0;
   // G2090: the FX groups' per-compute sums cleared (the slam's peak and the fill are carried: the page reads them)
   const GA = WB.G;
   for (let o = 0; o < GA.length; o += WFX) { for (let k = 0; k < WFX_PK; k++) GA[o + k] = 0; GA[o + WFX_WS] = 0; }
+  // G2105: the gradient and the radiation, lumped per node (kY, cY); the waterplane and the added mass for the body's
+  // heave frequency (this compute's sums set WB.om for the next)
+  const kY = WB.kY, cY = WB.cY, fb = WB.fb, om = WB.om, rgS = rho * Math.sqrt(G) * WB.zK;
+  let Awp = 0, A33 = 0;
   // THE BELLY'S BUOYANCY, by volume (Archimedes, never a per-face head: a deep fuselage's faces would crush the light
   // frame between pressures it does not feel - it floods): each slice's 27 samples, each its Jacobian's share of the
   // slice's volume, wet by a smooth ramp over WB_DELTA about the surface, its lift onto the slice's 8 nodes by its own
@@ -16281,25 +16379,45 @@ function wetCompute(WB, fh, dtH) {
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
     if (!anyWet) { if (S8.f) S8.f = flood(S8.f, 0, S8.tau, dtH); S8.wetS = 0; fl += S8.f; flN++; GA[sI * WFX + WFX_F] = S8.f; continue; }
-    const k = S8.air * (S8.wetS > 1e-3 ? Math.max(0, S8.wetS - S8.f) / S8.wetS : 1);
+    // G2105: the air share from THIS compute's submerged share (two passes: the samples, then the lift). The last
+    // compute's (WB_OPT.now 0) is a lag: lift = rho g air (vW - f vT_lagged...) moved with the heave one compute late - a
+    // negative damper ~ K (f / wetS) x the compute interval, the flooding's own feed of the limit cycle (measured: with
+    // the flooding frozen the old code's ditch decayed). With it now the lift is rho g air (vW - f vT), its gradient air.
+    const XS = WBS.xs, WS = WBS.ws, DV = WBS.dv;
     let vW = 0, vT = 0;
-    for (const Q of WB_Q) {
-      let x = 0, y = 0, z = 0, ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0, hS = 0;
+    for (let qi = 0; qi < 27; qi++) {
+      const Q = WB_Q[qi];
+      let y = 0, ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0, hS = 0;
       for (let c = 0; c < 8; c++) { const i3 = sl[c] * 3, X0 = p[i3], Y0 = p[i3 + 1], Z0 = p[i3 + 2];
-        x += Q.N[c] * X0; y += Q.N[c] * Y0; z += Q.N[c] * Z0; hS += Q.N[c] * H[sl[c]];
+        y += Q.N[c] * Y0; hS += Q.N[c] * H[sl[c]];
         ux += Q.dU[c] * X0; uy += Q.dU[c] * Y0; uz += Q.dU[c] * Z0;
         vx += Q.dV[c] * X0; vy += Q.dV[c] * Y0; vz += Q.dV[c] * Z0;
         wx += Q.dW[c] * X0; wy += Q.dW[c] * Y0; wz += Q.dW[c] * Z0; }
-      const w = smooth01((hS - y) / WB_DELTA + 0.5);
+      const xs = (hS - y) / WB_DELTA + 0.5, w = smooth01(xs);
       const dV = Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
-      vT += dV;
-      if (!w) continue;
-      vW += dV * w;
-      const Fb = rho * G * k * dV * w;
-      for (let c = 0; c < 8; c++) fh[sl[c] * 3 + 1] += Q.N[c] * Fb;
-      buoy += Fb; wet += dV * w;
+      XS[qi] = xs; WS[qi] = w; DV[qi] = dV;
+      vT += dV; vW += dV * w;
     }
-    S8.wetS = vT > 0 ? vW / vT : 0;
+    const wNow = vT > 0 ? vW / vT : 0, wK = WB_OPT.now ? wNow : S8.wetS;
+    const k = S8.air * (wK > 1e-3 ? Math.max(0, wK - S8.f) / wK : 1);
+    const kG = WB_OPT.now ? (wNow > 1e-3 && wNow <= S8.f ? 0 : S8.air) : k;   // the lift's own rate with the level, per a
+    const cB = wbRad(om * Math.sqrt(S8.B / G)) * rgS * Math.sqrt(S8.B);
+    for (let qi = 0; qi < 27; qi++) {
+      const w = WS[qi];
+      if (!w) continue;
+      const Q = WB_Q[qi], dV = DV[qi], xs = XS[qi];
+      const Fb = rho * G * k * dV * w;
+      for (let c = 0; c < 8; c++) { fh[sl[c] * 3 + 1] += Q.N[c] * Fb; fb[sl[c]] += Q.N[c] * Fb; }
+      buoy += Fb; wet += dV * w;
+      // G2105: the sample's waterplane (its wet volume's rate with the level: dV x the ramp's slope) - its stiffness, its
+      // radiation, its added mass
+      if (xs < 1) {
+        const a = dV * 6 * xs * (1 - xs) / WB_DELTA, kS = rho * G * kG * a, cS = cB * a;
+        for (let c = 0; c < 8; c++) { kY[sl[c]] += Q.N[c] * kS; cY[sl[c]] += Q.N[c] * cS; }
+        Awp += kG * a; A33 += rho * Math.PI / 8 * S8.B * a;
+      }
+    }
+    S8.wetS = wNow;
     const tau = S8.br ? S8.tau / WB_BREACH_K : S8.tau;
     S8.f = flood(S8.f, S8.wetS, tau, dtH);
     fl += S8.f; flN++;
@@ -16314,20 +16432,38 @@ function wetCompute(WB, fh, dtH) {
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
     if (!anyWet) { if (SB.f) SB.f = flood(SB.f, 0, SB.tau, dtH); SB.wetS = 0; fl += SB.f; flN++; GA[SB.g * WFX + WFX_F] = SB.f; continue; }
-    const k = SB.air * (SB.wetS > 1e-3 ? Math.max(0, SB.wetS - SB.f) / SB.wetS : 1);
+    // (G2105: the share now, as the slice's)
+    const XS = WBS.xs, WS = WBS.ws;
     let wS = 0;
-    for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-      const u = a ? 0.75 : 0.25, s2 = b ? 0.75 : 0.25;
+    for (let qi = 0; qi < 4; qi++) {
+      const u = qi & 2 ? 0.75 : 0.25, s2 = qi & 1 ? 0.75 : 0.25;
       // q = [fIn, fOut, rOut, rIn]: u along the span (in -> out), s2 along the chord (front -> rear)
       const N0 = (1 - u) * (1 - s2), N1 = u * (1 - s2), N2 = u * s2, N3 = (1 - u) * s2;
       const y = N0 * p[q[0] * 3 + 1] + N1 * p[q[1] * 3 + 1] + N2 * p[q[2] * 3 + 1] + N3 * p[q[3] * 3 + 1];
       const hS = N0 * H[q[0]] + N1 * H[q[1]] + N2 * H[q[2]] + N3 * H[q[3]];
-      const w = smooth01((hS - y) / SB.th + 0.5);
+      const xs = (hS - y) / SB.th + 0.5, w = smooth01(xs);
+      XS[qi] = xs; WS[qi] = w;
+      if (w) wS += 0.25 * w;
+    }
+    const wK = WB_OPT.now ? wS : SB.wetS;
+    const k = SB.air * (wK > 1e-3 ? Math.max(0, wK - SB.f) / wK : 1);
+    const kG = WB_OPT.now ? (wS > 1e-3 && wS <= SB.f ? 0 : SB.air) : k;
+    const cB = wbRad(om * Math.sqrt(SB.B / G)) * rgS * Math.sqrt(SB.B);
+    for (let qi = 0; qi < 4; qi++) {
+      const w = WS[qi];
       if (!w) continue;
-      wS += 0.25 * w;
+      const u = qi & 2 ? 0.75 : 0.25, s2 = qi & 1 ? 0.75 : 0.25, xs = XS[qi];
+      const N0 = (1 - u) * (1 - s2), N1 = u * (1 - s2), N2 = u * s2, N3 = (1 - u) * s2;
       const Fb = rho * G * k * 0.25 * SB.vol * w;
       fh[q[0] * 3 + 1] += N0 * Fb; fh[q[1] * 3 + 1] += N1 * Fb; fh[q[2] * 3 + 1] += N2 * Fb; fh[q[3] * 3 + 1] += N3 * Fb;
+      fb[q[0]] += N0 * Fb; fb[q[1]] += N1 * Fb; fb[q[2]] += N2 * Fb; fb[q[3]] += N3 * Fb;
       buoy += Fb; wet += 0.25 * SB.vol * w;
+      if (xs < 1) {                                         // G2105: as the slice's sample; the strip's beam its chord
+        const a = 0.25 * SB.vol * 6 * xs * (1 - xs) / SB.th, kS = rho * G * kG * a, cS = cB * a;
+        kY[q[0]] += N0 * kS; kY[q[1]] += N1 * kS; kY[q[2]] += N2 * kS; kY[q[3]] += N3 * kS;
+        cY[q[0]] += N0 * cS; cY[q[1]] += N1 * cS; cY[q[2]] += N2 * cS; cY[q[3]] += N3 * cS;
+        Awp += kG * a; A33 += rho * Math.PI / 8 * SB.B * a;
+      }
     }
     SB.wetS = wS;
     SB.f = flood(SB.f, wS, SB.tau, dtH);
@@ -16344,16 +16480,23 @@ function wetCompute(WB, fh, dtH) {
     const n = T.n, w = T.w;
     let y = 0, hS = 0;
     for (let c = 0; c < n.length; c++) { y += w[c] * p[n[c] * 3 + 1]; hS += w[c] * H[n[c]]; }
-    const wS = smooth01((hS - y) / T.th + 0.5);
+    const xs = (hS - y) / T.th + 0.5, wS = smooth01(xs);
     if (!T.br && T.host >= 0 && WB.slices[T.host].pk > T.breach) T.br = true;
     if (T.br) T.f = flood(T.f, wS, T.tau, dtH);
     T.wetS = wS;
     if (!wS) continue;
     const vf = Math.min(T.vol, FV && FV[T.k] ? Math.max(0, FV[T.k].litres) / 1000 * T.share : T.fuel0);
     const Fb = rho * G * (vf * wS + (T.vol - vf) * Math.max(0, wS - T.f));
-    for (let c = 0; c < n.length; c++) fh[n[c] * 3 + 1] += w[c] * Fb;
+    for (let c = 0; c < n.length; c++) { fh[n[c] * 3 + 1] += w[c] * Fb; fb[n[c]] += w[c] * Fb; }
     buoy += Fb; wet += T.vol * wS;
+    if (xs < 1) {                                           // G2105: the tank's gradient (no radiation: see WB_RAD)
+      const a = (vf + (wS > T.f ? T.vol - vf : 0)) * 6 * xs * (1 - xs) / T.th, kS = rho * G * a;
+      for (let c = 0; c < n.length; c++) kY[n[c]] += w[c] * kS;
+      Awp += a;
+    }
   }
+  // G2105: the floating body's heave frequency, for the next compute's radiation
+  WB.Awp = Awp; WB.A33 = A33; WB.om = Awp > 0 ? Math.sqrt(rho * G * Awp / (WB.M + A33)) : 0; WB.zK = Math.sqrt(WB.M / (WB.M + A33));
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
@@ -16440,7 +16583,8 @@ function wetCompute(WB, fh, dtH) {
     const kP = 0.5 * rho * WB_CD_TYRE * wT * d * Vm, kS = 0.5 * rho * WB_CD_SIDE * seg * Vm;
     const Fx = -kP * px - kS * va * ax[0], Fz = -kP * pz - kS * va * ax[2];
     const Fy = -kP * py - kS * va * ax[1] + rho * G * seg * wT;
-    fh[i3] += Fx; fh[i3 + 1] += Fy; fh[i3 + 2] += Fz;
+    fh[i3] += Fx; fh[i3 + 1] += Fy; fh[i3 + 2] += Fz; fb[i] += rho * G * seg * wT;
+    if (d < 2 * R) WB.kY[i] += rho * G * wT * 2 * Math.sqrt(d * (2 * R - d));   // G2105: the displacement's gradient (its waterline chord x the width)
     wet += seg * wT; dragX += Math.hypot(Fx, Fz);
     { const o = WB.gW[wI] * WFX, Ab = wT * d;   // G2090: the tyre's plough - its frontal area, at the waterline, the axle as its normal
       GA[o] = Ab; GA[o + 1] = Ab * p[i3]; GA[o + 2] = Ab * H[i]; GA[o + 3] = Ab * p[i3 + 2];
@@ -16450,10 +16594,15 @@ function wetCompute(WB, fh, dtH) {
   }
   if (!wet) return 0;
   // the float's slamCap: a node's force against its own velocity stops it at most, over the held interval
+  // G2105: ...its DYNAMIC force - the faces' pressure and friction, the slam, the tyres' drag - as the floats' cap bounds
+  // the slam alone. The buoyancy is a weight's answer, not a drag: capped, a node sinking at V had its lift cut to
+  // m V / dtH while a rising one kept all of it - more push up than down, every cycle: THE LIMIT CYCLE (the Cub's 2.5 cm
+  // at 0.6 s; measured: every 1 - a cap 13 x wider - decays, and so does this). WB_OPT.cap 0 is the old cap, for an A/B.
+  const capB = WB_OPT.cap ? 1 : 0;
   for (const i of WB.nodes) {
     const i3 = i * 3, vx = v[i3], vy = v[i3 + 1], vz = v[i3 + 2], V = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (V < 1e-6) continue;
-    const fa = (fh[i3] * vx + fh[i3 + 1] * vy + fh[i3 + 2] * vz) / V, cap = m[i] * V / dtH;
+    const fa = (fh[i3] * vx + (fh[i3 + 1] - capB * fb[i]) * vy + fh[i3 + 2] * vz) / V, cap = m[i] * V / dtH;
     if (fa < -cap) { const k = (-fa - cap) / V; fh[i3] += k * vx; fh[i3 + 1] += k * vy; fh[i3 + 2] += k * vz; }
   }
   WB.drag = dragX; WB.buoy = buoy;
@@ -16463,7 +16612,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
@@ -37702,8 +37851,2389 @@ function playerRollFrom(doc, name) {
   const h = doc && doc.sheds && doc.sheds[doc.here];
   return h && typeof h.base === 'string' ? h.base : PREM_MAIN;
 }
+// ===========================================================================
+// ACCEPT (G2270-G2279) — THE ACCEPTANCE OF A BUILD: THE CHECKS THAT NEED NO
+// FLIGHT, THE LEG THAT IS FLOWN, AND THE VERDICT OVER A CONTRACT'S CRITERIA.
+// (futureDesigns/GAME-2026-10-06.md §6.2 is the spec; §R G-ACCEPT "certificate
+// + a flown acceptance leg"; §R GQ19 "the phone runs the static items only".)
+// ===========================================================================
+// A build contract states what the aeroplane must DO (§6.1). Some of that the
+// build can answer standing still (the seats, the ledger, the tank, the span,
+// the certificate, the bench's awards); some it cannot, because the number the
+// garage prints is not a measurement:
+//   - CRUISE SPEED. VCruise is SOLVED (64_gen_build genTrim: the speed where
+//     drag is 65 % of the thrust there) and CLAMPED to 1.55-2.2 Vs — the speed a
+//     CIRCUIT is flown at. A clean fast design reads as capped.
+//   - ENDURANCE / RANGE. genShakedown's is full throttle / 0.67, a rule of thumb.
+// So those are FLOWN: the autopilot holds a stabilised cruise for N minutes at
+// a declared throttle and altitude, and the recorder measures the true airspeed
+// (the sim's own wind taken out: calm-air), the fuel or energy flow, the height
+// and the steadiness. A leg counts only if the height and the speed stayed in
+// their bands the whole time. The take-off and the landing at a strip are proved
+// by DOING them there: the logbook's row (from, the stop's aerodrome, the run).
+//
+// THREE LAYERS, ALL PURE (no DOM; the leg's pilot drives an `ap` it is handed):
+//   THE STATIC CHECKS   acceptStatic(crit, ev) per kind -> { k, ok, value, need,
+//                       source }. NO SIMULATION: they read the ledger, the spec,
+//                       the measured footprint, a certificate already computed
+//                       and the bench's awarded results. acceptEvidence(def)
+//                       builds that evidence off a def without running a sim
+//                       (the phone may run these: GQ19). GATE ACCEPT
+//                       source-scans them for a solver call.
+//   THE LEG             makeAcceptLeg(opts) — the procedure (climb to the
+//                       declared height on full power, settle on the declared
+//                       throttle, record N minutes, hand back) as a tick on the
+//                       AP box (43_pilot ap.engage: HDG + ALT + SET);
+//                       makeAcceptRecorder(opts) — the samples and the maths:
+//                       acceptLegMeasure(samples, opts) -> the record (tasKmh,
+//                       flow, enduranceMin = usable / flow - the reserve,
+//                       rangeKm = TAS x endurance, the bands, valid / why).
+//                       acceptSign / acceptSigned: the record tied to the build's
+//                       bench fingerprint and signed, for the build's logbook.
+//   THE VERDICT         acceptVerdict(crit[], evidence) -> per criterion
+//                       ok | fail | needs-flight | needs-test, the margin, and
+//                       the bonus (§6.3: +10 % per criterion beaten by a stated
+//                       margin, 10 % by default). The hook CONTRACT-MODEL calls.
+//
+// A CRITERION is §6.2 / §7.3's `{ k, op, v, at? }`. `op` defaults per kind
+// (ACCEPT_KINDS). `at` is where or at what load: a string is an aerodrome id
+// (takeoffAt / landAt), an object may carry { aero, occupants, payloadKg, door,
+// shed }. `by` (optional) is the bonus margin (a fraction); `reserveMin`
+// (optional, endurance / range) overrides the stated reserve.
+// ===========================================================================
+
+// THE RULES, STATED (the record carries the ones it was measured under)
+const ACCEPT_RULES = {
+  v: 1,
+  legMin: 5,            // the recorded leg, minutes (§6.2's 10 for an endurance contract: a criterion may ask for more)
+  thr: 0.75,            // the declared throttle: 75 %, the cruise the books quote
+  altAGL: 300,          // the declared height above the departure field, m
+  settleMaxS: 150,      // the settle's cap after the climb, s
+  settleQuietS: 30,     // ...and how long it must be quiet first (|vs| and the speed's drift)
+  sampleS: 1,           // the recorder's interval, s of flight time
+  altBand: 10,          // m either side of the held height, every sample
+  tasBand: 0.03,        // the TAS within 3 % of the leg's mean, every sample
+  bankMax: 5,           // deg, every sample
+  reserveMin: 15,       // the stated reserve taken off the endurance (§6.3's fish spotter: "+ 15 min reserve")
+  usable: 1.0,          // the fraction of the tank or pack counted usable
+  bonusBy: 0.10,        // §6.3: beaten by 10 % earns the bonus
+  bonusPct: 10,         // ...of +10 % per criterion
+  doorClr: 0.3,         // the door rule's clearance each side (71_player_bases PARK_DOOR_CLR)
+};
+
+// THE KINDS this file answers: where each is verified and its default op.
+// `src`: 'static' (no flight; the phone may run it) | 'flown' (a leg or the logbook).
+const ACCEPT_KINDS = {
+  seats:        { src: 'static', op: '>=', unit: 'seats',  what: 'occupied seats at their stations (the capacity drawn)' },
+  emptyKg:      { src: 'static', op: '<=', unit: 'kg',     what: 'empty mass: the ledger, nobody aboard, no fuel' },
+  powertrain:   { src: 'static', op: '==', unit: '',       what: "the powertrain kind: 'electric' | 'piston' | 'turbine'" },
+  tankL:        { src: 'static', op: '<=', unit: 'L',      what: 'the fuel tank, litres' },
+  batteryKWh:   { src: 'static', op: '<=', unit: 'kWh',    what: 'the pack, kWh' },
+  spanM:        { src: 'static', op: '<=', unit: 'm',      what: 'the span as built (the measured plan); with `at.door` / `at.shed`, through that door' },
+  costMax:      { src: 'static', op: '<=', unit: '',       what: 'the build cost: the ledger' },
+  ultimateG:    { src: 'static', op: '>=', unit: 'g',      what: 'the structural certificate’s ultimate load factor' },
+  xwindKt:      { src: 'static', op: '>=', unit: 'kt',     what: 'the bench’s awarded crosswind limit' },
+  hydro:        { src: 'static', op: '==', unit: '',       what: 'the bench’s hydroplane test: lifts off the water' },
+  tasKmh:       { src: 'flown',  op: '>=', unit: 'km/h',   what: 'true airspeed in a stabilised cruise at the load, calm air' },
+  enduranceMin: { src: 'flown',  op: '>=', unit: 'min',    what: 'usable tank / the measured flow, minus the reserve' },
+  rangeKm:      { src: 'flown',  op: '>=', unit: 'km',     what: 'TAS x the endurance, still air' },
+  takeoffAt:    { src: 'flown',  op: '==', unit: '',       what: 'a take-off from that strip, in the logbook' },
+  landAt:       { src: 'flown',  op: '==', unit: '',       what: 'a landing and a stop on that strip, in the logbook' },
+};
+
+const acceptNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+function acceptCmp(op, a, b) {
+  if (a == null) return false;
+  switch (op) {
+    case '>=': return a >= b; case '>': return a > b;
+    case '<=': return a <= b; case '<': return a < b;
+    case '!=': return a !== b;
+    default: return a === b;
+  }
+}
+// a criterion's aerodrome (a string `at`, an `at.aero`, or a string `v`) and load
+function acceptAeroOf(c) {
+  if (!c) return null;
+  if (typeof c.at === 'string') return c.at;
+  if (c.at && typeof c.at.aero === 'string') return c.at.aero;
+  if (typeof c.v === 'string') return c.v;
+  return null;
+}
+function acceptLoadOf(c) {
+  const a = c && c.at && typeof c.at === 'object' ? c.at : null;
+  const o = {};
+  if (a && acceptNum(a.occupants) != null) o.occupants = a.occupants;
+  if (a && acceptNum(a.pax) != null && o.occupants == null) o.occupants = a.pax + 1;
+  if (a && acceptNum(a.payloadKg) != null) o.payloadKg = a.payloadKg;
+  return o;
+}
+// does a flown load satisfy the criterion's? (none asked: any load counts)
+function acceptLoadOk(need, got) {
+  if (!need) return true;
+  if (need.occupants != null && !((got && got.occupants) >= need.occupants)) return false;
+  if (need.payloadKg != null && !((got && got.payloadKg) >= need.payloadKg - 0.5)) return false;
+  return true;
+}
+
+// ---- THE EVIDENCE OFF A DEF (no simulation) --------------------------------
+// The ledger (61_gen_frame: payload rows = cabin, fuel, cargo), the resolved
+// spec, the engine's family, the plan measured off the built nodes
+// (71_player_bases playerFootOfDef — the door rule's own footprint). `extra`
+// adds what the def cannot carry: { cert, bench, legs, flights, fp }.
+function acceptEvidence(def, extra) {
+  const ev = Object.assign({}, extra || {});
+  if (!def) return ev;
+  const S = def.spec || {}, P = def.parts || {}, L = P.ledger;
+  if (L) {
+    let empty = 0, payload = 0, cost = 0;
+    for (const k in L) { const e = L[k]; if (!e) continue; cost += e.cost || 0; if (e.payload) payload += e.mass || 0; else empty += e.mass || 0; }
+    ev.emptyKg = empty; ev.payloadKg = payload; ev.cost = cost;
+  }
+  ev.seats = acceptNum(S.seats);
+  ev.occupants = acceptNum(S.occupants);
+  const EN = (def.params && def.params.engine) || null;
+  const fam = EN && EN.family;
+  const E = def.params && def.params.energy;
+  const battery = (E && E.kind === 'battery') || (S.energy && S.energy.kind === 'battery') || fam === 'electric';
+  ev.powertrain = battery || fam === 'electric' ? 'electric' : fam === 'turbine' ? 'turbine' : fam ? 'piston' : null;
+  ev.engineFamily = fam || null;
+  ev.tankL = battery ? 0 : acceptNum(S.fuel && S.fuel.litres);
+  ev.batteryKWh = battery ? acceptNum((S.energy && S.energy.kWh) || (E && E.kWh)) : 0;
+  const F = typeof playerFootOfDef === 'function' ? playerFootOfDef(def) : null;
+  ev.foot = F;
+  ev.spanM = F ? 2 * F.half : acceptNum(def.params && def.params.gen && def.params.gen.span);
+  if (!ev.cert && def.cert && acceptNum(def.cert.ult) != null) ev.cert = { limit: def.cert.limit, ult: def.cert.ult };
+  return ev;
+}
+
+// the bench's crosswind: the settled row (bench.js `results.xwind`, ok or not:
+// a limit is a measurement), m/s. `limit` when the row carries it, else read off
+// its verdict ('CROSSWIND LIMIT 6.2 m/s' / 'CROSSWIND LIMIT > 10 m/s')
+function acceptBenchXwind(bench) {
+  const r = bench && bench.xwind;
+  if (!r || r.stale || r.running) return null;
+  if (acceptNum(r.limit) != null) return { ms: r.limit, capped: !!r.capped };
+  const m = /CROSSWIND LIMIT\s*(>)?\s*([0-9.]+)\s*m\/s/.exec(String(r.verdict || ''));
+  return m ? { ms: +m[2], capped: !!m[1] } : null;
+}
+const ACCEPT_MS_KT = 1.943844;
+
+// ---- THE STATIC CHECKS -----------------------------------------------------
+// -> { k, ok, value, need, source } ; value null = no evidence (a test to run).
+// NO SIMULATION in here (GQ19): GATE ACCEPT scans these bodies for a solver call.
+function acceptStatic(c, ev) {
+  ev = ev || {};
+  const K = ACCEPT_KINDS[c.k] || {};
+  const op = c.op || K.op || '>=';
+  const out = (value, source, extra) => Object.assign(
+    { k: c.k, ok: value != null && acceptCmp(op, value, c.v), value, need: (op === '==' ? '' : op + ' ') + c.v, source }, extra || {});
+  switch (c.k) {
+    case 'seats': return out(ev.seats, 'the spec: cabin.seats (the capacity drawn), each at its station mass', { occupants: ev.occupants });
+    case 'emptyKg': return out(ev.emptyKg != null ? Math.round(ev.emptyKg * 10) / 10 : null, 'the ledger: every non-payload row (nobody aboard, no fuel)');
+    case 'powertrain': return out(ev.powertrain, 'the energy module: the engine family / the pack', { family: ev.engineFamily });
+    case 'tankL': return out(ev.tankL, ev.powertrain === 'electric' ? 'electric: no fuel tank' : 'the spec: fuel.litres');
+    case 'batteryKWh': return out(ev.batteryKWh, ev.powertrain === 'electric' ? 'the spec: energy.kWh' : 'not electric: no pack');
+    case 'costMax': return out(ev.cost != null ? Math.round(ev.cost) : null, 'the ledger: the parts and the covering as built');
+    case 'spanM': {
+      const at = c.at && typeof c.at === 'object' ? c.at : null;
+      const span = ev.spanM != null ? Math.round(ev.spanM * 10) / 10 : null;
+      if (at && at.shed && typeof hangarDoorWhy === 'function') {
+        const why = hangarDoorWhy(at.shed, ev.foot);
+        const door = typeof hangarDoor === 'function' ? hangarDoor(at.shed) : null;
+        return { k: c.k, ok: span != null && !why && (c.v == null || acceptCmp(op, span, c.v)), value: span,
+                 need: 'through the ' + (door ? door.w.toFixed(1) + ' m ' : '') + 'door' + (c.v != null ? ', ' + op + ' ' + c.v : ''),
+                 source: 'the measured plan through hangarDoor (71_player_bases)', why: why || '' };
+      }
+      if (at && acceptNum(at.door) != null) {
+        const ok = span != null && span + 2 * ACCEPT_RULES.doorClr <= at.door && (c.v == null || acceptCmp(op, span, c.v));
+        return { k: c.k, ok, value: span, need: 'through a ' + at.door + ' m door (' + ACCEPT_RULES.doorClr + ' m a side)',
+                 source: 'the measured plan (playerFootOfDef) and the door rule' };
+      }
+      return out(span, 'the measured plan: the built nodes (playerFootOfDef)');
+    }
+    case 'ultimateG': {
+      const C = ev.cert;
+      return out(C && acceptNum(C.ult) != null ? C.ult : null,
+        C ? 'the structural certificate (66_gen_cert: limit ' + C.limit + ' g, ultimate ' + C.ult + ' g)' : 'no certificate yet: the bench computes it at the roll-out');
+    }
+    case 'xwindKt': {
+      const X = acceptBenchXwind(ev.bench);
+      return out(X ? Math.round(X.ms * ACCEPT_MS_KT * 10) / 10 : null,
+        X ? 'the bench’s crosswind ladder (' + (X.capped ? '> ' : '') + X.ms + ' m/s)' : 'the bench’s crosswind test has not been run', X ? { capped: X.capped } : null);
+    }
+    case 'hydro': {
+      const r = ev.bench && ev.bench.hydro;
+      const settled = r && !r.stale && !r.running;
+      const v = settled ? !!r.ok : null;
+      return { k: c.k, ok: v === true && (c.v == null || c.v === true), value: v, need: 'lifts off the water',
+               source: settled ? 'the bench’s hydroplane test: ' + (r.verdict || '') : 'the bench’s hydroplane test has not been run (a float build only)' };
+    }
+  }
+  return { k: c.k, ok: false, value: null, need: String(c.v), source: 'not a static kind' };
+}
+
+// ---- THE LEG: THE MEASUREMENT ----------------------------------------------
+// samples: [{ t, x, z, alt, tas, gs, vs, bank (rad), E (kg | kWh left), kind,
+//             thr, starved, box, ground }] at ACCEPT_RULES.sampleS.
+// opts: { thr, alt, legMin, E0 (the tank or pack at departure), kind, load,
+//         reserveMin, usable }
+// -> { tasKmh, gsKmh, flow (kg/h | kW), flowUnit, usable, grossMin,
+//      enduranceMin, rangeKm, bands, valid, why[] }
+function acceptLegMeasure(samples, opts) {
+  opts = opts || {};
+  const R = ACCEPT_RULES;
+  const why = [];
+  const n = samples ? samples.length : 0;
+  const out = { n, valid: false, why };
+  if (n < 2) { why.push('no leg recorded'); return out; }
+  const s0 = samples[0], s1 = samples[n - 1];
+  const dur = s1.t - s0.t;
+  out.t0 = s0.t; out.t1 = s1.t; out.durS = dur;
+  const want = (opts.legMin != null ? opts.legMin : R.legMin) * 60;
+  if (dur < want - 1.5 * R.sampleS) why.push('the leg is ' + (dur / 60).toFixed(1) + ' min, ' + (want / 60).toFixed(1) + ' asked');
+  let tas = 0, gs = 0, altMin = Infinity, altMax = -Infinity, tasMin = Infinity, tasMax = -Infinity, bankMax = 0, altMean = 0;
+  let flags = { starved: false, box: true, ground: false, thr: false };
+  for (const s of samples) {
+    tas += s.tas; gs += s.gs; altMean += s.alt;
+    altMin = Math.min(altMin, s.alt); altMax = Math.max(altMax, s.alt);
+    tasMin = Math.min(tasMin, s.tas); tasMax = Math.max(tasMax, s.tas);
+    bankMax = Math.max(bankMax, Math.abs(s.bank || 0) * 180 / Math.PI);
+    if (s.starved) flags.starved = true;
+    if (s.box === false) flags.box = false;
+    if (s.ground) flags.ground = true;
+    if (opts.thr != null && s.thr != null && Math.abs(s.thr - opts.thr) > 0.005) flags.thr = true;
+  }
+  tas /= n; gs /= n; altMean /= n;
+  const altRef = opts.alt != null ? opts.alt : altMean;
+  out.tasKmh = Math.round(tas * 36) / 10;
+  out.gsKmh = Math.round(gs * 36) / 10;
+  out.alt = Math.round(altMean * 10) / 10;
+  out.bands = {
+    alt: [Math.round((altMin - altRef) * 10) / 10, Math.round((altMax - altRef) * 10) / 10], altBand: R.altBand,
+    tas: [Math.round((tasMin / tas - 1) * 1000) / 1000, Math.round((tasMax / tas - 1) * 1000) / 1000], tasBand: R.tasBand,
+    bankMax: Math.round(bankMax * 10) / 10, bankBand: R.bankMax,
+  };
+  if (altMax - altRef > R.altBand || altRef - altMin > R.altBand)
+    why.push('the height left its band: ' + (altMin - altRef).toFixed(1) + '..+' + (altMax - altRef).toFixed(1) + ' m of ±' + R.altBand);
+  if (tasMax > tas * (1 + R.tasBand) || tasMin < tas * (1 - R.tasBand))
+    why.push('the speed left its band: ' + ((tasMin / tas - 1) * 100).toFixed(1) + '..+' + ((tasMax / tas - 1) * 100).toFixed(1) + ' % of ±' + (R.tasBand * 100) + ' %');
+  if (bankMax > R.bankMax) why.push('banked ' + bankMax.toFixed(1) + '° (±' + R.bankMax + '°)');
+  if (flags.starved) why.push('the engine starved');
+  if (!flags.box) why.push('the autopilot was disengaged');
+  if (flags.ground) why.push('on the ground');
+  if (flags.thr) why.push('the throttle moved off the declared ' + opts.thr);
+  // THE FLOW: least squares of the energy left against time (the burn is
+  // smooth; the fit takes the reading's quantisation out), per hour
+  let st = 0, sE = 0, stt = 0, stE = 0;
+  for (const s of samples) { const t = s.t - s0.t; st += t; sE += s.E; stt += t * t; stE += t * s.E; }
+  const den = n * stt - st * st;
+  const slope = den > 0 ? (n * stE - st * sE) / den : 0;    // E per s (negative)
+  const kind = opts.kind || s0.kind || 'fuel';
+  const flow = -slope * 3600;                                 // kg/h | kW
+  out.kind = kind;
+  out.flow = Math.round(flow * 1000) / 1000;
+  out.flowUnit = kind === 'battery' ? 'kW' : 'kg/h';
+  const E0 = opts.E0 != null ? opts.E0 : s0.E;
+  const usableK = opts.usable != null ? opts.usable : R.usable;
+  const reserve = opts.reserveMin != null ? opts.reserveMin : R.reserveMin;
+  out.usable = Math.round(E0 * usableK * 1000) / 1000;
+  out.usableUnit = kind === 'battery' ? 'kWh' : 'kg';
+  if (kind !== 'battery' && opts.kgL > 0) { out.flowLh = Math.round(flow / opts.kgL * 100) / 100; out.usableL = Math.round(E0 * usableK / opts.kgL * 10) / 10; }
+  if (flow > 1e-6) {
+    out.grossMin = Math.round(out.usable / flow * 600) / 10;
+    out.reserveMin = reserve;
+    out.enduranceMin = Math.round((out.usable / flow * 60 - reserve) * 10) / 10;
+    out.rangeKm = Math.round(tas * 3.6 * Math.max(0, out.enduranceMin) / 60 * 10) / 10;
+  } else { why.push('no measurable flow'); out.grossMin = out.enduranceMin = out.rangeKm = null; }
+  out.valid = why.length === 0;
+  return out;
+}
+
+// ---- THE LEG: THE RECORDER --------------------------------------------------
+// The samples, on the leg's own clock: feed it every frame (`frame(sample)`),
+// it keeps one every sampleS while recording. `result()` -> the measurement.
+function makeAcceptRecorder(opts) {
+  opts = Object.assign({}, opts || {});
+  const R = ACCEPT_RULES;
+  const samples = [];
+  let next = -Infinity, on = false;
+  return {
+    opts, samples,
+    start(t) { on = true; samples.length = 0; next = t; },
+    stop() { on = false; },
+    get on() { return on; },
+    frame(s) {
+      if (!on || !s || !(s.t >= next - 1e-3)) return;   // (1 ms: the flight's clock is a sum of 1/60 s steps)
+      samples.push(s);
+      next = Math.round((next + R.sampleS) * 1e6) / 1e6;
+      if (s.t >= next) next = s.t + R.sampleS;
+    },
+    result() { return acceptLegMeasure(samples, opts); },
+  };
+}
+
+// a sample off the flight (the sim and the pilot the page or a gate flies):
+// the pilot's own instruments (its TAS is |v_cg - wind| with the sim's wind,
+// 43_pilot: calm-air), the energy left off the solver's fuel state
+function acceptSampleOf(sim, ap) {
+  const m = ap.instruments ? ap.instruments() : (ap._m || {});
+  const F = sim.fuel || {};
+  const bat = F.kind === 'battery';
+  return { t: m.t != null ? m.t : ap.t, x: m.x, z: m.z, alt: m.alt, tas: m.tas, gs: m.gs, vs: m.vs, bank: m.bank,
+           E: bat ? (F.soc || 0) * (F.kWh || 0) : (F.kg || 0), kind: bat ? 'battery' : 'fuel',
+           thr: sim.ctl ? sim.ctl.thr : null, starved: !!F.starved, box: !!(ap.box && ap.box.on), ground: !!m.onGround };
+}
+// what is aboard as the leg flies: the occupants (the spec's), the payload and
+// the mass, and the tank or pack at departure
+function acceptLoadOfSim(sim, def) {
+  const F = sim.fuel || {}, S = (def && def.spec) || {};
+  let payload = 0;
+  const L = def && def.parts && def.parts.ledger;
+  if (L) for (const k in L) if (L[k] && L[k].payload) payload += L[k].mass || 0;
+  return { occupants: acceptNum(S.occupants), payloadKg: Math.round(payload * 10) / 10,
+           massKg: Math.round((sim.totalM || 0) * 10) / 10,
+           E0: F.kind === 'battery' ? (F.kWh || 0) : (F.kg0 || 0), kind: F.kind === 'battery' ? 'battery' : 'fuel',
+           kgL: F.kind === 'battery' ? null : ((F.litres0 > 0 && F.kg0 > 0) ? F.kg0 / F.litres0 : null) };
+}
+
+// ---- THE LEG: THE PROCEDURE ON THE AP BOX ----------------------------------
+// tick(sim, ap) once per physics step (or per frame on the page) after the
+// aeroplane is airborne. Stages: 'climb' (ALT at the declared height, FULL) ->
+// 'settle' (SET the declared throttle; until |vs| < 0.15 m/s and the TAS has
+// drifted < 0.5 % over settleQuietS, or settleMaxS) -> 'record' (legMin) ->
+// 'done' (the box disengaged, the pilot resumes the phase it was in, or
+// opts.resume). The heading is the one it had when the leg began.
+// opts: { thr, alt (absolute) | altAGL + fieldElev, legMin, resume, rec }
+function makeAcceptLeg(opts) {
+  opts = Object.assign({}, opts || {});
+  const R = ACCEPT_RULES;
+  const thr = opts.thr != null ? opts.thr : R.thr;
+  const legMin = opts.legMin != null ? opts.legMin : R.legMin;
+  const L = { stage: 'idle', thr, legMin, alt: null, hdg: null, resume: null, t0: null, tRec: null, quiet: 0, hist: [], result: null, record: null };
+  const rec = opts.rec || makeAcceptRecorder({ thr, legMin });
+  L.rec = rec;
+  // THE LEG'S STATE ON THE PILOT: `ap.accept`, a NEW object at every stage (so
+  // sim_host's rare-field copy carries it to the page's view only on a change);
+  // `record` is the signed record once the leg is done or aborted
+  const pub = ap => {
+    if (L.stage === 'done' || L.stage === 'aborted')
+      L.record = acceptSign(L.result, Object.assign({}, L.meta || {}, { thr, alt: L.alt, legMin, load: L.load || null }));
+    if (ap) ap.accept = { stage: L.stage, thr, legMin, alt: L.alt, t0: L.t0, tRec: L.tRec, record: L.record };
+  };
+  L.tick = (sim, ap) => {
+    const st0 = L.stage;
+    const st = tick(sim, ap);
+    if (st !== st0) pub(ap);
+    return st;
+  };
+  const tick = (sim, ap) => {
+    const m = ap.instruments();
+    if (L.stage === 'idle') {
+      if (m.onGround) return L.stage;
+      L.alt = opts.alt != null ? opts.alt : (opts.fieldElev || 0) + (opts.altAGL != null ? opts.altAGL : R.altAGL);
+      L.hdg = m.hdg * Math.PI / 180;
+      L.resume = opts.resume || ap.phase;
+      L.t0 = m.t; L.x0 = m.x; L.z0 = m.z;
+      L.budgetLeft = typeof ap.budget === 'number' ? Math.max(0, ap.budget - m.t) : null;
+      ap.engage({ lat: 'HDG', vert: 'ALT', thr: 'FULL' }, { hdg: L.hdg, alt: L.alt });
+      L.stage = 'climb';
+      return L.stage;
+    }
+    if (L.stage === 'climb') {
+      if (Math.abs(m.alt - L.alt) < 5) { ap.engage({ thr: 'SET' }, { thr }); L.stage = 'settle'; L.tSet = m.t; L.quiet = 0; L.hist.length = 0; }
+      return L.stage;
+    }
+    if (L.stage === 'settle') {
+      L.hist.push([m.t, m.tas]);
+      while (L.hist.length && m.t - L.hist[0][0] > R.settleQuietS) L.hist.shift();
+      const drift = L.hist.length > 1 ? Math.abs(m.tas - L.hist[0][1]) / Math.max(1, m.tas) : 1;
+      const quiet = m.t - L.tSet >= R.settleQuietS && Math.abs(m.vs) < 0.15 && drift < 0.005 && Math.abs(m.alt - L.alt) < 3;
+      if (quiet || m.t - L.tSet > R.settleMaxS) {
+        L.stage = 'record'; L.tRec = m.t; L.settledQuiet = quiet;
+        rec.opts.alt = L.alt;
+        rec.start(m.t);
+      }
+      return L.stage;
+    }
+    if (L.stage === 'record') {
+      rec.frame(acceptSampleOf(sim, ap));
+      if (m.t - L.tRec >= legMin * 60 - 1e-3) {
+        rec.stop();
+        L.result = rec.result();
+        L.stage = 'done';
+        handBack(ap);
+      }
+      return L.stage;
+    }
+    return L.stage;
+  };
+  L.abort = (ap, why) => {
+    if (L.stage === 'done' || L.stage === 'aborted') return;
+    rec.stop(); L.result = Object.assign(rec.result(), { valid: false }); L.result.why.push(why || 'aborted');
+    const engaged = L.stage !== 'idle';
+    L.stage = 'aborted';
+    if (engaged && ap && ap.box && ap.box.on) handBack(ap);
+    pub(ap);
+  };
+  // THE HAND-BACK: the pilot resumes, and the leg costs it none of its watchdog budget - what it had left when the leg
+  // took over, plus the way back from where the leg ended (43_pilot routeBudget's own 1.6 x distance / VCruise).
+  // Measured without it: the user's Cub, 10 km out after its leg, landed at HOME as 'gave-up' (the page would have
+  // ended that flight in the air)
+  function handBack(ap) {
+    if (typeof ap.budget === 'number' && L.budgetLeft != null && ap._m) {
+      const d = Math.hypot((ap._m.x || 0) - (L.x0 || 0), (ap._m.z || 0) - (L.z0 || 0));
+      ap.budget = Math.max(ap.budget, ap.t + L.budgetLeft + 1.6 * d / Math.max(15, ap.VCruise || 30) + 120);
+    }
+    ap.disengage(L.resume || 'auto');
+  }
+  return L;
+}
+// THE LEG ON A FLIGHT: the load as it flies (the tank or pack at departure),
+// the recorder, the procedure; `o.meta` { fp, when, from } signs the record.
+// The page (accept_rec.js) and the physics thread (sim_host.js 'accept') both
+// start it here, so the leg is the same leg wherever the pilot flies.
+function acceptLegStart(sim, ap, def, o) {
+  o = Object.assign({}, o || {});
+  const R = ACCEPT_RULES;
+  const load = acceptLoadOfSim(sim, def);
+  const thr = o.thr != null ? o.thr : R.thr;
+  const rec = makeAcceptRecorder({ E0: load.E0, kind: load.kind, kgL: load.kgL, thr,
+    legMin: o.legMin != null ? o.legMin : R.legMin, reserveMin: o.reserveMin });
+  const L = makeAcceptLeg(Object.assign({}, o, { thr, rec }));
+  L.load = load; L.meta = o.meta || {};
+  if (ap) ap.accept = { stage: 'idle', thr, legMin: L.legMin, alt: null, t0: null, tRec: null, record: null };
+  return L;
+}
+
+// ---- THE SIGNATURE: the record tied to the build ---------------------------
+// FNV-1a over the canonical JSON of the record without its `sig` — the same
+// hash family as the bench's fingerprint (bench.js benchHash), so a record
+// edited after the flight no longer verifies and is not counted.
+function acceptCanon(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if (Array.isArray(v)) return '[' + v.map(acceptCanon).join(',') + ']';
+  const ks = Object.keys(v).filter(k => v[k] !== undefined).sort();
+  return '{' + ks.map(k => JSON.stringify(k) + ':' + acceptCanon(v[k])).join(',') + '}';
+}
+function acceptHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return ('0000000' + h.toString(16)).slice(-8);
+}
+// the logbook's leg record: { v, fp, when, decl, load, rules, ...measure, sig }
+function acceptSign(measure, meta) {
+  meta = meta || {};
+  const R = ACCEPT_RULES;
+  const rec = Object.assign({ v: R.v, fp: meta.fp || null, when: meta.when || null, from: meta.from || null,
+    decl: { thr: meta.thr != null ? meta.thr : R.thr, alt: meta.alt != null ? Math.round(meta.alt) : null, legMin: meta.legMin != null ? meta.legMin : R.legMin },
+    load: meta.load ? { occupants: meta.load.occupants, payloadKg: meta.load.payloadKg, massKg: meta.load.massKg } : null,
+    rules: { altBand: R.altBand, tasBand: R.tasBand, bankMax: R.bankMax, reserveMin: measure.reserveMin != null ? measure.reserveMin : R.reserveMin, usable: R.usable } },
+    JSON.parse(JSON.stringify(measure)));
+  delete rec.sig;
+  rec.sig = acceptHash(acceptCanon(rec));
+  return rec;
+}
+function acceptSigned(rec) {
+  if (!rec || typeof rec !== 'object' || !rec.sig) return false;
+  const c = Object.assign({}, rec); delete c.sig;
+  return acceptHash(acceptCanon(c)) === rec.sig;
+}
+
+// the logbook's flight row, the part ACCEPT reads (app.js logFlight writes the
+// same fields): where it STOPPED (flightWhere: a strip, a lane, a stand, an
+// apron) and what was aboard
+function acceptStopAt(world, x, z) {
+  if (typeof flightWhere !== 'function') return null;
+  const w = flightWhere(world, x, z);
+  return (typeof flightCanDepart === 'function' ? flightCanDepart(w) : !!(w && w.aero)) ? w.id : null;
+}
+
+// ---- THE VERDICT ------------------------------------------------------------
+// evidence = acceptEvidence(def, { cert, bench, legs, flights, fp }):
+//   legs     the logbook's signed leg records (GARAGE_SPEC.log().accept)
+//   flights  the logbook's flight rows (log().flights): { from, to, at, sink, run, occ, fp, outcome }
+//   fp       the live fingerprint: a leg or a row under another is WITHDRAWN (the bench's stickers' rule)
+// -> { rows: [{ k, op, v, at, status, ok, value, need, margin, marginPct, beat, source, why? }],
+//      ok, needsFlight, needsTest, beaten, bonusPct }
+function acceptLegsFor(ev, need) {
+  const legs = (ev && ev.legs) || [];
+  return legs.filter(r => acceptSigned(r) && r.valid && (ev.fp == null || r.fp === ev.fp) && acceptLoadOk(need, r.load));
+}
+function acceptVerdict(crit, evidence) {
+  const ev = evidence || {};
+  const rows = [];
+  for (const c0 of crit || []) {
+    const c = Object.assign({}, c0);
+    const K = ACCEPT_KINDS[c.k];
+    const op = c.op || (K && K.op) || '>=';
+    const row = { k: c.k, op, v: c.v, at: c.at, status: 'fail', ok: false, value: null, need: '', margin: null, marginPct: null, beat: false, source: '' };
+    if (!K) { row.status = 'fail'; row.source = 'unknown criterion kind'; rows.push(row); continue; }
+    if (K.src === 'static') {
+      const s = acceptStatic(Object.assign({}, c, { op }), ev);
+      Object.assign(row, { value: s.value, need: s.need, source: s.source, ok: s.ok });
+      if (s.why) row.why = s.why;
+      row.status = s.ok ? 'ok' : s.value == null ? 'needs-test' : 'fail';
+    } else if (c.k === 'tasKmh' || c.k === 'enduranceMin' || c.k === 'rangeKm') {
+      const need = acceptLoadOf(c);
+      const legs = acceptLegsFor(ev, need);
+      const leg = legs[legs.length - 1];
+      row.need = op + ' ' + c.v + (need.occupants != null ? ' with ' + need.occupants + ' aboard' : '') + (need.payloadKg != null ? ', ' + need.payloadKg + ' kg' : '');
+      if (!leg) {
+        const any = ((ev.legs) || []).filter(r => acceptSigned(r));
+        row.status = 'needs-flight';
+        row.source = !any.length ? 'no acceptance leg in the logbook'
+          : any.every(r => ev.fp != null && r.fp !== ev.fp) ? 'every leg was flown before the build changed (withdrawn)'
+          : any.every(r => !r.valid) ? 'no VALID leg: ' + ((any[any.length - 1].why || []).join('; ') || 'rejected')
+          : 'no valid leg at that load';
+      } else {
+        let val = leg[c.k];
+        // a criterion with its own reserve: the gross endurance less that one
+        if ((c.k === 'enduranceMin' || c.k === 'rangeKm') && acceptNum(c.reserveMin) != null && acceptNum(leg.grossMin) != null) {
+          const end = Math.round((leg.grossMin - c.reserveMin) * 10) / 10;
+          val = c.k === 'enduranceMin' ? end : Math.round(leg.tasKmh * Math.max(0, end) / 60 * 10) / 10;
+        }
+        row.value = acceptNum(val);
+        row.ok = row.value != null && acceptCmp(op, row.value, c.v);
+        row.status = row.ok ? 'ok' : 'fail';
+        row.source = 'the acceptance leg of ' + (leg.when || '?') + ' (' + leg.decl.legMin + ' min at ' + Math.round(leg.decl.thr * 100) + ' % throttle, '
+          + (leg.load && leg.load.occupants != null ? leg.load.occupants + ' aboard, ' : '') + 'sig ' + leg.sig + ')';
+        row.leg = leg.sig;
+      }
+    } else {
+      // takeoffAt / landAt: the logbook's rows under this fingerprint
+      const id = acceptAeroOf(c), need = acceptLoadOf(c);
+      row.need = (c.k === 'takeoffAt' ? 'a take-off from ' : 'a landing and stop at ') + id + (need.occupants != null ? ' with ' + need.occupants + ' aboard' : '');
+      const rowsF = ((ev.flights) || []).filter(f => f && (ev.fp == null || f.fp === ev.fp) && acceptLoadOk(need, { occupants: f.occ, payloadKg: f.payloadKg }));
+      const hit = rowsF.filter(f => c.k === 'takeoffAt'
+        ? f.from === id && f.sink != null                                   // it left that strip and arrived somewhere
+        : f.at === id && f.sink != null && !f.outcome);                     // it landed and stopped there
+      const last = hit[hit.length - 1];
+      row.ok = !!last; row.value = last ? id : null;
+      row.status = last ? 'ok' : 'needs-flight';
+      row.source = last ? 'the logbook: ' + (last.from || '?') + ' → ' + (last.at || last.to || '?') + ' on ' + (last.on || '?') + (last.run != null ? ', landing run ' + last.run + ' m' : '')
+                        : 'not yet done there' + (((ev.flights) || []).some(f => f && ev.fp != null && f.fp !== ev.fp) ? ' (earlier flights were of another build)' : '');
+    }
+    // THE MARGIN, for the bonus: how far past the line, as a fraction of it
+    if (row.ok && acceptNum(row.value) != null && acceptNum(c.v) != null && op !== '==' && c.v !== 0) {
+      row.margin = Math.round((op[0] === '>' ? row.value - c.v : c.v - row.value) * 100) / 100;
+      row.marginPct = Math.round(row.margin / Math.abs(c.v) * 1000) / 1000;
+      row.beat = row.marginPct >= (acceptNum(c.by) != null ? c.by : ACCEPT_RULES.bonusBy) - 1e-9;
+    }
+    rows.push(row);
+  }
+  const beaten = rows.filter(r => r.beat).length;
+  return { rows, ok: rows.length > 0 && rows.every(r => r.ok), needsFlight: rows.filter(r => r.status === 'needs-flight').map(r => r.k),
+           needsTest: rows.filter(r => r.status === 'needs-test').map(r => r.k), beaten, bonusPct: beaten * ACCEPT_RULES.bonusPct };
+}
+
+// the plaque's "proved in flight" row: the last valid leg under the live
+// fingerprint, or { withdrawn } when every leg is another build's (null: none)
+function acceptPlaqueLeg(legs, fp) {
+  const signed = (legs || []).filter(r => acceptSigned(r) && r.valid);
+  if (!signed.length) return null;
+  const mine = signed.filter(r => fp == null || r.fp === fp);
+  if (mine.length) return { leg: mine[mine.length - 1], n: mine.length };
+  return { withdrawn: true, leg: signed[signed.length - 1] };
+}
+// ===========================================================================
+// THE CONTRACT DATA (G2240 CONTRACT-MODEL) — the five providers, their goods,
+// job tables and arcs; the fields the work runs between; the five validated
+// designs the work is judged against; and every word as a TEXT KEY.
+// futureDesigns/GAME-2026-10-06.md §R (G-PROV, G-COST, GQ26/GQ31), §6, §7,
+// §11.2, §12.3. GATE CONTRACTS (tools/_contracts_check.js) holds it.
+// ===========================================================================
+// THE TEXT IS KEYS. No prose lives in a record: a record names keys
+// (`title: 'ct.minedock.02.title'`), and CONTRACT_TEXT holds the plain DRAFT
+// English beside each key, marked `draft: true`. The narrative pack
+// (futureDesigns/game/NARRATIVE-PROMPT-PACK-2026-10-06.md, Block 5) replaces it
+// later through contractImportPack (73_contracts.js), which keeps the keys.
+// A `{slot}` in a text is filled at read time (contractText): {from} {to}
+// {load} {at} {n}.
+//
+// THE PEOPLE AND ORGANISATIONS ARE FICTIONAL (GQ20, a hard constraint): the
+// working names below are placeholders for the pack, and the island's real
+// community is not depicted. The fields' NAMES are geography and come from the
+// premises record (CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json;
+// the gate holds it to the record).
+//
+// Pure data: no DOM, no THREE, no storage. Read by 73_contracts.js and
+// 74_career.js at call time.
+// ===========================================================================
+
+// ---- THE FIELDS (the 8 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
+//   x, z     the strip's centre (the record's `c`, metres) — distances are centre to centre
+//   len      the strip's length (m); surf the vocabulary word (25_airfield.js stripSurface)
+//   alti     an altiport (the record's `altiport`): sloped, high, a surface bonus
+const CONTRACT_FIELDS = {
+  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete' },
+  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete' },
+  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel' },
+  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water' },
+  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water' },
+  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel' },
+  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel' },
+  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true },
+};
+
+// ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
+// The certificate's numbers, as genShakedown reads the build FILE (GATE CONTRACTS re-derives every number from
+// the file each run, within 3 %, so this table cannot drift from the aeroplanes):
+//   gear       'wheels' | 'floats' (stripGear's words)
+//   seats      the cabin's seats (genShakedown envelope.seats); one is the pilot's
+//   bagKg      the baggage allowance (spec.cabin.baggage)
+//   massKg     the take-off mass solo with full fuel (genShakedown mass) — the TORun's mass
+//   emptyKg    nobody aboard, no fuel (genShakedown empty)
+//   toM        the take-off distance at massKg (genShakedown TORun: the roll + the air segment)
+//   cruiseKmh  VCruise × 3.6; rangeKm genShakedown rangeKm; spanM span; cost the ledger (genShakedown cost)
+//   tankL      the vessel's litres (energyL); power the energy kind (fuel | electric)
+// What a design CAN DO is judged from these alone (contractCanDo, 73_): the load against the cabin, the loaded
+// take-off distance against both strips, the gear against both surfaces, the range against the leg.
+const CONTRACT_DESIGNS = {
+  cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
+            gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
+            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 31203, tankL: 47.7, power: 'fuel' },
+  jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
+            gear: 'wheels', seats: 2, bagKg: 10, massKg: 463, emptyKg: 341, toM: 205,
+            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 34363, tankL: 47.7, power: 'fuel' },
+  c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
+            gear: 'wheels', seats: 4, bagKg: 40, massKg: 883, emptyKg: 663, toM: 147,
+            cruiseKmh: 177, rangeKm: 102, spanM: 11, cost: 93783, tankL: 29.7, power: 'fuel' },
+  c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
+            gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 1207,
+            cruiseKmh: 204, rangeKm: 117, spanM: 11, cost: 95731, tankL: 29.7, power: 'fuel' },
+  twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
+            patch: 'floats',
+            gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 310,
+            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 35551, tankL: 20.1, power: 'fuel' },
+};
+
+// ---- THE TRACKS (§11.2 as amended by §R G-PROV: the mine and the dock are ONE track, two projects) ----------
+// Each track's stages in order, as text keys (the construction look and the finished look; STAGES draws them).
+const CONTRACT_TRACKS = {
+  field:    { max: 2, stages: ['trk.field.1', 'trk.field.2'] },
+  minedock: { max: 4, stages: ['trk.minedock.1', 'trk.minedock.2', 'trk.minedock.3', 'trk.minedock.4'] },
+  resort:   { max: 3, stages: ['trk.resort.1', 'trk.resort.2', 'trk.resort.3'] },
+  survey:   { max: 3, stages: ['trk.survey.1', 'trk.survey.2', 'trk.survey.3'] },
+  clients:  { max: 2, stages: ['trk.clients.1', 'trk.clients.2'] },
+};
+
+// ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
+// id, name / desc (keys), fields (its home fields), track, base (the job pay's provider base, credits),
+// goods (what its jobs carry: kind kg | pax | bulk, the draw range), jobs (the job TABLE: a template draws a
+// route and a load — `routes` are [from, to] pairs between its fields and HOME; `survey` templates fly over
+// `at` from `from` and land back), arc (its authored contracts, in order), builds (its standalone build
+// contracts, offered beside the arc).
+const C_ = (o) => o;   // (a marker: an authored record)
+const CONTRACT_PROVIDERS = {
+  field: {
+    id: 'field', name: 'prov.field.name', desc: 'prov.field.desc', track: 'field', base: 250,
+    fields: ['HOME', 'w3'],
+    goods: [
+      { id: 'mail',  kind: 'kg',  kg: [10, 40],  word: 'goods.mail' },
+      { id: 'tools', kind: 'kg',  kg: [20, 80],  word: 'goods.tools' },
+      { id: 'crew',  kind: 'pax', pax: [1, 2],   word: 'goods.crew' },
+    ],
+    jobs: [
+      { id: 'mail',  goods: 'mail',  w: 3, title: 'job.field.mail.title',  brief: 'job.field.mail.brief',
+        routes: [['HOME', 'w3'], ['w3', 'HOME']] },
+      { id: 'tools', goods: 'tools', w: 2, title: 'job.field.tools.title', brief: 'job.field.tools.brief',
+        routes: [['HOME', 'w3'], ['w3', 'HOME'], ['HOME', 'tw_ski']] },
+      { id: 'crew',  goods: 'crew',  w: 2, title: 'job.field.crew.title',  brief: 'job.field.crew.brief',
+        routes: [['HOME', 'w3'], ['w3', 'HOME']] },
+    ],
+    arc: [
+      C_({ id: 'field.01', provider: 'field', kind: 'contract', title: 'ct.field.01.title', brief: 'ct.field.01.brief',
+           stages: [{ subs: [{ do: 'land', to: 'w3' }] }, { subs: [{ do: 'land', to: 'HOME' }] }],
+           pay: { base: 1200 }, rep: { provider: 'field', gain: 0.5 } }),
+      C_({ id: 'field.02', provider: 'field', kind: 'contract', title: 'ct.field.02.title', brief: 'ct.field.02.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 40, pax: 0 } }] }],
+           pay: { base: 1800 }, rep: { provider: 'field', gain: 0.5 }, needs: { after: ['field.01'] } }),
+      C_({ id: 'field.03', provider: 'field', kind: 'contract', title: 'ct.field.03.title', brief: 'ct.field.03.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 25, pax: 0 } },
+                             { do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 25, pax: 0 } }] }],
+           pay: { base: 2600 }, rep: { provider: 'field', gain: 0.75 }, unlock: { stage: 'field:1' },
+           needs: { after: ['field.02'] } }),
+      C_({ id: 'field.04', provider: 'field', kind: 'contract', title: 'ct.field.04.title', brief: 'ct.field.04.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 0, pax: 1 } }] }],
+           pay: { base: 3000 }, rep: { provider: 'field', gain: 0.75 }, needs: { after: ['field.03'] } }),
+      C_({ id: 'field.05', provider: 'field', kind: 'contract', title: 'ct.field.05.title', brief: 'ct.field.05.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 120, pax: 0 } }] }],
+           pay: { base: 4500 }, rep: { provider: 'field', gain: 1 }, unlock: { stage: 'field:2' },
+           needs: { rep: 1, after: ['field.04'] } }),
+    ],
+    builds: [],
+  },
+
+  minedock: {
+    id: 'minedock', name: 'prov.minedock.name', desc: 'prov.minedock.desc', track: 'minedock', base: 400,
+    fields: ['mn_strip', 'SEA', 'mk_sea'],
+    goods: [
+      { id: 'parts',   kind: 'kg',   kg: [20, 160], word: 'goods.parts' },
+      { id: 'samples', kind: 'kg',   kg: [15, 60],  word: 'goods.samples' },
+      { id: 'crew',    kind: 'pax',  pax: [1, 2],   word: 'goods.crew' },
+      { id: 'rods',    kind: 'bulk', kg: [60, 110], word: 'goods.rods' },
+      { id: 'mail',    kind: 'kg',   kg: [10, 60],  word: 'goods.mail' },
+      { id: 'fish',    kind: 'none',                word: 'goods.fish' },
+    ],
+    jobs: [
+      { id: 'parts',   goods: 'parts',   w: 3, title: 'job.minedock.parts.title',   brief: 'job.minedock.parts.brief',
+        routes: [['HOME', 'mn_strip'], ['w3', 'mn_strip']] },
+      { id: 'samples', goods: 'samples', w: 2, title: 'job.minedock.samples.title', brief: 'job.minedock.samples.brief',
+        routes: [['mn_strip', 'HOME'], ['mn_strip', 'w3']] },
+      { id: 'crew',    goods: 'crew',    w: 2, title: 'job.minedock.crew.title',    brief: 'job.minedock.crew.brief',
+        routes: [['HOME', 'mn_strip'], ['mn_strip', 'HOME']] },
+      { id: 'rods',    goods: 'rods',    w: 1, title: 'job.minedock.rods.title',    brief: 'job.minedock.rods.brief',
+        routes: [['HOME', 'w3'], ['HOME', 'mn_strip']] },
+      { id: 'mail',    goods: 'mail',    w: 2, title: 'job.minedock.mail.title',    brief: 'job.minedock.mail.brief',
+        routes: [['SEA', 'mk_sea'], ['mk_sea', 'SEA']] },
+      { id: 'fish',    goods: 'fish',    w: 2, title: 'job.minedock.fish.title',    brief: 'job.minedock.fish.brief',
+        survey: [['SEA', 'mk_sea'], ['mk_sea', 'SEA']] },
+    ],
+    arc: [
+      C_({ id: 'minedock.01', provider: 'minedock', kind: 'contract', title: 'ct.minedock.01.title', brief: 'ct.minedock.01.brief',
+           stages: [{ subs: [{ do: 'survey', from: 'HOME', at: 'mn_strip' }] }, { subs: [{ do: 'land', to: 'HOME' }] }],
+           pay: { base: 2200 }, rep: { provider: 'minedock', gain: 0.5 } }),
+      C_({ id: 'minedock.02', provider: 'minedock', kind: 'contract', title: 'ct.minedock.02.title', brief: 'ct.minedock.02.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'mn_strip', load: { kg: 0, pax: 2 } }] }],
+           pay: { base: 3500 }, rep: { provider: 'minedock', gain: 0.75 }, unlock: { stage: 'minedock:1' },
+           needs: { after: ['minedock.01'] } }),
+      C_({ id: 'minedock.03', provider: 'minedock', kind: 'contract', title: 'ct.minedock.03.title', brief: 'ct.minedock.03.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'mn_strip', load: { kg: 120, pax: 0 } }] },
+                    { subs: [{ do: 'carry', from: 'mn_strip', to: 'HOME', load: { kg: 40, pax: 0 } }] }],
+           pay: { base: 5200 }, rep: { provider: 'minedock', gain: 0.75 }, needs: { after: ['minedock.02'] } }),
+      C_({ id: 'minedock.04', provider: 'minedock', kind: 'build', title: 'ct.minedock.04.title', brief: 'ct.minedock.04.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
+             { k: 'seats', op: '>=', v: 4 },
+             { k: 'tasKmh', op: '>=', v: 200, at: { pax: 3, kg: 0 } },
+             { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 3, kg: 0 } }] }] }],
+           pay: { base: 52000, bonus: [{ crit: 'tasKmh', by: 0.1, pct: 10 }] },
+           rep: { provider: 'minedock', gain: 1 }, unlock: { stage: 'minedock:2' },
+           needs: { rep: 1, after: ['minedock.03'] }, followUp: { prefer: ['tasKmh', 'seats'] } }),
+      C_({ id: 'minedock.05', provider: 'minedock', kind: 'contract', title: 'ct.minedock.05.title', brief: 'ct.minedock.05.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'SEA', to: 'mk_sea', load: { kg: 30, pax: 0 } },
+                             { do: 'survey', from: 'mk_sea', at: 'SEA' }] }],
+           pay: { base: 4200 }, rep: { provider: 'minedock', gain: 0.75 }, unlock: { stage: 'minedock:3' },
+           needs: { after: ['minedock.04'] } }),
+      C_({ id: 'minedock.06', provider: 'minedock', kind: 'contract', title: 'ct.minedock.06.title', brief: 'ct.minedock.06.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'mk_sea', to: 'SEA', load: { kg: 60, pax: 0 } }] }],
+           pay: { base: 6000 }, rep: { provider: 'minedock', gain: 1 }, unlock: { stage: 'minedock:4' },
+           needs: { rep: 2, after: ['minedock.05'] } }),
+    ],
+    builds: [
+      C_({ id: 'minedock.b1', provider: 'minedock', kind: 'build', title: 'ct.minedock.b1.title', brief: 'ct.minedock.b1.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'SEA', crit: [
+             { k: 'hydro', op: '==', v: true },
+             { k: 'landAt', op: '==', v: 'SEA', at: { pax: 0, kg: 150 } }] }] }],
+           pay: { base: 48000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 1 },
+           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 110000 }] } }),
+      C_({ id: 'minedock.b2', provider: 'minedock', kind: 'build', title: 'ct.minedock.b2.title', brief: 'ct.minedock.b2.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
+             { k: 'takeoffAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } },
+             { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } }] }] }],
+           pay: { base: 56000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 2 },
+           followUp: { add: [{ k: 'costMax', op: '<=', v: 120000 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
+    ],
+  },
+
+  resort: {
+    id: 'resort', name: 'prov.resort.name', desc: 'prov.resort.desc', track: 'resort', base: 350,
+    fields: ['tw_ski'],
+    goods: [
+      { id: 'guests',   kind: 'pax', pax: [1, 3],  word: 'goods.guests' },
+      { id: 'supplies', kind: 'kg',  kg: [20, 90], word: 'goods.supplies' },
+      { id: 'sights',   kind: 'none',              word: 'goods.sights' },
+    ],
+    jobs: [
+      { id: 'guests',   goods: 'guests',   w: 3, title: 'job.resort.guests.title',   brief: 'job.resort.guests.brief',
+        routes: [['HOME', 'tw_ski'], ['tw_ski', 'HOME'], ['w3', 'tw_ski']] },
+      { id: 'supplies', goods: 'supplies', w: 2, title: 'job.resort.supplies.title', brief: 'job.resort.supplies.brief',
+        routes: [['HOME', 'tw_ski'], ['w3', 'tw_ski']] },
+      { id: 'sights',   goods: 'sights',   w: 2, title: 'job.resort.sights.title',   brief: 'job.resort.sights.brief',
+        survey: [['tw_ski', 'w3'], ['tw_ski', 'mk_sea']] },
+    ],
+    arc: [
+      C_({ id: 'resort.01', provider: 'resort', kind: 'contract', title: 'ct.resort.01.title', brief: 'ct.resort.01.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 0, pax: 1 } }] }],
+           pay: { base: 1800 }, rep: { provider: 'resort', gain: 0.5 } }),
+      C_({ id: 'resort.02', provider: 'resort', kind: 'contract', title: 'ct.resort.02.title', brief: 'ct.resort.02.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 80, pax: 0 } }] }],
+           pay: { base: 2800 }, rep: { provider: 'resort', gain: 0.75 }, unlock: { stage: 'resort:1' },
+           needs: { after: ['resort.01'] } }),
+      C_({ id: 'resort.03', provider: 'resort', kind: 'contract', title: 'ct.resort.03.title', brief: 'ct.resort.03.brief',
+           stages: [{ subs: [{ do: 'survey', from: 'tw_ski', at: 'w3' }] }, { subs: [{ do: 'land', to: 'tw_ski' }] }],
+           pay: { base: 2400 }, rep: { provider: 'resort', gain: 0.5 }, needs: { after: ['resort.02'] } }),
+      C_({ id: 'resort.04', provider: 'resort', kind: 'build', title: 'ct.resort.04.title', brief: 'ct.resort.04.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'tw_ski', crit: [
+             { k: 'powertrain', op: '==', v: 'electric' },
+             { k: 'seats', op: '>=', v: 2 },
+             { k: 'enduranceMin', op: '>=', v: 30, at: { pax: 1, kg: 0, reserveMin: 10 } },
+             { k: 'landAt', op: '==', v: 'tw_ski', at: { pax: 1, kg: 0 } }] }] }],
+           pay: { base: 46000, bonus: [{ crit: 'enduranceMin', by: 0.2, pct: 10 }] },
+           rep: { provider: 'resort', gain: 1 }, unlock: { stage: 'resort:2' },
+           needs: { rep: 1, after: ['resort.03'] }, followUp: { prefer: ['enduranceMin', 'seats'] } }),
+      C_({ id: 'resort.05', provider: 'resort', kind: 'contract', title: 'ct.resort.05.title', brief: 'ct.resort.05.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 0, pax: 2 } },
+                             { do: 'carry', from: 'w3', to: 'tw_ski', load: { kg: 40, pax: 0 } }] }],
+           pay: { base: 5800 }, rep: { provider: 'resort', gain: 1 }, unlock: { stage: 'resort:3' },
+           needs: { rep: 2, after: ['resort.04'] } }),
+    ],
+    builds: [
+      C_({ id: 'resort.b1', provider: 'resort', kind: 'build', title: 'ct.resort.b1.title', brief: 'ct.resort.b1.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'tw_ski', crit: [
+             { k: 'seats', op: '>=', v: 4 },
+             { k: 'landAt', op: '==', v: 'tw_ski', at: { pax: 3, kg: 0 } },
+             { k: 'takeoffAt', op: '==', v: 'tw_ski', at: { pax: 3, kg: 0 } }] }] }],
+           pay: { base: 50000 }, rep: { provider: 'resort', gain: 1 }, needs: { rep: 1 },
+           followUp: { prefer: ['seats'], add: [{ k: 'tasKmh', op: '>=', v: 180, at: { pax: 3, kg: 0 } }] } }),
+      C_({ id: 'resort.b2', provider: 'resort', kind: 'build', title: 'ct.resort.b2.title', brief: 'ct.resort.b2.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'tw_ski', crit: [
+             { k: 'xwindKt', op: '>=', v: 15 },
+             { k: 'landAt', op: '==', v: 'tw_ski', at: { pax: 1, kg: 0 } }] }] }],
+           pay: { base: 38000 }, rep: { provider: 'resort', gain: 1 }, needs: { rep: 2 },
+           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 60000 }] } }),
+    ],
+  },
+
+  survey: {
+    id: 'survey', name: 'prov.survey.name', desc: 'prov.survey.desc', track: 'survey', base: 300,
+    fields: ['HOME'],
+    goods: [
+      { id: 'count',   kind: 'none',             word: 'goods.count' },
+      { id: 'samples', kind: 'kg',   kg: [10, 40], word: 'goods.water' },
+      { id: 'gear',    kind: 'kg',   kg: [20, 70], word: 'goods.gear' },
+    ],
+    jobs: [
+      { id: 'count',   goods: 'count',   w: 3, title: 'job.survey.count.title',   brief: 'job.survey.count.brief',
+        survey: [['HOME', 'nv_strip'], ['HOME', 'mn_strip'], ['HOME', 'mk_sea'], ['SEA', 'nv_strip']] },
+      { id: 'samples', goods: 'samples', w: 2, title: 'job.survey.samples.title', brief: 'job.survey.samples.brief',
+        routes: [['mk_sea', 'SEA'], ['SEA', 'mk_sea']] },
+      { id: 'gear',    goods: 'gear',    w: 2, title: 'job.survey.gear.title',    brief: 'job.survey.gear.brief',
+        routes: [['HOME', 'w3'], ['HOME', 'tw_ski']] },
+    ],
+    arc: [
+      C_({ id: 'survey.01', provider: 'survey', kind: 'survey', title: 'ct.survey.01.title', brief: 'ct.survey.01.brief',
+           stages: [{ subs: [{ do: 'survey', from: 'HOME', at: 'nv_strip' }] }, { subs: [{ do: 'land', to: 'HOME' }] }],
+           pay: { base: 2000 }, rep: { provider: 'survey', gain: 0.5 } }),
+      C_({ id: 'survey.02', provider: 'survey', kind: 'contract', title: 'ct.survey.02.title', brief: 'ct.survey.02.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'mk_sea', to: 'SEA', load: { kg: 20, pax: 0 } }] }],
+           pay: { base: 2600 }, rep: { provider: 'survey', gain: 0.5 }, needs: { after: ['survey.01'] } }),
+      C_({ id: 'survey.03', provider: 'survey', kind: 'survey', title: 'ct.survey.03.title', brief: 'ct.survey.03.brief',
+           stages: [{ subs: [{ do: 'survey', from: 'HOME', at: 'nv_strip' }, { do: 'survey', from: 'HOME', at: 'mn_strip' }] },
+                    { subs: [{ do: 'land', to: 'HOME' }] }],
+           pay: { base: 3400 }, rep: { provider: 'survey', gain: 0.75 }, unlock: { stage: 'survey:1' },
+           needs: { after: ['survey.02'] } }),
+      C_({ id: 'survey.04', provider: 'survey', kind: 'build', title: 'ct.survey.04.title', brief: 'ct.survey.04.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'nv_strip', crit: [
+             { k: 'takeoffAt', op: '==', v: 'nv_strip', at: { pax: 0, kg: 0, fuelMin: 60 } },
+             { k: 'landAt', op: '==', v: 'nv_strip', at: { pax: 0, kg: 0, fuelMin: 60 } }] }] }],
+           pay: { base: 44000 }, rep: { provider: 'survey', gain: 1 }, unlock: { stage: 'survey:2' },
+           needs: { rep: 1, after: ['survey.03'] },
+           followUp: { add: [{ k: 'seats', op: '>=', v: 2 }, { k: 'emptyKg', op: '<=', v: 380 }] } }),
+      C_({ id: 'survey.05', provider: 'survey', kind: 'contract', title: 'ct.survey.05.title', brief: 'ct.survey.05.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 100, pax: 0 } }] }],
+           pay: { base: 4800 }, rep: { provider: 'survey', gain: 1 }, unlock: { stage: 'survey:3' },
+           needs: { rep: 2, after: ['survey.04'] } }),
+    ],
+    builds: [],
+  },
+
+  clients: {
+    id: 'clients', name: 'prov.clients.name', desc: 'prov.clients.desc', track: 'clients', base: 300,
+    fields: ['HOME', 'w3', 'tw_ski', 'SEA'],
+    goods: [
+      { id: 'pax',   kind: 'pax', pax: [1, 3],  word: 'goods.pax' },
+      { id: 'kit',   kind: 'kg',  kg: [15, 60], word: 'goods.kit' },
+      { id: 'canoe', kind: 'bulk', kg: [40, 70], word: 'goods.canoe' },
+    ],
+    jobs: [
+      { id: 'charter', goods: 'pax',   w: 3, title: 'job.clients.charter.title', brief: 'job.clients.charter.brief',
+        routes: [['HOME', 'w3'], ['HOME', 'tw_ski'], ['w3', 'tw_ski'], ['SEA', 'mk_sea']] },
+      { id: 'kit',     goods: 'kit',   w: 2, title: 'job.clients.kit.title',     brief: 'job.clients.kit.brief',
+        routes: [['HOME', 'w3'], ['tw_ski', 'HOME'], ['mk_sea', 'SEA']] },
+      { id: 'canoe',   goods: 'canoe', w: 1, title: 'job.clients.canoe.title',   brief: 'job.clients.canoe.brief',
+        routes: [['HOME', 'w3'], ['SEA', 'mk_sea']] },
+    ],
+    arc: [
+      C_({ id: 'clients.01', provider: 'clients', kind: 'contract', title: 'ct.clients.01.title', brief: 'ct.clients.01.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] }],
+           pay: { base: 1500 }, rep: { provider: 'clients', gain: 0.5 } }),
+      C_({ id: 'clients.02', provider: 'clients', kind: 'build', title: 'ct.clients.02.title', brief: 'ct.clients.02.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
+             { k: 'emptyKg', op: '<=', v: 300 },
+             { k: 'spanM', op: '<=', v: 9 },
+             { k: 'seats', op: '>=', v: 1 }] }] }],
+           pay: { base: 30000, bonus: [{ crit: 'emptyKg', by: 0.1, pct: 10 }] },
+           rep: { provider: 'clients', gain: 1 }, needs: { after: ['clients.01'] },
+           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 30000 }] } }),
+      C_({ id: 'clients.03', provider: 'clients', kind: 'challenge', title: 'ct.clients.03.title', brief: 'ct.clients.03.brief',
+           stages: [{ subs: [{ do: 'fly', from: 'tw_ski', to: 'HOME',
+                               medals: [{ medal: 'gold', le: 300 }, { medal: 'silver', le: 420 }, { medal: 'bronze', le: 540 }] }] }],
+           pay: { base: 2000, bonus: [{ crit: 'medal', by: 'gold', pct: 100 }, { crit: 'medal', by: 'silver', pct: 50 }] },
+           rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
+      C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
+             { k: 'costMax', op: '<=', v: 25000 },
+             { k: 'xwindKt', op: '>=', v: 12 },
+             { k: 'seats', op: '>=', v: 2 }] }] }],
+           pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },
+           followUp: { prefer: ['costMax', 'xwindKt'] } }),
+      C_({ id: 'clients.05', provider: 'clients', kind: 'build', title: 'ct.clients.05.title', brief: 'ct.clients.05.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
+             { k: 'ultimateG', op: '>=', v: 6 },
+             { k: 'tasKmh', op: '>=', v: 160, at: { pax: 0, kg: 0 } }] }] }],
+           pay: { base: 42000 }, rep: { provider: 'clients', gain: 1 }, unlock: { stage: 'clients:2' },
+           needs: { rep: 2, after: ['clients.04'] }, followUp: { prefer: ['ultimateG', 'tasKmh'] } }),
+    ],
+    builds: [
+      C_({ id: 'clients.b1', provider: 'clients', kind: 'build', title: 'ct.clients.b1.title', brief: 'ct.clients.b1.brief',
+           stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
+             { k: 'tankL', op: '<=', v: 20 },
+             { k: 'enduranceMin', op: '>=', v: 60, at: { pax: 0, kg: 0, reserveMin: 15, tasKmh: 110 } }] }] }],
+           pay: { base: 34000, bonus: [{ crit: 'enduranceMin', by: 0.15, pct: 10 }] },
+           rep: { provider: 'clients', gain: 1 }, needs: { rep: 0.5 },
+           followUp: { prefer: ['tankL', 'enduranceMin'], add: [{ k: 'hydro', op: '==', v: true }] } }),
+    ],
+  },
+};
+
+// ---- THE TEXT (draft English, every key; the narrative pack replaces it, keeping the keys) ------------------
+const CT_ = t => ({ t, draft: true });
+const CONTRACT_TEXT = {
+  // the providers (working names; GQ20: fictional)
+  'prov.field.name': CT_('The Field Trust'),
+  'prov.field.desc': CT_('The old Army field\'s landlord. They lease it to anyone who will bring it back to life.'),
+  'prov.minedock.name': CT_('Jumbo Mine & Dock Co.'),
+  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through Annette Dock.'),
+  'prov.resort.name': CT_('Skyline Resort'),
+  'prov.resort.desc': CT_('A small lodge above the hill, with a sloped strip and guests who want to see it all.'),
+  'prov.survey.name': CT_('The Survey Office'),
+  'prov.survey.desc': CT_('Two desks and a lot of coast. Counts, samples, and new places to land.'),
+  'prov.clients.name': CT_('Private clients & the Club'),
+  'prov.clients.desc': CT_('People who want an aeroplane nobody sells, and a club that likes a challenge.'),
+  // (G2320 CAREER-WIRE) the providers' short names (the MAP's tabs)
+  'prov.field.short': CT_('Trust'), 'prov.minedock.short': CT_('Mine & Dock'), 'prov.resort.short': CT_('Resort'),
+  'prov.survey.short': CT_('Survey'), 'prov.clients.short': CT_('Clients'),
+  // the tracks' stages (what goes up; STAGES draws them)
+  'trk.field.1': CT_('The second hangar\'s shell, under repair'),
+  'trk.field.2': CT_('The second hangar restored and the old tower lit'),
+  'trk.minedock.1': CT_('The headframe\'s frame on the hill'),
+  'trk.minedock.2': CT_('The headframe and the ore shed'),
+  'trk.minedock.3': CT_('The pier extension, under way'),
+  'trk.minedock.4': CT_('The cold store and the slipway'),
+  'trk.resort.1': CT_('The lodge\'s frame'),
+  'trk.resort.2': CT_('The lodge'),
+  'trk.resort.3': CT_('The strip lengthened'),
+  'trk.survey.1': CT_('A windsock and tie-downs at East Point'),
+  'trk.survey.2': CT_('East Point becomes a station'),
+  'trk.survey.3': CT_('The weather mast on Tamgas Hill'),
+  'trk.clients.1': CT_('The club house'),
+  'trk.clients.2': CT_('A small museum hangar for your best design'),
+  // goods (the load words)
+  'goods.mail': CT_('mail'), 'goods.tools': CT_('tools'), 'goods.crew': CT_('crew'),
+  'goods.parts': CT_('parts'), 'goods.samples': CT_('ore samples'), 'goods.rods': CT_('drill rods'),
+  'goods.fish': CT_('fish spotting'), 'goods.guests': CT_('guests'), 'goods.supplies': CT_('supplies'),
+  'goods.sights': CT_('sightseeing'), 'goods.count': CT_('a wildlife count'), 'goods.water': CT_('water samples'),
+  'goods.gear': CT_('survey gear'), 'goods.pax': CT_('passengers'), 'goods.kit': CT_('a client\'s kit'),
+  'goods.canoe': CT_('a canoe'),
+  // the load as a line ({n}: a number)
+  'load.kg': CT_('{n} kg of {what}'), 'load.pax1': CT_('1 passenger'), 'load.pax': CT_('{n} passengers'),
+  'load.bulk': CT_('{what} ({n} kg, the cabin cleared)'), 'load.none': CT_('{what}'),
+  // the job table (templates; {from} {to} {load} {at})
+  'job.field.mail.title': CT_('Mail to {to}'), 'job.field.mail.brief': CT_('{load}, {from} to {to}.'),
+  'job.field.tools.title': CT_('Tools for {to}'), 'job.field.tools.brief': CT_('The Trust needs {load} at {to}.'),
+  'job.field.crew.title': CT_('A lift to {to}'), 'job.field.crew.brief': CT_('{load} from {from} to {to}.'),
+  'job.minedock.parts.title': CT_('Parts for the mine'), 'job.minedock.parts.brief': CT_('{load} from {from} up to {to}.'),
+  'job.minedock.samples.title': CT_('Samples out'), 'job.minedock.samples.brief': CT_('{load} from {from} to {to}.'),
+  'job.minedock.crew.title': CT_('Crew change'), 'job.minedock.crew.brief': CT_('{load}, {from} to {to}.'),
+  'job.minedock.rods.title': CT_('Drill rods'), 'job.minedock.rods.brief': CT_('{load}. Long and awkward: {from} to {to}.'),
+  'job.minedock.mail.title': CT_('Mail off the water'), 'job.minedock.mail.brief': CT_('{load}, {from} to {to}.'),
+  'job.minedock.fish.title': CT_('Spot the fish'), 'job.minedock.fish.brief': CT_('Fly out over {at} and back to {from}. Tell the boats what you see.'),
+  'job.resort.guests.title': CT_('Guests for the lodge'), 'job.resort.guests.brief': CT_('{load}, {from} to {to}.'),
+  'job.resort.supplies.title': CT_('Supplies uphill'), 'job.resort.supplies.brief': CT_('{load} for the kitchen, {from} to {to}.'),
+  'job.resort.sights.title': CT_('A sightseeing loop'), 'job.resort.sights.brief': CT_('Over {at} and back to {from}, slowly.'),
+  'job.survey.count.title': CT_('Count over {at}'), 'job.survey.count.brief': CT_('Fly over {at} for the count, then home to {from}.'),
+  'job.survey.samples.title': CT_('Water samples'), 'job.survey.samples.brief': CT_('{load}, {from} to {to}. Keep them upright.'),
+  'job.survey.gear.title': CT_('Gear to {to}'), 'job.survey.gear.brief': CT_('{load} for a field team at {to}.'),
+  'job.clients.charter.title': CT_('A charter to {to}'), 'job.clients.charter.brief': CT_('{load}, {from} to {to}.'),
+  'job.clients.kit.title': CT_('A parcel for {to}'), 'job.clients.kit.brief': CT_('{load}, {from} to {to}.'),
+  'job.clients.canoe.title': CT_('A canoe to {to}'), 'job.clients.canoe.brief': CT_('{load}. Do not ask why. {from} to {to}.'),
+  // the arcs
+  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to Tamgas Hill and back.'),
+  'ct.field.01.done': CT_('Two landings, no drama. The Trust is listening.'),
+  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at Tamgas Hill. Bring it home.'),
+  'ct.field.02.done': CT_('The bench has tools again.'),
+  'ct.field.03.title': CT_('The first mail run'), 'ct.field.03.brief': CT_('Two mail sacks: one for the hill, one for the lodge. Any order.'),
+  'ct.field.03.done': CT_('The Trust starts on the second hangar.'),
+  'ct.field.04.title': CT_('The inspector'), 'ct.field.04.brief': CT_('Take the Trust\'s inspector to the hill, and bring her back.'),
+  'ct.field.04.done': CT_('She signed the form without looking up.'),
+  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at Tamgas Hill, and it is heavy.'),
+  'ct.field.05.done': CT_('The tower is lit and the second hangar stands.'),
+  'ct.minedock.01.title': CT_('Look at the road'), 'ct.minedock.01.brief': CT_('Fly over the mine street and tell us if it is still a strip.'),
+  'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
+  'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
+  'ct.minedock.02.done': CT_('The headframe\'s frame goes up.'),
+  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down.'),
+  'ct.minedock.03.done': CT_('The pump runs. The samples look good.'),
+  'ct.minedock.04.title': CT_('Four of us, fast'), 'ct.minedock.04.brief': CT_('I need to get my team of four to the mine fast.'),
+  'ct.minedock.04.follow': CT_('The team loves it. Same again, with one thing changed.'),
+  'ct.minedock.04.done': CT_('The headframe and the ore shed are finished.'),
+  'ct.minedock.05.title': CT_('The dock side'), 'ct.minedock.05.brief': CT_('Mail to the seaplane base, then a look over the dock on the way back.'),
+  'ct.minedock.05.done': CT_('The pier extension starts.'),
+  'ct.minedock.06.title': CT_('The cold store'), 'ct.minedock.06.brief': CT_('The cold store\'s fittings, from the seaplane base to the dock.'),
+  'ct.minedock.06.done': CT_('The cold store and the slipway are open.'),
+  'ct.minedock.b1.title': CT_('Mail off the water'), 'ct.minedock.b1.brief': CT_('Mail to the dock, every week, off the water.'),
+  'ct.minedock.b1.follow': CT_('The mail never missed. One more thing, though.'),
+  'ct.minedock.b2.title': CT_('Ore out of the street'), 'ct.minedock.b2.brief': CT_('Two hundred kilos out of the mine street, in one go.'),
+  'ct.minedock.b2.follow': CT_('It works. Now the accountant has a request.'),
+  'ct.resort.01.title': CT_('The first guest'), 'ct.resort.01.brief': CT_('Our first guest is at the field. Bring her up.'),
+  'ct.resort.01.done': CT_('She wants to stay a week.'),
+  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order, from the field to the altiport.'),
+  'ct.resort.02.done': CT_('The lodge\'s frame goes up.'),
+  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over Tamgas Hill, and back to the altiport.'),
+  'ct.resort.03.done': CT_('The brochure has a cover.'),
+  'ct.resort.04.title': CT_('Quiet, please'), 'ct.resort.04.brief': CT_('Electric. The guests hate the noise.'),
+  'ct.resort.04.follow': CT_('The guests noticed. Can it do a little more?'),
+  'ct.resort.04.done': CT_('The lodge is finished.'),
+  'ct.resort.05.title': CT_('The VIP weekend'), 'ct.resort.05.brief': CT_('Two guests from the field, and their luggage from the hill. Any order.'),
+  'ct.resort.05.done': CT_('The strip is lengthened.'),
+  'ct.resort.b1.title': CT_('Four guests at once'), 'ct.resort.b1.brief': CT_('A family of four, up the hill and back down, in one aeroplane.'),
+  'ct.resort.b1.follow': CT_('The family is back, and brought friends.'),
+  'ct.resort.b2.title': CT_('Every day, any wind'), 'ct.resort.b2.brief': CT_('The wind on the slope is never straight. We need to land anyway.'),
+  'ct.resort.b2.follow': CT_('It landed every day. Now the budget.'),
+  'ct.survey.01.title': CT_('A look at East Point'), 'ct.survey.01.brief': CT_('Fly over East Point Clearing and come back with what you saw.'),
+  'ct.survey.01.done': CT_('The clearing is real. Short, but real.'),
+  'ct.survey.02.title': CT_('Water samples'), 'ct.survey.02.brief': CT_('Samples from the seaplane base to the dock, upright.'),
+  'ct.survey.02.done': CT_('The lab is happy.'),
+  'ct.survey.03.title': CT_('Two sites'), 'ct.survey.03.brief': CT_('Over East Point and over the mine street, any order, then home.'),
+  'ct.survey.03.done': CT_('East Point gets a windsock.'),
+  'ct.survey.04.title': CT_('In and out of East Point'), 'ct.survey.04.brief': CT_('A plane for the East Point clearing: in and out, with an hour of fuel.'),
+  'ct.survey.04.follow': CT_('It works. Could it take a second person?'),
+  'ct.survey.04.done': CT_('East Point is a station.'),
+  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill.'),
+  'ct.survey.05.done': CT_('The mast is up.'),
+  'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today.'),
+  'ct.clients.01.done': CT_('The doctor tells everyone.'),
+  'ct.clients.02.title': CT_('Push it out alone'), 'ct.clients.02.brief': CT_('Something I can push out of my shed alone. The door is nine metres.'),
+  'ct.clients.02.follow': CT_('I love it. Could the next one be even lighter?'),
+  'ct.clients.02.done': CT_('A happy owner with a small shed.'),
+  'ct.clients.03.title': CT_('Skyline to home'), 'ct.clients.03.brief': CT_('The club\'s oldest challenge: from the altiport to the field, as fast as you dare.'),
+  'ct.clients.03.done': CT_('The club house goes up.'),
+  'ct.clients.04.title': CT_('A trainer for the club'), 'ct.clients.04.brief': CT_('A trainer for the club, cheap and forgiving.'),
+  'ct.clients.04.follow': CT_('The students love it. The treasurer has a wish.'),
+  'ct.clients.04.done': CT_('The club has a trainer.'),
+  'ct.clients.05.title': CT_('The aerobatic box'), 'ct.clients.05.brief': CT_('Something that will take the aerobatic box, and get there quickly.'),
+  'ct.clients.05.follow': CT_('The crowd wants more. So do I.'),
+  'ct.clients.05.done': CT_('A museum hangar for your best design.'),
+  'ct.clients.b1.title': CT_('A ridiculous tank'), 'ct.clients.b1.brief': CT_('An hour in the air on a ridiculous tank: twenty litres, no more.'),
+  'ct.clients.b1.follow': CT_('An hour was fun. One more thing.'),
+  // the criteria (labels; {v} the value, {at} the load or the strip)
+  'crit.seats': CT_('{v} seats occupied'), 'crit.emptyKg': CT_('empty mass at most {v} kg'),
+  'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),
+  'crit.batteryKWh': CT_('a battery of at most {v} kWh'), 'crit.spanM': CT_('a span of at most {v} m'),
+  'crit.costMax': CT_('costs at most {v} credits'), 'crit.ultimateG': CT_('strong to {v} g'),
+  'crit.xwindKt': CT_('lands in {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
+  'crit.tasKmh': CT_('cruises at {v} km/h or more {at}'), 'crit.enduranceMin': CT_('{v} min in the air plus a reserve {at}'),
+  'crit.rangeKm': CT_('{v} km on a tank'), 'crit.takeoffAt': CT_('takes off from {v} {at}'),
+  'crit.landAt': CT_('lands at {v} {at}'),
+  // the follow-up's change lines (GQ26)
+  'follow.more': CT_('{k}: more than before'), 'follow.less': CT_('{k}: less than before'), 'follow.add': CT_('and now: {k}'),
+  // medals
+  'medal.gold': CT_('gold'), 'medal.silver': CT_('silver'), 'medal.bronze': CT_('bronze'),
+  // (G2320 CAREER-WIRE) a flight's stop, as the arrival card says it ({t} the contract, {n} a number or a reason, {at} a field)
+  'ev.picked': CT_('{t}: loaded at {at}'), 'ev.sub': CT_('{t}: done at stage {n}'), 'ev.stage': CT_('{t}: stage {n} done'),
+  'ev.done': CT_('{t}: complete, paid {n}'), 'ev.unlock': CT_('built: {n}'), 'ev.follow': CT_('the client asks again: {t}'),
+  'ev.pending': CT_('{t}: acceptance pending - {n}'), 'ev.none': CT_('{t}: {n}'), 'ev.wallet': CT_('wallet {n}'),
+};
+// ===========================================================================
+// THE CONTRACTS (G2240 CONTRACT-MODEL) — the record, its kinds and criteria,
+// what a validated design can physically do, the pay, the seeded job
+// generator, the follow-up build contract, and a stage's acceptance from a
+// flight's end. futureDesigns/GAME-2026-10-06.md §R, §6, §7.3, §11, §12.3.
+// ===========================================================================
+// THE RECORD (§7.3, exactly):
+//   { id, provider, kind: 'contract'|'job'|'challenge'|'build'|'survey',
+//     title, brief,                                    text KEYS (72_'s CONTRACT_TEXT)
+//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: {before}, crit?: [...],
+//                           medals? } ] } ],           stages IN ORDER, a stage's subs in ANY order
+//     pay: { base, perKm?, km?, total?, bonus?: [ {crit, by, pct} ] },
+//     rep: { provider, gain },
+//     unlock?: { stage: '<track>:<n>' },              §11: a construction stage
+//     needs?: { rep?, after?: [id] },
+//     repeat?: false | { every: <contracts done> },
+//     followUp?: { prefer?: [k], add?: [crit], changed: [ {k, how, from, to} ], n } }   build contracts (GQ26)
+//   `do`: carry (a load from -> to) | fly (from? -> to, a challenge's medals) | land (at `to`) |
+//         survey (over `at`, departing `from`) | deliver (a build contract: the airframe lands at `to`, its
+//         `crit` judged by ACCEPT's hook) | accept (the criteria alone, judged by the hook, anywhere).
+//
+// RULINGS THIS FILE HOLDS (GATE CONTRACTS proves each, --selftest breaks each):
+//   G-COST  pay depends on the JOB, never on the aeroplane: contractPay reads the job and the fields, and
+//           nothing else. No running costs anywhere.
+//   az      no validated design does every job class — through PHYSICAL gates only (contractCanDo): the
+//           gear against the surface, the loaded take-off distance against the strip, the cabin against
+//           the load, the bulk against the cabin, the range against the leg.
+//   GQ26    one build contract = one delivery; a happy client offers a FOLLOW-UP with ONE criterion
+//           changed (contractFollowUp), paid +15 % (GQ31), never repeating a change.
+//   (g1)    a build contract states performance, never a configuration (CONTRACT_CONFIG_WORDS).
+//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk").
+//
+// Pure: no DOM, no THREE, no storage. Reads 72_'s tables, and (when present) 25_'s stripAllows /
+// 70_-71_'s player helpers at call time.
+// ===========================================================================
+
+const CONTRACT_KINDS = ['contract', 'job', 'challenge', 'build', 'survey'];
+const CONTRACT_DO = ['carry', 'fly', 'land', 'survey', 'deliver', 'accept'];
+const CONTRACT_OPS = ['>=', '<=', '=='];
+
+// ---- THE CRITERION KINDS (data: ACCEPT implements each kind, MAP labels each) -----------------------------
+//   k        the key a criterion names            unit   the value's unit ('' for a word, 'strip' for a field id)
+//   when     'static' (judged without flying: the phone may do it, GQ19) | 'flown' (a flight decides it)
+//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'bench' (a BENCH_TESTS run) |
+//            'leg' (the flown acceptance leg) | 'strip' (flown at that strip: the delivery or a demonstration)
+//   src      where today's number comes from (GAME §6.2)
+//   op       the operators the kind takes; band the sane values [lo, hi] (a criterion outside is invalid)
+//   at       the conditions the kind may carry: pax / kg (the load it is judged at), reserveMin, fuelMin, tasKmh
+//   follow   the follow-up's change (GQ26): `mul` or `add` toward the harder side, `round` its step; null =
+//            this kind is never the one changed (a strip, a powertrain: the follow-up ADDs those)
+//   values   the words a word-valued kind takes
+const CONTRACT_CRIT_KINDS = {
+  seats:        { k: 'seats',        unit: 'seats', when: 'static', how: 'spec',   src: 'cabin.seats + the occupied stations',
+                  op: ['>='], band: [1, 8], follow: { add: 1 } },
+  emptyKg:      { k: 'emptyKg',      unit: 'kg',    when: 'static', how: 'ledger', src: 'genShakedown empty (nobody aboard, no fuel)',
+                  op: ['<='], band: [150, 2500], follow: { mul: 0.9, round: 5 } },
+  powertrain:   { k: 'powertrain',   unit: '',      when: 'static', how: 'spec',   src: 'the energy module (60c_gen_energy.js) energyKind',
+                  op: ['=='], values: ['electric', 'fuel', 'diesel'], follow: null },
+  tankL:        { k: 'tankL',        unit: 'L',     when: 'static', how: 'spec',   src: 'the vessel litres (genShakedown energyL)',
+                  op: ['<='], band: [5, 400], follow: { mul: 0.8, round: 1 } },
+  batteryKWh:   { k: 'batteryKWh',   unit: 'kWh',   when: 'static', how: 'spec',   src: 'the cells\' kWh (60c_gen_energy.js)',
+                  op: ['<='], band: [2, 200], follow: { mul: 0.85, round: 1 } },
+  spanM:        { k: 'spanM',        unit: 'm',     when: 'static', how: 'spec',   src: 'genShakedown span (and GAME-PREMISES\' door rule)',
+                  op: ['<='], band: [5, 20], follow: { add: -0.5, round: 0.5 } },
+  costMax:      { k: 'costMax',      unit: 'credits', when: 'static', how: 'ledger', src: 'genShakedown cost (the bill)',
+                  op: ['<='], band: [5000, 300000], follow: { mul: 0.9, round: 500 } },
+  ultimateG:    { k: 'ultimateG',    unit: 'g',     when: 'static', how: 'cert',   src: 'the structural certificate (66_gen_cert.js ultimate)',
+                  op: ['>='], band: [3, 12], follow: { add: 0.5, round: 0.5 } },
+  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'flown',  how: 'bench',  src: 'BENCH_TESTS xwind (genCrosswindLimit)',
+                  op: ['>='], band: [5, 30], follow: { add: 3, round: 1 } },
+  hydro:        { k: 'hydro',        unit: '',      when: 'flown',  how: 'bench',  src: 'BENCH_TESTS hydro + the delivery on water',
+                  op: ['=='], values: [true], follow: null },
+  tasKmh:       { k: 'tasKmh',       unit: 'km/h',  when: 'flown',  how: 'leg',    src: 'the acceptance leg: TAS in a stabilised cruise at the load (`at`)',
+                  op: ['>='], band: [60, 450], at: ['pax', 'kg'], follow: { mul: 1.1, round: 5 } },
+  enduranceMin: { k: 'enduranceMin', unit: 'min',   when: 'flown',  how: 'leg',    src: 'the acceptance leg: the measured flow x the tank, less the reserve',
+                  op: ['>='], band: [10, 600], at: ['pax', 'kg', 'reserveMin', 'tasKmh'], follow: { add: 15, round: 5 } },
+  rangeKm:      { k: 'rangeKm',      unit: 'km',    when: 'flown',  how: 'leg',    src: 'the acceptance leg: groundspeed x the measured endurance, calm air',
+                  op: ['>='], band: [20, 3000], at: ['pax', 'kg', 'reserveMin'], follow: { mul: 1.2, round: 10 } },
+  takeoffAt:    { k: 'takeoffAt',    unit: 'strip', when: 'flown',  how: 'strip',  src: 'flown at that strip: the logbook row\'s departure',
+                  op: ['=='], at: ['pax', 'kg', 'fuelMin'], follow: null },
+  landAt:       { k: 'landAt',       unit: 'strip', when: 'flown',  how: 'strip',  src: 'flown at that strip: the delivery\'s arrival',
+                  op: ['=='], at: ['pax', 'kg', 'fuelMin'], follow: null },
+};
+
+// ---- (g1) A BUILD CRITERION NEVER NAMES A CONFIGURATION ---------------------------------------------------
+// The words (whole words, any case) no build contract's criteria or text may hold: wing positions, gear
+// layouts, engine and airframe makers and models, structures. "floats" / "water" are an OPERATION (hydro),
+// not a configuration, and are allowed (GQ26 names "floats" as a follow-up change).
+const CONTRACT_CONFIG_WORDS = ['high wing', 'high-wing', 'low wing', 'low-wing', 'mid wing', 'shoulder wing',
+  'parasol', 'tricycle', 'nosewheel', 'nose wheel', 'nose-wheel', 'taildragger', 'tail dragger', 'tail-dragger',
+  'tailwheel', 'tail wheel', 'conventional gear', 'biplane', 'monoplane', 'canard', 'pusher', 'tractor',
+  'twin boom', 'twin-boom', 'twin engine', 'twin-engine', 'retractable', 'strut', 'struts', 'braced',
+  'cantilever', 'tube-and-fabric', 'rotax', 'lycoming', 'continental', 'jabiru', 'cessna', 'piper', 'cub',
+  'jodel', 'beaver', 'cherokee', 'citabria', 'super cub', 'two-stroke', 'four-stroke', 'flat four', 'flat-four'];
+
+// ---- THE FIT RULES (what a validated design can physically do; az through physical gates) ------------------
+//   occKg    an occupant's mass (the envelope's station mass: 80 kg)
+//   surf     the take-off distance's factor on each surface (a soft or rough strip lengthens the run)
+//   bulkSeats a bulk load needs the rear seats out of a cabin of at least this many seats
+//   rangeUse the share of the certified range a leg may use (the rest is the reserve)
+// The loaded take-off distance is the certificate's toM scaled by (W / W0)^2 — the textbook first-order law
+// (the run goes as W^2 / (rho S CLmax T)); it is the conservative side of genTORunAt's lift-only probe.
+// BOTH ends are held to it: the aeroplane lands there loaded and must leave again.
+const CONTRACT_FIT = {
+  occKg: 80,
+  surf: { concrete: 1.0, asphalt: 1.0, paved: 1.0, gravel: 1.1, dirt: 1.1, sand: 1.25, grass: 1.15, snow: 1.3, water: 1.0 },
+  bulkSeats: 4,
+  rangeUse: 0.75,
+};
+
+// ---- THE PAY (§12.3 as amended by G-COST: net, no running costs) -----------------------------------------
+//   job pay = base(provider) + perKm x km x (1 + payload factor) + surface bonus + conditions
+//   payload factor = kg / kgUnit + pax x paxF (+ bulkF for a bulk load)
+//   surface bonus per distinct field the job touches: short (a strip <= shortM), water, snow, altiport
+//   conditions: a `when` adds condPct of the rest
+// Arcs and build contracts carry an authored base; a follow-up pays followPct more (GQ31).
+const CONTRACT_PAY = {
+  perKm: 60, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
+  surf: { short: 400, water: 300, snow: 350, altiport: 500 }, shortM: 400,
+  condPct: 15, round: 10,
+  followPct: 15,
+};
+
+// ---- THE GENERATOR (seeded: the career seed + the completed count) ---------------------------------------
+//   refreshEvery  the offers refresh after this many completed contracts (the epoch = floor(done / it))
+//   perProvider   jobs offered per provider per epoch
+//   tries         a drawn job no validated design can do is shrunk (its load halved, a passenger dropped) or
+//                 redrawn up to this many times
+//   condP         the chance a job carries a condition (before dusk)
+//   repLoad       the load drawn grows with the provider's reputation: lo + (hi-lo) x (repLoad[0] + repLoad[1] x rep/5)
+const CONTRACT_GEN = { refreshEvery: 3, perProvider: 3, tries: 8, condP: 0.25, repLoad: [0.4, 0.6], repMax: 5 };
+const CONTRACT_DUSK_H = 19.5;          // "before dusk": the world's local hour at the stop (stopRecord.hour)
+const CONTRACT_FOLLOW_MAX = 3;         // a chain of follow-ups stops after this many (or when no change is left)
+
+// ---- small pure helpers ------------------------------------------------------------------------------------
+const ctClone = o => JSON.parse(JSON.stringify(o));
+// FNV-1a 32 over a string, then mulberry32: the same string, the same numbers, on every machine
+function contractHash(s) {
+  let h = 0x811c9dc5;
+  s = String(s);
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
+function contractRng(key) {
+  let a = contractHash(key);
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const ctField = (id, fields) => (fields || CONTRACT_FIELDS)[id] || null;
+function contractKm(a, b, fields) {
+  const A = ctField(a, fields), B = ctField(b, fields);
+  if (!A || !B) return NaN;
+  return Math.hypot(A.x - B.x, A.z - B.z) / 1000;
+}
+const ctWet = f => !!f && f.surf === 'water';
+
+// THE FIELDS OF A WORLD: the same rows off the world's aerodromes (a premises record's runways or
+// world.aerodromes: `c` or x/z, len, the surface through 25_'s stripSurface). GATE CONTRACTS holds
+// CONTRACT_FIELDS equal to this over Jolene's record.
+function contractFieldsOf(aerodromes) {
+  const out = {};
+  for (const a of (aerodromes || [])) {
+    if (!a || !a.id || a.kind === 'meadow') continue;
+    const x = Array.isArray(a.c) ? a.c[0] : a.x, z = Array.isArray(a.c) ? a.c[1] : a.z;
+    const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
+    const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
+                  surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
+    if (a.altiport) row.alti = true;
+    out[a.id] = row;
+  }
+  return out;
+}
+
+// ---- THE TEXT ----------------------------------------------------------------------------------------------
+// a key's words with its {slots} filled; an unknown key reads as the key itself in brackets (visible, never a
+// crash) and contractTextOk says so
+function contractText(key, vars, text) {
+  const T = text || CONTRACT_TEXT;
+  const e = T[key];
+  let s = e ? e.t : '[' + key + ']';
+  if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+  return s;
+}
+const contractTextOk = (key, text) => typeof key === 'string' && !!(text || CONTRACT_TEXT)[key]
+  && typeof (text || CONTRACT_TEXT)[key].t === 'string';
+// the load as words: "40 kg of tools", "2 passengers", "drill rods (80 kg, the cabin cleared)"
+function contractLoadWords(load, goodsWord, text) {
+  const what = goodsWord ? contractText(goodsWord, null, text) : '';
+  if (!load) return what;
+  if (load.bulk) return contractText('load.bulk', { what, n: load.kg || 0 }, text);
+  if (load.pax > 0 && !(load.kg > 0)) return load.pax === 1 ? contractText('load.pax1', null, text) : contractText('load.pax', { n: load.pax }, text);
+  if (load.kg > 0) return contractText('load.kg', { n: load.kg, what }, text);
+  return contractText('load.none', { what }, text);
+}
+// every key a record names (title, brief, a build's follow-up line, its criteria's labels, the goods word)
+function contractKeys(rec) {
+  const ks = [rec.title, rec.brief];
+  if (rec.goods) ks.push(rec.goods);
+  if (rec.kind === 'build') ks.push(contractFollowKey(rec));
+  const ch = rec.followUp && rec.followUp.changed && rec.followUp.changed[rec.followUp.changed.length - 1];
+  if (ch) ks.push('follow.' + ch.how);
+  for (const st of rec.stages || []) for (const s of st.subs || []) for (const c of s.crit || []) ks.push('crit.' + c.k);
+  return ks;
+}
+const contractFollowKey = rec => 'ct.' + String(rec.base || rec.id).split('+')[0] + '.follow';
+// a criterion as words (MAP's card): its label with the value (a strip by its name) and the load it is judged at
+function contractCritWords(c, fields, text) {
+  const F = fields || CONTRACT_FIELDS, K = CONTRACT_CRIT_KINDS[c.k] || {};
+  const v = K.unit === 'strip' ? (F[c.v] ? F[c.v].name : c.v) : (c.v === true ? '' : c.v);
+  let at = '';
+  if (c.at && (c.at.pax || c.at.kg)) at = 'with ' + contractLoadWords({ kg: c.at.kg || 0, pax: c.at.pax || 0 }, 'goods.kit', text);
+  return contractText('crit.' + c.k, { v, at }, text).replace(/\s+$/, '');
+}
+// a follow-up's change as words (GQ26): "and now: ...", or "<criterion>: more / less than before"
+function contractFollowLine(rec, text) {
+  const ch = rec && rec.followUp && rec.followUp.changed && rec.followUp.changed[rec.followUp.changed.length - 1];
+  if (!ch) return '';
+  const c = contractCrit(rec).find(x => x.k === ch.k);
+  return contractText('follow.' + ch.how, { k: c ? contractCritWords(c, null, text) : ch.k }, text);
+}
+
+// ---- THE NORMALISER --------------------------------------------------------------------------------------
+// Fills what is missing, carries what is present verbatim (unknown fields ride along: a newer game's field
+// survives a round trip). Pure: returns a new object.
+function contractNormalise(r) {
+  const o = (r && typeof r === 'object') ? ctClone(r) : {};
+  if (typeof o.id !== 'string') o.id = '';
+  if (typeof o.provider !== 'string') o.provider = '';
+  if (!CONTRACT_KINDS.includes(o.kind)) o.kind = 'contract';
+  if (typeof o.title !== 'string') o.title = '';
+  if (typeof o.brief !== 'string') o.brief = '';
+  if (!Array.isArray(o.stages)) o.stages = [];
+  o.stages = o.stages.map(st => {
+    const S = (st && typeof st === 'object') ? st : {};
+    S.subs = Array.isArray(S.subs) ? S.subs.map(s => {
+      const u = (s && typeof s === 'object') ? s : {};
+      if (u.load && typeof u.load === 'object') {
+        u.load.kg = Math.max(0, +u.load.kg || 0);
+        u.load.pax = Math.max(0, Math.round(+u.load.pax || 0));
+        if (u.load.bulk == null) delete u.load.bulk;
+      }
+      if (u.crit != null && !Array.isArray(u.crit)) u.crit = [];
+      return u;
+    }) : [];
+    return S;
+  });
+  if (!o.pay || typeof o.pay !== 'object') o.pay = { base: 0 };
+  if (typeof o.pay.base !== 'number' || !isFinite(o.pay.base)) o.pay.base = 0;
+  if (!o.rep || typeof o.rep !== 'object') o.rep = { provider: o.provider, gain: 0 };
+  if (typeof o.rep.provider !== 'string') o.rep.provider = o.provider;
+  if (typeof o.rep.gain !== 'number' || !isFinite(o.rep.gain)) o.rep.gain = 0;
+  if (o.needs != null && typeof o.needs !== 'object') delete o.needs;
+  if (o.needs) {
+    if (!Array.isArray(o.needs.after)) o.needs.after = [];
+    if (typeof o.needs.rep !== 'number' || !isFinite(o.needs.rep)) o.needs.rep = 0;
+  }
+  if (o.repeat == null) o.repeat = o.kind === 'job' ? { every: CONTRACT_GEN.refreshEvery } : false;
+  if (o.kind === 'build') {
+    if (!o.followUp || typeof o.followUp !== 'object') o.followUp = {};
+    if (!Array.isArray(o.followUp.changed)) o.followUp.changed = [];
+    if (!Array.isArray(o.followUp.prefer)) o.followUp.prefer = [];
+    if (!Array.isArray(o.followUp.add)) o.followUp.add = [];
+    if (typeof o.followUp.n !== 'number') o.followUp.n = o.followUp.changed.length;
+  }
+  return o;
+}
+
+// ---- THE VALIDATOR -----------------------------------------------------------------------------------------
+// -> [ 'reason', ... ] (empty = valid). opts.text: the text table; opts.fields; opts.ids: the ids `after` may name
+function contractCritWhy(c) {
+  const K = c && CONTRACT_CRIT_KINDS[c.k];
+  if (!K) return 'unknown criterion kind ' + (c && c.k);
+  if (!K.op.includes(c.op)) return c.k + ': operator ' + c.op + ' not one of ' + K.op.join(' ');
+  if (K.unit === 'strip') { if (!ctField(c.v)) return c.k + ': no field ' + c.v; }
+  else if (K.values) { if (!K.values.includes(c.v)) return c.k + ': ' + c.v + ' not one of ' + K.values.join(' '); }
+  else if (typeof c.v !== 'number' || !isFinite(c.v) || c.v < K.band[0] || c.v > K.band[1])
+    return c.k + ': ' + c.v + ' outside ' + K.band[0] + '..' + K.band[1] + ' ' + K.unit;
+  if (c.at != null) {
+    if (typeof c.at !== 'object') return c.k + ': `at` is not an object';
+    for (const a of Object.keys(c.at)) if (!(K.at || []).includes(a)) return c.k + ': `at.' + a + '` not a condition of this kind';
+  }
+  return '';
+}
+function contractConfigWord(s) {
+  const t = ' ' + String(s || '').toLowerCase().replace(/[^a-z0-9-]+/g, ' ') + ' ';
+  for (const w of CONTRACT_CONFIG_WORDS) if (t.includes(' ' + w + ' ')) return w;
+  return '';
+}
+function contractValidate(rec, opts) {
+  opts = opts || {};
+  const T = opts.text || CONTRACT_TEXT, F = opts.fields || CONTRACT_FIELDS;
+  const why = [];
+  const r = rec || {};
+  const id = r.id || '(no id)';
+  if (typeof r.id !== 'string' || !r.id) why.push(id + ': no id');
+  if (!CONTRACT_KINDS.includes(r.kind)) why.push(id + ': kind ' + r.kind + ' is not one of ' + CONTRACT_KINDS.join(' '));
+  if (!CONTRACT_PROVIDERS[r.provider]) why.push(id + ': no provider ' + r.provider);
+  for (const k of ['title', 'brief']) if (!contractTextOk(r[k], T)) why.push(id + ': ' + k + ' key ' + r[k] + ' does not resolve');
+  if (!Array.isArray(r.stages) || !r.stages.length) why.push(id + ': no stages');
+  (r.stages || []).forEach((st, i) => {
+    if (!st || !Array.isArray(st.subs) || !st.subs.length) { why.push(id + ': stage ' + i + ' has no subs'); return; }
+    st.subs.forEach((s, j) => {
+      const at = id + ' ' + i + '.' + j;
+      if (!CONTRACT_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
+      for (const f of ['from', 'to', 'at']) if (s[f] != null && !F[s[f]]) why.push(at + ': no field ' + s[f]);
+      if ((s.do === 'carry' || s.do === 'fly') && (!s.to || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
+      if ((s.do === 'land' || s.do === 'deliver') && !s.to) why.push(at + ': ' + s.do + ' needs to');
+      if (s.do === 'survey' && (!s.at || !s.from)) why.push(at + ': survey needs at and from');
+      if (s.do === 'carry') {
+        const L = s.load;
+        if (!L || !(L.kg >= 0) || !(L.pax >= 0) || !(L.kg > 0 || L.pax > 0)) why.push(at + ': carry needs a load (kg or pax)');
+      }
+      if (s.crit != null) {
+        if (r.kind !== 'build') why.push(at + ': criteria on a ' + r.kind + ' (build contracts only)');
+        for (const c of s.crit) { const w = contractCritWhy(c); if (w) why.push(at + ': ' + w); }
+      }
+      if ((s.do === 'deliver' || s.do === 'accept') && r.kind !== 'build') why.push(at + ': ' + s.do + ' on a ' + r.kind);
+      if (s.when != null && !(s.when && s.when.before === 'dusk')) why.push(at + ': `when` must be {before: \'dusk\'} (no deadlines, GQ17)');
+      if (s.medals != null) {
+        if (r.kind !== 'challenge' || s.do !== 'fly') why.push(at + ': medals on a non-challenge');
+        else if (!s.medals.length || s.medals.some(m => !['gold', 'silver', 'bronze'].includes(m.medal) || !(m.le > 0)))
+          why.push(at + ': a medal is {medal: gold|silver|bronze, le: seconds}');
+      }
+    });
+  });
+  if (r.kind === 'build') {
+    const crit = contractCrit(r);
+    if (!crit.length) why.push(id + ': a build contract with no criteria');
+    if (!(r.stages || []).some(st => (st.subs || []).some(s => s.do === 'deliver'))) why.push(id + ': a build contract with no delivery');
+    if (!r.followUp || !Array.isArray(r.followUp.changed)) why.push(id + ': a build contract with no followUp');
+    if (!contractTextOk(contractFollowKey(r), T)) why.push(id + ': follow-up key ' + contractFollowKey(r) + ' does not resolve');
+    const seen = {};
+    for (const c of crit) { if (seen[c.k]) why.push(id + ': criterion ' + c.k + ' named twice'); seen[c.k] = 1; }
+    // (g1) never a configuration: the criteria, and the words the client says
+    for (const c of crit) { const w = contractConfigWord(JSON.stringify(c)); if (w) why.push(id + ': criterion ' + c.k + ' names a configuration (' + w + ')'); }
+    for (const k of [r.title, r.brief, contractFollowKey(r)]) {
+      const w = T[k] && contractConfigWord(T[k].t);
+      if (w) why.push(id + ': ' + k + ' names a configuration (' + w + ')');
+    }
+    for (const c of crit) if (!contractTextOk('crit.' + c.k, T)) why.push(id + ': no label crit.' + c.k);
+  }
+  if (!r.pay || typeof r.pay.base !== 'number' || !isFinite(r.pay.base) || r.pay.base < 0) why.push(id + ': pay.base must be >= 0');
+  for (const b of ((r.pay && r.pay.bonus) || [])) {
+    if (b.crit === 'medal') { if (!['gold', 'silver', 'bronze'].includes(b.by)) why.push(id + ': a medal bonus by ' + b.by); }
+    else if (!contractCrit(r).some(c => c.k === b.crit)) why.push(id + ': a bonus on ' + b.crit + ', which is not a criterion');
+    if (!(b.pct > 0)) why.push(id + ': a bonus with no pct');
+  }
+  if (!r.rep || !CONTRACT_PROVIDERS[r.rep.provider] || !(r.rep.gain >= 0)) why.push(id + ': rep {provider, gain >= 0}');
+  if (r.unlock != null) {
+    const m = /^(\w+):(\d+)$/.exec((r.unlock && r.unlock.stage) || '');
+    if (!m || !CONTRACT_TRACKS[m[1]] || +m[2] < 1 || +m[2] > CONTRACT_TRACKS[m[1]].max) why.push(id + ': unlock ' + JSON.stringify(r.unlock) + ' is not <track>:<1..max>');
+  }
+  if (r.needs != null) {
+    if (r.needs.after != null && !Array.isArray(r.needs.after)) why.push(id + ': needs.after is not a list');
+    for (const a of ((r.needs && r.needs.after) || [])) if (opts.ids && !opts.ids.includes(a)) why.push(id + ': needs.after names ' + a + ', which does not exist');
+  }
+  return why;
+}
+
+// every criterion of a record, in stage / sub order
+function contractCrit(rec) {
+  const out = [];
+  for (const st of (rec && rec.stages) || []) for (const s of st.subs || []) for (const c of s.crit || []) out.push(c);
+  return out;
+}
+
+// ---- WHAT THE CERTIFICATE CAN SAY (G2320, §R's follow-up to ACCEPT) ------------------------------------------
+// The structural certificate is the NORMAL category only (65_gen_loadtest.js: +3.8 g limit, 5.7 g ultimate for every
+// certified build): a criterion asking a stronger ultimate (the aerobatic box, "+6 g") is unwinnable until the
+// certificate takes a category. Such a contract is HELD OUT: never offered (74_career.js careerOfferIds), so never
+// accepted. It stays in the data, ready for the day the certificate can answer it.
+const contractCertUlt = () => (typeof GEN_LOAD_ULT === 'number' ? GEN_LOAD_ULT : 5.7);
+function contractCertifiable(rec) {
+  const ult = contractCertUlt();
+  return !contractCrit(rec).some(c => c.k === 'ultimateG' && typeof c.v === 'number' && c.v > ult + 1e-9);
+}
+
+// ---- THE AUTHORED CONTRACTS (the arcs and the standalone builds, normalised, by id) -------------------------
+function contractAuthored() {
+  const out = {};
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) {
+    const P = CONTRACT_PROVIDERS[p];
+    for (const r of P.arc.concat(P.builds || [])) out[r.id] = contractNormalise(r);
+  }
+  return out;
+}
+
+// ---- WHAT A VALIDATED DESIGN CAN DO (az: physical gates only) ------------------------------------------------
+// the gear on a field: floats on water only, wheels anywhere but water (25_'s stripAllows; GATE CONTRACTS
+// holds this to it on every field x gear)
+function contractGearOk(gear, f) {
+  if (!f) return false;
+  if (gear === 'amphibian') return true;
+  if (gear === 'floats') return ctWet(f);
+  if (gear === 'skis') return f.surf === 'snow' || f.surf === 'grass';
+  return !ctWet(f);
+}
+// the loaded take-off distance on a field (the certificate's toM, (W/W0)^2, the surface's factor)
+function contractTakeoffM(design, loadKg, f) {
+  const W0 = design.massKg, W = W0 + Math.max(0, loadKg || 0);
+  return design.toM * (W / W0) * (W / W0) * ((f && CONTRACT_FIT.surf[f.surf]) || 1.2);
+}
+const ctCapKg = D => Math.max(0, D.seats - 1) * CONTRACT_FIT.occKg + (D.bagKg || 0);
+// one sub, one design -> { ok, why }
+function contractSubFit(D, s, fields) {
+  const F = fields || CONTRACT_FIELDS;
+  const no = why => ({ ok: false, why: D.label + ': ' + why });
+  const ends = [];
+  let kg = 0, km = 0;
+  if (s.do === 'carry') {
+    const L = s.load || {};
+    kg = (L.kg || 0) + (L.pax || 0) * CONTRACT_FIT.occKg;
+    if ((L.pax || 0) > D.seats - 1) return no((L.pax || 0) + ' passengers, ' + (D.seats - 1) + ' seats beside the pilot');
+    if (kg > ctCapKg(D)) return no(kg + ' kg aboard, the cabin takes ' + ctCapKg(D) + ' kg');
+    if (L.bulk && D.seats < CONTRACT_FIT.bulkSeats) return no('a bulk load needs a cabin of ' + CONTRACT_FIT.bulkSeats + ' seats cleared');
+    ends.push(s.from, s.to); km = contractKm(s.from, s.to, F);
+  } else if (s.do === 'fly') { if (s.from) ends.push(s.from); ends.push(s.to); km = s.from ? contractKm(s.from, s.to, F) : 0; }
+  else if (s.do === 'land') { ends.push(s.to); }
+  else if (s.do === 'survey') { ends.push(s.from); km = 2 * contractKm(s.from, s.at, F); }
+  else return { ok: true, why: '' };   // deliver / accept: the delivered design is judged by ACCEPT, not here
+  for (const e of ends) {
+    const f = F[e];
+    if (!f) return no('no field ' + e);
+    if (!contractGearOk(D.gear, f)) return no(D.gear + ' cannot use ' + f.name + ' (' + f.surf + ')');
+    const run = contractTakeoffM(D, kg, f);
+    if (run > f.len) return no('take-off ' + Math.round(run) + ' m with ' + kg + ' kg, ' + f.name + ' is ' + f.len + ' m');
+  }
+  if (km > D.rangeKm * CONTRACT_FIT.rangeUse) return no(km.toFixed(1) + ' km, the range allows ' + Math.round(D.rangeKm * CONTRACT_FIT.rangeUse));
+  return { ok: true, why: '' };
+}
+// a list of subs (a stage, or a whole job) by ONE design
+function contractCanDo(D, subs, fields) {
+  for (const s of subs) { const r = contractSubFit(D, s, fields); if (!r.ok) return r; }
+  return { ok: true, why: '' };
+}
+// the validated designs that can fly these subs -> [id]
+function contractDoers(subs, fields, designs) {
+  const DS = designs || CONTRACT_DESIGNS;
+  return Object.keys(DS).filter(k => contractCanDo(DS[k], subs, fields).ok);
+}
+const contractSubsOf = rec => [].concat(...((rec && rec.stages) || []).map(st => st.subs || []));
+const ctFlying = s => s.do !== 'deliver' && s.do !== 'accept';
+
+// ---- THE JOB CLASSES (az: every class has a doer, no design does every class) ---------------------------------
+const CONTRACT_JOB_CLASSES = {
+  water:    { test: (subs, F) => subs.some(s => ['from', 'to', 'at'].some(k => s[k] && ctWet(F[s[k]]) && !(k === 'at' && s.do === 'survey'))) },
+  short:    { test: (subs, F) => subs.some(s => ['from', 'to'].some(k => s[k] && F[s[k]] && !ctWet(F[s[k]]) && F[s[k]].len <= 300)) },
+  altiport: { test: (subs, F) => subs.some(s => ['from', 'to'].some(k => s[k] && F[s[k]] && F[s[k]].alti)) },
+  group:    { test: subs => subs.some(s => s.load && s.load.pax >= 2) },
+  heavy:    { test: subs => subs.some(s => s.load && (s.load.kg || 0) + (s.load.pax || 0) * CONTRACT_FIT.occKg >= 120) },
+  bulk:     { test: subs => subs.some(s => s.load && s.load.bulk) },
+  survey:   { test: subs => subs.some(s => s.do === 'survey') },
+};
+function contractClasses(rec, fields) {
+  const F = fields || CONTRACT_FIELDS, subs = contractSubsOf(rec);
+  return Object.keys(CONTRACT_JOB_CLASSES).filter(k => CONTRACT_JOB_CLASSES[k].test(subs, F));
+}
+
+// ---- THE PAY (G-COST: the job's, never the aeroplane's) ----------------------------------------------------
+// -> { base, perKm, km, factor, surface, cond, total }. Reads the record and the fields. Nothing else.
+function contractPay(rec, fields) {
+  const F = fields || CONTRACT_FIELDS, P = CONTRACT_PAY;
+  const prov = CONTRACT_PROVIDERS[rec.provider];
+  const subs = contractSubsOf(rec);
+  let km = 0, kg = 0, pax = 0, bulk = false, cond = false;
+  const touched = {};
+  for (const s of subs) {
+    if (s.do === 'carry' || (s.do === 'fly' && s.from)) km += contractKm(s.from, s.to, F);
+    if (s.do === 'survey') km += 2 * contractKm(s.from, s.at, F);
+    for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
+    if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
+    if (s.when) cond = true;
+  }
+  const factor = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
+  let surface = 0;
+  for (const id of Object.keys(touched)) {
+    const f = F[id];
+    if (!f) continue;
+    if (ctWet(f)) surface += P.surf.water;
+    else if (f.len <= P.shortM) surface += P.surf.short;
+    if (f.surf === 'snow') surface += P.surf.snow;
+    if (f.alti) surface += P.surf.altiport;
+  }
+  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) : ((rec.pay && rec.pay.base) || 0);
+  const perKm = rec.kind === 'job' ? P.perKm : 0;
+  const rest = base + perKm * km * (1 + factor) + (rec.kind === 'job' ? surface : 0);
+  const condAdd = cond ? rest * P.condPct / 100 : 0;
+  const total = Math.round((rest + condAdd) / P.round) * P.round;
+  return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
+           cond: Math.round(condAdd), total };
+}
+
+// ---- THE JOB GENERATOR (seeded, deterministic, order-independent) ------------------------------------------
+// A job is f(seed, provider, epoch, index) and NOTHING else (the provider's reputation scales its load: a
+// value of the career that changes only when the completed count does). Its id says so: job:<prov>:<epoch>:<i>,
+// so a job is regenerated from its id (contractJobById) — no job is stored until it is accepted.
+function contractEpoch(done) { return Math.floor(Math.max(0, done || 0) / CONTRACT_GEN.refreshEvery); }
+function ctPick(rng, list, w) {
+  if (!w) return list[Math.floor(rng() * list.length) % list.length];
+  const tot = list.reduce((a, x) => a + (w(x) || 0), 0);
+  let r = rng() * tot;
+  for (const x of list) { r -= (w(x) || 0); if (r < 0) return x; }
+  return list[list.length - 1];
+}
+function ctDraw(rng, lo, hi, frac, round) {
+  const top = lo + (hi - lo) * Math.min(1, frac);
+  const v = lo + (top - lo) * rng();
+  return Math.max(lo, Math.round(v / round) * round);
+}
+function contractJob(seed, providerId, epoch, i, opts) {
+  opts = opts || {};
+  const P = CONTRACT_PROVIDERS[providerId];
+  if (!P || !P.jobs || !P.jobs.length) return null;
+  const F = opts.fields || CONTRACT_FIELDS;
+  const rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +opts.rep || 0));
+  const frac = CONTRACT_GEN.repLoad[0] + CONTRACT_GEN.repLoad[1] * rep / CONTRACT_GEN.repMax;
+  const id = 'job:' + providerId + ':' + epoch + ':' + i;
+  for (let t = 0; t < CONTRACT_GEN.tries; t++) {
+    const rng = contractRng(seed + '|' + id + '|' + t);
+    const tpl = ctPick(rng, P.jobs, x => x.w || 1);
+    const G = P.goods.find(g => g.id === tpl.goods) || { kind: 'none' };
+    const cond = rng() < CONTRACT_GEN.condP;
+    let subs;
+    if (tpl.survey) {
+      const [from, at] = ctPick(rng, tpl.survey);
+      subs = [[{ do: 'survey', from, at }], [{ do: 'land', to: from }]];
+    } else {
+      const [from, to] = ctPick(rng, tpl.routes);
+      const load = { kg: 0, pax: 0 };
+      if (G.kind === 'pax') load.pax = ctDraw(rng, G.pax[0], G.pax[1], frac, 1);
+      else if (G.kind === 'kg' || G.kind === 'bulk') load.kg = ctDraw(rng, G.kg[0], G.kg[1], frac, 5);
+      if (G.kind === 'bulk') load.bulk = G.id;
+      subs = [[{ do: 'carry', from, to, load }]];
+      // shrink until a validated design can fly it: a passenger dropped, the kilos halved (never below the
+      // goods' floor) — the job keeps its route and its kind
+      for (let k = 0; k < 6 && !contractDoers(subs[0], F).length; k++) {
+        if (load.pax > (G.pax ? G.pax[0] : 0)) load.pax--;
+        else if (load.kg > 0) load.kg = Math.max(G.kg ? G.kg[0] : 0, Math.round(load.kg / 2 / 5) * 5);
+        if (load.pax === 0 && load.kg === (G.kg ? G.kg[0] : 0) && !contractDoers(subs[0], F).length) break;
+      }
+    }
+    if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
+    if (!contractDoers([].concat(...subs), F).length) continue;
+    const rec = contractNormalise({
+      id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id,
+      stages: subs.map(s => ({ subs: s })),
+      pay: { base: 0 }, rep: { provider: providerId, gain: 0.1 }, repeat: { every: CONTRACT_GEN.refreshEvery },
+      seed: String(seed), epoch, i,
+    });
+    rec.pay = contractPay(rec, F);
+    return rec;
+  }
+  return null;
+}
+// the jobs a provider offers at a completed count -> [record]
+function contractJobs(seed, providerId, done, opts) {
+  const e = contractEpoch(done), out = [];
+  for (let i = 0; i < CONTRACT_GEN.perProvider; i++) {
+    const j = contractJob(seed, providerId, e, i, opts);
+    if (j) out.push(j);
+  }
+  return out;
+}
+function contractJobById(seed, id, opts) {
+  const m = /^job:(\w+):(\d+):(\d+)$/.exec(id || '');
+  return m ? contractJob(seed, m[1], +m[2], +m[3], opts) : null;
+}
+// the vars a record's text fills ({from} {to} {at} {load})
+function contractVars(rec, fields, text) {
+  const F = fields || CONTRACT_FIELDS, subs = contractSubsOf(rec);
+  const s = subs.find(x => x.do === 'carry') || subs.find(x => x.do === 'survey') || subs[0] || {};
+  const nm = id => (F[id] ? F[id].name : id);
+  return { from: nm(s.from), to: nm(s.to), at: nm(s.at), load: contractLoadWords(s.load, rec.goods, text) };
+}
+
+// ---- THE FOLLOW-UP BUILD CONTRACT (GQ26, GQ31) --------------------------------------------------------------
+// The same story with ONE criterion changed: the first of `followUp.prefer`, then the kind order, whose kind
+// has a `follow` rule and has not been changed before in this chain; else the first `followUp.add` not yet
+// present. Paid +followPct % on the delivered contract's base. Never repeats a change (the chain's `changed`
+// list rides on every follow-up). null when nothing is left to change or the chain is CONTRACT_FOLLOW_MAX long.
+function contractFollowUp(rec) {
+  const r = contractNormalise(rec);
+  if (r.kind !== 'build') return null;
+  const fu = r.followUp;
+  if (fu.changed.length >= CONTRACT_FOLLOW_MAX) return null;
+  const done = new Set(fu.changed.map(c => c.k));
+  const crit = contractCrit(r);
+  const order = fu.prefer.concat(Object.keys(CONTRACT_CRIT_KINDS)).filter((k, i, a) => a.indexOf(k) === i);
+  let pick = null;
+  for (const k of order) {
+    const c = crit.find(x => x.k === k), K = CONTRACT_CRIT_KINDS[k];
+    if (!c || !K || !K.follow || done.has(k)) continue;
+    let v = K.follow.mul ? c.v * K.follow.mul : c.v + K.follow.add;
+    const st = K.follow.round || 1;
+    v = Math.round(v / st) * st;
+    if (v === c.v) v = c.v + (K.follow.mul ? (K.follow.mul > 1 ? st : -st) : Math.sign(K.follow.add) * st);
+    if (v < K.band[0] || v > K.band[1]) continue;
+    pick = { k, how: (K.follow.mul ? K.follow.mul > 1 : K.follow.add > 0) ? 'more' : 'less', from: c.v, to: v };
+    break;
+  }
+  let add = null;
+  if (!pick) {
+    add = fu.add.find(a => a && CONTRACT_CRIT_KINDS[a.k] && !crit.some(c => c.k === a.k) && !done.has(a.k)) || null;
+    if (!add) return null;
+    pick = { k: add.k, how: 'add', from: null, to: add.v };
+  }
+  const n = ctClone(r);
+  const base = String(r.base || r.id).split('+')[0];
+  n.base = base;
+  n.id = base + '+' + (fu.changed.length + 1);
+  n.follows = r.id;
+  n.followUp = Object.assign({}, fu, { changed: fu.changed.concat([pick]), n: fu.changed.length + 1 });
+  // the change, in the one sub that holds it (a new criterion joins the delivery)
+  if (add) {
+    const dv = n.stages.map(st => st.subs.find(s => s.do === 'deliver')).find(Boolean);
+    dv.crit = (dv.crit || []).concat([ctClone(add)]);
+  } else {
+    for (const st of n.stages) for (const s of st.subs) for (const c of s.crit || []) if (c.k === pick.k) c.v = pick.to;
+  }
+  n.pay = Object.assign({}, r.pay, { base: Math.round(r.pay.base * (1 + CONTRACT_PAY.followPct / 100) / CONTRACT_PAY.round) * CONTRACT_PAY.round });
+  delete n.unlock;                               // the stage was the first delivery's
+  n.needs = { rep: 0, after: [r.id] };
+  return n;
+}
+// a follow-up by id ('<build>+<n>'), regenerated down its chain from the authored contract
+function contractFollowById(id, authored) {
+  const m = /^(.+)\+(\d+)$/.exec(id || '');
+  if (!m) return null;
+  let r = (authored || contractAuthored())[m[1]];
+  for (let i = 0; r && i < +m[2]; i++) r = contractFollowUp(r);
+  return r && r.id === id ? r : null;
+}
+// the one difference between a contract and its follow-up -> [ {k, from, to} ] (the gate's row: exactly one)
+function contractCritDiff(a, b) {
+  const A = {}, B = {}, out = [];
+  for (const c of contractCrit(a)) A[c.k] = JSON.stringify(c);
+  for (const c of contractCrit(b)) B[c.k] = JSON.stringify(c);
+  for (const k of Object.keys(Object.assign({}, A, B))) if (A[k] !== B[k]) out.push({ k, from: A[k] || null, to: B[k] || null });
+  return out;
+}
+
+// ---- A STAGE'S ACCEPTANCE FROM A FLIGHT'S END ------------------------------------------------------------------
+// THE STOP RECORD (what the page hands over at DEST-TO's STOPPED; app.js playerFlightEnd is where it is made):
+//   { how: 'stopped', aero: '<aerodrome id>' | null (flightWhere's id when flightCanDepart),
+//     wrecked?: bool, slot?: '<fleet slot>', gear?: 'wheels'|'floats',
+//     load: { kg, pax, bulk? }            what is aboard at the stop (cargo kg beside the pilot, passengers)
+//     row: { from, to, t, ... }           the logbook row (logFlight): `from` the leg's departure, `t` seconds
+//     overflew?: [aerodrome id]           the sites the flight passed over (a survey's evidence)
+//     hour?: number                       the world's local hour at the stop (a `when` is judged on it)
+//     accept?: { ... }                    ACCEPT's recording, passed through to the hook untouched }
+// THE HOOK (supplied by ACCEPT, G2270): hooks.acceptVerdict(contract, sub, stopRecord, career) ->
+//   { ok: true, got?: {k: value} } | { ok: false, why } | { ok: null, why } (pending). A missing hook = pending.
+//
+// One sub against one stop -> { st: 'done'|'picked'|'no', why, got?, medal? }
+function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
+  const at = stop.aero, row = stop.row || {}, aboard = stop.load || {};
+  const F = CONTRACT_FIELDS;
+  const nm = id => (F[id] ? F[id].name : id || 'nowhere');
+  const loadOk = L => (aboard.kg || 0) >= (L.kg || 0) && (aboard.pax || 0) >= (L.pax || 0) && (!L.bulk || aboard.bulk === L.bulk);
+  const loadWhy = L => 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
+    + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : '');
+  const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
+    ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
+  if (sub.do === 'carry') {
+    if (at === sub.to) {
+      if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };
+      if (!loadOk(sub.load)) return { st: 'no', why: loadWhy(sub.load) };
+      const w = whenWhy(); if (w) return { st: 'no', why: w };
+      return { st: 'done', why: '' };
+    }
+    if (at === sub.from) {
+      if (prog.picked) return { st: 'no', why: 'already loaded' };
+      if (!loadOk(sub.load)) return { st: 'no', why: loadWhy(sub.load) };
+      return { st: 'picked', why: 'loaded at ' + nm(at) };
+    }
+    return { st: 'no', why: 'stopped at ' + nm(at) + ': the job runs ' + nm(sub.from) + ' to ' + nm(sub.to) };
+  }
+  if (sub.do === 'land') {
+    if (at !== sub.to) return { st: 'no', why: 'stopped at ' + nm(at) + ', not ' + nm(sub.to) };
+    const w = whenWhy(); if (w) return { st: 'no', why: w };
+    return { st: 'done', why: '' };
+  }
+  if (sub.do === 'fly') {
+    if (at !== sub.to) return { st: 'no', why: 'stopped at ' + nm(at) + ', not ' + nm(sub.to) };
+    if (sub.from && row.from !== sub.from) return { st: 'no', why: 'the leg left ' + nm(row.from) + ', not ' + nm(sub.from) };
+    const w = whenWhy(); if (w) return { st: 'no', why: w };
+    if (sub.medals) {
+      const t = +row.t;
+      if (!isFinite(t)) return { st: 'no', why: 'no time in the logbook row' };
+      const m = sub.medals.slice().sort((a, b) => a.le - b.le).find(x => t <= x.le);
+      if (!m) return { st: 'no', why: t + ' s: ' + Math.max(...sub.medals.map(x => x.le)) + ' s or less for a medal' };
+      return { st: 'done', why: '', medal: m.medal };
+    }
+    return { st: 'done', why: '' };
+  }
+  if (sub.do === 'survey') {
+    if (at === sub.at || (Array.isArray(stop.overflew) && stop.overflew.includes(sub.at))) return { st: 'done', why: '' };
+    return { st: 'no', why: nm(sub.at) + ' was not overflown' };
+  }
+  if (sub.do === 'deliver' || sub.do === 'accept') {
+    if (sub.do === 'deliver' && at !== sub.to) return { st: 'no', why: 'delivered at ' + nm(sub.to) + ', stopped at ' + nm(at) };
+    const H = hooks && typeof hooks.acceptVerdict === 'function' ? hooks.acceptVerdict : null;
+    if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };
+    let v;
+    try { v = H(rec, sub, stop, career); } catch (e) { v = { ok: null, why: 'the verdict failed: ' + (e && e.message) }; }
+    if (!v || v.ok == null) return { st: 'no', pending: true, why: (v && v.why) || 'acceptance pending' };
+    if (v.ok === false) return { st: 'no', why: 'refused: ' + (v.why || 'a criterion is not met') };
+    return { st: 'done', why: '', got: v.got || {} };
+  }
+  return { st: 'no', why: 'unknown do ' + sub.do };
+}
+
+// the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
+function contractPayTotal(rec, got, medal) {
+  const P = rec.pay || {};
+  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : (P.base || 0);
+  const crit = contractCrit(rec);
+  let pct = 0;
+  for (const b of P.bonus || []) {
+    if (b.crit === 'medal') { if (medal === b.by) pct += b.pct; continue; }
+    const c = crit.find(x => x.k === b.crit), g = got && got[b.crit];
+    if (!c || typeof g !== 'number' || typeof c.v !== 'number') continue;
+    const beat = c.op === '>=' ? g >= c.v * (1 + b.by) : c.op === '<=' ? g <= c.v * (1 - b.by) : false;
+    if (beat) pct += b.pct;
+  }
+  return Math.round(total * (1 + pct / 100) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
+}
+
+// ---- THE NARRATIVE PACK'S IMPORT (Block 5's JSON shape; a bonus) -------------------------------------------
+// -> { ok, text: a new text table (the old keys kept, the pack's words over them, draft: false), why: [] }.
+// Every airfield id must exist, every contract / build id must be ours, no build text names a configuration,
+// and a job title's slots are {from} {to} {load} only. Pure: the table handed in is not changed.
+function contractImportPack(pack, text) {
+  const T = ctClone(text || CONTRACT_TEXT), why = [];
+  const ids = contractAuthored();
+  const put = (k, s, check) => {
+    if (typeof s !== 'string' || !s) return;
+    if (check) { const w = contractConfigWord(s); if (w) { why.push(k + ' names a configuration (' + w + ')'); return; } }
+    T[k] = { t: s, draft: false };
+  };
+  const P = (pack && typeof pack === 'object') ? pack : {};
+  for (const p of P.providers || []) {
+    if (!CONTRACT_PROVIDERS[p.id]) { why.push('no provider ' + p.id); continue; }
+    put('prov.' + p.id + '.name', p.name); put('prov.' + p.id + '.desc', p.desc);
+  }
+  for (const c of P.contracts || []) {
+    if (!ids[c.id]) { why.push('no contract ' + c.id); continue; }
+    for (const st of c.stages || []) for (const f of ['from', 'to']) if (st[f] && !CONTRACT_FIELDS[st[f]]) why.push(c.id + ': no airfield ' + st[f]);
+    const b = ids[c.id].kind === 'build';
+    put('ct.' + c.id + '.title', c.title, b); put('ct.' + c.id + '.brief', c.brief, b); put('ct.' + c.id + '.done', c.done, b);
+  }
+  for (const b of P.builds || []) {
+    if (!ids[b.id] || ids[b.id].kind !== 'build') { why.push('no build contract ' + b.id); continue; }
+    for (const s of b.criteria || []) { const w = contractConfigWord(s); if (w) why.push(b.id + ': a criterion names a configuration (' + w + ')'); }
+    put('ct.' + b.id + '.brief', b.brief, true);
+    if (b.followUp) put('ct.' + b.id + '.follow', b.followUp.brief, true);
+  }
+  const seen = {};
+  for (const j of P.jobs || []) {
+    const Pr = CONTRACT_PROVIDERS[j.provider];
+    if (!Pr) { why.push('no provider ' + j.provider + ' for a job'); continue; }
+    const slots = (String(j.title || '') + ' ' + String(j.brief || '')).match(/\{(\w+)\}/g) || [];
+    const bad = slots.filter(s => !['{from}', '{to}', '{load}', '{at}'].includes(s));
+    if (bad.length) { why.push(j.provider + ' job: unknown slot ' + bad.join(' ')); continue; }
+    // the pack's jobs are matched to the provider's templates in order, by the load's word where it names one
+    const n = seen[j.provider] = (seen[j.provider] || 0);
+    const tpl = Pr.jobs.find(t => t.goods === j.load) || Pr.jobs[n % Pr.jobs.length];
+    seen[j.provider]++;
+    put(tpl.title, j.title); put(tpl.brief, j.brief);
+  }
+  return { ok: !why.length, text: T, why };
+}
+// ===========================================================================
+// THE CAREER DOCUMENT (G2240 CONTRACT-MODEL) — `flydiy.career.<id>`: a player
+// document (70_player.js) with mode 'career' and a `career` block; its
+// creation from the grant, its normaliser, the offers, accepting and tracking,
+// and a flight's end applied to it. futureDesigns/GAME-2026-10-06.md §13.2,
+// §R (GQ23 the grant, GQ26 the follow-up, GQ28 per-provider reputation,
+// G-COST net pay), §11 (the tracks).
+// ===========================================================================
+// THE SHAPE (§13.2; the player document's v2 fields untouched, PLAYER_V unchanged — the `career` block rides
+// along a v2 document exactly as any unknown field does, so no version step is spent here):
+//   { what: 'flydiy-player', v, wallet, mode: 'career', here, clock, sheds, fleet, ledger,
+//     career: {
+//       id, seed, started, name, cv: CAREER_V,
+//       voucher: { kind: 'maker', model: 'cub', used: false },          GQ23
+//       providers: { <id>: { rep: 0..5, arc: <arc contracts done> } },  GQ28
+//       contracts: { offered: [id], accepted: [id], tracked: id|null, done: [ {id, at, pay, medal?} ],
+//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } } },
+//       tracks: { field, minedock, resort, survey, clients },            §11.2 (mine + dock = one track)
+//       pilots: {}, roster: [], market: { used: [], seen: 0 }, airframes: {} } }   (PILOTS / PROCURE fill these)
+// A contract is NEVER stored whole: an authored one is looked up by id, a job regenerated from its id and the
+// career seed, a follow-up from its chain (careerContract). `live` holds progress only.
+//
+// Pure: every operation works on a clone and returns { ok, doc, why, ... }; a refusal hands back the very
+// document it was given, untouched. No DOM, no storage (app.js owns the localStorage glue, a later session).
+// ===========================================================================
+const CAREER_V = 1;
+const CAREER_KEY = 'flydiy.career.';
+const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
+const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
+const careerKey = id => CAREER_KEY + (id || 'main');
+const crClone = o => JSON.parse(JSON.stringify(o));
+const crNo = (doc, why) => ({ ok: false, doc, why });
+
+function careerBlockDefault(o) {
+  o = o || {};
+  const providers = {};
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) providers[p] = { rep: 0, arc: 0 };
+  const tracks = {};
+  for (const t of Object.keys(CONTRACT_TRACKS)) tracks[t] = 0;
+  return {
+    id: o.id || 'main', seed: String(o.seed != null ? o.seed : 'jolene'), started: o.started || null,
+    name: o.name || '', cv: CAREER_V,
+    voucher: Object.assign({}, CAREER_VOUCHER, { used: false }),
+    providers,
+    contracts: { offered: [], accepted: [], tracked: null, done: [], live: {} },
+    tracks,
+    pilots: {}, roster: [], market: { used: [], seen: 0 }, airframes: {},
+  };
+}
+
+// A NEW CAREER (GQ23): a fresh player document in career mode — the main hangar at HOME, an empty fleet —
+// the grant written into the ledger as income (so the history says where the money came from), the voucher
+// unspent, every track at 0, and the first offers.
+function careerNew(o) {
+  o = o || {};
+  const d = playerDefault();
+  d.mode = 'career';
+  d.career = careerBlockDefault(o);
+  playerCharge(d, -CAREER_GRANT, 'grant', null);
+  return careerRefresh(d);
+}
+
+// THE NORMALISER: the player document's own (its walk first), then the career block filled where missing and
+// carried verbatim where present (unknown fields ride along).
+function careerNormalise(r) {
+  const d = playerNormalise(playerMigrate(r && typeof r === 'object' ? r : null));
+  d.mode = 'career';
+  const def = careerBlockDefault();
+  const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
+  for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];
+  if (typeof c.cv !== 'number') c.cv = CAREER_V;
+  if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
+  if (!c.providers || typeof c.providers !== 'object') c.providers = {};
+  for (const p of Object.keys(def.providers)) {
+    const P = c.providers[p] = (c.providers[p] && typeof c.providers[p] === 'object') ? c.providers[p] : { rep: 0, arc: 0 };
+    if (typeof P.rep !== 'number' || !isFinite(P.rep)) P.rep = 0;
+    P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, P.rep));
+    if (typeof P.arc !== 'number' || !isFinite(P.arc) || P.arc < 0) P.arc = 0;
+  }
+  const C = c.contracts = (c.contracts && typeof c.contracts === 'object') ? c.contracts : def.contracts;
+  for (const k of ['offered', 'accepted', 'done']) if (!Array.isArray(C[k])) C[k] = [];
+  if (typeof C.tracked !== 'string' || !C.accepted.includes(C.tracked)) C.tracked = C.accepted[0] || null;
+  if (!C.live || typeof C.live !== 'object') C.live = {};
+  for (const id of C.accepted) if (!C.live[id] || typeof C.live[id] !== 'object') C.live[id] = { stage: 0, subs: [], picked: [], got: {} };
+  if (!c.tracks || typeof c.tracks !== 'object') c.tracks = {};
+  for (const t of Object.keys(def.tracks))
+    if (typeof c.tracks[t] !== 'number' || !isFinite(c.tracks[t]) || c.tracks[t] < 0) c.tracks[t] = 0;
+  for (const k of ['pilots', 'airframes']) if (!c[k] || typeof c[k] !== 'object' || Array.isArray(c[k])) c[k] = {};
+  if (!Array.isArray(c.roster)) c.roster = [];
+  if (!c.market || typeof c.market !== 'object') c.market = def.market;
+  return d;
+}
+
+// ---- WHICH CONTRACT AN ID IS --------------------------------------------------------------------------------
+const careerDoneIds = doc => doc.career.contracts.done.map(x => x.id);
+function careerContract(doc, id) {
+  if (!id) return null;
+  const A = contractAuthored();
+  if (A[id]) return A[id];
+  const c = doc && doc.career;
+  // an ACCEPTED generated job is the record as it was offered (its load drew on the reputation of that moment;
+  // a later contract moving the reputation must not change a job already taken)
+  const L = c && c.contracts && c.contracts.live && c.contracts.live[id];
+  if (L && L.rec && typeof L.rec === 'object') return L.rec;
+  if (/^job:/.test(id)) {
+    const m = /^job:(\w+):/.exec(id);
+    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0 });
+  }
+  if (/\+\d+$/.test(id)) return contractFollowById(id, A);
+  return null;
+}
+function careerNeedsOk(doc, rec) {
+  const N = rec.needs || {}, P = doc.career.providers[rec.provider] || { rep: 0 };
+  if ((N.rep || 0) > P.rep + 1e-9) return false;
+  const done = careerDoneIds(doc);
+  return (N.after || []).every(a => done.includes(a));
+}
+
+// ---- THE OFFERS -------------------------------------------------------------------------------------------------
+// Per provider: the NEXT arc contract (its needs met), its standalone build contracts (needs met, not done),
+// a follow-up for each delivered build contract (GQ26: the happy client comes back), and the jobs of this
+// epoch (seed + completed count). Nothing accepted or done is offered again (a job's id carries its epoch, so
+// the next epoch's jobs are new ones). Reputation never hides a tab (g7): it scales the jobs' loads.
+function careerOfferIds(doc) {
+  const c = doc.career, C = c.contracts;
+  const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
+  const out = [];
+  const A = contractAuthored();
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) {
+    const P = CONTRACT_PROVIDERS[p];
+    const next = P.arc.find(r => !done.includes(r.id));
+    // (G2320) a contract the certificate cannot answer is HELD OUT (73_ contractCertifiable: the aerobatic box)
+    if (next && !taken.has(next.id) && careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])) out.push(next.id);
+    for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
+    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep })) if (!taken.has(j.id)) out.push(j.id);
+  }
+  // follow-ups: the last of each delivered build contract's chain
+  const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
+  for (const id of builds) {
+    const r = careerContract(doc, id), f = contractFollowUp(r);
+    if (f && !taken.has(f.id) && contractCertifiable(f)) out.push(f.id);
+  }
+  return out;
+}
+function careerRefresh(doc) {
+  doc.career.contracts.offered = careerOfferIds(doc);
+  return doc;
+}
+function careerOffers(doc) {
+  const d = careerRefresh(crClone(doc));
+  return { ok: true, doc: d, offers: d.career.contracts.offered.map(id => careerContract(d, id)).filter(Boolean), why: '' };
+}
+
+// ---- ACCEPT, TRACK, ABANDON ---------------------------------------------------------------------------------------
+// Accept many, track one (§8.2): accepting puts the contract in the list and, when none is tracked, tracks it.
+function careerAccept(doc, id) {
+  const C = doc.career && doc.career.contracts;
+  if (!C) return crNo(doc, 'not a career');
+  if (C.accepted.includes(id)) return crNo(doc, id + ' is already accepted');
+  if (!careerOfferIds(doc).includes(id)) return crNo(doc, id + ' is not on offer');
+  const rec = careerContract(doc, id);
+  if (!rec) return crNo(doc, 'no contract ' + id);
+  const d = crClone(doc), D = d.career.contracts;
+  D.accepted.push(id);
+  D.live[id] = { stage: 0, subs: rec.stages[0].subs.map(() => false), picked: rec.stages[0].subs.map(() => false), got: {} };
+  if (rec.kind === 'job') D.live[id].rec = rec;            // the job as offered (careerContract reads it back)
+  if (!D.tracked) D.tracked = id;
+  careerRefresh(d);
+  return { ok: true, doc: d, why: '' };
+}
+function careerTrack(doc, id) {
+  const C = doc.career && doc.career.contracts;
+  if (!C || (id !== null && !C.accepted.includes(id))) return crNo(doc, id + ' is not accepted');
+  const d = crClone(doc);
+  d.career.contracts.tracked = id;
+  return { ok: true, doc: d, why: '' };
+}
+function careerAbandon(doc, id) {
+  const C = doc.career && doc.career.contracts;
+  if (!C || !C.accepted.includes(id)) return crNo(doc, id + ' is not accepted');
+  const d = crClone(doc), D = d.career.contracts;
+  D.accepted = D.accepted.filter(x => x !== id);
+  delete D.live[id];
+  if (D.tracked === id) D.tracked = D.accepted[0] || null;
+  careerRefresh(d);
+  return { ok: true, doc: d, why: '' };
+}
+
+// ---- A FLIGHT'S END, ON ONE CONTRACT ------------------------------------------------------------------------------
+// contractOnStop(career, contract, stopRecord, hooks) -> { ok, doc, why, events }
+//   ok true: the document ADVANCED (a sub done or a load picked up, a stage, the contract completed: paid, the
+//   reputation, the stage unlock, the follow-up offered); ok false: the very document handed in, untouched,
+//   with the reason. A build contract's criteria are never judged here: hooks.acceptVerdict (ACCEPT) is asked,
+//   and a missing hook is "pending" (events carry { k: 'pending' }).
+function contractOnStop(doc, contract, stop, hooks) {
+  if (!doc || !doc.career) return crNo(doc, 'not a career');
+  const id = typeof contract === 'string' ? contract : contract && contract.id;
+  const C = doc.career.contracts;
+  if (!id || !C.accepted.includes(id)) return crNo(doc, (id || 'no contract') + ' is not accepted');
+  const rec = (typeof contract === 'object' && contract) ? contractNormalise(contract) : careerContract(doc, id);
+  if (!rec) return crNo(doc, 'no contract ' + id);
+  if (!stop || typeof stop !== 'object') return crNo(doc, 'no stop record');
+  if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');
+  if (!stop.aero) return crNo(doc, 'stopped off an aerodrome: nothing is delivered');
+  const L = C.live[id] || { stage: 0, subs: [], picked: [], got: {} };
+  const st = rec.stages[L.stage];
+  if (!st) return crNo(doc, id + ' has no stage ' + L.stage);
+  const res = st.subs.map((s, j) => L.subs[j] ? { st: 'was' } : contractSubOnStop(rec, s, { picked: !!L.picked[j] }, stop, hooks, doc));
+  if (!res.some(r => r.st === 'done' || r.st === 'picked')) {
+    const r = res.find(x => x.st === 'no') || { why: 'nothing to do here' };
+    const out = crNo(doc, r.why);
+    if (r.pending) out.events = [{ k: 'pending', id, why: r.why }];
+    return out;
+  }
+  const d = crClone(doc), D = d.career.contracts;
+  const live = D.live[id] = D.live[id] || { stage: 0, subs: [], picked: [], got: {} };
+  const events = [];
+  let medal = live.medal || null;
+  res.forEach((r, j) => {
+    if (r.st === 'done') {
+      live.subs[j] = true; live.picked[j] = false;
+      Object.assign(live.got, r.got || {});
+      if (r.medal) medal = live.medal = r.medal;
+      events.push({ k: 'sub', id, stage: live.stage, sub: j });
+    } else if (r.st === 'picked') {
+      live.picked[j] = true;
+      events.push({ k: 'picked', id, stage: live.stage, sub: j, at: stop.aero });
+    }
+  });
+  if (st.subs.every((s, j) => live.subs[j])) {
+    events.push({ k: 'stage', id, stage: live.stage });
+    live.stage++;
+    if (live.stage < rec.stages.length) {
+      live.subs = rec.stages[live.stage].subs.map(() => false);
+      live.picked = rec.stages[live.stage].subs.map(() => false);
+    } else {
+      careerComplete(d, rec, live, medal, events);
+    }
+  }
+  return { ok: true, doc: d, why: '', events };
+}
+// the contract completed: paid net (G-COST), the provider's reputation (GQ28), the arc, the stage unlock (§11),
+// the done list (the completed count the generator reads), and the offers refreshed (the follow-up among them)
+function careerComplete(d, rec, live, medal, events) {
+  const c = d.career, C = c.contracts;
+  const pay = contractPayTotal(rec, live.got, medal);
+  playerCharge(d, -pay, 'contract', rec.id);
+  const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 });
+  P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +(P.rep + (rec.rep.gain || 0)).toFixed(3)));
+  const prov = CONTRACT_PROVIDERS[rec.provider];
+  if (prov && prov.arc.some(r => r.id === rec.id)) c.providers[rec.provider].arc++;
+  let unlocked = null;
+  if (rec.unlock && rec.unlock.stage) {
+    const m = /^(\w+):(\d+)$/.exec(rec.unlock.stage);
+    if (m) { c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]); unlocked = rec.unlock.stage; }
+  }
+  const row = { id: rec.id, at: Math.round(d.clock || 0), pay };
+  if (medal) row.medal = medal;
+  C.done.push(row);
+  C.accepted = C.accepted.filter(x => x !== rec.id);
+  delete C.live[rec.id];
+  if (C.tracked === rec.id) C.tracked = C.accepted[0] || null;
+  careerRefresh(d);
+  events.push({ k: 'done', id: rec.id, pay, medal: medal || null, unlock: unlocked,
+                followUp: rec.kind === 'build' ? ((contractFollowUp(rec) || {}).id || null) : null });
+}
+
+// ---- A FLIGHT'S END, ON THE CAREER -----------------------------------------------------------------------------------
+// Every accepted contract (the tracked one first) meets the stop; the document comes back advanced by each that
+// moved, with every event and, for those that did not move, why.
+function careerOnStop(doc, stop, hooks) {
+  if (!doc || !doc.career) return crNo(doc, 'not a career');
+  const C = doc.career.contracts;
+  const order = (C.tracked ? [C.tracked] : []).concat(C.accepted.filter(x => x !== C.tracked));
+  let d = doc, moved = false;
+  const events = [], why = {};
+  for (const id of order) {
+    const r = contractOnStop(d, id, stop, hooks);
+    if (r.ok) { d = r.doc; moved = true; events.push(...r.events); }
+    else { why[id] = r.why; if (r.events) events.push(...r.events); }
+  }
+  return moved ? { ok: true, doc: d, why: '', events, untouched: why } : { ok: false, doc, why: 'no contract moved', events, untouched: why };
+}
+// ===========================================================================
+// THE CAREER, WIRED TO THE PAGE (G2320 CAREER-WIRE) — the pure half of the
+// wiring: the MAP's record built off the career document (careerMapRecord), a
+// certificate's facts off a validated design or a saved build's shakedown, the
+// stop record a flight's end hands to careerOnStop (careerStopRecord), the
+// sites a flight passed over (careerOverflewAdd), ACCEPT's verdict as
+// CONTRACT-MODEL's hook (careerAcceptHook), and the events as words for the
+// arrival card (careerEventLines). futureDesigns/GAME-2026-10-06.md §R, §7.3,
+// §8.3, §13.2; HANDOVER G2240 / G2250 / G2270 "OPEN / FOR THE COORDINATOR".
+// ===========================================================================
+// THE RECORD THE MAP READS (map_menu.js mapAdapt; the shape of tools/fixtures/contracts_sample.json, §7.3):
+//   { what: 'flydiy-career-map', v, source: 'career',
+//     providers: [ { id, name, short, colour, home, line, rep, track } ],
+//     contracts: [ the accepted (in order) then the offers: { id, provider, kind, title, brief (RESOLVED words),
+//                  stages: [ { subs: [ {do, from?, to?, at?, load?, when?, crit?: [ {k, op, v, at?, words} ]} ] } ],
+//                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes } ],
+//     career: { accepted, tracked, stage: {id: n}, live: {id: {stage, subs, picked}}, wallet, clock, done, voucher },
+//     fleet: [ { slot, name, where: playerWhere, cert | null } ],    the player document's own airframes
+//     board: [ { name, cert } ] }                                     (opts.board: designs not materialised)
+// A certificate (`cert`, the map's facts): { seats, payloadKg, emptyKg, toRunM, gear, power, tasKmh, enduranceMin,
+// spanM, cost, tankL, ult, from } — from the career's own airframe row (`career.airframes[slot].design`, a
+// CONTRACT_DESIGNS id: the voucher's maker Cub, PROCURE's purchases), else the page's reading of the saved build's
+// shakedown (opts.certs[slot], careerDesignOfShake's row), else null: "certificate not read yet".
+//
+// Pure: no DOM, no storage, no clock (the gate scans this file as it scans 72-74).
+// ===========================================================================
+
+// THE LOOK of the providers on the map (a UI colour per tab; the names are text keys)
+const CAREER_MAP_LOOK = { field: '#d9a441', minedock: '#c2603e', resort: '#5f9fd0', survey: '#79a86a', clients: '#a98bc4' };
+const CAREER_MAP_V = 1;
+const cwClone = o => JSON.parse(JSON.stringify(o));
+
+// ---- A CERTIFICATE'S FACTS --------------------------------------------------------------------------------
+// a CONTRACT_DESIGNS-shaped row -> the facts the map's card states (the cabin's payload is CONTRACT-MODEL's own
+// rule: the seats beside the pilot x the station mass + the baggage)
+function careerDesignCert(D, from) {
+  if (!D || typeof D !== 'object') return null;
+  const seats = D.seats | 0;
+  return {
+    seats, payloadKg: Math.max(0, seats - 1) * CONTRACT_FIT.occKg + (D.bagKg || 0),
+    emptyKg: D.emptyKg, toRunM: D.toM, gear: D.gear || 'wheels', power: D.power || 'fuel',
+    tasKmh: D.cruiseKmh, enduranceMin: D.cruiseKmh > 0 ? Math.round(D.rangeKm / D.cruiseKmh * 60) : null,
+    spanM: D.spanM, cost: D.cost, tankL: D.tankL, ult: contractCertUlt(), massKg: D.massKg, rangeKm: D.rangeKm,
+    from: from || D.id || null,
+  };
+}
+// a saved build's shakedown (genShakedown's object, as the page's memo keeps it) -> a CONTRACT_DESIGNS row,
+// measured the way GATE CONTRACTS measures the five validated designs
+function careerDesignOfShake(s, spec, label) {
+  if (!s || !s.envelope) return null;
+  const floats = s.gearType === 'floats' || (spec && typeof stripGear === 'function' && stripGear(spec) === 'floats');
+  return { id: null, label: label || '', gear: floats ? 'floats' : 'wheels', seats: s.envelope.seats,
+           bagKg: (spec && spec.cabin && spec.cabin.baggage) || 0, massKg: s.mass, emptyKg: s.empty, toM: s.TORun,
+           cruiseKmh: s.VCruise * 3.6, rangeKm: s.rangeKm, spanM: s.span, cost: s.cost, tankL: s.energyL, power: s.energyKind };
+}
+
+// ---- THE MAP'S RECORD -----------------------------------------------------------------------------------------
+function cwSub(u, F) {
+  const s = cwClone(u);
+  if (s.crit) s.crit = s.crit.map(c => Object.assign({}, c, { words: contractCritWords(c, F) }));
+  return s;
+}
+function careerMapContract(doc, id, F) {
+  const rec = careerContract(doc, id);
+  if (!rec) return null;
+  const vars = contractVars(rec, F);
+  const pay = Object.assign(contractPay(rec, F), { bonus: cwClone((rec.pay && rec.pay.bonus) || []) });
+  const out = {
+    id: rec.id, provider: rec.provider, kind: rec.kind,
+    title: contractText(rec.title, vars), brief: contractText(rec.brief, vars),
+    stages: rec.stages.map(st => ({ subs: st.subs.map(u => cwSub(u, F)) })),
+    pay, rep: cwClone(rec.rep || null), classes: contractClasses(rec, F),
+  };
+  if (rec.unlock) out.unlock = cwClone(rec.unlock);
+  if (rec.kind === 'build') out.followLine = contractFollowLine(rec);
+  return out;
+}
+// careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
+// opts: { certs: {slot: design row}, board: [{name, design}], fields }.
+function careerMapRecord(doc, world, opts) {
+  opts = opts || {};
+  const F = opts.fields || CONTRACT_FIELDS;
+  const c = doc && doc.career;
+  if (!c) return { what: 'flydiy-career-map', v: CAREER_MAP_V, source: 'career', providers: [], contracts: [], fleet: [], board: [], career: {} };
+  const C = c.contracts;
+  const providers = Object.keys(CONTRACT_PROVIDERS).map(id => {
+    const P = CONTRACT_PROVIDERS[id];
+    return { id, name: contractText(P.name), short: contractText('prov.' + id + '.short'), colour: CAREER_MAP_LOOK[id] || '#888',
+             home: (P.fields && P.fields[0]) || null, line: contractText(P.desc),
+             rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0 };
+  });
+  const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
+  const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F)).filter(Boolean);
+  const stage = {}, live = {};
+  for (const id of C.accepted) {
+    const L = C.live[id] || { stage: 0, subs: [], picked: [] };
+    stage[id] = L.stage | 0;
+    live[id] = { stage: L.stage | 0, subs: (L.subs || []).slice(), picked: (L.picked || []).slice() };
+  }
+  const af = c.airframes || {}, certs = opts.certs || {};
+  const certOf = n => {
+    const A = af[n];
+    if (A && A.design && CONTRACT_DESIGNS[A.design]) return careerDesignCert(CONTRACT_DESIGNS[A.design], A.design);
+    if (certs[n]) return careerDesignCert(certs[n], 'the saved build\'s shakedown');
+    return null;
+  };
+  const fleet = Object.keys(doc.fleet || {}).sort().map(n => {
+    const W = typeof playerWhere === 'function' ? playerWhere(doc, n) : { kind: 'none', aero: null, hangar: null };
+    return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n) };
+  });
+  const board = (opts.board || []).map(b => ({ name: b.name, cert: careerDesignCert(b.design, b.name) }));
+  return {
+    what: 'flydiy-career-map', v: CAREER_MAP_V, source: 'career',
+    providers, contracts,
+    career: { accepted: C.accepted.slice(), tracked: C.tracked || null, stage, live, wallet: doc.wallet, clock: doc.clock || 0,
+              done: C.done.length, voucher: cwClone(c.voucher || null) },
+    fleet, board,
+  };
+}
+
+// ---- THE FLIGHT'S EVIDENCE: the sites it passed over, and the stop record ----------------------------------------
+// the aerodromes within their field radius (38b_dest.js FLIGHT_FIELD_R, from the strip's rectangle) of (x, z),
+// added to `set` (an array of ids, kept in the order first passed) -> set
+function careerOverflewAdd(world, x, z, set) {
+  const out = set || [];
+  for (const a of ((world && world.aerodromes) || [])) {
+    if (!a || !a.id || a.kind === 'meadow' || out.includes(a.id)) continue;
+    if (flightStripGeom(a, x, z).d <= FLIGHT_FIELD_R) out.push(a.id);
+  }
+  return out;
+}
+// THE STOP RECORD (74_career.js contractOnStop's): o = { how, aero (flightWhere's id when flightCanDepart, else null),
+// wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, row: {from, to, t}, overflew, hour }
+// -> { how, aero, wrecked, slot, gear, load: {kg, pax}, row, overflew, hour }. Only a STOP delivers: an ending that
+// is not 'stopped' carries no aerodrome.
+function careerStopRecord(o) {
+  o = o || {};
+  const occ = Math.max(0, Math.round(+o.occupants || 0));
+  return {
+    how: o.how || 'stopped',
+    aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,
+    wrecked: !!o.wrecked, slot: o.slot || null, gear: o.gear || null,
+    load: { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) },
+    row: { from: (o.row && o.row.from) || null, to: (o.row && o.row.to) || null, t: Math.max(0, Math.round(+(o.row && o.row.t) || 0)) },
+    overflew: Array.isArray(o.overflew) ? o.overflew.slice() : [],
+    hour: (typeof o.hour === 'number' && isFinite(o.hour)) ? Math.round(o.hour * 100) / 100 : null,
+  };
+}
+// the load the tracked contract asks for now (the plate's default cargo): the first open sub's load
+function careerTrackedLoad(doc) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !C.tracked) return null;
+  const rec = careerContract(doc, C.tracked), L = C.live[C.tracked] || { stage: 0, subs: [] };
+  const st = rec && rec.stages[L.stage];
+  if (!st) return null;
+  const j = st.subs.findIndex((s, i) => !L.subs[i] && s.load);
+  return j < 0 ? null : { kg: st.subs[j].load.kg || 0, pax: st.subs[j].load.pax || 0, sub: j };
+}
+// the tracked build contract's criteria that need the acceptance LEG (a cruise flown: tasKmh, enduranceMin,
+// rangeKm) -> [crit] (empty when nothing tracked, not a build, or none flown)
+function careerLegCrit(doc) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !C.tracked) return [];
+  const rec = careerContract(doc, C.tracked);
+  if (!rec || rec.kind !== 'build') return [];
+  return contractCrit(rec).filter(c => c.k === 'tasKmh' || c.k === 'enduranceMin' || c.k === 'rangeKm');
+}
+
+// ---- ACCEPT AS THE HOOK (G2270's acceptVerdict -> G2246's hooks.acceptVerdict) -------------------------------------
+// verdictOf(crit[]) -> acceptVerdict's { rows, ok, needsFlight, needsTest } over the build that flew (the page:
+// ACCEPT_REC.verdict). Every criterion met -> { ok: true, got: {k: measured} } (the margins feed the bonus);
+// any criterion failed -> { ok: false, why }; otherwise pending (a flight or a test still to do) -> { ok: null, why }.
+function careerAcceptHook(verdictOf) {
+  return function (rec, sub, stop) {
+    if (typeof verdictOf !== 'function') return { ok: null, why: 'no acceptance evidence on this page' };
+    const crit = (sub && sub.crit) || [];
+    if (!crit.length) return { ok: true, got: {} };
+    let v;
+    try { v = verdictOf(crit, stop); } catch (e) { return { ok: null, why: 'the verdict failed: ' + (e && e.message) }; }
+    if (!v || !Array.isArray(v.rows)) return { ok: null, why: 'no verdict' };
+    const got = {};
+    for (const r of v.rows) if (r.ok && typeof r.value === 'number') got[r.k] = r.value;
+    if (v.ok) return { ok: true, got };
+    const bad = v.rows.filter(r => r.status === 'fail');
+    if (bad.length) return { ok: false, why: bad.map(r => r.k + ' ' + (r.value != null ? r.value : '?') + ' (needs ' + (r.need || (r.op + ' ' + r.v)) + ')').join('; ') };
+    const todo = v.rows.filter(r => r.status === 'needs-flight' || r.status === 'needs-test');
+    return { ok: null, why: todo.map(r => r.k + ': ' + (r.status === 'needs-flight' ? 'needs a flight' : 'needs a test') + (r.source ? ' (' + r.source + ')' : '')).join('; ') };
+  };
+}
+
+// ---- THE EVENTS AS WORDS (the arrival card) ----------------------------------------------------------------------
+// events (careerOnStop's) -> [{ k, ok, text }]: a load taken on, a sub done, a stage done, the contract done and
+// paid (a medal, a building unlocked, the follow-up offered), pending; then the wallet line.
+function careerEventLines(res, before, after) {
+  const out = [], T = contractText;
+  const title = id => { const r = careerContract(after || before, id) || careerContract(before, id); return r ? T(r.title, contractVars(r)) : id; };
+  const nm = id => (CONTRACT_FIELDS[id] ? CONTRACT_FIELDS[id].name : id);
+  const ev = (res && res.events) || [];
+  // one line for what moved: a sub inside its finished stage says nothing more, a finished stage inside its finished
+  // contract neither
+  const has = (k, id, stage) => ev.some(x => x.k === k && x.id === id && (stage == null || x.stage === stage));
+  for (const e of ev) {
+    if ((e.k === 'sub' && has('stage', e.id, e.stage)) || (e.k === 'stage' && has('done', e.id))) continue;
+    if (e.k === 'picked') out.push({ k: e.k, ok: true, text: T('ev.picked', { t: title(e.id), at: nm(e.at) }) });
+    else if (e.k === 'sub') out.push({ k: e.k, ok: true, text: T('ev.sub', { t: title(e.id), n: e.stage + 1 }) });
+    else if (e.k === 'stage') out.push({ k: e.k, ok: true, text: T('ev.stage', { t: title(e.id), n: e.stage + 1 }) });
+    else if (e.k === 'done') {
+      out.push({ k: e.k, ok: true, text: T('ev.done', { t: title(e.id), n: cwMoney(e.pay) }) + (e.medal ? ' · ' + T('medal.' + e.medal) : '') });
+      if (e.unlock) {
+        const m = /^(\w+):(\d+)$/.exec(e.unlock), tr = m && CONTRACT_TRACKS[m[1]];
+        out.push({ k: 'unlock', ok: true, text: T('ev.unlock', { n: tr ? T(tr.stages[+m[2] - 1]) : e.unlock }) });
+      }
+      if (e.followUp) out.push({ k: 'follow', ok: true, text: T('ev.follow', { t: title(e.followUp) }) });
+    } else if (e.k === 'pending') out.push({ k: e.k, ok: null, text: T('ev.pending', { t: title(e.id), n: e.why || '' }) });
+  }
+  if (!out.length && res && res.untouched) {
+    const C = before && before.career && before.career.contracts;
+    const id = (C && C.tracked) || Object.keys(res.untouched)[0];
+    if (id && res.untouched[id]) out.push({ k: 'none', ok: false, text: T('ev.none', { t: title(id), n: res.untouched[id] }) });
+  }
+  if (after && before && typeof after.wallet === 'number') {
+    const d = after.wallet - (before.wallet || 0);
+    out.push({ k: 'wallet', ok: d > 0 ? true : null, text: T('ev.wallet', { n: cwMoney(after.wallet) }) + (d ? ' (' + (d > 0 ? '+' : '−') + cwMoney(Math.abs(d)) + ')' : '') });
+  }
+  return out;
+}
+const cwMoney = n => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

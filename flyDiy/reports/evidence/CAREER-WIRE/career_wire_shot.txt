@@ -1,0 +1,19 @@
+  career_sandbox.jpg  the sandbox (no ?career=1): today's page
+  ok   the sandbox: FLYDIY_MODE sandbox, no FLYDIY_CAREER, no career plate, no MAP entry
+  ok   the sandbox: no career key written (flydiy.player)
+  career_boot.jpg  ?career=1: the career mode, the dev career created, the plate and the MAP entry
+  ok   ?career=1: FLYDIY_MODE career, FLYDIY_CAREER, the MAP entry, the plate ("nothing tracked")
+  ok   flydiy.career.dev: careerNew (seed dev): the 60 000 grant in the ledger, the Cub voucher, 20 offers
+  ok   the sandbox's flydiy.player neither read nor written by the career page (flydiy.career.dev)
+  ok   the MAP opens
+  career_map.jpg  the MAP on the real record: a new career's offers
+  ok   the real record: 20 rows, All + 5 provider tabs (All20 | Trust4 | Mine & Dock4 | Resort4 | Survey4 | Clients4)
+  career_card.jpg  a carry job's card (job:field:0:0): both ends, the payload, contractPay's pay
+  ok   the card: both ends, the payload, the pay 450 net
+  career_tracked.jpg  Track: the career document written (accepted and tracked); the plate follows
+  ok   Track wrote flydiy.career.dev: accepted and tracked job:field:0:0
+  ok   the plate: the tracked job, the cargo aboard = its declared 35 kg (Career ★ Tools for Tamgas Hill Strip · carry Jolene AFB 13/31 → Tamgas Hill Strip · wallet 60 000cargo aboard kgFly the acceptance leg)
+  career_reloaded.jpg  a reload: the dev career is still the page's, the job still tracked
+  ok   a reload: still tracked (job:field:0:0)
+  ok   no page errors
+career_wire_shot: all checks ok (6 stills)

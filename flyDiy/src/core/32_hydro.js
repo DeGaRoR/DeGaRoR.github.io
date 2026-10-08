@@ -1853,6 +1853,46 @@ const WB_WING_TC = 0.12;        // the wing slab's thickness over chord (no per-
 // before - the tank's share just no longer floods. Breach pressures INFERRED (a welded tank behind the skin outlasts
 // the skin; a bladder or a moulded tank less so). The vent's slow leak is not modelled (a stated cut).
 const WB_TANK_BREACH = { alu: 400e3, bladder: 300e3, moulded: 300e3, wet: 400e3 };
+// G2105 WATER-DAMP (the user, 6 Oct: "the plane keeps oscillating for a while ... like if the engine was still running,
+// or there was a source of force, or an oscillation not damped enough"). Measured (tools/ditch_osc.js): the Cub ditched
+// at 22 m/s rocked on in a heave limit cycle that never decayed (2.5 cm p-p at 0.6 s from 15 s to the end), the Jodel 5
+// cm; the metal Cessna decayed at a damping ratio ~0.05. TWO causes, two fixes:
+// (1) THE WAVES A HEAVING HULL MAKES. Every face term above is quadratic (Newtonian, the slam) and vanishes at a small
+//     amplitude; a real floating body is damped LINEARLY by the waves its motion radiates. The 2D strip law (Ursell 1949
+//     for the semicircle, Vugts 1968 for the rectangle; Newman, Marine Hydrodynamics s6.18: B33' = rho g^2 A^2 / omega^3,
+//     A the radiated wave's amplitude over the heave's) reads b = B33' / (rho B^2 sqrt(g / B)) ~ 0.5 near
+//     Omega = omega sqrt(B / g) = 1, rising as Omega below (the low-frequency body radiates little) and falling as
+//     Omega^-3 above - the curve the floats' (3c) kRad was read from (its 0.02 at the lone float's Omega ~3.4). Here the
+//     same curve is EVALUATED, not fitted: per unit WATERPLANE area a pressure b(Omega) rho sqrt(g B) Vy against the
+//     vertical velocity (B33' / B; the floats' form exactly), B the strip's own beam (a hull slice's width, a wing slab's
+//     chord), omega the floating body's own heave frequency from its waterplane and its added mass - omega^2 =
+//     rho g A_wp / (M + A33), A_wp each sample's d(wet volume)/d(level) times the air it holds (the buoyancy's own
+//     stiffness), A33 each strip's 2D added mass rho pi B^2 / 8 per length (a flat strip on the surface - the
+//     high-frequency free-surface limit, half the plate's double-body value). THE SIM CARRIES NO ADDED MASS (its inertia
+//     is the aeroplane's alone - the floats' H0 cut, kept): it bobs at sqrt(K / M) where the real body bobs at
+//     sqrt(K / (M + A33)) - measured on the settled, kicked Cub 0.6 s against the law's 2.2 s, the metal Cessna 1.2 against
+//     1.9. The real body's damper on the sim's faster bob would over-damp it (the Cub came to rest in one overshoot), so
+//     the coefficient is scaled by sqrt(M / (M + A33)) (WB.zK): the DAMPING RATIO - the cycles a ditched aeroplane rocks
+//     before it settles - is the real body's, on the sim's own period. Heave, pitch and roll all come from it: the
+//     pressure acts where the waterplane is. Vertical only (sway / surge radiation of a surface-piercing body is small at
+//     these frequencies - a stated cut); the water's own velocity is not subtracted (calm water: the wet body's other
+//     terms do the same); the tanks carry no radiation (their volume sits inside a slice or a slab, or at the nose where
+//     45 L is 0.1 m2 of waterplane - a stated cut). LINEAR, so it is applied EVERY SUBSTEP against the node's velocity
+//     then (a per-node coefficient the compute lumps from its samples' trilinear weights - exact for a rigid motion),
+//     never held, and bounded at half the node's own critical rate (c dt / m <= 0.5). The curve's level INFERRED to a
+//     factor ~2 (the 2D curves differ with the section's shape), stated.
+// (2) THE HELD FORCE'S LAG. The wet body is computed at HYDRO_HZ and held between computes (`every` substeps: 13 on the
+//     user's Cub at 75 substeps). A held POSITION-dependent force is the force of a pose (every - 1) / 2 substeps old on
+//     average - a spring with a delay tau is a spring plus a NEGATIVE damper k tau: on the floating Cub ~10^2 N s/m,
+//     small, but the only linear damping it had, so it fed the motion until the quadratic terms took it back - the limit
+//     cycle (every 1: the same ditch decays, measured). The fix: the compute hands each node its buoyancy's own gradient
+//     (dF/dy of every sample, lumped by the same weights: the slices', slabs' and tanks' smooth ramps differentiated, a
+//     tyre's waterline chord - measured: without the tyres' the Cub's cycle was 1.9 cm, not gone) and
+//     the held substeps apply the force of the pose they are at, F + dF/dy (y - y0), to first order. The compute's own
+//     substep is the force it always was.
+const WB_RAD = 0.5;                 // the 2D heave damping curve's level at Omega = 1 (see above; INFERRED to a factor ~2)
+const WB_OPT = { rad: 1, grad: 1, cap: 1, now: 1 };   // G2105's fixes, each switchable for an A/B (tools/ditch_osc.js); 1 in the game
+const wbRad = Om => Om <= 1 ? WB_RAD * Om : WB_RAD / (Om * Om * Om);
 // the 27 sample points of a slice (the cell midpoints of a 3 x 3 x 3 grid on the unit cube) and their trilinear weights
 const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
   const u = (i + 0.5) / 3, v = (j + 0.5) / 3, w = (k + 0.5) / 3;
@@ -1940,7 +1980,10 @@ function wetBuild(def, p, v, m, fuel) {
   // (a hull face) the slice it closes - the slam's breach floods that slice
   let curSl = -1;
   const T = (a, b, c, two, kA) => tris.push({ n: [a, b, c], two: !!two, kA: kA || 1, sl: two ? -1 : curSl });
-  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, air0: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0, pk: 0 });
+  // (G2105: B, the slice's beam - its four cross members' mean, the radiation's strip width)
+  const wid = (i, j) => { const a = P0(i), b = P0(j); return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); };
+  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, air0: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0, pk: 0,
+                                 B: 0.25 * (wid(n8[0], n8[1]) + wid(n8[2], n8[3]) + wid(n8[4], n8[5]) + wid(n8[6], n8[7])) });
   if (!open && Array.isArray(F) && F.length >= 2 && F.every(s => s && [s.BL, s.BR, s.TL, s.TR].every(i => i != null && def.nodes[i]))) {
     const h0 = tris.length;
     for (let k = 0; k + 1 < F.length; k++) {
@@ -1990,7 +2033,7 @@ function wetBuild(def, p, v, m, fuel) {
       let wk = 'fabric';
       try { if (typeof genSurfKey === 'function') wk = genSurfKey(spec, 'wing', st.plane || 0); } catch (e) {}
       const WM = WB_WING[wk] || WB_WING.fabric, th = WB_WING_TC * st.chord;
-      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0, g });
+      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0, g, B: st.chord });
     }
   }
   const tanks = wetTanks(def, spec, F, slices, slabs, MAT);
@@ -2009,8 +2052,13 @@ function wetBuild(def, p, v, m, fuel) {
   const axPair = M.length >= 2 ? [M[0], M[M.length - 1]] : (Array.isArray(F) && F.length ? [F[0].BL, F[0].BR] : null);
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
+  let Mt = 0; for (let i = 0; i < m.length; i++) Mt += m[i];
   return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
            fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0,
+           // G2105: per node, the buoyancy's gradient (N/m) and the height it was taken at, the radiation's coefficient
+           // (N s/m), the buoyancy's own share of fh (N, up: the cap leaves it alone); the body's heave frequency (rad/s,
+           // the last compute's), its mass, its waterplane (m2) and A33 (kg)
+           kY: new Float64Array(p.length / 3), y0: new Float64Array(p.length / 3), cY: new Float64Array(p.length / 3), fb: new Float64Array(p.length / 3), om: 0, zK: 1, M: Mt, Awp: 0, A33: 0,
            def, torn: false, every0: every,   // G1898.9: the rest the tear reads; the hold restored at reset
            gK: Uint8Array.from(gK), gN, gW, gV, G: new Float64Array(gK.length * WFX) };   // G2090: the FX groups' accumulators
 }
@@ -2063,13 +2111,24 @@ function wetReset(WB) {
   for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; s.dead = false; }
   for (const t of WB.tris) t.dead = false;   // G1898.5
   WB.torn = false; WB.every = WB.every0;     // G1898.9
-  WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
+  WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0; WB.om = 0; WB.zK = 1; WB.Awp = 0; WB.A33 = 0;   // (G2105)
   if (WB.G) WB.G.fill(0);                    // G2090
 }
+// G2105: the per-substep terms - the radiation against the velocity now, the held buoyancy carried to the pose now
+function wetLive(WB, f, dt, held) {
+  const p = WB.p, v = WB.v, m = WB.m, kY = WB.kY, y0 = WB.y0, cY = WB.cY, rad = WB_OPT.rad, grad = held && WB_OPT.grad;
+  for (const i of WB.nodes) {
+    const i3 = i * 3 + 1;
+    let fy = 0;
+    if (grad && kY[i]) fy -= kY[i] * (p[i3] - y0[i]);
+    if (rad && cY[i]) fy -= Math.min(cY[i], 0.5 * m[i] / dt) * v[i3];
+    f[i3] += fy;
+  }
+}
 function wetSolverPass(WB, world, f, simT, dt) {
-  if (WB.every > 1 && WB.tick++ % WB.every) { if (WB.wet) { const fh = WB.fh; for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } } return WB.wet; }
-  const fh = WB.fh, p = WB.p;
-  for (const i of WB.nodes) { const i3 = i * 3; fh[i3] = fh[i3 + 1] = fh[i3 + 2] = 0; }
+  if (WB.every > 1 && WB.tick++ % WB.every) { if (WB.wet) { const fh = WB.fh; for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } wetLive(WB, f, dt, true); } return WB.wet; }
+  const fh = WB.fh, p = WB.p, kY = WB.kY, cY = WB.cY, y0 = WB.y0;
+  for (const i of WB.nodes) { const i3 = i * 3; fh[i3] = fh[i3 + 1] = fh[i3 + 2] = 0; kY[i] = cY[i] = WB.fb[i] = 0; y0[i] = p[i3 + 1]; }
   WB.wet = 0; WB.drag = 0; WB.buoy = 0;
   if (!world || typeof world.waterH !== 'function') return 0;
   const i0 = WB.nodes[0] * 3;
@@ -2085,7 +2144,7 @@ function wetSolverPass(WB, world, f, simT, dt) {
     ax[0] = p[b] - p[a]; ax[1] = p[b + 1] - p[a + 1]; ax[2] = p[b + 2] - p[a + 2]; nrm(ax); }
   const wet = wetCompute(WB, fh, dt * WB.every);
   WB.wet = wet;
-  if (wet) for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; }
+  if (wet) { for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } wetLive(WB, f, dt, false); }
   return wet;
 }
 // ---- G2090 WATER-LOOK: THE WET BODY'S CONTACTS, FOR THE PAGE ---------------------------------------------------------
@@ -2133,13 +2192,17 @@ function wetFx(WB, dst) {
   return dst;
 }
 const WBS = { P: [v3(), v3(), v3()], D: [0, 0, 0], poly: [], n: v3(), u: v3(), Fv: v3(), c: v3(), l: [0, 0, 0],
-              e1: v3(), e2: v3(), q: v3(), X: [] };
+              e1: v3(), e2: v3(), q: v3(), X: [], xs: new Float64Array(27), ws: new Float64Array(27), dv: new Float64Array(27) };
 function wetCompute(WB, fh, dtH) {
   const p = WB.p, v = WB.v, m = WB.m, H = WB.h, rho = WB.rho, S = WBS;
   let wet = 0, dragX = 0, buoy = 0;
   // G2090: the FX groups' per-compute sums cleared (the slam's peak and the fill are carried: the page reads them)
   const GA = WB.G;
   for (let o = 0; o < GA.length; o += WFX) { for (let k = 0; k < WFX_PK; k++) GA[o + k] = 0; GA[o + WFX_WS] = 0; }
+  // G2105: the gradient and the radiation, lumped per node (kY, cY); the waterplane and the added mass for the body's
+  // heave frequency (this compute's sums set WB.om for the next)
+  const kY = WB.kY, cY = WB.cY, fb = WB.fb, om = WB.om, rgS = rho * Math.sqrt(G) * WB.zK;
+  let Awp = 0, A33 = 0;
   // THE BELLY'S BUOYANCY, by volume (Archimedes, never a per-face head: a deep fuselage's faces would crush the light
   // frame between pressures it does not feel - it floods): each slice's 27 samples, each its Jacobian's share of the
   // slice's volume, wet by a smooth ramp over WB_DELTA about the surface, its lift onto the slice's 8 nodes by its own
@@ -2158,25 +2221,45 @@ function wetCompute(WB, fh, dtH) {
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
     if (!anyWet) { if (S8.f) S8.f = flood(S8.f, 0, S8.tau, dtH); S8.wetS = 0; fl += S8.f; flN++; GA[sI * WFX + WFX_F] = S8.f; continue; }
-    const k = S8.air * (S8.wetS > 1e-3 ? Math.max(0, S8.wetS - S8.f) / S8.wetS : 1);
+    // G2105: the air share from THIS compute's submerged share (two passes: the samples, then the lift). The last
+    // compute's (WB_OPT.now 0) is a lag: lift = rho g air (vW - f vT_lagged...) moved with the heave one compute late - a
+    // negative damper ~ K (f / wetS) x the compute interval, the flooding's own feed of the limit cycle (measured: with
+    // the flooding frozen the old code's ditch decayed). With it now the lift is rho g air (vW - f vT), its gradient air.
+    const XS = WBS.xs, WS = WBS.ws, DV = WBS.dv;
     let vW = 0, vT = 0;
-    for (const Q of WB_Q) {
-      let x = 0, y = 0, z = 0, ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0, hS = 0;
+    for (let qi = 0; qi < 27; qi++) {
+      const Q = WB_Q[qi];
+      let y = 0, ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0, hS = 0;
       for (let c = 0; c < 8; c++) { const i3 = sl[c] * 3, X0 = p[i3], Y0 = p[i3 + 1], Z0 = p[i3 + 2];
-        x += Q.N[c] * X0; y += Q.N[c] * Y0; z += Q.N[c] * Z0; hS += Q.N[c] * H[sl[c]];
+        y += Q.N[c] * Y0; hS += Q.N[c] * H[sl[c]];
         ux += Q.dU[c] * X0; uy += Q.dU[c] * Y0; uz += Q.dU[c] * Z0;
         vx += Q.dV[c] * X0; vy += Q.dV[c] * Y0; vz += Q.dV[c] * Z0;
         wx += Q.dW[c] * X0; wy += Q.dW[c] * Y0; wz += Q.dW[c] * Z0; }
-      const w = smooth01((hS - y) / WB_DELTA + 0.5);
+      const xs = (hS - y) / WB_DELTA + 0.5, w = smooth01(xs);
       const dV = Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
-      vT += dV;
-      if (!w) continue;
-      vW += dV * w;
-      const Fb = rho * G * k * dV * w;
-      for (let c = 0; c < 8; c++) fh[sl[c] * 3 + 1] += Q.N[c] * Fb;
-      buoy += Fb; wet += dV * w;
+      XS[qi] = xs; WS[qi] = w; DV[qi] = dV;
+      vT += dV; vW += dV * w;
     }
-    S8.wetS = vT > 0 ? vW / vT : 0;
+    const wNow = vT > 0 ? vW / vT : 0, wK = WB_OPT.now ? wNow : S8.wetS;
+    const k = S8.air * (wK > 1e-3 ? Math.max(0, wK - S8.f) / wK : 1);
+    const kG = WB_OPT.now ? (wNow > 1e-3 && wNow <= S8.f ? 0 : S8.air) : k;   // the lift's own rate with the level, per a
+    const cB = wbRad(om * Math.sqrt(S8.B / G)) * rgS * Math.sqrt(S8.B);
+    for (let qi = 0; qi < 27; qi++) {
+      const w = WS[qi];
+      if (!w) continue;
+      const Q = WB_Q[qi], dV = DV[qi], xs = XS[qi];
+      const Fb = rho * G * k * dV * w;
+      for (let c = 0; c < 8; c++) { fh[sl[c] * 3 + 1] += Q.N[c] * Fb; fb[sl[c]] += Q.N[c] * Fb; }
+      buoy += Fb; wet += dV * w;
+      // G2105: the sample's waterplane (its wet volume's rate with the level: dV x the ramp's slope) - its stiffness, its
+      // radiation, its added mass
+      if (xs < 1) {
+        const a = dV * 6 * xs * (1 - xs) / WB_DELTA, kS = rho * G * kG * a, cS = cB * a;
+        for (let c = 0; c < 8; c++) { kY[sl[c]] += Q.N[c] * kS; cY[sl[c]] += Q.N[c] * cS; }
+        Awp += kG * a; A33 += rho * Math.PI / 8 * S8.B * a;
+      }
+    }
+    S8.wetS = wNow;
     const tau = S8.br ? S8.tau / WB_BREACH_K : S8.tau;
     S8.f = flood(S8.f, S8.wetS, tau, dtH);
     fl += S8.f; flN++;
@@ -2191,20 +2274,38 @@ function wetCompute(WB, fh, dtH) {
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
     if (!anyWet) { if (SB.f) SB.f = flood(SB.f, 0, SB.tau, dtH); SB.wetS = 0; fl += SB.f; flN++; GA[SB.g * WFX + WFX_F] = SB.f; continue; }
-    const k = SB.air * (SB.wetS > 1e-3 ? Math.max(0, SB.wetS - SB.f) / SB.wetS : 1);
+    // (G2105: the share now, as the slice's)
+    const XS = WBS.xs, WS = WBS.ws;
     let wS = 0;
-    for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-      const u = a ? 0.75 : 0.25, s2 = b ? 0.75 : 0.25;
+    for (let qi = 0; qi < 4; qi++) {
+      const u = qi & 2 ? 0.75 : 0.25, s2 = qi & 1 ? 0.75 : 0.25;
       // q = [fIn, fOut, rOut, rIn]: u along the span (in -> out), s2 along the chord (front -> rear)
       const N0 = (1 - u) * (1 - s2), N1 = u * (1 - s2), N2 = u * s2, N3 = (1 - u) * s2;
       const y = N0 * p[q[0] * 3 + 1] + N1 * p[q[1] * 3 + 1] + N2 * p[q[2] * 3 + 1] + N3 * p[q[3] * 3 + 1];
       const hS = N0 * H[q[0]] + N1 * H[q[1]] + N2 * H[q[2]] + N3 * H[q[3]];
-      const w = smooth01((hS - y) / SB.th + 0.5);
+      const xs = (hS - y) / SB.th + 0.5, w = smooth01(xs);
+      XS[qi] = xs; WS[qi] = w;
+      if (w) wS += 0.25 * w;
+    }
+    const wK = WB_OPT.now ? wS : SB.wetS;
+    const k = SB.air * (wK > 1e-3 ? Math.max(0, wK - SB.f) / wK : 1);
+    const kG = WB_OPT.now ? (wS > 1e-3 && wS <= SB.f ? 0 : SB.air) : k;
+    const cB = wbRad(om * Math.sqrt(SB.B / G)) * rgS * Math.sqrt(SB.B);
+    for (let qi = 0; qi < 4; qi++) {
+      const w = WS[qi];
       if (!w) continue;
-      wS += 0.25 * w;
+      const u = qi & 2 ? 0.75 : 0.25, s2 = qi & 1 ? 0.75 : 0.25, xs = XS[qi];
+      const N0 = (1 - u) * (1 - s2), N1 = u * (1 - s2), N2 = u * s2, N3 = (1 - u) * s2;
       const Fb = rho * G * k * 0.25 * SB.vol * w;
       fh[q[0] * 3 + 1] += N0 * Fb; fh[q[1] * 3 + 1] += N1 * Fb; fh[q[2] * 3 + 1] += N2 * Fb; fh[q[3] * 3 + 1] += N3 * Fb;
+      fb[q[0]] += N0 * Fb; fb[q[1]] += N1 * Fb; fb[q[2]] += N2 * Fb; fb[q[3]] += N3 * Fb;
       buoy += Fb; wet += 0.25 * SB.vol * w;
+      if (xs < 1) {                                         // G2105: as the slice's sample; the strip's beam its chord
+        const a = 0.25 * SB.vol * 6 * xs * (1 - xs) / SB.th, kS = rho * G * kG * a, cS = cB * a;
+        kY[q[0]] += N0 * kS; kY[q[1]] += N1 * kS; kY[q[2]] += N2 * kS; kY[q[3]] += N3 * kS;
+        cY[q[0]] += N0 * cS; cY[q[1]] += N1 * cS; cY[q[2]] += N2 * cS; cY[q[3]] += N3 * cS;
+        Awp += kG * a; A33 += rho * Math.PI / 8 * SB.B * a;
+      }
     }
     SB.wetS = wS;
     SB.f = flood(SB.f, wS, SB.tau, dtH);
@@ -2221,16 +2322,23 @@ function wetCompute(WB, fh, dtH) {
     const n = T.n, w = T.w;
     let y = 0, hS = 0;
     for (let c = 0; c < n.length; c++) { y += w[c] * p[n[c] * 3 + 1]; hS += w[c] * H[n[c]]; }
-    const wS = smooth01((hS - y) / T.th + 0.5);
+    const xs = (hS - y) / T.th + 0.5, wS = smooth01(xs);
     if (!T.br && T.host >= 0 && WB.slices[T.host].pk > T.breach) T.br = true;
     if (T.br) T.f = flood(T.f, wS, T.tau, dtH);
     T.wetS = wS;
     if (!wS) continue;
     const vf = Math.min(T.vol, FV && FV[T.k] ? Math.max(0, FV[T.k].litres) / 1000 * T.share : T.fuel0);
     const Fb = rho * G * (vf * wS + (T.vol - vf) * Math.max(0, wS - T.f));
-    for (let c = 0; c < n.length; c++) fh[n[c] * 3 + 1] += w[c] * Fb;
+    for (let c = 0; c < n.length; c++) { fh[n[c] * 3 + 1] += w[c] * Fb; fb[n[c]] += w[c] * Fb; }
     buoy += Fb; wet += T.vol * wS;
+    if (xs < 1) {                                           // G2105: the tank's gradient (no radiation: see WB_RAD)
+      const a = (vf + (wS > T.f ? T.vol - vf : 0)) * 6 * xs * (1 - xs) / T.th, kS = rho * G * a;
+      for (let c = 0; c < n.length; c++) kY[n[c]] += w[c] * kS;
+      Awp += a;
+    }
   }
+  // G2105: the floating body's heave frequency, for the next compute's radiation
+  WB.Awp = Awp; WB.A33 = A33; WB.om = Awp > 0 ? Math.sqrt(rho * G * Awp / (WB.M + A33)) : 0; WB.zK = Math.sqrt(WB.M / (WB.M + A33));
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
@@ -2317,7 +2425,8 @@ function wetCompute(WB, fh, dtH) {
     const kP = 0.5 * rho * WB_CD_TYRE * wT * d * Vm, kS = 0.5 * rho * WB_CD_SIDE * seg * Vm;
     const Fx = -kP * px - kS * va * ax[0], Fz = -kP * pz - kS * va * ax[2];
     const Fy = -kP * py - kS * va * ax[1] + rho * G * seg * wT;
-    fh[i3] += Fx; fh[i3 + 1] += Fy; fh[i3 + 2] += Fz;
+    fh[i3] += Fx; fh[i3 + 1] += Fy; fh[i3 + 2] += Fz; fb[i] += rho * G * seg * wT;
+    if (d < 2 * R) WB.kY[i] += rho * G * wT * 2 * Math.sqrt(d * (2 * R - d));   // G2105: the displacement's gradient (its waterline chord x the width)
     wet += seg * wT; dragX += Math.hypot(Fx, Fz);
     { const o = WB.gW[wI] * WFX, Ab = wT * d;   // G2090: the tyre's plough - its frontal area, at the waterline, the axle as its normal
       GA[o] = Ab; GA[o + 1] = Ab * p[i3]; GA[o + 2] = Ab * H[i]; GA[o + 3] = Ab * p[i3 + 2];
@@ -2327,10 +2436,15 @@ function wetCompute(WB, fh, dtH) {
   }
   if (!wet) return 0;
   // the float's slamCap: a node's force against its own velocity stops it at most, over the held interval
+  // G2105: ...its DYNAMIC force - the faces' pressure and friction, the slam, the tyres' drag - as the floats' cap bounds
+  // the slam alone. The buoyancy is a weight's answer, not a drag: capped, a node sinking at V had its lift cut to
+  // m V / dtH while a rising one kept all of it - more push up than down, every cycle: THE LIMIT CYCLE (the Cub's 2.5 cm
+  // at 0.6 s; measured: every 1 - a cap 13 x wider - decays, and so does this). WB_OPT.cap 0 is the old cap, for an A/B.
+  const capB = WB_OPT.cap ? 1 : 0;
   for (const i of WB.nodes) {
     const i3 = i * 3, vx = v[i3], vy = v[i3 + 1], vz = v[i3 + 2], V = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (V < 1e-6) continue;
-    const fa = (fh[i3] * vx + fh[i3 + 1] * vy + fh[i3 + 2] * vz) / V, cap = m[i] * V / dtH;
+    const fa = (fh[i3] * vx + (fh[i3 + 1] - capB * fb[i]) * vy + fh[i3 + 2] * vz) / V, cap = m[i] * V / dtH;
     if (fa < -cap) { const k = (-fa - cap) / V; fh[i3] += k * vx; fh[i3 + 1] += k * vy; fh[i3 + 2] += k * vz; }
   }
   WB.drag = dragX; WB.buoy = buoy;
@@ -2340,7 +2454,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

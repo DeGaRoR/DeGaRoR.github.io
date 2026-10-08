@@ -39,6 +39,8 @@
 //    and an arrival at 13/31 from the south-west can fly a 280-390 s DOWNWIND, go around and run out of the
 //    watchdog's budget, set once at departFrom: the Cub from w3, the metal Cessna after its w3 backtrack -
 //    reports/evidence/DEST-TO/master_w3.txt and the HANDOVER entry.)
+// G2320 (CAREER-WIRE), on ltd:cub's stop at w3: the dev career's stop record off the real flight (the field, the load, the
+//    aerodromes passed), careerOnStop delivering a carry job HOME -> w3 and moving an arc; the sandbox's document: nothing.
 // C. A NEW TO IN THE AIR (air:<build>): lined up at HOME bound for w3; mid-way down the enroute leg the To becomes
 //    Jolene AFB 02/20 (w2), behind the aeroplane - setDest 'replan', the arrival planned again from here: the new path
 //    starts at the aeroplane, the bank never past the pilot's limit (+4 deg), the track never turning faster than
@@ -152,7 +154,8 @@ function landThenDepart(key, check, trace, doctor, lead) {
   check(Math.hypot(c2[0] - c1[0], c2[2] - c1[2]) < 1e-9 && sim.t === t1, tag + 'no reset, no teleport: the leg begins where the landing stopped', Math.hypot(c2[0] - c1[0], c2[2] - c1[2]).toFixed(3) + ' m');
   check(fuelKg(sim) === f1 && dmg(sim).members === d1.members && dmg(sim).yields === d1.yields, tag + 'the fuel and the damage state carried over', f1 + ' kg');
   let taxiM = 0, cp = c1.slice(), r2done = false;
-  const r2 = fly(sim, ap, W, 1500, (p) => { if (!['ROLL', 'LIFTOFF', 'CLIMB'].includes(p.phase) && sim.wheelsOnGround() > 0 && !r2done) { const c = sim.cgPos(); taxiM += Math.hypot(c[0] - cp[0], c[2] - cp[2]); cp = c.slice(); } if (p.phase === 'ROLL') r2done = true; }, trace, 'leg2');
+  const over2 = [];   // G2320: the aerodromes leg 2 passes within their field radius (app.js careerFrame, every frame)
+  const r2 = fly(sim, ap, W, 1500, (p) => { { const q = sim.cgPos(); C.careerOverflewAdd(W, q[0], q[2], over2); } if (!['ROLL', 'LIFTOFF', 'CLIMB'].includes(p.phase) && sim.wheelsOnGround() > 0 && !r2done) { const c = sim.cgPos(); taxiM += Math.hypot(c[0] - cp[0], c[2] - cp[2]); cp = c.slice(); } if (p.phase === 'ROLL') r2done = true; }, trace, 'leg2');
   const c3 = sim.cgPos(), w3 = C.flightWhere(W, c3[0], c3[2], {});
   const ph = r2.phases, iRoll = ph.indexOf('ROLL'), pre = ph.slice(0, iRoll);
   // (DEPART plans inside the leg's first step: the first phase a step ends in is the plan's - TAXI, or STOP when the
@@ -167,6 +170,54 @@ function landThenDepart(key, check, trace, doctor, lead) {
   check(!dmg(sim).crashed && fuelKg(sim) <= f1, tag + 'no crash, the fuel only went down', (dmg(sim).reason || '') + ' ' + fuelKg(sim));
   log(tag + 'leg 2 ' + ph.join('>') + ' in ' + r2.t.toFixed(0) + ' s, ' + taxiM.toFixed(0) + ' m on the ground before the roll, stopped ' + w3.kind + ' ' + w3.id + '; fuel ' + f1 + ' -> ' + fuelKg(sim) + ' kg; members broken ' + dmg(sim).members);
   if (key === 'cub' && P.b === 'w3' && w3.id === 'w3') premW3(W, A, sim, def, check, r1.t + r2.t);
+  if (key === 'cub' && P.b === 'w3' && w3.id === 'w3') careerW3(W, sim, def, check, r2.t, over2);
+}
+
+// ---- G2320 (CAREER-WIRE): THE SAME STOP ADVANCES THE DEV CAREER (?career=1) - AND, WITHOUT THE FLAG, NOTHING ------------
+// The Cub of ltd:cub has just flown HOME -> Tamgas Hill (w3) and stopped there. With ?career=1 the page's player document
+// IS the dev career (app.js: careerNew, seed 'dev', flydiy.career.dev) and playerFlightEnd, after playerArrive, builds the
+// stop record (careerStopApply: the field, the load - the occupants beyond the pilot + the plate's cargo, the tracked
+// contract's declared load -, the row, the aerodromes passed, the hour) and hands it to careerOnStop with ACCEPT's
+// verdict as the hook. A carry job HOME -> w3 (35 kg of tools: the dev seed's job:field:0:0) is tracked, the Trust's first
+// arc contract (land at w3, then HOME) accepted beside it: the one stop delivers the job (paid, the ledger's contract
+// line) and moves the arc to its stage 2. The sandbox's document (no flag: mode sandbox, no career block) meets the same
+// stop and nothing is written.
+function careerW3(W, sim, def, check, secs, overflew) {
+  const tag = 'career:cub@w3: ';
+  const c = sim.cgPos(), Wh = C.flightWhere(W, c[0], c[2], {});
+  const crashed = !!(sim.damage && sim.damage().crashed);
+  let d = C.playerFleetReconcile(C.careerNormalise(C.careerNew({ id: 'dev', seed: 'dev', name: 'the dev career' })), ['Cub']).doc;
+  const job = C.careerOfferIds(d).find(id => { const r = C.careerContract(d, id), u = r && r.stages[0].subs[0]; return /^job:field:/.test(id) && r.stages.length === 1 && u.do === 'carry' && u.from === 'HOME' && u.to === 'w3' && !u.load.pax && !u.when; });
+  if (!check(!!job, tag + 'the dev career offers a carry job HOME -> Tamgas Hill (kilos, no passenger, no condition)')) return;
+  d = C.careerAccept(d, job).doc;
+  d = C.careerAccept(d, 'field.01').doc;
+  check(d.career.contracts.tracked === job && d.career.contracts.accepted.join() === job + ',field.01', tag + 'accepted: the job (tracked) and the Trust\'s first arc contract');
+  // playerFlightEnd: the clock, the arrival, then the career
+  d = C.playerClock(d, secs).doc;
+  const arr = C.playerArrive(d, 'Cub', Wh.aero.id, {});
+  if (arr.ok) d = arr.doc;
+  const L = C.careerTrackedLoad(d), occ = (def.spec && def.spec.occupants) || 1;
+  const stop = C.careerStopRecord({ how: 'stopped', aero: C.flightCanDepart(Wh) ? Wh.aero.id : null, wrecked: crashed, slot: 'Cub', gear: C.stripGear(def),
+                                    occupants: occ, cargoKg: L ? L.kg : 0, row: { from: 'HOME', to: 'w3', t: secs }, overflew, hour: 12 });
+  check(stop.aero === 'w3' && !stop.wrecked && stop.load.kg === 35 && stop.load.pax === occ - 1, tag + 'the stop record: at w3, whole, 35 kg aboard (the tracked job\'s declared load), ' + stop.load.pax + ' passenger(s)', JSON.stringify(stop));
+  check(overflew.includes('HOME') && overflew.includes('w3') && overflew.indexOf('HOME') < overflew.indexOf('w3'), tag + 'the aerodromes passed, in order (from the flight: ' + overflew.join(', ') + ')');
+  const w0 = d.wallet, pay = C.careerContract(d, job).pay.total;
+  const res = C.careerOnStop(d, stop, { acceptVerdict: C.careerAcceptHook(null) });
+  const D = res.doc, lines = C.careerEventLines(res, d, D);
+  check(res.ok && D.career.contracts.done.some(x => x.id === job && x.pay === pay) && !D.career.contracts.accepted.includes(job), tag + 'the job is delivered: done, paid ' + pay, res.why);
+  check(D.wallet === w0 + pay && D.ledger[D.ledger.length - 1].k === 'contract' && D.ledger[D.ledger.length - 1].ref === job && D.ledger[D.ledger.length - 1].amt === -pay, tag + 'the wallet + ' + pay + ', the ledger\'s contract line', D.wallet + ' ' + JSON.stringify(D.ledger.slice(-1)));
+  check(D.career.contracts.live['field.01'] && D.career.contracts.live['field.01'].stage === 1 && D.career.contracts.tracked === 'field.01', tag + 'the same stop moves the Trust\'s arc to its stage 2 (land at HOME), now tracked');
+  check(lines.some(l => l.k === 'done') && lines.some(l => l.k === 'stage') && lines.some(l => l.k === 'wallet'), tag + 'the arrival card\'s lines: ' + lines.map(l => l.text).join(' / '));
+  check(JSON.stringify(C.careerNormalise(JSON.parse(JSON.stringify(D)))) === JSON.stringify(D) && D.fleet.Cub.aero === 'w3', tag + 'saved and reloaded unchanged; the Cub stands at w3');
+  // WITHOUT THE FLAG: the sandbox's document - the same stop moves nothing in the career (there is none), writes nothing
+  let s = C.playerFleetReconcile(C.playerNormalise(C.playerMigrate(C.playerDefault())), ['Cub']).doc;
+  s = C.playerClock(s, secs).doc; const sa = C.playerArrive(s, 'Cub', Wh.aero.id, {}); if (sa.ok) s = sa.doc;
+  const s0 = JSON.stringify(s), r0 = C.careerOnStop(s, stop, {});
+  check(!r0.ok && r0.doc === s && JSON.stringify(s) === s0 && !s.career && s.mode === 'sandbox', tag + 'without the flag (the sandbox\'s document): nothing', r0.why);
+  const app = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  check(/if \(CAREER_DEV && d\.career\) \{ const c = careerStopApply\(d, how, W, wrecked\);/.test(app) && /const PLAYER_KEY = CAREER_DEV \? careerKey\('dev'\) : 'flydiy\.player';/.test(app),
+        tag + 'the page reaches careerOnStop only under ?career=1 (app.js playerFlightEnd), its document flydiy.career.dev; the sandbox keeps flydiy.player');
+  log(tag + 'delivered ' + job + ' (' + pay + '), field.01 at stage 2; passed ' + overflew.join(', ') + '; ' + lines.map(l => l.text).join(' / '));
 }
 
 // ---- PREM-S2 (G2230): THE CUB LANDS AT w3 WITH A SIDE HANGAR HELD THERE -> IN w3; A RELOAD -> IT ROLLS OUT AT w3 -------

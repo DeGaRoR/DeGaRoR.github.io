@@ -1,0 +1,87 @@
+GARAGE IDLE PROFILE jodel retro: 150 frames, wall 18.88 ms a frame (node), loop inclusive 18.069 ms a frame
+  SELF BY FILE (ms a frame)
+      13.597  vendor/three.min.js
+       2.907  node:inspector
+       1.969  tools/_fake_gl.js
+       1.632  src/viewer/shed_shadow.js
+       0.613  ((garbage collector))
+       0.405  src/viewer/atmo.js
+       0.129  src/viewer/app.js
+       0.095  src/viewer/shader_warm.js
+       0.049  src/viewer/flight_recorder.js
+       0.038  src/viewer/shadow_near.js
+       0.037  src/core/08_cloud_field.js
+       0.036  tools/_cage_char.js
+       0.029  src/core/09_climate.js
+       0.028  src/viewer/hangar.js
+       0.024  ((program))
+       0.023  src/viewer/input.js
+       0.021  ((idle))
+       0.018  src/core/07_day.js
+       0.018  tools/_page_node.js
+       0.017  src/core/20_world.js
+       0.014  src/viewer/aa_resolve.js
+       0.011  src/core/06_solar.js
+       0.011  tools/_cage_light.js
+       0.009  src/viewer/day_clock.js
+       0.007  node:internal/timers
+  SELF BY FUNCTION, page code only (ms a frame)
+       0.501  walk src/viewer/shed_shadow.js:267
+       0.447  same src/viewer/shed_shadow.js:88
+       0.209  skyRadiance src/viewer/atmo.js:210
+       0.149  inside src/viewer/shed_shadow.js:206
+       0.147  matSame src/viewer/shed_shadow.js:55
+       0.144  preShadow src/viewer/shed_shadow.js:332
+       0.095  renderer.renderBufferDirect src/viewer/shader_warm.js:155
+       0.084  medium src/viewer/atmo.js:68
+       0.077  MS src/viewer/atmo.js:204
+       0.067  loop src/viewer/app.js:12631
+       0.039  samePose src/viewer/shed_shadow.js:72
+       0.038  SM.render src/viewer/shadow_near.js:311
+       0.038  matSig1 src/viewer/shed_shadow.js:48
+       0.031  gRBD src/viewer/shed_shadow.js:256
+       0.028  transmissive src/viewer/shed_shadow.js:173
+       0.024  applyDay src/viewer/hangar.js:3360
+       0.023  update src/viewer/input.js:539
+       0.022  convBuild src/core/09_climate.js:486
+       0.021  renderer.render src/viewer/flight_recorder.js:292
+        0.02  weatherMap src/core/08_cloud_field.js:80
+       0.018  tick tools/_cage_char.js:694
+       0.017  preGlass src/viewer/shed_shadow.js:227
+       0.017  phaseMie src/viewer/atmo.js:203
+       0.014  animStep tools/_cage_char.js:635
+       0.014  render src/viewer/aa_resolve.js:502
+       0.014  gSRT src/viewer/shed_shadow.js:255
+       0.012  (anon) src/viewer/shed_shadow.js:54
+       0.011  terrainH src/core/20_world.js:533
+        0.01  poseOf src/viewer/shed_shadow.js:64
+        0.01  layer src/core/08_cloud_field.js:129
+       0.009  end src/viewer/flight_recorder.js:174
+       0.009  close src/viewer/flight_recorder.js:180
+       0.009  tick src/viewer/day_clock.js:155
+       0.008  pre src/viewer/shed_shadow.js:318
+       0.007  lightKey src/viewer/shed_shadow.js:102
+       0.007  moon src/core/06_solar.js:128
+       0.007  R.dome.onBeforeRender tools/_cage_light.js:623
+       0.007  sm.render src/viewer/flight_recorder.js:307
+       0.007  get hasAir src/core/07_day.js:278
+       0.007  poseModel src/viewer/app.js:3384
+  THE LOOP'S CALLEES, inclusive (ms a frame)
+      14.459  render src/viewer/aa_resolve.js:502
+       2.743  pre src/viewer/shed_shadow.js:318
+       0.613  shedDayTick src/viewer/app.js:909
+        0.03  tick src/viewer/day_clock.js:155
+       0.023  update src/viewer/input.js:539
+       0.022  poseModel src/viewer/app.js:3384
+       0.021  end src/viewer/flight_recorder.js:174
+        0.02  hud src/viewer/app.js:9542
+       0.017  placeCamera src/viewer/app.js:398
+       0.014  update src/viewer/sky_glare.js:95
+       0.011  contactShadows src/viewer/app.js:4219
+       0.007  end src/viewer/app.js:12447
+       0.004  flCamera src/viewer/app.js:11773
+       0.004  fixTick src/viewer/app.js:7505
+       0.004  frame src/viewer/app.js:12397
+       0.004  garageIsHangar src/viewer/app.js:1078
+       0.004  post src/viewer/shed_shadow.js:361
+       0.003  sim src/viewer/app.js:5986

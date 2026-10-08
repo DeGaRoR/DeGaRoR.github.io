@@ -165,6 +165,9 @@ const GATES = [
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
+  // G2251 (MAP-MENU): THE 2-D ISLAND MAP (tools/map_bake.js) - the committed picture and projection re-bake byte for byte,
+  // every runway's pixels inside its footprint in the projection (and every footprint drawn), the 2 MB / 4096 px budget; ~12 s
+  { id: 'MAPBAKE', file: '_mapbake_check.js', argv: ['--selftest'], tier: 'core', wall: 20 },
   // G1995-G1997 (HW-COVERAGE, the user's GTX 1660 Ti laptop: a 128 s garage load, 3-4 fps for 15 min, NO REVEAL): on a virtual
   // clock - the boot watchdog never lifts a chain that still lands steps (keys alone are not progress; 5x hard the last
   // resort); the runtime step-down (gfx_settings.js GFX.hw: one rung under 15 fps in the shed / on the ground, once a state,
@@ -443,6 +446,10 @@ const GATES = [
   // is the same room - the same oriented world-space triangles per material, casts and order as its sources swapped back
   // live; >= 300 fewer draws; every dressable part still worn; the exterior and opts.merge false untouched
   { id: 'ROOMMERGE', file: '_roommerge_check.js', tier: 'core', wall: 150 },
+  // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
+  // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
+  // the roll-out; the idle garage uploads no more skin than before
+  { id: 'POSEHIDDEN', file: '_posehidden_check.js', tier: 'core', wall: 300 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a
@@ -666,8 +673,12 @@ const GATES = [
   // water terms against the fleet's envelope, the hump on three tows, the
   // touchdown's drag climbing over frames (~30 s)
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
-  { id: 'WATER', file: '_water_check.js', tier: 'core' },
-  { id: 'WETFX', file: '_wetfx_check.js', tier: 'core' },   // G2090 WATER-LOOK: the wet body's contacts for the spray / wake / bubbles - write-only (the base's bits), the records, the worker's path   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
+  // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
+  // closes the throttle (~60 s on 2 threads)
+  { id: 'WATERDAMP', file: '_waterdamp_check.js', tier: 'core', wall: 70, weight: 3 },
+  { id: 'WETFX', file: '_wetfx_check.js', tier: 'core' },   // G2090 WATER-LOOK: the wet body's contacts for the spray / wake / bubbles - write-only (the base's bits), the records, the worker's path
   { id: 'WETFX-PAGE', file: '_wetfx_page_check.js', tier: 'full', weight: 2, wall: 300 },   // G2090: the page in node over a wheeled ditch - the pool hidden when dry, the splash / plough / field, warmed programs, no error
   // THE PAVEMENT (roads & runways, 2026-09-21): the one material every strip and road wears - the
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
@@ -707,6 +718,16 @@ const GATES = [
   // order-free), the fleet lift refuses nothing, moving is flying, every
   // refusal leaves the document as it came; 16 doctored rules. ~2 s
   { id: 'GAMEPREM', file: '_gameprem_check.js', tier: 'core' },
+  // ACCEPT (G2274, GAME-2026-10-06 §6.2): a build's acceptance - the static checks (no simulation: the phone's),
+  // the flown leg (a 5-min stabilised cruise on the AP box, TAS calm-air, the flow, the endurance and range) on the
+  // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
+  // logbook's stop at a strip, the page's wrapper and the worker's door, acceptVerdict per kind; --selftest 24 rules
+  { id: 'ACCEPT', file: '_accept_check.js', tier: 'core', wall: 300 },
+  // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
+  // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
+  // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
+  // five designs' shakedown, cached in the OS temp dir by content)
+  { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

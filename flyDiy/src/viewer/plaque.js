@@ -127,6 +127,21 @@ const PLAQUE_WHY = {
       + 'own hand.' },
   'pilot notes': { what: 'bounded verdicts the test pilot recorded in flight.',
     fix: 'each code names one thing it did not like - the newest is shown.' },
+  // proved in flight (G2273, ACCEPT): the acceptance leg's own numbers
+  'cruise flown': { what: 'the true airspeed the autopilot held over the acceptance leg, at the declared throttle '
+      + 'and height, with the wind taken out. Unlike the cruise above it is MEASURED, so a fast design is not '
+      + 'capped at the circuit speed the generator solves for.' },
+  'burn flown': { what: 'the fuel the engine burned over the leg, measured off the tanks: the honest figure the '
+      + 'full-throttle burn and its two-thirds rule of thumb stand in for.' },
+  'draw flown': { what: 'the power the motor drew from the pack over the leg, measured off its charge.' },
+  'endurance flown': { what: 'the usable tank or pack over the measured flow, less the stated reserve.',
+    fix: 'a bigger tank or pack, or less drag at the same speed: the flow is power, and power is drag times speed.' },
+  'range flown': { what: 'the cruise flown times the endurance flown, in still air. A headwind eats it.' },
+  'the leg': { what: 'how long the stabilised cruise was held, who was aboard, and the day it was flown. A leg '
+      + 'counts only if the height and the speed stayed in their bands the whole time.' },
+  'proved in flight': { what: 'the acceptance leg was flown on this aeroplane before it changed. Its numbers no '
+      + 'longer describe it, so they are withdrawn, as the bench withdraws its certificates.',
+    fix: 'fly the acceptance leg again on the aeroplane as it is now.' },
   // powerplant
   'full-throttle draw': { what: 'electrical power the motor pulls at full '
       + 'throttle. Divide the pack into it for the full-power endurance.' },
@@ -225,6 +240,7 @@ const PLAQUE_SECTIONS = {
   'in thin air': 'the same take-off and climb out of a hot mountain strip, from the density-altitude test',
   'on the test flight': 'what the pilot found flying the circuit — the real flight the bench rolled out, or the one you flew',
   'in a crosswind': 'the take-off ladder from the crosswind card: the strongest wind it keeps between the lines, and the rung that failed',
+  'proved in flight': 'the acceptance leg: a stabilised cruise the autopilot held, measured — this build only',
   'powerplant': 'what the engine burns and the heat it sheds at full throttle',
   'balance': 'where the centre of gravity sits against the neutral point, loaded as it stands',
   'at reserves': 'the same aeroplane with 15% fuel — lighter, and with its CG moved by the burn-off',

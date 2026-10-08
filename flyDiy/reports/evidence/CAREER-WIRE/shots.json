@@ -1,0 +1,228 @@
+{
+ "what": "CAREER-WIRE stills (G2320)",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "fails": [],
+ "shots": [
+  {
+   "name": "sandbox",
+   "file": "career_sandbox.jpg",
+   "note": "the sandbox (no ?career=1): today's page",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0",
+   "mode": "sandbox",
+   "keys": [
+    "flydiy.player"
+   ],
+   "door": false,
+   "entry": false,
+   "plate": null,
+   "cargo": null,
+   "career": null,
+   "open": false,
+   "rows": 0,
+   "tabs": [],
+   "source": null,
+   "card": ""
+  },
+  {
+   "name": "boot",
+   "file": "career_boot.jpg",
+   "note": "?career=1: the career mode, the dev career created, the plate and the MAP entry",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "keys": [
+    "flydiy.career.dev"
+   ],
+   "door": true,
+   "entry": true,
+   "plate": "Career nothing tracked: open the MAP · wallet 60 000cargo aboard kgFly the acceptance leg",
+   "cargo": "0",
+   "career": {
+    "mode": "career",
+    "seed": "dev",
+    "wallet": 60000,
+    "offered": 20,
+    "accepted": [],
+    "tracked": null,
+    "ledger": [
+     "grant -60000"
+    ],
+    "voucher": {
+     "kind": "maker",
+     "model": "cub",
+     "used": false
+    }
+   },
+   "open": false,
+   "rows": 0,
+   "tabs": [],
+   "source": null,
+   "card": ""
+  },
+  {
+   "name": "map",
+   "file": "career_map.jpg",
+   "note": "the MAP on the real record: a new career's offers",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "keys": [
+    "flydiy.career.dev"
+   ],
+   "door": true,
+   "entry": true,
+   "plate": "Career nothing tracked: open the MAP · wallet 60 000cargo aboard kgFly the acceptance leg",
+   "cargo": "0",
+   "career": {
+    "mode": "career",
+    "seed": "dev",
+    "wallet": 60000,
+    "offered": 20,
+    "accepted": [],
+    "tracked": null,
+    "ledger": [
+     "grant -60000"
+    ],
+    "voucher": {
+     "kind": "maker",
+     "model": "cub",
+     "used": false
+    }
+   },
+   "open": true,
+   "rows": 20,
+   "tabs": [
+    "All20",
+    "Trust4",
+    "Mine & Dock4",
+    "Resort4",
+    "Survey4",
+    "Clients4"
+   ],
+   "source": "career",
+   "card": "Pick a contract Tap a row or a marker on the map: its card says where the load is, where it goes, both strips, the payload, the pay, and your fleet against it. NOTHING TRACKED 0 accepted · 20 on offer · 0 aeroplanes"
+  },
+  {
+   "name": "card",
+   "file": "career_card.jpg",
+   "note": "a carry job's card (job:field:0:0): both ends, the payload, contractPay's pay",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "keys": [
+    "flydiy.career.dev"
+   ],
+   "door": true,
+   "entry": true,
+   "plate": "Career nothing tracked: open the MAP · wallet 60 000cargo aboard kgFly the acceptance leg",
+   "cargo": "0",
+   "career": {
+    "mode": "career",
+    "seed": "dev",
+    "wallet": 60000,
+    "offered": 20,
+    "accepted": [],
+    "tracked": null,
+    "ledger": [
+     "grant -60000"
+    ],
+    "voucher": {
+     "kind": "maker",
+     "model": "cub",
+     "used": false
+    }
+   },
+   "open": true,
+   "rows": 20,
+   "tabs": [
+    "All20",
+    "Trust4",
+    "Mine & Dock4",
+    "Resort4",
+    "Survey4",
+    "Clients4"
+   ],
+   "source": "career",
+   "card": "● The Field Trust · job Tools for Tamgas Hill Strip The Trust needs 35 kg of tools at Tamgas Hill Strip. The old Army field's landlord. They lease it to anyone who will bring it back to life. THE JOB carry · 35 kg · 2.7 km THE LOAD IS AT Jolene AFB 13/31 2 325 m concrete IT GOES TO Tamgas Hill Strip 520 m gravel PAY 450 net (250 + 60 a km × 2.7 km × 1.23 for the load) reputation +0.1 with The Field Trust YOUR FLEET AGAINST THIS JOB No aeroplanes yet. Facts from each certificate against the job's numbers. Nothing here stops you flying it. Accept Track Fly it · with the career"
+  },
+  {
+   "name": "tracked",
+   "file": "career_tracked.jpg",
+   "note": "Track: the career document written (accepted and tracked); the plate follows",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "keys": [
+    "flydiy.career.dev"
+   ],
+   "door": true,
+   "entry": true,
+   "plate": "Career ★ Tools for Tamgas Hill Strip · carry Jolene AFB 13/31 → Tamgas Hill Strip · wallet 60 000cargo aboard kgFly the acceptance leg",
+   "cargo": "35",
+   "career": {
+    "mode": "career",
+    "seed": "dev",
+    "wallet": 60000,
+    "offered": 19,
+    "accepted": [
+     "job:field:0:0"
+    ],
+    "tracked": "job:field:0:0",
+    "ledger": [
+     "grant -60000"
+    ],
+    "voucher": {
+     "kind": "maker",
+     "model": "cub",
+     "used": false
+    }
+   },
+   "open": true,
+   "rows": 20,
+   "tabs": [
+    "All20",
+    "Trust4",
+    "Mine & Dock4",
+    "Resort4",
+    "Survey4",
+    "Clients4"
+   ],
+   "source": "career",
+   "card": "● The Field Trust · job Tools for Tamgas Hill Strip The Trust needs 35 kg of tools at Tamgas Hill Strip. The old Army field's landlord. They lease it to anyone who will bring it back to life. THE JOB carry · 35 kg · 2.7 km THE LOAD IS AT Jolene AFB 13/31 2 325 m concrete IT GOES TO Tamgas Hill Strip 520 m gravel PAY 450 net (250 + 60 a km × 2.7 km × 1.23 for the load) reputation +0.1 with The Field Trust YOUR FLEET AGAINST THIS JOB No aeroplanes yet. Facts from each certificate against the job's numbers. Nothing here stops you flying it. ✓ Accepted ★ Tracked Fly it · with the career"
+  },
+  {
+   "name": "reloaded",
+   "file": "career_reloaded.jpg",
+   "note": "a reload: the dev career is still the page's, the job still tracked",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "mode": "career",
+   "keys": [
+    "flydiy.career.dev"
+   ],
+   "door": true,
+   "entry": true,
+   "plate": "Career ★ Tools for Tamgas Hill Strip · carry Jolene AFB 13/31 → Tamgas Hill Strip · wallet 60 000cargo aboard kgFly the acceptance leg",
+   "cargo": "35",
+   "career": {
+    "mode": "career",
+    "seed": "dev",
+    "wallet": 60000,
+    "offered": 19,
+    "accepted": [
+     "job:field:0:0"
+    ],
+    "tracked": "job:field:0:0",
+    "ledger": [
+     "grant -60000"
+    ],
+    "voucher": {
+     "kind": "maker",
+     "model": "cub",
+     "used": false
+    }
+   },
+   "open": false,
+   "rows": 0,
+   "tabs": [],
+   "source": null,
+   "card": ""
+  }
+ ]
+}

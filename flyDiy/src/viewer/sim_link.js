@@ -620,6 +620,14 @@ const SIM_LINK = (() => {
       if (F && F.live && F.ap === S.ap) { const x = { cmd: 'setCard', card: Object.assign({}, c) }; stamp(x); F.view.send(x); return; }
       cardNext = { ap: S.ap, card: Object.assign({}, c) };
     }
+    // G2273 (ACCEPT): THE ACCEPTANCE LEG on the worker's pilot (accept_rec.js start / abort -> sim_host.js 'accept'):
+    // sent at the step, when this flight is the worker's and live; false otherwise (the page flies it itself)
+    function accept(m) {
+      const F = flight;
+      if (!F || F.inline || !F.live || !m) return false;
+      const c = Object.assign({ cmd: 'accept' }, m); stamp(c); F.view.send(c);
+      return true;
+    }
     // G1096: A RIG'S PLACEMENT (app.js FLIGHT_PROBE.place; sim_host.js simHostPlace): the worker's sim is the one that
     // flies, so the placement is made there, at once, and the page's view takes the snapshot it publishes. A promise of
     // the CG; null when this flight is not the worker's (the page's own sim is written by the caller)
@@ -640,7 +648,7 @@ const SIM_LINK = (() => {
       return P;
     }
     const api = {
-      frame, idle, warm, shed, prewarm, leg, dest, perf, card, place,
+      frame, idle, warm, shed, prewarm, leg, dest, perf, card, place, accept,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
                                            view: flight && flight.view ? flight.view.state() : null,
                                            ring: flight && flight.view && flight.view.delay ? flight.view.delay() : null }),   // G1100: the view's ring and delay

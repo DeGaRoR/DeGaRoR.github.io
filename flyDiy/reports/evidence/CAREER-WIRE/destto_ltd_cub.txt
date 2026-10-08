@@ -1,0 +1,7 @@
+  ltd:cub: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 336 s, stopped runway HOME (34, 512)
+  ltd:cub: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 378 s, 0 m on the ground before the roll, stopped runway w3; fuel 31.668229341201684 -> 30.831251979268956 kg; members broken 0
+  prem:cub@w3: arrived in w3 after 714 s (clock 713.8833333333333 s); reload -> rolls out at w3, placed stand w3 at (-681, -2380); foot {"half":5.4,"fwd":1.2,"aft":5.5,"h":2.8}
+  career:cub@w3: delivered job:field:0:0 (450), field.01 at stage 2; passed w2, HOME, SEA, w3; Tools for Tamgas Hill Strip: done at stage 1 / Tools for Tamgas Hill Strip: stage 1 done / Tools for Tamgas Hill Strip: complete, paid 450 / Wake the field: done at stage 1 / Wake the field: stage 1 done / wallet 60 450 (+450)
+  ltd:cub: ok (170 s)
+DESTTO: 0 failure(s), 170 s
+GATE DESTTO: PASS

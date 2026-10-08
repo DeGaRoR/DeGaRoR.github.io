@@ -1,0 +1,24 @@
+{
+ "runs": [
+  {
+   "issued": 1,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring:base",
+     "ms": 6384,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 171999,
+     "hlslVs": 10718
+    }
+   ],
+   "file": "tools/perf/gcost/lv/v_base.json",
+   "wallS": 6.4,
+   "udd": "C:\\clbv_base_2"
+  }
+ ]
+}

@@ -69,7 +69,38 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (rig.FLYDIY_MODE !== 'sandbox' || rig.FLYDIY_WELCOME || pages.FLYDIY_MODE !== 'sandbox' || pages.FLYDIY_WELCOME)
     throw new Error('the welcome block: a rig on localhost / ?mode=sandbox must skip every screen as the sandbox (' + rig.FLYDIY_MODE + ', ' + pages.FLYDIY_MODE + ')');
   console.log("the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held");
+  // G2320 (CAREER-WIRE): ?career=1 IS THE DEV CAREER - the career mode for the page's game code (a rig, localhost, a real
+  // host), the menu's New career row still "coming" (READY.career false; ?mode=career still boots the sandbox); a near
+  // miss (?career=10, ?career=0) is the sandbox
+  const nav = { userAgent: 'Mozilla/5.0 Chrome/141' };
+  for (const [q, host, n, want] of [['?career=1', 'localhost', { webdriver: true, userAgent: 'HeadlessChrome/141' }, 'career'], ['?career=1', 'degaror.github.io', nav, 'career'],
+                                     ['?audio=0&career=1&map=1', 'degaror.github.io', nav, 'career'], ['?career=10', 'localhost', nav, 'sandbox'], ['?career=0', 'localhost', nav, 'sandbox'],
+                                     ['?mode=career', 'degaror.github.io', nav, 'sandbox'], ['', 'localhost', nav, 'sandbox']]) {
+    const b = run(q, host, n);
+    if (b.FLYDIY_MODE !== want || b.FLYDIY_WELCOME) throw new Error('the welcome: ' + q + ' on ' + host + ' -> FLYDIY_MODE ' + b.FLYDIY_MODE + ', expected ' + want + ' with no screen');
+    if (b.WELCOME.READY.career !== false) throw new Error("the welcome: the menu's New career row is no longer \"coming\" (READY.career)");
+  }
+  console.log("the career flag: ?career=1 -> FLYDIY_MODE 'career' (a rig, localhost, a real host; no screen); ?career=10 / ?career=0 / ?mode=career -> the sandbox; the menu's New career row still \"coming\"");
 }
+// G2320 (CAREER-WIRE): NO CAREER CODE RUNS WITHOUT THE FLAG - in app.js, every call into the career's page half outside that
+// half is guarded by CAREER_DEV (the half itself defines functions and the window.FLYDIY_CAREER door, under the flag)
+{
+  const app = pick('function setAircraft', 'app');
+  const i0 = app.indexOf("G2320 (CAREER-WIRE): THE DEV CAREER'S PAGE HALF"), i1 = app.indexOf('window.FLYDIY_PLAYER = {', i0);
+  if (i0 < 0 || i1 < 0) throw new Error("app.js: the dev career's page half is not where this gate reads it");
+  const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bcareer[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
+  const loose = outside.filter(l => !/CAREER_DEV/.test(l));
+  if (loose.length) throw new Error('app.js calls the career outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
+  if (!/const CAREER_DEV = \(\(\) => \{ try \{ return \/\[\?&\]career=1\(&\|\$\)\/\.test\(window\.location\.search/.test(app)) throw new Error('app.js: CAREER_DEV is not ?career=1 alone');
+  if (!/const PLAYER_KEY = CAREER_DEV \? careerKey\('dev'\) : 'flydiy\.player';/.test(app)) throw new Error("app.js: the dev career's key is not flydiy.career.dev, or the sandbox's not flydiy.player");
+  if (!/\nif \(CAREER_DEV\) window\.FLYDIY_CAREER = |  if \(CAREER_DEV\) window\.FLYDIY_CAREER = /.test(app)) throw new Error('app.js: window.FLYDIY_CAREER is not behind the flag');
+  console.log('the career flag in app.js: ' + outside.length + ' calls into the career outside its page half, every one behind CAREER_DEV (?career=1 alone; flydiy.career.dev, the sandbox keeps flydiy.player)');
+}
+// THE MAP SCREEN'S ROWS (G2253, MAP-MENU; tools/_map_smoke.js): the sandbox shows no MAP entry without ?map=1, nothing of
+// the screen loads before the entry is pressed, the screen's tabs / rows / cards over the contracts fixture, NOHOVER and R1
+// on the new UI; --phone the phone's card and the sheet's gestures
+try { for (const l of require('./_map_smoke.js')(html, PHONE)) console.log('map: ' + l); }
+catch (e) { console.log(e && e.message || String(e)); console.log('GATE ' + (PHONE ? 'UISMOKE-PHONE' : 'UISMOKE') + ': FAIL'); process.exit(1); }
 
 // ---- THE PANELS ARE PLACEABLE AND THEIR CONTROLS STILL PRESS (2026-09-04) --
 // Chrome 148 retargets pointerup and the click after it to whatever element
@@ -463,6 +494,9 @@ try {
     if (!els['boot'].classList.contains('gone')) throw new Error('#boot did not get .gone');
     console.log('the loading screen: ' + steps.length + ' steps in order, lifted on frame ' + B.log.find(e => e.k === 'ready').t);
   }
+  // G2320 (CAREER-WIRE): the sandbox booted (no ?career=1): no career door, no career plate
+  if (sandbox.window.FLYDIY_CAREER !== undefined || els.crPlate || els.crKg) throw new Error('the sandbox booted with the career (FLYDIY_CAREER / #crPlate) without ?career=1');
+  console.log('the sandbox without the flag: no FLYDIY_CAREER, no career plate');
   if (PHONE) { phoneChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
@@ -794,6 +828,34 @@ try {
     if (!/&gt; 10 m\/s|> 10 m\/s/.test(els['pqRows'].innerHTML))
       throw new Error('a limit above the cap does not print as "> cap"');
     console.log('bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap');
+    // G2273 (ACCEPT): PROVED IN FLIGHT - off the plaque until the build's logbook holds a valid leg; its rows when it
+    // does (the real accept_rec.js over a signed record the core measured off a steady 5-min leg); WITHDRAWN under
+    // another fingerprint (the bench's stickers' rule)
+    {
+      vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'accept_rec.js'), 'utf8'), sandbox, { filename: 'accept_rec.js' });
+      const W = sandbox.window, keepG = W.GARAGE_SPEC, keepFp = W.BENCH_FP;
+      const smp = [];
+      for (let i = 0; i <= 300; i++) smp.push({ t: 200 + i, alt: 300, tas: 35.25, gs: 35.25, vs: 0, bank: 0, E: 32.4 - 10.887 * i / 3600, kind: 'fuel', thr: 0.75, box: true });
+      const meas = sandbox.acceptLegMeasure(smp, { E0: 32.4, kind: 'fuel', kgL: 0.72, thr: 0.75, alt: 300 });
+      const rec = sandbox.acceptSign(meas, { fp: 'abcd1234', when: '2026-10-07', thr: 0.75, alt: 300, legMin: 5, load: { occupants: 1, payloadKg: 122, massKg: 476 } });
+      const LOG = { built: null, tests: [], flights: [], accept: [] };
+      W.GARAGE_SPEC = Object.assign({}, keepG || {}, { log: () => LOG });
+      W.BENCH_FP = () => 'abcd1234';
+      try {
+        B.plaque(true);
+        if (/proved in flight/i.test(els['pqRows'].innerHTML)) throw new Error('the proved-in-flight section is on the plaque with no leg flown');
+        LOG.accept.push(rec);
+        B.plaque(true);
+        const h = els['pqRows'].innerHTML;
+        if (!meas.valid || !/proved in flight/i.test(h) || !/126\.9 km\/h TAS|127 km\/h TAS/.test(h) || !/endurance flown/.test(h) || !/range flown/.test(h) || !/burn flown/.test(h))
+          throw new Error('the plaque did not print the acceptance leg: ' + (h.match(/proved in flight[\s\S]{0,300}/i) || [''])[0]);
+        W.BENCH_FP = () => 'ffff0000';
+        B.plaque(true);
+        if (!/withdrawn/.test(els['pqRows'].innerHTML) || /range flown/.test(els['pqRows'].innerHTML))
+          throw new Error('a leg flown on another build is not withdrawn from the plaque');
+      } finally { W.GARAGE_SPEC = keepG; W.BENCH_FP = keepFp; B.plaque(true); }
+      console.log('accept: the plaque has no proved-in-flight rows without a leg, prints the leg (127 km/h TAS, ' + meas.enduranceMin + ' min, ' + meas.rangeKm + ' km), and withdraws it under another fingerprint');
+    }
     // the live test, through the bench's own calls
     B.showPhysical(true);
     B.loadTest();

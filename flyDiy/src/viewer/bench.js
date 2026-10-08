@@ -339,6 +339,7 @@ const BENCH_TESTS = [
         why: ok ? '' : 'the limit is under the ' + lo + ' m/s bar' + (first ? ' — first failed at ' + first : ''),
         fix: ok ? '' : benchWhyFix('crosswind limit'),
         rungs: runs.map(rungLine),
+        limit: lim, capped: X.limit == null,   // G2273 (ACCEPT): the number a contract's crosswind criterion reads (m/s)
         fills: 'plaque',
       };
     },
@@ -1074,6 +1075,10 @@ function benchInit(api) {
   // fingerprint) changes nothing: the certificate keeps its first day and its card is not shown again.
   let outFp = null;
   window.BENCH_ROLLOUT = () => { outFp = fpNow(); };
+  // G2273 (ACCEPT): the fingerprint the acceptance leg and the logbook row are signed with (the roll-out's), and the
+  // live one the plaque's "proved in flight" row is withdrawn against
+  window.BENCH_FP_OUT = () => outFp;
+  window.BENCH_FP = () => fpNow();
   window.BENCH_FLIGHT_LOGGED = f => {
     const t = BENCH_TESTS.filter(x => x.id === 'flight')[0];
     if (!t || !f) return;
