@@ -1,0 +1,246 @@
+{
+ "url": "http://localhost:8591/flyDiy/dev.html?gfx=retro&day=noon",
+ "preset": "retro",
+ "day": "noon",
+ "size": [
+  1920,
+  1080
+ ],
+ "frames": 30,
+ "at": "2026-10-07T19:32:50.899Z",
+ "rows": [
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "same (331 ms to flow)",
+   "splat": "R  lean",
+   "frameGpuMs": 8.2,
+   "fps": 120.19,
+   "draws": 645,
+   "mtris": 4.96,
+   "groundMs": 5.22,
+   "groundN": 25,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "cut800",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 300,
+    "nrmFadeTo": 800
+   },
+   "how": "rekeyed (552 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 7.69,
+   "fps": 124.81,
+   "draws": 645,
+   "mtris": 4.96,
+   "groundMs": 5.13,
+   "groundN": 25,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "air300",
+   "variant": "cut400",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 150,
+    "nrmFadeTo": 400
+   },
+   "how": "same (332 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 7.88,
+   "fps": 125.47,
+   "draws": 645,
+   "mtris": 4.96,
+   "groundMs": 4.95,
+   "groundN": 25,
+   "gdraws": 150
+  },
+  {
+   "rep": 0,
+   "view": "low",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (305 ms to flow)",
+   "splat": "R  lean",
+   "frameGpuMs": 7.53,
+   "fps": 127.94,
+   "draws": 538,
+   "mtris": 5.64,
+   "groundMs": 4.42,
+   "groundN": 25,
+   "gdraws": 95
+  },
+  {
+   "rep": 0,
+   "view": "low",
+   "variant": "cut800",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 300,
+    "nrmFadeTo": 800
+   },
+   "how": "rekeyed (305 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 7.41,
+   "fps": 130.54,
+   "draws": 538,
+   "mtris": 5.64,
+   "groundMs": 4.5,
+   "groundN": 25,
+   "gdraws": 95
+  },
+  {
+   "rep": 0,
+   "view": "low",
+   "variant": "cut400",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 150,
+    "nrmFadeTo": 400
+   },
+   "how": "same (309 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 7.39,
+   "fps": 129.86,
+   "draws": 538,
+   "mtris": 5.64,
+   "groundMs": 4.53,
+   "groundN": 25,
+   "gdraws": 95
+  },
+  {
+   "rep": 0,
+   "view": "grass",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (301 ms to flow)",
+   "splat": "R  lean",
+   "frameGpuMs": 7.29,
+   "fps": 129.21,
+   "draws": 558,
+   "mtris": 6.21,
+   "groundMs": 3.04,
+   "groundN": 25,
+   "gdraws": 109
+  },
+  {
+   "rep": 0,
+   "view": "grass",
+   "variant": "cut800",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 300,
+    "nrmFadeTo": 800
+   },
+   "how": "rekeyed (302 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 7.23,
+   "fps": 131.87,
+   "draws": 558,
+   "mtris": 6.21,
+   "groundMs": 3,
+   "groundN": 25,
+   "gdraws": 109
+  },
+  {
+   "rep": 0,
+   "view": "grass",
+   "variant": "cut400",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 150,
+    "nrmFadeTo": 400
+   },
+   "how": "same (304 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 7.28,
+   "fps": 129.42,
+   "draws": 558,
+   "mtris": 6.21,
+   "groundMs": 3.03,
+   "groundN": 25,
+   "gdraws": 109
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "base",
+   "strip": [],
+   "knobs": {},
+   "how": "rekeyed (396 ms to flow)",
+   "splat": "R  lean",
+   "frameGpuMs": 8.12,
+   "fps": 93.8,
+   "draws": 1038,
+   "mtris": 10.49,
+   "groundMs": 2.78,
+   "groundN": 25,
+   "gdraws": 181
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "cut800",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 300,
+    "nrmFadeTo": 800
+   },
+   "how": "rekeyed (400 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 8.05,
+   "fps": 101.33,
+   "draws": 1038,
+   "mtris": 10.49,
+   "groundMs": 2.94,
+   "groundN": 25,
+   "gdraws": 181
+  },
+  {
+   "rep": 0,
+   "view": "taxi",
+   "variant": "cut400",
+   "strip": [
+    "nrmcut"
+   ],
+   "knobs": {
+    "nrmFadeFrom": 150,
+    "nrmFadeTo": 400
+   },
+   "how": "same (394 ms to flow)",
+   "splat": "R nrmcut lean",
+   "frameGpuMs": 8.19,
+   "fps": 99.47,
+   "draws": 1038,
+   "mtris": 10.49,
+   "groundMs": 2.92,
+   "groundN": 25,
+   "gdraws": 181
+  }
+ ],
+ "errs": []
+}
