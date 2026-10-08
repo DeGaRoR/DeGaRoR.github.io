@@ -1,0 +1,713 @@
+{
+ "what": "MAP-SIMPLE stills (G2329): the map screen rebuilt to the approved mock (GAME-2026-10-06.md §R.2)",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "rule": "every still is of the LOADED page: BOOT.state gone and #boot hidden, checked before and after each capture; a loading capture is discarded and retaken",
+ "fails": [],
+ "shots": [
+  {
+   "size": "desk",
+   "name": "sandbox",
+   "file": "map_desk_sandbox.jpg",
+   "note": "the sandbox (no ?map=1, no ?career=1): today's game - no MAP entry, nothing of the map loaded",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": false,
+   "open": false,
+   "phone": null,
+   "cust": null,
+   "at": null,
+   "opened": null,
+   "sheet": null,
+   "loadedMap": {
+    "menu": false,
+    "pack": false
+   },
+   "rows": 0,
+   "marks": "",
+   "at_row": "",
+   "para": "",
+   "rightPanel": false,
+   "overlay": null,
+   "view": null,
+   "footer": "",
+   "titles": 0,
+   "small": [],
+   "img": null,
+   "bg": null,
+   "desig": [],
+   "req": {
+    "picture": false,
+    "bake": false,
+    "menu": false,
+    "pack": false
+   }
+  },
+  {
+   "size": "desk",
+   "name": "fit",
+   "file": "map_desk_fit.jpg",
+   "note": "the real record (a new dev career) at the fit: the list is the whole interface; the user's AI map on its sea; a badge per place",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": null,
+   "opened": null,
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✓✓✓✓✗✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.30398729710656314,
+    "tx": 285.62976358503886,
+    "ty": 5.684341886080802e-14,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "desk",
+   "name": "mid",
+   "file": "map_desk_mid.jpg",
+   "note": "mid zoom (3x the fit) over Jolene AFB, Tamgas Hill and Annette Dock: the names with their runway facts, the places of interest, the wildlife hotspots with their zones and counts",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": null,
+   "opened": null,
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✓✓✓✓✗✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 5,
+    "hot": 9,
+    "rings": 2,
+    "counts": 9,
+    "runways": 5,
+    "desig": 4,
+    "routes": 0,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.9119618913196894,
+    "tx": -205.76570218772042,
+    "ty": -1347.5756880733943,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [
+    "20",
+    "02",
+    "13",
+    "31"
+   ],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "desk",
+   "name": "close",
+   "file": "map_desk_close.jpg",
+   "note": "close up at Jolene AFB: 13/31 and 02/20 at true scale - the cleared surround, the concrete, the centreline, the threshold bars, the designators at both ends",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": null,
+   "opened": null,
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✓✓✓✓✗✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 5,
+    "hot": 9,
+    "rings": 8,
+    "counts": 9,
+    "runways": 8,
+    "desig": 4,
+    "routes": 0,
+    "planes": 0
+   },
+   "view": {
+    "s": 2.7358856739590682,
+    "tx": -1924.8138673253352,
+    "ty": -5738.672194777699,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [
+    "20",
+    "02",
+    "13",
+    "31"
+   ],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "desk",
+   "name": "place",
+   "file": "map_desk_place.jpg",
+   "note": "Annette Dock's badge tapped: \"At Annette Dock ✕\" on the list, which holds only the contracts involving it",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": "SEA",
+   "opened": null,
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 3,
+   "marks": "✗✗✗",
+   "at_row": "At Annette Dock\n✕",
+   "para": "",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 1,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.30398729710656314,
+    "tx": 285.62976358503886,
+    "ty": 5.684341886080802e-14,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "desk",
+   "name": "open",
+   "file": "map_desk_open.jpg",
+   "note": "\"Mail off the water\" opened: who + what + the pay, the runways condensed, the ✗ (the voucher's Cub is on wheels), ONE button - and the map did not move",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": null,
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✓✓✓✓✗✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "Jumbo Mine & Dock Co.: 20 kg of mail, Annette Dock to Metlakatla Seaplane Base. Pays 1 490. Annette Dock 1 500 m water lane → Metlakatla Seaplane Base 1 500 m water lane · 7.2 km The Cub your voucher buys cannot land on water (Annette Dock, Metlakatla Seaplane Base). Track",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 0,
+    "pois": 5,
+    "hot": 9,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 2,
+    "routes": 1,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.6687720536344389,
+    "tx": 0,
+    "ty": -711.7355916254999,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [
+    "13",
+    "31"
+   ],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "desk",
+   "name": "tracked",
+   "file": "map_desk_tracked.jpg",
+   "note": "Track pressed (accept + track in one gesture): Tracking ★, its places ringed in the cargo colour and joined, the footer",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": null,
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✗✓✓✓✓✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "Jumbo Mine & Dock Co.: 20 kg of mail, Annette Dock to Metlakatla Seaplane Base. Pays 1 490. Annette Dock 1 500 m water lane → Metlakatla Seaplane Base 1 500 m water lane · 7.2 km The Cub your voucher buys cannot land on water (Annette Dock, Metlakatla Seaplane Base). Tracking ★",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 0,
+    "pois": 5,
+    "hot": 9,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 2,
+    "routes": 2,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.6687720536344389,
+    "tx": 0,
+    "ty": -711.7355916254999,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking Mail off the water: Annette Dock → Metlakatla Seaplane Base",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [
+    "13",
+    "31"
+   ],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "desk",
+   "name": "fixture",
+   "file": "map_desk_fixture.jpg",
+   "note": "the fixture's fleet (Cub, Jodel, Voyager on wheels; a C172 on floats): ✓ and ✗ on surface vs gear only, the builds unmarked; \"Parts to the dock\" open (mine street to the dock: no one plane lands on both)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&map=1&mapsrc=fixture",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": false,
+   "cust": "all",
+   "at": null,
+   "opened": "minedock.j.parts",
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 11,
+   "marks": "✗✗✗✓✗✓✓✓✓",
+   "at_row": "",
+   "para": "Mine & Dock: Crated parts off the mine street, down to the cannery dock. Pays 1 741. Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km No one plane of yours lands on both water and land (Jumbo Mine Street, Annette Dock). Track",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 3,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 8,
+    "planes": 4
+   },
+   "view": {
+    "s": 0.30398729710656314,
+    "tx": 285.62976358503886,
+    "ty": 5.684341886080802e-14,
+    "fit": 0.30398729710656314
+   },
+   "footer": "Wallet 60 000\nTracking Reopen the mine: Jolene AFB → Jumbo Mine Street",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "phone",
+   "name": "sheet",
+   "file": "map_phone_sheet.jpg",
+   "note": "the phone: the map full screen, the list a bottom sheet (folded), every target >= 48 px",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": true,
+   "cust": "all",
+   "at": null,
+   "opened": null,
+   "sheet": "peek",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✓✓✓✓✗✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 1,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.17997231195200739,
+    "tx": 0,
+    "ty": 6.4792339640055445,
+    "fit": 0.17997231195200739
+   },
+   "footer": "Wallet 60 000Tracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  },
+  {
+   "size": "phone",
+   "name": "open",
+   "file": "map_phone_open.jpg",
+   "note": "the phone: the sheet open on \"Guests for the lodge\" (the paragraph and Track)",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "entry": true,
+   "open": true,
+   "phone": true,
+   "cust": "all",
+   "at": null,
+   "opened": "job:resort:0:0",
+   "sheet": "open",
+   "loadedMap": {
+    "menu": true,
+    "pack": true
+   },
+   "rows": 20,
+   "marks": "✓✓✓✓✗✗✗✓✓✓✓✓✓✓✓✓✓✓✓✓",
+   "at_row": "",
+   "para": "Skyline Resort: 1 passenger, Tamgas Hill Strip to Skyline Altiport. Pays 1 740. Tamgas Hill Strip 520 × 18 m gravel → Skyline Altiport 380 × 18 m grass, 696 m up · 5.4 km Track",
+   "rightPanel": false,
+   "overlay": {
+    "badges": 7,
+    "names": 2,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 1,
+    "desig": 0,
+    "routes": 1,
+    "planes": 0
+   },
+   "view": {
+    "s": 0.17997231195200739,
+    "tx": 0,
+    "ty": 6.4792339640055445,
+    "fit": 0.17997231195200739
+   },
+   "footer": "Wallet 60 000Tracking nothing yet",
+   "titles": 0,
+   "small": [],
+   "img": {
+    "ok": true,
+    "w": 2167,
+    "h": 2834,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   },
+   "bg": "rgb(0, 66, 121)",
+   "desig": [],
+   "req": {
+    "picture": true,
+    "bake": false,
+    "menu": true,
+    "pack": true
+   }
+  }
+ ]
+}

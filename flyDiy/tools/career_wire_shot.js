@@ -84,7 +84,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
           && st.career.ledger.join() === 'grant -60000', 'flydiy.career.dev: careerNew (seed dev): the 60 000 grant in the ledger, the Cub voucher, 20 offers');
     check(!st.keys.includes('flydiy.player'), 'the sandbox\'s flydiy.player neither read nor written by the career page (' + st.keys.join(', ') + ')');
     await tap(pg, '#mapEntry');
-    const opened = await until(pg, () => !!document.getElementById('mapScreen') && window.MAP_MENU && window.MAP_MENU.model() && document.querySelector('#mapScreen .mmPlane img').complete, 90000);
+    const opened = await until(pg, () => !!document.getElementById('mapScreen') && window.MAP_MENU && window.MAP_MENU.model() && document.querySelector('#mapScreen .mmStage img').complete, 90000);
     check(opened, 'the MAP opens');
     st = await shot(pg, 'map', 'the MAP on the real record: a new career\'s offers');
     check(st.source === 'career' && st.rows === 20 && st.tabs.length === 6 && /Trust/.test(st.tabs.join()) && /Mine & Dock/.test(st.tabs.join()), 'the real record: 20 rows, All + 5 provider tabs (' + st.tabs.join(' | ') + ')');
