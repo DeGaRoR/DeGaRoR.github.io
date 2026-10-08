@@ -35,6 +35,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
 const BUILDS = { cub: 'trunk-0,trunk-2.5,taxi,noseover,nosein', jodel: 'trunk-0,trunk-2.5,taxi,noseover,nosein', metal: 'trunk-0,trunk-2.5,taxi,noseover,nosein',
                  floats: 'nosein-water', twinFloats: 'nosein-water' };
+const SHEET_MAX = 1.5;   // (train 41, A0: the sheet's bound - see its row)
 const LEAK_SHARE = 0.02, LEAK1_SHARE = 1e-3, LEAK5_SHARE = 1e-4, OVER8_SHARE = 0.02;
 const SELFTEST = argv.includes('--selftest');
 const only = SELFTEST ? 'cub' : opt('only', null), keys = Object.keys(BUILDS).filter(k => !only || only.split(',').includes(k)), PAR = +opt('par', 3);
@@ -94,6 +95,11 @@ const one = J => new Promise(res => {
       yes(s.tested ? s.leak5cm / s.tested <= LEAK5_SHARE : true, k + ' ' + c.case + ': past 5 cm ' + s.leak5cm + ' of ' + s.tested);
       yes(s.rigidBad === 0, k + ' ' + c.case + ': no compact part triangle past 1 % (' + s.rigidTris + ' triangle-frames)');
       yes(s.nonFinite === 0, k + ' ' + c.case + ': every drawn position finite');
+      // (train 41, A0: THE SHEET - a giant strip drawn metres across the runway on both paths. At rest every drawn live edge
+      // within 1.5 x its rest (1 cm or more): above any bound a tear holds - fabric 1 + TEAR, FABRIC's HELD ~1.36, sheet 1.4 +
+      // 2 cm, a tube 1.2 + 3 mm - and a never-torn record (rigid, the wall on its covering) does not stretch at all)
+      { const sh = s.sheet || {}, worst = Object.entries(sh).reduce((a, [cl, v]) => (!a || v.ratio > a.ratio ? Object.assign({ cls: cl }, v) : a), null);
+        console.log('  ' + (worst && worst.ratio > SHEET_MAX ? 'NOTE' : 'ok  ') + '  ' + k + ' ' + c.case + ': (reported - the sheet is held by GATE DMGPAGEW on the page\'s flow) the longest drawn live edge at rest over its rest, past ' + SHEET_MAX + ' x: ' + (worst && worst.ratio > SHEET_MAX ? worst.cls : 'none') + ' (worst per class ' + JSON.stringify(Object.fromEntries(Object.entries(sh).map(([cl, v]) => [cl, v.ratio + ' (' + v.len + ' m / ' + v.rest + ' m, group ' + v.group + (v.role ? ' ' + v.role : '') + (v.noTear ? ', never torn' : '') + ')']))) + ')'); }
       yes(!s.weightless, k + ' ' + c.case + ': no weightless place (every kept weight 0: nothing to ride; ' + (s.weightless || 0) + ' place-frames)');
       yes(s.tubeBad === 0, k + ' ' + c.case + ': no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst ' + (+s.tubeWorst || 0).toFixed(3) + ', ' + s.tubeTris + ' triangle-frames)');
       yes(s.inh.over8 <= OVER8_SHARE * s.inh.places, k + ' ' + c.case + ': places past 8 slots ' + s.inh.over8 + ' <= 2 %');

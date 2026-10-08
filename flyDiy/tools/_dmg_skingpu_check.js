@@ -214,7 +214,7 @@ if (argv[0] === '--build') {
           X.w = R.w; X.n = r.C.N; X.nB = R.nB;
           const t0 = process.hrtime.bigint(); SB.poseCage(R, restD, sim.p, R.baseD, r.C.P, NF, down, null, X); S.ms.pose += ms(t0);
           if (tearDue(R)) { R.tearF = s; const t1 = process.hrtime.bigint(); SB.tear(R, R.baseD, R.w); S.ms.tear += ms(t1); S.checksC++; }
-          const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessC) S.excessC = ws.ex;
+          const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt, held: R.held }, R.baseD, R.w); if (ws.ex > S.excessC) S.excessC = ws.ex;
           for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.C.firstTorn[t] < 0) { r.C.firstTorn[t] = s;
             // (train 41: how far past its bound the CPU found it - a tear within float32's reach of the bound (0.2 mm, twice the
             // mirror's) may fall either side on the GPU's float32 places: the two paths then part at the next event, which may
@@ -302,7 +302,16 @@ if (argv[0] === '--build') {
         if (R.tearAsk != null) {
           if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held); R.heldAsk = undefined; S.ms.tearPl += ms(t0); S.checks++; }
         } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; R.heldAsk = R.held ? R.held.slice() : null; }
-        const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessG) S.excessG = ws.ex;
+        const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt, held: R.held }, R.baseD, R.w);
+        if (ws.ex > S.excessG) { S.excessG = ws.ex; const i0 = R.idx0, q = ws.t, cen = [0, 0, 0];
+          if (q >= 0) for (let e = 0; e < 3; e++) for (let j = 0; j < 3; j++) cen[j] += R.w[i0[q * 3 + e] * 3 + j] / 3;
+          // (train 41, A0: the frame and the place of the GPU path's worst live edge - the stills' frame-exact shot; the same
+          // triangle on the CPU path that frame: torn or live, its own excess)
+          const RC = r.C.R; let exC = null; if (q >= 0 && !RC.dead[q]) { exC = -Infinity; for (let e = 0; e < 3; e++) { const a = i0[q * 3 + e] * 3, b = i0[q * 3 + (e + 1) % 3] * 3;
+            const rr = Math.hypot(R.baseD[a] - R.baseD[b], R.baseD[a + 1] - R.baseD[b + 1], R.baseD[a + 2] - R.baseD[b + 2]), l = Math.hypot(RC.w[a] - RC.w[b], RC.w[a + 1] - RC.w[b + 1], RC.w[a + 2] - RC.w[b + 2]);
+            exC = Math.max(exC, l - (1 + SB.TEAR) * rr - SB.TEAR_ABS); } }
+          S.excessGAt = { frameFromFirstBreak: S.frames, simT: +sim.t.toFixed(3), mesh: r.m.nm, tri: q, excessMm: +(ws.ex * 1000).toFixed(1), worldCentroid: cen.map(x => +x.toFixed(2)),
+            cpuSameFrame: q < 0 ? null : RC.dead[q] ? 'torn (dead ' + RC.dead[q] + ')' : 'live, excess ' + (exC * 1000).toFixed(1) + ' mm', runFramesGpu: r.G.run ? r.G.run[q] : null }; }
         for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.G.firstTorn[t] < 0) r.G.firstTorn[t] = s;
         if (!r.G.run) { r.G.run = new Uint16Array(nt); r.G.maxRun = new Uint16Array(nt); }
         S.runG = Math.max(S.runG || 0, overRun(R, r.G.run, r.G.maxRun));
@@ -315,6 +324,15 @@ if (argv[0] === '--build') {
         }
       }
     }
+    // (train 41: THE GIANT SHEET'S CENSUS - each family's longest live edge at the end (metres, and over its rest), with its
+    // record's kind: never torn (noTear), fabric, cover, sheet, held; now (C) and before the reach fix (B))
+    if (recs) { const lng = fam => { let b = null; for (const r of recs) { const R = r[fam].R; if (!R.active || !R.dead) continue; const i0 = R.idx0;
+        let P = R.w; if (fam === 'B') { P = new Float64Array(R.nv * 3); const XB = { Mi: [1, 0, 0, 0, 1, 0, 0, 0, 1], B: [1, 0, 0, 0, 1, 0, 0, 0, 1], cg: [0, 0, 0], o: [0, 0, 0], w: P, n: null, nB: null };
+          SB.poseCage(R, restD, sim.p, R.baseD, new Float64Array(R.nv * 3), NF, [0, -1, 0], null, XB); }
+        for (let t = 0; t < R.nt; t++) { if (R.dead[t]) continue; for (let e = 0; e < 3; e++) { const a = i0[t * 3 + e] * 3, c = i0[t * 3 + (e + 1) % 3] * 3;
+          const l = Math.hypot(P[a] - P[c], P[a + 1] - P[c + 1], P[a + 2] - P[c + 2]), rr = Math.hypot(R.baseD[a] - R.baseD[c], R.baseD[a + 1] - R.baseD[c + 1], R.baseD[a + 2] - R.baseD[c + 2]);
+          if (!b || l - rr > b.over) b = { over: +(l - rr).toFixed(3), len: +l.toFixed(3), rest: +rr.toFixed(3), mesh: r.m.nm, tri: t, noTear: !!R.noTear, fabric: !!R.fabric, held: !!(R.held && R.held[t]), cov: !!R.cov }; } } } return b; };
+      S.longestLive = lng('C'); S.longestLiveB = lng('B'); }
     if (recs) { S.goneB = recs.reduce((a, r) => a + (r.goneB || 0), 0); S.goneC = recs.reduce((a, r) => a + (r.goneC || 0), 0); if (S.heldMax == null && S.heldMaxB) S.heldMax = 0; }
     if (recs) for (const r of recs) {
       for (let t = 0; t < r.m.g.nt; t++) {
@@ -325,7 +343,8 @@ if (argv[0] === '--build') {
         else if (fc >= 0 && fg > fc) { S.late++;
           const border = r.C.margin && r.C.margin[t] < 2e-4;
           if (fg - fc > PERIOD_G && border) { S.lateBorder = (S.lateBorder || 0) + 1; S.lateBorderMax = Math.max(S.lateBorderMax || 0, fg - fc);
-            (S.lateBorderAt = S.lateBorderAt || []).length < 8 && S.lateBorderAt.push({ mesh: r.m.nm, t, lagFrames: fg - fc, lagS: +((fg - fc) / 60).toFixed(2), cpuMarginMm: +(r.C.margin[t] * 1000).toFixed(4), heldG: r.G.R.held ? r.G.R.held[t] : null }); }
+            S.lateBorderMarginMax = Math.max(S.lateBorderMarginMax || 0, r.C.margin[t]);
+            (S.lateBorderAt = S.lateBorderAt || []).push({ build: k, case: c.id, mesh: r.m.nm, t, lagFrames: fg - fc, lagS: +((fg - fc) / 60).toFixed(2), cpuMarginMm: +(r.C.margin[t] * 1000).toFixed(4), heldG: r.G.R.held ? r.G.R.held[t] : null }); }
           else { S.lateMax = Math.max(S.lateMax, fg - fc); if (fg - fc > PERIOD_G && !S.lateAt) S.lateAt = { mesh: r.m.nm, t, fc, fg, margin: r.C.margin ? +(r.C.margin[t] * 1000).toFixed(3) : null, heldC: r.C.R.held ? r.C.R.held[t] : null, heldG: r.G.R.held ? r.G.R.held[t] : null }; } }
         else if (fg >= 0 && (fc < 0 || fg < fc)) S.early++;
       }
@@ -383,11 +402,12 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       // no longer than one GPU sampling period; no live edge past the bound longer than that period on either path; a tear
       // the GPU path makes later than the CPU's, within it
       // (train 41: the GPU path samples the CPU's frames - the misses back to the 1 % / 3 of the CPU tear's own phase)
-      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G && (S.lateBorder || 0) <= Math.max(3, 0.01 * S.tornC),
+      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G && (S.lateBorder || 0) <= Math.max(3, 0.01 * S.tornC) && !((S.lateBorderMarginMax || 0) > 1e-5),
         'the tear on the read-back places: ' + S.tornG + ' torn (the CPU\'s full tear ' + S.tornC + '): ' + S.missed + ' it tore that this still draws (' + S.goneOther + ' more gone here by an event instead), ' + S.late + ' later (up to '
-        + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)'
+        + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)' + (S.excessGAt ? ' [the GPU path\'s worst: ' + JSON.stringify(S.excessGAt) + ']' : '') + (S.longestLive ? '; the longest live edge at the end (the CPU path, any kind): ' + JSON.stringify(S.longestLive) + ' (before the reach fix: ' + JSON.stringify(S.longestLiveB) + ')' : '')
         + (S.heldMax != null ? '; FABRIC held covering (the CPU path): up to ' + S.heldMax + ' triangles held at once (' + (S.heldMaxB || 0) + ' before the reach fix, which drew ' + (S.goneB || 0) + ' gone against ' + (S.goneC || 0) + ' now at the end), ' + (S.heldTorn || 0) + ' torn past HELD' : '')
         + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'
+        + '; THE FLOAT32 TOLERANCE (A0, train 41: a tear later than one period, the CPU having torn it within float32\'s reach of the bound - its margin at most 0.01 mm; at most max(3, 1 %)): ' + (S.lateBorder || 0) + ' exempted' + ((S.lateBorderMarginMax || 0) > 1e-5 ? ' - ONE PAST 0.01 mm (' + (S.lateBorderMarginMax * 1000).toFixed(4) + ' mm): RED' : '')
         + (S.lateBorder ? '; ' + S.lateBorder + ' torn later past one period that the CPU tore within 0.2 mm of the bound (float32\'s reach: up to ' + S.lateBorderMax + ' frames) ' + JSON.stringify(S.lateBorderAt) : '')
         + (S.lateAt ? '; the first late past one period ' + JSON.stringify(S.lateAt) : '')
         + (S.missedAt ? '; misses (transients between the read-backs, past the bound at most ' + (S.missRun || 0) + ' frames on the GPU path) ' + JSON.stringify(S.missedAt) : ''));

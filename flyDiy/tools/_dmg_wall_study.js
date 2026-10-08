@@ -113,7 +113,7 @@ function run(P, caseId) {
   const mkRecs = sc => {
     const K = sc.name === 'inh' ? SB.INH_K : SB.NEAR_K;
     sc.recs = P.groups.map(g => { const R = SB.make({ nv: g.nv, idx: g.idx.slice() }, K, { fabric: P.fabric && g.cv.indexOf(SB.INH.cover) >= 0, cage: true, pos: g.bD, rest: P.rest, weld: true, rideAll: true });
-      R.w = new Float64Array(g.nv * 3); R.gk = g; return R; });
+      R.w = new Float64Array(g.nv * 3); R.gk = g; if (process.env.DMGWALL_REACHCOPIES === '1') R.reachCopies = true; return R; });   // (train 41: before the reach fix)
     if (sc.name === 'inh') {
       sc.E = sc.recs.map((R, i) => { const g = P.groups[i], E = { R, cv: g.cv, obj: g.obj };
         if (g.layer.indexOf('cowl') >= 0) { E.cowl = new Uint8Array(g.nv); for (let v = 0; v < g.nv; v++) if (g.layer[v] === 'cowl') E.cowl[v] = 1; } return E; });
@@ -229,6 +229,18 @@ function run(P, caseId) {
       }
       if (R.dead) for (let t = 0; t < R.nt; t++) if (R.dead[t] === 2 && !R._bayCounted) {} });
   }
+  // THE SHEET (train 41, A0's row): at the end - the wreck as it lies - the longest DRAWN live edge over its rest, per class of
+  // the triangle (its first place's: tube / sheet / fabric / wall (glazing, lining, beads) / rigid; a covering triangle FABRIC
+  // holds apart: held), on edges of 1 cm or more at rest: the record, the group, the triangle
+  const sheetOf = sc => { const out = {}; if (!sc.recs) return out;
+    sc.recs.forEach((R, i) => { if (!R.active || !R.dead) return; const g = P.groups[i], i0 = R.idx0, W = R.w, A = R.g.pos;
+      for (let t = 0; t < R.nt; t++) { if (R.dead[t]) continue; const c0 = g.cv[i0[t * 3]];
+        const cls = R.held && R.held[t] ? 'held' : c0 === SB.INH.tube ? 'tube' : c0 === SB.INH.cover ? (P.fabric ? 'fabric' : 'sheet') : c0 === SB.INH.wall ? 'wall' : c0 === SB.INH.rigid ? 'rigid' : 'keep';
+        for (let e = 0; e < 3; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
+          const r0 = Math.hypot(A[a] - A[b], A[a + 1] - A[b + 1], A[a + 2] - A[b + 2]); if (r0 < 0.01) continue;
+          const l = Math.hypot(W[a] - W[b], W[a + 1] - W[b + 1], W[a + 2] - W[b + 2]), x = l / r0;
+          if (!out[cls] || x > out[cls].ratio) out[cls] = { ratio: +x.toFixed(3), len: +l.toFixed(3), rest: +r0.toFixed(3), group: g.key, role: g.role || null, obj: g.obj ? g.obj[i0[t * 3]] : null, tri: t, noTear: !!R.noTear }; } } });
+    return out; };
   // the end: torn covering over bays whose nodes are none at the damage
   const out = { case: caseId, firstBreak: first, broken: D.br.length, pieces: D.nPc, crashed: sim.damage().crashed, schemes: {} };
   const hotEnd = SB.hotNodes(P.T, D);
@@ -238,7 +250,7 @@ function run(P, caseId) {
       if (R.dead) for (let t = 0; t < R.nt; t++) if (R.dead[t] === 2) { const ix = R.idx0;
         let h = false; for (let q = 0; q < 3 && !h; q++) { const v = ix[t*3+q]; for (let k = 0; k < R.K; k++) if (R.ww[v * R.K + k] > 0.05 && hotEnd[R.wi[v * R.K + k]]) { h = true; break; } }
         if (!h && g.cv[ix[t*3]] === SB.INH.cover) m.bayTorn++; } });
-    out.schemes[sc.name] = Object.assign({}, m, { leakShare: m.tested ? +(m.leak / m.tested).toFixed(5) : 0, worstLeak: +m.worstLeak.toFixed(4), rigidWorst: +m.rigidWorst.toFixed(4), inh: sc.inhSt });
+    out.schemes[sc.name] = Object.assign({}, m, { sheet: sheetOf(sc), leakShare: m.tested ? +(m.leak / m.tested).toFixed(5) : 0, worstLeak: +m.worstLeak.toFixed(4), rigidWorst: +m.rigidWorst.toFixed(4), inh: sc.inhSt });
   }
   return out;
 }

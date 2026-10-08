@@ -54,6 +54,8 @@ async function child() {
   R.simw = s0 ? { phase: s0.phase, reason: s0.reason, placeOk: s0.placeOk, live: live() } : null;
   if (!live()) { R.errors = P.errors.slice(0, 20); fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }
   W.FLYDIY_WRECK = true; W.FLYDIY_SKINBREAK = true; W.FLYDIY_WRECK_FAST = true;
+  // (a rig switch for an A/B: DMGPAGEW_SET="FLYDIY_SKINGPU=false,FLYDIY_BRK_RIGSKIP=false")
+  for (const kv of (process.env.DMGPAGEW_SET || "").split(",").filter(Boolean)) { const [k2, v2] = kv.split("="); W[k2] = v2 === "false" ? false : v2 === "true" ? true : v2; }
   FP.setManual(true);
   const sim = FP.sim(), world = FP.world();
   R.mirrored = typeof sim.dmgState === 'function';
@@ -84,6 +86,8 @@ async function child() {
     if (K) { wreck = wreck || !!K.active; gone = Math.max(gone, K.parts.filter(p => p.gone).length); bodies = Math.max(bodies, K.bodies.length); }
   }
   R.t.crash = Date.now() - t1;
+  // (train 41, A0: THE SHEET - at the crash's end, every riding record's longest drawn live edge past 1.5 x its rest + 5 cm)
+  R.sheet = W.FLYDIY_SKIN_LONGEST ? W.FLYDIY_SKIN_LONGEST() : null;
   const s1 = SW ? SW.state() : null, dm = FP.damage ? FP.damage() : null;
   R.end = { simT: +(sim.t - tA).toFixed(3), phase: s1 && s1.phase, strays: s1 ? s1.strays : null, errors: s1 ? s1.errors : null,
             verdict: dm ? { reason: dm.reason || null } : null };
@@ -127,6 +131,9 @@ function judge(R, say) {
   // 3 the page's consumers
   if (!(R.page && R.page.recs > 0 && R.page.riding > 0)) bad('the skin break never ran on the page (records ' + (R.page && R.page.recs) + ', riding ' + (R.page && R.page.riding) + ')');
   if (!(R.page && R.page.wreck && (R.page.gone > 0 || R.page.bodies > 0))) bad('no debris on the page (wreck ' + (R.page && R.page.wreck) + ', parts gone ' + (R.page && R.page.gone) + ', pieces ' + (R.page && R.page.bodies) + ')');
+  // 5 THE SHEET (A0, train 41): no drawn live edge past 1.5 x its rest + 5 cm at the crash's end, any record
+  say('  the longest drawn live edges at the end: ' + JSON.stringify(R.sheet));
+  if (R.sheet && R.sheet.past > 0) bad('A DRAWN SHEET: ' + R.sheet.past + ' records with a live edge past 1.5 x its rest + 5 cm - the worst ' + JSON.stringify(R.sheet.worst[0]));
   // 4 errors
   const we = R.end && R.end.errors ? R.end.errors.length : 0;
   if ((R.errors || []).length || we) bad('errors: page ' + JSON.stringify(R.errors).slice(0, 400) + ', worker ' + JSON.stringify(R.end && R.end.errors).slice(0, 300));

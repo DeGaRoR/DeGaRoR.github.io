@@ -86148,3 +86148,28 @@ within its own bound (no live edge past its bound longer than 4 frames on either
 re-hold rule - the case is one triangle at a 4-micron margin.
 Reported, not gated: the worst live edge past the plain bound on the Cub's trunk centre 3.37 m on the GPU path vs 0.63 m
 on the CPU (a transient: no edge stood past its bound longer than 4 frames).
+
+### TRAIN 41, AFTER READY: THE SHEET AT REST; A0'S FLOAT32 TOLERANCE (2026-10-08 08:30, DMG-SKINGPU; on claude/dmg-t41-final c0b78af25)
+**THE SHEET.** The 07:25 TIMED still pairs on d0c7148f4 showed a strip drawn metres across the runway at rest (the Cub's
+nose-in and 2.5 m trunk: a chrome and a yellow strip, in both shots - the "CPU" shot of a pair is the GPU path's wreck
+flipped and re-posed at rest, where the CPU tear does not run: sim time is frozen). The cause is the train-41 tear cadence
+on the GPU path: a sample is asked on the frame the tear is due and lands a frame or two later; once the wreck went STILL,
+brkCage posed no more frames, the sample never landed and the triangles it tears stayed drawn, stretching as the pieces
+settled apart. Found by the page itself in node (GATE DMGPAGEW's harness, the Cub's trunk crash under the worker, 12 s):
+the test GL never passes a fence, so there no GPU tear ever landed - 18 records with a live edge past 1.5 x its rest + 5 cm,
+the worst 4.85 m from an 8 cm rest (fabric, not held); with the GPU riding off, none. NOT the reach fix (A): the inherited
+binding's census (GATE DMGWALL's study, the Cub's three crashes, now vs before (A)) has no edge longer than 0.46 m either
+way. Fixed: (1) no still frame while a tear sample is in flight (one or two more posed frames at rest); (2) a sample not
+back within BRK_TEAR_WAIT (300 ms) is dropped and the CPU tears on that frame's exact riding (R.tearCpu counts it).
+GATE DMGPAGEW now holds it (A0's row): at the crash's end no drawn live edge past 1.5 x its rest + 5 cm on any riding
+record (FLYDIY_SKIN_LONGEST, the page's probe; the worst printed every run) - RED before the fix (18 records), green after
+(none; 0.025 m the longest). GATE DMGWALL reports the same census per class on the snapshot groups (not gated - the
+sheet is the page's flow): it flags DMG-WALL's never-torn RIGID class stretching on some wrecks (the Cub's nose-in
+0.455 m from 0.064 m, the floats 0.19 m from 0.016 m - compact parts on one rigid binding?), for DMG-WALL.
+**A0'S FLOAT32 TOLERANCE** (GATE DMGSKINGPU's tear row): a GPU-path tear later than one GPU sampling period (4 frames) is
+exempt only when the CPU tore it within float32's reach of its bound - the CPU's margin at most 0.01 mm (above: RED) -
+at most max(3, 1 % of the CPU's tears) a case, every exempted triangle printed on every run (build, case, frames late,
+the CPU's margin). On 41: the Cub's 2.5 m trunk - 1 skin triangle, 73 frames (1.22 s), 0.0041 mm; the Cessna floats -
+1 member triangle, 7 frames (0.12 s), 0.0043 mm. The row also locates the GPU path's worst live edge (frame, triangle,
+world centroid, the CPU's same triangle that frame) - the trunk-centre transient (3.37 m vs 0.63 m, at most 4 frames)
+for the stills.

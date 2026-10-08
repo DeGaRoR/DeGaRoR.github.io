@@ -3999,6 +3999,7 @@
   // (G1818: REC_BUDGET 120k -> 40k vertices a frame - the records' ~330 ns a vertex was a 40 ms first-break frame on the box;
   // the groups at the break are made first, brkRecOrder)
   const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 40000;
+  const BRK_TEAR_WAIT = 300;                              // (train 41: ms a GPU tear sample may take before the CPU tears instead)
   try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
   const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
   const BRK_ISLAND = 40;                                  // G1864: a torn island under this many triangles goes with the tear
@@ -4265,6 +4266,24 @@
           on: E && E.on && first >= 0 ? E.on[first * 2] : null, cv: E ? E.cv : null, dv: R.dv, evDv: R.evDv, pending: R.pending ? R.pending.length : 0, boundAll: !!R.boundAll, K: Kk }); } });
     return out;
   };
+  // (train 41, A0: THE SHEET - a strip drawn metres across the runway at rest, on both paths: which record, which class)
+  window.FLYDIY_SKIN_LONGEST = () => {
+    const K = model && model.brk; if (!K || !BRK.X || !K.NF || !sim) return null;
+    const recs = [];
+    BRK.recs.forEach((R, ri) => { if (!R.active || !R.baseD || !R.dead) return;
+      const X = Object.assign({}, BRK.X), P = new Float64Array(R.nv * 3); X.w = new Float64Array(R.nv * 3); X.n = null; X.nB = null;
+      SKIN_BREAK.poseCage(R, K.rest, sim.p, R.baseD, P, K.NF, K.down, null, X);
+      const i0 = R.idx0, W = X.w, A = R.baseD; let best = null;
+      for (let t = 0; t < R.nt; t++) { if (R.dead[t]) continue;
+        for (let e = 0; e < 3; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
+          const r0 = Math.hypot(A[a] - A[b], A[a + 1] - A[b + 1], A[a + 2] - A[b + 2]), l = Math.hypot(W[a] - W[b], W[a + 1] - W[b + 1], W[a + 2] - W[b + 2]);
+          if (r0 < 0.01) continue; const x = l - (1.5 * r0 + 0.05);
+          if (!best || x > best.x) best = { x, len: l, rest: r0, tri: t }; } }
+      if (best) recs.push({ rec: ri, name: (R.geo && R.geo.name) || null, kind: R.inhRec ? 'inherited' : 'nearest', noTear: !!R.noTear, tubeTear: !!R.tubeTear, sheetTear: !!R.sheetTear, fabric: !!R.fabric,
+        held: !!(R.held && R.held[best.tri]), overMm: +(best.x * 1000).toFixed(1), len: +best.len.toFixed(3), rest: +best.rest.toFixed(3), tri: best.tri }); });
+    recs.sort((a, b) => b.overMm - a.overMm);
+    return { t: +sim.t.toFixed(3), past: recs.filter(r => r.overMm > 0).length, worst: recs.slice(0, 6) };
+  };
   window.FLYDIY_SKINGPU_CHECK = () => {
     const GS = BRK.gpu, K = model && model.brk;
     if (!GS || !K || !BRK.X) return { err: 'nothing rides on the GPU' };
@@ -4297,7 +4316,7 @@
       out.recs++; }
     return out;
   };
-  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || brkWallStale(D) || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false) || !!BRK.reachCopies !== (window.FLYDIY_SKIN_REACHCOPIES === true); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || brkWallStale(D) || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false) || !!BRK.reachCopies !== (window.FLYDIY_SKIN_REACHCOPIES === true) || BRK.recs.some(R => R.tearAsk != null); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
   // G1818: THE RECORDS AT THE BREAK FIRST. While records are still to be made (REC_BUDGET a frame), the groups whose bounds
   // (the geometry's sphere, taken to the frame's rest through the rest basis) hold an end of a broken member come first -
   // the skin where the wreck is torn rides first; the rest keep the cage's own pose a few frames more (intact there)
@@ -4325,7 +4344,9 @@
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
     // still test, which brkCageOn no longer forces off) and no new break event: nothing to re-pose (it was every frame,
     // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
-    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => R.pending) && !brkWallStale(D)) return;
+    // (train 41: nor while a tear's sample is in flight - at rest the GPU path's last sample landed on no posed frame and
+    // the triangles it tears stayed drawn: the 07:25 still pair, stretched strips on the GPU path only)
+    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => R.pending || R.tearAsk != null) && !brkWallStale(D)) return;
     const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
     // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
     const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
@@ -4462,12 +4483,21 @@
       if (gain === 1) {
         if (onGpu && R.tearAsk != null) {
           const Wd = GP.places(ge, R.tearAsk);
+          // (train 41: a read-back that never comes - a fence that does not pass: a test GL, a stalled driver - may not leave the
+          // tear undone: past BRK_TEAR_WAIT ms the CPU tears on this frame's exact riding. The page in node never passes a fence:
+          // its GPU path never tore, and a sheet stood metres long at rest - GATE DMGPAGEW's sheet row)
+          if (!Wd && performance.now() - (R.tearAskMs || 0) > BRK_TEAR_WAIT) {
+            R.tearAsk = null; R.heldAsk = undefined; R.tearT = sim.t; R.tearCpu = (R.tearCpu | 0) + 1;
+            const Xt = Object.assign({}, X, { w: new Float64Array(R.nv * 3), n: null, nB: null });
+            SB.poseCage(R, K.rest, sim.p, R.baseD, new Float64Array(R.nv * 3), K.NF, K.down, off, Xt);
+            if (SB.tear(R, R.baseD, Xt.w)) { brkIdx(R); R.tornNew = true; }
+          }
           if (Wd) { R.tearT = Wd.wTag; R.tearAsk = null;
             // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
             if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
             R.heldAsk = undefined; }
         } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
-          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; R.heldAsk = R.held ? R.held.slice() : null; }
+          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
