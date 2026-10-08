@@ -1,0 +1,21 @@
+GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)
+  cub: fresh - 366 drawn buffers checked, 0 stale; the crash {"br":13,"wreck":0,"stage":{"V":30,"agl":4,"tr":0.3,"D":40}}; after the shed and the roll-out (live true) - 366 checked, 0 STALE; uploads {"uploads":15944,"subs":18329,"contexts":3}; drawn meshes by class {"mesh":67,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.54,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":126,"merge":{"ext":{"from":107,"to":3,"bones":33,"verts":529194,"skip":{}},"in":{"from":63,"to":4,"bones":20,"verts":273744,"skip":{}}}}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":657,"worst":0,"shot":656}; after the crash - {"frames":657,"worst":0,"shot":656} (the shot’s wreck resets 0)
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+  metal: fresh - 427 drawn buffers checked, 0 stale; the crash {"br":175,"wreck":44,"stage":{"V":30,"agl":4,"tr":0.3,"D":40}}; after the shed and the roll-out (live true) - 427 checked, 0 STALE; uploads {"uploads":16246,"subs":16478,"contexts":3}; drawn meshes by class {"mesh":78,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.59,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":136,"merge":{"ext":{"from":111,"to":3,"bones":33,"verts":594150,"skip":{}},"in":{"from":71,"to":4,"bones":25,"verts":401970,"skip":{}}}}
+  metal THE ROLL-OUT SHOT: fresh - {"frames":667,"worst":0,"shot":666}; after the crash - {"frames":667,"worst":0,"shot":666} (the shot’s wreck resets 0)
+  metal: fold buffers checked fresh 44, after 44 (by class {"mesh":383,"fold":44})
+  cub, THE HARD STAGING ({"id":"hard","V":30,"agl":1,"tr":0.5,"D":40}): the wreck must break up (80+ members)
+  cub: fresh - 366 drawn buffers checked, 0 stale; the crash {"br":105,"wreck":26,"stage":{"V":30,"agl":1,"tr":0.5,"D":40}}; after the shed and the roll-out (live true) - 366 checked, 0 STALE; uploads {"uploads":14918,"subs":16425,"contexts":3}; drawn meshes by class {"mesh":67,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.54,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":126,"merge":{"ext":{"from":107,"to":3,"bones":33,"verts":529194,"skip":{}},"in":{"from":63,"to":4,"bones":20,"verts":273744,"skip":{}}}}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":657,"worst":0,"shot":656}; after the crash - {"frames":657,"worst":0,"shot":656} (the shot’s wreck resets 0)
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+  cub: fresh - 366 drawn buffers checked, 0 stale; the crash {"br":0,"wreck":0,"stage":{"V":30,"agl":4,"tr":0.3,"D":40}}; after the shed and the roll-out (live true) - 366 checked, 0 STALE; uploads {"uploads":15273,"subs":21570,"contexts":3}; drawn meshes by class {"mesh":67,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.54,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":126,"merge":{"ext":{"from":107,"to":3,"bones":33,"verts":529194,"skip":{}},"in":{"from":63,"to":4,"bones":20,"verts":273744,"skip":{}}}}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":657,"worst":0,"shot":656}; after the crash - {"frames":657,"worst":0,"shot":656} (the shot’s wreck resets 0)
+  cub DAMAGE OFF: the heal upload marking fired 0 times; 0 stale
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+  cub FLY AGAIN after the crash (damage on): the crash {"br":105,"wreck":26,"stage":{"V":30,"agl":1,"tr":0.5,"D":40}}; removed triangles at the crash 3 meshes, after Fly again []; hidden fresh 80 / after 79 (drawn now, hidden fresh: Mesh < Group < Group < Group); members against their fold []; the wreck layer idle
+  ok    cub Fly again (damage on): every part back, nothing hidden or removed
+  cub FLY AGAIN after the crash (damage OFF): the crash {"br":0,"wreck":0,"stage":{"V":30,"agl":1,"tr":0.5,"D":40}}; removed triangles at the crash 0 meshes, after Fly again []; hidden fresh 80 / after 80; members against their fold []; the wreck layer idle
+  ok    cub Fly again (damage OFF): every part back, nothing hidden or removed
+GATE DMGUPLOAD: PASS
+== exit 0 08:32:23

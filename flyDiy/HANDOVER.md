@@ -86105,3 +86105,35 @@ nodes it rides; --stepped / --gate), tools/_dmg_strut_probe.js (the node page's 
 kink, the normals by record:layer), tools/dmg_wall_census.js (the cowl class and census, --cowl / --bootonly / --hook a,b, the
 wing watch every 40 ms, the islands' share, the crew out of the scene census). Evidence: reports/evidence/DMG-WALL/
 {wing_tear, wing_t39, t41_0435, tune_replay_heldonly, tune_replay_fix}.
+
+## G1860-G1869 DMG-D4b, ADDENDUM 2 (2026-10-08): THE CARRIED COWL - A DEBRIS PART'S TRIANGLES NEVER WRITTEN INTO THE SNAPSHOT (branch claude/dmg-d4b-cowl off claude/dmg-t41-final 870e1d39)
+
+- **The report** (DMG-WALL's 07:00 replay): a cowl knocked off, the card's Fly again, and the next intact aeroplane had no
+  cowl. Train 41 introduces it: master (train 40) has no wreck code. Damage OFF: clean on this path, measured
+  (probe 1: the hidden census 80 = 80, the wreck layer idle).
+- **The cause, measured** (probe 2, the code as it was against the fix; reports/evidence/DMG-D4b/carried-cowl/):
+  app.js wreckCollapse zeroes a debris part's triangles in the bucket index while that index is still the cage
+  snapshot's own array. DMG-WALL's G1858.2 copy-on-first-break then copies the CURRENT index into the snapshot, holes
+  included (alclad 5914, c452700 7210, steel tube 946, rubber 136). Fly again heals the flown model but never the
+  snapshot, and the shed's roll-out builds the next model from it.
+- **The fix**: wreckCollapse detaches the index before its first write: `brkDetach(null, g, null, ['idx'])`. That is
+  G1858.2's own rule, for the index alone; brkDetach gets an optional field list. `window.FLYDIY_WRECK_NODETACH = true`
+  restores the old behaviour. After the fix the snapshot holds 0 removed triangles after the crash, after Fly again,
+  and after the roll-out.
+- **Not the cause** (measured): the hybrid's live/bake switch against wreckHide's `visible`. No member disagreed with
+  its fold; that change was reverted.
+- **GATE DMGUPLOAD, new rows**:
+  - crash (the hard staging) -> the card's Fly again -> 90 frames, damage ON and OFF: no removed triangle (drawn meshes
+    + the snapshot), no part the fresh aeroplane drew newly hidden or collapsed, no hybrid member against its fold,
+    the wreck layer idle;
+  - every shed path: the rolled-out model holds no removed triangle.
+  The gate runs about 20 min now. `--retry=0` skips the Fly-again rows.
+- **Open**:
+  - one mesh hidden on the fresh aeroplane is drawn after Fly again with damage on, in both codes (reported, not
+    failed; damage off 80 = 80). Not identified yet.
+  - The user's DARK cowl after a nose-over is not answered. The double-draw theory isn't supported. A cowl with
+    snapshot holes (inner faces and the engine through it) is the next candidate to check on a still.
+- **The gates** (2026-10-08 08:18-08:32, node, in the Deform Coordinator's 08:00 block; texts in carried-cowl/gate_*.txt):
+  DMGWRECK 155/155 PASS, DMGUPLOAD PASS (Cub mild 13 broken, metal 175, Cub hard 105, all 0 stale; Fly again damage on
+  and OFF: every part back, nothing hidden or removed; the rolled-out models clean; damage OFF heal marking 0),
+  DMGHEAL PASS, DMGWALL PASS.
