@@ -664,6 +664,24 @@ async function fleetHeadless() {
   PK.pending.length = 0; PK.fleet.lru.length = 0; PK.fleet.placed.length = 0;
 }
 
+// ---- 13 THE STRAPPED LOAD IS THE FLOWN AEROPLANE'S ONLY (G2400 FREIGHT-STRAP) ------------------------------------
+// A parked or fleet aeroplane is a BAKE of the editor's mount (edSitP, the join's snapshot) and never the live flown
+// model: the strapped load's drawing hangs on the flown model (model.grp) and, on the stand, on `craft` at the loading
+// view's frame - never under edSitP, so no snapshot (the flown bake, a parked capture, a fleet cook) can take it; and
+// parked.js knows nothing of it
+function strapRows() {
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const pk = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8');
+  const i0 = app.indexOf('G2400 (FREIGHT-STRAP): THE ACCEPTED LOAD, STRAPPED'), i1 = app.indexOf('window.FLYDIY_STRAP = {', i0);
+  const blk = i0 >= 0 && i1 > i0 ? app.slice(i0, i1) : '';
+  check(blk.length > 0, '13 the strapped load\'s page block is there');
+  check(/if \(FST\.stand\.parent !== craft\) craft\.add\(FST\.stand\);/.test(blk) && /model\.grp\.add\(FST\.flight\);/.test(blk) && !/edSitP\.add\(|edSit\.add\(/.test(blk),
+    '13 the load hangs on the flown model and on craft at the stand - never under the editor\'s mount (what the snapshots bake)');
+  check(!/freight_?strap|FLYDIY_STRAP|FREIGHT_STRAP|freightStrap/i.test(pk), '13 parked.js knows nothing of the strapped load (a parked / fleet aeroplane carries none)');
+  const fsv = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'freight_strap.js'), 'utf8');
+  check(/m\.castShadow = false;/.test(fsv) && /m\.raycast = \(\) => \{\};/.test(fsv), '13 the load casts nothing into the cascades and is never the editor\'s pick');
+}
+
 // ---- 11 / 12p THE PAGE IN NODE (G2220-G2224) ------------------------------------------------------------
 async function pageRows() {
   if (process.argv.includes('--pure') || process.env.PARKED_PURE) { console.log('  --   11 / 12p: the page in node skipped (--pure)'); return; }
@@ -795,6 +813,7 @@ farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || Str
   .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e))))
   .then(() => cookRungs().catch(e => check(false, '10 the cook threw', e && e.stack || String(e))))
   .then(() => fleetHeadless().catch(e => check(false, '12 the fleet threw', e && e.stack || String(e))))
+  .then(() => { try { strapRows(); } catch (e) { check(false, '13 the strapped load threw', e && e.stack || String(e)); } })
   .then(() => pageRows().catch(e => check(false, '11 / 12p the page threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

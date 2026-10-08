@@ -192,6 +192,7 @@ const MANIFEST = {
     // refusals of the physically impossible only, the seats out / in, Propose again, the report = freightReport's),
     // Accept into the career's record and freightAccepted(doc) for FREIGHT-STRAP; pure, GATE FREIGHT.
     '77_freight_load.js',
+    '78_freight_strap.js',          // G2400 (FREIGHT-STRAP): the accepted load as point masses + the straps' geometry
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
@@ -322,7 +323,10 @@ const MANIFEST = {
          ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js'],
          // G2345 (FREIGHT-LOAD): THE LOADING VIEW - fetched when the LOAD entry is pressed (the entry exists only under
          // ?career=1 with a tracked cargo job, or ?freight=1); app.js's FREIGHT page half is its host
-         ['src/viewer', 'freight_load.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'freight_load.js'],
+         // G2400 (FREIGHT-STRAP): THE STRAPPED LOAD'S DRAWING - fetched the first time an accepted load is to be drawn
+         // (the stand, a roll-out); never without ?career=1 / ?freight=1 and a load
+         ['src/viewer', 'freight_strap.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both

@@ -317,6 +317,9 @@ const SIM_LINK = (() => {
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
                   pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null,
                   damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
+      // G2400 (FREIGHT-STRAP): the load the page's sim carries (sim.setFreight at the roll-out), flown there too; absent
+      // with none (the init message as it always was)
+      { const frl = typeof S.sim.freight === 'function' ? S.sim.freight() : null; if (frl) { m.freight = frl; flight.freight = frl; } }
       if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
       cardNext = null;
       // G820 (C1c): ONE SIM PER BUILD, as the page's: the worker keeps the sim it flew last when the page flies the same
@@ -353,6 +356,7 @@ const SIM_LINK = (() => {
       const mono = (() => { try { return !/[?&]poseback=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
       flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx, monotonic: mono }, rd != null ? { delayS: rd } : {}));
       if (flight.view.mismatch) { dropFlight('the worker built another aeroplane (a stale core in a cache?)'); return; }
+      if (flight.freight && flight.view.freight) flight.view.freight(flight.freight);   // G2400: the view's sums carry the load
     }
     // step 0 against the page's placed aeroplane: to the bit, or this flight stays inline
     function placeCheck(f) {
@@ -394,8 +398,8 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'wetFx']) saved[k] = own(k);
-      const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'wetFx', 'setFreight']) saved[k] = own(k);
+      const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset, setFreight: sim.setFreight };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
       const def = (k, d) => Object.defineProperty(sim, k, Object.assign({ configurable: true, enumerable: true }, d));
@@ -418,6 +422,15 @@ const SIM_LINK = (() => {
       def('impulse', { writable: true, value: (i, ix, iy, iz) => { const c = { cmd: 'impulse', i, ix, iy, iz }; stamp(c); V.send(c); } });
       // G1831 (DMG-D2a): the certificate that lands mid-flight is the worker's sim's to stamp (the page's mirror bends nothing)
       def('certStamp', { writable: true, value: Cc => { if (!Cc || !Cc.Ft) return false; const c = { cmd: 'cert', Ft: Cc.Ft, Fc: Cc.Fc }; stamp(c); V.send(c); return true; } });
+      // G2400 (FREIGHT-STRAP): a load changed mid-flight (a stop's delivery, the next stage aboard) is the worker's sim's
+      // to fly - the same list, at the step it is sent for; the page's own sim takes it too (its masses under the mirror)
+      if (typeof orig.setFreight === 'function') def('setFreight', { writable: true, value: list => {
+        const nl = orig.setFreight.call(sim, list);
+        const c = { cmd: 'freight', adds: Array.isArray(list) && list.length ? list.map(a => [a[0] | 0, +a[1]]) : null };
+        stamp(c); V.send(c);
+        if (V.freight) V.freight(c.adds);
+        return nl;
+      } });
       // every re-placement starts with a reset: the mirror comes down first, the flight is the page's again
       def('reset', { writable: true, value: function () { dropFlight(null); flight = null; st.phase = 'idle'; return orig.reset.apply(sim, arguments); } });
       def('ctl', { writable: true, value: ctlP });

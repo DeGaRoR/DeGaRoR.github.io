@@ -1439,6 +1439,14 @@ function makeSim(def, world) {
     FUEL_IDX.push(i); FUEL0.push(def.nodes[i].mFuel);
     DRY0.push(Math.max(0.5, def.nodes[i].m - def.nodes[i].mFuel));
   }
+  // G2400 (FREIGHT-STRAP): THE LOAD ABOARD - the kilos the game straps in after the build (the accepted items as point
+  // masses, a job's passengers in their seats, the frame's baggage allowance off while items ride: 78_freight_strap.js
+  // freightStrapAdds), per node, ON TOP of the def's own masses. Null = nothing aboard, and then not one line below
+  // reads it differently: reset, the burn and the snapshot run the arithmetic they always ran (GATE FREIGHT's
+  // byte-identity row). Set through setFreight only (the sanctioned door's sibling, beside setNodeMass).
+  let FRX = null, FRL = null;
+  const FUEL_K = new Int32Array(n).fill(-1);
+  for (let k = 0; k < FUEL_IDX.length; k++) FUEL_K[FUEL_IDX[k]] = k;
   const fuelKg0 = FUEL0.reduce((a, b) => a + b, 0);
   const kgL = ENERGY.kgL > 0 ? ENERGY.kgL : 0.72;
   const fuel = { kind: ENERGY.kind || 'fuel', kg0: fuelKg0, kg: fuelKg0,
@@ -1550,7 +1558,7 @@ function makeSim(def, world) {
     fuel.kg = fuel.kg0 * f2; fuel.litres = fuel.litres0 * f2;
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
-      setNodeMass(FUEL_IDX[k], DRY0[k] + FUEL0[k] * f2);
+      setNodeMass(FUEL_IDX[k], FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2);   // (G2400: a load on a tank's node stays aboard)
     if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
   }
   function starve() {
@@ -1818,9 +1826,9 @@ function makeSim(def, world) {
       const nd = def.nodes[i];
       p[i*3] = nd.p[0]; p[i*3+1] = nd.p[1]; p[i*3+2] = nd.p[2];
       v[i*3] = v[i*3+1] = v[i*3+2] = 0;
-      m[i] = nd.m; r[i] = nd.r;
-      totalM += nd.m;
-      rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
+      m[i] = FRX ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;   // G2400: a reset keeps the load aboard (setFreight)
+      totalM += m[i];
+      rigGround(i, m[i]);          // hoisted; reset only ever runs post-build
     }
     // G661 (A2-RUNWAYS, a small local edit in A1-PHYS's solver): THE WHEEL STANDS ON THE GROUND, NOT IN
     // IT. The ground spring holds a wheel's share of the weight by penetrating: 2.0 cm under each main of
@@ -2377,6 +2385,37 @@ function makeSim(def, world) {
     m[i] = kg;
     rigGround(i, kg);
   }
+  // G2400 (FREIGHT-STRAP): THE LOAD'S DOOR. `list` = [[node, kg], ...] (78_ freightStrapAdds: the items, the passengers,
+  // the baggage allowance off), applied ON TOP of the def's masses - a tank's node on its fuel as it stands now - and
+  // kept by reset, the burn and the snapshot until the next call; null / [] = nothing aboard. Every node whose load
+  // changes is rewritten from its base (never m += dm: a load put on and taken off leaves the def's own number to the
+  // bit), the ground rig follows its mass (setNodeMass's rule) and totalM is summed afresh in node order (reset's sum).
+  // Nothing then and nothing now writes nothing at all. Deterministic: the page's sim and the worker's apply the same
+  // list in the same order (sim_link / sim_host 'freight') and stay bit-equal (GATE SIMWORKER's load row).
+  function setFreight(list) {
+    const want = Array.isArray(list) && list.length ? list : null;
+    if (!want && !FRX) return 0;
+    const old = FRX;
+    let nx = null;
+    if (want) {
+      nx = new Float64Array(n);
+      for (const a of want) { const i = a[0] | 0, kg = +a[1]; if (i >= 0 && i < n && isFinite(kg)) nx[i] += kg; }
+    }
+    FRX = nx;
+    FRL = want ? want.map(a => [a[0] | 0, +a[1]]) : null;
+    for (let i = 0; i < n; i++) {
+      const a = old ? old[i] : 0, b = nx ? nx[i] : 0;
+      if (a === b) continue;
+      const k = FUEL_K[i];
+      // (a tank's node: what the burn last wrote, or the def's own number while the tanks are as built - reset's)
+      const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
+      m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
+      rigGround(i, m[i]);
+    }
+    totalM = 0;
+    for (let i = 0; i < n; i++) totalM += m[i];
+    return FRL ? FRL.length : 0;
+  }
 
   function trqOf() {
     let cgx=0, cgy=0;
@@ -2866,12 +2905,15 @@ function makeSim(def, world) {
       H: HY ? { tick: HY.tick, wet: HY.wet, fh: HY.fh.slice(), fl: HY.floats.map(fx => [fx.h, fx.wet, fx.wrDown]) } : null,
       S: [subN, clusterFresh, simT, gF, cIx, cIy, cIz, armed, scrape, noseGnd, aicHash, aicFresh, atmOver, hProbe, gRef,
           vPrev && vPrev.slice(), hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
-          _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z] };
+          _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z],
+      // G2400: the load aboard rides the snapshot (its masses are in `m` above; the list says what they are on top of)
+      X: FRX ? FRX.slice() : null, L: FRL ? FRL.map(a => a.slice()) : null };
   }
   function unsnap(Sn) {
     if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
     [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
       .forEach((a, k) => a.set(Sn.A[k]));
+    FRX = Sn.X ? Float64Array.from(Sn.X) : null; FRL = Sn.L ? Sn.L.map(a => a.slice()) : null;   // G2400
     const O = Sn.O, B = O[7];
     [xAft, yUp, zRt, t1, t2, sD, sC].forEach((a, k) => snapPut(a, O[k]));
     // (a field written only where it differs: a whole aeroplane's members hold their reset's values but the strain, and
@@ -2901,6 +2943,8 @@ function makeSim(def, world) {
            // waterH(x, z, simT) - the renderer draws the same wave at the same t
            get t() { return simT; },
            setNodeMass,
+           // G2400 (FREIGHT-STRAP): the load aboard - setFreight([[node, kg], ...] | null), freight() the list or null
+           setFreight, freight: () => (FRL ? FRL.map(a => a.slice()) : null),
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
            // G2090 (WATER-LOOK): the wet body's contacts for the page's spray / wake / bubbles (32_hydro.js wetFx; reading

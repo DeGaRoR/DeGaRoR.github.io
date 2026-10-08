@@ -24,14 +24,11 @@
   const lin = h => { const c = new T.Color(h); if (c.convertSRGBToLinear) c.convertSRGBToLinear(); return c; };
 
   // ---- THE MODELS (FREIGHT-ASSETS' catalogue: the existing props first, the Poly Haven loads, a box where none) ----
-  const MODEL_OF = { 'goods.parts': 'crate_wood_a', 'goods.tools': 'toolchest_metal', 'goods.samples': 'load_crate_samples',
-                     'goods.water': 'box_cardboard', 'goods.supplies': 'load_bag_cement' };
   // (mail sacks, kit bags, tent bags, the stretcher: no model yet - FREIGHT-ASSETS' gap list - a plain box in the kind's colour)
-  const KIND_MODEL = { crate: 'crate_wood_a', box: 'box_cardboard', drum: 'drum_steel' };
-  const KIND_COL = { crate: 0xa77a48, box: 0xc9a46b, bag: 0x9d8f6a, drum: 0x5d6f7d, long: 0x77787a, bulk: 0xb9ab8a, stretcher: 0xd8d8d0 };
+  // G2400 (FREIGHT-STRAP): the table is the core's (78_ FREIGHT_LOOK), so the strapped load wears what the view showed
+  const KIND_COL = FREIGHT_LOOK.col;
   function modelKey(it) {
-    const goods = 'goods.' + String(it.id).replace(/\.\d+$/, '');
-    const k = MODEL_OF[goods] || (goods === 'goods.load' ? null : null) || KIND_MODEL[it.kind] || null;
+    const k = freightLookKey(it);
     return (k && typeof PROP_REG !== 'undefined' && PROP_REG.props && PROP_REG.props[k] && typeof propMesh === 'function') ? k : null;
   }
   // a prop still on the wire fits its box when it lands (props.js's one PROP_LANDED hook, chained once)

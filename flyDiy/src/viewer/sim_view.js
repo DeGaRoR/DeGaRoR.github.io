@@ -156,6 +156,27 @@ function makeSimView(def, opts) {
     mCur = s;
     for (let j = 0; j < fuelIdx.length; j++) m[fuelIdx[j]] = s.f[oM + j];
   }
+  // G2400 (FREIGHT-STRAP): THE LOAD ABOARD on the other nodes - the page's sim.setFreight list (sim_link hands it over at
+  // the flight's start and at each change), each node's mass by the solver's own rule (30_ setFreight: the def's, plus
+  // the load, at least 0.5 kg); a tank's node stays the snapshot's (the worker's mass already carries its load)
+  let frV = null;
+  const fuelOf = new Uint8Array(n);
+  for (const i of fuelIdx) if (i >= 0 && i < n) fuelOf[i] = 1;
+  function freightSet(list) {
+    let nx = null;
+    if (Array.isArray(list) && list.length) {
+      nx = new Float64Array(n);
+      for (const a of list) { const i = a[0] | 0, kg = +a[1]; if (i >= 0 && i < n && isFinite(kg)) nx[i] += kg; }
+    }
+    if (!nx && !frV) return;
+    for (let i = 0; i < n; i++) {
+      if (fuelOf[i]) continue;
+      const a = frV ? frV[i] : 0, b = nx ? nx[i] : 0;
+      if (a === b) continue;
+      m[i] = b !== 0 ? Math.max(0.5, def.nodes[i].m + b) : def.nodes[i].m;
+    }
+    frV = nx;
+  }
   // 30_solver.js avgP / bodyAxes / cgPos, on the view's p
   const avgP = (ids, o) => { o[0] = o[1] = o[2] = 0;
     for (const i of ids) { o[0] += p[i * 3]; o[1] += p[i * 3 + 1]; o[2] += p[i * 3 + 2]; }
@@ -290,6 +311,8 @@ function makeSimView(def, opts) {
     // ---- the writes, as commands
     at(k) { stamp = k == null ? null : k; return view; },
     send(c) { cmd(c); return view; },
+    // G2400 (FREIGHT-STRAP): the load's masses for the view's own sums (cgPos): the list the worker's sim flies
+    freight(list) { freightSet(list); return view; },
     setEngine(i, patch) {
       const c = { cmd: 'setEngine', i, patch: Object.assign({}, patch) };
       if (patch && patch.start && typeof view.starterOk === 'function') c.starterOk = !!view.starterOk(i);

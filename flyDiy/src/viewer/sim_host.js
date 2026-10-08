@@ -450,6 +450,10 @@ function makeSimHost(CORE, init, keptWorld) {
     H.started = false; H.epoch++; H.apGen = (H.apGen || 0) + 1;
     H.end = { air: false, wasAir: false, still: 0, over: false };
   }
+  // G2400 (FREIGHT-STRAP): the load aboard as the page's sim carries it when the flight began (sim_link's begin: its
+  // sim.freight()) - before the reset, which keeps it; a kept sim takes the page's list too (none clears it). A sim that
+  // never had one and is handed none is not asked (the byte-identity)
+  if (typeof sim.setFreight === 'function') sim.setFreight(init.freight || null);
   fresh();
   // ...and a sim made HERE for a page whose own had lived before (the shed's load test, an earlier flight flown inline)
   // takes the page's sim.out as it stands: what the pilot's first update reads before the first step (G820)
@@ -541,6 +545,8 @@ function makeSimHost(CORE, init, keptWorld) {
       }
       case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
       case 'cert': if (typeof sim.certStamp === 'function') sim.certStamp({ Ft: c.Ft, Fc: c.Fc }); break;   // G1831 (DMG-D2a)
+      // G2400 (FREIGHT-STRAP): the load changes at a stop (delivered, the next stage's aboard): the page's list, at its step
+      case 'freight': if (typeof sim.setFreight === 'function') sim.setFreight(c.adds || null); break;
       case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
       // G2273 (ACCEPT): THE ACCEPTANCE LEG flies where the pilot flies (72_accept.js acceptLegStart, the page's own door
       // when the flight is inline: accept_rec.js); its state rides the pilot's fields to the page (ap.accept)

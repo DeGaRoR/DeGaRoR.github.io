@@ -27,7 +27,19 @@
 //                 packer with the seats as they are; Accept's record (career.load), its survival through the
 //                 normaliser, freightAccepted (FREIGHT-STRAP's read), the stop's items, the record leaving once
 //                 delivered
-//   PURITY        76_freight.js, 77_freight_load.js: no DOM, storage, clock or random
+//   THE STRAP     (G2400 FREIGHT-STRAP, 78_freight_strap.js + 30_solver.js's setFreight) the accepted load strapped:
+//                 every item's kilos on the eight nodes of the rings round it, their centroid the item's own (so the
+//                 sim's CG moves by exactly the report's item moments), the adds = the items + the job's passengers -
+//                 the baggage allowance; a passenger and the allowance billed by the FRAME'S OWN rule (a build with
+//                 that seat filled / that allowance zero, node for node); the sim: totalM + the adds, every loaded node
+//                 the def's mass + its add, a reset keeps the load, the burn keeps a load on a tank's node, the CG and
+//                 the pitch inertia moved by the shares (the parallel-axis identity), DELIVERY (null) puts every node
+//                 back to the def's own number, BYTE-IDENTITY with nothing aboard (never asked, asked with nothing,
+//                 loaded then unloaded: the same flight to the bit; loaded: another flight); the straps (outside every
+//                 box, the feet on the floor inside the hold, two a stack, a buckle and four anchors; nothing without a
+//                 load); the stop (a 3-stop chain on the C172: the first leg's record delivered at B and dropped, the
+//                 second leg's placed by the packer's proposal, the player's own placement kept, nothing after C)
+//   PURITY        76_freight.js, 77_freight_load.js, 78_freight_strap.js: no DOM, storage, clock or random
 //
 //   node tools/_freight_check.js              the gate (warm: the cards from the OS temp dir, keyed by the content
 //                                             that measures; cold ~90 s - FLYDIY_FREIGHT_NOCACHE=1 measures afresh)
@@ -45,7 +57,7 @@ const EVID = process.argv.includes('--evidence');
 const FULL = process.argv.includes('--full');
 
 const SRC = {};
-for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_freight.js', '77_freight_load.js'])
+for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_freight.js', '77_freight_load.js', '78_freight_strap.js'])
   SRC[f.slice(0, 2)] = fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8');
 const namesOf = s => [...s.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
 // the five files, evaluated FRESH over the core's globals (minus their own names): the selftest doctors exactly
@@ -57,7 +69,7 @@ function loadModel(mut) {
   const base = Object.assign({ console }, CORE);
   for (const n of names) delete base[n];
   const ctx = vm.createContext(base);
-  vm.runInContext(['72', '73', '74', '75', '76', '77'].map(k => src[k]).join('\n') + '\n;this.__M = { ' + names.join(', ') + ' };', ctx, { filename: 'freight' });
+  vm.runInContext(['72', '73', '74', '75', '76', '77', '78'].map(k => src[k]).join('\n') + '\n;this.__M = { ' + names.join(', ') + ' };', ctx, { filename: 'freight' });
   return Object.assign(ctx.__M, { __src: src });
 }
 
@@ -86,6 +98,31 @@ const MEAS = measuredCards(DS0);
 // DETERMINISM: one build re-measured afresh every run (all five with --full), equal to the measurement
 const AGAIN = {};
 for (const k of (FULL ? Object.keys(DS0) : ['cub'])) AGAIN[k] = SITE.freightMeasureFile(DS0[k].build, DS0[k]);
+
+// ---- G2400 (FREIGHT-STRAP): THE BUILDS THAT FLY (built once: the strap's rows weigh the loads on them) -------------
+// the Cub and the metal C172 as their validated files build (tools/_freight_site.js's own path: migrate, buildGen),
+// and three variants the frame bills itself - the Cub with its rear seat filled, the Cub with no baggage allowance, the
+// C172 with its co-pilot's seat empty - for the rows that hold 78_'s copies of the frame's rules to the frame
+const STRAP_DEFS = (() => {
+  const spec = k => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, DS0[k].build), 'utf8')); return CORE.genMigrateSpec(JSON.parse(JSON.stringify(j.spec || j))); };
+  const mk = (k, patch) => { const s = spec(k); if (patch) patch(s); return CORE.buildGen(s); };
+  return { cub: mk('cub'), c172: mk('c172'),
+           cubPax: mk('cub', s => { s.cabin.occupied = [1, 1]; }), cubNoBag: mk('cub', s => { s.cabin.baggage = 0; }),
+           c172Solo: mk('c172', s => { s.cabin.occupied = [1, 0, 0, 0]; }) };
+})();
+const STRAP_WORLD = CORE.makeWorld();
+// the core's text, doctored (the selftest's solver breaks: 30_ lives in the built core) -> its exports
+function coreOf(fn) {
+  const txt = fn(fs.readFileSync(path.join(__dirname, 'flight_core.js'), 'utf8'));
+  const ctx = vm.createContext({ console, module: { exports: {} }, performance, TextDecoder, TextEncoder, setTimeout, clearTimeout });
+  vm.runInContext(txt, ctx, { filename: 'flight_core.doctored.js' });
+  return ctx.module.exports;
+}
+const fnv = (...arrs) => {
+  let h = 2166136261;
+  for (const a of arrs) { const u = new Uint8Array(a.buffer, a.byteOffset, a.byteLength); for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619) >>> 0; }
+  return h;
+};
 
 let fails = [], checks = 0;
 const ok = (c, msg) => { checks++; if (!c) fails.push(msg); return !!c; };
@@ -478,9 +515,169 @@ function run(mut) {
     say('  Accept: ' + jid + ' on the C172 - ' + L.items.length + ' items, ' + L.kg + ' kg, CG ' + L.cg.pct + ' % MAC' + (L.ok ? ' (within every limit)' : ' · ' + L.why.join('; ')));
   }
 
+  // ==== THE STRAP (G2400 FREIGHT-STRAP) ========================================================================
+  {
+    const C = mut && mut.core ? coreOf(mut.core) : CORE;
+    const D = STRAP_DEFS, W0 = STRAP_WORLD, HOME = W0.aerodromes.find(a => a.id === 'HOME') || W0.aerodromes[0];
+    const near = (a, b, e) => Math.abs(a - b) <= (e == null ? 1e-9 : e) * Math.max(1, Math.abs(a), Math.abs(b));
+    const occKg = CORE.GEN_RULES.occupantKg;
+    say('THE STRAP (G2400: the accepted load as point masses on the build that flies, strapped)');
+    // the rings' shares: the kilos, and the point (their centroid) - inside the box the rings span
+    const sh = M.freightStrapShares(D.cub, 1.2, 0.3, 0.1, 50);
+    const shm = sh.reduce((a, s) => a + s[1], 0), shx = sh.reduce((a, s) => a + s[1] * D.cub.nodes[s[0]].p[0], 0) / shm,
+          shy = sh.reduce((a, s) => a + s[1] * D.cub.nodes[s[0]].p[1], 0) / shm, shz = sh.reduce((a, s) => a + s[1] * D.cub.nodes[s[0]].p[2], 0) / shm;
+    ok(sh.length === 8 && near(shm, 50) && near(shx, 1.2) && near(shy, 0.3) && near(shz, 0.1), 'a point mass on the rings: eight nodes, its kilos, its centroid the point (1.2, 0.3, 0.1 on the Cub)');
+    // THE FRAME'S OWN RULES: a passenger = the build with that seat filled; the allowance = the build with none
+    const samePos = (a, b) => a.nodes.length === b.nodes.length && a.nodes.every((nd, i) => nd.p.every((v, j) => v === b.nodes[i].p[j]));
+    const massRule = (a, b, list) => { const dm = new Float64Array(a.nodes.length); for (const [i, kg] of list) dm[i] += kg; let w = 0; a.nodes.forEach((nd, i) => { w = Math.max(w, Math.abs(nd.m + dm[i] - b.nodes[i].m)); }); return w; };
+    const rules = [['the Cub\'s rear seat filled', D.cub, D.cubPax, M.freightStrapSeatBill(D.cub, 1, occKg)],
+                   ['the Cub with no baggage allowance', D.cub, D.cubNoBag, M.freightStrapBaggage(D.cub, -D.cub.spec.baggage)],
+                   ['the C172\'s co-pilot\'s seat empty', D.c172, D.c172Solo, M.freightStrapSeatBill(D.c172, 1, -occKg)]];
+    for (const [nm, a, b, list] of rules) {
+      const sp = samePos(a, b), w = sp ? massRule(a, b, list) : NaN, dmT = list.reduce((x, q) => x + q[1], 0), dmB = b.nodes.reduce((x, q) => x + q.m, 0) - a.nodes.reduce((x, q) => x + q.m, 0);
+      ok(sp && w < 1e-9 && near(dmT, dmB, 1e-9), nm + ': 78_\'s copy of the frame\'s rule = the frame\'s own build, node for node (worst ' + (sp ? w.toExponential(1) : 'the lattice moved') + ' kg, ' + dmT.toFixed(1) + ' kg)');
+    }
+    // THE LOADS: the Cub's 120 kg of crated parts; the C172's 60 kg of mail + a passenger (the build's co-pilot is that
+    // passenger); the C172's 120 kg of crates with nobody beside the pilot (the co-pilot gives their 80 kg back)
+    const CASES = [['cub', M.freightItems({ kg: 120 }, 'goods.parts'), 0, 'the Cub, 120 kg of crated parts'],
+                   ['c172', M.freightItems({ kg: 60 }, 'goods.mail'), 1, 'the C172, 60 kg of mail + a passenger'],
+                   ['c172', M.freightItems({ kg: 120 }, 'goods.parts'), 0, 'the C172, 120 kg of crates, nobody beside the pilot']];
+    for (const [k, its, pax, nm] of CASES) {
+      const card = K[k], def = D[k];
+      const st = M.freightLoadNew(card, its, { pax });
+      const rec = M.freightLoadRecord(card, st, { slot: 'S' });
+      const A = M.freightAccepted(rec);
+      const R = M.freightStrapAdds(def, A, { card });
+      if (!ok(R && R.adds.length > 0 && A.items.length > 0, nm + ': masses to put aboard (' + (A ? A.items.length : 0) + ' items aboard)')) continue;
+      // the items: their kilos, their centroids; the report's item moments
+      let mx = 0, worst = 0;
+      for (const it of R.items) {
+        const s2 = M.freightStrapShares(def, it.g[0], it.g[1], it.g[2], it.kg), m2 = s2.reduce((a, q) => a + q[1], 0);
+        const c2 = [0, 1, 2].map(j => s2.reduce((a, q) => a + q[1] * def.nodes[q[0]].p[j], 0) / m2);
+        worst = Math.max(worst, Math.abs(m2 - it.kg), ...c2.map((v, j) => Math.abs(v - it.g[j])));
+        mx += it.kg * it.g[0];
+      }
+      const repMx = st.placed.reduce((a, q) => a + q.kg * 0.5 * (q.at.x0 + q.at.x1), 0);
+      ok(worst < 1e-9 && near(mx, repMx, 1e-6), nm + ': each item\'s kilos and centre on the rings; the items\' x-moment = the report\'s (' + repMx.toFixed(3) + ' kg.m)');
+      const seatKg = R.seats.reduce((a, q) => a + q.kg, 0);
+      ok(near(R.kg, M.freightKg(st.placed)) && near(R.dm, R.kg + seatKg - R.baggageOff, 1e-9) && R.baggageOff === def.spec.baggage,
+         nm + ': the adds = the items ' + R.kg + ' kg + the passengers ' + seatKg + ' kg - the baggage allowance ' + R.baggageOff + ' kg');
+      if (k === 'c172' && pax === 1) ok(R.seats.every(q => q.kg === 0), nm + ': the job\'s passenger IS the build\'s co-pilot (seat 1): no seat changes');
+      if (k === 'c172' && pax === 0) ok(R.seats[1] && R.seats[1].kg === -occKg, nm + ': the build\'s co-pilot gives their ' + occKg + ' kg back (the job seats nobody there)');
+      // THE SIM
+      const sim = C.makeSim(def, W0);
+      sim.reset(0);
+      const M0 = sim.totalM, c0 = sim.cgPos(), m0 = Float64Array.from(sim.m);
+      const I = q => { const c = q.cgPos(); let v = 0; for (let i = 0; i < q.n; i++) { const dx = q.p[i * 3] - c[0], dy = q.p[i * 3 + 1] - c[1]; v += q.m[i] * (dx * dx + dy * dy); } return v; };
+      const I0 = I(sim);
+      sim.setFreight(R.adds);
+      const add = new Float64Array(sim.n); for (const [i, kg] of R.adds) add[i] += kg;
+      const massesOk = q => def.nodes.every((nd, i) => Object.is(q.m[i], add[i] !== 0 ? Math.max(0.5, nd.m + add[i]) : nd.m));
+      ok(massesOk(sim) && near(sim.totalM, M0 + R.dm, 1e-12), nm + ': aboard - every loaded node the def\'s mass + its add, totalM ' + M0.toFixed(1) + ' -> ' + sim.totalM.toFixed(1) + ' kg');
+      sim.reset(0);
+      ok(massesOk(sim) && near(sim.totalM, M0 + R.dm, 1e-12), nm + ': a reset keeps the load aboard');
+      const c1 = sim.cgPos(), want = [0, 1, 2].map(j => (M0 * c0[j] + R.mom[j]) / (M0 + R.dm));
+      ok([0, 1, 2].every(j => Math.abs(c1[j] - want[j]) < 1e-9), nm + ': the CG moves by the adds\' moments (x ' + (c1[0] - c0[0] >= 0 ? '+' : '') + ((c1[0] - c0[0]) * 1000).toFixed(1) + ' mm, '
+         + ((c1[0] - c0[0]) / card.mass.mac[1] * 100).toFixed(1) + ' % MAC)');
+      // the pitch inertia: what the shares add about the new CG + the build's own shift (the parallel-axis sum), exactly
+      const I1 = I(sim);
+      let Iw = 0; for (let i = 0; i < sim.n; i++) { const dx = sim.p[i * 3] - c1[0], dy = sim.p[i * 3 + 1] - c1[1]; Iw += (sim.m[i] - m0[i]) * (dx * dx + dy * dy); }
+      const Ishift = M0 * ((c0[0] - c1[0]) ** 2 + (c0[1] - c1[1]) ** 2);
+      ok(near(I1, I0 + Ishift + Iw, 1e-9) && I1 !== I0, nm + ': the pitch inertia ' + I0.toFixed(1) + ' -> ' + I1.toFixed(1) + ' kg.m2 (the shares about the new CG + the build\'s shift)');
+      // DELIVERY: nothing aboard - every node the def's own number, totalM the reset's sum
+      sim.setFreight(null);
+      let sum = 0; for (const nd of def.nodes) sum += nd.m;
+      ok(def.nodes.every((nd, i) => Object.is(sim.m[i], nd.m)) && Object.is(sim.totalM, sum) && sim.freight() === null, nm + ': delivered (null) - every node back to the def\'s own mass, to the bit');
+      // THE STRAPS
+      const G = M.freightStrapMesh(A.items, card, null);
+      const SK = M.freightStrapStacks(A.items);
+      ok(G.count.stacks === SK.length && G.count.bands === 2 * SK.length && G.count.buckles === SK.length && G.count.anchors === 4 * SK.length && G.count.boxes === A.items.length,
+         nm + ': ' + SK.length + ' stack(s): two straps, a buckle and four anchors each');
+      const inside = (q, b) => q[0] > b.x0 + 1e-6 && q[0] < b.x1 - 1e-6 && q[1] > b.y0 + 1e-6 && q[1] < b.y1 - 1e-6 && q[2] > b.z0 + 1e-6 && q[2] < b.z1 - 1e-6;
+      const through = [G.straps, G.metal].some(g => { for (let v = 0; v < g.pos.length; v += 3) { const q = [g.pos[v], g.pos[v + 1], g.pos[v + 2]]; if (A.items.some(p2 => inside(q, p2.at))) return true; } return false; });
+      ok(!through, nm + ': no strap, buckle or anchor inside a box');
+      const H = card.hold, x1H = H.x0 + H.n * H.dx;
+      const feetOk = SK.every(S2 => M.freightStrapBands(S2, card).anchors.every(a => { const fy = M.freightRestY(card, a.c[0] - 0.01, a.c[0] + 0.01); return a.c[0] >= H.x0 - 0.1 && a.c[0] <= x1H + 0.1 && fy != null && Math.abs(a.c[1] - a.h[1] - fy) < 1e-9; }));
+      ok(feetOk, nm + ': every foot anchored on the hold\'s floor, within its length');
+      const idxOk = [G.straps, G.metal].concat(Object.values(G.boxes)).every(g => g.idx.length % 3 === 0 && g.idx.every(i => i < g.pos.length / 3) && g.nrm.length === g.pos.length);
+      ok(idxOk, nm + ': the drawing\'s arrays (triangles, normals) whole');
+      say('  ' + nm + ': ' + R.adds.length + ' nodes, +' + R.dm.toFixed(1) + ' kg (items ' + R.kg + ', passengers ' + seatKg + ', baggage allowance -' + R.baggageOff + '), CG x ' + ((c1[0] - c0[0]) * 1000).toFixed(1) + ' mm, pitch inertia +' + (I1 - I0).toFixed(1) + ' kg.m2; '
+          + SK.length + ' stack(s), ' + (G.straps.idx.length / 3) + ' strap + ' + (G.metal.idx.length / 3) + ' metal triangles');
+      // BYTE-IDENTITY (the Cub): never asked, asked with nothing, loaded then unloaded - one flight, to the bit
+      if (k === 'cub') {
+        const fly = pre => { const q = C.makeSim(def, W0); pre(q); q.reset(0); C.placeAtAerodrome(q, HOME); q.ctl.thr = 0.7; q.ctl.brake = 0;
+                             for (let j = 0; j < 240; j++) q.step(1 / 60); return [fnv(q.p, q.v), q]; };
+        const [h0] = fly(() => {}), [h1] = fly(q => { q.setFreight(null); q.setFreight([]); }), [h2] = fly(q => { q.setFreight(R.adds); q.setFreight(null); });
+        const [hL, sL] = fly(q => q.setFreight(R.adds));
+        ok(h0 === h1 && h0 === h2, 'BYTE-IDENTITY: nothing aboard (never asked; asked with nothing; loaded then unloaded) flies the same 4 s to the bit (' + h0.toString(16) + ')');
+        ok(hL !== h0 && sL.freight().length === R.adds.length, 'loaded, it flies another aeroplane (' + hL.toString(16) + ')');
+        // THE BURN KEEPS A LOAD ON A TANK'S NODE
+        const fi = def.nodes.findIndex(nd => nd.mFuel > 0);
+        if (fi >= 0) {
+          const q = C.makeSim(def, W0); q.setFreight([[fi, 5]]); q.reset(0); C.placeAtAerodrome(q, HOME); q.ctl.thr = 1; q.ctl.brake = 1;
+          for (let j = 0; j < 120; j++) q.step(1 / 60);
+          const nd = def.nodes[fi], dry = Math.max(0.5, nd.m - nd.mFuel), want2 = dry + nd.mFuel * q.fuel.frac + 5;
+          ok(q.fuel.frac < 1 && near(q.m[fi], want2, 1e-12), 'the burn keeps a load on a tank\'s node (' + (q.m[fi]).toFixed(4) + ' kg = dry + fuel x ' + q.fuel.frac.toFixed(5) + ' + 5)');
+        }
+      }
+    }
+    // NOTHING ACCEPTED: no masses, no drawing
+    ok(M.freightStrapAdds(D.cub, null) === null && M.freightStrapAdds(D.cub, M.freightAccepted({ career: {} })) === null, 'nothing accepted: no masses (the sim is never asked)');
+    const G0 = M.freightStrapMesh([], K.cub, null);
+    ok(G0.straps.pos.length === 0 && G0.metal.pos.length === 0 && !Object.keys(G0.boxes).length, 'nothing accepted: nothing to draw');
+    // THE AEROPLANE IT RIDES: the slot and the design
+    const rc = M.freightLoadRecord(K.cub, M.freightLoadNew(K.cub, M.freightItems({ kg: 60 }, 'goods.parts'), { pax: 0 }), { slot: 'Cub1' });
+    ok(!!M.freightStrapFor(rc, 'Cub1', 'cub') && !M.freightStrapFor(rc, 'Ces', 'cub') && !M.freightStrapFor(rc, 'Cub1', 'c172'), 'the load rides its own airframe (the slot) and the hold it was placed in (the design) only');
+    // THE LOOK: the loading view and the strapped load wear the same table
+    const flSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'freight_load.js'), 'utf8');
+    ok(/freightLookKey\(it\)/.test(flSrc) && /FREIGHT_LOOK\.col/.test(flSrc) && M.freightLookKey({ id: 'leg2.parts.1', kind: 'crate' }) === M.FREIGHT_LOOK.goods['goods.parts'],
+       'the loading view reads 78_\'s look table; a later leg\'s item finds its goods');
+    // THE STOP: a 3-stop chain on the C172, flown stop by stop
+    {
+      let pick = null;
+      for (const sd of ['strap', 'wire3', 'dev', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+        const dd = M.careerNew({ id: 'fs', seed: sd });
+        const id = dd.career.contracts.offered.find(i => { const r = M.careerContract(dd, i); if (!r || r.kind !== 'job' || r.stages.length !== 2) return false;
+          const L1 = r.stages[0].subs[0].load, L2 = r.stages[1].subs[0].load, S = M.contractStops(r);
+          return S.length === 3 && new Set(S.map(x => x.at)).size === 3 && L1 && L2 && (L1.items || []).length && (L2.items || []).length && !r.stages[0].subs[0].when && !r.stages[1].subs[0].when
+            && M.freightFits(K.c172, L1.items, { pax: L1.pax || 0 }).ok && M.freightFits(K.c172, L2.items, { pax: L2.pax || 0 }).ok; });
+        if (id) { pick = { d: dd, id }; break; }
+      }
+      if (ok(!!pick, 'the stop: a 3-stop chain with items on both legs, on offer')) {
+        let d = M.careerTrack(M.careerAccept(pick.d, pick.id).doc, pick.id).doc;
+        d.career.airframes.Ces = { design: 'c172' };
+        const rec = M.careerContract(d, pick.id), [A1, B1, C1] = M.contractStops(rec).map(x => x.at);
+        const J1 = M.freightLoadJob(d, 'Ces');
+        d = M.freightLoadAccept(d, K.c172, M.freightLoadNew(K.c172, J1.items, { pax: J1.pax }), J1.ctx).doc;
+        const st = (aero, from) => M.careerStopRecord({ how: 'stopped', aero, occupants: 1 + (J1.pax || 0), items: M.freightStopItems(d, 'Ces'), row: { from, to: aero, t: 600 }, hour: 12 });
+        let r = M.careerOnStop(d, st(A1, 'HOME')); d = M.freightLoadSettle(r.doc);
+        ok(r.ok && d.career.load && d.career.load.stage === 0, 'the stop: loaded at ' + A1 + ', the first leg\'s load still aboard');
+        r = M.careerOnStop(d, st(B1, A1)); d = M.freightLoadSettle(r.doc);
+        ok(r.ok && !d.career.load, 'the stop: delivered at ' + B1 + ' - the first leg\'s items leave (the record dropped)');
+        const N1 = M.freightStrapNext(d, 'Ces', K.c172);
+        const J2 = M.freightLoadJob(N1.doc, 'Ces');
+        ok(N1.how === 'proposed' && N1.rec && N1.rec.stage === 1 && N1.rec.items.length > 0
+           && J(N1.rec.items.map(q => q.at)) === J(M.freightLoadNew(K.c172, J2.items, { pax: J2.pax }).placed.map(q => q.at)) && !!M.freightStrapAdds(D.c172, M.freightAccepted(N1.doc), { card: K.c172 }),
+           'the stop: the second leg\'s items arrive placed by the packer\'s proposal (' + (N1.rec ? N1.rec.items.length : 0) + ' items, accepted for stage 2) and weigh on the aeroplane');
+        // the player's own placement for that stage is kept
+        const mv = N1.rec ? M.freightLoadMove(K.c172, M.freightLoadFromRecord(K.c172, N1.rec), N1.rec.items[0].id, { x: N1.rec.items[0].at.x0 + 0.3, z: 0 }) : { ok: false };
+        const own = mv.ok ? M.freightLoadAccept(d, K.c172, mv.st, J2.ctx).doc : null;
+        const N2 = own ? M.freightStrapNext(own, 'Ces', K.c172) : null;
+        ok(!!N2 && N2.how === 'kept' && N2.doc === own, 'the stop: the player\'s own placement for that stage is kept, not proposed over');
+        d = N1.doc;
+        r = M.careerOnStop(d, M.careerStopRecord({ how: 'stopped', aero: C1, occupants: 1 + (J2.pax || 0), items: M.freightStopItems(d, 'Ces'), row: { from: B1, to: C1, t: 600 }, hour: 12 }));
+        d = M.freightLoadSettle(r.doc);
+        const N3 = M.freightStrapNext(d, 'Ces', K.c172);
+        ok(r.ok && r.doc.career.contracts.done.some(x => x.id === pick.id) && !d.career.load && N3.how === 'none' && !M.freightStrapFor(N3.doc, 'Ces', 'c172'),
+           'the stop: delivered at ' + C1 + ', the job done - nothing aboard after it');
+        say('  the stop: ' + pick.id + ' ' + A1 + ' -> ' + B1 + ' -> ' + C1 + ' on the C172: ' + J1.items.length + ' items to ' + B1 + ', ' + J2.items.length + ' proposed for ' + C1);
+      }
+    }
+  }
+
   // ==== PURITY =================================================================================================
   {
-    for (const f of ['76', '77']) {
+    for (const f of ['76', '77', '78']) {
       const s = M.__src[f].replace(/\/\/.*$/gm, '');
       for (const w of ['window', 'document', 'localStorage', 'sessionStorage', 'indexedDB', 'THREE', 'Math.random', 'Date.now', 'new Date', 'performance', 'fetch('])
         ok(!new RegExp('\\b' + w.replace(/[.(]/g, m => '\\' + m)).test(s), f + '_: pure (no ' + w + ')');
@@ -562,6 +759,23 @@ const BREAKS = [
   ['the stop ignores the accepted load', { s77: sub("  if (!A || (slot != null && A.slot != null && A.slot !== String(slot))) return null;", '  return null;') }],
   ['a delivered load stays aboard', { s77: sub("  if (open) return doc;", '  return doc;') }],
   ['the hand reaches for the clock', { s77: s => s + '\nfunction flNow() { return Date.now(); }\n' }],
+  // G2400 (FREIGHT-STRAP): the strapped load's rules (78_) and the solver's door (30_, in the built core)
+  ['an item\'s weight shared without its lateral', { s78: sub('      out.push([L, kg * w * wl * (1 - wz)], [Rn, kg * w * wl * wz]);', '      out.push([L, kg * w * wl * 0.5], [Rn, kg * w * wl * 0.5]);') }],
+  ['the items weigh nothing', { s78: sub('    for (const s of freightStrapShares(def, g[0], g[1], g[2], p.kg)) raw.push(s);', '') }],
+  ['the lever is the nearer ring', { s78: sub('    wa = (x - ST[r0].x) / Math.max(1e-9, ST[r1].x - ST[r0].x);', '    wa = 0;') }],
+  ['a passenger weighs nothing', { s78: sub('    if (d) fsSeatBill(def, s.i, d * occKg, raw);', '    if (d > 9) fsSeatBill(def, s.i, d * occKg, raw);') }],
+  ['the build\'s passenger stays aboard', { s78: sub('    const d = (s.job ? 1 : 0) - (s.build ? 1 : 0);', '    const d = Math.max(0, (s.job ? 1 : 0) - (s.build ? 1 : 0));') }],
+  ['the seat rule is not the frame\'s', { s78: sub('  const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));', '  const wa = 0.5;') }],
+  ['the baggage allowance stays aboard', { s78: sub('  const bag = items.length && def.spec.baggage > 0 ? def.spec.baggage : 0;', '  const bag = 0;') }],
+  ['a strap through the load', { s78: sub('  const topX = b.y1 + g, topZ', '  const topX = b.y1 - 0.05, topZ') }],
+  ['an anchor off the floor', { s78: sub('  const plate = (x, y, z) => ({ c: [x, y + C.anchor[1] / 2, z]', '  const plate = (x, y, z) => ({ c: [x, y + 0.04 + C.anchor[1] / 2, z]') }],
+  ['the next stage arrives unplaced', { s78: sub("  if (!J.items.length) return { doc, rec: null, how: 'none', why: J.why };", "  return { doc, rec: null, how: 'none', why: J.why };") }],
+  ['the player\'s placement proposed over', { s78: sub("  if (J.rec) return { doc, rec: J.rec, how: 'kept', why: '' };", '') }],
+  ['another airframe\'s load flown', { s78: sub('  if (slot != null && A.slot != null && A.slot !== String(slot)) return null;', '') }],
+  ['the strap reaches for the clock', { s78: s => s + '\nfunction fsNow() { return Date.now(); }\n' }],
+  ['a reset drops the load', { core: sub('m[i] = FRX ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;', 'm[i] = nd.m; r[i] = nd.r;') }],
+  ['a load taken off leaves a trace', { core: sub('      m[i] = b !== 0 ? Math.max(0.5, base + b) : base;', '      m[i] = m[i] - a + b;') }],
+  ['the burn drops the load', { core: sub('FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2', 'DRY0[k] + FUEL0[k] * f2') }],
 ];
 let bad = 0;
 for (const [name, mut] of BREAKS) {

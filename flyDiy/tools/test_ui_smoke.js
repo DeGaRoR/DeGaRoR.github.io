@@ -127,6 +127,21 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (/<script[^>]+src="[^"]*freight_load\.js/.test(html) || !/"freight_load":"src\/viewer\/freight_load\.js/.test(html)) throw new Error('index.html: the loading view is not a lazy file');
   console.log('the loading view in app.js: behind ?career=1 / ?freight=1 (FREIGHT_PAGE), the door and the entry with it; the stop carries the accepted items; freight_load.js lazy');
 }
+// G2400 (FREIGHT-STRAP): THE STRAPPED LOAD ONLY UNDER THE SAME FLAGS - its rig handle and its drawing's timer behind
+// FREIGHT_PAGE; the masses go aboard at the roll-out (after the bench's fingerprint, before the flight's reset), the
+// shed takes them off, the stop hands the next stage over; the drawing a lazy file (never a static tag)
+{
+  const app = pick('function setAircraft', 'app');
+  if (!/  if \(FREIGHT_PAGE\) window\.FLYDIY_STRAP = /.test(app) || !/  if \(FREIGHT_PAGE\) setInterval\(\(\) => \{ try \{ if \(inGarage\) fsRigDue\(\); fsSync\(\); \} catch \(e\) \{\} \}, 700\);/.test(app)) throw new Error('app.js: window.FLYDIY_STRAP / the strap drawing\'s timer are not behind the flags');
+  if (!/if \(!FREIGHT_PAGE \|\| !sim \|\| typeof sim\.setFreight !== 'function'\) return null;/.test(app)) throw new Error('app.js: the strap\'s masses are not behind the flags');
+  const ro = app.slice(app.indexOf('function rollOutStand()'), app.indexOf('fullReset();', app.indexOf('function rollOutStand()')));
+  if (!/BENCH_ROLLOUT[\s\S]*playerFlightStart\(\);[\s\S]*fsFlightStart\(\);/.test(ro)) throw new Error('app.js: the load does not go aboard at the roll-out, after the bench\'s fingerprint and before the reset');
+  if (!/try \{ fsGarage\(\); \} catch \(e\) \{\}/.test(app)) throw new Error('app.js: the shed does not take the load off');
+  if (!/if \(CAREER_DEV\) out\.freight = fsStop\(\);/.test(app)) throw new Error('app.js: the stop does not hand the next stage\'s load over');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  if (/<script[^>]+src="[^"]*freight_strap\.js/.test(html) || !/"freight_strap":"src\/viewer\/freight_strap\.js/.test(html)) throw new Error('index.html: the strap drawing is not a lazy file');
+  console.log('the strapped load in app.js: behind ?career=1 / ?freight=1, aboard at the roll-out after the fingerprint, off in the shed, the stop\'s next stage; freight_strap.js lazy');
+}
 // THE MAP SCREEN'S ROWS (G2253, MAP-MENU; tools/_map_smoke.js): the sandbox shows no MAP entry without ?map=1, nothing of
 // the screen loads before the entry is pressed, the screen's tabs / rows / cards over the contracts fixture, NOHOVER and R1
 // on the new UI; --phone the phone's card and the sheet's gestures
@@ -531,6 +546,9 @@ try {
   // G2345 (FREIGHT-LOAD): ...and no loading view: no FLYDIY_FREIGHT, no LOAD entry, the lazy view never fetched
   if (sandbox.window.FLYDIY_FREIGHT !== undefined || sandbox.window.FREIGHT_LOAD !== undefined || els.frEntry || els.frLoad) throw new Error('the sandbox booted with the loading view (FLYDIY_FREIGHT / #frEntry) without ?career=1 or ?freight=1');
   console.log('the sandbox without the flags: no FLYDIY_FREIGHT, no LOAD entry');
+  // G2400 (FREIGHT-STRAP): ...and no strapped load: no FLYDIY_STRAP, the lazy drawing never fetched
+  if (sandbox.window.FLYDIY_STRAP !== undefined || sandbox.window.FREIGHT_STRAP_VIEW !== undefined) throw new Error('the sandbox booted with the strapped load (FLYDIY_STRAP / FREIGHT_STRAP_VIEW) without ?career=1 or ?freight=1');
+  console.log('the sandbox without the flags: no FLYDIY_STRAP, no strap drawing');
   // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
