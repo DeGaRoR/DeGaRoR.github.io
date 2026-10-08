@@ -324,7 +324,8 @@ if (argv[0] === '--build') {
           S.missedAt = S.missedAt || []; if (S.missedAt.length < 6) S.missedAt.push({ mesh: r.m.nm, t, frame: fc, overFramesGpu: mr }); } else S.goneOther++; }   // (a miss: still drawn on the GPU path; gone by an event instead - removed on two pieces - is not one)
         else if (fc >= 0 && fg > fc) { S.late++;
           const border = r.C.margin && r.C.margin[t] < 2e-4;
-          if (fg - fc > PERIOD_G && border) { S.lateBorder = (S.lateBorder || 0) + 1; S.lateBorderMax = Math.max(S.lateBorderMax || 0, fg - fc); }
+          if (fg - fc > PERIOD_G && border) { S.lateBorder = (S.lateBorder || 0) + 1; S.lateBorderMax = Math.max(S.lateBorderMax || 0, fg - fc);
+            (S.lateBorderAt = S.lateBorderAt || []).length < 8 && S.lateBorderAt.push({ mesh: r.m.nm, t, lagFrames: fg - fc, lagS: +((fg - fc) / 60).toFixed(2), cpuMarginMm: +(r.C.margin[t] * 1000).toFixed(4), heldG: r.G.R.held ? r.G.R.held[t] : null }); }
           else { S.lateMax = Math.max(S.lateMax, fg - fc); if (fg - fc > PERIOD_G && !S.lateAt) S.lateAt = { mesh: r.m.nm, t, fc, fg, margin: r.C.margin ? +(r.C.margin[t] * 1000).toFixed(3) : null, heldC: r.C.R.held ? r.C.R.held[t] : null, heldG: r.G.R.held ? r.G.R.held[t] : null }; } }
         else if (fg >= 0 && (fc < 0 || fg < fc)) S.early++;
       }
@@ -387,7 +388,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
         + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)'
         + (S.heldMax != null ? '; FABRIC held covering (the CPU path): up to ' + S.heldMax + ' triangles held at once (' + (S.heldMaxB || 0) + ' before the reach fix, which drew ' + (S.goneB || 0) + ' gone against ' + (S.goneC || 0) + ' now at the end), ' + (S.heldTorn || 0) + ' torn past HELD' : '')
         + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'
-        + (S.lateBorder ? '; ' + S.lateBorder + ' torn later past one period that the CPU tore within 0.2 mm of the bound (float32\'s reach: up to ' + S.lateBorderMax + ' frames)' : '')
+        + (S.lateBorder ? '; ' + S.lateBorder + ' torn later past one period that the CPU tore within 0.2 mm of the bound (float32\'s reach: up to ' + S.lateBorderMax + ' frames) ' + JSON.stringify(S.lateBorderAt) : '')
         + (S.lateAt ? '; the first late past one period ' + JSON.stringify(S.lateAt) : '')
         + (S.missedAt ? '; misses (transients between the read-backs, past the bound at most ' + (S.missRun || 0) + ' frames on the GPU path) ' + JSON.stringify(S.missedAt) : ''));
       const f = (x, k) => (x / Math.max(1, k)).toFixed(2);
