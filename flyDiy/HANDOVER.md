@@ -82007,9 +82007,27 @@ frame. One session, with GATE LIGHT growing a check that the census's sources al
 node --check on every touched file; run_gates --only=AA,POSTFX,DAY,ATMO,CLOUD,WORLDRENDER,LIGHT,PROGRAMS,UISMOKE
 PASS (00:50-00:55, A0's window; all node, none boots Chrome).
 
+### THE TUNED ROUND (8 Oct 09:30-09:52, gamer; reports/evidence/MOONLIGHT/)
+- sheet_full_moon.jpg (rows: the stand, the sea with the moon ahead, the moon behind, the 150 m final; columns: train
+  40 | night eye 0 | +1 | +2): 0 reads the water and the sky but leaves the land black; **+1 is the dangerous-but-
+  flyable night** (the coast, the lakes, the strips, the ridges and the horizon; mean code 42-56 at the stand and over
+  the sea, the sky 67-79); +2 is a dusk (67-85). DEFAULTS SET: night eye +1, night colour 0.9, moonlight blue 0.6
+  (0.85 vs 0.95 is hardly to be told apart; a lamp-lit aeroplane keeps its colour either way - it is bright).
+- sheet_moon_overcast_half_new.jpg: the moon overhead (a disc, a faint corona, the faint stars washed out near it);
+  overcast (the panel's deck still broken - the CLOUD note); the half moon at +1: the horizon and a glint on the sea
+  only (code 4); the new moon: black under the stars (code 2), as asked.
+- sheet_day_dusk_g2601.jpg (train 40 | both fixes; noon, 17:00, sunset): **at sunset train 40's ground is black** (the
+  stuck 1.12 for 5.2) and G2601 gives the dusk back; noon a shade darker (0.92 for 1.12); 17:00 alike.
+- THE NOON PROOF OF G2600 ALONE (train 40 vs this branch with G2601 reverted, a fixed place, the ease ON): 166 674
+  bytes differ (max 170) against an in-page control of 350-418 bytes - NOT pixel-identical. The readout points at the
+  ease, not at G2600: the hemisphere read 1.703 / 1.705 / 1.706 on the same noon in three page runs (the ease writes in
+  0.4 % steps, so what it rests on depends on the clock's history). The proof with the ease off (noonx_*: the light
+  written at once, no history) is owed - tonight's window 21:40.
+- rig: the stand views after the first were not at the stand (the aeroplane stayed where 'over' put it) - fixed (the
+  stand is kept at the first view and put back).
+
 ### OPEN / NAMED CUTS
-- the defaults of the dials (night eye, night colour) come from the 09:30 tuned stills (eye 0 / +1 / +2) - THIS SECTION
-  IS UPDATED THEN, with the noon pixel proof of G2600 alone (G2601 off) and the dusk pair before | after G2601.
+- the noon pixel proof of G2600 alone with the ease off (tonight, 21:40-22:20).
 - CLOUD (not fixed here, A0): the panel's overcast (0.9 st) at night still shows breaks and stars after 12 s.
 - a multi-deck sky's shadow tile is shifted along the SUN in its bake (uSun is the clouds' lighting): at night with an
   upper deck the decks' shadows are not offset along the moon. One deck (the default) is exact.

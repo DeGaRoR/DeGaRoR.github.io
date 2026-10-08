@@ -1,0 +1,4773 @@
+[
+ {
+  "view": "noon_over",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.37296,
+   "meanCode": 150.1,
+   "skyY": 0.4285,
+   "skyCode": 173.9,
+   "groundY": 0.18616,
+   "groundCode": 103.5
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.705,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.118604888590593,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 32,
+    "writes": 175
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.0215,
+    "distinctG": 2098,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/noon_over_index_before_gfxgamer.png"
+ },
+ {
+  "view": "noon_over_b",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.37296,
+   "meanCode": 150.1,
+   "skyY": 0.4285,
+   "skyCode": 173.9,
+   "groundY": 0.18616,
+   "groundCode": 103.5
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.705,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1190522526937068,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 34,
+    "writes": 175
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.0215,
+    "distinctG": 2098,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/noon_over_b_index_before_gfxgamer.png"
+ },
+ {
+  "view": "noon_stand",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.29424,
+   "meanCode": 132.4,
+   "skyY": 0.43409,
+   "skyCode": 174.1,
+   "groundY": 0.12664,
+   "groundCode": 88.7
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.705,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1144290600226932,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 36,
+    "writes": 175
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.1523,
+    "minG": 0.03078,
+    "distinctG": 1410,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/noon_stand_index_before_gfxgamer.png"
+ },
+ {
+  "view": "dusk_1700",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-25 17:00:00 AKDT",
+   "sunEl": 12.8,
+   "moonEl": -10.1,
+   "phase": 0.994,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -0.705
+  },
+  "still": {
+   "meanY": 0.38809,
+   "meanCode": 145,
+   "skyY": 0.54309,
+   "skyCode": 192.5,
+   "groundY": 0.0533,
+   "groundCode": 56.3
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 7.546,
+   "keyY": 0.221,
+   "keyDirMoon": false,
+   "hemiI": 1.279,
+   "exposure": 1.12,
+   "moonPhase": 0.994,
+   "moonEl": -10.1,
+   "sunEl": 12.8,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 1.339,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1209102728831069,
+    "tEx": 1.3389209444540366,
+    "setEx": null,
+    "applies": 38,
+    "writes": 255
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.05787,
+    "minG": 0.02005,
+    "distinctG": 1829,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/dusk_1700_index_before_gfxgamer.png"
+ },
+ {
+  "view": "sunset",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 18:36:09 AKDT",
+   "sunEl": -0.8,
+   "moonEl": 2.3,
+   "phase": 0.997,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -0.358
+  },
+  "still": {
+   "meanY": 0.04448,
+   "meanCode": 37.5,
+   "skyY": 0.06746,
+   "skyCode": 74.2,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 0.06559,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.1984,
+   "exposure": 1.12,
+   "moonPhase": 0.997,
+   "moonEl": 2.3,
+   "sunEl": -0.8,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 5.204,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1636711355316505,
+    "tEx": 5.2043059095040585,
+    "setEx": null,
+    "applies": 40,
+    "writes": 619
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.002328,
+    "minG": 0.0006938,
+    "distinctG": 1404,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/sunset_index_before_gfxgamer.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.0000223,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004348,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 178.90195287519296,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 42,
+    "writes": 1942
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 6.892e-8,
+    "minG": 5.96e-8,
+    "distinctG": 4,
+    "subnormalShare": 0.593,
+    "zeroShare": 0.407
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_stand_index_before_gfxgamer.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002227,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004244,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32890,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 274.01995639899303,
+    "tEx": 32885.754259717956,
+    "setEx": null,
+    "applies": 44,
+    "writes": 1948
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 3.695e-7,
+    "minG": 5.96e-8,
+    "distinctG": 19,
+    "subnormalShare": 0.848,
+    "zeroShare": 0.152
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_sea_moon_ahead_index_before_gfxgamer.png"
+ },
+ {
+  "view": "full_moon_behind",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 1.301
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002228,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004279,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 222.51616809365188,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 46,
+    "writes": 1950
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 7.482e-8,
+    "minG": 5.96e-8,
+    "distinctG": 25,
+    "subnormalShare": 0.632,
+    "zeroShare": 0.368
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_behind_index_before_gfxgamer.png"
+ },
+ {
+  "view": "full_moon_up",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.841
+  },
+  "still": {
+   "meanY": 0.00097,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002228,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004296,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 222.51616809365188,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 48,
+    "writes": 1951
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001583,
+    "minG": 0.000001073,
+    "distinctG": 65,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_up_index_before_gfxgamer.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.0011,
+   "meanCode": 1.1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002222,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004367,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 195.26409908796106,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 50,
+    "writes": 1955
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 2.641e-8,
+    "minG": 5.96e-8,
+    "distinctG": 12,
+    "subnormalShare": 0.333,
+    "zeroShare": 0.667
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_final_index_before_gfxgamer.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00096,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001143,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000002251,
+   "exposure": 1.12,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 455.8975625543865,
+    "tEx": 32907.663351331124,
+    "setEx": null,
+    "applies": 52,
+    "writes": 2080
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.168e-9,
+    "minG": 5.96e-8,
+    "distinctG": 4,
+    "subnormalShare": 0.018,
+    "zeroShare": 0.982
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_stand_index_before_gfxgamer.png"
+ },
+ {
+  "view": "half_over",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 2.807
+  },
+  "still": {
+   "meanY": 0.00096,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001143,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000002206,
+   "exposure": 1.12,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 189.78967846865595,
+    "tEx": 32907.663351331124,
+    "setEx": null,
+    "applies": 54,
+    "writes": 2085
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 2.687e-9,
+    "minG": 5.96e-8,
+    "distinctG": 4,
+    "subnormalShare": 0.018,
+    "zeroShare": 0.982
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_over_index_before_gfxgamer.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 4.778e-10,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 9.425e-7,
+   "exposure": 1.12,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 33780,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 163.99416977749573,
+    "tEx": 33780.727055897485,
+    "setEx": null,
+    "applies": 56,
+    "writes": 3268
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_stand_index_before_gfxgamer.png"
+ },
+ {
+  "view": "new_over",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 1.651e-12,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 9.425e-7,
+   "exposure": 1.12,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 33780,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 175.19787934974218,
+    "tEx": 33780.727055897485,
+    "setEx": null,
+    "applies": 58,
+    "writes": 3353
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_over_index_before_gfxgamer.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002225,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004291,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0.9,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 162.5316235433877,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 60,
+    "writes": 3554
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 5.158e-9,
+    "minG": 5.96e-8,
+    "distinctG": 3,
+    "subnormalShare": 0.015,
+    "zeroShare": 0.985
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_stand_index_before_gfxgamer.png"
+ },
+ {
+  "view": "overcast_over",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00428,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002226,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004239,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0.9,
+   "night": null,
+   "linear": true,
+   "exSched": 32890,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 263.1475669816983,
+    "tEx": 32885.754259717956,
+    "setEx": null,
+    "applies": 62,
+    "writes": 3557
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.45e-7,
+    "minG": 5.96e-8,
+    "distinctG": 8,
+    "subnormalShare": 0.762,
+    "zeroShare": 0.238
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_over_index_before_gfxgamer.png"
+ },
+ {
+  "view": "noon_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.33501,
+   "meanCode": 141,
+   "skyY": 0.38222,
+   "skyCode": 165.5,
+   "groundY": 0.15728,
+   "groundCode": 93
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.7,
+   "exposure": 0.92,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 0.92,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 0.92,
+    "tEx": 0.92,
+    "setEx": 0.92,
+    "applies": 33,
+    "writes": 173
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.02147,
+    "distinctG": 2115,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/noon_over_index_gfxgamer.png"
+ },
+ {
+  "view": "noon_over_b",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.33501,
+   "meanCode": 141,
+   "skyY": 0.38222,
+   "skyCode": 165.5,
+   "groundY": 0.15728,
+   "groundCode": 93
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.7,
+   "exposure": 0.92,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 0.92,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 0.92,
+    "tEx": 0.92,
+    "setEx": 0.92,
+    "applies": 36,
+    "writes": 173
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.02147,
+    "distinctG": 2115,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/noon_over_b_index_gfxgamer.png"
+ },
+ {
+  "view": "noon_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.25814,
+   "meanCode": 122.9,
+   "skyY": 0.3881,
+   "skyCode": 165.7,
+   "groundY": 0.10018,
+   "groundCode": 78.2
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.7,
+   "exposure": 0.92,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 0.92,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 0.92,
+    "tEx": 0.92,
+    "setEx": 0.92,
+    "applies": 39,
+    "writes": 174
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.1522,
+    "minG": 0.03073,
+    "distinctG": 1410,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/noon_stand_index_gfxgamer.png"
+ },
+ {
+  "view": "dusk_1700",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-25 17:00:00 AKDT",
+   "sunEl": 12.8,
+   "moonEl": -10.1,
+   "phase": 0.994,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -0.705
+  },
+  "still": {
+   "meanY": 0.41848,
+   "meanCode": 152.4,
+   "skyY": 0.5813,
+   "skyCode": 198.5,
+   "groundY": 0.0679,
+   "groundCode": 64.8
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 7.534,
+   "keyY": 0.221,
+   "keyDirMoon": true,
+   "hemiI": 1.275,
+   "exposure": 1.339,
+   "moonPhase": 0.994,
+   "moonEl": -10.1,
+   "sunEl": 12.8,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 1.339,
+   "exBase": 1.3389209444540366,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.3389209444540366,
+    "tEx": 1.3389209444540366,
+    "setEx": 1.3389209444540366,
+    "applies": 42,
+    "writes": 256
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.05774,
+    "minG": 0.02005,
+    "distinctG": 1834,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/dusk_1700_index_gfxgamer.png"
+ },
+ {
+  "view": "sunset",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 18:36:09 AKDT",
+   "sunEl": -0.8,
+   "moonEl": 2.3,
+   "phase": 0.997,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -0.358
+  },
+  "still": {
+   "meanY": 0.17975,
+   "meanCode": 80.3,
+   "skyY": 0.32298,
+   "skyCode": 154.5,
+   "groundY": 0.00193,
+   "groundCode": 5.9
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 0.06539,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 0.1984,
+   "exposure": 5.204,
+   "moonPhase": 0.997,
+   "moonEl": 2.3,
+   "sunEl": -0.8,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 5.204,
+   "exBase": 5.2043059095040585,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 5.2043059095040585,
+    "tEx": 5.2043059095040585,
+    "setEx": 5.2043059095040585,
+    "applies": 45,
+    "writes": 598
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.002328,
+    "minG": 0.0006938,
+    "distinctG": 1401,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/sunset_index_gfxgamer.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.0162,
+   "meanCode": 23.5,
+   "skyY": 0.03087,
+   "skyCode": 47.3,
+   "groundY": 0.00048,
+   "groundCode": 1.6
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001981,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003875,
+   "exposure": 32870,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32873.34647510583,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.366949565716,
+    "tEx": 32911.374832924754,
+    "setEx": 32873.34647510583,
+    "applies": 48,
+    "writes": 1930
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 3.002e-7,
+    "minG": 5.96e-8,
+    "distinctG": 9,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_stand_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.04267,
+   "meanCode": 41.5,
+   "skyY": 0.07751,
+   "skyCode": 78.4,
+   "groundY": 0.00299,
+   "groundCode": 8
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 51,
+    "writes": 1935
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 2.997e-7,
+    "minG": 5.96e-8,
+    "distinctG": 9,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_stand_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.09526,
+   "meanCode": 67,
+   "skyY": 0.16972,
+   "skyCode": 114.6,
+   "groundY": 0.01261,
+   "groundCode": 24
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 131600,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131645.4993316992,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131645.4993316992,
+    "tEx": 131645.4993316992,
+    "setEx": 131645.4993316992,
+    "applies": 54,
+    "writes": 1939
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 2.997e-7,
+    "minG": 5.96e-8,
+    "distinctG": 9,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_stand_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.0432,
+   "meanCode": 42.2,
+   "skyY": 0.07899,
+   "skyCode": 79.4,
+   "groundY": 0.00298,
+   "groundCode": 8.4
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 57,
+    "writes": 1943
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 2.997e-7,
+    "minG": 5.96e-8,
+    "distinctG": 9,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_stand_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.02706,
+   "meanCode": 33.9,
+   "skyY": 0.02933,
+   "skyCode": 46.3,
+   "groundY": 0.01544,
+   "groundCode": 13.4
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000003777,
+   "exposure": 32890,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32890,
+   "exBase": 32885.754259717956,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32885.754259717956,
+    "tEx": 32885.754259717956,
+    "setEx": 32885.754259717956,
+    "applies": 60,
+    "writes": 1948
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.00000179,
+    "minG": 5.96e-8,
+    "distinctG": 76,
+    "subnormalShare": 0.949,
+    "zeroShare": 0.051
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_sea_moon_ahead_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.06724,
+   "meanCode": 56.4,
+   "skyY": 0.074,
+   "skyCode": 77.1,
+   "groundY": 0.03433,
+   "groundCode": 23.7
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000003777,
+   "exposure": 65770,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65770,
+   "exBase": 65771.50851943591,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65771.50851943591,
+    "tEx": 65771.50851943591,
+    "setEx": 65771.50851943591,
+    "applies": 63,
+    "writes": 1952
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.00000179,
+    "minG": 5.96e-8,
+    "distinctG": 76,
+    "subnormalShare": 0.949,
+    "zeroShare": 0.051
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_sea_moon_ahead_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.14026,
+   "meanCode": 85.3,
+   "skyY": 0.16377,
+   "skyCode": 113.2,
+   "groundY": 0.06532,
+   "groundCode": 42.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000003777,
+   "exposure": 131500,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131500,
+   "exBase": 131543.01703887183,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131543.01703887183,
+    "tEx": 131543.01703887183,
+    "setEx": 131543.01703887183,
+    "applies": 66,
+    "writes": 1956
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.00000179,
+    "minG": 5.96e-8,
+    "distinctG": 76,
+    "subnormalShare": 0.949,
+    "zeroShare": 0.051
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_sea_moon_ahead_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.06786,
+   "meanCode": 57.1,
+   "skyY": 0.07551,
+   "skyCode": 78.1,
+   "groundY": 0.03424,
+   "groundCode": 24.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000003777,
+   "exposure": 65770,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65770,
+   "exBase": 65771.50851943591,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65771.50851943591,
+    "tEx": 65771.50851943591,
+    "setEx": 65771.50851943591,
+    "applies": 69,
+    "writes": 1960
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.00000179,
+    "minG": 5.96e-8,
+    "distinctG": 76,
+    "subnormalShare": 0.949,
+    "zeroShare": 0.051
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_sea_moon_ahead_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "full_moon_behind",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 1.301
+  },
+  "still": {
+   "meanY": 0.01384,
+   "meanCode": 21.4,
+   "skyY": 0.02197,
+   "skyCode": 37.9,
+   "groundY": 0.0001,
+   "groundCode": 0.3
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 32910,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32911.374832924754,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.374832924754,
+    "tEx": 32911.374832924754,
+    "setEx": 32911.374832924754,
+    "applies": 72,
+    "writes": 1965
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.608e-7,
+    "minG": 5.96e-8,
+    "distinctG": 6,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_behind_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "full_moon_behind",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 1.301
+  },
+  "still": {
+   "meanY": 0.03756,
+   "meanCode": 40,
+   "skyY": 0.05622,
+   "skyCode": 66.6,
+   "groundY": 0.00139,
+   "groundCode": 4.7
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 75,
+    "writes": 1969
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.608e-7,
+    "minG": 5.96e-8,
+    "distinctG": 6,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_behind_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "full_moon_behind",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 1.301
+  },
+  "still": {
+   "meanY": 0.08722,
+   "meanCode": 67.7,
+   "skyY": 0.12998,
+   "skyCode": 101.3,
+   "groundY": 0.00806,
+   "groundCode": 20.7
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 131600,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131645.4993316992,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131645.4993316992,
+    "tEx": 131645.4993316992,
+    "setEx": 131645.4993316992,
+    "applies": 78,
+    "writes": 1973
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.608e-7,
+    "minG": 5.96e-8,
+    "distinctG": 6,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_behind_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "full_moon_behind",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 1.301
+  },
+  "still": {
+   "meanY": 0.03814,
+   "meanCode": 40.8,
+   "skyY": 0.05754,
+   "skyCode": 67.5,
+   "groundY": 0.0014,
+   "groundCode": 5.3
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003814,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 81,
+    "writes": 1977
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.608e-7,
+    "minG": 5.96e-8,
+    "distinctG": 6,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_behind_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "full_moon_up",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.841
+  },
+  "still": {
+   "meanY": 0.02244,
+   "meanCode": 36,
+   "skyY": 0.01655,
+   "skyCode": 26.1,
+   "groundY": 0.03342,
+   "groundCode": 51.6
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001978,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003821,
+   "exposure": 32910,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32911.374832924754,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.374832924754,
+    "tEx": 32911.374832924754,
+    "setEx": 32911.374832924754,
+    "applies": 84,
+    "writes": 1981
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001245,
+    "minG": 9.537e-7,
+    "distinctG": 33,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_up_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "full_moon_up",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.841
+  },
+  "still": {
+   "meanY": 0.05919,
+   "meanCode": 65.4,
+   "skyY": 0.03803,
+   "skyCode": 50.4,
+   "groundY": 0.09178,
+   "groundCode": 87
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001978,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003821,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 87,
+    "writes": 1985
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001245,
+    "minG": 9.537e-7,
+    "distinctG": 33,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_up_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "full_moon_up",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.841
+  },
+  "still": {
+   "meanY": 0.13726,
+   "meanCode": 101.2,
+   "skyY": 0.08772,
+   "skyCode": 81.5,
+   "groundY": 0.20629,
+   "groundCode": 127.5
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001978,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003821,
+   "exposure": 131600,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131645.4993316992,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131645.4993316992,
+    "tEx": 131645.4993316992,
+    "setEx": 131645.4993316992,
+    "applies": 90,
+    "writes": 1989
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001245,
+    "minG": 9.537e-7,
+    "distinctG": 33,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_up_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "full_moon_up",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.841
+  },
+  "still": {
+   "meanY": 0.0604,
+   "meanCode": 66.3,
+   "skyY": 0.03873,
+   "skyCode": 51,
+   "groundY": 0.09357,
+   "groundCode": 88.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001978,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003821,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 93,
+    "writes": 1993
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001245,
+    "minG": 9.537e-7,
+    "distinctG": 33,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_moon_up_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.01175,
+   "meanCode": 17.2,
+   "skyY": 0.03162,
+   "skyCode": 47.9,
+   "groundY": 0.00019,
+   "groundCode": 0.6
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001972,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003892,
+   "exposure": 32910,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32911.374832924754,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.374832924754,
+    "tEx": 32911.374832924754,
+    "setEx": 32911.374832924754,
+    "applies": 96,
+    "writes": 2000
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.534e-7,
+    "minG": 5.96e-8,
+    "distinctG": 10,
+    "subnormalShare": 0.985,
+    "zeroShare": 0.015
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_final_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.03083,
+   "meanCode": 31.5,
+   "skyY": 0.07942,
+   "skyCode": 79.1,
+   "groundY": 0.00158,
+   "groundCode": 4.6
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001972,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003892,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 99,
+    "writes": 2004
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.534e-7,
+    "minG": 5.96e-8,
+    "distinctG": 10,
+    "subnormalShare": 0.985,
+    "zeroShare": 0.015
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_final_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.07042,
+   "meanCode": 54.9,
+   "skyY": 0.1733,
+   "skyCode": 115.3,
+   "groundY": 0.00802,
+   "groundCode": 18.4
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001972,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003892,
+   "exposure": 131600,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131645.4993316992,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131645.4993316992,
+    "tEx": 131645.4993316992,
+    "setEx": 131645.4993316992,
+    "applies": 102,
+    "writes": 2008
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.534e-7,
+    "minG": 5.96e-8,
+    "distinctG": 10,
+    "subnormalShare": 0.985,
+    "zeroShare": 0.015
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_final_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.03118,
+   "meanCode": 32.2,
+   "skyY": 0.08081,
+   "skyCode": 80.1,
+   "groundY": 0.00157,
+   "groundCode": 5.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001972,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003892,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 105,
+    "writes": 2012
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.534e-7,
+    "minG": 5.96e-8,
+    "distinctG": 10,
+    "subnormalShare": 0.985,
+    "zeroShare": 0.015
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/full_final_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00238,
+   "meanCode": 1.6,
+   "skyY": 0.00901,
+   "skyCode": 6.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002142,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 32910,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32907.663351331124,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32907.663351331124,
+    "tEx": 32907.663351331124,
+    "setEx": 32907.663351331124,
+    "applies": 108,
+    "writes": 2342
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_stand_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00298,
+   "meanCode": 2.1,
+   "skyY": 0.01044,
+   "skyCode": 6.8,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002142,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 65820,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65815.32670266225,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65815.32670266225,
+    "tEx": 65815.32670266225,
+    "setEx": 65815.32670266225,
+    "applies": 111,
+    "writes": 2346
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_stand_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00423,
+   "meanCode": 4.8,
+   "skyY": 0.01251,
+   "skyCode": 10.6,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002142,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 131600,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131630.6534053245,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131630.6534053245,
+    "tEx": 131630.6534053245,
+    "setEx": 131630.6534053245,
+    "applies": 114,
+    "writes": 2350
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_stand_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00298,
+   "meanCode": 2.1,
+   "skyY": 0.01044,
+   "skyCode": 6.8,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002142,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 65820,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65815.32670266225,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65815.32670266225,
+    "tEx": 65815.32670266225,
+    "setEx": 65815.32670266225,
+    "applies": 117,
+    "writes": 2354
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_stand_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "half_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 2.807
+  },
+  "still": {
+   "meanY": 0.00314,
+   "meanCode": 2.2,
+   "skyY": 0.00965,
+   "skyCode": 6.4,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002151,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 32910,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32907.663351331124,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32907.663351331124,
+    "tEx": 32907.663351331124,
+    "setEx": 32907.663351331124,
+    "applies": 120,
+    "writes": 2358
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.097e-8,
+    "minG": 5.96e-8,
+    "distinctG": 2,
+    "subnormalShare": 0.181,
+    "zeroShare": 0.819
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_over_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "half_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 2.807
+  },
+  "still": {
+   "meanY": 0.00443,
+   "meanCode": 3.9,
+   "skyY": 0.01117,
+   "skyCode": 7.6,
+   "groundY": 0.00004,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002151,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 65820,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65815.32670266225,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65815.32670266225,
+    "tEx": 65815.32670266225,
+    "setEx": 65815.32670266225,
+    "applies": 123,
+    "writes": 2362
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.097e-8,
+    "minG": 5.96e-8,
+    "distinctG": 2,
+    "subnormalShare": 0.181,
+    "zeroShare": 0.819
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_over_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "half_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 2.807
+  },
+  "still": {
+   "meanY": 0.00767,
+   "meanCode": 9.9,
+   "skyY": 0.01434,
+   "skyCode": 15.2,
+   "groundY": 0.00012,
+   "groundCode": 0.4
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002151,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 131600,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131630.6534053245,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131630.6534053245,
+    "tEx": 131630.6534053245,
+    "setEx": 131630.6534053245,
+    "applies": 126,
+    "writes": 2366
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.097e-8,
+    "minG": 5.96e-8,
+    "distinctG": 2,
+    "subnormalShare": 0.181,
+    "zeroShare": 0.819
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_over_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "half_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 2.807
+  },
+  "still": {
+   "meanY": 0.00443,
+   "meanCode": 4,
+   "skyY": 0.01119,
+   "skyCode": 7.6,
+   "groundY": 0.00004,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.000002151,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 65820,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65815.32670266225,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65815.32670266225,
+    "tEx": 65815.32670266225,
+    "setEx": 65815.32670266225,
+    "applies": 129,
+    "writes": 2370
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 1.096e-8,
+    "minG": 5.96e-8,
+    "distinctG": 2,
+    "subnormalShare": 0.181,
+    "zeroShare": 0.819
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/half_over_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00241,
+   "meanCode": 1.6,
+   "skyY": 0.00912,
+   "skyCode": 6.4,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 9.424e-11,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 33810,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 33780,
+   "exBase": 33808.58832435441,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 33782.0721816393,
+    "tEx": 33780.727055897485,
+    "setEx": 33808.58832435441,
+    "applies": 132,
+    "writes": 3433
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_stand_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00295,
+   "meanCode": 1.8,
+   "skyY": 0.01057,
+   "skyCode": 6.7,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 67560,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 67560,
+   "exBase": 67561.45411179497,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 67561.45411179497,
+    "tEx": 67561.45411179497,
+    "setEx": 67561.45411179497,
+    "applies": 135,
+    "writes": 3454
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_stand_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00347,
+   "meanCode": 1.9,
+   "skyY": 0.01182,
+   "skyCode": 7,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 135100,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 135100,
+   "exBase": 135122.90822358994,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 135122.90822358994,
+    "tEx": 135122.90822358994,
+    "setEx": 135122.90822358994,
+    "applies": 138,
+    "writes": 3458
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_stand_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00295,
+   "meanCode": 1.8,
+   "skyY": 0.01057,
+   "skyCode": 6.7,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 67560,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 67560,
+   "exBase": 67561.45411179497,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 67561.45411179497,
+    "tEx": 67561.45411179497,
+    "setEx": 67561.45411179497,
+    "applies": 141,
+    "writes": 3462
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_stand_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "new_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00291,
+   "meanCode": 1.8,
+   "skyY": 0.00972,
+   "skyCode": 6.5,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 33780,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 33780,
+   "exBase": 33780.727055897485,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 33780.727055897485,
+    "tEx": 33780.727055897485,
+    "setEx": 33780.727055897485,
+    "applies": 144,
+    "writes": 3467
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_over_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "new_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00358,
+   "meanCode": 2,
+   "skyY": 0.01115,
+   "skyCode": 6.9,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 67560,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 67560,
+   "exBase": 67561.45411179497,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 67561.45411179497,
+    "tEx": 67561.45411179497,
+    "setEx": 67561.45411179497,
+    "applies": 147,
+    "writes": 3471
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_over_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "new_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.0042,
+   "meanCode": 2.1,
+   "skyY": 0.01234,
+   "skyCode": 7.1,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 135100,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 135100,
+   "exBase": 135122.90822358994,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 135122.90822358994,
+    "tEx": 135122.90822358994,
+    "setEx": 135122.90822358994,
+    "applies": 150,
+    "writes": 3475
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_over_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "new_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00358,
+   "meanCode": 2,
+   "skyY": 0.01115,
+   "skyCode": 6.9,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 67560,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 67560,
+   "exBase": 67561.45411179497,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 67561.45411179497,
+    "tEx": 67561.45411179497,
+    "setEx": 67561.45411179497,
+    "applies": 153,
+    "writes": 3479
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/new_over_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.00603,
+   "meanCode": 10.5,
+   "skyY": 0.01123,
+   "skyCode": 18.2,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000005944,
+   "exposure": 32910,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32911.374832924754,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.374832924754,
+    "tEx": 32911.374832924754,
+    "setEx": 32911.374832924754,
+    "applies": 168,
+    "writes": 3715
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 5.975e-8,
+    "minG": 5.96e-8,
+    "distinctG": 3,
+    "subnormalShare": 0.996,
+    "zeroShare": 0.004
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_stand_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.01661,
+   "meanCode": 21.3,
+   "skyY": 0.02582,
+   "skyCode": 36.3,
+   "groundY": 0.00005,
+   "groundCode": 0.2
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000005944,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 171,
+    "writes": 3716
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 5.975e-8,
+    "minG": 5.96e-8,
+    "distinctG": 3,
+    "subnormalShare": 0.996,
+    "zeroShare": 0.004
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_stand_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.0406,
+   "meanCode": 37,
+   "skyY": 0.0602,
+   "skyCode": 63.1,
+   "groundY": 0.00048,
+   "groundCode": 1.8
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000005944,
+   "exposure": 131600,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131600,
+   "exBase": 131645.4993316992,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131645.4993316992,
+    "tEx": 131645.4993316992,
+    "setEx": 131645.4993316992,
+    "applies": 174,
+    "writes": 3718
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 5.974e-8,
+    "minG": 5.96e-8,
+    "distinctG": 3,
+    "subnormalShare": 0.996,
+    "zeroShare": 0.004
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_stand_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.01688,
+   "meanCode": 21.6,
+   "skyY": 0.02633,
+   "skyCode": 36.9,
+   "groundY": 0.00005,
+   "groundCode": 0.2
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001979,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000005944,
+   "exposure": 65820,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65820,
+   "exBase": 65822.7496658496,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65822.7496658496,
+    "tEx": 65822.7496658496,
+    "setEx": 65822.7496658496,
+    "applies": 177,
+    "writes": 3722
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 5.975e-8,
+    "minG": 5.96e-8,
+    "distinctG": 3,
+    "subnormalShare": 0.996,
+    "zeroShare": 0.004
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_stand_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "overcast_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 0
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.02002,
+   "meanCode": 28.3,
+   "skyY": 0.03068,
+   "skyCode": 46.8,
+   "groundY": 0.0124,
+   "groundCode": 11.8
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000005384,
+   "exposure": 32890,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32890,
+   "exBase": 32885.754259717956,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32885.754259717956,
+    "tEx": 32885.754259717956,
+    "setEx": 32885.754259717956,
+    "applies": 188,
+    "writes": 3748
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001573,
+    "minG": 5.96e-8,
+    "distinctG": 68,
+    "subnormalShare": 0.944,
+    "zeroShare": 0.056
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_over_index_gfxgamer_eye0.png"
+ },
+ {
+  "view": "overcast_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.05221,
+   "meanCode": 49.3,
+   "skyY": 0.07679,
+   "skyCode": 77.7,
+   "groundY": 0.02894,
+   "groundCode": 21.4
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000005384,
+   "exposure": 65770,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65770,
+   "exBase": 65771.50851943591,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65771.50851943591,
+    "tEx": 65771.50851943591,
+    "setEx": 65771.50851943591,
+    "applies": 191,
+    "writes": 3749
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001573,
+    "minG": 5.96e-8,
+    "distinctG": 68,
+    "subnormalShare": 0.944,
+    "zeroShare": 0.056
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_over_index_gfxgamer_eye1.png"
+ },
+ {
+  "view": "overcast_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 2
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.11464,
+   "meanCode": 77.5,
+   "skyY": 0.16775,
+   "skyCode": 113.6,
+   "groundY": 0.05767,
+   "groundCode": 39.6
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000005384,
+   "exposure": 131500,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 131500,
+   "exBase": 131543.01703887183,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 131543.01703887183,
+    "tEx": 131543.01703887183,
+    "setEx": 131543.01703887183,
+    "applies": 194,
+    "writes": 3750
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001573,
+    "minG": 5.96e-8,
+    "distinctG": 68,
+    "subnormalShare": 0.944,
+    "zeroShare": 0.056
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_over_index_gfxgamer_eye2.png"
+ },
+ {
+  "view": "overcast_over",
+  "page": "index_gfxgamer",
+  "dials": {
+   "eye": 1,
+   "desat": 0.95,
+   "blue": 0.7
+  },
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.05274,
+   "meanCode": 49.9,
+   "skyY": 0.07809,
+   "skyCode": 78.6,
+   "groundY": 0.02886,
+   "groundCode": 21.8
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000005384,
+   "exposure": 65770,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0.9,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 65770,
+   "exBase": 65771.50851943591,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 65771.50851943591,
+    "tEx": 65771.50851943591,
+    "setEx": 65771.50851943591,
+    "applies": 197,
+    "writes": 3752
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.000001573,
+    "minG": 5.96e-8,
+    "distinctG": 68,
+    "subnormalShare": 0.944,
+    "zeroShare": 0.056
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/tuned/overcast_over_index_gfxgamer_eye1_desat0.95_blue0.7.png"
+ },
+ {
+  "view": "noon_over",
+  "dayProof": {
+   "differing": 4310322,
+   "maxDelta": 148
+  }
+ },
+ {
+  "view": "noon_over_b",
+  "dayProof": {
+   "differing": 4310321,
+   "maxDelta": 148
+  }
+ },
+ {
+  "view": "noon_stand",
+  "dayProof": {
+   "differing": 4307578,
+   "maxDelta": 123
+  }
+ },
+ {
+  "view": "dusk_1700",
+  "dayProof": {
+   "differing": 4219684,
+   "maxDelta": 68
+  }
+ },
+ {
+  "view": "sunset",
+  "dayProof": {
+   "differing": 4220510,
+   "maxDelta": 115
+  }
+ },
+ {
+  "view": "noon_over",
+  "control": "index_before.html",
+  "d": {
+   "differing": 139,
+   "maxDelta": 24
+  }
+ },
+ {
+  "view": "noon_over",
+  "control": "index.html",
+  "d": {
+   "differing": 363,
+   "maxDelta": 43
+  }
+ }
+]

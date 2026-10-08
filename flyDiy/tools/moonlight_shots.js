@@ -52,6 +52,9 @@ const VIEWS = [
   { name: 'noon_over',     day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30, settle: 14 },
   { name: 'noon_over_b',   day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30, settle: 2 },   // the control: noon_over again, nothing moved
   { name: 'noon_stand',    day: Object.assign({}, NOON, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16 },
+  { name: 'noonx_over',    day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30, settle: 10, js: 'window.LIGHT_EASE && (LIGHT_EASE.on = false)' },   // the ease off: the light at once, no step history (a page-vs-page proof)
+  { name: 'noonx_over_b',  day: Object.assign({}, NOON, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30, settle: 2, js: 'window.LIGHT_EASE && (LIGHT_EASE.on = false)' },
+  { name: 'noonx_stand',   day: Object.assign({}, NOON, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 6, js: 'window.LIGHT_EASE && (LIGHT_EASE.on = false)' },
   { name: 'dusk_1700',     day: Object.assign({ date: '2026-09-26', utc: 3600 }, CLEAR), at: 'over', aim: 'sun', el: 0.05, dist: 30, settle: 14 },   // 17:00 AKDT on the 25th, the sun at 12.8 deg
   { name: 'sunset',        day: Object.assign({ date: '2026-09-26', utc: 3600 }, CLEAR), preset: 'sunset', at: 'over', aim: 'sun', el: 0.05, dist: 30, settle: 14 },
   { name: 'full_stand',    day: Object.assign({}, FULL, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 14 },
@@ -73,6 +76,9 @@ const VIEWS = [
 const SETUP = V => `(async () => {
   const b = document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click();
   const s = FLIGHT_PROBE.sim(), w = FLIGHT_PROBE.world();
+  ${V.js || ''};
+  // the stand is where the roll-out put the aeroplane: kept at the first view, put back for every 'stand' view
+  if (!window.__moonStand) window.__moonStand = s.cgPos().slice();
   const A = (w.aerodromes || []).find(a => a.id === 'HOME') || (w.aerodromes || [])[0];
   const strip = A && A.strips ? (A.strips.find(q => !q.flyIn) || A.strips[0]) : A;
   const hd = strip && strip.hdg != null ? strip.hdg : 0;
@@ -97,7 +103,7 @@ const SETUP = V => `(async () => {
   DAY_CLOCK.set(day);
   if (${JSON.stringify(V.preset || null)}) DAY_CLOCK.preset(${JSON.stringify(V.preset || null)});   // a named hour solved on that date (the clock's own)
   let px = cx, pz = cz, agl = 0, look = [dx, dz];
-  if (${JSON.stringify(V.at)} === 'stand') { agl = null; look = [dx, dz]; }
+  if (${JSON.stringify(V.at)} === 'stand') { const st = window.__moonStand, cg = s.cgPos(); if (Math.hypot(st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]) > 0.5) await FLIGHT_PROBE.place({ by: [st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]], zeroV: true }); agl = null; look = [dx, dz]; }
   else if (${JSON.stringify(V.at)} === 'over') { agl = 300; look = [sea[0], sea[1]]; }
   else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
   if (aim === 'sun') { const sv = DAY_CLOCK.day().sun, h = Math.hypot(sv[0], sv[2]) || 1; look = [sv[0] / h, sv[2] / h]; }
@@ -240,8 +246,8 @@ async function runPage(page) {
   if (PAGES.length >= 2) for (const V of VIEWS.filter(v => /^(noon|dusk|sunset)/.test(v.name))) {
     if (fs.existsSync(t(V.name, PAGES[0])) && fs.existsSync(t(V.name, PAGES[1]))) { const d = diff(t(V.name, PAGES[0]), t(V.name, PAGES[1])); console.log('DAY PROOF ' + V.name + ' (page vs page): ' + JSON.stringify(d)); all.push({ view: V.name, dayProof: d }); }
   }
-  for (const p of PAGES) if (fs.existsSync(t('noon_over', p)) && fs.existsSync(t('noon_over_b', p))) {   // the noise floor: one page, one place, twice, nothing moved
-    const d = diff(t('noon_over', p), t('noon_over_b', p)); console.log('CONTROL noon_over twice in ' + p + ': ' + JSON.stringify(d)); all.push({ view: 'noon_over', control: p, d });
+  for (const p of PAGES) for (const n of ['noon_over', 'noonx_over']) if (fs.existsSync(t(n, p)) && fs.existsSync(t(n + '_b', p))) {   // the noise floor: one page, one place, twice, nothing moved
+    const d = diff(t(n, p), t(n + '_b', p)); console.log('CONTROL ' + n + ' twice in ' + p + ': ' + JSON.stringify(d)); all.push({ view: n, control: p, d });
   }
   const jf = path.join(OUT, 'moonlight_' + (Q ? Q.replace(/\W+/g, '') : 'default') + '.json');
   fs.writeFileSync(jf, JSON.stringify(all, null, 1));

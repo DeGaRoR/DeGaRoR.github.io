@@ -1,0 +1,982 @@
+[
+ {
+  "view": "noon_stand",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 3.092
+  },
+  "still": {
+   "meanY": 0.2581,
+   "meanCode": 130.2,
+   "skyY": 0.35913,
+   "skyCode": 159.6,
+   "groundY": 0.23063,
+   "groundCode": 131.6
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.804,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.767,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1182906796686394,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 33,
+    "writes": 171
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0.1575,
+    "minG": 0.09656,
+    "distinctG": 690,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noon_stand_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 3.092
+  },
+  "still": {
+   "meanY": 0.00097,
+   "meanCode": 1,
+   "skyY": 0.00429,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002489,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000005008,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 266.0722665322325,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 35,
+    "writes": 1306
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 6.289e-8,
+    "minG": 5.96e-8,
+    "distinctG": 2,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/full_stand_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.00094,
+   "meanCode": 1,
+   "skyY": 0.00429,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002224,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004256,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32890,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 244.1121635697432,
+    "tEx": 32885.754259717956,
+    "setEx": null,
+    "applies": 37,
+    "writes": 1344
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 3.709e-7,
+    "minG": 5.96e-8,
+    "distinctG": 20,
+    "subnormalShare": 0.846,
+    "zeroShare": 0.154
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/full_sea_moon_ahead_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00095,
+   "meanCode": 1,
+   "skyY": 0.00429,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002221,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004378,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 230.68736326607092,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 39,
+    "writes": 1351
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 5.729e-8,
+    "minG": 5.96e-8,
+    "distinctG": 1,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/full_final_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00102,
+   "meanCode": 1,
+   "skyY": 0.00429,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001143,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000002258,
+   "exposure": 1.12,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 252.43887704842484,
+    "tEx": 32907.663351331124,
+    "setEx": null,
+    "applies": 41,
+    "writes": 1488
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/half_stand_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00102,
+   "meanCode": 1,
+   "skyY": 0.00429,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 3.281e-11,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 9.425e-7,
+   "exposure": 1.12,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 33780,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 214.3814678506937,
+    "tEx": 33780.727055897485,
+    "setEx": null,
+    "applies": 43,
+    "writes": 3003
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/new_stand_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_before_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00102,
+   "meanCode": 1,
+   "skyY": 0.00429,
+   "skyCode": 4.3,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002217,
+   "keyY": 0.035,
+   "keyDirMoon": false,
+   "hemiI": 0.000004396,
+   "exposure": 1.12,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 1,
+   "night": null,
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 241.57910646938174,
+    "tEx": 32911.374832924754,
+    "setEx": null,
+    "applies": 45,
+    "writes": 3233
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 9.703e-10,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/overcast_stand_index_before_gfxcurrent.png"
+ },
+ {
+  "view": "noon_stand",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 3.092
+  },
+  "still": {
+   "meanY": 0.21931,
+   "meanCode": 119.8,
+   "skyY": 0.31437,
+   "skyCode": 150.5,
+   "groundY": 0.18831,
+   "groundCode": 119.7
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.804,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.763,
+   "exposure": 0.92,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 0.92,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 0.92,
+    "tEx": 0.92,
+    "setEx": 0.92,
+    "applies": 34,
+    "writes": 169
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0.1579,
+    "minG": 0.09814,
+    "distinctG": 693,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noon_stand_index_gfxcurrent.png"
+ },
+ {
+  "view": "full_stand",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 3.092
+  },
+  "still": {
+   "meanY": 0.01047,
+   "meanCode": 17.7,
+   "skyY": 0.02484,
+   "skyCode": 38.6,
+   "groundY": 0.00222,
+   "groundCode": 7.9
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00002205,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000004435,
+   "exposure": 32900,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32903.03984282041,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.3660500749,
+    "tEx": 32911.374832924754,
+    "setEx": 32903.03984282041,
+    "applies": 37,
+    "writes": 1327
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 3.61e-7,
+    "minG": 2.384e-7,
+    "distinctG": 6,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/full_stand_index_gfxcurrent.png"
+ },
+ {
+  "view": "full_sea_moon_ahead",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 01:00:00 AKDT",
+   "sunEl": -36.1,
+   "moonEl": 35.5,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.02843,
+   "meanCode": 34.4,
+   "skyY": 0.03315,
+   "skyCode": 47.5,
+   "groundY": 0.01551,
+   "groundCode": 13.4
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00001987,
+   "keyY": 0.581,
+   "keyDirMoon": true,
+   "hemiI": 0.000003777,
+   "exposure": 32890,
+   "moonPhase": 0.998,
+   "moonEl": 35.5,
+   "sunEl": -36.1,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32890,
+   "exBase": 32885.754259717956,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32885.754259717956,
+    "tEx": 32885.754259717956,
+    "setEx": 32885.754259717956,
+    "applies": 40,
+    "writes": 1363
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0.000001796,
+    "minG": 5.96e-8,
+    "distinctG": 75,
+    "subnormalShare": 0.946,
+    "zeroShare": 0.054
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/full_sea_moon_ahead_index_gfxcurrent.png"
+ },
+ {
+  "view": "full_final",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.01433,
+   "meanCode": 20.9,
+   "skyY": 0.02473,
+   "skyCode": 38.2,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.0000197,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000003905,
+   "exposure": 32910,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32911.374832924754,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.374832924754,
+    "tEx": 32911.374832924754,
+    "setEx": 32911.374832924754,
+    "applies": 43,
+    "writes": 1371
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 5.967e-8,
+    "minG": 5.96e-8,
+    "distinctG": 1,
+    "subnormalShare": 1,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/full_final_index_gfxcurrent.png"
+ },
+ {
+  "view": "half_stand",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-03 02:00:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 33.2,
+   "phase": 0.516,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.00259,
+   "meanCode": 1.7,
+   "skyY": 0.00946,
+   "skyCode": 6.5,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.00000214,
+   "keyY": 0.547,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 32910,
+   "moonPhase": 0.516,
+   "moonEl": 33.2,
+   "sunEl": -36.2,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32907.663351331124,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32907.663351331124,
+    "tEx": 32907.663351331124,
+    "setEx": 32907.663351331124,
+    "applies": 46,
+    "writes": 1784
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/half_stand_index_gfxcurrent.png"
+ },
+ {
+  "view": "new_stand",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-10-10 00:30:00 AKDT",
+   "sunEl": -41.6,
+   "moonEl": -44.1,
+   "phase": 0.002,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.0026,
+   "meanCode": 1.7,
+   "skyY": 0.0095,
+   "skyCode": 6.5,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 7.285e-12,
+   "keyY": 0.035,
+   "keyDirMoon": true,
+   "hemiI": 9.425e-7,
+   "exposure": 33730,
+   "moonPhase": 0.002,
+   "moonEl": -44.1,
+   "sunEl": -41.6,
+   "cover": 0,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 33780,
+   "exBase": 33729.85781048247,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 33780.72471251094,
+    "tEx": 33780.727055897485,
+    "setEx": 33729.85781048247,
+    "applies": 49,
+    "writes": 3084
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/new_stand_index_gfxcurrent.png"
+ },
+ {
+  "view": "overcast_stand",
+  "page": "index_gfxcurrent",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 00:30:00 AKDT",
+   "sunEl": -36.2,
+   "moonEl": 36,
+   "phase": 0.998,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": 0.716
+  },
+  "still": {
+   "meanY": 0.0035,
+   "meanCode": 6,
+   "skyY": 0.00546,
+   "skyCode": 7.6,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "light": {
+   "key": "moon",
+   "keyI": 0.0000197,
+   "keyY": 0.588,
+   "keyDirMoon": true,
+   "hemiI": 0.000006302,
+   "exposure": 32910,
+   "moonPhase": 0.998,
+   "moonEl": 36,
+   "sunEl": -36.2,
+   "cover": 1,
+   "night": [
+    1,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 32910,
+   "exBase": 32911.374832924754,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 32911.374832924754,
+    "tEx": 32911.374832924754,
+    "setEx": 32911.374832924754,
+    "applies": 64,
+    "writes": 3343
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 0,
+    "meanY": 0,
+    "minG": 0,
+    "distinctG": 1,
+    "subnormalShare": 0,
+    "zeroShare": 1
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/overcast_stand_index_gfxcurrent.png"
+ },
+ {
+  "view": "noon_stand",
+  "dayProof": {
+   "differing": 4284572,
+   "maxDelta": 213
+  }
+ }
+]

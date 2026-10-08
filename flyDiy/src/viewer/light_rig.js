@@ -269,7 +269,9 @@
   //     (the sun above -0.833 deg) and the blit skips the branch: the day is the day to the bit.
   // Every number here is a dial (moon_ui.js mounts them on the left rail's NIGHT, double-click resets);
   // NIGHT_DEF holds the resting values.
-  var NIGHT_DEF = { eye: 0, moon: 1, desat: 0.85, blue: 0.5, colourCd: 3 };
+  // the resting values, judged on the 8 Oct stills (reports/evidence/MOONLIGHT/sheet_full_moon.jpg: before | eye 0 | +1 | +2):
+  // +1 stop reads a full moon as a dangerous but flyable night (the coast, the lakes, the strips, the ridges), +2 is a dusk
+  var NIGHT_DEF = { eye: 1, moon: 1, desat: 0.9, blue: 0.6, colourCd: 3 };
   var NIGHT = {}; for (var nk in NIGHT_DEF) NIGHT[nk] = NIGHT_DEF[nk];
   function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
   // the phase law: a phase's light over the full moon's (phase = the illuminated fraction, 06_solar)
