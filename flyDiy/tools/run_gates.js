@@ -165,6 +165,9 @@ const GATES = [
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
+  // G2251 (MAP-MENU): THE 2-D ISLAND MAP (tools/map_bake.js) - the committed picture and projection re-bake byte for byte,
+  // every runway's pixels inside its footprint in the projection (and every footprint drawn), the 2 MB / 4096 px budget; ~12 s
+  { id: 'MAPBAKE', file: '_mapbake_check.js', argv: ['--selftest'], tier: 'core', wall: 20 },
   // G1995-G1997 (HW-COVERAGE, the user's GTX 1660 Ti laptop: a 128 s garage load, 3-4 fps for 15 min, NO REVEAL): on a virtual
   // clock - the boot watchdog never lifts a chain that still lands steps (keys alone are not progress; 5x hard the last
   // resort); the runtime step-down (gfx_settings.js GFX.hw: one rung under 15 fps in the shed / on the ground, once a state,
@@ -607,6 +610,16 @@ const GATES = [
   // order-free), the fleet lift refuses nothing, moving is flying, every
   // refusal leaves the document as it came; 16 doctored rules. ~2 s
   { id: 'GAMEPREM', file: '_gameprem_check.js', tier: 'core' },
+  // ACCEPT (G2274, GAME-2026-10-06 §6.2): a build's acceptance - the static checks (no simulation: the phone's),
+  // the flown leg (a 5-min stabilised cruise on the AP box, TAS calm-air, the flow, the endurance and range) on the
+  // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
+  // logbook's stop at a strip, the page's wrapper and the worker's door, acceptVerdict per kind; --selftest 24 rules
+  { id: 'ACCEPT', file: '_accept_check.js', tier: 'core', wall: 300 },
+  // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
+  // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
+  // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
+  // five designs' shakedown, cached in the OS temp dir by content)
+  { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

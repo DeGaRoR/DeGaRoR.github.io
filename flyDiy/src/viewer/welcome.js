@@ -351,6 +351,9 @@
   // (query, navigator, host) -> { mode: a MODES entry, or null for the menu; why; asked: what ?mode= said }. Pure, GATE GFX
   const decideMode = (q, nav, host) => {
     const m = /[?&]mode=([a-z]+)/.exec(q || ''), asked = m ? m[1] : null;
+    // G2320 (CAREER-WIRE): ?career=1 is THE DEV CAREER (app.js: flydiy.career.dev) - the career mode for the page's
+    // game code, on any host and on the rigs; the menu's New career row stays "coming" (READY.career is false)
+    if (/[?&]career=1(&|$)/.test(q || '')) return { mode: 'career', why: '?career=1: the dev career', asked, dev: true };
     if (asked && MODES.indexOf(asked) >= 0) return READY[asked] ? { mode: asked, why: '?mode=' + asked, asked }
       : { mode: 'sandbox', why: '?mode=' + asked + ' is not built yet: the sandbox', asked };
     if (force('welcome', q) || force('devgate', q)) return { mode: null, why: 'forced (?welcome=1 / ?devgate=1)', asked };

@@ -1,0 +1,390 @@
+<meta charset="utf-8">
+<title>flyDiy Contracts Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap">
+<style>
+/* Layout: a collapsible contract list on the left, an interactive map (pan, zoom, bounds) filling the rest, one status line.
+   v2 (the user, 7 Oct): an old-map look that stays functional, colours by contract TYPE, X / V only for the hard no-no's, the runways condensed. */
+:root {
+  --bg: #1c1a17; --panel: #24211d; --ink: #ece6dc; --muted: #a59d8f; --line: #3a352f;
+  --accent: #e6a15a; --ok: #8cc79a; --no: #e08a7a;
+  --cargo: #d99a3c; --pax: #4f9fd6; --survey: #6cbf8a; --build: #b58fd8;
+  --paper: #e9dcc0; --paperInk: #3b2a1a;
+  --f: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --old: "IM Fell English", Georgia, "Times New Roman", serif;
+  --oldsc: "IM Fell English SC", Georgia, serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f); overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: 370px 1fr; grid-template-rows: 1fr auto; }
+aside { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.head { padding: 14px 16px 10px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.head h1 { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.types { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); }
+.types span { display: inline-flex; align-items: center; gap: 6px; }
+.filter { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.filter select { font: 13px var(--f); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; min-height: 36px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.list { overflow-y: auto; flex: 1; }
+.atf { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; background: #2b2722; border-bottom: 1px solid var(--line); font-size: 13px; }
+.atf button { font: 600 14px var(--f); color: var(--ink); background: none; border: 1px solid var(--line); border-radius: 6px; min-width: 40px; min-height: 36px; cursor: pointer; }
+.atf[hidden], [hidden] { display: none !important; }
+.empty { margin: 0; padding: 16px; color: var(--muted); }
+.strip { position: absolute; transform: translate(-50%, -50%); width: var(--bs, 30px); height: var(--bs, 30px); border-radius: 50%; display: grid; place-items: center; pointer-events: auto; cursor: pointer;
+  background: #e9dcc0; color: #3b2a1a; border: 1.5px solid #3b2a1a; box-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.strip::before { content: ""; position: absolute; inset: -9px; }
+.strip svg { width: 66%; height: 66%; fill: currentColor; }
+.hot { position: absolute; transform: translate(-50%, -50%); width: var(--hs, 22px); height: var(--hs, 22px); border-radius: 50%; display: grid; place-items: center;
+  background: #e8f3df; color: #2d5a25; border: 1.5px solid #2d5a25; box-shadow: 0 1px 3px rgba(0,0,0,.45); pointer-events: auto; }
+.hot svg { width: 70%; height: 70%; fill: currentColor; }
+.hot.sea { background: #dff0f7; color: #1d5f86; border-color: #1d5f86; }
+.hotname { position: absolute; transform: translate(14px, -50%); font: italic 12.5px var(--old); color: #e8f3df; text-shadow: 0 0 3px #12301a, 0 0 2px #12301a; white-space: nowrap; pointer-events: none; }
+.zone { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; border: 1.5px dashed rgba(232,243,223,.7); pointer-events: none; }
+
+.strip.water { color: #1d5f86; }
+.strip.on { box-shadow: 0 0 0 3px var(--accent), 0 1px 3px rgba(0,0,0,.45); }
+.sname { position: absolute; transform: translate(10px, -50%); font: 600 11.5px var(--f); color: #1c1a17; background: rgba(244,239,230,.86); padding: 1px 5px; border-radius: 3px; white-space: nowrap; pointer-events: auto; cursor: pointer; }
+.sname small { font-weight: 400; color: #4a4038; }
+main.look-old .sname { font: 13.5px/1.15 var(--old); color: var(--paperInk); background: rgba(233,220,192,.88); }
+main.look-old .sname small { font: italic 12px var(--old); color: #5a4630; }
+.poi { position: absolute; transform: translate(-50%, -50%); font: italic 13px var(--old); color: #2a2018; text-shadow: 0 0 3px #f4efe6, 0 0 3px #f4efe6; white-space: nowrap; pointer-events: none; }
+.item { border-bottom: 1px solid var(--line); }
+.row { width: 100%; display: grid; grid-template-columns: 10px 1fr auto 18px; gap: 10px; align-items: center; padding: 12px 16px; min-height: 48px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.row:hover, .item.open .row { background: #2b2722; }
+.row .t { font-weight: 500; min-width: 0; }
+.row .pay { font-variant-numeric: tabular-nums; }
+.row .mark { text-align: center; font-weight: 600; }
+.ok { color: var(--ok); } .no { color: var(--no); }
+.item.tracked .row .t::after { content: " ★"; color: var(--accent); }
+.body { display: none; padding: 0 16px 14px 36px; gap: 10px; }
+.item.open .body { display: grid; }
+.body p { margin: 0; max-width: 42ch; }
+.body .rw { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.body .why { display: block; margin-top: 6px; color: var(--no); }
+.track { justify-self: start; font: 600 13px var(--f); color: #1c1a17; background: var(--accent); border: 0; border-radius: 6px; padding: 10px 16px; min-height: 40px; cursor: pointer; }
+.item.tracked .track { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+/* the map */
+main { position: relative; overflow: hidden; background: #004279; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+main img, main svg { -webkit-user-drag: none; user-drag: none; }
+main.drag { cursor: grabbing; }
+.stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.stage img { display: block; width: 2167px; height: 2834px; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.stage .grain, .stage .vig { position: absolute; inset: 0; pointer-events: none; }
+main.look-old { background: #004279; }
+main.look-old .stage img { filter: saturate(1.08) contrast(1.02); }
+main.look-old .stage .grain { display: none; }
+main.look-old .stage .vig { display: none; }
+main:not(.look-old) .stage .grain, main:not(.look-old) .stage .vig { display: none; }
+.ov { position: absolute; inset: 0; pointer-events: none; }
+.ov svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pin { position: absolute; transform: translate(-50%, -50%); width: 14px; height: 14px; border-radius: 50%; border: 2px solid #1c1a17; box-shadow: 0 0 0 2px #f4efe6; pointer-events: auto; cursor: pointer; }
+.pin::before { content: ""; position: absolute; inset: -16px; }  /* a 46 px hit area */
+.lbl { position: absolute; transform: translate(12px, -50%); font: 600 12px var(--f); color: #1c1a17; background: #f4efe6; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+main.look-old .lbl { font: 15px/1.1 var(--old); background: rgba(233,220,192,.92); color: var(--paperInk); border: 1px solid rgba(59,42,26,.35); }
+.plane { position: absolute; transform: translate(-50%, -50%); font-size: 14px; color: #1c1a17; background: #f4efe6; border-radius: 4px; padding: 0 4px; line-height: 20px; }
+main.look-old .plane { background: var(--paper); color: var(--paperInk); border: 1px solid var(--paperInk); }
+.ctl { position: absolute; right: 14px; bottom: 14px; display: grid; gap: 8px; pointer-events: auto; }
+.ctl button, .tabs button { font: 600 15px var(--f); color: var(--ink); background: rgba(28,26,23,.9); border: 1px solid var(--line); border-radius: 8px; min-width: 48px; min-height: 48px; cursor: pointer; }
+.tabs { position: absolute; left: 14px; top: 14px; display: flex; gap: 0; pointer-events: auto; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.tabs button { border: 0; border-radius: 0; font-size: 13px; padding: 0 14px; color: var(--muted); }
+.tabs button[aria-selected="true"] { color: #1c1a17; background: var(--accent); }
+.rose { position: absolute; right: 18px; top: 16px; width: 64px; height: 64px; pointer-events: none; }
+main:not(.look-old) .rose { display: none; }
+.scale { position: absolute; left: 16px; bottom: 16px; font: 12px var(--f); color: #1c1a17; background: rgba(244,239,230,.85); padding: 2px 6px; border-radius: 3px; pointer-events: none; }
+main.look-old .scale { font: 14px var(--old); background: rgba(233,220,192,.85); color: var(--paperInk); }
+.note { position: absolute; top: 74px; left: 14px; max-width: 300px; background: rgba(28,26,23,.9); color: var(--muted); font-size: 12px; padding: 10px 12px; border-radius: 6px; line-height: 1.45; pointer-events: auto; }
+.note b { color: var(--ink); }
+.note button { margin-top: 6px; font: 12px var(--f); color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+footer { grid-column: 1 / -1; border-top: 1px solid var(--line); background: var(--panel); padding: 9px 16px; display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+footer b { color: var(--ink); font-weight: 500; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 48vh 1fr auto; }
+  main { grid-row: 1; } aside { grid-row: 2; border-right: 0; border-top: 1px solid var(--line); }
+  .note { display: none; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="7"/><feColorMatrix values="0 0 0 0 .55  0 0 0 0 .45  0 0 0 0 .32  0 0 0 .9 0"/></filter>
+</svg>
+
+<div class="app">
+  <aside aria-label="Contracts">
+    <div class="head">
+      <h1>Contracts</h1>
+      <div class="types" aria-label="Contract types">
+        <span><i class="dot" style="background:var(--cargo)"></i>Cargo</span><span><i class="dot" style="background:var(--pax)"></i>Passengers</span>
+        <span><i class="dot" style="background:var(--survey)"></i>Survey</span><span><i class="dot" style="background:var(--build)"></i>Build</span>
+      </div>
+      <label class="filter" for="cust">Customer <select id="cust"><option value="all">All</option><option value="trust">The Field Trust</option><option value="mine">Mine &amp; Dock</option><option value="resort">Skyline Resort</option><option value="survey">Survey Office</option><option value="clients">Private clients</option></select></label>
+    </div>
+    <div class="atf" id="atf" hidden><span></span><button type="button" id="atx" aria-label="Show every place">✕</button></div>
+    <div class="list" id="list"></div>
+  </aside>
+  <main id="map" class="look-old" aria-label="The island map: drag to pan, wheel or pinch to zoom">
+    <div class="stage" id="stage">
+      <img src="map_bold.jpg" alt="" draggable="false">
+      <svg class="grain" width="2167" height="2834" aria-hidden="true"><rect width="100%" height="100%" filter="url(#paper)"/></svg>
+      <div class="vig"></div>
+    </div>
+    <div class="ov" id="ov"><svg id="route" aria-hidden="true"></svg></div>
+    <div class="tabs" role="tablist" aria-label="Map look">
+      <button role="tab" id="t-old" aria-selected="true">Bold bake</button><button role="tab" id="t-plain" aria-selected="false">Your AI map</button>
+    </div>
+    <svg class="rose" viewBox="-32 -32 64 64" aria-hidden="true">
+      <circle r="27" fill="none" stroke="#3b2a1a" stroke-width="1"/><circle r="22" fill="none" stroke="#3b2a1a" stroke-width=".6"/>
+      <path d="M0-30 L5-5 L0 0 L-5-5Z" fill="#3b2a1a"/><path d="M0 30 L5 5 L0 0 L-5 5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/>
+      <path d="M30 0 L5 5 L0 0 L5-5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/><path d="M-30 0 L-5 5 L0 0 L-5-5Z" fill="#3b2a1a"/>
+      <text y="-17" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="9" fill="#3b2a1a">N</text>
+    </svg>
+    <div class="ctl"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Fit the island">⤢</button></div>
+    <div class="scale" id="scale">1 km</div>
+    <div class="note" id="note"><b>A mock, not the game.</b> Drag to pan, scroll or pinch to zoom; the island stays in bounds. Every strip and the wildlife hotspots are on the map, icons sized to the zoom: a badge far out, its runway facts and the places closer in, the runway at true scale close up. Tap a strip or its name to list only the contracts there. The tabs compare the bold bake with your AI repaint, both under the same old-map dress (labels, compass, paper edge). The map is one raster image, so a repaint drops straight in. A ✗ appears only on a hard no-no (water versus wheels); everything else is left to you, with the runways in the paragraph. Numbers are illustrative; your fleet is the career's starting Cub on wheels.<br><button id="hide" type="button">Hide this note</button></div>
+  </main>
+  <footer><span>Wallet <b>60 000</b></span><span>Tracking <b id="trk">nothing yet</b></span></footer>
+</div>
+
+<script>
+const W = 2167, H = 2834, MPP = 12;   // the bake: 12 m a pixel
+// aerodromes in map pixels (px = (x + 11000) / 12, py = (z + 27000) / 12) with their runway: length x width, surface
+const A = {
+  HOME: { n: 'Jolene AFB', x: 891.6, y: 2268.4, r: '2 325 × 45 m concrete', water: false },
+  w3:   { n: 'Tamgas Hill Strip', x: 850, y: 2050, r: '520 × 18 m gravel', water: false },
+  SEA:  { n: 'Annette Dock', x: 946.7, y: 1944.9, r: '1 500 m water lane', water: true },
+  mk:   { n: 'Metlakatla Seaplane Base', x: 585, y: 1465, r: '1 500 m water lane', water: true },
+  mn:   { n: 'Jumbo Mine Street', x: 1520.8, y: 964.2, r: '250 × 18 m gravel', water: false },
+  nv:   { n: 'East Point Clearing', x: 1752.5, y: 1278.3, r: '150 × 12 m gravel', water: false },
+  tw:   { n: 'Skyline Altiport', x: 938.1, y: 1607.7, r: '380 × 18 m grass, uphill, 700 m up', water: false } };
+// every strip on the island: runway centre (map px), heading (rad, the world's), length / width (m), the place it belongs to
+const STRIPS = [
+  { k: 'HOME', at: 'HOME', x: 891.6, y: 2268.4, hdg: 0.7156, len: 2325, wid: 45, s: 'concrete' },
+  { k: 'w2', at: 'HOME', x: 965.3, y: 2242.2, hdg: 1.9897, len: 1835, wid: 45, s: 'concrete' },
+  { k: 'w3', at: 'w3', x: 850, y: 2050, hdg: 2.8798, len: 520, wid: 18, s: 'gravel' },
+  { k: 'SEA', at: 'SEA', x: 946.7, y: 1944.9, hdg: -2.37369, len: 1500, wid: 200, s: 'water' },
+  { k: 'mk', at: 'mk', x: 585, y: 1465, hdg: -0.8203, len: 1500, wid: 200, s: 'water' },
+  { k: 'mn', at: 'mn', x: 1520.8, y: 964.2, hdg: -1.6581, len: 250, wid: 18, s: 'gravel' },
+  { k: 'nv', at: 'nv', x: 1752.5, y: 1278.3, hdg: 1.8326, len: 150, wid: 12, s: 'gravel' },
+  { k: 'tw', at: 'tw', x: 938.1, y: 1607.7, hdg: -1.0472, len: 380, wid: 18, s: 'grass' } ];
+// each place's kind -> its icon (a small ink pictogram on a paper disc)
+const KIND = { HOME: 'airfield', w3: 'strip', SEA: 'seaplane', mk: 'seaplane', mn: 'mine', nv: 'clearing', tw: 'altiport' };
+const ICON = {
+  airfield: '<path d="M12 3.5c.9 0 1.4.7 1.4 1.6v4.6l6.6 3.6v2l-6.6-1.9v3.9l2 1.5v1.6l-3.4-.9-3.4.9v-1.6l2-1.5v-3.9L4 15.3v-2l6.6-3.6V5.1c0-.9.5-1.6 1.4-1.6z"/>',
+  strip: '<path d="M10.2 3h3.6l1.2 18H9z"/><path d="M12 5v2M12 9v2M12 13v2M12 17v2" stroke="#e9dcc0" stroke-width="1.2"/>',
+  seaplane: '<path d="M12 4c.8 0 1.2.6 1.2 1.4v3.8l6 3v1.8l-6-1.6v3.2l1.7 1.2v1.3l-2.9-.8-2.9.8v-1.3l1.7-1.2v-3.2l-6 1.6v-1.8l6-3V5.4C10.8 4.6 11.2 4 12 4z"/><path d="M5 20.5c1.2-1 2.3-1 3.5 0s2.3 1 3.5 0 2.3-1 3.5 0 2.3 1 3.5 0" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  mine: '<path d="M4.5 9.5c3.5-4 11.5-4 15 0-3.4-1.6-11.6-1.6-15 0z"/><path d="M11.2 8.2h1.6v12.3h-1.6z"/>',
+  clearing: '<path d="M12 3l5 7h-3l4 6h-5v4h-2v-4H6l4-6H7z"/>',
+  altiport: '<path d="M2.5 19.5l6.5-11 3.5 5.5 3-4 6 9.5z"/><path d="M8.6 9.3l1.4 2.3 1.2-1.5z" fill="#e9dcc0"/>',
+};
+// the wildlife hotspots: the island record's animal objects (premises frame = world), as the in-game minimap marks them
+const HOTS = [
+  { k: 'elk', n: 4, x: 1180, z: -1080, r: 120 }, { k: 'bear', n: 1, x: -800, z: -2300, r: 70 }, { k: 'doe', n: 5, x: 740, z: -2500, r: 110 },
+  { k: 'orca', n: 5, x: 0, z: -3750, r: 300 }, { k: 'whale', n: 1, x: -8600, z: 2400, r: 450 }, { k: 'bird', n: 7, x: 900, z: -2980, r: 200 },
+  { k: 'elk', n: 6, x: -1300, z: -2350, r: 150 }, { k: 'doe', n: 7, x: -1420, z: -2520, r: 130 }, { k: 'bird', n: 5, x: 10150, z: -11470, r: 160 } ]
+  .map(h => Object.assign(h, { px: (h.x + 11000) / 12, py: (h.z + 27000) / 12 }));
+const HOTLAB = { elk: 'elk', bear: 'a bear', doe: 'deer', orca: 'orcas', whale: 'a whale', bird: 'eagles' };
+const HOTSEA = { orca: true, whale: true };
+const HOTICON = {
+  elk: '<path d="M7 4l1 3-2 1 1 1 2-1 1 3h4l1-3 2 1 1-1-2-1 1-3-2 2-1-1-1 2h-2l-1-2-1 1zM9 12h6l1 5-1 4h-1.5l-.5-3h-2l-.5 3H9l-1-4z"/>',
+  doe: '<path d="M9 5l2 3h2l2-3-1 4 1 2-1 1h-4l-1-1 1-2zM9 12h6l1 5-1 4h-1.5l-.5-3h-2l-.5 3H9l-1-4z"/>',
+  bear: '<circle cx="7.5" cy="7" r="2"/><circle cx="16.5" cy="7" r="2"/><path d="M12 6c4 0 6.5 3 6.5 6.5S16 19 12 19s-6.5-3-6.5-6.5S8 6 12 6z"/>',
+  orca: '<path d="M3 13c3-4 9-5 14-3l2-4 .5 5c1.5 1 2.5 2 2.5 3-4 2-12 3-19-1z"/>',
+  whale: '<path d="M3 12c2-3 8-4 13-2 2 .8 3 2 3 3.5 1-1 2-2.5 3-3-.3 2-1 3.5-2.5 4.5C17 18 8 18 3 12z"/>',
+  bird: '<path d="M2 10c4-1 7 0 10 3 3-3 6-4 10-3-4 1-7 3-10 7-3-4-6-6-10-7z"/>',
+};
+// the places of interest (what the providers are), shown from the middle zoom
+const POI = [ { n: 'Metlakatla', x: 560, y: 1500 }, { n: 'the mine', x: 1545, y: 935 }, { n: 'the lodge', x: 965, y: 1585 },
+              { n: 'the cannery', x: 975, y: 1925 }, { n: 'Tamgas Hill 1 096 m', x: 1240, y: 1700 } ];
+const TYPE = { cargo: 'var(--cargo)', pax: 'var(--pax)', survey: 'var(--survey)', build: 'var(--build)' };
+const CUST = { trust: 'The Field Trust', mine: 'Mine & Dock', resort: 'Skyline Resort', survey: 'The Survey Office', clients: 'A private client' };
+const FLEET_WATER = false;   // the starting Cub is on wheels
+const C = [
+  { id: 1, ty: 'cargo', cu: 'trust', t: 'Tools for Tamgas Hill', pay: '450', a: 'HOME', b: 'w3', km: 3, s: 'needs 35 kg of tools taken to Tamgas Hill.' },
+  { id: 2, ty: 'pax', cu: 'trust', t: 'A lift to Tamgas Hill', pay: '520', a: 'HOME', b: 'w3', km: 3, s: 'needs one volunteer flown up to Tamgas Hill.' },
+  { id: 3, ty: 'cargo', cu: 'mine', t: 'Parts to the dock', pay: '1 740', a: 'mn', b: 'SEA', km: 14, s: 'needs 120 kg of crated parts flown from the mine down to the dock.' },
+  { id: 4, ty: 'pax', cu: 'resort', t: 'Guests for the lodge', pay: '680', a: 'HOME', b: 'tw', km: 5, s: 'needs one guest flown up to the altiport.' },
+  { id: 5, ty: 'survey', cu: 'survey', t: 'Deer count at East Point', pay: '900', a: 'HOME', b: 'nv', km: 32, over: true, s: 'wants a counter flown over East Point and back, no landing.' },
+  { id: 6, ty: 'cargo', cu: 'mine', t: 'Mail off the water', pay: '600', a: 'SEA', b: 'mk', km: 9, s: 'needs 20 kg of mail flown from the dock to Metlakatla.' },
+  { id: 7, ty: 'build', cu: 'clients', t: 'A fast plane for four', pay: '68 000', a: 'HOME', b: 'mn', km: 17, build: true, s: 'wants a plane that carries four at 200 km/h or more and lands on the mine street. Design it, then fly it there to deliver.' },
+];
+// the only check we make for the player: a hard no-no (a landing on water with wheels, or on land with floats only)
+function nogo(c) {
+  if (c.build) return null;
+  const ends = c.over ? [c.a] : [c.a, c.b];
+  const wet = ends.find(k => A[k].water);
+  if (wet && !FLEET_WATER) return 'None of your planes can land on water (' + A[wet].n + ').';
+  return null;
+}
+let cust = 'all', open = 1, tracked = null, at = null;
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+
+function list() {
+  const L = document.getElementById('list'); L.textContent = '';
+  const hd = document.getElementById('atf');
+  if (at) { hd.hidden = false; hd.querySelector('span').textContent = 'At ' + A[at].n; } else hd.hidden = true;
+  const shown = C.filter(c => (cust === 'all' || c.cu === cust) && (!at || c.a === at || c.b === at));
+  if (!shown.length) L.append(el('p', 'empty', 'No contract involves ' + (at ? A[at].n : 'this filter') + ' yet.'));
+  for (const c of shown) {
+    const bad = nogo(c);
+    const it = el('div', 'item' + (open === c.id ? ' open' : '') + (tracked === c.id ? ' tracked' : ''));
+    const r = el('button', 'row'); r.type = 'button'; r.setAttribute('aria-expanded', String(open === c.id));
+    const d = el('span', 'dot'); d.style.background = TYPE[c.ty];
+    const mk = el('span', 'mark ' + (c.build ? '' : bad ? 'no' : 'ok'), c.build ? '' : bad ? '✗' : '✓');
+    mk.setAttribute('aria-label', c.build ? '' : bad ? 'a hard no-no for your fleet' : 'nothing rules your fleet out');
+    r.append(d, el('span', 't', c.t), el('span', 'pay', c.pay), mk);
+    r.onclick = () => { open = open === c.id ? null : c.id; render(); };
+    const body = el('div', 'body'); const p = el('p', null, CUST[c.cu] + ' ' + c.s + ' Pays ' + c.pay + '.');
+    p.append(el('span', 'rw', c.over ? A[c.a].n + ' ' + A[c.a].r + ' → over ' + A[c.b].n + ' · ' + c.km + ' km'
+                                     : A[c.a].n + ' ' + A[c.a].r + ' → ' + A[c.b].n + ' ' + A[c.b].r + ' · ' + c.km + ' km'));
+    if (bad) p.append(el('span', 'why', bad));
+    body.append(p);
+    const tb = el('button', 'track', tracked === c.id ? 'Tracking ★' : 'Track'); tb.type = 'button';
+    tb.onclick = () => { tracked = tracked === c.id ? null : c.id; render(); };
+    body.append(tb); it.append(r, body); L.append(it);
+  }
+}
+
+// ---- the map: pan, zoom at the cursor, pinch, bounds ----
+const map = document.getElementById('map'), stage = document.getElementById('stage');
+let s = 1, tx = 0, ty = 0, sFit = 1;
+const view = () => map.getBoundingClientRect();
+function fit() { const v = view(); sFit = Math.min(v.width / W, v.height / H); s = sFit; tx = (v.width - W * s) / 2; ty = (v.height - H * s) / 2; apply(); }
+function clamp() {
+  const v = view(); s = Math.max(sFit, Math.min(sFit * 8, s));
+  const w = W * s, h = H * s;
+  tx = w <= v.width ? (v.width - w) / 2 : Math.min(0, Math.max(v.width - w, tx));
+  ty = h <= v.height ? (v.height - h) / 2 : Math.min(0, Math.max(v.height - h, ty));
+}
+function zoomAt(f, cx, cy) { const ns = Math.max(sFit, Math.min(sFit * 8, s * f)); tx = cx - (cx - tx) * ns / s; ty = cy - (cy - ty) * ns / s; s = ns; apply(); }
+function apply() { clamp(); stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')'; overlay(); }
+function focusOn(c) { const v = view(); const a = A[c.a], b = A[c.b];
+  const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2; const span = Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), 120);
+  s = Math.max(sFit, Math.min(sFit * 8, Math.min(v.width, v.height) * .55 / span)); tx = v.width / 2 - cx * s; ty = v.height / 2 - cy * s; apply(); }
+const pts = new Map(); let last = null, pinch0 = null;
+let downAt = null, moved = false;
+map.addEventListener('dragstart', e => e.preventDefault());
+map.addEventListener('selectstart', e => e.preventDefault());
+map.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+map.addEventListener('pointerdown', e => { if (e.button !== 0 && e.pointerType === 'mouse') return; if (e.target.closest('button, .note, .tabs, .ctl')) return; e.preventDefault(); downAt = { x: e.clientX, y: e.clientY }; moved = false; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); map.classList.add('drag'); last = { x: e.clientX, y: e.clientY }; if (pts.size === 2) { const [p, q] = [...pts.values()]; pinch0 = { d: Math.hypot(p.x - q.x, p.y - q.y), s }; } });
+map.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const r = view();
+  if (pts.size === 2 && pinch0) { const [p, q] = [...pts.values()]; const d = Math.hypot(p.x - q.x, p.y - q.y); const cx = (p.x + q.x) / 2 - r.left, cy = (p.y + q.y) / 2 - r.top; zoomAt((pinch0.s * d / pinch0.d) / s, cx, cy); return; }
+  if (downAt && !moved && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) { moved = true; try { map.setPointerCapture(e.pointerId); } catch (_) {} }
+  if (last) { tx += e.clientX - last.x; ty += e.clientY - last.y; last = { x: e.clientX, y: e.clientY }; apply(); } });
+const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null; if (!pts.size) { map.classList.remove('drag'); last = null; } else { const p = [...pts.values()][0]; last = { x: p.x, y: p.y }; } };
+map.addEventListener('pointerup', up); map.addEventListener('pointercancel', up);
+map.addEventListener('wheel', e => { e.preventDefault(); const r = view(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+document.getElementById('zin').onclick = () => { const v = view(); zoomAt(1.5, v.width / 2, v.height / 2); };
+document.getElementById('zout').onclick = () => { const v = view(); zoomAt(1 / 1.5, v.width / 2, v.height / 2); };
+document.getElementById('zfit').onclick = fit;
+window.addEventListener('resize', fit);
+
+function overlay() {
+  const ov = document.getElementById('ov'); ov.querySelectorAll('.pin,.lbl,.plane,.strip,.sname,.poi,.hot,.hotname,.zone').forEach(e => e.remove());
+  const svg = document.getElementById('route'); svg.innerHTML = '';
+  const P = (k) => ({ x: tx + A[k].x * s, y: ty + A[k].y * s });
+  const old = map.classList.contains('look-old');
+  const zr = s / sFit;                         // 1 = the whole island; the levels of detail key on it
+  const near = s * 1 / MPP;                    // screen px per metre
+  const bs = Math.round(Math.max(16, Math.min(34, 10 + 9 * zr))), hs = Math.round(Math.max(14, Math.min(26, 6 + 7 * zr)));
+  ov.style.setProperty('--bs', bs + 'px'); ov.style.setProperty('--hs', hs + 'px');
+  if (zr >= 1.25) for (const h of HOTS) {
+    const q = { x: tx + h.px * s, y: ty + h.py * s }, rr = h.r / MPP * s;
+    if (rr > 18) { const z = el('span', 'zone'); z.style.left = q.x + 'px'; z.style.top = q.y + 'px'; z.style.width = z.style.height = (2 * rr) + 'px'; ov.append(z); }
+    const b = el('span', 'hot' + (HOTSEA[h.k] ? ' sea' : '')); b.style.left = q.x + 'px'; b.style.top = q.y + 'px';
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + HOTICON[h.k] + '</svg>'; b.setAttribute('aria-label', h.n + ' ' + HOTLAB[h.k]); ov.append(b);
+    if (zr >= 2.6) { const t = el('span', 'hotname', (h.n > 1 ? h.n + ' ' : '') + HOTLAB[h.k]); t.style.left = q.x + 'px'; t.style.top = q.y + 'px'; ov.append(t); }
+  }
+  const ENDS = {};   // the open / tracked contracts' places -> their type colour (the badge takes a ring)
+  for (const c of [open, tracked].filter(Boolean).map(id => C.find(x => x.id === id))) for (const k of [c.a, c.b]) if (!ENDS[k]) ENDS[k] = TYPE[c.ty];
+  // the runways at true scale once a strip is wider than a symbol (close in)
+  for (const r of STRIPS) {
+    const lpx = r.len * near, wpx = Math.max(r.wid * near, 2);
+    if (lpx < 34) continue;
+    const c = { x: tx + r.x * s, y: ty + r.y * s }, ux = Math.cos(r.hdg), uy = Math.sin(r.hdg);
+    const pts = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => (c.x + ux * a * lpx / 2 - uy * b * wpx / 2) + ',' + (c.y + uy * a * lpx / 2 + ux * b * wpx / 2)).join(' ');
+    const NS = 'http://www.w3.org/2000/svg', g = document.createElementNS(NS, 'g');
+    const P = (a, b, L = lpx, Wd = wpx) => [c.x + ux * a * L / 2 - uy * b * Wd / 2, c.y + uy * a * L / 2 + ux * b * Wd / 2];
+    const poly = (L, Wd, attrs) => { const e = document.createElementNS(NS, 'polygon');
+      e.setAttribute('points', [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => P(a, b, L, Wd).join(',')).join(' '));
+      for (const k in attrs) e.setAttribute(k, attrs[k]); g.append(e); return e; };
+    const line = (a1, b1, a2, b2, attrs, L = lpx, Wd = wpx) => { const e = document.createElementNS(NS, 'line'); const p = P(a1, b1, L, Wd), q = P(a2, b2, L, Wd);
+      e.setAttribute('x1', p[0]); e.setAttribute('y1', p[1]); e.setAttribute('x2', q[0]); e.setAttribute('y2', q[1]); for (const k in attrs) e.setAttribute(k, attrs[k]); g.append(e); };
+    if (r.s === 'water') {
+      line(-1, 0, 1, 0, { stroke: '#e9dcc0', 'stroke-width': 2.5, 'stroke-dasharray': '8 6', opacity: .9 });
+      for (const a of [-1, 1]) { const q = P(a, 0); const b = document.createElementNS(NS, 'circle'); b.setAttribute('cx', q[0]); b.setAttribute('cy', q[1]); b.setAttribute('r', 4.5);
+        b.setAttribute('fill', '#d9653b'); b.setAttribute('stroke', '#fff'); b.setAttribute('stroke-width', 1.5); g.append(b); }
+    } else {
+      // the cleared ground round the strip, then the surface
+      poly(lpx + 14, wpx + 14, { fill: r.s === 'concrete' ? 'rgba(201,190,160,.75)' : 'rgba(150,170,100,.7)', stroke: 'none', rx: 4 });
+      poly(lpx, Math.max(wpx, 4), { fill: r.s === 'concrete' ? '#56524d' : r.s === 'gravel' ? '#9a7650' : '#6f9a4a', stroke: '#2a2622', 'stroke-width': 1 });
+      if (r.s === 'concrete') {
+        line(-0.86, 0, 0.86, 0, { stroke: '#f4efe6', 'stroke-width': Math.max(1, wpx * 0.06), 'stroke-dasharray': '7 6' });
+        for (const a of [-1, 1]) for (const b of [-0.6, -0.3, 0.3, 0.6]) line(a * 0.985, b, a * 0.94, b, { stroke: '#f4efe6', 'stroke-width': Math.max(1, wpx * 0.08) });
+      } else {
+        for (const b of [-1, 1]) line(-1, b * 1.05, 1, b * 1.05, { stroke: '#f4efe6', 'stroke-width': 1.4, 'stroke-dasharray': '2 7' });
+      }
+      // the designators at both ends (compass bearing from the world heading: x east, -z north)
+      if (lpx > 120) for (const a of [-1, 1]) {
+        const brg = (Math.atan2(-a * ux, a * uy) * 180 / Math.PI + 360) % 360;   // the direction you land in, from that end
+        const num = String(Math.round(brg / 10) || 36).padStart(2, '0'); const q = P(a * 1.0, 0, lpx + 34, wpx);
+        const t = document.createElementNS(NS, 'text'); t.setAttribute('x', q[0]); t.setAttribute('y', q[1] + 4); t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('font-size', 12); t.setAttribute('font-weight', 700); t.setAttribute('fill', '#1c1a17'); t.setAttribute('stroke', '#f4efe6'); t.setAttribute('stroke-width', 3); t.setAttribute('paint-order', 'stroke');
+        t.textContent = num; g.append(t);
+      }
+    }
+    g.style.pointerEvents = 'auto'; g.style.cursor = 'pointer'; g.onclick = () => { at = at === r.at ? null : r.at; render(); };
+    svg.append(g);
+  }
+  // the places of interest (from the middle zoom)
+  if (zr >= 2.2) for (const q of POI) { const e = el('span', 'poi', q.n); e.style.left = (tx + q.x * s) + 'px'; e.style.top = (ty + q.y * s) + 'px'; ov.append(e); }
+  // every strip: a symbol always (clickable: filters the list to that place); its name from the start, its runway from the middle zoom
+  const named = new Set();
+  for (const r of STRIPS) {
+    const q = { x: tx + r.x * s, y: ty + r.y * s };
+    if (!named.has(r.at)) {
+      const sy = el('span', 'strip' + (r.s === 'water' ? ' water' : '') + (at === r.at ? ' on' : ''));
+      const off = r.len * near >= 34 ? 22 : 0;   // once the runway is drawn, the badge steps aside
+      sy.style.left = (q.x - off) + 'px'; sy.style.top = (q.y - off) + 'px';
+      sy.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[KIND[r.at]] + '</svg>';
+      if (ENDS[r.at]) { sy.style.boxShadow = '0 0 0 3px ' + ENDS[r.at] + ', 0 0 0 5px #1c1a17, 0 1px 4px rgba(0,0,0,.5)'; }
+      sy.setAttribute('role', 'button'); sy.setAttribute('aria-label', A[r.at].n + ': show its contracts');
+      sy.onclick = () => { at = at === r.at ? null : r.at; render(); }; ov.append(sy);
+    }
+    if (named.has(r.at)) continue; named.add(r.at);
+    const ends = [open, tracked].filter(Boolean).map(id => C.find(x => x.id === id)).some(c => c.a === r.at || c.b === r.at);
+    if (zr < 1.5 && !ends && at !== r.at) continue;      // far out: symbols only, but the open contract's places keep their names
+    const nm = el('span', 'sname', A[r.at].n);
+    if (zr >= 3) { nm.append(document.createTextNode(' '), el('small', null, A[r.at].r)); }
+    nm.style.left = q.x + 'px'; nm.style.top = (q.y + (zr >= 1.8 ? 0 : 0)) + 'px';
+    nm.onclick = () => { at = at === r.at ? null : r.at; render(); }; ov.append(nm);
+  }
+  const seen = new Set();
+  for (const c of [open, tracked].filter(Boolean).map(id => C.find(x => x.id === id))) {
+    const a = P(c.a), b = P(c.b);
+    const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    ln.setAttribute('x1', a.x); ln.setAttribute('y1', a.y); ln.setAttribute('x2', b.x); ln.setAttribute('y2', b.y);
+    ln.setAttribute('stroke', old ? '#3b2a1a' : '#1c1a17'); ln.setAttribute('stroke-width', c.id === open ? 2.5 : 2);
+    if (c.id !== open || c.over || old) ln.setAttribute('stroke-dasharray', c.id === open ? '7 5' : '3 5');
+    svg.append(ln);
+
+  }
+  const h = P('HOME'); const pl = el('span', 'plane', '✈'); pl.setAttribute('aria-label', 'your Cub, at Jolene AFB'); pl.style.left = (h.x - 22) + 'px'; pl.style.top = (h.y + 16) + 'px'; ov.append(pl);
+  // a round scale bar
+  const m = 1000 * s / MPP, sc = document.getElementById('scale');
+  const km = [0.5, 1, 2, 5, 10].find(k => k * m >= 60) || 10;
+  sc.textContent = ''; const bar = el('span'); bar.style.cssText = 'display:inline-block;height:6px;border:1.5px solid currentColor;border-top:0;vertical-align:middle;margin-right:6px;width:' + Math.round(km * m) + 'px';
+  sc.append(bar, document.createTextNode((km < 1 ? '500 m' : km + ' km')));
+  const t = tracked ? C.find(x => x.id === tracked) : null;
+  document.getElementById('trk').textContent = t ? t.t + ': ' + A[t.a].n + ' → ' + A[t.b].n : 'nothing yet';
+}
+function setLook(bake) { map.style.background = bake ? '#165c96' : '#004279'; document.querySelector('.stage img').src = bake ? 'map_bold.jpg' : 'map_ai2.jpg'; document.getElementById('t-old').setAttribute('aria-selected', String(bake)); document.getElementById('t-plain').setAttribute('aria-selected', String(!bake)); overlay(); }
+document.getElementById('t-old').onclick = () => setLook(true);
+document.getElementById('t-plain').onclick = () => setLook(false);
+document.getElementById('cust').onchange = e => { cust = e.target.value; render(); };
+document.getElementById('atx').onclick = () => { at = null; render(); };
+document.getElementById('hide').onclick = () => { document.getElementById('note').hidden = true; };
+function render() { list(); overlay(); }
+render(); fit();
+</script>

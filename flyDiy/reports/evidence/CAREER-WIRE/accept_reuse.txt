@@ -1,0 +1,8 @@
+  THE LEGS (5 min, 75 % throttle, HOME + 300 m; TAS calm-air)        TAS km/h  VCruise (clamp)    flow           endurance flown / shakedown   range
+    cub                                                                   126.9   113 (129.2)        10.887 kg/h 15.12 L/h 178.6 min / 199 min   346 km (shakedown 376)
+    jodel                                                                 137.4   127.1 (149.7)      10.887 kg/h 15.12 L/h 178.6 min / 199 min   374.8 km (shakedown 422)
+    c172                                                                  195.5   184.3 (198.4)      26.569 kg/h 36.9 L/h  344.7 min / 385 min   1074.4 km (shakedown 1183)
+    metal                                                                 217.9   177.5 (177.4 CLAMPED)39.282 kg/h 54.56 L/h 30.8 min / 34 min     57.4 km (shakedown 102)
+  (the flights: 322 s wall on 4 processes; reports/evidence/ACCEPT/flights.json)
+  189 checks, 0 failed
+GATE ACCEPT: PASS

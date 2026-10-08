@@ -291,7 +291,7 @@ const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', t: -Infinity });
 
 // the pilot's fields that are big and change rarely: sent when the object
 // changes (by reference), the rest of the pilot every snapshot
-const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site'];
+const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'accept'];   // (G2273: the acceptance leg's state, a new object per stage)
 const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
 
 // ---- THE WORLD'S OPS (G815): the page world's registry and day calls, replayed on this one. The page's
@@ -542,6 +542,14 @@ function makeSimHost(CORE, init, keptWorld) {
       case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
       case 'cert': if (typeof sim.certStamp === 'function') sim.certStamp({ Ft: c.Ft, Fc: c.Fc }); break;   // G1831 (DMG-D2a)
       case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
+      // G2273 (ACCEPT): THE ACCEPTANCE LEG flies where the pilot flies (72_accept.js acceptLegStart, the page's own door
+      // when the flight is inline: accept_rec.js); its state rides the pilot's fields to the page (ap.accept)
+      case 'accept': {
+        const start = CORE.acceptLegStart || (typeof acceptLegStart === 'function' ? acceptLegStart : null);
+        if (c.op === 'start' && start && !H.accept) H.accept = start(sim, ap, def, c.o || {});
+        else if (c.op === 'abort' && H.accept) { H.accept.abort(ap, c.why || 'aborted'); H.accept = null; }
+        break;
+      }
       case 'setDay': world.setDay(c.day || {}); world.__simV = (world.__simV || 0) + 1; break;
       case 'obst': case 'world': case 'premises': simHostWorldOp(world, c); break;
       // G815: the page's viewers' wind queries, replayed where they sat between the page's steps (sim_link.js): they
@@ -555,6 +563,7 @@ function makeSimHost(CORE, init, keptWorld) {
       // aeroplane, its engines and the clock carry on); the destination as the page's select has it
       case 'leg': {
         const cur = aeroById(c.from), to = (c.to == null || c.to === 'CIRCUIT') ? cur : aeroById(c.to);
+        if (H.accept) { H.accept.abort(ap, 'a new leg began'); H.accept = null; }   // G2273: the leg belonged to that pilot
         H.ap = mkPilot();
         H.ap.departFrom(cur, to);
         H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to });
@@ -600,10 +609,15 @@ function makeSimHost(CORE, init, keptWorld) {
     const ap = H.ap, dt = SIM_HOST_DT;
     if (!H.started) sim.ctl.brake = 0.6;
     else if (H.manual) {
+      if (H.accept) { H.accept.abort(ap, 'the hand took the controls'); H.accept = null; }   // G2273
       if (H.hand) writeHand(H.hand);
       if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
       manualEnding(dt);
-    } else ap.update(dt);
+    } else {
+      // G2273 (ACCEPT): the leg's procedure before the pilot's update, as GATE ACCEPT flies it (_accept_fly.js)
+      if (H.accept) { const st = H.accept.tick(sim, ap); if (st === 'done' || st === 'aborted') H.accept = null; }
+      ap.update(dt);
+    }
     sim.step(dt);
     if (!noDay) H.dayTick(dt);
     H.steps++;

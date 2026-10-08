@@ -161,6 +161,14 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // ACCEPT (G2270): a build's acceptance - the static checks (no simulation:
+    // the phone may run them), the flown leg's measurement and procedure on the
+    // AP box, the signed record, acceptVerdict over a contract's criteria. Pure;
+    // reads 71_'s footprint and door, 38b_'s flightWhere. GATE ACCEPT.
+    '72_accept.js',
+    // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
+    // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
+    '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
@@ -283,7 +291,10 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
-         ['src/viewer', 'diag.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'diag.js'],
+         // G2252 (MAP-MENU): THE MAP SCREEN - its projection (map_pack.js, tools/map_bake.js writes it) and the screen; fetched
+         // when the MAP entry is pressed, never before (the entry itself exists only with ?map=1 or in the career mode)
+         ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
@@ -444,6 +455,9 @@ const MANIFEST = {
     // plaque.js and stickers.js before bench.js (G208): the plaque's sheet
     // (explanations, bounds, hover cards) and the certification roundels;
     // bench.js and app.js read both through window.PLAQUE / window.STICKERS.
+    // accept_rec.js after bench.js (G2273, ACCEPT): the acceptance leg's page
+    // wrapper (window.ACCEPT_REC) - reads bench.js's BENCH_FP_OUT and the
+    // core's 72_accept.js; app.js ticks it beside the HUD and the plaque reads it.
     // bench_worker.js before bench.js (A9): the load rig's and the crosswind
     // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
     // worker next to tools/flight_core.js — so it must stay a file the page
@@ -460,7 +474,7 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
@@ -1021,6 +1035,8 @@ window.FLYDIY_BOOT.then(function () {
   // THE ON-DEMAND LOADER (AS1, G909): MANIFEST.lazy's files by stem, each appended once (async = false: in the order
   // asked), a promise per name that settles on load or error (a missing file is the feature's absent path, never a
   // hung page); .pending() counts those in flight (render_world's premises step waits on the generators)
+  // G2252 (MAP-MENU): the contracts fixture the MAP screen reads until CONTRACT-MODEL lands, content-versioned like a script
+  const MAP_FIXTURE = 'tools/fixtures/contracts_sample.json' + ver(path.join(ROOT, 'tools', 'fixtures', 'contracts_sample.json'));
   const LAZY_SRC = {};
   for (const [d, f] of MANIFEST.lazy) LAZY_SRC[f.replace(/\.js$/, '')] = d + '/' + f + ver(path.join(ROOT, d, f));
   const LAZY_LOADER = `<script>
@@ -1048,6 +1064,23 @@ window.FLYDIY_BOOT.then(function () {
   try { if (localStorage.getItem('flydiy.worldlook.v1') || /"shown":true/.test(localStorage.getItem('flydiy.worldrail.ui') || '') || /[?&]scenery=1/.test(location.search)) lazy('world_rail'); } catch (e) {}
   // G1995 (HW-COVERAGE): THE SELF-TEST, ?diag - its module loads only when the URL asks (zero cost otherwise)
   try { if (/[?&]diag(=[^&]*)?(&|$)/.test(location.search)) lazy('diag'); } catch (e) {}
+  // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
+  // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
+  // it is pressed (lazy, like diag.js)
+  window.FLYDIY_MAP_SRC = { fixture: ${JSON.stringify(MAP_FIXTURE)} };
+  var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
+    var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
+    if (!on) return false;   // the sandbox: nothing touched
+    if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
+    var b = document.createElement('button');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
+      "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    document.body.appendChild(b);
+    return true;
+  };
+  try { if (document.body) mapEntry(); else document.addEventListener('DOMContentLoaded', mapEntry); } catch (e) {}
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'F9' || window.WORLD_RAIL) return;
     e.preventDefault(); lazy('world_rail').then(function () { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); });

@@ -1,0 +1,197 @@
+  ok   cub: emptyKg = the plaque's empty (genShakedown) 353.8 / 353.8
+  ok   cub: cost = the plaque's cost 31203 / 31203
+  ok   cub: empty + payload = the all-up mass the sim flies (476.2)
+  ok   cub: seats 2 (capacity), 1 aboard as drawn
+  ok   cub: span 10.8 m = the measured plan (the aero span 10.70)
+  ok   cub: powertrain piston (four)
+  ok   cub: the tank 45 L, no pack
+  ok   jodel: emptyKg = the plaque's empty (genShakedown) 340.6 / 340.6
+  ok   jodel: cost = the plaque's cost 34363 / 34363
+  ok   jodel: empty + payload = the all-up mass the sim flies (463.0)
+  ok   jodel: seats 2 (capacity), 1 aboard as drawn
+  ok   jodel: span 8.4 m = the measured plan (the aero span 8.30)
+  ok   jodel: powertrain piston (four)
+  ok   jodel: the tank 45 L, no pack
+  ok   c172: emptyKg = the plaque's empty (genShakedown) 641.3 / 641.3
+  ok   c172: cost = the plaque's cost 89078 / 89078
+  ok   c172: empty + payload = the all-up mass the sim flies (993.9)
+  ok   c172: seats 4 (capacity), 2 aboard as drawn
+  ok   c172: span 11 m = the measured plan (the aero span 11.00)
+  ok   c172: powertrain piston (four)
+  ok   c172: the tank 212 L, no pack
+  ok   metal: emptyKg = the plaque's empty (genShakedown) 663.2 / 663.2
+  ok   metal: cost = the plaque's cost 93783 / 93783
+  ok   metal: empty + payload = the all-up mass the sim flies (883.4)
+  ok   metal: seats 4 (capacity), 2 aboard as drawn
+  ok   metal: span 11 m = the measured plan (the aero span 11.00)
+  ok   metal: powertrain piston (four)
+  ok   metal: the tank 28 L, no pack
+  ok   eTrainer: emptyKg = the plaque's empty (genShakedown) 298.2 / 298.2
+  ok   eTrainer: cost = the plaque's cost 50830 / 50830
+  ok   eTrainer: empty + payload = the all-up mass the sim flies (393.2)
+  ok   eTrainer: seats 1 (capacity), 1 aboard as drawn
+  ok   eTrainer: span 9 m = the measured plan (the aero span 9.00)
+  ok   eTrainer: powertrain electric (electric)
+  ok   eTrainer: no tank, the pack 2 kWh
+  ok   floats: emptyKg = the plaque's empty (genShakedown) 798.0 / 798.0
+  ok   floats: cost = the plaque's cost 95731 / 95731
+  ok   floats: empty + payload = the all-up mass the sim flies (1018.2)
+  ok   floats: seats 4 (capacity), 2 aboard as drawn
+  ok   floats: span 11 m = the measured plan (the aero span 11.00)
+  ok   floats: powertrain piston (four)
+  ok   floats: the tank 28 L, no pack
+  ok   the user's Cub: 2 seats (1 aboard), 45 L, piston, 10.8 m across
+  ok   the Cub empty 353.8 kg (a J-3 is 310-340: the model's, in its band)
+  ok   the user's electric trainer: electric, 2 kWh
+  ok   the C172: 4 seats
+  ok   seats >= 2 ok, >= 3 refused on the Cub
+  ok   emptyKg <= 360 ok, <= 300 refused
+  ok   powertrain piston / electric
+  ok   tankL <= 45 ok, <= 20 refused
+  ok   batteryKWh <= 2 ok, <= 1.5 refused (the trainer)
+  ok   spanM <= 11 ok, <= 9 refused
+  ok   through a door: 10.8 m needs 11.4 (0.3 m a side): 11.3 refused, 11.4 passes
+  ok   through a shed: hangarDoor's own rule (7.0 m door: the span (10.8 m) does not pass the 7.0 m door)
+  ok   a 6 m door (HW 5.5) refuses the Cub (the span (10.8 m) does not pass the 6.0 m door)
+  ok   costMax at the ledger ok, <= 25000 refused (31203)
+  ok   the Cub's certificate (computed, 8 s): limit 3.8 g, ultimate 5.7 g
+  ok   ultimateG >= 5.7 ok, >= 6 refused (the normal category's certificate)
+  ok   no certificate: no value (a test to run), not a pass
+  ok   the bench's crosswind row carries its limit (6.2 m/s; capped > 10)
+  ok   xwindKt from the bench's row: 6.2 m/s = 12.1 kt >= 12
+  ok   xwindKt >= 13 refused
+  ok   an older row (no `limit`) read off its verdict: 4.1 m/s = 8.0 kt
+  ok   a WITHDRAWN crosswind row counts for nothing
+  ok   hydro: lifts off ok, stuck refused, not run = no value
+  ok   no simulation in acceptStatic (the phone runs it)
+  ok   no simulation in acceptEvidence (the phone runs it)
+  ok   no simulation in acceptBenchXwind (the phone runs it)
+  ok   every static kind on six builds: 0.16 ms a pass
+  ok   every flight flew
+  THE LEGS (5 min, 75 % throttle, HOME + 300 m; TAS calm-air)        TAS km/h  VCruise (clamp)    flow           endurance flown / shakedown   range
+  ok   cub: the leg flown to the end (settled quiet, no NaN)
+  ok   cub: the leg VALID
+  ok   cub: signed (06777d9c) under the build's fingerprint 98fe19d6
+  ok   cub: published on the pilot (ap.accept) with the same record
+  ok   cub: 301 samples over 300 s
+  ok   cub: in its bands: alt 0..0.1 m, TAS -0.4..0.0 %, bank 0°
+  ok   cub: endurance = usable 32.4 kg / 10.887 kg/h - 15 min = 163.6 min
+  ok   cub: range = TAS x endurance = 346 km
+  ok   cub: the flow is 75 % of the full-throttle burn at 75 % throttle
+  ok   cub: the flown TAS 126.9 > the solved VCruise 113
+    cub                                                                   126.9   113 (129.2)        10.887 kg/h 15.12 L/h 178.6 min / 199 min   346 km (shakedown 376)
+  ok   jodel: the leg flown to the end (settled quiet, no NaN)
+  ok   jodel: the leg VALID
+  ok   jodel: signed (aece5a53) under the build's fingerprint 2b6415e6
+  ok   jodel: published on the pilot (ap.accept) with the same record
+  ok   jodel: 301 samples over 300 s
+  ok   jodel: in its bands: alt -0.2..0 m, TAS -1.3..0.1 %, bank 0°
+  ok   jodel: endurance = usable 32.4 kg / 10.887 kg/h - 15 min = 163.6 min
+  ok   jodel: range = TAS x endurance = 374.8 km
+  ok   jodel: the flow is 75 % of the full-throttle burn at 75 % throttle
+  ok   jodel: the flown TAS 137.4 > the solved VCruise 127.1
+    jodel                                                                 137.4   127.1 (149.7)      10.887 kg/h 15.12 L/h 178.6 min / 199 min   374.8 km (shakedown 422)
+  ok   c172: the leg flown to the end (settled quiet, no NaN)
+  ok   c172: the leg VALID
+  ok   c172: signed (e8d00059) under the build's fingerprint edc34223
+  ok   c172: published on the pilot (ap.accept) with the same record
+  ok   c172: 301 samples over 300 s
+  ok   c172: in its bands: alt 0..0 m, TAS 0.0..0.0 %, bank 0°
+  ok   c172: endurance = usable 152.64 kg / 26.569 kg/h - 15 min = 329.7 min
+  ok   c172: range = TAS x endurance = 1074.4 km
+  ok   c172: the flow is 75 % of the full-throttle burn at 75 % throttle
+  ok   c172: the flown TAS 195.5 > the solved VCruise 184.3
+    c172                                                                  195.5   184.3 (198.4)      26.569 kg/h 36.9 L/h  344.7 min / 385 min   1074.4 km (shakedown 1183)
+  ok   metal: the leg flown to the end (settled quiet, no NaN)
+  ok   metal: the leg VALID
+  ok   metal: signed (4bd32618) under the build's fingerprint 49e66598
+  ok   metal: published on the pilot (ap.accept) with the same record
+  ok   metal: 301 samples over 300 s
+  ok   metal: in its bands: alt 0..0 m, TAS 0.0..0.0 %, bank 0°
+  ok   metal: endurance = usable 20.16 kg / 39.282 kg/h - 15 min = 15.8 min
+  ok   metal: range = TAS x endurance = 57.4 km
+  ok   metal: the flow is 75 % of the full-throttle burn at 75 % throttle
+  ok   metal: the flown TAS 217.9 > the solved VCruise 177.5 (CLAMPED at 2.2 Vs)
+    metal                                                                 217.9   177.5 (177.4 CLAMPED)39.282 kg/h 54.56 L/h 30.8 min / 34 min     57.4 km (shakedown 102)
+  ok   DETERMINISTIC: the Cub flown twice - the same record (06777d9c / 06777d9c), the same samples, the same landing row
+  ok   a DOWNBURST mid-leg: the leg REFUSED, signed as refused (the height left its band: -12.4..+4.6 m of ±10; the speed left its band: -29.0..+2.8 % of ±3 %)
+  ok   CALM-AIR: in a 7.2 m/s wind the TAS 126.9 km/h (calm 126.9, 0.00 %), the groundspeed 147.7, the flow the same
+  ok   the Cub flew home and STOPPED: the logbook row from HOME, at HOME (flightWhere), sink 0.63 m/s, run 163 m, 1 aboard, its fingerprint
+  ok   cub: re-measured off its samples, the same record (valid true, tasKmh 126.9, enduranceMin 163.6, rangeKm 346)
+  ok   cubDist: re-measured off its samples, the same record (valid false, tasKmh 123.7, enduranceMin 163.6, rangeKm 337.3)
+  ok   cubDist re-measured: still refused, on BOTH bands it broke (the height and the speed)
+  ok   cubWind: re-measured off its samples, the same record (valid true, tasKmh 126.9, enduranceMin 163.6, rangeKm 345.9)
+  ok   cubWind re-measured: the calm TAS
+  ok   page: refused on the ground (in the air first: the leg is a cruise)
+  ok   page: refused under the hand (the hand is flying: the autopilot flies the acceptance leg)
+  ok   page: started on the page's own sim; a second start refused
+  ok   page: the leg SIGNED INTO THE LOGBOOK once (log.accept), valid, the roll-out fingerprint
+  ok   page: the logbook note (proved in flight: 126.7 km/h TAS, 163.6 min)
+  ok   page: the plaque's row = that leg; under another fingerprint WITHDRAWN
+  ok   page: the contract door - tasKmh ok, seats ok, landAt HOME needs a flight
+  ok   the physics thread: the 'accept' command flies the leg on the host's step; its state reaches the page through the snapshot (climb > settle > record > done), signed, valid
+  ok   verdict seats 2 -> ok (2)
+  ok   verdict seats 4 -> fail (2)
+  ok   verdict emptyKg 400 -> ok (353.8)
+  ok   verdict emptyKg 300 -> fail (353.8)
+  ok   verdict powertrain "piston" -> ok (piston)
+  ok   verdict powertrain "electric" -> fail (piston)
+  ok   verdict tankL 50 -> ok (45)
+  ok   verdict tankL 20 -> fail (45)
+  ok   verdict batteryKWh 10 -> ok (0)
+  ok   verdict spanM 11 -> ok (10.8)
+  ok   verdict spanM 9 -> fail (10.8)
+  ok   verdict costMax 40000 -> ok (31203)
+  ok   verdict costMax 25000 -> fail (31203)
+  ok   verdict ultimateG 5.7 -> ok (5.7)
+  ok   verdict ultimateG 6 -> fail (5.7)
+  ok   verdict xwindKt 8 -> ok (12.1)
+  ok   verdict xwindKt 15 -> fail (12.1)
+  ok   verdict hydro true -> needs-test
+  ok   verdict tasKmh 110 -> ok (126.9)
+  ok   verdict tasKmh 200 -> fail (126.9)
+  ok   verdict enduranceMin 60 -> ok (163.6)
+  ok   verdict enduranceMin 600 -> fail (163.6)
+  ok   verdict rangeKm 100 -> ok (346)
+  ok   verdict rangeKm 5000 -> fail (346)
+  ok   verdict takeoffAt "HOME" -> ok (HOME)
+  ok   verdict takeoffAt "A4" -> needs-flight
+  ok   verdict landAt "HOME" -> ok (HOME)
+  ok   verdict landAt "A4" -> needs-flight
+  ok   verdict warpDrive 1 -> fail
+  ok   every kind (15) has a sample criterion
+  ok   the margin: TAS 126.9 vs 110 = +16.9 km/h (15.4 %), bonus earned
+  ok   a stated margin of 50 % is not beaten
+  ok   three criteria held, two beaten by >= 10 %: +20 % (seats equal: no margin)
+  ok   a criterion's own reserve: 45 min off the gross 178.6 = 133.6
+  ok   a load not flown (2 aboard; the leg had 1): needs a flight
+  ok   the load flown (1 aboard): counts
+  ok   another fingerprint (the build changed): the leg WITHDRAWN (every leg was flown before the build changed (withdrawn))
+  ok   a record edited after the flight (TAS +50) does not verify: not counted
+  ok   only a refused leg: needs a flight (no VALID leg: the height left its band: -12.4..+4.6 m of ±10; the speed left its band: -29.0..+2.8 % of ±3 %)
+  ok   the plaque's row: the leg under its fingerprint, WITHDRAWN under another, nothing for a refused leg
+  ok   a row that did not stop on the strip proves no landing there
+  ok   a row of another build proves nothing
+  ok   a rejected take-off proves no take-off
+  ok   §6.3 "my team of four to the mine, fast" on the C172: 4 seats ok; 200 km/h WITH 4 ABOARD and the landing at the strip still to fly
+  ok   §6.3 "under 300 kg, out of the shed alone" on the Cub: refused on mass and span
+  ok   §6.3 "an hour on 20 litres" on the Cub: the hour and the speed flown, the 45 L tank refused
+  ok   §6.3 "electric" on the trainer: electric ok, the endurance to fly
+  ok   §6.3 "the aerobatic box" (+6 g ultimate): the certificate says 5.7 - refused (OPEN: a category on the certificate)
+  ok   §6.3 "cheap and forgiving": the crosswind ok, the cost refused
+  (CONTRACT_CRIT_KINDS not in this tree: CONTRACT-MODEL lands it; ACCEPT answers seats, emptyKg, powertrain, tankL, batteryKWh, spanM, costMax, ultimateG, xwindKt, hydro, tasKmh, enduranceMin, rangeKm, takeoffAt, landAt)
+  ok   the manifest: 72_accept.js before the exports, accept_rec.js after bench.js
+  ok   app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame)
+  ok   app.js logFlight: a leg still flying ends with the flight
+  ok   app.js logFlight: the row says where it stopped, who was aboard, which build
+  ok   app.js drawPlaque: the "proved in flight" section (proved in flight, cruise flown, draw flown, burn flown, endurance flown, range flown, the leg)
+  ok   plaque.js: every row explained, the section its line
+  ok   bench.js: the roll-out and live fingerprints, for the leg and the plaque
+  ok   sim_host.js: the command, the tick before the pilot's update, the state as a rare pilot field
+  ok   sim_link.js: the accept door in its api
+  ok   garage.js: the envelope writes and reads the logbook as it is (log.accept rides along)
+  ok   a saved and loaded logbook: the leg still verifies, the verdict the same
+  ok   accept_rec.js: the leg started where the pilot flies, signed into log.accept
+  (the flights: 322 s wall on 4 processes; reports/evidence/ACCEPT/flights.json)
+  188 checks, 0 failed
+GATE ACCEPT: PASS
