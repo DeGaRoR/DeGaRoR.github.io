@@ -351,7 +351,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
   }
   if (SHD.take()) {
     const F = L.flyTurn(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true, tMax: 30 });
-    check(F.contacts > 0 && /station/.test(F.cWhat || F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
+    check(F.contacts > 0 && /station/.test(F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
   }
   console.log('  11 the turn-around' + SHD.tag + ' in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
 }
