@@ -109,7 +109,7 @@ const GROUND_FIELDS = (() => {
       7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15.04, 90], far: ['grassRock', 'rockyA', null], farScale: [15, 90, 0], mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
       // THE FOREST FLOOR NEAR THE EYE (GROUND-LOOK G2611 - the user, 8 Oct: "the ground forest is seen very often, and it really looks bad
       // from close-up ... a detailed texture, which can be the same one, but downscaled by 20-50 times for starters. I'll tune later ...
-      // no green to brown transitions" - set in the world editor's own controls, no new code): the near set A is the aerial floor itself at
+      // no green to brown transitions" - set in the world editor's own controls, no new code; 8, 13 and the town's 16): the near set A is the aerial floor itself at
       // 2.5 m (81 m / 32), the aerial set stays it at 81 m - the same photograph, so the near -> far fade (FILTERING > distance) carries
       // no colour change. Tune per type: F8 > types > detail sets A (scale), the mask, FILTERING > distance.
       8:  { tex: ['forestAir', 'mud', null],   scale: [2.5, 3, 0],  far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
@@ -128,7 +128,7 @@ const GROUND_FIELDS = (() => {
       // forest floor's own aerial, worn thinner where feet and wheels cross it, with the
       // dirt of a yard showing through. It is NOT `built`: built is a yard, this is the
       // wood that never left, and its trees are the `residential` mix.
-      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
+      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [2.5, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
       // 17 THE BANK (SHORES-2 G1955, the user 2026-10-05: "you just need a good cliff texture, ideally oriented with respect
       // to the slope ... we need good blending"): DERIVED in the shader, like 12-14 - the steep faces within bankReach of a
       // lake's line or the coast, whatever their own code, take it by a soft, noise-broken weight (splat_ground sSplat), read
