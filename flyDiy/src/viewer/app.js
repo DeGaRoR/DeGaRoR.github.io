@@ -4633,14 +4633,14 @@
   // when the cabin round the eye is crushed (G1863). A heal (a reset, a new flight, another model) puts every part back
   // as built. Nothing of it runs while nothing is damaged and no engine has seized: wreckFrame returns at its first test.
   // ?wreck=0 (or window.FLYDIY_WRECK = false at any time): the wreck as drawn before G1860, for the A/B.
-  const WK = { model: null, P: null, W: null, T: null, t: null, rest: null, hid: [], idx: [], pos: [], rigs: null, cab: null,
+  const WK = { model: null, P: null, W: null, T: null, t: null, rest: null, hid: [], idx: [], pos: [], rigs: null, cab: null, crew: new Map(), crewOff: false, crewT: null,
                strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, ms: { plan: 0, release: 0, frame: 0 } };
   try { if (/[?&]wreck=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_wreck_stills.js): the parts, the bodies, the strikes, the cockpit rule's last word, the costs (ms)
   window.FLYDIY_WRECK_STATS = () => ({ on: window.FLYDIY_WRECK !== false, active: !!WK.model,
     parts: WK.P ? WK.P.parts.map(c => ({ kind: c.kind, gone: c.gone, why: c.why, crush: c.crush != null ? +c.crush.toFixed(3) : null })) : [],
     bodies: WK.W ? WK.W.bodies.map(B => ({ kind: B.kind, why: B.why, asleep: B.asleep, sunk: B.sunk, x: B.x.map(v => +v.toFixed(2)), tris: B.tris || 0 })) : [],
-    strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
+    strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
   function wreckState() {
     if (!window.WRECK_DEBRIS || window.FLYDIY_WRECK === false || !model || model.gen || !model.wreckBuild || !sim || !def) { if (WK.model) wreckHeal(); return null; }
     if (WK.model && WK.model !== model) wreckHeal();
@@ -4677,6 +4677,7 @@
     }
     if (!(OFF && OFF.ride)) wreckRide(D);
     if (!(OFF && OFF.eye)) wreckEye(D);
+    wreckCrew(D);
     // G1868: the orbit the cockpit rule cut to turns slowly round the wreck (WRECK_DRIFT rad/s) until the player takes it
     if (WK.drift) { if (cam.mode === 'orbit') azT += WRECK_DRIFT * frameDt(); else WK.drift = false; }
     WK.ms.frame = performance.now() - t0;
@@ -5066,8 +5067,26 @@
     // (G1868: a slow orbit round the wreck - the chase sits behind a CG that has stopped, looking at the crush's back)
     if (r.crushed) { WK.eyeCut = r.why; flCamMode('orbit'); WK.drift = true; }
   }
+  // DMG-D4b (train 41; the user: "hide the bodies, it's not the game for that. Let's destroy machines, not people. And
+  // rebuild them."): THE CREW IS NEVER DRAWN OUTSIDE THE WRECK. Whenever a figure could leave the cabin - the wreck broke
+  // up (the core's brokeUp: the body frame parted; the worker's verdict under it) or the cabin round the eye is crushed
+  // (G1863's own test, read here in every view, at most every 0.1 s) - the crew's meshes are hidden until the heal gives
+  // them back (Fly again, the shed). The crash card's words stay as they were. window.FLYDIY_CREW_SHOW = true: as it was
+  function wreckCrew(D) {
+    const ppl = model && model.people;
+    if (!ppl || !ppl.length || window.FLYDIY_CREW_SHOW) return;
+    if (!WK.crewOff) {
+      let off = !!(flDmg && flDmg.brokeUp) || !!WK.eyeCut;
+      if (!off && WK.cab && sim.t - (WK.crewT == null ? -1 : WK.crewT) >= 0.1) { WK.crewT = sim.t; off = !!window.WRECK_DEBRIS.crushed(WK.cab, sim.p, D.pc).crushed; }
+      if (!off) return;
+      WK.crewOff = true;
+    }
+    for (const P of ppl) if (P.inst) for (const m of P.inst.meshes) { if (!WK.crew.has(m)) WK.crew.set(m, m.visible); m.visible = false; }
+  }
   // A HEAL: the bodies gone, every part as built (its rigs, its matrix, its triangles, its prop's shape)
   function wreckHeal() {
+    for (const [m, v] of WK.crew) m.visible = v;   // (DMG-D4b: the crew back)
+    WK.crew.clear(); WK.crewOff = false; WK.crewT = null;
     if (WK.W) for (const B of WK.W.bodies) if (B.obj) { scene.remove(B.obj); B.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); B.obj = null; }
     for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); else if (h.m) h.o.matrix.copy(h.m); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;

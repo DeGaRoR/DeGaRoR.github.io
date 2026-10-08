@@ -264,6 +264,9 @@ const GATES = [
   // roll-out; every drawn buffer of the flown model shadowed off the GL, GPU copy = CPU array; damage off: no extra upload).
   // The hybrid bake's folds are not made in node (no GPU bake): their heal upload is box-proved, not gated here
   { id: 'DMGUPLOAD', file: '_dmg_upload_check.js', tier: 'core', weight: 3, wall: 900 },
+  // GATE DMGCRASHUI (DMG-D4b, train 41): after a crash the crew is never drawn outside the wreck, a damaged aeroplane is not
+  // certified (sim.damage().structural, the same inline and under the worker), and the card names it - worker and inline
+  { id: 'DMGCRASHUI', file: '_dmg_crash_ui_check.js', tier: 'core', weight: 3, wall: 900 },
   // G2044-G2046 (DMG-SETTLE): a wreck's pieces lie ON the ground at rest (the user: "the pieces hover") - on the Cub, the
   // Jodel and the metal Cessna's 30 m/s trunk break-ups, 15 s: every detached piece's lowest node within +1 / -6 cm of
   // the ground (the boxes' third chords meet it at the drawn surface: 61_gen_frame `so`, 30_solver rC), its flown-snapshot
