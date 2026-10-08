@@ -26,7 +26,8 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const flag = k => argv.includes('--' + k);
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const OUT = path.resolve(opt('out', 'potato_census.json'));
-const Q = opt('q', 'gfx=potato'), PAGE = opt('page', 'index.html'), SIZE = opt('size', '1920x911').split('x').map(Number);
+const Q = opt('q', opt('gfxpref', null) ? '' : 'gfx=potato'),   // G1532b.1: a seeded --gfxpref boots WITHOUT ?gfx= (it would override the pref)
+      PAGE = opt('page', 'index.html'), SIZE = opt('size', '1920x911').split('x').map(Number);
 const VIEWS = opt('views', 'garage,stand,taxi,low').split(','), SPLIT = flag('split'), FRAMES = +opt('frames', 60);
 const SHOTS = opt('shots', null), BUILD = opt('build', 'default'), TAXI = +opt('taxi', 25), LOWAGL = +opt('lowagl', 60);
 const SPORT = +opt('sport', 8571), DPORT = +opt('dport', 9471), UDD = opt('udd', 'C:/pdc');

@@ -81528,6 +81528,38 @@ THE STILLS (the same build, 'current', aa off, 400 m up, pitched 0.3): ?clouddc=
 (g1532_current_air_before_clouddc0.jpg | g1532_current_air_after_fix.jpg) - the same field the msaa still shows.
 THE OVERCAST REPEAT (A0, the user's day read cover 0.994): booked 22:50-23:00 GPU TIMED - the rung's taxi on ?cloud=0.9,st (the menu's
 'overcast'), the copy toggled in-load; an addendum row here.
+THE OVERCAST ROW (22:50-23:00 GPU TIMED, train 40 = bcf62797, build 4d16bbcb0e4a, the cook fresh; the rung --cpu-throttle 3 --gpux 2,
+?cloud=0.9,st, 180 s, the copy toggled in-load - 65 toggles): taxi 15.5 fps old (1261 frames) vs 15.6 copy (1200), calls 1017 / 1016;
+the march 4.56 ms on the overcast deck (it ran before the fix too); the blit's timer 0.05 ms (its running mean). No cost past noise on the
+user's kind of day either (g1532_cost_rung_overcast.json). The air not reached in 180 s on the rung.
+THE USER'S 33.1 ms TAXI GPU (A0: real or the timer's artefact?) - the laptop's train 38 log (flydiy-flightlog-20261007T000432, the
+Jodel, 'current', never committed): REAL whole-frame GPU time, but OF FRAMES WITHOUT THE CLOUD PASS. A spoiled recorder query is
+discarded, never kept short (flight_recorder gpuEnd: spoiled -> back to the pool), and after any foreign TIME_ELAPSED the recorder opens
+none for 120 frames - so a timed frame is a whole frame with no cloud timer near it. The log's runs after the reveal (38.7 s): TIMED 2787
+frames 38.8-136.2 s (taxi GPU 33.1 ms mean over 2724), then FOREIGN on every one of 1689 frames from 137.0 s to the end. The user
+re-applied 'current' at 133.8 s (the settings screen 133.9-158.0 s). So:
+- BEFORE THE RE-APPLY THE CLOUD PASS DID NOT RUN AT ALL on the laptop (no cloud query in 95 s of taxi: no march, no composite) - "no
+  clouds from boot" has a SECOND cause besides G1532's composite: on that boot the pass never started. The box rigs never showed it
+  (?gfx=current / rollout_perf --gfx: the pass runs from the reveal, every frame foreign). The user's saved rows differ: own: true and
+  town 'nearby' (a laptop-budget value: the welcome's laptop pick before the driver update, then 'current'). The node repro to do: a
+  census booted with the user's exact saved graphics (potato_census --gfxpref / FRAMECOST with a pref seed) counting CLOUDS.draw and the
+  AA target at the stand BEFORE any re-apply. G1532 alone may not give that user clouds from boot.
+- the 33.1 ms is the cloudless frame's GPU (the march, ~0.8 ms there, and G1532's blit + composite are not in it).
+- THE RE-APPLY THROW is the same moment: 200 err events from 136.2 s (the recorder's cap, reached by 144.0 s) "Cannot read properties of
+  undefined (reading 'boundingSphere') @:5802" - line 5802 of index.html is the whole inlined three.min.js (no column logged): a drawable
+  without geometry reaching three's frustum test, right after the re-apply that also started the cloud pass (137.0 s).
+G1532b.1 (flight_recorder.js): an error event now carries the column and, for the first three, six stack lines - the next log names the
+thrower (GATE FLIGHTREC PASS).
+THE SAVED-STATE BOOT ON THE BOX (8 Oct, A0's slots; train 40 page, the cook fresh): 04:30 run (A) VOID - potato_census added ?gfx=potato
+by default over the seeded pref (fixed b7c40066: --gfxpref boots without ?gfx=); (B) ?gfx=current: the cloud pass from boot, 30
+CLOUDS.draw + 30 composite draws per 60 frames at the stand and in the air, target 1920x911 s0. 05:52 run (A) again, GUARDED (the eval
+measures nothing unless the URL has no gfx= and GFX.get() is the seeded state): url '', own true, town 'nearby', current, clouds half,
+aa off - THE CLOUD PASS RUNS FROM BOOT (30 + 30 per 60 frames, active, baked, cover 0.443, target 1920x911 s0). NOT REPRODUCED: the
+laptop's boot differed in something its log does not carry - the saved WEATHER (a day saved with cover 0 keeps the pass inactive: no
+march, no query), or the machine. So the recorder now says it: an event 'sky' at the reveal and 10 s later (the cloud pass's mode / ready
+/ active / baked / sky cover, the day's cloudCover / type / upper decks, the resolve target), printed by analyze_log as a SKY line
+(flight_recorder.js + analyze_log.js; GATE FLIGHTREC PASS). The user's next log answers both open questions (the SKY lines, the
+boundingSphere thrower's column and stack) without a console capture. No apply-order fix: none was shown to be needed.
 GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
 0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
 53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;
