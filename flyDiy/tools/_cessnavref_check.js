@@ -69,5 +69,7 @@ for (const J of JOBS) {
           'touched ' + ld.tdIn + ' m in at ' + ld.V + ' m/s, sink ' + ld.sink + ', ' + ld.stopLeft + ' m of strip left; faults ' + (L.faults.map(f => f.k + ': ' + f.note).join('; ') || 'none'));
   }
 }
-console.log('GATE CESSNAVREF' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
+// (the runner reads `GATE CESSNAVREF: PASS` bare - run_gates printGate; the shard's account on its own line)
+if (SHD.tag) console.log('CESSNAVREF' + SHD.tag + ': ' + bad + ' failed');
+console.log('GATE CESSNAVREF: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);

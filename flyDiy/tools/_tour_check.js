@@ -107,7 +107,10 @@ if (SHD.first) {
   }
   // 3 the turn pads
   let nPads = 0;
-  for (const a of land) {
+  // (G2500: a tree without ISLAND-TOUR's src - pilot-42 - has no turn pads to hold: said as a failure, not a crash, so
+  // the shard still flies its tour)
+  check(typeof C.turnPadNodes === 'function', '3 the turn pads exist on this tree (25_airfield turnPadNodes, ISLAND-TOUR G1965)');
+  for (const a of (typeof C.turnPadNodes === 'function' ? land : [])) {
     const s = C.siteOf(a.id), P = C.sitePattern(a, s, {}), R = C.siteRunway(a), O = W.premises.overlay;
     const hS = q => W.terrainH(R.end0.x + R.dx * q, R.end0.z + R.dz * q);
     for (const k of [0, 1]) {
@@ -223,5 +226,7 @@ if (!STRIPS) {
     console.log('  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): ' + (L2 ? (L2.ok ? 'TAKES OFF - fold East Point into ORDERS.land' : L2.faults.map(f => f.k).join(', ') + ' - ' + L2.verdicts.filter(v => /reject|abort|off-the-strip/.test(v)).join('; ')) : 'not flown'));
   }
 }
-console.log('GATE TOUR' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
+// (G2500: the runner reads `GATE TOUR: PASS` bare - run_gates printGate; the shard's account on its own line)
+if (SHD.tag) console.log('TOUR' + SHD.tag + ': ' + bad + ' failed');
+console.log('GATE TOUR: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);
