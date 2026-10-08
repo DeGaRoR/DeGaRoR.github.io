@@ -112,6 +112,9 @@ const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink',
     await pg.goto(URL0 + '?audio=0&career=1', { waitUntil: 'domcontentloaded' });
     check(await boot(pg), '?career=1 loaded (the boot overlay gone)');
     check(await until(pg, () => !!document.getElementById('mapEntry') && !!document.getElementById('edWrap') && getComputedStyle(document.getElementById('edWrap')).display !== 'none', 60000), 'the garage is up (the editor\'s panels) and the MAP entry');
+    // the design flow's welcome sheet sits over the garage on a fresh page: keep the current build (its own button)
+    await tap(pg, '.dfClose');
+    await until(pg, () => !document.querySelector('.dfClose') || !document.querySelector('.dfClose').offsetParent, 10000);
     let { st, p } = await shot(pg, 'desk', 'garage', 'the garage as the page boots into it: the editor\'s panels - the look the map screen now takes');
     garageJpg = p;
     const edRect = await ev(pg, () => { const r = document.getElementById('edWrap').getBoundingClientRect(); return { x: Math.round(r.left), y: 0, w: Math.round(r.width), h: Math.round(r.height) }; });
@@ -166,6 +169,7 @@ const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink',
     check(st.phone && st.sheet === 'peek', 'the phone: the sheet folded');
     await tap(pg, '#mapScreen .mmHandle');
     await tap(pg, '#mapScreen .mmRow[data-id="job:resort:0:0"]');
+    await ev(pg, () => { const b = document.querySelector('#mapScreen .mmBody .mmTrack'); if (b) b.scrollIntoView({ block: 'end' }); });   // the paragraph and Track in the sheet's view
     ({ st } = await shot(pg, 'phone', 'open', 'the phone: the sheet open on "Guests for the lodge" - the paragraph and Track, the garage\'s, at touch size'));
     lookOk(st, 'phone open');
     check(st.sheet === 'open' && st.dress.primary && st.dress.primary.h >= 48, 'the phone: Track in the open sheet, ' + (st.dress.primary && st.dress.primary.h) + ' px');
