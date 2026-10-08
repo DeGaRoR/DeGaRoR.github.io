@@ -78192,6 +78192,15 @@ select) - cloud, G2096; S3 needs A0's box for the world evidence; S4 waits on Q2
 BOARDS (7 Oct, A0's format = the Deform pair): PROGRESS https://claude.ai/artifact/EaZJAscAZCDLXG87XXa568 (db: sessions / trains /
 meta board, log, calls; owner writes) - EVIDENCE https://claude.ai/artifact/J8ZJx9yFxc36g2KY29X9pr (images published with the page;
 tree + mode + renderer per sheet; refresh at every commit that adds images).
+8 OCT 05:30: train-42 cargo claude/game-train42 789af6c0 smoke PASS (UISMOKE SAVE PLAYER GAMEPREM, 05:10-05:12). Integration
+e42cc563 = + FREIGHT-LOAD G2345 (READY; it fixed the integration's build break: PROCURE and PILOTS both declared `const PT_`,
+PILOTS' renamed PLT_) + PILOTS over PILOT-PERSONA redone in PILOTS' own planned shape (personaProfile() answers the career
+first, 'I fly' = expert; GATE PILOTS + BUILD PASS 05:13). MEDIA's STEP_BUDGET (0.3 MiB a landing): train 43 = +310.4 KB, ~72 %
+career / map-only code -> A0 puts 'allow, on condition of CAREER-LAZY' to the user; CAREER-LAZY G2685-G2689 scoped (a separate
+career_core.<h8>.js fetched at boot only for the career / map). Chips out: SIM-CLOCK G2650, BELLY-POD-2 G2675 (damage half =
+Deform's DMG-POD G2393-G2397 after train 41), FREIGHT-STRAP G2400 (LOCAL-GPU, 9 Oct). Running: MAP-MERGE, CONTRACT-ROUTES,
+MAP-INFRA. Held for later: MAP-STYLE G2445 (after MAP-MERGE + MAP-INFRA), NIGHT-OPS G2665 (after CONTRACT-ROUTES).
+
 TRAIN 43 ASSEMBLY (7 Oct ~22:45): claude/game-integration 60c4c6e9+ = train-42 line + STAGES G2300, ECONOMY G2260, PROCURE G2280,
 PREM-S3 G2310, FREIGHT-MODEL G2340, BELLY-POD G2410, PILOTS G2290 (all READY; merged per hunk). Decisions: makePilot / pilotProfile =
 the hired pilot in the career, else PILOT-PERSONA's pick; the route row = the crew row in the career, the persona row in the
