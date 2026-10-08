@@ -9,7 +9,7 @@
 //      that breaks a leg -> no arrival, and the card names it ("Not certified - the aeroplane was damaged: ..."); a clean
 //      landing -> { damaged: false }, an arrival as before;
 //   3. (the centre of the screen after a crash is tools/dmg_crash_ui_rig.js's, on the box: the node page has no layout)
-// Flags: --only=worker|inline  --child=1 (internal)
+// Flags: --only=worker,inline,off (any of them; default all three)  --child=1 (internal)
 const path = require('path'), fs = require('fs'), os = require('os');
 const { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..'), argv = process.argv.slice(2);
@@ -166,7 +166,7 @@ function parent() {
     const h = RS.worker.hard, k = RS.inline.hard;
     if (h && k) say('  the hard landing, worker ' + JSON.stringify(h.structural) + ' at ' + h.sink + ' m/s / inline ' + JSON.stringify(k.structural) + ' at ' + k.sink + ' m/s');
   }
-  if (!only) fails = fails.concat(judge(runChild('worker', false), say));   // (damage OFF: the worker, the default)
+  if (!only || only.split(',').includes('off')) fails = fails.concat(judge(runChild('worker', false), say));   // (damage OFF: the worker, the default; --only=off alone)
   for (const x of fails) say('  FAIL  ' + x);
   console.log('GATE DMGCRASHUI: ' + (fails.length ? 'FAIL' : 'PASS'));
   process.exit(fails.length ? 1 : 0);
