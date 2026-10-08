@@ -80965,3 +80965,39 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2065 - METLA-MERGE: THE PAVEMENT MERGE IN SLICES, THE SAME MESHES AND SPHERES TO THE BIT; THE TOWN'S ~97 ms APPROACH FRAME GONE (2026-10-07/08, METLA-COOK for A0, local GPU; branch claude/metla-merge-g2065 on train 40 bcf62797, for train 42; G2066-G2069 unused)
+
+**READY for A0.** One commit, 2846a4f7.
+- src/viewer/pavement.js: inlined in index.html, so FLYDIY_BUILD moves and the parked cook is re-cooked at the train build.
+- tools/perf/metla_rebuild_split.js: the probe digests each mesh's bounding sphere too.
+- Generated files are not committed.
+
+**WHY.** The town's deferred build (G2063) left one ~80-97 ms frame on the way to Metlakatla, once per flight at ~7 km. The approach's CPU profile named it: PAV.mergeSteps (the town's roads merged into one group in one generator step) and computeBoundingSphere over the merged geometry.
+
+**WHAT.** mergeSteps now yields after each part, both when it measures the parts' boxes and when it copies them into the merged group. The merged group's bounding sphere is computed THREE's own way, in 65 536-vertex steps:
+- Box3.expandByPoint: Math.min / Math.max per axis over every position
+- the centre: (min + max) * 0.5
+- the largest Vector3.distanceToSquared to the centre
+- its root
+
+These are the same operations in the same order, so the same sphere to the bit, and the merged groups' culling (draw counts) cannot move. merge() (the synchronous form) drives the same generator.
+
+**PROOF (node, the page's boot; METLA_KEEPGEO; 7 Oct 16:52-16:58 under the CPU lock).**
+- Every mesh AND its bounding sphere hashed, old pavement.js (f422c111) against new:
+  - town OFF, all 268 meshes incl. the far tier: SAME
+  - town ON, every merge built at boot (?towngeo=0): SAME
+- The town's deferred build, its steps by label: the merge's largest step is 84 -> 33 ms node (boxes 5, copy 4, sphere 3 ms).
+
+**THE BOX** (8 Oct 14:38-14:44, TIMED; the Cub, gamer, lc_build pinned, a fresh profile; metla_ab --warmup A --order A,B --approach 40):
+
+| | town off | town on |
+|---|---|---|
+| garage | 42.3 s | 47.6 s |
+| taxi | 30 fps, 0 % | 30 fps, 0 % |
+| pass, uneven | 2 % | 3 % |
+| approach, worst frame | 66.7 ms | 83.5 ms |
+
+- No frame over 100 ms on either side.
+- On the town-on approach the premises step is gone (it was 97 ms on 7 Oct, same rig).
+- The worst frame (83.5 ms) shows 11 ms of render CPU (a GPU or upload frame); its neighbour shows world 34 + prem 31 ms.
