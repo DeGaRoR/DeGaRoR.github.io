@@ -115,6 +115,18 @@ const GATES = [
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
   { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
+  // G1965-G1974 ISLAND-TOUR: the strips (the approach census against the forest the fill plants, the turn pads, the
+  // mine's apron; ~1 min, shard 0) and THE TOUR - the user's Cub, the aluminium C172 and the float Cessna round every
+  // location they may use, damage ON, landing, turning round on the pad, taking off, back at HOME (one tour a shard,
+  // ~10-20 min each)
+  // G1970 ISLAND-TOUR-2: the game's flight (the worker's host, the game's day, the load door's aeroplane), East Point a fourth job
+  // (G2520: the row and its tools taken from claude/island-tour-2-g1975x 4bf4bd37 - tools only; the turn pads and the
+  // load door's src are not on this base, so the strips' block and the load-door check carry their known reds)
+  { id: 'TOUR', file: '_tour_check.js', tier: 'full', shards: 4, timeout: 3600_000, wall: 1500 },
+  // G2520 ALTIPORT-ARRIVAL: a field above the aeroplane, as the game flies it (the game's flight, damage on) - the Jodel
+  // and the Cub HOME > Skyline Altiport (stopped, no fault; the final begun at the circuit height; every flare armed over
+  // the strip and at most FLARE_ARM_MAX above it) and the flare guard's own row (a doctored arrival 250 m low is caught)
+  { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 3, timeout: 3600_000, wall: 900 },
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },

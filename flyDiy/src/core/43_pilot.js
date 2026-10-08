@@ -127,6 +127,14 @@ const PILOT_PHASES = {
   BOX: ['AP BOX', 'CRUISE'],
   ROUTE: ['ROUTE', 'ENROUTE'], LOITER: ['HOLDING', 'ENROUTE'],   // G2120 ROUTE-DRAW: the drawn route, its hold at the end
 };
+// G2520 ALTIPORT-ARRIVAL: THE FLARE NEVER ARMS MORE THAN THIS OVER THE AIM'S GROUND (m; FINAL's sanity guard, nor ever
+// under the strip). The arming height is (A.flareK 1.3) x A.flareAgl x the person's flareK + an altiport's grade x V:
+// the validated aeroplanes' flareAgl (genAP: 3.2 s of the approach's sink) - the Cub 3.94, the Jodel 4.74, the twin
+// on floats 4.86, the metal Cessna 7.56, the Cessna on floats 8.27 m - arm at 5.1 / 6.2 / 6.3 / 9.8 / 10.8 m (expert),
+// 18.0 m at the most (the floats with the custom person's top flareK 1.3 and Skyline Altiport's 10 % at 1.3 VAppr);
+// genAP's own ceiling (flareAgl 12 m) x 1.3 x 1.3 is 20.3 m. 25 m clears all of it; a flare armed higher is a
+// misreading of the height (a ridge before the threshold), not a flare
+const FLARE_ARM_MAX = 25;
 const PILOT_UNITS = {
   kt: v => v * 1.943844, fpm: v => v * 196.8504, ft: h => h * 3.28084, kmh: v => v * 3.6,
   deg: r => ((r * 180 / Math.PI) % 360 + 360) % 360,
@@ -457,7 +465,7 @@ function makePilot(sim, def, world, opts) {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
     ap.atHold = (opts && opts.atHold) || null;
-    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0; ap.climbHold = null; ap.flareGuard = null; ap.flareGuardN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
     to = landable(from, to);
@@ -878,6 +886,17 @@ function makePilot(sim, def, world, opts) {
     const P0 = wp(ap.frame, ap.xAim, 0);
     return groundH(P0[0], P0[1]) + (gearH ?? restH0);
   };
+  // G2520 ALTIPORT-ARRIVAL: THE STRIP'S OWN GROUND, for the flare's sanity guard (FINAL) - the aim's, and the lowest
+  // from the threshold to the aim (an uphill strip's threshold is its lowest point). Read off the terrain (the water
+  // over it), never the record's elevation: a guard that trusted the arrival's own numbers would share their error
+  const stripGround = () => {
+    if (!world || typeof world.terrainH !== 'function' || !ap.frame || !ap.route || !ap.route.to) return null;
+    const to = ap.route.to, P0 = wp(ap.frame, ap.xAim, 0), aim = groundH(P0[0], P0[1]);
+    const sThr = alongOf(ap.frame, [to.x, 0, to.z]) - to.len / 2;
+    let lo = aim;
+    for (let s = sThr; s < ap.xAim; s += 10) { const q = wp(ap.frame, s, 0); lo = Math.min(lo, groundH(q[0], q[1])); }
+    return { lo, aim };
+  };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
   const legGeom = (L) => {
@@ -1125,7 +1144,7 @@ function makePilot(sim, def, world, opts) {
         const vp = vpPlanLeg(L, base);
         if (vp) {
           Object.defineProperty(L, 'vp', { value: vp, enumerable: false, configurable: true, writable: true });   // (not cloned with the intent)
-          L.vpSum = { cruise: vp.cruise, toc: vp.toc, tod: vp.tod, minClear: vp.minClear, climbLimited: vp.climbLimited };
+          L.vpSum = { cruise: vp.cruise, toc: vp.toc, tod: vp.tod, minClear: vp.minClear, climbLimited: vp.climbLimited, gClimb: vp.gClimb, endShort: vp.endShort };
           L.hCruiseLeg = vp.cruise; L.hPlanA = Math.round(vp.h[0]); L.hPlan = Math.round(vp.h[vp.n - 1]);
         }
       } else {
@@ -1146,7 +1165,8 @@ function makePilot(sim, def, world, opts) {
     try {
       return VPROFILE.plan(world, [{ name: L.name, A: L.A, B: L.B }],
         { h0: sim.cgPos()[1], hEnd, hMin: Math.max(ap.route.from.elev + A.hCruise, hEnd), margin: A.hClear ?? 130, marginEnd: Math.max(2 * A.hSafe, 40),
-          gClimb: 0.7 * ((S && S.gammaClimb) || 0.08), gDesc: 0.05, gDescMax: 0.125 },
+          gClimb: 0.7 * ((S && S.gammaClimb) || 0.08), gDesc: 0.05, gDescMax: 0.125,
+          gClimbMax: gammaGA() },   // G2520: a field above is climbed to at what the aeroplane makes (the escape's 0.8 of the measured)
         { lookLast: 0, taper: 3000, endLevel: 800 });
     } catch (e) { return null; }
   };
@@ -1980,6 +2000,7 @@ function makePilot(sim, def, world, opts) {
     // the arrival at the destination, planned from where the aeroplane is now
     const planFromHere = () => {
       const { from, to } = ap.route;
+      ap.climbHold = null;   // G2450 / G2520: a new arrival plan ends a climb hold
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
       // G1945 DEST-TO: a re-plan in the air (ap.setDest) arrives the cross-country way, whatever the To
@@ -2285,6 +2306,38 @@ function makePilot(sim, def, world, opts) {
       c.brakeD = slow ? -sg * k : 0;
       c.brake = slow ? (near && r > 0.15 ? 0.3 : 0) : 0.6;
       c.da = groundAil(0, 0.25);
+      return false;
+    };
+    // G2450 (EAST-POINT-DEPART, reused) / G2520 (ALTIPORT-ARRIVAL): THE CLIMB HOLD - an aeroplane under the height its
+    // final starts from climbs in circles, full power on the climb speed, no flap, to within 20 m of that height
+    // (600 s at most). Armed by the leg that hands over to the final ending under it (below): G2520 - a HOLDING
+    // PATTERN AT THE FIX, the orbit (`orb`) through the leg's end tangent there to the final's course, on the side
+    // whose ground is lower (LOITER's law: the radial error turned in); at the height it leaves the orbit where it
+    // passes the fix on the final's course and the final follows - G2450's free circle re-planned the arrival from
+    // wherever the wind had carried it, and from beside the fix that is a circuit: the user's Cub then flew a
+    // 464 s downwind at Skyline Altiport (gave-up, a go-around). Armed by FINAL's flare guard (an approach found under
+    // its strip): the free climbing turn (the heading 50 deg ahead of the track) and the arrival planned again.
+    // Returns true when the orbit hands over to the final (the leg ends: the caller's own hand-over)
+    const flyClimbHold = () => {
+      const Hd = ap.climbHold, O = Hd.orb;
+      altMode(Hd.h, ap.VClimb || VTurnLeg(), bankLim, 'HDG');
+      let rr = 0;
+      if (O) {
+        rr = Math.hypot(cg[0] - O.x, cg[2] - O.z) || 1e-9;
+        const phA = Math.atan2(cg[2] - O.z, cg[0] - O.x) + Hd.sg * 2 * Math.max(Vg, 8) / O.R;
+        const rx = Math.cos(phA), rz = Math.sin(phA), kR = clamp(3 * (rr - O.R) / O.R, -1, 1);
+        SEL.hdg = Math.atan2(rx * Hd.sg - kR * rz, -rz * Hd.sg - kR * rx);
+      } else SEL.hdg = Math.atan2(vcg[2], vcg[0]) + Hd.sg * 0.87;
+      flapTgt = 0;
+      ap.budget = Math.max(ap.budget, ap.t + 300);
+      pubH = Hd.h; pubN = 'CLIMB HOLD'; pubX = O ? O.ix : null; pubZ = O ? O.iz : null;
+      const up = Hd.h - cg[1] < 20;
+      setStatus(O ? 'holding at the approach fix, climbing to the final\'s height' : 'circling to climb before the approach', [cond('height', Math.round(cg[1] - ap.altRef), Math.round(Hd.h - ap.altRef), up, 'm')]);
+      if (O && up) {
+        const tl = Math.hypot(vcg[0], vcg[2]) || 1e-9;
+        if (Math.hypot(cg[0] - O.ix, cg[2] - O.iz) < 0.35 * O.R && (vcg[0] * O.ux + vcg[2] * O.uz) / tl > 0.87) { ap.climbHold = null; return true; }
+      }
+      if ((!O && up) || ap.t - Hd.t0 > 600) { ap.climbHold = null; go(planFromHere()); }
       return false;
     };
     if (BX.on) boxFly(); else
@@ -3125,13 +3178,40 @@ function makePilot(sim, def, world, opts) {
             say('cant-hold-speed', 'full throttle holds ' + Math.round(V * 3.6) + ' of the ' + Math.round(cd.V * 3.6) + ' km/h asked');
           }
         }
+        // G2450 EAST-POINT-DEPART (ported by G2520 ALTIPORT-ARRIVAL): A FINAL IS NOT BEGUN FROM BELOW IT. The leg that hands
+        // over to the final (the straight-in's INBOUND, the circuit's BASE) ending more than 60 m under its planned height
+        // - the climb its profile could not fit (44_vprofile's endShort: HOME 31 m > Skyline Altiport 695 m, 8 km; the
+        // Jodel's final began 270 m under the strip in the game, 8 Oct, and FINAL's slope-line flare armed 180 m under
+        // it) - is not ended: the climb hold (flyClimbHold) takes the rest, and the arrival is planned again from there
+        const nextL = ap.legs[ap.legI + 1];
+        if (!ap.climbHold && (r.done || r.rem < 60) && (!nextL || nextL.name === 'FINAL')) {
+          const hNeed = ap.altRef + (L.h != null ? L.h : ap.hCruise);
+          if (hNeed - cg[1] > 60) {
+            // the orbit through the fix (L.B), tangent there to the final's course, on the side whose ground is lower
+            const FN = legGeom(nextL && nextL.A && nextL.B ? nextL : L);
+            const Rh = Math.max(250, 1.4 * (1.05 * Math.max(ap.VClimb || V, 8)) ** 2 / (9.81 * Math.tan(bankLim)));
+            const side = sg => {
+              const x = L.B[0] - sg * Rh * FN.uz, z = L.B[1] + sg * Rh * FN.ux;
+              let g = -1e9;
+              if (world && typeof world.terrainH === 'function') for (let k = 0; k < 16; k++) g = Math.max(g, groundH(x + Rh * Math.cos(k * Math.PI / 8), z + Rh * Math.sin(k * Math.PI / 8)));
+              return { sg, x, z, g };
+            };
+            const S1 = side(1), S2 = side(-1), O = S1.g <= S2.g ? S1 : S2;
+            ap.climbHold = { h: hNeed, t0: ap.t, sg: O.sg, orb: { x: O.x, z: O.z, R: Rh, ix: L.B[0], iz: L.B[1], ux: FN.ux, uz: FN.uz } };
+            ap.climbHoldN = (ap.climbHoldN || 0) + 1;
+            say('climb-hold', Math.round(hNeed - cg[1]) + ' m under the height the final to ' + (ap.route.to.name || ap.route.to.id) + ' starts from' +
+                (L.vpSum && L.vpSum.endShort > 0 ? ' (the climb planned ' + L.vpSum.endShort + ' m short)' : '') + ' - circling here, climbing, before the approach');
+          }
+        }
+        let holdEnd = false;
+        if (ap.climbHold) { holdEnd = flyClimbHold(); if (!holdEnd) break; }
         const tLeg = r.len / Math.max(8, legSpeed(L) * 0.8) + 40;
         setStatus(L.enroute ? 'enroute to the pattern entry' : 'flying the ' + L.name.toLowerCase() + ' leg', [
           cond('to the turn', Math.round(r.rem), 0, r.done, 'm'),
           cond('height', Math.round(cg[1] - ap.altRef), Math.round(hTgt - ap.altRef), Math.abs(hTgt - cg[1]) < 12, 'm'),
           cond('off track', Math.round(Math.abs(r.xt)), 50, Math.abs(r.xt) < 50, 'm')]);
-        if (r.done || phaseT > 2.5 * tLeg) {
-          if (!r.done) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s — moving to ' + (next ? next.name : 'FINAL'));
+        if (r.done || holdEnd || phaseT > 2.5 * tLeg) {
+          if (!r.done && !holdEnd) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s — moving to ' + (next ? next.name : 'FINAL'));
           ap.legI++;
           const N = ap.legs[ap.legI];
           if (!N || N.name === 'FINAL') {
@@ -3217,6 +3297,7 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'FINAL': {
+        if (ap.climbHold) { flyClimbHold(); break; }   // G2520: the flare guard's climb hold (below)
         // level at the height it has until the slope rises to meet it, then
         // GS on groundspeed feed-forward; flaps go down here; SPD on the
         // throttle at the approach speed
@@ -3337,7 +3418,35 @@ function makePilot(sim, def, world, opts) {
         // round-out begins a second of the rising ground earlier - the path turns from down to up
         altG = altiGrade();
         const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
-        if (hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V) {
+        let flareArm = hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V;
+        // G2520 ALTIPORT-ARRIVAL: THE FLARE-ARMING SANITY GUARD. The flare is the last metres over the strip: it never
+        // arms with the wheels UNDER the strip (its lowest ground from the threshold to the aim) nor more than
+        // FLARE_ARM_MAX over the aim's ground - whatever height the arming law reads (the altiport's slope line runs on
+        // under the hill: at Skyline Altiport's ~10 % it met the Jodel 1.7 km out, 180 m under the strip, in the
+        // game, 8 Oct - 'floating with 1630 m left', the airframe broken; the ground under a ridge before a
+        // threshold reads low too). Under the strip: the approach is left for the climb hold (to the circuit height
+        // over the strip's highest ground the record or the terrain gives) and planned again - straight ahead
+        // would be the hillside; a second time, a go-around. Over it: not armed, the final flies on (said once)
+        if (flareArm) {
+          const SG = stripGround();
+          const hW = cg[1] - (gearH ?? restH0);
+          if (SG && hW < SG.lo) {
+            flareArm = false;
+            ap.flareGuardN = (ap.flareGuardN || 0) + 1;
+            const ga = ap.flareGuardN > 1 && canGA;
+            say('flare-guard', 'not flaring ' + Math.round(SG.lo - hW) + ' m under the strip of ' + (ap.route.to.name || ap.route.to.id) + ', ' + Math.round(d) + ' m before the aim - ' + (ga ? 'going around' : 'climbing to the circuit before the approach'));
+            if (ga) { goAround('under the strip ' + Math.round(d) + ' m out'); break; }
+            SV.IthMaxT = 0.15; finalLevel = null; SV.thrC = A.thrCruise;
+            const hC = (ap.plan && ap.plan.hC) || ap.hCruise;
+            ap.climbHold = { h: Math.max(ap.altRef, SG.aim, SG.lo) + hC, t0: ap.t, sg: sCr > 0 ? -1 : 1 };
+            ap.climbHoldN = (ap.climbHoldN || 0) + 1;
+            flyClimbHold(); break;
+          } else if (SG && hW - SG.aim > FLARE_ARM_MAX) {
+            flareArm = false;
+            if (!ap.flareGuard) { ap.flareGuard = 'high'; say('flare-guard', 'not flaring ' + Math.round(hW - SG.aim) + ' m over the aim of ' + (ap.route.to.name || ap.route.to.id) + ' (' + FLARE_ARM_MAX + ' m at most) - the final flies on'); }
+          }
+        }
+        if (flareArm) {
           go('FLARE'); thFlare0 = th;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a

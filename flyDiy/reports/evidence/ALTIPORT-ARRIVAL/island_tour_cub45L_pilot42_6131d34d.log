@@ -1,0 +1,6 @@
+island_tour: the user's Cub (span 10.70 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > tw_ski - the game's flight
+  FAIL HOME > tw_ski          601 s | dep: turned 104.6 deg, roll 108.9 m in, lift-off 123.5 m | final 3385.1 m / 526 m, clear 13.7 m (ground) | td sink -0.44 m/s, 18 m/s, run 101 m, off 0.8 m | fuel 43 L | FAULTS off-strip (the landing roll left tw_ski's box); ground-loop (the nose 30.3 deg off the landing roll on tw_ski at 9.4 m/s) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 22.2 m/s until clear | slope: stopped on a 8.1 % grade — rolling 190 m on to the level part
+TOUR NOT DONE - 1 legs, fuel left 43 L, 382 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":476.2,"fuel":45,"damage":true}

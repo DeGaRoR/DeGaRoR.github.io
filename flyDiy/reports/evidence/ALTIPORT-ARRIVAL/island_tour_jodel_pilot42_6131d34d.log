@@ -1,0 +1,12 @@
+island_tour: jodel_2026-09-20_corrected.json (span 8.30 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > tw_ski - the game's flight
+  FAIL HOME > tw_ski          461 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 3555.7 m / 388.6 m, clear 149 m (ground) | td - | fuel 43.3 L | warnings go-around at 453.1 s | FAULTS crash (the damage ended the flight: the airframe crushed (1.9 kJ of plastic work)); yield (1609 member(s) yielded (first: {"beam":183,"cls":"wing","t":458.110138909246})); break (99 member(s) broke); prop-strike (the propeller struck); dent (the airframe dented) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>GOAROUND
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>GOAROUND
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 26.2 m/s until clear | go-around: floating with 1623 m left (attempt 1) | vref-raised: the elevator cannot hold 26.1 m/s at this power — flying the approach faster
+TOUR NOT DONE - 1 legs, fuel left 43.3 L, 659 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":463,"fuel":45,"damage":true}
+
+real	10m59.870s
+user	10m49.895s
+sys	0m6.793s
+
+[exited with code 0]
