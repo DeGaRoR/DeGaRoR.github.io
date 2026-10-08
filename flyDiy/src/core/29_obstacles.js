@@ -491,6 +491,26 @@ const OBSTACLES = (() => {
     return o;
   }
 
+  // G2490 (ALTIPORT-TAXI): THE PLAN DISTANCE from (px, pz) to a placed shape's footprint (metres; <= 0 on it) - every
+  // column counts whatever its height (GATE TAXICLEAR's rule: a wing rides over a crate, a propeller and a wheel do not).
+  // Inside the grid its own distance field (the 3-4 chamfer, within a few % of the true distance), the gap to the grid
+  // added outside it (the grid's border cells are free: the field there already reads the way to the footprint); a
+  // parked aeroplane's pieces by their plan boxes. The ground planner's question (43_pilot.js), never the solver's
+  function planDist(rec, px, pz) {
+    const S = rec.shape;
+    const dx = px - rec.x, dz = pz - rec.z;
+    const lx = dx * rec.c - dz * rec.s, lz = dx * rec.s + dz * rec.c;
+    if (S.pieces) {
+      let m = Infinity;
+      for (const pc of S.pieces) { const b = pc.bb, ex = Math.max(b[0] - lx, lx - b[3], 0), ez = Math.max(b[2] - lz, lz - b[5], 0); m = Math.min(m, Math.hypot(ex, ez)); }
+      return m;
+    }
+    const x1 = S.ox + S.nx * S.cell, z1 = S.oz + S.nz * S.cell;
+    const cx = Math.min(Math.max(lx, S.ox), x1 - 1e-6), cz = Math.min(Math.max(lz, S.oz), z1 - 1e-6);
+    const i = Math.floor((cx - S.ox) / S.cell), j = Math.floor((cz - S.oz) / S.cell);
+    return S.d[j * S.nx + i] + Math.hypot(lx - cx, lz - cz);
+  }
+
   // ---- the registry ---------------------------------------------------------------------------
   function make() {
     const recs = new Map();
@@ -541,7 +561,7 @@ const OBSTACLES = (() => {
     };
     return api;
   }
-  return { rasterise, box, penetration, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
+  return { rasterise, box, penetration, planDist, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
 })();
 
 // ---- TREE_HITS (G1330, TREE-HITBOX) - THE TREES YOU SEE ARE THE TREES YOU HIT ---------------------------------------

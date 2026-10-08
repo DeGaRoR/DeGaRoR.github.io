@@ -261,5 +261,82 @@ for (const seed of [0, 1, 6, 12, 42]) {
   console.log('  10 the fleet\'s spots: ' + SC.per.map(p => p.id + ' ' + p.n + ' (' + p.kinds + ')').join(', ') + '; ' + n + ' rows in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 }
 
+// 11 THE TURN-AROUND FROM WHERE A LANDING STOPPED (G2490, ALTIPORT-TAXI). The game, 8 Oct (train 40, the user's Cub, the
+// 8 kt day, damage on): landed uphill at the Skyline altiport, the slope roll-on stopped it on the level part 33 m from the
+// top end - 6 m short of the U-turn the pattern draws there - and the route back down, joined from that pose (a 2.7 m
+// fillet for wheels that steer 11.3 m), ran the Cub 8 m wide into the tram station's corner: 'a fus member broke', 22 s
+// into the leg. 6 holds the pattern's routes from their own first node, on the drawn centreline; nothing held the join
+// from where a landing stops, nor the swing of a bend the wheels cannot steer. 43_pilot.js turnAtPose (G2490) sweeps a
+// turn-around against the solid things the world holds and turns on the spot where the wings clear. Held here:
+//   a PLANNED: every Jolene land strip x the validated land builds (the user's Cub, the Jodel, the metal Cessna) x poses
+//     on the centreline facing either end 15-150 m from it, the island's solid things in the world: the plan DEPART makes
+//     (tools/_taxiclear_lib.js planAt) keeps, on the census's own footprints - its CG track the half-span + MARGIN off
+//     every footprint (the drawn line); a route it keeps, its bends tighter than the wheels widened by the shortfall (the
+//     driven line); a turn on the spot, its disc (the airframe's reach + the CG's walk) MARGIN off
+//   b CALIBRATION: the altiport's pose with the pilot blind to the obstacles (the planner as it was) plans the route the
+//     game flew - its drawn line passes 6's rule, its driven line comes inside the tram station's margin
+//   c FLOWN: the altiport's apron after the slope roll-on (the game's stop, 8 Oct: (335.7, -7843.8), the nose up the
+//     strip) and Jumbo Mine's street 25 / 45 m from its south end: the three builds by THE PILOT (the chained leg the page
+//     gives - departFrom, no site) to 30 m up - airborne, no node inside an obstacle, no trunk, no crash, the wing 1.5 m
+//     off every footprint (9's bound); and the calibration flown: the Cub at the altiport with the pilot blind goes into
+//     the station
+{
+  const t0 = Date.now();
+  const LB = [{ key: path.join(T, '..', 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
+              { key: path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'), name: 'the Jodel' },
+              { key: METAL, name: 'the metal Cessna' }]
+    .map(B => { const sp = PT.specOf(B.key).spec; return Object.assign({}, B, { def: C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(sp) : sp) }); });
+  // the solid things near every land strip into the world (9 put the mill's: the rest, and every strip's trunks again -
+  // intoWorld's trunks are one set)
+  const mn = WI.aerodromes.find(q => q.id === 'mn_strip');
+  const land = WI.aerodromes.filter(q => !q.water && q.kind !== 'water');
+  const keep = SH.filter(s => land.some(q => Math.hypot(s.x - q.x, s.z - q.z) - (s.r || 0) < 700 + q.len / 2) && (s.tag === 'tree' || Math.hypot(s.x - mn.x, s.z - mn.z) - (s.r || 0) > 600));
+  const put = L.intoWorld(C, WI, keep, 0, 0, Infinity);
+  check(WI.obstacles.count > 300, '11 every land strip\'s solid things are in the world', WI.obstacles.count + ' obstacles, ' + put.trunks + ' trunks');
+  // a: the census of the plans
+  let n = 0, worst = null;
+  for (const B of LB) for (const a of land) {
+    const b = land.find(q => q.id !== a.id), ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
+    for (const sg of [1, -1]) for (const dEnd of [15, 25, 33, 45, 60, 90, 150]) {
+      if (dEnd > a.len - 20) continue;
+      const s = sg * (a.len / 2 - dEnd), pose = { x: a.x + ux * s, z: a.z + uz * s, hdg: Math.atan2(sg * uz, sg * ux) };
+      const r = L.planAt(C, WI, IX, B.def, a, b, pose);
+      const where = a.id + ' ' + (sg > 0 ? 'end1' : 'end0') + ' -' + dEnd + ' m ' + B.name;
+      n++;
+      const m = Math.min(r.drawn.d, r.driven.d, r.disc ? r.disc.d : Infinity);
+      if (!worst || m < worst.m) worst = { m, where, r };
+      const fmt = q => (isFinite(q.d) ? q.d.toFixed(2) + ' m (' + q.what + ')' : 'nothing near');
+      const det = r.phase + ' ' + (r.turn ? 'turn' + (r.roll ? ' after ' + r.roll.toFixed(0) + ' m' : ' here') + ': ' : '') + r.ids + ' | drawn ' + fmt(r.drawn) + ', driven ' + fmt(r.driven) + (r.disc ? ', the turn\'s disc ' + fmt(r.disc) : '');
+      check(r.drawn.d >= L.MARGIN - 1e-9 && r.driven.d >= L.MARGIN - 1e-9 && (!r.disc || r.disc.d >= L.MARGIN - 1e-9), '11a ' + where + ' the turn-around keeps ' + L.MARGIN + ' m', det);
+    }
+  }
+  check(n >= 200, '11a every land strip x build x pose planned', n + ' plans; the tightest ' + (worst ? worst.m.toFixed(2) + ' m at ' + worst.where : '-'));
+  // b: the calibration - the altiport's game pose, the planner blind
+  const tw = WI.aerodromes.find(q => q.id === 'tw_ski'), nv = WI.aerodromes.find(q => q.id === 'nv_strip');
+  const POSE = { x: 335.69, z: -7843.75, hdg: -1.05 };
+  {
+    const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE);
+    check(!r0.turn && r0.drawn.d >= L.MARGIN && r0.driven.d < 0 && /station$/.test(r0.driven.what || ''), '11b calibration: the altiport pose, the pilot blind: the route the game flew - drawn ' + L.MARGIN + ' m clear, driven into the tram station',
+      r0.ids + ' | drawn ' + r0.drawn.d.toFixed(2) + ' m (' + r0.drawn.what + '), driven ' + r0.driven.d.toFixed(2) + ' m (' + r0.driven.what + ')');
+    check(r1.turn && !r1.roll, '11b the altiport pose, the pilot seeing: the turn on the spot there', r1.ids + ' | disc ' + (r1.disc ? r1.disc.d.toFixed(2) + ' m (' + r1.disc.what + ')' : '-'));
+  }
+  // c: flown
+  const flights = [{ a: tw, b: nv, pose: POSE, what: 'the altiport apron after the slope roll-on' }];
+  for (const d of [25, 45]) { const ux = Math.cos(mn.hdg), uz = Math.sin(mn.hdg), s = -(mn.len / 2 - d); flights.push({ a: mn, b: WI.aerodromes.find(q => q.id === 'w2'), pose: { x: mn.x + ux * s, z: mn.z + uz * s, hdg: Math.atan2(-uz, -ux) }, what: 'Jumbo Mine\'s street ' + d + ' m from its south end' }); }
+  for (const Fl of flights) for (const B of LB) {
+    const F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose);
+    const tag = '11c ' + B.name + ' from ' + Fl.what;
+    check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
+    check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, tag + ': touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
+    check(F.minWing >= 1.5, tag + ': the wing 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
+    console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + '), ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
+  }
+  {
+    const F = L.flyTurn(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true, tMax: 40 });
+    check(F.contacts > 0 && /station/.test(F.cWhat || F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
+  }
+  console.log('  11 the turn-around: ' + n + ' plans, ' + flights.length * LB.length + ' flights in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+}
+
 console.log('GATE TAXICLEAR: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);
