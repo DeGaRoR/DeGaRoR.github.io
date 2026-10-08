@@ -79821,3 +79821,50 @@ looking only.
 Build 53f482316b37 (assembly c22f17e2). Sessions: JOIN-PARITY OUT (reverted, -> train 39 with DMG-RECAL, the user's call); PILOT-ONE + PILOT-ONE-2 (G1935-G1949), HW-COVERAGE G1995-G1999 + ?diag v2 G1997b, POTATO-DEEP G1528-G1531 (the 6 px premises patch on every preset - the user's OK; the G1521 root fix: three's cached program kept the plain compile's uniforms, the interim reload removed), METLA-COOK G2060-G2062, WHEEL-AO G2055, JODEL-TAIL G2050, GARAGE-LAPTOP G2070-G2074 (shed shadow cache, glass by pane, the room merged 523 -> 16), SND-MIX G1720-G1724 + GATE AUDIO robust, DEADWOOD-BRIGHT G1975, SHORES-2 G1955-G1964, WATER-LOOK G2090-G2094 (splash waves from entry energy), MOBILE-GARAGE 1 G2100-G2104 (?profile=phone; desktop untouched); exports without makeAutopilot / makeTestPilot.
 Smokes after assembly: SIMWORKER, INPUT, UISMOKE, UISMOKE-PHONE, SPLAT PASS. Battery (--all, 6 jobs): every gate PASS, SOFTGPU SKIP (no basisu here). Strict gate (full, vs baseline 5a2c2e7e of 3 Oct): 95 within slack, 47 better, 15 RED - exactly train 37's standing set minus two (fuseLen busy, metal frame busy now within slack): the 30 fps cap rows (the user's stable-30 target: chase/cockpit/garage/taxi/water fps -> 30, loop/render +2 ms under the cap's pacing), the first garage -> world 12.0 s / warm first flight 58.7 s / round trip 11.8 s (37: 12.06 / 59.1 / 11.76). No row worse than live train 37. FRAMECOST named allowances: WHEEL-AO's bufferSubData, WATER-LOOK's garage:town +1 link / +11 calls and garage:snapshot +2 links.
 Next: re-baseline the accepted strict rows by name (the user: no standing reds).
+
+
+## G2590-G2591 - IMPOSTOR-MATCH: THE TRUNK TAKES THE BARK'S TINT; EACH SHEET'S LEVEL MEASURED AGAINST ITS 3D TREE (2026-10-08, DEADWOOD-BRIGHT for A0, local GPU; branch claude/deadwood-bright-g1975 on top of G1975.2; G2592-G2599 unused)
+
+**The user** (on the G1975.1 stills: 3D | picture today | 3D col 3 | picture col 3): "1 and 3 look good, 2 and 4 look bad",
+"same for all images", then narrowed: "the foliage, as well as the trunk are too bright for the impostors, still ... just
+minor corrections, and look at these bright trunks". So: two corrections, no rework; the snag method (G1975) kept; column 3
+(G1975.1) untouched.
+
+**G2590 - THE BRIGHT TRUNK, the cause in the construction.** The bake leaves the tint out ("AO in, tint out") and the draw
+put ONE tint over the whole sheet - the LEAF part's (`tintUniformsOf`): every trunk texel of a leafy picture wore the
+leaf's light, hue, saturation and the foliage contrast 1.30, where the 3D bark is hue 0, sat 1, contrast 1 at its own
+light (trees.js retint). Leaf vs bark light: cedar 0.59 / 0.34, realistic fir 1.30 / 0.64, spruce 0.54 / 0.42,
+pine_georgeous 1.22 / 1.00 (larch 0.68 / 0.84: its bark is the lighter, but it wore the leaf's hue / sat 0.48).
+THE FIX (render_world.js): the normal pass writes the part's KIND into the normal sheet's alpha (1 a leaf part, 0 the
+bark - `normalMatFor` uLeafF); both sheets are un-premultiplied by the ALBEDO's coverage (the same mask: the uv carries no
+map transform, decodeTreePart bakes uvMin / uvScl in); the texel's leaf fraction (smoothstep 0.3-0.8: a trunk is 2-3 texels
+of a tile, so a mip-filtered trunk pixel reads 0.6-0.8 leaf - the plain blend darkened the trunk 7-16 % of the 40-50 % the
+tints differ by) mixes the leaf's tint with the bark's own light (IMPA.tbl row 2 .x, live from the bark part's uLight).
+Measured on the trunk pixels, today -> fixed: cedar 0.81 / 0.83, spruce 0.83 / 0.85, pine 0.78 (gamer / potato); larch
+1.06 (its bark is lighter than its leaf). `TREE_LOD.imp({ trunk: 0 })` restores the picture as before (the A/B).
+
+**G2591 - THE LEVEL, per baked sheet** (IMPA.tbl row 2 .y; the one-layer materials' `uLayerK`): a factor on the tier gain
+(`_iLit`), `IMP_LEVEL` in render_world.js = the geometric mean of four runs' 1 / core (gamer + potato x golden + noon, the
+front-lit view at the hand-over after the trunk fix, each clamped 0.7-1: darkening only). Cedar 0.946, larch 0.925, spruce
+0.887, pine 0.908; snags: cedar 0.822, larch 0.87, pine 0.915, spruce 0.891; dead_conifer 0.862 / 0.897.
+`TREE_LOD.impLevel('key|series', k)` moves one live (null: back to the default). Core front-lit today -> fixed (gamer /
+potato): cedar 1.06 -> 0.92 / 0.99 -> 0.99, spruce 1.26 -> 1.19 / 1.03 -> 1.02, pine 1.17 -> 1.13 / 1.01 -> 1.00,
+larch snag 1.13 -> 1.02 / 1.14 -> 1.05, spruce snag 1.19 -> 0.88 / 1.03 -> 1.01. Into the sun and side-lit the pictures
+stay darker than the 3D (pre-existing, G1975's side findings).
+
+**Evidence (reports/evidence/DEADWOOD-BRIGHT/impostor_match/):** `impostor_match_sheet.jpg` (3D | today | fixed, the four
+species + their snags + dead_conifer, gamer and potato, golden, front-lit at the hand-over; the 1 km frame today | fixed;
+two picks left out - their frame missed the tree), the strips and `*_imp.json` of every run (today / trunk fix / fixed
+cores), `levels.json`. CAVEAT: a cloud's shadow drifted between the measuring round and the 'fixed' round (the larch
+strip's ground and background darken with it): the levels come from round 1 (3D, today and the trunk fix shot back to
+back); the round-2 cores carry that drift (larch rungs on gamer 1.11 -> 0.55 is the cloud, not the level 0.925).
+
+**What is left (the user's call whether to go on):** the trunk still SHOWS through the crown on some pictures (larch,
+spruce) where the 3D crown hides it - the bake's foliage coverage: it cuts the leaf map at its mip-averaged alpha at the
+128-px tile, where the screen keeps partial coverage through the sharpen (EDGE_GLSL). A bake-side fix (sample the leaf
+alpha sharper in the bake, or supersample the bake 2x) - a bake-time change, not done here.
+
+**Gates:** GFX, TREES, PROGRAMS PASS and the page booted clean in node (`--census cub`: nothing thrown, the page's error
+list the same 53 'sheet EMPTY' lines as master's - the fake GL draws nothing) at 09:17, before the levels and the sharpened
+leaf fraction went in. FRAMECOST census pair + PROGRAMS on
+the final code: CENSUS_PENDING.

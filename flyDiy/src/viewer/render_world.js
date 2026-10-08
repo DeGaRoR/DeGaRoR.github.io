@@ -3412,7 +3412,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // sheet - G1975; row 2: the BARK's light and the sheet's level - G2590), from its series' material
     // G2591 (IMPOSTOR-MATCH): THE SHEET'S LEVEL - a factor on the tier gain per baked sheet ('key|series'), measured
     // against its own 3D tree at the hand-over (HANDOVER G2590); 1 where unmeasured. TREE_LOD.impLevel(key, k) moves it live
-    const IMP_LEVEL = {};
+    // measured 2026-10-08 13:44-13:56 (gamer + potato x golden + noon, front-lit at the hand-over, after the trunk's own
+    // tint; the geometric mean of the four runs' 1 / core, each clamped 0.7-1 - tools/perf/deadwood/match4.js, agg.js)
+    const IMP_LEVEL = {
+      'cedar_tree.glb|Cedar_LOD0|rungs': 0.946,
+      'cedar_tree.glb|Cedar_LOD0|snag': 0.822,
+      'dead_conifer|Coniferous Dead Tree 2_14|rungs': 0.897,
+      'dead_conifer|Coniferous Dead Tree_13|rungs': 0.862,
+      'larch_tree.glb|Larch_LOD0|rungs': 0.925,
+      'larch_tree.glb|Larch_LOD0|snag': 0.87,
+      'pine_georgeous.glb|Pine01_LOD0|rungs': 0.908,
+      'pine_georgeous.glb|Pine01_LOD0|snag': 0.915,
+      'spruce_tree.glb|Spruce_LOD0|rungs': 0.887,
+      'spruce_tree.glb|Spruce_LOD0|snag': 0.891 };
     IMPA.levelKey = []; IMPA.levelLive = {};
     const impLevelOf = key => (key && IMPA.levelLive[key] !== undefined) ? IMPA.levelLive[key] : (key && IMP_LEVEL[key] !== undefined ? IMP_LEVEL[key] : 1);
     const IMP_LEVEL_U = new Map();   // the one-layer materials' uniform per sheet key (the merged meshes read row 2)
@@ -3927,7 +3939,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // normal sheet's alpha is the LEAF fraction of the texel (1 a leaf part, 0 the bark - bakeImpostorAtlasNow)
             'float _cov = texelColor.a;',
             'vec4 n0 = texture(uImpN, vec3(uvA, vImpL)), n1 = texture(uImpN, vec3(uvB, vImpL)), n2 = texture(uImpN, vec3(uvC, vImpL));',
-            'float _lf = mix(1.0, clamp(dot(wB, vec3(n0.a, n1.a, n2.a)) / max(_cov, 1e-4), 0.0, 1.0), uTrunkOn);',
+            // (sharpened: the trunk is 2-3 texels of a tile, so once mip-filtered a trunk pixel reads 0.6-0.8 leaf - measured, the
+            // linear blend darkened the trunk 7-16 % of the 40-50 % the tints differ by; mostly bark takes the bark's)
+            'float _lf = mix(1.0, smoothstep(0.3, 0.8, clamp(dot(wB, vec3(n0.a, n1.a, n2.a)) / max(_cov, 1e-4), 0.0, 1.0)), uTrunkOn);',
             // NO HAND DECODE ANY MORE (W0.5a): the sheet is an sRGB8 target on r186 and
             // the sampler decodes it in hardware; impSRGB on top of that darkened every
             // impostor (the user saw it in the first forest shot)

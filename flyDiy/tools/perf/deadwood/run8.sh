@@ -23,7 +23,7 @@ pair() {   # $1 tag suffix, $2 day, $3 timeout (s)
   wait $P1 $P2; date
 }
 if [ "${PHASE:-12}" = "12" ]; then pair golden golden 480; pair noon noon 420
-else pair v3 golden 420; fi
+else export DW_VERIFY=1; pair v3 golden 420; fi
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object { \$_.CommandLine -like '*cdp_dw_*' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }"
 kill $SRV 2>/dev/null
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { \$_.CommandLine -like '*_serve.js 8471*' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }"

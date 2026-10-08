@@ -57,7 +57,7 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
         if (!dead && ser === 0 && !(want && want.length)) { if (!/^(larch|spruce)/.test(key)) continue; }   // two leafy controls by default
         const a = atl.find(q => q.key === key && q.series === sname); if (!a) continue;
         const C = TREE_LOD.find(key, cg[0], cg[2], 0, 3000, 400, ser);
-        for (const side of (process.env.DW_SIDES || 'away,side').split(',')) {
+        for (const side of ${JSON.stringify((process.env.DW_SIDES || 'away,side').split(','))}) {
           let best = null;
           for (const t of C) {
             const h = a.cy * t.s, gy = t.y;
@@ -106,7 +106,10 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
   const rows = [];
 
   const keyOf = p => p.key + '|' + p.sname;
-  const setV = v => ev(`(() => { TREE_LOD.imp({ trunk: ${v.trunk} }); ${v.levels ? Object.entries(v.levels).map(([k, x]) => `TREE_LOD.impLevel(${JSON.stringify(k)}, ${x});`).join(' ') : picks.map(p => `TREE_LOD.impLevel(${JSON.stringify(keyOf(p))}, null);`).join(' ')} return 1; })()`);
+  // levels: an object (set live), 'one' (every sheet at 1: the picture as before G2591), else / 'code' (live cleared: the code's IMP_LEVEL)
+  const VERIFY = !!process.env.DW_VERIFY;
+  const setV = v => ev(`(() => { TREE_LOD.imp({ trunk: ${v.trunk} }); ${v.levels && typeof v.levels === 'object' ? Object.entries(v.levels).map(([k, x]) => `TREE_LOD.impLevel(${JSON.stringify(k)}, ${x});`).join(' ')
+    : picks.map(p => `TREE_LOD.impLevel(${JSON.stringify(keyOf(p))}, ${v.levels === 'one' ? 1 : 'null'});`).join(' ')} return 1; })()`);
   const poseOf = async p => {
     const cg = await ev('JSON.stringify(FLIGHT_PROBE.sim().cgPos())').then(JSON.parse);
     await ev(`FLIGHT_PROBE.place({ by: [${p.eye[0] - cg[0]}, ${p.eye[1] + 30 - cg[1]}, ${p.eye[2] - cg[2]}], zeroV: true }).then(() => 1)`);
@@ -131,8 +134,8 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
     const box = await poseOf(p), I = {};
     I.C = await snap(p, 'C', '[10, 10, 10]', true, box);
     I.A = await snap(p, 'A', '[60, 1200, 1200]', false, box);
-    await setV({ trunk: 0 }); I.T = await snap(p, 'today', '[10, 10, 10]', false, box);
-    await setV({ trunk: 1 }); I.K = await snap(p, 'trunk', '[10, 10, 10]', false, box);
+    await setV({ trunk: 0, levels: 'one' }); I.T = await snap(p, 'today', '[10, 10, 10]', false, box);
+    await setV({ trunk: 1, levels: 'one' }); I.K = await snap(p, 'trunk', '[10, 10, 10]', false, box);
     const r = { key: keyOf(p), side: p.side, sc: p.sc, today: +coreOf(I.A, I.T, I.C).toFixed(3), trunk: +coreOf(I.A, I.K, I.C).toFixed(3) };
     R.push({ p, box, r, I }); log(`${r.key.padEnd(56)} ${p.side.padEnd(5)} occl ${String(p.sc).padEnd(5)} core today ${r.today}  trunk fix ${r.trunk}`);
   }
@@ -142,7 +145,7 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
     const c = a && a.r.trunk; levels[k] = c > 0 ? +Math.max(0.7, Math.min(1, 1 / c)).toFixed(3) : 1; }
   log(TAG, 'levels', JSON.stringify(levels));
   // ROUND 2: the picture fixed (trunk + level), the same poses
-  await setV({ trunk: 1, levels });
+  await setV({ trunk: 1, levels: VERIFY ? 'code' : levels });
   for (const x of R) {
     await poseOf(x.p);
     x.I.F = await snap(x.p, 'fixed', '[10, 10, 10]', false, x.box);
@@ -165,5 +168,5 @@ module.exports = async ({ ev, shot, sleep, log, out }) => {
   await ev(`FLIGHT_PROBE.place({ by: [${eye[0] - cg[0]}, ${eye[1] + 40 - cg[1]}, ${eye[2] - cg[2]}], zeroV: true }).then(() => 1)`);
   await ev(`(() => { const C = DEV_CAM; C.pos.set(${eye.join(',')}); const d = new THREE.Vector3(${st.x - eye[0]}, 0, ${st.z - eye[2]}).normalize(); C.yaw = Math.atan2(d.x, -d.z); C.pitch = -17 * Math.PI / 180; return 1; })()`);
   await FR(90); await sleep(9000);
-  for (const [nm, v] of [['today', { trunk: 0 }], ['fixed', { trunk: 1, levels }]]) { await setV(v); await FR(40); await sleep(600); await shot(path.join('raw', `${TAG}_1km_${nm}`)); }
+  for (const [nm, v] of [['today', { trunk: 0, levels: 'one' }], ['fixed', { trunk: 1, levels: VERIFY ? 'code' : levels }]]) { await setV(v); await FR(40); await sleep(600); await shot(path.join('raw', `${TAG}_1km_${nm}`)); }
 };
