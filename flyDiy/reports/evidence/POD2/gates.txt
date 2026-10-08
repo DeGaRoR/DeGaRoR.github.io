@@ -1,0 +1,70 @@
+tools/flight_core.js (2711.5 KB), index.html (12235.4 KB), dev.html (111.8 KB) — syntax OK, build e279d3501126 (337 named inputs), 977 ms
+[run_gates] 1/12 jobs done · running UISMOKE 30 s, POD 30 s, SIMWORKER 27 s
+[run_gates] 1/12 jobs done · running UISMOKE 60 s, POD 60 s, SIMWORKER 57 s
+[run_gates] 2/12 jobs done · running UISMOKE 90 s, POD 90 s, UISMOKE-PHONE 21 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce100 _ce1001 _ce1002 _ce1003 _ce1007 _ce1008 _ce1012 _ce1013 _ce1016 _ce1022 _ce1027 _ce103 _ce1031 _ce1035 _ce1039 _ce1043 _ce1047 _ce1051 _ce1055 _ce1059 _ce106 _ce1063 _ce1067 _ce1071 _ce1075 _ce1078 _ce1086 _ce1089 _ce109 _ce1098 _ce1106 _ce1107 _ce1110 _ce1119 _ce1124 _ce1128 _ce1134 _ce1138 _ce1143 _ce1144 _ce1146 _ce1147 _ce1148 _ce1151 _ce1155 _ce1159 _ce1163 _ce1167 _ce117 _ce1171 _ce1175 _ce1179 _ce1190 _ce1194 _ce1198 _ce1206 _ce1212 _ce1215 _ce1219 _ce1224 _ce1246 _ce1252 _ce1256 _ce1264 _ce1267 _ce1276 _ce128 _ce1280 _ce1284 _ce1292 _ce1295 _ce1304 _ce1308 _ce1312 _ce132 _ce1320 _ce1323 _ce1327 _ce1336 _ce1340 _ce1344 _ce1352 _ce1355 _ce1359 _ce136 _ce1368 _ce1376 _ce1377 _ce1380 _ce1389 _ce1397 _ce1400 _ce1404 _ce1413 _ce1417 _ce142 _ce1421 _ce1429 _ce1432 _ce1441 _ce1445 _ce147 _ce148 _ce150 _ce151 _ce152 _ce155 _ce159 _ce163 _ce167 _ce171 _ce175 _ce179 _ce185 _ce190 _ce196 _ce203 _ce204 _ce205 _ce206 _ce207 _ce208 _ce213 _ce214 _ce215 _ce216 _ce220 _ce221 _ce222 _ce223 _ce224 _ce225 _ce229 _ce230 _ce231 _ce232 _ce236 _ce237 _ce240 _ce244 _ce248 _ce252 _ce256 _ce260 _ce267 _ce272 _ce277 _ce290 _ce293 _ce298 _ce311 _ce314 _ce319 _ce332 _ce335 _ce340 _ce353 _ce356 _ce361 _ce37 _ce374 _ce377 _ce382 _ce395 _ce401 _ce414 _ce420 _ce433 _ce441 _ce452 _ce458 _ce462 _ce468 _ce472 _ce476 _ce480 _ce484 _ce492 _ce498 _ce50 _ce501 _ce508 _ce509 _ce513 _ce514 _ce515 _ce516 _ce517 _ce518 _ce538 _ce543 _ce544 _ce545 _ce546 _ce547 _ce550 _ce554 _ce558 _ce56 _ce562 _ce566 _ce570 _ce574 _ce578 _ce583 _ce584 _ce585 _ce588 _ce592 _ce599 _ce602 _ce607 _ce608 _ce610 _ce611 _ce612 _ce615 _ce619 _ce623 _ce627 _ce633 _ce640 _ce644 _ce648 _ce652 _ce656 _ce660 _ce664 _ce668 _ce672 _ce676 _ce680 _ce686 _ce69 _ce690 _ce694 _ce697 _ce70 _ce703 _ce706 _ce707 _ce708 _ce71 _ce711 _ce72 _ce721 _ce722 _ce726 _ce729 _ce73 _ce734 _ce74 _ce75 _ce756 _ce76 _ce762 _ce77 _ce770 _ce771 _ce774 _ce781 _ce782 _ce783 _ce784 _ce785 _ce786 _ce79 _ce791 _ce792 _ce793 _ce794 _ce798 _ce799 _ce800 _ce801 _ce802 _ce803 _ce807 _ce808 _ce809 _ce810 _ce814 _ce815 _ce818 _ce82 _ce825 _ce826 _ce827 _ce828 _ce832 _ce833 _ce837 _ce838 _ce842 _ce843 _ce844 _ce845 _ce846 _ce847 _ce85 _ce851 _ce852 _ce853 _ce854 _ce855 _ce856 _ce860 _ce861 _ce865 _ce866 _ce868 _ce875 _ce876 _ce877 _ce878 _ce88 _ce882 _ce883 _ce884 _ce885 _ce889 _ce890 _ce891 _ce892 _ce896 _ce897 _ce898 _ce899 _ce903 _ce904 _ce908 _ce909 _ce91 _ce910 _ce912 _ce919 _ce920 _ce924 _ce925 _ce927 _ce934 _ce935 _ce936 _ce94 _ce940 _ce941 _ce942 _ce943 _ce947 _ce948 _ce950 _ce957 _ce958 _ce959 _ce963 _ce964 _ce965 _ce966 _ce97 _ce970 _ce971 _ce972 _ce976 _ce977 _ce981 _ce982 _ce986 _ce987 _ce989 _ce996 _ce997 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== UISMOKE-PHONE ===
+the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after 10 frames)
+phone.css: 98 selectors, every one under html.phone (or hiding a phone-only element)
+GATE UISMOKE-PHONE: PASS
+=== BOOT ===
+  ok: a run the watchdog lifted finishes its chain quietly (one done(), still gone, not busy)
+  ok: a lifted screen's chain finishing under a newer one neither advances it nor speaks on it
+GATE BOOT: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== SAVE ===
+  ok     PREM-S2: save as - both slots handed over
+  20 targeted rows, 937 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
+[run_gates] 11/12 jobs done · running BENCH 27 s
+=== BENCH ===
+
+109/109 checks
+GATE BENCH: PASS
+=== SIMWORKER ===
+
+46 checks, 0 failed, 65.3 s
+GATE SIMWORKER: PASS
+=== PARTS ===
+  ceilingLoop by zone: tail 192, boom 96, pax 16, taper 8
+  floorLoop by zone: tail 192, boom 136, pax 144, cabin 240, nose 240, taper 8, aftCabin 16, aftDeck 8
+GATE PARTS: PASS
+=== POD ===
+  (the flights: 643 s wall on 4 processes; reports/evidence/POD/flights.json)
+  384 checks, 0 failed (101 s)
+GATE POD: PASS
+=== PODEDITOR ===
+cub:  belly pod fitted volume hold volume 133 L shape 0.61 nose fairing 22 % tail fairing 30 % position fore / aft auto 0.15 m door left side right side dimensions length 2.00 m width 0.56 m depth 0.28 m what it does hold 133 L · floor 0.50 m² (73 kg rated) weight · price +10.3 kg empty · 3,027 cr drag 0.030 m² · cruise −1.3 km/h · range −4 km CG empty +9 mm (23.3 % MAC) CG full +54 mm with 73 kg · margin 0.14 level, tail up 0.38 m three-point, at rest 0.15 m (11.2°)
+  39 checks, 0 failed (14 s)
+GATE PODEDITOR: PASS
+=== PROCURE ===
+3151 checks, 33 shakedowns (cached by content)
+GATE PROCURE: PASS
+
+──────── summary ────────
+UISMOKE   PASS   116.1 s
+UISMOKE-PHONE PASS    24.4 s
+BOOT      PASS     0.0 s
+BUILD     PASS     1.1 s
+JOIN      PASS     4.3 s
+SAVE      PASS     0.3 s
+BENCH     PASS    50.8 s
+SIMWORKER PASS    65.8 s
+PARTS     PASS     2.8 s
+POD       PASS   100.8 s
+PODEDITOR PASS    14.0 s
+PROCURE   PASS     3.3 s
+total            383.7 s
+wall             144.3 s  (jobs 3)
+
+BATTERY: PASS
