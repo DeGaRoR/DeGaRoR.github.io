@@ -6439,6 +6439,9 @@
     if (crPlateEl && !crPlateEl.hidden) careerLegSync();
   }
   const careerCargo = () => {
+    // G2345 (FREIGHT-LOAD): the accepted placement rides this airframe -> its kilos (the items are the stop's load)
+    const FA = typeof freightStopItems === 'function' ? freightStopItems(playerLoad(), flSlot || slotOnStand()) : null;
+    if (FA) return Math.round(freightKg(FA));
     if (crCargoKg != null) return crCargoKg;
     const L = careerTrackedLoad(playerLoad());
     return L ? L.kg : 0;
@@ -6449,11 +6452,15 @@
       how, aero: W && flightCanDepart(W) ? W.aero.id : null, wrecked, slot: flSlot,
       gear: (S && typeof stripGear === 'function') ? stripGear(S) : null,
       occupants: S && S.occupants != null ? S.occupants : 1, cargoKg: careerCargo(),
+      // G2345 (FREIGHT-LOAD): THE LOAD IS THE ITEMS - the placement accepted in the loading view, when it rides this
+      // airframe (77_ freightStopItems); none -> the typed kilos, CAREER-WIRE's fallback
+      items: typeof freightStopItems === 'function' ? freightStopItems(d, flSlot) : null,
       row: { from: fromId, to: destId, t: ap ? ap.t : 0 }, overflew: crOver,
       hour: world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null,
     });
     const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
     const res = careerOnStop(d, stop, { acceptVerdict: hook });
+    if (res.doc && typeof freightLoadSettle === 'function') res.doc = freightLoadSettle(res.doc);   // G2345: a delivered load leaves the record
     const lines = careerEventLines(res, d, res.doc);
     // G2300 (STAGES): an unlock's new building is QUEUED - the world the aeroplane stands in is the one it flew in, and a
     // stage is physics (a strip's length, the ground under a building): the next roll-out composes it (stageCompose)
@@ -6532,6 +6539,9 @@
     crPlateEl.querySelector('#crTrk').textContent = t + ' · wallet ' + Math.round(d.wallet).toLocaleString('en-GB').replace(/,/g, ' ');
     const kg = crPlateEl.querySelector('#crKg');
     if (document.activeElement !== kg) kg.value = String(careerCargo());
+    // G2345 (FREIGHT-LOAD): an accepted placement is the load - the kilos are its items', not typed
+    const loaded = typeof freightStopItems === 'function' && !!freightStopItems(d, flSlot || slotOnStand());
+    kg.disabled = loaded; kg.title = loaded ? 'the load accepted in the loading view (LOAD in the garage)' : '';
     careerLegSync();
   }
   function careerLegSync() {
@@ -6862,6 +6872,190 @@
       return { ok: r.ok, why: r.why, name: r.name };
     },
     files: design => procureFile(design),
+  };
+  // ---- G2345 (FREIGHT-LOAD): THE LOADING VIEW'S PAGE HALF (only under ?career=1 or ?freight=1) ----------------------
+  // The LOAD entry stands in the garage beside the MAP when there is a cargo job to load: in the career, the TRACKED
+  // contract's current stage's load (75_ careerTrackedLoad: its items); with ?freight=1, a test load picker (the
+  // sandbox). It fetches src/viewer/freight_load.js (lazy) and hands it this host: the card -> world frame (through
+  // the cage build's own mount, THE FRAME below), the camera, the build's clip, the seats' visibility, the save. Accept writes `career.load` (77_ freightLoadAccept); the stop's record reads it
+  // (careerStopApply below: the items, not a typed number) and drops it once the job's sub is delivered.
+  // Without either flag nothing here runs: no entry, no lazy fetch, no key.
+  const FREIGHT_DEV = (() => { try { return /[?&]freight=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })();
+  const FREIGHT_PAGE = (CAREER_DEV || FREIGHT_DEV) && typeof freightLoadNew === 'function';
+  // the sandbox's test loads (?freight=1): the goods words a job draws, at sizes the five holds tell apart
+  const FR_TESTS = [
+    ['parts120', '120 kg of crated parts', { kg: 120 }, 'goods.parts', 0],
+    ['parts60', '60 kg of crated parts', { kg: 60 }, 'goods.parts', 0],
+    ['mail60p', '60 kg of mail + a passenger', { kg: 60 }, 'goods.mail', 1],
+    ['tools80', '80 kg of tools', { kg: 80 }, 'goods.tools', 0],
+    ['supplies90', '90 kg of supplies (sacks)', { kg: 90 }, 'goods.supplies', 0],
+    ['samples100', '100 kg of ore samples', { kg: 100 }, 'goods.samples', 0],
+    ['drum', 'a 165 kg fuel drum', null, null, 0],
+  ];
+  let frTest = 'parts120', frStandDesign = null, frSandboxRec = null, frEntryEl = null, frBusy = false;
+  const frEnv = slot => { try { return slot ? JSON.parse(prefGet('flydiy.build.' + slot, 'null')) : null; } catch (e) { return null; } };
+  // the card of the aeroplane on the stand: the career's airframe row, a build envelope's factory row, else the
+  // validated design the sandbox put there (frStandDesign)
+  function frCard() {
+    const slot = slotOnStand();
+    return freightLoadCard(playerLoad(), slot, frEnv(slot)) || (frStandDesign && FREIGHT_CARDS[frStandDesign]) || null;
+  }
+  // THE FRAME: card -> world, on the stand. The card was measured off the CAGE MESH (tools/_freight_site.js: the
+  // sheet's sections, y and the lateral as they are, x = zFw - z with zFw the join's wsFront ring, G49), and the cage
+  // build stands in edSitP in those same metres (z forward, y up, x starboard) - so the card maps through edSitP's own
+  // matrix: (x, y, z)card -> (z, y, zFw - x)cage. (Not the gen lattice: its y datum is not the sheet's.)
+  function frZFw() {
+    const C2 = window.CAGE2, P = window.CAGE_UI && window.CAGE_UI.P;
+    if (!C2 || !P || typeof C2.cageResolve !== 'function') return null;
+    const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const R = C2.cageResolve(C2.cageSpec(Object.assign({}, P)));
+    const zOf = n => { const q = R.rings.find(x => x.name === n); const l = q && q.lv && (q.lv.waist || q.lv.keel); return l && isFinite(l.z) ? l.z * FS : null; };
+    const z = ['wsFront', 'wsAft', 'aeroWsA', 'ring'].map(zOf).find(v => v != null);
+    return z;
+  }
+  function frFrame() {
+    if (!inGarage || !showCage || !edSit.visible) return null;
+    const zFw = frZFw();
+    if (zFw == null) return null;
+    edSitP.updateMatrixWorld(true); craft.updateMatrixWorld(true);
+    const T = new THREE.Matrix4().set(0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, zFw, 0, 0, 0, 1);
+    return new THREE.Matrix4().copy(craft.matrixWorld).invert().multiply(edSitP.matrixWorld).multiply(T);
+  }
+  // THE FRAME'S CHECK (the evidence): the drawn skin at the hold's middle station, raycast in the card's frame - its
+  // roof and belly over the centreline and its sides at the floor + 0.3 m, against the card's hold there (inside the
+  // skin by the 35 mm wall)
+  function frFrameCheck() {
+    const card = frCard(), M = frFrame();
+    if (!card || !card.hold || !M) return null;
+    const H = card.hold, i = Math.round(H.n / 2), x = H.x0 + i * H.dx, fl = H.y0 + H.floor[i] / 100;
+    let top = 0; H.half[i].forEach((v, j) => { if (v > 0) top = H.y0 + (j + 1) * H.dy; });
+    const jf = Math.floor((fl + 0.3 - H.y0) / H.dy), W = craft.matrixWorld.clone().multiply(M), Wi = W.clone().invert();
+    const rc = new THREE.Raycaster(), hits = (o, d) => { rc.set(new THREE.Vector3().fromArray(o).applyMatrix4(W), new THREE.Vector3().fromArray(d).transformDirection(W)); return rc.intersectObject(edSitP, true).map(h => h.point.clone().applyMatrix4(Wi)); };
+    const v = hits([x, 3, 0], [0, -1, 0]).map(p => p.y), h = hits([x, fl + 0.3, 3], [0, 0, -1]).map(p => p.z);
+    const below = v.filter(y => y < fl);
+    const r3 = n => Math.round(n * 1000) / 1000;
+    return { x, skin: { roof: r3(Math.max(...v.filter(y => y < 2))), under: below.length ? r3(Math.max(...below)) : null, side: r3(Math.max(...h)) },
+             hold: { floor: r3(fl), top: r3(top), half: r3((H.half[i][jf] || 0) / 100) } };
+  }
+  // the stand's seats against the card's (the join's measured stations): a different aeroplane says so
+  function frSeatsMatch(card) {
+    const xs = def && def.spec && def.spec.cab && def.spec.cab.seatsX;
+    if (!Array.isArray(xs) || !card.seats) return true;
+    return card.seats.every(s => xs[s.i] == null || Math.abs(xs[s.i] - s.x) < 0.03);
+  }
+  function frJob() {
+    const card = frCard(), slot = slotOnStand();
+    const note = card && !frSeatsMatch(card) ? 'the aeroplane on the stand has moved its seats since the hold was measured: the hold is the ' + card.label + '\'s' : '';
+    if (CAREER_DEV && !FREIGHT_DEV) {
+      const d = playerLoad(), J = freightLoadJob(d, slot), C = d.career.contracts;
+      const rec = CAREER_DEV && C.tracked ? careerContract(d, C.tracked) : null;
+      return { card, items: J.items, pax: J.pax, rec: J.rec, ctx: J.ctx, note,
+               title: rec ? contractText(rec.title, contractVars(rec)) : 'nothing tracked',
+               canAccept: !!(card && J.items.length && slot), why: !slot ? 'save the aeroplane first: the load rides a saved airframe' : J.why,
+               seatsOut: [] };
+    }
+    const T = FR_TESTS.find(t => t[0] === frTest) || FR_TESTS[0];
+    const items = T[2] ? freightItems(T[2], T[3]) : [freightItem({ id: 'drum.1', kind: 'drum', kg: 165, dims: [0.64, 0.64, 0.93] })];
+    const sel = (name, opts, cur) => '<select data-a="pick" name="' + name + '">' + opts.map(o => '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
+    const designs = Object.keys(CONTRACT_DESIGNS).filter(k => FREIGHT_CARDS[k] && FREIGHT_CARDS[k].hold).map(k => [k, CONTRACT_DESIGNS[k].label]);
+    const cur = card ? card.id : '';
+    return { card, items, pax: T[4], rec: null, ctx: { slot }, note, title: 'test load', canAccept: !!card, why: '', seatsOut: [],
+             picker: sel('load', FR_TESTS.map(t => [t[0], t[1]]), frTest) + ' ' + sel('plane', (cur ? [] : [['', 'the aeroplane…']]).concat(designs), cur) };
+  }
+  function frAccept(card, st, job) {
+    if (CAREER_DEV && !FREIGHT_DEV) {
+      const r = freightLoadAccept(playerLoad(), card, st, job.ctx);
+      if (!r.ok) return r;
+      player = r.doc; playerSave();
+      try { if (CAREER_DEV) careerPlateSync(); } catch (e) {}
+      return { ok: true, say: r.rec.items.length + ' items, ' + r.rec.kg + ' kg in the career\'s record (' + (r.rec.slot || '') + ')' };
+    }
+    frSandboxRec = freightLoadRecord(card, st, job.ctx);
+    return { ok: true, say: 'kept for this session (the sandbox): ' + frSandboxRec.items.length + ' items, ' + frSandboxRec.kg + ' kg' };
+  }
+  // the sandbox's aeroplane picker: a validated design's build file put on the stand (unsaved, PROCURE's file)
+  function frStand(design) {
+    const D = CONTRACT_DESIGNS[design];
+    if (!D || !window.GARAGE_SPEC) return Promise.resolve(false);
+    const get = PROCURE_PAGE ? procureFile(design) : fetch(encodeURI(D.build)).then(r => r.json());
+    return get.then(file => {
+      window.GARAGE_SPEC.set(procureBaseSpec(design, file));
+      frStandDesign = design;
+      return new Promise(res => { const t0 = Date.now(); const tick = () => { const c = FREIGHT_CARDS[design]; if ((frFrame() && frSeatsMatch(c)) || Date.now() - t0 > 60000) res(true); else setTimeout(tick, 300); }; tick(); });
+    });
+  }
+  let frHidden = [];
+  const frHost = () => ({
+    THREE, canvas, camera: () => camera, parent: craft, phone: !!(TOUCH_UI || (window.innerWidth || 1000) < 700),
+    frame: frFrame, groundY: () => groundY, job: frJob, accept: frAccept,
+    look: (c, a, e, d) => { edPan.set(c.x - edTarget.x, c.y - edTarget.y, c.z - edTarget.z); az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
+    clip: plane => { renderer.localClippingEnabled = !!plane; if (window.REF_MOUNT) window.REF_MOUNT.setBuildClip(plane ? [plane] : null); },
+    seatVisible: (i, on) => { const o = edSitP.getObjectByName('edSeat' + (i + 1)); if (o) o.visible = !!on; },
+    ui: hide => {
+      window.__frLoading = !!hide; placeIndicators();
+      // the strict minimum: the shed's panels step aside while the bar is up (the MAP / LOAD entries too)
+      if (hide) { frHidden = ['edInfo', 'ui', 'wsUI', 'mapEntry', 'frEntry'].concat([...document.querySelectorAll('.cageUi,#cageUi,#edRail,#edBar,#gStand')].map(e => e.id)).filter(Boolean)
+                    .map(id => $(id)).filter(e => e && e.style.display !== 'none').map(e => { const v = e.style.visibility; e.style.visibility = 'hidden'; return [e, v]; }); }
+      else { for (const [e, v] of frHidden) e.style.visibility = v; frHidden = []; }
+    },
+    pick: (name, value) => {
+      if (name === 'load') { frTest = value; frOpen(); }
+      else if (name === 'plane' && value) { if (window.FREIGHT_LOAD) window.FREIGHT_LOAD.close(); frStand(value).then(() => frOpen()); }
+    },
+    closed: () => frEntrySync(),
+  });
+  function frOpen() {
+    if (frBusy || !FREIGHT_PAGE) return Promise.resolve({ ok: false, why: 'busy' });
+    frBusy = true;
+    // the sandbox's test: an aeroplane whose hold is not measured is replaced on the stand by the validated Cub
+    const stood = (FREIGHT_DEV && !frCard()) ? frStand('cub') : Promise.resolve(true);
+    return stood.then(() => window.FREIGHT_LOAD || (window.FLYDIY_LAZY ? window.FLYDIY_LAZY('freight_load') : null)).then(() => {
+      frBusy = false;
+      if (!window.FREIGHT_LOAD) return { ok: false, why: 'the loading view did not load' };
+      const r = window.FREIGHT_LOAD.open(frHost());
+      if (!r.ok) {   // said where the player looks (an unmeasured hold, a stand not ready), for 4 s
+        console.warn('flyDiy (freight): ' + r.why);
+        const el = document.createElement('div'); el.id = 'frSay'; el.textContent = 'LOAD: ' + r.why;
+        el.style.cssText = 'position:fixed;left:50%;top:66px;transform:translateX(-50%);padding:8px 14px;border-radius:6px;background:rgba(22,20,17,.9);color:#efe6d6;font:13px/1.3 system-ui,sans-serif;z-index:2147482000;pointer-events:none';
+        document.body.appendChild(el); setTimeout(() => { try { el.remove(); } catch (e) {} }, 4000);
+      }
+      frEntrySync();
+      return r;
+    }, e => { frBusy = false; return { ok: false, why: e && e.message }; });
+  }
+  // THE ENTRY: in the garage, the aeroplane on the stand, a cargo job to load (or ?freight=1)
+  function frEntrySync() {
+    if (!FREIGHT_PAGE || typeof document === 'undefined' || !document.body) return;
+    let want = inGarage && curKey === 'gen' && !(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen());
+    let label = 'LOAD';
+    if (want && CAREER_DEV && !FREIGHT_DEV) {
+      const L = CAREER_DEV ? careerTrackedLoad(playerLoad()) : null;
+      want = !!(L && L.items && L.items.length);
+      if (want) label = 'LOAD · ' + Math.round(freightKg(L.items)) + ' kg';
+    }
+    if (!frEntryEl && want) {
+      const b = frEntryEl = document.createElement('button');
+      b.id = 'frEntry'; b.type = 'button'; b.setAttribute('aria-label', 'load the aeroplane');
+      b.style.cssText = 'position:fixed;top:10px;z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
+        "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.12em;cursor:pointer";
+      b.onclick = () => { frOpen(); };
+      document.body.appendChild(b);
+    }
+    if (!frEntryEl) return;
+    frEntryEl.hidden = !want;
+    if (frEntryEl.textContent !== label) frEntryEl.textContent = label;
+    // beside the MAP when it stands (top centre), else in its place
+    frEntryEl.style.left = $('mapEntry') ? 'calc(50% + 52px)' : '50%';
+    frEntryEl.style.transform = $('mapEntry') ? 'none' : 'translateX(-50%)';
+  }
+  if (FREIGHT_PAGE) setInterval(() => { try { frEntrySync(); } catch (e) {} }, 700);
+  if (FREIGHT_PAGE) window.FLYDIY_FREIGHT = {
+    open: frOpen, card: frCard, frame: () => { const M = frFrame(); return M ? M.toArray() : null; }, stand: frStand,
+    test: id => { if (id) frTest = id; return frTest; }, tests: () => FR_TESTS.map(t => t[0]),
+    // the accepted load as FREIGHT-STRAP reads it (77_ freightAccepted): the career's record, or the sandbox's
+    accepted: () => freightAccepted(CAREER_DEV && !FREIGHT_DEV ? playerLoad() : frSandboxRec),
+    // the drawn skin against the card's hold at its middle station (the frame's evidence)
+    frameCheck: frFrameCheck,
   };
   let flightLogged = false;
   function logFlight() {
@@ -7682,7 +7876,7 @@
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
-    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy());
+    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading;   // G2345: not under the loading view (its own CG bar)
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {

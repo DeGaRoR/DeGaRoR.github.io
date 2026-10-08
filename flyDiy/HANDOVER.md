@@ -82615,3 +82615,158 @@ phone's sheet the same (R1 48 px, NOHOVER: no title=). The fixture (?map=1 alone
 - Portraits: out of scope (the user's AI run; `portrait: null`, the card draws the silhouette).
 
 READY for the GAME COORDINATOR: claude/pilots-g2290 6f028e8 (the code, gates and evidence; this section rides one docs-only commit on top)
+
+## G2345-G2349 - FREIGHT-LOAD: THE LOADING VIEW - THE AEROPLANE ON THE STAND CUT AWAY, THE LOAD AS ITS MODELS AT THE PACKER'S PROPOSAL; DRAG (OR TAP-TO-PICK / TAP-TO-PLACE) ON THE HOLD'S STATIONS, REFUSING ONLY THE PHYSICALLY IMPOSSIBLE; freightReport LIVE ON ONE BAR (MASS / MTOW, THE CG ON A SMALL BAR AGAINST THE CERTIFIED RANGE, THE FLOOR) - OUT OF RANGE RED AND ALLOWED; AN EMPTY SEAT OUT / IN; PROPOSE AGAIN; ACCEPT INTO THE CAREER'S RECORD (career.load) AND freightAccepted(doc) FOR FREIGHT-STRAP; THE STOP'S LOAD IS THE ITEMS (2026-10-07, FREIGHT-LOAD for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU timings; branch claude/freight-load-g2345 off origin/claude/game-integration b747ae2; G2349 unused)
+
+The brief: futureDesigns/game/FREIGHT-2026-10-07.md §2 and §4 (RULED: no loading time, no crew, no load failure - THE FITTING
+INTERFACE; the player chooses about seats; the strict minimum, no right panel, no card walls); G2340 FREIGHT-MODEL (the
+packer, the report, the cards); G2405 FREIGHT-ASSETS (the load models); G2320 CAREER-WIRE (the stop record). No generated
+file committed (`node tools/build.js` before the gates). map_menu.js, welcome.js: untouched. No PLAYER_V step.
+
+**THE BASE DID NOT BUILD (fixed in a separate first commit, for the coordinator):** b747ae2's concatenated core declared
+`const PT_` twice (76_procure.js and 76_pilots.js, train 43) - `tools/build.js` failed "Identifier 'PT_' has already been
+declared". PILOTS' copy renamed `PLT_` (41 uses, same function, same text) and GATE PILOTS' selftest anchor with it
+(commit "core: PILOTS' draft-text marker renamed PT_ -> PLT_"). Drop it if the integration fixed it another way.
+
+**G2345 THE PURE HALF** - `src/core/77_freight_load.js` (new, MANIFEST.core after 76_pilots, exports appended to 90_):
+- the session `{ v, card, pax, seatsOut, items, placed }` (placed = freightPack's rows); `freightLoadNew` opens on the
+  packer's proposal; `freightLoadPropose` = **Propose again** = freightPack with the passengers and the seats AS THEY ARE;
+  `freightLoadAshore` = the items on the ground (with why, when no door takes one); `freightLoadReport` = **freightReport's
+  own** (+ ashore / aboard), key for key.
+- **the hand** `freightLoadTarget(card, st, id, { x, z, turn })` -> `{ ok, row, why }` and `freightLoadMove` /
+  `freightLoadUnload` (left on the ground). **THE SNAP**: the fore end on the hold's stations and their middles (the
+  packer's own grid, FREIGHT_PACK.step on card.hold), across on FREIGHT_PACK.zStep; a drop at a wall slides off it to the
+  clear section at that height; a drop on a stackable item stays wholly on it. **REFUSED, each with its why, ONLY what is
+  physically impossible**: no door of this aeroplane takes it; off the hold / the roof too low / the hold too narrow at that
+  height; the pilot, a passenger, an empty seat still in ("an empty seat can be taken out"), another item; nothing on a drum
+  (or a stretcher); a bigger item on a smaller one / an overhang (it would not stand); an item pulled from under another
+  ("move that first"). **Never refused: the CG, the MTOW, a floor, the placard** - reported.
+- **the seats** `freightLoadSeat(card, st, i, out)`: only an empty seat goes (never the pilot's, never a passenger's); it
+  goes back only where nothing stands.
+- **Accept** `freightLoadRecord(card, st, ctx)` / `freightLoadAccept(doc, card, st, ctx)` -> `career.load = { v, slot,
+  design, contract, stage, sub, pax, seatsOut, items: [{ id, kind, kg, dims, at, on, space }], ashore, kg, mass, cg, ok,
+  why }` (a new document; careerNormalise carries it). **`freightAccepted(doc)`** (FREIGHT-STRAP's read; also takes the
+  sandbox's bare record): the items with `c` = the box's centre IN THE CARD'S FRAME (x m aft of the windscreen-base ring =
+  the gen frame's x; y and z the cage sheet's metres - see THE FRAME below), kilos, seats out, passengers.
+  `freightLoadFromRecord` reopens on it; `freightLoadCard(doc, slot, env)` (the career's airframe row, else a build
+  envelope's factory row, else null: a player's own build is not measured); `freightLoadJob(doc, slot)` (the tracked
+  contract's current stage's load, its ctx, the accepted record for this very sub and airframe); `freightStopItems(doc,
+  slot)` (the stop's items when the accepted load rides that airframe); `freightLoadSettle(doc)` (the record leaves once its
+  sub is delivered, its contract dropped or its stage moved on).
+
+**G2346 THE VIEW** - `src/viewer/freight_load.js` (new, LAZY: MANIFEST.lazy, fetched when LOAD is pressed):
+- **the aeroplane on the stand, cut away**: ONE clipping plane on the cage build (REF_MOUNT.setBuildClip, G142's door) at
+  0.8 x the hold's widest half-width on the camera's side - the near skin, door and wing go, the seats / the crew / the far
+  wall stay; the eye from that side a little above the floor, the hold framed; the shed's panels step aside (#wsUI, #ui,
+  the MAP / LOAD entries hidden, the canvas full width: `body.fr-loading`), the CG / NP posts hidden (`__frLoading`).
+- **the items as their FREIGHT-ASSETS models**, scaled to the box: parts -> crate_wood_a, tools -> toolchest_metal, samples
+  -> load_crate_samples, water -> box_cardboard, supplies' sacks -> load_bag_cement, a drum -> drum_steel, any other crate /
+  box by kind; **mail sacks, kit / tent bags, rods, the stretcher: a box in the kind's colour** (no model yet - the gap
+  list); the items on the ground in a row beside the tail. A passenger: a slim cyan figure in their seat (the pilot is the
+  cage's own). **A seat taken out hides the cage's own chair** (`edSeat<i+1>`) and leaves a pale patch on the floor.
+- **the hand**: desktop - drag (a green / red ghost box at the snapped target, the why on the bar while dragging), or click an
+  item then click where it goes; the phone - **tap to pick (amber outline), tap to place**; a drop beside the aeroplane =
+  left on the ground; Turn (or R) when an item is picked; Leave on the ground.
+- **ONE BAR** (`#frLoad`, bottom centre; the phone's: full width at the foot, 48 px targets): LOADING · the job · the
+  aeroplane (the sandbox's two pickers) · ✕ / mass vs MTOW · **the CG on a 150 px bar: the certified range a green band,
+  the CG a tick (red outside)** · % MAC · the worst floor kg/m² vs its limit · the baggage placard / n of m aboard, the items on
+  the ground, the passengers, **a chip per empty seat (in / out)** / the last word (a refusal, a move) and the report's why
+  lines in red / Propose again · Accept. Every limit not met is red; nothing is refused for it.
+
+**G2347 THE PAGE HALF** (app.js, one block after PROCURE's, `FREIGHT_PAGE = (CAREER_DEV || FREIGHT_DEV)`, FREIGHT_DEV =
+`?freight=1` alone; WITHOUT EITHER FLAG NOTHING RUNS: no entry, no door, no lazy fetch):
+- **THE ENTRY** `#frEntry` "LOAD · 35 kg" beside the MAP (top centre): in the garage, the cage build standing, and in the
+  career **a tracked contract whose current stage's load has items** (the career: opened from the cargo job); with
+  ?freight=1 always, with **a test load picker** (120 / 60 kg crated parts, 60 kg mail + a passenger, 80 kg tools, 90 kg
+  supplies in sacks, 100 kg ore samples, a 165 kg drum) and an aeroplane picker (the four measured designs: their validated
+  build file put on the stand, PROCURE's file + procureBaseSpec; an unmeasured stand gets the Cub).
+- **THE FRAME** (the one finding worth keeping): the card is in the **cage sheet's** metres, so it maps through the cage
+  mount itself - `(x, y, z)card -> (z, y, zFw - x)` in edSitP's frame, zFw = the join's wsFront ring (x FS) exactly as
+  `_freight_site.js` reads it. The gen lattice (sim.p + standOffset) is NOT that frame: its y datum differs from the sheet's
+  by ~0.6 m on the Cub (the first try drew the crate under the floor), and `sim.axes()` is the flight axes, not a rigid map.
+  `FLYDIY_FREIGHT.frameCheck()` raycasts the drawn skin at the hold's middle station: the Cub's roof 0.673 / side 0.377 vs
+  the card's top 0.600 / half 0.340 (the 35 mm wall, cm rounding), the floor -0.28 above what is under it -0.50.
+- **Accept** (career): `freightLoadAccept` on the player document, saved; the plate's cargo is the accepted kilos and its
+  input is disabled ("the load accepted in the loading view"). (Sandbox: the record kept in memory,
+  `FLYDIY_FREIGHT.accepted()`.)
+- **THE STOP** (CAREER-WIRE's `careerStopApply`): `careerStopRecord({ ..., items: freightStopItems(d, flSlot) })` - **the
+  load is the items, not a typed number** (the typed kilos stay the fallback with nothing accepted); after `careerOnStop`,
+  `freightLoadSettle` drops the record once its sub is delivered.
+- `window.FLYDIY_FREIGHT { open, card, frame, stand, test, tests, accepted, frameCheck }`; `window.FREIGHT_LOAD { open,
+  close, isOpen, state, report, card, picked, msg, move, ground, seat, pick, propose, accept, accepted, screenOf }` (a rig's
+  hands - the stills drive the real pointer through screenOf).
+
+**GATES** (built locally; base b747ae2 + the PT_ fix):
+- **GATE FREIGHT: PASS, 1531 checks** (was 1453) **+ selftest 41 of 41 caught** (was 23): + THE VIEW - it opens on the
+  packer's proposal; the report = freightReport's key for key (6 loads on the four measured designs); every proposed item
+  dropped at its own middle stays where the packer put it; **THE SWEEP**: every item to a grid over each hold (x 0.13, z 0.11
+  m, both orientations) - **910 targets allowed, each stands** (inside the hold, on the floor or wholly on a stackable item,
+  clear of seats / occupants / items, through a door, on the stations' grid) **and 8 970 refused, each with its why**; the
+  refusals by name (the pilot, a passenger, an empty seat still in -> taken out -> its space takes the item; the pilot's and
+  a passenger's seat stay; a seat does not go back under an item; no door; the stack; a drum on a crate yes, a box on the
+  drum no; the overhang; the tail's low roof); the snap and the wall; **out of range ALLOWED and said** (the Jodel's tools
+  aft: CG aft of its range; 3 passengers + 260 kg of crates: over the MTOW); Propose again; Accept's record (the tracked
+  job's items, the slot, the boxes; the old document untouched; through careerNormalise; freightAccepted's centres; the
+  sandbox's record; reopened the same; the stop's items not the typed 999 kg; another airframe none; kept while open,
+  gone once delivered / abandoned; an item left on the ground named, not in the stop); 77_ pure. Selftest's 18 new breaks:
+  the hand through a seat / an item, floating, ignoring the door / the walls, an item pulled from under another, an
+  overhang standing, a box on a drum, the snap off the stations, **out of range refused**, the report not freightReport's,
+  a passenger's seat out, a seat back under an item, Propose again keeping the hand's placement, Accept losing the boxes,
+  the stop ignoring the accepted load, a delivered load staying aboard, the clock.
+- **UISMOKE: PASS (181 s) / UISMOKE-PHONE: PASS (56 s)**, + THE LOADING VIEW'S FLAGS (FREIGHT_DEV ?freight=1 alone, FREIGHT_PAGE behind both
+  flags with its door and its entry's timer, the stop carrying the accepted items and the settle in the career's half,
+  freight_load.js a lazy file never a static tag) and **the sandbox booted without the flags: no FLYDIY_FREIGHT, no
+  FREIGHT_LOAD, no #frEntry**. (The career's guard: every career call of the new block carries CAREER_DEV.)
+- **CONTRACTS: PASS (2260)**; **ACCEPT: PASS (189)**; **SAVE: PASS**; **BUILD: PASS** (run_gates --only=FREIGHT,UISMOKE,
+  UISMOKE-PHONE,CONTRACTS,ACCEPT,SAVE,MEDIA,BUILD; the summary in the evidence folder, gates.txt; freight_selftest.txt).
+- **MEDIA: FAIL - red on the base too**: "index.html grew 0.44 MiB over HEAD" on b747ae2 + the PT_ fix (the committed
+  index.html is stale against train 43); this branch adds **+32 KB** (12 150.5 -> 12 182.7 KB: the 77_ core and the host
+  block; the view itself is lazy) -> 0.48 MiB. After the coordinator's next committed build it is 32 KB of 307.
+- **PILOTS (not in the brief's list) is red on the base**: three app.js source-scan rows after train 43's makePilot merge
+  decision ("the inline pilot and the worker's read the career's door...", "the persona keeper...", "the plate's persona
+  pills") - not this branch's (the PT_ rename leaves its text checks green).
+
+**THE STILLS** (`tools/freight_load_shot.js`, the real index.html, SwiftShader; **a loaded page only**: BOOT.state 'gone',
+#boot hidden, + 2 s, the first launch's "New aeroplane" picker dismissed - never a loading screen):
+`futureDesigns/game/evidence/FREIGHT-LOAD/` + shots.json (the page's own answers per still):
+- `freight_cub_crates` - the Cub, 120 kg of crated parts: one crate aboard behind the pilot (the crate_wood model), the
+  other on the ground beside the tail (the Cub's answer with the seats in: the 0.6 m crate passes no 0.56 m aft section).
+- `freight_cub_seat_out` - the rear seat out (its chair gone), Propose again: both crates aboard, **586 / 556 kg red**.
+- `freight_c172_mail_pax` - the C172, 60 kg of mail (3 sacks, boxes: no model) + a passenger (cyan), within every limit.
+- `freight_c172_drag` - a sack dragged with the mouse into the baggage bay.
+- `freight_c172_red` - **the red case**: the rear seats out, both crates pushed into the baggage bay - CG 40.1 % vs the
+  certified 28.0-36.2 % (the tick red outside the green band), 125 kg/m² on the 100 floor, 120 kg vs the 40 kg placard;
+  every line red, the placement standing.
+- `freight_career_cub_tools` / `freight_career_accepted` - ?career=1: the voucher's Cub bought and opened, job:field:0:0
+  (35 kg of tools HOME -> Tamgas Hill) tracked, "LOAD · 35 kg", the two tool chests proposed; Accept -> career.load saved
+  (slot, contract, two boxes), the plate's cargo = the items' kilos, freightAccepted's centres.
+- `freight_phone`, `freight_phone_picked`, `freight_phone_placed` - 390 x 844: the same view (the eye ~1.1 m over the floor,
+  under the high wing, the hold above the bar), the bar at the foot (48 px targets); tap the sack on the cabin floor (amber,
+  the bar says what it is), tap the free back of the baggage bay: placed there - the placard 60 / 40 kg turns red, allowed.
+  (The rig checks both tap points are on the view, not under the bar.)
+- `freight_sandbox` (no still): no flag - no door, no entry.
+
+**OPEN / FOR THE COORDINATOR**
+- **Merge points**: tools/build.js (77_freight_load.js after 76_pilots in MANIFEST.core; freight_load.js in MANIFEST.lazy),
+  90_node_exports.js (appended), app.js (one block after FLYDIY_PROCURE + careerCargo / careerStopApply / careerPlateSync's
+  four lines in the career's half + placeIndicators' one condition), tools/_freight_check.js, tools/test_ui_smoke.js (two
+  blocks), 76_pilots.js / _pilots_check.js (the PT_ fix, separate commit).
+- **FREIGHT-STRAP (G2400)**: read `freightAccepted(doc)` (career) or `FLYDIY_FREIGHT.accepted()` (the page). `c` is in the
+  CARD frame = the cage sheet's: x aft of the windscreen-base ring (the gen frame's x datum), **y and z the sheet's metres,
+  whose y datum is NOT def.nodes'** (see THE FRAME; on the Cub ~0.6 m apart). For the sim's point masses convert y through
+  the sheet (the join knows both), or measure the offset the way frameCheck does; for the drawn props, the view's own
+  transform (edSitP x T) is the one that lines up with the skin. The baggage allowance billed by the frame is still to come
+  off when items are aboard (FREIGHT-MODEL's note).
+- **A player's own build has no card** (FREIGHT-MODEL's open point): the LOAD entry still shows on a tracked cargo job, the
+  view says "this aeroplane's hold is not measured". Measuring the stand's build in the page (tools/_freight_site.js's
+  machinery on the live sheet) would lift that.
+- **Passengers on the stand**: the cage draws the spec's occupants, not the job's; the view draws a job's passenger as a
+  cyan figure. The flight still flies the spec's occupants - wiring the job's passengers into the occupants is not this
+  session's.
+- **Mail sacks / kit bags / tent bags / rods / the stretcher draw as boxes** until the user's Sketchfab scouting lands
+  (FREIGHT-ASSETS' gap list); add a key to `MODEL_OF` in freight_load.js when one does.
+- The door rule is FREIGHT-MODEL's (an item that passes no door stays on the ground, the bar says why); the view adds no
+  door of its own.
+- Not run: the full tier; no GPU timings (cloud).
+
+READY for the GAME COORDINATOR: claude/freight-load-g2345 53aa937 (the code, the gates and the stills; the gate texts and this section ride one docs-only commit on top)
