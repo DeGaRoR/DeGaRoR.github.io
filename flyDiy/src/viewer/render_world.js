@@ -5369,9 +5369,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE GRASS FIELD (GRASS-DENSE G2563): the grass is a ring of its own - small cells, tufts, its own reach and fade - and
           // the first ring leaves the reed to it while it is on (owned). Its colour is the ground's as drawn (the splat's meanAt)
           const GF0 = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
-          const groundMeanAt = (x, z, code) => { if (!SPL || !SPL.api.meanAt) return null; const d = 3;
+          const groundMeanAt = (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; if (!SPA || !SPA.meanAt) return null; const d = 3;
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
-            return SPL.api.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
+            return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
             GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a

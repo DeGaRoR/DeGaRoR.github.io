@@ -125,7 +125,7 @@ const LOCS = `(() => {
   { const p = find((x, z) => { const c = cov(x, z); if (!c || c.kind !== 'lawn') return false; const c2 = cov(x + 4, z), c3 = cov(x, z + 4); return c2 && c2.kind === 'lawn' && c3 && c3.kind === 'lawn'; }, 60, 3000);
     out.lot = p ? eyeAt(p, 8, 1.7) : null; out.lot20 = p ? eyeAt(p, 25, 20) : null; }
   // A GRASS STRIP: the first aerodrome whose surface is grass (the premises' class, or the record's surface word)
-  { const g = wd.aerodromes.filter(a => a !== A && a.len && a.wid && /grass/i.test(String(a.surface || a.cls || a.kind || ''))).sort((a, b) => Math.hypot(a.x - A.x, a.z - A.z) - Math.hypot(b.x - A.x, b.z - A.z))[0] || null;
+  { const g = wd.aerodromes.filter(a => a !== A && a.len && a.wid && a.kind !== 'water' && (a.look === 'grass' || a.surface === 0)).sort((a, b) => Math.hypot(a.x - A.x, a.z - A.z) - Math.hypot(b.x - A.x, b.z - A.z))[0] || null;
     if (g) { const gd = [Math.cos(g.hdg), Math.sin(g.hdg)], t0 = [g.x - gd[0] * g.len * 0.35, g.z - gd[1] * g.len * 0.35], t1 = [g.x + gd[0] * 10, g.z + gd[1] * 10];
       const e0 = [t0[0], H(t0[0], t0[1]) + 1.7, t0[1]]; out.gstrip = { eye: e0, yp: look(e0, [t1[0], H(t1[0], t1[1]), t1[1]]), id: g.id };
       const th = [g.x - gd[0] * g.len / 2, g.z - gd[1] * g.len / 2], d = 30 / Math.tan(5 * Math.PI / 180), x = th[0] - gd[0] * d, z = th[1] - gd[1] * d;
