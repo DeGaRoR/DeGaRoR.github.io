@@ -1862,15 +1862,17 @@ self.onmessage = function (e) {
   // THE DRAW RULES (FLEET_DRAW, fleetPick): the nearest `max` (6) fleet props drawn, the rest culled; L1 only within `l1`
   // (30 m), L2 out to L3's 450 m, L3 to the cull; on a LIGHT preset (potato / laptop / pocket) L3 alone and at most
   // `lightMax` (4) - FRIENDLY-WELCOME-BUDGETS builds no parked bake there (GFX budget `parked: false`); this L3-only
-  // fleet path is the agreed exception (GAME §4.3, §16 GQ9). ALL OF IT BEHIND FLYDIY_FLEET (default OFF; ?fleet=1 or
-  // window.FLYDIY_FLEET = true): with it off nothing is queued, baked, stood or drawn differently.
+  // fleet path is the agreed exception (GAME §4.3, §16 GQ9). ALL OF IT BEHIND FLYDIY_FLEET (default ON since G2226; ?fleet=0 or
+  // window.FLYDIY_FLEET = false turns it off): with it off nothing is queued, baked, stood or drawn differently.
   const FLEET_DRAW = { max: 6, l1: 30, light: ['potato', 'laptop', 'pocket'], lightMax: 4, resident: 8 };
   const FLEET = { V: 1, queue: [], busy: false, timer: null, idleMs: 3000, inputAt: -1e9, bakeEnd: -1e9, down: false, framed: true, worldMs: 5000, lru: [], placed: [], drawn: new Set(), rankAt: -1e9, why: {}, loading: {},
                   stats: { queued: 0, captures: 0, bakes: 0, hits: 0, stored: 0, decodes: 0, worldRefused: 0, flightRefused: 0, evicted: 0, bakeInWorld: 0, notWanted: 0, inputWaits: 0 },
                   store: null, bake: null };
   // ?parkclean=0: the capture as it was before G2220 (the leak re-opened) - FRAMECOST's A/B against the base holds the rest
   try { if (W.location && /[?&]parkclean=0(?:&|$)/.test(W.location.search || '')) W.__parkClean0 = true; } catch (e) {}
-  const fleetOn = () => { if (W.FLYDIY_FLEET === true) return true; try { return !!(W.location && /[?&]fleet=1(?:&|$)/.test(W.location.search || '')); } catch (e) { return false; } };
+  // G2226: ON by default (the user's ruling GQ9: the fleet visible everywhere; FLEET-PROPS B's timing) - off with ?fleet=0 or
+  // window.FLYDIY_FLEET = false (the A/B and the gates' 'off' rows)
+  const fleetOn = () => { if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
   const isMine = key => typeof key === 'string' && key.lastIndexOf('mine:', 0) === 0;
   // the game's state (app.js FLYDIY_HOLDS): no handle (a gate's vm) = a garage at rest
   const holds = () => { try { return W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null; } catch (e) { return null; } };
