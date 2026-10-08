@@ -74,7 +74,7 @@ const BUILDS = [
       await sleep(500);
     }
     await until(pg, () => { const s = document.querySelector('.edRoot[data-panel="pod"]'); return s && !/measuring/.test(s.innerText); }, 120000);
-    await ev(pg, () => window.FLIGHT_PROBE && window.FLIGHT_PROBE.camSet(2.35, 0.02, 8));
+    await ev(pg, () => window.FLIGHT_PROBE && window.FLIGHT_PROBE.camSet(1.95, -0.18, 7.5));
     await sleep(2500);
     const st = await probe();
     const f = 'pod_editor_' + B.k + '.jpg';
