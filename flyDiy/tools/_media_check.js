@@ -171,6 +171,10 @@ const STEP_BUDGET_MIB = 0.3;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
+// G2685 (CAREER-LAZY): the career-only core is its own file (career_core.<h8>.js, fetched only by a career / ?map=1 /
+// ?freight=1 boot), measured here beside index.html and never counted in it. Its own tripwire: 305 KB at the split
+// (8 Oct, train 43's nine modules); a career module past this ceiling is something heavy moving into the career's boot.
+const CAREER_BUDGET_KB = 512;
 
 // ---------------------------------------------------------------------------
 // the manifests that may reference media/ — one list, so a new externalized
@@ -413,7 +417,15 @@ function checkArtifact() {
   check(kb <= DATA_BUDGET_KB,
     `index.html carries ${kb.toFixed(0)} KB of data: URIs against the ` +
     `${DATA_BUDGET_KB} KB the fonts are allowed — base64 is creeping back`);
-  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb };
+  // G2685: the career's core, separately (one file, this build's)
+  const cn = fs.readdirSync(ROOT).filter(n => /^career_core\.[0-9a-f]{8}\.js$/.test(n));
+  let career = null;
+  if (check(cn.length === 1, `one career_core.<h8>.js beside index.html (${cn.join(', ') || 'none'})`)) {
+    const c = noCR(fs.readFileSync(path.join(ROOT, cn[0])));
+    career = { name: cn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
+    check(career.kb <= CAREER_BUDGET_KB, `${cn[0]} is ${career.kb.toFixed(1)} KB against the career core's ${CAREER_BUDGET_KB} KB`);
+  }
+  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career };
 }
 
 // ---------------------------------------------------------------------------
@@ -507,6 +519,8 @@ console.log(`  ${refs.size} references from ${files.length} manifests, ` +
            ? `${art.step >= 0 ? '+' : ''}${(art.step * 1024).toFixed(1)} KB over ${art.base.at} (budget ${STEP_BUDGET_MIB * 1024} KB), `
            : `step not measured: ${art.base.why}, `) +
          `data: ${art.kb.toFixed(0)} KB (budget ${DATA_BUDGET_KB})` : ''));
+if (art) console.log(`  index.html ${art.bytes} B (${(art.bytes / 1024).toFixed(1)} KB, ${(art.gzBytes / 1024).toFixed(1)} KB gzipped)` +
+  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : ''));
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE MEDIA: FAIL');
