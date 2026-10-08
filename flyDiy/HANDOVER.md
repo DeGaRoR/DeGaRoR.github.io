@@ -81044,7 +81044,11 @@ cores), `levels.json`. CAVEAT: a cloud's shadow drifted between the measuring ro
 strip's ground and background darken with it): the levels come from round 1 (3D, today and the trunk fix shot back to
 back); the round-2 cores carry that drift (larch rungs on gamer 1.11 -> 0.55 is the cloud, not the level 0.925).
 
-**What is left (the user's call whether to go on):** the trunk still SHOWS through the crown on some pictures (larch,
+**THE USER'S RULING (2026-10-08, through A0): "Keep the trees as they are in the last update, I'll check in game, no
+further modifications, keep the latest delivered version."** adcbb4db rides train 42 as delivered; the see-through-trunk
+follow-up below is CANCELLED (kept here as the record of what was seen, not as owed work).
+
+**What was left (CANCELLED by the ruling above):** the trunk still SHOWS through the crown on some pictures (larch,
 spruce) where the 3D crown hides it - the bake's foliage coverage: it cuts the leaf map at its mip-averaged alpha at the
 128-px tile, where the screen keeps partial coverage through the sharpen (EDGE_GLSL). A bake-side fix (sample the leaf
 alpha sharper in the bake, or supersample the bake 2x) - a bake-time change, not done here.
