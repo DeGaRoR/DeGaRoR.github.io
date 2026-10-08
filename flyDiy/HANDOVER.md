@@ -80969,6 +80969,16 @@ re-applied 'current' at 133.8 s (the settings screen 133.9-158.0 s). So:
   without geometry reaching three's frustum test, right after the re-apply that also started the cloud pass (137.0 s).
 G1532b.1 (flight_recorder.js): an error event now carries the column and, for the first three, six stack lines - the next log names the
 thrower (GATE FLIGHTREC PASS).
+THE SAVED-STATE BOOT ON THE BOX (8 Oct, A0's slots; train 40 page, the cook fresh): 04:30 run (A) VOID - potato_census added ?gfx=potato
+by default over the seeded pref (fixed b7c40066: --gfxpref boots without ?gfx=); (B) ?gfx=current: the cloud pass from boot, 30
+CLOUDS.draw + 30 composite draws per 60 frames at the stand and in the air, target 1920x911 s0. 05:52 run (A) again, GUARDED (the eval
+measures nothing unless the URL has no gfx= and GFX.get() is the seeded state): url '', own true, town 'nearby', current, clouds half,
+aa off - THE CLOUD PASS RUNS FROM BOOT (30 + 30 per 60 frames, active, baked, cover 0.443, target 1920x911 s0). NOT REPRODUCED: the
+laptop's boot differed in something its log does not carry - the saved WEATHER (a day saved with cover 0 keeps the pass inactive: no
+march, no query), or the machine. So the recorder now says it: an event 'sky' at the reveal and 10 s later (the cloud pass's mode / ready
+/ active / baked / sky cover, the day's cloudCover / type / upper decks, the resolve target), printed by analyze_log as a SKY line
+(flight_recorder.js + analyze_log.js; GATE FLIGHTREC PASS). The user's next log answers both open questions (the SKY lines, the
+boundingSphere thrower's column and stack) without a console capture. No apply-order fix: none was shown to be needed.
 GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
 0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
 53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;

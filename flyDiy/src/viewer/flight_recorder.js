@@ -93,7 +93,15 @@
     // NO REVEAL and the analyzer scored nothing. app.js's flRevealStart now says so (reveal()); the screen's own line stays
     // for a screen that lifts on its own, and one reveal is kept per hand-over (2 s apart)
     let lastReveal = -1e9;
-    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); }
+    // G1532b.1 (POTATO-DEEP): THE SKY AT THE REVEAL, and 10 s later (the layer's bake) - the cloud pass's state, the day's cover, the
+    // resolve target: the user's train 38 laptop log showed no cloud pass from boot until a preset re-apply, and nothing in the log
+    // said why (the box, booted from the same saved graphics, runs it); an event 'sky' answers it from the next log
+    function sky(tag) { try { const C = W.CLOUDS, AA = W.FLYDIY_AA, D = W.DAY_CLOCK && W.DAY_CLOCK.day && W.DAY_CLOCK.day(), T = AA && AA.target && AA.target();
+      event('sky', clock(), null, { at: tag, clouds: C ? { mode: C.S.mode, ready: C.ready, active: C.active, baked: C.baked, cover: C.stats && +(+C.stats.cover).toFixed(3) } : null,
+        day: D ? { cloudCover: D.cloudCover, cloudType: D.cloudType, upper: D.cloudUpper ? D.cloudUpper.length : 0 } : null,
+        aa: AA && AA.report ? (r => ({ tier: r.tier, able: r.able, samples: r.samples, target: T ? T.width + 'x' + T.height : null }))(AA.report()) : null }); } catch (e) {} }
+    function revealSky() { sky('reveal'); setTimeout(() => sky('reveal+10s'), 10000); }
+    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); revealSky(); }
     // G1340 THE SHADER WATCHDOG: the programs three made since the last frame closed (name + what changed in its key against
     // the last program of that name: three's key is comma-joined, '#i:a>b' per differing field) and the link waits since;
     // a frame whose shader time (its slot, or the waits held since the last frame - a wait outside the open frame counts)
@@ -209,7 +217,7 @@
       const B = W.BOOT;
       if (B && B.state !== lastBoot) {
         event('boot', t, null, B.state + (B.set ? ' ' + B.set : ''));
-        if (B.state === 'gone' && B.set === 'rollout' && !(t - lastReveal < 2000)) { revealAt = t; lastReveal = t; event('reveal', t, null, 'roll-out screen'); }
+        if (B.state === 'gone' && B.set === 'rollout' && !(t - lastReveal < 2000)) { revealAt = t; lastReveal = t; event('reveal', t, null, 'roll-out screen'); revealSky(); }
         lastBoot = B.state;
       }
       if (B && B.state !== 'gone') fl |= F.boot;
