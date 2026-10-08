@@ -80965,3 +80965,22 @@ Reverted from train 40: the strict gate read the first garage -> world worst tas
 
 Build 4d16bbcb0e4a (assembly e2466ad4). Sessions: GAME (S1 + WELCOME-MODES + FLEET-PROPS A flag off + PREM-S2, game-integration 67ee2ca4), PILOT-PERSONA G2085-G2089, GROUND-COST G2075-G2076 (retro lean ground; the apron skip on current), SND ROLLOUT-TIGHT (the roll-out start 2.9 -> 2.1 s, the user's pick) + its ROLLANIM least-of-5 windows, DEADWOOD-BRIGHT G1975.1 (far forest column 3) + G1975.2 (mixDead ON; both the user's calls), METLA-COOK TOWN-GEO G2063-G2064, POTATO-DEEP G1532 (clouds on 'current': missing since train 25, the depth copy at 0 samples), the stale-core guard (node only; fixed for worker evals), program_census's roll-out confirmation. OUT: TOWN-CHEAP (sliced for 42), WATER-DAMP (merged by WATER-LOOK for 42), TERRAIN-MATCH (stills owed), shed_batch (slipped).
 Battery: full run 18:56-20:09, 6 reds -> fixed and re-run green (the guard killed node workers; CONTACT's anchor; ROLLANIM under load); the fix round's targeted set green. Strict gate: roll-out rows clean on a quiet box (21:12, render/loop within slack; the 20:44 run's +3 ms was a shared box). NAMED, accepted by the user: the roll-out engine start (+2.1 s on garage -> world first 11.27 s, round trip 2 10.96 s, cockpit flight 44.70 s), and the warm "garage -> world (first) @HOME" worst task 262 -> 318/331 ms (one frame; source in train 40 not yet named - bisect owed by A0). Gains: @mn_strip garage -> world 27.7 -> 14.5/16.3 s.
+
+## G2077-G2078 - GROUND-COST LEVERS 1 AND 3: WITHDRAWN, MEASURED NEGATIVE (2026-10-08, GROUND-COST for A0, local GPU; measured on claude/ground-cost-g2076 over train 40 bcf62797 - for the record; this commit claude/ground-cost-tools rides train 42 with the measuring strips restored)
+LEVER 1 (the registers in every ground program, the full ones too - the user accepted ~+2 s of current's first-visit link for ~-20 %
+of its ground, 7 Oct ~18:15): ON TRAIN 40 IT DOES NOT PAY. Before = live train 40, after = this branch (05:20-05:40, the box quiet,
+three before/after rounds, the trees' sway off), current, ground ms: stand 5.15 -> 5.69 (+11 %), taxi 3.28 -> 3.66 (+12 %), 40 m
+6.31 -> 6.10, grass 4.30 -> 4.16, air 7.45 -> ~7.2; the cold link 11.1 -> 15.3 s wall (+4.2 s). The -14..-23 % of 6 Oct was against
+train 37b - before SHORES-2's bank / triplanar (train 38) and the apron skip (train 40, which already took the dearest pixels). The
+link's bisect (the ring alone, cold, two rounds, reports/evidence/GROUND-COST/runs/link_bisect/): arrays 6.45 s, the registers' vote
+alone 7.35, their candidates alone 7.4, both 8.3, both with 4 candidates 7.6, both without the one-code path 8.0, the lean program 3.45
+- no single culprit. Withdrawn; the full programs keep the arrays (train 40 as landed).
+LEVER 3 (the normal array, a look call): cutting its fetch past the normal's fade pulled in to 800 / 400 m saves ~nothing (air 5.22 ->
+5.13 / 4.95, 40 m / grass / taxi +-0.1, noon and golden: runs/s21_nrm_*.json) - the normals' cost is inside 400 m. Nothing put to the
+user. The strip nrmcut stays a measuring tool.
+LEVER 2 at retro (the apron skip, landed in 40): no gain there - the ground under the apron is already cheap at lean (the one-code
+cells: one tap; one set a type), so skipping it saves little; at current (25 taps, three sets) it was -16 %.
+THIS COMMIT (train 42, no player-visible change): src/viewer/splat_ground.js - the hexfar / nrmcut measuring strips' flags declared
+again (train 40's apron commit had put gSFarOn behind a comment on the same line: production never reads them, ?gstrip=hexfar did not
+compile) and the strip nrmcut; tools/perf/ground_cost.js --eval '<js>' | @file (a page expression printed once the flight is held);
+the runs under reports/evidence/GROUND-COST/runs/ (f_*, fr*_*, s21_nrm_*, link_bisect/). GROUND-COST (G2075-G2079) is closed.
