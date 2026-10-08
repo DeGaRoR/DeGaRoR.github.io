@@ -626,8 +626,10 @@ const GATES = [
   { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 60 },
   // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
   // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
-  // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
-  // five designs' shakedown, cached in the OS temp dir by content)
+  // arc stage flyable by a validated design, none doing every class (az); (G2430 CONTRACT-ROUTES) THE ROUTES: >= 60 % of
+  // the jobs with 2+ destinations, <= 30 % from Jolene AFB, every chain one design's, a new site joining by data, a
+  // 3-stop chain flown through the stop records; 64 doctored rules. ~2 s (20 s cold: the five designs' shakedown,
+  // cached in the OS temp dir by content)
   { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village

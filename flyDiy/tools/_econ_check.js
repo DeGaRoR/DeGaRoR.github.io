@@ -164,8 +164,8 @@ function run(mut, opts) {
   }
 
   // ==== THE CALIBRATION =============================================================
-  ok(eq(Object.keys(M.ECON_BANDS).sort(), ['airframe', 'arc', 'hangar1', 'hangar2']) && eq(M.ECON_BANDS.hangar1, [6, 10]) && eq(M.ECON_BANDS.airframe, [15, 25])
-     && eq(M.ECON_BANDS.hangar2, [25, 35]) && eq(M.ECON_BANDS.arc, [20, 40]), 'the bands are the brief\'s, as data');
+  ok(eq(Object.keys(M.ECON_BANDS).sort(), ['airframe', 'arc', 'hangar1', 'hangar2']) && eq(M.ECON_BANDS.hangar1, [6, 10]) && eq(M.ECON_BANDS.airframe, [12, 20])
+     && eq(M.ECON_BANDS.hangar2, [20, 27]) && eq(M.ECON_BANDS.arc, [16, 31]), 'the bands are the brief\'s, as data (G2430: re-derived for the two-leg jobs, the pace in legs unmoved)');
   ok(M.ECON_REF.wish.map(w => w.m).join() === 'hangar1,airframe,hangar2' && M.ECON_REF.wish[1].design === 'c172', 'the reference buys a side hangar, the C172-class airframe, a side hangar, in order');
   const cal = M.econCalibration(opts.quick ? { seeds: M.ECON_REF.seeds.slice(0, 2) } : undefined);
   out.cal = cal;

@@ -29,6 +29,17 @@
 //                  any interleaving, any key order of the career), seed-
 //                  sensitive, refreshed after N completed contracts, a job
 //                  regenerated from its id.
+//   THE ROUTES     (G2430 CONTRACT-ROUTES, §R.3) over the sample: >= 60 % of
+//                  the jobs have 2+ destinations, <= 30 % start at Jolene AFB,
+//                  every provider offers jobs that start elsewhere, every shape
+//                  is drawn, every chain is ONE validated design's end to end,
+//                  no leg to where it stands and no stop twice in a row, each
+//                  leg carries its own items (a milk run's second leg a part of
+//                  the first's), the brief says the next leg, the pay is per leg
+//                  + the chain bonus; a NEW SITE joins the jobs by data alone
+//                  (a field row + its id in a provider's `fields`); a 3-stop
+//                  chain flown stop by stop through careerStopRecord /
+//                  careerOnStop (the second load taken on away from HOME).
 //   ACCEPTANCE     right field + load = advance (and pay, rep, unlock, done);
 //                  wrong field / short load / wrecked / off-field / not
 //                  accepted / after dusk = the SAME document, untouched, with a
@@ -121,10 +132,10 @@ const ok = (c, msg) => { checks++; if (!c) fails.push(msg); return !!c; };
 const J = o => JSON.stringify(o);
 const eq = (a, b) => J(a) === J(b);
 const clone = o => JSON.parse(J(o));
-let TABLE = [];
+let TABLE = [], ROUTES_TABLE = [];
 
 function run(mut) {
-  fails = []; checks = 0; TABLE = [];
+  fails = []; checks = 0; TABLE = []; ROUTES_TABLE = [];
   const M = loadModel(mut);
   const PROV = M.CONTRACT_PROVIDERS, F = M.CONTRACT_FIELDS, DS = M.CONTRACT_DESIGNS, T = M.CONTRACT_TEXT;
   const A = M.contractAuthored(), ids = Object.keys(A);
@@ -162,8 +173,16 @@ function run(mut) {
     ok(P.track === p, p + ': its own track');
     ok(Array.isArray(P.goods) && P.goods.length && P.goods.every(g => g.id && ['kg', 'pax', 'bulk', 'none'].includes(g.kind) && M.contractTextOk(g.word)), p + ': a goods list with words');
     ok(Array.isArray(P.jobs) && P.jobs.length && P.jobs.every(t => P.goods.some(g => g.id === t.goods) && M.contractTextOk(t.title) && M.contractTextOk(t.brief)
-       && (Array.isArray(t.routes) || Array.isArray(t.survey))), p + ': a job table (goods, routes, text)');
-    for (const t of P.jobs) for (const r of (t.routes || []).concat(t.survey || [])) ok(r.length === 2 && F[r[0]] && F[r[1]] && r[0] !== r[1], p + '/' + t.id + ': route ' + r + ' between two fields');
+       && t.shapes && typeof t.shapes === 'object'), p + ': a job table (goods, shapes, text)');
+    // (G2430) a template's pools name fields (or 'own' / 'away' / 'all'), its shapes are the ruled ones, each with a route
+    const poolOk = q => q == null || ['own', 'away', 'all'].includes(q) || (Array.isArray(q) && q.length && q.every(f => F[f]));
+    for (const t of P.jobs) {
+      const kind = t.survey ? 'survey' : 'carry';
+      ok(Object.keys(t.shapes).length && Object.keys(t.shapes).every(k => M.CONTRACT_SHAPES[kind].includes(k) && t.shapes[k] > 0), p + '/' + t.id + ': its shapes are ' + kind + ' shapes (' + Object.keys(t.shapes) + ')');
+      ok(t.survey ? ['from', 'at', 'to'].every(k => poolOk(t.survey[k])) : ['from', 'to', 'on'].every(k => poolOk(t[k])), p + '/' + t.id + ': its pools name fields');
+      ok(!t.back || P.goods.some(g => g.id === t.back), p + '/' + t.id + ': its backhaul goods (' + t.back + ') are the provider\'s');
+      for (const k of Object.keys(t.shapes)) ok(M.ctRoutes(P, t, k, F).length > 0, p + '/' + t.id + ': a flyable ' + k + ' route');
+    }
     ok(P.arc.length >= 4 && P.arc.length <= 6, p + ': an arc of 4-6 contracts (' + P.arc.length + ')');
     const last = P.arc[P.arc.length - 1];
     ok(last && last.unlock && new RegExp('^' + p + ':' + M.CONTRACT_TRACKS[p].max + '$').test(last.unlock.stage), p + ': the arc ends in its track\'s last stage unlock');
@@ -333,6 +352,86 @@ function run(mut) {
     ok(!eq(M.contractJobs('r', 'field', 0).map(j => j.id), M.contractJobs('r', 'field', N).map(j => j.id)), 'the offers refresh after ' + N + ' completed contracts');
   }
 
+  // ==== THE ROUTES (G2430 CONTRACT-ROUTES, GAME §R.3: two destinations or more, not everything from Jolene AFB) ====
+  {
+    const AFB = ['HOME', 'w2'];                  // Jolene AFB: its two runways are one aerodrome
+    const T = {}, all = { n: 0, multi: 0, home: 0 };
+    for (const p of Object.keys(PROV)) T[p] = { n: 0, multi: 0, home: 0, away: 0 };
+    const shapes = {};
+    let revisit = 0, ownItems = 0, milkPart = 0, thenBad = 0, payBad = 0, oneBad = 0, mixed = 0;
+    for (const j of JOBS) {
+      const S = M.contractStops(j), m = M.contractDests(j) >= 2, h = AFB.includes(S[0].at);
+      for (const o of [T[j.provider], all]) { o.n++; o.multi += m; o.home += h; }
+      if (!h) T[j.provider].away++;
+      shapes[j.shape] = (shapes[j.shape] || 0) + 1;
+      // the legs: never to where it stands, never the same stop twice in a row (the hinge - dropped at B, loaded at B - is one stop)
+      const legs = [];
+      j.stages.forEach(st => st.subs.forEach(s => {
+        if (s.do === 'carry') legs.push([s.from, s.to]);
+        else if (s.do === 'survey') legs.push([s.from, s.at]);
+        else if (s.do === 'land') legs.push([legs.length ? legs[legs.length - 1][1] : null, s.to]);
+      }));
+      if (legs.some(l => l[0] === l[1]) || legs.some((l, k) => k && l[1] === legs[k - 1][1])) revisit++;
+      // ONE validated design flies the chain end to end; no chain mixes water with a field only wheels use
+      const subs = M.contractSubsOf(j), doers = M.contractDoers(subs);
+      if (!doers.length) oneBad++;
+      const ends = [].concat(...subs.map(s => s.do === 'survey' ? [s.from] : [s.from, s.to])).filter(Boolean).map(f => F[f]);
+      if (ends.some(e => e.surf === 'water') && ends.some(e => e.surf !== 'water')) mixed++;
+      // each leg carries its own items: a backhaul / an onward load other crates than the first leg's; a milk run's
+      // second leg a PART of the first leg's load
+      if (j.stages.length === 2 && j.stages[0].subs[0].do === 'carry') {
+        const a = j.stages[0].subs[0].load, b = j.stages[1].subs[0].load, ia = (a.items || []).map(x => x.id), ib = (b.items || []).map(x => x.id);
+        if (j.shape === 'milk') { if (!(ib.every(x => ia.includes(x)) && (b.kg < a.kg || b.pax < a.pax))) milkPart++; }
+        else if (ib.some(x => ia.includes(x))) ownItems++;
+      }
+      // the brief says the next leg (its {then}), and a one-leg job says none
+      const V = M.contractVars(j);
+      if (m && j.shape !== 'p2p' && (!V.then || /\{\w+\}|\[/.test(V.then))) thenBad++;
+      if (j.shape === 'p2p' && V.then) thenBad++;
+      // the pay is per leg: the chain pays its legs as jobs of their own, and the chain bonus on top
+      if (j.shape === 'back' || j.shape === 'onward' || j.shape === 'milk') {
+        const leg = k => M.contractNormalise(Object.assign(clone(j), { stages: [j.stages[k]], shape: 'p2p' }));
+        const P0 = M.contractPay(j), P1 = M.contractPay(leg(0)), P2 = M.contractPay(leg(1));
+        const legsPay = P0.perKm * (P1.km * (1 + P1.factor) + P2.km * (1 + P2.factor));
+        if (!(P0.chain > 0 && Math.abs(P0.chain - legsPay * M.CONTRACT_PAY.chainPct / 100) <= 1 && P0.total > Math.max(P1.total, P2.total))) payBad++;
+      } else if (M.contractDests(j) <= 1 && M.contractPay(j).chain !== 0) payBad++;
+    }
+    const pc = (a, n) => Math.round(100 * a / Math.max(1, n));
+    ok(pc(all.multi, all.n) >= 60, 'routes: ' + pc(all.multi, all.n) + ' % of the jobs have 2+ destinations (>= 60 %)');
+    ok(pc(all.home, all.n) <= 30, 'routes: ' + pc(all.home, all.n) + ' % of the jobs start at Jolene AFB (<= 30 %)');
+    for (const p of Object.keys(PROV)) ok(T[p].away > 0, 'routes: ' + p + ' offers jobs that start away from Jolene AFB (' + T[p].away + ' of ' + T[p].n + ')');
+    for (const k of [].concat(M.CONTRACT_SHAPES.carry, M.CONTRACT_SHAPES.survey)) ok(shapes[k] > 0, 'routes: the ' + k + ' shape is drawn (' + (shapes[k] || 0) + ')');
+    ok(oneBad === 0, 'routes: every chain is flown end to end by ONE validated design (' + oneBad + ' not)');
+    ok(mixed === 0, 'routes: no chain mixes water with a field (' + mixed + ': the ✗ no-no, never generated)');
+    ok(revisit === 0, 'routes: no leg to where it stands, no stop twice in a row (' + revisit + ' do)');
+    ok(ownItems === 0, 'routes: a second load is its own items, not the first leg\'s (' + ownItems + ' share)');
+    ok(milkPart === 0, 'routes: a milk run\'s second leg is a part of the first leg\'s load (' + milkPart + ' not)');
+    ok(thenBad === 0, 'routes: the brief says the next leg ({then}), a one-leg job none (' + thenBad + ' not)');
+    ok(payBad === 0, 'routes: the pay is per leg + ' + M.CONTRACT_PAY.chainPct + ' % per extra destination; a one-leg job pays no bonus (' + payBad + ' not)');
+    ROUTES_TABLE = Object.keys(T).map(p => [p, T[p].n, pc(T[p].multi, T[p].n), pc(T[p].home, T[p].n)]).concat([['ALL', all.n, pc(all.multi, all.n), pc(all.home, all.n)]]);
+    // the stops: a backhaul is A, B, A; a survey loop's way home is not a destination
+    {
+      const bk = M.contractNormalise({ id: 'x', provider: 'field', kind: 'job', title: 'job.field.mail.title', brief: 'job.field.mail.brief', shape: 'back',
+        stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'tw_ski', load: { kg: 20, pax: 0 } }] }, { subs: [{ do: 'carry', from: 'tw_ski', to: 'w3', load: { kg: 20, pax: 0 } }] }], rep: { provider: 'field', gain: 0 } });
+      ok(M.contractStops(bk).map(x => x.at + ':' + x.what).join() === 'w3:pick,tw_ski:drop,w3:drop' && M.contractDests(bk) === 2, 'the stops: a backhaul is A, B, A - two destinations');
+      ok(M.contractDests(A['minedock.01']) === 1 && M.contractDests(A['survey.03']) === 2 && M.contractDests(A['field.03']) === 2, 'the stops: a survey\'s way home is no destination; two sites are two; two drops are two');
+    }
+    // A NEW SITE JOINS BY DATA ALONE: a lake cabin's runway row + its id in the clients' and the survey's `fields`
+    {
+      const N = loadModel(mut), F2 = Object.assign({}, N.CONTRACT_FIELDS, { lake_a: { id: 'lake_a', name: 'Lake A Cabin', x: 2600, z: -4200, len: 600, surf: 'gravel' } });
+      N.CONTRACT_PROVIDERS.clients.fields.push('lake_a'); N.CONTRACT_PROVIDERS.survey.fields.push('lake_a');
+      let touch = 0, n = 0, bad = 0;
+      for (const sd of SEEDS.slice(0, 12)) for (const p of ['clients', 'survey']) for (const done of [0, 3, 6, 9]) for (const j of N.contractJobs(sd, p, done, { rep: 2, fields: F2 })) {
+        n++;
+        if (N.contractStops(j).some(x => x.at === 'lake_a')) touch++;
+        if (N.contractValidate(j, { fields: F2 }).length || !N.contractDoers(N.contractSubsOf(j), F2).length) bad++;
+      }
+      ok(touch > 0 && bad === 0, 'a new site joins by data: the lake cabin, named in two providers\' fields, is in ' + touch + ' of ' + n + ' jobs, all valid and flyable');
+      ok(N.contractSites(F2).includes('lake_a') && !M.contractSites().includes('lake_a') && !M.contractSites().includes('w2') && !M.contractSites().includes('nv_strip'),
+         'the island\'s job fields are the providers\' fields (the lake once named; the AFB\'s second runway and East Point in none)');
+    }
+  }
+
   // ==== THE CAREER DOCUMENT ==================================================
   const D0 = M.careerNew({ seed: 'g2240' });
   ok(D0.what === 'flydiy-player' && D0.v === CORE.PLAYER_V && D0.mode === 'career', 'a career is a player document in mode career');
@@ -366,8 +465,9 @@ function run(mut) {
   }
   {
     // a job: a carry, right field + load = advance; every wrong = untouched
-    const job = D0.career.contracts.offered.map(id => M.careerContract(D0, id)).find(r => r.kind === 'job' && r.stages[0].subs[0].do === 'carry' && !r.stages[0].subs[0].when);
-    ok(!!job, 'a carry job is on offer');
+    // (G2430) a ONE-LEG carry job (most jobs are chains now: the 3-stop row below flies one)
+    const job = D0.career.contracts.offered.map(id => M.careerContract(D0, id)).find(r => r.kind === 'job' && r.stages.length === 1 && r.stages[0].subs[0].do === 'carry' && !r.stages[0].subs[0].when);
+    ok(!!job, 'a one-leg carry job is on offer');
     const s = job.stages[0].subs[0];
     let d = accept(D0, job.id);
     ok(d.career.contracts.tracked === job.id, 'the first accepted contract is tracked');
@@ -597,7 +697,7 @@ function run(mut) {
     ok(R.contracts.every(c => c.pay.total === M.contractPay(M.careerContract(d, c.id)).total), 'the map record: the pay is contractPay\'s');
     ok(R.career.wallet === 60000 && R.career.accepted.length === 0 && R.career.tracked === null && R.fleet.length === 0, 'the map record: the wallet, nothing accepted, no fleet yet');
     // accept, track, and a carry job's progress read back
-    const job = d.career.contracts.offered.find(i => { const r = M.careerContract(d, i); return /^job:field:/.test(i) && r.stages[0].subs[0].do === 'carry'; });
+    const job = d.career.contracts.offered.find(i => { const r = M.careerContract(d, i); return /^job:/.test(i) && r.stages.length === 1 && r.stages[0].subs[0].do === 'carry' && !r.stages[0].subs[0].when; });
     const e = accept(d, job);
     const R2 = M.careerMapRecord(e, null, {});
     ok(R2.career.accepted[0] === job && R2.career.tracked === job && R2.contracts[0].id === job && R2.career.live[job].stage === 0, 'the map record: an accepted (tracked) job first, its progress');
@@ -643,6 +743,42 @@ function run(mut) {
     const Wf = { aerodromes: [{ id: 'A', x: 0, z: 0, len: 600, wid: 30, hdg: 0 }, { id: 'B', x: 5000, z: 0, len: 600, wid: 30, hdg: 0 }] };
     const ov = M.careerOverflewAdd(Wf, 300 + 449, 0, []);
     ok(ov.join() === 'A' && M.careerOverflewAdd(Wf, 300 + 451, 0, []).length === 0 && M.careerOverflewAdd(Wf, 5000, 100, ov).join() === 'A,B', 'the overflight: within the field radius of the strip, each once, in order');
+    // (G2430) A 3-STOP CHAIN, flown stop by stop through the page's own records (careerStopRecord -> careerOnStop): the
+    // first load taken on where it waits (the positioning flight unpaid), dropped at B, the SECOND load taken on at B
+    // (away from HOME), delivered at C; out of order refused; the plate's load follows the stage
+    {
+      let pick = null;
+      for (const sd of ['wire3', 'dev', 'a', 'b', 'c', 'd', 'e', 'f']) {
+        const dd = M.careerNew({ id: 'w3', seed: sd });
+        const id = dd.career.contracts.offered.find(i => { const r = M.careerContract(dd, i); if (!r || r.kind !== 'job' || r.stages.length !== 2 || r.stages[0].subs[0].do !== 'carry') return false;
+          const S = M.contractStops(r); return S.length === 3 && new Set(S.map(x => x.at)).size === 3 && S[1].at !== 'HOME' && !r.stages[1].subs[0].when && !r.stages[0].subs[0].when; });
+        if (id) { pick = { d: dd, id }; break; }
+      }
+      ok(!!pick, 'a 3-stop chain (A -> B -> C, B away from HOME) is on offer');
+      if (pick) {
+        const d0 = accept(pick.d, pick.id), rec = M.careerContract(d0, pick.id);
+        const [A1, B1, C1] = M.contractStops(rec).map(x => x.at), L1 = rec.stages[0].subs[0].load, L2 = rec.stages[1].subs[0].load;
+        const far = Object.keys(F).find(k => ![A1, B1, C1].includes(k) && F[k].surf !== 'water') || 'HOME';
+        const st = (aero, L, from) => M.careerStopRecord({ how: 'stopped', aero, occupants: 1 + (L.pax || 0), cargoKg: L.kg || 0, items: L.items || null,
+                                                             row: { from, to: aero, t: 600 }, hour: 12 });
+        const T1 = M.careerTrackedLoad(d0);
+        ok(T1 && T1.kg === (L1.kg || 0) && T1.pax === (L1.pax || 0), '3-stop: the plate\'s load is the first leg\'s');
+        let r = M.careerOnStop(d0, st(A1, L1, far));
+        ok(r.ok && r.events.some(e => e.k === 'picked' && e.at === A1), '3-stop: loaded at ' + A1 + ' after the positioning flight from ' + far);
+        const b4 = clone(r.doc);
+        refused(M.careerOnStop(r.doc, st(C1, L2, B1)), b4, r.doc, '3-stop: the last stop before the first drop');
+        r = M.careerOnStop(r.doc, st(B1, L1, A1));
+        ok(r.ok && r.doc.career.contracts.live[pick.id].stage === 1 && !r.doc.career.contracts.done.some(x => x.id === pick.id)
+           && M.careerEventLines(r, b4, r.doc).some(l => l.k === 'stage'), '3-stop: dropped at ' + B1 + ': stage 1 done, the chain open, the card says so');
+        const T2 = M.careerTrackedLoad(r.doc);
+        ok(T2 && T2.kg === (L2.kg || 0) && T2.pax === (L2.pax || 0) && (!L2.items || (T2.items || []).length === L2.items.length), '3-stop: the plate\'s load is now the second leg\'s');
+        const w0 = r.doc.wallet, d2 = r.doc;
+        r = M.careerOnStop(d2, st(C1, L2, B1));
+        ok(r.ok && r.doc.career.contracts.done.some(x => x.id === pick.id && x.pay === rec.pay.total) && r.doc.wallet === w0 + rec.pay.total,
+           '3-stop: the second load taken on at ' + B1 + ', delivered at ' + C1 + ': done, paid ' + rec.pay.total + ' (per leg + the chain bonus)');
+        refused(M.careerOnStop(d2, Object.assign(st(C1, L2, far), {})), clone(d2), d2, '3-stop: the second load never taken on at ' + B1);
+      }
+    }
   }
 
   // ==== THE IMPORT (Block 5) =================================================
@@ -680,6 +816,8 @@ if (!SELF) {
   if (SHOW || base.fails.length) {
     console.log('DESIGNS x JOB CLASSES (jobs of the class each can physically do, of the sample):');
     for (const [k, row] of TABLE) console.log('  ' + k.padEnd(6) + Object.entries(row).map(([c, v]) => c + ' ' + v).join(' · '));
+    console.log('THE ROUTES (G2430: jobs of the sample, the share with 2+ destinations, the share starting at Jolene AFB):');
+    for (const [p, n, m, h] of ROUTES_TABLE) console.log('  ' + p.padEnd(9) + String(n).padStart(5) + '  2+ destinations ' + String(m).padStart(3) + ' %   AFB-first ' + String(h).padStart(3) + ' %');
   }
   for (const f of base.fails) console.log('  - ' + f);
   console.log(base.checks + ' checks');
@@ -705,19 +843,31 @@ const BREAKS = [
   ['a validated design\'s numbers drift from its build', { s72: sub('massKg: 476, emptyKg: 354, toM: 156,', 'massKg: 476, emptyKg: 354, toM: 120,') }],
   // the physical rows
   ['an arc stage no validated design can fly', { s72: sub("{ do: 'carry', from: 'HOME', to: 'mn_strip', load: { kg: 120, pax: 0 } }", "{ do: 'carry', from: 'HOME', to: 'mn_strip', load: { kg: 400, pax: 0 } }") }],
-  ['the generator skips the physical check', { s73: s => sub('    if (!contractDoers([].concat(...subs), F).length) continue;\n', '')(sub('for (let k = 0; k < 6 && !contractDoers(subs[0], F).length; k++)', 'for (let k = 0; k < 0; k++)')(s)) }],
+  ['the generator skips the physical check', { s73: s => sub('    if (!contractDoers([].concat(...subs), F).length) continue;\n', '')(sub('for (let k = 0; k < 6 && !contractDoers([].concat(...subs), F).length; k++)', 'for (let k = 0; k < 0; k++)')(sub('  const out = raw.filter(r => contractDoers(subsOf(r), F).length > 0);', '  const out = raw;')(s))) }],
   ['the physical gates are off (one design does everything)', { s73: s => sub('    if (run > f.len) return no(', '    if (false) return no(')(sub("  if (gear === 'floats') return ctWet(f);", "  if (gear === 'floats') return true;")(s)) }],
   ['the cabin is ignored', { s73: sub("    if (kg > ctCapKg(D)) return no(", '    if (false) return no(') }],
   // the pay
-  ['the pay reads the aeroplane', { s73: sub('  const factor = kg / P.kgUnit', '  const factor = (rec.airframe ? 0.5 : 0) + kg / P.kgUnit') }],
+  ['the pay reads the aeroplane', { s73: sub('    const f = kg / P.kgUnit', '    const f = (rec.airframe ? 0.5 : 0) + kg / P.kgUnit') }],
   ['a running cost is charged', { s74: sub("  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);", "  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);\n  playerCharge(d, 40, 'fuel', rec.id);") }],
   // the generator
   ['the generator is random', { s73: sub('  let a = contractHash(key);', '  let a = contractHash(key) ^ Math.floor(Math.random() * 1e9);') }],
   ['the generator depends on call order', { s73: s => sub("  const id = 'job:' + providerId + ':' + epoch + ':' + i;\n", "  const id = 'job:' + providerId + ':' + epoch + ':' + i; ctCalls++;\n")(sub('function contractJob(seed, providerId, epoch, i, opts) {', 'let ctCalls = 0;\nfunction contractJob(seed, providerId, epoch, i, opts) {')(sub("const rng = contractRng(seed + '|' + id + '|' + t);", "const rng = contractRng(seed + '|' + id + '|' + t + '|' + (ctCalls % 3));")(s))) }],
   ['the offers never refresh', { s73: sub('return Math.floor(Math.max(0, done || 0) / CONTRACT_GEN.refreshEvery);', 'return 0;') }],
+  // (G2430) the routes
+  ['the generator draws one leg only', { s73: sub('    let shape = ctPick(rng, shapes, k => W[k]);', "    let shape = shapes.includes('p2p') ? 'p2p' : ctPick(rng, shapes, k => W[k]);") }],
+  ['every job starts at HOME', { s73: s => sub("    const A = ctPool(P, tpl.from || 'own', F), B", "    const A = ['HOME'], B")(sub("    const S = tpl.survey, A = ctPool(P, S.from || 'own', F), X", "    const S = tpl.survey, A = ['HOME'], X")(s)) }],
+  ['a chain no one design flies (wheels then water)', { s73: s => sub('    if (!contractDoers([].concat(...subs), F).length) continue;\n', '')(sub('  const out = raw.filter(r => contractDoers(subsOf(r), F).length > 0);', '  const out = raw.filter(r => subsOf(r).every(u => contractDoers([u], F).length > 0));')(s)) }],
+  ['a leg back to where it stands', { s73: sub('      if (a === b) continue;\n', '') }],
+  ['a second load is the first leg\'s crates', { s73: sub("ctItemsOf(ctLoadOf(rng, G2, frac), G2, 'leg2.')", 'ctItemsOf(ctLoadOf(rng, G2, frac), G2)') }],
+  ['the milk run carries on a fresh load', { s73: sub('    const items = ctClone(L1.items.slice(Math.ceil(L1.items.length / 2)));', "    const items = ctClone(L1.items.slice(Math.ceil(L1.items.length / 2))).map(it => Object.assign(it, { id: 'x' + it.id }));") }],
+  ['the brief leaves out the next leg', { s73: sub('    if (n) v.then = contractText(key, n, text);', '    if (false) v.then = contractText(key, n, text);') }],
+  ['the chain bonus is not paid', { s73: sub('  chainPct: 10,', '  chainPct: 0,') }],
+  ['the pay is not per leg (the heaviest load on every km)', { s73: sub('km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);', 'km += skm; factor = Math.max(factor, f); legs = km * (1 + factor);') }],
+  ['a new site does not join (the island\'s list only)', { s73: s => sub("  const own = (P.fields || []).filter(f => F[f]);", "  const own = (P.fields || []).filter(f => F[f] && CONTRACT_FIELDS[f]);")(sub('if (F[f] && !out.includes(f)) out.push(f);', 'if (F[f] && CONTRACT_FIELDS[f] && !out.includes(f)) out.push(f);')(s)) }],
+  ['the second load is taken on anywhere', { s73: sub("      if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };", '') }],
   // acceptance
   ['a stop at the wrong field advances', { s73: sub('    if (at === sub.to) {\n      if (!(prog.picked', '    if (true) {\n      if (!(prog.picked') }],
-  ['the load is not checked', { s73: sub("const loadOk = L => (aboard.kg || 0) >= (L.kg || 0)", 'const loadOk = L => true || (aboard.kg || 0) >= (L.kg || 0)') }],
+  ['the load is not checked', { s73: sub('  const loadOk = L => {\n', '  const loadOk = L => { return true;\n') }],
   ['a wreck delivers', { s74: sub("  if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');", '') }],
   ['a refused stop leaves a mark', { s74: sub("    const out = crNo(doc, r.why);", "    doc.career.contracts.live[id] = Object.assign({}, doc.career.contracts.live[id], { tried: 1 });\n    const out = crNo(doc, r.why);") }],
   ['stages are not in order', { s74: sub('  const st = rec.stages[L.stage];', '  const st = { subs: [].concat(...rec.stages.map(x => x.subs)) };') }],
@@ -745,7 +895,7 @@ const BREAKS = [
   ['the overflight ignores the field radius', { s75: sub('if (flightStripGeom(a, x, z).d <= FLIGHT_FIELD_R) out.push(a.id);', 'out.push(a.id);') }],
   // (g1)
   ['a build criterion names a configuration', { s72: sub("'ct.clients.04.brief': CT_('A trainer for the club, cheap and forgiving.')", "'ct.clients.04.brief': CT_('A tricycle trainer for the club, cheap and forgiving.')") }],
-  ['the word check is off', { s73: s => sub("  for (const w of CONTRACT_CONFIG_WORDS) if (t.includes(' ' + w + ' ')) return w;", '')(sub("'ct.clients.04.brief': CT_('A trainer", "'ct.clients.04.brief': CT_('A Rotax trainer")(s)) }],
+  ['the word check is off', { s73: sub("  for (const w of CONTRACT_CONFIG_WORDS) if (t.includes(' ' + w + ' ')) return w;", ''), s72: sub("'ct.clients.04.brief': CT_('A trainer", "'ct.clients.04.brief': CT_('A Rotax trainer") }],
   // the career
   ['the grant is wrong', { s74: sub('const CAREER_GRANT = 60000;', 'const CAREER_GRANT = 50000;') }],
   ['no voucher', { s74: sub("const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };", "const CAREER_VOUCHER = { kind: 'maker', model: '' };") }],
@@ -760,9 +910,10 @@ const BREAKS = [
 ];
 let bad = 0;
 for (const [name, mut] of BREAKS) {
-  let r;
-  try { r = run(mut); } catch (e) { r = { fails: [e.message], checks: 0 }; }
-  const caught = r.fails.length > base.fails.length;
+  let r, gone = false;
+  try { r = run(mut); } catch (e) { r = { fails: [e.message], checks: 0 }; gone = /selftest anchor gone/.test(e.message); }
+  // (G2430) an anchor that no longer matches the source doctors nothing: MISSED, never "caught"
+  const caught = !gone && r.fails.length > base.fails.length;
   console.log((caught ? '  caught  ' : '  MISSED  ') + name + (caught ? '  (' + (r.fails.length - base.fails.length) + ' new)' : ''));
   if (!caught) bad++;
 }
