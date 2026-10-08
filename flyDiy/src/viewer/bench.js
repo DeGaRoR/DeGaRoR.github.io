@@ -263,9 +263,13 @@ const BENCH_TESTS = [
       const L = rep.landing || null, T = f.td || null;
       const eventful = (rep.verdicts || []).length > 0;
       const ok = !!f.arrived;
+      // DMG-D4b (train 41): a damaged aeroplane is not certified, and the card says why in plain words (app.js flArrival)
+      const dmg = !ok && f.damaged ? String(f.damaged) : null;
       return {
         verdict: ok ? (f.manual ? 'ARRIVED, BY HAND' : eventful ? 'FLEW THE CIRCUIT, WITH NOTES' : 'FLEW THE CIRCUIT')
+                    : dmg ? 'NOT CERTIFIED'
                     : String(f.outcome || rep.outcome || 'no arrival').toUpperCase().replace(/-/g, ' '),
+        damaged: dmg,
         ok,
         note: (L ? 'landing run ' + benchNum(L.run, 0) + ' m · touchdown '
                  + benchNum(L.sink, 2) + ' m/s · ' + benchNum(L.pastAim, 0) + ' m past the aim'
@@ -273,7 +277,7 @@ const BENCH_TESTS = [
                : 'no landing')
           + (f.t ? ' · ' + benchNum(f.t / 60, 0) + ' min' : '')
           + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : ''),
-        fix: ok ? ''
+        fix: ok ? '' : dmg ? 'Not certified - the aeroplane was damaged: ' + dmg + '.'
            : 'the phase it stopped in names the problem: a rejected take-off is '
            + 'power or field, a climb that never came is power against weight, '
            + 'a broken circuit is control authority.',

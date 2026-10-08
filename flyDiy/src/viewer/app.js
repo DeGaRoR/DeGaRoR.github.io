@@ -6973,6 +6973,17 @@
   // a touchdown followed by a crash is no arrival; logFlight / flightArrived read it (damage OFF never ends a flight this way)
   let flEnd = null;
   const flWrecked = () => flEnd === 'crashed' || flEnd === 'broke-up' || flEnd === 'sim-diverged';
+  // DMG-D4b (train 41; the user: "it hilariously certifies a crashed plane... that rule really has to account for aircraft
+  // integrity"): NO CERTIFICATE ON A DAMAGED AEROPLANE. A landing that broke a leg or parted a part arrived at STOPPED
+  // before any crash verdict ended the flight, and certified. The aeroplane's integrity (30_solver DMG.structural - the
+  // worker's under the physics worker, sim_link) decides with the ending: any primary member broken or any part parted
+  // is no arrival, and the card says why. A set within the envelope, a prop strike alone, a dent: still an arrival.
+  // Damage off: never damaged (no break), the rule as it was
+  const flStructural = () => { try { const D = sim && sim.damage ? sim.damage() : null; return (D && D.structural) || null; } catch (e) { return null; } };
+  function flArrival(td) {
+    const S = flStructural(), damaged = !!(S && S.damaged);
+    return { t: !flWrecked() && !damaged ? (td === undefined ? (ap ? ap.tdInfo : null) : td) : null, damaged: damaged ? (S.why || 'damaged') : null, S };
+  }
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
     flightOver = true;
@@ -6997,6 +7008,8 @@
                           nextLeg: () => (flNextLeg ? (flNextLeg(), true) : false),   // G820 (C1c): Fly on's own chain, for a rig that cannot fly a circuit first
                           over: () => flightOver,                               // G820: the card's latch (an ending, G130)
                           damage: () => flDmg,                                  // G1470: the crash's verdict (the worker's under it)
+                          structural: () => flStructural(),                     // DMG-D4b (train 41): the aeroplane's integrity (GAME's career reads it)
+                          arrival: td => { const A = flArrival(td); return { arrived: !!A.t, damaged: A.damaged, structural: A.S }; },   // (GATE rows: the certificate's rule)
                           // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
                           // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
                           // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
@@ -7308,7 +7321,7 @@
     try {
       const G = window.GARAGE_SPEC;
       if (!G || !G.log) return;
-      const t = flWrecked() ? null : ap.tdInfo;   // a crash after a touchdown is no arrival
+      const t = flArrival().t;   // a crash after a touchdown is no arrival; nor is a damaged aeroplane (DMG-D4b)
       // G152: WHEN, AND FOR HOW LONG. The row carried where it went and how it
       // touched down, and no TIME at all — so a logbook could count flights and
       // could never accrue anything. Hours are the number an aeroplane earns:
@@ -7389,17 +7402,17 @@
   const tfIfRun = () => (tfFor === def ? tfVal : null);
   function flightArrived() {
     const rep = ap && ap.report ? ap.report : { verdicts: [], outcome: null, landing: null };
-    const t = ap && !flWrecked() ? ap.tdInfo : null;   // a crash is no arrival: no flight certificate, no award card over the wreck
+    const A = ap ? flArrival() : { t: null, damaged: null }, t = A.t;   // a crash, or a damaged aeroplane (DMG-D4b), is no arrival: no flight certificate
     const outcome = t ? 'arrived' : (rep.outcome || 'stopped');
     if (curKey === 'gen') {
-      tfFor = def; tfVal = { report: JSON.parse(JSON.stringify(rep)), t: Math.max(0, Math.round(ap.t)), arrived: !!t };
+      tfFor = def; tfVal = { report: JSON.parse(JSON.stringify(rep)), t: Math.max(0, Math.round(ap.t)), arrived: !!t, damaged: A.damaged };
     }
     const armed = testFlight; testFlight = null;
     director.stop(); simRateSet(1);
     if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen') {
       try {
         window.BENCH_FLIGHT_LOGGED({
-          report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual,
+          report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual, damaged: A.damaged,
           landing: rep.landing || null,
           td: t ? { sink: t.sink, V: t.V, z: t.z } : null,
           armed: armed ? { fp: armed.fp, when: armed.when } : null,

@@ -372,7 +372,7 @@ const SIM_LINK = (() => {
     }
 
     // ---- THE MIRROR: the page's sim answers from the snapshot while the flight is live ----------------
-    let saved = null, ctlP = null;
+    let saved = null, ctlP = null, structSaved = null;
     const patch = { set: null, eng: [] };
     function ctlProxy(real) {
       const els = new WeakMap(), arrs = new WeakMap();
@@ -420,6 +420,13 @@ const SIM_LINK = (() => {
       // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
       def('vView', { get: () => V.v || null });
       def('engView', { get: () => V.eng || null });
+      // DMG-D4b (train 41): THE AEROPLANE'S INTEGRITY (30_solver's DMG.structural) - the worker's (meta.struct), on the page's
+      // own damage object: the page's core is never stepped, its getter would say whole and the default mode would certify a
+      // wreck. Restored at detach
+      { const D0 = sim.damage && sim.damage();
+        if (D0) { structSaved = [D0, Object.getOwnPropertyDescriptor(D0, 'structural') || null];
+          Object.defineProperty(D0, 'structural', { configurable: true, enumerable: false,
+            get: () => V.struct || { damaged: false, broken: 0, separated: [], why: null } }); } }
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };
@@ -454,6 +461,7 @@ const SIM_LINK = (() => {
       for (const k of Object.keys(saved)) {
         if (saved[k]) Object.defineProperty(sim, k, saved[k]); else delete sim[k];
       }
+      if (structSaved) { const [D0, d] = structSaved; if (d) Object.defineProperty(D0, 'structural', d); else delete D0.structural; structSaved = null; }
       saved = null; ctlP = null; flight.live = false;
     }
     const stamp = c => { if (st.mode === 'lockstep' && flight) c.k = flight.posted; return c; };

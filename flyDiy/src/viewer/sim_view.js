@@ -268,6 +268,7 @@ function makeSimView(def, opts) {
       if ('dmg' in M) view.dmg = M.dmg;   // G1470: the crash's verdict (null until there is one)
       if (M.dmgB) simViewDmgApply(dmgS, M.dmgB);   // G1850: the broken list, on change
       view.drv = M.drv || null;              // G1861.5 (DMG-D4b): DMG-DRIVE's per-engine state (sim_host simDrvOf; absent = none)
+      view.struct = M.struct || null;        // DMG-D4b (train 41): the aeroplane's integrity (30_solver DMG.structural; absent = whole)
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;

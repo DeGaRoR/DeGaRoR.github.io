@@ -693,6 +693,7 @@ function makeSimHost(CORE, init, keptWorld) {
     const dmgB = simDmgHop(sim, dmgHop, dmgCore);
     if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
     const drv = simDrvOf(sim);                      // G1826
+    const struct = sim.damage ? sim.damage().structural : null;   // DMG-D4b (train 41): only once damaged (nothing sent for a whole aeroplane)
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
@@ -711,6 +712,7 @@ function makeSimHost(CORE, init, keptWorld) {
       ap: A, apNew,
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
       ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
+      ...(struct && struct.damaged ? { struct } : {}),   // DMG-D4b (train 41): the aeroplane's integrity, once damaged
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)
