@@ -46,15 +46,19 @@
     '  ivec2 c = ivec2(int(aPl & 2047u), int(aPl >> 11u));',
     '  vec4 A = texelFetch(uPA, c, 0);',
     '  vec4 W0 = texelFetch(uPW0, c, 0), W1 = texelFetch(uPW1, c, 0);',
-    '  ivec4 I0 = ivec4(texelFetch(uPI0, c, 0) + 0.5), I1 = ivec4(texelFetch(uPI1, c, 0) + 0.5);',
+    '  vec4 F0 = texelFetch(uPI0, c, 0), F1 = texelFetch(uPI1, c, 0);',
     '  float w[8] = float[8](W0.x, W0.y, W0.z, W0.w, W1.x, W1.y, W1.z, W1.w);',
-    '  int id[8] = int[8](I0.x, I0.y, I0.z, I0.w, I1.x, I1.y, I1.z, I1.w);',
+    '  float f[8] = float[8](F0.x, F0.y, F0.z, F0.w, F1.x, F1.y, F1.z, F1.w);',
+    // (G2040 x G1818: a node id stored as -(id + 1) is a POSITION-ONLY slot - a node of another piece the covering is
+    // held to by FABRIC's ties: onNodes blends the turn of the place's own piece only)
+    '  int id[8]; bool tn[8];',
+    '  for (int a = 0; a < 8; a++) { tn[a] = f[a] >= 0.0; id[a] = tn[a] ? int(f[a] + 0.5) : int(-f[a] - 0.5); }',
     '  vec4 q0 = texelFetch(uNd, ivec2(2 * id[0] + 1, 0), 0);',
     '  vec4 q = vec4(0.0); vec3 l = vec3(0.0);',
     '  for (int a = 0; a < 8; a++) {',
     '    if (a >= 4 && w[a] == 0.0) break;',           // (a binding of four or fewer: the second texel's slots are empty)
     '    vec4 qi = texelFetch(uNd, ivec2(2 * id[a] + 1, 0), 0);',
-    '    q += (dot(qi, q0) < 0.0 ? -w[a] : w[a]) * qi;',
+    '    if (tn[a]) q += (dot(qi, q0) < 0.0 ? -w[a] : w[a]) * qi;',
     '    l += w[a] * texelFetch(uNd, ivec2(2 * id[a], 0), 0).xyz;',
     '  }',
     '  float L = length(q); if (L > 0.0) q /= L;',

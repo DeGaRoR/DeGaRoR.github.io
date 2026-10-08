@@ -30,6 +30,7 @@ const argv = process.argv.slice(2);
 const ROOT = path.join(__dirname, '..');
 const L = require('./_treecrash_lib.js');
 const SB = require(path.join(ROOT, 'src', 'viewer', 'skin_break.js'));
+if (process.env.DMGSKINGPU_FULLCOV === '1') SB.OPT.localCov = false;   // (train 41: the covering records' events made whole - the fallback's A/B)
 const SG = require(path.join(ROOT, 'src', 'viewer', 'skin_gpu.js'));
 const SH = require(path.join(ROOT, 'src', 'viewer', 'sim_host.js'));
 const SV = require(path.join(ROOT, 'src', 'viewer', 'sim_view.js'));
@@ -41,14 +42,18 @@ const TEAR_FRAMES = 3;                                  // the page's TEAR_EVERY
 // frame old - is the longest a live edge may stand past the bound on the GPU path, and a miss must be such a transient)
 const PERIOD_G = TEAR_FRAMES + 1;
 function overRun(R, run, maxRun) {
-  const i0 = R.idx0 || R.idx, dead = R.dead, base = R.baseD, pos = R.w, k1 = 1 + SB.TEAR, ab = SB.TEAR_ABS; let mx = 0;
+  // (train 41: each triangle on the bound its tear holds it to - skin_break.js tear() / over(): a HELD covering triangle
+  // (G2040) stretches to HELD, a tube / a composite shell / sheet metal to theirs; a record that never tears is not measured)
+  if (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) return 0;
+  const i0 = R.idx0 || R.idx, dead = R.dead, base = R.baseD, pos = R.w, H = R.held; let mx = 0;
+  const k1 = R.tubeTear ? 1.2 : R.shellTear ? 1 + SB.SHELL_TEAR : R.sheetTear ? 1.4 : 1 + SB.TEAR, ab = R.tubeTear ? 0.003 : R.shellTear ? SB.SHELL_ABS : R.sheetTear ? 0.02 : SB.TEAR_ABS;
   for (let t = 0; t < R.nt; t++) {
     if (dead && dead[t]) { run[t] = 0; continue; }
-    let o = false;
+    let o = false; const kk = H && H[t] ? SB.HELD : k1, aa = H && H[t] ? SB.TEAR_ABS : ab;
     for (let e = 0; e < 3 && !o; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
       const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
       const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
-      if (!(l <= k1 * r + ab)) o = true; }
+      if (!(l <= kk * r + aa)) o = true; }
     run[t] = o ? run[t] + 1 : 0;
     if (maxRun && run[t] > maxRun[t]) maxRun[t] = run[t];
     if (run[t] > mx) mx = run[t];
@@ -153,14 +158,15 @@ if (argv[0] === '--build') {
       if (!D.br.length) continue;
       S.frames++;
       if (!recs) {
-        recs = meshes.map(m => ({ m, C: mk(m, false), G: mk(m, true), F: mk(m, false), L: mk(m, false) }));
+        recs = meshes.map(m => ({ m, C: mk(m, false), G: mk(m, true), F: mk(m, false), L: mk(m, false), B: mk(m, false) }));
+        for (const r of recs) r.B.R.reachCopies = true;   // (B: FABRIC's reach / vx at the copy corners - before the train-41 fix)
         for (const r of recs) r.F.R.fullNext = true;   // (F: every event full - the reference; L: skipped / local as the page)
         // the GPU's side of each record: its own drawer's CPU arrays, laid out as skin_gpu.js layout lays them (p0 = 0)
         for (const r of recs) { SB.placesOf(r.G.R); r.Dm = { recs: [{ R: r.G.R, p0: 0 }], cpu: SB.placeArrays(Math.ceil(r.G.R.pl.length / SB.GPU_W)) }; r.G.R.dvUp = -1; S.gpuRecs++; }
       }
       const brokeNow = D.br.length !== nbSeen; nbSeen = D.br.length; if (brokeNow) S.breakFrames++;
       // the events and the binding, as brkCage: a budget of places a frame, each family its own (the same decisions)
-      for (const fam of ['C', 'G', 'F', 'L']) {
+      for (const fam of ['C', 'G', 'F', 'L', 'B']) {
         let bud = BRK_BIND;
         for (const r of recs) { const R = r[fam].R; R.lastBound = 0; const t0 = process.hrtime.bigint(); SB.event(R, T, D, restD, R.baseD, Math.max(0, bud)); S.ms.event += ms(t0); bud -= R.lastBound || 0; }
         for (const r of recs) { if (bud <= 0) break; const R = r[fam].R; if (R.pending) bud -= SB.bindMore(R, T, bud); }
@@ -179,8 +185,21 @@ if (argv[0] === '--build') {
           if (F.vp[v] !== Lr.vp[v] || F.dom[v] !== Lr.dom[v] || F.ride[v] !== Lr.ride[v] || (F.sag ? F.sag[v] : 0) !== (Lr.sag ? Lr.sag[v] : 0)) { pok = false; break; }
           for (let k = 0; k < K; k++) if (F.w2[v * K + k] !== Lr.w2[v * K + k]) { pok = false; break; } if (!pok) break; }
         S.evUnbound = Math.max(S.evUnbound || 0, unb);
-        const ok = pok && eq(F.dead, Lr.dead) && eq(F.idx, Lr.idx);
-        if (!ok) { S.evBad++; if (!S.evBadAt) S.evBadAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, places: pok, dead: eq(F.dead, Lr.dead), idx: eq(F.idx, Lr.idx), unb }; }
+        // (train 41: the triangles compared where both families' bindings agree - a triangle over a place bound in one family
+        // and not yet in the other rides that place's nearest node there, as the weights' comparison above allows)
+        let tok = true, tSkip = 0; { const i0 = F.idx0, rp = F.rep, nt = F.nt, bF = F.g.bound, bL = Lr.g.bound;
+          for (let t = 0; t < nt && tok; t++) { const a = rp ? rp[i0[t * 3]] : i0[t * 3], b = rp ? rp[i0[t * 3 + 1]] : i0[t * 3 + 1], c = rp ? rp[i0[t * 3 + 2]] : i0[t * 3 + 2];
+            if (bF[a] !== bL[a] || bF[b] !== bL[b] || bF[c] !== bL[c]) { tSkip++; continue; }
+            if (F.dead[t] !== Lr.dead[t] || F.idx[t * 3] !== Lr.idx[t * 3] || F.idx[t * 3 + 1] !== Lr.idx[t * 3 + 1] || F.idx[t * 3 + 2] !== Lr.idx[t * 3 + 2]) tok = false; } }
+        S.evTriSkip = Math.max(S.evTriSkip || 0, tSkip);
+        if (!tok && !S.evTriAt) { const i0 = F.idx0, rp = F.rep, ch = Lr._chg;
+          for (let t = 0; t < F.nt; t++) if (F.dead[t] !== Lr.dead[t] || F.idx[t * 3] !== Lr.idx[t * 3] || F.idx[t * 3 + 1] !== Lr.idx[t * 3 + 1] || F.idx[t * 3 + 2] !== Lr.idx[t * 3 + 2]) {
+            const vs = [i0[t * 3], i0[t * 3 + 1], i0[t * 3 + 2]], ps = vs.map(v => rp ? rp[v] : v);
+            S.evTriAt = { t, deadF: F.dead[t], deadL: Lr.dead[t], heldF: F.held ? F.held[t] : null, heldL: Lr.held ? Lr.held[t] : null, cov: [F.cov, Lr.cov],
+              chgL: ch ? vs.map(v => ch[v]) : null, vpF: ps.map(p => F.vp[p]), vpL: ps.map(p => Lr.vp[p]), domF: ps.map(p => F.dom[p]), domL: ps.map(p => Lr.dom[p]),
+              vpCopyF: vs.map(v => F.vp[v]), vpCopyL: vs.map(v => Lr.vp[v]), skipped: Lr.skipped | 0 }; break; } }
+        const ok = pok && tok;
+        if (!ok) { S.evBad++; if (!S.evBadAt) S.evBadAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, places: pok, tris: tok, trisSkipped: tSkip, tri: S.evTriAt || null, dead: eq(F.dead, Lr.dead), idx: eq(F.idx, Lr.idx), unb }; }
         S.evSkipped = recs.reduce((a, q) => a + (q.L.R.skipped || 0), 0);
       }
       { const t0 = process.hrtime.bigint(); SB.nodeFrames(NF, T, D, restD, sim.p, true); S.ms.nodes += ms(t0); }
@@ -196,7 +215,20 @@ if (argv[0] === '--build') {
           const t0 = process.hrtime.bigint(); SB.poseCage(R, restD, sim.p, R.baseD, r.C.P, NF, down, null, X); S.ms.pose += ms(t0);
           if (tearDue(R)) { R.tearF = s; const t1 = process.hrtime.bigint(); SB.tear(R, R.baseD, R.w); S.ms.tear += ms(t1); S.checksC++; }
           const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessC) S.excessC = ws.ex;
-          for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.C.firstTorn[t] < 0) r.C.firstTorn[t] = s;
+          for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.C.firstTorn[t] < 0) { r.C.firstTorn[t] = s;
+            // (train 41: how far past its bound the CPU found it - a tear within float32's reach of the bound (0.2 mm, twice the
+            // mirror's) may fall either side on the GPU's float32 places: the two paths then part at the next event, which may
+            // hold the triangle (FABRIC) - a late tear by sampling, not a divergence)
+            if (!r.C.margin) r.C.margin = new Float32Array(nt).fill(Infinity);
+            { const i0 = R.idx0, base = R.baseD, pos = R.w, H = R.heldAsk !== undefined ? R.heldAsk : R.held; let mg = -Infinity;
+              const k1 = H && H[t] ? SB.HELD : R.tubeTear ? 1.2 : R.shellTear ? 1 + SB.SHELL_TEAR : R.sheetTear ? 1.4 : 1 + SB.TEAR, ab = H && H[t] ? SB.TEAR_ABS : R.tubeTear ? 0.003 : R.shellTear ? SB.SHELL_ABS : R.sheetTear ? 0.02 : SB.TEAR_ABS;
+              for (let e = 0; e < 3; e++) { const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
+                const rr = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]), l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
+                mg = Math.max(mg, l - (k1 * rr + ab)); }
+              r.C.margin[t] = mg; } }
+          if (R.held) { let h = 0; for (let t = 0; t < nt; t++) if (R.held[t] && !R.dead[t]) h++; S.heldMax = Math.max(S.heldMax || 0, h); S.heldTorn = Math.max(S.heldTorn || 0, R.heldTorn || 0); }   // (G2040: the drawing's held covering)
+          { const RB = r.B.R; if (RB.active && RB.held) { let h = 0; for (let t = 0; t < nt; t++) if (RB.held[t] && !RB.dead[t]) h++; S.heldMaxB = Math.max(S.heldMaxB || 0, h); }
+            if (RB.active) { let gB = 0, gC = 0; for (let t = 0; t < nt; t++) { if (RB.dead[t] === 1) gB++; if (R.dead[t] === 1) gC++; } r.goneB = gB; r.goneC = gC; } }
           if (!r.C.run) r.C.run = new Uint16Array(nt);
           S.runC = Math.max(S.runC || 0, overRun(R, r.C.run, null)); }
         // THE GPU'S: the stale places packed as skin_gpu.js packs them; a places pass read back the frame after it ran
@@ -218,9 +250,9 @@ if (argv[0] === '--build') {
             if (!Number.isFinite(PG[v3]) || !Number.isFinite(PG[v3 + 1]) || !Number.isFinite(PG[v3 + 2])) { S.finite = false; continue; }
             // AMBIGUOUS: a slot's turn a quarter turn of quaternion off the dominant's (|q_i . q_0| under 1e-5: two nodes'
             // rotations 180 degrees apart) - either hemisphere is a blend, float32 or float64 picks; counted, not held
-            { const t4 = pf[v] * 4, i0 = (r.Dm.cpu.PI0[t4] | 0) * 4; let amb = false;
+            { const t4 = pf[v] * 4, i0 = SB.slotNode(r.Dm.cpu.PI0[t4]) * 4; let amb = false;
               for (let a = 1; a < 8 && !amb; a++) { const TXw = a < 4 ? r.Dm.cpu.PW0 : r.Dm.cpu.PW1, TXi = a < 4 ? r.Dm.cpu.PI0 : r.Dm.cpu.PI1, w = TXw[t4 + (a & 3)];
-                if (w === 0) continue; const i = (TXi[t4 + (a & 3)] | 0) * 4, Q = NF.q;
+                if (w === 0 || !SB.slotTurns(TXi[t4 + (a & 3)])) continue; const i = SB.slotNode(TXi[t4 + (a & 3)]) * 4, Q = NF.q;
                 if (Math.abs(Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 1e-5) amb = true; }
               if (amb) { S.ambiguous++; S.verts++; continue; } }
             // in the WORLD: the drawn frame is the body's oblique basis, which a broken-up wreck turns near-singular (its
@@ -237,9 +269,9 @@ if (argv[0] === '--build') {
             // ~|e| K eps / L; the exact CPU riding has no such error. Counted past 0.1 mm, 8 steps of the drawn frame AND
             // 16 eps (|e| + 1 m) / L - the GPU's own precision there, not a divergence)
             let cond = 0;
-            { const T = r.Dm.cpu, t4 = pf[v] * 4, Q = NF.q, i0 = (T.PI0[t4] | 0) * 4; let qx = 0, qy = 0, qz = 0, qw = 0;
+            { const T = r.Dm.cpu, t4 = pf[v] * 4, Q = NF.q, i0 = SB.slotNode(T.PI0[t4]) * 4; let qx = 0, qy = 0, qz = 0, qw = 0;
               for (let a = 0; a < 8; a++) { const w = (a < 4 ? T.PW0 : T.PW1)[t4 + (a & 3)]; if (a >= 4 && w === 0) break; if (w === 0) continue;
-                const i = ((a < 4 ? T.PI0 : T.PI1)[t4 + (a & 3)] | 0) * 4, sg = (Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 0 ? -w : w;
+                const fI = (a < 4 ? T.PI0 : T.PI1)[t4 + (a & 3)]; if (!SB.slotTurns(fI)) continue; const i = SB.slotNode(fI) * 4, sg = (Q[i] * Q[i0] + Q[i + 1] * Q[i0 + 1] + Q[i + 2] * Q[i0 + 2] + Q[i + 3] * Q[i0 + 3]) < 0 ? -w : w;
                 qx += sg * Q[i]; qy += sg * Q[i + 1]; qz += sg * Q[i + 2]; qw += sg * Q[i + 3]; }
               const Lq = Math.hypot(qx, qy, qz, qw), eN = Math.hypot(T.PA[t4], T.PA[t4 + 1], T.PA[t4 + 2]);
               let sw = 0; for (let a = 0; a < 8; a++) sw += (a < 4 ? T.PW0 : T.PW1)[t4 + (a & 3)];
@@ -268,8 +300,8 @@ if (argv[0] === '--build') {
         // pass (this frame's positions, at its end); the read lands the next frame and the tear runs on those positions
         const fresh = () => r.wSeq && r.wSeq !== r.wUsed;
         if (R.tearAsk != null) {
-          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD); S.ms.tearPl += ms(t0); S.checks++; }
-        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; }
+          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held); R.heldAsk = undefined; S.ms.tearPl += ms(t0); S.checks++; }
+        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; R.heldAsk = R.held ? R.held.slice() : null; }
         const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt }, R.baseD, R.w); if (ws.ex > S.excessG) S.excessG = ws.ex;
         for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.G.firstTorn[t] < 0) r.G.firstTorn[t] = s;
         if (!r.G.run) { r.G.run = new Uint16Array(nt); r.G.maxRun = new Uint16Array(nt); }
@@ -283,13 +315,18 @@ if (argv[0] === '--build') {
         }
       }
     }
+    if (recs) { S.goneB = recs.reduce((a, r) => a + (r.goneB || 0), 0); S.goneC = recs.reduce((a, r) => a + (r.goneC || 0), 0); if (S.heldMax == null && S.heldMaxB) S.heldMax = 0; }
     if (recs) for (const r of recs) {
       for (let t = 0; t < r.m.g.nt; t++) {
         const fc = r.C.firstTorn[t], fg = r.G.firstTorn[t];
         if (fc >= 0) S.tornC++; if (fg >= 0) S.tornG++;
         if (fc >= 0 && fg < 0) { if (r.G.R.dead[t] === 0) { S.missed++; const mr = r.G.maxRun ? r.G.maxRun[t] : 0; S.missRun = Math.max(S.missRun || 0, mr);
           S.missedAt = S.missedAt || []; if (S.missedAt.length < 6) S.missedAt.push({ mesh: r.m.nm, t, frame: fc, overFramesGpu: mr }); } else S.goneOther++; }   // (a miss: still drawn on the GPU path; gone by an event instead - removed on two pieces - is not one)
-        else if (fc >= 0 && fg > fc) { S.late++; S.lateMax = Math.max(S.lateMax, fg - fc); }
+        else if (fc >= 0 && fg > fc) { S.late++;
+          const border = r.C.margin && r.C.margin[t] < 2e-4;
+          if (fg - fc > PERIOD_G && border) { S.lateBorder = (S.lateBorder || 0) + 1; S.lateBorderMax = Math.max(S.lateBorderMax || 0, fg - fc);
+            (S.lateBorderAt = S.lateBorderAt || []).length < 8 && S.lateBorderAt.push({ mesh: r.m.nm, t, lagFrames: fg - fc, lagS: +((fg - fc) / 60).toFixed(2), cpuMarginMm: +(r.C.margin[t] * 1000).toFixed(4), heldG: r.G.R.held ? r.G.R.held[t] : null }); }
+          else { S.lateMax = Math.max(S.lateMax, fg - fc); if (fg - fc > PERIOD_G && !S.lateAt) S.lateAt = { mesh: r.m.nm, t, fc, fg, margin: r.C.margin ? +(r.C.margin[t] * 1000).toFixed(3) : null, heldC: r.C.R.held ? r.C.R.held[t] : null, heldG: r.G.R.held ? r.G.R.held[t] : null }; } }
         else if (fg >= 0 && (fc < 0 || fg < fc)) S.early++;
       }
       S.pruned += r.G.R.pruned || 0;
@@ -346,10 +383,13 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       // no longer than one GPU sampling period; no live edge past the bound longer than that period on either path; a tear
       // the GPU path makes later than the CPU's, within it
       // (train 41: the GPU path samples the CPU's frames - the misses back to the 1 % / 3 of the CPU tear's own phase)
-      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G,
+      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G && (S.lateBorder || 0) <= Math.max(3, 0.01 * S.tornC),
         'the tear on the read-back places: ' + S.tornG + ' torn (the CPU\'s full tear ' + S.tornC + '): ' + S.missed + ' it tore that this still draws (' + S.goneOther + ' more gone here by an event instead), ' + S.late + ' later (up to '
         + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)'
+        + (S.heldMax != null ? '; FABRIC held covering (the CPU path): up to ' + S.heldMax + ' triangles held at once (' + (S.heldMaxB || 0) + ' before the reach fix, which drew ' + (S.goneB || 0) + ' gone against ' + (S.goneC || 0) + ' now at the end), ' + (S.heldTorn || 0) + ' torn past HELD' : '')
         + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'
+        + (S.lateBorder ? '; ' + S.lateBorder + ' torn later past one period that the CPU tore within 0.2 mm of the bound (float32\'s reach: up to ' + S.lateBorderMax + ' frames) ' + JSON.stringify(S.lateBorderAt) : '')
+        + (S.lateAt ? '; the first late past one period ' + JSON.stringify(S.lateAt) : '')
         + (S.missedAt ? '; misses (transients between the read-backs, past the bound at most ' + (S.missRun || 0) + ' frames on the GPU path) ' + JSON.stringify(S.missedAt) : ''));
       const f = (x, k) => (x / Math.max(1, k)).toFixed(2);
       console.log('    the cost (node): a check - the full tear ' + f(S.ms.tear, S.checksC) + ' ms (' + S.checksC + '), on the read-back places ' + f(S.ms.tearPl, S.checks) + ' ms (' + S.checks + '); packing the stale places '

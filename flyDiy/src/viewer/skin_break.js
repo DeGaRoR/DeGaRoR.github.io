@@ -68,6 +68,9 @@
   // (...and a vertex REACHES the other side through a weight past REACH: a sliver of a weight - a few thousandths, the
   // binding's own regularisation - bridged a windshield triangle across a parting, drawn 19 cm through its lining)
   const REACH = 0.05;
+  // (train 41: a covering record's incremental event - FABRIC's ties read across pieces - local / skipped as any (true), or
+  // made whole at every event (false: the reference, by construction))
+  const OPT = { localCov: true };
   const HELD = (() => { const F = typeof GEN_COVER !== 'undefined' && GEN_COVER.fabric ? GEN_COVER.fabric : { eu: 0.15, slack: (8 / 3) * 0.06 * 0.06 };
     return (1 + F.eu) * (1 + F.slack) * (1 + 0.15); })();
   const SHELL_TEAR = 0.05;    // G2047: a composite shell's crack (above)
@@ -283,6 +286,9 @@
   function bindMore(R, T, budget) {
     if (!R.pending || !(budget > 0) || !R.BP) return 0;
     const take = Math.min(budget, R.pending.length), now = R.pending.subarray(0, take);
+    // (train 41: these places' piece / dominant change below, between events - their triangles are judged at the next event:
+    // it may not skip the record, and its change mask holds them)
+    { const L = R._bmBound || (R._bmBound = []); for (const v of now) L.push(v); }
     bindSome(R, T, now);
     if (R.nodeMask) { const K = R.K, wi = R.wi, M = R.nodeMask; for (const v of now) for (let k = 0; k < K; k++) M[wi[v * K + k]] = 1; }
     // (G1818: these places are stale on the GPU - listed, unless the whole record already is)
@@ -308,8 +314,15 @@
     // (and only while its binding is the one its last event read: a binding rewritten since - DMG-WALL's bindInherit /
     // wallSync bump R.dv - is re-made whole)
     const dvIn = R.dv | 0;
-    if (R.active && R.evPc && R.nodeMask && D.br.length >= R.evBr && D.br.length && !R.fullNext && dvIn === R.evDv) {
+    // (G2040 x G1818, train 41: a COVERING's event also reads FABRIC's cover ties - which nodes are tied to which pieces
+    // (prepV's keep), which tied pairs hold or tore (brokenPairs). Their nodes are touched too: a tie made, torn or whose
+    // ends changed piece since the record's last event; no record of the last ties - the event is made whole)
+    const covNow = !!(D.tied && D.pc && (R.fabric || R.sheetTear || R.cover));
+    const tieT = covNow && R.evTied ? tiesTouched(R, D) : null, tieUnknown = covNow && (!R.evTied || !OPT.localCov);
+    if (R.active && R.evPc && R.nodeMask && D.br.length >= R.evBr && D.br.length && !R.fullNext && dvIn === R.evDv && !tieUnknown) {
       const M = R.nodeMask, pc = D.pc, n = M.length; let touched = false;
+      if (tieT) for (let j = 0; j < tieT.length && !touched; j++) if (M[tieT[j]]) touched = true;
+      if (R._bmBound && R._bmBound.length) touched = true;   // (train 41: places bound since the last event - their triangles)
       for (let k = R.evBr; k < D.br.length && !touched; k++) { const b = T.beams[D.br[k]]; if (!b) continue;
         for (const i of [b.a, b.b]) { if (M[i]) { touched = true; break; }
           for (const bj of T.adj[i]) { const c = T.beams[bj]; if (M[c.a] || M[c.b]) { touched = true; break; } } if (touched) break; } }
@@ -322,6 +335,7 @@
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
       if (R.idx0) idx.set(R.idx0);
       R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = R.cut = 0; R.held = R.xv = R.tp = null; R.cov = false; R.heldTorn = 0;   // (G2040)
+      R.evTied = R.evTorn = null;
       return !!R.idx0;
     }
     if (!R.idx0) R.idx0 = idx.slice();
@@ -366,7 +380,7 @@
     // - or the event has just bound it; a triangle is re-tested when one of its vertices was; a fabric place re-draped
     // likewise. Everything else would come out bit for bit as it stands (prepV, the triangle test and the drape read only
     // those nodes' pieces, broken pairs and broken ends), so it is left as it stands
-    const loc = !!(R.vp && R.evPc && R.nodeMask && R.active && D.br.length >= R.evBr && !R.fullNext && dvIn === R.evDv);
+    const loc = !!(R.vp && R.evPc && R.nodeMask && R.active && D.br.length >= R.evBr && !R.fullNext && dvIn === R.evDv && !tieUnknown);
     const vp = R.vp || (R.vp = new Int32Array(nv)), dom = R.dom || (R.dom = new Int32Array(nv));
     const w2 = R.w2 || (R.w2 = new Float32Array(nv * K)), ride = R.ride || (R.ride = new Uint8Array(nv));
     let chg = null;
@@ -375,14 +389,16 @@
       for (let k = R.evBr; k < D.br.length; k++) { const b = T.beams[D.br[k]]; if (!b) continue;
         for (const i of [b.a, b.b]) { Tm[i] = 1; for (const bj of T.adj[i]) { const c = T.beams[bj]; Tm[c.a] = Tm[c.b] = 1; } } }
       for (let i = 0; i < n; i++) if ((pc ? pc[i] : 0) !== R.evPc[i]) Tm[i] = 1;
+      if (tieT) for (let j = 0; j < tieT.length; j++) Tm[tieT[j]] = 1;   // (G2040: the ties' nodes)
       chg = R._chg && R._chg.length === nv ? R._chg : (R._chg = new Uint8Array(nv));
       chg.fill(0);
       if (R._evBound) for (const v of R._evBound) chg[v] = 1;
+      if (R._bmBound) for (const v of R._bmBound) chg[v] = 1;   // (train 41: bound between events)
       const list = R.rep ? placesOf(R).pl : null, np = list ? list.length : nv;
       for (let j = 0; j < np; j++) { const v = list ? list[j] : j, o = v * K;
         if (!chg[v]) for (let k = 0; k < K; k++) if (Tm[wi[o + k]]) { chg[v] = 1; break; } }
     }
-    R._evBound = null;
+    R._evBound = null; R._bmBound = null;
     R.BP = BP; R.pc = pc;
     // (G1818: a welded record is prepared once a place, its copies given their place's piece, dominant node and ride -
     // the same bytes prepV's copy branch wrote, without a call a vertex: ~500k vertices, ~85k places on the user's Cub)
@@ -400,9 +416,13 @@
     // never torn by the drawing's own stretch (tear() skips it): the physics tears it, by its tie. (Train 41 merge with
     // G1818's local event: an untouched triangle keeps its held bit as it stood - only a changed one is judged again)
     const held = cov ? (R.held && R.held.length === nt ? (chg ? R.held : R.held.fill(0)) : (R.held = new Uint8Array(nt))) : (R.held = null);
-    const reach = (x, q) => { const o = x * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
+    // (G2040 x G1818, train 41: a vertex's kept weights are its PLACE's - a welded copy's w2 is never written (prepared once a
+    // place): read at a triangle's copy corner they were zeros, and a covering triangle held across a parting was judged
+    // unbridged / not reaching - gone instead of held, on both paths)
+    const rpT = R.reachCopies ? null : R.rep, at = x => (rpT ? rpT[x] : x);   // (R.reachCopies: the reading before the fix - the rigs' A/B)
+    const reach = (x, q) => { const o = at(x) * K; for (let k = 0; k < K; k++) if ((w2[o + k] > REACH || w2[o + k] < -REACH) && pc[wi[o + k]] === q) return true; return false; };
     const bridged = (x, y) => vp[x] === vp[y] || reach(x, vp[y]) || reach(y, vp[x]);
-    const vx = x => { const o = x * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
+    const vx = x => { const o = at(x) * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
     // (a vertex reaching across turns with its OWN piece's nodes only - onNodes: two pieces' turns blended swung its lever)
     if (!R.heldTorn) R.heldTorn = 0;
     for (let t = 0; t < nt; t++) {
@@ -467,8 +487,21 @@
       else for (let k = 0; k < wi.length; k++) M[wi[k]] = 1;
       const E = R.evPc && R.evPc.length === n ? R.evPc : (R.evPc = new Int32Array(n));
       for (let i = 0; i < n; i++) E[i] = pc ? pc[i] : 0;
-      R.evBr = D.br.length; R.evDv = R.dv | 0; }
+      R.evBr = D.br.length; R.evDv = R.dv | 0;
+      // (G2040: the ties this event read - the next one's comparison)
+      R.evTied = D.tied ? new Set(D.tied) : null; R.evTorn = D.torn ? new Set(D.torn) : null; }
     return true;
+  }
+  // the nodes of FABRIC's cover ties changed since R's last event: a tie made or gone (torn), a tie whose end changed piece,
+  // a pair newly torn - both ends of each (G2040 x G1818)
+  function tiesTouched(R, D) {
+    const out = [], n = D.n, pc = D.pc, ep = R.evPc, oT = R.evTied, oX = R.evTorn;
+    const mark = k => { const a = Math.floor(k / n); out.push(a, k - a * n); };
+    for (const k of D.tied) { if (!oT.has(k)) { mark(k); continue; }
+      const a = Math.floor(k / n), b = k - a * n; if (ep && (pc[a] !== ep[a] || pc[b] !== ep[b])) mark(k); }
+    for (const k of oT) if (!D.tied.has(k)) mark(k);
+    if (D.torn) for (const k of D.torn) if (!oX || !oX.has(k)) mark(k);
+    return out;
   }
 
   // ---- THE NODES' FRAMES (per frame, shared by every group): node i's rotation from its rest neighbourhood to its live
@@ -741,6 +774,8 @@
   // places [from, to) of R into the arrays at p0 + j. base: the record's rest in the frame of `rest`. Returns the places
   // whose binding was wider than GPU_K (pruned)
   const _sl = new Int32Array(64), _sw = new Float64Array(64);
+  // a packed slot's node (its id, or -(id + 1) for a position-only slot - G2040) and whether it turns the place
+  const slotNode = f => (f < 0 ? -f - 1 : f) | 0, slotTurns = f => f >= 0;
   function packPlaces(R, rest, base, TX, p0, from, to) {
     placesOf(R);
     const K = R.K, wi = R.wi, w2 = R.w2, pl = R.pl, sag = R.sag, PA = TX.PA, W0 = TX.PW0, W1 = TX.PW1, I0 = TX.PI0, I1 = TX.PI1;
@@ -766,9 +801,13 @@
       for (let a = 0; a < m; a++) { const w = s === 1 ? _sw[a] : _sw[a] * s, i3 = wi[o + _sl[a]] * 3; _sw[a] = w;
         ex -= w * rest[i3]; ey -= w * rest[i3 + 1]; ez -= w * rest[i3 + 2]; }
       PA[t] = ex; PA[t + 1] = ey; PA[t + 2] = ez; PA[t + 3] = sag ? sag[v] : 0;
-      const n0 = wi[o + d];
+      // (G2040 x G1818, train 41: onNodes blends the TURN of the place's own piece's nodes only - a covering held across a
+      // parting by FABRIC's ties keeps weights on the other side's nodes for its position, not its turn. Such a slot's node
+      // is stored as -(id + 1): position only; RIDE_VS and rideMirror decode it)
+      const own = R.pc && R.vp ? R.vp[v] : -1, PC = R.pc, enc = i => (own >= 0 && PC[i] !== own ? -(i + 1) : i);
+      const n0 = enc(wi[o + d]);
       for (let a = 0; a < GPU_K; a++) { const Wt = a < 4 ? W0 : W1, It = a < 4 ? I0 : I1, q = t + (a & 3);
-        Wt[q] = a < m ? _sw[a] : 0; It[q] = a < m ? wi[o + _sl[a]] : n0; }
+        Wt[q] = a < m ? _sw[a] : 0; It[q] = a < m ? enc(wi[o + _sl[a]]) : n0; }
     }
     R.pruned = (R.pruned || 0) + pruned;
     return pruned;
@@ -786,14 +825,15 @@
   function rideMirror(TX, ND, p, n0x, n0y, n0z, U, P, N, o3, F) {
     F = F || ID;
     const t = p * 4, PA = TX.PA;
-    const wt = a => (a < 4 ? TX.PW0 : TX.PW1)[t + (a & 3)], ix = a => (a < 4 ? TX.PI0 : TX.PI1)[t + (a & 3)] | 0;
+    const wt = a => (a < 4 ? TX.PW0 : TX.PW1)[t + (a & 3)], raw = a => (a < 4 ? TX.PI0 : TX.PI1)[t + (a & 3)];
+    const ix = a => slotNode(raw(a)), tn = a => raw(a) >= 0;   // (G2040: a negative id - a position-only slot)
     const i0 = ix(0) * 8, q0 = [ND[i0 + 4], ND[i0 + 5], ND[i0 + 6], ND[i0 + 7]];
     const q = [0, 0, 0, 0], l = [0, 0, 0];
     for (let a = 0; a < GPU_K; a++) {                   // the slots in order: q += (+-w) q_i on q_0's side, l += w l_i
       const i = ix(a) * 8, w = wt(a), qi = [ND[i + 4], ND[i + 5], ND[i + 6], ND[i + 7]];
       const dt = F(F(F(F(qi[0] * q0[0]) + F(qi[1] * q0[1])) + F(qi[2] * q0[2])) + F(qi[3] * q0[3]));
       const sw = dt < 0 ? -w : w;
-      for (let k = 0; k < 4; k++) q[k] = F(q[k] + F(sw * qi[k]));
+      if (tn(a)) for (let k = 0; k < 4; k++) q[k] = F(q[k] + F(sw * qi[k]));
       for (let k = 0; k < 3; k++) l[k] = F(l[k] + F(w * ND[i + k]));
     }
     const L = F(Math.hypot(q[0], q[1], q[2], q[3]));
@@ -819,7 +859,7 @@
   // its places mode, read back behind a fence - a frame old). Wp: the drawer's places (3 floats each, less a common
   // origin: only differences are read), p0 the record's first place there; base: the record's rest, read at each place's
   // first vertex (the copies are the same place)
-  function tearPlaces(R, Wp, p0, base) {
+  function tearPlaces(R, Wp, p0, base, heldAt) {
     if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear)) return 0;   // (tear()'s own rule: G1859)
     placesOf(R);
     // (G1859.3, DMG-WALL: a drawn tube tears past 1.2 x + 3 mm, sheet metal past 1.4 x + 2 cm, fabric at TEAR / TEAR_ABS - over())
@@ -832,7 +872,7 @@
       return l <= k1 * r + ab; };                        // (a NaN edge is torn too)
     // (train 41, with G2040: a HELD triangle - the covering's ties hold it across a parting - stretches to HELD + TEAR_ABS as
     // on the CPU's tear(), counted in heldTorn when it goes)
-    const H = R.held, okH = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
+    const H = heldAt !== undefined ? heldAt : R.held, okH = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
       const l = Math.hypot(Wp[A] - Wp[B], Wp[A + 1] - Wp[B + 1], Wp[A + 2] - Wp[B + 2]);
       const r = Math.hypot(base[va] - base[vb], base[va + 1] - base[vb + 1], base[va + 2] - base[vb + 2]);
       return l <= HELD * r + TEAR_ABS; };
@@ -1326,7 +1366,7 @@
     return out;
   }
   const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,
-                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS };
+                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, slotNode, slotTurns, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS, HELD, REACH, OPT };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();

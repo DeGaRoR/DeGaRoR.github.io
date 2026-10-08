@@ -4297,7 +4297,7 @@
       out.recs++; }
     return out;
   };
-  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || brkWallStale(D) || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || brkWallStale(D) || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false) || !!BRK.reachCopies !== (window.FLYDIY_SKIN_REACHCOPIES === true); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
   // G1818: THE RECORDS AT THE BREAK FIRST. While records are still to be made (REC_BUDGET a frame), the groups whose bounds
   // (the geometry's sphere, taken to the frame's rest through the rest basis) hold an end of a broken member come first -
   // the skin where the wreck is torn rides first; the rest keep the cage's own pose a few frames more (intact there)
@@ -4371,6 +4371,10 @@
     for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);   // (a part gone loose: DMG-D4b's debris)
     if (K.inhOn != null && K.inhOn !== inhOn) brkInhReset(groups);   // (?wallbind flipped: every record made again)
     K.inhOn = inhOn;
+    // (train 41: the reach fix's A/B - window.FLYDIY_SKIN_REACHCOPIES = true judges FABRIC's held covering at the copy corners
+    // as before the fix; a flip re-makes every record's event whole)
+    { const rc = window.FLYDIY_SKIN_REACHCOPIES === true;
+      if (!!BRK.reachCopies !== rc) { BRK.reachCopies = rc; for (const R of BRK.recs) { R.reachCopies = rc; R.dv = (R.dv | 0) + 1; R.vB = -1; } } }
     brkRecOrder(groups, D, K, o);
     const tm = performance.now(); let tRec = 0, tEv = 0, bud = inhOn ? 0 : BRK_BIND, recLeft = REC_BUDGET;
     BRK.recPending = false;
@@ -4459,9 +4463,11 @@
         if (onGpu && R.tearAsk != null) {
           const Wd = GP.places(ge, R.tearAsk);
           if (Wd) { R.tearT = Wd.wTag; R.tearAsk = null;
-            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD)) { brkIdx(R); R.tornNew = true; } }
+            // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
+            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
+            R.heldAsk = undefined; }
         } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
-          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; }
+          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; R.heldAsk = R.held ? R.held.slice() : null; }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
