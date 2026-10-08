@@ -1,0 +1,9 @@
+  doctored: ok   HOME > tw_ski          873 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 2025.4 m / 495.3 m, clear 14.3 m (ground) | td sink -1.18 m/s, 20.7 m/s, run 126 m, off 1.4 m | fuel 41.7 L (1133 s)
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 26.2 m/s until clear | flare-guard: not flaring 77 m under the strip of Skyline Altiport, 855 m before the aim - climbing to the circuit before the approach | ceiling-accepted: still climbing 0.39 m/s — flying the circuit at 250 m | slope: stopped on a 9.2 % grade — rolling 140 m on to the level part
+    flares [{"low":685.2,"over":5.7,"d":28.3,"t":811.9}]
+    final {"h":552.6,"d":2025.4,"hC":130}
+  ok   3 the doctored arrival (tw_ski's record 250 m low), the Jodel: the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)  (FINAL at 552.6 m MSL (the strip 680..709 m); flare-guard: not flaring 77 m under the strip of Skyline Altiport, 855 m before the aim - climbing to the circuit before the approach)
+  ok   3 the doctored arrival (tw_ski's record 250 m low), the Jodel: no flare armed under the strip or over 25 m above it  (5.7 m over the strip 28.3 m out at 811.9 s)
+  ok   3 the doctored arrival (tw_ski's record 250 m low), the Jodel: the airframe whole (no crash, no member broken)  ({"yields":0,"breaks":0,"over":false,"reason":null})
+GATE ALTIPORT [shard 2/3]: PASS
+SHARD 2/3: 1 of 3 heavy jobs

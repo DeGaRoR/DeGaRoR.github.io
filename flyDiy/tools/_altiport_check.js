@@ -142,5 +142,7 @@ if (SHD.take()) {
   const D = R.damage;
   check(!!D && !D.over && !D.breaks, id + ': the airframe whole (no crash, no member broken)', D ? JSON.stringify({ yields: D.yields, breaks: D.breaks, over: !!D.over, reason: D.reason || null }) : '-');
 }
-console.log('GATE ALTIPORT' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
+// (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)
+if (SHD.tag) console.log('  (' + SHD.tag.trim() + ')');
+console.log('GATE ALTIPORT: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);

@@ -81383,3 +81383,211 @@ itself is on the runway heading to the crosswind height); a drawn speed is IAS a
 in red and the floor of last resort holds 30 m over the ground 600 m ahead; the hold has no exit but a new To / route
 (the user's choice); the phone profile has no flight, so the drawing's touch path is checked by pointer events in Chromium,
 not on the S20.
+
+## G2520 - ALTIPORT-ARRIVAL: A FIELD ABOVE THE AEROPLANE IS CLIMBED TO BEFORE ITS FINAL - THE CLIMB THE FIELD ASKS PLANNED, A HOLDING PATTERN AT THE FIX FOR WHAT IT CANNOT FIT, THE FINAL FLOWN DOWN TO THE STRIP; THE FLARE NEVER ARMS UNDER THE STRIP OR MORE THAN 25 M OVER IT; GATE ALTIPORT (2026-10-08, ALTIPORT-ARRIVAL for the PILOT COORDINATOR, a CLOUD session: node only, no GPU; branch claude/altiport-arrival-g2520 off origin/claude/pilot-42 6131d34d + ISLAND-TOUR-2's tour tools (4bf4bd37, tools/ only); G2520-G2529)
+
+**READY for the Pilot Coordinator (2026-10-08).** Node reproduces the game's crash on pilot-42 to the second and its clean
+landing on train 40 (G2520.1); the fix is at the source - the planner climbs to a field above at the climb it asks, and
+what it cannot fit is climbed in a HOLDING PATTERN AT THE FIX before the final, which is then flown from its height down
+to the strip (G2520.3); FLARE never arms under the strip or more than 25 m over it (G2520.4); GATE ALTIPORT (new, core, 3
+shards) PASS through run_gates, its guard row a doctored arrival that breaks the Jodel up on pilot-42 and on train 40
+and is caught here. NO REGRESSION: PROFILE, PILOT, PILOTMATRIX (no cell worse than tools/pilot_baseline.json; 3 known
+bad, 2 warn - G2125's count), TAKEOFF, LINEUP, TAXICLEAR, PILOTACT, PLAN, NAV, ROUTE, RWYTREES, SOAR, HOTHIGH PASS;
+TOUR red on this base's own reds only, named (G2520.6). KNOWN, ROUTED: the Cub's roll-out at the altiport (red on every
+tree; OWED 1). Validated aircraft only; no bound loosened; source and tools only (nothing generated committed); the last
+commit 'G2520 READY: ...'. Every evidence file names its mode and its tree (reports/evidence/ALTIPORT-ARRIVAL/README.md).
+
+THE FINDING (the coordinator: the game on the GPU, 8 Oct 16:40, build 594a68063d35 = pilot-42 on train 40, damage on,
+the game's 8 kt day, the default worker, 2x; tools/tour_real.js order HOME,tw_ski, the Jodel builds/jodel_2026-09-20_corrected.json):
+HOME > Skyline Altiport (tw_ski, 695 m, a 380 m strip rising 8 %): FINAL at sim 366 s at 424 m MSL (train 40: 402 s at
+517 m); FLARE at 430 s at ~518 m MSL - 180 m under the runway, 470 m over the valley under it; 'go-around: floating with
+1630 m left (attempt 1)', 'vref-raised: the elevator cannot hold 26.1 m/s at this power', broken up (the fuselage parted,
+a prop strike). Train 40 landed the same flight (0.93 m/s).
+
+### G2520.1 - NODE SEES WHAT THE PAGE SAW (FIRST, before any fix)
+Mode: node, THE GAME'S FLIGHT (tools/_tour_lib.js gameHost - src/viewer/sim_host.js makeSimHost: the page's placement off
+the default player's shed, app.js mkPilot's pilot with the garage's shakedown and the nav, DAY_CLOCK's 8 kt / 250 deg
+day ticked every step; damage ON). `node tools/build.js` on pilot-42 prints THE GAME'S BUILD, 594a68063d35, so node runs
+the game's own core. The trees: pilot-42 = 6131d34d (worktree, tools copied in), train 40 = bcf62797 (worktree, the same).
+ISLAND-TOUR-2's tour tools came over as files (tools/ only: the turn pads and the load door's src are NOT on this base -
+the game the coordinator flew had neither), so pilot_trace specOf is the build file: the Jodel at 45 L / 463 kg. That
+IS the game's Jodel: every verdict and time below matches the page's to the second.
+```
+the Jodel, HOME > tw_ski        the page (pilot-42)       node, pilot-42 6131d34d          node, train 40 bcf62797     the page (train 40)
+FINAL                           366 s, 424 m MSL          365.4 s, 424 m (3556 m out)      402.1 s, 518 m (3550 m out)  402 s, 517 m
+FLARE                           430 s, ~518 m             430.8 s, 520 m (1655 m out,       520.9 s, 684 m (45 m before  -
+                                                          189 m under the strip)            the threshold)
+the pilot said                  floating with 1630 m left  floating with 1623 m left;       slope: stopped on a 9.2 %    -
+                                vref-raised 26.1 m/s       vref-raised 26.1 m/s             grade (no go-around)
+the end                         broken up, prop strike     crushed: 1609 yields, 99 breaks,  landed, sink 0.97 m/s,      0.93 m/s, clean
+                                                           prop strike, at 461 s             20.2 m/s, run 124 m
+```
+(evidence: reports/evidence/ALTIPORT-ARRIVAL/trace_jodel_pilot42_6131d34d.log, trace_jodel_train40_bcf62797.log - tools/
+altiport_trace.js, one line every 2 s and every phase change; island_tour_jodel_*.log - the tour rig's own leg line.)
+
+### G2520.2 - WHAT HAPPENED (two faults, one under the other)
+1. THE ARRIVAL CAME IN UNDER THE FIELD. HOME (31 m) to tw_ski is 8 km; the straight-in's INBOUND leg begins at 154 m
+   7.4 km out with its IAF 3.5 km out, the circuit at 825 m (695 + 130). PILOT-PROFILE's plan (44_vprofile 'trip')
+   climbs at gClimb = 0.7 x the measured gradient (the Jodel's 0.068): the plan ENDS at 436 m (`hPlan 436`, cruise 826
+   never reached - `toc null`) and ENROUTE flies the plan, so the Jodel climbed at 2.3 m/s where it could make 3+.
+   Train 40 had no plan: its floor (the terrain ahead + 130 m) asked more than it could climb, so it climbed flat out
+   and reached the IAF at 518 m - still 191 m under the strip; it climbed on up the final's slope and landed with 11.7 m
+   of clearance over the hillside (GATE TOUR's bound is 3 m). Neither tree had a rule that a final is begun from its
+   height; G2450 (EAST-POINT-DEPART, not on pilot-42) had added one ('climb-hold') for the Cub from Tamgas Hill.
+2. THE ALTIPORT'S FLARE ARMED 189 M UNDER THE STRIP. FINAL's arming law on an altiport (GTRAM) reads the height over the
+   SLOPE'S LINE through the aim (altiGrade ~10 % at tw_ski's aim): extended back down the hill that line passes 1655 m
+   out at ~515 m - the Jodel, flying level at 520 m toward the slope it was under, crossed it and FLARE armed: idle, the
+   nose up, 'floating with 1623 m left' -> go-around from a stall over the valley.
+
+### G2520.3 - THE FIX AT THE SOURCE (44_vprofile.js, 43_pilot.js)
+- THE PLANNER (44_vprofile plan, 'trip'): A FIELD ABOVE IS CLIMBED TO AT THE CLIMB IT ASKS. When gClimb cannot bring the
+  aeroplane to hEnd `endLevel` before the leg's end, the climb is steepened to what it needs, up to perf.gClimbMax - the
+  pilot passes gammaGA() (0.8 of the measured gradient: what the pilot's own escape logic counts as makeable). What even
+  that cannot fit is the plan's new `endShort` (m), on the leg's vpSum with the gradient planned (`gClimb`). The Jodel:
+  0.068 -> 0.078, the INBOUND's end 436 -> 477 m, endShort 349 m.
+- THE CLIMB HOLD (G2450's, ported - its trigger and its say code; on pilot-42 it did not exist): the leg that hands over
+  to the final (the straight-in's INBOUND, the circuit's BASE) ending more than 60 m under its height (altRef + the leg's
+  h: the circuit height) is not ended. G2520 CHANGES ITS PATTERN: G2450 circled freely and then re-planned the arrival from
+  wherever the wind had carried it - from beside the fix that is a circuit, and the user's Cub then flew a 464 s downwind
+  at tw_ski ('gave-up', 'leg-timeout', a go-around 'high on the slope -30 m out'; 1621 s for the leg). Now it is A
+  HOLDING PATTERN AT THE FIX: the orbit through the leg's end tangent there to the final's course (LOITER's law, R = max
+  (250, 1.4 x the turn radius at the climb speed)), on the side whose ground under the circle is lower, full power on
+  the climb speed, no flap; at the height (within 20 m) it leaves where it passes the fix on the final's course (within
+  0.35 R, the track within 30 deg) and THE FINAL FOLLOWS - the straight-in it planned, now from its height (600 s at
+  most, then the arrival planned again; the budget held while it climbs). Said: 'climb-hold: 366 m under the height the
+  final to Skyline Altiport starts from (the climb planned 349 m short) - circling here, climbing, before the approach'.
+- (G2450 ON MERGE: its climb-hold block sits in the same place (CROSSWIND..INBOUND, after 'cant-hold-speed') with the same
+  trigger; take G2520's - the orbit and `holdEnd` - and drop G2450's free circle; its planFromHere reset line is the same.)
+
+### G2520.4 - THE FLARE-ARMING SANITY GUARD (43_pilot.js FINAL; FLARE_ARM_MAX, exported)
+FLARE never arms with the wheels (the CG less its rest height, gearH) UNDER THE STRIP - its lowest ground from the
+threshold to the aim, read off the terrain (the water over it), never the record's elevation - nor more than
+FLARE_ARM_MAX = 25 m over the aim's ground, whatever the arming law reads (the altiport's slope line, a ridge before a
+threshold). Under the strip: 'flare-guard: not flaring 77 m under the strip of Skyline Altiport, 855 m before the aim -
+climbing to the circuit before the approach' - the approach is left for the climb hold's free climbing turn (to the
+circuit height over the strip's own ground: straight ahead would be the hillside) and planned again; a second time, a
+go-around (counted). Over 25 m: not armed, the final flies on (said once; its high-on-the-slope go-around stands).
+N JUSTIFIED (genAP flareAgl = 3.2 s of the approach's sink, clamped 1.5..12 m; the arming height is 1.3 x flareAgl x the
+person's flareK + an altiport's grade x V):
+```
+                 flareAgl   expert (x1.3)   the custom person's top flareK 1.3   + tw_ski's 10 % at 1.3 VAppr
+Cub               3.94 m      5.1 m           6.7 m                                9.7 m
+Jodel             4.74        6.2             8.0                                 11.5
+twin on floats    4.86        6.3             8.2                                 11.3
+metal Cessna      7.56        9.8            12.8                                 16.3
+Cessna floats     8.27       10.8            14.0                                 18.0
+genAP's ceiling  12.0        15.6            20.3                                   -
+```
+25 m clears every validated aeroplane's worst case (18.0 m) by 7 m and genAP's own flat-strip ceiling (20.3 m).
+The flights: every flare in GATE ALTIPORT armed 5.0-5.7 m over the strip's lowest ground.
+
+### G2520.5 - GATE ALTIPORT (tools/_altiport_check.js, core, 3 shards, ~15-25 min a shard on 4 cores)
+1 / 2 the Jodel (its file: 45 L, 463 kg) and the Cub (the page's load door on this base: the nose tank 29 L, 461 kg -
+ISLAND-TOUR-2 G1970.1/.3) HOME > tw_ski in the game's flight: a stopped at tw_ski, no fault, landed on it (WHAT THE PAGE
+SAW); b the final begun at the circuit height (>= elev + hC - 60, over the strip's highest ground); c every flare armed
+over the strip's lowest ground and <= 25 m over its highest; d the final's lowest node >= 3 m over the ground and the
+forest (GATE TOUR's). 3 THE GUARD'S OWN ROW - A DOCTORED ARRIVAL: tw_ski's record 250 m low (the pilot's altRef, its
+circuit, its climb hold all believe it): the arrival comes in under the strip; caught = 'flare-guard' said (calibration:
+the arming law really met under the strip), no flare under the strip or over 25 m, the airframe whole for 900 s.
+```
+GATE ALTIPORT, row by row        pilot-42 6131d34d                    train 40 bcf62797                   after (this branch)
+1 Jodel  game's flight           ok                                   ok                                  ok
+1 Jodel  a stopped, no fault     FAIL crushed at 461 s: 1609 yields,  ok  0.97 m/s, 20.2 m/s, run 124 m   ok  1.14 m/s, 20.9 m/s, run 132 m,
+                                 99 breaks, prop strike                   (586 s)                             177 m left (789 s: the hold)
+1 Jodel  a landed on tw_ski      FAIL (nowhere)                       ok                                  ok
+1 Jodel  b final at its height   FAIL 424 m MSL (285 m under the      FAIL 518 m (191 m under)            ok  829 m (120 m over), 3558 m out
+         (>= 766 m)              strip's highest ground)
+1 Jodel  c flares over the strip FAIL -161 m, 1655 m out              ok  4.0 m, 45 m out                 ok  5.7 m, 28.6 m out
+1 Jodel  d final's clearance     ok  149 m (never got near)           ok  11.7 m                          ok  14.5 m
+2 Cub 29 L  a stopped / no fault ok / ok (KNOWN roll-out 30.2 deg)    ok / ok (KNOWN roll-out 30.4 deg)   ok / ok (KNOWN roll-out 30.1 deg)
+2 Cub    b final at its height   FAIL 605 m (104 m under)             ok  772 m (63 m over)               ok  807 m (98 m over)
+2 Cub    c / d                   ok 5.2 m / 13.9 m                    ok 5.0 m / 14.1 m                   ok 5.0 m / 13.9 m
+3 doctored  the guard caught it  FAIL no guard (FINAL 518 m)          FAIL no guard (FINAL 566 m)         ok 'flare-guard ... 77 m under, 855 m
+                                                                                                          before the aim' (FINAL 553 m)
+3 doctored  no flare outside     FAIL -146 m, 1514 m out              FAIL -13.1 m, 209 m out             ok  5.7 m, 28.3 m out
+3 doctored  the airframe whole   FAIL 2192 yields, 93 breaks          FAIL 9 g impact, 68 yields, 16 br.  ok  0 / 0, landed 1.18 m/s, 20.7 m/s
+GATE ALTIPORT                    FAIL                                 FAIL (b, and the doctored row)      PASS (run_gates: PASS, 3 shards, 1500 s)
+```
+(the Cub's rows 'a' were split mid-session into 'stopped' and 'no fault but the roll-out's two': the pilot-42 / train 40
+runs printed them as one FAIL - gate_altiport_cub_*.log - with the same 30.2 / 30.4 deg ground loop and nothing else.)
+Requirement 1 read on these rows: 'a' (what the page saw) FAILS on pilot-42 and PASSES on train 40 for the Jodel, as on
+the page; 'b' is the fix's own contract and fails on train 40 too (train 40 landed from 191 m under the strip with 11.7 m
+over the hillside - by margin, not by plan). The Cub's same leg: its arrival regressed on pilot-42 (105 m under) without
+breaking; its roll-out is red on all three trees (KNOWN, below).
+
+### G2520.6 - THE BATTERY (`node tools/build.js`, then `node --max-old-space-size=2048 tools/run_gates.js --no-build --all
+--jobs=4 --only=...`, this 4-core box; after = the src of f8e21652; the later commits are tools / evidence / this entry)
+```
+gate          before (pilot-42 6131d34d)                          after (this branch; f8e21652's src)
+PILOT         PASS (G2125's record on train 40 + PILOT-PROFILE)   PASS 337 s [3 shards]
+NAV           PASS (ibid.)                                        PASS
+TAKEOFF       PASS (ibid.)                                        PASS 558 s
+PILOTACT      PASS (ibid.)                                        PASS 227 s
+TAXICLEAR     PASS (ibid.)                                        PASS 351 s
+PLAN          PASS (ibid.)                                        PASS 461 s
+LINEUP        PASS (ibid.)                                        PASS 270 s
+PROFILE       PASS (ibid.; East Point 67.4 m over the tops)       PASS 779 s (East Point 67.4 m - the same)
+ROUTE         PASS (G2120's record on its final tree)             PASS 862 s [3 shards]
+HOTHIGH       PASS (ibid.)                                        PASS 238 s
+SOAR          PASS (ibid.)                                        PASS 1077 s
+PILOTMATRIX   PASS - 3 known bad, 2 warn (G2125, train 40)        PASS 1516 s - no cell worse than tools/pilot_baseline.json; 3 known bad, 2 warn
+RWYTREES      PASS (G2125: standalone, full)                      PASS standalone (tools/_rwytrees_check.js, full: the runner's 1800 s cap, as G2125) - 8: the metal C172 HOME 437 s, the Cub HOME 626 s, the Cub at East Point STOPPED 551 s (G2125: 437 / 626 / 551)
+ALTIPORT      FAIL (above: the finding)                           PASS (above)
+TOUR          FAIL, run here (tools/_tour_check.js --shard=i/4    FAIL, the same four lines (run_gates --all)
+              on the worktree): shard 0 throws at the strips'
+              block; shards 1 / 2 fly their tours DONE and throw
+              at the load-door check; shard 3 PASS
+```
+The before column is pilot-42's own record (G2125's battery on train 40 + PILOT-PROFILE, G2120's ROUTE) except ALTIPORT
+and TOUR, flown here on 6131d34d. TOUR'S REDS ARE THIS BASE'S, NOT THE FIX'S (named, G1970.5's family): (1) shard 0 - the
+strips' census, its calibration and its pads read ISLAND-TOUR's src and fixture (C.turnPadNodes, the edited strips of
+tools/fixtures/island_jolene.json), neither on train 40: 9 census / calibration / water FAILs, then 'TypeError:
+C.turnPadNodes is not a function' before the Cub's land tour is flown (the tour is flown below by hand instead);
+(2) shards 1 and 2 - the aluminium C172's tour HOME > w3 > tw_ski > w2 > HOME and the float Cessna's SEA > mk_sea > SEA
+are DONE on both trees (fuel left 13.9 / 13.5 L, 16.7 / 16.7 L), then '_load_build: the page chain failed:
+W.CAGE2.cageGlazedM2 is not a function' - JOIN-PARITY's _cage_gen.js, not on train 40; (3) the partition line then
+disagrees. Shard 3 (HOME > East Point > Jumbo Mine) PASS on both ('INFO 6 ... TAKES OFF'). Also fixed here: GATE TOUR's
+verdict line carried the shard tag ('GATE TOUR [shard 3/4]: PASS'), which run_gates' `^GATE <ID>: PASS$` never matched
+- a TOUR shard could not pass through the runner on any tree; the tag now goes on its own line (GATE ALTIPORT the same).
+THE CUB'S LAND TOUR (tools/island_tour.js --build cub, the file's 45 L, ORDERS.land; landtour_cub_*.log):
+```
+                      pilot-42 6131d34d                                       after
+HOME > w3             ok 570 s, 0.5 m/s, 18.7 m/s, run 139 m                  ok - identical
+w3 > tw_ski           FAIL: final from 222 m agl (under the strip), touched    climb-hold 517 m ('the climb planned 509 m short'),
+                      1227 m BEFORE the threshold on the hillside, 1.2 m      final from 767 m agl, touched on the strip 0.53 m/s,
+                      clearance, stopped 1535 m short                         18 m/s, 0.9 m off - then the roll-out: ground loop
+                                                                              30.0 deg at 10 m/s, off-strip (KNOWN, below)
+```
+
+### FILES
+src/core/44_vprofile.js (gClimbMax, endShort, gClimb in the result), src/core/43_pilot.js (vpPlanLeg's gClimbMax;
+stripGround; flyClimbHold - the holding pattern at the fix and the free climbing turn; the hand-over's climb hold;
+FINAL's flare guard; FLARE_ARM_MAX), src/core/90_node_exports.js (FLARE_ARM_MAX), tools/_altiport_check.js (GATE
+ALTIPORT, NEW), tools/altiport_trace.js (NEW: one leg of the game's flight traced; PILOT_CORE= another core),
+tools/run_gates.js (ALTIPORT; TOUR's row from ISLAND-TOUR-2), ISLAND-TOUR-2's tools as files (tools/_tour_lib.js,
+_tour_check.js, _approach_lib.js, _load_build.js, island_tour.js, approach_census.js, tour_real*.js, tour_map.js),
+reports/evidence/ALTIPORT-ARRIVAL/. Nothing generated committed.
+
+### OWED / ROUTED
+1. THE CUB'S ROLL-OUT AT SKYLINE ALTIPORT (the pilot track's roll-out law; red on pilot-42, train 40 and here alike - GATE
+   ALTIPORT prints it KNOWN with its numbers, every other fault on that leg gated). The altiport is one-way, uphill; in the
+   game's 250 deg day the Cub lands there with ~4 m/s BEHIND and 3.4 m/s across (22 m/s over the ground at the touch for
+   ~18 m/s of air). trace_cub45L_rollout_fine_after.log: 1.5 s after the touch the rudder is on its stop (-0.95) and
+   stays there, the nose swings to -18 deg, the aeroplane drifts 12 m off the centreline (the strip's half-width is 9 m),
+   the braking ramp comes in and the swing reverses to +46 deg at 6 m/s - 30.0-30.4 deg at ~10 m/s on every arrival
+   flown (GATE TOUR's bound, 30 deg, not loosened). ROLLOUT never uses the differential brake (brakeD 0 throughout); a
+   pilot holds a tailwind roll-out straight with it. Also the land tour's w3 > tw_ski stops there now. Not fixed here: the
+   roll-out law is every landing's (PILOTMATRIX, TAKEOFF's roll-outs, the matrix's Cub cells) - its owner's change.
+2. THE PAGE: this session is node only. The coordinator's re-fly of the AFTER set (tools/tour_real.js, order HOME,tw_ski,
+   the Jodel) should read: 'climb-hold: 366 m under the height the final to Skyline Altiport starts from (the climb
+   planned 349 m short)' at ~380 s, the hold at the fix ~200 s, FINAL ~3.6 km out at ~829 m MSL, FLARE ~29 m before the
+   threshold, a touchdown ~1.1 m/s (node: 789 s for the leg, 586 s on train 40).
+3. G2450 (EAST-POINT-DEPART) ON MERGE: its climb-hold hunk and this branch's sit in the same block of 43_pilot.js with the
+   same trigger and say code - keep this branch's (the holding pattern at the fix; G2450's free circle re-plans into a
+   circuit). G2450's other hunks (East Point's departure, the short field's arrival, 'no-straight-in', PUTDOWN's level
+   run, the steer integral) are untouched by this branch.
+4. TOUR on this base: its strips' block and its load-door check need ISLAND-TOUR (src: turn pads, the fixture) and
+   JOIN-PARITY (src + _cage_*.js) - land GATE TOUR with them, or take it red as named above.
+5. The planner's gClimbMax is the pilot's own 'makeable' climb (gammaGA, 0.8 x the measured gradient). A field the
+   aeroplane cannot climb to at all within the hold's 600 s re-plans from where it is (said by the hold's status), as
+   before; no validated aeroplane reached that in any flight here.

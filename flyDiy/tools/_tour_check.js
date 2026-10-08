@@ -223,5 +223,7 @@ if (!STRIPS) {
     console.log('  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): ' + (L2 ? (L2.ok ? 'TAKES OFF - fold East Point into ORDERS.land' : L2.faults.map(f => f.k).join(', ') + ' - ' + L2.verdicts.filter(v => /reject|abort|off-the-strip/.test(v)).join('; ')) : 'not flown'));
   }
 }
-console.log('GATE TOUR' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
+// (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)
+if (SHD.tag) console.log('  (' + SHD.tag.trim() + ')');
+console.log('GATE TOUR: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);
