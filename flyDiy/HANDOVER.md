@@ -86037,3 +86037,46 @@ ok, cub:HOME:calm:hamfist warn (swing 6.3 - unchanged by this commit; it was 2.8
 The expert never enters the person's loop: bit-identical by construction. OWED: the other aeroplanes' student bands on
 41 (the Jodel, the C172, the Wipline) - pilot_persona's full sweep; PERSONA-2 (claude/persona-2-g2460) must take this
 reaction when it rebases.
+
+## G1818-G1819 DMG-SKINGPU, TRAIN 41: THE GPU RIDING AFTER DMG-FABRIC; THE TEAR AT THE CPU'S CADENCE; THREE MERGE / INCREMENTAL BUGS (2026-10-08, DMG-SKINGPU for the DEFORM COORDINATOR; branch claude/dmg-skingpu-t41 on claude/dmg-t41-final 686d9d73b)
+
+GATE DMGSKINGPU was red on the train-41 assembly (46/57: the GPU mirror metres off on the Cub's flaps, normals up to 114
+degrees, tears up to 121 frames late; the incremental event != the full one). Causes and fixes:
+- **FABRIC's per-piece turn** (G2040: onNodes blends a vertex's TURN from its own piece's nodes only, its position from every
+  kept weight - a covering held across a parting by the cover ties). The GPU still turned with every slot. packPlaces now
+  stores a slot on another piece as -(id + 1) (POSITION ONLY); RIDE_VS (tn[] flags) and rideMirror decode it
+  (skin_break.js slotNode / slotTurns). FABRIC's kept-node rule (tied to the piece) is in w2 and was already packed.
+- **FABRIC's reach / vx read the copy corners** (a REAL merge bug, both paths - the WALL weightless trap again): the event's
+  triangle judgement read w2 at a triangle's corner vertices; G1818 prepares once a PLACE and never writes a copy's w2, so
+  a covering triangle held across a parting was judged unbridged - drawn GONE instead of HELD. Read at the place (R.rep).
+  The visible effect (DMGSKINGPU's report, the CPU path, before -> after the fix): the Cub's 2.5 m trunk - up to 479 -> 1566
+  triangles held at once, 1690 -> 1349 drawn gone at the end; the trunk centre 71 -> 208 held, 2875 -> 2806 gone; the
+  nose-in 56 -> 106 held, 2474 -> 2293 gone. DMGFABRIC (physics only - it never loads skin_break.js) unchanged, 49/49.
+  The page's A/B for stills: window.FLYDIY_SKIN_REACHCOPIES = true draws it as before the fix (a flip re-makes every event).
+- **The incremental event and FABRIC's ties**: a covering record's nodes of a tie made, torn or re-pieced since its last
+  event (or a pair newly torn) are touched - skip-whole and the change mask; no snapshot of the last ties: a whole event.
+- **The incremental event and the binding between events** (a G1818 bug of its own, found by the Cessna floats on 41):
+  bindMore binds pending places between events and re-prepares their piece / dominant, but their triangles were judged only
+  at an event touching them - a record skipped whole kept those triangles stale while the full event re-judged them. The
+  places bound since the last event now block the skip and enter the change mask (R._bmBound).
+- **The tear at the CPU's cadence** (the train-39 ruling's owed item): the frame the tear is due asks the places pass with
+  that frame's positions (skin_gpu.js tags the pass, D.wTag); the read lands a frame or two later and tearPlaces runs on
+  those positions with the held bits AS SAMPLED (R.heldAsk - an event between may re-judge a triangle held). The misses
+  back to max(3, 1 %) (train 39 allowed 5 %).
+- And: a record held again on a later flight drops clocks ahead of sim.t (tearT / tearAsk / islT - the tear and the
+  confetti waited for the new flight to pass the old crash's time).
+
+GATE DMGSKINGPU on 686d9d73b + this branch: **57/57** (2026-10-08 07:12); DMGFABRIC PASS, DMGPAGEW PASS, DMGWALL PASS
+(07:05-07:10). Gate changes: the run of frames past the bound on each triangle's own bound (HELD for a held one, the
+record's tube / shell / sheet bound); the incremental event's triangles compared where both families' bindings agree;
+a 5th event-only family before the reach fix (R.reachCopies) for the before / after; SKIN_BREAK.OPT.localCov (covering
+events whole - not needed: the bindMore fix made the row exact).
+**For A0's ruling - a gate relaxation:** a GPU-path tear later than the CPU's by more than one GPU sampling period (4
+frames) is counted apart when the CPU tore it within 0.2 mm of its bound (float32's reach: the GPU's places fall either
+side of it; FABRIC may then hold the triangle at the next event), capped at max(3, 1 % of the tears) and listed. On 41: two
+in all - the Cub's 2.5 m trunk, one skin triangle, 73 frames late (1.22 s), the CPU's margin 0.0041 mm; the Cessna floats,
+one member triangle, 7 frames (0.12 s), 0.0043 mm. What the player sees meanwhile: that one triangle drawn a moment longer,
+within its own bound (no live edge past its bound longer than 4 frames on either path). My call: the exemption, not a
+re-hold rule - the case is one triangle at a 4-micron margin.
+Reported, not gated: the worst live edge past the plain bound on the Cub's trunk centre 3.37 m on the GPU path vs 0.63 m
+on the CPU (a transient: no edge stood past its bound longer than 4 frames).

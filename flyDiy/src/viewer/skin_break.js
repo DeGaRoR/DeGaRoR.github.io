@@ -286,6 +286,9 @@
   function bindMore(R, T, budget) {
     if (!R.pending || !(budget > 0) || !R.BP) return 0;
     const take = Math.min(budget, R.pending.length), now = R.pending.subarray(0, take);
+    // (train 41: these places' piece / dominant change below, between events - their triangles are judged at the next event:
+    // it may not skip the record, and its change mask holds them)
+    { const L = R._bmBound || (R._bmBound = []); for (const v of now) L.push(v); }
     bindSome(R, T, now);
     if (R.nodeMask) { const K = R.K, wi = R.wi, M = R.nodeMask; for (const v of now) for (let k = 0; k < K; k++) M[wi[v * K + k]] = 1; }
     // (G1818: these places are stale on the GPU - listed, unless the whole record already is)
@@ -319,6 +322,7 @@
     if (R.active && R.evPc && R.nodeMask && D.br.length >= R.evBr && D.br.length && !R.fullNext && dvIn === R.evDv && !tieUnknown) {
       const M = R.nodeMask, pc = D.pc, n = M.length; let touched = false;
       if (tieT) for (let j = 0; j < tieT.length && !touched; j++) if (M[tieT[j]]) touched = true;
+      if (R._bmBound && R._bmBound.length) touched = true;   // (train 41: places bound since the last event - their triangles)
       for (let k = R.evBr; k < D.br.length && !touched; k++) { const b = T.beams[D.br[k]]; if (!b) continue;
         for (const i of [b.a, b.b]) { if (M[i]) { touched = true; break; }
           for (const bj of T.adj[i]) { const c = T.beams[bj]; if (M[c.a] || M[c.b]) { touched = true; break; } } if (touched) break; } }
@@ -389,11 +393,12 @@
       chg = R._chg && R._chg.length === nv ? R._chg : (R._chg = new Uint8Array(nv));
       chg.fill(0);
       if (R._evBound) for (const v of R._evBound) chg[v] = 1;
+      if (R._bmBound) for (const v of R._bmBound) chg[v] = 1;   // (train 41: bound between events)
       const list = R.rep ? placesOf(R).pl : null, np = list ? list.length : nv;
       for (let j = 0; j < np; j++) { const v = list ? list[j] : j, o = v * K;
         if (!chg[v]) for (let k = 0; k < K; k++) if (Tm[wi[o + k]]) { chg[v] = 1; break; } }
     }
-    R._evBound = null;
+    R._evBound = null; R._bmBound = null;
     R.BP = BP; R.pc = pc;
     // (G1818: a welded record is prepared once a place, its copies given their place's piece, dominant node and ride -
     // the same bytes prepV's copy branch wrote, without a call a vertex: ~500k vertices, ~85k places on the user's Cub)
