@@ -346,7 +346,7 @@ function totemBuild(THREE, plan, o) {
     // generator stands a clan house in it
     const h = plan.house;
     const box = new THREE.Mesh(new THREE.BoxGeometry(h.w, 4.5, h.d),
-      new THREE.MeshBasicMaterial({ color: 0xd8b26a, wireframe: true, transparent: true, opacity: 0.35 }));
+      new THREE.MeshBasicMaterial({ color: 0xd8b26a, wireframe: true, transparent: true, opacity: 0.35 }));  // pre-ok: the bench's house-slot wire ghost (not light)
     box.position.set(h.x, (h.y !== undefined ? h.y : plan.ground(h.x, h.z)) + 2.25, h.z);
     box.rotation.y = h.ry;
     box.name = 'totem:houseSlot';

@@ -348,9 +348,14 @@
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
   // writer that has no menu (the headless stubs) sets the property itself.
-  const setExposure = (R, v) => { expBase = v; if (R) R.toneMappingExposure = v * (S.exposure || 1) * eyeK; return expBase; };
+  // G2620 THE PRE-EXPOSURE: the frame holds radiance x P at night (light_rig), so the renderer takes base / P - the
+  // BASE stays the true exposure (every dimmer that reads exposureBase() keeps its meaning); P = 1 by day: unchanged
+  const preP = () => (W.LIGHT_RIG && W.LIGHT_RIG.P) ? W.LIGHT_RIG.P() : 1;
+  const setExposure = (R, v) => { expBase = v; if (R) R.toneMappingExposure = v * (S.exposure || 1) * eyeK / preP(); return expBase; };
   // the eye writes its factor here and nowhere else: the schedule keeps declaring the base
-  const setEye = k => { eyeK = Math.max(0.25, Math.min(4, +k || 1)); const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK; return eyeK; };
+  const setEye = k => { eyeK = Math.max(0.25, Math.min(4, +k || 1)); const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK / preP(); return eyeK; };
+  // the switch: the renderer's exposure moves in the same frame as every light (light_rig setPre's listeners)
+  if (W.LIGHT_RIG && W.LIGHT_RIG.onPre) W.LIGHT_RIG.onPre(() => { const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK / preP(); });
   const FPS_STEPS = OPTIONS.find(o => o.k === 'fps').steps.map(s => s.v);
   let saved = false;                         // G1460: a choice was read back (the software rung leaves it alone)
   const load = () => {
@@ -515,8 +520,8 @@
     // exposure — every row change compounded the step (the field shed blew
     // out at x1.4^n, the user's "lighting went crazy")
     if (R && applied.exposure !== S.exposure) {
-      if (expBase == null) expBase = R.toneMappingExposure;
-      R.toneMappingExposure = expBase * S.exposure * eyeK; applied.exposure = S.exposure;
+      if (expBase == null) expBase = R.toneMappingExposure * preP();
+      R.toneMappingExposure = expBase * S.exposure * eyeK / preP(); applied.exposure = S.exposure;
     }
     // the post passes (post_fx.js): each row handed over; with every row off the module
     // installs nothing (its hook is null, no target asked for) - the frame of today

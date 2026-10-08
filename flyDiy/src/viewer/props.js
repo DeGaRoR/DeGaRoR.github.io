@@ -192,6 +192,7 @@ function propBuild(THREE, key) {
   if (dust) for (const m of mats) dustMaterial(m, dust);
   const glow = PROP_GLOW.get(key);
   if (glow != null) glowMaterials(mats, glow);
+  else if (propPreK() !== 1) glowMaterials(mats, propPreK());   // G2620: a glowing prop no lamp drives - its author's glow x P
   return built;
 }
 
@@ -314,9 +315,13 @@ function glowMaterials(mats, k) {
   for (const m0 of mats) MATLIB.each(m0, m => {
     if (!m.emissive || (m.emissive.r === 0 && m.emissive.g === 0 && m.emissive.b === 0)) return;
     if (m.userData.emis0 == null) m.userData.emis0 = m.emissiveIntensity;
-    m.emissiveIntensity = m.userData.emis0 * k;
+    m.emissiveIntensity = m.userData.emis0 * k;  // pre-ok: k carries P (propSetGlowOf / the pre listener)
   });
 }
+// G2620 THE PRE-EXPOSURE: a glowing prop that no lamp key drives (propSetGlowOf's k already carries P - render_premises)
+// glows at its author's intensity x P: at every switch, and when it is built under one (above)
+const propPreK = () => (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P) ? LIGHT_RIG.P() : 1;
+if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(P => { for (const [key, b] of PROP_BUILT) if (!PROP_GLOW.has(key)) glowMaterials(b.mats, P); });
 function propSetGlowOf(key, k) {
   PROP_GLOW.set(key, k);
   const b = PROP_BUILT.get(key);

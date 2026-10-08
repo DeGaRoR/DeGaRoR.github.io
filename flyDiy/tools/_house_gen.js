@@ -104,13 +104,13 @@ function makeMats() {
   // smoke too?"): a basic material - it is not lit, it is a haze - drawn
   // transparent and never into the depth buffer, and everything it looks like
   // is in the shader patch below (shadeSmoke)
-  smoke: new THREE.MeshBasicMaterial({ color: 0xb9b5ae, transparent: true,
+  smoke: new THREE.MeshBasicMaterial({ color: 0xb9b5ae, transparent: true,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smoke)
                                        opacity: 1.0, depthWrite: false,
                                        side: THREE.DoubleSide }),
   // THE GROUND SHADOW SKIRT (G281): black, transparent, its alpha per vertex
   // (shadeSkirt), a centimetre above the ground and offset so it never
   // fights the terrain for depth
-  aoskirt: new THREE.MeshBasicMaterial({ color: 0x0a0906, transparent: true,
+  aoskirt: new THREE.MeshBasicMaterial({ color: 0x0a0906, transparent: true,  // pre-ok: a near-black AO darkener (P makes it darker, as it should be)
                                          opacity: 0.85, depthWrite: false,
                                          polygonOffset: true, polygonOffsetFactor: -2,
                                          polygonOffsetUnits: -2 }),
@@ -1097,7 +1097,7 @@ function shadeGlass(m, GU0, SU0) {
           // a lit room behind a curtain glows through the cloth: softer,
           // and the cloth's colour
           '    vec3 gfab3; float gcov3 = gDress(gfab3);\n' +
-          '    totalEmissiveRadiance += gLitCol(vHouseLit) * uLitK * gu *\n' +
+          '    totalEmissiveRadiance += gLitCol(vHouseLit) * uLitK * gu *\n' +  // pre-ok: uLitK is LAMPS' kGlass, which carries P
           '                             mix(vec3(1.0), gfab3 * 0.75, gcov3);\n' +
           '  }')
         .replace('#include <normal_fragment_maps>',

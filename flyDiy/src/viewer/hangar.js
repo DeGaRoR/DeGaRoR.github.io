@@ -3358,6 +3358,7 @@ let keyHeld = null; const KEY_STEP_COS = Math.cos(0.05 * Math.PI / 180);   // G2
 const dayDirShed = [0, 1, 0];                       // the key's direction in the shed's frame (the flare reads it)
 function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
 function applyDay(day, renderer) {
+  if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(1);   // G2620: the shed has no pre-exposure (its lamps cap the exposure); the world sets its own on the way out
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
   if (!skyPhys && skyMesh) {
     const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);

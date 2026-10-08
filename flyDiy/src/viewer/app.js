@@ -1413,7 +1413,7 @@
     const pos = new Float32Array(ids.length * 3);
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({  // pre-ok: colorWrite false (the next line)
       colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
@@ -2116,7 +2116,7 @@
         const src = m.lamp && window.CAGE_LIGHT.lensMat ? window.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
                   : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK)
                   : null;
-        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }
+        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }  // pre-ok: a lamp clone at 0 - cockpit.js drives it x P
       }
       if (data.cage && m.char && window.CAGE_CHAR &&
           window.CAGE_CHAR.flatMaterial) {
@@ -2164,7 +2164,7 @@
       if (m.emis && m.tex) {
         common.emissive = new THREE.Color(m.emis[0], m.emis[1], m.emis[2]);
         common.emissiveMap = texs[m.tex];
-        common.emissiveIntensity = EMIS_GAIN;
+        common.emissiveIntensity = EMIS_GAIN;  // pre-ok: held x P below (preHold, the faces)
       }
       // A NAMED SHEET THAT IS NOT THERE IS NOT A WHITE ONE. `map: undefined` with
       // the default tint renders the group flat WHITE, which is the worst of the
@@ -2184,6 +2184,7 @@
       // is not AEROSKIN's) takes the cabin's darkness through the small hook
       if (m.inside && typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroCabinHook)
         AEROSKIN.aeroCabinHook(THREE, std, 1);
+      if (m.emis && m.tex && window.LIGHT_RIG && LIGHT_RIG.preHold) LIGHT_RIG.preHold(std, 'emissiveIntensity', EMIS_GAIN);   // G2620: the faces' constant glow x P
       return matCache[mn] = std;
     };
     const grp = new THREE.Group();
@@ -2781,7 +2782,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -5927,7 +5928,7 @@
     if (patVis) {
       if (patVis.papiUpdate) {   // G449: the PAPI's lenses at the runway lights' level (a lamp judged at the day's exposure, dimmed back through the night's schedule)
         const cgP = sim.cgPos(), exP = (window.GFX && GFX.exposureBase && GFX.exposureBase() != null) ? GFX.exposureBase() : 0.92;
-        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9));
+        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9) * (window.LIGHT_RIG && LIGHT_RIG.P ? LIGHT_RIG.P() : 1));   // G2620: x P
       }
       if (patVis.setLegs && ap.legs !== patLegsRef) { patLegsRef = ap.legs; try { patVis.setLegs(ap.legs, ap.altRef); } catch (e) {} }
     }
@@ -7487,14 +7488,14 @@
     // disappearing inside the covering.
     const bar = (col, order) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));
+        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
       m.frustumCulled = false; m.renderOrder = order; m.visible = false;
       grp.add(m); return m;
     };
     // THE RED FLAG is a marker, not a recoloured member: the covering is
     // normally on during a test, and a red line under fabric is no flag at all.
     const flag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8),
-      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));
+      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
     flag.frustumCulled = false; flag.visible = false; flag.renderOrder = 1000;
     grp.add(flag);
     craft.add(grp);
@@ -8387,8 +8388,8 @@
     let want = '2,1'; try { want = localStorage.getItem(CRAFT_LIGHTS) || want; } catch (e) {}
     if (!lightStandIns || lightStandIns.userData.sig !== want) {
       const [np, ns] = want.split(',').map(Number), g = new THREE.Group();
-      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
-      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));  // pre-ok: intensity 0: a compile stand-in
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }  // pre-ok: intensity 0: a compile stand-in
       g.userData.sig = want; g.name = 'craftLightStandIns'; lightStandIns = g;
     }
     if (!lightStandIns.children.length) return fn();

@@ -166,8 +166,9 @@ function loomMats(THREE, b) {
                 transparent: true, opacity: 0, depthTest: false, depthWrite: false,
                 side: rec.dbl ? THREE.DoubleSide : THREE.FrontSide, toneMapped: true, fog: false };
     if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true, 'color');
-    const m = MATLIB.make(THREE, 'basic', o);
+    const m = MATLIB.make(THREE, 'basic', o);  // pre-ok: its colour held x P on the next line
     m.name = 'animalLoom:' + b.a.key;
+    if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(m.color, 'rgb');   // G2620: an unlit colour in the world's frame x P
     return m;
   });
   return b.loom;

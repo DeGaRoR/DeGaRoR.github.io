@@ -263,7 +263,7 @@ function make(THREE, scene, world, rec0, opts) {
     armed: false, prep: null, prepping: null, ready: null, prepTok: 0 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
-    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = LAMPS.armed; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
+    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = LAMPS.armed; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }  // pre-ok: intensity 0 here; LAMPS.update drives it x P
   };
   // arm(on): the pool's count, now (the host's compile dress and the roll-out's key call it; update() goes through prep)
   LAMPS.arm = on => { lampPoolInit(); on = !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
@@ -274,14 +274,17 @@ function make(THREE, scene, world, rec0, opts) {
   LAMPS.update = (eye, on, ex) => {
     lampPoolInit();
     LAMPS.on = on;
-    const kGlass = 0.45 * Math.pow(0.92 / Math.max(0.92, ex), 1.0), kLamp = 2.2 * 1.1 * LAMPS.gain / Math.max(1, ex);
+    // G2620 THE PRE-EXPOSURE: every radiance here x P (light_rig: 1 by day, 2^14 at night) - the pool, the panes, the town's
+    // lit panes, the fixtures' glass and the smoke (the animals' plume reads smokeK); the dimmers stay on the TRUE exposure
+    const Pp = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P) ? LIGHT_RIG.P() : 1;
+    const kGlass = 0.45 * Math.pow(0.92 / Math.max(0.92, ex), 1.0) * Pp, kLamp = 2.2 * 1.1 * LAMPS.gain / Math.max(1, ex) * Pp;
     // the panes: the generator's lightK (judged on the bench by DAY, 2.2) x 0.45 x the exposure's inverse - a lit window at night is warm, not white (at the lenses' 0.9 the mill's windows saturated)
     for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * (LAMPS.muted ? 0 : 1);
     LAMPS.kLit = on * kGlass * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G574): the base rides the slot
     // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
     // the fixtures' own glass (G456): the author's emissive x on x the lenses' colour-keeping dimmer, every placement of a lit prop key together
-    if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9); for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
-    const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35);   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
+    if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9) * Pp; for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
+    const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35) * Pp;   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
     for (const u of LAMPS.smoke) u.value = kSmoke;
     LAMPS.smokeK = kSmoke;                                   // the animals' plume takes the same hand (animal_run.js)
     const want = LAMPS.want(on);
@@ -2384,8 +2387,8 @@ function make(THREE, scene, world, rec0, opts) {
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
-  const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });
-  const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });
+  const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
+  const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
   const HANDLES = [];
   function buildHandles() {
     for (const h of HANDLES) G.handles.remove(h);
@@ -2414,7 +2417,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (A && SITE.sitePattern) {
         try {
           const pat = SITE.sitePattern(A, f.entry.site || null);
-          for (const hid of pat.stops || []) { const nd = pat.nodes.find(n => n.id === hid); if (!nd) continue; const m = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0xe6c35c, transparent: true, opacity: 0.95, depthTest: false })); m.position.set(nd.x, heightAt(nd.x, nd.z) + LIFT + 0.08, nd.z); m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'hold:' + hid, mid: false }; G.handles.add(m); HANDLES.push(m); }
+          for (const hid of pat.stops || []) { const nd = pat.nodes.find(n => n.id === hid); if (!nd) continue; const m = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0xe6c35c, transparent: true, opacity: 0.95, depthTest: false })); m.position.set(nd.x, heightAt(nd.x, nd.z) + LIFT + 0.08, nd.z); m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'hold:' + hid, mid: false }; G.handles.add(m); HANDLES.push(m); }  // pre-ok: the premises editor's disc (edit mode, not light)
         } catch (e) {}
       }
       return;

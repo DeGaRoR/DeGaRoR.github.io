@@ -109,21 +109,22 @@ const POST_FX = (() => {
   //   - KARIS'S AVERAGE (Karis 2013, the CoD:AW talk's firefly fix): each pixel weighted by 1 / (1 + luma), so a lone
   //     hot pixel among dark ones counts about as much as a pixel of 1 and stays under the threshold, while an area
   //     that is bright as a whole (the sun, a lamp, a lit window up close) averages as itself.
-  const BLOOM_THR = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uThr, uKnee, uClamp; varying vec2 vUv;
+  const BLOOM_THR = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uThr, uKnee, uClamp, uPre; varying vec2 vUv;
     vec3 bSafe(vec3 c) {
       if (any(isnan(c)) || any(isinf(c))) return vec3(0.0);
       c = max(c, vec3(0.0));
       float l = luma(c);
       return l > uClamp ? c * (uClamp / l) : c; }
     void main() {
-      vec3 s0 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, -0.5)).rgb), s1 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, -0.5)).rgb);
-      vec3 s2 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, 0.5)).rgb), s3 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, 0.5)).rgb);
+      // G2620: the frame is x P at night (the pre-exposure): judged in true radiance (/ uPre), handed on x uPre (1 by day: exact)
+      vec3 s0 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, -0.5)).rgb / uPre), s1 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, -0.5)).rgb / uPre);
+      vec3 s2 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(-0.5, 0.5)).rgb / uPre), s3 = bSafe(texture2D(tSrc, vUv + uTexel * vec2(0.5, 0.5)).rgb / uPre);
       float w0 = 1.0 / (1.0 + luma(s0)), w1 = 1.0 / (1.0 + luma(s1)), w2 = 1.0 / (1.0 + luma(s2)), w3 = 1.0 / (1.0 + luma(s3));
       vec3 c = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / (w0 + w1 + w2 + w3);
       float l = luma(c);
       float soft = clamp(l - uThr + uKnee, 0.0, 2.0 * uKnee); soft = soft * soft / (4.0 * uKnee + 1e-4);
       float w = max(soft, l - uThr) / max(l, 1e-4);
-      gl_FragColor = vec4(c * w, 1.0); }`;
+      gl_FragColor = vec4(c * w * uPre, 1.0); }`;
   const BLOOM_DOWN = `uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
     void main() {
       vec2 t = uTexel;
@@ -304,7 +305,7 @@ const POST_FX = (() => {
     quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); quad.frustumCulled = false;
     fsScene.add(quad);
     const V2 = () => new THREE.Vector2(1, 1);
-    M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 }, uClamp: { value: 16 } });
+    M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 }, uClamp: { value: 16 }, uPre: { value: 1 } });
     M.down = mat(BLOOM_DOWN, { tSrc: { value: null }, uTexel: { value: V2() } });
     M.up = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 }, uFinal: { value: 0 } }, { blending: THREE.AdditiveBlending, transparent: true });
     // the glow onto the canvas: SCREEN, the add that cannot clip (the canopy's lesson, G448.2)
@@ -351,6 +352,7 @@ const POST_FX = (() => {
     const h = tBegin('bloom');
     M.thr.uniforms.tSrc.value = rt.texture; M.thr.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
     M.thr.uniforms.uThr.value = P.thr; M.thr.uniforms.uKnee.value = P.knee; M.thr.uniforms.uClamp.value = P.clamp;
+    M.thr.uniforms.uPre.value = linear && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1;   // G2620
     draw(M.thr, T.b0);
     for (let i = 1; i < 5; i++) { M.down.uniforms.tSrc.value = T['b' + (i - 1)].texture; M.down.uniforms.uTexel.value.set(1 / T['b' + (i - 1)].width, 1 / T['b' + (i - 1)].height); draw(M.down, T['b' + i]); }
     // up: the smallest level into the next, additively, each with the tent

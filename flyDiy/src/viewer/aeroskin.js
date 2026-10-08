@@ -3783,7 +3783,7 @@ function aeroGlassTint(THREE, o) {
 let AERO_GNONE = null;
 function aeroGlassNone(THREE) {
   if (!AERO_GNONE) {
-    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });
+    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });  // pre-ok: invisible (visible: false)
     AERO_GNONE.userData.aeroskin = 1;
   }
   return AERO_GNONE;

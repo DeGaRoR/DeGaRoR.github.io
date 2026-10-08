@@ -503,7 +503,7 @@ var CLOUDS = (function () {
     if (!SC.lights_pars_begin || !SC.lights_fragment_begin || SC.lights_fragment_begin.indexOf(key) < 0) return false;
     SC.lights_pars_begin = (SC.lights_pars_begin || '') + '\n' + shadowPars();
     SC.lights_fragment_begin = SC.lights_fragment_begin.replace(key, key + SHADOW_APPLY);
-    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
+    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {  // pre-ok: a list of material kinds, not a writer
       const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) lib.uniforms.uCloudP = cloudUniforms.uCloudP;
     }
     installed = true;

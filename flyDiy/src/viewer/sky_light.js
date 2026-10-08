@@ -68,7 +68,11 @@ var SKY_LIGHT = (function () {
   function applyDay(day, o) {
     if (!day || typeof ATMO === 'undefined') return null;
     if (K_SUN == null && !calibrate()) return null;
-    const unit = o.unit || 1, gain = (o.roomGain || 1) * (o.sunGain || 1), altKm = (o.altM || 0) / 1000;
+    // G2620 THE PRE-EXPOSURE: a room that asks for it (o.pre - the world) has its unit x P (light_rig P(): 1 by day,
+    // 2^14 at night) - the key, the hemisphere, the dome's scale and the night grade's luminance scale all carry the unit,
+    // so the frame's radiance is x P while GFX divides the exposure by P. The garage does not ask (P = 1 there).
+    const P = (o.pre && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P) ? LIGHT_RIG.P() : 1;
+    const unit = (o.unit || 1) * P, gain = (o.roomGain || 1) * (o.sunGain || 1), altKm = (o.altM || 0) / 1000;
     const el = day.sunEl, sun = day.sun, moon = day.moon;
     // the light: sun or moon, with hysteresis
     if (!isMoon && el < -1.2) isMoon = true; else if (isMoon && el > -0.5) isMoon = false;

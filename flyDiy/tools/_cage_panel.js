@@ -38,7 +38,7 @@ const core = () => ({
 // THE STATE — a view of spec.systems. Nulls are DERIVED (the tier's answer),
 // exactly the spec's own contract; a list is the player's.
 // ---------------------------------------------------------------------------
-const SY = { fit: 'basic', units: 'aviation', items: null,
+const SY = { fit: 'basic', units: 'aviation', items: null,  // pre-ok: a fit name, not a writer
              elec: { battery: null, alternator: null, starter: null, vac: null },
              avionics: { com: null, xpdr: null, nav: null, gps: null },
              side: 'pilot',
@@ -435,7 +435,7 @@ function facesMaterial() {
   // program cache key.
   facesMat = new THREE.MeshStandardMaterial({
     map: atlasTex, color: 0xffffff, roughness: 0.85, metalness: 0,
-    emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0,
+    emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0,  // pre-ok: 0 here; CK.glow drives it x P
     side: THREE.FrontSide });
   facesMat.onBeforeCompile = FACES_HOOK;
   facesMat.userData.aeroskin = 1;          // never the grey understudy
@@ -455,7 +455,7 @@ let needleMat = null;
 function needleMaterial() {
   if (needleMat) return needleMat;
   needleMat = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.55, metalness: 0,
-    emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0, side: THREE.FrontSide });
+    emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0, side: THREE.FrontSide });  // pre-ok: 0 here; cockpit.js drives it x P
   needleMat.userData.aeroskin = 1;
   needleMat.userData.panelSet = 'needle';
   needleMat.userData.inside = 1;
@@ -466,7 +466,7 @@ function needleAt(g, deg, dim) {
   const m = needleMaterial().clone();
   m.userData = Object.assign({}, needleMaterial().userData);
   const G = PG();
-  m.emissiveIntensity = dim * 0.9 * (G.postIrrAt ? G.postIrrAt(deg, NEEDLE_R) : 1);
+  m.emissiveIntensity = dim * 0.9 * (G.postIrrAt ? G.postIrrAt(deg, NEEDLE_R) : 1);  // pre-ok: the cage's needle drive (garage); in flight cockpit.js drives it x P
   return m;
 }
 // G442.2: THE FACE IS SAMPLED SHARP. A 79 mm face is 512 px in the atlas
@@ -683,7 +683,7 @@ function aoMaterial() {
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     tex = new THREE.CanvasTexture(cv);
   }
-  aoMat = new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, opacity: 1,
+  aoMat = new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, opacity: 1,  // pre-ok: a black AO overlay (a darkener)
     depthWrite: false, side: THREE.FrontSide, toneMapped: false });
   aoMat.userData.aeroskin = 1;
   aoMat.userData.panelSet = 'ao';
@@ -1464,7 +1464,7 @@ function build(parent, A, P, pilotX) {
     if (atlasTex) atlasTex.needsUpdate = true;
   }
   const fm = facesMaterial();
-  fm.emissiveIntensity = faceDim(P) * 1.6;
+  fm.emissiveIntensity = faceDim(P) * 1.6;  // pre-ok: the cage's face drive (garage); in flight CK.glow drives it x P
   // ---- the dials
   const bowl = K.Bag(), symC = K.Bag();
   const rest = G.REST;
@@ -1735,7 +1735,7 @@ function build(parent, A, P, pilotX) {
   try {
     if (window.LIGHT_RIG && window.LIGHT_RIG.board)
       window.LIGHT_RIG.board('aircraft').declare('ac_instr', 'aircraft: instrument', 'emissive',
-        () => { if (facesMat) facesMat.emissiveIntensity = 0; });
+        () => { if (facesMat) facesMat.emissiveIntensity = 0; });  // pre-ok: 0: the mute
   } catch (e) {}
   LAST = { layout: L, faces, slotOf, units, facts, group: grp };
   // THE FONT LANDS AFTER THE FIRST PAINT: the vendored Plex loads async, so

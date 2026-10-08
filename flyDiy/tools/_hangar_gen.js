@@ -479,7 +479,8 @@ function bakeShell(P, S, fy, bags, litOn, F) {
   const M = ext.mats || {};
   const nameOf = new Map(); for (const k in M) nameOf.set(M[k], k);
   if (!PANE_MAT) PANE_MAT = new THREE.MeshStandardMaterial({ color: 0x2c3a42, roughness: 0.28, metalness: 0.10 });
-  const paneMat = litOn ? new THREE.MeshStandardMaterial({ color: 0x3a2e1c, roughness: 0.4, emissive: 0xffc68a, emissiveIntensity: 0.9 }) : PANE_MAT;
+  const paneMat = litOn ? new THREE.MeshStandardMaterial({ color: 0x3a2e1c, roughness: 0.4, emissive: 0xffc68a, emissiveIntensity: 0.9 }) : PANE_MAT;  // pre-ok: held x P on the next line
+  if (litOn && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(paneMat, 'emissiveIntensity', 0.9);   // G2620: the lit panes x P
   const shellName = SHELLS[Math.round(P.shell)];
   const lib = LIB[shellName] || (LIB[shellName] = {});
   const mats = {}, keys = [];

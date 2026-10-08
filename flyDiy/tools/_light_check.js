@@ -604,6 +604,77 @@ if (process.argv.includes('--selftest')) {
   check(/SHADOW_NEAR\.inject\(sh\)/.test(atmo), 'atmo: the near flag rides the inject chain');
   check(/'shadow_near\.js'/.test(build), 'build: shadow_near.js is in the page');
 }
+// ---- G2620 THE PRE-EXPOSURE: every writer of light in the WORLD's frame takes P, or says why not ----------------------
+// At night the frame holds radiance x P (light_rig P(): 2^14 under -6.5 deg, 1 above -5.5) and the renderer's exposure is
+// divided by P. A writer of ABSOLUTE light that forgets P reads 1/P at night - it VANISHES. So the sources are swept:
+// every line that makes a light, writes an emissive intensity, adds emission in a shader or makes an unlit colour must
+// carry P (LIGHT_RIG.P / preHold / a P-carrying factor) or a `pre-ok: <why>` tag on the same line; the files that are
+// the garage's, an editor's, a bench's or offscreen only are exempt whole, each with its reason. A new writer that does
+// neither fails here - and the sweep's own negative control proves it still sees one.
+{
+  const ROOT = path.join(__dirname, '..');
+  const PRE_FILES = fs.readdirSync(V).filter(f => f.endsWith('.js')).map(f => 'src/viewer/' + f)
+    .concat(['tools/_house_gen.js', 'tools/_hangar_gen.js', 'tools/_marine_gen.js', 'tools/_cage_light.js', 'tools/_cage_panel.js', 'tools/_gear_gen.js', 'tools/_totem_gen.js']);
+  const PRE_EXEMPT = {
+    'src/viewer/hangar.js': "the garage (its applyDay sets P = 1)",
+    'src/viewer/editor.js': "the design editor's helpers",
+    'src/viewer/blueprint.js': "the blueprint view",
+    'src/viewer/boombox.js': "the shed's radio",
+    'src/viewer/cabin.js': "the tram cabin's bench lights (the world feeds the lamp pool instead)",
+    'src/viewer/pavement.js': "a debug view",
+    'src/viewer/rock_map.js': "the rocks' albedo atlas (offscreen)",
+    'src/viewer/shed_shadow.js': "the shed's shadow cache",
+    'src/viewer/world_rail.js': "the rail's tree thumbnails (offscreen)",
+  };
+  const PAT = [/emissiveIntensity\s*[:=]/, /new\s+(THREE|T|three)\.(PointLight|SpotLight|DirectionalLight|HemisphereLight|AmbientLight|RectAreaLight)\b/,
+               /totalEmissiveRadiance\s*\+=/, /MeshBasicMaterial\s*\(|'basic'\s*,/];
+  const OK = /LIGHT_RIG\.P\b|preHold|\bPp\b|uRwyP|pre-ok:/;
+  const sweep = (name, text) => {
+    const bad = [];
+    text.replace(/\r/g, '').split('\n').forEach((l, i) => {
+      if (/^\s*\/\//.test(l)) return;
+      if (PAT.some(p => p.test(l)) && !OK.test(l)) bad.push(name + ':' + (i + 1));
+    });
+    return bad;
+  };
+  let swept = 0; const bad = [];
+  for (const f of PRE_FILES) {
+    if (PRE_EXEMPT[f] || !fs.existsSync(path.join(ROOT, f))) continue;
+    swept++; bad.push(...sweep(f, fs.readFileSync(path.join(ROOT, f), 'utf8')));
+  }
+  check(swept > 60 && bad.length === 0, 'G2620 pre-exposure: every light / emissive / unlit writer in the world sources takes P or names why not ('
+    + swept + ' files swept' + (bad.length ? '; untagged: ' + bad.slice(0, 12).join(' ') : '') + ')');
+  // the negative control: the sweep sees two writers that forgot P, and passes a line that carries it
+  check(sweep('ctl', 'm.emissiveIntensity = 0.9;\nconst L = new THREE.PointLight(0xffffff, 2);').length === 2
+    && sweep('ctl', 'm.emissiveIntensity = 0.9 * LIGHT_RIG.P();').length === 0, 'G2620 pre-exposure: the sweep catches a writer that forgot P (negative control)');
+  for (const f of Object.keys(PRE_EXEMPT)) check(fs.existsSync(path.join(ROOT, f)), 'G2620 pre-exposure: an exempt file still exists (' + f + ')');
+  // the switch itself (light_rig, in node)
+  const P0 = RIG.P(), held = { emissiveIntensity: 0 };
+  RIG.setPre(1); RIG.preHold(held, 'emissiveIntensity', 0.25);
+  const night = RIG.preFor(-7);
+  RIG.setPre(night);
+  const stay = RIG.preFor(-6), back = RIG.preFor(-5), atNight = held.emissiveIntensity;
+  RIG.setPre(1);
+  check(RIG.preFor(-6) === 1 && night === RIG.PRE_NIGHT && stay === RIG.PRE_NIGHT && back === 1 && atNight === 0.25 * RIG.PRE_NIGHT && held.emissiveIntensity === 0.25,
+    'G2620 pre-exposure: P = 2^14 under -6.5 deg, held to -5.5 (the hysteresis), 1 above; a held constant follows it both ways');
+  RIG.setPre(P0);
+  // the wiring: the central unit, the exposure, the rooms, the switch frame, the passes
+  const sky = read('sky_light.js'), gfx = read('gfx_settings.js'), hang = read('hangar.js'), pfx = read('post_fx.js');
+  const wld = read('render_world.js'), at = read('atmo.js'), prem = read('render_premises.js'), wat = read('water.js');
+  check(/const unit = \(o\.unit \|\| 1\) \* P,/.test(sky) && /LIGHT_RIG\.P\(\) : 1;/.test(sky), 'G2620: applyDay unit carries P (the key, the hemisphere, the dome scale, the night grade scale)');
+  check(/unit: LIGHT_UNIT, pre: true,/.test(wld) && /LIGHT_RIG\.setPre\(ATMO_ON && !rigCur\.manual && LIGHT_RIG\.preFor \? LIGHT_RIG\.preFor\(day\.sunEl\) : 1\)/.test(wld),
+    'G2620: the world asks for P, decided first in dayApply (1 under the hand-placed sun and without the physical sky)');
+  check((gfx.match(/\/ preP\(\)/g) || []).length >= 4, 'G2620: GFX divides the renderer exposure by P at every write; the base stays true');
+  check(/LIGHT_RIG\.setPre\(1\)/.test(hang), 'G2620: the garage sets P = 1');
+  check(/if \(preCut\) \{ preCut = false; if \(probe\) probe\.bake\(day, true\); if \(probeIn\) probeIn\.bake\(day, true\);/.test(wld)
+    && (wld.match(/gb, pre: true,/g) || []).length === 2 && /o\.pre && typeof LIGHT_RIG/.test(at), 'G2620: a switch cuts both probes at once, their caps x P');
+  check(/for \(const k of \['sunI', 'hemiI', 'tSunI', 'tHemiI', 'setSunI', 'setHemiI'\]\)/.test(wld), 'G2620: a switch rescales the eased lights (the ease never sees a foreign write nor animates x P)');
+  check(/U\.scale\.value \*= r; apScalars\[0\] = U\.scale\.value;/.test(at), 'G2620: a switch rescales the dome scale and its copies before the frame copies them');
+  check(/uniform float uThr, uKnee, uClamp, uPre;/.test(pfx) && /c \* w \* uPre/.test(pfx), 'G2620: the bloom judges in true radiance (/ uPre) and hands on x uPre');
+  check(/outgoingLight = diffuseColor\.rgb \* vRwy\.x \* rwS \* uRwyP;/.test(wld), 'G2620: the runway glow x P in its colour; its ceiling and core stay in true units');
+  check(/kGlass = .*\* Pp, kLamp = .*\* Pp;/.test(prem) && /const kSmoke = .*\* Pp;/.test(prem), 'G2620: the premises lamps, panes, fixtures and smoke x P');
+  check(/MIR\.last = null/.test(wat), 'G2620: the water mirror re-captures at a switch');
+}
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE LIGHT: FAIL');

@@ -969,7 +969,7 @@ function make(THREE, host) {
   function beaconSync() {
     if (beacon) { root.remove(beacon); beacon.geometry.dispose(); beacon.material.dispose(); beacon = null; }
     if (!MASTS.length) return;
-    const g = new T.SphereGeometry(0.18, 8, 6), m = new T.MeshStandardMaterial({ color: 0x300000, emissive: 0xff1a0a, emissiveIntensity: 1 });
+    const g = new T.SphereGeometry(0.18, 8, 6), m = new T.MeshStandardMaterial({ color: 0x300000, emissive: 0xff1a0a, emissiveIntensity: 1 });  // pre-ok: tick drives it x P
     beacon = new T.InstancedMesh(g, m, MASTS.length);
     const M4 = new T.Matrix4();
     MASTS.forEach((q, i) => { M4.makeTranslation(q.x, q.y + q.h + 0.25, q.z); beacon.setMatrixAt(i, M4); });
@@ -989,7 +989,7 @@ function make(THREE, host) {
     }
     const eye = host.eye && host.eye();
     if (!eye) return;
-    if (beacon) { const on = host.lampsOn ? host.lampsOn() : 0; beacon.material.emissiveIntensity = cfg.on && cfg.antennas > 0 ? 0.6 + 7 * on : 0; beacon.visible = cfg.on && cfg.antennas > 0; }
+    if (beacon) { const on = host.lampsOn ? host.lampsOn() : 0; beacon.material.emissiveIntensity = cfg.on && cfg.antennas > 0 ? (0.6 + 7 * on) * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) : 0;   /* G2620: x P */ beacon.visible = cfg.on && cfg.antennas > 0; }
     const moved = !lastEye || Math.abs(eye.x - lastEye.x) + Math.abs(eye.y - lastEye.y) + Math.abs(eye.z - lastEye.z) > 3;
     if (!moved && !dirtyDraw && frame % 20 !== 0) return;
     if (!lastEye) lastEye = eye.clone(); else lastEye.copy(eye);

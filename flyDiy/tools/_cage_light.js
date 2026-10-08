@@ -227,7 +227,7 @@ function lensMat(key, level, colOver) {
   // is the lens colour darkened, the emissive term the lamp's as before
   const m = new THREE.MeshStandardMaterial({
     color: new THREE.Color(col).multiplyScalar(0.32), emissive: new THREE.Color(col),
-    emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,
+    emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,  // pre-ok: a lens's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
   // the G38 understudy replaces every lit material with flat grey unless it is
   // told not to; a lamp that goes grey is a lamp nobody can see is on
@@ -270,7 +270,7 @@ function cupMat(level, colOver, on, key, k) {
   const row = MAT.lodge;
   const m = new THREE.MeshStandardMaterial({
     color: row.col, roughness: row.rough, metalness: row.metal,
-    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,
+    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,  // pre-ok: a cup's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
   m.userData.aeroskin = 1;            // as for the lens: never the grey understudy
   if (key) { m.userData.lampCup = key; m.userData.lampCol = col;   // the panel arc
@@ -586,7 +586,7 @@ function driveRotor(R, camera) {
   const rpm = +R.rpm || 0;
   if (rpm <= 0) {                       // parked: steady, mirror stopped
     R.rot.rotation.set(0, 0, 0);
-    R.mat.emissiveIntensity = R.base;
+    R.mat.emissiveIntensity = R.base * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: x P (the beacon's rotor turns in the world too)
     return;
   }
   const ph = beaconPhase(nowSec(), rpm);
@@ -606,7 +606,7 @@ function driveRotor(R, camera) {
   vCam.setFromMatrixPosition(camera.matrixWorld).applyMatrix4(mInv);
   const g = beaconGain(ph, R.ax, R.e1, R.e2,
                        [vCam.x - R.p[0], vCam.y - R.p[1], vCam.z - R.p[2]]);
-  R.mat.emissiveIntensity = R.base * g;
+  R.mat.emissiveIntensity = R.base * g * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: x P
 }
 function tick() {
   tickRAF = 0;
@@ -1355,15 +1355,15 @@ function applyDrive() {
   const L = driveLevels;
   for (const e of lampMats) {
     const lv = (L && L[e.key] != null) ? Math.max(0, Math.min(1, +L[e.key])) : e.lv;
-    if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;
-    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K * (e.k || 1);
+    if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;  // pre-ok: the shed's night drive (P = 1 there)
+    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K * (e.k || 1);  // pre-ok: the shed's night drive (P = 1 there)
   }
   for (const R of rotors) R.base = ((L && L.beacon != null) ? Math.max(0, Math.min(1, +L.beacon)) : R.lv) * LENS_K;
   // the dial faces are the panel layer's one emissive material (the instrument dimmer)
   const PL = window.CAGE_PANEL, fm = PL && PL.material ? PL.material('faces') : null;
   if (fm) {
     if (fm.userData.liBase == null) fm.userData.liBase = fm.emissiveIntensity;
-    fm.emissiveIntensity = (L && L.instr != null) ? Math.max(0, Math.min(1, +L.instr)) * 1.6 : fm.userData.liBase;
+    fm.emissiveIntensity = (L && L.instr != null) ? Math.max(0, Math.min(1, +L.instr)) * 1.6 : fm.userData.liBase;  // pre-ok: the shed's night drive (P = 1 there)
   }
 }
 const level = (P, k) => {
@@ -1600,7 +1600,7 @@ PAGE.post = (ctx) => {
   // to light. Neither casts a shadow.
   const lit = [];
   if (S.wingLampR && level(P, 'land') > 0) {
-    const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,
+    const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,  // pre-ok: the editor cage's light (the garage, P = 1)
       70, LIGHTS.land.beam, 0.5, 1.2);
     l.position.set(...S.wingLampR.p);
     l.target.position.set(S.wingLampR.p[0], S.wingLampR.p[1] - 8, S.wingLampR.p[2] + 60);
@@ -1608,7 +1608,7 @@ PAGE.post = (ctx) => {
     group.add(l); group.add(l.target); lit.push(['land', l]);
   }
   if (S.flood && level(P, 'flood') > 0) {
-    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);
+    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);  // pre-ok: the editor cage's light (the garage, P = 1)
     l.position.set(...S.flood.p);
     l.castShadow = false;
     group.add(l); lit.push(['flood', l]);
@@ -1617,7 +1617,7 @@ PAGE.post = (ctx) => {
   // is where the user tests the switches from the seat, so it lights the
   // footwell here too — the same numbers as cockpit.js's
   if (S.pedal && level(P, 'pedal') > 0) {
-    const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
+    const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);  // pre-ok: the editor cage's light (the garage, P = 1)
     l.position.set(...S.pedal.p);
     l.castShadow = false;
     group.add(l); lit.push(['pedal', l]);
@@ -1634,7 +1634,7 @@ PAGE.post = (ctx) => {
       if (!drawn[k]) continue;
       board.declare('ac_' + k, 'aircraft: ' + LIGHTS[k].name, 'emissive', () => {
         group.traverse(o => {
-          if (o.material && o.material.emissive) o.material.emissiveIntensity = 0;
+          if (o.material && o.material.emissive) o.material.emissiveIntensity = 0;  // pre-ok: 0: the mute
         });
       });
     }

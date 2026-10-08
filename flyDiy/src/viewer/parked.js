@@ -547,7 +547,7 @@
           t2.wrapS = t.wrapS; t2.wrapT = t.wrapT; t2.needsUpdate = true;
           m[slot] = t2;
         }
-        m.emissiveIntensity = 0;
+        m.emissiveIntensity = 0;  // pre-ok: 0: no emission
         out[set] = m;
       } catch (e) {}
     }
@@ -676,7 +676,7 @@
       if ((m.lamp || m.lampCup) && W.CAGE_LIGHT) {
         const src = m.lamp && W.CAGE_LIGHT.lensMat ? W.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
                   : m.lampCup && W.CAGE_LIGHT.cupMat ? W.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK) : null;
-        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0;
+        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0;  // pre-ok: 0: no emission
                    const hook = hookOf(src); if (hook) lm.onBeforeCompile = hook;   // clone() drops it too
                    return cache[mn] = lm; }
       }

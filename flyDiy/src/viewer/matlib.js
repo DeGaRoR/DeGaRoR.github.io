@@ -123,7 +123,7 @@ var MATLIB = (() => {
       out[o + 4] = p.roughness === undefined ? 1 : p.roughness; out[o + 5] = p.metalness || 0;
       out[o + 6] = n && n.isVector2 ? n.x : 1; out[o + 7] = p.alphaTest || 0;
       if (e && e.isColor) { out[o + 8] = e.r; out[o + 9] = e.g; out[o + 10] = e.b; }
-      out[o + 11] = p.emissiveIntensity === undefined ? 1 : p.emissiveIntensity;
+      out[o + 11] = p.emissiveIntensity === undefined ? 1 : p.emissiveIntensity;  // pre-ok: packs a material's parameters, not a writer
       out[o + 12] = p.envMapIntensity === undefined ? 1 : p.envMapIntensity; out[o + 13] = p.aoMapIntensity === undefined ? 1 : p.aoMapIntensity;
       out[o + 14] = (p.transparent ? 1 : 0) + (p.side === 2 ? 2 : 0) + (p.flatShading ? 4 : 0);
     });

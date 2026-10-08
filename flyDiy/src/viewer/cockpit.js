@@ -126,7 +126,7 @@ function make(THREE) {
   // PICK_MAT precedent). The join never carries it; it is the flight's own.
   CK.padSwitches = model => {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
-    const padMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+    const padMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });  // pre-ok: colorWrite false
     for (const g of model.gauges) {
       if (!/^(switch|knob|key|flap)$/.test(g.c.law) || !g.obj.add) continue;
       const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016, 8, 6), padMat);
@@ -164,7 +164,7 @@ function make(THREE) {
     const lens = (model.lamps || []).find(l => l.kind === 'lens' && (l.key === 'land' || l.key === 'taxi'));
     const c = lensCentre(lens);
     if (c) {
-      const s = new THREE.SpotLight(0xfff2dc, 0, 120, 0.42, 0.5, 1.2);
+      const s = new THREE.SpotLight(0xfff2dc, 0, 120, 0.42, 0.5, 1.2);  // pre-ok: intensity 0 here; CK.glow drives it x P
       s.position.copy(c);
       s.target.position.set(c.x - 40, c.y - 6, c.z);       // ahead is −x, and down a little
       model.grp.add(s); model.grp.add(s.target);
@@ -172,9 +172,9 @@ function make(THREE) {
     }
     if (THREE.PointLight) {
       const fl = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'flood'));
-      if (fl) { const L = new THREE.PointLight(0xffd9a0, 0, 2.4, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }
+      if (fl) { const L = new THREE.PointLight(0xffd9a0, 0, 2.4, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
       const pd = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'pedal'));
-      if (pd) { const L = new THREE.PointLight(0xffc27a, 0, 1.2, 1.6); L.position.copy(pd); model.grp.add(L); model.pedalLight = L; }
+      if (pd) { const L = new THREE.PointLight(0xffc27a, 0, 1.2, 1.6); L.position.copy(pd); model.grp.add(L); model.pedalLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
     }
   };
 
@@ -318,7 +318,9 @@ function make(THREE) {
   CK.glow = dt => {
     const busOk = CK.busOk !== false;
     const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * 0.75 * CK.t)), 10);
-    const kIn = CK.nightK(0.92), kOut = CK.nightK(0.8);
+    // G2620 THE PRE-EXPOSURE: the frame holds radiance x P at night (light_rig) - every lamp, lens, face and light here x P
+    const Wp = typeof window !== 'undefined' ? window : {}, Pp = Wp.LIGHT_RIG && Wp.LIGHT_RIG.P ? Wp.LIGHT_RIG.P() : 1;
+    const kIn = CK.nightK(0.92) * Pp, kOut = CK.nightK(0.8) * Pp;
     for (const l of (CK.lamps || [])) {
       // the master / alternator buttons light with their own switch (4d),
       // the lamps with theirs when the lights are fitted
@@ -327,7 +329,7 @@ function make(THREE) {
       const gain = l.key === 'beacon' ? beacon : 1;
       const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
       if (l.mesh.material && l.mesh.material.emissive)
-        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third
+        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third  pre-ok: kIn / kOut carry P
     }
     if (CK.model && CK.model.spot) {
       const land = CK.lightOn && busOk ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;
@@ -343,7 +345,7 @@ function make(THREE) {
     const W = typeof window !== 'undefined' ? window : {};
     const PLm = W.CAGE_PANEL && W.CAGE_PANEL.material ? W.CAGE_PANEL.material('faces') : null;
     CK.dimNow = CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0;   // the hands read it in pose (G305)
-    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6 * kIn;
+    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6 * kIn;  // pre-ok: kIn carries P
   };
 
   // ---- the hands ---------------------------------------------------------------
@@ -403,7 +405,7 @@ function make(THREE) {
         const irr = PGn && PGn.postIrrAt ? PGn.postIrrAt((c.sgn || 1) * a1 / D2R, 0.75) : 1;
         for (const ch of o.children || [])
           if (ch.userData && ch.userData.needle && ch.material)
-            ch.material.emissiveIntensity = (CK.dimNow || 0) * 0.9 * irr;
+            ch.material.emissiveIntensity = (CK.dimNow || 0) * 0.9 * irr * (W0.LIGHT_RIG && W0.LIGHT_RIG.P ? W0.LIGHT_RIG.P() : 1);   // G2620: x P
       }
     }
   };

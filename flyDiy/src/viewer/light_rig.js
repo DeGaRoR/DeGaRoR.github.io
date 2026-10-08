@@ -310,6 +310,56 @@
     return s;
   }
   // the dials: set / reset / the defaults (published, so a reset reads the one table)
+  // ---- 6. THE PRE-EXPOSURE (G2620 PRE-EXPOSURE, 2026-10-08) -----------------
+  // The frame's target is HalfFloat and holds UN-EXPOSED radiance (G448.3's linear compositing: the exposure is the
+  // blit's). A moonlit night is ~1e-7 of the day's scale - fp16 SUBNORMALS stepped in 5.96e-8: G2600 measured the
+  // full-moon ground at 6-11 distinct values and the final's ground band at ONE (reports/evidence/MOONLIGHT). So at
+  // night every radiance written into the WORLD's frame is multiplied by P and the renderer's exposure divided by P
+  // (Frostbite's pre-exposure): the picture is the same, the precision is fp16's normal range.
+  //   P is ONE SWITCH: 2^14 once the sun is under -6.5 deg, 1 again above -5.5 (the hysteresis). Every writer, the
+  //   eased lights, the exposure, the probes and the mirror move in the same frame (setPre's listeners), so a switch
+  //   per whole stop would have been ten chances a dusk to flash a frame. The range: at -6 deg the brightest radiance
+  //   in the frame (the twilight sky ~800, the moon's disc ~6e3, a lamp) stays under fp16's 65 504; the full-moon
+  //   ground lands at ~6.5e-3, ten bits of mantissa.
+  //   By day P = 1 and every writer multiplies by 1: the day is bit-identical by construction. The GARAGE keeps P = 1
+  //   (its lamps cap the exposure: no precision problem) - its applyDay sets it on entry, the world's on the way out.
+  //   GFX keeps the TRUE exposure as its base (every nightK dimmer reads it unchanged) and puts base / P on the renderer.
+  // A WRITER OF ABSOLUTE LIGHT IN THE WORLD (a lamp, an emissive, an unlit colour) multiplies by P() where it writes
+  // (per frame), or registers its constant with preHold(obj, key, base) (written base x P at every switch). GATE LIGHT
+  // sweeps the sources for writers that do neither and do not name why they are exempt.
+  var PRE_NIGHT = 16384, PRE_IN = -6.5, PRE_OUT = -5.5;
+  var PRE = { P: 1, switches: 0 }, preFns = [], preHeld = [];
+  // preFor(el): the P a sun elevation asks for, from the P in force (the hysteresis)
+  function preFor(el) { return PRE.P > 1 ? (el > PRE_OUT ? 1 : PRE.P) : (el < PRE_IN ? PRE_NIGHT : 1); }
+  // setPre(P): the switch - the held constants written, then every listener told (old, new), in this frame
+  function setPre(P) {
+    P = (typeof P === 'number' && P > 0 && isFinite(P)) ? P : 1;
+    if (P === PRE.P) return false;
+    var old = PRE.P; PRE.P = P; PRE.switches++;
+    var live = [];
+    for (var i = 0; i < preHeld.length; i++) { var h = preHeld[i]; try { if (writeHeld(h)) live.push(h); } catch (e) {} }
+    preHeld = live;   // the held objects that are gone (a material disposed with its aeroplane) leave the list
+    for (var j = 0; j < preFns.length; j++) { try { preFns[j](P, old); } catch (e) {} }
+    return true;
+  }
+  // held WEAKLY (a WeakRef where there is one): a held material does not outlive the aeroplane or the world it belongs to
+  var hold = function (o) { return (typeof WeakRef === 'function') ? { r: new WeakRef(o) } : { o: o }; };
+  var heldObj = function (h) { return h.ref.r ? h.ref.r.deref() : h.ref.o; };
+  function writeHeld(h) {
+    var o = heldObj(h); if (!o) return false;
+    if (h.color) { o.setRGB(h.base[0] * PRE.P, h.base[1] * PRE.P, h.base[2] * PRE.P); return true; }
+    o[h.key] = h.base * PRE.P;
+    return true;
+  }
+  // preHold(obj, key, base): a constant held at base x P (obj[key] = base * P now and at every switch); returns base.
+  // preHold(color, 'rgb') holds a THREE.Color at its current rgb x P.
+  function preHold(obj, key, base) {
+    if (!obj) return base;
+    for (var i = 0; i < preHeld.length; i++) if (heldObj(preHeld[i]) === obj && preHeld[i].key === key) { if (key !== 'rgb') preHeld[i].base = base; writeHeld(preHeld[i]); return base; }
+    var h = key === 'rgb' ? { ref: hold(obj), key: key, color: true, base: [obj.r, obj.g, obj.b] } : { ref: hold(obj), key: key, base: base };
+    preHeld.push(h); writeHeld(h); return base;
+  }
+  function onPre(fn) { if (typeof fn === 'function') preFns.push(fn); return fn; }
   function setNight(o) {
     if (o) for (var k in o) if (k in NIGHT_DEF && typeof o[k] === 'number' && isFinite(o[k])) NIGHT[k] = o[k];
     return night();
@@ -322,6 +372,9 @@
     exposureFor: exposureFor, exposureStops: exposureStops, EV_BASE: EV_BASE, MOON_RATIO: MOON_RATIO,
     // G2600 THE NIGHT: the phase law, the night eye's grade, the dials
     SUN_LUX: SUN_LUX, moonPhaseLaw: moonPhaseLaw, moonE: moonE, nightU: nightU, NIGHT_GLSL: NIGHT_GLSL, nightGrade: nightGrade,
+    // G2620 THE PRE-EXPOSURE
+    P: function () { return PRE.P; }, PRE_NIGHT: PRE_NIGHT, preFor: preFor, setPre: setPre, preHold: preHold, onPre: onPre,
+    preState: function () { return { P: PRE.P, switches: PRE.switches, held: preHeld.length, listeners: preFns.length }; },
     setNight: setNight, night: night, nightDefaults: function () { var o = {}; for (var k in NIGHT_DEF) o[k] = NIGHT_DEF[k]; return o; },
     board: board,
     census: census,

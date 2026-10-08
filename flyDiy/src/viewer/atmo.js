@@ -579,6 +579,10 @@ var ATMO = (function () {
   const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
   const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
+  // G2620 THE PRE-EXPOSURE: a switch rescales the dome's scale and its copies in the frame it happens (the update copies
+  // U.scale into the aerial perspective and the mist BEFORE applyDay writes it - without this the switch frame's haze
+  // would carry the old unit); applyDay then writes the same value from the day
+  if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => { const r = P / old; U.scale.value *= r; apScalars[0] = U.scale.value; for (let i = 4; i < 7; i++) mistScalars[i] *= r; });
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
   const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
@@ -607,7 +611,7 @@ var ATMO = (function () {
     SC.fog_pars_fragment = (SC.fog_pars_fragment || '') + '\n#ifdef USE_FOG\n' + AP_PARS_FRAG + '\n#endif\n';
     SC.fog_fragment = AP_FOG_FRAG;
     SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
-    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
+    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {  // pre-ok: a list of material kinds, not a writer
       const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
     }
     // EVERY MATERIAL TAKES THE SAMPLER, a hook of its own or not (G432.2, the user: "check why the
@@ -1122,7 +1126,7 @@ ${MIST_GLSL}
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
     es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
-    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });
+    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
     const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45);
     const gb = o.gb != null ? o.gb : 1;      // the occlusion every ambient-from-below carries (LIGHT_RIG.groundBounce)
     const capNow = () => { if (!o.cap) return cap0; const c = o.cap(); return cap0.setRGB(c[0], c[1], c[2]); };
@@ -1141,7 +1145,8 @@ ${MIST_GLSL}
       get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
       bake(day, cut) {
         const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
-        capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day));
+        capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day))
+          .multiplyScalar(o.pre && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: the cap is an unlit colour - x P like every radiance in the world's frame
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         const next = pmrem.fromScene(es, 0.035, 1, 100);
         lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
