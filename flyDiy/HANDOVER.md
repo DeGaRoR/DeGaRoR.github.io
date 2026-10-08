@@ -81383,3 +81383,182 @@ itself is on the runway heading to the crosswind height); a drawn speed is IAS a
 in red and the floor of last resort holds 30 m over the ground 600 m ahead; the hold has no exit but a new To / route
 (the user's choice); the phone profile has no flight, so the drawing's touch path is checked by pointer events in Chromium,
 not on the S20.
+
+## G2500 - CESSNA-VREF: THE METAL CESSNA INTO TAMGAS HILL - REPRODUCED IN NODE (THE GAME'S FLIGHT) ON TRAIN 40 AND PILOT-42; WHY THE ELEVATOR CANNOT HOLD VREF (MEASURED); THE PILOT FLIES THE LANDING THE AEROPLANE CAN MAKE (SHORT-FIELD, ELSE REFUSED AND DIVERTED, SAID); PILOT-42'S REGRESSION IS G434'S 6 M STANDING ERROR ABOVE THE SLOPE; GATE CESSNAVREF (2026-10-08, CESSNA-VREF for the PILOT COORDINATOR, a CLOUD session: node only; branch claude/cessna-vref-g2500 off origin/claude/pilot-42 6131d34d = train 40 + ROUTE-DRAW G2120 + PILOT-PROFILE G2125; G2500-G2509, G2501-G2509 unused)
+
+THE ASK (the coordinator, from the game on the GPU, the 8 kt day, damage on, the user's metal Cessna bugReports/cessnaMetal
+(1).json on tools/tour_real.js HOME,w3): train 40 'vref-raised 28.9', a touchdown 63 m in at 31.1 m/s, stopped 51 m PAST
+THE END of Tamgas Hill's 520 m; pilot-42 the same 'vref-raised', 30.5 m/s, sink 1.61, stopped 100 m PAST THE END - a
+regression. (1) reproduce both in node in the game's flight, a gate row that sees the overrun; (2) why the elevator cannot
+hold Vref - the trim, the elevator's authority at that CG, the flap's moment, the pilot's power-pitch law - measured, the
+C172 file build compared, and what pilot-42 changed; (3) fix at the right owner; (4) the bar: stopped on the strip at
+Tamgas Hill, or a reasoned refusal / divert, said.
+
+EVIDENCE: reports/evidence/CESSNA-VREF/ (README: each file, its command, its MODE - node, the game's flight - and its
+TREE). Trees: train 40 = bcf6279, pilot-42 = 6131d34d (build 594a68063d35, the coordinator's), AFTER = this branch
+(build 92ee2f0a0536). Every number below is from there.
+
+### G2500.1 - THE TOOLS: THE GAME'S FLIGHT ON PILOT-42 (ISLAND-TOUR-2's, tools only)
+pilot-42 carries neither ISLAND-TOUR-2 (G1970) nor JOIN-PARITY (G1985, held out of train 38). Brought in, TOOLS ONLY (no
+src/): tools/_tour_lib.js (gameDay / gameHost - the worker's host, the page's placement, DAY_CLOCK's day ticked, the page's
+pilot with the shakedown), _tour_check.js (GATE TOUR), island_tour.js, _approach_lib.js, tour_real_node.js,
+approach_census.js and tools/_load_build.js (the load door in node) with its JOINPARITY check and fixture (the check is
+NOT on run_gates here: its page capture is JOIN-PARITY's tree). Two adaptations, both said in the code:
+- _load_build.js: pilot-42's editor measures the glazed area only inside its UI (_cage_ui.js build: GLASSM); JOIN-PARITY's
+  CAGE2.cageGlazedM2 is not on this tree, so the loader sums the same set itself when the function is absent.
+- _tour_lib.js defOf asks _load_build.js directly for a .json build (pilot_trace specOf on this tree returns the file as
+  written - JOIN-PARITY's specOf change is not here, and changing it would move every gate that flies a file).
+  FLYDIY_RAW_BUILDS=1 keeps the file as written.
+The metal Cessna through the load door: 887.2 kg (the coordinator's '885'), 28 L, the engine at x -1.162 (the join's drawn
+station; the file has no x).
+
+### G2500.2 - THE REPRODUCTION (node, the game's flight: gameHost, the 8 kt / 250 deg day ticked, damage ON)
+`node tools/cessna_vref_probe.js <tree> --build c172 --order HOME,w3 --from-phase FINAL` (and island_tour.js --build c172
+--order HOME,w3 on pilot-42: the same numbers)
+| tree | verdicts | touchdown | the stop |
+|---|---|---|---|
+| the game, train 40 (coordinator) | vx-climb 27.0, vref-raised 28.9 | 63 m in, 31.1 m/s, sink 1.02, nose-first | 51 m past the end |
+| node, train 40 bcf6279 | vx-climb 27.0, vref-raised 28.9 | 63 m in, 31.1 m/s, sink 1.01 | 52 m past the end |
+| the game, pilot-42 (coordinator) | vref-raised 28.9 | 30.5 m/s, sink 1.61 | 100 m past the end |
+| node, pilot-42 6131d34d | vx-climb 30.8, vref-raised 28.9 | 142 m in, 30.4 m/s, sink 1.66 | 100 m past the end |
+The landing is UPHILL (+2.8 %: 16.0 -> 30.5 m along the 520 m), surface 6 (rolling 0.045, braking 0.38), 'normal'
+technique (the sheet's landing run 249 m < 520 / 1.6), the aim 62 m in, the landing flap 0.
+GATE CESSNAVREF (new, below) is the row: on pilot-42 it FAILS on 'stopped ON Tamgas Hill' (the overrun) - see the table.
+
+### G2500.3 - WHY THE ELEVATOR CANNOT HOLD 28.9 m/s (measured; tools/elevator_authority.js, evidence elevator_authority.txt)
+THE CHAIN, each link measured:
+1. THE LOAD DOOR'S AEROPLANE IS NOSE-HEAVY. The join measures the drawn O-540's flange into engines[0].x = -1.162 (G445.1):
+   the CG 0.818 -> 0.640 (model x), the static margin 0.144 -> 0.245 (the file as written / the game's), 883.4 -> 887.2 kg.
+2. THE BUILD THEN LANDS IT FLAPLESS. genTrim's trim budget (64_gen_build.js: the approach elevator inside 0.18, the flare's
+   inside 0.35): the game's build's flapped approach asks more than the flapless one at ITS speed -> landFlapless: the
+   landing flap 0 (def.params.flaps.ldg), Vs0 = the clean Vs 22.2-22.4, Vref 1.3 Vs0 = 28.8 (+ half the gust: 28.9), and
+   the approach trim still 0.27 over the budget (gen.apprTrimFail). The file as written keeps its flap: Vs0 18.9, Vref 24.5.
+3. THE ELEVATOR AT THAT CG (free air, the prop off - the build's tunnel; the trim 'real' = where the pitching moment
+   crosses 0 on the elevator's travel):
+   | the game's metal Cessna | 25 m/s | 27 | 29 | 31 |
+   |---|---|---|---|---|
+   | flap 0 (as built) | 0.70 | 0.53 | 0.41 | 0.32 |
+   | flap 0.5 | 0.79 | 0.42 | 0.30 | 0.23 |
+   | flap 1 | 0.63 | 0.45 | 0.34 | (alpha floor) |
+   | the file as written, flap 1 | 0.17 | 0.14 | 0.12 | 0.12 |
+   | the C172 file build, flap 1 | 0.06 | -0.02 | -0.09 | -0.21 |
+   The pilot's servo stops at de 0.35 (39b_servos SERVO_GAINS.deMax; the stick's travel is 1.0) and the raise reads 0.30
+   as the stop: flapless at 28.9 m/s the trim (0.41) is past it. THE ELEVATOR'S OWN AUTHORITY: the moment keeps rising to
+   de ~0.7 and flattens past it (the tail's stall): at full travel the elevator trims to ~25 m/s flapless; at 23 m/s
+   there is no trim anywhere on its travel (flap 0 or 1). elevTau 0.418 (the C172 file build 0.52, its margin 0.214 at
+   994 kg).
+4. POWER HELPS A LITTLE (in flight, flap 0, the throttle 0.2-0.3 on the final): de 0.28 at 31.4 m/s, 0.23 at 32.9 (the
+   tunnel, prop off: 0.32 / 0.29) - the slipstream on the tail. The pilot's power-pitch law is not the cause: TECS asks the
+   speed, the elevator saturates (eSat), G399.7 raises the reference 0.5 m/s a second until it is off the stop - 31.4-33.2
+   m/s on these finals.
+5. THE FLARE CANNOT BLEED IT: the elevator is on 0.35 from the flare's first second (the probes: de 0.35 throughout) - the
+   touchdown is 0.95-0.97 of the final's speed, 1.37-1.40 Vs.
+6. AND THE ROLL-OUT WAITED: 'normal' on a tricycle brakes once the nose is down AND V < VDerotate (22 m/s) - from 31 m/s
+   that is ~300 m of the 520 rolled unbraked (train 40: 63 m in at 31.1, 21.6 m/s at 104 m past the centre).
+THE FLAP (the brief's item): at the SAME speed the flap lowers the trim the elevator is asked (29 m/s: flap 0 0.41, half
+0.30, full 0.34) - genTrim's flapless choice compared the flapped approach at the flapped Vref (27 m/s) with the flapless
+one at the flapless Vref (32): it buys authority with speed. FOR THE AIRFRAME / GENERATOR OWNERS (named, not changed here:
+a validated build's geometry and genTrim's rule are theirs): (a) the metal Cessna with its engine at the drawn station
+cannot be trimmed below ~25 m/s at full elevator, ~30 m/s at the servo's 0.35 - elevTau 0.418 against a margin of 0.245;
+(b) half flap at ~29-30 m/s needs less elevator than flapless at the same speed - genTrim's landFlapless test is at two
+speeds; (c) the servo's 0.35 stop is the pilot's convention, not the elevator's travel - giving the pilot more of the
+travel on the final is a pilot-owner call (NOT done here: it moves every aeroplane that ever touches the stop, and the
+flare at 0.7 is at the tail's stall).
+
+### G2500.4 - WHAT PILOT-42 CHANGED: AN OLD KNIFE EDGE (G434'S STANDING ERROR) THE NEW ARRIVAL FELL ON
+Both trees enter the final at the same point, 33.5 m over the slope, and descend onto it identically for 20 s
+(w3_*: 'above'). train 40 crossed under the 4 m capture window at 366 s - the slope's law (gs) from there, on the slope
+within 0.3 m to the flare (begun 78 m before the aim, the touch AT the aim). pilot-42 - its arrival 3.4 s earlier and its
+take-off climb on speed (PILOT-PROFILE: Vx 30.8 for 27.0) - reached 4.1 m and turned back: G434's branch for an aeroplane
+ABOVE the slope flew an ALTITUDE target sliding down the slope (alt: hGS), and TECS's height law (0.2 x the error, no
+feed-forward) settles Vg x gs / 0.2 over a moving target - 6.2 m here (31 m/s on 0.046). Outside the 4 m window it never
+captured: the whole final 6.2 m high (to the decimetre, 800 m to the flare), the flare begun 11 m PAST the aim, the touch
+80 m past it, 100 m past the end. Proof (w3_pilot42_slopefix_only.log): pilot-42 with ONLY that branch on the slope's law -
+touched 64 m in at 31.2 m/s, sink 0.97, stopped 54 m past the end: train 40's result. PILOT-PROFILE's own laws are not
+wrong here; the knife edge is G434's (2026-09) and any aeroplane entering a final > 4 m above the slope rode it.
+
+### G2500.5 - THE FIX (src/core/43_pilot.js only; the pilot is the owner)
+1. THE FINAL ABOVE THE SLOPE FLIES THE SLOPE'S LAW (G434's branch): { gs: ap.gs } with its steeper vsDn (-2.4 V gs), not
+   { alt: hGS } - the slope's sink is the feed-forward, the height closes on top; captured as the other branch is.
+2. THE SPEED THE ELEVATOR HOLDS IS KEPT (ap.vHeld, ap.appr.Vheld): a go-around zeroes G399.7's raise; the next final starts
+   at it (heldSeed) - stabilised from its first metre, not raised half a metre a second on the stop again.
+3. THE LANDING THE AEROPLANE CAN MAKE (judgeHeld, FINAL, only once the reference was raised - every other approach is
+   untouched): the touchdown at the speed held (the flare cannot bleed it), the stop from it on the pilot's own law
+   (the strip's GROUND_SURF row, its grade along the landing, brakeMax), 3 s of float past the aim (the flare on the stop
+   floated 0-80 m).
+   - room past the normal aim for 1.15 x the stop: nothing changes;
+   - else SHORT-FIELD (G1936's technique: the brakes from the touch, to the limit; the aim to the short mark while 300 m
+     remain - never before an aim G2125 displaced for an obstacle), said: 'held-speed-short-field: the elevator holds 29.7
+     m/s on this final: the stop from it needs 320 m, 368 m of Tamgas Hill Strip are left past the aim and the float -
+     landing short-field (aim 31 m in, the brakes from the touch)';
+   - and if the short-field stop (0.84 x) does not fit either, THE STRIP IS REFUSED: 'strip-too-short' with the numbers,
+     a go-around and a DIVERSION to the nearest strip this gear lands on with the room ('divert ... is too short for the
+     speed this aeroplane holds'), flown as a cross-country (G1936's divert); none in reach: committed, said.
+   The player reads these where every pilot verdict is read: the in-flight 'pilot notes' row and the arrival card (the
+   last as prose, the rest under 'What went wrong').
+   The short final's 'fast' go-around (G1936: V > Vref + 5) reads the raised reference: the speed held is the approach's.
+4. A TRICYCLE BRAKES WHEN THE STRIP LEFT IS SHORT: on a 'normal' landing, all wheels down and the strip left under 1.3 x
+   the stop from here -> the brakes ramp now (not at VDerotate). On a long runway nothing changes.
+
+### G2500.6 - THE BAR (node, the game's flight, damage on; AFTER = this branch)
+| run | said | touchdown | the stop |
+|---|---|---|---|
+| pilot-42 + 2-4 only (no slope fix; w3_fix1_held_roll.log) | vref-raised, held-speed-short-field | 120 m in, 30.6 m/s, sink 1.48 | ON the strip, 139 m left |
+| pilot-42 + 1 only (w3_pilot42_slopefix_only.log) | vref-raised | 64 m in, 31.2 m/s, sink 0.97 | 54 m past the end |
+| AFTER, the 8 kt day (w3_after.log) | vref-raised, held-speed-short-field | 27 m in, 31.7 m/s, sink 1.09 | ON the strip, 222 m left |
+| AFTER, calm (w3_after_calm.log) | vref-raised, held-speed-short-field, slip | 47 m in, 32.9 m/s, sink 0.69 | ON the strip, 171 m left |
+No yield, no break, no dent in any. The refusal did not fire on Tamgas Hill (the short-field stop fits: 332 m of 389).
+
+### G2500.7 - THE GATES
+Node, a 4-core cloud box. BEFORE = pilot-42 6131d34d (+ the tools); AFTER = build 92ee2f0a0536.
+`node tools/build.js` then `node --max-old-space-size=2048 tools/run_gates.js --no-build --only=... --jobs=4|2 --verbose`.
+| gate | before (pilot-42) | after | |
+|---|---|---|---|
+| PILOT | PASS (G2125 / G2120) | PASS (348 s, 3 shards) | |
+| PILOTACT | PASS | PASS (191 s): the taxi 14.6 / 16 / 16.3 rev/min | |
+| PILOTMATRIX | PASS | PASS (1546 s): 18 cells, 13 good / 2 warn / 3 bad (the Stearman's and cub:x4, known); ratchet: no cell worse than pilot_baseline.json | |
+| TAKEOFF, LINEUP, PLAN, NAV, ROUTE, PROFILE, HOTHIGH | PASS | PASS | |
+| CESSNAVREF (new) | FAIL: metal 'stopped ON Tamgas Hill' - touched 142 m in at 30.4 m/s, -100 m of strip left; the C172 control PASS | PASS: metal 27 m in, 31.7 m/s, sink 1.09, 222 m left, 'held-speed-short-field' said; the C172 control 22.5 m/s, nothing said, identical | THE ROW THAT SEES THE OVERRUN |
+| TOUR shard 0, the Cub | FAIL: w3 > tw_ski - 1.7 m over the ground 885 m out, ground loop, 916 yields (G1970.4's known red) | the same to the digit | |
+| TOUR shard 1, the C172 | FAIL: HOME > w3 off the strip | FAIL one leg on: HOME > w3 LANDED; w3 > tw_ski crashed 786 m out (below) | |
+| TOUR shard 2, the floats | FAIL: SEA > mk_sea 43 yields, dent | the same | |
+| TOUR shard 3, East Point | PASS (the landing; the departure now TAKES OFF - INFO) | PASS | |
+| TOUR the strips block | 15 FAIL: ISLAND-TOUR's strips (the turn pads, the apron, the census's edits) are not on pilot-42 | the same 15 | |
+No TOUR row is worse; none was green before. GATE TOUR stays red on this tree for reasons outside this change: ISLAND-TOUR is
+not landed (the strips), the floats' water arrival (G1970.4) and the altiport arrival (next).
+THE C172 AT THE ALTIPORT (tw_ski_after*.log; the C172 never reached this leg before): from Tamgas Hill (21 m) to the
+altiport (~700 m) the final begins 350-465 m BELOW the slope, climbing ~1 m/s; the altiport's flare trigger (GTRAM: the
+height over the slope's line through the aim, extended down the hill) fires the FLARE 2.5 km out at 390 m over the
+ground, and the flare's law pitches it through two phugoids into the hillside 786 m out. The same with G2500.5 (1) taken
+out (into the forest, -7.7 m). Not this change: the arrival's height and the altiport's flare - ALTIPORT-ARRIVAL's
+(G2520), routed with the numbers; the Cub's red on the same leg is the same family.
+THE CUB AND THE JODEL UNCHANGED: the Cub's TOUR legs and its PILOTMATRIX cells as before (the ratchet); the Jodel's HOME
+circuit (pilot_trace, calm and the 8 kt day) the same to the digit before and after (jodel_*.log: 21.5 m/s, sink 1.04,
+run 238 m; 21.1, 1.10, 186 m). The validated twin on floats and the Cessna floats: no change reaches the water (judgeHeld
+is land only; the roll-out rule is a tricycle's wheels; the slope branch flew the floats' TOUR leg to the same 43 yields).
+
+### OWED / FOR THE COORDINATOR
+- PERSONA-2 (G2460, claude/persona-2-g2460 - not on pilot-42, built on pilot-integration with ENGINE-TORQUE): PILOT_STAB's
+  speed criterion is '-5 / +10 kt about the speed asked (Vref + half the gust)'. On the load door's Cessnas the speed asked
+  IS raised (G399.7, up to 0.25 Vref: +7.2 m/s = 14 kt): read raw, every such final is 'unstable: fast' and goes round
+  twice into a committed third. When the two land together PILOT_STAB's reference must be TECS's Vc (ap.VAppr x VapprK +
+  tVAdapt; on the record ap.appr.Vheld). The rest composes: judgeHeld is a decision on the final before the flare,
+  PILOT_STAB's gate a go-around - a strip refused here is a diversion, not a counted go-around (ap.gaN reset).
+- ALTIPORT-ARRIVAL (claude/altiport-arrival-g2520; not on origin when this was done): G2500.5 (1) changes the FINAL's
+  above-the-slope branch - the arrival's height. Whatever that branch does about the altiport's slope must start from
+  the gs law here, or reintroduce the 6 m standing error.
+- THE FLOAT CESSNA (G1970.4: 'vref-raised 31.7', a touchdown at 40.7 m/s, dent): the same family, on the water. judgeHeld
+  is land only (the water flare is PERSONA-2's G2462); GATE TOUR's floats shard says what this tree does.
+- THE FLARE ON THE STOP: the touchdown is still ~1.4 Vs (the flare cannot round out at de 0.35). A slower touchdown is
+  the airframe's (G2500.3 a-c) or a pilot-owner decision on the servo's travel.
+- JOIN-PARITY is still held out: the GAME flies this aeroplane, node's other gates fly the file as written (pilot_trace
+  specOf). GATE TOUR and GATE CESSNAVREF ask the load door directly.
+
+FILES: src/core/43_pilot.js (G2500.5); tools/_cessnavref_check.js (GATE CESSNAVREF, run_gates full tier, 2 shards),
+tools/cessna_vref_probe.js, tools/elevator_authority.js; ISLAND-TOUR-2's / JOIN-PARITY's tools brought over (G2500.1;
+_load_build.js's glazed-area fallback, _tour_lib defOf through the load door, _tour_check's bare verdict line and its
+pad check that says rather than crashes); run_gates.js rows TOUR (4 shards) and CESSNAVREF; .gitignore tools/.joincache/.
+Nothing generated committed.
+STATUS: READY for the PILOT COORDINATOR (train 43). The bar: Tamgas Hill landed and stopped on the strip in the game's
+flight, the 8 kt day and calm (222 / 171 m left); a strip too short for the speed held is refused and the diversion said.
+No bound loosened, no validated build's geometry changed.
