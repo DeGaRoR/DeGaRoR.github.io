@@ -1,0 +1,14 @@
+== builds/cub_2026-09-20_corrected.json
+min wing clearance -0.01 m: item tw_s_summit/station f -0.0 at (329.8, -7861.9) TAXI t 10.6; obst steps 6479
+verdicts ["taxi-timeout: the route took 71 s — stopping where it is","replan: not lined up with a run ahead (358 m, 19.4 m off) — planning the departure again"]
+path ids @,l1a,l1b,l1c,d1,hold1 len 96 centreline min 8.96 prop ob:tw_o19 at 313.2,-7810.7
+== builds/jodel_2026-09-20_corrected.json
+CRASH t 14.1 a wing member broke
+min wing clearance -0.01 m: item tw_s_summit/station f 0.4 at (329.7, -7859.8) TAXI t 9.9; obst steps 106
+verdicts []
+path ids @,l1a,l1b,l1c,d1,hold1 len 96 centreline min 8.96 prop ob:tw_o19 at 313.2,-7810.7
+== bugReports/cessnaMetal (1).json
+airborne t 44.5
+min wing clearance 1.78 m: item tw_s_summit/station f 1.0 at (330.0, -7854.1) TAXI t 7.5; obst steps 0
+verdicts ["committed-takeoff: past the point of stopping at V=14.2 with 250 m left — Vr in 70 m, continuing"]
+path ids @,l1a,l1b,l1c,d1,hold1 len 96 centreline min 8.96 prop ob:tw_o19 at 313.2,-7810.7

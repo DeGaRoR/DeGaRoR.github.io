@@ -1,0 +1,309 @@
+[run_gates] 0/11 jobs done · running PLAN 30 s, PILOT/0 30 s, PILOT/1 30 s
+[run_gates] 0/11 jobs done · running PLAN 60 s, PILOT/0 60 s, PILOT/1 60 s
+[run_gates] 0/11 jobs done · running PLAN 90 s, PILOT/0 90 s, PILOT/1 90 s
+[run_gates] 0/11 jobs done · running PLAN 120 s, PILOT/0 120 s, PILOT/1 120 s
+[run_gates] 0/11 jobs done · running PLAN 150 s, PILOT/0 150 s, PILOT/1 150 s
+[run_gates] 0/11 jobs done · running PLAN 180 s, PILOT/0 180 s, PILOT/1 180 s
+[run_gates] 0/11 jobs done · running PLAN 210 s, PILOT/0 210 s, PILOT/1 210 s
+[run_gates] 0/11 jobs done · running PLAN 240 s, PILOT/0 240 s, PILOT/1 240 s
+[run_gates] 0/11 jobs done · running PLAN 270 s, PILOT/0 270 s, PILOT/1 270 s
+[run_gates] 0/11 jobs done · running PLAN 300 s, PILOT/0 300 s, PILOT/1 300 s
+[run_gates] 0/11 jobs done · running PLAN 330 s, PILOT/0 330 s, PILOT/1 330 s
+[run_gates] 0/11 jobs done · running PLAN 360 s, PILOT/0 360 s, PILOT/1 360 s
+[run_gates] 0/11 jobs done · running PLAN 390 s, PILOT/0 390 s, PILOT/1 390 s
+[run_gates] 0/11 jobs done · running PLAN 420 s, PILOT/0 420 s, PILOT/1 420 s
+[run_gates] 0/11 jobs done · running PLAN 450 s, PILOT/0 450 s, PILOT/1 450 s
+[run_gates] 1/11 jobs done · running PLAN 480 s, PILOT/0 480 s, PILOT/2 18 s
+[run_gates] 1/11 jobs done · running PLAN 510 s, PILOT/0 510 s, PILOT/2 48 s
+[run_gates] 2/11 jobs done · running PLAN 541 s, PILOT/2 78 s, TAKEOFF 28 s
+[run_gates] 2/11 jobs done · running PLAN 571 s, PILOT/2 108 s, TAKEOFF 58 s
+[run_gates] 3/11 jobs done · running PILOT/2 138 s, TAKEOFF 88 s, LINEUP 17 s
+[run_gates] 3/11 jobs done · running PILOT/2 168 s, TAKEOFF 118 s, LINEUP 47 s
+[run_gates] 3/11 jobs done · running PILOT/2 199 s, TAKEOFF 148 s, LINEUP 77 s
+[run_gates] 3/11 jobs done · running PILOT/2 229 s, TAKEOFF 178 s, LINEUP 107 s
+[run_gates] 3/11 jobs done · running PILOT/2 259 s, TAKEOFF 208 s, LINEUP 137 s
+[run_gates] 3/11 jobs done · running PILOT/2 289 s, TAKEOFF 238 s, LINEUP 167 s
+[run_gates] 3/11 jobs done · running PILOT/2 319 s, TAKEOFF 268 s, LINEUP 197 s
+[run_gates] 3/11 jobs done · running PILOT/2 349 s, TAKEOFF 298 s, LINEUP 227 s
+[run_gates] 3/11 jobs done · running PILOT/2 379 s, TAKEOFF 328 s, LINEUP 257 s
+[run_gates] 3/11 jobs done · running PILOT/2 409 s, TAKEOFF 358 s, LINEUP 287 s
+[run_gates] 4/11 jobs done · running PILOT/2 439 s, TAKEOFF 388 s, ROUTE/0 6 s
+[run_gates] 4/11 jobs done · running PILOT/2 469 s, TAKEOFF 418 s, ROUTE/0 36 s
+[run_gates] 4/11 jobs done · running PILOT/2 499 s, TAKEOFF 448 s, ROUTE/0 66 s
+[run_gates] 4/11 jobs done · running PILOT/2 529 s, TAKEOFF 478 s, ROUTE/0 96 s
+=== PILOT ===
+--- shard 0/3 (512.6 s) ---
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   8s rejected-takeoff — not accelerating (0.00 m/s^2 at V=0.2) — thrust is going nowhere
+  ok     heavy: no NaN
+  ok     heavy: the takeoff is REJECTED
+  ok     heavy: rejected and stopped inside 60 s
+  ok     heavy: never airborne (agl max 0.0 m)
+  ok     heavy: the verdict says why, on the record
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.33 strain 0.223
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   (flown in another shard)
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   (flown in another shard)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   101.5s cant-hold-speed — full throttle holds 153 of the 180 km/h asked
+  ok     fast: the pilot still completes, flying what it CAN
+  ok     fast: an impossible speed ask is SAID, not silently missed
+  ok     fast: the flown speed is the aeroplane's truth (42.7 m/s of 50 asked)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+   (flown in another shard)
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   (flown in another shard)
+-- TRIKE: the stock build on a nosewheel --
+   lift-off run 143 m of a 150 m sheet
+  ok     trike: the tricycle completes its circuit
+  ok     trike: lifts off inside 1.5x the sheet run (143 of 150 m)
+  ok     trike: a landing, not an arrival (0.63 m/s)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   (flown in another shard)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   (flown in another shard)
+-- BOX: the modes as a device, over the pilot and over a hand --
+   alt 0.6 m, hdg 0.0 deg, ias 0.1 m/s, vs 0.03 m/s | hand da 0.05, alt 4.6 m | nav xtk 11 m, 2228 m nearer | completed at 541 s
+  ok     box: no NaN
+  ok     box: the phase and the status say the box is flying
+  ok     box: ALT holds the selected altitude (0.6 m off)
+  ok     box: HDG holds the selected heading (0.0 deg off)
+  ok     box: SPD holds the selected airspeed (0.1 m/s off)
+  ok     box: VS holds the selected vertical speed (0.03 m/s off)
+  ok     box: an axis released to the hand is left untouched (da 0.05)
+  ok     box: ALT still holds while the hand rolls (4.6 m)
+  ok     box: NAV direct-to converges on the course (xtk 11 m)
+  ok     box: NAV closes on the waypoint (2228 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+GATE PILOT: PASS
+[stderr]
+SHARD 0/3: 4 of 10 heavy jobs
+--- shard 1/3 (462.1 s) ---
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   (flown in another shard)
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.33 strain 0.223
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   41.8s rejected-takeoff — nose-over: 12 deg nose-down on the wheels at V=21.4 — the thrust line is pushing the nose into the ground (a high pusher, the mains under the CG)
+  ok     hover: no NaN
+  ok     hover: put back down = a rejected takeoff
+  ok     hover: the wont-climb (or rejected-takeoff) verdict is on the record
+  ok     hover: down and stopped inside 150 s — the donor hangs here forever
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   (flown in another shard)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   (flown in another shard)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+  ok     good: no NaN
+  ok     good: full stop inside 340 s
+  ok     good: outcome is completed
+  ok     good: no rejection and no giving up on a sound aeroplane
+  ok     good: the landing run came back (245 m)
+  ok     good: touched within 200 m of the aim (49 m)
+  ok     good: a landing, not an arrival (0.67 m/s)
+   77.3s vx-climb — ground ahead above the aeroplane — climbing at Vx 21.5 m/s until clear
+   second leg: TAXI STOP HOLD ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED | completed at 394 s
+  ok     again: a second leg was flown from the stopped pose
+  ok     again: it taxied (the turn-around) to a hold before rolling
+  ok     again: the second circuit completes inside 450 s
+  ok     again: no rejection and no lost taxi on the turn-around
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   (flown in another shard)
+-- TRIKE: the stock build on a nosewheel --
+   (flown in another shard)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   roll: pursuit 10.1 deg, 0 rudder reversals, bank 1.2 deg on the ground, lift-off -2.2 m off the centreline after 108 m of a 112 m sheet
+  ok     trike-xwind: the pusher completes its circuit across the wind
+  ok     trike-xwind: the roll holds its pursuit line (10.1 deg, bound 12)
+  ok     trike-xwind: no rudder limit cycle on the roll (0 reversals past 0.2, bound 4)
+  ok     trike-xwind: wings level on three wheels (1.2 deg of bank on the ground, bound 5)
+  ok     trike-xwind: lifts off near the centreline (-2.2 m, bound 5)
+  ok     trike-xwind: rotates, not floats (108 of 112 m sheet, bound 1.6x)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   (flown in another shard)
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+[stderr]
+SHARD 1/3: 3 of 10 heavy jobs
+--- shard 2/3 (532.5 s) ---
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   (flown in another shard)
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.33 strain 0.223
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   (flown in another shard)
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   0s card-clamped — speed 25.0 m/s asked, 25.5 m/s flown (92 km/h) — not slower than the approach, not absurd
+  ok     card: the carded circuit completes
+  ok     card: the ask is on the report, unclamped
+  ok     card: held the asked altitude (78 m of 70)
+  ok     card: held the asked speed (25.5 m/s of 25)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   (flown in another shard)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+   (flown in another shard)
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   190.2s vx-climb — ground ahead above the aeroplane — climbing at Vx 21.5 m/s until clear
+   landed along [1,0] in 515 s
+  ok     wind: the windy circuit completes
+  ok     wind: the landing is INTO the wind
+  ok     wind: touched within 200 m of the aim (33 m)
+-- TRIKE: the stock build on a nosewheel --
+   (flown in another shard)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   (flown in another shard)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   50.5s vx-climb — ground ahead above the aeroplane — climbing at Vx 18.6 m/s until clear
+   flap at the flare 0.00 | roll status: accelerating to rotation speed [RWY PITCH SET]
+  ok     flaps: the flapped build completes from the stand
+  ok     flaps: the flare flies the build's own landing flap (0.00 of 0.00 — this build lands FLAPLESS)
+  ok     status: the roll says its goal and its conditions (airspeed, runway left)
+  ok     status: the AFCS modes are annunciated
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+[stderr]
+SHARD 2/3: 3 of 10 heavy jobs
+[run_gates] 5/11 jobs done · running TAKEOFF 508 s, ROUTE/0 126 s, ROUTE/1 26 s
+[run_gates] 5/11 jobs done · running TAKEOFF 538 s, ROUTE/0 156 s, ROUTE/1 56 s
+[run_gates] 5/11 jobs done · running TAKEOFF 568 s, ROUTE/0 186 s, ROUTE/1 86 s
+[run_gates] 5/11 jobs done · running TAKEOFF 598 s, ROUTE/0 216 s, ROUTE/1 116 s
+[run_gates] 5/11 jobs done · running TAKEOFF 628 s, ROUTE/0 246 s, ROUTE/1 146 s
+[run_gates] 5/11 jobs done · running TAKEOFF 658 s, ROUTE/0 277 s, ROUTE/1 176 s
+[run_gates] 5/11 jobs done · running TAKEOFF 688 s, ROUTE/0 307 s, ROUTE/1 207 s
+[run_gates] 5/11 jobs done · running TAKEOFF 719 s, ROUTE/0 337 s, ROUTE/1 237 s
+[run_gates] 5/11 jobs done · running TAKEOFF 749 s, ROUTE/0 367 s, ROUTE/1 267 s
+[run_gates] 6/11 jobs done · running ROUTE/0 397 s, ROUTE/1 297 s, ROUTE/2 16 s
+[run_gates] 6/11 jobs done · running ROUTE/0 427 s, ROUTE/1 327 s, ROUTE/2 46 s
+[run_gates] 6/11 jobs done · running ROUTE/0 457 s, ROUTE/1 357 s, ROUTE/2 76 s
+[run_gates] 6/11 jobs done · running ROUTE/0 487 s, ROUTE/1 387 s, ROUTE/2 106 s
+[run_gates] 6/11 jobs done · running ROUTE/0 517 s, ROUTE/1 417 s, ROUTE/2 136 s
+[run_gates] 6/11 jobs done · running ROUTE/0 547 s, ROUTE/1 447 s, ROUTE/2 166 s
+=== NAV ===
+-- leg geometry --
+  ok     geom: a leg along +x has DTK 0
+  ok     geom: along-track and remaining add to the length
+  ok     geom: +z off a +x course is RIGHT of course (+xt)
+-- flight plan, sequencing by anticipation --
+  ok     plan: the corner is sequenced BEFORE the fix (turn anticipation)
+  ok     plan: the active waypoint moves on to the next
+  ok     plan: the new DTK is the next leg's (90 deg = +z)
+  ok     plan: the last waypoint is held and flagged arrived, never dropped
+-- direct-to and the readouts --
+  ok     readouts: 150 m right of course reads CDI -0.5 (fly left)
+  ok     readouts: BRG points at the waypoint
+  ok     readouts: DIS is the distance to the waypoint
+  ok     readouts: TRK and GS come from the velocity
+  ok     readouts: ETE = DIS / GS
+-- vnav --
+  ok     vnav: the VS that reaches the target at the fix
+-- units --
+  ok     units: 10 m/s = 19.44 kt
+  ok     units: 1 m/s = 196.85 fpm
+  ok     units: 100 m = 328.1 ft
+  ok     units: degrees wrap and difference
+GATE NAV: PASS
+=== TAKEOFF ===
+crosswind limit 3.5 m/s (band 12.5 m, roll 9 m at the limit; first failure 4 m/s, 12.68 m) in 34.4 s CPU, 35.1 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.3 (1.08 Vs)  lifts 1 (first at 17.3)  touch-after 0  qMax -4.7 deg/s  run 105 m  to 15 m 213 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.11 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -6.4 deg/s  run 176 m  to 15 m 294 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof 27.5 (1.13 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax 7.9 deg/s  run 253 m  to 15 m 419 m
+  wip    water  Vs 24.5 Vr 24.8 Vlof 27.7 (1.13 Vs)  lifts 1 (first at 27.7)  touch-after 0  qMax 7.0 deg/s  run 321 m  to 15 m 461 m
+  ultraf water  Vs 16.1 Vr 16.3 Vlof 21.1 (1.31 Vs)  lifts 1 (first at 21.1)  touch-after 0  qMax -9.0 deg/s  run 87 m  to 15 m 175 m
+  twinf  water  Vs 18.4 Vr 18.7 Vlof 28.3 (1.54 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 7.6 deg/s  run 182 m  to 15 m 309 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 1.3 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 23.1 s; max |cross| 3.2 m, past an end -18.6 m, off the surface 0.0 s; LIFTOFF (airborne); pivot,committed-takeoff
+GATE TAKEOFF: PASS
+[run_gates] 8/11 jobs done · running ROUTE/1 477 s, ROUTE/2 196 s
+[run_gates] 8/11 jobs done · running ROUTE/1 507 s, ROUTE/2 226 s
+[run_gates] 8/11 jobs done · running ROUTE/1 537 s, ROUTE/2 256 s
+[run_gates] 8/11 jobs done · running ROUTE/1 567 s, ROUTE/2 286 s
+[run_gates] 8/11 jobs done · running ROUTE/1 597 s, ROUTE/2 316 s
+[run_gates] 9/11 jobs done · running ROUTE/2 346 s
+[run_gates] 9/11 jobs done · running ROUTE/2 376 s
+[run_gates] 9/11 jobs done · running ROUTE/2 406 s
+[run_gates] 9/11 jobs done · running ROUTE/2 436 s
+[run_gates] 10/11 jobs done · running PILOTACT 3 s
+[run_gates] 10/11 jobs done · running PILOTACT 34 s
+[run_gates] 10/11 jobs done · running PILOTACT 64 s
+[run_gates] 10/11 jobs done · running PILOTACT 94 s
+[run_gates] 10/11 jobs done · running PILOTACT 124 s
+[run_gates] 10/11 jobs done · running PILOTACT 154 s
+[run_gates] 10/11 jobs done · running PILOTACT 184 s
+[run_gates] 10/11 jobs done · running PILOTACT 214 s
+[run_gates] 10/11 jobs done · running PILOTACT 244 s
+=== PILOTACT ===
+PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791484770211.js
+  ok stock:HOME:calm:stand       completed 379.9 s · sink 0.67 · 1.2 Vs · aim 49 · swing 0.5
+  ok fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:standcompleted 311.5 s · sink 1.02 · 1.15 Vs · aim 43 · swing 1.3
+  ok c172:HOME:calm:stand        completed 374 s · sink 1.14 · 1.09 Vs · aim 37 · swing 1.7
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  stock:HOME:calm:stand         completed          0        6 m    0.9/min    legs 10      0.8 m   0.17 m/s   0.67 m/s        1.2       49 m        0 m    0.5 deg          0 379.9
+  c172:HOME:calm:stand          completed          0        9 m    1.3/min  taxi 18.9        1 m   0.08 m/s   1.14 m/s       1.09       37 m      0.2 m    1.7 deg          0   374
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand  completed          0        6 m    1.5/min  taxi 19.2        1 m   0.06 m/s   1.02 m/s       1.15       43 m      0.1 m    1.3 deg          0 311.5
+
+3 cells: 3 good, 0 warn, 0 bad
+wall 270 s
+  stock:HOME:calm:stand                                taxi 1.5/16  takeoff 2/14  climb 0/0  legs 10/6  downwind 0.6/0.6  base 2/2  final 3.8/1.4  landing 0/2
+  c172:HOME:calm:stand                                 taxi 0/18.9  takeoff 1.9/7.5  climb 0/0  legs 7.5/3.8  downwind 0.7/0  base 3.3/1.7  final 1.2/0.6  landing 0/4
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/19.2  takeoff 4/8  climb 0/0  legs 8/6  downwind 0/0  base 3.4/1.7  final 3.8/1.9  landing 0/2
+GATE PILOTACT: PASS
+=== PLAN ===
+stock, HOME (analytic)       legs CROSSWIND 125 m / DOWNWIND 125 m / BASE 125 m / FINAL 0 m · downwind 0.3 m off the plan · terrain lift 0 m
+  aluminium C172, Jolene HOME  legs CROSSWIND 187 m / DOWNWIND 187 m / BASE 187 m / FINAL 29 m · downwind 0.5 m off the plan · terrain lift 0 m
+GATE PLAN: PASS
+=== LINEUP ===
+GATE LINEUP: PASS
+=== ROUTE ===
+--- shard 0/3 (549.5 s) ---
+model: ok
+  fly:cub: ok (528 s) [shard 0/3]
+ROUTE: 0 failure(s), 549 s [shard 0/3]
+GATE ROUTE: PASS
+[stderr]
+SHARD 0/3: 1 of 3 heavy jobs
+--- shard 1/3 (599.2 s) ---
+fly:jodel: 1 failed (599 s) [shard 1/3]
+  FAIL fly:jodel: the vertical speed flown stays inside them (1 s mean, +-0.5 m/s) - 44 s outside, worst 0.61 m/s
+ROUTE: 1 failure(s), 599 s [shard 1/3]
+GATE ROUTE: FAIL
+[stderr]
+SHARD 1/3: 1 of 3 heavy jobs
+(exit code 1)
+--- shard 2/3 (462.5 s) ---
+fly:metal: ok (462 s) [shard 2/3]
+ROUTE: 0 failure(s), 462 s [shard 2/3]
+GATE ROUTE: PASS
+[stderr]
+SHARD 2/3: 1 of 3 heavy jobs
+
+──────── summary ────────
+PILOT     PASS   532.5 s  [3 shards]
+NAV       PASS     0.2 s
+TAKEOFF   PASS   763.0 s
+PILOTACT  PASS   269.6 s
+PLAN      PASS   583.6 s
+LINEUP    PASS   311.0 s
+ROUTE     FAIL   599.2 s  [3 shards]
+total           3059.1 s
+wall            2007.8 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.
