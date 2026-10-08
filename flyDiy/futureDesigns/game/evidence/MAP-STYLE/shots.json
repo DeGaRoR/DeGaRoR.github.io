@@ -1,0 +1,1407 @@
+{
+ "what": "MAP-STYLE stills (G2449): the map screen in the garage's look (GAME-2026-10-06.md §R.3) - the --ed-* tokens, IBM Plex Sans upright, the garage's controls",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "rule": "every still is of the LOADED page: BOOT.state gone and #boot hidden, plus 2 s, checked before and after each capture; a loading capture is discarded and retaken; one_look is composed from two such stills",
+ "fails": [],
+ "shots": [
+  {
+   "size": "desk",
+   "name": "garage",
+   "file": "map_style_desk_garage.jpg",
+   "note": "the garage as the page boots into it: the editor's panels - the look the map screen now takes",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": false
+  },
+  {
+   "size": "desk",
+   "name": "contracts",
+   "file": "map_style_desk_contracts.jpg",
+   "note": "the contracts list, \"Mail off the water\" opened: the paragraph in Plex, the ✗ in the garage's alert colour, Track the primary verb (the accent); the customer select the rows' select; the switch the segmented control",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "item": null,
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 2,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0
+   },
+   "texts": 53,
+   "bad": [],
+   "byCls": {
+    "h1": "600 12px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "span": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "mmMark": "600 14px normal \"IBM Plex Sans\"",
+    "p": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmRw": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmWhy": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmTrack": "600 12px normal \"IBM Plex Sans\"",
+    "text": "700 9px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\"",
+    "b": "500 12.5px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(230, 219, 201)",
+     "font": "600 12px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 0,
+    "names": 2,
+    "hotN": 0,
+    "poi": 0
+   },
+   "small": [],
+   "titles": 0
+  },
+  {
+   "size": "desk",
+   "name": "market",
+   "file": "map_style_desk_market.jpg",
+   "note": "the Market (the switch on Market): the makers' models, the used aeroplanes; the Bramble Scout opened - its gear select and Buy, the garage's",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "market",
+   "item": "m:scout",
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "marks": 4,
+    "labels": 0,
+    "held": 0
+   },
+   "texts": 51,
+   "bad": [],
+   "byCls": {
+    "h1": "600 12px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "mmSect": "600 10.5px normal \"IBM Plex Sans\"",
+    "mmIc": "600 11px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "p": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmRw": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmAct": "600 12px normal \"IBM Plex Sans\"",
+    "i": "600 7.82px normal \"IBM Plex Sans\"",
+    "text": "700 9px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\"",
+    "span": "400 12.5px normal \"IBM Plex Sans\"",
+    "b": "500 12.5px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(230, 219, 201)",
+     "font": "600 12px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 0,
+    "names": 0,
+    "hotN": 0,
+    "poi": 0
+   },
+   "small": [],
+   "titles": 0
+  },
+  {
+   "size": "desk",
+   "name": "fit",
+   "file": "map_style_desk_fit.jpg",
+   "note": "the whole island at the fit: the badges (the bone face of the garage's accent, the icons and type rings unchanged), the zoom + / − / fit and the scale bar on the garage's plate, the compass lettered in Plex",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "item": "m:scout",
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 2,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0
+   },
+   "texts": 53,
+   "bad": [],
+   "byCls": {
+    "h1": "600 12px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "span": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "mmMark": "600 14px normal \"IBM Plex Sans\"",
+    "p": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmRw": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmWhy": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmTrack": "600 12px normal \"IBM Plex Sans\"",
+    "text": "700 9px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\"",
+    "b": "500 12.5px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(230, 219, 201)",
+     "font": "600 12px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 0,
+    "names": 2,
+    "hotN": 0,
+    "poi": 0
+   },
+   "small": [],
+   "titles": 0
+  },
+  {
+   "size": "desk",
+   "name": "close",
+   "file": "map_style_desk_close.jpg",
+   "note": "Metlakatla close (8x): MAP-INFRA's labels in Plex upright over the painting - METLAKATLA the town (700, 16 px, spaced capitals), the cannery and the tram (500, 12.5 px), the halo in the garage's inks; the place names on the plate",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "item": "m:scout",
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 3,
+    "hot": 9,
+    "rings": 8,
+    "counts": 9,
+    "runways": 7,
+    "desig": 4,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 5,
+    "held": 0
+   },
+   "texts": 56,
+   "bad": [],
+   "byCls": {
+    "h1": "600 12px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "span": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "mmMark": "600 14px normal \"IBM Plex Sans\"",
+    "p": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmRw": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmWhy": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmTrack": "600 12px normal \"IBM Plex Sans\"",
+    "small": "400 11.5px normal \"IBM Plex Sans\"",
+    "mmLbl": "700 16px normal \"IBM Plex Sans\"",
+    "text": "700 9px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\"",
+    "b": "500 12.5px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(230, 219, 201)",
+     "font": "600 12px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 5,
+    "names": 7,
+    "hotN": 9,
+    "poi": 3
+   },
+   "small": [],
+   "titles": 0
+  },
+  {
+   "size": "desk",
+   "name": "mid",
+   "file": "map_style_desk_mid.jpg",
+   "note": "the middle zoom over Jolene AFB, Tamgas Hill and Annette Dock: the place names with their runway facts, the places of interest, the hotspots' names - all Plex upright",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "item": "m:scout",
+   "opened": "job:minedock:0:1",
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 3,
+    "hot": 9,
+    "rings": 2,
+    "counts": 9,
+    "runways": 5,
+    "desig": 4,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 5,
+    "held": 0
+   },
+   "texts": 77,
+   "bad": [],
+   "byCls": {
+    "h1": "600 12px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "span": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "mmMark": "600 14px normal \"IBM Plex Sans\"",
+    "p": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmRw": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmWhy": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmTrack": "600 12px normal \"IBM Plex Sans\"",
+    "text": "700 12px normal \"IBM Plex Sans\"",
+    "mmHotN": "500 12px normal \"IBM Plex Sans\"",
+    "mmPoi": "500 12.5px normal \"IBM Plex Sans\"",
+    "small": "400 11.5px normal \"IBM Plex Sans\"",
+    "mmLbl": "600 14px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\"",
+    "b": "500 12.5px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(230, 219, 201)",
+     "font": "600 12px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 5,
+    "names": 7,
+    "hotN": 9,
+    "poi": 3
+   },
+   "small": [],
+   "titles": 0
+  },
+  {
+   "size": "desk",
+   "name": "one_look",
+   "file": "map_style_one_look.jpg",
+   "note": "ONE STILL, side by side: the garage's editor panel (left, cropped from map_style_desk_garage.jpg at #edWrap's box {\"x\":960,\"y\":0,\"w\":640,\"h\":900}) | the map screen's list and the start of the map (right, cropped from map_style_desk_contracts.jpg): one palette, one face, one set of controls",
+   "from": [
+    "map_style_desk_garage.jpg",
+    "map_style_desk_contracts.jpg"
+   ]
+  },
+  {
+   "size": "phone",
+   "name": "sheet",
+   "file": "map_style_phone_sheet.jpg",
+   "note": "the phone: the map full screen, the zoom and the close on the plate, the list a folded bottom sheet (the switch, the select) - every target >= 48 px",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "item": null,
+   "opened": null,
+   "sheet": "peek",
+   "phone": true,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 1,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0
+   },
+   "texts": 24,
+   "bad": [],
+   "byCls": {
+    "span": "400 11.5px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "mmMark": "600 14px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": null,
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 0,
+    "names": 0,
+    "hotN": 0,
+    "poi": 0
+   },
+   "small": [],
+   "titles": 0
+  },
+  {
+   "size": "phone",
+   "name": "open",
+   "file": "map_style_phone_open.jpg",
+   "note": "the phone: the sheet open on \"Guests for the lodge\" - the paragraph and Track, the garage's, at touch size",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "item": null,
+   "opened": "job:resort:0:0",
+   "sheet": "open",
+   "phone": true,
+   "overlay": {
+    "badges": 7,
+    "names": 3,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 1,
+    "desig": 0,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0
+   },
+   "texts": 48,
+   "bad": [],
+   "byCls": {
+    "span": "400 11.5px normal \"IBM Plex Sans\"",
+    "mmClose": "400 18px normal \"IBM Plex Sans\"",
+    "mmSwB": "600 11px normal \"IBM Plex Sans\"",
+    "mmFilter": "400 13px normal \"IBM Plex Sans\"",
+    "mmT": "500 14px normal \"IBM Plex Sans\"",
+    "mmPay": "400 14px normal \"IBM Plex Sans\"",
+    "mmMark": "600 14px normal \"IBM Plex Sans\"",
+    "p": "400 13.5px normal \"IBM Plex Sans\"",
+    "mmRw": "400 12.5px normal \"IBM Plex Sans\"",
+    "mmTrack": "600 12px normal \"IBM Plex Sans\"",
+    "button": "500 18px normal \"IBM Plex Sans\"",
+    "mmScale": "500 12px normal \"IBM Plex Sans\""
+   },
+   "tokens": {
+    "panel": {
+     "map": "#201d1a",
+     "garage": "#201d1a",
+     "same": true
+    },
+    "board": {
+     "map": "#1a1815",
+     "garage": "#1a1815",
+     "same": true
+    },
+    "plate": {
+     "map": "rgba(32,29,26,.94)",
+     "garage": "rgba(32,29,26,.94)",
+     "same": true
+    },
+    "ink": {
+     "map": "#f4efe6",
+     "garage": "#f4efe6",
+     "same": true
+    },
+    "dim": {
+     "map": "#c0b8ac",
+     "garage": "#c0b8ac",
+     "same": true
+    },
+    "faint": {
+     "map": "#97907f",
+     "garage": "#97907f",
+     "same": true
+    },
+    "acc": {
+     "map": "#e6dbc9",
+     "garage": "#e6dbc9",
+     "same": true
+    },
+    "acc-ink": {
+     "map": "#221f1b",
+     "garage": "#221f1b",
+     "same": true
+    },
+    "acc-soft": {
+     "map": "rgba(230,219,201,.14)",
+     "garage": "rgba(230,219,201,.14)",
+     "same": true
+    },
+    "hair": {
+     "map": "rgba(255,248,236,.09)",
+     "garage": "rgba(255,248,236,.09)",
+     "same": true
+    },
+    "border": {
+     "map": "rgba(255,248,236,.14)",
+     "garage": "rgba(255,248,236,.14)",
+     "same": true
+    },
+    "btn-bg": {
+     "map": "rgba(255,255,255,.06)",
+     "garage": "rgba(255,255,255,.06)",
+     "same": true
+    },
+    "btn-bd": {
+     "map": "rgba(255,255,255,.18)",
+     "garage": "rgba(255,255,255,.18)",
+     "same": true
+    },
+    "track": {
+     "map": "rgba(0,0,0,.3)",
+     "garage": "rgba(0,0,0,.3)",
+     "same": true
+    },
+    "bad": {
+     "map": "#e08a5a",
+     "garage": "#e08a5a",
+     "same": true
+    }
+   },
+   "plexLoaded": true,
+   "dress": {
+    "primary": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(230, 219, 201)",
+     "font": "600 12px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "select": {
+     "bg": "rgba(255, 255, 255, 0.06)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 255, 255, 0.18)",
+     "font": "400 13px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "switchOn": {
+     "bg": "rgb(230, 219, 201)",
+     "color": "rgb(34, 31, 27)",
+     "border": "rgb(34, 31, 27)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "switchOff": {
+     "bg": "rgba(0, 0, 0, 0)",
+     "color": "rgb(151, 144, 127)",
+     "border": "rgb(151, 144, 127)",
+     "font": "600 11px \"IBM Plex Sans\"",
+     "tt": "uppercase",
+     "h": 48
+    },
+    "zoom": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 18px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 48
+    },
+    "scale": {
+     "bg": "rgba(32, 29, 26, 0.94)",
+     "color": "rgb(244, 239, 230)",
+     "border": "rgba(255, 248, 236, 0.14)",
+     "font": "500 12px \"IBM Plex Sans\"",
+     "tt": "none",
+     "h": 25
+    }
+   },
+   "labels": {
+    "lbl": 0,
+    "names": 3,
+    "hotN": 0,
+    "poi": 0
+   },
+   "small": [],
+   "titles": 0
+  }
+ ]
+}
