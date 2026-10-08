@@ -351,6 +351,10 @@ const GATES = [
   // is the same room - the same oriented world-space triangles per material, casts and order as its sources swapped back
   // live; >= 300 fewer draws; every dressable part still worn; the exterior and opts.merge false untouched
   { id: 'ROOMMERGE', file: '_roommerge_check.js', tier: 'core', wall: 150 },
+  // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
+  // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
+  // the roll-out; the idle garage uploads no more skin than before
+  { id: 'POSEHIDDEN', file: '_posehidden_check.js', tier: 'core', wall: 300 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a

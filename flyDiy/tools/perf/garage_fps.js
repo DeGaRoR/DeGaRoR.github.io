@@ -117,10 +117,14 @@ const IDENTITY = `
   // --room (G2074): 'off' (train 37b: the caches off, the room unmerged), 't38' (the caches, the room unmerged), 'merge' (the
   // caches and the merged room) - the room swapped live through hangar.roomMerge
   const RM = v => 'if (window.__GF_ROOM && __GF_ROOM.roomMerge) __GF_ROOM.roomMerge(' + v + ');';
-  const MODES0 = flag('room')
+  // --posehidden (G2111): 'off' = the hidden flown model posed every frame in the garage (window.FLYDIY_POSE_HIDDEN, the
+  // train-40 behaviour - the before the rung is fitted on), 'skip' = the game; the caches on in both
+  const MODES0 = flag('posehidden')
+    ? { off: 'window.FLYDIY_POSE_HIDDEN = true; SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;', skip: 'window.FLYDIY_POSE_HIDDEN = false; SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;' }
+    : flag('room')
     ? { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false; ' + RM(false), t38: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + RM(false), merge: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + RM(true) }
     : { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false;', shadow: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = false;', both: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;' };
-  const ORDER = flag('room') ? ['off', 't38', 'merge', 'merge', 't38', 'off'] : ['off', 'both', 'shadow', 'shadow', 'both', 'off'];
+  const ORDER = flag('posehidden') ? ['off', 'skip', 'skip', 'off', 'off', 'skip'] : flag('room') ? ['off', 't38', 'merge', 'merge', 't38', 'off'] : ['off', 'both', 'shadow', 'shadow', 'both', 'off'];
   const WIN0 = secs => `const R = FLIGHT_REC.rec; const f0 = R.frame; await new Promise(r => setTimeout(r, ${secs * 1000})); const f1 = R.frame;
     const rows = []; for (let f = f0; f < f1; f++) { const o = R.row(f); if (o && o.dt === o.dt) rows.push(o); }
     const q = (k, p) => { const a = rows.map(o => o[k]).filter(x => x === x).sort((x, y) => x - y); return a.length ? +a[Math.min(a.length - 1, Math.floor(p * a.length))].toFixed(2) : null; };
