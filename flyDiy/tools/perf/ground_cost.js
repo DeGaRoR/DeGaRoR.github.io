@@ -128,6 +128,9 @@ const INSTRUMENT = `(() => {
   await ev("(()=>{ GFX.set('fps', 'off'); return GFX.get().fps; })()");
   console.log('  held: ' + await ev("document.getElementById('bPause').textContent") + ' · FLYDIY_HELD ' + await ev('!!window.FLYDIY_HELD'));
   await ev("(async()=>{const FP=FLIGHT_PROBE; if (FP.camModeNow && FP.camModeNow()!=='orbit') FP.camMode('orbit'); await new Promise(r=>setTimeout(r,500)); FP.camSettle(); return 1;})()");
+  // --eval '<js>' | '@file': an expression read once the flight is held (a promise is awaited), printed as JSON
+  if (opt('eval', null)) { const e = opt('eval'), src = e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e;
+    console.log('  eval -> ' + await ev('(async () => JSON.stringify(await (' + src + '\n)))()')); }
   const cam0 = await ev('FLIGHT_PROBE.cam()');
   const cg0 = await ev('FLIGHT_PROBE.sim().cgPos()');
   console.log('  cam ' + JSON.stringify(cam0) + ' cg ' + cg0.map(v => v | 0));

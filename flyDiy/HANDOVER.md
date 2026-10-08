@@ -81692,3 +81692,21 @@ inherit it); (4) the added mass's INERTIA is still not modelled (the sim bobs at
 real body's, its period shorter.
 READY for A0 (2026-10-06): branch claude/water-damp-g2105 - 32_hydro.js, 30_solver.js, app.js, sim_host.js, the rig, the
 sheet, GATE WATERDAMP (registered core), this entry; generated files not committed (build.js makes them).
+## G2077-G2078 - GROUND-COST LEVERS 1 AND 3: WITHDRAWN, MEASURED NEGATIVE (2026-10-08, GROUND-COST for A0, local GPU; measured on claude/ground-cost-g2076 over train 40 bcf62797 - for the record; this commit claude/ground-cost-tools rides train 42 with the measuring strips restored)
+LEVER 1 (the registers in every ground program, the full ones too - the user accepted ~+2 s of current's first-visit link for ~-20 %
+of its ground, 7 Oct ~18:15): ON TRAIN 40 IT DOES NOT PAY. Before = live train 40, after = this branch (05:20-05:40, the box quiet,
+three before/after rounds, the trees' sway off), current, ground ms: stand 5.15 -> 5.69 (+11 %), taxi 3.28 -> 3.66 (+12 %), 40 m
+6.31 -> 6.10, grass 4.30 -> 4.16, air 7.45 -> ~7.2; the cold link 11.1 -> 15.3 s wall (+4.2 s). The -14..-23 % of 6 Oct was against
+train 37b - before SHORES-2's bank / triplanar (train 38) and the apron skip (train 40, which already took the dearest pixels). The
+link's bisect (the ring alone, cold, two rounds, reports/evidence/GROUND-COST/runs/link_bisect/): arrays 6.45 s, the registers' vote
+alone 7.35, their candidates alone 7.4, both 8.3, both with 4 candidates 7.6, both without the one-code path 8.0, the lean program 3.45
+- no single culprit. Withdrawn; the full programs keep the arrays (train 40 as landed).
+LEVER 3 (the normal array, a look call): cutting its fetch past the normal's fade pulled in to 800 / 400 m saves ~nothing (air 5.22 ->
+5.13 / 4.95, 40 m / grass / taxi +-0.1, noon and golden: runs/s21_nrm_*.json) - the normals' cost is inside 400 m. Nothing put to the
+user. The strip nrmcut stays a measuring tool.
+LEVER 2 at retro (the apron skip, landed in 40): no gain there - the ground under the apron is already cheap at lean (the one-code
+cells: one tap; one set a type), so skipping it saves little; at current (25 taps, three sets) it was -16 %.
+THIS COMMIT (train 42, no player-visible change): src/viewer/splat_ground.js - the hexfar / nrmcut measuring strips' flags declared
+again (train 40's apron commit had put gSFarOn behind a comment on the same line: production never reads them, ?gstrip=hexfar did not
+compile) and the strip nrmcut; tools/perf/ground_cost.js --eval '<js>' | @file (a page expression printed once the flight is held);
+the runs under reports/evidence/GROUND-COST/runs/ (f_*, fr*_*, s21_nrm_*, link_bisect/). GROUND-COST (G2075-G2079) is closed.
