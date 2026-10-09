@@ -28,14 +28,56 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const OUT = path.resolve(ROOT, opt('out', 'futureDesigns/game/evidence/FREIGHT-STRAP'));
 const PORT = +opt('port', 8141), ONLY = opt('only', 'stand,flight').split(',');
 const BASE = 'http://127.0.0.1:' + PORT + '/flyDiy/index.html?audio=0&freight=1';
-let pw;
-try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSync('npm root -g').toString().trim(), 'playwright')); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// THE BROWSER: the box's own Chrome over CDP (garage_shot.js's rig: headless=new on this machine's GPU - there is no
+// playwright on the box), behind the few calls this rig makes: newContext({ viewport }) -> a fresh Chrome and profile,
+// newPage, goto, evaluate(fn, arg), screenshot({ path, quality }), on('pageerror'), close
+const http = require('http'), os = require('os');
+const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
+const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej); });
+function cdpBrowser(headed) {
+  const procs = [];
+  let seq = 0;
+  return {
+    async newContext(o) {
+      const port = 9400 + (process.pid % 300) + (seq++ % 100);
+      const udd = path.join(os.tmpdir(), 'fs_shot_' + port + '_' + Date.now());
+      const vp = (o && o.viewport) || { width: 1600, height: 900 };
+      const ch = cp.spawn(CHROME, (headed ? [] : ['--headless=new']).concat(['--remote-debugging-port=' + port, '--window-size=' + vp.width + ',' + vp.height,
+        '--hide-scrollbars', '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--ignore-gpu-blocklist', '--js-flags=--max-old-space-size=8192', 'about:blank']), { stdio: 'ignore' });
+      procs.push(ch);
+      let tgt = null;
+      for (let i = 0; i < 60 && !tgt; i++) { await sleep(400); try { tgt = (await getJSON('http://127.0.0.1:' + port + '/json')).find(t => t.type === 'page'); } catch (e) {} }
+      if (!tgt) throw new Error('no Chrome page on ' + port);
+      const ws = new WebSocket(tgt.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
+      let id = 0; const waits = new Map(), on = {};
+      ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+        if (m.method === 'Runtime.exceptionThrown' && on.pageerror) { const d = m.params.exceptionDetails; on.pageerror({ message: (d.exception && d.exception.description || d.text || '').split('\n')[0] }); } };
+      const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
+      await cmd('Page.enable'); await cmd('Runtime.enable');
+      await cmd('Emulation.setDeviceMetricsOverride', { width: vp.width, height: vp.height, deviceScaleFactor: 1, mobile: false });
+      const pg = {
+        on: (k, f) => { on[k] = f; },
+        goto: async url => { await cmd('Page.navigate', { url }); await sleep(3000); },
+        evaluate: async (fn, arg) => {
+          const expr = typeof fn === 'string' ? fn : '(' + fn.toString() + ')(' + JSON.stringify(arg === undefined ? null : arg) + ')';
+          const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
+          if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && (r.result.exceptionDetails.exception || {}).description || r.result && r.result.exceptionDetails && r.result.exceptionDetails.text));
+          return r.result.result.value;
+        },
+        screenshot: async o2 => { const s = await cmd('Page.captureScreenshot', { format: 'jpeg', quality: o2.quality || 88 }); fs.writeFileSync(o2.path, Buffer.from(s.result.data, 'base64')); },
+      };
+      return { newPage: async () => pg, close: async () => { try { ws.close(); } catch (e) {} try { ch.kill(); } catch (e) {} } };
+    },
+    async close() { for (const p of procs) { try { p.kill(); } catch (e) {} } },
+  };
+}
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const browser = await pw.chromium.launch({ headless: !argv.includes('--headed'),
-    args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=default', '--js-flags=--max-old-space-size=8192'] });
+  if (!CHROME) { console.error('freight_strap_shot: no Chrome'); process.exit(2); }
+  const browser = cdpBrowser(argv.includes('--headed'));
   let index = [];
   try { index = JSON.parse(fs.readFileSync(path.join(OUT, 'shots.json'), 'utf8')).shots.filter(s => !ONLY.includes(s.group)); } catch (e) {}
   const fails = [];
