@@ -82039,3 +82039,21 @@ PASS (00:50-00:55, A0's window; all node, none boots Chrome).
 - a day with the moon up: the sky and the hemisphere carry moonE x the moon's sky, now through the phase law - a
   change of < 1e-6 relative (the noon frames have the moon down).
 - no moon-glint dial: the moon's path on the water is the water's own GGX on the key and the probe's moon (seen).
+
+## G2620 - PRE-EXPOSURE: THE NIGHT'S FRAME AT RADIANCE x P (2^14 under -6.5 deg) - BUILT, GATED (27/28 + CLOUD's pin fixed), STILLS 9 Oct: THE PRECISION FIXED, THE DAY WITHIN THE CROSS-PAGE FLOOR, NO MEAN FLASH AT THE SWITCH - NOT READY: A GLINT ON THE WATER FOR ~1 s AFTER THE SWITCH; THE AEROPLANE'S LIGHTS AND THE PANEL NOT YET SEEN (2026-10-09, branch claude/pre-exposure-g2620 on claude/moonlight-g2600 on train 42; G2621-G2629 unused)
+
+The design, the audit and the gate are in light_rig.js THE PRE-EXPOSURE and GATE LIGHT's G2620 rows (the sweep with named
+exemptions and its negative control). Stills (reports/evidence/PRE-EXPOSURE, moonlight build | this, gamer, 9 Oct 11:30):
+- fp16 (the ground band's distinct values): full stand 5 (all subnormal) -> 753 normal; final 8 -> 1 362; half moon
+  2 -> 2 279; new moon 1 -> 1 395. The pictures alike (mean codes +1..+3: the subnormal truncation gone), no light lost
+  (sheet_pre_exposure.jpg: the stand, the final, the lit apron).
+- THE DAY: every light number identical; the pixels differ 101k bytes at noon, 48k at 17:00 - and train 40 against ITSELF
+  across two page runs differs 160k (the trees' sway and streaming, the aeroplane, the HUD digits; the in-page control is
+  83-387). So: identical within the cross-page floor. (G2600 alone: 98k, the same verdict.)
+- THE SWITCH (--crossing, 0.05 deg steps): at -6.55 deg, |d mean| 0.3 code against up to 2.3 round it - no frame flash.
+  BUT a bright orange glint on the water toward the sun at steps 12-14 (~1 s after the switch), gone by step 16
+  (crop_cross_glint.jpg). Undiagnosed: the mirror's re-capture or the probe's cut / its fade on the next bake (the
+  crossing bumps the day's version every step) are the suspects. OWED before READY.
+- OWED: the aeroplane's nav / landing lights and the panel at night - the rig's forced switches and cockpit camera took no
+  effect (both pages black there); a still that shows them.
+- PERF: zero per-frame work (one uniform branch already counted; listeners only at a switch) - A0's train-44 strict pass.
