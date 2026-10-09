@@ -1,0 +1,231 @@
+{
+ "tag": "L_A_p",
+ "hand": 30,
+ "rows": [
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|snag",
+   "side": "away",
+   "day": "golden",
+   "sc": 0,
+   "core": 1.309
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|snag",
+   "side": "side",
+   "day": "golden",
+   "sc": 0.12,
+   "core": 0.649
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|rungs",
+   "side": "away",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.952
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|rungs",
+   "side": "side",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.645
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|snag",
+   "side": "away",
+   "day": "golden",
+   "sc": 0.18,
+   "core": 1.017
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|snag",
+   "side": "side",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.966
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|rungs",
+   "side": "away",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.991
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|rungs",
+   "side": "side",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.51
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|snag",
+   "side": "away",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.971
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|snag",
+   "side": "side",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.656
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|rungs",
+   "side": "away",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.962
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|rungs",
+   "side": "side",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.641
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|snag",
+   "side": "away",
+   "day": "golden",
+   "sc": 0.22,
+   "core": 0.683
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|snag",
+   "side": "side",
+   "day": "golden",
+   "sc": 0.28,
+   "core": 0.955
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|rungs",
+   "side": "away",
+   "day": "golden",
+   "sc": 0,
+   "core": 1.003
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|rungs",
+   "side": "side",
+   "day": "golden",
+   "sc": 0,
+   "core": 0.812
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|snag",
+   "side": "away",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.821
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|snag",
+   "side": "side",
+   "day": "noon",
+   "sc": 0.12,
+   "core": 0.434
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|rungs",
+   "side": "away",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.742
+  },
+  {
+   "key": "cedar_tree.glb|Cedar_LOD0|rungs",
+   "side": "side",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.395
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|snag",
+   "side": "away",
+   "day": "noon",
+   "sc": 0.18,
+   "core": 0.936
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|snag",
+   "side": "side",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.676
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|rungs",
+   "side": "away",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.718
+  },
+  {
+   "key": "larch_tree.glb|Larch_LOD0|rungs",
+   "side": "side",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.695
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|snag",
+   "side": "away",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.543
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|snag",
+   "side": "side",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.565
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|rungs",
+   "side": "away",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.896
+  },
+  {
+   "key": "spruce_tree.glb|Spruce_LOD0|rungs",
+   "side": "side",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.569
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|snag",
+   "side": "away",
+   "day": "noon",
+   "sc": 0.22,
+   "core": 0.499
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|snag",
+   "side": "side",
+   "day": "noon",
+   "sc": 0.28,
+   "core": 0.689
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|rungs",
+   "side": "away",
+   "day": "noon",
+   "sc": 0,
+   "core": 1.018
+  },
+  {
+   "key": "pine_georgeous.glb|Pine01_LOD0|rungs",
+   "side": "side",
+   "day": "noon",
+   "sc": 0,
+   "core": 0.719
+  }
+ ],
+ "cov": []
+}
