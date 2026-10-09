@@ -535,6 +535,15 @@ function run(mut) {
                    ['the C172\'s co-pilot\'s seat empty', D.c172, D.c172Solo, M.freightStrapSeatBill(D.c172, 1, -occKg)]];
     for (const [nm, a, b, list] of rules) {
       const sp = samePos(a, b), w = sp ? massRule(a, b, list) : NaN, dmT = list.reduce((x, q) => x + q[1], 0), dmB = b.nodes.reduce((x, q) => x + q.m, 0) - a.nodes.reduce((x, q) => x + q.m, 0);
+      // (the allowance also sizes the gauged structure through the design gross, so the no-allowance build differs off the
+      // cargo rings too: its row holds the rings the allowance is billed on, and their kilos)
+      if (/baggage/.test(nm)) {
+        // ...so it is held to the frame's own LEDGER: the cargo section (61_ sec('cargo'): the allowance + the bay's kilos)
+        const Lc = a.parts.ledger && a.parts.ledger.cargo, mT = list.reduce((x, q) => x + q[1] * a.nodes[q[0]].p[0], 0);
+        ok(Lc && !(a.spec.cargoKg > 0) && near(dmT, -Lc.mass, 1e-12) && near(mT, -Lc.mx, 1e-9),
+           nm + ': 78_ takes the allowance off exactly as the frame billed it (its ledger\'s cargo section: ' + (Lc ? Lc.mass + ' kg, ' + Lc.mx.toFixed(4) + ' kg.m' : 'none') + '; 78_: ' + dmT.toFixed(1) + ' kg, ' + mT.toFixed(4) + ' kg.m)');
+        continue;
+      }
       ok(sp && w < 1e-9 && near(dmT, dmB, 1e-9), nm + ': 78_\'s copy of the frame\'s rule = the frame\'s own build, node for node (worst ' + (sp ? w.toExponential(1) : 'the lattice moved') + ' kg, ' + dmT.toFixed(1) + ' kg)');
     }
     // THE LOADS: the Cub's 120 kg of crated parts; the C172's 60 kg of mail + a passenger (the build's co-pilot is that
@@ -576,14 +585,18 @@ function run(mut) {
       ok(massesOk(sim) && near(sim.totalM, M0 + R.dm, 1e-12), nm + ': aboard - every loaded node the def\'s mass + its add, totalM ' + M0.toFixed(1) + ' -> ' + sim.totalM.toFixed(1) + ' kg');
       sim.reset(0);
       ok(massesOk(sim) && near(sim.totalM, M0 + R.dm, 1e-12), nm + ': a reset keeps the load aboard');
-      const c1 = sim.cgPos(), want = [0, 1, 2].map(j => (M0 * c0[j] + R.mom[j]) / (M0 + R.dm));
-      ok([0, 1, 2].every(j => Math.abs(c1[j] - want[j]) < 1e-9), nm + ': the CG moves by the adds\' moments (x ' + (c1[0] - c0[0] >= 0 ? '+' : '') + ((c1[0] - c0[0]) * 1000).toFixed(1) + ' mm, '
-         + ((c1[0] - c0[0]) / card.mass.mac[1] * 100).toFixed(1) + ' % MAC)');
+      // (a reset seats the wheels by the weight aboard - a few mm: the unloaded sums are taken at THESE positions)
+      const P = sim.p, cu = [0, 1, 2].map(j => { let s2 = 0; for (let i = 0; i < sim.n; i++) s2 += m0[i] * P[i * 3 + j]; return s2 / M0; });
+      const mo = [0, 0, 0]; for (const [i, kg] of R.adds) for (let j = 0; j < 3; j++) mo[j] += kg * P[i * 3 + j];
+      const c1 = sim.cgPos(), want = [0, 1, 2].map(j => (M0 * cu[j] + mo[j]) / (M0 + R.dm));
+      ok([0, 1, 2].every(j => Math.abs(c1[j] - want[j]) < 1e-9), nm + ': the CG moves by the adds\' moments (x ' + (c1[0] - cu[0] >= 0 ? '+' : '') + ((c1[0] - cu[0]) * 1000).toFixed(1) + ' mm, '
+         + ((c1[0] - cu[0]) / card.mass.mac[1] * 100).toFixed(1) + ' % MAC)');
       // the pitch inertia: what the shares add about the new CG + the build's own shift (the parallel-axis sum), exactly
       const I1 = I(sim);
-      let Iw = 0; for (let i = 0; i < sim.n; i++) { const dx = sim.p[i * 3] - c1[0], dy = sim.p[i * 3 + 1] - c1[1]; Iw += (sim.m[i] - m0[i]) * (dx * dx + dy * dy); }
-      const Ishift = M0 * ((c0[0] - c1[0]) ** 2 + (c0[1] - c1[1]) ** 2);
-      ok(near(I1, I0 + Ishift + Iw, 1e-9) && I1 !== I0, nm + ': the pitch inertia ' + I0.toFixed(1) + ' -> ' + I1.toFixed(1) + ' kg.m2 (the shares about the new CG + the build\'s shift)');
+      let I0b = 0; for (let i = 0; i < sim.n; i++) { const dx = P[i * 3] - cu[0], dy = P[i * 3 + 1] - cu[1]; I0b += m0[i] * (dx * dx + dy * dy); }
+      let Iw = 0; for (let i = 0; i < sim.n; i++) { const dx = P[i * 3] - c1[0], dy = P[i * 3 + 1] - c1[1]; Iw += (sim.m[i] - m0[i]) * (dx * dx + dy * dy); }
+      const Ishift = M0 * ((cu[0] - c1[0]) ** 2 + (cu[1] - c1[1]) ** 2);
+      ok(near(I1, I0b + Ishift + Iw, 1e-9) && I1 !== I0b, nm + ': the pitch inertia ' + I0b.toFixed(1) + ' -> ' + I1.toFixed(1) + ' kg.m2 (the shares about the new CG + the build\'s shift)');
       // DELIVERY: nothing aboard - every node the def's own number, totalM the reset's sum
       sim.setFreight(null);
       let sum = 0; for (const nd of def.nodes) sum += nd.m;
@@ -599,8 +612,14 @@ function run(mut) {
       for (const S2 of SK) {
         const own = A.items.filter(p2 => S2.ids.includes(p2.id)), oth = A.items.filter(p2 => !S2.ids.includes(p2.id));
         const G2 = M.freightStrapMesh(own, card, () => true);
-        for (const g of [G2.straps, G2.metal]) for (let v = 0; v < g.pos.length; v += 3) {
-          const q = [g.pos[v], g.pos[v + 1], g.pos[v + 2]];
+        // every vertex, and every strap run sampled along its length (a run's ends can stand clear while it cuts through)
+        const pts = [];
+        for (const g of [G2.straps, G2.metal]) for (let v = 0; v < g.pos.length; v += 3) pts.push([g.pos[v], g.pos[v + 1], g.pos[v + 2]]);
+        for (const bd of M.freightStrapBands(S2, card).bands) {
+          const to3 = q => bd.along === 'x' ? [q[0], q[1], bd.at] : [bd.at, q[1], q[0]];
+          for (let k = 0; k + 1 < bd.pts.length; k++) { const a3 = to3(bd.pts[k]), b3 = to3(bd.pts[k + 1]); for (let u = 0; u <= 40; u++) pts.push([0, 1, 2].map(j => a3[j] + (b3[j] - a3[j]) * u / 40)); }
+        }
+        for (const q of pts) {
           if (own.some(p2 => inside(q, p2.at))) through++;
           if (oth.some(p2 => inside(q, p2.at))) touch++;
         }
@@ -692,7 +711,7 @@ function run(mut) {
            'the stop: the second leg\'s items arrive placed by the packer\'s proposal (' + (N1.rec ? N1.rec.items.length : 0) + ' items, accepted for stage 2) and weigh on the aeroplane');
         // the player's own placement for that stage is kept
         const mv = N1.rec ? M.freightLoadMove(K.c172, M.freightLoadFromRecord(K.c172, N1.rec), N1.rec.items[0].id, { x: N1.rec.items[0].at.x0 + 0.3, z: 0 }) : { ok: false };
-        const own = mv.ok ? M.freightLoadAccept(d, K.c172, mv.st, J2.ctx).doc : null;
+        const own = N1.rec ? M.freightLoadAccept(d, K.c172, mv.ok ? mv.st : M.freightLoadFromRecord(K.c172, N1.rec), J2.ctx).doc : null;
         const N2 = own ? M.freightStrapNext(own, 'Ces', K.c172) : null;
         ok(!!N2 && N2.how === 'kept' && N2.doc === own, 'the stop: the player\'s own placement for that stage is kept, not proposed over');
         d = N1.doc;
@@ -799,14 +818,14 @@ const BREAKS = [
   ['the seat rule is not the frame\'s', { s78: sub('  const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));', '  const wa = 0.5;') }],
   ['the baggage allowance stays aboard', { s78: sub('  const bag = items.length && def.spec.baggage > 0 ? def.spec.baggage : 0;', '  const bag = 0;') }],
   ['a strap through the load', { s78: sub('  const topX = b.y1 + g, topZ', '  const topX = b.y1 - 0.05, topZ') }],
-  ['an anchor off the floor', { s78: sub('  const ha = C.anchor[0] / 2, hb = C.anchor[2] / 2, hy = C.anchor[1] / 2;', '  const ha = C.anchor[0] / 2, hb = C.anchor[2] / 2, hy = C.anchor[1] / 2 + 0.04;') }],
+  ['an anchor off the floor', { s78: sub('  const anchors = [{ c: [ax0 - ha, fx0 + hy, zm]', '  const anchors = [{ c: [ax0 - ha, fx0 + hy + 0.04, zm]') }],
   ['the next stage arrives unplaced', { s78: sub("  if (!J.items.length) return { doc, rec: null, how: 'none', why: J.why };", "  return { doc, rec: null, how: 'none', why: J.why };") }],
   ['the player\'s placement proposed over', { s78: sub("  if (J.rec) return { doc, rec: J.rec, how: 'kept', why: '' };", '') }],
   ['another airframe\'s load flown', { s78: sub('  if (slot != null && A.slot != null && A.slot !== String(slot)) return null;', '') }],
   ['an over-MTOW load flies silently', { s78: sub('  if (acc.mass > K.mtow + 1e-6) {', '  if (false) {') }],
   ['a CG out of range flies silently', { s78: sub('    if (side) out.push(', '    if (false) out.push(') }],
   ['the strap reaches for the clock',{ s78: s => s + '\nfunction fsNow() { return Date.now(); }\n' }],
-  ['a reset drops the load', { core: sub('m[i] = FRX ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;', 'm[i] = nd.m; r[i] = nd.r;') }],
+  ['a reset drops the load', { core: sub('m[i] = FRX && FRX[i] !== 0 ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;', 'm[i] = nd.m; r[i] = nd.r;') }],
   ['a load taken off leaves a trace', { core: sub('      m[i] = b !== 0 ? Math.max(0.5, base + b) : base;', '      m[i] = m[i] - a + b;') }],
   ['the burn drops the load', { core: sub('FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2', 'DRY0[k] + FUEL0[k] * f2') }],
 ];

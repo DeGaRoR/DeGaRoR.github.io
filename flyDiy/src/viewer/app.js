@@ -7155,7 +7155,7 @@
     try {
       const card = frCard();
       const N = typeof freightStrapNext === 'function' ? freightStrapNext(playerLoad(), flSlot, card) : null;
-      if (N && N.how === 'proposed') { player = N.doc; playerSave(); try { careerPlateSync(); } catch (e) {} }
+      if (N && N.how === 'proposed') { player = N.doc; playerSave(); try { if (CAREER_DEV) careerPlateSync(); } catch (e) {} }
       fsApply(); fsSync();
       return N ? { how: N.how, why: N.why, items: N.rec ? N.rec.items.length : 0 } : null;
     } catch (e) { console.warn('flyDiy (freight strap): the stop\'s load -', e && e.message); return null; }

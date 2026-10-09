@@ -1826,7 +1826,7 @@ function makeSim(def, world) {
       const nd = def.nodes[i];
       p[i*3] = nd.p[0]; p[i*3+1] = nd.p[1]; p[i*3+2] = nd.p[2];
       v[i*3] = v[i*3+1] = v[i*3+2] = 0;
-      m[i] = FRX ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;   // G2400: a reset keeps the load aboard (setFreight)
+      m[i] = FRX && FRX[i] !== 0 ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;   // G2400: a reset keeps the load aboard (setFreight)
       totalM += m[i];
       rigGround(i, m[i]);          // hoisted; reset only ever runs post-build
     }
