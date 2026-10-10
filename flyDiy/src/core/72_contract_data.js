@@ -535,4 +535,6 @@ const CONTRACT_TEXT = {
   'ev.picked': CT_('{t}: loaded at {at}'), 'ev.sub': CT_('{t}: done at stage {n}'), 'ev.stage': CT_('{t}: stage {n} done'),
   'ev.done': CT_('{t}: complete, paid {n}'), 'ev.unlock': CT_('built: {n}'), 'ev.follow': CT_('the client asks again: {t}'),
   'ev.pending': CT_('{t}: acceptance pending - {n}'), 'ev.none': CT_('{t}: {n}'), 'ev.wallet': CT_('wallet {n}'),
+  // (G2705 CAREER-DAMAGE) a crash in the career: back where the flight departed from ({n} the place), repaired, free
+  'ev.crash': CT_('crashed - back at {n}, repaired'),
 };

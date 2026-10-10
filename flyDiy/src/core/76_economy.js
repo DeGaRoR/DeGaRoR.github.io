@@ -5,7 +5,8 @@
 // contracts pay net, hangars bought never rented, a pilot's one-time sign-on
 // fee, GQ5 bring-it-home free, GQ6 no bankruptcy + the Trust's loan job below
 // -20 000, GQ23 the 60 000 grant + a Cub voucher), §12, §15 row 8;
-// DEFORM-AND-BREAK §10 + dm9-dm12 (the repair bill, charged on Repair).
+// DEFORM-AND-BREAK §10 + dm9-dm12 (the repair bill); §R.4 of 10 Oct (G2705
+// CAREER-DAMAGE: REPAIR IS FREE everywhere - the bill is read, never charged).
 // ===========================================================================
 // CREDITS ARE NOT DOLLARS. Every price here is a RATIO to the one number the
 // game already prices honestly: the ledger's airframe (genFrame's bill of
@@ -16,16 +17,16 @@
 //
 // WHAT COSTS MONEY (G-COST): airframes (materialised from the drawing board,
 // or a maker's catalogue), hangars (bought), kits and upgrades, a pilot's
-// sign-on fee, repairs. NOTHING ELSE: no fuel, no maintenance reserve, no
-// wage, no rent, no landing fee, no recovery (GQ5). A career's ledger holds
-// grant / contract / loan lines (income) and purchase / repair lines
-// (spending); `econLedgerClass` names each line's class, and a line of any
+// sign-on fee. NOTHING ELSE: no repair (§R.4, G2705: free), no fuel, no
+// maintenance reserve, no wage, no rent, no landing fee, no recovery (GQ5).
+// A career's ledger holds grant / contract / loan lines (income) and purchase
+// lines (spending; the book keeps its `repair` kind, which nothing writes
+// since G2705); `econLedgerClass` names each line's class, and a line of any
 // other class is a running cost (GATE ECON refuses one).
 //
 // THE WALLET'S RULE (GQ6): a PURCHASE needs the cash (refused, the same
-// document handed back, with why). Only a NON-CHOICE may take the wallet
-// below 0: the repair of the career's LAST flyable airframe (without it the
-// career cannot work - the crash was not a choice). Below ECON_BOOK.loanBelow
+// document handed back, with why). A repair is free (G2705), so nothing takes
+// the wallet below 0 by itself any more. Below ECON_BOOK.loanBelow
 // (-20 000) the Field Trust offers its LOAN JOB: a CONTRACT-MODEL record,
 // kind 'job', provider 'field', that any airframe can fly, paying the wallet
 // back to ECON_BOOK.loanTo.
@@ -49,8 +50,6 @@ const ECON_V = 1;
 //   makerMargin  a maker's catalogue price = the scratch price (the ledger in a fully fitted works: x labourFit)
 //                x this margin - PROCURE's catalogue; what you pay a maker for not building it yourself
 //   signOn       a pilot's ONE-TIME sign-on fee by tier (G-COST: no wage), x the reference - PILOTS' roster
-//   repairLabour the repair bill's labour factor: DMG-D5's bill (per section + the event lines, §10) x this
-//                x the hangar's labour factor (playerLabourFactor: where the aeroplane is repaired)
 //   round        every price rounds to this
 //   loanBelow    GQ6: the Trust's loan job is offered while the wallet is BELOW this
 //   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
@@ -61,7 +60,6 @@ const ECON_BOOK = {
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
   makerMargin: 1.35,
   signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
-  repairLabour: 1.0,
   round: 100,
   loanBelow: -20000,
   loanTo: 0,
@@ -111,12 +109,12 @@ function econSignOn(tier) {
   const r = ECON_BOOK.signOn[tier];
   return econRound((typeof r === 'number' ? r : ECON_BOOK.signOn.pilot) * econRefPrice());
 }
-// THE REPAIR (dm9): DMG-D5's bill [{ section | event, line, cost }] x the repair labour x the hangar's labour
-// factor (the hangar the aeroplane stands in; away from yours: labourAway)
+// THE REPAIR (dm9; G2705 CAREER-DAMAGE, the user's ruling of 10 Oct, §R.4): REPAIR IS FREE everywhere. DMG-D5's
+// bill [{ section | event, line, cost }] stays on the damage record (what broke, in its lines) and costs nothing,
+// wherever the aeroplane stands; the punishment for a crash is the reset to where the flight departed from
+// (75_ careerCrashReset), never a bill. (bill, labour) -> 0, the signature kept for its callers.
 function econRepairCost(bill, labour) {
-  const sum = (Array.isArray(bill) ? bill : []).reduce((a, l) => a + (l && isFinite(+l.cost) ? +l.cost : 0), 0);
-  const L = typeof labour === 'number' && labour > 0 ? labour : 1;
-  return econRound(sum * ECON_BOOK.repairLabour * L);
+  return 0;
 }
 
 // ---- THE LEDGER'S CLASSES (G-COST: no running cost anywhere) ---------------------------------------------------
@@ -163,28 +161,19 @@ const econAcquire = (doc, aero, plot, shell) => playerAcquire(doc, aero, plot, s
 const econUpgrade = (doc, hangarId, change, opts) => playerUpgrade(doc, hangarId, change, opts);
 // the airframes in the fleet that could fly now (a damaged one is grounded until repaired: dm10)
 const econFlyable = doc => Object.keys((doc && doc.fleet) || {}).filter(n => !(doc.fleet[n] && doc.fleet[n].damage && doc.fleet[n].damage.damaged));
-// THE REPAIR (dm9, dm10): charged only on an explicit Repair, the bill x the labour where it stands. A purchase-
-// like choice (needs the cash) EXCEPT for the career's last flyable airframe (no other aeroplane could earn the
-// money: GQ6's non-choice) - that one may take the wallet below 0, and the Trust's loan job follows. A write-off
-// has no Repair (dm10). The fleet row's `damage` (D5's record) is cleared; the wear resets (G2230).
+// THE REPAIR (dm9, dm10; G2705: FREE): an explicit Repair, in both modes, wherever it stands - nothing in the
+// wallet, no ledger line (the sandbox records no "would cost" either: there is no cost). A write-off has no
+// Repair (dm10). The fleet row's `damage` (D5's record) is cleared; the wear resets (G2230). (opts: unused, kept)
 function econRepair(doc, slot, opts) {
-  opts = opts || {};
   const e = doc && doc.fleet && doc.fleet[slot];
   if (!e) return ecNo(doc, slot + ' is not in the fleet');
   const D = e.damage;
   if (!D || !D.damaged) return ecNo(doc, slot + ' is not damaged');
   if (D.writeOff) return ecNo(doc, slot + ' is a write-off: scrap it or sell it as salvage');
-  const W = playerWhere(doc, slot);
-  const shed = W.kind === 'in' ? doc.sheds[W.hangar] : null;
-  const labour = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed, opts.wants || []) : 1;
-  const cost = econRepairCost(D.bill, labour);
-  const last = econFlyable(doc).length === 0;
-  if (!last && !econAfford(doc, cost)) return ecNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the repair costs ' + cost);
   let d = ecClone(doc);
-  playerLedger(d, 'repair', cost, slot);
   delete d.fleet[slot].damage;
   if (typeof playerWearReset === 'function') d = playerWearReset(d, slot).doc;
-  return { ok: true, doc: d, cost, labour, last, why: '' };
+  return { ok: true, doc: d, cost: econRepairCost(D.bill), why: '' };
 }
 
 // ---- THE TRUST'S LOAN JOB (GQ6) ----------------------------------------------------------------------------------
@@ -236,8 +225,8 @@ const ECON_BANDS = {
 };
 // THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
 //   start   careerNew (GQ23: the 60 000 grant, the voucher Cub - the fleet's first airframe, free)
-//   float   the grant is the career's FLOAT - its first airframe of its own, a build contract's airframe, a
-//           repair - and the milestones are bought from what contracts pay: a purchase is made the moment the
+//   float   the grant is the career's FLOAT - its first airframe of its own, a build contract's airframe (a
+//           repair was one; free since G2705) - and the milestones are bought from what contracts pay: a purchase is made the moment the
 //           wallet would keep the float after it. (A player may spend the grant on a hangar on day one - the
 //           wallet allows it; the bands measure the pace of the work, not the grant.)
 //   fly     each completed contract is ONE contract: the next arc contract the fleet can physically fly (the

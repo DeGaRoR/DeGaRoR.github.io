@@ -11,7 +11,8 @@
 //                    is the ledger x the main hangar's labour factor (each
 //                    validated design's wants re-derived from its build file;
 //                    the ledger's total = genFrame's bill); the catalogue
-//                    above scratch; the repair = the bill x labour x where.
+//                    above scratch; the repair is FREE (G2705, §R.4: 0 for
+//                    any bill, anywhere).
 //   AZ, PHYSICALLY   every job class (CONTRACT_JOB_CLASSES) has a validated
 //                    design that can physically do it; no validated design can
 //                    do every class (over the authored contracts and the
@@ -25,8 +26,8 @@
 //                    one of the book's; an hour flown costs nothing; the pay
 //                    is the job's.
 //   THE WALLET       a purchase needs the cash (refused: the same document);
-//                    only the last flyable airframe's repair may go below 0;
-//                    a write-off has no Repair; the loan job is offered
+//                    a Repair is free (no wallet move, no ledger line, in
+//                    both modes); a write-off has no Repair; the loan job is offered
 //                    EXACTLY below -20 000, pays the wallet back, writes a
 //                    `loan` line, any wheeled design flies it.
 //   THE SANDBOX      every door in a sandbox document records "would cost"
@@ -131,10 +132,10 @@ function run(mut, opts) {
        k + ': a maker\'s catalogue price = scratch x ' + B.makerMargin + ', above building it yourself');
   }
   ok(B.makerMargin > 1 && B.makerMargin < 2, 'the makers\' margin is a margin (' + B.makerMargin + ')');
-  // the repair: the bill x the repair labour x where it stands
+  // the repair: FREE everywhere (G2705 CAREER-DAMAGE, the user's ruling of 10 Oct, §R.4) - 0 for any bill, any labour
   const bill = [{ section: 'gear', line: 'main gear leg', cost: 1200 }, { event: 'prop', line: 'prop strike', cost: 3000 }];
-  ok(M.econRepairCost(bill, 0.8) === Math.round(4200 * B.repairLabour * 0.8 / B.round) * B.round && M.econRepairCost(bill, 1.25) > M.econRepairCost(bill, 0.8),
-     'the repair: the bill x the repair labour x the hangar\'s (fitted ' + M.econRepairCost(bill, 0.8) + ', away ' + M.econRepairCost(bill, 1.25) + ')');
+  ok(M.econRepairCost(bill, 0.8) === 0 && M.econRepairCost(bill, 1.25) === 0 && M.econRepairCost(bill) === 0 && M.econRepairCost([], 1) === 0,
+     'the repair is free: 0 for a 4 200 bill, fitted (x0.8) or away (x1.25) (G2705)');
 
   // ==== AZ, THROUGH PHYSICAL GATES (G-COST) ==========================================
   {
@@ -207,9 +208,10 @@ function run(mut, opts) {
     for (const k of Object.keys(FILES)) scan(M.__src[k], k);
     scan(M.__src.app, 'app');
     const unknown = [...kinds].filter(k => !M.econLedgerClass(k));
-    ok(!unknown.length && kinds.has('contract') && kinds.has('grant') && kinds.has('airframe') && kinds.has('repair') && kinds.has('loan'),
+    ok(!unknown.length && kinds.has('contract') && kinds.has('grant') && kinds.has('airframe') && kinds.has('loan'),
        'every ledger kind written in the core and the page is the book\'s (' + [...kinds].sort().join(', ') + (unknown.length ? '; unknown: ' + unknown.join(', ') : '') + ')');
     ok(!Object.keys(M.ECON_LEDGER).some(k => /rent|fuel|wage|maint|dues|fee|hour/i.test(k)), 'no running-cost kind in the book');
+    ok(!kinds.has('repair'), 'nothing in the core or the page writes a repair line (G2705: the repair is free)');
     const d0 = M.careerNew({ seed: 'clock' });
     const h = M.playerClock(d0, 36000);
     ok(h.doc.wallet === d0.wallet && h.doc.ledger.length === d0.ledger.length && h.dues === 0, 'ten hours flown cost nothing');
@@ -227,29 +229,31 @@ function run(mut, opts) {
     refused(M.econBuy(poor, 5000, 'airframe', 'X'), pb, poor, 'a purchase short of the cash');
     refused(M.econMaterialise(poor, 'X', 30000, ['tube']), pb, poor, 'materialising short of the cash');
     refused(M.econAcquire(poor, 'w3', 'w3', 'field'), pb, poor, 'a hangar short of the cash');
-    refused(M.econUpgrade(poor, 'HOME', { shell: 'works' }), pb, poor, 'a rebuild short of the cash');
+    // (G2705) the career's main hangar is a works since WORKS-COZY (G2315): the rebuild is tried from a field shed
+    const pf = clone(poor); pf.sheds.HOME.shell = 'field';
+    refused(M.econUpgrade(pf, 'HOME', { shell: 'works' }), clone(pf), pf, 'a rebuild short of the cash');
     refused(M.econBuy(c, 100, 'fuel', 'X'), clone(c), c, 'a running cost through the purchase door');
     const m = M.econMaterialise(c, 'New', M.CONTRACT_DESIGNS.jodel.cost, WANTS.jodel);
     const mp = M.econAirframePrice(M.CONTRACT_DESIGNS.jodel.cost, c.sheds.HOME, WANTS.jodel);
     ok(m.ok && m.doc.wallet === c.wallet - mp && m.cost === mp && m.doc.ledger.slice(-1)[0].k === 'airframe' && m.doc.ledger.slice(-1)[0].amt === mp && !m.doc.ledger.slice(-1)[0].free
        && m.doc.career.airframes.New.paid === mp, 'materialising a design: the ledger x the main hangar\'s labour (' + mp + '), an airframe line, the price on its row');
-    // repair: the bill on an explicit Repair; the last flyable airframe may go negative; a write-off has none
+    // repair: FREE on an explicit Repair (G2705) - nothing in the wallet, no ledger line, even with an empty wallet;
+    // a write-off has none
     const dmg = clone(c);
     dmg.fleet.Cub.damage = { damaged: true, writeOff: false, bill };
     const r1 = M.econRepair(dmg, 'Cub', { wants: ['tube'] });
-    ok(r1.ok && r1.cost === M.econRepairCost(bill, M.PREM_RATES.labourFit) && r1.doc.wallet === dmg.wallet - r1.cost && !r1.doc.fleet.Cub.damage && r1.doc.ledger.slice(-1)[0].k === 'repair',
-       'Repair: the bill x the labour where it stands (inside the fitted main hangar: ' + r1.cost + '), the damage cleared, a repair line');
-    const dpoor = clone(dmg); dpoor.wallet = 100;
-    const dpb = clone(dpoor);
-    refused(M.econRepair(dpoor, 'Cub', { wants: ['tube'] }), dpb, dpoor, 'a repair short of the cash while another airframe can fly');
-    const dlast = clone(dpoor); dlast.fleet.Kit.damage = { damaged: true, bill };
-    const r2 = M.econRepair(dlast, 'Cub', { wants: ['tube'] });
-    ok(r2.ok && r2.last && r2.doc.wallet < 0, 'the last flyable airframe\'s repair is a non-choice: it may take the wallet below 0 (' + r2.doc.wallet + ')');
+    ok(r1.ok && r1.cost === 0 && r1.doc.wallet === dmg.wallet && !r1.doc.fleet.Cub.damage && r1.doc.ledger.length === dmg.ledger.length,
+       'Repair is free: the damage cleared, the wallet untouched, no ledger line (G2705)');
+    const dpoor = clone(dmg); dpoor.wallet = -500;
+    const r2 = M.econRepair(dpoor, 'Cub', { wants: ['tube'] });
+    ok(r2.ok && r2.doc.wallet === -500 && !r2.doc.fleet.Cub.damage, 'a repair with the wallet below 0 is still done, still free');
     const wo = clone(dmg); wo.fleet.Cub.damage.writeOff = true;
     refused(M.econRepair(wo, 'Cub'), clone(wo), wo, 'a write-off has no Repair (dm10)');
     refused(M.econRepair(c, 'Cub'), clone(c), c, 'repairing what is not damaged');
     const away = clone(dmg); away.fleet.Cub = { hangar: null, aero: 'w3', damage: dmg.fleet.Cub.damage };
-    ok(M.econRepair(away, 'Cub', { wants: ['tube'] }).cost === M.econRepairCost(bill, M.PREM_RATES.labourAway), 'a repair away from your hangars at the field mechanic\'s labour');
+    const r3 = M.econRepair(away, 'Cub', { wants: ['tube'] });
+    ok(r3.ok && r3.cost === 0 && r3.doc.wallet === away.wallet, 'a repair away from your hangars is free too');
+    const dlast = clone(dmg); dlast.fleet.Kit.damage = { damaged: true, bill };
     ok(eq(M.econFlyable(dlast), []) && eq(M.econFlyable(dmg), ['Kit']), 'a damaged airframe is grounded until repaired (dm10)');
   }
 
@@ -291,12 +295,13 @@ function run(mut, opts) {
       ['a hangar', M.econAcquire(s, 'w3', 'w3', 'field')],
       ['a rebuild', M.econUpgrade(s, 'HOME', { shell: 'works' })],
       ['a kit', M.econUpgrade(Object.assign(clone(s), { sheds: { HOME: Object.assign(clone(s.sheds.HOME), { kits: ['park'] }) } }), 'HOME', { kits: ['metal'] })],
-      ['a repair', M.econRepair(s, 'Cub')],
     ];
     for (const [w, r] of doors) {
       const l = r.doc && r.doc.ledger[r.doc.ledger.length - 1];
       ok(r.ok && r.doc.wallet === 0 && l && l.free === true && l.amt > 0, 'the sandbox: ' + w + ' is recorded "would cost" ' + (l && l.amt) + ', the wallet untouched');
     }
+    const sr = M.econRepair(s, 'Cub');
+    ok(sr.ok && sr.doc.wallet === 0 && sr.doc.ledger.length === s.ledger.length && !sr.doc.fleet.Cub.damage, 'the sandbox: a repair is free, no "would cost" line (G2705)');
     ok(eq(s, before), 'the sandbox document handed in is untouched');
     ok(!M.econLoanOffer(Object.assign(clone(s), { wallet: -1e6 })), 'the sandbox never borrows');
   }
@@ -322,7 +327,8 @@ function run(mut, opts) {
     const si = gar.indexOf('if (api.canSave)'), wi = gar.indexOf('if (!lsSet(SLOT + name, envelope(name, spec, plaque, log)))');
     ok(si > 0 && wi > si && /api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\);/.test(gar), 'garage.js asks before it writes a new slot, and writes nothing when refused');
     ok(/econUpgrade\(playerLoad\(\), PREM_MAIN, change, \{\}\)/.test(half), 'the shed doors go through playerUpgrade on the main hangar');
-    ok(/econRepair\(playerLoad\(\), n, \{ wants \}\)/.test(half) && /#ecRepair|id="ecRepair"/.test(half), 'Repair: an explicit press, through econRepair');
+    ok(/econRepair\(playerLoad\(\), n, \{ wants \}\)/.test(half) && /#ecRepair|id="ecRepair"/.test(half) && /'Repair · free'/.test(half) && !/econRepairCost\(/.test(half),
+       'Repair: an explicit press, through econRepair, labelled free (no price on the button: G2705)');
     ok(/ecWalletEl\.id = 'ecWallet'/.test(half) && /'Wallet ' \+ ecFmt\(d\.wallet\)/.test(half) && /if \(CAREER_DEV\) econWalletSync\(\);/.test(app), 'the wallet line in the garage (career only), redrawn on every save of the document');
     ok(/' · wallet ' \+ Math\.round\(d\.wallet\)/.test(app), 'the wallet line on the flight plate (CAREER-WIRE\'s #crPlate)');
   }
@@ -346,7 +352,7 @@ if (!SELF) {
     console.log('THE PRICE BOOK (the ledger\'s Cub = ' + ref + ')');
     console.log('  shells  ' + ['field', 'club', 'works'].map(s => s + ' ' + CORE.econShellPrice(s)).join(' · '));
     console.log('  kits    ' + Object.keys(CORE.KIT_PRICES).map(k => k + ' ' + CORE.KIT_PRICES[k]).join(' · '));
-    console.log('  sign-on ' + Object.keys(B.signOn).map(t => t + ' ' + CORE.econSignOn(t)).join(' · ') + '   makers x' + B.makerMargin + '   repair labour x' + B.repairLabour);
+    console.log('  sign-on ' + Object.keys(B.signOn).map(t => t + ' ' + CORE.econSignOn(t)).join(' · ') + '   makers x' + B.makerMargin + '   repair free');
     console.log('  airframes (scratch in the main hangar / a maker\'s catalogue) ' + Object.keys(CORE.CONTRACT_DESIGNS).map(k => k + ' ' + CORE.econAirframePrice(CORE.CONTRACT_DESIGNS[k].cost, CORE.playerDefault().sheds.HOME, WANTS[k]) + ' / ' + CORE.econCatalogPrice(CORE.CONTRACT_DESIGNS[k].cost)).join(' · '));
   }
   for (const f of r.fails) console.log('  x ' + f);
@@ -368,7 +374,7 @@ const BREAKS = [
   ['the airframe ignores the labour factor', { s76: sub('  return econRound((+cost || 0) * L);', '  return econRound(+cost || 0);') }],
   ['the catalogue is cheaper than scratch', { s76: sub('  makerMargin: 1.35,', '  makerMargin: 0.9,') }],
   ['an ace costs less than a rookie', { s76: sub('signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 }', 'signOn: { rookie: 0.08, pilot: 0.16, ace: 0.04 }') }],
-  ['the repair ignores where it stands', { s76: sub('  return econRound(sum * ECON_BOOK.repairLabour * L);', '  return econRound(sum * ECON_BOOK.repairLabour);') }],
+  ['the repair billed again', { s76: sub('function econRepairCost(bill, labour) {\n  return 0;', 'function econRepairCost(bill, labour) {\n  return econRound((Array.isArray(bill) ? bill : []).reduce((a, l) => a + (+l.cost || 0), 0) * (labour || 1));') }],
   ['a design\'s wants drift', { s76: sub("c172: ['metal'], c172f", "c172: ['tube'], c172f") }],
   // az
   ['wheels on water (az lost)', { s73: sub('function contractCanDo(D, subs, fields) {', 'function contractCanDo(D, subs, fields) {\n  if (D.id === \'c172\') return { ok: true, why: \'\' };') }],
@@ -384,7 +390,7 @@ const BREAKS = [
   ['a running-cost kind in the book', { s76: sub('  recover: \'free\', release: \'free\',', "  recover: 'free', release: 'free', wage: 'purchase',") }],
   // the wallet
   ['a purchase on credit', { s76: sub("const econAfford = (doc, cost) => !doc || doc.mode !== 'career' || doc.wallet >= cost;", 'const econAfford = (doc, cost) => true;') }],
-  ['any repair may go negative', { s76: sub('  const last = econFlyable(doc).length === 0;', '  const last = true;') }],
+  ['a repair writes a ledger line', { s76: sub('  let d = ecClone(doc);\n  delete d.fleet[slot].damage;', "  let d = ecClone(doc);\n  playerLedger(d, 'repair', 0, slot);\n  delete d.fleet[slot].damage;") }],
   ['a write-off repaired', { s76: sub("  if (D.writeOff) return ecNo(doc, slot + ' is a write-off: scrap it or sell it as salvage');", '') }],
   ['the loan at -20 000', { s76: sub('!(doc.wallet < ECON_BOOK.loanBelow)', '!(doc.wallet <= ECON_BOOK.loanBelow)') }],
   ['the loan never offered', { s74: sub('  if (loan && !taken.has(loan)) out.unshift(loan);', '') }],
