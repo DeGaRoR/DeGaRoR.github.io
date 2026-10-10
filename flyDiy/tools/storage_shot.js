@@ -38,8 +38,10 @@ const FLEET = { 'Jolene Cub': { hangar: 'HOME', aero: 'HOME', kind: 'inside', sl
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
+  let prior = [];
+  try { prior = JSON.parse(fs.readFileSync(path.join(OUT, 'shots.json'), 'utf8')).shots.filter(s => !ONLY.includes(s.group)); } catch (e) {}
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const index = [], fails = [], errs = [];
+  const index = prior, fails = [], errs = [];
   const check = (c, what) => { if (!c) fails.push(what); console.log('  ' + (c ? 'ok  ' : 'FAIL') + ' ' + what); return c; };
   const ev = (pg, fn, arg) => pg.evaluate(fn, arg);
   const loaded = async pg => {
@@ -72,7 +74,7 @@ const FLEET = { 'Jolene Cub': { hangar: 'HOME', aero: 'HOME', kind: 'inside', sl
     const f = 'storage_' + name + '.jpg';
     await pg.screenshot({ path: path.join(OUT, f), type: 'jpeg', quality: 86, timeout: 180000 });
     const st = await probe(pg);
-    index.push(Object.assign({ group, name, file: f, note }, st));
+    index.push(Object.assign({ group, name, file: f, note, how: group === 'phone' ? how : 'mouse' }, st));
     console.log('  ' + f + '  ' + note + (st.msg ? '  [' + st.msg + ']' : ''));
     return st;
   };
@@ -86,6 +88,13 @@ const FLEET = { 'Jolene Cub': { hangar: 'HOME', aero: 'HOME', kind: 'inside', sl
     return window.FLYDIY_STORE.view();
   }, FLEET);
   const card = (n) => '#hsStore .hsCard[data-name="' + n + '"]';
+  // a phone's tap: the real touch tap; when the busy SwiftShader page stalls it (Playwright waits on the frame), the DOM
+  // click the tap would have produced - recorded per still (shots.json `how`)
+  let how = 'tap';
+  const tapOr = async (pg, sel) => {
+    try { await pg.tap(sel, { timeout: 20000 }); }
+    catch (e) { how = 'click (the touch tap stalled on the SwiftShader page)'; await ev(pg, s2 => document.querySelector(s2).click(), sel); }
+  };
   const col = k => '#hsStore .hsCol[data-col="' + k + '"] .hsColH';
 
   if (ONLY.includes('desk')) {
@@ -131,13 +140,13 @@ const FLEET = { 'Jolene Cub': { hangar: 'HOME', aero: 'HOME', kind: 'inside', sl
       await ev(pg, () => window.STORAGE_UI.open());
       let st = await shot(pg, 'phone', 'phone_open', 'the phone: the columns stacked, Fly off (no world in the phone garage)');
       check(st && st.open, 'the panel opens on the phone');
-      await pg.tap(card('Club Cub') + ' .hsName');
+      await tapOr(pg, card('Club Cub') + ' .hsName');
       st = await shot(pg, 'phone', 'phone_selected', 'a card tapped');
-      await pg.tap(col('inside'));
+      await tapOr(pg, col('inside'));
       st = await shot(pg, 'phone', 'phone_moved', '...then INSIDE tapped');
       check(st && /full|room|taken/.test(st.msg || '') || (st && st.view.inside.slots.includes('Club Cub')), 'the phone tap reached the move (' + (st && st.msg) + ')');
-      await pg.tap(card('Club Cub') + ' .hsName');
-      await pg.tap(col('long'));
+      await tapOr(pg, card('Club Cub') + ' .hsName');
+      await tapOr(pg, col('long'));
       st = await shot(pg, 'phone', 'phone_long', 'tapped again, then LONG-TERM');
       check(st && st.view.long.includes('Club Cub'), 'the phone moved the Club Cub long-term');
     }

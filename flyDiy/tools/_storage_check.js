@@ -239,7 +239,7 @@ function run(mut) {
   const body = rd('src/viewer/body.html'), css = rd('src/viewer/editor.css'), build = rd('tools/build.js');
   const code = s => s.replace(/\/\/[^\n]*/g, '');
   ok(/storeFloorFollows\(name\)/.test(code(app)) && /loaded: \(name, spec\) => \{[^}]*storeFloorFollows\(name\)/.test(code(app)), 'a slot loaded onto the stand goes onto the floor (api.loaded)');
-  ok(/playerFloorSync\(d, info\.saved\)/.test(code(app)), 'a save puts the saved build on the floor');
+  ok(/isNew && typeof playerFloorSync === 'function'\) d = playerFloorSync\(d, info\.saved\)/.test(code(app)), 'a NEW save puts the saved build on the floor (a re-save leaves it where it stands)');
   ok(/function storeFly\(name\)[\s\S]{0,1600}rollOut\(\(\) => \{ started = true; \}, true\)/.test(code(app)), 'Fly goes through the garage\'s own roll-out (rollOut), no launcher of its own');
   ok(/ssNow && ssNow\.start === 'lineup'/.test(code(app)) && /placeLinedUp\(\)/.test(code(app)), 'applyRoute: an inside start is lined up (placeLinedUp: the pilot\'s pose, by the wind)');
   ok(/ss && ss\.start !== 'door'\) \{ trip\.anim = 'away'/.test(code(app)), 'rollAnim: no door shot from inside / the apron (cut)');

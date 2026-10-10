@@ -60,7 +60,7 @@
   border:1px solid var(--ed-hair); display:block; object-fit:cover; }
 #hsStore .hsTxt { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 #hsStore .hsName { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#hsStore .hsMeta { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#hsStore .hsMeta { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 #hsStore .hsTag { font:500 9.5px/1.3 'IBM Plex Sans'; letter-spacing:.04em; color:var(--ed-acc); border:1px solid var(--ed-acc);
   border-radius:6px; padding:0 5px; margin-left:4px; }
 #hsStore .hsBtns { display:flex; gap:4px; flex:0 0 auto; }
@@ -194,7 +194,7 @@
     const A = API(); if (!A) return;
     const S = A.flyStart ? A.flyStart(name) : null;
     if (!S || !S.ok) { ST.msg = (S && S.why) || 'it cannot fly from there'; render(); return; }
-    ST.confirm = { name, start: S.start, kind: S.kind };
+    ST.confirm = { name, start: S.start, kind: S.kind }; ST.msg = '';
     render();
   }
   function fly() {

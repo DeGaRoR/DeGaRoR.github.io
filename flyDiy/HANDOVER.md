@@ -84371,3 +84371,204 @@ flight's sun motion therefore stays on LIGHT-SMOOTH's eased path; only a JUMP re
 - Not run: the full tier; no still (the route row's clock is a text line + a select in the existing row; UISMOKE drives it).
 
 READY for the GAME COORDINATOR
+
+## G2690-G2699 - HANGAR-STORAGE-1: WHERE YOUR AEROPLANES ARE KEPT - EVERY BUILDING'S SLOTS FROM ITS SHELL, AN AEROPLANE IN EXACTLY ONE PLACE (FLOOR / INSIDE / OUTSIDE / LONG-TERM / AWAY), ONE FREE MOVE, PLAYER_V 3 (NOTHING LOST, BOTH WAYS); THE STORAGE PANEL IN THE GARAGE'S LOOK (DRAG AND DROP, TAP THEN COLUMN); FLY FROM WHERE IT STANDS THROUGH THE EXISTING ROLL-OUT; NO IN-WORLD CLICK (2026-10-10, HANGAR-STORAGE-1 for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader for the UI only; branch claude/hangar-storage-g2690 off origin/claude/game-t44-1 cde88339, also pushed as claude/modest-albattani-13wrnx; G2695-G2699 unused)
+
+The brief: futureDesigns/game/HANGAR-STORAGE-2026-10-10.md, the user's OK of 10 Oct with the defaults and ONE correction -
+**no in-world click**: clicking a plane in the world does nothing (kept free on purpose); rolling out and flying a stored
+plane happens ONLY from the garage's STORAGE panel. Built on FLEET-PROPS A/B (the bakes, the drawn cap), WORKS-COZY (the
+residents beside the stand), PREM-S2 / S3 (the ledger, the plots). The belly pod untouched (paused). No generated file
+committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json, career_core.*.js). parked.js untouched.
+The storage model is the SANDBOX's too: it lives in the main core (70 / 71), never in career_core (GATE LAZY green).
+
+**G2690 THE MODEL** (`src/core/71_player_bases.js` HANGAR-STORAGE block, `70_player.js` PLAYER_V 3; pure, exported):
+- **Slots per building, from its SHELL** (`PREM_STORE.shells`, data): club 2 inside / apron 6, works (and the hearth, a
+  works layout) 4 / 6, field 0 / 2. A shed's own `slots: { inside?, outside? }` overrides (the derelict hook: 0 inside
+  until restored - the hook only, nothing builds one). `playerStoreSlots(doc, id)`. **The apron is the aerodrome's**:
+  `playerBaseOutside(doc, aero)` = its held buildings' outside summed, capped by its COOKED fleet spots
+  (`PREM_STORE.spots`, the counts of fleet_spots_pack.js - GATE STORAGE holds them equal: HOME / w2 / w3 / SEA / mk_sea 12,
+  nv_strip 5, mn_strip / tw_ski 0) and by the drawn cap (`outsideMax` 6). An aerodrome the cook does not know (another
+  world's, the analytic rigs' A0) is not capped by it (nothing is drawn there anyway).
+- `playerSlots(doc, id)` (S2's GQ7 reader) now derives from it: `{ bay: 1, parked: inside, total: 1 + inside, inside,
+  outside }` for EVERY held building (its floor + its inside). The club main hangar is 1 + 2 = S2's 3 exactly; a field
+  side shed 1 + 0 = S2's 1; **a side club is now 1 + 2 = 3 (was 2), a works 1 + 4 = 5 (was 3 as the main hangar)** - the
+  study's table, OK'd. PREM_SLOTS kept for an older reader. The geometry stays ON TOP (hangarPark: a slot is a cap, never a
+  promise the floor cannot keep - a second C172 into the fully kitted club is refused by the floor, with its reason).
+- **An aeroplane is in exactly one place**: `playerStoreWhere(doc, name)` -> `{ kind: 'floor' | 'inside' | 'outside' |
+  'long' | 'away' | 'none', hangar, aero, slot }`. The fleet row gains `kind` and `slot` BESIDE the S2 words, which keep
+  their meaning: `hangar` set = in that building (its floor, an inside slot, or long-term there - no outside wear), null =
+  on an apron (`aero` a base of yours) or away. So `playerWhere` (S2's in / out / away, used by economy, pilots, map_menu,
+  career_wire, the popup's badge) still answers right: long-term reads 'in' (kept in the shed), the apron 'out'.
+  `playerResidents` (the slot cap, the packer, release / upgrade) counts the floor + inside, never long-term.
+- **ONE MOVE**: `playerMove(doc, name, { kind, hangar?, slot? })` - floor / inside / outside / long WITHIN the base it stands
+  at; free and instant in sandbox and career (no wallet, no ledger line); every refusal hands the document back untouched
+  with its reason: "INSIDE HOME is full (2/2)", "OUTSIDE at HOME is full (6/6)", "inside slot 1 of HOME is taken", "w3 has
+  no inside slot (a field shed: its floor, the apron and long-term)", "no apron at mn_strip", the door, the floor ("no room
+  in HOME (..)"), "X is away at mk_sea: fly it to a base of yours, or bring it home", another base's building. Long ->
+  shown takes a free slot (or the floor). **The floor is a SWAP**: the aeroplane on the stand takes the mover's old place
+  (its inside slot while the floor still packs, else the apron, else long-term). Between bases: a flight, or "bring it
+  home" (unchanged). The wear runs on the apron only (pbIn / pbOut: frozen inside / long-term, as any hangar stop).
+- The S2 doors adapted, no behaviour lost: `pbIn` (into a building: an inside slot, else its floor if it stands empty -
+  a field shed's one aeroplane -, else long-term), `pbOut` (an apron slot, else long-term in the base's first building,
+  away where nothing is held), `playerArrive` (back where it left = unchanged, the apron included; elsewhere inside ->
+  apron -> long-term; returns `store`), `playerBringHome`, `playerStore` (a long-term row may come back in),
+  `playerWheelOut` (= playerMove outside: refused when the apron is full), the lift (`playerFleetReconcile`: inside, the
+  apron, then long-term - forty builds keep forty aeroplanes: 3 in the hangar, 6 on the apron, 31 long-term).
+- `playerFloorSync(doc, name)` (the stand follows the garage: onto `here`'s floor when it stands at that base),
+  `playerFlyStart(doc, name)` (floor 'door', inside 'lineup', outside / away 'stand', long refused "load it first"),
+  `playerStoreView(doc, hangar)` (the panel's columns), `playerResidentsShown(doc, id, stand, max)` (the drawn residents:
+  inside in slot order, then the floor's when the stand holds another build; never long-term, never the stand's),
+  `playerCardOf(name, spec)` (gear by stripGear, seats off the cabin).
+- **PLAYER_V 3** (`PLAYER_MIGRATORS[2]` = `playerStoreSettle`, and every `playerNormalise` after it - a fixpoint): the
+  rows already in a valid, unique place keep it; the rest are placed by name - today's `in` -> inside while the building's
+  slots remain, then its floor if empty, the rest long-term; `out` at a held base -> the apron while slots remain, the
+  rest long-term (the wear frozen there); elsewhere away. NOTHING IS LOST (a row only changes place). **Both ways**: a v3
+  document is "from the future" to an older game (carried untouched) and its S2 words still say where every aeroplane is;
+  a row an older game then MOVED (its `hangar` changed, its `kind` stale) is placed again at the next v3 load, never
+  dropped. Frozen vintage: `tools/fixtures/player_v3_2026-10-10.json` (the v2 vintage walked + a long-term Jodel).
+
+**G2691 THE PAGE** (`src/viewer/app.js` HANGAR-STORAGE block, `fleet_stand.js`):
+- **The floor follows the stand**: a slot loaded onto the stand (garage.js `api.loaded`: the fleet popup, a resident's
+  swap, "Work on") and the FIRST save of a new airframe (`playerSlotsChanged`, isNew) run `playerFloorSync` - a swap at
+  `here`'s base; an aeroplane at another base is left where it is. **A re-save leaves the aeroplane where it stands**: my
+  first cut floored every save, and PARKED 12p caught it the honest way - its two apron slots, saved, left the apron, so
+  FLEET-PROPS' bake bound (FLEET_STAND.wants: the drawn set) no longer queued them and the row ran out its timers. After a
+  storage move onto the apron the page hands the airframe to `PARKED.fleetQueue` (the same bound; an airframe already
+  baked is a signature hit - a move never re-bakes).
+- `window.FLYDIY_STORE` = { view, where, move, workOn, flyStart, fly, card, canFly, onStand, start, onChange }: the moves
+  written to the document (`playerSave`), then **the drawn layers told** (`storeChanged`: the garage's residents re-plan,
+  FLYDIY_PLAYER.onChange, the panel redraws). "Work on" (= the floor) goes through the garage's own slot load (a
+  resident's in-place swap in the career), refused before any load when the core refuses.
+- **FLY FROM WHERE IT STANDS** (`storeFly`): the start resolved (playerFlyStart), the aeroplane put on the stand by the
+  garage's own load with its place KEPT (the floor sync held for that load), `storeStart` = { slot, kind, start }, then
+  `rollOut(() => { started = true; }, true)` - THE GARAGE'S OWN ROLL-OUT (the trip, the world, applyRoute), never a
+  launcher of its own. applyRoute: an **inside** start is lined up whatever the start pref (`taxiStart` false ->
+  `placeLinedUp`: the pilot's own line-up pose, the take-off direction scored by the wind - G771's skip, the active
+  runway); an **outside** start is today's stand logic (the stand walked out of the shed, the pilot taxis). rollAnim: from
+  inside / the apron no door shot (cut, `trip.anim = 'away'`: no tow animation yet); the **floor** is today's roll-out
+  (the garage's own Fly clears `storeStart`). A restart keeps the start while that aeroplane is on the stand. `var` +
+  a function declaration (applyRoute runs at boot, before the block). The phone garage (GARAGE_ONLY: no world) refuses
+  Fly with its reason, the button off. Nothing moves in the document while it flies (back home it is where it was).
+- **THE DRAWN LAYER FOLLOWS** (written for HANGAR-STORAGE-2 to verify on the GPU; no re-bake on a move, the drawn cap
+  unchanged): the garage's residents are `playerResidentsShown` of the ROOM's building (`roomId()`: `here`'s - HOME in
+  the career's main hangar as before; was hard-wired 'HOME') - the plan's signature carries the names, so a move re-plans
+  (kept / round the stand / the room moves) and stands `PARKED.resident` holders decoded from the existing bakes; long-term
+  never. FLEET_STAND (`fleet_stand.js`): the apron rows carry their slot (`at`); `deal` stands apron slot k on the
+  aerodrome's spot k (away / unslotted rows on the lowest spots left, by name), counted for the cap in spot order;
+  long-term rows (hangar set) are never rows here. A move changes only the mover's spot (the set key `slot@spot` moves,
+  re-stood at the next roll-out from the decoded records - parked.js's LRU, no capture).
+- **No in-world click**: nothing added to the world's input path (fleet_stand.js / parked.js carry no click, raycast or
+  pick; parked.js's passive pointer watchers are FLEET-PROPS B's idle window) - GATE STORAGE holds it.
+
+**G2692 THE STORAGE PANEL** (`src/viewer/storage_ui.js`, new; `body.html` #gStore on the shelf after `load`;
+`editor.css` the token root gains #hsStore; tools/build.js after garage.js): the garage's look - the --ed-* tokens
+(declared once, read, none restated), IBM Plex Sans upright (no serif, no italic; `font-style:normal` on the panel), the
+fleet popup's scrim / box / pills / cards. `STORAGE · HOME`: THE FLOOR (the stand: drop = "Work on"), INSIDE n/N and
+OUTSIDE m/M (numbered slots, empty ones shown), LONG-TERM (count). A card: its picture (the bake's thumbnail when one
+exists - `PARKED.fleetThumb(key)` is the door; NONE EXISTS YET, so a plan-view glyph by gear: wheels / floats / skis), the
+name, gear · seats (· weathered n % outside), "on the stand", `work on` and `fly` (no Fly on long-term). **Drag and drop**
+(HTML5: onto a column = its first free slot, onto a numbered slot = that slot, onto the floor = Work on); **tap a card,
+then a column or a slot** (the phone's way, any pointer; the columns light as targets); a refusal shows its reason in
+the panel's status line, a move its result ("✓ Jodel inside 2 · Cub outside 1" for a swap). **Fly asks first** (a small
+confirmation in the same look: "Fly Jolene Cub from inside? It starts lined up on the runway, into the wind.") then
+FLYDIY_STORE.fly. Phone (max-width 760 / coarse pointer): the columns stacked, 48 px targets. Esc closes.
+
+**G2693 THE GATES** (this tree, built; `node tools/run_gates.js --only ...`; reports/evidence/HANGAR-STORAGE-1/gates.txt):
+all PASS on this tree (built), the box shared by up to 4 gates at a time:
+- **STORAGE** (new, `tools/_storage_check.js`, ~3 s): 82 checks - the slots by shell + the override + the apron per
+  aerodrome (PREM_STORE.spots held EQUAL to the cooked pack's counts); the moves and every refusal untouched; the swap;
+  the geometry on top; the wear; the floor sync; the migration both ways (a v2 shelf of 5 in / 9 out / a field resident /
+  an away one -> inside, inside, floor, long, long / 6 apron + 3 long / floor / apron / away; a v3 read the old way; an
+  older game's edits settled back; every slot one aeroplane); long-term never stood / held / missed by FLEET_STAND (run
+  from its own file), an apron slot k on spot k, a move changes only the mover's spot, the flown spot empty; the
+  residents; each Fly kind and its start resolved on the analytic HOME (inside: the pilot's line-up pose, on the
+  centreline; outside: on the stand); the page's doors and the panel source-scanned; nothing added to the world's input
+  path. `--selftest` **13 of 13 caught** (a club given 3 inside, the spots drifting from the cook, a full apron ignored, the
+  overflow dropped by the migration, FLEET_STAND drawing long-term, FLEET_STAND ignoring the apron slot, an inside Fly
+  from the door, Fly from long-term, a launcher of its own, the floor not following a load, the panel in italics, no
+  tap-then-column, Fly without asking; a selftest anchor gone is a MISS).
+- **GAMEPREM** 609 checks (was 580: + the v3 vintage on the shelf, the S2 rows moved to the study's numbers - OPEN below);
+  `--selftest` PASS with every break honest (the 5 hollow rows re-anchored).
+- **PLAYER** 51 (was 46: the v3 vintage `player_v3_2026-10-10.json` on the shelf). **SAVE, BUILD, LAZY** (the storage
+  model stays in the main core; career_core unchanged, fcd16338) PASS.
+- **UISMOKE** (desktop; `uismoke_desktop.txt`): the PREM-S2 block unchanged and green, and the new storage block: the
+  view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, storage_ui.js from its own source over a small
+  DOM - #gStore opens it, tap a card then a column moves it, a drop on inside slot 2 moves it there, no Fly on long-term,
+  Fly ASKS ("lined up"), then the confirmed Fly rolls out through the garage's roll-out (out of the garage, the start
+  'lineup', the aeroplane on the stand, its document place unmoved). **UISMOKE-PHONE**: the same panel on the phone
+  profile - the moves by tap, Fly off and refused (no world).
+- **DESTTO** (3 shards, 1040 s; + `store:cub`, `destto_store_cub.txt`): the user's Cub stored INSIDE at HOME starts lined
+  up on the runway - `HOLD>ROLL>LIFTOFF>CLIMB` in 29 s, no taxi; stored on the APRON it starts on the stand and taxis out
+  - `TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB` in 198 s; no crash; the document unmoved while it flew. Every other case as before.
+- **PARKED** (full, alone: 7 min 52 s, 196 checks, `parked.txt`): 11 (the leak closed, its negative control red) and 12p
+  (the fleet in the page) and 13 (the stand rows, now by apron slot). The cook line reads STALE, as on any branch that
+  edits a viewer file (the build id moves; parked.js itself is untouched) - A0's re-cook with the train. (My first full
+  run went past the runner's 30-min cap: see G2691 - PARKED 12p caught a real behaviour change, fixed.)
+- Not run: the full tier; FRAMECOST / INSTANT / the strict gate (HANGAR-STORAGE-2's, on the GPU).
+
+**G2694 THE STILLS** (`tools/storage_shot.js`: index.html served by tools/_serve.js, headless Chromium on SwiftShader;
+every still on a LOADED page - BOOT 'gone', #boot hidden, + 2 s, re-checked at each capture; reports/evidence/HANGAR-STORAGE-1/,
+shots.json carries the page's own answers per still):
+**PASS, 10 stills, 0 page errors** (desk 1600 x 900; phone 390 x 844 @2x, ?profile=phone; the page booted 407 s / 95 s):
+- `storage_desk_open` - the panel from the shelf's `storage`: the floor (empty: the stand holds an unsaved build), INSIDE
+  2/2, OUTSIDE 2/6 (apron 3-6 empty slots), LONG-TERM 2; the cards' glyph, name, gear · seats, `work on` / `fly`.
+- `storage_desk_selected` -> `storage_desk_moved` - a card tapped (the columns light as targets), then LONG-TERM tapped:
+  "✓ Spare Cub long-term".
+- `storage_desk_dropped` - the Metal Cessna DRAGGED (the mouse's own drag and drop) from LONG-TERM onto apron slot 3.
+- `storage_desk_refused` - the Old Jodel dropped on a taken inside slot: "inside slot 1 of HOME is taken", nothing moved.
+- `storage_desk_fly_ask` - Fly on Jolene Cub (inside): "Fly Jolene Cub from inside? It starts lined up on the runway, into
+  the wind." CANCEL / FLY. (The Fly itself is not pictured: the cloud cannot render the world - HANGAR-STORAGE-2.)
+- `storage_phone_open` / `_selected` / `_moved` / `_long` - the columns stacked, 48 px targets, Fly greyed (no world);
+  a card tapped, INSIDE tapped -> "INSIDE HOME is full (2/2)" (refused), then LONG-TERM -> "✓ Club Cub long-term".
+  HONESTLY: Playwright's TOUCH tap stalled on the busy SwiftShader page (it waits on a frame), so the phone's three moves
+  were delivered as the DOM click a tap produces (shots.json `how` says so per still); UISMOKE-PHONE drove the same
+  handlers. A real touch on a device is HANGAR-STORAGE-2's (or phone_still.js --checks on a GPU box).
+
+**WHAT HANGAR-STORAGE-2 (LOCAL-GPU, G2700-G2704) MUST VERIFY, AND ITS MINUTES** (~2 h 45 min):
+1. **The residents follow every move** (?career=1, the garage, the hearth / club): STORAGE moves inside <-> long-term <->
+   the apron <-> the floor; after each, `FLYDIY_CAREER`/`residentsApi()`'s plan = the inside slots in order, every holder
+   `filled` from its existing bake, `PARKED` fleet stats: captures and bakes UNCHANGED by the moves (a decode only); the
+   drawn count never past playerSlots().parked; long-term never in the plan. Stills of the room after each (loaded + 2 s).
+   (The sandbox draws no residents - WORKS-COZY's byte-identical club, unchanged here.) ~35 min.
+2. **The apron props follow** (FLYDIY_FLEET on, the sandbox and the career, six on the apron): a roll-out after moves -
+   FLEET_STAND's stood set = the apron slots on spots 0..5, the moved one on its new spot, the others not re-placed
+   (state.stats: placed / kept), no capture / bake in the world (bakeInWorld 0); long-term never stood. Stills of HOME's
+   apron before / after a swap of two slots. ~30 min.
+3. **A Fly from each kind in the page, on the worker** (?simw=1 and without): inside -> lined up on the runway into the
+   wind (HOLD -> ROLL, no taxi, no door shot: trip.anim 'away'); outside -> the stand, cut, the taxi out; the floor ->
+   the door shot as today; long-term -> refused in the panel. A restart keeps each start. A wind from the other side flips
+   the inside start's runway end. ~40 min.
+4. **The cost** (strict per-frame; the garage's parameter change unchanged): the panel is DOM only (nothing per frame; the
+   residents re-plan only on a signature change); FRAMECOST_FLEET and INSTANT --fleet on a shelf of 8 with 6 on the apron,
+   before / after a dozen moves; the drawn cap 6 / 4 on the light presets unchanged. ~45 min.
+5. Write-up + stills index ~15 min.
+
+**OPEN / FOR THE COORDINATOR**
+- **No thumbnail exists in a fleet bake**: the card draws a glyph by gear. A real one = one small extra render in the idle
+  bake (parked.js, FLEET-PROPS' queue) exposed as `PARKED.fleetThumb('mine:<slot>')` - the panel already reads it.
+- **The apron start is the STAND** (today's stand logic), not the prop's own tie-down spot: a taxi route out of an
+  arbitrary spot is not censused (TAXICLEAR censused the spots off the routes, not routes from them). A later step.
+- **The floor follows a LOAD and a NEW save only**: after flying an aeroplane from an inside slot and coming home, the stand
+  shows it while the document keeps it inside (it is "on the stand" on its card; the next load / save swaps the floor).
+- **GQ7's numbers moved with the study's table**: a side club holds 3 (floor + 2), the works main hangar 5 (floor + 4,
+  was 3) - the hearth now draws up to 4 residents (WORKS-COZY: ~free, +1 draw / +25 k tris each; HANGAR-STORAGE-2's row 4
+  times it). GAMEPREM's rows that wrote S2's numbers were updated to them (PLAYER_V 3, the v3 default, the lift's overflow
+  -> apron then long-term, the works' 5, the side club's floor + 2 and its 4th Jodel long-term at the altiport - which
+  has no apron -, the place badge's apron row); its selftest's "a side club holds one" break re-anchored ("a club holds
+  one inside"), and **a break whose anchor is gone is now a MISS, not a catch** (it had silently counted as caught - the
+  same rule in GATE STORAGE).
+- At the mine's street and the altiport (0 cooked spots) an arrival past the floor / inside slots is kept long-term (no
+  apron there); `outsideMax` 6 is per AERODROME (two buildings at HOME share HOME's 6).
+- The residents now read the room's building (`roomId()`), not 'HOME' hard-wired: the same in the career's main hangar;
+  at a side hangar the garage shows that building's own (career only, as before).
+- Merge points: 70_player.js (header, PLAYER_V 3, the migrator, normalise's last line), 71_player_bases.js (PREM_STORE
+  after PREM_SLOTS, playerResidents, playerSlots + the HANGAR-STORAGE block, pbIn / pbOut, reconcile's tail, store,
+  wheel-out, arrive, bring-home, the ONE MOVE block before HOLDING, playerPlace's `store`), 90_node_exports (tail), app.js
+  (playerSlotsChanged's floor line, residentsSync0's id and names, applyRoute's taxiStart, rollAnim's cut, bGo's
+  storeStart = null, the HANGAR-STORAGE block before STAGES, garageInit's `loaded`), fleet_stand.js (rows / deal / plan),
+  body.html (#gStore), editor.css (the token root), build.js (storage_ui.js), run_gates.js (STORAGE after GAMEPREM),
+  _gameprem_check.js, _destto_check.js (store:cub), test_ui_smoke.js (storageChecks, both profiles), _map_smoke.js (the
+  token root's regex takes #hsStore).
+- A0 at the train: rebuild; parked.js is untouched (the cook's signature unmoved by this branch).
+
+READY for the GAME COORDINATOR
