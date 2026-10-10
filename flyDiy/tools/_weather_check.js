@@ -82,7 +82,12 @@ function audit(ctx) {
     check(/aeroWxCov = max\(aeroWxCov, max\(ch, clamp\(wxBleed, 0\.0, 1\.0\)\)\);/.test(S), 'rust bleed keeps the varnish over it');
     check(/aeroMusgrave\(wxUV \/ 0\.55\)/.test(S), 'the dirt\'s roughness has no noise on it');
     // G345.3: scratches read their OWN short period, never the aft streaks' long one
-    check(/vec2\(wxAcross \/ uWxV\.w, wxAlong \/ uWxV\.z\)/.test(S) && !/, gSa\) \* step\(0\.01, wxScP\)/.test(S), 'scratches ride the aft-streak read (2.6 m long)');
+    check(!/, gSa\) \* step\(0\.01, wxScP\)/.test(S), 'scratches ride the aft-streak read (2.6 m long)');
+    // G2750 (the user: "clear tiled pattern on carbon"): scratches BY COUNT on a hashed cell lattice - the old read
+    // thresholded a tiled sheet at its peaks and drew the same dashes every 3 cm x 45 cm
+    check(/ch = max\(ch, aeroWxScratch\(vec2\(wxAlong, wxAcross\), uWxV\.z, 0\.6 \* wxScP, uWxV\.w, 7\.0\)/.test(S), 'scratches are not drawn by count (aeroWxScratch)');
+    check(!/float gSc = texture2D\(tGrunge/.test(S), 'scratches are back on a threshold of the tiled grunge sheet (a lattice of identical dashes)');
+    check(/float aeroWxScratch\(vec2 uv, float cell, float dens, float hw, float seed\) \{\s*vec2 c = floor\(uv \/ cell\);\s*if \(aeroHash\(c \+ seed\) >= dens\) return 0\.0;/.test(glsl.PARS), 'a scratch cell is not rolled on the hash of its own index');
     check(/wxCrev = s \* uWxAd\[i\]\.w \* max\(wxJ, wxSpl\);/.test(S), 'the cowl\'s joints put no dirt in their crevices');
     // G345.4: spots by COUNT — the three speckle layers draw cells, never a noise threshold
     check((S.match(/aeroWxSpots\(/g) || []).length >= 4, 'chips, pits and insects are not drawn by count (aeroWxSpots)');

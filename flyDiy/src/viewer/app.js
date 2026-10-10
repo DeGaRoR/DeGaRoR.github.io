@@ -2914,6 +2914,9 @@
     // THE BAKED CAVITY (G345.5): the weathering reads the mesh's own grooves
     // per vertex, in each material's own unit — once the group is whole
     if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxBakeCavity) AEROWX.aeroWxBakeCavity(THREE, grp);
+    // ...and THE REST PLACE (G2750): what the decals' boxes, the weathering's reads and the holes project from, so the
+    // paint rides a surface the rigs turn and a skin the flex bends (aeroskin's AERO_MAIN_VS) - once, before the first pose
+    if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, grp);
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {
@@ -4282,7 +4285,11 @@
     // guarded: the UI smoke's THREE stub builds lines/pts without materials
     if (lines.material) lines.material.depthTest = !overlay;
     if (pts.material) pts.material.depthTest = !overlay;
-    lines.renderOrder = 998; pts.renderOrder = 999;
+    // G2750 (the user: "the overlay does not draw on top of the runway"): an OPAQUE material sorts in the opaque list
+    // whatever its renderOrder, and the pavement, the clouds' composite and the glass are TRANSPARENT and drawn after
+    // the whole of it - with the depth test off the lines write no depth, so the runway painted straight over them.
+    // Both materials are transparent from birth (no program change here), and the x-ray rides above the glass's band
+    lines.renderOrder = overlay ? AERO_CLEAR + 998 : 998; pts.renderOrder = overlay ? AERO_CLEAR + 999 : 999;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     // ...unless the CAGE BUILD is what is standing there (G65), in which case
     // none of the model's meshes are on screen at all. applyStand has the last
@@ -5076,14 +5083,14 @@
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true }));   // G2750: see applySkinVis
     lines.frustumCulled = false;
     craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
     pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
-      size: 0.06 }));
+      size: 0.06, transparent: true }));
     pts.frustumCulled = false;
     craft.add(pts);
     buildShadowProxy();
@@ -7853,6 +7860,9 @@
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
     showCage = !!window.CAGE_UI && curKey === 'gen';
+    // G2750 (the user: "Overlay persists in the garage. I don't think it should."): the frame/overlay is a FLIGHT view;
+    // the shed starts covered (the roll-out shot and the bench's live test show the model with showCage off)
+    skinMode = 0;
     applySkinVis();     // hides the mesh under the cage build
     syncGoLabel();
     // THE PLAQUE goes up whenever the aeroplane comes home — including
@@ -8195,7 +8205,11 @@
   function tripExport() {
     if (!window.CAGE_UI || !window.CAGE_JOIN || !window.GARAGE_SPEC) return null;
     parkedFlush();
-    try { const spec = window.CAGE_JOIN.export(); return { spec, key: specKey(spec), flown: null }; }
+    // G2750 (the user: "I changed the registration, and the far baked model does not reflect that"): the export carries the
+    // finish but not meta, and the registration lives in meta.reg (finishToSpec strips it from the decals) - a new reg
+    // left every key equal, the snapshot, the bake and the spec were skipped, and the far fold kept the old letters
+    try { const spec = window.CAGE_JOIN.export(), m = (window.GARAGE_SPEC.get() || {}).meta, reg = (m && m.reg) || '';
+      return { spec, key: specKey(spec) + '|reg' + reg, flown: null }; }
     catch (e) { console.error('build export:', e); return null; }
   }
   // the key: the design as CANONICAL JSON (keys sorted, numbers to 10 significant digits) - the same aeroplane put back
