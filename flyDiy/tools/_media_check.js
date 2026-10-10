@@ -160,10 +160,8 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              DATA_BUDGET_KB (base64) is unchanged.
 //
 // WIRE: index.html gzipped (CRs removed), MiB. Raising this needs a reason written here.
-// TEMPORARY 4.0 -> 4.05 (10-11 Oct, A0's word): train 43's game content takes index.html to 4.02 MiB gzipped;
-// CAREER-LAZY (train 44.1, Sun 11 Oct 20:45) moves the career-only core out of the page and brings it back under 4.0
-// MiB, and this budget returns to 4.0 IN THAT TRAIN.
-const WIRE_BUDGET_MIB = 4.05;
+// (back to 4.0 in train 44.1: CAREER-LAZY took the career-only core out of index.html; 4.05 stood for train 43 only)
+const WIRE_BUDGET_MIB = 4.0;
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
