@@ -84104,3 +84104,129 @@ Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm 
 flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
 56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
 task in one rollout run, 835/675 ms elsewhere - watch it).
+## G2640 DESIGN-TRUST - WHAT FLIES IS WHAT IS DRAWN (THE TURTLEDECK'S TAIL, EVERY SWEPT FIN, THE LEVEL ROD), A CARBON BOOM IS A SHELL, AND THE BENCH TELLS FROM THE NUMBERS (2026-10-10, DESIGN-TRUST for A0, LOCAL; branch claude/design-trust-g2640 off origin/master 26e04598b = train 42, G2630 RADIAL-DIVERGE merged; G2640-G2649)
+
+### What the user saw, in plain words
+The user's own design 'mosquito' (a 620 kg single-seat low-wing carbon taildragger, the "Turtledeck" body) would
+not fly level, its tail flexed visibly, the fin of the structure overlay stood far from the drawn fin, and the
+bench check found nothing wrong. Four things were really wrong, and three of them were the ENGINE, not the design
+(A0, relaying the user: "we don't care about the mosquito design as such. It is a symptom for our engine"):
+
+1. THE TURTLEDECK'S TAIL WAS NEVER MEASURED. The 'Turtledeck' body (cage.mirror 1, a main choice on the body
+   page) is a mirrored pod: the cage emits no tail rings, so the join found no tail post and skipped the whole aft
+   body - the fin's station, height and sweep, the stab's seat, the post's section, the boom's profile. The garage's
+   merge kept whatever an earlier build had written: the mosquito flew the CUB's boom (its saved tailBot/tailTop
+   0.5718/0.9650 are the Cub's to the digit) and a fin frozen at x 5.229 m while the drawn tail moved with the boom
+   (4.61 -> 5.45 -> 5.84 m): the flown fin 0.54-0.80 m AHEAD of the drawn one (A0's lead, confirmed).
+2. EVERY SWEPT FIN FLEW UPRIGHT. The join put the fin's truss under the drawn top point with no sweep, so a swept
+   fin's strips sat behind the drawn fin: the Jodel's 0.33-0.50 m aft, the swept-fin Cub variant 0.23 m.
+3. A LEVEL ROD KEPT THE RULE'S TAIL (G477's own exception, "owed a look"): the twin on floats flew its fin
+   0.61-0.87 m aft of the drawn one and its stab 0.28 m below. And `stabH` was clamped at 0, so a stab drawn below
+   the tail cone's middle flew 2.6 cm (mosquito) / 4.6 cm (Cub) high.
+4. A MONOCOQUE BOOM FLEW AS A TRUSS. 200 N sideways at the tail post bent the mosquito's carbon boom 18.9 mm where
+   its drawn section as a carbon shell bends 1.8-2.7 mm; the metal Cessna's 12.6 mm against ~0.3-0.6 mm.
+   (The violent tail motion the user saw at rest was G2630's: the tailwheel dampers ringing at the 200-substep cap,
+   17-33 % strain - fixed there, merged here.)
+
+The WING HEIGHT the user measured (">= 10 cm") is NOT in the rest geometry: the physics chord line sits within 2 mm
+of the drawn chord line on every build (GEOPARITY). What the eye compares in the overlay is the strips' chord line
+against the drawn wing's mid-thickness - the camber line, 4 cm above the chord at the quarter chord of a 1.6 m
+NACA 3412. The gap the user saw in flight was most likely the stab and fin above (and the ringing).
+
+### The fixes (all generic - synthetic variants in the gates, not the mosquito)
+- tools/_cage_join.js: (a) a TURTLEDECK HAS A TAIL POST - the pod's boom has the regular tail's stations
+  (buildCage2: the smooth run, the tail pillar band at tPost, the cone to the tip), so the post is that band
+  measured back from the drawn tip and the body's full section ends at the firewall REFLECTED about mirrorZ
+  (zPodRoot -> cabLen, the profile's root); everything downstream then measures as on a cabin build. (b) THE FIN'S
+  DRAWN MID-CHORD LINE: the fin sheet cut at 30 % and 80 % of its height (faces, not vertices: a lofted sheet has
+  vertices at its ribs only - layerCutY), the line through the two mid-chords carried down to the tail top = vX, its
+  rake = vSweep. (c) every ROD takes its tip's section as the tail datum (G477's inclined-only gate removed).
+  (d) stabH down to -0.5 (also in clampSpec).
+- 61_gen_frame.js SHELL block + GEN_RULES.shellSkin / shellBoom: a covered lofted boom of a stressed-skin
+  construction (carbon at 1.2 mm and 0.45 of the fibre modulus = ~60 GPa quasi-isotropic, CMH-17 vol. 2 T300/epoxy
+  QI 50-60 GPa; alloy 0.8 mm = a light aircraft's 0.025-0.032 in 2024-T3 aft skin; plywood 2.5 mm) flies on the
+  TUBE ELEMENT the rod (G314) and the twin boom (G294) already fly on: its aft bays one shape-matched cluster at the
+  drawn section's own cantilever stiffness (thin elliptical shell, Roark, integrated station by station along the
+  profile, the softer way), the twist constraint at the shell's Bredt GJ (4 A^2 t / perimeter), and the twin boom's
+  'oval' dmg record at its root ring (so a crash can cut it - without one a damage-on crash would have held a broken
+  boom together). Tube-and-fabric and the aluminium tube frame stay trusses (the Cub untouched). A cluster is a
+  projection, so the step is NOT shortened: substeps mosquito 183/183, Jodel/Cessna/floats 120/120, mass the same.
+  Revert switch: GEN_RULES.shellBoom = 0.
+- 30_solver.js probe(vel, live, omega): an optional body RATE (and a roll moment out), bit-identical without it.
+- 64b_gen_design.js (new) THE DESIGN CHECK, on genShakedown().design (not on a slim sheet) and on the bench check's
+  card (bench.js benchDesignHtml; a FAIL row withholds the bench certificate and its fix is the card's fix; WARN
+  rows are said and certify). The derivatives measured off the built aeroplane in the solver's own tunnel (live:
+  the cruise thrust and its wash) in STABILITY axes (measured in body axes the roll damping leaks into the cross
+  terms: the Cub's spiral read twice as divergent as it flies), the inertias off the lattice incl. Ixz, Nelson's
+  4-state lateral model (spiral / roll / dutch roll roots) and the short period. 12 rows, each { id, group, label,
+  level, value, unit, limit, why, fix }: pitch.sm (worst loading corner; fail < 0, warn < 0.02 or > 0.40 drawn),
+  pitch.Vh (Raymer; warn < 0.30), pitch.short (MIL-F-8785C), ctl.elevator (nose-up authority at 1.2 Vs, forward
+  CG), yaw.Vv (warn < 0.020), yaw.cnb, roll.clb, roll.spiral (MIL Level 1 T2 >= 20 s), yaw.dutch (zeta >= 0.08,
+  zeta*wn >= 0.15), roll.mode (tau <= 1.4 s), ctl.aileron (pb/2V >= 0.07), ctl.rudder (holds FAR 23.233's
+  0.2 Vso crosswind). The fixes are sized: "grow the fin by X m2 or move it aft by Y m" (a move past 2 m says the
+  area is what is missing), degrees of dihedral, metres of CG. DATA for CERT-SLIM G2840: read sh.design.rows.
+  THE MODEL WAS CHECKED AGAINST THE SIM: the Cub trimmed hands off, banked 2 deg each way, the antisymmetric bank
+  doubles in ~20 s flown vs 15.7 s predicted; the mosquito (3) stable in both (GATE DESIGNSIM, full tier).
+
+### Gates (new)
+- GEOPARITY (core, ~15 s): every flown strip against the drawn sheet at its station - the validated five, the
+  mosquito repros (tools/fixtures/repro/mosquito_0..3.json, copies of the user's Downloads files), 8 dial variants
+  (boom +0.8 / -0.6, fin swept 25, the Cub turtledeck, the mosquito boom 3.6 / 6.0, the Jodel fin upright, the
+  twin's rod inclined) and two doctored self-tests (fin +0.5 m, stab +0.15 m go red). Tolerance: mean station 5 cm
+  (fin 10 cm - KEEL debt below), mean height 3 cm, worst strip 15 cm / 5 cm. Master fails it on the Jodel, the twin
+  on floats and the mosquito.
+- DESIGNCHECK (core, ~140 s): no FAIL on the validated five; six doctored designs fail on their own row with a fix
+  (fin 30 %, a sliver, dragged forward; stab 40 %; tail 1.2 m forward at the worst corner; no aileron); fin /
+  dihedral / tail-arm sweeps point the right way; data + determinism + the bench renders it; THE BOOM (the shell
+  within 2x the drawn shell; the revert is the soft truss; the Cub stays a truss).
+- DESIGNSIM (full, ~3 min): the predicted spiral root against the sim, the Cub and the mosquito.
+
+### The evidence pictures
+tools/perf/g2640_overlay/before_<k>.png / after_<k>.png (k = cub, jodel, cessna, twinFloats, mosquito2,
+mosquito3, cub_finSwept25; tools/_geoparity_shot.js, no GPU): the drawn aeroplane grey, the flight model's strips
+red (chord line through each force point), the tail truss blue, side over half-top. The user's acceptance rule:
+"I'll accept when they match for a few planes".
+
+### Named changes on the validated aircraft (before = master's join + no shell, after = this branch; same core)
+| | cub | jodel | cessna | floats | twinFloats | mosquito2 | mosquito3 |
+|---|---|---|---|---|---|---|---|
+| fin station vX, m | 5.07 -> **5.01** | 4.49 -> **3.94** | 5.82 -> **5.34** | 5.82 -> **5.34** | 4.05 -> **3.22** | 5.23 -> **5.44** | 5.23 -> **5.66** |
+| fin sweep, deg | 0.0 -> **5.0** | 0.0 -> **14.2** | 0.0 -> **38.2** | 0.0 -> **38.2** | 9.0 -> **18.1** | 0.0 -> **1.8** | 0.0 -> **18.6** |
+| static margin as drawn | 0.175 | 0.042 -> **0.043** | 0.246 -> **0.243** | 0.275 -> **0.273** | 0.028 -> **0.025** | 0.163 -> **0.184** | 0.292 -> **0.331** |
+| static margin, worst loading corner | 0.030 -> **0.031** | 0.018 -> **0.019** | 0.155 -> **0.153** | 0.199 -> **0.197** | 0.011 -> **0.009** | 0.071 -> **0.111** | 0.175 -> **0.234** |
+| yaw stiffness cn-beta /rad | 0.090 | 0.126 -> **0.114** | 0.127 -> **0.125** | 0.142 -> **0.140** | 0.078 -> **0.056** | 0.082 -> **0.069** | 0.104 -> **0.128** |
+| dihedral effect cl-beta /rad | -0.039 | -0.188 -> **-0.189** | -0.061 | -0.063 | -0.027 -> **-0.026** | -0.044 -> **-0.037** | -0.163 -> **-0.164** |
+| spiral: bank doubles in, s (- = stable) | 15.2 -> **15.3** | - | 38.5 -> **38.6** | 40.3 -> **40.1** | 12.0 -> **14.7** | 19.7 -> **20.1** | - |
+| dutch roll damping | 0.214 -> **0.213** | 0.095 -> **0.068** | 0.191 -> **0.188** | 0.178 -> **0.176** | 0.220 -> **0.180** | 0.176 -> **0.173** | 0.077 -> **0.136** |
+| dutch roll frequency, rad/s | 2.11 | 2.60 -> **2.53** | 2.96 -> **2.95** | 3.09 -> **3.08** | 2.29 -> **2.03** | 2.26 -> **2.13** | 2.34 -> **2.48** |
+| short-period damping | 0.67 | 0.71 -> **0.70** | 0.48 | 0.43 | 0.83 -> **0.87** | 0.62 -> **0.60** | 0.58 -> **0.57** |
+| rudder holds crosswind, kt | 13.6 | 16.8 -> **16.5** | 19.3 | 21.9 | 12.4 -> **12.9** | 14.1 -> **17.1** | 17.4 -> **16.6** |
+| aileron pb/2V | 0.265 | 0.281 | 0.260 | 0.243 | 0.171 -> **0.180** | 0.255 | 0.165 -> **0.161** |
+| FLOWN: hands-off bank after 30 s, deg | 9.2 | 2.4 -> **2.5** | 7.4 -> **7.0** | not flown* | not flown* | -2.1 -> **-1.5** | -5.8 -> **-5.0** |
+| FLOWN: hands-off heading after 30 s, deg | -32 | -11 | 155 -> **150** | not flown* | not flown* | 12 -> **10** | 29 -> **26** |
+| take-off to downwind, s | 64 | 87 | 58 | not flown* | not flown* | 45 -> **44** | 47 -> **48** |
+| substeps | 75 | 120 | 120 | 120 | 104 -> **105** | 182 -> **190** | 169 -> **183** |
+| design check | WARN | WARN | PASS | PASS | WARN | WARN -> **PASS** | WARN -> **PASS** |
+
+(*) node's world starts a seaplane on land: the pilot never reaches the downwind, so the flown rows are not measured
+for the two floatplanes (GATE SEAPLANE / FLOATS fly them on the water). Before = master's join with the shell off,
+after = this branch, on the same merged core (G2630 included), calm air, the pilot trimming then hands off.
+IN WORDS: the Cub and the Cessna pair barely move (their fins were nearly where drawn; the Cessna's 38 deg sweep
+moves its fin's root, not its centre of pressure). THE JODEL's fin now flies where it is drawn - 0.55 m further
+forward at the root, swept 14 deg: less yaw stiffness (0.126 -> 0.114) and less dutch-roll damping (0.095 -> 0.068,
+under the 0.08 Level-1 line: the design check now WARNS it); everything else the same. THE TWIN ON FLOATS' fin and
+stab are now the drawn ones: yaw stiffness 0.078 -> 0.056, dutch damping 0.220 -> 0.180, the spiral SLOWER (12.0 ->
+14.7 s to double). The mosquito: both builds now PASS (the fin where drawn: (3)'s dutch damping 0.077 -> 0.136).
+The shell's own share (the boom stiffer) moves none of these by more than the last digit - it is a structural
+change (the flex), not a handling one.
+
+### Owed / not done
+- KEEL: the join's Sv counts the keel tab under the deck (TAIL CHANTIER 2) and the frame flies it on the fin's two
+  strips above the post: where a fin roots below the post's top (a turtledeck's narrow boom) the strips' chords come
+  out ~30 % wide and 7-9 cm forward; every fin's force sits 13-18 cm above the drawn area's centre. A keel strip.
+- THE MESH SHOWING THE TAIL'S FLEX (scope 2b): the drawn tail does not ride the lattice in flight (only the wing's
+  spar deltas and the strut bind; skin_break's riding is the damage path). With the shell the flex left to show is
+  1-2 mm in the game's breeze (was 21-23 mm), below what the eye sees; owed only for a genuinely soft design.
+- cabin.seats 1 -> 2 on the mosquito through the headless join (a node/page difference, pre-existing on master):
+  for JOIN-PARITY.
+- T41b (Deform) lands first: rebase, re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on that tip.
