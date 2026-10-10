@@ -56,6 +56,7 @@
   border:1px solid var(--ed-btn-bd); border-radius:8px; cursor:grab; user-select:none; touch-action:manipulation; }
 #hsStore .hsCard.sel { border-color:var(--ed-acc); background:var(--ed-acc-soft); }
 #hsStore .hsCard.stand { border-color:var(--ed-acc); }
+#hsStore .hsCard.hsDragging { opacity:.45; border-style:dashed; border-color:var(--ed-acc); }
 #hsStore .hsThumb { flex:0 0 auto; width:56px; height:38px; border-radius:5px; background:var(--ed-track);
   border:1px solid var(--ed-hair); display:block; object-fit:cover; }
 #hsStore .hsTxt { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
@@ -145,11 +146,12 @@
     el.appendChild(b);
     el.addEventListener('click', () => { ST.sel = ST.sel === name ? null : name; ST.msg = ST.sel ? 'now tap a column or a slot for ' + name : ''; render(); });
     el.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } });
+    // G2702: the card being dragged stays marked in its slot (the browser's drag image is the OS's; the panel shows the move)
     el.addEventListener('dragstart', ev => {
-      ST.drag = name;
+      ST.drag = name; el.classList.add('hsDragging');
       try { ev.dataTransfer.setData('text/plain', name); ev.dataTransfer.effectAllowed = 'move'; } catch (e) {}
     });
-    el.addEventListener('dragend', () => { ST.drag = null; clearDrop(); });
+    el.addEventListener('dragend', () => { ST.drag = null; el.classList.remove('hsDragging'); clearDrop(); });
     return el;
   }
   function clearDrop() { if (ST.el) for (const d of ST.el.querySelectorAll('.hsDrop')) d.classList.remove('hsDrop'); }

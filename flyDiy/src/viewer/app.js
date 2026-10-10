@@ -4804,7 +4804,10 @@
     // wind: placeLinedUp below), whatever the start pref; from the apron, the stand (today's stand logic)
     const ssNow = storeStartNow();
     const taxiStart = flStartTaxi() && !(ssNow && ssNow.start === 'lineup');
-    const stand = (st && taxiStart) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
+    // G2701: an apron aeroplane on its own tie-down spot (its ground read under it), else today's stand
+    const spot = (ssNow && ssNow.start === 'stand' && ssNow.spot && ssNow.spot.aero === from.id) ? ssNow.spot : null;
+    const spotStand = spot ? Object.assign({ x: spot.x, z: spot.z, hdg: spot.hdg }, stGround && Number.isFinite(+stGround(spot.x, spot.z)) ? { elev: +(+stGround(spot.x, spot.z)).toFixed(2) } : {}) : null;
+    const stand = (st && taxiStart) ? (spotStand || ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand)) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
     // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
@@ -6767,9 +6770,21 @@
       try { window.GARAGE_SPEC.open(name); } finally { storeSyncHold = false; }
       if (name !== slotOnStand()) return Object.assign({}, S, { ok: false, why: name + ' could not be loaded' });
     }
-    storeStart = { slot: name, kind: S.kind, start: S.start };
+    storeStart = { slot: name, kind: S.kind, start: S.start, spot: S.kind === 'outside' ? storeSpotOf(name, S.aero) : null };
     rollOut(() => { started = true; }, true);
     return S;
+  }
+  // G2701 (HANGAR-STORAGE-2): AN APRON AEROPLANE STARTS ON ITS OWN SPOT - the tie-down spot FLEET_STAND stands its prop on
+  // (the cooked pack's spot by its apron slot, the same deal - every row, no cap, nothing flown), as a stand: { x, z, hdg }
+  // (a spot's nose is along (cos ry, -sin ry), placeAtAerodrome's along (cos hdg, sin hdg): hdg = -ry). null when the
+  // world has no spot for it - the start is then today's stand.
+  function storeSpotOf(name, aero) {
+    try {
+      const F = window.FLEET_STAND, isl = world && world.island && world.island.id;
+      if (!F || !F.plan || !isl || !aero) return null;
+      const p = F.plan(playerLoad(), null, window.FLEET_SPOTS_PACK, isl, null, aero, null).stand.find(q => q.slot === name);
+      return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { aero, x: p.x, z: p.z, hdg: -p.ry, spot: p.spot } : null;
+    } catch (e) { return null; }
   }
   // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; a baked
   // thumbnail when the fleet's bake carries one (PARKED.fleetThumb: none yet - the card draws its glyph)
