@@ -81918,3 +81918,27 @@ sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impost
 Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
 Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
 Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).
+
+## AVIONICS-GPS G2800 STATUS - WHAT THE INTERIOR / ELECTRICS / LIGHTS / INSTRUMENTS / RADIOS / GPS OPTIONS DO (2026-10-10, AVIONICS-GPS step 1, cloud, node only, NO src/ or tools/ edit; branch claude/avionics-gps-g2800 off origin/master 26e04598b = train 42; block G2800-G2809)
+
+The doc: `futureDesigns/AVIONICS-STATUS-2026-10.md`. It has one table, a row per garage option with drawn / wired / mass-power / works-in-flight columns, then the plan G2801-G2809.
+
+**Headlines:**
+- Instruments: 13 of 17 dials read the sim. Two bugs:
+  - the turn coordinator never banks: its `gaugeAt` at `_cage_panel.js:1633` has no `gauge`, so the join bakes no stops;
+  - the DG cannot fail on an aiE build.
+- Instruments billed, never drawn: `hobbs` and `fuelSight`.
+- Electrics: the battery, alternator, starter and pump are billed and run the bus, but nothing they bill is drawn. The engine mesh's `battOn` / `genOn` / `starter` knobs are independent of them, and the venturi and pitot fittings follow the tier NAME.
+- Lights: fully drawn and switched. No mass or price anywhere. The amps are added at bind (`cockpit.js:44`), outside the fit, including amps for lamps not drawn.
+- Radios: COM and XPDR are static painted faces drawing amps. NAV and GPS are billed and draw amps with no cockpit item, and are off the avionics master. Every GPS row is selectable ("declared, not drawn yet").
+- Navigator: `38_nav` is handed to every autopilot whatever the fit, and nothing in the cockpit shows it.
+- Interior: `seatType` is drawn but never billed (`outfit.seats` has no writer; every build bills a sling). Furnishing is billed off `systems.fit` and never drawn. The board is billed from unwritten `cabin.panel` defaults. Liners, floor and console are drawn but not billed.
+
+**The flood-dimmer freeze (for EDITOR-BUGS G2780; found by reading, not measured):** the garage light layer adds its PointLights / SpotLight only while the level is > 0 (`_cage_light.js:1602-1624`) and hides its whole group, lights included, on every deferred drag tick (:1378). The scene's light count changes, so every lit material recompiles synchronously. Fix direction: constant lights, intensity only, as `cockpit.js:142-179` already does in flight.
+
+**Plan:**
+- (a) Electrics = 3D: G2801 lights on the ledger and the bus; G2802 elec rows draw what they bill, the avionics master gating nav/gps; G2803 the dash's dead items; G2804 interior drawn = billed (a named change for the shakedown anchors).
+- (b) GPS: G2805 `drawMap` becomes `drawMapInto`; G2806 the portable / panel GPS in 3D; G2807 the GPS live (a CanvasTexture face, nav readouts shipped from the worker); G2808 the career unlock hook (sandbox all open; no TECH-ERA / MACHINE-SHOP doc on master yet, so only the hook); G2809 the reserve, with A0 stills.
+- Three open questions for the user are at the doc's foot.
+
+**Gates:** none run; the step changed docs only.
