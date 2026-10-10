@@ -556,7 +556,7 @@ function cageJoinSpec(P, M, T) {
   if (M.vHeight > 0) tl.vHeight = M.vHeight;
   if (M.vChord > 0) tl.vChord = M.vChord;
   if (M.vX > 0) tl.vX = M.vX;
-  if (M.vSweep === 0) tl.vSweep = 0;
+  if (typeof M.vSweep === 'number' && isFinite(M.vSweep)) tl.vSweep = M.vSweep;   // G2640: the measured rake
   if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
   // THE AREAS (TAIL CHANTIER 2 P1): the sheets' own, by assignment like the
   // rows above — resolveSpec's volume rule is `put` and stands down (G115).
@@ -1060,6 +1060,47 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     });
     return B.n > 20 ? B : null;
   };
+  // A LAYER CUT AT A HEIGHT (G2640): the points where the plane y = yCut
+  // (mount frame) crosses the layer's faces, near the centreline (|x| < xMax).
+  // Faces, not vertices: a lofted sheet has vertices only at its ribs, so a
+  // height between two ribs has none. Returns the cut's fore and aft extremes
+  // (z1 the leading edge, nose at +z; z0 the trailing edge) or null.
+  const layerCutY = (layerName, yCut, xMax) => {
+    const mnt = edMount();
+    if (!mnt || typeof THREE === 'undefined') return null;
+    mnt.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert();
+    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    let grp = null;
+    mnt.traverse(o => { if (!grp && o.name === layerName) grp = o; });
+    if (!grp) return null;
+    let z0 = 1e9, z1 = -1e9, n = 0;
+    grp.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      if (o.userData && (o.userData.edHi || o.userData.edHw)) return;
+      const g = o.geometry, p = g.attributes.position;
+      if (!p) return;
+      tmp.multiplyMatrices(inv, o.matrixWorld);
+      const V = new Float64Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) {
+        v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
+        V[3 * i] = v.x; V[3 * i + 1] = v.y; V[3 * i + 2] = v.z;
+      }
+      const ix = g.index ? g.index.array : null;
+      const nT = ix ? ix.length / 3 : p.count / 3;
+      for (let t = 0; t < nT; t++) for (let e = 0; e < 3; e++) {
+        const a = ix ? ix[3 * t + e] : 3 * t + e, b = ix ? ix[3 * t + (e + 1) % 3] : 3 * t + (e + 1) % 3;
+        const ya = V[3 * a + 1] - yCut, yb = V[3 * b + 1] - yCut;
+        if ((ya > 0) === (yb > 0) || ya === yb) continue;
+        const u = ya / (ya - yb);
+        const x = V[3 * a] + (V[3 * b] - V[3 * a]) * u;
+        if (Math.abs(x) > xMax) continue;
+        const z = V[3 * a + 2] + (V[3 * b + 2] - V[3 * a + 2]) * u;
+        n++; if (z < z0) z0 = z; if (z > z1) z1 = z;
+      }
+    });
+    return n >= 4 ? { z0, z1, n } : null;
+  };
   // WHAT THE MEASUREMENT COULD NOT TAKE (G64). One list, refilled by every
   // measure(), read by the engineering bench. A join that cannot measure the
   // build must not hand back a plausible aeroplane in silence — that is a
@@ -1114,11 +1155,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // tail arm. The ws rings SLOPE (roof z is aft of keel z), so the
       // base is their WAIST/KEEL z, not their roof. Ring z is cage
       // units; AF is metres — × FS (CAGE_UNIT × planeScale) converts.
-      let zFw = AF.z1, fwOk = false, zPost = null;
+      let zFw = AF.z1, fwOk = false, zPost = null, zPodRoot = null;
       let zOf2 = () => null;               // named-ring z lookup, metres
       try {
         const C2 = window.CAGE2;
-        const R = C2.cageResolve(C2.cageSpec({ ...P }));
+        const CSp = C2.cageSpec({ ...P });
+        const R = C2.cageResolve(CSp);
         const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
         zOf2 = (name) => {
           const r = R.rings.find(q => q.name === name);
@@ -1137,6 +1179,29 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // body was not the drawn pod). The pod's own aft extreme (the skin's
         // z0, the aero aft's tip) is the profile's end on twin booms.
         if (zPost == null && +P.boomTwin && isFinite(AF.z0)) zPost = AF.z0;
+        // G2640 (DESIGN-TRUST, the user's 'mosquito'): A TURTLEDECK HAS A TAIL
+        // POST TOO. The mirrored pod (cage.mirror, the 'Turtledeck' body)
+        // emits no tail rings - _cage_gen's table stops at pilCabB and the
+        // boom is lofted from the reflected aperture - so zPost stayed null and
+        // the whole aft body went unmeasured: the tail datum, the post's
+        // section, the profile, the fin's station and height, the stab's seat.
+        // The merge kept whatever an earlier build had written (the mosquito
+        // flew the Cub's boom and a fin 0.6-0.8 m ahead of the drawn one).
+        // But the pod's boom HAS the regular tail's stations (buildCage2: "the
+        // pod's boom is the boom without the top part - it needs the same
+        // pillar"): a smooth run, the tail pillar band at tPost, the cone over
+        // the rest to the capped tip. The post is that band, measured back
+        // from the drawn tip; the body's full section ends at the FIREWALL
+        // REFLECTED (the aft half is the front half mirrored about mirrorZ).
+        if (zPost == null && Math.round(+P.mirror || 0) === 1 && !+P.boomTwin &&
+            Math.round(+P.boomStyle || 0) !== 1 && isFinite(AF.z0) &&
+            CSp.boom && CSp.tail && isFinite(R.mirrorZ)) {
+          const FSp = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+          const dzB = (CSp.boom.len || 0) + (CSp.tail.len || 0);
+          const tPost = dzB > 0 ? Math.min(0.92, CSp.boom.len / dzB) : 1;
+          if (dzB > 0) zPost = AF.z0 + (1 - tPost) * dzB * FSp;
+          if (fwOk) zPodRoot = 2 * R.mirrorZ * FSp - zFw;
+        }
       } catch (e) {
         // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored
         // block below — the cabin's x-extent, the gear station and ride
@@ -1175,7 +1240,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;
         M.tailTop = AF.surf(zPost, Math.PI)[1] - yD;
-      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0) && Math.abs(+P.rodIncl || 0) > 0.05) {
+      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0)) {
         // G477 (the playtest's 130, the user: "the rod inclination impacts
         // the position of everything related to the tail wheel"): A ROD
         // BOOM HAS A TAIL END TOO. With no tail rings the datum stayed the
@@ -1195,6 +1260,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // swung 180 deg and aborted (GATE SEAPLANE). The card is one of the
         // unvalidated ones and the drawn tail is the honest one - that
         // fixture is owed a look before the level rod follows the drawing.
+        // G2640 (DESIGN-TRUST, 10 Oct): THE LOOK, AND THE LEVEL ROD FOLLOWS.
+        // The geometry-parity row measured that fixture (the user's validated
+        // 'twin on floats'): its flown fin 0.61-0.87 m aft of the drawn one,
+        // its stab 0.28 m below the drawn one. The user's standing ruling (8
+        // Oct): "accept the new thing, WYSIWYG always" - every rod, level or
+        // inclined, takes its tip's section as the tail datum now.
         const zTipIn = AF.z0 + Math.min(0.05, 0.25 * Math.max(0.02, AF.z1 - AF.z0));
         const bot = AF.surf(zTipIn, 0), top = AF.surf(zTipIn, Math.PI);
         if (bot && top && isFinite(bot[1]) && isFinite(top[1]) && top[1] > bot[1]) {
@@ -1287,7 +1358,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // actually anchors the FRONT SPAR: the cage's `ring` station
       // (+ the panel's dx), minus sparFront x chord back to the LE.
       if (fwOk) {
-        const zCabF = zOf2('pilCabB'), zCabA = zOf2('pilPaxA');
+        // (G2640: a turtledeck's full section ends at its reflected firewall)
+        const zCabF = zOf2('pilCabB'),
+              zCabA = zOf2('pilPaxA') != null ? zOf2('pilPaxA') : zPodRoot;
         if (zCabF != null && zFw > zCabF) M.noseGap = zFw - zCabF;
         if (zCabF != null && zCabA != null && zCabF > zCabA)
           M.cabLen = zCabF - zCabA;
@@ -1543,8 +1616,37 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // the lattice leans the apex aft a second time.
             M.vX = zFw - fB.topZ;
             M.vSweep = 0;
+            // G2640 (DESIGN-TRUST): ...but the STRIPS stand on that line too,
+            // and a SWEPT fin is not vertical under its top point. The
+            // lattice lays the fin's sections at vX + tan(vSweep)·dy +
+            // (spar - 0.5)·chord, dy up from the tail top — its MID-CHORD
+            // line, raked. Measured with the geometry-parity row: the Jodel's
+            // swept fin flew 0.33-0.50 m aft of the one drawn, the mosquito's
+            // lower half 0.31 m. So the line is measured where it is drawn:
+            // the fin sheet cut at 30 % and 80 % of its height (above any
+            // dorsal, below the tip's bow), the mid-chord of each cut, the
+            // line through them carried down to the tail top (vX) with its
+            // rake (vSweep). A straight unswept fin reads the old answer;
+            // the apex then sits on the mid-chord line at the top, not on
+            // the drawn top vertex (a rounded tip's vertex is not where the
+            // fin's lift is).
+            {
+              const yAt = u => yD + M.tailTop + u * (finTop - M.tailTop);
+              const xB = Math.max(0.32, (M.tailW || 0.2) + 0.08);
+              const ca = layerCutY('cageLayer:fin', yAt(0.30), xB);
+              const cb = layerCutY('cageLayer:fin', yAt(0.80), xB);
+              const dy = 0.5 * (finTop - M.tailTop);
+              if (ca && cb && dy > 0.05) {
+                const ma = zFw - 0.5 * (ca.z0 + ca.z1), mb = zFw - 0.5 * (cb.z0 + cb.z1);
+                const rake = (mb - ma) / dy;
+                if (isFinite(rake) && Math.abs(rake) < 1.5) {
+                  M.vX = ma - rake * 0.30 * (finTop - M.tailTop);
+                  M.vSweep = Math.atan(rake) * 180 / Math.PI;
+                }
+              }
+            }
             if (typeof M.stabY === 'number' && finTop > tailYm + 0.1)
-              M.stabH = Math.max(0, Math.min(1,
+              M.stabH = Math.max(-0.5, Math.min(1,             // G2640: below the cone's mid too
                 (M.stabY - tailYm) / (finTop - tailYm)));
           } else if (fB && !tailDatum) {
             NOTES.push('tail: no tail rings (a rod boom or a pod) — the fin\'s area is the drawn one, its height and the tailplane\'s seat are the rule\'s');

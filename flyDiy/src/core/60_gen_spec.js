@@ -4450,7 +4450,10 @@ function clampSpec(spec) {
   }
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
-  S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
+  // G2640: down to -0.5 - a stab drawn BELOW the tail cone's mid-height (the
+  // mosquito's on its boom's centre, the Cub's on its longerons) was clamped up
+  // to it: 2.6 and 4.6 cm above the drawn stab (the geometry-parity row)
+  S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, -0.5, 1);
   S.tail.vSweep = genFieldClamp('tail.vSweep', S.tail.vSweep);
   const dr = S.tail.dorsal || (S.tail.dorsal = {});
   dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
