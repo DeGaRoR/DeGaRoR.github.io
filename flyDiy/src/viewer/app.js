@@ -9328,8 +9328,18 @@
   // G2225 (FLEET-STAND): the fleet's set as the 'parking' step's key ('' with FLYDIY_FLEET off), and the stand itself
   // the game's context for the stand and the queue's bound: the drawn set is the roll-out's aerodrome's outside rows, the
   // airframe on the stand left out, at most PARKED.fleetCap() (6; 4 on a light preset)
-  const fleetCtx = () => ({ world, doc: playerLoad(), flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
-                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6 });
+  // G2703 (HANGAR-STORAGE-2): ...AND THE GARAGE'S DRAWN RESIDENTS (the career's: its building's inside slots, then the
+  // floor's aeroplane - the stand's too, a prop once another is loaded; at most N + 1): an airframe saved on the floor and
+  // moved inside never stood outside, and the bound refused its bake - its resident never filled
+  const fleetInside = d => {
+    try {
+      if (!CAREER_DEV || typeof playerResidentsShown !== 'function') return [];
+      const id = roomId(), S = typeof playerSlots === 'function' ? playerSlots(d, id) : null;
+      return playerResidentsShown(d, id, null, ((S && isFinite(S.parked)) ? S.parked : 2) + 1);
+    } catch (e) { return []; }
+  };
+  const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
+                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d) }; };
   const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
   const fleetStand = () => {
