@@ -1171,7 +1171,7 @@ function garageInit(api) {
     writeWip();
     syncRibbon();
     // G2221 (FLEET-PROPS A): the saved aeroplane's parked prop is baked on the garage's idle path, never in the world
-    // (parked.js fleetQueue; nothing with FLYDIY_FLEET off)
+    // (parked.js fleetQueue; nothing with FLYDIY_FLEET off - on by default since G2226)
     try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(name); } catch (e) {}
   };
   // EXPORT is a file, because a build you cannot hand to somebody else is not

@@ -630,7 +630,9 @@ async function fleetHeadless() {
     '12 the fleet ladder: L1 to 30 m, L2 to 450 m, L3 on; a light preset L3 alone', JSON.stringify(PK.fleetLadder(false)) + ' / ' + JSON.stringify(PK.fleetLadder(true)));
   // the flag off: a save queues nothing
   W.GARAGE_SPEC = { slotSpec: n => ({ cage: { boomLen: 4 + n.length / 10 }, meta: { name: n }, finish: { body: '#c0ffee' } }), slotImages: () => null, cageDefaults: () => null };
-  check(PK.fleetOn() === false && PK.fleetQueue('a') === false && PK.fleet.queue.length === 0, '12 FLYDIY_FLEET off (the default): a save queues nothing');
+  check(PK.fleetOn() === true, '12 FLYDIY_FLEET is ON by default (G2226, GQ9)');
+  W.FLYDIY_FLEET = false;
+  check(PK.fleetOn() === false && PK.fleetQueue('a') === false && PK.fleet.queue.length === 0, '12 FLYDIY_FLEET off (window.FLYDIY_FLEET = false): a save queues nothing');
   // the signature: the spec's fingerprint plus the look
   const sp = PK.specOf('mine:abc'), s0 = PK.fleetSig(sp, null);
   const sp2 = JSON.parse(JSON.stringify(sp)); sp2.finish.body = '#000000';
@@ -872,6 +874,7 @@ async function pageRows() {
   // 12p THE FLEET in the page
   {
     const F = K.fleet, S = F.stats, st = (() => { const m = new Map(); return { m, get: k => PW.Promise.resolve(m.has(k) ? m.get(k) : null), put: (k, v) => { m.set(k, v); return PW.Promise.resolve(); } }; })();
+    PW.FLYDIY_FLEET = false;   // G2226: on by default - this block's 'off' rows turn it off
     G.set(JSON.parse(JSON.stringify(MET)));
     G.save('offA');
     // G2225: the queue bakes only the DRAWN SET (FLEET_STAND.wants: outside at the roll-out's aerodrome) - the two fleet

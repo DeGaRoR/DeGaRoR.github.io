@@ -290,7 +290,7 @@ const MANIFEST = {
     // THE PARKED AEROPLANES (G411): builds as props, before the renderer that stands them
     ['src/viewer', 'parked.js'],
     // THE FLEET ON THE APRONS (G2225, FLEET-STAND): the cooked tie-down spots (tools/fleet_spots.js --cook) and the stand
-    // (app.js 'parking' step; behind FLYDIY_FLEET)
+    // (app.js 'parking' step; FLYDIY_FLEET, on by default since G2226)
     ['src/viewer', 'fleet_spots_pack.js'], ['src/viewer', 'fleet_stand.js'],
     // THE FLOWN BAKE (C4a, G870): the flown aeroplane's exterior baked on parked.js's unwrap, under the roll-out screen
     ['src/viewer', 'flown_bake.js'],
