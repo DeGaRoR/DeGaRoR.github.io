@@ -132,7 +132,8 @@ console.log('4. the solver stops at a wall');
       if (stood) { maxNose = Math.max(maxNose, noseOf()); maxObst = Math.max(maxObst, sim.out.obst || 0); along = dx * fx + dz * fz; vmax = Math.max(vmax, sim.out.V || 0); }
       if (stood && sim.wheelsOnGround && sim.wheelsOnGround() === 0 && !wall) { sim.ctl.thr = 0; }
     }
-    return { bad, stood, maxNose, maxObst, along, speed: Math.hypot(sim.v[0], sim.v[2]), vmax };
+    // (T41b: the speed split against the wall - INTO / away from it along the run's line, and ALONG its face)
+    return { bad, stood, maxNose, maxObst, along, speed: Math.hypot(sim.v[0], sim.v[2]), vN: Math.abs(sim.v[0] * fx + sim.v[2] * fz), vT: Math.abs(-sim.v[0] * fz + sim.v[2] * fx), vmax };
   };
   const hit = run(true), free = run(false);
   yes(!hit.bad && !free.bad && hit.stood && free.stood, 'both runs finite and rolling (' + free.vmax.toFixed(1) + ' m/s at the most)');
@@ -140,7 +141,10 @@ console.log('4. the solver stops at a wall');
   yes(hit.maxObst > 0, 'against the wall the solver reports nodes in contact (' + hit.maxObst + ' at the most)');
   yes(hit.maxNose < D + 8.0, 'the nose never passes the far face of the wall (' + hit.maxNose.toFixed(1) + ' m of ' + (D + 8).toFixed(0) + ')');
   yes(hit.along < D + 0.5, 'the CG stays this side of the wall (' + hit.along.toFixed(1) + ' m of ' + D + ')');
-  yes(hit.speed < 1.5, 'the aeroplane comes to rest against it under a third of throttle (' + hit.speed.toFixed(2) + ' m/s)');
+  // T41b (the user's word, by name): with DMG-MOUNTRIG's isolator mount (G2361) the aeroplane no longer bounces back off
+  // the wall (master: 7.25 m/s back - a near-elastic rebound, the old rigid nose); it stays against it and, under its
+  // third of throttle, rolls along the face. The row holds what the wall is for: no rebound and no push-through
+  yes(hit.vN < 1.5, 'against the wall under a third of throttle the aeroplane neither rebounds nor pushes on (' + hit.vN.toFixed(2) + ' m/s into / off the wall; along its face ' + hit.vT.toFixed(2) + ' m/s, reported)');
 }
 
 console.log('5. the world');
