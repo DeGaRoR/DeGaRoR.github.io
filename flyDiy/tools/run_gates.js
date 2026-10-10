@@ -114,7 +114,7 @@ const GATES = [
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
-  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
+  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', shards: 4, wall: 400 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown; G2490 ALTIPORT-TAXI: + 11 the turn-around from where a landing stopped (sections 1-10 one job in shard 0)
   // G1965-G1974 ISLAND-TOUR: the strips (the approach census against the forest the fill plants, the turn pads, the
   // mine's apron; ~1 min, shard 0) and THE TOUR - the user's Cub, the aluminium C172 and the float Cessna round every
   // location they may use, damage ON, landing, turning round on the pad, taking off, back at HOME (one tour a shard,

@@ -1226,7 +1226,134 @@ function makePilot(sim, def, world, opts) {
     ap.dirX = -1;
     ap.takeoffDir = t;
   };
+  // G2490 ALTIPORT-TAXI: THE TURN-AROUND KEEPS ITS WINGS OFF WHAT STANDS THERE. The game (8 Oct, the user's Cub): landed
+  // uphill at the Skyline altiport, the slope roll-on stopped it on the level part 33 m from the top end - 6 m short of
+  // the U-turn the pattern draws there (l1a, 27 m in) - and the route back down was joined from that pose: a 2.7 m fillet
+  // at l1a and 6.5 m at l1b, for wheels that steer an 11.3 m circle. The follower ran 8 m wide of it and the CG went into
+  // the tram station's corner 4.9 m off the strip's edge (a fus member broke, 13 s into the leg). Nothing measured the
+  // turn against what stands there: the pattern's routes are held to the buildings by GATE TAXICLEAR's census on their
+  // drawn centreline (the U-turn from 27 m in passes the station at 8.96 m, the Cub's need 8.35), never the join from
+  // where a landing stopped, nor the swing of a bend tighter than the wheels. Here, at a turn-around on the strip, the
+  // route is swept as the aeroplane will drive it - the CG's track +- the half-span + 3 m (the user's margin), + the
+  // wheels' shortfall (RgMin - the bend's radius) about every bend tighter than they steer - against the solid things
+  // the world holds (world.obstacles: what the page registered, every column whatever its height). Touching one, the turn
+  // on the spot at the pose is weighed - the airframe's own reach about the CG + the CG's walk in it (the Cub's 2.6 m,
+  // a tricycle's 4.5 m: G1938 / G1949's measures) + 3 m - then the centreline to the route's hold: the clearer of the two
+  // is flown; neither clear is said (taxi-clearance). With nothing near, nothing changes (the route, to the bit)
+  const TURN_MARGIN = 3.0, solidBuf = [];
+  const solidAt = (x, z) => {
+    const R = world && world.obstacles;
+    if (!R || typeof R.near !== 'function' || typeof OBSTACLES === 'undefined' || !OBSTACLES.planDist) return Infinity;
+    R.near(x, z, solidBuf);
+    let m = Infinity;
+    for (const id of solidBuf) {
+      const r = R.get(id);
+      if (!r || !r.shape || Math.hypot(r.x - x, r.z - z) - r.shape.xr > m) continue;
+      const d = OBSTACLES.planDist(r, x, z); if (d < m) m = d;
+    }
+    return m;
+  };
+  // the least of (the solid thing's distance - the band) over a path's points: { d, x, z } (d < 0: inside the band)
+  const sweepOf = (pts, band) => {
+    let w = { d: Infinity, x: NaN, z: NaN };
+    for (let k = 0; k < pts.length; k++) { const q = pts[k], d = solidAt(q.x, q.z) - band(k); if (d < w.d) w = { d, x: q.x, z: q.z }; }
+    return w;
+  };
+  // the bends of a path the wheels cannot steer, and the band its swept wings take: the half-span + the margin, + the
+  // wheels' shortfall over the stretch they run wide of such a bend (a radius before it, two after)
+  const bandOf = (P, half) => {
+    const tight = [];
+    for (let k = 0; k < P.length; k++) if (Math.abs(P[k].kap) > 1 / RgMin) tight.push(k);
+    return k => {
+      let sw = 0;
+      for (const j of tight) if (P[k].s >= P[j].s - RgMin && P[k].s <= P[j].s + 2 * RgMin) sw = Math.max(sw, RgMin - 1 / Math.abs(P[j].kap));
+      return half + TURN_MARGIN + sw;
+    };
+  };
+  // A TURN-AROUND is a route that comes back past 150 deg of the nose in its first 80 m (a U-turn at the pose, the
+  // pattern's own U-turn joined from where the aeroplane stopped). Its alternatives, each swept the same way: the turn on
+  // the spot HERE, or - its wings not clear here - at the first spot ahead along the centreline where they are (rolled
+  // on to, straight, 3 m steps, short of the strip's end by the turn's own reach), then either straight on along the
+  // centreline to the route's hold (when the hold faces the way the turn leaves the aeroplane) or the route's own nodes
+  // after its reversal (the pose's U-turn corners dropped), joined from the spot. The clearest is flown; where several
+  // clear, the turn here before a roll on, and the centreline before the route's nodes.
+  // -> null (no turn-around, or the route clears), else { turn, first (the roll on, or null), then (the path after the
+  // turn), at (the path handed to the follower now), hdg, route, pose, why }
+  const turnAtPose = (cg, nose, from, route, PN, ids) => {
+    const R = world && world.obstacles;
+    if (!R || !(R.count > 0) || !route || !route.pts || route.pts.length < 2 || !isFinite(RgMin)) return null;
+    const P = route.pts, half = patOpts.half || 6, nH = Math.atan2(nose[1], nose[0]);
+    let kR = -1;
+    for (let k = 0; k < P.length && P[k].s < 80; k++) if (Math.abs(wrapPi(P[k].hdg - nH)) > 2.62) { kR = k; break; }
+    if (kR < 0) return null;
+    const wR = sweepOf(P, bandOf(P, half));
+    if (wR.d >= 0) return null;
+    // the strip's axis the way back (the turn's heading), and how far the strip goes on ahead of the nose
+    const ux = Math.cos(from.hdg), uz = Math.sin(from.hdg), sgN = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
+    const back = [-sgN * ux, -sgN * uz], hB = Math.atan2(back[1], back[0]);
+    const sNow = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
+    let reach = 0;
+    for (let i = 0; i < sim.n; i++) reach = Math.max(reach, Math.hypot(sim.p[i * 3] - cg[0], sim.p[i * 3 + 2] - cg[2]));
+    const disc = reach + (trike ? 4.5 : 2.6) + TURN_MARGIN;
+    const toEnd = (from.len || 0) / 2 - sgN * sNow;
+    // the route's nodes after the reversal: the first node whose path point lies past where the path heads straight back
+    let kB = kR; while (kB < P.length - 1 && Math.abs(wrapPi(P[kB].hdg - (nH + Math.PI))) > 0.35) kB++;
+    const byId = {}; for (const n of PN.nodes) byId[n.id] = n;
+    let rest = null;
+    { let j0 = 0; const at = [];
+      for (const id of ids) { const n = byId[id]; if (!n) { at.push(-1); continue; } let bi = j0, bd = Infinity; for (let j = j0; j < P.length; j++) { const d = (P[j].x - n.x) ** 2 + (P[j].z - n.z) ** 2; if (d < bd) { bd = d; bi = j; } } at.push(bi); j0 = bi; }
+      const i0 = at.findIndex((k, i) => k >= kB && ids[i][0] !== '@');
+      if (i0 >= 0) rest = ids.slice(i0); }
+    const end = P[P.length - 1], hold = byId[ids[ids.length - 1]];
+    const holdH = hold && typeof hold.hdg === 'number' ? hold.hdg : route.holdHdg;
+    const mk = (nodes, list, frm) => { try { return patternPath(Object.assign({}, PN, { nodes }), list, 1.0, frm); } catch (e) { return null; } };
+    const straight = (A, B, hdg) => mk([{ id: '@p', x: A[0], z: A[1], kind: 'pose' }, { id: '@h', x: B[0], z: B[1], kind: 'hold', hdg }], ['@p', '@h'], null);
+    const cands = [];
+    const tryAt = (L, first) => {
+      const wD = { d: solidAt(L[0], L[1]) - disc, x: L[0], z: L[1] };
+      const w1 = first ? sweepOf(first.pts, () => half + TURN_MARGIN) : { d: Infinity };
+      const add = (then, kind) => {
+        if (!then || !then.pts || then.pts.length < 2) return;
+        const w2 = sweepOf(then.pts, bandOf(then.pts, half));
+        const w = [wD, w1, w2].reduce((m, q) => (q.d < m.d ? q : m));
+        const h0 = then.pts[Math.min(3, then.pts.length - 1)];
+        // THE WAY ROUND: the CG walks ~2.3 m toward the side the nose turns to (the Cub at the altiport: 2.3 m right in a
+        // right turn; a tricycle's 6-7 m, G1949) - the turn goes to the clearer side, the walk away from the nearer thing
+        const lf = [-nose[1], nose[0]], pr = 3;
+        const sg = solidAt(L[0] + lf[0] * pr, L[1] + lf[1] * pr) >= solidAt(L[0] - lf[0] * pr, L[1] - lf[1] * pr) ? 1 : -1;
+        cands.push({ w, first, then, hdg: Math.atan2(h0.z - L[1], h0.x - L[0]), sg, kind, rank: cands.length });
+      };
+      // straight on along the centreline to the hold, the way the turn leaves the aeroplane
+      const sH = (end.x - L[0]) * back[0] + (end.z - L[1]) * back[1];
+      if (sH > 5 && typeof holdH === 'number' && Math.abs(wrapPi(holdH - hB)) < 0.5) add(straight(L, [end.x, end.z], holdH), 'centreline');
+      else if (sH <= 5 && typeof holdH === 'number' && Math.abs(wrapPi(holdH - hB)) < 0.5 && (from.len / 2 + sgN * ((L[0] - from.x) * ux + (L[1] - from.z) * uz)) >= runNeeded())
+        add(straight(L, [L[0] + back[0] * 3, L[1] + back[1] * 3], hB), 'lined');
+      if (rest && rest.length) add(mk(PN.nodes, rest, L), 'route');
+    };
+    tryAt([cg[0], cg[2]], null);
+    if (!cands.some(q => q.w.d >= 0)) {
+      // the first spot ahead where the turn clears (and the roll to it)
+      for (let d = 3; d <= toEnd - reach - 1.5; d += 3) {
+        const L = [cg[0] - back[0] * d, cg[2] - back[1] * d];
+        if (solidAt(L[0], L[1]) - disc < 0) continue;
+        const first = straight([cg[0], cg[2]], L, nH);
+        if (first) tryAt(L, first);
+        if (cands.some(q => q.w.d >= 0)) break;
+      }
+    }
+    if (!cands.length) return null;
+    // the clearest; among the clear ones the first found (here before a roll on; the centreline before the route's nodes)
+    const ok = cands.filter(q => q.w.d >= 0), best = ok.length ? ok[0] : cands.reduce((m, q) => (q.w.d > m.w.d ? q : m));
+    const r1_ = v => Math.round(v * 10) / 10;
+    const turn = best.w.d > wR.d;
+    return { turn, first: turn ? best.first : null, then: best.then, at: turn ? (best.first || best.then) : route, hdg: best.hdg, sg: best.sg, kind: best.kind,
+             route: { d: r1_(wR.d), x: r1_(wR.x), z: r1_(wR.z) }, pose: { d: r1_(best.w.d), x: r1_(best.w.x), z: r1_(best.w.z), disc: r1_(disc), roll: best.first ? r1_(best.first.len) : 0 },
+             why: (turn ? 'turning round ' + (best.first ? Math.round(best.first.len) + ' m on' : 'here') + ' (then ' + (best.kind === 'route' ? 'the route' : 'the centreline') + ')' : 'the turn-around by the route') +
+                  ' - the route\'s swept wings ' + r1_(-wR.d) + ' m into the ' + TURN_MARGIN + ' m margin of a solid thing at (' + Math.round(wR.x) + ', ' + Math.round(wR.z) + '), ' +
+                  (turn ? 'the turn ' : 'the best turn on the spot ') + (best.w.d >= 0 ? 'clear by ' + r1_(best.w.d) + ' m' : r1_(-best.w.d) + ' m into it at (' + Math.round(best.w.x) + ', ' + Math.round(best.w.z) + ')') };
+  };
   const planDeparture = (cg, nose) => {
+    ap.pivAt = null;
     const from = ap.route.from;
     const PAT = ap.patOf(from);
     const half = (from.wid || 30) / 2;
@@ -1313,6 +1440,8 @@ function makePilot(sim, def, world, opts) {
         }
         const P2 = Object.assign({}, PAT, { nodes });
         ap.path = patternPath(P2, ids, 1.0, [cg[0], cg[2]]);
+        // G2490 ALTIPORT-TAXI: a turn-around on the strip swept against what stands there (turnAtPose, above)
+        if (onStrip) { ap.pivAt = turnAtPose(cg, nose, from, ap.path, P2, ids); if (ap.pivAt) ap.path = ap.pivAt.at; }
         ap.pathI = 0; ap.stopAfterLineup = true;
         return 'TAXI';
       }
@@ -2455,6 +2584,14 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'TAXI': {
+        // G2490 ALTIPORT-TAXI: the turn-around planDeparture weighed (turnAtPose): said once; the turn on the spot first
+        // (a roll on to the spot first: the turn where that path ends, below)
+        if (ap.pivAt && ap.pivAt.at === ap.path) {
+          const TP = ap.pivAt;
+          if (!TP.said) { TP.said = true; say(TP.turn && TP.pose.d >= 0 ? 'pivot' : 'taxi-clearance', TP.why); }
+          if (!TP.turn || !TP.first) ap.pivAt = null;
+          if (TP.turn && !TP.first && !piv) { piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; }
+        }
         if (ap.path && piv) {
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(wrapPi(piv.hdg - Math.atan2(nose[1], nose[0]))) * 57.3), 6, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; piv = null; SV.relatch(); }
@@ -2543,7 +2680,11 @@ function makePilot(sim, def, world, opts) {
           setStatus('following the taxi route to the hold', [
             cond('to the hold', Math.round(L.sRem), 2, L.sRem < 2, 'm'),
             cond('off the line', Math.abs(L.ey), 2.5, Math.abs(L.ey) < 2.5, 'm')]);
-          if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) go('STOP');
+          if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) {
+            // G2490: the roll on to the turn's spot done - the turn on the spot, then the path after it
+            if (ap.pivAt && ap.pivAt.first === ap.path) { const TP = ap.pivAt; ap.pivAt = null; ap.path = TP.then; ap.pathI = 0; piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; break; }
+            go('STOP');
+          }
           else if (phaseT > tMax) { say('taxi-timeout', 'the route took ' + Math.round(phaseT) + ' s — stopping where it is'); go('STOP'); }
           break;
         }

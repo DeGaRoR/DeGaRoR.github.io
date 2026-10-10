@@ -1,0 +1,15 @@
+== builds/cub_2026-09-20_corrected.json
+airborne t 56.3
+min wing clearance 6.49 m: prop ob:tw_o19 f 1.0 at (315.1, -7807.9) TAXI t 38.0; obst steps 0
+verdicts ["pivot: turning round here (then the centreline) - the route's swept wings 3.7 m into the 3 m margin of a solid thing at (332, -7849), the turn clear by 3 m","committed-takeoff: past the point of stopping at V=13.5 with 242 m left — Vr in 28 m, continuing"]
+path ids @p,@h len 77 centreline min 11.78 prop ob:tw_o19 at 314.9,-7807.7
+== builds/jodel_2026-09-20_corrected.json
+airborne t 72.8
+min wing clearance 7.65 m: prop ob:tw_o19 f 1.0 at (315.0, -7807.9) TAXI t 50.6; obst steps 0
+verdicts ["pivot: turning round here (then the centreline) - the route's swept wings 0.4 m into the 3 m margin of a solid thing at (332, -7849), the turn clear by 4.3 m","committed-takeoff: past the point of stopping at V=13.3 with 239 m left — Vr in 64 m, continuing"]
+path ids @p,@h len 77 centreline min 11.78 prop ob:tw_o19 at 314.9,-7807.8
+== bugReports/cessnaMetal (1).json
+airborne t 45.3
+min wing clearance 6.28 m: prop ob:tw_o19 f 1.0 at (315.1, -7808.0) TAXI t 24.2; obst steps 0
+verdicts ["pivot: turning round here (then the centreline) - the route's swept wings 0 m into the 3 m margin of a solid thing at (314, -7812), the turn clear by 2.9 m","committed-takeoff: past the point of stopping at V=14.2 with 250 m left — Vr in 70 m, continuing"]
+path ids @p,@h len 77 centreline min 11.78 prop ob:tw_o19 at 314.9,-7807.7

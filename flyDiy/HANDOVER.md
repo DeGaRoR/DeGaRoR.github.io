@@ -82724,3 +82724,137 @@ Nothing generated committed.
 STATUS: READY for the PILOT COORDINATOR (train 43). The bar: Tamgas Hill landed and stopped on the strip in the game's
 flight, the 8 kt day and calm (222 / 171 m left); a strip too short for the speed held is refused and the diversion said.
 No bound loosened, no validated build's geometry changed.
+
+## G2490 - ALTIPORT-TAXI: THE TURN-AROUND KEEPS ITS WINGS OFF WHAT STANDS THERE - THE ALTIPORT'S TRAM STATION, JUMBO MINE'S MILL AND CLINIC; THE PILOT SWEEPS A TURN-AROUND ON THE STRIP AGAINST THE WORLD'S SOLID THINGS AND TURNS ON THE SPOT WHERE THE WINGS CLEAR; GATE TAXICLEAR 11 (2026-10-08, ALTIPORT-TAXI for the PILOT COORDINATOR, a CLOUD session: node only; branch claude/altiport-taxi-g2490 off origin/claude/pilot-integration 9546d2ee = master bcf62797 train 40 + ENGINE-TORQUE + ROUTE-DRAW; G2491-G2499 unused)
+
+THE FINDING (the coordinator's, the game on the GPU, 8 Oct, master bcf62797, damage on, the 8 kt day, the user's Cub, tools/tour_real.js
+HOME,tw_ski,nv_strip): leg 1 lands at the Skyline altiport clean, the slope roll-on takes it to the level part at the top; leg 2 (To ->
+East Point) taxis 'to the hold 84 m, off the line 13.3 m', its heading swinging through 180 deg at 2.5 m/s, the wing strikes the tram
+station: 'a fus member broke', 22 s into the leg.
+
+### G2490.1 - REPRODUCED IN NODE (mode: node, tree 9546d2ee = the base)
+- tools/tour_real_node.js --game --damage 1 --order HOME,tw_ski,nv_strip (the game's flight: _tour_lib gameHost, the 8 kt / 250 deg day
+  ticked): leg 2 crashes 12.6 s in - 'the damage ended the flight: a fus member broke', 12 members broke, 2451 yielded, the propeller
+  struck, a node inside an obstacle on 124 steps (reports/evidence/ALTIPORT-TAXI/tour_before_node_game.log / .json). Leg 1 stopped at
+  (335.7, -7843.8), the nose up the strip (-1.05 rad), 157 m along from the centre = 33 m from the top end, ON the centreline.
+  (Node's aeroplane is the build file's - 45 L, 476 kg: tools/_load_build.js, JOIN-PARITY's load door, does not run on this base -
+  'W.CAGE2.cageGlazedM2 is not a function' - and was left out; the game's Cub has ~27 L. Leg 1 also printed a ground-loop / off-strip
+  fault on node's landing roll that the game did not have. The leg-2 crash reproduces regardless.)
+- The fast repro (reports/evidence/ALTIPORT-TAXI/leg2_repro.js, ~20 s): the aeroplane seated at that stop pose, the chained leg the page
+  gives (sim_host 'leg': a fresh pilot, departFrom(tw_ski, nv_strip)). The Cub's CG ends INSIDE tw_s_summit/station at (329.8, -7861.9),
+  6479 obstacle steps; the Jodel crashes 14 s in (a wing member broke); the metal Cessna gets off with its wing 1.78 m from the station
+  (leg2_before.txt).
+
+### G2490.2 - THE CAUSE (the three questions)
+(a) IS THE STATION IN THE REGISTRY THE WORKER'S WORLD HOLDS? Yes. The page registers it (render_premises hitAdd) and sim_link mirrors
+    every registry op into the worker ('obst' ops, sim_host simHostWorldOp) - the solver collided with it in the game; node registers it
+    the same way (_taxiclear_lib intoWorld off the cook). Its footprint: s 132..178 m along the strip, its edge 13.9 m off the
+    centreline = 4.9 m off the strip's edge, a corner jutting toward the strip at s ~170 (everywhere else the edge is 20 m+ out).
+(b) DOES THE GROUND PATH OR THE PIVOT SWEEP THE WINGTIP AGAINST OBSTACLES? Neither. The pilot's ground planner (43_pilot planDeparture)
+    consults no obstacle at all; the pattern bends its ways out round PARKED aeroplanes only (25_airfield gpClearWay, out-routes only);
+    GATE TAXICLEAR 6 holds the pattern's routes from their own first node on the DRAWN centreline +- half-span + 3 m - the U-turn back
+    from 27 m in passes the station at 8.96 m, the Cub's need 8.35: green. Nothing held (1) the JOIN from where a landing stops, nor (2)
+    the swing of a bend tighter than the wheels steer. The turn on the spot (G1938 pivot) is used on strips under 300 m only (380 m here).
+(c) DOES THE SLOPE ROLL-ON LEAVE THE AEROPLANE WHERE THE PLANNER NEVER EXPECTED? Yes. G630.1's roll on to the level part stops it 33 m
+    from the top end - 6 m SHORT of the pattern's U-turn entry l1a (27 m in, 6.5 m to the side). planDeparture's 'U-turn at the pose' is
+    only drawn when the route's first node is behind and > 60 m away; here it is 9 m ahead, so the route was joined straight from the pose:
+    pose -> l1a -> l1b, a 2.7 m fillet at l1a and 6.5 m at l1b, for wheels that steer an 11.3 m circle (the Cub, groundRmin at 0.85).
+    The follower ran 8 m wide of it - to s 170, 14 m off the centreline - into the station's corner. The roll-on is right (an altiport is
+    turned round on its level top); the turn-around from there was not planned for it.
+
+### G2490.3 - THE FIX (src/core/43_pilot.js turnAtPose + the TAXI phase; src/core/29_obstacles.js planDist)
+- 29_obstacles OBSTACLES.planDist(rec, x, z): the PLAN distance to a registered shape's footprint, every column whatever its height
+  (TAXICLEAR's rule); exact near a footprint (the occupied cells' squares - the census's own measure), the chamfer field beyond 25 m;
+  a parked aeroplane by its pieces' plan boxes.
+- 43_pilot: at a TURN-AROUND ON THE STRIP (planDeparture's route comes back past 150 deg of the nose in its first 80 m), the route is
+  SWEPT as the aeroplane will drive it - the CG's track +- (half-span + 3 m + the wheels' shortfall RgMin - r over a radius before and two
+  after every bend tighter than they steer) - against world.obstacles. With nothing within that band the route stands TO THE BIT (every
+  gate world with an empty registry, every open strip). Touching something, the alternatives are swept the same way: the turn on the
+  spot HERE (its disc: the airframe's own reach about the CG + the CG's walk in the turn, 2.6 m / a tricycle's 4.5 m - G1938 / G1949's
+  measures - + 3 m), or rolled on along the centreline to the first spot where that disc clears; then the centreline to the route's hold
+  (when the hold faces the way the turn leaves it) or the route's own nodes after its reversal (the pose's U-turn corners dropped). The
+  clearest is flown (clear ones: here before a roll on, the centreline before the route); neither clear is SAID ('taxi-clearance', the
+  numbers). The TURN'S WAY ROUND goes to the clearer side: the CG walks ~2.3 m toward the side the nose turns to (measured on the Cub
+  at the altiport). Said once as 'pivot: turning round here (then the centreline) - the route's swept wings 3.7 m into the 3 m margin of
+  a solid thing at (332, -7849), the turn clear by 3 m'.
+- The TAXI phase flies it with the existing pivotFly (the inside brake, full rudder; a tricycle's nosewheel and toe brake): the turn
+  first, or the roll on and then the turn, then the path after it.
+- EAST-POINT-DEPART (claude/east-point-depart-g2450): planDeparture's hunks are disjoint - `git merge-tree` of this branch with
+  f13358bb merges 43_pilot.js clean; tools/_tour_lib.js is taken as G2450 carries it (one copy). The two conflicts that remain
+  (HANDOVER.md, 90_node_exports.js) are the base's against G2450, not this branch's.
+- Cost: the DEPART step that plans a turn-around with something near ~70 ms once (base 24 ms, the same box under the gates' load).
+
+### G2490.4 - BEFORE / AFTER (mode: node; before = tree 9546d2ee, after = this branch)
+THE ALTIPORT, the game's stop pose (leg2_repro.js; leg2_before.txt / leg2_after.txt), damage on, the game's day:
+  | build | before | after |
+  | the user's Cub | CG inside the tram station, 6479 obstacle steps, never leaves | pivot here, centreline to hold1, airborne 56 s, wing 6.49 m off (a picnic table) |
+  | the Jodel | CRASH 14 s, a wing member broke | airborne 73 s, wing 7.65 m |
+  | the metal Cessna | airborne, the wing 1.78 m from the station | airborne 45 s, wing 6.28 m |
+THE TOUR (tour_real_node.js --game --damage 1 --order HOME,tw_ski,nv_strip; tour_before_node_game.log / tour_after_node_game.log):
+  before: leg 2 CRASHED 12.6 s in (above). after (src 7c8d9a8c): leg 2 'ok' - turned 210 deg on the ground (the turn on the spot),
+  lift-off 56 m into the run, East Point landed (sink 1.31 m/s, 18.4 m/s, run 80 m, 0.1 m off), stopped, no fault. The tour prints
+  NOT DONE on leg 1 alone: node's altiport landing roll (a ground-loop 30.4 deg at 10.7 m/s, off tw_ski's box) - the SAME numbers before
+  and after (640 s, sink 0.62, run 97 m), node's and not the game's (the game's leg 1 was clean, certified; node flies the file's 45 L
+  Cub, above) - owed to the tour track, not this fix.
+TREES: leg2_after.txt / mn_strip_after.txt were flown on 2fc12d89 + the turn's way round (planDist still the chamfer field); GATE
+TAXICLEAR 11c re-flew the altiport x 3 and Jumbo Mine (45 m) x 3 on the final src (7c8d9a8c / ce0e3084): the Cub 6.62 m, the Jodel
+7.68 m, the metal Cessna 6.28 m off the nearest footprint at the altiport, all airborne; Jumbo Mine 2.52 / 3.85 / 1.90 m, 0 contacts.
+
+### G2490.5 - THE OTHER STRIPS (the brief's item 5)
+The census (reports/evidence/ALTIPORT-TAXI/turnaround_census.js, census_before.txt / census_after.txt): every Jolene land strip x the
+Cub / the Jodel / the metal Cessna x poses on the centreline facing either end 15-150 m from it, the island's solid things in the world,
+the plan DEPART makes. 246 plans. Changed by the fix: ONLY the altiport's top end and JUMBO MINE'S south half - HOME, w2, Tamgas Hill
+(w3) and East Point (nv_strip) plan exactly as before (no solid thing within the band of their turn-arounds; East Point's end poses take
+G1938's short-strip LINEUP).
+JUMBO MINE STREET IS THE SAME PATTERN, WORSE. A landing stops on its south half (it lands toward end0); the take-off there is planned
+the same way, so the turn-around is the U-turn at the pose (6.5 m lane fillets, the Cub's wheels 11.3 m) and back up the lane past the
+mill (its footprint 10.5 m off the centreline) and the clinic (8.8 m, at the strip's edge). Flown (flyposes.sh; mn_strip_before.txt /
+mn_strip_after.txt), poses 25 / 45 / 60 / 90 m from end0:
+  BEFORE: the metal Cessna CRASHES twice (60 m: 'the airframe crushed', 90 m: 'a wing member broke'); the Cub's nodes into the shop's
+          pallet stack (60, 90 m: 2 and 186 obstacle steps); every other flight's wing within 0.11-1.46 m of the mill or over its
+          footprint (0.28, -0.01, 0.74, 0.18, 0.11 m).
+  AFTER:  all 12 airborne, 0 obstacle steps, the wing 2.31-4.09 m off the nearest footprint (the Cub 2.31 m from the clinic at 45 m).
+HOME's stands: TAXICLEAR 6 holds them (unchanged, green); the stand departures are not turn-arounds on the strip and are not touched.
+tw_ski's own stand departure (through the top-end U-turn beside the station) flown: clean, the wing 3.27-8.32 m
+(tw_ski_stand_departure_after.txt).
+
+### G2490.6 - GATE TAXICLEAR 11 (tools/_taxiclear_check.js; _taxiclear_lib planAt / flyTurn / placeAt)
+  a PLANNED: the census above, held on the census's own footprints (not the pilot's registry): the plan's CG track half-span + 3 m off
+    every footprint (the drawn line), a kept route's bends widened by the wheels' whole shortfall off every footprint (the driven line -
+    an upper bound on the swing, so held at 0, not 3), a turn on the spot's disc 3 m off. 3 x 82 plans.
+  b CALIBRATION: the altiport's game pose with the pilot BLIND to the obstacles (the planner as it was) plans the route the game flew: its
+    drawn line passes 6's rule, its driven line goes into the tram station; seeing, it turns on the spot there.
+  c FLOWN: from the altiport's apron after the slope roll-on (the game's stop) the three builds to 30 m up, from Jumbo Mine's street 45 m
+    from its end to the take-off run: no node inside an obstacle, no trunk, no crash, the wing 1.5 m off every footprint (9's bound); and
+    the calibration flown: the Cub from the altiport apron with the pilot blind - 611 node contacts, into the station.
+  Section 11 is ~30 min of one core; run_gates' TAXICLEAR row is now `shards: 4` (tools/_shard.js): sections 1-10 one heavy job in
+  shard 0, each plan census, the calibration and each flight a job. Unsharded it runs everything, as before.
+
+### G2490.7 - THE GATES (mode: node, cloud box, 4 cores; `node tools/build.js` then run_gates --no-build --verbose --only=...;
+before = the base 9546d2ee in its own worktree (--jobs=3), after = 7c8d9a8c (--jobs=4), TAXICLEAR again on ce0e3084; logs in
+reports/evidence/ALTIPORT-TAXI/gates_*.log)
+  | gate | base 9546d2ee | this branch |
+  | TAXICLEAR | PASS (sections 1-10, 330 s) | PASS, + 11 (4 shards, 479 s wall) |
+  | PILOT | PASS (3 shards) | PASS |
+  | PILOTACT | PASS - the taxi rudder 19.2 /min on the metal Cessna (18.9 the C172) of the 20 | PASS - 19.2 / 18.9, the same: still THIN |
+  | TAKEOFF | PASS | PASS |
+  | LINEUP | PASS | PASS |
+  | PLAN | PASS | PASS |
+  | NAV | PASS | PASS |
+  | ROUTE | FAIL, shard 1/3: 'fly:jodel: the vertical speed flown stays inside them (1 s mean, +-0.5 m/s) - 44 s outside, worst 0.61 m/s' | FAIL, the same line to the digit - the base's red, not this branch's (ROUTE-DRAW / ENGINE-TORQUE's Jodel; routed) |
+  | TOUR | not on this base: GATE TOUR (tools/_tour_check.js) asks tools/_load_build.js, which does not run here (G2490.1); the tour was flown by tour_real_node --game instead (G2490.4) - G1970.5's known reds (the Cub's w3 > tw_ski final, the load door's C172 at Tamgas Hill, the floats at Metlakatla) are not re-judged here |
+  No bound was loosened. TAXICLEAR's 11a driven line is held at 0 m (its widening is the whole shortfall, an upper bound) - a new
+  bound, stated, beside the 3 m it holds on the drawn line and the turn's disc.
+
+### OWED
+- Jumbo Mine: the Jodel from the street's south end (25 m) REJECTS its take-off in GATE TAXICLEAR 11's plain rig (no day, no
+  shakedown; ABORT on the roll, after a clean taxi) where the game's host (leg2_repro.js) gets it off - a short-field take-off item
+  (G531's reserve), not the taxi's; 11c holds Jumbo Mine to the taxi (the roll begun) and prints the take-off.
+- Jumbo Mine's take-off direction: a landing there stops facing end0 and the take-off is planned toward end0 too (calm), so every
+  departure after a landing backtracks the whole street. A pilot's / the strip's call (a `departure` on the runway record) - routed.
+- The wheels' shortfall is the planner's upper bound on the swing (RgMin - r); the follower measured smaller (the altiport: 7.7 m of
+  8.6). A measured swing model would plan fewer turns on the spot.
+- tools/_load_build.js / GATE TOUR / GATE JOINPARITY do not run on this base (JOIN-PARITY's page chain); node's aeroplanes are the build
+  files'. The tour's after-run is the game's flight with the file's 45 L Cub.
+- ISLAND-TOUR's turn pads (unlanded) would give tw_ski's top end a bulb on the side AWAY from the station; with them the sweep
+  decides between the teardrop and the turn on the spot as here.

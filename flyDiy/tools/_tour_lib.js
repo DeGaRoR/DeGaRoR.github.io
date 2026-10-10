@@ -160,6 +160,8 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     // ---- the ends
     const Dm = sim.damage ? sim.damage() : null;
     if (Dm && Dm.over) { fault('crash', 'the damage ended the flight: ' + (Dm.reason || '?')); break; }
+    // G2450: a take-off the pilot DECLINED (43: the go / no-go at the hold) ends the leg where it stands - not a stop at the To
+    if (ph === 'STOPPED' && ap.report && ap.report.outcome === 'declined') { fault('declined', (ap.report.verdicts.find(v => v.code === 'takeoff-declined') || {}).note || 'the take-off was declined'); break; }
     if (ph === 'STOPPED' && ap.route && ap.route.to === b && L.t > 20) { stopAt = [cg[0], cg[2]]; break; }
     if (ph === 'STOPPED' && ap.route && ap.route.to !== b && L.t > 60 && onG) { fault('diverted', 'stopped at ' + (ap.route.to && ap.route.to.id) + ', not ' + b.id); break; }
     if (ph === 'ABORT') { fault('abort', 'the take-off was rejected'); break; }

@@ -1,0 +1,10 @@
+tour_real_node: cub_2026-09-20_corrected.json (span 10.70 m), damage ON, 324 obstacles + 0 trunks; HOME > tw_ski > nv_strip
+  the game's flight: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":476.2,"fuel":45,"damage":true}
+  FAIL HOME > tw_ski          640 s | dep: turned 105.5 deg, roll 108.9 m in, lift-off 121.7 m | final 3388.7 m / 680.8 m, clear 14 m (ground) | td sink -0.62 m/s, 17.9 m/s, run 97 m, off 0.6 m | fuel 42.9 L | FAULTS off-strip (the landing roll left tw_ski's box); ground-loop (the nose 30.4 deg off the landing roll on tw_ski at 10.7 m/s) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+  FAIL tw_ski > nv_strip       13 s | dep: turned 171.7 deg (U-turn), roll -, lift-off - | final -, clear - | td - | fuel 42.9 L | FAULTS crash (the damage ended the flight: a fus member broke); yield (2451 member(s) yielded (first: {"beam":60,"cls":"fus","t":651.8175555646546})); break (12 member(s) broke); prop-strike (the propeller struck); dent (the airframe dented); obstacle (a node inside an obstacle on 124 steps (max 4 nodes)) | phases TAXI
+TOUR NOT DONE - 2 legs, 653 s sim, 527 s wall
+-> /tmp/claude-0/-home-user-DeGaRoR-github-io/1500f37d-1869-5e7e-8d99-3e6e30b84278/scratchpad/run/before.json
+
+real	8m48.276s
+user	8m38.402s
+sys	0m7.236s
