@@ -1,0 +1,9 @@
+  doctored: FAIL HOME > tw_ski          463 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 2036.7 m / 460.5 m, clear 216.5 m (forest) | td - | fuel 43.3 L | warnings go-around at 451.4 s | FAULTS crash (the damage ended the flight: a fus member broke); yield (2192 member(s) yielded (first: {"beam":183,"cls":"wing","t":458.7333333537324})); break (93 member(s) broke); prop-strike (the propeller struck); dent (the airframe dented) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>GOAROUND (683 s)
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 26.2 m/s until clear | go-around: floating with 1216 m left (attempt 1) | vref-raised: the elevator cannot hold 26.1 m/s at this power — flying the approach faster
+    flares [{"low":533.5,"over":-146,"d":1514.1,"t":424.7}]
+    final {"h":517.8,"d":2036.7,"hC":130}
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low), the Jodel: the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)  (FINAL at 517.8 m MSL (the strip 680..709 m); no flare-guard said)
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low), the Jodel: no flare armed under the strip or over 25 m above it  (-146 m over the strip 1514.1 m out at 424.7 s)
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low), the Jodel: the airframe whole (no crash, no member broken)  ({"yields":2192,"breaks":93,"over":true,"reason":"a fus member broke"})
+GATE ALTIPORT [shard 2/3]: FAIL (3)
+SHARD 2/3: 1 of 3 heavy jobs

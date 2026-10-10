@@ -32,7 +32,8 @@
 //        and the height to fly at every sample:
 //          'trip'  (no leg asks a height) CLIMB, CRUISE, DESCENT: the cruise clears the highest top of the whole
 //                  route by the margin (perf.hMin at least); the climb from perf.h0 at perf.gClimb (the top of
-//                  climb, toc); the descent onto perf.hEnd at perf.gDesc, reaching it o.endLevel before the end
+//                  climb, toc) - steepened up to perf.gClimbMax when hEnd stands above and gClimb cannot reach it
+//                  (G2520: a field above is climbed to at the climb it asks); the descent onto perf.hEnd at perf.gDesc, reaching it o.endLevel before the end
 //                  (the top of descent, tod), held up by any top still ahead (never under a ridge to come) and
 //                  steepened to perf.gDescMax at most. The profile rises, then falls: NO REVERSAL by construction
 //          'drawn' (a leg carries hB, the height the drawing asks at its B, MSL): the drawing's ramp from point to
@@ -40,7 +41,9 @@
 //                  height a ridge asks is reached before it, not on it) and the descents held to gDescMax
 //        Returns { mode, n, ds, L, s[], top[], h[], legs: [{ name, s0, s1, mea, top }], cruise, toc, tod, minClear,
 //        climbLimited: null | { s, h, need } (where the climb cannot make the floor - the pilot's reactive guard
-//        and the escape fan take that part), hEnd } - or null without a world.
+//        and the escape fan take that part), hEnd, gClimb (the climb planned), endShort (G2520: metres the plan's end
+//        stands under hEnd - the climb the route cannot fit; the pilot climbs it before its final) } - or null
+//        without a world.
 //   VPROFILE.at(P, s)                   the planned height at s metres along the route (linear between samples)
 //   VPROFILE.legS(P, i, sLeg)           the route's s for sLeg metres along leg i
 //   VPROFILE.reversals(hs, band)        the altitude reversals in a sampled height series (a swing past `band`
@@ -141,7 +144,8 @@ const VPROFILE = (() => {
     perf = perf || {};
     const ds = o.step || 100, halfW = o.halfW ?? 300, look = o.look ?? 1500, rObs = o.rObs ?? 40;
     const margin = perf.margin ?? 130;
-    const gClimb = Math.max(0.01, perf.gClimb ?? 0.06), gDesc = Math.max(0.01, perf.gDesc ?? 0.05);
+    let gClimb = Math.max(0.01, perf.gClimb ?? 0.06);
+    const gDesc = Math.max(0.01, perf.gDesc ?? 0.05);
     const gDescMax = Math.max(gDesc, perf.gDescMax ?? 0.10);
     // the route as a polyline: each leg's start s0 and end s1
     const L = [];
@@ -201,6 +205,16 @@ const VPROFILE = (() => {
       const R = new Float64Array(n);               // the highest floor still ahead
       R[n - 1] = F[n - 1];
       for (let i = n - 2; i >= 0; i--) R[i] = Math.max(F[i], R[i + 1]);
+      // G2520 ALTIPORT-ARRIVAL: A FIELD ABOVE IS CLIMBED TO AT THE CLIMB IT ASKS. The comfortable climb (gClimb, 0.7 of
+      // the measured gradient) that cannot bring the aeroplane to hEnd by `endLevel` before the end is steepened to
+      // what it needs, up to perf.gClimbMax (the aeroplane's measured gradient): HOME (31 m) to Skyline Altiport (695 m)
+      // is 8 km, and the Jodel's straight-in INBOUND planned at 0.7 reached its final 270 m under the strip
+      // (pilot-42, the game, 8 Oct). What even gClimbMax cannot make is the plan's `endShort` (below): the pilot climbs
+      // the rest before its final (43_pilot.js, the climb hold), it never begins the final under it
+      if (Number.isFinite(perf.gClimbMax) && perf.gClimbMax > gClimb && hEnd > h0) {
+        const need = (hEnd - h0) / Math.max(1, sTot - endLevel);
+        if (need > gClimb) gClimb = Math.min(perf.gClimbMax, need);
+      }
       for (let i = 0; i < n; i++) {
         const C = Math.min(cruise, h0 + gClimb * s[i]);
         const D = hEnd + gDesc * Math.max(0, sTot - endLevel - s[i]);
@@ -231,7 +245,8 @@ const VPROFILE = (() => {
     return { mode: drawn ? 'drawn' : 'trip', n, ds: dS, L: sTot, s, top, h, margin,
              legs: L.map(Lg => ({ name: Lg.name, s0: Lg.s0, s1: Lg.s1, len: Lg.len, mea: Math.round(Lg.mea), top: Math.round(Lg.top) })),
              cruise: cruise != null ? Math.round(cruise) : null, toc: toc != null ? Math.round(toc) : null, tod: tod != null ? Math.round(tod) : null,
-             minClear: Math.round(minClear), climbLimited: lim, h0: Math.round(h0), hEnd: Math.round(hEnd) };
+             minClear: Math.round(minClear), climbLimited: lim, h0: Math.round(h0), hEnd: Math.round(hEnd),
+             gClimb: Math.round(gClimb * 1000) / 1000, endShort: Math.max(0, Math.round(hEnd - h[n - 1])) };
   }
   function at(P, sq) {
     if (!P) return null;

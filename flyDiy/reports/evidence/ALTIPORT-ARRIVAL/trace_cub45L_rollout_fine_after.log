@@ -1,0 +1,394 @@
+altiport_trace: cub_2026-09-20_corrected.json HOME > tw_ski (elev 695.5222735261833, strip ground 679.6..708.8 m), the game's flight; core tools/flight_core.js
+     0.0 s  >TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8240 m
+    10.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8212 m
+    20.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8183 m
+    30.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8179 m
+    40.0 s   TAXI      h   31 MSL   -677 over the strip  ground   30  thr   8177 m
+    50.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8181 m
+    60.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8190 m
+    70.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8197 m
+    80.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8209 m
+    90.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8264 m
+   100.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8316 m
+   110.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8369 m
+   120.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8423 m
+   130.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8470 m
+   140.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8491 m
+   150.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8466 m
+   160.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8449 m
+   167.9 s  >STOP      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   168.3 s  >HOLD      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   170.0 s   HOLD      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   170.3 s  >ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   180.0 s   ROLL      h   29 MSL   -680 over the strip  ground   27  thr   8375 m
+   182.1 s  >LIFTOFF   h   29 MSL   -680 over the strip  ground   28  thr   8351 m
+   190.0 s   LIFTOFF   h   41 MSL   -668 over the strip  ground   28  thr   8238 m
+   191.6 s  >CLIMB     h   44 MSL   -665 over the strip  ground   29  thr   8214 m
+   191.6 s  SAY vx-climb: ground ahead above the aeroplane — climbing at Vx 22.2 m/s until clear
+   200.0 s   CLIMB     h   64 MSL   -645 over the strip  ground   29  thr   8081 m
+   210.0 s   CLIMB     h   90 MSL   -619 over the strip  ground   31  thr   7912 m
+   220.0 s   CLIMB     h  128 MSL   -581 over the strip  ground   32  thr   7758 m
+   222.8 s  >INBOUND   h  139 MSL   -570 over the strip  ground   32  thr   7721 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   230.0 s   INBOUND   h  140 MSL   -568 over the strip  ground   33  thr   7611 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   240.0 s   INBOUND   h  160 MSL   -549 over the strip  ground   35  thr   7364 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   250.0 s   INBOUND   h  190 MSL   -518 over the strip  ground   35  thr   7054 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   260.0 s   INBOUND   h  216 MSL   -493 over the strip  ground   37  thr   6751 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   270.0 s   INBOUND   h  242 MSL   -467 over the strip  ground   40  thr   6446 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   280.0 s   INBOUND   h  271 MSL   -438 over the strip  ground   46  thr   6145 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   290.0 s   INBOUND   h  305 MSL   -403 over the strip  ground   45  thr   5895 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   300.0 s   INBOUND   h  335 MSL   -374 over the strip  ground   34  thr   5669 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   310.0 s   INBOUND   h  364 MSL   -345 over the strip  ground   29  thr   5446 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   320.0 s   INBOUND   h  393 MSL   -316 over the strip  ground   33  thr   5225 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   330.0 s   INBOUND   h  421 MSL   -287 over the strip  ground   21  thr   5006 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   340.0 s   INBOUND   h  449 MSL   -260 over the strip  ground   11  thr   4789 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   350.0 s   INBOUND   h  475 MSL   -233 over the strip  ground    1  thr   4571 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   360.0 s   INBOUND   h  502 MSL   -207 over the strip  ground   31  thr   4350 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   370.0 s   INBOUND   h  530 MSL   -179 over the strip  ground   30  thr   4129 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   380.0 s   INBOUND   h  557 MSL   -152 over the strip  ground   16  thr   3913 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   390.0 s   INBOUND   h  585 MSL   -124 over the strip  ground   30  thr   3702 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   400.0 s   INBOUND   h  612 MSL    -97 over the strip  ground   35  thr   3498 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}
+   405.4 s  SAY climb-hold: 184 m under the height the final to Skyline Altiport starts from (the climb planned 175 m short) - circling here, climbing, before the approach
+   410.0 s   INBOUND   h  639 MSL    -70 over the strip  ground   42  thr   3278 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   420.0 s   INBOUND   h  662 MSL    -46 over the strip  ground   46  thr   3037 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   430.0 s   INBOUND   h  691 MSL    -18 over the strip  ground   37  thr   3081 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   440.0 s   INBOUND   h  721 MSL     12 over the strip  ground   24  thr   3218 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   450.0 s   INBOUND   h  744 MSL     35 over the strip  ground   24  thr   3363 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   460.0 s   INBOUND   h  769 MSL     60 over the strip  ground   22  thr   3492 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   470.0 s   INBOUND   h  794 MSL     85 over the strip  ground   29  thr   3569 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   480.0 s   INBOUND   h  810 MSL    102 over the strip  ground   33  thr   3557 m  leg INBOUND hPlan 635 vp {"cruise":811,"toc":null,"tod":null,"minClear":91,"climbLimited":{"s":0,"h":139,"need":178,"reach":139},"gClimb":0.106,"endShort":175}  HOLD to 811
+   488.4 s  >FINAL     h  812 MSL    103 over the strip  ground   44  thr   3415 m  leg FINAL hPlan 682
+   490.0 s   FINAL     h  812 MSL    104 over the strip  ground   44  thr   3374 m  leg FINAL hPlan 682
+   500.0 s   FINAL     h  831 MSL    122 over the strip  ground   50  thr   3104 m  leg FINAL hPlan 682
+   510.0 s   FINAL     h  830 MSL    121 over the strip  ground   65  thr   2842 m  leg FINAL hPlan 682
+   520.0 s   FINAL     h  817 MSL    109 over the strip  ground   66  thr   2577 m  leg FINAL hPlan 682
+   530.0 s   FINAL     h  805 MSL     96 over the strip  ground   58  thr   2315 m  leg FINAL hPlan 682
+   540.0 s   FINAL     h  792 MSL     83 over the strip  ground   69  thr   2056 m  leg FINAL hPlan 682
+   550.0 s   FINAL     h  778 MSL     69 over the strip  ground   53  thr   1796 m  leg FINAL hPlan 682
+   560.0 s   FINAL     h  765 MSL     56 over the strip  ground   41  thr   1537 m  leg FINAL hPlan 682
+   570.0 s   FINAL     h  751 MSL     42 over the strip  ground  106  thr   1278 m  leg FINAL hPlan 682
+   580.0 s   FINAL     h  737 MSL     28 over the strip  ground  179  thr   1016 m  leg FINAL hPlan 682
+   590.0 s   FINAL     h  723 MSL     14 over the strip  ground  377  thr    749 m  leg FINAL hPlan 682
+   600.0 s   FINAL     h  709 MSL      0 over the strip  ground  479  thr    475 m  leg FINAL hPlan 682
+   610.0 s   FINAL     h  695 MSL    -14 over the strip  ground  591  thr    203 m  leg FINAL hPlan 682
+   617.1 s  >FLARE     h  686 MSL    -23 over the strip  ground  678  thr     21 m  leg FINAL hPlan 682
+   617.27 s  FLARE    nose   -9.0 deg  Vg  24.7  off    0.5 m  wind across 3.5  dr -0.31 de 0.35 thr 0.16 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   617.52 s  FLARE    nose   -8.1 deg  Vg  24.6  off    0.5 m  wind across 3.5  dr -0.34 de 0.35 thr 0.16 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   617.77 s  FLARE    nose   -6.6 deg  Vg  24.5  off    0.5 m  wind across 3.5  dr -0.29 de 0.35 thr 0.17 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   618.02 s  FLARE    nose   -4.8 deg  Vg  24.3  off    0.4 m  wind across 3.5  dr -0.24 de 0.35 thr 0.20 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   618.27 s  FLARE    nose   -3.1 deg  Vg  24.0  off    0.4 m  wind across 3.5  dr -0.19 de 0.35 thr 0.22 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   618.52 s  FLARE    nose   -1.7 deg  Vg  23.8  off    0.5 m  wind across 3.5  dr -0.16 de 0.35 thr 0.25 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   618.77 s  FLARE    nose   -0.7 deg  Vg  23.5  off    0.5 m  wind across 3.5  dr -0.14 de 0.30 thr 0.27 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   619.02 s  FLARE    nose   -0.2 deg  Vg  23.2  off    0.6 m  wind across 3.5  dr -0.14 de 0.31 thr 0.30 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   619.27 s  FLARE    nose   -0.1 deg  Vg  22.9  off    0.7 m  wind across 3.4  dr -0.15 de 0.34 thr 0.32 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   619.52 s  FLARE    nose   -0.3 deg  Vg  22.7  off    0.7 m  wind across 3.4  dr -0.17 de 0.18 thr 0.34 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   619.77 s  FLARE    nose   -0.7 deg  Vg  22.5  off    0.8 m  wind across 3.4  dr -0.19 de 0.33 thr 0.35 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   620.0 s   FLARE     h  686 MSL    -23 over the strip  ground  685  thr    -49 m  leg FINAL hPlan 682
+   620.02 s  FLARE    nose   -1.1 deg  Vg  22.4  off    0.9 m  wind across 3.4  dr -0.21 de 0.34 thr 0.34 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   620.2 s  >ROLLOUT   h  686 MSL    -23 over the strip  ground  685  thr    -52 m  leg FINAL hPlan 682
+   620.27 s  ROLLOUT  nose   -1.8 deg  Vg  22.1  off    1.0 m  wind across 3.3  dr -0.09 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 2 lat ?
+   620.52 s  ROLLOUT  nose   -4.4 deg  Vg  21.5  off    0.7 m  wind across 3.4  dr -0.24 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   620.77 s  ROLLOUT  nose   -6.5 deg  Vg  20.9  off    0.4 m  wind across 3.4  dr -0.32 de 0.35 thr 0.00 brake 0.01 brakeD 0.00 wheels 0 lat ?
+   621.02 s  ROLLOUT  nose   -7.3 deg  Vg  20.4  off    0.1 m  wind across 3.4  dr -0.35 de 0.35 thr 0.00 brake 0.01 brakeD 0.00 wheels 0 lat ?
+   621.27 s  ROLLOUT  nose   -8.2 deg  Vg  20.0  off   -0.2 m  wind across 3.4  dr -0.35 de 0.35 thr 0.00 brake 0.01 brakeD 0.00 wheels 0 lat ?
+   621.52 s  ROLLOUT  nose   -9.4 deg  Vg  19.6  off   -0.5 m  wind across 3.4  dr -0.56 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 2 lat ?
+   621.77 s  ROLLOUT  nose  -11.5 deg  Vg  19.1  off   -1.1 m  wind across 3.3  dr -0.88 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 2 lat ?
+   622.02 s  ROLLOUT  nose  -13.7 deg  Vg  18.6  off   -1.8 m  wind across 3.3  dr -0.95 de 0.35 thr 0.00 brake 0.02 brakeD 0.00 wheels 3 lat ?
+   622.27 s  ROLLOUT  nose  -14.4 deg  Vg  18.1  off   -2.7 m  wind across 3.3  dr -0.95 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 2 lat ?
+   622.52 s  ROLLOUT  nose  -15.7 deg  Vg  17.6  off   -3.7 m  wind across 3.3  dr -0.95 de 0.35 thr 0.00 brake 0.02 brakeD 0.00 wheels 3 lat ?
+   622.77 s  ROLLOUT  nose  -17.0 deg  Vg  17.1  off   -4.8 m  wind across 3.4  dr -0.95 de 0.35 thr 0.00 brake 0.08 brakeD 0.00 wheels 3 lat ?
+   623.02 s  ROLLOUT  nose  -18.0 deg  Vg  16.7  off   -6.0 m  wind across 3.4  dr -0.95 de 0.35 thr 0.00 brake 0.14 brakeD 0.00 wheels 3 lat ?
+   623.27 s  ROLLOUT  nose  -18.6 deg  Vg  16.2  off   -7.3 m  wind across 3.4  dr -0.95 de 0.35 thr 0.00 brake 0.20 brakeD 0.00 wheels 3 lat ?
+   623.52 s  ROLLOUT  nose  -18.1 deg  Vg  15.7  off   -8.6 m  wind across 3.4  dr -0.95 de 0.35 thr 0.00 brake 0.26 brakeD 0.00 wheels 3 lat ?
+   623.77 s  ROLLOUT  nose  -16.4 deg  Vg  15.1  off   -9.8 m  wind across 3.4  dr -0.95 de 0.35 thr 0.00 brake 0.32 brakeD 0.00 wheels 3 lat ?
+   624.02 s  ROLLOUT  nose  -13.2 deg  Vg  14.6  off  -10.7 m  wind across 3.4  dr -0.92 de 0.35 thr 0.00 brake 0.38 brakeD 0.00 wheels 3 lat ?
+   624.27 s  ROLLOUT  nose   -8.4 deg  Vg  14.0  off  -11.5 m  wind across 3.4  dr -0.89 de 0.35 thr 0.00 brake 0.44 brakeD 0.00 wheels 3 lat ?
+   624.52 s  ROLLOUT  nose   -2.1 deg  Vg  13.4  off  -11.9 m  wind across 3.4  dr -0.85 de 0.35 thr 0.00 brake 0.50 brakeD 0.00 wheels 3 lat ?
+   624.77 s  ROLLOUT  nose    5.7 deg  Vg  12.6  off  -12.0 m  wind across 3.4  dr -0.81 de 0.35 thr 0.00 brake 0.56 brakeD 0.00 wheels 3 lat ?
+   625.02 s  ROLLOUT  nose   14.4 deg  Vg  11.7  off  -11.8 m  wind across 3.4  dr -0.52 de 0.35 thr 0.00 brake 0.62 brakeD 0.00 wheels 3 lat ?
+   625.27 s  ROLLOUT  nose   22.7 deg  Vg  10.8  off  -11.2 m  wind across 3.5  dr -0.20 de 0.35 thr 0.00 brake 0.68 brakeD 0.00 wheels 3 lat ?
+   625.52 s  ROLLOUT  nose   29.5 deg  Vg   9.8  off  -10.2 m  wind across 3.5  dr 0.11 de 0.35 thr 0.00 brake 0.74 brakeD 0.00 wheels 3 lat ?
+   625.77 s  ROLLOUT  nose   34.9 deg  Vg   9.0  off   -9.0 m  wind across 3.5  dr 0.43 de 0.35 thr 0.00 brake 0.80 brakeD 0.00 wheels 3 lat ?
+   626.02 s  ROLLOUT  nose   38.7 deg  Vg   8.0  off   -7.7 m  wind across 3.5  dr 0.57 de 0.35 thr 0.00 brake 0.86 brakeD 0.00 wheels 3 lat ?
+   626.27 s  ROLLOUT  nose   41.3 deg  Vg   6.9  off   -6.5 m  wind across 3.5  dr 0.53 de 0.35 thr 0.00 brake 0.92 brakeD 0.00 wheels 3 lat ?
+   626.52 s  ROLLOUT  nose   43.5 deg  Vg   5.8  off   -5.4 m  wind across 3.5  dr 0.49 de 0.35 thr 0.00 brake 0.98 brakeD 0.00 wheels 3 lat ?
+   626.77 s  ROLLOUT  nose   45.2 deg  Vg   4.6  off   -4.5 m  wind across 3.5  dr 0.47 de 0.35 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   627.02 s  ROLLOUT  nose   46.3 deg  Vg   3.5  off   -3.8 m  wind across 3.4  dr 0.50 de 0.35 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   627.27 s  ROLLOUT  nose   46.7 deg  Vg   2.5  off   -3.3 m  wind across 3.4  dr 0.54 de 0.35 thr 0.00 brake 0.55 brakeD 0.00 wheels 3 lat ?
+   627.52 s  ROLLOUT  nose   45.8 deg  Vg   2.0  off   -2.9 m  wind across 3.5  dr 0.56 de 0.35 thr 0.00 brake 0.27 brakeD 0.00 wheels 3 lat ?
+   627.77 s  ROLLOUT  nose   44.1 deg  Vg   1.7  off   -2.5 m  wind across 3.5  dr 0.57 de 0.35 thr 0.00 brake 0.11 brakeD 0.00 wheels 3 lat ?
+   628.02 s  ROLLOUT  nose   42.8 deg  Vg   1.5  off   -2.2 m  wind across 3.4  dr 0.58 de 0.35 thr 0.00 brake 0.03 brakeD 0.00 wheels 3 lat ?
+   628.27 s  ROLLOUT  nose   41.6 deg  Vg   1.4  off   -2.0 m  wind across 3.4  dr 0.58 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   628.52 s  ROLLOUT  nose   40.4 deg  Vg   1.3  off   -1.8 m  wind across 3.4  dr 0.59 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   628.77 s  ROLLOUT  nose   39.4 deg  Vg   1.2  off   -1.6 m  wind across 3.4  dr 0.59 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   629.02 s  ROLLOUT  nose   38.4 deg  Vg   1.1  off   -1.4 m  wind across 3.4  dr 0.59 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   629.27 s  ROLLOUT  nose   37.5 deg  Vg   1.0  off   -1.2 m  wind across 3.4  dr 0.60 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   629.52 s  ROLLOUT  nose   36.7 deg  Vg   0.9  off   -1.1 m  wind across 3.4  dr 0.60 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   629.77 s  ROLLOUT  nose   35.9 deg  Vg   0.8  off   -0.9 m  wind across 3.4  dr 0.61 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   630.0 s   ROLLOUT   h  696 MSL    -13 over the strip  ground  695  thr   -151 m  leg FINAL hPlan 682
+   630.02 s  ROLLOUT  nose   35.3 deg  Vg   0.7  off   -0.8 m  wind across 3.4  dr 0.61 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   630.27 s  ROLLOUT  nose   34.8 deg  Vg   0.6  off   -0.7 m  wind across 3.5  dr 0.62 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   630.52 s  ROLLOUT  nose   34.3 deg  Vg   0.5  off   -0.7 m  wind across 3.5  dr 0.62 de 0.35 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   630.7 s  SAY slope: stopped on a 6.4 % grade — rolling 190 m on to the level part
+   630.77 s  ROLLOUT  nose   33.9 deg  Vg   0.5  off   -0.6 m  wind across 3.4  dr 0.62 de 0.30 thr 0.67 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   631.02 s  ROLLOUT  nose   33.2 deg  Vg   0.7  off   -0.5 m  wind across 3.4  dr 0.61 de 0.30 thr 0.68 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   631.27 s  ROLLOUT  nose   32.5 deg  Vg   1.0  off   -0.4 m  wind across 3.4  dr 0.60 de 0.30 thr 0.69 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   631.52 s  ROLLOUT  nose   31.5 deg  Vg   1.3  off   -0.2 m  wind across 3.4  dr 0.59 de 0.30 thr 0.69 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   631.77 s  ROLLOUT  nose   30.3 deg  Vg   1.5  off   -0.0 m  wind across 3.4  dr 0.58 de 0.30 thr 0.68 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   632.02 s  ROLLOUT  nose   28.9 deg  Vg   1.8  off    0.2 m  wind across 3.4  dr 0.57 de 0.30 thr 0.67 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   632.27 s  ROLLOUT  nose   27.3 deg  Vg   2.0  off    0.4 m  wind across 3.4  dr 0.56 de 0.30 thr 0.65 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   632.52 s  ROLLOUT  nose   25.6 deg  Vg   2.2  off    0.7 m  wind across 3.4  dr 0.56 de 0.30 thr 0.63 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   632.77 s  ROLLOUT  nose   23.7 deg  Vg   2.5  off    0.9 m  wind across 3.4  dr 0.55 de 0.30 thr 0.61 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   633.02 s  ROLLOUT  nose   21.6 deg  Vg   2.7  off    1.2 m  wind across 3.4  dr 0.55 de 0.30 thr 0.58 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   633.27 s  ROLLOUT  nose   19.5 deg  Vg   2.8  off    1.4 m  wind across 3.4  dr 0.55 de 0.30 thr 0.56 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   633.52 s  ROLLOUT  nose   17.2 deg  Vg   3.0  off    1.7 m  wind across 3.4  dr 0.55 de 0.30 thr 0.53 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   633.77 s  ROLLOUT  nose   14.7 deg  Vg   3.2  off    1.9 m  wind across 3.4  dr 0.55 de 0.30 thr 0.50 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   634.02 s  ROLLOUT  nose   12.2 deg  Vg   3.3  off    2.1 m  wind across 3.4  dr 0.55 de 0.30 thr 0.47 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   634.27 s  ROLLOUT  nose    9.5 deg  Vg   3.4  off    2.3 m  wind across 3.5  dr 0.56 de 0.30 thr 0.44 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   634.52 s  ROLLOUT  nose    6.7 deg  Vg   3.5  off    2.5 m  wind across 3.5  dr 0.56 de 0.30 thr 0.41 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   634.77 s  ROLLOUT  nose    4.0 deg  Vg   3.6  off    2.6 m  wind across 3.6  dr 0.46 de 0.30 thr 0.38 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   635.02 s  ROLLOUT  nose    1.9 deg  Vg   3.7  off    2.6 m  wind across 3.6  dr 0.38 de 0.30 thr 0.35 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   635.27 s  ROLLOUT  nose    0.1 deg  Vg   3.7  off    2.7 m  wind across 3.6  dr 0.31 de 0.30 thr 0.33 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   635.52 s  ROLLOUT  nose   -1.4 deg  Vg   3.8  off    2.7 m  wind across 3.6  dr 0.24 de 0.30 thr 0.30 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   635.77 s  ROLLOUT  nose   -2.5 deg  Vg   3.8  off    2.6 m  wind across 3.5  dr 0.20 de 0.30 thr 0.27 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   636.02 s  ROLLOUT  nose   -3.4 deg  Vg   3.8  off    2.6 m  wind across 3.5  dr 0.14 de 0.30 thr 0.25 brake 0.01 brakeD 0.00 wheels 3 lat ?
+   636.27 s  ROLLOUT  nose   -4.1 deg  Vg   3.8  off    2.5 m  wind across 3.5  dr 0.12 de 0.30 thr 0.23 brake 0.01 brakeD 0.00 wheels 3 lat ?
+   636.52 s  ROLLOUT  nose   -4.6 deg  Vg   3.8  off    2.5 m  wind across 3.5  dr 0.08 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   636.77 s  ROLLOUT  nose   -5.0 deg  Vg   3.8  off    2.4 m  wind across 3.6  dr 0.06 de 0.30 thr 0.19 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   637.02 s  ROLLOUT  nose   -5.2 deg  Vg   3.8  off    2.3 m  wind across 3.6  dr 0.04 de 0.30 thr 0.18 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   637.27 s  ROLLOUT  nose   -5.4 deg  Vg   3.7  off    2.2 m  wind across 3.6  dr 0.02 de 0.30 thr 0.16 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   637.52 s  ROLLOUT  nose   -5.5 deg  Vg   3.7  off    2.1 m  wind across 3.6  dr 0.01 de 0.30 thr 0.15 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   637.77 s  ROLLOUT  nose   -5.5 deg  Vg   3.7  off    2.1 m  wind across 3.5  dr -0.00 de 0.30 thr 0.14 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   638.02 s  ROLLOUT  nose   -5.5 deg  Vg   3.6  off    2.0 m  wind across 3.5  dr -0.01 de 0.30 thr 0.13 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   638.27 s  ROLLOUT  nose   -5.4 deg  Vg   3.6  off    1.9 m  wind across 3.5  dr -0.02 de 0.30 thr 0.13 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   638.52 s  ROLLOUT  nose   -5.3 deg  Vg   3.5  off    1.8 m  wind across 3.5  dr -0.03 de 0.30 thr 0.12 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   638.77 s  ROLLOUT  nose   -5.2 deg  Vg   3.4  off    1.7 m  wind across 3.5  dr -0.02 de 0.30 thr 0.12 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   639.02 s  ROLLOUT  nose   -5.1 deg  Vg   3.4  off    1.6 m  wind across 3.5  dr -0.03 de 0.30 thr 0.12 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   639.27 s  ROLLOUT  nose   -4.9 deg  Vg   3.3  off    1.6 m  wind across 3.6  dr -0.03 de 0.30 thr 0.12 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   639.52 s  ROLLOUT  nose   -4.8 deg  Vg   3.3  off    1.5 m  wind across 3.6  dr -0.04 de 0.30 thr 0.12 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   639.77 s  ROLLOUT  nose   -4.6 deg  Vg   3.2  off    1.4 m  wind across 3.6  dr -0.04 de 0.30 thr 0.12 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   640.0 s   ROLLOUT   h  699 MSL    -10 over the strip  ground  698  thr   -179 m  leg FINAL hPlan 682
+   640.02 s  ROLLOUT  nose   -4.5 deg  Vg   3.2  off    1.4 m  wind across 3.6  dr -0.04 de 0.30 thr 0.13 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   640.27 s  ROLLOUT  nose   -4.3 deg  Vg   3.1  off    1.3 m  wind across 3.5  dr -0.04 de 0.30 thr 0.13 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   640.52 s  ROLLOUT  nose   -4.2 deg  Vg   3.1  off    1.2 m  wind across 3.5  dr -0.04 de 0.30 thr 0.14 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   640.77 s  ROLLOUT  nose   -4.0 deg  Vg   3.0  off    1.2 m  wind across 3.5  dr -0.04 de 0.30 thr 0.14 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   641.02 s  ROLLOUT  nose   -3.9 deg  Vg   3.0  off    1.1 m  wind across 3.5  dr -0.04 de 0.30 thr 0.15 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   641.27 s  ROLLOUT  nose   -3.7 deg  Vg   3.0  off    1.1 m  wind across 3.5  dr -0.04 de 0.30 thr 0.16 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   641.52 s  ROLLOUT  nose   -3.6 deg  Vg   2.9  off    1.0 m  wind across 3.5  dr -0.04 de 0.30 thr 0.16 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   641.77 s  ROLLOUT  nose   -3.4 deg  Vg   2.9  off    1.0 m  wind across 3.5  dr -0.03 de 0.30 thr 0.17 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   642.02 s  ROLLOUT  nose   -3.3 deg  Vg   2.9  off    0.9 m  wind across 3.5  dr -0.04 de 0.30 thr 0.18 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   642.27 s  ROLLOUT  nose   -3.2 deg  Vg   2.9  off    0.9 m  wind across 3.5  dr -0.03 de 0.30 thr 0.18 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   642.52 s  ROLLOUT  nose   -3.1 deg  Vg   2.8  off    0.9 m  wind across 3.5  dr -0.03 de 0.30 thr 0.19 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   642.77 s  ROLLOUT  nose   -2.9 deg  Vg   2.8  off    0.8 m  wind across 3.5  dr -0.03 de 0.30 thr 0.20 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   643.02 s  ROLLOUT  nose   -2.8 deg  Vg   2.8  off    0.8 m  wind across 3.5  dr -0.03 de 0.30 thr 0.20 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   643.27 s  ROLLOUT  nose   -2.7 deg  Vg   2.8  off    0.7 m  wind across 3.5  dr -0.03 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   643.52 s  ROLLOUT  nose   -2.6 deg  Vg   2.8  off    0.7 m  wind across 3.5  dr -0.03 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   643.77 s  ROLLOUT  nose   -2.5 deg  Vg   2.8  off    0.7 m  wind across 3.5  dr -0.03 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   644.02 s  ROLLOUT  nose   -2.4 deg  Vg   2.8  off    0.7 m  wind across 3.6  dr -0.03 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   644.27 s  ROLLOUT  nose   -2.3 deg  Vg   2.8  off    0.6 m  wind across 3.6  dr -0.03 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   644.52 s  ROLLOUT  nose   -2.2 deg  Vg   2.8  off    0.6 m  wind across 3.6  dr -0.03 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   644.77 s  ROLLOUT  nose   -2.1 deg  Vg   2.8  off    0.6 m  wind across 3.6  dr -0.03 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   645.02 s  ROLLOUT  nose   -2.0 deg  Vg   2.8  off    0.5 m  wind across 3.6  dr -0.03 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   645.27 s  ROLLOUT  nose   -1.9 deg  Vg   2.8  off    0.5 m  wind across 3.5  dr -0.02 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   645.52 s  ROLLOUT  nose   -1.8 deg  Vg   2.9  off    0.5 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   645.77 s  ROLLOUT  nose   -1.8 deg  Vg   2.9  off    0.5 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   646.02 s  ROLLOUT  nose   -1.7 deg  Vg   2.9  off    0.4 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   646.27 s  ROLLOUT  nose   -1.6 deg  Vg   2.9  off    0.4 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   646.52 s  ROLLOUT  nose   -1.5 deg  Vg   2.9  off    0.4 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   646.77 s  ROLLOUT  nose   -1.5 deg  Vg   2.9  off    0.4 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   647.02 s  ROLLOUT  nose   -1.4 deg  Vg   2.9  off    0.4 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   647.27 s  ROLLOUT  nose   -1.3 deg  Vg   2.9  off    0.3 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   647.52 s  ROLLOUT  nose   -1.3 deg  Vg   2.9  off    0.3 m  wind across 3.5  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   647.77 s  ROLLOUT  nose   -1.2 deg  Vg   3.0  off    0.3 m  wind across 3.4  dr -0.02 de 0.30 thr 0.24 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   648.02 s  ROLLOUT  nose   -1.2 deg  Vg   3.0  off    0.3 m  wind across 3.5  dr -0.02 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   648.27 s  ROLLOUT  nose   -1.1 deg  Vg   3.0  off    0.3 m  wind across 3.5  dr -0.02 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   648.52 s  ROLLOUT  nose   -1.0 deg  Vg   3.0  off    0.3 m  wind across 3.5  dr -0.01 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   648.77 s  ROLLOUT  nose   -1.0 deg  Vg   3.0  off    0.3 m  wind across 3.5  dr -0.01 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   649.02 s  ROLLOUT  nose   -0.9 deg  Vg   3.0  off    0.2 m  wind across 3.5  dr -0.01 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   649.27 s  ROLLOUT  nose   -0.9 deg  Vg   3.0  off    0.2 m  wind across 3.5  dr -0.01 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   649.52 s  ROLLOUT  nose   -0.9 deg  Vg   3.0  off    0.2 m  wind across 3.5  dr -0.01 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   649.77 s  ROLLOUT  nose   -0.8 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.23 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   650.0 s   ROLLOUT   h  701 MSL     -7 over the strip  ground  700  thr   -172 m  leg FINAL hPlan 682
+   650.02 s  ROLLOUT  nose   -0.8 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   650.27 s  ROLLOUT  nose   -0.7 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   650.52 s  ROLLOUT  nose   -0.7 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   650.77 s  ROLLOUT  nose   -0.7 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   651.02 s  ROLLOUT  nose   -0.6 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   651.27 s  ROLLOUT  nose   -0.6 deg  Vg   3.0  off    0.2 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   651.52 s  ROLLOUT  nose   -0.6 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   651.77 s  ROLLOUT  nose   -0.5 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   652.02 s  ROLLOUT  nose   -0.5 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   652.27 s  ROLLOUT  nose   -0.5 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   652.52 s  ROLLOUT  nose   -0.5 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   652.77 s  ROLLOUT  nose   -0.4 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   653.02 s  ROLLOUT  nose   -0.4 deg  Vg   3.0  off    0.1 m  wind across 3.4  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   653.27 s  ROLLOUT  nose   -0.4 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   653.52 s  ROLLOUT  nose   -0.4 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   653.77 s  ROLLOUT  nose   -0.4 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   654.02 s  ROLLOUT  nose   -0.4 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   654.27 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   654.52 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   654.77 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   655.02 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   655.27 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   655.52 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   655.77 s  ROLLOUT  nose   -0.3 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   656.02 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.1 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   656.27 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.01 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   656.52 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   656.77 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   657.02 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   657.27 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   657.52 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   657.77 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   658.02 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   658.27 s  ROLLOUT  nose   -0.2 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   658.52 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   658.77 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   659.02 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   659.27 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   659.52 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   659.77 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   660.0 s   ROLLOUT   h  704 MSL     -5 over the strip  ground  703  thr   -142 m  leg FINAL hPlan 682
+   660.02 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   660.27 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   660.52 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   660.77 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   661.02 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   661.27 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   661.52 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   661.77 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   662.02 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   662.27 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   662.52 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   662.77 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   663.02 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   663.27 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   663.52 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   663.77 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off    0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   664.02 s  ROLLOUT  nose   -0.1 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   664.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   664.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   664.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   665.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   665.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   665.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   665.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   666.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   666.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   666.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   666.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   667.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   667.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   667.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   667.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   668.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   668.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   668.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   668.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   669.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   669.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   669.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   669.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   670.0 s   ROLLOUT   h  707 MSL     -2 over the strip  ground  706  thr   -112 m  leg FINAL hPlan 682
+   670.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   670.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   670.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   670.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   671.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   671.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   671.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   671.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   672.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   672.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   672.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   672.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   673.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   673.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   673.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   673.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   674.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   674.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   674.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   674.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   675.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   675.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   675.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   675.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   676.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   676.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   676.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   676.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   677.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   677.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   677.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   677.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   678.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   678.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   678.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   678.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   679.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   679.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   679.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   679.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   680.0 s   ROLLOUT   h  709 MSL     -0 over the strip  ground  708  thr    -82 m  leg FINAL hPlan 682
+   680.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   680.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   680.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   680.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   681.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   681.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   681.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   681.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   682.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   682.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   682.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   682.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.22 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   683.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   683.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   683.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   683.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   684.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   684.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   684.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   684.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   685.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   685.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   685.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   685.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   686.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   686.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   686.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   686.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   687.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   687.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   687.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   687.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   688.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   688.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   688.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   688.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   689.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   689.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   689.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   689.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   690.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  708  thr    -52 m  leg FINAL hPlan 682
+   690.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   690.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   690.52 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   690.77 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   691.02 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.21 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   691.27 s  ROLLOUT  nose   -0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.19 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   691.52 s  ROLLOUT  nose    0.0 deg  Vg   3.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.17 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   691.77 s  ROLLOUT  nose    0.0 deg  Vg   2.9  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.14 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   692.02 s  ROLLOUT  nose    0.0 deg  Vg   2.9  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.11 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   692.27 s  ROLLOUT  nose    0.0 deg  Vg   2.8  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.09 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   692.52 s  ROLLOUT  nose    0.0 deg  Vg   2.7  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.06 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   692.77 s  ROLLOUT  nose    0.0 deg  Vg   2.6  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.03 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   693.02 s  ROLLOUT  nose    0.0 deg  Vg   2.5  off   -0.0 m  wind across 3.5  dr -0.00 de 0.30 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   693.27 s  ROLLOUT  nose    0.0 deg  Vg   2.4  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   693.52 s  ROLLOUT  nose    0.0 deg  Vg   2.3  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.00 brake 0.01 brakeD 0.00 wheels 3 lat ?
+   693.77 s  ROLLOUT  nose    0.0 deg  Vg   2.1  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.00 brake 0.03 brakeD 0.00 wheels 3 lat ?
+   694.02 s  ROLLOUT  nose    0.0 deg  Vg   2.0  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.00 brake 0.05 brakeD 0.00 wheels 3 lat ?
+   694.27 s  ROLLOUT  nose    0.0 deg  Vg   1.8  off   -0.0 m  wind across 3.4  dr -0.00 de 0.30 thr 0.00 brake 0.08 brakeD 0.00 wheels 3 lat ?
+   694.3 s  >STOPPED   h  710 MSL      1 over the strip  ground  709  thr    -40 m  leg FINAL hPlan 682
+END STOPPED t 694 s  landing {"run":100,"sink":-0.5,"V":18,"offCentre":0.9,"pastAim":29,"k":1,"three":true,"onStrip":true,"tdIn":52,"stopLeft":229}  damage {"yields":0,"breaks":0,"over":false,"reason":null}
