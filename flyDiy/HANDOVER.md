@@ -84091,3 +84091,16 @@ Gates: RADIALDIV + SIMDIVERGE (new, selftests CAUGHT), PILOT, TAKEOFF, DESTTO, S
 branch (its session); parked re-cook (build 187e85528e59, --check same); strict ROLLOUT (train_gate --only rollout,
 t421) equal to train 42's: no frame over 100 ms, no task over 1 s, the stand/taxi rows at the known 30 fps cap.
 A0 read the 8 stills (reports/evidence/RADIAL-DIVERGE/; on the evidence gallery volume 2).
+
+## TRAIN 43 LANDED (A0, 11 Oct ~01:05) - game integration, the parked fleet, grass dials, moonlight
+
+Cargo: claude/game-integration 61fdc8586 (GAME coordinator): the 13 READY sessions on game-integration (the career
+still behind ?career=1; WORKS-COZY behind it, today's club the default), FLEET-PROPS (the flip: parked aeroplanes
+drawn the cheap way), GRASS-DENSE's biome-editor dials + flower colour + bare-biome rows (the new field OFF behind
+its switch), MOONLIGHT, the DESTTO fixture fix; master 42.1 merged in. Gates: GAME's targeted pass 00:00-00:17 on
+490900b8 + fixes (26/29 then ECON, TAXICLEAR re-cook, MEDIA); GATE MEDIA PASS on 61fdc8586 - the +422.8 KB step
+accepted by name under the user's 8 Oct ruling, WIRE_BUDGET_MIB 4.05 TEMPORARY (back to 4.0 with CAREER-LAZY, 44.1).
+Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm loads (48.6 s garage, 59.9 s first
+flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
+56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
+task in one rollout run, 835/675 ms elsewhere - watch it).
