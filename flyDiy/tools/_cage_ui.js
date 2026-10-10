@@ -3914,6 +3914,21 @@ function decalImagesFrom(images) {
 // G70 converted the two points to the SURFACE FIELD by nearest vertex, and
 // read engine 0 and main 0 only; craft space needs no conversion and takes
 // them all. The macros themselves are written by the condition rows.
+// G2227 (FLEET-PROPS B): THE EDITOR'S OWN SHARED UNIFORMS PUBLISHED AGAIN. A parked / fleet capture borrows the shared
+// block (aeroskin's, the weather's spread in) for the aeroplane it captures, and its restore copies back the block as it
+// was when the batch began - which may predate the editor's last publish: after a fleet bake the FIRST drag's preview
+// ended on the footwell and the weather's sources ~13 cm off the whole build (INSTANT --fleet's wgSpan; --fleet-baked, no
+// capture, clean). This puts back what the editor's layers hold NOW: the crew's footwell and plate holes (CAGE_CREW, set
+// at each crew build), the weather's sources and macros (applyWeather re-measures them off the live layers).
+function republish() {
+  const A = AK(), C = window.CAGE_CREW;
+  if (A) try {
+    const crew = !!(P.crewOn && C);
+    if (A.aeroSetFootwell) A.aeroSetFootwell(THREE, crew ? (C.footwell || null) : null);
+    if (A.aeroSetHoles) A.aeroSetHoles(THREE, crew ? (C.holes || null) : null);
+  } catch (e) { console.error('republish: crew', e); }
+  try { applyWeather(); } catch (e) { console.error('republish: weather', e); }
+}
 function applyWeather() {
   const A = AK();
   const WX = window.AEROWX;
@@ -5378,7 +5393,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;

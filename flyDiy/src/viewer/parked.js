@@ -421,6 +421,9 @@
         if (opt && opt.mine !== undefined) setPages(A, THREE, opt.mine);
         else try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
         if (U && saved) copyBlock(U, saved);
+        // G2227: ...and the editor's own values over that copy (it may predate the editor's last publish: a stale footwell
+        // and weather after a fleet bake); a page without the door keeps the copy
+        if (n && E && typeof E.republish === 'function') try { E.republish(); } catch (e) { console.error('parked: republish', e); }
         if (WX && macro0) WX.aeroWxSetMacro(THREE, macro0);
         if (n) log("restored the player's aeroplane in", Math.round(performance.now() - t0), 'ms');
       });

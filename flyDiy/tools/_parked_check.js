@@ -942,6 +942,8 @@ async function pageRows() {
     const world = [fnText('fleetLoad'), fnText('fleetGate'), fnText('fleetDrawn'), fnText('fleetEvict'), branch];
     check(world.every(t => t.length > 40) && world.every(t => !/\b(capture|batchSteps|bakeData|bakeNow|farBaked|enqueue|cutFar|captureAll|fleetBake)\s*\(/.test(t)),
       '12p SOURCE: the roll-out\'s and the flight\'s fleet doors (fleetLoad, the place() branch, fleetGate, fleetDrawn, fleetEvict) call no capture and no bake');
+    check(/if \(U && saved\) copyBlock\(U, saved\);\s*\/\/[^\n]*\n[^\n]*\n\s*if \(n && E && typeof E\.republish === 'function'\)/.test(src) && /republish \/\* G2227 \*\//.test(fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8')),
+      '12p SOURCE (G2227): after a capture batch the editor publishes its own shared uniforms again (CAGE_UI.republish) over the restored copy');
     check(/if \(!garageIdle\(\)\)/.test(fnText('fleetStep')) && /garageIdle\(\)/.test(fnText('fleetBake')), '12p SOURCE: the bake door (fleetStep, fleetBake) starts only in the garage at rest');
   }
 }
