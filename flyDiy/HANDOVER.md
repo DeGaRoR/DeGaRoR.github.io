@@ -81987,3 +81987,70 @@ column); G2567 rootBlend / farFlat; G2568 the review. Stills S1-S8 (stand, taxi,
 strip, muskeg, forest floor, shore), noon + golden, after the overlay + 2 s, validated craft only (Cub, Jodel, metal
 Cessna, Cessna floats, twin floats). Four questions for the user (the document's §4.6): the lawn's species, the strip's
 surface, root blend on/off, the x10 itself (a dial x2-x15).
+
+## G2560 GRASS-DENSE - THE GRASS FIELD (TEN TIMES THE CARDS, A THIRD THE HEIGHT, THE GROUND'S COLOUR), THE GRASS BY THE RUNWAYS, THE DIALS (2026-10-08/10, a LOCAL-GPU session for A0; branch claude/grass-dense-g2560 off train 42 + GRASS-STUDY 20708fa3a; G2560-G2579; TRAIN 43 = the dials + the field OFF, TRAIN 44 = the field ON once its cost is cut)
+
+THE SPEC: futureDesigns/GRASS-STUDY-2026-10.md (G2550). THE MODEL STAYS (the reed's cards, strips, mask, material, tint path, shading):
+distribution and parameters only. Evidence: reports/evidence/GRASS-DENSE/ (exclusion/ the top-down sheets, stills/ + cost/ the 9 Oct
+night run train 42 vs the field, cost2/ + stills2/ the 10 Oct cost variants and stills).
+
+WHAT IS IN THE BRANCH
+- G2561 THE COUNT TRUNCATION (cover_ring.js buildBlock / update): a block's non-casting faded InstancedMesh instances counting-sorted
+  by aRand (32 bins); each frame mesh.count = the prefix the block's NEAREST point can show (keep x aglK x (1 + band), the size
+  fade's largest instance taken; a block that shows none is not drawn). The left-out instances are exactly those FADE_CUT_VS throws
+  away (GATE COVER 7: a permutation, none left out that would draw). Casters are not truncated (three's depth pass has no fade).
+  It is ON in the first ring too (today's patches): the stand / taxi grass triangles fall without a pixel moving.
+- G2563 THE GRASS FIELD (cover_ring.js `layer: 'grass'`, render_world `grassField`, TREE_FILL.grass() / field(on)): a second ring of
+  the same file holding the reed alone (the first ring leaves it to the field while it is on: ctx.owned). The patches' cards cut at
+  load into TUFTS of `cards` (3) - each card one of the patch's own, the tuft moved whole to its foot (tuftsOf; GATE COVER 8a) -
+  `variants` of them a draw; 16 m cells drawn by `block` x `block` blocks; ~90 tufts / m2 at the meadow (~270 cards: x10 today's
+  23); the length by the ground (FIELD_TYPES per mix: h / sigma / dens / clump; a mix row's h / sigma / dens win - the biome card):
+  meadow 0.30 m, muskeg 0.40, forest floor 0.20 x0.35, lush 0.40, village 0.18, town 0.15, and the bare biomes (shore 0.45 x0.15,
+  scree 0.15 x0.2, shingle 0.30 x0.1, `fill`); a 4 m clump field; TIERED planting (a cell holds the prefix of its fixed candidate
+  stream its nearest distance can show, planted again nearer - only adds: GATE COVER 8d, the same picture as a fresh planting);
+  the height lattice 2 m and the premises asked every metre near a pavement (the drawn side is 1.8 m). Its own fade set (trees.js
+  fadeSet / fadeOwn) with THE SIZE FADE (G2564: _fd over the instance's scale against `hRef`, clamped 0.05-1.5; GATE COVER 8e).
+  ?grassfield=1 / 0 forces it; FIELD_ON (cover_ring.js) is its default - FALSE for train 43.
+- G2562 THE COLOUR: SPLAT_GROUND.api.meanAt(x, z, code, slope) - the drawn ground less its texture (the code's near sets by the
+  preset's blend depth, graded as uSGrade + sat + hue + the forest floor's grass pull, the code's vary, then the 10 m imagery by
+  macroNear / macroLum, less on a steep face); agreed with GROUND-LOOK G2610 (it reads the live recipe: their data flows through).
+  A tuft's instanceColor = the ground's mean (bilinear, 4 m) x `match` over the tinted texel's own mean (tintMean: TINT_GLSL on the
+  kept texels' linear mean) - its albedo lands on the ground's. `colour` 0 = the sets' means x lift (G551), the A/B.
+- G2565 THE GRASS BY THE RUNWAYS (27_premises.js GRASS_SIDES / grassSides(), coverSides; GATE GRASSSIDES): law 'today' (default;
+  unchanged answers) or 'sides': bare on the pavement and its DRAWN side (sideClear 1.8 m paved = PAVE_SIDE, softClear 0.3 m soft),
+  CUT grass across the band and `mowBand` 15 m past it, blending to wild over `mowBlend` 4 m, the verge's bump past that; a grass
+  STRIP's running surface cut grass (`stripGrass` 1: surf); an ordinary road today's band + fade then `roadMow` 2 m mown. The pave
+  half (rocks, debris, trees) never moves (GATE GRASSSIDES 2). In the first ring the cut ground grows no flower and no bush.
+  `hard` 0 (the user's ruling 1, below): no grass where the physics is gravel / paved, whatever is drawn.
+- G2566 THE EDITOR (the user: "all grass / flower parameters as dials"): VEGETATION > 'the grass field' (the switch, tufts / m2,
+  full to, gone at, taper, size fade + reference, AGL full / off, height x, spread x, clumps, bare patches, cards a tuft, tuft
+  shapes, block, the colour source / level / swing, the cut grass's and the grass runway's length / spread / density) and 'the grass
+  by the runways' (the law, the clears, the mow band, the blend, a road's verge, grass on a grass runway, grass on gravel drawn as
+  ground); TYPES > biome > the reed's card: field length / spread / density; VEGETATION > 'the flowers' colour' (trees.js
+  KIND_MASTER.flower + flowerHook: TINT_GLSL after the flower's map, identity by default - the user: the flowers stand out). All in
+  the world look (grass, grassOn, gsides; kindTint.flower).
+- RIGS: tools/perf/grass_cost.js (per view: the grass's draws / instances / triangles a frame, with --gpu its TIME_ELAPSED ms, the
+  ring's stat, a still after the overlay + 2 s; the free views from the world itself: HOME's final at 10 / 30 / 60 / 150 m, a paved
+  side, a lot, the grass strip, muskeg, forest floor, shore); tools/perf/grass_study/exclusion_map.js + .py (the top-down sheets);
+  tools/perf/grass_night.sh, grass_window.sh (the booked windows, locks with an EXIT trap, hard stops).
+
+THE USER'S RULINGS (8-10 Oct, through A0)
+1. NO grass on ground that is gravel / paved in the PHYSICS but drawn as ground (HOME / w2's 46 m y_sh shoulders, the strip boxes'
+   +6 / +20 m margins): what the wheels feel is what is drawn. GRASS_SIDES.hard = 0.
+2. TREES CLEARED ONLY ON THE STRIP: "trees cleared only ON the strip. It's bush flying, trees grow as close as possible from where
+   we land. Including the base runways" - and "Further clearings will be done using polygons, not by the runway". So no 60 / 150 m
+   box, no +30 m strip box, no shoulders, no fans, no ICAO surface (the sheets' proposal was overruled). The rwyTrees variant 'map'
+   (G1091) IS this: no tree on a pavement or its drawn side (1.8 m past a paved edge, 7.9 m past a soft one: the wingtip margin -
+   a Cessna's half span is 5.5 m, every strip's half width + its side is wider), the derived boxes / shoulders / fans lifted. Wider
+   clearings: the premises editor's 'no trees' tool (zone kind 'clear' / an exclude with what ['trees']) already drives the keep-out
+   (PM.excludeAt(x, z, 'trees') in 20_world treeAeroBlocked). TRAIN 44: the default 'today' -> 'map', then ROUTE / TAKEOFF /
+   TAXICLEAR and the pilot rows that fly HOME and the strips (the autopilot must still clear the nearer trees).
+3. Grass ON the grass runway (cut short, dense), the main runway's sides grassed where the material is drawn as ground ('sides'
+   law), grass in the bare biomes, colour options for the flowers, every parameter a dial - in.
+
+NUMBERS (the box, RTX 3080; grass GPU ms by a TIME_ELAPSED query round every grass draw; train 42 -> the field at its defaults, 9 Oct):
+  gamer  app10 3.81 -> 3.58 ms, app30 4.13 -> 2.00, app60 2.85 -> 0.44, the forest floor at 1.7 m 2.67 -> 4.20 (13.4 M tris, 82 draws)
+  retro  app10 1.30 -> 0.99, app30 0.86 -> 0.31, app60 0.79 -> 0.00, the forest floor 1.09 -> 1.31
+  grass draws ~2x on the approach (gamer app10 50 -> 95). HOME's stand / taxi: almost no grass (the apron + the 48 m bare band)
+  until the 'sides' law is the default. THE RED TO CUT before the field is ON (A0): the near band on dense ground and the draws -
+  the variants (tuft shapes 2, block 3, tufts, near; grass_window.sh cost) run on the box 11 Oct 03:55 - TRAIN 44.
