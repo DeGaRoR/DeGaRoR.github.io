@@ -5027,7 +5027,7 @@ function buildMatPanel() {
     // rails' strips by what they are on screen - and the waist one by what a BUBBLE makes of it, the band the canopy
     // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
     // every build made from it, and on a bubble it is that dark surround
-    waistband: +P.canopy === 3 ? 'canopy sill band (the waist rail)' : 'waist band',
+    waistband: +P.canopy === 3 ? 'canopy sill band' : 'waist band',
     ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],

@@ -1157,6 +1157,11 @@ if (process.argv.includes('--selftest')) {
   // not reflect that"): the build's export carries the finish but not meta, so the trips' key must carry meta.reg
   check(/key: specKey\(spec\) \+ '\|reg' \+ reg/.test(APP) && /const spec = window\.CAGE_JOIN\.export\(\), m = \(window\.GARAGE_SPEC\.get\(\) \|\| \{\}\)\.meta, reg = \(m && m\.reg\) \|\| ''/.test(APP),
         'markings: the trips\' key (snapshot, bake, spec) does not carry the registration — new letters fly on the old atlas');
+  // ...and the bake paints from the spec the SNAPSHOT flies (the garage's merge, meta and all), never the bare export: a
+  // trip whose snapshot was skipped (the wear moved a step) painted the fallback F-PGAR into the far fold
+  check(/spec: wornSpec\(tripSync \? \(tripSync\.flown \|\| \(window\.GARAGE_SPEC\.preview \? window\.GARAGE_SPEC\.preview\(tripSync\.spec\) : tripSync\.spec\)\) : genSpec\)/.test(APP) &&
+        /const flown = x\.flown = window\.GARAGE_SPEC\.preview \? window\.GARAGE_SPEC\.preview\(x\.spec\) : x\.spec;/.test(APP),
+        'markings: the bake can paint from the bare export (no meta: the far model wears F-PGAR, not the registration)');
   // THE OVERLAY DRAWS OVER EVERYTHING AND STAYS IN FLIGHT (G2750): transparent from birth (an opaque line sorts before
   // every transparent pavement whatever its renderOrder), in the see-through band when x-rayed, reset in the shed
   check(/new THREE\.LineBasicMaterial\(\{ vertexColors: true, transparent: true \}\)/.test(APP) && /size: 0\.06, transparent: true \}\)/.test(APP),
@@ -1169,7 +1174,7 @@ if (process.argv.includes('--selftest')) {
   // can't be accessed using the finish editor" - the waistband rail's strip, widened by a bubble canopy into the band
   // under its seam, its row under the fuselage by a raw name): the row says what it is, and a click in the FINISH view
   // lands on the struck section's own row
-  check(/waistband: \+P\.canopy === 3 \? 'canopy sill band \(the waist rail\)' : 'waist band'/.test(UI),
+  check(/waistband: \+P\.canopy === 3 \? 'canopy sill band' : 'waist band'/.test(UI),
         'finish: the waistband row is not named for what a bubble canopy makes of it (the band round the cockpit)');
   {
     const ED = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.js'), 'utf8');

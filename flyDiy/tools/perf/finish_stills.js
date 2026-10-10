@@ -97,6 +97,33 @@ const rollOut = async () => {
     await run(`CAGE_UI.setParam('shoulderOn', 1); CAGE_UI.build(); return 1;`); await frames(30); await sleep(800);
     log.notes.push(await run(`return Object.keys(GARAGE_SPEC.get().finish.sections || {});`));
   } catch (e) { console.log('STEP bubble FAILED ' + (e && e.message)); log.notes.push('bubble failed: ' + (e && e.message)); }
+  // WORLD aim off the cage sheet (the fuselage alone): its long horizontal axis, the nose being the end nearer the glass;
+  // f 0 nose .. 1 tail, side metres out to the +lateral side, up metres over the axis
+  const fuseCam = (f, side, up, ty) => `const MT = CAGE_JOIN.mount(); MT.updateMatrixWorld(true); const bb = new THREE.Box3(), gb = new THREE.Box3();
+    MT.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry) return; const ms = Array.isArray(o.material) ? o.material : [o.material];
+      if (o.userData && o.userData.matNames) bb.union(new THREE.Box3().setFromObject(o));
+      else if (ms.some(m => m && m.transparent && m.opacity < 0.9)) gb.union(new THREE.Box3().setFromObject(o)); });
+    const C = bb.getCenter(new THREE.Vector3()), SZ = bb.getSize(new THREE.Vector3()), G0 = gb.getCenter(new THREE.Vector3());
+    const ax = SZ.x >= SZ.z ? 'x' : 'z', lat = ax === 'x' ? 'z' : 'x', L = SZ[ax];
+    const sgn = (G0[ax] > C[ax]) ? 1 : -1;            // the nose is on the glass's side
+    const P = new THREE.Vector3().copy(C); P[ax] = C[ax] + sgn * L * (0.5 - ${f});
+    const AT = P.clone(); AT.y += ${ty}; const EYE = P.clone(); EYE[lat] += ${side}; EYE.y += ${up};`;
+  if (STEPS.includes('flankw')) try {
+    const V = [['mid', 0.45, 1.9, 0.25, 0.05], ['aft', 0.72, 1.7, 0.3, 0.05], ['fin', 0.93, 2.2, 0.9, 0.55]];
+    const allV = async tag => { for (const [k, f, sd, up, ty] of V) await ownShot('x_' + k + '_' + tag, fuseCam(f, sd, up, ty)); };
+    await allV('base');
+    await run(`window.__m0 = JSON.stringify(AEROWX.AERO_WX.macro); aeroWxSetMacro(null, { age: 0, flight: 0, bush: 0, rain: 0 }); return 1;`); await frames(3);
+    await allV('wxoff');
+    await run(`aeroWxSetMacro(null, JSON.parse(window.__m0)); return 1;`); await frames(3);
+    for (const k of ['scratch', 'streakA', 'streakD', 'chip', 'fade']) {
+      await run(`aeroWxPin(null, '${k}', 0); return 1;`); await frames(3);
+      await allV('no_' + k);
+      await run(`aeroWxPin(null, '${k}', null); return 1;`);
+    }
+    await run(`aeroWxPin(null, 'scratch', 1); return 1;`); await frames(3);
+    await allV('scratch1');
+    await run(`aeroWxPin(null, 'scratch', null); return 1;`);
+  } catch (e) { console.log('STEP flankw FAILED ' + (e && e.message)); log.notes.push('flankw failed: ' + (e && e.message)); }
   if (STEPS.includes('flank')) try {
     // (the mount's +z is FORWARD: the tail is at -z)
     const V = [['mid', [1.7, 0.15, -1.0], [0, 0.05, -1.0]], ['aft', [1.6, 0.3, -2.4], [0, 0.15, -2.4]], ['fin', [1.9, 0.9, -3.2], [0, 0.7, -3.3]]];

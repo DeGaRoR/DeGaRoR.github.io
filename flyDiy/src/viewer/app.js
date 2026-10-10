@@ -8563,7 +8563,11 @@
     // to PREM_WEAR.step, so it re-bakes per step of wear and never per flown second); its key carries the step
     { id: 'bake', part: 'craft', label: 'baking your aeroplane', w: 8, key: () => { const k = buildKey(), q = wearStep(); return (k && q) ? k + '|wear' + q : k; }, deps: ['snapshot'],
       when: () => !!(window.FLOWN_BAKE && typeof window.FLOWN_BAKE.step === 'function'),
-      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || tripSync.spec) : genSpec),
+      // G2750: the spec the SNAPSHOT would have flown, always - a trip whose snapshot was skipped (the same build, the
+      // wear moved a step) handed the bake the bare export, which has no meta: the atlas painted the fallback letters
+      // (F-PGAR) and its key could not tell one registration from another - the user's "I changed the registration,
+      // and the far baked model does not reflect that"
+      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || (window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(tripSync.spec) : tripSync.spec)) : genSpec),
         phase: (l, f) => BOOT.phase('bake', l || 'baking your aeroplane', f),
         rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
