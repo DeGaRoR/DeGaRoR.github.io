@@ -84597,3 +84597,152 @@ libraries); one process and one log per gate. **JOINPARITY is not in this tree e
 - Not run: the full tier; FRAMECOST / HITBOX (any viewer edit moves the build id - the GPU half's).
 
 READY for the GAME COORDINATOR
+
+## G2665-G2674 - NIGHT-OPS: NIGHT WORK ON THE SIM CLOCK - A SHARE OF THE GENERATED CARRY JOBS ARRIVE IN A NIGHT WINDOW (AFTER DUSK / BEFORE DAWN / AN HOUR'S ARRIVAL), WEIGHTED TOWARD MOONLIT NIGHTS, A NIGHT PREMIUM + A MOONLESS ONE; THE NIGHT MAIL INTO THE LIT FIELD (ITS VASI), A LATE RETURN FROM THE MINE, THE NIGHT MEDEVAC (THE STRETCHER CASE HELD OUT); THE JOB LINE STATES THE WINDOW, EACH RUNWAY LIT / UNLIT AND THE MOON; THE WAIT "UNTIL THE WINDOW OPENS"; THE NIGHT-SHY PILOT ON THE ALMANAC; GATES CONTRACTS (+ NIGHT ROWS) / PILOTS / MAP SMOKE (2026-10-10, NIGHT-OPS for the GAME COORDINATOR, cloud - node + the UISMOKE vm, no GPU, the night's LOOK untouched (A0's MOONLIGHT G2600); branch claude/night-ops-g2665 off origin/claude/game-train44 3562f3e1 (8cb7ba1e + the HANGAR-STORAGE study); G2665-G2674)
+
+The user: *"do we have some night missions? Night VFR is terrorizing"*; *"wait until dusk is fine. Or simply some contracts
+could require that you get there at a certain time of the day, and you could wait it out"*; and (via A0) full-moon
+nights where night VFR is possible though dangerous - a moonless or overcast night stays truly dark. GAME-2026-10-06.md
+§R.3 (GQ17 amended). Built on SIM-CLOCK's `when` vocabulary and dayMoonAt (G2650-G2659) and CONTRACT-ROUTES' shapes
+(G2430-G2434). Core + data + the page's career half + the map's paragraph; nothing in the renderer.
+
+**G2665 THE NIGHT IN THE GENERATOR** (73_contracts.js, a new block after the windows):
+- `CONTRACT_NIGHT = { p: 0.2, moonW: [0.5, 1.0], overcast: 0.75, darkLight: 0.1, kinds: {after:dusk 3, before:dawn 1,
+  arrive 2}, sky0: '2026-06-21' }`. A generated CARRY job (never a survey: a count is flown by day) is night work with
+  chance `p x (moonW[0] + moonW[1] x light)`, light = the moon's at the night's middle (its illuminated fraction while
+  up; 0 down, new, or under an overcast). Its LAST arrival carries the window (as the old "before dusk" did): `{after:
+  'dusk'}`, `{before: 'dawn'}`, or `{arrive: [h, h+1]}` - one whole hour wholly inside that night (June: 23, 0, 1, 2).
+  Drawn on ITS OWN rng (`seed|id|try|night`): the job's template, shape, route and loads are the same with or without it
+  (gated); a day job keeps the 25 % "before dusk" as before.
+- **THE SKY OF AN OFFER**: `contractSky(date, cover)` -> that local date's civil dusk / dawn (07b dayDuskDawnH on a
+  scratch DAY at local noon, Jolene's geo) + overcast (cover >= 0.75), memoised; `contractMoonAt(sky, hour)` -> 07b
+  dayMoonAt at that hour of the night that starts on the date (an hour before noon is the next morning's): { phase,
+  illum, up, light, dark, overcast }; `contractMoonWords` -> "full moon, up" / "half moon, down" / "no moon" /
+  "overcast: no moon light". `contractJob(.., { sky })`: undefined = the game's first night (sky0: every existing caller,
+  ECON's reference, the gates), null = no night work.
+- **THE STAMP**: a night job carries `rec.night = { date, h0, h1, duskH, dawnH, hour, phase, illum, up, overcast, light,
+  dark }` - the night it was drawn for (the window's hours on that almanac, the moon at the window's middle). The window
+  itself stays a TIME OF DAY (GQ17): met on any night it is flown in.
+- Helpers: `contractWhenSpan / contractWhenMid / contractWhenNight(w, duskH, dawnH)` (after dusk / before dawn are night;
+  an arrival whose middle is in the night), `contractWhenWait(w, hour, duskH, dawnH)` -> null while open, else `{ target:
+  'dusk' | h0, h0 }` (DAY_CLOCK.wait's argument).
+
+**G2666 THE PAY** (`contractPay`, still the job's and never the aeroplane's): `CONTRACT_PAY.nightPct = 15` (a night window,
+§R.3's "a night premium") and `darkPct = 20` (the job's stamped night is dark: the MOONLESS premium), both of the same
+`rest` the condition's 15 % is taken on; returned as the named factors **`pay.night`** and **`pay.dark`**. An authored night
+contract pays the night premium (its window), never the dark one (no stamp: authored work is not drawn under a sky).
+
+**G2667 THE OFFERS' SKY** (74_career.js): the night work is drawn under the sky of the day the offers came -
+`careerOfferSky(doc)`: the career's LOCAL date (careerLocalDate) + `career.cover` (the day's cloud cover as the page last
+saw it). **Stamped** as `career.contracts.sky = { epoch, date, cover }` by careerRefresh, kept while the epoch is the same
+- so an offer does NOT change while the clock moves on (gated: the same ids, pay and stages two days later); a career with
+no stamp reads it live off its clock. The page writes `career.cover` with the day (DAY_CLOCK.career's put, and at the
+flight's end) and now saves the career's DAY **before** the stop meets the contracts (app.js: careerDaySet moved ahead of
+careerStopApply - the same instant SIM-CLOCK wrote after it), so a new epoch's offers are drawn under the night the
+aeroplane landed in. careerContract / careerOfferIds pass the sky to the generator. No CAREER_V step (`sky` / `cover` ride
+as fields; the normaliser keeps them).
+
+**G2668 THE AUTHORED NIGHT WORK** (72_contract_data.js, a provider's new `night` list: offered beside the arc once its
+`needs` are met, each once; contractAuthored includes it):
+
+| id | what | window | needs |
+|---|---|---|---|
+| field.n1 "The night mail" | 30 kg of mail (goods.mail) Tamgas Hill Strip -> Jolene AFB, "the runway lights and the VASI are on" | arrive 00:00-01:00 | field.02 |
+| minedock.n1 "The late shift" | the shift engineer, Jumbo Mine Street -> Jolene AFB | after dusk | minedock.02 |
+| clients.n1 "Night medevac" | the doctor HOME -> Tamgas Hill; then the patient (seated) + the doctor -> the ambulance at Jolene AFB | before dawn (leg 2) | clients.01 |
+| clients.n2 "A stretcher case" | FREIGHT_STRETCHER's item (2.0 x 0.6 x 0.5 m, 95 kg) + the doctor, Tamgas Hill -> Jolene AFB | before dawn | clients.n1 - **HELD OUT** |
+
+**THE STRETCHER (a call for the coordinator)**: the brief asked for the medevac on FREIGHT_STRETCHER - but **no validated
+design's door takes the rigid 2.0 m stretcher** (GATE FREIGHT already holds this: "the medevac needs a cargo door or a
+folding stretcher"; measured again here: the C172's doors pass nothing rigid over 1.0 m at 0.6 x 0.5). A stretcher job
+would be ✗ "no door fits" for every player - against "every chain flyable by one validated design". So the night medevac
+flies the patient SEATED (the C172: two passengers out of the 520 m gravel strip), and the stretcher case is authored and
+**held out** by a new general rule beside the aerobatic box's: `contractFlyable(rec)` (a contract no validated design can
+fly is never offered, never accepted - 74_ careerOfferIds, gated). It reaches the map the day a validated design's door
+takes it (a cargo door, BELLY-POD's door on a validated build, or a folding stretcher item). The lake cabins (FREIGHT §4b)
+are not built: when the user adds them, the medevac's `from` moves to a cabin by data (CONTRACT-ROUTES' one table).
+
+**G2669 THE JOB LINE** (75_career_wire.js `careerNightLine(doc, rec, {day, cover, fields})`, on every map contract with a
+window as `night`; map_menu.js's paragraph adds ONE `.mmRw` line under the runways - the garage's look, Plex upright, no
+new CSS):
+- the window: "after dusk · opens 22:29", "before dawn · opens 00:00", "arrive 00:00-01:00", "· open now" while it is;
+- at night, **each runway lit or unlit**: CONTRACT_FIELDS rows now carry `lit` (25_airfield runwayLightStrips' rule: every
+  land strip lit, the two water lanes unlit - contractFieldsOf derives it off the record, so the byte-equal row holds and
+  a new site says it too) and `glide` (the record's `papi`: Jolene AFB 'vasi', Tamgas Hill 'papi'): "Tamgas Hill Strip lit
+  (PAPI) · Jolene AFB lit (VASI)", "Annette Dock unlit";
+- **the moon at the window's middle** of the NEXT opening from the career's clock (dayMoonAt): "full moon, up", "half moon,
+  down", "no moon", "overcast: no moon light" (the page's live cover);
+- the premiums: "night pay +15 %, moonless +20 %".
+E.g. *"arrive 00:00-01:00 · Tamgas Hill Strip lit (PAPI) · Jumbo Mine Street lit · half moon, down · night pay +15 %,
+moonless +20 %"*; *"after dusk · opens 22:29 · Annette Dock unlit · Metlakatla Seaplane Base unlit · half moon, down · ..."*.
+**An unlit strip at night is the player's call: never a ✗** - the mark stays surface vs gear and the door (gated: an unlit
+water job at night is ✓ for a fleet on floats).
+
+**G2670 WAIT UNTIL THE WINDOW OPENS** - `careerTrackedWhen(doc)` (the tracked contract's first open sub with a window, in
+its current stage) and `careerWaitWindow(doc, day)` -> `{ target, words, h0 }` or null (nothing tracked with a window, or
+it is open now). The route row's "wait until…" select (shed + roll-out) gets a FIRST option **"the job's window (after
+dusk) · 22:29"** when there is one (one DAY_CLOCK.wait, the same jump and guard as every wait); the day panel's career
+WAIT gets a "the job's window" pill (day_ui.js, through `FLYDIY_CLOCK.jobWait`). Without a tracked window the select is
+SIM-CLOCK's 32 hours exactly.
+
+**G2671 THE ALMANAC EVERYWHERE** (SIM-CLOCK's recommended call):
+- the stop record carries `duskH` / `dawnH` (app.js careerStopApply: dayDuskDawnH(world.day)) - every window is judged on
+  the day's own dusk / dawn (June 22:29 / 03:08), no longer the 19.5 h constant;
+- 76_pilots.js night-shy: the leg's `duskH` / `dawnH` (else the constants), the hour WRAPS midnight (a leg ending at 01:00
+  - or "24.6" unwrapped - is the night; before, it flew), and **`leg.night: true`** (+ `nightHour`): app.js careerCrewLeg
+  marks a leg to the tracked contract's night window - so the night-shy pilot's refusal shows on the ROUTE ROW before
+  the wait ("Kit won't fly a leg that ends in the dark (0.5 h). Pick another pilot,
+  or fly it yourself."), not at the stand after it. The refusal's words: "ends in the dark" (was "ends after dusk").
+
+**G2672 ECON** (76_economy.js, one function): the reference career's `econRefFly` flies a windowed leg at its window's
+middle - it WAITS IT OUT, as a player does (before: every leg at noon, so the first night job it picked was refused and the
+reference stalled: "airframe at never"). The bands UNTOUCHED; the reference careers now: hangar1 8, airframe 16-17, arc
+17-18, hangar2 20-22 (were 8 / 17-18 / 18-19 / 21-22: the night premiums pay a little more) - inside every band.
+
+**THE GATES** (`node tools/run_gates.js --only=...`):
+- **CONTRACTS PASS** (2458 checks, +52) + **--selftest PASS (75 of 75 doctored rules caught**, 11 new: the night premium /
+  the moonless premium unpaid, the moon not weighing the night, a night window by day, the moon read on the wrong night, an
+  overcast letting the moon through, a survey by night, water lanes lit, the line forgetting an unlit strip, the stretcher
+  case offered, the offers moving with the clock). NIGHT rows: lit / unlit = runwayLightStrips over the record, the VASI /
+  PAPI; the share (8.6 %: 435 of the sample's 5 040 jobs on the game's first, moon-down night); every night job valid + flyable + its
+  window a night one on its own almanac + its moon EQUAL to dayMoonAt at the window's middle + the premiums exactly when
+  stamped + its line naming every runway lit / unlit and the moon; all three window kinds drawn, an arrival one whole
+  hour; no survey at night; the named premium; **THE LUNAR MONTH** (30 nights from 21 Jun, new to full): **26.8 % of the
+  carry jobs are night work on moonlit nights, 8.3 % on dark ones**, an overcast month all dark (7.5 %); no sky = no night
+  work and the same routes / loads either way; the window helpers and the wait; the four authored contracts (needs, once,
+  the stretcher case held out); the medevac flown (the doctor up; refused at 21:00 on the almanac; done at 02:00, paid);
+  the tracked window and the Wait (midnight for before dawn; none while open); the offers' sky (the career's local date,
+  held while the clock moves, the cover riding in); the map record's night line; the mail's and a water job's lines.
+  Two rows adjusted: the contracts block now holds `sky`; an authored stage no design flies is exempt only when held out.
+- **PILOTS PASS** (4486 checks; + the almanac rows: June's 21:00 / 04:00 flown, 22:30 to 02:54 refused, past midnight
+  wrapped, a night job's leg refused at 15:00 and flown by a pilot without the trait) - selftest: the dusk boundary
+  re-anchored on the new line, 3 new breaks.
+- **UISMOKE PASS** (its map rows: + the night line - 6+ night jobs on new careers' maps, each paragraph carrying it,
+  unlit water at night ✓ for a fleet on floats); **UISMOKE-PHONE PASS**; **CLOCK PASS** (777); **BUILD PASS**.
+- **ECON**: the calibration PASS on all 8 seeds; **1 red PRE-EXISTING** - "a rebuild short of the cash: refused, the same
+  document untouched" fails identically on the untouched base (3562f3e1, my changes stashed, same build) - not this
+  branch's (econUpgrade's refusal; ECONOMY / PREM's lane).
+- **ACCEPT PASS**, **FREIGHT PASS** (its "no validated design takes the stretcher" rows unchanged), **LAZY PASS** (the night
+  code lives in 73_ / 74_ / 75_, the career core; 76_pilots / 76_economy stay there too), **DESTTO PASS** (3 shards; its
+  career row's day job still found).
+- Not run: the full tier; no still (the line is a text span in the existing paragraph; the night's look is A0's).
+
+**OPEN / FOR THE COORDINATOR**
+- **The stretcher** (above): held out until a validated design's door takes it - the user's / FREIGHT's call (a cargo door
+  on the C172, a folding stretcher, or the pod).
+- **Waiting for the moon**: the moonless premium is the offer's (its stamped night); a player who waits days for a full
+  moon still earns it. Honest to "the pay is the job's as offered"; if it should follow the night flown, contractPayTotal
+  would read the stop's moon (a small change: the stop record already carries the hour).
+- **The cover**: the career has no weather of its own yet; `career.cover` is the page's day setting as last seen
+  (default 0: clear). When the career gets weather, write its cover there.
+- **The LOOK** of a night arrival (the runway lights' intensity, the VASI at night, the moonlight) is A0's MOONLIGHT
+  G2600 - untouched; nothing here was seen rendered (cloud).
+- Merge points: 72_ (the field rows' `lit` / `glide`, three `night` lists, the night text), 73_ (the NIGHT block after the
+  windows, contractFieldsOf's lit / glide, contractPay's night / dark, contractJob's night draw, contractFlyable,
+  contractAuthored), 74_ (the offers' sky block, careerOfferIds' night list + sky, careerRefresh's stamp, careerContract's
+  sky), 75_ (careerMapContract's opts + `night`, careerNightLine and friends), 76_economy (econRefFly), 76_pilots (the night
+  refusal), 90_ (appended), app.js (careerDuskDawn / careerCoverNote, the stop's dusk / dawn, the day saved before the stop,
+  careerCrewLeg's night, clockJobWait + the select's first option, the clock's put writes the cover), day_ui.js (the pill),
+  map_menu.js (nightHTML + the adapter's `night`), gates (_contracts_check, _pilots_check, _map_smoke).
+
+READY for the GAME COORDINATOR

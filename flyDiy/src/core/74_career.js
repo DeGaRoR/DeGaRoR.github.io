@@ -15,7 +15,9 @@
 //       voucher: { kind: 'maker', model: 'cub', used: false },          GQ23
 //       providers: { <id>: { rep: 0..5, arc: <arc contracts done> } },  GQ28
 //       contracts: { offered: [id], accepted: [id], tracked: id|null, done: [ {id, at, pay, medal?} ],
-//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } } },
+//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } },
+//                    sky: { epoch, date, cover } },                    G2665 the offers' sky (the night work's)
+//       cover: 0..1,                                                    G2665 the day's cloud cover, as the page saw it
 //       tracks: { field, minedock, resort, survey, clients },            §11.2 (mine + dock = one track)
 //       pilots: {}, roster: [], market: { used: [], seen: 0 }, airframes: {} } }   (PILOTS / PROCURE fill these)
 // A contract is NEVER stored whole: an authored one is looked up by id, a job regenerated from its id and the
@@ -155,6 +157,28 @@ function careerDaySet(doc, o) {
   return { ok: true, doc: d, why: '', dt };
 }
 
+// ---- THE OFFERS' SKY (G2665 NIGHT-OPS) -----------------------------------------------------------------------------
+// The night work is drawn under the sky of the day the offers were made (73_ contractSky): the career's LOCAL date
+// when this epoch's offers came, and the day's cloud cover as the page last saw it (`career.cover`, 0..1: overcast = no
+// moon light). Stamped as `contracts.sky = { epoch, date, cover }` by careerRefresh (a refresh that keeps the epoch keeps
+// the stamp), so an offer holds while the clock moves on; a career with no stamp (or a new epoch not yet refreshed)
+// reads it live off its clock. careerOfferSky(doc) -> 73_'s sky (or null: no night work).
+function careerLocalDate(doc) {
+  const d = careerDay(doc);
+  try { return DAY.makeDay({ date: d.date, utc: d.utc }).localDate; } catch (e) { return d.date; }
+}
+function careerSkyStamp(doc) {
+  const c = doc.career, e = contractEpoch(careerDoneIds(doc).length), S = c.contracts && c.contracts.sky;
+  if (S && S.epoch === e && /^\d{4}-\d{2}-\d{2}$/.test(S.date) && typeof S.cover === 'number') return S;
+  const cover = Math.max(0, Math.min(1, +c.cover || 0));
+  return { epoch: e, date: careerLocalDate(doc), cover: Math.round(cover * 100) / 100 };
+}
+function careerOfferSky(doc) {
+  if (!doc || !doc.career || typeof contractSky !== 'function') return null;
+  const S = careerSkyStamp(doc);
+  return contractSky(S.date, S.cover);
+}
+
 // ---- WHICH CONTRACT AN ID IS --------------------------------------------------------------------------------
 const careerDoneIds = doc => doc.career.contracts.done.map(x => x.id);
 function careerContract(doc, id) {
@@ -168,7 +192,7 @@ function careerContract(doc, id) {
   if (L && L.rec && typeof L.rec === 'object') return L.rec;
   if (/^job:/.test(id)) {
     const m = /^job:(\w+):/.exec(id);
-    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0 });
+    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0, sky: careerOfferSky(doc) });
   }
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
   // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
@@ -191,14 +215,17 @@ function careerOfferIds(doc) {
   const c = doc.career, C = c.contracts;
   const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
   const out = [];
-  const A = contractAuthored();
+  const A = contractAuthored(), sky = careerOfferSky(doc);
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
     const next = P.arc.find(r => !done.includes(r.id));
     // (G2320) a contract the certificate cannot answer is HELD OUT (73_ contractCertifiable: the aerobatic box)
     if (next && !taken.has(next.id) && careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])) out.push(next.id);
     for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
-    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep })) if (!taken.has(j.id)) out.push(j.id);
+    // (G2665 NIGHT-OPS) the provider's authored night work, each once its needs are met - held out while no validated
+    // design can fly it (73_ contractFlyable: the stretcher case)
+    for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
+    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
@@ -212,6 +239,7 @@ function careerOfferIds(doc) {
   return out;
 }
 function careerRefresh(doc) {
+  doc.career.contracts.sky = careerSkyStamp(doc);          // (G2665) the offers' sky, held for the epoch
   doc.career.contracts.offered = careerOfferIds(doc);
   return doc;
 }

@@ -61,7 +61,7 @@ function cwSub(u, F) {
   if (s.crit) s.crit = s.crit.map(c => Object.assign({}, c, { words: contractCritWords(c, F) }));
   return s;
 }
-function careerMapContract(doc, id, F) {
+function careerMapContract(doc, id, F, opts) {
   const rec = careerContract(doc, id);
   if (!rec) return null;
   const vars = contractVars(rec, F);
@@ -74,7 +74,99 @@ function careerMapContract(doc, id, F) {
   };
   if (rec.unlock) out.unlock = cwClone(rec.unlock);
   if (rec.kind === 'build') out.followLine = contractFollowLine(rec);
+  // (G2665 NIGHT-OPS) the window, the runways lit / unlit, the moon: the job line's facts (careerNightLine)
+  const nl = careerNightLine(doc, rec, Object.assign({ fields: F }, opts || {}));
+  if (nl) out.night = nl;
   return out;
+}
+
+// ---- THE NIGHT ON THE JOB LINE (G2665 NIGHT-OPS; §R.3: "the route line says lit / unlit", the job states the moon) -----
+// A contract whose route has a time-of-day window -> the line's facts, or null (no window):
+//   { when: 'after dusk', night: bool, open: bool (the window is open at the career's hour), opens: 'HH:MM',
+//     date: the night's local date (the NEXT opening from the career's clock, or tonight's while it is open),
+//     stops: [{ id, name, lit, glide }] (every runway of the route: 25_airfield's rule - land strips lit, water lanes
+//     not; an unlit strip at night is the player's call, never a ✗), moon: 73_ contractMoonAt at the window's middle
+//     | null (a day window), moonWords, pay: { night, dark } (the premiums the job's pay holds), line: the words }
+// opts: { day: a DAY (the page's world.day; else the career's own instant on the default geo), cover: the day's cloud
+// cover now (else the career's last seen), fields }
+const cwBase = n => String(n || '').replace(/\s+\d{2}[LRC]?\/\d{2}[LRC]?$/, '');
+const cwHhmm = h => { const m = Math.round((((h % 24) + 24) % 24) * 60) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+// the career's local date and hour (the page's day when handed, else a scratch day at the career's instant)
+function careerLocalNow(doc, day) {
+  let d = day;
+  if (!d || !d.localDate) { const o = careerDay(doc); try { d = DAY.makeDay({ date: o.date, utc: o.utc }); } catch (e) { return null; } }
+  return { date: d.localDate, hour: d.localSeconds / 3600 };
+}
+const cwDateAdd = (date, n) => dayFromAbs(dayAbs({ date, utc: 43200 }) + n * 86400).date;
+// the night (its evening's local date) the window next stands open in, from the local date + hour: the current one while
+// it is open, else the next to open. A night N's hours >= 12 are N's evening, < 12 the next morning's.
+function careerWindowNight(w, now, cover) {
+  let best = null;
+  for (const k of [-1, 0, 1, 2]) {
+    const N = cwDateAdd(now.date, k), sky = contractSky(N, cover);
+    if (!sky) return null;
+    const S = contractWhenSpan(w, sky.duskH, sky.dawnH);
+    const at = h => k * 24 + (h >= 12 ? h : h + 24);            // hours from the start of today, local
+    let t0 = at(S[0]), len = ((S[1] - S[0]) % 24 + 24) % 24;
+    if (w.before === 'dusk') { t0 = k * 24; len = S[1]; }        // the day's window: midnight to dusk of that date
+    const t1 = t0 + len, T = now.hour;
+    if (T >= t0 && T < t1) return { N, sky, open: true, h0: S[0] };
+    if (t0 > T && !best) best = { N, sky, open: false, h0: S[0] };
+  }
+  return best;
+}
+function careerNightLine(doc, rec, opts) {
+  opts = opts || {};
+  const F = opts.fields || CONTRACT_FIELDS;
+  const subs = contractSubsOf(rec), u = subs.find(x => x.when && !contractWhenWhy(x.when));
+  if (!u || typeof contractSky !== 'function') return null;
+  const w = u.when, now = careerLocalNow(doc, opts.day);
+  const cover = typeof opts.cover === 'number' ? opts.cover : +((doc && doc.career && doc.career.cover) || 0);
+  const nt = now ? careerWindowNight(w, now, cover) : null;
+  const sky = nt ? nt.sky : contractSky(CONTRACT_NIGHT.sky0, cover);
+  const night = contractWhenNight(w, sky ? sky.duskH : null, sky ? sky.dawnH : null);
+  const stops = [];
+  for (const st of contractStops(rec)) {
+    if (st.what === 'over' || stops.some(x => x.id === st.at)) continue;
+    const f = F[st.at]; if (!f) continue;
+    stops.push({ id: st.at, name: cwBase(f.name), lit: f.lit != null ? !!f.lit : f.surf !== 'water', glide: f.glide || null });
+  }
+  const moon = night && sky ? contractMoonAt(sky, contractWhenMid(w, sky.duskH, sky.dawnH)) : null;
+  const P = contractPay(rec, F);
+  const out = { when: contractWhenWords(w), night, open: !!(nt && nt.open), opens: nt ? cwHhmm(nt.h0) : '', date: nt ? nt.N : null,
+                stops, moon, moonWords: contractMoonWords(moon), pay: { night: P.night || 0, dark: P.dark || 0 } };
+  const parts = [out.when + (nt ? (nt.open ? ' · open now' : (w.arrive ? '' : ' · opens ' + out.opens)) : '')];
+  if (night) {
+    for (const x of stops) parts.push(x.name + (x.lit ? ' lit' + (x.glide ? ' (' + x.glide.toUpperCase() + ')' : '') : ' unlit'));
+    if (out.moonWords) parts.push(out.moonWords);
+    if (P.night) parts.push('night pay +' + CONTRACT_PAY.nightPct + ' %' + (P.dark ? ', moonless +' + CONTRACT_PAY.darkPct + ' %' : ''));
+  }
+  out.line = parts.join(' · ');
+  return out;
+}
+// THE TRACKED CONTRACT'S WINDOW NOW (G2665): the first open sub of its current stage that carries a `when` -> { id, sub,
+// when, words, to } or null - the route row's "until the window opens" wait and the night-shy pilot's leg read it
+function careerTrackedWhen(doc) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !C.tracked) return null;
+  const rec = careerContract(doc, C.tracked), L = C.live[C.tracked] || { stage: 0, subs: [] };
+  const st = rec && rec.stages[L.stage];
+  if (!st) return null;
+  const j = st.subs.findIndex((s, i) => !L.subs[i] && s.when && !contractWhenWhy(s.when));
+  if (j < 0) return null;
+  const s = st.subs[j];
+  return { id: rec.id, sub: j, when: cwClone(s.when), words: contractWhenWords(s.when), to: s.to || null, from: s.from || null };
+}
+// the Wait "until the window opens" for the tracked contract at the page's day -> null (nothing tracked with a window,
+// or the window is open now) | { target (DAY_CLOCK.wait's: 'dusk' or local hours), words: 'after dusk', h0, id }
+function careerWaitWindow(doc, day) {
+  const T = careerTrackedWhen(doc);
+  if (!T) return null;
+  const now = careerLocalNow(doc, day);
+  if (!now) return null;
+  const sky = contractSky(now.date, 0), dd = day && typeof dayDuskDawnH === 'function' ? dayDuskDawnH(day) : sky;
+  const r = contractWhenWait(T.when, now.hour, dd.duskH, dd.dawnH);
+  return r ? { target: r.target, h0: r.h0, words: T.words, id: T.id } : null;
 }
 // (G2340 FREIGHT) THE MARK (§R.2: ✓ / ✗ only for the hard no-no's - surface vs gear, and NO DOOR FITS: an item that
 // passes no door of any of the player's planes; a build contract carries none). The fleet's designs: the career's
@@ -99,7 +191,8 @@ function careerMapRecord(doc, world, opts) {
              rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0 };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
-  const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F)).filter(Boolean);
+  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
+  const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F, nightOpts)).filter(Boolean);
   const stage = {}, live = {};
   for (const id of C.accepted) {
     const L = C.live[id] || { stage: 0, subs: [], picked: [] };

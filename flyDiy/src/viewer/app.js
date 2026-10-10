@@ -528,7 +528,10 @@
   if (CAREER_DEV && typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.career && typeof careerDaySet === 'function') {
     DAY_CLOCK.career({
       get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
-      put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day; playerSave(); } },
+      put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
+        // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
+        try { if (CAREER_DEV && world && world.day && typeof world.day.cloudCover === 'number') player.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+        playerSave(); } },
     });
   }
   // the saved builds' names, read where garage.js keeps them (one key per named build)
@@ -6661,6 +6664,9 @@
         // (playerGoTo: `here`, the room built again for it at the shed door); tied down, the garage stays where it was
         if (r.ok && r.kind === 'in' && r.hangar && r.hangar !== d.here && typeof playerGoTo === 'function') { const g = playerGoTo(d, r.hangar); if (g.ok) { d = g.doc; out.room = r.hangar; } }
       }
+      // G2665 (NIGHT-OPS): the career's day (and the sky it saw) is the stop's BEFORE the stop meets the contracts, so a
+      // new epoch's offers are drawn under the night the aeroplane landed in (SIM-CLOCK saved it after; same instant)
+      if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
@@ -6747,6 +6753,17 @@
   // delivery's criteria are judged by. The result is saved with the player's document; its events go on the
   // arrival card with the wallet line.
   let crOver = [], crCargoKg = null, crPlateEl = null;
+  // G2665 (NIGHT-OPS): the day's civil dusk / dawn as local hours (07b dayDuskDawnH), {} when the page has no day
+  function careerDuskDawn() {
+    try { if (world && world.day && typeof dayDuskDawnH === 'function') { const d = dayDuskDawnH(world.day); return { duskH: d.duskH, dawnH: d.dawnH }; } } catch (e) {}
+    return {};
+  }
+  // G2665: the day's cloud cover as the career last saw it (73_ contractSky: an overcast hides the moon) - kept on the
+  // document beside its day, so the next offers are drawn under the sky the player saw
+  function careerCoverNote(doc) {
+    try { if (doc && doc.career && world && world.day && typeof world.day.cloudCover === 'number') doc.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+    return doc;
+  }
   function careerFlightStart() { crOver = []; careerPlateSync(); }
   function careerFrame(cg) {
     if (!started || inGarage || !cg) return;
@@ -6772,6 +6789,9 @@
       items: typeof freightStopItems === 'function' ? freightStopItems(d, flSlot) : null,
       row: { from: fromId, to: destId, t: ap ? ap.t : 0 }, overflew: crOver,
       hour: world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null,
+      // G2665 (NIGHT-OPS): every time-of-day window is judged on the day's own almanac (in June dusk is 22:29, in
+      // December ~16:40), not the 19.5 h constant - SIM-CLOCK's recommendation (G2653)
+      ...careerDuskDawn(),
     });
     const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
     const res = careerOnStop(d, stop, { acceptVerdict: hook });
@@ -6995,6 +7015,15 @@
         const km = Math.hypot((A.c ? A.c[0] : A.x) - (B.c ? B.c[0] : B.x), (A.c ? A.c[1] : A.z) - (B.c ? B.c[1] : B.z)) / 1000;
         let v = 150; try { const S = shakeOf(); if (S && S.VCruise > 0) v = S.VCruise * 3.6; } catch (e) {}
         leg.endHour = world.day.localSeconds / 3600 + (km / v) + 0.15;   // + the taxi and the circuit
+      }
+    } catch (e) {}
+    // G2665 (NIGHT-OPS): the night is the day's almanac's; a leg to the tracked contract's night window IS a night leg
+    // (the night-shy pilot says so on this row before the wait, not at the stand after it)
+    try {
+      Object.assign(leg, careerDuskDawn());
+      const T = typeof careerTrackedWhen === 'function' ? careerTrackedWhen(playerLoad()) : null;
+      if (T && T.to === destId && typeof contractWhenNight === 'function' && contractWhenNight(T.when, leg.duskH, leg.dawnH)) {
+        leg.night = true; leg.nightHour = contractWhenMid(T.when, leg.duskH, leg.dawnH);
       }
     } catch (e) {}
     return leg;
@@ -10572,6 +10601,11 @@
         lp.appendChild(ps); host.appendChild(lp);
       }
     };
+    // G2665 (NIGHT-OPS): the tracked contract's window, when it is closed now -> { target, words } (75_ careerWaitWindow)
+    function clockJobWait() {
+      try { return CAREER_DEV && typeof careerWaitWindow === 'function' && world && world.day ? careerWaitWindow(playerLoad(), world.day) : null; } catch (e) { return null; }
+    }
+    if (CAREER_DEV && window.FLYDIY_CLOCK) window.FLYDIY_CLOCK.jobWait = clockJobWait;   // the day panel's career WAIT reads it
     // G2650 (SIM-CLOCK): the route row's clock line + its wait select (routeBuild calls this per host)
     function clockRowBuild(host, where) {
       const CK = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day && DAY_CLOCK.day() && DAY_CLOCK.wait ? DAY_CLOCK : null;
@@ -10589,11 +10623,14 @@
         sel.innerHTML = ''; nOpt = 0;
         const head = document.createElement('option'); head.value = ''; head.textContent = 'wait until…'; sel.appendChild(head);
         const today = CK.day().localDate;
-        const opt = (val, words) => {
-          const r = CK.waitPreview(val), o = document.createElement('option'); o.value = typeof val === 'number' ? 'h' + val : val;
+        const opt = (val, words, key) => {
+          const r = CK.waitPreview(val), o = document.createElement('option'); o.value = key || (typeof val === 'number' ? 'h' + val : val);
           o.textContent = words + (r ? ' · ' + clockHhmm(r) + (clockDateOf(r) !== today ? ' (next day)' : '') : '');
           sel.appendChild(o); nOpt++;
         };
+        // G2665 (NIGHT-OPS): the career's Wait "until the window opens" - the tracked contract's time-of-day window, first
+        const jw = clockJobWait();
+        if (jw) opt(jw.target, 'the job\'s window (' + jw.words + ')', 'job');
         for (const p of (window.DAY_UI ? window.DAY_UI.PRESETS : CK.PRESETS.map(k => ({ k, label: k })))) opt(p.k, p.label);
         for (let h = 0; h < 24; h++) opt(h, String(h).padStart(2, '0') + ':00');
         sel.value = '';
@@ -10602,7 +10639,9 @@
       sel.addEventListener('pointerenter', fill); sel.addEventListener('focus', fill);
       sel.onchange = e => {
         const k = e.target.value; if (!k) return;
-        const r = CK.wait(/^h\d+$/.test(k) ? +k.slice(1) : k);
+        const jw = k === 'job' ? clockJobWait() : null;
+        if (k === 'job' && !jw) { sel.value = ''; return; }
+        const r = CK.wait(jw ? jw.target : /^h\d+$/.test(k) ? +k.slice(1) : k);
         sel.value = '';
         if (r && !r.ok) { sel.title = r.why; return; }
         clockRowsSync(true);

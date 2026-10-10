@@ -27,15 +27,18 @@
 //   x, z     the strip's centre (the record's `c`, metres) — distances are centre to centre
 //   len      the strip's length (m); surf the vocabulary word (25_airfield.js stripSurface)
 //   alti     an altiport (the record's `altiport`): sloped, high, a surface bonus
+//   lit      (G2665 NIGHT-OPS) the strip carries edge lights at night: 25_airfield.js runwayLightStrips' rule - every land
+//            strip is lit, a water lane is not (contractFieldsOf derives it off the record, so a new site says it too)
+//   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
-  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete' },
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel' },
-  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water' },
-  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water' },
-  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel' },
-  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel' },
-  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true },
+  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
+  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete', lit: true },
+  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel', lit: true, glide: 'papi' },
+  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
+  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
+  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
+  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
+  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -104,6 +107,11 @@ const CONTRACT_TRACKS = {
 // THE JOBS BY DATA ALONE - its row in CONTRACT_FIELDS (the island record's runway, held by GATE CONTRACTS), then
 // its id in the `fields` of each provider that works there (the lake cabins: the clients' and the survey's).
 // The Field Trust's second runway (w2) and East Point (no validated design lands there) are in no provider's list.
+// THE NIGHT WORK (G2665 NIGHT-OPS, §R.3 "do we have some night missions? Night VFR is terrorizing"): a provider's
+// `night` list holds its AUTHORED night contracts (a time-of-day window on the sim clock: after dusk, before dawn,
+// arrive hh-hh), offered beside the arc once their `needs` are met, each once. The generated jobs carry night windows
+// too (73_ CONTRACT_NIGHT: a share of the carry jobs, weighted toward moonlit nights). A night contract no validated
+// design can fly is HELD OUT (74_ careerOfferIds), as the aerobatic box is: the stretcher case waits for a door.
 const C_ = (o) => o;   // (a marker: an authored record)
 const CONTRACT_PROVIDERS = {
   field: {
@@ -144,6 +152,12 @@ const CONTRACT_PROVIDERS = {
            needs: { rep: 1, after: ['field.04'] } }),
     ],
     builds: [],
+    // (G2665) THE NIGHT MAIL into the lit field (its VASI): the boat's sacks from Tamgas Hill, arriving past midnight
+    night: [
+      C_({ id: 'field.n1', provider: 'field', kind: 'contract', title: 'ct.field.n1.title', brief: 'ct.field.n1.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', goods: 'goods.mail', load: { kg: 30, pax: 0 }, when: { arrive: [0, 1] } }] }],
+           pay: { base: 1900 }, rep: { provider: 'field', gain: 0.25 }, needs: { after: ['field.02'] } }),
+    ],
   },
 
   minedock: {
@@ -214,6 +228,12 @@ const CONTRACT_PROVIDERS = {
              { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } }] }] }],
            pay: { base: 56000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 2 },
            followUp: { add: [{ k: 'costMax', op: '<=', v: 120000 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
+    ],
+    // (G2665) A LATE RETURN from the mine: the shift's engineer down to the field after dusk
+    night: [
+      C_({ id: 'minedock.n1', provider: 'minedock', kind: 'contract', title: 'ct.minedock.n1.title', brief: 'ct.minedock.n1.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'mn_strip', to: 'HOME', load: { kg: 0, pax: 1 }, when: { after: 'dusk' } }] }],
+           pay: { base: 2400 }, rep: { provider: 'minedock', gain: 0.25 }, needs: { after: ['minedock.02'] } }),
     ],
   },
 
@@ -377,6 +397,20 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 1 }, needs: { rep: 0.5 },
            followUp: { prefer: ['tankL', 'enduranceMin'], add: [{ k: 'hydro', op: '==', v: true }] } }),
     ],
+    // (G2665) THE NIGHT MEDEVAC (FREIGHT §4b; the lake cabins are not built yet, so from Tamgas Hill Strip): the doctor up,
+    // then the patient and the doctor down to the ambulance at Jolene AFB before dawn. The patient SITS: no validated
+    // design's door takes the 2.0 m stretcher (GATE FREIGHT), so the stretcher case (n2, FREIGHT_STRETCHER's item) is
+    // authored and HELD OUT until a door takes it - never a job the player cannot fly
+    night: [
+      C_({ id: 'clients.n1', provider: 'clients', kind: 'contract', title: 'ct.clients.n1.title', brief: 'ct.clients.n1.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 0, pax: 2 }, when: { before: 'dawn' } }] }],
+           pay: { base: 2800 }, rep: { provider: 'clients', gain: 0.5 }, needs: { after: ['clients.01'] } }),
+      C_({ id: 'clients.n2', provider: 'clients', kind: 'contract', title: 'ct.clients.n2.title', brief: 'ct.clients.n2.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', when: { before: 'dawn' },
+                               load: { kg: 95, pax: 1, items: [{ id: 'stretcher', kind: 'stretcher', kg: 95, dims: [2.0, 0.6, 0.5] }] } }] }],
+           pay: { base: 3400 }, rep: { provider: 'clients', gain: 0.5 }, needs: { after: ['clients.n1'] } }),
+    ],
   },
 };
 
@@ -518,6 +552,15 @@ const CONTRACT_TEXT = {
   'ct.clients.05.done': CT_('A museum hangar for your best design.'),
   'ct.clients.b1.title': CT_('A ridiculous tank'), 'ct.clients.b1.brief': CT_('An hour in the air on a ridiculous tank: twenty litres, no more.'),
   'ct.clients.b1.follow': CT_('An hour was fun. One more thing.'),
+  // (G2665 NIGHT-OPS) the night work
+  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at Tamgas Hill. Into the field between midnight and one: the runway lights and the VASI are on.'),
+  'ct.field.n1.done': CT_('The mail made the morning sort.'),
+  'ct.minedock.n1.title': CT_('The late shift'), 'ct.minedock.n1.brief': CT_('The shift engineer is stuck at the mine street. Bring them down to the field after dusk.'),
+  'ct.minedock.n1.done': CT_('Home for supper, late.'),
+  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on Tamgas Hill. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
+  'ct.clients.n1.done': CT_('The ambulance was waiting on the apron.'),
+  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from Tamgas Hill to the ambulance at the field, before dawn.'),
+  'ct.clients.n2.done': CT_('The stretcher went straight into the ambulance.'),
   // the criteria (labels; {v} the value, {at} the load or the strip)
   'crit.seats': CT_('{v} seats occupied'), 'crit.emptyKg': CT_('empty mass at most {v} kg'),
   'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),

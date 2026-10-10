@@ -294,11 +294,15 @@ function econRefPick(doc, fleet) {
   }
   return best;
 }
-// fly one contract to its completion (synthesised stops; ACCEPT's hook approving) -> the document
+// fly one contract to its completion (synthesised stops; ACCEPT's hook approving) -> the document. (G2665 NIGHT-OPS) A
+// leg with a time-of-day window is flown at its window's middle - the reference WAITS IT OUT, as a player does - on the
+// night the job was drawn for (its stamped dusk / dawn) or the constants
 function econRefFly(doc, id, hour) {
   let d = careerAccept(doc, id).doc;
   const rec = careerContract(d, id), hooks = { acceptVerdict: () => ({ ok: true, got: {} }) };
-  for (const st of rec.stages) for (const sub of st.subs) for (const s of ecStopsFor(sub, hour)) {
+  const NT = rec.night || null, alm = NT ? { duskH: NT.duskH, dawnH: NT.dawnH } : {};
+  const at = sub => (sub.when && typeof contractWhenMid === 'function' ? contractWhenMid(sub.when, alm.duskH, alm.dawnH) : hour);
+  for (const st of rec.stages) for (const sub of st.subs) for (const s of ecStopsFor(sub, at(sub)).map(x => Object.assign(x, sub.when ? alm : {}))) {
     const q = contractOnStop(d, id, s, hooks);
     if (q.ok) d = q.doc;
   }

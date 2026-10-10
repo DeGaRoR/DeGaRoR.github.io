@@ -120,7 +120,9 @@
     // (G2320) a survey names the site it flies over as `at` (drawn as its `to`, flagged as overflown)
     const subOf = u => { const o = Object.assign({}, u); if (o.do === 'survey' && o.at && !o.to) o.to = o.at; return o; };
     const contracts = (raw.contracts || []).map(c => ({ id: c.id, provider: c.provider, kind: c.kind || 'job', title: say(c.title), brief: say(c.brief),
-      stages: (c.stages || []).map(s => ({ subs: (s.subs || []).map(subOf) })), pay: c.pay || {} })).filter(c => prov[c.provider]);
+      stages: (c.stages || []).map(s => ({ subs: (s.subs || []).map(subOf) })), pay: c.pay || {},
+      // (G2665 NIGHT-OPS) the window, each runway lit / unlit, the moon (75_ careerNightLine's facts; null: no window)
+      night: c.night && typeof c.night.line === 'string' ? { line: c.night.line, night: !!c.night.night, open: !!c.night.open, moon: c.night.moonWords || '' } : null })).filter(c => prov[c.provider]);
     let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null }));
     if (live && live.fleet && Object.keys(live.fleet).length) {
       const certOf = {}; for (const f of fleet) certOf[f.slot] = f.cert;
@@ -227,11 +229,15 @@
     return L.slice().sort((a, b) => rank(a) - rank(b) || order[a.provider] - order[b.provider] || (kindO[a.kind] || 9) - (kindO[b.kind] || 9) || (a.id < b.id ? -1 : 1));
   }
   const placeName = (M, pid) => ((M.places.find(p => p.id === pid) || {}).name) || pid || '';
-  // the paragraph: who + what + pay; the runways condensed; the ✗'s reason - then the one button
+  // (G2665 NIGHT-OPS) THE JOB LINE'S TIME OF DAY: the window ("after dusk · opens 22:29", "arrive 00:00-01:00"), and at
+  // night each runway lit or unlit and the moon at the window's hour ("full moon, up" / "half moon, down" / "no moon") -
+  // the facts only: an unlit strip at night is the player's call, never a ✗
+  const nightHTML = c => c.night && c.night.line ? '<span class="mmRw mmNight">' + esc(c.night.line) + '</span>' : '';
+  // the paragraph: who + what + pay; the runways condensed; the window (G2665); the ✗'s reason - then the one button
   function paraHTML(M, c) {
     const p = M.prov[c.provider], P = payOf(M, c), K = markOf(M, c), tr = M.career.tracked === c.id;
     return '<div class="mmBody"><p>' + esc(p.name) + ': ' + esc(c.brief) + ' Pays ' + fmt(P.total) + '.' +
-      '<span class="mmRw">' + esc(routeWord(M, c)) + '</span>' + (K.mark === '✗' ? '<span class="mmWhy">' + esc(K.why) + '</span>' : '') + '</p>' +
+      '<span class="mmRw">' + esc(routeWord(M, c)) + '</span>' + nightHTML(c) + (K.mark === '✗' ? '<span class="mmWhy">' + esc(K.why) + '</span>' : '') + '</p>' +
       '<button type="button" class="mmTrack' + (tr ? ' on' : '') + '" data-act="track" data-id="' + esc(c.id) + '" aria-pressed="' + tr + '">' + (tr ? 'Tracking ★' : 'Track') + '</button></div>';
   }
   function contractsListHTML(M, st) {

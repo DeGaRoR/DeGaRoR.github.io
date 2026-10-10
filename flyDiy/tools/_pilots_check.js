@@ -297,6 +297,18 @@ function run(mut) {
   ok((M.pilotsRefusal('t_', Object.assign({}, legs.night, { windKt: 40 })) || {}).kind === 'night', 'two refusals: the first in the pilot\'s trait order');
   delete R.t_;
   ok(M.pilotsRefusal('kit', legs.unknown) === null, 'an unknown wind or hour refuses nothing');
+  // (G2665 NIGHT-OPS) the night is the almanac's (June: dusk 22:29, dawn 03:08), it wraps midnight, and a leg to a night
+  // job's window is a night leg whatever the hour now - the route row says so before the wait
+  {
+    const alm = { duskH: 22.48, dawnH: 3.12 }, at = h => Object.assign({}, base, alm, { endHour: h });
+    ok(M.pilotsRefusal('kit', at(21)) === null && M.pilotsRefusal('kit', at(4)) === null, 'night-shy on the almanac: 21:00 and 04:00 in June are day (dusk 22:29, dawn 03:08)');
+    ok(['kit'].every(id => [22.5, 23.9, 0.5, 2.9, 24.6].every(h => (M.pilotsRefusal(id, at(h)) || {}).kind === 'night')), 'night-shy on the almanac: 22:30, 23:54, past midnight (00:30, 02:54, 24.6 unwrapped) are the night');
+    ok(M.pilotsRefusal('kit', Object.assign({}, base, { endHour: 1 })).kind === 'night', 'without the almanac the constants, and 01:00 is still the night (the hour wraps)');
+    const nj = Object.assign({}, base, alm, { endHour: 15, night: true, nightHour: 0.5 });
+    const r = M.pilotsRefusal('kit', nj);
+    ok(r && r.kind === 'night' && /0\.5/.test(r.why) && M.pilotsRefusal('remy', nj) === null, 'a night job\'s leg: kit refuses it at 15:00 already (' + (r && r.why) + '), remy flies it');
+    lines.push('night-shy on the day\'s almanac (G2665): June\'s 21:00 / 04:00 flown, 22:30 to 02:54 refused, past midnight wrapped; a night job\'s leg refused before the wait');
+  }
   ok(M.pilotsRefusal('nobody', base) === null && M.pilotsRefusal('kit', null) === null, 'no pilot / no leg: no refusal');
   lines.push('refusals: the 4 recruits x ' + Object.keys(legs).length + ' legs (kit: wind > ' + LIM + ' kt, a leg ending at ' + DUSK + ' h); 6 hooks each on its leg alone, at its boundary; refuses-nothing, fearless, the order');
 
@@ -495,7 +507,11 @@ const MUTS = [
   ['the ceiling', sub("grow: { rate: 'steady', ceiling: 'bush' }", "grow: { rate: 'steady', ceiling: 'expert' }")],
   ['the sign-on order', sub('remy: 1500, rafe: 4000', 'remy: 4500, rafe: 4000')],
   ['the weather boundary', sub('leg.windKt > PILOTS_WEATHER.windKt', 'leg.windKt >= PILOTS_WEATHER.windKt')],
-  ['the dusk boundary', sub('leg.endHour >= CONTRACT_DUSK_H', 'leg.endHour > CONTRACT_DUSK_H')],
+  ['the dusk boundary', sub('return h >= dusk || h < dawn ? { hour: h.toFixed(1) } : null;', 'return h > dusk || h < dawn ? { hour: h.toFixed(1) } : null;')],
+  // (G2665 NIGHT-OPS) the night on the almanac, past midnight, and a night job's leg
+  ['the night ends at midnight', sub('return h >= dusk || h < dawn ? { hour: h.toFixed(1) } : null;', 'return leg.endHour >= dusk ? { hour: h.toFixed(1) } : null;')],
+  ['the almanac is ignored', sub("const dusk = typeof leg.duskH === 'number' ? leg.duskH : CONTRACT_DUSK_H, dawn", 'const dusk = CONTRACT_DUSK_H, dawn')],
+  ['a night job\'s leg is a day leg', sub('if (leg.night === true) return', 'if (false) return')],
   ['the short strip boundary', sub('e.len < PILOTS_SHORT_M', 'e.len <= PILOTS_SHORT_M')],
   ['refuses-nothing keeps nothing', sub("if (T.some(t => t.keeps === '*')) return null;", '')],
   ['fearless keeps everything', sub("fearless:             { keeps: ['weather'] }", "fearless:             { keeps: '*' }")],
