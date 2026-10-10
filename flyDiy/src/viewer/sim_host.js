@@ -618,6 +618,7 @@ function makeSimHost(CORE, init, keptWorld) {
       if (H.accept) { const st = H.accept.tick(sim, ap); if (st === 'done' || st === 'aborted') H.accept = null; }
       ap.update(dt);
     }
+    if (H.crashed()) sim.ctl.thr = 0;     // G2105: the crash ending closes the throttle (app.js script(), the inline path's)
     sim.step(dt);
     if (!noDay) H.dayTick(dt);
     H.steps++;

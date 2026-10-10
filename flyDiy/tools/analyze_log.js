@@ -210,7 +210,7 @@ function analyze(log, opt) {
     { id: 'task1s', what: 'no task over 1 s (the whole log, the loading screens included)', ok: longTasks.length === 0,
       got: longTasks.length + ' over 1 s' + (longTasks.length ? ' (' + longTasks.filter(x => x.afterReveal).length + ' after the reveal; worst ' + Math.max(...longTasks.map(x => x.ms)).toFixed(0) + ' ms)' : '') },
   ];
-  return { hwsteps: events.filter(e => e.kind === 'hwstep'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
+  return { hwsteps: events.filter(e => e.kind === 'hwstep'), skies: events.filter(e => e.kind === 'sky'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
     over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets };
 }
 
@@ -234,6 +234,10 @@ function report(A) {
       ' - ' + b.steps.map(s => s.id + ' ' + (s.ms != null ? (s.ms >= 1000 ? (s.ms / 1000).toFixed(1) + ' s' : s.ms + ' ms') : '?')).join(', '));
   }
   // G1995: the runtime step-down's moves (gfx_settings.js GFX.hw)
+  // G1532b.1: the sky at the reveal and 10 s later - the cloud pass, the day's cover, the resolve target (the user's no-clouds-from-boot)
+  for (const e of A.skies || []) { const d = e.detail || {}, c = d.clouds || {}, y = d.day || {}, a = d.aa || {};
+    L.push('  SKY ' + (d.at || '?') + ' at ' + ts(e.t) + ': clouds ' + c.mode + (c.active ? ' ACTIVE' : ' inactive') + ' (ready ' + c.ready + ', baked ' + c.baked + ', sky cover ' + c.cover + ')'
+      + ' - the day cloudCover ' + y.cloudCover + ' ' + y.cloudType + (y.upper ? ' +' + y.upper + ' upper' : '') + ' - aa ' + a.tier + ' samples ' + a.samples + ', target ' + (a.target || 'NONE')); }
   for (const e of A.hwsteps || []) { const d = e.detail || {}; L.push('  STEP-DOWN at ' + ts(e.t) + ': ' + d.from + ' -> ' + d.to + ' (' + d.fps + ' fps in the ' + d.kind + ', GPU ' + d.gpuMs + ' ms, JS ' + d.workMs + ' ms' + (d.reload ? '; the lighter build at the next load: ' + d.reload.join(', ') : '') + ')'); }
   L.push('');
   L.push('PER PHASE (every frame of the phase, the loading screens their own)');

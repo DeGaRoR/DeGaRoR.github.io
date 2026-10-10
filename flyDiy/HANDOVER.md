@@ -79439,7 +79439,7 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
    cut). The pole stays, the twigs dissolve - as the geometry's sub-pixel twigs do at the hand-over (`alpha_sweep/`: solid
    1/0 x cut 0/0.3/0.5; 0.5 is a hair cleaner, 0.4 keeps a far snag's pole a mip longer).
 4. THE LEVEL: a bare snag barely shades itself, so its geometry's match is uILit 0.9 on EVERY preset, where the leafy match is
-   1.242 without tree shadows (below): `barkLit 0.725` = 0.9 / 1.242, the bark sheets' share of uILit.
+   1.242 without tree shadows (below): `barkLit` 0.9, ABSOLUTE in place of uILit (G1975.1; it landed first as the ratio 0.725).
 
 **THE DOUBLE COUNT (A0's code read) - half a bug; the other half is the user's call.**
 - THE BUG, FIXED: `envAlbedo(k)` (G483 268cbdc3: `uILit = base x k x 0.9`; G485 d2158ad1: `0.9 x k`, its own comment saying
@@ -79458,9 +79458,9 @@ the merged meshes and `uBark` on one-layer materials; the bark terms are shared 
   value keyed in gfx_settings' shadows apply. Their far forest drops ~22 % (the trees' own pixels: 300 m noon 0.172 ->
   0.135, 1 km golden 0.087 -> 0.067); the trees' lightness x1.38 restores only half (0.155) because uILit also scaled the
   sky-reflection terms the tint never touches - a full restore is ~x1.7 and the near trees 70 % brighter. Default if no
-  answer: as landed, 1.242 everywhere.
+  answer: as landed, 1.242 everywhere. ANSWERED 2026-10-07: column 3 - see G1975.1 below.
 
-**PROPOSED, OFF - THE MIXES' SNAG SHARE (the user's call, A0 recommends ON):** the game deals snags by the collection's
+**THE MIXES' SNAG SHARE (proposed OFF; ON by the user's call 2026-10-07 - G1975.2 below):** the game deals snags by the collection's
 `place.dead` and never reads the mixes' own `species[sp].dead`. pine_georgeous carries 0.53 on its collection (it came in
 with G454 BIOMES 203a58d0, unexplained - a pack-level share, not a design) and 0 / 0.03 / 0.03 in every mix that plants it.
 `TREE_MIX.mixDead` / `?mixdead=1` deals each tree's series by the mix's share for that species where it stands (the
@@ -79492,6 +79492,47 @@ FRAMECOST gate PASS at 03:20 on the colour fix. TREECRASH / TREEHIT: no geometry
 - the bake frames on `parts[0]`'s bounding sphere only (bakeImpostorAtlasNow): DeciduousDead1_29 crops its trunk bottom.
 - the twigs proper (a higher-res or thin-branch-aware bake for bark sheets, or the snags' geometry kept further - a larch
   snag is 5 490 triangles in its one rung, conifer snags 3.5-6.9 k) are a separate chantier if the dissolve is not enough.
+
+
+### G1975.1 - THE TREES UNDER THEIR OWN SHADOWS: THE USER'S FAR-FOREST CALL (2026-10-07, DEADWOOD-BRIGHT for A0, for train 40)
+
+**The user's call** (shown `far_forest_sheet.png`, confirmed through A0 as COLUMN 3): where the world casts tree shadows,
+the far pictures at their 3D match and the near trees lifted to keep the far level - not the darker-only column 2.
+
+**What it does:** `WORLD.treeShadowed(on)` (render_world.js), called by gfx_settings' shadows apply with
+`sh.on && sh.world !== false` - true for shadows `full` / `ultra` (current, gamer, ultra), false for `off` / `near`
+(potato, laptop, retro). On: uILit 0.9 (the impostors' measured match under self-shadowed geometry) AND the shade
+compensation `SHADE_K` 1.38 on BOTH tiers' tint (trees.js `SHADE`, `TREE_LEAF.shadeK()`: the trees and the bushes, every
+kind riding on MASTER, not the grass; not the user's MASTER.light, not saved). Off: uILit 0.9 x 1.38 and k 1, i.e.
+exactly G1975. Bark-only sheets now take an ABSOLUTE lit `barkLit` 0.9 in place of uILit (was the ratio 0.725), so a snag
+keeps matching under either state. `SHADE_K` is the one number (render_world.js; 1 = column 2).
+
+**Verified (2026-10-07 05:40, gamer golden; `col3/`):** the page boots with treeShadowed true, uILit 0.9, shadeK 1.38
+(the gfx hook fires). At the hand-over (geometry RE-SHOT per variant, since the lift moves both tiers), impostor /
+geometry `core` front-lit, master -> col3: cedar 1.27 -> 1.05, larch 1.32 -> 1.11, spruce 1.72 -> 1.26, pine 1.23 ->
+1.19, larch snag 1.38 -> 1.13; into the sun and side-lit lower in both (pre-existing, G1975's side findings). The far
+forest, the trees' own pixels master -> col3: 300 m noon 0.166 -> 0.149, golden 0.078 -> 0.064; 1 km noon 0.177 ->
+0.161, golden 0.075 -> 0.062 (the tint carries the albedo terms back, not the sky-reflection terms uILit also scaled).
+`far_forest_col3_sheet.jpg`: the near trees round a larch snag (290 m, golden, front- and side-lit) and the four far
+frames, master | col3. NOT re-shot on screen: gamer noon and potato (the second half of the pass was lost to a job-number
+slip in the slot script) - potato's "unchanged" stands on the code path (shadows `off` -> treeShadowed(false) -> G1975's
+values), checked by the gfx hook's own condition, not by a still.
+
+**Gates (this code):** GFX, TREES, TREE, PROGRAMS PASS; FRAMECOST `--census cub` of this branch vs its base train 37b
+(068584d6) `--compare`: nothing moved - stand, taxi, boot, memory (`col3/framecost_census_*`). (A census against the
+newer origin/master 751e1122 shows only master's own boot gains since 37b, which this branch did not carry until the
+merge below.)
+
+### G1975.2 - THE MIXES' SNAG SHARE ON BY DEFAULT (2026-10-07, the user's call on `mixdead_sheet.jpg` / `mixdead_table.jpg`)
+
+`TREE_MIX.mixDead` defaults ON; `?mixdead=0` deals as before (the collection's `place.dead`). Measured on gamer within 3 km
+of HOME (`mixdead_{off,on}_0707.json`): dead trees 22 836 -> 7 116 (11.8 -> 3.7 % of the living species; pine_georgeous
+53 -> 0.3 %; birch / ash gain the mixes' 5 %; dead_conifer, a dead species, unaffected). THE COST: the near tier at the
+stand carries 0 .. +11 % triangles (672 k both on 2026-10-07, 679 k -> 755 k on 2026-10-06 - what the streamer had dealt
+at that moment: the living trees that replace snags carry 2-4x their triangles). FRAMECOST (2026-10-07 13:30, the cpu lock): one RED, `stand/tris.main` +1.2 % on both builds (the
+gate's tolerance 1 %) - of it +84 141 (+0.48 %) is this switch against the same code with ?mixdead=0 (census pair), the rest
+the baseline's earlier drift; admitted by name in `tools/_framecost_check.js` ALLOW (G1975.2, cub / cessna upTo), then PASS.
+Taxi unchanged (-480 tris), draws -2. TREES, TREEHIT PASS (positions unchanged - the switch picks the series only).
 
   the taxi), the delivered fps under 15 in TWO 8 s readings running (after 5 s in the state; G1997b: one slow window - a clock
   ramp - is not a class) -> the preset one rung down (ultra > gamer > current >
@@ -81762,6 +81803,38 @@ THE STILLS (the same build, 'current', aa off, 400 m up, pitched 0.3): ?clouddc=
 (g1532_current_air_before_clouddc0.jpg | g1532_current_air_after_fix.jpg) - the same field the msaa still shows.
 THE OVERCAST REPEAT (A0, the user's day read cover 0.994): booked 22:50-23:00 GPU TIMED - the rung's taxi on ?cloud=0.9,st (the menu's
 'overcast'), the copy toggled in-load; an addendum row here.
+THE OVERCAST ROW (22:50-23:00 GPU TIMED, train 40 = bcf62797, build 4d16bbcb0e4a, the cook fresh; the rung --cpu-throttle 3 --gpux 2,
+?cloud=0.9,st, 180 s, the copy toggled in-load - 65 toggles): taxi 15.5 fps old (1261 frames) vs 15.6 copy (1200), calls 1017 / 1016;
+the march 4.56 ms on the overcast deck (it ran before the fix too); the blit's timer 0.05 ms (its running mean). No cost past noise on the
+user's kind of day either (g1532_cost_rung_overcast.json). The air not reached in 180 s on the rung.
+THE USER'S 33.1 ms TAXI GPU (A0: real or the timer's artefact?) - the laptop's train 38 log (flydiy-flightlog-20261007T000432, the
+Jodel, 'current', never committed): REAL whole-frame GPU time, but OF FRAMES WITHOUT THE CLOUD PASS. A spoiled recorder query is
+discarded, never kept short (flight_recorder gpuEnd: spoiled -> back to the pool), and after any foreign TIME_ELAPSED the recorder opens
+none for 120 frames - so a timed frame is a whole frame with no cloud timer near it. The log's runs after the reveal (38.7 s): TIMED 2787
+frames 38.8-136.2 s (taxi GPU 33.1 ms mean over 2724), then FOREIGN on every one of 1689 frames from 137.0 s to the end. The user
+re-applied 'current' at 133.8 s (the settings screen 133.9-158.0 s). So:
+- BEFORE THE RE-APPLY THE CLOUD PASS DID NOT RUN AT ALL on the laptop (no cloud query in 95 s of taxi: no march, no composite) - "no
+  clouds from boot" has a SECOND cause besides G1532's composite: on that boot the pass never started. The box rigs never showed it
+  (?gfx=current / rollout_perf --gfx: the pass runs from the reveal, every frame foreign). The user's saved rows differ: own: true and
+  town 'nearby' (a laptop-budget value: the welcome's laptop pick before the driver update, then 'current'). The node repro to do: a
+  census booted with the user's exact saved graphics (potato_census --gfxpref / FRAMECOST with a pref seed) counting CLOUDS.draw and the
+  AA target at the stand BEFORE any re-apply. G1532 alone may not give that user clouds from boot.
+- the 33.1 ms is the cloudless frame's GPU (the march, ~0.8 ms there, and G1532's blit + composite are not in it).
+- THE RE-APPLY THROW is the same moment: 200 err events from 136.2 s (the recorder's cap, reached by 144.0 s) "Cannot read properties of
+  undefined (reading 'boundingSphere') @:5802" - line 5802 of index.html is the whole inlined three.min.js (no column logged): a drawable
+  without geometry reaching three's frustum test, right after the re-apply that also started the cloud pass (137.0 s).
+G1532b.1 (flight_recorder.js): an error event now carries the column and, for the first three, six stack lines - the next log names the
+thrower (GATE FLIGHTREC PASS).
+THE SAVED-STATE BOOT ON THE BOX (8 Oct, A0's slots; train 40 page, the cook fresh): 04:30 run (A) VOID - potato_census added ?gfx=potato
+by default over the seeded pref (fixed b7c40066: --gfxpref boots without ?gfx=); (B) ?gfx=current: the cloud pass from boot, 30
+CLOUDS.draw + 30 composite draws per 60 frames at the stand and in the air, target 1920x911 s0. 05:52 run (A) again, GUARDED (the eval
+measures nothing unless the URL has no gfx= and GFX.get() is the seeded state): url '', own true, town 'nearby', current, clouds half,
+aa off - THE CLOUD PASS RUNS FROM BOOT (30 + 30 per 60 frames, active, baked, cover 0.443, target 1920x911 s0). NOT REPRODUCED: the
+laptop's boot differed in something its log does not carry - the saved WEATHER (a day saved with cover 0 keeps the pass inactive: no
+march, no query), or the machine. So the recorder now says it: an event 'sky' at the reveal and 10 s later (the cloud pass's mode / ready
+/ active / baked / sky cover, the day's cloudCover / type / upper decks, the resolve target), printed by analyze_log as a SKY line
+(flight_recorder.js + analyze_log.js; GATE FLIGHTREC PASS). The user's next log answers both open questions (the SKY lines, the
+boundingSphere thrower's column and stack) without a console capture. No apply-order fix: none was shown to be needed.
 GATES (16:40, a 211 s window - the cpu lock waited on a GPU lock until 16:48): GFX PASS; CLOUD current ok (samples 0, 6 composite draws,
 0 feedback), gamer ok (samples 8, 0 feedback), ULTRA UNVERDICTED (cut by the window); FRAMECOST red = the STALE PARKED COOK (manifest
 53f482316b37 vs this tree 2f53a610abdf - parked_cook --check; stand/taxi draws and uniforms up at gamer, the gate's own HINT signature;
@@ -83461,3 +83534,302 @@ layout is `hearth` - the user's pick may make it `hearthLight` (CAREER_MAIN.layo
 (careerMainShed). Evidence ~21 MB of jpg/json under reports/evidence/WORKS-COZY/.
 
 READY for the GAME COORDINATOR: claude/works-cozy-g2315 2f54fe5e (the code and gates; this section and the 23:25 evidence ride one docs commit on top)
+
+## G2105 - WATER-DAMP: A DITCHED AEROPLANE SETTLES IN A FEW CYCLES - THE WAVES A HEAVING HULL RADIATES, AND THE HELD 360 Hz FORCE THAT FED A LIMIT CYCLE (THE CAP ON THE BUOYANCY, THE LAST COMPUTE'S AIR SHARE, THE HELD POSE); A PROP THAT MEETS THE WATER STOPS; THE CRASH ENDING CLOSES THE THROTTLE; GATE WATERDAMP (2026-10-06, WATER-DAMP for A0, cloud, node only; branch claude/water-damp-g2105 off origin/master 068584d = train 37b - train 38 not landed; G2106-G2109 unused)
+
+THE USER (6 Oct, damage tests on the water): "the plane keeps oscillating for a while, sending large waves. That might be
+realistic, but the oscillation seems a little long, like if the engine was still running, or there was a source of force,
+or an oscillation not damped enough." (The waves were the effects layer - WATER-LOOK G2093.) WATER-LOOK's rig
+(tools/ditch_osc.js on claude/water-look-g2090 c94383a4) is not on the remote: this entry's tools/ditch_osc.js is a new rig
+of the same name and entry (GEAR-WATER's ditch: 0.3 m over the SEA lane, 22 m/s, sinking 1 m/s, throttle closed).
+
+MEASURED ON MASTER (the rig, 60 s; heave = the mass centre over the water; "osc" = each window's p-p with its straight line
+taken out, so flooding's slow sink is not counted as rocking; settle = from when every 1 s window stays under 1 cm):
+- the user's Cub: a heave LIMIT CYCLE at 0.6 s, 2.5-2.7 cm p-p from 15 s to 60 s, never decaying; never settled;
+- the Jodel: the same at ~0.75 s, 5-6 cm p-p to 60 s; never settled;
+- the metal Cessna: decays (12 s to 1 cm; damping ratio ~0.05), no limit cycle in this entry (WATER-LOOK read +-1.7 cm at
+  4 s on its own run - not reproduced here);
+- the floats: settle (Cessna floats 7 s, twin 15 s to 1 cm) - the float pass, untouched below;
+- a prop under the water at 0.6 throttle: 729 N to the end (WATER-LOOK's number, reproduced).
+
+G2105 THE DIAGNOSIS (tools/ditch_osc.js, A/B on 32_hydro.js's new WB_OPT switches; scratch variants of the core with one
+term removed). The held rate WAS the limit cycle - three ways, each measured:
+1. THE CAP ON THE BUOYANCY. wetCompute's slamCap ("a node's force against its own velocity stops it at most, over the held
+   interval") was applied to the node's WHOLE wet force, buoyancy included. A node sinking slowly at V had its lift cut to
+   m V / dtH; a rising one kept all of it - more push up than down, every cycle: work into the bob. (The floats' cap bounds
+   the slam alone.) Removed alone: the Cub's cycle 2.6 -> 1.9 cm.
+2. THE LAST COMPUTE'S AIR SHARE. The flooding's air factor k = air (wetS - f) / wetS used the LAST compute's wetS (the code
+   said so): the lift moved with the heave one compute late - a negative damper ~ K (f / wetS) x 2.8 ms. With the flooding
+   frozen (every tau 1e9) master's own ditch DECAYS - the flooding was a necessary ingredient.
+3. THE HELD POSE. A position-dependent force held (every - 1) / 2 substeps on average (every = 13 on the user's Cub at 75
+   substeps) is a spring with a delay: a negative damper k tau, ~10^2 N s/m on the floating Cub - small, but the only LINEAR
+   damping the wet body had, so the quadratic terms (Newtonian, slam: zero at small amplitude) could only hold it to a cycle.
+   Proof the three are all of it: radiation OFF, the three fixed, the held compute tracks the force computed every substep
+   (hydroEvery 1) - the Cub's 10 s windows 1966 / 34.6 / 5.5 / 27.4 / 3.8 / 0.7 / 0.4 / 0.3 mm held against
+   1970 / 33.8 / 5.5 / 27.3 / 4.0 / 0.7 / 0.5 / 0.3 every substep; the Jodel 2686 / 58.4 / 22.2 / 11.9 / 21.4 / 27.6 / 41.6 /
+   5.5 against 2682 / 58.9 / 22.6 / 12.4 / 22.2 / 27.4 / 41.9 / 5.1. Master held: the Cub 1971 / 45.5 / 25.4 / 47.4 / 21.5 /
+   20.8 / 20.2 / 22.6 (the Jodel's 20-27 s and 60-70 s bumps are the flooding's slow attitude shifts, in both).
+   And with every 1 the old law already decays - the rate, not the step: the page and the worker both step 1/60 (sim_host.js
+   SIM_HOST_DT), so "at 1/60 and at the worker's step" is one run (GATE WATERDAMP asserts the constant).
+
+G2106 THE FIXES TO THE HELD FORCE (32_hydro.js wetCompute / wetSolverPass / wetLive):
+- the cap bounds the DYNAMIC force only (fh less the buoyancy's own share, WB.fb: slices, slabs, tanks, the tyres' displacement);
+- the slices' and slabs' air share from THIS compute's submerged share (two passes: the samples, then the lift; WBS.xs/ws/dv
+  scratch) - the lift is rho g air (vW - f vT), its rate with the level air x the waterplane;
+- the compute hands each node its buoyancy's GRADIENT (kY: every sample's d(lift)/dy - the smooth ramp differentiated - lumped
+  by the sample's own trilinear / bilinear weights, exact for a rigid motion; the tanks' and the tyres' (waterline chord x
+  width) too) and the height it was taken at (y0); the held substeps apply F - kY (y - y0): the force of the pose they
+  are at, to first order. The compute's own substep is the force it always was.
+- WITH ALL FOUR SWITCHES OFF (WB_OPT rad / grad / cap / now = 0) THE WET BODY IS MASTER'S TO THE BIT (FNV of p after 12 s of
+  the Cub's and the Jodel's ditch, the prop check aside - see G2108).
+
+G2107 THE WAVES A HEAVING HULL RADIATES (32_hydro.js WB_RAD, wbRad, wetLive). A real floating body is damped LINEARLY by the
+waves its motion sends away; every face term here was quadratic. The 2D strip law: B33' = rho g^2 A^2 / omega^3 (Newman,
+Marine Hydrodynamics s6.18; A the radiated wave over the heave amplitude), whose curve (Ursell 1949 the semicircle, Vugts 1968
+the rectangle) reads b = B33' / (rho B^2 sqrt(g / B)) ~ 0.5 at Omega = omega sqrt(B / g) = 1, rising as Omega below, falling
+as Omega^-3 above - THE CURVE THE FLOATS' (3c) kRad WAS READ FROM (its 0.02 at a lone float's Omega ~3.4), here EVALUATED:
+- per unit WATERPLANE area a pressure b(Omega) rho sqrt(g B) Vy against each node's vertical velocity (the floats' form), the
+  waterplane each sample's d(wet volume)/d(level), B the strip's own beam (a hull slice's width - its four cross members' mean,
+  S8.B; a wing slab's chord, SB.B);
+- omega the floating body's own heave frequency, rho g A_wp / (M + A33): A_wp the samples' waterplane x the air they hold (the
+  buoyancy's stiffness), A33 each strip's 2D added mass rho pi B^2 / 8 per length (a flat strip on the surface: the
+  high-frequency free-surface limit). The last compute's (WB.om), so one pass;
+- THE SIM CARRIES NO ADDED MASS (the floats' H0 cut, kept): it bobs at sqrt(K / M) where the real body bobs at sqrt(K / (M +
+  A33)). MEASURED, the settled aeroplane kicked 0.3 m/s up (flooding frozen), radiation off: the Cub's period 0.6 s against
+  the law's 2.2 s (A33 6.0 t: a wing on the water is a big plate), the metal Cessna's 1.2 against 1.9. The real body's damper
+  on the sim's faster bob over-damped it (the Cub came to rest in one overshoot), so the coefficient is scaled by
+  sqrt(M / (M + A33)) (WB.zK: 0.27 Cub, 0.32 Jodel, 0.63 metal): the DAMPING RATIO - the cycles it rocks - is the real body's,
+  on the sim's own period;
+- vertical only (heave, pitch and roll all come from it: it acts where the waterplane is); applied EVERY SUBSTEP against the
+  node's velocity then (a per-node coefficient cY, never held), bounded at c dt / m <= 0.5; calm water (the water's own
+  velocity not subtracted, as the wet body's other terms); no radiation on the tanks (inside a slice / slab, or a 45 L nose
+  tank's 0.1 m2 - stated cuts). The curve's level INFERRED to a factor ~2 (stated in the code).
+- THE KICK (0.3 m/s up on the settled aeroplane; the extrema after it, mm off the rest height):
+  - Cub: master's law 27.6 / -24.5 / 23.3 / -22.7 ... (zeta ~0.02); G2105 18.8 / -5.5 / 2.3 / -1.3 / -0.2 (zeta ~0.3);
+  - Jodel: 37.4 / -36.5 / 34.4 / -34.0 ... (zeta ~0.01); G2105 24.2 / -5.3 / 2.9 / -0.7;
+  - metal Cessna: 61.7 / -28.1 / 36.9 / -32.5 / 27.3 ... ; G2105 44.3 / -10.0 / 6.9 / -4.5 / 0.6 / -2.2.
+- THE FLOATS' CROSS-CHECK (not changed - "floats unchanged to the digit"): their kRad 0.02 was read at a lone float's Omega 3.4;
+  a seaplane on its floats bobs at 0.82 s (the Cessna floats) - Omega ~1.9 for a 0.57 m beam, where the same curve reads ~0.08:
+  the floats are under-damped by their own law too (they decay at zeta ~0.02: 7 s to 1 cm, the twin 15 s). For A0: the
+  floats' kRad from the curve at their own frequency would be the same session's fix on the float pass (it moves every float
+  gate's numbers).
+
+G2108 THE PROP IN THE WATER (30_solver.js propWater, called once a frame after wetArmFrame; eng[k].drown; setEngine's canRun).
+- On a frame the water can reach (the wet body armed, or the floats wet), each engine's DISC'S LOWEST POINT (its thrust nodes'
+  centre, R down in the disc's plane - DMG-DRIVE G1826's own geometry) against the water there: under it, the engine STOPS
+  (running off, the crank cut) and stays stopped while the disc is under (drown: a key, a swing or the pilot's DEPART checklist
+  cannot start it). DAMAGE ON: a prop strike as the ground's (propStrike(k, 'water'): seized, DMG.propAt.what 'water'); DAMAGE
+  OFF: a stall - nothing breaks, the key can start it once the disc is clear. out.propWet (the engines' mask) only on an armed
+  frame. Cost: one waterH a engine an armed frame.
+- Measured: the user's Cub ditched at 0.6 throttle: the disc under at 0.38 s, thrust 0 after it (master 683 / 724 / 729 N to
+  the end); damage on: {"eng":0,"what":"water","t":0.383}. A ditch with the throttle closed moves too (the idle engine stops:
+  HYDRODYN's numbers below).
+- DMG-DRIVE (claude/dmg-drive 499c20d, not on master): its driveFrame grades the same disc against the water (surf 'water').
+  When it lands, A0: keep propWater's damage-OFF stall and its `drown` hold; with DRV on let driveFrame's graded strike stand in
+  for propWater's propStrike(k, 'water') (one call site; the geometry is already the same).
+
+G2109 THE CRASH ENDING CLOSES THE THROTTLE: app.js script() (the inline path) and sim_host.js H.step (the worker's) set
+ctl.thr = 0 once sim.damage().over, after the pilot or the hand wrote it - the wreck lies with its power off whoever flies
+on after the card (a resume). Damage OFF has no crash ending (G1898): there the prop's stall is what stops the engine.
+
+GATE WATERDAMP (NEW, tools/_waterdamp_check.js, core, ~60-80 s on 3 threads):
+1 the user's Cub and the metal Cessna ditched, 30 s: under 1 cm p-p from 7 s / 6 s (bound 10 s), and every 1 s window after
+  it under 1 cm (the most after 10 s 2.0 / 7.8 mm) - no limit cycle;
+2 the control: master's law (WB_OPT all 0) never settles by 30 s (24.7 mm every second at 20-30 s);
+3 the held rate, radiation off: the fixes' held compute against every substep within 2 mm (34.6 / 5.5 against 33.8 / 5.5
+  mm at 10-20 / 20-30 s); master's held 25.4 mm at 20-30 s;
+4 the prop: damage off a stall (no thrust after, the starter cannot catch with the disc under, nothing seized), damage on a
+  'water' strike; dry on its strip the engine runs (729 N), `out` never carries propWet;
+5 the floats: no wet body, 8 s on the water at a quarter throttle, the disc never wet, every engine running;
+6 the ending: sim_host's step closes the throttle once the crash is over (0.6 -> 0); app.js script() carries the same line.
+
+EVERY NUMBER THAT MOVES:
+- THE DITCH (tools/ditch_osc.js, 60 s; settle to 1 cm, 1 s windows; reports/evidence/WATER-DAMP/runs):
+  | build | settle to 1 cm | 15-20 s osc | 25-30 s osc | 55-60 s osc |
+  |---|---|---|---|---|
+  | the user's Cub | never -> 6.5 s | 25.1 -> 0.5 mm | 26.6 -> 0.1 mm | 20.6 -> 0.0 mm |
+  | Jodel | never -> 4.0 s | 76.3 -> 9.1 mm (flooding's pitch drift) | 54.4 -> 4.2 mm | 55.1 -> 13.7 mm (the nose sinking: smooth) |
+  | metal Cessna | 12.0 -> 5.5 s | 9.2 -> 0.4 mm | 0.9 -> 8.3 mm (its 10 deg flooding list, at 5-10 s on master, at 20-25 s now) | 0.1 -> 0.0 mm |
+  | Cessna floats, twin floats | 7.0 s, 15.0 s - byte-identical CSVs | | | |
+  The 5-10 s window: the Cub's pitch swing 18.8 -> 8.3 deg, the Jodel's 20.3 -> 9.3, the metal's 6.5 -> 6.3. Where they float
+  at 60 s is unchanged (Cub CG 0.63 -> 0.64 m under, pitch -39.9; Jodel -72.5 -> -71.2 deg; metal +0.01 m, -25.7 deg, 10.4 roll).
+- GATE HYDRODYN (master -> this branch, every other line identical): the stock taildragger at 80 km/h under 10 km/h in 0.95
+  -> 0.98 s, nose-over 83 -> 89 deg; the fabric build floods 5.5 -> 5.6 % at 10 s (7.5 % at 20 s both); covered CG 0.51 ->
+  0.48 m under (bare frame 0.80 both); the tanks: empty 0.657 -> 0.656, full 0.671 -> 0.669 m under (1.3 cm both); the fabric
+  wing flooded 4.0 -> 3.8 % at 20 s; the aft-cabin tank's pancake 552 -> 551 kPa, holed 2 of 2 both, flooding 12 -> 27 % at 3 s
+  (not traced: the holed tank floods toward its wet share, and that share differs in the first 3 s of a pancake whose
+  slices' lift the cap no longer clips - INFERRED). The S1 cost line (the floats' water / dry ratio 1.26 -> 1.30 x) is the shared
+  machine's timing, not this change (the float pass is untouched: bound 2.5).
+- GATE FLOATS, SEAPLANE, WATER, SOAR: NOTHING MOVES - each gate's whole output on this branch is byte-identical to master's
+  (run directly on a worktree of 068584d and on this branch, `diff`: 0 lines) - the floats' calm take-offs, circuit, crosswind
+  run, taxi and landing to the digit; SOAR's control on the lake too.
+
+GATES (node tools/run_gates.js --only=HYDRODYN,WATER,FLOATS,SEAPLANE,SOAR,WATERDAMP --jobs=3, this branch): all PASS,
+BATTERY: PASS (wall 887 s). TANKSFLOAT is GATE HYDRODYN's G1385 section (no gate of its own): PASS, numbers above.
+Plus, for the other files touched (30_solver.js's engines, sim_host.js, app.js): --only=SIMWORKER,PANEL,POSEBACK all PASS
+(257 s); --only=TREECRASH,UISMOKE,DMGINST all PASS (994 s). The full battery is A0's.
+EVIDENCE: reports/evidence/WATER-DAMP/ - ditch_heave.svg / .png (the Cub, the Jodel, the metal Cessna: master against G2105,
+0-30 s and zoomed from 8 s), runs/ (the rig's tables and every frame's CSV, 60 s, all five builds; the floats' CSVs
+byte-identical), README.
+TOOLS: tools/ditch_osc.js (the rig: --builds, --secs, --V, --entry ditch|settle, --thr, --damage, --every, --rad/--grad/--cap/
+--now the switches, --core another checkout's flight_core.js, --csv, --json); tools/ditch_osc_plot.js (the sheet).
+OWED / FOR A0: (1) the floats' kRad by the same curve at their own frequency (G2107's cross-check - every float gate moves:
+its own session); (2) DMG-DRIVE's merge (G2108's note); (3) the wing slab's waterplane is the slab's thickness ramp, so an
+inclined wing reads more waterplane than its real cut line (the buoyancy's own representation, kept; the radiation and A33
+inherit it); (4) the added mass's INERTIA is still not modelled (the sim bobs at sqrt(K / M)): the rocking's cycles are the
+real body's, its period shorter.
+READY for A0 (2026-10-06): branch claude/water-damp-g2105 - 32_hydro.js, 30_solver.js, app.js, sim_host.js, the rig, the
+sheet, GATE WATERDAMP (registered core), this entry; generated files not committed (build.js makes them).
+## G2077-G2078 - GROUND-COST LEVERS 1 AND 3: WITHDRAWN, MEASURED NEGATIVE (2026-10-08, GROUND-COST for A0, local GPU; measured on claude/ground-cost-g2076 over train 40 bcf62797 - for the record; this commit claude/ground-cost-tools rides train 42 with the measuring strips restored)
+LEVER 1 (the registers in every ground program, the full ones too - the user accepted ~+2 s of current's first-visit link for ~-20 %
+of its ground, 7 Oct ~18:15): ON TRAIN 40 IT DOES NOT PAY. Before = live train 40, after = this branch (05:20-05:40, the box quiet,
+three before/after rounds, the trees' sway off), current, ground ms: stand 5.15 -> 5.69 (+11 %), taxi 3.28 -> 3.66 (+12 %), 40 m
+6.31 -> 6.10, grass 4.30 -> 4.16, air 7.45 -> ~7.2; the cold link 11.1 -> 15.3 s wall (+4.2 s). The -14..-23 % of 6 Oct was against
+train 37b - before SHORES-2's bank / triplanar (train 38) and the apron skip (train 40, which already took the dearest pixels). The
+link's bisect (the ring alone, cold, two rounds, reports/evidence/GROUND-COST/runs/link_bisect/): arrays 6.45 s, the registers' vote
+alone 7.35, their candidates alone 7.4, both 8.3, both with 4 candidates 7.6, both without the one-code path 8.0, the lean program 3.45
+- no single culprit. Withdrawn; the full programs keep the arrays (train 40 as landed).
+LEVER 3 (the normal array, a look call): cutting its fetch past the normal's fade pulled in to 800 / 400 m saves ~nothing (air 5.22 ->
+5.13 / 4.95, 40 m / grass / taxi +-0.1, noon and golden: runs/s21_nrm_*.json) - the normals' cost is inside 400 m. Nothing put to the
+user. The strip nrmcut stays a measuring tool.
+LEVER 2 at retro (the apron skip, landed in 40): no gain there - the ground under the apron is already cheap at lean (the one-code
+cells: one tap; one set a type), so skipping it saves little; at current (25 taps, three sets) it was -16 %.
+THIS COMMIT (train 42, no player-visible change): src/viewer/splat_ground.js - the hexfar / nrmcut measuring strips' flags declared
+again (train 40's apron commit had put gSFarOn behind a comment on the same line: production never reads them, ?gstrip=hexfar did not
+compile) and the strip nrmcut; tools/perf/ground_cost.js --eval '<js>' | @file (a page expression printed once the flight is held);
+the runs under reports/evidence/GROUND-COST/runs/ (f_*, fr*_*, s21_nrm_*, link_bisect/). GROUND-COST (G2075-G2079) is closed.
+## G2065 - METLA-MERGE: THE PAVEMENT MERGE IN SLICES, THE SAME MESHES AND SPHERES TO THE BIT; THE TOWN'S ~97 ms APPROACH FRAME GONE (2026-10-07/08, METLA-COOK for A0, local GPU; branch claude/metla-merge-g2065 on train 40 bcf62797, for train 42; G2066-G2069 unused)
+
+**READY for A0.** One commit, 2846a4f7.
+- src/viewer/pavement.js: inlined in index.html, so FLYDIY_BUILD moves and the parked cook is re-cooked at the train build.
+- tools/perf/metla_rebuild_split.js: the probe digests each mesh's bounding sphere too.
+- Generated files are not committed.
+
+**WHY.** The town's deferred build (G2063) left one ~80-97 ms frame on the way to Metlakatla, once per flight at ~7 km. The approach's CPU profile named it: PAV.mergeSteps (the town's roads merged into one group in one generator step) and computeBoundingSphere over the merged geometry.
+
+**WHAT.** mergeSteps now yields after each part, both when it measures the parts' boxes and when it copies them into the merged group. The merged group's bounding sphere is computed THREE's own way, in 65 536-vertex steps:
+- Box3.expandByPoint: Math.min / Math.max per axis over every position
+- the centre: (min + max) * 0.5
+- the largest Vector3.distanceToSquared to the centre
+- its root
+
+These are the same operations in the same order, so the same sphere to the bit, and the merged groups' culling (draw counts) cannot move. merge() (the synchronous form) drives the same generator.
+
+**PROOF (node, the page's boot; METLA_KEEPGEO; 7 Oct 16:52-16:58 under the CPU lock).**
+- Every mesh AND its bounding sphere hashed, old pavement.js (f422c111) against new:
+  - town OFF, all 268 meshes incl. the far tier: SAME
+  - town ON, every merge built at boot (?towngeo=0): SAME
+- The town's deferred build, its steps by label: the merge's largest step is 84 -> 33 ms node (boxes 5, copy 4, sphere 3 ms).
+
+**THE BOX** (8 Oct 14:38-14:44, TIMED; the Cub, gamer, lc_build pinned, a fresh profile; metla_ab --warmup A --order A,B --approach 40):
+
+| | town off | town on |
+|---|---|---|
+| garage | 42.3 s | 47.6 s |
+| taxi | 30 fps, 0 % | 30 fps, 0 % |
+| pass, uneven | 2 % | 3 % |
+| approach, worst frame | 66.7 ms | 83.5 ms |
+
+- No frame over 100 ms on either side.
+- On the town-on approach the premises step is gone (it was 97 ms on 7 Oct, same rig).
+- The worst frame (83.5 ms) shows 11 ms of render CPU (a GPU or upload frame); its neighbour shows world 34 + prem 31 ms.
+## G2111 - GARAGE-LAPTOP 4: THE GARAGE'S IDLE LOOP DEFORMED THE HIDDEN FLOWN AEROPLANE EVERY FRAME - NOT ANY MORE; THE SHADOW CACHE'S OWN CHECKS CHEAPER (2026-10-07/08, GARAGE-LAPTOP for A0, local GPU; branch claude/garage-loop-g2111 on train 40 = bcf62797)
+
+WHY: on the fitted laptop rung the garage's loop still spent ~12 ms of JS outside the render (the box: ~4 ms) with nobody
+touching anything. **The profile** (`tools/perf/garage_idle_prof.js`, new: the page in node, the garage idle, a V8 CPU
+profile over 150 frames - self ms a frame by file / function, the loop's callees inclusive; the Jodel on retro): loop 18.6
+ms a frame in node, render 13.2; outside it SHED_SHADOW.pre 2.34 (G2071's own bookkeeping), **poseModel 2.04**
+(applySkinDeform 0.72, turnNormals 0.38), shedDayTick 0.63 (atmo's sky radiance).
+
+**poseModel** (app.js): in the shed the editor's cage stands and the FLOWN model hides behind it (applyStand:
+model.grp.visible false) - yet the control check's sweep moved its controls every frame, so its skin was re-deformed and
+its normals re-turned every frame for nobody. Now, in the garage with the cage standing and model.grp hidden, it returns
+right after the linkage's step (the step is stateful and still runs once a frame; its frame, the projector's root and the
+props run above it). The pose cache (model._pose) keeps the last pose APPLIED, so the first frame it shows again applies the
+current one. craftInShed / craftInWorld - the two helpers that show it for one synchronous call (a world compile, a warm
+draw) - pose it first (poseModel(true): the frame's linkage reused, no second step). Never in flight.
+window.FLYDIY_POSE_HIDDEN = true restores the every-frame pose (the gate's reference); window.FLYDIY_CRAFT_IN_SHED is the
+gate's door to craftInShed.
+
+**The shadow cache's checks** (shed_shadow.js): live() read where the signature is taken (its inputs - customDepthMaterial,
+onBeforeShadow, isBatchedMesh - joined the signature as reference compares); the glass verdict cached per object while its
+pose, its geometry and the panes' faces (a version, bumped when the faces move) hold - a 16-float compare instead of eight
+posed corners for ~900 objects a frame.
+
+**GATE POSEHIDDEN** (`tools/_posehidden_check.js`, core, ~3.5 min): the page in node is deterministic (a seeded
+Math.random, a virtual clock) - two pages, the same build (the Cub), the same 120 idle frames and roll-out, one with the skip
+(the game), one posing the hidden model every frame (the reference): the model hidden behind the cage in both; no more
+buffer bytes uploaded while idle; shown for a call (craftInShed) the same skin within the pose's own thresholds -
+positions IDENTICAL, normals within 1.87e-3 (the reference's turnNormals hysteresis: it re-normalises only past 0.002 of
+a turn since the last applied, so it lags; the catch-up is exact - a warm draw under the loading screen either way);
+rolled out, the same skin bit for bit, frame for frame (10 frames). PASS (8 Oct 15:54).
+
+GATES (8 Oct, A0's window 15:32-15:58, run unlocked by A0's word beside WORKS-COZY's untimed stills): POSEHIDDEN PASS,
+SHEDSHADOW PASS, **INSTANT PASS** (the garage's parameter response: no regression).
+THE PROFILE AFTER (same window, beside the GPU stills - INDICATIVE): app.js self 1.38 -> 0.13 ms a frame (poseModel gone
+from the idle loop); shed_shadow.js about the same (walk 0.50, same 0.45, the glass verdict 0.23 -> 0.15) - its walk and
+signature compares are the floor of an exact per-frame check. shedDayTick (0.6 ms) left as it is: SKY_LIGHT eases the light
+per call - throttling it is a light-smoothness risk to measure first.
+A TIMED rung row is owed (A0's slot when one is free): the expected gain is ~1 of the rung's ~12 ms of loop JS.
+
+READY for A0 (train 42): claude/garage-loop-g2111 on bcf62797 (sources + tools; generated files untouched).
+
+## G2590-G2591 - IMPOSTOR-MATCH: THE TRUNK TAKES THE BARK'S TINT; EACH SHEET'S LEVEL MEASURED AGAINST ITS 3D TREE (2026-10-08, DEADWOOD-BRIGHT for A0, local GPU; branch claude/deadwood-bright-g1975 on top of G1975.2; G2592-G2599 unused)
+
+**The user** (on the G1975.1 stills: 3D | picture today | 3D col 3 | picture col 3): "1 and 3 look good, 2 and 4 look bad",
+"same for all images", then narrowed: "the foliage, as well as the trunk are too bright for the impostors, still ... just
+minor corrections, and look at these bright trunks". So: two corrections, no rework; the snag method (G1975) kept; column 3
+(G1975.1) untouched.
+
+**G2590 - THE BRIGHT TRUNK, the cause in the construction.** The bake leaves the tint out ("AO in, tint out") and the draw
+put ONE tint over the whole sheet - the LEAF part's (`tintUniformsOf`): every trunk texel of a leafy picture wore the
+leaf's light, hue, saturation and the foliage contrast 1.30, where the 3D bark is hue 0, sat 1, contrast 1 at its own
+light (trees.js retint). Leaf vs bark light: cedar 0.59 / 0.34, realistic fir 1.30 / 0.64, spruce 0.54 / 0.42,
+pine_georgeous 1.22 / 1.00 (larch 0.68 / 0.84: its bark is the lighter, but it wore the leaf's hue / sat 0.48).
+THE FIX (render_world.js): the normal pass writes the part's KIND into the normal sheet's alpha (1 a leaf part, 0 the
+bark - `normalMatFor` uLeafF); both sheets are un-premultiplied by the ALBEDO's coverage (the same mask: the uv carries no
+map transform, decodeTreePart bakes uvMin / uvScl in); the texel's leaf fraction (smoothstep 0.3-0.8: a trunk is 2-3 texels
+of a tile, so a mip-filtered trunk pixel reads 0.6-0.8 leaf - the plain blend darkened the trunk 7-16 % of the 40-50 % the
+tints differ by) mixes the leaf's tint with the bark's own light (IMPA.tbl row 2 .x, live from the bark part's uLight).
+Measured on the trunk pixels, today -> fixed: cedar 0.81 / 0.83, spruce 0.83 / 0.85, pine 0.78 (gamer / potato); larch
+1.06 (its bark is lighter than its leaf). `TREE_LOD.imp({ trunk: 0 })` restores the picture as before (the A/B).
+
+**G2591 - THE LEVEL, per baked sheet** (IMPA.tbl row 2 .y; the one-layer materials' `uLayerK`): a factor on the tier gain
+(`_iLit`), `IMP_LEVEL` in render_world.js = the geometric mean of four runs' 1 / core (gamer + potato x golden + noon, the
+front-lit view at the hand-over after the trunk fix, each clamped 0.7-1: darkening only). Cedar 0.946, larch 0.925, spruce
+0.887, pine 0.908; snags: cedar 0.822, larch 0.87, pine 0.915, spruce 0.891; dead_conifer 0.862 / 0.897.
+`TREE_LOD.impLevel('key|series', k)` moves one live (null: back to the default). Core front-lit today -> fixed (gamer /
+potato): cedar 1.06 -> 0.92 / 0.99 -> 0.99, spruce 1.26 -> 1.19 / 1.03 -> 1.02, pine 1.17 -> 1.13 / 1.01 -> 1.00,
+larch snag 1.13 -> 1.02 / 1.14 -> 1.05, spruce snag 1.19 -> 0.88 / 1.03 -> 1.01. Into the sun and side-lit the pictures
+stay darker than the 3D (pre-existing, G1975's side findings).
+
+**Evidence (reports/evidence/DEADWOOD-BRIGHT/impostor_match/):** `impostor_match_sheet.jpg` (3D | today | fixed, the four
+species + their snags + dead_conifer, gamer and potato, golden, front-lit at the hand-over; the 1 km frame today | fixed;
+two picks left out - their frame missed the tree), the strips and `*_imp.json` of every run (today / trunk fix / fixed
+cores), `levels.json`. CAVEAT: a cloud's shadow drifted between the measuring round and the 'fixed' round (the larch
+strip's ground and background darken with it): the levels come from round 1 (3D, today and the trunk fix shot back to
+back); the round-2 cores carry that drift (larch rungs on gamer 1.11 -> 0.55 is the cloud, not the level 0.925).
+
+**THE USER'S RULING (2026-10-08, through A0): "Keep the trees as they are in the last update, I'll check in game, no
+further modifications, keep the latest delivered version."** adcbb4db rides train 42 as delivered; the see-through-trunk
+follow-up below is CANCELLED (kept here as the record of what was seen, not as owed work).
+
+**What was left (CANCELLED by the ruling above):** the trunk still SHOWS through the crown on some pictures (larch,
+spruce) where the 3D crown hides it - the bake's foliage coverage: it cuts the leaf map at its mip-averaged alpha at the
+128-px tile, where the screen keeps partial coverage through the sharpen (EDGE_GLSL). A bake-side fix (sample the leaf
+alpha sharper in the bake, or supersample the bake 2x) - a bake-time change, not done here.
+
+**Gates:** GFX, TREES, PROGRAMS PASS and the page booted clean in node (`--census cub`: nothing thrown, the page's error
+list the same 53 'sheet EMPTY' lines as master's - the fake GL draws nothing) at 09:17, before the levels and the sharpened
+leaf fraction went in. FRAMECOST census pair + PROGRAMS on
+the final code (16:40-16:44, unlocked by A0's booking beside PILOT's GPU run): PROGRAMS PASS; `--census cub` this branch vs
+its merge base (origin/master 751e1122) moved three counters at the stand, none at taxi or boot: `bytes.texSubImage2D`
++2 048 (the table's third row, 128 x 16 B, where the table was already re-uploaded), `gl.uniform1f` 327 -> 317 (down),
+`tris.shadow` +42 911 (+2 %: G1975.2's living trees in place of snags cast more); against the ratchet's baseline all three
+sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impostor_match/framecost_census_{base,branch}.txt`.
+
+## TRAIN 42 LANDED (A0, 8 Oct ~20:40)
+
+Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
+Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
+Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).

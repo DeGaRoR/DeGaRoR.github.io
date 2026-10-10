@@ -82,6 +82,8 @@ var SHED_SHADOW = (function () {
     r.m.set(o.matrixWorld.elements); const g = o.geometry;
     r.g = g; r.pv = posVer(g); r.iv = g && g.index ? g.index.version : -1; r.ds = g ? g.drawRange.start : 0; r.dc = g ? g.drawRange.count : 0;
     r.ms = matSig(o.material); r.mat = o.material; r.mf = matTake(o.material); r.iv2 = o.instanceMatrix ? o.instanceMatrix.version : -1; r.ic = o.isInstancedMesh ? o.count : -1; r.pose = poseOf(o);
+    // (G2111: whether it is always live, read here - its inputs are in the signature - not every frame)
+    r.live = live(o); r.cdm = o.customDepthMaterial; r.obs = o.onBeforeShadow; r.bm = !!o.isBatchedMesh;
   }
   function same(r, o) {
     const e = o.matrixWorld.elements, m = r.m;
@@ -90,6 +92,7 @@ var SHED_SHADOW = (function () {
     if (g !== r.g || posVer(g) !== r.pv || (g && g.index ? g.index.version : -1) !== r.iv) return false;
     if (g && (g.drawRange.start !== r.ds || g.drawRange.count !== r.dc)) return false;
     if (o.instanceMatrix && (o.instanceMatrix.version !== r.iv2 || o.count !== r.ic)) return false;
+    if (o.customDepthMaterial !== r.cdm || o.onBeforeShadow !== r.obs || !!o.isBatchedMesh !== r.bm) return false;
     if (!samePose(r.pose, o)) return false;
     return matSame(r, o.material);
   }
@@ -197,8 +200,14 @@ var SHED_SHADOW = (function () {
   }
   // an object wholly on the eye's side of every pane's face (its geometry's box, in the room's frame) - once per object a frame
   const _gb = { v: null, M: null };
+  // (G2111: the verdict cached per object while its pose, its geometry and the panes' faces (gVer) hold - a 16-float
+  // compare instead of eight corners posed, ~900 objects a frame in the transmission pass)
+  let gVer = 0, gKey = '';
   function inside(o) {
     let q = gInside.get(o); if (q && q.f === frame) return q.in;
+    if (q && q.v === gVer && q.g === o.geometry && q.pv === posVer(o.geometry)) {
+      const e = o.matrixWorld.elements, m = q.m; let k = 0; while (k < 16 && e[k] === m[k]) k++;
+      if (k === 16) { q.f = frame; return q.in; } }
     let yes = false, root = o; while (root.parent) root = root.parent;   // (the scene's own: never three's background box, which rides the eye)
     if (root === SC && o.isMesh && !o.isInstancedMesh && !o.isBatchedMesh && !o.isSkinnedMesh && o.geometry && !transmissive(o.material)) {
       const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox();
@@ -212,7 +221,7 @@ var SHED_SHADOW = (function () {
         }
       }
     }
-    gInside.set(o, { f: frame, in: yes }); return yes;
+    gInside.set(o, { f: frame, in: yes, v: gVer, g: o.geometry, pv: posVer(o.geometry), m: Float64Array.from(o.matrixWorld.elements) }); return yes;
   }
   const isTransRT = t => !!(t && !t.isWebGLCubeRenderTarget && t.texture && t.texture.generateMipmaps && t.samples >= 4 && !t.depthTexture);
   function preGlass(scene, camera, room) {
@@ -239,6 +248,7 @@ var SHED_SHADOW = (function () {
     }
     for (let k = 0; k < 3; k++) if (!(E[k] > gLo[k] && E[k] < gHi[k])) { GST.why = 'eye past a pane\'s face'; return false; }
     GST.why = ''; GST.ok++; GST.skipped = 0; GST.drawn = 0; GST.panes = np; GST.lo = gLo.slice(); GST.hi = gHi.slice();
+    { const k = gLo.join(',') + '|' + gHi.join(',') + '|' + gInv.elements.join(','); if (k !== gKey) { gKey = k; gVer++; } }   // (G2111: the faces' version)
     gOn = true; gIn = false;
     gPrevSRT = R.setRenderTarget; gPrevRBD = R.renderBufferDirect;
     const srt = gPrevSRT, rbd = gPrevRBD;
@@ -330,7 +340,6 @@ var SHED_SHADOW = (function () {
       const o = casters[i]; let r = recs.get(o);
       if (!r) { r = { m: new Float64Array(16), still: 0, moves: 0, baked: false, seen: frame, live: false }; take(r, o); recs.set(o, r); }
       else {
-        r.live = live(o);
         if (r.live || !same(r, o)) { if (r.baked) { r.baked = false; bakedCount--; r.moves++; dirty = dirty || 'moved'; } r.still = 0; take(r, o); }
         else r.still++;
       }
