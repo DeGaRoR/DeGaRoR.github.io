@@ -975,8 +975,9 @@ function genSubstepsTrue(nodes, beams) {
     let a = GEN_CDT_MAX;
     if (!holdsA(a)) {
       let lo = 0.05 * GEN_CDT_MAX, hi = GEN_CDT_MAX;   // (a floor: the springs' own share past the margin is not the dampers' to pay)
-      if (holdsA(lo)) { for (let it = 0; it < 24; it++) { const mid = 0.5 * (lo + hi); if (holdsA(mid)) hi = mid; else lo = mid; } a = hi; }
-      else a = lo;
+      // the LARGEST bound that holds (lo holds, hi does not): the fewest dampers cut, each the least
+      if (holdsA(lo)) { for (let it = 0; it < 24; it++) { const mid = 0.5 * (lo + hi); if (holdsA(mid)) lo = mid; else hi = mid; } }
+      a = lo;
     }
     const cap = capA(a);
     for (const b of beams) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }

@@ -6894,6 +6894,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
   // lightTake(ex): applyDay has just written the lights - those values are the targets; the lights go back to the eased ones
   function lightTake(ex) {
+    // G2630: an eased light that went non-finite (any upstream NaN) snaps to the new targets instead of easing from NaN
+    if (!(typeof window !== 'undefined' && window.FLYDIY_NANGUARD_OFF) && (!Number.isFinite(LE.sunI) || !Number.isFinite(LE.hemiI) || !Number.isFinite(LE.hemiC.r + LE.hemiC.g + LE.hemiC.b)
+        || !Number.isFinite(LE.gndC.r + LE.gndC.g + LE.gndC.b) || !Number.isFinite(LE.sunC.r + LE.sunC.g + LE.sunC.b))) LE.init = false;
     LE.tSunI = sun.intensity; LE.tHemiI = hemi.intensity; LE.tSunC.copy(sun.color); LE.tHemiC.copy(hemi.color); LE.tGndC.copy(hemi.groundColor); LE.tEx = ex;
     // not easing yet (or off): the target at once. (Someone else's write - a rig row, the shed - is caught by lightEase, which
     // runs earlier in the same frame and takes the lights as they stand; the written and the eased value differ by design.)
@@ -6978,7 +6981,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const nowL = (typeof performance !== 'undefined') ? performance.now() : 0;
     let cloudDue = false;
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.sunT) {
-      if (nowL >= LE.cTat) { LE.cTat = nowL + 250; LE.cTraw = CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z); }
+      // G2630 (RADIAL-DIVERGE): a non-finite eye (a diverged sim's) read NaN here, and the ease below can never leave NaN:
+      // the hemisphere took it at the next apply and every lit thing went black for the page's life. A non-finite sample
+      // is not taken, and an eased value that is not finite starts again from the sample (or clear air)
+      const ng = typeof window !== 'undefined' && window.FLYDIY_NANGUARD_OFF;   // (GATE SIMDIVERGE's selftest: the old page)
+      if (nowL >= LE.cTat) { LE.cTat = nowL + 250; const r = CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z); if (ng || Number.isFinite(r)) LE.cTraw = r; }
+      if (!ng && !Number.isFinite(LE.cTraw)) LE.cTraw = 1;
+      if (!ng && !Number.isFinite(LE.cT)) LE.cT = LE.cTraw;
       const dtc = LE.lastC ? Math.min(0.25, Math.max(0, (nowL - LE.lastC) / 1000)) : 1; LE.lastC = nowL;
       LE.cT = (LE.on && LE.tauCloud > 0) ? LE.cT + (LE.cTraw - LE.cT) * (1 - Math.exp(-dtc / LE.tauCloud)) : LE.cTraw;
       cloudDue = Math.abs(LE.cT - LE.cTapplied) > 0.01 && nowL >= LE.applyAt;

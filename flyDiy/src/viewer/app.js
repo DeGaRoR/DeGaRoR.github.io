@@ -19,6 +19,21 @@
   const WB = (typeof window !== 'undefined' && window.FLYDIY_WORLD_MADE) || window.FLYDIY_WORLD_COMPOSE();
   if (typeof window !== 'undefined') window.FLYDIY_WORLD_MADE = null;
   const { WIP_KEY, premisesAtBoot, TOWN, world } = WB;
+  // G2630 (RADIAL-DIVERGE): THE SAFE BOOT, ?safe=1 - the VIEW state (the day and its weather, the flight screen's prefs,
+  // the route) is set aside under <key>.aside, never deleted, and the page boots on the game's defaults. The builds, the
+  // working build and the player document are not touched (they are the player's work; a bad one is set aside by its
+  // own reader). Before the day binds, so the day reads the default.
+  try {
+    if (/[?&]safe=1(&|$)/.test(window.location.search || '') && window.localStorage) {
+      const LSx = window.localStorage, moved = [];
+      for (let i = LSx.length - 1; i >= 0; i--) {
+        const k = LSx.key(i);
+        if (!k || /\.aside$/.test(k) || !(k === 'flydiy.day.v3' || k === 'flydiy.day.v2' || k === 'flydiy.route' || /^flydiy\.fl[A-Z]/.test(k))) continue;
+        LSx.setItem(k + '.aside', LSx.getItem(k)); LSx.removeItem(k); moved.push(k);
+      }
+      console.warn('flyDiy: ?safe=1 - the view state set aside (' + (moved.join(', ') || 'nothing to move') + '); the builds and the player are untouched');
+    }
+  } catch (e) {}
   // THE CLOCK (SKY S1): the day boots fixed (07_day.js), then the pref or ?day= moves it
   if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.bind(world);
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
@@ -469,7 +484,9 @@
   function playerLoad() {
     if (player) return player;
     let doc = null;
-    try { doc = JSON.parse(prefGet(PLAYER_KEY, 'null')); } catch (e) {}
+    // G2630: a document that does not parse is SET ASIDE under <key>.corrupt (never silently lifted over and lost)
+    { const txt = prefGet(PLAYER_KEY, null); doc = jsonReadFinite(txt, 'the player document');
+      if (txt != null && doc == null && txt !== 'null') prefSet(PLAYER_KEY + '.corrupt', txt); }
     if (!doc && CAREER_DEV) doc = careerNew({ id: 'dev', seed: 'dev', name: 'the dev career', started: new Date().toISOString().slice(0, 10) });
     else if (!doc) {                         // the one-time lift
       let dims = null, parts = null;
@@ -490,7 +507,8 @@
     playerSave();
     return player;
   }
-  function playerSave() { if (player) prefSet(PLAYER_KEY, JSON.stringify(player)); }
+  // G2630: through jsonFinite (70_player.js) - a document with a non-finite number is not written (the saved one stands)
+  function playerSave() { if (!player) return; const j = jsonFinite(player, 'the player document'); if (j != null) prefSet(PLAYER_KEY, j); }
   // the saved builds' names, read where garage.js keeps them (one key per named build)
   function playerSlotNames() {
     const out = [];
@@ -8208,6 +8226,16 @@
   const buildKey = () => { if (!tripSync) tripSync = tripExport(); return tripSync ? tripSync.key : null; };
   // THE STAND, off the route's inputs (applyRoute's own reading, the sim untouched): where the boot grows the ring and
   // the town before the aeroplane has left the shed, and the world's key after
+  // G2630: the last finite CG the frame drew (a NaN pose keeps it; the stand, else the origin, before any)
+  let cgLastOk = null;
+  // (window.FLYDIY_NANGUARD_OFF: GATE SIMDIVERGE's selftest - the guards stand down, the old page)
+  function cgFinite(c) {
+    if (window.FLYDIY_NANGUARD_OFF) return c;
+    if (c && Number.isFinite(c[0]) && Number.isFinite(c[1]) && Number.isFinite(c[2])) { cgLastOk = [c[0], c[1], c[2]]; return c; }
+    if (!cgLastOk) { const a = standAnchor(); cgLastOk = a && a.every(Number.isFinite) ? a : [0, 0, 0]; }
+    if (!cgFinite.said) { cgFinite.said = true; console.warn('flyDiy: the sim pose is not finite - the world and the camera hold the last finite place'); }
+    return cgLastOk;
+  }
   function standAnchor() {
     try {
       if (sim && sim.hydro) { const f0 = aeroById(inGarage ? rollFromId() : fromId), sea = (f0 && f0.kind === 'water') ? f0 : (aeroById('SEA') || { spawn: [0, 1285], elev: 0 }); return [sea.spawn[0], sea.elev || 0, sea.spawn[1]]; }   // G1375: the lane the route names
@@ -10153,10 +10181,14 @@
   // saved build (G106). It is a pref, beside `cageExpert`.
   const flPref = (k, d) => {
     try { const v = JSON.parse(prefGet('flydiy.fl' + k, 'null'));
+          // G2630: a field the default holds as a number comes back only as a finite number (a NaN saved by an older
+          // build reads as null, and a null fov or lead is a camera that draws nothing)
+          if (v && typeof v === 'object' && d) for (const q of Object.keys(d))
+            if (typeof d[q] === 'number' && q in v && !(typeof v[q] === 'number' && Number.isFinite(v[q]))) { console.warn('flyDiy: flight pref ' + k + '.' + q + ' was not a finite number - the default'); delete v[q]; }
           return (v && typeof v === 'object') ? Object.assign({}, d, v) : Object.assign({}, d); }
     catch (e) { return Object.assign({}, d); }
   };
-  const flSave = (k, v) => prefSet('flydiy.fl' + k, JSON.stringify(v));
+  const flSave = (k, v) => { const j = jsonFinite(v, 'the flight pref ' + k); if (j != null) prefSet('flydiy.fl' + k, j); };   // G2630
   // G193: which pattern layers are shown (off by default: no change on screen
   // until asked)
   const patOn = flPref('Pat', { graph: false, slope: false, targets: false, map: false });
@@ -12932,7 +12964,12 @@
       }
     } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops
     if (FR) FR.lap(FR.S.other);        // G620: the hand, the shed, the day, the director, the panel
-    const cg = sim.cgPos();
+    // G2630 (RADIAL-DIVERGE): THE WORLD AND THE EYE NEVER TAKE A NON-FINITE PLACE. A diverged sim's CG is NaN (the worker's
+    // snapshot mirrors it until the next reset); fed to the camera and WF.worldUpdate it reached eased states that cannot
+    // leave NaN (render_world's cloud transmittance and hemisphere ease, climate_link's eye wind) and blacked every lit
+    // thing for the rest of the page - the sky, unlit, still drew. The frame takes the last finite CG (the stand before
+    // any), and render_world / climate_link heal an eased state that went non-finite anyway.
+    const cg = cgFinite(sim.cgPos());
     // The world does not exist while you are in the garage, so it is not
     // updated: no terrain paging, no sky, no weather, no LOD churn. That is
     // most of what the garage used to spend its frame on for scenery nobody
@@ -12958,7 +12995,7 @@
     // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
     // (the worker's view interpolates itself), and a pause holds the alpha it had
     const drawnPose = !inGarage && simwRan < 0 && POSE_LERP.draw(sim, running ? PACE.alpha : null);
-    const cgD = drawnPose ? sim.cgPos() : cg;
+    const cgD = drawnPose ? cgFinite(sim.cgPos()) : cg;
     if (drawnPose && running && window.WATER && WATER.setTime) WATER.setTime(sim.t - (1 - POSE_LERP.alpha) * simRate / 60);   // the sea at the drawn pose's time
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;

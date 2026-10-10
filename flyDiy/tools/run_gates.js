@@ -109,6 +109,11 @@ const GATES = [
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
+  // G2630 (RADIAL-DIVERGE): the user's Mosquito, both builds (a radial on a carbon taildragger whose oleo dampers the
+  // 200-substep cap could not carry: it turned in circles / went NaN on the first frame) + a synthetic stiff-damper
+  // build: the network inside the integrator's margin, at rest without ringing or turning, flown from the stand
+  // through the take-off and 60 s, then 20 s hands off against the Cub flown the same way
+  { id: 'RADIALDIV', file: '_radialdiv_check.js', tier: 'core', wall: 700 },
   // G630: the pilot's control activity - aileron / rudder reversals per minute per phase,
   // stock + C172 + the user's aluminium C172 off HOME's stand (pilot_matrix --set activity; ~4 min)
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
@@ -434,6 +439,9 @@ const GATES = [
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
   // solver step on the page's thread. Four page runs ONE AT A TIME (~3.7-4.1 GB, ~4-5 min each on a 4-core cloud box)
+  // G2630 (RADIAL-DIVERGE): a FORCED divergence on the page in node (the game's worker): the eye, the light ease and
+  // the eye wind stay finite and lit, the card's Fly flies again, every saved record reads finite, the next load lit
+  { id: 'SIMDIVERGE', file: '_simdiverge_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 900 },
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
   // G821 (C1c): EVERY EDGE through the worker - one scripted session per build and mode (dev.html?simw=0 against
   // ?simw=1, lockstep): the pause, the hand on and off (taxiing and in the air), the world editor's edit (the worker's
