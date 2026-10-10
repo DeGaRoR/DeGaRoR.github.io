@@ -87205,3 +87205,175 @@ sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impost
 Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
 Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
 Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).
+
+## TRAIN 41 FINAL - WHAT THE NIGHT CHANGED, NAMED (2026-10-08, DEFORM COORDINATOR; A0's rulings)
+
+The frozen assembly 037519846 went through the gates in four parts (00:20-04:00) and a fix round. This section names
+every reference that was re-captured, every gate rule that changed, every row that moved off the gate, and what is known
+and not fixed.
+
+### CARGO CHANGES AFTER THE FREEZE
+- **SCAR2 OUT, back to train 43** (A0's cargo call). Three of its single-run rows (the resting wreck's cull, the joined
+  furrows, the page cull's 'nothing new') were red on 41's crashes. The original SCAR (4575e99f) stays; GATE DMGSCAR is
+  green without SCAR2. The candidate's base is 4b036029, the freeze's first parent.
+- **PILOT-STUDENT-T41 (G2510) IN.** PILOTMATRIX's student Cub ground-looped (2.8 -> 58.5 deg). The Pilot Coordinator's
+  bisect put it on DMG-DAMP G1885's honest damper: it no longer damps rigid rotation, and the delayed student leaned on
+  that. Ruling: DAMP stays; the student's reaction goes 0.45 -> 0.35 s.
+- **DMG-WALL G1859.8 IN.** Every skin record is healed at a reset. DMGHEAL is green, and its selftest goes red with the
+  old heal (10,529 torn -> 0).
+- **DMG-SKINGPU train 41 IN.** The GPU riding now mirrors DMG-FABRIC. DMGSKINGPU 57/57.
+- **The merge fixes** (the GPU tear honours FABRIC's held covering and COMPOSITE's shell crack; FABRIC's held bits kept
+  across local events) are in the merge commits 1e214874 / 0220abd3.
+
+### RE-CAPTURED REFERENCES (old / new / why)
+| reference | old | new | why |
+|---|---|---|---|
+| DMGFABRIC BASE (8 hashes, cub/metal x t25/t0 x on/off) | dmg-tune 849058d8's (cub-t25-on ae222ba0cb38, off 6acfbf6ae0ed; cub-t0-on fb541e6b5e3b, off f97faec72e38; metal-t25-on 7f63a2d9daf1, off a0cfaca6dcd8; metal-t0-on a6e31576d4d3, off b5cc29e840c8) | 41 with FABRIC's src/core reverted (cub-t25-on 6c8a933ccd97, off c4b54a686043; cub-t0-on 0503144b2625, off 9b507be9c5c5; metal-t25-on 174ca146f36c, off c67a2e50d137; metal-t0-on 14bdcf12d3b7, off d620f807b296) | the assembly moved those bits (BUNDLE-GREEN, master's trains); every run on 41 equals FABRIC's absence on 41 bit for bit |
+| DMGCOMPOSITE off_ref (3 hashes) | 849058d8's (cub 62270a8809f9aff6, jodel 09ca080740ccf3b1, metal 717e9ab193d165e6) | 41 with COMPOSITE's src/core reverted (cub a9c2d2be5edd69bf, jodel 8a8c874ab2df3474, metal 44dabb583e3e3b09) | the same; damage off on 41 = COMPOSITE's absence, bit for bit |
+| JOINPARITY page capture (Cub, Jodel) | BUNDLE-GREEN's (07T08:20), Cub 460.483 kg, Jodel 463.875 kg | re-captured on the final base: Cub 460.555, Jodel 463.698 | G2050 JODEL-TAIL (c2cd46be3, master train 38) changed the load chain's fin / stab / hinge generators; the capture predates it (JOIN-PARITY was held out of 38). Proven: those five files reverted give the old masses to the bit. The player has flown these masses since train 38. |
+
+**TREECRASH's ensemble reference, re-captured on the final (the user accepted it from the master vs 41 screenshot sheets, 8 Oct; 344f5cf19).** The old reference came from DMG-DETERMINISM's base, before TUNE / NOSE / MOUNTRIG / FABRIC / COMPOSITE. Medians, old -> new (p10-p90 of the new):
+
+| row | broken median old -> new | pieces median old -> new | work median old -> new | mountOff median old -> new | cowlOff median old -> new |
+|---|---|---|---|---|---|
+| cub/trunk0 | 170 -> 117.5 (p10-p90 110-137) | 18.5 -> 9.5 (p10-p90 8-11) | 18.2k -> 33.0k (p10-p90 31.0k-45.0k) | 1 -> 1 (p10-p90 1-1) | 1 -> 1 (p10-p90 1-1) |
+| cub/trunk25 | 116 -> 46.5 (p10-p90 37-54.5) | 7 -> 4 (p10-p90 3-6) | 13.3k -> 14.6k (p10-p90 13.6k-15.9k) | 1 -> 0 (p10-p90 0-0) | 1 -> 0 (p10-p90 0-0) |
+| jodel/trunk0 | 167.5 -> 147 (p10-p90 136.5-155) | 16 -> 13 (p10-p90 12.5-14) | 21.2k -> 19.7k (p10-p90 18.9k-21.4k) | 1 -> 1 (p10-p90 1-1) | 1 -> 1 (p10-p90 1-1) |
+| jodel/trunk25 | 103 -> 84.5 (p10-p90 70.5-108.5) | 6 -> 5 (p10-p90 4-6.5) | 3.6k -> 3.8k (p10-p90 2.7k-5.2k) | 1 -> 0 (p10-p90 0-0) | 1 -> 0 (p10-p90 0-0) |
+| metal/trunk0 | 169 -> 150.5 (p10-p90 63-159) | 16 -> 14 (p10-p90 7-17) | 33.0k -> 36.7k (p10-p90 30.6k-41.2k) | 1 -> 1 (p10-p90 0-1) | 1 -> 1 (p10-p90 0-1) |
+| metal/trunk25 | 140.5 -> 33 (p10-p90 28-142) | 8 -> 5 (p10-p90 5-9.5) | 11.2k -> 17.2k (p10-p90 15.7k-52.2k) | 1 -> 0 (p10-p90 0-0) | 1 -> 0 (p10-p90 0-0) |
+
+### GATE RULES CHANGED
+- **DMGCERT's band, per aeroplane, from its own certificate** (A0, 7 Oct). The band is read from the member that
+  actually breaks first to destruction: its stamped strength over its bench load, x the limit, and the case that
+  certified it.
+  - Bench-certified builds: the band as before.
+  - Builds certified by another case: x 1.07, the redistribution measured on the floats' bench (6.595 / 6.20), capped by
+    the joint group's whole capacity.
+  - 'Ultimate x 1.1 breaks' is asked only where the destruction run broke below 1.1 x ult.
+  - Two earlier drafts that night were wrong (the weakest of all groups; the min over a group) and never landed.
+
+| build | band [low, high] g | broke at | why |
+|---|---|---|---|
+| the Cub | [5.70, 5.99] | 6.01 (right strut fitting) | bench-certified: unchanged |
+| the Jodel | [5.70, 5.99] | 6.08 (left root fitting) | unchanged |
+| the metal Cessna | [5.70, 5.99] | 6.02 | unchanged |
+| the Cessna on floats | [5.70, 6.64] (was 5.99) | 6.59 (right strut fitting) | S1BR-WB certified by dropDriftR at 6.20 g, x 1.07, capped 7.08 |
+| the twin on floats | [5.70, 5.99] | 6.02 | unchanged |
+
+- **DMGCLUSTERS / DMGGEAR, the water nose-in at each floatplane's own V_S0** (V_S0, 0.2 V_S0 sink, 20 deg: nothing
+  breaks). The 90 km/h case is kept on the twin as a SEVERE row: its boom root goes first (2.6 x its FAR 23.527 load).
+  Commit 1aee0e72.
+- **DMGSKINGPU, a precision tolerance** (A0): a late tear past one GPU period is exempted when the CPU's margin was
+  within float32's reach.
+  - Capped at max(3, 1 %); every exempted triangle printed on every run; any exempted margin above 0.01 mm is red.
+  - Tonight's two: the Cub trunk-2.5, 1 triangle, 73 frames (1.22 s), 0.0041 mm; the Cessna floats, 1 triangle, 7
+    frames, 0.0043 mm.
+- **DMGDETERMINISM's parity run** flies the spec the library flies (JOIN-PARITY's loadValidated).
+- **DMGSCAR's page check** loads 00_registry before 34_scar (CORE_MATH).
+
+### THE USER'S RULINGS (8 Oct 16:55, through A0) - commit 99ef6ee35
+- **The porpoise, accepted by name.** "Accept the new thing, WYSIWYG always." With the nose engine at its drawn height
+  (G2365), the metal Cessna's nose gear collapses on the 4th bounce (6 m/s), not the 3rd (5 m/s). GATE DMGGEAR flies a
+  4th bounce (3 / 4 / 5 / 6 m/s).
+- **The physics step, +3.3 % with damage off, accepted by name** on the condition of a steady 30 on the reference
+  machines. "Deformation is a big deal, BeamNG has sold millions on this alone." FULL is the candidate; the TRIM
+  (claude/dmg-t41-trim) is retired.
+- **The raw-tools allowlist: yes, 19 named, shrink-only.** "Let's not have different ways to build things, it's
+  unmaintainable." GATE JOINPARITY's legacy door holds at most 19; an entry that is no longer raw must be struck off.
+- **TREECRASH's re-capture: not yet.** The user judges it from the master vs 41 screenshot sheets first. The re-capture
+  waits on claude/dmg-t41-treecrash e9cfed86c.
+
+### THE OPEN LIST (rows off a gate until their owner lands; numbers may only go down)
+| row | numbers | owner | opened |
+|---|---|---|---|
+| DMGGEAR: the twin on floats' crosswind water circuit | its aft spreader bar at 2.00 of its envelope | DMG-RECAL2 (closes in train 43) | 2026-10-07 |
+| DESTTO ltd:metal: leg 2 after landing on w3 | lands ~350 m long, cannot line up (12.7 m off, 184 m run) | the Pilot Coordinator, CESSNA-VREF G2500 | 2026-10-08 |
+| DMGDRIVE: the twin's full-power tip graze | 35 % of a blade lost, 23.8 kN; the mount holds, the left wing strut gives (before TUNE: the mount went in one step, 0.017 s) | Deform, G2398: the mount's time to fail under a rotating imbalance. Real cases (NTSB CHI07LA167 Seneca, AAIB 6/1994 Navajo, NTSB FTW98FA392 PA-20) tear the mount out over ~1-2 s, the engine hanging first; the strut is not the first to go | 2026-10-08 |
+| JOINPARITY: the legacy raw-tools list | 19 (shrink-only); GAME converts _parked_check, _roommerge_check, _shedshadow_check, prem_s2_page after 41 | Deform | 2026-10-08 |
+| WATERDAMP: the held rate against the substep | 125.8 vs 94.3 mm at 10-20 s (bound 2 mm), exposed once DMG-DAMP's honest damper stopped damping the rocking | WATER-LOOK | 2026-10-09 |
+| DMGMEMBERS: the Jodel's bench to destruction | a spruce member of the wing box breaks first (16.5 g), no group parts: the box shreds, never separates (damage on) | Deform, G2399 | 2026-10-10 |
+
+### KNOWN, NOT FIXED IN 41 (damage on only; the default game is unchanged)
+- **Stretched triangles in the still-merge after a crash** (WALL, 8 Oct, world space, the user's Cub). No sheets
+  remain: what is left past 2 m is long thin tube triangles (rest edge 0.5-2 m) from WALL's own skin buckets, barely
+  stretched.
+  | case | train 41 (measured on 7fe4efe05; carries to 49b2932ce, whose only change is the snapshot index copy) | master (bcf62797) |
+  |---|---|---|
+  | trunk-2.5 | 16 triangles past 2 m, worst 2.03 m | 636, worst 6.1 m |
+  | nose-in | 32, worst 2.20 m | 9,212, worst 152.6 m |
+  The earlier numbers (67 / 3.31 m and 674 / 5.78 m) were measured in each mesh's local frame.
+- **A lead for the next round (WALL, not proven): the wreck's drawn frame is sheared.** After a break-up, the flown
+  model's group matrix is oblique and shrunk on both trees: scale 0.40-0.56 and axis skew |cos| 0.90-0.97 (intact:
+  0.999 / 0.06). The riding skin compensates. Parts under the group that don't ride would be drawn sheared, and three's
+  normal matrix would skew their lighting. Possibly the dark cowl and the chrome strip.
+- **The staircase lift struts after an axle break** (WALL's lead: tubeLoose 42 / tubePieces 1).
+- **The mesh drawn after Fly again is the propeller's own blades** (D4b, 8 Oct). After a strike the seized prop shows its
+  blades. On Fly again the drawn spin eases up over 1.5 s, and the disc hides the blades only above 420 rpm (404 at the
+  census, 90 frames in). A transient by design. The gate row is reported, not failed; D4b makes it wait for the spin in
+  the next damage train. Master's staging breaks nothing there, so the path doesn't occur on master.
+- **The dark cowl in a wreck.** The intact cowl is 70-74 % yellow; the wreck's cowl is D4b's part.
+- **The physics step** vs master, damage off: +3.34 % (box, node, pooled paired medians). CORE_MATH +1.17 % (pure call
+  cost in node; buys page = node parity: Chromium 152 differs from fdlibm on 2.3 % of sin / cos and 9.8 % of pow
+  samples); DMG-DAMP G1885 +0.91 % (the rigid-body fit); ~1.3 % unattributed. ~0.19 ms per frame on the worker
+  thread (metal Cessna, 2 steps per frame). Accepted by name by the user (8 Oct).
+
+### PERFORMANCE NOTE - THE LOAD A/B (train 39's red)
+A COMPILE-up / UPLOAD-down pair between runs at different shader-cache states is not a regression. Train 39 vs 38, the
+gate's rig, warm profiles, ABBA:
+- garage 41.9 / 40.6 s (38) vs 42.9 / 40.7 s (39);
+- CORE 1.40 / 1.40 s vs 1.39 / 1.42 s;
+- the COMPILE / UPLOAD split follows the run's position in its profile.
+
+Before chasing a load red, compare the census's per-program sha1, then run a same-position ABBA.
+
+### SOURCES FOR G2398 (blade loss at power; the OPEN row's target)
+- NTSB CHI07LA167 (PA-34 Seneca): https://data.ntsb.gov/carol-repgen/api/Aviation/ReportMain/GenerateNewestReport/65977/pdf
+- AAIB 6/1994 (PA-31 Navajo G-BMGH): https://www.gov.uk/aaib-reports/6-1994-piper-pa-31-325-c-r-navajo-g-bmgh-7-june-1993
+- AAIB S2/2006 (Socata TB10 G-BNRA): https://assets.publishing.service.gov.uk/media/5422f984ed915d1371000747/S2-2006_G-BNRA.pdf
+- The other NTSB reports used, all via data.ntsb.gov carol-repgen ReportMain ids:
+  - FTW98FA392 (PA-20);
+  - CHI07LA173 (AT-301, tip only);
+  - CEN22LA250 (Beech 58 Baron, 4 blades);
+  - ANC17LA052 (Cessna A185);
+  - WPR09LA340 (Kitfox).
+  The report ids are 46582, 95998, 66095, 105266 and 74268; I didn't record which id is which report.
+- FAA SAIB NE-08-20: https://hartzellprop.com/FAA/NE-08-20.pdf; SAIB ANE-99-23: https://hartzellprop.com//FAA/SAIB_ANE-99-23.pdf
+- SKYbrary, Propeller blade separation: https://skybrary.aero/articles/propeller-blade-separation
+- ASN wikibase 30571 (PA-44 Seminole, Vero Beach 1999): https://aviation-safety.net/wikibase/30571
+The "within 1-2 s" comes from individual reports, not a published rule.
+
+### T41b - THE FIX ROUND AFTER THE RESET (10 Oct) AND THE MERGE WITH MASTER TRAIN 42
+- **The merge with master train 42** (26e04598b), 4e34fb2bf:
+  - 30_solver: 41's drivetrain and nose kept, master's engine drown flag (G2105) added;
+  - 32_hydro and 90_node_exports: export unions (no retired name back; the stale-core guard kept);
+  - the core-math census: 0 stray.
+  The floats' DMGCERTCOST reference was re-written: bit-equal to 41's (cut = uncut).
+- **The six physics reds, each attributed by bisection** (master@42 green on all):
+  - ENERGYBASE and WINGSPLIT <- DMG-MOUNTRIG G2361-G2364's four isolator-cup nodes, inserted at indices 33-36 (91 -> 95).
+    Mass and CG are unchanged; the wing binding is identical by node tag. **Re-blessed by the user's word.**
+  - OBSTACLE <- MOUNTRIG, damage OFF. The stock aeroplane no longer bounces 7.25 m/s back off a wall (master's rigid
+    nose); it stays at the wall and rolls along its face. **The row was re-derived by the user's word**: no rebound and no
+    push-through (1.11 m/s, bound 1.5); the along-face roll (2.41 m/s) is reported.
+  - DMGMEMBERS <- train 39 x BUNDLE-GREEN (the Jodel's bench). **On the OPEN list, G2399, by the user's word ('4 A').**
+  - DMGPLOUGH <- the merge: the gate's instrument (the twin's thrust on the nose frame) drowned under G2105. Fixed with
+    **params.drownOff**: an instrument's switch the core honours; no build or save sets it (like defDampMean).
+  - JOINPARITY <- master's four new raw tools. _accept_check, _accept_fly and _waterdamp_check now load through
+    tools/_load_build.js; _posehidden_check is on the page door. **For GAME and WATER-LOOK**: your tools fly the
+    joined spec now.
+- **ACCEPT (JOIN-PARITY's correction, agreed with GAME)**: the user's Cub as flown carries 27 L, its drawn tank. The row
+  asserted the file's 45 L, which the game never flies. GAME re-derives CONTRACT_DESIGNS etc. from the joined spec after
+  41.
+- **WATERDAMP (the user's word)**: the ditched Cub's settle bound is 12 s (11 s on the honest damper, 7 on master's fake
+  one); the held-rate pair is OPEN (WATER-LOOK).
+- **D4b's three rules (the user, 8 Oct), 1a5452f1**:
+  - the crew is hidden at a break-up or a crushed cabin and back at the heal;
+  - no certificate on any structural damage: sim.damage().structural { damaged, broken, separated, why },
+    worker-safe; GAME's career reads .damaged;
+  - after a crash no card in the middle of the screen (lower-left / lower-right; GATE DMGCRASHUI).
+- **POLES (G2388-G2392) is TEST ONLY**: the user prefers 41's crash look, so G2391 goes into no train. Rule: a chip the
+  user starts as a question produces evidence, not a merge.
+- **Known, not in this train**: the gates that load single core files without 00_registry now throw "CORE_MATH is not
+  defined" (SPLAT, PREMISES, PARKED, TOWNKIT, KITHOST, METKIT, LIFE). By the new pace rule they become owned fix tasks
+  from master's overnight battery. Also WEATHER (gelcoat), LIGHT (G1080), AUDIO, MEDIA, and the top bar's "BROKE UP:
+  BROKE UP:".
