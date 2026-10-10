@@ -197,4 +197,5 @@ if (SIM) {
 }
 
 console.log(`\nDESIGNCHECK: ${checks - fails}/${checks} ok` + (fails ? `, ${fails} FAIL` : ''));
+console.log(`GATE ${ONLY_SIM ? "DESIGNSIM" : "DESIGNCHECK"}: ${fails ? "FAIL" : "PASS"}`);   // the runner's verdict line
 process.exit(fails ? 1 : 0);

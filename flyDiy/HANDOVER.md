@@ -84230,3 +84230,21 @@ change (the flex), not a handling one.
 - cabin.seats 1 -> 2 on the mosquito through the headless join (a node/page difference, pre-existing on master):
   for JOIN-PARITY.
 - T41b (Deform) lands first: rebase, re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on that tip.
+
+### G2640 gates (10 Oct 22:30-22:51, the booked CPU window, jobs 4, on the merged tip with G2630)
+PASS: GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN, FLEX, LOAD, SIMWORKER, ACCEPT,
+DMGCERT, DMGMEMBERS; GEOPARITY 17/17 and DESIGNCHECK 24/24 (the battery first read them red: they did not print the
+runner's `GATE <ID>: PASS` line - fixed, both re-run green alone). DMGCERTCOST red on the Jodel's frame budget only
+(1792 -> 1796; the envelope equal to the uncut to the bit): the budget re-written as its own header asks, the Jodel
+1796 / the metal Cessna 1795 / the floats 1761, named in the file - re-run green.
+STILL RED - DMGCLUSTERS on the metal Cessna's new SHELL: "levered over an obstacle at its mid-span station" parts
+cleanly (10 members, its bay, 0 others) but the parted aft piece reads 12.4 mm against the gate's 10 mm rigidity:
+the split hands the aft piece the WHOLE tube's omega (30_solver clApply: C2.omega = C.omega), and a piece a third as
+long is (L / Laft)^1.5 stiffer as a cantilever. The Jodel's shell (omega 1265) passes the same case; the twin boom's
+aft piece (3 nodes) reads 0.2 mm. The fix is in the damage layer's split, which T41b (Deform) rewrites: handed to
+A0 / Deform; re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on the T41b tip before landing (43.1).
+SURFACE DETAIL (the user's question via A0, "no horn, no control surface, no leading edge"): fin strips' area = the
+drawn fin + rudder + keel exactly on all six builds (the floatplanes + their counted ventrals), the rudder / elevator
+chord fraction = the drawn one exactly, the arms within 1-7 cm (the Cessna pair's 0.17-0.21 m is its uncounted dorsal),
+aspect ratios within ~10 %; a horn balance is AREA ONLY - the model has no hinge moments (position-commanded controls).
+The blue truss in the overlay is the fin's STRUCTURE (two spars), the strips span the drawn chord.

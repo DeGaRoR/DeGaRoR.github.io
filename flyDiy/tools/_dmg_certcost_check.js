@@ -31,11 +31,14 @@ const BW_PATH = path.join(__dirname, '..', 'src', 'viewer', 'bench_worker.js');
 // node-time ceiling - the cloud box, each build alone in its process, measured 8.1 / 16.1 / 14.3 / 21.1 / 24.1 s (D2b's:
 // 13.5 / 25.1 / 22.0 / 38.8 / 43.5); the ceiling is about twice that, loose on purpose (the gate runs beside others):
 // the frames catch a lost cut, the ceiling a gross slowdown, neither a noisy machine
+// G2640 (DESIGN-TRUST): the stressed-skin boom on the shell cluster (61_gen_frame SHELL) moved three settles by a few
+// frames - the Jodel 1792 -> 1796, the metal Cessna 1797 -> 1795, the Cessna floats 1763 -> 1761 (their envelopes still
+// equal the uncut certificate's to the bit); the Cub (a truss) and the twin floatplane (a rod) unmoved
 const BUDGET = {
   cub:        { frames: 1809, s: 18 },
-  jodel:      { frames: 1792, s: 32 },
-  metal:      { frames: 1797, s: 30 },
-  floats:     { frames: 1763, s: 42 },
+  jodel:      { frames: 1796, s: 32 },
+  metal:      { frames: 1795, s: 30 },
+  floats:     { frames: 1761, s: 42 },
   twinFloats: { frames: 1791, s: 48 },
 };
 const TARGET_S = 5;

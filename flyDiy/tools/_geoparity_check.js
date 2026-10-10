@@ -134,4 +134,5 @@ if (!ONLY.length || ONLY.includes('selftest')) {
     { mutate: J => { J.tail.stabH = (J.tail.stabH || 0) + 0.15; } }), true);
 }
 console.log(`\nGEOPARITY: ${checks - fails}/${checks} ok` + (fails ? `, ${fails} FAIL` : ''));
+console.log(`GATE GEOPARITY: ${fails ? "FAIL" : "PASS"}`);   // the runner's verdict line
 process.exit(fails ? 1 : 0);
