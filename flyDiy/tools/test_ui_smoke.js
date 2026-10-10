@@ -408,6 +408,104 @@ sandbox.window.ASSET_FETCH = url => {
 vm.createContext(sandbox);
 
 const frames = n => { for (let i = 0; i < n && rafCb; i++) { const cb = rafCb; rafCb = null; cb(); } };
+// ---- G2690 HANGAR-STORAGE: THE PAGE'S STORAGE DOORS AND THE PANEL (both profiles) --------------------------------------
+// FLYDIY_STORE on this page (app.js): the view of `here`'s building, the ONE move written to the document (a refusal with
+// its reason), a Fly's start per kind; storage_ui.js run from its own source over a small DOM: opened from the shelf's
+// #gStore, a card TAPPED then a column tapped (the phone's way) moves it, a card DROPPED on a slot moves it there, Fly asks
+// first; on the phone (no world) Fly is refused with its reason and the button is off; on the desktop the confirmed Fly
+// rolls out through the garage's own roll-out - inside -> the lined-up start, no door shot.
+function storageChecks() {
+  const W = sandbox.window, PL = W.FLYDIY_PLAYER, S = W.FLYDIY_STORE;
+  if (!S || ['view', 'move', 'fly', 'flyStart', 'card', 'workOn', 'where'].some(k => typeof S[k] !== 'function')) throw new Error('FLYDIY_STORE is missing its doors (G2690)');
+  const d0 = PL.doc();
+  const doc = JSON.parse(JSON.stringify(d0));
+  const foot = { half: 5.4, fwd: 1.3, aft: 5.5, h: 2.0 };
+  doc.fleet = { Cub: { hangar: null, aero: 'HOME', kind: 'outside', slot: 0, foot }, Jodel: { hangar: 'HOME', aero: 'HOME', kind: 'long', foot },
+                Twin: { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: 0, foot } };
+  PL.set(doc);
+  const v = S.view();
+  if (!v || v.hangar !== 'HOME' || v.inside.N !== 2 || v.inside.slots[0] !== 'Twin' || v.outside.slots[0] !== 'Cub' || v.long.join() !== 'Jodel')
+    throw new Error('the storage view of HOME: ' + JSON.stringify(v));
+  const r0 = S.move('Jodel', { kind: 'inside', slot: 0 });
+  if (r0.ok || !/taken/.test(r0.why)) throw new Error('a move onto a taken inside slot was not refused with its reason: ' + JSON.stringify(r0));
+  if (S.flyStart('Twin').start !== 'lineup' || S.flyStart('Cub').start !== 'stand' || S.flyStart('Jodel').ok) throw new Error('the Fly starts per kind: ' + ['Twin', 'Cub', 'Jodel'].map(n => JSON.stringify(S.flyStart(n))).join(' '));
+  // THE PANEL over a small DOM
+  const all = [];
+  const cls = e => ({ add: (...c) => { for (const x of c) if (!cls.has(e, x)) e.className = (e.className + ' ' + x).trim(); }, remove: (...c) => { e.className = e.className.split(/\s+/).filter(x => !c.includes(x)).join(' '); },
+    contains: x => cls.has(e, x), toggle: (x, on) => { if (on === undefined ? !cls.has(e, x) : on) e.classList.add(x); else e.classList.remove(x); } });
+  cls.has = (e, x) => (' ' + e.className + ' ').includes(' ' + x + ' ');
+  const match = (e, sel) => sel[0] === '#' ? e.id === sel.slice(1) : sel[0] === '.' ? cls.has(e, sel.slice(1)) : e.tagName === sel.toUpperCase();
+  const mk = tag => {
+    const e = { tagName: String(tag).toUpperCase(), id: '', children: [], parentNode: null, className: '', dataset: {}, style: {}, attrs: {}, on: {}, hidden: false, disabled: false, title: '', type: '', tabIndex: 0, _t: '',
+      get textContent() { return this._t + this.children.map(c => c.textContent).join(''); }, set textContent(x) { this._t = String(x); this.children = []; },
+      set innerHTML(x) { this.children = []; this._t = ''; }, get innerHTML() { return ''; },
+      setAttribute(k, v2) { this.attrs[k] = v2; }, getAttribute(k) { return this.attrs[k]; },
+      addEventListener(k, f) { (this.on[k] || (this.on[k] = [])).push(f); },
+      appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+      querySelectorAll(sel) { const out = []; const w = n => { for (const c of n.children) { if (match(c, sel)) out.push(c); w(c); } }; w(this); return out; },
+      querySelector(sel) { return this.querySelectorAll(sel)[0] || null; },
+      closest(sel) { let n = this; while (n) { if (match(n, sel)) return n; n = n.parentNode; } return null; },
+      getContext: () => null, fire(k, ev) { const E = Object.assign({ target: this, preventDefault() {}, stopPropagation() { E.stopped = true; } }, ev || {}); let n = this; while (n && !E.stopped) { for (const f of (n.on[k] || [])) f(E); n = n.parentNode; } return E; } };
+    e.classList = cls(e); all.push(e); return e;
+  };
+  const body = mk('body'), head = mk('head');
+  const shelfBtn = mk('button'); shelfBtn.id = 'gStore'; body.appendChild(shelfBtn);
+  const doc2 = { readyState: 'complete', body, head, createElement: mk, createTextNode: t => { const n = mk('#text'); n._t = String(t); return n; },
+                 getElementById: id => body.querySelectorAll('#' + id)[0] || null, addEventListener() {} };
+  const ctx = { window: W, document: doc2, getComputedStyle: () => ({ getPropertyValue: () => '' }), confirm: () => true, console };
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'storage_ui.js'), 'utf8'), ctx, { filename: 'storage_ui.js' });
+  if (!W.STORAGE_UI) throw new Error('storage_ui.js published no STORAGE_UI');
+  shelfBtn.fire('click');
+  const root = body.querySelector('#hsStore');
+  if (!root || root.hidden) throw new Error('#gStore did not open the storage panel');
+  const cardOf = n => root.querySelectorAll('.hsCard').find(c => c.dataset.name === n);
+  const colOf = k => root.querySelectorAll('.hsCol').find(c => c.dataset.col === k);
+  const heads = root.querySelectorAll('.hsColH').map(h => h.textContent).join(' | ');
+  if (!/inside1\/2/.test(heads.replace(/\s/g, '')) || !/outside1\/6/.test(heads.replace(/\s/g, '')) || !/long-term1/.test(heads.replace(/\s/g, '')))
+    throw new Error('the panel\'s columns: ' + heads);
+  // the phone's way: tap the card, then the column
+  cardOf('Cub').fire('click');
+  colOf('long').fire('click');
+  if (S.where('Cub').kind !== 'long') throw new Error('tap a card, then a column: the Cub is ' + JSON.stringify(S.where('Cub')));
+  // drag and drop onto a numbered slot
+  const slot1 = root.querySelectorAll('.hsSlot').find(e => e.dataset.slot === '1' && e.parentNode && e.parentNode.dataset.col === 'inside');
+  slot1.fire('drop', { dataTransfer: { getData: () => 'Jodel' } });
+  if (S.where('Jodel').kind !== 'inside' || S.where('Jodel').slot !== 1) throw new Error('a drop on inside slot 2: the Jodel is ' + JSON.stringify(S.where('Jodel')));
+  const msg = root.querySelector('.hsMsg').textContent;
+  // a long-term card has no Fly; a shown one asks first
+  if (cardOf('Cub').querySelector('.hsFly')) throw new Error('a long-term card offers Fly');
+  const fb = cardOf('Twin').querySelector('.hsFly');
+  if (!fb) throw new Error('an inside card offers no Fly');
+  const flown = [];
+  const keepFly = S.fly;
+  if (PHONE) {
+    if (!fb.disabled || S.canFly() || S.fly('Twin').ok) throw new Error('the phone garage offers Fly (no world to fly in)');
+    PL.set(d0);
+    console.log('STORAGE (phone): the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly off');
+    return;
+  }
+  // the desktop: the confirmed Fly rolls out through the garage's own roll-out, lined up (no door shot)
+  let onStand = null;
+  const keepG = W.GARAGE_SPEC;
+  W.GARAGE_SPEC = Object.assign({}, keepG || {}, { name: () => onStand, open: n => { onStand = n; } });
+  try {
+    handlers['selAc']({ target: { value: 'gen' } });
+    fb.fire('click');
+    const ask = root.querySelector('.hsAsk');
+    if (!ask || ask.hidden || !/lined up/.test(ask.textContent)) throw new Error('Fly did not ask first, saying where it starts: ' + (ask && ask.textContent));
+    S.fly = n => { flown.push(n); return keepFly(n); };
+    root.querySelector('.hsGo').fire('click');
+    frames(10);
+    const st = S.start();
+    if (flown.join() !== 'Twin' || !st || st.start !== 'lineup' || onStand !== 'Twin' || sandbox.garageApi.inGarage())
+      throw new Error('the confirmed Fly: flown ' + flown.join() + ', start ' + JSON.stringify(st) + ', on the stand ' + onStand + ', in the garage ' + sandbox.garageApi.inGarage());
+    if (S.where('Twin').kind !== 'inside') throw new Error('flying from inside moved the Twin in the document: ' + JSON.stringify(S.where('Twin')));
+    const trip = (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').pop();
+    if (trip && trip.anim && !/away|none|cannot/.test(trip.anim)) throw new Error('an inside Fly played the door shot: ' + trip.anim);
+  } finally { S.fly = keepFly; W.GARAGE_SPEC = keepG; handlers['selAc']({ target: { value: 'gen' } }); PL.set(d0); }
+  console.log('STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly asked, then rolled out lined up (' + (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').map(t => t.anim).pop() || 'no roll-out screen in this harness') + ')');
+}
 // ---- G2104: THE PHONE PROFILE'S OWN CHECKS (UISMOKE-PHONE) -------------------------------------------------------------
 // The boot above ran the garage alone; here: nothing of the world or the flight was made, the roll-out is refused, the
 // picture is the lightest preset, and phone.css is the phone's alone, selector by selector (the desktop's pixels cannot
@@ -537,7 +635,7 @@ try {
   // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
-  if (PHONE) { phoneChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
+  if (PHONE) { phoneChecks(); storageChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
   // attention - a gentle pulsing animation (prefers-reduced-motion: a static highlight instead). No pulse while
@@ -763,6 +861,7 @@ try {
     console.log(`PREM-S2: the sandbox's base line "${rowR.labels[0]}"; two hangars -> a select (${rowG.options.join(', ')}), picking moves the garage; ` +
       `the popup: ${badge(rows.Cub)} / out at ${other.id} (greyed) / away -> brought home (${pt2.text}); "fly from there?" moved the garage to ${other.id}`);
   }
+  storageChecks();   // G2690 HANGAR-STORAGE
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the

@@ -250,7 +250,7 @@ module.exports = function mapSmoke(html, phone) {
   {
     const edCss = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
     const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink', 'acc-soft', 'hair', 'border', 'btn-bg', 'btn-bd', 'track', 'off', 'warn', 'bad'];
-    const blk = /:is\(#wsUI, #edView, #mapScreen\) \{([^}]*)\}/.exec(edCss);
+    const blk = /:is\(#wsUI, #edView, #mapScreen(?:, #\w+)*\) \{([^}]*)\}/.exec(edCss);   // (G2690: + #hsStore, the storage panel)
     need(blk && TOK.every(t => new RegExp('--ed-' + t + ':').test(blk[1])), 'editor.css\'s workshop token block does not declare the --ed-* tokens on #mapScreen');
     const code = menuSrc.replace(/\/\*[\s\S]*?\*\//g, '');
     const old = code.match(/(?<!sans-)serif|italic|oblique|IM Fell|Georgia|Times New Roman/gi) || [];

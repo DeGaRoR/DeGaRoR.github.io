@@ -629,6 +629,12 @@ const GATES = [
   // order-free), the fleet lift refuses nothing, moving is flying, every
   // refusal leaves the document as it came; 16 doctored rules. ~2 s
   { id: 'GAMEPREM', file: '_gameprem_check.js', tier: 'core' },
+  // HANGAR-STORAGE (G2690, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md): every building's slots from its shell (club
+  // 2 / works 4 / field 0 inside; the apron to the cooked spots, max 6), the ONE move (floor / inside / outside / long,
+  // free; a full target refused with its reason), the PLAYER_V 3 migration both ways (nothing lost), long-term never
+  // drawn (fleet_stand.js run; the residents), a Fly from each kind resolved to its start (lined up / the stand / the
+  // door) through the existing roll-out, the storage panel in the garage's look; --selftest 13 breaks. ~5 s
+  { id: 'STORAGE', file: '_storage_check.js', tier: 'core' },
   // ACCEPT (G2274, GAME-2026-10-06 §6.2): a build's acceptance - the static checks (no simulation: the phone's),
   // the flown leg (a 5-min stabilised cruise on the AP box, TAS calm-air, the flow, the endurance and range) on the
   // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the

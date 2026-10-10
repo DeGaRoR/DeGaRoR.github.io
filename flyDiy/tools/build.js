@@ -523,7 +523,7 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'garage.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and

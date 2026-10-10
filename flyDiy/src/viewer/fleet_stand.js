@@ -36,10 +36,32 @@
   const capNow = () => (W.PARKED && typeof W.PARKED.fleetCap === 'function' ? W.PARKED.fleetCap() : 6);
 
   // THE ROWS (pure): the airframes tied down outside at an aerodrome, by slot name - the one flown among them (it keeps
-  // its spot, left empty while it flies: rolling one out never moves the others)
+  // its spot, left empty while it flies: rolling one out never moves the others). G2690 (HANGAR-STORAGE): an apron row
+  // carries its slot (`at`: the spot it stands on, the player's storage choice); a long-term row is IN its building
+  // (hangar set) and never a row here - never drawn
   function rows(doc) {
     const F = (doc && doc.fleet) || {};
-    return Object.keys(F).sort().filter(n => F[n] && !F[n].hangar && F[n].aero).map(n => ({ slot: n, aero: F[n].aero }));
+    return Object.keys(F).sort().filter(n => F[n] && !F[n].hangar && F[n].aero && F[n].kind !== 'long')
+      .map(n => ({ slot: n, aero: F[n].aero, at: F[n].kind === 'outside' && Number.isInteger(F[n].slot) ? F[n].slot : null }));
+  }
+  // G2690: each aerodrome's rows on its spots - an apron slot k on spot k, the rest (away, unslotted) on the lowest spots
+  // left, by name; -> [{ r, i }] in spot order (the order the cap counts), i null when the spots ran out
+  function deal(R, A) {
+    const by = {}, out = [];
+    for (const r of R) (by[r.aero] || (by[r.aero] = [])).push(r);
+    for (const aero of Object.keys(by).sort()) {
+      const L = (A && A[aero]) || [], used = new Set(), got = [];
+      for (const r of by[aero]) if (r.at != null && r.at < L.length && !used.has(r.at)) { used.add(r.at); got.push({ r, i: r.at }); }
+      let k = 0;
+      for (const r of by[aero]) {
+        if (got.some(g => g.r === r)) continue;
+        while (used.has(k)) k++;
+        if (k < L.length) { used.add(k); got.push({ r, i: k }); } else got.push({ r, i: null });
+      }
+      got.sort((a, b) => (a.i == null ? 1e9 : a.i) - (b.i == null ? 1e9 : b.i) || (a.r.slot < b.r.slot ? -1 : 1));
+      for (const g of got) out.push(g);
+    }
+    return out;
   }
   // THE PLAN (pure): every outside row on its aerodrome's next spot (the flown one's spot kept, empty). THE DRAWN SET: the
   // rows at `from` (every aerodrome when from is null), the first `cap` of them by slot name - the flown one among them
@@ -47,14 +69,13 @@
   // airframe on the stand: at most `cap`, whatever is flown) - and of the stood at most `limit` (?fleetn)
   // -> { stand: [{ slot, key, aero, x, z, ry, spot }], held: [{ slot, aero, why }], miss: [{ slot, aero, why }] }
   function plan(doc, flown, pack, island, limit, from, cap) {
-    const stand = [], held = [], miss = [], used = {};
+    const stand = [], held = [], miss = [];
     const A = pack && island && pack.island === island ? pack.aero : null;
     const C = cap != null ? cap : Infinity;
     let n = 0;
-    for (const r of rows(doc)) {
-      const L = A && A[r.aero], i = used[r.aero] || 0;
-      if (!L || i >= L.length) { if (r.slot !== flown) miss.push({ slot: r.slot, aero: r.aero, why: !A ? 'no spots for this world' : !L || !L.length ? 'no spots at ' + r.aero : 'every spot at ' + r.aero + ' taken' }); continue; }
-      used[r.aero] = i + 1;
+    for (const { r, i } of deal(rows(doc), A)) {
+      const L = A && A[r.aero];
+      if (!L || i == null) { if (r.slot !== flown) miss.push({ slot: r.slot, aero: r.aero, why: !A ? 'no spots for this world' : !L || !L.length ? 'no spots at ' + r.aero : 'every spot at ' + r.aero + ' taken' }); continue; }
       if (from && r.aero !== from) { if (r.slot !== flown) held.push({ slot: r.slot, aero: r.aero, why: "not the roll-out's aerodrome" }); continue; }
       if (n >= C) { if (r.slot !== flown) held.push({ slot: r.slot, aero: r.aero, why: 'past the draw cap' }); continue; }
       n++;
