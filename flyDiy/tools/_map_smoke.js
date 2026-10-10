@@ -319,6 +319,31 @@ module.exports = function mapSmoke(html, phone) {
   doc2.career.providers.clients.rep = 5;
   need(!C.careerMapRecord(doc2, null, {}).contracts.some(c => c.id === 'clients.05'), 'the aerobatic box (+6 g, past the certificate) reached the map');
   say('the real fleet: the Cub judged by its certificate\'s gear, a kit not read yet left out; both drawn where they stand; the aerobatic box held out');
+  // ---- G2665 (NIGHT-OPS): THE JOB LINE'S TIME OF DAY - a night job's paragraph states its window, each runway lit or
+  // unlit and the moon at the window's hour (75_ careerNightLine); an unlit strip at night is never a ✗ (the mark is
+  // surface vs gear only: a water job at night is ✓ for a fleet on floats) ----
+  {
+    let nN = 0, nWet = 0, sample = '';
+    for (let k = 0; k < 60 && (nN < 6 || !nWet); k++) {
+      const dk = C.careerNew({ id: 'dev', seed: 'night' + k });
+      const MN = MM.mapAdapt(C.careerMapRecord(dk, null, {}), pack, null, C.CONTRACT_DESIGNS);
+      for (const c of MN.contracts.filter(x => x.night && x.night.night)) {
+        nN++;
+        const h = MM.paraHTML(MN, c), rec = C.careerContract(dk, c.id), L = C.careerNightLine(dk, rec);
+        need(h.includes('class="mmRw mmNight"') && h.includes(L.line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')), c.id + ': the paragraph does not carry the night line (' + L.line + ')');
+        need(L.stops.every(x => L.line.includes(x.name + (x.lit ? ' lit' : ' unlit'))) && /(full|gibbous|half|crescent) moon, (up|down)|no moon|overcast/.test(L.line), c.id + ': the night line lacks lit / unlit or the moon: ' + L.line);
+        sample = sample || L.line;
+        if (L.stops.some(x => !x.lit)) {
+          const dw = JSON.parse(JSON.stringify(dk)); dw.fleet = { Floats: { aero: 'SEA' } }; dw.career.airframes = { Floats: { design: 'c172f' } };
+          const MW = MM.mapAdapt(C.careerMapRecord(dw, null, {}), pack, null, C.CONTRACT_DESIGNS), cw = MW.contracts.find(x => x.id === c.id);
+          const allWet = MM.subsAll(cw).every(u => [u.from, u.do === 'survey' ? null : u.to].every(id => !id || (MW.aeros[id] && MW.aeros[id].surface.cls === 'water')));
+          if (allWet) { nWet++; need(MM.markOf(MW, cw).mark === '✓', c.id + ': an unlit water lane at night made a ✗ (' + MM.markOf(MW, cw).why + ')'); }
+        }
+      }
+    }
+    need(nN >= 6, 'the night work: only ' + nN + ' night jobs on 60 new careers\' maps');
+    say('the night line (G2665): ' + nN + ' night jobs on new careers\' maps, each paragraph states its window, every runway lit / unlit and the moon ("' + sample + '"); ' + nWet + ' unlit water jobs at night ✓ for a fleet on floats (never a ✗)');
+  }
 
   // ---- G2440 (MAP-MERGE): THE THREE OTHER LISTS, the contracts' way - a row (an icon, the title, ONE number), ONE
   // paragraph when opened, at most two buttons; no card, no table; each list's markers on the map; a marker's tap filters ----

@@ -97,6 +97,11 @@ var DAY_UI = (function () {
                  'on the ground you can wait it out.');
     const gate = () => { if (CK.canWait && !CK.canWait()) { H.note(host, 'Wait on the ground: in the hangar or on the stand.'); return false; } return true; };
     const go = t => { const r = CK.wait(t); if (r && !r.ok && H.note) H.note(host, r.why); refresh(); };
+    // G2665 (NIGHT-OPS): "until the window opens" - the tracked job's time-of-day window, when it is closed now (the
+    // page's door: app.js clockJobWait, 75_ careerWaitWindow)
+    let jw = null;
+    try { jw = typeof window !== 'undefined' && window.FLYDIY_CLOCK && window.FLYDIY_CLOCK.jobWait ? window.FLYDIY_CLOCK.jobWait() : null; } catch (e) { jw = null; }
+    if (jw) H.pills(host, [{ label: 'the job\'s window', value: 'job', title: 'Wait until the tracked job\'s window opens (' + jw.words + ')' }], () => false, () => { if (gate()) go(jw.target); });
     H.pills(host, PRESETS.map(p => { const r = CK.waitPreview(p.k); return { label: p.label, value: p.k, title: 'Wait until ' + p.title.toLowerCase() + (r ? ' (' + hhmm((CK.localHours() + r.waitS / 3600) % 24) + ', in ' + (r.waitS / 3600).toFixed(1) + ' h)' : '') }; }),
       () => false, o => { if (gate()) go(o.value); });
     if (H.field && typeof document !== 'undefined') {
