@@ -696,6 +696,9 @@ const COWL_PROPS = {
 // aeroplane and is a number nobody types, so GATE COWL measures it on a mesh
 // it builds itself rather than trusting the comment above it.
 window.CAGE_COWL_NOSE_FACE = noseFace;
+// G2860: the styles, read by the COWL FIT (_cowl_fit.js) — a radial or a turbine keeps its
+// shape rows there, the fit owning the size, the firewall section and the length
+window.CAGE_COWL_BY_ARCH = COWL_BY_ARCH;
 window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
   const base = COWL_BY_ARCH[arch];
   if (!base || !env || !face || !(env.radius > 0)) return null;
@@ -794,7 +797,11 @@ window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
 function cowlForEngine(P, face, stat) {
   let hit = cowlArchStarter(P);
   const birth = fitNext;
-  if (!hit && fitNext) {
+  // G2860: A CARD BORN THROUGH THE COWL FIT (designBake -> _cowl_fit.js) is
+  // born `free` with its rows already fitted to this engine and this nose;
+  // the styled door would re-size it over the fit, so it stands down. A
+  // birth in any other mode keeps the door exactly as it was.
+  if (!hit && fitNext && Math.round(P.fitNose) !== 0) {
     const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
     try {
       const spec = specOf && +P.engOn ? specOf(P) : null;
@@ -826,10 +833,29 @@ function sectionFromFace(face) {
   return out;
 }
 
+// THE "FIT COWL" BUTTON'S DOOR (G2860): the user's fitting procedure
+// (_cowl_fit.js) on the aeroplane as it stands — the sheet this layer last
+// built, the engine the panel names — written into the panel's rows. The
+// caller rebuilds (the editor's own rebuild after a row change). Returns the
+// fit's report (notes: what it grew, whether the engine is enclosed), or
+// null when there is no cowl or no engine face. The menu row is EDITOR-UX's.
+let LAST_MESH = null;
+window.CAGE_COWL_FIT = P => {
+  const CF = window.COWL_FIT;
+  if (!CF || !P || !+P.cowlOn) return null;
+  const r = CF.cowlFit(P, LAST_MESH ? { mesh: LAST_MESH } : undefined);
+  if (!r) return null;
+  Object.assign(P, r.vals);
+  const UI = window.CAGE_UI;
+  if (UI && UI.syncSliders) UI.syncSliders();
+  return r.report;
+};
+
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
+  LAST_MESH = mesh;
   dispose(group); group = null;
   if (!P.cowlOn) return;
 

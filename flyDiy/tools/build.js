@@ -581,6 +581,9 @@ const MANIFEST = {
     '_rod_fit.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
+    // THE COWL FIT (G2860): the user's fitting procedure, pure — reads the cowl layer's
+    // face reader, the engine layer's spec dict and the engine mesh at call time, so after both
+    '_cowl_fit.js',
     '_strut_gen.js', '_boom_gen.js', '_cage_wing.js',
     // THE BRACE LAYER (G185): the cabane, interplane struts and wires — reads
     // the wing layer's def and ray, so after the wing; changes nothing the

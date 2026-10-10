@@ -2406,11 +2406,60 @@ function designBake(sel, over) {
   // card's own wing. A twin-boom card keeps its drawn size (the headless
   // build cannot root its fin on the booms and says so).
   const seed = (over && over.stock) ? null : designTailSeed(full, out);
-  if (seed) {
-    Object.assign(full, seed);
-    out.cage = C2.cageToSpec(full);
+  if (seed) Object.assign(full, seed);
+  // THE COWL FIT (G2860, COWL-FIT): the user's own fitting procedure run once
+  // at birth (_cowl_fit.js) — the section at the firewall off the fuselage,
+  // the length to the spinner, the bowl on the thrustline, the barrel over
+  // the engine, cheeks over the heads. Its rows go on the drawing and its
+  // nose section on the flown cowl (spec.cowl: the drag build-up's and the
+  // outfit's), so what flies is what is drawn. A STOCK card is an authored
+  // build (the user's Cub, Jodel, 172, Chinook) and is never refitted.
+  const cf = (over && over.stock) ? null : designCowlFit(full);
+  if (cf) {
+    Object.assign(full, cf.vals);
+    designMerge(out, { cowl: cf.physics });
+    if (cf.report.check && !cf.report.check.outside) designCowlCovers(out);
   }
+  if (seed || cf) out.cage = C2.cageToSpec(full);
   return out;
+}
+
+function designCowlFit(full) {
+  if (!+full.cowlOn || !+full.engOn) return null;
+  const CF = W.COWL_FIT || ((typeof require === 'function') ? require('./_cowl_fit.js') : null);
+  if (!CF) return null;
+  // a birth never fails on its cowl: no fit is the card's own cowl, as before
+  try { return CF.cowlFit(full); } catch (e) { return null; }
+}
+
+// THE FLOWN COWL COVERS WHAT THE DRAWN ONE COVERS (G2860). The flight model's
+// engine is one block for every architecture (60_gen_spec 4b: a boxer's
+// cylinders reaching `cylReach` either side, scaled off the mass), so a cowl
+// drawn round a narrow in-line can enclose its real engine and still read
+// "cylinders out" to the drag build-up — the bare-cylinder drag of metal that
+// is not there. When the fit ENCLOSED the drawn engine, the flown section is
+// widened (or deepened) just enough that the model's own verdict agrees,
+// measured through resolveSpec's own section function (cowl.secAt at the
+// verdict's stations), four fixed passes.
+function designCowlCovers(out) {
+  const RS = (typeof resolveSpec === 'function') ? resolveSpec
+           : ((typeof require === 'function') ? require('./flight_core.js').resolveSpec : null);
+  if (!RS || !out.cowl) return;
+  for (let pass = 0; pass < 4; pass++) {
+    let S;
+    try { S = RS(JSON.parse(JSON.stringify(out))).spec; } catch (e) { return; }
+    const cw = S.cowl, E = S.engBox;
+    if (!cw || !cw.covers || !E || !cw.secAt) return;
+    if (cw.covers.sides && cw.covers.above && cw.covers.below) return;
+    const sCyl = cw.secAt(cw.tAt(S.engX + 0.01 * E.k)), sCase = cw.secAt(cw.tAt(E.xF));
+    const r3 = v => Math.ceil(v * 1000 - 1e-9) / 1000;
+    if (!cw.covers.sides)
+      out.cowl.halfW = r3(out.cowl.halfW + (E.cylReach - sCyl.halfW) / Math.max(0.3, sCyl.t) + 0.001);
+    if (!cw.covers.above)
+      out.cowl.top = r3(out.cowl.top + (S.engY + E.halfH - sCase.yHi) / Math.max(0.3, sCase.t) + 0.001);
+    if (!cw.covers.below)
+      out.cowl.bot = r3(out.cowl.bot + (sCase.yLo - (S.engY - E.halfH)) / Math.max(0.3, sCase.t) + 0.001);
+  }
 }
 
 function designTailSeed(full, spec0) {

@@ -393,6 +393,9 @@ const GATES = [
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
+  // G2860 (COWL-FIT): the user's fitting procedure on every card — encloses the engine, meets the firewall,
+  // baked, the flown cowl agrees, the stock cards untouched, the birth door stands down (~15 s)
+  { id: 'COWLFIT', file: '_cowlfit_check.js', tier: 'core' },
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
   // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
