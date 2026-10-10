@@ -1186,6 +1186,32 @@ const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's def
 const RWY_TREES = ['today', 'map', 'mapx'];
 const PAVE_SIDE = 1.8;    // a side-faded pavement's DRAWN side: the recipe's sideW 1.2 + edgeChip 0.6 (GATE PAVEMENT holds it)
 const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge's reach, 3.05 x edgeSoft 2.6 (GATE PAVEMENT holds it)
+// THE GRASS BESIDE AND ON THE RUNWAYS (GRASS-DENSE G2565; the user, 8 Oct: "I want grass on the runway sides if the material says
+// it does. And short grass on the grass runway"). coverAt's full query (the tufts' - never the `pave` half the rocks, the debris
+// and the trees read, so nothing but the grass moves) answers by one of two LAWS:
+//   'today' - as it was: kill 1 on the pavement and its whole band, the 6 m fade, the verge's bump; a grass strip's surface bare
+//             (G665), a grass road / polygon thinned to 40 %;
+//   'sides' - the grass follows what is DRAWN beside an aerodrome's pavement (a strip, a paved polygon, a taxiway): bare on the
+//             pavement and its drawn side (`sideClear` m past a paved edge - PAVE_SIDE, the faded side G660 draws - and
+//             `softClear` past a soft one, whose torn edge is where the grass creeps in), then CUT grass across the band and a
+//             mown band `mowBand` m past it, blending to the biome's wild grass over `mowBlend` m, the verge's bump past that;
+//             a grass STRIP's surface carries cut grass (`stripGrass` 1; 0 = bare, G665). An ordinary road keeps today's band
+//             and fade, then `roadMow` m of mown verge. The answer gains `cut` (0..1: how mown the grass is here) and `surf`
+//             (1 on a grass strip's running surface) - the heights are the viewer's (cover_ring.js: the cut grass's length).
+// Live dials (the editor's PREMISES > grass rows; the world look saves them): PREMISES_GEN.grassSides(o) sets, () reads.
+// `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
+// shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
+// G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
+const GRASS_SIDES_DEF = { law: 'today', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
+function grassSides(o) {
+  if (o && typeof o === 'object') for (const k in o) {
+    if (!(k in GRASS_SIDES_DEF)) continue;
+    if (k === 'law') { if (o.law === 'today' || o.law === 'sides') GRASS_SIDES.law = o.law; }
+    else if (isFinite(+o[k]) && o[k] !== null && o[k] !== '') GRASS_SIDES[k] = Math.max(0, +o[k]);
+  }
+  return Object.assign({}, GRASS_SIDES);
+}
 function rwyTreesMode(o) {
   let v = o && o.rwyTrees;
   if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
@@ -2561,6 +2587,7 @@ function compose(rec0, world, opts) {
   function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
+    if (!pave && GRASS_SIDES.law === 'sides') return coverSides(lx, lz, cell);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
@@ -2579,13 +2606,49 @@ function compose(rec0, world, opts) {
       if (d > best) { best = d; cls = it.cls; }
     }
     if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
+    return withPlot(lx, lz, kill, boost, cls, 0, 0);
+  }
+  // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
+  // only the pavement and the band kill)
+  function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
-    // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
-    // a plot's lawn is mown to the road's band: no fade thins it, only the pavement and the band kill
     if (kind === 'lawn' && kill < 1) kill = 0;
-    if (!kill && !boost && !kind) return null;
-    return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+    if (!kill && !boost && !kind && !cut) return null;
+    const o = { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+    if (GRASS_SIDES.law === 'sides') { o.cut = cut; o.surf = surf; }
+    return o;
+  }
+  // THE 'sides' LAW (GRASS_SIDES above): what is drawn beside an aerodrome's pavement decides - bare on it and its drawn side,
+  // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
+  function coverSides(lx, lz, cell) {
+    const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz), out = -d;
+      const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
+      const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
+      const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
+      if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE) continue;
+      if (d > best) { best = d; cls = it.cls; }
+      let k = 0, c = 0;
+      if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
+        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; } else k = 1; } else { k = 0.6; c = 1; } }
+        else k = 1;
+        if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
+      } else if (aero) {
+        if (out <= (it.soft ? G.softClear : G.sideClear)) k = 1;
+        else c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+      } else {   // an ordinary road: today's band and fade, then its mown verge
+        k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
+        if (it.cls === 'grass') k *= 0.6;
+        if (out > it.band) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+      }
+      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * Math.sin(Math.PI * (out - v0) / VERGE));
+      if (k > kill) kill = k;
+      if (c > cut) cut = c;
+    }
+    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
@@ -3136,7 +3199,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
