@@ -194,6 +194,40 @@ const rollOut = async () => {
   if (STEPS.includes('perf')) try {
     log.notes.push({ garage: await sample(240) });
   } catch (e) { console.log('STEP perf FAILED ' + (e && e.message)); }
+  // A0's proof round (Sun 07:36): the scratches still there at higher wear (just not in columns), the decal on a rudder
+  // held hard over, a held-camera pair while the aeroplane moves - live shader throughout
+  if (STEPS.includes('proof')) try {
+    await rollOut(); didFlight = true;
+    await hideUi();
+    await run(`FLIGHT_PROBE.camMode('orbit'); FLOWN_BAKE.FB.hyForce = 1; window.__m0 = JSON.stringify(AEROWX.AERO_WX.macro); return 1;`);
+    const key = (code, down) => run(`window.dispatchEvent(new KeyboardEvent('${down ? 'keydown' : 'keyup'}', { code: '${code}', bubbles: true })); return 1;`);
+    // the held-camera pair first, unpaused: the pilot taxis, the frame flexes, the camera rides the CG
+    for (let i = 0; i < 3; i++) { await view('p_held_' + i, 2.9, 0.22, 3.2); await sleep(600); }
+    // the wear series, held (the same frame on both trees)
+    await run(`if (!window.FLYDIY_HELD) document.getElementById('bPause').click(); return 1;`); await frames(4);
+    for (const age of [0.5, 1.0]) {
+      await run(`aeroWxSetMacro(null, { age: ${age}, flight: 0.15, bush: 0, rain: 0 }); return 1;`); await frames(3);
+      await view('p_wear' + age + '_flank', 2.9, 0.22, 3.2);
+      await view('p_wear' + age + '_cowl', 0.2, 0.22, 3.4);
+    }
+    await run(`aeroWxPin(null, 'scratch', 1); return 1;`); await frames(3);
+    await view('p_scratch1_flank', 2.9, 0.22, 3.2);
+    await view('p_scratch1_cowl', 0.2, 0.22, 3.4);
+    await run(`aeroWxPin(null, 'scratch', null); aeroWxSetMacro(null, JSON.parse(window.__m0)); document.getElementById('bPause').click(); return 1;`); await frames(4);
+    // the rudder held hard over, both ways, on manual with the throttle closed and the brakes on
+    await run(`FLIGHT_PROBE.setManual(true); return 1;`); await sleep(300);
+    await key('End', true); await key('KeyB', true); await sleep(1500);
+    for (const [k, code] of [['right', 'Period'], ['left', 'Comma']]) {
+      await key(code, true); await sleep(1500);
+      log.notes.push({ ['rudder_' + k]: await run(`const s = FLIGHT_PROBE.sim(); return s && s.ctl ? +(+s.ctl.dr).toFixed(3) : null;`) });
+      for (const az of [3.14, 2.75, 3.55]) await view('p_rud_' + k + '_az' + az, az, 0.18, 4.2);
+      await key(code, false); await sleep(400);
+    }
+    await key('KeyB', false); await key('End', false);
+    await run(`FLOWN_BAKE.FB.hyForce = null; return 1;`);
+    await showUi();
+    await back();
+  } catch (e) { console.log('STEP proof FAILED ' + (e && e.message)); log.notes.push('proof failed: ' + (e && e.message)); }
   if (STEPS.includes('flight')) try {
     await rollOut(); didFlight = true;
     await hideUi();
