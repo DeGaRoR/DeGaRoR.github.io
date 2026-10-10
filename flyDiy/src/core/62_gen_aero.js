@@ -954,16 +954,42 @@ function genSubstepsTrue(nodes, beams) {
   // give <= GEN_NET_MAX; the smallest step that does is taken, never more than the old rule's, and a
   // build whose springs set the step is untouched - the same number, no beam changed.
   const byW = Math.min(200, Math.max(24, Math.ceil(wMax / (60 * GEN_WDT_MAX))));
-  if (byW >= legacy) return legacy;
   const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
+  // G2630 (RADIAL-DIVERGE): THE CAP CANNOT CARRY THE DAMPERS. Where the dampers alone ask more than the 200 cap, the
+  // old rule flew 200 with every damper as built - outside the integrator. The user's Mosquito (carbon, oleo gear,
+  // 620 kg on an M-14P): the oleo's bracing dampers on the tailwheel (TW-S6BL/R, 3.7 kg into 0.41 kg carbon nodes)
+  // ask 483 substeps (549 with its 0.2 m spring); at 200 the network's (omega dt)^2 + 2 gamma dt read 5.4 against the
+  // hard 4 - the tail rang at the integrator's edge (the plain build's wheel forces rectified into a turn on the
+  // spot) or past it (NaN on the first frame: 'sim-diverged' at t 0). So at the cap every damper past the step is cut,
+  // as G580 cuts one under the cap: to the per-beam c dt bound, tighter if the network still reads over GEN_NET_MAX.
+  // Every such damper stays overdamped (it asked 2.4x the step). ONLY where the old rule gave up (the two `return
+  // legacy` below): a build G580 seats under the cap keeps its step and its dampers (the Jodel's oleo asks past 200 and
+  // G580 seats it at 185) - every validated build and fixture is bit-identical (HANDOVER G2630).
+  const GEN_N_CAP = 200;
+  const atCap = () => {
+    if (!(legacy === GEN_N_CAP && cMax / (60 * GEN_CDT_MAX) > GEN_N_CAP)) return legacy;
+    const dtC = 1 / (60 * GEN_N_CAP), w2C = genNetEig(nodes, beams, b => b.k, dry) * dtC * dtC;
+    const capA = a => b => Math.min(b.c, a * 60 * GEN_N_CAP / invOf(b));
+    const holdsA = a => w2C + 2 * genNetEig(nodes, beams, capA(a), dry) * dtC <= GEN_NET_MAX;
+    let a = GEN_CDT_MAX;
+    if (!holdsA(a)) {
+      let lo = 0.05 * GEN_CDT_MAX, hi = GEN_CDT_MAX;   // (a floor: the springs' own share past the margin is not the dampers' to pay)
+      if (holdsA(lo)) { for (let it = 0; it < 24; it++) { const mid = 0.5 * (lo + hi); if (holdsA(mid)) hi = mid; else lo = mid; } a = hi; }
+      else a = lo;
+    }
+    const cap = capA(a);
+    for (const b of beams) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }
+    return GEN_N_CAP;
+  };
+  if (byW >= legacy) return atCap();
   const capAt = N => b => Math.min(b.c, GEN_CDT_MAX * 60 * N / invOf(b));
   const w2 = genNetEig(nodes, beams, b => b.k, dry);
   const metric = N => { const dt = 1 / (60 * N); return w2 * dt * dt + 2 * genNetEig(nodes, beams, capAt(N), dry) * dt; };
   let N = byW;
   if (metric(N) > GEN_NET_MAX) {
     let lo = byW, hi = legacy;
-    if (metric(hi) > GEN_NET_MAX) return legacy;       // no step under the old one holds: the old rule, no cut
+    if (metric(hi) > GEN_NET_MAX) return atCap();      // no step under the old one holds: the old rule (G2630: cut at the cap)
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (metric(mid) <= GEN_NET_MAX) hi = mid; else lo = mid; }
     N = hi;
   }
