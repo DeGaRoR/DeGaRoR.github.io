@@ -127,6 +127,9 @@ const GATES = [
   // and the Cub HOME > Skyline Altiport (stopped, no fault; the final begun at the circuit height; every flare armed over
   // the strip and at most FLARE_ARM_MAX above it) and the flare guard's own row (a doctored arrival 250 m low is caught)
   { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 3, timeout: 3600_000, wall: 900 },
+  // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
+  // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
+  { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },

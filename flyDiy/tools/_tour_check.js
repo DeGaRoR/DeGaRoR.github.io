@@ -107,7 +107,10 @@ if (SHD.first) {
   }
   // 3 the turn pads
   let nPads = 0;
-  for (const a of land) {
+  // (G2500: a tree without ISLAND-TOUR's src - pilot-42 - has no turn pads to hold: said as a failure, not a crash, so
+  // the shard still flies its tour)
+  check(typeof C.turnPadNodes === 'function', '3 the turn pads exist on this tree (25_airfield turnPadNodes, ISLAND-TOUR G1965)');
+  for (const a of (typeof C.turnPadNodes === 'function' ? land : [])) {
     const s = C.siteOf(a.id), P = C.sitePattern(a, s, {}), R = C.siteRunway(a), O = W.premises.overlay;
     const hS = q => W.terrainH(R.end0.x + R.dx * q, R.end0.z + R.dz * q);
     for (const k of [0, 1]) {

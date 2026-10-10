@@ -306,7 +306,11 @@ const ORDERS = {
 };
 // a build as the game makes it, the damage ON
 function defOf(C, PT, key) {
-  const spec = key === 'stock' ? PT.specOf('stock').spec : PT.specOf(key).spec;
+  // G2500 (CESSNA-VREF): a saved build is the LOAD DOOR'S spec (tools/_load_build.js) asked directly - on a tree whose
+  // pilot_trace specOf is not JOIN-PARITY's it returns the file as written, which is not the aeroplane the game flies
+  // (the metal Cessna's engine 65 cm aft); FLYDIY_RAW_BUILDS=1 keeps the file as written (the before of G1970.1)
+  const raw = key !== 'stock' && /\.json$/i.test(key) && process.env.FLYDIY_RAW_BUILDS !== '1' ? JSON.parse(require('fs').readFileSync(key, 'utf8')) : null;
+  const spec = raw ? require(path.join(__dirname, '_load_build.js')).gameSpec(raw) : key === 'stock' ? PT.specOf('stock').spec : PT.specOf(key).spec;
   const d = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
   d.params = Object.assign({}, d.params, { damage: true });
   return d;

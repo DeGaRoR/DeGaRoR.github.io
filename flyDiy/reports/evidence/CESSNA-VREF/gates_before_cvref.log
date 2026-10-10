@@ -1,0 +1,26 @@
+=== CESSNAVREF ===
+--- shard 0/2 (591.1 s) ---
+the metal Cessna (the load door's): FAIL HOME > w3              530 s | dep: turned 102.7 deg, roll 109.8 m in, lift-off 175.6 m | final 3808 m / 194.6 m, clear 16.2 m (ground) | td sink 1.66 m/s, 30.4 m/s, run 477 m, off -0.1 m | fuel 24.2 L | FAULTS off-strip (the landing roll left w3's box) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts: vx-climb: ground ahead above the aeroplane — climbing at Vx 30.8 m/s until clear | vref-raised: the elevator cannot hold 28.9 m/s at this power — flying the approach faster | off-the-strip: touched 142 m in, stopped 100 m past the end of 520 m (0 m off the centreline)
+    the build: Vs 22.44, Vs0 22.44, landing flap 0 (genTrim: lands flapless), approach trim 0.270 over the 0.18 budget; mass 887.2 kg, 591 s wall
+  FAIL metal: stopped ON Tamgas Hill  (touched 142 m in at 30.4 m/s, sink 1.66, -100 m of strip left; faults off-strip: the landing roll left w3's box)
+CESSNAVREF [shard 0/2]: 1 failed
+GATE CESSNAVREF: FAIL (1)
+[stderr]
+SHARD 0/2: 1 of 2 heavy jobs
+(exit code 1)
+--- shard 1/2 (671.1 s) ---
+the C172 file build (the control): ok   HOME > w3              561 s | dep: turned 102.7 deg, roll 109.5 m in, lift-off 262.9 m | final 2538.8 m / 208.4 m, clear 13.3 m (ground) | td sink 1.15 m/s, 22.5 m/s, run 211 m, off 0 m | fuel 208 L
+    verdicts: 
+    the build: Vs 25.07, Vs0 20.74, landing flap 1; mass 995.1 kg, 671 s wall
+CESSNAVREF [shard 1/2]: 0 failed
+GATE CESSNAVREF: PASS
+[stderr]
+SHARD 1/2: 1 of 2 heavy jobs
+
+──────── summary ────────
+CESSNAVREF FAIL   671.1 s  [2 shards]
+total            671.1 s
+wall             671.2 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.
