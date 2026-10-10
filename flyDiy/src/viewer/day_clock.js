@@ -53,8 +53,11 @@ var DAY_CLOCK = (function () {
   // ...and THE WEATHER with it (CLIMATE K2): the wind, the air, the column's
   // shape and a front all live on the day's declared spec, so the pref carries
   // whatever of them the player set. An older pref simply has none of them.
-  const save = () => { if (!day) return; try { const sp = day.spec();
-    localStorage.setItem(PREF, JSON.stringify({ date: day.date, utc: Math.round(day.utc), rate: day.rate,
+  // (G2650) in the career the instant is the document's: the pref keeps the sandbox's own date / hour / rate
+  // (written back as they were) and the career's instant goes to the page (careerHook.put)
+  const save = () => { if (!day) return; try { const sp = day.spec(), keep = careerHook ? (read() || {}) : null;
+    if (careerHook) try { careerHook.put({ date: day.date, utc: day.utc }); } catch (e) {}
+    localStorage.setItem(PREF, JSON.stringify({ date: keep ? keep.date : day.date, utc: keep ? keep.utc : Math.round(day.utc), rate: keep ? keep.rate : day.rate,
     cloudCover: day.cloudCover, cloudType: day.cloudType, cloudUpper: day.cloudUpper && day.cloudUpper.length ? day.cloudUpper : null,
     wind: sp.wind || null, storm: sp.storm || null, diurnalC: sp.diurnalC || null,
     oatC: sp.oatC != null ? sp.oatC : null, qnhPa: sp.qnhPa != null ? sp.qnhPa : null, dewC: sp.dewC != null ? sp.dewC : null,
@@ -92,21 +95,41 @@ var DAY_CLOCK = (function () {
     return o;
   }
 
-  // the UT second on the day's date for a named hour; every fallback is a real hour on that date
-  function presetUtc(name) {
-    const noon = day.noonUtc, rise = day.sunriseUtc, set = day.sunsetUtc;
-    const at = (el, rising, fb) => { const u = day.utcFor(el, rising); return u != null ? u : fb; };
-    switch (name) {
-      case 'noon': return noon;
-      case 'night': return noon - 43200 >= 0 ? noon - 43200 : noon + 43200;
-      case 'morning': return at(25, true, rise != null ? (rise + noon) / 2 : noon - 10800);
-      case 'afternoon': return at(33.4, false, set != null ? (set + noon) / 2 : noon + 7200);   // the alps row's hour, the anchor the lights were judged in
-      case 'golden': return at(8, false, set != null ? (set + noon) / 2 : noon + 10800);
-      case 'sunset': return at(-0.833, false, set != null ? set : noon + 21600);
-      case 'dawn': return at(-6, true, rise != null ? rise - 1800 : noon - 43200);
-      case 'dusk': return at(-6, false, set != null ? set + 1800 : noon + 43200);
-    }
-    return noon;
+  // the UT second on the day's date for a named hour; every fallback is a real hour on that date. The solver
+  // moved into the core (07b_clock.js dayPresetUtc, G2650) so the sandbox's presets and the career's waits are one
+  // solver; this is its door.
+  const presetUtc = name => dayPresetUtc(day, name);
+
+  // ---- G2650 SIM-CLOCK: THE CLOCK AS GAME STATE -----------------------------------------------------------------
+  // THE ONE JUMP. Every change of the clock's INSTANT that is not the tick - a wait, a preset, the hour or the date
+  // set, the next full moon - goes through jump(): ONE world.setDay (one DAY.set: one `version` bump, the re-bakes'
+  // trigger - atmo.js's probe, render_world's applyDay - fire once, here and never per frame; the tick's
+  // day.advance never bumps it: GATE CLOCK). Each jump is counted and published (`jumps`, `lastJump`, the window
+  // event 'flydiy:dayjump') so SIM-CLOCK-GPU (G2660) can time the frame after it.
+  // THE CAREER (`career(hook)`): the instant is the career document's (74_career.js career.day), not the pref; it
+  // only moves FORWARD (a jump to an earlier instant is refused), the rate is real time, and every save hands the
+  // instant to the page (hook.put -> careerDaySet -> the document). The sandbox keeps its pref and every control.
+  const TIME_KEYS = ['date', 'utc', 'localHours'];
+  let careerHook = null, jumps = 0, lastJump = null, canWait = null;
+  const nowOf = () => ({ date: day.date, utc: day.utc });
+  // where a time spec would land (a scratch day: the live one is not touched to find out)
+  function landOf(o) {
+    const p = DAY.makeDay({ date: day.date, utc: day.utc }, day.geo);
+    const t = {}; for (const k of TIME_KEYS) if (o[k] != null) t[k] = o[k];
+    p.set(t);
+    return { date: p.date, utc: p.utc };
+  }
+  function jump(o, why) {
+    if (!world || !day || !o) return null;
+    const from = nowOf(), to = landOf(o), dt = dayAbs(to) - dayAbs(from);
+    if (careerHook && dt < 0) return { ok: false, why: 'the career\'s clock only moves forward' };
+    const T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    world.setDay(o);
+    jumps++;
+    lastJump = { n: jumps, why: why || 'set', from, to: nowOf(), dtS: dt, version: day.version, t: T0 };
+    try { if (W && W.dispatchEvent && typeof CustomEvent === 'function') W.dispatchEvent(new CustomEvent('flydiy:dayjump', { detail: lastJump })); } catch (e) {}
+    save();
+    return { ok: true, jump: lastJump };
   }
 
   const api = {
@@ -163,9 +186,58 @@ var DAY_CLOCK = (function () {
       if (world && world.dayTick) world.dayTick(dt, t, ax, az); else day.advance(dt);
       if ((sinceSave += dt) > 30) save();
     },
-    set(o) { if (!world) return; world.setDay(o); save(); },
-    preset(name) { if (!day || !PRESETS.includes(name)) return; world.setDay({ utc: presetUtc(name) }); save(); },
+    // a change of the instant is a JUMP (above); the weather, the air, the clouds are a plain set
+    set(o) {
+      if (!world || !o) return;
+      if (TIME_KEYS.some(k => o[k] != null)) {
+        const t = {}, w = {};
+        for (const k of Object.keys(o)) (TIME_KEYS.includes(k) ? t : w)[k] = o[k];
+        if (Object.keys(w).length) { if (careerHook) delete w.rate; world.setDay(w); }
+        return jump(t, 'set');
+      }
+      if (careerHook && o.rate != null) { o = Object.assign({}, o); delete o.rate; }
+      world.setDay(o); save();
+    },
+    // the sandbox's "set the clock": the named hour on the day's date (it may go back); the career WAITS for it
+    preset(name) {
+      if (!day || !PRESETS.includes(name)) return;
+      if (careerHook) return api.wait(name);
+      return jump({ utc: presetUtc(name) }, 'preset:' + name);
+    },
     presetUtc: name => (day ? presetUtc(name) : null),
+    // WAIT IT OUT (G2650): the next `target` (a preset's name, 'HH:MM', or local hours) - today's when still ahead,
+    // else tomorrow's (07b_clock.js dayWaitUntil), as ONE jump. On the ground only: the page's guard (waitGuard)
+    // says when - in the hangar, on the stand; never in flight. -> { ok, jump | why }
+    wait(target) {
+      if (!day) return { ok: false, why: 'no clock' };
+      const g = canWait ? canWait() : true;
+      if (g !== true) return { ok: false, why: typeof g === 'string' ? g : 'not on the ground' };
+      const r = dayWaitUntil(day, target);
+      if (!r) return { ok: false, why: 'no such hour: ' + target };
+      return jump({ date: r.date, utc: r.utc }, 'wait:' + (typeof target === 'string' ? target : 'hour'));
+    },
+    waitPreview: target => (day ? dayWaitUntil(day, target) : null),
+    waitGuard(fn) { canWait = typeof fn === 'function' ? fn : null; },
+    canWait: () => { if (!canWait) return true; const g = canWait(); return g === true; },
+    // the sandbox's "next full moon" (the date 06_solar's moon is full, at dusk); the career reaches one by waiting
+    nextFullMoon() {
+      if (!day) return { ok: false, why: 'no clock' };
+      if (careerHook) return { ok: false, why: 'the career reaches a full moon only by waiting' };
+      const r = dayNextFullMoon(day);
+      return r ? jump({ date: r.date, utc: r.utc }, 'fullmoon') : { ok: false, why: 'no full moon found' };
+    },
+    moonAt: (date, hour) => (day ? dayMoonAt(day, date, hour) : null),
+    // THE CAREER'S CLOCK: hook = { get() -> {date, utc}, put({date, utc}) }; the instant is set from the document
+    // (a LOAD, not a jump: the boot's own set), real time, and saved through the hook from then on
+    career(hook) {
+      careerHook = hook && typeof hook.get === 'function' && typeof hook.put === 'function' ? hook : null;
+      if (careerHook && world && day) { const o = careerHook.get(); if (o && o.date) world.setDay({ date: o.date, utc: o.utc, rate: 1 }); }
+      return !!careerHook;
+    },
+    isCareer: () => !!careerHook,
+    get jumps() { return jumps; },
+    get lastJump() { return lastJump; },
+    jump: (o, why) => jump(o, why),
     // the preset nearest the current hour (for a select to show), by sun elevation and side of noon
     nearestPreset() {
       if (!day) return 'noon';
@@ -173,7 +245,8 @@ var DAY_CLOCK = (function () {
       for (const p of PRESETS) { const u = presetUtc(p); const d = Math.min(Math.abs(day.utc - u), 86400 - Math.abs(day.utc - u)); if (d < bd) { bd = d; best = p; } }
       return best;
     },
-    rate(r) { if (world && RATES.includes(+r)) { world.setDay({ rate: +r }); save(); } return day ? day.rate : 1; },
+    // the career runs in real time with play (no frozen clock, no fast-forward: a wait is how it moves on)
+    rate(r) { if (world && RATES.includes(+r) && !(careerHook && +r !== 1)) { world.setDay({ rate: +r }); save(); } return day ? day.rate : 1; },
     localHours() { return day ? day.localSeconds / 3600 : 12; },
     label() {
       if (!day) return '';

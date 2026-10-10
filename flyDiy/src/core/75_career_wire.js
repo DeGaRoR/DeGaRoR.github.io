@@ -155,7 +155,7 @@ function careerOverflewAdd(world, x, z, set) {
 }
 // THE STOP RECORD (74_career.js contractOnStop's): o = { how, aero (flightWhere's id when flightCanDepart, else null),
 // wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, items, row: {from, to, t}, overflew,
-// hour } -> { how, aero, wrecked, slot, gear, load: {kg, pax, items?}, row, overflew, hour }. Only a STOP delivers:
+// hour, duskH?, dawnH? } -> { how, aero, wrecked, slot, gear, load: {kg, pax, items?}, row, overflew, hour, duskH?, dawnH? }. Only a STOP delivers:
 // an ending that is not 'stopped' carries no aerodrome. (G2340 FREIGHT) THE LOAD IS THE LOADED ITEMS: with items
 // aboard (FREIGHT-LOAD's accepted packing), `load.items` is them and `load.kg` their sum; with none, the typed
 // cargo kg stands (the fallback).
@@ -165,7 +165,7 @@ function careerStopRecord(o) {
   const items = Array.isArray(o.items) && o.items.length && typeof freightItem === 'function' ? freightSplit(o.items) : null;
   const load = items ? { kg: freightKg(items), pax: Math.max(0, occ - 1), items }
                      : { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) };
-  return {
+  const out = {
     how: o.how || 'stopped',
     aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,
     wrecked: !!o.wrecked, slot: o.slot || null, gear: o.gear || null,
@@ -174,6 +174,10 @@ function careerStopRecord(o) {
     overflew: Array.isArray(o.overflew) ? o.overflew.slice() : [],
     hour: (typeof o.hour === 'number' && isFinite(o.hour)) ? Math.round(o.hour * 100) / 100 : null,
   };
+  // (G2650 SIM-CLOCK) the day's own dusk / dawn (07b_clock.js dayDuskDawnH), only when the page hands them in: a
+  // time-of-day window is judged on them (73_ contractWhenOk), else on the constants as before
+  for (const k of ['duskH', 'dawnH']) if (typeof o[k] === 'number' && isFinite(o[k])) out[k] = Math.round(o[k] * 100) / 100;
+  return out;
 }
 // the load the tracked contract asks for now (the plate's default cargo): the first open sub's load
 function careerTrackedLoad(doc) {

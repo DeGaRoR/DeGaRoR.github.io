@@ -54,9 +54,17 @@ var DAY_UI = (function () {
     }
     // ---- the hour ------------------------------------------------------------------------
     if (!CK || !CK.day()) { H.note(host, 'This build has no clock.'); return; }
-    head('the hour');
+    // G2650 (SIM-CLOCK): THE DAY SETTINGS GIVE WAY TO THE CLOCK, gradually. The career's clock is game state (its
+    // document's, forward only): the panel READS it and offers WAIT (to the next named hour or a clock time - one jump,
+    // the next day's when it has passed; on the ground only). The sandbox's presets are "set the clock" (they may go
+    // back), with "next full moon" beside them; the hour, the date and the rate stay the sandbox's.
+    if (CK.isCareer && CK.isCareer()) { careerClock(host, H, CK, head, refresh); return; }
+    head('set the clock');
     H.pills(host, PRESETS.map(p => ({ label: p.label, value: p.k, title: p.title })),
       o => o.value === CK.nearestPreset(), o => { CK.preset(o.value); refresh(); });
+    if (CK.nextFullMoon)
+      H.pills(host, [{ label: 'next full moon', value: 'fullmoon', title: 'The date of the next full moon, at dusk - a moonlit night (the career reaches one by waiting)' }],
+        () => false, () => { CK.nextFullMoon(); refresh(); });
     H.range(host, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => { CK.set({ localHours: v }); refresh(); }, hhmm);
     if (H.field) {
       const i = document.createElement('input'); i.type = 'date'; i.value = CK.day().date;
@@ -66,7 +74,7 @@ var DAY_UI = (function () {
     H.pills(host, CK.RATES.map(r => ({ label: rateLabel(r), value: r, title: r === 0 ? 'The clock stands' : 'The clock runs at ' + r + '× with play' })),
       o => o.value === CK.day().rate, o => { CK.rate(o.value); refresh(); });
     H.note(host, 'One clock for the shed and the world. It runs with play; the sun, the sky, the lamps and the ' +
-                 'almanac follow it (' + CK.label() + ').');
+                 'almanac follow it (' + CK.label() + (CK.moonAt ? ' · ' + moonWords(CK) : '') + ').');
     // ---- the clouds are next door --------------------------------------------------------
     if (ctx && ctx.open && typeof CLOUD_FIELD !== 'undefined') {
       head('clouds');
@@ -76,7 +84,28 @@ var DAY_UI = (function () {
         () => false, () => ctx.open('clouds'));
     }
   }
-  const API = { PRESETS, mount, hhmm };
+  // the moon in words at the clock's hour ("full moon, up" / "no moon" / "half moon, not up")
+  function moonWords(CK) {
+    const m = CK.moonAt ? CK.moonAt(null, null) : null;
+    if (!m) return '';
+    return m.phase === 'new' ? 'no moon' : m.phase + ' moon, ' + (m.up ? 'up' : 'not up');
+  }
+  // THE CAREER'S CLOCK (G2650): read-only, and WAIT
+  function careerClock(host, H, CK, head, refresh) {
+    head('the clock');
+    H.note(host, 'The career\'s clock: ' + CK.label() + ' · ' + moonWords(CK) + '. It runs with flown time and only moves forward; ' +
+                 'on the ground you can wait it out.');
+    const gate = () => { if (CK.canWait && !CK.canWait()) { H.note(host, 'Wait on the ground: in the hangar or on the stand.'); return false; } return true; };
+    const go = t => { const r = CK.wait(t); if (r && !r.ok && H.note) H.note(host, r.why); refresh(); };
+    H.pills(host, PRESETS.map(p => { const r = CK.waitPreview(p.k); return { label: p.label, value: p.k, title: 'Wait until ' + p.title.toLowerCase() + (r ? ' (' + hhmm((CK.localHours() + r.waitS / 3600) % 24) + ', in ' + (r.waitS / 3600).toFixed(1) + ' h)' : '') }; }),
+      () => false, o => { if (gate()) go(o.value); });
+    if (H.field && typeof document !== 'undefined') {
+      const i = document.createElement('input'); i.type = 'time'; i.step = 60; i.value = '06:00';
+      i.onchange = () => { if (/^\d{2}:\d{2}$/.test(i.value) && gate()) go(i.value); };
+      H.field(host, 'wait until', i);
+    }
+  }
+  const API = { PRESETS, mount, hhmm, moonWords };
   if (typeof window !== 'undefined') window.DAY_UI = API;
   return API;
 })();

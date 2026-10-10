@@ -11,6 +11,7 @@
 //   { what: 'flydiy-player', v, wallet, mode: 'career', here, clock, sheds, fleet, ledger,
 //     career: {
 //       id, seed, started, name, cv: CAREER_V,
+//       day: { date: 'YYYY-MM-DD', utc: s },                            G2650 the sim clock's instant (forward only)
 //       voucher: { kind: 'maker', model: 'cub', used: false },          GQ23
 //       providers: { <id>: { rep: 0..5, arc: <arc contracts done> } },  GQ28
 //       contracts: { offered: [id], accepted: [id], tracked: id|null, done: [ {id, at, pay, medal?} ],
@@ -23,7 +24,14 @@
 // Pure: every operation works on a clone and returns { ok, doc, why, ... }; a refusal hands back the very
 // document it was given, untouched. No DOM, no storage (app.js owns the localStorage glue, a later session).
 // ===========================================================================
-const CAREER_V = 1;
+// v2 (G2650 SIM-CLOCK): the career carries its DAY - `career.day: { date, utc }`, the sim clock's instant (07_day.js
+// DAY's date + UT second) - saved at a flight's end, a wait, a stop: the next session starts where the last one stopped.
+// A v1 career had none; its day is the one its flown clock implies (CAREER_DAY0 + doc.clock seconds: the clock ran
+// with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
+// (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
+const CAREER_V = 2;
+// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
+const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
@@ -40,6 +48,7 @@ function careerBlockDefault(o) {
   return {
     id: o.id || 'main', seed: String(o.seed != null ? o.seed : 'jolene'), started: o.started || null,
     name: o.name || '', cv: CAREER_V,
+    day: careerDayOk(o.day) ? careerDayNorm(o.day) : { date: CAREER_DAY0.date, utc: CAREER_DAY0.utc },
     voucher: Object.assign({}, CAREER_VOUCHER, { used: false }),
     providers,
     contracts: { offered: [], accepted: [], tracked: null, done: [], live: {} },
@@ -97,7 +106,11 @@ function careerNormalise(r) {
   const def = careerBlockDefault();
   const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
   for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];
-  if (typeof c.cv !== 'number') c.cv = CAREER_V;
+  if (typeof c.cv !== 'number') c.cv = 1;
+  // v1 -> v2 (G2650): the day the flown clock implies, when the career has none of its own
+  if (!careerDayOk(c.day)) c.day = careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +d.clock || 0)));
+  else c.day = careerDayNorm(c.day);
+  if (c.cv < CAREER_V) c.cv = CAREER_V;
   if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
   if (!c.providers || typeof c.providers !== 'object') c.providers = {};
   for (const p of Object.keys(def.providers)) {
@@ -120,6 +133,26 @@ function careerNormalise(r) {
   // G2290 (PILOTS): the roster's rows (76_pilots.js pilotsBlock: unknown ids dropped, a hired pilot always has a row)
   if (typeof pilotsBlock === 'function') pilotsBlock(d);
   return d;
+}
+
+// ---- THE CAREER'S DAY (G2650 SIM-CLOCK) ---------------------------------------------------------------------------
+const careerDayOk = o => !!(o && typeof o === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(o.date) && typeof o.utc === 'number' && isFinite(o.utc));
+// one instant, one spelling: the utc in [0, 86400) on its own UT date (whole seconds: the document is a save)
+const careerDayNorm = o => { const r = dayFromAbs(Math.round(dayAbs(o))); return { date: r.date, utc: r.utc }; };
+function careerDay(doc) {
+  const c = doc && doc.career;
+  return careerDayOk(c && c.day) ? careerDayNorm(c.day) : careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +(doc && doc.clock) || 0)));
+}
+// the career's day moves to `o` ({date, utc}) - FORWARD ONLY: an earlier instant is refused (the career never goes
+// back; a wait, a flight's end, a stop all move it on). The same instant is a no-op that still answers ok.
+function careerDaySet(doc, o) {
+  if (!doc || !doc.career) return crNo(doc, 'not a career');
+  if (!careerDayOk(o)) return crNo(doc, 'not a day: ' + JSON.stringify(o));
+  const now = careerDay(doc), to = careerDayNorm(o), dt = dayAbs(to) - dayAbs(now);
+  if (dt < 0) return crNo(doc, 'the career\'s clock only moves forward (' + now.date + ' ' + Math.round(now.utc) + ' s UT, asked ' + to.date + ' ' + Math.round(to.utc) + ' s)');
+  const d = crClone(doc);
+  d.career.day = to;
+  return { ok: true, doc: d, why: '', dt };
 }
 
 // ---- WHICH CONTRACT AN ID IS --------------------------------------------------------------------------------

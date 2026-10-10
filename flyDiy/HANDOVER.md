@@ -84198,4 +84198,176 @@ row reached the garage ('ready', ~170-190 s each); row 1 career_core requested 0
 on the wire** (the Pages-like gzip), its run 6.4 ms; row 3 from sw.js's cache (0 B on the wire, workerStart > 0); row 4
 offline booted the career. 5 loads, 16 min under SwiftShader.
 
+## G2650-G2659 - SIM-CLOCK: THE ONE CLOCK AS GAME STATE - THE CAREER CARRIES ITS DAY (SAVED AT A FLIGHT'S END, FORWARD ONLY, THE DATE HONEST ACROSS MIDNIGHT), WAIT IT OUT ON THE GROUND (DAWN / NOON / DUSK / NIGHT / HH:MM, ONE JUMP), THE SANDBOX'S "SET THE CLOCK" + "NEXT FULL MOON", THE TIME-OF-DAY WINDOWS AND dayMoonAt FOR NIGHT-OPS; GATE CLOCK (2026-10-08, SIM-CLOCK for the GAME COORDINATOR, cloud - node + the UISMOKE vm, no GPU, the renderer untouched; branch claude/sim-clock-g2650 off origin/claude/game-integration 1f553a9d, also pushed as claude/laughing-shannon-5gfwj2)
+
+The user (7 Oct): *"some contracts could require that you get there at a certain time of the day, and you could wait it
+out. We'll need a real sim clock that we can act on, and this will gradually replace our day settings."* - and *"wait
+until dusk is fine"*. §R.3 (GQ17 amended). **No second clock**: DAY (07_day.js) is untouched; everything new is
+arithmetic on it (core) or a door to it (DAY_CLOCK).
+
+**G2650 THE PURE HALF** - new `src/core/07b_clock.js` (MANIFEST.core after 07_day.js; no state, no Date/DOM/random):
+- `dayPresetUtc(day, name)` - the presets' solver MOVED here verbatim from day_clock.js (one solver for the sandbox's
+  presets and the career's waits; GATE CLOCK holds DAY_CLOCK.presetUtc === dayPresetUtc on every preset).
+- `dayWaitUntil(day, target)` -> `{ date, utc, abs, waitS, target }`: target = a preset name, `'HH:MM'`, local hours or
+  `{localHours}`. The FIRST such instant >= now + 30 s: today's while ahead, else the next day's (named hours solved on
+  that UT date's own almanac via a scratch `DAY.makeDay` on the same geo; clock times on the local clock, a DST night
+  landing on the local 06:00). null for an unknown target.
+- `dayNextFullMoon(day)`: 06_solar's moon phase maximum (3 h scan + golden section to a minute), landed at the civil dusk
+  nearest it that is still ahead -> `{ date, utc, abs, full: {date, utc, abs, illum}, illum }`. From the game day
+  (2026-06-21 16:00 AKDT): full 2026-06-30 00:30 UT, landing 2026-06-29 22:27 AKDT, 99.8 % lit (moon just up, 0.6 deg).
+- `dayMoonAt(day, date, hour)` -> `{ phase: 'full'|'gibbous'|'half'|'crescent'|'new', illum, up, waxing, el, abs }` at a
+  LOCAL date + hour (the offset of that instant itself); thresholds `DAY_MOON_WORDS` (>= .95 full, .65 gibbous, .35 half,
+  .05 crescent). `dayDuskDawnH(day)` the almanac's civil dawn / dusk as local hours (June: 03:08 / 22:29).
+- `dayAbs` / `dayFromAbs` / `dayProbe` / `dayLocalAbs` - an instant as one number (jdn x 86400 + utc): what "forward" is.
+
+**G2651 THE CLOCK AS GAME STATE** (74_career.js, CAREER_V 1 -> 2; PLAYER_V unchanged at 2):
+- `career.day = { date, utc }` (the DAY's instant, whole seconds). `CAREER_DAY0 = 2026-06-22 00:00 UT` = GAME_DAY's
+  16:00 AKDT (rule (a): a new career boots on today's picture). careerNormalise LIFTS a v1 career (no day) to the day its
+  flown clock implies: CAREER_DAY0 + `doc.clock` seconds (the clock ran with flown time from the game's first day), cv 2.
+- `careerDay(doc)`, `careerDaySet(doc, {date, utc})` -> refuses an earlier instant (the document handed back untouched,
+  "the career's clock only moves forward"); the same instant ok with dt 0.
+- The page (app.js, ?career=1 only): `DAY_CLOCK.career({ get, put })` - the day is set FROM the document at boot (a load,
+  rate 1), and every DAY_CLOCK save (its 30 s save, pagehide, every jump) hands the instant back (careerDaySet, written in
+  place on the live document). **playerFlightEnd also writes it** (the flight's end / the stop record), so the next session
+  starts where the last stopped. The sandbox keeps `flydiy.day.v3` exactly as before; in the career the pref's own date /
+  utc / rate are written back unchanged (a career session never moves the sandbox's clock).
+- **The date is honest**: DAY.advance already rolled jdn at midnight - GATE CLOCK now holds it (UT and local midnight; forty
+  days of ticks land forty days on; the day's moon phase is 06_solar's at the instant and follows the calendar).
+
+**G2652 WAIT IT OUT + THE ONE JUMP** (day_clock.js):
+- `DAY_CLOCK.jump(o, why)` - **THE jump function**: every change of the clock's INSTANT that is not the tick (a wait, a
+  preset, the hour / date set, the next full moon) is ONE `world.setDay` = ONE `DAY.set` = ONE `version` bump. Counted and
+  published: `DAY_CLOCK.jumps`, `DAY_CLOCK.lastJump = { n, why: 'wait:dusk'|'preset:noon'|'set'|'fullmoon', from, to, dtS,
+  version, t: performance.now() at the jump }`, and the window event **`flydiy:dayjump`** (detail = lastJump). In the
+  career a jump to an earlier instant is refused.
+- `DAY_CLOCK.set(o)`: the time keys (date / utc / localHours) go through jump; the weather / air / clouds stay a plain set
+  (not a jump; GATE CLOCK). `preset(name)`: sandbox = jump to the named hour on the day's date (as before, may go back);
+  **career = wait(name)** (forward). `wait(target)`, `waitPreview(target)`, `waitGuard(fn)`, `canWait()`,
+  `nextFullMoon()` (sandbox only: the career "reaches a full moon only by waiting"), `moonAt(date, hour)`, `isCareer()`.
+  `rate(r)`: the career holds real time (1); the sandbox keeps 0/1/10/60/600.
+- **On the ground only**: app.js's guard = in the garage, or on the roll-out screen's stand (`inGarage || rollHold`); else
+  "wait on the ground: in the hangar or on the stand" and nothing moves. (Engine-off-on-a-strip after a landing is not
+  admitted yet: the next roll-out's stand is where you wait. A later session can widen the guard; one function.)
+- **The route row** (#edRoute in the shed beside ROLL OUT, #bootRoute on the roll-out screen): a `clock` line
+  ("16:00 · 21 Jun", plus "· full moon" / "· no moon" once the sun is down) kept to the minute, and a **"wait until…" select**:
+  the 8 named hours + the 24 whole hours, each showing where it lands ("dusk · 22:28", "(next day)"). The garage's look -
+  the row's own `#edRoute select` / `.routeBase` (--ed-* tokens, IBM Plex Sans upright), no new CSS. Phone: the route
+  rows are hidden there (phone.css), as before.
+
+**G2653 THE TIME-OF-DAY WINDOWS** (73_contracts.js; NIGHT-OPS uses them, no night JOBS added):
+- `when` = `{before:'dusk'}` (hour < dusk, as since G2240) | `{after:'dusk'}` (hour >= dusk or < dawn: the night wraps
+  midnight) | `{before:'dawn'}` (the small hours: midnight <= hour < dawn) | `{arrive:[h0,h1]}` (local hours, h0 <= hour <
+  h1; h0 > h1 wraps midnight). `contractWhenWhy(w)` (contractValidate's: one window, two different hours in 0-24, anything
+  else refused "never a deadline"), `contractWhenOk(w, stop)` (contractSubOnStop's whenWhy now), `contractWhenWords(w)`
+  ("before dusk", "after dusk", "before dawn", "arrive 06:00-08:00"), `CONTRACT_DAWN_H = 5`, `CONTRACT_WHEN_KINDS`.
+- Judged on `stop.hour` as today, against the stop's own `duskH` / `dawnH` when it carries them, else the constants
+  (19.5 / 5). careerStopRecord (75_) forwards duskH / dawnH **only when handed them** (the record's shape otherwise
+  unchanged). **app.js does NOT pass them yet** - "before dusk" stays judged at 19.5 h exactly as today. NIGHT-OPS' call
+  (recommended): pass `dayDuskDawnH(world.day)` on the stop so every window follows the almanac (in June dusk is 22:29, in
+  December ~16:40) - and move 76_pilots' night-shy `CONTRACT_DUSK_H` rule onto the same numbers.
+
+**G2654 THE DAY SETTINGS GIVE WAY** (day_ui.js; nothing removed):
+- Sandbox: the presets' head is **"set the clock"** (was "the hour"), + a **"next full moon"** pill; the hour / date /
+  rate rows stay; the note adds the moon ("half moon, up").
+- Career: **"the clock"** - read-only (the label + the moon), WAIT pills for the 8 named hours (each titled with where it
+  lands and how long), and a "wait until" time field (HH:MM); no hour / date / rate. A wait off the ground says so.
+- The world editor's TIME rows (premises_ui.js), the quick bar's time button (editor.js) and the shed's moods all press
+  `DAY_CLOCK.preset` - in a career that is a forward wait, in the sandbox today's set.
+
+**THE MIGRATION PLAN (what goes when)**
+1. Now (this session): the clock is game state in the career; presets = "set the clock" in the sandbox; career reads +
+   waits. Nothing removed.
+2. With NIGHT-OPS (G2665-G2674): stop records carry the almanac's dusk / dawn; job lines state the window and the moon
+   (contractWhenWords + dayMoonAt); the route row's wait select gains "the job's window" (wait until its h0).
+3. When the welcome's career leaves dev (?career=1 -> the menu): the career's day panel is the clock only; the shed's
+   mood select and the world editor's TIME rows read-only in the career (they already only wait forward).
+4. Last (after a playtest of 2-3): the sandbox's "local hour" slider and the date field fold into "set the clock" (a time
+   + date field + presets); the rate pills stay sandbox-only (a dev / screenshot tool); `?day=` stays (the rigs use it).
+
+**THE CONSUMERS OF DAY** (re-grepped `DAY\b|world\.day|\.day\.`; DAY's semantics unchanged - advance still never bumps
+`version`, set still bumps it once; a jump is one set):
+
+| consumer | what it reads | how verified |
+|---|---|---|
+| core 05_atmos.js | day.air() (makeAtmos via world.atmos on airKey) | unchanged code; GATE DAY, ATMOS |
+| core 06_solar.js | the almanac 07b calls | unchanged; GATE CLOCK "moon at" bit-equal to SOLAR.moon; DAY |
+| core 07_day.js | - | unchanged; GATE CLOCK (advance never bumps version, midnight), DAY |
+| core 09_climate.js | wind / storm / sunElLag on the clock | unchanged; GATE CLIMATE. Note below (the front's `at`) |
+| core 20_world.js | world.day, setDay, dayTick | unchanged; GATE CLOCK (dayTick x600 never bumps version), WORLD via DAY |
+| core 43_pilot.js | world.day.isNight (lights rule) | unchanged; a jump flips it once (derived) |
+| core 73/74/75 (new) | stop.hour, career.day | GATE CLOCK (windows, career), CONTRACTS |
+| viewer app.js | DAY_CLOCK.tick (garage + flight), route rows, career hook, flight end | UISMOKE (+ the new clock step) |
+| viewer day_clock.js | the one door | GATE CLOCK (the jump in a vm over a real world), UISMOKE, HONESTY (GAME_DAY / GAME_WIND untouched) |
+| viewer day_ui.js | presets, hour, date, rate; career clock | GATE CLOUD's static row (updated to "set the clock"), UISMOKE mounts |
+| viewer climate_link.js | CK.set({wind}) | a weather set, not a jump (GATE CLOCK row); CLIMATE |
+| viewer sim_host.js + sim_link.js | the worker's copy: setDay forwarded (WORLD_FNS), H.dayTick on the sim's clock | unchanged; a jump = one forwarded setDay; GATE SIMWORKER |
+| viewer render_world.js | applyDay: re-applies on version change or a 0.02 deg sun move (LIGHT-SMOOTH's eased path) | untouched (the tick's sun motion stays the smooth path; a jump re-applies once) - SIM-CLOCK-GPU measures |
+| viewer atmo.js | LUT bake on turbidity/ozone/albedo only; the probe on version or sun moved | untouched; a jump = one probe bake, never per frame (version unbumped by advance: GATE CLOCK) |
+| viewer sky_light.js | sun / moon / moonPhase | untouched; reads derived values |
+| viewer clouds.js | day.utc + jdn%97 drift, sun / moon, cover | untouched; a jump moves the drift once (no re-fit: the base still quantised) |
+| viewer clouds_ui.js, weather_ui.js | CK.set weather | a plain set, not a jump; CLOUD / WEATHER |
+| viewer water.js | the climate's wind | untouched |
+| viewer aeroskin.js, cockpit.js | sunUp (beacon / nav / landing lights), localSeconds | untouched; derived |
+| viewer audio/ambience.js + ambience_model.js | sun elevation, wind, the front | untouched |
+| also found: premises_ui.js, editor.js, dev_panel.js, world_rail.js, render_premises.js, light_rig.js | CK.preset / set / rate; the lamps by the sun | untouched (career: a preset waits forward) |
+
+**THE RE-BAKE TRIGGERS** (A0's rule (b)): `day.version` is read by render_world.js applyDay (`day.version === dayVer &&
+sun moved < 0.02 deg` returns early) and atmo.js's probe (`moved || day.version !== bakedVer`); the LUTs bake only on the
+air's optical params (`setDay(day)`'s key). `version` bumps only in DAY.set (07_day.js); GATE CLOCK proves an hour of
+60 Hz ticks, a week at 600x and 600 world.dayTick calls leave it alone, and that each jump bumps it exactly once. A
+flight's sun motion therefore stays on LIGHT-SMOOTH's eased path; only a JUMP re-bakes.
+
+**THE GATES** (node; `node tools/run_gates.js --only=...`, or each file directly):
+- **CLOCK** (new, `tools/_clock_check.js`, core, ~9 s): **PASS, 777 checks** - ADVANCE (an hour of 60 Hz ticks, a week at
+  600x, 600 world.dayTick: version unmoved; one set = one bump), MIDNIGHT (UT + local; 40 days of ticks = 40 days on; the
+  moon follows), WAIT (8 named hours + 4 clock times x 3 seasons x 6 start hours: forward, < 1.6 days, on the sun's
+  elevation - the winter sun that never reaches 25 / 33.4 deg on the preset's own fallback - and the FIRST one ahead; dusk
+  passed -> tomorrow's; the DST night's 06:00), FULL MOON (4 start dates: a dusk, >= 97 % lit, 06_solar's maximum, the
+  next one), MOON AT (6 local date/hours bit-equal to SOLAR.moon; the words at their thresholds), CAREER (forward only,
+  round-trip fixpoint, v1 -> v2 lift incl. across midnight, the sandbox document unchanged), WHEN (6 valid windows, 10
+  refused, 31 judged hours incl. the midnight wraps and the stop's own dusk/dawn, the words), THE JUMP (day_clock.js in a
+  vm over makeWorld: the tick never a jump; preset / wait / wait hh:mm / hour / date / next full moon each ONE setDay +
+  ONE version bump + counted + the event; weather a set; the guard; one solver; the career's forward-only, waiting
+  presets, rate 1, no full-moon jump, saves to the document, the sandbox pref untouched). **--selftest: 17 of 17 breaks
+  caught.**
+- **DAY, HONESTY, CLIMATE, CLOUD** (its day-panel row now reads "set the clock"), **PLAYER, CONTRACTS** (2364 checks; its
+  selftest PASS - the two anchors moved onto the new validator line / judge), **PILOTS, ACCEPT, SAVE, SIMWORKER, BUILD**:
+  PASS.
+- **UISMOKE**: PASS - it now runs `day_clock.js` from source (like plaque.js / gfx_settings.js), so the smoked page binds
+  the real DAY_CLOCK; the new step: both route rows carry the clock line ("16:00 · 21 Jun") and the 32-hour wait select; a
+  wait in flight is refused with the guard's words and the clock unmoved (the on-the-ground jump is GATE CLOCK's). Also
+  caught and fixed on the way: G2320's rule that every career call outside the career's page half sits on a CAREER_DEV
+  line. **UISMOKE-PHONE**: PASS.
+- Note for whoever runs these: the runner takes `--only=ID,ID` (with `=`); `--only ID` silently runs the whole core tier.
+
+**SIM-CLOCK-GPU (G2660-G2664) - THE EXPECTED TEST PLAN** (laptop rung, the strict per-frame gate):
+1. Boot the sandbox on the game day (16:00), hold the roll-out screen (rollHold, on the stand). Listen to
+   `flydiy:dayjump`; for each jump stamp `lastJump.t`, then record the next 180 frames' ms + `renderer.info.programs.length`
+   + atmo's probe bakes + the shadow cascade's re-render count.
+2. Jumps: `DAY_CLOCK.wait('dawn')`, `'noon'`, `'dusk'`, `'night'` (and `nextFullMoon()` once), from the stand AND from the
+   garage (the shed's own sky), 3 repeats each = ~27 jumps.
+3. Expected: no frame past the rung's budget after a jump (one probe bake + the LUT not re-baked unless turbidity moved;
+   no new program - the lamps' prep (G1340) already compiled for the night count; the shadow stays put - no pop beyond
+   the one re-aim); the premises lamps arm at dusk without a hitch.
+4. The soak: 30 min flown at rate 1 crossing golden -> sunset -> dusk: zero probe bakes / zero programs from the tick (the
+   smooth path only), and the career's clock saved at the stop.
+5. Expected duration: ~2.5 h (setup 20 min, the 27 jumps with captures ~60 min, the soak 40 min, the write-up 30 min).
+   Likely finding: the first dusk jump compiles the lamps' program if the pool was never armed (G1340's prep covers the
+   roll-out, maybe not a jump on a held stand) - fix there, not in the clock.
+
+**OPEN / FOR THE COORDINATOR**
+- **The front's `at` is a UT second of the day** (weather_ui / ?storm= write `day.utc + inH*3600`), not an instant: a
+  wait across midnight (and the plain midnight tick, as before) meets the same front again the next day. Pre-existing;
+  harmless while storms are sandbox-only. Whoever puts fronts in the career: make `at` an instant (dayAbs) in 07_day.js.
+- "before dusk" stays on the 19.5 h constant until the page passes the almanac's dusk (see G2653) - NIGHT-OPS' call.
+- The committed generated files on game-integration 1f553a9d were stale (index.html / flight_core.js lacked earlier
+  merges' code); `node tools/build.js` here rebuilt them, so their diffs carry more than this session.
+- Merge points: day_clock.js (the solver moved out, the jump block, set / preset / rate / save), day_ui.js (the hour's
+  head, the career branch), app.js (the clock hook after playerSave, the route row's clock + clockRowBuild, the flight
+  end's careerDaySet, FLYDIY_CLOCK, one line in the loop), 73_ (the windows block after CONTRACT_DUSK_H, the validator
+  line, whenWhy), 74_ (CAREER_V 2, CAREER_DAY0, the day block before "WHICH CONTRACT"), 75_ (careerStopRecord's tail),
+  90_ exports, build.js (07b in MANIFEST.core), run_gates.js (CLOCK after DAY), _contracts_check.js (two selftest anchors
+  moved to the new code), _cloud_check.js (the head's name), test_ui_smoke.js (day_clock.js run from source; the clock step before PREM-S2's).
+- Not run: the full tier; no still (the route row's clock is a text line + a select in the existing row; UISMOKE drives it).
+
 READY for the GAME COORDINATOR

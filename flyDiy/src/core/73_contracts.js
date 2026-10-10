@@ -7,7 +7,7 @@
 // THE RECORD (§7.3, exactly):
 //   { id, provider, kind: 'contract'|'job'|'challenge'|'build'|'survey',
 //     title, brief,                                    text KEYS (72_'s CONTRACT_TEXT)
-//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: {before}, crit?: [...],
+//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: (G2650 windows), crit?: [...],
 //                           medals? } ] } ],           stages IN ORDER, a stage's subs in ANY order
 //     pay: { base, perKm?, km?, total?, bonus?: [ {crit, by, pct} ] },
 //     rep: { provider, gain },
@@ -28,7 +28,8 @@
 //   GQ26    one build contract = one delivery; a happy client offers a FOLLOW-UP with ONE criterion
 //           changed (contractFollowUp), paid +15 % (GQ31), never repeating a change.
 //   (g1)    a build contract states performance, never a configuration (CONTRACT_CONFIG_WORDS).
-//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk").
+//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk"); amended (§R.3, G2650):
+//           a time-of-day window on the sim clock ("after dusk", "arrive 06:00-08:00"), met by flying or waiting.
 //
 // Pure: no DOM, no THREE, no storage. Reads 72_'s tables, and (when present) 25_'s stripAllows /
 // 70_-71_'s player helpers at call time.
@@ -141,6 +142,58 @@ const contractStoryBase = rec => ((rec.pay && rec.pay.base) || 0) * (rec.kind ==
 //   repLoad       the load drawn grows with the provider's reputation: lo + (hi-lo) x (repLoad[0] + repLoad[1] x rep/5)
 const CONTRACT_GEN = { refreshEvery: 3, perProvider: 3, tries: 8, condP: 0.25, repLoad: [0.4, 0.6], repMax: 5 };
 const CONTRACT_DUSK_H = 19.5;          // "before dusk": the world's local hour at the stop (stopRecord.hour)
+const CONTRACT_DAWN_H = 5;             // (G2650) "before dawn" / the end of "after dusk": the same local hour
+// ---- THE TIME-OF-DAY WINDOWS (G2650 SIM-CLOCK; GQ17 amended, §R.3: no wall-clock deadline, but a window on the
+// sim clock, met by flying or by WAITING it out on the ground). A sub's `when` is one of:
+//   { before: 'dusk' }      arrive while it is still day: the hour < dusk                     (as since G2240)
+//   { after: 'dusk' }       arrive in the night: the hour >= dusk or < dawn (the night wraps midnight)
+//   { before: 'dawn' }      arrive in the small hours: midnight <= the hour < dawn
+//   { arrive: [h0, h1] }    arrive between two LOCAL hours, h0 <= hour < h1 (h0 > h1 wraps midnight: [22, 2])
+// judged on stop.hour (the world's local hour at the stop) against dusk / dawn: the stop's own `duskH` / `dawnH`
+// when it carries them (the almanac's, 07b_clock.js dayDuskDawnH - NIGHT-OPS' call to pass them), else the
+// constants above. An unknown hour refuses nothing (the decision needs the fact).
+const CONTRACT_WHEN_KINDS = ['before:dusk', 'after:dusk', 'before:dawn', 'arrive'];
+const ctHours = v => typeof v === 'number' && isFinite(v) && v >= 0 && v <= 24;
+// '' when the window is one of the vocabulary's, else why not
+function contractWhenWhy(w) {
+  if (!w || typeof w !== 'object' || Array.isArray(w)) return '`when` must be an object';
+  const k = Object.keys(w);
+  if (k.length !== 1) return '`when` takes one time of day, got ' + (k.join(', ') || 'none');
+  if (w.before === 'dusk' || w.after === 'dusk' || w.before === 'dawn') return '';
+  if ('arrive' in w) {
+    const a = w.arrive;
+    if (!Array.isArray(a) || a.length !== 2 || !a.every(ctHours) || a[0] === a[1]) return '`when.arrive` must be two different local hours [h0, h1] in 0-24';
+    return '';
+  }
+  return '`when` must be {before: \'dusk\'}, {after: \'dusk\'}, {before: \'dawn\'} or {arrive: [h0, h1]} (a time of day, never a deadline: GQ17)';
+}
+const ctPad2 = n => String(n).padStart(2, '0');
+const ctHhmm = h => { const m = Math.round(h * 60) % 1440; return ctPad2(Math.floor(m / 60)) + ':' + ctPad2(m % 60); };
+// the window in words, for the paragraph and the route line: "before dusk", "arrive 06:00-08:00"
+function contractWhenWords(w) {
+  if (!w || contractWhenWhy(w)) return '';
+  if (w.before === 'dusk') return 'before dusk';
+  if (w.after === 'dusk') return 'after dusk';
+  if (w.before === 'dawn') return 'before dawn';
+  return 'arrive ' + ctHhmm(w.arrive[0]) + '-' + ctHhmm(w.arrive[1]);
+}
+// '' when the stop's hour is inside the window (or unknown), else why not ("after dusk (21.0 h)")
+function contractWhenOk(w, stop) {
+  const h = stop && stop.hour;
+  if (!w || typeof h !== 'number' || !isFinite(h)) return '';
+  const dusk = typeof stop.duskH === 'number' && isFinite(stop.duskH) ? stop.duskH : CONTRACT_DUSK_H;
+  const dawn = typeof stop.dawnH === 'number' && isFinite(stop.dawnH) ? stop.dawnH : CONTRACT_DAWN_H;
+  const at = ' (' + h.toFixed(1) + ' h)';
+  if (w.before === 'dusk') return h >= dusk ? 'after dusk' + at : '';
+  if (w.after === 'dusk') return (h >= dusk || h < dawn) ? '' : 'before dusk' + at;
+  if (w.before === 'dawn') return h < dawn ? '' : 'after dawn' + at;
+  if (Array.isArray(w.arrive)) {
+    const a = w.arrive[0], b = w.arrive[1];
+    const inside = a < b ? (h >= a && h < b) : (h >= a || h < b);
+    return inside ? '' : 'outside ' + ctHhmm(a) + '-' + ctHhmm(b) + at;
+  }
+  return '';
+}
 const CONTRACT_FOLLOW_MAX = 3;         // a chain of follow-ups stops after this many (or when no change is left)
 
 // ---- small pure helpers ------------------------------------------------------------------------------------
@@ -349,7 +402,7 @@ function contractValidate(rec, opts) {
         for (const c of s.crit) { const w = contractCritWhy(c); if (w) why.push(at + ': ' + w); }
       }
       if ((s.do === 'deliver' || s.do === 'accept') && r.kind !== 'build') why.push(at + ': ' + s.do + ' on a ' + r.kind);
-      if (s.when != null && !(s.when && s.when.before === 'dusk')) why.push(at + ': `when` must be {before: \'dusk\'} (no deadlines, GQ17)');
+      if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }
       if (s.medals != null) {
         if (r.kind !== 'challenge' || s.do !== 'fly') why.push(at + ': medals on a non-challenge');
         else if (!s.medals.length || s.medals.some(m => !['gold', 'silver', 'bronze'].includes(m.medal) || !(m.le > 0)))
@@ -865,6 +918,7 @@ function contractCritDiff(a, b) {
 //     row: { from, to, t, ... }           the logbook row (logFlight): `from` the leg's departure, `t` seconds
 //     overflew?: [aerodrome id]           the sites the flight passed over (a survey's evidence)
 //     hour?: number                       the world's local hour at the stop (a `when` is judged on it)
+//     duskH?, dawnH?: number              (G2650) the day's dusk / dawn as local hours (else the constants)
 //     accept?: { ... }                    ACCEPT's recording, passed through to the hook untouched }
 // THE HOOK (supplied by ACCEPT, G2270): hooks.acceptVerdict(contract, sub, stopRecord, career) ->
 //   { ok: true, got?: {k: value} } | { ok: false, why } | { ok: null, why } (pending). A missing hook = pending.
@@ -886,8 +940,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   const loadWhy = L => { const miss = itemsMissing(L); return miss && miss.length ? 'not aboard: ' + miss.join(', ') + ' (' + aboard.items.length + ' items loaded)'
     : 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
     + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : ''); };
-  const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
-    ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
+  const whenWhy = () => (sub.when ? contractWhenOk(sub.when, stop) : '');
   if (sub.do === 'carry') {
     if (at === sub.to) {
       if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };
