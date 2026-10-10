@@ -81999,4 +81999,19 @@ THE FIX:
   worker's place door, a NaN velocity - any build, any cause): the eye / light ease / eye wind finite and lit, the
   card's Fly flies, every flydiy.* record reads finite, the logbook's row finite, the next load lit. --selftest:
   FLYDIY_NANGUARD_OFF (the old page) must read dark.
-- On this branch: PILOT PASS (3 shards), TAKEOFF PASS, DESTTO PASS (3 shards), SAVE PASS, SIMWORKER PASS, UISMOKE PASS.
+- On this branch: PILOT PASS (3 shards), TAKEOFF PASS, DESTTO PASS (3 shards), SAVE PASS, SIMWORKER PASS, UISMOKE PASS; RADIALDIV PASS (all four builds), its selftest CAUGHT (6 reds: CONSTRUCTION
+  6.1 / 6.7 / 7.3, REST NaN at 0 s on mosquito, mosquito_1, SYNTH).
+
+### 4. STILLS (reports/evidence/RADIAL-DIVERGE/, a real GPU Chrome through tools/live_driver.js + tools/perf/radialdiv_stills.js;
+shot only after the loading overlay was gone + 2 s; master = a worktree of train 42 26e04598b, the live site's build)
+- before_m_taxi60: master, the plain Mosquito, the pilot's taxi - 46 m off its line and INTO a hangar (seen through the
+  roof's skylight), the heading wandering -109 -> 174 -> -145 -> -113 deg; no roll in 240 s more.
+- after_m_taxi40 / after_m_lift / after_m_climb: this branch, the same build: on the taxi line ("off the line 0/2.5 m"),
+  the roll at 170 s, the lift-off at 128 km/h, the climb.
+- before_m1_again: master, mosquito (1): 'sim-diverged' at t 0 on the stand - everything black (the light ease's cT and
+  hemisphere read NaN, the eye NaN), the card; Fly again: the same.
+- after_m1_stand: this branch on THAT profile (the next load, nothing cleared): mosquito (1) taxis on its line, lit.
+- after_m1_forced_div14: this branch, a divergence FORCED (FLIGHT_PROBE.place, a NaN velocity) - the world stays lit,
+  the eye, the light ease and the eye wind finite (the read in the json). (after_m1_div12 in the json is the RIG's own
+  fault: its chase view took the diverged axes for its azimuth - the game's camera never does; re-shot as div14.)
+- The HUD still prints NaN for speed / height / vs after a divergence (the card says why); cosmetic, left.

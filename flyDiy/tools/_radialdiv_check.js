@@ -162,9 +162,9 @@ function run(asBuilt, rows) {
 }
 
 if (SELF) {
-  // the old rule: every damper the cap cut, put back - CONSTRUCTION and REST must go red on both builds
-  const f = run(true);
-  const want = Object.keys(BUILDS).map(k => [k + ': CONSTRUCTION', k + ': REST']);
+  // the old rule: every damper the cap cut, put back - CONSTRUCTION and REST must go red on every build the cap cut
+  const f = run(true, Object.keys(BUILDS).filter(k => !BUILDS[k].ref));
+  const want = Object.keys(BUILDS).filter(k => !BUILDS[k].ref).map(k => [k + ': CONSTRUCTION', k + ': REST']);   // (the Cub has nothing cut)
   const missed = want.filter(([a, b]) => !f.some(x => x.startsWith(a)) || !f.some(x => x.startsWith(b)));
   if (SHOW) for (const x of f) console.log('  (red, as it must) ' + x);
   console.log('GATE RADIALDIV selftest: ' + (missed.length ? 'MISSED ' + JSON.stringify(missed) : 'CAUGHT (' + f.length + ' reds on the old rule)'));
