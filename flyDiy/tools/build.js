@@ -194,6 +194,20 @@ const MANIFEST = {
     '77_freight_load.js',
     '90_node_exports.js',
   ],
+  // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,
+  // 305 KB of it these nine modules and their tables). tools/flight_core.js keeps EVERY module in MANIFEST.core's order
+  // (the gates and the workers read one core); index.html inlines the core WITHOUT them and the build writes them,
+  // concatenated in that same order, as career_core.<h8>.js beside the page. The page's career loader (CAREER_LOADER
+  // below) fetches it at boot, before any script is promoted, only with ?career=1 / ?map=1 / ?freight=1 or the welcome's
+  // career mode, and the promote runs it right after the core - so app.js's CAREER_DEV (decided at its evaluation, with
+  // typeof careerNew) and PROCURE_PAGE / FREIGHT_PAGE see it or nothing. The default sandbox never requests it. Each
+  // is never run by a sandbox boot: app.js calls them only behind CAREER_DEV / PROCURE_PAGE / FREIGHT_PAGE (GATE UISMOKE
+  // holds the guards), world_boot.js and map_menu.js behind typeof, freight_load.js and map_menu.js are lazy files of
+  // those modes, and the core's own readers (71_ shellPrice / playerUpgradeCost -> 76_economy, 76_stages ->
+  // CONTRACT_TRACKS) run only from the career's doors (GATE LAZY). 72_accept and 76_stages stay inline: ACCEPT_REC
+  // (accept_rec.js) and the stage host are the page's in every mode. GATE LAZY holds the rule.
+  career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):
@@ -680,7 +694,7 @@ const GENERATED = new Set(['tools/flight_core.js', 'index.html', 'dev.html', 'sw
 // that stops being inlined stays an input: [dir, file pattern]
 const DYNAMIC_INPUTS = [['tools/fixtures', /^(?:island_.+|premises_v1_.+)\.json$/], ['vendor/ktx2', /^basis_transcoder\./],
   ['src/viewer/audio', /_catalogue\.json$/], ['src/viewer', /^shots_pack\.json$/]];
-const LAST = { build: null, inputs: null };
+const LAST = { build: null, inputs: null, career: null };
 function shippedInputs(texts) {
   const seen = new Map(), queue = [];
   const add = rel => {
@@ -777,7 +791,31 @@ function buildCore() {
   }
   const header = `// GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.\n// body-sha256: ${hash}\n`;
   fs.writeFileSync(outFile, header + body);
-  return { body, bytes: body.length };
+  // G2685 (CAREER-LAZY): the page's core (MANIFEST.core minus MANIFEST.career) and the career's (MANIFEST.career, in
+  // MANIFEST.core's order), the same concatenation; each parsed alone, as the page runs them (two scripts)
+  for (const f of MANIFEST.career) if (!MANIFEST.core.includes(f)) { console.error(`BUILD FAIL: MANIFEST.career names ${f}, which MANIFEST.core does not`); process.exit(1); }
+  const isCareer = f => MANIFEST.career.includes(f);
+  const pageBody = parts.filter((p, i) => !isCareer(MANIFEST.core[i])).join('');
+  const careerBody = parts.filter((p, i) => isCareer(MANIFEST.core[i])).join('');
+  syntaxCheck('core-concat (the page)', pageBody);
+  syntaxCheck('career_core', careerBody, { served: true });
+  return { body, bytes: body.length, pageBody, careerBody };
+}
+
+// THE CAREER CORE'S FILE (G2685): career_core.<h8>.js beside the page, h8 the sha of its bytes - a new build with new
+// bytes is a new name (sw.js's cache-first rule for it rests on that, as media/'s does). Any other career_core.*.js in
+// the output folder is a superseded build's, and goes.
+const CAREER_RE = /^career_core\.[0-9a-f]{8}\.js$/;
+function writeCareerCore(careerBody) {
+  const text = `// GENERATED FILE - DO NOT EDIT. Built from src/core/ (MANIFEST.career) by tools/build.js (G2685 CAREER-LAZY).\n`
+    + `// The career-only core: fetched by index.html's career loader with ?career=1 / ?map=1 / ?freight=1 or the career mode,\n`
+    + `// run right after the page's core. tools/flight_core.js carries these modules too (the gates, the workers).\n`
+    + careerBody + `\n//# sourceURL=career_core.js\n`;
+  const name = `career_core.${sha(text).slice(0, 8)}.js`;
+  for (const f of fs.readdirSync(OUT)) if (CAREER_RE.test(f) && f !== name) fs.unlinkSync(path.join(OUT, f));
+  fs.writeFileSync(outPath(name), text);
+  LAST.career = name;
+  return { name, bytes: text.length };
 }
 
 function inlineFonts(css) {
@@ -788,7 +826,8 @@ function inlineFonts(css) {
   });
 }
 
-function buildViewer(coreBody) {
+function buildViewer(core) {
+  const coreBody = core.body;   // the WHOLE core: FLYDIY_CORE_SHA (the workers' ?v= and the shakedown caches key on it)
   const V = MANIFEST.viewer;
   const shellPath = path.join(VIEW_DIR, V.shell);
   if (!fs.existsSync(shellPath)) {
@@ -873,6 +912,32 @@ function buildViewer(coreBody) {
   // The node renderer throws on a render before init(), and the boot bakes
   // (PMREM, impostors) render - so under the flag the renderer is made HERE,
   // initialised, and only then is the rest of the page let run (DEV_PROMOTE).
+  // THE CAREER CORE (G2685 CAREER-LAZY): its file, and the rule both pages load it by - ?career=1 / ?map=1 / ?freight=1,
+  // or the welcome's career mode (FLYDIY_MODE, decided before anything is promoted). index.html FETCHES it at boot, in
+  // parallel with the island and after the welcome's menu (the mode is known then), and the promote runs its text right
+  // after the core's inline tags - before world_boot.js and app.js, whose CAREER_DEV / PROCURE_PAGE / FREIGHT_PAGE ask
+  // typeof careerNew / procureBuyModel / freightLoadNew at their evaluation. A fetch that fails (offline with no copy in
+  // sw.js's cache) is said in the console and the page boots as it would without the career code: CAREER_DEV false.
+  // dev.html loads the same nine files by their own tags (data-career), promoted only under the same rule.
+  const CAREER = writeCareerCore(core.careerBody);
+  const CAREER_WANT = `window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };`;
+  const CAREER_LOADER = `<script>
+(function () {
+  ${CAREER_WANT}
+  var SRC = window.FLYDIY_CAREER_SRC = ${JSON.stringify(CAREER.name)};
+  var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
+  var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
+    if (!window.FLYDIY_CAREER_WANT()) return false;
+    return fetch(SRC).then(function (r) { if (!r.ok) throw new Error(SRC + ' ' + r.status); return r.text(); }).then(function (t) {
+      window.FLYDIY_CAREER_TEXT = t;
+      // sw.js keeps it for the next (offline) career boot: the worker caches it on this word (and on its install)
+      try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (r) { if (r.active) r.active.postMessage({ flydiy: 'career-core', src: SRC }); }); } catch (e) {}
+      return true;
+    }, function (e) { console.warn('flyDiy: the career core did not load (' + (e && e.message) + '); the page boots without the career'); return false; });
+  });
+  window.FLYDIY_BOOT = Promise.all([window.FLYDIY_BOOT, load]).then(function (a) { return a[0]; });
+})();
+</script>`;
   // THE ISLAND LOADER, shared by BOTH pages (G434.3): it lived in DEV_LOADER alone, so index.html -
   // the page that is played - never booted Jolene, whatever the pref said
   const ISLAND_LOADER = `<script>
@@ -1037,11 +1102,13 @@ function buildViewer(coreBody) {
 })();
 </script>
 ${ISLAND_LOADER}
+<script>${CAREER_WANT}</script>
 `;
   const DEV_PROMOTE = `<script>
 window.FLYDIY_BOOT.then(function () {
-  var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]'), career = window.FLYDIY_CAREER_WANT();
   for (var i = 0; i < tags.length; i++) {
+    if (tags[i].hasAttribute('data-career') && !career) continue;   // G2685: the career's modules, under its rule alone
     var s = document.createElement('script');
     s.src = tags[i].getAttribute('src'); s.async = false;
     document.body.appendChild(s);
@@ -1199,14 +1266,30 @@ window.FLYDIY_BOOT.then(function () {
 // the pre-gzip mesh bins ~103 MB, and nothing will ask for either again).
 const WORLD_KEEP = ${WORLD_KEEP};
 const GEO_KEEP = ${GEO_KEEP};
+// G2685 (CAREER-LAZY): THE CAREER'S CORE, this build's - named by its content hash like media/, so cache-first cannot go
+// stale. Precached on install when a career page is open (?career=1 / ?map=1 / ?freight=1), and on the career loader's
+// word (a page that fetched it), so a career boots offline after one visit; a sandbox never asks and never caches it.
+// Any other career_core.*.js in the cache is a superseded build's and is swept on activate.
+const CAREER_KEEP = ${JSON.stringify([CAREER.name])};
+const CAREER_RE = /\\/career_core\\.[0-9a-f]{8}\\.js$/;
+const CAREER_URL = /[?&](career|map|freight)=1(&|$)/;
 const CACHE = 'flydiy-media-v1';
-self.addEventListener('install', e => { self.skipWaiting(); });
+const careerCache = () => caches.open(CACHE).then(c => Promise.all(CAREER_KEEP.map(f => c.match(new URL(f, self.registration.scope).href)
+  .then(hit => hit || c.add(new URL(f, self.registration.scope).href))))).catch(() => {});
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  // (through a promise: a worker without clients.matchAll - or any failure here - installs all the same)
+  e.waitUntil(Promise.resolve().then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .then(list => (list.some(c => CAREER_URL.test(new URL(c.url).search)) ? careerCache() : null)).catch(() => {}));
+});
+self.addEventListener('message', e => { if (e.data && e.data.flydiy === 'career-core') { const p = careerCache(); if (e.waitUntil) e.waitUntil(p); } });
 self.addEventListener('activate', e => { e.waitUntil((async () => {
   await self.clients.claim();
   try {
-    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP));
+    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP)), careerKeep = new Set(CAREER_KEEP);
     for (const req of await c.keys()) {
       const p = new URL(req.url).pathname;
+      if (CAREER_RE.test(p)) { if (!careerKeep.has(p.slice(p.lastIndexOf('/') + 1))) await c.delete(req); continue; }
       let i = p.indexOf('/media/world/');
       if (i < 0) i = p.indexOf('/media/geo/');
       if (i >= 0 && !keep.has(p.slice(i + 1))) await c.delete(req);
@@ -1217,7 +1300,16 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   let u; try { u = new URL(req.url); } catch (err) { return; }
-  if (u.origin !== self.location.origin || u.pathname.indexOf('/media/') < 0) return;
+  if (u.origin !== self.location.origin) return;
+  // G2685: the career's core, this build's name alone - cache-first, cached on the way through
+  if (CAREER_RE.test(u.pathname) && CAREER_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1))) {
+    e.respondWith(caches.open(CACHE).then(c => c.match(u.href).then(hit => hit || fetch(req).then(res => {
+      if (res && res.ok) c.put(u.href, res.clone()).catch(() => {});
+      return res;
+    }))));
+    return;
+  }
+  if (u.pathname.indexOf('/media/') < 0) return;
   // G1673: an <audio> element asks by Range (the music, media/audio/): the cache cannot hold a 206, so the whole
   // file is fetched once (no Range), cached, and every range is cut from it
   const range = req.headers.get('range');
@@ -1254,7 +1346,8 @@ async function ranged(req, range) {
   // wrapped by INERT directly and never passes through a regex.
   const INERT = '<script type="text/x-flydiy">';
   const inert = h => h.replace(/<script>/g, INERT).replace(/<script src=/g, '<script type="text/x-flydiy" src=');
-  art = fill(art, 'CORE', `${INERT}\n${coreBody}</script>\n${inert(MARK('core'))}\n${inert(CORE_SHA)}`);
+  // G2685 (CAREER-LAZY): the page's core alone - the career's modules are career_core.<h8>.js (CAREER_LOADER)
+  art = fill(art, 'CORE', `${INERT}\n${core.pageBody}</script>\n${inert(MARK('core'))}\n${inert(CORE_SHA)}`);
   art = fill(art, 'MODELS', inert(payloadRefs));
   // THE WORLD PACK'S PLACE (G386): after every viewer script the generators read and BEFORE app.js,
   // which makes the world - app.js is not the last viewer script (dev_panel.js is), so the refs go
@@ -1296,6 +1389,9 @@ window.FLYDIY_BOOT.then(function () {
   };
   var later = function (f) { setTimeout(function () { try { f(); } catch (e) { console.error('flyDiy: the boot', e); } }, 0); };
   while (i < tags.length && !tags[i].getAttribute('src')) one();
+  // G2685 (CAREER-LAZY): the career's core, fetched by CAREER_LOADER, runs right after the page's core (its own
+  // order in MANIFEST.core: after 72_accept), before anything that asks for it
+  if (window.FLYDIY_CAREER_TEXT) { var cs = document.createElement('script'); cs.textContent = window.FLYDIY_CAREER_TEXT; document.body.appendChild(cs); window.FLYDIY_CAREER_TEXT = null; window.FLYDIY_CAREER_RAN = window.FLYDIY_CAREER_SRC; }
   later(function () {
     try { if (window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined') window.ISLAND_MADE = { boot: window.ISLAND_BOOT, island: ISLAND_GEN.makeIsland(window.ISLAND_BOOT) }; }
     catch (e) { console.warn('flyDiy: the island decode (app.js decodes it again)', e); }
@@ -1313,7 +1409,7 @@ window.FLYDIY_BOOT.then(function () {
   });
 }, function (e) { console.error('flyDiy: the boot did not initialise', e); });
 </script>`;
-    art = head + '<script>window.FLYDIY_BOOT = Promise.resolve();</script>\n' + ISLAND_LOADER + '\n' + tail + '\n' + promote;
+    art = head + '<script>window.FLYDIY_BOOT = Promise.resolve();</script>\n' + ISLAND_LOADER + '\n' + CAREER_LOADER + '\n' + tail + '\n' + promote;
   }
   // the CORE marker block is filled above; the worker's registration is storage.js's (RENDER)
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
@@ -1362,6 +1458,13 @@ window.FLYDIY_BOOT.then(function () {
       console.error(`POST-BUILD ASSERTION FAILED: the on-demand ${f} is not in the loader's map, or it has a static tag (G909)`);
       process.exit(1);
     }
+  // G2685 (CAREER-LAZY): the page carries none of the career's modules (each one's first declaration) and its loader
+  // names this build's career_core
+  for (const f of MANIFEST.career) {
+    const m = /^(?:const|let|var|function|class)\s+[\w$]+[^\n]*/m.exec(read(path.join(CORE_DIR, f)));
+    if (!m || art.includes(m[0])) { console.error(`POST-BUILD ASSERTION FAILED: index.html inlines the career module ${f} (${m ? m[0].slice(0, 60) : 'no declaration'})`); process.exit(1); }
+  }
+  if (!art.includes('var SRC = window.FLYDIY_CAREER_SRC = ' + JSON.stringify(CAREER.name) + ';')) { console.error('POST-BUILD ASSERTION FAILED: the career loader does not name ' + CAREER.name); process.exit(1); }
   art = swapBuild(art, BUILD_TAG, 'index.html');
 
   // --- dev page: refs only; JS/CSS edits need just a browser refresh ---
@@ -1371,7 +1474,7 @@ window.FLYDIY_BOOT.then(function () {
     .join('\n'));
   dev = fill(dev, 'BODY', bodyDev);
   dev = fill(dev, 'VENDOR', DEV_LOADER);
-  dev = fill(dev, 'CORE', MANIFEST.core.map(f => dref(CORE_DIR, 'src/core', f)).join('\n') + '\n' + CORE_SHA);
+  dev = fill(dev, 'CORE', MANIFEST.core.map(f => MANIFEST.career.includes(f) ? dref(CORE_DIR, 'src/core', f).replace('<script ', '<script data-career ') : dref(CORE_DIR, 'src/core', f)).join('\n') + '\n' + CORE_SHA);
   dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));
   const devRender = V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f));
   devRender.splice(APP_AT, 0, MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n'));
@@ -1416,6 +1519,7 @@ window.FLYDIY_BOOT.then(function () {
   return [
     { file: 'index.html', bytes: art.length },
     { file: 'dev.html', bytes: dev.length },
+    { file: CAREER.name, bytes: CAREER.bytes },
   ];
 }
 
@@ -1423,7 +1527,9 @@ function build(opts) {
   OUT = opts && opts.out ? path.resolve(opts.out) : ROOT;
   const t0 = Date.now();
   const core = buildCore();
-  const viewer = buildViewer(core.body);
+  const viewer = buildViewer(core);
+  // G2685: the career core's name is the build's (content-hashed): OUTPUTS names this build's file (GATE BUILT compares it)
+  OUTPUTS.splice(BASE_OUTPUTS.length, OUTPUTS.length, ...(LAST.career ? [LAST.career] : []));
   const outs = [{ file: 'tools/flight_core.js', bytes: core.bytes }, ...viewer];
   if (!(opts && opts.quiet)) console.log(
     outs.map(o => `${o.file} (${(o.bytes / 1024).toFixed(1)} KB)`).join(', ') +
@@ -1434,9 +1540,13 @@ function build(opts) {
 }
 
 // the files every build writes, relative to flyDiy/ (GATE BUILT compares them; tools/pages_check.js reads version.json)
-const OUTPUTS = ['index.html', 'dev.html', 'sw.js', 'tools/flight_core.js', 'version.json'];
+// + G2685: career_core.<h8>.js, this build's name (known once built: build() appends it; careerCoreName() reads it off disk)
+const BASE_OUTPUTS = ['index.html', 'dev.html', 'sw.js', 'tools/flight_core.js', 'version.json'];
+const OUTPUTS = BASE_OUTPUTS.slice();
+// the career core in a folder: the one career_core.<h8>.js there (null: none; more than one is an error the gates name)
+const careerCoreNames = dir => fs.readdirSync(dir || ROOT).filter(f => CAREER_RE.test(f)).sort();
 
-module.exports = { build, MANIFEST, OUTPUTS, GENERATED };
+module.exports = { build, MANIFEST, OUTPUTS, BASE_OUTPUTS, GENERATED, CAREER_RE, careerCoreNames };
 // node tools/build.js [--out=DIR] [--inputs]   --out writes the five outputs under DIR (the inputs are this tree's);
 // --inputs lists the files the build id hashes beyond the pages (path and content sha)
 if (require.main === module) {

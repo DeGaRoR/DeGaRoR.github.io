@@ -759,6 +759,12 @@ const GATES = [
   // a build of the sources - rebuilt into a temp dir and compared; a stale "(built)" commit is red, a source commit's
   // lag is named (BUILT_STRICT=1: red too - A0's landing runs it so on the (built) commit). ~2 s.
   { id: 'BUILT', file: '_built_check.js', tier: 'core', wall: 5 },
+  // G2685-G2689 (CAREER-LAZY): the career-only core (MANIFEST.career, nine modules) is career_core.<h8>.js, not the
+  // sandbox's page - index.html inlines none of it, flight_core.js keeps it all, the split core runs and equals
+  // flight_core's, sw.js keeps this build's file for an offline career; then headless Chromium's request lists: a default
+  // boot never requests it, ?career=1 / ?map=1 / ?freight=1 fetch and run it before app.js, an offline career boots from
+  // the worker's cache (SKIPPED without Playwright); ~2 s static + ~3-6 min of SwiftShader boots
+  { id: 'LAZY', file: '_lazy_check.js', tier: 'core', wall: 360 },
 ];
 
 const args = process.argv.slice(2);

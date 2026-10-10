@@ -84072,4 +84072,130 @@ Open / notes:
   ladder over the painting is welcome.
 - Not run: the full tier.
 
+## G2685-G2689 - CAREER-LAZY: THE CAREER-ONLY CORE OUT OF THE SANDBOX'S PAGE - NINE MODULES AS career_core.<h8>.js, FETCHED AT BOOT ONLY WITH ?career=1 / ?map=1 / ?freight=1 OR THE CAREER MODE, RUN RIGHT AFTER THE CORE; flight_core.js KEEPS EVERYTHING; sw.js KEEPS THIS BUILD'S FILE FOR AN OFFLINE CAREER; GATE LAZY; THE BOX ROWS WRITTEN (2026-10-08, CAREER-LAZY for the GAME COORDINATOR on A0's word, cloud - node + headless Chromium / SwiftShader for request lists only, no timings; branch claude/career-lazy-g2685 off origin/claude/game-integration 1f553a9d, also pushed as claude/kind-ramanujan-vk3id0)
+
+An engineering cut: the sandbox's page shrinks, no behaviour changes. The coordinator's sanity check (8 Oct, df8eb904):
+train 43 grew index.html by +324.3 KB over train 42, the career-only core inlined in the sandbox's page being most of it.
+**app.js is untouched** (three sessions are in it); the work is tools/build.js (the split, the loader, the promote, sw.js's
+source), one comment in storage.js, the gates and a box rig. **No generated file committed** (index.html, dev.html, sw.js,
+tools/flight_core.js, version.json and the new career_core.<h8>.js are the train's (built) commit's).
+
+**G2685 THE SPLIT** (`tools/build.js`): `MANIFEST.career` names the nine; `MANIFEST.core` is unchanged, so
+**tools/flight_core.js keeps every module in its old order** (the gates and the three workers read one core, byte for byte
+as before). buildCore also makes the page's core (MANIFEST.core minus the nine) and the career's (the nine, MANIFEST.core's
+order, the same concatenation), each parsed alone. `career_core.<h8>.js` (h8 = sha256 of its bytes) is written beside
+index.html; any other career_core.*.js in the output folder is swept. index.html's CORE slot inlines the page's core;
+**FLYDIY_CORE_SHA stays the WHOLE core's hash** (the workers' ?v= and the shakedown caches key on it - unchanged).
+Post-build assertions: index.html carries no module's first declaration, the loader names this build's file. BUILT_STRICT-
+aware: `OUTPUTS` gains the career file after a build (GATE BUILT compares six files; a superseded career_core left in the
+tree is red).
+
+| module | bytes | gz | why it moved (never run by a sandbox boot) |
+|---|---|---|---|
+| 72_contract_data | 43 492 | 10.4 KB | CONTRACT_* tables + text packs: read by app.js under CAREER_DEV, map_menu (?map=1 / career), 76_stages' stageMaxes (career only: STAGE_Q is CAREER_DEV) |
+| 73_contracts | 61 595 | 19.8 KB | the generator: career / map only |
+| 74_career | 16 784 | 5.3 KB | the career document: CAREER_DEV = ?career=1 && typeof careerNew (unchanged) |
+| 75_career_wire | 17 447 | 6.3 KB | the career's page half (app.js, behind CAREER_DEV - GATE UISMOKE's row) |
+| 76_economy | 22 006 | 8.0 KB | the price book: 71_'s shellPrice / playerUpgradeCost read it only from playerUpgrade = econShedDoor (CAREER_DEV); the sandbox's doors never call it |
+| 76_procure | 55 978 | 17.3 KB | PROCURE_PAGE = ?map=1 / ?career=1 && typeof procureBuyModel |
+| 76_pilots | 31 885 | 10.3 KB | CAREER_DEV only (careerCrewProfile, the crew row) |
+| 76_freight | 44 831 | 13.5 KB | FREIGHT_CARDS etc: FREIGHT_PAGE = (CAREER_DEV or ?freight=1) && typeof freightLoadNew |
+| 77_freight_load | 18 391 | 6.2 KB | the loading view's pure half: FREIGHT_PAGE + the lazy freight_load.js |
+
+**Kept inline, and why**: **76_stages** - world_boot.js composes the sandbox's island through stageView / stageKey ('sandbox':
+FLYDIY_STAGE.view) on every boot; **72_accept** - every flight's stop row carries acceptStopAt (the logbook's `at`) in the
+sandbox too, and accept_rec.js is a page script in every mode. Both would change the sandbox.
+**The workers**: sim_host / bench_worker / house_worker importScripts tools/flight_core.js (the gates' core, whole) - they
+load the nine's definitions but call none of them (SIM_HOST_CORE names no career global: a GATE LAZY row). Giving them the
+page's rule would need a second worker core file and break "the workers run the gates' core byte for byte"; it costs no
+index.html byte (a cached ~2.6 MB file the worker already fetched). Not done; a follow-up if wanted.
+**THE STRETCH (the loads' prop-pack manifests) - NOT MOVED**: loads_load / loads_camp / loads_lods are <script src> world-pack
+refs, not inlined (0 bytes of index.html), and they register PROP_REG groups 'load' and 'camp' that **the sandbox's scenery
+editor lists** (premises_ui.js propList: every non-LOD prop) - lazy, its picker would lose 14 rows in the sandbox. Not clean
+under GATE PROPS / the editor: left as they are.
+
+**G2686 THE LOAD**: `CAREER_LOADER` (index.html, right after the island loader): `FLYDIY_CAREER_WANT()` = /[?&](career|map|
+freight)=1/ or FLYDIY_MODE 'career' (welcome.js's, decided before anything is promoted: the loader waits FLYDIY_WELCOME, so
+the menu's career row - READY.career, still "coming" - is covered the day it opens). Wanted: fetch(career_core) in PARALLEL
+with the island's fetches, FLYDIY_BOOT waits both; the promote runs the text as a script **right after the core's inline
+tags** (its MANIFEST.core place: after 72_accept), before the island decode, world_boot.js and app.js - so CAREER_DEV /
+PROCURE_PAGE / FREIGHT_PAGE (decided at app.js's evaluation with typeof) see it. A failed fetch is said in the console and
+the page boots without the career (CAREER_DEV false, as before when careerNew was missing). Unguarded references audited:
+app.js (every one behind CAREER_DEV / PROCURE_PAGE / FREIGHT_PAGE or typeof), world_boot.js and map_menu.js (typeof),
+freight_load.js / map_menu.js (lazy files of those modes), garage / bench / plaque / render_world / the editor scripts / the
+world pack (none). **No app.js edit was needed.** dev.html: the nine core tags carry `data-career` and its promote skips them
+outside FLYDIY_CAREER_WANT() - the same rule.
+
+**G2687 SW / OFFLINE** (sw.js's source in build.js): `CAREER_KEEP = ['career_core.<h8>.js']` (this build's name). Cache-first
+for exactly that path (content-hashed, the media/ rule); precached on **install when a career page is open** (a window client
+with the flags) and on **the career loader's word** (postMessage after its fetch, through serviceWorker.ready - covers the
+first visit, before the worker controls the page); **activate sweeps any other career_core.*** (a new build replaces it). A
+sandbox install fetches nothing. Scripts and pages still never the worker's (storage.js's header says the exception).
+
+**G2688 THE GATES** - `node tools/run_gates.js --only=UISMOKE,UISMOKE-PHONE,SAVE,CONTRACTS,ACCEPT,PROCURE,PILOTS,ECON,FREIGHT,
+STAGES,BOOT,BUILD,MEDIA,BUILT,LAZY,GAMEPREM,DEFAULT,GFX,UPDATE,UILAYER,SIMWORKER,REF --jobs=4`: all PASS except UPDATE (its
+fake worker has no clients.matchAll: the install now goes through a promise - fixed, UPDATE 67/67) and BUILT (outputs
+rebuilt mid-run by my own edits); the re-run of BUILT, UPDATE, UISMOKE, UISMOKE-PHONE, MEDIA, BUILD, BOOT, LAZY, SAVE after
+the last edit: **BATTERY: PASS** (UISMOKE 140 s, UISMOKE-PHONE 39, LAZY 60, BUILD 3, BUILT 2, MEDIA 1, SAVE 1, UPDATE / BOOT < 1). Times (first run): UISMOKE 248 s, UISMOKE-PHONE 56, ACCEPT 677, PROCURE 330, FREIGHT 167,
+SIMWORKER 115, STAGES 106, ECON 51, CONTRACTS 51, LAZY 91, GAMEPREM 25, the rest < 7 s. PROPS not run (the loads did not move).
+- **GATE LAZY** (new, `tools/_lazy_check.js`, run_gates row LAZY, core tier; ~2 s static + ~70 s of headless boots; SKIPs
+  the request lists without Playwright): one career_core, named by its sha; = the nine in order; **index.html inlines none
+  of the nine (a first-declaration signature each) and every other core module**; the loader names the file; dev.html tags
+  exactly the nine; flight_core.js = every module (the nine included); **the split runs**: the page's core then career_core
+  in one vm (two scripts) - before it none of its 336 globals exists, after it every career global the page names resolves
+  (269 names across app.js, world_boot.js, map_menu.js, freight_load.js and the core) and a new career's map record, the
+  price book (KIT_PRICES, the shells), the stage maxes and the first contract board equal flight_core.js's; the workers'
+  list names none; **sw.js in a vm** (install with a career page: precached; with sandbox pages: nothing fetched; the
+  loader's word: cached; cache-first; another build's not answered; activate sweeps it; app.js passes through); **the
+  request lists** (headless Chromium, the served page): **default boot - app.js ran, saw no career code, career_core
+  requested 0 times of 594** (8 s after, the worker registered); **?career=1 / ?map=1 / ?freight=1 - career_core request #3,
+  answered by ~180-250 ms, app.js at 5.2-6.1 s with careerNew / procureBuyModel / freightLoadNew defined, ahead of the
+  promoted payloads (#3 < #157), the door up (FLYDIY_CAREER / _PROCURE / _FREIGHT), no page error**; the worker holds it after
+  the visit; **OFFLINE: a second ?career=1 boot with career_core's network blocked boots the career from sw.js's cache**.
+- **MEDIA**: measures index.html as before and reports the career core separately (its own tripwire CAREER_BUDGET_KB 512;
+  one file beside the page): `index.html 12196140 B (11910.3 KB, 3982.5 KB gzipped) · the career core 305.4 KB (92.3 KB gzipped)`.
+- **BUILT**: six outputs; a superseded career_core in the tree is red. **BUILT_STRICT**: PASS - proved on a throwaway branch with the six outputs committed on top of 1ef8f115 (`BUILT_STRICT=1 node tools/_built_check.js`: the working tree = HEAD's committed outputs = the fresh build, 6 files); the train's (built) commit must add career_core.<h8>.js beside the five.
+
+**THE BYTES** (each tree built with its own tools/build.js; gz = zlib level 6 as GATE MEDIA):
+
+| page | bytes | KB | gzipped |
+|---|---|---|---|
+| train 42 (80e380f3, before train 43's first merge) index.html | 12 174 940 | 11 889.6 | 3 968.1 KB |
+| train 43 (df8eb904 = 1f553a9d's sources) index.html | 12 506 867 | 12 213.7 | 4 074.5 KB |
+| **this build index.html** | **12 196 140** | **11 910.3** | **3 982.5 KB** |
+| career_core.a397e71f.js (career / ?map=1 / ?freight=1 only) | 312 779 | 305.4 | 92.3 KB |
+| loads manifests | not moved (0 B of index.html: world-pack refs) | | |
+
+**index.html -303.4 KB raw / -92.0 KB gzipped against train 43. It is NOT smaller than train 42: +20.7 KB raw / +14.4 KB
+gz.** The nine were already 116.1 KB in train 42 (72_contract_data, 73_contracts, 74_career, 75_career_wire), while train 43
+grew the files that stay inline by 135.1 KB: app.js +50.4 KB (41.5 KB of app.js today is the career / market / loading-view page halves behind CAREER_DEV / PROCURE_PAGE / FREIGHT_PAGE),
+27_premises +23.5, 60d_gen_pod +20.6, 76_stages +10.3, render_world +5.3, 71_player_bases +4.4, bench +3.7, 90_node_exports
++3.2, 64_gen_build +3.0, 66_gen_cert +2.6, world_boot +2.3 ... (+ the loader's 1.7 KB). Getting under train 42 needs
+app.js's career halves out of the page (a lazy career page half: ~41 KB, enough to land ~20 KB under train 42) - an app.js restructure this cut was told not to
+make; the coordinator's call. The gzipped page was 4074.5 KB against WIRE_BUDGET 4 MiB (4096 KB): it is 3982.5 KB now. A
+career boot fetches 2.0 KB more than train 43's page held (+0.3 KB gz), in one extra request.
+
+**G2689 THE BOX ROWS** (written, not run: `tools/perf/career_lazy_box.js`, master_bench.js's headed CDP Chrome, its OWN
+PAGES-LIKE SERVER - gzip, max-age=600, ETag, ranges; `--plan` prints the rows):
+```
+git worktree add D:/wt/t43 df8eb904 && (cd D:/wt/t43/flyDiy && node tools/build.js)   # the page before the cut
+node tools/perf/career_lazy_box.js --plan --base D:/wt/t43/flyDiy                       # 13 loads, ~13 min
+node tools/perf/career_lazy_box.js --reps 3 --base D:/wt/t43/flyDiy --port 8760 --udd D:/clb   (GPU lock first)
+```
+1. **COLD SANDBOX** (a fresh profile per rep, this / base interleaved, 3 reps each, ~68 s a load): navigation -> garage
+   medians; verdict "not slower than today" = this <= base + max(8 s, 12 %) (train_gate.js R_LOAD.cold); career_core
+   requests counted (0 expected).
+2. **COLD ?career=1** (3 reps, ~76 s): navigation -> garage, career_core's fetch (ms, bytes on the wire ~92 KB gz), its run
+   (the promote's script, ms), app.js's moment - the extra fetch's cost, against row 1.
+3. **WARM CAREER** (the last cold career profile, a fresh Chrome on it, 3 reps, ~35 s): career_core from sw.js's cache
+   (Resource Timing workerStart > 0, 0 B on the wire).
+4. **OFFLINE CAREER** (INFO, ~35 s): the same profile, network emulated off - the page and scripts the HTTP cache's (inside
+   Pages' 600 s), media/ and career_core the worker's; the career boots or the row says why.
+**~13 min with --base (~10 without).** It writes tools/perf/career_lazy_box_<stamp>.json and prints the four verdicts.
+**The rig itself was smoke-run in the cloud** (MB_CHROME = Playwright's Chromium, MB_CHROME_FLAGS headless + SwiftShader,
+--reps 1 --base = a df8eb904 worktree built; SwiftShader seconds, NOT box times - they prove the rig, not the speed): every
+row reached the garage ('ready', ~170-190 s each); row 1 career_core requested 0 times; row 2 career_core 27 ms, **94 802 B
+on the wire** (the Pages-like gzip), its run 6.4 ms; row 3 from sw.js's cache (0 B on the wire, workerStart > 0); row 4
+offline booted the career. 5 loads, 16 min under SwiftShader.
+
 READY for the GAME COORDINATOR
