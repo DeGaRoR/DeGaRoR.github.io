@@ -160,6 +160,7 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              DATA_BUDGET_KB (base64) is unchanged.
 //
 // WIRE: index.html gzipped (CRs removed), MiB. Raising this needs a reason written here.
+// (back to 4.0 in train 44.1: CAREER-LAZY took the career-only core out of index.html; 4.05 stood for train 43 only)
 const WIRE_BUDGET_MIB = 4.0;
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
@@ -168,6 +169,12 @@ const WIRE_BUDGET_MIB = 4.0;
 // "(built)" commit. The LARGEST of those candidates is the baseline, so merging
 // a master that grew for days is not charged as this step's growth.
 const STEP_BUDGET_MIB = 0.3;
+// A STEP ACCEPTED BY NAME (the user's ruling, not a budget raise): one step from one exact baseline (its byte count,
+// CRs removed) up to a ceiling. It covers that landing and nothing else - any other baseline meets the 0.3 MiB.
+const STEP_ACCEPTED = [
+  { name: 'train 43: the career features, user-accepted 8 Oct ("Have a sanity check, then accept. It is a major feature, expected to take some space.") - +422.8 KB over train 42.1',
+    fromBytes: 12210701, upToBytes: 12660032 },
+];
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
@@ -363,6 +370,8 @@ function checkWire(gzBytes) {
 
 function checkStep(nowBytes, baseBytes, baseAt) {
   const step = MiB(nowBytes - baseBytes);
+  const ok = STEP_ACCEPTED.find(a => a.fromBytes === baseBytes && nowBytes <= a.upToBytes);
+  if (ok && nowBytes - baseBytes > STEP_BUDGET_B) { console.log('  step accepted by name: ' + ok.name); return true; }
   return check(nowBytes - baseBytes <= STEP_BUDGET_B,
     `index.html grew ${step.toFixed(2)} MiB over ${baseAt} against the ` +
     `${STEP_BUDGET_MIB} MiB one build may add — something heavy moved inside the artifact`);
