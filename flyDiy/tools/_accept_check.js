@@ -121,8 +121,10 @@ function runChecks(C, F, D, src, quiet) {
     else ok(e.tankL === S.fuel.litres && e.batteryKWh === 0, k + ': the tank ' + e.tankL + ' L, no pack');
   }
   // the known values the user's builds carry (the PREM-S2 / plaque figures)
-  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 45 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
-     'the user\'s Cub: 2 seats (1 aboard), 45 L, piston, 10.8 m across');
+  // T41b (JOIN-PARITY's correction, agreed with GAME 10 Oct): the Cub the game FLIES carries 27 L - its drawn nose tank, the
+  // joined spec (tools/_load_build.js); the 45 L was the build file's number, which the game never flies
+  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 27 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
+     'the user\'s Cub: 2 seats (1 aboard), ' + EV.cub.tankL + ' L (the drawn tank, as flown), piston, 10.8 m across');
   ok(EV.cub.emptyKg > 330 && EV.cub.emptyKg < 380, 'the Cub empty ' + EV.cub.emptyKg.toFixed(1) + ' kg (a J-3 is 310-340: the model\'s, in its band)');
   ok(EV.eTrainer.powertrain === 'electric' && EV.eTrainer.batteryKWh === 2, 'the user\'s electric trainer: electric, 2 kWh');
   ok(EV.c172.seats >= 4, 'the C172: ' + EV.c172.seats + ' seats');
