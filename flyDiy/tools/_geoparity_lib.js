@@ -129,6 +129,9 @@ function measure(spec0, opts) {
   const C = require(path.join(T, 'flight_core.js'));
   const r = B.bakeJoined(JSON.parse(JSON.stringify(spec0)));
   const W = r.W;
+  // opts.mutate: the gate's self-test doctors the joined spec (a fin moved)
+  // to prove the row can go red
+  if (opts.mutate) opts.mutate(r.spec);
   const def = C.buildGen(r.spec);
   const L = { wing: layerTris(W, 'cageLayer:wing'), stab: layerTris(W, 'cageLayer:stab'),
               fin: layerTris(W, 'cageLayer:fin') };
@@ -168,6 +171,49 @@ function measure(spec0, opts) {
                 drawn: { x: d.xq, h: d.hq, chord: d.chord, le: d.le, te: d.te },
                 dx: g.a[0] - d.xq, dh: flownH - d.hq, dc: s.chord - d.chord });
   }
+  // THE WHOLE SURFACE'S AERO CENTRE: the drawn sheet integrated in 2 cm cuts
+  // over its whole span (the quarter-chord line weighted by the chord - where
+  // a surface's lift acts to first order), against the flown strips' force
+  // points weighted by their areas. Per strip the comparison is local (a fin
+  // flies on two strips); this is the number the stability margins read.
+  const centre = {};
+  for (const kind of ['wing', 'stab', 'fin']) {
+    const st = def.strips.filter(s => s.kind === kind);
+    if (!st.length || !L[kind].length) continue;
+    let A = 0, Ax = 0, Ah = 0;
+    for (const s of st) {
+      const g = stripGeo(def, s);
+      A += s.area; Ax += s.area * g.a[0]; Ah += s.area * (kind === 'fin' ? g.a[1] : g.a[1]);
+    }
+    const fl = { x: Ax / A, h: Ah / A, area: A };
+    // the drawn side: the fin above the boom's crown at the post (the keel
+    // tab below it is counted too - it is fin area the join measures - so
+    // the cut runs from the sheet's bottom), the wing and stab on one side
+    // over |z|
+    const tris = L[kind];
+    let lo = Infinity, hi = -Infinity;
+    const spanOf = kind === 'fin' ? (p => p[1]) : (p => Math.abs(p[2]));
+    for (const T3 of tris) for (const p of T3) {
+      if (kind === 'fin' && Math.abs(p[2]) > 0.3) continue;
+      if (kind !== 'fin' && p[2] < 0) continue;
+      const v = spanOf(p); if (v < lo) lo = v; if (v > hi) hi = v;
+    }
+    let dA = 0, dAx = 0, dAh = 0;
+    const step = 0.02;
+    for (let v = lo + step / 2; v < hi; v += step) {
+      const c = cutPoints(tris, spanOf, v, kind === 'fin' ? 0 : 1)
+        .filter(p => kind === 'fin' ? Math.abs(p[2]) < 0.3 : true);
+      if (c.length < 4) continue;
+      let le = Infinity, te = -Infinity, hl = 0, ht = 0;
+      for (const p of c) { if (p[0] < le) { le = p[0]; hl = p[1]; } if (p[0] > te) { te = p[0]; ht = p[1]; } }
+      const ch = te - le;
+      dA += ch * step; dAx += ch * step * (le + 0.25 * ch);
+      dAh += ch * step * (kind === 'fin' ? v : hl + 0.25 * (ht - hl));
+    }
+    const half = kind === 'fin' ? 1 : 2;           // one side cut; the strips are both
+    if (dA > 0) centre[kind] = { flown: fl, drawn: { x: dAx / dA, h: dAh / dA, area: half * dA },
+                                 dx: fl.x - dAx / dA, dh: fl.h - dAh / dA };
+  }
   const worst = {};
   for (const w of rows) {
     if (w.missing) continue;
@@ -179,7 +225,7 @@ function measure(spec0, opts) {
     e.n++; e.sx += w.dx; e.sh += w.dh;
   }
   for (const k in worst) { worst[k].mx = worst[k].sx / worst[k].n; worst[k].mh = worst[k].sh / worst[k].n; }
-  return { rows, worst, notes: r.notes, errors: r.errors, spec: r.spec, def, W };
+  return { rows, worst, centre, notes: r.notes, errors: r.errors, spec: r.spec, def, W };
 }
 
 module.exports = { measure, layerTris, cutPoints, stripGeo };
