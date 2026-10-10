@@ -82020,3 +82020,15 @@ shot only after the loading overlay was gone + 2 s; master = a worktree of train
   the eye, the light ease and the eye wind finite (the read in the json). (after_m1_div12 in the json is the RIG's own
   fault: its chase view took the diverged axes for its azimuth - the game's camera never does; re-shot as div14.)
 - The HUD still prints NaN for speed / height / vs after a divergence (the card says why); cosmetic, left.
+
+## TRAIN 42.1 LANDED (A0, 10 Oct ~23:35) - the radial fix: no divergence, no black world
+
+A hotfix train under the user's pace rule (10 Oct: trains land on TARGETED gates; the full battery runs on
+master after the landings). Cargo: RADIAL-DIVERGE G2630 (claude/radial-diverge-g2630 ea78d70f1, fast-forward on
+train 42 26e04598b) - see its section "G2630 - RADIAL-DIVERGE": at the 200-substep cap the dampers the step
+cannot carry are cut (62_gen_aero genSubstepsTrue), validated builds and the 20 fixtures bit-identical; the page
+never takes a non-finite place or eased light, jsonFinite at the writers and readers, ?safe=1.
+Gates: RADIALDIV + SIMDIVERGE (new, selftests CAUGHT), PILOT, TAKEOFF, DESTTO, SAVE, SIMWORKER, UISMOKE PASS on the
+branch (its session); parked re-cook (build 187e85528e59, --check same); strict ROLLOUT (train_gate --only rollout,
+t421) equal to train 42's: no frame over 100 ms, no task over 1 s, the stand/taxi rows at the known 30 fps cap.
+A0 read the 8 stills (reports/evidence/RADIAL-DIVERGE/; on the evidence gallery volume 2).
