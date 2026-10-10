@@ -8,7 +8,6 @@ the DRAWING layer; on top of it comes a STORAGE the player acts on:
   building, not its editing floor), **OUTSIDE** (the apron) and **LONG-TERM** (not shown);
 - planes move between them by **drag and drop**;
 - **any shown plane starts from where it is**; an inside plane may simply start on the runway (no animation yet);
-- stored planes are **clickable in the world**: click → a confirmation → roll out and fly;
 - a long-term plane must first be **loaded** somewhere (the garage's floor, an inside slot, or the apron).
 
 And on the main hangar (WORKS-COZY): the user isn't sure what the hearth adds. **Keep today's hangar for now**, move to
@@ -57,25 +56,25 @@ home", unchanged).
 - **Fly from where it is**: each shown card has **Fly**. Inside → the aeroplane starts **lined up on the base's runway**
   (the active one by the wind; no tow animation yet). Outside → it starts at its apron spot (today's stand logic).
   The floor → today's roll-out. Long-term: no Fly (load it first).
-- **In the world**: the drawn residents and apron props are **clickable** (a raycast on the fleet group, the drawn set
-  only) → a small confirmation in the garage's look ("Fly F-RCUB from the apron?") → the roll-out from that slot.
-  The no-centre-card rule after a crash does not apply here (no crash), but the box stays small and at the edge.
+- **Never from the world** (THE USER, 10 Oct: the design OK'd with one correction): clicking a plane in the world does
+  nothing - on purpose, kept free for other things. Rolling out and flying a stored plane happens ONLY in the garage /
+  the STORAGE UI (its card's Fly, with a small confirmation in the garage's look).
 
 ## 4. Cost and performance
 
 - The drawn cap stays (≤ 6 outside, 4 on light presets; inside residents at L2). Long-term costs nothing drawn.
 - A move redraws only the props that changed; no bake on a move (the bake already happened on save).
-- Strict gates: no garage parameter-change regression; the click raycast only on the fleet group, only on a click.
+- Strict gates: no garage parameter-change regression; nothing added to the world's input path.
 
 ## 5. Sessions (after the user's OK on this study)
 
 | | G | where | what | gates |
 |---|---|---|---|---|
 | HANGAR-STORAGE-1 | G2690-G2699 | CLOUD | the model (slots per building from the shell, `where` kinds, moves, PLAYER_V migration), the STORAGE UI (drag and drop, phone taps), Fly from inside (runway) / outside (apron) / floor | a new GATE STORAGE, PARKED, SAVE, UISMOKE, UISMOKE-PHONE, DESTTO (a start from each kind), PLAYER |
-| HANGAR-STORAGE-2 | G2700-G2704 | LOCAL-GPU | the in-world click (raycast on the fleet group) → confirmation → roll-out; the drawn props follow moves; the perf proof (strict per-frame, garage parameter change unchanged) + stills (loaded page + 2 s) | the strict gate, FRAMECOST_FLEET, INSTANT --fleet |
+| HANGAR-STORAGE-2 | G2700-G2704 | LOCAL-GPU | the drawn residents / apron props follow every move (no re-bake); a Fly from each kind in the page on the worker; the perf proof (strict per-frame, garage parameter change unchanged) + stills (loaded page + 2 s) | the strict gate, FRAMECOST_FLEET, INSTANT --fleet |
 | (later) BUILDINGS | — | — | the derelict big hangar + the small good one, restoring as a MACHINE-SHOP rung | — |
 
-## 6. Questions for the user (defaults in bold)
+## 6. Questions for the user — ANSWERED 10 Oct: the design OK'd with the defaults below, the in-world click removed
 
 1. The sandbox gets the storage too? **Yes, free** (the same UI; the career adds nothing but its buildings' slot counts).
 2. Moving between inside / outside / long-term costs? **Free and instant** in both modes.
