@@ -318,7 +318,7 @@ const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('ga
         check(sp && dd < 4, 'outside: on its own apron spot (' + (sp && sp.spot) + ')', { cgToSpot: dd == null ? null : +dd.toFixed(2), spot: sp });
         check(P.stood && !P.stood.includes(name), 'outside: its spot left empty for it, the other apron props stood', P.stood);
       } else {
-        check(P.start === null && /door|rollout/.test(String(d.anim || 'door')) !== null, 'floor: today\'s roll-out (the door shot)', { anim: d.anim, start: P.start });
+        check((!P.start || P.start.start === 'door') && d.anim !== 'away', 'floor: today\'s roll-out (out of the door, not cut to a stand)', { anim: d.anim, start: P.start });
       }
       await run('FLIGHT_PROBE.camMode && FLIGHT_PROBE.camMode("chase"); return 1;');
       await sleep(600);

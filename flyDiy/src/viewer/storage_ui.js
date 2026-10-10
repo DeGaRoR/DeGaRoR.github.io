@@ -158,7 +158,8 @@
   // a drop target: { kind, slot? } - drag over / drop, and the tap after a selection
   function target(el, to) {
     el.dataset.to = JSON.stringify(to);
-    el.addEventListener('dragover', ev => { ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} clearDrop(); el.classList.add('hsDrop'); });
+    // (G2702: the innermost target lights - a slot's dragover no longer bubbles to its column, which took the light)
+    el.addEventListener('dragover', ev => { ev.preventDefault(); ev.stopPropagation(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} clearDrop(); el.classList.add('hsDrop'); });
     el.addEventListener('dragleave', () => el.classList.remove('hsDrop'));
     el.addEventListener('drop', ev => {
       ev.preventDefault(); ev.stopPropagation(); clearDrop();
