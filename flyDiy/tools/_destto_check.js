@@ -46,6 +46,8 @@
 //    taxis the plot's own way out, lines up and takes off, the wing 1.5 m off every solid thing; on ltd:floats' stop at
 //    mk_sea (prem:floats@mk_sea): a slipway shed held there, the floats go IN it (playerArrive), the garage opens THERE (the
 //    roll-in: playerGoTo, the room that shed at its plot, the slip's stand afloat), the world stands it.
+// G2690 (HANGAR-STORAGE), store:cub: the Cub stored INSIDE at HOME starts lined up (no taxi) and takes off; stored on the
+//    APRON it starts on the stand and taxis out (playerFlyStart; the page's placeLinedUp / stand paths); the document unmoved.
 // C. A NEW TO IN THE AIR (air:<build>): lined up at HOME bound for w3; mid-way down the enroute leg the To becomes
 //    Jolene AFB 02/20 (w2), behind the aeroplane - setDest 'replan', the arrival planned again from here: the new path
 //    starts at the aeroplane, the bank never past the pilot's limit (+4 deg), the track never turning faster than
@@ -471,6 +473,57 @@ function model(check) {
 }
 
 // ---- the battery -----------------------------------------------------------------------------------------------------------
+// ---- G2690 (HANGAR-STORAGE): A START FROM INSIDE AND FROM THE APRON ----------------------------------------------------
+// The user's Cub stored at HOME, once in an INSIDE slot, once on an APRON slot (the player's document, the storage model
+// of 71_player_bases.js). playerFlyStart resolves each kind's start; the page's paths are flown here as the page flies them:
+// inside -> LINED UP where the taxi from HOME's stand would end (app.js placeLinedUp: the pilot's own pose, the take-off
+// direction by the wind; departFrom { atHold }) - no taxi; outside -> the stand walked out of the player's shed (today's
+// stand logic) and THE PILOT taxis it out. Each takes off (30 m up), no crash; the document does not move while it flies.
+function storeStarts(check) {
+  const W = jolene(), A = id => W.aerodromes.find(a => a.id === id), a = A('HOME');
+  const def = L.defOf('cub'), site = C.siteOf('HOME');
+  let doc = C.playerDefault();
+  doc.fleet = { In: { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: 0 }, Out: { hangar: null, aero: 'HOME', kind: 'outside', slot: 0 } };
+  doc = C.playerNormalise(doc);
+  const keep = JSON.stringify(doc);
+  const ground = (x, z) => W.terrainH(x, z);
+  const stand = C.standFor(site, C.playerShedDims(doc, 'HOME', site), ground);
+  const go = (slot, tag) => {
+    const S = C.playerFlyStart(doc, slot);
+    const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
+    const stSite = Object.assign({}, site, { stand });
+    let ap, pose = null;
+    if (S.start === 'lineup') {
+      C.placeAtStand(sim, a, stand); C.seatOnGround(sim, ground, def.refs);
+      const q = C.makePilot(sim, def, W, {}); q.setRoute(a, a); q.departFrom(a, a, stSite);
+      pose = q.lineupPose();
+      sim.reset(0); if (sim.stance) sim.stance();
+      C.placeAtLineup(sim, a, pose, W, def.refs);
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+      ap = C.makePilot(sim, def, W, {}); ap.setRoute(a, a); ap.departFrom(a, a, stSite, { atHold: pose });
+    } else {
+      C.placeAtStand(sim, a, stand); C.seatOnGround(sim, ground, def.refs);
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+      ap = C.makePilot(sim, def, W, {}); ap.setRoute(a, a); ap.departFrom(a, a, stSite);
+    }
+    const c0 = sim.cgPos(), w0 = C.flightWhere(W, c0[0], c0[2], {});
+    const phases = []; let air = false, t = 0;
+    for (let k = 0; k < 60 * 300 && !air; k++) {
+      ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
+      if (phases[phases.length - 1] !== ap.phase) phases.push(ap.phase);
+      const cg = sim.cgPos(); air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
+      if (sim.damage && sim.damage().crashed) break;
+    }
+    check(air && phases.includes('LIFTOFF') && !(sim.damage && sim.damage().crashed), tag + 'took off (30 m up), no crash', 't ' + t.toFixed(0) + ' s, ' + phases.join('>'));
+    log(tag + S.start + ' from ' + w0.kind + ' ' + w0.id + ': ' + phases.join('>') + ' in ' + t.toFixed(0) + ' s');
+    return { S, w0, phases, pose };
+  };
+  const i = go('In', 'store:cub inside: '), o = go('Out', 'store:cub outside: ');
+  check(i.S.start === 'lineup' && i.pose && i.w0.kind === 'runway' && !i.phases.includes('TAXI'), 'store:cub inside: starts LINED UP on HOME\'s runway, no taxi', i.w0.kind + ' ' + (i.pose && i.pose.how) + ' ' + i.phases.slice(0, 3).join('>'));
+  check(o.S.start === 'stand' && o.w0.kind !== 'runway' && o.phases.includes('TAXI'), 'store:cub outside: starts on the stand and taxis out', o.w0.kind + ' ' + o.phases.slice(0, 3).join('>'));
+  check(JSON.stringify(doc) === keep, 'store:cub: nothing moved in the document while it flew');
+}
+
 const CASES = [
   { id: 'ltd:cub', run: (c, tr, d) => landThenDepart('cub', c, tr, d, 'circuit') },
   { id: 'ltd:metal', run: (c, tr, d) => landThenDepart('metal', c, tr, d, 'short') },
@@ -479,6 +532,7 @@ const CASES = [
   { id: 'ltd:jodel', run: (c, tr, d) => landThenDepart('jodel', c, tr, d, 'circuit') },
   { id: 'ltd:twinFloats', run: (c, tr, d) => landThenDepart('twinFloats', c, tr, d) },
   { id: 'air:metal', run: (c, tr, d) => airChange('metal', c, tr, d) },
+  { id: 'store:cub', run: c => storeStarts(c) },     // G2690 HANGAR-STORAGE: a start from inside / from the apron
 ];
 
 function battery(doctor, only) {

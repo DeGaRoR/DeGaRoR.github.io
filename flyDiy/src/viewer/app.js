@@ -552,6 +552,8 @@
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
         if (CAREER_DEV && isNew) d = econMaterialiseNow(d, info.saved);   // G2260 (ECONOMY): a new airframe is paid for
+        // G2690 (HANGAR-STORAGE): the build just saved IS the one on the stand - onto `here`'s floor (a swap)
+        if (typeof playerFloorSync === 'function') d = playerFloorSync(d, info.saved).doc;
       }
       // G2280 (PROCURE, GQ2): a maker's or a used airframe saved under another fingerprint is MODIFIED - the factory
       // certificate withdrawn, the change billed at build price (dm11); a repaint changes nothing (career only)
@@ -1271,13 +1273,17 @@
     const t0 = performance.now();
     if (!RES.group) { RES.group = new THREE.Group(); RES.group.name = 'garageResidents'; }
     if (RES.group.parent !== hangarScene) hangarScene.add(RES.group);
-    const d = playerLoad(), id = 'HOME', shed = d.sheds[id];
+    // G2690 (HANGAR-STORAGE): the room's own residents (`here`'s building; HOME's in the career as before)
+    const d = playerLoad(), id = roomId(), shed = d.sheds[id];
     if (!shed) return;
     const stand = slotOnStand();
     // the parked slots (playerSlots: { bay, parked, total } - the main hangar's bay is the stand's)
     const S = typeof playerSlots === 'function' ? playerSlots(d, id) : null;
     const max = Math.max(0, (S && isFinite(S.parked)) ? S.parked : 2);
-    const names = playerResidents(d, id).filter(n => n !== stand).slice(0, max);
+    // G2690: the INSIDE slots, in slot order (then the floor's aeroplane when the stand holds another build) - a
+    // long-term airframe is never drawn; a storage move re-plans from here, the props decoded from their bakes
+    const names = typeof playerResidentsShown === 'function' ? playerResidentsShown(d, id, stand, max)
+      : playerResidents(d, id).filter(n => n !== stand).slice(0, max);
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
@@ -4791,7 +4797,11 @@
     const shedD = shedDimsAt(from.id, st, rh);   // PREM-S2: the shed at THIS field (HOME's is the player's room); G2310: the hangar it leaves
     // G700: ...on ITS OWN GROUND - the walked stand reads the terrain under it (it fell back to the runway's elevation)
     const stGround = (world && typeof world.terrainH === 'function') ? ((x, z) => world.terrainH(x, z)) : null;
-    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
+    // G2690 (HANGAR-STORAGE): an aeroplane flown from an INSIDE slot starts lined up on the runway (the taxi's end, by the
+    // wind: placeLinedUp below), whatever the start pref; from the apron, the stand (today's stand logic)
+    const ssNow = storeStartNow();
+    const taxiStart = flStartTaxi() && !(ssNow && ssNow.start === 'lineup');
+    const stand = (st && taxiStart) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
     // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
@@ -6687,6 +6697,93 @@
       return r;
     } catch (e) { return null; }
   }
+  // ---- G2690 HANGAR-STORAGE: WHERE THE AEROPLANES ARE KEPT, AND FLYING ANY OF THEM FROM WHERE IT STANDS ------------
+  // futureDesigns/game/HANGAR-STORAGE-2026-10-10.md (the user's OK, 10 Oct: no in-world click - this is the ONLY door).
+  // The model is 71_player_bases.js's (playerMove / playerFloorSync / playerFlyStart / playerStoreView, pure); this is the
+  // page's half: the floor follows the stand (a slot load, a save), the moves written to the document, the drawn layers
+  // told (the residents re-plan off their existing bakes; the apron's FLEET_STAND keys its spots by slot at the next
+  // roll-out - no bake on a move), and FLY FROM WHERE IT STANDS through the existing roll-out (rollOut: the trip, the
+  // world, applyRoute's stand / placeLinedUp) - never a launcher of its own. Sandbox and career alike, free and instant.
+  // `var` and a function declaration (hoisted, no TDZ): applyRoute and rollAnim read the start before this line has run
+  var storeStart = null, storeSyncHold = false;
+  // the start a storage Fly asked for, while that aeroplane is still the one on the stand (a restart keeps it)
+  function storeStartNow() { try { return storeStart && storeStart.slot === slotOnStand() ? storeStart : null; } catch (e) { return null; } }
+  function storeChanged() {
+    try { if (inGarage) residentsSync(RES.bb); } catch (e) {}
+    try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    try { if (window.FLYDIY_STORE && window.FLYDIY_STORE.onChange) window.FLYDIY_STORE.onChange(); } catch (e) {}
+  }
+  // a slot loaded onto the stand (garage.js api.loaded): it is on `here`'s floor now (a swap); a storage Fly's own load
+  // keeps its place (the aeroplane departs from where it stands)
+  function storeFloorFollows(name) {
+    if (storeSyncHold || !name || typeof playerFloorSync !== 'function') return;
+    try {
+      const r = playerFloorSync(playerLoad(), name);
+      if (r.ok && r.doc !== playerLoad()) { player = r.doc; playerSave(); storeChanged(); }
+    } catch (e) { console.warn('flyDiy: the floor could not follow the stand -', e && e.message); }
+  }
+  const storeFoots = name => { const f = {}; try { if (name && name === slotOnStand() && def && typeof playerFootOfDef === 'function') { const m = playerFootOfDef(def); if (m) f[name] = m; } } catch (e) {} return f; };
+  // ONE MOVE: { kind: 'floor' | 'inside' | 'outside' | 'long', hangar?, slot? } -> { ok, why, where, swapped }. The floor IS
+  // "Work on": the slot onto the stand through the garage's own load (the fleet rack's door, a resident's swap in the
+  // career), which moves it there (storeFloorFollows); an unsaved build on the stand is the caller's to confirm.
+  function storeMove(name, to) {
+    const out = r => ({ ok: !!r.ok, why: r.why || '', where: r.where || null, swapped: r.swapped || null });
+    try {
+      if (to && to.kind === 'floor' && name !== slotOnStand() && window.GARAGE_SPEC && window.GARAGE_SPEC.open) {
+        const pre = playerMove(playerLoad(), name, Object.assign({ hangar: roomId() }, to));   // refused? say why, load nothing
+        if (!pre.ok) return out(pre);
+        if (CAREER_DEV && RES.plan.some(p => p.name === name)) residentSwap(name, { force: true });
+        else window.GARAGE_SPEC.open(name);
+        if (inGarage) applyEnv();
+        const W = playerStoreWhere(playerLoad(), name);
+        return { ok: W.kind === 'floor', why: W.kind === 'floor' ? '' : 'the load did not reach the stand', where: W, swapped: pre.swapped };
+      }
+      const r = playerMove(playerLoad(), name, to, { foots: storeFoots(name) });
+      if (r.ok && r.doc !== playerLoad()) { player = r.doc; playerSave(); storeChanged(); }
+      return out(r);
+    } catch (e) { return { ok: false, why: String((e && e.message) || e), where: null, swapped: null }; }
+  }
+  // FLY FROM WHERE IT STANDS (playerFlyStart): inside -> lined up on the runway (by the wind), outside -> the stand, the
+  // floor -> today's roll-out; long-term refused. The aeroplane is put on the stand (the garage's load, its place kept)
+  // and rolled out exactly as the garage's own Fly does.
+  function storeFly(name) {
+    const S = typeof playerFlyStart === 'function' ? playerFlyStart(playerLoad(), name) : { ok: false, why: 'no storage model' };
+    if (!S.ok) return S;
+    if (GARAGE_ONLY) return Object.assign({}, S, { ok: false, why: 'the garage on its own has no world to fly in' });
+    if (!inGarage) return Object.assign({}, S, { ok: false, why: 'Fly from the garage' });
+    if (name !== slotOnStand()) {
+      if (!window.GARAGE_SPEC || !window.GARAGE_SPEC.open) return Object.assign({}, S, { ok: false, why: 'the garage is not up' });
+      storeSyncHold = true;
+      try { window.GARAGE_SPEC.open(name); } finally { storeSyncHold = false; }
+      if (name !== slotOnStand()) return Object.assign({}, S, { ok: false, why: name + ' could not be loaded' });
+    }
+    storeStart = { slot: name, kind: S.kind, start: S.start };
+    rollOut(() => { started = true; }, true);
+    return S;
+  }
+  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; a baked
+  // thumbnail when the fleet's bake carries one (PARKED.fleetThumb: none yet - the card draws its glyph)
+  function storeCard(name) {
+    let spec = null;
+    try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const c = typeof playerCardOf === 'function' ? playerCardOf(name, spec) : { name, gear: 'wheels', seats: 0 };
+    let thumb = null;
+    try { if (window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
+    return Object.assign(c, { wear: typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), name) : 0, onStand: name === slotOnStand(), thumb });
+  }
+  window.FLYDIY_STORE = {
+    view: () => (typeof playerStoreView === 'function' ? playerStoreView(playerLoad(), roomId()) : null),
+    where: n => (typeof playerStoreWhere === 'function' ? playerStoreWhere(playerLoad(), n) : null),
+    move: (n, to) => storeMove(n, to),
+    workOn: n => storeMove(n, { kind: 'floor' }),
+    flyStart: n => (typeof playerFlyStart === 'function' ? playerFlyStart(playerLoad(), n) : null),
+    fly: n => storeFly(n),
+    card: n => storeCard(n),
+    canFly: () => !GARAGE_ONLY && inGarage,
+    onStand: () => slotOnStand(),
+    start: () => storeStartNow(),
+    onChange: null,
+  };
   // ---- G2300 (STAGES): THE BUILDINGS THE MISSIONS PUT UP - composed at the load (world_boot.js) and at a ROLL-OUT, never
   // in flight (76_stages.js stageHost: a change noted in 'flight' waits, queued). The roll-out's 'stages' trip step
   // recomposes the world on the WHOLE record's view at the new tracks through the world editor's own path - the
@@ -9000,6 +9097,8 @@
     // aeroplane rolls out of it (its fleet row is in it, or tied down at that field, or it has none); anything else
     // (its row in another hangar, another field) is cut to its stand. The sandbox: HOME's door, exactly as before.
     { const rh = rollHangarId(); if (rollFromId() !== roomBase() || (rh && rh !== roomId())) { trip.anim = 'away'; next(); return; } }
+    // G2690 (HANGAR-STORAGE): flown from an inside slot or the apron - no door shot (no tow animation yet): cut to it
+    { const ss = storeStartNow(); if (ss && ss.start !== 'door') { trip.anim = 'away'; next(); return; } }
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     benchFp = true;
     let over = false, h = null;
@@ -9855,6 +9954,7 @@
       // second button's job: the export through the join is a STEP inside
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
+      storeStart = null;                          // G2690: the garage's own Fly is the floor's (today's roll-out)
       rollOut(() => { started = true; }, true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it)
       return;
     }
@@ -13364,7 +13464,7 @@
     canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
     // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)
-    loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); },
+    loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); storeFloorFollows(name); },
     place: n => window.FLYDIY_PLAYER.place(n),
     wear: n => window.FLYDIY_PLAYER.wear(n),
     flyFrom: n => {

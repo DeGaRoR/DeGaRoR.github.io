@@ -38,9 +38,19 @@
 // player"). OPTIONAL and absent by default: absent is the expert, the null-means-derived ruling again; no version step
 // (a field added, not one that changed units, sign or home - an older game carries it untouched, as any unknown field).
 //
+// v3 (G2690, HANGAR-STORAGE, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md): AN AEROPLANE IS IN EXACTLY ONE PLACE.
+// A fleet row gains `kind` ('floor' | 'inside' | 'outside' | 'long' | 'away') and `slot` (inside / outside: a numbered
+// slot of its building / its aerodrome's apron), beside the S2 words it keeps meaning what they meant - `hangar` set =
+// in that building (its floor, an inside slot, or long-term there: no outside wear), null = on an apron or away - so an
+// older game reading a v3 document still finds every aeroplane where it is (a v3 document is "from the future" to it:
+// carried untouched). The step (PLAYER_MIGRATORS[2]) is playerStoreSettle (71_player_bases.js): today's `in` -> inside
+// while the building's slots remain (then its floor if empty), the rest long-term; `out` at a held base -> its apron
+// while slots remain, the rest long-term; nothing is lost. playerNormalise settles again on every load (a fixpoint), so
+// a row an older game moved (its `hangar` changed, its `kind` stale) is placed again, never dropped.
+//
 // The name is `player`, not `estate` — ROADMAP G77.1 already spends "free
 // estate" on screen real-estate, and this is property, not pixels.
-const PLAYER_V = 2;
+const PLAYER_V = 3;
 
 // { fromVersion: doc => doc } — each entry lifts a document one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw
@@ -58,6 +68,11 @@ const PLAYER_MIGRATORS = {
         const s = doc.sheds[id];
         if (s && typeof s === 'object' && typeof s.base !== 'string') s.base = id;
       }
+    return doc;
+  },
+  // 2 -> 3 (G2690): every fleet row gets its place (kind / slot) - 71_player_bases.js playerStoreSettle
+  2: doc => {
+    if (doc && typeof playerStoreSettle === 'function') playerStoreSettle(doc);
     return doc;
   },
 };
@@ -148,6 +163,8 @@ function playerNormalise(r) {
   if (!r.fleet || typeof r.fleet !== 'object' || Array.isArray(r.fleet)) r.fleet = {};
   if (!Array.isArray(r.ledger)) r.ledger = [];
   if ('pilot' in r) r.pilot = playerPilot(r);
+  // v3 (G2690): every aeroplane in exactly one place (a fixpoint: a settled document is unchanged)
+  if (typeof playerStoreSettle === 'function') playerStoreSettle(r);
   return r;
 }
 

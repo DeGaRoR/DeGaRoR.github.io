@@ -93,7 +93,9 @@ const NAMES = ['PLAYER_V', 'PLAYER_MIGRATORS', 'playerMigrate', 'playerDefault',
   'PREM_MAIN', 'PREM_SIDE_MAX', 'PREM_SLOTS', 'PREM_WEAR', 'playerLedger', 'playerIsMain', 'playerSideIds', 'playerSlots',
   'playerFits', 'playerWearNow', 'playerWearReset', 'playerWearMacro', 'playerWearSpec', 'playerFootOfDef', 'playerPlace',
   'playerBringHome', 'playerRollFrom', 'FLIGHT_BASES', 'flightBasesOf', 'flightBases', 'flightBase',
-  'PREM_WORLD', 'playerWorldSheds', 'premResidentsDrawn', 'playerRollHangar', 'playerPlotSite'];
+  'PREM_WORLD', 'playerWorldSheds', 'premResidentsDrawn', 'playerRollHangar', 'playerPlotSite',
+  'PREM_STORE', 'playerStoreSlots', 'playerBaseOutside', 'playerStoreWhere', 'playerStoreSettle', 'playerMove', 'playerFloorSync',
+  'playerFlyStart', 'playerStoreView'];
 const RW_JS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
 // G2310 (PREM-S3): Jolene composed TWICE, once (the record as shipped, its plots) and once with every `plots` stripped (the
 // record as it was before the amendment) - outside run(), so the selftest's forty runs reuse them
@@ -148,10 +150,10 @@ function run(mut) {
   const v2 = d => R.playerNormalise(R.playerMigrate(clone(d)));
 
   // ==== THE SAVE ===========================================================
-  ok(R.PLAYER_V === 2, 'PLAYER_V is 2');
+  ok(R.PLAYER_V === 3, 'PLAYER_V is 3 (G2690 HANGAR-STORAGE: every aeroplane in one place)');
   const D = R.playerDefault();
-  ok(D.v === 2 && D.mode === 'sandbox' && D.here === 'HOME' && D.clock === 0 && eq(D.fleet, {}) && eq(D.ledger, []),
-     'the default is a v2 sandbox at HOME with an empty fleet');
+  ok(D.v === 3 && D.mode === 'sandbox' && D.here === 'HOME' && D.clock === 0 && eq(D.fleet, {}) && eq(D.ledger, []),
+     'the default is a v3 sandbox at HOME with an empty fleet');
   ok(D.sheds.HOME.base === 'HOME' && D.sheds.HOME.tenure === 'own', 'the default HOME is held, owned, at HOME');
   ok(eq(D, R.playerNormalise(clone(D))), 'the default is a fixpoint of the normaliser');
   const shelf = fixtures();
@@ -175,7 +177,17 @@ function run(mut) {
     if (raw.v === 1) {
       ok(doc.mode === 'sandbox', f + ': a v1 save is a sandbox — nothing it held starts costing');
       ok(eq(doc.fleet, {}) && doc.here === 'HOME', f + ': a v1 save opens at HOME, its fleet to be lifted');
-    } else ok(eq(doc, raw), f + ': a current save walks to itself, byte for byte');
+    } else if (raw.v === R.PLAYER_V) ok(eq(doc, raw), f + ': a current save walks to itself, byte for byte');
+    else {
+      // G2690: a v2 save gains each aeroplane's place (kind / slot) - every row kept, its building and aerodrome unchanged
+      const F0 = raw.fleet || {}, F1 = doc.fleet || {};
+      ok(eq(Object.keys(F0).sort(), Object.keys(F1).sort()), f + ': the walk to v3 keeps every aeroplane');
+      ok(Object.keys(F0).every(n => (F0[n].hangar ? F1[n].hangar === F0[n].hangar : (!F1[n].hangar || F1[n].kind === 'long')) && F1[n].aero === F0[n].aero
+           && R.PREM_STORE.kinds.includes(F1[n].kind)),
+         f + ': each row keeps its building and aerodrome and gets a place (' + Object.keys(F1).map(n => n + ' ' + F1[n].kind).join(', ') + ')');
+      const r2 = clone(raw);
+      ok(eq(Object.assign({}, doc, { fleet: null, v: null }), Object.assign({}, r2, { fleet: null, v: null })), f + ': nothing but the fleet rows\' places and the version changes');
+    }
   }
   const odd = v2({ what: 'flydiy-player', v: 1, wallet: 5, sheds: { HOME: { shell: 'works', kits: ['park'] },
                    M1: { shell: 'field', kits: [], extra: 7 }, BAD: null }, odd: { keep: 1 } });
@@ -186,7 +198,7 @@ function run(mut) {
   const noV = R.playerNormalise({ wallet: 1, sheds: { HOME: { shell: 'club', kits: ['park'] }, w3: { shell: 'field', kits: [] } } });
   ok(noV.sheds.w3.base === 'w3' && noV.here === 'HOME', 'a document that skipped the walk still lands right');
   const L = R.playerLift({ HW: 18, HD: 14, EAVE: 8 }, null);
-  ok(L.v === 2 && L.sheds.HOME.base === 'HOME' && eq(L.sheds.HOME.dims, { HW: 18, HD: 14, EAVE: 8 }), 'the v0 pref lift lands on v2');
+  ok(L.v === 3 && L.sheds.HOME.base === 'HOME' && eq(L.sheds.HOME.dims, { HW: 18, HD: 14, EAVE: 8 }), 'the v0 pref lift lands on v3');
   ok(eq(R.playerNormalise({ v: 2, here: 'nowhere', mode: 'x', clock: -3, fleet: [], ledger: 7 }).here, 'HOME'),
      'a bad `here` falls back to HOME');
 
@@ -280,7 +292,9 @@ function run(mut) {
   const L40 = R.playerFleetReconcile(d1, forty, opts);
   ok(Object.keys(L40.doc.fleet).length === 40 && forty.every(n => R.playerWhere(L40.doc, n).kind !== 'none'),
      'forty saved builds keep forty aeroplanes — the lift refuses nothing');
-  ok(forty.filter(n => R.playerWhere(L40.doc, n).kind === 'out').length >= 30, 'the overflow is tied down outside at HOME');
+  // G2690: the overflow takes the apron's slots (HOME's club: 6), the rest is kept long-term - nothing refused
+  ok(forty.filter(n => R.playerStoreWhere(L40.doc, n).kind === 'outside').length === R.playerBaseOutside(L40.doc, 'HOME')
+     && forty.filter(n => R.playerStoreWhere(L40.doc, n).kind === 'long').length >= 30, 'the overflow fills HOME\'s apron, then long-term');
   const again = R.playerFleetReconcile(Lr.doc, names3, opts);
   ok(eq(again.doc, Lr.doc) && !again.lifted.length && !again.dropped.length, 'the lift is idempotent');
   const del = R.playerFleetReconcile(Lr.doc, ['Alpha', 'Charlie'], opts);
@@ -471,24 +485,27 @@ function run(mut) {
     // GQ7: the slots, on top of the geometry
     const big = clone(D); big.sheds.HOME = { shell: 'works', kits: ['park'], base: 'HOME', tenure: 'own' };
     ok(R.hangarRoomFor(big.sheds.HOME, cub, [], opts) > 3, 'GQ7: a bare works main hangar\'s floor takes more than three Cubs (' + R.hangarRoomFor(big.sheds.HOME, cub, [], opts) + ')');
-    ok(eq(R.playerSlots(big, 'HOME'), { bay: 1, parked: 2, total: 3 }), 'GQ7: the main hangar has the build bay + 2 parked');
+    // G2690 (HANGAR-STORAGE): the slots are the SHELL's - a works holds its floor + 4 inside (the club: + 2)
+    ok(eq(R.playerSlots(big, 'HOME'), { bay: 1, parked: 4, total: 5, inside: 4, outside: 6 }), 'GQ7 / G2690: a works main hangar has the build bay + 4 inside');
+    ok(eq(R.playerSlots(D, 'HOME'), { bay: 1, parked: 2, total: 3, inside: 2, outside: 6 }), 'GQ7 / G2690: the club main hangar has the build bay + 2 parked');
     const six = Array.from({ length: 6 }, (_, i) => 'S' + i);
     const L6 = R.playerFleetReconcile(big, six, Object.assign({ foots: Object.fromEntries(six.map(n => [n, cub])) }, opts));
-    ok(R.playerResidents(L6.doc, 'HOME').length === 3 && six.filter(n => R.playerWhere(L6.doc, n).kind === 'out').length === 3,
-       'GQ7: the lift fills the main hangar\'s three slots and ties the rest down, however much floor is left');
+    ok(R.playerResidents(L6.doc, 'HOME').length === 5 && six.filter(n => R.playerWhere(L6.doc, n).kind === 'out').length === 1,
+       'GQ7: the lift fills the main hangar\'s five slots and ties the rest down, however much floor is left');
     const side = R.playerAcquire(clone(D), 'tw_ski', 'tw_ski', 'club', 'own').doc;
     side.sheds.tw_ski.kits = ['park'];
-    ok(R.playerSlots(side, 'tw_ski').total === 2 && R.hangarRoomFor(side.sheds.tw_ski, FOOT('jodel'), [], opts) >= 2, 'GQ7: a side club has two slots');
+    ok(R.playerSlots(side, 'tw_ski').total === 3 && R.hangarRoomFor(side.sheds.tw_ski, FOOT('jodel'), [], opts) >= 3, 'GQ7 / G2690: a side club has its floor + two inside');
     let sc = side;
-    for (const n of ['J1', 'J2', 'J3']) { sc.fleet[n] = { hangar: null, aero: 'HOME', foot: FOOT('jodel') }; }
+    for (const n of ['J1', 'J2', 'J3', 'J4']) { sc.fleet[n] = { hangar: null, aero: 'HOME', foot: FOOT('jodel') }; }
     const k3 = [];
-    for (const n of ['J1', 'J2', 'J3']) { const a = R.playerArrive(sc, n, 'tw_ski', opts); k3.push(a.kind); sc = a.doc; }
-    ok(eq(k3, ['in', 'in', 'out']), 'GQ7: the third Jodel at a side club ties down outside (' + k3.join(' ') + ')');
+    for (const n of ['J1', 'J2', 'J3', 'J4']) { const a = R.playerArrive(sc, n, 'tw_ski', opts); k3.push(a.store); sc = a.doc; }
+    // the altiport has no tie-down spot (its apron 0): the fourth is kept long-term in the shed
+    ok(eq(k3, ['inside', 'inside', 'floor', 'long']), 'GQ7 / G2690: Jodels at a side club: two inside, the floor, then long-term (' + k3.join(' ') + ')');
     before = clone(sc);
-    refused(R.playerStore(sc, 'J3', 'tw_ski', null, opts), before, sc, 'GQ7: wheeling into a side club with both slots taken');
+    refused(R.playerStore(sc, 'J4', 'tw_ski', null, opts), before, sc, 'GQ7: wheeling into a side club with every slot taken');
     refused(R.playerUpgrade(sc, 'tw_ski', { shell: 'field', dims: { HW: 9, HD: 10, EAVE: 4 } }, opts), before, sc, 'GQ7: a side club with two inside rebuilt as a one-slot field shed');
     const fld = R.playerAcquire(clone(D), 'w3', 'w3', 'field', 'own').doc;
-    ok(R.playerSlots(fld, 'w3').total === 1 && eq(R.playerSlots(fld, 'nope'), { bay: 0, parked: 0, total: 0 }), 'GQ7: a side field shed has one slot; nothing held has none');
+    ok(R.playerSlots(fld, 'w3').total === 1 && eq(R.playerSlots(fld, 'nope'), { bay: 0, parked: 0, total: 0, inside: 0, outside: 0 }), 'GQ7: a side field shed has one slot; nothing held has none');
 
     // GQ5: bring it home - free, the hangar it left, else the main one, else outside at HOME
     let b = career(R.playerAcquire(clone(D), 'w3', 'w3', 'field', 'own').doc);
@@ -549,8 +566,9 @@ function run(mut) {
     ok(R.playerFootOfDef(null) === null && R.playerFootOfDef({ nodes: [] }) === null, 'no nodes, no footprint');
     // the place in words, and where the next roll-out starts
     const pl = clone(sc); pl.fleet.A = { hangar: null, aero: 'mn_strip' }; pl.fleet.H = { hangar: 'HOME', aero: 'HOME' };
+    pl.fleet.J3 = { hangar: null, aero: 'HOME', kind: 'outside', slot: 0 };
     const Wd = { aerodromes: [{ id: 'mn_strip', name: 'Jumbo Mine' }] };
-    ok(R.playerPlace(pl, 'J1', Wd).text === 'in tw_ski' && R.playerPlace(pl, 'J3', Wd).text === 'out at tw_ski'
+    ok(R.playerPlace(pl, 'J1', Wd).text === 'in tw_ski' && R.playerPlace(pl, 'J3', Wd).text === 'out at HOME'
        && R.playerPlace(pl, 'A', Wd).text === 'away at Jumbo Mine' && R.playerPlace(pl, 'H', Wd).here && !R.playerPlace(pl, 'J1', Wd).here,
        'the place badge: in / out at / away at, and whether it stands at the garage\'s base');
     ok(R.playerRollFrom(pl, 'A') === 'mn_strip' && R.playerRollFrom(pl, 'J1') === 'tw_ski' && R.playerRollFrom(pl, null) === 'HOME' && R.playerRollFrom(pl, 'ghost') === 'HOME',
@@ -711,11 +729,11 @@ const BREAKS = [
                                                     "if (r.mode !== 'sandbox' && r.mode !== 'career') r.mode = 'career';") }],
   ['the door is ignored', { src71: sub('const why = hangarDoorWhy(shed, p.f);', "const why = '';") }],
   ['parked aeroplanes overlap', { src71: sub('const near = obs.concat(rects);', 'const near = obs;') }],
-  ['the fit-out is ignored', { src71: sub('const obs = hangarObstacles(shed, opts && opts.reg);', 'const obs = [];') }],
+  ['the fit-out is ignored', { src71: sub('const obs = hangarObstacles(shed, opts && opts.reg).concat(', 'const obs = [].concat(') }],
   ['the door formula drifts from hangar.js', { src71: sub('w: Math.max(6, 2 * D.HW - 5)', 'w: Math.max(6, 2 * D.HW - 4)') }],
-  ['the lift refuses the overflow', { src71: sub('    d.fleet[n].hangar = at;\n', '    if (!at) { delete d.fleet[n]; continue; }\n    d.fleet[n].hangar = at;\n') }],
-  ['storing ignores the room', { src71: sub("  if (P.unplaced.length) return pbNo(doc, 'no room in '", "  if (false) return pbNo(doc, 'no room in '") }],
-  ['arriving ignores the room', { src71: sub('if (!P.unplaced.length) { d.fleet[name].hangar = id;', 'if (true) { d.fleet[name].hangar = id;') }],
+  ['the lift refuses the overflow', { src71: sub('    const got = at ? pbIn(d, n, at) : pbOut(d, n, home);', '    if (!at) { delete d.fleet[n]; continue; }\n    const got = pbIn(d, n, at);') }],
+  ['storing ignores the room', { src71: sub("  const F = playerFits(doc, hangarId, playerResidents(doc, hangarId).concat([name]), foots, opts);\n  if (!F.ok) return pbNo(doc, F.why);", "  const F = { ok: true };") }],
+  ['arriving ignores the room', { src71: sub('if (playerFits(d, id, playerResidents(d, id).filter(n => n !== name).concat([name]), opts.foots, opts).ok) {', 'if (true) {') }],
   ['coming home forgets its own hangar', { src71: sub("if (W.aero === aero && W.kind === 'in') return", "if (false) return") }],
   ['a full hangar can be released', { src71: sub("if (inside.length) return pbNo(doc, hangarId + ' is not empty: '", "if (false) return pbNo(doc, hangarId + ' is not empty: '") }],
   ['an upgrade evicts', { src71: sub('if (R.unplaced.length) return pbNo(', 'if (false) return pbNo(') }],
@@ -736,8 +754,8 @@ const BREAKS = [
   ['GQ5: bring it home ignores the room', { src71: sub("    if (playerFits(d, id, playerResidents(d, id).concat([name]), opts.foots, opts).ok) { at = id; break; }",
                                                        "    { at = id; break; }") }],
   ['GQ7: the slots are ignored (geometry only)', { src71: sub('if (names.length > sl.total)', 'if (false)') }],
-  ['GQ7: a side club holds one', { src71: sub("const n = s.shell === 'club' ? PREM_SLOTS.sideClub : PREM_SLOTS.side;", 'const n = PREM_SLOTS.side;') }],
-  ['GQ7: the wear never freezes inside', { src71: s => sub('  delete e.outSince;\n  e.hangar = id;', '  e.hangar = id;')(sub("if (!e.hangar && typeof e.outSince === 'number' && isFinite(e.outSince))", "if (typeof e.outSince === 'number' && isFinite(e.outSince))")(s)) }],
+  ['GQ7 / G2690: a club holds one inside', { src71: sub("club: { inside: 2, outside: 6 }", 'club: { inside: 1, outside: 6 }') }],
+  ['GQ7: the wear never freezes inside', { src71: s => sub('  delete e.outSince;\n  if (!kind) {', '  if (!kind) {')(sub("if (!e.hangar && typeof e.outSince === 'number' && isFinite(e.outSince))", "if (typeof e.outSince === 'number' && isFinite(e.outSince))")(s)) }],
   ['GQ7: the wear never reaches the macros', { src71: sub('age: c(c(m.age) + PREM_WEAR.age * k)', 'age: c(m.age)') }],
   ['GQ7: Repair / Paint leaves the wear', { src71: sub('  delete r.wearOut;\n', '') }],
   ['gp1: the bases are not derived from the hangars held', { src38b: sub('const R = doc ? flightBasesOf(doc) : FLIGHT_BASES;', 'const R = FLIGHT_BASES;') }],
@@ -768,7 +786,8 @@ let bad = 0;
 for (const [name, mut] of BREAKS) {
   let r;
   try { r = run(mut); } catch (e) { r = { fails: [e.message], checks: 0 }; }
-  const caught = r.fails.length > base.fails.length;
+  // (G2690: a break whose anchor is gone from the source broke nothing - a miss, never a catch)
+  const caught = r.fails.length > base.fails.length && !r.fails.some(f => /selftest anchor gone/.test(f));
   console.log((caught ? '  caught  ' : '  MISSED  ') + name + (caught ? '  (' + (r.fails.length - base.fails.length) + ' new)' : ''));
   if (!caught) bad++;
 }
