@@ -150,6 +150,9 @@ const MANIFEST = {
     '62_gen_aero.js',
     '63_gen_wing.js',
     '64_gen_build.js',
+    // THE DESIGN CHECK (G2640): the derivatives, the modes and the pointers off the built aeroplane; needs 30_'s
+    // probe and 64_'s genAlphaForLift; genShakedown attaches it (not on a slim sheet)
+    '64b_gen_design.js',
     '65_gen_loadtest.js',
     // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
     // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
