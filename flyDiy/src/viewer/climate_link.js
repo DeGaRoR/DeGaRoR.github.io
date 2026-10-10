@@ -85,8 +85,13 @@ var CLIMATE_LINK = (function () {
     if (camPos) {
       c.sample(camPos.x, camPos.y, camPos.z, simT || 0, sm);
       const kC = dt > 0 ? 1 - Math.exp(-dt / S.tauCam) : 1;
-      pub.cam[0] += (sm[0] - pub.cam[0]) * kC;
-      pub.cam[1] += (sm[2] - pub.cam[1]) * kC;
+      // G2630: a non-finite eye's sample is not taken, and a state that went non-finite starts again (an ease never leaves NaN)
+      const ng = !!W.FLYDIY_NANGUARD_OFF;   // (GATE SIMDIVERGE's selftest: the old page)
+      if (!ng && !Number.isFinite(pub.cam[0] + pub.cam[1] + pub.cam[2])) { pub.cam[0] = pub.cam[1] = pub.cam[2] = 0; }
+      if (ng || (Number.isFinite(sm[0]) && Number.isFinite(sm[2]))) {
+        pub.cam[0] += (sm[0] - pub.cam[0]) * kC;
+        pub.cam[1] += (sm[2] - pub.cam[1]) * kC;
+      }
       // THE PHASE IS INTEGRATED, never `t * rate`: the rate itself changes with
       // the wind, and a product would jump the whole forest the moment it did.
       pub.cam[2] += Math.hypot(pub.cam[0], pub.cam[1]) * S.swayK * dt;
