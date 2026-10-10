@@ -44,6 +44,7 @@ const LEGS = ['cub', 'jodel', 'c172', 'metal'];
 const rd = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 const L = require(path.join(T, '_treecrash_lib.js'));
+const LB = require(path.join(T, '_load_build.js'));   // T41b (JOIN-PARITY): every validated build as the game loads it - the joined spec
 const C0 = L.core();
 const B = require(path.join(ROOT, 'src', 'viewer', 'bench.js'));
 
@@ -75,7 +76,7 @@ const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jod
 function staticFixtures() {
   const D = {};
   for (const k of Object.keys(BUILDS)) {
-    const j = JSON.parse(rd(BUILDS[k])), spec = j.spec || j;
+    const spec = LB.loadBuild(BUILDS[k]).spec;   // (was the file as written: JOIN-PARITY)
     const def = C0.buildGen(C0.genMigrateSpec(spec));
     const sh = C0.genShakedown(def, { corners: false, slim: true });
     D[k] = { def, sh, fp: B.benchFingerprint(spec, null) };

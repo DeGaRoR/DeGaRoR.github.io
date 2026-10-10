@@ -184,7 +184,9 @@ const DOORS = {
     // (_page_node.js) with the file as its autosave (flydiy.wip): the page's own load chain
     '_dmg_wallpath_check',
     // DMG-D4b (train 41): GATE DMGCRASHUI boots the page under node (_page_node.js) with the file as its autosave (flydiy.wip)
-    '_dmg_crash_ui_check'],
+    '_dmg_crash_ui_check',
+    // (master train 42's: the hidden-pose check boots the page with the file as its autosave - the page's own chain)
+    '_posehidden_check'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',

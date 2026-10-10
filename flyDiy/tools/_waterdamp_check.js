@@ -31,6 +31,7 @@ const path = require('path'), fs = require('fs'), os = require('os');
 const { execFile } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const C = require('./flight_core.js');
+const LB = require('./_load_build.js');   // T41b (JOIN-PARITY): the user's Cub as the game loads it
 const O = require('./ditch_osc.js');
 const SHOW = process.argv.includes('--show');
 let fails = 0;
@@ -100,7 +101,7 @@ const win = (S, a, b) => { const w = S.W.find(x => x.t0 === a); return w ? w.hea
   verdict(pOn.tWet != null && pOn.e.seized && pOn.d.propStrike && pOn.d.propAt && pOn.d.propAt.what === 'water' && pOn.thrAfter === 0,
     `damage ON: a prop strike (${pOn.d.propAt ? pOn.d.propAt.what + ' at ' + f(pOn.d.propAt.t, 2) + ' s' : 'none'}), the engine seized, no thrust after it`);
   { // dry: on its strip at 0.6, 3 s
-    const def = C.buildGen(JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec);
+    const def = C.buildGen(LB.loadValidated('cub').spec);
     const sim = C.makeSim(def, C.makeWorld()); sim.reset(0); sim.ctl.thr = 0.6; sim.ctl.brake = 1;
     let key = false; for (let s = 0; s < 180; s++) { sim.step(1 / 60); if ('propWet' in sim.out) key = true; }
     verdict(!key && sim.eng[0].running && sim.out.thrust > 0, `dry on its strip the engine runs (${f(sim.out.thrust, 0)} N) and \`out\` never carries propWet`);
@@ -119,7 +120,7 @@ const win = (S, a, b) => { const w = S.W.find(x => x.t0 === a); return w ? w.hea
   console.log('\n6 THE CRASH ENDING CLOSES THE THROTTLE');
   {
     const SH = require('../src/viewer/sim_host.js');
-    const spec = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
+    const spec = LB.loadValidated('cub').spec;
     const H = SH.makeSimHost(C, { spec, world: {}, day: false });
     const sim = H.sim, real = sim.damage;
     sim.ctl.thr = 0.6; H.step(true); const before = sim.ctl.thr;
