@@ -4783,7 +4783,8 @@ function buildMatPanel() {
   // `auto (follows …)` under it — but never a tint: a colour drag must not
   // rebuild DOM under an open native picker (syncMatPanel covers the wells).
   const live = Object.keys(SEC_LIVE).sort();
-  const sig = names.join(',') + '|' + consOf() + '|' +
+  // (G2750: + the canopy mode - the waistband row's LABEL is the bubble's 'canopy sill band')
+  const sig = names.join(',') + '|' + consOf() + '|' + (+P.canopy === 3 ? 'bub|' : '') +
     live.map(n => { const r = secResolveAuto(n);
                     return n + ':' + r.fin + ':' + (r.src || ''); }).join(',');
   if (sig === matPanelSig) { syncMatPanel(); return; }
@@ -5021,7 +5022,13 @@ function buildMatPanel() {
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
     pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
-    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals' };
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals',
+    // G2750 (the user: "a dark part around the cockpit ... that can't be accessed using the finish editor"): the three
+    // rails' strips by what they are on screen - and the waist one by what a BUBBLE makes of it, the band the canopy
+    // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
+    // every build made from it, and on a bubble it is that dark surround
+    waistband: +P.canopy === 3 ? 'canopy sill band (the waist rail)' : 'waist band',
+    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],

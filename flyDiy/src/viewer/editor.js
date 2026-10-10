@@ -3608,8 +3608,22 @@ function editorInit(api) {
         // instead of stepping out, which is what `lastPick` is reset for.
         const inst2 = instanceOfHit(hit);
         if (inst2) lastPick = null;
-        select(key === lastPick ? stepOut(sel) : key);
-        lastPick = key;
+        // THE FINISH VIEW LANDS ON THE SURFACE'S OWN ROW (G2750, the user: "a dark part around the cockpit, which is
+        // not the joint, and that can't be accessed using the finish editor" - it was the waistband rail's strip,
+        // which a bubble canopy widens into the band under its seam: its row was there, under the fuselage, by a
+        // name nobody would connect to it). A click on a cage face says its section: the part opens (never a step
+        // out - a second click on the same band must not leave it) and that section's row scrolls in and flashes,
+        // so whatever colour is on screen is one click from the well that sets it
+        const finSec = view === 'finish' && hit && hit.section ? hit.section : null;
+        select(finSec ? key : key === lastPick ? stepOut(sel) : key);
+        lastPick = finSec ? null : key;
+        if (finSec) setTimeout(() => {
+          const row = Array.from(wrap.querySelectorAll('[data-sec]')).find(e => e.dataset.sec === finSec && e.offsetParent);
+          if (!row) return;
+          if (row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          row.classList.remove('secFlash'); void row.offsetWidth; row.classList.add('secFlash');
+          setTimeout(() => row.classList.remove('secFlash'), 1600);
+        }, 0);
       } else if (hit && hit.miss) {
         select('craft');
         lastPick = null;

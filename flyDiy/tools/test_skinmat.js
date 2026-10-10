@@ -1165,6 +1165,17 @@ if (process.argv.includes('--selftest')) {
         'overlay: the x-rayed frame is not above the craft\'s see-through band (the glass, the clouds\' composite)');
   check(/function enterGarage\(\) \{[\s\S]*?skinMode = 0;\s*applySkinVis\(\);/.test(APP),
         'overlay: the frame/overlay mode survives into the garage');
+  // NEVER AN UNREACHABLE COLOUR (G2750, the user: "a dark part around the cockpit, which is not the joint, and that
+  // can't be accessed using the finish editor" - the waistband rail's strip, widened by a bubble canopy into the band
+  // under its seam, its row under the fuselage by a raw name): the row says what it is, and a click in the FINISH view
+  // lands on the struck section's own row
+  check(/waistband: \+P\.canopy === 3 \? 'canopy sill band \(the waist rail\)' : 'waist band'/.test(UI),
+        'finish: the waistband row is not named for what a bubble canopy makes of it (the band round the cockpit)');
+  {
+    const ED = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.js'), 'utf8');
+    check(/const finSec = view === 'finish' && hit && hit\.section \? hit\.section : null;[\s\S]{0,200}select\(finSec \? key :[\s\S]{0,300}e\.dataset\.sec === finSec[\s\S]{0,200}scrollIntoView/.test(ED),
+          'finish: a click on a surface in the FINISH view does not land on its own section\'s row');
+  }
 }
 
 // ---------------------------------------------------------------------------
