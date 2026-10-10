@@ -227,7 +227,9 @@ function run(mut, opts) {
     refused(M.econBuy(poor, 5000, 'airframe', 'X'), pb, poor, 'a purchase short of the cash');
     refused(M.econMaterialise(poor, 'X', 30000, ['tube']), pb, poor, 'materialising short of the cash');
     refused(M.econAcquire(poor, 'w3', 'w3', 'field'), pb, poor, 'a hangar short of the cash');
-    refused(M.econUpgrade(poor, 'HOME', { shell: 'works' }), pb, poor, 'a rebuild short of the cash');
+    // (WORKS-COZY G2315 made the career's main hangar a works; the rebuild asked is to the OTHER shell, so it is a change)
+    const otherShell = (poor.sheds && poor.sheds.HOME && poor.sheds.HOME.shell === 'works') ? 'club' : 'works';
+    refused(M.econUpgrade(poor, 'HOME', { shell: otherShell }), pb, poor, 'a rebuild short of the cash (to ' + otherShell + ')');
     refused(M.econBuy(c, 100, 'fuel', 'X'), clone(c), c, 'a running cost through the purchase door');
     const m = M.econMaterialise(c, 'New', M.CONTRACT_DESIGNS.jodel.cost, WANTS.jodel);
     const mp = M.econAirframePrice(M.CONTRACT_DESIGNS.jodel.cost, c.sheds.HOME, WANTS.jodel);
@@ -319,7 +321,7 @@ function run(mut, opts) {
     ok(/if \(CAREER_DEV && isNew\) d = econMaterialiseNow\(d, info\.saved\);/.test(app) && /const isNew = !!\(info\.saved && !playerLoad\(\)\.fleet\[info\.saved\]\);/.test(app), 'the first save of a new airframe is paid (career)');
     ok(/econMaterialise\(d, name, B\.cost, B\.wants, \{ price: B\.price \}\)/.test(half) && /econAirframePrice\(cost, playerLoad\(\)\.sheds\[PREM_MAIN\], wants\)/.test(half) && /econLedgerCost\(led\)/.test(half),
        'the airframe\'s price: its ledger x the main hangar\'s labour factor for its wants');
-    const si = gar.indexOf('if (api.canSave)'), wi = gar.indexOf('if (!lsSet(SLOT + name, envelope(name, spec, plaque, log)))');
+    const si = gar.indexOf('if (api.canSave)'), wi = gar.indexOf('if (!lsSet(SLOT + name, ');   // (G2630, train 42.1: the envelope is checked finite first, then written)
     ok(si > 0 && wi > si && /api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\);/.test(gar), 'garage.js asks before it writes a new slot, and writes nothing when refused');
     ok(/econUpgrade\(playerLoad\(\), PREM_MAIN, change, \{\}\)/.test(half), 'the shed doors go through playerUpgrade on the main hangar');
     ok(/econRepair\(playerLoad\(\), n, \{ wants \}\)/.test(half) && /#ecRepair|id="ecRepair"/.test(half), 'Repair: an explicit press, through econRepair');
