@@ -830,7 +830,10 @@ const BREAKS = [
   ['the burn drops the load', { core: sub('FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2', 'DRY0[k] + FUEL0[k] * f2') }],
 ];
 let bad = 0;
+// --only-break=<regex>: the doctored rules whose names match (a re-check of a few in a short window); every rule by default
+const ONLY_BREAK = (process.argv.find(a => a.startsWith('--only-break=')) || '').slice(13);
 for (const [name, mut] of BREAKS) {
+  if (ONLY_BREAK && !new RegExp(ONLY_BREAK, 'i').test(name)) continue;
   let r;
   try { r = run(mut); } catch (e) { r = { fails: [e.message], checks: 0 }; }
   const caught = r.fails.length > base.fails.length;

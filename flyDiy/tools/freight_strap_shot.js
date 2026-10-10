@@ -195,6 +195,8 @@ function cdpBrowser(headed) {
             await ev(pg, () => window.FLIGHT_PROBE.camMode('chase'));
           }
           if (/STOPPED|LANDED/.test(r.ph) && k > 60) break;
+          // enough: 20 s of cruise sampled (and the loaded flight's stills taken)
+          if ((load === 'none' || shot) && rows.filter(q => /ENROUTE|DOWNWIND|CROSSWIND|INBOUND/.test(q.ph)).length >= 40) break;
         }
         const cr = rows.filter(r => /ENROUTE|DOWNWIND|CROSSWIND|INBOUND/.test(r.ph));
         const mean = k => cr.length ? cr.reduce((a, r) => a + r[k], 0) / cr.length : null;
