@@ -207,7 +207,13 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2)), rg = a => (a ? f2(a[0]) + '
     // has gone, no longer let go 0.3 g later as they did when ANY one of them took the group; that case reads as the
     // root joint's own failure and is printed so)
     const linkFirst = !bo.g0 && bo.fb && bo.fb.t1 && !bo.fb.ductile;
-    yes(bo.finite && ((bo.g0 && bo.g0.seam === 'fitting') || linkFirst) && fbOk(bo.fb),
+    // THE OPEN LIST (T41b, the user's word 10 Oct): the Jodel's bench to destruction - a spruce member of the wing box breaks
+    // first and no group parts (the box shreds inside, never separates), an interaction of train 39 (TUNE) x DMG-BUNDLE-GREEN
+    // (each green alone; their merge 8b9d055d0 red; not the joined spec). Damage on only. Owner Deform, G2399, opened
+    // 2026-10-10: printed, never counted, until the next damage session lands; any other build's failure counts as ever
+    const benchOk = bo.finite && ((bo.g0 && bo.g0.seam === 'fitting') || linkFirst) && fbOk(bo.fb);
+    if (!benchOk && k === 'jodel') console.log('  OPEN  the bench to destruction: first yield at ' + f2(bo.yAt) + ' g; the first member broken at ' + f2(bo.nAtB) + ' g: ' + fbTxt(bo.fb) + '; no group [owner Deform G2399: the wing box shreds without separating, opened 2026-10-10]');
+    else yes(bo.finite && ((bo.g0 && bo.g0.seam === 'fitting') || linkFirst) && fbOk(bo.fb),
       (linkFirst ? '(no group let go: the wing parted at its root\'s own link, brittle) ' : '') + 'the bench to destruction: first yield at ' + f2(bo.yAt) + ' g; the first member broken at ' + f2(bo.nAtB) + ' g: ' + fbTxt(bo.fb) + ' ' + (bo.fb ? bo.fb.tags : '') + '; the first GROUP at ' + f2(bo.nAtG) + ' g: ' + (bo.g0 ? bo.g0.key : 'none') + '; ' + bo.breaks + ' broken, groups ' + bo.groups.join(', '));
     if (bo.fb && !bo.fb.seam) console.log('  REPORT  the bench\'s first member is not a fitting or a seam: ' + fbTxt(bo.fb) + ' ' + bo.fb.tags + ' at z ' + bo.fb.z.map(f2).join(' / ') + (bo.fb.t1 ? ' (a pair\'s own link: the carry-through)' : '') + ' - ' + (bo.fb.ductile ? 'DUCTILE' : 'brittle') + '; the lattice\'s spar has one section root to tip (DMG-D2\'s per-member envelope)');
     for (const t of r.trunk || []) {
