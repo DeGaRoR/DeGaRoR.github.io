@@ -43,6 +43,10 @@ var DAY_CLOCK = (function () {
   const read = () => {
     try {
       const v3 = JSON.parse(localStorage.getItem(PREF) || 'null');
+      // G2630: a saved day whose clock is not a finite number (or whose date is not a date) is set aside - the game's day
+      if (v3 && !(typeof v3.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v3.date) && Number.isFinite(v3.utc))) {
+        console.warn('flyDiy: the saved day was not readable - the game’s day'); return null;
+      }
       if (v3) return v3;
       const v2 = JSON.parse(localStorage.getItem(PREF_V2) || 'null');
       if (v2 && !v2.wind) v2.wind = Object.assign({}, GAME_WIND);
@@ -53,15 +57,18 @@ var DAY_CLOCK = (function () {
   // ...and THE WEATHER with it (CLIMATE K2): the wind, the air, the column's
   // shape and a front all live on the day's declared spec, so the pref carries
   // whatever of them the player set. An older pref simply has none of them.
+  // G2630: through jsonFinite (70_player.js): a day holding a non-finite number is not written, the saved one stands.
   // (G2650) in the career the instant is the document's: the pref keeps the sandbox's own date / hour / rate
   // (written back as they were) and the career's instant goes to the page (careerHook.put)
+  const fin = (v, w) => (typeof jsonFinite === 'function' ? jsonFinite(v, w) : JSON.stringify(v));
   const save = () => { if (!day) return; try { const sp = day.spec(), keep = careerHook ? (read() || {}) : null;
     if (careerHook) try { careerHook.put({ date: day.date, utc: day.utc }); } catch (e) {}
-    localStorage.setItem(PREF, JSON.stringify({ date: keep ? keep.date : day.date, utc: keep ? keep.utc : Math.round(day.utc), rate: keep ? keep.rate : day.rate,
+    const j = fin({ date: keep ? keep.date : day.date, utc: keep ? keep.utc : Math.round(day.utc), rate: keep ? keep.rate : day.rate,
     cloudCover: day.cloudCover, cloudType: day.cloudType, cloudUpper: day.cloudUpper && day.cloudUpper.length ? day.cloudUpper : null,
     wind: sp.wind || null, storm: sp.storm || null, diurnalC: sp.diurnalC || null,
     oatC: sp.oatC != null ? sp.oatC : null, qnhPa: sp.qnhPa != null ? sp.qnhPa : null, dewC: sp.dewC != null ? sp.dewC : null,
-    lapse: sp.lapse || null, mixH: sp.mixH != null ? sp.mixH : null, inversion: sp.inversion || null })); } catch (e) {} sinceSave = 0; };
+    lapse: sp.lapse || null, mixH: sp.mixH != null ? sp.mixH : null, inversion: sp.inversion || null }, 'the day');
+    if (j != null) localStorage.setItem(PREF, j); } catch (e) {} sinceSave = 0; };
   // ?wind=<kt>,<deg from>[,<gust>][,<terrain>]   e.g. ?wind=20,270,0.3,1 - a ridge day
   // ?storm=<hours from now>[,<intensity>]        e.g. ?storm=1 - a front an hour out
   // Both are read once at bind, after the pref and after ?day=, so a link wins.
