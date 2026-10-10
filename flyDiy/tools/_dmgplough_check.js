@@ -58,7 +58,8 @@ function defOf(key, mode) {
   def = Object.assign({}, def, { params: Object.assign({}, def.params) });
   if (mode === 'wave') def.parts = Object.assign({}, def.parts, { floats: def.parts.floats.map(r => Object.assign({}, r, { P: Object.assign({}, r.P, { kWave: 1 }) })) });
   // the INSTRUMENT: the thrust on the nose frame's upper nodes (the twin: 0.17 m over the CG) instead of the engines
-  if (mode === 'thrustcg') def.refs = Object.assign({}, def.refs, { engine: def.refs.upHi.slice(0, def.refs.engine.length) });
+  if (mode === 'thrustcg') { def.refs = Object.assign({}, def.refs, { engine: def.refs.upHi.slice(0, def.refs.engine.length) });
+    def.params.drownOff = true; }   // (T41b: the instrument's 'disc' is no disc - G2105's drown would stop it on the slipway)
   return def;
 }
 const pitchOf = sim => Math.asin(Math.max(-1, Math.min(1, -sim.axes()[0][1]))) / D2R;

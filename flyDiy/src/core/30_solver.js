@@ -1568,8 +1568,11 @@ function makeSim(def, world) {
   // WITH THE DAMAGE LAYER ON it is a prop strike as the ground's (seized for good, DMG.propAt 'water'); OFF, a stall:
   // nothing breaks and the key can start it again once the disc is clear. out.propWet: the engines' mask, written only
   // on an armed frame (a dry flight's `out` never carries it). One waterH sample per engine per armed frame.
+  // T41b: params.drownOff - an INSTRUMENT's switch, never a build's (no generator or save sets it; like defDampMean): GATE
+  // DMGPLOUGH's instrument moves the twin's thrust onto the nose frame (refs.engine), where the disc this asks for is a
+  // point 0.17 m over the CG less a prop's radius - in the water at rest - and the instrument never left the slipway
   function propWater() {
-    if (!world || typeof world.waterH !== 'function' || !(wetArm || (HY && HY.wet > 0))) {
+    if (def.params.drownOff || !world || typeof world.waterH !== 'function' || !(wetArm || (HY && HY.wet > 0))) {
       for (let k = 0; k < eng.length; k++) if (eng[k].drown) eng[k].drown = false;
       return;
     }
