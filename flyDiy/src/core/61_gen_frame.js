@@ -376,9 +376,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
     // float truss: gear-class tube that is NOT a spring), c by its root
     const kMul = (opt && opt.kMul) || 1;
-    // G2678: `opt.cMul` - its damper at a multiple of the class's (the belly pod's hangers: stiff on 2.5 kg nodes, damped so
-    // the step the network asks is the one it asked without them). Absent = 1: every other member's c is its bytes
-    const cMul = (opt && opt.cMul != null) ? opt.cMul : 1;
     // G445.7/8: THE AFT FUSELAGE'S GAUGE, computed once here for the mass
     // block below. THE STIFFNESS STAYS (G351: "the clusters hold the aft
     // structure") — tried the other way on 2026-09-20: k scaled with the
@@ -406,7 +403,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
                           ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
     const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
-                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
+                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -2769,36 +2766,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // shell (empty weight) and its price on the two rings that straddle the shell's centroid, the fittings on their
   // lower longerons (billAt: the pod's mounts, 66_gen_cert's mount rows); the freight in it is payload, on the rings
   // that straddle the hold's centroid.
-  // G2678 (BELLY-POD-2): THE POD IS FLOWN AS A BODY OF ITS OWN - four nodes at its floor's lowest points (the flat
-  // floor's fore and aft ends, half the pod's half-width out each side: the points genPodClearance finds lowest in
-  // every attitude - nose down the fore pair, tail down / three-point / rotated the aft pair, level all four), hung
-  // on the two straddling rings' lower longerons (the fittings) by 16 hangers and braced across by 6. They carry the
-  // pod's mass (the shell, then the freight) by lever between the fore and aft pair, so the ledger's moment is the
-  // shell's own centroid as before. They are ORDINARY nodes (r = 0, no wheel): a belly touch is the solver's scrape
-  // branch (mu 0.8), on the pod. The members are noMass (the shell's mass is billed as its points) and stiff (the
-  // floats' x8 bracing: a moulded pod on its fittings is a rigid body). Without a pod none of this runs.
   const podR = genPodResolve(S, ST);
-  let podN = null, podM = null;
   if (podR) {
     sec('pod');
-    const ff = genPodNodesAt(podR, ST);
-    const [mf, ma] = podR.mounts;
-    const ringA = F[ma] && ma !== mf ? ma : Math.min(F.length - 1, mf + 1), ringF = ringA === mf ? Math.max(0, mf - 1) : mf;
-    podN = ff.map(q => N(q[0], q[1], q[2], 'POD'));
-    const fit = [F[ringF].BL, F[ringF].BR, F[ringA].BL, F[ringA].BR];
-    const b0 = beams.length, KM = { noMass: true, kMul: 8, cMul: 0.1 };
-    for (const i of podN) for (const j of fit) B(i, j, 'gear', false, 'inner', undefined, KM);
-    const [pfl, pfr, pal, par] = podN;
-    for (const [i, j] of [[pfl, pfr], [pal, par], [pfl, pal], [pfr, par], [pfl, par], [pfr, pal]]) B(i, j, 'gear', false, 'inner', undefined, KM);
-    podM = { nodes: podN.slice(), fittings: fit, rings: [ringF, ringA], hangers: [], braces: [] };
-    for (let k = b0; k < beams.length; k++) (k - b0 < 16 ? podM.hangers : podM.braces).push(k);
-    const onPod = (x, m) => {
-      const w = genClamp((x - podR.xa) / Math.max(1e-6, podR.xb - podR.xa), 0, 1);
-      pt(pfl, 0.5 * m * (1 - w)); pt(pfr, 0.5 * m * (1 - w)); pt(pal, 0.5 * m * w); pt(par, 0.5 * m * w);
-    };
-    onPod(podR.xShell, podR.shellKg);
+    billAt(podR.xShell, podR.shellKg);
     spend(podR.price);
-    if (podR.loadKg > 0) { sec('podLoad'); onPod(podR.xLoad, podR.loadKg); }
+    if (podR.loadKg > 0) { sec('podLoad'); billAt(podR.xLoad, podR.loadKg); }
   }
 
   const refs = {
@@ -2839,8 +2812,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
-  // G2678: the flown pod's own nodes and members (the damage hook's data: HANDOVER G2675-G2679)
-  if (podM) parts.podFrame = podM;
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
   for (const C of clusters) if (C.omega && typeof C.omega === 'object') {

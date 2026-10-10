@@ -108,7 +108,7 @@ function bakeJoined(spec0) {
   const errors = W.CAGE_JOIN.errors(), notes = W.CAGE_JOIN.notes();
   // the fragment over the birth spec, as GARAGE_SPEC.update merges it
   const joined = merge(spec, JSON.parse(JSON.stringify(J)));
-  return { spec0, spec: joined, J, errors, notes, sceneErrors: r.errors, ms: Date.now() - t0, W, scene: r.scene };   // scene: G2679 GATE POD's census
+  return { spec0, spec: joined, J, errors, notes, sceneErrors: r.errors, ms: Date.now() - t0, W };
 }
 
 function bakeCard(key) {

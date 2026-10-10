@@ -639,17 +639,7 @@ const GATES = [
   // clearance per attitude re-derived off its own shell; its drag (Raymer's build-up) in the axial row and its cost
   // in cruise and climb; the bench's row (a strike refused with its number); the mounts under a real certificate;
   // the CG full; the acceptance leg off / on / full (reports/evidence/POD/flights.json); --selftest 21 doctored rules
-  // G2679 (BELLY-POD-2): + the editor's volume mapped by the core, its readouts the core's and its red reasons; the
-  // flown pod (four scraping nodes at its lowest points, its mass on them, no substep paid, a deep pod resting and
-  // sliding on them); no pod = the base core's certificate and 300 flown steps to the bit (tools/_pod_bytes.js, a
-  // process a build); a pod on a BOUGHT aeroplane is a modification (procureOnSave); the drawn pod headless (one
-  // mesh, the join's datums and snapshot bucket, 2 draws; absent: nothing) - --selftest 30 doctored rules
-  { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 130 },
-  // THE BELLY POD'S SECTION IN THE GARAGE EDITOR (G2679, BELLY-POD-2): tools/_cage_pod.js driven through its own rows
-  // (ranges, the fitted box, the door, the double-click resets) over the core's text evaluated the page's way: off
-  // writes nothing, a drag nothing, a release once (genPodFromVolume's dims inside GEN_POD.clamp), the readouts the
-  // core's, red with the reason, unticked = the key removed; the wiring's sources; --selftest 10 doctored rules
-  { id: 'PODEDITOR', file: '_pod_editor_check.js', tier: 'core', wall: 20 },
+  { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 60 },
   // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
   // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
   // arc stage flyable by a validated design, none doing every class (az); (G2430 CONTRACT-ROUTES) THE ROUTES: >= 60 % of

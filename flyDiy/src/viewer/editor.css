@@ -1754,21 +1754,3 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   border-top:1px solid var(--ed-hair);
   font:400 9.5px/1.6 'IBM Plex Sans'; letter-spacing:.02em;
   color:var(--ed-faint); }
-
-/* THE BELLY POD'S SECTION (G2675, BELLY-POD-2): the panel part's rows are the editor's own; its outer fold is
-   flattened like the tanks', its quiet group labels are the type ladder's, and the readouts below them are facts,
-   not controls - dim labels, ink values, the one place they shout is a bound crossed (--ed-bad / --ed-warn) */
-.edRoot > details[data-g="pod"] { border:0; border-radius:0; padding:0; margin:0; }
-.edRoot > details[data-g="pod"] > summary { display:none; }
-#edRows .edRoot > details[data-g="pod"] .podBody { margin-left:var(--ed-indent); }
-.edRoot .podG { font:var(--ed-t-group); letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint);
-  padding:10px 0 4px; }
-.edRoot .podNote { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim); padding:4px 0 8px; }
-.edRoot .podL { display:flex; gap:var(--ed-gap); font:400 11.5px/1.5 'IBM Plex Sans'; min-width:0; }
-.edRoot .podL .podK { width:var(--ed-lab); flex:none; color:var(--ed-dim); overflow:hidden; text-overflow:ellipsis;
-  white-space:nowrap; }
-.edRoot .podL .podV { color:var(--ed-ink); flex:1; min-width:0; }
-.edRoot .podL.dim .podV, .edRoot .podL.dim { color:var(--ed-faint); }
-.edRoot .podL.bad .podV, .edRoot .podWhy.bad { color:var(--ed-bad); }
-.edRoot .podL.warn .podV, .edRoot .podWhy.warn { color:var(--ed-warn); }
-.edRoot .podWhy { font:500 11px/1.45 'IBM Plex Sans'; padding-top:3px; }
