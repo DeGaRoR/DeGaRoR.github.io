@@ -78192,6 +78192,14 @@ select) - cloud, G2096; S3 needs A0's box for the world evidence; S4 waits on Q2
 BOARDS (7 Oct, A0's format = the Deform pair): PROGRESS https://claude.ai/artifact/EaZJAscAZCDLXG87XXa568 (db: sessions / trains /
 meta board, log, calls; owner writes) - EVIDENCE https://claude.ai/artifact/J8ZJx9yFxc36g2KY29X9pr (images published with the page;
 tree + mode + renderer per sheet; refresh at every commit that adds images).
+11 OCT 00:20, TRAIN 43's MEDIA (A0's word): the STEP is accepted BY NAME under the user's 8 Oct ruling ("Have a sanity
+check, then accept. It is a major feature, expected to take some space.") - tools/_media_check.js STEP_ACCEPTED: 'train 43: the
+career features, user-accepted 8 Oct - +422.8 KB over train 42.1', one exact baseline (train 42.1's page, 12 210 701 bytes)
+up to 12 660 032; any other baseline still meets 0.3 MiB. The WIRE budget is raised TEMPORARILY 4.0 -> 4.05 MiB gzipped
+(index.html 4.02): train 43 game content; CAREER-LAZY (train 44.1, Sun 11 Oct 20:45) brings it back under 4.0 and the
+budget RETURNS TO 4.0 IN THAT TRAIN (owed by the GAME COORDINATOR). T43's pass (490900b8): 26/29, then ECON's two rows
+and the stale fleet pack fixed (5e7df529).
+
 8 OCT 17:20: integration df8eb904 = + CONTRACT-ROUTES G2430, MAP-MERGE G2440, MAP-INFRA G2435 (READY since 7 Oct ~23:30, missed by a
 UTC string filter - see the memory). Pre-pass 15:00 12/12 PASS; on df8eb904 MAPBAKE CONTRACTS STAGES ECON PROCURE FREIGHT PILOTS
 UISMOKE UISMOKE-PHONE PASS, MEDIA red on the step. THE USER (decision 6, via A0): train 43's size 'Have a sanity check, then accept. It's
