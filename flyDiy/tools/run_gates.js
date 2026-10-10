@@ -413,9 +413,9 @@ const GATES = [
   { id: 'GEOPARITY', file: '_geoparity_check.js', tier: 'core', wall: 20 },
   // G2640: THE DESIGN CHECK (64b_gen_design.js, genShakedown's `design`, the bench check's rows): no FAIL on the
   // validated five; doctored designs fail on their own row with a fix; fin / dihedral / tail-arm sweeps point the right
-  // way; data + determinism + the bench renders it. ~45 s. DESIGNSIM (full): the predicted spiral root against the sim
+  // way; data + determinism + the bench renders it; the shell boom against the drawn shell. ~140 s. DESIGNSIM (full): the predicted spiral root against the sim
   // flown hands off (the Cub, the mosquito), ~3 min.
-  { id: 'DESIGNCHECK', file: '_designcheck_check.js', tier: 'core', wall: 50 },
+  { id: 'DESIGNCHECK', file: '_designcheck_check.js', tier: 'core', wall: 150 },
   { id: 'DESIGNSIM', file: '_designcheck_check.js', argv: ['--only=sim'], tier: 'full', wall: 200 },
   // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
   // review's A2 / A3 / B8 / B9 / B13 / E1-E3): GEN_FIELDS against GEN_DEFAULT and clampSpec; clamp idempotent;

@@ -2435,6 +2435,17 @@ const GEN_RULES = {
   // omega scales as sqrt(K / M). A number is that number; 0 = rigid.
   twinBoomTubeW: 'computed',
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
+  // G2640 (DESIGN-TRUST): A STRESSED-SKIN BOOM IS A SHELL (61_gen_frame's SHELL
+  // block): a covered lofted boom of one of these constructions flies on the
+  // tube element at its drawn section's stiffness as a thin shell. `t` the
+  // skin, `eK` the share of the material's modulus a shell laminate carries -
+  // carbon's phys E is the fibre's (135 GPa, UD); a quasi-isotropic layup is
+  // ~0.45 of it (~60 GPa: CMH-17 vol. 2, T300/epoxy quasi-isotropic 50-60
+  // GPa); alloy 0.8 mm (a light aircraft's aft fuselage skin, 0.025-0.032 in
+  // 2024-T3); plywood 2.5 mm at 0.9 (the Jodel's box). Tube-and-fabric and the
+  // aluminium tube frame are trusses: the lattice is them.
+  shellSkin: { carbon: { t: 1.2e-3, eK: 0.45 }, alloy: { t: 0.8e-3, eK: 1 }, wood: { t: 2.5e-3, eK: 0.9 } },
+  shellBoom: 1,
   // G351 (the user: "let's do a"): THE REAR FUSELAGE'S GAUGE. Aft of the
   // cabin box every fuselage-class member was billed at the one lin.fus of
   // the material — 71 members, 47-54 m of tube at 0.58 kg/m, 41-44 kg of

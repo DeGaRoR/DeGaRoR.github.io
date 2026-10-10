@@ -96,6 +96,8 @@ function shoot(spec, outFile, opts) {
   const def = r.def, tris = allTris(r.W);
   // the frame's extent: the drawn aeroplane
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z1 = 0;
+  { const AF0 = r.W.CAGE_GEAR && r.W.CAGE_GEAR.AF, D0 = r.W.CAGE_DATUM;
+    if (AF0 && D0) { x0 = Math.min(x0, D0.zFw - AF0.z1); x1 = Math.max(x1, D0.zFw - AF0.z0); } }
   for (const T of tris) for (const p of T.t) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); z1 = Math.max(z1, Math.abs(p[2])); }
   const W = 1600, pad = 30;
   const s = (W - 2 * pad) / (x1 - x0);
@@ -105,6 +107,25 @@ function shoot(spec, outFile, opts) {
   const side = p => [pad + (p[0] - x0) * s, pad + (y1 - p[1]) * s];
   const top = p => [pad + (p[0] - x0) * s, hSide + pad + (z1 - Math.abs(p[2])) * s];
   const COL = { body: [205, 205, 200], wing: [150, 150, 145], stab: [150, 150, 145], fin: [150, 150, 145] };
+  // the BODY: the headless scene builds no fuselage skin, so its silhouette
+  // comes off the airframe's own analytic surface (CAGE_GEAR.AF, what the
+  // join measures the fuselage on): belly to deck in side view, the half
+  // width in top view, in 2 cm slices
+  const AF = r.W.CAGE_GEAR && r.W.CAGE_GEAR.AF, Dt = r.W.CAGE_DATUM;
+  if (AF && Dt) {
+    const bc = [195, 195, 190];
+    let prev = null;
+    for (let z = AF.z0; z <= AF.z1; z += 0.02) {
+      const x = Dt.zFw - z, yb = AF.surf(z, 0)[1] - Dt.yD, yt = AF.surf(z, Math.PI)[1] - Dt.yD, hw = AF.halfWAt(z);
+      if (prev && isFinite(yb) && isFinite(yt)) {
+        const a = side([prev.x, prev.yb, 0]), b = side([x, yb, 0]), c = side([x, yt, 0]), d = side([prev.x, prev.yt, 0]);
+        cv.tri(a, b, c, bc, 0.5); cv.tri(a, c, d, bc, 0.5);
+        const e = top([prev.x, 0, 0]), f = top([x, 0, 0]), g2 = top([x, 0, hw]), h = top([prev.x, 0, prev.hw]);
+        cv.tri(e, f, g2, bc, 0.5); cv.tri(e, g2, h, bc, 0.5);
+      }
+      prev = { x, yb, yt, hw };
+    }
+  }
   // body first, the surfaces over it; the top view draws one half (z >= 0
   // or the build's own side for the surfaces)
   for (const pass of ['body', 'surf']) for (const T of tris) {
@@ -129,6 +150,16 @@ function shoot(spec, outFile, opts) {
     }
     if (st.kind !== 'fin' && g.a[2] >= -0.02) { cv.line(top(le), top(te), red, 1); cv.dot(top(g.a), red, 4); }
     if (st.kind === 'fin') { cv.line(top(le), top(te), red, 1); cv.dot(top(g.a), red, 4); }
+  }
+  // the tail's TRUSS, thin blue - the members the in-game structure overlay
+  // draws for the fin and the stab (what the user saw "far from the mesh")
+  const isTail = t => /^(VF|VR|VX|FIN|HF|HR|HB|HT)/.test(t || '');
+  for (const bm of def.beams) {
+    const A = def.nodes[bm.a], B = def.nodes[bm.b];
+    if (!isTail(A.tag) || !isTail(B.tag)) continue;
+    const blue = [60, 90, 200];
+    if (/^(VF|VR|VX|FIN)/.test(A.tag) && /^(VF|VR|VX|FIN)/.test(B.tag)) cv.line(side(A.p), side(B.p), blue, 0);
+    else if (A.p[2] >= -0.02 && B.p[2] >= -0.02) cv.line(top(A.p), top(B.p), blue, 0);
   }
   const fin = def.nodes.find(n => n.tag === 'FIN');
   if (fin) { cv.dot(side(fin.p), [30, 60, 220], 6); }

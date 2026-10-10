@@ -778,6 +778,77 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                         rings: rodRings, gj: rodGJ, dmg: rodDmg });
   }
 
+  // G2640 (DESIGN-TRUST): A STRESSED-SKIN BOOM IS A SHELL. The user, on a
+  // carbon pod-and-boom: "the boom of the plane has no rigidity, while it's a
+  // carbon tube, should be very rigid". Measured (200 N sideways at the tail
+  // post, the cabin held): the lattice's four longerons and their diagonals
+  // bend 18.9 mm on the mosquito where the DRAWN section, as a carbon shell
+  // (1.2 mm at the laminate's 0.45 of the fibre's modulus), bends 2.7 - and
+  // a 0.8 mm aluminium skin on the metal Cessna's section 0.3 mm against the
+  // lattice's 12.6. A truss is right for a tube-and-fabric or an aluminium
+  // tube frame; a monocoque's stiffness is its skin. So a covered lofted
+  // boom of a stressed-skin construction (GEN_RULES.shellSkin: carbon, alloy,
+  // wood's plywood box) flies on the tube element the rod and the twin boom
+  // already fly on (G294 / G314): its aft bays - the ring at boxRear to the
+  // tail post - one shape-matched cluster at the drawn section's own
+  // cantilever stiffness, the shell's tip deflection integrated station by
+  // station along the profile (thin elliptical shell, Roark: semi-axes the
+  // half width and half the depth; the softer of the two ways), and the
+  // twist constraint at the shell's Bredt GJ (4 A^2 t / perimeter). The
+  // members stay at their plain k (the drawing, the mass, the strains); a
+  // cluster's hold is a projection, so the step is not shortened by it.
+  // GEN_RULES.shellBoom 0 = the lattice alone, the revert switch.
+  const SHELL = (!ROD_TUBE && S.fuse.boom !== 'rod' && S.fuse.boom !== 'twin' && fusCovered
+                 && !(R.shellBoom === 0 || R.shellBoom === false)) ? (R.shellSkin || {})[S.material] : null;
+  if (SHELL && SHELL.t > 0 && M && M.phys && M.phys.E > 0) {
+    const E = M.phys.E * (SHELL.eK || 1), tS = SHELL.t, G = E / 2.6;
+    const cl = [], rings = [];
+    ST.forEach((st, i) => { if (st.x >= boxRear - 1e-6) {
+      cl.push(F[i].BL, F[i].BR, F[i].TL, F[i].TR);
+      rings.push([F[i].TL, F[i].TR, F[i].BR, F[i].BL]);
+    } });
+    cl.push(TPB, TPT);
+    const xT = P[TPT][0], x0 = boxRear;
+    const secAt = x => {                               // the station table, linear between rows
+      let k = 0; while (k < ST.length - 2 && ST[k + 1].x < x) k++;
+      const A = ST[k], B2 = ST[Math.min(ST.length - 1, k + 1)], u = B2.x > A.x ? Math.max(0, Math.min(1, (x - A.x) / (B2.x - A.x))) : 0;
+      const w = A.w + (B2.w - A.w) * u, h = (A.yt - A.yb) + ((B2.yt - B2.yb) - (A.yt - A.yb)) * u;
+      return { b: Math.max(0.01, w), a: Math.max(0.01, 0.5 * h) };
+    };
+    let dLat = 0, dVer = 0;
+    const nS = 40, Lb = Math.max(0.3, xT - x0);
+    for (let i = 0; i < nS; i++) {
+      const x = x0 + Lb * (i + 0.5) / nS, dx = Lb / nS, m2 = (xT - x) * (xT - x), q = secAt(x);
+      const Il = Math.PI * tS * q.b * q.b * (3 * q.a + q.b) / 4, Iv = Math.PI * tS * q.a * q.a * (3 * q.b + q.a) / 4;
+      dLat += m2 / (E * Il) * dx; dVer += m2 / (E * Iv) * dx;
+    }
+    const Kt = 1 / Math.max(dLat, dVer, 1e-12);
+    const qm = secAt(x0 + 0.5 * Lb);
+    const Aenc = Math.PI * qm.a * qm.b;
+    const per = Math.PI * (3 * (qm.a + qm.b) - Math.sqrt((3 * qm.a + qm.b) * (qm.a + 3 * qm.b)));
+    const GJs = G * 4 * Aenc * Aenc * tS / Math.max(1e-6, per);
+    // ...AND IT CAN BREAK (G1840 / G1842, DMG-D3): a cluster without a section
+    // record is never cut, so with damage on a shell would hold a crashed
+    // boom together after its members let go. Its record is the twin boom's
+    // OVAL - the same thin elliptical shell, at its ROOT (the ring at boxRear:
+    // the cluster's first ring, where the stressed skin is riveted or bonded
+    // to the cabin's), its mid-span station, the riveted joint's 0.7
+    let shellDmg = null;
+    if (rings.length >= 2) {
+      const qr = secAt(x0 + 1e-3), ring0 = rings[0], lastR = rings[rings.length - 1];
+      const Ar = Math.PI * qr.a * qr.b, pr = Math.PI * (3 * (qr.a + qr.b) - Math.sqrt((3 * qr.a + qr.b) * (qr.a + 3 * qr.b)));
+      shellDmg = { kind: 'oval', mat: genPhysKey(M.phys), E,
+                   EIv: E * Math.PI * tS * qr.a * qr.a * (3 * qr.b + qr.a) / 4, cv: qr.a,
+                   EIl: E * Math.PI * tS * qr.b * qr.b * (3 * qr.a + qr.b) / 4, cl: qr.b,
+                   GJ: G * 4 * Ar * Ar * tS / Math.max(1e-6, pr), rT: Math.sqrt(qr.a * qr.b),
+                   part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ref: ring0.slice(0, 3),
+                   ax: [ring0[0], lastR[0]], lat: [ring0[0], ring0[1]], station: dmgStation(rings, fu.postX), eta: 0.7 };
+    }
+    if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
+                                        omega: { k: Kt, kRef: 29182, mRef: 61.6, wRef: 300 }, dmg: shellDmg,
+                                        shell: { t: tS, E, Kt, GJ: GJs, dLat, dVer } });
+  }
+
   // ---- 2. engine ------------------------------------------------------
   sec('engines');
   // G134: the resolved spec's own powerplant row — custom dials outrank the

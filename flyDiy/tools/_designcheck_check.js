@@ -61,9 +61,9 @@ const VALID = [
   ['twinFloats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats],
 ];
 
+const J = {};                                      // the joined validated specs (VALIDATED fills it)
 if (!ONLY_SIM) {
   console.log('VALIDATED - no FAIL row');
-  const J = {};
   for (const [k, f, p] of VALID) {
     J[k] = joined(f, p);
     const { dc } = check(J[k], null, true);
@@ -131,6 +131,34 @@ if (!ONLY_SIM) {
     ok(html.indexOf('design check') >= 0 && a.rows.every(r => html.indexOf(r.label.replace(/&/g, '&amp;')) >= 0),
        'the bench renders every row (benchDesignHtml)');
   }
+}
+
+if (!ONLY_SIM) {
+  // THE BOOM (G2640, 61_gen_frame's SHELL): a stressed-skin boom is as stiff
+  // as its drawn section in its skin; a truss stays a truss
+  console.log('THE BOOM - a stressed skin is a shell, a truss a truss');
+  const post = (def, dir) => {
+    const sim = C.makeSim(def, null); sim.reset(0); if (sim.trueBox) sim.trueBox();
+    const xc = def.spec.fuse.boxRear, pin = [];
+    def.nodes.forEach((n, i) => { if (n.p[0] < xc - 0.05) pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]); });
+    const clamp = () => { for (const q of pin) { const i = q[0]*3; sim.p[i] = q[1]; sim.p[i+1] = q[2]; sim.p[i+2] = q[3]; sim.v[i] = sim.v[i+1] = sim.v[i+2] = 0; } };
+    const ids = ['TPT', 'TPB'].map(t => def.nodes.findIndex(n => n.tag === t)), dt = 1 / 240, F = 200;
+    const run = (load, n) => { for (let k = 0; k < n; k++) { if (load) for (const i of ids) sim.impulse(i, dir[0]*F/2*dt, dir[1]*F/2*dt, dir[2]*F/2*dt);
+      sim.step(dt); clamp(); for (let i = 0; i < sim.n * 3; i++) sim.v[i] *= 0.98; } };
+    run(false, 1200); const p0 = ids.map(i => [0, 1, 2].map(k => sim.p[i*3+k])); run(true, 2400);
+    return ids.reduce((a, i, j) => a + [0, 1, 2].reduce((b, k) => b + (sim.p[i*3+k] - p0[j][k]) * dir[k], 0), 0) / 2;
+  };
+  const mq = joined('tools/fixtures/repro/mosquito_3.json');
+  const dS = C.buildGen(mq), sh = (dS.clusters || []).find(c => c.cls === 'shell');
+  ok(!!sh, "the carbon mosquito's boom flies on a shell cluster (omega " + (sh ? sh.omega.toFixed(0) : '-') + ' rad/s)');
+  const ref = sh ? 200 / sh.shell.Kt : 0, dShell = post(dS, [0, 0, 1]);
+  const keep = C.GEN_RULES.shellBoom; C.GEN_RULES.shellBoom = 0;
+  const dLat = post(C.buildGen(mq), [0, 0, 1]);
+  C.GEN_RULES.shellBoom = keep;
+  ok(dShell > 0 && dShell < 2 * ref, `200 N sideways at the post: ${(dShell * 1000).toFixed(1)} mm against the drawn carbon shell's ${(ref * 1000).toFixed(1)} mm (within 2x)`);
+  ok(dLat > 3 * dShell, `...and the revert switch (shellBoom 0) is the soft truss again: ${(dLat * 1000).toFixed(1)} mm`);
+  const cubDef = C.buildGen(J.cub);
+  ok(!(cubDef.clusters || []).some(c => c.cls === 'shell'), "the Cub's tube-and-fabric fuselage stays a truss (no shell)");
 }
 
 if (SIM) {
