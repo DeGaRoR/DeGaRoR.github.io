@@ -4642,13 +4642,15 @@
   // G202.1: ONE navigator for the flight screen (the aerodromes as its
   // database), handed to every pilot so the AP box's NAV mode has a plan
   let flNav = null;
-  const mkPilot = () => {
+  const mkPilot = (key, o) => {
     // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
     // memoised one (shakeOf), handed as a getter — a TDZ before the bench
     // block runs reads as "no shakedown yet", never as a throw
     const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
     if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
+    // G2120 ROUTE-DRAW: a route armed on the map is every new flight's (not the next leg's: it was flown)
+    if (!(o && o.leg) && typeof ROUTE_DRAW !== 'undefined') ROUTE_DRAW.onPilot(p);
     return p;
   };
   if ($('selPilot')) $('selPilot').onchange = e => {
@@ -5594,6 +5596,15 @@
     if (!IT || !IT.to || railPhase === null || (manual && !(ap && ap.box && ap.box.on))) { if (el.textContent) el.textContent = ''; return; }
     const cg = sim.cgPos(), parts = [];
     let head = 'to ' + IT.to.toLowerCase();
+    // G2120 ROUTE-DRAW: on a drawn route the line names the route, the active point of how many, the altitude drawn
+    // there (and over the ground), then the profile's live target and the vertical speed against the limit; a profile
+    // under the terrain margin says so
+    const RT = IT.route, Lr = (IT.phase === 'ROUTE' && RT && IT.legs) ? IT.legs[IT.legI] : null;
+    if (Lr && Lr.drawn) {
+      head = (RT.name || 'route') + ' · ' + Lr.name + '/' + IT.legs.length;
+      const d = Math.hypot(Lr.B[0] - cg[0], Lr.B[1] - cg[2]);
+      head += ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m') + ' · at ' + Lr.hPlan + ' m (' + (Lr.hPlan - Lr.gB) + ' agl)';
+    }
     if (IT.x != null) {
       const d = Math.hypot(IT.x - cg[0], IT.z - cg[2]);
       head += ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m');
@@ -5601,12 +5612,14 @@
     parts.push(head);
     if (IT.h != null) {
       const over = IT.x != null ? IT.hGround : IT.hField;
-      parts.push('target ' + Math.round(IT.h) + ' m' + (over != null ? ' (' + Math.round(over) + (IT.x != null ? ' agl' : ' over the field') + ')' : ''));
+      if (Lr && Lr.drawn) parts.push('asking ' + Math.round(IT.h) + ' m now');
+      else parts.push('target ' + Math.round(IT.h) + ' m' + (over != null ? ' (' + Math.round(over) + (IT.x != null ? ' agl' : ' over the field') + ')' : ''));
       const vs = IT.vs, sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
       if (Math.abs(vs) < 0.3 && Math.abs(IT.h - cg[1]) < 12) parts.push('level');
       else if (vs >= 0) parts.push('climbing ' + sg(vs) + ' m/s' + (IT.vsUp != null ? ' (limit ' + sg(IT.vsUp) + ')' : ''));
       else parts.push('descending ' + sg(vs) + ' m/s' + (IT.vsDn != null ? ' (limit ' + sg(IT.vsDn) + ')' : ''));
     }
+    if (Lr && typeof ROUTE_DRAW !== 'undefined') { const P = ROUTE_DRAW.flying() ? ROUTE_DRAW.profile() : null; if (P && P.unsafe) parts.push('⚠ terrain: the drawn profile clears the ground by ' + Math.round(P.minClr) + ' m'); }
     el.textContent = parts.join(' · ');
   }
   function setRail(active) {
@@ -9620,7 +9633,7 @@
       const R = legHere(), cur = R.from || aeroById(fromId), to = R.to || cur;
       if (cur && cur.id) fromId = cur.id;
       telBase += ap.t;                 // new AP restarts its clock at 0
-      ap = mkPilot(curKey);
+      ap = mkPilot(curKey, { leg: true });
       ap.departFrom(cur, to);
       destPend = false;
       if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
@@ -9849,6 +9862,12 @@
         g.beginPath(); g.arc(PX(e.x, e.z), PY(e.x, e.z), 2.8 * mk, 0, 6.283); g.fillStyle = '#ffd35a'; g.fill();
       }
       const legs = IT.legs;
+      // G2120: the hold at a drawn route's end - its circle, amber
+      const HD = IT.phase === 'LOITER' && IT.route && IT.route.hold;
+      if (HD) {
+        const sc = Math.hypot(PX(HD.x + 1, HD.z) - PX(HD.x, HD.z), PY(HD.x + 1, HD.z) - PY(HD.x, HD.z));
+        g.strokeStyle = '#ffd35a'; g.lineWidth = 2.2 * mk; g.beginPath(); g.arc(PX(HD.x, HD.z), PY(HD.x, HD.z), HD.R * sc, 0, 6.283); g.stroke();
+      }
       if (legs && legs.length) {
         const li = Math.min(IT.legI | 0, legs.length - 1), LA = legs[li];
         const P = IT.path && IT.path.pts;
@@ -9872,8 +9891,9 @@
         const order = [li]; for (let k = li + 1; k < legs.length; k++) order.push(k);
         const wpLabel = (L, act) => {
           const final = L.name === 'FINAL';
-          const h = act && IT.h != null && !final ? Math.round(IT.h) : L.hPlan;
-          const agl = act && IT.hGround != null && !final ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
+          // G2120: a drawn point is labelled with the altitude drawn there (the live target is the profile's, on its way to it)
+          const h = act && IT.h != null && !final && !L.drawn ? Math.round(IT.h) : L.hPlan;
+          const agl = act && IT.hGround != null && !final && !L.drawn ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
           if (h == null) return final ? 'AIM' : L.name;
           if (final) return 'AIM · ground ' + h + ' m';
           return L.name + ' ' + h + ' m' + (agl != null && (mapBig || mapNoseUp || act) ? ' (' + agl + ' agl)' : '');
@@ -9898,14 +9918,16 @@
     const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
     const hdg = Math.atan2(-xA[2], -xA[0]);
     // shared frame: screen = T(W2/2) . R(rot) . S(k) . T(-c) applied to world xz
-    const rot = mapNoseUp ? -Math.PI / 2 - hdg : 0;
+    const RV = typeof ROUTE_DRAW !== 'undefined' ? ROUTE_DRAW.mapView() : null;   // G2120: the drawing's own view (north up)
+    const rot = RV ? 0 : mapNoseUp ? -Math.PI / 2 - hdg : 0;
     // THE UNDERLAY'S OWN BOX (G498.2): the bake covers world.bounds, which for an island is its
     // own square - Jolene's is neither centred on the origin nor 24 km wide. North-up frames THE
     // BOX, not a fixed 24 km around the origin, so the picture and every marker on it share one
     // frame. The analytic world's bounds ARE +-12000, so nothing there moves by a pixel.
     const MB = (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 };
-    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / MB.size;
-    const cx = mapNoseUp ? cg2[0] : MB.x0 + MB.size / 2, cz = mapNoseUp ? cg2[2] : MB.z0 + MB.size / 2;
+    const k = RV ? W2 / RV.range : mapNoseUp ? W2 / NOSE_RANGE : W2 / MB.size;
+    const cx = RV ? RV.cx : mapNoseUp ? cg2[0] : MB.x0 + MB.size / 2, cz = RV ? RV.cz : mapNoseUp ? cg2[2] : MB.z0 + MB.size / 2;
+    if (typeof ROUTE_DRAW !== 'undefined') ROUTE_DRAW.setFrame({ W2, k, cx, cz, rot });
     const co = Math.cos(rot), si = Math.sin(rot);
     const PX = (x, z) => W2 / 2 + k * ((x - cx) * co - (z - cz) * si);
     const PY = (x, z) => W2 / 2 + k * ((x - cx) * si + (z - cz) * co);
@@ -9916,7 +9938,7 @@
     // into an offscreen canvas and blit; nose-up stays live, its frame
     // moves with the aircraft.
     let blitted = false;
-    if (!mapNoseUp) {
+    if (!mapNoseUp && !RV) {
       try {
         if (!mapBaseCv || mapBaseCv.width !== W2 || mapBaseFor !== base) {
           const oc = document.createElement('canvas');
@@ -10037,6 +10059,8 @@
     // ringed). On the ground, the taxi route to the hold. Labels through the ledger, the active first;
     // the others once the map is big or nose-up (at 24 km a circuit is 40 px).
     drawPlanOnMap(g, PX, PY, mk, W2, labPut);
+    // G2120 ROUTE-DRAW: the route being drawn (or armed, not yet flown) over the plan, its points through the same ledger
+    if (typeof ROUTE_DRAW !== 'undefined') { ROUTE_DRAW.drawOnMap(g, PX, PY, mk, W2, labPut); ROUTE_DRAW.tick(); }
     // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
     // around - the sanctuary you land at, the pod you fly over - so the map says so. ONE mark a
     // HOTSPOT, never one an animal: the record is the hotspot, and its individuals wander inside
@@ -10112,7 +10136,21 @@
     g.fillStyle = 'rgba(251,244,234,.85)';
     g.fillText(mapNoseUp ? 'NOSE↑' : 'N↑', W2 - 74 * mk, 29 * mk);
   }
+  // G2120 ROUTE-DRAW: THE DRAWING (route_draw.js) - its doors into this page: the flight, the map, the prefs, the worker
+  let rdMapWas = null;
+  if (typeof ROUTE_DRAW !== 'undefined') ROUTE_DRAW.attach({
+    ap: () => ap, sim: () => sim, world: () => world, started: () => started, prefGet, prefSet,
+    simw: () => { try { return SIMW; } catch (e) { return null; } },
+    box: () => (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 },
+    redraw: () => { if (!$('mmp').hidden) drawMap(); },
+    // the drawing wants the map shown and large; closing it puts the map back as it was
+    mapOpen: on => {
+      if (on) { rdMapWas = { show: !!panels.map, big: mapBig }; if (!panels.map) flPanel('map', true); if (!mapBig) flMapBig(true); $('mmp').classList.add('draw'); }
+      else { $('mmp').classList.remove('draw'); if (rdMapWas) { if (mapBig !== rdMapWas.big) flMapBig(rdMapWas.big); if (!rdMapWas.show) flPanel('map', false); } rdMapWas = null; drawMap(); }
+    },
+  });
   $('mm').onclick = e => {
+    if (typeof ROUTE_DRAW !== 'undefined' && ROUTE_DRAW.on()) return;   // G2120: a click on the drawing is a point
     const cv = $('mm');
     const s = cv.clientWidth ? cv.width / cv.clientWidth : 1;
     const bx = (e.offsetX ?? 0) * s, by = (e.offsetY ?? 0) * s;
@@ -10205,7 +10243,7 @@
   // over a horizon, `graphics` the sliders it always had, `dev` a pair of brackets.
   const FL_RAIL = [
     { k: 'fly', label: 'fly', head: 'The flight', title: 'The flight: the route, the start, the patterns, the engines, who flies',
-      icon: 'M9 2.4v13.2|M2.4 9.6 9 7.4l6.6 2.2|M6.2 15.4 9 14.4l2.8 1', secs: ['route', 'start', 'patterns', 'engines', 'controls'] },
+      icon: 'M9 2.4v13.2|M2.4 9.6 9 7.4l6.6 2.2|M6.2 15.4 9 14.4l2.8 1', secs: ['route', 'drawn', 'start', 'patterns', 'engines', 'controls'] },
     { k: 'view', label: 'view', head: 'Looking', title: 'Looking: the camera, the instruments, the map, the trace, the screen',
       icon: 'M1.6 9S4.4 4.2 9 4.2 16.4 9 16.4 9 13.6 13.8 9 13.8 1.6 9 1.6 9Z|M9 11.1a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z', secs: ['camera', 'instruments', 'map', 'trace', 'screen'] },
     { k: 'sky', label: 'sky & world', head: 'The sky and the world', title: 'The day and the night, the weather and the clouds, the ground',
@@ -10221,6 +10259,8 @@
   // `head` is the fold's own name where the item's one word no longer says it; `sub` the line under it.
   const FL_SECS = [
     { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the destination, or the circuit - on the ground or in the air' },
+    // G2120 ROUTE-DRAW: a route drawn on the map - control points, their altitudes - for the autopilot to fly
+    { k: 'drawn', label: 'drawn route', title: 'A route drawn on the map', head: 'drawn route', sub: 'control points and altitudes on the map, flown by the autopilot' },
     // 2026-09-04: WHERE THE FLIGHT STARTS - the stand and a taxi out (G151), or lined up on the strip
     { k: 'start', label: 'start', title: 'Where the flight starts', sub: 'from the stand, or lined up' },
     // G193: THE PATTERNS - the taxi graph, the glide slopes and the two touchdown targets
@@ -10845,6 +10885,23 @@
         : ph === 'STOPPED' ? 'Picking a new destination now taxis out from here and flies there - same flight, no reset.'
         : ['FLARE', 'ROLLOUT', 'GLIDE'].includes(ph) ? 'Landing: a new destination is flown from where the aeroplane stops.'
         : 'A new destination re-plans the flight from here, like an autopilot\'s.');
+    },
+    // G2120 ROUTE-DRAW: THE DRAWN ROUTE - the drawing's door (route_draw.js: the map in its draw mode, the panel under
+    // it), what is drawn and whether the autopilot has it
+    drawn(body) {
+      const RD = typeof ROUTE_DRAW !== 'undefined' ? ROUTE_DRAW : null;
+      if (!RD) { flNote(body, 'This build has no route drawing.'); return; }
+      const R = RD.route(), n = R ? R.pts.length : 0;
+      const fr = flRow(body, 'route');
+      const v = document.createElement('span');
+      v.className = 'v'; v.style.flex = '1'; v.style.textAlign = 'left'; v.style.font = "400 11px/1.2 'IBM Plex Sans'";
+      v.textContent = !n ? 'none drawn' : R.name + ' · ' + n + ' point' + (n > 1 ? 's' : '') + ' · then ' + R.end + (RD.flying() ? ' · FLYING' : RD.armed() ? ' · armed' : '');
+      fr.appendChild(v);
+      const list = [{ label: RD.on() ? 'close the drawing' : 'draw on the map', value: 'draw' }];
+      if (n) list.push(RD.armed() ? { label: RD.flying() ? 'leave the route' : 'disarm', value: 'leave' } : { label: 'fly it', value: 'fly' });
+      flPills(body, list, o => o.value === 'draw' && RD.on(), o => { if (o.value === 'draw') RD.setOn(!RD.on()); else if (o.value === 'fly') RD.fly(); else RD.leave(); });
+      flNote(body, 'Click the map to add a point, drag to move, right-click or long-press to delete; each point has its altitude (MSL or over the ground) and a speed. ' +
+                   'Drawn before the start, the autopilot flies it after the climb-out; in the air, from where it is.');
     },
     // 2026-09-20: THE DAY PANEL (day_ui.js) - the same panel the shed's `night` flyout mounts:
     // the conditions (#selCond stays the keeper, pressed through its own change), the clock's
