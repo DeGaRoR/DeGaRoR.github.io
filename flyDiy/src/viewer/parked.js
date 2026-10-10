@@ -391,7 +391,9 @@
           REC[key] = rec; n++;
           log(key, 'captured:', tris, 'tris,', Object.keys(vis.mats).length, 'buckets, in', rec.t, 'ms');
           bootRec({ key, how: 'capture', ms: rec.t, why: COOK.why[key] || (cookable(key) ? 'no cook' : 'yours') });
-          fillPending(key);
+          // G2225: a FLEET bake's capture fills no holder - a world holder waiting for that key stands only the decoded bake
+          // (FLEET-PROPS B's dry run, 8 Oct: the garage's bake stood its LIVE capture in the world's empty spots)
+          if (!(opt && opt.fleet)) fillPending(key);
         }
         yield key;                             // the next aeroplane, or the player's restore, in a task of its own
       }
@@ -1860,15 +1862,17 @@ self.onmessage = function (e) {
   // THE DRAW RULES (FLEET_DRAW, fleetPick): the nearest `max` (6) fleet props drawn, the rest culled; L1 only within `l1`
   // (30 m), L2 out to L3's 450 m, L3 to the cull; on a LIGHT preset (potato / laptop / pocket) L3 alone and at most
   // `lightMax` (4) - FRIENDLY-WELCOME-BUDGETS builds no parked bake there (GFX budget `parked: false`); this L3-only
-  // fleet path is the agreed exception (GAME §4.3, §16 GQ9). ALL OF IT BEHIND FLYDIY_FLEET (default OFF; ?fleet=1 or
-  // window.FLYDIY_FLEET = true): with it off nothing is queued, baked, stood or drawn differently.
+  // fleet path is the agreed exception (GAME §4.3, §16 GQ9). ALL OF IT BEHIND FLYDIY_FLEET (default ON since G2226; ?fleet=0 or
+  // window.FLYDIY_FLEET = false turns it off): with it off nothing is queued, baked, stood or drawn differently.
   const FLEET_DRAW = { max: 6, l1: 30, light: ['potato', 'laptop', 'pocket'], lightMax: 4, resident: 8 };
-  const FLEET = { V: 1, queue: [], busy: false, timer: null, idleMs: 1500, worldMs: 5000, lru: [], placed: [], drawn: new Set(), rankAt: -1e9, why: {},
-                  stats: { queued: 0, captures: 0, bakes: 0, hits: 0, stored: 0, decodes: 0, worldRefused: 0, flightRefused: 0, evicted: 0, bakeInWorld: 0 },
+  const FLEET = { V: 1, queue: [], busy: false, timer: null, idleMs: 3000, inputAt: -1e9, bakeEnd: -1e9, down: false, framed: true, worldMs: 5000, lru: [], placed: [], drawn: new Set(), rankAt: -1e9, why: {}, loading: {},
+                  stats: { queued: 0, captures: 0, bakes: 0, hits: 0, stored: 0, decodes: 0, worldRefused: 0, flightRefused: 0, evicted: 0, bakeInWorld: 0, notWanted: 0, inputWaits: 0 },
                   store: null, bake: null };
   // ?parkclean=0: the capture as it was before G2220 (the leak re-opened) - FRAMECOST's A/B against the base holds the rest
   try { if (W.location && /[?&]parkclean=0(?:&|$)/.test(W.location.search || '')) W.__parkClean0 = true; } catch (e) {}
-  const fleetOn = () => { if (W.FLYDIY_FLEET === true) return true; try { return !!(W.location && /[?&]fleet=1(?:&|$)/.test(W.location.search || '')); } catch (e) { return false; } };
+  // G2226: ON by default (the user's ruling GQ9: the fleet visible everywhere; FLEET-PROPS B's timing) - off with ?fleet=0 or
+  // window.FLYDIY_FLEET = false (the A/B and the gates' 'off' rows)
+  const fleetOn = () => { if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
   const isMine = key => typeof key === 'string' && key.lastIndexOf('mine:', 0) === 0;
   // the game's state (app.js FLYDIY_HOLDS): no handle (a gate's vm) = a garage at rest
   const holds = () => { try { return W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null; } catch (e) { return null; } };
@@ -1877,8 +1881,10 @@ self.onmessage = function (e) {
   const slotImages = name => { try { const G = W.GARAGE_SPEC; return G && G.slotImages ? G.slotImages(name) : null; } catch (e) { return null; } };
   function fleetSig(spec, images) {
     if (!spec) return null;
-    let D = null; try { D = W.GARAGE_SPEC && W.GARAGE_SPEC.cageDefaults ? W.GARAGE_SPEC.cageDefaults() : null; } catch (e) { D = null; }
-    const fp = (typeof benchFingerprint === 'function') ? benchFingerprint(spec, D) : 'h' + hash(JSON.stringify(spec));
+    // G2225: the fingerprint over EVERY cage row (benchFingerprint's null defaults), never against the garage's live
+    // cageDefaults - those follow the build on the stand, and every switch of build re-baked the fleet (FLEET-PROPS B's
+    // evening runs: 5 of 6 bakes 'stale' after a Jodel stood in the garage, a 1-2 s garage capture each)
+    const fp = (typeof benchFingerprint === 'function') ? benchFingerprint(spec, null) : 'h' + hash(JSON.stringify(spec));
     const canon = (typeof benchCanon === 'function') ? benchCanon : JSON.stringify;
     const LK = (typeof BENCH_LOOK !== 'undefined') ? BENCH_LOOK : { energy: [], vessel: [], systems: [] };
     const pick = (o, ks) => { const r = {}; if (o && typeof o === 'object') for (const k of ks || []) if (o[k] !== undefined) r[k] = o[k]; return r; };
@@ -1893,13 +1899,31 @@ self.onmessage = function (e) {
   };
   const store = () => FLEET.store || idbStore;
   // the garage's save: queue the slot's key (nothing with the flag off)
+  // G2225 THE QUEUE'S BOUND (the game coordinator, 7 Oct): a 40-build sandbox must not bake 37 props after the update.
+  //   1. only the DRAWN SET is baked: FLEET_STAND.wants(key) - the roll-out's aerodrome's outside rows, the airframe on
+  //      the stand left out, at most fleetCap(); every other key is refused (stats.notWanted), and a queued key that
+  //      left the set is dropped when its turn comes;
+  //   2. ONE BAKE PER IDLE WINDOW: the garage at rest (garageIdle: no roll-out pending, nothing held) AND no input for
+  //      FLEET.idleMs (3 s: a pointer, a key, a wheel, an input) nor since the last bake, no pointer held down (a slider
+  //      held still is still a drag), and a rendered frame since the last bake (never two back to back);
+  //   3. a save re-queues only its own slot, through 1.
+  const wanted = key => { try { const F = W.FLEET_STAND; return !(F && typeof F.wants === 'function') || F.wants(key); } catch (e) { return true; } };
   function fleetQueue(slot) {
     if (!fleetOn() || !slot) return false;
     const key = 'mine:' + slot;
+    if (!wanted(key)) { FLEET.stats.notWanted++; return false; }
     if (!FLEET.queue.includes(key)) { FLEET.queue.push(key); FLEET.stats.queued++; }
     fleetKick(FLEET.idleMs);
     return true;
   }
+  // the player's last input (any pointer, key, wheel or input event, seen in the capture phase), and a pointer held down
+  // (a slider held still for longer than the window is still a drag: nothing starts until it is let go)
+  try { if (W.addEventListener) {
+    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'keydown', 'wheel', 'input', 'touchstart'])
+      W.addEventListener(t, () => { FLEET.inputAt = performance.now(); }, { capture: true, passive: true });
+    W.addEventListener('pointerdown', () => { FLEET.down = true; }, { capture: true, passive: true });
+    for (const t of ['pointerup', 'pointercancel', 'blur']) W.addEventListener(t, () => { FLEET.down = false; }, { capture: true, passive: true });
+  } } catch (e) {}
   function fleetKick(ms) { if (FLEET.timer || FLEET.busy || !FLEET.queue.length) return; FLEET.timer = setTimeout(fleetStep, ms); }
   function fleetStep() {
     FLEET.timer = null;
@@ -1907,10 +1931,14 @@ self.onmessage = function (e) {
     // UNDER THE WORLD NOTHING STARTS: looked at again later (a timer that does nothing in flight), drained in the garage
     if (!garageIdle()) { FLEET.stats.worldRefused++; fleetKick(FLEET.worldMs); return; }
     if (ASYNC.run || ASYNC.queue.length) { fleetKick(FLEET.idleMs); return; }    // the roll-out's batch holds the editor
+    const quiet = performance.now() - Math.max(FLEET.inputAt, FLEET.bakeEnd);
+    if (FLEET.down || quiet < FLEET.idleMs) { FLEET.stats.inputWaits++; fleetKick(FLEET.down ? FLEET.idleMs : FLEET.idleMs - quiet + 50); return; }   // the player is at it (a drag held still too)
+    if (!FLEET.framed && typeof W.requestAnimationFrame === 'function') { W.requestAnimationFrame(() => { FLEET.framed = true; fleetKick(0); }); return; }
     const key = FLEET.queue.shift();
+    if (!wanted(key)) { FLEET.stats.notWanted++; fleetKick(0); return; }        // it left the drawn set while it waited
     FLEET.busy = true;
     fleetBake(key).catch(e => console.warn('parked: the fleet bake of', key, 'failed:', e && e.message || e))
-      .then(() => { FLEET.busy = false; fleetKick(FLEET.idleMs); });
+      .then(() => { FLEET.busy = false; FLEET.framed = false; FLEET.bakeEnd = performance.now(); fleetKick(FLEET.idleMs); });
   }
   async function fleetBake(key) {
     const spec = specOf(key);
@@ -1921,12 +1949,15 @@ self.onmessage = function (e) {
     const G = W.GARAGE_SPEC;
     const dec = await decodeImages(raw), mine = await decodeImages(G && G.images ? G.images() : null);
     if (!garageIdle() || !canCapture()) { FLEET.stats.worldRefused++; FLEET.queue.unshift(key); return null; }
+    // G2225 (INSTANT --fleet, 8 Oct 04:05): the idle window is looked at AGAIN here - the awaits above (the store, the
+    // pages) let a drag start after fleetStep's look, and a capture under a held slider spoils its preview: back in the queue
+    if (FLEET.down || performance.now() - FLEET.inputAt < FLEET.idleMs) { FLEET.stats.inputWaits++; FLEET.queue.unshift(key); return null; }
     // THE CAPTURE, one task: the record is kept only as the bytes (REC keeps what it held)
     const keep = REC[key]; delete REC[key];
     let rec = null;
     try {
       flush();
-      const g = batchSteps([key], { [key]: spec }, { images: { [key]: { raw, dec } }, mine });
+      const g = batchSteps([key], { [key]: spec }, { images: { [key]: { raw, dec } }, mine, fleet: true });
       while (!g.next().done);
       rec = REC[key] || null;
     } finally { if (keep) REC[key] = keep; else delete REC[key]; }
@@ -1943,6 +1974,7 @@ self.onmessage = function (e) {
     await store().put(key, v);
     FLEET.stats.stored++;
     log(key, 'fleet: baked and kept,', Math.round(u8.length / 1024), 'KB');
+    for (const g of RESIDENT) if (!g.userData.filled && g.userData.parkedKey === key) residentFill(g);   // G2315: a resident waiting on it
     return v;
   }
   // THE ROLL-OUT'S DOOR: the bytes decoded, or nothing (queued for the garage)
@@ -1951,8 +1983,10 @@ self.onmessage = function (e) {
     if (!mayDecode()) { FLEET.stats.flightRefused++; return Promise.resolve(null); }
     const spec = specOf(key);
     if (!spec) { FLEET.why[key] = 'no slot'; return Promise.resolve(null); }
+    // G2225: one decode a key at a time - a second door (FLEET_STAND's wait, a second holder) shares the one in flight
+    if (FLEET.loading[key]) return FLEET.loading[key];
     const sig = fleetSig(spec, slotImages(key.slice(5)));
-    return store().get(key).then(v => {
+    const pr = FLEET.loading[key] = store().get(key).then(v => {
       if (!v || v.sig !== sig) { FLEET.why[key] = v ? 'stale' : 'not baked'; fleetQueue(key.slice(5)); return null; }
       return unsqueeze(v.bytes, v.n).then(u8 => {
         const t0 = performance.now(), d = cookDecode(u8);
@@ -1966,6 +2000,8 @@ self.onmessage = function (e) {
         return rec;
       });
     }).catch(e => { FLEET.why[key] = 'decode failed'; console.warn('parked: the fleet prop', key, 'did not decode:', e && e.message || e); return null; });
+    pr.then(() => { delete FLEET.loading[key]; });
+    return pr;
   }
   function fleetTouch(key) {
     const i = FLEET.lru.indexOf(key);
@@ -1985,11 +2021,15 @@ self.onmessage = function (e) {
       if (grp) { grp.remove(lod); PENDING.push({ key, grp, THREE: W.THREE }); }
       return false;
     });
+    // G2315: a garage resident standing it is emptied too (its rung's geometry goes below); the garage fills it again
+    for (const g of RESIDENT) if (g.userData.parkedKey === key && g.userData.filled) { g.clear(); g.userData.filled = false; }
     const bk = rec.baked;
     if (bk) { for (const g of bk.geos || []) if (g && g.dispose) g.dispose(); const m = bk.mat; if (m) { for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.clearcoatMap]) if (t && t.dispose) t.dispose(); if (m.dispose) m.dispose(); } }
   }
   const lightPreset = () => { try { const g = W.GFX && W.GFX.get ? W.GFX.get() : null; const p = g ? (g.build || g.preset) : null; return FLEET_DRAW.light.indexOf(p) >= 0; } catch (e) { return false; } };
   // the ladder a fleet record stands: [rung index, distance] (bakedLevel's rungs: 0 = L1, 1 = L2, 2 = L3)
+  // the draw cap: the nearest 6 drawn, 4 on a light preset (FLEET_STAND's drawn set, the queue's bound)
+  const fleetCap = () => (lightPreset() ? FLEET_DRAW.lightMax : FLEET_DRAW.max);
   const fleetLadder = light => ((light === undefined ? lightPreset() : light) ? [[2, 0]] : [[0, 0], [1, FLEET_DRAW.l1], [2, LEVELS.L3]]);
   // THE COUNT, pure: which of `pts` ([x, y, z]) are drawn from `cam` ([x, y, z]) - the nearest `max` (lightMax on a
   // light preset), nearest first; ties by index (deterministic)
@@ -2020,6 +2060,51 @@ self.onmessage = function (e) {
     return FLEET.drawn.has(lod);
   }
 
+  // ---- G2315 GARAGE-RESIDENTS: the airframes parked in the main hangar beside the build stand ------------------------
+  // GAME-2026-10-06 §R GQ7: "yes in the garage, as low-detail props (L2) in their slots behind or beside the stand: not
+  // selectable, not editable, and they cost at most 2 draws in the main hangar". THE GARAGE'S DOOR into the fleet: ONE
+  // rung of the airframe's bake (L2 by default - bakedLevel's index 1: one mesh on the build's atlas), no ladder and no
+  // count (fleetGate ranks the world's; the garage stands its two itself), and NEVER a capture: the bytes decoded
+  // (fleetLoad - the roll-out's own door, allowed in the garage), a missing or stale bake queued for the garage's idle
+  // path as any is (FLEET-PROPS A's bake on save), the holder filled when it lands (fleetBake above). The holder comes
+  // back at once, empty until then; an eviction empties it (fleetEvict above) and residentFill stands it again.
+  // Not selectable: the editor picks through its own mount alone (app.js pickRay on edSitP).
+  const RESIDENT = new Set();
+  function resident(THREE, key, rung) {
+    const grp = new THREE.Group();
+    grp.name = 'resident:' + key;
+    grp.userData.parkedKey = key; grp.userData.rung = rung == null ? 1 : rung; grp.userData.filled = false;
+    RESIDENT.add(grp);
+    residentFill(grp);
+    return grp;
+  }
+  function residentFill(grp) {
+    const key = grp.userData.parkedKey;
+    if (grp.userData.filled || grp.userData.gone) return Promise.resolve(!!grp.userData.filled);
+    const go = rec => {
+      if (!rec || !rec.baked || grp.userData.filled || grp.userData.gone) return !!grp.userData.filled;
+      const THREE = W.THREE, st = rec.stance || (rec.stance = stance(rec.vis));
+      const i = Math.max(0, Math.min(2, grp.userData.rung | 0));
+      // the build()'s frame: model (x aft) -> the stance (pitch about z, lifted) -> nose to +x
+      const inner = new THREE.Group(); inner.rotation.z = st.pitch; inner.position.y = st.lift; inner.add(bakedLevel(THREE, rec.baked, i));
+      const flip = new THREE.Group(); flip.rotation.y = Math.PI; flip.add(inner);
+      grp.add(flip);
+      grp.userData.filled = true; grp.userData.tris = trisOf(grp);
+      fleetTouch(key);
+      return true;
+    };
+    const r = REC[key] && REC[key].fleet ? REC[key] : null;
+    if (r) return Promise.resolve(go(r));
+    if (grp.userData.loading) return grp.userData.loading;          // one look at the store at a time (the drag path asks)
+    return (grp.userData.loading = fleetLoad(key).then(go).finally(() => { grp.userData.loading = null; }));
+  }
+  function residentDrop(grp) {
+    if (!grp) return;
+    grp.userData.gone = true; RESIDENT.delete(grp);
+    if (grp.parent) grp.parent.remove(grp);
+    grp.clear();          // the rung's geometry and material are the record's (shared): never disposed here
+  }
+
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
   W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
@@ -2033,7 +2118,8 @@ self.onmessage = function (e) {
                // the offline tool's door (cookPack) and the A/B's live twin (abLive)
                COOK, cookable, cookSig, cookEncode, cookDecode, cookRecord, cookLoad, cookAll, cookPack, abLive, bakeData, cutBaked,
                // G2220-G2224, the fleet: the rules, the state, the doors (the garage's queue, the roll-out's decode), the pure pick
-               FLEET_DRAW, fleet: FLEET, fleetOn, fleetSig, fleetQueue, fleetStep, fleetBake, fleetLoad, fleetTouch, fleetEvict, fleetPick, fleetLadder, garageIdle, mayDecode,
+               resident, residentFill, residentDrop, residents: RESIDENT,   // G2315: the garage's residents (one rung, decode only)
+               FLEET_DRAW, fleet: FLEET, fleetOn, fleetSig, fleetQueue, fleetStep, fleetBake, fleetLoad, fleetTouch, fleetEvict, fleetPick, fleetLadder, fleetCap, garageIdle, mayDecode,
                bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers
                hitbox: grp => { let hb = null; grp.traverse(o => { if (!hb && o.userData && o.userData.hitbox) hb = o.userData.hitbox; }); return hb; } };

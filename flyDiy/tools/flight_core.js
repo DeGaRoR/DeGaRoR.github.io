@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e36a50a81f6ffbd9
+// body-sha256: 2e6ce9ad2a026714
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3325,7 +3325,9 @@ function makeWorld(seed, opts) {
     const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
     PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, opts && opts.rwyTrees ? { rwyTrees: opts.rwyTrees } : {}, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
-    PMrec = rec;
+    // (v1.33, G2300 STAGES: a record carrying stages is composed AS IT STANDS - the sandbox's view unless the caller
+    // names the career's tracks - and that view is the record the renderer and the house worker read)
+    PMrec = PM.stage ? PM.rec : rec;
     // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
     // code into the island's own ttype grid, which the ground's packed texture, the
     // tree walk and the cover ring all read - one array, one writer. The previous
@@ -6353,6 +6355,9 @@ function fleetField(aero, site, pave) {
 }
 const fleetPolyCentre = poly => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of poly) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } return [(x0 + x1) / 2, (z0 + z1) / 2]; };
 function fleetSpots(aero, site, opts) {
+  // G2300 (STAGES, contract v1.33): a field whose stage says `ties: false` has no tie-down spots yet (East Point before
+  // the survey's first stage) - the sandbox's fields never say it
+  if (aero && aero.ties === false) return { spots: [], why: { stage: 1 }, foot: (opts && opts.foot) || FLEET_SPOT_FOOT, ref: { x: aero.x, z: aero.z } };
   const o = opts || {}, F = FLEET_SPOT, R = siteRunway(aero), water = !!aero.water;
   const env = o.foot || FLEET_SPOT_FOOT, margin = F.margin, need = (o.taxiHalf || F.taxiHalf) + margin;
   const solid = typeof o.solid === 'function' ? o.solid : null;
@@ -6897,6 +6902,416 @@ const HANGAR_KITS = {
 const HANGAR_KITS_DEFAULT = ['park', 'bench', 'wood', 'metal', 'store',
                              'handling', 'office', 'comfort', 'curio', 'wip'];
 
+// ---- THE LAYOUTS (G2315 WORKS-COZY) -----------------------------------------
+// A LAYOUT is the same kits STOOD DIFFERENTLY: the kit still says what is in
+// the room (its claims, its verbs, its ring), the layout says where it stands
+// in ONE shell. It exists because the kits' own rows were composed for the
+// club (fractions of the authored 26 x 36 frame), and stretched over the works'
+// 40 x 40 m they scatter a club's furniture thinly along four long walls - a
+// warehouse, which is what the user did NOT want (GAME-2026-10-06 §R GQ22:
+// "it should be updated to the largest hangar probably, even though I find the
+// medium one less intimidating and warmer. Main garage should be cozy").
+//
+// `cozy` is the career's main hangar: the works made warm and lived-in. The
+// floor reads as ROOMS round the build bay, each a kit or two gathered in one
+// place instead of strung along a wall:
+//   the BENCH CORNER   shop wall (+z), door half: the workbench under its tool
+//                      racks, the chests and carts, the metal machines at the
+//                      door end (drill, welder, compressor) - the workshop;
+//   the WOODSHOP BAY   build wall (-z), door half: the machine run, the panel
+//                      saw off the wall, the timber stock and the stock rack,
+//                      a Jodel fuselage on trestles and a wing on its stands;
+//   the OFFICE CORNER  back left: the desk under its lamp, the radio, the plan
+//                      table, the plan on the wall;
+//   the LOUNGE         back right: the stove in the corner, the rug, the
+//                      lounge chair turned to the room, a table by the wall;
+//   SCALE CUES         the back wall's shelving either side of its doors, and
+//                      the side walls' back half lined with racking two tiers
+//                      high (tallRack: 3.8 m, mezzanine height) - what tells
+//                      the eye this room is 40 m and not 25.
+// The middle stays clear for the build bay and the two parked residents
+// (§R GQ7: build bay + 2 parked): hangarPark packs them behind and beside the
+// stand around exactly these rows (71_player_bases hangarObstacles).
+//
+// AUTHORED IN THE WORKS' OWN METRES (HD 20, HW 20: x from the door -20 to the
+// back wall +20, z from the build wall -20 to the shop wall +20) and stored as
+// the engine's fractions, so a slid works shell scales it like any kit row.
+// A layout names its SHELL and applies only there (hangarFit falls back to the
+// kits' own rows in any other shell): the sandbox's club never sees it.
+// `light` is the room's warmth, read by hangar.js: the five fittings moved
+// over the rooms (x, z, the hang height y - lower over a room than over the
+// bay), a warmer filament, a stronger fire, and decorative pendants (shades
+// and bulbs, no light: the shadow-map budget stays the club's five maps).
+const HC_A = x => (x + 20) / 40;          // side walls: works x -> along
+const HC_B = z => (z + 20) / 40;          // back wall:  works z -> along
+const HC_F = v => v / 20;                 // floor: works metres -> fraction
+const HANGAR_LAYOUTS = {
+  cozy: {
+    name: 'The works, made cozy', shell: 'works',
+    kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'office',
+           'comfort', 'curio', 'wip'],
+    light: {
+      kelvin: 2700,                          // the warm filament (the club's 4000)
+      stove: { cd: 22, dist: 10 },           // the fire reaches the lounge
+      // the five fittings that light the room: x, z, hang y (metres)
+      lamps: [[1.0, 0, 7.0],                 // over the build bay
+              [15.0, 15.0, 4.6],             // the lounge
+              [15.0, -15.0, 4.6],            // the office
+              [-10.0, 16.0, 4.6],            // the bench corner
+              [-9.5, -13.0, 5.2]],           // the woodshop
+      // shades and bulbs only: the low pendants over a table or a bench
+      pendants: [[14.2, 18.6, 3.2], [13.6, -15.0, 3.4],
+                 [-13.4, 17.6, 4.0], [-13.0, -16.6, 4.2]],
+    },
+    rows: {
+      park: { sites: [], recipes: [] },
+      bench: {
+        sites: [
+          { prop: 'workbench_wood', at: 'shop', along: HC_A(-10.0), out: 1.00, dry: Math.PI },
+          { prop: 'vice_bench', at: 'shop', along: HC_A(-11.0), out: 1.10,
+            dry: Math.PI * 0.5, y: 0.96, on: 'workbench_wood' },
+          { prop: 'toolbox_open', at: 'shop', along: HC_A(-9.2), out: 1.00,
+            dry: Math.PI - 0.35, y: 0.96, on: 'workbench_wood' },
+          { prop: 'toolrack_wall', at: 'shop', along: HC_A(-10.0), out: 0.12,
+            dry: Math.PI, y: 1.62 },
+          { prop: 'toolrack_wall', at: 'shop', along: HC_A(-7.0), out: 0.12,
+            dry: Math.PI, y: 1.62 },
+          { prop: 'stool_wood', at: 'shop', along: HC_A(-11.6), out: 2.00, dry: -0.4 },
+          { prop: 'stool_wood', at: 'shop', along: HC_A(-8.6), out: 2.10, dry: 0.6 },
+          { prop: 'toolchest_metal', at: 'shop', along: HC_A(-7.4), out: 0.90,
+            dry: Math.PI + 0.12 },
+          { prop: 'toolchest_metal', at: 'shop', along: HC_A(-6.6), out: 0.90,
+            dry: Math.PI - 0.10 },
+        ],
+        recipes: [],
+      },
+      wood: {
+        sites: [
+          // the machine run along the build wall, in the timber's order
+          { prop: 'bandsaw', at: 'build', along: HC_A(-13.8), out: 1.16, dry: 0 },
+          { prop: 'jointer', at: 'build', along: HC_A(-11.2), out: 1.38, dry: 0 },
+          { prop: 'thicknesser', at: 'build', along: HC_A(-8.6), out: 0.93, dry: 0 },
+          { prop: 'panelsaw', at: 'build', along: HC_A(-11.6), out: 5.60, dry: 0 },
+          // the timber stock, stacked on the floor at the door end of the bay
+          { prop: 'crate_wood_c', at: 'floor', fx: HC_F(-16.5), fz: HC_F(-12.0), dry: 0.15 },
+          { prop: 'crate_wood_a', at: 'floor', fx: HC_F(-16.5), fz: HC_F(-12.0),
+            dry: -0.20, y: 0.41, on: 'crate_wood_c' },
+          { prop: 'crate_wood_b', at: 'floor', fx: HC_F(-17.3), fz: HC_F(-11.0), dry: 0.35 },
+          { prop: 'crate_wood_a', at: 'floor', fx: HC_F(-16.0), fz: HC_F(-10.2), dry: -0.3 },
+          { prop: 'crate_wood_c', at: 'floor', fx: HC_F(-17.4), fz: HC_F(-9.8), dry: 0.5 },
+        ],
+        recipes: [],
+      },
+      metal: {
+        sites: [
+          { prop: 'drillpress', at: 'shop', along: HC_A(-13.2), out: 0.90, dry: Math.PI + 0.10 },
+          { prop: 'weldingcart', at: 'shop', along: HC_A(-14.4), out: 1.00, dry: Math.PI - 0.20 },
+          { prop: 'compressor', at: 'shop', along: HC_A(-15.6), out: 1.20, dry: Math.PI },
+          { prop: 'drum_steel', at: 'shop', along: HC_A(-16.6), out: 0.90, dry: 0 },
+          { prop: 'drum_steel', at: 'shop', along: HC_A(-16.6), out: 1.60, dry: 0.5 },
+        ],
+        recipes: [
+          // THE SHELVING: the back wall either side of its doors (dry -PI/2:
+          // the shelves face into the room)
+          ...[7.2, 8.25, 9.3, 10.35, -7.2, -8.25].map(z =>
+            ({ recipe: 'loadedRack', at: 'back', along: HC_B(z), out: 0.55,
+               dry: -Math.PI / 2, foot: [0.5, 0.33],
+               props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                       'instrument_panel'] })),
+        ],
+      },
+      store: {
+        sites: [
+          { prop: 'box_cardboard', at: 'shop', along: HC_A(-5.2), out: 1.10,
+            dry: 0.3, y: 1.28, on: 'cart_storage' },
+          { prop: 'jerrycan', at: 'shop', along: HC_A(-12.2), out: 1.85, dry: 0.8 },
+          { prop: 'bottle_lpg', at: 'shop', along: HC_A(-18.4), out: 0.60, dry: 0.5 },
+          { prop: 'bottle_propane', at: 'shop', along: HC_A(-18.9), out: 0.60, dry: 0.4 },
+          { prop: 'bottle_propane', at: 'shop', along: HC_A(-18.8), out: 1.25, dry: -0.9 },
+          { prop: 'barrel_plastic', at: 'build', along: HC_A(-18.7), out: 0.70, dry: 0 },
+          { prop: 'bin_metal', at: 'build', along: HC_A(-17.6), out: 0.70, dry: 0.3 },
+          { prop: 'bin_metal', at: 'back', along: HC_B(-9.6), out: 0.60, dry: 0.3 },
+          { prop: 'bin_metal_rust', at: 'back', along: HC_B(-10.6), out: 0.60, dry: -0.5 },
+          { prop: 'jerrycan', at: 'back', along: HC_B(-11.4), out: 0.50, dry: 0.9 },
+        ],
+        recipes: [
+          // the long stock (tube, spruce, sheet) behind the woodshop's planer
+          { recipe: 'stockRack', at: 'build', along: HC_A(-2.4), out: 0.70,
+            dry: -Math.PI / 2, foot: [0.46, 5.3], props: [] },
+          // THE RACK LINE, two tiers high: the side walls' back half (the
+          // residents park inside it, the shelves stand behind their wings)
+          ...[4, 5, 6, 7, 8, 9].map(x =>
+            ({ recipe: 'tallRack', at: 'shop', along: HC_A(x), out: 0.55,
+               dry: Math.PI, foot: [0.5, 0.33],
+               props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                       'instrument_panel'] })),
+          ...[4, 5, 6, 7, 8, 9].map(x =>
+            ({ recipe: 'tallRack', at: 'build', along: HC_A(x), out: 0.55,
+               dry: 0, foot: [0.5, 0.33],
+               props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                       'instrument_panel'] })),
+        ],
+      },
+      handling: {
+        sites: [
+          { prop: 'cart_storage', at: 'shop', along: HC_A(-5.0), out: 1.10, dry: Math.PI + 0.08 },
+          { prop: 'cart_tool_cab', at: 'shop', along: HC_A(-3.4), out: 0.95, dry: Math.PI - 0.08 },
+          { prop: 'handtruck', at: 'shop', along: HC_A(-17.5), out: 0.55, dry: Math.PI + 0.15 },
+          // a ladder at the end of each rack line
+          { prop: 'stepladder', at: 'shop', along: HC_A(10.2), out: 1.20, dry: Math.PI + 0.5 },
+          { prop: 'stepladder', at: 'build', along: HC_A(10.2), out: 1.20, dry: -0.5 },
+        ],
+        recipes: [],
+      },
+      office: {
+        sites: [
+          { prop: 'desk_metal', at: 'build', along: HC_A(15.5), out: 0.90, dry: 0 },
+          { prop: 'lamp_desk', at: 'build', along: HC_A(16.2), out: 1.15,
+            dry: -0.55, y: 0.78, on: 'desk_metal', light: 'desk' },
+          { prop: 'instrument_panel', at: 'build', along: HC_A(14.9), out: 1.05,
+            dry: 0.35, y: 0.78, on: 'desk_metal' },
+          // the radio on the desk here (the club keeps it on the workbench)
+          { prop: 'radio_bench', at: 'build', along: HC_A(15.6), out: 0.85,
+            dry: 0.15, y: 0.78, on: 'desk_metal' },
+          // a stool at the desk and one at the plan table: references
+          { prop: 'stool_wood', at: 'build', along: HC_A(15.2), out: 1.90, dry: 0.3 },
+          { prop: 'stool_wood', at: 'floor', fx: HC_F(13.0), fz: HC_F(-13.6), dry: 1.0 },
+          // the plan on the back wall, clear of the back doors' leaves
+          { prop: 'plan_wall', at: 'back', along: HC_B(-15.5), out: 0.12,
+            dry: -Math.PI / 2, y: 2.35 },
+        ],
+        recipes: [
+          { recipe: 'planTable', at: 'floor', fx: HC_F(14.0), fz: HC_F(-14.6),
+            dry: 0.4, foot: [0.8, 0.55], props: [] },
+        ],
+      },
+      comfort: {
+        sites: [
+          { prop: 'rug_persian', at: 'floor', fx: HC_F(15.0), fz: HC_F(15.0),
+            dry: Math.PI / 4, y: 0.004 },
+          // the chair turned to the room: you sit by the fire and look at
+          // the aeroplanes
+          { prop: 'chair_lounge', at: 'floor', fx: HC_F(16.2), fz: HC_F(13.6), dry: -2.2 },
+          { prop: 'drum_steel', at: 'floor', fx: HC_F(17.6), fz: HC_F(12.6), dry: 0.2 },
+          { prop: 'barrel_plastic', at: 'floor', fx: HC_F(19.0), fz: HC_F(11.2), dry: 0.4 },
+          { prop: 'stool_wood', at: 'shop', along: HC_A(13.0), out: 1.50, dry: 1.1 },
+          { prop: 'hosereel_wall', at: 'shop', along: HC_A(11.6), out: 0.14,
+            dry: Math.PI, y: 2.20 },
+          // the woodshop's own heater (claimed, never stood in the club)
+          { prop: 'stove_barrel', at: 'floor', fx: HC_F(-1.6), fz: HC_F(-16.2), dry: 0.3 },
+        ],
+        recipes: [
+          // the fire in the corner, turned to the room's diagonal
+          { recipe: 'stoveCorner', at: 'floor', fx: HC_F(17.6), fz: HC_F(17.6),
+            dry: -Math.PI * 0.75, foot: [0.85, 0.85], props: ['stove_masonry'] },
+        ],
+      },
+      curio: {
+        sites: [
+          // the table by the lounge wall, a crate on it
+          { prop: 'table_wood', at: 'shop', along: HC_A(14.2), out: 0.60, dry: Math.PI },
+          { prop: 'crate_wood_a', at: 'shop', along: HC_A(14.6), out: 0.60,
+            dry: -0.25, y: 0.68, on: 'table_wood' },
+          // the old car under its cover, in the woodshop's door corner
+          { prop: 'car_covered', at: 'floor', fx: HC_F(-16.9), fz: HC_F(-17.5),
+            dry: Math.PI / 2 + 0.05 },
+        ],
+        recipes: [
+          { recipe: 'tyreStack', at: 'floor', fx: HC_F(-17.4), fz: HC_F(-15.4),
+            dry: 0, foot: [0.4, 0.4], n: 4, props: ['tyre'] },
+          { recipe: 'tyreStack', at: 'floor', fx: HC_F(-16.4), fz: HC_F(-15.5),
+            dry: 0, foot: [0.4, 0.4], n: 2, props: ['tyre'] },
+        ],
+      },
+      wip: {
+        sites: [],
+        recipes: [
+          // the Jodel's fuselage on its trestles in the woodshop bay, and a
+          // wing on its stands beside it - wood work, in the wood shop
+          { recipe: 'wipBody', at: 'floor', fx: HC_F(-5.4), fz: HC_F(-12.6),
+            dry: Math.PI + 0.21, foot: [3.1, 0.8],
+            props: ['airframe_jodel_body', 'work_trestle'] },
+          { recipe: 'wsWing', at: 'floor', fx: HC_F(-10.5), fz: HC_F(-8.6),
+            dry: 0.05, foot: [4.75, 1.0], props: ['work_trestle'] },
+          { recipe: 'wsEngine', at: 'floor', fx: HC_F(-12.0), fz: HC_F(15.0),
+            dry: -Math.PI / 2 + 0.2, foot: [0.65, 0.65], props: [] },
+        ],
+      },
+    },
+  },
+};
+// THE HEARTH (G2318: the GAME COORDINATOR's read of the cozy stills, 7 Oct: "the life is there ... but it does NOT read
+// cozy yet. It reads as a vast dark shed with distant warm pools" - the bar is the user's: the large room must feel AT
+// LEAST as warm as today's club in the garage's own framing). The same kits, the life brought to the STAND: a room
+// within the room. The garage's framing (az -2.5, 12 m: the eye at about (-7, -9.3) looking at the back-right corner)
+// sees the floor DIAGONALLY BEHIND the stand - so the lounge stands there, 8-12 m off the aeroplane, the stove turned to
+// the eye; the bench corner stands right of the nose with a two-tier rack line for its wall; the two residents park
+// behind and to the left (the back half, where hangarPark packs them: the backdrop of "the one I'm flying, the one I'm
+// keeping"); the woodshop and the office keep the door end, and the back wall is storage, in shadow on purpose. The
+// light: the bay's fitting lower and every lamp a quarter stronger, the fire further, and a floor under the room's
+// ambient at night (envFloor: the probe's level never below dusk's) - the same five shadow maps.
+const HANGAR_HEARTH_ROWS = {
+  bench: {
+    sites: [
+      { prop: 'workbench_wood', at: 'floor', fx: HC_F(-4.0), fz: HC_F(11.5), dry: Math.PI },
+      { prop: 'vice_bench', at: 'floor', fx: HC_F(-5.0), fz: HC_F(11.4), dry: Math.PI * 0.5, y: 0.96, on: 'workbench_wood' },
+      { prop: 'toolbox_open', at: 'floor', fx: HC_F(-3.2), fz: HC_F(11.5), dry: Math.PI - 0.35, y: 0.96, on: 'workbench_wood' },
+      { prop: 'toolchest_metal', at: 'floor', fx: HC_F(-6.6), fz: HC_F(11.6), dry: Math.PI + 0.12 },
+      { prop: 'toolchest_metal', at: 'floor', fx: HC_F(-1.6), fz: HC_F(11.7), dry: Math.PI - 0.10 },
+      { prop: 'stool_wood', at: 'floor', fx: HC_F(-4.8), fz: HC_F(10.0), dry: 0.6 },
+      { prop: 'stool_wood', at: 'floor', fx: HC_F(-3.0), fz: HC_F(9.9), dry: -0.4 },
+      // the racks on the shop wall still hold tools: the bench's wall is the rack line now
+      { prop: 'toolrack_wall', at: 'shop', along: HC_A(-4.0), out: 0.12, dry: Math.PI, y: 1.62 },
+      { prop: 'toolrack_wall', at: 'shop', along: HC_A(-10.0), out: 0.12, dry: Math.PI, y: 1.62 },
+    ],
+    recipes: [],
+  },
+  metal: {
+    sites: [
+      { prop: 'drillpress', at: 'floor', fx: HC_F(-9.0), fz: HC_F(13.2), dry: Math.PI + 0.10 },
+      { prop: 'weldingcart', at: 'floor', fx: HC_F(-10.3), fz: HC_F(12.8), dry: Math.PI - 0.20 },
+      { prop: 'compressor', at: 'floor', fx: HC_F(-11.6), fz: HC_F(13.4), dry: Math.PI },
+      { prop: 'drum_steel', at: 'floor', fx: HC_F(-12.6), fz: HC_F(12.4), dry: 0 },
+      { prop: 'drum_steel', at: 'floor', fx: HC_F(-12.5), fz: HC_F(13.4), dry: 0.5 },
+    ],
+    recipes: [
+      // the back wall's shelving, either side of its doors - storage, in the shadow beyond the residents
+      ...[7.2, 8.25, 9.3, 10.35, -7.2, -8.25, -9.3].map(z =>
+        ({ recipe: 'loadedRack', at: 'back', along: HC_B(z), out: 0.55, dry: -Math.PI / 2, foot: [0.5, 0.33],
+           props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })),
+    ],
+  },
+  store: {
+    sites: [
+      { prop: 'box_cardboard', at: 'floor', fx: HC_F(0.6), fz: HC_F(11.4), dry: 0.3, y: 1.28, on: 'cart_storage' },
+      { prop: 'jerrycan', at: 'floor', fx: HC_F(-7.6), fz: HC_F(10.6), dry: 0.8 },
+      { prop: 'bottle_lpg', at: 'shop', along: HC_A(-18.4), out: 0.60, dry: 0.5 },
+      { prop: 'bottle_propane', at: 'shop', along: HC_A(-18.9), out: 0.60, dry: 0.4 },
+      { prop: 'barrel_plastic', at: 'build', along: HC_A(-18.7), out: 0.70, dry: 0 },
+      { prop: 'bin_metal', at: 'build', along: HC_A(-17.6), out: 0.70, dry: 0.3 },
+      { prop: 'bin_metal', at: 'back', along: HC_B(-11.6), out: 0.60, dry: 0.3 },
+      { prop: 'bin_metal_rust', at: 'back', along: HC_B(-12.6), out: 0.60, dry: -0.5 },
+      { prop: 'jerrycan', at: 'back', along: HC_B(-13.4), out: 0.50, dry: 0.9 },
+    ],
+    recipes: [
+      { recipe: 'stockRack', at: 'build', along: HC_A(-2.4), out: 0.70, dry: -Math.PI / 2, foot: [0.46, 5.3], props: [] },
+      // THE BENCH'S WALL: a rack line two tiers high behind the bench, shelves to the stand
+      ...[-7, -6, -5, -4, -3, -2, -1].map(x =>
+        ({ recipe: 'tallRack', at: 'floor', fx: HC_F(x), fz: HC_F(13.0), dry: Math.PI, foot: [0.5, 0.33],
+           props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })),
+      // THE LOUNGE'S WALL: the same, behind the lounge
+      ...[5, 6, 7, 8, 9, 10, 11].map(x =>
+        ({ recipe: 'tallRack', at: 'floor', fx: HC_F(x), fz: HC_F(14.5), dry: Math.PI, foot: [0.5, 0.33],
+           props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })),
+    ],
+  },
+  handling: {
+    sites: [
+      { prop: 'cart_storage', at: 'floor', fx: HC_F(0.6), fz: HC_F(11.4), dry: Math.PI },
+      { prop: 'cart_tool_cab', at: 'floor', fx: HC_F(-8.6), fz: HC_F(11.4), dry: Math.PI - 0.08 },
+      { prop: 'handtruck', at: 'shop', along: HC_A(-17.5), out: 0.55, dry: Math.PI + 0.15 },
+      { prop: 'stepladder', at: 'floor', fx: HC_F(0.3), fz: HC_F(13.6), dry: Math.PI + 0.5 },
+      { prop: 'stepladder', at: 'floor', fx: HC_F(12.0), fz: HC_F(14.6), dry: Math.PI - 0.4 },
+    ],
+    recipes: [],
+  },
+  office: {
+    // the office at the door end of the shop side (the back half is the residents')
+    sites: [
+      { prop: 'desk_metal', at: 'shop', along: HC_A(-15.6), out: 0.90, dry: Math.PI },
+      { prop: 'lamp_desk', at: 'shop', along: HC_A(-16.3), out: 1.15, dry: Math.PI - 0.55, y: 0.78, on: 'desk_metal', light: 'desk' },
+      { prop: 'instrument_panel', at: 'shop', along: HC_A(-15.0), out: 1.05, dry: Math.PI + 0.35, y: 0.78, on: 'desk_metal' },
+      { prop: 'radio_bench', at: 'floor', fx: HC_F(-4.1), fz: HC_F(11.4), dry: Math.PI + 0.25, y: 0.96, on: 'workbench_wood' },
+      { prop: 'stool_wood', at: 'shop', along: HC_A(-15.2), out: 1.90, dry: 0.3 },
+      { prop: 'plan_wall', at: 'shop', along: HC_A(-13.2), out: 0.12, dry: Math.PI, y: 2.35 },
+    ],
+    recipes: [
+      { recipe: 'planTable', at: 'floor', fx: HC_F(-15.6), fz: HC_F(14.6), dry: 0.4, foot: [0.8, 0.55], props: [] },
+    ],
+  },
+  comfort: {
+    sites: [
+      { prop: 'rug_persian', at: 'floor', fx: HC_F(7.6), fz: HC_F(9.6), dry: 0.6, y: 0.004 },
+      // the chair by the fire, turned to the stand (and the eye)
+      { prop: 'chair_lounge', at: 'floor', fx: HC_F(8.6), fz: HC_F(10.4), dry: -2.5 },
+      { prop: 'stool_wood', at: 'floor', fx: HC_F(6.6), fz: HC_F(9.0), dry: 1.1 },
+      { prop: 'drum_steel', at: 'floor', fx: HC_F(9.9), fz: HC_F(9.2), dry: 0.2 },
+      { prop: 'barrel_plastic', at: 'floor', fx: HC_F(12.8), fz: HC_F(10.6), dry: 0.4 },
+      { prop: 'hosereel_wall', at: 'shop', along: HC_A(2.0), out: 0.14, dry: Math.PI, y: 2.20 },
+      { prop: 'stove_barrel', at: 'floor', fx: HC_F(-1.6), fz: HC_F(-16.2), dry: 0.3 },
+    ],
+    recipes: [
+      { recipe: 'stoveCorner', at: 'floor', fx: HC_F(11.0), fz: HC_F(12.0), dry: -2.5, foot: [0.85, 0.85], props: ['stove_masonry'] },
+    ],
+  },
+  curio: {
+    sites: [
+      { prop: 'table_wood', at: 'floor', fx: HC_F(6.2), fz: HC_F(12.0), dry: 0.3 },
+      { prop: 'crate_wood_a', at: 'floor', fx: HC_F(6.6), fz: HC_F(12.0), dry: -0.25, y: 0.68, on: 'table_wood' },
+      { prop: 'car_covered', at: 'floor', fx: HC_F(-16.9), fz: HC_F(-17.5), dry: Math.PI / 2 + 0.05 },
+    ],
+    recipes: [
+      { recipe: 'tyreStack', at: 'floor', fx: HC_F(-17.4), fz: HC_F(-15.4), dry: 0, foot: [0.4, 0.4], n: 4, props: ['tyre'] },
+      { recipe: 'tyreStack', at: 'floor', fx: HC_F(-16.4), fz: HC_F(-15.5), dry: 0, foot: [0.4, 0.4], n: 2, props: ['tyre'] },
+    ],
+  },
+};
+HANGAR_LAYOUTS.hearth = {
+  name: 'The works, a hearth at the stand', shell: 'works',
+  kits: HANGAR_LAYOUTS.cozy.kits.slice(),
+  light: {
+    kelvin: 2700, gain: 1.25, envFloor: 0.2,
+    stove: { cd: 26, dist: 12 },
+    lamps: [[1.0, 0, 6.0],                   // over the build bay, lower
+            [8.5, 10.5, 4.2],                // the lounge
+            [-4.0, 10.0, 4.2],               // the bench corner
+            [-9.5, -12.0, 4.8],              // the woodshop
+            [14.0, -3.0, 7.0]],              // the residents' half, high
+    pendants: [[6.2, 12.0, 3.0], [-8.6, 11.8, 3.6], [-15.6, 17.6, 3.4], [-13.0, -16.6, 4.2]],
+  },
+  // every kit the hearth does not move stands as in the cozy works (the woodshop, the work in progress)
+  rows: Object.assign({}, HANGAR_LAYOUTS.cozy.rows, HANGAR_HEARTH_ROWS),
+};
+
+// THE HEARTH, LIGHT (G2319: the 8 Oct timing - the hearth + 2 residents at 21.0 fps against today's club's 24.6 on the
+// laptop's retro rung, the residents themselves ~free: the ROOM costs, ~175 draws more). The same hearth with its heaviest
+// furniture cut, every cut named: (1) the two two-tier rack lines (14 tallRacks: 28 racks and their shelf stock) become
+// three single loaded racks each, at the line's middle; (2) the back wall's seven loaded racks go (storage in the shadow
+// behind the residents - the dark reads the same); (3) the long stock rack by the woodshop goes (its tube and spruce are
+// ~60 drawn meshes). The light, the lounge, the bench corner, the woodshop, the office and the residents' floor stay.
+const HANGAR_HEARTH_LIGHT_STORE = {
+  sites: HANGAR_HEARTH_ROWS.store.sites,
+  recipes: [-5, -4, -3].map(x =>
+    ({ recipe: 'loadedRack', at: 'floor', fx: HC_F(x), fz: HC_F(13.0), dry: Math.PI, foot: [0.5, 0.33],
+       props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] })).concat(
+    [7, 8, 9].map(x =>
+    ({ recipe: 'loadedRack', at: 'floor', fx: HC_F(x), fz: HC_F(14.5), dry: Math.PI, foot: [0.5, 0.33],
+       props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] }))),
+};
+HANGAR_LAYOUTS.hearthLight = {
+  name: 'The works, a hearth at the stand (light)', shell: 'works',
+  kits: HANGAR_LAYOUTS.hearth.kits.slice(),
+  light: HANGAR_LAYOUTS.hearth.light,
+  rows: Object.assign({}, HANGAR_LAYOUTS.hearth.rows, {
+    store: HANGAR_HEARTH_LIGHT_STORE,
+    metal: { sites: HANGAR_HEARTH_ROWS.metal.sites, recipes: [] },
+  }),
+};
+
+// the layout that applies to a shell: the named one when its shell matches,
+// else none (a layout is one shell's arrangement - the kits' own rows stand
+// in any other)
+function hangarLayout(key, shell) {
+  const L = key && HANGAR_LAYOUTS[key];
+  return L && (!L.shell || L.shell === (shell || 'club')) ? L : null;
+}
+// a kit's rows under a layout: the layout's when it names the kit, else the
+// kit's own (a kit the layout never stood keeps its club arrangement)
+function hangarRows(k, layout) {
+  const r = layout && layout.rows && layout.rows[k];
+  return r ? { sites: r.sites || [], recipes: r.recipes || [] } : HANGAR_KITS[k];
+}
+
 // ---- THE ENGINE -----------------------------------------------------------
 // hangarFit(dims, kitKeys) -> { placed, recipes, unplaced } with the one
 // invariant this whole mechanism exists for:
@@ -6946,6 +7361,9 @@ function hangarFit(dims, kitKeys, opts) {
   const hasBackDoors = shellRec.doors === 'sixLeaf';
   const keys = (kitKeys && kitKeys.length ? kitKeys : HANGAR_KITS_DEFAULT)
     .filter(k => HANGAR_KITS[k]);
+  // G2315: a LAYOUT stands the same kits otherwise in its own shell (cozy:
+  // the works); without one - or in another shell - every row is the kit's
+  const layout = hangarLayout(opts && opts.layout, (opts && opts.shell) || 'club');
 
   const placed = [], recipes = [], unplaced = [];
   const placedKeys = new Set();
@@ -6971,7 +7389,7 @@ function hangarFit(dims, kitKeys, opts) {
     const p = resolve(row);
     const out = { kit, at: row.at, x: p.x, z: p.z, ry: row.dry || 0,
                   y: row.y || 0 };
-    if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; }
+    if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
 
@@ -7035,12 +7453,14 @@ function hangarFit(dims, kitKeys, opts) {
   // riders — so a box can ride a cart whichever kit declared the cart
   for (const pass of [0, 1])
     for (const k of keys) {
-      for (const s of HANGAR_KITS[k].sites)
+      const rows = hangarRows(k, layout);
+      for (const s of rows.sites)
         if ((s.on ? 1 : 0) === pass) fit(s, k, false);
-      for (const r of HANGAR_KITS[k].recipes)
+      for (const r of rows.recipes)
         if ((r.on ? 1 : 0) === pass) fit(r, k, true);
     }
-  return { placed, recipes, unplaced, dims: { HW, HD, EAVE } };
+  return { placed, recipes, unplaced, dims: { HW, HD, EAVE },
+           layout: layout ? opts.layout : null };
 }
 
 // ---- THE RING -------------------------------------------------------------
@@ -7780,6 +8200,233 @@ function restorePlaces(rec, cut) {
   }
   return out;
 }
+// ---- STAGES (contract v1.33, G2300 STAGES; GAME-2026-10-06.md §11) ---------------------------------------------------
+// THE BUILDINGS THAT MISSIONS PUT UP. Any entry of any layer, and any ITEM of a site, may carry
+//   stage: { track: 'minedock', show: [lo, hi | null], vary: [ { show: [lo, hi], ...what changes } ] }
+// and stands only while the career's world progress `tracks[track]` (a small integer, 74_career.js, advanced by a
+// contract's `unlock: { stage: '<track>:<n>' }`) lies in [lo, hi]; hi null (or absent) = no upper bound. `vary` (the
+// first band holding the value) changes the entry while it stands: a RUNWAY's len / c / surface / look / profile / wid
+// (its ground and its surface - physics, so a stage applies at composition only, never in flight: 76_stages.js), its
+// `sock` / `ties` (false: no windsock, no tie-down spots); an item's or an object's P (merged).
+// A CONSTRUCTION KIT is an object { kind: 'kit', kit: <STAGE_KITS name>, x, z, yaw, w, d } - data: it expands, where it
+// stands, into the kit's props (the existing props: a fence round the plot, pallets, crates, drums, trestles) and, when
+// the kit names one, a partial frame built by an existing generator; its own tree exclude over the plot.
+// THE SANDBOX IS EVERY TRACK AT ITS MAX: `tracks` null, every value +Infinity - what stands is what has no upper bound,
+// with the `stage` fields taken off, so the sandbox's record is TODAY'S, byte for byte (GATE STAGES holds it against
+// the island cook's recorded hash). A career's record is stageView(rec, career.tracks): the page composes it at load
+// (world_boot.js) and recomposes it at a roll-out / roll-in when a stage advanced (app.js; never in flight).
+const STAGE_RUNWAY_VARY = ['len', 'c', 'wid', 'surface', 'look', 'profile', 'sock', 'ties'];
+const STAGE_KITS = {
+  // the fenced plot alone: the old fence round it, a gate gap, a pallet by the gate
+  plot:  { fence: true, props: [['pallet_one', 0.12, 0.85, 0.3]] },
+  // the building site: the plot fenced, the materials stacked, the trestles, the drums, and a frame going up
+  build: { fence: true, frame: { gen: 'SHED_GEN', preset: 'lean-to', P: { L: 9, w: 5, wallH: 3.2, missing: 0.35, openFront: 1, firewood: 0, shake: 0.6 }, at: [-0.18, 0.1, 0] },
+           props: [['pallets_stack', 0.32, -0.3, 0.2], ['pallets_three', 0.32, -0.05, 1.4], ['cement_bags', 0.3, 0.22, 0.6], ['cinder_pallet', 0.12, -0.36, 0],
+                   ['crate_wood_a', 0.05, 0.36, 0.3], ['crate_wood_b', 0.1, 0.38, 1.1], ['crate_wood_c', 0.18, 0.36, -0.2],
+                   ['drum_steel', -0.38, 0.34, 0], ['drum_steel', -0.33, 0.37, 0.8], ['barrel_plastic', -0.36, 0.28, 0.2],
+                   ['work_trestle', 0.02, -0.12, 1.57], ['work_trestle', 0.12, -0.12, 1.57], ['stepladder', -0.05, 0.12, 0.4], ['handtruck', 0.22, 0.12, 2.1]] },
+  // the dock's site: the plot fenced on the shore, the timbers and the drums for a pier
+  shore: { fence: true, props: [['pallets_stack', -0.3, -0.25, 0.1], ['pallets_three', -0.05, -0.3, 1.2], ['drum_steel', 0.3, 0.3, 0], ['drum_steel', 0.34, 0.24, 0.9],
+                                ['barrel_plastic', 0.26, 0.34, 0.3], ['work_trestle', 0, 0.1, 0], ['work_trestle', 0.1, 0.1, 0], ['crate_wood_c', -0.3, 0.3, 0.3], ['cement_bags', 0.32, -0.3, 0.5]] },
+};
+const STAGE_FENCE = { key: 'fence_old', len: 4.6, gate: 0.5 };   // the pier pack's old fence (4.6 m a stretch); the gate: half a side's middle stretch left open
+const stageBand = s => { const b = s && Array.isArray(s.show) ? s.show : [0, null]; return [+b[0] || 0, b[1] === null || b[1] === undefined ? null : +b[1]]; };
+const stageValue = (tracks, t) => (tracks && typeof tracks === 'object' && isFinite(+tracks[t]) && tracks[t] !== null && tracks[t] !== '' ? +tracks[t] : Infinity);
+const stageIn = (band, v) => v >= band[0] && (band[1] === null || v <= band[1]);
+function stageStands(st, tracks) { return !st || stageIn(stageBand(st), stageValue(tracks, st.track)); }
+function stageVaryOf(st, tracks) {
+  if (!st || !Array.isArray(st.vary)) return null;
+  const v = stageValue(tracks, st.track);
+  for (const q of st.vary) if (q && stageIn(stageBand(q), v)) return q;
+  return null;
+}
+// a kit's props and frame, in the record's frame, ids `<kit id>:<n>` (seeded per kit: the same record, the same kit)
+function stageKitObjects(k) {
+  const K = STAGE_KITS[k.kit]; if (!K) return [];
+  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  // local (u across w, v across d) -> the record's frame, the placement law of an item in its site (x = u c + v s, z = -u s + v c)
+  const at = (u, v) => [+(+k.x + u * c + v * s).toFixed(3), +(+k.z - u * s + v * c).toFixed(3)];
+  const rnd = mulberry32(hash32(7, fnv('kit:' + k.id))), out = [];
+  let n = 0;
+  const put = (key, u, v, ry, extra) => { const p = at(u, v); out.push(Object.assign({ id: k.id + ':' + (n++), kind: 'prop', key, x: p[0], z: p[1], yaw: +(yaw + ry).toFixed(4) }, extra || {})); };
+  if (K.fence && k.fence !== false) {
+    const sides = [[[-w / 2, -d / 2], [w / 2, -d / 2]], [[w / 2, -d / 2], [w / 2, d / 2]], [[w / 2, d / 2], [-w / 2, d / 2]], [[-w / 2, d / 2], [-w / 2, -d / 2]]];
+    sides.forEach((sd, si) => {
+      const L = Math.hypot(sd[1][0] - sd[0][0], sd[1][1] - sd[0][1]), m = Math.max(1, Math.round(L / STAGE_FENCE.len)), a = Math.atan2(-(sd[1][1] - sd[0][1]), sd[1][0] - sd[0][0]);
+      for (let i = 0; i < m; i++) {
+        if (si === 0 && m >= 3 && i === Math.floor(m / 2)) continue;   // the gate: the front side's middle stretch
+        const t = (i + 0.5) / m;
+        put(STAGE_FENCE.key, sd[0][0] + (sd[1][0] - sd[0][0]) * t, sd[0][1] + (sd[1][1] - sd[0][1]) * t, a + (rnd() - 0.5) * 0.06);
+      }
+    });
+  }
+  for (const p of K.props) put(p[0], p[1] * w, p[2] * d, p[3] + (rnd() - 0.5) * 0.3);
+  if (K.frame && k.frame !== false) {   // the frame fits the plot: at most 0.6 of its width and 0.45 of its depth
+    const p = at(K.frame.at[0] * w, K.frame.at[1] * d), P = Object.assign({ seed: 1 + (hash32(3, fnv(k.id)) % 997) }, K.frame.P);
+    P.L = +Math.max(1.6, Math.min(P.L, 0.6 * w)).toFixed(2); P.w = +Math.max(1.2, Math.min(P.w, 0.45 * d)).toFixed(2);
+    out.push({ id: k.id + ':frame', key: stageFrameKey(K.frame), x: p[0], z: p[1], yaw: +(yaw + K.frame.at[2]).toFixed(4), y: null, P });
+  }
+  return out;
+}
+// a kit's frame by its generator and preset (the catalogue's key, GEN_NS's namespace: no key is written here - rule 13)
+const stageFrameKey = f => (f.gen && GEN_NS[f.gen] ? GEN_NS[f.gen] + '/' + f.preset : f.key || null);
+// the kit's plot as a polygon (the tree exclude while it stands)
+function stageKitPoly(k) {
+  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  return [[-w, -d], [w, -d], [w, d], [-w, d]].map(q => [+(+k.x + q[0] * c + q[1] * s).toFixed(3), +(+k.z - q[0] * s + q[1] * c).toFixed(3)]);
+}
+// a COPY of the record as it stands at `tracks` (null: the sandbox), and what was cut / changed, so an edit made on the
+// staged record can be put back into the whole one (stageRestore). `n`: entries cut or expanded; `staged`: the record
+// carried any stage at all
+function stageView(rec, tracks) {
+  const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
+  const cut = {}, kept = {}, varied = {}, kits = {};
+  let n = 0, staged = false;
+  const strip = (e, where) => {
+    staged = true;
+    const c = Object.assign({}, e); delete c.stage;
+    kept[where] = e.stage;
+    const q = stageVaryOf(e.stage, tracks);
+    if (q) {
+      const ch = {};
+      for (const key of Object.keys(q)) {
+        if (key === 'show') continue;
+        if (key === 'P') { ch.P = c.P; c.P = Object.assign({}, c.P || {}, q.P); continue; }
+        ch[key] = c[key]; c[key] = q[key];
+      }
+      varied[where] = { was: ch, now: q };
+    }
+    return c;
+  };
+  for (const L of Object.keys(out.layers)) {
+    const a = out.layers[L]; if (!Array.isArray(a)) continue;
+    if (!a.some(e => e && (e.stage || (L === 'sites' && (e.items || []).some(it => it && it.stage)) || (L === 'objects' && e.kind === 'kit')))) continue;
+    const keep = [];
+    for (const e of a) {
+      if (!e) { keep.push(e); continue; }
+      // a ZONE below its band still SOWS - its land stays reserved, so a later zone never re-sows into it and the
+      // village beside the harbour stands the same plots at every stage - and builds nothing (compose drops its plots
+      // after the sowing, their ground kept clear of trees)
+      if (e.stage && L === 'zones' && !stageStands(e.stage, tracks)) { const z = strip(e, L + ':' + e.id); z.stageSown = true; keep.push(z); n++; continue; }
+      if (e.stage && !stageStands(e.stage, tracks)) { (cut[L] = cut[L] || []).push(e); n++; staged = true; continue; }
+      let c = e.stage ? strip(e, L + ':' + e.id) : e;
+      if (L === 'sites' && (c.items || []).some(it => it && it.stage)) {
+        const items = [];
+        for (const it of c.items) {
+          if (it && it.stage && !stageStands(it.stage, tracks)) { (cut['items:' + c.id] = cut['items:' + c.id] || []).push(it); n++; staged = true; continue; }
+          items.push(it && it.stage ? strip(it, 'items:' + c.id + ':' + it.id) : it);
+        }
+        c = Object.assign({}, c, { items });
+      }
+      if (L === 'objects' && c.kind === 'kit') {   // a kit that stands expands into its props, its frame and its exclude
+        staged = true; kits[c.id] = c; n++;
+        for (const o of stageKitObjects(c)) keep.push(o);
+        out.layers.exclude = (out.layers.exclude || []).concat([{ id: c.id + ':clear', poly: stageKitPoly(c), what: ['trees'] }]);
+        continue;
+      }
+      keep.push(c);
+    }
+    out.layers[L] = keep;
+  }
+  return { rec: out, n, staged, cut, kept, varied, kits, tracks: tracks || null, whole: rec };
+}
+// put a staged record's edit back into the whole record: the cut entries and items return, the kept entries get their
+// `stage` back, a varied field the edit did not touch returns to its whole-record value, the kits' expansions go (an
+// expanded id is `<kit id>:<n>` / `:frame` / `:clear`) and the kits return. Undefined in the editor's stage UI (later):
+// this is what keeps a save made on a career's page from deleting a stage
+function stageRestore(edited, V) {
+  if (!V || !V.staged || !V.whole) return edited;
+  const W = V.whole, out = Object.assign({}, edited, { layers: Object.assign({}, edited.layers) });
+  const kitOf = id => { const m = /^(.+):(\d+|frame|clear)$/.exec(String(id)); return m && V.kits[m[1]] ? m[1] : null; };
+  const back = (e, where) => {
+    const st = V.kept[where]; if (!st) return e;
+    const c = Object.assign({}, e); delete c.stage; delete c.stageSown; c.stage = st;   // (the key last, as the author writes it)
+    const vr = V.varied[where];
+    if (vr) for (const key of Object.keys(vr.was)) {
+      if (key === 'P') { const P = Object.assign({}, c.P || {}); for (const pk of Object.keys(vr.now.P || {})) if (JSON.stringify(P[pk]) === JSON.stringify(vr.now.P[pk])) { if (vr.was.P && pk in vr.was.P) P[pk] = vr.was.P[pk]; else delete P[pk]; } c.P = P; continue; }
+      if (JSON.stringify(c[key]) === JSON.stringify(vr.now[key])) { if (vr.was[key] === undefined) delete c[key]; else c[key] = vr.was[key]; }
+    }
+    return c;
+  };
+  // in the WHOLE record's order: a cut entry (or a kit) from the whole, an edited one from the edit (its stage back), one
+  // the edit deleted gone; then whatever the edit added
+  const merge = (whole, edit, cutList, whereOf, isKit) => {
+    const cut = new Set((cutList || []).map(e => e.id)), byId = new Map();
+    for (const e of edit || []) if (e && e.id !== undefined && !kitOf(e.id)) byId.set(e.id, e);
+    const res = [], used = new Set();
+    for (const e of whole || []) {
+      if (!e || e.id === undefined) { res.push(e); continue; }
+      if (cut.has(e.id) || (isKit && isKit(e))) { res.push(e); used.add(e.id); continue; }
+      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e))); used.add(e.id); }
+    }
+    for (const e of edit || []) if (e && (e.id === undefined || !kitOf(e.id)) && !used.has(e.id) && !(e.id !== undefined && cut.has(e.id))) res.push(e);
+    return res;
+  };
+  for (const L of Object.keys(out.layers)) {
+    if (!Array.isArray(out.layers[L])) continue;
+    let res = merge(W.layers[L], out.layers[L], V.cut[L], e => L + ':' + e.id, L === 'objects' ? (e => e.kind === 'kit') : null);
+    if (L === 'sites') res = res.map(st => {
+      const ws = (W.layers.sites || []).find(q => q.id === st.id);
+      if (!ws || !Array.isArray(st.items) || !(V.cut['items:' + st.id] || (ws.items || []).some(it => it && it.stage))) return st;
+      return Object.assign({}, st, { items: merge(ws.items, st.items, V.cut['items:' + st.id], it => 'items:' + st.id + ':' + it.id, null) });
+    });
+    out.layers[L] = res;
+  }
+  return out;
+}
+// the shape of every `stage` (issues() reports these): a known track word, an integer band, vary bands inside the
+// stage's own band, a runway varying only its own fields, a kit naming a kit; `maxes` (optional, { track: max }:
+// 72_contract_data.js CONTRACT_TRACKS) adds the sandbox's law - a band is open above or ends BELOW the track's max, so
+// every track at its max IS the sandbox (no element the sandbox lacks stands at max)
+function stageIssues(rec0, maxes) {
+  const rec = rec0 && rec0.layers ? rec0 : normalise(rec0), out = [];
+  const band = (what, b) => {
+    if (!Array.isArray(b) || b.length !== 2) { out.push(what + ': show is [lo, hi | null]'); return null; }
+    if (!(Number.isInteger(b[0]) && b[0] >= 0)) out.push(what + ': show[0] is an integer 0 or more');
+    if (!(b[1] === null || (Number.isInteger(b[1]) && b[1] >= b[0]))) out.push(what + ': show[1] is null or an integer >= show[0]');
+    return b;
+  };
+  const one = (what, st, kind, e) => {
+    if (!st || typeof st !== 'object') { out.push(what + ': stage is { track, show, vary? }'); return; }
+    if (typeof st.track !== 'string' || !/^\w+$/.test(st.track)) out.push(what + ': stage.track is a word');
+    const b = st.show === undefined ? [0, null] : band(what, st.show);
+    const mx = maxes && st.track in maxes ? +maxes[st.track] : null;
+    if (maxes && mx === null) out.push(what + ': no track "' + st.track + '"');
+    if (b && mx !== null) {
+      if (b[0] > mx) out.push(what + ': show starts at ' + b[0] + ', past ' + st.track + '\'s max ' + mx);
+      if (b[1] !== null && b[1] >= mx) out.push(what + ': show ends at ' + b[1] + ' - a band through the max (' + mx + ') must be open (null), or the sandbox and the max differ');
+    }
+    if (st.vary !== undefined) {
+      if (!Array.isArray(st.vary)) { out.push(what + ': vary is a list'); return; }
+      st.vary.forEach((q, i) => {
+        const vb = q && band(what + ' vary[' + i + ']', q.show);
+        if (vb && b && (vb[0] < b[0] || (b[1] !== null && (vb[1] === null || vb[1] > b[1])))) out.push(what + ' vary[' + i + ']: outside the stage\'s own band');
+        if (vb && mx !== null && (vb[1] === null || vb[1] >= mx)) out.push(what + ' vary[' + i + ']: a change at the max is the sandbox\'s, not a stage\'s');
+        for (const key of Object.keys(q || {})) {
+          if (key === 'show') continue;
+          if (kind === 'runway' ? STAGE_RUNWAY_VARY.indexOf(key) < 0 : key !== 'P') out.push(what + ' vary[' + i + ']: ' + key + ' is not a ' + (kind === 'runway' ? 'runway field a stage may change' : 'P'));
+        }
+        // a varied strip is still a strip: 150 m, 8 m wide, its profile inside the pilot's (or the altiport's) limits
+        if (kind === 'runway' && e && q) {
+          const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
+          if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
+          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+        }
+      });
+    }
+  };
+  for (const L of LAYERS) for (const e of rec.layers[L] || []) {
+    if (!e) continue;
+    if (e.stage !== undefined) one(L + ' ' + e.id, e.stage, L === 'runways' ? 'runway' : 'P', e);
+    if (L === 'objects' && e.kind === 'kit') { if (!STAGE_KITS[e.kit]) out.push('kit ' + e.id + ': unknown kit ' + e.kit); if (!e.stage) out.push('kit ' + e.id + ': a construction kit stands only at a stage'); }
+    if (L === 'sites') for (const it of e.items || []) if (it && it.stage !== undefined) one('site ' + e.id + ' item ' + it.id, it.stage, 'P');
+  }
+  // a link names its two items: a staged item would leave it dangling
+  const stagedItems = new Set();
+  for (const st of rec.layers.sites || []) { if (st.stage) for (const it of st.items || []) stagedItems.add(st.id + '/' + it.id); for (const it of st.items || []) if (it && it.stage) stagedItems.add(st.id + '/' + it.id); }
+  for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
+  return out;
+}
 const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
@@ -8076,6 +8723,32 @@ const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's def
 const RWY_TREES = ['today', 'map', 'mapx'];
 const PAVE_SIDE = 1.8;    // a side-faded pavement's DRAWN side: the recipe's sideW 1.2 + edgeChip 0.6 (GATE PAVEMENT holds it)
 const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge's reach, 3.05 x edgeSoft 2.6 (GATE PAVEMENT holds it)
+// THE GRASS BESIDE AND ON THE RUNWAYS (GRASS-DENSE G2565; the user, 8 Oct: "I want grass on the runway sides if the material says
+// it does. And short grass on the grass runway"). coverAt's full query (the tufts' - never the `pave` half the rocks, the debris
+// and the trees read, so nothing but the grass moves) answers by one of two LAWS:
+//   'today' - as it was: kill 1 on the pavement and its whole band, the 6 m fade, the verge's bump; a grass strip's surface bare
+//             (G665), a grass road / polygon thinned to 40 %;
+//   'sides' - the grass follows what is DRAWN beside an aerodrome's pavement (a strip, a paved polygon, a taxiway): bare on the
+//             pavement and its drawn side (`sideClear` m past a paved edge - PAVE_SIDE, the faded side G660 draws - and
+//             `softClear` past a soft one, whose torn edge is where the grass creeps in), then CUT grass across the band and a
+//             mown band `mowBand` m past it, blending to the biome's wild grass over `mowBlend` m, the verge's bump past that;
+//             a grass STRIP's surface carries cut grass (`stripGrass` 1; 0 = bare, G665). An ordinary road keeps today's band
+//             and fade, then `roadMow` m of mown verge. The answer gains `cut` (0..1: how mown the grass is here) and `surf`
+//             (1 on a grass strip's running surface) - the heights are the viewer's (cover_ring.js: the cut grass's length).
+// Live dials (the editor's PREMISES > grass rows; the world look saves them): PREMISES_GEN.grassSides(o) sets, () reads.
+// `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
+// shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
+// G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
+const GRASS_SIDES_DEF = { law: 'today', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
+function grassSides(o) {
+  if (o && typeof o === 'object') for (const k in o) {
+    if (!(k in GRASS_SIDES_DEF)) continue;
+    if (k === 'law') { if (o.law === 'today' || o.law === 'sides') GRASS_SIDES.law = o.law; }
+    else if (isFinite(+o[k]) && o[k] !== null && o[k] !== '') GRASS_SIDES[k] = Math.max(0, +o[k]);
+  }
+  return Object.assign({}, GRASS_SIDES);
+}
 function rwyTreesMode(o) {
   let v = o && o.rwyTrees;
   if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
@@ -8172,7 +8845,15 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+// THE PLOTS (G2310 PREM-S3, contract v1.34): `plots` [{ id, x, z, hdg, stand?, taxiOut?, taxiOut1? }] in the premises
+// frame are where a player's hangar MAY stand on this field (71_player_bases.js BASE_OFFERS names them; a plot id is the
+// hangar id its holder gets). The record's `hangar` IS the field's first plot, its id the runway's own (Jolene's HOME):
+// runwayPlots reads it as plot <runway id>, verbatim, so nothing at a field that had a hangar moves (the site's `hangar`
+// is still the record's `hangar` alone - a field with plots and no hangar gains none). A plot's
+// `stand` / `taxiOut` / `taxiOut1` are its own way out (the roll-out from that hangar's door); absent, the field's serve.
+// A plot on a WATER field is a slipway: its shed stands on the shore, its `stand` on the water off the slip. A plot is a
+// PLACE, not a building: the world stands a shed on it only while the player holds it (GAME §R GQ8).
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, plots: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -8258,6 +8939,36 @@ function runwayBox(r, margin) {
 // stand's heading DERIVED toward its first taxi point when the record gives none (an aeroplane is
 // parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
 // `site` (an authored pattern rides there untouched)
+// THE PLOTS OF A RUNWAY (G2310, v1.34), in the premises frame: the record's `hangar` as plot <runway id> (verbatim) unless
+// `plots` names that id itself, then every authored plot with a finite place, in the record's order
+const plotOk = p => !!p && typeof p.id === 'string' && p.id.length > 0 && isFinite(+p.x) && isFinite(+p.z);
+function runwayPlots(r) {
+  const own = Array.isArray(r.plots) ? r.plots.filter(plotOk) : [];
+  const out = [];
+  if (r.hangar && isFinite(+r.hangar.x) && isFinite(+r.hangar.z) && !own.some(p => p.id === r.id))
+    out.push({ id: r.id, x: +r.hangar.x, z: +r.hangar.z, hdg: +r.hangar.hdg || 0, main: true });
+  for (const p of own) { const q = Object.assign({}, p); delete q.main; out.push(q); }
+  return out;
+}
+// one plot into the world: the shed's centre, its door's heading and rotation.y (the club hangar's own rule, G434), its
+// own way out when it has one (the stand's heading derived toward its first taxi point, as the field's)
+function plotWorld(p, F) {
+  const W = q => F.toWorld(q[0], q[1]);
+  const hw = W([+p.x, +p.z]), hh = (+p.hdg || 0) - F.yaw;
+  const o = { id: p.id, x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) };
+  if (p.main) o.main = true;
+  if (p.stand && isFinite(+p.stand.x) && isFinite(+p.stand.z)) {
+    const st = W([+p.stand.x, +p.stand.z]), tx = Array.isArray(p.taxiOut) ? p.taxiOut.map(W) : [];
+    let hdg;
+    if (p.stand.hdg !== null && p.stand.hdg !== undefined) hdg = +p.stand.hdg - F.yaw;
+    else if (tx.length) hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
+    else hdg = hh;   // a slipway's stand with no way out faces where the door does
+    o.stand = { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) };
+    if (tx.length) o.taxiOut = tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+    if (Array.isArray(p.taxiOut1) && p.taxiOut1.length) o.taxiOut1 = p.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+  }
+  return o;
+}
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
   const base = Object.assign({}, r.site || {});
@@ -8267,6 +8978,10 @@ function runwaySite(r, F) {
     const hw = W([+r.hangar.x, +r.hangar.z]), hh = (+r.hangar.hdg || 0) - F.yaw;
     base.hangar = Object.assign({ x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) }, HANGAR_DIMS);
   }
+  // G2310: every plot into the site, the first (the hangar's) verbatim - only when the record authors `plots`, so a
+  // field without them composes to the very site it did (the key absent)
+  const P = Array.isArray(r.plots) ? runwayPlots(r) : [];
+  if (P.length) base.plots = P.map(p => plotWorld(p, F));
   if (!r.stand || !r.taxiOut || !r.taxiOut.length) return Object.keys(base).length ? base : null;
   const st = W([r.stand.x, r.stand.z]), tx = r.taxiOut.map(W);
   let hdg;
@@ -8279,6 +8994,9 @@ function runwaySite(r, F) {
   if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
   return out;
 }
+// (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
+// absent - the record never says it - the aerodrome is untouched
+function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -8570,7 +9288,10 @@ function smoothPath(pts, radius) {
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
   const o = opts || {};
-  const rec = normalise(rec0);
+  // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
+  // unstaged record is untouched, and a staged one composes exactly as its stageView would
+  const SV = stageView(normalise(rec0), o.tracks);
+  const rec = SV.staged ? normalise(SV.rec) : normalise(rec0);
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
@@ -8598,8 +9319,10 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null));
-      r.site = null;
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
+      // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
+      r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
+      if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
       continue;
     }
     const elev = T1(r.c[0], r.c[1]);
@@ -8611,7 +9334,7 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)));   // T1 sees the strip's own grade (pushed above)
+    aerodromes.push(stageAero(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)), r));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
     // G710: THE PARKED AEROPLANES the way out must clear (25_airfield.js gpClearWay): every `aircraft`
     // object within 400 m of the stand or a taxi point, in the world (x, z, and `ry` = rotation.y, the
@@ -8628,6 +9351,10 @@ function compose(rec0, world, opts) {
     }
     if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
     if (r.site && r.site.hangar) { const L = F.toLocal(r.site.hangar.x, r.site.hangar.z); r.site.hangar.y = +T1(L[0], L[1]).toFixed(2); }   // the ground under the club hangar (G434): the shed stands on it
+    if (r.site && r.site.plots) for (const p of r.site.plots) {   // G2310: each plot's shed on its ground, its own stand's ground (the placer reads it)
+      const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2);
+      if (p.stand) { const Ls = F.toLocal(p.stand.x, p.stand.z); p.stand.elev = +T1(Ls[0], Ls[1]).toFixed(2); }
+    }
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -9074,7 +9801,7 @@ function compose(rec0, world, opts) {
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
+    n: mods.length, nAuthored: nAuth, rec, stage: SV.staged ? { n: SV.n, tracks: SV.tracks } : null, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
     // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
     // vegMixes the polygons' own biomes by '@id'; vegSig a string that changes when any of it does (the renderer's replant)
     // (and the strips' own clearances - G1385's third item: the fill and the ring replant on either)
@@ -9397,6 +10124,7 @@ function compose(rec0, world, opts) {
   function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
+    if (!pave && GRASS_SIDES.law === 'sides') return coverSides(lx, lz, cell);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
@@ -9415,13 +10143,49 @@ function compose(rec0, world, opts) {
       if (d > best) { best = d; cls = it.cls; }
     }
     if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
+    return withPlot(lx, lz, kill, boost, cls, 0, 0);
+  }
+  // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
+  // only the pavement and the band kill)
+  function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
-    // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
-    // a plot's lawn is mown to the road's band: no fade thins it, only the pavement and the band kill
     if (kind === 'lawn' && kill < 1) kill = 0;
-    if (!kill && !boost && !kind) return null;
-    return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+    if (!kill && !boost && !kind && !cut) return null;
+    const o = { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+    if (GRASS_SIDES.law === 'sides') { o.cut = cut; o.surf = surf; }
+    return o;
+  }
+  // THE 'sides' LAW (GRASS_SIDES above): what is drawn beside an aerodrome's pavement decides - bare on it and its drawn side,
+  // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
+  function coverSides(lx, lz, cell) {
+    const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz), out = -d;
+      const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
+      const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
+      const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
+      if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE) continue;
+      if (d > best) { best = d; cls = it.cls; }
+      let k = 0, c = 0;
+      if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
+        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; } else k = 1; } else { k = 0.6; c = 1; } }
+        else k = 1;
+        if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
+      } else if (aero) {
+        if (out <= (it.soft ? G.softClear : G.sideClear)) k = 1;
+        else c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+      } else {   // an ordinary road: today's band and fade, then its mown verge
+        k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
+        if (it.cls === 'grass') k *= 0.6;
+        if (out > it.band) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+      }
+      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * Math.sin(Math.PI * (out - v0) / VERGE));
+      if (k > kill) kill = k;
+      if (c > cut) cut = c;
+    }
+    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
@@ -9536,8 +10300,13 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
+    }
+    // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
+    if (O.records.plots.some(p => p.stageSown)) {
+      for (const p of O.records.plots) if (p.stageSown) excl.push({ poly: p.poly, bbox: polyBBox(p.poly), what: ['trees'], derived: true, stage: p.zone });
+      O.records.plots = O.records.plots.filter(p => !p.stageSown);
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
     // plot by the entry's own stand (totemPlot's shape: (plot, T, o) -> a plan with footprint, level,
@@ -9708,6 +10477,7 @@ function issues(rec0) {
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
+  const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
@@ -9725,6 +10495,22 @@ function issues(rec0) {
     }
     if (r.papi && (!Array.isArray(r.papi) || r.papi.length !== 2 || !r.papi.every(v => v === true || v === false || v === 'vasi'))) out.push('runway ' + r.id + ': papi is [end 0, end 1] of true, false or vasi');
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
+    // G2310 (v1.34): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
+    // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    if (r.plots != null) {
+      if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
+      else for (const p of r.plots) {
+        if (!p || typeof p.id !== 'string' || !p.id) { out.push('runway ' + r.id + ': a plot without an id'); continue; }
+        if (!(isFinite(+p.x) && isFinite(+p.z))) out.push('runway ' + r.id + ': plot ' + p.id + ' needs x and z');
+        if (p.hdg != null && !isFinite(+p.hdg)) out.push('runway ' + r.id + ': plot ' + p.id + ': hdg is radians');
+        if (plotIds.has(p.id)) out.push('runway ' + r.id + ': plot ' + p.id + ' is named twice');
+        plotIds.add(p.id);
+        if (p.stand != null && !(isFinite(+p.stand.x) && isFinite(+p.stand.z))) out.push('runway ' + r.id + ': plot ' + p.id + ': the stand needs x and z');
+        for (const k of ['taxiOut', 'taxiOut1']) if (p[k] != null && !(Array.isArray(p[k]) && p[k].every(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])))) out.push('runway ' + r.id + ': plot ' + p.id + ': ' + k + ' is a list of [x, z]');
+        if (p.taxiOut != null && p.stand == null) out.push('runway ' + r.id + ': plot ' + p.id + ': a way out needs its stand');
+      }
+    }
+    if (r.hangar && isFinite(+r.hangar.x)) { if (plotIds.has(r.id)) out.push('runway ' + r.id + ': plot ' + r.id + ' is named twice'); plotIds.add(r.id); }
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -9750,6 +10536,7 @@ function issues(rec0) {
     else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
   }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
+  for (const i of stageIssues(rec)) out.push(i);   // v1.33: the stages' shape (the max law is GATE STAGES', with the career's tracks)
   return out;
 }
 
@@ -9949,11 +10736,12 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
@@ -28441,6 +29229,320 @@ function genBayList(S, ST) {
 }
 
 // ============================================================
+// THE BELLY POD (G2410-G2419, BELLY-POD for the GAME COORDINATOR; FREIGHT-2026-10-07.md §4: "External loads: a BELLY
+// POD first, as its own session. It needs a bench first, trials on each validated plane, a ground-clearance check, a
+// place in the certification, and a real aerodynamic cost").
+//
+// A moulded glassfibre pod under the fuselage, its top the body's own keel line (the lower longerons), its bottom flat
+// between a rounded nose fairing and a boat-tail: the shape of a Cessna 206 / 208 cargo pod, sized by the player.
+// OFF BY DEFAULT and ABSENT BY DEFAULT: a spec without `pod`, or with `pod.on` falsy, builds exactly the aeroplane it
+// built before this file existed (GATE POD holds every validated build to its bytes). On:
+//   spec.pod = { on: 1, len, width, depth, noseFair, tailFair, x, loadKg, door }
+//     len       m, the pod's length nose to tail
+//     width     m, across the flat floor (cut to 0.95 of the belly's own width at the pod's middle: it hangs UNDER
+//               the fuselage, it does not overhang it)
+//     depth     m, the floor's depth below the lowest point of the keel over the flat run (the keel rises aft, so
+//               the pod is deeper aft - a flat floor under a sloping belly, like the real ones)
+//     noseFair  the nose fairing's share of the length (a quarter-ellipse in side view)
+//     tailFair  the boat-tail's share (a straight ramp from the floor up to the keel)
+//     x         m aft of the firewall, the pod's nose; null = centred on the wing's quarter chord, which is where a
+//               load moves the CG least
+//     loadKg    the freight in it as built (payload; FREIGHT-MODEL's packer and FREIGHT-STRAP place real items)
+//     door      'left' | 'right': the side hatch the load goes through (FREIGHT §1: "an item must pass the door")
+// What this file answers, pure (no sim): the pod's resolved shape (genPodResolve), its CARGO SPACE for FREIGHT-
+// MODEL's packer (genPodSpace: kind 'pod', its box, floor limit and door), its drag build-up (genPodCdA), its ground /
+// water clearance in each attitude (genPodClearance) and the CG with it loaded (genPodBalance). 61_gen_frame bills
+// its mass, 62_gen_aero adds its drag, 64_gen_build reports it on the shakedown, 66_gen_cert its mounting loads.
+// ============================================================
+const GEN_POD = {
+  // the defaults a pod switched on takes (a C206-class pod scaled to a light two- to four-seater)
+  def: { len: 2.0, width: 0.56, depth: 0.28, noseFair: 0.22, tailFair: 0.30, x: null, loadKg: 0, door: 'left' },
+  clamp: { len: [0.8, 4.5], width: [0.25, 1.2], depth: [0.12, 0.6], noseFair: [0.08, 0.45], tailFair: [0.10, 0.50],
+           x: [-0.2, 8], loadKg: [0, 800] },
+  // THE SHELL: a glass / foam sandwich (two plies of 7781 a side over 6 mm foam ~ 1.9-2.4 kg/m2 laid up), the floor a
+  // stiffer panel that takes the load to the fittings, the hardware the four fittings, the hatch's hinge and latches
+  wall: 0.02,              // m, shell and floor thickness: the interior box is the shell inset by this
+  shellKgM2: 2.2, floorKgM2: 3.0, hardwareKg: 4.0,
+  // PRICE: the glassfibre datum (GEN_PRICES.spat: 380 a wheel pant of ~0.5 m2 -> ~700 a square metre moulded) plus
+  // the fittings, the hatch and the STC-style paperwork a pod carries
+  price: { perM2: 700, base: 1500 },
+  // THE FLOOR LIMIT: 30 lb/ft2 = 146 kg/m2, the order of the placards on the C208's cargo pod zones; the rated load
+  // is this times the floor's area
+  floorLimit: 146,
+  // THE DRAG (Raymer, Aircraft Design: A Conceptual Approach, 12.5 - the component build-up CdA = Cf FF Q Swet):
+  //   Cf    the moulded skin's own coefficient per m2 of wetted area (GEN_MATERIALS.carbon.cdWet, "moulded: the
+  //         smoothest body on the list" - the same row a moulded fuselage pays)
+  //   FF    the body form factor on the fineness ratio (12.31: 1 + 60/f^3 + f/400, genFusCdA's own)
+  //   Q     the interference factor (12.5.5): 1.5 "for a nacelle or store mounted directly on the fuselage"
+  //   boxK  the slab-sided penalty (GEN_DRAG.boxK: Hoerner ch. 6, a rectangular section ~10 % over a round one)
+  // Swet is the EXPOSED wetted area (the top is the belly's). Not subtracted: the belly skin the pod covers (Raymer's
+  // Q is written on the store's own area with the host unchanged). Checked against a published cost: AOPA's Turbine
+  // Quick Look on the C208 - the belly pod (111 ft3) "penalizes cruise speed by nine knots" (~5.5 % of 165 KTAS)
+  // - which a cube-law power balance turns into ~16 % more parasite area: ~0.12 m2 on a C208 taken at CD0 0.03 on its
+  // 26 m2 (an assumption, not a published figure); this build-up on a smooth pod of that size (4.6 x 1.1 x 0.55 m)
+  // gives ~0.09 m2 - the C208's pod is stepped and blunt-ended, so the real one should cost more (HANDOVER G2410).
+  // On the validated C172 the default pod costs 3.5 km/h on the probe and 3.9 km/h flown (~2 kt), the order the
+  // 206 / 337 owners report for their smaller pods. The side and plan areas join the body's cross-flow blobs at
+  // the body's 0.57.
+  Q: 1.5,
+  crossK: 0.57,
+  // THE CLEARANCE ADVISORY: under this the pod is shown amber (a hard landing compresses the gear, a rut is deeper
+  // than a runway); at or under 0 it strikes, shown red with the number - the engineer's handbook: shown, not forbidden
+  clearWarn: 0.08,
+  nSta: 24,
+};
+
+const genPodOn = S => !!(S && S.pod && typeof S.pod === 'object' && +S.pod.on);
+
+// the keel line (the lower longerons' y) and the belly's half-width at x, off the station table
+function genPodKeel(ST, x) {
+  if (!ST || !ST.length) return { yb: 0, w: 0.3 };
+  if (x <= ST[0].x) return { yb: ST[0].yb, w: ST[0].w };
+  for (let i = 0; i < ST.length - 1; i++) {
+    const a = ST[i], b = ST[i + 1];
+    if (x <= b.x) { const t = (x - a.x) / Math.max(1e-9, b.x - a.x); return { yb: a.yb + t * (b.yb - a.yb), w: a.w + t * (b.w - a.w) }; }
+  }
+  const z = ST[ST.length - 1]; return { yb: z.yb, w: z.w };
+}
+
+// ---- THE SHAPE -------------------------------------------------------------------------------------------------
+// S: the resolved spec (S.wings, S.pod); ST: the frame's station table (x aft of the firewall, w the half-width, yb
+// the keel). Returns null with the pod off.
+function genPodResolve(S, ST) {
+  if (!genPodOn(S) || !ST || ST.length < 2) return null;
+  const D = GEN_POD.def, K = GEN_POD.clamp, sp = S.pod;
+  const num = (k) => { const v = sp[k]; return (v == null || !isFinite(+v)) ? D[k] : genClamp(+v, K[k][0], K[k][1]); };
+  const len = num('len'), depth = num('depth'), nf = num('noseFair'), tf = Math.min(num('tailFair'), 0.9 - nf);
+  const xEnd = ST[ST.length - 1].x;
+  // where it hangs: the nose at `x`, else centred on the wing's quarter chord; always under the body
+  const w0 = (S.wings && S.wings[0]) || {};
+  const xQ = (w0.xLE != null ? +w0.xLE : 1) + 0.25 * (+w0.chord || 1.5);
+  let x0 = (sp.x != null && isFinite(+sp.x)) ? genClamp(+sp.x, K.x[0], K.x[1]) : xQ - 0.5 * len;
+  // (never ahead of the firewall's fittings: on a Cub the quarter chord is 0.7 m aft of it and a 2 m pod centred
+  // there would hang under the engine)
+  x0 = genClamp(x0, ST[0].x + 0.15, Math.max(ST[0].x + 0.15, xEnd - 0.3 - len));
+  const x1 = Math.min(xEnd - 0.3, x0 + len);
+  const L = x1 - x0;
+  const xa = x0 + nf * L, xb = x1 - tf * L;                    // the flat floor's run
+  // the floor: `depth` under the lowest keel point of the flat run
+  let kMin = 1e9;
+  for (let i = 0; i <= 16; i++) kMin = Math.min(kMin, genPodKeel(ST, xa + (xb - xa) * i / 16).yb);
+  const yBot = kMin - depth;
+  const xm = 0.5 * (x0 + x1);
+  const hw = Math.min(0.5 * num('width'), 0.95 * genPodKeel(ST, xm).w);
+  // the side-view profile, sampled: top (the keel), bottom, half-width
+  const N = GEN_POD.nSta, sta = [];
+  const Da = genPodKeel(ST, xa).yb - yBot, Db = genPodKeel(ST, xb).yb - yBot;
+  for (let i = 0; i <= N; i++) {
+    const x = x0 + L * i / N, top = genPodKeel(ST, x).yb;
+    let d, h;
+    if (x < xa) { const u = (xa - x) / Math.max(1e-9, xa - x0); const s = Math.sqrt(Math.max(0, 1 - u * u));
+                  d = Da * s; h = hw * (0.35 + 0.65 * s); }
+    else if (x > xb) { const v = (x - xb) / Math.max(1e-9, x1 - xb); d = Db * (1 - v); h = hw * (1 - 0.55 * v); }
+    else { d = top - yBot; h = hw; }
+    d = Math.max(0, Math.min(d, top - yBot));
+    sta.push({ x, top, bot: top - d, d, hw: h });
+  }
+  // areas, volume and the shell's centroid (the corners are rounded: 0.92 of the box section)
+  let swet = 0, sx = 0, vol = 0, vx = 0, side = 0, plan = 0, frontal = 0;
+  for (let i = 0; i < N; i++) {
+    const a = sta[i], b = sta[i + 1], dx = b.x - a.x;
+    const d = 0.5 * (a.d + b.d), h = 0.5 * (a.hw + b.hw), xc = 0.5 * (a.x + b.x);
+    const sl = Math.hypot(dx, b.bot - a.bot);
+    const per = 2 * d + 2 * h;                             // two sides and the floor (the top is the belly)
+    const dA = per * sl; swet += dA; sx += dA * xc;
+    const dV = 0.92 * 2 * h * d * dx; vol += dV; vx += dV * xc;
+    side += d * dx; plan += 2 * h * dx;
+    frontal = Math.max(frontal, 0.92 * 2 * h * d);
+  }
+  // the end caps the strips leave open: the boat-tail's last section is closed on the keel (d = 0); the nose's
+  // first is a 0.35 hw ellipse of no depth - both 0, so nothing to add
+  const wall = GEN_POD.wall;
+  const floorM2 = Math.max(0, xb - xa) * Math.max(0, 2 * (hw - wall));
+  // the hold: the flat run's interior, inset by the wall (the fairings are fairing, not hold)
+  let litres = 0, lx = 0, dMinFlat = 1e9;
+  for (const s of sta) if (s.x >= xa - 1e-9 && s.x <= xb + 1e-9) dMinFlat = Math.min(dMinFlat, s.d);
+  for (let i = 0; i < N; i++) {
+    const a = sta[i], b = sta[i + 1];
+    const lo = Math.max(a.x, xa), hi = Math.min(b.x, xb);
+    if (hi <= lo) continue;
+    const d = 0.5 * (a.d + b.d) - 2 * wall, w = 2 * (hw - wall);
+    if (d <= 0 || w <= 0) continue;
+    const dl = d * w * (hi - lo) * 1000; litres += dl; lx += dl * 0.5 * (lo + hi);
+  }
+  const shellKg = swet * GEN_POD.shellKgM2 + floorM2 * GEN_POD.floorKgM2 + GEN_POD.hardwareKg;
+  const price = Math.round(GEN_POD.price.base + GEN_POD.price.perM2 * swet);
+  const maxKg = Math.round(GEN_POD.floorLimit * floorM2);
+  const loadKg = num('loadKg');
+  // THE DOOR: a side hatch over the middle 55 % of the flat run, 80 % of the hold's shallowest depth tall, its sill
+  // on the floor (FREIGHT-MODEL's packer passes an item through it in some orientation)
+  const dl = 0.55 * (xb - xa), dc = 0.5 * (xa + xb);
+  const doorH = Math.max(0, 0.8 * (dMinFlat - 2 * wall));
+  const door = { side: sp.door === 'right' ? 1 : -1, sideName: sp.door === 'right' ? 'right' : 'left',
+                 x0: dc - 0.5 * dl, x1: dc + 0.5 * dl, y0: yBot + wall, y1: yBot + wall + doorH, w: dl, h: doorH };
+  // THE MOUNTS: the two frame rings that straddle the shell's centroid (61_gen_frame's own `straddle` rule), each a
+  // pair of fittings on its lower longerons - the rings the frame bills the pod's mass onto
+  const xS = swet > 0 ? sx / swet : xm, xL = litres > 0 ? lx / litres : 0.5 * (xa + xb);
+  const mounts = genPodStraddle(ST, xS);
+  return { on: true, len: L, x0, x1, xa, xb, yBot, hw, depth, noseFair: nf, tailFair: tf, sta,
+           swet, side, plan, frontal, vol, xVol: vol > 0 ? vx / vol : xm, xShell: xS, xLoad: xL,
+           litres, floorM2, maxKg, loadKg, shellKg, price, door, mounts, wall };
+}
+// 61_gen_frame's straddle(x), over the station table alone
+function genPodStraddle(ST, x) {
+  let f = 0;
+  for (let i = 0; i < ST.length; i++) if (ST[i].x < x - 0.05) f = i;
+  let a = Math.min(ST.length - 1, f + 1);
+  for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
+  return [f, Math.max(a, Math.min(f + 1, ST.length - 1))];
+}
+
+// ---- THE CARGO SPACE (FREIGHT-MODEL's packer) -------------------------------------------------------------------
+// The kind FREIGHT §1 names ("later a belly pod"): a box (aeroplane metres: x aft of the firewall, y up, z the half
+// width), its floor limit, its rated load, its station for the CG and the door it is reached through. The packer
+// fits an item if it passes `door` in some orientation and packs inside `box`.
+function genPodSpace(S, ST, R) {
+  const P = R || genPodResolve(S, ST);
+  if (!P) return null;
+  const w = P.wall;
+  let top = 1e9;
+  for (const s of P.sta) if (s.x >= P.xa - 1e-9 && s.x <= P.xb + 1e-9) top = Math.min(top, s.top);
+  return { kind: 'pod', id: 'pod', name: 'Belly pod', external: true,
+           box: { x0: P.xa, x1: P.xb, y0: P.yBot + w, y1: top - w, halfW: P.hw - w },
+           litres: P.litres, floorM2: P.floorM2, floorKgM2: GEN_POD.floorLimit, maxKg: P.maxKg,
+           station: P.xLoad, door: Object.assign({}, P.door) };
+}
+
+// ---- THE DRAG ---------------------------------------------------------------------------------------------------
+function genPodCdA(R) {
+  if (!R) return null;
+  const cdWet = (typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS.carbon && GEN_MATERIALS.carbon.cdWet) || 0.0045;
+  const dEq = Math.sqrt(4 * Math.max(1e-6, R.frontal) / Math.PI);
+  const f = Math.max(1.5, R.len / Math.max(0.05, dEq));
+  const FF = 1 + 60 / (f * f * f) + f / 400;
+  const boxK = 1 + ((typeof GEN_DRAG !== 'undefined' && GEN_DRAG.boxK) || 0.10);
+  const cda = cdWet * FF * GEN_POD.Q * boxK * R.swet;
+  return { cda, cdWet, FF, f, Q: GEN_POD.Q, boxK, swet: R.swet, frontal: R.frontal,
+           cdFrontal: cda / Math.max(1e-6, R.frontal),
+           // the cross-flow: the side area to the lateral blob, the plan area to the vertical, at the body's 0.57
+           crossY: GEN_POD.crossK * R.plan, crossZ: GEN_POD.crossK * R.side,
+           src: 'Raymer 12.5 (Cf FF Q Swet): Cf the moulded row 0.0045/m2, FF 1+60/f^3+f/400, Q 1.5 (store on the fuselage), box 1.10 (Hoerner ch. 6)' };
+}
+
+// ---- THE GROUND AND THE WATER -----------------------------------------------------------------------------------
+// The pod's lowest point against the ground in each attitude the aeroplane takes on it, off the lattice as built
+// (x aft of the firewall, y up; the level lattice is the design attitude):
+//   level        the fuselage level, on the mains' contact line: a tricycle at rest, a taildragger tail-up on its run
+//   three-point  a taildragger at rest: rotated tail-down about the mains' contact by the deck angle
+//   rotation     a tricycle at the take-off / landing flare's limit: rotated about the mains until the tail strikes
+//                (the pod may be what strikes first - the clearance is then at that angle, and negative)
+//   at rest on the water   a float build: the floats' even-keel waterline at the all-up mass in fresh water
+//                (Archimedes over the hull's own sections, 32_hydro levelVolume)
+// def: the built def (spec, parts); mass: the all-up kg. Pure.
+function genPodClearance(def, mass) {
+  const S = def && def.spec, P = def && def.parts, R = P && P.pod;
+  if (!R || !S || !S.gear) return null;
+  const pts = R.sta.map(s => [s.x, s.bot]);
+  const rows = [];
+  const lowest = (th, x0, y0) => {           // rotate tail-down by th (rad) about (x0, y0); the lowest point
+    let best = { h: 1e9, x: 0 };
+    const c = Math.cos(th), s = Math.sin(th);
+    for (const [x, y] of pts) { const h = (y - y0) * c - (x - x0) * s; if (h < best.h) best = { h, x }; }
+    return best;
+  };
+  if (P.floats && P.floats.length) {
+    const F0 = P.floats[0], FP = F0.P, yK = F0.pos[1];
+    const W = Math.max(1, mass || 0), rho = (typeof HYDRO !== 'undefined' && HYDRO.DEF && HYDRO.DEF.rho) || 1000;
+    let hw = null;
+    if (typeof HYDRO !== 'undefined' && HYDRO.levelVolume) {
+      const F = { P: FP, xBow: -FP.xs, xStern: FP.L - FP.xs };
+      let lo = 0, hi = (FP.H || 0.6) * 1.5;
+      for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (2 * HYDRO.levelVolume(F, m, 400) * rho < W) lo = m; else hi = m; }
+      hw = 0.5 * (lo + hi);
+    }
+    const yW = hw == null ? yK : yK + hw;
+    const b = lowest(0, 0, yW);
+    rows.push({ id: 'water', name: 'at rest on the water', deg: 0, clear: b.h, x: b.x, draft: hw });
+  } else {
+    const ground = S.gear.y - S.gear.contactR;
+    const gx = P.gx;
+    const lv = lowest(0, gx, ground);
+    rows.push({ id: 'level', name: S.gear.type === 'tricycle' ? 'level, at rest' : 'level, tail up', deg: 0, clear: lv.h, x: lv.x });
+    const tw = P.TW >= 0 ? def.nodes[P.TW] : null;
+    if (S.gear.type !== 'tricycle' && tw) {
+      const deck = Math.atan(((tw.p[1] - S.gear.twR) - ground) / (P.twX - gx));
+      const b = lowest(deck, gx, ground);
+      rows.push({ id: 'threePoint', name: 'three-point, at rest', deg: deck * 180 / Math.PI, clear: b.h, x: b.x });
+    } else {
+      // the tail strike: the steepest the aft body allows about the mains (the keel's stations aft of them)
+      let th = 0.35;
+      for (const s of P.ST) if (s.x > gx + 0.3) th = Math.min(th, Math.atan2(s.yb - ground, s.x - gx));
+      const b = lowest(th, gx, ground);
+      rows.push({ id: 'rotation', name: 'rotated to the tail strike', deg: th * 180 / Math.PI, clear: b.h, x: b.x });
+    }
+  }
+  let worst = rows[0];
+  for (const r of rows) if (r.clear < worst.clear) worst = r;
+  // THE UNDERCARRIAGE IN THE WAY: the mains leave the body at the lower longerons' corners (the pod is cut to 0.95
+  // of the belly's width, so they clear by construction - the gap is reported); a NOSE LEG or a TAILWHEEL under the
+  // pod's run is a conflict, the pod refused with it (it would have to be cut round the leg)
+  const legs = [];
+  const zMain = (P.gearAnchors || []).map(i => P.ST[i] ? P.ST[i].w : null).filter(v => v != null);
+  if (zMain.length && !(P.floats && P.floats.length)) legs.push({ id: 'mains', name: 'the main legs, beside it', gap: Math.min(...zMain) - R.hw, ok: true });
+  if (P.TW >= 0 && P.twX > R.x0 - 0.1 && P.twX < R.x1 + 0.1)
+    legs.push({ id: S.gear.type === 'tricycle' ? 'nose' : 'tail', name: S.gear.type === 'tricycle' ? 'the nose leg, under it' : 'the tailwheel, under it',
+                gap: -1, ok: false });
+  const legsOk = legs.every(l => l.ok);
+  return { rows, worst, legs, legsOk, ok: worst.clear > 0 && legsOk,
+           warn: worst.clear > 0 && worst.clear < GEN_POD.clearWarn };
+}
+
+// ---- THE BALANCE ------------------------------------------------------------------------------------------------
+// The CG with the pod loaded to its rated load, against the range the shakedown's corners span (when it has them)
+// and the neutral point: the margin left. sh: genShakedown's sheet of THIS build (the pod's shell and its loadKg
+// already billed); R: the resolved pod.
+function genPodBalance(sh, R) {
+  if (!sh || !R) return null;
+  const pct = x => (sh.cBar > 0 && typeof sh.xLEmac === 'number') ? (x - sh.xLEmac) / sh.cBar : null;
+  const add = Math.max(0, R.maxKg - (R.loadKg || 0));
+  const m = sh.mass + add, cg = (sh.mass * sh.cgX + add * R.xLoad) / Math.max(1e-6, m);
+  const sm = (sh.npX - cg) / Math.max(1e-6, sh.cBar);
+  const env = sh.envelope || null;
+  const lo = env ? env.fwd.cgX : null, hi = env ? env.aft.cgX : null;
+  return { loadKg: R.maxKg, mass: m, cgX: cg, cgPct: pct(cg), staticMargin: sm,
+           cgAsIs: sh.cgX, cgAsIsPct: pct(sh.cgX), shift: cg - sh.cgX,
+           range: env ? { fwd: lo, aft: hi, fwdPct: pct(lo), aftPct: pct(hi) } : null,
+           inRange: env ? (cg >= lo - 1e-9 && cg <= hi + 1e-9) : null,
+           designGross: sh.pod && sh.pod.designGross != null ? sh.pod.designGross : null,
+           overGross: sh.pod && sh.pod.designGross != null ? m - sh.pod.designGross : null };
+}
+
+// ---- THE SHELL (a clean generated mesh; the drawn pod) ----------------------------------------------------------
+// The pod's skin in the generator's own body frame (metres: x aft of the firewall, y up, z across), lofted through the
+// sampled stations: each section a rounded box (a superellipse of exponent 4, the corners of a moulded pod) from the
+// keel on one side, down round the floor, back up to the keel on the other; open along the top (the belly closes it).
+// Pure: { pos: Float32Array, idx: Uint32Array, nv, nt }. GATE POD checks it is finite, closed at its ends, its
+// lowest vertex the resolver's floor and every vertex inside the resolver's box.
+function genPodShell(R, nAround) {
+  if (!R) return null;
+  const NA = Math.max(8, nAround | 0 || 16), pos = [], idx = [];
+  for (const s of R.sta) {
+    for (let j = 0; j <= NA; j++) {
+      const t = Math.PI * j / NA;                  // 0: the right side at the keel, pi/2: the floor, pi: the left side
+      const c = Math.cos(t), sn = Math.sin(t);
+      const ex = Math.sign(c) * Math.pow(Math.abs(c), 0.5), ey = Math.pow(Math.abs(sn), 0.5);
+      pos.push(s.x, s.top - s.d * ey, s.hw * ex);
+    }
+  }
+  const W = NA + 1;
+  for (let i = 0; i < R.sta.length - 1; i++)
+    for (let j = 0; j < NA; j++) {
+      const a = i * W + j, b = a + 1, c = a + W, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  return { pos: Float32Array.from(pos), idx: Uint32Array.from(idx), nv: pos.length / 3, nt: idx.length / 3 };
+}
+// ============================================================
 // GARAGE 2/5 — the FRAME. Resolved spec -> named node/beam lattice.
 //
 // This file is where the HANDOVER "STRUCTURAL RULES (each one paid for in
@@ -28993,7 +30095,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
   // that billed the mass knows what it was, and a list maintained anywhere else
   // goes stale the first time a section is added.
-  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1 };
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1 };   // podLoad: the freight in the belly pod (G2410)
   const bill = (mass, cost) => {
     const e = ledger[SEC] ||
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
@@ -31203,6 +32305,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
            pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load); }
   }
 
+  // THE BELLY POD (G2410, BELLY-POD; src/core/60d_gen_pod.js). Off by default and absent by default: with no pod no
+  // section opens, so the ledger, the nodes and every number after them are the bytes they were (GATE POD). On: the
+  // shell (empty weight) and its price on the two rings that straddle the shell's centroid, the fittings on their
+  // lower longerons (billAt: the pod's mounts, 66_gen_cert's mount rows); the freight in it is payload, on the rings
+  // that straddle the hold's centroid.
+  const podR = genPodResolve(S, ST);
+  if (podR) {
+    sec('pod');
+    billAt(podR.xShell, podR.shellKg);
+    spend(podR.price);
+    if (podR.loadKg > 0) { sec('podLoad'); billAt(podR.xLoad, podR.loadKg); }
+  }
+
   const refs = {
     noseFrame: [F[0].BL, F[0].BR, F[0].TL, F[0].TR],
     tailMid: [TPB, TPT],
@@ -31240,6 +32355,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     gauged, gaugeRef, gauge: GG,
     degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
+  if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
   for (const C of clusters) if (C.omega && typeof C.omega === 'object') {
@@ -32799,6 +33915,17 @@ function genParams(S, fr, strips) {
   }
   cda.fusCdA[0] += braceDCdA + tailBraceDCdA;
   cda.drag.brace = braceDCdA + tailBraceDCdA;
+  // THE BELLY POD (G2410, 60d_gen_pod genPodCdA): its parasite area (Raymer's component build-up on its own wetted
+  // area, the interference of a store on the fuselage in it) on the axial row; its plan and side areas on the
+  // forward blob's cross-flow (it hangs under the cabin, where that blob sits); its volume joins the body's (Munk).
+  // Absent with no pod: not a key, not a term (GATE POD: the pod off is the bytes it was).
+  if (fr.parts.pod) {
+    const pd = genPodCdA(fr.parts.pod);
+    cda.fusCdA[0] += pd.cda;
+    cda.fusCdA[1] += pd.crossY; cda.fusCdA[2] += pd.crossZ;
+    cda.drag.pod = pd.cda;
+    cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
+  }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -35012,6 +36139,41 @@ function genShakedown(def, opts) {
     out.thirdLeg = !tw ? 0 : S.gear.type === 'tricycle' ? -0.02 - tw.p[1]
                                                     : def.nodes[P.TPB].p[1] - tw.p[1];
     out.camber = S.gear.camber;
+    // THE BELLY POD (G2410, 60d_gen_pod): what it is, what it holds, what it costs in drag, and where its lowest point
+    // is against the ground or the water in each attitude - reported, never enforced (the engineer's handbook: a pod
+    // that strikes reads red with its clearance; the garage still builds it). Absent with no pod.
+    if (P.pod) {
+      const R = P.pod, pd = genPodCdA(R), axial = g.drag && g.drag.axial;
+      out.pod = { len: R.len, width: 2 * R.hw, depth: R.depth, x0: R.x0, x1: R.x1,
+                  litres: R.litres, floorM2: R.floorM2, maxKg: R.maxKg, loadKg: R.loadKg,
+                  shellKg: R.shellKg, price: R.price, door: R.door, mounts: R.mounts,
+                  cda: pd.cda, cdFrontal: pd.cdFrontal, fineness: pd.f, FF: pd.FF, Q: pd.Q, cdSrc: pd.src,
+                  dragShare: axial > 0 ? pd.cda / axial : null,
+                  clearance: genPodClearance(def, sim.totalM),
+                  space: genPodSpace(S, P.ST, R),
+                  designGross: P.designGross != null ? P.designGross : null,
+                  // the mounts at the certificate's loads (with a certificate attached, its envelope at each fitting)
+                  mountRows: typeof genCertPodMounts === 'function' ? genCertPodMounts(def, def.cert || null) : null };
+      // ITS COST IN THE AIR, MEASURED ON THIS AEROPLANE: the cruise rule genTrim solves VCruise on (drag = 65 % of
+      // the thrust there) solved WITHOUT the 1.55-2.2 Vs clamp, on the sim's own probe, with the pod and with the
+      // pod's drag area taken back off the same probe (the same mass: what the drag alone costs); the climb at VClimb
+      // loses the pod's drag x V over the weight; the range at the sheet's rule (V x the cruise endurance) moves with
+      // the speed. Deterministic (the probe is).
+      const Vs0 = g.Vs || 10, ap0 = def.params.ap || {};
+      const dragAt = (v, k) => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag - k * 0.5 * RHO * v * v * pd.cda;
+      const v65 = k => {
+        // from the speed of the best glide (the bottom of the drag curve: below it the curve turns back up and the
+        // rule has a second, meaningless root) to 4 Vs
+        let lo = Math.max(1.05 * Vs0, out.VbestLD || 0), hi = 4 * Vs0;
+        if (dragAt(lo, k) >= 0.65 * sim.thrustAt(lo, 1)) return lo;
+        for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (dragAt(m, k) < 0.65 * sim.thrustAt(m, 1)) lo = m; else hi = m; }
+        return 0.5 * (lo + hi);
+      };
+      const vWith = v65(0), vWithout = v65(1), Vc = ap0.VClimb || 0;
+      out.pod.cruise = { vWith, vWithout, dV: vWith - vWithout, dPct: vWithout > 0 ? (vWith / vWithout - 1) : 0,
+                         dClimb: -0.5 * RHO * Vc * Vc * Vc * pd.cda / Math.max(1, W),
+                         dRangePct: vWithout > 0 ? (vWith / vWithout - 1) : 0 };
+    }
   }
   // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the
   // whole aero synthesis is built on; this runs the same free-air CLmax scan
@@ -35136,6 +36298,8 @@ function genShakedown(def, opts) {
                        occupantsDrawn: S.occupants, seats };
     } catch (e) {}
   }
+  // G2410: the pod loaded to its rated load - the CG it makes, against the corners' range and the neutral point
+  if (out.pod && P && P.pod) out.pod.balance = genPodBalance(out, P.pod);
   return out;
 }
 
@@ -36860,6 +38024,46 @@ function genCertAttach(def, opt) {
   def.cert = C;
   return C;
 }
+
+// ---- THE BELLY POD'S MOUNTS (G2410, BELLY-POD) -------------------------------------------------------------------
+// The pod hangs on four fittings: the two frame rings that straddle its shell's centroid, a pair on each ring's
+// lower longerons (60d_gen_pod's `mounts`, where 61_gen_frame bills its mass). A row per fitting: the kilograms it
+// carries with the pod FULL (the shell where the frame billed it, the rated load - the floor limit over the floor -
+// at the hold's centroid, both split by lever between the rings and in half across), and what that mass puts through
+// the fitting in the certificate's cases (FAR 23 as recalled, the certificate's own constants): the positive limit
+// (GEN_CERT.limit, inertia downward), the negative (GEN_CERT.neg x limit), the positive ultimate (GEN_CERT.ult), and
+// the emergency landing's 9 g forward, ultimate (23.561(b)(3): the freight must not leave the pod through its nose).
+// With a certificate (genCertify's { Ft, Fc }), each fitting's node also carries the members meeting there: their
+// certified limit envelope, and the pod's limit share of it. THE CERTIFICATE IS OF THE AEROPLANE AS LOADED: a pod
+// certified full is one whose `loadKg` was its rated load when genCertify ran (GATE POD computes both).
+function genCertPodMounts(def, cert) {
+  const P = def && def.parts, R = P && P.pod;
+  if (!R || !P.F || !P.ST) return null;
+  const [f, a] = R.mounts, ST = P.ST, F = P.F;
+  const lever = (x, m) => {
+    if (f === a) return [m, 0];
+    const w = Math.max(0, Math.min(1, (x - ST[f].x) / Math.max(1e-6, ST[a].x - ST[f].x)));
+    return [m * (1 - w), m * w];
+  };
+  const s = lever(R.xShell, R.shellKg), l = lever(R.xLoad, R.maxKg);
+  const g = 9.81, L = GEN_CERT.limit;
+  const rows = [];
+  for (const [k, ring] of [[0, f], [1, a]]) for (const side of ['BL', 'BR']) {
+    const node = F[ring][side];
+    const kg = 0.5 * (s[k] + l[k]);
+    const row = { ring, side: side === 'BL' ? 'left' : 'right', node, x: ST[ring].x, kg,
+                  up: kg * g * L, down: kg * g * L * GEN_CERT.neg, ult: kg * g * GEN_CERT.ult, fwd9: kg * g * 9 };
+    if (cert && cert.Ft && cert.Fc) {
+      let env = 0, nb = 0;
+      def.beams.forEach((b, bi) => { if (b.a === node || b.b === node) { nb++; env = Math.max(env, cert.Ft[bi] || 0, cert.Fc[bi] || 0); } });
+      row.members = nb; row.envelope = env; row.share = env > 0 ? row.up / env : null;
+    }
+    rows.push(row);
+  }
+  const tot = rows.reduce((t, r) => t + r.kg, 0);
+  return { rows, kg: tot, limit: L, ult: GEN_CERT.ult, neg: GEN_CERT.neg, fwdG: 9,
+           worstUp: Math.max(...rows.map(r => r.up)), worstShare: cert ? Math.max(...rows.map(r => r.share || 0)) : null };
+}
 // ===========================================================================
 // THE PLAYER — the player's property as ONE document, one key, one version.
 // ===========================================================================
@@ -37217,11 +38421,10 @@ const BASE_OFFERS = {
   },
 };
 
-// The money, declared in one place (calibration is P5a's; these are the
-// defaults GAME-PREMISES §4 proposes, every one an open question there).
-// A stock Cub's ledger is ~30 000 (genShakedown on GEN_DEFAULT).
+// The money's rules (the PRICES are THE PRICE BOOK's since G2260 ECONOMY, P5a:
+// 76_economy.js ECON_BOOK - shells, kits, as ratios of the ledger's Cub).
 const PREM_RATES = {
-  clubPrice: 10000,      // SHELLS.club.price is 0 because it is the starter; a club bought elsewhere is not
+  // (G2260 ECONOMY: a shell's price is THE PRICE BOOK's - 76_economy.js econShellPrice - `clubPrice` went with it)
   // (G-COST, G2230: no rent - `rentPerHour` is gone with every per-hour charge; hangars are bought, never rented)
   resale: 0.5,           // an owned hangar released returns this share of what it cost
   rebuildCredit: 0.5,    // a shell swapped in place credits this share of the old shell's price
@@ -37232,9 +38435,8 @@ const PREM_RATES = {
   labourAway: 1.25,      // ...with no hangar of yours (a field's mechanic)
   ledgerMax: 200,
 };
-// what a kit costs to fit (the starter's kits came with it); nothing refunds a kit
-const KIT_PRICES = { park: 0, bench: 800, wood: 2500, metal: 3500, store: 300, handling: 600,
-                     office: 1500, comfort: 900, curio: 0, wip: 0 };
+// what a kit costs to fit (the starter's kits came with it); nothing refunds a kit: KIT_PRICES is THE PRICE
+// BOOK's (G2260 ECONOMY, 76_economy.js: the kits as ratios of the ledger's Cub)
 
 // THE THREE CONCEPTS, AS NUMBERS (GAME §R GQ4 / GQ7; G2230). The main hangar
 // is HOME's starter shed - the workshop, the only place an aeroplane is built
@@ -37278,7 +38480,8 @@ function hangarDoor(shed) {
 function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg });
+  // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {
@@ -37287,8 +38490,9 @@ function hangarObstacles(shed, reg) {
   }
   for (const r of fit.recipes) {
     const K = HANGAR_KITS[r.kit], row = K && K.recipes.find(q => q.recipe === r.recipe);
-    if (!row || !row.foot) continue;
-    const f = orient(row.foot, r.ry);
+    const foot = r.foot || (row && row.foot);          // the placed row's own (a layout's rows are not the kit's)
+    if (!foot) continue;
+    const f = orient(foot, r.ry);
     out.push({ key: r.recipe, x0: r.x - f[0], x1: r.x + f[0], z0: r.z - f[1], z1: r.z + f[1] });
   }
   return out;
@@ -37335,7 +38539,9 @@ function hangarDoorWhy(shed, foot) {
 // aeroplane already parked (the corner points a hand would try first).
 function hangarPark(shed, planes, opts) {
   const D = hangarDims(shed), door = hangarDoor(shed);
-  const obs = hangarObstacles(shed, opts && opts.reg);
+  // opts.keep (G2315, the garage's residents): floor already taken - the build stand's aeroplane, { x0, x1, z0, z1 } in
+  // the room's frame - packed around like the fit-out
+  const obs = hangarObstacles(shed, opts && opts.reg).concat((opts && Array.isArray(opts.keep)) ? opts.keep : []);
   const list = (planes || []).map(p => {
     const f = parkFoot(p.foot);
     return { name: p.name, f, lx: f.fwd + f.aft + 2 * PARK_CLR, lz: 2 * (f.half + PARK_CLR) };
@@ -37737,7 +38943,7 @@ function playerBringHome(doc, name, opts) {
 function shellPrice(shell) {
   const S = (typeof SHELLS !== 'undefined') && SHELLS[shell];
   if (!S) return NaN;
-  return S.price || (shell === 'club' ? PREM_RATES.clubPrice : 0);
+  return econShellPrice(shell);           // G2260 (ECONOMY): THE PRICE BOOK (the ledger's Cub x the shell's ratio)
 }
 function plotPrice(aero, plotId, shell) {
   const P = BASE_OFFERS[aero] && BASE_OFFERS[aero].plots[plotId];
@@ -37760,10 +38966,22 @@ function playerOffers(doc, world) {
       out.push({ aero, plot, name: a ? (a.name || aero) : aero, words: O.words, held,
                  capped: !held && plot !== PREM_MAIN && capped,
                  shells: P.shells.map(s => ({ shell: s, price: plotPrice(aero, plot, s) })),
-                 kits: P.kits ? P.kits.slice() : null, water: !!P.water, derelict: !!P.derelict });
+                 kits: P.kits ? P.kits.slice() : null, water: !!P.water, derelict: !!P.derelict,
+                 // G2310: WHERE it stands - the premises record's plot (the site's `plots`, contract v1.34); `placed`
+                 // false when this world's record has no plot for it (Jolene's tw_ski: the summit has no free flat
+                 // ground - PREM-S3's HANDOVER); null without a world or a site registry to ask
+                 placed: plotPlaced(aero, plot, L) });
     }
   }
   return out;
+}
+// G2310: is the plot placed in this world's premises record? (the site's `plots`; the main plot is the site's hangar)
+function plotPlaced(aero, plot, L) {
+  if (!L || typeof siteOf !== 'function') return null;
+  const st = siteOf(aero);
+  if (!st) return false;
+  if (plot === aero && st.hangar && !st.plots) return true;
+  return !!(st.plots && st.plots.some(p => p.id === plot));
 }
 function playerAcquire(doc, aero, plotId, shell, tenure) {
   const O = BASE_OFFERS[aero], P = O && O.plots[plotId];
@@ -37907,6 +39125,60 @@ function playerRollFrom(doc, name) {
   if (W.kind !== 'none' && W.aero) return W.aero;
   const h = doc && doc.sheds && doc.sheds[doc.here];
   return h && typeof h.base === 'string' ? h.base : PREM_MAIN;
+}
+
+// ---- THE WORLD AND THE BLEND AT ANY BASE (G2310, PREM-S3) --------------------------
+// GAME §4.4 / GAME-PREMISES §5. The premises record places every PLOT a field offers (27_premises.js runwayPlots,
+// contract v1.34: the site's `plots`, HOME's the club hangar verbatim). These rules say which of them the world stands
+// a shed on and where a roll-out leaves from; the page (render_world.js setPlayerSheds, app.js) does the drawing.
+//   GQ8   a plot you do not hold shows NOTHING new: only held hangars are listed.
+//   GQ4   at most three player hangars ever stand: the main one and the two side hangars the cap keeps (playerSideIds'
+//         order); a legacy extra (an older document's) still works in the rules and is not drawn.
+//   §4.4  residents inside a shed are drawn only when its door is open AND the camera is within 60 m.
+const PREM_WORLD = { maxSheds: 1 + PREM_SIDE_MAX, residentsR: 60 };
+// the hangars the world stands, main first: [{ id, base, shell, dims (hangarDims), kits, parts, main }]
+function playerWorldSheds(doc) {
+  const S = (doc && doc.sheds) || {}, out = [];
+  const one = (id, main) => {
+    const s = S[id]; if (!s || typeof s !== 'object') return;
+    out.push({ id, base: typeof s.base === 'string' ? s.base : id, shell: s.shell || 'club', dims: hangarDims(s),
+               kits: Array.isArray(s.kits) ? s.kits.slice() : [], parts: s.parts ? pbClone(s.parts) : null, main: !!main });
+  };
+  if (S[PREM_MAIN]) one(PREM_MAIN, true);
+  for (const id of playerSideIds(doc).slice(0, PREM_SIDE_MAX)) one(id, false);
+  return out.slice(0, PREM_WORLD.maxSheds);
+}
+// may a shed's residents be drawn? (GAME §4.4: an open door and the camera within 60 m; a shut shed costs nothing)
+function premResidentsDrawn(doorOpen, camDist) {
+  return !!doorOpen && +camDist <= PREM_WORLD.residentsR;
+}
+// THE HANGAR THE NEXT ROLL-OUT LEAVES FROM: the hangar its fleet row says it is in; a build with no row (unsaved, a
+// stock design) leaves from the garage's own (`here`); an aeroplane tied down outside leaves from no door (null: the
+// page cuts to the field's stand, as PREM-S2 did for 'away').
+function playerRollHangar(doc, name) {
+  const W = name ? playerWhere(doc, name) : { kind: 'none' };
+  if (W.kind === 'in') return W.hangar;
+  if (W.kind !== 'none') return null;
+  return doc && doc.sheds && doc.sheds[doc.here] ? doc.here : (doc && doc.sheds && doc.sheds[PREM_MAIN] ? PREM_MAIN : null);
+}
+// THE SITE A ROLL-OUT FROM THAT HANGAR PLANS ON: the field's site with the plot's shed as its `hangar` (at the hangar's own
+// dims - the stand authored for it is not walked) and, when the plot has its own way out, its stand / taxiOut / taxiOut1
+// (an authored pattern is the field's own way and is dropped for the plot's; the parked list is kept). The main plot
+// (the field's `hangar`) and a plot with no stand return the field's site as it is - HOME byte for byte.
+// -> { site, plot, own } (own: the plot's own way out is used)
+function playerPlotSite(site, hangarId, shed) {
+  const P = site && Array.isArray(site.plots) ? site.plots.find(p => p.id === hangarId) : null;
+  if (!P || P.main) return { site, plot: P || null, own: false };
+  const D = shed ? hangarDims(shed) : null;
+  const out = Object.assign({}, site);
+  out.hangar = Object.assign({ x: P.x, z: P.z, hdg: P.hdg, ry: P.ry }, D || {}, P.y !== undefined ? { y: P.y } : {});
+  if (!P.stand) return { site: out, plot: P, own: false };
+  out.stand = Object.assign({}, P.stand);
+  if (P.taxiOut) out.taxiOut = P.taxiOut.map(q => q.slice()); else delete out.taxiOut;
+  if (P.taxiOut1) out.taxiOut1 = P.taxiOut1.map(q => q.slice()); else delete out.taxiOut1;
+  delete out.pattern;
+  delete out.plots;
+  return { site: out, plot: P, own: true };
 }
 // ===========================================================================
 // ACCEPT (G2270-G2279) — THE ACCEPTANCE OF A BUILD: THE CHECKS THAT NEED NO
@@ -38575,11 +39847,29 @@ const CONTRACT_TRACKS = {
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
-// id, name / desc (keys), fields (its home fields), track, base (the job pay's provider base, credits),
-// goods (what its jobs carry: kind kg | pax | bulk, the draw range), jobs (the job TABLE: a template draws a
-// route and a load — `routes` are [from, to] pairs between its fields and HOME; `survey` templates fly over
-// `at` from `from` and land back), arc (its authored contracts, in order), builds (its standalone build
-// contracts, offered beside the arc).
+// id, name / desc (keys), fields (its OWN fields, its yard first), track, base (the job pay's provider base,
+// credits), goods (what its jobs carry: kind kg | pax | bulk, the draw range), jobs (the job TABLE, below), arc
+// (its authored contracts, in order), builds (its standalone build contracts, offered beside the arc).
+//
+// THE JOB TABLE (G2430 CONTRACT-ROUTES, §R.3: "most missions should involve 2 destinations, or more ... not
+// everything should start from Jolene AFB"). A template names WHERE its legs may run as POOLS, never as route
+// pairs, and the SHAPES it comes in (weights); the generator (73_ contractJob) draws a shape, then a route of
+// that shape among the pools that ONE validated design can fly end to end, then a load per leg:
+//   from / to / on   the pools of the pickup (A), the first stop (B) and the onward stop (C):
+//                    'own'  the provider's `fields`        'away'  the island's job fields that are not its own
+//                    'all'  the island's job fields         [ids]   a list (an overflight site may be any field)
+//   back             the goods of the SECOND leg (a backhaul / an onward load; default: the same goods)
+//   shapes           p2p    A -> B                          one leg
+//                    back   A -> B, then goods `back` B -> A   ("maybe take that back")
+//                    onward A -> B, then goods `back` B -> C   (picked up at B)
+//                    milk   A -> B -> C: part of the load left at B, the rest on to C
+//   survey           { from, at, to }: a survey template's pools, its shapes
+//                    loop   over X from A, back to A        pair   over X and Y, back to A
+//                    transit over X from A, land at B (pool `to`)
+// THE ISLAND'S JOB FIELDS are every provider's `fields`, in provider order (73_ contractSites): A NEW SITE JOINS
+// THE JOBS BY DATA ALONE - its row in CONTRACT_FIELDS (the island record's runway, held by GATE CONTRACTS), then
+// its id in the `fields` of each provider that works there (the lake cabins: the clients' and the survey's).
+// The Field Trust's second runway (w2) and East Point (no validated design lands there) are in no provider's list.
 const C_ = (o) => o;   // (a marker: an authored record)
 const CONTRACT_PROVIDERS = {
   field: {
@@ -38592,11 +39882,11 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'mail',  goods: 'mail',  w: 3, title: 'job.field.mail.title',  brief: 'job.field.mail.brief',
-        routes: [['HOME', 'w3'], ['w3', 'HOME']] },
+        from: 'all', to: 'all', shapes: { p2p: 1, back: 2, milk: 2 } },
       { id: 'tools', goods: 'tools', w: 2, title: 'job.field.tools.title', brief: 'job.field.tools.brief',
-        routes: [['HOME', 'w3'], ['w3', 'HOME'], ['HOME', 'tw_ski']] },
+        from: 'own', to: 'all', back: 'mail', shapes: { p2p: 1, back: 1, onward: 2 } },
       { id: 'crew',  goods: 'crew',  w: 2, title: 'job.field.crew.title',  brief: 'job.field.crew.brief',
-        routes: [['HOME', 'w3'], ['w3', 'HOME']] },
+        from: 'own', to: 'all', shapes: { p2p: 1, back: 2, milk: 1 } },
     ],
     arc: [
       C_({ id: 'field.01', provider: 'field', kind: 'contract', title: 'ct.field.01.title', brief: 'ct.field.01.brief',
@@ -38635,17 +39925,17 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'parts',   goods: 'parts',   w: 3, title: 'job.minedock.parts.title',   brief: 'job.minedock.parts.brief',
-        routes: [['HOME', 'mn_strip'], ['w3', 'mn_strip']] },
+        from: 'away', to: 'own', back: 'samples', shapes: { p2p: 1, back: 2 } },
       { id: 'samples', goods: 'samples', w: 2, title: 'job.minedock.samples.title', brief: 'job.minedock.samples.brief',
-        routes: [['mn_strip', 'HOME'], ['mn_strip', 'w3']] },
+        from: 'own', to: 'away', back: 'parts', shapes: { p2p: 1, back: 2, onward: 1 } },
       { id: 'crew',    goods: 'crew',    w: 2, title: 'job.minedock.crew.title',    brief: 'job.minedock.crew.brief',
-        routes: [['HOME', 'mn_strip'], ['mn_strip', 'HOME']] },
+        from: 'own', to: 'away', shapes: { p2p: 1, back: 2, milk: 1 } },
       { id: 'rods',    goods: 'rods',    w: 1, title: 'job.minedock.rods.title',    brief: 'job.minedock.rods.brief',
-        routes: [['HOME', 'w3'], ['HOME', 'mn_strip']] },
+        from: 'away', to: 'all', shapes: { p2p: 1 } },
       { id: 'mail',    goods: 'mail',    w: 2, title: 'job.minedock.mail.title',    brief: 'job.minedock.mail.brief',
-        routes: [['SEA', 'mk_sea'], ['mk_sea', 'SEA']] },
+        from: 'own', to: 'own', shapes: { p2p: 1, back: 2 } },
       { id: 'fish',    goods: 'fish',    w: 2, title: 'job.minedock.fish.title',    brief: 'job.minedock.fish.brief',
-        survey: [['SEA', 'mk_sea'], ['mk_sea', 'SEA']] },
+        survey: { from: 'own', at: ['SEA', 'mk_sea', 'w3'] }, shapes: { loop: 1, pair: 2 } },
     ],
     arc: [
       C_({ id: 'minedock.01', provider: 'minedock', kind: 'contract', title: 'ct.minedock.01.title', brief: 'ct.minedock.01.brief',
@@ -38657,7 +39947,7 @@ const CONTRACT_PROVIDERS = {
            needs: { after: ['minedock.01'] } }),
       C_({ id: 'minedock.03', provider: 'minedock', kind: 'contract', title: 'ct.minedock.03.title', brief: 'ct.minedock.03.brief',
            stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'mn_strip', load: { kg: 120, pax: 0 } }] },
-                    { subs: [{ do: 'carry', from: 'mn_strip', to: 'HOME', load: { kg: 40, pax: 0 } }] }],
+                    { subs: [{ do: 'carry', from: 'mn_strip', to: 'w3', load: { kg: 40, pax: 0 } }] }],
            pay: { base: 5200 }, rep: { provider: 'minedock', gain: 0.75 }, needs: { after: ['minedock.02'] } }),
       C_({ id: 'minedock.04', provider: 'minedock', kind: 'build', title: 'ct.minedock.04.title', brief: 'ct.minedock.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
@@ -38703,18 +39993,18 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'guests',   goods: 'guests',   w: 3, title: 'job.resort.guests.title',   brief: 'job.resort.guests.brief',
-        routes: [['HOME', 'tw_ski'], ['tw_ski', 'HOME'], ['w3', 'tw_ski']] },
+        from: 'own', to: 'away', shapes: { p2p: 1, back: 2, milk: 1 } },
       { id: 'supplies', goods: 'supplies', w: 2, title: 'job.resort.supplies.title', brief: 'job.resort.supplies.brief',
-        routes: [['HOME', 'tw_ski'], ['w3', 'tw_ski']] },
+        from: ['HOME', 'w3'], to: 'own', back: 'guests', shapes: { p2p: 1, back: 2 } },
       { id: 'sights',   goods: 'sights',   w: 2, title: 'job.resort.sights.title',   brief: 'job.resort.sights.brief',
-        survey: [['tw_ski', 'w3'], ['tw_ski', 'mk_sea']] },
+        survey: { from: 'own', at: ['w3', 'mk_sea', 'mn_strip', 'SEA'], to: 'away' }, shapes: { loop: 1, pair: 1, transit: 1 } },
     ],
     arc: [
       C_({ id: 'resort.01', provider: 'resort', kind: 'contract', title: 'ct.resort.01.title', brief: 'ct.resort.01.brief',
            stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 0, pax: 1 } }] }],
            pay: { base: 1800 }, rep: { provider: 'resort', gain: 0.5 } }),
       C_({ id: 'resort.02', provider: 'resort', kind: 'contract', title: 'ct.resort.02.title', brief: 'ct.resort.02.brief',
-           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 80, pax: 0 } }] }],
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'tw_ski', load: { kg: 80, pax: 0 } }] }],
            pay: { base: 2800 }, rep: { provider: 'resort', gain: 0.75 }, unlock: { stage: 'resort:1' },
            needs: { after: ['resort.01'] } }),
       C_({ id: 'resort.03', provider: 'resort', kind: 'contract', title: 'ct.resort.03.title', brief: 'ct.resort.03.brief',
@@ -38754,7 +40044,7 @@ const CONTRACT_PROVIDERS = {
 
   survey: {
     id: 'survey', name: 'prov.survey.name', desc: 'prov.survey.desc', track: 'survey', base: 300,
-    fields: ['HOME'],
+    fields: ['HOME', 'w3', 'mk_sea', 'SEA'],
     goods: [
       { id: 'count',   kind: 'none',             word: 'goods.count' },
       { id: 'samples', kind: 'kg',   kg: [10, 40], word: 'goods.water' },
@@ -38762,11 +40052,11 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'count',   goods: 'count',   w: 3, title: 'job.survey.count.title',   brief: 'job.survey.count.brief',
-        survey: [['HOME', 'nv_strip'], ['HOME', 'mn_strip'], ['HOME', 'mk_sea'], ['SEA', 'nv_strip']] },
+        survey: { from: 'own', at: ['nv_strip', 'mn_strip', 'mk_sea', 'tw_ski'], to: 'all' }, shapes: { loop: 1, pair: 2, transit: 1 } },
       { id: 'samples', goods: 'samples', w: 2, title: 'job.survey.samples.title', brief: 'job.survey.samples.brief',
-        routes: [['mk_sea', 'SEA'], ['SEA', 'mk_sea']] },
+        from: 'own', to: 'own', shapes: { p2p: 1, back: 2 } },
       { id: 'gear',    goods: 'gear',    w: 2, title: 'job.survey.gear.title',    brief: 'job.survey.gear.brief',
-        routes: [['HOME', 'w3'], ['HOME', 'tw_ski']] },
+        from: 'own', to: 'all', back: 'samples', shapes: { p2p: 1, back: 1, milk: 1 } },
     ],
     arc: [
       C_({ id: 'survey.01', provider: 'survey', kind: 'survey', title: 'ct.survey.01.title', brief: 'ct.survey.01.brief',
@@ -38788,7 +40078,8 @@ const CONTRACT_PROVIDERS = {
            needs: { rep: 1, after: ['survey.03'] },
            followUp: { add: [{ k: 'seats', op: '>=', v: 2 }, { k: 'emptyKg', op: '<=', v: 380 }] } }),
       C_({ id: 'survey.05', provider: 'survey', kind: 'contract', title: 'ct.survey.05.title', brief: 'ct.survey.05.brief',
-           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 100, pax: 0 } }] }],
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 100, pax: 0 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 20, pax: 0 } }] }],
            pay: { base: 4800 }, rep: { provider: 'survey', gain: 1 }, unlock: { stage: 'survey:3' },
            needs: { rep: 2, after: ['survey.04'] } }),
     ],
@@ -38797,7 +40088,7 @@ const CONTRACT_PROVIDERS = {
 
   clients: {
     id: 'clients', name: 'prov.clients.name', desc: 'prov.clients.desc', track: 'clients', base: 300,
-    fields: ['HOME', 'w3', 'tw_ski', 'SEA'],
+    fields: ['HOME', 'w3', 'tw_ski', 'SEA', 'mk_sea'],
     goods: [
       { id: 'pax',   kind: 'pax', pax: [1, 3],  word: 'goods.pax' },
       { id: 'kit',   kind: 'kg',  kg: [15, 60], word: 'goods.kit' },
@@ -38805,15 +40096,16 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'charter', goods: 'pax',   w: 3, title: 'job.clients.charter.title', brief: 'job.clients.charter.brief',
-        routes: [['HOME', 'w3'], ['HOME', 'tw_ski'], ['w3', 'tw_ski'], ['SEA', 'mk_sea']] },
+        from: 'own', to: 'all', shapes: { p2p: 1, back: 2, milk: 1, onward: 1 } },
       { id: 'kit',     goods: 'kit',   w: 2, title: 'job.clients.kit.title',     brief: 'job.clients.kit.brief',
-        routes: [['HOME', 'w3'], ['tw_ski', 'HOME'], ['mk_sea', 'SEA']] },
+        from: 'all', to: 'all', shapes: { p2p: 1, onward: 1, milk: 1 } },
       { id: 'canoe',   goods: 'canoe', w: 1, title: 'job.clients.canoe.title',   brief: 'job.clients.canoe.brief',
-        routes: [['HOME', 'w3'], ['SEA', 'mk_sea']] },
+        from: 'own', to: 'all', shapes: { p2p: 1, back: 1 } },
     ],
     arc: [
       C_({ id: 'clients.01', provider: 'clients', kind: 'contract', title: 'ct.clients.01.title', brief: 'ct.clients.01.brief',
-           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] }],
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'tw_ski', load: { kg: 0, pax: 1 } }] }],
            pay: { base: 1500 }, rep: { provider: 'clients', gain: 0.5 } }),
       C_({ id: 'clients.02', provider: 'clients', kind: 'build', title: 'ct.clients.02.title', brief: 'ct.clients.02.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
@@ -38897,24 +40189,32 @@ const CONTRACT_TEXT = {
   'load.kg': CT_('{n} kg of {what}'), 'load.pax1': CT_('1 passenger'), 'load.pax': CT_('{n} passengers'),
   'load.bulk': CT_('{what} ({n} kg, the cabin cleared)'), 'load.none': CT_('{what}'),
   // the job table (templates; {from} {to} {load} {at})
-  'job.field.mail.title': CT_('Mail to {to}'), 'job.field.mail.brief': CT_('{load}, {from} to {to}.'),
-  'job.field.tools.title': CT_('Tools for {to}'), 'job.field.tools.brief': CT_('The Trust needs {load} at {to}.'),
-  'job.field.crew.title': CT_('A lift to {to}'), 'job.field.crew.brief': CT_('{load} from {from} to {to}.'),
-  'job.minedock.parts.title': CT_('Parts for the mine'), 'job.minedock.parts.brief': CT_('{load} from {from} up to {to}.'),
-  'job.minedock.samples.title': CT_('Samples out'), 'job.minedock.samples.brief': CT_('{load} from {from} to {to}.'),
-  'job.minedock.crew.title': CT_('Crew change'), 'job.minedock.crew.brief': CT_('{load}, {from} to {to}.'),
-  'job.minedock.rods.title': CT_('Drill rods'), 'job.minedock.rods.brief': CT_('{load}. Long and awkward: {from} to {to}.'),
-  'job.minedock.mail.title': CT_('Mail off the water'), 'job.minedock.mail.brief': CT_('{load}, {from} to {to}.'),
-  'job.minedock.fish.title': CT_('Spot the fish'), 'job.minedock.fish.brief': CT_('Fly out over {at} and back to {from}. Tell the boats what you see.'),
-  'job.resort.guests.title': CT_('Guests for the lodge'), 'job.resort.guests.brief': CT_('{load}, {from} to {to}.'),
-  'job.resort.supplies.title': CT_('Supplies uphill'), 'job.resort.supplies.brief': CT_('{load} for the kitchen, {from} to {to}.'),
-  'job.resort.sights.title': CT_('A sightseeing loop'), 'job.resort.sights.brief': CT_('Over {at} and back to {from}, slowly.'),
-  'job.survey.count.title': CT_('Count over {at}'), 'job.survey.count.brief': CT_('Fly over {at} for the count, then home to {from}.'),
-  'job.survey.samples.title': CT_('Water samples'), 'job.survey.samples.brief': CT_('{load}, {from} to {to}. Keep them upright.'),
-  'job.survey.gear.title': CT_('Gear to {to}'), 'job.survey.gear.brief': CT_('{load} for a field team at {to}.'),
-  'job.clients.charter.title': CT_('A charter to {to}'), 'job.clients.charter.brief': CT_('{load}, {from} to {to}.'),
-  'job.clients.kit.title': CT_('A parcel for {to}'), 'job.clients.kit.brief': CT_('{load}, {from} to {to}.'),
-  'job.clients.canoe.title': CT_('A canoe to {to}'), 'job.clients.canoe.brief': CT_('{load}. Do not ask why. {from} to {to}.'),
+  'job.field.mail.title': CT_('Mail to {to}'), 'job.field.mail.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.field.tools.title': CT_('Tools for {to}'), 'job.field.tools.brief': CT_('The Trust needs {load} at {to}, from {from}.{then}'),
+  'job.field.crew.title': CT_('A lift to {to}'), 'job.field.crew.brief': CT_('{load} from {from} to {to}.{then}'),
+  'job.minedock.parts.title': CT_('Parts for the mine'), 'job.minedock.parts.brief': CT_('{load} from {from} up to {to}.{then}'),
+  'job.minedock.samples.title': CT_('Samples out'), 'job.minedock.samples.brief': CT_('{load} from {from} to {to}.{then}'),
+  'job.minedock.crew.title': CT_('Crew change'), 'job.minedock.crew.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.minedock.rods.title': CT_('Drill rods'), 'job.minedock.rods.brief': CT_('{load}. Long and awkward: {from} to {to}.{then}'),
+  'job.minedock.mail.title': CT_('Mail off the water'), 'job.minedock.mail.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.minedock.fish.title': CT_('Spot the fish'), 'job.minedock.fish.brief': CT_('Fly out over {at}{then} Tell the boats what you see.'),
+  'job.resort.guests.title': CT_('Guests for the lodge'), 'job.resort.guests.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.resort.supplies.title': CT_('Supplies uphill'), 'job.resort.supplies.brief': CT_('{load} for the kitchen, {from} to {to}.{then}'),
+  'job.resort.sights.title': CT_('A sightseeing loop'), 'job.resort.sights.brief': CT_('Over {at}, slowly{then}'),
+  'job.survey.count.title': CT_('Count over {at}'), 'job.survey.count.brief': CT_('Fly over {at} for the count{then}'),
+  'job.survey.samples.title': CT_('Water samples'), 'job.survey.samples.brief': CT_('{load}, {from} to {to}. Keep them upright.{then}'),
+  'job.survey.gear.title': CT_('Gear to {to}'), 'job.survey.gear.brief': CT_('{load} for a field team at {to}, from {from}.{then}'),
+  'job.clients.charter.title': CT_('A charter to {to}'), 'job.clients.charter.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.clients.kit.title': CT_('A parcel for {to}'), 'job.clients.kit.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.clients.canoe.title': CT_('A canoe to {to}'), 'job.clients.canoe.brief': CT_('{load}. Do not ask why. {from} to {to}.{then}'),
+  // (G2430 CONTRACT-ROUTES) a job's next leg, as its brief's {then} (73_ contractVars: {from} {to} {load} {at} are
+  // the NEXT leg's; a one-leg job's {then} is empty)
+  'job.then.back': CT_(' Then {load} back to {to}.'),
+  'job.then.onward': CT_(' Then {load} from {from} on to {to}.'),
+  'job.then.milk': CT_(' Part of it stays at {from}; {load} on to {to}.'),
+  'job.then.loop': CT_(', then back to {from}.'),
+  'job.then.pair': CT_(', then over {at}, then back to {from}.'),
+  'job.then.transit': CT_(', then land at {to}.'),
   // the arcs
   'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to Tamgas Hill and back.'),
   'ct.field.01.done': CT_('Two landings, no drama. The Trust is listening.'),
@@ -38930,7 +40230,7 @@ const CONTRACT_TEXT = {
   'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
   'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
   'ct.minedock.02.done': CT_('The headframe\'s frame goes up.'),
-  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down.'),
+  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to Tamgas Hill, for the boat.'),
   'ct.minedock.03.done': CT_('The pump runs. The samples look good.'),
   'ct.minedock.04.title': CT_('Four of us, fast'), 'ct.minedock.04.brief': CT_('I need to get my team of four to the mine fast.'),
   'ct.minedock.04.follow': CT_('The team loves it. Same again, with one thing changed.'),
@@ -38945,7 +40245,7 @@ const CONTRACT_TEXT = {
   'ct.minedock.b2.follow': CT_('It works. Now the accountant has a request.'),
   'ct.resort.01.title': CT_('The first guest'), 'ct.resort.01.brief': CT_('Our first guest is at the field. Bring her up.'),
   'ct.resort.01.done': CT_('She wants to stay a week.'),
-  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order, from the field to the altiport.'),
+  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from Tamgas Hill to the altiport.'),
   'ct.resort.02.done': CT_('The lodge\'s frame goes up.'),
   'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over Tamgas Hill, and back to the altiport.'),
   'ct.resort.03.done': CT_('The brochure has a cover.'),
@@ -38967,9 +40267,9 @@ const CONTRACT_TEXT = {
   'ct.survey.04.title': CT_('In and out of East Point'), 'ct.survey.04.brief': CT_('A plane for the East Point clearing: in and out, with an hour of fuel.'),
   'ct.survey.04.follow': CT_('It works. Could it take a second person?'),
   'ct.survey.04.done': CT_('East Point is a station.'),
-  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill.'),
+  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill, and the old instruments back to the office.'),
   'ct.survey.05.done': CT_('The mast is up.'),
-  'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today.'),
+  'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today, and an evening call at the lodge.'),
   'ct.clients.01.done': CT_('The doctor tells everyone.'),
   'ct.clients.02.title': CT_('Push it out alone'), 'ct.clients.02.brief': CT_('Something I can push out of my shed alone. The door is nine metres.'),
   'ct.clients.02.follow': CT_('I love it. Could the next one be even lighter?'),
@@ -39117,13 +40417,24 @@ const CONTRACT_FIT = {
 //   payload factor = kg / kgUnit + pax x paxF (+ bulkF for a bulk load)
 //   surface bonus per distinct field the job touches: short (a strip <= shortM), water, snow, altiport
 //   conditions: a `when` adds condPct of the rest
+//   (G2430 CONTRACT-ROUTES) PER LEG: each stage pays its own km x (1 + its own load's factor), and a job with more
+//   than one destination (contractDests) adds chainPct % of the legs' pay per destination beyond the first. A
+//   one-leg job pays exactly what it did. The positioning flight to the first stop is the player's, never paid.
 // Arcs and build contracts carry an authored base; a follow-up pays followPct more (GQ31).
+// G2260 (ECONOMY owns these numbers: the calibration, 76_economy.js ECON_BANDS, GATE ECON):
+//   baseF   the provider's job base (CONTRACT_PROVIDERS[p].base, its relative weight) x this
+//   story   an authored contract / survey / challenge's base x this (a build contract's base is priced against
+//           the airframe it asks for and is paid as written)
 const CONTRACT_PAY = {
-  perKm: 60, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
-  surf: { short: 400, water: 300, snow: 350, altiport: 500 }, shortM: 400,
+  perKm: 160, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
+  surf: { short: 1100, water: 800, snow: 950, altiport: 1350 }, shortM: 400,
   condPct: 15, round: 10,
+  chainPct: 10,
   followPct: 15,
+  baseF: 2.7, story: 2.6,
 };
+// an authored record's base as paid (the story factor on everything but a build contract)
+const contractStoryBase = rec => ((rec.pay && rec.pay.base) || 0) * (rec.kind === 'build' ? 1 : CONTRACT_PAY.story);
 
 // ---- THE GENERATOR (seeded: the career seed + the completed count) ---------------------------------------
 //   refreshEvery  the offers refresh after this many completed contracts (the epoch = floor(done / it))
@@ -39205,6 +40516,8 @@ function contractLoadWords(load, goodsWord, text) {
 function contractKeys(rec) {
   const ks = [rec.title, rec.brief];
   if (rec.goods) ks.push(rec.goods);
+  if (rec.shape && CONTRACT_THEN[rec.shape]) ks.push(CONTRACT_THEN[rec.shape]);
+  for (const st of rec.stages || []) for (const s of st.subs || []) if (s.goods) ks.push(s.goods);
   if (rec.kind === 'build') ks.push(contractFollowKey(rec));
   const ch = rec.followUp && rec.followUp.changed && rec.followUp.changed[rec.followUp.changed.length - 1];
   if (ch) ks.push('follow.' + ch.how);
@@ -39247,6 +40560,11 @@ function contractNormalise(r) {
         u.load.kg = Math.max(0, +u.load.kg || 0);
         u.load.pax = Math.max(0, Math.round(+u.load.pax || 0));
         if (u.load.bulk == null) delete u.load.bulk;
+        // (G2340 FREIGHT) a load's items ride along, each normalised (76_freight.js freightItem)
+        if (u.load.items != null) {
+          if (Array.isArray(u.load.items) && typeof freightItem === 'function') u.load.items = u.load.items.map(freightItem);
+          else if (!Array.isArray(u.load.items)) delete u.load.items;
+        }
       }
       if (u.crit != null && !Array.isArray(u.crit)) u.crit = [];
       return u;
@@ -39313,11 +40631,22 @@ function contractValidate(rec, opts) {
       if (!CONTRACT_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
       for (const f of ['from', 'to', 'at']) if (s[f] != null && !F[s[f]]) why.push(at + ': no field ' + s[f]);
       if ((s.do === 'carry' || s.do === 'fly') && (!s.to || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
+      if (s.goods != null && !contractTextOk(s.goods, T)) why.push(at + ': goods key ' + s.goods + ' does not resolve');
       if ((s.do === 'land' || s.do === 'deliver') && !s.to) why.push(at + ': ' + s.do + ' needs to');
       if (s.do === 'survey' && (!s.at || !s.from)) why.push(at + ': survey needs at and from');
       if (s.do === 'carry') {
         const L = s.load;
         if (!L || !(L.kg >= 0) || !(L.pax >= 0) || !(L.kg > 0 || L.pax > 0)) why.push(at + ': carry needs a load (kg or pax)');
+        // (G2340 FREIGHT) items, when the load has them: known kinds, three dims, and they ARE the load's kilos
+        if (L && L.items != null) {
+          if (!Array.isArray(L.items)) why.push(at + ': load.items is not a list');
+          else {
+            if (L.items.some(it => !it || !(typeof FREIGHT_KINDS === 'undefined' || FREIGHT_KINDS[it.kind]) || !Array.isArray(it.dims) || it.dims.length !== 3 || !it.dims.every(v => v > 0)))
+              why.push(at + ': an item with an unknown kind or no dims');
+            const sum = L.items.reduce((a, it) => a + (+(it && it.kg) || 0), 0);
+            if (Math.abs(sum - (L.kg || 0)) > 0.01) why.push(at + ': the items weigh ' + sum + ' kg, the load is ' + L.kg + ' kg');
+          }
+        }
       }
       if (s.crit != null) {
         if (r.kind !== 'build') why.push(at + ': criteria on a ' + r.kind + ' (build contracts only)');
@@ -39422,6 +40751,12 @@ function contractSubFit(D, s, fields) {
     if ((L.pax || 0) > D.seats - 1) return no((L.pax || 0) + ' passengers, ' + (D.seats - 1) + ' seats beside the pilot');
     if (kg > ctCapKg(D)) return no(kg + ' kg aboard, the cabin takes ' + ctCapKg(D) + ' kg');
     if (L.bulk && D.seats < CONTRACT_FIT.bulkSeats) return no('a bulk load needs a cabin of ' + CONTRACT_FIT.bulkSeats + ' seats cleared');
+    // (G2340 FREIGHT) THE VOLUME: a load's items pass a door of this design and pack in its hold with the
+    // passengers seated (the empty seats out if need be: the player's call) - the card measured off its mesh
+    if (Array.isArray(L.items) && L.items.length && typeof freightFits === 'function') {
+      const card = freightCardOf(D);
+      if (card) { const v = freightFits(card, L.items, { pax: L.pax || 0 }); if (!v.ok) return no(v.why); }
+    }
     ends.push(s.from, s.to); km = contractKm(s.from, s.to, F);
   } else if (s.do === 'fly') { if (s.from) ends.push(s.from); ends.push(s.to); km = s.from ? contractKm(s.from, s.to, F) : 0; }
   else if (s.do === 'land') { ends.push(s.to); }
@@ -39470,17 +40805,21 @@ function contractClasses(rec, fields) {
 function contractPay(rec, fields) {
   const F = fields || CONTRACT_FIELDS, P = CONTRACT_PAY;
   const prov = CONTRACT_PROVIDERS[rec.provider];
-  const subs = contractSubsOf(rec);
-  let km = 0, kg = 0, pax = 0, bulk = false, cond = false;
+  let km = 0, factor = 0, legs = 0, cond = false;
   const touched = {};
-  for (const s of subs) {
-    if (s.do === 'carry' || (s.do === 'fly' && s.from)) km += contractKm(s.from, s.to, F);
-    if (s.do === 'survey') km += 2 * contractKm(s.from, s.at, F);
-    for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
-    if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
-    if (s.when) cond = true;
+  // (G2430) each stage is a leg: its km x (1 + its own load's factor)
+  for (const st of rec.stages || []) {
+    let skm = 0, kg = 0, pax = 0, bulk = false;
+    for (const s of st.subs || []) {
+      if (s.do === 'carry' || (s.do === 'fly' && s.from)) skm += contractKm(s.from, s.to, F);
+      if (s.do === 'survey') skm += 2 * contractKm(s.from, s.at, F);
+      for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
+      if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
+      if (s.when) cond = true;
+    }
+    const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
+    km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
   }
-  const factor = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
   let surface = 0;
   for (const id of Object.keys(touched)) {
     const f = F[id];
@@ -39490,19 +40829,165 @@ function contractPay(rec, fields) {
     if (f.surf === 'snow') surface += P.surf.snow;
     if (f.alti) surface += P.surf.altiport;
   }
-  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) : ((rec.pay && rec.pay.base) || 0);
+  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec);
   const perKm = rec.kind === 'job' ? P.perKm : 0;
-  const rest = base + perKm * km * (1 + factor) + (rec.kind === 'job' ? surface : 0);
+  const legPay = perKm * legs;
+  const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
+  const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
   const condAdd = cond ? rest * P.condPct / 100 : 0;
-  const total = Math.round((rest + condAdd) / P.round) * P.round;
+  let total = Math.round((rest + condAdd) / P.round) * P.round;
+  // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
+  if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
-           cond: Math.round(condAdd), total };
+           chain: Math.round(chain), cond: Math.round(condAdd), total };
+}
+
+// ---- THE ROUTES (G2430 CONTRACT-ROUTES, §R.3: two destinations or more, not everything from Jolene AFB) ----------
+// THE ISLAND'S JOB FIELDS: every provider's `fields`, in provider order, each once - 72_'s one table to edit (a new
+// site named there joins the jobs; one named in no provider's list joins none)
+function contractSites(fields) {
+  const F = fields || CONTRACT_FIELDS, out = [];
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) for (const f of CONTRACT_PROVIDERS[p].fields || []) if (F[f] && !out.includes(f)) out.push(f);
+  return out;
+}
+// a template's pool -> [field id]: 'own' (the provider's fields), 'away' (the job fields not its own), 'all', [ids]
+function ctPool(P, pool, F) {
+  if (Array.isArray(pool)) return pool.filter(f => F[f]);
+  const own = (P.fields || []).filter(f => F[f]);
+  if (pool === 'own') return own;
+  const sites = contractSites(F);
+  return pool === 'away' ? sites.filter(f => !own.includes(f)) : sites;
+}
+// THE STOPS a record sends the aeroplane to, in order -> [{ at, what: pick|depart|drop|over|land, stage }]. A stage's
+// pickups (its departure) come first, then its drops / overflights / landings as written (a stage's subs are in any
+// order: this is one order that does them); the same field twice in a row is ONE stop (the chain's hinge: the load
+// dropped at B and the next one taken on at B). The positioning flight to the first stop is not a stop: the job
+// starts where its first load waits.
+function contractStops(rec) {
+  const out = [], rank = { pick: 0, depart: 0, land: 1, over: 2, drop: 2 };
+  const put = (at, what, stage) => {
+    if (!at) return;
+    const last = out[out.length - 1];
+    if (last && last.at === at) { if (rank[what] > rank[last.what]) last.what = what; return; }
+    out.push({ at, what, stage });
+  };
+  ((rec && rec.stages) || []).forEach((st, i) => {
+    const subs = st.subs || [], seen = [];
+    for (const s of subs) {
+      const f = (s.do === 'carry' || s.do === 'survey' || s.do === 'fly') ? s.from : null;
+      if (f && !seen.includes(f)) { seen.push(f); put(f, s.do === 'carry' ? 'pick' : 'depart', i); }
+    }
+    for (const s of subs) {
+      if (s.do === 'carry') put(s.to, 'drop', i);
+      else if (s.do === 'survey') put(s.at, 'over', i);
+      else if (s.do === 'fly' || s.do === 'land' || s.do === 'deliver') put(s.to, 'land', i);
+    }
+  });
+  return out;
+}
+// THE DESTINATIONS: the stops after the first, a plain landing back where the job began not counted (a survey's
+// "and back to the dock" is the way home; a backhaul's load delivered there IS a destination)
+function contractDests(rec) {
+  const S = contractStops(rec);
+  return S.slice(1).filter(x => !(x.what === 'land' && x.at === S[0].at)).length;
+}
+const CONTRACT_SHAPES = { carry: ['p2p', 'back', 'onward', 'milk'], survey: ['loop', 'pair', 'transit'] };
+// a shape's {then} text key (the brief's next leg; p2p has none)
+const CONTRACT_THEN = { back: 'job.then.back', onward: 'job.then.onward', milk: 'job.then.milk',
+                        loop: 'job.then.loop', pair: 'job.then.pair', transit: 'job.then.transit' };
+// a route of a shape -> its stages' subs. A carry route is [A, B] (p2p), [A, B, A] (back) or [A, B, C]; L1 / L2 the
+// two legs' loads (L2: the second leg's, null on a one-leg job); g2 the second leg's goods word when it differs
+function ctCarryStages(shape, r, L1, L2, g2) {
+  const leg = (from, to, load, goods) => Object.assign({ do: 'carry', from, to, load }, goods ? { goods } : {});
+  if (shape === 'p2p') return [[leg(r[0], r[1], L1)]];
+  return [[leg(r[0], r[1], L1)], [leg(r[1], r[2], L2, g2)]];
+}
+// a survey route: loop [A, X], pair [A, X, Y] (over both, back to A), transit [A, X, B] (over X, land at B)
+function ctSurveyStages(shape, r) {
+  if (shape === 'pair') return [[{ do: 'survey', from: r[0], at: r[1] }, { do: 'survey', from: r[0], at: r[2] }], [{ do: 'land', to: r[0] }]];
+  return [[{ do: 'survey', from: r[0], at: r[1] }], [{ do: 'land', to: shape === 'transit' ? r[2] : r[0] }]];
+}
+const ctGoods = (P, id) => P.goods.find(g => g.id === id) || { kind: 'none' };
+const ctFloor = G => ({ kg: G.kind === 'kg' || G.kind === 'bulk' ? G.kg[0] : 0, pax: G.kind === 'pax' ? G.pax[0] : 0 });
+// THE ROUTES a template may draw in a shape: every route of the shape among its pools, no leg from a field to
+// itself, no stop twice in a row, that ONE validated design flies end to end at the goods' floor (the ✗ rule: never
+// a wheels / water mix no single aeroplane can do). In pool order (deterministic); memoised per fields table.
+const ctRouteMemo = new WeakMap();
+function ctRoutes(P, tpl, shape, F) {
+  let m = ctRouteMemo.get(F);
+  if (!m) ctRouteMemo.set(F, m = new Map());
+  const key = P.id + '|' + tpl.id + '|' + shape;
+  if (m.has(key)) return m.get(key);
+  const raw = [];
+  let subsOf;
+  if (tpl.survey) {
+    const S = tpl.survey, A = ctPool(P, S.from || 'own', F), X = ctPool(P, S.at || 'all', F), B = ctPool(P, S.to || 'own', F);
+    for (const a of A) X.forEach((x, xi) => {
+      if (x === a) return;
+      if (shape === 'loop') raw.push([a, x]);
+      else if (shape === 'pair') { for (const y of X.slice(xi + 1)) if (y !== a) raw.push([a, x, y]); }
+      else if (shape === 'transit') { for (const b of B) if (b !== a && b !== x) raw.push([a, x, b]); }
+    });
+    subsOf = r => [].concat(...ctSurveyStages(shape, r));
+  } else {
+    const A = ctPool(P, tpl.from || 'own', F), B = ctPool(P, tpl.to || 'all', F), C = ctPool(P, tpl.on || 'all', F);
+    for (const a of A) for (const b of B) {
+      if (a === b) continue;
+      if (shape === 'p2p') raw.push([a, b]);
+      else if (shape === 'back') raw.push([a, b, a]);
+      else for (const c of C) if (c !== a && c !== b) raw.push([a, b, c]);
+    }
+    const G = ctGoods(P, tpl.goods), G2 = tpl.back ? ctGoods(P, tpl.back) : G;
+    subsOf = r => [].concat(...ctCarryStages(shape, r, ctFloor(G), ctFloor(shape === 'milk' ? G : G2)));
+  }
+  const out = raw.filter(r => contractDoers(subsOf(r), F).length > 0);
+  m.set(key, out);
+  return out;
+}
+// a load drawn from goods G (the reputation's share of its range); its items (FREIGHT: the goods gain dims). `tag`
+// prefixes the item ids of a second, separate load (a backhaul of the same goods is other crates, not the same ones)
+function ctLoadOf(rng, G, frac) {
+  const L = { kg: 0, pax: 0 };
+  if (G.kind === 'pax') L.pax = ctDraw(rng, G.pax[0], G.pax[1], frac, 1);
+  else if (G.kind === 'kg' || G.kind === 'bulk') L.kg = ctDraw(rng, G.kg[0], G.kg[1], frac, 5);
+  if (G.kind === 'bulk') L.bulk = G.id;
+  return L;
+}
+function ctItemsOf(L, G, tag) {
+  if (L.kg > 0 && typeof freightItems === 'function') {
+    L.items = freightItems(L, G.word);
+    if (tag) L.items = L.items.map(it => Object.assign(it, { id: tag + it.id }));
+  } else delete L.items;
+  return L;
+}
+// a load shrunk one step toward the goods' floor (a passenger dropped, else the kilos halved); false at the floor
+function ctShrink(L, G) {
+  if (L.pax > (G.pax ? G.pax[0] : 0)) { L.pax--; return true; }
+  const lo = G.kg ? G.kg[0] : 0;
+  if (L.kg > lo) { L.kg = Math.max(lo, Math.round(L.kg / 2 / 5) * 5); return true; }
+  return false;
+}
+// THE MILK RUN'S SECOND LEG: part of the first leg's load goes on (the later half of its items, or all but one of its
+// passengers); null when the load does not split (one item, one passenger)
+function ctMilkPart(L1) {
+  if (L1.pax >= 2) return { kg: 0, pax: L1.pax - 1 };
+  if (Array.isArray(L1.items) && L1.items.length >= 2) {
+    const items = ctClone(L1.items.slice(Math.ceil(L1.items.length / 2)));
+    const L = { kg: freightKg(items), pax: 0, items };
+    if (L1.bulk) L.bulk = L1.bulk;
+    return L;
+  }
+  return null;
 }
 
 // ---- THE JOB GENERATOR (seeded, deterministic, order-independent) ------------------------------------------
 // A job is f(seed, provider, epoch, index) and NOTHING else (the provider's reputation scales its load: a
 // value of the career that changes only when the completed count does). Its id says so: job:<prov>:<epoch>:<i>,
 // so a job is regenerated from its id (contractJobById) — no job is stored until it is accepted.
+// (G2430) A draw: the template (its weight), the condition, the SHAPE (its weight, among the shapes the template
+// has a flyable route in), the ROUTE (uniform among ctRoutes), then the loads, leg by leg; shrunk until one
+// validated design flies the whole chain, else redrawn. The record says its shape (`shape`); a second leg of other
+// goods names them (`sub.goods`).
 function contractEpoch(done) { return Math.floor(Math.max(0, done || 0) / CONTRACT_GEN.refreshEvery); }
 function ctPick(rng, list, w) {
   if (!w) return list[Math.floor(rng() * list.length) % list.length];
@@ -39527,31 +41012,46 @@ function contractJob(seed, providerId, epoch, i, opts) {
   for (let t = 0; t < CONTRACT_GEN.tries; t++) {
     const rng = contractRng(seed + '|' + id + '|' + t);
     const tpl = ctPick(rng, P.jobs, x => x.w || 1);
-    const G = P.goods.find(g => g.id === tpl.goods) || { kind: 'none' };
+    const G = ctGoods(P, tpl.goods);
     const cond = rng() < CONTRACT_GEN.condP;
-    let subs;
-    if (tpl.survey) {
-      const [from, at] = ctPick(rng, tpl.survey);
-      subs = [[{ do: 'survey', from, at }], [{ do: 'land', to: from }]];
-    } else {
-      const [from, to] = ctPick(rng, tpl.routes);
-      const load = { kg: 0, pax: 0 };
-      if (G.kind === 'pax') load.pax = ctDraw(rng, G.pax[0], G.pax[1], frac, 1);
-      else if (G.kind === 'kg' || G.kind === 'bulk') load.kg = ctDraw(rng, G.kg[0], G.kg[1], frac, 5);
-      if (G.kind === 'bulk') load.bulk = G.id;
-      subs = [[{ do: 'carry', from, to, load }]];
-      // shrink until a validated design can fly it: a passenger dropped, the kilos halved (never below the
-      // goods' floor) — the job keeps its route and its kind
-      for (let k = 0; k < 6 && !contractDoers(subs[0], F).length; k++) {
-        if (load.pax > (G.pax ? G.pax[0] : 0)) load.pax--;
-        else if (load.kg > 0) load.kg = Math.max(G.kg ? G.kg[0] : 0, Math.round(load.kg / 2 / 5) * 5);
-        if (load.pax === 0 && load.kg === (G.kg ? G.kg[0] : 0) && !contractDoers(subs[0], F).length) break;
+    const W = tpl.shapes || { p2p: 1 };
+    const shapes = Object.keys(W).filter(k => W[k] > 0 && ctRoutes(P, tpl, k, F).length);
+    if (!shapes.length) continue;
+    let shape = ctPick(rng, shapes, k => W[k]);
+    const route = ctPick(rng, ctRoutes(P, tpl, shape, F));
+    let subs, g2 = null;
+    if (tpl.survey) subs = ctSurveyStages(shape, route);
+    else {
+      const G2 = shape === 'milk' ? G : (tpl.back ? ctGoods(P, tpl.back) : G);
+      if (G2 !== G) g2 = G2.word;
+      const L1 = ctItemsOf(ctLoadOf(rng, G, frac), G);
+      const L2 = shape === 'back' || shape === 'onward' ? ctItemsOf(ctLoadOf(rng, G2, frac), G2, 'leg2.') : null;
+      // (G2340 FREIGHT) THE GOODS GAIN DIMS: each leg's load is its items, re-made at every shrink
+      const build = () => {
+        let second = L2;
+        if (shape === 'milk' || (shape === 'onward' && !L2)) {
+          second = ctMilkPart(L1);
+          // a load that does not split rides on as a fresh one of the same goods, picked up at B
+          if (!second) { shape = 'onward'; second = ctItemsOf(ctFloor(G), G, 'leg2.'); }
+          else shape = 'milk';
+        }
+        return ctCarryStages(shape, route, L1, second, g2);
+      };
+      subs = build();
+      // shrink until a validated design can fly the chain: a passenger dropped, the kilos halved (never below the
+      // goods' floor) - the job keeps its route and its kind
+      for (let k = 0; k < 6 && !contractDoers([].concat(...subs), F).length; k++) {
+        const a = ctShrink(L1, G), b = L2 ? ctShrink(L2, G2) : false;
+        if (!a && !b) break;
+        ctItemsOf(L1, G);
+        if (L2) ctItemsOf(L2, G2, 'leg2.');
+        subs = build();
       }
     }
     if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
     if (!contractDoers([].concat(...subs), F).length) continue;
     const rec = contractNormalise({
-      id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id,
+      id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id, shape,
       stages: subs.map(s => ({ subs: s })),
       pay: { base: 0 }, rep: { provider: providerId, gain: 0.1 }, repeat: { every: CONTRACT_GEN.refreshEvery },
       seed: String(seed), epoch, i,
@@ -39574,12 +41074,24 @@ function contractJobById(seed, id, opts) {
   const m = /^job:(\w+):(\d+):(\d+)$/.exec(id || '');
   return m ? contractJob(seed, m[1], +m[2], +m[3], opts) : null;
 }
-// the vars a record's text fills ({from} {to} {at} {load})
+// the vars a record's text fills: {from} {to} {at} {load} of its first leg, and (G2430) {then}: the next leg as words
+// (job.then.<shape> with THAT leg's {from} {to} {load} {at}; empty on a one-leg job or an authored record)
 function contractVars(rec, fields, text) {
   const F = fields || CONTRACT_FIELDS, subs = contractSubsOf(rec);
   const s = subs.find(x => x.do === 'carry') || subs.find(x => x.do === 'survey') || subs[0] || {};
   const nm = id => (F[id] ? F[id].name : id);
-  return { from: nm(s.from), to: nm(s.to), at: nm(s.at), load: contractLoadWords(s.load, rec.goods, text) };
+  const words = u => contractLoadWords(u.load, u.goods || rec.goods, text);
+  const v = { from: nm(s.from), to: nm(s.to), at: nm(s.at), load: words(s), then: '' };
+  const key = rec && rec.shape && CONTRACT_THEN[rec.shape];
+  if (key) {
+    const st = rec.stages || [];
+    let n = null;
+    if (rec.shape === 'pair') { const u = (st[0] && st[0].subs[1]) || {}; n = { from: nm(u.from), to: '', at: nm(u.at), load: '' }; }
+    else if (rec.shape === 'loop' || rec.shape === 'transit') { const u = (st[1] && st[1].subs[0]) || {}; n = { from: nm(s.from), to: nm(u.to), at: nm(s.at), load: '' }; }
+    else { const u = (st[1] && st[1].subs[0]) || null; if (u) n = { from: nm(u.from), to: nm(u.to), at: '', load: words(u) }; }
+    if (n) v.then = contractText(key, n, text);
+  }
+  return v;
 }
 
 // ---- THE FOLLOW-UP BUILD CONTRACT (GQ26, GQ31) --------------------------------------------------------------
@@ -39652,7 +41164,8 @@ function contractCritDiff(a, b) {
 // THE STOP RECORD (what the page hands over at DEST-TO's STOPPED; app.js playerFlightEnd is where it is made):
 //   { how: 'stopped', aero: '<aerodrome id>' | null (flightWhere's id when flightCanDepart),
 //     wrecked?: bool, slot?: '<fleet slot>', gear?: 'wheels'|'floats',
-//     load: { kg, pax, bulk? }            what is aboard at the stop (cargo kg beside the pilot, passengers)
+//     load: { kg, pax, bulk?, items? }    what is aboard at the stop (cargo kg beside the pilot, passengers; the
+//                                         loaded items when there are any - G2340 FREIGHT: then they are the load)
 //     row: { from, to, t, ... }           the logbook row (logFlight): `from` the leg's departure, `t` seconds
 //     overflew?: [aerodrome id]           the sites the flight passed over (a survey's evidence)
 //     hour?: number                       the world's local hour at the stop (a `when` is judged on it)
@@ -39665,9 +41178,18 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   const at = stop.aero, row = stop.row || {}, aboard = stop.load || {};
   const F = CONTRACT_FIELDS;
   const nm = id => (F[id] ? F[id].name : id || 'nowhere');
-  const loadOk = L => (aboard.kg || 0) >= (L.kg || 0) && (aboard.pax || 0) >= (L.pax || 0) && (!L.bulk || aboard.bulk === L.bulk);
-  const loadWhy = L => 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
-    + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : '');
+  // (G2340 FREIGHT) THE LOAD ABOARD IS THE LOADED ITEMS when the stop carries them: every item of the job's load
+  // (by id) is aboard; with no items loaded, the typed kilos stand in (the fallback, as before)
+  const itemsMissing = L => (Array.isArray(L.items) && L.items.length && Array.isArray(aboard.items))
+    ? L.items.filter(it => !aboard.items.some(a => a && a.id === it.id)).map(it => it.id) : null;
+  const loadOk = L => {
+    const miss = itemsMissing(L);
+    if (miss) return !miss.length && (aboard.pax || 0) >= (L.pax || 0);
+    return (aboard.kg || 0) >= (L.kg || 0) && (aboard.pax || 0) >= (L.pax || 0) && (!L.bulk || aboard.bulk === L.bulk);
+  };
+  const loadWhy = L => { const miss = itemsMissing(L); return miss && miss.length ? 'not aboard: ' + miss.join(', ') + ' (' + aboard.items.length + ' items loaded)'
+    : 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
+    + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : ''); };
   const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
     ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
   if (sub.do === 'carry') {
@@ -39722,7 +41244,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
 // the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
 function contractPayTotal(rec, got, medal) {
   const P = rec.pay || {};
-  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : (P.base || 0);
+  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : Math.round(contractStoryBase(rec));
   const crit = contractCrit(rec);
   let pct = 0;
   for (const b of P.bonus || []) {
@@ -39738,7 +41260,7 @@ function contractPayTotal(rec, got, medal) {
 // ---- THE NARRATIVE PACK'S IMPORT (Block 5's JSON shape; a bonus) -------------------------------------------
 // -> { ok, text: a new text table (the old keys kept, the pack's words over them, draft: false), why: [] }.
 // Every airfield id must exist, every contract / build id must be ours, no build text names a configuration,
-// and a job title's slots are {from} {to} {load} only. Pure: the table handed in is not changed.
+// and a job title's slots are {from} {to} {load} {at} {then} only. Pure: the table handed in is not changed.
 function contractImportPack(pack, text) {
   const T = ctClone(text || CONTRACT_TEXT), why = [];
   const ids = contractAuthored();
@@ -39769,7 +41291,7 @@ function contractImportPack(pack, text) {
     const Pr = CONTRACT_PROVIDERS[j.provider];
     if (!Pr) { why.push('no provider ' + j.provider + ' for a job'); continue; }
     const slots = (String(j.title || '') + ' ' + String(j.brief || '')).match(/\{(\w+)\}/g) || [];
-    const bad = slots.filter(s => !['{from}', '{to}', '{load}', '{at}'].includes(s));
+    const bad = slots.filter(s => !['{from}', '{to}', '{load}', '{at}', '{then}'].includes(s));
     if (bad.length) { why.push(j.provider + ' job: unknown slot ' + bad.join(' ')); continue; }
     // the pack's jobs are matched to the provider's templates in order, by the load's word where it names one
     const n = seen[j.provider] = (seen[j.provider] || 0);
@@ -39829,6 +41351,28 @@ function careerBlockDefault(o) {
   };
 }
 
+// THE CAREER'S MAIN HANGAR (G2315 WORKS-COZY; GAME-2026-10-06 §R GQ22: "it should be updated to the largest hangar
+// probably, even though I find the medium one less intimidating and warmer. Main garage should be cozy"): the WORKS
+// shell at its own 40 x 40 m, every kit, stood in the `cozy` layout (26_hangar_fit HANGAR_LAYOUTS) - the bench corner,
+// the woodshop bay, the office, the lounge round the build bay. The sandbox keeps today's club (GQ29).
+// G2318: the HEARTH (the cozy works with the life brought to the stand) is the default; 'cozy' (the rooms along the
+// walls) is kept beside it for the user's pick (GARAGE_ENV.setLayout in a career)
+const CAREER_MAIN = { shell: 'works', layout: 'hearth' };
+function careerMainShed() {
+  const L = (typeof HANGAR_LAYOUTS !== 'undefined') ? HANGAR_LAYOUTS[CAREER_MAIN.layout] : null;
+  const S = (typeof SHELLS !== 'undefined') ? SHELLS[CAREER_MAIN.shell] : null;
+  if (!L || !S) return null;                                   // a core without the hangar tables: the default stands
+  return { shell: CAREER_MAIN.shell, dims: Object.assign({}, S.dims), kits: L.kits.slice(), layout: CAREER_MAIN.layout,
+           base: 'HOME', tenure: 'own' };
+}
+// a main hangar nobody has touched yet: the player default's club (no dims, no dress, the default kits, no layout) -
+// what every career made before G2315 holds; careerNormalise hands it the career's main hangar, once
+function careerMainUntouched(h) {
+  if (!h || typeof h !== 'object' || h.shell !== 'club' || h.layout || h.dims || h.parts) return false;
+  const def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
+  return !!def && Array.isArray(h.kits) && h.kits.join() === def.join();
+}
+
 // A NEW CAREER (GQ23): a fresh player document in career mode — the main hangar at HOME, an empty fleet —
 // the grant written into the ledger as income (so the history says where the money came from), the voucher
 // unspent, every track at 0, and the first offers.
@@ -39836,8 +41380,12 @@ function careerNew(o) {
   o = o || {};
   const d = playerDefault();
   d.mode = 'career';
+  const main = careerMainShed();
+  if (main) d.sheds.HOME = main;
   d.career = careerBlockDefault(o);
   playerCharge(d, -CAREER_GRANT, 'grant', null);
+  // G2290 (PILOTS): the companion arrives with the career (76_pilots.js; §9.2 "the first pilot comes with the opening")
+  if (typeof pilotsCompanion === 'function') pilotsCompanion(d);
   return careerRefresh(d);
 }
 
@@ -39846,6 +41394,9 @@ function careerNew(o) {
 function careerNormalise(r) {
   const d = playerNormalise(playerMigrate(r && typeof r === 'object' ? r : null));
   d.mode = 'career';
+  // G2315: a career made before the cozy works holds the player default's untouched club - it becomes the career's
+  // main hangar (the base, the tenure and anything else on the record kept); a touched one is the player's, kept
+  if (careerMainUntouched(d.sheds.HOME)) { const m = careerMainShed(); if (m) d.sheds.HOME = Object.assign({}, d.sheds.HOME, m, { base: d.sheds.HOME.base, tenure: d.sheds.HOME.tenure }); }
   const def = careerBlockDefault();
   const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
   for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];
@@ -39869,6 +41420,8 @@ function careerNormalise(r) {
   for (const k of ['pilots', 'airframes']) if (!c[k] || typeof c[k] !== 'object' || Array.isArray(c[k])) c[k] = {};
   if (!Array.isArray(c.roster)) c.roster = [];
   if (!c.market || typeof c.market !== 'object') c.market = def.market;
+  // G2290 (PILOTS): the roster's rows (76_pilots.js pilotsBlock: unknown ids dropped, a hired pilot always has a row)
+  if (typeof pilotsBlock === 'function') pilotsBlock(d);
   return d;
 }
 
@@ -39888,6 +41441,8 @@ function careerContract(doc, id) {
     return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0 });
   }
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
+  // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
+  if (/^loan:/.test(id) && typeof econLoanJob === 'function') return econLoanJob(doc, id);
   return null;
 }
 function careerNeedsOk(doc, rec) {
@@ -39915,6 +41470,9 @@ function careerOfferIds(doc) {
     for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
     for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep })) if (!taken.has(j.id)) out.push(j.id);
   }
+  // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
+  const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
+  if (loan && !taken.has(loan)) out.unshift(loan);
   // follow-ups: the last of each delivered build contract's chain
   const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
   for (const id of builds) {
@@ -40025,7 +41583,7 @@ function contractOnStop(doc, contract, stop, hooks) {
 function careerComplete(d, rec, live, medal, events) {
   const c = d.career, C = c.contracts;
   const pay = contractPayTotal(rec, live.got, medal);
-  playerCharge(d, -pay, 'contract', rec.id);
+  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);   // G2260: the Trust's loan job writes a `loan` line
   const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 });
   P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +(P.rep + (rec.rep.gain || 0)).toFixed(3)));
   const prov = CONTRACT_PROVIDERS[rec.provider];
@@ -40077,7 +41635,8 @@ function careerOnStop(doc, stop, hooks) {
 //     providers: [ { id, name, short, colour, home, line, rep, track } ],
 //     contracts: [ the accepted (in order) then the offers: { id, provider, kind, title, brief (RESOLVED words),
 //                  stages: [ { subs: [ {do, from?, to?, at?, load?, when?, crit?: [ {k, op, v, at?, words} ]} ] } ],
-//                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes } ],
+//                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes,
+//                  mark: { ok, gear: {ok, why}, door: {ok, why, items} } | null (G2340: the ✓ / ✗, freightMark) } ],
 //     career: { accepted, tracked, stage: {id: n}, live: {id: {stage, subs, picked}}, wallet, clock, done, voucher },
 //     fleet: [ { slot, name, where: playerWhere, cert | null } ],    the player document's own airframes
 //     board: [ { name, cert } ] }                                     (opts.board: designs not materialised)
@@ -40139,8 +41698,16 @@ function careerMapContract(doc, id, F) {
   if (rec.kind === 'build') out.followLine = contractFollowLine(rec);
   return out;
 }
+// (G2340 FREIGHT) THE MARK (§R.2: ✓ / ✗ only for the hard no-no's - surface vs gear, and NO DOOR FITS: an item that
+// passes no door of any of the player's planes; a build contract carries none). The fleet's designs: the career's
+// airframe rows (CONTRACT_DESIGNS + their FREIGHT_CARDS), opts.certs' shakedown rows (no card: their doors are not
+// known, so they never make a ✗), opts.cards[slot] (a card the page measured) -> freightMark's { ok, gear, door }
+function careerMapMark(doc, id, fleet, F) {
+  const rec = careerContract(doc, id);
+  return rec && typeof freightMark === 'function' ? freightMark(rec, fleet, F) : null;
+}
 // careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
-// opts: { certs: {slot: design row}, board: [{name, design}], fields }.
+// opts: { certs: {slot: design row}, board: [{name, design}], fields, cards: {slot: freight card} }.
 function careerMapRecord(doc, world, opts) {
   opts = opts || {};
   const F = opts.fields || CONTRACT_FIELDS;
@@ -40164,6 +41731,10 @@ function careerMapRecord(doc, world, opts) {
   const af = c.airframes || {}, certs = opts.certs || {};
   const certOf = n => {
     const A = af[n];
+    // (G2280 PROCURE) a maker's or a used airframe carries its own certificate (the options' measured effects); a
+    // MODIFIED one has none (withdrawn): its facts are the saved build's shakedown, if this browser read it
+    if (A && A.modified) return certs[n] ? careerDesignCert(certs[n], 'the saved build\'s shakedown') : null;
+    if (A && A.cert && typeof A.cert === 'object') return careerDesignCert(A.cert, A.design || null);
     if (A && A.design && CONTRACT_DESIGNS[A.design]) return careerDesignCert(CONTRACT_DESIGNS[A.design], A.design);
     if (certs[n]) return careerDesignCert(certs[n], 'the saved build\'s shakedown');
     return null;
@@ -40172,6 +41743,14 @@ function careerMapRecord(doc, world, opts) {
     const W = typeof playerWhere === 'function' ? playerWhere(doc, n) : { kind: 'none', aero: null, hangar: null };
     return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n) };
   });
+  // the designs the mark reads, per airframe: the career's design row (its card), else the shakedown's row
+  const cards = opts.cards || {};
+  const markFleet = Object.keys(doc.fleet || {}).sort().map(n => {
+    const A = af[n];
+    const design = (A && A.design && CONTRACT_DESIGNS[A.design]) || certs[n] || null;
+    return { slot: n, design, card: cards[n] || (A && A.design && typeof freightCardOf === 'function' ? freightCardOf(CONTRACT_DESIGNS[A.design]) : null) };
+  });
+  for (const c of contracts) c.mark = careerMapMark(doc, c.id, markFleet, F);
   const board = (opts.board || []).map(b => ({ name: b.name, cert: careerDesignCert(b.design, b.name) }));
   return {
     what: 'flydiy-career-map', v: CAREER_MAP_V, source: 'career',
@@ -40179,6 +41758,9 @@ function careerMapRecord(doc, world, opts) {
     career: { accepted: C.accepted.slice(), tracked: C.tracked || null, stage, live, wallet: doc.wallet, clock: doc.clock || 0,
               done: C.done.length, voucher: cwClone(c.voucher || null) },
     fleet, board,
+    // G2290 (PILOTS): the Pilots tab - the hired pilots and the 2-3 looking for work (76_pilots.js pilotsCard: text
+    // resolved, the place by the fleet ledger)
+    pilots: typeof pilotsCard === 'function' ? PILOTS_ORDER.map(id => pilotsCard(doc, id, world)).filter(p => p && (p.hired || p.onOffer)) : [],
   };
 }
 
@@ -40194,17 +41776,22 @@ function careerOverflewAdd(world, x, z, set) {
   return out;
 }
 // THE STOP RECORD (74_career.js contractOnStop's): o = { how, aero (flightWhere's id when flightCanDepart, else null),
-// wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, row: {from, to, t}, overflew, hour }
-// -> { how, aero, wrecked, slot, gear, load: {kg, pax}, row, overflew, hour }. Only a STOP delivers: an ending that
-// is not 'stopped' carries no aerodrome.
+// wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, items, row: {from, to, t}, overflew,
+// hour } -> { how, aero, wrecked, slot, gear, load: {kg, pax, items?}, row, overflew, hour }. Only a STOP delivers:
+// an ending that is not 'stopped' carries no aerodrome. (G2340 FREIGHT) THE LOAD IS THE LOADED ITEMS: with items
+// aboard (FREIGHT-LOAD's accepted packing), `load.items` is them and `load.kg` their sum; with none, the typed
+// cargo kg stands (the fallback).
 function careerStopRecord(o) {
   o = o || {};
   const occ = Math.max(0, Math.round(+o.occupants || 0));
+  const items = Array.isArray(o.items) && o.items.length && typeof freightItem === 'function' ? freightSplit(o.items) : null;
+  const load = items ? { kg: freightKg(items), pax: Math.max(0, occ - 1), items }
+                     : { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) };
   return {
     how: o.how || 'stopped',
     aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,
     wrecked: !!o.wrecked, slot: o.slot || null, gear: o.gear || null,
-    load: { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) },
+    load,
     row: { from: (o.row && o.row.from) || null, to: (o.row && o.row.to) || null, t: Math.max(0, Math.round(+(o.row && o.row.t) || 0)) },
     overflew: Array.isArray(o.overflew) ? o.overflew.slice() : [],
     hour: (typeof o.hour === 'number' && isFinite(o.hour)) ? Math.round(o.hour * 100) / 100 : null,
@@ -40218,7 +41805,11 @@ function careerTrackedLoad(doc) {
   const st = rec && rec.stages[L.stage];
   if (!st) return null;
   const j = st.subs.findIndex((s, i) => !L.subs[i] && s.load);
-  return j < 0 ? null : { kg: st.subs[j].load.kg || 0, pax: st.subs[j].load.pax || 0, sub: j };
+  if (j < 0) return null;
+  const out = { kg: st.subs[j].load.kg || 0, pax: st.subs[j].load.pax || 0, sub: j };
+  // (G2340 FREIGHT) the items the job's load is (what FREIGHT-LOAD packs and the stop record carries)
+  if (typeof freightSubItems === 'function') { const it = freightSubItems(st.subs[j], rec); if (it.length) out.items = it; }
+  return out;
 }
 // the tracked build contract's criteria that need the acceptance LEG (a cruise flown: tasKmh, enduranceMin,
 // rangeKm) -> [crit] (empty when nothing tracked, not a build, or none flown)
@@ -40289,8 +41880,2552 @@ function careerEventLines(res, before, after) {
   return out;
 }
 const cwMoney = n => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+// ============================================================
+// 76_stages.js - THE BUILDINGS THAT MISSIONS PUT UP: the career's side of the premises' `stage` (G2300-G2309 STAGES,
+// GAME-2026-10-06.md §11; the record's side is 27_premises.js stageView / stageIssues, contract v1.33).
+//
+// A track (72_contract_data.js CONTRACT_TRACKS: field 2, minedock 4, resort 3, survey 3, clients 2) is a small integer in
+// the career document (`career.tracks`), advanced by a contract's `unlock: { stage: '<track>:<n>' }` (74_career.js
+// careerComplete). The world record stands an element only while its track lies in the element's band. This file:
+//   stageTracksOf(doc)          the tracks a composition reads: the career's, or NULL - the sandbox, every track at its max
+//   stageMaxes()                { track: max } from CONTRACT_TRACKS (the sandbox's law, stageIssues' second argument)
+//   stageKey(tracks)            the composition's key ('sandbox' | 'field:1,minedock:0,...'): what the roll-out compares
+//   STAGE_REVEALS               every arc unlock '<track>:<n>' -> where it is seen and what is said (a trk.* text key);
+//                               world: false - nothing in the world changes at it in this train (said, never hidden)
+//   stageRevealsBetween(a, b)   the unlocks a composition at b shows that one at a did not, in track order
+//   stageReveal(rec, frame, u)  the camera target of one unlock: the centre of the elements that start standing (or vary)
+//                               at it, in the world (a site's items, a kit, a runway's centre), and the shot's eye
+//   STAGE_PHASES / stageHost()  THE QUEUE: a stage change is applied at a COMPOSITION - the load, a roll-out, a roll-in
+//                               (the house worker's path) - and NEVER IN FLIGHT: noted while flying it waits, queued, for
+//                               the next composition (the trip lessons, HYBRID-TRIPS / LOC-SWITCH: the world never moves
+//                               under a flying aeroplane; a runway's length is physics - terrainH, surfaceAt)
+// Pure: no DOM, no THREE, no storage, no clock. GATE STAGES (tools/_stages_check.js).
+// ============================================================
+
+// ---- THE REVEALS: one per arc unlock (GATE STAGES: complete over every arc of every provider) ------------------------
+// at: the aerodrome the reveal plays at (the roll-out from there, or the next one anywhere); caption: the track's own
+// stage text (CONTRACT_TEXT trk.*); world: whether the record changes at this value. The camera target is not written
+// here - it is READ off the record (stageReveal), so a moved building moves its shot.
+const STAGE_REVEALS = {
+  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: true },    // the second hangar's plot: the building site
+  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: true },    // the second hangar restored (the club's long hangar)
+  'minedock:1': { at: 'mn_strip', caption: 'trk.minedock.1', world: true },    // the mill's (the headframe's) frame going up
+  'minedock:2': { at: 'mn_strip', caption: 'trk.minedock.2', world: true },    // the mill and the ore shed
+  'minedock:3': { at: 'SEA',      caption: 'trk.minedock.3', world: true },    // the dock's site on the shore
+  'minedock:4': { at: 'SEA',      caption: 'trk.minedock.4', world: true },    // the harbour: the cannery shed (the cold store), the sheds
+  'resort:1':   { at: 'tw_ski',   caption: 'trk.resort.1',   world: true },    // the lodge's site
+  'resort:2':   { at: 'tw_ski',   caption: 'trk.resort.2',   world: true },    // the Summit Lodge
+  'resort:3':   { at: 'tw_ski',   caption: 'trk.resort.3',   world: true },    // the altiport lengthened, 320 m -> 380 m
+  'survey:1':   { at: 'nv_strip', caption: 'trk.survey.1',   world: true },    // East Point: the windsock and the tie-down spots
+  'survey:2':   { at: 'nv_strip', caption: 'trk.survey.2',   world: false },   // (no station building exists today: HANDOVER G2300)
+  'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
+  'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
+  'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+};
+// the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
+// caption's time on screen
+const STAGE_SHOT = { dist: 70, el: 0.32, ms: 4500 };
+
+function stageMaxes() {
+  const out = {};
+  if (typeof CONTRACT_TRACKS === 'object') for (const t of Object.keys(CONTRACT_TRACKS)) out[t] = CONTRACT_TRACKS[t].max;
+  return out;
+}
+// the tracks a composition reads: a career document's (the page's dev career, a v2 player document with `career`, or
+// the career block itself), else null - the sandbox
+function stageTracksOf(doc) {
+  const c = doc && (doc.career || (doc.tracks ? doc : null));
+  if (!c || !c.tracks || typeof c.tracks !== 'object') return null;
+  const out = {};
+  for (const t of Object.keys(stageMaxes())) out[t] = Math.max(0, Math.floor(+c.tracks[t] || 0));
+  return out;
+}
+function stageKey(tracks) {
+  if (!tracks) return 'sandbox';
+  return Object.keys(tracks).sort().map(t => t + ':' + tracks[t]).join(',');
+}
+const stageVal = (tracks, t) => (tracks && isFinite(+tracks[t]) ? +tracks[t] : (stageMaxes()[t] !== undefined ? stageMaxes()[t] : Infinity));
+function stageRevealsBetween(a, b) {
+  const out = [], M = stageMaxes();
+  for (const t of Object.keys(M)) {
+    const va = stageVal(a, t), vb = stageVal(b, t);
+    for (let n = Math.max(1, va + 1); n <= Math.min(vb, M[t]); n++) out.push(Object.assign({ unlock: t + ':' + n, track: t, n }, STAGE_REVEALS[t + ':' + n] || { at: null, caption: null, world: false }));
+  }
+  return out;
+}
+// THE ELEMENTS OF ONE UNLOCK, read off the WHOLE record: every element (or item) of the track whose band, or one of
+// whose vary bands, starts at n or ends at n - 1 - what the composition at n shows that the one at n - 1 did not
+function stageElementsAt(rec, track, n) {
+  const PG = typeof PREMISES_GEN !== 'undefined' ? PREMISES_GEN : null;
+  const band = s => (PG ? PG.stageBand(s) : [s.show ? s.show[0] : 0, s.show ? s.show[1] : null]);
+  const hits = (st) => {
+    if (!st || st.track !== track) return false;
+    const b = band(st);
+    if (b[0] === n || (b[1] !== null && b[1] === n - 1)) return true;
+    for (const q of st.vary || []) { const v = band(q); if (v[0] === n || (v[1] !== null && v[1] === n - 1)) return true; }
+    return false;
+  };
+  const out = [];
+  for (const L of Object.keys(rec.layers || {})) for (const e of rec.layers[L] || []) {
+    if (!e) continue;
+    if (hits(e.stage)) out.push({ layer: L, e });
+    if (L === 'sites') for (const it of e.items || []) if (it && hits(it.stage)) out.push({ layer: 'items', site: e, e: it });
+  }
+  return out;
+}
+// an element's point in the record's frame (the site's frame law: siteFrame)
+function stagePointOf(h) {
+  const e = h.e;
+  if (h.layer === 'items') { const a = h.site.at || { x: 0, z: 0, yaw: 0 }, c = Math.cos(a.yaw || 0), s = Math.sin(a.yaw || 0); return [a.x + e.x * c + e.z * s, a.z - e.x * s + e.z * c]; }
+  if (h.layer === 'sites') return e.at ? [e.at.x, e.at.z] : null;
+  if (h.layer === 'runways') return e.c ? [e.c[0], e.c[1]] : null;
+  if (e.poly && e.poly.length) { let x = 0, z = 0; for (const q of e.poly) { x += q[0] / e.poly.length; z += q[1] / e.poly.length; } return [x, z]; }
+  return isFinite(+e.x) && isFinite(+e.z) ? [+e.x, +e.z] : null;
+}
+// the reveal of one unlock: the target (the centre of what changes, in the world: `frame` = a composed overlay's frame,
+// toWorld; absent - the record's frame), the eye (STAGE_SHOT, looking from the south-east of it unless `az` given),
+// the caption key; null when nothing in the record changes at it (world: false)
+function stageReveal(rec, frame, unlock) {
+  const m = /^(\w+):(\d+)$/.exec(unlock || ''); if (!m) return null;
+  const R = STAGE_REVEALS[unlock] || {};
+  const hs = stageElementsAt(rec, m[1], +m[2]), pts = hs.map(stagePointOf).filter(Boolean);
+  if (!pts.length) return null;
+  let x = 0, z = 0; for (const p of pts) { x += p[0] / pts.length; z += p[1] / pts.length; }
+  const w = frame && frame.toWorld ? frame.toWorld(x, z) : [x, z];
+  return { unlock, at: R.at || null, caption: R.caption || null, x: +w[0].toFixed(2), z: +w[1].toFixed(2), y: null,
+           ids: hs.map(h => (h.layer === 'items' ? h.site.id + '/' : '') + h.e.id), dist: STAGE_SHOT.dist, el: STAGE_SHOT.el, az: 0.8, ms: STAGE_SHOT.ms };
+}
+
+// ---- THE QUEUE: never in flight -----------------------------------------------------------------------------------
+// The page holds one: stageHost({ tracks: the tracks composed at load }). note(tracks, phase) when the career's tracks
+// change (careerOnStop's unlock events) - in 'flight' it only queues; at('load' | 'rollout' | 'rollin') answers what to
+// compose: { apply: tracks | null, reveals: [...] } and takes the queue. A flight's stop is still 'flight' (the world
+// the aeroplane stands in is the one it flew in); the next roll-out or roll-in composes.
+const STAGE_PHASES = ['load', 'rollout', 'rollin', 'flight'];
+function stageHost(o) {
+  const st = { composed: (o && o.tracks) || null, pending: null, log: [] };
+  return {
+    get composed() { return st.composed; }, get pending() { return st.pending; }, log: st.log,
+    note(tracks, phase) {
+      if (STAGE_PHASES.indexOf(phase) < 0) throw new Error('stages: unknown phase ' + phase);
+      const want = tracks || null;
+      if (stageKey(want) === stageKey(st.pending || st.composed)) return { queued: false, apply: null };
+      if (phase === 'flight') { st.pending = want; st.log.push({ phase, key: stageKey(want), queued: true }); return { queued: true, apply: null }; }
+      st.pending = want; return this.at(phase);
+    },
+    at(phase) {
+      if (STAGE_PHASES.indexOf(phase) < 0) throw new Error('stages: unknown phase ' + phase);
+      if (phase === 'flight' || !st.pending || stageKey(st.pending) === stageKey(st.composed)) { if (phase !== 'flight') st.pending = null; return { apply: null, reveals: [] }; }
+      const from = st.composed, to = st.pending;
+      st.composed = to; st.pending = null;
+      st.log.push({ phase, key: stageKey(to), applied: true });
+      return { apply: to, reveals: stageRevealsBetween(from, to) };
+    },
+  };
+}
+// ===========================================================================
+// THE ECONOMY (G2260 ECONOMY, P5a) — ONE PRICE BOOK, THE CAREER WALLET'S
+// RULES, THE CALIBRATION AS DATA, AND THE REFERENCE CAREER THAT HOLDS IT.
+// futureDesigns/GAME-2026-10-06.md §R (binding: G-COST no running costs,
+// contracts pay net, hangars bought never rented, a pilot's one-time sign-on
+// fee, GQ5 bring-it-home free, GQ6 no bankruptcy + the Trust's loan job below
+// -20 000, GQ23 the 60 000 grant + a Cub voucher), §12, §15 row 8;
+// DEFORM-AND-BREAK §10 + dm9-dm12 (the repair bill, charged on Repair).
+// ===========================================================================
+// CREDITS ARE NOT DOLLARS. Every price here is a RATIO to the one number the
+// game already prices honestly: the ledger's airframe (genFrame's bill of
+// materials, genShakedown `cost`). The reference is the stock Cub's ledger
+// (CONTRACT_DESIGNS.cub.cost, re-derived from its build file by GATE
+// CONTRACTS each run): a field shed, a kit, a sign-on fee, a maker's margin
+// are so many Cubs, and move with it.
+//
+// WHAT COSTS MONEY (G-COST): airframes (materialised from the drawing board,
+// or a maker's catalogue), hangars (bought), kits and upgrades, a pilot's
+// sign-on fee, repairs. NOTHING ELSE: no fuel, no maintenance reserve, no
+// wage, no rent, no landing fee, no recovery (GQ5). A career's ledger holds
+// grant / contract / loan lines (income) and purchase / repair lines
+// (spending); `econLedgerClass` names each line's class, and a line of any
+// other class is a running cost (GATE ECON refuses one).
+//
+// THE WALLET'S RULE (GQ6): a PURCHASE needs the cash (refused, the same
+// document handed back, with why). Only a NON-CHOICE may take the wallet
+// below 0: the repair of the career's LAST flyable airframe (without it the
+// career cannot work - the crash was not a choice). Below ECON_BOOK.loanBelow
+// (-20 000) the Field Trust offers its LOAN JOB: a CONTRACT-MODEL record,
+// kind 'job', provider 'field', that any airframe can fly, paying the wallet
+// back to ECON_BOOK.loanTo.
+//
+// THE SANDBOX RECORDS, NEVER CHARGES (71_ playerCharge): every rule below in
+// a sandbox document writes its "would cost" line `free: true` and leaves the
+// wallet alone; the page's sandbox calls none of them (byte for byte today's).
+//
+// Pure: no DOM, storage, THREE, clock or random (GATE ECON scans for each).
+// ===========================================================================
+const ECON_V = 1;
+
+// ---- THE PRICE BOOK ---------------------------------------------------------------------------------------------
+//   ref          the reference airframe: CONTRACT_DESIGNS[ref].cost (the ledger's stock Cub, ~31 200)
+//   shells       a hangar shell bought on a plot: x the reference, x the plot's price factor (BASE_OFFERS pf).
+//                A field shed (one aeroplane, honestly) is ~1.5 Cubs, a club ~3, the works ~5 - property costs
+//                more than the aeroplane it shelters, and is never rented (G-COST)
+//   kits         a kit fitted (nothing refunds a kit): x the reference. The workshop kits are what buys the
+//                labour factor (PREM_RATES.labourFit 0.8 against 1.0) - the metal shop pays for itself within
+//                its first C172-class airframe, the woodshop within its first few wooden ones
+//   makerMargin  a maker's catalogue price = the scratch price (the ledger in a fully fitted works: x labourFit)
+//                x this margin - PROCURE's catalogue; what you pay a maker for not building it yourself
+//   signOn       a pilot's ONE-TIME sign-on fee by tier (G-COST: no wage), x the reference - PILOTS' roster
+//   repairLabour the repair bill's labour factor: DMG-D5's bill (per section + the event lines, §10) x this
+//                x the hangar's labour factor (playerLabourFactor: where the aeroplane is repaired)
+//   round        every price rounds to this
+//   loanBelow    GQ6: the Trust's loan job is offered while the wallet is BELOW this
+//   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
+const ECON_BOOK = {
+  ref: 'cub',
+  shells: { field: 1.8, club: 3.2, works: 5.4 },
+  kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
+          office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
+  makerMargin: 1.35,
+  signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
+  repairLabour: 1.0,
+  round: 100,
+  loanBelow: -20000,
+  loanTo: 0,
+  loanRound: 1000,
+};
+const econRound = v => Math.round((+v || 0) / ECON_BOOK.round) * ECON_BOOK.round;
+// the reference airframe's ledger price (the unit every ratio is in)
+function econRefPrice() {
+  const D = (typeof CONTRACT_DESIGNS !== 'undefined') && CONTRACT_DESIGNS[ECON_BOOK.ref];
+  return D ? D.cost : 31203;
+}
+// a hangar shell's price before the plot's factor (71_ shellPrice reads this: the club is the starter at HOME,
+// and a club bought elsewhere is priced like any other shell)
+function econShellPrice(shell) {
+  const r = ECON_BOOK.shells[shell];
+  return typeof r === 'number' ? econRound(r * econRefPrice()) : NaN;
+}
+// what a kit costs to fit (71_ playerUpgradeCost reads KIT_PRICES): the book's ratios, as credits
+const KIT_PRICES = (() => {
+  const o = {};
+  for (const k of Object.keys(ECON_BOOK.kits)) o[k] = econRound(ECON_BOOK.kits[k] * econRefPrice());
+  return o;
+})();
+
+// ---- AIRFRAMES -------------------------------------------------------------------------------------------------
+// the ledger's total: genFrame's bill per section (def.parts.ledger: { <section>: { mass, cost } }) - what
+// genShakedown reports as `cost`
+function econLedgerCost(ledger) {
+  let c = 0;
+  for (const k of Object.keys(ledger || {})) { const e = ledger[k]; if (e && isFinite(+e.cost)) c += +e.cost; }
+  return Math.round(c);
+}
+// THE AIRFRAME PRICE: a design materialised from the drawing board in the main hangar = the ledger x the main
+// hangar's labour factor for what the design wants (hangarWants: wood, tube, metal, composite) - a fully fitted
+// works builds at 0.8, a shed short of the verb at 1.0
+function econAirframePrice(cost, shed, wants) {
+  const L = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed || null, wants || []) : 1;
+  return econRound((+cost || 0) * L);
+}
+// THE MAKERS' CATALOGUE PRICE (PROCURE): the scratch price (the ledger in a fully fitted works) x the margin
+function econCatalogPrice(cost, margin) {
+  const m = typeof margin === 'number' && margin > 0 ? margin : ECON_BOOK.makerMargin;
+  return econRound((+cost || 0) * PREM_RATES.labourFit * m);
+}
+// A PILOT'S SIGN-ON FEE (PILOTS): one time, by tier ('rookie' | 'pilot' | 'ace'); unknown tiers cost a pilot's
+function econSignOn(tier) {
+  const r = ECON_BOOK.signOn[tier];
+  return econRound((typeof r === 'number' ? r : ECON_BOOK.signOn.pilot) * econRefPrice());
+}
+// THE REPAIR (dm9): DMG-D5's bill [{ section | event, line, cost }] x the repair labour x the hangar's labour
+// factor (the hangar the aeroplane stands in; away from yours: labourAway)
+function econRepairCost(bill, labour) {
+  const sum = (Array.isArray(bill) ? bill : []).reduce((a, l) => a + (l && isFinite(+l.cost) ? +l.cost : 0), 0);
+  const L = typeof labour === 'number' && labour > 0 ? labour : 1;
+  return econRound(sum * ECON_BOOK.repairLabour * L);
+}
+
+// ---- THE LEDGER'S CLASSES (G-COST: no running cost anywhere) ---------------------------------------------------
+// Every ledger kind the game writes, by class. income: grant, contract, loan. purchase: an airframe, a hangar
+// (acquire), its upgrades / kits (upgrade), a sign-on fee. repair: a bill paid. free: a "bring it home" (GQ5:
+// always 0) and a hangar released (a refund). Anything else is a running cost.
+const ECON_LEDGER = {
+  grant: 'grant', contract: 'contract', loan: 'loan',
+  airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
+  repair: 'repair',
+  recover: 'free', release: 'free',
+};
+const econLedgerClass = k => ECON_LEDGER[k] || null;
+
+// ---- THE WALLET'S DOORS (pure; { ok, doc, why, cost }; a refusal hands back the very document) -----------------
+const ecClone = o => JSON.parse(JSON.stringify(o));
+const ecNo = (doc, why) => ({ ok: false, doc, why });
+// can the wallet take this purchase? (the sandbox always can: it records)
+const econAfford = (doc, cost) => !doc || doc.mode !== 'career' || doc.wallet >= cost;
+// A PURCHASE: needs the cash in a career (GQ6); the sandbox records it free. k: a purchase kind of ECON_LEDGER.
+function econBuy(doc, cost, k, ref) {
+  cost = Math.max(0, Math.round(+cost || 0));
+  if (econLedgerClass(k) !== 'purchase') return ecNo(doc, k + ' is not a purchase');
+  if (!econAfford(doc, cost)) return ecNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', this costs ' + cost);
+  const d = ecClone(doc);
+  playerLedger(d, k, cost, ref);
+  return { ok: true, doc: d, cost, why: '' };
+}
+// MATERIALISING A DESIGN (the first Save of a new airframe): the airframe price, from the ledger and the main
+// hangar; the career's airframe row remembers what it cost (`paid`) and how it was made (PROCURE: 'catalogue')
+function econMaterialise(doc, slot, cost, wants, opts) {
+  opts = opts || {};
+  const main = doc && doc.sheds && doc.sheds[PREM_MAIN];
+  const price = opts.price != null ? Math.round(opts.price) : econAirframePrice(cost, main, wants);
+  const r = econBuy(doc, price, opts.k || 'airframe', slot);
+  if (!r.ok) return r;
+  const C = r.doc.career;
+  if (C && C.airframes && typeof C.airframes === 'object')
+    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) });
+  return { ok: true, doc: r.doc, cost: price, why: '' };
+}
+// a hangar bought (71_ playerAcquire: needs the cash) / changed (playerUpgrade: shell, size, kits)
+const econAcquire = (doc, aero, plot, shell) => playerAcquire(doc, aero, plot, shell, 'own');
+const econUpgrade = (doc, hangarId, change, opts) => playerUpgrade(doc, hangarId, change, opts);
+// the airframes in the fleet that could fly now (a damaged one is grounded until repaired: dm10)
+const econFlyable = doc => Object.keys((doc && doc.fleet) || {}).filter(n => !(doc.fleet[n] && doc.fleet[n].damage && doc.fleet[n].damage.damaged));
+// THE REPAIR (dm9, dm10): charged only on an explicit Repair, the bill x the labour where it stands. A purchase-
+// like choice (needs the cash) EXCEPT for the career's last flyable airframe (no other aeroplane could earn the
+// money: GQ6's non-choice) - that one may take the wallet below 0, and the Trust's loan job follows. A write-off
+// has no Repair (dm10). The fleet row's `damage` (D5's record) is cleared; the wear resets (G2230).
+function econRepair(doc, slot, opts) {
+  opts = opts || {};
+  const e = doc && doc.fleet && doc.fleet[slot];
+  if (!e) return ecNo(doc, slot + ' is not in the fleet');
+  const D = e.damage;
+  if (!D || !D.damaged) return ecNo(doc, slot + ' is not damaged');
+  if (D.writeOff) return ecNo(doc, slot + ' is a write-off: scrap it or sell it as salvage');
+  const W = playerWhere(doc, slot);
+  const shed = W.kind === 'in' ? doc.sheds[W.hangar] : null;
+  const labour = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed, opts.wants || []) : 1;
+  const cost = econRepairCost(D.bill, labour);
+  const last = econFlyable(doc).length === 0;
+  if (!last && !econAfford(doc, cost)) return ecNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the repair costs ' + cost);
+  let d = ecClone(doc);
+  playerLedger(d, 'repair', cost, slot);
+  delete d.fleet[slot].damage;
+  if (typeof playerWearReset === 'function') d = playerWearReset(d, slot).doc;
+  return { ok: true, doc: d, cost, labour, last, why: '' };
+}
+
+// ---- THE TRUST'S LOAN JOB (GQ6) ----------------------------------------------------------------------------------
+// Offered while the wallet is below ECON_BOOK.loanBelow (74_ careerOfferIds asks econLoanOffer). A job record
+// (CONTRACT-MODEL's shape, kind 'job', provider 'field'): a short errand from HOME to Tamgas Hill that every
+// validated design on wheels can fly, paying the wallet back up to loanTo. Its id carries the loans taken
+// (`loan:field:<n>`), so a second loan is a new job; its pay is fixed when it is offered (careerAccept snapshots a
+// job as offered), and completed it writes a `loan` ledger line (74_ careerComplete reads rec.loan).
+const ECON_TEXT = {
+  'job.field.loan.title': { t: 'The Trust stands by you', draft: true },
+  'job.field.loan.brief': { t: 'The Field Trust has an errand to {to}, and an advance against it. Fly it and start again.', draft: true },
+};
+if (typeof CONTRACT_TEXT !== 'undefined') for (const k of Object.keys(ECON_TEXT)) if (!CONTRACT_TEXT[k]) CONTRACT_TEXT[k] = ECON_TEXT[k];
+const econLoans = doc => ((doc && doc.ledger) || []).filter(l => l && l.k === 'loan').length;
+function econLoanOffer(doc) {
+  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow)) return null;
+  return 'loan:field:' + (econLoans(doc) + 1);
+}
+function econLoanPay(wallet) {
+  const R = ECON_BOOK.loanRound;
+  return Math.max(R, Math.ceil((ECON_BOOK.loanTo - (+wallet || 0)) / R) * R);
+}
+function econLoanJob(doc, id) {
+  if (!/^loan:field:\d+$/.test(id || '')) return null;
+  const rec = contractNormalise({
+    id, provider: 'field', kind: 'job', title: 'job.field.loan.title', brief: 'job.field.loan.brief', loan: true,
+    stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 10, pax: 0 } }] }],
+    pay: { base: 0 }, rep: { provider: 'field', gain: 0 }, repeat: false,
+  });
+  rec.pay = Object.assign(contractPay(rec), { total: econLoanPay(doc ? doc.wallet : 0) });
+  return rec;
+}
+
+// ---- THE CALIBRATION (stated as data, held by GATE ECON) ---------------------------------------------------------
+// With CONTRACT-MODEL's pay (CONTRACT_PAY: ECONOMY's since G2260), a career that flies the matched validated
+// design reaches, in CONTRACTS COMPLETED (not hours: there are no running costs):
+// (G2430 CONTRACT-ROUTES, RE-DERIVED) most jobs are now chains of two legs (73_ contractJob's shapes), so a contract
+// is ~1.7 legs where it was ~1.35, and pays per leg (+ a 10 % chain bonus). Measured on the reference careers below,
+// THE PACE IN LEGS FLOWN DID NOT MOVE (the first hangar at 12 legs, the C172 at 27-31 before / 30-31 after, the
+// arc at 28-32 / 31-32, the second hangar at 35-38 / 36-38); only the unit did. The brief's bands (G2260: 6-10,
+// 15-25, 25-35, 20-40) are scaled by the measured contracts-per-leg ratio, 0.78 (the reference's 21-22 / 26-28 / 22-23
+// contracts at the airframe / hangar2 / arc before, 17-18 / 21-22 / 18-19 after); the first hangar is unchanged (it
+// is bought inside the arc-only opening, 8 contracts both ways).
+const ECON_BANDS = {
+  hangar1:  [6, 10],     // the first side hangar
+  airframe: [12, 20],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
+  hangar2:  [20, 27],    // the second side hangar                                                         (G2260: 25-35)
+  arc:      [16, 31],    // a full arc: the first provider whose whole arc is complete (its track at its last stage) (G2260: 20-40)
+};
+// THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
+//   start   careerNew (GQ23: the 60 000 grant, the voucher Cub - the fleet's first airframe, free)
+//   float   the grant is the career's FLOAT - its first airframe of its own, a build contract's airframe, a
+//           repair - and the milestones are bought from what contracts pay: a purchase is made the moment the
+//           wallet would keep the float after it. (A player may spend the grant on a hangar on day one - the
+//           wallet allows it; the bands measure the pace of the work, not the grant.)
+//   fly     each completed contract is ONE contract: the next arc contract the fleet can physically fly (the
+//           providers in order: the story is what a player follows), else the best-paying job the fleet can fly
+//           (ties by id); flown by the design that can do it (contractDoers within the fleet). Build contracts
+//           are left out (their airframe is the player's own design: their pay is held against it separately)
+//   buy     in order: a field shed at Tamgas Hill (w3), the C172-class airframe (scratch in the main hangar),
+//           a field shed at Skyline (tw_ski)
+//   seeds   the bands hold on every one of these career seeds
+const ECON_REF = {
+  seeds: ['jolene', 'dev', 'econ-a', 'econ-b', 'econ-c', 'econ-d', 'econ-e', 'econ-f'],
+  max: 60,
+  wish: [
+    { m: 'hangar1', k: 'acquire', aero: 'w3', plot: 'w3', shell: 'field' },
+    { m: 'airframe', k: 'airframe', design: 'c172' },
+    { m: 'hangar2', k: 'acquire', aero: 'tw_ski', plot: 'tw_ski', shell: 'field' },
+  ],
+  // what each validated design wants of a hangar (hangarWants on its build file; GATE ECON re-derives it)
+  wants: { cub: ['tube'], jodel: ['wood'], c172: ['metal'], c172f: ['metal'], twinf: ['tube'] },
+  hour: 12,
+};
+
+// the stops that fly one sub (the journey's synthesis: GATE CONTRACTS' own)
+function ecStopsFor(sub, hour) {
+  const stop = (aero, o) => Object.assign({ how: 'stopped', aero, load: { kg: 0, pax: 0 }, row: { from: null, to: aero, t: 600 }, hour }, o || {});
+  const ld = () => ecClone(sub.load || { kg: 0, pax: 0 });
+  if (sub.do === 'carry') return [stop(sub.from, { load: ld(), row: { from: 'HOME', to: sub.from, t: 600 } }), stop(sub.to, { load: ld(), row: { from: sub.from, to: sub.to, t: 600 } })];
+  if (sub.do === 'land') return [stop(sub.to, { row: { from: 'HOME', to: sub.to, t: 600 } })];
+  if (sub.do === 'fly') return [stop(sub.to, { row: { from: sub.from, to: sub.to, t: sub.medals ? Math.min(...sub.medals.map(m => m.le)) - 1 : 600 } })];
+  if (sub.do === 'survey') return [stop(sub.from, { row: { from: sub.from, to: sub.from, t: 600 }, overflew: [sub.at] })];
+  return [stop(sub.to, { row: { from: 'HOME', to: sub.to, t: 600 } })];
+}
+const ecFlying = rec => contractSubsOf(rec).filter(s => s.do !== 'deliver' && s.do !== 'accept');
+function ecCanFly(rec, fleet) {
+  if (!rec || rec.kind === 'build') return null;
+  const DS = {};
+  for (const k of fleet) if (CONTRACT_DESIGNS[k]) DS[k] = CONTRACT_DESIGNS[k];
+  for (const st of rec.stages) { if (!contractDoers(st.subs.filter(s => s.do !== 'deliver' && s.do !== 'accept'), null, DS).length) return null; }
+  return contractDoers(ecFlying(rec), null, DS)[0] || Object.keys(DS)[0];
+}
+// THE POLICY: the next arc contract the fleet can fly (providers in order), else the best-paying job
+function econRefPick(doc, fleet) {
+  const ids = careerOfferIds(doc), A = contractAuthored();
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) {
+    const id = ids.find(x => A[x] && CONTRACT_PROVIDERS[p].arc.some(r => r.id === x));
+    if (id && ecCanFly(A[id], fleet)) return id;
+  }
+  let best = null, bp = -1;
+  for (const id of ids.slice().sort()) {
+    const r = careerContract(doc, id);
+    if (!r || r.kind !== 'job' || !ecCanFly(r, fleet)) continue;
+    const p = contractPay(r).total;
+    if (p > bp) { best = id; bp = p; }
+  }
+  return best;
+}
+// fly one contract to its completion (synthesised stops; ACCEPT's hook approving) -> the document
+function econRefFly(doc, id, hour) {
+  let d = careerAccept(doc, id).doc;
+  const rec = careerContract(d, id), hooks = { acceptVerdict: () => ({ ok: true, got: {} }) };
+  for (const st of rec.stages) for (const sub of st.subs) for (const s of ecStopsFor(sub, hour)) {
+    const q = contractOnStop(d, id, s, hooks);
+    if (q.ok) d = q.doc;
+  }
+  return d;
+}
+// THE REFERENCE CAREER -> { at: { hangar1, airframe, hangar2, arc } (the completed count at each), arcBy, pays,
+// spent, doc }. Deterministic: f(seed) and the tables.
+function econReference(seed, opts) {
+  opts = opts || {};
+  const R = Object.assign({}, ECON_REF, opts.ref || {});
+  let d = careerNew({ id: 'ref', seed });
+  const fleet = ['cub'];
+  const float = CAREER_GRANT, at = {}, pays = [];
+  let wi = 0, spent = 0, arcBy = null;
+  const priceOf = w => w.k === 'acquire' ? plotPrice(w.aero, w.plot, w.shell)
+    : econAirframePrice(CONTRACT_DESIGNS[w.design].cost, d.sheds[PREM_MAIN], R.wants[w.design]);
+  for (let n = 0; n < R.max; n++) {
+    const id = econRefPick(d, fleet);
+    if (!id) break;
+    const before = d.career.contracts.done.length;
+    d = econRefFly(d, id, R.hour);
+    const done = d.career.contracts.done;
+    if (done.length !== before + 1) break;                      // a contract the synthesis could not complete
+    pays.push(done[done.length - 1].pay);
+    if (at.arc == null) {
+      for (const p of Object.keys(CONTRACT_PROVIDERS)) {
+        const arc = CONTRACT_PROVIDERS[p].arc.filter(r => contractCertifiable(contractAuthored()[r.id]));
+        if (arc.length && arc.every(r => done.some(x => x.id === r.id))) { at.arc = done.length; arcBy = p; break; }
+      }
+    }
+    while (wi < R.wish.length) {
+      const w = R.wish[wi], price = priceOf(w);
+      if (d.wallet - price < float) break;
+      const r = w.k === 'acquire' ? econAcquire(d, w.aero, w.plot, w.shell)
+        : econBuy(d, price, 'airframe', w.design);
+      if (!r.ok) break;
+      d = r.doc; spent += price; at[w.m] = done.length;
+      if (w.k === 'airframe') fleet.push(w.design);
+      wi++;
+    }
+  }
+  return { at, arcBy, pays, spent, fleet, doc: d };
+}
+// every band, on every reference seed -> [{ seed, at, arcBy, ok, why }]
+function econCalibration(opts) {
+  return ((opts && opts.seeds) || ECON_REF.seeds).map(seed => {
+    const r = econReference(seed, opts);
+    const why = Object.keys(ECON_BANDS).filter(k => !(r.at[k] >= ECON_BANDS[k][0] && r.at[k] <= ECON_BANDS[k][1]))
+      .map(k => k + ' at ' + (r.at[k] == null ? 'never' : r.at[k]) + ', the band ' + ECON_BANDS[k].join('-'));
+    return { seed, at: r.at, arcBy: r.arcBy, ok: !why.length, why, wallet: r.doc.wallet, pays: r.pays };
+  });
+}
+// ===========================================================================
+// PROCUREMENT (G2280 PROCURE) — the three routes to an aeroplane in one pure
+// file: the MAKERS' catalogues over the validated builds (an options sheet
+// per model, priced, factory-certified, delivered to a hangar of yours), the
+// DRAWING BOARD (designs vs airframes) and the USED MARKET (seeded listings,
+// each standing at an aerodrome, bought where it stands).
+// futureDesigns/GAME-2026-10-06.md §R (binding: GQ2 the options sheet and
+// "modified", G-DESIGN, GQ5 a free "bring it home", GQ12 found aeroplanes
+// later, GQ20 fictional organisations), §5.1-§5.4.
+// ===========================================================================
+// THE RULES THIS FILE HOLDS (GATE PROCURE, tools/_procure_check.js, proves each):
+//   VALIDATED ONLY  a model's every design is one of CONTRACT_DESIGNS' five (the user's validated builds, 1 Oct;
+//                   72_contract_data.js, re-derived from the files by GATE CONTRACTS). procureCatalogue() filters on
+//                   it again, so an unvalidated archetype never reaches a screen even if a row slips into the data.
+//   THE OPTIONS     every option value writes EXISTING spec rows — the rows the editor's join reads back, so a bought
+//                   aeroplane is the same aeroplane after the garage opens it (the engine: cage.engPreset + the
+//                   registry row in spec.engines, _cage_join.js's CAGE_JOIN_ENGINES; the tank: energy.vessels[0]
+//                   (capacity, and its drawn box scaled with it); the seats: cage.paxAbreast + the cabin's seat
+//                   list; the gear: the other validated BUILD (wheels / floats), or the tyre rows (s1R, whProfile)
+//                   + gear.wheelR; the avionics: systems.fit (GEN_SYSTEMS' tiers); the finish: finish.sections'
+//                   tints; the registration: meta.reg). A customised model is an ordinary spec.
+//   THE PRICE       ECONOMY (G2260) owns the price book: every price is asked of `econPrice(kind, item)` when that
+//                   function exists, else of procureEconStub (same signature, this file's stand-in: the ledger ×
+//                   the maker's margin, rounded to 100). The option rows carry their MEASURED ledger delta (`eff`),
+//                   so the stub needs no simulation.
+//   CERTIFIED       a model arrives with its certificate: the validated design's numbers (CONTRACT_DESIGNS) plus
+//                   each chosen option's MEASURED effect (`eff`, genShakedown on the file with that one option —
+//                   GATE PROCURE re-derives every one) — exact for the stock model and any one option, the sum of
+//                   the effects for several (the gate holds the sum within its tolerance of the measured combination).
+//   MODIFIED        the certificate is signed by procureFp (the bench's rule: the spec minus its cosmetic blocks, the
+//                   GEN_SPEC_V / PHYSICS_V tag folded in); a saved spec under another fingerprint is MODIFIED - the
+//                   factory certificate withdrawn, the change billed at build price (dm11: every ledger line the
+//                   edit rebuilt, at its own build price). Paint and registration change nothing.
+//   THE BOARD       designs = the flydiy.build.* slots read as a library (free, shared by the sandbox and careers);
+//                   airframes = the career's `airframes` rows over the fleet ledger (PREM-S2). "Build this design"
+//                   makes an airframe (the ledger's price through econPrice), "Save as design" files an airframe's
+//                   spec. In the sandbox every slot is both (nothing changes there).
+//   THE USED MARKET listings = f(career seed, epoch = floor(completed / 3)) — FNV-1a + mulberry32 (73_'s contractRng),
+//                   at most 4; each a validated model with seeded variations (hours and a past repair: words and
+//                   price only; an older avionics tier and +0-15 kg carried: real spec rows; the paint, the
+//                   registration, a seller line), standing at an aerodrome it can fly from (73_'s gear / strip
+//                   rules on its own certificate), priced catalogue × condition (0.4-0.8).
+//   BUYING          a maker's model is delivered to the main hangar or a side hangar of yours (a delivery fee for a
+//                   side hangar); a used one becomes an airframe STATIONED WHERE IT STOOD (playerArrive: 'away'
+//                   where you hold nothing there), to be flown home or brought home (free, GQ5). The career pays
+//                   (the ledger line `buy`); the sandbox takes it free (the line written at its would-be price,
+//                   `free`, as playerCharge records any sandbox cost). The voucher (GQ23) pays for one stock Cub.
+//
+// Pure: no DOM, no storage, no clock, no random (the gate scans for each). The page (app.js, map_menu.js) hands in
+// the build files' specs, the slot names and the ledgers it measured.
+// ===========================================================================
+const PROCURE_V = 1;
+const PROCURE_MARGIN = 1.15;           // a maker's margin over the ledger (§5.2: a scratch build is ×0.75 of it)
+const PROCURE_USED_MAX = 4;            // at most four listings at once
+const PROCURE_USED_EVERY = 3;          // refreshed after every three completed contracts (CONTRACT_GEN.refreshEvery)
+const PROCURE_COND = [0.4, 0.8];       // a used aeroplane's price: catalogue × condition
+const PROCURE_DELIVERY = { main: 0, side: 400, perKm: 25 };   // a maker's delivery to a side hangar (the stub's)
+const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH_COSMETIC
+// ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
+// energy.vessels by the energy layer - measured on the page, G2280: the stock Cub's 45 came back 29 a frame after the
+// load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
+const PROCURE_READOUTS = ['fuel'];
+const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$/;
+const prClone = o => JSON.parse(JSON.stringify(o));
+const prNo = (doc, why) => ({ ok: false, doc, why });
+const prR100 = n => Math.round((+n || 0) / 100) * 100;
+
+// ---- THE TEXT (keys; plain DRAFT English beside each — the narrative pack replaces it, the keys stay) -------
+const PRT_ = t => ({ t, draft: true });
+const PROCURE_TEXT = {
+  // the makers (GQ20: fictional organisations; no real brand: the gate holds every word against CONTRACT_CONFIG_WORDS)
+  'mk.bramble.name':   PRT_('Bramble Light Aircraft'),
+  'mk.bramble.line':   PRT_('Fabric over steel tube, built for short fields and long days. Two seats, one behind the other.'),
+  'mk.vernier.name':   PRT_('Ateliers Vernier'),
+  'mk.vernier.line':   PRT_('A wood shop that builds aeroplanes: light, quick and kind to its pilot.'),
+  'mk.northline.name': PRT_('Northline Aero'),
+  'mk.northline.line': PRT_('Metal four-seaters for real work, on wheels or on water.'),
+  'mk.driftwood.name': PRT_('Driftwood Ultralights'),
+  'mk.driftwood.line': PRT_('Two small engines, one seat and a pair of floats: the bay is the runway.'),
+  // the models
+  'mdl.scout.name':    PRT_('Bramble Scout'),
+  'mdl.scout.line':    PRT_('The two-seat bush hauler: slow, forgiving, at home on gravel.'),
+  'mdl.pinson.name':   PRT_('Vernier Pinson'),
+  'mdl.pinson.line':   PRT_('Two seats side by side in a wooden fuselage; quicker than it looks.'),
+  'mdl.meridian.name': PRT_('Northline Meridian'),
+  'mdl.meridian.line': PRT_('Four seats and a baggage bay; wheels for the strips, floats for the dock.'),
+  'mdl.tern.name':     PRT_('Driftwood Tern'),
+  'mdl.tern.line':     PRT_('A single seat between two engines, on floats: fish-spotting and survey work.'),
+  // the option rows
+  'opt.engine': PRT_('engine'), 'opt.tank': PRT_('fuel tank'), 'opt.seats': PRT_('seats'), 'opt.gear': PRT_('gear'),
+  'opt.avionics': PRT_('panel and radios'), 'opt.finish': PRT_('finish'), 'opt.reg': PRT_('registration'),
+  'opt.engine.v': PRT_('{n} kW ({k} hp), {c}'),
+  'opt.tank.std': PRT_('standard tank'), 'opt.tank.long': PRT_('long-range: wing-root tanks (+50 %)'),
+  'opt.seats.n': PRT_('{n} seats'), 'opt.seats.3': PRT_('3 seats (one rear seat out, more room for bags)'),
+  'opt.gear.wheels': PRT_('wheels'), 'opt.gear.tundra': PRT_('tundra tyres'), 'opt.gear.floats': PRT_('floats'),
+  'opt.avionics.minimal': PRT_('minimal: day VFR, no radio'), 'opt.avionics.basic': PRT_('basic VFR, a radio'),
+  'opt.avionics.ifr': PRT_('IFR panel and radios'), 'opt.avionics.custom': PRT_('the factory\'s working panel'),
+  'opt.finish.factory': PRT_('factory colours'), 'opt.finish.red': PRT_('signal red'), 'opt.finish.blue': PRT_('harbour blue'),
+  'opt.finish.green': PRT_('forest green'), 'opt.finish.white': PRT_('plain white'),
+  'opt.cool.air': PRT_('air-cooled'), 'opt.cool.liquid': PRT_('liquid-cooled'),
+  // the used market
+  'used.title': PRT_('{m}, {h} hours'),
+  'used.hours': PRT_('{h} hours on the engine since its last overhaul'),
+  'used.repair.none': PRT_('no damage history'),
+  'used.repair.gear': PRT_('the gear was replaced after a hard landing'),
+  'used.repair.prop': PRT_('a new propeller after a prop strike'),
+  'used.repair.wing': PRT_('a wing tip rebuilt after a hangar rash'),
+  'used.repair.skin': PRT_('a skin panel patched after hail'),
+  'used.older': PRT_('an older panel than the factory\'s'),
+  'used.kg': PRT_('{k} kg of extra equipment fitted over the years'),
+  'used.seller.0': PRT_('"She never let me down. I just don\'t fly enough any more."'),
+  'used.seller.1': PRT_('"Selling for a bigger one. Logbooks all there."'),
+  'used.seller.2': PRT_('"It sat a winter outside, but it starts on the second blade."'),
+  'used.seller.3': PRT_('"My late uncle\'s. Make me a fair offer and fly it away."'),
+  'used.seller.4': PRT_('"A club aeroplane, flown hard, looked after."'),
+  'used.seller.5': PRT_('"Bought it for a job that never came. Hardly used."'),
+  'used.where': PRT_('stands at {a}'),
+};
+function procureText(key, vars) {
+  const e = PROCURE_TEXT[key] || (typeof CONTRACT_TEXT !== 'undefined' ? CONTRACT_TEXT[key] : null);
+  let s = e ? e.t : '[' + key + ']';
+  if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+  return s;
+}
+
+// ---- THE MAKERS AND THEIR MODELS --------------------------------------------------------------------------
+// A model: { id, maker, name/line (keys), designs: { <gear value>: CONTRACT_DESIGNS id } (the validated build the
+// options apply to — the first is the stock gear), opts: { <row>: { def, vals: { <value>: { ... } } } } }.
+// An option value: what it writes (`eng`, `tank`, `seats`, `fit`, `tyre`, `tint`, or a gear value naming a
+// design) and `eff`: { <design id>: the MEASURED effect against that design's file (GATE PROCURE re-derives it):
+// { cost, emptyKg, massKg, toM, cruiseKmh, rangeKm, tankL, seats } as deltas }. A value with no `eff` for a
+// design is not offered on it.
+const PROCURE_MAKERS = {
+  bramble:   { id: 'bramble',   name: 'mk.bramble.name',   line: 'mk.bramble.line',   colour: '#d9a441' },
+  vernier:   { id: 'vernier',   name: 'mk.vernier.name',   line: 'mk.vernier.line',   colour: '#b0763f' },
+  northline: { id: 'northline', name: 'mk.northline.name', line: 'mk.northline.line', colour: '#6f93b8' },
+  driftwood: { id: 'driftwood', name: 'mk.driftwood.name', line: 'mk.driftwood.line', colour: '#7fa88f' },
+};
+// the engines a maker lists: the panel's catalogue index (_cage_eng.js PRESET_NAMES) and the registry row the join
+// writes for it (_cage_join.js CAGE_JOIN_ENGINES) — GATE PROCURE holds both to the panel's own tables
+const PROCURE_ENGINES = {
+  a65:   { preset: 'continental A-65',  idx: 0,  type: 'a65_sensenich74' },
+  o200:  { preset: 'continental O-200', idx: 1,  type: 'o200_eprops' },
+  vw:    { preset: 'VW 2180',           idx: 4,  type: 'vw2180_wood' },
+  r912:  { preset: 'rotax 912 (flat)',  idx: 7,  type: 'rotax912_warp' },
+  r582:  { preset: 'rotax 582',         idx: 9,  type: 'rotax582_ivo' },
+  r503:  { preset: 'rotax 503',         idx: 10, type: 'rotax503_wood' },
+  io360: { preset: 'lycoming IO-360',   idx: 2,  type: 'io360_mccauley' },
+  o320:  { preset: 'lycoming O-320',    idx: 17, type: 'o320_mccauley' },
+  o540:  { preset: 'lycoming O-540',    idx: 18, type: 'o540_hartzell' },
+};
+// ...AND THEIR DIALS: the panel's own preset dict (_cage_eng.js applyEngPreset - what choosing the engine in the
+// editor writes), as the A-65's dict + each engine's differences. Without them the panel's load audit reads the old
+// engine's dials under the new index and turns the engine "custom" (measured on the page, G2280); GATE PROCURE holds
+// every dict byte-equal to applyEngPreset's
+const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
+const PROCURE_ENG_DIALS = {
+  a65: {},
+  o200: {eng_rpm: 2750, eng_bore: 0.1031875, eng_stroke: 0.098425},
+  vw: {eng_rpm: 3200, eng_bore: 0.0922, eng_stroke: 0.0818, eng_rockerSpan: 1, eng_genOn: 0},
+  r912: {eng_rpm: 5800, eng_liquid: 1, eng_geared: 1, eng_bore: 0.0795, eng_stroke: 0.0611, eng_airStyle: 1},
+  r582: {eng_rpm: 6500, eng_liquid: 1, eng_geared: 1, eng_arch: 1, eng_cyl: 1, eng_bore: 0.076, eng_stroke: 0.064, eng_twoStroke: 1, eng_exStyle: 3},
+  r503: {eng_rpm: 6800, eng_geared: 1, eng_arch: 1, eng_cyl: 1, eng_bore: 0.072, eng_stroke: 0.072, eng_twoStroke: 1, eng_exStyle: 3},
+  io360: {eng_rpm: 2700, eng_bore: 0.13017499999999999, eng_stroke: 0.111125, eng_rodPos: 1, eng_injected: 1},
+  o320: {eng_rpm: 2700, eng_bore: 0.13017499999999999, eng_stroke: 0.098425, eng_rodPos: 1},
+  o540: {eng_rpm: 2575, eng_cyl: 3, eng_bore: 0.13017499999999999, eng_stroke: 0.111125, eng_rodPos: 1, eng_exStyle: 2},
+};
+// the liveries: a body tint and a wing tint (cosmetic: no fingerprint, no price)
+const PROCURE_TINTS = { red: [0xb5342a, 0xf4f2ea], blue: [0x2b5d8a, 0xe8edf2], green: [0x3f6b45, 0xe9e4d4], white: [0xf2f0ea, 0xf2f0ea] };
+const PROCURE_FINISH = {
+  factory: { tint: null }, red: { tint: 'red' }, blue: { tint: 'blue' }, green: { tint: 'green' }, white: { tint: 'white' },
+};
+const PE_ = o => o;   // (a marker: a measured effect row — GATE PROCURE re-derives it; `--emit` prints the table)
+const PROCURE_MODELS = {
+  scout: {
+    id: 'scout', maker: 'bramble', name: 'mdl.scout.name', line: 'mdl.scout.line', designs: { wheels: 'cub' },
+    opts: {
+      engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { cub: {} } },
+                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 15100, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
+                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 8834, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
+      tank:     { def: 'std', vals: { std: { tank: 1, eff: { cub: {} } },
+                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 836, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
+      gear:     { def: 'wheels', vals: { wheels: { eff: { cub: {} } },
+                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 50, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
+      avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { cub: {} } },
+                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -6355, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 8872, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
+      finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
+    } },
+  pinson: {
+    id: 'pinson', maker: 'vernier', name: 'mdl.pinson.name', line: 'mdl.pinson.line', designs: { wheels: 'jodel' },
+    opts: {
+      engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { jodel: {} } },
+                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 15112, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
+                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -3154, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
+      tank:     { def: 'std', vals: { std: { tank: 1, eff: { jodel: {} } },
+                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 868, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
+      avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { jodel: {} } },
+                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -6360, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 8857, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
+      finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
+    } },
+  meridian: {
+    id: 'meridian', maker: 'northline', name: 'mdl.meridian.name', line: 'mdl.meridian.line', designs: { wheels: 'c172', floats: 'c172f' },
+    opts: {
+      gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
+      engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 50, tankL: 0, seats: 0 }),
+                                                                   c172f: PE_({ cost: -11025, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 40, tankL: 0, seats: 0 }) } },
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 27, tankL: 0, seats: 0 }),
+                                                                     c172f: PE_({ cost: -710, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 24, tankL: 0, seats: 0 }) } } } },
+      tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 728, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 52, tankL: 14.8, seats: 0 }),
+                                                                c172f: PE_({ cost: 724, emptyKg: 7, massKg: 17, toM: 27, cruiseKmh: 2, rangeKm: 60, tankL: 14.8, seats: 0 }) } } } },
+      seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
+                                    3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
+                                                          c172f: PE_({ cost: -1513, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+      avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
+                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -11252, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
+                                                                       c172f: PE_({ cost: -11249, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
+      finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
+    } },
+  tern: {
+    id: 'tern', maker: 'driftwood', name: 'mdl.tern.name', line: 'mdl.tern.line', designs: { floats: 'twinf' },
+    opts: {
+      engine:   { def: 'r582', vals: { r582: { eng: 'r582', eff: { twinf: {} } },
+                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -3103, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
+      tank:     { def: 'std', vals: { std: { tank: 1, eff: { twinf: {} } },
+                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 517, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
+      finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
+    } },
+};
+const PROCURE_EFF_KEYS = ['cost', 'emptyKg', 'massKg', 'toM', 'cruiseKmh', 'rangeKm', 'tankL', 'seats'];
+
+// ---- VALIDATED ONLY ---------------------------------------------------------------------------------------
+const procureValidated = id => !!(typeof CONTRACT_DESIGNS !== 'undefined' && CONTRACT_DESIGNS[id] && CONTRACT_DESIGNS[id].build);
+// the catalogue the screens read: the makers, each with the models whose every design is a validated build; an
+// option value whose effect names no validated design of its model is dropped (never offered)
+function procureCatalogue() {
+  const out = [];
+  for (const mk of Object.keys(PROCURE_MAKERS)) {
+    const models = Object.keys(PROCURE_MODELS).filter(id => PROCURE_MODELS[id].maker === mk)
+      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated));
+    if (models.length) out.push({ maker: mk, models });
+  }
+  return out;
+}
+const procureModelIds = () => [].concat(...procureCatalogue().map(m => m.models));
+
+// ---- THE OPTIONS SHEET --------------------------------------------------------------------------------------
+function procureDefaults(modelId) {
+  const M = PROCURE_MODELS[modelId], o = {};
+  if (!M) return null;
+  for (const r of Object.keys(M.opts)) o[r] = M.opts[r].def;
+  o.reg = '';
+  return o;
+}
+// the design an option set flies on: the gear row's design, else the model's first
+function procureDesignOf(modelId, opts) {
+  const M = PROCURE_MODELS[modelId];
+  if (!M) return null;
+  const g = M.opts.gear, v = g && opts && g.vals[opts.gear];
+  return (v && v.design) || Object.values(M.designs)[0];
+}
+// the gear row of a model whose values name designs is a SWITCH between validated builds (priced by the model line,
+// never as an option); otherwise (the tundra tyres) it is an option like any other
+const prSwitch = (M, r) => r === 'gear' && Object.values(M.opts.gear.vals).some(v => v.design);
+// a value is offered on a design when its effect row names that design
+const prOffered = (M, row, val, design) => !!(M.opts[row] && M.opts[row].vals[val] && (M.opts[row].cosmetic || (M.opts[row].vals[val].eff && M.opts[row].vals[val].eff[design])));
+// a registration: letters, digits and one or two dashes, 3-9 characters
+const procureRegOk = r => typeof r === 'string' && /^[A-Z0-9]{1,3}-?[A-Z0-9]{1,6}$/.test(r) && r.length >= 3 && r.length <= 9;
+// -> { ok, opts (filled: every row a value offered on its design; reg upper-cased), why }
+function procureOpts(modelId, opts) {
+  const M = PROCURE_MODELS[modelId];
+  if (!M || !procureModelIds().includes(modelId)) return { ok: false, opts: null, why: 'no such model on sale: ' + modelId };
+  const o = procureDefaults(modelId), why = [];
+  opts = opts || {};
+  if (opts.gear != null && M.opts.gear && M.opts.gear.vals[opts.gear]) o.gear = String(opts.gear);
+  const design = procureDesignOf(modelId, o);
+  for (const r of Object.keys(M.opts)) {
+    if (opts[r] == null || r === 'gear') continue;
+    const v = String(opts[r]);
+    if (prOffered(M, r, v, design)) o[r] = v;
+    else why.push(r + ' ' + v + ' is not offered on the ' + procureText(M.name) + (M.opts[r] ? ' (' + Object.keys(M.opts[r].vals).join(' / ') + ')' : ''));
+  }
+  for (const r of Object.keys(M.opts)) if (!prOffered(M, r, o[r], design)) o[r] = M.opts[r].def;
+  if (opts.reg) { const g = String(opts.reg).toUpperCase().trim(); if (procureRegOk(g)) o.reg = g; else why.push('registration ' + opts.reg + ' is not a registration'); }
+  return { ok: !why.length, opts: o, why: why.join('; ') };
+}
+// the rows a value writes, on a clone of the design's file spec -> the spec. `base` is the build file's spec
+// (CONTRACT_DESIGNS[design].build; the twin's floats patch applied by procureBaseSpec)
+function procureBaseSpec(design, fileSpec) {
+  const s = prClone(fileSpec && fileSpec.spec ? fileSpec.spec : fileSpec);
+  const D = CONTRACT_DESIGNS[design];
+  if (D && D.patch === 'floats') { s.gear = Object.assign({}, s.gear, { type: 'floats' }); s.cage = Object.assign({}, s.cage, { gearFloats: 1 }); }
+  return s;
+}
+function prWrite(s, row, val) {
+  if (val.eng) {
+    const E = PROCURE_ENGINES[val.eng];
+    s.cage = Object.assign({}, s.cage, PROCURE_ENG_BASE, PROCURE_ENG_DIALS[val.eng], { engPreset: E.idx });
+    s.engines = (s.engines || [{ mount: 'nose', place: { dx: 0, dy: 0 } }]).map(e => { const o = Object.assign({}, e, { type: E.type }); delete o.custom; delete o.sound; return o; });
+  }
+  if (val.tank != null && val.tank !== 1) {
+    // THE LONG-RANGE TANK IS A SECOND TANK IN THE WING ROOTS (GEN_BAYS.wingRoot), never a bigger nose tank: the nose
+    // bay is the cowl deck in front of the pilot's knees, and the energy layer caps a vessel to what fits there
+    // (measured on the page, G2280: a 67.5 L Cub nose tank came back 29 L). The wing roots are where these
+    // aeroplanes carry their extra fuel.
+    s.energy = prClone(s.energy || {});
+    const V = s.energy.vessels = s.energy.vessels || [];
+    const v = V[0];
+    if (v) V.push({ bay: 'wingRoot', capacity: +((+v.capacity || 0) * (val.tank - 1)).toFixed(1), along: null, lv: null, rot: 0, form: 'box',
+                    finish: null, hue: null, tint: null });
+  }
+  if (val.seats != null) {
+    // the rear bay's own abreast (_cage_join.js: perBay = paxAbreast): one seat where the row had two
+    s.cage = Object.assign({}, s.cage, { paxAbreast: val.seats });
+    const c = s.cabin = prClone(s.cabin || {});
+    const n = Math.max(1, (c.seats || 2) - 1);
+    c.seats = n;
+    if (Array.isArray(c.seatsX)) c.seatsX = c.seatsX.slice(0, n);
+    if (Array.isArray(c.occupied)) c.occupied = c.occupied.slice(0, n);
+  }
+  if (val.fit) {
+    const t = (typeof GEN_SYSTEMS !== 'undefined' && GEN_SYSTEMS[val.fit]) || null;
+    s.systems = Object.assign({}, s.systems || {}, { fit: val.fit });
+    delete s.systems.items; delete s.systems.elec; delete s.systems.avionics;
+    if (!t) s.systems.fit = 'basic';
+  }
+  if (val.tyre === 'tundra') {
+    // the bush tyre: the tundra balloon carcass, smooth, a bigger radius (the join measures gear.wheelR off s1R)
+    const r = +(((s.cage && +s.cage.s1R) || (s.gear && s.gear.wheelR) || 0.2) * 1.25).toFixed(3);
+    s.cage = Object.assign({}, s.cage, { whProfile: 1, whTread: 1, s1R: r });
+    s.gear = Object.assign({}, s.gear, { wheelR: r });
+  }
+  if (row === 'finish' && val.tint && PROCURE_TINTS[val.tint]) {
+    const [body, wing] = PROCURE_TINTS[val.tint];
+    s.finish = prClone(s.finish || {});
+    const S = s.finish.sections = s.finish.sections || {};
+    for (const k of ['body', 'waistband', 'ceilingLoop', 'floorLoop', 'pillarFront', 'pillarCabin', 'pillarWindow', 'pillarPassenger', 'pillarTail', 'cowlSkin', 'finSkin', 'stabSkin', 'tube', 'boomTube'])
+      S[k] = Object.assign({}, S[k] || {}, { tint: body });
+    S.wingSkin = Object.assign({}, S.wingSkin || {}, { tint: wing });
+  }
+  return s;
+}
+// THE CUSTOMISED SPEC: the design's file + every chosen value's rows + the registration. opts already filled
+// (procureOpts). An ordinary spec: the garage loads it as it loads any build.
+function procureSpec(modelId, opts, fileSpec) {
+  const M = PROCURE_MODELS[modelId], design = procureDesignOf(modelId, opts);
+  let s = procureBaseSpec(design, fileSpec);
+  for (const r of Object.keys(M.opts)) {
+    if (r === 'gear') { const v = M.opts.gear.vals[opts.gear]; if (v) s = prWrite(s, r, v); continue; }
+    const v = M.opts[r].vals[opts[r]];
+    if (v && opts[r] !== M.opts[r].def) s = prWrite(s, r, v);
+  }
+  s.meta = Object.assign({}, s.meta || {}, { name: procureText(M.name) });
+  if (opts.reg) s.meta.reg = opts.reg;
+  return s;
+}
+
+// ---- THE CERTIFICATE AND ITS FINGERPRINT ---------------------------------------------------------------------
+// a CONTRACT_DESIGNS-shaped row: the design's numbers + every non-default value's measured effect
+function procureCert(modelId, opts) {
+  const M = PROCURE_MODELS[modelId], design = procureDesignOf(modelId, opts), D = CONTRACT_DESIGNS[design];
+  if (!M || !D) return null;
+  const c = prClone(D);
+  let n = 0;
+  for (const r of Object.keys(M.opts)) {
+    if (M.opts[r].cosmetic || prSwitch(M, r) || opts[r] === M.opts[r].def) continue;
+    const e = ((M.opts[r].vals[opts[r]] || {}).eff || {})[design];
+    if (!e) continue;
+    n++;
+    // the masses, the cost, the speed and the tank add; the take-off run and the range COMPOUND (a longer tank on
+    // a thirstier engine): each value's ratio to the design's own, multiplied
+    c.cost += e.cost || 0; c.emptyKg += e.emptyKg || 0; c.massKg += e.massKg || 0; c.toM *= 1 + (e.toM || 0) / D.toM;
+    c.cruiseKmh += e.cruiseKmh || 0; c.rangeKm *= 1 + (e.rangeKm || 0) / D.rangeKm; c.tankL = +((c.tankL || 0) + (e.tankL || 0)).toFixed(1); c.seats += e.seats || 0;
+  }
+  c.toM = Math.round(c.toM); c.rangeKm = Math.round(c.rangeKm);
+  c.id = design; c.label = procureText(M.name); c.model = modelId; c.exact = n <= 1;
+  return c;
+}
+function prCanon(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if (Array.isArray(v)) return '[' + v.map(prCanon).join(',') + ']';
+  const ks = Object.keys(v).filter(k => v[k] !== undefined).sort();
+  return '{' + ks.map(k => JSON.stringify(k) + ':' + prCanon(v[k])).join(',') + '}';
+}
+// the spec minus what is not the aeroplane (bench.js benchStripCosmetic's blocks and state rows; every other row
+// counts) -> 8 hex digits, the physics version folded in (a certificate from an older physics is another's)
+function procureFp(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const c = prClone(spec);
+  for (const k of PROCURE_COSMETIC.concat(PROCURE_READOUTS)) delete c[k];
+  if (c.energy && typeof c.energy === 'object') {
+    for (const k of PROCURE_LOOK.energy) delete c.energy[k];
+    for (const v of (c.energy.vessels || [])) if (v && typeof v === 'object') for (const k of PROCURE_LOOK.vessel) delete v[k];
+  }
+  if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
+  if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
+  const tag = 'p1|v' + (typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0) + '|p' + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0) + '|';
+  return ('0000000' + contractHash(tag + prCanon(c)).toString(16)).slice(-8);
+}
+// a ledger (buildGen's parts.ledger) as the airframe row keeps it: { key: [mass kg 0.01, cost 1] }
+function procureLedgerOf(L) {
+  const out = {};
+  for (const k of Object.keys(L || {}).sort()) if (L[k] && typeof L[k] === 'object') out[k] = [Math.round((+L[k].mass || 0) * 100) / 100, Math.round(+L[k].cost || 0)];
+  return out;
+}
+// dm11: an edit is billed at BUILD price - every ledger line the edit rebuilt (its mass or its cost moved, or it
+// is new) at its own new build price; a line removed bills nothing -> { cost, lines: [{ k, cost }] }
+function procureEditBill(L0, L1) {
+  const a = L0 || {}, b = L1 || {}, lines = [];
+  for (const k of Object.keys(b).sort()) {
+    const o = a[k], n = b[k];
+    if (!o || Math.abs(o[0] - n[0]) > 0.05 || Math.abs(o[1] - n[1]) > 1) lines.push({ k, cost: n[1] });
+  }
+  return { cost: lines.reduce((s, l) => s + l.cost, 0), lines };
+}
+
+// ---- THE PRICES (ECONOMY's book; the stub until it lands) ---------------------------------------------------
+// procureEconStub(kind, item): 'model' { model, design, cost } -> the stock model (the ledger x the margin);
+// 'option' { model, row, value, design, cost } -> the value's ledger delta x the margin (a credit when cheaper);
+// 'delivery' { to: 'main' | 'side', km } ; 'build' { cost } (a design materialised: the ledger, no margin);
+// 'used' { catalogue, condition } -> catalogue x condition; 'edit' { cost } -> the dm11 bill
+function procureEconStub(kind, item) {
+  item = item || {};
+  if (kind === 'model') return prR100((+item.cost || 0) * PROCURE_MARGIN);
+  if (kind === 'option') return prR100((+item.cost || 0) * PROCURE_MARGIN);
+  if (kind === 'delivery') return item.to === 'side' ? prR100(PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) : PROCURE_DELIVERY.main;
+  if (kind === 'build') return prR100(+item.cost || 0);
+  if (kind === 'used') return prR100((+item.catalogue || 0) * (+item.condition || 0));
+  if (kind === 'edit') return Math.round(+item.cost || 0);
+  return NaN;
+}
+// THE DOOR: ECONOMY's econPrice when it exists (same signature), else the stub - asked at call time
+function procureEcon(kind, item) {
+  if (typeof econPrice === 'function') { const v = econPrice(kind, item); if (typeof v === 'number' && isFinite(v)) return v; }
+  return procureEconStub(kind, item);
+}
+const procureEconSource = () => (typeof econPrice === 'function' ? 'econPrice' : 'stub');
+// the price sheet of a model + options -> { total, lines: [{ row, value, price }], design }
+function procurePrice(modelId, opts) {
+  const M = PROCURE_MODELS[modelId], design = procureDesignOf(modelId, opts), D = CONTRACT_DESIGNS[design];
+  const lines = [{ row: 'model', value: modelId, price: procureEcon('model', { model: modelId, design, cost: D.cost }) }];
+  for (const r of Object.keys(M.opts)) {
+    if (M.opts[r].cosmetic || prSwitch(M, r) || opts[r] === M.opts[r].def) continue;
+    const e = ((M.opts[r].vals[opts[r]] || {}).eff || {})[design];
+    if (e) lines.push({ row: r, value: opts[r], price: procureEcon('option', { model: modelId, row: r, value: opts[r], design, cost: e.cost || 0 }) });
+  }
+  return { total: lines.reduce((s, l) => s + l.price, 0), lines, design };
+}
+// the words of an option value (the sheet's labels)
+function procureOptWord(modelId, row, val) {
+  const M = PROCURE_MODELS[modelId], v = M && M.opts[row] && M.opts[row].vals[val];
+  if (!v) return '';
+  if (row === 'engine') {
+    const E = PROCURE_ENGINES[v.eng], R = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[E.type]) || null;
+    const kw = R ? R.engine.powerW / 1000 : 0;
+    return procureText('opt.engine.v', { n: Math.round(kw), k: Math.round(kw * 1.341), c: procureText(R && R.engine.cooling === 'liquid' ? 'opt.cool.liquid' : 'opt.cool.air') });
+  }
+  if (row === 'seats') return val === '3' ? procureText('opt.seats.3') : procureText('opt.seats.n', { n: val });
+  return procureText('opt.' + row + '.' + val);
+}
+// THE SHEET a screen draws: rows with every value offered on the chosen design (its word, its price, chosen?)
+function procureSheet(modelId, opts) {
+  const F = procureOpts(modelId, opts);
+  if (!F.opts) return null;
+  const M = PROCURE_MODELS[modelId], o = F.opts, design = procureDesignOf(modelId, o);
+  const rows = Object.keys(M.opts).map(r => ({
+    row: r, word: procureText('opt.' + r), cosmetic: !!M.opts[r].cosmetic,
+    vals: Object.keys(M.opts[r].vals).filter(v => r === 'gear' || prOffered(M, r, v, design)).map(v => {
+      const e = ((M.opts[r].vals[v] || {}).eff || {})[design];
+      const price = (M.opts[r].cosmetic || prSwitch(M, r) || v === M.opts[r].def || !e) ? 0 : procureEcon('option', { model: modelId, row: r, value: v, design, cost: e.cost || 0 });
+      return { val: v, word: procureOptWord(modelId, r, v), price, on: o[r] === v };
+    }),
+  }));
+  return { model: modelId, maker: M.maker, name: procureText(M.name), line: procureText(M.line), makerName: procureText(PROCURE_MAKERS[M.maker].name),
+           design, opts: o, rows, price: procurePrice(modelId, o), cert: procureCert(modelId, o), why: F.why };
+}
+
+// ---- THE DRAWING BOARD (§5.4, G-DESIGN) ---------------------------------------------------------------------
+// designs: every saved slot (the library; free, shared); airframes: the career's rows over the fleet ledger.
+// -> { designs: [{ name, airframe: bool }], airframes: [{ slot, design?, model?, factory, modified, from }] }
+function procureBoard(doc, slotNames) {
+  const names = Array.from(new Set(slotNames || [])).sort();
+  const c = doc && doc.career, af = (c && c.airframes) || {};
+  const career = !!c;
+  // the sandbox: every slot is both a design and an airframe (today's game)
+  const isAf = n => (career ? !!af[n] : !!(doc && doc.fleet && doc.fleet[n]));
+  return {
+    mode: career ? 'career' : 'sandbox',
+    designs: names.map(n => ({ name: n, airframe: isAf(n) })),
+    airframes: Object.keys(career ? af : ((doc && doc.fleet) || {})).sort().map(n => {
+      const A = af[n] || {};
+      return { slot: n, design: A.design || null, model: A.model || null, factory: !!A.factory, modified: !!A.modified, from: A.from || (career ? null : 'slot') };
+    }),
+  };
+}
+// a fleet row for a new airframe at a base: inside a hangar of yours there if one has a slot and the floor (the
+// hangar asked for first), else tied down (playerArrive's own rule and words)
+function prStation(d, slot, aero, opts) {
+  d.fleet[slot] = { hangar: null, aero };
+  if (opts && opts.foot) d.fleet[slot].foot = parkFoot(opts.foot);
+  const r = playerArrive(d, slot, aero, { prefer: opts && opts.hangar, foots: opts && opts.foot ? { [slot]: opts.foot } : null });
+  const e = r.doc.fleet[slot];
+  if (e && !e.hangar && typeof e.outSince !== 'number') e.outSince = Math.round(r.doc.clock || 0);
+  return r;
+}
+const prSlotFree = (doc, slotNames, slot) => !!slot && !(doc.fleet && doc.fleet[slot]) && !(slotNames || []).includes(slot);
+// "BUILD THIS DESIGN": a design (a slot of the library) materialised as an airframe in the main hangar's base.
+// o: { cost (the design's ledger, genShakedown.cost, measured by the page), ledger?, fp?, hangar? } -> { ok, doc, price }
+function procureBuildDesign(doc, slot, o) {
+  o = o || {};
+  if (!doc || !doc.career) return prNo(doc, 'the sandbox builds nothing: every saved design is already an aeroplane');
+  if (doc.career.airframes[slot]) return prNo(doc, slot + ' is an airframe already');
+  if (!(o.cost > 0)) return prNo(doc, 'the design\'s ledger is not read yet: open it in the garage');
+  const price = procureEcon('build', { cost: o.cost, slot });
+  if (doc.wallet < price) return prNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', building it costs ' + price);
+  const home = doc.sheds[PREM_MAIN] ? doc.sheds[PREM_MAIN].base : PREM_MAIN;
+  const d = prClone(doc);
+  let r = { doc: d };
+  if (!d.fleet[slot]) r = prStation(d, slot, home, { hangar: o.hangar || PREM_MAIN, foot: o.foot });
+  const D2 = r.doc;
+  D2.career.airframes[slot] = { from: 'board', design: null, model: null, factory: false, modified: false, fp: o.fp || null,
+                                ledger: o.ledger || null, price, at: Math.round(D2.clock || 0) };
+  playerCharge(D2, price, 'build', slot);
+  return { ok: true, doc: D2, price, why: '' };
+}
+// "SAVE AS DESIGN": an airframe's spec filed under a new slot name (free; the page writes the slot). The airframe
+// row is untouched; the career's new slot is a DESIGN (no airframes row: the page's lift stations it nowhere ->
+// procureDesignRows keeps it off the fleet). -> { ok, name, envelope }
+function procureSaveDesign(doc, slot, spec, name, slotNames) {
+  if (!spec) return { ok: false, why: 'no spec for ' + slot };
+  const n = String(name || '').trim();
+  if (!n) return { ok: false, why: 'a design needs a name' };
+  if ((slotNames || []).includes(n)) return { ok: false, why: n + ' is a design already' };
+  const s = prClone(spec);
+  s.meta = Object.assign({}, s.meta || {}, { name: n });
+  return { ok: true, name: n, why: '', envelope: procureEnvelope(n, s, { design: true, of: slot }) };
+}
+// the career's fleet ledger holds airframes only: a slot that is a design (no airframes row) is not an aeroplane
+// that stands anywhere. -> the slot names the page's lift should treat as airframes (the sandbox: all of them)
+function procureAirframeSlots(doc, slotNames) {
+  const names = (slotNames || []).slice().sort();
+  if (!doc || !doc.career) return names;
+  const af = doc.career.airframes || {};
+  return names.filter(n => !!af[n]);
+}
+// the slot envelope (garage.js `envelope`'s shape) a purchase writes; the log carries the factory record
+function procureEnvelope(name, spec, factory) {
+  return { what: 'flydiy-build', v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null), name, spec,
+           plaque: null, log: { built: null, tests: [], flights: [], factory: factory || null } };
+}
+
+// ---- BUYING FROM A MAKER ------------------------------------------------------------------------------------
+// procureBuyModel(doc, modelId, opts, o) — o: { slot (the new slot's name), slotNames (the shelf), fileSpec (the
+// design's build file), hangar (the hangar it is delivered to: the main hangar by default, or a side hangar of
+// yours: a delivery fee), ledger (buildGen's of the customised spec, for dm11 later; optional), foot? }
+// -> { ok, doc, slot, envelope, price: { total, lines, delivery, voucher }, cert, why }
+function procureBuyModel(doc, modelId, opts, o) {
+  o = o || {};
+  const F = procureOpts(modelId, opts);
+  if (!F.ok) return prNo(doc, F.why);
+  if (!o.fileSpec) return prNo(doc, 'the design\'s build file is not loaded');
+  const slot = String(o.slot || '').trim();
+  if (!prSlotFree(doc, o.slotNames, slot)) return prNo(doc, slot ? slot + ' is taken: name the aeroplane differently' : 'name the aeroplane');
+  const hid = o.hangar || PREM_MAIN, shed = doc.sheds[hid];
+  if (!shed) return prNo(doc, 'no hangar ' + hid + ' of yours to deliver to');
+  const career = !!(doc.career);
+  const opt = F.opts, spec = procureSpec(modelId, opt, o.fileSpec), cert = procureCert(modelId, opt), P = procurePrice(modelId, opt);
+  const side = hid !== PREM_MAIN;
+  const km = side ? contractKm(shed.base, PREM_MAIN) : 0;
+  const delivery = procureEcon('delivery', { to: side ? 'side' : 'main', km: Math.round(km * 10) / 10, hangar: hid });
+  // GQ23: the voucher pays for one STOCK model of its design (the maker's Cub): the options and a delivery are paid
+  const V = career && doc.career.voucher;
+  const stock = Object.keys(PROCURE_MODELS[modelId].opts).every(r => PROCURE_MODELS[modelId].opts[r].cosmetic || opt[r] === PROCURE_MODELS[modelId].opts[r].def);
+  const voucher = !!(V && !V.used && V.kind === 'maker' && V.model === P.design && stock);
+  const total = (voucher ? 0 : P.total) + delivery;
+  if (career && doc.wallet < total) return prNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the ' + procureText(PROCURE_MODELS[modelId].name) + ' costs ' + total);
+  const d = prClone(doc);
+  const r = prStation(d, slot, shed.base, { hangar: hid, foot: o.foot });
+  const D2 = r.doc;
+  const fp = procureFp(spec);
+  const row = { from: 'maker', maker: PROCURE_MODELS[modelId].maker, model: modelId, design: P.design, opts: prClone(opt), fp,
+                cert: prClone(cert), factory: true, modified: false, price: total, at: Math.round(D2.clock || 0),
+                ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+  if (career) {
+    D2.career.airframes[slot] = row;
+    if (voucher) D2.career.voucher = Object.assign({}, D2.career.voucher, { used: true, slot });
+  }
+  playerCharge(D2, total, 'buy', slot);
+  return { ok: true, doc: D2, slot, kind: r.kind, hangar: r.hangar || null, envelope: procureEnvelope(slot, spec, row), cert,
+           price: { total, lines: P.lines, delivery, voucher }, why: '' };
+}
+
+// ---- THE USED MARKET (§5.3) ---------------------------------------------------------------------------------
+// the listing's place: an aerodrome it can FLY FROM on its own certificate (CONTRACT-MODEL's gear and strip rules:
+// contractCanDo on a take-off from there, the extra kilos counted)
+function procureUsedCert(L) {
+  const c = procureCert(L.model, L.opts);
+  if (!c) return null;
+  const x = L.kg || 0, w0 = c.massKg;
+  c.emptyKg += x; c.massKg += x; c.toM = Math.round(c.toM * ((w0 + x) / w0) * ((w0 + x) / w0));
+  c.exact = c.exact && !x;
+  return c;
+}
+const procureFlyableAt = (cert, aero) => !!cert && contractCanDo(cert, [{ do: 'land', to: aero }]).ok;
+const procureUsedEpoch = done => Math.floor(Math.max(0, done || 0) / PROCURE_USED_EVERY);
+const PROCURE_REPAIRS = ['none', 'none', 'gear', 'prop', 'wing', 'skin'];
+// one listing: f(seed, epoch, i) and nothing else
+function procureUsedListing(seed, epoch, i) {
+  const id = 'used:' + epoch + ':' + i;
+  const rng = contractRng(String(seed) + '|' + id);
+  const pick = a => a[Math.floor(rng() * a.length) % a.length];
+  const models = procureModelIds();
+  const model = pick(models), M = PROCURE_MODELS[model];
+  const o = procureDefaults(model);
+  if (M.opts.gear) o.gear = pick(Object.keys(M.opts.gear.vals));
+  const design = procureDesignOf(model, o);
+  // the engine and the tank as the first owner chose them (any value offered on its design)
+  for (const r of ['engine', 'tank']) if (M.opts[r]) o[r] = pick(Object.keys(M.opts[r].vals).filter(v => prOffered(M, r, v, design)));
+  // an older panel: one tier below the factory's, where the sheet has one
+  const AV = M.opts.avionics, tiers = ['minimal', 'basic', 'ifr'];
+  let older = false;
+  if (AV && rng() < 0.6) {
+    const cur = AV.vals[o.avionics].fit, ix = tiers.indexOf(cur || 'ifr');
+    const down = tiers.slice(0, Math.max(0, ix)).reverse().find(t => Object.keys(AV.vals).some(v => AV.vals[v].fit === t && prOffered(M, 'avionics', v, design)));
+    if (down) { o.avionics = Object.keys(AV.vals).find(v => AV.vals[v].fit === down); older = true; }
+  }
+  o.finish = pick(Object.keys(PROCURE_FINISH));
+  const L3 = 'ABCDEFGHJKLMNPRSTUVWXYZ';
+  o.reg = 'N' + (100 + Math.floor(rng() * 900)) + L3[Math.floor(rng() * L3.length)] + L3[Math.floor(rng() * L3.length)];
+  const hours = 50 * Math.round((150 + rng() * 2850) / 50);
+  const repair = pick(PROCURE_REPAIRS);
+  const kg = Math.round(rng() * 15);
+  const seller = Math.floor(rng() * 6);
+  // condition 0.4-0.8: the hours, a repair, an older panel, the kilos
+  let cond = PROCURE_COND[1] - 0.25 * hours / 3000 - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
+  cond = Math.round(Math.max(PROCURE_COND[0], Math.min(PROCURE_COND[1], cond)) * 100) / 100;
+  const L = { id, model, design, opts: o, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
+  // where it stands: an aerodrome it can fly from, drawn in the listing's own order
+  const cert = procureUsedCert(L);
+  const fields = Object.keys(CONTRACT_FIELDS).sort();
+  const can = fields.filter(f => procureFlyableAt(cert, f));
+  if (!can.length) return null;
+  L.aero = can[Math.floor(rng() * can.length) % can.length];
+  const cat = procurePrice(model, o).total;
+  L.catalogue = cat;
+  L.price = procureEcon('used', { catalogue: cat, condition: cond, model, id });
+  return L;
+}
+// the listings on offer: the epoch's draws (at most PROCURE_USED_MAX, 3 or 4 of them), the ones sold gone
+function procureMarket(seed, done, sold) {
+  const epoch = procureUsedEpoch(done);
+  const n = 3 + (contractHash(String(seed) + '|used|' + epoch) % 2);
+  const out = [];
+  for (let i = 0; i < Math.min(PROCURE_USED_MAX, n); i++) {
+    const L = procureUsedListing(seed, epoch, i);
+    if (L && !(sold || []).includes(L.id)) out.push(L);
+  }
+  return out;
+}
+const procureUsedById = (seed, id) => { const m = /^used:(\d+):(\d+)$/.exec(id || ''); return m ? procureUsedListing(seed, +m[1], +m[2]) : null; };
+// the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0)
+function procureMarketOf(doc) {
+  const c = doc && doc.career;
+  return procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc));
+}
+function procureSold(doc) {
+  const m = doc && ((doc.career && doc.career.market) || doc.market);
+  return (m && Array.isArray(m.sold)) ? m.sold : [];
+}
+// the listing's words: its title, its facts, its seller
+function procureUsedWords(L) {
+  const M = PROCURE_MODELS[L.model];
+  return {
+    title: procureText('used.title', { m: procureText(M.name), h: L.hours }),
+    facts: [procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)]
+      .concat(L.older ? [procureText('used.older')] : []).concat(L.kg ? [procureText('used.kg', { k: L.kg })] : []),
+    seller: procureText(L.seller),
+    where: procureText('used.where', { a: CONTRACT_FIELDS[L.aero] ? CONTRACT_FIELDS[L.aero].name : L.aero }),
+  };
+}
+// the listing's spec: the model's, with its kilos carried (cargo.kg: fixed equipment, aboard on every flight)
+function procureUsedSpec(L, fileSpec) {
+  const s = procureSpec(L.model, L.opts, fileSpec);
+  if (L.kg) s.cargo = Object.assign({}, s.cargo || { len: 0, kg: 0 }, { kg: ((s.cargo && +s.cargo.kg) || 0) + L.kg });
+  return s;
+}
+// BUY IT WHERE IT STANDS: an airframe stationed at the listing's aerodrome (in a hangar of yours there if one has
+// room, else tied down; 'away' where you hold nothing), the listing gone from the market.
+// o: { slot, slotNames, fileSpec, ledger?, foot? } -> { ok, doc, slot, kind, envelope, price, why }
+function procureBuyUsed(doc, listingId, o) {
+  o = o || {};
+  const seed = doc && doc.career ? doc.career.seed : 'sandbox';
+  const L = procureMarketOf(doc).find(x => x.id === listingId);
+  if (!L) return prNo(doc, listingId + ' is not for sale (sold, or the market has moved on)');
+  if (!o.fileSpec) return prNo(doc, 'the design\'s build file is not loaded');
+  const slot = String(o.slot || '').trim();
+  if (!prSlotFree(doc, o.slotNames, slot)) return prNo(doc, slot ? slot + ' is taken: name the aeroplane differently' : 'name the aeroplane');
+  const career = !!doc.career;
+  if (career && doc.wallet < L.price) return prNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the seller asks ' + L.price);
+  const spec = procureUsedSpec(L, o.fileSpec), cert = procureUsedCert(L);
+  const d = prClone(doc);
+  const r = prStation(d, slot, L.aero, { foot: o.foot });
+  const D2 = r.doc;
+  const row = { from: 'used', listing: L.id, seed, model: L.model, maker: PROCURE_MODELS[L.model].maker, design: L.design, opts: prClone(L.opts),
+                fp: procureFp(spec), cert: prClone(cert), factory: true, modified: false, price: L.price, at: Math.round(D2.clock || 0),
+                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+  const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
+  mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
+  if (career) D2.career.airframes[slot] = row;
+  playerCharge(D2, L.price, 'buy', slot);
+  return { ok: true, doc: D2, slot, kind: r.kind, aero: L.aero, envelope: procureEnvelope(slot, spec, row), cert, price: L.price, why: '' };
+}
+
+// ---- SIGNED ON THE AEROPLANE THE GARAGE BUILDS --------------------------------------------------------------------
+// The validated build FILES are not the editor's fixpoint: the garage's join re-measures their rows when it first
+// builds them, and on the heavier builds it keeps settling for a few seconds (measured on the page, G2280: the C172's
+// cabin box and seat stations, the twin's drawn engine stations and the floats' station move after the load door). So
+// the factory certificate is signed on the aeroplane AS THE GARAGE BUILDS IT: PROVISIONALLY while it settles (the page
+// re-signs until the build is stable or the player first touches an input), then FINAL, once. A final signature is
+// never moved again; every later save is held to it. opts.provisional -> the signature stays open. -> { ok, doc, why }
+function procureAnchor(doc, slot, spec, opts) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A || !A.factory || A.anchored) return { ok: true, doc, why: A ? (A.anchored ? 'signed already' : 'not factory-certified') : 'not an airframe of the career' };
+  const fp = procureFp(spec), fin = !(opts && opts.provisional);
+  if (fp === A.fp && !fin) return { ok: true, doc, why: 'unchanged' };
+  const d = prClone(doc), R = d.career.airframes[slot];
+  if (!R.fpFile) R.fpFile = R.fp;
+  R.fp = fp;
+  if (fin) R.anchored = true;
+  return { ok: true, doc: d, why: '' };
+}
+
+// ---- MODIFIED (GQ2): the full editor is allowed; the certificate goes, the change is billed -----------------------
+// The page calls this on every SAVE of a slot (garage.js -> app.js playerSlotsChanged) with the saved spec and the
+// ledger it measured (buildGen). An airframe whose spec no longer carries its certificate's fingerprint is MODIFIED:
+// `factory` false, the certificate withdrawn (kept, struck, with the reason), the change billed (dm11) once; a save
+// that only repainted it (the fingerprint unmoved) changes nothing. -> { ok, doc, modified, bill, why }
+function procureOnSave(doc, slot, spec, ledger) {
+  const c = doc && doc.career, A = c && c.airframes && c.airframes[slot];
+  if (!A) return { ok: true, doc, modified: false, bill: null, why: 'not an airframe of the career' };
+  const fp = procureFp(spec);
+  // a save while the signature is still open (the garage settling, no input touched yet) is the aeroplane the garage
+  // built: it signs, it does not withdraw
+  if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
+  if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  const L1 = ledger ? procureLedgerOf(ledger) : null;
+  const B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
+  const cost = (A.ledger && L1) ? procureEcon('edit', { cost: B.cost, slot }) : 0;
+  const d = prClone(doc), R = d.career.airframes[slot];
+  if (R.factory) R.withdrawn = { cert: R.cert, why: 'modified in the editor: the maker\'s certificate is withdrawn', at: Math.round(d.clock || 0) };
+  R.factory = false; R.modified = true; R.fp = fp; R.cert = null;
+  if (L1) R.ledger = L1;
+  if (cost > 0) playerCharge(d, cost, 'edit', slot);
+  return { ok: true, doc: d, modified: true, bill: { cost, lines: B.lines }, why: '' };
+}
+// ===========================================================================
+// FREIGHT (G2340-G2344 FREIGHT-MODEL) — WEIGHT AND VOLUME, FITTED INSIDE THE AIRFRAME.
+// futureDesigns/game/FREIGHT-2026-10-07.md §1, §2, §4 (RULED by the user, 7 Oct).
+// ===========================================================================
+// A LOAD IS ITEMS: { id, kind: crate|box|bag|drum|long|bulk|stretcher, kg, dims: [L, W, H] m, rigid, stack }.
+// A contract's goods carry their dims (FREIGHT_GOODS), so "120 kg of crated parts" is two crates; a BULK load is
+// split into bags (ruled). An item goes aboard only through a DOOR, in some orientation, and then packs into the
+// HOLD beside the others and the occupants.
+//
+// THE AIRFRAME'S SIDE IS MEASURED, NOT RULED HERE. A FREIGHT CARD (FREIGHT_CARDS, below) is what
+// tools/_freight_site.js reads off the airframe's own mesh with the fuel path's machinery: the hold is
+// _bay_site.js's inset sections (GEN_BAY_WALL off along the edge normals) swept from the front row's seat pan to
+// GEN_BAYS.aftCabin's end, the doors are _cage_gen.js cageDoorEdges' outlines, the seats the join's measured
+// stations, the mass and the CERTIFIED CG RANGE the plaque's (designGross, the four corners). GATE FREIGHT
+// re-measures every validated build's card from its build file each run and holds this table to it.
+//
+// THE RULES ARE HERE, AND THEY ARE STATED:
+//   the door      an item passes a door if, held at some axis and roll, its slice in the door's plane fits one of
+//                 the door's clear rectangles AND, once wholly inside, it fits the hold's section at the door
+//                 (the swing-in: a long item goes in at a slant and is laid down inside; straight in is the case
+//                 of an axis square to the door). The fuel tank never needed this; freight is all about it.
+//   the hold      a placed item is a box that stands inside the inset section at every station it spans, on the
+//                 highest floor under it, clear of the seats (an empty seat is geometry the packer works around,
+//                 unless the player takes it out: ruled), the occupants and the other items.
+//   the limits    FREIGHT_FLOOR kg/m2 under each item (and what is stacked on it), the baggage placard on the
+//                 baggage bay, the MTOW and the CERTIFIED CG RANGE. The packer keeps to them when it can and SAYS
+//                 when it cannot: a placement out of range is REPORTED, NEVER FORBIDDEN (the spine: the aeroplane
+//                 flies what you loaded, and you find out).
+//   the packer    first fit, biggest and heaviest first, low, then near the CG the range wants, then the middle.
+//                 Deterministic: no clock, no random, a fixed candidate order; a tie goes to the first candidate.
+//
+// Pure: no DOM, storage, clock or random (GATE FREIGHT scans for each). Reads CONTRACT_DESIGNS / CONTRACT_FIT
+// (72_), contractGearOk (73_) where the map's mark asks.
+// ===========================================================================
+
+const FREIGHT_V = 1;
+
+// ---- THE ITEMS -----------------------------------------------------------------------------------------------
+// what each kind is: rigid (a box keeps its shape), stack (things may go on top), upright (its H stays vertical:
+// a full drum is not laid down), flat (its H stays vertical once placed: a stretcher with a patient), split (never
+// placed itself: split into bags, the ruling), squeeze (a soft item gives: its dims times this through a door)
+const FREIGHT_KINDS = {
+  crate:     { rigid: true,  stack: true },
+  box:       { rigid: true,  stack: true },
+  bag:       { rigid: false, stack: true, squeeze: 0.85 },
+  drum:      { rigid: true,  stack: false, upright: true },
+  long:      { rigid: true,  stack: true },
+  bulk:      { rigid: false, stack: true, split: true, squeeze: 0.85 },
+  stretcher: { rigid: true,  stack: false, flat: true },
+};
+// THE BAG a bulk load is split into: a 25 kg sack (what one person carries from the strip)
+const FREIGHT_BAG = { kg: 25, dims: [0.60, 0.40, 0.15] };
+// THE GOODS GAIN DIMS (CONTRACT-MODEL's goods words -> what one unit is). `unit` is the most one item weighs; a
+// load is split into ceil(kg / unit) items of equal mass. The parts row is the study's own example (120 kg of
+// crated parts = 2 crates 0.8 x 0.6 x 0.5 m). The canoe is a FOLDING canoe in its two packs: a rigid canoe is an
+// external load (BELLY-POD, later). Supplies are the bulk row: flour, sugar and feed, split into sacks.
+const FREIGHT_GOODS = {
+  'goods.mail':     { kind: 'bag',   unit: 20, dims: [0.65, 0.40, 0.30] },
+  'goods.tools':    { kind: 'box',   unit: 25, dims: [0.60, 0.35, 0.30] },
+  'goods.parts':    { kind: 'crate', unit: 60, dims: [0.80, 0.60, 0.50] },
+  'goods.samples':  { kind: 'box',   unit: 20, dims: [0.40, 0.30, 0.25] },
+  'goods.rods':     { kind: 'long',  unit: 30, dims: [1.50, 0.20, 0.20] },
+  'goods.supplies': { kind: 'bulk',  unit: 90, dims: [0.60, 0.40, 0.45] },
+  'goods.water':    { kind: 'box',   unit: 15, dims: [0.45, 0.30, 0.30] },
+  'goods.gear':     { kind: 'bag',   unit: 15, dims: [0.80, 0.35, 0.30] },
+  'goods.kit':      { kind: 'bag',   unit: 20, dims: [0.70, 0.35, 0.35] },
+  'goods.canoe':    { kind: 'bag',   unit: 25, dims: [0.95, 0.40, 0.30] },
+};
+// a load with no goods word (an authored arc's "40 kg"): boxes
+const FREIGHT_GENERIC = { kind: 'box', unit: 20, dims: [0.50, 0.40, 0.30] };
+// THE MEDEVAC LOAD (§4b, listed, not built): a stretcher with the patient
+const FREIGHT_STRETCHER = { id: 'stretcher', kind: 'stretcher', kg: 95, dims: [2.0, 0.6, 0.5] };
+
+// ---- THE LIMITS (stated) ----------------------------------------------------------------------------------
+//   floor     kg/m2 under an item (with what is stacked on it): the cabin's floorboards, the baggage bay's
+//             lighter floor (the light-aircraft placards' order: ~100 lb/ft2 cabin, ~20 lb/ft2 baggage)
+//   seat      an empty seat is its pan (`pan` deep, `panH` high) and its back (`backD` deep, `seatH` high); an
+//             occupant is one envelope from the legs (`legs` ahead of the back) to `occH`, `occW` wider than the seat
+const FREIGHT_FLOOR = { cabin: 300, baggage: 100 };
+const FREIGHT_SEAT = { pan: 0.50, panH: 0.40, backD: 0.12, legs: 0.95, backT: 0.05, seatH: 1.00, occH: 1.30, occW: 0.06 };
+const FREIGHT_PACK = { step: 0.05, zStep: 0.025, eps: 1e-6 };
+
+const frR3 = v => Math.round(v * 1000) / 1000;
+const frClone = o => JSON.parse(JSON.stringify(o));
+
+// one item, normalised: kind known, kg >= 0, three positive dims, the kind's rigid / stack
+function freightItem(it) {
+  const K = FREIGHT_KINDS[it && it.kind] ? it.kind : 'box';
+  const T = FREIGHT_KINDS[K];
+  const d = (Array.isArray(it && it.dims) ? it.dims : []).slice(0, 3).map(v => Math.max(0.01, +v || 0.01));
+  while (d.length < 3) d.push(0.3);
+  return { id: String((it && it.id) || K), kind: K, kg: Math.max(0, frR3(+(it && it.kg) || 0)), dims: d.map(frR3),
+           rigid: it && it.rigid != null ? !!it.rigid : T.rigid, stack: it && it.stack != null ? !!it.stack : T.stack };
+}
+// a load's kg split into n equal items (kg to 0.5, the rest on the last: the sum is the load exactly)
+function frSplitKg(kg, unit) {
+  const n = Math.max(1, Math.ceil(kg / Math.max(1e-9, unit) - 1e-9));
+  const each = Math.floor(kg / n * 2) / 2, out = [];
+  for (let k = 0; k < n; k++) out.push(k < n - 1 ? each : frR3(kg - each * (n - 1)));
+  return out;
+}
+// BULK SPLITS INTO BAGS (ruled): a bulk item -> 25 kg sacks
+function freightSplit(items) {
+  const out = [];
+  for (const raw of items || []) {
+    const it = freightItem(raw);
+    if (!FREIGHT_KINDS[it.kind].split) { out.push(it); continue; }
+    frSplitKg(it.kg, FREIGHT_BAG.kg).forEach((kg, k) =>
+      out.push(freightItem({ id: it.id + '.' + (k + 1), kind: 'bag', kg, dims: FREIGHT_BAG.dims })));
+  }
+  return out;
+}
+// A LOAD -> ITEMS: { kg, pax, bulk? } and the goods word (the job's `goods`) -> [item]. Deterministic: a load is
+// always the same items. Passengers are seats, not items (they board, they don't fit).
+function freightItems(load, goods) {
+  const kg = Math.max(0, +(load && load.kg) || 0);
+  if (!(kg > 0)) return [];
+  const G = FREIGHT_GOODS[goods] || FREIGHT_GENERIC;
+  const tag = (goods && FREIGHT_GOODS[goods] ? goods.replace(/^goods\./, '') : 'load');
+  if (G.kind === 'bulk') return freightSplit([{ id: tag, kind: 'bulk', kg, dims: G.dims }]);
+  return frSplitKg(kg, G.unit).map((m, k) => freightItem({ id: tag + '.' + (k + 1), kind: G.kind, kg: m, dims: G.dims }));
+}
+const freightKg = items => frR3((items || []).reduce((s, it) => s + (+it.kg || 0), 0));
+
+// ---- THE HOLD ------------------------------------------------------------------------------------------------
+const frHoldX1 = H => H.x0 + H.n * H.dx;
+const frFloorAt = (H, i) => H.y0 + H.floor[i] / 100;
+// the stations a box over [x0, x1] spans (the bracketing ones included: the conservative side)
+function frStations(H, x0, x1) {
+  const a = Math.floor((x0 - H.x0) / H.dx + 1e-9), b = Math.ceil((x1 - H.x0) / H.dx - 1e-9);
+  if (a < 0 || b > H.n) return null;
+  const out = [];
+  for (let i = a; i <= b; i++) out.push(i);
+  return out;
+}
+// the floor a box over [x0, x1] rests on: the highest floor under it
+function freightRestY(card, x0, x1) {
+  const H = card && card.hold, st = H && frStations(H, x0, x1);
+  if (!st) return null;
+  return Math.max(...st.map(i => frFloorAt(H, i)));
+}
+// the clear half-width a box over [x0, x1] x [y0, y1] may reach at every station it spans (m), or -1 when it cannot
+// stand there at all (off the hold's ends, below a floor, above the roof)
+function frZMax(card, x0, x1, y0, y1) {
+  const H = card && card.hold;
+  if (!H) return -1;
+  const a = Math.floor((x0 - H.x0) / H.dx + 1e-9), b = Math.ceil((x1 - H.x0) / H.dx - 1e-9);
+  if (a < 0 || b > H.n) return -1;
+  const j0 = Math.floor((y0 - H.y0) / H.dy + 1e-6), j1 = Math.ceil((y1 - H.y0) / H.dy - 1e-6) - 1;
+  if (j0 < 0 || j1 >= H.ny) return -1;
+  let m = Infinity;
+  for (let i = a; i <= b; i++) {
+    if (y0 < H.y0 + H.floor[i] / 100 - 1e-6) return -1;
+    const row = H.half[i];
+    for (let j = j0; j <= j1; j++) if (row[j] < m) m = row[j];
+  }
+  return m / 100;
+}
+// does a box { x0, x1, y0, y1, z0, z1 } stand inside the hold's clear section at every station it spans?
+function freightHoldFits(card, b) {
+  const zm = frZMax(card, b.x0, b.x1, b.y0, b.y1);
+  return zm >= 0 && Math.max(Math.abs(b.z0), Math.abs(b.z1)) <= zm + 1e-8;
+}
+// the clear width of the hold at station i over a band of height h above its floor (m)
+function frRoomW(H, i, h) {
+  const row = H.half[i], f = frFloorAt(H, i);
+  const j0 = Math.floor((f - H.y0) / H.dy + 1e-6), j1 = Math.ceil((f + h - H.y0) / H.dy - 1e-6) - 1;
+  if (j0 < 0 || j1 >= H.ny) return 0;
+  let m = Infinity;
+  for (let j = j0; j <= j1; j++) m = Math.min(m, row[j]);
+  return isFinite(m) ? 2 * m / 100 : 0;
+}
+
+// ---- THE DOOR --------------------------------------------------------------------------------------------------
+// One door, one item -> { ok, how: 'straight' | 'swung', axis } . The door's plane is (x aft, y up), its normal z
+// inward. The item is held with its long axis u (phi from the door's plane, psi round it) and a roll rho; its
+// slice in the door's plane is the parallelogram of its two cross dims projected along u — that must fit one of the
+// door's clear rectangles. Wholly inside, its depth across the hold and its height must fit the hold's section at
+// the door (frRoomW): then it is laid down along the hold. A deterministic grid, coarse enough to be cheap and
+// memoised by the item's dims (kg plays no part in a door).
+const FREIGHT_DOOR_GRID = { phi: 3, psi: 10, rho: 15 };
+const frDoorMemo = new Map();
+function freightDoorPass(card, door, item) {
+  const H = card && card.hold;
+  if (!door || !H || !door.rects || !door.rects.length) return { ok: false, why: 'no door' };
+  const it = freightItem(item), K = FREIGHT_KINDS[it.kind];
+  // keyed by what decides it (the openings, the hold at the door, the dims): a pair of mirrored doors asks once
+  const key = (card.id || '') + '|' + JSON.stringify(door.rects) + '|' + door.st + '|' + it.dims.join(',') + '|' + (K.upright ? 'u' : '') + (K.squeeze || '');
+  if (frDoorMemo.has(key)) return frDoorMemo.get(key);
+  const st = door.st == null ? 0 : door.st;
+  const hMax = (() => { let h = 0; for (let k = 1; k <= H.ny; k++) if (frRoomW(H, st, k * H.dy) > 0) h = k * H.dy; return h; })();
+  const rects = door.rects;
+  const holeOk = (X, Y) => rects.some(r => X <= r[0] + 1e-9 && Y <= r[1] + 1e-9);
+  const D = it.dims.map(v => v * (K.squeeze || 1)), G = FREIGHT_DOOR_GRID, rad = Math.PI / 180;
+  let res = { ok: false, why: it.id + ' (' + D.join(' x ') + ' m) passes no opening of ' + door.id };
+  // which dim runs along the axis (the other two are the cross section); an upright item keeps its H vertical and
+  // goes in straight (a full drum is not tipped)
+  const axes = K.upright ? [[0, 1, 2], [1, 0, 2]] : [[0, 1, 2], [1, 2, 0], [2, 0, 1]];
+  search:
+  for (const [ia, ib, ic] of axes) {
+    const L = D[ia], w = D[ib], d = D[ic];
+    if (K.upright) {
+      // straight in, H vertical: the hole w x d(H), the depth L across the hold at d's height
+      if (holeOk(w, d) && L <= frRoomW(H, st, d) + 1e-9 && d <= hMax + 1e-9) { res = { ok: true, how: 'straight', axis: ia }; break; }
+      continue;
+    }
+    for (let phi = 90; phi >= G.phi; phi -= G.phi) {
+      const sp = Math.sin(phi * rad), cp = Math.cos(phi * rad);
+      for (let psi = 0; psi < 180; psi += (phi === 90 ? 180 : G.psi)) {
+        const ss = Math.sin(psi * rad), cs = Math.cos(psi * rad);
+        const u = [cp * cs, cp * ss, sp];
+        const e1 = [-ss, cs, 0];
+        const e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
+        for (let rho = 0; rho < 180; rho += G.rho) {
+          const cr = Math.cos(rho * rad), sr = Math.sin(rho * rad);
+          const a2x = cr * e1[0] + sr * e2[0], a2y = cr * e1[1] + sr * e2[1], a2z = cr * e1[2] + sr * e2[2];
+          const a3x = -sr * e1[0] + cr * e2[0], a3y = -sr * e1[1] + cr * e2[1], a3z = -sr * e1[2] + cr * e2[2];
+          // the slice in the door's plane: v = a - (a_z / u_z) u, its (x, y)
+          const X = w * Math.abs(a2x - a2z / sp * u[0]) + d * Math.abs(a3x - a3z / sp * u[0]);
+          const Y = w * Math.abs(a2y - a2z / sp * u[1]) + d * Math.abs(a3y - a3z / sp * u[1]);
+          if (!holeOk(X, Y)) continue;
+          // wholly inside at this attitude: its depth across the hold and its height
+          const Zx = L * Math.abs(u[2]) + w * Math.abs(a2z) + d * Math.abs(a3z);
+          const Yx = L * Math.abs(u[1]) + w * Math.abs(a2y) + d * Math.abs(a3y);
+          if (Yx > hMax + 1e-9 || Zx > frRoomW(H, st, Yx) + 1e-9) continue;
+          res = { ok: true, how: (phi === 90 && rho % 90 === 0) ? 'straight' : 'swung', axis: ia };
+          break search;
+        }
+      }
+    }
+  }
+  frDoorMemo.set(key, res);
+  return res;
+}
+// an item against every door of a card -> { ok, door, how } (the first door that takes it, in the card's order)
+function freightDoorAny(card, item) {
+  for (const d of (card && card.doors) || []) { const r = freightDoorPass(card, d, item); if (r.ok) return Object.assign({ door: d.id }, r); }
+  return { ok: false, door: null, why: freightItem(item).id + ' passes no door' };
+}
+// THE HARD NO-NO: the items of a load that pass no door of this card -> [id]
+function freightNoDoor(card, items) {
+  return freightSplit(items).filter(it => !freightDoorAny(card, it).ok).map(it => it.id);
+}
+
+// ---- THE SEATS, THE OCCUPANTS, THE SPACES --------------------------------------------------------------------
+// who sits where: the pilot in seat 0, `pax` passengers in the next seats in order; `seatsOut` the seats the player
+// took out (only an empty seat can go). -> [{ i, x, back, z, w, occ, out }]
+function freightSeats(card, opts) {
+  const o = opts || {}, pax = Math.max(0, o.pax | 0), out = new Set(o.seatsOut || []);
+  return ((card && card.seats) || []).map(s => {
+    const occ = s.i === 0 || (s.i <= pax);
+    return Object.assign({}, s, { occ, out: !occ && out.has(s.i) });
+  });
+}
+// the obstacles in the hold: each seat still in (its pan and its back), an occupant's envelope on an occupied one
+function freightObstacles(card, seats) {
+  const F = FREIGHT_SEAT, H = card.hold, ob = [];
+  const box = (id, s, fore, aft, h, w) => {
+    const x0 = Math.max(fore, H.x0), x1 = Math.min(aft, frHoldX1(H));
+    if (!(x1 > x0)) return;
+    const y = freightRestY(card, x0, x1), y0 = y == null ? H.y0 : y;
+    ob.push({ id, seat: s.i, x0, x1, y0, y1: y0 + h, z0: s.z - w / 2, z1: s.z + w / 2 });
+  };
+  for (const s of seats) {
+    if (s.out) continue;
+    if (s.occ) { box('occupant ' + s.i, s, s.back - F.legs, s.back + F.backT, F.occH, s.w + F.occW); continue; }
+    box('seat ' + s.i, s, s.back - F.pan, s.back + F.backT, F.panH, s.w);
+    box('seat back ' + s.i, s, s.back - F.backD, s.back + F.backT, F.seatH, s.w);
+  }
+  return ob;
+}
+// the spaces: the cabin floor behind the crew (to the cabin's aft ring), the baggage bay aft of it — each with its
+// floor limit and its station (where its floor's middle is: the CG lever of what sits in it)
+function freightSpaces(card) {
+  const H = card && card.hold;
+  if (!H) return [];
+  const xb = Math.min(Math.max(card.cabinX1, H.x0), frHoldX1(H));
+  const sp = [{ id: 'cabin', x0: H.x0, x1: xb, kgM2: FREIGHT_FLOOR.cabin }];
+  if (frHoldX1(H) - xb > 0.05) sp.push({ id: 'baggage', x0: xb, x1: frHoldX1(H), kgM2: FREIGHT_FLOOR.baggage, maxKg: card.mass && card.mass.bagKg });
+  for (const s of sp) s.station = frR3(0.5 * (s.x0 + s.x1));
+  return sp;
+}
+const frSpaceOf = (spaces, x) => (spaces.find(s => x >= s.x0 - 1e-9 && x < s.x1 - 1e-9) || spaces[spaces.length - 1] || { id: null }).id;
+
+// ---- THE REPORT: a set of placed items -> the CG, the mass, the margins ----------------------------------------
+// placed: [{ id, kg, at: {x0,x1,y0,y1,z0,z1}, on? }]. Everything said, nothing refused.
+function freightReport(card, placed, opts) {
+  const o = opts || {}, Mm = card.mass, occKg = (typeof CONTRACT_FIT !== 'undefined' && CONTRACT_FIT.occKg) || 80;
+  const seats = freightSeats(card, o), spaces = freightSpaces(card);
+  const pax = seats.filter(s => s.occ && s.i > 0);
+  const paxWanted = Math.max(0, o.pax | 0);
+  let kg = Mm.base.kg, mx = Mm.base.kg * Mm.base.x;
+  for (const s of pax) { kg += occKg; mx += occKg * s.x; }
+  for (const p of placed) { const xc = 0.5 * (p.at.x0 + p.at.x1); kg += p.kg; mx += p.kg * xc; }
+  const x = mx / kg;
+  const pct = v => (Mm.mac && Mm.mac[1]) ? frR3((v - Mm.mac[0]) / Mm.mac[1] * 100) : null;
+  const [fwd, aft] = Mm.cg;
+  const cgMargin = Math.min(x - fwd, aft - x);
+  // the floor: each item resting on the floor carries itself and everything on it
+  const load = {};
+  for (const p of placed) {
+    let b = p; const seen = new Set();
+    while (b.on && !seen.has(b.on)) { seen.add(b.on); const s = placed.find(q => q.id === b.on); if (!s) break; b = s; }
+    load[b.id] = (load[b.id] || 0) + p.kg;
+  }
+  const floor = [];
+  for (const p of placed) {
+    if (p.on) continue;
+    const A = (p.at.x1 - p.at.x0) * (p.at.z1 - p.at.z0);
+    const space = frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)), S = spaces.find(s => s.id === space);
+    const kgM2 = A > 0 ? (load[p.id] || 0) / A : Infinity;
+    floor.push({ id: p.id, space, kgM2: frR3(kgM2), limit: S ? S.kgM2 : null, ok: !S || kgM2 <= S.kgM2 + 1e-9 });
+  }
+  const bagS = spaces.find(s => s.id === 'baggage');
+  const bagKg = frR3(placed.filter(p => bagS && frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)) === 'baggage').reduce((s, p) => s + p.kg, 0));
+  const out = {
+    mass: { kg: frR3(kg), mtow: Mm.mtow, margin: frR3(Mm.mtow - kg), ok: kg <= Mm.mtow + 1e-6 },
+    cg: { x: frR3(x), pct: pct(x), range: [fwd, aft], pctRange: [pct(fwd), pct(aft)], margin: frR3(cgMargin), ok: cgMargin >= -1e-6,
+          side: x < fwd ? 'forward' : x > aft ? 'aft' : null },
+    floor, floorOk: floor.every(f => f.ok),
+    baggage: { kg: bagKg, limit: bagS ? (bagS.maxKg || 0) : 0, ok: !bagS || bagKg <= (bagS.maxKg || 0) + 1e-9 },
+    seats: { pax: pax.length, wanted: paxWanted, ok: pax.length >= paxWanted, out: seats.filter(s => s.out).map(s => s.i) },
+    cargoKg: freightKg(placed),
+  };
+  out.ok = out.mass.ok && out.cg.ok && out.floorOk && out.baggage.ok && out.seats.ok;
+  out.why = [];
+  if (!out.seats.ok) out.why.push(paxWanted + ' passengers, ' + pax.length + ' seats beside the pilot');
+  if (!out.mass.ok) out.why.push(frR3(kg - Mm.mtow) + ' kg over the MTOW (' + Mm.mtow + ' kg)');
+  if (!out.cg.ok) out.why.push('the CG ' + out.cg.pct + ' % MAC is ' + out.cg.side + ' of the certified ' + out.cg.pctRange.join('-') + ' %');
+  for (const f of floor) if (!f.ok) out.why.push(f.id + ': ' + Math.round(f.kgM2) + ' kg/m2 on the ' + f.space + ' floor (' + f.limit + ')');
+  if (!out.baggage.ok) out.why.push(bagKg + ' kg in the baggage bay, the placard says ' + out.baggage.limit);
+  return out;
+}
+
+// ---- THE PACKER -------------------------------------------------------------------------------------------------
+// the orientations a kind allows -> [[lx, ly(height), lz]] (deduplicated, in a fixed order)
+function frOrients(it) {
+  const K = FREIGHT_KINDS[it.kind], [a, b, c] = it.dims;
+  const all = (K.upright || K.flat) ? [[a, c, b], [b, c, a]] : [[a, c, b], [b, c, a], [a, b, c], [c, b, a], [b, a, c], [c, a, b]];
+  return all.filter((o, i) => all.findIndex(q => q[0] === o[0] && q[1] === o[1] && q[2] === o[2]) === i);
+}
+const frOverlap = (p, q) => p.x0 < q.x1 - 1e-6 && q.x0 < p.x1 - 1e-6 && p.y0 < q.y1 - 1e-6 && q.y0 < p.y1 - 1e-6 && p.z0 < q.z1 - 1e-6 && q.z0 < p.z1 - 1e-6;
+// freightPack(card, items, opts) -> { ok, placed, unplaced, report, how }
+//   opts: { pax (passengers beside the pilot), seatsOut ([seat i] the player took out), limits: false (geometry only),
+//           doors: false (the room alone, no door asked: a report's "would it fit inside") }
+// ok = every item placed (the geometry); report.ok = and within every limit. An item no door takes, or no room
+// holds, is `unplaced` with why; a limit not met is in report.why. Nothing is refused.
+function freightPack(card, itemsIn, opts) {
+  const o = opts || {}, P = FREIGHT_PACK;
+  const items = freightSplit(itemsIn);
+  const res = { ok: false, placed: [], unplaced: [], report: null };
+  if (!card || !card.hold) {
+    res.unplaced = items.map(it => ({ id: it.id, why: 'this aeroplane has no hold' }));
+    res.report = card && card.mass ? freightReport(card, [], o) : null;
+    return res;
+  }
+  const H = card.hold, spaces = freightSpaces(card);
+  const seats = freightSeats(card, o), obst = freightObstacles(card, seats);
+  const Mm = card.mass, occKg = (typeof CONTRACT_FIT !== 'undefined' && CONTRACT_FIT.occKg) || 80;
+  // biggest, then heaviest, then by id: a fixed order
+  const order = items.slice().sort((p, q) => (q.dims[0] * q.dims[1] * q.dims[2]) - (p.dims[0] * p.dims[1] * p.dims[2]) || q.kg - p.kg || (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+  // the running mass and moment (the base, the passengers), so "near the CG" is near where the range wants it
+  let kg = Mm.base.kg, mx = Mm.base.kg * Mm.base.x;
+  for (const s of seats) if (s.occ && s.i > 0) { kg += occKg; mx += occKg * s.x; }
+  // NEAR THE CG: an item goes where it moves the CG least - at the CG itself while the CG is in the certified
+  // range; when it is out, where it brings the CG back to the nearer limit
+  const xHi = frHoldX1(H);
+  const placed = [];
+  // the strict pass's running sums: the load on each floor-standing item (itself and its stack), the baggage bay's
+  const baseLoad = {}, baseOf = id => { let p = placed.find(q => q.id === id); while (p && p.on) p = placed.find(q => q.id === p.on); return p ? p.id : id; };
+  const bagS = spaces.find(q => q.id === 'baggage');
+  let bagKg = 0;
+  for (const it of order) {
+    // (opts.doors === false: the room alone - "would it fit if it could get in", a report's question)
+    const door = o.doors === false ? { ok: true, door: null, how: null } : freightDoorAny(card, it);
+    if (!door.ok) { res.unplaced.push({ id: it.id, why: door.why || 'passes no door' }); continue; }
+    const cgNow = mx / kg, cgWant = Math.min(Mm.cg[1], Math.max(Mm.cg[0], cgNow));
+    const xt = ((kg + it.kg) * cgWant - mx) / Math.max(1e-9, it.kg);
+    let best = null;
+    for (const strict of (o.limits === false ? [false] : [true, false])) {
+      for (const [lx, ly, lz] of frOrients(it)) {
+        // x candidates: the whole hold at the pack step, nearest the target first (ties: forward first)
+        const xs = [];
+        for (let x0 = H.x0; x0 + lx <= xHi + 1e-9; x0 += P.step) xs.push(frR3(x0));
+        xs.sort((a, b) => Math.abs(a + lx / 2 - xt) - Math.abs(b + lx / 2 - xt) || a - b);
+        // z candidates: the middle outward, at the z step
+        const zs = [];
+        for (let k = 0; k * P.zStep <= 1.2; k++) { zs.push(frR3(-lz / 2 + k * P.zStep)); if (k) zs.push(frR3(-lz / 2 - k * P.zStep)); }
+        let floorHit = false, stackHit = false;
+        for (const x0 of xs) {
+          if (floorHit) break;                       // a farther x can only score worse
+          const x1 = x0 + lx;
+          // the floor first, then the top of each stackable item already placed under the whole footprint
+          const ys = [];
+          const rest = freightRestY(card, x0, x1);
+          if (rest != null) ys.push({ y: rest, on: null, level: 0 });
+          if (!stackHit) for (const p of placed) if (p.stack && p.at.x0 <= x0 + 1e-9 && p.at.x1 >= x1 - 1e-9) ys.push({ y: p.at.y1, on: p.id, sup: p, level: 1 });
+          for (const { y, on, sup, level } of ys) {
+            if (level && stackHit) continue;
+            const zm = frZMax(card, x0, x1, y, y + ly);
+            if (zm < lz / 2 - 1e-8) continue;          // not even the middle is wide enough here
+            for (const z0 of zs) {
+              const z1 = z0 + lz;
+              if (Math.max(-z0, z1) > zm + 1e-8) continue;   // the hold's walls (freightHoldFits, at this x and y)
+              if (sup && (z0 < sup.at.z0 - 1e-9 || z1 > sup.at.z1 + 1e-9)) continue;   // wholly on its support
+              const b = { x0, x1: frR3(x1), y0: y, y1: y + ly, z0, z1: frR3(z1) };
+              if (obst.some(q => frOverlap(b, q)) || placed.some(q => frOverlap(b, q.at))) continue;
+              const cand = { id: it.id, kind: it.kind, kg: it.kg, dims: it.dims, stack: it.stack && FREIGHT_KINDS[it.kind].stack,
+                             at: { x0: frR3(b.x0), x1: frR3(b.x1), y0: frR3(b.y0), y1: frR3(b.y1), z0: frR3(b.z0), z1: frR3(b.z1) },
+                             on, door: door.door, how: door.how };
+              if (strict) {
+                // the floor under it (or under the item at the bottom of its stack) and the baggage placard, kept
+                // incrementally: the same numbers freightReport states
+                const baseId = on ? baseOf(on) : it.id;
+                const bp = on ? placed.find(q => q.id === baseId) : cand;
+                const A = (bp.at.x1 - bp.at.x0) * (bp.at.z1 - bp.at.z0);
+                const S = spaces.find(q => q.id === frSpaceOf(spaces, 0.5 * (bp.at.x0 + bp.at.x1)));
+                if (S && ((baseLoad[baseId] || 0) + it.kg) / A > S.kgM2 + 1e-9) continue;
+                const inBag = frSpaceOf(spaces, 0.5 * (b.x0 + b.x1)) === 'baggage';
+                if (inBag && bagS && bagKg + it.kg > (bagS.maxKg || 0) + 1e-9) continue;
+              }
+              // the score: on the floor before stacked, LOW (its middle's height, to the cell), near the target
+              // station, near the middle - compared in that order, a tie keeping the first candidate
+              const sc = [level, Math.round((0.5 * ly + b.y0 - H.y0) / H.dy), frR3(Math.abs(0.5 * (b.x0 + b.x1) - xt)), frR3(Math.abs(0.5 * (b.z0 + b.z1)))];
+              let better = !best;
+              for (let k = 0; !better && k < sc.length; k++) { if (sc[k] < best.sc[k] - 1e-9) better = true; else if (sc[k] > best.sc[k] + 1e-9) break; }
+              if (better) best = { sc, cand };
+              if (level) stackHit = true; else floorHit = true;
+              break;    // the nearest z at this x and this level
+            }
+          }
+        }
+      }
+      if (best) break;
+    }
+    if (!best) { res.unplaced.push({ id: it.id, why: it.id + ' (' + it.dims.join(' x ') + ' m) finds no room in the hold' }); continue; }
+    best.cand.space = frSpaceOf(spaces, 0.5 * (best.cand.at.x0 + best.cand.at.x1));
+    placed.push(best.cand);
+    const bId = best.cand.on ? baseOf(best.cand.on) : it.id;
+    baseLoad[bId] = (baseLoad[bId] || 0) + it.kg;
+    if (best.cand.space === 'baggage') bagKg += it.kg;
+    kg += it.kg; mx += it.kg * 0.5 * (best.cand.at.x0 + best.cand.at.x1);
+  }
+  res.placed = placed;
+  res.ok = res.unplaced.length === 0;
+  res.report = freightReport(card, placed, o);
+  return res;
+}
+
+// ---- WHAT A DESIGN CAN CARRY (the contracts' physical gate gains the volume) --------------------------------------
+// freightFits(card, items, {pax}) -> { ok, seatsOut, why, room }: the load has a LEGAL loading on this design -
+// every item through a door, the whole load packed with the passengers seated, and the packer's proposal within
+// every limit (the MTOW, the certified CG range, the floors, the baggage placard) - with the seats in, else with
+// the empty seats taken out (the player's call, ruled). `room` says whether it fits at all (the geometry), so a
+// caller can tell "no room" from "only out of limits". Memoised by the load and the passengers.
+const frFitMemo = new Map();
+function freightFits(card, items, opts) {
+  const pax = Math.max(0, (opts && opts.pax) | 0);
+  const its = freightSplit(items);
+  if (!its.length) return { ok: true, seatsOut: [], why: '', room: true };
+  if (!card || !card.hold) return { ok: false, seatsOut: [], why: 'no hold', room: false };
+  const key = (card.id || JSON.stringify(card.mass)) + '|' + pax + '|' + its.map(i => i.id + ':' + i.kind + ':' + i.kg + ':' + i.dims.join(',')).sort().join(';');
+  if (frFitMemo.has(key)) return frFitMemo.get(key);
+  let r;
+  const nd = its.filter(it => !freightDoorAny(card, it).ok);
+  if (nd.length) r = { ok: false, seatsOut: [], why: nd.map(i => i.id).join(', ') + ' (' + nd[0].dims.join(' x ') + ' m) passes no door', room: false };
+  else {
+    const empty = (card.seats || []).filter(s => s.i > pax).map(s => s.i);
+    const tries = empty.length ? [[], empty] : [[]];
+    let room = false, why = '';
+    for (const out of tries) {
+      const a = freightPack(card, its, { pax, seatsOut: out });
+      if (a.ok) room = true;
+      if (a.ok && a.report.ok) { r = { ok: true, seatsOut: out, why: '', room: true }; break; }
+      why = a.ok ? 'loaded only out of limits: ' + a.report.why.join('; ') : a.unplaced.map(u => u.why).join('; ');
+    }
+    if (!r) r = { ok: false, seatsOut: empty, why, room };
+  }
+  frFitMemo.set(key, r);
+  return r;
+}
+// a design row (CONTRACT_DESIGNS) -> its card, or null (no card measured: the volume is not known)
+const freightCardOf = D => (D && D.id && typeof FREIGHT_CARDS !== 'undefined' && FREIGHT_CARDS[D.id]) || null;
+// the items a sub carries (a job's own list; an authored load's kilos as boxes)
+function freightSubItems(sub, rec) {
+  if (!sub || !sub.load) return [];
+  if (Array.isArray(sub.load.items)) return freightSplit(sub.load.items);
+  return freightItems(sub.load, rec && rec.goods);
+}
+
+// ---- THE MAP'S MARK (§R.2: ✓ / ✗ only for the hard no-no's; build contracts carry no mark) ------------------------
+// rec (a contract record) + the fleet's designs ([{ slot, design: CONTRACT_DESIGNS row | null, card }]) ->
+//   { ok: true | false | null, gear: {ok, why}, door: {ok, why, items} }
+// gear: some airframe's gear uses both ends of every flying sub (water vs wheels, land vs floats-only);
+// door: every item passes some door of one airframe that also takes the gear (THE HARD NO-NO: an item that passes
+// no door of any of your planes). null when nothing about the fleet is known; a build contract -> null.
+function freightMark(rec, fleet, fields) {
+  if (!rec || rec.kind === 'build') return null;
+  const F = fields || CONTRACT_FIELDS;
+  const subs = [].concat(...((rec.stages || []).map(st => st.subs || [])));
+  const ends = [];
+  for (const s of subs) for (const k of ['from', 'to']) if (s[k] && F[s[k]] && (s.do === 'carry' || s.do === 'fly' || s.do === 'land' || (s.do === 'survey' && k === 'from'))) ends.push(F[s[k]]);
+  const items = [].concat(...subs.map(s => freightSubItems(s, rec)));
+  const known = (fleet || []).filter(f => f && f.design);
+  if (!known.length) return { ok: null, gear: { ok: null, why: 'no airframe with a certificate' }, door: { ok: null, why: '', items: [] } };
+  const gearOk = f => ends.every(e => contractGearOk(f.design.gear, e));
+  const gearers = known.filter(gearOk);
+  const gear = gearers.length ? { ok: true, why: '' }
+    : { ok: false, why: 'no airframe of yours uses ' + ends.filter((e, i, a) => a.indexOf(e) === i).map(e => e.name + ' (' + e.surf + ')').join(', ') };
+  let door = { ok: true, why: '', items: [] };
+  if (items.length) {
+    const pool = gearers.length ? gearers : known;
+    const cards = pool.map(f => f.card || freightCardOf(f.design));
+    if (cards.some(c => !c)) {
+      door = cards.some(c => c && !freightNoDoor(c, items).length) ? { ok: true, why: '', items: [] } : { ok: null, why: 'a hold not measured yet', items: [] };
+    } else {
+      const bad = items.filter(it => cards.every(c => !freightDoorAny(c, it).ok)).map(it => it.id);
+      // the same airframe must take every item through its doors
+      const one = cards.some(c => !freightNoDoor(c, items).length);
+      door = one ? { ok: true, why: '', items: [] }
+        : { ok: false, items: bad.length ? bad : items.map(i => i.id),
+            why: 'no door fits: ' + (bad.length ? bad.join(', ') : 'no one airframe of yours takes every item through its doors') };
+    }
+  }
+  return { ok: gear.ok === false || door.ok === false ? false : (gear.ok && door.ok) ? true : null, gear, door };
+}
+
+// FREIGHT_CARDS-BEGIN (written by `node tools/_freight_site.js --write`; GATE FREIGHT re-measures each from its build)
+const FREIGHT_CARDS = {
+  cub: {"v":1,"id":"cub","label":"Cub","hold":{"x0":0.3,"dx":0.1,"n":24,"y0":-0.35,"dy":0.05,"ny":21,"floor":[5,5,4,4,4,3,3,3,3,4,5,6,7,7,8,9,10,11,12,12,13,14,15,15,16],"half":[[0,33,33,33,33,33,32,32,32,31,31,30,30,29,29,28,28,27,27,7,0],[33,33,33,33,33,33,33,32,32,31,31,30,30,29,29,28,28,27,27,7,0],[33,33,33,33,33,33,33,33,32,31,31,30,30,29,29,28,28,27,27,7,0],[33,33,33,33,33,33,33,33,32,32,31,31,30,29,29,28,28,27,27,7,0],[33,33,33,33,33,33,33,33,32,32,31,31,30,30,29,28,28,27,27,7,0],[34,34,34,33,33,33,33,33,33,32,32,31,30,30,29,29,28,27,27,7,0],[34,34,34,34,34,34,34,34,33,32,32,31,31,30,29,29,28,27,27,7,0],[34,34,34,34,34,34,34,34,34,33,32,32,31,30,30,29,28,27,27,7,0],[34,34,34,34,34,34,34,34,34,33,32,32,31,30,29,29,28,27,27,7,0],[34,34,34,34,34,34,34,34,34,33,32,31,31,30,29,29,28,27,26,7,0],[34,34,34,34,34,34,34,34,34,33,32,31,31,30,29,28,28,27,9,7,0],[0,34,34,34,34,34,34,34,34,33,32,31,31,30,29,28,28,27,7,0,0],[0,34,34,34,34,34,34,34,34,33,32,31,30,30,29,28,27,26,7,0,0],[0,34,34,34,34,34,34,34,34,33,32,31,30,29,29,28,27,0,0,0,0],[0,34,34,34,34,34,34,34,34,33,32,31,30,29,28,28,27,7,0,0,0],[0,34,34,34,34,34,34,34,34,33,32,31,30,29,28,27,26,0,0,0,0],[0,34,34,34,34,34,34,34,34,33,32,31,30,29,28,27,0,0,0,0,0],[0,0,34,34,34,34,34,34,34,33,32,31,30,29,28,27,0,0,0,0,0],[0,0,34,34,34,34,34,34,34,33,32,31,30,28,27,23,7,0,0,0,0],[0,0,34,34,34,34,34,34,34,32,31,30,29,28,27,7,0,0,0,0,0],[0,0,34,34,34,34,34,34,34,32,31,30,29,28,27,7,0,0,0,0,0],[0,0,33,33,33,33,33,33,32,31,30,29,28,27,26,7,0,0,0,0,0],[0,0,32,32,32,32,32,32,31,30,29,28,27,26,25,7,0,0,0,0,0],[0,0,0,30,30,30,30,30,30,29,28,27,26,25,24,0,0,0,0,0,0],[0,0,0,29,29,29,29,29,29,28,27,26,25,24,23,6,0,0,0,0,0]]},"cabinX1":2.304,"seats":[{"i":0,"x":0.62,"back":0.82,"row":0,"z":0,"w":0.5},{"i":1,"x":2.003,"back":2.203,"row":1,"z":0,"w":0.5}],"doors":[{"id":"pilot:M","side":-1,"x0":0.031,"x1":0.989,"y0":-0.53,"y1":0.561,"rects":[[0.916,0.1],[0.916,0.22],[0.916,0.36],[0.916,0.48],[0.831,0.66],[0.737,0.78],[0.627,0.92],[0.534,1.04]],"st":2},{"id":"pilot:P","side":1,"x0":0.031,"x1":0.989,"y0":-0.53,"y1":0.561,"rects":[[0.916,0.1],[0.916,0.22],[0.916,0.36],[0.916,0.48],[0.831,0.66],[0.737,0.78],[0.627,0.92],[0.534,1.04]],"st":2}],"mass":{"mtow":556.195,"base":{"kg":466.195,"x":0.637},"cg":[0.637,0.921],"mac":[0.285,1.7],"bagKg":10,"seats":2}},
+  jodel: {"v":1,"id":"jodel","label":"Jodel","hold":{"x0":0.2,"dx":0.1,"n":19,"y0":-0.35,"dy":0.05,"ny":19,"floor":[4,4,4,3,3,2,2,2,7,10,11,12,13,13,14,15,16,17,18,18],"half":[[49,49,49,49,48,48,48,48,47,44,40,37,34,31,28,24,21,0,0],[49,49,49,49,49,48,48,48,46,43,40,37,34,31,27,24,21,0,0],[49,49,49,49,49,48,48,48,46,43,40,37,34,31,27,24,21,0,0],[49,49,49,49,49,48,48,48,46,43,40,37,34,31,27,24,21,6,0],[49,49,49,49,49,49,48,48,46,43,40,37,34,30,27,24,21,6,0],[49,49,49,49,49,49,49,48,46,43,40,37,34,31,28,24,21,0,0],[50,50,50,50,50,49,49,49,46,43,40,37,34,31,28,25,22,6,0],[51,51,51,50,50,50,50,50,49,48,46,45,43,41,39,34,25,0,0],[0,50,50,50,50,50,50,50,49,48,46,45,43,41,38,34,24,6,0],[0,0,49,49,49,49,49,49,48,46,45,44,42,40,37,33,22,6,0],[0,0,47,47,47,47,47,47,46,45,44,42,41,38,36,31,18,6,0],[0,0,46,46,46,46,46,46,45,43,42,41,39,37,34,29,13,5,0],[0,0,44,44,44,44,44,44,43,42,41,39,38,36,33,27,8,5,0],[0,0,43,43,43,43,43,42,42,40,39,38,36,34,31,25,5,0,0],[0,0,41,41,41,41,41,41,40,39,38,36,35,33,30,23,5,0,0],[0,0,0,40,40,40,40,39,39,37,36,35,33,31,28,21,5,0,0],[0,0,0,38,38,38,38,38,37,36,35,34,32,30,27,19,5,0,0],[0,0,0,37,37,37,37,36,36,34,33,32,31,28,25,16,4,0,0],[0,0,0,35,35,35,35,35,34,33,32,31,29,27,24,12,4,0,0],[0,0,0,33,33,33,33,33,33,32,31,29,28,26,22,8,0,0,0]]},"cabinX1":1.457,"seats":[{"i":0,"x":0.466,"back":0.666,"row":0,"z":-0.241,"w":0.482},{"i":1,"x":0.466,"back":0.666,"row":0,"z":0.241,"w":0.482}],"doors":[{"id":"pilot:M","side":-1,"x0":0.035,"x1":0.851,"y0":-0.487,"y1":0.401,"rects":[[0.77,0.1],[0.77,0.28],[0.769,0.36],[0.765,0.46],[0.733,0.56],[0.65,0.66],[0.586,0.74],[0.512,0.84]],"st":2},{"id":"pilot:P","side":1,"x0":0.035,"x1":0.851,"y0":-0.487,"y1":0.401,"rects":[[0.77,0.1],[0.77,0.28],[0.769,0.36],[0.765,0.46],[0.733,0.56],[0.65,0.66],[0.586,0.74],[0.512,0.84]],"st":2}],"mass":{"mtow":542.955,"base":{"kg":452.955,"x":0.413},"cg":[0.413,0.479],"mac":[-0.012,1.672],"bagKg":10,"seats":2}},
+  c172: {"v":1,"id":"c172","label":"metal Cessna","hold":{"x0":0.2,"dx":0.1,"n":29,"y0":-0.4,"dy":0.05,"ny":24,"floor":[6,5,5,4,4,3,2,1,1,1,1,1,1,1,1,1,1,1,2,2,3,3,4,4,5,5,5,5,6,6],"half":[[0,52,52,53,53,54,54,54,54,54,54,53,51,49,48,46,44,42,40,39,37,35,10,0],[0,52,53,53,54,54,54,54,54,54,54,53,51,50,48,46,44,42,40,39,37,35,10,0],[52,52,53,53,54,54,54,54,54,54,54,53,52,50,48,46,44,42,40,39,37,35,10,0],[52,52,53,53,54,54,54,54,55,55,54,54,52,50,48,46,44,42,41,39,37,35,10,0],[52,52,53,53,54,54,54,55,55,55,55,54,52,50,48,46,44,42,41,39,37,35,10,0],[52,52,53,54,54,54,55,55,55,55,55,54,52,50,48,46,44,43,41,39,37,35,10,0],[52,53,53,54,54,55,55,55,55,55,55,54,52,50,49,47,45,43,41,39,37,35,10,0],[52,53,54,54,55,55,55,55,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,55,54,54,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,55,54,54,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,54,54,53,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,54,54,53,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,54,54,53,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,54,54,53,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,55,54,54,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,55,54,54,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,54,54,53,53,52,51,49,42,10,0],[52,53,54,54,54,55,55,55,56,56,55,55,54,54,53,53,52,51,51,49,45,0,0,0],[51,52,52,53,53,54,54,54,54,54,54,54,53,52,52,51,50,49,47,38,10,0,0,0],[50,50,51,51,52,52,53,53,53,53,53,52,52,51,50,50,48,45,0,0,0,0,0,0],[48,49,50,50,51,51,51,51,52,52,51,51,50,49,48,47,41,10,0,0,0,0,0,0],[47,48,48,49,49,50,50,50,50,51,50,49,49,47,45,9,0,0,0,0,0,0,0,0],[46,46,47,48,48,48,49,49,49,49,49,48,46,43,9,0,0,0,0,0,0,0,0,0],[45,45,46,46,47,47,47,48,48,48,47,45,32,0,0,0,0,0,0,0,0,0,0,0],[44,44,45,45,46,46,46,46,47,47,45,9,0,0,0,0,0,0,0,0,0,0,0,0],[43,43,44,45,45,45,46,46,46,46,44,9,0,0,0,0,0,0,0,0,0,0,0,0],[0,42,43,43,44,44,44,45,45,45,43,8,0,0,0,0,0,0,0,0,0,0,0,0],[0,41,42,42,43,43,43,43,44,44,41,8,0,0,0,0,0,0,0,0,0,0,0,0],[0,40,40,41,41,42,42,42,42,42,40,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,38,39,40,40,40,41,41,41,41,38,0,0,0,0,0,0,0,0,0,0,0,0,0]]},"cabinX1":1.848,"seats":[{"i":0,"x":0.499,"back":0.699,"row":0,"z":-0.272,"w":0.5},{"i":1,"x":0.499,"back":0.699,"row":0,"z":0.272,"w":0.5},{"i":2,"x":1.523,"back":1.723,"row":1,"z":-0.279,"w":0.5},{"i":3,"x":1.523,"back":1.723,"row":1,"z":0.279,"w":0.5}],"doors":[{"id":"pilot:M","side":-1,"x0":0.035,"x1":0.949,"y0":-0.507,"y1":0.591,"rects":[[0.869,0.1],[0.869,0.22],[0.869,0.34],[0.858,0.58],[0.781,0.68],[0.69,0.8],[0.598,0.92],[0.508,1.04]],"st":3},{"id":"pilot:P","side":1,"x0":0.035,"x1":0.949,"y0":-0.507,"y1":0.591,"rects":[[0.869,0.1],[0.869,0.22],[0.869,0.34],[0.858,0.58],[0.781,0.68],[0.69,0.8],[0.598,0.92],[0.508,1.04]],"st":3}],"mass":{"mtow":1043.41,"base":{"kg":763.41,"x":0.806},"cg":[0.806,0.944],"mac":[0.336,1.68],"bagKg":40,"seats":4}},
+  c172f: {"v":1,"id":"c172f","label":"Cessna floats","hold":{"x0":0.2,"dx":0.1,"n":29,"y0":-0.4,"dy":0.05,"ny":24,"floor":[6,5,5,4,4,3,2,1,1,1,1,1,1,1,1,1,1,1,2,2,3,3,4,4,5,5,5,5,6,6],"half":[[0,52,52,53,53,54,54,54,54,54,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,52,53,53,54,54,54,54,54,54,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[52,52,53,53,54,54,54,54,54,54,54,0,0,0,0,0,0,0,0,0,0,0,0,0],[52,52,53,53,54,54,54,54,55,55,54,0,0,0,0,0,0,0,0,0,0,0,0,0],[52,52,53,53,54,54,54,55,55,55,55,0,0,0,0,0,0,0,0,0,0,0,0,0],[52,52,53,54,54,54,55,55,55,55,55,0,0,0,0,0,0,0,0,0,0,0,0,0],[52,53,53,54,54,55,55,55,55,55,55,0,0,0,0,0,0,0,0,0,0,0,0,0],[52,53,54,54,55,55,55,55,56,56,56,56,0,0,0,0,0,0,0,0,0,0,0,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,55,54,54,53,52,51,49,42,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,55,53,51,49,47,45,43,41,39,37,35,10,0],[53,53,54,55,55,56,56,56,56,56,56,56,55,55,55,54,54,53,52,51,49,42,10,0],[52,53,54,54,54,55,55,55,56,56,55,55,55,54,54,53,53,52,51,49,45,0,0,0],[51,52,52,53,53,54,54,54,54,54,54,54,53,53,52,52,51,49,47,38,10,0,0,0],[50,50,51,51,52,52,53,53,53,53,53,52,52,51,51,50,48,45,0,0,0,0,0,0],[48,49,50,50,51,51,51,51,52,52,51,51,50,49,48,47,41,10,0,0,0,0,0,0],[47,48,48,49,49,50,50,50,50,51,50,49,49,47,45,9,0,0,0,0,0,0,0,0],[46,46,47,48,48,48,49,49,49,49,49,48,46,43,9,0,0,0,0,0,0,0,0,0],[45,45,46,46,47,47,47,48,48,48,47,45,32,0,0,0,0,0,0,0,0,0,0,0],[44,44,45,45,46,46,46,46,47,47,45,9,0,0,0,0,0,0,0,0,0,0,0,0],[43,43,44,45,45,45,46,46,46,46,44,9,0,0,0,0,0,0,0,0,0,0,0,0],[0,42,43,43,44,44,44,45,45,45,43,8,0,0,0,0,0,0,0,0,0,0,0,0],[0,41,42,42,43,43,43,43,44,44,41,8,0,0,0,0,0,0,0,0,0,0,0,0],[0,40,40,41,41,42,42,42,42,42,40,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,38,39,40,40,40,41,41,41,41,38,0,0,0,0,0,0,0,0,0,0,0,0,0]]},"cabinX1":1.848,"seats":[{"i":0,"x":0.499,"back":0.699,"row":0,"z":-0.272,"w":0.5},{"i":1,"x":0.499,"back":0.699,"row":0,"z":0.272,"w":0.5},{"i":2,"x":1.523,"back":1.723,"row":1,"z":-0.279,"w":0.5},{"i":3,"x":1.523,"back":1.723,"row":1,"z":0.279,"w":0.5}],"doors":[{"id":"pilot:M","side":-1,"x0":0.035,"x1":0.949,"y0":-0.507,"y1":0.591,"rects":[[0.869,0.1],[0.869,0.22],[0.869,0.34],[0.858,0.58],[0.781,0.68],[0.69,0.8],[0.598,0.92],[0.508,1.04]],"st":3},{"id":"pilot:P","side":1,"x0":0.035,"x1":0.949,"y0":-0.507,"y1":0.591,"rects":[[0.869,0.1],[0.869,0.22],[0.869,0.34],[0.858,0.58],[0.781,0.68],[0.69,0.8],[0.598,0.92],[0.508,1.04]],"st":3}],"mass":{"mtow":1178.699,"base":{"kg":898.186,"x":0.896},"cg":[0.896,0.997],"mac":[0.336,1.68],"bagKg":40,"seats":4}},
+  twinf: {"v":1,"id":"twinf","label":"twin floatplane","hold":null,"cabinX1":1.546,"seats":[{"i":0,"x":0.491,"back":0.691,"row":0,"z":0,"w":0.5}],"doors":[],"mass":{"mtow":471.728,"base":{"kg":475.416,"x":0.946},"cg":[0.946,0.97],"mac":[0.483,1.5],"bagKg":0,"seats":1}},
+};
+// FREIGHT_CARDS-END
+// ===========================================================================
+// THE PILOTS YOU HIRE (G2290 PILOTS) — the roster, hiring, who flies, refusals
+// by trait, a pilot's place, and skill growth from the logbook.
+// futureDesigns/GAME-2026-10-06.md §9 (the spec), §R (binding: GQ13 four
+// recruits on the existing bodies, no download; G-COST a one-time sign-on fee,
+// no wages; GQ14 pilots are physical, the free boat home; GQ30 refusals by
+// trait only, no morale); futureDesigns/game/NARRATIVE-PROMPT-PACK-2026-10-06.md
+// Block 3 (the four pilots' FIXED knobs and traits: THIS FILE'S DATA, gated
+// against the pack by GATE PILOTS).
+// ===========================================================================
+// A PILOT IS A PERSON WRAPPED AROUND A PROFILE (§9.1): the flying is PILOT-PERSONA's profile (43_pilot.js
+// PILOT_PROFILES + PILOT_PROFILE_KNOBS, clamped through pilotProfile / pilotProfileSpec), one pilot, never a fork.
+// The body is a Mixamo character already in the game (tools/chars_table.py; the crew's `pilotWho`): ch20 stays the
+// TEST PILOT and ch02 is kept for the user's own purposes, so neither is a recruit. The words (name, tagline, bio,
+// barks, "flies like", the pitch) are TEXT KEYS: draft until the user's external-AI run (GQ21) is imported
+// (pilotsImportPack, Block 5's "pilots"). The portrait is null until that run too.
+//
+// THE CAREER BLOCK (74_career.js reserved `pilots: {}` and `roster: []` for this session; PLAYER_V / CAREER_V
+// unchanged, the fields ride along):
+//   career.roster: [id]              the hired pilots, in hiring order (the companion first)
+//   career.pilots: { <id>: {         one row per pilot ever hired (a fired pilot keeps the row: the logbook stays)
+//       hired: <clock s> | null,     null: not on the roster now (fired)
+//       fee:   <the sign-on paid>,
+//       aero:  <aerodrome id>,       where the pilot was left (the boat home: HOME; a flight flown: where it stopped)
+//       plane: <slot> | null,        the aeroplane the pilot is WITH: their place follows it (the fleet ledger)
+//       log:   [ { n, at, slot, from, to, landed, tw, t } ] } }   their logbook: every flight they flew
+//   career.pilotPick: <id> | 'me'    who flies the next flight ('me' = by hand / the expert, "I fly")
+//   career.pilotN: <count>           flights logged by hired pilots (the row number `n`)
+//
+// Pure: every operation works on a clone and returns { ok, doc, why, ... }; a refusal hands back the very document
+// it was given, untouched (74_career.js's contract). No DOM, no storage, no clock, no random.
+// ===========================================================================
+const PILOTS_V = 1;
+const PILOTS_ORDER = ['kit', 'rafe', 'remy', 'sky'];
+const PILOTS_COMPANION = 'kit';                       // arrives with the player (§9.2, the pack's COMPANION)
+const PILOTS_RESERVED = { ch20: 'the test pilot', ch02: 'kept for the user\'s own purposes' };   // GQ13: not recruits
+const PILOTS_MARKET = { min: 2, max: 3 };             // recruitables shown at a time, refreshed with the market
+const PILOTS_GROW = { fast: 30, steady: 60 };         // logged landings to reach the ceiling (§9.4)
+const PILOTS_WEATHER = { windKt: 18 };                // a cautious pilot's limit: the surface wind at the decision
+const PILOTS_SHORT_M = 300;                           // short-strip nerves: refuses strips under this (m)
+const PILOTS_PAVED = ['concrete', 'asphalt'];         // paved-only: the surfaces it will use
+// G-COST: the one-time sign-on fee. ECONOMY (G2260) owns the price book (econPrice('signon', id)); until it lands,
+// this stub - the order is the pack's (remy the cheapest, sky the priciest; the companion comes with the opening).
+const PILOTS_SIGNON_STUB = { kit: 0, remy: 1500, rafe: 4000, sky: 7000 };
+
+// ---- THE TRAITS: hooks, never prose (§9.3). Each names what it does; the pack's phrase is its label key. --------------
+//   refuse     a refusal kind (pilotsRefusal): 'weather' | 'night' | 'short' | 'unpaved' | 'water' | 'snow'
+//   keeps      the refusals this trait switches OFF ('*' every one)
+//   labourK    x the repair LABOUR on an aeroplane the pilot is with, in the field (no hangar of yours around it)
+//   billK      x the whole repair bill on an aeroplane the pilot is with
+//   fixes      the knobs the trait holds (growth never moves them)
+//   growOn     the landings that count for growth ('tw': tailwheel types only)
+const PILOTS_TRAITS = {
+  mechanic:             { labourK: 0.9 },
+  cautious:             { refuse: 'weather' },
+  'night-shy':          { refuse: 'night' },
+  fearless:             { keeps: ['weather'] },
+  'hard-on-airframes':  { billK: 1.1 },
+  eager:                {},
+  'short-field':        { fixes: ['field', 'slip'] },
+  'loves-taildraggers': { growOn: 'tw' },
+  'refuses-nothing':    { keeps: '*' },
+  // the hooks no recruit carries today (a later pilot, or the user's text, may): GATE PILOTS fires each of them
+  'short-strip-nerves': { refuse: 'short' },
+  'paved-only':         { refuse: 'unpaved' },
+  'no-water':           { refuse: 'water' },
+  'no-snow':            { refuse: 'snow' },
+};
+const PILOTS_REFUSALS = ['weather', 'night', 'short', 'unpaved', 'water', 'snow'];
+
+// ---- THE ROSTER: the pack's Block 3, verbatim in numbers (GATE PILOTS parses the pack and compares) ----------------
+//   who       the chars_table key (the body; tools/chars_table.py)
+//   profile   { base: a PILOT_PROFILES name, knobs: the pack's overrides } -> pilotsProfile clamps it
+//   style     PILOT_STYLES name
+//   traits    PILOTS_TRAITS ids (the pack's TRAITS column)
+//   grow      { rate: PILOTS_GROW key, ceiling: a PILOT_PROFILES name } | null (the pack: "grows ... (ceiling: X)")
+//   signOn    'stub' (the price book's, pilotsSignOn) - the companion's is 0
+//   pack      what the pack left unsaid that this table decided (HANDOVER G2290 lists them)
+const PILOTS_ROSTER = {
+  kit:  { id: 'kit', who: 'ch01', companion: true,
+          profile: { base: 'club', knobs: { reaction: 0.25, smooth: 0.8, bankK: 0.85, comfortG: 1.25 } },
+          style: 'cautious', traits: ['mechanic', 'cautious', 'night-shy'], grow: { rate: 'steady', ceiling: 'bush' },
+          portrait: null },
+  rafe: { id: 'rafe', who: 'ch42',
+          profile: { base: 'hamfist', knobs: { hamFist: 0.04, comfortG: 1.9, bankK: 1.25 } },
+          style: 'normal', traits: ['fearless', 'hard-on-airframes'], grow: null,
+          portrait: null, pack: { style: 'not given: normal', grow: 'not given: none (the rough hands stay)' } },
+  remy: { id: 'remy', who: 'remy',
+          profile: { base: 'student', knobs: { reaction: 0.40, overRotate: 0.03, flareK: 0.85 } },
+          style: 'normal', traits: ['eager'], grow: { rate: 'fast', ceiling: 'expert' },
+          portrait: null, pack: { style: 'not given: normal' } },
+  sky:  { id: 'sky', who: 'ch22',
+          profile: { base: 'bush', knobs: { reaction: 0.12, smooth: 1.0, slip: true, field: 'short', bankK: 1.2, comfortG: 1.7 } },
+          style: 'normal', traits: ['short-field', 'loves-taildraggers', 'refuses-nothing'], grow: { rate: 'steady', ceiling: 'expert' },
+          portrait: null, pack: { style: 'not given: normal', grow: 'not given: steady to the expert, on tailwheel types only (loves taildraggers)' } },
+};
+
+// ---- THE TEXT: draft keys until the user's AI run (GQ21); the same { t, draft } shape as CONTRACT_TEXT ------------
+const PLT_ = t => ({ t, draft: true });
+const PILOTS_TEXT = {
+  'pilot.kit.name': PLT_('Kit'), 'pilot.rafe.name': PLT_('Rafe'), 'pilot.remy.name': PLT_('Remy'), 'pilot.sky.name': PLT_('Sky'),
+  'pilot.kit.tagline': PLT_('Fixes engines, flies a little, came with you.'),
+  'pilot.rafe.tagline': PLT_('Loud, brave, rough on the stick.'),
+  'pilot.remy.tagline': PLT_('A brand-new licence and no hours.'),
+  'pilot.sky.tagline': PLT_('Grew up landing on gravel bars.'),
+  'pilot.kit.bio': PLT_('[draft] The one who came with you. The text comes from the narrative run.'),
+  'pilot.rafe.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
+  'pilot.remy.bio': PLT_('[draft] Just finished the commercial licence. Wants hours.'),
+  'pilot.sky.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
+  'pilot.kit.pitch': PLT_('[draft] I believed in this before you did.'),
+  'pilot.rafe.pitch': PLT_('[draft] Weather? I fly in it.'),
+  'pilot.remy.pitch': PLT_('[draft] Give me the hours, I\'ll give you the landings.'),
+  'pilot.sky.pitch': PLT_('[draft] Show me the strip. Any strip.'),
+  // the eight barks (Block 3), one draft line per moment, shared until the pack writes each pilot's own
+  'pilot.bark.hired': PLT_('{name} is on the roster.'),
+  'pilot.bark.takeoff': PLT_('{name}: rolling.'),
+  'pilot.bark.goodLanding': PLT_('{name}: nice and soft.'),
+  'pilot.bark.badLanding': PLT_('{name}: that one bounced.'),
+  'pilot.bark.refuse': PLT_('{name} won\'t fly this one.'),
+  'pilot.bark.weather': PLT_('{name}: look at that sky.'),
+  'pilot.bark.idle': PLT_('{name} is waiting by the aeroplane.'),
+  'pilot.bark.longDay': PLT_('{name}: long day.'),
+  // THE REFUSALS (GQ30: by trait only), one line per kind; {name} {to} {len} {hour} {wind}
+  'pilot.refuse.weather': PLT_('{name} won\'t fly in this wind ({wind} kt).'),
+  'pilot.refuse.night': PLT_('{name} won\'t fly a leg that ends after dusk ({hour} h).'),
+  'pilot.refuse.short': PLT_('{name} won\'t land on a {len} m strip.'),
+  'pilot.refuse.unpaved': PLT_('{name} only flies from paved runways.'),
+  'pilot.refuse.water': PLT_('{name} won\'t land on water.'),
+  'pilot.refuse.snow': PLT_('{name} won\'t land on snow.'),
+  'pilot.refuse.away': PLT_('{name} is at {at}, not with the aeroplane.'),
+  'pilot.refuse.boat': PLT_('{name} is at {at}: take the boat home first.'),
+  // the traits' chips
+  'pilot.trait.mechanic': PLT_('mechanic'), 'pilot.trait.cautious': PLT_('cautious'), 'pilot.trait.night-shy': PLT_('night-shy'),
+  'pilot.trait.fearless': PLT_('fearless'), 'pilot.trait.hard-on-airframes': PLT_('hard on airframes'), 'pilot.trait.eager': PLT_('eager'),
+  'pilot.trait.short-field': PLT_('short-field'), 'pilot.trait.loves-taildraggers': PLT_('loves taildraggers'),
+  'pilot.trait.refuses-nothing': PLT_('refuses nothing'), 'pilot.trait.short-strip-nerves': PLT_('short-strip nerves'),
+  'pilot.trait.paved-only': PLT_('paved runways only'), 'pilot.trait.no-water': PLT_('no water'), 'pilot.trait.no-snow': PLT_('no snow'),
+  'pilot.trait.mechanic.how': PLT_('field repairs: labour x0.9'), 'pilot.trait.hard-on-airframes.how': PLT_('repair bills x1.1'),
+  'pilot.trait.cautious.how': PLT_('refuses strong wind'), 'pilot.trait.night-shy.how': PLT_('refuses legs ending after dusk'),
+  'pilot.trait.fearless.how': PLT_('no weather refusals'), 'pilot.trait.eager.how': PLT_('the cheapest sign-on, grows fast'),
+  'pilot.trait.short-field.how': PLT_('short-field technique, slips'), 'pilot.trait.loves-taildraggers.how': PLT_('grows on tailwheel types'),
+  'pilot.trait.refuses-nothing.how': PLT_('flies anything'),
+  'pilot.me': PLT_('I fly'), 'pilot.me.how': PLT_('by hand, or the expert autopilot'),
+  'pilot.boat': PLT_('takes the boat home'),
+};
+const pilotsText = (key, vars, text) => contractText(key, vars, Object.assign({}, PILOTS_TEXT, text || {}));
+const pilotsName = id => pilotsText('pilot.' + id + '.name');
+
+const plClone = o => JSON.parse(JSON.stringify(o));
+const plNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
+const plHome = doc => (doc && doc.sheds && doc.sheds[PREM_MAIN] && doc.sheds[PREM_MAIN].base) || PREM_MAIN;
+
+// ---- THE PROFILE: base + the pack's knobs (+ growth), clamped -------------------------------------------------------
+// The knob -> section map is PILOT_PROFILE_KNOBS' own when PILOT-PERSONA is in the core (train 40); before it, the
+// same eleven names in PILOT-ONE's sections (43's pilotProfile reads both shapes).
+const PILOTS_KNOB_SEC = { reaction: 'skill', smooth: 'skill', hamFist: 'skill', gain: 'skill', overRotate: 'quirks', flareK: 'quirks',
+                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique' };
+function pilotsKnobs() {
+  if (typeof PILOT_PROFILE_KNOBS !== 'undefined') return PILOT_PROFILE_KNOBS.map(K => ({ k: K.k, sec: K.sec, kind: K.kind, lo: K.lo, hi: K.hi, d: K.d }));
+  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold') ? 'bool' : 'range',
+                                                  d: pilotProfile('expert')[k] }));
+}
+// the flat knobs (pilotProfile's shape) of the pilot as signed on: the base person, the pack's knobs over it
+function pilotsBaseFlat(id) {
+  const R = PILOTS_ROSTER[id];
+  if (!R) return null;
+  const F = Object.assign({}, pilotProfile(R.profile.base));
+  for (const k of Object.keys(R.profile.knobs)) F[k] = R.profile.knobs[k];
+  return F;
+}
+// flat -> what makePilot is handed: an OBJECT profile { name, active, skill, quirks, limits, technique }, clamped
+// to the knobs by pilotProfile (PILOT-PERSONA) and written back as the knobs that differ from the expert's
+// (pilotProfileSpec). Before PILOT-PERSONA: the same object unclamped (the roster is in range: GATE PILOTS proves it
+// against PILOT-PERSONA's own clamp).
+function pilotsProfile(flat, name) {
+  const o = { name: name || 'custom', active: true };
+  for (const K of pilotsKnobs()) {
+    const v = flat[K.k];
+    if (v === undefined) continue;
+    if (v === K.d || (K.d == null && v == null) || (K.d === false && !v)) continue;
+    (o[K.sec] || (o[K.sec] = {}))[K.k] = v;
+  }
+  if (typeof pilotProfileSpec === 'function') return Object.assign({ name: o.name, active: true }, pilotProfileSpec(pilotProfile(o)));
+  return o;
+}
+
+// ---- SKILL GROWTH (§9.4, PILOT-PERSONALITY §4.9): deterministic from the logbook ------------------------------------
+// Each logged landing (a flight that stopped on an aerodrome, whole) moves the knobs a step toward the CEILING (a
+// PILOT_PROFILES name): f = min(1, landings / PILOTS_GROW[rate]). A numeric knob moves s -> s + (c - s) f, ONLY when
+// the ceiling's value is nearer the expert's than the start (a pilot never grows away from the expert: the ceiling
+// caps, it never drags back; one on the far side of the expert stops at the expert's); a pick / bool takes the ceiling's at f >= 1/2; a knob a trait fixes never moves; a
+// null (comfort g off: no cap) ceiling is reached through the knob's top and becomes null at f = 1. No ceiling: no
+// growth. Rounded to 1e-4 so a replay is the same bytes.
+function pilotsLandings(rec, R) {
+  const on = (R.traits || []).map(t => (PILOTS_TRAITS[t] || {}).growOn).find(Boolean);
+  return ((rec && rec.log) || []).filter(r => r && r.landed && (!on || (on === 'tw' && r.tw))).length;
+}
+function pilotsGrowth(id, landings) {
+  const R = PILOTS_ROSTER[id];
+  const s = pilotsBaseFlat(id);
+  if (!R || !R.grow || !(landings > 0)) return { flat: s, f: 0 };
+  const c = pilotProfile(R.grow.ceiling), E = pilotProfile('expert');
+  const f = Math.min(1, landings / (PILOTS_GROW[R.grow.rate] || PILOTS_GROW.steady));
+  const fixed = new Set([].concat(...(R.traits || []).map(t => (PILOTS_TRAITS[t] || {}).fixes || [])));
+  const out = Object.assign({}, s);
+  for (const K of pilotsKnobs()) {
+    const k = K.k;
+    if (fixed.has(k) || !(k in s)) continue;
+    if (K.kind === 'range') {
+      const top = K.hi != null ? K.hi : (k === 'comfortG' ? 2 : null);
+      const num = v => (v == null ? top : v);
+      const sv = num(s[k]), ev = num(E[k]);
+      let cv = num(c[k]);
+      if (sv == null || cv == null || ev == null) continue;
+      if ((sv - ev) * (cv - ev) < 0) cv = ev;                                  // a ceiling past the expert: the expert's
+      if (!(Math.abs(cv - ev) < Math.abs(sv - ev) - 1e-9)) continue;          // the ceiling must be nearer the expert
+      if (f >= 1 && c[k] == null) { out[k] = null; continue; }
+      out[k] = Math.round((sv + (cv - sv) * f) * 1e4) / 1e4;
+    } else if (f >= 0.5 && c[k] !== s[k]) out[k] = c[k];   // the ceiling's technique (the expert's: the strip decides)
+  }
+  return { flat: out, f };
+}
+// the pilot as they fly today (the career's logbook): what makePilot is handed
+function pilotsFlatOf(doc, id) {
+  const rec = doc && doc.career && doc.career.pilots && doc.career.pilots[id];
+  return pilotsGrowth(id, pilotsLandings(rec, PILOTS_ROSTER[id])).flat;
+}
+function pilotsProfileOf(doc, id) {
+  const F = pilotsFlatOf(doc, id);
+  return F ? pilotsProfile(F, id) : null;
+}
+
+// "FLIES LIKE": the profile in plain words (the card's line; the pack's "fliesLike" replaces it when imported)
+function pilotsFliesLike(F) {
+  if (!F) return '';
+  const w = [];
+  w.push(F.reaction <= 0.15 ? 'quick' : F.reaction <= 0.3 ? 'a beat late' : 'slow to react');
+  w.push(F.smooth >= 1.3 ? 'snatchy hands' : F.smooth <= 0.85 ? 'gentle hands' : 'steady hands');
+  if (F.hamFist >= 0.02) w.push('never still on the stick');
+  if (F.overRotate >= 0.02) w.push('over-rotates');
+  if (F.flareK <= 0.9) w.push('flares late');
+  const t = [];
+  if (F.field === 'short') t.push('short fields');
+  if (F.field === 'normal') t.push('a normal approach everywhere');
+  if (F.slip) t.push('slips every final');
+  const l = [];
+  l.push(F.bankK >= 1.1 ? 'steep turns' : F.bankK <= 0.9 ? 'shallow turns' : 'normal turns');
+  if (F.comfortG != null) l.push('pulls ' + F.comfortG.toFixed(2).replace(/0$/, '') + ' g at most');
+  return [w.join(', '), t.join(', '), l.join(', ')].filter(Boolean).join('; ');
+}
+
+// ---- THE SIGN-ON (G-COST: one-time, no wages) --------------------------------------------------------------------
+function pilotsSignOn(id) {
+  if (PILOTS_ROSTER[id] && PILOTS_ROSTER[id].companion) return 0;
+  if (typeof econPrice === 'function') { const p = econPrice('signon', id); if (typeof p === 'number' && isFinite(p)) return Math.max(0, Math.round(p)); }
+  return PILOTS_SIGNON_STUB[id] || 0;
+}
+
+// ---- THE CAREER BLOCK ----------------------------------------------------------------------------------------------
+function pilotsBlock(doc) {
+  const c = doc.career;
+  if (!c.pilots || typeof c.pilots !== 'object' || Array.isArray(c.pilots)) c.pilots = {};
+  if (!Array.isArray(c.roster)) c.roster = [];
+  c.roster = c.roster.filter((id, i, a) => PILOTS_ROSTER[id] && a.indexOf(id) === i);
+  for (const id of Object.keys(c.pilots)) {
+    const P = c.pilots[id];
+    if (!PILOTS_ROSTER[id] || !P || typeof P !== 'object') { delete c.pilots[id]; continue; }
+    if (!Array.isArray(P.log)) P.log = [];
+    if (typeof P.aero !== 'string' || !P.aero) P.aero = plHome(doc);
+    if (P.plane !== null && typeof P.plane !== 'string') P.plane = null;
+  }
+  for (const id of c.roster) if (!c.pilots[id]) c.pilots[id] = { hired: 0, fee: 0, aero: plHome(doc), plane: null, log: [] };
+  for (const id of Object.keys(c.pilots)) if (!c.roster.includes(id)) c.pilots[id].hired = null;
+  if (c.pilotPick !== 'me' && !c.roster.includes(c.pilotPick)) c.pilotPick = c.roster[0] || 'me';
+  if (typeof c.pilotN !== 'number' || !isFinite(c.pilotN) || c.pilotN < 0) c.pilotN = 0;
+  return doc;
+}
+// the companion arrives with a new career (careerNew calls this; §9.2 "the first pilot comes with the opening")
+function pilotsCompanion(doc) {
+  const c = doc.career;
+  c.roster = [PILOTS_COMPANION];
+  c.pilots = { [PILOTS_COMPANION]: { hired: Math.round(doc.clock || 0), fee: 0, aero: plHome(doc), plane: null, log: [] } };
+  c.pilotPick = PILOTS_COMPANION;
+  c.pilotN = 0;
+  return doc;
+}
+const pilotsHired = doc => (doc && doc.career && Array.isArray(doc.career.roster)) ? doc.career.roster.filter(id => PILOTS_ROSTER[id]) : [];
+
+// ---- THE MARKET: 2-3 recruitables at a time, refreshed with the job market (contractEpoch) --------------------------
+function pilotsOffers(doc) {
+  const c = doc && doc.career;
+  if (!c) return [];
+  const hired = new Set(pilotsHired(doc));
+  const pool = PILOTS_ORDER.filter(id => !hired.has(id));
+  const epoch = contractEpoch(((c.contracts && c.contracts.done) || []).length);
+  const rng = contractRng(String(c.seed) + ':pilots:' + epoch);
+  const n = Math.min(pool.length, PILOTS_MARKET.min + Math.floor(rng() * (PILOTS_MARKET.max - PILOTS_MARKET.min + 1)));
+  const left = pool.slice(), pick = [];
+  while (pick.length < n) pick.push(left.splice(Math.floor(rng() * left.length) % left.length, 1)[0]);
+  return PILOTS_ORDER.filter(id => pick.includes(id));
+}
+
+// ---- HIRE / FIRE --------------------------------------------------------------------------------------------------
+function pilotsHire(doc, id) {
+  if (!doc || !doc.career) return plNo(doc, 'not a career');
+  if (!PILOTS_ROSTER[id]) return plNo(doc, 'no pilot ' + id);
+  if (pilotsHired(doc).includes(id)) return plNo(doc, pilotsName(id) + ' is already on the roster');
+  if (!pilotsOffers(doc).includes(id)) return plNo(doc, pilotsName(id) + ' is not looking for work right now');
+  const fee = pilotsSignOn(id);
+  if (doc.mode === 'career' && (doc.wallet || 0) < fee) return plNo(doc, 'the sign-on is ' + fee + ' credits; the wallet holds ' + Math.round(doc.wallet || 0));
+  const d = pilotsBlock(plClone(doc)), c = d.career;
+  c.roster.push(id);
+  const old = c.pilots[id];
+  c.pilots[id] = { hired: Math.round(d.clock || 0), fee, aero: plHome(d), plane: null, log: old ? old.log : [] };
+  if (fee) playerCharge(d, fee, 'signon', id);
+  return { ok: true, doc: d, fee, why: '' };
+}
+// firing is free (G-COST); the logbook stays with the row (a re-hire brings their hours back); the next flight's
+// pick falls to the roster's first, else "I fly"
+function pilotsFire(doc, id) {
+  if (!doc || !doc.career) return plNo(doc, 'not a career');
+  if (!pilotsHired(doc).includes(id)) return plNo(doc, (PILOTS_ROSTER[id] ? pilotsName(id) : id) + ' is not on the roster');
+  const d = pilotsBlock(plClone(doc)), c = d.career;
+  c.roster = c.roster.filter(x => x !== id);
+  c.pilots[id].hired = null; c.pilots[id].plane = null;
+  if (c.pilotPick === id) c.pilotPick = c.roster[0] || 'me';
+  return { ok: true, doc: d, why: '' };
+}
+function pilotsPick(doc, id) {
+  if (!doc || !doc.career) return plNo(doc, 'not a career');
+  if (id !== 'me' && !pilotsHired(doc).includes(id)) return plNo(doc, id + ' is not on the roster');
+  const d = plClone(doc);
+  d.career.pilotPick = id;
+  return { ok: true, doc: d, why: '' };
+}
+const pilotsPicked = doc => {
+  const c = doc && doc.career;
+  if (!c) return 'me';
+  return c.pilotPick === 'me' ? 'me' : (pilotsHired(doc).includes(c.pilotPick) ? c.pilotPick : (pilotsHired(doc)[0] || 'me'));
+};
+
+// ---- PILOTS ARE PHYSICAL (GQ14) ------------------------------------------------------------------------------------
+// A pilot is where their last aeroplane is: with `plane` set, the fleet ledger's place of that aeroplane (it follows
+// it: "bring it home" brings them too); else where they were left (`aero`). -> aerodrome id
+function pilotsPlace(doc, id) {
+  const P = doc && doc.career && doc.career.pilots && doc.career.pilots[id];
+  if (!P) return plHome(doc);
+  if (P.plane && doc.fleet && doc.fleet[P.plane]) { const W = playerWhere(doc, P.plane); if (W.aero) return W.aero; }
+  return P.aero || plHome(doc);
+}
+// "TAKES THE BOAT HOME": free, to HOME, between flights (never while flying: the page offers it on the ground only)
+function pilotsBoatHome(doc, id) {
+  if (!pilotsHired(doc).includes(id)) return plNo(doc, id + ' is not on the roster');
+  const home = plHome(doc);
+  if (pilotsPlace(doc, id) === home) return plNo(doc, pilotsName(id) + ' is already at ' + home);
+  const d = plClone(doc), P = d.career.pilots[id];
+  P.aero = home; P.plane = null;
+  return { ok: true, doc: d, why: '' };
+}
+
+// ---- REFUSALS (GQ30: by trait only) ----------------------------------------------------------------------------------
+// leg: { to: CONTRACT_FIELDS row (len, surf, alti) | id, from?: row | id, gear: stripGear's word, windKt?, endHour? }
+// -> null (flies it) | { kind, trait, key, vars, why }. In the pilot's trait order; 'refuses-nothing' keeps every
+// one; 'fearless' keeps the weather. An unknown wind or hour refuses nothing (the decision needs the fact).
+function pilotsRefusal(id, leg) {
+  const R = PILOTS_ROSTER[id];
+  if (!R || !leg) return null;
+  const T = R.traits.map(t => PILOTS_TRAITS[t] || {});
+  if (T.some(t => t.keeps === '*')) return null;
+  const kept = new Set([].concat(...T.map(t => Array.isArray(t.keeps) ? t.keeps : [])));
+  const F = x => (typeof x === 'string' ? (CONTRACT_FIELDS[x] || null) : x) || null;
+  const to = F(leg.to), from = F(leg.from), gear = leg.gear || 'wheels';
+  const ends = [to, from].filter(Boolean);
+  const name = pilotsName(id);
+  const fires = {
+    weather: () => typeof leg.windKt === 'number' && leg.windKt > PILOTS_WEATHER.windKt ? { wind: Math.round(leg.windKt) } : null,
+    night: () => typeof leg.endHour === 'number' && leg.endHour >= CONTRACT_DUSK_H ? { hour: leg.endHour.toFixed(1) } : null,
+    short: () => { const s = ends.find(e => e.surf !== 'water' && e.len > 0 && e.len < PILOTS_SHORT_M); return s ? { len: s.len, to: s.name } : null; },
+    unpaved: () => { const s = ends.find(e => e.surf !== 'water' && !PILOTS_PAVED.includes(e.surf)); return s ? { to: s.name } : null; },
+    water: () => (gear === 'floats' || gear === 'amphibian' || ends.some(e => e.surf === 'water')) ? {} : null,
+    snow: () => (gear === 'skis' || ends.some(e => e.alti || e.surf === 'snow')) ? {} : null,
+  };
+  for (let i = 0; i < R.traits.length; i++) {
+    const k = T[i].refuse;
+    if (!k || kept.has(k)) continue;
+    const v = fires[k]();
+    if (v) {
+      const vars = Object.assign({ name }, v);
+      return { kind: k, trait: R.traits[i], key: 'pilot.refuse.' + k, vars, why: pilotsText('pilot.refuse.' + k, vars) };
+    }
+  }
+  return null;
+}
+// can THIS pilot fly THIS aeroplane now? The refusals, then the place: the pilot must be where the aeroplane is
+// (`at`: its aerodrome; the page passes playerRollFrom's). Away from it: refused, and when the aeroplane is at HOME
+// the boat brings them (`boat: true`). "I fly" ('me') is never refused.
+function pilotsCanFly(doc, id, at, leg) {
+  if (id === 'me') return { ok: true, why: '' };
+  if (!pilotsHired(doc).includes(id)) return { ok: false, kind: 'roster', why: id + ' is not on the roster' };
+  const r = pilotsRefusal(id, leg);
+  if (r) return { ok: false, kind: r.kind, trait: r.trait, key: r.key, vars: r.vars, why: r.why };
+  const here = pilotsPlace(doc, id);
+  if (at && here !== at) {
+    const boat = at === plHome(doc);
+    const F = CONTRACT_FIELDS[here];
+    const vars = { name: pilotsName(id), at: F ? F.name : here };
+    const key = boat ? 'pilot.refuse.boat' : 'pilot.refuse.away';
+    return { ok: false, kind: 'away', key, vars, boat, why: pilotsText(key, vars) };
+  }
+  return { ok: true, why: '' };
+}
+
+// ---- THE FLIGHT'S END: the logbook, the place, growth ---------------------------------------------------------------
+// f: { pilot: id | 'me', slot, from, to, landed (stopped on an aerodrome, whole), tw (a tailwheel type), t (s) }.
+// Call it AFTER the fleet ledger moved the aeroplane (playerArrive): the flyer goes WITH the aeroplane (plane = slot,
+// aero = where it now stands); anyone else who was with that aeroplane stays where it left from. An unsaved build
+// (no slot): the flyer is left at the stop, or at the field it left from.
+function pilotsOnFlightEnd(doc, f) {
+  if (!doc || !doc.career || !f) return plNo(doc, 'not a career');
+  const d = pilotsBlock(plClone(doc)), c = d.career;
+  const who = f.pilot && f.pilot !== 'me' && c.roster.includes(f.pilot) ? f.pilot : null;
+  const fromAero = f.from || null;
+  if (f.slot) for (const id of c.roster) {
+    const P = c.pilots[id];
+    if (id !== who && P.plane === f.slot) { P.aero = fromAero || pilotsPlace(doc, id); P.plane = null; }
+  }
+  if (!who) return { ok: true, doc: d, why: '', logged: null };
+  const P = c.pilots[who];
+  const row = { n: ++c.pilotN, at: Math.round(d.clock || 0), slot: f.slot || null, from: f.from || null, to: f.to || null,
+                landed: !!f.landed, tw: !!f.tw, t: Math.max(0, Math.round(+f.t || 0)) };
+  P.log.push(row);
+  if (f.slot && d.fleet && d.fleet[f.slot]) { P.plane = f.slot; P.aero = playerWhere(d, f.slot).aero || P.aero; }
+  else { P.plane = null; P.aero = (f.landed && f.to) || f.from || P.aero; }
+  return { ok: true, doc: d, why: '', logged: row };
+}
+
+// ---- THE TRAITS' MONEY HOOKS: the repair bill (DMG-D5's labour lines x playerLabourFactor) --------------------------
+// -> { labour, bill }: the factors for a repair on `slot`, from the pilot WITH it (pilots.plane). The mechanic's
+// labour counts in the field only (no hangar of yours around the aeroplane: playerWhere kind 'out' / 'away').
+function pilotsRepairK(doc, slot) {
+  const out = { labour: 1, bill: 1, pilot: null };
+  const c = doc && doc.career;
+  if (!c || !slot) return out;
+  const id = pilotsHired(doc).find(x => c.pilots[x] && c.pilots[x].plane === slot);
+  if (!id) return out;
+  out.pilot = id;
+  const field = playerWhere(doc, slot).kind !== 'in';
+  for (const t of PILOTS_ROSTER[id].traits) {
+    const T = PILOTS_TRAITS[t] || {};
+    if (T.labourK && field) out.labour *= T.labourK;
+    if (T.billK) out.bill *= T.billK;
+  }
+  return out;
+}
+
+// ---- THE CARD (the Pilots tab's model; text resolved, nothing the DOM computes) ------------------------------------
+function pilotsCard(doc, id, world) {
+  const R = PILOTS_ROSTER[id];
+  if (!R) return null;
+  const hired = pilotsHired(doc).includes(id);
+  const rec = doc && doc.career && doc.career.pilots && doc.career.pilots[id];
+  const landings = pilotsLandings(rec, R);
+  const G = pilotsGrowth(id, landings);
+  const at = hired ? pilotsPlace(doc, id) : null;
+  const L = (world && world.aerodromes) || [];
+  const atRow = at ? (L.find(a => a.id === at) || CONTRACT_FIELDS[at] || null) : null;
+  const name = pilotsName(id);
+  const initials = name.split(/\s+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase();
+  return {
+    id, who: R.who, name, initials, portrait: R.portrait || null, companion: !!R.companion,
+    tagline: pilotsText('pilot.' + id + '.tagline'), bio: pilotsText('pilot.' + id + '.bio'), pitch: pilotsText('pilot.' + id + '.pitch'),
+    fliesLike: (PILOTS_TEXT['pilot.' + id + '.flies'] && !PILOTS_TEXT['pilot.' + id + '.flies'].draft) ? pilotsText('pilot.' + id + '.flies') : pilotsFliesLike(G.flat),
+    style: R.style,
+    traits: R.traits.map(t => ({ id: t, label: pilotsText('pilot.trait.' + t), how: PILOTS_TEXT['pilot.trait.' + t + '.how'] ? pilotsText('pilot.trait.' + t + '.how') : '' })),
+    signOn: pilotsSignOn(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
+    at, atName: atRow ? (atRow.name || at) : null, atXZ: atRow ? [atRow.c ? atRow.c[0] : atRow.x, atRow.c ? atRow.c[1] : atRow.z] : null,
+    plane: rec && hired ? rec.plane || null : null,
+    flights: rec ? rec.log.length : 0, landings, grown: Math.round(G.f * 100), ceiling: R.grow ? R.grow.ceiling : null,
+    picked: pilotsPicked(doc) === id,
+  };
+}
+
+// ---- THE IMPORT (Block 5's "pilots"): the user's AI run over the draft keys; ids must be the roster's ---------------
+function pilotsImportPack(pack, text) {
+  const T = plClone(text || PILOTS_TEXT), why = [];
+  const put = (k, s) => { if (typeof s === 'string' && s) T[k] = { t: s, draft: false }; };
+  for (const p of ((pack && pack.pilots) || [])) {
+    if (!p || !PILOTS_ROSTER[p.id]) { why.push('no pilot ' + (p && p.id)); continue; }
+    const b = 'pilot.' + p.id + '.';
+    put(b + 'name', p.name); put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
+    put(b + 'flies', p.fliesLike); put(b + 'pitch', p.pitch);
+    for (const k of Object.keys(p.barks || {})) put(b + 'bark.' + k, p.barks[k]);
+  }
+  return { ok: !why.length, text: T, why };
+}
+// ===========================================================================
+// FREIGHT-LOAD (G2345-G2349) — THE FITTING INTERFACE'S PURE HALF: THE PLAYER'S HAND ON THE PACKER'S PROPOSAL.
+// futureDesigns/game/FREIGHT-2026-10-07.md §2 and §4 (RULED by the user, 7 Oct): no loading time, no crew, no load
+// failure - but THE FITTING INTERFACE. The packer proposes (76_freight.js freightPack); the player may move an item,
+// leave it on the ground, turn it, take an EMPTY seat out or put it back ("if the load fits, nobody cares whether a
+// seat is there"), and ask for the packer's answer again. The report is freightReport's, live. Out of range (the
+// CG, the MTOW, a floor) is REPORTED, NEVER REFUSED: the aeroplane flies what you loaded.
+//
+// WHAT IS REFUSED is only what is physically impossible (each refusal says why):
+//   the door     an item no door of this aeroplane takes never goes aboard (freightDoorAny)
+//   the hold     a box stands inside the hold's clear section at every station it spans (freightHoldFits), on the
+//                highest thing under it: the floor, or WHOLLY on one stackable item (the packer's own rule - an
+//                overhang or a bridge does not stand); nothing on a drum or a stretcher
+//   the room     clear of the seats still in, the occupants and the other items
+//   the stack    an item carrying another is not pulled from under it (move the top one first)
+//   the seats    the pilot's seat and an occupied seat stay in; a seat goes back only where nothing stands
+// THE SNAP: an item's fore end on the hold's stations and their middles (FREIGHT_PACK.step, the packer's grid built
+// on card.hold.dx), across on FREIGHT_PACK.zStep; a drop near a wall slides off it to the clear section (the room at
+// that height), a drop on a stackable item stays wholly on it.
+//
+// THE SESSION (a plain object, the view's state; nothing here mutates its inputs):
+//   { v, card: id, pax, seatsOut: [i], items: [freightItem] (the whole load, bulk split), placed: [row] }
+//   a row is freightPack's placed row: { id, kind, kg, dims, stack, at: {x0..z1}, on, door, how, space }
+//   the items not placed are ON THE GROUND (freightLoadAshore)
+// ACCEPT (freightLoadRecord / freightLoadAccept) writes THE PLACEMENT into the career document (`career.load`):
+// the items aboard with their boxes, the seats out, the passengers, the contract / stage / sub it was loaded for and
+// the airframe's slot and design. CAREER-WIRE's stop (careerStopRecord's `items`) reads it - the load is the items,
+// not a typed number - and FREIGHT-STRAP (G2400) reads `freightAccepted(doc)`: every item's box and centre in the
+// card's frame (the gen frame: x m aft of the windscreen-base ring, y up, z to the right - the frame def.nodes are
+// built in) and its kilos, which become the point masses and the strapped props.
+//
+// Pure: no DOM, storage, clock or random (GATE FREIGHT scans for each). Reads 76_freight.js, 74_ / 75_.
+// ===========================================================================
+
+const FREIGHT_LOAD_V = 1;
+const flR3 = v => Math.round(v * 1000) / 1000;
+const flClone = o => JSON.parse(JSON.stringify(o));
+const flNo = (why, extra) => Object.assign({ ok: false, why }, extra || {});
+const flBox = r => ({ x0: r.at.x0, x1: r.at.x1, y0: r.at.y0, y1: r.at.y1, z0: r.at.z0, z1: r.at.z1 });
+const flOverXZ = (p, q) => p.x0 < q.x1 - 1e-6 && q.x0 < p.x1 - 1e-6 && p.z0 < q.z1 - 1e-6 && q.z0 < p.z1 - 1e-6;
+const flSameDims = (a, b) => Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6 && Math.abs(a[2] - b[2]) < 1e-6;
+// the seats the player may take out: empty ones (never the pilot's, never a passenger's)
+function flSeatsOutOk(card, pax, out) {
+  const ok = new Set(((card && card.seats) || []).filter(s => s.i > 0 && s.i > pax).map(s => s.i));
+  return [...new Set((out || []).map(v => v | 0))].filter(i => ok.has(i)).sort((a, b) => a - b);
+}
+
+// ---- THE SESSION ---------------------------------------------------------------------------------------------
+// freightLoadNew(card, items, { pax, seatsOut }) -> the session, the packer's proposal placed
+function freightLoadNew(card, items, opts) {
+  const o = opts || {}, pax = Math.max(0, o.pax | 0);
+  const its = freightSplit(items || []);
+  const seatsOut = flSeatsOutOk(card, pax, o.seatsOut);
+  const P = freightPack(card, its, { pax, seatsOut });
+  return { v: FREIGHT_LOAD_V, card: (card && card.id) || null, pax, seatsOut, items: its, placed: P.placed };
+}
+// "Propose again": the packer's answer for the load, the passengers and the seats as they are now
+function freightLoadPropose(card, st) {
+  return freightLoadNew(card, st.items, { pax: st.pax, seatsOut: st.seatsOut });
+}
+// the items on the ground (not aboard), each with why the packer left it (no door / no room) when it did
+function freightLoadAshore(card, st) {
+  const on = new Set(st.placed.map(p => p.id));
+  return st.items.filter(it => !on.has(it.id)).map(it => {
+    const d = card && card.hold ? freightDoorAny(card, it) : { ok: false, why: 'this aeroplane has no hold' };
+    return Object.assign({}, it, { door: !!d.ok, why: d.ok ? '' : (d.why || it.id + ' passes no door') });
+  });
+}
+// THE REPORT: freightReport's own (the parity GATE FREIGHT holds), plus what stays on the ground
+function freightLoadReport(card, st) {
+  const R = freightReport(card, st.placed, { pax: st.pax, seatsOut: st.seatsOut });
+  const ash = freightLoadAshore(card, st);
+  return Object.assign(R, { ashore: ash.map(a => a.id), ashoreKg: freightKg(ash), aboard: st.placed.length, items: st.items.length });
+}
+
+// ---- THE HAND: where an item would go, and why not ------------------------------------------------------------
+// freightLoadTarget(card, st, id, want) -> { ok, row, why }
+//   want: { x, z } the item's middle the pointer asks for (card frame, m), turn: true for a quarter turn about the
+//   vertical from its present orientation (or the kind's first, from the ground)
+function freightLoadTarget(card, st, id, want) {
+  const H = card && card.hold;
+  if (!H) return flNo('this aeroplane has no hold');
+  const it = st.items.find(q => q.id === id);
+  if (!it) return flNo('no item ' + id);
+  const door = freightDoorAny(card, it);
+  if (!door.ok) return flNo(it.id + ' (' + it.dims.join(' x ') + ' m) passes no door of this aeroplane', { door: false });
+  const cur = st.placed.find(p => p.id === id);
+  const atop = st.placed.filter(p => p.on === id);
+  if (atop.length) return flNo(atop.map(p => p.id).join(', ') + ' is on it: move that first');
+  let L = cur ? [flR3(cur.at.x1 - cur.at.x0), flR3(cur.at.y1 - cur.at.y0), flR3(cur.at.z1 - cur.at.z0)] : frOrients(it)[0];
+  if (want && want.turn) L = [L[2], L[1], L[0]];
+  if (!frOrients(it).some(o => flSameDims(o, L))) return flNo(it.id + ' does not lie that way');   // (a turn keeps the height: always one of the kind's)
+  const [lx, ly, lz] = L, P = FREIGHT_PACK, xHi = H.x0 + H.n * H.dx;
+  if (lx > xHi - H.x0 + 1e-9) return flNo(it.id + ' is longer than the hold');
+  const wx = want && isFinite(want.x) ? +want.x : 0.5 * (H.x0 + xHi), wz = want && isFinite(want.z) ? +want.z : 0;
+  // THE SNAP: the fore end on the packer's grid (the stations and their middles), inside the hold's length
+  let x0 = H.x0 + Math.round((wx - lx / 2 - H.x0) / P.step) * P.step;
+  x0 = flR3(Math.max(H.x0, Math.min(x0, H.x0 + Math.floor((xHi - lx - H.x0) / P.step + 1e-9) * P.step)));
+  const x1 = flR3(x0 + lx);
+  let z0 = flR3(Math.round((wz - lz / 2) / P.zStep) * P.zStep);
+  const others = st.placed.filter(p => p.id !== id);
+  // WHAT IT RESTS ON: the highest thing under its footprint - the floor, or the top of an item
+  const floorY = freightRestY(card, x0, x1);
+  if (floorY == null) return flNo('off the hold');
+  const fp = { x0, x1, z0, z1: z0 + lz };
+  const under = others.filter(p => flOverXZ(fp, p.at));
+  let y0 = floorY, sup = null;
+  const top = under.reduce((m, p) => Math.max(m, p.at.y1), -Infinity);
+  if (top > floorY + 1e-6) {
+    // on the item under its middle (the largest overlap): wholly on it, so the footprint slides onto it
+    const ov = p => Math.max(0, Math.min(fp.x1, p.at.x1) - Math.max(fp.x0, p.at.x0)) * Math.max(0, Math.min(fp.z1, p.at.z1) - Math.max(fp.z0, p.at.z0));
+    sup = under.filter(p => p.at.y1 > top - 1e-6).sort((a, b) => ov(b) - ov(a))[0];
+    if (!sup.stack) return flNo('nothing goes on the ' + sup.id + ' (' + sup.kind + ')');
+    if (lx > sup.at.x1 - sup.at.x0 + 1e-6 || lz > sup.at.z1 - sup.at.z0 + 1e-6) return flNo(it.id + ' is bigger than the ' + sup.id + ' under it: it would not stand');
+    if (fp.x0 < sup.at.x0 - 1e-9 || fp.x1 > sup.at.x1 + 1e-9) return flNo(it.id + ' overhangs the ' + sup.id + ': it would not stand');
+    z0 = flR3(Math.max(sup.at.z0, Math.min(z0, sup.at.z1 - lz)));
+    y0 = sup.at.y1;
+  }
+  const y1 = flR3(y0 + ly);
+  // THE HOLD'S WALLS at that height: off the wall to the clear section
+  const zm = frZMax(card, x0, x1, y0, y1);
+  if (zm < 0) return flNo('no room for ' + it.id + ' there: the hold closes above it');
+  if (zm < lz / 2 - 1e-8) return flNo('no room for ' + it.id + ' there: ' + (zm < 0.05 ? 'the roof is too low' : 'the hold is ' + Math.round(200 * zm) + ' cm wide at that height'));
+  z0 = flR3(Math.max(-zm, Math.min(z0, zm - lz)));
+  if (sup && (z0 < sup.at.z0 - 1e-9 || z0 + lz > sup.at.z1 + 1e-9)) return flNo('the ' + sup.id + ' is against the wall there: ' + it.id + ' would not stand on it');
+  const at = { x0, x1, y0: flR3(y0), y1, z0, z1: flR3(z0 + lz) };
+  if (!freightHoldFits(card, at)) return flNo('no room for ' + it.id + ' there');
+  // CLEAR OF THE SEATS STILL IN, THE OCCUPANTS AND THE OTHER ITEMS
+  const ob = freightObstacles(card, freightSeats(card, st)).find(q => frOverlap(at, q));
+  if (ob) return flNo(/^occupant/.test(ob.id) ? (ob.seat === 0 ? 'the pilot is there' : 'the passenger in seat ' + ob.seat + ' is there') : 'seat ' + ob.seat + ' is there (an empty seat can be taken out)');
+  const hit = others.find(q => frOverlap(at, q.at));
+  if (hit) return flNo('the ' + hit.id + ' is there');
+  const spaces = freightSpaces(card);
+  return { ok: true, why: '', row: { id: it.id, kind: it.kind, kg: it.kg, dims: it.dims, stack: it.stack && FREIGHT_KINDS[it.kind].stack,
+                                     at, on: sup ? sup.id : null, door: door.door, how: door.how,
+                                     space: frSpaceOf(spaces, 0.5 * (at.x0 + at.x1)) } };
+}
+// the move itself -> { ok, st, row, why } (the session unchanged on a refusal)
+function freightLoadMove(card, st, id, want) {
+  const t = freightLoadTarget(card, st, id, want);
+  if (!t.ok) return Object.assign({ st }, t);
+  const placed = st.placed.filter(p => p.id !== id).concat([t.row]);
+  return { ok: true, why: '', row: t.row, st: Object.assign({}, st, { placed }) };
+}
+// LEFT ON THE GROUND: an item taken out of the aeroplane (refused only from under another)
+function freightLoadUnload(card, st, id) {
+  if (!st.placed.some(p => p.id === id)) return { ok: true, why: '', st };
+  const atop = st.placed.filter(p => p.on === id);
+  if (atop.length) return { ok: false, why: atop.map(p => p.id).join(', ') + ' is on it: move that first', st };
+  return { ok: true, why: '', st: Object.assign({}, st, { placed: st.placed.filter(p => p.id !== id) }) };
+}
+// A SEAT OUT / IN (ruled: the player chooses; only an empty seat goes, and it goes back only where nothing stands)
+function freightLoadSeat(card, st, i, out) {
+  const s = ((card && card.seats) || []).find(q => q.i === (i | 0));
+  if (!s) return { ok: false, why: 'no seat ' + i, st };
+  const isOut = st.seatsOut.includes(s.i), want = out == null ? !isOut : !!out;
+  if (want === isOut) return { ok: true, why: '', st };
+  if (want) {
+    if (s.i === 0) return { ok: false, why: 'the pilot\'s seat stays', st };
+    if (s.i <= st.pax) return { ok: false, why: 'a passenger sits in seat ' + s.i, st };
+    return { ok: true, why: '', st: Object.assign({}, st, { seatsOut: flSeatsOutOk(card, st.pax, st.seatsOut.concat([s.i])) }) };
+  }
+  const back = Object.assign({}, st, { seatsOut: st.seatsOut.filter(v => v !== s.i) });
+  const ob = freightObstacles(card, freightSeats(card, back)).filter(q => q.seat === s.i);
+  const hit = st.placed.find(p => ob.some(q => frOverlap(p.at, q)));
+  if (hit) return { ok: false, why: 'the ' + hit.id + ' stands where seat ' + s.i + ' goes: move it first', st };
+  return { ok: true, why: '', st: back };
+}
+
+// ---- ACCEPT: THE PLACEMENT INTO THE CAREER'S RECORD ------------------------------------------------------------
+// freightLoadRecord(card, st, ctx) -> the accepted load: ctx { slot, contract, stage, sub } (the airframe and the
+// job's open sub it was loaded for). The items aboard keep their boxes; the ones left on the ground are named.
+function freightLoadRecord(card, st, ctx) {
+  const c = ctx || {}, R = freightLoadReport(card, st);
+  const ash = freightLoadAshore(card, st);
+  return {
+    v: FREIGHT_LOAD_V, slot: c.slot != null ? String(c.slot) : null, design: (card && card.id) || st.card || null,
+    contract: c.contract || null, stage: c.stage != null ? c.stage | 0 : null, sub: c.sub != null ? c.sub | 0 : null,
+    pax: st.pax, seatsOut: st.seatsOut.slice(),
+    items: st.placed.map(p => ({ id: p.id, kind: p.kind, kg: p.kg, dims: p.dims.slice(), at: Object.assign({}, p.at), on: p.on || null, space: p.space || null })),
+    ashore: ash.map(a => ({ id: a.id, kind: a.kind, kg: a.kg, dims: a.dims.slice() })),
+    kg: R.cargoKg, mass: R.mass.kg, cg: { x: R.cg.x, pct: R.cg.pct }, ok: R.ok, why: R.why.slice(),
+  };
+}
+// -> { ok, doc, rec, why }: the career document with `career.load` = the record (a copy; the input untouched)
+function freightLoadAccept(doc, card, st, ctx) {
+  if (!doc || !doc.career) return { ok: false, doc, rec: null, why: 'not a career' };
+  const rec = freightLoadRecord(card, st, ctx);
+  const d = flClone(doc);
+  d.career.load = rec;
+  return { ok: true, doc: d, rec, why: '' };
+}
+// THE ACCEPTED LOAD, AS FREIGHT-STRAP READS IT: a career document (or the record itself, the sandbox's) ->
+// { slot, design, contract, stage, sub, pax, seatsOut, items: [{ id, kind, kg, dims, at, c: [x, y, z], on, space }],
+//   ashore, kg, cg, ok } or null. `c` is the box's centre in the card's frame (the gen frame of def.nodes).
+function freightAccepted(doc) {
+  const r = doc && (doc.career ? doc.career.load : (Array.isArray(doc.items) && doc.v ? doc : null));
+  if (!r || typeof r !== 'object' || !Array.isArray(r.items)) return null;
+  const out = flClone(r);
+  out.items = out.items.filter(p => p && p.at && isFinite(p.kg)).map(p =>
+    Object.assign(p, { c: [flR3(0.5 * (p.at.x0 + p.at.x1)), flR3(0.5 * (p.at.y0 + p.at.y1)), flR3(0.5 * (p.at.z0 + p.at.z1))] }));
+  out.kg = freightKg(out.items);
+  if (!Array.isArray(out.ashore)) out.ashore = [];
+  if (!Array.isArray(out.seatsOut)) out.seatsOut = [];
+  return out;
+}
+// the session again from an accepted record (the view reopened on the same job): the items aboard where they were,
+// the rest on the ground
+function freightLoadFromRecord(card, rec) {
+  const items = freightSplit((rec.items || []).concat(rec.ashore || []));
+  const pax = Math.max(0, rec.pax | 0), spaces = freightSpaces(card);
+  const placed = (rec.items || []).map(p => {
+    const it = items.find(q => q.id === p.id) || freightItem(p);
+    const d = freightDoorAny(card, it);
+    return { id: it.id, kind: it.kind, kg: it.kg, dims: it.dims, stack: it.stack && FREIGHT_KINDS[it.kind].stack, at: Object.assign({}, p.at),
+             on: p.on || null, door: d.door, how: d.how, space: frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)) };
+  });
+  return { v: FREIGHT_LOAD_V, card: card.id, pax, seatsOut: flSeatsOutOk(card, pax, rec.seatsOut), items, placed };
+}
+
+// ---- THE CAREER'S SIDE --------------------------------------------------------------------------------------------
+// the airframe's card: the career's airframe row (PROCURE's design), else a build envelope's factory row (a model
+// taken in the sandbox), else null (a player's own build: its hold is not measured - FREIGHT-MODEL's open point)
+function freightLoadCard(doc, slot, env) {
+  const A = doc && doc.career && doc.career.airframes && slot != null ? doc.career.airframes[slot] : null;
+  const id = (A && A.design) || (env && env.log && env.log.factory && env.log.factory.design) || null;
+  return (id && typeof FREIGHT_CARDS !== 'undefined' && FREIGHT_CARDS[id]) || null;
+}
+// what the loading view opens on in the career: the tracked contract's current stage's load -> { items, pax, ctx,
+// rec (the accepted placement for this very sub and airframe, to reopen on), why }
+function freightLoadJob(doc, slot) {
+  const L = typeof careerTrackedLoad === 'function' ? careerTrackedLoad(doc) : null;
+  if (!L) return { items: [], pax: 0, ctx: null, rec: null, why: 'no tracked contract with a load: open the MAP' };
+  const C = doc.career.contracts, live = C.live[C.tracked] || { stage: 0 };
+  const ctx = { slot: slot != null ? String(slot) : null, contract: C.tracked, stage: live.stage | 0, sub: L.sub };
+  const r = doc.career.load;
+  const same = r && r.contract === ctx.contract && r.stage === ctx.stage && r.sub === ctx.sub && r.slot === ctx.slot;
+  return { items: L.items || [], pax: L.pax || 0, kg: L.kg || 0, ctx, rec: same ? r : null,
+           why: (L.items && L.items.length) ? '' : (L.pax ? 'passengers only: they board, they don\'t fit' : 'no items in this load') };
+}
+// the stop record's items: the accepted load when it rides THIS airframe (else null: the typed kilos, the fallback)
+function freightStopItems(doc, slot) {
+  const A = freightAccepted(doc);
+  if (!A || (slot != null && A.slot != null && A.slot !== String(slot))) return null;
+  return A.items.map(p => ({ id: p.id, kind: p.kind, kg: p.kg, dims: p.dims }));
+}
+// after a stop: the accepted load leaves the record once the sub it was loaded for is done (delivered), its contract
+// is no longer accepted or its stage has moved on -> the document (a copy when it changes)
+function freightLoadSettle(doc) {
+  const r = doc && doc.career && doc.career.load;
+  if (!r) return doc;
+  const C = doc.career.contracts, L = C && C.live && C.live[r.contract];
+  const open = C && C.accepted.includes(r.contract) && L && (L.stage | 0) === r.stage && !(L.subs && L.subs[r.sub]);
+  if (open) return doc;
+  const d = flClone(doc);
+  delete d.career.load;
+  return d;
+}
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, jsonFinite, jsonReadFinite, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

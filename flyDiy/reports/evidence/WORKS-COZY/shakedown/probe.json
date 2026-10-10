@@ -1,0 +1,145 @@
+{
+ "url": "http://localhost:8591/flyDiy/index.html?gfx=gamer&career=1",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=gamer&career=1",
+ "label": "probe",
+ "sha": "465375258",
+ "mode": "career (cozy works)",
+ "preset": "gamer",
+ "errs": [],
+ "stills": [],
+ "load": 67.127,
+ "gfx": {
+  "preset": "gamer",
+  "build": "gamer",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "far1",
+  "scale": 1,
+  "cover": "full",
+  "scenery": "full",
+  "drawDist": "vis",
+  "terrain": 1,
+  "aa": "msaa",
+  "density": 128,
+  "bands": "mid",
+  "shadows": "full",
+  "canopy": "on",
+  "rails": "on",
+  "poles": "on",
+  "glare": "on",
+  "sway": "on",
+  "mist": "land",
+  "clouds": "half",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "soft",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "own": false,
+  "hw": null,
+  "town": "nearby"
+ },
+ "room": {
+  "shell": "works",
+  "layout": "cozy",
+  "dims": {
+   "HW": 20,
+   "HD": 20,
+   "EAVE": 9.5,
+   "RIDGE": 12.1
+  },
+  "unplaced": 0,
+  "lamps": {
+   "gain": 1,
+   "angle": 1.178097,
+   "kelvin": 2700,
+   "hex": 16765854
+  }
+ },
+ "debug": {
+  "keys": [
+   "flydiy.career.dev",
+   "flydiy.wip",
+   "flydiy.build.Cessna",
+   "flydiy.build.Cub"
+  ],
+  "fleet": {
+   "Cessna": {
+    "hangar": "HOME",
+    "aero": "HOME"
+   },
+   "Cub": {
+    "hangar": "HOME",
+    "aero": "HOME"
+   }
+  },
+  "home": {
+   "shell": "works",
+   "dims": {
+    "HW": 20,
+    "HD": 20,
+    "EAVE": 9.5
+   },
+   "kits": [
+    "park",
+    "bench",
+    "wood",
+    "metal",
+    "store",
+    "handling",
+    "office",
+    "comfort",
+    "curio",
+    "wip"
+   ],
+   "layout": "cozy",
+   "base": "HOME",
+   "tenure": "own"
+  },
+  "mode": "career",
+  "fleetOn": true,
+  "res": {
+   "on": true,
+   "view": "room",
+   "user": null,
+   "rung": 1,
+   "ms": 0,
+   "plan": [],
+   "unplaced": []
+  },
+  "flydiyFleet": true
+ },
+ "residents": {
+  "plan": [],
+  "unplaced": [],
+  "stats": {
+   "queued": 0,
+   "captures": 0,
+   "bakes": 0,
+   "hits": 0,
+   "stored": 0,
+   "decodes": 0,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0
+  },
+  "why": {}
+ },
+ "residentsWait": 20.078,
+ "errsN": 0,
+ "wall": 87.235
+}

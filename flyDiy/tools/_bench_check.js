@@ -229,7 +229,9 @@ console.log('THE STRIP');
      'the master is dated by the last GATING certificate (a rating does not date it)');
   ok(calls.includes('arc') && calls.includes('fillText') && calls.includes('rotate'), 'a roundel is a disc with lettering round it');
   ok(ST.STICKER_ORDER.length === 6 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id))
-     && BE.BENCH_TESTS.every(t => ST.STICKER_ORDER.includes(t.id)), 'one sticker per declared test, and every test has one (six: the crosswind\'s A9, the hydroplane\'s S1 G451.1)');
+     && BE.BENCH_TESTS.every(t => t.sticker === false || ST.STICKER_ORDER.includes(t.id))
+     && BE.BENCH_TESTS.filter(t => t.sticker === false).map(t => t.id).join() === 'pod',
+     'one sticker per declared test, and every test has one (six: the crosswind\'s A9, the hydroplane\'s S1 G451.1; the belly pod\'s G2410 row, an option measured, wears none)');
   ok(Math.abs(ST.stickerStripW() - 0.87) < 1e-9 && ST.STICKER_PLACE.d === 0.12, 'six 120 mm roundels in a 0.87 m strip');
   // G208.2: a place plus fine tuning, like a tank's bay plus offset
   const R0 = ST.stickerResolve({}), Rf = ST.stickerResolve({ stkPlace: 3, stkL: 0.5, stkC: -0.2, stkSize: 0.08, stkRot: 0.1 });

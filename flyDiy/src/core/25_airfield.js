@@ -1086,6 +1086,9 @@ function fleetField(aero, site, pave) {
 }
 const fleetPolyCentre = poly => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of poly) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } return [(x0 + x1) / 2, (z0 + z1) / 2]; };
 function fleetSpots(aero, site, opts) {
+  // G2300 (STAGES, contract v1.33): a field whose stage says `ties: false` has no tie-down spots yet (East Point before
+  // the survey's first stage) - the sandbox's fields never say it
+  if (aero && aero.ties === false) return { spots: [], why: { stage: 1 }, foot: (opts && opts.foot) || FLEET_SPOT_FOOT, ref: { x: aero.x, z: aero.z } };
   const o = opts || {}, F = FLEET_SPOT, R = siteRunway(aero), water = !!aero.water;
   const env = o.foot || FLEET_SPOT_FOOT, margin = F.margin, need = (o.taxiHalf || F.taxiHalf) + margin;
   const solid = typeof o.solid === 'function' ? o.solid : null;

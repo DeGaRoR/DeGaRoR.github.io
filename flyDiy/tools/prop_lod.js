@@ -61,6 +61,9 @@ const KITS = {
            from: 'baked pier packs', tex: 'media/tex/pier/' },
   props: { dir: 'props', manifest: 'props_packs.json', out: 'props_lods.js', sub: 'geo/props_lod',
            from: 'baked hangar prop packs', tex: 'media/tex/props/', ladder: 'shed', only: 'media/geo/props/' },
+  // THE LOADS (FREIGHT-ASSETS, G2405; tools/load_table.py): each group its own ladder
+  loads: { dir: 'loads', manifest: 'loads_packs.json', out: 'loads_lods.js', sub: 'geo/loads_lod',
+           from: 'baked load packs', tex: 'media/tex/loads/', only: 'media/geo/loads/' },
 };
 let KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
     OUT = path.join(PIER, KIT.out), MANIFEST = path.join(PIER, KIT.manifest);
@@ -92,6 +95,14 @@ const LEVELS = {
   // the hangar's props (AS5b, G933): the yard's ladder, as is - the same kind of
   // thing (a workshop's furniture, drums, carts) seen from the same distances
   shed:   [[0.25, 1200, 20], [0.06, 400, 60]],
+  // the freight loads (G2405): the budget a load strapped in a cabin is held to
+  // (<= ~2k triangles; the coordinator's FREIGHT-ASSETS brief) is _l1, standing
+  // in from 2 m - the loading view's close-up keeps the as-is; 400 past 15 m,
+  // where a load is a box seen through an open door. A load under 2.9k (the
+  // cement bag, the tote) gets no _l1: it already is in budget.
+  load:   [[2000, 2000, 2], [400, 400, 15]],
+  // the camp / medevac dressing stands at a site, seen like the yard
+  camp:   [[0.25, 1200, 20], [0.06, 400, 60]],
 };
 // the levels a prop actually gets: [target tris, metres]
 function levelsFor(prop, ladder) {

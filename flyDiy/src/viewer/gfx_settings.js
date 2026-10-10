@@ -426,6 +426,14 @@
       const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35 }, lean: { on: true, reach: 120, density: 1, castMinH: 1 }, off: { on: false } }[S.cover];
       if (C) { cov.set(C); applied.cover = S.cover; }
     }
+    // THE GRASS FIELD's column (GRASS-DENSE G2563/G2564, GRASS-STUDY §4.7): full = the gamer row (near 15 m, gone at 90, the AGL
+    // term 27 -> 90 m, 92 tufts a m2 at the meadow = ten times today's cards), lean = retro's (8 / 50, 15 -> 50, 55 tufts), off = none.
+    // The field keeps its own on/off (?grassfield=0, TREE_FILL.field) inside a row that has grass at all
+    const fld = W.TREE_FILL && W.TREE_FILL.grass ? W.TREE_FILL.grass() : null;
+    if (fld && fld.set && applied.field !== S.cover) {
+      const F = { full: { off: false, near: 15, reach: 90, aglFull: 27, aglOff: 90, aglPre: 150, tufts: 92 }, lean: { off: false, near: 8, reach: 50, aglFull: 15, aglOff: 50, aglPre: 110, tufts: 55 }, off: { off: true } }[S.cover];
+      if (F) { fld.set(F); applied.field = S.cover; }
+    }
     const PR = world && world.premises;
     if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)
     if (PR && PR.hlod && PR.detail && applied.scenery !== S.scenery) {

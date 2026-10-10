@@ -1,0 +1,77 @@
+boxlock: GPU taken by COZY
+2026-10-08 23:25:00 taken
+2026-10-08 23:25:00 rig (880 s max): --out D:/Dev/DeGaRoR.github.io/.claude/worktrees/happy-bose-7b2ef8/flyDiy/reports/evidence/WORKS-COZY/w2325_retro_club.json --q gfx=retro --cpu-throttle 3 --gpux 6 --secs 12 --fleet --hours , --cams , --udd C:/gcozy
+nav http://localhost:8591/flyDiy/index.html?gfx=retro
+garage up in 64.6 s
+room {"shell":"club","layout":null,"dims":{"HW":15,"HD":12.5,"EAVE":7,"RIDGE":9.6},"unplaced":0,"lamps":{"gain":1,"angle":1.178097,"kelvin":4000,"hex":16771283},"at":[0,0]} stand Jodel
+  window club residents null {"frames":292,"fps":24.2,"dt50":33.5,"dt90":50.1,"dt99":50.2,"slow":42,"over50":0.144,"work50":39.6,"render50":26.4,"shadow50":2.9,"gpu50":20.71,"gpu90":23.41,"calls":725,"mtris":1.023,"residents":null,"scene":"club"}
+  window club residents null {"frames":298,"fps":24.7,"dt50":33.4,"dt90":50.1,"dt99":50.1,"slow":44,"over50":0.148,"work50":38.7,"render50":26,"shadow50":2.8,"gpu50":20.38,"gpu90":23.27,"calls":725,"mtris":1.023,"residents":null,"scene":"club"}
+  {"to":"Cub","load":6373.3,"total":7407.9,"tag":"slot load club rung 1"}
+  {"to":"Jodel","load":2987.1,"total":3649.2,"tag":"slot load club rung 1"}
+  {"to":"Cub","load":4764.5,"total":6107.7,"tag":"slot load club rung 2"}
+  {"to":"Jodel","load":2833.4,"total":3408,"tag":"slot load club rung 2"}
+COZY_RIG {"club|null":{"fps":24.45,"dt50":33.45,"dt90":50.1,"dt99":50.15,"over50":0.15,"work50":39.15,"render50":26.2,"gpu50":20.55,"gpu90":23.34,"calls":725,"mtris":1.02}}
+2026-10-08 23:27:10 rig exit 0
+2026-10-08 23:27:10 rig (750 s max): --out D:/Dev/DeGaRoR.github.io/.claude/worktrees/happy-bose-7b2ef8/flyDiy/reports/evidence/WORKS-COZY/w2325_retro_career.json --q gfx=retro&career=1 --cpu-throttle 3 --gpux 6 --secs 12 --fleet --scenes club1,hearthLight --tscenes club1,hearthLight,hearth --swap --hours afternoon,night --cams room,wide --shots D:/Dev/DeGaRoR.github.io/.claude/worktrees/happy-bose-7b2ef8/flyDiy/reports/evidence/WORKS-COZY/stills2325 --label works-cozy --wait 60 --udd C:/gcozy
+nav http://localhost:8591/flyDiy/index.html?gfx=retro&career=1
+garage up in 65.2 s
+room {"shell":"works","layout":"hearth","dims":{"HW":20,"HD":20,"EAVE":9.5,"RIDGE":12.1},"unplaced":0,"lamps":{"gain":1.25,"angle":1.178097,"kelvin":2700,"hex":16765854},"at":[0,0]} stand Jodel
+  the fleet: residents [{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}] how kept room {"dx":0,"dz":0} unplaced [] after 9 s; fleet {"queued":6,"captures":3,"bakes":3,"hits":3,"stored":3,"decodes":2,"worldRefused":0,"flightRefused":0,"evicted":0,"bakeInWorld":0}
+  scene club1: residents [{"name":"Cessna","x":3.312,"z":1.817,"filled":true,"tris":24376}] how the room moved room {"dx":-4.288,"dz":0} unplaced [{"name":"Cub","why":"no floor left beside the stand"}] after 0 s; fleet {"queued":6,"captures":3,"bakes":3,"hits":3,"stored":3,"decodes":2,"worldRefused":0,"flightRefused":0,"evicted":0,"bakeInWorld":0}
+still retro_club1_afternoon_room_res {"calls":1,"tris":2,"res":{"filled":1,"inFrame":1}}
+still retro_club1_afternoon_room_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_club1_afternoon_wide_res {"calls":1,"tris":2,"res":{"filled":1,"inFrame":1}}
+still retro_club1_afternoon_wide_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_club1_night_room_res {"calls":1,"tris":2,"res":{"filled":1,"inFrame":1}}
+still retro_club1_night_room_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_club1_night_wide_res {"calls":1,"tris":2,"res":{"filled":1,"inFrame":1}}
+still retro_club1_night_wide_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_club1_swap_before {"calls":1,"tris":2,"res":{"filled":1,"inFrame":1}}
+  swap club1 stills {"tag":"club1 stills","to":"Cessna","name":"Cessna","out":"Jodel","load":2683.9,"how":"kept","stood":3074.6,"total":3095.1,"plan":[{"name":"Jodel","x":3.312,"z":1.817,"filled":true,"tris":18640}],"room":{"dx":-4.288,"dz":0}}
+still retro_club1_swap_after {"calls":1,"tris":2,"res":{"filled":1,"inFrame":1}}
+  swap club1 stills back {"tag":"club1 stills back","to":"Jodel","name":"Jodel","out":"Cessna","load":970.6,"how":"kept","stood":972.5,"total":1290.9,"plan":[{"name":"Cessna","x":3.312,"z":1.817,"filled":true,"tris":24376}],"room":{"dx":-4.288,"dz":0}}
+  scene hearthLight: residents [{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}] how round the stand room {"dx":0,"dz":0} unplaced [] after 0 s; fleet {"queued":6,"captures":3,"bakes":3,"hits":3,"stored":3,"decodes":3,"worldRefused":0,"flightRefused":0,"evicted":0,"bakeInWorld":0}
+still retro_hearthLight_afternoon_room_res {"calls":1,"tris":2,"res":{"filled":2,"inFrame":1}}
+still retro_hearthLight_afternoon_room_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_hearthLight_afternoon_wide_res {"calls":1,"tris":2,"res":{"filled":2,"inFrame":1}}
+still retro_hearthLight_afternoon_wide_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_hearthLight_night_room_res {"calls":1,"tris":2,"res":{"filled":2,"inFrame":1}}
+still retro_hearthLight_night_room_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_hearthLight_night_wide_res {"calls":1,"tris":2,"res":{"filled":2,"inFrame":1}}
+still retro_hearthLight_night_wide_nores {"calls":1,"tris":2,"res":{"filled":0,"inFrame":0}}
+still retro_hearthLight_swap_before {"calls":1,"tris":2,"res":{"filled":2,"inFrame":1}}
+  swap hearthLight stills {"tag":"hearthLight stills","to":"Cessna","name":"Cessna","out":"Jodel","load":1369.9,"how":"kept","stood":1372.4,"total":1983.5,"plan":[{"name":"Jodel","x":12.9,"z":0,"filled":true,"tris":18640},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+still retro_hearthLight_swap_after {"calls":1,"tris":2,"res":{"filled":2,"inFrame":1}}
+  swap hearthLight stills back {"tag":"hearthLight stills back","to":"Jodel","name":"Jodel","out":"Cessna","load":944.8,"how":"kept","stood":946.6,"total":1169.9,"plan":[{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  scene club1: residents [{"name":"Cessna","x":3.312,"z":1.817,"filled":true,"tris":24376}] how the room moved room {"dx":-4.288,"dz":0} unplaced [{"name":"Cub","why":"no floor left beside the stand"}] after 0 s; fleet {"queued":6,"captures":3,"bakes":3,"hits":3,"stored":3,"decodes":3,"worldRefused":0,"flightRefused":0,"evicted":0,"bakeInWorld":0}
+  window club1 residents true {"frames":307,"fps":25.4,"dt50":33.4,"dt90":50.1,"dt99":66.6,"slow":33,"over50":0.107,"work50":35.7,"render50":23.9,"shadow50":2.6,"gpu50":19.21,"gpu90":25.19,"calls":759,"mtris":1.104,"residents":true,"scene":"club1"}
+  window club1 residents false {"frames":313,"fps":26,"dt50":33.4,"dt90":50,"dt99":66.7,"slow":31,"over50":0.099,"work50":36.2,"render50":24,"shadow50":2.6,"gpu50":19.52,"gpu90":22.72,"calls":758,"mtris":1.08,"residents":false,"scene":"club1"}
+  window club1 residents false {"frames":324,"fps":26.8,"dt50":33.4,"dt90":50,"dt99":50.1,"slow":25,"over50":0.077,"work50":35.6,"render50":23.4,"shadow50":2.6,"gpu50":18.83,"gpu90":21.42,"calls":758,"mtris":1.08,"residents":false,"scene":"club1"}
+  window club1 residents true {"frames":295,"fps":24.4,"dt50":33.4,"dt90":50.1,"dt99":83.4,"slow":56,"over50":0.19,"work50":36.8,"render50":24.6,"shadow50":2.8,"gpu50":20.06,"gpu90":26.76,"calls":759,"mtris":1.104,"residents":true,"scene":"club1"}
+  swap club1 rung 1 {"tag":"club1 rung 1","to":"Cessna","name":"Cessna","out":"Jodel","load":3939.3,"how":"kept","stood":3946.8,"total":4753.4,"plan":[{"name":"Jodel","x":3.312,"z":1.817,"filled":true,"tris":18640}],"room":{"dx":-4.288,"dz":0}}
+  swap club1 rung back 1 {"tag":"club1 rung back 1","to":"Jodel","name":"Jodel","out":"Cessna","load":3095,"how":"kept","stood":3103.4,"total":3748.6,"plan":[{"name":"Cessna","x":3.312,"z":1.817,"filled":true,"tris":24376}],"room":{"dx":-4.288,"dz":0}}
+  swap club1 rung 2 {"tag":"club1 rung 2","to":"Cessna","name":"Cessna","out":"Jodel","load":4184.5,"how":"kept","stood":4192.6,"total":4990,"plan":[{"name":"Jodel","x":3.312,"z":1.817,"filled":true,"tris":18640}],"room":{"dx":-4.288,"dz":0}}
+  swap club1 rung back 2 {"tag":"club1 rung back 2","to":"Jodel","name":"Jodel","out":"Cessna","load":2963.6,"how":"kept","stood":2970.3,"total":3555,"plan":[{"name":"Cessna","x":3.312,"z":1.817,"filled":true,"tris":24376}],"room":{"dx":-4.288,"dz":0}}
+  scene hearthLight: residents [{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}] how round the stand room {"dx":0,"dz":0} unplaced [] after 0 s; fleet {"queued":6,"captures":3,"bakes":3,"hits":3,"stored":3,"decodes":3,"worldRefused":0,"flightRefused":0,"evicted":0,"bakeInWorld":0}
+  window hearthLight residents true {"frames":296,"fps":24.6,"dt50":33.4,"dt90":50.1,"dt99":83.4,"slow":42,"over50":0.142,"work50":36.3,"render50":24.4,"shadow50":2.5,"gpu50":19.16,"gpu90":28.18,"calls":739,"mtris":0.984,"residents":true,"scene":"hearthLight"}
+  window hearthLight residents false {"frames":302,"fps":25.1,"dt50":33.4,"dt90":50.1,"dt99":83.4,"slow":42,"over50":0.139,"work50":35.9,"render50":24.2,"shadow50":2.4,"gpu50":19.02,"gpu90":26.8,"calls":738,"mtris":0.959,"residents":false,"scene":"hearthLight"}
+  window hearthLight residents false {"frames":302,"fps":25.1,"dt50":33.4,"dt90":50.1,"dt99":66.7,"slow":38,"over50":0.126,"work50":35.7,"render50":23.9,"shadow50":2.4,"gpu50":18.55,"gpu90":26.77,"calls":738,"mtris":0.959,"residents":false,"scene":"hearthLight"}
+  window hearthLight residents true {"frames":317,"fps":26.3,"dt50":33.4,"dt90":50,"dt99":66.7,"slow":30,"over50":0.095,"work50":35.3,"render50":23.5,"shadow50":2.3,"gpu50":18.52,"gpu90":21.91,"calls":739,"mtris":0.984,"residents":true,"scene":"hearthLight"}
+  swap hearthLight rung 1 {"tag":"hearthLight rung 1","to":"Cessna","name":"Cessna","out":"Jodel","load":3877.7,"how":"kept","stood":3885.4,"total":4656.9,"plan":[{"name":"Jodel","x":12.9,"z":0,"filled":true,"tris":18640},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  swap hearthLight rung back 1 {"tag":"hearthLight rung back 1","to":"Jodel","name":"Jodel","out":"Cessna","load":3128,"how":"kept","stood":3135.9,"total":3762.5,"plan":[{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  swap hearthLight rung 2 {"tag":"hearthLight rung 2","to":"Cessna","name":"Cessna","out":"Jodel","load":4032.1,"how":"kept","stood":4040.7,"total":4774.9,"plan":[{"name":"Jodel","x":12.9,"z":0,"filled":true,"tris":18640},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  swap hearthLight rung back 2 {"tag":"hearthLight rung back 2","to":"Jodel","name":"Jodel","out":"Cessna","load":3054.6,"how":"kept","stood":3063.5,"total":3628.4,"plan":[{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  scene hearth: residents [{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}] how round the stand room {"dx":0,"dz":0} unplaced [] after 0 s; fleet {"queued":6,"captures":3,"bakes":3,"hits":3,"stored":3,"decodes":3,"worldRefused":0,"flightRefused":0,"evicted":0,"bakeInWorld":0}
+  window hearth residents true {"frames":261,"fps":21.6,"dt50":50,"dt90":50.1,"dt99":66.8,"slow":68,"over50":0.261,"work50":43.2,"render50":30.2,"shadow50":3.5,"gpu50":21.79,"gpu90":25.57,"calls":918,"mtris":1.301,"residents":true,"scene":"hearth"}
+  window hearth residents false {"frames":261,"fps":21.7,"dt50":50,"dt90":50.1,"dt99":83.3,"slow":70,"over50":0.268,"work50":43.2,"render50":30,"shadow50":3.5,"gpu50":21.79,"gpu90":26.42,"calls":917,"mtris":1.276,"residents":false,"scene":"hearth"}
+  window hearth residents false {"frames":266,"fps":22,"dt50":50,"dt90":50.1,"dt99":66.7,"slow":57,"over50":0.214,"work50":43,"render50":29.8,"shadow50":3.5,"gpu50":21.33,"gpu90":24.74,"calls":917,"mtris":1.276,"residents":false,"scene":"hearth"}
+  window hearth residents true {"frames":262,"fps":21.7,"dt50":50,"dt90":50.1,"dt99":66.8,"slow":57,"over50":0.218,"work50":43.4,"render50":30.2,"shadow50":3.5,"gpu50":21.87,"gpu90":26.28,"calls":918,"mtris":1.301,"residents":true,"scene":"hearth"}
+  swap hearth rung 1 {"tag":"hearth rung 1","to":"Cessna","name":"Cessna","out":"Jodel","load":3831.7,"how":"kept","stood":3843.6,"total":4624.4,"plan":[{"name":"Jodel","x":12.9,"z":0,"filled":true,"tris":18640},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  swap hearth rung back 1 {"tag":"hearth rung back 1","to":"Jodel","name":"Jodel","out":"Cessna","load":3071.9,"how":"kept","stood":3084.4,"total":3788.7,"plan":[{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  swap hearth rung 2 {"tag":"hearth rung 2","to":"Cessna","name":"Cessna","out":"Jodel","load":3944.2,"how":"kept","stood":3956.8,"total":4756.2,"plan":[{"name":"Jodel","x":12.9,"z":0,"filled":true,"tris":18640},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+  swap hearth rung back 2 {"tag":"hearth rung back 2","to":"Jodel","name":"Jodel","out":"Cessna","load":3154.4,"how":"kept","stood":3166.5,"total":3731.9,"plan":[{"name":"Cessna","x":12.9,"z":0,"filled":true,"tris":24376},{"name":"Cub","x":11.911,"z":-13,"filled":true,"tris":20908}],"room":{"dx":0,"dz":0}}
+COZY_RIG {"club1|true":{"fps":24.9,"dt50":33.4,"dt90":50.1,"dt99":75,"over50":0.15,"work50":36.25,"render50":24.25,"gpu50":19.63,"gpu90":25.98,"calls":759,"mtris":1.1},"club1|false":{"fps":26.4,"dt50":33.4,"dt90":50,"dt99":58.4,"over50":0.09,"work50":35.9,"render50":23.7,"gpu50":19.17,"gpu90":22.07,"calls":758,"mtris":1.08},"hearthLight|true":{"fps":25.45,"dt50":33.4,"dt90":50.05,"dt99":75.05,"over50":0.12,"work50":35.8,"render50":23.95,"gpu50":18.84,"gpu90":25.05,"calls":739,"mtris":0.98},"hearthLight|false":{"fps":25.1,"dt50":33.4,"dt90":50.1,"dt99":75.05,"over50":0.13,"work50":35.8,"render50":24.05,"gpu50":18.79,"gpu90":26.79,"calls":738,"mtris":0.96},"hearth|true":{"fps":21.65,"dt50":50,"dt90":50.1,"dt99":66.8,"over50":0.24,"work50":43.3,"render50":30.2,"gpu50":21.83,"gpu90":25.93,"calls":918,"mtris":1.3},"hearth|false":{"fps":21.85,"dt50":50,"dt90":50.1,"dt99":75,"over50":0.24,"work50":43.1,"render50":29.9,"gpu50":21.56,"gpu90":25.58,"calls":917,"mtris":1.28}}
+2026-10-08 23:34:54 rig exit 0
+boxlock: GPU released by COZY
+2026-10-08 23:34:55 dropped
+2026-10-08 23:34:55 window done

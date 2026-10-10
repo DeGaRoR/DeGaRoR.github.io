@@ -179,7 +179,7 @@ const batchMats = CR => { const out = []; CR.root.traverse(o => { if (!o.isBatch
   const lead = L => { const W = ring({ maxCells: 10, lead: L }); W.camera.position.set(0, 1000, 0);
     for (let i = 0; i < 12; i++) { W.tick(100); W.camera.position.x += 5; W.CR.update(); }
     W.camera.position.y = 3; W.tick(100); W.camera.position.x += 5; W.CR.update();
-    const ex = W.camera.position.x; let sx = 0, n = 0; W.CR.root.traverse(o => { if (o.isInstancedMesh) { const a = o.instanceMatrix.array; for (let i = 0; i < o.count; i++) { sx += a[i * 16 + 12] - ex; n++; } } });
+    const ex = W.camera.position.x; let sx = 0, n = 0; W.CR.root.traverse(o => { if (o.isInstancedMesh) { const a = o.instanceMatrix.array; for (let i = 0, N = o.userData.n === undefined ? o.count : o.userData.n; i < N; i++) { sx += a[i * 16 + 12] - ex; n++; } } });   // (what is PLANTED: o.count is the drawn prefix since G2561)
     return { lead: W.CR.stat().lead, dx: n ? sx / n : 0 }; };
   const L0 = lead(0), L4 = lead(4);
   ok(L4.lead > 100 && L4.dx > 60 && Math.abs(L0.dx) < 30, '4 the lead: what the eye flies toward is planted first', 'lead ' + L4.lead + ' m: mean dx ' + L4.dx.toFixed(0) + ' m (no lead ' + L0.dx.toFixed(0) + ' m)');

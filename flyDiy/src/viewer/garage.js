@@ -897,6 +897,15 @@ function garageInit(api) {
     // with the pq captured at entry, once the storm this function itself
     // caused is over. The bench decides what the stored certificate means;
     // this line only delivers it in the right order.
+    // G2280 (PROCURE): the slot as the garage has just built it - what a Save would write now (commit's merge of the
+    // join's export, computed without committing) - so a bought airframe's factory certificate is signed on THIS
+    // aeroplane (app.js procureLoaded); optional, the gates boot this file without it
+    try {
+      if (slotName && api.loaded) {
+        const J = join();
+        api.loaded(slotName, J && ed() ? merge(spec, JSON.parse(JSON.stringify(J.export()))) : JSON.parse(JSON.stringify(spec)));
+      }
+    } catch (e) {}
     if (typeof window.BENCH_RESTORE === 'function') window.BENCH_RESTORE(pq || null);
     renderLog();
   }
@@ -1154,6 +1163,10 @@ function garageInit(api) {
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
           repainted = !!(prev && prev.spec && JSON.stringify(prev.spec.finish || null) !== JSON.stringify(spec.finish || null)); } catch (e) {}
+    // G2260 (ECONOMY): in a career the first save of a NEW airframe is a purchase (materialised from the drawing board);
+    // the page may refuse it - the wallet short of the price - and then nothing is written. Optional (the sandbox's
+    // page answers '' always; the gates boot this file with no such door).
+    if (api.canSave) { const why = api.canSave(name, !lsGet(SLOT + name)); if (why) return void alert(why); }
     const env = envelope(name, spec, plaque, log);
     if (env == null) return void alert('Could not save - the build holds a number that is not finite (the console names it). The saved copy is unchanged.');
     if (!lsSet(SLOT + name, env))
@@ -1166,7 +1179,7 @@ function garageInit(api) {
     writeWip();
     syncRibbon();
     // G2221 (FLEET-PROPS A): the saved aeroplane's parked prop is baked on the garage's idle path, never in the world
-    // (parked.js fleetQueue; nothing with FLYDIY_FLEET off)
+    // (parked.js fleetQueue; nothing with FLYDIY_FLEET off - on by default since G2226)
     try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(name); } catch (e) {}
   };
   // EXPORT is a file, because a build you cannot hand to somebody else is not
@@ -1317,6 +1330,8 @@ function garageInit(api) {
       json: () => { commit();
                     return envelope(slotName || 'build', spec, plaque, log, true); },
       list: slotNames,
+      // G2316 (GARAGE-RESIDENTS' swap): a saved build onto the stand - the fleet rack's own door (loadSlot)
+      open: n => loadSlot(n),
       stock: () => STOCK.map(s => s.name),
       // G411: A BUILD AS A SPEC, WITHOUT OPENING IT. The parked aeroplanes
       // (src/viewer/parked.js) stand a stock design or one of your own beside

@@ -1,0 +1,26 @@
+== UISMOKE map rows
+map: the map screen and its pack are lazy names only (no static tag, nothing inlined)
+map: the MAP entry: none in the sandbox (no flag, ?map=10, ?scenery=1); one with ?map=1 or in the career mode; nothing of the screen fetched before the press, then the pack and the screen
+map: the rows: 5 provider tabs + All (2 + 3 + 2 + 2 + 2 = 11), Fleet (4), Pilots "coming", the Market below
+map: every card (11): both ends by name, both strips' lengths, the payload, the pay, Accept and Track never disabled
+map: the fleet against "Parts to the dock": Cub 3 facts, Jodel 3, C172 floats 3 (spare / over, take-off run vs the strip, floats for water)
+map: the build card: 3 criteria x 5 designs (✓ / ✗ from the spec and the ledger, ◌ "needs a flight")
+map: the gear rule equals 25_airfield.js stripAllows on the 8 strips x 4 gears
+map: track one, accept many; a selection lights 2 markers and draws 1 route; every marker selects its row
+map: NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the sheet (pan-y) apart; no device test
+map: the real record (a new career, careerNew + careerMapRecord): 5 provider tabs + All (4 + 4 + 4 + 4 + 4 = 20); every card both ends, both strips, the payload, contractPay's pay, no unresolved key, Accept / Track; every contract a marker
+map: the Market: 4 models of 4 makers (validated builds only; a certificate, an options sheet, Buy / Take free in the sandbox), 4 used listings where they stand, each a marker at its aerodrome
+map: the real fleet: the Cub's certificate against "Tools for Tamgas Hill Strip" (2 facts), a kit "not read yet"; clients.02's criteria against it; the aerobatic box held out
+== UISMOKE-PHONE map rows
+map: the map screen and its pack are lazy names only (no static tag, nothing inlined)
+map: the MAP entry: none in the sandbox (no flag, ?map=10, ?scenery=1); one with ?map=1 or in the career mode; nothing of the screen fetched before the press, then the pack and the screen
+map: the rows: 5 provider tabs + All (2 + 3 + 2 + 2 + 2 = 11), Fleet (4), Pilots "coming", the Market below
+map: every card (11): both ends by name, both strips' lengths, the payload, the pay, Accept and Track never disabled, no flight on the phone
+map: the fleet against "Parts to the dock": Cub 3 facts, Jodel 3, C172 floats 3 (spare / over, take-off run vs the strip, floats for water)
+map: the build card: 3 criteria x 5 designs (✓ / ✗ from the spec and the ledger, ◌ "needs a flight")
+map: the gear rule equals 25_airfield.js stripAllows on the 8 strips x 4 gears
+map: track one, accept many; a selection lights 2 markers and draws 1 route; every marker selects its row
+map: NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the sheet (pan-y) apart; no device test
+map: the real record (a new career, careerNew + careerMapRecord): 5 provider tabs + All (4 + 4 + 4 + 4 + 4 = 20); every card both ends, both strips, the payload, contractPay's pay, no unresolved key, Accept / Track; every contract a marker
+map: the Market: 4 models of 4 makers (validated builds only; a certificate, an options sheet, Buy / Take free in the sandbox, a way back on the phone), 4 used listings where they stand, each a marker at its aerodrome
+map: the real fleet: the Cub's certificate against "Tools for Tamgas Hill Strip" (2 facts), a kit "not read yet"; clients.02's criteria against it; the aerobatic box held out

@@ -53,6 +53,13 @@
   const ISL = () => { const fp = W.FLIGHT_PROBE, w = fp && fp.world && fp.world(); return (w && w.island) || null; };
   const PACK = () => W.TREE_PACK || W.TREE_PACK_REG || null;
   const RING = () => { const t = TF(); return (t && t.cover && t.cover()) || null; };
+  // GRASS-DENSE G2566: the grass field (cover_ring.js layer 'grass') and the premises' law for the grass by the runways
+  // (27_premises.js GRASS_SIDES) - their dials are the look's: `grass` (the field's, less its on/off - the A/B and the GRAPHICS
+  // row's) and `gsides`
+  const FLD = () => { const t = TF(); return (t && t.grass && t.grass()) || null; };
+  const fieldNow = () => { const f = FLD(); if (!f) return null; const o = clone(f.get()); delete o.on; delete o.off; return o; };
+  const GSD = () => (W.PREMISES_GEN && W.PREMISES_GEN.grassSides ? W.PREMISES_GEN : null);
+  const replantGrass = () => { const t = TF(); if (!t) return; const r = t.cover && t.cover(), f = t.grass && t.grass(); if (r) r.replant(); if (f) f.replant(); };
   const CLF = () => { const g = G(); return (g && g.cliffs && g.cliffs()) || null; };
   // THE RUNWAY LOOK (G1394, RUNWAY-LOOK): the pavement module's live overlay (PAVEMENT.look) - per surface type, the
   // surface's and the side's colour, the wear, the side's width and blend; over every pavement's own (the premises')
@@ -85,7 +92,7 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, gsides: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null };
   const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
   // G1385 (EDITOR-VEG): the grass's and the bushes' own masters (trees.js KIND_MASTER: cover, shrub)
   const kindTintNow = () => { const L = W.TREE_LEAF; if (!L || !L.kinds) return null; const o = {}; for (const k of L.kinds()) o[k] = L.kindMaster(k); return o; };
@@ -96,6 +103,8 @@
     const g = G(); if (g && !DEF.ground) { DEF.ground = clone(g.get()); DEF.stack = clone(g.stack()); }
     const t = TF(); if (t && t.island && !DEF.island) { DEF.island = clone(t.island()); DEF.fillDensity = t.get ? t.get() : null; DEF.thin = t.thin ? t.thin() : null; }
     const r = RING(); if (r && !DEF.ring) DEF.ring = clone(r.get());
+    if (FLD() && !DEF.grass) { DEF.grass = fieldNow(); DEF.grassOn = !!FLD().get().on; }
+    if (GSD() && !DEF.gsides) DEF.gsides = clone(GSD().GRASS_SIDES_DEF);
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
     if (WF() && WF().envAlbedo && DEF.env === null) DEF.env = WF().envAlbedo();
     const L = W.TREE_LEAF; if (L && L.collections && !DEF.tints) { DEF.tints = tintsNow(); if (L.master) DEF.leafMaster = clone(L.master()); }
@@ -119,6 +128,8 @@
     const t = TF(); if (t) { if (t.island) o.island = t.island(); if (t.speciesSizes) o.speciesSize = t.speciesSizes(); if (t.get) o.fillDensity = t.get(); if (t.thin) o.thin = t.thin(); }
     const B = BIO(); if (B) o.biomes = { map: clone(B.map), mixes: clone(ownMixes(B.mixes)) };
     const r = RING(); if (r) o.ring = r.get();
+    if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }   // (the switch apart: the look keeps the user's choice)
+    if (GSD()) o.gsides = GSD().grassSides();
     const c = CLF(); if (c) o.cliffs = c.get();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
     if (L && L.kinds) o.kindTint = kindTintNow();
@@ -137,6 +148,8 @@
     if (N.biomes && DEF.biomes) { const map = same(N.biomes.map, DEF.biomes.map) ? null : N.biomes.map, mixes = deltaOf(N.biomes.mixes, DEF.biomes.mixes);
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
     put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
+    put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides));
+    if (N.grassOn !== undefined && DEF.grassOn !== undefined && N.grassOn !== DEF.grassOn) o.grassOn = N.grassOn;
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
     if (N.runway && Object.keys(N.runway).length) o.runway = N.runway;   // the overlay IS a delta (over the premises' look)
     return o;
@@ -171,6 +184,9 @@
       if (dirty) { const any = Object.keys(B.mixes)[0]; if (any) t.setMix(any, ['forest', 'count'], (B.mixOf(any).forest || {}).count || 0); }
     }
     const r = RING(); if (r && o.ring) { const d = deltaOf(Object.assign({}, r.get(), o.ring), r.get()); if (d) r.set(d); }
+    if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
+    const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
+    if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { GSD().grassSides(d); replantGrass(); } }
     const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
     const L = W.TREE_LEAF;
     if (L && o.tints && L.tintOf) { const cur = tintsNow(); for (const n in o.tints) if (!same(Object.assign({}, cur[n], o.tints[n]), cur[n])) L.tintOf(n, o.tints[n]); }
@@ -229,6 +245,8 @@
     if (DEF.biomes && out.biomes) ch.push(...diff(DEF.biomes, out.biomes, 'biomes'));
     if (DEF.island && out.island) ch.push(...diff(DEF.island, out.island, 'island'));
     if (DEF.ring && out.ring) ch.push(...diff(DEF.ring, out.ring, 'ring'));
+    if (DEF.grass && out.grass) ch.push(...diff(DEF.grass, out.grass, 'grass'));
+    if (DEF.gsides && out.gsides) ch.push(...diff(DEF.gsides, out.gsides, 'gsides'));
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
     if (DEF.env !== null && out.envAlbedo !== undefined && Math.abs(DEF.env - out.envAlbedo) > 1e-9) ch.push({ path: 'envAlbedo', was: DEF.env, now: out.envAlbedo });
     if (out.speciesSize && Object.keys(out.speciesSize).length) for (const k in out.speciesSize) ch.push({ path: 'speciesSize.' + k, was: 1, now: out.speciesSize[k] });
@@ -751,6 +769,11 @@
       }
       note(body, 'a tree’s height is the canopy map’s x the size gain (VEGETATION); size and colour here are the species’, in every biome');
     } else if (kd === 'shrub' || (kd === 'cover' && !(col && col.maps))) {
+      // GRASS-DENSE G2566: the grass field's length here (GRASS-STUDY §4.4): the tuft's median top, its spread, the density by this
+      // biome (1 = the meadow's) - the row's own, else the field's table for the mix
+      const CRm = W.COVER_RING, FT = CRm && CRm.FIELD_TYPES && CRm.FIELD_SPECIES && CRm.FIELD_SPECIES.includes(sp) ? (CRm.FIELD_TYPES[mix] || CRm.FIELD_TYPES.grassland) : null;
+      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0.03, 0.8, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 2, 0.05, null]])
+        range(body, label, lo, hi, st, () => (rowOf()[k] === undefined ? FT[k] : rowOf()[k]), v => t.setMix(mix, ['species', sp, k], v), f, FT[k]);
       // G1385: a bush's and a grass's own colour (the flowers are their pictures: no tint); the kind's master is in VEGETATION
       const L = W.TREE_LEAF, c = L && L.collections && L.collections().find(q => q.name === sp);
       if (c) {
@@ -968,6 +991,53 @@
       range(R, 'AGL off', 30, 400, 5, () => r.get().aglOff, cs('aglOff'), v => v + ' m', D.aglOff);
       liveNote(R, () => { const st = r.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' instances · ' + st.lastMs.toFixed(1) + ' ms last build' : ''; });
     }
+    // THE GRASS FIELD (GRASS-DENSE G2566; the user: "the parameters touched will be implemented in the editor, so I can further
+    // tune things myself"): every number the field plants and fades by, and the law the premises answer by beside the runways.
+    // Double-click a label: back to the shipped value. The length per ground type is on the biome's grass card (TYPES > biome)
+    const fl = FLD();
+    if (fl) {
+      const Gf = sec(body, 'the grass field', true, 'the grass: dense, short, the ground’s colour'), fs = k => v => fl.set({ [k]: v }), D = DEF.grass || {};
+      toggle(Gf, 'the field (off: today’s patches)', () => fl.get().on, v => { const t = TF(); if (t && t.field) t.field(!!v); });
+      range(Gf, 'tufts / m² (meadow)', 5, 250, 1, () => fl.get().tufts, fs('tufts'), v => v + ' (' + (v * 3).toFixed(0) + ' cards)', D.tufts);
+      range(Gf, 'full to', 2, 60, 1, () => fl.get().near, fs('near'), v => v + ' m', D.near);
+      range(Gf, 'gone at', 20, 250, 5, () => fl.get().reach, fs('reach'), v => v + ' m', D.reach);
+      range(Gf, 'taper', 0, 2, 0.05, () => fl.get().taper, fs('taper'), null, D.taper);
+      range(Gf, 'size fade', 0, 1, 0.05, () => fl.get().sizeFade, fs('sizeFade'), null, D.sizeFade);
+      range(Gf, 'size fade: reference', 0.05, 1, 0.01, () => fl.get().hRef, fs('hRef'), v => v.toFixed(2) + ' m', D.hRef);
+      range(Gf, 'AGL full', 5, 200, 1, () => fl.get().aglFull, fs('aglFull'), v => v + ' m', D.aglFull);
+      range(Gf, 'AGL off', 10, 400, 5, () => fl.get().aglOff, fs('aglOff'), v => v + ' m', D.aglOff);
+      range(Gf, 'height x', 0.2, 3, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);
+      range(Gf, 'height spread x', 0, 3, 0.05, () => fl.get().sigmaK, fs('sigmaK'), null, D.sigmaK);
+      range(Gf, 'clumps: cell', 1, 12, 0.5, () => fl.get().clumpM, fs('clumpM'), v => v + ' m', D.clumpM);
+      range(Gf, 'clumps: amount', 0, 0.8, 0.02, () => fl.get().clumpAmp, fs('clumpAmp'), null, D.clumpAmp);
+      range(Gf, 'bare patches', 0, 1, 0.05, () => fl.get().blotch, fs('blotch'), null, D.blotch);
+      range(Gf, 'cards a tuft', 1, 8, 1, () => fl.get().cards, fs('cards'), null, D.cards);
+      range(Gf, 'tuft shapes (draws)', 1, 6, 1, () => fl.get().variants, fs('variants'), null, D.variants);
+      range(Gf, 'block (cells a side)', 1, 6, 1, () => fl.get().block, fs('block'), v => v + ' (' + v * 16 + ' m)', D.block);
+      toggle(Gf, 'colour: the ground as drawn', () => fl.get().colour, v => fl.set({ colour: v ? 1 : 0 }));
+      range(Gf, 'colour: level to the ground', 0.3, 2.5, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
+      range(Gf, 'colour: tuft to tuft', 0, 0.3, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
+      range(Gf, 'cut grass: length', 0.02, 0.4, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
+      range(Gf, 'cut grass: spread', 0, 0.5, 0.01, () => fl.get().cutSigma, fs('cutSigma'), null, D.cutSigma);
+      range(Gf, 'cut grass: density x', 0.2, 3, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
+      range(Gf, 'grass runway: length', 0.02, 0.3, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
+      range(Gf, 'grass runway: density x', 0.2, 3, 0.05, () => fl.get().stripDens, fs('stripDens'), null, D.stripDens);
+      liveNote(Gf, () => { const st = fl.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' tufts held, ' + (st.submitted || 0) + ' drawn · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
+      const P = GSD();
+      if (P) {
+        const S2 = sec(body, 'the grass by the runways', false, 'what grows on and beside a strip, a taxiway, an apron'), gs = k => v => { P.grassSides({ [k]: v }); replantGrass(); }, D2 = DEF.gsides || {};
+        pills(row(S2, 'the law'), [{ label: 'today', v: 'today', title: 'bare over the pavement and its whole band, a 6 m fade' }, { label: 'by what is drawn', v: 'sides', title: 'bare on the pavement and its drawn side, cut over the band and the mow band, wild past it' }],
+          o => P.grassSides().law === o.v, o => { P.grassSides({ law: o.v }); replantGrass(); });
+        range(S2, 'bare past a paved edge', 0, 10, 0.1, () => P.grassSides().sideClear, gs('sideClear'), v => v.toFixed(1) + ' m', D2.sideClear);
+        range(S2, 'bare past a soft edge', 0, 10, 0.1, () => P.grassSides().softClear, gs('softClear'), v => v.toFixed(1) + ' m', D2.softClear);
+        range(S2, 'mown past the band', 0, 60, 1, () => P.grassSides().mowBand, gs('mowBand'), v => v + ' m', D2.mowBand);
+        range(S2, 'cut to wild over', 0, 20, 0.5, () => P.grassSides().mowBlend, gs('mowBlend'), v => v + ' m', D2.mowBlend);
+        range(S2, 'a road’s mown verge', 0, 10, 0.5, () => P.grassSides().roadMow, gs('roadMow'), v => v + ' m', D2.roadMow);
+        toggle(S2, 'grass on a grass runway', () => P.grassSides().stripGrass, v => { P.grassSides({ stripGrass: v ? 1 : 0 }); replantGrass(); });
+        toggle(S2, 'grass on gravel drawn as ground', () => P.grassSides().hard, v => { P.grassSides({ hard: v ? 1 : 0 }); replantGrass(); });
+        note(S2, 'the band is the premises entry’s (PREMISES > runway > band); the lengths of the cut grass are the grass field’s (above)');
+      }
+    }
     const L = W.TREE_LEAF;
     if (L && L.master) {
       const C = sec(body, 'the trees’ colour', false, 'every species');
@@ -980,7 +1050,7 @@
     }
     // G1385 (EDITOR-VEG, the user: "We are missing coloration options for the grass and the bushes"): each kind's
     // master over all its species (trees.js KIND_MASTER), on top of the trees' hue and, for the bushes, their master
-    if (L && L.kindTint) for (const [kind, title, sub] of [['cover', 'the grass’ colour', 'every grass species (not the flowers)'], ['shrub', 'the bushes’ colour', 'every bush species']]) {
+    if (L && L.kindTint) for (const [kind, title, sub] of [['cover', 'the grass’ colour', 'every grass species (not the flowers)'], ['flower', 'the flowers’ colour', 'every flower species (their pictures)'], ['shrub', 'the bushes’ colour', 'every bush species']]) {
       const K = () => L.kindMaster(kind) || {}, D = (DEF.kindTint && DEF.kindTint[kind]) || { hue: 0, sat: 1, light: 1 };
       const C = sec(body, title, false, sub);
       range(C, 'hue', -0.2, 0.2, 0.005, () => K().hue, v => L.kindTint(kind, { hue: v }), v => v.toFixed(3), D.hue);

@@ -1,0 +1,46 @@
+GATE PREMCOOK
+1. the manifest
+  ok   src/core/premises_packs.json names jolene (tools/premises_cook.js --island jolene)
+  ok   its fixture tools/fixtures/island_jolene.json is on disk
+  ok   both variants cooked (default, town)
+  ok   G841: every variant ships its tallies (default 215, town 695 entries)
+  ok   218 cell files named, all on disk
+     raster 137 cells 18.83 MB; places default 23 cells 230.8 KB, town 56 cells 989.9 KB (total 20498 KB)
+2. the cook is fresh
+     re-cooked in memory in 446.2 s
+  ok   the page's placement code (lifted from render_premises.js) is the one cooked (dfab830d6a23aa28 / dfab830d6a23aa28)
+  FAIL default: the record is the one cooked (aa452d4515ed5ecb / e3298a791a11acf0)
+  ok   default: the placements hash as cooked - 215 things, cc8b623516517148 / cc8b623516517148
+  ok   default: every place cell as cooked, byte for byte (23 cells, 0 differ)
+  ok   default: the tallies as cooked, byte for byte (215 entries, 05a694ec56c8dd6e)
+  FAIL town: the record is the one cooked (69b7ca8212b7f7a6 / 8b3f4244991ff2dd)
+  ok   town: the placements hash as cooked - 695 things, 84becec0d763fe34 / 84becec0d763fe34
+  ok   town: every place cell as cooked, byte for byte (56 cells, 0 differ)
+  ok   town: the tallies as cooked, byte for byte (695 entries, 165ff8f8b2a81863)
+  ok   every raster cell as cooked: its signature and its bytes (137 cells, 0 differ)
+3. the raster, loaded
+     compose + load: 3957 ms with the cook, 3813 ms without (the difference: the cells' signatures and indexes)
+  ok   default: every cooked cell of the variant taken (92 taken, 43 refused; 92 cooked, 43 of the other variant's to refuse)
+  ok   under the cooked cells the ground is the lazy raster's: worst 0.0278 mm on 110400 points
+  ok   ...and the analytic ground's within PREMRASTER's tolerances: p99 0.59 mm, p99.9 3.3 mm, worst 10.4 mm
+  ok   nothing baked under the cook, only decoded (8563 tiles decoded in 496 ms, 0.058 ms a tile; 0 baked)
+     the lazy raster on the same points: 8563 tiles baked in 10443 ms (1.220 ms a tile)
+  ok   the stand's pad reads its level under the cook (30.600 m): 0.0e+0 m at 400 points
+  ok   the ceiling bounds the cooked ground: 44 rectangles, 52652 points, 0 above it
+4. a stale cook is detected
+  ok   a flatten under a cooked cell (t_pad)
+  ok   the edited cells are refused, the rest load (72 taken, 63 refused)
+  ok   the refused cells read the lazy bake of the edited record, exactly (2000 points on the edited pad, 0 differ)
+  ok   a fixture edit (the record's seed) changes the places' hash
+  ok   a generator edit (HOUSE_GEN.randomHouse, +1 cm) changes the places' hash
+  ok   a page edit (buildHouse's seed, premises_build.js genHouse) changes the places' hash
+  ok   ...and the unedited cook gives it back, twice (73c0e3253eeef6c8)
+5. the flag
+  ok   off by default: no option, no environment - the analytic ground (the same bits as before)
+  ok   the page's island loader reads ?raster / flydiy.raster and fetches the raster cells only under the flag (ON unless 0 since 2026-09-27); the places' tallies whatever it says (G841)
+6. the cook's tallies (G841)
+  ok   default: the tallies read back (215 entries)
+  ok   default: the queue built BACKWARDS on the cooked tallies gives the cooked placements (215 things, hash cc8b623516517148 / cc8b623516517148, 0 cells differ; 35.4 s)
+  ok   default: makeTallies.at(rank) is the running sum at every rank (215 ranks, 0 differ)
+GATE PREMCOOK: FAIL
+exit 1

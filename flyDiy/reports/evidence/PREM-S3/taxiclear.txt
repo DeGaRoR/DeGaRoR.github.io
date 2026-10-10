@@ -1,0 +1,9 @@
+  stock build     span 10.0 m: flown, nearest wing to a parked footprint 4.64 m (o1 at (-137.5, 670.7) in TAXI)
+  aluminium C172  span 11.0 m: flown, nearest wing to a parked footprint 3.97 m (o1 at (-137.6, 671.5) in TAXI)
+  Jolene: 135 stand / parked / route rows, Jumbo Mine Street's tightest 0.32 m over its need
+  aluminium C172  span 11.0 m from the mill: airborne at 84 s, the wing 3.13 m off the nearest footprint (item mn_s_mine/clinic at (7256.1, -15353.9) in TAXI, t 12 s), 0 contacts, 0 trunk hits
+  the user's Cub  span 10.7 m from the mill: airborne at 83 s, the wing 2.97 m off the nearest footprint (item mn_s_mine/school at (7242.5, -15493.1) in ROLL, t 60 s), 0 contacts, 0 trunk hits
+  10 the fleet's spots: w2 12 (aaaaaaaaaaar), HOME 12 (saaaaaaaaaaa), w3 12 (aaaaaaaaaaaa), SEA 12 (rrrrrrrrrrrr), mk_sea 12 (rrrrrrrrrrrr), mn_strip 0 (), nv_strip 5 (aaaar), tw_ski 0 (); 12408 rows in 3.1 s
+  11 the plots: 5 censused, 2 with a way of their own
+GATE TAXICLEAR: PASS
+exit 0
