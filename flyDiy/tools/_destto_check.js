@@ -193,9 +193,23 @@ function careerW3(W, sim, def, check, secs, overflew) {
   const c = sim.cgPos(), Wh = C.flightWhere(W, c[0], c[2], {});
   const crashed = !!(sim.damage && sim.damage().crashed);
   let d = C.playerFleetReconcile(C.careerNormalise(C.careerNew({ id: 'dev', seed: 'dev', name: 'the dev career' })), ['Cub']).doc;
-  const job = C.careerOfferIds(d).find(id => { const r = C.careerContract(d, id), u = r && r.stages[0].subs[0]; return /^job:field:/.test(id) && r.stages.length === 1 && u.do === 'carry' && u.from === 'HOME' && u.to === 'w3' && !u.load.pax && !u.when; });
-  if (!check(!!job, tag + 'the dev career offers a carry job HOME -> Tamgas Hill (kilos, no passenger, no condition)')) return;
-  d = C.careerAccept(d, job).doc;
+  // G2430 (CONTRACT-ROUTES) made most generated jobs multi-stop and not HOME-first, so the dev seed may offer no single
+  // HOME -> w3 carry: the row then takes ITS OWN one (35 kg, no passenger, no condition), accepted the way careerAccept
+  // keeps a job (live.rec = the record as offered) - what this row proves is the stop's delivery, not the generator's draw
+  let job = C.careerOfferIds(d).find(id => { const r = C.careerContract(d, id), u = r && r.stages[0].subs[0]; return /^job:field:/.test(id) && r.stages.length === 1 && u.do === 'carry' && u.from === 'HOME' && u.to === 'w3' && !u.load.pax && !u.when && u.load.kg === 35; });
+  if (job) d = C.careerAccept(d, job).doc;
+  else {
+    job = 'job:field:destto:0';
+    const rec = C.contractNormalise({ id: job, provider: 'field', kind: 'job', title: 'job.field.tools.title', brief: 'job.field.tools.brief', goods: 'goods.tools', tpl: 'tools',
+      stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 35, pax: 0 } }] }], pay: { base: 0 }, rep: { provider: 'field', gain: 0.1 } });
+    rec.pay = C.contractPay(rec, C.CONTRACT_FIELDS);
+    d = JSON.parse(JSON.stringify(d));
+    const K = d.career.contracts;
+    K.accepted.push(job);
+    K.live[job] = { stage: 0, subs: [false], picked: [false], got: {}, rec };
+    if (!K.tracked) K.tracked = job;
+  }
+  if (!check(!!job && C.careerContract(d, job) && C.careerContract(d, job).stages[0].subs[0].to === 'w3', tag + 'a carry job HOME -> Tamgas Hill (35 kg, no passenger, no condition) is taken: ' + job)) return;
   d = C.careerAccept(d, 'field.01').doc;
   check(d.career.contracts.tracked === job && d.career.contracts.accepted.join() === job + ',field.01', tag + 'accepted: the job (tracked) and the Trust\'s first arc contract');
   // playerFlightEnd: the clock, the arrival, then the career
