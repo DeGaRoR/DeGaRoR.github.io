@@ -82858,3 +82858,117 @@ reports/evidence/ALTIPORT-TAXI/gates_*.log)
   files'. The tour's after-run is the game's flight with the file's 45 L Cub.
 - ISLAND-TOUR's turn pads (unlanded) would give tw_ski's top end a bulb on the side AWAY from the station; with them the sweep
   decides between the teardrop and the turn on the spot as here.
+
+## G2630 - RADIAL-DIVERGE: THE DAMPERS THE 200-SUBSTEP CAP COULD NOT CARRY ARE CUT AT THE CAP (THE MOSQUITO NO LONGER TURNS ON THE SPOT, NO LONGER GOES NaN ON ITS FIRST FRAME); A DIVERGED FLIGHT NEVER BLACKS THE WORLD AGAIN, AND NO SAVED RECORD CAN HOLD A NON-FINITE NUMBER (2026-10-10, RADIAL-DIVERGE for A0, local; branch claude/radial-diverge-g2630 off train 42 26e04598b; G2631-G2639 unused)
+
+The user (9-10 Oct): "massive issues with radial engines. mosquito turns in circle for no obvious reasons, mosquito (1)
+makes the game crash, and everything is fine if I swap for a boxer engine. If the sim has not converged, any subsequent
+attempts at loading the game gives everything black but the sky." Then, through A0: "we don't care about the mosquito
+design as such. It is a symptom for our engine, so all fixes should be generic."
+The builds: tools/fixtures/repro/mosquito.json and mosquito_1.json (the user's files, copied unedited): a 620 kg carbon
+single-seat taildragger, OLEO gear, the M-14P 9-cylinder radial on the nose; (1) differs only in its tailwheel spring
+(0.2 m vs 0.4 m: s2_twSpringLen / s2_twSpringDrop / gear.twX / gear.twY).
+
+### 1. THE PHYSICS - ONE CAUSE FOR BOTH BUILDS, AND IT IS NOT THE RADIAL'S TORQUE
+The solver is explicit; 62_gen_aero genSubstepsTrue sizes the step for the stiffest spring and the hardest damper,
+capped at 200 substeps. G580 already cut a damper the step could not carry WHEN a smaller step could seat the
+network - but where even 200 could not, the rule's two give-up paths (`byW >= legacy`, `metric(hi) > GEN_NET_MAX`)
+returned 200 with every damper AS BUILT. The Mosquito's oleo (GEN_SUSPENSION c x2.6) on its tailwheel BRACING
+(TW-S6BL/R: a 3.7 kg wheel node into 0.41-0.47 kg carbon fuselage nodes; KS sized for 620 kg and the radial) asks
+**483 substeps (549 with (1)'s shorter spring)**; at 200 the network's (omega dt)^2 + 2 gamma dt read **5.4 (5.8)
+against the integrator's hard 4**:
+- mosquito (1): node S6BL grows x1.28 every substep from substep ~20 - NaN inside the FIRST FRAME ('sim-diverged' t 0:
+  the two rows 12 s apart in its logbook are two roll-outs);
+- mosquito: just inside - the tail RINGS at rest (largest member strain 17-33 % parked; 0.2 % once cut) and the
+  tailwheel's ground forces rectify the ringing into a yaw: **hands off at idle on HOME's strip it turned 1745 deg in
+  30 s (peak 123 deg/s; 2698 deg at 30 % throttle)**, and the game's pilot never left the taxi in 600 s (taxi-timeout);
+- why "a boxer is fine": the lighter engine leaves room - the user's boxer variants (Downloads/mosquito (2), (3)) ask
+  392-416 substeps too, but the FLIGHT BOX (G610) seats them at 175-188 with its own damper cut (network 3.0); the
+  heavier radial tipped the box into refusing, and the give-up path flew 200 uncut. The radial's torque, P-factor and
+  mount are not involved.
+THE FIX (built, not reconstructed): at the cap, on those two give-up paths only, every damper past the step is cut -
+G580's doctrine - to the LARGEST per-beam bound (c dt (1/m_a + 1/m_b) <= a, a <= GEN_CDT_MAX) at which the whole
+network holds GEN_NET_MAX (3.0) at 200; floor 0.05 x GEN_CDT_MAX (the springs' own share past the margin is not the
+dampers' to pay). The box (G610) is then asked as before - and now seats the Mosquitos.
+- Mosquito: 16 dampers cut - 6 on the tailwheel (7833 -> 1337-3281 N s/m, zeta ~1.1: still critically damped) and 10
+  wing-box WB-WB (1453 -> 597-877); network 2.99 at the step it flies; **166 substeps (164 for (1)) instead of 200**.
+- A trap on the way: my first bisection kept the wrong side (`hi` where `lo` held) and returned the uncut bound; GATE
+  RADIALDIV's CONSTRUCTION row read 3.34 > 3.0 and caught it.
+VALIDATED AIRCRAFT: **bit-identical** - Cub, Jodel, Cessna 172, metal Cessna, the Cessna / ultralight / twin on floats,
+the Chinook, and every build in tools/fixtures (20): beams' k and c, node masses, substeps and substepsTrue hashed
+against train 42's core. (The Jodel's oleo asks past 200 too; G580 seats it at 185 - the new cut is reached only where
+the old rule gave up, so it is untouched.)
+GENERIC, NOT THE MOSQUITO ALONE: SYNTH = the validated Jodel with a carbon fuselage, the R-985 radial and its oleo at
+stiffness 3 - NaN at frame 0 on train 42's core, finite at rest on this one (4 dampers cut).
+
+### 2. THE POISON - IN THE PAGE'S EASED STATES, NOT IN A SAVE
+Traced (every writer, every reader, then the page): after a divergence the worker's snapshot is NaN until the next
+reset, and the page fed that CG to the camera and to WF.worldUpdate every frame. Two EASED states took it, and an ease
+(x += (raw - x) k) can never leave NaN: render_world's cloud transmittance at the eye (LE.cT = CLOUDS.sunT at a NaN eye)
+-> at the next day apply hemiUnder(NaN) -> the hemisphere's intensity and ground colour NaN -> every lit material
+black, the sky (not lit by it) still drawn; and climate_link's eye wind (pub.cam -> TREE_WIND). Both live for the
+page's life - the shed (hangar.applyDay) does not reset them - so every later roll-out was black; and with mosquito (1)
+as the working build every roll-out also re-diverged. Nothing persisted carried NaN (JSON writes it as null; the
+logbook, the player document, the day and the route hold ids and finite times; the flight recorder's IndexedDB keeps
+NaN on purpose - it is the black box, read only by its export).
+THE FIX:
+- app.js cgFinite: the frame's CG (the world's centre, the camera's target, the drawn pose) is the last finite one (the
+  stand before any) - a non-finite place never reaches the world or the eye; one console note.
+- render_world: a non-finite cloud sample is not taken, a non-finite LE.cT restarts from the sample; lightTake re-snaps
+  an eased light that went non-finite. climate_link: the same for the eye wind.
+- jsonFinite / jsonReadFinite (70_player.js, exported): a record holding a non-finite number is NOT written (the saved
+  one stands; a console note names the fields) - the player document, the working build and the named saves (the
+  export and json() stay loose: a file the user takes away is written whatever it holds), the flight prefs, the day.
+  On load: a player document that does not parse is set aside under flydiy.player.corrupt (it used to be silently
+  lifted over); a flight pref field the default holds as a number comes back only as a finite number; a day whose clock
+  is not finite is set aside for the game's day.
+- ?safe=1 (the reset to a safe state): the view state (the day, flydiy.fl*, the route) moved to <key>.aside before the
+  day binds; the builds, the WIP and the player are untouched.
+- A user already "poisoned": nothing to clear - the next load is clean (the poison was in-session), and the build that
+  re-diverged no longer does.
+- window.FLYDIY_NANGUARD_OFF stands the page guards down (GATE SIMDIVERGE's selftest only).
+
+### 3. GATES
+- RADIALDIV (core, new, tools/_radialdiv_check.js): mosquito, mosquito_1, SYNTH and the Cub (reference): CONSTRUCTION
+  (network <= 3.0 at the step it flies), REST (lined up at HOME, idle and 30 %, 30 s hands off: finite, strain < 5 % -
+  the Cub reads 3.2 % -, heading < 5 deg), FLIGHT (stand -> w3, the game's pilot: no NaN, airborne < 300 s, 60 s after
+  the lift-off), HANDS OFF (released wings level and steady, 20 s: < 15 deg). Mosquitos: lift-off at 172 s, -1.5 deg
+  hands off; the Cub -4.1 deg. --selftest (the cut dampers put back = the old rule): CAUGHT (CONSTRUCTION 5.83, REST NaN
+  at 0 s).
+- SIMDIVERGE (full, new, tools/_simdiverge_check.js): the page in node, the game's worker, a FORCED divergence (the
+  worker's place door, a NaN velocity - any build, any cause): the eye / light ease / eye wind finite and lit, the
+  card's Fly flies, every flydiy.* record reads finite, the logbook's row finite, the next load lit. --selftest:
+  FLYDIY_NANGUARD_OFF (the old page) must read dark.
+- On this branch: PILOT PASS (3 shards), TAKEOFF PASS, DESTTO PASS (3 shards), SAVE PASS, SIMWORKER PASS, UISMOKE PASS; RADIALDIV PASS (all four builds), its selftest CAUGHT (6 reds: CONSTRUCTION
+  6.1 / 6.7 / 7.3, REST NaN at 0 s on mosquito, mosquito_1, SYNTH).
+- SIMDIVERGE PASS: after the forced divergence the CG NaN, the eye / hemisphere (3.09) / eye wind finite, the card's Fly
+  flies, 12 / 12 flydiy.* records read finite (none holds NaN text), the logbook's row 'sim-diverged' t 3, the next load
+  lit and flying; --selftest CAUGHT (the old page: the eye, the cloud transmittance and the eye wind NaN). A trap in the
+  rig: `await FLIGHT_PROBE.place({ dv: NaN })` never settles under the node page's worker (the NaN placement's answer
+  never comes) - the gate posts it and runs on.
+
+### 4. STILLS (reports/evidence/RADIAL-DIVERGE/, a real GPU Chrome through tools/live_driver.js + tools/perf/radialdiv_stills.js;
+shot only after the loading overlay was gone + 2 s; master = a worktree of train 42 26e04598b, the live site's build)
+- before_m_taxi60: master, the plain Mosquito, the pilot's taxi - 46 m off its line and INTO a hangar (seen through the
+  roof's skylight), the heading wandering -109 -> 174 -> -145 -> -113 deg; no roll in 240 s more.
+- after_m_taxi40 / after_m_lift / after_m_climb: this branch, the same build: on the taxi line ("off the line 0/2.5 m"),
+  the roll at 170 s, the lift-off at 128 km/h, the climb.
+- before_m1_again: master, mosquito (1): 'sim-diverged' at t 0 on the stand - everything black (the light ease's cT and
+  hemisphere read NaN, the eye NaN), the card; Fly again: the same.
+- after_m1_stand: this branch on THAT profile (the next load, nothing cleared): mosquito (1) taxis on its line, lit.
+- after_m1_forced_div14: this branch, a divergence FORCED (FLIGHT_PROBE.place, a NaN velocity) - the world stays lit,
+  the eye, the light ease and the eye wind finite (the read in the json). (after_m1_div12 in the json is the RIG's own
+  fault: its chase view took the diverged axes for its azimuth - the game's camera never does; re-shot as div14.)
+- The HUD still prints NaN for speed / height / vs after a divergence (the card says why); cosmetic, left.
+
+## TRAIN 42.1 LANDED (A0, 10 Oct ~23:35) - the radial fix: no divergence, no black world
+
+A hotfix train under the user's pace rule (10 Oct: trains land on TARGETED gates; the full battery runs on
+master after the landings). Cargo: RADIAL-DIVERGE G2630 (claude/radial-diverge-g2630 ea78d70f1, fast-forward on
+train 42 26e04598b) - see its section "G2630 - RADIAL-DIVERGE": at the 200-substep cap the dampers the step
+cannot carry are cut (62_gen_aero genSubstepsTrue), validated builds and the 20 fixtures bit-identical; the page
+never takes a non-finite place or eased light, jsonFinite at the writers and readers, ?safe=1.
+Gates: RADIALDIV + SIMDIVERGE (new, selftests CAUGHT), PILOT, TAKEOFF, DESTTO, SAVE, SIMWORKER, UISMOKE PASS on the
+branch (its session); parked re-cook (build 187e85528e59, --check same); strict ROLLOUT (train_gate --only rollout,
+t421) equal to train 42's: no frame over 100 ms, no task over 1 s, the stand/taxi rows at the known 30 fps cap.
+A0 read the 8 stills (reports/evidence/RADIAL-DIVERGE/; on the evidence gallery volume 2).

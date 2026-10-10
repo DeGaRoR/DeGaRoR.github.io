@@ -613,7 +613,11 @@ function garageInit(api) {
     if (E && E.decalImages) { try { const im = E.decalImages(); if (im) wipImages = im; } catch (e) {} }
     return wipImages;
   };
-  const envelope = (name, s, pq, lg) => JSON.stringify({
+  // G2630 (RADIAL-DIVERGE): through jsonFinite (70_player.js) - null, and the slot keeps what it had, when any number in
+  // the build, its plaque or its logbook is not finite (JSON would write it as a null where a number stood)
+  // (`loose`: the export and json() - a file the user takes away is written whatever it holds, as before)
+  const envJSON = (v, what, loose) => (!loose && typeof jsonFinite === 'function' ? jsonFinite(v, what) : JSON.stringify(v));
+  const envelope = (name, s, pq, lg, loose) => envJSON({
     what: 'flydiy-build', v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
     // NULL when the build has no slot yet, never a placeholder: the working
     // build used to be written under the literal name 'working', so a user
@@ -622,7 +626,7 @@ function garageInit(api) {
     name: name || null, spec: s,
     plaque: pq || null, log: lg || newLog(),
     ...((im => im ? { images: im } : {})(imagesNow())),   // REVIEW 2026-10-04 (B19): one toDataURL pass, not two
-  });
+  }, name ? 'the build ' + name : 'the working build', loose);
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
   const unwrap = txt => {
@@ -749,7 +753,9 @@ function garageInit(api) {
   // adopt it as its slot.
   let wipRefused = false;
   const writeWip = () => {
-    const ok = lsSet(WIP, envelope(slotName, spec, plaque, log));
+    const env = envelope(slotName, spec, plaque, log);
+    if (env == null) return;                       // G2630: not finite - the last good autosave stands (jsonFinite said why)
+    const ok = lsSet(WIP, env);
     // REVIEW 2026-10-04 (B19): under the storage quota lsSet returns false and the autosave died silently from then on
     if (!ok && !wipRefused) { wipRefused = true; console.warn('flyDiy: the working build could not be autosaved (storage full or blocked) - Save as a named build or free a slot'); }
     if (ok) wipRefused = false;
@@ -1148,7 +1154,9 @@ function garageInit(api) {
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
           repainted = !!(prev && prev.spec && JSON.stringify(prev.spec.finish || null) !== JSON.stringify(spec.finish || null)); } catch (e) {}
-    if (!lsSet(SLOT + name, envelope(name, spec, plaque, log)))
+    const env = envelope(name, spec, plaque, log);
+    if (env == null) return void alert('Could not save - the build holds a number that is not finite (the console names it). The saved copy is unchanged.');
+    if (!lsSet(SLOT + name, env))
       return void alert('Could not save — browser storage is full or disabled.');
     slotName = name;
     slotsChanged({ saved: name, repainted });
@@ -1170,7 +1178,7 @@ function garageInit(api) {
   function exportFile() {
     commit();
     const name = slotName || 'flydiy-build';
-    const blob = new Blob([envelope(name, spec, plaque, log)],
+    const blob = new Blob([envelope(name, spec, plaque, log, true)],
                           { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1307,7 +1315,7 @@ function garageInit(api) {
       // a PERSIST door like the other two: the fleet rack and the gates read
       // it, and a stale answer here is the same lie in a smaller room
       json: () => { commit();
-                    return envelope(slotName || 'build', spec, plaque, log); },
+                    return envelope(slotName || 'build', spec, plaque, log, true); },
       list: slotNames,
       stock: () => STOCK.map(s => s.name),
       // G411: A BUILD AS A SPEC, WITHOUT OPENING IT. The parked aeroplanes

@@ -107,6 +107,36 @@ function playerDefault() {
 // Fills what is missing, carries what is present VERBATIM. Unknown shed ids
 // are preserved (a newer game's meadow shed must survive a round trip through
 // this one), unknown fields ride along untouched for the same reason.
+// G2630 (RADIAL-DIVERGE): A SAVED RECORD NEVER CARRIES A NON-FINITE NUMBER. JSON writes NaN and Infinity as null, so a
+// diverged flight's numbers would come back as nulls where numbers stood - and nothing reading a record expects that.
+// jsonFinite(v, what): the record's JSON, or null (and one console note naming the first fields) when any number in it
+// is not finite; the writers keep the record they had. Pure, so GATE SIMDIVERGE asks it in node.
+function jsonFinite(v, what) {
+  const bad = [];
+  let json = null;
+  try {
+    json = JSON.stringify(v, function (k, x) {
+      if (typeof x === 'number' && !Number.isFinite(x)) { if (bad.length < 6) bad.push(k || '(root)'); return null; }
+      return x;
+    });
+  } catch (e) { bad.push('(unserialisable: ' + (e && e.message) + ')'); }
+  if (!bad.length) return json;
+  if (typeof console !== 'undefined') console.warn('flyDiy: ' + (what || 'a record') + ' was NOT saved - non-finite ' + bad.join(', ') + ' (the saved one stands)');
+  return null;
+}
+// jsonReadFinite(text, what): the read side - a record that does not parse, or parses to numbers that are not finite
+// (none can, through JSON; a hand-edited or foreign file can say 1e999), is discarded with a console note: null
+function jsonReadFinite(text, what) {
+  if (text == null) return null;
+  let v;
+  try { v = JSON.parse(text); } catch (e) { if (typeof console !== 'undefined') console.warn('flyDiy: ' + (what || 'a record') + ' is corrupt and was set aside -', e && e.message); return null; }
+  let ok = true;
+  const walk = x => { if (!ok) return; if (typeof x === 'number') { if (!Number.isFinite(x)) ok = false; } else if (x && typeof x === 'object') for (const k in x) walk(x[k]); };
+  walk(v);
+  if (ok) return v;
+  if (typeof console !== 'undefined') console.warn('flyDiy: ' + (what || 'a record') + ' held a non-finite number and was set aside');
+  return null;
+}
 function playerNormalise(r) {
   const def = playerDefault();
   if (!r || typeof r !== 'object') return def;
