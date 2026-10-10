@@ -38,6 +38,7 @@
 // GATE TOWNKIT (tools/_townkit_check.js) holds it: every archetype passes GATE HOUSE's own battery, the pack
 // round-trips, and every plot of Metlakatla has a fitting archetype.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');

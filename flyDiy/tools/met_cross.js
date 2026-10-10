@@ -22,6 +22,7 @@
 // It reads the composed roads (so it sees the fillet, contract v1.20, and any
 // trim the author applied), not the record's raw polylines.
 // ---------------------------------------------------------------------------
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const TOOLS = __dirname;
 const PG = require(path.join(TOOLS, '..', 'src', 'core', '27_premises.js'));
