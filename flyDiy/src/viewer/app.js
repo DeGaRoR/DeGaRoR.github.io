@@ -7207,7 +7207,7 @@
     // line (the player keeps looking), the screen's verbs (Fly on / The shed) as ever
     // DMG-D4b (train 41; the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash"): every
     // ending a wreck may follow - a crash, a break-up, a diverged sim, a damaged aeroplane, a crash verdict - takes the corner
-    const wreckEnd = outcome === 'crashed' || outcome === 'broke-up' || (flDmgOn() && (outcome === 'sim-diverged' || !!dmgWhy || !!(flDmg && flDmg.crashed)));
+    const wreckEnd = outcome === 'crashed' || outcome === 'broke-up' || outcome === 'sim-diverged' || (flDmgOn() && (!!dmgWhy || !!(flDmg && flDmg.crashed)));   // (T41b, the user: 'no more cards in the middle of the screen, ever' - a diverged sim takes the corner with damage off too)
     el.classList.toggle('wreck', wreckEnd); el.classList.remove('min');
     // PREM-S2 (G2230, gp4 / GQ5): a crash, a give-up or a stop out in a field moved nothing - the airframe stands where it
     // departed from; "bring it home" is offered (free, instant: the hangar it last left, else the main hangar)
