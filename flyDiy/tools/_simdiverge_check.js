@@ -44,12 +44,15 @@ async function child() {
   const R = { phase, rows: {}, errors: [] };
   const P = await openPage({ quiet: true, storage, query: 'simw=1', workers: /sim_host\.js/ });
   const W = P.win;
+  const say = m => process.stderr.write('  [' + phase + (off ? ' off' : '') + '] ' + m + String.fromCharCode(10));
   if (off) W.FLYDIY_NANGUARD_OFF = true;
   const frames = async n => { for (let i = 0; i < n; i++) await P.frames(1); };
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
+  say('garage up');
   W.document.getElementById('bGo').click();
   const tripDone = () => { const T = W.FLYDIY_TRIPS; const t = T && T[T.length - 1]; return !!(t && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'); };
   await P.until(() => (W.FLYDIY_TRIPS ? tripDone() : (W.BOOT.state === 'gone' && W.BOOT.set === 'rollout')), 900000);
+  say('rolled out');
   const FP = W.FLIGHT_PROBE;
   const RD = FP.renderer(); RD.render = function () {}; if (RD.shadowMap) RD.shadowMap.render = function () {};
   const read = () => {
@@ -63,8 +66,10 @@ async function child() {
   R.rows.before = read();
   if (phase === 'A') {
     // THE FORCED DIVERGENCE: the worker's own placement door, a non-finite velocity on every node
-    await FP.place({ dv: [NaN, NaN, NaN] });
-    await frames(720);                                 // 12 s: the card, the day re-applies, the clouds sampled at 4 Hz
+    say('forcing the divergence');
+    FP.place({ dv: [NaN, NaN, NaN] });                // (not awaited: a NaN placement's answer is the worker's own business)
+    await frames(720);
+    say('12 s after');                                 // 12 s: the card, the day re-applies, the clouds sampled at 4 Hz
     R.rows.diverged = read();
     W.document.getElementById('bGo').click();          // the card's Fly: fullReset
     await frames(360);

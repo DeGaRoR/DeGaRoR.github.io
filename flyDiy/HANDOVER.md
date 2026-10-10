@@ -82001,6 +82001,11 @@ THE FIX:
   FLYDIY_NANGUARD_OFF (the old page) must read dark.
 - On this branch: PILOT PASS (3 shards), TAKEOFF PASS, DESTTO PASS (3 shards), SAVE PASS, SIMWORKER PASS, UISMOKE PASS; RADIALDIV PASS (all four builds), its selftest CAUGHT (6 reds: CONSTRUCTION
   6.1 / 6.7 / 7.3, REST NaN at 0 s on mosquito, mosquito_1, SYNTH).
+- SIMDIVERGE PASS: after the forced divergence the CG NaN, the eye / hemisphere (3.09) / eye wind finite, the card's Fly
+  flies, 12 / 12 flydiy.* records read finite (none holds NaN text), the logbook's row 'sim-diverged' t 3, the next load
+  lit and flying; --selftest CAUGHT (the old page: the eye, the cloud transmittance and the eye wind NaN). A trap in the
+  rig: `await FLIGHT_PROBE.place({ dv: NaN })` never settles under the node page's worker (the NaN placement's answer
+  never comes) - the gate posts it and runs on.
 
 ### 4. STILLS (reports/evidence/RADIAL-DIVERGE/, a real GPU Chrome through tools/live_driver.js + tools/perf/radialdiv_stills.js;
 shot only after the loading overlay was gone + 2 s; master = a worktree of train 42 26e04598b, the live site's build)
