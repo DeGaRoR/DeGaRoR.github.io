@@ -1,0 +1,27 @@
+  model: base HOME; stand stand; wheels CIRCUIT w2 HOME w3 mn_strip nv_strip tw_ski; floats CIRCUIT SEA mk_sea; the stand's taxi stand,ty0,ty1,ty2,ty3,ty4,c1,l1a,l1b,l1c,d1,hold1
+  ltd:cub: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 336 s, stopped runway HOME (34, 512)
+  ltd:cub: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 378 s, 0 m on the ground before the roll, stopped runway w3; fuel 31.668229341201684 -> 30.831251979268956 kg; members broken 0
+  prem:cub@w3: arrived in w3 after 714 s (clock 713.8833333333333 s); reload -> rolls out at w3, placed stand w3 at (-681, -2380); foot {"half":5.4,"fwd":1.2,"aft":5.5,"h":2.8}
+  prem:cub@w3-out: from the plot's stand (-735.0, -2359.3): TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB in 93 s, the wing 14.84 m off the nearest solid thing
+  career:cub@w3: delivered job:field:0:0 (450), field.01 at stage 2; passed w2, HOME, SEA, w3; Tools for Tamgas Hill Strip: complete, paid 450 / Wake the field: stage 1 done / wallet 60 450 (+450)
+  ltd:cub: ok (407 s)
+  ltd:metal: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 274 s, stopped runway w3 (-935, -2364)
+  ltd:metal: leg 2 TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 402 s, 522 m on the ground before the roll, stopped runway w2; fuel 18.466950564320232 -> 16.058849368876782 kg; members broken 0
+  ltd:metal: ok (614 s)
+  ltd:floats: leg 1 ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 375 s, stopped water SEA (554, -3474)
+  ltd:floats: leg 2 TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 663 s, 1132 m on the ground before the roll, stopped water mk_sea; fuel 17.409684133517768 -> 11.94002348794601 kg; members broken 0
+  prem:floats@mk_sea: arrived in mk_sea after 1038 s; the garage opens there ({"HW":9,"HD":10,"EAVE":4.4}), the shed at (-4019, -8629.5)
+  ltd:floats: ok (914 s)
+  air:cub: HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 389 s; the change at t=91, path 0.0 m from the aeroplane, bank 23.4 deg, rate 0.93 x the law; stopped runway w2
+  air:cub: ok (175 s)
+  ltd:jodel: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 362 s, stopped runway HOME (-24, 461)
+  ltd:jodel: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 331 s, 0 m on the ground before the roll, stopped runway w3; fuel 31.51933208137478 -> 30.712823998326744 kg; members broken 0
+  ltd:jodel: ok (655 s)
+  ltd:twinFloats: leg 1 ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 292 s, stopped water SEA (590, -3439)
+  ltd:twinFloats: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 455 s, 6 m on the ground before the roll, stopped water mk_sea; fuel 12.161989325652257 -> 9.474944249551632 kg; members broken 0
+  ltd:twinFloats: ok (671 s)
+  air:metal: HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 326 s; the change at t=53, path 0.0 m from the aeroplane, bank 23.6 deg, rate 1.10 x the law; stopped runway w2
+  air:metal: ok (237 s)
+DESTTO: 0 failure(s), 3682 s
+GATE DESTTO: PASS
+exit 0

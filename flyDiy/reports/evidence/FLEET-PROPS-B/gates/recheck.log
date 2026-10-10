@@ -1,0 +1,9 @@
+boxlock: CPU battery taken by FLEETB
+07:42:00 tree 02658b585
+07:42:01 build: tools/flight_core.js (2429.8 KB), index.html (11821.0 KB), dev.html (110.8 KB) — syntax OK, build f9145510da7b (327 named inputs), 609 ms
+07:42:01 RUN INSTANT --fleet
+07:49:29 END INSTANT --fleet rc 1:   fleet: on true, stood 6, queued 6, captures so far 2, queue mine:fleet-3-c172 mine:fleet-4-c172floats mine:fleet-5-twinfloats mine:fleet-6-metal|  fleet: ok - captures 3 (during drags 0), input waits 4, not wanted 0, queue left 3|GATE INSTANT: FAIL (1 row(s) differ)|
+07:49:29 RUN FRAMECOST_FLEET census
+07:51:22 FRAMECOST off vs fleet (static group):     stand/draws.shadow                                259.5      262.5  RED|    stand/three.updateMatrix                           3438       3528  RED|    stand/three.updateMatrixWorld                      8359       8450  RED|    taxi/draws.shadow                                   148        151  RED|    taxi/gl.uniformMatrix3fv                            316        320  RED|    taxi/three.updateMatrix                            3815       3905  RED|    taxi/three.updateMatrixWorld                       8740       8831  RED|    boot/garage:craft/three.updateMatrixWorld         55337      55974  RED|    boot/garage:frames/gl.calls                      112593     114061  RED|    boot/garage:
+07:51:22 re-check over at 07:51:22
+boxlock: CPU battery released by FLEETB

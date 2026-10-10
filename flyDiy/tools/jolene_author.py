@@ -274,6 +274,44 @@ def merge_parts(rec):
         print('  part %-26s %-4s %4d entries' % (f, prefix, n))
 
 
+# ---------------------------------------------------------------------------
+# THE STAGES (G2300 STAGES, contract v1.33; GAME-2026-10-06.md §11): the buildings the career's missions put up.
+# tools/jolene_stages.json, applied AFTER the parts (it names their entries): `stage` sets a band on an entry
+# ('layer:id') or on a site's item ('items:site:item') - the key appended LAST, so the sandbox's view (the stage taken
+# off, 27_premises.js stageView) is today's entry byte for byte; `add` appends the stage-only entries (the construction
+# kits, the plots' tree clearances). A name that matches nothing FAILS LOUDLY: a band on a renamed building would
+# silently stop staging it. The fixture is still output: re-run this, never hand-edit the stages into it.
+# ---------------------------------------------------------------------------
+STAGES_FILE = os.path.join(ROOT, 'tools', 'jolene_stages.json')
+
+def apply_stages(rec, path=STAGES_FILE):
+    if not os.path.exists(path): return 0
+    with open(path, encoding='utf8') as fh: S = json.load(fh)
+    n = 0
+    for key, st in (S.get('stage') or {}).items():
+        parts = key.split(':')
+        if parts[0] == 'items' and len(parts) == 3:
+            site = next((e for e in rec['layers']['sites'] if e.get('id') == parts[1]), None)
+            item = next((i for i in (site or {}).get('items', []) if i.get('id') == parts[2]), None)
+            if item is None: raise SystemExit('stages: %s names no site item' % key)
+            item.pop('stage', None); item['stage'] = st
+        elif len(parts) == 2 and parts[0] in rec['layers']:
+            e = next((e for e in rec['layers'][parts[0]] if e.get('id') == parts[1]), None)
+            if e is None: raise SystemExit('stages: %s names no entry' % key)
+            e.pop('stage', None); e['stage'] = st
+        else: raise SystemExit('stages: %s is not layer:id or items:site:item' % key)
+        n += 1
+    ids = set(e.get('id') for rows in rec['layers'].values() for e in rows if isinstance(e, dict))
+    for layer, rows in (S.get('add') or {}).items():
+        if layer not in rec['layers']: raise SystemExit('stages: no layer %r' % layer)
+        for e in rows:
+            if not str(e.get('id', '')).startswith('sg_') or e['id'] in ids: raise SystemExit('stages: %r is not a fresh sg_ id' % e.get('id'))
+            if 'stage' not in e: raise SystemExit('stages: %s is added and carries no stage - it would stand in the sandbox' % e['id'])
+            ids.add(e['id']); rec['layers'][layer].append(e); n += 1
+    print('  stages %-26s %4d entries' % (os.path.basename(path), n))
+    return n
+
+
 PART_MARGIN = 250.0          # a runway's shoulder, a flatten's falloff, a road's band
 
 
@@ -705,6 +743,7 @@ def main():
         if k + 1 >= len(sys.argv): raise SystemExit("--absorb needs the editor's exported json")
         return absorb(rec, sys.argv[k + 1], write='--dry-run' not in sys.argv)
     merge_parts(rec)
+    apply_stages(rec)
     txt = json.dumps(rec, indent=1)
     if '--print' in sys.argv: print(txt); return
     with open(OUT, 'w', newline='\n') as f: f.write(txt + '\n')

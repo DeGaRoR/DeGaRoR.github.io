@@ -663,6 +663,233 @@ function restorePlaces(rec, cut) {
   }
   return out;
 }
+// ---- STAGES (contract v1.33, G2300 STAGES; GAME-2026-10-06.md §11) ---------------------------------------------------
+// THE BUILDINGS THAT MISSIONS PUT UP. Any entry of any layer, and any ITEM of a site, may carry
+//   stage: { track: 'minedock', show: [lo, hi | null], vary: [ { show: [lo, hi], ...what changes } ] }
+// and stands only while the career's world progress `tracks[track]` (a small integer, 74_career.js, advanced by a
+// contract's `unlock: { stage: '<track>:<n>' }`) lies in [lo, hi]; hi null (or absent) = no upper bound. `vary` (the
+// first band holding the value) changes the entry while it stands: a RUNWAY's len / c / surface / look / profile / wid
+// (its ground and its surface - physics, so a stage applies at composition only, never in flight: 76_stages.js), its
+// `sock` / `ties` (false: no windsock, no tie-down spots); an item's or an object's P (merged).
+// A CONSTRUCTION KIT is an object { kind: 'kit', kit: <STAGE_KITS name>, x, z, yaw, w, d } - data: it expands, where it
+// stands, into the kit's props (the existing props: a fence round the plot, pallets, crates, drums, trestles) and, when
+// the kit names one, a partial frame built by an existing generator; its own tree exclude over the plot.
+// THE SANDBOX IS EVERY TRACK AT ITS MAX: `tracks` null, every value +Infinity - what stands is what has no upper bound,
+// with the `stage` fields taken off, so the sandbox's record is TODAY'S, byte for byte (GATE STAGES holds it against
+// the island cook's recorded hash). A career's record is stageView(rec, career.tracks): the page composes it at load
+// (world_boot.js) and recomposes it at a roll-out / roll-in when a stage advanced (app.js; never in flight).
+const STAGE_RUNWAY_VARY = ['len', 'c', 'wid', 'surface', 'look', 'profile', 'sock', 'ties'];
+const STAGE_KITS = {
+  // the fenced plot alone: the old fence round it, a gate gap, a pallet by the gate
+  plot:  { fence: true, props: [['pallet_one', 0.12, 0.85, 0.3]] },
+  // the building site: the plot fenced, the materials stacked, the trestles, the drums, and a frame going up
+  build: { fence: true, frame: { gen: 'SHED_GEN', preset: 'lean-to', P: { L: 9, w: 5, wallH: 3.2, missing: 0.35, openFront: 1, firewood: 0, shake: 0.6 }, at: [-0.18, 0.1, 0] },
+           props: [['pallets_stack', 0.32, -0.3, 0.2], ['pallets_three', 0.32, -0.05, 1.4], ['cement_bags', 0.3, 0.22, 0.6], ['cinder_pallet', 0.12, -0.36, 0],
+                   ['crate_wood_a', 0.05, 0.36, 0.3], ['crate_wood_b', 0.1, 0.38, 1.1], ['crate_wood_c', 0.18, 0.36, -0.2],
+                   ['drum_steel', -0.38, 0.34, 0], ['drum_steel', -0.33, 0.37, 0.8], ['barrel_plastic', -0.36, 0.28, 0.2],
+                   ['work_trestle', 0.02, -0.12, 1.57], ['work_trestle', 0.12, -0.12, 1.57], ['stepladder', -0.05, 0.12, 0.4], ['handtruck', 0.22, 0.12, 2.1]] },
+  // the dock's site: the plot fenced on the shore, the timbers and the drums for a pier
+  shore: { fence: true, props: [['pallets_stack', -0.3, -0.25, 0.1], ['pallets_three', -0.05, -0.3, 1.2], ['drum_steel', 0.3, 0.3, 0], ['drum_steel', 0.34, 0.24, 0.9],
+                                ['barrel_plastic', 0.26, 0.34, 0.3], ['work_trestle', 0, 0.1, 0], ['work_trestle', 0.1, 0.1, 0], ['crate_wood_c', -0.3, 0.3, 0.3], ['cement_bags', 0.32, -0.3, 0.5]] },
+};
+const STAGE_FENCE = { key: 'fence_old', len: 4.6, gate: 0.5 };   // the pier pack's old fence (4.6 m a stretch); the gate: half a side's middle stretch left open
+const stageBand = s => { const b = s && Array.isArray(s.show) ? s.show : [0, null]; return [+b[0] || 0, b[1] === null || b[1] === undefined ? null : +b[1]]; };
+const stageValue = (tracks, t) => (tracks && typeof tracks === 'object' && isFinite(+tracks[t]) && tracks[t] !== null && tracks[t] !== '' ? +tracks[t] : Infinity);
+const stageIn = (band, v) => v >= band[0] && (band[1] === null || v <= band[1]);
+function stageStands(st, tracks) { return !st || stageIn(stageBand(st), stageValue(tracks, st.track)); }
+function stageVaryOf(st, tracks) {
+  if (!st || !Array.isArray(st.vary)) return null;
+  const v = stageValue(tracks, st.track);
+  for (const q of st.vary) if (q && stageIn(stageBand(q), v)) return q;
+  return null;
+}
+// a kit's props and frame, in the record's frame, ids `<kit id>:<n>` (seeded per kit: the same record, the same kit)
+function stageKitObjects(k) {
+  const K = STAGE_KITS[k.kit]; if (!K) return [];
+  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = CORE_MATH.cos(yaw), s = CORE_MATH.sin(yaw);
+  // local (u across w, v across d) -> the record's frame, the placement law of an item in its site (x = u c + v s, z = -u s + v c)
+  const at = (u, v) => [+(+k.x + u * c + v * s).toFixed(3), +(+k.z - u * s + v * c).toFixed(3)];
+  const rnd = mulberry32(hash32(7, fnv('kit:' + k.id))), out = [];
+  let n = 0;
+  const put = (key, u, v, ry, extra) => { const p = at(u, v); out.push(Object.assign({ id: k.id + ':' + (n++), kind: 'prop', key, x: p[0], z: p[1], yaw: +(yaw + ry).toFixed(4) }, extra || {})); };
+  if (K.fence && k.fence !== false) {
+    const sides = [[[-w / 2, -d / 2], [w / 2, -d / 2]], [[w / 2, -d / 2], [w / 2, d / 2]], [[w / 2, d / 2], [-w / 2, d / 2]], [[-w / 2, d / 2], [-w / 2, -d / 2]]];
+    sides.forEach((sd, si) => {
+      const L = Math.hypot(sd[1][0] - sd[0][0], sd[1][1] - sd[0][1]), m = Math.max(1, Math.round(L / STAGE_FENCE.len)), a = Math.atan2(-(sd[1][1] - sd[0][1]), sd[1][0] - sd[0][0]);
+      for (let i = 0; i < m; i++) {
+        if (si === 0 && m >= 3 && i === Math.floor(m / 2)) continue;   // the gate: the front side's middle stretch
+        const t = (i + 0.5) / m;
+        put(STAGE_FENCE.key, sd[0][0] + (sd[1][0] - sd[0][0]) * t, sd[0][1] + (sd[1][1] - sd[0][1]) * t, a + (rnd() - 0.5) * 0.06);
+      }
+    });
+  }
+  for (const p of K.props) put(p[0], p[1] * w, p[2] * d, p[3] + (rnd() - 0.5) * 0.3);
+  if (K.frame && k.frame !== false) {   // the frame fits the plot: at most 0.6 of its width and 0.45 of its depth
+    const p = at(K.frame.at[0] * w, K.frame.at[1] * d), P = Object.assign({ seed: 1 + (hash32(3, fnv(k.id)) % 997) }, K.frame.P);
+    P.L = +Math.max(1.6, Math.min(P.L, 0.6 * w)).toFixed(2); P.w = +Math.max(1.2, Math.min(P.w, 0.45 * d)).toFixed(2);
+    out.push({ id: k.id + ':frame', key: stageFrameKey(K.frame), x: p[0], z: p[1], yaw: +(yaw + K.frame.at[2]).toFixed(4), y: null, P });
+  }
+  return out;
+}
+// a kit's frame by its generator and preset (the catalogue's key, GEN_NS's namespace: no key is written here - rule 13)
+const stageFrameKey = f => (f.gen && GEN_NS[f.gen] ? GEN_NS[f.gen] + '/' + f.preset : f.key || null);
+// the kit's plot as a polygon (the tree exclude while it stands)
+function stageKitPoly(k) {
+  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = CORE_MATH.cos(yaw), s = CORE_MATH.sin(yaw);
+  return [[-w, -d], [w, -d], [w, d], [-w, d]].map(q => [+(+k.x + q[0] * c + q[1] * s).toFixed(3), +(+k.z - q[0] * s + q[1] * c).toFixed(3)]);
+}
+// a COPY of the record as it stands at `tracks` (null: the sandbox), and what was cut / changed, so an edit made on the
+// staged record can be put back into the whole one (stageRestore). `n`: entries cut or expanded; `staged`: the record
+// carried any stage at all
+function stageView(rec, tracks) {
+  const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
+  const cut = {}, kept = {}, varied = {}, kits = {};
+  let n = 0, staged = false;
+  const strip = (e, where) => {
+    staged = true;
+    const c = Object.assign({}, e); delete c.stage;
+    kept[where] = e.stage;
+    const q = stageVaryOf(e.stage, tracks);
+    if (q) {
+      const ch = {};
+      for (const key of Object.keys(q)) {
+        if (key === 'show') continue;
+        if (key === 'P') { ch.P = c.P; c.P = Object.assign({}, c.P || {}, q.P); continue; }
+        ch[key] = c[key]; c[key] = q[key];
+      }
+      varied[where] = { was: ch, now: q };
+    }
+    return c;
+  };
+  for (const L of Object.keys(out.layers)) {
+    const a = out.layers[L]; if (!Array.isArray(a)) continue;
+    if (!a.some(e => e && (e.stage || (L === 'sites' && (e.items || []).some(it => it && it.stage)) || (L === 'objects' && e.kind === 'kit')))) continue;
+    const keep = [];
+    for (const e of a) {
+      if (!e) { keep.push(e); continue; }
+      // a ZONE below its band still SOWS - its land stays reserved, so a later zone never re-sows into it and the
+      // village beside the harbour stands the same plots at every stage - and builds nothing (compose drops its plots
+      // after the sowing, their ground kept clear of trees)
+      if (e.stage && L === 'zones' && !stageStands(e.stage, tracks)) { const z = strip(e, L + ':' + e.id); z.stageSown = true; keep.push(z); n++; continue; }
+      if (e.stage && !stageStands(e.stage, tracks)) { (cut[L] = cut[L] || []).push(e); n++; staged = true; continue; }
+      let c = e.stage ? strip(e, L + ':' + e.id) : e;
+      if (L === 'sites' && (c.items || []).some(it => it && it.stage)) {
+        const items = [];
+        for (const it of c.items) {
+          if (it && it.stage && !stageStands(it.stage, tracks)) { (cut['items:' + c.id] = cut['items:' + c.id] || []).push(it); n++; staged = true; continue; }
+          items.push(it && it.stage ? strip(it, 'items:' + c.id + ':' + it.id) : it);
+        }
+        c = Object.assign({}, c, { items });
+      }
+      if (L === 'objects' && c.kind === 'kit') {   // a kit that stands expands into its props, its frame and its exclude
+        staged = true; kits[c.id] = c; n++;
+        for (const o of stageKitObjects(c)) keep.push(o);
+        out.layers.exclude = (out.layers.exclude || []).concat([{ id: c.id + ':clear', poly: stageKitPoly(c), what: ['trees'] }]);
+        continue;
+      }
+      keep.push(c);
+    }
+    out.layers[L] = keep;
+  }
+  return { rec: out, n, staged, cut, kept, varied, kits, tracks: tracks || null, whole: rec };
+}
+// put a staged record's edit back into the whole record: the cut entries and items return, the kept entries get their
+// `stage` back, a varied field the edit did not touch returns to its whole-record value, the kits' expansions go (an
+// expanded id is `<kit id>:<n>` / `:frame` / `:clear`) and the kits return. Undefined in the editor's stage UI (later):
+// this is what keeps a save made on a career's page from deleting a stage
+function stageRestore(edited, V) {
+  if (!V || !V.staged || !V.whole) return edited;
+  const W = V.whole, out = Object.assign({}, edited, { layers: Object.assign({}, edited.layers) });
+  const kitOf = id => { const m = /^(.+):(\d+|frame|clear)$/.exec(String(id)); return m && V.kits[m[1]] ? m[1] : null; };
+  const back = (e, where) => {
+    const st = V.kept[where]; if (!st) return e;
+    const c = Object.assign({}, e); delete c.stage; delete c.stageSown; c.stage = st;   // (the key last, as the author writes it)
+    const vr = V.varied[where];
+    if (vr) for (const key of Object.keys(vr.was)) {
+      if (key === 'P') { const P = Object.assign({}, c.P || {}); for (const pk of Object.keys(vr.now.P || {})) if (JSON.stringify(P[pk]) === JSON.stringify(vr.now.P[pk])) { if (vr.was.P && pk in vr.was.P) P[pk] = vr.was.P[pk]; else delete P[pk]; } c.P = P; continue; }
+      if (JSON.stringify(c[key]) === JSON.stringify(vr.now[key])) { if (vr.was[key] === undefined) delete c[key]; else c[key] = vr.was[key]; }
+    }
+    return c;
+  };
+  // in the WHOLE record's order: a cut entry (or a kit) from the whole, an edited one from the edit (its stage back), one
+  // the edit deleted gone; then whatever the edit added
+  const merge = (whole, edit, cutList, whereOf, isKit) => {
+    const cut = new Set((cutList || []).map(e => e.id)), byId = new Map();
+    for (const e of edit || []) if (e && e.id !== undefined && !kitOf(e.id)) byId.set(e.id, e);
+    const res = [], used = new Set();
+    for (const e of whole || []) {
+      if (!e || e.id === undefined) { res.push(e); continue; }
+      if (cut.has(e.id) || (isKit && isKit(e))) { res.push(e); used.add(e.id); continue; }
+      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e))); used.add(e.id); }
+    }
+    for (const e of edit || []) if (e && (e.id === undefined || !kitOf(e.id)) && !used.has(e.id) && !(e.id !== undefined && cut.has(e.id))) res.push(e);
+    return res;
+  };
+  for (const L of Object.keys(out.layers)) {
+    if (!Array.isArray(out.layers[L])) continue;
+    let res = merge(W.layers[L], out.layers[L], V.cut[L], e => L + ':' + e.id, L === 'objects' ? (e => e.kind === 'kit') : null);
+    if (L === 'sites') res = res.map(st => {
+      const ws = (W.layers.sites || []).find(q => q.id === st.id);
+      if (!ws || !Array.isArray(st.items) || !(V.cut['items:' + st.id] || (ws.items || []).some(it => it && it.stage))) return st;
+      return Object.assign({}, st, { items: merge(ws.items, st.items, V.cut['items:' + st.id], it => 'items:' + st.id + ':' + it.id, null) });
+    });
+    out.layers[L] = res;
+  }
+  return out;
+}
+// the shape of every `stage` (issues() reports these): a known track word, an integer band, vary bands inside the
+// stage's own band, a runway varying only its own fields, a kit naming a kit; `maxes` (optional, { track: max }:
+// 72_contract_data.js CONTRACT_TRACKS) adds the sandbox's law - a band is open above or ends BELOW the track's max, so
+// every track at its max IS the sandbox (no element the sandbox lacks stands at max)
+function stageIssues(rec0, maxes) {
+  const rec = rec0 && rec0.layers ? rec0 : normalise(rec0), out = [];
+  const band = (what, b) => {
+    if (!Array.isArray(b) || b.length !== 2) { out.push(what + ': show is [lo, hi | null]'); return null; }
+    if (!(Number.isInteger(b[0]) && b[0] >= 0)) out.push(what + ': show[0] is an integer 0 or more');
+    if (!(b[1] === null || (Number.isInteger(b[1]) && b[1] >= b[0]))) out.push(what + ': show[1] is null or an integer >= show[0]');
+    return b;
+  };
+  const one = (what, st, kind, e) => {
+    if (!st || typeof st !== 'object') { out.push(what + ': stage is { track, show, vary? }'); return; }
+    if (typeof st.track !== 'string' || !/^\w+$/.test(st.track)) out.push(what + ': stage.track is a word');
+    const b = st.show === undefined ? [0, null] : band(what, st.show);
+    const mx = maxes && st.track in maxes ? +maxes[st.track] : null;
+    if (maxes && mx === null) out.push(what + ': no track "' + st.track + '"');
+    if (b && mx !== null) {
+      if (b[0] > mx) out.push(what + ': show starts at ' + b[0] + ', past ' + st.track + '\'s max ' + mx);
+      if (b[1] !== null && b[1] >= mx) out.push(what + ': show ends at ' + b[1] + ' - a band through the max (' + mx + ') must be open (null), or the sandbox and the max differ');
+    }
+    if (st.vary !== undefined) {
+      if (!Array.isArray(st.vary)) { out.push(what + ': vary is a list'); return; }
+      st.vary.forEach((q, i) => {
+        const vb = q && band(what + ' vary[' + i + ']', q.show);
+        if (vb && b && (vb[0] < b[0] || (b[1] !== null && (vb[1] === null || vb[1] > b[1])))) out.push(what + ' vary[' + i + ']: outside the stage\'s own band');
+        if (vb && mx !== null && (vb[1] === null || vb[1] >= mx)) out.push(what + ' vary[' + i + ']: a change at the max is the sandbox\'s, not a stage\'s');
+        for (const key of Object.keys(q || {})) {
+          if (key === 'show') continue;
+          if (kind === 'runway' ? STAGE_RUNWAY_VARY.indexOf(key) < 0 : key !== 'P') out.push(what + ' vary[' + i + ']: ' + key + ' is not a ' + (kind === 'runway' ? 'runway field a stage may change' : 'P'));
+        }
+        // a varied strip is still a strip: 150 m, 8 m wide, its profile inside the pilot's (or the altiport's) limits
+        if (kind === 'runway' && e && q) {
+          const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
+          if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
+          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+        }
+      });
+    }
+  };
+  for (const L of LAYERS) for (const e of rec.layers[L] || []) {
+    if (!e) continue;
+    if (e.stage !== undefined) one(L + ' ' + e.id, e.stage, L === 'runways' ? 'runway' : 'P', e);
+    if (L === 'objects' && e.kind === 'kit') { if (!STAGE_KITS[e.kit]) out.push('kit ' + e.id + ': unknown kit ' + e.kit); if (!e.stage) out.push('kit ' + e.id + ': a construction kit stands only at a stage'); }
+    if (L === 'sites') for (const it of e.items || []) if (it && it.stage !== undefined) one('site ' + e.id + ' item ' + it.id, it.stage, 'P');
+  }
+  // a link names its two items: a staged item would leave it dangling
+  const stagedItems = new Set();
+  for (const st of rec.layers.sites || []) { if (st.stage) for (const it of st.items || []) stagedItems.add(st.id + '/' + it.id); for (const it of st.items || []) if (it && it.stage) stagedItems.add(st.id + '/' + it.id); }
+  for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
+  return out;
+}
 const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
@@ -959,6 +1186,32 @@ const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's def
 const RWY_TREES = ['today', 'map', 'mapx'];
 const PAVE_SIDE = 1.8;    // a side-faded pavement's DRAWN side: the recipe's sideW 1.2 + edgeChip 0.6 (GATE PAVEMENT holds it)
 const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge's reach, 3.05 x edgeSoft 2.6 (GATE PAVEMENT holds it)
+// THE GRASS BESIDE AND ON THE RUNWAYS (GRASS-DENSE G2565; the user, 8 Oct: "I want grass on the runway sides if the material says
+// it does. And short grass on the grass runway"). coverAt's full query (the tufts' - never the `pave` half the rocks, the debris
+// and the trees read, so nothing but the grass moves) answers by one of two LAWS:
+//   'today' - as it was: kill 1 on the pavement and its whole band, the 6 m fade, the verge's bump; a grass strip's surface bare
+//             (G665), a grass road / polygon thinned to 40 %;
+//   'sides' - the grass follows what is DRAWN beside an aerodrome's pavement (a strip, a paved polygon, a taxiway): bare on the
+//             pavement and its drawn side (`sideClear` m past a paved edge - PAVE_SIDE, the faded side G660 draws - and
+//             `softClear` past a soft one, whose torn edge is where the grass creeps in), then CUT grass across the band and a
+//             mown band `mowBand` m past it, blending to the biome's wild grass over `mowBlend` m, the verge's bump past that;
+//             a grass STRIP's surface carries cut grass (`stripGrass` 1; 0 = bare, G665). An ordinary road keeps today's band
+//             and fade, then `roadMow` m of mown verge. The answer gains `cut` (0..1: how mown the grass is here) and `surf`
+//             (1 on a grass strip's running surface) - the heights are the viewer's (cover_ring.js: the cut grass's length).
+// Live dials (the editor's PREMISES > grass rows; the world look saves them): PREMISES_GEN.grassSides(o) sets, () reads.
+// `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
+// shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
+// G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
+const GRASS_SIDES_DEF = { law: 'today', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
+function grassSides(o) {
+  if (o && typeof o === 'object') for (const k in o) {
+    if (!(k in GRASS_SIDES_DEF)) continue;
+    if (k === 'law') { if (o.law === 'today' || o.law === 'sides') GRASS_SIDES.law = o.law; }
+    else if (isFinite(+o[k]) && o[k] !== null && o[k] !== '') GRASS_SIDES[k] = Math.max(0, +o[k]);
+  }
+  return Object.assign({}, GRASS_SIDES);
+}
 function rwyTreesMode(o) {
   let v = o && o.rwyTrees;
   if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
@@ -1055,7 +1308,15 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+// THE PLOTS (G2310 PREM-S3, contract v1.34): `plots` [{ id, x, z, hdg, stand?, taxiOut?, taxiOut1? }] in the premises
+// frame are where a player's hangar MAY stand on this field (71_player_bases.js BASE_OFFERS names them; a plot id is the
+// hangar id its holder gets). The record's `hangar` IS the field's first plot, its id the runway's own (Jolene's HOME):
+// runwayPlots reads it as plot <runway id>, verbatim, so nothing at a field that had a hangar moves (the site's `hangar`
+// is still the record's `hangar` alone - a field with plots and no hangar gains none). A plot's
+// `stand` / `taxiOut` / `taxiOut1` are its own way out (the roll-out from that hangar's door); absent, the field's serve.
+// A plot on a WATER field is a slipway: its shed stands on the shore, its `stand` on the water off the slip. A plot is a
+// PLACE, not a building: the world stands a shed on it only while the player holds it (GAME §R GQ8).
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, plots: null, circuit: null, band: null, pav: null, altiport: false };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -1141,6 +1402,36 @@ function runwayBox(r, margin) {
 // stand's heading DERIVED toward its first taxi point when the record gives none (an aeroplane is
 // parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
 // `site` (an authored pattern rides there untouched)
+// THE PLOTS OF A RUNWAY (G2310, v1.34), in the premises frame: the record's `hangar` as plot <runway id> (verbatim) unless
+// `plots` names that id itself, then every authored plot with a finite place, in the record's order
+const plotOk = p => !!p && typeof p.id === 'string' && p.id.length > 0 && isFinite(+p.x) && isFinite(+p.z);
+function runwayPlots(r) {
+  const own = Array.isArray(r.plots) ? r.plots.filter(plotOk) : [];
+  const out = [];
+  if (r.hangar && isFinite(+r.hangar.x) && isFinite(+r.hangar.z) && !own.some(p => p.id === r.id))
+    out.push({ id: r.id, x: +r.hangar.x, z: +r.hangar.z, hdg: +r.hangar.hdg || 0, main: true });
+  for (const p of own) { const q = Object.assign({}, p); delete q.main; out.push(q); }
+  return out;
+}
+// one plot into the world: the shed's centre, its door's heading and rotation.y (the club hangar's own rule, G434), its
+// own way out when it has one (the stand's heading derived toward its first taxi point, as the field's)
+function plotWorld(p, F) {
+  const W = q => F.toWorld(q[0], q[1]);
+  const hw = W([+p.x, +p.z]), hh = (+p.hdg || 0) - F.yaw;
+  const o = { id: p.id, x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) };
+  if (p.main) o.main = true;
+  if (p.stand && isFinite(+p.stand.x) && isFinite(+p.stand.z)) {
+    const st = W([+p.stand.x, +p.stand.z]), tx = Array.isArray(p.taxiOut) ? p.taxiOut.map(W) : [];
+    let hdg;
+    if (p.stand.hdg !== null && p.stand.hdg !== undefined) hdg = +p.stand.hdg - F.yaw;
+    else if (tx.length) hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
+    else hdg = hh;   // a slipway's stand with no way out faces where the door does
+    o.stand = { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) };
+    if (tx.length) o.taxiOut = tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+    if (Array.isArray(p.taxiOut1) && p.taxiOut1.length) o.taxiOut1 = p.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
+  }
+  return o;
+}
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
   const base = Object.assign({}, r.site || {});
@@ -1150,6 +1441,10 @@ function runwaySite(r, F) {
     const hw = W([+r.hangar.x, +r.hangar.z]), hh = (+r.hangar.hdg || 0) - F.yaw;
     base.hangar = Object.assign({ x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) }, HANGAR_DIMS);
   }
+  // G2310: every plot into the site, the first (the hangar's) verbatim - only when the record authors `plots`, so a
+  // field without them composes to the very site it did (the key absent)
+  const P = Array.isArray(r.plots) ? runwayPlots(r) : [];
+  if (P.length) base.plots = P.map(p => plotWorld(p, F));
   if (!r.stand || !r.taxiOut || !r.taxiOut.length) return Object.keys(base).length ? base : null;
   const st = W([r.stand.x, r.stand.z]), tx = r.taxiOut.map(W);
   let hdg;
@@ -1162,6 +1457,9 @@ function runwaySite(r, F) {
   if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
   return out;
 }
+// (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
+// absent - the record never says it - the aerodrome is untouched
+function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -1453,7 +1751,10 @@ function smoothPath(pts, radius) {
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
   const o = opts || {};
-  const rec = normalise(rec0);
+  // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
+  // unstaged record is untouched, and a staged one composes exactly as its stageView would
+  const SV = stageView(normalise(rec0), o.tracks);
+  const rec = SV.staged ? normalise(SV.rec) : normalise(rec0);
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
@@ -1481,8 +1782,10 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null));
-      r.site = null;
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
+      // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
+      r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
+      if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
       continue;
     }
     const elev = T1(r.c[0], r.c[1]);
@@ -1494,7 +1797,7 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)));   // T1 sees the strip's own grade (pushed above)
+    aerodromes.push(stageAero(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)), r));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
     // G710: THE PARKED AEROPLANES the way out must clear (25_airfield.js gpClearWay): every `aircraft`
     // object within 400 m of the stand or a taxi point, in the world (x, z, and `ry` = rotation.y, the
@@ -1511,6 +1814,10 @@ function compose(rec0, world, opts) {
     }
     if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
     if (r.site && r.site.hangar) { const L = F.toLocal(r.site.hangar.x, r.site.hangar.z); r.site.hangar.y = +T1(L[0], L[1]).toFixed(2); }   // the ground under the club hangar (G434): the shed stands on it
+    if (r.site && r.site.plots) for (const p of r.site.plots) {   // G2310: each plot's shed on its ground, its own stand's ground (the placer reads it)
+      const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2);
+      if (p.stand) { const Ls = F.toLocal(p.stand.x, p.stand.z); p.stand.elev = +T1(Ls[0], Ls[1]).toFixed(2); }
+    }
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -1957,7 +2264,7 @@ function compose(rec0, world, opts) {
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
+    n: mods.length, nAuthored: nAuth, rec, stage: SV.staged ? { n: SV.n, tracks: SV.tracks } : null, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
     // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
     // vegMixes the polygons' own biomes by '@id'; vegSig a string that changes when any of it does (the renderer's replant)
     // (and the strips' own clearances - G1385's third item: the fill and the ring replant on either)
@@ -2280,6 +2587,7 @@ function compose(rec0, world, opts) {
   function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
+    if (!pave && GRASS_SIDES.law === 'sides') return coverSides(lx, lz, cell);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
@@ -2298,13 +2606,49 @@ function compose(rec0, world, opts) {
       if (d > best) { best = d; cls = it.cls; }
     }
     if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
+    return withPlot(lx, lz, kill, boost, cls, 0, 0);
+  }
+  // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
+  // only the pavement and the band kill)
+  function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
-    // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
-    // a plot's lawn is mown to the road's band: no fade thins it, only the pavement and the band kill
     if (kind === 'lawn' && kill < 1) kill = 0;
-    if (!kill && !boost && !kind) return null;
-    return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+    if (!kill && !boost && !kind && !cut) return null;
+    const o = { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+    if (GRASS_SIDES.law === 'sides') { o.cut = cut; o.surf = surf; }
+    return o;
+  }
+  // THE 'sides' LAW (GRASS_SIDES above): what is drawn beside an aerodrome's pavement decides - bare on it and its drawn side,
+  // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
+  function coverSides(lx, lz, cell) {
+    const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz), out = -d;
+      const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
+      const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
+      const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
+      if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE) continue;
+      if (d > best) { best = d; cls = it.cls; }
+      let k = 0, c = 0;
+      if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
+        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; } else k = 1; } else { k = 0.6; c = 1; } }
+        else k = 1;
+        if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
+      } else if (aero) {
+        if (out <= (it.soft ? G.softClear : G.sideClear)) k = 1;
+        else c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+      } else {   // an ordinary road: today's band and fade, then its mown verge
+        k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
+        if (it.cls === 'grass') k *= 0.6;
+        if (out > it.band) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+      }
+      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
+      if (k > kill) kill = k;
+      if (c > cut) cut = c;
+    }
+    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
@@ -2419,8 +2763,13 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
+    }
+    // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
+    if (O.records.plots.some(p => p.stageSown)) {
+      for (const p of O.records.plots) if (p.stageSown) excl.push({ poly: p.poly, bbox: polyBBox(p.poly), what: ['trees'], derived: true, stage: p.zone });
+      O.records.plots = O.records.plots.filter(p => !p.stageSown);
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
     // plot by the entry's own stand (totemPlot's shape: (plot, T, o) -> a plan with footprint, level,
@@ -2591,6 +2940,7 @@ function issues(rec0) {
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
+  const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
@@ -2608,6 +2958,22 @@ function issues(rec0) {
     }
     if (r.papi && (!Array.isArray(r.papi) || r.papi.length !== 2 || !r.papi.every(v => v === true || v === false || v === 'vasi'))) out.push('runway ' + r.id + ': papi is [end 0, end 1] of true, false or vasi');
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
+    // G2310 (v1.34): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
+    // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    if (r.plots != null) {
+      if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
+      else for (const p of r.plots) {
+        if (!p || typeof p.id !== 'string' || !p.id) { out.push('runway ' + r.id + ': a plot without an id'); continue; }
+        if (!(isFinite(+p.x) && isFinite(+p.z))) out.push('runway ' + r.id + ': plot ' + p.id + ' needs x and z');
+        if (p.hdg != null && !isFinite(+p.hdg)) out.push('runway ' + r.id + ': plot ' + p.id + ': hdg is radians');
+        if (plotIds.has(p.id)) out.push('runway ' + r.id + ': plot ' + p.id + ' is named twice');
+        plotIds.add(p.id);
+        if (p.stand != null && !(isFinite(+p.stand.x) && isFinite(+p.stand.z))) out.push('runway ' + r.id + ': plot ' + p.id + ': the stand needs x and z');
+        for (const k of ['taxiOut', 'taxiOut1']) if (p[k] != null && !(Array.isArray(p[k]) && p[k].every(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])))) out.push('runway ' + r.id + ': plot ' + p.id + ': ' + k + ' is a list of [x, z]');
+        if (p.taxiOut != null && p.stand == null) out.push('runway ' + r.id + ': plot ' + p.id + ': a way out needs its stand');
+      }
+    }
+    if (r.hangar && isFinite(+r.hangar.x)) { if (plotIds.has(r.id)) out.push('runway ' + r.id + ': plot ' + r.id + ' is named twice'); plotIds.add(r.id); }
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -2633,6 +2999,7 @@ function issues(rec0) {
     else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
   }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
+  for (const i of stageIssues(rec)) out.push(i);   // v1.33: the stages' shape (the max law is GATE STAGES', with the career's tracks)
   return out;
 }
 
@@ -2832,11 +3199,12 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core

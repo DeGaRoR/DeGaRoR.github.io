@@ -1,0 +1,4 @@
+     5b the strips' drainage domes (G413) move the bare bake at 1 of 400 outside samples — the bake's, not the layer's
+  389 checks on 6 fixture(s), the flight world loaded
+GATE PREMISES: PASS
+exit 0

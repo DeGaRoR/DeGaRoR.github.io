@@ -1,0 +1,607 @@
+{
+ "date": "2026-10-08T04:07:25.514Z",
+ "preset": "potato",
+ "build": "builds/cub_2026-09-20_corrected.json",
+ "timed": true,
+ "size": "2216x1023",
+ "rounds": [
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 7.737,
+   "gpuMean": 7.77,
+   "calls": 470,
+   "tris": 1972263,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 7.151,
+   "gpuMean": 7.372,
+   "calls": 466,
+   "tris": 1954592,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 7.526,
+   "gpuMean": 7.533,
+   "calls": 466,
+   "tris": 1954592,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 7.416,
+   "gpuMean": 7.524,
+   "calls": 470,
+   "tris": 1972263,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 7.067,
+   "gpuMean": 7.331,
+   "calls": 470,
+   "tris": 1972263,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 2
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 6.813,
+   "gpuMean": 6.933,
+   "calls": 466,
+   "tris": 1954592,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 2
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 6.752,
+   "gpuMean": 6.924,
+   "calls": 466,
+   "tris": 1954592,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 3
+  },
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 6.859,
+   "gpuMean": 6.998,
+   "calls": 470,
+   "tris": 1972263,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 3
+  },
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 6.991,
+   "gpuMean": 7.158,
+   "calls": 470,
+   "tris": 1972263,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 4
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 6.728,
+   "gpuMean": 6.949,
+   "calls": 466,
+   "tris": 1954592,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 4
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 6.207,
+   "gpuMean": 6.335,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 27,
+   "gpu": 6.472,
+   "gpuMean": 8.69,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 27,
+   "gpu": 6.171,
+   "gpuMean": 6.254,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 6.678,
+   "gpuMean": 6.789,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 7.196,
+   "gpuMean": 8.872,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 2
+  },
+  {
+   "on": false,
+   "n": 27,
+   "gpu": 6.201,
+   "gpuMean": 6.316,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 2
+  },
+  {
+   "on": false,
+   "n": 27,
+   "gpu": 6.799,
+   "gpuMean": 7.065,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 3
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 7.414,
+   "gpuMean": 9.334,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 3
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 6.194,
+   "gpuMean": 6.302,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 4
+  },
+  {
+   "on": false,
+   "n": 27,
+   "gpu": 7.217,
+   "gpuMean": 8.166,
+   "calls": 641,
+   "tris": 3627554,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 4
+  }
+ ],
+ "shots": [
+  {
+   "f": "close_l1_potato.png",
+   "census": [
+    {
+     "slot": "fleet-1-cub",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 64.5,
+     "tris": 4355,
+     "inView": false
+    },
+    {
+     "slot": "fleet-2-jodel",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 14.2,
+     "tris": 3882,
+     "inView": false
+    },
+    {
+     "slot": "fleet-3-c172",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 17.7,
+     "tris": 4772,
+     "inView": false
+    },
+    {
+     "slot": "fleet-4-c172floats",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 31.5,
+     "tris": 4662,
+     "inView": true
+    }
+   ]
+  },
+  {
+   "f": "apron_potato_fleet6.png",
+   "on": true,
+   "view": "apron"
+  },
+  {
+   "f": "apron_potato_fleet0.png",
+   "on": false,
+   "view": "apron"
+  },
+  {
+   "f": "taxi_potato_fleet6.png",
+   "on": true,
+   "view": "taxi"
+  },
+  {
+   "f": "taxi_potato_fleet0.png",
+   "on": false,
+   "view": "taxi"
+  }
+ ],
+ "state": {
+  "build": "f9145510da7b",
+  "fleetOn": true,
+  "preset": "potato",
+  "gfxBuild": "potato",
+  "stats": {
+   "queued": 0,
+   "captures": 0,
+   "bakes": 0,
+   "hits": 0,
+   "stored": 0,
+   "decodes": 4,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0,
+   "notWanted": 0,
+   "inputWaits": 0
+  },
+  "queue": [],
+  "busy": false,
+  "why": {},
+  "stand": {
+   "key": "jolene|fleet-1-cub@stand:af_m_park:5,fleet-2-jodel@apron:22:0,fleet-3-c172@apron:22:75,fleet-4-c172floats@apron:22:210",
+   "n": 4,
+   "miss": [],
+   "stats": {
+    "stands": 1,
+    "placed": 4,
+    "kept": 0,
+    "miss": 0,
+    "held": 2,
+    "waitMs": 329
+   }
+  }
+ },
+ "near": {
+  "slot": "fleet-4-c172floats",
+  "d": 18.45670126011231,
+  "x": -161.162,
+  "z": 691.198,
+  "pref": null,
+  "az": -2.297246422458362
+ },
+ "close": [
+  {
+   "slot": "fleet-1-cub",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 64.5,
+   "tris": 4355,
+   "inView": false
+  },
+  {
+   "slot": "fleet-2-jodel",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 14.2,
+   "tris": 3882,
+   "inView": false
+  },
+  {
+   "slot": "fleet-3-c172",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 17.7,
+   "tris": 4772,
+   "inView": false
+  },
+  {
+   "slot": "fleet-4-c172floats",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 31.5,
+   "tris": 4662,
+   "inView": true
+  }
+ ],
+ "apronCam": {
+  "az": 5.438146026440107,
+  "el": 0.22,
+  "dist": 16,
+  "eye": [
+   -138.5394074109963,
+   35.122273906462944,
+   693.3155708656863
+  ],
+  "target": [
+   -148.90268728964284,
+   31.630599937169034,
+   704.9950675607067
+  ],
+  "fov": 46,
+  "exposure": 1.12,
+  "tone": 3,
+  "envDeferred": false,
+  "envDirty": false,
+  "envAway": true,
+  "envPM": true,
+  "envSource": "room"
+ },
+ "census_apron": [
+  {
+   "slot": "fleet-1-cub",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 89.9,
+   "tris": 4355,
+   "inView": true
+  },
+  {
+   "slot": "fleet-2-jodel",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 33.4,
+   "tris": 3882,
+   "inView": true
+  },
+  {
+   "slot": "fleet-3-c172",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 46.1,
+   "tris": 4772,
+   "inView": true
+  },
+  {
+   "slot": "fleet-4-c172floats",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 23.2,
+   "tris": 4662,
+   "inView": true
+  }
+ ],
+ "census_taxi": [
+  {
+   "slot": "fleet-1-cub",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 108.3,
+   "tris": 4355,
+   "inView": false
+  },
+  {
+   "slot": "fleet-2-jodel",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 60,
+   "tris": 3882,
+   "inView": false
+  },
+  {
+   "slot": "fleet-3-c172",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 69.4,
+   "tris": 4772,
+   "inView": false
+  },
+  {
+   "slot": "fleet-4-c172floats",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 32.5,
+   "tris": 4662,
+   "inView": false
+  }
+ ],
+ "summary": {
+  "apron": {
+   "gpuOn": 7.067,
+   "gpuOff": 6.813,
+   "dGpu": 0.254,
+   "callsOn": 470,
+   "callsOff": 466,
+   "trisOn": 1972263,
+   "trisOff": 1954592,
+   "infoCallsOn": 1,
+   "infoCallsOff": 1,
+   "inView": 4,
+   "drawn": 4,
+   "levels": "1-cub:L0 2-jodel:L0 3-c172:L0 4-c172floats:L0"
+  },
+  "taxi": {
+   "gpuOn": 6.678,
+   "gpuOff": 6.472,
+   "dGpu": 0.206,
+   "callsOn": 641,
+   "callsOff": 641,
+   "trisOn": 3627554,
+   "trisOff": 3627554,
+   "infoCallsOn": 1,
+   "infoCallsOff": 1,
+   "inView": 0,
+   "drawn": 4,
+   "levels": "1-cub:L0 2-jodel:L0 3-c172:L0 4-c172floats:L0"
+  }
+ },
+ "stateEnd": {
+  "build": "f9145510da7b",
+  "fleetOn": true,
+  "preset": "potato",
+  "gfxBuild": "potato",
+  "stats": {
+   "queued": 0,
+   "captures": 0,
+   "bakes": 0,
+   "hits": 0,
+   "stored": 0,
+   "decodes": 4,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0,
+   "notWanted": 0,
+   "inputWaits": 0
+  },
+  "queue": [],
+  "busy": false,
+  "why": {},
+  "stand": {
+   "key": "jolene|fleet-1-cub@stand:af_m_park:5,fleet-2-jodel@apron:22:0,fleet-3-c172@apron:22:75,fleet-4-c172floats@apron:22:210",
+   "n": 4,
+   "miss": [],
+   "stats": {
+    "stands": 1,
+    "placed": 4,
+    "kept": 0,
+    "miss": 0,
+    "held": 2,
+    "waitMs": 329
+   }
+  }
+ }
+}

@@ -1,0 +1,627 @@
+{
+ "url": "http://localhost:8591/flyDiy/index.html?gfx=retro&career=1",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro&career=1",
+ "label": "tree",
+ "sha": "7560d3bc3",
+ "mode": "career",
+ "preset": "retro",
+ "errs": [],
+ "stills": [],
+ "discarded": [],
+ "scenes": {
+  "hearth": {
+   "room": {
+    "shell": "works",
+    "layout": "hearth",
+    "dims": {
+     "HW": 20,
+     "HD": 20,
+     "EAVE": 9.5,
+     "RIDGE": 12.1
+    },
+    "unplaced": 0,
+    "lamps": {
+     "gain": 1.25,
+     "angle": 1.178097,
+     "kelvin": 2700,
+     "hex": 16765854
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "residents": {
+    "plan": [
+     {
+      "name": "Cessna",
+      "x": 12.9,
+      "z": 0,
+      "filled": true,
+      "tris": 24376
+     },
+     {
+      "name": "Cub",
+      "x": 11.911,
+      "z": -13,
+      "filled": true,
+      "tris": 20908
+     }
+    ],
+    "unplaced": [],
+    "err": null,
+    "how": "kept",
+    "room": {
+     "dx": 0,
+     "dz": 0
+    },
+    "ms": 0,
+    "packs": 1,
+    "stats": {
+     "queued": 6,
+     "captures": 3,
+     "bakes": 3,
+     "hits": 3,
+     "stored": 3,
+     "decodes": 2,
+     "worldRefused": 0,
+     "flightRefused": 0,
+     "evicted": 0,
+     "bakeInWorld": 0
+    },
+    "queue": 0,
+    "busy": false,
+    "why": {
+     "mine:Cessna": "not baked",
+     "mine:Cub": "not baked"
+    }
+   }
+  },
+  "club1": {
+   "room": {
+    "shell": "club",
+    "layout": null,
+    "dims": {
+     "HW": 15,
+     "HD": 12.5,
+     "EAVE": 7,
+     "RIDGE": 9.6
+    },
+    "unplaced": 0,
+    "lamps": {
+     "gain": 1,
+     "angle": 1.178097,
+     "kelvin": 4000,
+     "hex": 16771283
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "residents": {
+    "plan": [],
+    "unplaced": [
+     {
+      "name": "Cessna",
+      "why": "no floor left beside the fit-out"
+     },
+     {
+      "name": "Cub",
+      "why": "no floor left beside the fit-out"
+     }
+    ],
+    "err": null,
+    "how": "round the stand",
+    "room": {
+     "dx": 0,
+     "dz": 0
+    },
+    "ms": 0,
+    "packs": 2,
+    "stats": {
+     "queued": 6,
+     "captures": 3,
+     "bakes": 3,
+     "hits": 3,
+     "stored": 3,
+     "decodes": 3,
+     "worldRefused": 0,
+     "flightRefused": 0,
+     "evicted": 0,
+     "bakeInWorld": 0
+    },
+    "queue": 0,
+    "busy": false,
+    "why": {
+     "mine:Cessna": "not baked",
+     "mine:Cub": "not baked"
+    }
+   }
+  }
+ },
+ "swaps": [
+  {
+   "tag": "hearth rung 1",
+   "to": "Cub",
+   "name": "Cub",
+   "out": "Jodel",
+   "load": 6279.9,
+   "how": "kept",
+   "stood": 7649.1,
+   "total": 7783.8,
+   "plan": [
+    {
+     "name": "Cessna",
+     "x": 12.9,
+     "z": 0,
+     "filled": true,
+     "tris": 24376
+    },
+    {
+     "name": "Jodel",
+     "x": 11.911,
+     "z": -13,
+     "filled": true,
+     "tris": 18640
+    }
+   ],
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "hearth rung back 1",
+   "to": "Jodel",
+   "name": "Jodel",
+   "out": "Cub",
+   "load": 2875,
+   "how": "kept",
+   "stood": 2888.6,
+   "total": 3461.6,
+   "plan": [
+    {
+     "name": "Cessna",
+     "x": 12.9,
+     "z": 0,
+     "filled": true,
+     "tris": 24376
+    },
+    {
+     "name": "Cub",
+     "x": 11.911,
+     "z": -13,
+     "filled": true,
+     "tris": 20908
+    }
+   ],
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "hearth rung 2",
+   "to": "Cub",
+   "name": "Cub",
+   "out": "Jodel",
+   "load": 4764.8,
+   "how": "kept",
+   "stood": 4779.2,
+   "total": 5912.1,
+   "plan": [
+    {
+     "name": "Cessna",
+     "x": 12.9,
+     "z": 0,
+     "filled": true,
+     "tris": 24376
+    },
+    {
+     "name": "Jodel",
+     "x": 11.911,
+     "z": -13,
+     "filled": true,
+     "tris": 18640
+    }
+   ],
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "hearth rung back 2",
+   "to": "Jodel",
+   "name": "Jodel",
+   "out": "Cub",
+   "load": 2936.5,
+   "how": "kept",
+   "stood": 2951,
+   "total": 3338.4,
+   "plan": [
+    {
+     "name": "Cessna",
+     "x": 12.9,
+     "z": 0,
+     "filled": true,
+     "tris": 24376
+    },
+    {
+     "name": "Cub",
+     "x": 11.911,
+     "z": -13,
+     "filled": true,
+     "tris": 20908
+    }
+   ],
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "club1 rung 1",
+   "to": "Cub",
+   "err": "null",
+   "plan": [],
+   "how": "round the stand",
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "club1 rung back 1",
+   "to": "Jodel",
+   "err": "null",
+   "plan": [],
+   "how": "round the stand",
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "club1 rung 2",
+   "to": "Cub",
+   "err": "null",
+   "plan": [],
+   "how": "round the stand",
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  },
+  {
+   "tag": "club1 rung back 2",
+   "to": "Jodel",
+   "err": "null",
+   "plan": [],
+   "how": "round the stand",
+   "room": {
+    "dx": 0,
+    "dz": 0
+   }
+  }
+ ],
+ "windows": [
+  {
+   "frames": 250,
+   "fps": 20.7,
+   "dt50": 50,
+   "dt90": 50.1,
+   "dt99": 66.7,
+   "slow": 70,
+   "over50": 0.28,
+   "work50": 46.3,
+   "render50": 32.3,
+   "shadow50": 3.7,
+   "gpu50": 23.74,
+   "gpu90": 28,
+   "calls": 904,
+   "mtris": 1.227,
+   "residents": true,
+   "scene": "hearth"
+  },
+  {
+   "frames": 254,
+   "fps": 21.1,
+   "dt50": 50,
+   "dt90": 50.1,
+   "dt99": 66.7,
+   "slow": 67,
+   "over50": 0.264,
+   "work50": 45.5,
+   "render50": 31.8,
+   "shadow50": 3.6,
+   "gpu50": 23.86,
+   "gpu90": 27.54,
+   "calls": 903,
+   "mtris": 1.203,
+   "residents": false,
+   "scene": "hearth"
+  },
+  {
+   "frames": 252,
+   "fps": 20.8,
+   "dt50": 50,
+   "dt90": 50.1,
+   "dt99": 66.7,
+   "slow": 61,
+   "over50": 0.242,
+   "work50": 45.9,
+   "render50": 31.9,
+   "shadow50": 3.7,
+   "gpu50": 23.57,
+   "gpu90": 28.19,
+   "calls": 903,
+   "mtris": 1.203,
+   "residents": false,
+   "scene": "hearth"
+  },
+  {
+   "frames": 256,
+   "fps": 21.2,
+   "dt50": 50,
+   "dt90": 50.1,
+   "dt99": 50.1,
+   "slow": 62,
+   "over50": 0.242,
+   "work50": 45.5,
+   "render50": 31.7,
+   "shadow50": 3.6,
+   "gpu50": 23.05,
+   "gpu90": 27.33,
+   "calls": 904,
+   "mtris": 1.227,
+   "residents": true,
+   "scene": "hearth"
+  },
+  {
+   "frames": 325,
+   "fps": 27,
+   "dt50": 33.4,
+   "dt90": 50,
+   "dt99": 50.1,
+   "slow": 19,
+   "over50": 0.058,
+   "work50": 35.3,
+   "render50": 22.8,
+   "shadow50": 2.4,
+   "gpu50": 18.24,
+   "gpu90": 21.09,
+   "calls": 729,
+   "mtris": 1.029,
+   "residents": true,
+   "scene": "club1"
+  },
+  {
+   "frames": 327,
+   "fps": 27.1,
+   "dt50": 33.4,
+   "dt90": 50,
+   "dt99": 50.1,
+   "slow": 18,
+   "over50": 0.055,
+   "work50": 35.1,
+   "render50": 22.8,
+   "shadow50": 2.4,
+   "gpu50": 18.24,
+   "gpu90": 20.66,
+   "calls": 729,
+   "mtris": 1.029,
+   "residents": false,
+   "scene": "club1"
+  },
+  {
+   "frames": 330,
+   "fps": 27.4,
+   "dt50": 33.4,
+   "dt90": 50,
+   "dt99": 50.1,
+   "slow": 15,
+   "over50": 0.045,
+   "work50": 35.2,
+   "render50": 22.6,
+   "shadow50": 2.4,
+   "gpu50": 17.97,
+   "gpu90": 20.72,
+   "calls": 729,
+   "mtris": 1.029,
+   "residents": false,
+   "scene": "club1"
+  },
+  {
+   "frames": 329,
+   "fps": 27.3,
+   "dt50": 33.4,
+   "dt90": 50,
+   "dt99": 50.1,
+   "slow": 16,
+   "over50": 0.049,
+   "work50": 35.2,
+   "render50": 22.7,
+   "shadow50": 2.4,
+   "gpu50": 18.15,
+   "gpu90": 20.56,
+   "calls": 729,
+   "mtris": 1.029,
+   "residents": true,
+   "scene": "club1"
+  }
+ ],
+ "load": 63.35,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "own": false,
+  "hw": null,
+  "town": "nearby"
+ },
+ "stand": "Jodel",
+ "room": {
+  "shell": "works",
+  "layout": "hearth",
+  "dims": {
+   "HW": 20,
+   "HD": 20,
+   "EAVE": 9.5,
+   "RIDGE": 12.1
+  },
+  "unplaced": 0,
+  "lamps": {
+   "gain": 1.25,
+   "angle": 1.178097,
+   "kelvin": 2700,
+   "hex": 16765854
+  },
+  "at": [
+   0,
+   0
+  ]
+ },
+ "fleetWait": {
+  "plan": [
+   {
+    "name": "Cessna",
+    "x": 12.9,
+    "z": 0,
+    "filled": true,
+    "tris": 24376
+   },
+   {
+    "name": "Cub",
+    "x": 11.911,
+    "z": -13,
+    "filled": true,
+    "tris": 20908
+   }
+  ],
+  "unplaced": [],
+  "err": null,
+  "how": "kept",
+  "room": {
+   "dx": 0,
+   "dz": 0
+  },
+  "ms": 0,
+  "packs": 1,
+  "stats": {
+   "queued": 6,
+   "captures": 3,
+   "bakes": 3,
+   "hits": 3,
+   "stored": 3,
+   "decodes": 2,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0
+  },
+  "queue": 0,
+  "busy": false,
+  "why": {
+   "mine:Cessna": "not baked",
+   "mine:Cub": "not baked"
+  }
+ },
+ "rung": {
+  "cpu": 3,
+  "gpux": 6
+ },
+ "summary": {
+  "hearth|true": {
+   "fps": 20.95,
+   "dt50": 50,
+   "dt90": 50.1,
+   "dt99": 58.4,
+   "over50": 0.26,
+   "work50": 45.9,
+   "render50": 32,
+   "gpu50": 23.39,
+   "gpu90": 27.66,
+   "calls": 904,
+   "mtris": 1.23
+  },
+  "hearth|false": {
+   "fps": 20.95,
+   "dt50": 50,
+   "dt90": 50.1,
+   "dt99": 66.7,
+   "over50": 0.25,
+   "work50": 45.7,
+   "render50": 31.85,
+   "gpu50": 23.71,
+   "gpu90": 27.87,
+   "calls": 903,
+   "mtris": 1.2
+  },
+  "club1|true": {
+   "fps": 27.15,
+   "dt50": 33.4,
+   "dt90": 50,
+   "dt99": 50.1,
+   "over50": 0.05,
+   "work50": 35.25,
+   "render50": 22.75,
+   "gpu50": 18.2,
+   "gpu90": 20.82,
+   "calls": 729,
+   "mtris": 1.03
+  },
+  "club1|false": {
+   "fps": 27.25,
+   "dt50": 33.4,
+   "dt90": 50,
+   "dt99": 50.1,
+   "over50": 0.05,
+   "work50": 35.15,
+   "render50": 22.7,
+   "gpu50": 18.1,
+   "gpu90": 20.69,
+   "calls": 729,
+   "mtris": 1.03
+  }
+ },
+ "errsN": 0,
+ "wall": 549.591
+}

@@ -1,0 +1,910 @@
+{
+ "tree": "33942ca5",
+ "made": "2026-10-08T04:45:22.881Z",
+ "runs": {
+  "retro_off": {
+   "label": "fb_retro_off",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "retro",
+   "props": 0,
+   "flag": false,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 40.707,
+   "tReveal": 3.349,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 50,
+    "loopJS": 10.7,
+    "render": 7.3,
+    "renderP90": 9.5,
+    "frames": 2800
+   },
+   "stand": {
+    "fps": 29,
+    "p99": 33.5,
+    "max": 333,
+    "render": 6.5
+   },
+   "gpuTaxi": {
+    "med": 13.013,
+    "p90": 13.584,
+    "calls": 792,
+    "tris": 6860295,
+    "n": 2783
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 199,
+    "worstMs": 199,
+    "list": [
+     [
+      44323,
+      199
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 154,
+    "sumMs": 21397,
+    "worstMs": 3287
+   },
+   "fleet": {
+    "stood": 0,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 0,
+    "decodes": 0,
+    "captures": 0,
+    "levels": ""
+   }
+  },
+  "retro_3": {
+   "label": "fb_retro_3",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "retro",
+   "props": 3,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 40.546,
+   "tReveal": 3.335,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 50,
+    "loopJS": 10.9,
+    "render": 7.5,
+    "renderP90": 9.7,
+    "frames": 2805
+   },
+   "stand": {
+    "fps": 29.1,
+    "p99": 33.5,
+    "max": 283,
+    "render": 6.6
+   },
+   "gpuTaxi": {
+    "med": 13.049,
+    "p90": 13.645,
+    "calls": 791,
+    "tris": 6857619,
+    "n": 2785
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 194,
+    "worstMs": 194,
+    "list": [
+     [
+      44157,
+      194
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 151,
+    "sumMs": 22237,
+    "worstMs": 3316
+   },
+   "fleet": {
+    "stood": 3,
+    "held": 3,
+    "miss": 0,
+    "waitMs": 183,
+    "decodes": 3,
+    "captures": 0,
+    "levels": "1-cub:2 2-jodel:1 3-c172:2"
+   }
+  },
+  "retro_6": {
+   "label": "fb_retro_6",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "retro",
+   "props": 6,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 40.633,
+   "tReveal": 3.358,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 50,
+    "loopJS": 11,
+    "render": 7.6,
+    "renderP90": 9.7,
+    "frames": 2806
+   },
+   "stand": {
+    "fps": 29.2,
+    "p99": 33.6,
+    "max": 267,
+    "render": 6.6
+   },
+   "gpuTaxi": {
+    "med": 13.03,
+    "p90": 13.625,
+    "calls": 791,
+    "tris": 6856969,
+    "n": 2789
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 2,
+    "sumMs": 253,
+    "worstMs": 185,
+    "list": [
+     [
+      44218,
+      185
+     ],
+     [
+      44405,
+      68
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 155,
+    "sumMs": 21966,
+    "worstMs": 3279
+   },
+   "fleet": {
+    "stood": 6,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 341,
+    "decodes": 6,
+    "captures": 0,
+    "levels": "1-cub:2 2-jodel:1 3-c172:2 4-c172floats:2 5-twinfloats:1 6-metal:2"
+   }
+  },
+  "gamer_off": {
+   "label": "fb_gamer_off",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "gamer",
+   "props": 0,
+   "flag": false,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 43.581,
+   "tReveal": 3.394,
+   "taxi": {
+    "fps": 29.8,
+    "p99": 33.5,
+    "max": 600,
+    "loopJS": 13.6,
+    "render": 10,
+    "renderP90": 12.2,
+    "frames": 2798
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "render": 5.3
+   },
+   "gpuTaxi": {
+    "med": null,
+    "p90": null,
+    "calls": 743,
+    "tris": 20028158,
+    "n": 0
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 2,
+    "sumMs": 294,
+    "worstMs": 235,
+    "list": [
+     [
+      47165,
+      235
+     ],
+     [
+      47401,
+      59
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 146,
+    "sumMs": 20375,
+    "worstMs": 3326
+   },
+   "fleet": {
+    "stood": 0,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 0,
+    "decodes": 0,
+    "captures": 0,
+    "levels": ""
+   }
+  },
+  "gamer_3": {
+   "label": "fb_gamer_3",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "gamer",
+   "props": 3,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 44.119,
+   "tReveal": 3.394,
+   "taxi": {
+    "fps": 29.8,
+    "p99": 33.5,
+    "max": 534,
+    "loopJS": 13.6,
+    "render": 10,
+    "renderP90": 12.2,
+    "frames": 2800
+   },
+   "stand": {
+    "fps": 29.9,
+    "p99": 33.5,
+    "max": 50,
+    "render": 5.2
+   },
+   "gpuTaxi": {
+    "med": null,
+    "p90": null,
+    "calls": 746,
+    "tris": 20125164,
+    "n": 0
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 228,
+    "worstMs": 228,
+    "list": [
+     [
+      47726,
+      228
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 149,
+    "sumMs": 21825,
+    "worstMs": 3383
+   },
+   "fleet": {
+    "stood": 3,
+    "held": 3,
+    "miss": 0,
+    "waitMs": 186,
+    "decodes": 3,
+    "captures": 0,
+    "levels": "1-cub:2 2-jodel:1 3-c172:2"
+   }
+  },
+  "gamer_6": {
+   "label": "fb_gamer_6",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "gamer",
+   "props": 6,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 44.587,
+   "tReveal": 3.37,
+   "taxi": {
+    "fps": 29.8,
+    "p99": 33.5,
+    "max": 550,
+    "loopJS": 13.6,
+    "render": 10,
+    "renderP90": 12.3,
+    "frames": 2795
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.6,
+    "max": 34,
+    "render": 5.3
+   },
+   "gpuTaxi": {
+    "med": null,
+    "p90": null,
+    "calls": 749,
+    "tris": 20088474,
+    "n": 0
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 255,
+    "worstMs": 255,
+    "list": [
+     [
+      48199,
+      255
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 152,
+    "sumMs": 21897,
+    "worstMs": 3490
+   },
+   "fleet": {
+    "stood": 6,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 347,
+    "decodes": 6,
+    "captures": 0,
+    "levels": "1-cub:2 2-jodel:1 3-c172:2 4-c172floats:2 5-twinfloats:1 6-metal:2"
+   }
+  },
+  "potato_off": {
+   "label": "fb_potato_off",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "potato",
+   "props": 0,
+   "flag": false,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 27.857,
+   "tReveal": 3.288,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 167,
+    "loopJS": 8.3,
+    "render": 5.2,
+    "renderP90": 5.9,
+    "frames": 2803
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.7,
+    "max": 34,
+    "render": 4.6
+   },
+   "gpuTaxi": {
+    "med": 7.406,
+    "p90": 9.772,
+    "calls": 501,
+    "tris": 2875442,
+    "n": 2781
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 148,
+    "worstMs": 148,
+    "list": [
+     [
+      31475,
+      148
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 64,
+    "sumMs": 11488,
+    "worstMs": 788
+   },
+   "fleet": {
+    "stood": 0,
+    "held": 0,
+    "miss": 0,
+    "waitMs": 0,
+    "decodes": 0,
+    "captures": 0,
+    "levels": ""
+   }
+  },
+  "potato_3": {
+   "label": "fb_potato_3",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "potato",
+   "props": 3,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 27.923,
+   "tReveal": 3.299,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 167,
+    "loopJS": 8.1,
+    "render": 5,
+    "renderP90": 5.7,
+    "frames": 2805
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.6,
+    "max": 34,
+    "render": 4.4
+   },
+   "gpuTaxi": {
+    "med": 7.14,
+    "p90": 9.869,
+    "calls": 501,
+    "tris": 2875442,
+    "n": 2782
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 151,
+    "worstMs": 151,
+    "list": [
+     [
+      31500,
+      151
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 68,
+    "sumMs": 11738,
+    "worstMs": 848
+   },
+   "fleet": {
+    "stood": 3,
+    "held": 3,
+    "miss": 0,
+    "waitMs": 287,
+    "decodes": 3,
+    "captures": 0,
+    "levels": "1-cub:0 2-jodel:0 3-c172:0"
+   }
+  },
+  "potato_6": {
+   "label": "fb_potato_6",
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "potato",
+   "props": 6,
+   "flag": true,
+   "mode": "rollout_perf HOME/CIRCUIT chase, the Cub (builds/cub_2026-09-20_corrected.json), 90 s, TIMED",
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "tGarage": 28.108,
+   "tReveal": 3.29,
+   "taxi": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 167,
+    "loopJS": 8.4,
+    "render": 5.3,
+    "renderP90": 6.1,
+    "frames": 2810
+   },
+   "stand": {
+    "fps": 30,
+    "p99": 33.5,
+    "max": 34,
+    "render": 4.5
+   },
+   "gpuTaxi": {
+    "med": 7.298,
+    "p90": 9.888,
+    "calls": 501,
+    "tris": 2874898,
+    "n": 2789
+   },
+   "gpuAir": null,
+   "rollout": {
+    "tasks": 1,
+    "sumMs": 165,
+    "worstMs": 165,
+    "list": [
+     [
+      31717,
+      165
+     ]
+    ]
+   },
+   "boot": {
+    "tasks": 77,
+    "sumMs": 13840,
+    "worstMs": 1552
+   },
+   "fleet": {
+    "stood": 4,
+    "held": 2,
+    "miss": 0,
+    "waitMs": 243,
+    "decodes": 4,
+    "captures": 0,
+    "levels": "1-cub:0 2-jodel:0 3-c172:0 4-c172floats:0"
+   }
+  }
+ },
+ "stills": {
+  "retro": {
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "retro",
+   "mode": "fleet_b still --timed: the SAME held frame, the fleet group shown / hidden, 5 rounds a view, 60 frames each",
+   "summary": {
+    "apron": {
+     "gpuOn": 12.986,
+     "gpuOff": 12.715,
+     "dGpu": 0.271,
+     "callsOn": 513,
+     "callsOff": 507,
+     "trisOn": 6252691,
+     "trisOff": 5957910,
+     "infoCallsOn": 1,
+     "infoCallsOff": 1,
+     "inView": 6,
+     "drawn": 6,
+     "levels": "1-cub:L1 2-jodel:L1 3-c172:L1 4-c172floats:L0 5-twinfloats:L1 6-metal:L1"
+    },
+    "taxi": {
+     "gpuOn": 12.985,
+     "gpuOff": 13.085,
+     "dGpu": -0.1,
+     "callsOn": 832,
+     "callsOff": 832,
+     "trisOn": 9984151,
+     "trisOff": 9984151,
+     "infoCallsOn": 1,
+     "infoCallsOff": 1,
+     "inView": 0,
+     "drawn": 6,
+     "levels": "1-cub:L1 2-jodel:L1 3-c172:L1 4-c172floats:L1 5-twinfloats:L1 6-metal:L1"
+    }
+   },
+   "close": [
+    {
+     "slot": "fleet-1-cub",
+     "filled": true,
+     "level": 1,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 65.9,
+     "tris": 199507,
+     "inView": false
+    },
+    {
+     "slot": "fleet-2-jodel",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 14,
+     "tris": 177860,
+     "inView": false
+    },
+    {
+     "slot": "fleet-3-c172",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 19.2,
+     "tris": 218553,
+     "inView": false
+    },
+    {
+     "slot": "fleet-4-c172floats",
+     "filled": true,
+     "level": 1,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 30.7,
+     "tris": 213560,
+     "inView": true
+    },
+    {
+     "slot": "fleet-5-twinfloats",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 25.8,
+     "tris": 204534,
+     "inView": false
+    },
+    {
+     "slot": "fleet-6-metal",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 28.5,
+     "tris": 232586,
+     "inView": false
+    }
+   ],
+   "near": {
+    "slot": "fleet-4-c172floats",
+    "d": 18.188352838949488,
+    "x": -161.162,
+    "z": 691.198,
+    "pref": null,
+    "az": -2.3803054762055926
+   }
+  },
+  "gamer": {
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "gamer",
+   "mode": "fleet_b still --timed: the SAME held frame, the fleet group shown / hidden, 5 rounds a view, 60 frames each",
+   "summary": {
+    "apron": {
+     "gpuOn": null,
+     "gpuOff": null,
+     "dGpu": 0,
+     "callsOn": 597,
+     "callsOff": 585,
+     "trisOn": 25270974,
+     "trisOff": 24681412,
+     "infoCallsOn": 1,
+     "infoCallsOff": 1,
+     "inView": 6,
+     "drawn": 6,
+     "levels": "1-cub:L1 2-jodel:L1 3-c172:L1 4-c172floats:L0 5-twinfloats:L1 6-metal:L1"
+    },
+    "taxi": {
+     "gpuOn": null,
+     "gpuOff": null,
+     "dGpu": 0,
+     "callsOn": 1044,
+     "callsOff": 1038,
+     "trisOn": 24096832,
+     "trisOff": 23966184,
+     "infoCallsOn": 1,
+     "infoCallsOff": 1,
+     "inView": 0,
+     "drawn": 6,
+     "levels": "1-cub:L1 2-jodel:L1 3-c172:L1 4-c172floats:L1 5-twinfloats:L1 6-metal:L1"
+    }
+   },
+   "close": [
+    {
+     "slot": "fleet-1-cub",
+     "filled": true,
+     "level": 1,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 80,
+     "tris": 199507,
+     "inView": false
+    },
+    {
+     "slot": "fleet-2-jodel",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 21.3,
+     "tris": 177860,
+     "inView": false
+    },
+    {
+     "slot": "fleet-3-c172",
+     "filled": true,
+     "level": 1,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 34.4,
+     "tris": 218553,
+     "inView": false
+    },
+    {
+     "slot": "fleet-4-c172floats",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 24.5,
+     "tris": 213560,
+     "inView": true
+    },
+    {
+     "slot": "fleet-5-twinfloats",
+     "filled": true,
+     "level": 1,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 31.6,
+     "tris": 204534,
+     "inView": false
+    },
+    {
+     "slot": "fleet-6-metal",
+     "filled": true,
+     "level": 1,
+     "ladder": [
+      0,
+      30,
+      450,
+      2500
+     ],
+     "d": 44.2,
+     "tris": 232586,
+     "inView": false
+    }
+   ],
+   "near": {
+    "slot": "fleet-4-c172floats",
+    "d": 18.223031137419976,
+    "x": -161.162,
+    "z": 691.198,
+    "pref": null,
+    "az": -2.366701939030222
+   }
+  },
+  "potato": {
+   "tree": "33942ca5",
+   "build": "f9145510da7b",
+   "preset": "potato",
+   "mode": "fleet_b still --timed: the SAME held frame, the fleet group shown / hidden, 5 rounds a view, 60 frames each",
+   "summary": {
+    "apron": {
+     "gpuOn": 7.067,
+     "gpuOff": 6.813,
+     "dGpu": 0.254,
+     "callsOn": 470,
+     "callsOff": 466,
+     "trisOn": 1972263,
+     "trisOff": 1954592,
+     "infoCallsOn": 1,
+     "infoCallsOff": 1,
+     "inView": 4,
+     "drawn": 4,
+     "levels": "1-cub:L0 2-jodel:L0 3-c172:L0 4-c172floats:L0"
+    },
+    "taxi": {
+     "gpuOn": 6.678,
+     "gpuOff": 6.472,
+     "dGpu": 0.206,
+     "callsOn": 641,
+     "callsOff": 641,
+     "trisOn": 3627554,
+     "trisOff": 3627554,
+     "infoCallsOn": 1,
+     "infoCallsOff": 1,
+     "inView": 0,
+     "drawn": 4,
+     "levels": "1-cub:L0 2-jodel:L0 3-c172:L0 4-c172floats:L0"
+    }
+   },
+   "close": [
+    {
+     "slot": "fleet-1-cub",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 64.5,
+     "tris": 4355,
+     "inView": false
+    },
+    {
+     "slot": "fleet-2-jodel",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 14.2,
+     "tris": 3882,
+     "inView": false
+    },
+    {
+     "slot": "fleet-3-c172",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 17.7,
+     "tris": 4772,
+     "inView": false
+    },
+    {
+     "slot": "fleet-4-c172floats",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 31.5,
+     "tris": 4662,
+     "inView": true
+    }
+   ],
+   "near": {
+    "slot": "fleet-4-c172floats",
+    "d": 18.45670126011231,
+    "x": -161.162,
+    "z": 691.198,
+    "pref": null,
+    "az": -2.297246422458362
+   }
+  }
+ }
+}

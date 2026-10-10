@@ -679,6 +679,25 @@ more** (`person_charles`, `person_luke`, `person_koky`, G280) come from the
 same source, one whole-scene export (`charles.glb`) selected by node — same
 licence, same caveat.
 
+## Freight loads and camp dressing (`assets/loads/`, baked and served from media/)
+
+The freight's own models (FREIGHT-ASSETS, G2405; the user, 7 Oct: "The loads
+will need their own models. You are allowed to use polyhaven"). Declared in
+`tools/load_table.py` (its `SOURCES` block is the machine-readable version of
+this list, its `CATALOGUE` maps these and the existing props to freight item
+kinds), fetched as delivered by `tools/polyhaven_fetch.py`, baked as-is by
+`tools/load_prep.py` (the prop baker's runner pointed at this table) into
+`src/loads/` + `media/geo/loads/` + `media/tex/loads/`, levels cut beside the
+as-is by `tools/prop_lod.js --kit loads`.
+
+**Poly Haven, CC0** — no attribution required, recorded here anyway:
+`medical_box` (Ulan Cabanilla), `plastic_crate_02` (Fabi_G),
+`industrial_pastic_container` (Galo Benivegna), `plastic_container` and
+`cement_bag` and `life_jacket` (PierreB3D), `wooden_crate_01`,
+`portable_generator`, `outdoor_table_chair_set_01` and `wooden_lantern_01`
+(James Ray Cock), `ammo_box` (DanKit), `vintage_suitcase` (Maximilian
+Schuster), `stone_fire_pit` (Sebastian Platen) (https://polyhaven.com/a/<id>).
+
 ## Tram cabin (`assets/cabin/`, baked and served from media/)
 
 The aerial tramway's cabin (`src/viewer/cabin.js`, G343): the user's
@@ -1094,6 +1113,23 @@ layer cannot lose its credit quietly.
   neighbours drowned, resampled to 5/10 m on Alaska Albers, WorldCover's
   water overridden by the DEM's coast, the canopy decimated from 1 m, all
   layers used as masks and weights — never drawn as imagery.
+
+## The island map's painting (`futureDesigns/game/map-mock/map_ai2.jpg`; SHIPPED as `media/map/jolene_art.<h8>.jpg`, G2324 MAP-SIMPLE)
+
+The picture the MAP screen shows is **the user's own AI-generated painting of
+the island** ("Vibrant Mountainous Island Map", 7 Oct 2026): the user made it
+with an AI image generator from the game's own clean map bake (the HD bases,
+`futureDesigns/game/map-mock/map_hd.js`), and ruled it in (GAME-2026-10-06.md
+§R.2, "KEEP THE AI MAP"). It is the user's, made for this game; no third-party
+artwork is in it beyond what the generator produced from that bake.
+- Modifications: upscaled, then rubber-sheeted onto the real coastline
+  (`futureDesigns/game/map-mock/rubbersheet.py`: per-block shifts matching its
+  land mask to the bake's, smoothed, a bilinear remap; median drift 60 m) into
+  the map's frame exactly (2167 x 2834 px at 12 m/px, x0 -11000, z0 -27000,
+  north up). `tools/map_bake.js` ships those bytes as they are, named by their
+  hash; GATE MAPBAKE holds its frame to the projection's.
+- Its own painted runways are not used: the game draws every site, runway,
+  place and wildlife hotspot over it from the projection and the island record.
 
 ## Sound (SOUND-2026-10-04; raw in `assets/audio/raw/` (local, gitignored); SHIPPED as `media/audio/`)
 

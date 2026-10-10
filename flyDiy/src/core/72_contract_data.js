@@ -81,11 +81,29 @@ const CONTRACT_TRACKS = {
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
-// id, name / desc (keys), fields (its home fields), track, base (the job pay's provider base, credits),
-// goods (what its jobs carry: kind kg | pax | bulk, the draw range), jobs (the job TABLE: a template draws a
-// route and a load — `routes` are [from, to] pairs between its fields and HOME; `survey` templates fly over
-// `at` from `from` and land back), arc (its authored contracts, in order), builds (its standalone build
-// contracts, offered beside the arc).
+// id, name / desc (keys), fields (its OWN fields, its yard first), track, base (the job pay's provider base,
+// credits), goods (what its jobs carry: kind kg | pax | bulk, the draw range), jobs (the job TABLE, below), arc
+// (its authored contracts, in order), builds (its standalone build contracts, offered beside the arc).
+//
+// THE JOB TABLE (G2430 CONTRACT-ROUTES, §R.3: "most missions should involve 2 destinations, or more ... not
+// everything should start from Jolene AFB"). A template names WHERE its legs may run as POOLS, never as route
+// pairs, and the SHAPES it comes in (weights); the generator (73_ contractJob) draws a shape, then a route of
+// that shape among the pools that ONE validated design can fly end to end, then a load per leg:
+//   from / to / on   the pools of the pickup (A), the first stop (B) and the onward stop (C):
+//                    'own'  the provider's `fields`        'away'  the island's job fields that are not its own
+//                    'all'  the island's job fields         [ids]   a list (an overflight site may be any field)
+//   back             the goods of the SECOND leg (a backhaul / an onward load; default: the same goods)
+//   shapes           p2p    A -> B                          one leg
+//                    back   A -> B, then goods `back` B -> A   ("maybe take that back")
+//                    onward A -> B, then goods `back` B -> C   (picked up at B)
+//                    milk   A -> B -> C: part of the load left at B, the rest on to C
+//   survey           { from, at, to }: a survey template's pools, its shapes
+//                    loop   over X from A, back to A        pair   over X and Y, back to A
+//                    transit over X from A, land at B (pool `to`)
+// THE ISLAND'S JOB FIELDS are every provider's `fields`, in provider order (73_ contractSites): A NEW SITE JOINS
+// THE JOBS BY DATA ALONE - its row in CONTRACT_FIELDS (the island record's runway, held by GATE CONTRACTS), then
+// its id in the `fields` of each provider that works there (the lake cabins: the clients' and the survey's).
+// The Field Trust's second runway (w2) and East Point (no validated design lands there) are in no provider's list.
 const C_ = (o) => o;   // (a marker: an authored record)
 const CONTRACT_PROVIDERS = {
   field: {
@@ -98,11 +116,11 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'mail',  goods: 'mail',  w: 3, title: 'job.field.mail.title',  brief: 'job.field.mail.brief',
-        routes: [['HOME', 'w3'], ['w3', 'HOME']] },
+        from: 'all', to: 'all', shapes: { p2p: 1, back: 2, milk: 2 } },
       { id: 'tools', goods: 'tools', w: 2, title: 'job.field.tools.title', brief: 'job.field.tools.brief',
-        routes: [['HOME', 'w3'], ['w3', 'HOME'], ['HOME', 'tw_ski']] },
+        from: 'own', to: 'all', back: 'mail', shapes: { p2p: 1, back: 1, onward: 2 } },
       { id: 'crew',  goods: 'crew',  w: 2, title: 'job.field.crew.title',  brief: 'job.field.crew.brief',
-        routes: [['HOME', 'w3'], ['w3', 'HOME']] },
+        from: 'own', to: 'all', shapes: { p2p: 1, back: 2, milk: 1 } },
     ],
     arc: [
       C_({ id: 'field.01', provider: 'field', kind: 'contract', title: 'ct.field.01.title', brief: 'ct.field.01.brief',
@@ -141,17 +159,17 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'parts',   goods: 'parts',   w: 3, title: 'job.minedock.parts.title',   brief: 'job.minedock.parts.brief',
-        routes: [['HOME', 'mn_strip'], ['w3', 'mn_strip']] },
+        from: 'away', to: 'own', back: 'samples', shapes: { p2p: 1, back: 2 } },
       { id: 'samples', goods: 'samples', w: 2, title: 'job.minedock.samples.title', brief: 'job.minedock.samples.brief',
-        routes: [['mn_strip', 'HOME'], ['mn_strip', 'w3']] },
+        from: 'own', to: 'away', back: 'parts', shapes: { p2p: 1, back: 2, onward: 1 } },
       { id: 'crew',    goods: 'crew',    w: 2, title: 'job.minedock.crew.title',    brief: 'job.minedock.crew.brief',
-        routes: [['HOME', 'mn_strip'], ['mn_strip', 'HOME']] },
+        from: 'own', to: 'away', shapes: { p2p: 1, back: 2, milk: 1 } },
       { id: 'rods',    goods: 'rods',    w: 1, title: 'job.minedock.rods.title',    brief: 'job.minedock.rods.brief',
-        routes: [['HOME', 'w3'], ['HOME', 'mn_strip']] },
+        from: 'away', to: 'all', shapes: { p2p: 1 } },
       { id: 'mail',    goods: 'mail',    w: 2, title: 'job.minedock.mail.title',    brief: 'job.minedock.mail.brief',
-        routes: [['SEA', 'mk_sea'], ['mk_sea', 'SEA']] },
+        from: 'own', to: 'own', shapes: { p2p: 1, back: 2 } },
       { id: 'fish',    goods: 'fish',    w: 2, title: 'job.minedock.fish.title',    brief: 'job.minedock.fish.brief',
-        survey: [['SEA', 'mk_sea'], ['mk_sea', 'SEA']] },
+        survey: { from: 'own', at: ['SEA', 'mk_sea', 'w3'] }, shapes: { loop: 1, pair: 2 } },
     ],
     arc: [
       C_({ id: 'minedock.01', provider: 'minedock', kind: 'contract', title: 'ct.minedock.01.title', brief: 'ct.minedock.01.brief',
@@ -163,7 +181,7 @@ const CONTRACT_PROVIDERS = {
            needs: { after: ['minedock.01'] } }),
       C_({ id: 'minedock.03', provider: 'minedock', kind: 'contract', title: 'ct.minedock.03.title', brief: 'ct.minedock.03.brief',
            stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'mn_strip', load: { kg: 120, pax: 0 } }] },
-                    { subs: [{ do: 'carry', from: 'mn_strip', to: 'HOME', load: { kg: 40, pax: 0 } }] }],
+                    { subs: [{ do: 'carry', from: 'mn_strip', to: 'w3', load: { kg: 40, pax: 0 } }] }],
            pay: { base: 5200 }, rep: { provider: 'minedock', gain: 0.75 }, needs: { after: ['minedock.02'] } }),
       C_({ id: 'minedock.04', provider: 'minedock', kind: 'build', title: 'ct.minedock.04.title', brief: 'ct.minedock.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
@@ -209,18 +227,18 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'guests',   goods: 'guests',   w: 3, title: 'job.resort.guests.title',   brief: 'job.resort.guests.brief',
-        routes: [['HOME', 'tw_ski'], ['tw_ski', 'HOME'], ['w3', 'tw_ski']] },
+        from: 'own', to: 'away', shapes: { p2p: 1, back: 2, milk: 1 } },
       { id: 'supplies', goods: 'supplies', w: 2, title: 'job.resort.supplies.title', brief: 'job.resort.supplies.brief',
-        routes: [['HOME', 'tw_ski'], ['w3', 'tw_ski']] },
+        from: ['HOME', 'w3'], to: 'own', back: 'guests', shapes: { p2p: 1, back: 2 } },
       { id: 'sights',   goods: 'sights',   w: 2, title: 'job.resort.sights.title',   brief: 'job.resort.sights.brief',
-        survey: [['tw_ski', 'w3'], ['tw_ski', 'mk_sea']] },
+        survey: { from: 'own', at: ['w3', 'mk_sea', 'mn_strip', 'SEA'], to: 'away' }, shapes: { loop: 1, pair: 1, transit: 1 } },
     ],
     arc: [
       C_({ id: 'resort.01', provider: 'resort', kind: 'contract', title: 'ct.resort.01.title', brief: 'ct.resort.01.brief',
            stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 0, pax: 1 } }] }],
            pay: { base: 1800 }, rep: { provider: 'resort', gain: 0.5 } }),
       C_({ id: 'resort.02', provider: 'resort', kind: 'contract', title: 'ct.resort.02.title', brief: 'ct.resort.02.brief',
-           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'tw_ski', load: { kg: 80, pax: 0 } }] }],
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'tw_ski', load: { kg: 80, pax: 0 } }] }],
            pay: { base: 2800 }, rep: { provider: 'resort', gain: 0.75 }, unlock: { stage: 'resort:1' },
            needs: { after: ['resort.01'] } }),
       C_({ id: 'resort.03', provider: 'resort', kind: 'contract', title: 'ct.resort.03.title', brief: 'ct.resort.03.brief',
@@ -260,7 +278,7 @@ const CONTRACT_PROVIDERS = {
 
   survey: {
     id: 'survey', name: 'prov.survey.name', desc: 'prov.survey.desc', track: 'survey', base: 300,
-    fields: ['HOME'],
+    fields: ['HOME', 'w3', 'mk_sea', 'SEA'],
     goods: [
       { id: 'count',   kind: 'none',             word: 'goods.count' },
       { id: 'samples', kind: 'kg',   kg: [10, 40], word: 'goods.water' },
@@ -268,11 +286,11 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'count',   goods: 'count',   w: 3, title: 'job.survey.count.title',   brief: 'job.survey.count.brief',
-        survey: [['HOME', 'nv_strip'], ['HOME', 'mn_strip'], ['HOME', 'mk_sea'], ['SEA', 'nv_strip']] },
+        survey: { from: 'own', at: ['nv_strip', 'mn_strip', 'mk_sea', 'tw_ski'], to: 'all' }, shapes: { loop: 1, pair: 2, transit: 1 } },
       { id: 'samples', goods: 'samples', w: 2, title: 'job.survey.samples.title', brief: 'job.survey.samples.brief',
-        routes: [['mk_sea', 'SEA'], ['SEA', 'mk_sea']] },
+        from: 'own', to: 'own', shapes: { p2p: 1, back: 2 } },
       { id: 'gear',    goods: 'gear',    w: 2, title: 'job.survey.gear.title',    brief: 'job.survey.gear.brief',
-        routes: [['HOME', 'w3'], ['HOME', 'tw_ski']] },
+        from: 'own', to: 'all', back: 'samples', shapes: { p2p: 1, back: 1, milk: 1 } },
     ],
     arc: [
       C_({ id: 'survey.01', provider: 'survey', kind: 'survey', title: 'ct.survey.01.title', brief: 'ct.survey.01.brief',
@@ -294,7 +312,8 @@ const CONTRACT_PROVIDERS = {
            needs: { rep: 1, after: ['survey.03'] },
            followUp: { add: [{ k: 'seats', op: '>=', v: 2 }, { k: 'emptyKg', op: '<=', v: 380 }] } }),
       C_({ id: 'survey.05', provider: 'survey', kind: 'contract', title: 'ct.survey.05.title', brief: 'ct.survey.05.brief',
-           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 100, pax: 0 } }] }],
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 100, pax: 0 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 20, pax: 0 } }] }],
            pay: { base: 4800 }, rep: { provider: 'survey', gain: 1 }, unlock: { stage: 'survey:3' },
            needs: { rep: 2, after: ['survey.04'] } }),
     ],
@@ -303,7 +322,7 @@ const CONTRACT_PROVIDERS = {
 
   clients: {
     id: 'clients', name: 'prov.clients.name', desc: 'prov.clients.desc', track: 'clients', base: 300,
-    fields: ['HOME', 'w3', 'tw_ski', 'SEA'],
+    fields: ['HOME', 'w3', 'tw_ski', 'SEA', 'mk_sea'],
     goods: [
       { id: 'pax',   kind: 'pax', pax: [1, 3],  word: 'goods.pax' },
       { id: 'kit',   kind: 'kg',  kg: [15, 60], word: 'goods.kit' },
@@ -311,15 +330,16 @@ const CONTRACT_PROVIDERS = {
     ],
     jobs: [
       { id: 'charter', goods: 'pax',   w: 3, title: 'job.clients.charter.title', brief: 'job.clients.charter.brief',
-        routes: [['HOME', 'w3'], ['HOME', 'tw_ski'], ['w3', 'tw_ski'], ['SEA', 'mk_sea']] },
+        from: 'own', to: 'all', shapes: { p2p: 1, back: 2, milk: 1, onward: 1 } },
       { id: 'kit',     goods: 'kit',   w: 2, title: 'job.clients.kit.title',     brief: 'job.clients.kit.brief',
-        routes: [['HOME', 'w3'], ['tw_ski', 'HOME'], ['mk_sea', 'SEA']] },
+        from: 'all', to: 'all', shapes: { p2p: 1, onward: 1, milk: 1 } },
       { id: 'canoe',   goods: 'canoe', w: 1, title: 'job.clients.canoe.title',   brief: 'job.clients.canoe.brief',
-        routes: [['HOME', 'w3'], ['SEA', 'mk_sea']] },
+        from: 'own', to: 'all', shapes: { p2p: 1, back: 1 } },
     ],
     arc: [
       C_({ id: 'clients.01', provider: 'clients', kind: 'contract', title: 'ct.clients.01.title', brief: 'ct.clients.01.brief',
-           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] }],
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'tw_ski', load: { kg: 0, pax: 1 } }] }],
            pay: { base: 1500 }, rep: { provider: 'clients', gain: 0.5 } }),
       C_({ id: 'clients.02', provider: 'clients', kind: 'build', title: 'ct.clients.02.title', brief: 'ct.clients.02.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
@@ -403,24 +423,32 @@ const CONTRACT_TEXT = {
   'load.kg': CT_('{n} kg of {what}'), 'load.pax1': CT_('1 passenger'), 'load.pax': CT_('{n} passengers'),
   'load.bulk': CT_('{what} ({n} kg, the cabin cleared)'), 'load.none': CT_('{what}'),
   // the job table (templates; {from} {to} {load} {at})
-  'job.field.mail.title': CT_('Mail to {to}'), 'job.field.mail.brief': CT_('{load}, {from} to {to}.'),
-  'job.field.tools.title': CT_('Tools for {to}'), 'job.field.tools.brief': CT_('The Trust needs {load} at {to}.'),
-  'job.field.crew.title': CT_('A lift to {to}'), 'job.field.crew.brief': CT_('{load} from {from} to {to}.'),
-  'job.minedock.parts.title': CT_('Parts for the mine'), 'job.minedock.parts.brief': CT_('{load} from {from} up to {to}.'),
-  'job.minedock.samples.title': CT_('Samples out'), 'job.minedock.samples.brief': CT_('{load} from {from} to {to}.'),
-  'job.minedock.crew.title': CT_('Crew change'), 'job.minedock.crew.brief': CT_('{load}, {from} to {to}.'),
-  'job.minedock.rods.title': CT_('Drill rods'), 'job.minedock.rods.brief': CT_('{load}. Long and awkward: {from} to {to}.'),
-  'job.minedock.mail.title': CT_('Mail off the water'), 'job.minedock.mail.brief': CT_('{load}, {from} to {to}.'),
-  'job.minedock.fish.title': CT_('Spot the fish'), 'job.minedock.fish.brief': CT_('Fly out over {at} and back to {from}. Tell the boats what you see.'),
-  'job.resort.guests.title': CT_('Guests for the lodge'), 'job.resort.guests.brief': CT_('{load}, {from} to {to}.'),
-  'job.resort.supplies.title': CT_('Supplies uphill'), 'job.resort.supplies.brief': CT_('{load} for the kitchen, {from} to {to}.'),
-  'job.resort.sights.title': CT_('A sightseeing loop'), 'job.resort.sights.brief': CT_('Over {at} and back to {from}, slowly.'),
-  'job.survey.count.title': CT_('Count over {at}'), 'job.survey.count.brief': CT_('Fly over {at} for the count, then home to {from}.'),
-  'job.survey.samples.title': CT_('Water samples'), 'job.survey.samples.brief': CT_('{load}, {from} to {to}. Keep them upright.'),
-  'job.survey.gear.title': CT_('Gear to {to}'), 'job.survey.gear.brief': CT_('{load} for a field team at {to}.'),
-  'job.clients.charter.title': CT_('A charter to {to}'), 'job.clients.charter.brief': CT_('{load}, {from} to {to}.'),
-  'job.clients.kit.title': CT_('A parcel for {to}'), 'job.clients.kit.brief': CT_('{load}, {from} to {to}.'),
-  'job.clients.canoe.title': CT_('A canoe to {to}'), 'job.clients.canoe.brief': CT_('{load}. Do not ask why. {from} to {to}.'),
+  'job.field.mail.title': CT_('Mail to {to}'), 'job.field.mail.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.field.tools.title': CT_('Tools for {to}'), 'job.field.tools.brief': CT_('The Trust needs {load} at {to}, from {from}.{then}'),
+  'job.field.crew.title': CT_('A lift to {to}'), 'job.field.crew.brief': CT_('{load} from {from} to {to}.{then}'),
+  'job.minedock.parts.title': CT_('Parts for the mine'), 'job.minedock.parts.brief': CT_('{load} from {from} up to {to}.{then}'),
+  'job.minedock.samples.title': CT_('Samples out'), 'job.minedock.samples.brief': CT_('{load} from {from} to {to}.{then}'),
+  'job.minedock.crew.title': CT_('Crew change'), 'job.minedock.crew.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.minedock.rods.title': CT_('Drill rods'), 'job.minedock.rods.brief': CT_('{load}. Long and awkward: {from} to {to}.{then}'),
+  'job.minedock.mail.title': CT_('Mail off the water'), 'job.minedock.mail.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.minedock.fish.title': CT_('Spot the fish'), 'job.minedock.fish.brief': CT_('Fly out over {at}{then} Tell the boats what you see.'),
+  'job.resort.guests.title': CT_('Guests for the lodge'), 'job.resort.guests.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.resort.supplies.title': CT_('Supplies uphill'), 'job.resort.supplies.brief': CT_('{load} for the kitchen, {from} to {to}.{then}'),
+  'job.resort.sights.title': CT_('A sightseeing loop'), 'job.resort.sights.brief': CT_('Over {at}, slowly{then}'),
+  'job.survey.count.title': CT_('Count over {at}'), 'job.survey.count.brief': CT_('Fly over {at} for the count{then}'),
+  'job.survey.samples.title': CT_('Water samples'), 'job.survey.samples.brief': CT_('{load}, {from} to {to}. Keep them upright.{then}'),
+  'job.survey.gear.title': CT_('Gear to {to}'), 'job.survey.gear.brief': CT_('{load} for a field team at {to}, from {from}.{then}'),
+  'job.clients.charter.title': CT_('A charter to {to}'), 'job.clients.charter.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.clients.kit.title': CT_('A parcel for {to}'), 'job.clients.kit.brief': CT_('{load}, {from} to {to}.{then}'),
+  'job.clients.canoe.title': CT_('A canoe to {to}'), 'job.clients.canoe.brief': CT_('{load}. Do not ask why. {from} to {to}.{then}'),
+  // (G2430 CONTRACT-ROUTES) a job's next leg, as its brief's {then} (73_ contractVars: {from} {to} {load} {at} are
+  // the NEXT leg's; a one-leg job's {then} is empty)
+  'job.then.back': CT_(' Then {load} back to {to}.'),
+  'job.then.onward': CT_(' Then {load} from {from} on to {to}.'),
+  'job.then.milk': CT_(' Part of it stays at {from}; {load} on to {to}.'),
+  'job.then.loop': CT_(', then back to {from}.'),
+  'job.then.pair': CT_(', then over {at}, then back to {from}.'),
+  'job.then.transit': CT_(', then land at {to}.'),
   // the arcs
   'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to Tamgas Hill and back.'),
   'ct.field.01.done': CT_('Two landings, no drama. The Trust is listening.'),
@@ -436,7 +464,7 @@ const CONTRACT_TEXT = {
   'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
   'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
   'ct.minedock.02.done': CT_('The headframe\'s frame goes up.'),
-  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down.'),
+  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to Tamgas Hill, for the boat.'),
   'ct.minedock.03.done': CT_('The pump runs. The samples look good.'),
   'ct.minedock.04.title': CT_('Four of us, fast'), 'ct.minedock.04.brief': CT_('I need to get my team of four to the mine fast.'),
   'ct.minedock.04.follow': CT_('The team loves it. Same again, with one thing changed.'),
@@ -451,7 +479,7 @@ const CONTRACT_TEXT = {
   'ct.minedock.b2.follow': CT_('It works. Now the accountant has a request.'),
   'ct.resort.01.title': CT_('The first guest'), 'ct.resort.01.brief': CT_('Our first guest is at the field. Bring her up.'),
   'ct.resort.01.done': CT_('She wants to stay a week.'),
-  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order, from the field to the altiport.'),
+  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from Tamgas Hill to the altiport.'),
   'ct.resort.02.done': CT_('The lodge\'s frame goes up.'),
   'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over Tamgas Hill, and back to the altiport.'),
   'ct.resort.03.done': CT_('The brochure has a cover.'),
@@ -473,9 +501,9 @@ const CONTRACT_TEXT = {
   'ct.survey.04.title': CT_('In and out of East Point'), 'ct.survey.04.brief': CT_('A plane for the East Point clearing: in and out, with an hour of fuel.'),
   'ct.survey.04.follow': CT_('It works. Could it take a second person?'),
   'ct.survey.04.done': CT_('East Point is a station.'),
-  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill.'),
+  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill, and the old instruments back to the office.'),
   'ct.survey.05.done': CT_('The mast is up.'),
-  'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today.'),
+  'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today, and an evening call at the lodge.'),
   'ct.clients.01.done': CT_('The doctor tells everyone.'),
   'ct.clients.02.title': CT_('Push it out alone'), 'ct.clients.02.brief': CT_('Something I can push out of my shed alone. The door is nine metres.'),
   'ct.clients.02.follow': CT_('I love it. Could the next one be even lighter?'),

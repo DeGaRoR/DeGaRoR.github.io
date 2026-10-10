@@ -150,6 +150,9 @@ const MANIFEST = {
     // 61_, which bills the mass of whatever ends up in these bays. It has to
     // sit between them for that reason and no other.
     '60c_gen_energy.js',
+    // THE BELLY POD (G2410): its shape, cargo space, drag, clearance and balance, pure; reads 60_'s GEN_MATERIALS /
+    // GEN_DRAG and 32_'s HYDRO; 61_ bills it, 62_ prices its drag, 64_ reports it, 66_ its mounts
+    '60d_gen_pod.js',
     '61_gen_frame.js',
     '62_gen_aero.js',
     '63_gen_wing.js',
@@ -176,6 +179,26 @@ const MANIFEST = {
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
     '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
+    // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
+    // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
+    '76_stages.js',
+    // THE ECONOMY (G2260 ECONOMY, P5a): one price book (ratios of the ledger's Cub), the career wallet's rules,
+    // the Trust's loan job, the calibration as data and the reference career; pure, GATE ECON. §R G-COST, §12.
+    '76_economy.js',
+    // PROCUREMENT (G2280 PROCURE): the makers' catalogues over the validated builds, the options sheet, the drawing
+    // board, the used market; pure, GATE PROCURE. GAME-2026-10-06.md §5, §R GQ2.
+    '76_procure.js',
+    // FREIGHT (G2340 FREIGHT-MODEL): items with dims, the holds and doors measured off the validated builds'
+    // meshes (FREIGHT_CARDS, tools/_freight_site.js), the door rule, the packer with the plaque's CG range / MTOW /
+    // floor limits, the map's hard no-no; pure, GATE FREIGHT. futureDesigns/game/FREIGHT-2026-10-07.md.
+    '76_freight.js',
+    // THE PILOTS YOU HIRE (G2290 PILOTS): the four recruits (the pack's Block 3), hire / fire, refusals by trait,
+    // a pilot's place, skill growth from the logbook; pure, GATE PILOTS. GAME-2026-10-06.md §9, §R GQ13/GQ14/GQ30.
+    '76_pilots.js',
+    // THE LOADING VIEW'S PURE HALF (G2345 FREIGHT-LOAD): the player's hand on the packer's proposal (the snap, the
+    // refusals of the physically impossible only, the seats out / in, Propose again, the report = freightReport's),
+    // Accept into the career's record and freightAccepted(doc) for FREIGHT-STRAP; pure, GATE FREIGHT.
+    '77_freight_load.js',
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
@@ -262,6 +285,8 @@ const MANIFEST = {
     ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
+    // THE FREIGHT LOADS (G2405, tools/load_table.py): the loads + the camp dressing, slim manifests (bins on demand)
+    ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'loads', 'loads_packs.json'), 'utf8')).map(f => ['src/loads', f]); } catch (e) { return []; } })(),
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
     ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
@@ -271,6 +296,9 @@ const MANIFEST = {
     ['tools', '_village_gen.js'],
     // THE PARKED AEROPLANES (G411): builds as props, before the renderer that stands them
     ['src/viewer', 'parked.js'],
+    // THE FLEET ON THE APRONS (G2225, FLEET-STAND): the cooked tie-down spots (tools/fleet_spots.js --cook) and the stand
+    // (app.js 'parking' step; FLYDIY_FLEET, on by default since G2226)
+    ['src/viewer', 'fleet_spots_pack.js'], ['src/viewer', 'fleet_stand.js'],
     // THE FLOWN BAKE (C4a, G870): the flown aeroplane's exterior baked on parked.js's unwrap, under the roll-out screen
     ['src/viewer', 'flown_bake.js'],
     // THE SCENERY'S LIFE (2026-09-23): people, clutter, rubbish, cars, small structures, antennas - made by the renderer below
@@ -301,7 +329,10 @@ const MANIFEST = {
          ['src/viewer', 'diag.js'],
          // G2252 (MAP-MENU): THE MAP SCREEN - its projection (map_pack.js, tools/map_bake.js writes it) and the screen; fetched
          // when the MAP entry is pressed, never before (the entry itself exists only with ?map=1 or in the career mode)
-         ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js'],
+         // G2345 (FREIGHT-LOAD): THE LOADING VIEW - fetched when the LOAD entry is pressed (the entry exists only under
+         // ?career=1 with a tracked cargo job, or ?freight=1); app.js's FREIGHT page half is its host
+         ['src/viewer', 'freight_load.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
