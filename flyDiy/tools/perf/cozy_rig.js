@@ -76,7 +76,7 @@ const GPUX_SRC = `(function(){ if (window.__GPUXH || typeof WebGL2RenderingConte
 const CAM = {
   // the GARAGE'S OWN default framing (app.js garageFraming: az -2.5, el 0.22, 14 m in any room 5 m or more to the eave),
   // set literally - re-reading the orbit's targets would read back the last camera this rig set
-  room: 'FLIGHT_PROBE.pan && FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(-2.5, 0.22, 14);',
+  room: 'if (GARAGE_ENV.frame) { GARAGE_ENV.frame(); FLIGHT_PROBE.camSettle && FLIGHT_PROBE.camSettle(); } else { FLIGHT_PROBE.pan && FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(-2.5, 0.22, 14); }',
   wide: 'FLIGHT_PROBE.camSet(-2.35, 0.30, 24);',
   back: 'FLIGHT_PROBE.camSet(-0.75, 0.22, 22);',
   side: 'FLIGHT_PROBE.camSet(-Math.PI / 2, 0.06, 13);',

@@ -52,10 +52,17 @@ function careerBlockDefault(o) {
 // probably, even though I find the medium one less intimidating and warmer. Main garage should be cozy"): the WORKS
 // shell at its own 40 x 40 m, every kit, stood in the `cozy` layout (26_hangar_fit HANGAR_LAYOUTS) - the bench corner,
 // the woodshop bay, the office, the lounge round the build bay. The sandbox keeps today's club (GQ29).
-// G2318: the HEARTH (the cozy works with the life brought to the stand) is the default; 'cozy' (the rooms along the
-// walls) is kept beside it for the user's pick (GARAGE_ENV.setLayout in a career)
-const CAREER_MAIN = { shell: 'works', layout: 'hearth' };
+// G2318: the HEARTH (the cozy works with the life brought to the stand) was the default; 'cozy' (the rooms along the
+// walls) kept beside it for the user's pick (GARAGE_ENV.setLayout in a career).
+// G2319.1 (train 44; the user, 10 Oct, on the stills: "not sure what the hearth adds" - KEEP TODAY'S HANGAR for now, the
+// hearth later; long term a derelict giant beside a small good hangar, HANGAR-STORAGE): the career's main hangar is
+// TODAY'S CLUB again (the player default's: no layout, careerMainShed null), with its resident (the garage's club + 1:
+// the room moved under the stand). The works' layouts stay selectable (GARAGE_ENV.setLayout takes the shell with it).
+const CAREER_MAIN = { shell: 'club', layout: null };
+// the train-43 default, recognised so a dev career made under it comes back to the club (careerNormalise, once)
+const CAREER_MAIN_T43 = { shell: 'works', layout: 'hearth' };
 function careerMainShed() {
+  if (!CAREER_MAIN.layout) return null;                        // today's club: the player default's main hangar stands
   const L = (typeof HANGAR_LAYOUTS !== 'undefined') ? HANGAR_LAYOUTS[CAREER_MAIN.layout] : null;
   const S = (typeof SHELLS !== 'undefined') ? SHELLS[CAREER_MAIN.shell] : null;
   if (!L || !S) return null;                                   // a core without the hangar tables: the default stands
@@ -68,6 +75,14 @@ function careerMainUntouched(h) {
   if (!h || typeof h !== 'object' || h.shell !== 'club' || h.layout || h.dims || h.parts) return false;
   const def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
   return !!def && Array.isArray(h.kits) && h.kits.join() === def.join();
+}
+// ...and the train-43 default nobody touched (the works at its own dims, every kit, the hearth, no dress): a dev career
+// made under it (?career=1, train 43 only) is handed today's club back, once (G2319.1)
+function careerMainT43Untouched(h) {
+  if (!h || typeof h !== 'object' || h.shell !== CAREER_MAIN_T43.shell || h.layout !== CAREER_MAIN_T43.layout || h.parts) return false;
+  const S = (typeof SHELLS !== 'undefined') ? SHELLS[h.shell] : null, def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
+  return !!S && !!def && !!h.dims && h.dims.HW === S.dims.HW && h.dims.HD === S.dims.HD && h.dims.EAVE === S.dims.EAVE &&
+    Array.isArray(h.kits) && h.kits.join() === def.join();
 }
 
 // A NEW CAREER (GQ23): a fresh player document in career mode — the main hangar at HOME, an empty fleet —
@@ -94,6 +109,12 @@ function careerNormalise(r) {
   // G2315: a career made before the cozy works holds the player default's untouched club - it becomes the career's
   // main hangar (the base, the tenure and anything else on the record kept); a touched one is the player's, kept
   if (careerMainUntouched(d.sheds.HOME)) { const m = careerMainShed(); if (m) d.sheds.HOME = Object.assign({}, d.sheds.HOME, m, { base: d.sheds.HOME.base, tenure: d.sheds.HOME.tenure }); }
+  // G2319.1: the train-43 works back to today's club when that is the main hangar again (the base, the tenure kept)
+  else if (!CAREER_MAIN.layout && careerMainT43Untouched(d.sheds.HOME)) {
+    const h = d.sheds.HOME, c = playerDefault().sheds.HOME;
+    d.sheds.HOME = Object.assign({}, h, { shell: c.shell, kits: c.kits.slice() }, { base: h.base, tenure: h.tenure });
+    delete d.sheds.HOME.dims; delete d.sheds.HOME.layout;
+  }
   const def = careerBlockDefault();
   const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
   for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];

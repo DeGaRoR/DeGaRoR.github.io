@@ -151,7 +151,9 @@ const PREM_RATES = {
 // a slot is free AND the floor packs it.
 const PREM_MAIN = 'HOME';
 const PREM_SIDE_MAX = 2;
-const PREM_SLOTS = { bay: 1, main: 2, side: 1, sideClub: 2 };
+// mainClub (G2319.1): a CAREER's main hangar that is today's club takes the bay + 1 - its fully kitted floor holds the
+// stand and one more in tandem (the garage's club + 1), never two beside it; the sandbox's ledger keeps `main`
+const PREM_SLOTS = { bay: 1, main: 2, mainClub: 1, side: 1, sideClub: 2 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
 // stationed outside. `age` carries the chalk and the fade (aeroweather.js
 // AERO_WX_LAYERS: chalk 0.70 x age -> 0.42 at full wear), `rain` the drips.
@@ -395,7 +397,10 @@ function playerSideIds(doc) {
 function playerSlots(doc, id) {
   const s = doc && doc.sheds && doc.sheds[id];
   if (!s) return { bay: 0, parked: 0, total: 0 };
-  if (id === PREM_MAIN) return { bay: PREM_SLOTS.bay, parked: PREM_SLOTS.main, total: PREM_SLOTS.bay + PREM_SLOTS.main };
+  if (id === PREM_MAIN) {
+    const parked = (doc.mode === 'career' && (s.shell || 'club') === 'club') ? PREM_SLOTS.mainClub : PREM_SLOTS.main;
+    return { bay: PREM_SLOTS.bay, parked, total: PREM_SLOTS.bay + parked };
+  }
   const n = s.shell === 'club' ? PREM_SLOTS.sideClub : PREM_SLOTS.side;
   return { bay: 0, parked: n, total: n };
 }

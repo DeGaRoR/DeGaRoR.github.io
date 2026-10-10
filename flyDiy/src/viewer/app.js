@@ -1309,6 +1309,13 @@
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
     RES.group.position.set(-(RES.dx || 0), hangar ? hangar.group.position.y : 0, -(RES.dz || 0));
+    // G2319.1: the room moved AFTER the garage framed its eye (enterGarage frames first, the residents stand after):
+    // an eye still where the garage put it is framed again (eased); one the hand has moved is the hand's
+    if (hangar && (hangar.group.position.x !== -(RES.dx || 0) || hangar.group.position.z !== -(RES.dz || 0))) {
+      hangar.group.position.x = -(RES.dx || 0); hangar.group.position.z = -(RES.dz || 0);
+      const f = RES.frame;
+      if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
+    }
     for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
     residentsShow();
     RES.ms = performance.now() - t0;
@@ -1518,15 +1525,24 @@
     setLayout: k => {
       if (!CAREER_DEV || typeof hangarLayout !== 'function') return null;
       const shed = shedHome();
-      if (k && !hangarLayout(k, shed.shell)) return null;
-      if ((shed.layout || null) === (k || null)) return shed.layout || null;
+      // G2319.1: a layout names its shell - choosing one in another shell takes the shell with it (the career's main
+      // hangar is today's club again; the works' hearth / hearthLight / cozy stay one call away)
+      const L = k && typeof HANGAR_LAYOUTS !== 'undefined' ? HANGAR_LAYOUTS[k] : null;
+      if (k && !L) return null;
+      if (L && L.shell && L.shell !== shed.shell && typeof SHELLS !== 'undefined' && SHELLS[L.shell]) {
+        shed.shell = L.shell; shed.dims = Object.assign({}, SHELLS[L.shell].dims);
+        if (WF && WF.setShedDims) WF.setShedDims(Object.assign({ shell: shed.shell }, playerShedDims(player, 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+      } else if ((shed.layout || null) === (k || null)) return shed.layout || null;
       if (k) shed.layout = k; else delete shed.layout;
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
+      if (inGarage) garageCamera();          // a new room, the eye re-framed (as setShell does)
       return shed.layout || null;
     },
     residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
+    // G2319.1: the garage's own default framing, applied (the rigs' "room" camera: a moved room draws the eye in)
+    frame: () => { garageCamera(); return garageFraming(); },
     residentSwap: (n, o) => residentSwap(n, o),      // G2316: a resident onto the stand (timings back)
     setMobile: on => {
       mobileOn = on !== false;
@@ -8669,6 +8685,17 @@
       const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
       F.el = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / F.dist)))));
     }
+    // G2319.1: A ROOM MOVED UNDER THE STAND (the career's club + 1: the stand 4.3 m toward the door) put the default eye
+    // in the doorway - the door end's wall and leaf filled the frame's right edge (the 8 Oct 23:25 stills). The same angle,
+    // the eye drawn in until it stands 2.5 m inside every wall (never nearer than 8 m); a room that never moved is as ever
+    if (hangar && hangar.dims && hangar.group && (hangar.group.position.x || hangar.group.position.z)) {
+      const gp = hangar.group.position, d = hangar.dims, M = 2.5;
+      const tg = (edSit && edSit.visible && edTarget) ? edTarget : null, c = (sim && sim.cgPos) ? sim.cgPos() : [0, 0, 0];
+      const tx = tg ? tg.x : c[0], tz = tg ? tg.z : c[2];
+      const inside = ds => { const r = ds * Math.cos(F.el), ex = tx + r * Math.sin(F.az) - gp.x, ez = tz + r * Math.cos(F.az) - gp.z;
+        return Math.abs(ex) <= d.HD - M && Math.abs(ez) <= d.HW - M; };
+      while (F.dist > 8 && !inside(F.dist)) F.dist -= 0.5;
+    }
     return F;
   }
   function garageCamera() {
@@ -8681,6 +8708,7 @@
     residentsView('room');         // G2315: the garage's own framing is the room view - the other aeroplanes on
     const F = garageFraming();
     az = azT = F.az; el = elT = F.el; dist = distT = F.dist;
+    if (RES) RES.frame = { az: F.az, el: F.el, dist: F.dist };   // G2319.1: the framing a moved room may redo (residentsReframe)
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
