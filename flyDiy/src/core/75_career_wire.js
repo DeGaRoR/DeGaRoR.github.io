@@ -155,7 +155,10 @@ function careerOverflewAdd(world, x, z, set) {
 }
 // THE STOP RECORD (74_career.js contractOnStop's): o = { how, aero (flightWhere's id when flightCanDepart, else null),
 // wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, items, row: {from, to, t}, overflew,
-// hour } -> { how, aero, wrecked, slot, gear, load: {kg, pax, items?}, row, overflew, hour }. Only a STOP delivers:
+// hour, structural } -> { how, aero, wrecked, structural: {damaged, why}, slot, gear, load: {kg, pax, items?}, row,
+// overflew, hour }. (G2705) `structural` is Deform's sim.damage().structural as the page read it ({ damaged, broken,
+// separated, why }; absent before train 41 = not damaged): an acceptance or a challenge flown bent fails
+// (73_ contractSubOnStop). Only a STOP delivers:
 // an ending that is not 'stopped' carries no aerodrome. (G2340 FREIGHT) THE LOAD IS THE LOADED ITEMS: with items
 // aboard (FREIGHT-LOAD's accepted packing), `load.items` is them and `load.kg` their sum; with none, the typed
 // cargo kg stands (the fallback).
@@ -169,11 +172,32 @@ function careerStopRecord(o) {
     how: o.how || 'stopped',
     aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,
     wrecked: !!o.wrecked, slot: o.slot || null, gear: o.gear || null,
+    structural: { damaged: !!(o.structural && o.structural.damaged), why: (o.structural && o.structural.why) || null },
     load,
     row: { from: (o.row && o.row.from) || null, to: (o.row && o.row.to) || null, t: Math.max(0, Math.round(+(o.row && o.row.t) || 0)) },
     overflew: Array.isArray(o.overflew) ? o.overflew.slice() : [],
     hour: (typeof o.hour === 'number' && isFinite(o.hour)) ? Math.round(o.hour * 100) / 100 : null,
   };
+}
+// (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH
+// IN THE CAREER: the aeroplane is back where the flight departed from, repaired. Nothing moves in the document while
+// it flies (71_ playerArrive), so the row normally stands there already; a departure aerodrome `from` it does not
+// stand at puts it there through playerArrive (the hangar it left when it fits, else tied down). The damage record
+// (D5's, a write-off too) is cleared and the wear reset - free, no ledger line; GQ5's recovery line at 0 says what
+// happened. The clock is not touched (playerClock already took the flown time). The stop itself delivers nothing
+// (contractOnStop: wrecked). (doc, slot, from) -> { ok, doc, why, where: playerWhere, line: { k: 'crash', ok: false, text } }
+function careerCrashReset(doc, slot, from) {
+  if (!doc || !doc.career) return { ok: false, doc, why: 'not a career' };
+  if (!slot || !doc.fleet || !doc.fleet[slot]) return { ok: false, doc, why: (slot || 'no airframe') + ' is not in the fleet' };
+  let d = doc;
+  const W0 = playerWhere(d, slot);
+  if (from && W0.aero !== from) { const r = playerArrive(d, slot, from, {}); if (r.ok) d = r.doc; }
+  d = playerRecover(d, slot, {}).doc;                          // a clone: the free recovery line (GQ5, at 0)
+  delete d.fleet[slot].damage;
+  if (typeof playerWearReset === 'function') d = playerWearReset(d, slot).doc;
+  const W = playerWhere(d, slot);
+  const place = W.aero ? (CONTRACT_FIELDS[W.aero] ? CONTRACT_FIELDS[W.aero].name : W.aero) : 'its hangar';
+  return { ok: true, doc: d, why: '', where: W, line: { k: 'crash', ok: false, text: contractText('ev.crash', { n: place }) } };
 }
 // the load the tracked contract asks for now (the plate's default cargo): the first open sub's load
 function careerTrackedLoad(doc) {

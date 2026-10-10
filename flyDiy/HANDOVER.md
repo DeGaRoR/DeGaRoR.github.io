@@ -83969,3 +83969,78 @@ NUMBERS (the box, RTX 3080; grass GPU ms by a TIME_ELAPSED query round every gra
   grass draws ~2x on the approach (gamer app10 50 -> 95). HOME's stand / taxi: almost no grass (the apron + the 48 m bare band)
   until the 'sides' law is the default. THE RED TO CUT before the field is ON (A0): the near band on dense ground and the draws -
   the variants (tuft shapes 2, block 3, tufts, near; grass_window.sh cost) run on the box 11 Oct 03:55 - TRAIN 44.
+
+## G2705-G2709 - CAREER-DAMAGE: FREE REPAIR EVERYWHERE; A CRASH IN THE CAREER RESETS THE AEROPLANE TO WHERE IT DEPARTED FROM, REPAIRED; AN ACCEPTANCE / A CHALLENGE FLOWN BENT FAILS (2026-10-10, CAREER-DAMAGE for the GAME COORDINATOR, cloud, node only + headless UI smoke; branch claude/career-damage-g2705 off origin/claude/game-integration eb4703b6 = train 43 + 843fa745; G2705 used, G2706-G2709 unused)
+
+THE RULING (the user, 10 Oct via A0; futureDesigns/GAME-2026-10-06.md §R.4): "Career damage: FREE repair everywhere, but after
+a crash you reset to your STARTING PLACE ('probably punishment enough')."
+
+THE READING (stated, as asked): the STARTING PLACE = where THIS flight departed from (app.js playerFlightEnd's `fromAero`:
+the hangar it left, or the field it was tied down at), NOT the career's home base. The alternative is one line: in app.js
+playerFlightEnd, `careerCrashReset(d, flSlot, fromAero)` -> `careerCrashReset(d, flSlot, d.sheds[PREM_MAIN].base)` (or call
+playerBringHome there instead).
+
+WHAT CHANGED (pure core + the page's flight-end hook; nothing else):
+1. FREE REPAIR (76_economy.js). econRepairCost(bill, labour) returns 0 (kept, its signature too; ECON_BOOK.repairLabour
+   removed). econRepair: the damage record cleared and the wear reset as before - NO wallet move, NO ledger line, in both
+   modes (the sandbox records no "would cost" line either: there is no cost); the write-off refusal (dm10) stands; the
+   "last flyable airframe may go below 0" rule is gone (nothing to pay). The book keeps its `repair` kind; nothing writes
+   one. The page: #ecRepair reads "Repair · free", the note "repaired <slot> (free)".
+   ECON's CALIBRATION BANDS: NO BAND MOVES - the reference career (econReference) never repaired anything; re-run, unchanged.
+2. RESET AFTER A CRASH (career only). 75_career_wire.js careerCrashReset(doc, slot, from) -> { ok, doc, where, line }:
+   nothing moves in the document while an aeroplane flies (71_ playerArrive), so the row normally already stands at its
+   departure; a `from` the row does not stand at is reached through playerArrive (the existing mover - no new one). Then
+   playerRecover's free line (GQ5, at 0: the history says it was recovered), the fleet row's `damage` deleted (a write-off
+   too - "repaired"), playerWearReset. The clock is not touched (playerClock already took the flown time). The stop
+   delivers nothing (contractOnStop's `wrecked` refusal, unchanged). The card's line (CONTRACT_TEXT 'ev.crash'):
+   "crashed - back at <field>, repaired", FIRST among the career's lines. app.js playerFlightEnd calls it right after
+   careerStopApply, only under `CAREER_DEV && d.career && wrecked` (wrecked = sim.damage().crashed, as before). The
+   sandbox: unchanged (gp4: it stands where it departed from; "bring it home" offered). The in-world aeroplane is not
+   teleported: the next roll-out leaves from playerRollFrom = the ledger's place, which is the departure.
+3. ACCEPTANCE WITH STRUCTURAL DAMAGE. careerStopRecord carries `structural: { damaged, why }` (absent -> { false, null }).
+   The page reads it in careerStructural(): `sim.damage().structural` off the VERY object damage() returns (train 41's
+   non-enumerable getter - never a copy), else the worker's verdict flDmg.structural if it carries one; absent (train 41
+   not in this base - it is NOT in eb4703b6) = not damaged. 73_ contractSubOnStop judges it (bentWhy) for kinds build /
+   challenge and the shapes 'accept' / 'deliver' with crit and 'fly' with medals: "refused: flown with structural damage
+   (<why>)" / "flown with structural damage (<why>)". A transport job that ARRIVES damaged still delivers.
+4. THE UI RULE: no new element. The crash line rides the arrival card's #arrRows (the career rows), which DMG-D4b moves to
+   the lower-left after a crash.
+
+GATES (new rows, each negative-verified):
+  CONTRACTS, new rows: a crashed stop delivers nothing; the reset = its departure place (in the hangar it left; a field
+    tie-down -> that field; a departure the ledger does not hold -> placed there through playerArrive), repaired (a
+    write-off too), free (no repair line, wallet kept), the clock kept, the career block untouched, the card's line;
+    structural damage fails a build's acceptance (whatever the verdict) and a gold challenge time, with the reason; a
+    transport job arriving bent delivers; structural absent / false = not damaged; the stop record's { damaged, why }.
+    --selftest +6 breaks (an acceptance flown bent passes, a challenge flown bent wins a medal, a transport job refused for
+    damage, the stop record drops structural, the reset leaves the damage, the reset ignores the departure): all caught.
+  ECON: the repair rows now assert 0 (any bill, fitted or away), the Repair clears the damage with the wallet and the
+    ledger untouched (even below 0, even away), the sandbox's Repair writes no line, nothing in core or page writes a
+    repair line, the button says free. --selftest: 'the repair billed again', 'a repair writes a ledger line' replace the
+    two labour / last-airframe breaks: all caught.
+    ALSO FIXED (pre-existing red on the base, not this change): "a rebuild short of the cash" - WORKS-COZY (G2315) made the
+    career's main hangar a `works` already, so the row's rebuild to works was a free no-op; the row now starts from a
+    field shed (gate fixture only).
+  DESTTO (career rows): the flown Cub's stop carries no structural damage (read as the page reads it; says "structural
+    absent: train 41 not in this base" until it lands); the page wires careerCrashReset only under the career + wrecked,
+    and the stop record's structural from sim.damage() itself.
+  UISMOKE: its CAREER_DEV line rule caught the first wiring (a career call on its own line): the reset is one guarded line
+    (`const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(...) : null;`).
+
+THE EVIDENCE (10 Oct, this cloud box, `node tools/run_gates.js --only=...`):
+  DESTTO PASS (1700 s, 3 shards) · ACCEPT PASS (189 checks) · CONTRACTS PASS (2384) · ECON PASS (148) · PLAYER PASS · SAVE
+  PASS · BUILD PASS · UISMOKE PASS (146 s, after the one-line fold above; CONTRACTS / PLAYER / SAVE / ECON / BUILD re-run
+  green on the final source; DESTTO's one page-source row re-anchored to the folded line and its regex checked against
+  app.js directly, the 28-min flown run not repeated). CONTRACTS --selftest PASS, ECON --selftest PASS (every G2705 break
+  caught).
+
+OPEN / FOR THE COORDINATOR:
+  - train 41 (Deform's `structural`) is not in this base: the acceptance rule is wired and gated on synthetic records; with
+    train 41 in, DESTTO's career row reads the real field (and must stay "not damaged" on its clean landing).
+  - pilots' repair-bill traits (76_pilots.js 'mechanic' labour x0.9, 'hard-on-airframes' bill x1.1, pilotsRepairK) now
+    multiply a free repair: words without effect - drop or re-purpose them (PILOTS' call).
+  - the sandbox's "bring it home" is unchanged; in the career, after a crash, the card still offers it (free; it moves the
+    aeroplane from a field tie-down to the hangar it last left / the main hangar - a player's choice, not the reset).
+  - nothing writes a fleet row's `damage` yet (DMG-D5's record lands with DMG): the reset and Repair clear it when it exists.
+
+READY for the GAME COORDINATOR: claude/career-damage-g2705 (code, gates and this section in one commit)

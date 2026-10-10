@@ -217,8 +217,13 @@ function careerW3(W, sim, def, check, secs, overflew) {
   const arr = C.playerArrive(d, 'Cub', Wh.aero.id, {});
   if (arr.ok) d = arr.doc;
   const L = C.careerTrackedLoad(d), occ = (def.spec && def.spec.occupants) || 1;
+  // G2705 (CAREER-DAMAGE): Deform's structural verdict, read as the page reads it (app.js careerStructural: off the very
+  // object sim.damage() returns - train 41's non-enumerable getter; absent before it = not damaged)
+  const SD = sim.damage ? sim.damage() : null, SS = SD && SD.structural;
   const stop = C.careerStopRecord({ how: 'stopped', aero: C.flightCanDepart(Wh) ? Wh.aero.id : null, wrecked: crashed, slot: 'Cub', gear: C.stripGear(def),
+                                    structural: SS ? { damaged: !!SS.damaged, why: SS.why || null } : null,
                                     occupants: occ, cargoKg: L ? L.kg : 0, row: { from: 'HOME', to: 'w3', t: secs }, overflew, hour: 12 });
+  check(!stop.structural.damaged, tag + 'the stop record: no structural damage on a clean landing (' + (SS ? 'Deform\'s structural read' : 'structural absent: train 41 not in this base') + ')', JSON.stringify(stop.structural));
   check(stop.aero === 'w3' && !stop.wrecked && stop.load.kg === 35 && stop.load.pax === occ - 1, tag + 'the stop record: at w3, whole, 35 kg aboard (the tracked job\'s declared load), ' + stop.load.pax + ' passenger(s)', JSON.stringify(stop));
   check(overflew.includes('HOME') && overflew.includes('w3') && overflew.indexOf('HOME') < overflew.indexOf('w3'), tag + 'the aerodromes passed, in order (from the flight: ' + overflew.join(', ') + ')');
   const w0 = d.wallet, pay = C.careerContract(d, job).pay.total;
@@ -237,6 +242,9 @@ function careerW3(W, sim, def, check, secs, overflew) {
   const app = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'app.js'), 'utf8');
   check(/if \(CAREER_DEV && d\.career\) \{ const c = careerStopApply\(d, how, W, wrecked\);/.test(app) && /const PLAYER_KEY = CAREER_DEV \? careerKey\('dev'\) : 'flydiy\.player';/.test(app),
         tag + 'the page reaches careerOnStop only under ?career=1 (app.js playerFlightEnd), its document flydiy.career.dev; the sandbox keeps flydiy.player');
+  check(/const cz = \(CAREER_DEV && d\.career && wrecked\) \? careerCrashReset\(d, flSlot, fromAero\) : null;/.test(app) && /wrecked, structural: careerStructural\(\), slot: flSlot,/.test(app)
+        && /const D = sim\.damage \? sim\.damage\(\) : null;\n\s*const S = \(D && D\.structural\)/.test(app),
+        tag + 'G2705: a crash in the career resets to the departure (careerCrashReset, career only); the stop record reads Deform\'s structural off sim.damage() itself');
   log(tag + 'delivered ' + job + ' (' + pay + '), field.01 at stage 2; passed ' + overflew.join(', ') + '; ' + lines.map(l => l.text).join(' / '));
 }
 

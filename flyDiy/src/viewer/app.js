@@ -6629,6 +6629,10 @@
       }
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
+      // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
+      // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
+      const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
+      if (cz && cz.ok) { d = cz.doc; out.reset = cz.where; if (out.career) out.career.lines.unshift(cz.line); }
       // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
       if (CAREER_DEV && d.career && typeof pilotsOnFlightEnd === 'function') {
         const landed = how === 'stopped' && !!(W && flightCanDepart(W)) && !wrecked;
@@ -6725,10 +6729,20 @@
     const L = careerTrackedLoad(playerLoad());
     return L ? L.kg : 0;
   };
+  // G2705 (CAREER-DAMAGE): Deform's structural verdict for the stop record - sim.damage().structural (train 41: a
+  // NON-ENUMERABLE getter, so it is read off the very object damage() returns, never off a copy; the worker's verdict
+  // flDmg when it carries one). Absent (before train 41) -> null: not damaged
+  function careerStructural() {
+    try {
+      const D = sim.damage ? sim.damage() : null;
+      const S = (D && D.structural) || (flDmg && flDmg.structural) || null;
+      return S ? { damaged: !!S.damaged, why: S.why || null } : null;
+    } catch (e) { return null; }
+  }
   function careerStopApply(d, how, W, wrecked) {
     const S = def && def.spec;
     const stop = careerStopRecord({
-      how, aero: W && flightCanDepart(W) ? W.aero.id : null, wrecked, slot: flSlot,
+      how, aero: W && flightCanDepart(W) ? W.aero.id : null, wrecked, structural: careerStructural(), slot: flSlot,
       gear: (S && typeof stripGear === 'function') ? stripGear(S) : null,
       occupants: S && S.occupants != null ? S.occupants : 1, cargoKg: careerCargo(),
       // G2345 (FREIGHT-LOAD): THE LOAD IS THE ITEMS - the placement accepted in the loading view, when it rides this
@@ -6897,7 +6911,7 @@
     playerSave();
     return true;
   }
-  // REPAIR (dm9): the airframe's bill (its fleet row's `damage`, DMG-D5's record), charged on this explicit press
+  // REPAIR (dm9; G2705: FREE): the airframe's damage record (its fleet row's `damage`, DMG-D5's) cleared on this press
   function econRepairNow(slot) {
     const n = slot || slotOnStand();
     if (!n) return null;
@@ -6905,12 +6919,12 @@
     try { const R = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved ? window.GARAGE_SPEC.resolved() : null;
           wants = R && typeof hangarWants === 'function' ? hangarWants(R) : []; } catch (e) {}
     const r = econRepair(playerLoad(), n, { wants });
-    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ': ' + ecFmt(r.cost); playerSave(); }
+    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ' (free)'; playerSave(); }
     else { ecNote = r.why; econWalletSync(); }
     return r;
   }
   // THE WALLET LINE IN THE GARAGE (career only): the wallet, the last thing paid or refused, Repair when the airframe
-  // on the stand is damaged (the bill, x the labour where it stands)
+  // on the stand is damaged (free: G2705)
   function econWalletSync() {
     try { econWalletDraw(); } catch (e) { console.warn('flyDiy (career): the wallet line -', e && e.message); }
   }
@@ -6935,7 +6949,7 @@
     const D = n && d.fleet[n] && d.fleet[n].damage;
     const b = ecWalletEl.querySelector('#ecRepair');
     b.hidden = !(D && D.damaged && !D.writeOff);
-    if (!b.hidden) b.textContent = 'Repair · ' + ecFmt(econRepairCost(D.bill, 1)) + ' ₵ before labour';
+    if (!b.hidden) b.textContent = 'Repair · free';
   }
   if (CAREER_DEV) window.FLYDIY_ECON = {
     price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,

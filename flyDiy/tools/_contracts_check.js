@@ -46,6 +46,10 @@
 //                  reason; a load picked up then delivered; stages in order,
 //                  subs in any order; surveys by overflight; a build contract
 //                  is never judged here (the hook; missing = pending); medals.
+//                  (G2705) an acceptance / a challenge flown with structural
+//                  damage fails with its reason; a transport job still
+//                  delivers; structural absent = not damaged; a crash in the
+//                  career resets the airframe to its departure, repaired, free.
 //   FOLLOW-UPS     every build contract offers one; each changes EXACTLY one
 //                  criterion, never repeats a change, pays +15 % (GQ26/GQ31).
 //   (g1)           no build criterion or build text names a configuration.
@@ -480,6 +484,9 @@ function run(mut) {
     refused(M.contractOnStop(d, job.id, stop(s.to, { load: clone(s.load), row: { from: other, to: s.to } })), before, d, 'the load never taken on at the origin');
     const r = M.contractOnStop(d, job.id, stop(s.to, { load: clone(s.load), row: { from: s.from, to: s.to, t: 500 } }));
     ok(r.ok && r.doc !== d && eq(d, before), 'the right field and load advance a clone (the input kept)');
+    // (G2705 CAREER-DAMAGE) a transport job that ARRIVES with structural damage still delivers (the repair is free)
+    const rb = M.contractOnStop(d, job.id, stop(s.to, { load: clone(s.load), row: { from: s.from, to: s.to, t: 500 }, structural: { damaged: true, why: 'a bent spar' } }));
+    ok(rb.ok && eq(rb.doc.career.contracts, r.doc.career.contracts), 'a transport job arriving with structural damage still delivers (G2705)');
     const e = r.doc;
     ok(e.career.contracts.done.length === 1 && e.career.contracts.done[0].id === job.id && e.career.contracts.done[0].pay === job.pay.total, 'the job is done, at its pay');
     ok(e.wallet === d.wallet + job.pay.total, 'paid net into the wallet (G-COST)');
@@ -561,6 +568,18 @@ function run(mut) {
     ok(r.doc.career.contracts.offered.includes('clients.02+1') && r.events.some(x => x.k === 'done' && x.followUp === 'clients.02+1'), 'GQ26: the happy client offers a follow-up');
     const r2 = M.contractOnStop(d, 'clients.02', st, { acceptVerdict: () => ({ ok: true, got: { emptyKg: 295 } }) });
     ok(r2.ok && r2.doc.career.contracts.done.find(x => x.id === 'clients.02').pay === A['clients.02'].pay.base, 'no margin, no bonus');
+    // (G2705 CAREER-DAMAGE) the acceptance flown with STRUCTURAL damage fails with its reason, whatever the verdict;
+    // structural absent / not damaged = judged as before
+    const bent = Object.assign({}, st, { structural: { damaged: true, why: 'the left spar yielded' } });
+    const rb = M.contractOnStop(d, 'clients.02', bent, { acceptVerdict: () => ({ ok: true, got: { emptyKg: 260 } }) });
+    refused(rb, b, d, 'an acceptance flown with structural damage');
+    ok(/structural damage \(the left spar yielded\)/.test(rb.why), 'its reason: flown with structural damage (' + rb.why + ')');
+    ok(M.contractOnStop(d, 'clients.02', Object.assign({}, st, { structural: { damaged: false, why: null } }), { acceptVerdict: () => ({ ok: true, got: {} }) }).ok
+       && M.contractOnStop(d, 'clients.02', M.careerStopRecord({ how: 'stopped', aero: 'HOME', slot: 'tiny', row: { from: 'w3' } }), { acceptVerdict: () => ({ ok: true, got: {} }) }).ok,
+       'structural not damaged, or absent from the page (before train 41) = not damaged: delivered');
+    const SR = M.careerStopRecord({ how: 'stopped', aero: 'HOME', structural: { damaged: true, broken: 2, separated: 0, why: 'w' } });
+    ok(eq(SR.structural, { damaged: true, why: 'w' }) && eq(M.careerStopRecord({ how: 'stopped', aero: 'HOME' }).structural, { damaged: false, why: null }),
+       'the stop record carries { damaged, why } of Deform\'s structural (absent -> not damaged)');
   }
   {
     // a challenge: medals by the logbook's time
@@ -576,6 +595,10 @@ function run(mut) {
        && g.doc.career.contracts.done.find(x => x.id === 'clients.03').pay === Math.round(M.contractStoryBase(A['clients.03'])) * 2, 'gold, paid double');   // G2260: the story factor (ECONOMY's CONTRACT_PAY.story)
     const s = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 500 } }));
     ok(s.ok && s.doc.career.contracts.done.find(x => x.id === 'clients.03').medal === 'bronze' && s.doc.career.tracks.clients === 1, 'bronze, the club house unlocked');
+    // (G2705 CAREER-DAMAGE) a gold time flown with structural damage wins no medal
+    const cb = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 280 }, structural: { damaged: true, why: 'the tail bent' } }));
+    refused(cb, b, d, 'a timed challenge flown with structural damage');
+    ok(/structural damage/.test(cb.why), 'its reason: ' + cb.why);
   }
   {
     // one stop, many contracts: the tracked one first, every one that moves
@@ -715,6 +738,31 @@ function run(mut) {
     const S = M.careerStopRecord({ how: 'stopped', aero: 'w3', occupants: 2, cargoKg: 34.6, row: { from: 'HOME', to: 'w3', t: 412.4 }, overflew: ['HOME', 'w3'], hour: 11.257 });
     ok(S.aero === 'w3' && S.load.kg === 35 && S.load.pax === 1 && S.row.t === 412 && S.hour === 11.26 && S.overflew.join() === 'HOME,w3' && !S.wrecked, 'the stop record: the field, the load (occupants beyond the pilot + the cargo), the row, the hour');
     ok(M.careerStopRecord({ how: 'over', aero: 'w3' }).aero === null, 'the stop record: an ending that is not a stop delivers nowhere');
+    // (G2705 CAREER-DAMAGE, §R.4) A CRASH IN THE CAREER: back where the flight departed from, repaired, free; the stop
+    // delivers nothing; the clock untouched; the card's line says so
+    {
+      const k0 = clone(e);
+      k0.fleet = { Cub: { hangar: 'HOME', aero: 'HOME', damage: { damaged: true, writeOff: true, bill: [{ section: 'wing', line: 'spar', cost: 9000 }] } } };
+      k0.clock = 1234;
+      const kb = clone(k0);
+      const crash = M.careerStopRecord({ how: 'crashed', aero: null, wrecked: true, slot: 'Cub', occupants: 1, cargoKg: 0, row: { from: 'HOME', to: 'w3', t: 300 } });
+      const kr = M.careerOnStop(k0, crash, {});
+      ok(!kr.ok && kr.doc === k0 && Object.values(kr.untouched).some(w => /wrecked: nothing is delivered/.test(w)), 'a crashed stop delivers nothing');
+      const z = M.careerCrashReset(kr.doc, 'Cub', 'HOME');
+      const W = CORE.playerWhere(z.doc, 'Cub');
+      ok(z.ok && W.kind === 'in' && W.hangar === 'HOME' && W.aero === 'HOME' && !z.doc.fleet.Cub.damage, 'the crash resets the aeroplane to its departure place (in the hangar it left), repaired (a write-off too)');
+      ok(z.doc.wallet === k0.wallet && z.doc.clock === 1234 && !z.doc.ledger.slice(k0.ledger.length).some(l => l.k === 'repair' || l.amt !== 0), 'free (no repair line, the wallet untouched), the clock kept');
+      ok(eq(z.doc.career, k0.career) && eq(k0, kb), 'nothing delivered; the document handed in untouched');
+      ok(z.line && z.line.k === 'crash' && /^crashed - back at .+, repaired$/.test(z.line.text), 'the card\'s line: ' + (z.line && z.line.text));
+      // departed from a field where it was tied down: back there (playerArrive, the existing mover); out of place in
+      // the document -> moved to the departure aerodrome
+      const k1 = clone(k0); k1.fleet.Cub = { hangar: null, aero: 'w3', outSince: 0, damage: { damaged: true, bill: [] } };
+      const z1 = M.careerCrashReset(k1, 'Cub', 'w3');
+      ok(z1.ok && CORE.playerWhere(z1.doc, 'Cub').aero === 'w3' && !CORE.playerWhere(z1.doc, 'Cub').hangar && !z1.doc.fleet.Cub.damage, 'departed from a field: back at that field, repaired');
+      const z2 = M.careerCrashReset(k0, 'Cub', 'w3');
+      ok(z2.ok && CORE.playerWhere(z2.doc, 'Cub').aero === 'w3', 'a departure the ledger does not hold: placed there through playerArrive');
+      ok(!M.careerCrashReset(CORE.playerDefault(), 'Cub', 'HOME').ok && !M.careerCrashReset(k0, 'Nope', 'HOME').ok, 'no reset outside a career or for an airframe not in the fleet');
+    }
     // the stop advances the job; the event lines say so, with the wallet
     const L = M.careerTrackedLoad(e), sub = M.careerContract(e, job).stages[0].subs[0];
     ok(L && L.kg === sub.load.kg && L.pax === sub.load.pax, 'the tracked load: the plate\'s default cargo is the contract\'s');
@@ -869,6 +917,12 @@ const BREAKS = [
   ['a stop at the wrong field advances', { s73: sub('    if (at === sub.to) {\n      if (!(prog.picked', '    if (true) {\n      if (!(prog.picked') }],
   ['the load is not checked', { s73: sub('  const loadOk = L => {\n', '  const loadOk = L => { return true;\n') }],
   ['a wreck delivers', { s74: sub("  if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');", '') }],
+  ['an acceptance flown bent passes (G2705)', { s73: sub("    const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };\n", '') }],
+  ['a challenge flown bent wins a medal (G2705)', { s73: sub("    const b = bentWhy(); if (b) return { st: 'no', why: b };\n", '') }],
+  ['a transport job refused for damage (G2705)', { s73: sub("      const w = whenWhy(); if (w) return { st: 'no', why: w };\n      return { st: 'done', why: '' };", "      const w = whenWhy(); if (w) return { st: 'no', why: w };\n      if (S && S.damaged) return { st: 'no', why: 'bent' };\n      return { st: 'done', why: '' };") }],
+  ['the stop record drops structural (G2705)', { s75: sub('    structural: { damaged: !!(o.structural && o.structural.damaged),', '    structural: { damaged: false && !!(o.structural && o.structural.damaged),') }],
+  ['a crash reset leaves the damage (G2705)', { s75: sub('  delete d.fleet[slot].damage;\n  if (typeof playerWearReset', '  if (typeof playerWearReset') }],
+  ['a crash reset ignores the departure (G2705)', { s75: sub('  if (from && W0.aero !== from) {', '  if (false) {') }],
   ['a refused stop leaves a mark', { s74: sub("    const out = crNo(doc, r.why);", "    doc.career.contracts.live[id] = Object.assign({}, doc.career.contracts.live[id], { tried: 1 });\n    const out = crNo(doc, r.why);") }],
   ['stages are not in order', { s74: sub('  const st = rec.stages[L.stage];', '  const st = { subs: [].concat(...rec.stages.map(x => x.subs)) };') }],
   ['dusk is ignored', { s73: sub("typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)", "typeof stop.hour === 'number' && stop.hour >= 99)") }],

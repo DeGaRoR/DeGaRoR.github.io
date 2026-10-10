@@ -888,6 +888,14 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
     + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : ''); };
   const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
     ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
+  // (G2705 CAREER-DAMAGE) AN ACCEPTANCE FLOWN BENT FAILS: a build contract's acceptance ('accept' / 'deliver' with
+  // crit) and a timed challenge ('fly' with medals) judge the airframe as it stopped - stop.structural, the stop
+  // record's { damaged, why } (Deform's sim.damage().structural; absent = not damaged). A transport job that
+  // arrives damaged still delivers (the repair is free).
+  const S = stop.structural;
+  const bentWhy = () => (S && S.damaged && (rec.kind === 'build' || rec.kind === 'challenge')
+    && (((sub.do === 'accept' || sub.do === 'deliver') && Array.isArray(sub.crit) && sub.crit.length) || (sub.do === 'fly' && sub.medals)))
+    ? 'flown with structural damage' + (S.why ? ' (' + S.why + ')' : '') : '';
   if (sub.do === 'carry') {
     if (at === sub.to) {
       if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };
@@ -911,6 +919,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
     if (at !== sub.to) return { st: 'no', why: 'stopped at ' + nm(at) + ', not ' + nm(sub.to) };
     if (sub.from && row.from !== sub.from) return { st: 'no', why: 'the leg left ' + nm(row.from) + ', not ' + nm(sub.from) };
     const w = whenWhy(); if (w) return { st: 'no', why: w };
+    const b = bentWhy(); if (b) return { st: 'no', why: b };
     if (sub.medals) {
       const t = +row.t;
       if (!isFinite(t)) return { st: 'no', why: 'no time in the logbook row' };
@@ -926,6 +935,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   }
   if (sub.do === 'deliver' || sub.do === 'accept') {
     if (sub.do === 'deliver' && at !== sub.to) return { st: 'no', why: 'delivered at ' + nm(sub.to) + ', stopped at ' + nm(at) };
+    const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };
     const H = hooks && typeof hooks.acceptVerdict === 'function' ? hooks.acceptVerdict : null;
     if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };
     let v;
