@@ -84172,8 +84172,10 @@ NACA 3412. The gap the user saw in flight was most likely the stab and fin above
 - GEOPARITY (core, ~15 s): every flown strip against the drawn sheet at its station - the validated five, the
   mosquito repros (tools/fixtures/repro/mosquito_0..3.json, copies of the user's Downloads files), 8 dial variants
   (boom +0.8 / -0.6, fin swept 25, the Cub turtledeck, the mosquito boom 3.6 / 6.0, the Jodel fin upright, the
-  twin's rod inclined) and two doctored self-tests (fin +0.5 m, stab +0.15 m go red). Tolerance: mean station 5 cm
-  (fin 10 cm - KEEL debt below), mean height 3 cm, worst strip 15 cm / 5 cm. Master fails it on the Jodel, the twin
+  twin's rod inclined) and two doctored self-tests (fin +0.5 m, stab +0.15 m go red). Tolerance: mean station 5 cm,
+  mean height 3 cm, worst strip 15 cm / 5 cm; and per build the SURFACES: strip areas = Sv / Sh = the drawn sheets
+  (+ counted ventrals), control chord fractions = the drawn cuts', aspect ratios within 15 %, the stab's aero centre
+  within 10 cm (32 rows). Master fails it on the Jodel, the twin
   on floats and the mosquito.
 - DESIGNCHECK (core, ~140 s): no FAIL on the validated five; six doctored designs fail on their own row with a fix
   (fin 30 %, a sliver, dragged forward; stab 40 %; tail 1.2 m forward at the worst corner; no aileron); fin /
@@ -84221,9 +84223,13 @@ The shell's own share (the boom stiffer) moves none of these by more than the la
 change (the flex), not a handling one.
 
 ### Owed / not done
-- KEEL: the join's Sv counts the keel tab under the deck (TAIL CHANTIER 2) and the frame flies it on the fin's two
-  strips above the post: where a fin roots below the post's top (a turtledeck's narrow boom) the strips' chords come
-  out ~30 % wide and 7-9 cm forward; every fin's force sits 13-18 cm above the drawn area's centre. A keel strip.
+- KEEL (mostly closed, 10 Oct ~23:20): a fin drawn rooting BELOW the tail post's top (a turtledeck's narrow boom:
+  0.13 m on mosquito (2), 0.15 m on the Cub turtledeck) flew squeezed above the post - aspect 0.78 for the drawing's
+  1.08, chords ~30 % wide, quarter chords 7-9 cm forward. The join now measures the drop (tail.vRootDrop: the fin
+  proper's span against the post's top, within the tail's depth) and the frame roots the fin's truss and strips there;
+  the turtledecks' fins within 1 cm, GEOPARITY's fin tolerance back to 5 cm like the others, the surfaces' areas /
+  control fractions / aspect ratios gated. Every validated build measures 0 (bit-identical). What is left: the keel
+  TAB's own area (under the deck) is still flown on the fin's strips - its force 13-18 cm high; a keel strip, owed.
 - THE MESH SHOWING THE TAIL'S FLEX (scope 2b): the drawn tail does not ride the lattice in flight (only the wing's
   spar deltas and the strut bind; skin_break's riding is the damage path). With the shell the flex left to show is
   1-2 mm in the game's breeze (was 21-23 mm), below what the eye sees; owed only for a genuinely soft design.

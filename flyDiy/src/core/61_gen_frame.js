@@ -2076,7 +2076,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // the fin's apex node follows the RAKE, so the truss leans with the fin the
   // skin draws instead of standing upright inside a swept one
   const rakeV = Math.tan((t.vSweep || 0) * Math.PI / 180);
-  const hV = finTopY - lastST.yt;                              // the truss's own height
+  // G2640 (the KEEL row): the truss roots where the drawn fin does - up to the
+  // tail's own depth below the post's top (tail.vRootDrop; 0 = on the post)
+  const yV0 = lastST.yt - Math.max(0, Math.min(lastST.yt - lastST.yb, t.vRootDrop || 0));
+  const hV = finTopY - yV0;                                    // the truss's own height
   FIN = N(t.vX + rakeV * hV, finTopY, 0, 'FIN');
   const vTap = t.vTaper == null ? 1 : t.vTaper;
   const vc = t.Sv / hV;                                        // the mean chord over the truss
@@ -2087,7 +2090,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const nV = Math.max(2, Math.min(3, Math.round(hV / 0.55)));
   const VF = [], VR = [], VX = [], VX2 = [];
   for (let i = 0; i <= nV; i++) {
-    const u = i / nV, y = lastST.yt + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
+    const u = i / nV, y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
     VF.push(N(xFV(u), y, 0, 'VF')); VR.push(N(xRV(u), y, 0, 'VR'));
     // the pair either side: the fin's own thickness, a diamond section
     VX.push(N(xm, y, 0.5 * dep * chordV(u), 'VX')); VX2.push(N(xm, y, -0.5 * dep * chordV(u), 'VX'));

@@ -3492,7 +3492,11 @@ const GEN_DEFAULT = {
           boomDy: 0,                      // G271: the root's height over the trailing-edge line, m
           // G266.2: the drawn stab's height (frame y) on a twin boom — the
           // panel seats above the booms' crown; null = on the crown
-          stabY: null },
+          stabY: null,
+          // G2640 (the KEEL row): how far the drawn fin roots BELOW the tail
+          // post's top (m, the join measures it); the fin's truss and strips
+          // start there. 0 = on the post, as every build before
+          vRootDrop: 0 },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
   // is soft (long travel, bottoms out), above is hard (jars, but holds).
   // type 'taildragger' puts the third wheel at the tail and the mains AHEAD of
@@ -4466,6 +4470,7 @@ function clampSpec(spec) {
   // to it: 2.6 and 4.6 cm above the drawn stab (the geometry-parity row)
   S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, -0.5, 1);
   S.tail.vSweep = genFieldClamp('tail.vSweep', S.tail.vSweep);
+  S.tail.vRootDrop = genClamp(S.tail.vRootDrop == null ? 0 : S.tail.vRootDrop, 0, 1.0);   // G2640
   const dr = S.tail.dorsal || (S.tail.dorsal = {});
   dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
   dr.width  = genClamp(dr.width  == null ? 0.55 : dr.width,  0.15, 1.60);

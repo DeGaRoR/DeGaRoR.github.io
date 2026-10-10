@@ -558,6 +558,7 @@ function cageJoinSpec(P, M, T) {
   if (M.vX > 0) tl.vX = M.vX;
   if (typeof M.vSweep === 'number' && isFinite(M.vSweep)) tl.vSweep = M.vSweep;   // G2640: the measured rake
   if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
+  if (typeof M.vRootDrop === 'number' && isFinite(M.vRootDrop)) tl.vRootDrop = M.vRootDrop;   // G2640: the KEEL row
   // THE AREAS (TAIL CHANTIER 2 P1): the sheets' own, by assignment like the
   // rows above — resolveSpec's volume rule is `put` and stands down (G115).
   // Sh gross, Sv dorsal-free, Svt a V's panels; the dorsal measured apart.
@@ -1636,11 +1637,22 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               const ca = layerCutY('cageLayer:fin', yAt(0.30), xB);
               const cb = layerCutY('cageLayer:fin', yAt(0.80), xB);
               const dy = 0.5 * (finTop - M.tailTop);
+              // G2640 (the KEEL row): WHERE THE DRAWN FIN ROOTS. The truss
+              // stood on the tail post's top; a fin drawn rooting BELOW it (a
+              // turtledeck's fin on its narrow boom: 0.15 m on the Cub's) had
+              // its area spread over too short a height - aspect 0.78 for the
+              // drawing's 1.08, chords 30 % wide. The proper sheet's own span
+              // (keel tab excluded) says where its root is: the drop below the
+              // post's top, within the tail's own depth; 0 where the sheet
+              // roots on or above the post (every build before this).
+              M.vRootDrop = finM && finM.span > 0
+                ? Math.max(0, Math.min(M.tailTop - M.tailBot, M.tailTop - (finTop - finM.span))) : 0;
               if (ca && cb && dy > 0.05) {
                 const ma = zFw - 0.5 * (ca.z0 + ca.z1), mb = zFw - 0.5 * (cb.z0 + cb.z1);
                 const rake = (mb - ma) / dy;
                 if (isFinite(rake) && Math.abs(rake) < 1.5) {
-                  M.vX = ma - rake * 0.30 * (finTop - M.tailTop);
+                  // the line carried down to the truss's root (the drop below the post's top)
+                  M.vX = ma - rake * (0.30 * (finTop - M.tailTop) + M.vRootDrop);
                   M.vSweep = Math.atan(rake) * 180 / Math.PI;
                 }
               }

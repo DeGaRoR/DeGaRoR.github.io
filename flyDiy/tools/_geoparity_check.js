@@ -51,7 +51,7 @@ const argv = process.argv.slice(2);
 const VERB = argv.includes('--verbose');
 const ONLY = (argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 
-const TOL = { meanX: 0.05, meanXfin: 0.10, meanH: 0.03, worstX: 0.15, worstH: 0.05 };
+const TOL = { meanX: 0.05, meanXfin: 0.05, meanH: 0.03, worstX: 0.15, worstH: 0.05 };
 const rd = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return j.spec || j; };
 const cage = (o) => s => { s.cage = Object.assign({}, s.cage, o); };
 const floats = s => { s.gear.type = 'floats'; s.cage = Object.assign({}, s.cage, { gearFloats: 1 }); };
@@ -104,6 +104,41 @@ function judge(key, r, expectRed) {
     const w = r.worst[k];
     return w ? `${k} mean ${f3(w.mx)}/${f3(w.mh)} worst ${f3(w.dx)}/${f3(w.dh)} chord ${f3(w.dc)}` : k + ' -';
   }).join(' | ');
+  // THE SURFACES' OWN NUMBERS (the user, via A0: "the surface occupied by the physics fin is very different from the
+  // real one; no horn, no control surface, no leading edge" - the blue truss is the STRUCTURE, the strips the surface):
+  // the strips' areas are the spec's Sv / Sh and the drawn sheets' (+ the ventrals the join counts), the controls'
+  // chord fractions the drawn cuts', the aspect ratios within 15 %
+  if (!expectRed && r.W && r.def) {
+    const def = r.def, S = def.spec, FM = r.W.CAGE_FIN && r.W.CAGE_FIN.measure, SM = r.W.CAGE_STAB && r.W.CAGE_STAB.measure;
+    const areaOf = k => def.strips.filter(q => q.kind === k).reduce((a, q) => a + q.area, 0);
+    const Af = areaOf('fin'), As = areaOf('stab');
+    const sb = [];
+    if (S.tail.type === 'conventional' || !S.tail.type) {
+      if (Math.abs(Af - S.tail.Sv) > 0.005 * S.tail.Sv) sb.push(`fin strips ${Af.toFixed(3)} m2 vs Sv ${S.tail.Sv.toFixed(3)}`);
+      if (Math.abs(As - S.tail.Sh) > 0.005 * S.tail.Sh) sb.push(`stab strips ${As.toFixed(3)} m2 vs Sh ${S.tail.Sh.toFixed(3)}`);
+      if (FM && FM.areaTail > 0) {
+        const cv = S.cage || {}, FSv = (+cv.planeScale || 1);
+        const ventral = (+cv.finVentralOn && +cv.gearFloats) ? 0.5 * (1 + Math.max(0.05, Math.min(1, +cv.finVentralTip || 0.35))) * Math.max(0.1, +cv.finVentralC || 0.6) * Math.max(0.05, +cv.finVentralH || 0.4) * FSv * FSv : 0;
+        if (Math.abs(S.tail.Sv - FM.areaTail - ventral) > 0.01 * FM.areaTail) sb.push(`Sv ${S.tail.Sv.toFixed(3)} vs drawn fin+rudder+keel ${FM.areaTail.toFixed(3)} (+ventral ${ventral.toFixed(3)})`);
+        const rc = S.controls && S.controls.rudder && S.controls.rudder.chord;
+        if (FM.ctlFrac > 0 && !(Math.abs((rc || 0) - FM.ctlFrac) < 0.005)) sb.push(`rudder chord ${rc} vs drawn ${FM.ctlFrac.toFixed(3)}`);
+        const hV = def.nodes.find(n => n.tag === 'FIN').p[1] - Math.min(...def.nodes.filter(n => n.tag === 'VF').map(n => n.p[1]));
+        const arP = hV * hV / Math.max(1e-6, Af - ventral), arD = FM.span * FM.span / FM.areaProper;   // (the ventral flies on its own height: not the fin's aspect)
+        if (Math.abs(arP / arD - 1) > 0.15) sb.push(`fin AR ${arP.toFixed(2)} vs drawn ${arD.toFixed(2)}`);
+      }
+      if (SM && SM.areaTail > 0) {
+        const ec = S.controls && S.controls.elevator && S.controls.elevator.chord;
+        if (SM.ctlFrac > 0 && !(Math.abs((ec || 0) - SM.ctlFrac) < 0.005)) sb.push(`elevator chord ${ec} vs drawn ${SM.ctlFrac.toFixed(3)}`);
+        const arP = S.tail.hSpan * S.tail.hSpan / S.tail.Sh, arD = Math.pow(2 * SM.span, 2) / (2 * SM.areaTail);
+        if (Math.abs(arP / arD - 1) > 0.15) sb.push(`stab AR ${arP.toFixed(2)} vs drawn ${arD.toFixed(2)}`);
+      }
+      const cs = r.centre && r.centre.stab;
+      if (cs && Math.abs(cs.dx) > 0.10) sb.push(`stab aero centre ${f3(cs.dx)} m from the drawn one`);
+      ok(!sb.length, `${key}: the surfaces - fin ${Af.toFixed(2)} m2 (rudder ${(S.controls && S.controls.rudder && S.controls.rudder.chord || 0).toFixed(2)}), ` +
+         `stab ${As.toFixed(2)} m2 (elevator ${(S.controls && S.controls.elevator && S.controls.elevator.chord || 0).toFixed(2)}): ` +
+         (sb.length ? sb.join('; ') : 'areas, control fractions and aspect ratios the drawn ones'));
+    }
+  }
   const cen = Object.entries(r.centre || {}).map(([k, c]) => `${k} ${f3(c.dx)}/${f3(c.dh)}`).join(' ');
   if (!expectRed && cen) console.log('           aero centres (readout) flown - drawn: ' + cen);
   if (expectRed) ok(bad.length > 0, `${key}: the doctored build goes RED (${bad.join('; ') || 'nothing caught'})`);
