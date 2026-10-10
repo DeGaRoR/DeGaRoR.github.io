@@ -83969,3 +83969,107 @@ NUMBERS (the box, RTX 3080; grass GPU ms by a TIME_ELAPSED query round every gra
   grass draws ~2x on the approach (gamer app10 50 -> 95). HOME's stand / taxi: almost no grass (the apron + the 48 m bare band)
   until the 'sides' law is the default. THE RED TO CUT before the field is ON (A0): the near band on dense ground and the draws -
   the variants (tuft shapes 2, block 3, tufts, near; grass_window.sh cost) run on the box 11 Oct 03:55 - TRAIN 44.
+
+## G2445-G2449 - MAP-STYLE: ONE LOOK, THE GARAGE'S - THE MAP SCREEN READS THE WORKSHOP'S `--ed-*` TOKENS (DECLARED ONCE, editor.css's BLOCK NOW ON #mapScreen TOO; THE `--mm-*` PALETTE GONE), IBM PLEX SANS UPRIGHT EVERYWHERE (THE LIST, THE SWITCH, THE FOOTER AND EVERY LABEL ON THE MAP: PLACE NAMES, RUNWAY FACTS, HOTSPOTS, MAP-INFRA's TOWN / WORKS / TRAM, THE COMPASS, THE SCALE BAR - NO SERIF, NO ITALIC), THE GARAGE'S CONTROLS AT TOUCH SIZE (.verb.pri / .verb, THE ROWS' SELECT, THE SEGMENTED CONTROL, THE PLATE) (2026-10-08, MAP-STYLE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/map-style-g2445 off origin/claude/game-integration 1f553a9d (df8eb904 + the coordinator's G2200 docs))
+
+The brief: GAME-2026-10-06.md §R.3 "One look: the garage's" (the user, 7 Oct: *"does the UI of the map take the same styling
+as the sliders in the garage? They should. And in the map, use [the font] like you do in the left menu, no need for these
+italics and serifs"*). Matched to the garage, not redesigned: every selector, size and behaviour of MAP-SIMPLE / MAP-MERGE /
+MAP-INFRA kept; only the dress changed. No generated file committed (`node tools/build.js` before the gates).
+
+**G2445 ONE PALETTE, DECLARED ONCE** - editor.css's workshop token block (the one that "is the only place a token has to be
+added") is now `:is(#wsUI, #edView, #mapScreen)`: the map screen (a body-level root outside both layers) inherits the same
+17 `--ed-*` values; map_menu.js's CSS reads them through `var(--ed-*)` and restates none. The `--mm-*` palette is gone,
+mapped by role: --mm-bg -> --ed-board, --mm-panel -> --ed-panel, --mm-ink -> --ed-ink, --mm-mid -> --ed-dim (labels) /
+--ed-faint (headings, the switch's off state), --mm-line -> --ed-hair, the open row's #2b2722 -> --ed-acc-soft with the
+tree's 2 px accent mark (`.edN.on`), --mm-acc (the amber #e6a15a; `ACC` deleted, nothing else read it) -> --ed-acc,
+--mm-no -> --ed-bad, --mm-ok -> --ed-acc (the garage's rule: "no green ok colour anywhere"), the badges' --mm-paper /
+--mm-sepia -> --ed-acc / --ed-acc-ink (the bone face of the garage's accent with its ink - the icons and the type rings
+themselves unchanged). Kept as the map's own (not UI): the contract TYPE colours (inline from TYPES, the user's "bold type
+colours"), the painting's edge #004279 (pack.art.edge), the hotspots' greens / blues, the water badge's blue icon, MAP-INFRA's
+INK (roads, zones, houses), the runway drawing and the route lines in CORE (overlayOf's strings - the pure exports the gates
+read are byte-unchanged).
+
+**G2446 THE FONT** - IBM Plex Sans upright on the whole screen: the root `font:400 14px/1.5 'IBM Plex Sans'` +
+`font-style:normal`, and `em, i, small` forced upright (the ★ / "flies next" `<em>`s, the icon `<i>`s). `--mm-old`
+('IM Fell English', Georgia, serif) is gone from every rule; the labels drawn on the map keep their halos, now in the
+garage's inks, and their hierarchy is by weight and size:
+- MAP-INFRA's `.mmLbl`: a works / station 500 12.5 px, the tram 12 px, the village 600 14 px, the town 700 16 px in spaced
+  capitals (was small-caps serif) - colour --ed-acc-ink, halo --ed-ink (three text-shadows, as before).
+- the places of interest (`.mmPoi`): 500 12.5 px, the same ink and halo.
+- the hotspots' names (`.mmHotN`): 500 12 px, --ed-ink on an --ed-acc-ink halo (light on the painting's forest).
+- the place names (`.mmNm`, they are buttons): 600 13 px on the garage's plate (--ed-plate, --ed-border, 5 px radius), the
+  runway facts in `<small>` 400 11.5 px --ed-dim (was a paper chip, serif, the facts italic).
+- the compass rose: its SVG colours moved to classes (`.rk / .rd / .rl` -> --ed-acc-ink / --ed-acc), the N in Plex 700 9 px
+  with an --ed-ink paint-order halo (was `IM Fell English SC, Georgia, serif`).
+- the scale bar: 500 12 px tabular on the plate (was serif on a paper chip).
+- the runway designators were already Plex (CORE's SVG `<text>`), untouched.
+
+**G2447 THE CONTROLS** - the garage's rules, at 48 px:
+- the primary verb (Track, Buy / Take, Hire): `.verb.pri` - 600 12 px uppercase .1em, --ed-acc-ink on --ed-acc, 8 px radius,
+  18 px padding; the secondary (Tracking ★ `.mmTrack.on`, `.mmAct.sec`): `.verb` - --ed-ink on --ed-btn-bg /
+  --ed-btn-bd; disabled at .4 (the garage's).
+- the customer select and the market's gear select (`.mmCust`, `.mmOptSel`): the rows' select - 400 13 px Plex, --ed-btn-bg /
+  --ed-btn-bd, 7 px radius, `color-scheme:dark`, the options on --ed-panel.
+- the switch (Contracts · Fleet · Pilots · Market): the DESIGN / SHAPE / FINISH segmented control (#edViewTabs / .edTab) - a
+  --ed-track channel with a 2 px gap, 600 11 px uppercase --ed-faint, the one that is on --ed-acc on --ed-acc-ink.
+- the zoom + / − / fit, the close and the place filter's ✕: the zoom on the plate (--ed-plate, --ed-border, the garage's
+  floating-chrome shadow), the close / ✕ as `.verb` buttons; the phone's close on the plate.
+- the list's group heads (`.mmSect`, the Market's "THE MAKERS"): the ladder's group rung (600 10.5 px, .2em, uppercase,
+  --ed-faint). Row text 500 14 px, paragraphs 400 13.5 px / 1.55, meta 12.5 px --ed-dim.
+NOHOVER kept: no :hover rule added (the garage's hover borders are not ported - the map screen has none by rule).
+
+**G2448 THE GATES** (`node tools/run_gates.js --only=UISMOKE,UISMOKE-PHONE,MAPBAKE,MEDIA,BUILD`):
+- **UISMOKE: PASS (192 s), UISMOKE-PHONE: PASS (45 s)** - `_map_smoke.js`'s new **ONE LOOK** row: editor.css's block
+  `:is(#wsUI, #edView, #mapScreen)` declares the 17 tokens; map_menu.js (comments aside) names no serif face, italic,
+  oblique, IM Fell, Georgia or Times (`sans-serif` the one allowed spelling); its CSS keeps no `--mm-` and restates no
+  `--ed-*:` (no second copy of the values); it reads 15 of the tokens; every `font:` / `font-family` in it is IBM Plex
+  Sans (18 rules) and every SVG `font-family=` too; the root Plex upright with em / i / small upright; Track / the
+  primary action on the accent, Tracking / the secondary / both selects / the close / the ✕ on --ed-btn-bg / -bd, the
+  switch the segmented control, the zoom and the scale bar on the plate, the labels' halos in --ed-* inks, the labels'
+  ladder by size AND weight (town 700 16 > village 600 14 > works 500 12.5). Mutation-checked: an italic Georgia label,
+  a `--mm-bg`, the switch without its track and an `--ed-ink:` restated each throw. Every earlier map row unchanged and
+  passing (R1 48 px, NOHOVER, R20, the lists, the infrastructure).
+- **MAPBAKE: PASS (24 s), BUILD: PASS (2 s)**.
+- **MEDIA: FAIL - only the 0.3 MiB step** ("index.html grew 0.49 MiB over HEAD"), red on the integration base already
+  (train 43's size; A0's / the user's call). This branch's share: +205 B (below).
+
+**G2449 THE STILLS** - `tools/map_style_shot.js` (new; out `futureDesigns/game/evidence/MAP-STYLE/`, 9 stills + shots.json
+with the page's own answers; 37 checks, all ok). **Every still is of the LOADED page**: BOOT 'gone' and #boot hidden, + 2 s,
+checked before and after each capture (recorded per still); `one_look` is composed from two such stills. Each map still's
+probe walks every visible piece of text on the screen and records its computed family / style / weight / size: **0 of
+24-77 per still** is anything but IBM Plex Sans upright; #mapScreen resolves all 15 tokens it uses to the workshop root's
+values; Track / Buy computed rgb(230,219,201) on rgb(34,31,27), uppercase, 48 px; the select --ed-btn-bg / -bd at 48 px;
+the switch's on / off the accent / --ed-faint; the zoom and the scale on --ed-plate; every target >= 48 px, no title=, no
+page error.
+- `map_style_desk_garage.jpg` - the garage as the page boots (the design flow's sheet closed: "keep the current build").
+- `map_style_desk_contracts.jpg` - the contracts list, "Mail off the water" open: the paragraph, the ✗ in --ed-bad, TRACK.
+- `map_style_desk_market.jpg` - the Market (the switch on MARKET), the Bramble Scout open: its gear select, BUY · 0.
+- `map_style_desk_fit.jpg` - the island at the fit: the bone badges, the zoom and the scale bar on the plate, the compass.
+- `map_style_desk_close.jpg` - Metlakatla at 8x: METLAKATLA (700 16 px spaced caps), "the cannery", "Skyline Tramway", the
+  seaplane base's name on the plate with its facts.
+- `map_style_desk_mid.jpg` - the middle zoom over Jolene AFB: every place name with its runway facts, "the village", "the
+  lodge", the hotspots' names (7 × Gull, Brown bear...), the designators.
+- `map_style_one_look.jpg` - **ONE STILL, side by side**: the garage's editor panel (properties + parts columns, cropped at
+  #edWrap's box) | the map screen's list with the open paragraph and Track: one palette, one face, one set of controls.
+- `map_style_phone_sheet.jpg`, `map_style_phone_open.jpg` - the phone (390 x 844 touch): the plate controls, the folded
+  sheet; the sheet open on "Guests for the lodge" with TRACK at 48 px.
+
+**Bytes**: index.html +205 B over the same base built clean (12 506 867 -> 12 507 072: editor.css's selector and its
+comment; map_menu.js is a lazy file, not in the page). MEDIA's 0.3 MiB step is red on the integration base already (train
+43's size, the user's / A0's call) - this branch adds nothing material to it.
+
+Files: src/viewer/map_menu.js (the CSS block, its header comment, the rose's markup, `ACC` removed), src/viewer/editor.css
+(the token block's selector + 3 comment lines), tools/_map_smoke.js (the ONE LOOK row + its header paragraph), new
+tools/map_style_shot.js, futureDesigns/game/evidence/MAP-STYLE/.
+
+Open / notes:
+- The MAP entry button (build.js, the page's loader: amber on glass) is the flight HUD's chrome on the sandbox page, not the
+  map screen; left as it is. Say if it should go bone too (one line in build.js).
+- tools/map_menu_shot.js / map_infra_shot.js / career_wire_shot.js still run (no selector changed); their committed stills
+  under MAP-MERGE / MAP-INFRA show the old dress.
+- The labels' sizes are judged on SwiftShader stills at 1600 x 900 and the phone; a real-device look at the town / works
+  ladder over the painting is welcome.
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR

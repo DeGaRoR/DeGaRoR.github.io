@@ -25,8 +25,10 @@
    Declared once on the workshop's two roots so every surface inherits it; the
    two blocks below now restate identical values and are kept only so a panel
    lifted out of the layer still has its ground. Adding a token here is the
-   only place it has to be added. */
-:is(#wsUI, #edView) {
+   only place it has to be added.
+   G2445 (MAP-STYLE): the game's map screen (#mapScreen, map_menu.js, a body-level root outside both) reads the SAME
+   block - one look, the garage's, and still one place a token is declared. */
+:is(#wsUI, #edView, #mapScreen) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;

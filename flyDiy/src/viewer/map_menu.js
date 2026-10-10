@@ -65,7 +65,6 @@
     // from the middle zoom; the houses and the site footprints closer in; the roads' simplification band by zoom
     infra: 1, infraAll: 1.8, infraLbl: 1.8, infraBldg: 2.6, infraBand: [1.8, 4] };
   const ZOOM_MAX = 8, ZOOM_ABS = 3;     // the deepest zoom: 8x the fit, and at least 3 screen px per picture px (4 m a px)
-  const ACC = '#e6a15a';
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -754,41 +753,50 @@
     : (typeof careerMapRecord === 'function' && typeof careerNew === 'function') ? Promise.resolve().then(() => careerMapRecord(careerNew({ id: 'preview', seed: 'dev' }), null, {}))
     : fixture();
 
+  // ONE LOOK: THE GARAGE'S (G2445 MAP-STYLE, GAME-2026-10-06.md §R.3; the user: "does the UI of the map take the same
+  // styling as the sliders in the garage? They should", and the left menu's font on the map too). The palette is the
+  // workshop's `--ed-*` tokens, declared ONCE in editor.css on `:is(#wsUI, #edView, #mapScreen)` - read here, never
+  // restated. The controls are the garage's rules at touch size: the primary verb is `.verb.pri` (the accent), the
+  // others `.verb` (--ed-btn-bg / --ed-btn-bd), the switch the DESIGN / SHAPE / FINISH segmented control (#edViewTabs),
+  // the selects the rows' select. IBM Plex Sans UPRIGHT everywhere, the labels drawn on the map included: the hierarchy
+  // by weight and size (the town over the village over a works), never by slant. What stays the map's own: the
+  // contract TYPE colours (inline, TYPES), the painting's edge (pack.art.edge), the badges' icons and type rings, the
+  // hotspots' greens and blues, MAP-INFRA's inks (INK) - they are the map, not the UI.
   const CSS = `
-#mapScreen{--mm-bg:#1c1a17;--mm-panel:#24211d;--mm-ink:#ece6dc;--mm-mid:#a59d8f;--mm-line:#3a352f;--mm-acc:${ACC};--mm-ok:#8cc79a;--mm-no:#e08a7a;--mm-paper:#e9dcc0;--mm-sepia:#3b2a1a;
-  --mm-old:'IM Fell English',Georgia,'Times New Roman',serif;
-  position:fixed;inset:0;z-index:2147483000;display:grid;grid-template-columns:370px 1fr;grid-template-rows:1fr auto;background:var(--mm-bg);color:var(--mm-ink);font:400 14px/1.5 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif}
+#mapScreen{position:fixed;inset:0;z-index:2147483000;display:grid;grid-template-columns:370px 1fr;grid-template-rows:1fr auto;background:var(--ed-board);color:var(--ed-ink);font:400 14px/1.5 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;font-style:normal;font-variant-numeric:tabular-nums}
 #mapScreen *{box-sizing:border-box}
+#mapScreen em,#mapScreen i,#mapScreen small{font-style:normal}
 #mapScreen button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;border-radius:0;box-shadow:none;min-width:0;text-transform:none;letter-spacing:normal;backdrop-filter:none;-webkit-backdrop-filter:none;transition:none;transform:none;cursor:pointer;text-align:left}
-#mapScreen button:focus-visible,#mapScreen select:focus-visible{outline:2px solid var(--mm-acc);outline-offset:-2px}
-#mapScreen .mmSide{border-right:1px solid var(--mm-line);background:var(--mm-panel);display:flex;flex-direction:column;min-height:0}
-#mapScreen .mmHead{padding:6px 8px 10px 16px;display:grid;gap:8px;border-bottom:1px solid var(--mm-line)}
+#mapScreen button:focus-visible,#mapScreen select:focus-visible{outline:2px solid var(--ed-acc);outline-offset:-2px}
+#mapScreen .mmSide{border-right:1px solid var(--ed-hair);background:var(--ed-panel);display:flex;flex-direction:column;min-height:0}
+#mapScreen .mmHead{padding:6px 8px 12px 16px;display:grid;gap:10px;border-bottom:1px solid var(--ed-hair)}
 #mapScreen .mmTitle{display:flex;align-items:center;justify-content:space-between}
-#mapScreen .mmTitle h1{margin:0;font:600 12px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mm-mid)}
-#mapScreen .mmClose{min-width:48px;height:48px;border-radius:8px;text-align:center;font-size:20px;color:var(--mm-mid)}
-#mapScreen .mmTypes{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--mm-mid)}
+#mapScreen .mmTitle h1{margin:0;font:600 12px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--ed-faint)}
+#mapScreen .mmClose{min-width:48px;height:48px;border-radius:8px;text-align:center;font-size:18px;color:var(--ed-dim);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd)}
+#mapScreen .mmTypes{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--ed-dim)}
 #mapScreen .mmTypes span{display:inline-flex;align-items:center;gap:6px}
-#mapScreen .mmFilter{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mm-mid)}
-#mapScreen .mmCust{flex:1;max-width:240px;font:13px 'IBM Plex Sans',sans-serif;text-transform:none;letter-spacing:normal;color:var(--mm-ink);background:var(--mm-bg);border:1px solid var(--mm-line);border-radius:6px;padding:0 8px;min-height:48px}
+#mapScreen .mmFilter{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ed-dim)}
+#mapScreen .mmCust{flex:1;max-width:240px;font:400 13px/1.2 'IBM Plex Sans';text-transform:none;letter-spacing:normal;color:var(--ed-ink);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px;padding:0 10px;min-height:48px;color-scheme:dark}
+#mapScreen select option{background:var(--ed-panel);color:var(--ed-ink)}
 #mapScreen .mmDot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
-#mapScreen .mmAt{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 16px;background:#2b2722;border-bottom:1px solid var(--mm-line);font-size:13px}
-#mapScreen .mmAtX{font-weight:600;font-size:15px;border:1px solid var(--mm-line);border-radius:6px;min-width:48px;min-height:48px;text-align:center}
+#mapScreen .mmAt{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 16px;background:var(--ed-acc-soft);border-bottom:1px solid var(--ed-hair);font-size:13px}
+#mapScreen .mmAtX{font-weight:500;font-size:15px;color:var(--ed-dim);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px;min-width:48px;min-height:48px;text-align:center}
 #mapScreen .mmList{overflow-y:auto;flex:1;touch-action:pan-y;overscroll-behavior:contain}
-#mapScreen .mmEmpty{margin:0;padding:16px;color:var(--mm-mid)}
-#mapScreen .mmItem{border-bottom:1px solid var(--mm-line)}
-#mapScreen .mmRow{width:100%;display:grid;grid-template-columns:10px 1fr auto 18px;gap:10px;align-items:center;padding:10px 16px;min-height:48px}
-#mapScreen .mmItem.open .mmRow{background:#2b2722}
+#mapScreen .mmEmpty{margin:0;padding:16px;color:var(--ed-dim)}
+#mapScreen .mmItem{border-bottom:1px solid var(--ed-hair)}
+#mapScreen .mmRow{width:100%;display:grid;grid-template-columns:10px 1fr auto 18px;gap:10px;align-items:center;padding:10px 16px 10px 14px;min-height:48px;border-left:2px solid transparent}
+#mapScreen .mmItem.open .mmRow{background:var(--ed-acc-soft);border-left-color:var(--ed-acc)}
 #mapScreen .mmT{font-weight:500;min-width:0}
-#mapScreen .mmT em{font-style:normal;color:var(--mm-acc)}
+#mapScreen .mmT em{color:var(--ed-acc)}
 #mapScreen .mmPay{font-variant-numeric:tabular-nums}
 #mapScreen .mmMark{text-align:center;font-weight:600}
-#mapScreen .ok{color:var(--mm-ok)} #mapScreen .no{color:var(--mm-no)}
-#mapScreen .mmBody{display:grid;gap:10px;padding:0 16px 14px 36px;background:#2b2722}
-#mapScreen .mmBody p{margin:0;max-width:42ch}
-#mapScreen .mmRw{display:block;margin-top:6px;font-size:13px;color:var(--mm-mid);font-variant-numeric:tabular-nums}
-#mapScreen .mmWhy{display:block;margin-top:6px;color:var(--mm-no)}
-#mapScreen .mmTrack{justify-self:start;font-weight:600;font-size:13px;color:#1c1a17;background:var(--mm-acc);border-radius:6px;padding:0 16px;min-height:48px;text-align:center}
-#mapScreen .mmTrack.on{background:transparent;color:var(--mm-acc);border:1px solid var(--mm-acc)}
+#mapScreen .ok{color:var(--ed-acc)} #mapScreen .no{color:var(--ed-bad)}
+#mapScreen .mmBody{display:grid;gap:12px;padding:2px 16px 16px 36px;background:var(--ed-acc-soft)}
+#mapScreen .mmBody p{margin:0;max-width:42ch;font-size:13.5px;line-height:1.55}
+#mapScreen .mmRw{display:block;margin-top:6px;font-size:12.5px;color:var(--ed-dim);font-variant-numeric:tabular-nums}
+#mapScreen .mmWhy{display:block;margin-top:6px;color:var(--ed-bad)}
+#mapScreen .mmTrack{justify-self:start;font:600 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--ed-acc-ink);background:var(--ed-acc);border:1px solid var(--ed-acc);border-radius:8px;padding:0 18px;min-height:48px;text-align:center}
+#mapScreen .mmTrack.on{font-weight:500;color:var(--ed-ink);background:var(--ed-btn-bg);border-color:var(--ed-btn-bd)}
 #mapScreen .mmMap{position:relative;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #mapScreen .mmMap.drag{cursor:grabbing}
 #mapScreen .mmMap img,#mapScreen .mmMap svg{-webkit-user-drag:none;user-select:none}
@@ -798,57 +806,61 @@
 #mapScreen .mmOv>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #mapScreen .mmRwy{pointer-events:auto;cursor:pointer}
 #mapScreen .mmPl{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:auto;display:grid;place-items:center}
-#mapScreen .mmPl i{width:var(--bs,30px);height:var(--bs,30px);border-radius:50%;display:grid;place-items:center;background:var(--mm-paper);color:var(--mm-sepia);border:1.5px solid var(--mm-sepia);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+#mapScreen .mmPl i{width:var(--bs,30px);height:var(--bs,30px);border-radius:50%;display:grid;place-items:center;background:var(--ed-acc);color:var(--ed-acc-ink);border:1.5px solid var(--ed-acc-ink);box-shadow:0 1px 3px rgba(0,0,0,.45)}
 #mapScreen .mmPl.water i{color:#1d5f86}
-#mapScreen .mmPl.on i{box-shadow:0 0 0 3px var(--mm-acc),0 1px 3px rgba(0,0,0,.45) !important}
+#mapScreen .mmPl.on i{box-shadow:0 0 0 3px var(--ed-acc),0 0 0 4.5px var(--ed-acc-ink),0 1px 3px rgba(0,0,0,.45) !important}
 #mapScreen .mmPl svg{width:66%;height:66%;fill:currentColor;display:block}
 #mapScreen .mmNm{position:absolute;min-height:48px;margin-top:-24px;display:flex;align-items:center;pointer-events:auto;white-space:nowrap}
-#mapScreen .mmNm span{font:13.5px/1.15 var(--mm-old);color:var(--mm-sepia);background:rgba(233,220,192,.88);padding:1px 5px;border-radius:3px}
-#mapScreen .mmNm small{font:italic 12px var(--mm-old);color:#5a4630}
-#mapScreen .mmPoi{position:absolute;transform:translate(-50%,-50%);font:italic 13px var(--mm-old);color:#2a2018;text-shadow:0 0 3px #f4efe6,0 0 3px #f4efe6;white-space:nowrap;pointer-events:none}
+#mapScreen .mmNm span{font:600 13px/1.2 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);padding:2px 7px;border-radius:5px}
+#mapScreen .mmNm small{font:400 11.5px 'IBM Plex Sans';color:var(--ed-dim)}
+#mapScreen .mmPoi{position:absolute;transform:translate(-50%,-50%);font:500 12.5px/1.2 'IBM Plex Sans';color:var(--ed-acc-ink);text-shadow:0 0 3px var(--ed-ink),0 0 3px var(--ed-ink),0 0 1px var(--ed-ink);white-space:nowrap;pointer-events:none}
 #mapScreen .mmInfra{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 #mapScreen .mmInfra *{pointer-events:none}
-#mapScreen .mmLbl{position:absolute;transform:translate(-50%,-50%);font:italic 13.5px var(--mm-old);color:#2a1a0c;text-shadow:0 0 3px #fff3da,0 0 3px #fff3da,0 0 1px #fff3da;white-space:nowrap;pointer-events:none}
-#mapScreen .mmLbl.town{font:600 18px var(--mm-old);font-style:normal;font-variant:small-caps;letter-spacing:.14em;color:#4a1c0c}
-#mapScreen .mmLbl.village{font:italic 600 15px var(--mm-old);color:#5a2410}
-#mapScreen .mmLbl.tram{color:#24170c}
+#mapScreen .mmLbl{position:absolute;transform:translate(-50%,-50%);font:500 12.5px/1.2 'IBM Plex Sans';color:var(--ed-acc-ink);text-shadow:0 0 3px var(--ed-ink),0 0 3px var(--ed-ink),0 0 1px var(--ed-ink);white-space:nowrap;pointer-events:none}
+#mapScreen .mmLbl.town{font:700 16px/1.2 'IBM Plex Sans';text-transform:uppercase;letter-spacing:.16em}
+#mapScreen .mmLbl.village{font:600 14px/1.2 'IBM Plex Sans';letter-spacing:.04em}
+#mapScreen .mmLbl.tram{font-size:12px}
 #mapScreen .mmHot{position:absolute;transform:translate(-50%,-50%);width:var(--hs,22px);height:var(--hs,22px);border-radius:50%;display:grid;place-items:center;background:#e8f3df;color:#2d5a25;border:1.5px solid #2d5a25;box-shadow:0 1px 3px rgba(0,0,0,.45);pointer-events:none}
 #mapScreen .mmHot svg{width:70%;height:70%;fill:currentColor;display:block}
 #mapScreen .mmHot.sea{background:#dff0f7;color:#1d5f86;border-color:#1d5f86}
-#mapScreen .mmHotN{position:absolute;transform:translate(calc(var(--hs,22px) / 2 + 4px),-50%);font:italic 12.5px var(--mm-old);color:#e8f3df;text-shadow:0 0 3px #12301a,0 0 2px #12301a;white-space:nowrap;pointer-events:none}
+#mapScreen .mmHotN{position:absolute;transform:translate(calc(var(--hs,22px) / 2 + 4px),-50%);font:500 12px/1.2 'IBM Plex Sans';color:var(--ed-ink);text-shadow:0 0 3px var(--ed-acc-ink),0 0 2px var(--ed-acc-ink),0 0 1px var(--ed-acc-ink);white-space:nowrap;pointer-events:none}
 #mapScreen .mmHotN.l{transform:translate(calc(-100% - var(--hs,22px) / 2 - 4px),-50%)}
 #mapScreen .mmHotN.b{transform:translate(-50%,calc(var(--hs,22px) / 2 + 2px))}
 #mapScreen .mmZone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(232,243,223,.7);pointer-events:none}
-#mapScreen .mmPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:4px;background:var(--mm-paper);color:var(--mm-sepia);border:1px solid var(--mm-sepia);pointer-events:none}
+#mapScreen .mmPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:var(--ed-acc);color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink);pointer-events:none}
 #mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
-#mapScreen .mmCtl button{font-weight:600;font-size:15px;color:var(--mm-ink);background:rgba(28,26,23,.9);border:1px solid var(--mm-line);border-radius:8px;min-width:48px;min-height:48px;text-align:center}
+#mapScreen .mmCtl button{font:500 18px/1 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:8px;min-width:48px;min-height:48px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 #mapScreen .mmRose{position:absolute;right:18px;top:16px;width:64px;height:64px;pointer-events:none}
-#mapScreen .mmScale{position:absolute;left:16px;bottom:16px;font:14px var(--mm-old);color:var(--mm-sepia);background:rgba(233,220,192,.85);padding:2px 6px;border-radius:3px;pointer-events:none}
-#mapScreen .mmScale i{display:inline-block;height:6px;border:1.5px solid currentColor;border-top:0;vertical-align:middle;margin-right:6px}
-#mapScreen .mmFoot{grid-column:1/-1;border-top:1px solid var(--mm-line);background:var(--mm-panel);padding:9px 16px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--mm-mid)}
-#mapScreen .mmFoot b{color:var(--mm-ink);font-weight:500}
+#mapScreen .mmRose .rk{fill:none;stroke:var(--ed-acc-ink)}
+#mapScreen .mmRose .rd{fill:var(--ed-acc-ink)}
+#mapScreen .mmRose .rl{fill:var(--ed-acc);stroke:var(--ed-acc-ink)}
+#mapScreen .mmRose text{font:700 9px 'IBM Plex Sans';fill:var(--ed-acc-ink);stroke:var(--ed-ink);stroke-width:2.5px;paint-order:stroke}
+#mapScreen .mmScale{position:absolute;left:16px;bottom:16px;font:500 12px/1.4 'IBM Plex Sans';font-variant-numeric:tabular-nums;color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);padding:3px 8px;border-radius:5px;pointer-events:none}
+#mapScreen .mmScale i{display:inline-block;height:6px;border:1.5px solid currentColor;border-top:0;vertical-align:middle;margin-right:7px}
+#mapScreen .mmFoot{grid-column:1/-1;border-top:1px solid var(--ed-hair);background:var(--ed-panel);padding:9px 16px;display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--ed-dim)}
+#mapScreen .mmFoot b{color:var(--ed-ink);font-weight:500}
 #mapScreen .mmHandle{display:none}
-/* THE SWITCH AND THE OTHER THREE LISTS (G2440 MAP-MERGE): the contracts' rows, an icon in place of the type's dot */
-#mapScreen .mmSw{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--mm-line);border-radius:8px;overflow:hidden}
-#mapScreen .mmSwB{min-height:48px;text-align:center;font-size:13px;color:var(--mm-mid);border-left:1px solid var(--mm-line)}
-#mapScreen .mmSwB:first-child{border-left:0}
-#mapScreen .mmSwB.on{background:#2b2722;color:var(--mm-acc);font-weight:600}
+/* THE SWITCH AND THE OTHER THREE LISTS (G2440 MAP-MERGE): the contracts' rows, an icon in place of the type's dot; the
+   switch is the garage's segmented control (#edViewTabs / .edTab: a track, the accent on the one that is on) at 48 px */
+#mapScreen .mmSw{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:2px;border-radius:7px;background:var(--ed-track)}
+#mapScreen .mmSwB{min-height:48px;text-align:center;font:600 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--ed-faint);border-radius:5px}
+#mapScreen .mmSwB.on{background:var(--ed-acc);color:var(--ed-acc-ink)}
 #mapScreen .mmRowI{grid-template-columns:24px 1fr auto}
 #mapScreen .mmRowI+.mmBody{padding-left:50px}
-#mapScreen .mmIc{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:600;line-height:1;color:#1c1a17;border:1px solid #1c1a17}
-#mapScreen .mmSect{margin:0;padding:14px 16px 6px;font:600 11px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mm-mid);border-bottom:1px solid var(--mm-line)}
+#mapScreen .mmIc{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;line-height:1;color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink)}
+#mapScreen .mmSect{margin:0;padding:16px 16px 7px;font:600 10.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:var(--ed-faint);border-bottom:1px solid var(--ed-hair)}
 #mapScreen .mmActs{display:flex;flex-wrap:wrap;gap:8px}
-#mapScreen .mmAct{font-weight:600;font-size:13px;color:#1c1a17;background:var(--mm-acc);border-radius:6px;padding:0 16px;min-height:48px;text-align:center}
-#mapScreen .mmAct.sec{background:transparent;color:var(--mm-acc);border:1px solid var(--mm-acc)}
-#mapScreen .mmAct:disabled{opacity:.5;cursor:default}
-#mapScreen .mmFine{margin:0;font-size:12px;color:var(--mm-mid)}
-#mapScreen .mmMsg{margin:8px 16px;padding:10px 12px;border-radius:8px;background:#2b2722;color:var(--mm-no)}
-#mapScreen .mmMsg.ok{color:var(--mm-ok)}
-#mapScreen .mmOptSel{flex:1;max-width:240px;font:13px 'IBM Plex Sans',sans-serif;text-transform:none;letter-spacing:normal;color:var(--mm-ink);background:var(--mm-bg);border:1px solid var(--mm-line);border-radius:6px;padding:0 8px;min-height:48px}
+#mapScreen .mmAct{font:600 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--ed-acc-ink);background:var(--ed-acc);border:1px solid var(--ed-acc);border-radius:8px;padding:0 18px;min-height:48px;text-align:center}
+#mapScreen .mmAct.sec{font-weight:500;color:var(--ed-ink);background:var(--ed-btn-bg);border-color:var(--ed-btn-bd)}
+#mapScreen .mmAct:disabled{opacity:.4;cursor:not-allowed}
+#mapScreen .mmFine{margin:0;font-size:12px;color:var(--ed-faint)}
+#mapScreen .mmMsg{margin:8px 16px;padding:10px 12px;border-radius:7px;border:1px solid var(--ed-hair);background:var(--ed-acc-soft);color:var(--ed-bad)}
+#mapScreen .mmMsg.ok{color:var(--ed-acc)}
+#mapScreen .mmOptSel{flex:1;max-width:240px;font:400 13px/1.2 'IBM Plex Sans';text-transform:none;letter-spacing:normal;color:var(--ed-ink);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px;padding:0 10px;min-height:48px;color-scheme:dark}
 #mapScreen .mmLm{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:auto;display:grid;place-items:center}
-#mapScreen .mmLm i{width:var(--ms,26px);height:var(--ms,26px);border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:600;line-height:1;font-size:calc(var(--ms,26px) * .46);color:var(--mm-sepia);border:1.5px solid var(--mm-sepia);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+#mapScreen .mmLm i{width:var(--ms,26px);height:var(--ms,26px);border-radius:50%;display:grid;place-items:center;font-weight:600;line-height:1;font-size:calc(var(--ms,26px) * .46);color:var(--ed-acc-ink);border:1.5px solid var(--ed-acc-ink);box-shadow:0 1px 3px rgba(0,0,0,.45)}
 #mapScreen .mmLm.used i{border-radius:6px}
-#mapScreen .mmLm.on i{box-shadow:0 0 0 3px var(--mm-acc),0 1px 3px rgba(0,0,0,.45)}
+#mapScreen .mmLm.on i{box-shadow:0 0 0 3px var(--ed-acc),0 0 0 4.5px var(--ed-acc-ink),0 1px 3px rgba(0,0,0,.45)}
 /* THE PHONE (GQ19): the map full, the list a bottom sheet over it; the map and the sheet never share a gesture (R20) */
 #mapScreen.mmPhone{display:block}
 #mapScreen.mmPhone .mmMap{position:absolute;inset:0}
@@ -856,15 +868,15 @@
 #mapScreen.mmPhone .mmRose{display:none}
 #mapScreen.mmPhone .mmScale{left:8px;top:8px;bottom:auto}
 #mapScreen.mmPhone .mmCtl{top:64px;bottom:auto;right:8px}
-#mapScreen.mmPhone .mmSide{position:absolute;left:0;right:0;bottom:0;height:38%;border:0;border-radius:16px 16px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.35);z-index:3}
+#mapScreen.mmPhone .mmSide{position:absolute;left:0;right:0;bottom:0;height:38%;border:0;border-top:1px solid var(--ed-border);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.35);z-index:3}
 #mapScreen.mmPhone .mmSide.open{height:78%}
 #mapScreen.mmPhone .mmHandle{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:48px;width:100%;touch-action:none;text-align:center}
-#mapScreen .mmHandle i{width:44px;height:5px;border-radius:3px;background:var(--mm-mid)}
-#mapScreen .mmHandle span{font-size:11.5px;color:var(--mm-mid)}
+#mapScreen .mmHandle i{width:44px;height:5px;border-radius:3px;background:var(--ed-faint)}
+#mapScreen .mmHandle span{font-size:11.5px;color:var(--ed-dim)}
 #mapScreen.mmPhone .mmHead{padding-top:0}
 #mapScreen.mmPhone .mmTitle{position:fixed;top:8px;right:8px;z-index:4}
 #mapScreen.mmPhone .mmTitle h1{display:none}
-#mapScreen.mmPhone .mmClose{background:rgba(28,26,23,.9);border:1px solid var(--mm-line)}
+#mapScreen.mmPhone .mmClose{background:var(--ed-plate);border-color:var(--ed-border)}
 #mapScreen.mmPhone .mmCust{max-width:none}
 `;
 
@@ -899,10 +911,10 @@
       '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"></div>' +
         '<svg class="mmInfra" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g></g></svg>' +
         '<div class="mmOv"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="false"></svg><div class="mmOvH"></div></div>' +
-        '<svg class="mmRose" viewBox="-32 -32 64 64" aria-hidden="true"><circle r="27" fill="none" stroke="#3b2a1a" stroke-width="1"/><circle r="22" fill="none" stroke="#3b2a1a" stroke-width=".6"/>' +
-          '<path d="M0-30 L5-5 L0 0 L-5-5Z" fill="#3b2a1a"/><path d="M0 30 L5 5 L0 0 L-5 5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/>' +
-          '<path d="M30 0 L5 5 L0 0 L5-5Z" fill="#e9dcc0" stroke="#3b2a1a" stroke-width=".8"/><path d="M-30 0 L-5 5 L0 0 L-5-5Z" fill="#3b2a1a"/>' +
-          '<text y="-17" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="9" fill="#3b2a1a">N</text></svg>' +
+        '<svg class="mmRose" viewBox="-32 -32 64 64" aria-hidden="true"><circle class="rk" r="27" stroke-width="1"/><circle class="rk" r="22" stroke-width=".6"/>' +
+          '<path class="rd" d="M0-30 L5-5 L0 0 L-5-5Z"/><path class="rl" d="M0 30 L5 5 L0 0 L-5 5Z" stroke-width=".8"/>' +
+          '<path class="rl" d="M30 0 L5 5 L0 0 L5-5Z" stroke-width=".8"/><path class="rd" d="M-30 0 L-5 5 L0 0 L-5-5Z"/>' +
+          '<text y="-15" text-anchor="middle">N</text></svg>' +
         '<div class="mmCtl"><button type="button" data-act="zin" aria-label="zoom in">+</button><button type="button" data-act="zout" aria-label="zoom out">−</button><button type="button" data-act="fit" aria-label="fit the island">⤢</button></div>' +
         '<div class="mmScale"></div></main>' +
       '<footer class="mmFoot"></footer>';
