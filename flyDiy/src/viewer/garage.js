@@ -1307,6 +1307,11 @@ function garageInit(api) {
         // G334: every update is announced — the two registration inputs (the
         // finish panel's, the design flow's field) re-read the spec on it
         try { window.dispatchEvent(new CustomEvent('flydiy:specUpdated', { detail: j })); } catch (e) {} },
+      // G2675 (BELLY-POD-2): A SECTION TAKEN OFF - the key removed, the aeroplane rebuilt. `update` merges and can only
+      // write a value (a removed belly pod as `{ on: 0 }` is the same aeroplane in other bytes: another fingerprint,
+      // a bought aeroplane "modified" by fitting and removing nothing); this door gives the spec its own bytes back
+      remove: k => { if (!spec || !(k in spec)) return; spec = Object.assign({}, spec); delete spec[k]; rebuild();
+        try { window.dispatchEvent(new CustomEvent('flydiy:specUpdated', { detail: { [k]: null } })); } catch (e) {} },
       // ...AND WHAT THAT DOOR WOULD PRODUCE, without walking through it
       // (G266.2): the snapshot calibrates its pitch and its wheel offset on
       // a frame built from the spec it is handed, and the game flies the

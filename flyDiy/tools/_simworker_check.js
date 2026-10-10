@@ -260,7 +260,11 @@ const tick = () => new Promise(r => setImmediate(r));
   const PLACE = { from: 'HOME', to: 'CIRCUIT', stand: true }, PILOT = { kind: 'auto' };
   const specOf = f => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); return genMigrateSpec(j.spec || j); };
   const BUILDS = [['stock', specOf(path.join(__dirname, 'fixtures', 'build_v9_stock_2026-09-15.json'))],
-                  ['cessnaMetal', specOf(path.join(ROOT, 'bugReports', 'cessnaMetal (1).json'))]];
+                  ['cessnaMetal', specOf(path.join(ROOT, 'bugReports', 'cessnaMetal (1).json'))],
+                  // G2678 (BELLY-POD-2): THE POD FLOWN ON THE WORKER - the user's Cub with a 0.60 m belly pod, which sits on
+                  // the pod's aft nodes at rest (it strikes three-point: GATE POD's refusal) and scrapes them as it taxis:
+                  // the pod's mass, drag and its scraping contacts on the host's thread, to the page's bits
+                  ['cubPod', (sp => Object.assign(sp, { pod: { on: 1, depth: 0.6 } }))(specOf(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json')))]];
   const premises = fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8');
   const fullBoot = IN.islandBoot('jolene');
   const trimmed = SH.simHostTrimBoot(fullBoot);
@@ -405,6 +409,14 @@ const tick = () => new Promise(r => setImmediate(r));
     ok(view.wheelsOnGround() === sim.wheelsOnGround() && JSON.stringify(view.wheelContacts()) === JSON.stringify(sim.wheelContacts()) &&
        view.stats().smax === sim.stats().smax, name + ': wheels (' + view.wheelsOnGround() + ') and the strain are the solver\'s');
     const plain = o => JSON.stringify(SH.simHostPlain(o, 3, ['hydro']));
+    if (pageDef.parts.podFrame) {
+      // the pod's own nodes ARE flown: four, and the lowest at the ground the mains stand on (the scrape branch)
+      const pn = pageDef.parts.podFrame.nodes, mains = pageDef.refs.mains;
+      const gY = Math.min(...mains.map(i => sim.p[3 * i + 1] - sim.r[i]));
+      const podY = Math.min(...pn.map(i => sim.p[3 * i + 1]));
+      ok(pn.length === 4 && pn.every(i => pageDef.nodes[i].r === 0 && !mains.includes(i) && i !== pageDef.refs.tw) && podY - gY < 0.03,
+         name + ': the pod\'s 4 nodes are flown (r 0: not wheels) and its lowest is on the ground the mains stand on (' + f3(podY - gY) + ' m)');
+    }
     ok(plain(view.out) === plain(sim.out),
        name + ': out is the solver\'s (V ' + f3(view.out.V) + ' m/s, thrust ' + f3(view.out.thrust) + ' N)');
     ok(plain(view.fuel) === plain(sim.fuel) && plain(view.eng) === plain(sim.eng) &&

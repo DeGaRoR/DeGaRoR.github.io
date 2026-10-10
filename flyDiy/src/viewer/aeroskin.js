@@ -894,6 +894,10 @@ const AERO_SEC = {
   // actually wears — so the base-colour pick reaches the mains, the nose leg
   // and the tailwheel's castor and spring at last, and a builder who wants
   // bare steel back still has the row.
+  // THE BELLY POD (G2677, BELLY-POD-2): a moulded glassfibre pod, painted with the aeroplane - the spats' rule (trim
+  // material, the body's colour); no marking (a registration is not painted across a cargo pod)
+  pod:      { parent: 'body', fin: 'trim',      label: 'the belly pod',
+              layer: 'pod', wears: 'parent', noDec: true },
   gearLeg:  { parent: 'body', fin: 'steelTube', label: 'the gear legs',
               layer: 'gear', wears: 'parent' },
   // THE FLOATS (H2, G389): a pontoon is skinned like a fuselage and painted

@@ -5372,6 +5372,8 @@
   }
   function setAircraft(key) {
     def = AIRCRAFT[key]();
+    // G2675 (BELLY-POD-2): the garage's aeroplane is the frame its belly pod's section and mesh hang under
+    if (key === 'gen' && typeof window !== 'undefined' && window.CAGE_POD && window.CAGE_POD.frame) try { window.CAGE_POD.frame(def); } catch (e) {}
     sim = makeSim(def, world);
     sim.reset(0);
     if (typeof window !== 'undefined') window.FLYDIY_SIM = sim;   // H1: the headless rig reads it
@@ -7622,6 +7624,12 @@
     const st = shakeStore();
     return !!(st && st.entries[key]);
   }
+  // G2675 (BELLY-POD-2): the pod's section reads the garage's sheet only when it is already known (never a shakedown
+  // inside a drag) and, when it is not, asks for the post-idle run (shakeSoon: debounced, then the section refreshed) -
+  // the plaque's own ask (drawPlaque) runs only while the plaque is open
+  if (typeof window !== 'undefined') window.FLYDIY_POD = {
+    shake: () => (curKey === 'gen' && shakeKnown() ? shakeOf() : null),
+    need: () => { if (curKey === 'gen' && inGarage && !shakeKnown()) shakeSoon(); } };
   let shakeSoonT = null, shakeSoonI = null;
   function shakeSoon() {
     if (shakeSoonT) clearTimeout(shakeSoonT);
@@ -7635,6 +7643,7 @@
         try { shakeOf(); } catch (e) {}
         try { flRender(); } catch (e) {}
         try { drawPlaque(); } catch (e) {}
+        try { if (window.CAGE_POD) window.CAGE_POD.refresh(); } catch (e) {}   // G2675: the pod's readouts, measured
       };
       if (typeof requestIdleCallback === 'function') shakeSoonI = requestIdleCallback(go, { timeout: 2000 });
       else go();
@@ -13455,7 +13464,10 @@
     // G2410 (BELLY-POD): the pod's row, for a build that carries one
     hasPod: () => !!(def && def.parts && def.parts.pod),
     // ...and its door: the spec's `pod.on`, through the join's own merge (a rebuild; the bench re-renders on it)
-    podToggle: on => { if (window.GARAGE_SPEC && curKey === 'gen') window.GARAGE_SPEC.update({ pod: { on: on ? 1 : 0 } }); },
+    podToggle: on => { if (window.GARAGE_SPEC && curKey === 'gen') {
+      // G2675: the editor's section is the one door (on: its block, off: the key removed - the aeroplane's own bytes)
+      if (window.CAGE_POD && window.CAGE_POD.setOn) window.CAGE_POD.setOn(!!on);
+      else window.GARAGE_SPEC.update({ pod: { on: on ? 1 : 0 } }); } },
     hydroStart: () => htStart(),
     hydroPoll: () => htPoll(),
     hydroEnd: () => htEnd(),

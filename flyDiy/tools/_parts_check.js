@@ -798,8 +798,13 @@ checkNoDeadEnds(PARTS);
     check(PARTS.cagePartParams(p).length === 0,
       'a `panel` part also claims parameters — the column would show both',
       p.key);
-    check(!(p.sections || []).length && !p.zone,
-      'a `panel` part claims a mesh section or a body zone', p.key);
+    // G2677 (BELLY-POD-2): ...EXCEPT THE PAINT OF ITS OWN MESH. The belly pod is a panel part (its rows write the game's
+    // spec, not the cage's) that its own layer DRAWS: its section is worn through the livery like any other, so the
+    // finish column and the click find it. A panel part may claim a section only when that section's AERO_SEC row
+    // names the part's own layer - never the cage's sections, never a zone.
+    const ownSecs = (p.sections || []).every(sn => { const row = AS && AS.AERO_SEC && AS.AERO_SEC[sn]; return !!(row && p.layer && row.layer === p.layer && p.layer !== 'cage'); });
+    check(ownSecs && !p.zone,
+      'a `panel` part claims a mesh section (not its own layer\'s) or a body zone', p.key);
     let where = null;
     for (const [f, src] of files) {
       const i = src.indexOf('window.' + p.panel + ' = {');
