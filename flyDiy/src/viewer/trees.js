@@ -363,7 +363,21 @@
   // onto the conifers' 0.42) with MASTER's hue - hue added, saturation and lightness multiplied. Identity by
   // default: nothing moves until the world rail moves it (TREE_LEAF.kindTint; the world look's `kindTint`).
   const COVER_BASE = { sat: 1.58, light: 1.12 };
-  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1 }, shrub: { hue: 0, sat: 1, light: 1 } };
+  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1 }, shrub: { hue: 0, sat: 1, light: 1 }, flower: { hue: 0, sat: 1, light: 1 } };
+  // THE FLOWERS' COLOUR (GRASS-DENSE G2566, the user 9-10 Oct: colour options for the flowers, "they stand out"): a flower is its
+  // picture (no tint of its own, the ring's 'cut' material), so its kind master is a hook of its own - TINT_GLSL after the map with
+  // these uniforms (no flattening: uFlat 1), identity by default. TREE_LEAF.kindTint('flower', { sat: 0.7 }) moves every flower
+  const U_FLOWER = { uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 }, uFlat: { value: 1 }, uFlatMean: { value: 0.5 } };
+  const flowerSync = () => { const K = KIND_MASTER.flower; U_FLOWER.uHue.value = K.hue; U_FLOWER.uSat.value = K.sat; U_FLOWER.uLight.value = K.light; };
+  function flowerHook(mat) {
+    const prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = sh => { if (prev) prev(sh); Object.assign(sh.uniforms, U_FLOWER);
+      sh.fragmentShader = 'uniform float uHue, uSat, uLight, uFlat, uFlatMean;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n{\n' + TINT_GLSL + '\n}'); };
+    const key = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+    mat.customProgramCacheKey = () => key + '-flower';
+    mat.userData.kind = 'flower';
+    return mat;
+  }
   // G1975 (DEADWOOD-BRIGHT, the user's far-forest call 2026-10-07): THE SHADE COMPENSATION - a lightness factor over the
   // trees and the bushes (every kind riding on MASTER; not the grass) on BOTH tiers, set by the renderer when the world
   // casts tree shadows (render_world treeShadowed: x1.38 with uILit 0.9 there - the geometry darkens under its own crown,
@@ -674,7 +688,9 @@
     kindMaster: kind => (KIND_MASTER[kind] ? Object.assign({}, KIND_MASTER[kind]) : null),
     kindTint: (kind, o) => { const K = KIND_MASTER[kind]; if (!K) return null;
       for (const k of ['hue', 'sat', 'light']) if (o && o[k] !== undefined && isFinite(+o[k])) K[k] = +o[k];
+      if (kind === 'flower') flowerSync();
       for (const m of HOOKED) if (m.userData.kind === kind) retint(m); return Object.assign({}, K); },
+    flowerHook,   // G2566: a flower material takes the flowers' kind master (cover_ring.js flowerMat)
     retint: mat => { if (mat && mat.userData && mat.userData.uLeaf) retint(mat); },
     sharp: v => { if (v !== undefined) U_SHARP.value = +v; return U_SHARP.value; },
   };

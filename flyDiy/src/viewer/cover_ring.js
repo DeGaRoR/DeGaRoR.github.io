@@ -138,6 +138,7 @@ var COVER_RING = (() => {
   // clump field's cell / amplitude (neighbours share a length). A mix row of the reed may carry its own h / sigma / dens (the
   // biome's grass card, TYPES > biome) - the row wins. A mix not named is the meadow's.
   const FIELD_SPECIES = ['grass_reed'];
+  const FIELD_ON = false;   // the grass field's default (train 43: off - its near band costs more than today's on dense ground)
   const SIZE_MAX = 1.5;   // the size fade's ceiling: a tuft taller than the reference reaches at most 1.5 x the reach (trees.js FADE_VS, the same clamp)
   const FIELD_TYPES = {
     grassland:     { h: 0.30, sigma: 0.35, dens: 1.0 },                      // heath (2): the meadow, the reference
@@ -150,6 +151,12 @@ var COVER_RING = (() => {
     borders:       { h: 0.40, sigma: 0.40, dens: 1.1 },                      // lush (15): the field edge
     village:       { h: 0.18, sigma: 0.25, dens: 0.6 },                      // built (10)
     city_trees:    { h: 0.15, sigma: 0.25, dens: 0.5 },                      // the town's wood (16)
+    // THE BARE BIOMES (the user 9-10 Oct: "add grass where it is bare"): no reed row and no cover in their mixes, so nothing grew
+    // there; `fill` plants the field's own sparse grass in them all the same (a mix row of the reed, once the user adds one on the
+    // biome's card, wins). The land test still keeps it off sand, water and paving (okAt): what grows is on their grassy ground
+    shore:         { h: 0.45, sigma: 0.35, dens: 0.15, fill: 1 },           // sand (4): dune grass inland of the beach
+    scree:         { h: 0.15, sigma: 0.30, dens: 0.2, fill: 1 },            // scree (5): short tufts between the stones
+    shingle:       { h: 0.30, sigma: 0.35, dens: 0.1, fill: 1 },            // shingle (11): the upper shore's tufts
   };
   const FIELD_MEADOW = FIELD_TYPES.grassland;
   // THE TUFT (GRASS-STUDY §4.2): the shipped patch's CARDS (its connected strips, by the index buffer) grouped K nearest to
@@ -208,11 +215,13 @@ var COVER_RING = (() => {
     const S = FIELD
       ? { on: true, cell: 16, reach: 90, near: 15, taper: 1, aglFull: 27, aglOff: 90, density: 1, shrubs: 0, rocks: 0, budgetMs: 3, maxCells: 1400, blockBudget: 4, debrisKinds: 4, castMinH: 99, batch: false,
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
-          tufts: 90, cards: 3, sizeFade: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
+          tufts: 90, cards: 3, variants: 3, block: 2, sizeFade: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
-    if (FIELD) try { if (/[?&]grassfield=0/.test(location.search)) S.on = false; } catch (e) {}   // ?grassfield=0: today's grass (the first ring's patches) - the A/B
+    // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
+    // grass field > 'the field'; the world look keeps the user's choice). ?grassfield=1 / 0 forces it for a rig; FIELD_ON the default
+    if (FIELD) { S.on = FIELD_ON; try { const m = /[?&]grassfield=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
     // G603 (A1-STAND): a cell's key is a NUMBER - update() asked the map for ~290 cells a frame by a fresh 'cx,cz'
@@ -265,7 +274,7 @@ var COVER_RING = (() => {
       const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
-      LEAF.fadeHook(m); return m;
+      LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m); return m;   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
     };
     function protosOf(c) {
       let P = protos.get(c.name);
@@ -355,7 +364,7 @@ var COVER_RING = (() => {
         // THE FIELD'S TUFTS: the patches' cards in groups of S.cards, the three median ones the variants (tuftsOf above); one
         // material (the patches share the reed's), h0 the tuft's own top in the model's units (the height a scale is asked for)
         if (FIELD && c.kind === 'cover' && P.length && P[0].parts.length) {
-          const mat = P[0].parts[0].mat, T = tuftsOf(THREE, P.map(p => p.parts[0].geo), Math.max(1, S.cards | 0), 3);
+          const mat = P[0].parts[0].mat, T = tuftsOf(THREE, P.map(p => p.parts[0].geo), Math.max(1, S.cards | 0), Math.max(1, S.variants | 0));   // (`variants`: the draws a block - each is one)
           P.length = 0;
           T.forEach((t, i) => P.push({ key: c.name + '|tuft' + i, w: 1 / T.length, kind: 'cover', h: t.top, h0: t.top, parts: [{ geo: t.geo, mat }], size: 1, r0: 1, tris: t.tris }));
         }
@@ -655,8 +664,11 @@ var COVER_RING = (() => {
         if (types.has(mix)) return types.get(mix);
         const M = mix ? BIO.mixOf(mix) : null, row = M && M.species && M.species[c.name];
         let T = null;
-        if (row) { const F = M.forest || {}, D = FIELD_TYPES[mix] || FIELD_MEADOW, pick = (k, d) => (row[k] !== undefined ? row[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
-          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * (F.cover === undefined ? 1 : F.cover), clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
+        const D = FIELD_TYPES[mix] || FIELD_MEADOW;
+        if (row || (M && D.fill)) { const F = M.forest || {}, R0 = row || {}, pick = (k, d) => (R0[k] !== undefined ? R0[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
+          // (a bare biome's `forest.cover` is 0 - its own flowers' and the old patches' - so the field's own density stands there)
+          const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
+          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
         types.set(mix, T); return T; };
       let dmax = 0; for (let k = 0; k < G.N * G.N; k++) { const T = typeOf(G.mix[k]); if (T && T.dens > dmax) dmax = T.dens; }
       const cutMax = Math.max(1, S.cutDens, S.stripDens);
@@ -876,7 +888,8 @@ var COVER_RING = (() => {
     // `blockBudget` a frame; until then the block draws what it held). Culling is the block's own
     // sphere (the frustum) and the fade's reach (below); the instances and the shader are the
     // cells' own, so the picture is the same.
-    const B = FIELD ? 2 : 4, blocks = new Map();   // (the field's: 2 x 2 of its 16 m cells - the near band must not submit 128 m)
+    let B = FIELD ? S.block : 4;   // (the field's: `block` x `block` of its 16 m cells - the near band must not submit 128 m; a dial: draws against truncation's grain)
+    const blocks = new Map();
     const now = () => performance.now() / 1000;   // the grow's clock (trees.js uFadeNow / aBorn)
     // THE BATCHES GROW ON THE CPU (G670): a BatchedMesh instance has a matrix and a colour and no attribute of its own
     // (the fade's threshold already rides the colour's alpha), so a near cell's rocks, debris and shrubs are scaled
@@ -1072,9 +1085,10 @@ var COVER_RING = (() => {
       update, root,
       get: () => Object.assign({}, S),
       set: o => { const was = Object.assign({}, S); Object.assign(S, o || {});
-        if (FIELD && S.cards !== was.cards) protos.clear();   // the tufts are cut again
+        if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
+        if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'tufts', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)

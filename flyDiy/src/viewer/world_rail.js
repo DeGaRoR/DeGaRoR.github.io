@@ -103,7 +103,7 @@
     const g = G(); if (g && !DEF.ground) { DEF.ground = clone(g.get()); DEF.stack = clone(g.stack()); }
     const t = TF(); if (t && t.island && !DEF.island) { DEF.island = clone(t.island()); DEF.fillDensity = t.get ? t.get() : null; DEF.thin = t.thin ? t.thin() : null; }
     const r = RING(); if (r && !DEF.ring) DEF.ring = clone(r.get());
-    if (FLD() && !DEF.grass) DEF.grass = fieldNow();
+    if (FLD() && !DEF.grass) { DEF.grass = fieldNow(); DEF.grassOn = !!FLD().get().on; }
     if (GSD() && !DEF.gsides) DEF.gsides = clone(GSD().GRASS_SIDES_DEF);
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
     if (WF() && WF().envAlbedo && DEF.env === null) DEF.env = WF().envAlbedo();
@@ -128,7 +128,7 @@
     const t = TF(); if (t) { if (t.island) o.island = t.island(); if (t.speciesSizes) o.speciesSize = t.speciesSizes(); if (t.get) o.fillDensity = t.get(); if (t.thin) o.thin = t.thin(); }
     const B = BIO(); if (B) o.biomes = { map: clone(B.map), mixes: clone(ownMixes(B.mixes)) };
     const r = RING(); if (r) o.ring = r.get();
-    if (FLD()) o.grass = fieldNow();
+    if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }   // (the switch apart: the look keeps the user's choice)
     if (GSD()) o.gsides = GSD().grassSides();
     const c = CLF(); if (c) o.cliffs = c.get();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
@@ -149,6 +149,7 @@
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
     put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
     put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides));
+    if (N.grassOn !== undefined && DEF.grassOn !== undefined && N.grassOn !== DEF.grassOn) o.grassOn = N.grassOn;
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
     if (N.runway && Object.keys(N.runway).length) o.runway = N.runway;   // the overlay IS a delta (over the premises' look)
     return o;
@@ -183,6 +184,7 @@
       if (dirty) { const any = Object.keys(B.mixes)[0]; if (any) t.setMix(any, ['forest', 'count'], (B.mixOf(any).forest || {}).count || 0); }
     }
     const r = RING(); if (r && o.ring) { const d = deltaOf(Object.assign({}, r.get(), o.ring), r.get()); if (d) r.set(d); }
+    if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
     const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
     if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { GSD().grassSides(d); replantGrass(); } }
     const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
@@ -1010,6 +1012,8 @@
       range(Gf, 'clumps: amount', 0, 0.8, 0.02, () => fl.get().clumpAmp, fs('clumpAmp'), null, D.clumpAmp);
       range(Gf, 'bare patches', 0, 1, 0.05, () => fl.get().blotch, fs('blotch'), null, D.blotch);
       range(Gf, 'cards a tuft', 1, 8, 1, () => fl.get().cards, fs('cards'), null, D.cards);
+      range(Gf, 'tuft shapes (draws)', 1, 6, 1, () => fl.get().variants, fs('variants'), null, D.variants);
+      range(Gf, 'block (cells a side)', 1, 6, 1, () => fl.get().block, fs('block'), v => v + ' (' + v * 16 + ' m)', D.block);
       toggle(Gf, 'colour: the ground as drawn', () => fl.get().colour, v => fl.set({ colour: v ? 1 : 0 }));
       range(Gf, 'colour: level to the ground', 0.3, 2.5, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
       range(Gf, 'colour: tuft to tuft', 0, 0.3, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
@@ -1046,7 +1050,7 @@
     }
     // G1385 (EDITOR-VEG, the user: "We are missing coloration options for the grass and the bushes"): each kind's
     // master over all its species (trees.js KIND_MASTER), on top of the trees' hue and, for the bushes, their master
-    if (L && L.kindTint) for (const [kind, title, sub] of [['cover', 'the grass’ colour', 'every grass species (not the flowers)'], ['shrub', 'the bushes’ colour', 'every bush species']]) {
+    if (L && L.kindTint) for (const [kind, title, sub] of [['cover', 'the grass’ colour', 'every grass species (not the flowers)'], ['flower', 'the flowers’ colour', 'every flower species (their pictures)'], ['shrub', 'the bushes’ colour', 'every bush species']]) {
       const K = () => L.kindMaster(kind) || {}, D = (DEF.kindTint && DEF.kindTint[kind]) || { hue: 0, sat: 1, light: 1 };
       const C = sec(body, title, false, sub);
       range(C, 'hue', -0.2, 0.2, 0.005, () => K().hue, v => L.kindTint(kind, { hue: v }), v => v.toFixed(3), D.hue);

@@ -216,7 +216,7 @@ function fieldRing() {
   const coverAt = (x, z) => (x > 20 && x < 44 && z > -20 && z < 20) ? { kill: 0, boost: 0, kind: null, cls: 'concrete', cut: 1, surf: 0 } : null;
   const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
     biomeAt: () => 'grassland', codeAt: () => 2, okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
-  CR.set({ budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });
+  CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });   // (the field ships off: FIELD_ON)
   for (let i = 0; i < 4; i++) CR.update();
   return { B, THREE, R, CR, scene, camera, ctx, g, GM };
 }
