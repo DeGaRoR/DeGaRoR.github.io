@@ -15514,10 +15514,10 @@
     poseModel();
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
-    if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event
     // G1080 (SHADOW-EYES): the craft's shadow maps aimed at THIS frame's pose (worldUpdate ran before poseModel, on the
     // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
     if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
+    if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event (T41b: after the near maps' aim - G1080 holds the aim right after poseModel)
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
