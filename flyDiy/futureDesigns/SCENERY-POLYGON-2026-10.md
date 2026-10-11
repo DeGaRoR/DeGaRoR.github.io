@@ -208,3 +208,13 @@ that to me." So:
   (the node shared, the positions equal); a junction's grade continuous to 2 cm for every road through it; a moved
   junction moves every road there; `path` across Metlakatla follows its streets; the user's file's graph lists its
   components.
+- **ROADSIDE APRONS** (the user: "a lot of gravel areas next to the road for a U-turn or a stop; we should have that and
+  our vehicles should know they can use them (similar to runway aprons)"): an AREA (§2) carrying
+  `road: { id: <road id>, node: <shared waypoint id>, use: ['turn', 'stop'] }` beside its usual props (default
+  `wheels: gravel`, `draw: { look: 'gravel' }`, round or a polygon, like the airfield's round pad). It is attached to a
+  road WAYPOINT (it shares that node - moving the waypoint carries it). Editor: the road inspector's 'add roadside apron'
+  at the picked waypoint (round, 12 m, to the waypoint's outside; then shaped like any area).
+  In the graph: `O.roadGraph.nodes[i].aprons = [{ area: <area id>, use: ['turn', 'stop'], poly: [[x, z] world...],
+  centre: [x, z], r: <metres, the largest circle inside> }]` - the node a vehicle reaches the apron from, the shape it
+  may drive on, the room it has to turn (r). GROUND-VEHICLE G2940 reads only `roadGraph` (nodes, edges, aprons) and
+  `edgeAt` / `path`; the data shape is frozen here so it can be written against before ROAD-GRAPH lands (through A0).
