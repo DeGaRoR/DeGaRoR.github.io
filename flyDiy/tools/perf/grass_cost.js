@@ -79,11 +79,14 @@ const INSTRUMENT = `(() => {
     requestAnimationFrame(tick); });
   // the recorder's frames over ms milliseconds -> { frameGpuMs, fps, draws, mtris }
   const frame = async ms => { const REC = window.FLIGHT_REC && FLIGHT_REC.rec; if (!REC) return {};
-    const f0 = REC.frame; await new Promise(r => setTimeout(r, ms)); const F = REC.F || {}, g = [], dt = [], calls = [], tris = [];
+    const f0 = REC.frame; await new Promise(r => setTimeout(r, ms)); const F = REC.F || {}, g = [], dt = [], calls = [], tris = [], cov = [], ren = [], wk = [];
     for (let f = f0; f < REC.frame; f++) { const r = REC.row(f); if (!r || !(r.dt === r.dt)) continue; const fl = r.flags | 0; if ((F.away && (fl & F.away)) || (F.boot && (fl & F.boot))) continue;
-      dt.push(r.dt); if (r.gpu === r.gpu) g.push(r.gpu); if (r.calls === r.calls) calls.push(r.calls); if (r.tris === r.tris) tris.push(r.tris); }
-    const sum = dt.reduce((a, b) => a + b, 0);
-    return { frameGpuMs: med(g), fps: sum ? +(1000 * dt.length / sum).toFixed(1) : null, draws: med(calls), mtris: tris.length ? +(med(tris) / 1e6).toFixed(2) : null }; };
+      dt.push(r.dt); if (r.gpu === r.gpu) g.push(r.gpu); if (r.calls === r.calls) calls.push(r.calls); if (r.tris === r.tris) tris.push(r.tris);
+      if (r.cover === r.cover) cov.push(r.cover); if (r.render === r.render) ren.push(r.render); if (r.work === r.work) wk.push(r.work); }
+    const sum = dt.reduce((a, b) => a + b, 0), p99 = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? +b[Math.min(b.length - 1, Math.floor(b.length * 0.99))].toFixed(2) : null; };
+    // (the CPU too, G2569: the recorder's slots - `cover` is both cover rings' update (their planting), `render` the submit, `work` the frame)
+    return { frameGpuMs: med(g), fps: sum ? +(1000 * dt.length / sum).toFixed(1) : null, draws: med(calls), mtris: tris.length ? +(med(tris) / 1e6).toFixed(2) : null,
+      coverMs: med(cov), coverP99: p99(cov), renderMs: med(ren), workMs: med(wk), dtP99: p99(dt) }; };
   // the ring idle: nothing queued, no block left to rebuild, for 20 frames in a row (or 60 s)
   const idle = () => new Promise(res => { let ok = 0; const t0 = performance.now();
     const tick = () => { const cr = window.TREE_FILL && TREE_FILL.cover && TREE_FILL.cover(); const s = cr ? cr.stat() : null;
@@ -93,7 +96,8 @@ const INSTRUMENT = `(() => {
   const ring = () => { const cr = window.TREE_FILL && TREE_FILL.cover && TREE_FILL.cover(); if (!cr) return null; const s = cr.stat();
     const fl = TREE_FILL.grass && TREE_FILL.grass(), f = fl && fl.get().on ? fl.stat() : null;   // the grass field (G2563), when the tree has one and it is on
     return { live: s.live, instK: +(s.instances / 1000).toFixed(1), shown: s.shown, blocks: s.blocks, ringDraws: s.draws, agl: +(+s.agl).toFixed(1), aglK: +(+s.aglK).toFixed(3), mix: s.mixAt, grass: s.by && (s.by.grass_reed || 0), lawn: s.by && (s.by.lawn || 0),
-      field: f ? { live: f.live, heldK: +(f.instances / 1000).toFixed(1), subK: +((f.submitted || 0) / 1000).toFixed(1), draws: f.draws, tierUp: f.tierUp || 0, lastMs: +(+f.lastMs).toFixed(2), maxMs: +(+f.maxMs).toFixed(2) } : null }; };
+      plantMs: +(+(s.plantMs || 0)).toFixed(2),
+      field: f ? { live: f.live, heldK: +(f.instances / 1000).toFixed(1), subK: +((f.submitted || 0) / 1000).toFixed(1), draws: f.draws, tierUp: f.tierUp || 0, lastMs: +(+f.lastMs).toFixed(2), maxMs: +(+f.maxMs).toFixed(2), plantMs: +(+(f.plantMs || 0)).toFixed(2) } : null }; };
   window.__GRC = { grass, frame, idle, ring, S };
   return 'installed ' + (X ? 'timer' : 'NO TIMER');
 })()`;
@@ -208,7 +212,7 @@ const LOCS = `(() => {
     const row = Object.assign({ view: v, idleMs, boot, where: VIEW[v].free ? VIEW[v].free : VIEW[v] }, fr, gr, { ring: rg });
     rows.push(row);
     console.log('  ' + el() + '  ' + v.padEnd(9) + (GPU ? 'grass ' + String(row.grassMs).padStart(6) + ' ms  frame ' + String(row.frameGpuMs).padStart(6) + ' ms  ' : '') +
-      (row.fps ? row.fps.toFixed(0) : '-') + ' fps  grass ' + row.gDraws + ' draws ' + row.gInstK + ' k inst ' + row.gTrisM + ' Mtris  · ring ' + (rg ? rg.instK + ' k held, agl ' + rg.agl + ' ' + rg.mix : '-') + '  (idle ' + idleMs + ' ms)');
+      (row.fps ? row.fps.toFixed(0) : '-') + ' fps (dt p99 ' + row.dtP99 + ', cover ' + row.coverMs + ' / p99 ' + row.coverP99 + ', render ' + row.renderMs + ' ms)  grass ' + row.gDraws + ' draws ' + row.gInstK + ' k inst ' + row.gTrisM + ' Mtris  · ring ' + (rg ? rg.instK + ' k held, agl ' + rg.agl + ' ' + rg.mix : '-') + '  (idle ' + idleMs + ' ms)');
     if (SHOTS) {
       if (boot !== 'gone') console.log('  ' + v + ': BOOT is ' + boot + ' - still DISCARDED (the overlay rule)');
       else { const s = await cmd('Page.captureScreenshot', { format: 'png' }); if (s.result) fs.writeFileSync(OUT + '_' + v + '.png', Buffer.from(s.result.data, 'base64')); }
