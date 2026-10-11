@@ -298,7 +298,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
-      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
+      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent && (!e.chunk || e.grp.parent.parent));   // (G2955: a line's lamp chunk stays parented to its line - the line itself must still stand)
       for (const e of pub) if (!e.wp || e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
       const r2 = LAMPS.reach * LAMPS.reach;
       LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })

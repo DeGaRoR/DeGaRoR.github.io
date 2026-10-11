@@ -459,7 +459,7 @@ console.log('8. THE POWER LINE - the poles, the side, the cable');
     PW.cull({ x: 0, y: 12, z: 0 });
     verdict(ch[0].visible && !ch[ch.length - 1].visible && lampMeshes[0].visible && !lampMeshes[lampMeshes.length - 1].visible, 'the eye at its start: the first chunk drawn (cable and lamps), the last not');
     const RPs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
-    verdict(/chunkOf\(q\.ci \| 0\)/.test(RPs) && /PWR\.chunk\(c\.metal\.mesh/.test(RPs) && /q\[1\]\.chunk && !q\[1\]\.grp\.visible/.test(RPs),
+    verdict(/chunkOf\(q\.ci \| 0\)/.test(RPs) && /PWR\.chunk\(c\.metal\.mesh/.test(RPs) && /q\[1\]\.chunk && !q\[1\]\.grp\.visible/.test(RPs) && /!e\.chunk \|\| e\.grp\.parent\.parent/.test(RPs),
       'the game bags a line\'s lamps by its chunks, marks them for the cull, and a culled chunk\'s lamps lend no light');
     PW.cull({ x: LL / 2, y: 12, z: 0 }, 1e9);
     verdict(ch.every(c => c.visible), 'a reach past the road draws it all');
