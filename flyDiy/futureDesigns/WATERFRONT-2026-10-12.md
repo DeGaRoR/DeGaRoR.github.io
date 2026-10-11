@@ -37,15 +37,16 @@ One new layer, **`layers.waterfront`**, of LINES (the road's tools work on them 
 | `float` (floating dock) | the main float, gangway end first | `w`, `freeboard`, `fingers` both/alt/left/right, `pitch`, `fingerL`, `fingerW`, `gangway` + `gangW` + `abut`, `guideSpc`, `boats` (share of slips filled) |
 | `boom` (log boom) | the anchors | `logD`, `logL`, `sag`, `chain` |
 
-Record: `{ id: 'w<n>', kind, name?, pts: [[x, z], ...], P: {...}, seed? }`. A **fill / reclaimed pad** is an area
+Record: `{ id: 'f<n>', kind, name?, pts: [[x, z], ...], P: {...}, seed? }`. A **fill / reclaimed pad** is an area
 with a new `fill` property — `{ deck, edge: 'riprap' | 'wall' | 'none', block, slope }` — which raises the area to
 `deck` and lays a revetment along every edge whose outside is water (the dock marks' `waterEdges` already measures
 it). With `draw` concrete and `marks: dock`, that is Metlakatla's paved lot with its quay line.
 
-**Contract number: taken AT LANDING, the next free one** after SCENERY-ED-2's Monday trains (ROAD-GRAPH v1.37
-07:50, PLACER-FAST v1.38 12:45, SCENERY-SHIP v1.39 14:55, BIOME-PAINT, RUNWAY-ED ~v1.40): likely **v1.41+**.
-`PREMISES_V` 2 -> 3 with a migrator that only adds the empty layer (agreed by SCENERY-ED-2), so every existing
-record composes bit-equal (a GATE PREMISES identity row). Shipped fixtures stay v1.
+**Contract v1.42** (fixed with SCENERY-ED-2 on 12 Oct: v1.37 ROAD-GRAPH, v1.38 PLACER-FAST, v1.39 SCENERY-SHIP,
+v1.40 RUNWAY-ED, v1.41 BIOME-PAINT, each kept reserved even if unused). **No record bump** (PREMISES_V stays 2):
+`waterfront` goes into LAYERS and DEF, so `normalise` gives a missing layer `[]`, as ROAD-GRAPH's `junctions` did.
+LAYERS also drives findById, newId and issues. Ids are **`f<n>`**, because `w` is the runways' prefix. Every
+existing record composes bit-equal (a GATE PREMISES identity row).
 Rebase after SCENERY-SHIP lands, with these hunks:
 - `'fill'` goes after `'roadside'` in AREA_PROPS.
 - `'waterfront'` goes into the editor's `groundLayer`.
@@ -140,7 +141,7 @@ are unproven until the GPU slot times them.
 
 ## 6. Order of work (G3032-G3039) — after the user's OK
 
-1. **G3032 compose**: layer, the agreed contract number, `mound` modifier, surface/ttype/exclude from the footprint;
+1. **G3032 compose**: layer (contract v1.42, no record bump), `mound` modifier, surface/ttype/exclude from the footprint;
    GATE PREMISES identity rows.
 2. **G3033 render**: BatchedMesh stones (rungs + back-flank cull in a per-camera pass), core/track merged, the
    wet/algae material; in the house worker.
