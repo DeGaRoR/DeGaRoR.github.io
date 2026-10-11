@@ -89669,3 +89669,17 @@ targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its 
 PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
 1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
 (data manifests only).
+
+### T41b - THE GARAGE ROWS ACCEPTED BY NAME (the user, 11 Oct: "a and b")
+- **(a) User-accepted 11 Oct**: the accepted +3.3 % physics step shows as +4-10 % garage busy through genShakedown (Cub
+  1,938 -> 2,102 ms, metal 2,703 -> 2,964 ms summed over the ten-change script, livery excluded).
+  - Measured with tools/perf/garage_lag.js --prof against master 43: all of it is genShakedown inside GARAGE_SPEC.update
+    (the performance sheet flies the aeroplane in the simulator on the main thread): metal 1,026 -> 1,182 ms, Cub
+    604 -> 629.
+  - buildGen, the cage, the bake and the join are flat; substeps are unchanged (75 / 120).
+  - In node the full sheet costs +5 % (Cub) / +3.7 % (metal), a third of it CORE_MATH. The Cub also carries MOUNTRIG's
+    4 nodes / 10 beams.
+  - The strict gate's garage rows are re-baselined BY NAME at the landing (A0, tools/perf/train_gate.js --update).
+- **(b)** The shakedown moves off the main thread / to the end of a drag: a separate session (A0's chip), not this
+  train.
+- **Owed after the landing (Deform)**: the bisect of the step's ~1.3 % unattributed, and a cheaper DMG-DAMP fit.
