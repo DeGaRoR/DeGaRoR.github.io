@@ -1034,8 +1034,8 @@
 #mapScreen .mmFltB[aria-expanded="true"]{border-color:var(--ed-acc)}
 #mapScreen .mmFlt{display:grid;gap:10px;padding:12px 16px 14px;border-bottom:1px solid var(--ed-hair);background:var(--ed-board)}
 #mapScreen .mmFr{display:grid;gap:4px}
-#mapScreen .mmCap{display:flex;gap:8px;align-items:baseline;font:600 10.5px/1.2 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--ed-faint)}
-#mapScreen .mmHid{font:500 11.5px/1.2 'IBM Plex Sans';letter-spacing:normal;text-transform:none;color:var(--ed-warn)}
+#mapScreen .mmCap{display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;font:600 10.5px/1.2 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--ed-faint)}
+#mapScreen .mmHid{white-space:nowrap;font:500 11.5px/1.2 'IBM Plex Sans';letter-spacing:normal;text-transform:none;color:var(--ed-warn)}
 #mapScreen .mmChips{display:flex;flex-wrap:wrap;gap:6px}
 #mapScreen .mmChip{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 11px;font:500 12.5px/1 'IBM Plex Sans';color:var(--ed-dim);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px}
 #mapScreen .mmChip.on{color:var(--ed-ink);background:var(--ed-acc-soft);border-color:var(--ed-acc)}

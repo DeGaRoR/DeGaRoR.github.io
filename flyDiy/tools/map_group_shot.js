@@ -13,7 +13,7 @@
 //   desk_type        grouped by Type (the default), ordered by pay: the four sections, their dots and counts
 //   desk_contractor  grouped by Contractor, ordered by Distance: the five sections (CONTRACT_PROVIDERS' order), each
 //                    row's km under its title, the types' legend in the head
-//   desk_filters     a contract tracked (a water job), then the filters' panel open with Surface: land, Stops: 1 and
+//   desk_filters     a contract tracked (a water job), then the filters' panel open with Surface: land, Km <= 15 and
 //                    Pay >= 4 000 set: each filter's "n hidden", the summary and Clear, the tracked row kept "outside the
 //                    filters"; the map's badges of the places no shown contract involves dimmed
 //   desk_folded      a section folded (its header only), the choice remembered across a reload (the grouping, the order,
@@ -137,12 +137,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await choose(pg, '#mapScreen .mmSort', 'pay');
     await tap(pg, '#mapScreen .mmFltB');
     await choose(pg, '#mapScreen .mmFsel[data-f="surf"]', 'land');
-    await choose(pg, '#mapScreen .mmFsel[data-f="stops"]', '1');
+    await choose(pg, '#mapScreen .mmFnum[data-f="kmMax"]', '15');
     await choose(pg, '#mapScreen .mmFnum[data-f="payMin"]', '4000');
-    st = await shot(pg, 'desk', 'filters', 'the filters\' panel: Surface land, Stops 1, Pay >= 4 000 - each caption says how many rows it hides alone, the summary "n of N · hidden" and Clear; the tracked water job kept first in its section, "outside the filters"; on the map the places no shown contract involves dimmed');
+    st = await shot(pg, 'desk', 'filters', 'the filters\' panel: Surface land, Km <= 15, Pay >= 4 000 - each caption says how many rows it hides alone, the summary "n of N · hidden" and Clear; the tracked water job kept first in its section, "outside the filters"; on the map the places no shown contract involves dimmed');
     same(st, 'filters');
     check(st.tracked === wet && st.view.pinned === wet && st.pinTag, 'the tracked row (' + wet + ') kept against the filters, marked "outside the filters"');
-    const capsOk = ['surf', 'stops', 'payMin'].every(f => !st.view.hidden[f] || st.caps.some(c => c.includes(st.view.hidden[f] + ' hidden')));
+    const capsOk = ['surf', 'kmMax', 'payMin'].every(f => !st.view.hidden[f] || st.caps.some(c => c.includes(st.view.hidden[f] + ' hidden')));
     check(capsOk && st.view.hiddenAll > 0 && st.sum.includes(st.view.shown + ' of ' + st.view.base) && st.sum.includes(st.view.hiddenAll + ' hidden'), 'each filter states what it hides (' + st.caps.join(' | ') + '); the summary "' + st.sum + '"');
     check(st.dim > 0 && st.overlay && st.overlay.dim === st.dim, 'the map follows the list: ' + st.dim + ' of ' + st.badges + ' badges dimmed');
     await tap(pg, '#mapScreen .mmClr');
