@@ -85069,8 +85069,10 @@ futureDesigns/game/evidence/HANGAR-STORAGE/ (storage2_rig.json, timed/*.json). T
   the train's re-cook. PARKED and INSTANT --fleet reached the 15-min stop with no verdict.
 
 ### Owed / open
-- The two first-time costs, if they matter: bake a long-term airframe on its way out of long-term (the move is the moment; the bound
-  admits it the next frame anyway), or decode a resident before the garage asks. Neither verified on the box.
+- FOLLOW-UPS (the coordinator: no fix tonight, no box time to prove one; to the user): (1) a long-term airframe that was never baked
+  bakes when it first comes in - 4.7 s on the laptop rung, ~1.5 s on the box; the coordinator's lean: bake it under a held still
+  frame (as the roll-out screen does), or bake when a plane goes INTO long-term; (2) a resident's first decode, 400 ms on the rung
+  (~130 ms on the box) - decode it before the garage asks.
 - The floor moves' timings, the Fly-from-each-kind run in the page, a second A/B pair, the metal's garage_lag, PARKED, INSTANT
   --fleet, FRAMECOST after the re-cook, UISMOKE after STORAGE-1's final - in a window A0 gives.
 
