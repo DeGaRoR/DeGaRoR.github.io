@@ -136,11 +136,15 @@ const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('ga
   // ---- 1. THE FLEET BAKED ------------------------------------------------------------------------------------------------
   if (ONLY.has('bake')) {
     await run(`for (const n of Object.keys(FLYDIY_PLAYER.doc().fleet)) PARKED.fleetQueue(n); return 1;`);
-    const t0 = Date.now(); let R = null, FS = null;
+    const t0 = Date.now(); let R = null, FS = null; res.__quietN = 0;
     while (Date.now() - t0 < 300000) {
       R = await resNow(); FS = await fleetStats();
-      // (every key the bound accepted baked - a long-term one is never wanted: notWanted)
-      if (R && R.plan && R.plan.length && R.plan.every(p => p.filled) && !FS.queue && !FS.busy && FS.queued > 0 && FS.bakes + FS.decodes >= FS.queued) break;
+      // the queue drained and idle, the residents filled, no bake for two looks (stats.queued counts every push, re-queues
+      // too - 11 Oct's window waited 300 s on it; a long-term airframe is never wanted, so never baked)
+      const quiet = !FS.queue && !FS.busy && FS.bakes === (res.__lastBakes == null ? -1 : res.__lastBakes);
+      res.__lastBakes = FS.bakes;
+      if (R && R.plan && R.plan.length && R.plan.every(p => p.filled) && quiet && ++res.__quietN >= 2) break;
+      if (!quiet) res.__quietN = 0;
       await sleep(3000);
     }
     res.baked = { secs: (Date.now() - t0) / 1000, residents: R, fleet: FS };
@@ -178,12 +182,14 @@ const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('ga
 
   // ---- 2. THE MOVES on the rung --------------------------------------------------------------------------------------------
   const move = async (tag, name, to) => {
+    const S0 = await fleetStats();
     const t0 = await run('return performance.now();');
     const r = await run(`const t = performance.now(); const r = FLYDIY_STORE.move(${JSON.stringify(name)}, ${JSON.stringify(to)}); r.callMs = +(performance.now() - t).toFixed(1); return r;`);
     const B = await busyAfter(t0);
     const R = await rules(tag);
     const FS = R.FS;
-    check(FS.captures === res.stats0.captures && FS.bakes === res.stats0.bakes && !FS.queue, tag + ': no bake, nothing queued', { before: res.stats0, after: FS });
+    // per move: against the stats before THIS move (a first-shown long-term airframe bakes once - reported, not hidden)
+    check(FS.captures === S0.captures && FS.bakes === S0.bakes && !FS.queue, tag + ': no bake, nothing queued', { before: S0, after: FS });
     const m = { tag, name, to, ok: r && r.ok, why: r && r.why, swapped: r && r.swapped, callMs: r && r.callMs, busy: B, residents: R.R && R.R.plan.map(p => p.name), how: R.R && R.R.how, resMs: R.R && R.R.ms, apron: R.A && R.A.stand.map(s => s.slot), view: R.V };
     res.moves.push(m); save();
     console.log('  MOVE ' + tag + ' ' + name + ' -> ' + JSON.stringify(to) + ': ' + (m.ok ? 'ok' : 'REFUSED ' + m.why) + ', call ' + m.callMs + ' ms, long tasks ' + JSON.stringify(B.tasks) + ', residents ' + JSON.stringify(m.residents) + ' (' + m.how + '), apron ' + JSON.stringify(m.apron));

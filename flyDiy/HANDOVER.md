@@ -85014,3 +85014,65 @@ READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section r
 - The bucket key only moves for an inside-only material: a build's other buckets keep their keys.
 
 READY for the GAME COORDINATOR: claude/fleet-cowlbake-g2228 79a36b43 (11b proven only by the 15:35 pass; this section rides one docs-only commit on top)
+
+## G2700-G2704 - HANGAR-STORAGE-2: THE STORAGE ON THE BOX - THE DRAWN LAYER FOLLOWS THE MOVES, AN APRON AEROPLANE FLIES FROM ITS OWN SPOT, A RESIDENT IS BAKED WHEN MOVED INSIDE; THE TIMED PROOF (2026-10-11, HANGAR-STORAGE-2 for the GAME COORDINATOR, LOCAL-GPU; branch claude/hangar-storage-2-g2700 off game-t44-2 824f0889, game-t44-2 merged up to 8923ec27; G2700-G2704)
+
+futureDesigns/game/HANGAR-STORAGE-2026-10-10.md, on HANGAR-STORAGE-1's WIP commit 0405c10b (its final is not in yet: the
+GPU half re-runs what its final changes). The user, 11 Oct: no evidence stills - the box window was the TIMED proof only.
+
+### Found and fixed (src)
+- **G2703 A resident is baked when it is moved inside.** parked.js bakes a fleet prop only when FLEET_STAND.wants(key) (FLEET-PROPS
+  B's bound), which read the apron alone: an airframe saved on the floor and moved INSIDE never stood outside, its bake was
+  refused (stats.notWanted) and its garage resident never filled. app.js fleetCtx now hands `inside` (the career's residents:
+  playerResidentsShown(here, null, N + 1) - the inside slots in order, then the floor's aeroplane); fleet_stand.js wants() admits
+  them. A long-term airframe is never wanted. GATE STOREDRAW (+ --selftest, 3 breaks caught).
+- **G2701 An apron aeroplane flies from its own tie-down spot.** A storage Fly of an OUTSIDE aeroplane started at the hangar's stand
+  (its spot left empty). app.js storeSpotOf: FLEET_STAND.plan's spot for its slot (every row, no cap, nothing flown) as a stand
+  { x, z, hdg: -ry } - the spot's nose is along (cos ry, -sin ry), placeAtAerodrome's along (cos hdg, sin hdg), checked in node
+  (0.00 deg); applyRoute uses it (its ground read under it), today's stand when the world has no spot. GATE STORESPOT: HOME's six
+  spots (the drawn cap) - the nose along the prop's, the pilot taxis to its roll and lifts off on the centreline (|across| 0.1 m).
+  Spots 1, 2, 4, 5 take 31 by the V's right arm in 175-180 s (the hangar stand: 171 s); spots 0 (stand:af_m_park:5) and 3
+  (apron:22:210) take 13 by the left arm, ~330 s - the pilot's planner chooses (the PILOT COORDINATOR's, not changed here).
+- **G2702** the dragged card is marked (hsDragging) and a slot's dragover no longer bubbles to its column (the column took the
+  light from the slot under the pointer).
+- **The t44-1 merge into t44-2 (6d94178d, done here for the coordinator):** both slot rulings - storage's shell table and `where`
+  model (the sandbox's club 2 inside, a works 4) and G2319.1 (a CAREER's club MAIN hangar = the bay + 1: PREM_SLOTS.mainClub,
+  applied in playerStoreSlots; a shed's own `slots` still overrides); GATE GAMEPREM's GQ7 rows in storage's return shape + the
+  career rows, a doctored rule for the career club.
+
+### Not changed, said plainly
+- **The SANDBOX's INSIDE column draws nothing beside the stand:** the garage residents are the career's (app.js residentsSync
+  returns without CAREER_DEV); the coordinator's ruling (11 Oct): the club identity stays, the question goes to the user.
+- **A career's club main hangar has ONE inside slot** since G2319.1: "two inside + four outside" no longer exists in the career; the
+  A/B's storage side is 1 inside + 1 long-term + 4 outside.
+
+### The box (11 Oct, the laptop rung CPU 3x / GPU x6; GPU 16:35-17:00, CPU 17:30-17:44; locks taken and dropped)
+Rigs: tools/perf/storage2_set.js (the fleet in the career, made by each tree's own core: base v2 / tree v3), storage2_rig.js
+(bake, the moves on the rung, stills, Fly from each kind - the stills and the flights not run, the user's word). Numbers:
+futureDesigns/game/evidence/HANGAR-STORAGE/ (storage2_rig.json, timed/*.json). The base: t44-1 54cd4162 (t44-2 minus STORAGE-1).
+- **The strict per-frame A/B** (rollout_perf as the strict gate uses it, career, the Cub, chase, 90 s + the garage's 5 s; ONE pair -
+  the window lost 10 min to my rig's bake wait): base (6 outside) / tree (1 inside + 1 long + 4 outside):
+  stand 29.8 / 29.6 fps (p99 50 / 50 ms) · taxi 9.4 / 9.7 fps · render 38.3 / 37.0 ms · loop 53.4 / 51.5 ms · garage 30 / 30 fps ·
+  tasks > 200 ms 81 / 73 (the 11-12 s task near 100 s and the 9-10 fps taxi on the rung are on both sides). The tree drew 4 apron
+  props + 1 resident, all filled, no bake (FLEET_STAND census). **No cost.**
+- **The garage's parameter change** (tools/perf/garage_lag.js, the sandbox Cub, reps 2, base vs tree): sync 317 / 318 ms, busy
+  1961 / 1955 ms summed over the ten changes, every change within the strict gate's slack. **Unchanged.** (The metal: no time.)
+- **The moves on the rung** (FLYDIY_STORE.move, long tasks to 700 ms of quiet): inside <-> long, inside <-> outside, outside <-> long:
+  each <= 66 ms, M5 / M6 none. Two FIRST-TIME costs: the Jodel (long-term from the start, so never baked) moved inside baked once -
+  a 4.7 s task on the rung (~1.5 s on the box: the bake a save makes, FLEET-PROPS B's known garage freeze) - and the C172's first
+  decode as a resident, 400 ms (~130 ms). Afterwards no bake on any move. A slider tick with one resident vs none: ~+25 ms on ~810 ms
+  (the rung). The floor moves (Work on, the swap) and the refusal row were not reached (the window).
+- **Gates (CPU 17:30):** STORAGE, STOREDRAW, STORESPOT, GAMEPREM, HANGAR, DESTTO --only store:cub PASS. UISMOKE / UISMOKE-PHONE: a
+  SyntaxError at tools/test_ui_smoke.js:522 from STORAGE-1's WIP 0405c10b (its storage console.log's parentheses) - in every t44-2
+  since 824f0889, STORAGE-1's branch head parses: its final fixes it. FRAMECOST (FRAMECOST_FLEET=1) red, 26 rows (draws / uniforms
+  up) = the STALE parked cook on base and tree alike (parked_cook --check: manifest 62f0cd52 = neither tree's build): judged after
+  the train's re-cook. PARKED and INSTANT --fleet reached the 15-min stop with no verdict.
+
+### Owed / open
+- The two first-time costs, if they matter: bake a long-term airframe on its way out of long-term (the move is the moment; the bound
+  admits it the next frame anyway), or decode a resident before the garage asks. Neither verified on the box.
+- The floor moves' timings, the Fly-from-each-kind run in the page, a second A/B pair, the metal's garage_lag, PARKED, INSTANT
+  --fleet, FRAMECOST after the re-cook, UISMOKE after STORAGE-1's final - in a window A0 gives.
+
+READY for the GAME COORDINATOR: claude/hangar-storage-2-g2700 (this section's commit) - the src fixes G2701-G2703 with their gates;
+the timed proof above (one pair); the owed rows listed.
