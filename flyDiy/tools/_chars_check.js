@@ -184,6 +184,28 @@ function drive(path_, seats, opts) {
     const endOk = D.R.people.every((p, i) => p.stand === 0 && p.seatW === 1 && p.pose === seats[i].pose);
     verdict(endOk, `4 ${name}: it ends at the SEAT's pose - the walker gone, the seat's figure whole, the seat's own pose record`);
   }
+  // THE ROUTE: the aeroplane on its stand (nose +x, the door 1.3 m off the centreline on -z), starts aft (the hangar
+  // behind it), forward (the propeller's side), abeam far, and the far side aft, abeam, forward - the path ends square at the door,
+  // its last leg the queue's line, and no leg comes within 1.2 m of the fuselage's line (tail 6 m aft to nose 2 m ahead)
+  {
+    const door = [0, -1.3], out = [0, -1], fwd = [1, 0];
+    const segD = (p, a, b) => { const vx = b[0] - a[0], vz = b[1] - a[1], L2 = vx * vx + vz * vz || 1;
+      const u = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vz) / L2));
+      return Math.hypot(p[0] - a[0] - vx * u, p[1] - a[1] - vz * u); };
+    const fus = [[-6, 0], [2, 0]];
+    // the closest two segments come, by sampling (a path leg vs the fuselage's line)
+    const legGap = (a, b) => { let m = Infinity; for (let k = 0; k <= 50; k++) { const t = k / 50; m = Math.min(m, segD([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], fus[0], fus[1])); } return m; };
+    for (const [name, from] of [['aft (the hangar behind)', [-20, 4]], ['forward (the propeller side)', [25, 3]], ['abeam, far out', [0, -30]], ['aft, the far side', [-15, 12]], ['abeam, the far side', [1, 10]], ['forward, the far side', [20, 10]], ['forward, the door side', [25, -5]]]) {
+      const R = CR.route({ door, out, fwd, from, n: 4 });
+      const P = R.path, n = P.length, last = P[n - 1], prev = P[n - 2];
+      const endOk = Math.hypot(last[0] - door[0], last[1] - door[1]) < 1e-9;
+      const square = prev && Math.abs((prev[0] - last[0]) * fwd[0] + (prev[1] - last[1]) * fwd[1]) < 1e-9 && (prev[0] - last[0]) * out[0] + (prev[1] - last[1]) * out[1] >= 4 * 0.9;
+      let gap = Infinity;
+      for (let i = 1; i < n - 1; i++) gap = Math.min(gap, legGap(P[i - 1], P[i]));
+      verdict(endOk && square && gap >= 1.2 && Math.abs(R.face - Math.atan2(-out[0], -out[1])) < 1e-12,
+        `4 route from ${name}: ${n} points, ends at the door with the queue's line square to it, closest to the fuselage ${gap.toFixed(2)} m, faces the door`);
+    }
+  }
   // the queue bends with a short path: six people, a path for three - nobody leaves before there is room
   const D = drive([[0, 0], [2.2, 0]], [1, 2, 3, 4, 5, 6].map(i => ({ seat: i })));
   verdict(D.R.done() && D.passed === 0 && D.worst >= D.sp - 1e-6, `4 a path shorter than the queue: everyone boards, none closer than the spacing (closest ${D.worst.toFixed(3)} m)`);

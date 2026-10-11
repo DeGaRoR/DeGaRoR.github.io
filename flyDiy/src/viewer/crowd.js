@@ -96,6 +96,46 @@ CR.poly = poly; CR.at = at;
 function slotS(P, r, spacing) { return Math.max(0, P.L - r * spacing); }
 CR.slotS = slotS;
 
+// THE ROUTE (pure; the host hands the aeroplane's ground frame): from a start
+// point to the cabin door's foot, the queue's last leg square to the fuselage.
+//   door [x, z]  the foot of the door (beside the cabin, on the ground)
+//   out  [x, z]  unit, away from the fuselage at the door
+//   fwd  [x, z]  unit, the aeroplane's nose
+//   from [x, z]  where they come from (the hangar's door, a terminal)
+//   n, spacing   the queue's length; tailBack: the door to behind the tail (m)
+// -> { path: [[x, z]...], face }. A start AFT of the door passes behind the
+// tail on the door's side; one FORWARD of it swings wide of the propeller and
+// the wing first; one on the FAR side walks aft along its own side and crosses
+// behind the tail. Never through the aeroplane, always in at the queue's end.
+function route(o) {
+  const sp = o.spacing || DEF.spacing, n = Math.max(1, o.n | 0);
+  const qLen = n * sp + 1.5, wide = o.wide || 8, tailBack = o.tailBack || 8;
+  const [dx, dz] = o.door, [ox, oz] = o.out, [fx, fz] = o.fwd, [sx, sz] = o.from;
+  const P = (a, b) => [dx + ox * a + fx * b, dz + oz * a + fz * b];   // a out, b forward of the door
+  const rx = sx - dx, rz = sz - dz, along = rx * fx + rz * fz, side = rx * ox + rz * oz;
+  const pts = [[sx, sz]];
+  if (side < 0) {
+    // the far side (inboard of the door's line): aft along it 3 m clear of the fuselage, behind the tail, round
+    const lane = Math.min(side, -(o.half || 1.3) - 3);
+    pts.push(P(lane, Math.min(along, -tailBack)), P(3, -tailBack), P(qLen, -tailBack));
+  } else if (along < 0) {
+    // aft: round the tail on the door's side unless already out beyond the queue
+    if (side < qLen) pts.push(P(Math.max(side, 3), -tailBack), P(qLen, -tailBack));
+  } else {
+    // forward: out wide first (the propeller's disc and the wing's tip), then back along the queue's line
+    pts.push(P(Math.max(side, wide), along), P(Math.max(qLen, wide), 0));
+  }
+  pts.push(P(qLen, 0), [dx, dz]);
+  // drop the degenerate legs (a start already on the queue's line)
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const a = out[out.length - 1];
+    if (Math.hypot(pts[i][0] - a[0], pts[i][1] - a[1]) > 0.05) out.push(pts[i]);
+  }
+  return { path: out, face: Math.atan2(-ox, -oz) };
+}
+CR.route = route;
+
 // ---- THE RUN: the state machine ------------------------------------------
 // spec = { path: [[x,z]...] start -> the door's foot, face: yaw to board,
 //          seats: [{ seat, key, pose? }] in boarding order,
@@ -256,6 +296,13 @@ function castLoad(P, key) {
     return c;
   }).catch(e => { delete CAST_P[key]; throw e; }));
 }
+// THE CAST, READY TO SEAT (the host, under the roll-out screen): the pack and every member's MANIFEST (no bins, no
+// maps) - so the crew layer can rig a job's passenger as a cast member before the flown model is dressed.
+// -> Promise of the cast's keys in table order (CR.castKeys() the same, once settled)
+let KEYS = [];
+CR.prepare = () => pack().then(P => Promise.all((P.cast || []).map(c => castLoad(P, c.key).then(() => c.key, () => null))))
+  .then(ks => (KEYS = ks.filter(Boolean)));
+CR.castKeys = () => KEYS.slice();
 // the clips, the same way: CHAR_ANIMS.anims without the order
 function clipsRegister(P) {
   const A = typeof CHAR_ANIMS !== 'undefined' ? CHAR_ANIMS : null;
@@ -402,8 +449,19 @@ function make(THREE, ctx) {
           if (ctx.seatFade) ctx.seatFade(p.seat, 0);
           return { inst, g, p, fade: inst.meshes.map(sm => sm.material) };
         });
-        const one = { R, H, clips, name, seen: new Set() };
+        const one = { R, H, clips, name, seen: new Set(), ready: !ctx.compile };
         M.runs.push(one);
+        // THE PROGRAMS BEFORE THE FIRST DRAW: the walkers' twins compiled off the frame (renderer.compileAsync), the
+        // group drawn once they are - a person appears a moment late rather than a frame arriving late
+        // (three's compile walks VISIBLE objects, synchronously, before its promise: shown for the call, hidden after)
+        if (ctx.compile) {
+          const gs = H.filter(Boolean).map(h => h.g);
+          for (const g of gs) g.visible = true;
+          let pr = null;
+          try { pr = ctx.compile(gs); } catch (e) {}
+          for (const g of gs) g.visible = false;
+          Promise.resolve(pr).catch(() => {}).then(() => { one.ready = true; });
+        }
         return R;
       });
     });
@@ -430,7 +488,7 @@ function make(THREE, ctx) {
         const d = e ? Math.hypot(p.x - e.x, p.z - e.z) : 0;
         h.d = d;
         const out = p.state === 'wait' || p.state === 'seated';
-        const on = !out && d < DEF.far;
+        const on = !out && one.ready && d < DEF.far;
         h.g.visible = on;
         if (p.state === 'seated' && !one.seen.has(p.seat)) {
           one.seen.add(p.seat);
