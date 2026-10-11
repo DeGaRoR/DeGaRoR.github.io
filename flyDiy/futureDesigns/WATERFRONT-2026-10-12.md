@@ -42,11 +42,17 @@ with a new `fill` property — `{ deck, edge: 'riprap' | 'wall' | 'none', block,
 `deck` and lays a revetment along every edge whose outside is water (the dock marks' `waterEdges` already measures
 it). With `draw` concrete and `marks: dock`, that is Metlakatla's paved lot with its quay line.
 
-**Contract number: the next free one after SCENERY-ED-2's trains** (ROAD-GRAPH v1.37, PLACER-FAST v1.38,
-RUNWAY-ED and BIOME-PAINT in flight); it is being agreed with SCENERY-ED-2. Preferred: **no record bump**, with
-`normalise` reading a missing `layers.waterfront` as `[]`, as optional additions such as v1.35's have gone. The
-fallback is a `PREMISES_V` bump with a migrator that only adds the empty layer. Either way every existing record
-composes bit-equal (a GATE PREMISES identity row). **`marine/*` site items keep composing as they are**, including the user's own trestle sites in their live save.
+**Contract number: taken AT LANDING, the next free one** after SCENERY-ED-2's Monday trains (ROAD-GRAPH v1.37
+07:50, PLACER-FAST v1.38 12:45, SCENERY-SHIP v1.39 14:55, BIOME-PAINT, RUNWAY-ED ~v1.40): likely **v1.41+**.
+`PREMISES_V` 2 -> 3 with a migrator that only adds the empty layer (agreed by SCENERY-ED-2), so every existing
+record composes bit-equal (a GATE PREMISES identity row). Shipped fixtures stay v1.
+Rebase after SCENERY-SHIP lands, with these hunks:
+- `'fill'` goes after `'roadside'` in AREA_PROPS.
+- `'waterfront'` goes into the editor's `groundLayer`.
+- `dirty()`'s fourth argument is null for the new lines.
+- `tools/scenery_ship.js`'s layer list gains `'waterfront'`, or the user's next ship drops the breakwaters.
+- Paved footprints enter `roadBuildKeys` correctly.
+**`marine/*` site items keep composing as they are**, including the user's own trestle sites in their live save.
 
 ## 3. The mesh
 
@@ -83,11 +89,17 @@ gives the **round head** and the round outside of every bend for free; `butt` sq
   finish and weathering stay MARINE_GEN's.
 
 **Ground and collision**:
-- Breakwaters, revetments and fill reach the **GR terrain raster** as a `mound` modifier (`max(h, M)` along the
-  line). Wheels, floats and walkers meet the law: the crest track is exact, and stones stand 0.3-0.5 m proud of it
-  as visual roughness.
-- This needs a non-affine modifier (it reads the base). The fallback is Metlakatla's present abs flatten with
-  falloff, which is approximate. **This is the one compose question for SCENERY-ED-2 and PREMRASTER.**
+- Breakwaters, revetments and fill reach the **GR terrain raster as an abs `grade` line**, built the way ROAD-BED
+  is (SCENERY-ED-2's ruling, 12 Oct). A `max(h, M)` modifier is NOT affine in the height under it, and the raster
+  bakes `A h + B` (G614): it would flatten everything to the crest.
+  - At compose, sample the line every 6 m and set each floor to `max(T1r(p), crest)`.
+  - Emit `makeModifier({ kind: 'grade', pts, width: crest, falloff, abs: true })`, with
+    `falloff = (crest - seabed) / slope`. Split the line where that varies.
+  - The crest is exact. The banks fall along the grade's falloff curve rather than exactly at 1:slope, so the
+    target is sunk ~0.3 m under the drawn law, and a G3032 row holds **the terrain under the core law everywhere
+    and within 0.6 m of it on the flanks**. That way no ground pokes through the stones and wheels on the crest
+    track meet it exactly.
+  - Wheels, floats and walkers meet that ground; the stones stand 0.3-0.5 m proud of the law as visual roughness.
 - Decks (floats, piers, gangway ramps) go to OBSTACLES as **analytic rectangles from the generator's `decks`
   list**, not rasterised triangles. This avoids the 0.15 m flat-bag trap and is cheaper. The same list is the
   CHARACTERS walkers' surfaces.
