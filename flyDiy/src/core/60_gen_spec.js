@@ -2446,6 +2446,8 @@ const GEN_RULES = {
   // aluminium tube frame are trusses: the lattice is them.
   shellSkin: { carbon: { t: 1.2e-3, eK: 0.45 }, alloy: { t: 0.8e-3, eK: 1 }, wood: { t: 2.5e-3, eK: 0.9 } },
   shellBoom: 1,
+  // G2640 shell2 (A0: only if the metal garage reads red): the shell's hold every other substep - half its cost
+  shellEvery: 2,
   // G351 (the user: "let's do a"): THE REAR FUSELAGE'S GAUGE. Aft of the
   // cabin box every fuselage-class member was billed at the one lin.fus of
   // the material — 71 members, 47-54 m of tube at 0.58 kg/m, 41-44 kg of

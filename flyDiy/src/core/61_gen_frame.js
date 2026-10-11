@@ -858,6 +858,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                   return (1 - 0.731 * (1 - Math.exp(-ph))) * 0.605 * E * tS / Rm; })() };
     }
     if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
+                                        every: R.shellEvery > 1 ? R.shellEvery : 1,     // G2640 shell2
                                         omega: { k: Kt, kRef: 29182, mRef: 61.6, wRef: 300 }, dmg: shellDmg,
                                         shell: { t: tS, E, Kt, GJ: GJs, dLat, dVer } });
   }

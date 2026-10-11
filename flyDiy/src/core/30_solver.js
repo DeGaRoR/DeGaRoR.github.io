@@ -174,7 +174,10 @@ function makeSim(def, world) {
     const rings = (C.rings || []).map(r => Int32Array.from(r));
     return { cls: C.cls, tag: C.tag, idx, q: new Float64Array(idx.length * 3),
              R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega > 0 ? C.omega : 0,
-             rings, gj: C.gj > 0 ? C.gj : 0, twist: null };
+             rings, gj: C.gj > 0 ? C.gj : 0, twist: null,
+             // G2640 (shell2): `every` - the hold applied one substep in N with N times the fraction (the same impulse
+             // a second; its omega far below the step's, the spring is the same spring), never on a damage-measured one
+             every: C.every > 1 ? (C.every | 0) : 1, tick: 0 };
   });
   // THE TWIST (G350). Shape matching holds a cluster's SHAPE with one
   // stiffness for every mode, and measured on the twin boom its hold on
@@ -251,7 +254,7 @@ function makeSim(def, world) {
       let d = g.theta - T.rest;
       while (d > Math.PI) d -= 2 * Math.PI;
       while (d < -Math.PI) d += 2 * Math.PI;
-      const al = Math.min(1, (T.w * dt) * (T.w * dt));
+      const al = Math.min(1, (C.every > 1 && !C.ms ? C.every : 1) * (T.w * dt) * (T.w * dt));   // (G2640 shell2: one substep in `every`)
       const phi = al * d;
       if (Math.abs(phi) < 1e-9) continue;
       // split by inertia: the lighter ring turns more
@@ -382,7 +385,10 @@ function makeSim(def, world) {
       A[6] += mi*dz*qx; A[7] += mi*dz*qy; A[8] += mi*dz*qz;
     }
     const R = C.R = extractRotation(A, C.R, 4);
-    const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
+    // (G2640 shell2: a cluster held one substep in `every` takes `every` times the fraction - the same velocity change
+    // per unit time, omega^2 e N dt, and the position's one-substep share of it)
+    const kE = C.every > 1 && !C.ms ? C.every : 1;
+    const al = C.omega > 0 ? Math.min(1, kE * (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
     // G1840 (DMG-D3): on a measured substep, the projection's force on a node of a cut's part (m al e / dt^2) is that
     // cut's reaction - reported to it (clAcc) by the same loop's twin below; the quiet loop is the base's, untouched
     if (C.ms && C.nm) { shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz); return; }
@@ -2726,7 +2732,9 @@ function makeSim(def, world) {
     }
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
-    for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
+    for (const C of clusters) { if (C.off) continue;
+      if (C.every > 1 && !C.ms && (C.tick = (C.tick + 1) % C.every) !== 0) continue;   // (the twist too: half the cost is it)
+      shapeMatch(C, dt); twistHold(C, dt); }
     if (clDirty) { for (const C of clusters) if (C.dirty) { C.dirty = false; clusterRest(C); twistRest(C); } clDirty = false; }
     // altitude of CG (wheel-corrected later by caller if needed)
     let cy = 0;
