@@ -176,7 +176,28 @@ function mount(host, ctx) {
   let active = true;
   const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
   let saveT = 0;
-  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} }, 1000); };
+  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} snapshot(); }, 1000); };
+  // THE ROLLING HISTORY (G2917; the user: "at least the paths I trace manually should be kept safe"): the autosave is one
+  // slot, so a bad edit autosaved over the good one was gone. Every HIST_MS of editing the record is also kept as a slot
+  // named 'autosave <date time>' (the FILE section's 'load slot' lists them; the host's storage puts back what the boot
+  // cut, as for any slot), the last HIST_N kept, the oldest dropped first - and dropped too when the storage is full.
+  const HIST_N = 5, HIST_MS = 120000, HIST_PRE = 'flydiy.premises.slot.autosave ';
+  let histT = 0;
+  function snapshot(force) {
+    if (!storage) return null;
+    const now = Date.now(); if (!force && now - histT < HIST_MS) return null;
+    histT = now;
+    const d = new Date(now), p2 = v => String(v).padStart(2, '0');
+    const key = HIST_PRE + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
+    const list = () => { const out = []; for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.indexOf(HIST_PRE) === 0) out.push(k); } return out.sort(); };
+    const txt = PG.envelope(recName, rec);
+    for (let tries = 0; tries <= HIST_N; tries++) {
+      try { storage.setItem(key, txt); break; }
+      catch (e) { const l = list(); if (!l.length) return null; storage.removeItem(l[0]); }   // full: the oldest goes, then try again
+    }
+    const l = list(); while (l.length > HIST_N) { try { storage.removeItem(l.shift()); } catch (e) { break; } }
+    return key;
+  }
   // G1535 (UPDATE-NOW): the "Update" pill reloads the page - an edit still inside the autosave's second is written first
   if (typeof window !== 'undefined' && window.UPDATE_NOW && window.UPDATE_NOW.onBeforeUpdate)
     window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} });
@@ -1913,6 +1934,7 @@ function mount(host, ctx) {
       if (name === 'assets') { const g0 = ASSET.group, q0 = ASSET.q; ASSET.group = args.group || 'all'; ASSET.q = args.q || ''; const ks = assetKeys(); ASSET.group = g0; ASSET.q = q0; return ks; }
       if (name === 'fold') { const n = PG.foldAreas(rec); dirty(null); return n; }
       if (name === 'paletteEl') { return pal; }
+      if (name === 'snapshot') { return snapshot(true); }
       if (name === 'inspector') { return insp; }
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }

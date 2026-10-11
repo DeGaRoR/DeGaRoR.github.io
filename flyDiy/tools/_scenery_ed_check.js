@@ -330,6 +330,17 @@ if (plots.length) {
   const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
   const Tm = f => { const t = process.hrtime.bigint(); const r = f(); return [Number(process.hrtime.bigint() - t) / 1e6, r]; };
   const [tL] = Tm(() => ed.load(txt));
+  // THE TRACED ROADS ARE THE SOURCE OF TRUTH (the user: "at least the paths I trace manually should be kept safe"): their
+  // points and handles come through the v2 migration, the load and a save + reload bit for bit
+  const roadsRaw = JSON.stringify(PG.normalise(JSON.parse(txt).premises).layers.roads.map(r => [r.id, r.pts, r.tan || null]));
+  const roadsOf = R0 => JSON.stringify(R0.layers.roads.map(r => [r.id, r.pts, r.tan || null]));
+  check(roadsOf(rec()) === roadsRaw, '10 the traced roads of the user (points and handles) are bit for bit as in the file after the load (the v2 migration leaves roads alone)');
+  check(roadsOf(PG.unwrap(PG.envelope('t', rec())).rec) === roadsRaw, '10 ...and after a save and a reload');
+  // the rolling history: a snapshot is a slot holding the same record
+  { const M = new Map(), S = { getItem: k => (M.has(k) ? M.get(k) : null), setItem: (k, v) => { M.set(k, String(v)); }, removeItem: k => { M.delete(k); }, key: i => Array.from(M.keys())[i] || null, get length() { return M.size; } };
+    const ed2 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: S, fresh: true, camera: () => null, redraw: noop });
+    ed2.load(txt); const k = ed2.cmd('snapshot');
+    check(k && /^flydiy\.premises\.slot\.autosave /.test(k) && roadsOf(PG.unwrap(S.getItem(k)).rec) === roadsRaw, '10 the rolling history keeps the record as a slot (' + String(k).slice(21) + '), its roads the same'); }
   const O10 = PG.compose(rec(), synth, { raster: false }), r1 = rec().layers.roads.find(r => r.id === 'r1'), E = O10.extent;
   check(r1 && r1.pts.every(q => q[0] >= E.x0 && q[0] <= E.x1 && q[1] >= E.z0 && q[1] <= E.z1), '10 the composed extent covers the island road (it ran 12.7 km past the authored one)', JSON.stringify(E));
   const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OJ = PG.compose(J, synth, { raster: false });
