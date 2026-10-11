@@ -138,7 +138,7 @@ var COVER_RING = (() => {
   // clump field's cell / amplitude (neighbours share a length). A mix row of the reed may carry its own h / sigma / dens (the
   // biome's grass card, TYPES > biome) - the row wins. A mix not named is the meadow's.
   const FIELD_SPECIES = ['grass_reed'];
-  const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
+  const FIELD_ON = false;   // the grass field's default (43: off; 44.3: off again - the light strict gate red at HOME's stand / taxi with the cut grass round it, not yet timed there; on: ?grassfield=1 or the editor switch)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
     grassland:     { h: 0.30, sigma: 0.35, dens: 1.0 },                      // heath (2): the meadow, the reference
