@@ -82054,3 +82054,20 @@ NUMBERS (the box, RTX 3080; grass GPU ms by a TIME_ELAPSED query round every gra
   grass draws ~2x on the approach (gamer app10 50 -> 95). HOME's stand / taxi: almost no grass (the apron + the 48 m bare band)
   until the 'sides' law is the default. THE RED TO CUT before the field is ON (A0): the near band on dense ground and the draws -
   the variants (tuft shapes 2, block 3, tufts, near; grass_window.sh cost) run on the box 11 Oct 03:55 - TRAIN 44.
+
+G2567-G2568 (TRAIN 44.3 grass, 11 Oct): THE COST CUT AND THE DEFAULTS ON. The box, TIMED, one window, base = master 37bf53368
+(train 43) measured beside the variants (reports/evidence/GRASS-DENSE/cost3/; the 10 Oct base runs were void - the gd-before
+worktree had been removed and the server fell back to the main checkout). Grass GPU ms (a TIME_ELAPSED round every grass draw) /
+grass draws, train 43 -> the field with 2 tuft shapes, the size fade capped at 1.0 (sizeMax: a tall tuft no longer reaches past
+the reach - the forest view's cost) and 70 / 42 tufts a m2 gamer / retro (~8x today's cards at the meadow):
+  gamer  forest floor 2.57 -> 2.23 ms (37 -> 46), HOME final 10 m 4.21 -> 2.07 (50 -> 56), 30 m 3.85 -> 1.03 (56 -> 62)
+  retro  forest floor 1.14 -> 0.75 (22 -> 20), 10 m 0.97 -> 0.56 (24 -> 28), 30 m 0.70 -> 0.13 (24 -> 24)
+  (on the way: 3 x 3 blocks bring the draws back but coarsen the truncation - forest 5.65 ms; the size fade's 1.5x reach of the
+  tall muskeg / verge tufts was most of the near cost)
+DEFAULTS ON: FIELD_ON true (cover_ring.js; ?grassfield=0 / the editor switch = today's patches), GRASS_SIDES law 'sides'
+(27_premises.js; GATE GRASSSIDES 1 holds it), rwyTreesMode 'map' (the user's ruling 2; GATE RWYTREES already holds 'map': the
+ground paths, the 5 % climb-out and approach, the circuit flown - TAKEOFF / TAXICLEAR / TREEHIT / OBSTACLE / LINEUP / PILOT run on
+it in the 44.3 gate window). WHAT TO WATCH: the near-taxi p99 (two cover rings plant at once; the field's budget is 3 ms a
+frame, its cells near a pavement ask the premises every metre), the grass draws on FRAMECOST (the user accepted the rise, 11 Oct),
+the trees now 1.8 m past HOME / w2's paved edge (a wide aeroplane's wingtip at the edge; GATE RWYTREES 6 and 8), the tufts' colour
+against the ground (`match` 1: not yet fitted in game - VEGETATION > the grass field > 'colour: level to the ground').
