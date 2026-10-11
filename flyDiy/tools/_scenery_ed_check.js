@@ -601,6 +601,48 @@ if (plots.length) {
   console.log('     15 the user\'s rev 25 shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
 }
 
+// 16 THE LONE ROAD'S PATCH (G3013; the user's 66 km of graded road made the fine 2 m patch 7x what it was for every
+//    player): on the shipped record as a player has it (the town off), the roads' chunks with the lone rule against the
+//    margin everywhere - far fewer - and every chunk where a road MEETS something (a segment not lone) the same as
+//    before: the patch shrinks only along the lone stretches. The ground is the composition's either way (the patch is
+//    how finely it is drawn, not what it is)
+{
+  const J = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec;
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 }, O16 = PG.compose(J, flat, { raster: false }), F = O16.frame, R = O16.rec, PCH = 64;
+  const e = O16.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
+  const bounds = { i0: Math.floor((Math.min(...c.map(q => q[0])) - 40) / PCH), i1: Math.floor((Math.max(...c.map(q => q[0])) + 40) / PCH), j0: Math.floor((Math.min(...c.map(q => q[1])) - 40) / PCH), j1: Math.floor((Math.max(...c.map(q => q[1])) + 40) / PCH) };
+  const t0 = process.hrtime.bigint();
+  const NEW = PG.roadPatchChunks(R, F, PCH, bounds, { runways: O16.runways }), ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  const OLD = PG.roadPatchChunks(R, F, PCH, bounds, { runways: O16.runways, lone: false });
+  const lone = PG.roadLoneSegs(R, O16.runways);
+  let segs = 0, nLone = 0; for (const [, s] of lone) { segs += s.length; for (const v of s) nLone += v; }
+  check(NEW.size < OLD.size * 0.7, '16 the lone stretches\' patch: ' + NEW.size + ' chunks of 64 m where the margin everywhere made ' + OLD.size + ' (' + nLone + ' of ' + segs + ' road segments lone; ' + ms.toFixed(0) + ' ms)');
+  // every chunk the old rule marked and the lone rule does not is a lone stretch's alone: no segment that meets anything
+  // marks it by the old rule (its box grown by its margin, its centre within margin + half a diagonal - activeChunks')
+  const HALFD = PCH * 0.7072; let miss = 0, near = 0;
+  const gone = Array.from(OLD).filter(k => !NEW.has(k)); near = gone.length;
+  for (const k of gone) {
+    const [ci, cj] = k.split(',').map(Number), cx = (ci + 0.5) * PCH, cz = (cj + 0.5) * PCH, lc = F.toLocal(cx, cz);
+    let held = false;
+    for (const r of R.layers.roads) { const ls = lone.get(r.id); if (!ls || held) continue; const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6;
+      for (let q = 1; q < r.pts.length && !held; q++) { if (ls[q - 1]) continue; const a = r.pts[q - 1], b = r.pts[q];
+        const cs = [[Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m], [Math.min(a[0], b[0]) - m, Math.max(a[1], b[1]) + m], [Math.max(a[0], b[0]) + m, Math.min(a[1], b[1]) - m]].map(z => F.toWorld(z[0], z[1]));
+        const inBox = ci >= Math.floor(Math.min(...cs.map(z => z[0])) / PCH) && ci <= Math.floor(Math.max(...cs.map(z => z[0])) / PCH) && cj >= Math.floor(Math.min(...cs.map(z => z[1])) / PCH) && cj <= Math.floor(Math.max(...cs.map(z => z[1])) / PCH);
+        if (inBox && PG.distPtSeg(lc[0], lc[1], a, b) <= m + HALFD) held = true; } }
+    if (held) miss++;
+  }
+  check(miss === 0 && near > 0, '16 where a road meets anything (its segment not lone), every chunk of the old margin is still drawn finely: the ' + near + ' chunks dropped are on lone stretches only', miss + ' dropped under a segment that meets something');
+  // a lone stretch: every chunk whose centre is in its band is still drawn finely
+  let bandMiss = 0;
+  for (const r of R.layers.roads) { const ls = lone.get(r.id); if (!ls) continue; const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6;
+    for (let s = 1; s < r.pts.length; s++) { if (!ls[s - 1]) continue; const a = r.pts[s - 1], b = r.pts[s], mid = F.toWorld((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), k = Math.floor(mid[0] / PCH) + ',' + Math.floor(mid[1] / PCH);
+      const lc = F.toLocal((Math.floor(mid[0] / PCH) + 0.5) * PCH, (Math.floor(mid[1] / PCH) + 0.5) * PCH); if (PG.distPtSeg(lc[0], lc[1], a, b) <= m && !NEW.has(k)) bandMiss++; } }
+  check(bandMiss === 0, '16 a lone stretch keeps the chunks its band covers', bandMiss + ' missing');
+  const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/PG\.roadPatchChunks\(rec, F, PCH, \{ i0, i1, j0, j1 \}/.test(RP), '16 the game marks its roads\' chunks with the same function');
+  console.log('     16 the lone road\'s patch (the town off): ' + OLD.size + ' -> ' + NEW.size + ' chunks of 64 m (' + ((OLD.size - NEW.size) * 33 * 33 / 1e6).toFixed(2) + ' M fewer 2 m samples); ' + nLone + ' of ' + segs + ' segments lone');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

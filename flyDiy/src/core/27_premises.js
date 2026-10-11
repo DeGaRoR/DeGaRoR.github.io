@@ -1935,6 +1935,73 @@ function roadBuildKeys(O) {
   }
   return out;
 }
+// THE LONE ROAD'S PATCH (G3013 SCENERY-SHIP; the user's ~66 km of graded road put the fine 2 m patch along all of it for
+// every player - 283 chunks of 64 m before the island road, 1 981 with the user's scenery). A road's chunks were every
+// chunk whose CENTRE lies within its half width + falloff + 6 m + half a chunk's diagonal of its line - a chunk the band
+// only grazes too. That margin is for where the road MEETS something (a junction, a plot's lot, a strip's shoulder, an
+// apron): there the patch must reach every chunk the ground is shaped in. A stretch with nothing of the record within
+// LONE_R of it is a LONE stretch: its chunks are those whose centre lies within the band itself (half width + falloff +
+// 6 m); the grazed ones are left to the island's ground ring, which samples the same composed ground more coarsely.
+// roadLoneSegs(rec, runways?) -> Map(road id -> Uint8Array, 1 a lone segment of its points); roadPatchChunks(rec, F,
+// PCH, bounds, opts) -> Set('i,j') the chunks the roads mark (the renderer's activeChunks reads it; opts.lone false =
+// the margin everywhere, as before; opts.skip(entry)).
+const LONE_R = 120, LONE_CELL = 128;
+function roadLoneSegs(rec, runways) {
+  const L = (rec && rec.layers) || {}, cells = new Map(), key = (i, j) => i + ',' + j;
+  const mark = (x0, z0, x1, z1, owner) => {
+    for (let i = Math.floor((x0 - LONE_R) / LONE_CELL); i <= Math.floor((x1 + LONE_R) / LONE_CELL); i++) for (let j = Math.floor((z0 - LONE_R) / LONE_CELL); j <= Math.floor((z1 + LONE_R) / LONE_CELL); j++) {
+      const k = key(i, j); let s = cells.get(k); if (!s) cells.set(k, s = new Set()); s.add(owner);
+    }
+  };
+  const polys = [];
+  for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones', 'ttype', 'areas']) for (const e of L[k] || []) {
+    if (e && Array.isArray(e.poly) && e.poly.length >= 3) polys.push(e.poly);
+    else if (e && Array.isArray(e.pts) && e.pts.length >= 2) polys.push(e.pts);
+  }
+  for (const p of polys) { const b = polyBBox(p); mark(b.x0, b.z0, b.x1, b.z1, '*'); }
+  for (const r0 of runways || L.runways || []) { const r = Object.assign({}, RUNWAY_DEF, r0); if (!r.c || !(r.len > 0)) continue; const b = polyBBox(runwayBox(r, runwayShoulder(r) + 30)); mark(b.x0, b.z0, b.x1, b.z1, '*'); }
+  for (const st of L.sites || []) { const a = st.at || { x: 0, z: 0 }; mark(a.x - 80, a.z - 80, a.x + 80, a.z + 80, '*'); }
+  for (const ob of L.objects || []) if (isFinite(+ob.x) && isFinite(+ob.z)) mark(+ob.x - 30, +ob.z - 30, +ob.x + 30, +ob.z + 30, '*');
+  // every road's own line, its id the owner: another road near a stretch is a junction's or a parallel's - not lone
+  const step = 32;
+  for (const r of L.roads || []) if (r && Array.isArray(r.pts)) for (let s = 1; s < r.pts.length; s++) {
+    const a = r.pts[s - 1], b = r.pts[s], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n; mark(x, z, x, z, 'r:' + r.id); }
+  }
+  const out = new Map();
+  for (const r of L.roads || []) {
+    if (!r || !Array.isArray(r.pts) || r.pts.length < 2) continue;
+    const segs = new Uint8Array(r.pts.length - 1), own = 'r:' + r.id;
+    for (let s = 1; s < r.pts.length; s++) {
+      const a = r.pts[s - 1], b = r.pts[s], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+      let lone = 1;
+      for (let k = 0; k <= n && lone; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n, c = cells.get(key(Math.floor(x / LONE_CELL), Math.floor(z / LONE_CELL)));
+        if (c) for (const o of c) if (o !== own) { lone = 0; break; } }
+      segs[s - 1] = lone;
+    }
+    out.set(r.id, segs);
+  }
+  return out;
+}
+function roadPatchChunks(rec, F, PCH, bounds, opts) {
+  const o = opts || {}, act = new Set(), HALFD = PCH * 0.7072, lone = o.lone === false ? null : roadLoneSegs(rec, o.runways);
+  const { i0, i1, j0, j1 } = bounds;
+  for (const r of ((rec && rec.layers && rec.layers.roads) || [])) {
+    if ((o.skip && o.skip(r)) || !r || !Array.isArray(r.pts) || r.pts.length < 2) continue;
+    const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6, ls = lone && lone.get(r.id);
+    for (let s = 1; s < r.pts.length; s++) {
+      const a = r.pts[s - 1], b = r.pts[s], reach = m + (ls && ls[s - 1] ? 0 : HALFD);
+      const c = [[Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m], [Math.min(a[0], b[0]) - m, Math.max(a[1], b[1]) + m]].map(q => F.toWorld(q[0], q[1]));
+      const x0 = Math.min(...c.map(q => q[0])), x1 = Math.max(...c.map(q => q[0])), z0 = Math.min(...c.map(q => q[1])), z1 = Math.max(...c.map(q => q[1]));
+      for (let i = Math.max(i0, Math.floor(x0 / PCH)); i <= Math.min(i1, Math.floor(x1 / PCH)); i++) for (let j = Math.max(j0, Math.floor(z0 / PCH)); j <= Math.min(j1, Math.floor(z1 / PCH)); j++) {
+        const k = i + ',' + j; if (act.has(k)) continue;
+        const lc = F.toLocal((i + 0.5) * PCH, (j + 0.5) * PCH);
+        if (distPtSeg(lc[0], lc[1], a, b) <= reach) act.add(k);
+      }
+    }
+  }
+  return act;
+}
 // a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
 function roadBoxTouch(rd, box, pad) {
   if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
@@ -4003,7 +4070,7 @@ function collect(globals) {
 }
 
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
