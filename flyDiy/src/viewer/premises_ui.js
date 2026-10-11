@@ -252,10 +252,10 @@ function mount(host, ctx) {
     else applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
-    dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd));
+    dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd), objsOf(cmd));
     strip.status('' + cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -266,25 +266,49 @@ function mount(host, ctx) {
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
       last.after = clone(e); coalesce.t = Date.now();
-      soonDirty(layer, changeBox(before, e), groundOf(layer, before, e));
+      soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf({ layer, before, after: e }));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
-    if (key) soonDirty(layer, changeBox(before, e), groundOf(layer, before, e)); else dirty(layer, changeBox(before, e), groundOf(layer, before, e));
+    if (key) soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf(cmd)); else dirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf(cmd));
   }
   // A SLIDER REBUILDS ONCE IT RESTS (G2917; the user's recorder log: one traffic slider's input events were 96 s, 79 s and
   // 72 s frames - every event of the drag a whole rebuild, the island road's 274 cars made again each time): a slider's
   // edit writes the record at once and its rebuild 200 ms after the hand stops; anything else that rebuilds takes the
   // waiting one with it (dirty below), so the record and the world never disagree past the pause
   let PEND = null;
-  function soonDirty(layer, bbox, ground) {
-    if (PEND) { clearTimeout(PEND.t); PEND = { layer: PEND.layer === layer ? layer : null, bbox: union(PEND.bbox, bbox), ground: PEND.ground === false && ground === false ? false : undefined }; }
-    else PEND = { layer, bbox, ground };
-    PEND.t = setTimeout(() => { const p = PEND; PEND = null; if (p) dirty(p.layer, p.bbox, p.ground); }, 200);
+  function soonDirty(layer, bbox, ground, objs) {
+    if (PEND) { clearTimeout(PEND.t); PEND = { layer: PEND.layer === layer ? layer : null, bbox: union(PEND.bbox, bbox), ground: PEND.ground === false && ground === false ? false : undefined, objs: objsJoin(PEND.objs, objs) }; }
+    else PEND = { layer, bbox, ground, objs: objs || null };
+    PEND.t = setTimeout(() => { const p = PEND; PEND = null; if (p) dirty(p.layer, p.bbox, p.ground, p.objs); }, 200);
   }
+  // THE OBJECT'S OWN EDIT (G3001 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really long
+  // to move, update, rotate"): a command whose every entry is a placed prop, billboard, tree or animal hands the renderer
+  // just those (R.objectEdit) - that object's record and group made again, nothing composed, no road, no ground - and
+  // anything else (or a renderer that cannot) rebuilds as before. The drag still only carries the built group (preview);
+  // the release, an R press, an inspector slider or a number field: one such edit, the slider's 200 ms after it rests.
+  const OBJ_FAST = { prop: 1, billboard: 1, tree: 1, animal: 1 };
+  function objsOf(c, undoing) {
+    if (!c) return null;
+    const out = [];
+    for (const q of (c.many || [c])) {
+      const b = undoing ? q.after : q.before, a = undoing ? q.before : q.after, e = a || b;
+      if (q.layer !== 'objects' || !e || !OBJ_FAST[e.kind] || (a && b && a.kind !== b.kind)) return null;
+      out.push({ layer: 'objects', before: b ? clone(b) : null, after: a ? clone(a) : null });
+    }
+    return out.length ? out : null;
+  }
+  // two pending lists of one pause: an object's first before and its last after
+  function objsJoin(A, B) {
+    if (!A || !B) return null;
+    const m = new Map(); for (const q of A) m.set((q.after || q.before).id, { layer: q.layer, before: q.before, after: q.after });
+    for (const q of B) { const id = (q.after || q.before).id, p = m.get(id); if (p) p.after = q.after; else m.set(id, { layer: q.layer, before: q.before, after: q.after }); }
+    return Array.from(m.values());
+  }
+  const FAST = { n: 0, full: 0 };
 
   // ---- the renderer, dirty, the checks, the plaque ---------------------------
   let chkT = 0;
@@ -304,9 +328,21 @@ function mount(host, ctx) {
     for (const k of keys) if (!free[k] && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined;
     return false;
   };
-  function dirty(layer, bbox, ground) {
-    if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; }
+  function dirty(layer, bbox, ground, objs) {
+    if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; objs = objsJoin(p.objs, objs); }
     R.setRecord(rec);
+    // (G3001) only placed objects changed: the renderer makes them alone
+    if (objs && R.objectEdit && R.objectEdit(objs)) {
+      FAST.n++;
+      inspector.refresh();
+      autosave();
+      ctx.onRebuilt && ctx.onRebuilt('objects', false, bbox || null);
+      ctx.redraw && ctx.redraw();
+      clearTimeout(chkT); chkT = setTimeout(checks, 500);
+      plaque();
+      return;
+    }
+    FAST.full++;
     if (!layer) R.rebuild(null);
     else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
     else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
@@ -966,7 +1002,7 @@ function mount(host, ctx) {
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
-      dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry));
+      dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry), objsOf(cmd));
     }
     drag = null;
     return true;
@@ -2168,6 +2204,7 @@ function mount(host, ctx) {
       if (name === 'junction') return junctionMeta(args.jid, args.patch || {});
       if (name === 'connection') return makeConnection(args.id || selected, args.i === undefined ? corner : args.i);
       if (name === 'apron') return addApron(args.id || selected, args.i === undefined ? corner : args.i, args.r);
+      if (name === 'fastStats') return Object.assign({}, FAST);   // (G3001: the object edits made alone, the rebuilds)
       if (name === 'snapTarget') return snapTarget([args.x, args.z], args.tol || snapTol(null), args.skip || null);
       if (name === 'removeCorner') { return removeCorner(args.id || selected, args.i === undefined ? corner : args.i); }
       if (name === 'subdivide') { return subdivide(args.id || selected); }

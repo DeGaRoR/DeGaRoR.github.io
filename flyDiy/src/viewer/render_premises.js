@@ -1022,17 +1022,47 @@ function make(THREE, scene, world, rec0, opts) {
   function buildRoads() { const g = buildRoadsSteps(); while (!g.next().done); }
   // part (G2063): the town's roads and aprons alone, beside what stands (geoLaterSteps); without, every one but the town's
   // while GEO.split
+  // THE ROADS KEPT (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really long to
+  // move, update, rotate"): every rebuild built EVERY road again - its pavement sampled every 3 m on the ground (the
+  // island road's 25 km), its power line, its guardrail - for an edit that touched none of them. In the editor a road
+  // whose BUILD KEY (PG.roadBuildKeys: the road, the record's pavement, what its poles and rails keep clear of near it)
+  // is the same and whose box no ground edit touched keeps its pavement part (re-merged), its line and its rail. Its
+  // table ROW stays its own: merging made the row the merged geometry's, so a kept road's row is taken out of the merged
+  // geometry before that is given back, and handed to the part again. RC.flush (a full rebuild, the pavement's A/B, the
+  // game out of the editor) starts over; ?pavcache=0 (window.FLYDIY_PAVCACHE = false) builds every road as before.
+  const RC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pavcache=0(&|$)/.test(location.search || '')) };
   function* buildRoadsSteps(part) {
     const want = e => (part ? isTown(e) : !geoLater(e));
+    const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
+    if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; }
+    const keys = useRC ? PG.roadBuildKeys(O) : null, keep = new Map();
+    if (useRC) for (const rd of O.roads) {
+      const c = RC.map.get(rd.id);
+      if (c && c.key === keys.get(rd.id) && !(RC.box && PG.roadBoxTouch(rd, RC.box, (+rd.falloff || 6) + 24)) && rd.ribbon !== false && want(rd)) keep.set(rd.id, c);
+    }
+    RC.box = null;
+    const keptObj = new Set(), keptRows = new Set();
+    for (const [, c] of keep) { if (c.mesh) keptObj.add(c.mesh); if (c.line) keptObj.add(c.line); if (c.rail) keptObj.add(c.rail); if (c.row) keptRows.add(c.row); }
     if (!part) for (const c of G.roads.children.slice()) {
+      if (keptObj.has(c)) continue;   // (G3002: a kept road's line, rail, or its part when it was not merged)
       if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
       if (PWR && c.userData.powerline) { PWR.dispose(c); continue; }      // the cable's own geometry; the poles are shared prop meshes
+      if (keptRows.size && c.geometry && c.geometry.userData && Array.isArray(c.geometry.userData.pavRows)) c.geometry.userData.pavRows = c.geometry.userData.pavRows.filter(P => !keptRows.has(P));   // (G3002: the kept rows stay)
       G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c);
     }
+    for (const id of Array.from(RC.map.keys())) if (!keep.has(id)) RC.map.delete(id);
+    stats.roadsKept = keep.size; stats.roadsBuilt = 0;
     if (PAV) {
       const lib = pavLib();
       for (const rd of O.roads) {
         if (rd.ribbon === false || !want(rd)) continue;   // a taxiway under its own material polygon (G434) - or a paved polygon now
+        const K = keep.get(rd.id);
+        if (K) {
+          // (G3002) the part drawn as it was: back under the roads (merged again below), its row its own again
+          if (K.mesh && !K.mesh.parent) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); }
+          continue;
+        }
+        stats.roadsBuilt++;
         const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
@@ -1044,7 +1074,8 @@ function make(THREE, scene, world, rec0, opts) {
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!(rd.sided || rd.taxiway), geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
-        buildLine(rd, pr, buildRail(rd, pr));
+        const railG = buildRail(rd, pr), lineG = buildLine(rd, pr, railG);
+        if (useRC) RC.map.set(rd.id, { key: keys.get(rd.id), mesh: m, row: geo.userData.pavRow || null, line: lineG || null, rail: railG || null });
         yield 'roads';
       }
       yield* buildPolysSteps(part);
@@ -1100,7 +1131,7 @@ function make(THREE, scene, world, rec0, opts) {
       stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
-  if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way
+  if (PAV && PAV.onRebuild) PAV.onRebuild(() => { RC.flush = true; if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way (G3002: every road anew)
   function* buildPolysSteps(part) {
     if (!PAV) return;
     const lib = pavLib();
@@ -3144,7 +3175,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return null;
   }
-  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on])));
+  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on].concat(ob.s ? [ob.s] : []))));   // (G3001: a scale is the object's too)
   // a site's item (G830: its generation - the build and the synthetic plot's dressing plan - is premises_build.js
   // genItem, inline or the house worker's R; the placement is here)
   function buildItem(it, R) {
@@ -3206,6 +3237,59 @@ function make(THREE, scene, world, rec0, opts) {
     const x0 = Math.floor((b.x0 - pad) / RC) * RC - 80, z0 = Math.floor((b.z0 - pad) / RC) * RC - 80, x1 = Math.ceil((b.x1 + pad) / RC) * RC + 80, z1 = Math.ceil((b.z1 + pad) / RC) * RC + 80;
     for (const [id, h] of HOUSES) { if (h.isObject || !h.plot) continue; const w = qPos(h.plot); if (!w) continue; const L = O.frame.toLocal(w[0], w[1]); if (L[0] >= x0 && L[0] <= x1 && L[1] >= z0 && L[1] <= z1) DIRTY.add(id); }
     stats.dirtyIds = DIRTY.size;
+  }
+  // THE OBJECT'S OWN EDIT (G3001 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
+  // long to move, update, rotate"). A placed prop, billboard, tree or animal is composed LAST and alone - its record is
+  // its entry stood on the composed ground (27_premises: records.objects / records.trees / records.animals, y = localH
+  // + dy); nothing earlier in the composition reads it (an aeroplane does: the strips' way out clears it - not here). So
+  // its move, turn, scale or key is that object's record made again and that object's group built again (syncHouses:
+  // only a changed seed is taken down; built at once), the trees or the herds re-stood when it is one of theirs - no
+  // composition, no road, no ground. objectEdit([{ layer, before, after }]) -> false when it cannot (the caller
+  // rebuilds as before); ?placerfast=0 (window.FLYDIY_PLACERFAST = false) never takes it.
+  const FAST_KINDS = { prop: 1, billboard: 1, tree: 1, animal: 1 };
+  const FAST_OFF = typeof location !== 'undefined' && /[?&]placerfast=0(&|$)/.test(location.search || '');
+  function objectEdit(list) {
+    if (FAST_OFF || window.FLYDIY_PLACERFAST === false || !(o.editing && o.editing()) || GEO.split || !O || !O.rec || !O.records || !Array.isArray(list) || !list.length) return false;
+    for (const q of list) { const e = q && (q.after || q.before); if (!e || q.layer !== 'objects' || !FAST_KINDS[e.kind] || (q.before && q.after && q.before.kind !== q.after.kind)) return false; }
+    const t0 = performance.now();
+    previewEnd();
+    // the record the composition stands on (O.rec), the renderer's (rec, set by setRecord) and, in the game, the world's
+    const W = o.game && world.premises ? world.premises.rec : null;
+    const recs = [O.rec.layers.objects].concat(W && W.layers && W.layers.objects && W.layers.objects !== O.rec.layers.objects ? [W.layers.objects] : []);
+    const kinds = new Set(), ids = new Set();
+    for (const q of list) {
+      const e = q.after || q.before; ids.add('ob:' + e.id); kinds.add(e.kind); if (q.before) kinds.add(q.before.kind);
+      for (const L of recs) { const i = L.findIndex(x => x && x.id === e.id); if (q.after) { const c = JSON.parse(JSON.stringify(q.after)); if (i >= 0) L[i] = c; else L.push(c); } else if (i >= 0) L.splice(i, 1); }
+    }
+    const L = O.rec.layers.objects;
+    // the composed records, as the composer makes them (27_premises.js, its last steps) - in the record's order
+    if (kinds.has('prop') || kinds.has('billboard')) {
+      const ac = (O.records.objects || []).filter(r => r.kind === 'aircraft'), out = [];
+      for (const ob of L) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
+        if (!ob.key) continue;
+        if (ob.kind === 'aircraft') { const a = ac.find(r => r.id === ob.id); if (a) out.push(a); continue; }
+        out.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, PG.objScale ? PG.objScale(ob) : {}));
+      }
+      O.records.objects = out;
+    }
+    if (kinds.has('tree')) {
+      const keepT = (O.records.trees || []).filter(t => !t.placed);
+      for (const ob of L) if (ob.kind === 'tree') keepT.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true, y: O.localH(ob.x, ob.z) });
+      O.records.trees = keepT;
+    }
+    if (kinds.has('animal')) {
+      O.records.animals = [];
+      for (const ob of L) if (ob.kind === 'animal' && ob.key) O.records.animals.push({ id: ob.id, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), dy: +ob.dy || 0, n: Math.max(1, Math.min(24, (+ob.n) | 0 || 1)), r: Math.max(0, +ob.r || 0) });
+    }
+    // only what changed: the objects' groups (a changed seed is taken down and built here, now), the trees, the herds
+    syncHouses();
+    for (let i = queue.length - 1; i >= 0; i--) if (ids.has(queue[i].id)) { const p = queue.splice(i, 1)[0]; buildOne(p); }
+    stats.queued = queue.length;
+    if (kinds.has('tree')) buildTrees();
+    if (kinds.has('animal')) syncAnimals();
+    buildHandles();
+    stats.ms = performance.now() - t0; stats.rebuilt = 0; stats.fast = (stats.fast || 0) + 1; stats.lastFast = { n: list.length, ms: stats.ms };
+    return true;
   }
   function syncHouses() {
     const want = new Map();
@@ -3842,6 +3926,8 @@ function make(THREE, scene, world, rec0, opts) {
     refreshBounds();
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
+    // (G3002) the roads kept: a whole rebuild starts them over; a ground edit's box builds again the roads it touches
+    if (!dirty || !dirty.bbox) RC.flush = true; else if (groundDirty) { const pd = (dirty.pad || 0) + 2, b = dirty.bbox; RC.box = { x0: b.x0 - pd, z0: b.z0 - pd, x1: b.x1 + pd, z1: b.z1 + pd }; }
     if (o.game) {
       // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
@@ -3946,6 +4032,7 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    RC.map.clear();   // (G3002: the kept roads go with the rest)
     if (LIFE) LIFE.dispose();
     if (ANIM) { ANIM.dispose(); ANIM = null; }
     { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
@@ -3962,6 +4049,7 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    objectEdit,
     snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,

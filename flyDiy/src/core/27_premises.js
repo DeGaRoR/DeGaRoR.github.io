@@ -1906,6 +1906,41 @@ function roadHandles(pts, tan) {
   const S = roadSplineD(pts.map(q => [+q[0], +q[1]]), T);
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
+// a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
+const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
+// long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
+// island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
+// function of: the road as composed (`rd`, every field) and as recorded, the record's pavement settings and theme, and
+// what its poles and rails keep clear of NEAR it - the other roads (each one's digest), the plots, the strips, the
+// paved polygons. roadBuildKeys(O) -> Map(id -> key): a road whose key is the same, and whose box no ground edit
+// touched (roadBoxTouch), is drawn as it was; anything else is built again.
+function roadBuildKeys(O) {
+  const out = new Map(), roads = (O && O.roads) || [], recRoads = new Map(((O && O.rec && O.rec.layers && O.rec.layers.roads) || []).map(r => [r.id, r]));
+  const dig = new Map(), bbs = new Map();
+  for (const q of roads) if (q && q.pts && q.pts.length > 1) { dig.set(q, fnv(JSON.stringify([q.id, q.pts, q.w]))); bbs.set(q, polyBBox(q.pts)); }
+  const plots = ((O && O.records && O.records.plots) || []).filter(p => p && p.poly && p.poly.length >= 3).map(p => [polyBBox(p.poly), fnv(JSON.stringify(p.poly))]);
+  const strips = ((O && O.runways) || []).map(r => [r.id, r.c, r.len, r.wid, r.hdg]);
+  const paved = ((O && O.pavePolys) || []).map(pp => [pp.bbox || polyBBox(pp.poly), fnv(JSON.stringify([pp.id, pp.poly, pp.look]))]);
+  const glob = JSON.stringify([(O && O.pavement) || null, (O && O.rec && O.rec.theme) || null, strips]);
+  for (const rd of roads) {
+    if (!rd || !rd.pts || rd.pts.length < 2) continue;
+    const bb = bbs.get(rd), m = (+rd.w || 3.6) / 2 + 14;
+    const near = b => !(b.x1 < bb.x0 - m || b.x0 > bb.x1 + m || b.z1 < bb.z0 - m || b.z0 > bb.z1 + m);
+    const ctx = [];
+    for (const q of roads) if (q !== rd && dig.has(q) && near(bbs.get(q))) ctx.push(dig.get(q));
+    for (const [b, h] of plots) if (near(b)) ctx.push(h);
+    for (const [b, h] of paved) if (near(b)) ctx.push(h);
+    out.set(rd.id, fnv(JSON.stringify([rd, recRoads.get(rd.id) || null])).toString(36) + ':' + fnv(glob + '|' + ctx.join(',')).toString(36));
+  }
+  return out;
+}
+// a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
+function roadBoxTouch(rd, box, pad) {
+  if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
+  const bb = polyBBox(rd.pts), m = (+rd.w || 3.6) / 2 + (pad > 0 ? pad : 0);
+  return !(box.x1 < bb.x0 - m || box.x0 > bb.x1 + m || box.z1 < bb.z0 - m || box.z0 > bb.z1 + m);
+}
 // A ROAD'S BED (contract v1.37, G2952): `bed: true | { fill, grade, bank, shoulder }` - null when the road has none (today's)
 const BED_DEF = { fill: 0.15, grade: 0.12, bank: 10, shoulder: 0.5 };
 function bedOf(r) {
@@ -3623,7 +3658,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -3968,7 +4003,7 @@ function collect(globals) {
 }
 
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,

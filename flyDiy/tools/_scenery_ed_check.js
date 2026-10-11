@@ -69,7 +69,9 @@ function makeR() {
   const R = {
     stats: {}, get overlay() { return O; },
     setRecord(r) { rec = PG.normalise(r); },
-    rebuild(d) { R.lastDirty = d === undefined ? null : d; O = PG.compose(rec, synth); return R.stats; },
+    rebuild(d) { R.lastDirty = d === undefined ? null : d; R.rebuilds = (R.rebuilds || 0) + 1; O = PG.compose(rec, synth); return R.stats; },
+    // (G3001) the renderer's object edit: counted, and refusable (R.fastOn = false - a renderer that cannot)
+    objectEdit(list) { if (R.fastOn === false) return false; R.fastCalls = (R.fastCalls || 0) + 1; R.lastObjs = list; return true; },
     select(id) { if (id !== sel) corner = null; sel = id; },
     corner(i) { if (i !== undefined) corner = i; return corner; },
     ghost() {}, preview() {}, previewEnd() {}, pickHandle() { return null; },
@@ -490,6 +492,81 @@ if (plots.length) {
   check(r1j && same(r1j) && same(PG.unwrap(PG.envelope('t', PJ)).rec.layers.roads.find(r => r.id === 'r1')) && same(PG.compose(PJ, synth, { raster: false }).rec.layers.roads.find(r => r.id === 'r1')), '13 the shipped record loads, composes and saves r1 unchanged');
   const savePath = 'D:/Dev/flydiy-notes/scenery-backups/' + K.save;
   if (fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
+}
+
+// 14 PLACER-FAST (G3000-G3009; the user: "adding assets in the editor is a bit of a pain, really, really long to move,
+//    update, rotate"). A placed object's commit - its drop, its drag's release, its turn, a number, its undo - hands the
+//    renderer that object alone (R.objectEdit: no composition, no rebuild); anything else, or a renderer that cannot,
+//    rebuilds as before. The roads' build keys (PG.roadBuildKeys): a road is drawn again only when ITS key changes or a
+//    ground edit's box touches it - one row a way a road must be drawn again (its own change, what it keeps clear of near
+//    it, a ground edit, a road taken away / added). The scale of a placed prop reaches its composed record.
+{
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+  ed.load(txt); ed.cmd('tool', { name: 'select' });
+  const r0 = () => [R.rebuilds || 0, R.fastCalls || 0];
+  // 14a the drop, the release, a turn, a number, the undo: the object alone, no rebuild
+  let [b0, f0] = r0();
+  const pid = ed.cmd('place', { x: 120, z: -40, key: 'stub|box', yaw: 0.3, s: 1.5 });
+  check(pid && R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs.length === 1 && R.lastObjs[0].before === null && R.lastObjs[0].after.id === pid, '14a a model dropped: the renderer makes it alone, no rebuild', JSON.stringify(r0()));
+  ed.select(pid);
+  [b0, f0] = r0();
+  ed.cmd('drag', { key: 'v0', x: 131.5, z: -38 });
+  check(R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs[0].before.x === 120 && R.lastObjs[0].after.x === 131.5, '14a its drag released: that object alone, its before and after', JSON.stringify(R.lastObjs && R.lastObjs[0] && [R.lastObjs[0].before.x, R.lastObjs[0].after.x]));
+  [b0, f0] = r0();
+  ed.cmd('set', { id: pid, patch: { yaw: 1.2, s: 2 } });
+  check(R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs[0].after.yaw === 1.2 && R.lastObjs[0].after.s === 2, '14a a turn and a scale set: the object alone');
+  [b0, f0] = r0();
+  ed.undo();
+  check(R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs[0].after.yaw === 0.3 && R.lastObjs[0].before.yaw === 1.2, '14a undone: the object alone, back as it was');
+  // 14b what is NOT an object's alone: a renderer that cannot, a command with an area in it, an aeroplane (the strips clear it)
+  R.fastOn = false; [b0, f0] = r0();
+  ed.cmd('set', { id: pid, patch: { yaw: 0.9 } });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0, '14b a renderer that cannot: the rebuild as before');
+  R.fastOn = true;
+  [b0, f0] = r0();
+  const aid = ed.cmd('place', { x: 300, z: 300, key: 'stub|box' }); ed.cmd('set', { id: aid, patch: { kind: 'aircraft', key: 'arch:cub' } });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0 + 1, '14b an aeroplane is not an object alone (the strips\' way out clears it): rebuilt', JSON.stringify(r0()) + ' from ' + JSON.stringify([b0, f0]));
+  [b0, f0] = r0();
+  ed.cmd('set', { id: 'r1', patch: { traffic: 3 } });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0, '14b a road\'s edit rebuilds as before (its traffic)');
+  // 14c the scale reaches the composed record (it was dropped there: the built prop stood at x1 after the first rebuild)
+  { const O14 = PG.compose(rec(), synth, { raster: false }), ob = (O14.records.objects || []).find(q => q.id === pid);
+    check(ob && ob.s === 1.5 && !(O14.records.objects || []).some(q => q.id !== pid && 's' in q), '14c a placed prop\'s scale is on its composed record (and only a scaled one carries it)', JSON.stringify(ob)); }
+  // 14d THE ROADS' BUILD KEYS: one row a way a road is drawn again
+  const Ok = () => PG.compose(rec(), synth, { raster: false });
+  const K0 = PG.roadBuildKeys(Ok()), ids = Array.from(K0.keys());
+  const diff = (A, B) => ids.filter(id => A.get(id) !== B.get(id));
+  check(K0.size >= 15 && JSON.stringify(Array.from(PG.roadBuildKeys(Ok()))) === JSON.stringify(Array.from(K0)), '14d every road has a key, the same for the same record (' + K0.size + ' roads)');
+  ed.cmd('set', { id: 'r1', patch: { traffic: 4 } });
+  { const K1 = PG.roadBuildKeys(Ok()), d1 = diff(K0, K1);
+    check(d1.length === 1 && d1[0] === 'r1', '14d its own change (r1\'s traffic): r1 alone drawn again', d1.join()); }
+  const K1 = PG.roadBuildKeys(Ok());
+  { const near = rec().layers.roads.find(r => r.id === 'r_airport'), q = near.pts[1];
+    ed.cmd('tool', { name: 'concrete' }); for (const d of [[-6, -6], [6, -6], [6, 6], [-6, 6]]) ed.cmd('point', { x: q[0] + d[0], z: q[1] + d[1] }); const cid = ed.cmd('commit'); ed.cmd('tool', { name: 'select' });
+    const K2 = PG.roadBuildKeys(Ok()), d2 = diff(K1, K2);
+    check(cid && d2.indexOf('r_airport') >= 0 && d2.length < ids.length / 2, '14d a pavement laid by it (what its poles and rails keep clear of): r_airport and its neighbours drawn again, not the island (' + d2.length + ' of ' + ids.length + ')', d2.join());
+    ed.cmd('setProp', { id: cid, prop: 'marks', patch: { kind: 'hatch' } });
+    const K3 = PG.roadBuildKeys(Ok()), d3 = diff(K2, K3);
+    check(d3.length === 0, '14d its marks changed (paint, not its shape): no road drawn again - the pavement polygon is drawn again on its own', d3.join()); }
+  { const rd = Ok().roads.find(r => r.id === 'r_airport'), far = Ok().roads.find(r => r.id === 'mn_main'), q = rd.pts[Math.floor(rd.pts.length / 2)];
+    const box = { x0: q[0] - 5, z0: q[1] - 5, x1: q[0] + 5, z1: q[1] + 5 };
+    check(PG.roadBoxTouch(rd, box, 30) && !PG.roadBoxTouch(far, box, 30), '14d a ground edit\'s box: the road under it drawn again, a road far from it not'); }
+  { const before = PG.roadBuildKeys(Ok());
+    const rid = ed.cmd('delete', { id: 'v_west' }) && 'v_west', K4 = PG.roadBuildKeys(Ok());
+    check(!K4.has('v_west') && K4.size === before.size - 1, '14d a road taken away: its key gone (its part, line and rail given back)');
+    ed.undo();
+    const K5 = PG.roadBuildKeys(Ok());
+    check(K5.has('v_west') && K5.get('v_west') === before.get('v_west'), '14d ...and put back: its key the same as before (drawn again, as it was)'); }
+  // 14e THE TIMES, headless: an object's release through the editor (the renderer's part is the page's) against what the
+  //     whole rebuild composed each time; the keys' own cost on the user's scenery with the town put back (the cache's price)
+  { const Tm = f => { const t = process.hrtime.bigint(); f(); return Number(process.hrtime.bigint() - t) / 1e6; };
+    ed.select(pid);
+    const tFast = Tm(() => ed.cmd('drag', { key: 'v0', x: 140, z: -35 }));
+    R.fastOn = false; const tFull = Tm(() => ed.cmd('drag', { key: 'v0', x: 145, z: -35 })); R.fastOn = true;
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OT = PG.compose(J, synth, { raster: false });
+    const tKeys = Tm(() => PG.roadBuildKeys(OT));
+    check(tFast < 50 && tKeys < 500, '14e an object released: ' + tFast.toFixed(1) + ' ms through the editor (' + tFull.toFixed(0) + ' ms with the whole rebuild\'s composition); the roads\' keys on the island (' + OT.roads.length + ' roads, the town and r1) ' + tKeys.toFixed(0) + ' ms');
+    console.log('     14 PLACER-FAST: an object released ' + tFast.toFixed(1) + ' ms (editor) vs ' + tFull.toFixed(0) + ' ms (editor + the composition a rebuild runs); road keys ' + tKeys.toFixed(0) + ' ms for ' + OT.roads.length + ' roads'); }
 }
 
 // 5 NAMES
