@@ -2008,7 +2008,9 @@ function mount(host, ctx) {
       for (const row of PAVM.KNOBS) {
         if (row.length === 1) { sec = $('details'); sec.appendChild($('summary', { text: row[0].replace(/—/g, '').trim() })); d.appendChild(sec); continue; }
         const [k, lab, mn, mx, st] = row, own = PV[k] !== undefined && PV[k] !== null;
-        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? PV[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+        // (G3004; the user: "that was painfully slow to change") a record-wide pavement slider rebuilds ONCE, 200 ms after the
+        // hand rests (soonDirty) - every tick of it was a whole rebuild: every road's pavement, the ground patch's sink under it
+        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? PV[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); soonDirty('roads', null, undefined); }, v => (+v).toFixed(2));
       }
       const ta2 = $('textarea', { placeholder: 'paste the pavement bench\'s export here', rows: '3' }); ta2.className = 'pr-paste'; d.appendChild(ta2);
       rows.button(d, 'take the bench\'s recipe', () => { try { const o = JSON.parse(ta2.value); const r = o.recipe || o; const out = {}; for (const k in r) if (k in PAVM.RECIPE && k !== 'grade') out[k] = r[k]; rec.pavement = out; ta2.value = ''; dirty('roads'); palette.refresh(); } catch (err) { strip.status('not a recipe: ' + err.message); } });
@@ -2050,7 +2052,7 @@ function mount(host, ctx) {
       for (const row of PAVM.KNOBS) {
         if (row.length < 2 || PAVM.LOOK_KEYS.indexOf(row[0]) < 0 || row[0].slice(0, 2) !== g) continue;
         const [k, lab, mn, mx, st] = row, mine = P[k] !== undefined && P[k] !== null;
-        rows.slider(d2, lab + (mine ? '' : ' (default)'), mn, mx, st, () => mine ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+        rows.slider(d2, lab + (mine ? '' : ' (default)'), mn, mx, st, () => mine ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); soonDirty('roads', null, undefined); }, v => (+v).toFixed(2));
       }
       if (own) rows.button(d2, "back to the module's look", () => { const o = Object.assign({}, rec.pavement); for (const k of PAVM.LOOK_KEYS) if (k.slice(0, 2) === g) delete o[k]; rec.pavement = Object.keys(o).length ? o : null; dirty('roads'); inspector.refresh(); });
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
