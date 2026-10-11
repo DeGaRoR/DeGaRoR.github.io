@@ -294,7 +294,8 @@ for (const seed of [0, 1, 6, 12, 42]) {
 //   c FLOWN: the altiport's apron after the slope roll-on (the game's stop, 8 Oct: (335.7, -7843.8), the nose up the
 //     strip) and Jumbo Mine's street 45 m from its south end: the three builds by THE PILOT (the chained leg the page
 //     gives - departFrom, no site) - off the altiport to 30 m up, at Jumbo Mine to the take-off run - no node inside an
-//     obstacle, no trunk, no crash, the wing 1.5 m off every footprint (9's bound); and the calibration flown: the Cub at
+//     obstacle, no trunk, no crash, the wing 1.5 m off every footprint (9's bound, and 9's rule since G2530: a footprint
+//     flown over with 15 m under the lowest node is cleared - _taxiclear_lib wingSpan); and the calibration flown: the Cub at
 //     the altiport with the pilot blind goes into the station
 //   (run_gates `shards: 4`: sections 1-10 one job in shard 0, each plan census, the calibration and each flight a job)
 {
@@ -355,7 +356,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     else check(F.phases.includes('ROLL'), tag + ': taxied to the take-off run', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.air ? ', airborne' : ', ' + (F.verdicts.find(v => /reject|abort|declin/i.test(v)) || 'not airborne')));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, tag + ': touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
     check(F.minWing >= 1.5, tag + ': the wing 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
-    console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + '), ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
+    console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
   }
   if (SHD.take()) {
     const F = L.flyTurn(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true, tMax: 30 });

@@ -684,7 +684,7 @@ function makePilot(sim, def, world, opts) {
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
   // G2500 (CESSNA-VREF): the speed the elevator was found to hold kept past a go-around (ap.vHeld), re-seeded on the
   // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
-  let heldSeed = false, heldJudged = null;
+  let heldSeed = false, heldJudged = null, heldTail = null;
   // G975: the landing flap the ELEVATOR can hold (FINAL, below) - a cap that only comes down, kept for the flight
   let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
@@ -2121,21 +2121,39 @@ function makePilot(sim, def, world, opts) {
     // with the numbers, flown round and diverted to the nearest strip this gear lands on that has the room (else
     // committed, said). Only an approach whose reference was raised is judged: every other aeroplane flies as before.
     // -> true when the final ended here (a go-around)
+    // G2530 (PILOT-44-REDS): ...AND OVER THE GROUND. The touch, the float and the stop are run over the ground: a TAILWIND
+    // along the landing adds to the speed held. Skyline Altiport is landed one way (uphill) and the game's 8 kt / 250 deg
+    // day blows 4.9 m/s down it: the load door's metal Cessna was judged on 33.3 m/s (short-field stop 238 m, 257 m left -
+    // landed), touched 127 m in at 36.7 m/s over the ground, rolled off the top end at 8 m/s and broke up. The wind along
+    // the landing is read once a final (the mean of five samples over the next 16 s at 10 m over the aim - not a gust);
+    // a headwind is not credited (a strip that fits in calm air fits into the wind: every such judgement as before).
+    // (climate.sample: the full field, never the solver's linearised cache - the flight it judges is not moved by it)
+    const tailOf = (to) => {
+      if (heldTail && heldTail.id === to.id) return heldTail.v;
+      let v = 0;
+      const CL = world && world.climate, wS = CL && typeof CL.sample === 'function' ? (x, y, z, t) => CL.sample(x, y, z, t) : null;
+      if (wS) {
+        const pA = wp(F, ap.xAim, 0), y = groundH(pA[0], pA[1]) + 10;
+        for (let k = 0; k < 5; k++) { const w = wS(pA[0], y, pA[1], ap.t + 4 * k); v += (w[0] * F.ux + w[2] * F.uz) / 5; }
+      }
+      heldTail = { id: to.id, v: Math.max(0, v) };
+      return heldTail.v;
+    };
     const judgeHeld = (dAim) => {
       const to = ap.route.to;
       if (!to || to.surface === 4 || sim.hydro || !world || typeof world.terrainH !== 'function') return false;
-      const Vtd = ap.VAppr * ST.VapprK + tVAdapt;
+      const Vtd = ap.VAppr * ST.VapprK + tVAdapt, tail = tailOf(to), Vg = Vtd + tail;
       const sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2, sThr0 = sEnd - to.len;
-      const stopOn = (a, grade) => {
+      const stopOn = (a, grade, v) => {
         const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[a.surface]) || [CRR, MU_BRAKE, 0.8];
         const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
-        return Vtd * Vtd / (2 * Math.max(0.5, aS)) + Vtd * 1.0;
+        return v * v / (2 * Math.max(0.5, aS)) + v * 1.0;
       };
       const pT = wp(F, sThr0, 0), pE = wp(F, sEnd, 0);
       const grade = (groundH(pE[0], pE[1]) - groundH(pT[0], pT[1])) / Math.max(1, to.len);   // + uphill along the landing
-      const need = stopOn(to, grade), needS = (A.stopShortK ?? 0.84) * need, fl = 3 * Vtd;
+      const need = stopOn(to, grade, Vg), needS = (A.stopShortK ?? 0.84) * need, fl = 3 * Vg;
       const r0 = v => Math.round(v);
-      if (ap.appr) ap.appr.held = { Vtd: Math.round(Vtd * 10) / 10, need: r0(need), needShort: r0(needS), room: r0(sEnd - ap.xAim - fl), grade: Math.round(grade * 1000) / 1000 };
+      if (ap.appr) ap.appr.held = { Vtd: Math.round(Vtd * 10) / 10, tail: Math.round(tail * 10) / 10, need: r0(need), needShort: r0(needS), room: r0(sEnd - ap.xAim - fl), grade: Math.round(grade * 1000) / 1000 };
       const room0 = sEnd - ap.xAim - fl;
       if (!ap.shortFld && room0 < 1.15 * need) {
         ap.shortFld = true;
@@ -2143,21 +2161,21 @@ function makePilot(sim, def, world, opts) {
         const aimS = sThr0 + Math.max(10, 0.06 * to.len);
         // (never before an aim G2125 displaced down the strip for an obstacle - that aim is the approach's clearance)
         if (dAim > 300 && aimS < ap.xAim && !(ap.appr && ap.appr.displaced)) { ap.xAim = aimS; if (ap.appr) ap.appr.aimIn = r0(aimS - sThr0); }
-        say('held-speed-short-field', 'the elevator holds ' + Vtd.toFixed(1) + ' m/s on this final: the stop from it needs ' + r0(need) + ' m, ' +
+        say('held-speed-short-field', 'the elevator holds ' + Vtd.toFixed(1) + ' m/s on this final' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s behind)' : '') + ': the stop from it needs ' + r0(need) + ' m, ' +
             r0(room0) + ' m of ' + (to.name || to.id) + ' are left past the aim and the float - landing short-field (aim ' + r0(ap.xAim - sThr0) + ' m in, the brakes from the touch)');
       }
       heldJudged = ap.shortFld ? 'short' : 'normal';
       const room = sEnd - ap.xAim - fl;
       if (heldJudged === 'short' && room < needS && dAim > 0) {
         heldJudged = 'refused';
-        say('strip-too-short', (to.name || to.id) + ': the elevator holds ' + Vtd.toFixed(1) + ' m/s, the short-field stop from it needs ' + r0(needS) +
+        say('strip-too-short', (to.name || to.id) + ': the elevator holds ' + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
             ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
         // the nearest strip this gear lands on with the room (its own surface, its grade unknown: level) - else committed, said
         let best = null, bd = Infinity;
         for (const a of (world.aerodromes || [])) {
           if (a === to || a.surface === 4 || !(a.len > 0)) continue;
           if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
-          if (a.len - Math.max(60, 0.12 * a.len) - fl < 1.15 * stopOn(a, 0)) continue;
+          if (a.len - Math.max(60, 0.12 * a.len) - 3 * Vtd < 1.15 * stopOn(a, 0, Vtd)) continue;
           const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
           if (dd < bd) { bd = dd; best = a; }
         }
@@ -2173,7 +2191,7 @@ function makePilot(sim, def, world, opts) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null;
+      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null; heldTail = null;
       SV.thrC = A.thrCruise; thLift0 = th;
       // G1936: TWICE ROUND A SHORT FIELD IS A DIVERSION, NOT A COMMITTED THIRD TRY. The go-around count is capped
       // at two and the third arrival is committed - into the trees past East Point's end on the user's Cub (touched

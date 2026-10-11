@@ -85044,3 +85044,180 @@ Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm 
 flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
 56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
 task in one rollout run, 835/675 ms elsewhere - watch it).
+
+## G2530 - PILOT-44-REDS: TAXICLEAR'S 11c JUDGES AN OVERFLOWN FOOTPRINT BY 9'S OWN RULE (ONE MEASURE); THE METAL CESSNA REFUSES SKYLINE ALTIPORT WITH THE WIND BEHIND IT (THE STOP RUN OVER THE GROUND) AND SAYS SO; GATE TOUR JUDGES WHAT THIS TREE CARRIES (ISLAND-TOUR'S STRIPS INFO, THE FLOATS' LOAD-DOOR RED BY NAME); GATE ALTIPORT + THE METAL CESSNA (2026-10-11, PILOT-44-REDS for the PILOT COORDINATOR, a CLOUD session: node only; branch claude/pilot-44-reds-g2530 off origin/claude/pilot-44 fa4e2409; G2531-G2539 unused)
+
+**READY for the PILOT COORDINATOR (train 44).** THE BAR: TAXICLEAR PASS; TOUR PASS on what this tree carries (ISLAND-TOUR's
+strips INFO, the metal Cessna's refusal of the altiport judged, two known reds by name and number: the load door's float
+Cessna, the water on 02/20); ALTIPORT PASS with the metal Cessna's row; the other 19 of the box's 22 PASS (PILOTMATRIX: no cell
+worse than tools/pilot_baseline.json; RWYTREES standalone). One src change, in the pilot (43_pilot.js judgeHeld: the landing's
+stop run over the ground). No bound loosened; validated aircraft only; source, tools and evidence only - nothing generated
+committed. Every evidence file names its mode and tree (reports/evidence/PILOT-44-REDS/README.md).
+
+THE BRIEF: the box run of 8 Oct 01:30 on pilot-44 (fa4e2409): 20 of 22 gates PASS, TAXICLEAR and TOUR red.
+
+### G2530.1 - TAXICLEAR 11c: THE CENSUS COUNTED AN OVERFLIGHT 9'S RULE DOES NOT (mode: node; tree fa4e2409, then this branch)
+THE RED: '11c the user's Cub from Jumbo Mine's street 45 m from its south end: the wing 1.5 m off every footprint' -0.73 m,
+prop mn_s_mine/house7#cement_bags6 at (7282.0, -15060.2) in ENROUTE, t 96 s.
+WHICH OF THE TWO (reports/evidence/PILOT-44-REDS/mine45_probe.js -> taxiclear11c_cub_mine45_before_fa4e2409.log: 11c's own
+flight, every step the span line came within 1.5 m of a footprint's plan logged with the lowest node's height over that
+footprint's top): NOT A CONTACT. Every such step is airborne, after the climb-out began:
+  t 94.2-94.8 s CLIMB    house6 (top 349.4 m)            the lowest node 19.0 m over its top, 25.9 m AGL
+  t 95.6-95.8 s ENROUTE  house7 (top 348.8)              23.4-23.7 m over its top
+  t 95.8 s      ENROUTE  house7#cement_bags6 (top 344.7) 27.8 m over its top - the -0.73 m
+0 node contacts, 0 trunk hits, nothing yielded. The closest overflight is 19.0 m over house6's top - over PILOT-PROFILE's
+departure obstacle margin (15 m, 43 depNeed). GATE TAXICLEAR 9 (flyOut) has counted a footprint only while the lowest node
+is under its top + 15 m since G2125 (PILOT-PROFILE's own judgement 2, on the record for A0); 11c's flyTurn was written by
+ALTIPORT-TAXI on a base WITHOUT PILOT-PROFILE and kept the plan clearance at every height to 30 m AGL. The pilot is right
+(its climb on speed crosses the mine's roofs ~20 m over them); THE TWO RULES NOW AGREE: _taxiclear_lib wingSpan is the one
+measure flyOut and flyTurn both take (the span line, every tenth; a footprint flown over with more than 15 m under the
+lowest node is not counted, the closest such overflight within 1.5 m of plan printed). The 1.5 m is untouched; on the
+ground and through the lift-off nothing changes (every node is under any top + 15 m).
+  | 11c, the flight | fa4e2409 (the box) | this branch |
+  | the user's Cub, Jumbo Mine 45 m | FAIL -0.73 m (cement_bags6, ENROUTE, 27.8 m over its top) | 2.69 m (the clinic, in TAXI, t 25 s); flew over house6 19.0 m above its top (CLIMB, t 94 s) |
+  | the Jodel, Jumbo Mine 45 m | 3.77 m (the school, ROLL) - not airborne (G2490's owed short-field item) | the same |
+  | the metal Cessna, Jumbo Mine 45 m | 3.08 m (the clinic, TAXI) | the same |
+  | the Cub / Jodel / metal Cessna, the altiport apron | 6.57 / 7.69 / 6.26 m | the same |
+  | calibration: the Cub blind at the altiport | into the tram station | the same |
+
+### G2530.2 - THE METAL CESSNA AT SKYLINE ALTIPORT (mode: node, THE GAME'S FLIGHT - _tour_lib gameHost: the worker's host, the
+page's placement and pilot, DAY_CLOCK's 8 kt / 250 deg day ticked; the load door's aeroplane, 887.2 kg / 28 L; damage ON)
+REPRODUCED (tree fa4e2409): the TOUR leg w3 > tw_ski (island_tour.js --build c172 --order HOME,w3,tw_ski; c172_tour_w3_twski_
+before.log): off-strip, 'a fus member broke', 3418 yielded, first at t 958.8 - the box's numbers to the digit. The same
+straight from HOME (alti_metal_probe.js; altiport_trace_metal_8kt_before_fa4e2409.log, one line every 2 s and the roll every
+0.25 s): 3344 yielded, 26 broke.
+WHY (the trace): the arrival is ALTIPORT-ARRIVAL's and sound - the climb hold ('209 m under the height the final ... starts
+from'), FINAL at 856 m MSL 4.6 km out, the flare armed 7 m before the threshold. The elevator cannot hold Vref (CESSNA-VREF:
+'vref-raised ... 31.0 m/s'), so the final is flown at 33.3 m/s. The altiport is landed ONE WAY - uphill - and the game's
+westerly blows 4.9 m/s DOWN it (measured: the mean wind along the landing at 10 m over the aim). The touch: 127 m in at
+36.7 m/s OVER THE GROUND, the brakes from the touch (short-field) to full in 6 s, 2.0-2.3 m/s^2 of deceleration on the 7.7 %
+grass; the top end crossed at 10.7 m/s, the brakes off at 8.4 m/s over the crest, a 90 deg swing past the end, broken up.
+CESSNA-VREF's judgeHeld HAD judged it: Vtd 33.3, the stop 284 m, short-field 238 m, 257 m left past the aim and the float
+(3 s x 33.3) -> 'land' (short). It judged the AIRSPEED: the float and the roll are run over the ground.
+THE FIX (src/core/43_pilot.js judgeHeld; the pilot is the owner): the touch, the float and the stop are run at the speed
+held + THE TAILWIND ALONG THE LANDING (the mean of five samples of world.climate.sample over the next 16 s at 10 m over the
+aim, once a final - never a gust, never the solver's linearised wind cache). A headwind is not credited: a strip that fits in
+calm air fits into the wind, so every approach without wind behind is judged exactly as before. The verdicts carry it.
+On the game's day:
+  'strip-too-short: Skyline Altiport: the elevator holds 33.3 m/s (38.0 over the ground: 4.8 m/s of wind behind on its one
+   way in), the short-field stop from it needs 307 m, 243 m are left past the aim and the float - not landing there'
+  'divert: diverting to Jolene AFB 13/31 (2325 m, 4.2 km): Skyline Altiport is too short for the speed this aeroplane holds'
+  -> landed on 13/31 at 32.9 m/s, sink 0.57, stopped, no fault (alti_metal_8kt_after.log).
+In calm air it is landed as before (alti_metal_calm_before_fa4e2409.log = alti_metal_calm_after.log to the digit: short-
+field, 30.9 m/s, run 245 m, 'slope: stopped on a 2.7 % grade', no fault) - the altiport is the metal Cessna's in calm air
+and not with 4.8 m/s behind it. The player reads the refusal where every pilot verdict is read (the pilot notes row, the
+arrival card).
+  | metal Cessna HOME > tw_ski | fa4e2409 | this branch |
+  | the game's 8 kt day | CRASH: touched 127 m in at 36.7 m/s over the ground, off the top end, 3344 yielded, 26 broke | REFUSED, said (above); diverted, landed on 13/31, stopped, no fault |
+  | calm | landed short-field, 30.9 m/s, run 245 m, no fault | identical |
+GATE ALTIPORT 4 (new, a fourth job - run_gates ALTIPORT shards 3 -> 4): the metal Cessna HOME > tw_ski in the game's flight:
+the finding's case ('vref-raised'), undamaged (no yield / break / dent / prop strike / ground loop / off-strip), and EITHER
+stopped on the altiport with no fault (a, b, c, d as the Jodel's and the Cub's) OR refused with its reason said, landed and
+stopped on the strip diverted to, no flare ever armed at the altiport.
+GATE TOUR 5 (the C172's tour HOME > w3 > tw_ski > w2 > HOME): a To REFUSED, SAID is a leg DECLINED (_tour_lib L.declined:
+'strip-too-short' said, landed and stopped on the strip diverted to, no other fault) - judged as such ('the To refused with
+its reason said - landed and stopped on HOME with no fault'), printed 'DECLINED', and the tour goes on from where it diverted
+to (flyTour). Not excused: any other fault on that leg is judged as before. The C172's tour now reads HOME > w3 ok, w3 >
+tw_ski DECLINED (diverted to 13/31, stopped 788 m short of its end, no fault), HOME > w2 - the known red G2530.3d - and ends
+there, 3 of 4 legs.
+
+### G2530.3 - GATE TOUR ON THIS TREE (tools/_tour_check.js)
+a THE STRIPS' BLOCK (shard 0; 1-4: the approach census and its calibration, 'no water on a land strip', the turn pads, the
+  mine's apron) judges ISLAND-TOUR's strips - its src (25_airfield turnPadNodes) and its fixture (the one-way take-offs, East
+  Point's fan, the pads' and the apron's surfaces, the water off 02/20). Neither is on pilot-44 (ISLAND-TOUR G1965 never
+  landed). Behind a capability check now: ISLAND = C.turnPadNodes OR a tp_y_* / mn_y_apron surface in the fixture. Without
+  it every line of 1-4 is still COMPUTED and printed 'INFO (not on this tree: ISLAND-TOUR) would pass / would FAIL ...' -
+  nothing deleted, nothing judged; with either half present the whole block is judged (a partial landing reads red). What
+  moved: every check of 1-4 but the two below became a judge() that prints INFO (43 lines computed, 12 would fail on this
+  tree - the w3 / mn_strip / nv_strip directions
+  ISLAND-TOUR declares one-way or re-fanned, Jumbo Mine's calibration, 1826 wet samples on 02/20, the pads, the apron).
+  Still judged on every tree: Jolene's six land strips, the census's coverage (18 directions).
+b THE METAL CESSNA'S TOUR: G2530.2.
+c THE FLOAT CESSNA SEA > mk_sea - JOIN-PARITY's LOAD-DOOR AEROPLANE (G1970.4's family), CONFIRMED HERE (island_tour.js
+  --build floats --order SEA,mk_sea, the game's flight, tree fa4e2409's src):
+  | the float Cessna | mass | said | the touch | faults |
+  | the load door's (the game's) | 951.5 kg | vref-raised 31.7 m/s | 40.6 m/s, sink 2.08, run 463 m | 31 yielded (first a fus member at 277.5 s), prop strike, dent |
+  | the file as written (FLYDIY_RAW_BUILDS=1) | 1018.2 kg | - | 25.7 m/s, sink 2.51, run 275 m | none |
+  KEPT AS A KNOWN RED, BY NAME, WITH ITS NUMBERS (_tour_check knownRed): printed 'KNOWN 5 the float Cessna SEA > mk_sea:
+  JOIN-PARITY's load-door float Cessna (G1970.4) - vref-raised ...; the touch ... ; yield (31 ...), prop-strike, dent; no
+  break, no crash (951.5 kg)' and 'the tour ends at the known red'. Only while it is exactly that: 'vref-raised' said, the
+  faults within {yield, prop strike, dent}, no break, no crash, landed and stopped on mk_sea - anything more is judged.
+  Not fixed here: judgeHeld is a land strip's (CESSNA-VREF); the water's flare is PERSONA-2's (G2462); the airframe's
+  balance is JOIN-PARITY's / the Deform coordinator's.
+d THE C172 ON 02/20 - THE WATER ON THE RUNWAY (ISLAND-TOUR G1971's fix, not on this tree), NEW TO THIS ROW: the C172 never
+  reached w2 before (it broke up at tw_ski). Its leg HOME > w2 lands (29.6 m/s, sink 0.35, run 187 m), and on the roll-out at
+  31.6 m/s the propeller strikes WATER - 0.30 m of it under the lowest node at (451.6, 203.3): the cover grid's water class
+  floated over 02/20's old concrete, the strips' block's own 3a line ('1826 wet samples, first w2'). The same flight on
+  fa4e2409 strikes at the same instant, 488.05 s from the stand, to the decimal (w2strike_before_fa4e2409.log /
+  w2strike_after.log - its w2strike_probe.js). KEPT AS A KNOWN RED BY NAME ('KNOWN 5 the aluminium C172 HOME > w2: the
+  water on 02/20's concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ... s on the roll-out;
+  the touch ...; no other fault') only while ISLAND-TOUR is absent, the strike is the water's, it is the leg's only fault and
+  the aeroplane landed and stopped on w2. With ISLAND-TOUR landed it is judged.
+
+### G2530.4 - THE GATES
+MODE: node (+ headless Chromium for UISMOKE / RWYTREES' page), this 4-core cloud box. BEFORE = the coordinator's box run (8
+Oct 01:30, fa4e2409, `run_gates --only=...`). AFTER = this branch, src as of 53343347 (the later commits are tools / evidence /
+this entry): `node tools/build.js` (build 4270f24a8349), then `node --max-old-space-size=2048 tools/run_gates.js --no-build
+--only=<the 22> --jobs=4 --verbose` (gates_battery_after.log, 9167 s wall); TOUR again after the 02/20 known red
+(gates_tour_after2.log); RWYTREES alone (gates_rwytrees_after.log) and standalone (rwytrees_standalone_after.log).
+```
+gate          the box (fa4e2409)          this branch
+TAXICLEAR     FAIL (11c, the Cub -0.73 m) PASS  403 s [4 shards] - 11c the Cub 2.69 m (the clinic, TAXI); over house6 19.0 m above its top
+TOUR          FAIL (4 shards)             PASS 2031 s [4 shards] - the strips INFO (43 lines, 12 would fail: ISLAND-TOUR's); the Cub's
+                                                  land tour DONE, 5 legs, 15 L left; the C172 w3 > tw_ski DECLINED (said, 13/31) and
+                                                  KNOWN HOME > w2 (02/20's water, G1971); the floats KNOWN (the load door, G1970.4);
+                                                  East Point PASS (INFO: 'TAKES OFF')
+ALTIPORT      PASS (3 shards)             PASS 1359 s [4 shards] + 4 the metal Cessna: the altiport refused, said; 13/31, stopped, no fault
+                                                  (the Jodel, the Cub - its roll-out KNOWN as G2520 -, the doctored row: as before)
+CESSNAVREF    PASS                        PASS  775 s - the metal Cessna 31.7 m/s, sink 1.09, 'held-speed-short-field' (Tamgas Hill is
+                                                  landed into the wind: unchanged); the C172 control unchanged
+PILOTMATRIX   PASS                        PASS 1797 s - 18 cells: 13 good, 2 warn, 3 bad; ratchet: no cell worse than pilot_baseline.json
+PILOT         PASS                        PASS  437 s [3 shards]
+TAKEOFF       PASS                        PASS  499 s
+LINEUP        PASS                        PASS  241 s
+PILOTACT      PASS                        PASS  223 s
+PLAN          PASS                        PASS  498 s
+NAV           PASS                        PASS    0 s
+ROUTE         PASS                        PASS  787 s [3 shards]
+PROFILE       PASS                        PASS  912 s
+RWYTREES      PASS                        PASS standalone (`node tools/_rwytrees_check.js`, ~40 min) - 8: the metal C172 HOME
+                                                  437 s, the Cub HOME 626 s, the Cub at East Point 551 s (G2125's to the second); in
+                                                  run_gates it hits the runner's 1800 s cap on this box with every printed check ok
+                                                  (twice: in the battery and alone) - G2125 / G2520 recorded the same cap
+SOAR          PASS                        PASS  937 s
+HOTHIGH       PASS                        PASS  217 s
+INPUT         PASS                        PASS  127 s
+PLAYER        PASS                        PASS    0 s
+UISMOKE       PASS                        PASS  215 s
+UISMOKE-PHONE PASS                        PASS   49 s
+SIMWORKER     PASS                        PASS  103 s
+SEAPLANE      PASS                        PASS  334 s
+```
+No bound was loosened: TAXICLEAR's 1.5 m, TOUR's and ALTIPORT's fault lists, 30 deg / 5 m/s, 3 m, 25 m are as they were. What
+changed in the gates' judgement, each said above: 11c takes 9's overflight rule (G2530.1); TOUR's strips' block is INFO without
+ISLAND-TOUR (G2530.3a); a refused To said is judged as a declined leg (G2530.2); two known reds by name with their numbers
+(G2530.3c, d). Validated aircraft only: the Cub (builds/cub_2026-09-20_corrected.json), the Jodel (builds/jodel_2026-09-20_
+corrected.json), the metal Cessna (bugReports/cessnaMetal (1).json = tools/fixtures/build_v10_cessnaMetal_2026-09-26.json),
+the Cessna floats (bugReports/cessnaFloatsWOrks.json); the twin on floats meets no changed path (judgeHeld returns at once on
+a water strip or a hull: `to.surface === 4 || sim.hydro`, as before).
+
+### FILES
+src/core/43_pilot.js (judgeHeld: the tailwind along the landing, tailOf, heldTail reset on a go-around); tools/_taxiclear_lib.js
+(wingSpan: flyOut's and flyTurn's one measure; flyTurn returns overMin / overAt), tools/_taxiclear_check.js (11c's line prints
+the overflight; the header), tools/_tour_check.js (the strips' block's capability check and INFO; knownRed; a declined leg),
+tools/_tour_lib.js (L.divertedTo, L.declined; flyTour goes on from a declined leg's diversion), tools/_altiport_check.js (4 the
+metal Cessna), tools/run_gates.js (ALTIPORT shards 4); reports/evidence/PILOT-44-REDS/ (README.md). Nothing generated committed.
+
+### OWED / ROUTED
+1. THE RAISE EARNED BEFORE THE FINAL: on the altiport arrival 'vref-raised' is said at 383 s, in the climb hold, 23 s
+   before FINAL; the final is judged at 33.3 m/s (34.3 calm) and the record's Vheld reads 37.6-38.8 (the hold's climb speed
+   + the raise). CESSNA-VREF measured the elevator off its stop at 31.4-33.2 m/s on Tamgas Hill's finals, so 33.3 is in that
+   band - but whether a raise earned at the climb speed should carry into the final is the pilot owner's question (not
+   changed here: it moves every load-door Cessna's judgement).
+2. THE SHORT-FIELD STOP'S 0.84 is the Cub's measure (G1936); the metal Cessna at full brake on the altiport's grass
+   decelerated 2.0-2.3 m/s^2 with 0.75 of it the grade - the braking half what mu x N says (the brakes on the mains, the
+   wing still lifting at 30+ m/s). In calm air it fitted with 1 m of the model's margin (253 / 254 m) and stopped with room
+   (the slope roll-on). A measured stop per gear would put a margin where the model has none.
+3. The float Cessna's known red (G2530.3c) and the metal Cessna's speed itself - JOIN-PARITY's load door / the airframe's.
+4. ISLAND-TOUR (G1965 / G1971): when it lands, GATE TOUR's strips' block and the 02/20 water's known red judge themselves
+   again (no edit needed); the C172's tour then flies on to its last leg w2 > HOME, never flown on this tree.
