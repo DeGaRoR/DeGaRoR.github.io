@@ -27,6 +27,8 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUT = path.resolve(ROOT, opt('out', 'futureDesigns/game/evidence/FREIGHT-STRAP'));
 const PORT = +opt('port', 8141), ONLY = opt('only', 'stand,flight').split(',');
+// --no-stills: the flights' numbers only; --designs cub,c172: which cargo flights
+const NOSTILLS = argv.includes('--no-stills'), DESIGNS = opt('designs', 'cub,c172').split(',');
 const BASE = 'http://127.0.0.1:' + PORT + '/flyDiy/index.html?audio=0&freight=1';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // THE BROWSER: the box's own Chrome over CDP (garage_shot.js's rig: headless=new on this machine's GPU - there is no
@@ -163,13 +165,15 @@ function cdpBrowser(headed) {
                worker: !!(window.FLYDIY_SIMW && window.FLYDIY_SIMW.live()) };
     });
     const res = {};
-    for (const [d, test, to, what] of FLIGHTS) {
+    for (const [d, test, to, what] of FLIGHTS.filter(f => DESIGNS.includes(f[0]))) {
       for (const load of ['none', test]) {
         const { pg, ctx } = await newPage('&strapload=' + load + ':' + d);
         await stand(pg, d);
         await ev(pg, a => window.FLYDIY_STRAP.rigLoad(a[0], a[1]), [load, d]);
         await ev(pg, t => window.FLYDIY_ROUTE.to(t), to);
         await ev(pg, () => document.getElementById('edRoll').click());
+        // out of the shed first (the roll-out's screen comes up a moment after the click), then the overlay gone
+        for (let k = 0; k < 120; k++) { if (await ev(pg, () => !!(window.FLYDIY_HOLDS && !window.FLYDIY_HOLDS().inGarage)).catch(() => false)) break; await sleep(1000); }
         await settle(pg, 300);
         const st0 = await strap(pg);
         if (load !== 'none') check(st0 && st0.applied && st0.simFreight > 0, d + ' loaded: the masses aboard at the roll-out (' + (st0 ? st0.adds + ' nodes, +' + (st0.dm || 0).toFixed(1) + ' kg' : 'none') + ')');
@@ -182,7 +186,7 @@ function cdpBrowser(headed) {
           const r = await sample(pg).catch(() => null);
           if (!r) continue;
           rows.push(r);
-          if (load !== 'none' && !shot && /ENROUTE|DOWNWIND|CROSSWIND|INBOUND|CLIMB/.test(r.ph) && r.alt > 120) {
+          if (!NOSTILLS && load !== 'none' && !shot && /ENROUTE|DOWNWIND|CROSSWIND|INBOUND|CLIMB/.test(r.ph) && r.alt > 120) {
             shot = true;
             await ev(pg, () => { window.FLIGHT_PROBE.camMode('chase'); window.FLIGHT_PROBE.camSettle(); });
             await shoot(pg, 'strap_' + d + '_chase', { what: d + ', ' + what + ': the chase view, the load through the windows', sample: r, strap: await strap(pg) }, 'flight');
@@ -196,7 +200,7 @@ function cdpBrowser(headed) {
           }
           if (/STOPPED|LANDED/.test(r.ph) && k > 60) break;
           // enough: 20 s of cruise sampled (and the loaded flight's stills taken)
-          if ((load === 'none' || shot) && rows.filter(q => /ENROUTE|DOWNWIND|CROSSWIND|INBOUND/.test(q.ph)).length >= 40) break;
+          if ((load === 'none' || shot || NOSTILLS) && rows.filter(q => /ENROUTE|DOWNWIND|CROSSWIND|INBOUND/.test(q.ph)).length >= 40) break;
         }
         const cr = rows.filter(r => /ENROUTE|DOWNWIND|CROSSWIND|INBOUND/.test(r.ph));
         const mean = k => cr.length ? cr.reduce((a, r) => a + r[k], 0) / cr.length : null;
