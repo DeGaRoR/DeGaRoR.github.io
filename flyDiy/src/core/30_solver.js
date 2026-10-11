@@ -978,6 +978,24 @@ function makeSim(def, world) {
   // the parts that came off this substep: a ROOT cut's part keeps its cluster on its own nodes (the root's dropped) - a
   // rigid body that detaches; a STATION's (a bay's) splits the tube into two rigid clusters. A cluster still holding
   // nodes on both sides (a twin boom's fin stands on the station's ring and the ring before) lets go of the fewer
+  // G2640: the omega of a piece of a split tube cluster - its length along the tube's axis (the first ring to the last,
+  // at rest) and its mass against the whole's: om0 sqrt((L / Lp)^3 (M / Mp)), capped (the projection's own cap, rigid
+  // at omega dt 1, holds the rest). A cluster without rings (a fin, a float) keeps its omega
+  function clOmegaPiece(C, om0, piece) {
+    const R0 = C.rings0;
+    if (!(om0 > 0) || !R0 || R0.length < 2 || !C.idx0) return om0;
+    const cen = r => { const c = [0, 0, 0]; for (const i of r) for (let j = 0; j < 3; j++) c[j] += def.nodes[i].p[j] / r.length; return c; };
+    const a0 = cen(R0[0]), a1 = cen(R0[R0.length - 1]);
+    const ax = [a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]], la = hyp3(ax[0], ax[1], ax[2]);
+    if (!(la > 1e-6)) return om0;
+    const ext = ids => { let lo = Infinity, hi = -Infinity, M = 0;
+      for (const i of ids) { const P = def.nodes[i].p, d = ((P[0] - a0[0]) * ax[0] + (P[1] - a0[1]) * ax[1] + (P[2] - a0[2]) * ax[2]) / la;
+        if (d < lo) lo = d; if (d > hi) hi = d; M += m[i]; }
+      return { L: hi - lo, M }; };
+    const W = ext(C.idx0), Pp = ext(piece);
+    if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
+    return om0 * Math.sqrt(Math.min(1e3, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+  }
   function clApply() {
     for (const k of clQ) {
       const ct = CUTS[k], C = clusters[ct.cl];
@@ -988,9 +1006,16 @@ function makeSim(def, world) {
         for (const j of C.cuts) CUTS[j].done = true;
         if (other.length) setIdx(C, keep);
       } else {
+        // G2640 (DESIGN-TRUST): A PIECE OF A TUBE IS A SHORTER TUBE. The cluster's omega is its whole length's
+        // cantilever (61_gen_frame: 3 EI / L^3 against the cluster's mass); split at a mid-span station, each piece is
+        // a cantilever of its own length and mass - (L / Lp)^3 stiffer on (M / Mp) less mass. Handed the whole tube's
+        // omega, the metal Cessna's shell's aft piece flexed 12.4 mm in the clean part-off (GATE DMGCLUSTERS' 10 mm)
+        const om0 = C.omega0 || (C.omega0 = C.omega);
+        const oFwd = clOmegaPiece(C, om0, other), oAft = clOmegaPiece(C, om0, keep);
         setIdx(C, other);
+        C.omega = oFwd;
         if (keep.length >= 3) {
-          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega,
+          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: oAft,
                        rings: C.rings0, rk: C.rk0, gj: C.gj, twist: null, off: false, dirty: false, cuts: [], nm: null, ms: false,
                        twL0: C.twL0, twPk: 0, twR: 0, dmgS: null };
           setIdx(C2, keep);
