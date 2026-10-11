@@ -1369,9 +1369,9 @@ function lotGround(vil, plot, house, built, occ) {
     const d = edgeDist(x, z);
     if (!inside && d > M) continue;
     const y = T.h(x, z);
-    // THE LOT STOPS AT THE SHORE (G2890, the user: "the ones on the shore draw grass up till the sea"): no patch under
-    // the water line, feathered over the 15 cm above it (the pebbles of the seafront band stay; GATE VILLAGE 10 reads them)
-    if (y < wyShore) continue;
+    // THE LOT STOPS AT THE SHORE (G2890, the user: "the ones on the shore draw grass up till the sea"): no weight under
+    // the water line, feathered over the 15 cm above it (the pebbles of the seafront band stay; GATE VILLAGE 10 reads them;
+    // the vertices stay - the grid, its samples and its triangles are the patch's as before)
     id[j * (nx + 1) + i] = pos.length / 3;
     pos.push(x, y + 0.02, z);
     uv.push(x, z);
