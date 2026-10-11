@@ -118,7 +118,7 @@ PROPS = [
 # so these take the pier kit's static people's route), each delivered at a normalised ~100 units:
 # scaled to a standing height each. Only the textured row's material is taken (`mats`); the white
 # (.001) and flat grey (.002) twins are not.
-PEOPLE_SRC = C('WIP - Lowpoly People - 2', 'Loic Norgeot', 'norgeotloic',
+PEOPLE_SRC = C('WIP - Lowpoly People - 2', 'Loïc Norgeot', 'norgeotloic',
                'wip-lowpoly-people-2-4cf6f452719c4363bab5faddbc221391')
 for _n, _lab, _h, _u in (
         (1, 'woman with a plush rabbit', 1.68, 99.766),
