@@ -671,6 +671,16 @@ function mount(host, ctx) {
     strip.status('plot ' + p.id + ': ground ' + (off ? 'off' : 'on') + ' - click another, Esc ends');
     return true;
   }
+  // (G3007) a plot's FENCE switched: its id in the zone's noFence (the composer flags the plot, the village generator keeps
+  // no fence for it, the renderer builds that plot again)
+  function togglePlotFence(zid, L) {
+    const p = (R.plots ? R.plots() : []).find(q => q.zone === zid && q.poly && PG.inPoly(q.poly, L[0], L[1]));
+    if (!p) { strip.status('no plot of ' + zid + ' there - click inside one of its plots (Esc ends)'); return true; }
+    edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noFence) ? r2.noFence.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noFence = l; else delete r2.noFence; x.rules = r2; }, 'fence of plot ' + p.id);
+    const off = ((PG.findById(rec, zid).entry.rules || {}).noFence || []).indexOf(p.id) >= 0;
+    strip.status('plot ' + p.id + ': fence ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
+    return true;
+  }
   function ghostFeature() {
     if (!T.pts.length) return null;
     if (tool === 'pad' && T.pts.length >= 2) return { poly: PG.roundPoly({ c: T.pts[0], r: Math.max(1, Math.hypot(T.pts[1][0] - T.pts[0][0], T.pts[1][1] - T.pts[0][1])) }) };
@@ -1031,7 +1041,7 @@ function mount(host, ctx) {
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g)); return; }
-    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) togglePlotGround(T.plotPick, L); else T.plotPick = null; return; }
+    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
       // THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through
@@ -1425,8 +1435,17 @@ function mount(host, ctx) {
           rows.pills(insp, 'plot ground', [['on', 'drawn', 'each plot\'s ground: the lawn, the paths, the dry ground under the house (never under the water line)'], ['off', 'none', 'no plot draws its ground or its lawn: the island\'s own ground runs to the houses']],
             () => (RU0.ground === false ? 'off' : 'on'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.ground = false; else delete r2.ground; x.rules = r2; }, 'plot ground of ' + id));
           if (RU0.ground !== false) {
-            rows.button(insp, T.plotPick === id ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id ? null : id; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            rows.button(insp, T.plotPick === id && T.pickWhat !== 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat !== 'fence' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offN) { rows.note(insp, offN + ' plot' + (offN === 1 ? '' : 's') + ' with the ground off'); rows.button(insp, 'every plot\'s ground back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noGround; x.rules = r2; }, 'plot ground of ' + id)); }
+          } }
+        // THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): every plot's
+        // fence as built, or none - for the whole zone, or plot by plot (the plot, its house and its lot otherwise as they are)
+        { const RU1 = e.rules || {}, offF = Array.isArray(RU1.noFence) ? RU1.noFence.length : 0;
+          rows.pills(insp, 'plot fences', [['auto', 'as built', 'each plot\'s fence as the village plans it'], ['off', 'none', 'no plot of this zone is fenced']],
+            () => (RU1.fences === false ? 'off' : 'auto'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.fences = false; else delete r2.fences; x.rules = r2; }, 'plot fences of ' + id));
+          if (RU1.fences !== false) {
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s fence', () => { const on = !(T.plotPick === id && T.pickWhat === 'fence'); T.plotPick = on ? id : null; T.pickWhat = on ? 'fence' : null; strip.status(on ? 'click a plot of ' + id + ' to take its fence off or put it back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            if (offF) { rows.note(insp, offF + ' plot' + (offF === 1 ? '' : 's') + ' without a fence'); rows.button(insp, 'every plot\'s fence back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noFence; x.rules = r2; }, 'plot fences of ' + id)); }
           } }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
@@ -2242,6 +2261,7 @@ function mount(host, ctx) {
       if (name === 'removeCorner') { return removeCorner(args.id || selected, args.i === undefined ? corner : args.i); }
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
+      if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
       if (name === 'removeProp') { return removeProp(args.id || selected, args.prop); }

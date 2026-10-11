@@ -3301,7 +3301,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) want.set('sf:' + st.id, { id: 'sf:' + st.id, seed: PG.fnv(JSON.stringify(st.fences)), isFence: true, rec: st });
     const VGe = window.VILLAGE_GEN;
     // (G842: an entry in a cell a ground edit marked dirty is taken down too - its seed is its own, the ground under it is not)
-    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id)) {
+    // (G3007: a plot whose fence was switched - its seed the same - is taken down and built again too)
+    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id) || (!!p.noFence !== !!(h.plot && h.plot.noFence))) {
       for (const g of [h.grp].concat(h.extra || [])) if (g) { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
       if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) { FENCED.delete(VGe.edgeKey(sg.a, sg.b)); HWQ.needState = true; }
       HOUSES.delete(id);

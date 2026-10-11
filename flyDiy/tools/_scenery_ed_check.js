@@ -634,6 +634,30 @@ if (plots.length) {
   check(ed.cmd('click', { x: 1980, z: 4030 }) === aid, '18 a click elsewhere starts over (only the area there)');
 }
 
+// 19 THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): a zone's
+//    rules.fences false flags every plot it sows noFence, rules.noFence [ids] those alone; none set - every plot record as
+//    before, bit for bit (the shipped island's 470 plots); the village generator (GATE VILLAGE) finishes a noFence plot with
+//    no fence; the renderer builds a plot again when its fence switches (its seed the same); the inspector's switch and pick
+{
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const key = O => JSON.stringify(O.records.plots);
+  const O0 = PG.compose(J, flat, { raster: false }), z = J.layers.zones.find(q => O0.records.plots.some(p => p.zone === q.id && p.kind !== 'park'));
+  check(z && !O0.records.plots.some(p => 'noFence' in p), '19 no zone saying so: no plot carries noFence (' + O0.records.plots.length + ' plots)');
+  const mine = O0.records.plots.filter(p => p.zone === z.id), one = mine[0];
+  const J1 = JSON.parse(JSON.stringify(J)); J1.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { noFence: [one.id] });
+  const O1 = PG.compose(J1, flat, { raster: false });
+  check(O1.records.plots.filter(p => p.noFence).map(p => p.id).join() === one.id, '19 a plot switched off: it alone carries noFence (' + one.id + ')');
+  check(JSON.stringify(O1.records.plots.map(p => { const c = Object.assign({}, p); delete c.noFence; return c; })) === key(O0), '19 ...and every plot otherwise the same, its boundary and seed too');
+  const J2 = JSON.parse(JSON.stringify(J)); J2.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { fences: false });
+  const O2 = PG.compose(J2, flat, { raster: false });
+  check(O2.records.plots.filter(p => p.zone === z.id).every(p => p.noFence) && O2.records.plots.filter(p => p.zone !== z.id).every(p => !p.noFence), '19 the zone\'s fences off: its ' + mine.length + ' plots, and no other');
+  const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/plot\.noFence \? new Set\(\) : vil\.fenced/.test(VGs) && /if \(plot\.noFence\) plot\.fences = \[\];/.test(VGs), '19 the village generator keeps no fence for a noFence plot, and claims none of its sides');
+  check(/!!p\.noFence !== !!\(h\.plot && h\.plot\.noFence\)/.test(RPs), '19 the renderer builds a plot again when its fence switches (its seed the same)');
+  check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
