@@ -108,17 +108,29 @@ gives the **round head** and the round outside of every bend for free; `butt` sq
 - The footprint (toe polygon) excludes plots and trees and stamps the rock surface and ttype: the four layers
   Metlakatla authors by hand today come from one entry.
 
-## 4. Metlakatla's migration (planned, not done)
+## 4. Metlakatla's migration (G3038: `tools/waterfront_patch.py`)
 
-- `metlakatla_author.py` emits waterfront lines for `BREAKWATERS` (root first) and for the harbour floats and
-  trestles.
-- It drops the moles' four hand-authored layers: the terrain flatten, the surface, the ttype and the `mk_ma_*`
-  armour items.
-- The wharf decks and net pens stay MARINE_GEN items.
-- Then: re-cook (`premises_cook --island jolene`) in a CPU window, with a gate that the plots hash is unchanged or
-  explained.
-- One correction to put to the user: the author's moles are 16.8 m wide at the crest, while the aerial reads about
-  8 m. The prototype uses 8 m.
+The patch edits the fixture **by id** and does not re-run the author. Since SCENERY-SHIP, `island_jolene.json`
+carries the user's own edits (rev25), and a re-author would undo them. It follows ROAD-GRAPH's `road_patch.py`:
+- indent-1 JSON dumped exactly as it was read;
+- a record that doesn't round-trip that way is refused untouched;
+- `--dry` reports and writes nothing.
+
+What it does:
+- **Drops** each mole's four hand-authored layers (terrain `mk_bw_*`, surface `mk_y_bw_*`, ttype `mk_tt_bw_*`,
+  armour items `mk_ma_*`) and the three harbour floats (`mk_mf_harb_a`, `mk_mf_harb_b`, `mk_mf_small`).
+- **Adds** the moles as breakwater lines and the floats as float lines:
+  - Crest corrected to the photo's ~8 m on the two harbour moles (the user's YES; 7 m on the small two; the author
+    had 16.8 / 14.8 / 12.8 m).
+  - The outer hook runs root first, with its light on its head.
+  - The floats keep their axis, pitch and fingers (`'alt'`, as MARINE_GEN laid them), now with boats in 3/4 of the
+    slips.
+- **Leaves alone** the trestles, the seaplane float, the wharves and the net pens (MARINE_GEN sites).
+
+Afterwards: the re-cook (`premises_cook --island jolene`) in a CPU window, then the plots hash (GATE PREMISES 21d).
+A mole's footprint is wider than the old flatten polygon, so any plot it refuses is reported before the cook is
+accepted. Re-laying the basin as in the photo (four main floats about 45 m apart) is the user's to draw with the
+tool, not this patch's.
 
 ## 5. Budget per harbour, and the prototype's numbers
 

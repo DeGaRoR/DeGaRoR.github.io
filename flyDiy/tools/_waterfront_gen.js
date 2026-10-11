@@ -60,40 +60,9 @@ function boxF(m, o, U, V, W, a, b, c) {
   }
 }
 
-// ---- the line ------------------------------------------------------------
-// pts [[x, z], ...] in world metres. Arc length, the closest point, and the side.
-function line(pts) {
-  const segs = []; let s = 0;
-  for (let i = 0; i + 1 < pts.length; i++) {
-    const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
-    if (L < 1e-6) continue;
-    segs.push({ a, b, tx: dx / L, tz: dz / L, L, s0: s }); s += L;
-  }
-  return { pts, segs, len: s };
-}
-// the closest point of the line: distance, the side (+1 left of travel), arc s,
-// and `cap` - 0 inside, -1 past the root, +1 past the head (a round end's polar zone)
-function closest(PL, x, z) {
-  let best = null;
-  for (const g of PL.segs) {
-    const px = x - g.a[0], pz = z - g.a[1];
-    const t = clamp(px * g.tx + pz * g.tz, 0, g.L);
-    const cx = g.a[0] + g.tx * t, cz = g.a[1] + g.tz * t;
-    const d = Math.hypot(x - cx, z - cz);
-    if (!best || d < best.d - 1e-9) best = { d, g, t, side: (g.tx * (z - g.a[1]) - g.tz * (x - g.a[0])) >= 0 ? 1 : -1 };
-  }
-  const s = best.g.s0 + best.t;
-  const cap = s <= 1e-6 ? -1 : s >= PL.len - 1e-6 ? 1 : 0;
-  return { d: best.d, side: best.side, s, cap };
-}
-// a point and its frame at arc s (the tangent; the left normal)
-function at(PL, s) {
-  s = clamp(s, 0, PL.len);
-  let g = PL.segs[PL.segs.length - 1];
-  for (const q of PL.segs) if (s <= q.s0 + q.L) { g = q; break; }
-  const t = s - g.s0;
-  return { x: g.a[0] + g.tx * t, z: g.a[1] + g.tz * t, tx: g.tx, tz: g.tz, nx: -g.tz, nz: g.tx };
-}
+// ---- the line: the law's (src/core/27w_waterfront.js) ----------------------
+const line = pts => LAWL().line(pts), closest = (PL, x, z) => LAWL().closest(PL, x, z), at = (PL, s) => LAWL().at(PL, s);
+function LAWL() { return (typeof WATERFRONT_LAW !== 'undefined') ? WATERFRONT_LAW : require('../src/core/27w_waterfront.js'); }
 
 // ---- the stones ------------------------------------------------------------
 // A QUARRY STONE, not a box and not a sphere: a rounded cube pushed about by a
@@ -155,7 +124,7 @@ function stoneProto(seed, lod) {
 // THE LOD RINGS (m) for a batch's instances, chosen per instance per camera (the
 // cover ring's BatchedMesh does exactly this: per-instance culling, a geometry id
 // an instance). Past the last ring a stone is not drawn: the core's mottle is it.
-const RINGS = { stone: [40, 120, 450], boat: [120, 700, 1800] };
+const RINGS = { stone: [40, 120, 450], boat: [120, 700, 1800], log: [150, 600, 1500] };
 // what a camera at `cam` [x, y, z] draws of a built feature: triangles by rung,
 // the draws, the shadow casters. TWO CUTS the page makes per instance when the
 // camera has moved (the cover ring's per-instance pass):
@@ -198,59 +167,54 @@ function mat4(c, X, Y, Z, s) {
 //   M(x, z) = top - max(0, d - hw) / slope(side)      d = distance to the line
 //   H(x, z) = max(bed(x, z), M(x, z))
 // The distance to a polyline makes the ROUND HEAD (and the round outside of
-// every bend) for free; `head: 'butt'` squares the seaward end off instead.
-const BW_DEF = {
-  crest: 8.0,            // crest width, m
-  crestH: 4.0,           // crest over the water, m
-  slopeL: 1.5, slopeR: 1.5,   // side slopes (h:1), left/right of travel (root -> head)
-  block: 1.6,            // the armour's median stone, m (a 1.6 m stone is ~5 t)
-  blockVar: 0.35,        // its size spread, +-
-  band: 1.6,             // stones are laid down to this depth under the water (deeper: the core's colour only)
-  head: 'round',         // 'round' | 'butt'
-  track: 0,              // crest track width, m (0: the crest is armoured too)
-  trackLook: 'gravel',   // 'gravel' | 'grass' (Walden Point's jetty)
-  light: 1,              // a beacon on the head
-  ds: 2.0,               // core station spacing, m
-  seed: 1,
-};
+// every bend) for free; every end is round.
+// THE LAW IS THE CORE'S (src/core/27w_waterfront.js, WATERFRONT_LAW): the solver's
+// ground, the composer's footprint and this mesh read one M/H. Here: the mesh.
+const LAW = (typeof WATERFRONT_LAW !== 'undefined') ? WATERFRONT_LAW : require('../src/core/27w_waterfront.js');
+const BW_DEF = Object.assign({ ds: 2.0 }, LAW.DEF.breakwater);   // + the core's station spacing, m
+const RV_DEF = Object.assign({ ds: 2.0 }, LAW.DEF.revetment);
 const LOOK = { gravel: [0.55, 0.53, 0.49], grass: [0.36, 0.42, 0.24] };
 
-function breakwater(pts, P0, env) {
-  const P = Object.assign({}, BW_DEF, P0 || {});
-  const wy = env && isFinite(env.waterY) ? env.waterY : 0;
-  const bed = env && env.bed ? env.bed : ((x, z) => wy - 6);
-  const PL = line(pts);
+function breakwater(pts, P0, env) { return moundFeature('breakwater', pts, Object.assign({}, BW_DEF, P0 || {}), env); }
+// a riprap shore / seawall: half a mound, the line its top edge, the sea on `water`'s side
+function revetment(pts, P0, env) { return moundFeature('revetment', pts, Object.assign({}, RV_DEF, P0 || {}), env); }
+
+function moundFeature(kind, pts, P, env) {
+  const Md = LAW.mound({ kind, pts, P }, { waterY: env && env.waterY, bed: env && env.bed, water: env && env.water });
+  const wy = Md.wy, bed = Md.bed, PL = Md.PL, M = Md.M, H = Md.H, top = Md.top;
+  const hw = kind === 'breakwater' ? P.crest / 2 : 0;          // the crest's half-width (the track, the beacon)
   const R = rng(P.seed);
-  const hw = P.crest / 2, top = wy + P.crestH;
-  const M = (x, z) => {
-    const c = closest(PL, x, z);
-    let d = c.d;
-    if (P.head === 'butt' && c.cap === 1) {        // a square end: the distance along the axis past the head
-      const e = at(PL, PL.len), ax = x - e.x, az = z - e.z;
-      d = Math.max(Math.abs(ax * e.nx + az * e.nz), (ax * e.tx + az * e.tz) * 3);
-    }
-    return top - Math.max(0, d - hw) / (c.side > 0 ? P.slopeL : P.slopeR);
+  const smax = Math.max(Md.S.sL, Md.S.sR);
+  const K = 7;                                   // flank samples a side
+  // along a horizontal ray from the axis: where the crest ends, and the toe (where the mound meets the bed)
+  const crestAlong = (ox, oz, dx, dz) => {
+    let r0 = 0, r1 = Math.max(Md.hwL, Md.hwR) + 1;
+    if (M(ox + dx * r1, oz + dz * r1) >= top - 1e-9) return r1;
+    for (let k = 0; k < 30; k++) { const m = (r0 + r1) / 2; if (M(ox + dx * m, oz + dz * m) >= top - 1e-9) r0 = m; else r1 = m; }
+    return r0;
   };
-  const H = (x, z) => Math.max(bed(x, z), M(x, z));
-  // the toe: how far out from the axis (along a horizontal ray) the mound meets the bed
-  const toeAlong = (ox, oz, dx, dz) => {
-    let r0 = hw, r1 = hw;
-    const smax = Math.max(P.slopeL, P.slopeR);
-    for (let r = hw; r < hw + (P.crestH + 40) * smax; r += 0.5) { r1 = r; if (M(ox + dx * r, oz + dz * r) <= bed(ox + dx * r, oz + dz * r)) break; r0 = r; }
+  const toeAlong = (ox, oz, dx, dz, from) => {
+    let r0 = from, r1 = from;
+    for (let r = from; r < from + (P.crestH + 40) * smax * 3; r += 0.5) { r1 = r; if (M(ox + dx * r, oz + dz * r) <= bed(ox + dx * r, oz + dz * r)) break; r0 = r; }
     for (let k = 0; k < 24; k++) { const m = (r0 + r1) / 2; if (M(ox + dx * m, oz + dz * m) <= bed(ox + dx * m, oz + dz * m)) r1 = m; else r0 = m; }
     return r1;
+  };
+  // a ray's samples: two on the crest (when it has one), K down the flank to the toe
+  const raySamples = (ox, oz, dx, dz) => {
+    const ce = crestAlong(ox, oz, dx, dz), toe = toeAlong(ox, oz, dx, dz, ce);
+    const us = [ce * 0.5, ce];
+    for (let k = 1; k <= K; k++) us.push(ce + (toe - ce) * (k / K));
+    return us;
   };
 
   // ---- the core: stations along the line, a section at each; round caps
   const core = Mesh('core');
-  const K = 7;                                   // flank samples a side
   const rubble = (x, z, y) => {                  // the core's own colour: dark, mottled, darker under water (the far LOD's whole look)
     const n = Math.sin(x * 1.7 + z * 0.9) * Math.sin(x * 0.6 - z * 1.3) * 0.5 + 0.5;
     const k = (0.42 + 0.12 * n) * (y < wy ? 0.62 : 1);
     return [k * 1.0, k * 0.98, k * 0.93];
   };
   const vtx = (x, z) => { const y = H(x, z); return core.v([x, y, z], [0, 1, 0], rubble(x, z, y)); };
-  const rays = [];                               // [{ox, oz, dx, dz}] one per station (both sides via the sign)
   const stS = [];
   for (let s = 0; s < PL.len; s += P.ds) stS.push(s);
   stS.push(PL.len);
@@ -270,9 +234,7 @@ function breakwater(pts, P0, env) {
     }
     const row = [];
     for (const side of [-1, 1]) {
-      const toe = toeAlong(f.x, f.z, nx * side, nz * side);
-      const us = [hw * 0.5, hw];
-      for (let k = 1; k <= K; k++) us.push(hw + (toe - hw) * (k / K));
+      const us = raySamples(f.x, f.z, nx * side, nz * side);
       const list = us.map(u => vtx(f.x + nx * side * u, f.z + nz * side * u));
       if (side < 0) row.push(...list.reverse()); else { row.push(vtx(f.x, f.z)); row.push(...list); }
     }
@@ -291,9 +253,7 @@ function breakwater(pts, P0, env) {
       const ph = -Math.PI / 2 + Math.PI * j / A;
       // the ray turns from the right normal through the axis to the left one (in travel terms)
       const dx = f.tx * fw * Math.cos(ph) + f.nx * Math.sin(ph) * -fw, dz = f.tz * fw * Math.cos(ph) + f.nz * Math.sin(ph) * -fw;
-      const toe = toeAlong(f.x, f.z, dx, dz);
-      const us = [hw * 0.5, hw]; for (let k = 1; k <= K; k++) us.push(hw + (toe - hw) * (k / K));
-      return us.map(u => vtx(f.x + dx * u, f.z + dz * u));
+      return raySamples(f.x, f.z, dx, dz).map(u => vtx(f.x + dx * u, f.z + dz * u));
     };
     const c = vtx(f.x, f.z), rings = [];
     for (let j = 0; j <= A; j++) rings.push(ringOf(j));
@@ -308,7 +268,7 @@ function breakwater(pts, P0, env) {
 
   // ---- the crest track (Walden Point's grassy jetty)
   const track = Mesh('track');
-  if (P.track > 0) {
+  if (kind === 'breakwater' && P.track > 0) {
     const tw = Math.min(P.track, P.crest - 0.6) / 2, tc = LOOK[P.trackLook] || LOOK.gravel;
     let prev = null;
     for (const S of sections) {
@@ -327,7 +287,7 @@ function breakwater(pts, P0, env) {
   const tri = [], cum = [];
   let area = 0;
   const cp = core.pos, ci = core.idx;
-  const trackHalf = P.track > 0 ? Math.min(P.track, P.crest - 0.6) / 2 : -1;
+  const trackHalf = kind === 'breakwater' && P.track > 0 ? Math.min(P.track, P.crest - 0.6) / 2 : -1;
   for (let i = 0; i < ci.length; i += 3) {
     const a = ci[i] * 3, b = ci[i + 1] * 3, c = ci[i + 2] * 3;
     const ymax = Math.max(cp[a + 1], cp[b + 1], cp[c + 1]);
@@ -451,7 +411,7 @@ function breakwater(pts, P0, env) {
   // ---- the beacon on the head
   const lights = [];
   const steel = Mesh('steel');
-  if (P.light) {
+  if (kind === 'breakwater' && P.light) {
     const f = at(PL, PL.len);
     const hx = f.x - f.tx * hw * 0.4, hz = f.z - f.tz * hw * 0.4;
     boxF(steel, [hx, top, hz], [1, 0, 0], [0, 1, 0], [0, 0, 1], [-0.09, 0, -0.09], [0.09, 4.2, 0.09], [0.86, 0.87, 0.85]);
@@ -461,7 +421,7 @@ function breakwater(pts, P0, env) {
 
   const stats = statsOf({ core, track, steel }, { stone: { inst, proto0, proto1, proto2 } });
   stats.len = PL.len; stats.area = area; stats.stones = stones.length; stats.chinks = stones.filter(q => q.chink).length; stats.top = top;
-  return { kind: 'breakwater', P, PL, H, M, bed, wy, top, hw, meshes: { core, track, steel }, batches: { stone: { inst, proto0, proto1, proto2 } }, lights, stats };
+  return { kind, P, PL, H, M, bed, wy, top, hw, Md, meshes: { core, track, steel }, batches: { stone: { inst, proto0, proto1, proto2 } }, lights, stats };
 }
 
 function smoothNormals(m) {
@@ -653,6 +613,54 @@ function floatDock(pts, P0, env) {
   return { kind: 'float', P, PL, wy, y, bed, meshes, batches: { boat: { inst, proto0, proto1 } }, fingers, slips, boats, gang, decks, stats };
 }
 
+// ---- THE LOG BOOM (Walden Point's) ------------------------------------------------
+// Logs end to end along the line (the anchors), each floating ~60 % under (its
+// centre a tenth of its diameter below the water), joined by short chains, a
+// buoy at every anchor. The logs are one BatchedMesh of a single 10-sided log.
+function logProto(lod) {
+  const m = Mesh('log' + lod), n = lod === 0 ? 10 : 6, bark = [0.36, 0.3, 0.24], end = [0.62, 0.52, 0.38];
+  const ring = x => { const r = []; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; r.push([x, Math.sin(a), Math.cos(a)]); } return r; };
+  const r0 = ring(-1), r1 = ring(1);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, a = r0[i], b = r0[j], c = r1[j], d = r1[i];
+    const nn = nrm3([0, a[1] + b[1], a[2] + b[2]]);
+    m.quad(m.v(a, nn, bark), m.v(d, nn, bark), m.v(c, nn, bark), m.v(b, nn, bark));
+  }
+  for (const [rr, sx] of [[r0, -1], [r1, 1]]) {
+    const c = m.v([sx, 0, 0], [sx, 0, 0], end);
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; const a = m.v(rr[i], [sx, 0, 0], end), b = m.v(rr[j], [sx, 0, 0], end); if (sx > 0) m.tri(c, a, b); else m.tri(c, b, a); }
+  }
+  return m;
+}
+function boom(pts, P0, env) {
+  const P = Object.assign({}, LAW.DEF.boom, P0 || {});
+  const wy = env && isFinite(env.waterY) ? env.waterY : 0;
+  const PL = line(pts), R = rng(P.seed);
+  const steel = Mesh('steel'), buoy = Mesh('buoy');
+  const logs = [];
+  const step = P.logL + P.gap;
+  for (const g of PL.segs) {
+    const n = Math.max(1, Math.round(g.L / step)), each = g.L / n, L = Math.max(1, each - P.gap);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) * each, x = g.a[0] + g.tx * t, z = g.a[1] + g.tz * t;
+      const yj = (R() - 0.5) * 0.06;                                 // a log is never quite in line
+      const X = nrm3([g.tx + -g.tz * yj, 0, g.tz + g.tx * yj]), Y = [0, 1, 0], Z = cross(X, Y);
+      const r = P.logD / 2 * (0.85 + R() * 0.3);
+      logs.push({ mat: mat4([x, wy - P.logD * 0.1, z], X, Y, Z, [L / 2, r, r]), x, z, L, r });
+      // the chain to the next log (a short dark bar at the waterline)
+      if (i + 1 < n) { const cx = x + g.tx * each / 2, cz = z + g.tz * each / 2; boxF(steel, [cx, wy, cz], [g.tx, 0, g.tz], Y, [-g.tz, 0, g.tx], [-P.gap / 2 - 0.2, -0.03, -0.03], [P.gap / 2 + 0.2, 0.03, 0.03], [0.2, 0.19, 0.18]); }
+    }
+  }
+  for (const p of pts) boxF(buoy, [p[0], wy, p[1]], [1, 0, 0], [0, 1, 0], [0, 0, 1], [-0.35, -0.3, -0.35], [0.35, 0.4, 0.35], [0.88, 0.36, 0.22]);
+  const proto0 = [logProto(0)], proto1 = [logProto(1)];
+  const inst = { n: logs.length, mat: new Float32Array(logs.length * 16), col: new Float32Array(logs.length * 3), proto: new Uint8Array(logs.length) };
+  logs.forEach((l, i) => { inst.mat.set(l.mat, i * 16); const v = 0.85 + R() * 0.3; inst.col.set([v, v, v], i * 3); });
+  const meshes = { steel, buoy };
+  const stats = statsOf(meshes, { log: { inst, proto0, proto1 } });
+  stats.len = PL.len; stats.logs = logs.length;
+  return { kind: 'boom', P, PL, wy, meshes, batches: { log: { inst, proto0, proto1 } }, logs, stats };
+}
+
 // ---- the numbers -------------------------------------------------------------
 // triangles at each rung, the draws (a merged mesh is one; a batch is one per
 // material), the bytes a GPU holds (positions + normals + colours as float32,
@@ -685,7 +693,7 @@ function digest(out) {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-const WATERFRONT_GEN = { BW_DEF, FD_DEF, BOAT_TYPES, RINGS, breakwater, floatDock, stoneProto, boatProto, line, closest, at, digest, statsOf, viewCost };
+const WATERFRONT_GEN = { BW_DEF, RV_DEF, FD_DEF, BOAT_TYPES, RINGS, LAW, breakwater, revetment, floatDock, boom, stoneProto, boatProto, line, closest, at, digest, statsOf, viewCost };
 if (typeof window !== 'undefined') window.WATERFRONT_GEN = WATERFRONT_GEN;
 if (typeof module !== 'undefined' && module.exports) module.exports = WATERFRONT_GEN;
 })();

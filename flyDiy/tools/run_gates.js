@@ -551,7 +551,8 @@ const GATES = [
   // G3031 (WATERFRONT): the waterfront prototype, headless - Metlakatla's outer mole and Walden Point's jetty as rubble
   // mounds of individual armour stones (the law, the round head, the toe on the bed, 90 % of the band under stone at
   // every height, none floating), a Metlakatla main float with boats clear in their slips, the basin's frame budget
-  // from four viewpoints (~1 s)
+  // from four viewpoints; G3032: the ground as abs grade lines under the drawn law, the revetment, the log boom, a pier
+  // as MARINE_GEN sites in placeSite's frame, the footprints (~2 s)
   { id: 'WATERFRONT', file: '_waterfront_check.js', tier: 'core' },
   // G614: the premises' composed ground as an A h + B lattice (opt-in) against the analytic path, the ceiling over
   // it, and the surface / exclude cell indexes against the scans they replaced; ~40 s

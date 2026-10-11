@@ -72,6 +72,10 @@ const MANIFEST = {
     // PREMISES_GEN global, so it only has to be in the bundle; after 25_
     // because its runway records take the airfield's shape.
     '27_premises.js',
+    // THE WATERFRONT'S LAW (G3032, contract v1.42): the mound every breakwater and revetment is (one height field),
+    // its ground as a stack of abs grade lines, the footprint, a pier as MARINE_GEN sites - pure; the composer reads
+    // it at compose time, tools/_waterfront_gen.js (lazy) builds the mesh from the same law
+    '27w_waterfront.js',
     // THE ISLAND (W2, 2026-09-14): a world source from data - the baked
     // quadtree as the ground, the cover grid as the classifier, the canopy
     // grid as the trees' height. makeWorld(seed, { island }) takes it; pure.
