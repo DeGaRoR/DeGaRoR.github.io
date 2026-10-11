@@ -238,6 +238,14 @@ if (plots.length) {
   check(ed.selected === null && ed.cmd('paletteEl').children.length === 1, '7 AREAS lit: its palette drawer');
 }
 
+// 7b THE LIFE SECTION IS REACHED (A0, 12 Oct: GATE LIFE's scan read the pre-palette signature): its tab opens the palette
+//    drawer on the LIFE rows (headless: no scenery_life.js, so the drawer says so - under the LIFE heading)
+{
+  notes.length = 0; ed.setSection('life');
+  check(notes.indexOf('§LIFE') >= 0, '7b the LIFE tab opens the LIFE section in the palette drawer', notes.slice(0, 4).join(' | '));
+  ed.setSection('roads');
+}
+
 // 8 THE MODEL PLACER (G2914): the bank (a stub registry - the page's PROP_REG), a drop, a turned and scaled drop, the
 //   scatter (n records, one undo), the save and the load
 {
