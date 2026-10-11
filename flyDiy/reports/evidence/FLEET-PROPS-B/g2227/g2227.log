@@ -1,0 +1,11 @@
+boxlock: CPU battery taken by FLEETB
+04:45:01 tree be6715a12
+04:45:02 build: tools/flight_core.js (2741.3 KB), index.html (12276.4 KB), dev.html (111.9 KB) — syntax OK, build 3be7a855f959 (338 named inputs), 910 ms
+04:45:02 RUN INSTANT_FLEET
+04:52:29 END INSTANT_FLEET rc 0:   fleet: on true, stood 6, queued 6, captures so far 2, queue mine:fleet-3-c172 mine:fleet-4-c172floats mine:fleet-5-twinfloats mine:fleet-6-metal|  fleet: ok - captures 3 (during drags 0), input waits 4, not wanted 0, queue left 3|GATE INSTANT: PASS|
+04:52:29 RUN INSTANT_FLEET_BAKED
+04:59:07 END INSTANT_FLEET_BAKED rc 0:   fleet: on true, stood 6, queued 0, captures so far 0, queue |  fleet: ok - captures 0 (during drags 0), input waits 0, not wanted 0, queue left 0|GATE INSTANT: PASS|
+04:59:08 RUN PARKED
+05:02:09 END PARKED rc 0: GATE PARKED: PASS|
+05:02:09 G2227 runs over at 05:02:09
+boxlock: CPU battery released by FLEETB

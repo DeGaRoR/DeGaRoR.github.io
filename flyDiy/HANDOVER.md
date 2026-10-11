@@ -83833,3 +83833,18 @@ sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impost
 Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
 Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
 Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).
+
+## G2227 - FLEET-PROPS B: AFTER A CAPTURE BATCH THE EDITOR PUBLISHES ITS OWN SHARED UNIFORMS AGAIN (the first drag after a fleet bake no longer ends ~13 cm off on the footwell / weather) (2026-10-10/11, FLEET-PROPS B for the GAME COORDINATOR; branch claude/fleet-republish-g2227 off origin/claude/game-integration 843fa745)
+
+- THE CAUSE: a capture batch (parked.js batchSteps) restores the shared block (aeroskin's, the weather's spread in) as it
+  was when the batch began - a copy that may predate the editor's last publish (a fleet bake early after the boot): the
+  first drag's preview then ended on the footwell (uFootA) and the weather's sources (uWxA) of that old copy (INSTANT
+  --fleet: wgSpan 396 objects apart; --fleet-baked, no capture: clean).
+- THE FIX: CAGE_UI.republish() (tools/_cage_ui.js) puts back what the editor's layers hold NOW - the crew's footwell and
+  plate holes (CAGE_CREW), the weather's sources and macros (applyWeather) - and batchSteps calls it after the restore
+  whenever it captured. PARKED 12p: a source row holds it.
+- GATES (11 Oct 04:45-05:02, take cpu FLEETB, tree be6715a1): INSTANT --fleet --builds cub PASS (3 captures, 0
+  during drags, input waits 4; wgSpan the same as its long way), INSTANT --fleet-baked PASS, PARKED PASS (full). Logs:
+  reports/evidence/FLEET-PROPS-B/g2227/.
+
+READY for the GAME COORDINATOR: claude/fleet-republish-g2227 be6715a1 (this section rides one docs-only commit on top)
