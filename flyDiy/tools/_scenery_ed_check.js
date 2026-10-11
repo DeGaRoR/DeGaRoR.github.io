@@ -352,7 +352,12 @@ if (plots.length) {
   const O10 = PG.compose(rec(), synth, { raster: false }), r1 = rec().layers.roads.find(r => r.id === 'r1'), E = O10.extent;
   check(r1 && r1.pts.every(q => q[0] >= E.x0 && q[0] <= E.x1 && q[1] >= E.z0 && q[1] <= E.z1), '10 the composed extent covers the island road (it ran 12.7 km past the authored one)', JSON.stringify(E));
   const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OJ = PG.compose(J, synth, { raster: false });
-  check(JSON.stringify(OJ.extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record keeps its own extent exactly (every feature inside it)');
+  // (G2956: the shipped record carries the user's island road r1 now, which runs 7.7 km past the extent it authors - the
+  //  extent grows to cover it, and only for it: without r1 it is the authored one exactly)
+  const J0 = JSON.parse(JSON.stringify(J)); J0.layers.roads = J0.layers.roads.filter(r => r.id !== 'r1');
+  const r1J = J.layers.roads.find(r => r.id === 'r1'), EJ = OJ.extent;
+  check(JSON.stringify(PG.compose(J0, synth, { raster: false }).extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record without r1 keeps its own extent exactly (every other feature inside it)');
+  check(r1J && EJ.x0 <= J.frame.extent.x0 && EJ.z0 <= J.frame.extent.z0 && EJ.x1 >= J.frame.extent.x1 && EJ.z1 >= J.frame.extent.z1 && r1J.pts.every(q => q[0] >= EJ.x0 && q[0] <= EJ.x1 && q[1] >= EJ.z0 && q[1] <= EJ.z1), '10 ...with r1 shipped, its composed extent grows over r1 (' + JSON.stringify(EJ) + ')');
   ed.select('r1');
   const [tT] = Tm(() => ed.cmd('set', { id: 'r1', patch: { traffic: 12 } }));
   check(R.lastDirty && R.lastDirty.ground === false, '10 the traffic changed is no ground edit (no patch, no ground re-sample)', JSON.stringify(R.lastDirty));
