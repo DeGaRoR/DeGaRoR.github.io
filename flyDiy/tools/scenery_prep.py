@@ -276,7 +276,8 @@ if crop.get('keep') or crop.get('pad') is not None:
         elif not inside(c, keep_boxes):
             gone.append(f)
     cropped = len(gone)
-    gz = sorted(v.co.z for f in bm.faces if f.index in terrain and f not in set(gone) for v in f.verts)
+    gset = set(gone)
+    gz = sorted(v.co.z for f in bm.faces if f.index in terrain and f not in gset for v in f.verts)
     ground_z = gz[len(gz) // 2] if gz else None
     bmesh.ops.delete(bm, geom=gone, context='FACES')
     # loose bits the cut left (a shrub's top, a stray chip under 0.5 m2) go too

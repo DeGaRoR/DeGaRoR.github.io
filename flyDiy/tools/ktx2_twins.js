@@ -37,6 +37,7 @@ const OUT = path.join(ROOT, 'src', 'viewer', 'ktx2_twins.js');
 const FAMILIES = {
   pier: { packs: 'src/pier/pier_packs.json', dir: 'media/tex/pier' },
   props: { packs: 'src/props/props_packs.json', dir: 'media/tex/props' },
+  scenery: { packs: 'src/scenery/scenery_packs.json', dir: 'media/tex/scenery' },   // ASSETS-OCT G2904
 };
 const WANT = opt('family', Object.keys(FAMILIES).join(',')).split(',').filter(f => FAMILIES[f]);
 // which slot kinds get twins (--kinds color: the colour maps only - their wire is the JPEG's; normal and data twins

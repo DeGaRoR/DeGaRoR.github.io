@@ -3,7 +3,7 @@ from OUR material library and baked to one game material, in Blender (3.6),
 headless:
 
   blender -b --factory-startup -P tools/observatory_prep.py -- [--size 2048]
-          [--target 20000] [--stills] [--quick]
+          [--target 20000] [--quick]
 
 Reads  assets/sceneryOctober/tutor_tv_observatory.glb   (delivered, never edited:
        Tommen's Maya model, CC BY 4.0, ONE material and no maps at all)
@@ -12,7 +12,7 @@ Reads  assets/sceneryOctober/tutor_tv_observatory.glb   (delivered, never edited
 Writes assets/sceneryOctober_prep/observatory/observatory.glb  (the prepped source,
        gitignored like every bake source; tools/scenery_prep.py bakes it)
        bench/scenery/observatory.json                      (counts + the material census)
-       screenshots/asset-prep/observatory_<view>.jpg       (--stills, for the user's review)
+       (the review stills: tools/scenery_still.py on the written GLB)
 
 THE SCALE. Delivered 57 x 38 x 41 m with its origin 246 m off. The model is a
 stylised one; the only true yardsticks in it are the stairs: two curved flights
@@ -56,7 +56,6 @@ def arg(name, dflt):
 QUICK = '--quick' in argv            # a dry run: tiny maps, 1 sample, no stills
 SIZE = arg('--size', 256 if QUICK else 2048)
 TARGET = arg('--target', 20000)
-STILLS = '--stills' in argv and not QUICK
 SCALE = 0.25
 ANG = arg('--angle', 55.0)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -430,46 +429,7 @@ json.dump(dict(key='observatory', src=SRC, scale=SCALE, src_tris=src_tris, lo_tr
                seconds=round(time.time() - t0, 1)), open(REP, 'w'), indent=1)
 log('wrote', OUT, os.path.getsize(OUT), 'bytes')
 
-# ---- stills: the baked cut as the game wears it, under a sky ----------------
-if STILLS:
-    bpy.data.objects.remove(hi)
-    os.makedirs(SHOTS, exist_ok=True)
-    sc.cycles.samples = 48
-    sc.cycles.use_denoising = True
-    sc.render.resolution_x, sc.render.resolution_y = 1280, 800
-    sc.view_settings.view_transform = 'Filmic'
-    sc.view_settings.look = 'Medium Contrast'
-    w = sc.world; w.use_nodes = True
-    sky = w.node_tree.nodes.new('ShaderNodeTexSky'); sky.sky_type = 'NISHITA'
-    sky.sun_elevation = math.radians(32); sky.sun_rotation = math.radians(215)
-    sky.altitude = 1500; sky.air_density = 1.0; sky.dust_density = 1.5
-    w.node_tree.links.new(sky.outputs['Color'], w.node_tree.nodes['Background'].inputs['Color'])
-    w.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.25
-    sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN'))
-    sun.data.energy = 3.2; sun.data.angle = math.radians(1.5)
-    sun.rotation_euler = (math.radians(58), 0, math.radians(215 + 90))
-    sc.collection.objects.link(sun)
-    bpy.ops.mesh.primitive_plane_add(size=400, location=(0, 0, 0.01))
-    gp = bpy.context.active_object
-    gm = bpy.data.materials.new('ground'); gm.use_nodes = True
-    gb = gm.node_tree.nodes['Principled BSDF']
-    gb.inputs['Base Color'].default_value = (0.16, 0.17, 0.11, 1); gb.inputs['Roughness'].default_value = 0.95
-    gp.data.materials.append(gm)
-    cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
-    cen = Vector((0, 0, lo.dimensions.z * 0.42))
-    R = max(lo.dimensions)
-    VIEWS = [('front', 30, 1.75, 0.10, 35), ('aerial', 150, 3.2, 0.62, 40), ('dome', 250, 1.25, 0.30, 50)]
-    for name, az, dist, el, lens in VIEWS:
-        cam.data.lens = lens
-        d = Vector((math.cos(math.radians(az)), math.sin(math.radians(az)), el)).normalized()
-        cam.location = cen + d * R * dist
-        if cam.location.z < 1.6:
-            cam.location.z = 1.6
-        tgt = cen + Vector((0, 0, 1.2)) if name == 'dome' else cen
-        cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
-        sc.render.image_settings.file_format = 'JPEG'
-        sc.render.image_settings.quality = 88
-        sc.render.filepath = os.path.join(SHOTS, 'observatory_%s.jpg' % name)
-        bpy.ops.render.render(write_still=True)
-        log('still', sc.render.filepath)
+# ---- stills: tools/scenery_still.py on the written GLB (the user's review set):
+#   blender -b --factory-startup -P tools/scenery_still.py -- <OUT> screenshots/asset-prep/observatory
+# (the first set, rendered here under a Nishita sky PLUS a sun lamp, came out washed - two suns)
 log('done')
