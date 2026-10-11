@@ -84474,3 +84474,47 @@ for an object nothing earlier in the composition reads.
 it at once; the scale slider holds (it was lost before). Change a road's traffic: the island does not stall while the
 other roads are drawn again. If anything looks stale (a road not following an edit), say which edit: `?pavcache=0` and
 `?placerfast=0` are the A/B.
+
+## G3010 - SCENERY-SHIP: THE USER'S SCENERY BECOMES THE ISLAND'S (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/scenery-ship-g3010 off claude/placer-fast-g3000; G3010-G3012 the ship, G3013 the lone road's patch, G3014 the user's answers; G3015-G3019 unused)
+
+The user (11 Oct 22:45): "I have done a lot of new roads and scenery that should become default. Not the altiport of the
+last message until fixed though." Their save rev 25 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev25_2026-10-11_
+2245.json, sha256 3cb8d1e3bb6d64f7, read only; kept byte for byte as tools/fixtures/scenery_user_jolene_rev25.json).
+- **WHAT SHIPS** (tools/scenery_ship.js computes the patch, tools/scenery_ship.py writes it keeping every other byte;
+  the manifest tools/fixtures/scenery_ship_rev25.json says what and why): 25 roads r2-r26 (~32 km), strip 10 'w5'
+  (310 x 17 m gravel) and its five areas a9-a13, ten sites s1-s10 (fish shack, canneries, net pens, trestle piers, a
+  warehouse, a boat shed), the village and harbour zones as they reshaped them, the home apron y_pad reshaped. Held
+  back: the altiport (strips 8 and 9, w1 / w4) - nothing else of the save lies within 1.5 km of it.
+- **THE USER'S ANSWERS** (11 Oct ~23:55, relayed by A0): the 4 village roads r_village, v_shore_e, v_west, v_north GO
+  ("yes, I know, it's OK": the island's 84 house plots outside Metlakatla -> 31 along their new roads r8 / r9 / r10 -
+  the harbour 10 -> 1); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 STAY ("I saw no difference
+  ... untested"); their pavement settings ship (sfWear 1.35, grSideW 3.6, grSideA 0.4); r25 STOPS at strip 10's edge
+  (PG.roadCutAtPoly: its points to where its line meets the strip's box, and that point; the longer side, the access).
+  **Why no difference when they removed them:** the four shoulder bands draw nothing - they are gravel under the
+  wheels only (a verge an aeroplane rolls onto); the fan's trees likely were not there to clear (the island's own fill)
+  or the strip's own 30 m clearance holds them - a count of the trees with and without it is owed to them.
+- **A SAVE IS THE SANDBOX'S VIEW** (found here): the editor saves the record as it stands with every career track at its
+  max - no `stage` on any entry or site item, and no entry that stands only below the max (`sg_`). Shipping it raw
+  would have erased 17 stages, 5 items' stages and 7 construction-phase entries. The ship compares with `stage` (and
+  the migration's `src`) taken away, puts the stages back on what it ships, never removes a staged entry, and takes a
+  removal or a record setting only when named (--remove, --record). The fixture stays record v1 (its raw readers read
+  it as before): a new area goes into its `areas` layer, a changed migrated area back into its v1 sources.
+- **THE LONE ROAD'S PATCH (G3013).** ~66 km of graded road put the fine 2 m patch along all of it for every player
+  (64 m chunks, the town off: 283 today, 1 102 with r1, 1 974 with rev 25). A stretch with nothing of the record
+  within 120 m (PG.roadLoneSegs) now marks only the chunks its band covers (PG.roadPatchChunks - the renderer's
+  activeChunks calls it): 1 974 -> 1 219 (0.82 M fewer 2 m samples; 419 of 733 segments lone); where a road meets
+  anything the patch is as before. ?lonepatch=0 is the old rule. The next step (a 4 m patch on lone stretches) waits for
+  a browser look - the user: "I'll keep adding a lot more roads, so if we need to optimize, you can start slowly".
+- **strip 10 (w5)** has no profile: graded flat at its centre's ground (8.5 / 18.8 m at its ends) it fills up to 9.2 m
+  and cuts 3.0 m - their call, to be redrawn with RUNWAY-ED's absolute profile.
+- **GATE SCENERYED 15** (the shipped record migrated, the town cut, IS the save entry by entry - but for the stages, the
+  removals not confirmed, r25 stopped by the same function; every stage still there), **16** (the lone patch: the
+  count, nothing dropped where a road meets anything, a lone band kept).
+
+**What to watch for (the user):** your 25 roads, strip 10 and the harbour buildings are on the island for everyone;
+the village is the 31 houses along your new roads (the old village streets are gone, as you said); road r25 ends at
+strip 10's edge. Far from everything, your roads' ground is drawn a little coarser at their banks (where they meet
+anything it is as before) - if a bank looks blocky somewhere, say where. The world loads more ground than before
+(66 km of road): the roll-out may take a little longer.
+
+Gates: WINDOW_LINE_SHIP
