@@ -199,6 +199,9 @@ const GATES = [
   // THE OCTOBER SCENERY (ASSETS-OCT, G2907): tools/scenery_table.py = the baked kit (landmarks, vessels, wrecks,
   // the crowd, the ALMA assembly), the cut rows within their budgets, the levels, CC BY credits, the VotV rip out
   { id: 'SCENERY', file: '_scenery_check.js', tier: 'core' },
+  // THE DRIVEABLE CARS (ASSETS-OCT, G2908): tools/car_table.py = the baked parts, the data sheet's wheels /
+  // wheelbase / level / steering axis / collision boxes measured and consistent, the estimates named, CC BY
+  { id: 'CARS', file: '_car_check.js', tier: 'core' },
   // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).

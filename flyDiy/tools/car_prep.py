@@ -117,9 +117,12 @@ def sheet(car):
     for k, n in TABLE.LAMPS.items():
         L = pts_of(j, bufs, [n])
         sides = {}
-        for s_, sel in (('left', [p for p in L if p[2] < 0]), ('right', [p for p in L if p[2] >= 0])):
-            if sel:
-                sides[s_] = r4([sum(p[i] for p in sel) / len(sel) for i in range(3)])
+        # a group at both ends (the blinkers: front and rear) gets four anchors, not a mid-car average
+        ends = (('front', lambda p: p[0] >= 0), ('rear', lambda p: p[0] < 0))             if max(p[0] for p in L) - min(p[0] for p in L) > 2.0 else (('', lambda p: True),)
+        for e_, ef in ends:
+            for s_, sel in (('left', [p for p in L if p[2] < 0 and ef(p)]), ('right', [p for p in L if p[2] >= 0 and ef(p)])):
+                if sel:
+                    sides[(e_ + '_' if e_ else '') + s_] = r4([sum(p[i] for p in sel) / len(sel) for i in range(3)])
         lamps[k] = dict(prop='car_%s_%s' % (car, k), **sides)
     S['lamps'] = lamps
     # ESTIMATES
