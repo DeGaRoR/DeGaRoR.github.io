@@ -8,7 +8,10 @@
 //   without a shared id, an end SHORT of a street by under `gap` metres (a gap: drawn, not joined), spans along each
 //   other, the ends that touch nothing (dead ends - a place's edge or a cul-de-sac), the groups by touch and by id.
 // THE JOIN (the user: roads join ONLY at waypoints): a waypoint inserted on both spans at a crossing and on the through
-//   span at a T (the point exactly the end's), an end within `tol` of a waypoint moved onto it, and then every spot two
+//   span at a T (the point exactly the end's), an end within `tol` of a waypoint moved onto it, an end short of a street
+//   by under `--short` metres taken onto it (its waypoint, or one inserted square to the end) - both only with `--move M`
+//   (the most an end is moved; default 1 cm: the place's plots are sown along its streets, a moved end re-sows them) - and
+//   then every spot two
 //   roads' waypoints share is ONE junction id (`<prefix>j<n>`, beside `pts` in `nodes`). Nothing else of a road changes: a
 //   waypoint inserted lies on its straight span (a fillet road's corner of nought - the line drawn the same).
 'use strict';
@@ -18,7 +21,7 @@ const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const has = k => process.argv.indexOf(k) > 0;
-const PREFIX = arg('--prefix', 'mk_'), FILE = arg('--file', path.join(__dirname, 'fixtures', 'island_jolene.json')), TOL = +arg('--tol', 1.5), GAP = +arg('--gap', 15);
+const PREFIX = arg('--prefix', 'mk_'), FILE = arg('--file', path.join(__dirname, 'fixtures', 'island_jolene.json')), TOL = +arg('--tol', 1.5), GAP = +arg('--gap', 15), MOVE = +arg('--move', 0.01), SHORT = Math.max(MOVE, +arg('--short', 0));
 const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const segD = (p, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / l2)); return [Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dz * t), t]; };
 // two segments crossing: [t on ab, u on cd] or null
@@ -49,7 +52,7 @@ function analyse(rec) {
         }
         let best = null; for (let i = 0; i + 1 < q.pts.length; i++) { const [d, t] = segD(p, q.pts[i], q.pts[i + 1]); if (t > 0.0005 && t < 0.9995 && (!best || d < best.d)) best = { d, span: i, t }; }
         if (best && best.d <= TOL) { touched = true; join(r.id, q.id); out.tees.push({ road: r.id, end, at: p, onto: q.id, span: best.span, t: best.t, d: +best.d.toFixed(2) }); }
-        else { const dn = Math.min(wd, best ? best.d : Infinity); if (dn <= GAP && (!gap || dn < gap.d)) gap = { road: r.id, end, at: p, onto: q.id, d: +dn.toFixed(1) }; }
+        else { const dn = Math.min(wd, best ? best.d : Infinity); if (dn <= GAP && (!gap || dn < gap.d)) gap = { road: r.id, end, at: p, onto: q.id, d: +dn.toFixed(1), waypoint: wd <= (best ? best.d : Infinity) ? wi : -1, span: best ? best.span : -1, t: best ? best.t : 0 }; }
       }
       if (!touched && gap) out.gaps.push(gap);
       if (!touched) {
@@ -59,7 +62,7 @@ function analyse(rec) {
     }
     for (let i = 1; i + 1 < r.pts.length; i++) for (const q of roads) {
       if (q === r) continue;
-      q.pts.forEach((w, k) => { if (!isEnd(q, k) && r.id < q.id && d2(r.pts[i], w) <= TOL && !(jid(r, i) && jid(r, i) === jid(q, k))) { join(r.id, q.id); out.stacked.push({ road: r.id, waypoint: i, at: r.pts[i], onto: q.id, theirs: k, d: +d2(r.pts[i], w).toFixed(2) }); } });
+      q.pts.forEach((w, k) => { if (!isEnd(q, k) && r.id < q.id && d2(r.pts[i], w) <= TOL) join(r.id, q.id); if (!isEnd(q, k) && r.id < q.id && d2(r.pts[i], w) <= TOL && !(jid(r, i) && jid(r, i) === jid(q, k))) { out.stacked.push({ road: r.id, waypoint: i, at: r.pts[i], onto: q.id, theirs: k, d: +d2(r.pts[i], w).toFixed(2) }); } });
     }
   }
   // crossings between waypoints: both spans' interiors (an end or a waypoint on the other is a T or a join above)
@@ -93,10 +96,20 @@ function joinPlace(rec) {
   // the waypoints to insert, by road and span: [t, point]
   const cuts = new Map(); const cut = (id, span, t, p) => { const k = id + '#' + span; if (!cuts.has(k)) cuts.set(k, { id, span, at: [] }); cuts.get(k).at.push([t, p]); };
   for (const c of A.crossings) { const p = [c2(c.at[0]), c2(c.at[1])]; cut(c.a, c.span, c.t, p); cut(c.b, c.spanB, c.u, p); }
-  for (const t of A.tees) cut(t.onto, t.span, t.t, [t.at[0], t.at[1]]);
+  for (const t of A.tees) if (t.d <= MOVE) cut(t.onto, t.span, t.t, [t.at[0], t.at[1]]);   // (a T off the span's line by more would bend the street)
+  // an end SHORT of a street by under SHORT metres (drawn to meet it, the data a little off): onto the street - its
+  // waypoint, or a waypoint inserted where the end falls square on its span
+  for (const g of A.gaps) {
+    if (g.d > SHORT) continue;
+    const r = byId.get(g.road), q = byId.get(g.onto);
+    let p;
+    if (g.waypoint >= 0) p = [q.pts[g.waypoint][0], q.pts[g.waypoint][1]];
+    else { const a = q.pts[g.span], b = q.pts[g.span + 1]; p = [c2(a[0] + (b[0] - a[0]) * g.t), c2(a[1] + (b[1] - a[1]) * g.t)]; cut(g.onto, g.span, g.t, p); }
+    r.pts[g.end] = p.concat(r.pts[g.end].slice(2)); did.moved++;
+  }
   // the ends by a waypoint: onto it (moved by under tol)
-  for (const j of A.joins) { const r = byId.get(j.road), q = byId.get(j.onto); if (j.d > 0) { r.pts[j.end] = [q.pts[j.waypoint][0], q.pts[j.waypoint][1]].concat(r.pts[j.end].slice(2)); did.moved++; } }
-  for (const s of A.stacked) { const r = byId.get(s.road), q = byId.get(s.onto); if (s.d > 0) { r.pts[s.waypoint] = [q.pts[s.theirs][0], q.pts[s.theirs][1]].concat(r.pts[s.waypoint].slice(2)); did.moved++; } }
+  for (const j of A.joins) { const r = byId.get(j.road), q = byId.get(j.onto); if (j.d > MOVE) { did.left = (did.left || 0) + 1; continue; } if (j.d > 0) { r.pts[j.end] = [q.pts[j.waypoint][0], q.pts[j.waypoint][1]].concat(r.pts[j.end].slice(2)); did.moved++; } }
+  for (const s of A.stacked) { const r = byId.get(s.road), q = byId.get(s.onto); if (s.d > MOVE) continue; if (s.d > 0) { r.pts[s.waypoint] = [q.pts[s.theirs][0], q.pts[s.theirs][1]].concat(r.pts[s.waypoint].slice(2)); did.moved++; } }
   // the inserts, the last span first and the furthest along a span first (the indices before them hold)
   const list = Array.from(cuts.values()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : b.span - a.span));
   for (const C of list) {
@@ -143,7 +156,9 @@ if (require.main === module) {
     const out = analyse(rec);
     if (has('--json')) console.log(JSON.stringify(out, null, 1)); else report(out, title('REVIEW') + ': ' + out.roads);
   } else {
-    const did = joinPlace(rec), out = analyse(rec);
+    // (passes until nothing is left to join: an end taken onto a street can make a crossing of its own)
+    const did = { inserted: 0, moved: 0, junctions: 0 }; let out = null;
+    for (let pass = 0; pass < 4; pass++) { const d = joinPlace(rec); for (const k in did) did[k] += d[k]; out = analyse(rec); if (!out.joins.some(j => j.d <= MOVE) && !out.tees.some(t => t.d <= MOVE) && !out.crossings.length && !out.stacked.some(t => t.d <= MOVE) && !out.gaps.some(g => g.d <= SHORT)) break; }
     report(out, title('JOIN') + ': inserted ' + did.inserted + ' waypoint(s), moved ' + did.moved + ' end(s), ' + did.junctions + ' junction id(s)');
     // --out PATCH.json: the place's roads' new points and junction ids, by id (tools/road_patch.py writes them into the
     // fixture keeping its every other byte - a Python-written record: its 2600.0 stays 2600.0)

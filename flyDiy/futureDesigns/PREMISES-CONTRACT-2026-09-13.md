@@ -1011,9 +1011,13 @@ after the freeze, against this document.
   the editor (`newJunctionId`), a place's prefix for a place's (`mk_j<n>`: `dropPlaces` cuts them with the place). **No
   step of the composer, a migrator or the graph writes `pts`**: a junction is where its roads' waypoints are; the editor
   keeps them on one spot (a snap copies the target's point exactly, a junction's drag moves every road's waypoint of
-  the id, Alt+drag or 'take out' leaves it, one undo step each). **The junction's level** (compose): the first road
-  graded through a junction (the record's order) sets its height; every later road through it is held to that height
-  7 m either side of the waypoint and eased back over 7 more - a road without ids grades as before, to the bit.
+  the id, Alt+drag or 'take out' leaves it, one undo step each). **The junction's level** (compose, the record's order):
+  a road that ENDS at a junction takes the junction's height; a road passing THROUGH takes it from a road crossing it
+  earlier, never from a spur's end (the through road grades as it is and sets the height for the roads after it); held
+  7 m either side of the waypoint, eased back over 7 more. **A junction on a straight span is no corner**
+  (`straightOf`): a waypoint with an id lying on the line between its neighbours (1 cm) is not read by the composition
+  - the grade samples, the plots, the pavement are the road's without it (a crossing's waypoints change nothing but
+  the level). A road without ids composes as before, to the bit.
   **`bed: true | { fill, grade, bank, shoulder, on }`** (`bedOf`, defaults `BED_DEF` { fill 0.15, grade 0.12, bank 10,
   shoulder 0.5 }; `on: false` keeps the settings, off): the road's grade line is never under the ground across its
   paved width (the centre and both edges read, + `fill`), its dips filled to `grade` both ways (an embankment, never a
@@ -1029,7 +1033,11 @@ after the freeze, against this document.
   `components()`, `nodeAt(x, z, r)`, `edgeAt(x, z, maxD)`. `issues`: a junction id not a string; a junction's
   waypoints apart (> 5 cm); a roadside apron naming no road's junction. Tools: `tools/road_review.js` (a place's
   network read as a graph - joins to make, Ts, crossings, gaps, dead ends - and `--join`: waypoints inserted at the
-  crossings and the Ts, one id a shared spot), `tools/road_patch.py` (its patch into the fixture, every other byte
-  kept). Held by GATE SCENERYED 11 (the user's own island road r1 bit for bit through a snap, a junction's drag, Alt,
-  a connection point, an apron, the bed on and off) and GATE PREMISES 21 (the router, the junction's level, the bed,
-  Metlakatla one grid).
+  crossings and the Ts, one id a shared spot; an end is moved only with `--move`, a place's plots being sown along its
+  streets), `tools/road_patch.py` (its patch into the fixture, every other byte kept). **Metlakatla** (the fixture):
+  its 56-street grid one graph of 129 junctions (`mk_j<n>`), its three ways out named connection points (`mk_c_east`
+  the Walden road, `mk_c_north` the axis to the old airport road, `mk_c_south` the shore road), the same 391 plots;
+  six streets the data draws 17-130 m apart and eight ends 1.5-3.6 m short of a street are left to the user (the
+  review lists them). Held by GATE SCENERYED 11 (the user's own island road r1 bit for bit through a snap, a
+  junction's drag, Alt, a connection point, an apron, the bed on and off) and GATE PREMISES 21 (the router, the
+  junction's level, the bed, Metlakatla's grid, its plots).

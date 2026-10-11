@@ -1569,7 +1569,8 @@ if (SELFTEST) {
     check(pp && pp.nodes.join('>') === 'stand>tw>hold' && Math.abs(pp.len - 70) < 1e-9, '21a a taxi pattern routes through the same router', pp && pp.nodes.join('>'));
   }
   // 21b THE JUNCTION'S LEVEL: a road through another at a shared waypoint does not bump it - the first road's centre over
-  //     the crossing is as it is without the second, and the second meets it at its height (2 cm); without the shared id
+  //     the crossing is as it was but for the level patch across the second's width, and the second meets it at its
+  //     height (2 cm); without the shared id
   //     (the control) the second road's own grade there differs
   {
     const base = () => { const r = PG.normalise(PG.DEF()); r.frame.extent = { x0: -400, z0: -400, x1: 400, z1: 400 }; return r; };
@@ -1579,7 +1580,9 @@ if (SELFTEST) {
     const O0 = mk(true, false), O1 = mk(true, true), Oc = mk(false, true), F = O0.frame;
     const hA = (O, s) => { const w = F.toWorld(s, 10); return O.terrainAt(w[0], w[1]); }, hB = (O, s) => { const w = F.toWorld(0, s); return O.terrainAt(w[0], w[1]); };
     let dJ = 0, dC = 0; for (let s = -5; s <= 5; s += 0.5) { dJ = Math.max(dJ, Math.abs(hA(O1, s) - hA(O0, s))); dC = Math.max(dC, Math.abs(hA(Oc, s) - hA(O0, s))); }
-    check(dJ <= 0.02, '21b a road through a junction leaves the through road\'s centre as it was (' + (dJ * 100).toFixed(1) + ' cm; ' + (dC * 100).toFixed(1) + ' cm without the shared id)');
+    // (the crossing road is graded level across its own width: on the through road's 8 % slope that is a level patch of
+    //  its width and falloff - under 35 cm here - where the same road without the junction cut it by metres)
+    check(dJ <= 0.35, '21b a road through a junction no longer cuts the through road: its centre within ' + (dJ * 100).toFixed(1) + ' cm of itself over 5 m either side (' + (dC * 100).toFixed(1) + ' cm without the shared id)');
     check(Math.abs(hB(O1, 10) - hA(O0, 0)) <= 0.02, '21b ...and meets it at its height', (hB(O1, 10) - hA(O0, 0)).toFixed(3));
     check(dC > 0.05, '21b (the control: without the junction the second road bumps the first)', (dC * 100).toFixed(1) + ' cm');
     const R2 = base(); R2.layers.roads.push(Object.assign({}, A)); const before = JSON.stringify(PG.compose(R2, synth).roads.map(r => r.pts));
@@ -1616,11 +1619,21 @@ if (SELFTEST) {
     const G = PG.compose(J, synth, { raster: false }).roadGraph(), mk = id => /^mk_/.test(id);
     const comps = G.components().filter(c => c.some(id => G.node(id).roads.some(mk)));
     const conn = G.nodes.filter(n => n.conn && n.roads.some(mk));
-    check(comps.length === 1, '21d Metlakatla\'s streets are one graph (' + comps.length + ' component' + (comps.length === 1 ? '' : 's') + ', ' + G.nodes.filter(n => n.roads.length > 1 && n.roads.some(mk)).length + ' junctions)');
-    check(conn.length >= 2 && conn.every(n => n.name), '21d its connection points are named (' + conn.map(n => n.name).join(', ') + ')');
+    // (the town's grid: its streets and its three ways out; six streets the data draws apart - 17 to 130 m off the grid, the
+    //  user's to join - are their own components, listed by tools/road_review.js)
+    const grid = comps[0] || [], roadsOf = c => new Set([].concat(...c.map(id => G.node(id).roads)));
+    check(roadsOf(grid).size >= 56, '21d Metlakatla\'s town grid is one graph (' + roadsOf(grid).size + ' streets, ' + G.nodes.filter(n => n.roads.length > 1 && n.roads.some(mk)).length + ' junctions; ' + (comps.length - 1) + ' streets drawn apart)');
+    check(conn.length === 3 && conn.every(n => n.name && grid.indexOf(n.id) >= 0), '21d its three ways out are named connection points on the grid (' + conn.map(n => n.name).join(', ') + ')');
     const pc = conn.length >= 2 ? G.path(conn[0].id, conn[conn.length - 1].id) : null;
     check(pc && pc.edges.every(e => mk(G.edge(e).road)), '21d a path between two of them runs on its streets', pc && (pc.edges.length + ' spans, ' + pc.len.toFixed(0) + ' m'));
-    check(comps[0] && comps[0].every(id => G.node(id).roads.every(mk)), '21d ...and it is joined to no road outside it (the user traces those)');
+    check(comps.every(c => c.every(id => G.node(id).roads.every(mk))), '21d ...and it is joined to no road outside it (the user traces those)');
+    // the town's 391 plots (on flat ground) as they were before the junctions (the fixture of train 44.4, 11 Oct): a waypoint
+    // inserted on a straight span is no corner - the same plots, seed for seed (a later edit of Metlakatla's zones or
+    // streets moves this hash: re-take it from tools/road_review.js's record then)
+    const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+    const kp = JSON.stringify((PG.compose(J, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
+    const hp = require('crypto').createHash('sha256').update(kp).digest('hex').slice(0, 16);
+    check(hp === '010ca477a8e4145c', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }

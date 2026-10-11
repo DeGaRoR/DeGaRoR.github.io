@@ -1981,6 +1981,22 @@ function newJunctionId(rec, prefix) {
   const p = prefix || 'j';
   for (let i = 1; ; i++) if (!used.has(p + i)) return p + i;
 }
+// (G2950) A JUNCTION ON A STRAIGHT SPAN IS NO CORNER: a waypoint carrying a junction id that lies on the straight line
+// between its neighbours (within 1 cm - a crossing's waypoint inserted on both streets, cm-rounded) is read by the
+// composition as no point at all - the road's grade samples, its plots, its pavement are the road's before the junction
+// was made; `wp` keeps the waypoints (where the junctions are). A spline road keeps every point (each one shapes it).
+function straightOf(r) {
+  if (!Array.isArray(r.nodes) || r.curve === 'spline' || r.pts.length < 3) return r;
+  const P = r.pts, out = [P[0]];
+  for (let i = 1; i + 1 < P.length; i++) {
+    const a = out[out.length - 1], p = P[i], b = P[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
+    const t = L > 1e-9 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / (L * L) : -1;
+    if (r.nodes[i] && t > 0 && t < 1 && Math.abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / L < 0.01 && !(p.length > 2 || a.length > 2 || b.length > 2)) continue;
+    out.push(p);
+  }
+  out.push(P[P.length - 1]);
+  return out.length === P.length ? r : Object.assign({}, r, { pts: out, wp: P });
+}
 // the line a road is drawn on: its spline, its fillet radius (v1.19) or its points
 const roadLine = r => (r.curve === 'spline' ? roadCurve(r.pts, r.tan) : r.smooth ? smoothPath(r.pts, r.smooth) : r.pts);
 
@@ -2293,8 +2309,8 @@ function compose(rec0, world, opts) {
   // rule: flat across, the profile smoothed along); a surface strip of its class
   // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
   // (v1.35: `curve: 'spline'` the same way - roadLine)
-  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
-    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
+  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2).map(straightOf)
+    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.wp || r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
@@ -2396,9 +2412,11 @@ function compose(rec0, world, opts) {
       for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
       hs[0] = h0; hs[hs.length - 1] = h1;
     }
-    // THE JUNCTIONS' LEVEL (v1.37, G2950): every road through a junction meets it at ONE height - the first road graded
-    // there sets it (its surface at the waypoint), every later one is held to it 7 m either side and eased back over 7
-    // more (a road without junction ids: today's, to the bit)
+    // THE JUNCTIONS' LEVEL (v1.37, G2950): the roads through a junction meet it at ONE height. A road that ENDS there (a
+    // spur) takes the height the junction has; a road that passes THROUGH it takes it from a road crossing it before (a
+    // crossing: the first graded sets it) but never from a spur's end - the through road is graded as it is, and sets the
+    // height for the roads after it. Held 7 m either side of the waypoint, eased back over 7 more. A road without junction
+    // ids: today's, to the bit.
     let jAt = null;
     if (Array.isArray(r.nodes) && r.nodes.some(Boolean)) {
       const W = r.wp || r.pts, s = [0];
@@ -2409,16 +2427,26 @@ function compose(rec0, world, opts) {
         let best = k0, bd = Infinity; for (let k = k0; k < dense.length; k++) { const d = Math.hypot(dense[k][0] - W[i][0], dense[k][1] - W[i][1]); if (d < bd) { bd = d; best = k; } if (bd < 0.01 || (s[k] - s[k0] > 400 && bd < 30)) break; }
         k0 = best;
         const jid = r.nodes[i]; if (!jid) continue;
-        jAt.push([jid, best]);
-        if (!JH.has(jid)) continue;
-        const H = JH.get(jid);
-        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - s[best]); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+        // the waypoint's own place along the line (its projection on the samples' segments either side: a junction on a
+        // straight span is no sample of its own - straightOf - and the height is read there, not at the nearest sample)
+        let sj = s[best], pd = bd;
+        for (const k of [best - 1, best]) { if (k < 0 || k + 1 >= dense.length) continue; const a = dense[k], b = dense[k + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz; if (l2 < 1e-12) continue; const t = Math.max(0, Math.min(1, ((W[i][0] - a[0]) * dx + (W[i][1] - a[1]) * dz) / l2)), d = Math.hypot(a[0] + dx * t - W[i][0], a[1] + dz * t - W[i][1]); if (d < pd) { pd = d; sj = s[k] + t * (s[k + 1] - s[k]); } }
+        const isEnd = i === 0 || i === W.length - 1;
+        jAt.push([jid, sj, isEnd]);
+        if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) continue;
+        const H = JH.get(jid).h;
+        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - sj); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
       }
+      jAt.s = s;
     }
     // a level approach at both ends: a road that starts on another road (a spur off the shore road) must
     // not lift the first road's edge on its first metres - the height is held for 7 m from each end
     { let acc = 0; for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc < 7) hs[i] = hs[0]; else break; } acc = 0; for (let i = dense.length - 2; i >= 0; i--) { acc += Math.hypot(dense[i][0] - dense[i + 1][0], dense[i][1] - dense[i + 1][1]); if (acc < 7) hs[i] = hs[dense.length - 1]; else break; } }
-    if (jAt) for (const [jid, k] of jAt) if (!JH.has(jid)) JH.set(jid, hs[k]);
+    if (jAt) {
+      // the road's height AT each junction's place (between its samples) - what the roads after it meet
+      const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
+      for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
+    }
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
     if (M) mods.push(M);
   }
