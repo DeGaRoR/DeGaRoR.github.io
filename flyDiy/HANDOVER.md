@@ -84860,3 +84860,18 @@ Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm 
 flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
 56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
 task in one rollout run, 835/675 ms elsewhere - watch it).
+
+## G2227 - FLEET-PROPS B: AFTER A CAPTURE BATCH THE EDITOR PUBLISHES ITS OWN SHARED UNIFORMS AGAIN (the first drag after a fleet bake no longer ends ~13 cm off on the footwell / weather) (2026-10-10/11, FLEET-PROPS B for the GAME COORDINATOR; branch claude/fleet-republish-g2227 off origin/claude/game-integration 843fa745)
+
+- THE CAUSE: a capture batch (parked.js batchSteps) restores the shared block (aeroskin's, the weather's spread in) as it
+  was when the batch began - a copy that may predate the editor's last publish (a fleet bake early after the boot): the
+  first drag's preview then ended on the footwell (uFootA) and the weather's sources (uWxA) of that old copy (INSTANT
+  --fleet: wgSpan 396 objects apart; --fleet-baked, no capture: clean).
+- THE FIX: CAGE_UI.republish() (tools/_cage_ui.js) puts back what the editor's layers hold NOW - the crew's footwell and
+  plate holes (CAGE_CREW), the weather's sources and macros (applyWeather) - and batchSteps calls it after the restore
+  whenever it captured. PARKED 12p: a source row holds it.
+- GATES (11 Oct 04:45-05:02, take cpu FLEETB, tree be6715a1): INSTANT --fleet --builds cub PASS (3 captures, 0
+  during drags, input waits 4; wgSpan the same as its long way), INSTANT --fleet-baked PASS, PARKED PASS (full). Logs:
+  reports/evidence/FLEET-PROPS-B/g2227/.
+
+READY for the GAME COORDINATOR: claude/fleet-republish-g2227 be6715a1 (this section rides one docs-only commit on top)
