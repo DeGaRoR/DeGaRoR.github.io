@@ -1,0 +1,12 @@
+{
+ "what": "the user's rev 25 scenery shipped into island_jolene.json (tools/scenery_ship.js + .py); GATE SCENERYED 15 holds it",
+ "save": "scenery_user_jolene_rev25.json",
+ "source": "D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev25_2026-10-11_2245.json",
+ "sha256": "3cb8d1e3bb6d64f708a03f3da399227555d6da40217fcf6b0a8288bb68af25b5",
+ "except": [
+  "w1",
+  "w4"
+ ],
+ "remove": [],
+ "record": []
+}

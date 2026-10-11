@@ -574,6 +574,33 @@ if (plots.length) {
     console.log('     14 PLACER-FAST: an object released ' + tFast.toFixed(1) + ' ms (editor) vs ' + tFull.toFixed(0) + ' ms (editor + the composition a rebuild runs); road keys ' + tKeys.toFixed(0) + ' ms for ' + OT.roads.length + ' roads'); }
 }
 
+// 15 THE USER'S SCENERY SHIPPED (G3010 SCENERY-SHIP; the user, 11 Oct 22:45: "I have done a lot of new roads and scenery
+//    that should become default. Not the altiport ... until fixed though"): tools/fixtures/scenery_ship_rev25.json names
+//    the save (kept byte for byte beside it), what is held back (the altiport's strips), the removals the user confirmed
+//    and the record settings. The shipped fixture, migrated, the town cut as a save has it, IS the save entry by entry
+//    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
+//    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
+{
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev25.json'), 'utf8'));
+  const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
+  check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
+  const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
+  const EX = new Set(M.except), RM = new Set(M.remove);
+  const un = e => { const c = JSON.parse(JSON.stringify(e)); delete c.stage; delete c.src; if (Array.isArray(c.items)) for (const it of c.items) if (it) delete it.stage; return JSON.stringify(c); };
+  const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
+  const bad = [], pending = [];
+  for (const L of PG.LAYERS) {
+    const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (un(a.get(id)) !== un(e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
+  }
+  check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + M.except.join(', ') + ')', bad.slice(0, 6).join('; '));
+  const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
+  let nSt = 0, nIt = 0; for (const L of Object.keys(FL)) for (const e of FL[L] || []) { if (e && e.stage) nSt++; if (e && Array.isArray(e.items)) for (const it of e.items) if (it && it.stage) nIt++; }
+  check(nSt >= 17 && nIt >= 5, '15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
+  console.log('     15 the user\'s rev 25 shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
