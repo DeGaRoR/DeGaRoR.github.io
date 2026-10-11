@@ -1,0 +1,176 @@
+{
+ "car": "conquer",
+ "credit": "\"Conquer '89 Pickup - Low poly model\" by Daniel Zhabotinsky (sketchfab.com/DanielZhabotinsky), CC BY 4.0, modified (split into parts, levelled)",
+ "frame": "+x forward, y up, +z right (left-hand drive); metres; the body prop's own frame (place mount), levelled (-0.45, 0, 0) deg",
+ "authored": "G2940 GROUND-VEHICLE: NOT MEASURED. Written from the brief (wheelbase 3.01 m, track 1.41 m, wheel radius 0.35 m, ~1 850 kg) in tools/car_prep.py's schema, the frame's origin put between the axles on the ground; the body box, the lamps and the steering wheel are placeholders of a full-size regular-cab pickup. A run of tools/car_prep.py on the asset (ASSETS-OCT G2908) overwrites this file with the measured sheet - src/vehicle/vehicle.js reads only the schema's fields, so it drops in.",
+ "wheels": {
+  "FL": {
+   "centre": [
+    1.505,
+    0.35,
+    -0.705
+   ],
+   "radius": 0.35,
+   "width": 0.27,
+   "side": "left",
+   "steered": true,
+   "prop": "car_conquer_wheel_l"
+  },
+  "FR": {
+   "centre": [
+    1.505,
+    0.35,
+    0.705
+   ],
+   "radius": 0.35,
+   "width": 0.27,
+   "side": "right",
+   "steered": true,
+   "prop": "car_conquer_wheel_r"
+  },
+  "RL": {
+   "centre": [
+    -1.505,
+    0.35,
+    -0.705
+   ],
+   "radius": 0.35,
+   "width": 0.27,
+   "side": "left",
+   "steered": false,
+   "prop": "car_conquer_wheel_l"
+  },
+  "RR": {
+   "centre": [
+    -1.505,
+    0.35,
+    0.705
+   ],
+   "radius": 0.35,
+   "width": 0.27,
+   "side": "right",
+   "steered": false,
+   "prop": "car_conquer_wheel_r"
+  }
+ },
+ "wheelbase": 3.01,
+ "track": {
+  "front": 1.41,
+  "rear": 1.41
+ },
+ "ground": 0.0,
+ "level_check": {
+  "tyre_bottoms": {
+   "FL": 0.0,
+   "FR": 0.0,
+   "RL": 0.0,
+   "RR": 0.0
+  },
+  "spread": 0.0
+ },
+ "steer": {
+  "centre": [
+   0.55,
+   1.05,
+   -0.37
+  ],
+  "axis": [
+   -0.88,
+   0.47,
+   0.0
+  ],
+  "radius": 0.2,
+  "prop": "car_conquer_steer",
+  "lock_deg": 540,
+  "note": "a turn of the wheel each side of centre is typical; tune in play"
+ },
+ "box": {
+  "lo": [
+   -2.75,
+   0.22,
+   -0.9
+  ],
+  "hi": [
+   2.35,
+   1.78,
+   0.9
+  ]
+ },
+ "collision": {
+  "boxes": [
+   {
+    "name": "lower",
+    "lo": [
+     -2.75,
+     0.28,
+     -0.88
+    ],
+    "hi": [
+     2.35,
+     1.16,
+     0.88
+    ]
+   },
+   {
+    "name": "cab",
+    "lo": [
+     -0.95,
+     1.16,
+     -0.8
+    ],
+    "hi": [
+     0.75,
+     1.78,
+     0.8
+    ]
+   }
+  ],
+  "wheels": "the four wheels as cylinders: centre, radius, width from `wheels`",
+  "note": "box half-width 0.88 = the body sides (mirrors ride outside it)"
+ },
+ "lamps": {
+  "head": {
+   "prop": "car_conquer_head"
+  },
+  "brake": {
+   "prop": "car_conquer_brake"
+  },
+  "reverse": {
+   "prop": "car_conquer_reverse"
+  },
+  "blink": {
+   "prop": "car_conquer_blink"
+  }
+ },
+ "estimates": {
+  "mass_kg": 1850,
+  "note": "ESTIMATES, not measured: a 1989 full-size regular-cab pickup (curb ~1 800-1 950 kg, ~56 % front); the CG height and the inertia of a uniform box of the body's size; the driver's eye 0.50 m behind and 0.33 m above the steering wheel's centre. Tune in play.",
+  "cg": [
+   0.1806,
+   0.72,
+   0.0
+  ],
+  "inertia_kgm2": [
+   966.0,
+   4487.4,
+   4498.3
+  ],
+  "cameras": {
+   "driver_eye": [
+    0.05,
+    1.38,
+    -0.37
+   ],
+   "hood": [
+    2.05,
+    1.51,
+    0.0
+   ],
+   "chase": [
+    -8.75,
+    2.98,
+    0.0
+   ]
+  }
+ }
+}

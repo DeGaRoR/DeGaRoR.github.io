@@ -133,6 +133,10 @@ const GATES = [
   // the enroute leg re-plans from here inside the turn law and arrives (Cub, metal Cessna); the base, the picker's
   // surface rule and the pref's migration (no flight). Seven real flights, dealt over three shards
   { id: 'DESTTO', file: '_destto_check.js', tier: 'core', shards: 3, wall: 1500 },
+  // G2940 GROUND-VEHICLE: the driveable car's physics spike, node only (src/vehicle/, not in the bundle) - the
+  // Conquer's sheet as a generic vehicle, flat / brake / reverse / airborne / turn / 10 % hill, a 300 m traced road
+  // followed, U-turns at a gravel apron off a re-route, one of the world's roads out and back, the path traps; ~15 s
+  { id: 'VEHICLE', file: '_vehicle_check.js', tier: 'core', wall: 15 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
