@@ -848,8 +848,28 @@ body.premOpen #flFly { display:none; }
 
 /* the tool strip, top-left, a plate of pills; the help and the last status
    are one line each and never wrap the plate wider than the sheet */
-#ui #premStrip { position:absolute; left:22px; top:18px;
-  max-width:calc(60% - 30px); display:flex; flex-wrap:wrap; gap:6px;
+/* THE TABS' PLATE (G2910 SCENERY-ED-2): the sections stand apart at the left of the sheet - a tab lights the tools
+   and the palette beside it; the right plate is the inspector of the selection, whatever tab is lit */
+#ui #premRail { position:absolute; left:22px; top:18px; width:62px; max-height:calc(100% - 150px);
+  overflow-y:auto; scrollbar-width:none; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15); }
+#ui #premRail:empty { display:none; }
+#ui #premRail .pr-rail { display:flex; flex-direction:column; gap:4px; padding:6px; border:0; width:auto; }
+#ui #premRail .pr-sec { display:flex; flex-direction:column; align-items:center;
+  gap:3px; flex:none; width:50px; padding:8px 0; border:0; border-radius:6px;
+  background:transparent; color:var(--ed-dim); cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+#ui #premRail .pr-sec:hover { background:rgba(255,255,255,.06); }
+#ui #premRail .pr-sec.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+#ui #premRail .pr-sec .ic { display:block; line-height:1; font-size:15px; }
+#ui #premRail .pr-sec .ic svg { display:block; width:15px; height:15px; fill:none;
+  stroke:currentColor; stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; }
+#ui #premRail .pr-sec .lb { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
+  text-transform:uppercase; }
+#ui #premStrip { position:absolute; left:96px; top:18px;
+  max-width:calc(60% - 100px); display:flex; flex-wrap:wrap; gap:6px;
   align-items:center; padding:8px 10px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px;
   backdrop-filter:blur(16px) saturate(1.15);
@@ -864,6 +884,19 @@ body.premOpen #flFly { display:none; }
   margin-left:6px; max-width:320px; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; }
 #ui #premStrip .pr-draw { display:inline-flex; gap:6px; margin-left:6px; }
+/* the palette drawer: the tab's own rows under its tools (the catalogue, the pickers, the model bank, the file) */
+#ui #premStrip .pr-pal { flex:1 0 100%; max-height:min(58vh, 560px); overflow-y:auto; overflow-x:hidden;
+  padding:0 2px 2px; margin-top:2px; border-top:1px solid var(--ed-hair); scrollbar-width:thin; }
+#ui #premStrip .pr-pal:empty { display:none; }
+#ui #premStrip .pr-pal > details > summary { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); padding:9px 0 4px; cursor:pointer; }
+#ui .pr-assets { display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:6px; margin:8px 0; }
+#ui .pr-asset { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 4px;
+  border:1px solid var(--ed-btn-bd); border-radius:6px; background:var(--ed-btn-bg); color:var(--ed-dim);
+  font:400 9.5px/1.2 'IBM Plex Sans'; cursor:pointer; min-width:0; }
+#ui .pr-asset img { width:64px; height:64px; border-radius:4px; background:var(--ed-track); object-fit:cover; }
+#ui .pr-asset span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#ui .pr-asset.on { border-color:var(--ed-acc); color:var(--ed-ink); background:var(--ed-acc-soft); }
 
 /* the plaque (top-right of the sheet) and the checks (bottom-left): read
    through, never clicked - the glass of the PFD */
@@ -874,7 +907,7 @@ body.premOpen #flFly { display:none; }
   font:400 10.5px/1.55 'IBM Plex Sans'; color:var(--ed-dim); pointer-events:none; }
 #ui #premPlaque { right:22px; top:18px; text-align:right; max-width:calc(40% - 30px); }
 #ui #premPlaque b { font-weight:500; color:var(--ed-ink); }
-#ui #premChk { left:22px; bottom:18px; max-width:min(46%, 420px); }
+#ui #premChk { left:96px; bottom:18px; max-width:min(46%, 420px); }
 #ui #premPlaque:empty, #ui #premChk:empty { display:none; }
 #ui #premChk .ok { color:var(--ed-acc); }
 #ui #premChk .warn { color:var(--ed-warn); }
@@ -951,6 +984,15 @@ body.premOpen #flFly { display:none; }
   border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:text; }
 #ui .pr-insp .pr-paste { resize:vertical; min-height:56px; }
 #ui .pr-insp .pr-name::placeholder, #ui .pr-insp .pr-paste::placeholder { color:var(--ed-faint); }
+/* the inspector's head (G2910): what is selected, on the plate's own band; ✕ lets it go */
+#ui .pr-insp .pr-selhd { position:sticky; top:-4px; z-index:2; display:flex; align-items:center; gap:8px;
+  margin:0 -14px; padding:10px 14px 9px; background:var(--ed-plate); border-bottom:1px solid var(--ed-hair); }
+#ui .pr-insp .pr-selhd .sk { flex:none; font:600 9px/1 'IBM Plex Sans'; letter-spacing:.2em; color:var(--ed-acc); }
+#ui .pr-insp .pr-selhd .sn { flex:1; min-width:0; font:500 11px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#ui .pr-insp .pr-selhd .pill { flex:none; padding:3px 8px; }
+#ui .pr-insp .pr-outline > summary { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.14em; color:var(--ed-dim);
+  padding:9px 0 5px; cursor:pointer; text-transform:uppercase; }
 #ui .pr-insp canvas { display:block; max-width:100%; height:auto;
   background:var(--ed-track); border:1px solid var(--ed-hair); border-radius:5px; }
 
