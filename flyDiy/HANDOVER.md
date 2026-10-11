@@ -84875,3 +84875,98 @@ task in one rollout run, 835/675 ms elsewhere - watch it).
   reports/evidence/FLEET-PROPS-B/g2227/.
 
 READY for the GAME COORDINATOR: claude/fleet-republish-g2227 be6715a1 (this section rides one docs-only commit on top)
+
+
+## G2710-G2714 - MAP-GROUP: THE CONTRACTS GROUPED BY TYPE OR CONTRACTOR, ORDERED IN SECTIONS, FILTERED ON THEIR KEY PARAMETERS (2026-10-11, MAP-GROUP for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader; branch claude/map-group-g2710 off origin/claude/game-t44-1 8040b719 (922ff5b5 + FREIGHT-STRAP / FLEET-PROPS B merges))
+
+The brief: the user, 11 Oct - *"In the map screen, I think the missions should be grouped either by type of mission, or
+contractor, and generate a ordered list with sections according to the ordering type, and filtering on the key parameters
+of the missions."* Kept, by the standing rulings (GAME-2026-10-06.md §R.2-§R.4, MAP-SIMPLE / MAP-MERGE / MAP-STYLE /
+NIGHT-OPS): no right panel, collapsible one-paragraph rows, ✓ / ✗ only for surface vs gear, the TYPE colours, no auto-zoom,
+the garage's look (--ed-* tokens, Plex upright, its controls at 48 px), the place filter, the Contracts / Fleet / Pilots /
+Market switch. Everything stays in src/viewer/map_menu.js (lazy; nothing moved into the core - CAREER-LAZY's split
+untouched) and its smoke rows; no generated file committed.
+
+**G2710 THE PURE CORE** - `contractView(M, st)` decides, the DOM half only renders it (node-testable like rowsOf; rowsOf is
+now the view's rows in list order). st: `{ group: 'type'|'prov', sort: 'pay'|'km'|'stops'|'load', flt, at, fold }` ->
+`{ groups: [{ key, label, colour, rows, total, hidden }], rows, base, shown, hidden: {filter: n}, hiddenAll, active,
+pinned, by, sort, order }`. The key parameters, each read off a contract once:
+- **distance** `kmOfC` - the route's km (chainOf's, the same number the paragraph prints).
+- **stops** `stopsOf` - the places landed at after the first (an overflown survey site is not a stop), at least 1.
+- **load** `loadOf` - the heaviest leg: { kg, pax, all = kg + pax x PAX_KG (80) }.
+- **surface** `surfOf` - land / water / both, over markOf's own ends (`endsOf`, now shared - markOf byte-equivalent).
+- **window** `winOf` - NIGHT-OPS' `c.night.night` (75_ careerNightLine); the fixture's `when` (after dusk / before dawn)
+  when the record carries no night line; else day.
+
+**G2711 GROUP BY + ORDER** - the head under the switch, one row: **Type · Contractor** (the switch's segmented control),
+the order (the rows' select: Pay / Distance / Stops / Load), **Filters n** (a .verb; n = filters set). Sections in a stable
+order - the types in the legend's (Cargo, Passengers, Survey, Build; NIGHT-OPS gives night work no type of its own, so a
+night job's row carries a small "NIGHT" tag), the contractors in the record's = CONTRACT_PROVIDERS' order; a section only
+when it has contracts. Each header: the type's dot (or the contractor's full name), the count, "n hidden" when the filters
+hide some of it; a tap folds it. Inside: Pay high first (default), Distance short first, Stops fewest first, Load heaviest
+first (kg incl. passengers, then passengers); ties by id. Ordered by anything but pay, the row shows that number under its
+title (14 km / 2 stops / 120 kg + 1 passenger). **The tracked contract heads its section, ★, and is never hidden by a
+filter** ("OUTSIDE THE FILTERS" when one would); accepted rows say "ACCEPTED". A one-line summary over the sections:
+"20 contracts · by pay, high first" / "8 of 20 · 12 hidden · by pay, high first" + CLEAR. Grouped by contractor, the types'
+legend shows in the head (grouped by type, the headers are the legend). **MAP-SIMPLE's customer select is gone**, folded
+into the contractor grouping + the contractor filter.
+
+**G2712 FILTERS** - one panel at the head of the list (folded by Filters; it scrolls with the list, so the peek sheet keeps
+its rows): **type** and **contractor** chips (several at once), **fits my fleet** ("✓ only": the hard no-no rule, builds
+included as not-✓), **surface** (any / land / water / both), **stops** (any / 1 / 2 or more), **window** (any / day /
+night), **pay ≥**, **km ≤**, **kg ≤** (number inputs, read on change). Each caption states the rows that filter hides on
+its own ("STOPS 10 hidden"); CLEAR resets all. The place filter (a map tap, "At <place> ✕") narrows the base the others act
+on and stays exact (MAP-SIMPLE's row "a place's rows are exactly the contracts involving it" unchanged). Remembered per
+viewer (localStorage `flydiy.map.group.v1`, behind try / catch): the grouping, the order, the folded sections, the panel
+open - **never the filters** (a new visit shows every contract). **The map follows the list**: an open row the filters hide
+drops its ring and route; while a filter is set, the badges / names of places no shown contract involves are dimmed
+(overlayOf's `n.dim`); the tracked one keeps its ring.
+
+**G2713 THE GATES** (11 Oct, this branch; `node tools/run_gates.js --only=UISMOKE,UISMOKE-PHONE,MAPBAKE,CONTRACTS,BUILD`
+then `--only=LAZY`):
+- **UISMOKE: PASS (227 s), UISMOKE-PHONE: PASS (121 s), MAPBAKE: PASS (81 s), CONTRACTS: PASS (2478 checks, 120 s),
+  BUILD: PASS (8 s), LAZY: PASS (105 s)**; after the last CSS touch (the captions' wrap) UISMOKE PASS (132 s),
+  UISMOKE-PHONE PASS (28 s), BUILD PASS again on the committed tree.
+- `_map_smoke.js`'s new **MAP-GROUP** row: **7 872 views** - group x sort x filter (each filter at each of its values,
+  every pair of different filters) x with / without the place filter, on the fixture (minedock.reopen tracked) and the
+  real record (a new career, a job tracked): each **deterministic** (twice, and on the contracts in reverse order: the same
+  sections, rows, order); the sections in the legend's / CONTRACT_PROVIDERS' order, each row in its own; **shown + hidden =
+  the unfiltered count** (no filter: the sections sum to it); every shown row passes every filter set, every hidden one
+  fails one; each filter's "n hidden" = the rows it hides alone; the order monotone in its key inside a section, ties by id;
+  **the tracked row first in its section and never gone** (5 000+ times outside the filters, flagged); **✓ / ✗ unchanged**
+  and drawn per row; "fits my fleet" = exactly the ✓ rows (+ the tracked); the headers (dot / name, count, "n hidden"), one
+  mmRow per shown contract, a folded section drawing none, the captions' hidden counts, the summary and Clear; NIGHT-OPS'
+  night jobs tagged and the window filter exactly theirs; a hidden open row's ring / route gone and the dimmed badges =
+  the places no shown row involves; no auto-zoom from the five new controls; the per-viewer memory's shape (no filters,
+  try / catch). The earlier rows adapted, not loosened: the customer select's row is now "the contractor sections sum to
+  All" (fixture 2+3+2+2+2 = 11, real 4x5 = 20); R1 adds the new targets (.mmSegB .mmSel .mmFltB .mmChip .mmClr .mmGrp
+  >= 48 px); ONE LOOK checks them on --ed-btn-bg / -bd and every new `font:` is Plex (27 rules); no serif / italic.
+
+**G2714 THE STILLS** - `tools/map_group_shot.js` (new; out `futureDesigns/game/evidence/MAP-GROUP/`, 6 stills + shots.json
+with the page's own answers). Every still is of the LOADED page (BOOT 'gone', #boot hidden, + 2 s, before and after); each
+probe checks the sections and rows the DOM draws against `MAP_MENU.contractView` of the same state, every text Plex
+upright, every target of the list >= 48 px, no title=, no page error.
+- `map_group_desk_type.jpg` - ?career=1, grouped by Type (default), by pay: Cargo 8, Passengers 7, Survey 5 (= 20).
+- `map_group_desk_contractor.jpg` - grouped by Contractor, by Distance: the five contractors x 4, each row's km, the legend.
+- `map_group_desk_filters.jpg` - a water job tracked, then Surface land, Km ≤ 15, Pay ≥ 4 000: each caption's hidden
+  count, "n of 20 · hidden" + CLEAR, the tracked row first "OUTSIDE THE FILTERS", the places no shown row involves dimmed.
+- `map_group_desk_folded.jpg` - the Cargo section folded; then a reload keeps the order, the fold and the panel open, not
+  the filters (checked).
+- `map_group_phone_sheet.jpg` - the phone's folded sheet: the switch, TYPE · CONTRACTOR, the order, FILTERS, the first
+  section under them.
+- `map_group_phone_filters.jpg` - the phone sheet open on the panel: Passengers + "✓ only" (TYPE 13 hidden, FITS 3 hidden).
+
+Files: src/viewer/map_menu.js (the core block, the head, the CSS, the DOM half's events and memory, overlayOf's ring / dim,
+the header comment), tools/_map_smoke.js (the MAP-GROUP row, the adapted customer / R1 / ONE LOOK rows, its header), new
+tools/map_group_shot.js, tools/map_style_shot.js (one selector), futureDesigns/game/evidence/MAP-GROUP/.
+
+Open / notes:
+- Readings chosen where the brief left room (say if any should change): the place filter stays exact (the tracked row is
+  pinned against the parameter filters, not against a map tap); a section the filters empty is not drawn (the summary
+  counts it); Distance / Stops order short / fewest first, Load heaviest first, no direction toggle; the load counts a
+  passenger at 80 kg (PAX_KG); "fits my fleet" leaves the build contracts out (they carry no ✓).
+- tools/map_style_shot.js probed `.mmCust` for MAP-STYLE's select dress: now the order select `.mmSort` (the same rows'
+  select rule); its committed stills stand.
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR
